@@ -27,7 +27,7 @@ folders after release: reading progress is stored by id.
 
 ```
 content/
-├── book.yaml                     the book (title, author, publisher)
+├── book.yaml                     the book (title, author, publisher, source of truth)
 ├── spreads/
 │   └── spread1/
 │       └── spread.yaml           title and pages of the spread
@@ -360,6 +360,12 @@ target:
 back spread the page after the last printed one; an entry on that page belongs to it. Its targets are printed on the
 surface `front` or `back` (see `print` below). The editor shows the closed book for them; the reader treats them like
 any spread. More formats (a museum wall, an object) come with the layout templates of issue #60.
+
+**Source of truth** (content schema 2.25, #238): `book.yaml` may say where the book's spreads come from –
+`sourceOfTruth: print` (print first, the default: the printed book is the truth, its spreads, pages and printed
+placements come from the layout and an import) or `sourceOfTruth: digital` (digital first: the book is made in the
+editor, which adds and removes its spreads – the demo book is). The editor's import keeps the content's value and sets
+`print` when there is none; an editor changes it in the book's Inspector. The reader does not read it.
 
 **Environment** (content schema 2.8): `book.yaml` may set `environment: { world: cafe, onionSky: true }` – the world
 around the reader while scanning and the onion sky (docs/look-around.md). Book-level only; without it the café with
@@ -708,7 +714,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 2.22 | 1.57.0 | in develop | a pass's optional `enabled` – `false` switches it off: it keeps its place and values, the chain skips it (#233) | skipped: a 1.55.0 app drops the unknown field with the update hint, an older one ignores it – either way it runs, and so shows, a pass that is off |
 | 2.23 | 1.59.0 | in develop | no new field – an entry's `body` is Markdown (paragraphs, `*emphasis*`, `**strong**`, `[links](https://…)`) with the book's variables in braces (`{hasKey}`, `{hasKey: …\|…}`, #223); plain text reads as before | the body as written: the stars, brackets and braces show as they are (`**strong**` stays `**strong**`, `{hasKey}` stays `{hasKey}`) – nothing breaks, nothing is skipped |
 | 2.24 | 1.60.0 | in develop | nothing new in the content – `shared/` tidied: one `isObject`, one camelCase name pattern, unused `isComponentType` and `PlacementData` removed (#214) | nothing changes |
-| 2.25 | next | in develop | the configuration's `tutorial` is optional: the reader's onboarding is its own (steps in code, texts in its translations, #236); the build and a publish still write the app's English steps for older apps (`shared/compat/tutorial.ts`) until the next MAJOR | nothing changes: it finds the `tutorial` it requires and shows those steps (in English, the book's fields filled in) |
+| 2.25 | next | in develop | the configuration's `tutorial` is optional: the reader's onboarding is its own (steps in code, texts in its translations, #236); the build and a publish still write the app's English steps for older apps (`shared/compat/tutorial.ts`) until the next MAJOR – and the book's optional `sourceOfTruth` (`print` \| `digital`, #238: whether the editor adds and removes spreads) | nothing changes: it finds the `tutorial` it requires and shows those steps (in English, the book's fields filled in); `sourceOfTruth` is ignored (the guard reads no unknown field of the book) |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

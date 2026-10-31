@@ -17,6 +17,14 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 - **The book in the Inspector** (#237): a tap on the book's name in the top bar selects the book – its title, author and
   publisher are edited there, with where its files come from and a link back to all spreads.
 - **+ entry** in the tree, next to *+ target* (#237): a new entry without a printed image on the spread.
+- **Print first or digital first** (#238): a book says where its spreads come from – the printed layout (print first,
+  every imported book to start with) or the editor (digital first, the demo book). Editors switch it in the book's
+  Inspector. Only a digital-first book's spreads are added and removed: its book page ends with a tile the size of a
+  double page with a large **+**, which opens a creation step in the page – the format (double page, cover, back cover –
+  the ones the book can still take), the title and the place; the same step opens from **+** after the last spread in the
+  workspace, from a card's and the tree's *Add a double page after*. A print-first book shows none of it, and the API and
+  the MCP tools refuse to add or remove its spreads. In the content it is the book's optional `sourceOfTruth` (schema
+  2.25 – an older app ignores it).
 
 ### Changed
 - **The book page shows the spreads only** (#237): its head is the book's title and author; the asset address and the

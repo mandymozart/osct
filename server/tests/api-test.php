@@ -650,6 +650,9 @@ try {
     // The import ignores the configuration's onboarding; the draft carries the one older apps require (#236)
     check(array_column($draft['tutorial'] ?? [], 'id') === ['splash', 'intro', 'camera', 'done'], 'the tutorial of the draft is the compat steps, not the imported one');
     $expected['tutorial'] = $draft['tutorial'] ?? [];
+    // An imported book is print first unless its content says otherwise (#238)
+    check(($draft['book']['sourceOfTruth'] ?? null) === 'print', 'the imported book is print first');
+    $expected['book']['sourceOfTruth'] = 'print';
     check($draft === $expected, 'import → draft round-trips the configuration unchanged (keys, order, extra fields, the entry without a spread)');
     check(str_contains($rawDraft, '"params":{}') && str_contains($rawDraft, '"tags":[]'), 'empty objects and lists keep their kind');
     [$status, $data] = call($api, 'GET', "/editor/books/osct/draft/{$manifest['build']}/files.json", null, $editor);
@@ -1373,6 +1376,32 @@ try {
     $pdo = connect('test');
     check(!hasColumn($pdo, 'books', 'tutorial_json'), 'the books table has no tutorial_json');
     $pdo = null;
+
+    echo "editor: print first or digital first (#238)\n";
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    check(($tree['book']['book']['sourceOfTruth'] ?? null) === 'print', 'an imported book starts print first');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'cover'], $editor);
+    [$status2, $data2] = call($api, 'DELETE', '/editor/books/osct/spreads/' . $tree['spreads'][1]['id'], null, $editor);
+    check($status === 409 && $data['error']['code'] === 'print-first' && $status2 === 409 && $data2['error']['code'] === 'print-first',
+        'a print-first book takes no new spread and loses none → 409 print-first');
+    check(str_contains($data['error']['message'], 'digital first'), 'the refusal says how to change it');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct', ['sourceOfTruth' => 'paper'], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-book', 'sourceOfTruth paper → 400 invalid-book');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct', ['sourceOfTruth' => 'digital'], $editor);
+    [, $log] = call($api, 'GET', '/editor/books/osct/changes?limit=1', null, $editor);
+    check($status === 200 && $data['book']['sourceOfTruth'] === 'digital' && $log['changes'][0]['kind'] === 'book'
+        && $log['changes'][0]['before']['sourceOfTruth'] === 'print', 'PUT sourceOfTruth digital → the book is digital first, the change recorded');
+    [, $m] = call($api, 'GET', '/editor/books/osct/draft/latest.json', null, $editor);
+    [, $draftBook] = call($api, 'GET', "/editor/books/osct/draft/{$m['build']}/game.config.json", null, $editor);
+    check(($draftBook['book']['sourceOfTruth'] ?? null) === 'digital', 'the draft carries the book\'s source of truth');
+    $digitalConfig = $configuration;
+    $digitalConfig['book']['sourceOfTruth'] = 'digital';
+    [$status, $data] = call($api, 'POST', '/editor/import/preview', ['configuration' => $digitalConfig], $editor);
+    check($status === 200, 'a configuration that says digital first passes the import check');
+    $badConfig = $configuration;
+    $badConfig['book']['sourceOfTruth'] = 'paper';
+    [$status, $data] = call($api, 'POST', '/editor/import/preview', ['configuration' => $badConfig], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-configuration', 'an import whose book names another source of truth → 400');
 
     echo "editor: spread formats (content schema 2.3)\n";
     [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'cover'], $editor);

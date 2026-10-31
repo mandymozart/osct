@@ -297,6 +297,11 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
   });
 
   it("adds a double page and a back cover, sets passes and the environment, removes what is empty (#174)", async () => {
+    // An imported book is print first: the spreads are its layout's until the person makes it digital first (#238)
+    const refused = await call("add_spread", { book: "osct", format: "spread", after: "s1" });
+    expect([refused.ok, refused.data.error.code]).toEqual([false, "print-first"]);
+    expect(refused.data.error.hint).toMatch(/sourceOfTruth/);
+    expect((await call("update_book", { book: "osct", sourceOfTruth: "digital" })).data.book.sourceOfTruth).toBe("digital");
     const page = await call("add_spread", { book: "osct", format: "spread", after: "s1", title: "Studio A" });
     expect(page.ok, JSON.stringify(page.data)).toBe(true);
     expect(page.data.spread).toMatchObject({ id: "spread-1", title: "Studio A", firstPage: 3, lastPage: 4 });

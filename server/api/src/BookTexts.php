@@ -113,18 +113,22 @@ final class BookTexts
     }
 
     /**
-     * PUT /editor/books/{id} { title?, author?, publisher? } → 200 { book }: the book's texts – the splash, the home page
-     * and the onboarding show them. `publisher: null` (or "") removes it. 400 `invalid-book`.
+     * PUT /editor/books/{id} { title?, author?, publisher?, sourceOfTruth? } → 200 { book }: the book's texts – the
+     * splash, the home page and the onboarding show them – and its source of truth (`print` | `digital`, #238: whether
+     * spreads are added and removed in the editor). `publisher: null` (or "") removes it. 400 `invalid-book`.
      */
     public static function putBook(string $bookId): never
     {
         $user = Editor::user();
         Books::exists($bookId);
         $body = Editor::body();
-        $fields = ['title', 'author', 'publisher'];
+        $fields = ['title', 'author', 'publisher', 'sourceOfTruth'];
         $unknown = array_diff(array_keys(get_object_vars($body)), $fields);
-        if ($unknown) throw new ApiError(400, 'invalid-book', 'Unknown field ' . implode(', ', $unknown) . ' – send title, author or publisher.');
-        if (!get_object_vars($body)) throw new ApiError(400, 'invalid-book', 'Send title, author or publisher.');
+        if ($unknown) throw new ApiError(400, 'invalid-book', 'Unknown field ' . implode(', ', $unknown) . ' – send title, author, publisher or sourceOfTruth.');
+        if (!get_object_vars($body)) throw new ApiError(400, 'invalid-book', 'Send title, author, publisher or sourceOfTruth.');
+        if (property_exists($body, 'sourceOfTruth') && !in_array($body->sourceOfTruth, Editor::SOURCES_OF_TRUTH, true)) {
+            throw new ApiError(400, 'invalid-book', 'sourceOfTruth must be one of ' . implode(', ', Editor::SOURCES_OF_TRUTH) . '.');
+        }
         $book = Db::transaction(static function () use ($bookId, $body, $user) {
             $row = Books::bookRow($bookId, true);
             $book = Editor::decode($row['book_json']);
@@ -135,6 +139,7 @@ final class BookTexts
                 $publisher = $body->publisher === null ? null : self::text($body->publisher, 'publisher', false, 'invalid-book');
                 self::optional($book, 'publisher', $publisher === '' ? null : $publisher);
             }
+            if (property_exists($body, 'sourceOfTruth')) $book->sourceOfTruth = $body->sourceOfTruth;
             $json = Editor::encode($book);
             Db::run('UPDATE books SET title = :title, author = :author, book_json = :data WHERE id = :id', ['title' => $book->title, 'author' => $book->author, 'data' => $json, 'id' => $bookId]);
             Books::touchBook($bookId);

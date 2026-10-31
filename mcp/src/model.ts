@@ -27,6 +27,7 @@ import {
   PLUGIN_API_VERSION,
   PLUGIN_ID_PATTERN,
   PRINT_SURFACES,
+  SOURCES_OF_TRUTH,
   SPREAD_FORMATS,
   type PluginData,
 } from "../../shared/types/game-config";
@@ -339,7 +340,8 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
       example: "Hello {name: **{name}**|stranger}.\n\n{hasKey: The door opens.|The door is *locked*.} See [the map](https://example.org/map).",
     },
     book: {
-      description: "BookData: { id, title, author, publisher?, passes?, environment? }. update_book changes title, author and publisher – the reader's splash and home page show them.",
+      description: "BookData: { id, title, author, publisher?, passes?, environment?, sourceOfTruth? }. update_book changes title, author and publisher – the reader's splash and home page show them – and sourceOfTruth: print (print first, the default: the spreads come from the printed book's layout) or digital (digital first: add_spread and delete_spread work).",
+      sourcesOfTruth: SOURCES_OF_TRUTH,
     },
     onboarding: {
       description: "The onboarding (the splash and the steps before the scan) is the reader app's own UI, translated with the app – no book content and no tool edits it. The splash shows the book's title, author and publisher (update_book).",

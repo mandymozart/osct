@@ -558,12 +558,19 @@ http(s) – and a picture of the book's Library.
 |---|---|---|
 | `GET /editor/books/{id}/entries` | | `{ entries: [{ …EntryData without its target, spreadId, target: { id, imageSrc } \| null }] }` – every entry in the book's order, each field as written (an imported picture's `/assets/content/…` path unresolved) |
 | `PUT /editor/books/{id}/entries/{eid}` | `{ title?, body?, author?, image?, media?, tags?, category?, page? }` | `{ entry, spreadId, previousSpreadId }` – the fields sent change; `null` removes `author`, `image` or `media`. `title` and `author` are trimmed (`title` not empty, at most 500 characters), `body` is Markdown kept as written (at most 100 000 characters – `docs/content.md` "The text: Markdown and variables"; the API does not judge its braces), `tags` a list of words (trimmed, each once, the empty ones left out; at most 32 of 64 characters), `category` one of the contract's, `media` an http(s) URL with a host, `image` the URL of an uploaded image or a file of the import (its path or its URL below the assets base) – or the value the entry has. A new `page` moves the entry to the first spread whose pages include it, none when no spread does (as `POST …/entries`); its target stays as it is. 400 `invalid-entry` (an unknown field too), 404 |
-| `PUT /editor/books/{id}` | `{ title?, author?, publisher? }` | `{ book }` – the book's `book` after the change (the list's and tree's `title` and `author` follow); title and author not empty, `publisher: null` or `""` removes it. 400 `invalid-book` |
+| `PUT /editor/books/{id}` | `{ title?, author?, publisher?, sourceOfTruth? }` | `{ book }` – the book's `book` after the change (the list's and tree's `title` and `author` follow); title and author not empty, `publisher: null` or `""` removes it; `sourceOfTruth` `print` or `digital` (#238 – [Spreads made in the editor](#spreads-made-in-the-editor)). 400 `invalid-book` |
 
 The limits are `shared/api/rules.ts`' too (`TEXT_MAX_LENGTH`, `BODY_MAX_LENGTH`, `ENTRY_TAGS`, `isLinkUrl`) –
 `mcp/test/php-rules.test.ts` compares them with the PHP.
 
 ### Spreads made in the editor
+
+**Only a digital-first book** (#238): a book's `book.sourceOfTruth` says where its spreads come from – `print` (print
+first: the printed book's layout, through an import) or `digital` (digital first: the editor). `POST …/spreads` and
+`DELETE …/spreads/{id}` answer 409 `print-first` (with how to change it) unless the book is digital first. An import keeps
+the configuration's value and writes `print` when it has none (an imported book is print first; a value other than
+`print` / `digital` is a 400 `invalid-configuration`); `PUT /editor/books/{id}` `{ sourceOfTruth }` changes it, recorded
+as a `book` change. The draft and a publish carry it in `book` (content schema 2.25 – an older app ignores it).
 
 A spread's pages decide which entries are on it: an entry belongs to the first spread whose `firstPage`–`lastPage`
 include its `page` (the `spread_id` column records it), and a target's optional `print.page` names its page. Adding

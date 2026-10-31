@@ -210,22 +210,32 @@ is live is in the top bar ([above](#publish-the-instances-own-environment)).
 The spreads as cards with the sheet of each as its preview (from the book's layout below its assets base – the
 Inspector's *assets* names it; without a layout the cards are text), their entries, targets and AR count.
 
-- **+ double page** adds a double page after the last one (before the back cover), a card's *Add a double page after*
-  one right after that spread – a cover included, the back cover not. A new double page is empty (*New spread*, id
+- **Print first or digital first** (#238, the book's source of truth – [Inspector: the book](#inspector-the-book)):
+  spreads are added and removed in the editor only for a **digital-first** book. A print-first book's spreads come from
+  its layout and an import: its page has no add tile and its cards' menus only *Open* – absent, not disabled; the API
+  refuses too (409 `print-first`). An imported book starts print first; the demo book is digital first.
+- **The add tile** ends the grid of a digital-first book: a double page's size, a dashed frame with a large **+** – the
+  place a new spread appears. It opens the **creation step** in its place, no browser dialog (`NewSpreadForm.svelte`,
+  its choices in `spread-edit.ts`): the **format** (a double page, the cover, the back cover – only those the book can
+  still take: one cover, one back), the **title** (empty: *New spread*, *Cover*, *Back cover*) and for a double page
+  **after** which spread it goes, with the pages it takes and whether later pages move; *Create*, *cancel*. A card's
+  *Add a double page after* opens the same step with that spread chosen. In the workspace the same step opens in the
+  panel from **+** after the last spread's › and from the tree's spread row menu; the new spread opens. A new double
+  page is empty (*New spread*, id
   `spread-<n>`) and takes the two pages after the spread before it: **every later page is numbered on by two**, and the
   entries on those pages (their `page`) and their targets' printed page (`print.page`) move with them, so each entry
   stays on its spread. The book's layout does not move – a laid-out sheet is matched by its pages, so after an insertion
   every card from the new spread on shows the sheet of its new page numbers (the new one the sheet the next spread had)
   until a layout with the new pages is imported.
-- **+ cover** / **+ back cover** add the covers as spreads of the format `cover` / `back` (content schema 2.3: page 0,
-  and the page after the last) when the book has none. A one-page spread's **format** (spread, cover, back) is chosen in
+- **The covers** are spreads of the format `cover` / `back` (content schema 2.3: page 0, and the page after the last),
+  made in the creation step while the book has none. A one-page spread's **format** (spread, cover, back) is chosen in
   the Inspector's *spread* section; on a double page the select is disabled (only a one-page spread can be a cover) –
   the reason is its help in the Info view.
 - **A card's menu** (#196): the card itself carries no buttons – the sheet is the content; a **right click** (a mouse), a
   **long press** (a finger held still for half a second – the card's frame darkens and shrinks a little while it is
   held; moving more than a few pixels is a scroll and cancels it, a tap still opens the spread) or the **menu key /
-  Shift+F10** on a focused card opens a small menu with *Open*, *Add a double page after* and *Remove*, each with its
-  icon. It is a WAI-ARIA menu: the first item has the focus, ↑ ↓ wrap, Home / End, a first letter jumps, Enter or Space
+  Shift+F10** on a focused card opens a small menu with *Open*, *Add a double page after* and *Remove* (the last two only
+  for a digital-first book), each with its icon. It is a WAI-ARIA menu: the first item has the focus, ↑ ↓ wrap, Home / End, a first letter jumps, Enter or Space
   chooses, Esc, Tab, a click beside it or scrolling the page away close it, and the focus goes back to the card. A
   disabled item stays in the menu with its reason under its word. The long press and the keys are
   `editor/src/lib/context-menu.ts` (pure, tested) and `menu-trigger.ts`; the menu is the editor's one context menu
@@ -279,7 +289,8 @@ tree as its first tab. The tabs (#229, `lib/panel-tabs.ts`): **Inspector** (what
 **Library**, **Code** – no Stage tab: the spread is the Inspector's, the preview settings are the stage toolbar's; a tab
 stored before (`stage`, `entity`) opens the Inspector, as does a first visit.
 
-The bar: × back to the spreads, ‹ › (also ← →) through the spreads, the tabs – as words, or as icons in a panel too
+The bar: × back to the spreads, ‹ › (also ← →) through the spreads – on the last spread of a digital-first book a **+**
+after › opens the creation step of a new spread (#238; on a phone beside › at the stage's corner) –, the tabs – as words, or as icons in a panel too
 narrow for them (under 24rem, 28rem with a finger), so the head stays one line (#172). On a phone the head is the five
 tab icons alone, sharing its width (#171): ‹ › sit at the stage's lower corners, and the top bar's book crumb selects
 the book, whose Inspector leads back to the spreads (*All spreads*). On a stage too short for them below the toolbar (the sheet almost full) they move to its top
@@ -351,7 +362,9 @@ stage the rest, #172). With a finger the rows are the touch control height, the 
   **menu key / Shift+F10** on the tree for its selected row, each item with its icon: on a target row **Remove target** –
   the entry with its target, its entity and (only with the option) the Library files used only there go, after the same
   confirmation as a spread's, shown in the panel; on an entry row *Select the target* (with a printed target) and
-  **Remove entry**, the same removal and confirmation – an entry without a target too; the spread row has no menu; on a
+  **Remove entry**, the same removal and confirmation – an entry without a target too; on the spread row of a
+  digital-first book *Add a double page after* (the creation step in the panel, #238 – a print-first book's spread row
+  has no menu); on a
   node row *Move up / down*, *Into the node above*, *Out of its parent* and *Remove node* / *Remove entity*, each with
   its key at the right (not with a finger; a move that cannot be made is disabled with its reason).
 - **Delete** (or Backspace) removes the selected node – its children with it, the root leaves the target without AR
@@ -703,9 +716,12 @@ draft; **Back to the draft** drops them.
 
 A plain click on the book's crumb in the top bar selects the book (#237, `panels/BookPanel.svelte`; Ctrl- or ⌘-click
 still opens the book page): its head *book* with **All spreads** (the book page), the book's texts – title, author,
-publisher (`BookTexts.svelte`, a section open at first; Save → `PUT /editor/books/{id}`, *Back to the draft*) – and
-where its content files are read from (*assets*, the import's base; empty: the draft's origin). The crumb stays
-underlined while the book is selected. A tap in the tree or on the stage selects something else again.
+publisher (`BookTexts.svelte`, a section open at first; Save → `PUT /editor/books/{id}`, *Back to the draft*) –,
+its **source of truth** (#238, a section: *print first* / *digital first*, saved when chosen – `book-source.svelte.ts`;
+the explanation is its help: print first, the printed book is the truth and spreads come from the layout's import;
+digital first, the editor is the truth and adds and removes spreads) and where its content files are read from
+(*assets*, the import's base; empty: the draft's origin). The crumb stays underlined while the book is selected. A tap in
+the tree or on the stage selects something else again.
 
 ### Inspector: the spread
 

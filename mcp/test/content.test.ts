@@ -322,6 +322,15 @@ describe("the content tools", () => {
     expect([...rec.tools.keys()].filter(name => /tutorial|onboarding/.test(name))).toEqual([]);
   });
 
+  it("update_book sets the book's source of truth; a print-first refusal of a spread comes with the hint (#238)", async () => {
+    const book = await rec.call("update_book", { book: "osct", sourceOfTruth: "digital" });
+    expect(book.data.book.sourceOfTruth).toBe("digital");
+    await expect(rec.call("update_book", { book: "osct", sourceOfTruth: "paper" })).rejects.toThrow();
+    expect(hintFor(new ApiError(409, "print-first", "This book is print first"))).toMatch(/person's decision/);
+    expect(rec.tools.get("add_spread")!.config.description).toMatch(/digital-first/);
+    expect(rec.tools.get("delete_spread")!.config.description).toMatch(/print-first/);
+  });
+
   it("describe_content_model explains an entry's Markdown and variables, the book and that the onboarding is the app's (#223, #236)", async () => {
     const model = (await rec.call("describe_content_model", {})).data;
     expect(model.contentSchema).toBe("2.25");

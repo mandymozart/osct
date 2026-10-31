@@ -4,7 +4,7 @@
  * Folder names are the ids; nested objects (entry.target, entity assets) are checked in the build.
  */
 import { ENTRY_CATEGORIES } from "../../../shared/types/entry";
-import { SPREAD_FORMATS } from "../../../shared/types/game-config";
+import { SOURCES_OF_TRUTH, SPREAD_FORMATS } from "../../../shared/types/game-config";
 
 /** `List`: an array of texts, or the texts in one comma-separated string */
 export type FieldType = "String" | "Number" | "Array" | "List" | "Boolean" | "Object";
@@ -32,6 +32,7 @@ export const schemas = {
       publisher: { type: "String", required: false },
       passes: { type: "Array", required: false }, // post-processing of every spread without its own: [{ type, ...parameters }], see shared/types/passes.ts
       environment: { type: "Object", required: false }, // the world around the reader and the onion sky: { world, onionSky, worldSrc?, skySrc? }, see shared/types/environment.ts
+      sourceOfTruth: { type: "String", required: false, enum: SOURCES_OF_TRUTH }, // print (default: spreads from the layout) | digital (spreads made in the editor)
     },
   },
 

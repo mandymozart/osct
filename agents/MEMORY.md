@@ -4,6 +4,30 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – print first or digital first: the book's source of truth (#238)
+
+- **Tilman** (#238): *"+ spread … an option we only give when the book's meta notes whether it is print first or
+  digital first – what the source of truth is – it has to be a setting we can change"*, *"the add spread can be just as
+  big as a double page's tile with a plus inside"*, *"whether a cover or another format is chosen is part of the dialog
+  that takes care of the creation"*.
+- **In the content, not a column**: `book.sourceOfTruth` (`print` | `digital`, content schema 2.25 together with #236's
+  change – one MINOR). The book's `book_json` holds it, so no migration; none means print (`sourceOfTruthOf`). The guard
+  does not check it (the reader does not read it; an older guard ignores unknown book fields) – the content build and
+  the API check the value.
+- **Set on import**: the configuration's own value, else `print` – so the demo, whose `book.yaml` says `digital`, is
+  digital first after an import, the OSCT book print first. There is no "new empty book" flow yet (books only come in
+  through an import), so *"a new empty book digital first"* has nowhere to live today. **Staging's demo** keeps its row
+  as imported before: print first until it is re-imported or switched in its Inspector.
+- **Enforced in the API** (`Books::requireDigitalFirst`: `POST`/`DELETE …/spreads` → 409 `print-first` with how to
+  change it); the MCP tools say so in their descriptions and the hint of the refusal (switching is the person's yes);
+  the editor leaves the controls out for a print-first book (RULES #32: absent, not disabled).
+- **The creation step** (`NewSpreadForm.svelte`, choices in `spread-edit.ts`): format, title, *after* (double page only)
+  with the pages it takes; on the book page it replaces the add tile in place (full row), in the workspace it is the
+  panel's body. The card menu's *Add a double page after* now opens the step (with the spread chosen) instead of adding
+  at once. The tile gets a spacer before it when the last spread ends on a left-hand page, so it sits like a double page.
+- **+ after the last spread's ›**: the panel bar on a desktop, beside › at the stage's corner on a phone (not while ‹ ›
+  sit at the top on a short stage).
+
 ## 2026-10-31 – texts inside the editor: the book search in the top bar, the book in the Inspector (#237)
 
 - **Tilman** (#237): *"a search in the document is not wrong, but a separate page is the wrong place – it is rather part

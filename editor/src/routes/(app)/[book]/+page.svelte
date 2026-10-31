@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import { resolve } from "$app/paths";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { addSpread, deleteSpread, errorText, getBook, type BookTree } from "#lib/api.js";
-  import { followBlockedBy, removeBlockedBy } from "#lib/spread-edit.js";
+  import { deleteSpread, errorText, getBook, type BookTree } from "#lib/api.js";
+  import { canEditSpreads, followBlockedBy, removeBlockedBy } from "#lib/spread-edit.js";
+  import NewSpreadForm from "#lib/NewSpreadForm.svelte";
   import { removalStep, type RemovalStep } from "#lib/removal.js";
   import RemovalConfirm from "#lib/components/RemovalConfirm.svelte";
   import ContextMenu, { type MenuItem } from "#lib/components/ContextMenu.svelte";
@@ -22,29 +23,35 @@
    * carries one) with the targets' prints over it (#153); open one to work on its stage. The book's texts and settings
    * are the Inspector's (the top bar's book crumb in a spread, #237), its entries are found with the top bar's search
    * and edited in their spread – the page has no other views (an old `?view=` link shows the spreads).
+   * A digital-first book (#238) ends its grid with the add tile – a double page's size, a large + – that opens the
+   * creation step in its place (`NewSpreadForm`, the tile's size); a card's menu adds after it and removes. A print-first book's spreads
+   * are its layout's: no tile, no adding or removing in the menu.
    */
   const bookId = $derived(page.params.book!);
   let tree = $state<BookTree | null>(null);
   let layout = $state<StageLayout | null>(null);
   let error = $state<string | null>(null);
 
-  let adding = $state(false);
-  /** One change to the spreads, then the tree again (the pages may have been numbered anew) */
-  const change = async (work: () => Promise<unknown>) => {
-    adding = true;
-    error = null;
-    try {
-      await work();
-      tree = await getBook(bookId);
-    } catch (e) {
-      error = errorText(e);
-    } finally {
-      adding = false;
-    }
-  };
-  /** A double page after `after` (default: the last one before the back cover); the later pages are numbered on */
-  const addDoublePage = (after?: string) => change(() => addSpread(bookId, after ? { format: "spread", after } : { format: "spread" }));
+  /** Spreads are added and removed here only for a digital-first book (#238) */
+  const digital = $derived(canEditSpreads(tree?.book.book));
   type Spread = BookTree["spreads"][number];
+
+  // ── the creation step (#238): the add tile or a card's *Add a double page after* opens it at the grid's end ──
+  let creating = $state<{ after: string | null } | null>(null);
+  let addTile = $state<HTMLLIElement>();
+  const openCreate = async (after: string | null) => {
+    creating = { after };
+    await tick();
+    addTile?.scrollIntoView({ block: "center", behavior: "smooth" });
+  };
+  /** A spread was made: the tree again (the later pages may have been numbered on), the new card focused */
+  const created = async (spreadId: string) => {
+    creating = null;
+    tree = await getBook(bookId);
+    await tick();
+    links[spreadId]?.focus();
+    links[spreadId]?.scrollIntoView({ block: "nearest" });
+  };
 
   // ── a card's menu (#196): right click, a long press or the menu key – the sheet carries no buttons ──
   let menu = $state<{ id: string; at: Point } | null>(null);
@@ -53,16 +60,17 @@
   /** The cards' links, for the focus to come back to when the menu closes */
   const links: Record<string, HTMLAnchorElement> = {};
   const openCard = (spread: Spread) => void goto(resolve(`${bookId}/${spread.id}/`));
-  const menuItems = (spread: Spread): MenuItem[] => {
-    const busy = adding ? "A change to the spreads is under way." : null;
-    return [
-      { label: "Open", icon: "open", help: "Opens the spread's stage.", select: () => openCard(spread) },
-      { label: "Add a double page after", icon: "plus", disabled: busy ?? followBlockedBy(spread), select: () => void addDoublePage(spread.id),
-        help: "A double page right after this spread. The pages after it are numbered on by two, their entries move with them." },
-      { label: "Remove", icon: "trash", danger: true, disabled: busy ?? removeBlockedBy(spread, tree?.book.initialSpreadId), select: () => void askRemove(spread),
-        help: "Removes this spread with its entries, targets and the entities used only there – it shows what goes and asks first; the pages after a double page are numbered back. Library files are kept unless you choose to delete the ones used only here. The spread the book opens on stays." },
-    ];
-  };
+  const menuItems = (spread: Spread): MenuItem[] => [
+    { label: "Open", icon: "open", help: "Opens the spread's stage.", select: () => openCard(spread) },
+    ...(digital
+      ? [
+          { label: "Add a double page after", icon: "plus", disabled: followBlockedBy(spread), select: () => void openCreate(spread.id),
+            help: "Opens the creation step for a double page right after this spread. The pages after it are numbered on by two, their entries move with them." },
+          { label: "Remove", icon: "trash", danger: true, disabled: removeBlockedBy(spread, tree?.book.initialSpreadId), select: () => void askRemove(spread),
+            help: "Removes this spread with its entries, targets and the entities used only there – it shows what goes and asks first; the pages after a double page are numbered back. Library files are kept unless you choose to delete the ones used only here. The spread the book opens on stays." },
+        ] satisfies MenuItem[]
+      : []),
+  ];
 
   /** The spread whose removal is being asked about, in its card, with the API's impact – no browser dialog (#198) */
   let confirming = $state<{ id: string; step: RemovalStep } | null>(null);
@@ -116,6 +124,11 @@
 
   const withTarget = (spread: BookTree["spreads"][number]) => spread.entries.filter(entry => entry.target?.imageSrc);
   const cells = $derived(gridCells(tree?.spreads ?? []));
+  /** The add tile is a double page: a spacer before it when the last spread ends on a left-hand page */
+  const tileSpacer = $derived.by(() => {
+    const withTile = gridCells([...(tree?.spreads ?? []), { id: "", title: "", firstPage: 0, lastPage: 1 }]);
+    return withTile.length > 1 && withTile[withTile.length - 2].spacer;
+  });
   /** One page's proportions: a double page is twice as wide, so every card has the cover's height */
   const pageMm = $derived(pageOf(layout));
   const pageRatio = $derived(pageMm.width / pageMm.height);
@@ -142,7 +155,7 @@
             class:pressing={pressing === spread.id} class:menu-open={menu?.id === spread.id}>
             <a href={resolve(`${bookId}/${spread.id}/`)} class="spread" draggable="false" aria-haspopup="menu" aria-expanded={menu?.id === spread.id}
               bind:this={links[spread.id]}
-              data-help="Opens the spread's stage. Its menu – a right click, a long press, or the menu key – adds a double page after it or removes it."
+              data-help={digital ? "Opens the spread's stage. Its menu – a right click, a long press, or the menu key – adds a double page after it or removes it." : "Opens the spread's stage. The book is print first: its spreads come from the layout's import."}
               {@attach menuTrigger({
                 open: at => { confirming = null; menu = { id: spread.id, at }; },
                 pressing: on => { pressing = on ? spread.id : pressing === spread.id ? null : pressing; },
@@ -163,7 +176,7 @@
               </span>
             </a>
             {#if confirming?.id === spread.id}
-              <RemovalConfirm step={confirming.step} busy={removing || adding} error={removeError}
+              <RemovalConfirm step={confirming.step} busy={removing} error={removeError}
                 onconfirm={deleteFiles => void removeSpread(spread, deleteFiles)} oncancel={() => keep(spread)} />
             {/if}
             {#if menu?.id === spread.id}
@@ -173,6 +186,21 @@
           </li>
         {/if}
       {/each}
+      {#if digital}
+        {#if tileSpacer}<li class="spacer" aria-hidden="true"></li>{/if}
+        <!-- The add tile: a double page's size with a large + – the place a new spread appears; it opens the creation step there -->
+        <li class="add" class:open={!!creating} bind:this={addTile} style:grid-column="span 2">
+          {#if creating}
+            <div class="create"><NewSpreadForm {bookId} spreads={tree.spreads} after={creating.after} oncreated={created} oncancel={() => (creating = null)} /></div>
+          {:else}
+            <button type="button" class="tile" onclick={() => void openCreate(null)} aria-label="Add a spread"
+              data-help-name="Add a spread" data-help="Opens the creation step: a double page, the cover or the back cover (those the book can still take), its title and where it goes – the pages after a new double page are numbered on by two.">
+              <span class="frame" style:aspect-ratio={2 * pageRatio}><Icon name="plus" size="2.5rem" stroke={1.5} /></span>
+              <span class="caption muted small">add a spread</span>
+            </button>
+          {/if}
+        </li>
+      {/if}
     </ul>
   {:else if !error}
     <p class="muted">Loading…</p>
@@ -216,4 +244,10 @@
   /* A phone has no pointer to describe controls for */
   @media (max-width: 47.9rem) { .info-dock { display: none; } main { padding: .75rem 1rem; } }
   .stats span { display: inline-flex; align-items: center; gap: .125rem; }
+  .tile { display: block; width: 100%; padding: 0; border: none; background: none; color: var(--muted); text-align: left; cursor: pointer; }
+  .tile .frame { display: flex; align-items: center; justify-content: center; border: 1px dashed var(--line); }
+  @media (hover: hover) { .tile:hover .frame { border-color: var(--text); color: var(--text); } }
+  .tile:focus-visible { outline: none; }
+  .tile:focus-visible .frame { border-color: var(--text); color: var(--text); }
+  .create { padding: .5rem; border: 1px dashed var(--line); }
 </style>

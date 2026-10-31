@@ -172,6 +172,15 @@ ${environment}`,
       expect(build.errors).toEqual(['spreads/a: passes[0].enabled: expected true or false, got "off"']);
     });
 
+    it('the book\'s source of truth: print or digital, passed on; another value is an error (#238)', async () => {
+      const digital = await loadBuild(makeContent({ ...valid(), 'book.yaml': `${BOOK}sourceOfTruth: digital\n` }));
+      expect(digital.buildAll().book.sourceOfTruth).toBe('digital');
+      expect(digital.errors).toEqual([]);
+      const none = await loadBuild(makeContent(valid()));
+      expect(none.buildAll().book.sourceOfTruth).toBeUndefined();
+      expect(await errorsFor({ ...valid(), 'book.yaml': `${BOOK}sourceOfTruth: paper\n` })).toEqual([expect.stringContaining("sourceOfTruth")]);
+    });
+
     it('a missing book.yaml', async () => {
       const { 'book.yaml': _, ...files } = valid();
       expect(await errorsFor(files)).toContainEqual('book.yaml is missing');

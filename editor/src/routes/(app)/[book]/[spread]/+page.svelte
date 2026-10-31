@@ -20,6 +20,8 @@
   import { environmentEdit, stageEnvironment } from "#lib/environment.svelte.js";
   import NewTargetForm from "#lib/panels/NewTargetForm.svelte";
   import NewEntryForm from "#lib/panels/NewEntryForm.svelte";
+  import NewSpreadForm from "#lib/NewSpreadForm.svelte";
+  import { bookSource } from "#lib/book-source.svelte.js";
   import { entries } from "#lib/entries.svelte.js";
   import { deleteEntry, errorText, isMediaAsset, putTarget, type Asset, type MediaKind } from "#lib/api.js";
   import { removalStep, type RemovalStep } from "#lib/removal.js";
@@ -256,6 +258,27 @@
   let addingTarget = $state(false);
   /** The tree's "+ entry" (#237): an entry without a printed image on this spread */
   let addingEntry = $state(false);
+  /** The creation step of a new spread (#238 – a digital-first book): the double page follows `after` */
+  let addingSpread = $state<{ after: string | null } | null>(null);
+  const openNewSpread = (after: string | null) => {
+    addingTarget = false;
+    addingEntry = false;
+    addingSpread = { after };
+    if (shown === null) setTab(lastTab);
+  };
+  const spreadCreated = async (newId: string) => {
+    addingSpread = null;
+    await reloadContent();
+    void goto(resolve(`${bookId}/${newId}/`));
+  };
+  // Whether spreads are added here (#238): the book's source of truth, read once per book (the book's Inspector changes it)
+  $effect(() => {
+    const id = bookId;
+    if (bookSource.bookId !== id) void bookSource.load(id);
+  });
+  /** + after the last spread's › (#238) */
+  const atLastSpread = $derived(content.spreads.at(-1)?.id === spreadId);
+  const canAddSpread = $derived(bookSource.bookId === bookId && bookSource.digital);
   let entityPanel = $state<{ useAsset: (kind: MediaKind, src: string, assetId: string) => void }>();
   /** The content changed under the stage (a target's image or placement, a relink): reload it and build the spread again */
   const reloadContent = async () => {
@@ -432,6 +455,7 @@
     untrack(() => {
       addingTarget = false;
       addingEntry = false;
+      addingSpread = null;
       openTab("inspector");
     });
   });
@@ -616,7 +640,8 @@
     </div>
     {#if treeOpen}
       <div class="body tree-body"><TreePanel {stage} {spreadId} onselect={select} onaddtarget={() => { addingEntry = false; addingTarget = true; }}
-        onaddentry={() => { addingTarget = false; addingEntry = true; if (shown === null) setTab(lastTab); }} onremoveentry={removeEntry} /></div>
+        onaddentry={() => { addingTarget = false; addingSpread = null; addingEntry = true; if (shown === null) setTab(lastTab); }}
+        onaddspread={canAddSpread ? openNewSpread : undefined} onremoveentry={removeEntry} /></div>
       <InfoView />
       {#if treeShown}{@render edge("tree", "Tree edge")}{/if}
     {/if}
@@ -644,6 +669,10 @@
           title="Previous spread" aria-label="Previous spread"><Icon name="previous" /></button>
         <button type="button" class="icon-button framed step step-next" data-app-ui onclick={() => step(1)}
           title="Next spread" aria-label="Next spread"><Icon name="next" /></button>
+        {#if canAddSpread && atLastSpread && !stepsUp}
+          <button type="button" class="icon-button framed step step-add" data-app-ui onclick={() => openNewSpread(spreadId)}
+            title="Add a spread after the last one" aria-label="Add a spread"><Icon name="plus" /></button>
+        {/if}
       {/if}
       {#if stageMenu?.hit}
         {@const hit = stageMenu.hit}
@@ -701,6 +730,10 @@
         <a href={resolve(`${bookId}/`)} class="icon-button" title="Back to the spreads" aria-label="Back to the spreads"><Icon name="close" /></a>
         <button type="button" class="icon-button" onclick={() => step(-1)} title="Previous spread (←)" aria-label="Previous spread"><Icon name="previous" /></button>
         <button type="button" class="icon-button" onclick={() => step(1)} title="Next spread (→)" aria-label="Next spread"><Icon name="next" /></button>
+        {#if canAddSpread && atLastSpread}
+          <button type="button" class="icon-button" onclick={() => openNewSpread(spreadId)} title="Add a spread after the last one" aria-label="Add a spread"
+            data-help-name="Add a spread" data-help="Opens the creation step for a new spread – a double page after this one, or a cover the book does not have yet."><Icon name="plus" /></button>
+        {/if}
         <span class="grow"></span>
       {/if}
       {#each TAB_BUTTONS as b (b.tab)}
@@ -718,11 +751,13 @@
       <div class="body removal"><RemovalConfirm step={removal.step} busy={removalBusy} error={removalError} onconfirm={deleteFiles => void confirmRemoval(deleteFiles)} oncancel={() => (removal = null)} /></div>
     {:else if addingTarget && spread}
       <div class="body"><NewTargetForm {bookId} {spread} {stage} oncreated={targetCreated} oncancel={() => (addingTarget = false)} /></div>
+    {:else if addingSpread}
+      <div class="body"><NewSpreadForm {bookId} spreads={content.spreads} after={addingSpread.after} oncreated={spreadCreated} oncancel={() => (addingSpread = null)} /></div>
     {:else if addingEntry && spread}
       <div class="body"><NewEntryForm {bookId} {spread} oncreated={entryCreated} oncancel={() => (addingEntry = false)} /></div>
     {:else if shown === "tree"}
       <div class="body"><TreePanel {stage} {spreadId} onselect={select} onaddtarget={() => { addingEntry = false; addingTarget = true; }}
-        onaddentry={() => { addingTarget = false; addingEntry = true; }} onremoveentry={removeEntry} /></div>
+        onaddentry={() => { addingTarget = false; addingSpread = null; addingEntry = true; }} onaddspread={canAddSpread ? openNewSpread : undefined} onremoveentry={removeEntry} /></div>
     {:else if shown === "inspector"}
       <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} onenvironment={() => openTab("environment")} /></div>
     {:else if shown === "environment"}
@@ -755,6 +790,7 @@
   .step { position: absolute; bottom: .5rem; z-index: 1; color: var(--text); }
   .step-previous { left: .5rem; }
   .step-next { right: .5rem; }
+  .step-add { right: calc(.875rem + var(--control-height)); }
   .steps-up .tools { max-width: calc(100% - 1.375rem - 2 * var(--control-height)); }
   .steps-up .step { top: calc(.5rem + .1875rem); bottom: auto; }
   .steps-up .step-previous { left: auto; right: calc(.625rem + var(--control-height)); }

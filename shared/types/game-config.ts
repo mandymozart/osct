@@ -78,7 +78,8 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   and 2.24 adds nothing to the content (shared/ tidied: one `isObject`, one camelCase name pattern, unused types
  *   removed – #214), and since 2.25 the configuration's `tutorial` is optional: the reader owns its onboarding (its steps
  *   and their texts in its translations, #236) and reads none from the content; the content build and a publish still
- *   write the steps older apps require (`../compat/tutorial.ts`) until the next MAJOR.
+ *   write the steps older apps require (`../compat/tutorial.ts`) until the next MAJOR – and the book's optional
+ *   `sourceOfTruth` (print | digital: which side the spreads come from, #238; an older app ignores it).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
@@ -116,7 +117,21 @@ export interface BookData {
   passes?: PassData[];
   /** Optional (schema 2.8; world and sky assets 2.9): the world around the reader and the onion sky (`./environment.ts`); none = the default */
   environment?: EnvironmentData;
+  /**
+   * Optional (schema 2.25): the book's source of truth (#238) – `print` (print first: the printed book is the truth, its
+   * spreads, pages and printed placements come from an import of the layout) or `digital` (digital first: the editor is
+   * the truth, spreads are added and removed there). None = print (`sourceOfTruthOf`). The reader does not read it.
+   */
+  sourceOfTruth?: SourceOfTruth;
 }
+
+/** Where a book's spreads come from (`BookData.sourceOfTruth`, #238) */
+export const SOURCES_OF_TRUTH = ["print", "digital"] as const;
+export type SourceOfTruth = (typeof SOURCES_OF_TRUTH)[number];
+
+/** A book's source of truth: `digital` only when it says so – none (or a value this contract does not know) is print */
+export const sourceOfTruthOf = (book: Pick<BookData, "sourceOfTruth"> | null | undefined): SourceOfTruth =>
+  book?.sourceOfTruth === "digital" ? "digital" : "print";
 
 /**
  * What a spread is in the book: a double page (`spread`, the default), the front **cover** or the **back** cover – the

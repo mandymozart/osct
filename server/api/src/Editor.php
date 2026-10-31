@@ -37,6 +37,8 @@ Please, grant access to proceed.",
             'illustration' => '/assets/illustrations/tutorial-step-2.svg', 'button' => 'Grant access', 'action' => 'camera'],
         ['id' => 'done', 'index' => 3, 'title' => 'Thank you!', 'button' => 'Access scan', 'action' => 'scan'],
     ];
+    /** A book's source of truth (shared/types/game-config.ts `SOURCES_OF_TRUTH`, #238): print first or digital first */
+    public const SOURCES_OF_TRUTH = ['print', 'digital'];
     /** How deep an entity's node tree may nest (shared/guards: MAX_NODE_DEPTH) */
     public const MAX_NODE_DEPTH = 8;
     /** The surfaces a target can be printed on (shared/types/game-config.ts `PRINT_SURFACES`) */

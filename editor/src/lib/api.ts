@@ -1,6 +1,6 @@
 import type { EntityData, EntityRefData, GameConfiguration, PassData } from "@engine/types";
 import type { EnvironmentData } from "@shared/types/environment";
-import type { AssetType, PrintPlacement, SpreadFormat } from "@shared/types/game-config";
+import type { AssetType, PrintPlacement, SourceOfTruth, SpreadFormat } from "@shared/types/game-config";
 import type {
   Asset,
   AssetList,
@@ -498,8 +498,8 @@ export const getEntries = (bookId: string) => api<EntryList>("GET", `/editor/boo
 export const putEntry = (bookId: string, entryId: string, changes: Record<string, unknown>) =>
   api<EntrySaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/entries/${encodeURIComponent(entryId)}`, changes);
 
-/** The book's title, author and publisher (`publisher: null` removes it) */
-export const putBookTexts = (bookId: string, changes: { title?: string; author?: string; publisher?: string | null }) =>
+/** The book's title, author and publisher (`publisher: null` removes it), and its source of truth (#238) */
+export const putBookTexts = (bookId: string, changes: { title?: string; author?: string; publisher?: string | null; sourceOfTruth?: SourceOfTruth }) =>
   api<BookSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}`, changes);
 
 /** The book's world and onion sky; `null` removes them – the default applies */

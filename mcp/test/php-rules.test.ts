@@ -19,6 +19,7 @@ import {
   PASS_TYPES,
   PLUGIN_ID_PATTERN,
   PRINT_SURFACES,
+  SOURCES_OF_TRUTH,
   SPREAD_FORMATS,
 } from "../../shared/types/game-config";
 import {
@@ -71,6 +72,7 @@ function readPhp(): Record<string, unknown> {
       'TEXTS' => ['text' => BookTexts::TEXT_MAX_LENGTH, 'body' => BookTexts::BODY_MAX_LENGTH, 'tags' => BookTexts::TAGS_MAX, 'tag' => BookTexts::TAG_MAX_LENGTH],
       'links' => array_map(static fn(string $url): bool => BookTexts::isLinkUrl($url), $input['links']),
       'MAX_NODE_DEPTH' => Editor::MAX_NODE_DEPTH,
+      'SOURCES_OF_TRUTH' => Editor::SOURCES_OF_TRUTH,
       'PRINT_SURFACES' => Editor::PRINT_SURFACES,
       'FORMATS' => Books::FORMATS,
       'PASS_TYPES' => Books::PASS_TYPES,
@@ -103,6 +105,7 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(php.ENTRY_CATEGORIES).toEqual([...ENTRY_CATEGORIES]);
     expect(php.MAX_NODE_DEPTH).toBe(MAX_NODE_DEPTH);
     expect(php.PRINT_SURFACES).toEqual([...PRINT_SURFACES]);
+    expect(php.SOURCES_OF_TRUTH).toEqual([...SOURCES_OF_TRUTH]);
   });
 
   it("the book's texts: the limits and which links an entry may point to (BookTexts)", () => {
