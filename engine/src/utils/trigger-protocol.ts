@@ -3,6 +3,7 @@
  * image – written by the content build's protocol command to `/trigger-protocol.json` (docs/content.md, "Trigger
  * test protocol"). Optional: the trial panel and the editor's mock stage work without it.
  */
+import { isObject } from "@shared/guards/primitives";
 
 export interface TriggerInfo {
   /** The delivered file */
@@ -22,18 +23,15 @@ export type TriggerInfos = Record<string, TriggerInfo>;
 
 export const TRIGGER_INFO_URL = "/trigger-protocol.json";
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
 const TEXT_FIELDS = ["source", "position", "note"] as const;
 const NUMBER_FIELDS = ["width", "height", "x", "y"] as const;
 
 /** The protocol file's targets with the fields of the right type; anything else in it is left out */
 export const readTriggerInfos = (raw: unknown): TriggerInfos => {
   const infos: TriggerInfos = {};
-  if (!isRecord(raw)) return infos;
+  if (!isObject(raw)) return infos;
   for (const [targetId, value] of Object.entries(raw)) {
-    if (!isRecord(value)) continue;
+    if (!isObject(value)) continue;
     const info: TriggerInfo = {};
     for (const field of TEXT_FIELDS) {
       const text = value[field];

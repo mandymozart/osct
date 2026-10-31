@@ -4,6 +4,23 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – shared/ tidied in one schema MINOR (2.24, #214)
+
+- **One schema bump for the whole tidy-up** (#19's second pass, section 5): every change in `shared/` needs one, so the
+  findings waited for each other. 2.24 changes no content shape – an older app reads a 2.24 book exactly as before.
+- **`shared/guards/primitives.ts` is a leaf** (it imports nothing): `isObject` and the camelCase name pattern live there,
+  so every module of `shared/` – and the engine's trigger protocol and the editor's frame protocol – uses one copy without
+  an import cycle (the guard imports the types, so the types could not import the guard). `guards/game-config.ts`
+  re-exports `isObject` for the reader, the engine and the content build, which import it from there.
+- **The camelCase pattern is written once** (`CAMEL_CASE_NAME`, at most 40 characters; `camelCaseName(32)` for a plugin's
+  node type, the API's column width). `COMPONENT_TYPE_PATTERN`, `MATERIAL_TYPE_PATTERN`, `TEXTURE_TYPE_PATTERN` and
+  `BEHAVIOUR_NAME_PATTERN` stay as names for their role – the engine, the MCP server and the PHP comments name them.
+- **`BEHAVIOUR_NODE_ACTIONS` stays**: unused when #19 looked, the engine's forward-compatible list uses it since #220. It
+  now also replaces the behaviour grammar's own copy of the shorthands. Removed: `isComponentType`, `PlacementData`.
+- **The change log by schema version stays** in `shared/types/game-config.ts` (RULES #22's exception for the type docs);
+  its last line ("any MINOR of the same MAJOR loads") now says RULES #10's rule – skipped with a warning, apps before
+  #220 refused some of it.
+
 ## 2026-10-31 – content editing: entries, the book, the onboarding; Markdown and variables (#223)
 
 - **Tilman** (#223): *"Simple Markdown is cool in the long run – so a basic implementation. Here too, orient on the
@@ -1313,7 +1330,7 @@ outcome in the line (or move it into a dated decision block).
   a content change. So `TriggerInfo` lives in the engine (it reads the file) and `scripts/src/protocol.ts` imports the
   type from there.
 - The osct CLI accepts only its known options (`lib/cli-args.ts`): a misspelt safety flag must never run for real.
-- [ ] Still open from #28: `PlacementData` unused (needs a schema bump, see the #19 block); `BaseStore`'s
+- [ ] Still open from #28 (`PlacementData` removed in content schema 2.24, #214): `BaseStore`'s
   `propertyListeners` cast. From #29: `loadBuild` still re-implements the pipeline, the server matrix (PHP 8.1, MySQL),
   `service-worker.ts` and the AR scene lifecycle.
 ## 2026-10-30 – Spreads added and removed on the book page (#166)
@@ -1930,7 +1947,8 @@ outcome in the line (or move it into a dated decision block).
 - Content schema 1.1 → 1.2: only comments changed in `shared/`, but the lock covers the whole folder (RULES #10).
 - [ ] Open (#5): the `content/` fallback in `scripts/src/config.ts` (the "while it is in git" CI step is gone) goes with
   the content removal; RULES #8 says so.
-- [ ] Open (#28): `PlacementData` (`shared/types/placement.ts`) is unused – type `EntityData.params` with it or drop it.
+- [x] Open (#28): `PlacementData` (`shared/types/placement.ts`) is unused – type `EntityData.params` with it or drop it.
+  Dropped in content schema 2.24 (#214, 2026-10-31).
 
 ## 2026-10-28 – The trigger trial runs at ±0 (#14, Tilman, 1.7.8)
 

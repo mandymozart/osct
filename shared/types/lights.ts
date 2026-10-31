@@ -12,6 +12,7 @@
  */
 
 import { type ComponentParamSpec, paramProblem } from "./components";
+import { isObject } from "../guards/primitives";
 
 export const LIGHT_KINDS = ["point", "spot", "directional"] as const;
 export type LightKind = (typeof LIGHT_KINDS)[number];
@@ -61,9 +62,9 @@ export interface Light {
 
 /** Problems of a node's `light` object (the content build, the guard) */
 export const lightProblems = (raw: unknown, path: string): string[] => {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return [`${path}: expected { kind, color, intensity, … }`];
+  if (!isObject(raw)) return [`${path}: expected { kind, color, intensity, … }`];
   const problems: string[] = [];
-  for (const [name, value] of Object.entries(raw as Record<string, unknown>)) {
+  for (const [name, value] of Object.entries(raw)) {
     const spec = (LIGHT_PARAMS as Record<string, ComponentParamSpec>)[name];
     if (!spec) {
       problems.push(`${path}.${name}: unknown light parameter (${Object.keys(LIGHT_PARAMS).join(", ")})`);
@@ -77,10 +78,13 @@ export const lightProblems = (raw: unknown, path: string): string[] => {
 
 /** The node's light with every parameter resolved to its value or default (an invalid value takes the default) */
 export const resolveLight = (light?: LightData): Light => {
-  const resolved: Record<string, unknown> = {};
-  for (const [name, spec] of Object.entries(LIGHT_PARAMS as Record<string, ComponentParamSpec>)) {
-    const value = light?.[name as LightParam];
-    resolved[name] = value !== undefined && !paramProblem(spec, value) ? value : spec.default;
-  }
-  return resolved as unknown as Light;
+  const value = <K extends LightParam>(name: K): Light[K] => {
+    const spec: ComponentParamSpec = LIGHT_PARAMS[name];
+    const set = light?.[name];
+    return (set !== undefined && !paramProblem(spec, set) ? set : spec.default) as Light[K];
+  };
+  return {
+    kind: value("kind"), color: value("color"), intensity: value("intensity"), distance: value("distance"),
+    decay: value("decay"), angle: value("angle"), penumbra: value("penumbra"),
+  };
 };

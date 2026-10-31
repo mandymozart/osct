@@ -7,6 +7,14 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- **Content schema 2.24 – nothing new in the content** (#214): the shared content contract was tidied up. The check for
+  "is this a JSON object" and the rule for camelCase names (a component's, a pass's, a material's type, a variable's
+  name) are written once, the unused `isComponentType` and `PlacementData` are gone, and comments name the engine's
+  files where they still named the reader's. A book of 2.24 reads exactly like one of 2.23 in an older app.
+
 ## 1.59.1 – 2026-10-30
 
 ### Added

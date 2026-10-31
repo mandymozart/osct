@@ -27,6 +27,9 @@ import { PRINT_SURFACES, SPREAD_FORMATS } from "../types/game-config";
 import { filterProblems } from "../types/filters";
 import { lightProblems } from "../types/lights";
 import { placementProblems } from "../types/placement";
+import { isObject } from "./primitives";
+
+export { isObject } from "./primitives";
 
 /** A pass parameter a newer MINOR adds is ignored here (the newer app reads it); the build and the API refuse it */
 const GUARD_PASSES: PassCheckOptions = { unknownParams: "ignore" };
@@ -41,9 +44,6 @@ export const isEntityType: (value: unknown) => value is EntityType = oneOf(ENTIT
 export const MAX_NODE_DEPTH = 8;
 export const isAssetType: (value: unknown) => value is AssetType = oneOf(ASSET_TYPES);
 export const isStepAction: (value: unknown) => value is StepAction = oneOf(STEP_ACTIONS);
-
-export const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 export const isEntityRef = (value: unknown): value is EntityRefData =>
   isObject(value) && typeof value.ref === "string";

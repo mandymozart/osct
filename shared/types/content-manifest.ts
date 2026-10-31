@@ -14,7 +14,7 @@
  * written before it existed: its version's `game.config.json` (`book.id`) tells.
  */
 
-import { isObject } from "../guards/game-config";
+import { isObject } from "../guards/primitives";
 
 export interface ContentManifest {
   /** Folder of the current version below the environment */

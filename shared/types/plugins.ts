@@ -26,6 +26,7 @@ import { componentSpecProblems, type ComponentSpec } from "./components";
 import { nodeTypeSpecProblems, type NodeTypeSpec } from "./node-types";
 import { isBuiltInPassType, type PassSpec } from "./passes";
 import { materialSpecProblems, textureSpecProblems, type MaterialSpec, type TextureSpec } from "./materials";
+import { isObject } from "../guards/primitives";
 
 export const PLUGIN_API_VERSION = "1.6";
 
@@ -64,11 +65,11 @@ export const pluginProblems = (raw: unknown, path = "plugins"): string[] => {
   const ids = new Set<string>();
   raw.forEach((plugin, i) => {
     const at = `${path}[${i}]`;
-    if (typeof plugin !== "object" || plugin === null || Array.isArray(plugin)) {
+    if (!isObject(plugin)) {
       problems.push(`${at}: expected { id, src, api }`);
       return;
     }
-    const p = plugin as Record<string, unknown>;
+    const p = plugin;
     if (typeof p.id !== "string" || !PLUGIN_ID_PATTERN.test(p.id)) problems.push(`${at}.id: expected a plugin id (letters, digits, -)`);
     else if (ids.has(p.id)) problems.push(`${at}.id: duplicate plugin id "${p.id}"`);
     else ids.add(p.id);
@@ -79,13 +80,11 @@ export const pluginProblems = (raw: unknown, path = "plugins"): string[] => {
   return problems;
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
-
 const KINDS = ["components", "nodeTypes", "passes", "materials", "textures"] as const;
 
 /** Problems of a plugin's recorded `registered`: every spec checked as the engine checks it when the plugin registers it */
 export const registrationProblems = (raw: unknown, path: string): string[] => {
-  if (!isRecord(raw)) return [`${path}: expected { components?, nodeTypes?, passes?, materials?, textures? }`];
+  if (!isObject(raw)) return [`${path}: expected { components?, nodeTypes?, passes?, materials?, textures? }`];
   const problems: string[] = [];
   const checks: Record<(typeof KINDS)[number], (type: string, spec: unknown) => string[]> = {
     components: componentSpecProblems,
@@ -101,7 +100,7 @@ export const registrationProblems = (raw: unknown, path: string): string[] => {
   for (const kind of KINDS) {
     const specs = raw[kind];
     if (specs === undefined) continue;
-    if (!isRecord(specs)) {
+    if (!isObject(specs)) {
       problems.push(`${path}.${kind}: expected an object of type → spec`);
       continue;
     }
@@ -131,15 +130,15 @@ export const recordedRegistrations = (plugins: unknown): RecordedRegistrations =
     materials: new Map<string, unknown>(), textures: new Map<string, unknown>(), complete: Array.isArray(plugins),
   };
   for (const plugin of Array.isArray(plugins) ? plugins : []) {
-    const registered = isRecord(plugin) ? plugin.registered : undefined;
-    if (!isRecord(registered)) {
+    const registered = isObject(plugin) ? plugin.registered : undefined;
+    if (!isObject(registered)) {
       recorded.complete = false;
       continue;
     }
     for (const kind of KINDS) {
       const specs = registered[kind];
-      if (!isRecord(specs)) continue;
-      Object.entries(specs).forEach(([type, spec]) => { if (isRecord(spec)) recorded[kind].set(type, spec); });
+      if (!isObject(specs)) continue;
+      Object.entries(specs).forEach(([type, spec]) => { if (isObject(spec)) recorded[kind].set(type, spec); });
     }
   }
   return recorded as RecordedRegistrations;
