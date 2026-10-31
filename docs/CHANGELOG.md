@@ -7,6 +7,13 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.57.1 – 2026-10-30
+
+### Fixed
+- On a phone, the toolbar's *View* panel closed again right after a tap: it focused its first field (the hand shake),
+  the phone's keyboard came up and the window's resize closed the panel. A tap now opens a panel with the panel
+  itself focused, and only a change of width closes it (the keyboard and the address bar only change the height).
+
 ## 1.57.0 – 2026-10-30
 
 ### Added

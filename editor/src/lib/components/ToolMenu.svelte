@@ -1,13 +1,14 @@
 <script lang="ts">
   import { tick, type Snippet } from "svelte";
   import Icon, { type IconName } from "./Icon.svelte";
-  import { menuStep } from "#lib/tool-groups.js";
+  import { closesOnResize, menuStep, openFocus } from "#lib/tool-groups.js";
 
   /**
    * A stage toolbar group that is one button opening a small panel of settings attached to it (#190's *grid & snap*,
    * #229's *view*): the button shows the group's icon (a small corner mark says it opens more; `marked` adds a dot in
    * its other corner – snapping on), the panel holds the group's rows – the panels' controls (Segmented, pressed pills,
-   * ScrubNumber, a select), with the touch height on a finger. ↓ / ↑ on the button opens it on its first control; ↑ ↓
+   * ScrubNumber, a select), with the touch height on a finger. A tap opens it with the panel focused (no field, so a
+   * phone shows no keyboard), ↓ / ↑ on the button on its first control; ↑ ↓
    * (Home / End) move between its buttons, a number field or a select keeps its own keys, Esc closes and returns the
    * focus to the button, Tab out of it or a tap outside closes it (the backdrop takes the tap, so it picks nothing on
    * the stage). Fixed to the screen, kept on it. `open()` opens it from elsewhere (the stage's menu).
@@ -34,9 +35,11 @@
   /** The panel's buttons and fields, in order (the arrows move between its buttons) */
   const focusables = (): HTMLElement[] => (menu ? [...menu.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled)")] : []);
 
-  /** Open the panel at the button, its first control focused */
-  export const open = async (): Promise<void> => {
+  let widthAtOpen = 0;
+  /** Open the panel at the button – its first control focused when the keyboard opened it, else the panel itself */
+  export const open = async (byKeyboard = false): Promise<void> => {
     if (!trigger) return;
+    widthAtOpen = window.innerWidth;
     const r = trigger.getBoundingClientRect();
     at = { left: r.left, top: r.bottom + 2 };
     shown = true;
@@ -47,7 +50,8 @@
       const top = r.bottom + 2 + m.height > window.innerHeight - 4 ? Math.max(4, r.top - 2 - m.height) : r.bottom + 2;
       at = { left, top };
     }
-    focusables()[0]?.focus();
+    if (openFocus(byKeyboard) === "first") focusables()[0]?.focus();
+    else menu?.focus({ preventScroll: true });
   };
   const close = (refocus: boolean) => {
     shown = false;
@@ -68,7 +72,7 @@
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
     event.preventDefault();
     event.stopPropagation();
-    void open();
+    void open(true);
   };
   const menuKey = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
@@ -86,7 +90,8 @@
     const all = focusables().filter(el => el.tagName === "BUTTON");
     const index = all.indexOf(document.activeElement as HTMLElement);
     const key = event.key === "ArrowLeft" || event.key === "ArrowRight" ? null : event.key;
-    const next = key ? menuStep(key, index < 0 ? 0 : index, all.length) : null;
+    // the panel itself focused (opened by a tap): the first arrow goes to the first button
+    const next = key ? (index < 0 && all.length ? 0 : menuStep(key, index, all.length)) : null;
     event.stopPropagation(); // not the spreads' ← →
     if (next === null) return;
     event.preventDefault();
@@ -99,7 +104,7 @@
   };
 </script>
 
-<svelte:window onresize={() => { if (shown) close(false); }} />
+<svelte:window onresize={() => { if (shown && closesOnResize(widthAtOpen, window.innerWidth)) close(false); }} />
 
 <span class="tool-group" role="group" aria-label={label}>
   <button bind:this={trigger} type="button" class="icon-button group-button" class:open={shown} class:marked aria-haspopup="dialog" aria-expanded={shown}
