@@ -195,6 +195,10 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     otherwise be "fixed" wrongly (one short line). Keep the `/* html */` / `/* css */` template markers.
     **Follow-up work in code is `TODO: … (#N)` with an issue that exists** (Proposals or Backlog); a TODO
     without an issue, or any FIXME/HACK/XXX, is removed or turned into an issue.
+    **A bare `(#N)` is allowed** as a pointer to the decision or the issue behind the code. **No version tags**:
+    no "(content schema 2.x)", "(API 1.x)", "since 1.x", "since schema …", "new in …", and no "was …" / "used to …" /
+    "before …" – the comment says what the code does, the changelog says when it came. The one exception are the type
+    docs in `shared/`, which say what each content schema version added (their history belongs there, #219).
 
 23. **Versions and changelog**: the version (RULES #10) only goes up, and every shipped
     change is in `docs/CHANGELOG.md`. Check before pushing: `.github/scripts/check-version.sh --strict`

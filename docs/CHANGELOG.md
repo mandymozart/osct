@@ -7,6 +7,13 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- Code comments name no versions any more: the "(content schema 2.x)", "(plugin API 1.x)" and "since …" tags are gone
+  from the app, the engine, the editor, the content build, the MCP server and the API (the schema's history stays in
+  the `shared/` type docs and in this changelog); a bare `(#N)` still points to the issue behind the code (#219).
+
 ## 1.54.0 – 2026-10-30
 
 ### Added
