@@ -48,12 +48,13 @@ optimised copy of the media (`client/public/assets/content/`); neither is in git
   importing a delivery
 - [Content on the CDN](docs/content-cdn.md) – versions, the `osct` CLI (status, sync, purge), loading in the app
 - [Content out of git](docs/content-out-of-git.md) – the one-time removal of the content from the repository
-- [Game store](docs/game-store.md) · [Managers](docs/managers.md) · [BaseStore](docs/base-store.md) – app state
+- [Game store](docs/game-store.md) · [Managers](docs/managers.md) · [BaseStore](docs/base-store.md) – the reader's state
 - [Pages](docs/pages.md) · [Components](docs/components.md) · [Error page](docs/error-page.md) – the UI
-- [Tracking](docs/tracking.md) · [Look-around](docs/look-around.md) – the AR scene
-- [Editor](docs/editor.md) – the authors' tool at `/editor`: engine, mock stage, saving to the database, publishing
+- [Tracking](docs/tracking.md) · [Look-around](docs/look-around.md) – the AR scene, the trigger trial and the load test
+- [Editor](docs/editor.md) – the authors' tool at `/editor`: books, import and publish, the book page, the workspace's
+  tree, stage and panels, saving to the database
 - [Tutorials](client/public/docs/tutorials/index.html) – the content workflow on one page (sync, import, save, publish), bringing a book into the editor (the CDN, a URL, a file, the assets base, what is on the CDN), a walk through the demo book and a tour of the editor's tools, with screenshots, shipped at `/docs/tutorials/`
-- [Plugins](docs/plugins.md) – writing the book's own code: a layer, a component, the Code tab, the content build
+- [Plugins](docs/plugins.md) – the book's own code: the plugin API, a layer, a component, the Code tab, the content build
 - [Admin](docs/admin.md) – the instance's users and roles at `/editor/admin`, the newsletter CSV
 - [MCP server](docs/mcp.md) – an AI agent as an editor over the API (`mcp/`): signing in, connecting each client, the tools, an example
 - [Languages](docs/i18n.md) – UI texts and translations

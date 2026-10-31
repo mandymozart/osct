@@ -1,7 +1,7 @@
 /**
  * Printed-image details per target (three-free): what the delivery mapping knows about every target's printed
- * image – written by the content build's protocol command to `/trigger-protocol.json` (docs/content.md, "Trigger
- * test protocol"). Optional: the trial panel and the editor's mock stage work without it.
+ * image – written by the content build's protocol command to `/trigger-protocol.json` (docs/tracking.md, "The
+ * trigger trial"). Optional: the trial panel and the editor's mock stage work without it.
  */
 import { isObject } from "@shared/guards/primitives";
 

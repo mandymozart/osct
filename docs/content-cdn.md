@@ -34,18 +34,11 @@ cache, browser cache or service worker can serve a stale copy of it – only `la
   content.
 - **App version** a content build was made with (`version.version`): information only.
 - **Content schema** `MAJOR.MINOR` (`version.schema`, `CONTENT_SCHEMA_VERSION` in `shared/types/game-config.ts`):
-  the only compatibility rule (RULES #10). The app refuses content of a newer MAJOR at startup ("update the app") and of
-  one below `OLDEST_READABLE_SCHEMA_MAJOR` ("the content needs a newer build"). Any MINOR of the same MAJOR loads – a
-  newer one without what the app does not know, with an update hint ([Content](content.md) "Schema and app versions").
-  - MAJOR: a change older apps cannot read – a new required field, a renamed or removed field, a changed type, a
-    new enum value (asset type, category, step action, spread format). The app reads every older MAJOR down to
-    `OLDEST_READABLE_SCHEMA_MAJOR` as it is (so far every MAJOR only added).
-  - MINOR: an addition an older app can leave out – a new optional field, a type, a parameter, an entry of a typed list.
-    An older app skips what it does not know with a warning and loads the rest (#220 – what it skips: [Content](content.md)
-    "Schema and app versions").
-  - Every change in `shared/` needs a bump: `shared/content-schema.json` locks the checksum of `shared/` to the
-    schema – except `shared/api/`, the instance API's answers and rules, which content never holds. After the bump, run `npm run schema:lock` in `scripts/`; `scripts/test/schema.test.ts` fails until
-    then, and the lock command refuses a changed contract under the old number.
+  the only compatibility rule between content and app. What a MAJOR and a MINOR may change and how `shared/` is locked
+  to the schema is `agents/RULES.md` #10; what an app does with content of another schema – refused at startup ("update
+  the app", "the content needs a newer build"), or loaded without what it does not know – and what each MINOR added is
+  [Content](content.md) "Schema and app versions". After a bump, `npm run schema:lock` in `scripts/`
+  (`scripts/test/schema.test.ts` fails until then; the lock command refuses a changed contract under the old number).
 
 ## The osct CLI
 
@@ -67,7 +60,8 @@ npm run osct -- content purge --env staging --dry-run  # which old versions woul
 - **sync** uploads the build into `<env>/<build>/` – skipped when that version is already complete on the storage
   (its `game.config.json`, written last, exists) – then records it in `versions.json` and points `latest.json` at it.
   Syncing an older content build again only moves `latest.json` back: that is the rollback. Syncing the current build
-  again rewrites `versions.json` when it does not record that build as current – `latest.json` stays (#175). Both
+  again rewrites `versions.json` when it does not record that build as current – `latest.json` stays (#175); that is
+  the repair when `status` finds the storage's two files disagreeing. Both
   files are read through the Storage API right before the write, never through the pull zone. It refuses when the
   build lacks videos the current version has while their entries stay (a checkout without the git-ignored videos);
   `--without-videos` overrides. `--dry-run` shows the plan, `--force` uploads the version again. It refuses a
@@ -125,32 +119,32 @@ requests go to the network as without a worker and never touch the reader's cach
 
 ### Pull zone settings the app depends on
 
-Checked against `buildingfictions.b-cdn.net` on 2026-10-27 and 2026-10-28 (bunny.net dashboard, Tilman's team seat):
+The pull zone `buildingfictions.b-cdn.net` caches every file for 30 days (`cache-control: public, max-age=2592000`) and
+ignores query strings, and the CLI cannot purge its edges (it has no account API key). So the app depends on three
+settings, made in the bunny.net dashboard:
 
-- **CORS for every file type.** The app's origin differs from the CDN. On 2026-10-28 JSON and JPEG sent
-  `Access-Control-Allow-Origin: *` (models and videos not checked). If a type lacks it, add it to the "CORS headers"
-  extension list or add an edge rule "Set response header `Access-Control-Allow-Origin: *`" for the whole zone.
-- **`latest.json` must not stay cached at the edge.** The zone caches every file for 30 days
-  (`cache-control: public, max-age=2592000`), ignores query strings (checked 2026-10-28), and the CLI cannot purge
-  the edge (no account API key). Add an edge rule for `*/latest.json`: "Override Cache Time" → 0 (or a minute) – or
-  turn on "Vary cache → URL query string", then the app's `?t=<minute>` does the same. Until then a reader whose
+- **CORS for every file type.** The app's origin differs from the CDN, so every file needs
+  `Access-Control-Allow-Origin: *`. A type that lacks it goes into the "CORS headers" extension list, or an edge rule
+  "Set response header `Access-Control-Allow-Origin: *`" covers the whole zone.
+- **`latest.json` is not cached at the edge**: an edge rule for `*/latest.json`, "Override Cache Time" → 0 (or a
+  minute) – or "Vary cache → URL query string", then the app's `?t=<minute>` does the same. Without it a reader whose
   edge cached the old `latest.json` keeps the previous version for up to 30 days (it stays complete on the storage,
-  nothing breaks – which is also why purge waits 30 days by default). The version folders are immutable, so their
-  30 days are right. On 2026-10-30 `latest.json` came with `cache-control: public, max-age=0` and `cdn-cache: BYPASS`:
-  the rule is in place.
-- **`versions.json` must not stay cached at the edge either** (#175). No code reads it through the pull zone – the
-  CLI and the API read and write it through the Storage API – but a person checking the CDN does, and so does
-  `osct content status`. Without a rule it keeps the 30 days: on 2026-10-30 the edge served staging's `versions.json`
-  as cached on 2026-10-28 17:15 (`cdn-cache: HIT`, only `6448aacb4ab7`, still current) while `latest.json` named
-  `b6b0ebaabcfd`; the demo's looked the same (`7a5254b5a4f6` current at the edge, `dcd17b5e63d2` in `latest.json`).
-  The storage was right both times – read through a URL form the edge had not cached yet (`…/staging//versions.json`,
-  `cdn-cache: MISS`), staging's lists `6448aacb4ab7`, `c396a3554496`, `2e0a4af94ca2` and `b6b0ebaabcfd`, the last
-  as the only current one. `?t=…` does not help: the zone ignores query strings.
+  nothing breaks – which is also why purge waits 30 days by default). The version folders are immutable, so their 30
+  days are right. With the rule, `latest.json` answers `cache-control: public, max-age=0` and `cdn-cache: BYPASS`.
+- **`versions.json` is not cached at the edge either** (#175). No code reads it through the pull zone – the CLI and the
+  API read and write it through the Storage API – but a person checking the CDN does, and so does `osct content
+  status`. Without a rule an edge keeps an old copy for 30 days, while `latest.json` already names a newer build; the
+  storage's copy is right (an uncached URL form such as `…/staging//versions.json` reads it, `cdn-cache: MISS`).
+  `?t=…` does not help, as the zone ignores query strings. The rule and the purge: the runbook below.
 
-#### Repairing a stale `versions.json` at the edge (#175)
+What the checks found and when (CORS per file type, the rules in place, the stale copies of #175): `agents/MEMORY.md`
+2026-10-28 and 2026-10-30.
 
-A person with the bunny.net account runs it – it needs the **account API key** (dashboard → Account settings → API
-key), not the storage zone's password, so neither the CLI nor a workflow can do it.
+### Runbook: repairing a stale `versions.json` at the edge (#175)
+
+A temporary runbook: it is run once, by a person with the bunny.net account, and goes when #175 is closed. It needs the
+**account API key** (dashboard → Account settings → API key), not the storage zone's password, so neither the CLI nor
+a workflow can do it.
 
 1. Edge rule on the pull zone `buildingfictions` (Edge rules): add `*/versions.json` to the conditions of the
    `latest.json` rule (Request URL, match any), or a second rule with the same action "Override Cache Time" → 0.
@@ -166,11 +160,8 @@ key), not the storage zone's password, so neither the CLI nor a workflow can do 
    (or in the dashboard: Pull zone → Purge cache → the three URLs).
 3. Check: `npm run osct -- content status --env staging` (from `scripts/`, with the storage variables and
    `CONTENT_BASE_URL`) prints "latest.json and versions.json agree on the storage" and "CDN versions.json: agrees with
-   latest.json"; or `curl -s https://buildingfictions.b-cdn.net/staging/versions.json` lists `b6b0ebaabcfd` with
-   `"retiredAt": null`.
-
-Should the storage itself ever disagree (status exits with 1), `osct content sync --env <env>` of the current build –
-from the content source that built it – rewrites `versions.json` and leaves `latest.json` as it is.
+   latest.json"; or `curl -s https://buildingfictions.b-cdn.net/staging/versions.json` lists the build `latest.json`
+   names with `"retiredAt": null`.
 
 ## Content out of git
 

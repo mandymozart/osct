@@ -276,7 +276,7 @@ target:
 **Behaviour – rules without code** (content schema 2.19, #88): a node of any type may carry one `behaviour`
 component, a list of **rules**. Each rule reacts to an event (`on`), may ask for variables (`when`) and runs its
 actions (`do`) in order. It runs on the same event bus and variables as a plugin's code (`api.events`, `api.vars` –
-below), so rules and plugins hear each other.
+[plugins](plugins.md) "Across nodes and pages"), so rules and plugins hear each other.
 
 ```yaml
 target:
@@ -336,66 +336,13 @@ each rule that ran. What a rule cannot do – move a node over time, draw text, 
 the demo's `door` plugin hears the rule's `openDoor` and lifts the door ([plugins](plugins.md) "Behaviour and plugins").
 Variables are not declared yet: a rule names them, a missing one is *not set* (`null`).
 
-**Plugins – the book's own code** (content schema 2.4, `agents/research/2026-10-29-code-in-the-editor.md`): a
-folder `content/plugins/<id>/` with an `index.ts` that exports `register(api)`. The content build type-checks it
-against the plugin API, bundles it into `plugins/<id>/plugin.js` (a plugin imports nothing but types – three.js is
-`api.three`), runs it once to learn what it registers, and declares it in the configuration (`plugins: [{ id, src,
-api, registered }]`); the reader loads it with the AR scene. `registered` (content schema 2.14, optional) is what the
-run recorded – `{ components, nodeTypes, passes }` and, since 2.17, `materials` and `textures`, each a map of type →
-spec (layers are under `components`) – so the
-app's guard, the editor's API, the MCP server and the editor's Inspector know a plugin's types and parameters without
-running it: the guard checks a plugin component's or node type's parameters like a built-in one's and refuses a type
-no declared plugin registers. A plugin declared without it (an older build) is unknown until it loads; the guard then
-lets its types pass. The engine ignores the field. What a plugin registers is used in the content like `animation`:
-
-- `api.registerComponent(type, spec, apply)` – code on a node. `spec` = `{ description, nodeTypes?, params }` with
-  every parameter's `kind` (`number` with `min` / `max`, `color`, `choice` with `options`, `boolean`, `string`),
-  `default` and `description`, and an optional `label` (plugin API 1.3, schema 2.15: the words the row shows, 1–24
-  characters; without one the name split into words) – the editor's Inspector shows the rows from it.
-  `apply({ node, params, object, placed, target, three })` runs when the node is built and returns hooks: `update(delta)` every frame, `onFound`,
-  `onLost`, `onTap`, `onPause`, `dispose`, `tune(params)` (new values in place; `false` = build the node anew). A
-  parameter of kind `texture` (plugin API 1.4, schema 2.17) takes a picture: `""` (none), a procedural texture's type
-  (`caustics`), `{ type, …parameters }`, or a file – next to the node in the YAML (`sand.jpg`, made a content path by the
-  build) or a Library file's URL; the code gets a three.js texture, a layer's GLSL a `sampler2D`.
-- `api.registerLayer(type, spec, { glsl })` – a **material layer**: GLSL on every pixel of a video, image or text
-  plane (or a model's materials) after its own shading, in linear RGB. `glsl` is the body of a function
-  `vec4 (vec4 rgba, vec2 uv, float time, <the parameters>)` – `rgba` the pixel so far, the parameters as arguments
-  in the spec's order (`number` / `boolean` → `float`, `color` → `vec3`, `choice` → `int`, the index in its options).
-- `api.registerNodeType(type, spec, build)` (plugin API 1.2) – a **node type** of the plugin's own. `spec` = `{
-  description, src?, params }`: `src` the file it takes (`glb`, `video`, `image`, or `none`, the default), `params` as a
-  component's (never `position`, `rotation`, `scale`). `build({ node, params, asset, target, three })` returns `{
-  object, …hooks }` – the node's three.js object, which the engine places like every node (children, components and
-  layers included); `asset` is the loaded `src`, shared – clone what you change. Used as the node's `type` (above).
-- `api.registerMaterial(type, spec, build)` (plugin API 1.4, schema 2.17) – a whole **material**. `spec` = `{
-  description, nodeTypes?, params }`; `build({ node, params, time, map, target, three })` returns a three.js material
-  or `{ material, update, tune, dispose }` (`time` a uniform the engine advances, `map` the picture of the material it
-  replaces). A node names it as `material: { type, params }`: it replaces the material of the node's meshes (a mesh
-  with `userData.keepMaterial` keeps its own), the node's layers still add on top. Every material is a plugin's: the
-  build and the guard refuse one no plugin of the book registers.
-- `api.registerTexture(type, spec, draw)` (plugin API 1.4) – a **procedural texture**: `draw({ params, three })`
-  returns a texture (a canvas or data texture) or `{ texture, update, dispose }`; a `texture` parameter takes it by its
-  type.
-- `api.loadText(url)` (plugin API 1.5, schema 2.18) – a **text file** as a promise: a shader of the editor's Library by
-  its URL, or a content path (`/assets/content/…`); one request per URL. Used where a build runs (a material, a pass, a
-  node type), never for a layer's `glsl`, which is a string at register time ([plugins](plugins.md) "A shader file").
-- `api.feedback({ width, height, fragment, uniforms?, channels?, type? })` (plugin API 1.6, schema 2.20) – a **GPU
-  feedback buffer**: the engine runs the fragment once per frame into a render target pair it keeps (ping-pong while the
-  pass reads its own last frame), before the scene renders, with `iTime`, `iTimeDelta`, `iFrame`, `iResolution` and
-  `iChannel0…3`; the handle's `texture` / `uniform` is the current frame. Half-float targets by default, float on request,
-  8 bits where the device renders into neither. A buffer made in a node's build pauses while the node is not in view and
-  goes with it. `api.shadertoy(source)` wraps a Shadertoy pass (`mainImage`) as its fragment. Nothing of it is in the
-  content: the build's recording run hands out a dummy ([plugins](plugins.md) "A feedback buffer").
-- **Across nodes and pages** (plugin API 1.1): `api.events` (the engine's core events `targetFound`, `targetLost`,
-  `targetUnlocked`, `targetTapped`, `spreadChanged`, `sceneState`, `varChanged` to listen to; scene events of the
-  book's own to emit and hear), `api.vars` (variables in the scopes `spread`, `stage`, `session`, `book` – the last
-  persisted with the reader's progress), `api.progress` (read-only: `unlocked`, `consulted`, `completion`, `counts`),
-  `api.spread` (the current spread); the component context's `children` and the hook `onUnlocked`. The reader hands
-  the engine its progress through `ArSceneOptions.progress`, the editor its simulation.
-- The editor's **Code** tab ([editor](editor.md)) runs a plugin on its stage without a build; readers get only what
-  the build compiled. The fixture's `plugins/tint` is the template; [plugins](plugins.md) is the guide for writing
-  one, the **demo book** `fixtures/demo/` (built with `OSCT_CONTENT_DIR=fixtures/demo`) the sandbox that uses all of
-  it. The build warns about a node with more than three layers (every layer runs on every pixel) and a bundle
-  above 256 KB.
+**Plugins – the book's own code** (content schema 2.4): a folder `content/plugins/<id>/` with an `index.ts` that
+exports `register(api)`. The content build compiles it, runs it once to record what it registers and declares it in the
+configuration; the reader loads it with the AR scene. What a plugin registers – a component or a material layer, a node
+type, a material, a procedural texture, a pass – is used in the content by its type, like a built-in one. How to write
+one, the plugin API and what the build records: [plugins](plugins.md) – the fixture's `plugins/tint` is the template,
+the demo book `fixtures/demo/` (built with `OSCT_CONTENT_DIR=fixtures/demo`) uses all of it; the editor's **Code** tab
+([editor](editor.md)) runs a plugin on its stage without a build.
 
 ```yaml
 # content/plugins/tint/index.ts registers the layer "tint" (color, opacity, blend) – used like a component:
@@ -486,14 +433,8 @@ passes:
     threshold: 0.7
 ```
 
-A pass of the book's own – a shader Kévin writes – registers with the engine's pass registry
-(`registerPass(type, spec, factory)`, `engine/src/scene/post/registry.ts`): the factory gets the resolved parameters,
-three.js and `ShaderPass`, and returns a three `Pass` over the composer's buffers. The buffer holds the AR layer as
-premultiplied colour over alpha, in linear RGB, nothing of the camera picture: a pass keeps a texel's alpha unless it
-means to shade the camera picture too. The plugin API of the code editor ([editor](editor.md)) exposes the registry
-as `api.registerPass(type, spec, factory)`: the plugin's pass runs in the engine and leaves with the plugin.
-
-**A plugin's pass in `passes`** (content schema 2.21, #216): the book and a spread name it like a built-in one –
+**A plugin's pass in `passes`** (content schema 2.21, #216): a pass of the book's own is a plugin's (`api.registerPass`,
+[plugins](plugins.md) "A pass: film grain"). The book and a spread name it like a built-in one –
 `- type: filmGrain` with its parameters. The content build records every pass a plugin registers (`registered.passes`)
 and checks the list against those specs (a type no plugin of the book registers, a value out of range or an unknown
 parameter is an error, as with a built-in pass; a plugin may not take a built-in pass's name, nor two plugins the same
@@ -808,13 +749,12 @@ Run in `scripts/`:
 | `npm run build` | Rebuild the tool after changing `scripts/src/` |
 | `npm run sounds` | Generate the placeholder app sounds |
 | `npm run import -- <delivery folder> import/<name>.yaml` | Import a publisher's delivery into `content/` (below) |
-| `npm run protocol -- import/<name>.yaml` | Write the printed-image details for the trigger trial panel (below) |
+| `npm run protocol -- import/<name>.yaml` | Write the printed-image details for the trigger trial panel ([tracking](tracking.md) "The trigger trial") |
 
 ### Importing a delivery
 
 A publisher's delivery (folders of printed images, entry images and videos) goes into `content/` through a
-**mapping file** in `scripts/import/` – one per delivery, e.g. `import/2110.yaml` for the trial content of
-October 2026. The mapping says, per entry id, what the entry is and which delivered file is what:
+**mapping file** in `scripts/import/` – one per delivery, e.g. `import/2110.yaml`. The mapping says, per entry id, what the entry is and which delivered file is what:
 
 ```yaml
 entries:
@@ -842,12 +782,11 @@ when the delivered file is newer; **`entry.yaml` and `spread.yaml` are never ove
 freely and run the import again when the next delivery comes. Problems (a file missing, ffmpeg failing, a
 video without a target) are listed at the end.
 
-The mapping of a delivery is made by hand or with a script – for 2110 the printed images were matched
-against the trigger layout PDF (`All_Triggers.pdf`) by page and appearance, the link screenshots have no
-page in their file names. Files the delivery contains but the book does not place are listed in a comment at
-the top of the mapping.
+The mapping of a delivery is made by hand or with a script (matching the delivered images against the trigger
+layout PDF by page and appearance). Files the delivery contains but the book does not place are listed in a comment
+at the top of the mapping.
 
-`fixtures/content/` is the placeholder content from before the first delivery, slimmed down to a test fixture
+`fixtures/content/` is the test fixture – placeholder content slimmed down
 (every entity type, chroma key and alpha video, shared entities; small images, two-second videos, one stand-in
 model): build it with `OSCT_CONTENT_DIR=fixtures/content npm run build:content:force`. CI and the tests build it,
 and `osct content sync` refuses it (`FIXTURE.md` marks it). The full-size placeholder content is kept next to the
@@ -870,8 +809,7 @@ to `<content>/layout/sheets/*.jpg` (1200 px wide) and, next to each, a much shar
 the sheets (kind `spread`, `cover-front`, `cover-back`, front and back matter; their book pages read from the page
 numbers printed at the foot), and per target its page, surface (`left` / `right`), `x`, `y`, `width`, `height` in
 mm from the page's top left corner. Trigger images are matched to the targets of their page (the entry's `page`)
-by the aspect ratio of the target image, then by reading order; pages where the counts differ are listed (the
-trial delivery has ten targets that are not on the printout). The content build copies `layout/` with the rest of
+by the aspect ratio of the target image, then by reading order; pages where the counts differ are listed. The content build copies `layout/` with the rest of
 the content; the folder is generated. Run it again when the PDFs change, and rebuild the content
 with `--force` (the layout is not part of the build hash).
 
@@ -881,68 +819,6 @@ The imported entry videos (`entries/<id>/video.mp4` in the content source) are l
 the CDN sync: `osct content sync` uploads whatever the local content build holds, videos included
 ([content on the CDN](content-cdn.md); #15). A build on a machine without them prints a warning per missing video and
 builds those targets without their AR video.
-
-### Trigger test protocol
-
-The checklist for a test with the printed book (or the trigger printout) is in the app: debug overlay → **trial**
-(dev server and staging; *trial* again or × closes it). A strip flush with the bottom of the screen shows every
-target as a thumbnail in a fixed order – the order of the printout, with its running number (the same numbers as the
-tester printouts of trial 2; targets not on the printout are dimmed, "not printed"). Nothing moves: a found one gets
-a green frame and a ✓, the one in view a yellow frame, the current spread's a white frame, and the strip scrolls smoothly to
-the current spread when it changes. While the trial is open the engine holds the current spread and its neighbours
-(±1, no growing window), so scanning the next image on the sheet switches the spread by itself; closing restores
-the window setting. Tap a thumbnail to go to its spread, ‹ › step through the spreads, drag the strip's top bar to
-make it taller or lower. A camera line under the bar shows the lens, resolution, focus and zoom the trial runs with –
-feedback only, the trial uses the app's camera defaults; the md report records it (the test switches are in the
-debug overlay's camera panel, `docs/tracking.md` "Camera"). The bar counts the targets not found yet. "Found" comes from the progress, so reset the progress
-(debug overlay → progress) to start a trial over. **md** downloads the report – the targets not found with their
-printed image, then the found ones – to forward to the designers.
-
-**The phone model** (#235): browsers no longer say which phone they run on – Safari 26 freezes its user agent (an
-iPhone 12 mini and an iPhone 17 both report `iPhone OS 18_7 … Version/26.6.1`), Chrome on Android reduces it
-(`Android 10; K`). So a device row under the bar asks for the phone model, and **md** stays dimmed until it is filled
-in (tapping it then jumps to the field). The tester types the model or picks it from the *list* (iPhone 11 to 17
-with mini / Plus / Pro / Max, SE, 16e and Air; Galaxy S21 to S25; Pixel 6 to 9); a second field takes optional
-initials. Both are remembered on the device (`osct-trial-model`, `osct-trial-tester`). The field is prefilled where
-the browser can tell:
-
-- **Chromium (Android)**: `navigator.userAgentData.getHighEntropyValues(["model", "platformVersion"])` gives the
-  model code and the real Android version. A known Samsung code gets its name, the code stays
-  (`Galaxy S22 (SM-S901B)`); Pixels report their name.
-- **iPhone**: there is no model API, so the screen in points and its pixel ratio narrow the list – the matching
-  models come first in *list* (375×812 @3 = 12 mini / 13 mini / X / XS / 11 Pro, 390×844 @3 = 12 / 13 / 14 /
-  12 Pro / 13 Pro / 16e, 393×852 @3 = 14 Pro / 15 / 15 Pro / 16, 402×874 @3 = 16 Pro / 17 / 17 Pro, 440×956 @3 = 16
-  Pro Max / 17 Pro Max …, `client/src/components/dev-tools/trial-device.ts`). The strip says it is a guess; the
-  field stays empty until the tester picks or types the model. Display Zoom reports a smaller screen, which gets no
-  guess.
-
-The report's header then carries:
-
-```
-- Device: iPhone 12 mini (tester) · screen-size guess: iPhone 12 mini / 13 mini / X / XS / 11 Pro
-- Screen: 375×812 @3
-- OS: iOS 18.7 as Safari reports it – frozen: Safari 26 comes with iOS 26
-- Language: fr-FR
-- Tester: VB
-- User agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) …
-```
-
-*Device* is the model as the tester entered it, then where the prefill came from (`from the browser: SM-S901B`, a
-`screen-size guess`, or `no prefill`); *OS* is what the browser reports, with the real version where client hints
-give it (`Android 14.0.0 (from the browser)`) and a note where Safari freezes it or Chrome reduces it; *Tester* only
-when initials were given.
-
-The runs so far, with their results per device, are in [trigger-tests/](trigger-tests/README.md).
-
-The printed-image details come from the delivery mapping:
-
-```bash
-cd scripts
-npm run protocol -- import/2110.yaml       # → client/public/trigger-protocol.json
-```
-
-Run it after an import (the file is committed and served at `/trigger-protocol.json`); the panel works without
-it, then without file names and sizes.
 
 ### What it writes
 

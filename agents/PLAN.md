@@ -1023,8 +1023,12 @@ Research and phone results: `research/webworker-tracking.md`, `MEMORY.md` 2026-0
 - [x] Preload flow decided from the first load test (Tilman, 2026-10-27): **grow** – hold the current spread, add the
       nearest spreads in idle time (3 targets per batch) until the whole book is held; default since 1.7.0, fixed
       windows stay selectable.
-- [ ] Still open from `docs/tracking.md` "Options": one configure per switch, image targets at build time, Tilman's
-      regrouping of spreads, a budget/eviction only if a slower phone needs it.
+- [ ] Still open (from `docs/tracking.md`'s options list, #218): one configure per switch (a switch configures twice –
+      current, then the new window – and the second cancels and re-queues what the first had not extracted), image
+      targets at build time, Tilman's regrouping of spreads (a few spreads or a chapter as one tracked group: fewer
+      switches, the budget decides how many groups are held), a switch that does not wait for the new spread's models
+      and videos (`changeSpread()` waits, so a large video delays it), a budget/eviction only if a slower phone needs
+      it. The window itself is #38, preloading in steps #13.
 - [ ] Build-time image targets (grey 480×640 per target in the content build) instead of making them on the
       device (~150–260 ms per image on the S22) – if first-scan time matters.
 
