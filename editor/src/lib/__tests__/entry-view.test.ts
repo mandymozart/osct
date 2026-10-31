@@ -32,7 +32,7 @@ describe("the entry view", () => {
   });
 
   it("the entry row's help says what a tap does, with or without a target", () => {
-    expect(entryRowHelp({ category: "text", page: 3 }, true)).toBe("text · p. 3 – a tap selects the entry: the Entity panel shows its text, the stage outlines its target");
+    expect(entryRowHelp({ category: "text", page: 3 }, true)).toBe("text · p. 3 – a tap selects the entry: the Inspector shows its text, the stage outlines its target");
     expect(entryRowHelp({ category: "glossary", page: 2 }, false)).toContain("(it has no target)");
   });
 });

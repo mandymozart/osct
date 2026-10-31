@@ -33,7 +33,7 @@ class Content {
       this.spreads = error ? [] : getSpreads();
       this.bookPasses = error ? null : getConfigBook().passes ?? null;
       this.hash = error ? null : getConfigVersion().hash ?? null;
-      // What the declared plugins recorded (schema 2.14): the Entity panel's rows before they load or run
+      // What the declared plugins recorded (schema 2.14): the Inspector's rows before they load or run
       adoptRecordedSpecs(error ? [] : getPlugins());
       plugins.version += 1;
       return error;

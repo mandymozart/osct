@@ -4,7 +4,7 @@
   import { fileNameOf } from "#lib/library-place.js";
 
   /**
-   * An entry selected in the tree (#227), in the Entity panel's place: its meta rows (category, title, access page,
+   * An entry selected in the tree (#227), in the Inspector's place: its meta rows (category, title, access page,
    * author, tags), the body in the reader's paragraphs, the image, a link's URL and its target with *select the target*.
    * Read-only: content editing (#223) turns these rows into its form here, in the same place and order.
    */
@@ -45,7 +45,7 @@
       {#if entry.target.imageSrc && onselecttarget}
         {@const targetId = entry.target.id}
         <button type="button" class="text-link" onclick={() => onselecttarget(targetId)}
-          data-help-name="Select the target" data-help="Selects the entry's target: the tree highlights its row, the Entity panel shows its printed image and placement, the stage outlines its print.">select the target</button>
+          data-help-name="Select the target" data-help="Selects the entry's target: the tree highlights its row, the Inspector shows its printed image and placement, the stage outlines its print.">select the target</button>
       {/if}
     {:else}
       <span class="small muted">none – read in the list only</span>

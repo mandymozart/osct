@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EntityData } from "@engine/types";
-import { breadcrumb, parentSelection, selectionLevel, type SelectionState } from "../selection";
+import { breadcrumb, parentSelection, selectionLevel, settledSelection, type SelectionState } from "../selection";
 import { selection } from "../selection.svelte";
 
 /** #162: one selection – a target, its entity or a node – and its level, one level up, the breadcrumb */
@@ -68,5 +68,50 @@ describe("the shared selection", () => {
     expect(selection.node).toEqual([]);
     selection.reset();
     expect(selection.level(true)).toBe("none");
+  });
+
+  // #229: the spread selected clears the target and the node (no outline, no gizmo – the page's effect reads the level)
+  it("selecting the spread after a node clears the target, the node and the entry", () => {
+    selection.selectNode("p015-1", [1, 0]);
+    expect(selection.level(true)).toBe("node");
+    selection.selectSpread();
+    expect(selection.snapshot()).toEqual({ target: null, node: [], onTarget: true, spread: true, entry: null });
+    expect(selection.level(true)).toBe("none");
+    selection.selectEntry("key", "p015-1");
+    selection.selectSpread();
+    expect(selection.snapshot()).toEqual({ target: null, node: [], onTarget: true, spread: true, entry: null });
+  });
+
+  it("a fresh workspace, a click on the stage that picks nothing and another spread select the spread", () => {
+    selection.selectNode("p015-1", [0]);
+    selection.reset();
+    expect(selection.spread).toBe(true);
+    selection.selectTarget("p015-1");
+    selection.clear();
+    expect([selection.spread, selection.target, selection.level(true)]).toEqual([true, null, "none"]);
+  });
+
+  it("a selection of nothing is the spread's; a target or an entry is not", () => {
+    selection.set({ target: null, node: [], onTarget: true });
+    expect(selection.spread).toBe(true);
+    selection.selectTarget(null);
+    expect(selection.spread).toBe(true);
+    selection.selectTarget("p015-2");
+    expect(selection.spread).toBe(false);
+    selection.selectEntry("about", null);
+    expect([selection.spread, selection.entry]).toEqual([false, "about"]);
+    selection.reset();
+  });
+});
+
+describe("settledSelection (#229)", () => {
+  it("makes nothing selected the spread and drops what the spread does not name", () => {
+    expect(settledSelection({ target: null, node: [], onTarget: true })).toEqual({ target: null, node: [], onTarget: true, spread: true, entry: null });
+    expect(settledSelection({ target: "a", node: [2], onTarget: false, spread: true })).toEqual({ target: null, node: [], onTarget: true, spread: true, entry: null });
+  });
+
+  it("keeps a target, a node or an entry as they are, the spread off", () => {
+    expect(settledSelection({ target: "a", node: [2], onTarget: false })).toEqual({ target: "a", node: [2], onTarget: false, spread: false, entry: null });
+    expect(settledSelection({ target: null, node: [], onTarget: true, entry: "about" })).toEqual({ target: null, node: [], onTarget: true, spread: false, entry: "about" });
   });
 });

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from "svelte";
+  import { onMount, tick, untrack } from "svelte";
   import { resolve } from "$app/paths";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
@@ -10,8 +10,8 @@
   import Icon, { type IconName } from "#lib/components/Icon.svelte";
   import ToolGroup, { type ToolGroupOption } from "#lib/components/ToolGroup.svelte";
   import GridSnapMenu from "#lib/components/GridSnapMenu.svelte";
+  import ViewMenu from "#lib/components/ViewMenu.svelte";
   import { expandedGroups, type GroupShape } from "#lib/tool-groups.js";
-  import StagePanel from "#lib/panels/StagePanel.svelte";
   import EntityPanel from "#lib/panels/EntityPanel.svelte";
   import TreePanel from "#lib/panels/TreePanel.svelte";
   import LibraryPanel from "#lib/panels/LibraryPanel.svelte";
@@ -25,8 +25,7 @@
   import { library } from "#lib/library.svelte.js";
   import { nodeAt } from "#lib/values.js";
   import { selection } from "#lib/selection.svelte.js";
-  import { sections } from "#lib/sections.svelte.js";
-  import type { TreeRow } from "#lib/tree-rows.js";
+  import { firstTab as openingTab, type Tab } from "#lib/panel-tabs.js";
   import InfoView from "#lib/components/InfoView.svelte";
   import ContextMenu from "#lib/components/ContextMenu.svelte";
   import { clampSheet, clampWidth, LIMITS, maxWidth, SHEET_MAX, sheetFill, snapSheet, stepsOnTop, treeStartsOpen, widths, wordTabs, type Column } from "#lib/widths.svelte.js";
@@ -34,9 +33,10 @@
 
   /**
    * The workspace: the **tree** of the spread at the left (a 3D tool's outliner, collapsible to its bar), the stage
-   * (the engine over the mock stage) and the panels **Stage**, **Entity**, **Environment**, **Library** and **Code** in a column at the right. On a phone the
-   * panel is a sheet at the bottom whose head is the tab row (closed = the row only) and the tree is its first tab.
-   * `?tab=environment` opens a tab (the book page links the Environment so). On a desktop the tree's right edge and
+   * (the engine over the mock stage, its toolbar with the preview settings) and the panels **Inspector** (whatever is
+   * selected – the spread while nothing else is, #229), **Environment**, **Library** and **Code** in a column at the
+   * right (`panel-tabs.ts`). On a phone the panel is a sheet at the bottom whose head is the tab row (closed = the row
+   * only) and the tree is its first tab. `?tab=environment` opens a tab (the book page links the Environment so). On a desktop the tree's right edge and
    * the panel's left edge are dragged to resize the columns (`widths`; the Code tab has its own, wider width), a
    * double-click on an edge restores the default; the stage's view follows its container. On a phone the sheet's head
    * (a grip and the tab row) is dragged up or down to any height and snaps when let go (#155); a double tap on the
@@ -44,14 +44,11 @@
    */
   const bookId = $derived(page.params.book!);
   const spreadId = $derived(page.params.spread!);
-  const TABS = ["tree", "stage", "entity", "environment", "library", "code"] as const;
-  type Tab = (typeof TABS)[number];
   const TAB_KEY = "osct-editor-tab";
   /** The tab row: the word on a desktop, the icon on a phone */
   const TAB_BUTTONS: { tab: Tab; label: string; icon: IconName; title?: string }[] = [
     { tab: "tree", label: "Tree", icon: "list" },
-    { tab: "stage", label: "Stage", icon: "sliders" },
-    { tab: "entity", label: "Entity", icon: "model" },
+    { tab: "inspector", label: "Inspector", icon: "sliders", title: "Whatever is selected: the spread, an entry, a target, its entity or a node" },
     { tab: "environment", label: "Environment", icon: "globe", title: "The world around the reader and its sky, previewed on the stage" },
     { tab: "library", label: "Library", icon: "folder" },
     { tab: "code", label: "Code", icon: "code" },
@@ -62,12 +59,8 @@
 
   let container = $state<HTMLDivElement>();
   let stage = $state<Stage | null>(null);
-  const firstTab = ((): Tab => {
-    const asked = page.url.searchParams.get("tab") as Tab | null;
-    if (asked && TABS.includes(asked)) return asked;
-    const stored = readStored(TAB_KEY) as Tab | null;
-    return stored && TABS.includes(stored) ? stored : "stage";
-  })();
+  /** `?tab=`, the stored tab (a Stage or Entity tab stored before #229 is the Inspector), the Inspector */
+  const firstTab = openingTab(page.url.searchParams.get("tab"), readStored(TAB_KEY));
   let tab = $state<Tab | null>(firstTab);
   /** The tree column is open (desktop; stored – until then open in a wide window only, #172) */
   let treeOpen = $state(treeStartsOpen(window.innerWidth, readStored(TREE_KEY)));
@@ -75,7 +68,7 @@
   let narrow = $state(false);
   /** A finger: every control is the touch height (app.css), so the tab row needs more room for its words */
   let coarse = $state(window.matchMedia(COARSE).matches);
-  // The one selection of the tree, the stage and the Entity panel – a target, its entity or a node (#162)
+  // The one selection of the tree, the stage and the Inspector – a target, its entity or a node (#162), the spread to start with (#229)
   selection.reset();
   /** The draft or the stage could not be loaded: the stage area shows it with a retry instead of "Building the stage…" */
   let loadError = $state<string | null>(null);
@@ -100,18 +93,10 @@
     treeOpen = open;
     writeStored(TREE_KEY, open ? "open" : "closed");
   };
-  /** The tab the panel shows: on a desktop the tree has its own column, so a stored "tree" shows the stage */
-  const shown = $derived<Tab | null>(tab === "tree" && !narrow ? "stage" : tab);
-  const select = () => { if (shown !== "entity") setTab("entity"); };
-  /** The spread's settings (#227): the Stage tab, its spread section open and scrolled into view */
-  const showSpread = async () => {
-    sections.setOpen("stage.spread", true);
-    if (shown !== "stage") setTab("stage");
-    await tick();
-    document.querySelector('.panel [data-section="stage.spread"]')?.scrollIntoView({ block: "start" });
-  };
-  /** A row chosen in the tree (a tap, Enter): the spread shows in the Stage tab, an entry, a target or a node in the Entity panel */
-  const selectFromTree = (kind: TreeRow["kind"]) => (kind === "spread" ? void showSpread() : select());
+  /** The tab the panel shows: on a desktop the tree has its own column, so a stored "tree" shows the Inspector */
+  const shown = $derived<Tab | null>(tab === "tree" && !narrow ? "inspector" : tab);
+  /** Something was selected (a row of the tree, a pick on the stage): the Inspector shows it – the spread too (#229) */
+  const select = () => openTab("inspector");
 
   // ── the columns' widths: the edges are dragged (pointer or arrow keys), a double-click restores the default ──
   let workspace = $state<HTMLDivElement>();
@@ -279,7 +264,7 @@
     addingTarget = false;
     await reloadContent();
     selection.selectTarget(targetId);
-    setTab("entity");
+    openTab("inspector");
   };
   /** An entry's removal waiting for the person's confirmation in the panel, with the API's impact (#198) – no browser dialog */
   let removal = $state<{ targetId: string | null; entryId: string; step: RemovalStep } | null>(null);
@@ -337,9 +322,9 @@
     if (shown !== "environment") environmentEdit.picking = null;
   });
 
-  /** The library's Use: the selected node takes the file (the Entity panel shows first – the Library tab replaced it) */
+  /** The library's Use: the selected node takes the file (the Inspector shows first – the Library tab replaced it) */
   const useAsset = async (asset: Asset) => {
-    openTab("entity");
+    openTab("inspector");
     await tick();
     if (isMediaAsset(asset)) entityPanel?.useAsset(asset.kind, asset.url, asset.id);
   };
@@ -417,6 +402,14 @@
     const id = spreadId;
     if (stage && stage.spreadId !== id) stage.open(id).catch(failed);
   });
+  // …and the selection: another spread starts with itself selected (#229), not with a target it does not have
+  let selectedOn = untrack(() => spreadId);
+  $effect(() => {
+    const id = spreadId;
+    if (id === selectedOn) return;
+    selectedOn = id;
+    selection.reset();
+  });
   /** A pick on the stage: the printed image selects the target, an entity's node the node (the pick mode decides which) */
   const selectHit = (hit: StagePick) => {
     if (hit.printed) selection.selectTarget(hit.targetId);
@@ -431,8 +424,8 @@
     stage?.selectTarget(level === "target" ? id : null);
   });
   // ── the stage toolbar (#180): three groups – transform, pick, shading – each one button with its active option's
-  // icon and a menu, or its options side by side where the toolbar has room; then grid & snap (#190), always one
-  // button and its menu ──
+  // icon and a menu, or its options side by side where the toolbar has room; then grid & snap (#190) and view (#229),
+  // each always one button and its panel ──
   const GIZMO_NAMES: Record<GizmoMode, string> = { translate: "Move", rotate: "Rotate", scale: "Scale" };
   const GIZMO_ICONS: Record<GizmoMode, IconName> = { translate: "move", rotate: "rotate", scale: "scale" };
   /** W / E / R, from the gizmo's own keys */
@@ -455,8 +448,10 @@
   const shadingOptions = $derived<ToolGroupOption[]>(stageEnvironment.current
     ? SHADING_OPTIONS.map(option => (option.value === "rendered" ? { ...option, label: "Rendered – the environment's world as sky, the reader's light" } : option))
     : SHADING_OPTIONS);
-  /** The groups' shapes in the toolbar's order (the shading spheres sit shoulder to shoulder; grid & snap is one button) */
-  const TOOL_SHAPES: GroupShape[] = [{ options: TRANSFORM_OPTIONS.length }, { options: PICK_OPTIONS.length }, { options: SHADING_OPTIONS.length, tight: true }, { options: 1 }];
+  /** The groups' shapes in the toolbar's order (the shading spheres sit shoulder to shoulder; grid & snap and view are one button each) */
+  const TOOL_SHAPES: GroupShape[] = [{ options: TRANSFORM_OPTIONS.length }, { options: PICK_OPTIONS.length }, { options: SHADING_OPTIONS.length, tight: true }, { options: 1 }, { options: 1 }];
+  /** The view group: the stage's menu opens it (*View settings…*) */
+  let viewMenu = $state<{ open: () => void }>();
 
   // ── the stage's menu (right click): what lies there decides the actions ──
   let stageMenu = $state<{ hit: StagePick | null; x: number; y: number } | null>(null);
@@ -478,17 +473,17 @@
   };
   const menuAddNode = () => {
     stageMenu = null;
-    // A target with AR content adds to its entity: the root is selected (the Entity panel's "+ node" shows)
+    // A target with AR content adds to its entity: the root is selected (the Inspector's "+ node" shows)
     const id = selection.target;
     if (id && selection.onTarget && stage?.treeOf(id)) selection.selectNode(id, []);
-    setTab("entity");
+    openTab("inspector");
     requestAnimationFrame(() => document.querySelector<HTMLSelectElement>('select[aria-label="New node type"]')?.focus());
   };
   const menuPlacement = () => {
     stageMenu = null;
     // The placement is the target's: its level opens
     if (selection.target) selection.selectTarget(selection.target);
-    setTab("entity");
+    openTab("inspector");
     requestAnimationFrame(() => document.querySelector<HTMLButtonElement>("button.placement-toggle")?.click());
   };
   const NAVIGATION_HELP = "Drag = orbit · Shift-drag, the middle button or two fingers = pan · wheel / pinch = distance · double tap = the reader's view · ← → = the spreads. A click picks what lies there, right click opens its menu.";
@@ -503,7 +498,7 @@
   let stageWidth = $state(0);
   let stageHeight = $state(0);
   let stepsUp = $state(false);
-  let expanded = $state<boolean[]>([false, false, false, false]);
+  let expanded = $state<boolean[]>(TOOL_SHAPES.map(() => false));
   /** Slack (px) against rounding: a toolbar that only just fits would wrap on a subpixel */
   const ROOM_SLACK = 4;
   $effect(() => {
@@ -591,7 +586,7 @@
       </button>
     </div>
     {#if treeOpen}
-      <div class="body tree-body"><TreePanel {stage} {spreadId} onselect={selectFromTree} onaddtarget={() => { addingTarget = true; }} onremoveentry={removeEntry} /></div>
+      <div class="body tree-body"><TreePanel {stage} {spreadId} onselect={select} onaddtarget={() => { addingTarget = true; }} onremoveentry={removeEntry} /></div>
       <InfoView />
       {#if treeShown}{@render edge("tree", "Tree edge")}{/if}
     {/if}
@@ -600,8 +595,8 @@
   <div class="stage" class:steps-up={narrow && stepsUp} bind:this={container} bind:clientWidth={stageWidth} bind:clientHeight={stageHeight}
     data-help-name="Stage" data-help={NAVIGATION_HELP}>
     {#if stage && stage.status === "running"}
-      <!-- Three groups, each one button and its menu or – where the toolbar has room – its options side by side, and
-           grid & snap; always one row (#180, #190) -->
+      <!-- Three groups, each one button and its menu or – where the toolbar has room – its options side by side, then
+           grid & snap and view, one button and its panel each; always one row (#180, #190, #229) -->
       <div class="tools" role="toolbar" data-app-ui aria-label="Stage tools" bind:this={tools}>
         <ToolGroup label="Transform" options={TRANSFORM_OPTIONS} value={stage.gizmoMode} expanded={expanded[0]}
           onchoose={mode => stage?.setGizmoMode(mode as GizmoMode)} />
@@ -610,6 +605,7 @@
         <ToolGroup label="Shading" options={shadingOptions} value={stage.shading} expanded={expanded[2]} tight stroke={1.75}
           onchoose={mode => updatePreview({ shading: mode as ShadingMode })} />
         <GridSnapMenu />
+        <ViewMenu bind:this={viewMenu} format={spread?.format ?? "spread"} />
       </div>
       {#if narrow}
         <!-- A phone: ‹ › through the spreads at the stage's lower corners, out of the sheet's head (#171); on a short
@@ -634,7 +630,7 @@
         <ContextMenu at={stageMenu} label="Stage" head={spread?.title ?? spreadId} onclose={() => (stageMenu = null)} items={[
           { label: "+ target…", select: () => (addingTarget = true) },
           { label: "Replay the first find", select: () => stage?.replayUnlock() },
-          { label: "Stage settings…", select: () => setTab("stage") },
+          { label: "View settings…", select: () => viewMenu?.open() },
         ]} />
       {/if}
     {/if}
@@ -693,11 +689,9 @@
     {:else if addingTarget && spread}
       <div class="body"><NewTargetForm {bookId} {spread} {stage} oncreated={targetCreated} oncancel={() => (addingTarget = false)} /></div>
     {:else if shown === "tree"}
-      <div class="body"><TreePanel {stage} {spreadId} onselect={selectFromTree} onaddtarget={() => (addingTarget = true)} onremoveentry={removeEntry} /></div>
-    {:else if shown === "stage"}
-      <div class="body"><StagePanel {stage} {bookId} {spreadId} onenvironment={() => openTab("environment")} /></div>
-    {:else if shown === "entity"}
-      <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} bind:selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} onspread={() => void showSpread()} /></div>
+      <div class="body"><TreePanel {stage} {spreadId} onselect={select} onaddtarget={() => (addingTarget = true)} onremoveentry={removeEntry} /></div>
+    {:else if shown === "inspector"}
+      <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} onenvironment={() => openTab("environment")} /></div>
     {:else if shown === "environment"}
       <div class="body"><EnvironmentPanel {stage} {bookId} /></div>
     {:else if shown === "library"}
@@ -779,7 +773,7 @@
       .grip:hover::after { opacity: 1; background: var(--text); }
     }
     .body { padding-bottom: calc(.75rem + env(safe-area-inset-bottom)); }
-    /* Six tabs of the touch height fit 360 px: the row scrolls rather than wraps */
+    /* Five tabs of the touch height fit 360 px: the row scrolls rather than wraps */
     .bar .tab.icon-tab { flex: 1 1 0; width: auto; min-width: var(--control-height); }
     .workspace.closed .panel .bar { padding-bottom: calc(.25rem + env(safe-area-inset-bottom)); }
   }

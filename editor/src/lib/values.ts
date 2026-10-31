@@ -28,7 +28,7 @@ import {
 } from "@engine/types";
 
 /**
- * The Entity panel's values: one row per adjustable value of an entity, generated from the content contract's
+ * The Inspector's values: one row per adjustable value of an entity, generated from the content contract's
  * definitions (`PLACEMENT_PARAMS`, `FILTERS`, `componentSpec`, `LIGHT_PARAMS`, `nodeTypeSpec`), reading and writing
  * them on an `EntityData` copy. Row ids use the three.js names: `position.x`, `rotation.y`, `scale` (uniform) or
  * `scale.z`, `filters.0.threshold`, `components.0.speed`, `light.intensity`, `params.count` (a plugin node type's),

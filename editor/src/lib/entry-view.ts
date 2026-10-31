@@ -1,5 +1,5 @@
 /**
- * The entry as the Entity panel shows it when the tree selects one (#227), read-only until content editing (#223) turns
+ * The entry as the Inspector shows it when the tree selects one (#227), read-only until content editing (#223) turns
  * the view into its form in the same place: the meta rows (category, title, access page, author, tags), the body as
  * the reader's paragraphs (a blank line between two), the image, a link's URL and the target. The words are here; the
  * panel (`EntryView.svelte`) draws them.
@@ -51,4 +51,4 @@ export const entryLink = (media: string | undefined): string | null => {
 
 /** The entry row's help in the tree: what a tap does, with or without a target */
 export const entryRowHelp = (entry: { category: string; page: number }, hasTarget: boolean): string =>
-  `${entry.category} · p. ${entry.page} – a tap selects the entry: the Entity panel shows its text${hasTarget ? ", the stage outlines its target" : " (it has no target)"}`;
+  `${entry.category} · p. ${entry.page} – a tap selects the entry: the Inspector shows its text${hasTarget ? ", the stage outlines its target" : " (it has no target)"}`;

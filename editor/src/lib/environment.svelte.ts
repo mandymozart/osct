@@ -96,7 +96,7 @@ export const environmentEdit = new EnvironmentEdit();
 /**
  * The book's environment as the stage shows it in place of the HDRI (#185, `stage/sky.ts`): the edited values once the
  * book has one or the author has started one, null while it has none (the reader's default world is not drawn then –
- * the HDRI stays). Reactive: the toolbar, the Stage panel and the stage follow it.
+ * the HDRI stays). Reactive: the toolbar, the Inspector and the stage follow it.
  */
 export const stageEnvironment = {
   get current(): EnvironmentData | null {

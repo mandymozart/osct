@@ -45,7 +45,7 @@
   let surface = $state<PrintSurface>("right");
   let x = $state(40);
   let y = $state(60);
-  // The x / y rows are read and entered from the stage's origin (Stage panel); x / y keep the content's frame
+  // The x / y rows are read and entered from the stage's origin (the toolbar's view group); x / y keep the content's frame
   let origin = $state(getPreview().origin);
   $effect(() => subscribePreview(state => (origin = state.origin)));
   const frame = $derived({ page: stage?.pageFormat() ?? DEFAULT_PAGE_MM, format });
@@ -166,7 +166,7 @@
   {#if imageUrl}<div class="row"><span class="label"></span><img class="preview" src={imageUrl} alt="" /></div>{/if}
 
   <div class="section"><span class="section-label">what appears on the page</span></div>
-  <div class="row" data-help-name="What appears on the page" data-help="The AR content the reader sees on the printed image: a 3D model, a video, an image, a line of text, a group to hold several, or a light – more nodes in the Entity panel afterwards. None leaves the target without AR content for now.">
+  <div class="row" data-help-name="What appears on the page" data-help="The AR content the reader sees on the printed image: a 3D model, a video, an image, a line of text, a group to hold several, or a light – more nodes in the Inspector afterwards. None leaves the target without AR content for now.">
     <span class="label">content</span>
     <span class="controls"><Segmented options={APPEARS} value={entityType} labels={{ "": "none" }} titles={{ model: "A 3D model (glb, gltf)" }} onchange={setEntityType} /></span></div>
   {#if needsFile}
@@ -185,7 +185,7 @@
     <span class="controls"><Segmented options={CATEGORIES} value={category} onchange={c => (chosenCategory = c)} /></span></div>
 
   <!-- The explanation is the section's help, not its title (RULES #32 – #170) -->
-  <div class="section" data-help-name="Printed on the page" data-help="Where the image is printed: the surface, x / y in mm from the origin set in the Stage panel, and the printed width."><span class="section-label">printed on the page</span></div>
+  <div class="section" data-help-name="Printed on the page" data-help="Where the image is printed: the surface, x / y in mm from the origin set in the toolbar's view group, and the printed width."><span class="section-label">printed on the page</span></div>
   <div class="row"><span class="label">surface</span>
     <span class="controls"><Segmented options={surfaces} value={surface} onchange={s => (surface = s)} /></span></div>
   <div class="row"><span class="label">x · y</span>

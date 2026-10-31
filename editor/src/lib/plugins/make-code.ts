@@ -105,7 +105,7 @@ const header = (what: string, from: string, options: { types?: readonly string[]
 
 /**
  * Made with "${what}" from ${from}.
- * From here on it is the book's own code: change the build, add parameters (rows in the Entity panel), Run, Save.
+ * From here on it is the book's own code: change the build, add parameters (rows in the Inspector), Run, Save.
  */
 export const register = (api: PluginApi): void => {
 ${options.three === false ? "" : "  const { three } = api;\n"}`;

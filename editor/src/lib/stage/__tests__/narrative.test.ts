@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Target } from "@engine/types";
 import { formatVar, initialValue, numberStep, tapTargets, varType, withTypes } from "../narrative";
 
-describe("the Stage panel's variables: types and typed text", () => {
+describe("the Inspector's variables: types and typed text", () => {
   it("names a value's type as the plugin API's scalars", () => {
     expect(varType(true)).toBe("boolean");
     expect(varType(0)).toBe("number");

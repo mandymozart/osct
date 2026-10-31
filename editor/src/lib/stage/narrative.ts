@@ -2,7 +2,7 @@ import type { Target } from "@engine/types";
 import type { VarScope, VarValue } from "@engine/scene";
 
 /**
- * The Stage panel's narrative controls, three-free: a variable's type, which control edits it and how (a manual `set`
+ * The Inspector's narrative controls, three-free: a variable's type, which control edits it and how (a manual `set`
  * to test a branch – the write itself goes through the plugin API, `Stage.setVar`), and the spread's targets as the
  * tap buttons list them.
  */
