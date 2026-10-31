@@ -157,7 +157,7 @@ final class Editor
     }
 
     /**
-     * The types of a kind (`materials`, `passes` – schema 2.21) a save in this book accepts: from the compiled plugins its
+     * The types of a kind (`materials`, `passes`) a save in this book accepts: from the compiled plugins its
      * configuration declares and its Code tab sources (`typesOf`)
      * @return bool|list<string>
      */

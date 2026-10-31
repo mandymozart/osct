@@ -1057,7 +1057,7 @@ try {
     check($status === 200, 'import again with the recorded plugins');
 
     echo "editor: a plugin's pass (#216)\n";
-    // A pass the declared plugins recorded (schema 2.21) passes in a spread's and the book's list; another name is a typo
+    // A pass the declared plugins recorded passes in a spread's and the book's list; another name is a typo
     $scanning = $configuration;
     $scanning['plugins'][0]['registered']['passes'] = ['scanLines' => ['description' => 'Scan lines.', 'params' => [
         'lines' => ['kind' => 'number', 'default' => 200, 'min' => 10, 'max' => 800, 'description' => 'How many.'],

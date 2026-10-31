@@ -832,7 +832,7 @@ final class Books
 
     /** The built-in post-processing passes of the contract (shared/types/passes.ts `PASSES`) */
     public const PASS_TYPES = ['bloom', 'vignette', 'grade'];
-    /** A plugin's pass type (schema 2.21 – shared/types/components.ts `COMPONENT_TYPE_PATTERN`, which a pass's spec is checked with) */
+    /** A plugin's pass type (shared/types/components.ts `COMPONENT_TYPE_PATTERN`, which a pass's spec is checked with) */
     public const PLUGIN_PASS_TYPE = '[a-z][a-zA-Z0-9]{0,39}';
     /** The environment's worlds (shared/types/environment.ts ENVIRONMENT_WORLDS) */
     public const WORLDS = ['cafe'];
@@ -841,7 +841,7 @@ final class Books
     public const SKY_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
 
     /**
-     * The plugin pass types a save of this book accepts (schema 2.21): the passes its declared plugins recorded (a list),
+     * The plugin pass types a save of this book accepts: the passes its declared plugins recorded (a list),
      * any camelCase name while a plugin is unknown until it runs (`true` – a Code tab source, a plugin of an older build),
      * none without plugins (`false`) – as `Editor::pluginNodeTypes`
      * @return bool|list<string>
@@ -853,7 +853,7 @@ final class Books
 
     /**
      * A `passes` list as the content holds it: every pass an object with a built-in `type` – or one of the book's
-     * plugins (`$pluginPasses`, schema 2.21: a list = the recorded ones, `true` = any camelCase name, `false` = none) –
+     * plugins (`$pluginPasses`: a list = the recorded ones, `true` = any camelCase name, `false` = none) –
      * and scalar parameters (the engine and the guard check the parameters against the specs; the API keeps the shape)
      * @param bool|list<string> $pluginPasses
      * @return list<stdClass>
@@ -982,7 +982,7 @@ final class Books
         if ($unknownMaterials) {
             throw new ApiError(409, 'unknown-materials', 'Nodes use materials no compiled plugin provides: ' . implode(', ', $unknownMaterials) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['materials' => $unknownMaterials]);
         }
-        // And for a plugin's pass (schema 2.21): the reader's guard refuses a pass type no declared plugin recorded
+        // And for a plugin's pass: the reader's guard refuses a pass type no declared plugin recorded
         $unknownPasses = $recorded === null ? [] : array_values(array_diff(self::pluginPassTypes($version['configuration']), $recorded['passes']));
         if ($unknownPasses) {
             throw new ApiError(409, 'unknown-passes', 'The book\'s or a spread\'s post-processing names passes no compiled plugin provides: ' . implode(', ', $unknownPasses) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['passes' => $unknownPasses]);
