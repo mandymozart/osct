@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
+  import { trackUnsaved } from "#lib/unsaved.js";
   import { ApiError, errorText, type Usage } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import { usageText } from "#lib/library-code.js";
@@ -55,6 +56,8 @@
     ...declared.filter(d => !storedIds.includes(d.id)).map(d => ({ id: d.id, stored: false, declared: true, size: 0 })),
   ]);
   const dirty = $derived(source !== saved);
+  // A reload (the new-version bar) would drop these edits
+  onMount(() => trackUnsaved(() => dirty));
   const current = $derived(shown.find(p => p.id === open));
 
   // The Library's *Open in Code*: that plugin, once the list knows it

@@ -1,6 +1,7 @@
 import { DEFAULT_ENVIRONMENT, environmentOf, referenceExtension, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS, type EnvironmentData } from "@shared/types/environment";
 import { errorText, getBook, putEnvironment, type Asset } from "./api";
 import { bookEnvironment } from "#lib/stage/sky.js";
+import { trackUnsaved } from "#lib/unsaved.js";
 
 /** The environment's two files: the world model and the sky image */
 export type EnvironmentSlot = "world" | "sky";
@@ -92,6 +93,8 @@ class EnvironmentEdit {
 }
 
 export const environmentEdit = new EnvironmentEdit();
+// Its edits outlive the Environment tab, so they count as unsaved for the new-version bar for the page's life
+trackUnsaved(() => environmentEdit.dirty);
 
 /**
  * The book's environment as the stage shows it in place of the HDRI (#185, `stage/sky.ts`): the edited values once the

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { untrack } from "svelte";
+  import { onMount, untrack } from "svelte";
+  import { trackUnsaved } from "#lib/unsaved.js";
   import { getAssets, getEntityRef, getTargetsUsingEntity } from "@engine/content/game-config";
   import {
     BEHAVIOUR_TYPE, ENTITY_TYPES, FILTER_TYPES, materialSpec, materialTypesFor, nodeTypeSpec, pluginNodeTypes, type AssetData, type EntityData, type FilterType, type NodeType,
@@ -192,6 +193,8 @@
   const ref = $derived(target ? getEntityRef(target.id) : undefined);
   const source = $derived(ref ? `shared: ${ref} (${getTargetsUsingEntity(ref).length}×)` : target ? `entry: ${target.entryId}` : "");
   const dirty = $derived(!!target && JSON.stringify(entity ? contentTree(entity) : null) !== JSON.stringify(target.entity ? contentTree(target.entity) : null));
+  // A reload (the new-version bar) would drop these edits
+  onMount(() => trackUnsaved(() => dirty));
 
   const changed = (row: ValueRow) => !!current && (!draftNode || !sameValue(getValue(current, row), getValue(draftNode, row)));
   const anyChanged = (ids: ValueRow[]) => ids.some(changed);

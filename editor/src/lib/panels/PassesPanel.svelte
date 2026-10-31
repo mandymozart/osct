@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { untrack } from "svelte";
+  import { onMount, untrack } from "svelte";
+  import { trackUnsaved } from "#lib/unsaved.js";
   import { passBudgetWarning, type PassData } from "@engine/types";
   import { errorText, putBookPasses, putSpread } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
@@ -50,6 +51,8 @@
   const source = $derived<PassesSource>(passesSource(edit));
   const pending = $derived(pendingSaves(edit, saved));
   const dirty = $derived(Object.keys(pending).length > 0);
+  // A reload (the new-version bar) would drop these edits
+  onMount(() => trackUnsaved(() => dirty));
   /** The spreads editing the book's list changes: every one without a list of its own, this one as it stands now */
   const onBooks = $derived(spreadsOnBooks(content.spreads, spreadId, edit.own));
   /** The list in effect as the draft holds it – what a changed row is compared with */

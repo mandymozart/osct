@@ -6,13 +6,11 @@
   import { isAdminPath, session } from "#lib/session.svelte.js";
   import SignIn from "#lib/SignIn.svelte";
   import TopBar from "#lib/TopBar.svelte";
-  import { reloadOnStaleChunks } from "#lib/reload-on-stale.js";
+  import NewVersionBar from "#lib/NewVersionBar.svelte";
 
   let { children } = $props();
 
   onMount(() => void session.restore());
-  // A deploy replaced the code files under this tab: a chunk that fails to load reloads the page once (#160)
-  onMount(() => reloadOnStaleChunks());
 
   /** The admin page (docs/admin.md) is for admins, everything else for editors – an account may be both */
   const isAdminRoute = $derived(isAdminPath(page.url.pathname));
@@ -22,6 +20,9 @@
 <svelte:head>
   <title>{isAdminRoute ? "OSCT Admin" : "OSCT Editor"}</title>
 </svelte:head>
+
+<!-- A deploy under this open tab: the bar offers the new version, on every page -->
+<NewVersionBar />
 
 {#if session.status === "unknown"}
   <main class="gate"><p class="muted">Checking the session…</p></main>
