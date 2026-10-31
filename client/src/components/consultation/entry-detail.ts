@@ -1,6 +1,7 @@
 import { type Entry, EntryCategory } from "@/types";
 import { adoptDesignStyles } from "@/styles";
-import { escapeHtml, paragraphs } from "@/utils";
+import { escapeHtml } from "@/utils";
+import { renderEntryText, type VariableLookup } from "@shared/text/entry-text";
 import { categoryLabel, linkEmbed } from "./entries-model";
 import { t } from "i18next";
 
@@ -8,10 +9,13 @@ import { t } from "i18next";
  * One entry: meta table (name, access page, category, author for texts), then per category –
  * glossary: text + image; text: long text; video: a note to scan the access page + a preview player;
  * link: embedded player/page + "open in a new tab".
- * The page sets `entry`; `null` empties it and stops media.
+ * The body is the content's Markdown with the book's variables (`renderEntryText`, the editor's preview renders the same):
+ * the page sets `variables` (their values when the entry opens), then `entry`; `null` empties it and stops media.
  */
 export class EntryDetail extends HTMLElement {
   private _entry: Entry | null = null;
+  /** The book's variables for the body's `{…}` – none: every variable is unset */
+  variables: VariableLookup = () => undefined;
 
   constructor() {
     super();
@@ -39,7 +43,7 @@ export class EntryDetail extends HTMLElement {
       ? /* html */ `
         <style>
           :host { display: block; }
-          p { margin: 0 0 1em; white-space: pre-line; }
+          p { margin: 0 0 1em; }
           a { color: var(--color-accent); }
           .rule-table { margin-bottom: 1.5rem; }
           .body p + p { text-indent: 2em; margin-top: -1em; }
@@ -67,7 +71,7 @@ export class EntryDetail extends HTMLElement {
   }
 
   private bodyHtml(entry: Entry): string {
-    const text = paragraphs(entry.body).map(p => `<p>${escapeHtml(p)}</p>`).join("");
+    const text = renderEntryText(entry.body, { variables: this.variables }).html;
     const image = entry.image ? `<img class="entry-image" src="${escapeHtml(entry.image)}" alt="" loading="lazy">` : "";
 
     switch (entry.category) {

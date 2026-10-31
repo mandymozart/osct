@@ -414,10 +414,7 @@ a credentialed read. The CSRF token and every API call stay in the page.
     (title, pages, format – the one control, saved to the draft –, the post-processing in effect – the whole book's
     passes or the spread's own, and which – and the book's environment, or none – the stage's HDRI – with *edit* to the
     Environment tab; open on a first visit), *post-processing* (below) and *vars and events* (below). A selected
-    **entry** takes the Inspector's place (`EntryView.svelte`, the words in
-    `entry-view.ts`), read-only: category, title, access page, author and tags (where set), the body in the reader's
-    paragraphs, the image, a link's URL (a link only over http(s)) and its target with *select the target*. Content
-    editing (#223) turns these rows into its form in the same place.
+    **entry** takes the Inspector's place with its form ([Texts](#texts-entries-the-book-and-the-onboarding)).
   - **Hierarchy** (#163) – a node row is **dragged** onto another row of the same entity (it becomes that node's last
     child; the row shows a frame) or between two rows (a sibling there, the order set; a line shows where) – a mouse
     drags the whole row, a finger the row's type icon. **Alt + ↑ ↓** move the selected node among its siblings,
@@ -728,6 +725,43 @@ stay unconditional, a test checks every stylesheet); Feather icons only where a 
 chain that links the scale axes) – and in the tree, where type icons and the eye are every outliner's convention
 (Blender, Unity, Figma); each with a name and a tooltip; the sheet closes to its head row. Brand UI (gold, serif) stays in the reader – the stage
 itself renders the reader's content unchanged. Texts are English (RULES #20).
+
+## Texts: entries, the book and the onboarding
+
+The reading side of the book (#223): the API's routes are `docs/server.md` "Texts", what a body means is
+`docs/content.md` "The text: Markdown and variables".
+
+- **An entry's form** (`EntryForm.svelte`, the logic in `entry-edit.ts`) – in the Inspector's place when the tree
+  selects an entry, in the order the view had: title, category (segmented), access page (`ScrubNumber`; a page on another
+  spread moves the entry there on Save – the form stays, its head names the spread), author, tags (one line, commas), the
+  **text** in a textarea with its **live preview**, the picture (a `FileField`: *Library…* opens the Library as its picker
+  in the Inspector's place – the form stays mounted underneath, its edits kept –, *Upload…* uploads; *remove the
+  picture*), a link's URL (*open* only over http(s)) and the target with *select the target*. The fields come from
+  `GET …/entries` as the content holds them (`entries.svelte.ts` – an imported picture's path unresolved, shown below the
+  book's assets base); Save sends only the fields that changed (`PUT …/entries/{id}`, an emptied author, picture or link
+  removes it), reloads the draft and refreshes the stage (its `{{entry.title}}` text nodes). *Back to the draft* drops
+  the edits; the form registers its dirty state with `unsaved.ts`. What keeps Save off is listed under the form (the
+  API's checks before it is asked).
+- **The preview** is the reader's renderer (`shared/text/entry-text.ts` `renderEntryText`) – the same Markdown, the same
+  escaping. On the stage the variables have their current values: the page's mirror of the stage frame's `vars` (#234 –
+  data from the frame, never code), read innermost scope first like `api.vars.get`. Under the preview the variables the
+  text reads are listed with their value and scope (or *not set*), and every construct that does not parse is named
+  (`exprMessage`). On the Entries page there is no stage: every variable is unset, so the fallbacks show.
+- **The Entries page** (`/editor/<book>/?view=entries`, `EntriesPage.svelte`) – the book page's views are *spreads*,
+  *entries* and *onboarding* (segmented, in the URL). Every entry in one list: the category filter with counts, a search
+  (title, text, author, tags, id – accents and case folded), the glossary grouped by first letter as the reader groups
+  it (other filters in the order of the pages); an entry opens its form beside the list (on a phone instead of it, *‹ all
+  entries* back). **+ entry** makes one without a target (title, category, access page – `POST …/entries` without
+  `target`), then opens it.
+- **The book's texts** (`BookTexts.svelte`) – a collapsible section *book* above the views (closed it names title ·
+  author · publisher): title, author, publisher; Save → `PUT /editor/books/{id}`.
+- **The onboarding** (`/editor/<book>/?view=onboarding`, `OnboardingSteps.svelte`, the logic in `book-texts.ts`) – the
+  steps as collapsible sections (agents/DESIGN.md §9; closed: the first words and what moves the step on – its button and
+  action, or its time), ↑ ↓ and *remove* in the head, **+ step**; open: id, title, text, footer, illustration (a path of
+  the app, the two built-in drawings offered), button, action (next / camera / scan – it goes with a button) and the
+  timing (*default* = the app's, *set* gives a value). The whole list is saved at once (`PUT …/tutorial`).
+- Every text field is one value today; a language variant (#224) becomes a draft of the same shape per language, so a
+  language switch can be added to these forms without reshaping them.
 
 ## AI connections
 

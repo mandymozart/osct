@@ -138,7 +138,7 @@
         title: title.trim(), page, category,
         target: { imageSrc: imageUrl, print: { page, surface, x, y, width }, ...(entity ? { entity } : {}) },
       });
-      await oncreated(entry.target.id);
+      await oncreated(entry.target?.id ?? entry.id);
     } catch (e) {
       error = errorText(e, { code: true });
     } finally {

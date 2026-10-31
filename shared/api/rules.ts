@@ -51,3 +51,30 @@ export function pluginTypes(source: string): SourceTypes {
   const kinds = Object.keys(PLUGIN_REGISTER_FUNCTIONS) as (keyof SourceTypes)[];
   return Object.fromEntries(kinds.map(kind => [kind, scan(PLUGIN_REGISTER_FUNCTIONS[kind])])) as SourceTypes;
 }
+
+// ── The book's texts (`BookTexts`): entries, the book, the onboarding ──
+
+/** A text field's limit in characters – a title, an author, a tag's line, a step's line (`BookTexts::TEXT_MAX_LENGTH`) */
+export const TEXT_MAX_LENGTH = 500;
+/** An entry's body and a step's description, in characters (`BookTexts::BODY_MAX_LENGTH`) */
+export const BODY_MAX_LENGTH = 100000;
+/** An entry's tags: at most `max`, each at most `length` characters (`BookTexts::TAGS_MAX`, `TAG_MAX_LENGTH`) */
+export const ENTRY_TAGS = { max: 32, length: 64 } as const;
+/** A step's timing in milliseconds, at most (`BookTexts::STEP_TIME_MAX`) */
+export const STEP_TIME_MAX = 600000;
+/** At most this many onboarding steps (`BookTexts::STEPS_MAX`) */
+export const STEPS_MAX = 50;
+
+/** A link an entry may point to (`media`): http(s) with a host and no spaces (`BookTexts::isLinkUrl`) */
+export function isLinkUrl(url: string): boolean {
+  if (/[\u0000- \u007f]/.test(url)) return false;
+  try {
+    const parsed = new URL(url);
+    return (parsed.protocol === "http:" || parsed.protocol === "https:") && parsed.hostname !== "";
+  } catch {
+    return false;
+  }
+}
+
+/** Tags as the API keeps them: trimmed, each once, the empty ones left out */
+export const cleanTags = (tags: readonly string[]): string[] => [...new Set(tags.map(tag => tag.trim()).filter(Boolean))];

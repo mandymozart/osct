@@ -23,6 +23,8 @@ final class Editor
     public const MATERIAL_TYPE = '[a-z][a-zA-Z0-9]{0,39}';
     /** The entry categories of the content contract (shared/types/entry.ts `ENTRY_CATEGORIES`) */
     public const ENTRY_CATEGORIES = ['glossary', 'video', 'text', 'link'];
+    /** What a tutorial step's button does (shared/types/game-config.ts `STEP_ACTIONS`) */
+    public const STEP_ACTIONS = ['next', 'camera', 'scan'];
     /** How deep an entity's node tree may nest (shared/guards: MAX_NODE_DEPTH) */
     public const MAX_NODE_DEPTH = 8;
     /** The surfaces a target can be printed on (shared/types/game-config.ts `PRINT_SURFACES`) */

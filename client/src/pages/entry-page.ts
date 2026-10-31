@@ -2,12 +2,15 @@ import { Pages } from "@/types";
 import { getEntry } from "@/utils/game-config";
 import "@/components/consultation"; // registers <entry-detail> (the named import is type-only)
 import type { EntryDetail } from "@/components/consultation";
+import { sceneVariables } from "@/components/ar-bridges";
+import { variablesOf, type VariableLookup } from "@shared/text/entry-text";
 import { ConsultationPage } from "./consultation-page";
 import { t } from "i18next";
 
 /**
  * Entry view: "Entries" (back to the list) and `<entry-detail>`, aligned with the entries list like Info.
- * Opening an entry marks it consulted.
+ * Opening an entry marks it consulted. Its text reads the book's variables as they are when it opens: every scope of the
+ * scene once the scene has run, else the book scope from the reader's progress.
  */
 export class EntryPage extends ConsultationPage {
   /** Entry currently shown – progress changes must not re-render it (media would restart) */
@@ -43,11 +46,17 @@ export class EntryPage extends ConsultationPage {
     // Leaving the view (no id) empties the detail, which stops media
     const entry = id ? getEntry(id) : undefined;
     missing.hidden = !id || !!entry;
+    detail.variables = this.variables();
     detail.entry = entry ?? null;
     if (!entry) return;
 
     this.game.history.consultEntry(entry.id);
     this.scrollTop = 0;
+  }
+
+  private variables(): VariableLookup {
+    const book = Object.entries(this.game.history.getVariables()).map(([name, value]) => ({ scope: "book", name, value }));
+    return variablesOf(sceneVariables() ?? book);
   }
 }
 

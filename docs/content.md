@@ -68,7 +68,7 @@ Lines starting with `#` are comments and are ignored.
 | `category` | yes | `glossary`, `video`, `text` or `link` – always singular here; the app shows "Glossary", "Videos", "Texts", "Links" |
 | `title` | yes | name of the entry |
 | `page` | yes | access page in the book (decides which spread the entry belongs to) |
-| `body` | no | the text |
+| `body` | no | the text – Markdown with the book's variables (below) |
 | `author` | no | for texts – shown in the list as *'Title', Author* |
 | `image` | no | an image shown in the entry (glossary), file in the entry folder |
 | `media` | no | for links: the web address (YouTube / Vimeo play inside the app, other pages are embedded) |
@@ -85,6 +85,42 @@ What each category shows in the app:
 
 An entry **without** `target` has nothing to scan – e.g. a glossary term that is only read in the
 list.
+
+### The text: Markdown and variables
+
+An entry's `body` (content schema 2.23, #223) is a small Markdown with the book's variables. One renderer,
+`shared/text/entry-text.ts`, draws it in the reader's entry view and in the editor's preview, so the author sees what
+the reader will.
+
+| Write | Shows |
+|---|---|
+| a blank line | a new paragraph (a single line break stays a line break, as plain text always showed) |
+| `*emphasis*` or `_emphasis_` | *emphasis* |
+| `**strong**` or `__strong__` | **strong** |
+| `[the map](https://example.org/map)` | a link that opens in a new tab – `http`, `https` and `mailto` only; any other link stays text |
+| `\*` (a backslash before a sign) | the sign itself |
+| `{hasKey}` | the variable's value |
+| `{tries > 2: Try the window.}` | the text when the condition holds, else nothing |
+| `{hasKey: The door opens.\|It is locked.}` | one text or the other |
+| `{name: {name}\|friend}` | the variable, or *friend* when it is not set – the fallback |
+| `\{`, `\}`, `\|` | the brace or the bar itself |
+
+Nothing else is markup: no headings, lists, images, code or HTML – HTML shows as text (everything is escaped).
+
+**Variables** use the syntax of SCUTOONS' message boxes – ink's inline syntax, its parser copied into
+`shared/text/expressions.ts`: a bare camelCase name is one of the book's variables, which behaviours set
+(`set: { hasKey: true }`) and plugins keep (`api.vars`), read from the innermost scope that has it – spread, stage,
+session, book – like `api.vars.get(name)`. Conditions take numbers, `"texts"`, `true` / `false`, `and` `or` `not`,
+`==` `!=` `<` `<=` `>` `>=`, `+` `-` `*` `/` `mod` and parentheses. A variable that is **not set shows as nothing** (and
+is false in a condition) – the fallback is a condition with an else part, as above. SCUTOONS' lists (`{a|b}`,
+`{&…}`, `{~…}`, `{!…}`) and functions (`clock(t)`) are no part of a book's text: they render nothing, the editor names
+the problem and the MCP server refuses them.
+
+The reader fills in the values as they are when the entry opens: every scope once the scene has run, before that the
+book scope from the reader's progress. The editor's preview takes them from its stage.
+
+An app older than schema 2.23 shows the body as written – `**strong**`, `[the map](https://…)` and `{hasKey}` with
+their signs (the table in "Schema and app versions"). Plain text reads the same in both.
 
 ### Recipes
 
@@ -739,6 +775,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 2.20 | 1.53.0 | in develop | nothing new in the content – plugin API 1.6: `api.feedback`, a GPU feedback buffer the engine steps every frame, and `api.shadertoy`, a Shadertoy pass as its fragment (#225) | a 2.19 app's engine has no `api.feedback`: a node type whose build calls it renders nothing |
 | 2.21 | 1.54.0 | in develop | a `passes` entry may name a pass a plugin of the book registers (`registerPass`), its parameters checked against the recorded spec (#216) | a 2.20 app refuses a book whose book or spread passes name a plugin's pass |
 | 2.22 | 1.57.0 | in develop | a pass's optional `enabled` – `false` switches it off: it keeps its place and values, the chain skips it (#233) | skipped: a 1.55.0 app drops the unknown field with the update hint, an older one ignores it – either way it runs, and so shows, a pass that is off |
+| 2.23 | next | in develop | no new field – an entry's `body` is Markdown (paragraphs, `*emphasis*`, `**strong**`, `[links](https://…)`) with the book's variables in braces (`{hasKey}`, `{hasKey: …\|…}`, #223); plain text reads as before | the body as written: the stars, brackets and braces show as they are (`**strong**` stays `**strong**`, `{hasKey}` stays `{hasKey}`) – nothing breaks, nothing is skipped |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

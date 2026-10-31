@@ -35,7 +35,8 @@
   import Toggle from "#lib/components/Toggle.svelte";
   import LibraryPanel from "./LibraryPanel.svelte";
   import BehaviourRules from "./BehaviourRules.svelte";
-  import EntryView from "./EntryView.svelte";
+  import EntryForm from "./EntryForm.svelte";
+  import { entries } from "#lib/entries.svelte.js";
   import SpreadView from "./SpreadView.svelte";
   import { bookEvents, bookVariables, pathOfName, rulesOf, subtreeNames, treeBehaviourIssues, withRules } from "#lib/behaviour-edit.js";
 
@@ -75,12 +76,23 @@
   $effect(() => {
     if (library.bookId !== bookId) void library.load(bookId);
   });
+  $effect(() => {
+    if (entries.bookId !== bookId) void entries.load(bookId);
+  });
 
   const targets = $derived((content.spread(spreadId)?.targets ?? []).filter(target => target.imageSrc));
   /** The selected target; none while the spread is selected – nothing stands in for a selection (#229) */
   const target = $derived<Target | undefined>(selection.spread ? undefined : targets.find(t => t.id === selected));
-  /** The entry selected in the tree (#227): shown instead of its target */
-  const entry = $derived(selection.entry ? content.spread(spreadId)?.entries.find(e => e.id === selection.entry) : undefined);
+  /**
+   * The entry selected in the tree (#227), as the content holds it: its form instead of its target (#223) – it stays
+   * when a save moved it to another spread
+   */
+  const entry = $derived(entries.byId(selection.entry));
+  /** An entry's save changed the draft: read it again, the stage shows its texts (`{{entry.title}}`) */
+  const entrySaved = async () => {
+    await content.load(bookId);
+    await stage?.refresh();
+  };
 
   /** The whole tree being edited (null = the target has no entity yet) */
   let entity = $state<EntityData | null>(null);
@@ -286,7 +298,7 @@
     picking = { ...pick, onpick: asset => { picking = null; return pick.onpick(asset); }, oncancel: () => (picking = null) };
   };
   // Another target or node selected (the tree, the stage) while picking: the field it was opened for is gone
-  const pickContext = $derived(`${target?.id}|${node.join(".")}`);
+  const pickContext = $derived(`${target?.id}|${node.join(".")}|${selection.entry}`);
   $effect(() => {
     void pickContext;
     untrack(() => (picking = null));
@@ -522,10 +534,17 @@
   {/if}
 {/snippet}
 
-{#if picking}
+{#if entry}
+  <!-- The form stays while the Library picks its picture: its edits are its own -->
+  {#if picking}<LibraryPanel {bookId} pick={picking} />{/if}
+  <div class="entry-form" hidden={!!picking}>
+    <EntryForm {bookId} {entry} assetsBase={content.assetsBase} vars={stage?.vars ?? []} onpick={pickFor} onsaved={entrySaved}
+      onselecttarget={id => selection.selectTarget(id)} />
+  </div>
+{:else if selection.entry}
+  <p class="small muted">{entries.error ?? "Loading the entry…"}</p>
+{:else if picking}
   <LibraryPanel {bookId} pick={picking} />
-{:else if entry}
-  <EntryView {entry} onselecttarget={id => selection.selectTarget(id)} />
 {:else if !target}
   <!-- The spread: selected, or nothing else is (a target id this spread does not have shows it too) -->
   <SpreadView {stage} {bookId} {spreadId} {onenvironment} />

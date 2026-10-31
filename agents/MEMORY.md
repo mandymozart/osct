@@ -4,6 +4,48 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – content editing: entries, the book, the onboarding; Markdown and variables (#223)
+
+- **Tilman** (#223): *"Simple Markdown is cool in the long run – so a basic implementation. Here too, orient on the
+  message boxes at SCUTOONS: they can contain variables as well. Maybe just copy them."*
+- **The parser lives in `shared/text/`** – a content schema MINOR (2.23), not the engine: the body's meaning is part of
+  the contract (like `behaviour.ts`), the reader, the editor and the MCP server import it alike, and the schema bump was
+  due anyway (the body changes meaning). `expressions.ts` is SCUTOONS' `shared/content/src/expr/parse.ts` +
+  `evaluate.ts` (ink's inline syntax), trimmed: print `{x}` and conditional `{cond: a|b}` with ink's operators; **no
+  lists** (`{a|b}`, `{&…}`, `{~…}`, `{!…}` – they need visit counts a book does not keep) and **no functions** (no
+  registry) – both parse, render nothing and are named as problems (the MCP server refuses them). Names are bare
+  camelCase variables, read innermost scope first like `api.vars.get`; a dotted name is no book variable.
+- **An unset variable renders as nothing** (SCUTOONS' rule: readers never see raw code). The fallback is a conditional:
+  `{name: {name}|friend}`. Chosen over a `{name|fallback}` syntax because that is a SCUTOONS sequence – copying the syntax
+  means keeping its meaning.
+- **Layering**: variables first, Markdown second. A printed value is Markdown-escaped, so a value never becomes markup;
+  the expression layer turns only `\{ \} \|` into characters and leaves every other backslash for the Markdown.
+  Markdown subset: paragraphs at blank lines, **a single line break stays a `<br>`** (plain text showed it with
+  `pre-line`, so older content reads the same), `*em*`/`_em_`, `**strong**`/`__strong__`, `[text](url)` with
+  http/https/mailto only. Everything is HTML-escaped; only p, br, em, strong and a (checked href, `target=_blank`,
+  `rel=noopener noreferrer`) are written. A failed-closer memo keeps it linear on hostile input.
+- **The reader's values**: the book scope from the progress, every scope once the AR chunk has loaded
+  (`sceneVariables()` in `lazy-ar-scene.ts` – the chunk's `allVars()`, nothing imported statically). Read when the entry
+  opens.
+- **The editor's values**: the page's mirror of the stage frame's `vars` (#234 – data, no code); the Entries page has no
+  stage, so every variable shows as unset there (the preview says so).
+- **API**: a new class `BookTexts.php` (Books.php is long): `GET …/entries` (raw fields – the draft the engine reads
+  resolves image paths, so the form needs the rows), `PUT …/entries/{eid}`, `PUT /editor/books/{id}`, `GET`/`PUT
+  …/tutorial`; each write locks its row in a transaction and logs `before`. `POST …/entries` takes no target now (an
+  entry read in the list only). The API does not judge the body's braces (the reader renders a broken one as nothing;
+  the editor names it, the MCP server refuses it). An entry's picture must be a Library image (uploaded, or a file of the
+  import) or the value it has. AI tokens may write texts (RULES #33 is the account; publishing stays refused).
+- **Editor**: `EntryView.svelte` became `EntryForm.svelte` (same place, same order); the Library picker opens over the
+  form, which stays mounted (its draft would be lost otherwise). The book page has three views in `?view=` (spreads,
+  entries, onboarding) – a query, not a route: `[book]/entries/` would shadow a spread with the id `entries`. The book's
+  texts are a collapsible section above the views; the onboarding's steps are sections keyed by place (typing an id must
+  not close the section).
+- **Translations (#224)**: every text field is one value; a language variant becomes a draft of the same shape per
+  language, so the forms take a switch without reshaping.
+- **Left for later**: *Edit text* in the tree's entry menu (the form already opens on a tap); a preview of the splash
+  in the onboarding view; the onboarding's texts in the Markdown renderer (they keep the reader's own `*emphasis*` and
+  `{{title}}`).
+
 ## 2026-10-31 – plugin code in a sandbox: the editor's stage in an opaque-origin frame (#234)
 
 - **Tilman**: "Make editors safe, please. Sandbox." Since #207 no script can read the session, but every book plugin –

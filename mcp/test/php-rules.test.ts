@@ -21,7 +21,21 @@ import {
   PRINT_SURFACES,
   SPREAD_FORMATS,
 } from "../../shared/types/game-config";
-import { ASSET_KIND_EXTENSIONS, ASSET_KINDS, ENV_NAME, ID_PATTERN, PLUGIN_REGISTER_FUNCTIONS, pluginTypes } from "../../shared/api/rules";
+import {
+  ASSET_KIND_EXTENSIONS,
+  ASSET_KINDS,
+  BODY_MAX_LENGTH,
+  ENTRY_TAGS,
+  ENV_NAME,
+  ID_PATTERN,
+  isLinkUrl,
+  PLUGIN_REGISTER_FUNCTIONS,
+  pluginTypes,
+  STEP_TIME_MAX,
+  STEPS_MAX,
+  TEXT_MAX_LENGTH,
+} from "../../shared/api/rules";
+import { STEP_ACTIONS } from "../../shared/types/game-config";
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "../../server/api/src");
 
@@ -35,6 +49,9 @@ const SOURCES = [
   `api.registerComponent(name, S, a); api.registerLayer("with-dash", S); api.registerPass("", S);`,
   "nothing here",
 ];
+
+/** Links an entry may or may not point to: both sides must judge them alike */
+const LINKS = ["https://example.org/a?b=1", "http://example.org", "HTTPS://EXAMPLE.ORG", "javascript:alert(1)", "https://", "https://exa mple.org", "mailto:a@b.c", "ftp://example.org", "/relative", "example.org"];
 
 /** The PHP API's constants, read by PHP itself, and what `Plugins::registers` reads from SOURCES */
 function readPhp(): Record<string, unknown> {
@@ -52,6 +69,10 @@ function readPhp(): Record<string, unknown> {
       'PLUGIN_NODE_TYPE' => Editor::PLUGIN_NODE_TYPE,
       'MATERIAL_TYPE' => Editor::MATERIAL_TYPE,
       'ENTRY_CATEGORIES' => Editor::ENTRY_CATEGORIES,
+      'STEP_ACTIONS' => Editor::STEP_ACTIONS,
+      'TEXTS' => ['text' => BookTexts::TEXT_MAX_LENGTH, 'body' => BookTexts::BODY_MAX_LENGTH, 'tags' => BookTexts::TAGS_MAX, 'tag' => BookTexts::TAG_MAX_LENGTH,
+        'stepTime' => BookTexts::STEP_TIME_MAX, 'steps' => BookTexts::STEPS_MAX],
+      'links' => array_map(static fn(string $url): bool => BookTexts::isLinkUrl($url), $input['links']),
       'MAX_NODE_DEPTH' => Editor::MAX_NODE_DEPTH,
       'PRINT_SURFACES' => Editor::PRINT_SURFACES,
       'FORMATS' => Books::FORMATS,
@@ -68,7 +89,7 @@ function readPhp(): Record<string, unknown> {
       'registers' => array_map(static fn(string $source): array => Plugins::registers($source), $input['sources']),
     ], JSON_THROW_ON_ERROR);
   `;
-  const run = spawnSync("php", ["-r", code], { input: JSON.stringify({ src: SRC, sources: SOURCES }), encoding: "utf8" });
+  const run = spawnSync("php", ["-r", code], { input: JSON.stringify({ src: SRC, sources: SOURCES, links: LINKS }), encoding: "utf8" });
   if (run.status !== 0) throw new Error(`php failed: ${run.stderr || run.stdout}`);
   return JSON.parse(run.stdout) as Record<string, unknown>;
 }
@@ -85,6 +106,13 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(php.ENTRY_CATEGORIES).toEqual([...ENTRY_CATEGORIES]);
     expect(php.MAX_NODE_DEPTH).toBe(MAX_NODE_DEPTH);
     expect(php.PRINT_SURFACES).toEqual([...PRINT_SURFACES]);
+  });
+
+  it("the book's texts: step actions, the limits and which links an entry may point to (BookTexts)", () => {
+    expect(php.STEP_ACTIONS).toEqual([...STEP_ACTIONS]);
+    expect(php.TEXTS).toEqual({ text: TEXT_MAX_LENGTH, body: BODY_MAX_LENGTH, tags: ENTRY_TAGS.max, tag: ENTRY_TAGS.length, stepTime: STEP_TIME_MAX, steps: STEPS_MAX });
+    expect(php.links).toEqual(LINKS.map(isLinkUrl));
+    expect(LINKS.map(isLinkUrl)).toEqual([true, true, true, false, false, false, false, false, false, false]);
   });
 
   it("the patterns: ids, a plugin's node type and material, a plugin id, a build, an environment's name", () => {

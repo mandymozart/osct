@@ -1,12 +1,12 @@
 /**
- * The editor API's answers (`/api/editor/*` – server/api/src/Books.php, ContentVersion.php, Assets.php, Plugins.php,
- * Removal.php; docs/server.md "Editor data"), once for the editor app and the MCP server. Each type is what the PHP
+ * The editor API's answers (`/api/editor/*` – server/api/src/Books.php, BookTexts.php, ContentVersion.php, Assets.php,
+ * Plugins.php, Removal.php; docs/server.md "Editor data"), once for the editor app and the MCP server. Each type is what the PHP
  * sends: a field is optional only where the PHP leaves it out, `| null` where it sends null.
  * Not content: `shared/api/` is outside the content schema lock (RULES #10).
  */
 import type { ContentManifest } from "../types/content-manifest";
 import type { EnvironmentData } from "../types/environment";
-import type { BookData, EntityData, PassData, SpreadData, TargetData } from "../types/game-config";
+import type { BookData, EntityData, EntryData, PassData, SpreadData, StepData, TargetData } from "../types/game-config";
 import type { AssetKind, SourceTypes } from "./rules";
 
 // ── Books ──────────────────────────────────────────────────────────────────────────────────────────
@@ -238,10 +238,41 @@ export interface TargetSaved {
   target: TargetData;
 }
 
-/** `POST /editor/books/{id}/entries` → 201: the new entry with its target, and the spread its page belongs to (null: none) */
+/**
+ * `POST /editor/books/{id}/entries` → 201: the new entry with its target (none when it was made without one), and the
+ * spread its page belongs to (null: none)
+ */
 export interface EntryAdded {
-  entry: { id: string; category: string; title: string; page: number; body: string; tags: string[]; target: TargetData };
+  entry: { id: string; category: string; title: string; page: number; body: string; tags: string[]; target?: TargetData };
   spreadId: string | null;
+}
+
+/** An entry as the content holds it, without its target (`BookTexts`): every field as written – an image's path or URL unresolved */
+export type EntryFields = Omit<EntryData, "target">;
+
+/** One entry of `GET /editor/books/{id}/entries`: its fields, its spread (null: its page is in none) and its target's id and image */
+export type EditorEntry = EntryFields & { spreadId: string | null; target: { id: string; imageSrc: string } | null };
+
+/** `GET /editor/books/{id}/entries`: every entry in the book's order */
+export interface EntryList {
+  entries: EditorEntry[];
+}
+
+/** `PUT /editor/books/{id}/entries/{entryId}`: the entry after the change, its spread now and before */
+export interface EntrySaved {
+  entry: EntryFields;
+  spreadId: string | null;
+  previousSpreadId: string | null;
+}
+
+/** `PUT /editor/books/{id}`: the book's `book` after the change (title, author, publisher and the rest it holds) */
+export interface BookSaved {
+  book: BookData;
+}
+
+/** `GET` and `PUT /editor/books/{id}/tutorial`: the onboarding's steps in their order (`index` = the place in the list) */
+export interface TutorialSaved {
+  tutorial: StepData[];
 }
 
 /** `PUT /editor/books/{id}/spreads/{spreadId}`: the spread after the change */

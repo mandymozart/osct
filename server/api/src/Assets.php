@@ -97,6 +97,24 @@ final class Assets
     }
 
     /**
+     * A picture of the book's Library (an entry's image): the URL of an uploaded image, or a file of the import – its
+     * content path (`/assets/content/…`) or its URL below the assets base, as the Library lists it
+     */
+    public static function isBookImage(string $bookId, string $url): bool
+    {
+        $uploaded = Db::value('SELECT id FROM assets WHERE book_id = :book AND url = :url AND kind = :kind AND status = :status',
+            ['book' => $bookId, 'url' => $url, 'kind' => 'image', 'status' => 'active']);
+        if ($uploaded !== null) return true;
+        foreach (self::imported($bookId, 'image') as $file) {
+            if ($file['url'] === $url) return true;
+        }
+        $book = Db::one('SELECT files_json FROM books WHERE id = :id', ['id' => $bookId]);
+        $files = Editor::decode($book['files_json'] ?? null);
+        $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?: $url, PATHINFO_EXTENSION));
+        return $files instanceof stdClass && property_exists($files, $url) && (self::KINDS[$extension] ?? null) === 'image';
+    }
+
+    /**
      * The texts `usagesOf` searches, one per row: the book (its environment's world and sky), targets (data and image),
      * entities, entries
      * @return array<int, string>
