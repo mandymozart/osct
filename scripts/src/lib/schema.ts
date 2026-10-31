@@ -73,16 +73,16 @@ export const schemas = {
       id: { type: "String", required: false }, // defaults to the entry id
       image: { type: "String", required: true },
       entity: { type: "Object", required: false }, // inline { type, src?, params?, filters? } or { ref }
-      print: { type: "Object", required: false }, // where it is printed: { surface, x, y, width, height? } in mm (schema 2.1)
+      print: { type: "Object", required: false }, // where it is printed: { surface, x, y, width, height? } in mm
     },
   },
 
-  // content/entities/<id>/entity.yaml – the root node of a shared entity (content schema 2.0: a tree)
+  // content/entities/<id>/entity.yaml – the root node of a shared entity (a tree)
   entity: {
     fields: {
       id: { type: "String", required: false },
-      name: { type: "String", required: false }, // the node's name in the editor's tree (schema 2.12)
-      type: { type: "String", required: true }, // ENTITY_TYPES or a plugin's node type (schema 2.13) – checked by the build (build/entities.ts)
+      name: { type: "String", required: false }, // the node's name in the editor's tree
+      type: { type: "String", required: true }, // ENTITY_TYPES or a plugin's node type – checked by the build (build/entities.ts)
       assets: { type: "Array", required: false, default: [] }, // [{ id?, src }]
       params: { type: "Object", required: false },
       filters: { type: "Array", required: false }, // video only: [{ type, ...parameters }], see shared/types/filters.ts

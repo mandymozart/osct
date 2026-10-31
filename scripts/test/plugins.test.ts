@@ -36,7 +36,7 @@ describe('plugins (the book\'s own code)', () => {
     const { entries } = build.buildAll();
     vi.restoreAllMocks();
     expect(build.errors).toEqual([]);
-    // What it registered is recorded (schema 2.14): the layer's spec, no node types, no passes
+    // What it registered is recorded: the layer's spec, no node types, no passes
     expect(plugins.map(p => p.data)).toEqual([{
       id: 'tint', src: '/assets/content/plugins/tint/plugin.js', api: PLUGIN_API_VERSION,
       registered: {
@@ -122,7 +122,7 @@ describe('plugins (the book\'s own code)', () => {
   }, 30000);
 });
 
-/** A plugin with two node types (API 1.2): a fileless sparkle and a poster that takes an image */
+/** A plugin with two node types: a fileless sparkle and a poster that takes an image */
 const NODES = `import type { PluginApi } from "osct-plugin-api";
 export const register = (api: PluginApi): void => {
   api.registerNodeType("sparkle", {
@@ -293,7 +293,7 @@ describe('a plugin\'s node types', () => {
   }, 60000);
 });
 
-/** A plugin that makes a feedback buffer in register (API 1.6): the recording run hands out a dummy */
+/** A plugin that makes a feedback buffer in register: the recording run hands out a dummy */
 const FEEDBACK = `import type { PluginApi } from "osct-plugin-api";
 export const register = (api: PluginApi): void => {
   const fragment = api.shadertoy("void mainImage(out vec4 c, in vec2 p) { c = texture(iChannel0, p / iResolution.xy); }");
