@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { firstTab, TABS, tabOf } from "../panel-tabs";
 
-// The panel's tabs after #229: no Stage tab – the spread is the Inspector's, the preview settings the toolbar's
+// The panel's tabs (#229): no Stage tab – the spread is the Inspector's, the preview settings the toolbar's
 describe("the panel's tabs", () => {
   it("are the Inspector, Environment, Library and Code, and the tree (a phone's first tab)", () => {
     expect(TABS).toEqual(["tree", "inspector", "environment", "library", "code"]);

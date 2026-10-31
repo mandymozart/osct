@@ -7,7 +7,7 @@
   import { clampSnap, SNAP_LIMITS, SNAP_TARGETS, toggleSnapTarget, type SnapTarget } from "#lib/stage/snap.js";
 
   /**
-   * The stage toolbar's **grid & snap** group (#190), after #180's groups: one button (the grid's icon; a dot in its
+   * The stage toolbar's **grid & snap** group (#190), built like the toolbar's other groups (#180): one button (the grid's icon; a dot in its
    * corner while snapping is on) opening a panel attached to it (`ToolMenu`) with the grid's visibility and step, the
    * vertical axis, snapping on / off, what a move snaps to and the precision per gizmo mode – the preview settings,
    * stored in this browser (`stage/preview.ts`).

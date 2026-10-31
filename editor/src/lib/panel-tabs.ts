@@ -1,7 +1,7 @@
 /**
  * The workspace panel's tabs (#229): the **Inspector** – whatever is selected: the spread (also while nothing else is),
  * an entry, a target, its entity or a node –, **Environment**, **Library** and **Code**, and on a phone the **tree** as
- * the sheet's first tab. There is no Stage tab since #229: the spread is the Inspector's, the preview settings are the
+ * the sheet's first tab. There is no Stage tab (#229): the spread is the Inspector's, the preview settings are the
  * stage toolbar's *view* group. The tab a workspace opens with: `?tab=` (the book page links the Environment so), else
  * the one stored in this browser – a tab stored before #229 (`stage`, `entity`) is the Inspector –, else the Inspector.
  */
