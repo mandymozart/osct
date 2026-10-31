@@ -1,7 +1,7 @@
 {
   "name": "osct-mcp",
   "private": true,
-  "version": "1.58.0",
+  "version": "1.59.0",
   "description": "OSCT MCP server (stdio): an AI agent as a signed-in editor over the instance's API – the book's draft, assets and plugin sources; the API decides, readers are reached only by a person",
   "type": "module",
   "engines": {
