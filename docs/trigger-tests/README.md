@@ -17,18 +17,18 @@ Tester package for the second trial (#36) – one PDF per paper size, how-to pag
 | 2026-10-28 | Samsung Galaxy S22 | Chromium 155 (Android) | 1.7.8 | A3 packed, 121 of 131 | 96 | 25 | 0 | 10 |
 | 2026-10-28 | Samsung Galaxy S22 (main lens) | Chrome 156 (Android) | 1.9.0 (dev) | retest of the 25 misses + p041-1 | 24 | 2 (flat logos) | 0 | – |
 | 2026-10-28 | iPhone 7 (iOS 15.8.3) | Safari 15.6 | 1.9.0 (dev) | – | cannot scan: the engine needs WebAssembly SIMD (iOS 16.4) | | | |
-| 2026-10-28 | iPhone 18 | Safari 26.6.1 | 1.9.6 (staging) | trial-2, 121 of 131 | 119 | 2 (flat logos) | 0 | 10 |
+| 2026-10-28 | iPhone 17 | Safari 26.6.1 | 1.9.6 (staging) | trial-2, 121 of 131 | 119 | 2 (flat logos) | 0 | 10 |
 | 2026-10-30 | iPhone 12 mini (dual wide camera) | Safari 26.6.1 | 1.43.0 (staging) | trial-2, 121 of 131 | 119 | 2 (flat logos) | 0 | 10 |
 
 Details: [2026-10-28 Galaxy S22](2026-10-28-galaxy-s22.md) (the first run, in Brave – on the ultra-wide lens),
 [2026-10-28 camera test](2026-10-28-camera.md) (main lens retest, iPhone 7, camera size),
-[2026-10-28 iPhone 18](2026-10-28-iphone-18.md), [2026-10-30 iPhone 12 mini](2026-10-30-iphone-12-mini.md).
+[2026-10-28 iPhone 17](2026-10-28-iphone-17.md), [2026-10-30 iPhone 12 mini](2026-10-30-iphone-12-mini.md).
 
 ## Not found, per device
 
 The triggers on the printout that a run did not find. ✗ not found, ✓ found, – not tested.
 
-| Page | Target | Printed size | S22 | iPhone 7 | iPhone 18 | iPhone 12 mini |
+| Page | Target | Printed size | S22 | iPhone 7 | iPhone 17 | iPhone 12 mini |
 |---|---|---|---|---|---|---|
 | 9 | p009-1 | 37 × 21 mm | ✗ | | ✓ | ✓ |
 | 13 | p013-1 | 39 × 22 mm | ✗ | | ✓ | ✓ |
