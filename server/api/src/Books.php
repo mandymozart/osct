@@ -853,8 +853,9 @@ final class Books
 
     /**
      * A `passes` list as the content holds it: every pass an object with a built-in `type` – or one of the book's
-     * plugins (`$pluginPasses`: a list = the recorded ones, `true` = any camelCase name, `false` = none) –
-     * and scalar parameters (the engine and the guard check the parameters against the specs; the API keeps the shape)
+     * plugins (`$pluginPasses`: a list = the recorded ones, `true` = any camelCase name, `false` = none) –, an optional
+     * `enabled` true / false and scalar parameters (the engine and the guard check the parameters against the specs; the
+     * API keeps the shape)
      * @param bool|list<string> $pluginPasses
      * @return list<stdClass>
      */
@@ -877,6 +878,8 @@ final class Books
                 };
                 throw new ApiError(400, $code, "passes[$i].type must be one of " . implode(', ', self::PASS_TYPES) . $plugins);
             }
+            // Off keeps the pass and its values, the chain skips it (#233)
+            if (property_exists($pass, 'enabled') && !is_bool($pass->enabled)) throw new ApiError(400, $code, "passes[$i].enabled must be true or false.");
             foreach (get_object_vars($pass) as $name => $param) {
                 if (!is_scalar($param)) throw new ApiError(400, $code, "passes[$i].$name must be a number, a string or true / false.");
             }

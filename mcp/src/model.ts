@@ -307,7 +307,8 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     },
     passes: {
       description:
-        "Post-processing over the whole rendered AR image: [{ type, …params }], run in order. The book's passes (put_book_passes) are the master every spread shows; a spread's own (put_spread passes) replace them for that spread, [] turns them off there, null gives the spread the book's again. " +
+        "Post-processing over the whole rendered AR image: [{ type, enabled?, …params }], run in order. The book's passes (put_book_passes) are the master every spread shows; a spread's own (put_spread passes) replace them for that spread, [] turns them off there, null gives the spread the book's again. " +
+        "enabled: false (content schema 2.22) switches one pass off – it keeps its place and values, the chain skips it, it does not count towards the phone budget; leave enabled out for a pass that runs. A 2.21 reader ignores it and runs the pass. " +
         "The built-in types, and (content schema 2.21) a pass a plugin of the book registers (api.registerPass) – written the same way, its parameters checked against the recorded spec. A pass no compiled plugin provides is refused by the publish (409 unknown-passes); a 2.20 reader refuses a book that names one. Up to three passes and one bloom per list fit the phone budget.",
       builtIn: PASSES,
       ...(book ? { plugins: recordedSpecs(book, "passes"), known: known!.passes } : {}),

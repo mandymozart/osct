@@ -7,6 +7,28 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **Switch a post-processing pass off without losing it** (#233): in the editor's post-processing section every pass is
+  now a section of its own. Closed, it shows its type and its values in one line (*bloom · strength 0.35*); an
+  **on / off** switch in its head turns the pass off or on without opening it, next to the arrows and *remove*. A pass
+  that is off keeps its place and its values, and the stage and the reader skip it – it costs nothing on the phone. In the
+  content it is `enabled: false` on the pass (content schema 2.22); the content build, the editor's API and the MCP server
+  accept it. An app of schema 2.21 ignores the field and still shows the pass.
+
+### Changed
+- **The Code tab marks only what matters** (#232): the plugin list shows each plugin by its name alone – no more
+  *in the content · not stored* –, and a plugin with unsaved edits with an asterisk after its name (*aquarium\**). The
+  Library's code list marks the script the same way. Whether readers have the saved plugins is what the top bar already
+  says (*draft only*, *live on …*).
+- The editor's on / off buttons are one control now, the same in a row and in a section's head.
+
+### Fixed
+- Unsaved edits in the Code tab are no longer lost when another tab is opened: the source stays until it is saved or
+  discarded, and a reload for a new version still warns about it (#232).
+- Opening a plugin that only the content declares no longer counts as an unsaved edit (#232).
+
 ## 1.56.0 – 2026-10-30
 
 ### Added

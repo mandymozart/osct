@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-  backToBooks, draftPasses, editInEffect, effectivePasses, levelLine, ownPasses, passesHeading, passesSource, pendingSaves, saveLabel, spreadsOnBooks,
+  backToBooks, draftPasses, editInEffect, effectivePasses, levelLine, ownPasses, passesHeading, passesSource, passSummary, pendingSaves, saveLabel,
+  setPassEnabled, spreadsOnBooks,
 } from "../passes-edit";
+import type { PassData } from "@engine/types";
+import { passRows } from "../values";
 
 const BOOK = [{ type: "grade", reach: "all", exposure: 0.5 }, { type: "vignette" }];
 
@@ -85,5 +88,40 @@ describe("the level in words", () => {
     expect(saveLabel({ book: [] })).toBe("Save for the whole book");
     expect(saveLabel({ spread: null })).toBe("Save for this spread");
     expect(saveLabel({ book: null, spread: [] })).toBe("Save for the book and this spread");
+  });
+});
+
+// Each pass its own section with an on/off toggle in its head (#233)
+describe("a pass on and off, and its closed head", () => {
+  it("off keeps the pass, its place and its values – on drops the field again", () => {
+    const list = [{ type: "bloom", strength: 0.35 }, { type: "vignette" }];
+    const off = setPassEnabled(list, 0, false);
+    expect(off).toEqual([{ type: "bloom", strength: 0.35, enabled: false }, { type: "vignette" }]);
+    expect(list[0]).toEqual({ type: "bloom", strength: 0.35 });
+    expect(setPassEnabled(off, 0, true)).toEqual(list);
+    expect(setPassEnabled(list, 1, true)).toEqual(list);
+  });
+
+  it("switching a pass of the book's list changes the book's, a spread's own the spread's – Save writes it", () => {
+    const draft = draftPasses(BOOK, undefined);
+    const next = editInEffect(draft, list => setPassEnabled(list, 1, false));
+    expect(next.book[1]).toEqual({ type: "vignette", enabled: false });
+    expect(pendingSaves(next, draft)).toEqual({ book: [BOOK[0], { type: "vignette", enabled: false }] });
+    expect(editInEffect(ownPasses(draft), list => setPassEnabled(list, 0, false)).own![0].enabled).toBe(false);
+  });
+
+  it("the level's head says when every pass is off", () => {
+    expect(passesHeading(draftPasses([{ type: "bloom", enabled: false }], undefined))).toBe("post-processing · the whole book · all off");
+    expect(passesHeading(draftPasses([{ type: "bloom", enabled: false }, { type: "grade" }], undefined))).toBe("post-processing · the whole book");
+  });
+
+  it("a closed pass names the values set, at most two – else its first parameter", () => {
+    const summary = (pass: PassData) => passSummary(pass, passRows(pass, 0));
+    expect(summary({ type: "bloom", strength: 0.35 })).toBe("strength 0.35");
+    expect(summary({ type: "bloom" })).toBe("strength 1");
+    expect(summary({ type: "bloom", strength: 0.35, radius: 0.6, threshold: 0.5 })).toBe("strength 0.35 · radius 0.6");
+    expect(summary({ type: "grade", reach: "all", exposure: 0.5 })).toBe("reach whole picture · exposure 0.5 EV");
+    expect(summary({ type: "vignette", color: "#102030", enabled: false })).toBe("color #102030");
+    expect(passSummary({ type: "unknownPass" }, [])).toBeUndefined();
   });
 });

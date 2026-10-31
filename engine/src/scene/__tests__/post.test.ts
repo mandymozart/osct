@@ -107,6 +107,26 @@ describe("a live edit of a pass", () => {
   });
 });
 
+describe("a pass that is off (#233)", () => {
+  it("is not built – the chain runs the others, and builds it once it is on again", () => {
+    const chain = new PostChain({ getSize: () => new Vector2(300, 200), getPixelRatio: () => 1, capabilities: { maxSamples: 0 } } as never, new Scene(), new PerspectiveCamera());
+    const types = () => (chain as unknown as { instances: { data: { type: string } }[] }).instances.map(i => i.data.type);
+    chain.set([{ type: "grade", enabled: false, contrast: 2 }, { type: "vignette" }]);
+    expect(types()).toEqual(["vignette"]);
+    expect(chain.passes).toEqual([{ type: "vignette" }]);
+    chain.set([{ type: "grade", enabled: true, contrast: 2 }, { type: "vignette" }]);
+    expect(types()).toEqual(["grade", "vignette"]);
+    chain.set([{ type: "grade", contrast: 2 }, { type: "vignette", enabled: false }]);
+    expect(types()).toEqual(["grade"]);
+    chain.dispose();
+  });
+
+  it("an off grade does not reach the camera picture", () => {
+    expect(cameraGrades([{ type: "grade", reach: "all", enabled: false }])).toEqual([]);
+    expect(cameraGrades([{ type: "grade", reach: "all", enabled: false }, { type: "grade", reach: "all", contrast: 1.5 }])).toHaveLength(1);
+  });
+});
+
 describe("the grade's reach", () => {
   const grade = (data: Record<string, unknown>) => {
     const registration = passRegistration("grade")!;

@@ -3,7 +3,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { Pass } from "three/examples/jsm/postprocessing/Pass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
-import { passBudgetWarning, type PassData } from "../../types/index";
+import { enabledPasses, passBudgetWarning, type PassData } from "../../types/index";
 import { collectFeedbacks, type OwnedFeedbacks } from "../feedback";
 import { type ResolvedTextures, resolveTextures, sameTextures } from "../textures";
 import { ENGINE_OWNER, type MaskUsage, type PassContext, passContext, passRegistration, type PassRegistration, type PostPass } from "./registry";
@@ -93,7 +93,8 @@ const describeError = (error: unknown): string => (error instanceof Error ? `${e
  * content run over it in order (`passes: [{ type, … }]`, from the pass registry), and the result lies on the canvas
  * as the scene would. Built only while a spread names passes; `set([])` frees everything – a spread without passes
  * renders straight to the canvas as before (no cost). `enabled` off keeps the passes but renders without them (the
- * editor's viewport outside *rendered*).
+ * editor's viewport outside *rendered*). A pass the content switched off (`enabled: false`, #233) is not built: the
+ * chain runs the others as if it were not in the list.
  *
  * A plugin's pass is built from its factory in its place in the list, like a built-in one. A pass
  * that cannot be built – its factory throws or returns no three.js pass – is logged and skipped, the others run; one
@@ -165,9 +166,10 @@ export class PostChain {
   /**
    * The passes to run, in order. A pass whose type, registration and position stay gets its new parameters in place
    * (`update` – unless a texture parameter names another texture); everything else is built anew. An unknown type is
-   * logged and skipped (nothing registered it), and so is a pass whose factory fails.
+   * logged and skipped (nothing registered it), and so is a pass whose factory fails. A pass that is off is left out.
    */
-  set(passes: readonly PassData[]): void {
+  set(list: readonly PassData[]): void {
+    const passes = enabledPasses(list);
     const pixelRatio = this.renderer.getPixelRatio();
     const next: Instance[] = [];
     const kept = new Set<Instance>();

@@ -35,6 +35,7 @@ import {
   NODE_TYPE_PATTERN,
   nodeTypeSpec,
   parseContentSchema,
+  PASS_FIELDS,
   PASS_TYPES,
   PASSES,
   PLACEMENT_KEYS,
@@ -55,6 +56,8 @@ export interface KnownFeatures {
   nodeTypes: readonly string[];
   /** Built-in pass types */
   passes: readonly string[];
+  /** The fields of a pass that are no parameter: `type`, and `enabled` (#233) – an older app knows only `type` */
+  passFields: readonly string[];
   /** Video filter types */
   filters: readonly string[];
   /** The verbs of a behaviour rule's actions */
@@ -76,6 +79,7 @@ export const currentFeatures = (): KnownFeatures => ({
   components: componentTypes(),
   nodeTypes: ENTITY_TYPES,
   passes: PASS_TYPES,
+  passFields: PASS_FIELDS,
   filters: FILTER_TYPES,
   behaviourActions: BEHAVIOUR_ACTIONS,
   paramKinds: PARAM_KINDS,
@@ -168,8 +172,12 @@ export const skipUnknownFeatures = (
     }
   };
 
-  /** A typed list (`components`, `filters`, `passes`): unknown types dropped, known ones without unknown parameters */
-  const typedList = (list: unknown, path: string, kind: SkippedKind, specOf: (type: string) => Spec | undefined, allow: boolean) => {
+  /**
+   * A typed list (`components`, `filters`, `passes`): unknown types dropped, known ones without unknown parameters;
+   * `fields` are an item's keys that are no parameter
+   */
+  const typedList = (list: unknown, path: string, kind: SkippedKind, specOf: (type: string) => Spec | undefined, allow: boolean,
+    fields: readonly string[] = ["type"]) => {
     if (!Array.isArray(list)) return;
     const kept = list.filter((item: unknown, i) => {
       if (!isObject(item) || typeof item.type !== "string" || !COMPONENT_TYPE_PATTERN.test(item.type)) return true;
@@ -179,7 +187,7 @@ export const skipUnknownFeatures = (
         return allow;
       }
       if (item.type === BEHAVIOUR_TYPE && kind === "component") behaviour(item, `${path}[${i}]`);
-      else dropUnknownParams(item, spec, `${path}[${i}]`, ["type"]);
+      else dropUnknownParams(item, spec, `${path}[${i}]`, fields);
       return true;
     });
     list.splice(0, list.length, ...kept);
@@ -270,7 +278,8 @@ export const skipUnknownFeatures = (
   };
 
   const passes = (list: unknown, path: string) =>
-    typedList(list, path, "pass", t => (known.passes.includes(t) ? (PASSES as unknown as Record<string, Spec>)[t] : undefined) ?? recorded.passes.get(t), allowUnknown);
+    typedList(list, path, "pass", t => (known.passes.includes(t) ? (PASSES as unknown as Record<string, Spec>)[t] : undefined) ?? recorded.passes.get(t), allowUnknown,
+      known.passFields);
 
   if (isObject(config.book)) passes(config.book.passes, "book.passes");
   if (Array.isArray(config.spreads)) config.spreads.forEach((spread, i) => isObject(spread) && passes(spread.passes, `spreads[${i}].passes`));

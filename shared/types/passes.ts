@@ -7,7 +7,9 @@
  * content build, the config guard and the engine read one definition. A plugin's pass (`registerPass`) brings its
  * own spec: since 2.21 a `passes` entry may name it where a declared plugin recorded it (`registered.passes`, schema
  * 2.14) – its parameters checked against that spec like a built-in pass's – and the engine builds it from the plugin's
- * factory in its place in the list; a 2.20 app refuses such a type.
+ * factory in its place in the list; a 2.20 app refuses such a type. Since 2.22 a pass may be switched off
+ * (`enabled: false`, #233): it stays in the list with its values, the chain skips it; a 2.21 app ignores the field and
+ * so runs the pass.
  *
  * Adding a built-in pass: define it in PASSES, implement it in the engine (`engine/src/scene/post/`), document it in
  * docs/content.md.
@@ -63,11 +65,25 @@ export type BuiltInPassType = keyof typeof PASSES;
 export const PASS_TYPES = Object.keys(PASSES) as BuiltInPassType[];
 export const isBuiltInPassType = (value: unknown): value is BuiltInPassType => typeof value === "string" && value in PASSES;
 
-/** A pass as the content holds it: its type and the parameters set (missing ones use the spec's defaults) */
+/**
+ * A pass as the content holds it: its type, whether it runs and the parameters set (missing ones use the spec's
+ * defaults)
+ */
 export interface PassData {
   type: string;
+  /** Optional (schema 2.22, #233): `false` switches the pass off – it keeps its place and values, the chain skips it */
+  enabled?: boolean;
   [param: string]: unknown;
 }
+
+/** The fields of a pass that are no parameter of its spec */
+export const PASS_FIELDS = ["type", "enabled"] as const;
+
+/** The pass runs: anything but `enabled: false` */
+export const isPassEnabled = (pass: Pick<PassData, "enabled">): boolean => pass.enabled !== false;
+
+/** The passes of a list that run, in order – what the chain builds and the phone budget counts */
+export const enabledPasses = <T extends Pick<PassData, "enabled">>(passes: readonly T[]): T[] => passes.filter(isPassEnabled);
 
 export interface PassCheckOptions {
   /** The spec of a type that is not built in (a plugin's) – `undefined` = unknown */
@@ -97,11 +113,12 @@ export const passProblems = (raw: unknown, path: string, options: PassCheckOptio
       problems.push(`${at}: expected { type, ...parameters }`);
       return;
     }
-    const { type, ...params } = pass as Record<string, unknown>;
+    const { type, enabled, ...params } = pass as Record<string, unknown>;
     if (typeof type !== "string" || !type) {
       problems.push(`${at}.type: expected a pass type (${PASS_TYPES.join(", ")})`);
       return;
     }
+    if (enabled !== undefined && typeof enabled !== "boolean") problems.push(`${at}.enabled: expected true or false, got ${JSON.stringify(enabled)}`);
     const spec = passSpec(type, options);
     if (!spec) {
       const plugins = options.pluginTypes?.length ? ` or a pass of the book's plugins (${options.pluginTypes.join(", ")})` : "";
@@ -127,12 +144,14 @@ export const resolvePass = (spec: PassSpec, pass: PassData): Record<string, unkn
  * The phone budget of a chain (#86, agents/MEMORY.md 2026-10-29): every pass is at least one full-screen
  * render-to-texture plus one full-screen shader – a plugin's pass counts like a built-in one (its feedback buffers come
  * on top) – and the bloom is several (five blur levels at half resolution). Up to one bloom and three passes in all run on
- * a phone; more is a warning (the content build, the editor), never an error – the S22 measurement is still open.
+ * a phone; more is a warning (the content build, the editor), never an error – the S22 measurement is still open. A
+ * pass that is off costs nothing and is not counted.
  */
 export const PASS_BUDGET = { passes: 3, blooms: 1 } as const;
 
 /** What a `passes` list asks beyond the phone budget, in words; null within it */
-export const passBudgetWarning = (passes: readonly PassData[]): string | null => {
+export const passBudgetWarning = (list: readonly PassData[]): string | null => {
+  const passes = enabledPasses(list);
   const blooms = passes.filter(pass => pass.type === "bloom").length;
   const over = [
     ...(passes.length > PASS_BUDGET.passes ? [`${passes.length} passes (the phone budget is ${PASS_BUDGET.passes})`] : []),

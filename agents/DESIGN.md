@@ -178,3 +178,19 @@ scene reports `scanning` and `<ar-bridge>` toggles `.hidden` on it (shown while 
 7. **Type:** Arial 15 px / 0.02 em on all phones, or a smaller size for small screens?
 8. **Counter:** grey in scan mode, and in consultation "12 / 150 Entries consulted" – gold or grey?
 9. **Final accent color** for the flat uses (focus rings, selection) if any.
+
+---
+
+## 9. Editor: sections and toggles (Tilman, 2026-10-31, #233)
+*"In principle in the UI: such things can be collapsed and, where possible, toggled."* The editor's own rule, next to
+RULES #32 (the Scutoons dogma, the editor tokens):
+- **A group of settings is a collapsible section** (`editor/src/lib/components/Section.svelte`): a head with the chevron
+  and the group's name; closed, the head adds its values in one line (*bloom · strength 0.35* – the values set away from
+  the default, at most two, else the first), so closed hides nothing that matters. The open state is kept per section.
+- **What can be switched as a whole has a toggle in its head** (`Section` with `enabled` / `onenabled`): the on / off
+  pill (`Toggle.svelte` – the editor's one boolean control, pressed while on, the same in a row) sits in the head before
+  the group's other actions (↑ ↓, remove), and works without opening the section. Off dims the name and keeps every
+  value – in the content it is `enabled: false`, never a removal.
+- **Nested** (a section inside a section, `nested`): the name reads as a name (the text colour, normal case), the line
+  above it dotted – the outer heads stay the small capitals.
+- Applied so far: each post-processing pass. The other places are follow-ups (`agents/MEMORY.md`, 2026-10-31).

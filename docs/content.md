@@ -403,6 +403,21 @@ A list may also name **a pass of the book's plugins** (schema 2.21, below). **Th
 full-screen render, the bloom several – up to three passes and one bloom per list; the build warns beyond (a plugin's
 pass counts like a built-in one), the editor's section says so too. The S22 measurement behind the number is still open.
 
+**A pass can be off** (content schema 2.22, #233): `enabled: false` keeps a pass in its list with its values, and the
+chain skips it – it renders nothing and costs nothing (the phone budget does not count it); leave `enabled` out (or
+`true`) for a pass that runs. A list whose passes are all off renders straight to the canvas, as without passes. The
+editor's toggle in each pass's head writes it; the build, the guard, the API and the MCP server accept `true` / `false`
+and refuse anything else. An app of schema 2.21 does not know the field: it runs the pass (the 1.55.0 app skips the
+field with the update hint).
+
+```yaml
+passes:
+  - type: bloom
+    enabled: false   # off – the values stay for later
+    strength: 0.35
+  - type: vignette
+```
+
 **The look-around world goes through the passes** ([look-around](look-around.md)): while passes run, the world around
 the reader and its sky (the onion sky included) are drawn into the chain's image under the AR layer, so a bloom
 glows on them, a vignette darkens them and a grade with `reach: all` grades them – on the phone and on the editor's
@@ -723,6 +738,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 2.19 | 1.50.0 | in develop | the built-in component `behaviour`: rules on events with conditions on variables and actions, no code (#88) | a 2.18 app refuses a node that carries a behaviour |
 | 2.20 | 1.53.0 | in develop | nothing new in the content – plugin API 1.6: `api.feedback`, a GPU feedback buffer the engine steps every frame, and `api.shadertoy`, a Shadertoy pass as its fragment (#225) | a 2.19 app's engine has no `api.feedback`: a node type whose build calls it renders nothing |
 | 2.21 | 1.54.0 | in develop | a `passes` entry may name a pass a plugin of the book registers (`registerPass`), its parameters checked against the recorded spec (#216) | a 2.20 app refuses a book whose book or spread passes name a plugin's pass |
+| 2.22 | next | in develop | a pass's optional `enabled` – `false` switches it off: it keeps its place and values, the chain skips it (#233) | skipped: a 1.55.0 app drops the unknown field with the update hint, an older one ignores it – either way it runs, and so shows, a pass that is off |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

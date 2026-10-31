@@ -23,9 +23,12 @@ const APP_2_19: KnownFeatures = {
   schema: "2.19",
   components: ["animation", "behaviour"],
   passes: ["bloom", "vignette", "grade"],
+  passFields: ["type"],
   pluginApi: "1.5",
   pluginKinds: ["components", "nodeTypes", "materials"],
 };
+/** What a 2.21 app knew: everything but a pass's `enabled` (#233) */
+const APP_2_21: KnownFeatures = { ...currentFeatures(), schema: "2.21", passFields: ["type"] };
 /** A 2.18 app: no behaviour component */
 const APP_2_18: KnownFeatures = { ...APP_2_19, schema: "2.18", components: ["animation"] };
 /** A 2.16 app: no parameter kind `texture`, no materials of plugins */
@@ -164,6 +167,25 @@ describe("forward compatibility: a newer MINOR read by an older app", () => {
       'entities.fx.components[1]: component "glow"',
       'entities.fx.children[0].light.flicker: parameter "flicker"',
     ]);
+  });
+
+  it("a pass that is off (schema 2.22) in a 2.21 app: the field is skipped, the pass runs – this app keeps it off", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    const raw = {
+      ...book2_21("2.22"), entries: [], entities: {},
+      book: { id: "b", title: "B", author: "A", passes: [{ type: "vignette", enabled: false, strength: 0.4 }] },
+    };
+    const { config, skipped } = skipUnknownFeatures(raw, APP_2_21);
+    expect(skipped.map(describeSkipped)).toEqual(['book.passes[0].enabled: parameter "enabled"']);
+    expect(problemsOf(config)).toEqual([]);
+    expect((config as typeof raw).book.passes).toEqual([{ type: "vignette", strength: 0.4 }]);
+    // This app knows the field: nothing is skipped, the guard accepts it and the pass stays off
+    expect(currentFeatures().passFields).toContain("enabled");
+    expect(await loadGameConfiguration({ bundled: async () => raw })).toBeNull();
+    expect(getSkippedFeatures()).toEqual([]);
+    expect(getPasses("s1")).toEqual([{ type: "bloom", strength: 0.5 }, { type: "grain", amount: 0.3 }]);
+    expect(await loadGameConfiguration({ bundled: async () => ({ ...raw, spreads: raw.spreads.map(({ passes: _, ...spread }) => spread) }) })).toBeNull();
+    expect(getPasses("s1")).toEqual([{ type: "vignette", enabled: false, strength: 0.4 }]);
   });
 
   it("content of the app's own schema is read as it is – an unknown type there is the author's mistake", async () => {

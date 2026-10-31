@@ -422,8 +422,12 @@ is involved.
     (removing every pass turns post-processing off there: *· off*; a book without passes reads *· none*). The line under
     the header says what editing changes – *changes all N spreads that use the book's* (N counted from the draft's
     spreads without a list of their own, this one as the panel holds it) with **own for this spread**, or *overrides
-    the book's for this spread* with **back to the book's**, which drops the override. The list has a row per
-    parameter from the pass's spec; **add pass** offers **+ bloom / + vignette / + grade** and, in a row per plugin under
+    the book's for this spread* with **back to the book's**, which drops the override. **Each pass is a collapsible
+    section of its own** (#233): closed, its head names the type and the values set away from the default (*bloom ·
+    strength 0.35*, at most two – else its first parameter); its head's **on / off** toggle switches the pass without
+    opening it (off writes `enabled: false`: the pass keeps its place and values, the stage and the reader skip it, the
+    phone budget does not count it; a list whose passes are all off reads *· all off*), next to the arrows and *remove*.
+    A pass added opens; open, it has a row per parameter from the pass's spec. **add pass** offers **+ bloom / + vignette / + grade** and, in a row per plugin under
     its id, **the passes of the book's plugins** (content schema 2.21, #216 – a compiled plugin's from its recorded spec
     as soon as the book is open, a plugin **Run** in the Code tab at once, no reload). A plugin's pass shows its type
     with its plugin's id next to the arrows (*filmGrain* … *grain*) and its spec's rows – labels, help, ranges, on / off, a `texture`
@@ -490,7 +494,8 @@ is involved.
     **Code files** (#186): the book's **scripts** and **shaders** in a list of their own under the media (the filter
     **code** shows it alone; `CodeFiles.svelte`, `library-code.ts`) – name, kind (*script* / *shader*), size, uses. A
     script **is** a plugin source of the Code tab (the same rows, no second copy – its uses are the draft's rows that name
-    a type it registers); a shader is an asset of the kind `shader` (`.glsl`, `.frag`, `.vert`, `.wgsl` – its uses are the
+    a type it registers; one with unsaved edits in the Code tab reads *name.ts\**, as the Code tab marks it – #232); a
+    shader is an asset of the kind `shader` (`.glsl`, `.frag`, `.vert`, `.wgsl` – its uses are the
     plugin sources that name its URL). **Upload** and drop take both: a `.ts` / `.js` becomes a plugin source named
     after the file (`Wobble Effect.ts` → `wobble-effect`; a taken id is refused – *Replace…* that plugin instead), a
     shader file a shader asset; a code file is at most 256 KB, and the API checks extension, content type and text. A
@@ -612,7 +617,10 @@ is involved.
     **plugin** registers shows the same way, with **+ type** after a Run in the Code tab.
   - **Code** – the book's own code ([the decision](../agents/research/2026-10-29-code-in-the-editor.md)): the
     plugins stored for the book and the ones the content declares (compiled by the content build – opening one reads
-    its `index.ts` next to the compiled module; Save keeps a copy), one open in **Monaco** (loaded with the tab only – the
+    its `index.ts` next to the compiled module; Save keeps a copy) – the picker names each by its name alone, the one
+    with unsaved edits with an asterisk (*aquarium\**, #232: unchanged needs no mark, and whether readers have the
+    stored sources is the top bar's *draft only* / *live on …*); the open source is kept while another tab shows
+    (`plugins.code`), so a tab switch loses no edit –, one open in **Monaco** (loaded with the tab only – the
     reader and the other tabs carry nothing of it): TypeScript with the content build's compiler options against
     `plugin-api.d.ts` (the module `osct-plugin-api`) and three's own types, so completion, hover documentation and type
     errors inline are the build's; Tab indents, Ctrl+Enter runs, Ctrl+S saves; the colours follow the editor's day /

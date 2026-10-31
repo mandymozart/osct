@@ -1520,6 +1520,16 @@ try {
     check($status === 400 && $data['error']['code'] === 'invalid-passes', 'a parameter must be a scalar');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['type' => 'bloom'], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-passes', 'the body needs passes');
+    // A pass switched off keeps its place and values (#233); enabled is true or false, nothing else
+    $offPasses = [['type' => 'bloom', 'enabled' => false, 'strength' => 0.5], ['type' => 'vignette', 'enabled' => true]];
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/s2', ['passes' => $offPasses], $editor);
+    check($status === 200 && $data['spread']['passes'] === $offPasses, 'a spread\'s pass that is off is kept with its values (enabled: false)');
+    [, $draftNow] = $draftOf();
+    check((array_column($draftNow['spreads'], null, 'id')['s2']['passes'] ?? null) === $offPasses, 'the draft carries enabled');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => [['type' => 'bloom', 'enabled' => 'no']]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-passes' && str_contains($data['error']['message'], 'passes[0].enabled must be true or false'), 'the book\'s: enabled must be true or false');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/s2', ['passes' => [['type' => 'vignette', 'enabled' => 1]]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-spread', 'a spread\'s: enabled 1 is refused');
     [$status] = call($api, 'PUT', '/editor/books/nowhere/passes', ['passes' => null], $editor);
     check($status === 404, 'an unknown book → 404');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => null], $editor);

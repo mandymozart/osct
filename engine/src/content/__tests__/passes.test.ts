@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PASS_TYPES, passBudgetWarning, passProblems, resolvePass, PASSES } from "@shared/types/passes";
+import { enabledPasses, isPassEnabled, PASS_FIELDS, PASS_TYPES, passBudgetWarning, passProblems, resolvePass, PASSES } from "@shared/types/passes";
 import { assertGameConfiguration } from "@shared/guards/game-config";
 import { CONTENT_SCHEMA_VERSION } from "@shared/types/game-config";
 
@@ -63,11 +63,30 @@ describe("post-processing passes (content schema 2.5)", () => {
     expect(() => assertGameConfiguration(config([{ type: "glow" }]))).toThrow(/spreads\[0\]\.passes\[0\]\.type/);
     expect(() => assertGameConfiguration(config(undefined, [{ type: "grade", contrast: 5 }]))).toThrow(/book\.passes\[0\]\.contrast/);
     expect(() => assertGameConfiguration(config([{ type: "grade", reach: "all", later: true }]))).not.toThrow();
+    expect(() => assertGameConfiguration(config([{ type: "bloom", enabled: false }], [{ type: "vignette", enabled: true }]))).not.toThrow();
+    expect(() => assertGameConfiguration(config([{ type: "bloom", enabled: "off" }]))).toThrow(/spreads\[0\]\.passes\[0\]\.enabled/);
   });
 
   it("the phone budget (#86): up to three passes and one bloom, a plugin's pass counting like a built-in one", () => {
     expect(passBudgetWarning([{ type: "bloom" }, { type: "vignette" }, { type: "scanLines" }])).toBeNull();
     expect(passBudgetWarning([{ type: "bloom" }, { type: "vignette" }, { type: "grade" }, { type: "scanLines" }])).toBe("4 passes (the phone budget is 3) – every pass is a full-screen render on the phone");
     expect(passBudgetWarning([{ type: "bloom" }, { type: "bloom" }])).toBe("2 blooms (one fits) – every pass is a full-screen render on the phone");
+    // A pass that is off costs nothing (#233)
+    expect(passBudgetWarning([{ type: "bloom" }, { type: "bloom", enabled: false }, { type: "vignette" }, { type: "grade", enabled: false }])).toBeNull();
+  });
+
+  it("a pass may be switched off (schema 2.22, #233): the guard and the build accept a boolean, nothing else", () => {
+    expect(passProblems([{ type: "bloom", enabled: false }, { type: "grade", enabled: true, contrast: 1.2 }], "passes")).toEqual([]);
+    expect(passProblems([{ type: "bloom", enabled: "no" }], "passes")).toEqual(['passes[0].enabled: expected true or false, got "no"']);
+    expect(passProblems([{ type: "bloom", enabled: 0 }], "passes", { unknownParams: "ignore" })).toEqual(["passes[0].enabled: expected true or false, got 0"]);
+    // A plugin's pass too
+    const spec = (type: string) => (type === "grain" ? { description: "", params: {} } : undefined);
+    expect(passProblems([{ type: "grain", enabled: false }], "passes", { spec })).toEqual([]);
+    expect(isPassEnabled({})).toBe(true);
+    expect(isPassEnabled({ enabled: true })).toBe(true);
+    expect(isPassEnabled({ enabled: false })).toBe(false);
+    expect(enabledPasses([{ type: "bloom", enabled: false }, { type: "vignette" }])).toEqual([{ type: "vignette" }]);
+    expect(resolvePass(PASSES.bloom, { type: "bloom", enabled: false })).toEqual({ strength: 1, radius: 0.4, threshold: 0.85 });
+    expect(PASS_FIELDS).toEqual(["type", "enabled"]);
   });
 });

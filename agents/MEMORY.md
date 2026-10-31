@@ -4,6 +4,43 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – plugin labels mark only unsaved (#232); a toggle per pass and the UI principle (#233)
+
+- **Tilman (#232)**: "Unchanged needs no indication. Unsaved needs one. And published is clear. Unsaved with an asterisk
+  after the name." The Code tab's picker and the Library's code list show a plugin's name alone, `name*` with unsaved
+  edits (`pluginLabel`, `editor/src/lib/library-code.ts`). **Saved but not published: no mark** – every stored source is
+  part of the draft, and the top bar already says whether readers have the draft (*draft only* / *live on …*); a per-plugin
+  "published" state would need the publish to compile Code tab sources (#78), which it does not yet. The note
+  *compiled by the content build* under a declared plugin went too (an unchanged state).
+- **The Code tab's buffer moved into the store** (`plugins.code`, a `CodeBuffer`): the tab unmounts when another tab
+  shows, and its local state lost unsaved edits silently – so the Library could never have seen an unsaved script. Now
+  the buffer survives a tab switch, the reload guard (`trackUnsaved`) watches it at module level, and "unsaved" is the
+  text against the text as loaded or saved (`loaded`), not against the stored copy (`saved`, "" for a declared plugin –
+  that made a merely opened declared plugin count as dirty). Save stays enabled for a declared plugin (it stores a copy).
+- **Tilman (#233)**: "Yes please, a toggle is good. On the accordion of each pass. In principle in the UI: such things
+  can be collapsed and, where possible, toggled." A pass has `enabled` (content schema 2.22, MINOR): `false` keeps the
+  pass and its values, the chain skips it (`PostChain.set`, `View.setPasses` – all off = no chain, `cameraGrades`), the
+  phone budget does not count it. Off writes `enabled: false`, on drops the field. `PASS_FIELDS` (`type`, `enabled`) is
+  what `KnownFeatures.passFields` lists, so a 2.21-era list skips `enabled` as an unknown parameter – what the 1.55.0
+  app does; an app before #220 ignores it through the guard's `unknownParams: "ignore"`. Either way an older app shows a
+  pass that is off.
+- **The principle** is in RULES #32 and `agents/DESIGN.md` §9: a group of settings that can be switched as a whole is a
+  collapsible `Section` with `enabled` / `onenabled` – the on / off `Toggle` in its head, working without opening it,
+  closed the head names its values. `Toggle.svelte` is now the one boolean control (the pass rows and the Inspector's
+  boolean rows use it). Section ids of the passes are by position (`stage.passes.<i>`); a move or removal carries the
+  open state along, an added pass opens.
+- [ ] **Follow-ups of the principle** (each needs its own issue; most need a content field = a schema MINOR):
+  - the Inspector's **component rows** – each component a nested section with a toggle (`enabled` on a component: the
+    engine would skip applying it);
+  - **behaviour rules** – each rule a section with a toggle (a rule's `enabled`, the engine's rule runner skips it);
+  - a node's **material** (a plugin material on / off – the node's own material shows while off) and its **layers**;
+  - a video's **filters** – each filter a section with a toggle;
+  - the **environment**: the world section with a toggle for the onion sky in its head (no schema change: `onionSky`
+    exists), the look-around world as a whole;
+  - the **post-processing as a whole** (a toggle in its head that switches every pass, keeping the list) – today *own
+    for this spread* with an empty list is the way;
+  - the stage's preview groups (grid / axis / snap in `GridSnapMenu`) – already on / off pills, not sections.
+
 ## 2026-10-31 – the trial report names the phone model (#235)
 
 - **Tilman (#235)**, after two iPhone reports of trial 2 could not be told apart (#43): *"We need to get the exact
