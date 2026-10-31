@@ -632,6 +632,20 @@ is involved.
     context) and the guide for authors are [plugins](plugins.md).
 - Settings (view, orbit, sky, desk, shake, the open tab, the tree open or collapsed) are stored per device. The
   session is not: it is the API's HttpOnly cookie ([who may use it](#who-may-use-it)).
+- **A new version under an open tab** (#230): a deploy replaces the editor's code, but an open tab keeps running the old
+  one until it reloads. The editor asks for `/editor/_app/version.json` every 5 minutes (SvelteKit's
+  `version.pollInterval`, `editor/vite.config.ts`) and whenever the tab gets the focus or becomes visible; when the
+  deployed version differs, a quiet bar says *A new version of the editor is ready* with **Reload** – at the foot of the
+  window (it covers no tool), under the top bar on a phone, its buttons at the touch height. It **never reloads by
+  itself**. With unsaved edits – a panel with *Back to the draft* and Save (the Inspector's entity, the post-processing,
+  the environment) or the Code tab's source – it says *reloading now drops your unsaved edits* and offers **Reload after
+  saving** (the page reloads as soon as nothing is left unsaved: saved, or taken back to the draft) and **Reload now**.
+  The cross (*Later*) hides it; the next reload loads the new version anyway. A code file that fails to load – a lazy
+  chunk such as Monaco after a deploy renamed it, or one a deploy still uploading has not delivered yet (#160) – shows the
+  same bar, and the panel says what it could not load (until #230 the editor reloaded once on its own). The decision is
+  `editor/src/lib/new-version.ts` (tested), the unsaved edits are collected by `unsaved.ts` (each panel registers its
+  dirty state), the failed loads by `stale-chunks.ts`, the bar is `NewVersionBar.svelte` in the layout. Locally the dev
+  server never reports a new version (`updated` is off in dev); `vite preview` of a build does.
 
 ### UI rules
 

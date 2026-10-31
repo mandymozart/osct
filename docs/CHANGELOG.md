@@ -7,6 +7,16 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Fixed
+- **The editor notices a new version under an open tab** (#230): a tab opened before a deploy kept the old code –
+  Tilman's spread page behaved like 1.51.1 while staging ran 1.51.2. The editor now asks every 5 minutes, and when the
+  tab gets the focus or becomes visible, whether a new version is deployed, and then shows a quiet bar: *A new version of
+  the editor is ready – Reload*. It never reloads by itself. With unsaved edits the bar says a reload drops them and
+  offers *Reload after saving*, which reloads as soon as nothing is left unsaved. A code file that fails to load after a
+  deploy shows the same bar instead of reloading the page on its own.
+
 ## 1.54.1 – 2026-10-30
 
 ### Changed

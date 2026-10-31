@@ -4,6 +4,37 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – the editor notices a new version (#230)
+
+- **Why**: #229 found Tilman's spread page behaving like 1.51.1 while staging ran 1.51.2 – the tab was opened before the
+  deploy, and `version.pollInterval: 0` meant it never asked. Now `pollInterval` is 5 minutes. SvelteKit 3.1.1 itself
+  already calls `updated.check()` on `focus` and `visibilitychange` (client.js); `NewVersionBar.svelte` adds the same two
+  listeners anyway, so the behaviour does not depend on Kit's internals – `check()` shares one request while one runs.
+  `updated` is always false under `vite dev`: test with `vite preview` of a build and a changed
+  `.svelte-kit/output/client/_app/version.json` (keep its length – the preview server caches the file's size).
+- **Never a forced reload**: the bar offers *Reload*; with unsaved edits it says a reload drops them and offers *Reload
+  after saving* (waits until `hasUnsaved()` is false – a save or *Back to the draft* – then reloads) and *Reload now*.
+  Unsaved = the panels that register their dirty state in `unsaved.ts`: EntityPanel, PassesPanel, CodePanel (while
+  mounted) and the environment edit (for the page's life, it outlives its tab). Forms (import, new target, a token's
+  name) are not counted – a half-typed form is not an edit of the draft.
+- **#160's reload-once is gone**: a failed code file (`vite:preloadError`, or an unhandled rejection worded as a failed
+  dynamic import) shows the same bar instead (`stale-chunks.ts`, was `reload-on-stale.ts`). The event is not
+  `preventDefault`ed: Vite then rethrows, so the importing panel's own catch says what it could not load (with
+  `preventDefault` the import would resolve to `undefined`). A deploy still uploading (FTPS staging) now asks the person
+  to reload instead of reloading once by itself.
+- **Placement**: at the foot of the window on desktop (at the top it covered the stage's toolbar), under the top bar on a
+  phone (the sheet takes the foot); the primary button is `.pill.primary` (with `.framed` the frame's border would win).
+- [ ] **The reader has the same gap** (not changed here – needs a reader UI notice in four languages): its service
+  worker (`client/sw/service-worker.ts`) skips waiting and claims clients, but it is registered once and the browser
+  looks for a new worker only on navigations – an open reader tab (a single-page app, a PWA left open on a phone)
+  never navigates, so it never notices a deploy and nothing tells the reader; it keeps the old code until it is
+  reloaded. When a new worker is installed by another tab, `cleanupOutdatedCaches` drops the old precache, so a lazy
+  chunk the old tab has not loaded yet (the AR chunk `import("./ar")`, `virtual:osct-content-sizes`) comes from the
+  network, where the deploy removed it – the SPA fallback answers with HTML and the import fails (`AR_LOAD_FAILED` for
+  the AR chunk). Softened today: `warmUp()` loads the AR chunk at startup. A fix: `registration.update()` on
+  visibility, and a translated notice when a new worker takes over (`controllerchange`) – for the orchestrator to
+  file as an issue.
+
 ## 2026-10-31 – issue pointers yes, version tags no, in code comments (#219)
 
 - **Tilman decided (2026-10-30): a bare `(#N)` in a code comment is a pointer to the decision or the issue** – allowed,
@@ -925,7 +956,8 @@ outcome in the line (or move it into a dated decision block).
   warning for it; build, check and tests pass. Open: `import type` across engine and editor, then drop the override.
   → done (#176): the flag is on everywhere, the override and the warning are gone.
 - **No version polling**: Kit 3 polls `version.json` hourly by default; `version.pollInterval: 0` keeps Kit 2's
-  behaviour (the editor reloads on a stale chunk instead – #160).
+  behaviour (the editor reloads on a stale chunk instead – #160). → replaced (#230): a 5-minute poll and the
+  new-version bar, no reload of its own.
 
 ## 2026-10-30 – Touch height, tablet portrait, words as labels (#171, #172, #173)
 

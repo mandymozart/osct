@@ -19,8 +19,9 @@ export default defineConfig({
       adapter: adapter({ fallback: 'index.html' }),
       paths: { base: '/editor' },
       serviceWorker: { register: false },
-      // Kit 3 polls version.json hourly by default; the editor does not ask (a stale chunk reloads the page – #160)
-      version: { pollInterval: 0 },
+      // An open tab asks every 5 minutes whether a new version is deployed (and on focus and visibility – Kit and
+      // NewVersionBar.svelte); a new one shows the bar that offers the reload (#230)
+      version: { pollInterval: 5 * 60_000 },
     }),
   ],
   // The engine (../engine) imports three from this app's node_modules: resolve it from here, not from the importer.
