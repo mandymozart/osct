@@ -130,7 +130,7 @@ export class ArView {
   constructor(private container: HTMLElement, private onResize: (camera: PerspectiveCamera) => void) {
     this.renderer = new WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    // The plugins' feedback buffers (plugin API 1.6) learn the device's precision from it
+    // The plugins' feedback buffers learn the device's precision from it
     setFeedbackRenderer(this.renderer);
     const canvas = this.renderer.domElement;
     canvas.id = "scene";

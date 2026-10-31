@@ -7,7 +7,7 @@ import { PostChain } from "../post/chain";
 import { passRegistration, registeredPassTypes } from "../post/registry";
 import "../post/index";
 
-/** The plugin API 1.0: components and material layers a book's own code registers, kept per plugin */
+/** The plugin API: components and material layers a book's own code registers, kept per plugin */
 
 const SPIN: ComponentSpec = {
   description: "Turns the node around its y axis.",

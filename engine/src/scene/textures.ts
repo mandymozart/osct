@@ -4,7 +4,7 @@ import { type ComponentParamSpec, resolveSpecParams, textureSource, type Texture
 import { contentUrl } from "../content/game-config";
 
 /**
- * Texture parameters (plugin API 1.4, content schema 2.17): a spec's parameter of kind `texture` takes a file – a Library
+ * Texture parameters: a spec's parameter of kind `texture` takes a file – a Library
  * image or video, a file of the content – or a procedural texture a plugin registered (`api.registerTexture`, drawn by
  * its code: a canvas or a data texture, animated or not). Wherever a plugin's code gets its parameters (a material's
  * `build`, a node type's `build`, a component's `apply`, a layer's GLSL) the engine resolves such a value into a

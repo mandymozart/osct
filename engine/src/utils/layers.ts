@@ -17,7 +17,7 @@ import { type ResolvedTextures, resolveTextures, sameTextures } from "../scene/t
  * chroma key, a plugin's material) is patched before `#include <colorspace_fragment>`. The materials of a plane are the
  * node's own and are patched in place (the builder keeps updating their uniforms), so is a plugin's material
  * (`materials.ts` marks it); a model's materials are shared with the cached asset, so each mesh gets a patched clone,
- * disposed with the node. A `texture` parameter (API 1.4) is a `sampler2D` – the layer samples it with `texture2D`.
+ * disposed with the node. A `texture` parameter is a `sampler2D` – the layer samples it with `texture2D`.
  */
 
 const UV_BUILTIN = "#ifdef USE_MAP\n  vec2 osctUv = vMapUv;\n#else\n  vec2 osctUv = vec2(0.0);\n#endif";

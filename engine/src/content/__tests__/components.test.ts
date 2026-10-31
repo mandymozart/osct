@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { COMPONENT_TYPES, componentProblems, resolveComponent } from "@shared/types/components";
 
-/** Content schema 2.2: components on a node – the specs drive the checks and the defaults */
+/** Components on a node – the specs drive the checks and the defaults */
 describe("components", () => {
   it("the built-in components: animation, behaviour", () => {
     expect(COMPONENT_TYPES).toEqual(["animation", "behaviour"]);

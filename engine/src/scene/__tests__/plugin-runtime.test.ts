@@ -8,7 +8,7 @@ import {
   setSpreadSource, spreadChanged, stageEnded, type VarValue,
 } from "../plugin-runtime";
 
-/** Plugin API 1.1: events, variables in scopes, the reader's progress and the current spread – what crosses nodes and pages */
+/** Events, variables in scopes, the reader's progress and the current spread – what crosses nodes and pages */
 
 const target = (id: string, entity?: EntityData): Target => ({ id, entryId: id, spreadId: "a", imageSrc: `/${id}.jpg`, entity });
 const SPREADS: Spread[] = [

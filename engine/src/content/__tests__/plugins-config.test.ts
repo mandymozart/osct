@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { assertGameConfiguration, GameConfigurationError } from "@shared/guards/game-config";
 import { componentSpecProblems, PARAM_LABEL_MAX, paramLabel, paramWords, pluginApiCompatible, pluginProblems } from "@shared/types/game-config";
 
-/** Content schema 2.3: the configuration declares the book's plugins; their components pass the guard */
+/** The configuration declares the book's plugins; their components pass the guard */
 
 const config = (extra: Record<string, unknown>, components?: unknown[]) => ({
   version: { version: "1.11.0", timestamp: "2026-01-01T00:00:00.000Z", schema: "2.3" },

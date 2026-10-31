@@ -5,7 +5,7 @@ import { resolveTextures, sameTextures } from "./textures";
 import { collectFeedbacks, type OwnedFeedbacks } from "./feedback";
 
 /**
- * A node's material of a plugin (plugin API 1.4, content schema 2.17 – `api.registerMaterial`): the node's
+ * A node's material of a plugin (`api.registerMaterial`): the node's
  * `material: { type, params }` names a material a plugin registered; its `build` makes a three.js material (a
  * `ShaderMaterial` with GLSL of its own, a `MeshStandardMaterial` with a procedural texture …) and the engine puts it on
  * every mesh of the node's own object, in place of the material its type made (a model's, an image's or video's plane,
@@ -112,7 +112,7 @@ export const applyMaterial = (node: EntityData, object: Object3D, target: Target
   const textures = resolveTextures(registration.spec.params, raw, `material ${data.type} on ${target.id}`);
   const time = { value: 0 };
   let built: Material | MaterialInstance | null | void;
-  // The feedback buffers the build makes (plugin API 1.6) pause with the node's object and go with the material
+  // The feedback buffers the build makes pause with the node's object and go with the material
   let feedbacks: OwnedFeedbacks | null = null;
   try {
     [built, feedbacks] = collectFeedbacks(() => registration.build({ node, params: textures.values, time, map: mapOf(meshes), target, three: THREE }));

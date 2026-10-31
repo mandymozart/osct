@@ -8,7 +8,7 @@ import { type Feedback, type FeedbackChannel, feedbackPrelude, feedbackProblems,
 export * from "./feedback-spec";
 
 /**
- * GPU feedback buffers for plugins (plugin API 1.6, docs/plugins.md "A feedback buffer"): a fragment shader the engine
+ * GPU feedback buffers for plugins (docs/plugins.md "A feedback buffer"): a fragment shader the engine
  * runs once per frame into a render target of its own, before the scene renders – a fluid, a reaction-diffusion, a
  * painting that remembers. A plugin never gets the renderer: it asks `api.feedback({ width, height, fragment, … })` and
  * gets a handle whose `texture` (and `uniform`, the same as a uniform that follows it) it shows on a material.
