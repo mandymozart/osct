@@ -18,10 +18,10 @@
 </IfModule>
 
 # The editor's stage frame (docs/editor.md "The stage frame") is a sandbox with an opaque origin: it fetches the editor's
-# scripts and static files and the content served with the app with `Origin: null`. These public files may be read by
-# any origin (no credentials – the API answers for itself).
+# scripts and static files, the content served with the app and the trigger infos (`/trigger-protocol.json`, #240) with
+# `Origin: null`. These public files may be read by any origin (no credentials – the API answers for itself).
 <IfModule mod_headers.c>
-  <If "%{REQUEST_URI} =~ m#^/(editor|assets/content)/#">
+  <If "%{REQUEST_URI} =~ m#^/((editor|assets/content)/|trigger-protocol\.json$)#">
     Header set Access-Control-Allow-Origin "*"
   </If>
 </IfModule>
