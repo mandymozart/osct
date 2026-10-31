@@ -47,8 +47,8 @@
   const TAB_KEY = "osct-editor-tab";
   /** The tab row: the word on a desktop, the icon on a phone */
   const TAB_BUTTONS: { tab: Tab; label: string; icon: IconName; title?: string }[] = [
-    { tab: "tree", label: "Tree", icon: "list" },
-    { tab: "inspector", label: "Inspector", icon: "sliders", title: "Whatever is selected: the spread, an entry, a target, its entity or a node" },
+    { tab: "tree", label: "Tree", icon: "tree" },
+    { tab: "inspector", label: "Inspector", icon: "inspector", title: "Whatever is selected: the spread, an entry, a target, its entity or a node" },
     { tab: "environment", label: "Environment", icon: "globe", title: "The world around the reader and its sky, previewed on the stage" },
     { tab: "library", label: "Library", icon: "folder" },
     { tab: "code", label: "Code", icon: "code" },
