@@ -128,6 +128,20 @@ Baked in today (found 2026-10-28):
 9. **Music.** Audio as a first-class entity and asset type (tracks on a spread or target, a player that survives
    page turns) – the niche asks for it; not designed yet.
 
+## Flows across spreads and books (direction, Tilman 2026-10-31)
+
+*"Nodes I want to use for the same thing as flows in SCUTOONS – in the 3D scene too there is a goto, either directly or
+with on-screen instructions to turn the page or to move somewhere in the physical world; with walls that gets
+interesting; you can also go back and forth between two books. What matters is linking it well with the existing logic
+of the VN and the webtoon."* – and: *"Not for OSCT."*
+
+So the core gets **flows** like SCUTOONS': a *goto* between scenes and spreads – direct, or through an on-screen
+instruction (turn the page; go to a wall, a facade, an object – the spread formats beyond `cover`/`back`, 2026-10-29) –
+and between books; built on SCUTOONS' VN script logic (labels, diverts, conditions: `vn-script.ts`, `flow.ts`,
+`agents/EXPRESSIONS.md` in that repo) and its webtoon flow, with the event scopes already decided (`node ⊂ spread ⊂ stage
+⊂ session ⊂ book ⊂ global`). The editor's `nodes` icon is reserved for it. OSCT itself only gets a view of a spread's
+logic (#239).
+
 ## Phases
 
 **A – OSCT as the archetype (now, finishes the restructuring).** Content independent from the app, the way the
