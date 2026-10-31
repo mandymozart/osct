@@ -174,6 +174,18 @@ export default interface Resources {
     "unknownError": "An unknown error occurred."
   },
   "tutorial": {
+    "camera": {
+      "button": "Grant access",
+      "text": "To scan the book and display interactive content, this application requires access to your camera.\n\nPlease, grant access to proceed."
+    },
+    "done": {
+      "button": "Access scan",
+      "title": "Thank you!"
+    },
+    "intro": {
+      "button": "Continue",
+      "text": "This application allows you to reveal videos, texts and key references hidden in the printed publication *{{title}}*."
+    },
     "skip": "Skip"
   },
   "update": {

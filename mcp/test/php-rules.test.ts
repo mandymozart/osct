@@ -19,6 +19,7 @@ import {
   PASS_TYPES,
   PLUGIN_ID_PATTERN,
   PRINT_SURFACES,
+  SOURCES_OF_TRUTH,
   SPREAD_FORMATS,
 } from "../../shared/types/game-config";
 import {
@@ -31,11 +32,9 @@ import {
   isLinkUrl,
   PLUGIN_REGISTER_FUNCTIONS,
   pluginTypes,
-  STEP_TIME_MAX,
-  STEPS_MAX,
   TEXT_MAX_LENGTH,
 } from "../../shared/api/rules";
-import { STEP_ACTIONS } from "../../shared/types/game-config";
+import { COMPAT_TUTORIAL } from "../../shared/compat/tutorial";
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "../../server/api/src");
 
@@ -69,11 +68,11 @@ function readPhp(): Record<string, unknown> {
       'PLUGIN_NODE_TYPE' => Editor::PLUGIN_NODE_TYPE,
       'MATERIAL_TYPE' => Editor::MATERIAL_TYPE,
       'ENTRY_CATEGORIES' => Editor::ENTRY_CATEGORIES,
-      'STEP_ACTIONS' => Editor::STEP_ACTIONS,
-      'TEXTS' => ['text' => BookTexts::TEXT_MAX_LENGTH, 'body' => BookTexts::BODY_MAX_LENGTH, 'tags' => BookTexts::TAGS_MAX, 'tag' => BookTexts::TAG_MAX_LENGTH,
-        'stepTime' => BookTexts::STEP_TIME_MAX, 'steps' => BookTexts::STEPS_MAX],
+      'COMPAT_TUTORIAL' => Editor::COMPAT_TUTORIAL,
+      'TEXTS' => ['text' => BookTexts::TEXT_MAX_LENGTH, 'body' => BookTexts::BODY_MAX_LENGTH, 'tags' => BookTexts::TAGS_MAX, 'tag' => BookTexts::TAG_MAX_LENGTH],
       'links' => array_map(static fn(string $url): bool => BookTexts::isLinkUrl($url), $input['links']),
       'MAX_NODE_DEPTH' => Editor::MAX_NODE_DEPTH,
+      'SOURCES_OF_TRUTH' => Editor::SOURCES_OF_TRUTH,
       'PRINT_SURFACES' => Editor::PRINT_SURFACES,
       'FORMATS' => Books::FORMATS,
       'PASS_TYPES' => Books::PASS_TYPES,
@@ -106,13 +105,17 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(php.ENTRY_CATEGORIES).toEqual([...ENTRY_CATEGORIES]);
     expect(php.MAX_NODE_DEPTH).toBe(MAX_NODE_DEPTH);
     expect(php.PRINT_SURFACES).toEqual([...PRINT_SURFACES]);
+    expect(php.SOURCES_OF_TRUTH).toEqual([...SOURCES_OF_TRUTH]);
   });
 
-  it("the book's texts: step actions, the limits and which links an entry may point to (BookTexts)", () => {
-    expect(php.STEP_ACTIONS).toEqual([...STEP_ACTIONS]);
-    expect(php.TEXTS).toEqual({ text: TEXT_MAX_LENGTH, body: BODY_MAX_LENGTH, tags: ENTRY_TAGS.max, tag: ENTRY_TAGS.length, stepTime: STEP_TIME_MAX, steps: STEPS_MAX });
+  it("the book's texts: the limits and which links an entry may point to (BookTexts)", () => {
+    expect(php.TEXTS).toEqual({ text: TEXT_MAX_LENGTH, body: BODY_MAX_LENGTH, tags: ENTRY_TAGS.max, tag: ENTRY_TAGS.length });
     expect(php.links).toEqual(LINKS.map(isLinkUrl));
     expect(LINKS.map(isLinkUrl)).toEqual([true, true, true, false, false, false, false, false, false, false]);
+  });
+
+  it("the onboarding a draft carries for older apps, key by key in the same order (Editor::COMPAT_TUTORIAL, #236)", () => {
+    expect(JSON.stringify(php.COMPAT_TUTORIAL)).toBe(JSON.stringify(COMPAT_TUTORIAL));
   });
 
   it("the patterns: ids, a plugin's node type and material, a plugin id, a build, an environment's name", () => {

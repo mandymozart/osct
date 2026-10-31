@@ -23,8 +23,22 @@ final class Editor
     public const MATERIAL_TYPE = '[a-z][a-zA-Z0-9]{0,39}';
     /** The entry categories of the content contract (shared/types/entry.ts `ENTRY_CATEGORIES`) */
     public const ENTRY_CATEGORIES = ['glossary', 'video', 'text', 'link'];
-    /** What a tutorial step's button does (shared/types/game-config.ts `STEP_ACTIONS`) */
-    public const STEP_ACTIONS = ['next', 'camera', 'scan'];
+    /**
+     * The onboarding a configuration carries for apps of content schema 2.24 and before (shared/compat/tutorial.ts
+     * `COMPAT_TUTORIAL`): the reader's own English steps, written by every draft and publish until the next schema MAJOR
+     */
+    public const COMPAT_TUTORIAL = [
+        ['id' => 'splash', 'index' => 0, 'title' => '{{title}}', 'description' => '{{author}}', 'footer' => '{{publisher}}', 'fadeIn' => 800, 'stagger' => 500, 'advance' => 3800],
+        ['id' => 'intro', 'index' => 1, 'description' => 'This application allows you to reveal videos, texts and key references hidden in the printed publication *{{title}}*.',
+            'illustration' => '/assets/illustrations/tutorial-step-1.svg', 'button' => 'Continue'],
+        ['id' => 'camera', 'index' => 2, 'description' => "To scan the book and display interactive content, this application requires access to your camera.
+
+Please, grant access to proceed.",
+            'illustration' => '/assets/illustrations/tutorial-step-2.svg', 'button' => 'Grant access', 'action' => 'camera'],
+        ['id' => 'done', 'index' => 3, 'title' => 'Thank you!', 'button' => 'Access scan', 'action' => 'scan'],
+    ];
+    /** A book's source of truth (shared/types/game-config.ts `SOURCES_OF_TRUTH`, #238): print first or digital first */
+    public const SOURCES_OF_TRUTH = ['print', 'digital'];
     /** How deep an entity's node tree may nest (shared/guards: MAX_NODE_DEPTH) */
     public const MAX_NODE_DEPTH = 8;
     /** The surfaces a target can be printed on (shared/types/game-config.ts `PRINT_SURFACES`) */

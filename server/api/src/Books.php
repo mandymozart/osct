@@ -91,16 +91,16 @@ final class Books
             $book = $parts['book'];
             $params = [
                 'id' => $bookId, 'title' => $book->title, 'author' => $book->author, 'book' => Editor::encode($book),
-                'tutorial' => Editor::encode($parts['tutorial']), 'initial' => $parts['initialSpreadId'], 'base' => $assetsBase,
+                'initial' => $parts['initialSpreadId'], 'base' => $assetsBase,
                 'files' => Editor::encode($files), 'schema' => $parts['schema'], 'hash' => $parts['hash'], 'now' => $now,
                 'plugins' => Editor::encode($parts['plugins']), 'imported' => $imported,
             ];
             if (Db::value('SELECT id FROM books WHERE id = :id', ['id' => $bookId]) !== null) {
-                Db::run('UPDATE books SET title = :title, author = :author, book_json = :book, tutorial_json = :tutorial, initial_spread_id = :initial,
+                Db::run('UPDATE books SET title = :title, author = :author, book_json = :book, initial_spread_id = :initial,
                          assets_base = :base, files_json = :files, content_schema = :schema, imported_hash = :hash, plugins_json = :plugins, imported_json = :imported, updated_at = :now WHERE id = :id', $params);
             } else {
-                Db::run('INSERT INTO books (id, title, author, book_json, tutorial_json, initial_spread_id, assets_base, files_json, content_schema, imported_hash, plugins_json, imported_json, created_at, updated_at)
-                         VALUES (:id, :title, :author, :book, :tutorial, :initial, :base, :files, :schema, :hash, :plugins, :imported, :created, :now)', $params + ['created' => $now]);
+                Db::run('INSERT INTO books (id, title, author, book_json, initial_spread_id, assets_base, files_json, content_schema, imported_hash, plugins_json, imported_json, created_at, updated_at)
+                         VALUES (:id, :title, :author, :book, :initial, :base, :files, :schema, :hash, :plugins, :imported, :created, :now)', $params + ['created' => $now]);
             }
             foreach ($parts['spreads'] as $s) {
                 Db::run('INSERT INTO spreads (book_id, id, position, title, first_page, last_page, data_json) VALUES (:book, :id, :position, :title, :first, :last, :data)',
@@ -634,11 +634,12 @@ final class Books
      *   the back cover; 409 `duplicate-id`.
      * - `cover` / `back`: the front cover (page 0, first in order) or the back cover (the page after the last, last in
      *   order) – nothing moves. 409 `duplicate-id` when the book has one.
+     * Only a digital-first book takes new spreads (#238): a print-first one answers 409 `print-first`.
      */
     public static function addSpread(string $bookId): never
     {
         $user = Editor::user();
-        self::book($bookId);
+        self::requireDigitalFirst(self::book($bookId), 'added');
         $body = Editor::body();
         $format = $body->format ?? null;
         if (!in_array($format, self::FORMATS, true)) throw new ApiError(400, 'invalid-spread', 'format must be one of ' . implode(', ', self::FORMATS) . '.');
@@ -718,12 +719,14 @@ final class Books
      *    reverse of adding it); a cover moves nothing. `deleteFiles: true` also removes the Library files used only here
      *    (off by default; a file used elsewhere never goes). A confirmation that does not fit any more (anything in the
      *    book changed, another person or token, expired) → 409 `confirmation-void` with a fresh impact.
-     * 409 `initial-spread` for the spread the book opens on (it never goes); 404.
+     * 409 `initial-spread` for the spread the book opens on (it never goes); 409 `print-first` on a print-first book
+     * (#238 – its spreads are the printed book's); 404.
      */
     public static function deleteSpread(string $bookId, string $spreadId): never
     {
         $user = Editor::user();
         $book = self::book($bookId);
+        self::requireDigitalFirst($book, 'removed');
         [$confirm, $deleteFiles] = self::deleteOptions();
         $row = Db::one('SELECT * FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $spreadId]);
         if (!$row) throw new ApiError(404, 'not-found', 'No such spread.');
@@ -755,6 +758,26 @@ final class Books
         Removal::deleteStoredFiles($deleted['paths']);
         unset($deleted['paths']);
         Http::json(200, ['deleted' => ['spread' => $spreadId] + $deleted, 'moved' => $moved]);
+    }
+
+    /**
+     * A book's spreads are added and removed only where the editor is the truth (#238): 409 `print-first` otherwise
+     * @param array<string, mixed> $book the book row
+     */
+    private static function requireDigitalFirst(array $book, string $what): void
+    {
+        if (self::sourceOfTruth($book) === 'digital') return;
+        throw new ApiError(409, 'print-first', "This book is print first: its spreads come from the printed book's layout, so they cannot be $what here. "
+            . 'Switch the book to digital first (its source of truth, in the book\'s Inspector) to add or remove spreads in the editor.');
+    }
+
+    /**
+     * The book's source of truth (`book.sourceOfTruth`): `digital` only when it says so, else `print`
+     * @param array<string, mixed> $book the book row
+     */
+    public static function sourceOfTruth(array $book): string
+    {
+        return (Editor::decode($book['book_json'])->sourceOfTruth ?? null) === 'digital' ? 'digital' : 'print';
     }
 
     /**
@@ -1195,9 +1218,11 @@ final class Books
 
     /**
      * Checks what the rows need of a configuration and splits it into rows-to-be; every other field stays inside the
-     * objects (data_json). An entry belongs to the first spread whose pages include its page, else to none.
+     * objects (data_json). An entry belongs to the first spread whose pages include its page, else to none. The book's
+     * `sourceOfTruth` is the configuration's, else `print` (an imported book is print first, #238). A
+     * configuration's `tutorial` is ignored: the reader owns its onboarding (#236), a draft writes the compat steps.
      * `$pluginSources`: the book has Code tab sources (any node type named like a plugin's may pass – Editor::entity).
-     * @return array{book: stdClass, schema: string, hash: ?string, initialSpreadId: string, tutorial: array, plugins: array, spreads: array, entities: array, entries: array, targets: array}
+     * @return array{book: stdClass, schema: string, hash: ?string, initialSpreadId: string, plugins: array, spreads: array, entities: array, entries: array, targets: array}
      */
     private static function parse(stdClass $c, bool $pluginSources = false): array
     {
@@ -1210,12 +1235,13 @@ final class Books
             $problems = self::environmentProblems($book->environment);
             if ($problems) $fail($problems[0]);
         }
+        // An imported book is print first unless its content says otherwise (#238)
+        if (!isset($book->sourceOfTruth)) $book->sourceOfTruth = 'print';
+        elseif (!in_array($book->sourceOfTruth, Editor::SOURCES_OF_TRUTH, true)) $fail('book.sourceOfTruth must be one of ' . implode(', ', Editor::SOURCES_OF_TRUTH) . '.');
         if (!is_string($c->initialSpreadId ?? null)) $fail('initialSpreadId must be a string.');
         if (!is_array($c->spreads ?? null) || !is_array($c->entries ?? null)) $fail('spreads and entries must be arrays.');
         $entitiesIn = $c->entities ?? new stdClass();
         if (!$entitiesIn instanceof stdClass) $fail('entities must be an object.');
-        $tutorial = $c->tutorial ?? [];
-        if (!is_array($tutorial)) $fail('tutorial must be an array.');
         // The book's compiled plugins: kept as declared – the content build is their one writer
         $plugins = $c->plugins ?? [];
         if (!is_array($plugins)) $fail('plugins must be an array.');
@@ -1278,7 +1304,7 @@ final class Books
         }
         return [
             'book' => $book, 'schema' => $version->schema, 'hash' => is_string($version->hash ?? null) ? $version->hash : null,
-            'initialSpreadId' => $c->initialSpreadId, 'tutorial' => $tutorial, 'plugins' => $plugins,
+            'initialSpreadId' => $c->initialSpreadId, 'plugins' => $plugins,
             'spreads' => array_values($spreads), 'entities' => array_values($entities), 'entries' => array_values($entries), 'targets' => array_values($targets),
         ];
     }

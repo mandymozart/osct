@@ -56,7 +56,7 @@ export async function loadBuild(dirs: { content: string }) {
     const s = spreads.buildSpreads(passes);
     const builds = entries.buildEntries(s, entities.buildEntities());
     targets.checkTargetsPerSpread(s, builds);
-    return { book: b, spreads: s, entries: builds.map(x => x.entry), tutorial: tutorial.buildTutorial(b) };
+    return { book: b, spreads: s, entries: builds.map(x => x.entry), tutorial: tutorial.buildTutorial() };
   };
   return { errors: errors.buildErrors, warnings: errors.buildWarnings, buildAll, book, spreads, entities, entries, targets, tutorial, hash, plugins };
 }

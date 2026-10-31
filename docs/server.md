@@ -87,7 +87,7 @@ without a token, 403 `forbidden` for a reader. `{id}` is the book, ids and refs 
 | `GET /editor/books/{id}/draft/latest.json` · `…/draft/{build}/game.config.json` · `…/draft/{build}/files.json` | | the draft as a content version, assembled from the rows on every call (`Cache-Control: no-store`); the engine's loader reads it like the CDN, its `fetchFn` sending the session cookie. The build in the path is not checked against the current draft – an edit between the two requests is no error |
 | `POST /editor/books/{id}/publish` | `{ env, note?, replace? }` | `{ env, store, build, hash, publishedAt, replaced }` – writes the assembled version to the content store of `env`, which must be this instance's own environment (`ENV`; another one: **403 `other-environment`** with `env`, the own one): `<env>/<build>/game.config.json` and `files.json` (unless that build is there already – a version folder is never overwritten), then `versions.json` (the previous current version retired), then `latest.json` (both name the book); a row in the publish log. An environment serves one book: when it serves another (or one that cannot be told) the publish needs `replace: true`, else 409 `other-book` with `current` `{ env, book, title, build, since }`; `replaced` `{ book, build }` names the book replaced, null when none; `store` = where it went (`cdn` or `server`). 400 `invalid-env` (no environment name), `invalid-replace`; 502 `content-store-failed` |
 | `GET /editor/books/{id}/versions` | | `{ versions: [{ id, env, build, hash, publishedBy, publishedAt, note }] }` – the publish log, newest first |
-| `GET /editor/books/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target) – and `entry`, `spread`, `environment`, `passes`, `book`, `tutorial`, `plugin`, `asset` (a Library file a removal deleted); a removed row has `after: null`; `token` = the name of the AI connection a save came through, null for the editor; `limit` default 50, at most 500 |
+| `GET /editor/books/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target) – and `entry`, `spread`, `environment`, `passes`, `book`, `plugin`, `asset` (a Library file a removal deleted); a removed row has `after: null`; `token` = the name of the AI connection a save came through, null for the editor; `limit` default 50, at most 500 |
 | `GET /content/{env}/{path}` | | the **local** content store, public like the CDN: `latest.json`, `versions.json` (`no-cache`) and `<build>/game.config.json` / `files.json` (immutable) – nothing else, no other path |
 
 Signed-in calls from a browser send the session cookie and, with every write, its CSRF token; other clients send
@@ -330,8 +330,8 @@ The answers of `/api/editor/*` are typed for the editor and the MCP server in `s
 sends, field by field; change both together. The PHP's copies of `shared/` rules (`Editor`, `Books`, `ContentStore`,
 `Plugins`, `Assets` constants) are pinned by `mcp/test/php-rules.test.ts` ([mcp](mcp.md#tests)).
 
-**Tables** (both schema files, additive): `books` (the book row: `BookData` as `book_json`, the tutorial, the initial
-spread, the imported `files.json`, the content schema, the imported hash, `assets_base`), `spreads`, `entries`,
+**Tables** (both schema files, additive – the one exception is a removed feature's column, removed by name: the
+onboarding's `books.tutorial_json`, #236): `books` (the book row: `BookData` as `book_json`, the initial spread, the imported `files.json`, the content schema, the imported hash, `assets_base`), `spreads`, `entries`,
 `targets`, `entities` (keys `(book_id, id)` / `(book_id, ref)`, deleted with the book), `book_versions` (the publish
 log), `changes` (the change log) and `plugins` (the Code tab's sources, below). Every content row keeps the object exactly as it was imported in its
 `data_json` column – unknown fields included – and `position` keeps the imported order; the typed columns (title,
@@ -346,9 +346,11 @@ the change and publish logs stay. The **draft** is assembled from the rows on ev
 `version = { version: the server's app version, timestamp: now, hash, schema: the imported schema }`, then `book`,
 `initialSpreadId`, `spreads`, `entries` with their targets, `entities`, `tutorial` – the same keys in the same order
 as the content build writes them, so import → draft reproduces the configuration unchanged (the API test checks
-it). The hash is the sha256 of that JSON without `timestamp` and `hash`; the build name is its first 12 hex digits,
-so the same rows are the same version. With an `assets_base`, every `/assets/content/…` under `src`, `imageSrc`,
-`image` and `illustration`, and every key of `files.json`, becomes a URL below it: a published version points at the
+it), but for `tutorial`: the import ignores a configuration's onboarding (the reader has its own, #236) and the draft
+writes the steps apps of content schema 2.24 and before require (`Editor::COMPAT_TUTORIAL`, a copy of
+`shared/compat/tutorial.ts`). The hash is the sha256 of that JSON without `timestamp` and `hash`; the build name is its first 12 hex digits,
+so the same rows are the same version. With an `assets_base`, every `/assets/content/…` under `src`, `imageSrc` and
+`image`, and every key of `files.json`, becomes a URL below it: a published version points at the
 imported build's media on the CDN and copies nothing. `PUT …/entities/{ref}` and `PUT …/targets/{id}` change one
 entity and record before and after with the user in `changes`. Every save that changes a row from its current value
 (`PUT …/targets/{id}`, `…/spreads/{id}`, `…/environment`, `…/passes`, `…/entities/{ref}`, an asset's replace) reads,
@@ -544,25 +546,31 @@ engine makes the image-target data from `imageSrc` at runtime (`engine/src/scene
 
 ### Texts
 
-The reading side of a book (#223, `BookTexts.php`): an entry's fields, the book's texts and the onboarding. Every write
-reads the row, changes it and writes it back in one transaction with the row locked (`Db::forUpdate()`, #209), touches
-the book and records a change with the row before and after (`kind` `entry`, `book`, `tutorial`). An AI connection's
+The reading side of a book (#223, `BookTexts.php`): an entry's fields and the book's texts. Every write reads the row,
+changes it and writes it back in one transaction with the row locked (`Db::forUpdate()`, #209), touches the book and
+records a change with the row before and after (`kind` `entry`, `book`). The onboarding is no part of it – it is the
+reader's own (#236). An AI connection's
 token writes here like its person – these are the book's texts, not the account (RULES #33 is about the account);
 publishing stays the person's. The checks are the content build's: the categories, a title and a page, a link that is
-http(s), the step actions – and a picture of the book's Library.
+http(s) – and a picture of the book's Library.
 
 | Endpoint | Body | Answer |
 |---|---|---|
 | `GET /editor/books/{id}/entries` | | `{ entries: [{ …EntryData without its target, spreadId, target: { id, imageSrc } \| null }] }` – every entry in the book's order, each field as written (an imported picture's `/assets/content/…` path unresolved) |
 | `PUT /editor/books/{id}/entries/{eid}` | `{ title?, body?, author?, image?, media?, tags?, category?, page? }` | `{ entry, spreadId, previousSpreadId }` – the fields sent change; `null` removes `author`, `image` or `media`. `title` and `author` are trimmed (`title` not empty, at most 500 characters), `body` is Markdown kept as written (at most 100 000 characters – `docs/content.md` "The text: Markdown and variables"; the API does not judge its braces), `tags` a list of words (trimmed, each once, the empty ones left out; at most 32 of 64 characters), `category` one of the contract's, `media` an http(s) URL with a host, `image` the URL of an uploaded image or a file of the import (its path or its URL below the assets base) – or the value the entry has. A new `page` moves the entry to the first spread whose pages include it, none when no spread does (as `POST …/entries`); its target stays as it is. 400 `invalid-entry` (an unknown field too), 404 |
-| `PUT /editor/books/{id}` | `{ title?, author?, publisher? }` | `{ book }` – the book's `book` after the change (the list's and tree's `title` and `author` follow); title and author not empty, `publisher: null` or `""` removes it. 400 `invalid-book` |
-| `GET /editor/books/{id}/tutorial` | | `{ tutorial: StepData[] }` – the onboarding's steps in their order |
-| `PUT /editor/books/{id}/tutorial` | `{ tutorial: [{ id, title?, description?, footer?, illustration?, button?, action?, fadeIn?, stagger?, advance? }] }` | `{ tutorial }` – the whole ordered list: each step's `index` is its place; an empty text is left out; `action` (`next`, `camera`, `scan` – `next` is left out as the default) goes with a `button`; the times are milliseconds from 0 to 600 000; ids unique; at most 50 steps. 400 `invalid-tutorial` |
+| `PUT /editor/books/{id}` | `{ title?, author?, publisher?, sourceOfTruth? }` | `{ book }` – the book's `book` after the change (the list's and tree's `title` and `author` follow); title and author not empty, `publisher: null` or `""` removes it; `sourceOfTruth` `print` or `digital` (#238 – [Spreads made in the editor](#spreads-made-in-the-editor)). 400 `invalid-book` |
 
-The limits are `shared/api/rules.ts`' too (`TEXT_MAX_LENGTH`, `BODY_MAX_LENGTH`, `ENTRY_TAGS`, `STEP_TIME_MAX`,
-`STEPS_MAX`, `isLinkUrl`) – `mcp/test/php-rules.test.ts` compares them with the PHP.
+The limits are `shared/api/rules.ts`' too (`TEXT_MAX_LENGTH`, `BODY_MAX_LENGTH`, `ENTRY_TAGS`, `isLinkUrl`) –
+`mcp/test/php-rules.test.ts` compares them with the PHP.
 
 ### Spreads made in the editor
+
+**Only a digital-first book** (#238): a book's `book.sourceOfTruth` says where its spreads come from – `print` (print
+first: the printed book's layout, through an import) or `digital` (digital first: the editor). `POST …/spreads` and
+`DELETE …/spreads/{id}` answer 409 `print-first` (with how to change it) unless the book is digital first. An import keeps
+the configuration's value and writes `print` when it has none (an imported book is print first; a value other than
+`print` / `digital` is a 400 `invalid-configuration`); `PUT /editor/books/{id}` `{ sourceOfTruth }` changes it, recorded
+as a `book` change. The draft and a publish carry it in `book` (content schema 2.25 – an older app ignores it).
 
 A spread's pages decide which entries are on it: an entry belongs to the first spread whose `firstPage`–`lastPage`
 include its `page` (the `spread_id` column records it), and a target's optional `print.page` names its page. Adding

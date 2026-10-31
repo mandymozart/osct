@@ -13,7 +13,7 @@ import { checkEntity, checkPasses, describeContentModel, usesPluginPasses, usesP
 import { fail, guard, text, type Result } from "./result.ts";
 import { editorHref, type AppLinks } from "./services.ts";
 import type { PluginData } from "../../shared/types/game-config";
-import { PASS_TYPES, PRINT_SURFACES, SPREAD_FORMATS, STEP_ACTIONS } from "../../shared/types/game-config";
+import { PASS_TYPES, PRINT_SURFACES, SOURCES_OF_TRUTH, SPREAD_FORMATS } from "../../shared/types/game-config";
 import { EntryCategory } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
 import { exprMessage, renderEntryText } from "../../shared/text/entry-text";
@@ -30,7 +30,6 @@ import type {
   EntryAdded,
   EntryList,
   EntrySaved,
-  TutorialSaved,
   EnvironmentSaved,
   EnvironmentsInfo,
   ImportComparison,
@@ -56,8 +55,6 @@ import {
   ID_PATTERN,
   isLinkUrl,
   pluginTypes,
-  STEP_TIME_MAX,
-  STEPS_MAX,
   TEXT_MAX_LENGTH,
 } from "../../shared/api/rules";
 
@@ -457,7 +454,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     }),
   );
 
-  // ── the book's texts: entries, the book, the onboarding (#223) ──
+  // ── the book's texts: entries and the book (#223) ──
 
   server.registerTool(
     "get_entries",
@@ -475,7 +472,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       const { entries } = await api.call<EntryList>("GET", `/editor/books/${encodeURIComponent(book)}/entries`);
       const word = search?.toLowerCase();
       const found = entries.filter(e => (!category || e.category === category) && (!word || [e.title, e.body, e.tags.join(" ")].join(" ").toLowerCase().includes(word)));
-      return text({ entries: found, count: found.length, open: `${editorHref(links, book)}?view=entries` });
+      return text({ entries: found, count: found.length, open: editorHref(links, book) });
     }),
   );
 
@@ -506,7 +503,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         if (refused) return refused;
       }
       const result = await api.call<EntrySaved>("PUT", `/editor/books/${encodeURIComponent(book)}/entries/${encodeURIComponent(entry)}`, changes);
-      return text({ ...result, ...textWarnings(changes.body), open: result.spreadId ? editorHref(links, book, result.spreadId) : `${editorHref(links, book)}?view=entries` });
+      return text({ ...result, ...textWarnings(changes.body), open: result.spreadId ? editorHref(links, book, result.spreadId) : editorHref(links, book) });
     }),
   );
 
@@ -514,61 +511,20 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "update_book",
     {
       description:
-        "Changes the book's title, author or publisher – the reader's splash and home page show them, and the onboarding's {{title}}, {{author}} and {{publisher}} are replaced with them. Send what changes; publisher null (or \"\") removes it. The change is recorded.",
+        "Changes the book's title, author or publisher – the reader's splash, home page and onboarding show them (the onboarding itself is the app's, not the book's) – or its source of truth: `sourceOfTruth` print (print first: the spreads come from the printed book's layout, add_spread and delete_spread refuse) or digital (digital first: spreads are added and removed here) – change it only with the person's yes. Send what changes; publisher null (or \"\") removes it. The change is recorded.",
       inputSchema: z.object({
         book: BOOK,
         title: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
         author: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
         publisher: z.string().max(TEXT_MAX_LENGTH).nullable().optional(),
+        sourceOfTruth: z.enum(SOURCES_OF_TRUTH).optional().describe("print = print first (spreads from the layout), digital = digital first (spreads made here)"),
       }),
       annotations: write,
     },
     guard(async ({ book, ...changes }) => {
-      if (Object.keys(changes).length === 0) return fail({ error: { code: "mcp", message: "send title, author or publisher" } });
+      if (Object.keys(changes).length === 0) return fail({ error: { code: "mcp", message: "send title, author, publisher or sourceOfTruth" } });
       const result = await api.call<BookSaved>("PUT", `/editor/books/${encodeURIComponent(book)}`, changes);
       return text({ ...result, open: editorHref(links, book) });
-    }),
-  );
-
-  const stepSchema = z.object({
-    id: ID,
-    title: z.string().max(TEXT_MAX_LENGTH).optional(),
-    description: z.string().max(BODY_MAX_LENGTH).optional().describe("*emphasis*, blank lines for paragraphs; {{title}}, {{author}}, {{publisher}} are the book's"),
-    footer: z.string().max(TEXT_MAX_LENGTH).optional(),
-    illustration: z.string().max(TEXT_MAX_LENGTH).optional().describe("a drawing as an app path, e.g. /assets/illustrations/tutorial-step-1.svg"),
-    button: z.string().max(TEXT_MAX_LENGTH).optional().describe("the button's label; none: the step moves on after `advance` or on a tap"),
-    action: z.enum(STEP_ACTIONS).optional().describe("with a button: next (default), camera (asks for the camera), scan (ends the onboarding in the scan)"),
-    fadeIn: z.number().min(0).max(STEP_TIME_MAX).optional().describe("ms each part fades in"),
-    stagger: z.number().min(0).max(STEP_TIME_MAX).optional().describe("ms between the parts fading in"),
-    advance: z.number().min(0).max(STEP_TIME_MAX).optional().describe("ms until a step without a button moves on"),
-  });
-
-  server.registerTool(
-    "get_tutorial",
-    {
-      description: "The onboarding's steps in their order: { id, index, title?, description?, footer?, illustration?, button?, action?, fadeIn?, stagger?, advance? } – the first is usually the splash (title, author, publisher of the book).",
-      inputSchema: z.object({ book: BOOK }),
-      annotations: read,
-    },
-    guard(async ({ book }) => text({ ...(await api.call<TutorialSaved>("GET", `/editor/books/${encodeURIComponent(book)}/tutorial`)), open: `${editorHref(links, book)}?view=onboarding` })),
-  );
-
-  server.registerTool(
-    "update_tutorial",
-    {
-      description:
-        "Replaces the onboarding's steps with this ordered list (read them first with get_tutorial and send the whole list back changed – a step left out is gone): the order is each step's index; an empty text is left out; an action goes with a button. Checked as the API checks it; the change is recorded.",
-      inputSchema: z.object({ book: BOOK, steps: z.array(stepSchema).max(STEPS_MAX) }),
-      annotations: write,
-    },
-    guard(async ({ book, steps }) => {
-      const ids = steps.map(s => s.id);
-      const twice = ids.find((id, i) => ids.indexOf(id) !== i);
-      if (twice) return fail({ error: { code: "invalid-tutorial", message: `the step id ${twice} is used twice (nothing was sent).` } });
-      const lonely = steps.find(s => s.action && !s.button?.trim());
-      if (lonely) return fail({ error: { code: "invalid-tutorial", message: `step ${lonely.id}: an action goes with a button (nothing was sent).` } });
-      const result = await api.call<TutorialSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/tutorial`, { tutorial: steps });
-      return text({ ...result, open: `${editorHref(links, book)}?view=onboarding` });
     }),
   );
 
@@ -594,7 +550,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "add_spread",
     {
       description:
-        "Adds a spread to the book (a change recorded for each row it moves): `format: \"spread\"` = a double page after the spread `after` (default: the last one before the back cover) – its pages are the two after that spread's last page, and every later page is numbered on by two (the later spreads, the entries on those pages and their targets' print.page move with them; `moved` counts them); `id` (default spread-<n>) and `title` optional. `format: \"cover\"` = the front cover (page 0, first), `\"back\"` = the back cover (the page after the last) – nothing moves; 409 duplicate-id when the book has one.",
+        "Adds a spread to a **digital-first** book (book.sourceOfTruth digital – get_book; a print-first book's spreads come from its layout: 409 print-first) (a change recorded for each row it moves): `format: \"spread\"` = a double page after the spread `after` (default: the last one before the back cover) – its pages are the two after that spread's last page, and every later page is numbered on by two (the later spreads, the entries on those pages and their targets' print.page move with them; `moved` counts them); `id` (default spread-<n>) and `title` optional. `format: \"cover\"` = the front cover (page 0, first), `\"back\"` = the back cover (the page after the last) – nothing moves; 409 duplicate-id when the book has one.",
       inputSchema: z.object({
         book: BOOK,
         format: z.enum(SPREAD_FORMATS).describe("spread = a double page, cover = the front cover, back = the back cover"),
@@ -651,7 +607,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "delete_spread",
     {
       description:
-        "Removes a spread with everything on it – its entries, their targets, the entities used only there and, only if asked, the Library files used only there – in **two steps**: the first call removes nothing and answers `impact` (the spread, by how many pages the later ones move back, the entries, targets and entities that go, the shared entities that are kept with their other targets, the Library files used only here and used elsewhere) and a short-lived `confirmation`. Show the impact to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. `deleteFiles: true` also deletes the files used only here – only when the person asked for it (off by default; files used elsewhere are never deleted). A double page takes its pages with it (every later page is numbered back); a cover moves nothing. 409 initial-spread for the spread the book opens on. Every removed row is in the change log, naming this AI connection.",
+        "Removes a spread of a **digital-first** book (a print-first one answers 409 print-first) with everything on it – its entries, their targets, the entities used only there and, only if asked, the Library files used only there – in **two steps**: the first call removes nothing and answers `impact` (the spread, by how many pages the later ones move back, the entries, targets and entities that go, the shared entities that are kept with their other targets, the Library files used only here and used elsewhere) and a short-lived `confirmation`. Show the impact to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. `deleteFiles: true` also deletes the files used only here – only when the person asked for it (off by default; files used elsewhere are never deleted). A double page takes its pages with it (every later page is numbered back); a cover moves nothing. 409 initial-spread for the spread the book opens on. Every removed row is in the change log, naming this AI connection.",
       inputSchema: z.object({
         book: BOOK,
         spread: ID.describe("the spread's id (get_book)"),

@@ -10,6 +10,7 @@
   import { isRowOn, parentRow, rowSelection, stepRow, treeRows, type TreeRow } from "#lib/tree-rows.js";
   import { entryRowHelp } from "#lib/entry-view.js";
   import { spreadPages } from "#lib/spread-view.js";
+  import { followBlockedBy } from "#lib/spread-edit.js";
   import { nodeAt } from "#lib/values.js";
   import Icon, { type IconName } from "#lib/components/Icon.svelte";
   import ContextMenu, { type MenuItem } from "#lib/components/ContextMenu.svelte";
@@ -32,16 +33,20 @@
    * a level), Alt + ↑ ↓ move the node among its siblings, Tab / Shift + Tab indent / outdent, Enter opens the row's
    * panel, Delete removes the node – on an entry row it asks first (#198's confirmation). An entry, target or node
    * row's menu (`ContextMenu`: a right click, a long press, or the menu key for the selected row) has the same moves
-   * and the removal. Changes are live on the stage
+   * and the removal; a digital-first book's spread row has one too, *Add a double page after* (#238). Changes are live on the stage
    * (`stage.editTree`); Save in the Inspector writes them. Folding is per entry and per node and not stored. ● after a name: the stage shows it with other
    * values than the draft's.
    */
-  let { stage, spreadId, onselect, onaddtarget, onremoveentry }: {
+  let { stage, spreadId, onselect, onaddtarget, onaddentry, onaddspread, onremoveentry }: {
     stage: Stage | null; spreadId: string;
     /** A row was chosen (a tap, Enter): the workspace shows the Inspector */
     onselect?: (kind: TreeRow["kind"]) => void;
     /** "+ target": the workspace opens the form */
     onaddtarget?: () => void;
+    /** "+ entry" (an entry without a printed image, #237): the workspace opens the form */
+    onaddentry?: () => void;
+    /** The spread row's menu *Add a double page after* (#238 – given only for a digital-first book): the workspace opens the creation step */
+    onaddspread?: (after: string) => void;
     /** "Remove target" / "Remove entry", Delete on an entry row: the entry with everything on it, after the confirmation the workspace shows (#198) */
     onremoveentry?: (entryId: string, targetId: string | null) => Promise<void>;
   } = $props();
@@ -120,7 +125,7 @@
   const outdent = () => { const s = selectedNode(); return !!s && edit(s.target, tree => outdentNode(tree, s.path)); };
 
   // ── a row's context menu (a right click, a long press, the menu key): remove, and the hierarchy's moves ──
-  type Menu = { at: Point; kind: "entry"; entry: Entry } | { at: Point; kind: "node" | "target"; target: Target; path: number[] };
+  type Menu = { at: Point; kind: "spread" } | { at: Point; kind: "entry"; entry: Entry } | { at: Point; kind: "node" | "target"; target: Target; path: number[] };
   let menu = $state<Menu | null>(null);
   /** The row a finger is held on: its light cue until the menu opens */
   let pressing = $state<string | null>(null);
@@ -138,10 +143,17 @@
   const rowMenu = (target: Target, path: number[], kind: "node" | "target") =>
     menuTrigger({ open: at => openMenu(at, target, path, kind), pressing: pressed(kind === "target" ? target.id : nodeKey(target, path)) });
   const entryMenu = (entry: Entry) => menuTrigger({ open: at => openEntryMenu(at, entry), pressing: pressed(`entry:${entry.id}`) });
+  /** The spread row's menu: only where spreads are added here (a digital-first book) */
+  const spreadMenu = (enabled: boolean) => (element: HTMLElement) =>
+    enabled ? menuTrigger({ open: at => { pick({ kind: "spread" }); menu = { at, kind: "spread" }; }, pressing: pressed("spread") })(element) : undefined;
   /** Remove an entry with everything on it: the workspace shows the API's impact and asks first (#198) */
   const removeEntry = (entry: Entry) => void onremoveentry?.(entry.id, entry.target?.id ?? null);
   const REMOVE_ENTRY_HELP = "Removes the entry with its target, its entity and – only if you choose it – the Library files used only there. It shows what goes and asks first.";
   const menuItems = (m: Menu): MenuItem[] => {
+    if (m.kind === "spread") {
+      return spread ? [{ label: "Add a double page after", icon: "plus", disabled: followBlockedBy(spread), select: () => onaddspread?.(spread.id),
+        help: "Opens the creation step for a double page right after this spread. The pages after it are numbered on by two, their entries move with them." }] : [];
+    }
     if (m.kind === "entry") {
       const target = m.entry.target;
       const select: MenuItem[] = target?.imageSrc
@@ -174,6 +186,7 @@
   };
   /** What the menu is for: the entry's title, the target's id, or the node's name */
   const menuHead = (m: Menu): string => {
+    if (m.kind === "spread") return spread?.title ?? spreadId;
     if (m.kind === "entry") return m.entry.title;
     if (m.kind === "target") return m.target.id;
     const tree = treeOf(m.target);
@@ -184,7 +197,13 @@
   const openKeyMenu = () => {
     const row = rows[currentRow()];
     const button = treeElement?.querySelector<HTMLElement>(".node.on .pick");
-    if (!row || !button || row.kind === "spread") return;
+    if (!row || !button) return;
+    if (row.kind === "spread") {
+      if (!onaddspread) return;
+      const rect = button.getBoundingClientRect();
+      menu = { at: { x: rect.left + Math.min(16, rect.width / 2), y: rect.top + rect.height / 2 }, kind: "spread" };
+      return;
+    }
     const rect = button.getBoundingClientRect();
     const at = { x: rect.left + Math.min(16, rect.width / 2), y: rect.top + rect.height / 2 };
     if (row.kind === "entry") {
@@ -395,10 +414,10 @@
   <div class="tree" class:dragging={!!drag?.active} role="tree" aria-label="Spread tree" tabindex="0" onkeydown={onKey} bind:this={treeElement}
     onpointerdown={dragDown} onpointermove={dragMove} onpointerup={dragUp} onpointercancel={dragUp} onlostpointercapture={dragUp} onclickcapture={dragClick} onclick={rowClick}
     data-help-name="Tree" data-help="A tap anywhere on a row selects the spread, an entry, a target, its entity or a node: the row is highlighted and the Inspector shows it; an entry with a target and a target are outlined on the stage, a node carries the gizmo, the spread clears both. Drag a node onto a row to make it that node's child, between two rows to make it a sibling there (with a finger, drag its icon). Keys: ↑ ↓ walk the rows, ← → fold or step a level up and down, Alt + ↑ ↓ move a node, Tab / Shift + Tab indent / outdent, Enter opens the row's panel, Delete removes a node – on an entry it shows what goes and asks first. A row's menu – a right click, a long press, or the menu key – has the moves and the removal.">
-    <div class="node" class:on={spreadOn} role="treeitem" aria-expanded="true" aria-selected={spreadOn} aria-level={1}>
+    <div class="node" class:on={spreadOn} class:pressing={pressing === "spread"} role="treeitem" aria-expanded="true" aria-selected={spreadOn} aria-level={1}>
       <span class="chevron"></span>
       <span class="type"><Icon name="book" size="1em" stroke={2} /></span>
-      <button type="button" class="pick" onclick={() => pick({ kind: "spread" })}
+      <button type="button" class="pick" onclick={() => pick({ kind: "spread" })} aria-haspopup={onaddspread ? "menu" : undefined} {@attach spreadMenu(!!onaddspread)}
         title="The spread – a tap selects it: the Inspector shows its title, pages, format, post-processing, environment, vars and events">
         <span class="name">{spread.title}</span>
         {#if spread.title.replace(/[-–—]/g, "–") !== pages}<span class="small muted">{pages}</span>{/if}
@@ -450,18 +469,24 @@
         {/if}
       {/if}
     {/each}
-    {#if onaddtarget}
+    {#if onaddtarget || onaddentry}
       <div class="node add-target">
         <span class="chevron"></span>
         <span class="type"><Icon name="plus" size="1em" /></span>
-        <button type="button" class="pick" onclick={onaddtarget} title="A tap opens the form for a new entry with a printed image on this spread"><span class="name">+ target</span></button>
+        {#if onaddtarget}
+          <button type="button" class="pick add" onclick={onaddtarget} title="A tap opens the form for a new entry with a printed image on this spread"><span class="name">+ target</span></button>
+        {/if}
+        {#if onaddentry}
+          <button type="button" class="pick add" onclick={onaddentry} data-help-name="+ entry"
+            title="A tap opens the form for a new entry without a printed image on this spread – read in the reader's list only, like a glossary term"><span class="name">+ entry</span></button>
+        {/if}
       </div>
     {/if}
   </div>
 {/if}
 
 {#if menu}
-  <ContextMenu at={menu.at} label={menu.kind === "entry" ? "Entry" : menu.kind === "target" ? `Target ${menu.target.id}` : "Node"} head={menuHead(menu)} items={menuItems(menu)}
+  <ContextMenu at={menu.at} label={menu.kind === "spread" ? "Spread" : menu.kind === "entry" ? "Entry" : menu.kind === "target" ? `Target ${menu.target.id}` : "Node"} head={menuHead(menu)} items={menuItems(menu)}
     returnFocus={treeElement} onclose={() => (menu = null)} />
 {/if}
 
@@ -501,9 +526,10 @@
   .pick.muted { color: var(--muted); }
   .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dot { font-size: .6em; }
-  .add-target { padding-left: calc(.25rem + var(--indent)); color: var(--muted); }
+  .add-target { padding-left: calc(.25rem + var(--indent)); color: var(--muted); gap: .75rem; }
+  .add-target .pick.add { flex: none; }
   @media (hover: hover) {
-    .add-target:hover { color: var(--text); }
+    .add-target .pick.add:hover { color: var(--text); }
   }
   @media (pointer: coarse) {
     .tree { --cell: 1.75rem; }

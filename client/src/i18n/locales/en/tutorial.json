@@ -1,3 +1,15 @@
 {
-  "skip": "Skip"
+  "skip": "Skip",
+  "intro": {
+    "text": "This application allows you to reveal videos, texts and key references hidden in the printed publication *{{title}}*.",
+    "button": "Continue"
+  },
+  "camera": {
+    "text": "To scan the book and display interactive content, this application requires access to your camera.\n\nPlease, grant access to proceed.",
+    "button": "Grant access"
+  },
+  "done": {
+    "title": "Thank you!",
+    "button": "Access scan"
+  }
 }

@@ -111,7 +111,12 @@ describe("game configuration guards", () => {
     ]);
   });
 
-  it("check onboarding steps: optional texts, known actions, numeric timings", () => {
+  it("a configuration without onboarding is valid (schema 2.25: the reader has its own, #236)", () => {
+    const { tutorial: _, ...config } = valid();
+    expect(problemsOf(config)).toEqual([]);
+  });
+
+  it("check onboarding steps (written for older apps): optional texts, known actions, numeric timings", () => {
     const config = valid() as any;
     config.tutorial = [
       { id: "splash", index: 0, advance: 2000 },

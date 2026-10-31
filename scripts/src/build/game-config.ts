@@ -29,13 +29,13 @@ export function buildConfig(versionStr: string, inputHash: string, plugins: Plug
   warnLayerStacks(trees);
   // Every model stands on its page (#189): its lowest point at the target's z = 0
   warnZeroPlane(trees);
-  const tutorial = buildTutorial(book);
+  const tutorial = buildTutorial();
 
   const entries = builds
     .map(b => b.entry)
     .sort((a, b) => a.page - b.page || a.title.localeCompare(b.title));
 
-  console.log(`✨ ${spreads.length} spreads, ${entries.length} entries (${entries.filter(e => e.target).length} with target), ${Object.keys(entities).length} shared entities, ${tutorial.length} steps${plugins.length ? `, ${plugins.length} plugins` : ''}`);
+  console.log(`✨ ${spreads.length} spreads, ${entries.length} entries (${entries.filter(e => e.target).length} with target), ${Object.keys(entities).length} shared entities${plugins.length ? `, ${plugins.length} plugins` : ''}`);
 
   const timestamp = new Date().toISOString();
   console.log(`📊 Building config version: ${versionStr} (${timestamp}, hash ${inputHash.slice(0, 12)})`);

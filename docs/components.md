@@ -10,7 +10,7 @@ Vanilla custom elements with shadow DOM in `client/src/components/`. They get th
 | `scan/` | `<spread-menu>` (looped spread menu at the bottom), `<found-indicator>` (found target without AR content) |
 | `ar-bridges/` | `<ar-bridge>` – the bridge between the game store and the engine's scene (`engine/src/scene`: `ArScene`, one renderer + camera stream, spreads swapped in place, loaded lazily on the first scan; a found page of a neighbouring spread switches the spread); `ar/index.ts` builds the reader's scene with the 8th Wall tracker |
 | `consultation/` | `<entries-filter>` (category dropdown), `<entries-list>`, `<entry-detail>` (meta table + content per category); helpers in `entries-model.ts` |
-| `tutorial/` | `<tutorial-content>`, `<tutorial-navigation>` |
+| `tutorial/` | `<tutorial-content>`, `<tutorial-navigation>` – the app's onboarding steps (`utils/onboarding.ts`) |
 | `common/` | `<gold-illustration>` (SVG in the gold gradient), `<new-version-notice>` (*A new version of the app is ready – Reload* at a calm moment; when it shows: `new-version.ts`, how a new version is found: [Deploy](deploy.md) "Open readers after a deploy"; first, once per book version, the hint that the book uses features this app version doesn't know yet – [Content](content.md) "Schema and app versions") |
 | `settings/` | Info page sections, one component each: `<settings-account>`, `<settings-feedback>` (sound, vibration), `<settings-graphics>`, `<settings-language>`, `<settings-install>` (home screen), `<settings-download>` (whole book), `<settings-history>` (reset book); `settings-section.ts` is their shared frame |
 | `buttons/` | `goldButton()` – markup of the design buttons (button / pill / icon, primary); `<gold-switch>` |

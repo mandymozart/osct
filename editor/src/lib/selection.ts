@@ -8,7 +8,8 @@ import { nodeLabel } from "./tree";
  * a **node** below it (the Inspector at that node, the gizmo on it). A target without AR content can only be
  * selected as the target. The tree's top rows select too (#227): the **spread** (the Inspector shows it, no target
  * or node on the stage) and an **entry** (the Inspector shows the entry; with a target, `target` is it, so the stage
- * outlines its print as for a selected target). Nothing selected is the spread (#229, `settledSelection`). The pure
+ * outlines its print as for a selected target). The top bar's book crumb selects the **book** (#237: the Inspector shows
+ * its texts and settings, nothing on the stage). Nothing selected is the spread (#229, `settledSelection`). The pure
  * rules – the level, one level up, the breadcrumb – live here, the tree's rows in `tree-rows.ts`; the shared state is
  * `selection.svelte.ts`.
  */
@@ -25,6 +26,8 @@ export interface SelectionState {
   spread?: boolean;
   /** An entry is selected (its id, #227); `target` is its target or null for an entry without one */
   entry?: string | null;
+  /** The book is selected (the top bar's book crumb, #237): no spread, target, node or entry */
+  book?: boolean;
 }
 
 /**
@@ -32,6 +35,7 @@ export interface SelectionState {
  * tree highlights its row and the Inspector shows it; the spread selected names no target, node or entry
  */
 export const settledSelection = (selection: SelectionState): SelectionState => {
+  if (selection.book) return { target: null, node: [], onTarget: true, spread: false, entry: null, book: true };
   if (selection.spread || (!selection.target && !selection.entry)) return { target: null, node: [], onTarget: true, spread: true, entry: null };
   return { ...selection, spread: false, entry: selection.entry ?? null };
 };
@@ -45,7 +49,7 @@ export const selectionLevel = (selection: SelectionState, hasTree: boolean): Sel
 
 /** One level up: a node → its parent, the entity → its target; the target (an entry, the spread) stays */
 export const parentSelection = (selection: SelectionState): SelectionState => {
-  if (selection.spread || selection.entry || !selection.target || selection.onTarget) return { ...selection, node: [] };
+  if (selection.book || selection.spread || selection.entry || !selection.target || selection.onTarget) return { ...selection, node: [] };
   if (!selection.node.length) return { target: selection.target, node: [], onTarget: true };
   return { target: selection.target, node: selection.node.slice(0, -1), onTarget: false };
 };

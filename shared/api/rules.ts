@@ -52,18 +52,14 @@ export function pluginTypes(source: string): SourceTypes {
   return Object.fromEntries(kinds.map(kind => [kind, scan(PLUGIN_REGISTER_FUNCTIONS[kind])])) as SourceTypes;
 }
 
-// ── The book's texts (`BookTexts`): entries, the book, the onboarding ──
+// ── The book's texts (`BookTexts`): entries and the book ──
 
-/** A text field's limit in characters – a title, an author, a tag's line, a step's line (`BookTexts::TEXT_MAX_LENGTH`) */
+/** A text field's limit in characters – a title, an author, a tag's line (`BookTexts::TEXT_MAX_LENGTH`) */
 export const TEXT_MAX_LENGTH = 500;
-/** An entry's body and a step's description, in characters (`BookTexts::BODY_MAX_LENGTH`) */
+/** An entry's body, in characters (`BookTexts::BODY_MAX_LENGTH`) */
 export const BODY_MAX_LENGTH = 100000;
 /** An entry's tags: at most `max`, each at most `length` characters (`BookTexts::TAGS_MAX`, `TAG_MAX_LENGTH`) */
 export const ENTRY_TAGS = { max: 32, length: 64 } as const;
-/** A step's timing in milliseconds, at most (`BookTexts::STEP_TIME_MAX`) */
-export const STEP_TIME_MAX = 600000;
-/** At most this many onboarding steps (`BookTexts::STEPS_MAX`) */
-export const STEPS_MAX = 50;
 
 /** A link an entry may point to (`media`): http(s) with a host and no spaces (`BookTexts::isLinkUrl`) */
 export function isLinkUrl(url: string): boolean {

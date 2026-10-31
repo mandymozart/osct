@@ -43,14 +43,14 @@ declare(strict_types=1);
  *   POST   /editor/books/{id}/entries           { title, page, category?, target?: { imageSrc, print?, entity? } } → 201 a new entry, with its target or without
  *   PUT    /editor/books/{id}/entries/{id}      { title?, body?, author?, image?, media?, tags?, category?, page? } → an entry's fields; a new page can move it to
  *                                               another spread · GET /editor/books/{id}/entries: every entry with its fields as written
- *   PUT    /editor/books/{id}                   { title?, author?, publisher? } → the book's texts
- *   GET    /editor/books/{id}/tutorial · PUT { tutorial: [steps] } – the onboarding's steps, the whole ordered list
+ *   PUT    /editor/books/{id}                   { title?, author?, publisher?, sourceOfTruth? } → the book's texts and its source of truth
  *   PUT    /editor/books/{id}/spreads/{id}      { title?, format?, passes? } → a spread's title, format (spread | cover | back) and own passes
  *   POST   /editor/books/{id}/spreads           { format: spread, after?, id?, title? } → 201 a double page after `after` (default: before
  *                                               the back cover), later pages numbered on by two · { format: cover | back, title? } → 201 a cover
  *   DELETE /editor/books/{id}/spreads/{id}      { confirm?, deleteFiles? } the spread with everything on it, in two steps: 409 confirm-delete
  *                                               (the impact, a confirmation id), then again with { confirm } → removed, later pages
- *                                               numbered back (409 confirmation-void, initial-spread)
+ *                                               numbered back (409 confirmation-void, initial-spread) · both only for a digital-first
+ *                                               book: a print-first one answers 409 print-first (#238)
  *   PUT    /editor/books/{id}/environment       { environment: { world, onionSky } | null } → the book's world and onion sky
  *   PUT    /editor/books/{id}/passes            { passes: [{ type, … }] | null } → the book's post-processing (every spread without its own)
  *   DELETE /editor/books/{id}/entries/{id}      { confirm?, deleteFiles? } the entry with its target and entity, the same two steps
@@ -159,8 +159,6 @@ try {
         (bool) preg_match("#^GET /editor/books/($id)/entries$#", $route, $match) => BookTexts::entries($match[1]),
         (bool) preg_match("#^PUT /editor/books/($id)/entries/($id)$#", $route, $match) => BookTexts::putEntry($match[1], $match[2]),
         (bool) preg_match("#^PUT /editor/books/($id)$#", $route, $match) => BookTexts::putBook($match[1]),
-        (bool) preg_match("#^GET /editor/books/($id)/tutorial$#", $route, $match) => BookTexts::tutorial($match[1]),
-        (bool) preg_match("#^PUT /editor/books/($id)/tutorial$#", $route, $match) => BookTexts::putTutorial($match[1]),
         (bool) preg_match("#^PUT /editor/books/($id)/spreads/($id)$#", $route, $match) => Books::putSpread($match[1], $match[2]),
         (bool) preg_match("#^POST /editor/books/($id)/spreads$#", $route, $match) => Books::addSpread($match[1]),
         (bool) preg_match("#^DELETE /editor/books/($id)/spreads/($id)$#", $route, $match) => Books::deleteSpread($match[1], $match[2]),

@@ -27,8 +27,8 @@ import {
   PLUGIN_API_VERSION,
   PLUGIN_ID_PATTERN,
   PRINT_SURFACES,
+  SOURCES_OF_TRUTH,
   SPREAD_FORMATS,
-  STEP_ACTIONS,
   type PluginData,
 } from "../../shared/types/game-config";
 import { DEFAULT_ENVIRONMENT, ENVIRONMENT_WORLDS, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS } from "../../shared/types/environment";
@@ -132,7 +132,6 @@ export function checkEntity(entity: unknown, path = "entity", book?: BookModel):
     spreads: [{ id: "probe", title: "probe", firstPage: 1, lastPage: 2 }],
     entries: [],
     entities: { entity },
-    tutorial: [],
     ...(declared.length ? { plugins: declared } : {}),
   };
   let problems: string[] = [];
@@ -341,12 +340,11 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
       example: "Hello {name: **{name}**|stranger}.\n\n{hasKey: The door opens.|The door is *locked*.} See [the map](https://example.org/map).",
     },
     book: {
-      description: "BookData: { id, title, author, publisher?, passes?, environment? }. update_book changes title, author and publisher – the reader's splash and home page show them.",
+      description: "BookData: { id, title, author, publisher?, passes?, environment?, sourceOfTruth? }. update_book changes title, author and publisher – the reader's splash and home page show them – and sourceOfTruth: print (print first, the default: the spreads come from the printed book's layout) or digital (digital first: add_spread and delete_spread work).",
+      sourcesOfTruth: SOURCES_OF_TRUTH,
     },
-    tutorial: {
-      description:
-        "The onboarding: StepData[] in order – { id, index, title?, description?, footer?, illustration?, button?, action?, fadeIn?, stagger?, advance? }. {{title}}, {{author}} and {{publisher}} in a step are the book's; description takes *emphasis* and blank lines. A step without a button moves on after advance ms (or a tap); action (with a button) is next, camera or scan. get_tutorial reads them, update_tutorial replaces the whole list.",
-      actions: STEP_ACTIONS,
+    onboarding: {
+      description: "The onboarding (the splash and the steps before the scan) is the reader app's own UI, translated with the app – no book content and no tool edits it. The splash shows the book's title, author and publisher (update_book).",
     },
     spread: {
       description:

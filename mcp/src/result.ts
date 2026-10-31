@@ -62,6 +62,7 @@ export function hintFor(error: ApiError): string {
   if (error.code === "duplicate-id") return "Pick another id, or delete the entry first.";
   if (error.code === "unknown-entity") return "No shared entity with that ref – list them with get_book or save one with put_entity.";
   if (error.code === "initial-spread") return "The book opens on this spread – it cannot be removed.";
+  if (error.code === "print-first") return "The book is print first: its spreads come from the printed book's layout (an import), not from here. Whether to make it digital first – so spreads are added and removed in the editor – is the person's decision: update_book sourceOfTruth: \"digital\" with their yes, or they switch it in the book's Inspector.";
   if (error.code === "not-found") return "Nothing with that id here – list_books, get_book and list_assets name what exists.";
   return "";
 }

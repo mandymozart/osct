@@ -55,7 +55,8 @@
     });
   });
 
-  const changes = $derived(entryChanges(entry, draft));
+  // The selection may move on (the book, another spread) a moment before the Inspector drops this form: no entry, no changes
+  const changes = $derived(entry ? entryChanges(entry, draft) : {});
   const dirty = $derived(Object.keys(changes).length > 0);
   const problems = $derived(draftProblems(draft));
   onMount(() => trackUnsaved(() => dirty));

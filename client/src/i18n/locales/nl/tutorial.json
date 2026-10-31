@@ -1,3 +1,15 @@
 {
-  "skip": "Overslaan"
+  "skip": "Overslaan",
+  "intro": {
+    "text": "Met deze app ontdek je video’s, teksten en belangrijke verwijzingen die verborgen zitten in de gedrukte publicatie *{{title}}*.",
+    "button": "Verder"
+  },
+  "camera": {
+    "text": "Om het boek te scannen en interactieve inhoud te tonen, heeft deze app toegang tot je camera nodig.\n\nGeef toegang om verder te gaan.",
+    "button": "Toegang geven"
+  },
+  "done": {
+    "title": "Bedankt!",
+    "button": "Naar de scan"
+  }
 }

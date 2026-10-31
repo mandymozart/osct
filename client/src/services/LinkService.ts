@@ -1,6 +1,7 @@
 import { router } from "@/router";
 import { type GameState, type IGame, type PageRoute, Pages } from "@/types";
-import { getEntry, getSpread, getTutorial } from "@/utils/game-config";
+import { getBook, getEntry, getSpread } from "@/utils/game-config";
+import { onboardingSteps } from "@/utils";
 import { isEntryCategory } from "@shared/guards/game-config";
 
 /**
@@ -116,7 +117,7 @@ export const resolveLink = (game: IGame, link: Link): boolean => {
     }
     case "/tutorial": {
       const step = value === undefined ? 0 : Number(value);
-      if (!Number.isInteger(step) || step < 0 || step >= getTutorial().length) return notFound();
+      if (!Number.isInteger(step) || step < 0 || step >= onboardingSteps(getBook()).length) return notFound();
       game.router.navigate("/tutorial", { key: "step", value: String(step) });
       return true;
     }

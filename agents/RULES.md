@@ -223,7 +223,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     namespace per page/area; **informal** in every language). Translations are **JSON** (i18next JSON v4) in
     `src/i18n/locales/<lang>/<ns>.json`, maintained with **i18next-cli** (`npm run i18n`; the build runs it
     and warns – never fails – about missing translations, which fall back to English).
-    Book content (titles, entries, steps) is not UI text. The language is stored by the i18next language
+    Book content (titles, entries) is not UI text; the onboarding is (the app's own steps, `utils/onboarding.ts`, #236). The language is stored by the i18next language
     detector (`osct-language`), not in the progress. Dev tools and the **editor** (`/editor`, an authors' tool, not a
     reader's view) stay English.
 
@@ -292,7 +292,9 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     Update options are **opt-in** – never on by default.
     **A deploy never resets data**: the schema files only add (`CREATE TABLE IF NOT EXISTS`; later changes as
     additive `ALTER TABLE … ADD`), no `DROP` / `TRUNCATE` / `DELETE` – the API test enforces it and checks that
-    users, sessions and progress survive a second migration. The upload deletes nothing.
+    users, sessions and progress survive a second migration. The one exception: a column of a feature that was removed
+    goes by name (`ALTER TABLE … DROP COLUMN …`, skipped by the migration once it is gone – `books.tutorial_json`, #236);
+    never a table, never rows. The upload deletes nothing.
 
 26. **Git**: commit subjects `<version>: <subject>`, the body ends with `Refs #N` (a step) or `Fixes #N` (the
     commit that finishes the issue); `#N` never starts a line. No `Co-Authored-By` or other agent/tool

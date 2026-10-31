@@ -4,6 +4,78 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – print first or digital first: the book's source of truth (#238)
+
+- **Tilman** (#238): *"+ spread … an option we only give when the book's meta notes whether it is print first or
+  digital first – what the source of truth is – it has to be a setting we can change"*, *"the add spread can be just as
+  big as a double page's tile with a plus inside"*, *"whether a cover or another format is chosen is part of the dialog
+  that takes care of the creation"*.
+- **In the content, not a column**: `book.sourceOfTruth` (`print` | `digital`, content schema 2.25 together with #236's
+  change – one MINOR). The book's `book_json` holds it, so no migration; none means print (`sourceOfTruthOf`). The guard
+  does not check it (the reader does not read it; an older guard ignores unknown book fields) – the content build and
+  the API check the value.
+- **Set on import**: the configuration's own value, else `print` – so the demo, whose `book.yaml` says `digital`, is
+  digital first after an import, the OSCT book print first. There is no "new empty book" flow yet (books only come in
+  through an import), so *"a new empty book digital first"* has nowhere to live today. **Staging's demo** keeps its row
+  as imported before: print first until it is re-imported or switched in its Inspector.
+- **Enforced in the API** (`Books::requireDigitalFirst`: `POST`/`DELETE …/spreads` → 409 `print-first` with how to
+  change it); the MCP tools say so in their descriptions and the hint of the refusal (switching is the person's yes);
+  the editor leaves the controls out for a print-first book (RULES #32: absent, not disabled).
+- **The creation step** (`NewSpreadForm.svelte`, choices in `spread-edit.ts`): format, title, *after* (double page only)
+  with the pages it takes; on the book page it replaces the add tile in place (full row), in the workspace it is the
+  panel's body. The card menu's *Add a double page after* now opens the step (with the spread chosen) instead of adding
+  at once. The tile gets a spacer before it when the last spread ends on a left-hand page, so it sits like a double page.
+- **+ after the last spread's ›**: the panel bar on a desktop, beside › at the stage's corner on a phone (not while ‹ ›
+  sit at the top on a short stage).
+
+## 2026-10-31 – texts inside the editor: the book search in the top bar, the book in the Inspector (#237)
+
+- **Tilman** (#237): *"a search in the document is not wrong, but a separate page is the wrong place – it is rather part
+  of the header"*, *"that is too much info"* (the book page's head).
+- **The search lives in the top bar** (`BookSearch.svelte`, pure logic in `book-search.ts`) on every page of a book –
+  on the book page too, where it loads the draft (`content.load`) on the first focus; it searches the draft the engine
+  reads (`content.spreads`: entries with their text, targets with their resolved entities), not the API's rows – one
+  source for the stage and the search. Named nodes only: a node without a `name` is found through its target.
+- **A pick on another spread** goes through the selection: `selection.requestOn(spread, state)` before the route
+  changes, the workspace's `enter(spread)` takes it (else the spread, as before); `selection.reveal` counts the asks to
+  show the Inspector (the page opens its tab, the sheet on a phone). The entry without a target simply opens its form
+  (the Inspector shows any entry by id).
+- **The book crumb selects the book** in a workspace (a modified click still navigates); the book page is reached by
+  the panel's ×, the Inspector's *All spreads*, or the crumb outside a workspace. A `book` flag in the selection –
+  only written when true, so the snapshots of the other selections stay as they were.
+- **Removed with the entries view**: `EntriesPage.svelte`, the list helpers of `entry-edit.ts` (filter, counts, the
+  glossary by letter – Tilman's issue: the search covers it) and the tutorial page's Entries screenshot; the book page's
+  `+ double page` / `+ cover` / `+ back cover` links went with its info line (#238 brings the add tile).
+- [ ] The tutorial page's chapter 5 has no new screenshots yet (the search, the book in the Inspector, + entry): taken in
+      #236–#238's run (`C:\Users\Nutzer\AppData\Local\Temp\osct-shots\236-238\`), not converted into the page.
+
+## 2026-10-31 – the onboarding belongs to the app: out of the database, the editor and the content (#236)
+
+- **Tilman** (#236): *"How did onboarding end up in the database? This is part of the app itself. I said that
+  specifically during planning."* – *"onboarding must definitely go into the code and our normal translation – it has no
+  business in the editor"*. Done as decided on 2026-09-28 and 2026-10-29 (#61, "onboarding steps stay out of the
+  database"); #223 had made it editable without checking this file (the lesson is in `C:\Development\ORCHESTRATION.md` §9).
+- **The app owns the steps**: `client/src/utils/onboarding.ts` – order, illustrations, actions and timing; the texts are
+  the `tutorial` namespace's (en, de, fr, nl; informal), `{{title}}` filled from the book by i18next's interpolation
+  (escaping off there – `<tutorial-content>` escapes and turns `*emphasis*` into markup, as before). The splash step
+  (`SPLASH_STEP`) lives in `utils/static-splash-html.ts`, the file vite.config.js loads without aliases, so the static
+  splash in index.html and the app show the same step. One set of steps for every book: the demo's own intro text
+  ("a sandbox …") is gone with its content steps.
+- **A compat `tutorial` until the next schema MAJOR** (RULES #10): apps of schema 2.24 and before require `tutorial` and
+  show it, and an empty list would leave them on a blank onboarding. So the content build and every draft / publish
+  write the app's English steps (`shared/compat/tutorial.ts`; the PHP's copy `Editor::COMPAT_TUTORIAL` is pinned by
+  `mcp/test/php-rules.test.ts`). It is frozen – it does not follow later changes of the app's texts – and goes with the
+  next MAJOR. The guard no longer requires `tutorial` (checks it when present) – content schema **2.25**.
+- **The database**: `books.tutorial_json` is removed by a migration (`ALTER TABLE books DROP COLUMN tutorial_json`, both
+  databases). RULES #25 forbade any DROP in the schema files; the brief asked for the column to go, so RULES #25 now has
+  one narrow exception – a removed feature's column by name, skipped once gone (`Db::migrate`, the test's
+  `loadSchema`); never a table, never rows. **Tilman confirmed (2026-10-31): "If you can remove it do it."**
+- Removed: the editor's onboarding view and `OnboardingSteps.svelte`, the step logic of `book-texts.ts`,
+  `GET`/`PUT …/tutorial`, the MCP tools `get_tutorial` / `update_tutorial`, `STEP_TIME_MAX` / `STEPS_MAX`, the content
+  build's `steps/` reader (it warns while a source still has the folder), the engine's `getTutorial` and `Step`, the
+  fixtures' steps, the tutorial page's onboarding chapter and its screenshot. The book content source's
+  `osct-content/content/steps/` (outside git) can be deleted by hand.
+
 ## 2026-10-31 – docs: one owner per topic (#218)
 
 - **The plugin API's reference lives in `docs/plugins.md`** only; `docs/content.md` keeps a paragraph on how the content
@@ -2511,7 +2583,9 @@ outcome in the line (or move it into a dated decision block).
 
 ## 2026-09-28 – Tutorial steps belong to the app, not the content (Tilman)
 
-- [ ] Refactor (Tilman): the onboarding/tutorial steps (`content/steps/<id>/step.yaml` → `tutorial` in
+- [x] *(done 2026-10-31, #236 – see that day's entry: the steps in `client/src/utils/onboarding.ts`, the texts in the
+      `tutorial` namespace in four languages, the content and the database without them, a compat copy for older apps)*
+      Refactor (Tilman): the onboarding/tutorial steps (`content/steps/<id>/step.yaml` → `tutorial` in
       `game.config.json`) are app UI, not book content – keeping them in `content/` overloads what content
       is. Move them into the app (e.g. `client/src/` data + i18n keys for the texts, illustrations in
       `client/public/assets/illustrations/`). Touches: `buildTutorial()` in `scripts/src/index.ts`,

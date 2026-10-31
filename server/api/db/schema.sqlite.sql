@@ -67,7 +67,6 @@ CREATE TABLE IF NOT EXISTS books (
   title TEXT NOT NULL,
   author TEXT NOT NULL,
   book_json TEXT NOT NULL,
-  tutorial_json TEXT NOT NULL,
   initial_spread_id TEXT NOT NULL,
   assets_base TEXT NOT NULL DEFAULT '',
   files_json TEXT NOT NULL,
@@ -240,3 +239,6 @@ ALTER TABLE changes ADD COLUMN token_name TEXT NULL DEFAULT NULL;
 
 -- What the draft is based on (schema.mysql.sql has the notes)
 ALTER TABLE books ADD COLUMN imported_json TEXT NULL DEFAULT NULL;
+
+-- The onboarding belongs to the reader (schema.mysql.sql has the notes)
+ALTER TABLE books DROP COLUMN tutorial_json;

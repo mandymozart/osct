@@ -1,32 +1,18 @@
-import type { BookData, StepData } from '../../../shared/types/game-config';
-import { buildErrors } from '../lib/errors';
-import { readSection, validate } from '../lib/content';
+import fs from 'fs';
+import path from 'path';
+import type { StepData } from '../../../shared/types/game-config';
+import { COMPAT_TUTORIAL } from '../../../shared/compat/tutorial';
+import { CONTENT_DIR } from '../config';
+import { buildWarnings } from '../lib/errors';
 
-/** Book fields usable in step texts as {{name}} (filled in by the app from book.yaml) */
-export const BOOK_PLACEHOLDERS = ['title', 'author', 'publisher'] as const;
-
-export function buildTutorial(book: BookData): StepData[] {
-  return readSection('steps', 'step.yaml')
-    .map(({ id, data }) => {
-      const s = validate(data, 'step', `steps/${id}`);
-      if (!s) return null;
-      for (const field of ['title', 'description', 'footer'] as const) {
-        for (const [, name] of String(s[field] ?? '').matchAll(/\{\{(\w+)\}\}/g)) {
-          if (!(BOOK_PLACEHOLDERS as readonly string[]).includes(name)) {
-            buildErrors.push(`steps/${id}: ${field} uses {{${name}}} – allowed: ${BOOK_PLACEHOLDERS.map(p => `{{${p}}}`).join(', ')}`);
-          } else if (!book[name as keyof BookData]) {
-            buildErrors.push(`steps/${id}: ${field} uses {{${name}}}, but book.yaml has no ${name}`);
-          }
-        }
-      }
-      // Optional fields only when set (the bundle stays free of empty keys)
-      const optional = Object.fromEntries(
-        (['title', 'description', 'footer', 'illustration', 'button', 'action', 'fadeIn', 'stagger', 'advance'] as const)
-          .filter(key => s[key] !== undefined && s[key] !== '')
-          .map(key => [key, s[key]])
-      );
-      return { id, index: s.index, ...optional } satisfies StepData;
-    })
-    .filter((step): step is StepData => step !== null)
-    .sort((a, b) => a.index - b.index);
+/**
+ * The configuration's `tutorial`: the onboarding apps of content schema 2.24 and before require – the reader's own
+ * English steps (`shared/compat/tutorial.ts`). The reader owns its onboarding (#236), so a content source's `steps/`
+ * folder is not read; one that still has it gets a warning.
+ */
+export function buildTutorial(): StepData[] {
+  if (fs.existsSync(path.join(CONTENT_DIR, 'steps'))) {
+    buildWarnings.push('steps/ is not read: the onboarding is the app\'s own (its texts are in the app\'s translations) – the folder can go');
+  }
+  return COMPAT_TUTORIAL.map(step => ({ ...step }));
 }

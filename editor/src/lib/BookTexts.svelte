@@ -7,9 +7,9 @@
   import Section from "#lib/components/Section.svelte";
 
   /**
-   * The book's texts on the book page (#223): its title, author and publisher – the splash and the home page show them,
-   * the onboarding's `{{title}}`, `{{author}}` and `{{publisher}}` are replaced with them. A collapsible section, closed
-   * naming them; Save writes what changed (`PUT /editor/books/{id}`), *Back to the draft* drops the edits.
+   * The book's texts in the Inspector while the book is selected (#223, #237): its title, author and publisher – the
+   * reader's splash, home page and onboarding show them. A collapsible section, closed naming them; Save writes what
+   * changed (`PUT /editor/books/{id}`), *Back to the draft* drops the edits.
    */
   let { bookId, book, onsaved }: {
     bookId: string;
@@ -49,14 +49,14 @@
     }
   };
   const fields: Array<{ key: keyof BookDraft; label: string; help: string }> = [
-    { key: "title", label: "title", help: "The book's title – the splash, the home page and the onboarding's {{title}} show it." },
-    { key: "author", label: "author", help: "Who wrote the book – the splash shows it ({{author}} in a step)." },
-    { key: "publisher", label: "publisher", help: "Shown on the home page above Start and on the splash ({{publisher}}); empty: none." },
+    { key: "title", label: "title", help: "The book's title – the reader's splash, home page and onboarding show it." },
+    { key: "author", label: "author", help: "Who wrote the book – the reader's splash shows it." },
+    { key: "publisher", label: "publisher", help: "Shown on the home page above Start and on the splash; empty: none." },
   ];
 </script>
 
 <div class="book-texts">
-  <Section id="book.texts" label="book" open={false} summary={[saved.title, saved.author, saved.publisher].filter(Boolean).join(" · ")}
+  <Section id="book.texts" label="texts" open summary={[saved.title, saved.author, saved.publisher].filter(Boolean).join(" · ")}
     help="The book's title, author and publisher, as the reader's splash and home page show them.">
     {#each fields as field (field.key)}
       <div class="row" class:changed={field.key in changes}><span class="label">{field.label}</span>

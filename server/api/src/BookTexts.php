@@ -3,14 +3,14 @@ declare(strict_types=1);
 
 /**
  * The reading side of a book in the editor (docs/server.md "Texts"): an entry's fields – its title, its text (Markdown
- * with the book's variables, shared/text/entry-text.ts), author, image, link, tags, category and access page –, the
- * book's title, author and publisher, and the onboarding's steps. Every write reads the row, changes it and writes it
+ * with the book's variables, shared/text/entry-text.ts), author, image, link, tags, category and access page –, and the
+ * book's title, author and publisher. Every write reads the row, changes it and writes it
  * back in one transaction with the row locked (`Db::forUpdate()`), touches the book and records a change with the row
  * before and after. An AI connection's token may write here like the person – these are the book's texts, not the
  * account; publishing stays the person's (`Books::publish`).
  *
  * The checks are the content build's (scripts/src/lib/schema.ts): the categories, a title and a page, a link that is
- * http(s), the step actions – and an image from the book's Library (an uploaded image or a file of the import).
+ * http(s) – and an image from the book's Library (an uploaded image or a file of the import).
  */
 final class BookTexts
 {
@@ -19,17 +19,10 @@ final class BookTexts
     /** At most this many tags, each at most TAG_MAX_LENGTH characters (shared/api/rules.ts `ENTRY_TAGS`) */
     public const TAGS_MAX = 32;
     public const TAG_MAX_LENGTH = 64;
-    /** A text field's limit in characters (shared/api/rules.ts `TEXT_MAX_LENGTH`): a title, an author, a step's line */
+    /** A text field's limit in characters (shared/api/rules.ts `TEXT_MAX_LENGTH`): a title, an author */
     public const TEXT_MAX_LENGTH = 500;
     /** An entry's body, in characters (shared/api/rules.ts `BODY_MAX_LENGTH`) */
     public const BODY_MAX_LENGTH = 100000;
-    /** A step's fields (shared/types/game-config.ts `StepData`, without `index` – the list's order is the index) */
-    private const STEP_TEXTS = ['title', 'description', 'footer', 'illustration', 'button'];
-    private const STEP_TIMES = ['fadeIn', 'stagger', 'advance'];
-    /** A step's timing in milliseconds: at most ten minutes (shared/api/rules.ts `STEP_TIME_MAX`) */
-    public const STEP_TIME_MAX = 600000;
-    /** At most this many steps (shared/api/rules.ts `STEPS_MAX`) */
-    public const STEPS_MAX = 50;
 
     /**
      * GET /editor/books/{id}/entries → { entries: [EntryData without its target + spreadId, target: { id, imageSrc } | null] }
@@ -120,18 +113,22 @@ final class BookTexts
     }
 
     /**
-     * PUT /editor/books/{id} { title?, author?, publisher? } → 200 { book }: the book's texts – the splash and the
-     * home page show them (`{{title}}` in the steps). `publisher: null` (or "") removes it. 400 `invalid-book`.
+     * PUT /editor/books/{id} { title?, author?, publisher?, sourceOfTruth? } → 200 { book }: the book's texts – the
+     * splash, the home page and the onboarding show them – and its source of truth (`print` | `digital`, #238: whether
+     * spreads are added and removed in the editor). `publisher: null` (or "") removes it. 400 `invalid-book`.
      */
     public static function putBook(string $bookId): never
     {
         $user = Editor::user();
         Books::exists($bookId);
         $body = Editor::body();
-        $fields = ['title', 'author', 'publisher'];
+        $fields = ['title', 'author', 'publisher', 'sourceOfTruth'];
         $unknown = array_diff(array_keys(get_object_vars($body)), $fields);
-        if ($unknown) throw new ApiError(400, 'invalid-book', 'Unknown field ' . implode(', ', $unknown) . ' – send title, author or publisher.');
-        if (!get_object_vars($body)) throw new ApiError(400, 'invalid-book', 'Send title, author or publisher.');
+        if ($unknown) throw new ApiError(400, 'invalid-book', 'Unknown field ' . implode(', ', $unknown) . ' – send title, author, publisher or sourceOfTruth.');
+        if (!get_object_vars($body)) throw new ApiError(400, 'invalid-book', 'Send title, author, publisher or sourceOfTruth.');
+        if (property_exists($body, 'sourceOfTruth') && !in_array($body->sourceOfTruth, Editor::SOURCES_OF_TRUTH, true)) {
+            throw new ApiError(400, 'invalid-book', 'sourceOfTruth must be one of ' . implode(', ', Editor::SOURCES_OF_TRUTH) . '.');
+        }
         $book = Db::transaction(static function () use ($bookId, $body, $user) {
             $row = Books::bookRow($bookId, true);
             $book = Editor::decode($row['book_json']);
@@ -142,6 +139,7 @@ final class BookTexts
                 $publisher = $body->publisher === null ? null : self::text($body->publisher, 'publisher', false, 'invalid-book');
                 self::optional($book, 'publisher', $publisher === '' ? null : $publisher);
             }
+            if (property_exists($body, 'sourceOfTruth')) $book->sourceOfTruth = $body->sourceOfTruth;
             $json = Editor::encode($book);
             Db::run('UPDATE books SET title = :title, author = :author, book_json = :data WHERE id = :id', ['title' => $book->title, 'author' => $book->author, 'data' => $json, 'id' => $bookId]);
             Books::touchBook($bookId);
@@ -149,69 +147,6 @@ final class BookTexts
             return $book;
         });
         Http::json(200, ['book' => $book]);
-    }
-
-    /** GET /editor/books/{id}/tutorial → { tutorial: StepData[] }: the onboarding's steps in their order */
-    public static function tutorial(string $bookId): never
-    {
-        Editor::user();
-        $row = Books::bookRow($bookId);
-        Http::json(200, ['tutorial' => Editor::decode($row['tutorial_json']) ?? []]);
-    }
-
-    /**
-     * PUT /editor/books/{id}/tutorial { tutorial: [{ id, title?, description?, footer?, illustration?, button?, action?,
-     * fadeIn?, stagger?, advance? }] } → 200 { tutorial }: the onboarding's steps, the whole ordered list – the order is
-     * each step's `index`. An empty text leaves the field out; `action` (next, camera, scan) goes with a button. 400
-     * `invalid-tutorial`.
-     */
-    public static function putTutorial(string $bookId): never
-    {
-        $user = Editor::user();
-        Books::exists($bookId);
-        $body = Editor::body();
-        if (!property_exists($body, 'tutorial') || !is_array($body->tutorial)) throw new ApiError(400, 'invalid-tutorial', 'Send { tutorial: [steps] }.');
-        if (count($body->tutorial) > self::STEPS_MAX) throw new ApiError(400, 'invalid-tutorial', 'At most ' . self::STEPS_MAX . ' steps.');
-        $steps = [];
-        $ids = [];
-        foreach (array_values($body->tutorial) as $index => $in) {
-            $at = "tutorial[$index]";
-            if (!$in instanceof stdClass) throw new ApiError(400, 'invalid-tutorial', "$at must be an object.");
-            $unknown = array_diff(array_keys(get_object_vars($in)), ['id', 'index', ...self::STEP_TEXTS, 'action', ...self::STEP_TIMES]);
-            if ($unknown) throw new ApiError(400, 'invalid-tutorial', "$at: unknown field " . implode(', ', $unknown) . '.');
-            $id = $in->id ?? null;
-            if (!is_string($id) || !preg_match('/^' . Editor::ID . '$/', $id)) throw new ApiError(400, 'invalid-tutorial', "$at.id must be 1–64 letters, digits, _ or -.");
-            if (isset($ids[$id])) throw new ApiError(400, 'invalid-tutorial', "$at.id: \"$id\" is used twice.");
-            $ids[$id] = true;
-            $step = ['id' => $id, 'index' => $index];
-            foreach (self::STEP_TEXTS as $key) {
-                if (!isset($in->{$key})) continue;
-                $value = self::text($in->{$key}, "$at.$key", false, 'invalid-tutorial', $key === 'description' ? self::BODY_MAX_LENGTH : self::TEXT_MAX_LENGTH);
-                if ($value !== '') $step[$key] = $value;
-            }
-            if (isset($in->action)) {
-                if (!in_array($in->action, Editor::STEP_ACTIONS, true)) throw new ApiError(400, 'invalid-tutorial', "$at.action must be one of " . implode(', ', Editor::STEP_ACTIONS) . '.');
-                if (!isset($step['button'])) throw new ApiError(400, 'invalid-tutorial', "$at.action goes with a button.");
-                if ($in->action !== 'next') $step['action'] = $in->action;
-            }
-            foreach (self::STEP_TIMES as $key) {
-                if (!isset($in->{$key})) continue;
-                $value = $in->{$key};
-                if (!(is_int($value) || is_float($value)) || $value < 0 || $value > self::STEP_TIME_MAX) {
-                    throw new ApiError(400, 'invalid-tutorial', "$at.$key must be milliseconds from 0 to " . self::STEP_TIME_MAX . '.');
-                }
-                $step[$key] = (int) round($value);
-            }
-            $steps[] = (object) $step;
-        }
-        Db::transaction(static function () use ($bookId, $steps, $user) {
-            $row = Books::bookRow($bookId, true);
-            $json = Editor::encode($steps);
-            Db::run('UPDATE books SET tutorial_json = :data WHERE id = :id', ['data' => $json, 'id' => $bookId]);
-            Books::touchBook($bookId);
-            Books::recordChange($bookId, $user, 'tutorial', $bookId, $row['tutorial_json'], $json);
-        });
-        Http::json(200, ['tutorial' => $steps]);
     }
 
     /** A link an entry may point to: http(s) with a host (shared/api/rules.ts `isLinkUrl`) */

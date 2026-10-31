@@ -5,7 +5,7 @@
  */
 export * from "@shared/types/game-config";
 export { EntryCategory, ENTRY_CATEGORIES } from "@shared/types/entry";
-import type { EntityData, EntryData, SpreadData, StepData, TargetData } from "@shared/types/game-config";
+import type { EntityData, EntryData, SpreadData, TargetData } from "@shared/types/game-config";
 
 /** App model of a target (mapped from `TargetData`); the entity ref is resolved */
 export interface Target extends Omit<TargetData, "entity"> {
@@ -27,6 +27,3 @@ export interface Spread extends SpreadData {
   /** In entry order (page → title) */
   targets: Target[];
 }
-
-/** App model of a tutorial step (same shape as `StepData`) */
-export type Step = StepData;

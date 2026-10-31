@@ -1,6 +1,6 @@
 import { LoadingState, type Step } from "@/types";
-import { getTutorial } from "@/utils/game-config";
-import { staticSplashStep, whenStaticSplashHidden } from "@/utils";
+import { getBook } from "@/utils/game-config";
+import { onboardingSteps, staticSplashStep, whenStaticSplashHidden } from "@/utils";
 import { Page } from "./page";
 import "@/components/tutorial";
 
@@ -8,7 +8,7 @@ import "@/components/tutorial";
 const STEP_MS = 2000;
 
 /** The splash: the leading onboarding steps before the first step with a button */
-export const getSplashSteps = (steps: readonly Step[] = getTutorial()): Step[] => {
+export const getSplashSteps = (steps: readonly Step[] = onboardingSteps(getBook())): Step[] => {
   const sorted = [...steps].sort((a, b) => a.index - b.index);
   const firstWithButton = sorted.findIndex(step => step.button);
   return firstWithButton === -1 ? sorted : sorted.slice(0, firstWithButton);

@@ -277,7 +277,8 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     }
   });
 
-  arr(root, "tutorial", "config").forEach((s, i) => {
+  // The onboarding apps of schema 2.24 and before read (optional since 2.25 – the reader has its own)
+  if (root.tutorial !== undefined) arr(root, "tutorial", "config").forEach((s, i) => {
     const path = `tutorial[${i}]`;
     const step = obj(s, path);
     if (!step) return;
