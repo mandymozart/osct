@@ -7,6 +7,20 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- **A newer book never breaks the app** (#220): until now, a book built with a newer content schema MINOR was refused
+  when the app's check did not know one of its features – a behaviour, a pass of the book's own code, a new parameter.
+  From this version on the app loads such a book and leaves out only what it does not know: a component, a filter, a
+  pass, a material, a behaviour action or field, a parameter. A broken book and one of a newer schema MAJOR are still
+  refused. When
+  something was left out, the reader says so once per book version, at a calm moment like the new-version notice
+  (never during AR): *This book uses features this app version doesn't know yet – update the app to see everything* –
+  in English, French, Dutch and German, with *Reload* when a new version is ready. The editor shows what its stage
+  leaves out in the top bar ("N unknown features"). Books of this app's own or an older schema are checked as strictly
+  as before.
+
 ## 1.54.3 – 2026-10-30
 
 ### Fixed

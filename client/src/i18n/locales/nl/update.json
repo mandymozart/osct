@@ -1,5 +1,7 @@
 {
   "ready": "Er staat een nieuwe versie van de app klaar.",
   "reload": "Opnieuw laden",
-  "later": "Later"
+  "later": "Later",
+  "newerContent": "Dit boek gebruikt functies die deze versie van de app nog niet kent – werk de app bij om alles te zien.",
+  "close": "Sluiten"
 }

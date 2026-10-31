@@ -64,14 +64,24 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     `client/package.json`, `scripts/package.json`, `server/api/src/Version.php` and `mcp/package.json` (+ `VERSION` in
     `mcp/src/user.ts`) always carry the same version (checked by tests + CI); the source is `client/package.json`.
     **Content compatibility = the content schema `MAJOR.MINOR`, nothing else**: `CONTENT_SCHEMA_VERSION`
-    (`shared/types/game-config.ts`) versions the contract in `shared/`. MAJOR = older apps cannot read it (new
-    required field, renamed or removed field, changed type, new enum value) – the app refuses content of a newer
-    MAJOR at startup and reads every older MAJOR down to `OLDEST_READABLE_SCHEMA_MAJOR` as it is (raise it when a
-    MAJOR removes or renames something). MINOR = additions older apps ignore (new optional field, and since 2.6 a
-    new **node type**: the guard lets an unknown one pass, the engine renders nothing for it and keeps its children;
-    the content build and the editor's API still refuse it, unless a plugin of the book registers it – 2.13,
-    `registerNodeType`; 2.17 a node's `material` – `registerMaterial` – and the parameter kind `texture`) – any MINOR of the
-    same MAJOR loads.
+    (`shared/types/game-config.ts`) versions the contract in `shared/`. **A MINOR never breaks an older app** (Tilman,
+    2026-10-31, #220: "a MINOR must not break. But exactly the features that are not supported then won't work – that's
+    okay, it can be shown with warnings. The app has to be updated if people want to see them."):
+    - **MAJOR = an older app cannot load the book, because the shape changed**: a new required field, a renamed or
+      removed field, a changed type, a new value of a required field's enum (asset type, category, step action, spread
+      format). The app refuses content of a newer MAJOR at startup – before its guard reads it – and reads every older
+      MAJOR down to `OLDEST_READABLE_SCHEMA_MAJOR` as it is (raise it when a MAJOR removes or renames something).
+    - **MINOR = an older app still loads the book.** What it does not know of a kind it knows – a component, a filter,
+      a pass, a material, a behaviour action, a field of a behaviour, a parameter of a known spec, a parameter kind of a
+      plugin's recorded spec – is **skipped with a warning**, never a refusal of the node, the spread or the book; a node
+      type nobody registered renders nothing and keeps its children. The engine drops it from the configuration it reads
+      (`engine/src/content/forward-compatible.ts`, before the guard) and lists it (`getSkippedFeatures()`): the reader
+      shows a quiet update hint once per book version (`<new-version-notice>`), the editor a warning in its top bar. A
+      broken shape or a wrong type for a known field stays an error. So a MINOR only adds what an older app can leave
+      out – an optional field, an entry of a typed list, a type, a parameter; `docs/content.md` ("Schema and app
+      versions") says per MINOR what an older app skips. Apps before #220 refused some of it (2.17, 2.19, 2.21 – the
+      table). Content of the app's own or an older schema is read without skipping, and the content build and the
+      editor's API stay strict: an author's unknown type is a typo there, never skipped.
     Every change in `shared/` needs a bump, comments included: `shared/content-schema.json` locks the checksum of
     `shared/` to the schema (`npm run schema:lock` in `scripts/`; a test fails otherwise). `shared/api/` is no part of
     the contract and of the lock: the instance API's answers and rules (editor, MCP server, CLI), which content never
@@ -81,7 +91,8 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     one). The first storage format is 1 – nothing from before 1.1.x is converted.
     The content *data* is identified by the build checksum (`version.hash`), not by the version.
     Links: plain URLs `/<route>/<value>?osct=<version>` (`services/LinkService.ts`); no content hash in links;
-    only a newer link version needs an action (reload).
+    the link's version is information only – a newer one needs no action (a new app reaches the reader through
+    `<new-version-notice>`, #231).
     **No backwards compatibility below 1.1.0 – for any feature**: no old link formats (`?code=`), no storage,
     content or config formats from before 1.1.x, no shims for old behaviour – nothing was deployed publicly
     before. (Browser/device fallbacks are not affected.)
@@ -203,8 +214,9 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
 23. **Versions and changelog**: the version (RULES #10) only goes up, and every shipped
     change is in `docs/CHANGELOG.md`. Check before pushing: `.github/scripts/check-version.sh --strict`
     (also run by Checks – strict on `develop`, `main` and PRs into them).
-    - **What bumps:** PATCH = fixes, refactors, comments, styling, tooling; MINOR = new features compatible
-      with existing content and progress; MAJOR = progress format change (content compatibility is the content
+    - **What bumps:** PATCH = fixes, refactors, comments, styling, tooling, shipped docs (`client/public/`); MINOR = new
+      features compatible with existing content and progress, and **every content schema change** (a schema MAJOR or
+      MINOR – RULES #10 – bumps the app MINOR); MAJOR = progress format change (content compatibility is the content
       schema, RULES #10). Changes only in `agents/`, `docs/` or `*.md` need no bump.
     - **How:** `client/package.json` + lock, `scripts/package.json` + lock, `mcp/package.json` + lock (+ `VERSION` in
       `mcp/src/user.ts`), `server/api/src/Version.php` (`npm version X.Y.Z --no-git-tag-version` in client/, scripts/ and

@@ -35,12 +35,14 @@ cache, browser cache or service worker can serve a stale copy of it – only `la
 - **App version** a content build was made with (`version.version`): information only.
 - **Content schema** `MAJOR.MINOR` (`version.schema`, `CONTENT_SCHEMA_VERSION` in `shared/types/game-config.ts`):
   the only compatibility rule (RULES #10). The app refuses content of a newer MAJOR at startup ("update the app") and of
-  one below `OLDEST_READABLE_SCHEMA_MAJOR` ("the content needs a newer build"). Any MINOR of the same MAJOR loads.
+  one below `OLDEST_READABLE_SCHEMA_MAJOR` ("the content needs a newer build"). Any MINOR of the same MAJOR loads – a
+  newer one without what the app does not know, with an update hint ([Content](content.md) "Schema and app versions").
   - MAJOR: a change older apps cannot read – a new required field, a renamed or removed field, a changed type, a
     new enum value (asset type, category, step action, spread format). The app reads every older MAJOR down to
     `OLDEST_READABLE_SCHEMA_MAJOR` as it is (so far every MAJOR only added).
-  - MINOR: an addition older apps ignore – a new optional field (the guard ignores unknown fields), a new node type
-    (since 2.6 the guard lets an unknown node type pass; the engine renders nothing for it and keeps its children).
+  - MINOR: an addition an older app can leave out – a new optional field, a type, a parameter, an entry of a typed list.
+    An older app skips what it does not know with a warning and loads the rest (#220 – what it skips: [Content](content.md)
+    "Schema and app versions").
   - Every change in `shared/` needs a bump: `shared/content-schema.json` locks the checksum of `shared/` to the
     schema – except `shared/api/`, the instance API's answers and rules, which content never holds. After the bump, run `npm run schema:lock` in `scripts/`; `scripts/test/schema.test.ts` fails until
     then, and the lock command refuses a changed contract under the old number.

@@ -177,7 +177,9 @@ export default interface Resources {
     "skip": "Skip"
   },
   "update": {
+    "close": "Close",
     "later": "Later",
+    "newerContent": "This book uses features this app version doesn't know yet – update the app to see everything.",
     "ready": "A new version of the app is ready.",
     "reload": "Reload"
   }

@@ -8,8 +8,8 @@ This file adds what is special to OSCT. Written after the first night shift, 202
 - No PRs: workers push a branch, the orchestrator merges into `develop` with `--no-ff` after green CI (Tilman,
   2026-10-29). `develop` deploys to staging (osct.porschuetz.de); `main` is production and needs Tilman.
 - Branch prefixes: `feature/`, `bug/`, `hotfix/` only (RULES #26).
-- Bump (RULES #23): features and content schema changes MINOR, fixes, chores and shipped docs (`client/public/`)
-  PATCH; changes only in `agents/`, `docs/` or `*.md` need none. The version lives in `client/`, `scripts/` and `mcp/`
+- Bump: what bumps is RULES #23 (features and every content schema change MINOR, fixes, chores and shipped docs
+  PATCH, `agents/` / `docs/` / `*.md` alone none). The version lives in `client/`, `scripts/` and `mcp/`
   `package.json` (and lines 3 and 9 of their locks), `server/api/src/Version.php` and `VERSION` in `mcp/src/user.ts`;
   `bash .github/scripts/check-version.sh --strict`.
 - A worker's new content schema row in `docs/content.md` has `next` as its app version; the orchestrator fills it.
@@ -19,7 +19,8 @@ This file adds what is special to OSCT. Written after the first night shift, 202
 
 ## Contracts a worker must know
 - Content schema: any change in `shared/` bumps the schema – MAJOR or MINOR (RULES #10) – then `npm run schema:lock`;
-  `shared/api/` (the API's answers and rules) is outside the lock.
+  `shared/api/` (the API's answers and rules) is outside the lock. A MINOR never breaks an older app: it only adds what
+  an older app's engine can skip (`engine/src/content/forward-compatible.ts`, #220) – a change it cannot skip is a MAJOR.
 - SQL: every named parameter once per query (MySQL refuses repeats, #161); LIKE through `Db::contains` +
   `ESCAPE '!'`. CI runs the API test on SQLite and MariaDB (#168); locally `docker compose up -d db`.
 - The editor runs on SvelteKit 3 since 1.35.2: imports `#lib/…` with extension, links through `resolve()`.
