@@ -34,6 +34,10 @@ four days for one orchestrator, `agents/costs.json`), so sessions are short and 
   cost tracking"); its branch `origin/docs/242-cost-tracking` (5 commits, the latest `COST-TRACKING.md`, agents/ only)
   is **not merged** – develop has an older copy from d7ad3ea4, a merge would conflict in that file. Tilman's call.
 - Transcripts are never deleted (`cleanupPeriodDays` 36500; never 0).
+- Cost rule in motion (the #242 session, 2026-11-01): at merge, record the worker's usage always – model, tokens per type
+  (input, cache write 5m/1h, cache read, output), the price snapshot, the list cost, one entry per model – with no look at
+  overage or subscriptions; the agents tool computes the real cost. Agents' §10 still shows format 1 (no token fields); when
+  it changes, book with `add_entry.py` (`--replace` for an entry that is already there) rather than by hand.
 - Night arrangement with SCUTOONS (its orchestrator is now "Orchestrator für Scutoons"): cloud credit split 50/50
   (≈ $61 each of ≈ $122, the credit expires 2026-11-05); OSCT runs no local workers, no Docker/MariaDB/WSL/phone at
   night; SCUTOONS ports 7000–7099, 4100–4199, 9500–9599. Ports OSCT: 8080, 8090–8099, 5174–5199, 9333–9399, 9444/9445.
