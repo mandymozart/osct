@@ -11,6 +11,10 @@ db instead of the json? and actually just create a super simple tool with maria 
 
 **Status: proposal only. Nothing has been built.** Tilman decides; then it becomes issues.
 
+**Moved, 2026-11-01:** Tilman: *"new project scope. agents. dort weiter machen."* The work continues in its own project,
+`agents` (`C:\Development\agents`, the tool on `agents.porschuetz.de`, §3). Its session runs as a child of the
+orchestrator. This file stays as the design and research record for osct#242.
+
 Each lead below is marked **verified** (checked in the docs or in a real session today), **guess** (likely, not checked)
 or **open** (has to be measured before anyone relies on it).
 
