@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.62.0 – 2026-11-01
 
 ### Changed
 - **Every on/off in the editor is a switch** (#241, Tilman: *"Ich will so einen Toggle. An manchen Stellen sind keine
