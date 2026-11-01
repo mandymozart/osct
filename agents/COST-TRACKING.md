@@ -3,7 +3,9 @@
 Tilman, 2026-10-31: *"Messen wie viel Cloud- und Usage-Credits bei diesen Aufgaben verbraucht werden … wie ich pro
 Issue am besten für jedes Projekt den Preis tracken kann."* Also: *"zusätzlich sollten orchestrator sessions auch
 getrackt werden. projekt budget sollte ggf. teil des repos werden"* and *"ich werde mehrere services in zukunft parallel
-benutzen und die sollen alle kosten tracken."*
+benutzen und die sollen alle kosten tracken."* And on 2026-11-01: *"wir halten auch kosten für abos fest. dazu in develop
+auch ein ordner agents/costs.json – dieser kann und sollte auch mit einem online shareable punkt verknüpft sein. ggf.
+ein privates repo, wo wir alle services tracken. auch jeden anderen provider für video etc."*
 
 **Status: proposal only. Nothing has been built.** Tilman decides; then it becomes issues.
 
@@ -26,14 +28,27 @@ or **open** (has to be measured before anyone relies on it).
 - **Plan usage has no price per call, and it stays an estimate.** Every row records *list USD* (an estimate) and
   *what paid for it* (plan, extra usage, cloud credit). Real money (extra usage EUR, cloud credit USD) is only ever
   taken from the bills, once a month, and is spread over the rows. It is never mixed into the estimate columns.
-- **The record:** one append-only CSV ledger per project in the repo (`agents/costs.csv`), plus the budget in the
-  same repo (`agents/COSTS.md`). There is a cost line in the issue's closing comment, and a number field on the board.
-  The orchestrator writes it at merge. A local hook catches sessions that no orchestrator sees.
+- **The record, in two places:**
+  - Every project has **`agents/costs.json` on `develop`**: the project's key, its budget, its sessions per issue, and
+    a link to the shared overview.
+  - A **private central repo** (proposed name `mandymozart/costs`) holds what spans projects or is private: all
+    **subscriptions** (Claude Ultra, Flora, video providers, hosting, CDN, …), the monthly bills, every provider's
+    charges, the tooling and the overview. Being a private repo, it is the **online, shareable place**: invite someone
+    to it, or publish a private, link-shareable dashboard from it (§3.5).
+  - The issue gets a cost line in its closing comment, and the board gets a number field.
+- **osct is a public repo.** Anything in its `agents/costs.json` is public. Proposal: public repos keep only list-price
+  *estimates* per issue there (or only the link). Subscriptions, bills, budgets in EUR and real charges live only in
+  the private repo (§3.6, decision §7).
+- **Who writes it:** the orchestrator writes at merge. A local hook catches sessions that no orchestrator sees.
 - **Orchestrator sessions get their own rows**, booked to their own issue (a "shift" issue), never hidden inside the
   workers' numbers.
-- **Not only Claude:** the ledger's columns are service-neutral (`service`, `unit`, `quantity`, `est_usd`). Flora,
-  other AI APIs and GitHub Actions minutes go in the same file, each through a small adapter.
-- **Tomorrow:** set `cleanupPeriodDays` to 365 (keeps the raw data), and add one step to the orchestrator's merge
+- **Not only Claude, and not only usage:** every entry has the same service-neutral fields (`service`, `kind`, `unit`,
+  `quantity`, `est_usd`, `billed`). That covers Flora, video and other providers, other AI APIs and GitHub Actions
+  minutes, each through a small adapter. Subscriptions are their own kind, a fixed amount per period, split over
+  projects by share (§3.4). Apps such as the scutoons storyboard read the central repo to reconcile their own
+  run costs (§3.7).
+- **Tomorrow:** set `cleanupPeriodDays` to 365 (keeps the raw data), start the private repo with a `subscriptions.json`,
+  and add one step to the orchestrator's merge
   routine: read the worker's `total_cost_usd` and put it in the merge comment. No code needed for either. See §8.
 
 ---
@@ -88,8 +103,9 @@ Checked on this session's own transcript:
   line's `session_name` (§2.4). **Guess:** `/rename` writes a title record into the transcript. Check it.
 - **Project:** the folder name is the cwd (`C--Development-osct-osct` → osct). Worktrees sit under the project folder.
 - Subagents' transcripts: **guess:** `<session-id>/subagents/*.jsonl` next to the main file. Read those too.
-- **Gaps (guess):** helper calls that WebFetch makes with a small model, and other "auxiliary" requests, don't show
-  up as `assistant` lines. OTel counts them (`query_source: auxiliary`). They are likely small.
+- **Gap (verified on this session):** helper calls on a small model (WebFetch's summaries and the like) don't show
+  up as `assistant` lines. The `result` event does count them: this session's first turn lists `claude-haiku-5-5`
+  at $0.011 beside Opus at $1.629. OTel counts them too (`query_source: auxiliary`). They are small.
 - **Deleted after 30 days** (`cleanupPeriodDays`, default 30). **Verified** in the docs. Raise it first (§8).
 
 ### 2.3 Status line JSON – **verified in the docs**, the best live source for local sessions
@@ -168,64 +184,159 @@ desktop app. If it doesn't run one, the hook in §2.5 does the same job from the
 
 ## 3. The record
 
-### 3.1 The ledger: `agents/costs.csv`, one per repo, append-only
+### 3.1 Two places, one rule
 
-One row per **session** (or per run or charge, for other services). This is the single source everything else is
-computed from.
+| | `agents/costs.json` in every project repo, on `develop` | private central repo `mandymozart/costs` |
+| --- | --- | --- |
+| what | the project's key, a link to the central repo, its budget, its **sessions per issue** (estimates) | **subscriptions**, **bills and real charges** of every service and provider, how they split over projects, the overview, the tooling, the schema |
+| who writes | the orchestrator, at merge (§3.9) | Tilman or a monthly session (bills, subscriptions); tools and adapters |
+| who reads | the orchestrator, the issue and board, the central report | Tilman, whoever he shares it with, the dashboard, apps such as the scutoons storyboard (§3.7) |
 
-```
-date,project,issue,role,service,session,title,model,unit,quantity,est_usd,paid_from,billed,currency,source
-2026-10-29,osct,28,worker,claude-cloud,session_01AabNG9LQhaNiESL1TuMzMP,"#28+#29 Typed boundaries…",claude-opus-5-5,tokens,38500884,12.16,cloud-credit,,,"result-event"
-2026-10-31,osct,242,worker,claude-cloud,session_01AabNG8dMQq5pG2cR11qY1R,"#242 Cost per issue…",claude-opus-5-5,tokens,…,…,cloud-credit,,,"transcript"
-2026-10-31,osct,<N>,orchestrator,claude-local,<session-id>,"#<N> Night shift 31.10",claude-opus-5-5,tokens,…,…,extra,,,"transcript"
-2026-10-31,osct,204,worker,flora,run_…,"#204 glow light textures",flux-…,generations,4,0.04,flora,0.04,USD,"flora run_cost"
-2026-10,osct,,bill,claude-extra,,"Extra usage October",,,,,,46.00,EUR,"claude.ai Settings → Usage"
-```
+**The rule:** list-price *estimates* of agent work may sit in a project repo, the same figure the issue's closing comment
+shows. Real money stays in the private repo only: subscriptions, bills, EUR, credit balances. osct is public (§3.6).
 
-- `issue` comes from the title's first `#N`; a title with several (`#28+#29`) is split evenly, or by the
-  orchestrator's judgement. Empty when the title has none: that is the "untracked" bucket and shows up as such.
-- `role`: `worker` · `orchestrator` · `subagent` (only if it ever has to be split out) · `bill` (a real charge from an
-  invoice).
-- `service`: `claude-local`, `claude-cloud`, `flora`, `gh-actions`, … New services add a value, not a column.
-- `est_usd` is **always an estimate** (list price, or the service's own figure). `billed` + `currency` are **only ever
-  real charges**: an invoice, the usage page, a service's `charged_cost`. The two are never added together.
-- `paid_from`: `plan` · `extra` · `cloud-credit` · `cloud-plan` · `<service>` (§4).
-- `source` names where the number came from, so anyone can check it.
+### 3.2 `agents/costs.json` – per project, on `develop`
 
-**Why in the repo:** the budget belongs to the project (Tilman), and the ledger sits next to it. It is
-reviewable, history comes free, and it is the same in every project. It is written by **one writer per repo, the
-orchestrator, on `develop`** (§3.4), so it never conflicts in merges. Changes in `agents/` need no version bump
+A file. Once it grows, it becomes a folder `agents/costs/` with one file per month and `agents/costs.json` as the
+index. It is **written only by the orchestrator on `develop`**, so it never conflicts in merges. Changes in `agents/` need no version bump
 (RULES #23).
 
-### 3.2 The budget: `agents/COSTS.md` per repo
+```json
+{
+  "schema": 1,
+  "project": "osct",
+  "central": "https://github.com/mandymozart/costs",
+  "budget": { "monthly_est_usd": 300, "per_issue_hint_usd": { "design": 5, "feature": 20 } },
+  "entries": [
+    { "date": "2026-10-29", "issue": [28, 29], "role": "worker", "service": "claude-cloud", "kind": "usage",
+      "session": "session_01AabNG9LQhaNiESL1TuMzMP", "model": "claude-opus-5-5", "unit": "tokens", "quantity": 38500884,
+      "est_usd": 12.16, "paid_from": "cloud-credit", "source": "result-event" },
+    { "date": "2026-10-31", "issue": [242], "role": "worker", "service": "claude-cloud", "kind": "usage",
+      "session": "session_01AabNG8dMQq5pG2cR11qY1R", "est_usd": null, "paid_from": "cloud-credit", "source": "result-event" },
+    { "date": "2026-10-31", "issue": ["<shift issue>"], "role": "orchestrator", "service": "claude-local", "kind": "usage",
+      "session": "<session-id>", "est_usd": null, "paid_from": "extra", "source": "transcript" }
+  ]
+}
+```
 
-- On top: the budget, e.g. *"osct: USD 300 / month list estimate, of that EUR 50 extra usage at most; cloud credit
-  first."* Also a per-issue guide if wanted (e.g. *"a design issue ≈ $5, a feature ≈ $15–25"*).
-- Below: a table generated from `costs.csv`, per month (estimated, billed, budget, what is left) and the most
-  expensive issues. Regenerated by the same script, never edited by hand.
+(The budget figures are only examples. `null` means not collected yet.)
 
-### 3.3 On the issue and on the board
+- `issue` comes from the title's `#N …` (several: `#28+#29` → split evenly unless the orchestrator says otherwise).
+  If the title has no number, the entry has no issue: the "untracked" bucket, shown as such.
+- `role`: `worker` · `orchestrator` · `subagent` (only if it ever needs splitting out).
+- `service`: `claude-local`, `claude-cloud`, `flora`, `gh-actions`, `<video provider>`, … A new service adds a value,
+  not a field.
+- `kind`: `usage` (sessions, runs, generations). Subscriptions and bills live in the central repo only.
+- `est_usd` is **always an estimate**: list price, or the service's own reported figure. There is no `billed` field
+  here on purpose (§3.6).
+- `paid_from`: `plan` · `extra` · `cloud-credit` · `cloud-plan` · `<service>` (§4). `source` says where the figure
+  came from.
+
+### 3.3 The central private repo `mandymozart/costs`
+
+```
+costs/
+  README.md                     generated: per month × project × service, budgets, what is left, upcoming renewals
+  schema.json                   the contract for every file here and every agents/costs.json (versioned, like shared/)
+  services.json                 every service and provider: kind (subscription | usage | both), currency, where its
+                                bill or usage page is, adapter, which projects use it
+  subscriptions.json            every subscription (§3.4)
+  bills/2026-10.json            real charges per month: invoices, usage pages, provider charge exports, credit packs
+  sources/<app>/2026-11.json    charges an app logs itself (provider run ids), for reconciling (§3.7)
+  projects/<project>.json       only for a public repo that keeps no figures itself (§3.6)
+  tools/                        transcript costing, result reader, price table, provider adapters, report
+  dashboard/overview.json       the data behind the shareable page (§3.5)
+```
+
+- The report reads every project's `agents/costs.json` through the GitHub API. Nothing is copied, nothing stored twice.
+- Invoices (PDFs) stay where they are now (the `taxes` repos). `bills/` holds the amount, the date and a reference.
+- No secrets in the repo: no card data, no API keys. The adapters read their keys from the environment.
+
+### 3.4 Subscriptions
+
+```json
+{ "service": "claude", "plan": "Ultra", "amount": null, "currency": "EUR", "period": "month",
+  "since": null, "renews": null, "cancel_by": null,
+  "split": "by-est-usd", "notes": "weekly limits; extra usage billed separately, see bills/" }
+{ "service": "flora", "plan": null, "amount": null, "currency": "USD", "period": "month",
+  "split": { "scutoons": 1.0 } }
+{ "service": "<video provider>", "plan": "credits", "amount": null, "currency": "USD", "period": "pack",
+  "credits": null, "split": "by-usage" }
+```
+
+- **Fixed per period:** the amount is spread over the projects by `split`. That is either fixed shares
+  (`{ "osct": 0.5, … }`) or `by-est-usd`, meaning each project's share of the month's estimated usage of that service
+  (right for Claude Ultra).
+- **Credit packs** (common with video and image providers): buying the pack is a bill. Each run is a usage entry with
+  `est_usd` = credits used × pack price ÷ pack credits.
+- **`renews` / `cancel_by`:** the monthly check lists what renews next month, so nothing renews unnoticed.
+- The amounts are Tilman's to fill in. Nothing here is guessed.
+
+### 3.5 Online and shareable
+
+- **The private repo is the shared place.** Share it by inviting someone with read access. GitHub renders the
+  generated `README.md` tables.
+- **A dashboard page:** a private claude.ai artifact (dashboard), published from `dashboard/overview.json` by the
+  monthly run or the orchestrator. It is private by default, and Tilman can share it by link when he wants. GitHub
+  Pages is no good for this: it needs a paid plan on a private repo, and the page itself would be public.
+- Alternatively a Google Sheet that imports `overview.json`. Only if someone needs to edit it by hand.
+
+### 3.6 Public repos: osct is public
+
+`mandymozart/osct` is public (so are vred, palazzo-listening, resradio and others), and scutoons and nadeos are
+private. Whatever osct's `agents/costs.json` or its issue comments say, the world can read.
+- **Proposed default:** public repos carry list-price estimates per issue, a measure of the agent work, the same as
+  the closing comment. No subscriptions, no bills, no EUR.
+- **If even that is too much:** osct's `agents/costs.json` holds only the project key and the link, and its entries go
+  to `costs/projects/osct.json` in the central repo. The closing comment then says "cost recorded" without a figure.
+  This is a decision (§7).
+
+### 3.7 Apps that read it: the scutoons storyboard
+
+Tilman, 2026-11-01: *"scutoons storyboard wird darauf auch zugreifen müssen, um Kosten zumindest abzugleichen."*
+
+- **Reconciling:** I assume the storyboard runs generations (image, video) through providers and knows what each run
+  reported. **This is a guess**: scutoons is not in this session's scope. Reconciling then means matching its own log
+  (provider, run id, reported cost, shot or scene, issue if any) against the provider's charges in `bills/` by run id
+  and month. The report shows what matches, what the provider charged that the storyboard doesn't know, and the
+  other way round.
+- **Read access:** through the GitHub contents API, with a fine-grained token that has **read-only access to the
+  `costs` repo and nothing else**, kept on the server side (never in a browser bundle). Or, more simply, it reads the
+  published `overview.json`.
+- **Write access, at first none:** the storyboard keeps its run log, and the monthly run imports it into
+  `sources/scutoons-storyboard/`. If it should write directly later, it gets a second token with write access, limited
+  to `sources/` by review (a PR) or by a bot account.
+- **The contract** is `schema.json` in the central repo, with a version number, so the storyboard, the tools and every
+  `agents/costs.json` agree. Changes follow the same rules as osct's content schema: a new field is a MINOR, a removed
+  or renamed one a MAJOR.
+- Any other app that spends money on a provider follows the same pattern: a run log in `sources/<app>/`, a read
+  token, matching by run id.
+
+### 3.8 On the issue and on the board
 
 - **Issue:** the orchestrator's closing comment on `develop` (it is needed anyway, see ORCHESTRATION.md) gets one line:
   `Cost: ≈ $14.80 list (2 sessions: worker $12.16 cloud credit, orchestrator share $2.64 plan) – estimate.`
+  (The figures are an example.)
 - **Board:** a number field *"Cost (USD, est.)"* on the project board, set by the orchestrator. The board then
   sums by lane or label. Every project gets the same field.
 
-### 3.4 Who writes it
+### 3.9 Who writes it
 
 | what | who | when | how |
 | --- | --- | --- | --- |
-| cloud worker sessions | **orchestrator** | at merge | `list_events(kinds: ["result"])` on the worker's session → sum of `model_usage_since_last_result`; title → issue |
+| cloud worker sessions | **orchestrator** | at merge | `list_events(kinds: ["result"])` on the worker's session → sum of `model_usage_since_last_result`; title → issue; entry in `agents/costs.json` |
 | local worker sessions (worktrees) | **orchestrator** | at merge | the transcript script (§2.2) on the worker's `session-id` (the orchestrator runs on the same machine) |
 | the orchestrator itself | **orchestrator** | at the end of the shift (and once a day in long shifts) | its own earlier `result` events (cloud) or its own transcript (local); booked to its shift issue |
-| sessions no orchestrator sees (ad hoc, chats about code) | **`SessionEnd` hook** (user level, all projects) | when the session ends | transcript script → a row in a workspace inbox (§6), taken into the repo ledger by the next orchestrator run |
+| sessions no orchestrator sees (ad hoc, chats about code) | **`SessionEnd` hook** (user level, all projects) | when the session ends | transcript script → a row in a workspace inbox (§6), taken into the project's `agents/costs.json` by the next orchestrator run |
 | the worker itself | **worker** | in its final report | "Cost so far: ≈ $x" from its own transcript. Only a hint (the last turn is missing). The orchestrator's figure counts |
-| monthly bills | **Tilman** (or a reminder session) | on the 1st | extra-usage EUR and cloud credit used, read from claude.ai → one `bill` row per month; Flora and others likewise |
+| subscriptions | **Tilman** | when one starts, changes or ends | `subscriptions.json` in the central repo |
+| monthly bills, provider charges | **Tilman** or a monthly session | on the 1st | `bills/<month>.json`: extra-usage EUR, cloud credit used, Flora, video providers, …; then the report and the dashboard |
+| app run logs (storyboard) | **the app**, imported by the monthly run | monthly | `sources/<app>/<month>.json` |
 
 **Orchestrator sessions** (Tilman's addition): every orchestrator shift starts with its own issue, as RULES #30 already
 asks of every session, e.g. `#N Night shift 31.10`. Its cost is booked to **that issue** as `role: orchestrator`.
 That keeps it visible as overhead. The report can additionally *show* each worker issue's share of the orchestrator
-(split by the workers' `est_usd`), but the row itself stays with the shift issue, so nothing is counted twice.
+(split by the workers' `est_usd`), but the entry itself stays with the shift issue, so nothing is counted twice.
 
 ---
 
@@ -239,16 +350,17 @@ What pays for a session, and what the ledger can know about it:
 | `extra` | local session after the weekly limit | `est_usd` (list) | monthly EUR from claude.ai, spread over these rows |
 | `cloud-credit` | cloud session while the $250 credit lasts | `est_usd` (list) | **open** whether the credit is drawn at list (§2.7); monthly from the balance |
 | `cloud-plan` | cloud session after the credit (from 2026-11-05) | `est_usd` (list) | like `plan` / `extra` |
-| `flora`, … | another service | the service's own figure | usually charged directly → `billed` |
+| `flora`, … | another service | the service's own figure | usually charged directly → the central repo's `bills/` |
 
 - **How a row gets its `paid_from`:** the status line's `rate_limits.seven_day.used_percentage` (§2.3) says whether the
   weekly limit was reached. If there is no status line, the time of the session is compared with the time the limit
   was hit, which the orchestrator notes when Claude Code reports it ("You've hit your weekly limit"). Cloud sessions
   before 2026-11-05 are `cloud-credit`.
-- **Real charges are never computed per session.** Once a month the `bill` rows (EUR extra usage, USD credit used)
-  are spread over the month's `extra` / `cloud-credit` rows in proportion to `est_usd`. That gives an *allocated*
-  figure per issue, which the report shows in its own column. The subscription fee can be shown the same way
-  (fee ÷ the month's `plan` list USD = an effective rate), clearly marked as a way of looking at it, not as a cost.
+- **Real charges are never computed per session.** Once a month the bills in the central repo (`bills/<month>.json`:
+  EUR extra usage, USD credit used) are spread over the month's `extra` / `cloud-credit` entries in proportion to `est_usd`. That gives an
+  *allocated* figure per issue, which the report shows in its own column. Subscriptions are spread over projects by
+  their `split` (§3.4). Per issue, the subscription fee can be shown as an effective rate (fee ÷ the month's `plan`
+  list USD), clearly marked as a way of looking at it, not as a cost.
 - So every issue shows two numbers: **≈ list USD** (always, comparable across months and services) and **allocated
   real money** (once the month's bills are in).
 - Currencies stay as charged (EUR, USD). Converting them is the report's job, at the month's rate, in its own column.
@@ -257,8 +369,10 @@ What pays for a session, and what the ledger can know about it:
 
 ## 5. Monthly check (5 minutes)
 
-On the 1st: claude.ai → Settings → Usage (extra usage EUR, cloud credit balance), Flora's usage, any other service.
-One `bill` row each. The report then compares estimated against billed. A large gap means something is not being
+On the 1st: claude.ai → Settings → Usage (extra usage EUR, cloud credit balance), Flora's usage, the video and other
+providers, every subscription that was charged. One line each in `bills/<month>.json` in the central repo. The report
+then compares estimated against billed, reconciles the apps' run logs (§3.7), lists the subscriptions that renew
+next month, and republishes the dashboard. A large gap means something is not being
 collected (most likely sessions with no `#N` in the title, or helper calls). The check also answers the open
 question of how cloud credits are drawn (§2.7).
 
@@ -266,21 +380,21 @@ question of how cloud credits are drawn (§2.7).
 
 ## 6. For every project in `C:\Development\`
 
-- **Tooling once, at workspace level:** `C:\Development\tools\costs\`, next to `C:\Development\ORCHESTRATION.md`. In
-  it: the transcript costing, the `result` reader (through the claude-code-remote MCP, or the orchestrator calling it
+- **Tooling once, in the central repo** (`costs/tools/`, cloned to `C:\Development\costs\`, next to
+  `C:\Development\ORCHESTRATION.md`). In it: the transcript costing, the `result` reader (through the claude-code-remote MCP, or the orchestrator calling it
   directly), the price table, the service adapters (Flora, …) and the report. One script for all projects.
 - **Project from the path:** the transcript folder (`C--Development-scutoons-…`) or the cloud session's repository
   gives the project. Issue numbers belong to each project's own repo (`osct#242` ≠ `scutoons#242`), so `project` +
   `issue` together are the key.
 - **Inbox for the hook:** the `SessionEnd` hook (in `~/.claude/settings.json`, so in every project) appends to
   `C:\Development\.costs\inbox.csv`, outside git. Each project's orchestrator moves its own rows into its repo's
-  `agents/costs.csv` (or the project's equivalent) at its next run. Cloud sessions need no inbox, because their
+  `agents/costs.json` at its next run. Cloud sessions need no inbox, because their
   `result` events can be read at any time.
-- **Same files in every repo:** `agents/costs.csv` + `agents/COSTS.md` (the budget), and the same board field. Projects
+- **The same file in every repo:** `agents/costs.json` (key, link, budget, entries), and the same board field. Projects
   without `agents/` use `docs/` or the root. The rule goes into the workspace `ORCHESTRATION.md`, not into each
   project.
-- **A workspace overview** (all projects, all services, per month) is a report across the repos' CSVs. Nothing is
-  stored twice.
+- **The workspace overview** (all projects, all services and subscriptions, per month) is the central repo's report
+  and dashboard, built from the projects' `agents/costs.json` and its own files. Nothing is stored twice.
 - **Later, when there are more machines and services:** OTel (§2.6) into one collector, with
   `OTEL_RESOURCE_ATTRIBUTES=project=…` per project (set in each repo's `.claude/settings.json` `env`) and the issue
   from `ccr.session.id` / `session.id` → title. Only worth it once the scripts stop being enough.
@@ -289,14 +403,20 @@ question of how cloud credits are drawn (§2.7).
 
 ## 7. What to decide
 
-1. **Ledger in the repo** (`agents/costs.csv`, written by the orchestrator only), or only on the issues and the board?
-   *Recommended: in the repo, with the budget beside it.*
-2. **Per-issue line in the closing comment and the board field:** both, or one of them?
-3. **Orchestrator overhead:** only on the shift issue (recommended), or also spread over the workers' issues in the
-   ledger itself?
-4. **Budget per project:** a monthly figure (in list USD? in EUR real money?) and what happens when it is reached
-   (a note to Tilman, or the orchestrator stops starting new workers).
-5. **The cloud credit expires on 2026-11-05.** Run the one reconciliation test (§2.7) before then?
+1. **Where:** `agents/costs.json` in every project on `develop`, plus the private central repo `mandymozart/costs` for
+   subscriptions, bills and the overview. Is that right, and is the name OK? *Recommended: yes.*
+2. **Public repos (osct):** list-price estimates per issue in `agents/costs.json` and in the closing comment (the
+   proposed default), or only a link, with the figures in the central repo (§3.6)?
+3. **Shareable:** the private repo, plus a private claude.ai dashboard Tilman can share by link (recommended), or a
+   Google Sheet?
+4. **Per-issue line in the closing comment and the board field:** both, or one of them?
+5. **Orchestrator overhead:** only on the shift issue (recommended), or also spread over the workers' issues in the
+   entries themselves?
+6. **Budget per project:** a monthly figure in list USD (in the project file) and/or in EUR real money (central), and
+   what happens when it is reached: a note to Tilman, or the orchestrator stops starting new workers.
+7. **The scutoons storyboard:** read-only through a token for the `costs` repo (recommended), or only the published
+   `overview.json`? And does it log its run costs itself? (§3.7, to be checked in scutoons.)
+8. **The cloud credit expires on 2026-11-05.** Run the one reconciliation test (§2.7) before then?
 
 ---
 
@@ -310,13 +430,23 @@ question of how cloud credits are drawn (§2.7).
    `Cost: ≈ $x list (estimate), paid from: cloud credit` into the closing comment."* That is a number for every cloud
    worker from the next shift on. Since past `result` events are still there, the same step can be run once over all
    finished cloud sessions to cost the work done so far.
+3. **Start the central repo by hand:** create the private repo `mandymozart/costs` with one file,
+   `subscriptions.json`: every subscription and provider in use, its amount, period and renewal date. About 15
+   minutes, no code, and the subscriptions are on record from day one.
 
-After that, in this order: the transcript script and the ledger (local sessions, orchestrators), then the `SessionEnd`
-hook and the inbox, then the budget file and the board field, then other services' adapters.
+After that, in this order:
+1. `schema.json` and `agents/costs.json` in each project, filled by the orchestrator at merge.
+2. The transcript script, for local sessions and orchestrators.
+3. The `SessionEnd` hook and the inbox.
+4. The monthly bills and the report, with the dashboard.
+5. The provider adapters and the storyboard's read access.
 
 ---
 
-*This session (#242, a cloud session) as far as it can see itself, from its transcript just before the final commit:
-18 responses, about 2.0 M cache-read and 106 k cache-write tokens, 23 k output → **≈ $1.44 at list price**. This is an
-estimate: the last turn and the WebFetch helper calls are not included. Paid from: cloud credit, presumably. Its
-`result` event will hold the exact figure once this turn ends.*
+*This session (#242, a cloud session) as far as it can see itself:
+- **Turn 1 (2026-10-31), the proposal itself:** exactly **$1.640** at list price, from its own `result` event
+  (`total_cost_usd`; Opus $1.629 + Haiku helper calls $0.011). The transcript estimate at commit time was $1.44, made
+  before the turn's last steps.
+- **Turn 2 (2026-11-01), subscriptions, central repo, storyboard:** about **$1.6 more** from the transcript so far, so
+  about **$3.3** in total. Paid from: cloud credit, presumably. This turn's `result` event will show whether
+  `total_cost_usd` adds up across turns (§2.1, open).*
