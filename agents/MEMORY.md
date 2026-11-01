@@ -11,9 +11,10 @@ outcome in the line (or move it into a dated decision block).
   the Library – staging's demo and the local demo both. Now an import without `files` reads `<assetsBase>/files.json`
   (optional – the reader's dev server has none). Verified locally: the demo re-imported from
   `https://buildingfictions.b-cdn.net/demo` lists its 78 files.
-- [ ] **Staging's demo needs a re-import once 1.63.0 is deployed** (the editor's URL mode with the demo's content base,
-  or `import_book` with `url` + `assetsBase`): its draft's edits since the import are one beacon move (2026-10-29) and
-  a plugin added and removed again – nothing to keep. Tilman decides when.
+- [x] **Staging's demo re-imported after the 1.63.0 deploy** (2026-11-01, `import_book` with `url` + `assetsBase` of
+  build c30733efb73f): the Library lists its 33 imported files. Tilman wanted the draft's edits kept: the plugin
+  `my-sparkle-look` is re-saved from the change log (the log survives an import); the beacon move needed no re-apply,
+  the new build already ships the beacon where the move put it (model z ≈ 1.0, with a sparkle child).
 - **The Library's second filter *from*** (#245): all · uploaded · imported (`matchesOrigin`, `library-pick.ts`), in the
   Library and the picker – Tilman: "i thought we solved imported content to show up and be filterable in the library".
 - Local dev: the SQLite in `var/db/local.sqlite` was behind the schema (no `api_tokens`, no `token_name` – every
