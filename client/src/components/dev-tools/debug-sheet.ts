@@ -26,20 +26,25 @@ export const SHEET_CSS = `
 `;
 
 /**
- * The dev tools' on/off switch (#241): its word, then a track whose knob sits right and lit while on – a `<button
- * role="switch">` with `aria-checked`, in the debug colours. Every dev-tools control that holds a state on or off is one;
- * buttons that act (copy, reset, close) stay buttons. A panel adds `SWITCH_CSS` to its styles and renders `debugSwitch()`.
+ * The dev tools' on/off switch (#241): its word, then a track whose knob slides right and lights while on – a `<button
+ * role="switch">` with `aria-checked`, in the debug colours. The same shape as the editor's `Toggle` (#243: a track of
+ * 1.875 × 1.125rem, a .75rem knob .125rem from the edge, the track filled while on). Every dev-tools control that holds a
+ * state on or off is one; buttons that act (copy, reset, close) stay buttons. A panel adds `SWITCH_CSS` to its styles and
+ * renders `debugSwitch()`; a native button, so Space and Enter flip it.
  */
 export const SWITCH_CSS = `
   button.switch { display: inline-flex; align-items: center; gap: .375rem; min-width: 0; padding: 0 .25rem; border-color: transparent;
     background: none; color: inherit; }
-  button.switch .track { flex: none; position: relative; width: 1.75rem; height: .875rem; box-sizing: border-box;
-    border: .0625rem solid #0f0; border-radius: 1rem; }
-  button.switch .track::before { content: ""; position: absolute; top: .0625rem; left: .0625rem; width: .625rem; height: .625rem;
-    border-radius: 50%; background: #070; transition: transform .15s; }
+  button.switch .track { flex: none; position: relative; width: 1.875rem; height: 1.125rem; box-sizing: border-box;
+    border: .0625rem solid #0f0; border-radius: 1rem; transition: background-color .15s; }
+  button.switch .track::before { content: ""; position: absolute; top: 50%; left: .125rem; width: .75rem; height: .75rem;
+    border-radius: 50%; background: #070; transform: translateY(-50%); transition: transform .15s, background-color .15s; }
   button.switch[aria-checked="true"] .track { background: #0f0; }
-  button.switch[aria-checked="true"] .track::before { background: #000; transform: translateX(.875rem); }
-  @media (prefers-reduced-motion: reduce) { button.switch .track::before { transition: none; } }
+  button.switch[aria-checked="true"] .track::before { background: #000; transform: translate(.875rem, -50%); }
+  button.switch:focus-visible { outline: none; }
+  button.switch:focus-visible .track { outline: .125rem solid #0f0; outline-offset: .0625rem; }
+  button.switch:disabled { opacity: .45; cursor: not-allowed; }
+  @media (prefers-reduced-motion: reduce) { button.switch .track, button.switch .track::before { transition: none; } }
 `;
 
 /** A switch's markup: `label` is its visible word, `action` its `data-action`, `title` the longer name for screen readers */

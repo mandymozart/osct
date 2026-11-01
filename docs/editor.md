@@ -686,7 +686,7 @@ Library as the picker, with the filter set – or **Upload…**), then:
   (#173): its spec's `label` (*plays on*, *key color*), else its name split into words (`degreesPerSecond` → *degrees per
   second*); the Info view names it with the content's name too (*speed · degreesPerSecond*). Position, rotation and scale
   have X, Y, Z side by side as in Blender (the *uniform* switch under the scale row links the axes: on = one
-  `scale` field, as Blender's lock); every on / off is the `Toggle` switch (#241); choices are a segmented group; colours a swatch + hex whose swatch opens the
+  `scale` field, as Blender's lock); every on / off is the `Toggle` switch (a track with a knob, #241, #243); choices are a segmented group; colours a swatch + hex whose swatch opens the
   editor's **colour popover** (after Scutoons': a palette of the usual keys and the book's gold, this browser's recent
   colours, a saturation / brightness area with a hue slider, the hex, and the eyedropper that **picks from the stage** –
   the colour under the pointer in a chip, a tap takes it, Esc cancels; the sampled pixel is the rendered one, lit and
@@ -921,8 +921,11 @@ design tokens):
   ×0.1, tap to type, ↑ ↓, Enter, Escape, the reset arrow inside the field. A comma or a dot is the decimal point (`1,5` is
   1.5), no exponent (`1e3` is refused) and no thousands separators; a behaviour rule's value is read the same way
   (`parseNumber` in `values.ts`). No native sliders and no native colour picker – the colour popover, in the top layer.
-- **Choices and switches**: small enums as segmented pressed pills; on / off as the `Toggle` pill (`Toggle.svelte`);
-  several on / off items side by side as pressed pills (*snap to*).
+- **Choices and switches**: small enums as segmented pressed pills; every on / off – a row, a section's head, several
+  items one below the other (*snap to*) – is the `Toggle` switch (`Toggle.svelte`, #241, #243): a track with a knob that
+  slides right and fills the track while on, `role="switch"` with `aria-checked`, Space or Enter flips it, `disabled`
+  dims it. The row's word is its label; it carries no *on* / *off* text (`words` adds a quiet value after the track where
+  the value has words of its own, a variable's *false* / *true*). Measurements: `agents/DESIGN.md` §9.
 - **Disabled** controls look it at a glance – dimmed, a not-allowed cursor, a select without its arrow – and say why in
   their help, never in a hint beside them.
 - **Hover** styles only under `@media (hover: hover)`, so a finger's tap leaves no hover grey that looks pressed (#178;
