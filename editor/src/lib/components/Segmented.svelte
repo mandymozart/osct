@@ -5,12 +5,14 @@
     value: T | null;
     labels?: Partial<Record<T, string>>;
     titles?: Partial<Record<T, string>>;
+    /** The group's accessible name */
+    label?: string;
     onchange: (value: T) => void;
   }
-  let { options, value, labels = {}, titles = {}, onchange }: Props = $props();
+  let { options, value, labels = {}, titles = {}, label, onchange }: Props = $props();
 </script>
 
-<span class="seg" role="group">
+<span class="seg" role="group" aria-label={label}>
   {#each options as option (option)}
     <button type="button" class="pill" class:on={option === value} aria-pressed={option === value} title={titles[option]} onclick={() => onchange(option)}>
       {labels[option] ?? option}

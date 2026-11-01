@@ -6,28 +6,29 @@
  *
  * sync:  upload the build into `<env>/<build>/` (skipped when that version is already complete there: its
  *        game.config.json – written last – exists), then versions.json, then latest.json (the switch).
- *        Syncing an older content build again only moves latest.json back (rollback).
+ *        Syncing an older content build again only moves latest.json back (rollback). Syncing the current build
+ *        again repairs a versions.json that does not record it as current (#175).
  * purge: delete version folders that are not current, not served by the CDN's latest.json, not among the newest
  *        retired ones kept, and retired long enough ago (default: the CDN cache time, 30 days). Strict: missing or
  *        inconsistent bookkeeping refuses; folders it does not know stay unless asked for.
  */
-import { createHash } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import {
   CONTENT_BUILD,
-  ContentFiles,
-  ContentManifest,
-  ContentVersion,
+  type ContentFiles,
+  type ContentManifest,
+  type ContentVersion,
   contentBuildName,
   isContentFiles,
   isContentManifest,
   isContentVersions,
 } from '../../../shared/types/content-manifest';
+import { assertGameConfiguration, GameConfigurationError } from '../../../shared/guards/game-config';
 import { parseContentSchema } from '../../../shared/types/game-config';
 import { CLIENT_PUBLIC_ASSETS_DIR, DEMO_MARKER, FIXTURE_MARKER, OUTPUT_FILE } from '../config';
 import { listFiles } from './files';
-import { contentTypeOf, StorageClient, StoredFile } from './storage';
+import { contentTypeOf, sha256, type StorageClient, type StoredFile } from './storage';
 
 const PARALLEL_UPLOADS = 4;
 /** The CDN check waits this long for the new latest.json to show at the edge */
@@ -46,6 +47,8 @@ export interface ContentBuild {
   hash: string;
   schema: string;
   version: string;
+  /** The book the build is of (`book.id` of its configuration) */
+  book?: string;
   config: Buffer;
   files: LocalFile[];
 }
@@ -56,22 +59,31 @@ export const isFixtureBuild = (build: Pick<ContentBuild, 'files'>): boolean => b
 /** A build of the demo book (fixtures/demo) – synced to its own environment only */
 export const isDemoBuild = (build: Pick<ContentBuild, 'files'>): boolean => build.files.some(f => f.file === DEMO_MARKER);
 
-const sha256 = (data: Buffer | string) => createHash('sha256').update(data).digest('hex').toUpperCase();
-
 /** The local content build (`osct content build`) */
 export function readContentBuild(): ContentBuild {
   if (!fs.existsSync(OUTPUT_FILE) || !fs.existsSync(CLIENT_PUBLIC_ASSETS_DIR)) {
     throw new Error('No content build found – run `osct content build` first');
   }
   const config = fs.readFileSync(OUTPUT_FILE);
-  const { version } = JSON.parse(config.toString('utf8')) as { version?: { version: string; hash?: string; schema?: unknown } };
-  if (!version?.hash) throw new Error(`${OUTPUT_FILE} has no version.hash – rebuild the content`);
+  const raw: unknown = JSON.parse(config.toString('utf8'));
+  // The contract check the build and the app run: only a configuration the app can read is uploaded
+  try {
+    assertGameConfiguration(raw);
+  } catch (error) {
+    if (!(error instanceof GameConfigurationError)) throw error;
+    throw new Error(`${OUTPUT_FILE} is not a valid game configuration – rebuild the content\n  - ${error.problems.join('\n  - ')}`);
+  }
+  const { version, book } = raw;
+  if (!version.hash) throw new Error(`${OUTPUT_FILE} has no version.hash – rebuild the content`);
   if (!parseContentSchema(version.schema)) throw new Error(`${OUTPUT_FILE} has no content schema (MAJOR.MINOR) – rebuild the content`);
   const files = listFiles(CLIENT_PUBLIC_ASSETS_DIR).map(file => {
     const data = fs.readFileSync(path.join(CLIENT_PUBLIC_ASSETS_DIR, file));
     return { file, size: data.length, sha256: sha256(data) };
   });
-  return { build: contentBuildName(version.hash), hash: version.hash, schema: version.schema as string, version: version.version, config, files };
+  return {
+    build: contentBuildName(version.hash), hash: version.hash, schema: version.schema, version: version.version,
+    book: book.id, config, files,
+  };
 }
 
 /** files.json of a build */
@@ -112,11 +124,35 @@ export async function readEnvironment(storage: StorageClient, env: string): Prom
   };
 }
 
-const nameOf = (item: StoredFile) => item.path.split('/').pop() ?? '';
+/** The last segment of a stored path (a version folder's build, a file's name) */
+export const nameOf = (item: StoredFile) => item.path.split('/').pop() ?? '';
 
 /** Version folders on the storage (direct children of the environment named like a build) */
 const versionFolders = (state: EnvironmentState): string[] =>
   state.listing.filter(i => i.isDirectory && CONTENT_BUILD.test(nameOf(i))).map(nameOf);
+
+/**
+ * Where latest.json and versions.json disagree (#175): versions.json must list the build latest.json names, with it as
+ * its only current entry (`retiredAt` null). Empty when they agree, or when neither exists yet. Arguments as in
+ * `EnvironmentState`: undefined = none, null = unreadable.
+ */
+export function versionProblems(current: ContentManifest | null | undefined, versions: ContentVersion[] | null | undefined): string[] {
+  const problems: string[] = [];
+  if (current === null) problems.push('latest.json is not readable');
+  if (versions === null) problems.push('versions.json is not readable');
+  if (current === null || versions === null) return problems;
+  const open = (versions ?? []).filter(v => v.retiredAt === null).map(v => v.build);
+  if (!current) {
+    if (open.length > 0) problems.push(`latest.json is missing, versions.json has ${open.join(', ')} as current`);
+    return problems;
+  }
+  if (!versions) return [`versions.json is missing (latest.json names ${current.build})`];
+  if (!versions.some(v => v.build === current.build)) problems.push(`versions.json does not list ${current.build}, the build latest.json names`);
+  if (open.length !== 1 || open[0] !== current.build) {
+    problems.push(`versions.json has ${open.join(', ') || 'no version'} as current, latest.json names ${current.build}`);
+  }
+  return problems;
+}
 
 // ---------------------------------------------------------------- sync
 
@@ -127,6 +163,8 @@ export interface SyncPlan {
   uploaded: boolean;
   /** latest.json names this version already */
   current: boolean;
+  /** latest.json and versions.json agree (`versionProblems`) – when they do not, the sync rewrites versions.json */
+  agrees: boolean;
   /** Videos the current version has and this build lacks although the entry stays (a checkout without them) */
   missingVideos: string[];
 }
@@ -152,6 +190,7 @@ export async function planSync(storage: StorageClient, env: string, build: Conte
     build,
     uploaded,
     current: !!state.current && state.current.build === build.build,
+    agrees: versionProblems(state.current, state.versions).length === 0,
     missingVideos: videosMissing(isContentFiles(currentFiles) ? currentFiles : null, build),
   };
 }
@@ -165,6 +204,7 @@ export function describeSync(plan: SyncPlan): string[] {
     `📦 Content ${build.build} (schema ${build.schema}, built with app ${build.version}, ${build.files.length} files, ${mb(bytes)}) → ${plan.env}/${build.build}/`,
     plan.uploaded ? '   already on the storage – no upload' : `   upload ${build.files.length} files (${mb(bytes)})`,
     plan.current ? '   already the current version' : '   becomes the current version (latest.json)',
+    ...(plan.current && !plan.agrees ? ['   versions.json does not record it as current – rewritten (latest.json stays)'] : []),
   ];
 }
 
@@ -182,6 +222,7 @@ export function activate(versions: ContentVersion[], build: ContentBuild, now: s
     uploadedAt: uploadedNow || !existing ? now : existing.uploadedAt,
     activatedAt: existing && existing.retiredAt === null ? existing.activatedAt : now,
     retiredAt: null,
+    ...(build.book ? { book: build.book } : {}),
   };
   return [...others, entry].sort((a, b) => a.activatedAt.localeCompare(b.activatedAt));
 }
@@ -207,13 +248,24 @@ export async function runSync(storage: StorageClient, plan: SyncPlan): Promise<v
     await storage.put(`${root}/game.config.json`, build.config, 'application/json');
     console.log(`✅ ${root}/ uploaded`);
   }
-  if (plan.current) return;
-  const now = new Date().toISOString();
+  if (plan.current && plan.agrees) return;
+  // Read again right before the write, from the Storage API (never through the pull zone, whose edges cache JSON for
+  // 30 days): versions.json first, latest.json last – a reader never sees a current version without its record
   const state = await readEnvironment(storage, env);
   if (state.versions === null) throw new Error(`${env}/versions.json is not readable – fix it before switching versions`);
+  // latest.json names the build already: only versions.json is repaired, the build current since latest.json says (#175)
+  const stays = state.current?.build === build.build ? state.current : null;
+  const now = stays?.activatedAt ?? new Date().toISOString();
   const versions = activate(state.versions ?? [], build, now, !plan.uploaded);
   await storage.put(`${env}/versions.json`, JSON.stringify(versions, null, 2), 'application/json');
-  const manifest: ContentManifest = { build: build.build, hash: build.hash, schema: build.schema, version: build.version, activatedAt: now };
+  if (stays) {
+    console.log(`✅ ${env}/versions.json records ${build.build} as current again (latest.json named it already)`);
+    return;
+  }
+  const manifest: ContentManifest = {
+    build: build.build, hash: build.hash, schema: build.schema, version: build.version, activatedAt: now,
+    ...(build.book ? { book: build.book } : {}),
+  };
   await storage.put(`${env}/latest.json`, JSON.stringify(manifest, null, 2), 'application/json');
   console.log(`✅ ${env}/latest.json → ${build.build}`);
 }
@@ -227,6 +279,17 @@ export async function cdnManifest(baseUrl: string): Promise<{ manifest: ContentM
     status: `${response.status} ${response.headers.get('cdn-cache') ?? ''}`.trim(),
     cors: !!response.headers.get('access-control-allow-origin'),
   };
+}
+
+/**
+ * What versions.json the CDN serves (from this machine's edge, as a reader sees it – no query string: the pull zone
+ * ignores it) – versions null when it serves none or an unreadable one. Only to compare with the storage: an edge
+ * without the cache rule for versions.json keeps an old copy for 30 days (#175).
+ */
+export async function cdnVersions(baseUrl: string): Promise<{ versions: ContentVersion[] | null; status: string }> {
+  const response = await fetch(`${baseUrl}/versions.json`);
+  const body: unknown = response.ok ? await response.json().catch(() => null) : null;
+  return { versions: isContentVersions(body) ? body : null, status: `${response.status} ${response.headers.get('cdn-cache') ?? ''}`.trim() };
 }
 
 /**
@@ -304,8 +367,8 @@ export function planPurge(state: EnvironmentState, cdnBuild: string | null, now:
 
   const kept = new Set(
     state.versions
-      .filter(v => v.retiredAt !== null && folders.includes(v.build))
-      .sort((a, b) => b.retiredAt!.localeCompare(a.retiredAt!))
+      .flatMap(v => (v.retiredAt !== null && folders.includes(v.build) ? [{ build: v.build, retiredAt: v.retiredAt }] : []))
+      .sort((a, b) => b.retiredAt.localeCompare(a.retiredAt))
       .slice(0, options.keep)
       .map(v => v.build),
   );
@@ -334,7 +397,7 @@ export function planPurge(state: EnvironmentState, cdnBuild: string | null, now:
               : 'purge';
     items.push({ target, build: name, verdict, purge: verdict === 'purge' });
   }
-  const purged = new Set(items.filter(i => i.purge && i.build).map(i => i.build!));
+  const purged = new Set(items.flatMap(i => (i.purge && i.build ? [i.build] : [])));
   return { env, items, versions: state.versions.filter(v => !purged.has(v.build)) };
 }
 

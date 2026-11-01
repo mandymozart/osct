@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { ENTITY_TYPES, PLUGIN_API_VERSION } from "../../shared/types/game-config";
-import { checkEntity, describeContentModel, pluginTypes, unknownComponentTypes } from "../src/model.ts";
+import { checkEntity, checkPasses, describeContentModel, knownPluginTypes, unknownComponentTypes, usesPluginPasses, usesPluginTypes, type BookModel } from "../src/model.ts";
+import { pluginTypes } from "../../shared/api/rules";
 import { RULES } from "../src/resources.ts";
 import { VIDEO_ENTITY } from "./helpers.ts";
 
 describe("checkEntity – the shared guard over one entity", () => {
   it("passes a valid node tree", () => {
-    expect(checkEntity(VIDEO_ENTITY)).toEqual({ problems: [], unknownComponents: [] });
+    expect(checkEntity(VIDEO_ENTITY)).toEqual({ problems: [], unknownComponents: [], unverifiedNodeTypes: [], unknownMaterials: [] });
     const tree = { type: "group", assets: [], children: [VIDEO_ENTITY, { type: "text", assets: [], text: "{{entry.title}}", color: "#f3cc94", params: { position: [0, -0.5, 0.01] } }] };
     expect(checkEntity(tree).problems).toEqual([]);
   });
@@ -35,7 +36,7 @@ describe("checkEntity – the shared guard over one entity", () => {
 
   it("lets a plugin's component type through and lists it", () => {
     const entity = { type: "video", assets: [], components: [{ type: "tint", opacity: 0.4 }], children: [{ type: "model", assets: [], components: [{ type: "spin" }, { type: "animation" }] }] };
-    expect(checkEntity(entity)).toEqual({ problems: [], unknownComponents: ["tint", "spin"] });
+    expect(checkEntity(entity)).toEqual({ problems: [], unknownComponents: ["tint", "spin"], unverifiedNodeTypes: [], unknownMaterials: [] });
     expect(unknownComponentTypes({ type: "video", assets: [], components: [{ type: "Not A Type" }] })).toEqual([]);
     expect(checkEntity({ type: "video", assets: [], components: [{ type: "Not A Type" }] }).problems[0]).toMatch(/components\[0\]\.type/);
   });
@@ -47,10 +48,95 @@ describe("checkEntity – the shared guard over one entity", () => {
 });
 
 describe("pluginTypes – what a source registers, read from its text", () => {
-  it("finds registerComponent and registerLayer calls with any quote", () => {
-    const source = `export const register = (api) => {\n  api.registerLayer("tint", SPEC, { glsl });\n  api.registerComponent('spin', SPEC2, apply);\n  api.registerComponent(\`spin\`, SPEC2, apply);\n};`;
-    expect(pluginTypes(source)).toEqual({ components: ["spin"], layers: ["tint"] });
-    expect(pluginTypes("nothing here")).toEqual({ components: [], layers: [] });
+  it("finds registerComponent, registerLayer, registerNodeType and registerPass calls with any quote", () => {
+    const source = `export const register = (api) => {\n  api.registerLayer("tint", SPEC, { glsl });\n  api.registerComponent('spin', SPEC2, apply);\n  api.registerComponent(\`spin\`, SPEC2, apply);\n  api.registerNodeType( "sparkle", SPEC3, build);\n  api.registerPass('scan', SPEC4, factory);\n};`;
+    expect(pluginTypes(source)).toEqual({ components: ["spin"], layers: ["tint"], nodeTypes: ["sparkle"], passes: ["scan"], materials: [], textures: [] });
+    expect(pluginTypes("nothing here")).toEqual({ components: [], layers: [], nodeTypes: [], passes: [], materials: [], textures: [] });
+    expect(pluginTypes(`api.registerMaterial("water", S, b);\napi.registerTexture('caustics', S, d);`)).toEqual({ components: [], layers: [], nodeTypes: [], passes: [], materials: ["water"], textures: ["caustics"] });
+  });
+});
+
+describe("checkEntity with a book – its plugins' types (#90)", () => {
+  const recorded = {
+    id: "fx", src: "/assets/content/plugins/fx/plugin.js", api: "1.2",
+    registered: {
+      components: { tint: { description: "Tints.", nodeTypes: ["video"], params: { opacity: { kind: "number", default: 0.3, min: 0, max: 1, description: "How much." } } } },
+      nodeTypes: { sparkle: { description: "Points.", params: { count: { kind: "number", default: 50, min: 1, max: 500, description: "How many." } } } },
+      materials: { water: { description: "Water.", params: { depth: { kind: "color", default: "#0b4f6c", description: "Deep." }, caustics: { kind: "texture", default: "", description: "Light." } } } },
+      textures: { caustics: { description: "Light on the floor.", params: {} } },
+      passes: { scanLines: { description: "Scan lines.", params: { lines: { kind: "number", default: 200, min: 10, max: 800, description: "How many." } } } },
+    },
+  } as const;
+
+  it("checks a passes list (schema 2.21): a recorded plugin pass against its spec, a source's unverified, any other refused", () => {
+    expect(usesPluginPasses([{ type: "bloom" }])).toBe(false);
+    expect(usesPluginPasses([{ type: "bloom" }, { type: "scanLines" }])).toBe(true);
+    expect(checkPasses([{ type: "vignette" }, { type: "scanLines", lines: 300 }], "passes", book())).toEqual({ problems: [], unverified: [] });
+    expect(checkPasses([{ type: "scanLines", lines: 5 }, { type: "scanLine" }], "passes", book()).problems).toEqual([
+      "passes[0].lines: expected a number from 10 to 800, got 5",
+      'passes[1].type: "scanLine" is not one of bloom, vignette, grade or a pass of the book\'s plugins (scanLines)',
+    ]);
+    const withSource = book([{ id: "grain", components: [], layers: [], nodeTypes: [], passes: ["filmGrain"], materials: [], textures: [] }]);
+    expect(checkPasses([{ type: "filmGrain", amount: 0.1 }], "passes", withSource)).toEqual({ problems: [], unverified: ["filmGrain"] });
+    // A declared plugin that recorded nothing may register any pass
+    expect(checkPasses([{ type: "glow" }], "passes", book([], [recorded, { id: "old", src: "/o.js", api: "1.0" }]))).toEqual({ problems: [], unverified: ["glow"] });
+    // Without a book only the built-in passes
+    expect(checkPasses([{ type: "scanLines" }], "passes").problems).toEqual(['passes[0].type: "scanLines" is not one of bloom, vignette, grade']);
+    // A pass that is off (#233), a plugin's too; enabled is true or false
+    expect(checkPasses([{ type: "bloom", enabled: false }, { type: "scanLines", enabled: false, lines: 300 }], "passes", book())).toEqual({ problems: [], unverified: [] });
+    expect(checkPasses([{ type: "bloom", enabled: "off" }], "passes").problems).toEqual(['passes[0].enabled: expected true or false, got "off"']);
+  });
+  const book = (sources: BookModel["sources"] = [], declared: BookModel["declared"] = [recorded]): BookModel => ({ declared, sources });
+
+  it("knows what the declared plugins recorded and what the sources register; complete only without sources and with every plugin recorded", () => {
+    expect(knownPluginTypes(book())).toEqual({ components: ["tint"], nodeTypes: ["sparkle"], materials: ["water"], textures: ["caustics"], passes: ["scanLines"], complete: true });
+    expect(knownPluginTypes(book([{ id: "glow", components: [], layers: ["glow"], nodeTypes: ["beam"], passes: ["grain"], materials: [], textures: [] }]))).toEqual({ components: ["tint", "glow"], nodeTypes: ["sparkle", "beam"], materials: ["water"], textures: ["caustics"], passes: ["scanLines", "grain"], complete: false });
+    expect(knownPluginTypes(book([], [recorded, { id: "old", src: "/o.js", api: "1.0" }])).complete).toBe(false);
+  });
+
+  it("checks a recorded component's and node type's parameters like a built-in one's", () => {
+    expect(checkEntity({ type: "video", assets: [], components: [{ type: "tint", opacity: 0.5 }] }, "entity", book())).toEqual({ problems: [], unknownComponents: [], unverifiedNodeTypes: [], unknownMaterials: [] });
+    expect(checkEntity({ type: "video", assets: [], components: [{ type: "tint", opacity: 2, glow: 1 }] }, "entity", book()).problems).toEqual([
+      expect.stringMatching(/^entity\.components\[0\]\.opacity: expected a number from 0 to 1/),
+      expect.stringMatching(/^entity\.components\[0\]\.glow: unknown parameter of tint/),
+    ]);
+    expect(checkEntity({ type: "model", assets: [], components: [{ type: "tint" }] }, "entity", book()).problems[0]).toMatch(/tint applies to video nodes, not to a model/);
+    expect(checkEntity({ type: "sparkle", assets: [], params: { count: 0 } }, "entity", book()).problems).toEqual([expect.stringMatching(/^entity\.params\.count: expected a number from 1 to 500/)]);
+  });
+
+  it("refuses a node type no plugin registers when every plugin is known, lets it pass as unverified otherwise", () => {
+    expect(checkEntity({ type: "group", assets: [], children: [{ type: "sparkel", assets: [] }] }, "entity", book()).problems).toEqual([
+      expect.stringMatching(/^entity\.children\[0\]\.type: "sparkel" is not .*sparkle/),
+    ]);
+    const withSource = checkEntity({ type: "sparkel", assets: [] }, "entity", book([{ id: "glow", components: [], layers: [], nodeTypes: ["beam"], passes: [], materials: [], textures: [] }]));
+    expect(withSource).toEqual({ problems: [], unknownComponents: [], unverifiedNodeTypes: ["sparkel"], unknownMaterials: [] });
+    expect(checkEntity({ type: "beam", assets: [] }, "entity", book([{ id: "glow", components: [], layers: [], nodeTypes: ["beam"], passes: [], materials: [], textures: [] }])).unverifiedNodeTypes).toEqual([]);
+    // Named unlike a plugin's: refused once, whatever the book has
+    const dashed = checkEntity({ type: "holo-gram", assets: [] }, "entity", book());
+    expect(dashed.problems).toHaveLength(1);
+  });
+
+  it("checks a node's material (#188): the recorded one's values, refuses one no plugin registers when every plugin is known", () => {
+    expect(checkEntity({ type: "model", assets: [], material: { type: "water", params: { depth: "#002233", caustics: "caustics" } } }, "entity", book())).toEqual({ problems: [], unknownComponents: [], unverifiedNodeTypes: [], unknownMaterials: [] });
+    expect(checkEntity({ type: "model", assets: [], material: { type: "water", params: { depth: "blue", caustics: 3 } } }, "entity", book()).problems).toEqual([
+      expect.stringMatching(/^entity\.material\.params\.depth: expected a color/),
+      expect.stringMatching(/^entity\.material\.params\.caustics: expected a texture/),
+    ]);
+    expect(checkEntity({ type: "model", assets: [], material: { type: "lava" } }, "entity", book()).problems).toEqual([expect.stringMatching(/material "lava" is not registered .*\(water\)/)]);
+    const withSource = checkEntity({ type: "model", assets: [], material: { type: "lava" } }, "entity", book([{ id: "hot", components: [], layers: [], nodeTypes: [], passes: [], materials: ["lava"], textures: [] }]));
+    expect(withSource).toEqual({ problems: [], unknownComponents: [], unverifiedNodeTypes: [], unknownMaterials: [] });
+    expect(checkEntity({ type: "model", assets: [], material: { type: "lava" } }).unknownMaterials).toEqual(["lava"]);
+    expect(usesPluginTypes({ type: "model", assets: [], material: { type: "water" } })).toBe(true);
+    const model = describeContentModel(book()) as any;
+    expect(Object.keys(model.materials.plugins)).toEqual(["water"]);
+    expect(Object.keys(model.materials.proceduralTextures)).toEqual(["caustics"]);
+  });
+
+  it("only a tree with a type outside the built-in ones needs the book", () => {
+    expect(usesPluginTypes(VIDEO_ENTITY)).toBe(false);
+    expect(usesPluginTypes({ type: "group", assets: [], children: [{ type: "model", assets: [], components: [{ type: "animation" }] }] })).toBe(false);
+    expect(usesPluginTypes({ type: "group", assets: [], children: [{ type: "sparkle", assets: [] }] })).toBe(true);
+    expect(usesPluginTypes({ type: "video", assets: [], components: [{ type: "tint" }] })).toBe(true);
   });
 });
 
@@ -62,16 +148,34 @@ describe("describeContentModel – the contract as an agent reads it", () => {
     expect(model.entity.nodeTypes).toEqual([...ENTITY_TYPES]);
     expect(model.entity.nodeTypes).toEqual(expect.arrayContaining(["group", "model", "video", "image", "text"]));
     expect(Object.keys(model.filters.types)).toEqual(["chromaKey"]);
-    expect(Object.keys(model.components.builtIn)).toEqual(["animation"]);
+    expect(Object.keys(model.components.builtIn)).toEqual(["animation", "behaviour"]);
+    // the behaviour's rules are no parameters: their grammar in words, with an example the contract accepts (#88)
+    expect(model.components.behaviour.actions).toEqual(["play", "pause", "stop", "show", "hide", "set", "emit"]);
+    expect(checkEntity({ type: "group", assets: [], components: [model.components.behaviour.example] }).problems).toEqual([]);
     expect(model.placement.params.position.unit).toBe("target widths");
     expect(model.target.print.surfaces).toEqual(["left", "right", "front", "back"]);
     expect(model.entry.categories).toEqual(["glossary", "video", "text", "link"]);
     expect(model.components.declaredPlugins).toBeUndefined();
+    expect(Object.keys(model.passes.builtIn)).toEqual(["bloom", "vignette", "grade"]);
+    expect(model.environment.worlds).toEqual(["cafe"]);
+    expect(model.environment.default).toEqual({ world: "cafe", onionSky: true });
+    expect(model.entity.name).toMatch(/editor's tree shows/);
+    expect(model.spread.description).toMatch(/add_spread/);
   });
 
-  it("adds a book's declared plugins and Code tab sources", () => {
-    const model = describeContentModel({ declared: [{ id: "tint", src: "/assets/content/plugins/tint/plugin.js", api: "1.0" }], sources: [{ id: "glow", components: [], layers: ["glow"] }] }) as any;
-    expect(model.components.declaredPlugins[0].id).toBe("tint");
+  it("adds a book's declared plugins with what they recorded, and the Code tab sources", () => {
+    const model = describeContentModel({
+      declared: [
+        { id: "tint", src: "/assets/content/plugins/tint/plugin.js", api: "1.2", registered: { passes: { scan: { description: "Scan lines.", params: {} } } } },
+        { id: "old", src: "/assets/content/plugins/old/plugin.js", api: "1.0" },
+      ],
+      sources: [{ id: "glow", components: [], layers: ["glow"], nodeTypes: [], passes: [], materials: [], textures: [] }],
+    }) as any;
+    expect(model.components.declaredPlugins).toEqual([
+      { id: "tint", src: "/assets/content/plugins/tint/plugin.js", api: "1.2", recorded: true },
+      { id: "old", src: "/assets/content/plugins/old/plugin.js", api: "1.0", recorded: false },
+    ]);
+    expect(model.passes.plugins.scan).toEqual({ plugin: "tint", description: "Scan lines.", params: {} });
     expect(model.components.codeTabSources[0].layers).toEqual(["glow"]);
   });
 

@@ -1,6 +1,6 @@
 import { GoldSwitch } from "@/components/buttons";
 import { t } from "i18next";
-import { GraphicsService, GraphicsSettings } from "@/services";
+import { GraphicsService, type GraphicsSettings } from "@/services";
 import { escapeHtml } from "@/utils";
 import { SettingsSection } from "./settings-section";
 

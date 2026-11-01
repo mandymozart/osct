@@ -7,29 +7,31 @@
  * changes – the CDN, docs/content-cdn.md, or the editor's draft endpoint), else the configuration the app bundles
  * (`options.bundled` – the reader's dev server and tests). The engine knows no `import.meta.env` and no i18n: the
  * app passes the base URL, the bundled copy and the texts of the startup errors.
- * On load it checks the JSON against the contract (`assertGameConfiguration`), checks that this app can
- * read the content (content schema MAJOR – RULES #10), maps `*Data` to the app model (`Spread`, `Entry`,
- * `Target`, `Step`) and builds in-memory indexes. Content file paths (`/assets/content/…`) become URLs of the
- * loaded version, so the rest of the app never knows where the content comes from.
+ * On load it checks that this app can read the content (content schema MAJOR – RULES #10), drops what content of a
+ * newer MINOR has that this app does not know (`./forward-compatible.ts` – the list stays for `getSkippedFeatures()`),
+ * checks the JSON against the contract (`assertGameConfiguration`), maps `*Data` to the app model (`Spread`, `Entry`,
+ * `Target`) and builds in-memory indexes. The configuration's `tutorial` is for older apps and not read (the reader
+ * has its own onboarding, #236). Content file paths (`/assets/content/…`) become URLs of the loaded version, so the
+ * rest of the app never knows where the content comes from.
  */
-import { assertGameConfiguration, GameConfigurationError, GuardOptions, isEntityRef } from '@shared/guards/game-config';
+import { assertGameConfiguration, GameConfigurationError, type GuardOptions, isEntityRef } from '@shared/guards/game-config';
 import { CONTENT_SCHEMA_VERSION, OLDEST_READABLE_SCHEMA_MAJOR, parseContentSchema } from '@shared/types/game-config';
-import { ContentFiles, ContentManifest, isContentFiles, isContentManifest } from '@shared/types/content-manifest';
+import { currentFeatures, describeSkipped, type KnownFeatures, skipUnknownFeatures, type SkippedFeature } from './forward-compatible';
+import { type ContentFiles, type ContentManifest, isContentFiles, isContentManifest } from '@shared/types/content-manifest';
 import {
-  AssetData,
-  BookData,
-  ConfigurationVersion,
-  EntityData,
-  EntityRefData,
-  Entry,
+  type AssetData,
+  type BookData,
+  type ConfigurationVersion,
+  type EntityData,
+  type EntityRefData,
+  type Entry,
   ErrorCode,
-  ErrorInfo,
-  GameConfiguration,
-  PassData,
-  PluginData,
-  Spread,
-  Step,
-  Target,
+  type ErrorInfo,
+  type GameConfiguration,
+  type PassData,
+  type PluginData,
+  type Spread,
+  type Target,
 } from "../types/index";
 
 /** Used until the configuration is loaded, and when it is invalid, so the app can show the error */
@@ -40,7 +42,6 @@ const EMPTY_CONFIGURATION: GameConfiguration = {
   spreads: [],
   entries: [],
   entities: {},
-  tutorial: [],
 };
 
 /** Path prefix of content files in the configuration and in the app's public folder */
@@ -55,11 +56,6 @@ const LOAD_TIMEOUT_MS = 20000;
  */
 let configurationError: ErrorInfo | null = null;
 
-/**
- * Can this app read the content? The content schema (`MAJOR.MINOR`, shared/) is the only rule (RULES #10):
- * another MAJOR is refused – newer content needs an app update, older content a newer content sync – and any
- * MINOR of the same MAJOR loads. The app version the content was built with is information only.
- */
 /** Texts of the startup errors (`ErrorInfo.msg`) – the app translates them */
 export interface LoadTexts {
   contentNewer: string;
@@ -73,14 +69,29 @@ const DEFAULT_TEXTS: LoadTexts = {
   contentNotLoaded: 'The content could not be loaded.',
 };
 
-export const checkContentCompatibility = (version: ConfigurationVersion, texts: LoadTexts = DEFAULT_TEXTS): ErrorInfo | null => {
-  const app = parseContentSchema(CONTENT_SCHEMA_VERSION);
+export {
+  currentFeatures, describeSkipped, isNewerMinor, type KnownFeatures, skipUnknownFeatures, type SkippedFeature, type SkippedKind,
+} from './forward-compatible';
+
+/**
+ * Can this app read the content? The content schema (`MAJOR.MINOR`, shared/) is the only rule (RULES #10): a newer
+ * MAJOR is refused (the app needs an update), so is one below `OLDEST_READABLE_SCHEMA_MAJOR` (the content needs a
+ * newer build); every MAJOR in between loads as it is, and any MINOR of the app's MAJOR – a newer one without what
+ * this app does not know (`skipUnknownFeatures`). The app version the content was built with is information only.
+ * `appSchema` is the schema this app reads (a test passes an older one).
+ */
+export const checkContentCompatibility = (
+  version: ConfigurationVersion,
+  texts: LoadTexts = DEFAULT_TEXTS,
+  appSchema: string = CONTENT_SCHEMA_VERSION,
+): ErrorInfo | null => {
+  const app = parseContentSchema(appSchema);
   const content = parseContentSchema(version.schema);
-  // Every MAJOR so far only added (the node tree, the light node): this app reads older content as it is, down to
-  // the oldest MAJOR the contract still knows
+  // Older content is read as it is, down to the oldest MAJOR the contract still knows
   if (app && content && content.major <= app.major && content.major >= OLDEST_READABLE_SCHEMA_MAJOR) {
     if (content.major !== app.major || content.minor !== app.minor) {
-      console.info(`[game-config] Content schema ${version.schema}, this app reads ${CONTENT_SCHEMA_VERSION} – compatible.`);
+      const newer = content.major === app.major && content.minor > app.minor;
+      console.info(`[game-config] Content schema ${version.schema}, this app reads ${appSchema} – compatible${newer ? ', what this app does not know is skipped' : ''}.`);
     }
     return null;
   }
@@ -90,7 +101,7 @@ export const checkContentCompatibility = (version: ConfigurationVersion, texts: 
     msg: newer ? texts.contentNewer : texts.contentOlder,
     type: 'critical',
     details: [
-      `Content schema ${version.schema} (built with app ${version.version}), this app reads schema ${CONTENT_SCHEMA_VERSION}: ` +
+      `Content schema ${version.schema} (built with app ${version.version}), this app reads schema ${appSchema}: ` +
         (newer ? 'update the app.' : 'the content needs a newer build.'),
     ],
   };
@@ -150,7 +161,18 @@ export interface LoadOptions {
   texts?: LoadTexts;
   /** The editor's stage: nodes may use component types its Code tab's plugins register at Run (`GuardOptions`) */
   unknownComponentTypes?: GuardOptions["unknownComponentTypes"];
+  /** What this app knows of the contract (default `currentFeatures()`; a test reads content as an older app would) */
+  knownFeatures?: KnownFeatures;
 }
+
+/** The content's version when it names a content schema – checked before the guard reads a shape it may not know */
+const versionOf = (raw: unknown): ConfigurationVersion | null => {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
+  const version = (raw as { version?: unknown }).version;
+  if (typeof version !== 'object' || version === null) return null;
+  const { version: app, schema } = version as Record<string, unknown>;
+  return parseContentSchema(schema) ? { version: String(app ?? ''), timestamp: '', schema: schema as string } : null;
+};
 
 /**
  * Loads the game configuration – once, before the app starts. Resolves with the startup error (also kept
@@ -159,7 +181,9 @@ export interface LoadOptions {
 export const loadGameConfiguration = async (options: LoadOptions = {}): Promise<ErrorInfo | null> => {
   const baseUrl = (options.baseUrl ?? '').replace(/\/+$/, '');
   const texts = options.texts ?? DEFAULT_TEXTS;
+  const known = options.knownFeatures ?? currentFeatures();
   configurationError = null;
+  skippedFeatures = [];
   try {
     let raw: unknown;
     let files: ContentFiles = {};
@@ -171,16 +195,23 @@ export const loadGameConfiguration = async (options: LoadOptions = {}): Promise<
       raw = await options.bundled();
       if (raw === null) throw new Error('This build loads its content from the CDN but has no content base URL');
     }
-    assertGameConfiguration(raw, { unknownComponentTypes: options.unknownComponentTypes });
-    const { version } = raw;
-    console.info(`[game-config] Content ${(version.hash ?? '').slice(0, 12)} (schema ${version.schema}, built with app ${version.version}) from ${versionUrl || 'the app'}.`);
-    configurationError = checkContentCompatibility(version, texts);
+    // A MAJOR this app cannot read is refused before the guard (its shape may differ); a broken version is the guard's
+    const named = versionOf(raw);
+    configurationError = named && checkContentCompatibility(named, texts, known.schema);
     if (configurationError) {
       console.error(`[game-config] ${configurationError.details?.[0]}`);
       apply(EMPTY_CONFIGURATION, '', {});
-    } else {
-      apply(raw, (options.assetsBase ?? '').replace(/\/+$/, '') || versionUrl, files);
+      return configurationError;
     }
+    const { config: readable, skipped } = skipUnknownFeatures(raw, known, { unknownComponentTypes: options.unknownComponentTypes });
+    assertGameConfiguration(readable, { unknownComponentTypes: options.unknownComponentTypes });
+    const { version } = readable;
+    console.info(`[game-config] Content ${(version.hash ?? '').slice(0, 12)} (schema ${version.schema}, built with app ${version.version}) from ${versionUrl || 'the app'}.`);
+    skippedFeatures = skipped;
+    if (skipped.length) {
+      console.warn(`[game-config] Content schema ${version.schema} is newer than this app's ${known.schema} – skipped what it does not know:\n  - ${skipped.map(describeSkipped).join('\n  - ')}`);
+    }
+    apply(readable, (options.assetsBase ?? '').replace(/\/+$/, '') || versionUrl, files);
   } catch (error) {
     const invalid = error instanceof GameConfigurationError;
     const problems = invalid ? error.problems : [String(error instanceof Error ? error.message : error)];
@@ -191,6 +222,7 @@ export const loadGameConfiguration = async (options: LoadOptions = {}): Promise<
       type: 'critical',
       details: problems,
     };
+    skippedFeatures = [];
     apply(EMPTY_CONFIGURATION, '', {});
   }
   return configurationError;
@@ -198,6 +230,12 @@ export const loadGameConfiguration = async (options: LoadOptions = {}): Promise<
 
 /** Set when the game configuration is invalid or could not be loaded; the app must not start then */
 export const getConfigurationError = (): ErrorInfo | null => configurationError;
+
+/** What the loaded content has that this app does not know (newer content, RULES #10) – empty when nothing was skipped */
+let skippedFeatures: readonly SkippedFeature[] = [];
+
+/** The features of the loaded content this app skipped – the reader's update hint, the editor's warning */
+export const getSkippedFeatures = (): readonly SkippedFeature[] => skippedFeatures;
 
 let config: GameConfiguration = EMPTY_CONFIGURATION;
 /** URL of the loaded content version on the CDN (`<base>/<build>`; '' when the content is served with the app) */
@@ -209,7 +247,6 @@ let spreads: Spread[] = [];
 let spreadById = new Map<string, Spread>();
 let entryById = new Map<string, Entry>();
 let targetById = new Map<string, Target>();
-let tutorial: Step[] = [];
 
 /** URL of a content file given its path in the configuration (`/assets/content/…`) */
 export const contentUrl = (path: string): string => (path.startsWith(CONTENT_PATH) && contentBase ? `${contentBase}${path}` : path);
@@ -290,7 +327,6 @@ const apply = (raw: GameConfiguration, base: string, files: ContentFiles): void 
   spreadById = new Map(spreads.map(s => [s.id, s]));
   entryById = new Map(entries.map(e => [e.id, e]));
   targetById = new Map(spreads.flatMap(s => s.targets.map(t => [t.id, t] as const)));
-  tutorial = [...config.tutorial];
 };
 
 /** Version of the game configuration (content build): version, timestamp, hash, schema */
@@ -298,8 +334,15 @@ export const getConfigVersion = (): ConfigurationVersion => config.version;
 
 export const getBook = (): BookData => config.book;
 
+/**
+ * The passes a spread shows: its own list (an override – `[]` turns the book's off there), else the book's (the master
+ * for every spread), else none. Pure, for the tests.
+ */
+export const passesFor = (spread: { passes?: PassData[] } | undefined, book: { passes?: PassData[] }): PassData[] =>
+  spread?.passes ?? book.passes ?? [];
+
 /** The post-processing passes over a spread's rendered image: the spread's own list, else the book's, else none */
-export const getPasses = (spreadId: string): PassData[] => spreadById.get(spreadId)?.passes ?? config.book.passes ?? [];
+export const getPasses = (spreadId: string): PassData[] => passesFor(spreadById.get(spreadId), config.book);
 
 
 export const getInitialSpreadId = (): string => config.initialSpreadId;
@@ -342,9 +385,7 @@ export const getAssets = (spreadId?: string): AssetData[] => {
   return [...assets.values()];
 };
 
-export const getTutorial = (): Step[] => [...tutorial];
-
-/** The plugins the content declares (schema 2.4), their modules as URLs of the loaded version */
+/** The plugins the content declares, their modules as URLs of the loaded version */
 export const getPlugins = (): PluginData[] => (config.plugins ?? []).map(plugin => ({ ...plugin, src: contentUrl(plugin.src) }));
 
 /** The shared entity (`content/entities/<id>`) a target refers to with `ref`, or undefined for an inline entity */

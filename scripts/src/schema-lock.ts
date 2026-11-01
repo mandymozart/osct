@@ -4,7 +4,7 @@
  */
 import fs from 'fs';
 import { CONTENT_SCHEMA_VERSION } from '../../shared/types/game-config';
-import { hashContract, readSchemaLock, SCHEMA_LOCK_FILE, SchemaLock, schemaLockProblem } from './lib/contract';
+import { hashContract, readSchemaLock, SCHEMA_LOCK_FILE, type SchemaLock, schemaLockProblem } from './lib/contract';
 
 const checksum = hashContract();
 const lock = readSchemaLock();

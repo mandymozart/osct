@@ -1,9 +1,11 @@
-import { ArSceneEvents, ArStatus, EntityData, IArScene, PassData, SceneInspection, SceneState } from "@/types";
+import { type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type IArScene, type PassData, type SceneInspection, SceneState } from "@/types";
 import { Emitter } from "@engine/utils/emitter";
 
 type ArModule = typeof import("./ar");
 
 let arModule: Promise<ArModule> | null = null;
+/** The AR chunk once it has loaded (the scene's runtime lives in it) */
+let loadedModule: ArModule | null = null;
 
 /** Every scene event, forwarded from the real scene (a record over the event type: a new event can't be left out) */
 const SCENE_EVENTS = Object.keys({
@@ -13,6 +15,7 @@ const SCENE_EVENTS = Object.keys({
   targetTapped: true,
   ready: true,
   spreadSeen: true,
+  scanning: true,
 } satisfies Record<keyof ArSceneEvents, true>) as Array<keyof ArSceneEvents>;
 
 /**
@@ -22,13 +25,19 @@ const SCENE_EVENTS = Object.keys({
  */
 export const loadArModule = (): Promise<ArModule> => {
   if (!arModule) {
-    arModule = import("./ar").catch(error => {
+    arModule = import("./ar").then(module => (loadedModule = module)).catch(error => {
       arModule = null;
       throw error;
     });
   }
   return arModule;
 };
+
+/**
+ * The book's variables in every scope the scene's runtime keeps – spread, stage, session and book (`allVars()`, the
+ * book scope read from the reader's progress) – for the entry texts (`{hasKey}`); null while the AR chunk has not loaded
+ */
+export const sceneVariables = (): ReturnType<ArModule["allVars"]> | null => loadedModule?.allVars() ?? null;
 
 /**
  * The bridge's `IArScene`: records the requested spread and state and hands them to the real `ArScene`
@@ -61,11 +70,21 @@ export class LazyArScene implements IArScene {
     return this.emitter.on(event, listener);
   }
 
-  /** Fetch and evaluate the AR chunk and the tracking engine without building anything (no WebGL, no camera) */
-  warmUp(): Promise<void> {
-    return loadArModule()
-      .then(ar => ar.prefetchXr8())
-      .catch(error => console.warn("[ArScene] Could not preload AR:", error));
+  /**
+   * Fetch and evaluate the AR chunk and the tracking engine without building anything (no WebGL, no camera).
+   * Resolves false when the AR chunk itself could not be loaded (the engine's files only log).
+   */
+  warmUp(): Promise<boolean> {
+    return loadArModule().then(
+      ar => ar.prefetchXr8().then(() => true, error => {
+        console.warn("[ArScene] Could not preload the tracking engine:", error);
+        return true;
+      }),
+      error => {
+        console.warn("[ArScene] Could not preload AR:", error);
+        return false;
+      },
+    );
   }
 
   async load(spreadId: string): Promise<void> {
@@ -85,7 +104,7 @@ export class LazyArScene implements IArScene {
       await scene.setState(this.wantedState);
     } catch (error) {
       console.error("[ArScene] AR could not be loaded:", error);
-      this.emitter.emit("status", "error", error instanceof Error ? error.message : String(error));
+      this.emitter.emit("status", "error", { code: ErrorCode.AR_LOAD_FAILED, message: error instanceof Error ? error.message : String(error) });
     }
   }
 

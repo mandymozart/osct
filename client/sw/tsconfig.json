@@ -8,6 +8,7 @@
     "skipLibCheck": true,
     "moduleResolution": "node",
     "isolatedModules": true,
+    "verbatimModuleSyntax": true,
     "noEmit": true,
     "types": []
   },

@@ -61,6 +61,7 @@ jobs:
 
       - name: Write the server configuration
         env:
+          OSCT_ENV: staging
           OSCT_DB_HOST: ${{ vars.DB_HOST || secrets.DB_HOST || 'localhost' }}
           OSCT_DB_NAME: ${{ vars.DB_NAME || secrets.DB_NAME }}
           OSCT_DB_USER: ${{ secrets.DB_USER || vars.DB_USER }}
@@ -93,11 +94,17 @@ jobs:
           cp -r client/dist/. site/
           cp -r editor/build/. site/editor/
           cp -r server/api/. site/api/
-          rm -f site/api/config.local.php.example site/api/db/*.sqlite site/api/db/mail.log
+          rm -f site/api/config.local.php.example site/api/db/*.sqlite site/api/db/*.log
+          # The host's content store and var/ (published content, uploads, the error log) live in the API's folder there –
+          # api/content-store, api/var (docs/server.md "Content store and var") – and are never part of the upload, which
+          # deletes nothing: they survive every deploy. The first request after this one moves an older api/db/content
+          # and api/db/error.log there once.
+          rm -rf site/api/content-store site/api/var site/api/db/content
           find site -name '*.map' -delete
 
       # lftp, not FTP-Deploy-Action: its Node FTP client loses the TLS data connection on all-inkl (ECONNRESET).
-      # Files are uploaded; nothing on the server is deleted.
+      # Files are uploaded; nothing on the server is deleted. The HTML pages and the reader's service worker go last, so
+      # a page loaded during the upload never names code files that are not there yet (#160).
       - name: Upload (FTPS)
         env:
           FTP_HOST: ${{ vars.FTP_HOST || secrets.FTP_HOST }}
@@ -110,7 +117,8 @@ jobs:
             set ftp:ssl-force true; set ftp:ssl-protect-data true; set ssl:verify-certificate true;
             set net:timeout 30; set net:max-retries 3; set net:reconnect-interval-base 5;
             open --env-password -u \"$FTP_USER\" \"$FTP_HOST\";
-            mirror --reverse --parallel=4 --no-perms --verbose=1 site/ \"$FTP_ROOT\"
+            mirror --reverse --parallel=4 --no-perms --verbose=1 --exclude-glob '*.html' --exclude-glob sw.js site/ \"$FTP_ROOT\";
+            mirror --reverse --parallel=4 --no-perms --verbose=1 --include-glob '*.html' --include-glob sw.js --include-glob '*/' site/ \"$FTP_ROOT\"
           "
 
       - name: Create missing tables, check the API

@@ -1,5 +1,5 @@
-import { ErrorInfo } from "./errors";
-import { GameMode } from "./game";
+import type { ErrorInfo } from "./errors";
+import type { GameMode } from "./game";
 
 export interface IPagesRouter extends HTMLElement {
   updateRoute(route: PageRoute | null): void;

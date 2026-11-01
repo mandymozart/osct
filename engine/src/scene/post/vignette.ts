@@ -1,6 +1,6 @@
 import { Color } from "three";
 import { PASSES } from "../../types/index";
-import { PassFactory, PostPass } from "./registry";
+import type { PassFactory, PostPass } from "./registry";
 
 /**
  * The built-in `vignette`: the edges fade to a colour. The AR layer is premultiplied colour over alpha, so a fade

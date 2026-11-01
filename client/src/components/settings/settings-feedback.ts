@@ -1,6 +1,6 @@
 import { GoldSwitch } from "@/components/buttons";
 import { t } from "i18next";
-import { FeedbackService, FeedbackSettings } from "@/services";
+import { FeedbackService, type FeedbackSettings } from "@/services";
 import { escapeHtml } from "@/utils";
 import { SettingsSection } from "./settings-section";
 

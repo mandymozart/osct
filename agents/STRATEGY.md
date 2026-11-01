@@ -74,6 +74,13 @@ Tilman, 2026-10-28:
     instance.
 - To keep it that way: a rule – no third-party script, font, SDK or tracker in the core; anything external is
   opt-in per instance and listed in its privacy page.
+- **An instance without a CDN works** (2026-10-30, #183, #197): on the client's own server alone, the directory store
+  serves the published content and the Library's uploads from one folder apart from the code – `content-store/`
+  (`OSCT_CONTENT_STORE_DIR`; a Kamal volume in the container). That folder plus the database *is* the instance's data:
+  easy to back up and move (docs/deploy.md "Backup"). A connected CDN has priority; without one the editor says that
+  readers load without edge caching – the trade-off of "fast everywhere" against "nobody else in between".
+- Each instance publishes only to its own environment (`ENV`): the provisioning sets one environment per instance,
+  never an editor that writes into another instance's content.
 
 ## Where we stand (1.7.6)
 
@@ -120,6 +127,20 @@ Baked in today (found 2026-10-28):
    the start of it.
 9. **Music.** Audio as a first-class entity and asset type (tracks on a spread or target, a player that survives
    page turns) – the niche asks for it; not designed yet.
+
+## Flows across spreads and books (direction, Tilman 2026-10-31)
+
+*"Nodes I want to use for the same thing as flows in SCUTOONS – in the 3D scene too there is a goto, either directly or
+with on-screen instructions to turn the page or to move somewhere in the physical world; with walls that gets
+interesting; you can also go back and forth between two books. What matters is linking it well with the existing logic
+of the VN and the webtoon."* – and: *"Not for OSCT."*
+
+So the core gets **flows** like SCUTOONS': a *goto* between scenes and spreads – direct, or through an on-screen
+instruction (turn the page; go to a wall, a facade, an object – the spread formats beyond `cover`/`back`, 2026-10-29) –
+and between books; built on SCUTOONS' VN script logic (labels, diverts, conditions: `vn-script.ts`, `flow.ts`,
+`agents/EXPRESSIONS.md` in that repo) and its webtoon flow, with the event scopes already decided (`node ⊂ spread ⊂ stage
+⊂ session ⊂ book ⊂ global`). The editor's `nodes` icon is reserved for it. OSCT itself only gets a view of a spread's
+logic (#239).
 
 ## Phases
 

@@ -7,17 +7,17 @@ declare(strict_types=1);
  * serve it straight from the rows and a publish writes it to the content store: one assembly, so what the editor
  * previews is what readers get.
  *
- * `version` = { version: this server's app version, timestamp: now, hash, schema: the imported schema }; `plugins`
- * (the compiled plugins the import declared) follows `tutorial` when the book has any, as the build writes it. The hash
- * is the sha256 of the configuration JSON without timestamp and hash – the same rows give the same hash, and the
- * build name is its first 12 hex digits. With an assets base every content path (`/assets/content/…` under src,
- * imageSrc, image, illustration, and the keys of files.json) becomes a URL below it: a published version points at
- * the imported build's media, no file is copied.
+ * `version` = { version: this server's app version, timestamp: now, hash, schema: the imported schema }; `tutorial` is
+ * the onboarding older apps require (`Editor::COMPAT_TUTORIAL` – the reader has its own, #236); `plugins` (the compiled
+ * plugins the import declared) follows it when the book has any, as the build writes it. The hash is the sha256 of the
+ * configuration JSON without timestamp and hash – the same rows give the same hash, and the build name is its first 12
+ * hex digits. With an assets base every content path (`/assets/content/…` under src, imageSrc, image, and the keys of
+ * files.json) becomes a URL below it: a published version points at the imported build's media, no file is copied.
  */
 final class ContentVersion
 {
     /** Keys whose `/assets/content/…` values are content paths */
-    private const PATH_KEYS = ['src', 'imageSrc', 'image', 'illustration'];
+    private const PATH_KEYS = ['src', 'imageSrc', 'image'];
     private const CONTENT_PREFIX = '/assets/content/';
 
     /**
@@ -57,7 +57,7 @@ final class ContentVersion
             'spreads' => $spreads,
             'entries' => $entries,
             'entities' => $entities,
-            'tutorial' => Editor::decode($book['tutorial_json']) ?? [],
+            'tutorial' => Editor::COMPAT_TUTORIAL,
         ];
         $plugins = Editor::decode($book['plugins_json'] ?? '[]');
         if (is_array($plugins) && $plugins) $configuration->plugins = $plugins;
@@ -80,7 +80,7 @@ final class ContentVersion
     {
         Editor::user();
         $version = self::assemble($bookId);
-        Http::json(200, self::manifest($version, Editor::iso()));
+        Http::json(200, self::manifest($version, Editor::iso(), $bookId));
     }
 
     /**
@@ -95,13 +95,13 @@ final class ContentVersion
     }
 
     /**
-     * latest.json of a version (content-manifest.ts `ContentManifest`)
+     * latest.json of a version of the book (content-manifest.ts `ContentManifest`)
      * @param array{hash: string, build: string, schema: string} $version
      * @return array<string, string>
      */
-    public static function manifest(array $version, string $activatedAt): array
+    public static function manifest(array $version, string $activatedAt, string $bookId): array
     {
-        return ['build' => $version['build'], 'hash' => $version['hash'], 'schema' => $version['schema'], 'version' => Version::APP, 'activatedAt' => $activatedAt];
+        return ['build' => $version['build'], 'hash' => $version['hash'], 'schema' => $version['schema'], 'version' => Version::APP, 'activatedAt' => $activatedAt, 'book' => $bookId];
     }
 
     /** Content paths under PATH_KEYS become URLs below `$base`, everywhere in the configuration */

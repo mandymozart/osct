@@ -27,7 +27,7 @@ folders after release: reading progress is stored by id.
 
 ```
 content/
-├── book.yaml                     the book (title, author, publisher)
+├── book.yaml                     the book (title, author, publisher, source of truth)
 ├── spreads/
 │   └── spread1/
 │       └── spread.yaml           title and pages of the spread
@@ -36,12 +36,10 @@ content/
 │       ├── entry.yaml            the entry's text and settings
 │       ├── images-022.jpg        the target image (the picture as printed)
 │       └── castle-video.mp4      AR content, entry images …
-├── entities/                     AR content used by several entries (optional)
-│   └── castle/
-│       ├── entity.yaml
-│       └── castle.glb
-└── steps/                        onboarding screens
-    └── step-1/step.yaml
+└── entities/                     AR content used by several entries (optional)
+    └── castle/
+        ├── entity.yaml
+        └── castle.glb
 ```
 
 ## Writing YAML
@@ -68,7 +66,7 @@ Lines starting with `#` are comments and are ignored.
 | `category` | yes | `glossary`, `video`, `text` or `link` – always singular here; the app shows "Glossary", "Videos", "Texts", "Links" |
 | `title` | yes | name of the entry |
 | `page` | yes | access page in the book (decides which spread the entry belongs to) |
-| `body` | no | the text |
+| `body` | no | the text – Markdown with the book's variables (below) |
 | `author` | no | for texts – shown in the list as *'Title', Author* |
 | `image` | no | an image shown in the entry (glossary), file in the entry folder |
 | `media` | no | for links: the web address (YouTube / Vimeo play inside the app, other pages are embedded) |
@@ -85,6 +83,42 @@ What each category shows in the app:
 
 An entry **without** `target` has nothing to scan – e.g. a glossary term that is only read in the
 list.
+
+### The text: Markdown and variables
+
+An entry's `body` (content schema 2.23, #223) is a small Markdown with the book's variables. One renderer,
+`shared/text/entry-text.ts`, draws it in the reader's entry view and in the editor's preview, so the author sees what
+the reader will.
+
+| Write | Shows |
+|---|---|
+| a blank line | a new paragraph (a single line break stays a line break, as plain text always showed) |
+| `*emphasis*` or `_emphasis_` | *emphasis* |
+| `**strong**` or `__strong__` | **strong** |
+| `[the map](https://example.org/map)` | a link that opens in a new tab – `http`, `https` and `mailto` only; any other link stays text |
+| `\*` (a backslash before a sign) | the sign itself |
+| `{hasKey}` | the variable's value |
+| `{tries > 2: Try the window.}` | the text when the condition holds, else nothing |
+| `{hasKey: The door opens.\|It is locked.}` | one text or the other |
+| `{name: {name}\|friend}` | the variable, or *friend* when it is not set – the fallback |
+| `\{`, `\}`, `\|` | the brace or the bar itself |
+
+Nothing else is markup: no headings, lists, images, code or HTML – HTML shows as text (everything is escaped).
+
+**Variables** use the syntax of SCUTOONS' message boxes – ink's inline syntax, its parser copied into
+`shared/text/expressions.ts`: a bare camelCase name is one of the book's variables, which behaviours set
+(`set: { hasKey: true }`) and plugins keep (`api.vars`), read from the innermost scope that has it – spread, stage,
+session, book – like `api.vars.get(name)`. Conditions take numbers, `"texts"`, `true` / `false`, `and` `or` `not`,
+`==` `!=` `<` `<=` `>` `>=`, `+` `-` `*` `/` `mod` and parentheses. A variable that is **not set shows as nothing** (and
+is false in a condition) – the fallback is a condition with an else part, as above. SCUTOONS' lists (`{a|b}`,
+`{&…}`, `{~…}`, `{!…}`) and functions (`clock(t)`) are no part of a book's text: they render nothing, the editor names
+the problem and the MCP server refuses them.
+
+The reader fills in the values as they are when the entry opens: every scope once the scene has run, before that the
+book scope from the reader's progress. The editor's preview takes them from its stage.
+
+An app older than schema 2.23 shows the body as written – `**strong**`, `[the map](https://…)` and `{hasKey}` with
+their signs (the table in "Schema and app versions"). Plain text reads the same in both.
 
 ### Recipes
 
@@ -133,7 +167,7 @@ Video filters are a list, applied in order; each has a `type` and optional param
 the defaults). Today there is one filter type:
 
 | `chromaKey` parameter | Values | Default | What it does |
-|---|---|---|---|
+|---|---|---|---|---|
 | `color` | `"#rrggbb"` | `"#00ff00"` | Key color that becomes transparent |
 | `mode` | `auto`, `chroma`, `luma` | `auto` | `chroma` compares the color tone (green, purple, …), `luma` the brightness (black, white); `auto` picks `luma` for black/grey/white |
 | `threshold` | 0–1 | 0.3 (luma 0.06) | How close to the key color disappears – higher removes more |
@@ -178,10 +212,18 @@ half the image's width; videos and images lie flat on the image, as wide as it.
 
 Each value you leave out keeps its default, so `rotation` alone is enough to turn a model.
 
+**The page is the zero plane** (#189): a model that stands on the page should have its lowest point on the paper
+(`z = 0` of its target), not float above it or sink into it. That holds by itself for a model whose origin is its floor
+(a glTF made so); a model whose origin is its middle needs `position` z = its lower half × its scale. The content build
+reads each model's bounding box from its file, carries it through the placements of the nodes above it and **warns**
+when its lowest point is more than 0.005 target widths away from the page – with the position that stands it there. A
+model meant to float keeps the warning; nothing is refused. Videos and images standing upright are not checked (the
+build does not know a video's height): half the plane's height (the video's height ÷ width × the scale) is its z.
+
 **Tuning placement and filters:** the [editor](editor.md) (`/editor`) shows the spread on a simulated page and has a
 field for every placement value and every filter parameter – the names are three.js's (`position.x`, `rotation.y`,
 `scale`; rotation in degrees). Changes show on the stage at once; **Save** writes them to the instance's database and
-**Publish** makes a content version of the draft. The content source in git is imported into the editor, not written
+**Publish** makes a content version of the draft. The content source is imported into the editor, not written
 by it: carry a saved value back into `entry.yaml` (or the shared `entity.yaml`) when the source should keep it.
 
 **Unlock and consult:** finding a target for the first time unlocks its entry – "New entry unlocked"
@@ -229,32 +271,76 @@ target:
         loop: false
 ```
 
-**Plugins – the book's own code** (content schema 2.4, `agents/research/2026-10-29-code-in-the-editor.md`): a
-folder `content/plugins/<id>/` with an `index.ts` that exports `register(api)`. The content build type-checks it
-against the plugin API, bundles it into `plugins/<id>/plugin.js` (a plugin imports nothing but types – three.js is
-`api.three`), runs it once to learn what it registers, and declares it in the configuration (`plugins: [{ id, src,
-api }]`); the reader loads it with the AR scene. What a plugin registers is used in the content like `animation`:
+**Behaviour – rules without code** (content schema 2.19, #88): a node of any type may carry one `behaviour`
+component, a list of **rules**. Each rule reacts to an event (`on`), may ask for variables (`when`) and runs its
+actions (`do`) in order. It runs on the same event bus and variables as a plugin's code (`api.events`, `api.vars` –
+[plugins](plugins.md) "Across nodes and pages"), so rules and plugins hear each other.
 
-- `api.registerComponent(type, spec, apply)` – code on a node. `spec` = `{ description, nodeTypes?, params }` with
-  every parameter's `kind` (`number` with `min` / `max`, `color`, `choice` with `options`, `boolean`, `string`),
-  `default` and `description` – the editor's Entity panel shows the rows from it. `apply({ node, params, object,
-  placed, target, three })` runs when the node is built and returns hooks: `update(delta)` every frame, `onFound`,
-  `onLost`, `onTap`, `onPause`, `dispose`, `tune(params)` (new values in place; `false` = build the node anew).
-- `api.registerLayer(type, spec, { glsl })` – a **material layer**: GLSL on every pixel of a video, image or text
-  plane (or a model's materials) after its own shading, in linear RGB. `glsl` is the body of a function
-  `vec4 (vec4 rgba, vec2 uv, float time, <the parameters>)` – `rgba` the pixel so far, the parameters as arguments
-  in the spec's order (`number` / `boolean` → `float`, `color` → `vec3`, `choice` → `int`, the index in its options).
-- **Across nodes and pages** (plugin API 1.1): `api.events` (the engine's core events `targetFound`, `targetLost`,
-  `targetUnlocked`, `targetTapped`, `spreadChanged`, `sceneState`, `varChanged` to listen to; scene events of the
-  book's own to emit and hear), `api.vars` (variables in the scopes `spread`, `stage`, `session`, `book` – the last
-  persisted with the reader's progress), `api.progress` (read-only: `unlocked`, `consulted`, `completion`, `counts`),
-  `api.spread` (the current spread); the component context's `children` and the hook `onUnlocked`. The reader hands
-  the engine its progress through `ArSceneOptions.progress`, the editor its simulation.
-- The editor's **Code** tab ([editor](editor.md)) runs a plugin on its stage without a build; readers get only what
-  the build compiled. The fixture's `plugins/tint` is the template; [plugins](plugins.md) is the guide for writing
-  one, the **demo book** `fixtures/demo/` (built with `OSCT_CONTENT_DIR=fixtures/demo`) the sandbox that uses all of
-  it. The build warns about a node with more than three layers (every layer runs on every pixel) and a bundle
-  above 256 KB.
+```yaml
+target:
+  image: key.jpg
+  entity:
+    type: model
+    src: key.glb
+    components:
+      - type: animation        # how the clip plays: once, never by itself
+        clip: rattle
+        playOn: never
+        loop: false
+      - type: behaviour
+        rules:
+          - on: tap            # the reader taps the key
+            do:
+              - play: rattle
+              - set: { hasKey: true }
+                scope: book    # kept with the reader's progress
+              - emit: keyRattled
+```
+
+| Part | Values | What it does |
+|---|---|---|
+| `on` | `found`, `lost`, `tap`, `unlocked`, or an event's name | The node's own events – its page found, lost, the AR content tapped, the page's first find – or any other camelCase name: an event of the stage, a scene event a plugin or another behaviour emits (`doorOpened`) or a core event (`targetFound`, `varChanged`, …) |
+| `when` | `{ hasKey: true, tries: 3 }` · `{ any: { … } }` | Optional. Every variable named must equal its value; under `any:` one of them is enough. `{ not: value }` turns a test round, `null` means *not set*. A variable is read from the innermost scope that has it (spread, stage, session, book) |
+| `play` | a clip's name, `""` | Plays a clip of a model – `""` its own clip (the `animation` component's, else the first). `node: <name>` plays another model of the subtree. The `animation` component still says how (loop, speed) |
+| `pause`, `stop` | a node's name, `""` | Pauses the clip, or stops it at its start – `""` the behaviour's own node |
+| `show`, `hide` | a node's name, `""` | Shows or hides a node of the subtree by its `name` – `""` the behaviour's own node |
+| `set` | `{ name: value }`, `scope` | Sets variables (`null` deletes one) in `scope`: `spread` (the default), `stage`, `session` or `book` |
+| `emit` | an event's name | Sends a scene event to the stage (`{ targetId, node }` as its payload); never a core event or a node event |
+
+`do` takes one action or a list; a plain word runs a verb on the own node: `do: play`, `do: hide`. Nodes are named with
+their `name` (schema 2.12) – the door's rules below show and hide its child `hint`. On one event every rule's condition
+is read first, then the rules that matched run in their order, so two rules can toggle a variable without the second
+undoing the first. A rule that emits an event other rules hear sets them off at once; a chain deeper than 8 events is
+cut (logged). An action that cannot run – a node or a clip that is not there – is logged and the next one runs.
+
+```yaml
+  entity:
+    type: group
+    children:
+      - { type: model, name: door, src: door.glb }
+      - { type: text, name: hint, text: "Tap the key on page 1" }
+    components:
+      - type: behaviour
+        rules:
+          - on: found
+            do: { show: hint }
+          - on: found
+            when: { hasKey: true }
+            do: [{ hide: hint }, { emit: openDoor }]
+```
+
+The editor's Inspector edits the rules without YAML ([editor](editor.md)), and the spread's *vars and events* there shows
+each rule that ran. What a rule cannot do – move a node over time, draw text, count the progress – is a plugin's job;
+the demo's `door` plugin hears the rule's `openDoor` and lifts the door ([plugins](plugins.md) "Behaviour and plugins").
+Variables are not declared yet: a rule names them, a missing one is *not set* (`null`).
+
+**Plugins – the book's own code** (content schema 2.4): a folder `content/plugins/<id>/` with an `index.ts` that
+exports `register(api)`. The content build compiles it, runs it once to record what it registers and declares it in the
+configuration; the reader loads it with the AR scene. What a plugin registers – a component or a material layer, a node
+type, a material, a procedural texture, a pass – is used in the content by its type, like a built-in one. How to write
+one, the plugin API and what the build records: [plugins](plugins.md) – the fixture's `plugins/tint` is the template,
+the demo book `fixtures/demo/` (built with `OSCT_CONTENT_DIR=fixtures/demo`) uses all of it; the editor's **Code** tab
+([editor](editor.md)) runs a plugin on its stage without a build.
 
 ```yaml
 # content/plugins/tint/index.ts registers the layer "tint" (color, opacity, blend) – used like a component:
@@ -275,23 +361,70 @@ back spread the page after the last printed one; an entry on that page belongs t
 surface `front` or `back` (see `print` below). The editor shows the closed book for them; the reader treats them like
 any spread. More formats (a museum wall, an object) come with the layout templates of issue #60.
 
+**Source of truth** (content schema 2.25, #238): `book.yaml` may say where the book's spreads come from –
+`sourceOfTruth: print` (print first, the default: the printed book is the truth, its spreads, pages and printed
+placements come from the layout and an import) or `sourceOfTruth: digital` (digital first: the book is made in the
+editor, which adds and removes its spreads – the demo book is). The editor's import keeps the content's value and sets
+`print` when there is none; an editor changes it in the book's Inspector. The reader does not read it.
+
 **Environment** (content schema 2.8): `book.yaml` may set `environment: { world: cafe, onionSky: true }` – the world
 around the reader while scanning and the onion sky (docs/look-around.md). Book-level only; without it the café with
 the onion sky applies. The reader's Graphics switches still apply on top, so the content never turns on what the reader
-has off. The editor saves it on the book page (`PUT /editor/books/{id}/environment`).
+has off. Since 2.10 the world and the sky can be files: `worldSrc` a glTF model (`.glb` / `.gltf` – the scenery around
+the reader: its origin the floor under the reader, +y up, −z towards the book, the eye 1.6 m above the origin) and
+`skySrc` an equirectangular image (`.jpg` / `.png` / `.webp`, 2:1 – its centre towards the book, its top edge straight
+up). In `book.yaml` they are paths below the content folder (`environment/sky.jpg` – the build checks the file and writes
+`/assets/content/environment/sky.jpg`); the editor writes the absolute URL of a library asset. The sky replaces the café's
+sky, the model the café's scenery; the café stays the fallback while they load or when one fails. The editor edits
+all of it on the stage, in the workspace's **Environment** tab (`PUT /editor/books/{id}/environment`).
 
 **Post-processing** (content schema 2.5): a spread may carry `passes: [{ type, ...parameters }]` – effects over the
 whole rendered AR image, run in order before it lies over the camera picture. The book (`book.yaml`) may carry
-`passes` too: they apply to every spread without a list of its own (`passes: []` on a spread turns them off there).
-Every built-in type is defined once in `shared/types/passes.ts` with its parameters, so the editor's Stage panel,
-the build and the guard read one definition; missing parameters take the defaults. A spread without passes costs
-nothing – the scene renders straight to the canvas as before.
+`passes` too – **the master**: they apply to every spread without a list of its own; a spread's `passes` override
+them (`passes: []` on a spread turns them off there). The editor edits both in the Inspector's *post-processing*
+section while the spread is selected ([editor](editor.md)): the book's with `PUT /editor/books/{id}/passes`, a spread's own with
+`PUT …/spreads/{sid} { passes }`. Every built-in type is defined once in `shared/types/passes.ts` with its parameters,
+so the editor's Inspector, the build and the guard read one definition; missing parameters take the defaults. A
+spread without passes costs nothing – the scene renders straight to the canvas as before, the look-around world too.
+A list may also name **a pass of the book's plugins** (schema 2.21, below). **The phone budget** (#86): every pass is a
+full-screen render, the bloom several – up to three passes and one bloom per list; the build warns beyond (a plugin's
+pass counts like a built-in one), the editor's section says so too. The S22 measurement behind the number is still open.
+
+**A pass can be off** (content schema 2.22, #233): `enabled: false` keeps a pass in its list with its values, and the
+chain skips it – it renders nothing and costs nothing (the phone budget does not count it); leave `enabled` out (or
+`true`) for a pass that runs. A list whose passes are all off renders straight to the canvas, as without passes. The
+editor's toggle in each pass's head writes it; the build, the guard, the API and the MCP server accept `true` / `false`
+and refuse anything else. An app of schema 2.21 does not know the field: it runs the pass (the 1.55.0 app skips the
+field with the update hint).
+
+```yaml
+passes:
+  - type: bloom
+    enabled: false   # off – the values stay for later
+    strength: 0.35
+  - type: vignette
+```
+
+**The look-around world goes through the passes** ([look-around](look-around.md)): while passes run, the world around
+the reader and its sky (the onion sky included) are drawn into the chain's image under the AR layer, so a bloom
+glows on them, a vignette darkens them and a grade with `reach: all` grades them – on the phone and on the editor's
+stage alike; a grade with `reach: ar` stays on the AR layer (it gets the layer's coverage as a mask).
 
 | Type | What it does | Parameters |
 |---|---|---|
 | `bloom` | Bright parts glow: the part of the image above `threshold` is blurred and added back as light – over the camera picture too. | `strength` 0–3 (1), `radius` 0–1 (0.4), `threshold` 0–1 (0.85; 1 = only brighter than white) |
 | `vignette` | The edges fade to a colour – the AR layer and the camera picture alike. | `strength` 0–1 (0.6), `radius` 0–1.5 (0.6, 1 = the sides), `softness` (0.6), `color` (#000000) |
-| `grade` | Colour grading of the AR layer only (the camera picture lies under the canvas and keeps its colours). | `exposure` −2…2 EV (0), `contrast` 0–2 (1), `saturation` 0–2 (1), `tint` (#ffffff = none) |
+| `grade` | Colour grading. `reach: ar` grades the AR layer alone (the camera picture keeps its colours); `reach: all` (schema 2.9) the whole picture – on the phone the camera picture too, in the editor the desk. | `reach` `ar` \| `all` (`ar`), `exposure` −2…2 EV (0), `contrast` 0–2 (1), `saturation` 0–2 (1), `tint` (#ffffff = none) |
+
+**How a grade reaches the camera picture** (`reach: all`): on the phone the camera picture is not part of the
+three.js image – the 8th Wall engine draws it into a canvas of its own (a second WebGL context) under the AR canvas,
+so no pass of the chain can read it. The engine's camera renderer (`GlTextureRenderer`) takes a fragment shader of
+its own, though: the scene gives the tracker one that decodes the picture to linear, applies the same exposure ×
+tint, contrast and saturation as the AR layer's grade and encodes it again (`cameraGradeShader`,
+`engine/src/scene/post/grade.ts`). So the camera picture is graded *before* the AR layer lies over it, and the passes
+before a grade (a vignette, a bloom) are not graded on the camera picture the way they are on the AR layer; the
+look-around world is part of the chain's image, so it is graded with the AR layer. Several `all` grades apply in order. The guard
+ignores a pass parameter it does not know (since 2.9), the build and the API refuse it – a 2.8 app refuses `reach`.
 
 ```yaml
 # content/spreads/studio-b/spread.yaml
@@ -304,13 +437,26 @@ passes:
     threshold: 0.7
 ```
 
-A pass of the book's own – a shader Kévin writes – registers with the engine's pass registry
-(`registerPass(type, spec, factory)`, `engine/src/scene/post/registry.ts`): the factory gets the resolved parameters,
-three.js and `ShaderPass`, and returns a three `Pass` over the composer's buffers. The buffer holds the AR layer as
-premultiplied colour over alpha, in linear RGB, nothing of the camera picture: a pass keeps a texel's alpha unless it
-means to shade the camera picture too. The plugin API of the code editor ([editor](editor.md)) exposes the registry
-as `api.registerPass(type, spec, factory)`: the plugin's pass runs in the engine and leaves with the plugin. The content
-build and the guard still accept only the built-in pass types, so a spread cannot name a plugin's pass yet (#97).
+**A plugin's pass in `passes`** (content schema 2.21, #216): a pass of the book's own is a plugin's (`api.registerPass`,
+[plugins](plugins.md) "A pass: film grain"). The book and a spread name it like a built-in one –
+`- type: filmGrain` with its parameters. The content build records every pass a plugin registers (`registered.passes`)
+and checks the list against those specs (a type no plugin of the book registers, a value out of range or an unknown
+parameter is an error, as with a built-in pass; a plugin may not take a built-in pass's name, nor two plugins the same
+one); the guard checks it against the recorded spec too and refuses a type no declared plugin recorded – unless a
+plugin of an older build recorded nothing. The engine builds it from the plugin's factory in its place in the list:
+a pass whose factory throws (or returns no pass) is logged and skipped, one whose `render` throws is logged and switched
+off – the rest of the chain runs. Its `texture` parameters arrive as textures, a feedback buffer its factory makes
+(`api.feedback`) steps while the pass runs. The editor's API accepts a pass the declared plugins recorded (any
+camelCase name while the book has Code tab sources); **the publish refuses a pass no compiled plugin provides** (409
+`unknown-passes`). **A 2.20 app refuses a book that names one** (its guard knows no plugin pass): such a book needs a
+2.21 app. The demo book's spread *The twins* carries one (`fixtures/demo/plugins/grain`).
+
+```yaml
+# content/spreads/the-twins/spread.yaml
+passes:
+  - type: filmGrain
+    amount: 0.12
+```
 
 ```yaml
 # content/spreads/cover/spread.yaml
@@ -334,13 +480,44 @@ target (1 unit = the target's width); every node may hold `children`, each place
 to its parent**, as deep as you like (8 levels at most). Node types: `model`, `video`, `image` (a file, `src`),
 `text` (a line, `text`, optional `color`; `{{entry.title}}` and `{{book.title}}` are replaced), `light` (a light,
 below) and `group` (nothing of its own, it only holds children – move or scale the whole tree by its params). One
-node, as above, is the default; the editor's tree shows and edits the whole tree (+ node, remove node).
+node, as above, is the default; the editor's tree shows and edits the whole tree (+ node, remove node, drag to
+reparent). Any node may carry a `name` (content schema 2.12, optional) – the editor's tree shows it instead of the
+type, so a tree of several groups and videos stays readable; the reader ignores it.
+
+**A plugin's node type** (content schema 2.13): a plugin of the book may register a node type of its own
+(`api.registerNodeType`, [plugins](plugins.md)) – a sparkle of points, a sprite, a line. Such a node is written like
+any other, `type` the plugin's name for it; its parameters go into `params` next to the placement, and it takes a
+`src` only when its plugin says which kind (a model, a video or an image). The content build checks both once it has
+run the plugin; a type no plugin of the book registers is an error.
+
+**A node's material** (content schema 2.17): any node with meshes (a model, an image, a video, a text, a plugin's node)
+may carry `material: { type, params }` – a material a plugin of the book registers (`api.registerMaterial`,
+[plugins](plugins.md) "An aquarium, step by step"). It replaces what the node's type draws; the node's material layers
+still add on top. A `texture` parameter names a procedural texture of a plugin or a file next to the node.
+
+```yaml
+- type: model
+  src: tank.glb
+  material:
+    type: water            # the demo book's plugins/aquarium
+    params:
+      deep: "#0b4f6c"
+      ripples: caustics    # a texture parameter: the plugin's procedural texture
+```
+
+```yaml
+- type: sparkle            # the demo book's plugins/sparkle
+  params:
+    position: [0, 0.1, 0.25]
+    count: 120             # the plugin's parameters
+    color: "#ffe2a8"
+```
 
 **A light** (`type: light`, content schema 2.6) lights the entity it belongs to – under a group or a model it moves
 with it; the scene's own ambient light and sun stay. Its values are under `light:` (every one optional):
 
 | `light` value | Values | Default | What it does |
-|---|---|---|---|
+|---|---|---|---|---|
 | `kind` | `point`, `spot`, `directional` | `point` | A point light shines in every direction from the node; a spot in a cone, a directional light as parallel rays (the sun) – both along the node's own **−z**, so turn the node (`rotation`) to aim them. By default a light sits half a unit along its parent's +z (`position: [0, 0, 0.5]`: above the page for a root or a group, in front of a model, whose +z points towards the reader), pointing back at it |
 | `color` | `#rrggbb` | `#ffffff` | The light's colour |
 | `intensity` | 0 … 10 | `0.25` | How bright, in the node's units – whatever the target's printed size (the engine scales it to the world): a point or spot light of 1 lights a surface one target width away fully (a white page turns white; more clips, the reader has no tone mapping), half as far away four times as much; a directional light of 1 lights every surface fully |
@@ -422,23 +599,15 @@ spreads next to the open one are kept ready too, so turning a page switches the 
 
 ## Onboarding screens
 
-`content/steps/<id>/step.yaml` – the screens a first-time reader sees, in `index` order.
+The onboarding is the app's, not the book's (#236): the splash (Mark, then the book's `title`, `author` and
+`publisher` from `book.yaml`), what the app does, the camera permission, then scan mode – the same for every book. Its
+order, illustrations, buttons and timing are in `client/src/utils/onboarding.ts`, its texts in the app's translations
+(the `tutorial` namespace, every language – docs/i18n.md), where `{{title}}`, `{{author}}` and `{{publisher}}` are the
+book's. A content source has no `steps/` folder: the build does not read one and warns while one is left.
 
-```yaml
-index: 3
-description: |-
-  To scan the book and display interactive content, this application requires access to your camera.
-button: Grant access
-action: camera              # next (default) | camera = ask for the camera | scan = start scanning
-illustration: /assets/illustrations/tutorial-step-2.svg
-# optional: title, footer, advance (ms – go on by itself),
-#   fadeIn (ms – how long each part fades in, default 600), stagger (ms – delay between the parts:
-#   Mark, illustration, title, text, footer, button; default 250 – with stagger set, Mark fades in first)
-```
-
-Step texts (`title`, `description`, `footer`) can use the book's fields: `{{title}}`, `{{author}}`,
-`{{publisher}}` – e.g. `footer: "{{publisher}}"` shows the publisher from `book.yaml`. The build reports
-unknown names and fields the book doesn't have.
+The configuration still carries a `tutorial` – the app's English steps (`shared/compat/tutorial.ts`), written by the
+content build and every editor publish – because apps of content schema 2.24 and before require it and show it. The
+reader since 2.25 ignores it; it goes with the next schema MAJOR.
 
 ## Media
 
@@ -487,26 +656,68 @@ Then look at the result in the app – see the quick start in the [README](../RE
 
 The content schema (`CONTENT_SCHEMA_VERSION`, `shared/types/game-config.ts`) and the app version are separate
 (`agents/RULES.md` #10): the schema says what an app can read, the app version says what was released. An app reads
-every MINOR of its schema MAJOR; a content file of another MAJOR is refused at startup. This table names, per schema,
-the app version that first ships it. The last row is the current schema (a test checks that it matches
-`CONTENT_SCHEMA_VERSION`, so a new schema needs its row).
+every MINOR of its schema MAJOR and every older MAJOR down to `OLDEST_READABLE_SCHEMA_MAJOR`; content of a newer
+MAJOR is refused at startup.
 
-| Schema | First app version | Status | What the schema adds |
-|---|---|---|---|
-| 1.1 | 1.7.6 | released | content on the CDN |
-| 1.2 | 1.7.10 | released | see `docs/CHANGELOG.md` 1.7.10 |
-| 2.0 | 1.10.0 | unreleased | the entity as a tree of nodes |
-| 2.1 | 1.10.0 | unreleased | print placement of targets (`print`) |
-| 2.2 | 1.10.0 | unreleased | components (animation) |
-| 2.3 | 1.10.0 | unreleased | spread formats (cover, back) and the plugins list |
-| 2.4 | 1.11.0 | in develop | plugins – the book's own code, compiled by the content build (plugin API 1.0) |
-| 2.5 | 1.12.0 | in develop | post-processing passes |
-| 2.6 | 1.13.0 | in develop | light nodes: point, spot and directional lights as a node type |
-| 2.7 | 1.15.0 | in develop | plugin API 1.1 (events, variables, progress, the spread – the version a declared plugin carries) |
-| 2.8 | 1.17.0 | in develop | the book's environment: the world and the onion sky |
+**A MINOR never breaks an older app** (#220). An app reading a book of a newer MINOR loads it without what it does not
+know, and lists what it skipped (`getSkippedFeatures()`, `engine/src/content/forward-compatible.ts`):
 
-Several unreleased schema bumps may share one app version (1.10.0 has been open since the editor was started). Each
-bump gets its own row when it merges, and a rebase that meets another bump takes the next free number.
+- **Skipped** (dropped with a warning in the console): a component in a node's `components`, a filter in a video's
+  `filters`, a pass in a `passes` list, a node's `material` – of a type that is neither built in nor recorded by a
+  plugin of the book; a behaviour action (a rule left without an action goes with it) and an unknown field of a
+  behaviour, a rule or an action; a parameter a known spec does not have (a component's, a pass's, a filter's, a
+  light's, a material's, a plugin node type's); a parameter of a plugin's recorded spec whose kind the app does not
+  know (and the values set for it).
+- **Kept and listed**: a node of a type nobody registered (it renders nothing, its children stay); a plugin built
+  against a newer plugin API MINOR (what it uses of that MINOR does not work – a node type whose build calls it renders
+  nothing).
+- **Still refused**: a broken shape (a list that is not a list, an action with two verbs), a wrong type for a known
+  field, a new value of a required field (a category, an asset type, a step action, a spread format) – these are a
+  MAJOR's changes – and a newer MAJOR.
+
+The reader then shows a quiet hint at a calm moment, once per book version: *This book uses features this app version
+doesn't know yet – update the app to see everything* (with *Reload* when a new version is ready). The editor shows the
+list in its top bar ("N unknown features"). Content of the app's own or an older schema is read without skipping, and
+the content build and the editor's API stay strict – an unknown type there is a typo and refused.
+
+So a MINOR may add only what an older app can leave out, and its row says what an older app shows without it (*In an
+older app*). Apps before the release of #220 (schema 2.21 and older) did not skip: their guard refused what it did not
+know – the rows say where. This table names, per schema, the app version that first ships it. The last row is the
+current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new schema needs its row).
+
+| Schema | First app version | Status | What the schema adds | In an older app |
+|---|---|---|---|---|
+| 1.1 | 1.7.6 | released | content on the CDN | – |
+| 1.2 | 1.7.10 | released | see `docs/CHANGELOG.md` 1.7.10 | – |
+| 2.0 | 1.10.0 | released | the entity as a tree of nodes | refused (a new MAJOR: the node tree) |
+| 2.1 | 1.10.0 | released | print placement of targets (`print`) | – |
+| 2.2 | 1.10.0 | released | components (animation) | – |
+| 2.3 | 1.10.0 | released | spread formats (cover, back) and the plugins list | – |
+| 2.4 | 1.11.0 | released | plugins – the book's own code, compiled by the content build (plugin API 1.0) | – |
+| 2.5 | 1.12.0 | released | post-processing passes | – |
+| 2.6 | 1.13.0 | released | light nodes: point, spot and directional lights as a node type | a 2.5 app refuses a light node |
+| 2.7 | 1.15.0 | released | plugin API 1.1 (events, variables, progress, the spread – the version a declared plugin carries) | – |
+| 2.8 | 1.17.0 | released | the book's environment: the world and the onion sky | – |
+| 2.9 | 1.20.7 | in develop | the grade's `reach` (`ar` / `all`); the guard ignores a pass parameter it does not know | a 2.8 app refuses the grade's `reach` |
+| 2.10 | 1.21.0 | in develop | the environment's world model and sky image as asset references (`worldSrc`, `skySrc`) | – |
+| 2.11 | 1.22.0 | in develop | the content manifest names its book (`latest.json` / `versions.json` `book`) | ignored |
+| 2.12 | 1.27.0 | in develop | a node's optional `name` (the editor's tree shows it; the reader ignores it) | ignored |
+| 2.13 | 1.32.0 | in develop | a plugin's node type (`registerNodeType`, plugin API 1.2): its parameters in the node's `params` | a 2.12 app renders nothing for the plugin's node and keeps its children |
+| 2.14 | 1.34.0 | in develop | a plugin's recorded `registered` (the specs of its components, layers, node types and passes – the guard checks them) | ignored |
+| 2.15 | 1.35.0 | in develop | a parameter spec's optional `label` (plugin API 1.3) – the editor's row; in the content only inside a plugin's recorded specs | ignored |
+| 2.16 | 1.36.1 | in develop | nothing new in the content – shared/ imports its types type-only (`verbatimModuleSyntax`, #176) | – |
+| 2.17 | 1.41.0 | in develop | a node's `material` (a plugin's `registerMaterial`), the parameter kind `texture`, a plugin's recorded `materials` and `textures` (plugin API 1.4, #188) | a 2.16 app refuses a recorded spec with a `texture` parameter |
+| 2.18 | 1.49.0 | in develop | nothing new in the content – plugin API 1.5: `api.loadText`, a text file (a Library shader) by its URL (#186) | – |
+| 2.19 | 1.50.0 | in develop | the built-in component `behaviour`: rules on events with conditions on variables and actions, no code (#88) | a 2.18 app refuses a node that carries a behaviour |
+| 2.20 | 1.53.0 | in develop | nothing new in the content – plugin API 1.6: `api.feedback`, a GPU feedback buffer the engine steps every frame, and `api.shadertoy`, a Shadertoy pass as its fragment (#225) | a 2.19 app's engine has no `api.feedback`: a node type whose build calls it renders nothing |
+| 2.21 | 1.54.0 | in develop | a `passes` entry may name a pass a plugin of the book registers (`registerPass`), its parameters checked against the recorded spec (#216) | a 2.20 app refuses a book whose book or spread passes name a plugin's pass |
+| 2.22 | 1.57.0 | in develop | a pass's optional `enabled` – `false` switches it off: it keeps its place and values, the chain skips it (#233) | skipped: a 1.55.0 app drops the unknown field with the update hint, an older one ignores it – either way it runs, and so shows, a pass that is off |
+| 2.23 | 1.59.0 | in develop | no new field – an entry's `body` is Markdown (paragraphs, `*emphasis*`, `**strong**`, `[links](https://…)`) with the book's variables in braces (`{hasKey}`, `{hasKey: …\|…}`, #223); plain text reads as before | the body as written: the stars, brackets and braces show as they are (`**strong**` stays `**strong**`, `{hasKey}` stays `{hasKey}`) – nothing breaks, nothing is skipped |
+| 2.24 | 1.60.0 | in develop | nothing new in the content – `shared/` tidied: one `isObject`, one camelCase name pattern, unused `isComponentType` and `PlacementData` removed (#214) | nothing changes |
+| 2.25 | 1.61.0 | in develop | the configuration's `tutorial` is optional: the reader's onboarding is its own (steps in code, texts in its translations, #236); the build and a publish still write the app's English steps for older apps (`shared/compat/tutorial.ts`) until the next MAJOR – and the book's optional `sourceOfTruth` (`print` \| `digital`, #238: whether the editor adds and removes spreads) | nothing changes: it finds the `tutorial` it requires and shows those steps (in English, the book's fields filled in); `sourceOfTruth` is ignored (the guard reads no unknown field of the book) |
+
+Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
+another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.
 
 ## Content build
 
@@ -535,13 +746,12 @@ Run in `scripts/`:
 | `npm run build` | Rebuild the tool after changing `scripts/src/` |
 | `npm run sounds` | Generate the placeholder app sounds |
 | `npm run import -- <delivery folder> import/<name>.yaml` | Import a publisher's delivery into `content/` (below) |
-| `npm run protocol -- import/<name>.yaml` | Write the printed-image details for the trigger trial panel (below) |
+| `npm run protocol -- import/<name>.yaml` | Write the printed-image details for the trigger trial panel ([tracking](tracking.md) "The trigger trial") |
 
 ### Importing a delivery
 
 A publisher's delivery (folders of printed images, entry images and videos) goes into `content/` through a
-**mapping file** in `scripts/import/` – one per delivery, e.g. `import/2110.yaml` for the trial content of
-October 2026. The mapping says, per entry id, what the entry is and which delivered file is what:
+**mapping file** in `scripts/import/` – one per delivery, e.g. `import/2110.yaml`. The mapping says, per entry id, what the entry is and which delivered file is what:
 
 ```yaml
 entries:
@@ -569,12 +779,11 @@ when the delivered file is newer; **`entry.yaml` and `spread.yaml` are never ove
 freely and run the import again when the next delivery comes. Problems (a file missing, ffmpeg failing, a
 video without a target) are listed at the end.
 
-The mapping of a delivery is made by hand or with a script – for 2110 the printed images were matched
-against the trigger layout PDF (`All_Triggers.pdf`) by page and appearance, the link screenshots have no
-page in their file names. Files the delivery contains but the book does not place are listed in a comment at
-the top of the mapping.
+The mapping of a delivery is made by hand or with a script (matching the delivered images against the trigger
+layout PDF by page and appearance). Files the delivery contains but the book does not place are listed in a comment
+at the top of the mapping.
 
-`fixtures/content/` is the placeholder content from before the first delivery, slimmed down to a test fixture
+`fixtures/content/` is the test fixture – placeholder content slimmed down
 (every entity type, chroma key and alpha video, shared entities; small images, two-second videos, one stand-in
 model): build it with `OSCT_CONTENT_DIR=fixtures/content npm run build:content:force`. CI and the tests build it,
 and `osct content sync` refuses it (`FIXTURE.md` marks it). The full-size placeholder content is kept next to the
@@ -589,7 +798,7 @@ page, each printed trigger as an image where it is printed):
 
 ```bash
 cd scripts
-npm run layout -- --triggers "C:/path/All_Triggers.pdf" --preview "C:/path/OSCT_preview.pdf" --content ../content
+npm run layout -- --triggers "C:/path/All_Triggers.pdf" --preview "C:/path/OSCT_preview.pdf" --content "$OSCT_CONTENT_DIR"
 ```
 
 `scripts/layout/extract-layout.py` (Python 3 with PyMuPDF – an external tool like ffmpeg) renders every sheet
@@ -597,45 +806,16 @@ to `<content>/layout/sheets/*.jpg` (1200 px wide) and, next to each, a much shar
 the sheets (kind `spread`, `cover-front`, `cover-back`, front and back matter; their book pages read from the page
 numbers printed at the foot), and per target its page, surface (`left` / `right`), `x`, `y`, `width`, `height` in
 mm from the page's top left corner. Trigger images are matched to the targets of their page (the entry's `page`)
-by the aspect ratio of the target image, then by reading order; pages where the counts differ are listed (the
-trial delivery has ten targets that are not on the printout). The content build copies `layout/` with the rest of
-the content; the folder is generated and git-ignored. Run it again when the PDFs change, and rebuild the content
+by the aspect ratio of the target image, then by reading order; pages where the counts differ are listed. The content build copies `layout/` with the rest of
+the content; the folder is generated. Run it again when the PDFs change, and rebuild the content
 with `--force` (the layout is not part of the build hash).
 
-### Videos are not in git
+### Videos
 
-The imported entry videos (`content/entries/<id>/video.mp4`) are git-ignored – they are large and come to the servers
-through the CDN sync: `osct content sync` uploads whatever the local content build holds, videos included
-([content on the CDN](content-cdn.md); #15). Keep them in the local `content/` folder: the local build uses them. A build on a machine without them (CI, a deploy, a fresh clone) prints a warning per missing video and builds
-those targets without their AR video.
-
-### Trigger test protocol
-
-The checklist for a test with the printed book (or the trigger printout) is in the app: debug overlay → **trial**
-(dev server and staging; *trial* again or × closes it). A strip flush with the bottom of the screen shows every
-target as a thumbnail in a fixed order – the order of the printout, with its running number (the same numbers as the
-tester printouts of trial 2; targets not on the printout are dimmed, "not printed"). Nothing moves: a found one gets
-a green frame and a ✓, the one in view a yellow frame, the current spread's a white frame, and the strip scrolls smoothly to
-the current spread when it changes. While the trial is open the engine holds the current spread and its neighbours
-(±1, no growing window), so scanning the next image on the sheet switches the spread by itself; closing restores
-the window setting. Tap a thumbnail to go to its spread, ‹ › step through the spreads, drag the strip's top bar to
-make it taller or lower. A camera line under the bar shows the lens, resolution, focus and zoom the trial runs with –
-feedback only, the trial uses the app's camera defaults; the md report records it (the test switches are in the
-debug overlay's camera panel, `docs/tracking.md` "Camera"). The bar counts the targets not found yet. "Found" comes from the progress, so reset the progress
-(debug overlay → progress) to start a trial over. **md** downloads the report – the targets not found with their
-printed image, then the found ones – to forward to the designers.
-
-The runs so far, with their results per device, are in [trigger-tests/](trigger-tests/README.md).
-
-The printed-image details come from the delivery mapping:
-
-```bash
-cd scripts
-npm run protocol -- import/2110.yaml       # → client/public/trigger-protocol.json
-```
-
-Run it after an import (the file is committed and served at `/trigger-protocol.json`); the panel works without
-it, then without file names and sizes.
+The imported entry videos (`entries/<id>/video.mp4` in the content source) are large and reach the servers through
+the CDN sync: `osct content sync` uploads whatever the local content build holds, videos included
+([content on the CDN](content-cdn.md); #15). A build on a machine without them prints a warning per missing video and
+builds those targets without their AR video.
 
 ### What it writes
 
@@ -651,7 +831,7 @@ scripts/
 ├── src/            everything in TypeScript, bundled into dist/ by `npm run build`
 │   ├── index.ts            the content build: start
 │   ├── config.ts           all folders and limits
-│   ├── build/              content build parts: book, spreads, entities, entries, targets, tutorial, plugins
+│   ├── build/              content build parts: book, spreads, entities, entries, targets, tutorial (for older apps), plugins
 │   ├── lib/                shared helpers: reading content, files, hash, checks, media, storage, sync
 │   ├── cli.ts              the osct CLI: content build | status | sync | purge (content-cdn.md)
 │   ├── import-delivery.ts  `npm run import` – a publisher delivery into the content (mapping in import/)

@@ -6,21 +6,35 @@ import * as esbuild from 'esbuild';
 import ts from 'typescript';
 import * as THREE from 'three';
 import { componentSpecProblems, registerComponentSpec, type ComponentSpec } from '../../../shared/types/components';
-import { PLUGIN_API_VERSION, PLUGIN_ID_PATTERN, type PluginData } from '../../../shared/types/plugins';
+import { PLUGIN_API_VERSION, PLUGIN_ID_PATTERN, type PluginData, type PluginRegistrations } from '../../../shared/types/plugins';
+import { nodeTypeSpecProblems, registerNodeTypeSpec, type NodeTypeSpec } from '../../../shared/types/node-types';
+import {
+  materialSpecProblems, registerMaterialSpec, registerTextureSpec, textureSpecProblems, type MaterialSpec, type TextureSpec,
+} from '../../../shared/types/materials';
 import type { EntityData } from '../../../shared/types/game-config';
+import { isBuiltInPassType } from '../../../shared/types/passes';
 import { CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, projectRoot } from '../config';
-import { buildErrors, buildWarnings } from '../lib/errors';
+import { buildErrors, buildWarnings, messageOf } from '../lib/errors';
+import type { PluginApi } from '../../../engine/src/scene/plugins';
+import { type Feedback, feedbackProblems, type FeedbackOptions, shadertoyFragment } from '../../../engine/src/scene/feedback-spec';
 
 /**
- * The book's own code (content schema 2.4, agents/research/2026-10-29-code-in-the-editor.md): every folder
+ * The book's own code (content schema 2.4, docs/plugins.md "Shipping it: the content build"): every folder
  * `content/plugins/<id>/` with an `index.ts` is a plugin. The build
  *   1. type-checks it against the plugin API (`engine/src/scene/plugins.ts`, imported as `osct-plugin-api`) –
  *      every error with its file and line, like any other content error;
  *   2. bundles it with esbuild into one ES module (`plugin.js`, next to the source in the build output – the
  *      immutable version folder); a plugin imports nothing but types (three.js is `api.three`);
  *   3. runs the module once with a recording API: the components and material layers it registers join the
- *      registry, so the nodes that use them are checked like the built-in `animation`;
- *   4. declares it in `game.config.json`: `plugins: [{ id, src, api }]`.
+ *      registry, so the nodes that use them are checked like the built-in `animation`; the node types it registers
+ *      join the node type registry, so nodes of that type pass (their parameters and file checked); its materials and
+ *      procedural textures (API 1.4) join theirs, so a node's `material` and a `texture` parameter are checked; its
+ *      passes are recorded, so the book's and the spreads' `passes` may name them (schema 2.21, `build/book.ts`).
+ *      A feedback buffer (API 1.6, `api.feedback`) is no registration: the recording run checks its options and hands
+ *      out a dummy handle (a texture that never changes), so a plugin that makes one in `register` records like any;
+ *   4. declares it in `game.config.json`: `plugins: [{ id, src, api, registered }]` – `registered` (schema 2.14) the
+ *      specs of the components, layers, node types, passes, materials and textures it registered, so the guard, the
+ *      editor's API, the MCP server and the Entity panel know them without running the plugin.
  * Nothing here runs in the content build without a review: plugins live in the content source like the YAML.
  */
 
@@ -126,20 +140,49 @@ export async function bundlePlugin(id: string, entry: string): Promise<string | 
     if (messages?.length) {
       messages.forEach(m => buildErrors.push(`plugins/${id}${m.location ? `/${path.basename(m.location.file)}(${m.location.line},${m.location.column + 1})` : ''}: ${m.text}`));
     } else {
-      buildErrors.push(`plugins/${id}: ${(error as Error).message}`);
+      buildErrors.push(`plugins/${id}: ${messageOf(error)}`);
     }
     return null;
   }
 }
 
+/** What `api.feedback` gives the recording run: a handle that never steps, its texture an empty one */
+export const dummyFeedback = (options: Partial<FeedbackOptions> | undefined): Feedback => {
+  const texture = new THREE.Texture();
+  return {
+    texture,
+    uniform: { value: texture },
+    uniforms: { ...(options?.uniforms ?? {}) },
+    width: Number(options?.width) || 1,
+    height: Number(options?.height) || 1,
+    type: options?.type ?? 'half',
+    frame: 0,
+    paused: true,
+    reset: () => undefined,
+    dispose: () => texture.dispose(),
+  };
+};
+
+/** A recorded spec as the configuration holds it: plain JSON (a plugin's spec object may carry more than data) */
+const plain = <T>(spec: T): T => JSON.parse(JSON.stringify(spec)) as T;
+
+/** What one plugin registered: the type names (for the log) and the specs (the configuration's `registered`) */
+export interface PluginRecord {
+  types: string[];
+  registered: Required<PluginRegistrations>;
+}
+
 /**
  * Run the bundled module once with a recording API: what it registers joins the registry (for the checks of the
- * nodes that use it). An exception in register, an invalid spec or a type two plugins register are errors.
+ * nodes that use it) and is recorded – its specs go into the configuration (`registered`, schema 2.14). An exception
+ * in register, an invalid spec or a type two plugins register are errors.
  */
-export async function recordPlugin(id: string, code: string, taken: Map<string, string>): Promise<string[]> {
+export async function recordPlugin(id: string, code: string, taken: Map<string, string>): Promise<PluginRecord> {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'osct-plugin-')), `${id}.mjs`);
   fs.writeFileSync(file, code);
-  const registered: string[] = [];
+  const types: string[] = [];
+  const registered: Required<PluginRegistrations> = { components: {}, nodeTypes: {}, passes: {}, materials: {}, textures: {} };
+  const record: PluginRecord = { types, registered };
   const take = (type: string, spec: ComponentSpec) => {
     const problems = componentSpecProblems(type, spec);
     if (taken.has(type) && taken.get(type) !== id) problems.push(`"${type}" is registered by the plugin ${taken.get(type)} too`);
@@ -149,16 +192,18 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
     }
     taken.set(type, id);
     registerComponentSpec(type, spec);
-    registered.push(type);
+    types.push(type);
+    registered.components[type] = plain(spec);
   };
   try {
     const module = (await import(pathToFileURL(file).href)) as { register?: unknown; default?: unknown };
     const register = module.register ?? module.default;
     if (typeof register !== 'function') {
       buildErrors.push(`plugins/${id}: ${ENTRY} exports no register(api) function`);
-      return registered;
+      return record;
     }
-    register({
+    // The engine's own API type: a method the engine adds or changes fails here first, not in a book's build
+    const recording: PluginApi = {
       version: PLUGIN_API_VERSION,
       three: THREE,
       registerComponent: (type: string, spec: ComponentSpec, apply: unknown) => {
@@ -168,27 +213,92 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
       registerLayer: (type: string, spec: ComponentSpec, layer: { glsl?: unknown }) => {
         if (typeof layer?.glsl !== 'string' || !layer.glsl.trim()) buildErrors.push(`plugins/${id}: the layer ${type} needs its glsl`);
         take(type, spec);
-        if (registered.includes(type)) layerTypes.add(type);
+        if (types.includes(type)) layerTypes.add(type);
       },
-      // The build checks a pass's spec and factory. TODO: a spread may name the pass once the guard takes plugin pass types (#97)
+      // A pass: its spec and factory checked and recorded – the book and a spread name it in `passes` (schema 2.21,
+      // checked against the recorded spec); a built-in pass's name or one another plugin took is an error
       registerPass: (type: string, spec: ComponentSpec, factory: unknown) => {
-        const problems = componentSpecProblems(type, spec);
+        const problems = componentSpecProblems(type, spec).filter(problem => !problem.endsWith('is a built-in component'));
+        const key = `pass:${type}`;
+        if (isBuiltInPassType(type)) problems.push(`the pass "${type}" is a built-in pass`);
+        if (taken.has(key) && taken.get(key) !== id) problems.push(`the pass "${type}" is registered by the plugin ${taken.get(key)} too`);
         if (typeof factory !== 'function') problems.push(`the pass ${type} needs a factory`);
-        problems.forEach(problem => buildErrors.push(`plugins/${id}: ${problem}`));
+        if (problems.length) {
+          problems.forEach(problem => buildErrors.push(`plugins/${id}: ${problem}`));
+          return;
+        }
+        taken.set(key, id);
+        types.push(type);
+        registered.passes[type] = plain({ description: spec.description, params: spec.params });
+      },
+      // A node type (API 1.2): its spec joins the registry, so the nodes of that type are checked (params, src)
+      registerNodeType: (type: string, spec: NodeTypeSpec, build: unknown) => {
+        const problems = nodeTypeSpecProblems(type, spec);
+        const key = `node:${type}`;
+        if (taken.has(key) && taken.get(key) !== id) problems.push(`the node type "${type}" is registered by the plugin ${taken.get(key)} too`);
+        if (typeof build !== 'function') problems.push(`the node type ${type} needs a build(context) function`);
+        if (problems.length) {
+          problems.forEach(problem => buildErrors.push(`plugins/${id}: ${problem}`));
+          return;
+        }
+        taken.set(key, id);
+        registerNodeTypeSpec(type, spec);
+        types.push(type);
+        registered.nodeTypes[type] = plain(spec);
+      },
+      // A material (API 1.4): its spec joins the registry, so a node's `material` is checked (type, parameters)
+      registerMaterial: (type: string, spec: MaterialSpec, build: unknown) => {
+        const problems = materialSpecProblems(type, spec);
+        const key = `material:${type}`;
+        if (taken.has(key) && taken.get(key) !== id) problems.push(`the material "${type}" is registered by the plugin ${taken.get(key)} too`);
+        if (typeof build !== 'function') problems.push(`the material ${type} needs a build(context) function`);
+        if (problems.length) {
+          problems.forEach(problem => buildErrors.push(`plugins/${id}: ${problem}`));
+          return;
+        }
+        taken.set(key, id);
+        registerMaterialSpec(type, spec);
+        types.push(type);
+        registered.materials[type] = plain(spec);
+      },
+      // A procedural texture (API 1.4): its spec joins the registry, so a `texture` parameter that names it is checked
+      registerTexture: (type: string, spec: TextureSpec, draw: unknown) => {
+        const problems = textureSpecProblems(type, spec);
+        const key = `texture:${type}`;
+        if (taken.has(key) && taken.get(key) !== id) problems.push(`the texture "${type}" is registered by the plugin ${taken.get(key)} too`);
+        if (typeof draw !== 'function') problems.push(`the texture ${type} needs a draw(context) function`);
+        if (problems.length) {
+          problems.forEach(problem => buildErrors.push(`plugins/${id}: ${problem}`));
+          return;
+        }
+        taken.set(key, id);
+        registerTextureSpec(type, spec);
+        types.push(type);
+        registered.textures[type] = plain(spec);
       },
       // The runtime (events, variables, progress, the spread) belongs to a running scene: here nothing happens
       events: { on: () => () => undefined, emit: () => undefined },
       vars: { get: () => undefined, set: () => undefined, on: () => () => undefined, all: () => ({}) },
       progress: { unlocked: () => false, consulted: () => false, completion: () => 0, counts: () => ({ unlocked: 0, targets: 0 }) },
       spread: { current: null, get: () => undefined },
+      // A file is loaded where a build runs (a material, a pass, a node type) – never while recording
+      loadText: () => Promise.resolve(''),
+      // A feedback buffer (API 1.6) runs on a renderer: here its options are checked and a dummy stands in
+      feedback: (options: FeedbackOptions) => {
+        const problems = feedbackProblems(options);
+        if (problems.length) buildErrors.push(`plugins/${id}: api.feedback – ${problems.join('; ')}`);
+        return dummyFeedback(options);
+      },
+      shadertoy: (source: string) => shadertoyFragment(source),
       log: () => undefined,
-    });
+    };
+    (register as (api: PluginApi) => void)(recording);
   } catch (error) {
-    buildErrors.push(`plugins/${id}: register failed – ${(error as Error).message}`);
+    buildErrors.push(`plugins/${id}: register failed – ${messageOf(error)}`);
   } finally {
     fs.rmSync(path.dirname(file), { recursive: true, force: true });
   }
-  return registered;
+  return record;
 }
 
 /**
@@ -219,9 +329,12 @@ export async function buildPlugins(): Promise<PluginBuild[]> {
   for (const { id, entry } of folders) {
     const code = await bundlePlugin(id, entry);
     if (code === null) continue;
-    const types = await recordPlugin(id, code, taken);
+    const { types, registered } = await recordPlugin(id, code, taken);
     console.log(`   ${id}: ${Math.round(code.length / 1024)} KB${types.length ? ` – ${types.join(', ')}` : ''}`);
-    builds.push({ data: { id, src: `/assets/content/${PLUGINS_DIR}/${id}/plugin.js`, api: PLUGIN_API_VERSION }, code });
+    // Materials and textures (API 1.4) only when the plugin registers some
+    const { materials, textures, ...kinds } = registered;
+    const recorded: PluginRegistrations = { ...kinds, ...(Object.keys(materials).length ? { materials } : {}), ...(Object.keys(textures).length ? { textures } : {}) };
+    builds.push({ data: { id, src: `/assets/content/${PLUGINS_DIR}/${id}/plugin.js`, api: PLUGIN_API_VERSION, registered: recorded }, code });
   }
   return builds;
 }

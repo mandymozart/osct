@@ -43,6 +43,8 @@ export default interface Resources {
       "too-many-attempts": "Too many wrong codes. Request a new email.",
       "too-many-password-attempts": "Too many wrong passwords. Try again in an hour, or send a sign-in link.",
       "too-many-requests": "Too many emails in a short time. Try again in an hour.",
+      "too-many-requests-wait_one": "Too many emails in a short time. Try again in {{count}} minute.",
+      "too-many-requests-wait_other": "Too many emails in a short time. Try again in {{count}} minutes.",
       "unauthorized": "You're signed out. Sign in again.",
       "wrong-current-password": "The current password isn't right."
     },
@@ -172,6 +174,25 @@ export default interface Resources {
     "unknownError": "An unknown error occurred."
   },
   "tutorial": {
+    "camera": {
+      "button": "Grant access",
+      "text": "To scan the book and display interactive content, this application requires access to your camera.\n\nPlease, grant access to proceed."
+    },
+    "done": {
+      "button": "Access scan",
+      "title": "Thank you!"
+    },
+    "intro": {
+      "button": "Continue",
+      "text": "This application allows you to reveal videos, texts and key references hidden in the printed publication *{{title}}*."
+    },
     "skip": "Skip"
+  },
+  "update": {
+    "close": "Close",
+    "later": "Later",
+    "newerContent": "This book uses features this app version doesn't know yet – update the app to see everything.",
+    "ready": "A new version of the app is ready.",
+    "reload": "Reload"
   }
 }

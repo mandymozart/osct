@@ -1,34 +1,42 @@
 /**
  * Game configuration contract – the shape of `game.config.json`.
  *
- * Written by the content build (`scripts/`), read by the app (`client/src/utils/game-config.ts`).
+ * Written by the content build (`scripts/`), read by the engine (`engine/src/content/game-config.ts`), which the reader
+ * and the editor load it with.
  * Defined once here (RULES #13). `*Data` = data loaded from JSON; the app maps it to its own model.
  * Runtime checks: `shared/guards/game-config.ts`.
  */
 
-import { EntryCategory } from "./entry";
-import { FilterData } from "./filters";
+import type { EntryCategory } from "./entry";
+import type { FilterData } from "./filters";
 import type { ComponentData } from "./components";
 import type { EnvironmentData } from "./environment";
 import type { LightData } from "./lights";
 import type { PassData } from "./passes";
 import type { PluginData } from "./plugins";
+import type { MaterialData } from "./materials";
 
 export * from "./filters";
 export * from "./placement";
 export * from "./components";
+export * from "./behaviour";
 export * from "./lights";
 export * from "./passes";
 export * from "./plugins";
+export * from "./node-types";
+export * from "./materials";
 
 /**
  * Node types of an entity (extensible, RULES #7): what is seen – a model, a video or image plane, a line of text,
  * a light – or a `group` that only holds children. Links are entries, not entities.
  * The guard lets a node type it does not know pass (the engine renders nothing for it but keeps its children), so
- * a later type is a MINOR addition; the content build and the editor's API still refuse one.
+ * a later type is a MINOR addition; the content build and the editor's API still refuse one – unless a plugin
+ * registers it (schema 2.13, `./node-types.ts`): ENTITY_TYPES stays the built-in list.
  */
 export const ENTITY_TYPES = ["group", "model", "video", "image", "text", "light"] as const;
 export type EntityType = (typeof ENTITY_TYPES)[number];
+/** A node's type: a built-in one, or one a plugin registers (`registerNodeType`, camelCase – `./node-types.ts`) */
+export type NodeType = EntityType | (string & {});
 
 export const ASSET_TYPES = ["glb", "gltf", "video", "image", "audio"] as const;
 export type AssetType = (typeof ASSET_TYPES)[number];
@@ -40,12 +48,42 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   type, a new enum value (asset type, category, step action, spread format). The app refuses content of a
  *   newer MAJOR at startup; it reads every MAJOR from `OLDEST_READABLE_SCHEMA_MAJOR` on as it is (so far the one
  *   MAJOR, the node tree, only added).
- * - MINOR: an addition older apps ignore – a new optional field (the book's `environment` since 2.8), and since 2.6 a
- *   new node type (the guard lets an unknown one pass; a 2.5 app refuses it). Any MINOR of the same MAJOR loads.
+ * - MINOR: an addition an older app of the same MAJOR still loads (RULES #10): what it does not know of a kind it knows
+ *   is skipped with a warning (`engine/src/content/forward-compatible.ts`), never refused. Apps before #220 refused
+ *   some of it (2.17, 2.19 and 2.21 below). The MINORs so far: a new optional field (the book's `environment` since 2.8,
+ *   its world and sky assets since 2.10), and since 2.6 a new node type (the guard lets an unknown one pass; a 2.5 app
+ *   refuses it), and since 2.9 a new pass parameter
+ *   (the grade's `reach`: the guard ignores a parameter it does not know; a 2.8 app refuses it), and since 2.11 the
+ *   content manifest's `book`, and since 2.12 a node's `name`, and since 2.13 a plugin's node type
+ *   (`registerNodeType`, its parameters in the node's `params`; a 2.12 app renders nothing for it and keeps its
+ *   children), and since 2.14 a plugin's recorded `registered` (the specs of what it registers; a 2.13 app ignores
+ *   it), and since 2.15 a parameter spec's optional `label` (the words the editor's row shows, plugin API 1.3 – in the
+ *   content only inside a plugin's recorded specs; a 2.14 app ignores it), and 2.16 adds nothing to the content (shared/
+ *   imports its types type-only, verbatimModuleSyntax – #176), and since 2.17 a node's optional `material` (a plugin's
+ *   `registerMaterial`, plugin API 1.4 – a 2.16 app keeps the node's own material), and a plugin's recorded materials and
+ *   textures (a 2.16 app ignores them) – but a recorded spec with a parameter of the new kind `texture` is refused by a
+ *   2.16 guard (it knows no such kind): a book whose plugins take textures needs a 2.17 app, and 2.18 adds nothing to the
+ *   content (plugin API 1.5: `api.loadText`, a declared plugin built against it carries `api: "1.5"`), and since 2.19 the
+ *   built-in component `behaviour` (rules without code, `./behaviour.ts`) – a 2.18 guard refuses a node that carries one
+ *   (it knows no such component, as a 2.16 guard a `texture` parameter): a book with behaviours needs a 2.19 app, and 2.20
+ *   adds nothing to the content (plugin API 1.6: `api.feedback`, a GPU feedback buffer, and `api.shadertoy` – a declared
+ *   plugin built against it carries `api: "1.6"`; a 2.19 app's engine has no `api.feedback`, so a build that calls it
+ *   fails and its node renders nothing), and since 2.21 a `passes` entry may name a pass a plugin of the book registers
+ *   (`registerPass`, its parameters checked against the recorded spec – `./passes.ts`) – a 2.20 guard refuses a pass type
+ *   it does not know: a book whose spreads name a plugin's pass needs a 2.21 app, and since 2.22 a pass's optional `enabled`
+ *   (`false` = off: it keeps its place and values, the chain skips it, #233) – a 2.21 app skips the field as an unknown
+ *   parameter (a 2.20 one ignores it) and runs the pass, and 2.23 changes no field but what an entry's `body` means: Markdown
+ *   (paragraphs, emphasis, strong, links) with the book's variables in braces (`../text/entry-text.ts`) – plain text is
+ *   valid Markdown and reads as before; an older app shows the source as it is, the stars, brackets and braces included,
+ *   and 2.24 adds nothing to the content (shared/ tidied: one `isObject`, one camelCase name pattern, unused types
+ *   removed – #214), and since 2.25 the configuration's `tutorial` is optional: the reader owns its onboarding (its steps
+ *   and their texts in its translations, #236) and reads none from the content; the content build and a publish still
+ *   write the steps older apps require (`../compat/tutorial.ts`) until the next MAJOR – and the book's optional
+ *   `sourceOfTruth` (print | digital: which side the spreads come from, #238; an older app ignores it).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.8";
+export const CONTENT_SCHEMA_VERSION = "2.25";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
@@ -77,9 +115,23 @@ export interface BookData {
   publisher?: string;
   /** Optional (schema 2.5): the post-processing passes of every spread without a list of its own (`./passes.ts`) */
   passes?: PassData[];
-  /** Optional (schema 2.8): the world around the reader and the onion sky (`./environment.ts`); none = the default */
+  /** Optional (schema 2.8; world and sky assets 2.9): the world around the reader and the onion sky (`./environment.ts`); none = the default */
   environment?: EnvironmentData;
+  /**
+   * Optional (schema 2.25): the book's source of truth (#238) – `print` (print first: the printed book is the truth, its
+   * spreads, pages and printed placements come from an import of the layout) or `digital` (digital first: the editor is
+   * the truth, spreads are added and removed there). None = print (`sourceOfTruthOf`). The reader does not read it.
+   */
+  sourceOfTruth?: SourceOfTruth;
 }
+
+/** Where a book's spreads come from (`BookData.sourceOfTruth`, #238) */
+export const SOURCES_OF_TRUTH = ["print", "digital"] as const;
+export type SourceOfTruth = (typeof SOURCES_OF_TRUTH)[number];
+
+/** A book's source of truth: `digital` only when it says so – none (or a value this contract does not know) is print */
+export const sourceOfTruthOf = (book: Pick<BookData, "sourceOfTruth"> | null | undefined): SourceOfTruth =>
+  book?.sourceOfTruth === "digital" ? "digital" : "print";
 
 /**
  * What a spread is in the book: a double page (`spread`, the default), the front **cover** or the **back** cover – the
@@ -111,15 +163,30 @@ export interface AssetData {
  * its parent and may hold `children`. A 1.x entity is a tree of one node, so the app reads both.
  */
 export interface EntityData {
-  /** Optional, unique within the tree: the editor's selection, a later behaviour's target */
+  /** Optional, unique within the tree: the editor's selection */
   id?: string;
-  type: EntityType;
-  /** The node's own files (a model, a video, an image); empty for `group`, `text` and `light` */
+  /**
+   * Optional (schema 2.12): the node's name for the people who make the book – the editor's tree shows it; a behaviour's
+   * action names a node of its subtree by it (schema 2.19)
+   */
+  name?: string;
+  /** A built-in type (ENTITY_TYPES) or a plugin's (schema 2.13) */
+  type: NodeType;
+  /** The node's own files (a model, a video, an image); empty for `group`, `text` and `light` (a plugin's type: its spec's `src`) */
   assets: AssetData[];
-  params?: Record<string, unknown>; // placement: position / rotation / scale (see ./placement.ts)
+  /** Placement: position / rotation / scale (see ./placement.ts); a plugin node type's parameters (schema 2.13, `./node-types.ts`) */
+  params?: Record<string, unknown>;
   filters?: FilterData[]; // video only, applied in order (see ./filters.ts)
-  /** Components applied to this node (schema 2.2 – `componentSpec`): the built-in `animation` on a model, a plugin's component or material layer (schema 2.4) */
+  /**
+   * Components applied to this node (schema 2.2 – `componentSpec`): the built-in `animation` on a model and `behaviour`
+   * (schema 2.19, rules without code – `./behaviour.ts`), a plugin's component or material layer (schema 2.4)
+   */
   components?: ComponentData[];
+  /**
+   * Optional (schema 2.17): a material a plugin registered (`registerMaterial`) that replaces the material of the node's
+   * meshes – its type and values (`./materials.ts`); the node's material layers still add on top
+   */
+  material?: MaterialData;
   /** Child nodes, placed relative to this one */
   children?: EntityData[];
   /** `text` nodes: the line shown; `{{entry.title}}` and `{{book.title}}` are replaced */
@@ -135,15 +202,15 @@ export interface EntityRefData {
   ref: string;
 }
 
+/** The surfaces a target can be printed on: a page of a double page, the front or the back cover */
+export const PRINT_SURFACES = ["left", "right", "front", "back"] as const;
+export type PrintSurface = (typeof PRINT_SURFACES)[number];
+
 /**
  * Where a target is printed: on which page and surface, and its box in mm from the surface's top left corner – the
  * editor's stage lays the target there (before the book's layout from the designed PDFs, which the content build
  * knows); the reader does not need it.
  */
-/** The surfaces a target can be printed on: a page of a double page, the front or the back cover */
-export const PRINT_SURFACES = ["left", "right", "front", "back"] as const;
-export type PrintSurface = (typeof PRINT_SURFACES)[number];
-
 export interface PrintPlacement {
   page?: number;
   surface: PrintSurface;
@@ -166,6 +233,10 @@ export interface EntryData {
   category: EntryCategory;
   title: string;
   page: number; // access page – decides the spread
+  /**
+   * The text (schema 2.23: Markdown – paragraphs, *emphasis*, **strong**, [links](https://…) – with the book's variables
+   * in braces, `{hasKey}`; `../text/entry-text.ts` renders it). Plain text reads as before.
+   */
   body: string;
   author?: string; // texts
   image?: string;
@@ -179,8 +250,10 @@ export const STEP_ACTIONS = ["next", "camera", "scan"] as const;
 export type StepAction = (typeof STEP_ACTIONS)[number];
 
 /**
- * Onboarding / tutorial step. Without `button` the step advances by itself after
- * `advance` ms (or on tap). `description` may use `*emphasis*` and blank lines for paragraphs.
+ * Onboarding / tutorial step, as apps of schema 2.24 and before read it from the content (`tutorial`); since 2.25 the
+ * reader owns its onboarding and the content carries the steps only for those apps (`../compat/tutorial.ts`). Without
+ * `button` the step advances by itself after `advance` ms (or on tap). `description` may use `*emphasis*` and blank
+ * lines for paragraphs; `{{title}}`, `{{author}}` and `{{publisher}}` are the book's.
  */
 export interface StepData {
   id: string;
@@ -209,7 +282,11 @@ export interface GameConfiguration {
   spreads: readonly SpreadData[];
   entries: readonly EntryData[];
   entities: Readonly<Record<string, EntityData>>; // shared entities, referenced by `EntityRefData`
-  tutorial: readonly StepData[];
+  /**
+   * Optional (schema 2.25; required before): the onboarding for apps of schema 2.24 and before – the reader since 2.25
+   * shows its own and ignores it
+   */
+  tutorial?: readonly StepData[];
   /** The book's own code (schema 2.4, optional): compiled plugins the engine loads before the first spread */
   plugins?: readonly PluginData[];
 }

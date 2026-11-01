@@ -1,5 +1,5 @@
 import { GameStoreService } from "@/services";
-import { Entry, EntryCategory, IGame } from "@/types";
+import type { Entry, EntryCategory, IGame } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { escapeHtml } from "@/utils";
 import { DEFAULT_CATEGORY, entryLabel, groupEntries } from "./entries-model";

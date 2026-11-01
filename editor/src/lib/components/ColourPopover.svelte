@@ -1,11 +1,10 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { HEX, PALETTE, hexToHsv, hsvToHex, longHex, recentColours, type Hsv } from "$lib/colour";
+  import { HEX, PALETTE, hexToHsv, hsvToHex, longHex, recentColours, type Hsv } from "#lib/colour.js";
   import Icon from "./Icon.svelte";
 
   /**
-   * The colour popover's content (after Scutoons' colour popover, owner 2026-10-18: "the native picker isn't app
-   * UI"): the palette, this browser's recent colours, a saturation / brightness area with a hue slider, the hex, and
+   * The colour popover's content (the native picker is no app UI): the palette, this browser's recent colours, a saturation / brightness area with a hue slider, the hex, and
    * the eyedropper that picks from the stage. Every pick goes out at once (`onpick`, a whole `#rrggbb`); the field
    * stays the source of the value. Keyboard: Tab through the swatches → the area (arrows: saturation ← →,
    * brightness ↑ ↓; Shift ×10) → the hue (a range input) → the hex.
@@ -117,7 +116,6 @@
   .section { display: flex; flex-direction: column; gap: .25rem; }
   .section .section-label { font-size: var(--text-small); }
   .swatches { display: flex; flex-wrap: wrap; gap: .25rem; }
-  /* a swatch: a control-height square, a line frame, the colour inside; the current one framed in the text colour */
   .swatch { width: var(--control-height); height: var(--control-height); margin: 0; padding: 2px; border: 1px solid var(--line); border-radius: var(--control-radius);
     background: linear-gradient(var(--c), var(--c)) content-box, var(--surface); cursor: pointer; }
   .swatch[aria-pressed="true"] { border-color: var(--text); border-width: 2px; padding: 1px; }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BoxGeometry, Color, Group, Matrix4, Mesh, MeshBasicMaterial, ShaderMaterial } from "three";
-import { ANIMATIONS, celebrate, CELEBRATION_MS, injectDissolve } from "../celebration";
+import { ANIMATIONS, celebrate, injectDissolve } from "../celebration";
 
 const uniforms = () => ({
   uFreq: { value: 1 },
@@ -46,7 +46,7 @@ describe("unlock animation (reverse emissive dissolve)", () => {
     expect(animation.bloom).toBeGreaterThan(0);
     let frames = 20;
     while (animation.update(1)) frames++; // a stall (e.g. shader compile) does not skip the animation
-    expect(frames).toBeGreaterThanOrEqual(Math.ceil(CELEBRATION_MS / (1000 / 30)) - 1);
+    expect(frames).toBeGreaterThanOrEqual(Math.ceil(ANIMATIONS.unlock.ms / (1000 / 30)) - 1);
     expect(animation.bloom).toBe(0);
     expect(a.material).toBe(basic);
     expect(b.material).toBe(custom);

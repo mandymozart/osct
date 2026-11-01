@@ -16,7 +16,7 @@ if (!process.env.VITEST && existsSync(envFile)) process.loadEnvFile(envFile);
 export const FIXTURE_DIR = resolve(projectRoot, 'fixtures/content');
 /** Marks the fixture; the build copies it into the output, `osct content sync` refuses a build with it */
 export const FIXTURE_MARKER = 'FIXTURE.md';
-/** The demo book (fixtures/demo, agents/research/2026-10-30-demo-book.md): a sandbox next to the fixture */
+/** The demo book (fixtures/demo, docs/plugins.md "The demo book"): a sandbox next to the fixture */
 export const DEMO_DIR = resolve(projectRoot, 'fixtures/demo');
 /** Marks the demo; a build with it goes to the environment DEMO_ENV only – never where the book's current version is */
 export const DEMO_MARKER = 'DEMO.md';
@@ -34,9 +34,9 @@ export const SOUNDS_DIR = resolve(projectRoot, 'client/public/assets/sounds');
 // One version for app and tooling (RULES.md #10), recorded in the content as information (`version.version`);
 // compatibility is the content schema. Source: client/package.json – read directly, npm_package_version is
 // missing outside `npm run`.
-export const APP_VERSION: string = JSON.parse(
-  readFileSync(resolve(projectRoot, 'client/package.json'), 'utf8')
-).version;
+const clientVersion: unknown = (JSON.parse(readFileSync(resolve(projectRoot, 'client/package.json'), 'utf8')) as { version?: unknown }).version;
+if (typeof clientVersion !== 'string') throw new Error('client/package.json has no version');
+export const APP_VERSION: string = clientVersion;
 
 // Content rule (RULES.md #3): targets per spread (the 8th Wall engine tracks 4 of them at the same moment)
 export const MAX_TARGETS_PER_SPREAD = 10;

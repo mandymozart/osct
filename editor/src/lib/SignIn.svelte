@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { session } from "$lib/session.svelte";
+  import { session } from "#lib/session.svelte.js";
 
   /** Sign in as the instance user: a code by email (the reader's way), or the password of an account that set one */
   let email = $state("");
@@ -18,6 +18,7 @@
 <form onsubmit={submit} class="sign-in">
   <h1>OSCT Editor</h1>
   <p class="muted">Sign in with your account of this instance. Editors and admins only.</p>
+  {#if session.notice}<p class="small" role="status">{session.notice}</p>{/if}
   {#if session.pending}
     <label class="row"><span class="label">code</span>
       <input class="field" bind:value={code} inputmode="numeric" autocomplete="one-time-code" placeholder="6 digits from the email" required /></label>

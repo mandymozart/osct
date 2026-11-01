@@ -1,3 +1,15 @@
 {
-  "skip": "Überspringen"
+  "skip": "Überspringen",
+  "intro": {
+    "text": "Mit dieser App entdeckst du Videos, Texte und wichtige Verweise, die in der gedruckten Publikation *{{title}}* verborgen sind.",
+    "button": "Weiter"
+  },
+  "camera": {
+    "text": "Um das Buch zu scannen und interaktive Inhalte zu zeigen, braucht diese App Zugriff auf deine Kamera.\n\nBitte erlaube den Zugriff, um fortzufahren.",
+    "button": "Zugriff erlauben"
+  },
+  "done": {
+    "title": "Danke!",
+    "button": "Zum Scan"
+  }
 }

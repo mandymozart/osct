@@ -1,6 +1,7 @@
-// Where the server talks to and as whom: `OSCT_API_URL` (default: the local dev API) and `OSCT_EDITOR_TOKEN` (an
-// editor's session token, sent as `Authorization: Bearer`). Without a token the server starts with the sign-in tools
-// only – `sign_in_request` / `sign_in_verify` fetch one for this process (the code arrives by mail). `OSCT_EDITOR_URL`
+// Where the server talks to and as whom: `OSCT_API_URL` (default: the local dev API) and `OSCT_EDITOR_TOKEN` (an AI
+// connection's token `osct_…` made on the editor's books page, or an editor's session token; sent as
+// `Authorization: Bearer`). Without a token the server starts with the sign-in tools only – `sign_in_request` /
+// `sign_in_verify` fetch one for this process (the code arrives by mail). `OSCT_EDITOR_URL`
 // names the editor app whose links every result hands back; its default follows the API (the local dev server, or
 // `/editor` next to a deployed API).
 import { dirname, resolve } from "node:path";

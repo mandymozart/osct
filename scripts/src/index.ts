@@ -8,8 +8,10 @@
  *   content/spreads/<id>/spread.yaml   title, order, firstPage, lastPage
  *   content/entries/<id>/entry.yaml    category, title, page, body, …, target? { image, order?, id?, entity? }
  *   content/entities/<id>/entity.yaml  type, assets[{ id?, src }], params   (referenced as entity: { ref })
- *   content/steps/<id>/step.yaml       tutorial
  *   content/plugins/<id>/index.ts      the book's own code (build/plugins.ts): type-checked, bundled, declared
+ *
+ * The configuration's `tutorial` is not the content's: the build writes the onboarding older apps require
+ * (build/tutorial.ts – the reader has its own, #236).
  *
  * Folders: build/ one file per part of the configuration (book, spreads, entities, entries, targets,
  * tutorial; game-config.ts puts them together), lib/ helpers (reading content, files, hash, schema,

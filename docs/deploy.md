@@ -17,7 +17,11 @@ says so (`agents/RULES.md` #11). `tag-version.yml` still tags every version on `
 **Transition:** while a GitHub environment has no `SSH_HOST`, its Kamal deploy is skipped with a warning. Staging
 runs on the all-inkl shared host (no Docker) until the staging VM exists – `deploy-staging-ftps.yml` keeps
 uploading `develop` there over FTPS in the meantime (the old way: `server/deploy/write-config.php` writes
-`config.local.php`). Once the VM is live and DNS points at it, delete that workflow and the script.
+`config.local.php`). Once the VM is live and DNS points at it, delete that workflow and the script. On that host the
+content store and the API's logs live in the API's folder – `api/content-store`, `api/var` ([server, "Content store and
+var"](server.md#content-store-and-var)): the upload never contains them and deletes nothing, so they survive every
+deploy; the first request after the deploy that brought them moved the older `api/db/content` and `api/db/error.log`
+there once. Bring them along when staging moves to the VM (into the volume below).
 
 ## What is in the image
 
@@ -38,8 +42,8 @@ uploading `develop` there over FTPS in the meantime (the old way: `server/deploy
 
 At every start `server/docker/entrypoint.sh` runs `server/deploy/migrate.php` – the same additive migration as
 `POST /api/admin/migrate` (missing tables and columns only; a deploy never resets data) – waits for the database
-if it is still starting, then hands over to Apache. A failing migration fails the start, and kamal-proxy keeps the
-previous container.
+if it is still starting, makes the content store (`/var/lib/osct/content-store`, the Kamal volume) writable for
+Apache, then hands over to Apache. A failing migration fails the start, and kamal-proxy keeps the previous container.
 
 Local check of the image, without a MariaDB (the API falls back to SQLite):
 
@@ -49,14 +53,18 @@ docker run --rm -p 8080:80 -e OSCT_DB_SQLITE_PATH=/data/osct.sqlite -e OSCT_SECR
 ```
 
 Then http://localhost:8080 and http://localhost:8080/api/health; sign-in mails land in the container's temp folder
-(`MAIL_TRANSPORT` defaults to `log` without the Kamal settings). In Git Bash on Windows prefix the command with
-`MSYS_NO_PATHCONV=1`, or the `/data/…` path is rewritten.
+(`/tmp/osct-mail.log`; `MAIL_TRANSPORT` defaults to `log` without the Kamal settings). The content store is
+`/var/lib/osct/content-store` in the image (`OSCT_CONTENT_STORE_DIR`, created for `www-data`); add
+`-v osct-content-store:/var/lib/osct/content-store` to keep what the editor publishes between runs. In Git Bash on
+Windows prefix the command with `MSYS_NO_PATHCONV=1`, or the `/data/…` path is rewritten.
 
 ## Configuration
 
 `config/deploy.yml` is the shared Kamal configuration, `config/deploy.staging.yml` and
 `config/deploy.production.yml` the two destinations (service name `osct-staging` / `osct`, the server, the domain,
-`OSCT_APP_URL`, `OSCT_ALLOWED_ORIGINS`, `OSCT_DB_HOST`). The API reads every setting from `OSCT_*` environment
+`OSCT_ENV` – `staging` / `production`, which `/api/health` names and the only environment the instance's editor
+publishes to –, `OSCT_APP_URL`, `OSCT_ALLOWED_ORIGINS`,
+`OSCT_DB_HOST`, the content store's volume). The API reads every setting from `OSCT_*` environment
 variables (`server/api/src/Config.php`); there is no `config.local.php` in the container.
 
 The files are ERB: the server and the mail settings come from environment variables, the secrets through
@@ -66,6 +74,7 @@ The files are ERB: the server and the mail settings come from environment variab
 |---|---|---|
 | variable | `SSH_HOST` | the server (host name or IP) – both destinations may use the same server |
 | variable | `SSH_USER` | SSH user with Docker access, default `root` |
+| variable | `SSH_KNOWN_HOSTS` | the server's host key as a `known_hosts` line (`<SSH_HOST> ssh-ed25519 AAAA…`) – the deploy refuses to run without it, and SSH refuses a server that answers with another key |
 | variable | `CONTENT_BASE_URL` | the environment's content CDN (`https://buildingfictions.b-cdn.net/staging` / `…/production`, [content-cdn](content-cdn.md)); the same variable feeds `content.yml`. Empty: the commit's content is built into the image |
 | variable | `ALLOWED_ORIGINS` | other origins allowed to call the API (comma separated; staging default `https://localhost:5173`) |
 | variable | `MAIL_TRANSPORT` | `smtp` (default) or `log` – the container has no `mail()`; with `smtp` the workflow refuses to deploy while `SMTP_USER` / `SMTP_PASS` are missing |
@@ -74,7 +83,7 @@ The files are ERB: the server and the mail settings come from environment variab
 | variable | `SMTP_USER` | the SES SMTP user name (an IAM access key ID) |
 | variable | `EDITORS` | e-mail addresses (comma-separated) that get the role `editor` when they sign in – the instance's first editors; more on the admin page ([admin](admin.md), [server, "Roles"](server.md#roles)) |
 | variable | `ADMINS` | e-mail addresses (comma-separated) that get the role `admin` when they sign in – the instance's first admin, who then grants roles at `/editor/admin`; set it on `staging` and `production` |
-| variable | `CONTENT_STORE` | where the editor's publishes and uploaded assets go ([server, "Editor data"](server.md#editor-data), ["Assets"](server.md#assets)): `bunny` (the content CDN's storage zone, the same the osct CLI syncs to) or `local` (the container's own directory, served at `/api/content/{env}/…`). Default: `bunny` as soon as `BUNNY_STORAGE_PASSWORD` is set, else `local` |
+| variable | `CONTENT_STORE` | where the editor's publishes and uploaded assets go ([server, "Editor data"](server.md#editor-data), ["Assets"](server.md#assets)): `bunny` (the content CDN's storage zone, the same the osct CLI syncs to – a connected CDN has priority) or `local` (the content store on the server's volume, served at `/api/content/{env}/…`; the editor then warns that no CDN is connected). Each instance publishes to its own environment (`OSCT_ENV`) only. Default: `bunny` as soon as `BUNNY_STORAGE_PASSWORD` is set (the FTPS staging), `local` in the Kamal configuration |
 | variable | `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_ENDPOINT` (or `BUNNY_STORAGE_ZONE_ENDPOINT`) | the storage zone (`osct`) and its endpoint host (default `storage.bunnycdn.com`) – only read with the bunny store |
 | secret | `SSH_PRIVATE_KEY` | a deploy key whose public key is in the server user's `authorized_keys` |
 | secret | `DB_PASS` | the API's database password (also the MariaDB user `osct`) |
@@ -140,8 +149,11 @@ Once per server – Debian or Ubuntu with Docker (Kamal installs Docker itself w
 1. DNS: an `A` record for the domain (`osct.porschuetz.de`, `osct.buildingfictions.com`) to the server;
    ports 80 and 443 open (kamal-proxy answers both, Let's Encrypt needs 80).
 2. SSH: the deploy key's public part in `~/.ssh/authorized_keys` of `SSH_USER`.
-3. The GitHub environment's variables and secrets (table above).
-4. The first deploy from a laptop (it boots the proxy and the database, then the app):
+3. The internal Docker networks of the two destinations ([A shared server](#a-shared-server)):
+   `docker network create --internal osct` and `docker network create --internal osct-staging`.
+4. The GitHub environment's variables and secrets (table above). `SSH_KNOWN_HOSTS` comes from the server itself, so it
+   cannot be faked on the way: `ssh-keyscan -t ed25519 localhost` there, with `localhost` replaced by `SSH_HOST`.
+5. The first deploy from a laptop (it boots the proxy and the database, then the app):
    ```bash
    gem install kamal
    set -a; . server/.env; set +a
@@ -149,9 +161,50 @@ Once per server – Debian or Ubuntu with Docker (Kamal installs Docker itself w
    ```
    Every later deploy is a push to the branch – or `kamal deploy -d staging` by hand.
 
-Staging and production may share one server: the service names differ (`osct-staging`, `osct`), so the containers,
-the database accessories (`osct-staging-db`, `osct-db`) and their data folders are separate; kamal-proxy routes by
-domain.
+### A shared server
+
+Staging, production and other apps may share one server: the service names differ (`osct-staging`, `osct`), so the
+containers, the database accessories (`osct-staging-db`, `osct-db`) and their data folders are separate; kamal-proxy
+routes by domain.
+
+Every Kamal app on a server is on the network `kamal` (kamal-proxy reaches the apps through it), so anything on it
+could reach a database there. The databases are therefore only on an internal network of their destination – `osct`
+or `osct-staging` (`config/deploy.<destination>.yml`), created once per server (above) – which the app joins next to
+`kamal`. Staging and production cannot reach each other's database, other apps cannot reach either, and the
+databases have no way out to the internet. The containers have fixed limits (production 1 GB / 1 CPU and 1 GB for the
+database, staging half of that), so one app cannot starve the others. A database already running keeps its network
+until `kamal accessory reboot db -d <destination>`.
+
+## Open readers after a deploy
+
+The reader's service worker (`client/sw/service-worker.ts`, RULES #21) serves pages from the network, so a page opened
+after a deploy runs the new code. A deploy also builds a new worker; it skips waiting and takes over every open page at
+once, and it drops the old build's precached files. But a page that is already open keeps running the old code, and the
+browser looks for a new worker only on a navigation – which an open reader (a single-page app, or the installed app left
+open on a phone) never makes. So the reader asks itself (#231, `client/src/services/UpdateService.ts`):
+
+- **Looking for a new worker**: `registration.update()` whenever the tab becomes visible (at most once a minute) and
+  every 15 minutes while it is visible. Offline the check fails quietly and the next one asks again.
+- **Telling a new version from a takeover**: when a worker takes the page over (`controllerchange`), the page asks it
+  for its build (`client/sw/build-query.ts`: a message with a port, the worker answers with its build date – the same
+  `__VITE_BUILD_DATE__` the page carries). Only another build makes the page out of date; a worker that does not answer
+  within 3 s counts as another build. That keeps the notice off the first install and off a page opened after the
+  deploy, which the old worker still controlled until the new one took over.
+- **A code file that fails to load** – the deploy removed a lazy chunk the open page had not loaded yet – makes the page
+  out of date too: Vite's `vite:preloadError`, an unhandled failed dynamic import, and the AR chunk (`<ar-bridge>`
+  reports `ar-load-failed`, and a failed warm-up). Not while the device is offline – then it is the connection.
+- **The notice** (`<new-version-notice>`): *A new version of the app is ready* with **Reload** and a cross (*Later*), in
+  the four languages (`update` namespace). Shown only at a calm moment (`components/common/new-version.ts`): the start
+  and the consultation pages (entries, entry, Info) and the overlays – never while the camera or AR loads, starts or
+  runs, and not during the onboarding. In the scan view only once AR has failed: a missing AR chunk shows the notice
+  above the spread menu instead of a dead camera view. Hidden mid-scan, it comes back when the reader leaves the scan.
+  It **never reloads by itself**; *Later* hides it until a code file fails again or another version takes over.
+
+To see it locally: two builds of the reader served one after the other from the same origin (`127.0.0.1` counts as
+secure for a service worker), the page opened on the first; after switching to the second, bring the tab back into view
+a minute later (or call `registration.update()` in the console).
+
+The editor has its own check (the reader's worker leaves its pages alone): [Editor](editor.md), "A new version under an open tab".
 
 ## Day to day
 
@@ -167,10 +220,30 @@ kamal details -d production                    # proxy, app and accessory contai
 ```
 
 The database files live on the server in `<service>-db/data` (the SSH user's home) and survive deploys, restarts and
-`kamal app remove`. `kamal accessory remove db` deletes the container, **not** the folder; delete the folder only on
+`kamal app remove`. The content store is the named Docker volume `<service>-content-store` (`osct-staging-content-store`,
+`osct-content-store` – `volumes` in `config/deploy.<destination>.yml`), mounted at `/var/lib/osct/content-store`; it
+survives every deploy too, and `docker volume rm` is the only way to lose it. `kamal accessory remove db` deletes the container, **not** the folder; delete the folder only on
 purpose. To bring the data from the old shared host: dump it there (phpMyAdmin or `mysqldump`), then
 `kamal accessory exec -d staging db --reuse -i 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" osct' < dump.sql` –
 the migration on the next start adds whatever columns the dump lacks.
+
+### Backup
+
+An instance's data is **the database plus the content store** – the published content and the Library's uploads of
+every environment whose backend is this server (no CDN connected, [server, "Content store and
+var"](server.md#content-store-and-var)). With the CDN connected, the published content is on the CDN's storage zone and
+the content store holds little; back it up anyway.
+
+```bash
+kamal accessory exec -d production db --reuse 'mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" osct' > osct-db.sql
+ssh <server> 'docker run --rm -v osct-content-store:/store:ro alpine tar czf - -C /store .' > osct-content-store.tgz
+```
+
+Restoring: the dump as above (`kamal accessory exec … -i 'mariadb …' < osct-db.sql`), the archive with
+`ssh <server> 'docker run --rm -i -v osct-content-store:/store alpine tar xzf - -C /store' < osct-content-store.tgz`
+before the next start (the entrypoint hands the files to `www-data`). On the FTPS staging the same two are the
+database's dump and the folder `api/content-store` (by FTP); a development checkout's are `var/db/` (or the MariaDB) and
+`content-store/`.
 
 Releases: GitHub releases are optional now (notes only – nothing deploys from them); the version on `main` is tagged
 by `tag-version.yml` as before.

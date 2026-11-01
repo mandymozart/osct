@@ -4,8 +4,7 @@
  * The tracker hands over the engine's camera track (`setCameraTrack()`); the debug overlay and the trial panel read
  * and drive it. Nothing in the app depends on it.
  *
- * Why (trigger test 2026-10-28, `docs/trigger-tests/`): small printed triggers were missed and the camera seemed not
- * to focus. The engine sets no focus mode and no zoom – the browser's default applies. Focus and zoom are
+ * Why (`docs/trigger-tests/`): small printed triggers can be missed when the camera does not focus on them. The engine sets no focus mode and no zoom – the browser's default applies. Focus and zoom are
  * `MediaStreamTrack` constraints (Image Capture extensions): Chrome on Android has `focusMode`, `focusDistance`,
  * `pointsOfInterest` and `zoom` (zoom may need the camera's pan-tilt-zoom permission, "ask for zoom" in `camera-request.ts`); Safari on iOS
  * reports little or none of it. Zoom changes the field of view the engine assumes: finding a target works, the AR

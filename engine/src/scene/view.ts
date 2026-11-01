@@ -16,8 +16,9 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import { PassData } from "../types/index";
+import { enabledPasses, type PassData } from "../types/index";
 import { PostChain } from "./post/index";
+import { setFeedbackRenderer, stepFeedbacks } from "./feedback";
 
 /** Bloom: only what is brighter than white glows; rendered at half resolution */
 const BLOOM_THRESHOLD = 1.0;
@@ -65,11 +66,37 @@ const bloomOverlayMaterial = () => new ShaderMaterial({
 export const BACKDROP_LAYER = 1;
 const AR_LAYER = 0;
 
-/** Something drawn under the scene each frame (the look-around pass) – into the cleared screen, while active */
+/**
+ * Something drawn under the scene each frame (the look-around pass), while active: into the cleared screen, or into
+ * the post chain's buffer while passes run – it draws into whatever render target is bound
+ */
 export interface Underlay {
   readonly active: boolean;
   render(): void;
 }
+
+/** How a frame is drawn (`drawPlan`) */
+export interface DrawPlan {
+  /** Through the post chain: passes are set and post-processing is on */
+  chain: boolean;
+  /**
+   * Where the underlay goes: not drawn, onto the screen under the scene (no chain – as before passes existed, no cost),
+   * or into the chain's buffer under the scene, so bloom, vignette and grade shade the world and its sky too
+   */
+  underlay: "none" | "screen" | "chain";
+  /**
+   * The chain's image holds more than the AR layer (the editor's desk, the underlay): a pass that reaches the AR layer
+   * alone (the grade with `reach: ar`) is given its coverage as a mask
+   */
+  mask: boolean;
+}
+
+/** The frame's plan from what is there: passes running, the underlay active, a backdrop on the stage – pure, for the tests */
+export const drawPlan = ({ passes, underlay, backdrop }: { passes: boolean; underlay: boolean; backdrop: boolean }): DrawPlan => ({
+  chain: passes,
+  underlay: !underlay ? "none" : passes ? "chain" : "screen",
+  mask: passes && (underlay || backdrop),
+});
 
 /**
  * The three.js side of the AR scene: one WebGL renderer (one context for the session), scene, camera,
@@ -96,11 +123,15 @@ export class ArView {
   /** The content's post-processing over the rendered scene – built only while a spread names passes */
   private post: PostChain | null = null;
   private postProcessing = true;
+  /** Follows the container's size */
+  private observer: ResizeObserver | null;
   private bloom: { composer: EffectComposer; pass: UnrealBloomPass; quad: FullScreenQuad; material: ShaderMaterial } | null = null;
 
   constructor(private container: HTMLElement, private onResize: (camera: PerspectiveCamera) => void) {
     this.renderer = new WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // The plugins' feedback buffers learn the device's precision from it
+    setFeedbackRenderer(this.renderer);
     const canvas = this.renderer.domElement;
     canvas.id = "scene";
     Object.assign(canvas.style, { position: "absolute", left: "0", top: "0" });
@@ -117,6 +148,9 @@ export class ArView {
     this.camera.layers.enable(BACKDROP_LAYER);
 
     window.addEventListener("resize", this.resize);
+    // The container can change size without the window (the editor's columns are dragged, #144)
+    this.observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => this.resize());
+    this.observer?.observe(container);
     this.resize();
   }
 
@@ -144,6 +178,8 @@ export class ArView {
       this.frameListeners.forEach(listener => listener(delta));
       const needed = this.needsRender();
       if (!needed && this.cleared) return;
+      // The plugins' feedback buffers step once per drawn frame, before the scene that shows them
+      if (needed) stepFeedbacks(this.renderer, delta);
       this.draw(); // the first frame with nothing visible clears the canvas
       this.cleared = !needed;
     });
@@ -165,11 +201,35 @@ export class ArView {
   }
 
   /**
+   * The colours along one row of the canvas (CSS px from its top), each the average of one of `segments` equal parts from
+   * left to right, as `#rrggbb` – drawn and read at once like `sample`; empty while the canvas has no size
+   */
+  sampleRow(y: number, segments: number): string[] {
+    const gl = this.renderer.getContext();
+    const size = this.renderer.getSize(new Vector2());
+    const dpr = this.renderer.getPixelRatio();
+    const width = Math.round(size.x * dpr);
+    const height = Math.round(size.y * dpr);
+    if (!width || !height || segments < 1) return [];
+    this.draw();
+    const row = Math.min(height - 1, Math.max(0, height - 1 - Math.floor(y * dpr)));
+    const pixels = new Uint8Array(width * 4);
+    gl.readPixels(0, row, width, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    return Array.from({ length: segments }, (_, i) => {
+      const from = Math.floor((i * width) / segments);
+      const to = Math.max(from + 1, Math.floor(((i + 1) * width) / segments));
+      const sum = [0, 0, 0];
+      for (let x = from; x < to; x++) for (let c = 0; c < 3; c++) sum[c] += pixels[x * 4 + c];
+      return `#${sum.map(v => Math.round(v / (to - from)).toString(16).padStart(2, "0")).join("")}`;
+    });
+  }
+
+  /**
    * The passes over the rendered scene (`passes` of the spread or the book), in order; an empty list frees the chain
-   * and the scene renders straight to the canvas again
+   * and the scene renders straight to the canvas again – as does a list whose passes are all off (#233)
    */
   setPasses(passes: readonly PassData[]): void {
-    if (!passes.length) {
+    if (!enabledPasses(passes).length) {
       this.post?.dispose();
       this.post = null;
     } else {
@@ -193,25 +253,31 @@ export class ArView {
     this.renderer.setAnimationLoop(null);
   }
 
-  /** The scene (through the content's passes while a spread names them), plus the bloom over it while an animation wants it */
+  /**
+   * The underlay (the look-around world and sky) and the scene – through the content's passes while a spread or the
+   * book names them, the underlay then inside the chain – plus the bloom over it while an animation wants it
+   */
   private draw(): void {
     const bloom = this.bloomStrength > 0 ? this.ensureBloom() : null;
     bloom?.composer.render(); // scene → half-size target → bloom (only the part brighter than white)
     const autoClear = this.renderer.autoClear;
     this.renderer.setRenderTarget(null);
-    if (this.underlay?.active) {
+    const post = this.post?.active ? this.post : null;
+    const underlay = this.underlay?.active ? this.underlay : null;
+    const plan = drawPlan({ passes: !!post, underlay: !!underlay, backdrop: !!post && this.hasBackdrop() });
+    if (underlay && plan.underlay === "screen") {
       this.renderer.clear();
-      this.underlay.render();
+      underlay.render();
       this.renderer.setRenderTarget(null);
       this.renderer.clearDepth();
       this.renderer.autoClear = false;
     }
-    if (this.post?.active) {
-      // The whole scene through the passes: the backdrop (the camera picture's stand-ins) is part of the image they
-      // shade, the grade is limited to the AR layer by its mask
-      if (!this.underlay?.active) this.renderer.clear();
+    if (post) {
+      // The whole picture through the passes: the backdrop (the camera picture's stand-ins) and the underlay are part
+      // of the image they shade, a grade with `reach: ar` is limited to the AR layer by its mask
+      this.renderer.clear();
       this.renderer.autoClear = false;
-      this.post.render(this.hasBackdrop() ? { arLayers: 1 << AR_LAYER } : null);
+      post.render(plan.mask ? { arLayers: 1 << AR_LAYER } : null, plan.underlay === "chain" ? this.drawUnderlay : null);
     } else {
       this.renderer.render(this.scene, this.camera);
     }
@@ -223,6 +289,9 @@ export class ArView {
     }
     this.renderer.autoClear = autoClear;
   }
+
+  /** The underlay into the bound target (the chain's buffer) – one function for every frame */
+  private drawUnderlay = (): void => this.underlay?.render();
 
   /** Objects stand in for the camera picture (a light does not) */
   private hasBackdrop(): boolean {
@@ -255,13 +324,17 @@ export class ArView {
     this.camera.aspect = width / height;
     this.onResize(this.camera); // the tracker fits video + field of view
     this.camera.updateProjectionMatrix();
-    if (!this.running) this.draw();
+    // A resized canvas is cleared by the browser: draw at once, also while the loop runs, or the next paint shows a
+    // blank frame before the loop's next frame (the flicker while a panel is dragged)
+    this.draw();
     this.cleared = false; // size changed: draw again
   };
 
   dispose(): void {
     this.stop();
     window.removeEventListener("resize", this.resize);
+    this.observer?.disconnect();
+    this.observer = null;
     this.frameListeners.clear();
     this.post?.dispose();
     this.post = null;
@@ -272,6 +345,7 @@ export class ArView {
       this.bloom.material.dispose();
       this.bloom = null;
     }
+    setFeedbackRenderer(null);
     this.renderer.dispose();
     this.renderer.forceContextLoss();
     this.renderer.domElement.remove();

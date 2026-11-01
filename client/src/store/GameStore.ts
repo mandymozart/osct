@@ -1,16 +1,16 @@
 import {
-  ArStatus,
+  type ArStatus,
   CameraPermissionStatus,
-  ErrorInfo,
+  type ErrorInfo,
   GameMode,
-  GameState,
-  GameVersion,
-  ICameraManager,
-  ISpreadManager,
-  IGame,
-  IHistoryManager,
-  IRouterManager,
-  ITargetManager,
+  type GameState,
+  type GameVersion,
+  type ICameraManager,
+  type ISpreadManager,
+  type IGame,
+  type IHistoryManager,
+  type IRouterManager,
+  type ITargetManager,
   LoadingState
 } from "@/types";
 import { uniqueId, createProgressRecord } from "@/utils";
@@ -95,4 +95,4 @@ class Game extends BaseStore<GameState> implements IGame {
   }
 }
 
-export const createGameStore = () => new Game() as unknown as IGame;
+export const createGameStore = (): IGame => new Game();

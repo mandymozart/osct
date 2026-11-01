@@ -1,13 +1,13 @@
 import {
-  ErrorInfo,
-  GameState,
-  IGame,
+  type ErrorInfo,
+  type GameState,
+  type IGame,
   Pages,
-  RouteParam,
-  PageRoute,
-  IRouterManager,
+  type RouteParam,
+  type PageRoute,
+  type IRouterManager,
 } from "@/types";
-import { Draft } from "immer";
+import type { Draft } from "immer";
 import { RouteResolver } from "./helpers";
 
 /**

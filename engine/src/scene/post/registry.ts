@@ -2,25 +2,30 @@ import * as THREE from "three";
 import type { Vector2 } from "three";
 import type { Pass } from "three/examples/jsm/postprocessing/Pass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
-import { PassData, PassSpec, resolvePass } from "../../types/index";
+import { type PassData, type PassSpec, resolvePass } from "../../types/index";
 
 /**
  * The pass registry: every post-processing type the engine can run – the built-in ones (`./bloom`, `./vignette`,
  * `./grade`, registered by `./index`) and a plugin's own, registered through the plugin API's `registerPass` with
- * the plugin as the owner. The content names passes by type (`passes: [{ type, …params }]`, `shared/types/passes.ts`);
- * `PostChain` builds them from here.
+ * the plugin as the owner. The content names passes by type (`passes: [{ type, …params }]`, `shared/types/passes.ts`) –
+ * a plugin's too, where a declared plugin recorded it; `PostChain` builds them from here, in
+ * the content's order, and skips one that cannot be built (logged).
  *
  * A pass is a three.js `Pass` (`render(renderer, writeBuffer, readBuffer)` over the composer's buffers): the read
  * buffer holds the AR layer as the scene rendered it – premultiplied colour over alpha, in linear RGB, nothing of
  * the camera picture, which lies under the canvas (in the editor the stage's desk stands in for it and is part of
- * the buffer: the passes shade it like the camera picture, the grade is limited to the AR layer by `setMask`).
+ * the buffer: the passes shade it like the camera picture, a grade with `reach: ar` is limited to the AR layer by `setMask`;
+ * the look-around world and sky, while drawn, lie in the buffer under the AR layer the same way).
  * A pass that writes alpha 1 everywhere would cover the camera picture with black: a pass keeps the texel's alpha unless it means to shade the camera picture too (a vignette
  * raises the alpha where it darkens – the picture below shows through less).
  */
 
 /** What a pass factory gets */
 export interface PassContext {
-  /** The pass's parameters with the spec's defaults filled in */
+  /**
+   * The pass's parameters with the spec's defaults filled in – a `texture` parameter as a three.js texture (a Library
+   * picture, a procedural texture of a plugin) or null for none
+   */
   params: Record<string, unknown>;
   /** The app's three.js (one instance – a plugin never imports three itself) */
   three: typeof THREE;
@@ -36,15 +41,30 @@ export interface PassContext {
   shaderPass(fragmentShader: string, uniforms?: Record<string, { value: unknown }>): ShaderPass;
 }
 
-/** A registered pass: three's `Pass`, optionally with `update` for new parameter values in place (the editor's live edit) */
+/**
+ * A registered pass: three's `Pass`, optionally with `update` for new parameter values in place (the editor's live edit).
+ * `render` gets the seconds since the last frame as its fourth argument (an animated grain counts its time with it). A
+ * feedback buffer the factory makes (`api.feedback`) belongs to the pass: it steps while the pass runs and
+ * goes with it.
+ */
 export interface PostPass extends Pass {
   update?(params: Record<string, unknown>): void;
   /**
    * The AR layer's coverage (its alpha) while the image holds more than the AR layer – the editor's stage, where the
-   * desk stands in for the camera picture; `null` while the image is the AR layer alone. A pass that reaches the AR
-   * layer only (the grade) limits itself to it with this.
+   * desk stands in for the camera picture, or the look-around world and sky under the scene; `null` while the image
+   * is the AR layer alone. A pass that reaches the AR layer only (the grade with `reach: ar`) limits itself to it with
+   * this.
    */
   setMask?(mask: THREE.Texture | null): void;
+}
+
+/**
+ * Engine-internal, not part of the plugin API: whether a pass uses the mask with its current parameters (the built-in
+ * grade with `reach: all` does not). The chain draws the mask – one more render of the AR layer – only while a pass
+ * uses it; a pass with `setMask` and without this flag (a plugin's) is always given the mask.
+ */
+export interface MaskUsage {
+  usesMask?: boolean;
 }
 
 export type PassFactory = (context: PassContext) => PostPass;

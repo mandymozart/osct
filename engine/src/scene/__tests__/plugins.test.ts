@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Group, Mesh, MeshBasicMaterial, PerspectiveCamera, Scene, ShaderMaterial, Vector2 } from "three";
-import { componentProblems, componentSpec, componentTypes, ComponentSpec, EntityData, PassSpec, PLUGIN_API_VERSION, Target } from "../../types/index";
+import { Group, type Mesh, type MeshBasicMaterial, PerspectiveCamera, Scene, type ShaderMaterial, Vector2 } from "three";
+import { componentProblems, componentSpec, componentTypes, type ComponentSpec, type EntityData, type PassSpec, PLUGIN_API_VERSION, type Target } from "../../types/index";
 import { buildEntity } from "../entities";
-import { installedPlugins, installPlugin, loadPlugins, PluginApi, PluginError, pluginTypes, uninstallPlugin } from "../plugins";
+import { installedPlugins, installPlugin, loadPlugins, type PluginApi, PluginError, pluginTypes, uninstallPlugin } from "../plugins";
 import { PostChain } from "../post/chain";
 import { passRegistration, registeredPassTypes } from "../post/registry";
 import "../post/index";
 
-/** The plugin API 1.0: components and material layers a book's own code registers, kept per plugin */
+/** The plugin API: components and material layers a book's own code registers, kept per plugin */
 
 const SPIN: ComponentSpec = {
   description: "Turns the node around its y axis.",
@@ -34,7 +34,7 @@ describe("installPlugin", () => {
   it("registers a component whose spec the panel, the build and the guard read", () => {
     installPlugin("fx", { register: api => api.registerComponent("spin", SPIN, () => ({})) });
     expect(componentSpec("spin")).toBe(SPIN);
-    expect(componentTypes()).toEqual(["animation", "spin"]);
+    expect(componentTypes()).toEqual(["animation", "behaviour", "spin"]);
     expect(pluginTypes("fx")).toEqual(["spin"]);
     expect(componentProblems([{ type: "spin", degreesPerSecond: 30 }], "components", "group")).toEqual([]);
     expect(componentProblems([{ type: "spin", degreesPerSecond: 999 }], "components")).toEqual(["components[0].degreesPerSecond: expected a number from 0 to 360, got 999"]);
@@ -53,7 +53,7 @@ describe("installPlugin", () => {
     expect(componentSpec("spin")).toBeUndefined();
     expect(componentSpec("float")).toBe(SPIN);
     uninstallPlugin("fx");
-    expect(componentTypes()).toEqual(["animation"]);
+    expect(componentTypes()).toEqual(["animation", "behaviour"]);
     expect(installedPlugins()).toEqual([]);
   });
 

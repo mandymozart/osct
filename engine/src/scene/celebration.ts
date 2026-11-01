@@ -4,15 +4,15 @@ import {
   BufferAttribute,
   BufferGeometry,
   Color,
-  Light,
-  Material,
+  type Light,
+  type Material,
   Matrix4,
-  Mesh,
-  Object3D,
+  type Mesh,
+  type Object3D,
   Points,
   ShaderMaterial,
   Vector3,
-  WebGLProgramParametersWithUniforms,
+  type WebGLProgramParametersWithUniforms,
 } from "three";
 import { MeshSurfaceSampler } from "three/examples/jsm/math/MeshSurfaceSampler.js";
 import { ENTITY_UNLOCK_MS } from "../types/index";
@@ -78,9 +78,6 @@ export const ANIMATIONS: Record<AnimationKind, AnimationPreset> = {
   reveal: { ms: 600, materialise: 1, edgeStart: 0, edgeEnd: 0, glowWidth: 0, sparks: false, bloomStrength: 0, reverse: false },
   outro: { ms: 700, materialise: 1, edgeStart: 0, edgeEnd: 0, glowWidth: 0, sparks: false, bloomStrength: 0, reverse: true },
 };
-
-/** The unlock's length (the found indicator's label runs alongside) */
-export const CELEBRATION_MS = ANIMATIONS.unlock.ms;
 
 const smoothstep = (x: number) => {
   const t = Math.min(1, Math.max(0, x));

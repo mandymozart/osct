@@ -1,5 +1,5 @@
 import { GameStoreService } from "@/services";
-import { IGame } from "@/types";
+import type { IGame } from "@/types";
 import "./entries-counter";
 import "./mark-the-page";
 import { adoptDesignStyles } from "@/styles";
@@ -103,7 +103,7 @@ export class GameHeader extends HTMLElement {
   }
 
   private initialize() {
-    this.shadowRoot!.querySelector("#info")?.addEventListener("click", () => {
+    this.shadowRoot?.querySelector("#info")?.addEventListener("click", () => {
       this.game.router.navigate("/about");
     });
   }

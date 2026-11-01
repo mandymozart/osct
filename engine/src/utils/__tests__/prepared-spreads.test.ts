@@ -1,10 +1,19 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { setDeviceStorage } from "../device-storage";
 import { cyclePreparedSpreadRange, getPreparedSpreadRange, getPreparedWindow, getPreparedWindowSetting, getStoredWindowSetting, isGrowingWindow, setTargetBudget, setWindowOverride, subscribePreparedWindow } from "../prepared-spreads";
 import { getSpreads } from "../../content/game-config";
 
 describe("spreads kept loaded", () => {
+  /** The app's storage for the engine's switches */
+  let stored: Map<string, string>;
+
+  beforeEach(() => {
+    stored = new Map();
+    setDeviceStorage({ get: key => stored.get(key) ?? null, set: (key, value) => void (value === null ? stored.delete(key) : stored.set(key, value)) });
+  });
+
   afterEach(() => {
-    localStorage.removeItem("osct-ar-prepared-spreads");
+    setDeviceStorage(null);
     setTargetBudget(null);
     setWindowOverride(null);
   });
@@ -15,11 +24,11 @@ describe("spreads kept loaded", () => {
     expect(isGrowingWindow()).toBe(false);
     expect([cyclePreparedSpreadRange(), cyclePreparedSpreadRange(), cyclePreparedSpreadRange(), cyclePreparedSpreadRange(), cyclePreparedSpreadRange()])
       .toEqual([2, Infinity, "grow", 0, 1]);
-    expect(localStorage.getItem("osct-ar-prepared-spreads")).toBe("1");
+    expect(stored.get("ar-prepared-spreads")).toBe("1");
   });
 
   it("grows towards the whole book when grow is chosen (content for the neighbours)", () => {
-    localStorage.setItem("osct-ar-prepared-spreads", "grow");
+    stored.set("ar-prepared-spreads", "grow");
     expect(getPreparedWindowSetting()).toBe("grow");
     expect(getPreparedSpreadRange()).toBe(1);
     expect(isGrowingWindow()).toBe(true);
@@ -39,8 +48,15 @@ describe("spreads kept loaded", () => {
   });
 
   it("ignores a stored value it does not know", () => {
-    localStorage.setItem("osct-ar-prepared-spreads", "7");
+    stored.set("ar-prepared-spreads", "7");
     expect(getPreparedWindowSetting()).toBe(1);
+  });
+
+  it("a storage that refuses leaves the default (±1)", () => {
+    setDeviceStorage({ get: () => { throw new Error("blocked"); }, set: () => { throw new Error("blocked"); } });
+    expect(getPreparedWindowSetting()).toBe(1);
+    expect(cyclePreparedSpreadRange()).toBe(2);
+    expect(getStoredWindowSetting()).toBe(1);
   });
 
   it("the trial's override holds the current spread only, applies at once and leaves the stored setting alone", () => {

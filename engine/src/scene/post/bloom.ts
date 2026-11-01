@@ -1,7 +1,7 @@
 import { CustomBlending, OneFactor, Vector2, ZeroFactor } from "three";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { PASSES } from "../../types/index";
-import { PassFactory, PostPass } from "./registry";
+import type { PassFactory, PostPass } from "./registry";
 
 /** The glow is computed at this fraction of the canvas resolution (a blur needs no more) */
 const BLOOM_SCALE = 0.5;

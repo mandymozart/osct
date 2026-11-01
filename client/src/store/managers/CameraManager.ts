@@ -1,4 +1,4 @@
-import { CameraPermissionStatus, ICameraManager, IGame } from "@/types";
+import { CameraPermissionStatus, type ICameraManager, type IGame } from "@/types";
 
 /** A WebAssembly module with one SIMD instruction (`i8x16.splat`) – valid only where SIMD is supported */
 const SIMD_PROBE = [0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11];

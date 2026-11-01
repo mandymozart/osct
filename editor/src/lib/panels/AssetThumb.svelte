@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { Asset } from "$lib/api";
-  import Icon, { type IconName } from "$lib/components/Icon.svelte";
+  import type { Asset } from "#lib/api.js";
+  import Icon, { type IconName } from "#lib/components/Icon.svelte";
 
   /**
    * A library file's preview: an image, or a video's first frame (the poster) that plays muted and inline while
@@ -66,10 +66,10 @@
   .thumb { position: relative; display: flex; align-items: center; justify-content: center; aspect-ratio: 4 / 3; background: var(--surface-head); border-radius: var(--control-radius); overflow: hidden; color: var(--muted); }
   .thumb img, .thumb video { width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity .2s; }
   .thumb img.loaded, .thumb video.loaded { opacity: 1; }
-  /* the skeleton: a sweep over the surface until the picture is there */
   .thumb.pending::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, var(--hover-background), transparent); transform: translateX(-100%); animation: sweep 1.2s ease-in-out infinite; }
   @keyframes sweep { to { transform: translateX(100%); } }
   @media (prefers-reduced-motion: reduce) { .thumb.pending::before { animation: none; transform: none; background: var(--hover-background); } }
   .play { position: absolute; right: .25rem; bottom: .25rem; display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; padding: 0; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); opacity: .85; }
   .play.on { background: var(--pressed-background); color: var(--pressed-color); }
+  @media (pointer: coarse) { .play { width: var(--control-height); height: var(--control-height); } }
 </style>

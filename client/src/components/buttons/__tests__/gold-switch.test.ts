@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import ".."; // registers <gold-switch>
-import { GoldSwitch } from "../gold-switch";
+import type { GoldSwitch } from "../gold-switch";
 
 describe("<gold-switch>", () => {
   const mount = (html: string) => {

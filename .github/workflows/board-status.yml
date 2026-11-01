@@ -43,4 +43,5 @@ jobs:
           PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
         with:
           script: |
-            await require('./.github/scripts/board-status.js')({ github, context, core, getOctokit })
+            // github-script v7 has no getOctokit: a client of the same Octokit class with the project token
+            await require('./.github/scripts/board-status.js')({ github, context, core, getOctokit: token => new github.constructor({ auth: token }) })

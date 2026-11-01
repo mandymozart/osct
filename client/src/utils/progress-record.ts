@@ -1,5 +1,5 @@
-import { ProgressRecord, ProgressVariable } from "@/types";
-import { isEntryCategory } from "@shared/guards/game-config";
+import type { ProgressRecord, ProgressVariable } from "@/types";
+import { isEntryCategory, isObject } from "@shared/guards/game-config";
 import { parseVersion } from "./version";
 
 /**
@@ -28,9 +28,6 @@ export const createProgressRecord = (bookId: string): ProgressRecord => ({
   variables: {},
 });
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
 const pick = <T>(value: unknown, isValue: (v: unknown) => v is T): Record<string, T> =>
   isObject(value)
     ? Object.fromEntries(Object.entries(value).filter((entry): entry is [string, T] => isValue(entry[1])))
@@ -40,7 +37,7 @@ const isNumber = (v: unknown): v is number => typeof v === "number" && Number.is
 const isString = (v: unknown): v is string => typeof v === "string";
 const isVariable = (v: unknown): v is ProgressVariable => isString(v) || isNumber(v) || typeof v === "boolean";
 
-/** Format 1 (app 1.x): the record as defined in `types/history.ts`; malformed and unknown fields are dropped. */
+/** Format 1: the record as defined in `types/history.ts`; malformed and unknown fields are dropped. */
 const readFormat1 = (raw: Record<string, unknown>, bookId: string): ProgressRecord => ({
   ...createProgressRecord(bookId),
   appVersions: Array.isArray(raw.appVersions) ? raw.appVersions.filter(isString) : [],
@@ -74,8 +71,10 @@ const sameValue = (a: unknown, b: unknown): boolean => {
  * missing fields differ) – nothing was dropped or corrected, so the reader need not be told:
  * a new format that did not change their progress shows no notice.
  */
-const keptAsItWas = (raw: Record<string, unknown>, record: ProgressRecord): boolean =>
-  Object.entries(raw).every(([key, value]) => key === "format" || sameValue(value, (record as unknown as Record<string, unknown>)[key]));
+const keptAsItWas = (raw: Record<string, unknown>, record: ProgressRecord): boolean => {
+  const fields: Record<string, unknown> = { ...record };
+  return Object.entries(raw).every(([key, value]) => key === "format" || sameValue(value, fields[key]));
+};
 
 /**
  * Stored record → current record. `raw` null means nothing stored; anything else without a known

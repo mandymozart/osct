@@ -3,7 +3,7 @@ import { assertGameConfiguration, GameConfigurationError } from "@shared/guards/
 import type { EntityData } from "@shared/types/game-config";
 import { entityAssets, entityNodes } from "../game-config";
 
-/** Content schema 2.0: an entity is a tree of nodes – the helpers and the guard's recursive check */
+/** An entity is a tree of nodes – the helpers and the guard's recursive check */
 
 const tree: EntityData = {
   type: "group",
@@ -62,6 +62,15 @@ describe("an entity as a tree of nodes", () => {
     ]);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('entries[0].target.entity.children[0].type: "hologram"'));
     warn.mockRestore();
+  });
+
+  it("the guard accepts a node's name (schema 2.12) and refuses one that is no string", () => {
+    const named = JSON.parse(JSON.stringify(tree)) as EntityData;
+    named.name = "Tree and title";
+    named.children![1].name = "Title";
+    expect(problemsOf(config(named))).toEqual([]);
+    (named.children![0] as { name: unknown }).name = 7;
+    expect(problemsOf(config(named))).toEqual(["entries[0].target.entity.children[0].name: expected a string"]);
   });
 
   it("the guard refuses nodes nested deeper than 8 levels", () => {

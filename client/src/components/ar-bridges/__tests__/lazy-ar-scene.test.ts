@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ArSceneEvents, ArStatus, SceneState } from "@/types";
+import { type ArSceneEvents, type ArStatus, SceneState } from "@/types";
 
 /** The real ArScene (three.js + 8th Wall) replaced: records what the lazy wrapper hands on */
 const created: FakeScene[] = [];
@@ -34,6 +34,8 @@ describe("LazyArScene", () => {
     const found: string[] = [];
     lazy.on("status", status => statuses.push(status));
     lazy.on("targetFound", id => found.push(id));
+    const scanning: boolean[] = [];
+    lazy.on("scanning", on => scanning.push(on));
 
     await lazy.load("spread-1");
     await lazy.setState(SceneState.STOPPED);
@@ -51,6 +53,8 @@ describe("LazyArScene", () => {
 
     scene.listeners.get("targetFound")!("target-a");
     expect(found).toEqual(["target-a"]);
+    scene.listeners.get("scanning")!(true);
+    expect(scanning).toEqual([true]);
 
     // Once created, calls go straight to the real scene
     await lazy.load("spread-3");
@@ -62,8 +66,13 @@ describe("LazyArScene", () => {
 
   it("warms up the AR chunk and the tracking engine without building a scene", async () => {
     const before = created.length;
-    await new LazyArScene(document.createElement("div")).warmUp();
+    expect(await new LazyArScene(document.createElement("div")).warmUp()).toBe(true);
     expect(prefetchXr8).toHaveBeenCalled();
     expect(created).toHaveLength(before);
+  });
+
+  it("a tracking engine that does not preload only logs: the AR chunk itself is there", async () => {
+    prefetchXr8.mockRejectedValueOnce(new Error("offline"));
+    expect(await new LazyArScene(document.createElement("div")).warmUp()).toBe(true);
   });
 });

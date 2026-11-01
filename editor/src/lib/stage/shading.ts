@@ -1,19 +1,16 @@
-import { EdgesGeometry, LineBasicMaterial, LineSegments, Material, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D } from "three";
-
-/**
- * The viewport's shading, after Blender's: **wireframe** (every entity as lines), **solid** (one matte grey, the
- * scene's lights), **textured** (the content's materials, the scene's lights, no sky) and **rendered** (the
- * content's materials under the HDRI's sky and light). Applied per entity mesh – the originals are kept and come
- * back – so the stage, the gizmo and the outlines keep their own materials.
- */
-export const SHADING_MODES = ["wireframe", "solid", "textured", "rendered"] as const;
-export type ShadingMode = (typeof SHADING_MODES)[number];
-export const isShadingMode = (value: unknown): value is ShadingMode => SHADING_MODES.includes(value as ShadingMode);
+import { Box3, BoxGeometry, type BufferGeometry, EdgesGeometry, LineBasicMaterial, LineSegments, type Material, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, Points, Vector3 } from "three";
+import type { ShadingMode } from "./preview";
 
 const WIRE = new MeshBasicMaterial({ color: 0xd8d8d8, wireframe: true });
 const SOLID = new MeshStandardMaterial({ color: 0xb4b4b4, roughness: 0.85, metalness: 0 });
 
 const originals = new WeakMap<Mesh, Material | Material[]>();
+
+/**
+ * The mesh's own material, also while wireframe or solid shows a stand-in: a texture that arrives later (the stage's
+ * sheet and print images) goes there, never into the shared stand-in
+ */
+export const ownMaterial = <M extends Material = Material>(mesh: Mesh): M => (originals.get(mesh) ?? mesh.material) as M;
 
 /** Apply a mode to every mesh below `roots` (the entities); textured and rendered restore the content's materials */
 export const applyShading = (roots: readonly Object3D[], mode: ShadingMode): void => {
@@ -34,8 +31,9 @@ export const applyShading = (roots: readonly Object3D[], mode: ShadingMode): voi
 };
 
 /**
- * Outlines in the object's own space (Blender's selection): the edges of every mesh below `object` as lines that
- * show through everything, added as children so they follow the object. `remove` takes them away again.
+ * Outlines in the object's own space (Blender's selection): the edges of every mesh below `object` (a particle cloud:
+ * its bounds) as lines that show through everything, added as children so they follow the object. `remove` takes
+ * them away again.
  */
 const OUTLINE_ANGLE = 40;
 
@@ -43,15 +41,29 @@ export interface Outline {
   remove(): void;
 }
 
-export const outline = (object: Object3D, color: number, width = 1): Outline => {
+/** A particle cloud has no faces to outline: the box around its points stands in */
+const boundsEdges = (geometry: BufferGeometry): EdgesGeometry => {
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox ?? new Box3();
+  const size = box.getSize(new Vector3());
+  const centre = box.getCenter(new Vector3());
+  const cube = new BoxGeometry(size.x, size.y, size.z).translate(centre.x, centre.y, centre.z);
+  const edges = new EdgesGeometry(cube);
+  cube.dispose();
+  return edges;
+};
+
+export const outline = (object: Object3D, color: number, width = 1, opacity = 0.95): Outline => {
   const lines: LineSegments[] = [];
-  const material = new LineBasicMaterial({ color, depthTest: false, depthWrite: false, transparent: true, opacity: 0.95, linewidth: width });
+  const material = new LineBasicMaterial({ color, depthTest: false, depthWrite: false, transparent: true, opacity, linewidth: width });
   object.traverse(child => {
-    if (!(child instanceof Mesh) || child.name.startsWith("editor-")) return;
-    const edges = new LineSegments(new EdgesGeometry(child.geometry, OUTLINE_ANGLE), material);
+    if (!(child instanceof Mesh || child instanceof Points) || child.name.startsWith("editor-")) return;
+    const edges = new LineSegments(child instanceof Points ? boundsEdges(child.geometry) : new EdgesGeometry(child.geometry, OUTLINE_ANGLE), material);
     edges.name = "editor-outline";
     edges.renderOrder = 999;
     edges.frustumCulled = false;
+    // Never hit by a pick: a line's ray threshold would make the outlined object catch clicks around it
+    edges.raycast = () => {};
     child.add(edges);
     lines.push(edges);
   });
@@ -66,6 +78,6 @@ export const outline = (object: Object3D, color: number, width = 1): Outline => 
   };
 };
 
-/** Blender's colours: the active selection's orange, hover white */
+/** The active selection's orange (Blender's); the hover's neutral grey (what a click would pick), seen on the paper and on an entity alike */
 export const SELECTION_COLOR = 0xffa028;
-export const HOVER_COLOR = 0xffffff;
+export const HOVER_COLOR = 0x8c8c8c;

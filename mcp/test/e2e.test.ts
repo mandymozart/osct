@@ -73,6 +73,13 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     }
     return { ok: !result.isError, data };
   };
+  /** A removal in its two steps (#198): the impact (nothing removed), then the same call with the confirmation */
+  const remove = async (name: "delete_spread" | "delete_entry", args: Record<string, unknown>, via = call) => {
+    const first = await via(name, args);
+    expect(first.ok, JSON.stringify(first.data)).toBe(true);
+    expect(first.data).toMatchObject({ deleted: false, impact: expect.any(Object), confirmation: { id: expect.stringMatching(/^\d{10}\.[0-9a-f]{32}$/) } });
+    return { first, second: await via(name, { ...args, confirm: first.data.confirmation.id }) };
+  };
 
   beforeAll(async () => {
     const port = await freePort();
@@ -86,6 +93,7 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
       APP_URL: "https://app.example",
       ALLOWED_ORIGINS: "http://localhost:5175",
       CONTENT_STORE_DIR: storeDir,
+      LOG_PATH: join(tmp, "error.log"),
       CONFIG_FILE: "/nonexistent",
     };
     const env = { ...process.env, ...Object.fromEntries(Object.entries(settings).map(([k, v]) => [`OSCT_${k}`, v])) };
@@ -139,7 +147,7 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect(verified.ok, JSON.stringify(verified.data)).toBe(true);
     expect(verified.data.user).toEqual({ email: "editor@example.test", roles: ["reader", "editor"] });
     expect(await names()).toEqual(
-      expect.arrayContaining(["list_books", "import_book", "get_book", "get_spread", "get_entity", "put_entity", "put_target", "add_entry", "delete_entry", "list_assets", "upload_asset", "delete_asset", "list_plugins", "get_plugin", "put_plugin", "delete_plugin", "get_draft", "publish", "list_versions", "list_changes", "describe_content_model"]),
+      expect.arrayContaining(["list_books", "preview_import", "import_book", "get_book", "get_spread", "get_entity", "put_entity", "put_target", "add_entry", "delete_entry", "add_spread", "put_spread", "delete_spread", "put_book_passes", "put_environment", "list_assets", "upload_asset", "delete_asset", "list_plugins", "get_plugin", "put_plugin", "delete_plugin", "get_draft", "publish", "list_versions", "list_changes", "describe_content_model"]),
     );
     expect((await client.listPrompts()).prompts.map(p => p.name).sort()).toEqual(["add-target", "editor"]);
     const resource = await client.readResource({ uri: "osct://rules/content-model" });
@@ -160,6 +168,22 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect(spread.data.entries[0].target.ref).toBe("castle");
     expect(spread.data.entries[0].target.entity.filters[0].type).toBe("chromaKey");
     expect(spread.data.open).toBe("http://localhost:5175/editor/osct/studio-b/");
+  });
+
+  it("re-imports in two steps: the comparison and a confirmation first, nothing replaced; then with confirm (#183)", async () => {
+    const args = { book: "osct", configuration: CONFIGURATION, assetsBase: "http://localhost:5174" };
+    const preview = await call("preview_import", { configuration: CONFIGURATION, assetsBase: "http://localhost:5174" });
+    expect(preview.ok, JSON.stringify(preview.data)).toBe(true);
+    expect(preview.data).toMatchObject({ imported: false, incoming: { book: "osct", title: "Test Book", build: "abababababab" }, counts: { spreads: 2, entries: 2, targets: 2, entities: 1 }, existing: { book: { id: "osct" }, draft: { edits: 0 } } });
+    const first = await call("import_book", args);
+    expect(first.ok).toBe(true);
+    expect(first.data.imported).toBe(false);
+    expect(first.data.comparison).toMatchObject({ book: { id: "osct", title: "Test Book" }, incoming: { build: "abababababab", appVersion: "1.0.0", schema: "2.4" }, draft: { basedOn: { build: "abababababab", importedBy: "editor@example.test" }, edits: 0 }, same: true });
+    expect(first.data.confirmation.id).toMatch(/^[0-9]{10}[.][0-9a-f]{32}$/);
+    const second = await call("import_book", { ...args, confirm: first.data.confirmation.id });
+    expect(second.ok).toBe(true);
+    expect(second.data.counts).toEqual({ spreads: 2, entries: 2, targets: 2, entities: 1 });
+    expect(second.data.imported).toMatchObject({ build: "abababababab", importedBy: "editor@example.test" });
   });
 
   it("edits the shared entity: a bad body never reaches the API, a good one is the draft", async () => {
@@ -207,17 +231,29 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect(inUse.data.error.code).toBe("asset-in-use");
   });
 
+  it("writes the entry's text and the book's texts through the API (#223)", async () => {
+    const edited = await call("update_entry", { book: "osct", entry: "p31-shadows", body: "The **shadows** move – {hasKey: you have the key|find the key}.", tags: ["dark"], media: "https://example.org/shadows" });
+    expect(edited.ok).toBe(true);
+    expect(edited.data.entry.tags).toEqual(["dark"]);
+    const entries = await call("get_entries", { book: "osct", search: "shadows" });
+    expect(entries.data.entries.find((e: { id: string }) => e.id === "p31-shadows").body).toContain("{hasKey:");
+    const refused = await call("update_entry", { book: "osct", entry: "p31-shadows", image: "https://evil.example/x.jpg" });
+    expect(refused.data.error.code).toBe("invalid-entry");
+    const book = await call("update_book", { book: "osct", publisher: "Building Fictions" });
+    expect(book.data.book.publisher).toBe("Building Fictions");
+  });
+
   it("writes a plugin source and sees it in the model", async () => {
     const source = `export const register = (api) => {\n  api.registerLayer("glow", { description: "Glows.", nodeTypes: ["video"], params: {} }, { glsl: "return rgba;" });\n};\n`;
     const saved = await call("put_plugin", { book: "osct", plugin: "glow", source });
     expect(saved.ok).toBe(true);
-    expect(saved.data.registers).toEqual({ components: [], layers: ["glow"] });
+    expect(saved.data.registers).toEqual({ components: [], layers: ["glow"], nodeTypes: [], passes: [], materials: [], textures: [] });
     expect(saved.data.plugin.updatedBy).toBe("editor@example.test");
     const read = await call("get_plugin", { book: "osct", plugin: "glow" });
     expect(read.data.plugin.source).toBe(source);
     const model = await call("describe_content_model", { book: "osct" });
     expect(model.data.components.declaredPlugins[0].id).toBe("tint");
-    expect(model.data.components.codeTabSources).toEqual([{ id: "glow", components: [], layers: ["glow"] }]);
+    expect(model.data.components.codeTabSources).toEqual([{ id: "glow", components: [], layers: ["glow"], nodeTypes: [], passes: [], materials: [], textures: [] }]);
     expect((await call("list_plugins", { book: "osct" })).data.plugins).toHaveLength(1);
   });
 
@@ -226,6 +262,9 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect(published.ok).toBe(true);
     expect(published.data.build).toMatch(/^[0-9a-f]{12}$/);
     expect(existsSync(join(storeDir, "local", published.data.build, "game.config.json"))).toBe(true);
+    expect(published.data).toMatchObject({ env: "local", store: "server", warning: expect.stringContaining("No CDN connected") });
+    const staging = await call("publish", { book: "osct", env: "staging" });
+    expect(staging.data.error).toMatchObject({ status: 403, code: "other-environment", env: "local" });
     const production = await call("publish", { book: "osct", env: "production" });
     expect(production.ok).toBe(false);
     expect(production.data.error.code).toBe("production-is-a-person");
@@ -234,7 +273,123 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     const changes = await call("list_changes", { book: "osct", limit: 10 });
     expect(changes.data.changes.map((c: any) => c.kind)).toEqual(expect.arrayContaining(["entity", "target", "entry", "plugin"]));
     expect((await call("delete_plugin", { book: "osct", plugin: "glow" })).ok).toBe(true);
-    expect((await call("delete_entry", { book: "osct", entry: "p31-shadows" })).ok).toBe(true);
+    // The Library's code files (#186): a shader as an asset, a script file as a plugin source
+    const shaderFile = join(tmp, "pulse.frag");
+    writeFileSync(shaderFile, "void main() { gl_FragColor = vec4(1.0); }\n");
+    const shader = await call("upload_asset", { book: "osct", file: shaderFile });
+    expect(shader.data.asset).toMatchObject({ kind: "shader", name: "pulse.frag" });
+    const scriptFile = join(tmp, "Wobble.ts");
+    writeFileSync(scriptFile, "export const register = (api: any) => api.registerComponent('wobble', { description: 'w', params: {} }, () => ({}));\n");
+    const script = await call("upload_plugin", { book: "osct", file: scriptFile });
+    expect(script.data.plugin.id).toBe("wobble");
+    expect(script.data.registers.components).toEqual(["wobble"]);
+    expect((await call("upload_plugin", { book: "osct", file: scriptFile })).data.error.code).toBe("plugin-exists");
+    expect((await call("plugin_usages", { book: "osct", plugin: "wobble" })).data.usages).toEqual([]);
+    expect((await call("delete_plugin", { book: "osct", plugin: "wobble" })).ok).toBe(true);
+    expect((await call("delete_asset", { book: "osct", asset: shader.data.asset.id })).ok).toBe(true);
+    const asked = await call("delete_entry", { book: "osct", entry: "p31-shadows" });
+    expect(asked.data.impact).toMatchObject({ kind: "entry", entry: { id: "p31-shadows" }, counts: { entries: 1, targets: 1, entities: 1 } });
+    expect((await call("get_spread", { book: "osct", spread: "studio-b" })).data.entries).toHaveLength(2);
+    const { second } = await remove("delete_entry", { book: "osct", entry: "p31-shadows" });
+    expect(second.ok, JSON.stringify(second.data)).toBe(true);
+    expect(second.data.deleted).toMatchObject({ entries: ["p31-shadows"], targets: ["p31-shadows"], files: [] });
     expect((await call("get_spread", { book: "osct", spread: "studio-b" })).data.entries).toHaveLength(1);
   });
+
+  it("adds a double page and a back cover, sets passes and the environment, removes what is empty (#174)", async () => {
+    // An imported book is print first: the spreads are its layout's until the person makes it digital first (#238)
+    const refused = await call("add_spread", { book: "osct", format: "spread", after: "s1" });
+    expect([refused.ok, refused.data.error.code]).toEqual([false, "print-first"]);
+    expect(refused.data.error.hint).toMatch(/sourceOfTruth/);
+    expect((await call("update_book", { book: "osct", sourceOfTruth: "digital" })).data.book.sourceOfTruth).toBe("digital");
+    const page = await call("add_spread", { book: "osct", format: "spread", after: "s1", title: "Studio A" });
+    expect(page.ok, JSON.stringify(page.data)).toBe(true);
+    expect(page.data.spread).toMatchObject({ id: "spread-1", title: "Studio A", firstPage: 3, lastPage: 4 });
+    expect(page.data.moved.spreads).toBe(1);
+    expect(page.data.open).toBe("http://localhost:5175/editor/osct/spread-1/");
+    expect((await call("get_spread", { book: "osct", spread: "studio-b" })).data.spread).toMatchObject({ firstPage: 32, lastPage: 33 });
+    const back = await call("add_spread", { book: "osct", format: "back" });
+    expect(back.data.spread).toMatchObject({ id: "back", format: "back", firstPage: 34 });
+    const own = await call("put_spread", { book: "osct", spread: "spread-1", title: "Studio A – night", passes: [{ type: "vignette", strength: 0.8 }] });
+    expect(own.ok, JSON.stringify(own.data)).toBe(true);
+    expect(own.data.spread).toMatchObject({ title: "Studio A – night", passes: [{ type: "vignette", strength: 0.8 }] });
+    const master = await call("put_book_passes", { book: "osct", passes: [{ type: "grade", reach: "all", saturation: 0.6 }] });
+    expect(master.data.passes).toEqual([{ type: "grade", reach: "all", saturation: 0.6 }]);
+    const environment = await call("put_environment", { book: "osct", environment: { world: "cafe", onionSky: false } });
+    expect(environment.data.environment).toEqual({ world: "cafe", onionSky: false });
+    const draft = (await call("get_draft", { book: "osct" })).data.configuration;
+    expect(draft.book).toMatchObject({ passes: [{ type: "grade", reach: "all", saturation: 0.6 }], environment: { world: "cafe", onionSky: false } });
+    expect(draft.spreads.map((s: any) => s.id)).toEqual(["s1", "spread-1", "studio-b", "back"]);
+    const full = await call("delete_spread", { book: "osct", spread: "studio-b" });
+    expect(full.data).toMatchObject({ deleted: false, impact: { spread: { id: "studio-b" }, entries: [{ id: "castle" }] } });
+    expect(full.data.next).toContain("Show the person the impact");
+    expect((await remove("delete_spread", { book: "osct", spread: "back" })).second.ok).toBe(true);
+    expect((await remove("delete_spread", { book: "osct", spread: "spread-1" })).second.data.moved).toMatchObject({ spreads: 1 });
+    expect((await call("get_spread", { book: "osct", spread: "studio-b" })).data.spread).toMatchObject({ firstPage: 30, lastPage: 31 });
+    expect((await call("put_environment", { book: "osct", environment: null })).data.environment).toBeNull();
+    expect((await call("put_book_passes", { book: "osct", passes: null })).data.passes).toBeNull();
+  });
+
+  it("starts with an AI connection's token instead: no mail step, whoami names it, saves name it in the log, publish is refused (#142)", async () => {
+    // the person: signed in in the browser, makes the token on the books page (POST /user/tokens with the session)
+    const json = async (method: string, path: string, body?: unknown, token?: string) => {
+      const response = await fetch(`${api}${path}`, {
+        method,
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      return { status: response.status, data: (await response.json().catch(() => null)) as any };
+    };
+    const { data: request } = await json("POST", "/auth/request", { email: "editor@example.test" });
+    const { data: verified } = await json("POST", "/auth/verify", { requestId: request.requestId, code: lastCode(mailLog) });
+    const made = await json("POST", "/user/tokens", { name: "Claude in the e2e test" }, verified.session);
+    expect(made.status).toBe(201);
+    expect(made.data.token).toMatch(/^osct_/);
+
+    const tokenClient = new Client({ name: "osct-mcp-e2e-token", version: "0.0.0" });
+    await tokenClient.connect(
+      new StdioClientTransport({
+        command: process.execPath,
+        args: [resolve(ROOT, "mcp/bin/osct-mcp.mjs")],
+        env: { ...(Object.fromEntries(Object.entries(process.env).filter(([, v]) => typeof v === "string")) as Record<string, string>), OSCT_API_URL: api, OSCT_EDITOR_URL: "http://localhost:5175/editor", OSCT_EDITOR_TOKEN: made.data.token },
+        stderr: "pipe",
+        cwd: ROOT,
+      }),
+    );
+    try {
+      const callAs = async (name: string, args: Record<string, unknown> = {}) => {
+        const result = (await tokenClient.callTool({ name, arguments: args })) as { content: { text?: string }[]; isError?: boolean };
+        const raw = result.content.map(c => c.text ?? "").join("");
+        return { ok: !result.isError, raw, data: JSON.parse(raw) as any };
+      };
+      expect((await tokenClient.listTools()).tools.map(t => t.name)).toEqual(expect.arrayContaining(["whoami", "list_books", "put_entity", "publish"]));
+      const who = await callAs("whoami");
+      expect(who.data.user.email).toBe("editor@example.test");
+      expect(who.data.signedIn).toMatchObject({ with: "token", token: { name: "Claude in the e2e test" } });
+      expect(who.raw).not.toContain(made.data.token);
+
+      const castle = (await callAs("get_entity", { book: "osct", ref: "castle" })).data.entity;
+      const saved = await callAs("put_entity", { book: "osct", ref: "castle", entity: { ...castle, params: { scale: 3 } } });
+      expect(saved.ok, saved.raw).toBe(true);
+      const changes = await callAs("list_changes", { book: "osct", limit: 1 });
+      expect(changes.data.changes[0]).toMatchObject({ kind: "entity", ref: "castle", user: "editor@example.test", token: "Claude in the e2e test" });
+
+      // a removal through the token: the same two steps as the person's (#198), the log names the token
+      const added = await callAs("add_entry", { book: "osct", title: "Robot", page: 30, target: { imageSrc: "https://cdn.example/robot.jpg" } });
+      expect(added.ok, added.raw).toBe(true);
+      const { second: removed } = await remove("delete_entry", { book: "osct", entry: added.data.entry.id }, callAs);
+      expect(removed.ok, JSON.stringify(removed.data)).toBe(true);
+      const removal = await callAs("list_changes", { book: "osct", limit: 2 });
+      expect(removal.data.changes.map((c: any) => [c.kind, c.after, c.token])).toEqual(expect.arrayContaining([["entry", null, "Claude in the e2e test"], ["target", null, "Claude in the e2e test"]]));
+
+      const publish = await callAs("publish", { book: "osct", env: "local" });
+      expect(publish.ok).toBe(false);
+      expect(publish.data.error).toMatchObject({ status: 403, code: "not-for-ai" });
+    } finally {
+      await tokenClient.close().catch(() => undefined);
+    }
+    // revoked in the browser: the next start's whoami says so
+    expect((await json("DELETE", `/user/tokens/${made.data.apiToken.id}`, undefined, verified.session)).status).toBe(204);
+    expect((await json("GET", "/user", undefined, made.data.token)).data.error.code).toBe("token-revoked");
+  }, 60000);
 });

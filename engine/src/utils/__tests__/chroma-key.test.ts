@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { Color, Mesh, MeshBasicMaterial, ShaderMaterial, VideoTexture } from "three";
+import { Color, type Mesh, MeshBasicMaterial, ShaderMaterial, VideoTexture } from "three";
 import { chromaKeyMaterial, keyMode, parseChromaKey } from "../chroma-key";
 import { buildEntity, DEFAULT_VIDEO_HEIGHT } from "../../scene/entities";
-import { LoadedAsset } from "../../scene/assets";
-import { FilterData, filterProblems, Target } from "../../types/index";
+import type { LoadedAsset } from "../../scene/assets";
+import { type FilterData, filterProblems, type Target } from "../../types/index";
 
 const chromaKey = (params: Record<string, string | number> = {}): FilterData[] => [{ type: "chromaKey", ...params }];
 

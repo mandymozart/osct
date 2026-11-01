@@ -1,6 +1,6 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
-  import { parseNumber } from "$lib/values";
+  import { parseNumber } from "#lib/values.js";
 
   /**
    * A number control where the whole field is the gesture (the Scutoons dogma's ScrubNumber): a tap focuses it for
@@ -78,7 +78,7 @@
   };
   const onPointerMove = (event: PointerEvent) => {
     if (!press || press.pointerId !== event.pointerId) return;
-    // The quadrant rule (dogma, Tilman 2026-10-29): sliding up or right raises the value, down or left lowers it –
+    // The quadrant rule of the UI dogma: sliding up or right raises the value, down or left lowers it –
     // the two directions add up, so a diagonal towards the top right is the fastest way up
     const dx = event.clientX - press.x;
     const dy = press.y - event.clientY;
@@ -180,16 +180,22 @@
     touch-action: none; cursor: all-scroll; user-select: none; }
   .frame.scrubbing { border-color: var(--text); }
   .frame.typing { cursor: text; }
-  input { flex: 1; min-width: 0; width: 100%; height: 100%; padding: 0 .25rem 0 .6rem; border: none; background: none; font: inherit;
+  input { flex: 1; min-width: 0; width: 100%; height: 100%; padding: 0 .125rem 0 .6rem; border: none; background: none; font: inherit;
     color: var(--text); text-align: right; outline: none; cursor: inherit; font-variant-numeric: tabular-nums; }
   input::selection { background: var(--text); color: var(--surface); }
   .unit { flex: none; padding-right: .5rem; color: var(--muted); font-size: var(--text-small); }
   .unit:empty { padding-right: .4rem; }
   .prefix { flex: none; padding-left: .5rem; color: var(--muted); font-size: var(--text-small); letter-spacing: .08em; }
   .prefix + input { padding-left: .25rem; }
-  .reset { flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--control-height); height: 100%;
+  /* Narrow: the unit moves up, so an axis field still shows three digits */
+  .unit:has(+ .reset) { padding-right: .125rem; }
+  .reset { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 1.25rem; height: 100%;
     border: none; background: none; color: var(--muted); cursor: pointer; font: inherit; padding: 0; }
-  .reset:hover, .reset:focus-visible { color: var(--text); outline: none; }
+  .reset:focus-visible { color: var(--text); outline: none; }
+  @media (hover: hover) {
+    .reset:hover { color: var(--text); }
+  }
   .problem { color: var(--danger); font-size: var(--text-small); line-height: 1rem; padding: 0 .6rem; }
-  .disabled .frame { opacity: .5; pointer-events: none; }
+  .disabled { cursor: not-allowed; }
+  .disabled .frame { opacity: .45; pointer-events: none; }
 </style>

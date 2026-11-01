@@ -1,4 +1,4 @@
-import { Entry, EntryCategory } from "@/types";
+import { type Entry, EntryCategory } from "@/types";
 import { isEntryCategory } from "@shared/guards/game-config";
 import { t } from "i18next";
 

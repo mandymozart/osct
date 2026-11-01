@@ -32,8 +32,8 @@ the camera only works over https). The accounts API runs locally with `npm run d
 | `editor/` | The authors' editor: a SvelteKit app at `/editor` – the engine over the mock stage, saving and publishing through the API |
 | `scripts/` | Content build and the `osct` CLI (content sync to the CDN), delivery import |
 | `server/` | Accounts API (plain PHP 8, PDO) and the Docker image's Apache config |
-| `mcp/` | The MCP server: a Claude session works on a book as a signed-in editor over the API (stdio, Node 22) |
-| `shared/` | The content contract: game-configuration types and guards used by app and build |
+| `mcp/` | The MCP server: an AI agent (any MCP client) works on a book as a signed-in editor over the API (stdio, Node 22) |
+| `shared/` | The content contract: game-configuration types and guards used by app and build; `shared/api/` – the instance API's answers and rules for the editor, the MCP server and the CLI (no content, outside the schema lock) |
 | `fixtures/content/` | Test fixture with the content layout – CI and the tests build it |
 | `fixtures/demo/` | The demo book: a sandbox that uses everything the editor and the engine can do – [plugins](docs/plugins.md) "The demo book" |
 | `docs/` | Documentation (below) · `agents/` – plan, rules and memory for agent sessions ([CLAUDE.md](CLAUDE.md)) |
@@ -44,18 +44,19 @@ optimised copy of the media (`client/public/assets/content/`); neither is in git
 
 ## Documentation
 
-- [Content guide](docs/content.md) – writing content (spreads, entries, entities, tutorial), the content build,
+- [Content guide](docs/content.md) – writing content (spreads, entries, entities), the content build,
   importing a delivery
 - [Content on the CDN](docs/content-cdn.md) – versions, the `osct` CLI (status, sync, purge), loading in the app
 - [Content out of git](docs/content-out-of-git.md) – the one-time removal of the content from the repository
-- [Game store](docs/game-store.md) · [Managers](docs/managers.md) · [BaseStore](docs/base-store.md) – app state
+- [Game store](docs/game-store.md) · [Managers](docs/managers.md) · [BaseStore](docs/base-store.md) – the reader's state
 - [Pages](docs/pages.md) · [Components](docs/components.md) · [Error page](docs/error-page.md) – the UI
-- [Tracking](docs/tracking.md) · [Look-around](docs/look-around.md) – the AR scene
-- [Editor](docs/editor.md) – the authors' tool at `/editor`: engine, mock stage, saving to the database, publishing
-- [Tutorials](client/public/docs/tutorials/index.html) – the content workflow on one page (sync, import, save, publish), shipped at `/docs/tutorials/`
-- [Plugins](docs/plugins.md) – writing the book's own code: a layer, a component, the Code tab, the content build
+- [Tracking](docs/tracking.md) · [Look-around](docs/look-around.md) – the AR scene, the trigger trial and the load test
+- [Editor](docs/editor.md) – the authors' tool at `/editor`: books, import and publish, the book page, the workspace's
+  tree, stage and panels, saving to the database
+- [Tutorials](client/public/docs/tutorials/index.html) – the content workflow on one page (sync, import, save, publish), bringing a book into the editor (the CDN, a URL, a file, the assets base, what is on the CDN), a walk through the demo book and a tour of the editor's tools, with screenshots, shipped at `/docs/tutorials/`
+- [Plugins](docs/plugins.md) – the book's own code: the plugin API, a layer, a component, the Code tab, the content build
 - [Admin](docs/admin.md) – the instance's users and roles at `/editor/admin`, the newsletter CSV
-- [MCP server](docs/mcp.md) – a Claude session as an editor over the API (`mcp/`): signing in, the tools, an example
+- [MCP server](docs/mcp.md) – an AI agent as an editor over the API (`mcp/`): signing in, connecting each client, the tools, an example
 - [Languages](docs/i18n.md) – UI texts and translations
 - [Server](docs/server.md) – the accounts API
 - [Deploy](docs/deploy.md) – Kamal, staging and production, the board
@@ -69,9 +70,10 @@ One approach per layer; all of them run in CI (`.github/workflows/checks.yml`) o
 
 | Layer | Where | Run |
 |---|---|---|
-| App: store, managers, services, utils, components | `client/src/**/__tests__/*.test.ts` (vitest, happy-dom) | `cd client && npx tsc --noEmit && npx vitest run` |
+| App: store, managers, services, utils, components – and the engine | `client/src/**/__tests__/*.test.ts`, `engine/src/**/__tests__/*.test.ts` (vitest, happy-dom – the engine's run with the client's) | `cd client && npx tsc --noEmit && npx vitest run` |
+| Editor: panels, stage, plugins, the plugin API stubs; components mounted with Svelte's `mount` (`Toggle`, a `*.svelte.test.ts` may use runes) | `editor/src/**/__tests__/*.test.ts` (vitest, happy-dom) | `cd editor && npm run check && npm test && npm run plugin-api -- --check` |
 | Content build, CDN sync and purge planning, delivery import | `scripts/test/*.test.ts` (vitest, node) | `cd scripts && npm test` |
-| Accounts API | `server/tests/api-test.php` (end to end: PHP built-in server + SQLite) | `php server/tests/api-test.php` |
+| Accounts API | `server/tests/api-test.php` (end to end: PHP built-in server + SQLite, or MariaDB – docs/server.md "Tests") | `php server/tests/api-test.php` · `OSCT_TEST_DB=mysql php server/tests/api-test.php` (after `docker compose up -d db`) |
 | MCP server | `mcp/test/*.test.ts` (vitest: a mocked fetch per tool; end to end over stdio against the PHP API) | `cd mcp && npx tsc --noEmit && npm test` |
 
 The client tests need a built game configuration (`npm run content`, the fixture is enough). Test content is

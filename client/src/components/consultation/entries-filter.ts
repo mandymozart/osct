@@ -1,5 +1,5 @@
 import { GameStoreService } from "@/services";
-import { ENTRY_CATEGORIES, EntryCategory, IGame } from "@/types";
+import { ENTRY_CATEGORIES, type EntryCategory, type IGame } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { goldButton } from "@/components/buttons";
 import { categoryLabel, DEFAULT_CATEGORY } from "./entries-model";

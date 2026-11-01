@@ -7,20 +7,33 @@ declare(strict_types=1);
  * when it was current) and `<env>/latest.json` (the current one, written last). Two stores behind one interface:
  * the directory CONTENT_STORE_DIR, served by `GET /content/{env}/{path}` (development, a host without the CDN),
  * and bunny.net's Storage API – the zone the osct CLI syncs to, with the same paths and headers, so the reader
- * cannot tell who published. The environment `local` always stays in the directory; `staging` and `production`
- * go to bunny when CONTENT_STORE is `bunny`.
+ * cannot tell who published. A connected CDN has priority: with CONTENT_STORE `bunny` every environment goes there
+ * except `local`, which always stays in the directory (a developer's machine).
+ * An environment serves one book, the last one published there: latest.json names it (`book`).
+ * An instance publishes to its own environment only (ENV, `Config::env()`); `local` exists only where ENV is local.
  */
 final class ContentStore
 {
-    public const ENVIRONMENTS = ['local', 'staging', 'production'];
+    /** The environments every instance knows (what is live there shows in the editor) – plus its own, `environments()` */
+    public const ENVIRONMENTS = ['staging', 'production'];
+
+    /**
+     * An environment's name – the one rule of the instance's ENV, a publish's env, the content route, the osct CLI and the
+     * MCP server (shared/api/rules.ts `ENV_NAME`): lower-case letters, digits and -, a letter first, at most 32
+     */
+    public const ENV = '[a-z][a-z0-9-]{0,31}';
+    public const ENV_NAME = '/^' . self::ENV . '$/';
+
+    /** The editor's line wherever the directory store is the publish target (#183) */
+    public const SERVER_WARNING = 'No CDN connected – the published content is stored and served by this server only. Readers load from here without edge caching; heavy media goes through this server. Back up the content store.';
 
     /** A version folder name: the first 12 hex digits of the content hash (content-manifest.ts `CONTENT_BUILD`) */
     public const BUILD = '/^[0-9a-f]{12}$/';
 
     /** The files below an environment that the local store serves (nothing else, no other folders) */
     private const SERVED = '#^(latest\.json|versions\.json|[0-9a-f]{12}/(game\.config|files)\.json)$#';
-    /** The assets' files (Assets.php): `<book>/<asset>/v<n>.<ext>` under the `assets` environment */
-    private const SERVED_ASSET = '#^[a-z0-9][a-z0-9-]{0,63}/[0-9a-f-]{36}/v\d+\.([a-z0-9]{2,5})$#';
+    /** The assets' files (Assets.php): `<book>/<asset>/v<n>.<ext>` under the `assets` environment – any book id (`Editor::ID`) */
+    private const SERVED_ASSET = '#^' . Editor::ID . '/[0-9a-f-]{36}/v\d+\.([a-z0-9]{2,5})$#';
 
     private function __construct(private readonly string $kind, private readonly string $env)
     {
@@ -34,6 +47,42 @@ final class ContentStore
     public function isLocal(): bool
     {
         return $this->kind === 'local';
+    }
+
+    /**
+     * This instance's environments, its own first: staging and production, and its own when it is another one – `local`
+     * on a developer's machine (ENV=local), a white-label instance's name. `local` never appears elsewhere.
+     * @return list<string>
+     */
+    public static function environments(): array
+    {
+        $own = Config::env();
+        return in_array($own, self::ENVIRONMENTS, true) ? [$own, ...array_values(array_diff(self::ENVIRONMENTS, [$own]))] : [$own, ...self::ENVIRONMENTS];
+    }
+
+    /**
+     * What the editor shows per environment (GET /editor/environments): its backend – `cdn` (the storage zone) or
+     * `server` (the directory store, served by this API) –, whether this instance publishes there (its own environment
+     * only), where readers load it, and the warning wherever the directory store is the publish target
+     * @return list<array{env: string, store: string, publish: bool, url: ?string, warning: ?string}>
+     */
+    public static function describe(): array
+    {
+        $own = Config::env();
+        $list = [];
+        foreach (self::environments() as $env) {
+            $local = self::for($env)->isLocal();
+            $publish = $env === $own;
+            $cdn = rtrim(Config::get('CONTENT_BASE_URL'), '/');
+            $list[] = [
+                'env' => $env,
+                'store' => $local ? 'server' : 'cdn',
+                'publish' => $publish,
+                'url' => $local ? Http::apiUrl() . "/content/$env" : ($publish && $cdn !== '' ? $cdn : null),
+                'warning' => $publish && $local ? self::SERVER_WARNING : null,
+            ];
+        }
+        return $list;
     }
 
     /** Writes a file below the environment (folders are created; a write is complete or absent, never half) */
@@ -88,6 +137,28 @@ final class ContentStore
     }
 
     /**
+     * The book this environment serves, after latest.json: null when nothing is published here; `book` null when it
+     * cannot be told (an unreadable manifest, a version without its configuration). A manifest without `book` was
+     * written before it existed – the book of its version's game.config.json (`book.id`) tells.
+     * @return array{book: ?string, build: ?string, since: ?string}|null
+     */
+    public function live(): ?array
+    {
+        $raw = $this->get('latest.json');
+        if ($raw === null) return null;
+        $manifest = json_decode($raw, true);
+        $build = is_array($manifest) && is_string($manifest['build'] ?? null) && preg_match(self::BUILD, $manifest['build']) ? $manifest['build'] : null;
+        if ($build === null) return ['book' => null, 'build' => null, 'since' => null];
+        $book = is_string($manifest['book'] ?? null) ? $manifest['book'] : null;
+        if ($book === null) {
+            $configuration = json_decode((string) $this->get("$build/game.config.json"), true);
+            $id = is_array($configuration) && is_array($configuration['book'] ?? null) ? ($configuration['book']['id'] ?? null) : null;
+            $book = is_string($id) ? $id : null;
+        }
+        return ['book' => $book, 'build' => $build, 'since' => is_string($manifest['activatedAt'] ?? null) ? $manifest['activatedAt'] : null];
+    }
+
+    /**
      * GET /content/{env}/{path} – a json file of the local store. Public, like the CDN: latest.json and versions.json
      * are revalidated, a version folder's files never change.
      */
@@ -111,11 +182,12 @@ final class ContentStore
      * versions.json after `version` (build, hash, schema) became current at `now`: the previous current version is
      * retired, this build's entry is appended or updated – the osct CLI's bookkeeping (content-sync.ts `activate`),
      * so `osct content purge` reads what the editor publishes.
+     * The entry records the book (`book`).
      * @param array<int, mixed> $versions
      * @param array{build: string, hash: string, schema: string} $version
      * @return array<int, array<string, mixed>>
      */
-    public static function activate(array $versions, array $version, string $now, bool $uploadedNow): array
+    public static function activate(array $versions, array $version, string $now, bool $uploadedNow, string $bookId): array
     {
         $existing = null;
         $result = [];
@@ -136,17 +208,16 @@ final class ContentStore
             'uploadedAt' => $uploadedNow || !$existing ? $now : $existing['uploadedAt'],
             'activatedAt' => $existing && ($existing['retiredAt'] ?? null) === null ? $existing['activatedAt'] : $now,
             'retiredAt' => null,
+            'book' => $bookId,
         ];
         usort($result, fn(array $a, array $b) => strcmp((string) ($a['activatedAt'] ?? ''), (string) ($b['activatedAt'] ?? '')));
         return $result;
     }
 
-    /** The local store's directory: CONTENT_STORE_DIR, a relative path counted from the api folder */
+    /** The directory store's folder: the content store (Paths – CONTENT_STORE_DIR, content-store/ by default) */
     public static function dir(): string
     {
-        $dir = rtrim(Config::get('CONTENT_STORE_DIR'), '/\\');
-        if (!preg_match('#^([A-Za-z]:)?[/\\\\]#', $dir)) $dir = dirname(__DIR__) . "/$dir";
-        return $dir;
+        return rtrim(Paths::contentStore(), '/');
     }
 
     /**

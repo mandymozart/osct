@@ -1,7 +1,8 @@
 # OSCT – Agent entry point
 
-AR companion app for Kévin Bray's book *Onion Skin & Crocodile Tears*: app in `client/`, content build and
-osct CLI in `scripts/`, accounts API in `server/`, shared content contract in `shared/`. The book content
+AR companion app for Kévin Bray's book *Onion Skin & Crocodile Tears*: the reader app in `client/`, the engine it
+shares with the editor in `engine/`, the editor in `editor/`, content build and osct CLI in `scripts/`, accounts and
+editor API in `server/`, the MCP server in `mcp/`, shared content contract in `shared/`. The book content
 lives outside the repository (`OSCT_CONTENT_DIR`); `fixtures/content/` is the test fixture.
 
 Before working, read:
@@ -9,6 +10,8 @@ Before working, read:
 - `agents/PLAN.md` – the restructuring plan (phases, checkboxes, open decisions)
 - `agents/MEMORY.md` – dated decisions and open items
 - `agents/STRATEGY.md` – where this goes: scutoons-animus-ar, a white-label core; data sovereignty (milestone 2)
+- `agents/ORCHESTRATION.md` – OSCT's specifics for orchestrating sessions and night shifts (the general rules: `C:\Development\ORCHESTRATION.md`)
+- `agents/HANDOFF.md` – an orchestrator session starts here: where the last one left off, what is next, what waits for Tilman
 - `agents/DESIGN.md` – measured design spec (colors, gold gradient, sizes, buttons) – before any styling
 - `agents/reference/README.md` – design PDF, rendered frames and extracted placeholder images
 - `README.md` – the index of `docs/` (architecture, content, CDN, server, deploy, i18n, tests)

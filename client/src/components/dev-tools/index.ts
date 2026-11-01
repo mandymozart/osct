@@ -4,5 +4,6 @@ export * from "./camera-panel";
 export * from "./qr-generator";
 export * from "./trial-panel";
 export * from "./trial-report";
+export * from "./trial-device";
 export * from "./load-test-panel";
 export * from "./load-test-report";

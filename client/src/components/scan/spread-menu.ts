@@ -1,5 +1,5 @@
 import { feedback, GameStoreService } from "@/services";
-import { IGame, Spread } from "@/types";
+import type { IGame, Spread } from "@/types";
 import { formatPages, getMenuSpreads, loopCopies, normalizeLoopScroll } from "./spread-menu-loop";
 import { adoptDesignStyles } from "@/styles";
 import { t } from "i18next";

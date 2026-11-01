@@ -4,16 +4,20 @@ import "@/i18n";
 
 import "@/components";
 import "@/pages";
-import { IErrorPage } from "@/pages";
-import { UserService, FeedbackService, GameStoreService, InstallService, LinkService, ServiceWorkerService } from "@/services";
-import {
+import type { IErrorPage } from "@/pages";
+import { UserService, FeedbackService, GameStoreService, InstallService, LinkService, LocalDeviceStorage, ServiceWorkerService, UpdateService } from "@/services";
+import type {
   ErrorInfo,
   IGame,
 } from "@/types";
-import { hideStaticSplash, staticSplashStep, releaseStaticSplash, waitForDOMReady } from "@/utils";
-import { getConfigurationError, getTutorial, loadGameConfiguration } from "@/utils/game-config";
+import { hideStaticSplash, onboardingSteps, staticSplashStep, releaseStaticSplash, waitForDOMReady } from "@/utils";
+import { getBook, getConfigurationError, loadGameConfiguration } from "@/utils/game-config";
 import i18next, { t } from "i18next";
 import { DEFAULT_LANGUAGE } from "@/i18n";
+import { setDeviceStorage } from "@engine/utils/device-storage";
+
+// The engine's switches for this device live in the reader's localStorage – before anything reads them
+setDeviceStorage(new LocalDeviceStorage());
 
 // Page language (screen readers, hyphenation); translate the static splash's texts (index.html ships English)
 document.documentElement.lang = i18next.resolvedLanguage ?? DEFAULT_LANGUAGE;
@@ -23,6 +27,9 @@ staticSplash?.querySelector("img")?.setAttribute("alt", t("common:markAlt"));
 
 // Must run early: the browser fires its install prompt once, shortly after load (see InstallService)
 InstallService.getInstance().start();
+
+// A code file that fails to load (a deploy removed it under the open page) offers a reload (<new-version-notice>)
+UpdateService.getInstance().noticeStaleChunks();
 
 // Detect iOS Safari for compatibility fixes
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
@@ -89,7 +96,9 @@ export class BookGame extends HTMLElement {
     <loading-page active></loading-page>
 
     <ar-bridge></ar-bridge>
-    
+
+    <new-version-notice></new-version-notice>
+
     <debug-overlay></debug-overlay>
   `;
 
@@ -140,7 +149,7 @@ export class BookGame extends HTMLElement {
 
   private initializeComponents() {
     this.game.startLoading();
-    this.errorPage = this.shadowRoot!.querySelector("error-page");
+    this.errorPage = this.shadowRoot?.querySelector("error-page") ?? null;
   }
 
   private async setupGameState() {
@@ -167,7 +176,7 @@ export class BookGame extends HTMLElement {
       // immediately for a link, else when the splash step's duration has elapsed
       this.game.finishLoading();
       void releaseStaticSplash({ wait: !linked });
-      // PWA: installable, offline app shell and seen content (production builds only)
+      // PWA: installable, offline app shell and seen content (production builds only); new versions under the open page
       ServiceWorkerService.register();
       console.log(
         `[BookGame] Initialized version ${this.game.version.version} / ${this.game.version.timestamp}) ID: ${this.game.state.id}`
@@ -179,7 +188,7 @@ export class BookGame extends HTMLElement {
 
   /** Onboarding step to start with: the one after the static splash's step, else the first */
   private firstOnboardingStep(): number {
-    const steps = [...getTutorial()].sort((a, b) => a.index - b.index);
+    const steps = [...onboardingSteps(getBook())].sort((a, b) => a.index - b.index);
     const shown = staticSplashStep();
     if (shown === undefined) return steps[0]?.index ?? 0;
     return steps.find(step => step.index > shown)?.index ?? shown;

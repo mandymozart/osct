@@ -4,6 +4,1659 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-01 – the Toggle is a track with a knob (#243)
+
+- **`Toggle.svelte` is a real switch** (#243): a `<button role="switch" aria-checked>` with a track and a sliding knob,
+  modelled on the reader's `<gold-switch>`; the *on* / *off* text is gone (`words` stays only as a quiet value, a
+  variable's *false* / *true*). Measurements in `DESIGN.md` §9. Round on purpose – the one round control in the square
+  editor, as a switch reads as one only with its round track.
+- **Keyboard**: the switch flips on `keydown` of Space / Enter (once, not on a held key's repeats) and cancels the
+  button's own activation (Enter's click on keydown, Space's on keyup) – checked in Chromium: one press, one flip.
+- **Component tests mount Svelte now**: `editor/vite.config.ts` resolves the browser conditions under vitest
+  (`process.env.VITEST`), so `mount()` from `svelte` works in happy-dom (`lib/__tests__/toggle.svelte.test.ts` – a
+  `*.svelte.test.ts` may use runes). The build is unchanged.
+
+## 2026-11-01 – cost per issue: agents/costs.json and a line in every closing comment (#242)
+
+- **Tilman (2026-11-01):** accepted the #242 proposal with the closing-comment line and the local ledger, as
+  `agents/costs.json` in every project for analysis across projects. Format and routine: `C:\Development\ORCHESTRATION.md`
+  §10; background: `agents/COST-TRACKING.md`; script: `C:\Development	ools\costs	ranscript_cost.py`.
+- **Backfill (list-price estimates, local sessions only):** ≈ $2,400 for osct since 2026-04. Of that ≈ $1,360 is
+  orchestrator sessions on 10-28 to 11-01 (≈ $550 on 10-30 alone), more than all workers together. The cause is cache
+  reads: a long orchestrator context is reread on every turn (≈ 3.2 billion cache-read tokens in one session).
+- Open: the board field, a budget per project, the `SessionEnd` hook, `cleanupPeriodDays` 365 (transcripts are
+  deleted after 30 days, so the backfill only reaches back that far for most sessions). `paid_from` of local sessions
+  is unknown (plan or extra usage) and stays `null` until the monthly bill entries.
+
+## 2026-11-01 – plugins in the reader run in its page; the Toggle still looks like a button
+
+- **Tilman (2026-10-31):** *"Auf der Leser-Seite sollen die Plugins auf jeden Fall auf der Seite laufen."* The reader
+  keeps running book plugins in its own page on purpose – no sandbox for the reader. The editor's stage and its plugins
+  are sandboxed since 1.58.0 (#234); that question is closed.
+- **#241 shipped (1.62.0), but `Toggle.svelte` is still a pill that reads *on* / *off*** – the button look Tilman
+  objected to. #243: a real switch (track and knob, `role="switch"`), modelled on the reader's `<gold-switch>`.
+- **Cost (#242):** the #241 cloud worker reported it ran on **overage** (the 7-day limit was full) although cloud
+  session credit was left – to check with Tilman against the usage page before trusting cloud credit for night shifts.
+
+## 2026-10-31 – every on/off is a switch (#241)
+
+- **Tilman** (#241): *"Ich will so einen Toggle. An manchen Stellen sind keine Toggles, sondern Buttons."* The inventory
+  (editor and reader, comment on #241) sorted every control that holds a state: **on/off → `Toggle`** (editor) or the
+  reader's switch; **choices** (Segmented, radio menus, tabs) stay choices; **actions** (save, add, remove, play, copy,
+  apply continuous focus) stay buttons.
+- **Changed**: *grid & snap* (grid, vertical axis, snap: on/off `Segmented` → `Toggle`; *snap to*: four pressed pills →
+  one row with a switch per target), Environment *onion sky*, a boolean variable in *vars and events* (`Toggle` with
+  `words={["false", "true"]}` – a variable's value reads as its value), the Inspector's uniform scale (the chain icon → a
+  *uniform* row under scale), the removal confirmation's *delete the files* option, the admin page's roles per user.
+  Reader dev tools: *ask zoom* and *QR* became `debugSwitch` (a `role="switch"` button, `debug-sheet.ts`); the reader's
+  settings were `<gold-switch>` already.
+- **Kept on purpose**: the tree's **eye** (found / lost – the simulation's state per target, an icon in a tree row as in
+  a design tool's layers; a pill per row would not fit), the tree's and sections' **open / closed** (disclosure, not a
+  setting – `aria-expanded`), the Inspector's *placement* / *hide placement* link (a disclosure; a `Section` for it is a
+  follow-up of #233), play / pause (playback actions), the camera panel's **AF** (it applies continuous focus, a second
+  tap does not turn it off) and **◎** (arms one tap to focus, then disarms).
+- [ ] **Open**: should the tree's eye become a `Toggle` after all (Tilman's call); the *placement* link as a nested
+  `Section`.
+
+## 2026-10-31 – print first or digital first: the book's source of truth (#238)
+
+- **Tilman** (#238): *"+ spread … an option we only give when the book's meta notes whether it is print first or
+  digital first – what the source of truth is – it has to be a setting we can change"*, *"the add spread can be just as
+  big as a double page's tile with a plus inside"*, *"whether a cover or another format is chosen is part of the dialog
+  that takes care of the creation"*.
+- **In the content, not a column**: `book.sourceOfTruth` (`print` | `digital`, content schema 2.25 together with #236's
+  change – one MINOR). The book's `book_json` holds it, so no migration; none means print (`sourceOfTruthOf`). The guard
+  does not check it (the reader does not read it; an older guard ignores unknown book fields) – the content build and
+  the API check the value.
+- **Set on import**: the configuration's own value, else `print` – so the demo, whose `book.yaml` says `digital`, is
+  digital first after an import, the OSCT book print first. There is no "new empty book" flow yet (books only come in
+  through an import), so *"a new empty book digital first"* has nowhere to live today. **Staging's demo** keeps its row
+  as imported before: print first until it is re-imported or switched in its Inspector.
+- **Enforced in the API** (`Books::requireDigitalFirst`: `POST`/`DELETE …/spreads` → 409 `print-first` with how to
+  change it); the MCP tools say so in their descriptions and the hint of the refusal (switching is the person's yes);
+  the editor leaves the controls out for a print-first book (RULES #32: absent, not disabled).
+- **The creation step** (`NewSpreadForm.svelte`, choices in `spread-edit.ts`): format, title, *after* (double page only)
+  with the pages it takes; on the book page it replaces the add tile in place (full row), in the workspace it is the
+  panel's body. The card menu's *Add a double page after* now opens the step (with the spread chosen) instead of adding
+  at once. The tile gets a spacer before it when the last spread ends on a left-hand page, so it sits like a double page.
+- **+ after the last spread's ›**: the panel bar on a desktop, beside › at the stage's corner on a phone (not while ‹ ›
+  sit at the top on a short stage).
+
+## 2026-10-31 – texts inside the editor: the book search in the top bar, the book in the Inspector (#237)
+
+- **Tilman** (#237): *"a search in the document is not wrong, but a separate page is the wrong place – it is rather part
+  of the header"*, *"that is too much info"* (the book page's head).
+- **The search lives in the top bar** (`BookSearch.svelte`, pure logic in `book-search.ts`) on every page of a book –
+  on the book page too, where it loads the draft (`content.load`) on the first focus; it searches the draft the engine
+  reads (`content.spreads`: entries with their text, targets with their resolved entities), not the API's rows – one
+  source for the stage and the search. Named nodes only: a node without a `name` is found through its target.
+- **A pick on another spread** goes through the selection: `selection.requestOn(spread, state)` before the route
+  changes, the workspace's `enter(spread)` takes it (else the spread, as before); `selection.reveal` counts the asks to
+  show the Inspector (the page opens its tab, the sheet on a phone). The entry without a target simply opens its form
+  (the Inspector shows any entry by id).
+- **The book crumb selects the book** in a workspace (a modified click still navigates); the book page is reached by
+  the panel's ×, the Inspector's *All spreads*, or the crumb outside a workspace. A `book` flag in the selection –
+  only written when true, so the snapshots of the other selections stay as they were.
+- **Removed with the entries view**: `EntriesPage.svelte`, the list helpers of `entry-edit.ts` (filter, counts, the
+  glossary by letter – Tilman's issue: the search covers it) and the tutorial page's Entries screenshot; the book page's
+  `+ double page` / `+ cover` / `+ back cover` links went with its info line (#238 brings the add tile).
+- [ ] The tutorial page's chapter 5 has no new screenshots yet (the search, the book in the Inspector, + entry): taken in
+      #236–#238's run (`C:\Users\Nutzer\AppData\Local\Temp\osct-shots\236-238\`), not converted into the page.
+
+## 2026-10-31 – the onboarding belongs to the app: out of the database, the editor and the content (#236)
+
+- **Tilman** (#236): *"How did onboarding end up in the database? This is part of the app itself. I said that
+  specifically during planning."* – *"onboarding must definitely go into the code and our normal translation – it has no
+  business in the editor"*. Done as decided on 2026-09-28 and 2026-10-29 (#61, "onboarding steps stay out of the
+  database"); #223 had made it editable without checking this file (the lesson is in `C:\Development\ORCHESTRATION.md` §9).
+- **The app owns the steps**: `client/src/utils/onboarding.ts` – order, illustrations, actions and timing; the texts are
+  the `tutorial` namespace's (en, de, fr, nl; informal), `{{title}}` filled from the book by i18next's interpolation
+  (escaping off there – `<tutorial-content>` escapes and turns `*emphasis*` into markup, as before). The splash step
+  (`SPLASH_STEP`) lives in `utils/static-splash-html.ts`, the file vite.config.js loads without aliases, so the static
+  splash in index.html and the app show the same step. One set of steps for every book: the demo's own intro text
+  ("a sandbox …") is gone with its content steps.
+- **A compat `tutorial` until the next schema MAJOR** (RULES #10): apps of schema 2.24 and before require `tutorial` and
+  show it, and an empty list would leave them on a blank onboarding. So the content build and every draft / publish
+  write the app's English steps (`shared/compat/tutorial.ts`; the PHP's copy `Editor::COMPAT_TUTORIAL` is pinned by
+  `mcp/test/php-rules.test.ts`). It is frozen – it does not follow later changes of the app's texts – and goes with the
+  next MAJOR. The guard no longer requires `tutorial` (checks it when present) – content schema **2.25**.
+- **The database**: `books.tutorial_json` is removed by a migration (`ALTER TABLE books DROP COLUMN tutorial_json`, both
+  databases). RULES #25 forbade any DROP in the schema files; the brief asked for the column to go, so RULES #25 now has
+  one narrow exception – a removed feature's column by name, skipped once gone (`Db::migrate`, the test's
+  `loadSchema`); never a table, never rows. **Tilman confirmed (2026-10-31): "If you can remove it do it."**
+- Removed: the editor's onboarding view and `OnboardingSteps.svelte`, the step logic of `book-texts.ts`,
+  `GET`/`PUT …/tutorial`, the MCP tools `get_tutorial` / `update_tutorial`, `STEP_TIME_MAX` / `STEPS_MAX`, the content
+  build's `steps/` reader (it warns while a source still has the folder), the engine's `getTutorial` and `Step`, the
+  fixtures' steps, the tutorial page's onboarding chapter and its screenshot. The book content source's
+  `osct-content/content/steps/` (outside git) can be deleted by hand.
+
+## 2026-10-31 – docs: one owner per topic (#218)
+
+- **The plugin API's reference lives in `docs/plugins.md`** only; `docs/content.md` keeps a paragraph on how the content
+  names what a plugin registers, with the pointer. What content.md held that plugins.md lacked moved with it (the
+  configuration's `plugins: [{ id, src, api, registered }]`, how the reader's check treats a plugin without `registered`,
+  `ArSceneOptions.progress`, the pass registry's file).
+- **The trigger trial lives in `docs/tracking.md`** ("The trigger trial", with the phone model and the printed-image
+  details); content.md's command table points there. The engine's `trigger-protocol.ts` comment and
+  `docs/trigger-tests/README.md` name the new place.
+- **The delivery history stays out of the docs**: how 2110 was matched (by page and appearance, the link screenshots
+  without a page), the ten targets not on the printout – already in this file (2026-10-27 "Trial content").
+- **tracking.md's options list became pointers**: the window (grow or a sliding budget) is open in #38, preloading in
+  steps in #13; the smaller options with their details are the open item in `agents/PLAN.md` phase 13.
+- **content-cdn.md** points to RULES #10 instead of repeating it; the pull zone's settings are stated as they are, and
+  the #175 repair is a titled temporary runbook. Its `content/` default stays: `scripts/src/config.ts` still falls back
+  to a local `content/` folder (`OSCT_CONTENT_DIR || 'content'`, the open item of #5 below). The dated observations
+  it held, kept here: the pull zone was checked against `buildingfictions.b-cdn.net` on 2026-10-27 and 2026-10-28 (the
+  bunny.net dashboard, Tilman's team seat); on 2026-10-28 JSON and JPEG sent `Access-Control-Allow-Origin: *` (models and
+  videos not checked) and the zone ignored query strings; on 2026-10-30 `latest.json` came with `cache-control: public,
+  max-age=0` and `cdn-cache: BYPASS` (the rule in place), while staging's edge served `versions.json` as cached on
+  2026-10-28 17:15 (`cdn-cache: HIT`, only `6448aacb4ab7`) and `latest.json` named `b6b0ebaabcfd`; the demo's looked the
+  same (`7a5254b5a4f6` at the edge, `dcd17b5e63d2` in `latest.json`). The storage's copy (`…/staging//versions.json`,
+  `cdn-cache: MISS`) listed `6448aacb4ab7`, `c396a3554496`, `2e0a4af94ca2` and `b6b0ebaabcfd`, the last as current.
+- **base-store.md** is cut down to what OSCT uses (the API, a component's subscription, what counts as a change) – the
+  generic to-do tutorial is gone. **editor.md** is ordered by page and panel – Books and import, the book page, the
+  workspace (tree, selection, Info view), the stage (desk and book, tracker and simulation, toolbar, view, snapping,
+  gizmo, picking, shading, the frame), the panels (Inspector, spread, post-processing, vars and events, Environment,
+  Library, Code) – each told once; its UI rules point to RULES #32 and DESIGN.md §9 and keep only the editor's own
+  values; quotes are gone; stale lines fixed (`EntryForm.svelte` for the removed `EntryView.svelte`, texts are edited
+  in the editor, a pass can be switched off, the plugin API's feedback buffers).
+- The links and anchors of `docs/` and the README were checked with a script (relative links, anchors as GitHub's
+  slugs, quoted section names): all resolve.
+
+## 2026-10-31 – shared/ tidied in one schema MINOR (2.24, #214)
+
+- **One schema bump for the whole tidy-up** (#19's second pass, section 5): every change in `shared/` needs one, so the
+  findings waited for each other. 2.24 changes no content shape – an older app reads a 2.24 book exactly as before.
+- **`shared/guards/primitives.ts` is a leaf** (it imports nothing): `isObject` and the camelCase name pattern live there,
+  so every module of `shared/` – and the engine's trigger protocol and the editor's frame protocol – uses one copy without
+  an import cycle (the guard imports the types, so the types could not import the guard). `guards/game-config.ts`
+  re-exports `isObject` for the reader, the engine and the content build, which import it from there.
+- **The camelCase pattern is written once** (`CAMEL_CASE_NAME`, at most 40 characters; `camelCaseName(32)` for a plugin's
+  node type, the API's column width). `COMPONENT_TYPE_PATTERN`, `MATERIAL_TYPE_PATTERN`, `TEXTURE_TYPE_PATTERN` and
+  `BEHAVIOUR_NAME_PATTERN` stay as names for their role – the engine, the MCP server and the PHP comments name them.
+- **`BEHAVIOUR_NODE_ACTIONS` stays**: unused when #19 looked, the engine's forward-compatible list uses it since #220. It
+  now also replaces the behaviour grammar's own copy of the shorthands. Removed: `isComponentType`, `PlacementData`.
+- **The change log by schema version stays** in `shared/types/game-config.ts` (RULES #22's exception for the type docs);
+  its last line ("any MINOR of the same MAJOR loads") now says RULES #10's rule – skipped with a warning, apps before
+  #220 refused some of it.
+
+## 2026-10-31 – content editing: entries, the book, the onboarding; Markdown and variables (#223)
+
+- **Tilman** (#223): *"Simple Markdown is cool in the long run – so a basic implementation. Here too, orient on the
+  message boxes at SCUTOONS: they can contain variables as well. Maybe just copy them."*
+- **The parser lives in `shared/text/`** – a content schema MINOR (2.23), not the engine: the body's meaning is part of
+  the contract (like `behaviour.ts`), the reader, the editor and the MCP server import it alike, and the schema bump was
+  due anyway (the body changes meaning). `expressions.ts` is SCUTOONS' `shared/content/src/expr/parse.ts` +
+  `evaluate.ts` (ink's inline syntax), trimmed: print `{x}` and conditional `{cond: a|b}` with ink's operators; **no
+  lists** (`{a|b}`, `{&…}`, `{~…}`, `{!…}` – they need visit counts a book does not keep) and **no functions** (no
+  registry) – both parse, render nothing and are named as problems (the MCP server refuses them). Names are bare
+  camelCase variables, read innermost scope first like `api.vars.get`; a dotted name is no book variable.
+- **An unset variable renders as nothing** (SCUTOONS' rule: readers never see raw code). The fallback is a conditional:
+  `{name: {name}|friend}`. Chosen over a `{name|fallback}` syntax because that is a SCUTOONS sequence – copying the syntax
+  means keeping its meaning.
+- **Layering**: variables first, Markdown second. A printed value is Markdown-escaped, so a value never becomes markup;
+  the expression layer turns only `\{ \} \|` into characters and leaves every other backslash for the Markdown.
+  Markdown subset: paragraphs at blank lines, **a single line break stays a `<br>`** (plain text showed it with
+  `pre-line`, so older content reads the same), `*em*`/`_em_`, `**strong**`/`__strong__`, `[text](url)` with
+  http/https/mailto only. Everything is HTML-escaped; only p, br, em, strong and a (checked href, `target=_blank`,
+  `rel=noopener noreferrer`) are written. A failed-closer memo keeps it linear on hostile input.
+- **The reader's values**: the book scope from the progress, every scope once the AR chunk has loaded
+  (`sceneVariables()` in `lazy-ar-scene.ts` – the chunk's `allVars()`, nothing imported statically). Read when the entry
+  opens.
+- **The editor's values**: the page's mirror of the stage frame's `vars` (#234 – data, no code); the Entries page has no
+  stage, so every variable shows as unset there (the preview says so).
+- **API**: a new class `BookTexts.php` (Books.php is long): `GET …/entries` (raw fields – the draft the engine reads
+  resolves image paths, so the form needs the rows), `PUT …/entries/{eid}`, `PUT /editor/books/{id}`, `GET`/`PUT
+  …/tutorial`; each write locks its row in a transaction and logs `before`. `POST …/entries` takes no target now (an
+  entry read in the list only). The API does not judge the body's braces (the reader renders a broken one as nothing;
+  the editor names it, the MCP server refuses it). An entry's picture must be a Library image (uploaded, or a file of the
+  import) or the value it has. AI tokens may write texts (RULES #33 is the account; publishing stays refused).
+- **Editor**: `EntryView.svelte` became `EntryForm.svelte` (same place, same order); the Library picker opens over the
+  form, which stays mounted (its draft would be lost otherwise). The book page has three views in `?view=` (spreads,
+  entries, onboarding) – a query, not a route: `[book]/entries/` would shadow a spread with the id `entries`. The book's
+  texts are a collapsible section above the views; the onboarding's steps are sections keyed by place (typing an id must
+  not close the section).
+- **Translations (#224)**: every text field is one value; a language variant becomes a draft of the same shape per
+  language, so the forms take a switch without reshaping.
+- **Left for later**: *Edit text* in the tree's entry menu (the form already opens on a tap); a preview of the splash
+  in the onboarding view; the onboarding's texts in the Markdown renderer (they keep the reader's own `*emphasis*` and
+  `{{title}}`).
+
+## 2026-10-31 – plugin code in a sandbox: the editor's stage in an opaque-origin frame (#234)
+
+- **Tilman**: "Make editors safe, please. Sandbox." Since #207 no script can read the session, but every book plugin –
+  the draft's and the Code tab's Run – ran in the editor's page: a plugin any editor of a book wrote could, while an
+  admin had the book open, fetch `GET /user` for the CSRF token and write with the admin's cookie.
+- **Decision: (a) – the whole stage runs in an iframe sandboxed with `allow-scripts` only** (no `allow-same-origin`),
+  the editor's own route `/editor/stage-frame/` (outside the `(app)` routes and their gate), and the page talks to it
+  over `postMessage` (`editor/src/lib/stage/frame-protocol.ts`). Why this and not the others:
+  - **Plugins cannot leave the scene.** A component gets the node's `Object3D`, a node type returns one, a material or
+    a pass is three.js built against the one renderer, a feedback buffer renders in it. Whatever is sandboxed has to hold
+    the scene – so the stage moves, not the plugins.
+  - **(c) a worker with a command protocol** would mean a new plugin API (no `api.three` objects, every call a command):
+    a plugin API MAJOR, every plugin rewritten, the demo and the book's code with them. Far too big, and it breaks what
+    content already does.
+  - **(d) an `api:` capability plugins can't reach** is impossible in one realm: plugin code reaches `fetch` (or patches
+    it), reads `GET /user` with the ambient cookie, gets at any object through `api.three`'s prototypes. Nothing in a
+    shared realm is private from it.
+  - **(b) a separate origin** (a sandbox subdomain) is (a) plus deploy config (a host name, TLS, the proxy). The opaque
+    origin of (a) already is an origin of its own – without deploy config. (b) stays the way to go further (also for
+    the reader, below).
+  - **The churn stays small**: the frame runs the existing stage unchanged in substance (`stage-core.svelte.ts`, the old
+    `Stage` class); the page keeps a `Stage` with the same API (`stage.svelte.ts`), so the panels barely changed (four
+    calls answer a promise now: `sampleColor`, `sampleBottom`, `setVar`, `tap`). The plugin registry crosses as specs
+    (`pluginRegistrySnapshot` in the frame, `mirrorPluginRegistry` in the page – `engine/src/scene/plugins.ts`), so
+    the panels keep reading the engine's registries. **No plugin API change, no content schema change.** Not a first
+    step: nothing of plugin code runs in the page any more.
+- **What the opaque origin does** (checked in the browser with a probe plugin): `self.origin` is `"null"`,
+  `document.cookie` and `localStorage` throw (`SecurityError` – sandboxed, no `allow-same-origin`), `parent.document` is
+  another origin's; a request to the API's content route – the one path of the API the policy allows – goes out
+  **without the cookie** (Chrome: `osct_session` blocked, `SchemefulSameSiteStrict` – an opaque initiator is another
+  site) and its credentialed read is refused by CORS; `fetch("/api/user")` never leaves (the policy). The CSRF token and
+  every API call stay in the page.
+- **What crosses**: the page sends the draft as text (it fetched it with its session; `content.snapshot`, the frame
+  replays it – it never asks the API), the preview (`previewSync`, checked both ways), the environment, the overrides
+  (the page's own – a removed entity as the marker `removed`), the selection, the modes, the ghost, and the Code tab's
+  transpiled module. The frame sends its state, the variables and the timeline, the registry, the layout, the models'
+  timelines, picks, the context menu, a gizmo's placement (the page writes its override), the placement handles, its
+  preview changes, the page's keys (only `FORWARDED_KEYS`), the plugins' log lines, and that the pointer came onto it
+  (the Info view). The page acts only on events `readFrameEvent` accepted; **none leads to an API call**. The frame
+  accepts requests only from its parent at the editor's origin and posts only there.
+- **The policy**: a `<meta http-equiv="Content-Security-Policy">` the frame's own code puts in before the draft and
+  its plugins load (`frameCsp`). Not a header: the policy names the book's content bases, which only the draft knows,
+  and a static header cannot say "this origin except `/api`" (CSP has no exclusions). Every source carries its path –
+  `<origin>/editor/`, `<origin>/api/content/`, `<content base>/assets/content/`, `<origin>/trigger-protocol.json` –,
+  never `'self'`. A meta cannot widen an earlier one, so a draft whose files move to another base gets a new frame.
+- **Serving it**: the opaque frame fetches the editor's module scripts and static files with `Origin: null`;
+  `client/public/.htaccess` now sends `Access-Control-Allow-Origin: *` for `/editor/` and `/assets/content/` (public
+  files; mod_headers, which the Dockerfile enables – the FTPS host needs it too). No deploy config changed. The editor's
+  and the reader's Vite servers allow `null` (`server.cors`, `preview.cors`).
+- **The routes moved into a group**: `editor/src/routes/(app)/` holds the editor (its `+layout.svelte` is the gate);
+  `stage-frame/` sits beside it with no layout of its own, so the frame never runs the session code. `resolve("/(app)")`
+  is the books page now (a route id, groups and all).
+- **Frame cost** (desktop, headless Edge 156 with SwiftShader, 1280 × 800, rAF count and the main thread's task time,
+  3 × 10 s): *The switch* (the ink painting's feedback buffers, a video) 60 fps and 1.25 ms per frame in develop's page,
+  60 fps and 1.25 ms (1.22 in the frame, 0.03 in the page) sandboxed; *The key* (the aquarium, the key) 1.45–1.50 ms
+  in develop, 1.47–1.64 ms sandboxed – the frame's per-frame snapshot of the models' timelines and the layout costs
+  well under 0.2 ms. The phone was not measured.
+- **The reader: not sandboxed in this step** – documented, no issue opened (the brief). Tilman decided on 2026-10-29
+  "no sandbox in the reader" (below, "ich finde wir schützen schon genug vor Release" – the review before a release is
+  the protection), and it is not cheap: its scene needs the camera (`getUserMedia` delegated into a sandboxed frame,
+  `allow="camera"`), the 8th Wall engine's classic script, its chunk and its wasm served for an opaque origin, and the
+  service worker's offline content, which does not reach a sandboxed frame (offline AR would break); and it would need
+  the phone budget measured on iOS and Android. **The risk stays**: published plugins run in the reader's page with the
+  reader's session – and the cookie is one for the site (#207), so an editor or admin who opens the reader in the same
+  browser exposes their session to the book's plugins there. Published plugins come from sources editors stored and
+  reach readers only through a person's publish – a smaller circle than every Code tab Run, the same kind of code.
+- **What the sandbox does not do**: plugin code can still send what it sees – the draft, which its author can read
+  anyway – away by navigating its own frame (CSP has no `navigate-to`); it can post stage events that change the
+  person's unsaved live state (a placement, a pick, Delete on the selected node). A plugin that fetched other hosts in
+  the editor no longer can (the reader is unchanged); `api.loadText` covers the content and the Library.
+- [ ] **The reader's plugins and the session** (above): Tilman's "no sandbox in the reader" (2026-10-29) predates the
+  one cookie for the site (#207), which puts an editor's or admin's session within reach of a published plugin in the
+  reader. Whether that changes it is his call: sandbox the reader's scene (camera delegation, the 8th Wall files for an
+  opaque origin, offline content), or serve the editor and its API from an origin of their own so the reader's pages
+  never hold an editor's cookie (deploy config).
+- [ ] **WebGPU in the frame** (the aquarium's fluid): the Inspector says *WebGPU ok · particles 10k* in headless Edge
+  (its software adapter) inside the sandbox – a sandboxed frame needs no permission for it; not yet seen on a real GPU.
+- [ ] **The frame on the phone** (the S22): frame cost and the sheet's drag over the stage.
+- [ ] **A header policy for the frame** would apply before any script, not only before plugin code: it needs the
+  content bases per book – a server-side page for the frame, or deploy config.
+
+## 2026-10-31 – plugin labels mark only unsaved (#232); a toggle per pass and the UI principle (#233)
+
+- **Tilman (#232)**: "Unchanged needs no indication. Unsaved needs one. And published is clear. Unsaved with an asterisk
+  after the name." The Code tab's picker and the Library's code list show a plugin's name alone, `name*` with unsaved
+  edits (`pluginLabel`, `editor/src/lib/library-code.ts`). **Saved but not published: no mark** – every stored source is
+  part of the draft, and the top bar already says whether readers have the draft (*draft only* / *live on …*); a per-plugin
+  "published" state would need the publish to compile Code tab sources (#78), which it does not yet. The note
+  *compiled by the content build* under a declared plugin went too (an unchanged state).
+- **The Code tab's buffer moved into the store** (`plugins.code`, a `CodeBuffer`): the tab unmounts when another tab
+  shows, and its local state lost unsaved edits silently – so the Library could never have seen an unsaved script. Now
+  the buffer survives a tab switch, the reload guard (`trackUnsaved`) watches it at module level, and "unsaved" is the
+  text against the text as loaded or saved (`loaded`), not against the stored copy (`saved`, "" for a declared plugin –
+  that made a merely opened declared plugin count as dirty). Save stays enabled for a declared plugin (it stores a copy).
+- **Tilman (#233)**: "Yes please, a toggle is good. On the accordion of each pass. In principle in the UI: such things
+  can be collapsed and, where possible, toggled." A pass has `enabled` (content schema 2.22, MINOR): `false` keeps the
+  pass and its values, the chain skips it (`PostChain.set`, `View.setPasses` – all off = no chain, `cameraGrades`), the
+  phone budget does not count it. Off writes `enabled: false`, on drops the field. `PASS_FIELDS` (`type`, `enabled`) is
+  what `KnownFeatures.passFields` lists, so a 2.21-era list skips `enabled` as an unknown parameter – what the 1.55.0
+  app does; an app before #220 ignores it through the guard's `unknownParams: "ignore"`. Either way an older app shows a
+  pass that is off.
+- **The principle** is in RULES #32 and `agents/DESIGN.md` §9: a group of settings that can be switched as a whole is a
+  collapsible `Section` with `enabled` / `onenabled` – the on / off `Toggle` in its head, working without opening it,
+  closed the head names its values. `Toggle.svelte` is now the one boolean control (the pass rows and the Inspector's
+  boolean rows use it). Section ids of the passes are by position (`stage.passes.<i>`); a move or removal carries the
+  open state along, an added pass opens.
+- [ ] **Follow-ups of the principle** (each needs its own issue; most need a content field = a schema MINOR):
+  - the Inspector's **component rows** – each component a nested section with a toggle (`enabled` on a component: the
+    engine would skip applying it);
+  - **behaviour rules** – each rule a section with a toggle (a rule's `enabled`, the engine's rule runner skips it);
+  - a node's **material** (a plugin material on / off – the node's own material shows while off) and its **layers**;
+  - a video's **filters** – each filter a section with a toggle;
+  - the **environment**: the world section with a toggle for the onion sky in its head (no schema change: `onionSky`
+    exists), the look-around world as a whole;
+  - the **post-processing as a whole** (a toggle in its head that switches every pass, keeping the list) – today *own
+    for this spread* with an empty list is the way;
+  - the stage's preview groups (grid / axis / snap in `GridSnapMenu`) – already on / off pills, not sections.
+
+## 2026-10-31 – the trial report names the phone model (#235)
+
+- **Tilman (#235)**, after two iPhone reports of trial 2 could not be told apart (#43): *"We need to get the exact
+  model, otherwise it will be easy to confuse again."* The trial strip asks the tester for the model; **md** is
+  dimmed (aria-disabled, a tap focuses the field) until it is filled in, rather than `disabled`, so a tap is never
+  silently ignored.
+- **The tester's word is the model**: the browser only prefills. On Chromium the client hints' model code (Samsung
+  codes named by a small table, `SAMSUNG_MODELS` in `trial-device.ts`, the code kept); on an iPhone the screen in
+  points @ pixel ratio orders the pick list (`IPHONE_SCREENS`, after Apple's published point sizes, checked from
+  knowledge – no download) but never fills the field: one screen size is shared by up to six models. Display Zoom
+  sizes are not in the table (no guess).
+- **Pick list + free text** is a `<select>` (*list*) that fills a text field, not a `<datalist>`: the native picker
+  is reliable on iOS and Android, the field stays editable. Fields use 16px type, or iOS zooms the page on focus.
+- Remembered under `osct-trial-model` and `osct-trial-tester` (localStorage, like the strip's height); a stored
+  model always wins over the prefill. The strip's frame is now drawn once so typing survives the redraws while
+  scanning (bar and grid are redrawn).
+- Dev tool texts stay English (RULES #20), no i18n.
+
+## 2026-10-31 – a MINOR never breaks an older app (#220); rules per package (#221)
+
+- **Tilman (#220)**: "a MINOR must not break. But exactly the features that are not supported then won't work – that's
+  okay, it can be shown with warnings. The app has to be updated if people want to see them." RULES #10 rewritten:
+  MAJOR = an older app cannot load the book (the shape changed), MINOR = it loads, unknowns skipped with a warning and
+  an update hint; a newer link version is information only (as `LinkService` already treated it). ORCHESTRATION's bump
+  line ("schema change bumps the app MINOR") is now RULES #23's, ORCHESTRATION points there.
+- **Where the tolerance lives**: in the engine, not in `shared/` – `engine/src/content/forward-compatible.ts`
+  (`skipUnknownFeatures`) runs in `loadGameConfiguration` before `assertGameConfiguration`, on a `structuredClone` of the
+  configuration, only for content of the app's MAJOR and a higher MINOR. `shared/guards/` is untouched, so no schema
+  bump (the guard's behaviour is not the contract), and the content build, `content sync` and the MCP server, which
+  call the guard directly, stay strict (the editor's API has its own checks in PHP). The skipping mirrors the guard's decisions (recorded plugin specs,
+  `allowUnknown` when a plugin recorded nothing or on the editor's stage) so it never drops what the guard would accept.
+- **Skipped**: unknown types in typed lists (components, filters, passes) and a node's material; behaviour actions
+  (a rule left without actions goes – running it with fewer actions would be fine, but an empty `do` is a broken rule),
+  unknown fields of a behaviour / rule / action; parameters a known spec lacks (component, pass, filter, light,
+  material, plugin node type); a recorded spec's parameter of an unknown kind (then its values are unknown parameters).
+  **Listed only**: an unknown node type (the guard already lets it pass for newer content; the engine renders nothing),
+  a plugin built against a newer plugin API MINOR. **Still refused**: broken shapes, wrong types, a new value of a
+  required enum (category, asset type, step action, spread format – a MAJOR's change), a newer MAJOR – now checked
+  *before* the guard (`versionOf` → `checkContentCompatibility`), so a newer MAJOR with a changed shape gets
+  NOT_SUPPORTED ("update the app") instead of GAME_CONFIGURATION_INVALID. A condition of a form the app does not know
+  (`when: { tries: { gt: 3 } }`) stays an error – it cannot be told from a typo, and running the rule without its
+  condition would be wrong; a later MINOR that adds condition forms should bring a skip for them.
+- **Simulating an older app**: `KnownFeatures` (schema, component / node / pass / filter types, behaviour verbs, parameter
+  kinds, plugin API, which recorded kinds the content may use) – `currentFeatures()` by default, `LoadOptions.knownFeatures`
+  in tests. The test book (engine `content/__tests__/forward-compatible.test.ts`) reads a 2.21 book as 2.19, 2.18 and
+  2.16 apps would. Apps released before this change (schema ≤ 2.21) don't skip – docs/content.md's table says where
+  they refuse.
+- **The reader's hint** rides in `<new-version-notice>` (one notice at the foot, never two stacked): `noticeMessage()` in
+  `new-version.ts` puts the hint first, both only at a calm moment; *Reload* shows only when a new version is ready. Once
+  per book version: the device remembers the build hash (`osct-newer-content-seen`) the first time the hint shows; the
+  cross closes it for the session. Texts `update:newerContent`, `update:close`.
+- **The editor**: `content.skipped` (from `getSkippedFeatures()`), a small "N unknown features" disclosure in the top bar
+  with the list; the explanation is its help (`data-help`), RULES #32.
+- **#221 (Tilman: yes)**: RULES #6/#17/#19 scoped per package; engine/'s and editor/'s conventions written down as the
+  code has them (engine: barrels only in `scene/`, `scene/post/`, `scene/look-around/`, `types/`, files named after
+  their topic; editor: no barrels, `#lib/…` with extension, PascalCase Svelte components, runes modules `*.svelte.ts`
+  with one instance). Unifying file and class names across packages stays #27.
+
+## 2026-10-31 – the reader notices a new version (#231)
+
+- **Detection**: `UpdateService` (client/src/services/) gets the registration from `ServiceWorkerService` and calls
+  `registration.update()` on `visibilitychange` (at most once a minute – the page load's navigation just asked) and every
+  15 minutes while visible. The worker keeps `skipWaiting` + `clientsClaim`, so a new one arrives as `controllerchange`.
+- **A takeover is not a new version by itself**: pages are network-first, so a page opened after a deploy runs the new
+  code while the old worker still controls it; the browser's navigation update check then installs the new worker,
+  which claims the page – a bare `controllerchange` would show the notice to every reader opening the app after every
+  deploy. So the page asks the new controller for its build over a `MessageChannel` (`sw/build-query.ts`, message type
+  `osct-build`) and compares it with its own. The id is `__VITE_BUILD_DATE__`: one `define` in vite.config.js, and
+  vite-plugin-pwa's worker build gets the same value (checked in `dist/`: the date in `service-worker.js` equals the
+  app chunk's). No answer in 3 s = another build (a rollback to a worker without the query). No controller after the
+  change = nothing. The first install is covered by the same comparison (same build → no notice).
+- **Calm moment** (`components/common/new-version.ts`): never while `arStatus` is loading / starting / running; the
+  scan view only with `arStatus` error (AR failed – the camera is off); not during the tutorial; the start, entries,
+  entry, Info and the overlays are calm. Consultation keeps the camera stream paused – counted as calm (the brief named
+  the list pages). The splash (`/`) is only a few seconds before the scan; the notice may show there, it is calm.
+- **Chunks**: `vite:preloadError` and unhandled rejections worded as a failed dynamic import (the editor's regex, copied –
+  reader and editor never import each other), the AR chunk through `<ar-bridge>` (`ar-load-failed`) and a failed warm-up
+  (`warmUp()` now resolves false when the chunk itself did not load; the engine's files only log). Ignored while
+  `navigator.onLine` is false: offline it is the connection, and a reload would not help. `ar-load-failed` still
+  refreshes the camera permission as before.
+- **Later** hides it until a code file fails again or another build takes over (like the editor's cross); the issue's
+  "or on the next return to the home page" is the hide-while-scanning part – the notice reappears by itself once the
+  reader leaves the scan. Placement: the foot of the screen, glass card (consultation background, glass blur, bronze
+  shadow), `.pill.primary` *Reload* and an `icon-button` ×; above the spread menu in the scan view.
+- **Checked end to end** in headless Edge at 360 px with two builds served one after the other from 127.0.0.1:5174: first
+  install → no notice; build b deployed, visibility after the gap → notice; reload while b's worker controlled the
+  page and build a was served → a's worker took over, same build → no notice; b again → notice (German).
+
+## 2026-10-31 – the editor notices a new version (#230)
+
+- **Why**: #229 found Tilman's spread page behaving like 1.51.1 while staging ran 1.51.2 – the tab was opened before the
+  deploy, and `version.pollInterval: 0` meant it never asked. Now `pollInterval` is 5 minutes. SvelteKit 3.1.1 itself
+  already calls `updated.check()` on `focus` and `visibilitychange` (client.js); `NewVersionBar.svelte` adds the same two
+  listeners anyway, so the behaviour does not depend on Kit's internals – `check()` shares one request while one runs.
+  `updated` is always false under `vite dev`: test with `vite preview` of a build and a changed
+  `.svelte-kit/output/client/_app/version.json` (keep its length – the preview server caches the file's size).
+- **Never a forced reload**: the bar offers *Reload*; with unsaved edits it says a reload drops them and offers *Reload
+  after saving* (waits until `hasUnsaved()` is false – a save or *Back to the draft* – then reloads) and *Reload now*.
+  Unsaved = the panels that register their dirty state in `unsaved.ts`: EntityPanel, PassesPanel, CodePanel (while
+  mounted) and the environment edit (for the page's life, it outlives its tab). Forms (import, new target, a token's
+  name) are not counted – a half-typed form is not an edit of the draft.
+- **#160's reload-once is gone**: a failed code file (`vite:preloadError`, or an unhandled rejection worded as a failed
+  dynamic import) shows the same bar instead (`stale-chunks.ts`, was `reload-on-stale.ts`). The event is not
+  `preventDefault`ed: Vite then rethrows, so the importing panel's own catch says what it could not load (with
+  `preventDefault` the import would resolve to `undefined`). A deploy still uploading (FTPS staging) now asks the person
+  to reload instead of reloading once by itself.
+- **Placement**: at the foot of the window on desktop (at the top it covered the stage's toolbar), under the top bar on a
+  phone (the sheet takes the foot); the primary button is `.pill.primary` (with `.framed` the frame's border would win).
+- [x] **The reader has the same gap** (filed as #231, fixed there – see the entry above) (not changed here – needs a reader UI notice in four languages): its service
+  worker (`client/sw/service-worker.ts`) skips waiting and claims clients, but it is registered once and the browser
+  looks for a new worker only on navigations – an open reader tab (a single-page app, a PWA left open on a phone)
+  never navigates, so it never notices a deploy and nothing tells the reader; it keeps the old code until it is
+  reloaded. When a new worker is installed by another tab, `cleanupOutdatedCaches` drops the old precache, so a lazy
+  chunk the old tab has not loaded yet (the AR chunk `import("./ar")`, `virtual:osct-content-sizes`) comes from the
+  network, where the deploy removed it – the SPA fallback answers with HTML and the import fails (`AR_LOAD_FAILED` for
+  the AR chunk). Softened today: `warmUp()` loads the AR chunk at startup. A fix: `registration.update()` on
+  visibility, and a translated notice when a new worker takes over (`controllerchange`) – for the orchestrator to
+  file as an issue.
+
+## 2026-10-31 – issue pointers yes, version tags no, in code comments (#219)
+
+- **Tilman decided (2026-10-30): a bare `(#N)` in a code comment is a pointer to the decision or the issue** – allowed,
+  not only in `TODO: … (#N)`. **Version tags go** ("(content schema 2.x)", "(plugin API 1.x)", "since 1.x", "new in …")
+  everywhere except the `shared/` type docs, where each schema version's additions are documented. RULES #22 extended.
+- **Cleanup pass** over client/, engine/, editor/, mcp/, scripts/ and server/ (comments only, no behaviour change); the
+  plugin API stubs regenerated from the engine. Left on purpose: `shared/` (a change there needs a schema bump – #214),
+  user-facing texts (tutorial and help may name "API 1.6"), test names in `describe()`/`it()`, comments about reading
+  older data ("a tab stored before #229", older content schemas in game-config-loading.test.ts) and versions of
+  third-party software (iOS, DOMPurify).
+
+## 2026-10-31 – plugin passes in post-processing, content schema 2.21 (#216)
+
+- **Tilman asked** (2026-10-30): "Can I also ask to be able to add plugins to the post-processing pass?" #97 had wired
+  `api.registerPass` and the recording, but the guard, the API (`Books::PASS_TYPES`) and the editor knew the built-in
+  three only. Now a `passes` entry may name a pass a declared plugin **recorded** (`registered.passes`, schema 2.14) – the
+  same rule as a plugin's node type, component and material: checked against the recorded spec, refused when every
+  declared plugin recorded and none has it, allowed while one recorded nothing (older build) and on the editor's stage
+  (`unknownComponentTypes: "allow"`). A 2.20 guard refuses every pass type it does not know, so a book with one needs a
+  2.21 app (the content.md row says so). `PASS_TYPES` stays the built-in list in TS and PHP (the PHP pinning test
+  unchanged); `Books::PLUGIN_PASS_TYPE` is new and pinned against `COMPONENT_TYPE_PATTERN` (a pass's spec is checked with
+  `componentSpecProblems`). A recorded pass may not take a built-in pass's name (shared `registrationProblems`, the build).
+- **API**: `Editor::pluginTypesOfBook($bookId, $kind)` – `pluginMaterials`' query moved there, so no new SQL text (the
+  MariaDB run was skipped; CI runs it). A Code tab source lets any camelCase pass through (as for node types); the
+  publish refuses a pass no declared plugin recorded – 409 `unknown-passes` with `passes`, in the MCP's `PUBLISH_REFUSALS`.
+- **MCP is stricter than the API with sources**: a source's passes are read from its text (`pluginTypes`), and a pass
+  that is neither built in, recorded nor read from a source is refused before it is sent – unless a declared plugin
+  recorded nothing. A source's pass passes with a warning (no spec to check against).
+- **Engine**: `PostChain` keeps the registration per instance, so a pass whose plugin was Run again is built anew (before,
+  `update` would have fed the old factory's pass). A factory that throws or returns no `render` is logged and skipped;
+  a plugin pass's `render` is wrapped: a throw logs, switches the pass off (`enabled = false`) and sets `needsSwap` false
+  for that frame, so the next pass reads the image so far. `update` that throws → built anew. Texture parameters are
+  resolved like a component's (`resolveTextures`), freed with the pass, procedural ones advanced per frame; the
+  composer now gets the frame's delta (a plugin pass's clock – the demo grain counts with it). **Feedback buffers made
+  in a factory** are collected (`collectFeedbacks`) and belong to the pass: a new engine-side `held` flag (not the
+  plugin's `paused`) stops them while the chain is disabled (the editor outside *rendered*); they go when the pass goes.
+- **Phone budget** (#86 still unmeasured): `PASS_BUDGET` = three passes, one bloom, from the 2026-10-29 guideline – a
+  warning in the build, the engine's console (once per change) and the editor's section, never an error.
+- **Editor**: *add pass* rows per origin – built-in, then each plugin by id (`plugin-passes.ts`: the engine registry's
+  plugin passes first, then the declared plugins' records; `plugins.version` re-reads after a Run). Pass rows come from
+  the spec for every kind; the texture select became `TextureField.svelte`, shared with the Inspector's spec rows
+  (RULES #32: built once). **Reorder** (up / down arrows) is new for every pass – editor-only, no contract change.
+- **Not built, on purpose**: an *on / off* per pass. The brief said "like the built-in ones", but the built-in passes
+  have none – it would need a contract field (an `enabled` flag that a 2.20 guard ignores, a name a plugin's parameter
+  could collide with). Removing a pass is the off for now. *Make it code* for a built-in pass (optional in the issue)
+  is not built either.
+- **Demo**: `fixtures/demo/plugins/grain` – `filmGrain` (strength, size, speed, reach, pattern) on *The twins*, the spread
+  with the least going on. With `reach: all` a speck fades its pixel to white or black and raises the alpha by as much
+  (the vignette's rule), so the camera picture is grainy too.
+- [ ] Decide whether a pass gets an on / off of its own (a contract field) or removing it stays the off (#216).
+- [ ] Measure a plugin pass (the demo grain) with the built-in chain on the S22 – part of #86.
+
+## 2026-10-31 – plugin API 1.6: GPU feedback buffers, the demo's ink painting (#225)
+
+- **The engine owns the renderer; a plugin asks for a buffer.** `api.feedback` (engine/src/scene/feedback.ts) instead of
+  raw renderer access: the engine keeps the ping-pong targets and steps every live buffer once per drawn frame in
+  `ArView`'s loop, before `draw` (not in `draw` itself – `sample()` and `resize()` draw extra frames and would step twice).
+  Creation order is step order, so an Image pass made after its Buffer A reads A's new frame. One target, no ping-pong,
+  when the pass does not read `"self"`.
+- **Ownership by build scope**: a buffer made inside a node type's / material's `build` or a component's `apply`
+  (`collectFeedbacks`) belongs to that node – live only while it and every parent are visible up to the scene (the
+  anchor is hidden when a target is lost; another spread's nodes are disposed), disposed with the node. Made in
+  `register`, it belongs to the plugin and goes on uninstall. No hook in `ArScene` was needed.
+- **Precision**: `half` by default (WebGL2 renders into it with `EXT_color_buffer_float` or `_half_float`), `float` on
+  request (also needs `OES_texture_float_linear` for linear filtering), else `byte` with one warning. The view hands the
+  renderer to the module at once (`setFeedbackRenderer`) so a buffer gets its type when made; one made earlier falls back
+  at its first step and gets new targets (why `uniform` exists: it follows).
+- **Not recorded.** A buffer has no type and no spec – it is no registration. The recording run checks the options and
+  returns a dummy; `registered`, the guard, the server (`Plugins::REGISTERS` scans `register…("type")` calls only) and the
+  MCP content model's registrations stay as they were (the MCP texts mention the two functions). Schema 2.20 only because
+  `PLUGIN_API_VERSION` lives in shared/ (as 2.18 for `loadText`).
+- **Shadertoy adapter**: `api.shadertoy(source)` appends a `main` that calls `mainImage(c, vUv * iResolution.xy)` –
+  `vUv * iResolution` is the pixel centre, Shadertoy's `fragCoord`. three.js compiles every `ShaderMaterial` as GLSL ES
+  3.0 with `gl_FragColor` defined, so no `glslVersion: GLSL3` (that would drop the `pc_fragColor` define).
+- **The shader** (XlsBDf by trapcode, Tilman: Shadertoy's default CC BY-NC-SA 3.0 applies) is not stable on its own: at
+  60 fps its velocity saturates after 50–100 s without any input and the field breaks into stripes (measured: mean |v|²
+  0.38 at 3 000 steps, 22 at 12 000). A friction of `dt * 0.01` per step keeps it calm for 400 s with a tap every few
+  seconds (0.1). The tap's swirl draws the velocity towards a whirl (`mix`) instead of adding – the first version added
+  and blew up after a few taps. Both marked `demo:` in the plugin.
+- **Placement**: page 6 (*The switch* – interaction), under the screen, x 70 y 205 width 85 mm; the target picture is a
+  CPU port of the passes run 1 500 frames in a drawn frame (made in the worker's temp folder, not in the repository).
+- **Frame cost** (desktop, RTX 2070 SUPER, 300 synced steps): 0.023 ms at 256², 0.05 ms at 512², 0.17 ms at 1024²; 0.013 ms
+  main thread. The S22 was not connected – the phone figure in docs/plugins.md is an estimate (open item below).
+- [ ] Measure the ink painting on the S22 at 256 and 512 (#225).
+- Found in passing: `scripts/test/plugins.test.ts` deletes `client/public/assets/content/plugins/tint` after its run, so
+  a demo build served from that folder loses its `tint` until it is built again.
+
+## 2026-10-31 – no Stage tab: the spread in the Inspector, the preview settings in the toolbar (#229)
+
+- **Tilman decided** (on a screenshot, the tree's spread row and the Stage tab: "These are the same. I'd like to remove
+  Stage from the right side."). It supersedes #227's "the spread lives in one place: the Stage panel's spread section".
+  The Stage panel's removal is his decision (RULES #1); its sections moved, none was dropped.
+- **The Entity tab is the Inspector.** It shows whatever is selected – the spread, an entry, a target, its entity, a
+  node – so *Entity* no longer fit. *Inspector* over *Selected*: the word every 3D and design tool uses for that panel
+  (Unity, Godot, Xcode), a noun like the other tabs; the phone shows the sliders icon. The component keeps its name
+  (`EntityPanel.svelte`) – a rename would only churn the files #223's entry form touches; the tab's id is `inspector`
+  (`panel-tabs.ts`), a stored `stage` or `entity` maps to it.
+- **The spread's sections moved, not rebuilt**: `StagePanel.svelte` became `SpreadView.svelte` (git mv) minus its *stage*
+  section; the Inspector shows it while the spread is selected. The section ids stay `stage.spread`, `stage.passes`,
+  `stage.narrative`, so everyone's open / closed state carries over; *spread* is now open on a first visit.
+- **Nothing selected is the spread** (`settledSelection`): the fallback "a target stands in" and `selection.cleared` are
+  gone; a fresh workspace, another spread and a click on the stage that picks nothing select the spread. The Inspector's
+  `selected` is no longer bound back – the panel never writes the selection's target itself.
+- **The preview settings are the toolbar's *view* group** (`ViewMenu.svelte`, the gear) after *grid & snap*: shake,
+  origin, top, sky. *View*, not *Stage*: the toolbar already is the stage's. The grid stays *grid & snap*'s (it was in
+  both). Both one-button groups share `ToolMenu.svelte` (button, panel, keys) – #190's pattern built once. `stageSummary`
+  became `viewSummary`, the group's tooltip, without the grid (grid & snap's own tooltip says it).
+- **The selection bug in the screenshot** (spread row not highlighted, gizmo still on the model): with the demo on
+  1.51.2 – a node selected in the tree or on the stage, then the spread row – the row is highlighted and the gizmo goes,
+  so the logic was right. The screenshot's state is exactly 1.51.1's (the spread row was a plain row with no handler);
+  the editor never reloads itself on a deploy (`version.pollInterval: 0`, #160 reloads only on a missing chunk), so a
+  tab opened before 1.51.2 reached staging (22:40 UTC, the issue 23:59) keeps the old tree. What 1.51.2 still missed: a
+  click on the row's book icon or its empty cells did nothing – now a tap anywhere on a row selects it. Not verified on
+  staging (no staging sign-in for workers).
+- [ ] The demo book in the local SQLite is older than `fixtures/demo` (the key has the `key` component, no behaviour, no
+  aquarium): the tutorial's `12-behaviour.webp` (the behaviour line in the timeline) still shows the Stage tab – retake
+  it after re-importing the demo. The demo's own texts (entry bodies, the layout image) still say "Entity panel" /
+  "Stage panel" – content, changed with the next demo edit.
+
+## 2026-10-31 – the demo aquarium's water is Splash in WebGPU, the heightfield its fallback (#228)
+
+- **Tilman decided** (#228): "The water simulation you used is shit. Use this: https://github.com/matsuoka-601/Splash
+  for the demo." Splash (MIT, Masaya Matsuoka) is adapted into `fixtures/demo/plugins/aquarium/index.ts` – its MLS-MPM
+  compute shaders (clear grid, P2G ×2, grid update, G2P) and its screen-space renderer (depth splats, the narrow-range
+  filter, thickness + gaussian, the composite); dropped: the particle/shadow mode (density grid, ray marching), the
+  cube map and floor (2 MB of PNGs), the mouse, `copyPosition` (the render passes read the particle struct), the
+  pipeline overrides (WGSL consts), the camera and lil-gui. Licence text and author in the file's header and in
+  `fixtures/demo/DEMO.md`. Bundle 28.7 → 72.2 KB (8.5 → 20.1 KB gzipped).
+- **The issue's sketch held**, no plugin API change: a WebGPU device of the plugin's own, an off-DOM canvas, the camera
+  from the water mesh's `onBeforeRender`, a `CanvasTexture` the `water` material samples in screen space on the front
+  faces of a box as large as the inside. The canvas upload happens in the same draw (the WebGPU work is submitted in
+  `onBeforeRender`, `needsUpdate` set, three uploads when the water draws), so the fluid is not a frame behind. Measured
+  on the desktop (headless Edge, NVIDIA Turing): 60 fps, 1–1.3 ms GPU and ~0.2 ms of hand-off per frame at 10k–40k. The
+  S22 (WebGPU on Android Chrome) is not measured yet – the issue's checklist keeps that item.
+- **Compositing with alpha, not refraction**: Splash refracts a background it renders itself; the scene behind is
+  three.js's, so the fluid shader writes how much of what lies behind the water hides (absorption by thickness,
+  fresnel against a procedural room, a highlight), premultiplied and gamma-encoded in the 8-bit canvas
+  (`premultiplyAlpha` keeps the bytes; the material divides and decodes). The absorption is 0.12, not Splash's 0.7
+  (at the tank's depth 0.7 hides the fish), capped so the floor's caustics always show; the fresnel reflection only
+  where the surface meets the air (a normal facing up). The toy's body hides the water behind it by a ray–ellipsoid
+  test in the fluid shader (WebGPU knows no WebGL depth); its fins are not tested – an ellipsoid for the tail cut a
+  hole beside it.
+- **Second pass after the orchestrator's review** (the first shots: a frayed outline, water standing off the glass and
+  poking past it, a wobbly top, milky): Splash's soft walls replaced by hard ones – the inside IS the domain (three
+  cells of grid around it), the grid lets no water out through a wall, particles keep 0.3 cells off it; calibrating
+  around the soft walls (the first version) could not make the water meet the glass. The grid keeps 99.5 % of its
+  motion per step (the surface settles between the dips). **Water against glass is drawn from a heightfield, not from
+  the splats**: a compute pass takes the highest particle per column of cells, averaged over its neighbours; the
+  composite draws flat water where a ray enters the glass below it (a straight waterline, square corners) and Splash's
+  free surface elsewhere – trimmed where only beyond the inside, faded where its grains stand above the column height
+  at the glass and, softly, where thin (blurred thickness). A count-based height (particles per column / density) was
+  tried first: particles pile at the hard walls, so the wall columns read far too high. Splats 2.2 cells wide, the
+  filter's reach 20 (Splash: 1.2, 12) – a smoother surface. Settled density 3.9 (read back), level 95–102 %.
+- **"The Entity panel shows which path runs" without an API change**: the `webgpu` row's spec label is changed by the
+  plugin once it knows (*WebGPU ok* / *no WebGPU*; *WebGPU* until a tank asked) – the registry keeps the spec object the
+  plugin registered (`recorded.test.ts` pins that identity) and the panel reads it when it shows the node. A row the
+  panel shows open while the label changes updates with the next selection. A proper per-node status would be an API
+  addition (e.g. a `status` on the node type's instance) – not made, per the brief.
+- **`splash` reused for the fluid**: it scales the toy's push on the way in (rising, the toy moves at its own speed –
+  the gain on the way up dragged a water column after it).
+- [ ] The S22: frame cost of the fluid with WebGPU on Android Chrome, and the canvas upload there (#228's checklist).
+
+## 2026-10-30 – the tree's spread and entry rows select (#227)
+
+- **The spread lives in one place: the Stage panel's *spread* section.** A tap on the spread row selects the spread,
+  opens the Stage tab and that section and scrolls it into view. Rejected: a spread view in the Entity panel's place –
+  the Stage panel already holds the spread's format (its one control) and its passes (the post-processing section right
+  below), so a second view would show the same control twice. The Entity panel names a selected spread with *settings*
+  to the section.
+- **An entry is a selection of its own** (`selection.entry`, `selection.spread` beside target / node; the rows' rules in
+  `editor/src/lib/tree-rows.ts`). An entry with a target also sets `selection.target` to it with `onTarget`, so the
+  stage outlines its print exactly as for a selected target – no second outline path. The Entity panel's fallback (a
+  target standing in while nothing is selected) is off while the spread or an entry is selected.
+- **The entry view is its own component** (`EntryView.svelte`, the words in `entry-view.ts`), in the Entity panel's
+  place, read-only: #223's entry form replaces its rows in the same place and order. The body uses the reader's
+  paragraph rule (blank lines), copied as a pure helper – the editor never imports the reader (RULES #32). A link's
+  URL is a link only over http(s).
+- **Delete on an entry row opens #198's confirmation** (the same as *Remove target*; `removeEntry(entryId, targetId)`
+  on the page now takes an entry without a target too). The spread row has no menu and Delete does nothing on it or
+  on a target row, as before.
+- `Selection.up()` spread `this` into `parentSelection`, which copies none of a class's `$state` accessors; it now
+  passes a plain snapshot.
+
+## 2026-10-30 – one desk on the stage: the Eiermann frame with two tops; Schöpfer's desk removed (#226)
+
+- **Tilman decided** (#226, on a screenshot of Schöpfer's drawers hanging open beside its frame): "only one type of
+  table – the Eiermann, with two types of plates. The blue linoleum one is nice but don't use the trays. Just the top,
+  linoleum on oak, and switching the preview switches only the plate." The removal of Schöpfer's desk (#187's model,
+  its id, its build) is his decision – RULES #1 is satisfied by it.
+- **One GLB, two top meshes** (`TopEiermann`, `TopLinoleum`, plus `Frame`) rather than a frame and two top files: one
+  request, one load, a switch is `visible` on two nodes – nothing reloads and nothing can arrive out of order.
+  `desk-eiermann.glb` keeps its name.
+- **The setting is `top`: `plywood` | `linoleum`** (the UI's *top* row, a segmented control), not *Eiermann* |
+  *linoleum*: the desk is always the Eiermann, so the head reads *Eiermann · plywood* / *Eiermann · linoleum*. A stored
+  `desk` from before maps `eiermann` → `plywood`, `schoepfer` → `linoleum` (`storedTop` in `preview.ts`); the next
+  write drops the old key.
+- **The linoleum top is 20 mm**: 2 mm linoleum on an 18 mm board, so its edge shows one whole stack of 13 plies like the
+  plywood top's (13 per 18 mm, #107) with the linoleum as a thin line above; the surface and the outer size are the
+  plywood top's, only the underside is 2 mm lower (the frame's inner tubes end inside the board, unseen). Its plies are
+  the plywood top's texture tinted to oak (`oak_edge`), its underside the oak veneer (`oak.ts`).
+
+## 2026-10-30 – the browser session in an HttpOnly cookie, CSRF token on writes (#207)
+
+- **Tilman decided** (#207, of the four options: separate admin session, HttpOnly cookie, plugin sandbox, documented
+  acceptance): "the token in an HttpOnly cookie (SameSite, CSRF token)". Built in `Auth.php`; how it works is
+  `docs/server.md` "Sessions, cookies and CSRF"; the rule is RULES #34.
+- **Browser vs. non-browser sign-in: an explicit body field** `"session": "cookie"` on `/auth/verify` and
+  `/auth/password`. Rejected: guessing a browser from `Sec-Fetch-*` / `Origin` – reader apps from before #207 still cached
+  as a PWA would then get a cookie and no `session` in the answer and fail their sign-in. Without the field the API
+  answers the Bearer token as before (MCP `sign_in_verify`, scripts, old apps).
+- **One cookie `osct_session` for the reader and the editor**: same origin, same accounts, same sessions table – separate
+  cookies would isolate nothing (a script on either page can use both) and need a client marker on every request. The
+  consequence: one sign-in per browser for the site; a sign-in in the reader replaces the editor's session and the other
+  way round (the old row is deleted). The editor notices a cookie that changed hands on its next write (403 `csrf` →
+  `GET /user` → another email → its session ends) – Tilman testing a reader account and an admin account side by side
+  now needs two browser profiles.
+- **SameSite=Strict**, not Lax: every request needing the session is a same-origin `fetch`; the mail link opens the
+  reader page, which confirms with a `fetch`. **Path=/api** (the API base) so the pages never send it. **Secure** unless
+  `ENV=local` over plain http. Max-Age = SESSION_TTL_DAYS, renewed with `last_used_at` (hourly).
+- **CSRF token = HMAC(SECRET, "csrf:" + session row id)**, base64url – stateless, bound to the session, survives the
+  exchange's token rotation (same row). Checked in `Auth::signedIn()` for cookie requests with POST/PUT/PATCH/DELETE, so
+  every route is covered without a per-route call; `Sec-Fetch-Site` other than `same-origin` → 403 `csrf` too (SameSite
+  treats sibling subdomains as same-site). The clients keep it in memory and renew it once from `GET /user` on a 403
+  `csrf` (the reader after an offline start, either app after the other replaced the cookie).
+- **Logout by cookie needs the CSRF token** like any write (kept simple and uniform; the clients always hold it). A
+  cookie of a session that is gone is cleared with the 401.
+- **Plainly, for the record:** the cookie stops the session from being read and taken away. It does **not** sandbox
+  plugin code: a book's plugin in the editor (or the reader's AR scene) runs in the site's origin and can still send
+  requests with the cookie – and fetch the CSRF token from `GET /user` – while the page is open. The sandbox (opaque-
+  origin iframe or worker) is the orchestrator's to raise with Tilman as a follow-up.
+- [ ] Open: **remove the token exchange** (`POST /auth/cookie`, `Auth::exchange`, the editor's `exchangeStoredToken` and
+  `LEGACY_TOKEN_KEY`, the reader's `StoredSession.session` / `exchangeStoredToken` and `canSync`'s check) a few releases
+  after #207 is on production – once browsers signed in before have started once. Keep the Bearer session answer for
+  non-browser sign-ins (MCP).
+
+## 2026-10-30 – engine cleanup: one behaviour vocabulary, no reader traces, AR errors as codes (#213)
+
+- **The vocabulary lives in `shared/types/behaviour.ts` only**: `plugin-runtime.ts` aliases `VAR_SCOPES`, `VarScope`,
+  `VarValue`, `EVENT_NAME_PATTERN` and `CORE_EVENTS` to the shared `BEHAVIOUR_*` definitions; `CoreEvents` (the
+  payloads) stays in the engine, and its type makes `CORE_EVENTS` a type error when the shared list and the payloads
+  name different events. Chosen so that `shared/` stays untouched – **no schema bump**, the lock is unchanged.
+  Rejected: moving the definitions into the engine (the content guard in `shared/` needs them) or re-exporting the
+  runtime's from `shared/` (a checksum change for nothing). The editor's `subtreeNames` / `pathOfName` read the
+  engine's `namedPaths` (`@engine/scene/behaviour`). The generated `plugin-api.d.ts` now spells `VarValue` /
+  `VarScope` as the shared aliases – same types.
+- **RULES #32 traces gone**: the engine reads no `import.meta.env` (the 8th Wall files' base is `ImageTracker`'s third
+  argument and `prefetchXr8(base)`; the look-around's debug handle follows `ArSceneOptions.debug`), touches no reader
+  element (the `scanning` event of `ArSceneEvents`; `<ar-bridge>` toggles `#osct-scanning` and hides it on disconnect,
+  because it stops listening before the scene's teardown) and reads no storage (`engine/src/utils/device-storage.ts`:
+  `setDeviceStorage`, the engine's keys without prefix; the reader's `LocalDeviceStorage` and the editor's
+  `deviceStorage` map them to the old `osct-<key>` names, so stored switches stay). The editor passes the same debug
+  flag and storage as the reader; it never had the scanning element. Side effect: the look-around's debug code is no
+  longer removed from production bundles at build time – it is in the AR chunk and stays off (`debug` false).
+- **Errors as codes (RULES #16)**: `ErrorInfo.code` is `ErrorCode`. The 16 members nothing raised are gone
+  (`NOT_FOUND`, `NAVIGATION_FAILED`, `TIMEOUT`, the `SPREAD_*`, `IMAGE_TARGET_NOT_FOUND`, `ENTITY_LOAD_FAILED`, the
+  `ASSET_*`, the `SCENE_*`, `FAILED_TO_UPDATE_SCENE`, `CAMERA_PERMISSION_DENIED`) – this supersedes the "keep – part
+  of a phase" list of the 2026-09-24 audit below: a code comes back with the code that raises it (the loading concept
+  review in PLAN.md, `*_NOT_READY`, would add its own). New: `PROGRESS_CONVERTED` / `PROGRESS_RESET` (the strings
+  `HistoryManager` already used), `AR_LOAD_FAILED`, `AR_START_FAILED`, `CAMERA_NOT_RESPONDING`, `AR_FAILED`
+  (`ArErrorCode`). The scene's `status` event carries an `ArError { code, message }`; the tracker and the scene throw
+  `ArSceneError`. The `CAMERA_NOT_RESPONDING` text marker in `types/scene.ts` is gone. No new i18n keys: AR errors show
+  as the camera overlay's existing texts, the progress notices keep `progress:converted` / `progress:reset`. The 8th
+  Wall pipeline's listeners are typed per event (`XrEventDetails`, `XrListener` in `xr8.ts`).
+- [ ] Open: `shared/types/behaviour.ts` still says of `BEHAVIOUR_SCOPES` and `BEHAVIOUR_CORE_EVENTS` that "a test keeps
+  them equal" with the runtime's – now they are the runtime's (the test checks identity). Reword with the next schema
+  bump that touches `shared/types/` (a comment alone would need one, RULES #10).
+
+## 2026-10-30 – one place for the API's types and rules; the PHP's copies pinned (#210 #217)
+
+- **Where the API's types live: `shared/api/`** (#210). `editor.ts` – the answers of `/api/editor/*`, matched field by
+  field against `server/api/src/*.php`; `errors.ts` – the error shape (`apiErrorFields`) and the two-step confirmations
+  (`confirmationStep`, import and removal); `rules.ts` – the API's rules its TypeScript callers share (`ID_PATTERN`,
+  `ENV_NAME`, `ASSET_KINDS` and their extensions, `PLUGIN_REGISTER_FUNCTIONS` and the scanner `pluginTypes`). The
+  editor (`api.ts` re-exports the types it uses), the MCP server and the osct CLI (`ENV_NAME`) import them; no copies
+  left in `editor/src/lib/api.ts`, `mcp/src/content.ts`, `mcp/src/model.ts` or `scripts/src/lib/content-sync.ts`.
+- **`shared/api/` is outside the content schema lock** (RULES #10): the lock hashed every file of `shared/`, so a new
+  folder there would have needed a schema bump for types that are no content. `hashContract` now skips `api/`
+  (`SHARED_API_DIR`, a scripts test proves a file there leaves the checksum alone); the checksum of the rest is
+  unchanged – no bump, no new lock. Rejected: a top-level folder of its own (new aliases and tsconfig paths in four
+  packages for the same result).
+- **Type corrections against the PHP** (#210): `BookSummary` – `book`, `initialSpreadId`, `schema`, `assetsBase`
+  (string, "" = none), `importedHash`, `createdAt`, `live`, `lastPublish` always sent; `listBooks().environments`
+  required, and `EnvironmentServing` is `{ env, book, build, since }` or `{ env, error }`; the tree has `unassigned`,
+  an entry's `target` is `TargetData | null`; `PublishResult.store` and `.replaced` required; `ImportResult` has
+  `counts` and `draft`, `imported` required; `IncomingBuild` is no `ImportedBuild` (no importedAt / By, `schema` and
+  `source` never null); `PluginSource` has no `usages` (`Plugins::summary` sends none – the editor typed it as the
+  list's); `RemovalImpact` is a union by `kind`; `putEntity` answers `{ ref, entity }`, `putTarget` / `putSpread`
+  the whole `TargetData` / `SpreadData` (were `unknown`). MCP: `list_assets`' `kind` enum had `model`, which no asset
+  has (`Assets::KINDS`: glb / gltf) – now the API's kinds; `list_books` dropped `environments` although its
+  description names them – passed on now.
+- **The cache of the book's tree** (#210): `getBook` keeps one promise per book until a write to it – any non-GET to
+  `/editor/books/{id}/…` through `request`, answered or refused – a failed read, a new token, or `{ fresh: true }`
+  (the book page on opening, so it still sees what others changed). Its three readers kept their part per book
+  already (the stage's `assetsBase`, the environment, the top bar's title) – the cache only makes them share one read;
+  the stage's draft is not the tree and is still loaded on every spread.
+- **`errorText`** (`api.ts`) is the one error line: the API's message (`{ code: true }` adds the code), an `Error`'s
+  message, else the value as text. A plain `Error` once shown as `String(e)` ("Error: …") now reads as its message.
+- **The pinning test** (#217): `mcp/test/php-rules.test.ts` runs PHP over the API's classes (autoloaded as
+  `index.php` does) and compares each constant with `shared/`; the scanner by behaviour (`Plugins::registers` and
+  `pluginTypes` on the same sources). `Editor::print`'s surfaces became `Editor::PRINT_SURFACES` to be pinned. No
+  difference found. It replaces the scripts test that compared `ContentStore::ENV` by regex. In `mcp/` because CI's
+  MCP job has PHP; skipped without it, as the e2e test.
+- **Publish refusals** (#217): `result.ts` `PUBLISH_REFUSALS` lists what `Books::publish` (with `Auth::refuseToken`
+  and the content store) refuses with; a test checks that each has a hint and that the publish tool's description
+  names it.
+
+## 2026-10-30 – editor cleanup: no paths for older APIs, controls built once, one number parser (#211 #212)
+
+- **No compatibility paths for an older API (#211, RULES #10)**: editor and API ship in one image, so the editor no
+  longer guesses what an older server answers. Checked against the PHP before removing: `POST …/spreads` takes
+  `format: "spread"` (`Books::FORMATS`), so `isAddRefused` and the book page's "New spreads come in with an import"
+  are gone; both DELETEs without `confirm` always answer 409 `confirm-delete` (`Confirmation::require` throws for a
+  null `confirm`), so the book page and the workspace no longer treat a resolved first call as "removed at once";
+  `GET /health` always sends `env` (`Config::env()`, `local` by default, valid by the environment-name rule), so
+  `Health.env` is required and the MCP guide's server name is `osct-<env>` – `osct-…` until `/health` answers,
+  no host-derived name. Nothing else in `editor/src` was labelled as being for an older server. Left alone: the
+  server's `role` field (open item below) and the loose optional response fields in `api.ts` such as
+  `listBooks().environments?` – they are #210's (one place for the response types).
+- **Controls built once (#212, RULES #32)**: the admin page's filter is `Segmented` (which got an optional `label`
+  for its group's accessible name); the tree's row menu is `ContextMenu` with `menuTrigger` – right click, long
+  press, and the menu key / Shift+F10 on the tree for the selected row (the tree keeps its own focus, so the tree's
+  key handler opens it at the selected row's name). Every action stays (Move up / down, Into the node above, Out of
+  its parent, Remove node / entity, Remove target); `MenuItem.keys` shows each move's shortcut at the right, a move
+  that cannot be made is disabled with its reason, and "shows what goes" moved into the item's help. While a
+  `ContextMenu` is open it owns the keys (it stops their propagation): before, ← → in the stage's menu also stepped
+  to another spread and Delete reached the workspace's shortcut.
+- **CSS comments (#212, RULES #22)**: 71 → 28 in `editor/src` – labels dropped, the kept ones are one line each and
+  guard a rule that would otherwise be "fixed" wrongly (or describe the file, as `app.css`'s head does).
+- **One number parser (#212)**: `parseNumber` (`values.ts`) for every `ScrubNumber` and a behaviour rule's value.
+  Decision: a comma or a dot is the decimal point (`1,5` = 1.5 – a German keyboard), **no exponent** (`1e3` is no
+  number: a number field refuses it, a rule's value keeps it as text) and no thousands separators. Why no exponent:
+  nobody types scientific notation into mm, degrees or factors, and a rule's value field would otherwise turn the
+  text `1e3` into 1000 behind the author's back; the fields themselves never show an exponent (`ScrubNumber` rounds
+  to its decimals). Before, the number fields took both `1,5` and `1e3`, a rule's value neither (it kept them as
+  text).
+
+## 2026-10-30 – consent is the person's own: no account change through an AI token or an admin (#203)
+
+- **Decision (Tilman, 2026-10-30):** "keine Einwilligung ändern per mcp. Das ist auch in der admin UI verboten weil user
+  centric data." `PATCH /user` (`Users::update`) takes `Auth::session()` instead of `Auth::user()`: a token gets 403
+  `not-for-ai` for the whole account update – options and language – like the password and the deletion. Rule:
+  RULES #33.
+- **Checked:** no `/admin/*` route writes options or language (`setRole` only roles; `makeEditor` creates a new user with
+  every option off and language `en` – creating, not changing someone's consent; the list and the CSV only read). The
+  MCP server has no tool that calls `PATCH /user` (`mcp/src` reads `GET /user` only); docs/mcp.md says so now.
+
+## 2026-10-30 – server hardening: forwarded host headers, transactions in admin writes and assets (#209)
+
+- **The public URL of stored files**: `Http::apiUrl()` takes `APP_URL`'s origin (+ the API's base) on every instance
+  whose `ENV` is not `local`, and refuses with 500 `not-configured` when `APP_URL` is not set explicitly (the default
+  `http://localhost:5173` never counts). A local instance keeps the request's host on purpose – there `APP_URL` names an
+  app's dev server (Tilman's checkout: the editor on 5175, whose proxy rewrites the Host to 127.0.0.1:8080), and the API
+  test sets `APP_URL=https://app.example` while fetching the stored URLs from the API it started. Staging and production
+  set `OSCT_APP_URL` (`config/deploy.staging.yml`, `config/deploy.production.yml`; the FTPS workflow requires it in
+  `server/deploy/write-config.php`). No new config key.
+- **`Db::transaction` joins an open transaction** (`Roles::grant` runs inside sign-in's and `makeEditor`'s) and on
+  SQLite starts `BEGIN IMMEDIATE` by hand (PDO's `beginTransaction` is deferred: two writers that read first deadlock),
+  tracked by its own flag because PDO does not see a hand-written BEGIN. `Db::forUpdate()` is ` FOR UPDATE` on MySQL,
+  nothing on SQLite; `Db::isDuplicate()` tells a unique-key error (MySQL 1062, SQLite 19 + UNIQUE / PRIMARY KEY).
+- **Last admin**: `Roles::holders(admin, lock: true)` inside the revoke's transaction replaces `Roles::count` (no other
+  user). **Grant**: the duplicate key of a parallel grant answers `changed: false`; the API test simulates the race with
+  a trigger that raises the duplicate error (php -S serves one request at a time, so a real race cannot be tested).
+- **Assets**: a replace writes its file inside the transaction, after locking the asset row – deleting the file of a
+  failed replace while the lock is held cannot hit another replace's file at the same path. Every delete (not only a
+  forced one) records a change `asset`, the same `before` as `Removal` (`Assets::before`, shared now); the book is not
+  touched (its rows did not change).
+- Left as is: deleting one's own account (`DELETE /user`) can still remove the last admin; `putEntity` already read
+  inside its transaction and now locks too.
+
+## 2026-10-30 – the review's fixes: import id, served assets, CSV button, session end, CLI (#204 #205 #206 #208 #215)
+
+- **Import id (#204)**: the import compares the configuration's `book.id` with the path after the configuration's own
+  checks (so a malformed configuration still answers its own 400 first) – 400 `invalid-configuration` naming both. The
+  preview has no path id: it answers for the configuration's own id (400 `invalid-id` when that is no id, as the import
+  now does too – before, the import took any string). The editor and the MCP server already send `incoming.book`.
+- **Served assets (#205)**: `ContentStore::SERVED_ASSET` is built from `Editor::ID`; ids have no `.`, so no traversal.
+- **CSV button (#206)**: *All* keeps *Users CSV* (docs/admin.md describes it; removing it would remove a feature),
+  *Newsletter* has *Newsletter CSV*, *Editors* / *Admins* none. One pure function, `editor/src/lib/users-csv.ts`.
+- **Session end (#208)**: `api()` (and the upload and CSV calls) end the session on a 401 only when the stored token
+  was sent and is still the stored one (a sign-in meanwhile is left alone, parallel 401s end it once). The sign-in
+  calls, the sign-out and `me()` pass `unauthorizedIsAnswer`: a wrong password is a form error, a stale token at
+  startup signs out quietly; `restore(true)` of a signed-in user that answers 401 ends the session with the note. The
+  engine's draft fetch (`authFetch`) does not end it by itself – `getBook` runs first and does.
+- **One environment-name rule (#215)**: `[a-z][a-z0-9-]{0,31}` – `ContentStore::ENV` in PHP (Config::env, the publish
+  check, the content route), `ENV_NAME` in `scripts/src/lib/content-sync.ts` for the CLI; a scripts test reads the PHP
+  constant and compares. `Config::env()` used to accept a digit first: such an `ENV` now counts as `local` (no instance
+  uses one). The MCP server's `publish` keeps its own copy of the regex (`mcp/src/content.ts`) – #217 pins the PHP copies.
+- **Recording API typed (#215)**: `scripts/tsconfig.json` maps `@shared/*` and `three` like the plugin type check does,
+  so the build's recording API is `PluginApi` from the engine – an engine API change fails the scripts' type check.
+  `sha256` lives in `lib/storage.ts` (the Storage API's checksum format), the sync imports it. `messageOf` in
+  `lib/errors.ts` turns any thrown value into text.
+
+## 2026-10-30 – the second code review (#19, develop at 1.50.0)
+
+- **Scope**: the editor, the engine, the MCP server, the API's new classes, `shared/` to 2.19, the CLI, `docs/` and
+  `agents/`, with the first pass's rules (findings first, small behaviour-preserving cleanups in commits
+  `Unreleased: …`, everything else proposed as issues – the orchestrator files them). Deploy config left out.
+- **Fixed on the branch**: unused exports and props (editor, engine), types and helpers the editor wrote again
+  (`PrintPlacement`, the surface and format unions, asset kinds, file size, dates, the admin-route test, the layout
+  fetch), the content tooling's copies of `shared/` constants and of `isObject`, comments that told history (names,
+  dates, quotes, "as before", dated research notes – now `docs/plugins.md`), the API's one hand-made 204 and the
+  confirmation signature without the SECRET check, docs and RULES paths from before the engine.
+- **Kept, not removed** (a reason each): the camera debug switches `cycleZoom` / `cameraSummary` (tested, tied to
+  #37), `getContentBaseUrl` and the plugin registry readers (test seams), `ScrubNumber`'s `disabled` and
+  `ColourPopover`'s `palette` (a control's generic props), the engine's own `isRecord` in `trigger-protocol.ts` (the
+  content tooling compiles that file without the `@shared` alias), the duplicated re-exports of the reader's
+  `ar-bridges` barrels (the dev tools import the group barrel, the bridge the utils barrel).
+- **Nothing `shared/` was touched**: every change there bumps the schema; the shared findings wait for the next
+  schema MINOR as one proposed issue.
+- **Found, proposed** (not fixed – each changes behaviour): a token may change the account's update options
+  (`PATCH /user`), an import's `book.id` is not compared with the path, the local store serves no assets of book ids
+  with capitals or `_`, the admin page's CSV button follows every filter but *All*, book plugin code runs in the origin
+  that holds the session token, unhandled rejections and mid-session 401s in the editor.
+
+- [ ] Legacy kept for older data, to remove once no instance needs it (RULES #1/#15 – ask first): the `users.role`
+  mirror and `GET /user`'s `role` field "for older readers" (`Roles.php`, `Users.php`; the column stays, RULES #25);
+  `POST /admin/editors` "the older way to make an editor" (still in docs/editor.md); the one-time move out of
+  `server/api/db/` (`Paths.php`, `index.php`); a `latest.json` without `book` (`ContentStore::live`); a book imported
+  before `imported_json` (`Books::comparison`, `editsSince`); a declared plugin of a build without recorded specs
+  (`Editor.php`, `Books::parse`).
+- [x] Legacy in the editor: compatibility paths for an older API although both ship in one image (`isAddRefused`, the
+  single-step deletes, `Health.env?`, the `mcp-setup.ts` host fallback) – removed in #211 (2026-10-30 entry above).
+- [ ] `editor/package.json` carries 1.10.1 while the app is 1.50.x – RULES #10 does not list the editor (proposed).
+
+## 2026-10-30 – the behaviour component: rules without code (#88, schema 2.19)
+
+- **One component with a list of rules**, not one component per rule as the concept's Studio C sketched
+  (`2026-10-28-entity-components.md`): a node carries at most one `behaviour` (the panel's *add component* allows one
+  per type), its `rules: [{ on, when?, do }]`. The grammar lives in `shared/types/behaviour.ts` (checks, the reading
+  into rules, the shortest written form) – one definition for the build, the guard, the engine, the editor and the MCP
+  server. `behaviour` sits in `COMPONENTS` with no parameters; `componentProblems` hands its fields to
+  `behaviourProblems`, the editor's `contentEntity` writes its rules instead of rows. No new parameter kind: that would
+  have changed the plugin API's spec types for something only the built-in uses.
+- **The verbs**: `play: <clip>` (+ `node`), `pause` / `stop` / `show` / `hide: <node name>`, `set: { name: value }` (+
+  `scope`, spread by default like `api.vars.set`), `emit: <event>`; a bare word runs a verb on the own node. Nodes are
+  named by their `name` (2.12), looked up in the behaviour node's subtree (first match) – a behaviour's reach is its
+  subtree, which is what the entity builder has when the node is built. `stop` = seek 0 + pause (the timeline has no
+  stop of its own). **Left out:** going to a scene of the `scenes` component (it is a plugin's, not built in – a rule
+  can `emit` an event that plugin hears), open an entry or link (the engine knows no routes – RULES #32).
+- **Events**: the node's `found`, `lost`, `tap`, `unlocked` (added to the brief's three: the first find was the key's
+  old trigger, and the hook exists), and any other camelCase name from the bus – scene events and core events alike.
+  A named-event rule fires whether or not its page is in view (visibility and variables are state).
+- **Semantics**: on one event every rule's condition is read first, then the matching rules run in order (a toggle in
+  two rules works). Emits nest synchronously; a chain is cut after 8 nested events (logged). An action that cannot run
+  is logged once per message and skipped.
+- **Runs on the plugin runtime**: each behaviour takes a `runtimeApi("behaviour:<target>")` – its sets, emits and
+  listeners are a plugin's; its emit payload is `{ targetId, node? }`. The editor's log hears a rule that fired through
+  `noteBehaviour` (observers only, pseudo-event `behaviour`), never the bus.
+- **Declared variables left out**: `when` is robust without them – `null` tests "not set" and `{ not: v }` a
+  difference, so "no key yet" is `{ hasKey: { not: true } }` or, as in the demo, a rule without a condition before the
+  one with it. Types, defaults and write lists come with a work that needs them (the concept's `variables:` block).
+  **Bubbling scopes** stay out too (one flat bus).
+- **Compatibility**: MINOR (2.19) as asked, although a 2.18 guard refuses a node carrying `behaviour` (an unknown
+  built-in type) – the same precedent as 2.17's `texture` kind: a book with behaviours needs a 2.19 app. The API needs no
+  validation of its own (it validates no component's parameters); `Editor::COMPONENT_TYPES` lists it so the publish's
+  `unknown-components` check does not take it for a plugin's.
+- **The demo**: the narrative plugin's `key` component is replaced by the key's rule (tap: play `rattle`, set `hasKey`
+  in the book, emit `keyRattled` – the key is now taken with a tap, as Tilman's request reads, no longer on the first
+  find); the `animation` component stays with `playOn: never` (it says how the clip plays). The door model has no clip,
+  so the door's rules show / hide its `hint` and emit `openDoor`; the `door` plugin keeps the lift-and-turn (what a rule
+  cannot do) and opens on that event – it lost its own `hasKey` check and `api.vars.on("hasKey")`, so a `hasKey` set by
+  hand opens the door at the next find, not at once. The `lamp` plugin stays as the `api.vars.on` example.
+- **Editor**: the value fields take text (`true`, `false`, a number, else text; empty = null) with suggestions rather
+  than a type picker per value – booleans are the common case; the condition's all/any shows from two tests on, the
+  rows between read *and* / *or*. Save stays off while a rule is incomplete (the guard would refuse the book otherwise).
+## 2026-10-30 – The demo aquarium's water: a CPU heightfield handed to the material through its uniforms (#202)
+
+- **CPU, not GPU ping-pong.** The plugin API gives a plugin no renderer (no render targets, no `renderer.render`), so a
+  GPU simulation would need an API change (RULES #10 bump) for a demo-only study – and the CPU version is not coarse:
+  64 × 36 cells cost about 0.04 ms per frame on the desktop (0.14 ms at 96), the texture is 64 × 36 half floats.
+- **The node type owns the simulation, the material reads it.** The tank knows the toy and the water's mesh; after the
+  engine put the node's material on the water, the tank's `update` writes the heightfield and its size into that
+  material's uniforms (`heightfield`, `hasHeightfield`, …) when it has them. No plugin API change, no module-level shared
+  state (Make it code copies the whole module, #199), and the water material elsewhere keeps its static waves.
+- **The tap is the node type's own `onTap`**, not a behaviour rule: the push is the tank's internal state (the toy's
+  timeline), nothing another node or a variable needs – the simpler of the two the brief offered.
+- **Volume conserved, not added**: what the toy's submerged column gains is pushed out of its cells and spread evenly
+  over the surface (the level rises a hair), so the sum of the heights stays zero through any loop – the tests check it.
+  `splash` (default 4) exaggerates the displaced volume: true to size (1) the rings are invisible at the tank's scale.
+- **A quick plunge, a slow rise**: a cosine loop made long, flat swells; a fifth of the period for the plunge gives
+  short, visible rings. The fixed light of the relief is in the tank's frame, so the look does not change with the
+  camera's or the page's orientation.
+- The simulation is reachable as `object.userData.waves` (tests, the console) – the plugin's only export stays
+  `register`, which the editor's and the tests' module loaders rely on.
+- **Not measured on a phone** (none attached): the S22 frame rate with the reader's post-processing is open; the
+  desktop numbers above and the grid row (32 for a weak phone, or simulation off) are the levers.
+
+## 2026-10-30 – staging's versions.json mismatch was the edge cache, not a writer (#175)
+
+- **Cause:** every writer was already right – `osct content sync` (`runSync`), the API's publish (bunny and directory
+  store) and the demo workflow (the CLI's sync) write `versions.json` before `latest.json`, after reading it through
+  the Storage API (no edge in between). The pull zone has a cache rule for `latest.json` only, so its edges kept
+  `versions.json` for 30 days: staging's served the copy cached on 2026-10-28 17:15, 13 minutes before `6448aacb4ab7`
+  was retired. The storage's copy (read through an uncached URL form) lists all four builds, `b6b0ebaabcfd` current.
+- **Decision: no storage repair, an edge rule plus a purge** – done by a person with the account API key
+  (`docs/content-cdn.md` "Runbook: repairing a stale versions.json"). The CLI still has no account API key and gets none.
+- **The check lives in `osct content status`** (`versionProblems` in `content-sync.ts`): storage disagreement exits 1,
+  a disagreeing edge copy only warns. No API change – its publish always rewrites `versions.json`, so it cannot keep
+  a stale record, and the editor never reads `versions.json`.
+- `osct content sync` of the build `latest.json` already names used to stop with "up to date" whatever `versions.json`
+  said; it now rewrites `versions.json` then (the entry dated by `latest.json`'s `activatedAt`).
+
+## 2026-10-30 – Make it code copies a plugin's whole source; a made type switches once it builds (#199)
+
+- **Decision: copy the whole plugin, not the build.** The issue offered two fixes: copy the plugin's whole source, or
+  detect the build's free identifiers and refuse. Copying is the one that is always correct – a build may close over
+  anything `register` or the module defines (the aquarium's `FISH_COLOURS`, helpers, constants), and finding free
+  identifiers needs a real parser and scope analysis, and then still only refuses. The made plugin keeps the original
+  module as it is (its `register` export renamed, its `osct-plugin-api` type imports moved to the head) and calls it
+  with a copy of the api: `registerNodeType` of the copied type registers the new type (the node's values as the
+  parameters' defaults), every other registration is dropped – the textures, materials and other types stay the
+  original plugin's, which stays installed. The source copied is the one running on the stage: the source last run in
+  the Code tab, else the stored one, else the declared plugin's `index.ts` (copied next to its `plugin.js` by the
+  content build). Refused with a message only when no register export is found (`export const|function register`,
+  `export default …`) or the source cannot be read.
+- Side effect of a whole copy: listeners the original `register` subscribes (`api.events.on`) are subscribed by the
+  made plugin too. Accepted – a node type's plugin rarely listens in `register`, and the author edits the copy anyway.
+- **A made type switches the node only once it builds.** The engine records why a plugin node type's last build failed
+  (`nodeTypeFailure`, cleared by a good build or a new registration). Make it code saves the plugin and leaves the node
+  switch pending (`plugins.pending`); the Run applies it on the stage and reverts it when the build failed – the error
+  is the Run's (the Code tab's, which opens the plugin through `plugins.focus`), and the next Run of that plugin tries
+  again. A Run also reports a node type of the plugin that failed on the stage. "Run doesn't rebuild" in the issue was
+  the made code failing again on every Run; the stage's refresh builds every node anew.
+
+## 2026-10-30 – The phone's sheet: the uncovered row continues the stage (#200)
+
+- Dragged down, the sheet uncovers part of its frozen grid row. Of the issue's two fixes, painting was chosen: extending
+  the canvas under the sheet would resize it at the drag's start, and with the stage's fixed vertical field of view the
+  whole picture would shrink and jump (a second resize, the flicker #155 removed). The row shows a horizontal gradient
+  of the stage's bottom edge, sampled once at the drag's start (`ArScene.sampleRow`, one draw and one row read – twelve
+  averaged parts), as the workspace's background while dragging; the stage still resizes once, on release.
+
+## 2026-10-30 – Code files in the Library: scripts are plugin sources, shaders are assets (#186)
+
+- **The model**: a **script** (`.ts` / `.js`) uploaded in the Library **is** a plugin source – a row of `plugins`, the
+  Code tab's list. The Library shows those rows; there is no second copy and no asset row for a script. A **shader**
+  (`.glsl`, `.frag`, `.vert`, `.wgsl`) is an **asset of the kind `shader`** in the asset store (versions, sha256 dedupe,
+  `assets.kind` is a VARCHAR – no schema change). Two stores because the two are different things: a script is code the
+  content build compiles (it has an id, it registers types), a shader is a file a script loads.
+- **A plugin loads a shader by its URL, not its name** (`api.loadText(url)`, plugin API 1.5): the reader has no Library,
+  so a name could not be resolved there; the URL is what both fetch. The editor keeps it right: an asset's uses include
+  the plugin sources that name its URL (LIKE through `Db::contains`), delete refuses while one does, and a replace
+  rewrites the URL in those sources (a recorded change each) – so the URL-in-code stays the one reference.
+- **`api.loadText` is a promise, layers stay inline**: `register` is synchronous and a layer's `glsl` is needed then, so
+  a file is loaded where a build runs (material, pass, node type) and swapped in (`needsUpdate`). Making `register`
+  async (so a layer could load a file) was left out: it touches the engine's install, the editor's Run and the content
+  build's recording run. The recording API answers `loadText` with `""`. The API bump to 1.5 is a change in `shared/`,
+  so the content schema went to 2.18 (nothing new in the content).
+- **A script's uses** are the draft's rows that name a type it registers – `"type":"<t>"` in the JSON of the book, a
+  spread, a target, an entity or an entry (a procedural texture also as a value) – with the types read from the source
+  text, as the MCP server's `pluginTypes` reads them. A text scan, not the truth: the content build knows for sure. It
+  is enough to refuse a delete that would leave nodes without their type, so **`DELETE …/plugins/{pid}` now refuses
+  while used** (409 `plugin-in-use`, `?force=1`) – for the Code tab and the MCP too (`delete_plugin` got `force`).
+- **Upload checks**: extension (per store – a script sent to `POST …/assets` and a shader sent to `POST …/plugins` get
+  a 400 pointing at the other), at most 256 KB (`Plugins::MAX_SOURCE_BYTES`, also `Assets::TEXT_MAX_BYTES`), content type
+  `text/*`, JavaScript / TypeScript or one that says nothing (`application/octet-stream`), and `video/mp2t` for `.ts`
+  (Windows registers `.ts` as an MPEG transport stream, so browsers send that), and the bytes UTF-8 without NUL. A
+  script's id is `?id=` or its file name made an id (`Wobble Effect.ts` → `wobble-effect`); a taken id is 409
+  `plugin-exists` – the Library then says to use *Replace…* (no silent overwrite).
+- **UI**: the code files are a list of their own under the media (`CodeFiles.svelte`), not cards – a shader has no
+  picture, and a script is not an asset. The filter `code` shows it alone; the picker never shows it (nothing picks code).
+  The preview is a second, read-only Monaco (`createCodePreview`), loaded with the first preview; GLSL is highlighted as
+  `cpp` (Monaco has no GLSL), WGSL as `wgsl`. *Open in Code* goes through `plugins.focus`.
+
+## 2026-10-30 – The environment replaces the HDRI sky box (#185)
+
+- Tilman: "Environment replaces the HDRI sky box." – once the book has an environment, the stage's sky (shading
+  *rendered*) is its look-around world, in every tab; while the Environment tab is open, in every shading as before.
+- **Lighting: the reader's, not the HDRI's.** Decided by what the reader does: it lights the AR content with the
+  engine's fixed ambient (#BBB, 1) and sun (0.6) in `engine/src/scene/view.ts` plus the content's light nodes; there is
+  no image-based light anywhere in the reader (`scene.environment` is never set), and the look-around world is a
+  full-screen underlay that lights nothing (the world model's bake has its own lights, for the cube only). So with the
+  world as the sky the HDRI does not light (it only fills the camera window, below) – the scene's own lights at full strength. Without an environment
+  the HDRI lights the stage as before (a studio stand-in for the camera picture's room, the editor's own look). The
+  Environment tab's preview follows the same rule (it used to keep the HDRI's light).
+- "Has an environment" = the draft's `book.environment` is set, or the author's edits in the Environment tab start one
+  (edited away from the default, unsaved) – the stage shows unsaved values as it shows unsaved entity overrides. A book
+  without one is *not* shown with the reader's default café outside the tab: the issue keeps the HDRI there.
+- **The camera window shows the HDRI as a background** (the orchestrator, before merging: the black window around the
+  book would show on every rendered spread of a book with an environment). The world's pass leaves the window – and
+  the open roof – transparent (alpha 0) where the reader shows its camera picture; the stage's sky sphere is drawn after
+  it with destination-alpha blending (`(1 − dst alpha) · sky + frame`, `behindWorld` in `mock-stage.ts`), so it fills
+  only the uncovered part, soft edges included, in both draw paths (onto the screen, into the post chain's buffer). It
+  is the camera picture's stand-in, like the desk: no light (`scene.environment` stays null, the scene's lights stay at
+  full), only while rendered (other shadings show no HDRI anyway). No engine change; the reader keeps its camera
+  picture there. A grey gradient was the fallback, not needed.
+- The HDRI picker stays (labelled *HDRI*, dimmed, "without an environment"): it is the device's setting for every book,
+  used again for books without an environment – and, with one, the stand-in in the camera window.
+- Per-spread environments: not in the content schema (`shared/types/environment.ts`: book-level only), so the stage
+  follows the book's. When a spread level comes, `bookEnvironment` in `editor/src/lib/stage/sky.ts` is where the
+  spread's wins.
+
+## 2026-10-30 – The vertical axis and snapping (#190)
+
+- **Snapping is off by default** and the toolbar switch turns it on; Shift or Ctrl held turns it around for one drag.
+  Off keeps every drag as it was before #190 (the placement handles still round to whole mm, the gizmo moves freely),
+  and the old Ctrl-to-snap keeps working – it now snaps to the grid, axes, objects and outlines at the toolbar's
+  precision instead of the fixed 0.05 widths / 15° / 0.1. Shift is the issue's key; on the stage Shift-drag also pans,
+  but only where no gizmo handle or placement handle took the pointer, so the two never meet.
+- **Move snapping works in the stage frame (mm), per axis**: nearest line within 8 screen px (turned into mm by the
+  camera's distance, so it feels the same at any zoom) to the pivot or the box's edges / centre; then the grid; then
+  the move step. The **move step** (the issue's "precision" for move) is the step a move rounds to while the grid is
+  not a snap target – with the grid as a target, the grid's own step is the move's precision, so there is one number
+  for it, not two. Grid snapping works whether or not the grid is shown (a 3D tool's increment snap).
+- **Only the axes the dragged handle may change snap** – the X arrow snaps x alone; a node turned away from the page's
+  axes keeps its turned handle unsnapped rather than being pulled off the handle's line. The centre handle (screen
+  plane) snaps the page's x and y, not the height.
+- **Rotation snaps the angle turned since the drag began** (TransformControls' own convention, about the drag's axis),
+  not the absolute Euler angles – a node at 7° turns to 22°, 37° …; absolute rounding per Euler axis jitters for nodes
+  turned about more than one axis. **Scale** rounds the absolute factor and never goes below one step (TransformControls'
+  own scale snap could round to 0).
+- **The placement handles snap too** (a print dragged on the page): that is where a page edge or another print's edge
+  matters most; the corner snaps the right edge (the width). A print's own outline and its own entity are not lines
+  for it. Snapping to objects' boxes uses the mesh bounding boxes in the stage frame, the editor's helpers left out.
+- **Guides**: the lines a drag snapped to are drawn in magenta through everything while it lasts (the grid is blue /
+  red, the vertical axis green – the stage's own colours, not UI chrome, so RULES #32's "no colour" does not reach
+  them).
+- The grid & snap group is always one button with a panel (role dialog), not a radio menu: it holds switches and
+  number fields, which a WAI-ARIA menu cannot. The grid's on / off and step are the same settings as the Stage panel's
+  rows (both write `preview.ts`); the panel keeps its rows.
+
+## 2026-10-30 – The import's preview (#182)
+
+- Tilman: "The import from CDN dialog is still confusing, since it doesn't say how many books it imports." – the form
+  shows what comes in before anything is imported (content base, build from `latest.json`, the one book with its
+  counts) and the button names it; a draft of that id is announced as replaced with its edits lost, then the #183
+  comparison and confirmation run as before (no second confirmation).
+- One endpoint, the import's own body: `POST /editor/import/preview` (not `GET …?source=`) – the CDN's preview needs
+  the server (only it knows `CONTENT_BASE_URL`), and a configuration the browser read is checked exactly as the import
+  will check it (parse, entities, plugins), so an invalid configuration fails in the preview, not at the import.
+- No server-side fetch of an arbitrary URL (`source=url&base=…` was considered): the browser already reads a content
+  base (the CDN allows it), and a server that fetches any address an editor types is a request-forgery path. A URL that
+  does not allow the page to read it shows that error with its address; *the CDN* stays the server's.
+- The CDN tab's book-id field (#183) is gone, no fallback: the import refuses a configuration without `book.id`
+  (`parse`), so there is no id to fall back to. The import is still keyed by the path id the form takes from the preview.
+- The import does not check that the build it fetches is the one previewed (an optional `build` in the body would);
+  the CDN moving between preview and import is rare, and over an existing book the comparison shows the build that
+  really comes in.
+
+## 2026-10-30 – Panels' first divider and defaults; the post-processing level in words (#193, #181)
+
+- **The book's master chain stays in the Stage tab's post-processing** (#181 asked to consider moving it to the book
+  page or the Environment tab, shown read-only in a spread; "keep it simple"). Kept where it is: once the head names
+  the level ("post-processing · the whole book" / "· only this spread"), the line counts the spreads it changes and
+  Save says what it saves, the level is unmistakable without a second place. Moving it would split one list over two
+  places – the book page has no stage to preview passes on (they show only under *rendered* on a spread), and the
+  override starts as a copy of the book's, which wants both in reach –, and add a read-only view and a link for
+  nothing the wording doesn't already do. Revisit only if authors still confuse the two after the new wording.
+- The level line replaces the *uses: the book's / own* pill pair: its end is the switch (**own for this spread** /
+  **back to the book's**), so the choice is still there in one place, in words.
+- N in "changes all N spreads that use the book's" counts the draft's spreads without passes of their own – an empty
+  own list is an override too (post-processing off) – and the spread on the stage as the panel holds it, so an
+  unsaved *own for this spread* already shows the override line.
+- #193 defaults: Stage tab all closed on a first visit (spread, stage, post-processing, vars and events), the stage's
+  closed head names desk and grid; Environment: *environment* open, *preview* closed. The **Entity tab** keeps its
+  plain section headings (not collapsible): it already shows only the selected level, and components, filters and the
+  plugin material appear only when they have entries – the proposal's state without a toggle. Stored open states per
+  browser (`osct-editor-sections`) are untouched; only the first-visit default changed.
+- The first section's divider goes once in `app.css` (`.section:first-child`), for every panel and the Library's
+  picker head (its own rule went). The Entity tab's first section keeps its line: it sits under the breadcrumb, not
+  under the tab row.
+
+## 2026-10-30 – Removing a spread or an entry with everything on it (#198)
+
+- Tilman: "AI has the same rights as the user most of the time. So also it needs to get this confirm dialog somehow,
+  like the UI." – a spread or an entry goes with everything on it, in **two steps** for people and AI tokens alike:
+  the impact and a confirmation id first (nothing written), then the same request with `confirm`. This replaces the
+  earlier rule that a spread with entries is refused (`spread-not-empty`, #166 below); the opening spread stays.
+- One confirmation helper for the import and the removals: `Confirmation.php` (the stateless HMAC #183 built,
+  `<expires>.<hmac>`, 10 minutes, bound to the purpose with its ids, the user, the AI token and a digest of the
+  state). A removal's state is every row it takes, the kept entities' users, the files with their uses and the book's
+  change log (count, newest) and `updated_at` – any change in the book voids the id, as the issue asked.
+- Library files: only the uploaded ones (`assets`) count – the import's files are the content build's, never deleted.
+  "Used only here" = `Assets::usagesOf` finds no use beyond the removed rows (the environment counts as a use).
+  They go only with `deleteFiles: true` (off by default); a removed file is a change `asset` with its row and versions
+  as `before`. The store's files are deleted after the commit (a store cannot roll back).
+- The entity count of the impact includes a target's own (inline) entity (`ref: null`) – for a person it is the AR
+  content that goes, not only the shared rows.
+
+## 2026-10-30 – Publish to the own environment, import comparison, the content store (#183, #197)
+
+- Tilman: an instance publishes only to its own environment (`ENV`); a connected CDN has priority; `local` only on a
+  developer's machine; warn wherever the directory store is the target, in **content** words ("Content is better than
+  data"); import from anywhere, but with a version comparison before it overwrites. Implemented as 403
+  `other-environment` (an env name that is valid but not the own one; a malformed one stays 400 `invalid-env`).
+- The import's confirmation is a **stateless HMAC id** (`<expires>.<hmac>` with `SECRET`, 10 minutes) bound to the
+  user, the AI token, the incoming content's digest and the draft's state (`imported_json`, `imported_hash`,
+  `updated_at`, the change log's count and newest id) – no table. An import changes `imported_json`, so an id works
+  once. #198's delete confirmations may want a shared helper later; this one lives in `Books::confirmImport`.
+- The next-to-Publish warning is the short *No CDN connected* (its Info view help and the publish step carry Tilman's
+  full sentence) – the whole sentence does not fit the top bar, on a phone neither. The sentence itself comes from the
+  API (`ContentStore::SERVER_WARNING`), so the editor and the MCP server say the same.
+- Content store and var/ (`Paths.php`): a dev checkout keeps them at the top level; a deployed layout (`<docroot>/api`,
+  the FTPS staging) inside the API's folder (`api/content-store`, `api/var` with a deny `.htaccess`) – the parent of the
+  docroot is unknown on shared hosting. Settings pointing into `api/db/` are read as the same name at the new place (a
+  developer's `config.local.php` keeps working, its files move); a setting pointing elsewhere never receives a move (the
+  tests' temp folders, a mounted volume). The FTPS staging moves on its first request after the deploy; if `rename()`
+  fails there the old place keeps being used and every request logs it.
+- [ ] After the merge, check on the FTPS staging that `api/content-store` and `api/var/log/error.log` exist and
+  `api/db/` has only the schema (an FTP listing); else the error log says why the move failed.
+
+## 2026-10-30 – The demo video's tooling (#195)
+
+- Tilman: *"Kein Text."* – the WIP video has no titles and no end card; only the UI's own words. It is recorded from a
+  local editor against a **copy** of the SQLite with the demo imported from the CDN, never uploaded by us
+  (`editor/tools/demo-video/README.md`). Recording-only CSS hides the account's address, the AI connections and
+  Android's blue tap highlight; nothing else in the UI is changed.
+- The screencast delivers device pixels only with the browser's own scale (`--force-device-scale-factor`); an emulated
+  `deviceScaleFactor` gives CSS-pixel frames. So each format gets its own headless Edge.
+- [ ] **Make it code on the aquarium's tank leaves the tank empty on the stage** (found while recording, 1.42.0): the
+  plugin's `FISH_COLOURS` lives in `register()` outside the builder (`fixtures/demo/plugins/aquarium/index.ts:146`),
+  `make-code.ts` copies only the builder, so the generated `tank-code` throws; *Run* does not bring the tank back, a
+  reload does. The generated code also shows TypeScript squiggles. Needs an issue (the worker could not file one); the
+  video uses *make it code* on the key's model instead.
+- [ ] The phone's sheet dragged **down** shows black under the stage until the canvas resizes on release (headless Edge,
+  CDP touch) – worth a look on the S22.
+- [ ] Android's default blue tap highlight flashes over tapped links in the editor on a phone (the books page's cover
+  link) – `-webkit-tap-highlight-color: transparent` with a visible `:active` state would be calmer.
+
+## 2026-10-30 – A spread card's menu: right click, long press, menu key (#196)
+
+- Tilman (from his phone): *"+ after / remove – should on desktop only appear on right click and on mobile on long
+  tap. Icons included."* The cards carry no buttons; one menu for all three ways in (`ContextMenu.svelte`, the logic in
+  `context-menu.ts` / `menu-trigger.ts`). The stage's right-click menu moved onto the same component (RULES #32: a
+  control is built once), so it gained the keys and stays on the screen.
+- Order *Open*, *Add a double page after*, *Remove*: the default action first, the destructive one last.
+- Disabled items stay focusable (`aria-disabled`, WAI-ARIA APG) and show their reason under the word – the menu has no
+  Info view of its own, and on a phone there is none at all.
+- The remove question moved from `window.confirm` into the card (*Remove* / *keep*, as the Library and Code panels ask);
+  adding asks nothing, as before.
+- The long press opens at 500 ms or at Android's own `contextmenu`, whichever comes first; 8 px of movement cancels it.
+  Not yet tried on the real S22 – only CDP touch emulation in headless Edge.
+
+## 2026-10-30 – Schöpfer's desk from the catalogue (#187)
+
+- **Tilman** (issue, with two catalogue photos kept outside the repo): "Das ist kein Plywood … Und Material echt
+  heißt"; priority: "Die Fächer sind besonders wichtig, dass die zu erkennen sind. Und die Platte nicht massiv
+  erscheint." The model follows the catalogue: aluminium sandwich top with linoleum and an oak edge band, oak drawers,
+  black powder-coated steel frame. Size stays 1800 × 800 (#109), the height is now the catalogue's 750 (the Eiermann
+  keeps 720).
+- **Interpretations** (say so if wrong): the catalogue's "M 200 × 90 × 8" is read as 8 cm from the surface to the
+  drawers' bottoms (the panel itself is 24 mm – thin, as Tilman asked). The photo shows one drawer; the model keeps
+  three (the earlier three cutouts, "Fächer" plural), **pulled out by 150 / 60 / 110 mm** so the dark insides read from
+  above – a desk with its drawers shut would show only their oak fronts under the edge. The drawers hang under the
+  frame's flat rim (5 mm) – a 6 mm gap under the top where they stick out. The legs splay 4° front to back (tops
+  ±350, feet ±400 – the edge of the top) – read from the photo's perspective, not measured.
+- **The default reader view does not show the drawers** (nor does *far*): it is 35 cm from the book and looks down on
+  it, the front edge is 40 cm in front of it. They show once the camera is tilted low (*low*, or a drag) and from the
+  side. Under Ferndale Studio 04 (the default sky, a yellow light from above) the linoleum reads olive-grey from
+  above and grey from the front; in textured shading it is blue-grey (the other skies not checked).
+- **The black frame under the studio HDRIs**: unlit by tone mapping, the HDRIs' bright lights made the flat faces of a
+  black dielectric (F0 4 %) look tan whatever the roughness; the steel has a low specular level (Blender's Specular
+  IOR Level 0.15 → `KHR_materials_specular` 0.3), so it reads dark brown-black in rendered shading and black in
+  textured. The oak is drawn a little darker than a sample of light oak for the same reason (it clips to yellow).
+
+## 2026-10-30 – Plugins everywhere: materials, textures, make it code; the aquarium; the zero plane (#188, #189)
+
+- **The variant** (Tilman's request in #188, the table now in docs/plugins.md "Where a plugin can go"): plugin API 1.4
+  adds `registerMaterial` (a whole material – the 8th Wall `registerShader` / Unreal custom material place) and
+  `registerTexture` (procedural textures) and the parameter kind `texture`; "make it code" is Unreal's *Create Blueprint
+  from component* – the Entity panel writes a Code tab plugin from a node (or its look) and switches the node to it.
+- **A node's material replaces every mesh's material of its own object**; a node type opts a mesh out with
+  `userData.keepMaterial` (the aquarium's water takes the material, its glass and fish keep theirs). Layers patch a plugin
+  material in place (marked `userData.osctOwned`), never a clone – a clone would cut its `time` uniform off.
+- **Texture values are strings or `{ type, …params }`**: `""` none, a camelCase name a procedural texture, anything with
+  a dot or slash a file. No schema field for texture assets: the engine loads a file texture itself (shared per URL,
+  counted), the build turns a file next to the node into its content path. A Library file's URL in `data_json` counts as
+  a use of the asset already (`Assets::usagesOf` searches the JSON).
+- **Schema 2.17 is a MINOR, with one caveat**: a 2.16 guard refuses a recorded spec whose parameter kind is `texture` (it
+  knows no such kind) – a book whose plugins take textures needs a 2.17 app. Nothing was released with 2.16.
+- **The zero plane check warns, never refuses**: a model may float on purpose. Only models are checked (bounding box from
+  the glTF accessors' min/max through the node transforms); upright videos are not – the build does not know a video's
+  height. The test fixture (`fixtures/content`) has many pivot-centred models that now warn; they were left as they are
+  (tests read their placements) – open: fix them or keep the warnings.
+- Make it code copies a plugin node type's `build` by `Function.toString()` (the compiled code): a name the build took
+  from its own file (a helper, a constant) must be brought along by hand – the generated comment says so.
+
+## 2026-10-30 – Connect an AI agent: the guide for any MCP client (#194)
+
+- **Tilman** (issue): "Claude is one – OpenCode, Codex etc. Keep it more general." The guide shows the generic four
+  (name, `node <file>`, `OSCT_API_URL`, `OSCT_EDITOR_TOKEN`) first, then snippets for Claude Code, Claude Desktop,
+  Codex CLI, OpenCode and Cursor – each format checked against the client's docs on 2026-10-30 (URLs in
+  `editor/src/lib/mcp-setup.ts`). Codex's docs now redirect from developers.openai.com/codex/mcp to
+  learn.chatgpt.com; Cursor's table lists `type: "stdio"` as required although its samples omit it – the snippet sets it.
+- **The server's name is `osct-<env>` on every instance, production included (`osct-production`)**: the brief's example
+  had `osct` on production, but the repository's `.mcp.json` already uses `osct` for the local dev API, and in Claude
+  Code a project's server hides a user server of the same name – inside the checkout the production server would
+  silently be the local one. One line (`serverNameFor`) if Tilman wants plain `osct` for production after all.
+- **The environment comes from the API**: nothing in the instance knew it (the content store's environments are where
+  a publish goes, not what the instance is), so `ENV` was added to `Config` (default `local`), set in the Kamal
+  destinations and the FTPS staging deploy, and `GET /health` answers it. An older API without it: the host names the
+  server (`osct-osct-porschuetz-de`).
+- **The path is the person's**: the editor cannot know the checkout, so a field takes it once (localStorage
+  `osct-editor-mcp-file`); without it the snippets say `/path/to/osct/mcp/bin/osct-mcp.mjs` openly.
+- Open: a **one-file download of the MCP server** (SCUTOONS §3a) – a bundled `osct-mcp.mjs` built in CI or the image and
+  served by the instance, so a person needs Node but no checkout. Not built here: `bin/osct-mcp.mjs` bundles `src/` with
+  esbuild at start and needs `mcp/node_modules`; a served bundle needs a build step in the Dockerfile (the mcp
+  dependencies in the build stage), a route or static file next to `/editor`, and the version kept with the app. Its
+  own issue when wanted.
+
+## 2026-10-30 – AI connections: personal access tokens and the MCP guide on the books page (#142)
+
+- **Tilman's decision** (issue comment): the key for pairing and the MCP guide "like SCUTOONS" but on the dashboard (the
+  editor's books page), not only an account page – connecting Claude is a first step of working. Built after
+  `scutoons/agents/MCP.md` §3: `api_tokens`, prefix `osct_`, SHA-256 hash, 182 days, renew = the same token moves on.
+- **Why now, before SES (#12)**: staging's sign-in mail does not arrive, so the token is made with the browser session
+  the editor already has; the MCP server then needs no mail at all.
+- **Limits** (`Auth::session()` / `Auth::refuseToken()`, 403 `not-for-ai`): a token cannot make, renew or revoke tokens,
+  set the password, delete the account or publish to **any** environment (the MCP's `publish` to local / staging works
+  only with a session). Everything else is the person's rights, role checks included; a token of an account without
+  editor or admin role is 401.
+- Open: the admin API (`/admin/*`) takes a token like a session (an admin's AI could grant roles). SCUTOONS limits admin
+  changes to proposals – decide whether OSCT refuses them to a token too.
+- Not built: the reminder mail before expiry (SCUTOONS sends one; OSCT shows *expires* in red for the last 14 days), a
+  one-file MCP download (SCUTOONS §3a) – the guide's snippet still points at a checkout of the repository.
+
+## 2026-10-30 – The desks on a phone (#184)
+
+- **Reproduced in emulation only**: the S22 was not connected; headless Edge at 360 × 780 @3 and 390 × 844 @2 with
+  touch, on D3D11, Vulkan and SwiftShader, rendered all three alike.
+- **The frame vanished because the Eiermann steel was a dark mirror** (metallic 0.85, base 0.16): measured on the 360 px
+  phone shot, 30 % of the frame's pixels lay within 10 grey levels of the background behind them in rendered shading,
+  and in textured shading (no environment, so a metal gets almost no light) the frame's median was 23 on a background
+  of 12. The single strut that catches a bright reflection then reads as a stray bar under the top – the most likely
+  "extra plane". Now satin graphite powder coat (metallic 0.15, roughness 0.45): textured 0 % within 20 levels,
+  rendered frame median 99 on 76.
+- **Ruled out with evidence**: the GLBs (normals and winding agree, every face outward, no duplicate or overlapping
+  coplanar faces, 236 / 124 triangles – `desk-models.test.ts`), depth precision (24 bits; a 16-bit buffer emulated by a
+  256× smaller near plane makes the page's printed layers fight, not the desk), no pixel-ratio or LOD code, no shadow
+  catcher (the book's soft shadow is intended).
+- **The tubes stay double-sided**: they are open, and single-sided tubes would show holes where an end faces the camera.
+- Open: confirm on the S22 itself (a GPU-specific cause cannot be excluded without it).
+
+## 2026-10-30 – The stage toolbar in groups (#180)
+
+- **Groups expand by the toolbar's room, greedy from the first**: all collapsed, then transform, pick, shading expanded
+  in turn while the toolbar fits one row (`lib/tool-groups.ts` `expandedGroups`, measures from the toolbar's CSS and
+  the `--control-height` token, 4 px slack). On a phone the room always leaves ‹ › their place on the top row, so the
+  layout does not change with the sheet's height. 1280 px: all expanded; 768 px tablet: shading collapsed; 360 px
+  phone with a finger: all collapsed (156 px).
+- **#177's fallback, simplified**: `wrapRows` and the sideways-scrolling toolbar are gone (one row always); ‹ › keep
+  their lower corners (#171) and still move to the top right when the stage is too short (`stepsOnTop`, now with the
+  toolbar's measured one-row height). The sheet's drag code is untouched.
+- **The group menu is fixed to the screen** (a short stage would clip it) with a backdrop that takes the outside tap
+  (it picks nothing on the stage), like the stage's right-click menu; `.tools` is z-index 2 so the menu covers ‹ ›.
+
+## 2026-10-30 – Plywood on the desks' cut edges (#107)
+
+- **The plies are drawn in code, not downloaded**: the issue proposed a CC0 plywood texture with a visible edge (Poly
+  Haven, ambientCG), but downloads need Tilman's OK (workspace `ORCHESTRATION.md` §7). `editor/src/lib/stage/plywood.ts`
+  draws one stack of 13 plies (since 1.37.1; 1.37.0 had 7 – Tilman: "more layers, we are 18 mm"; 18 mm birch plywood is 13-ply) (birch long grain / darker cross grain, glue lines) into a 512 × 128 `DataTexture`
+  once (≈ 5 ms warm, no per-frame cost); a CC0 photo can still replace it later if wanted.
+- **Edge UVs**: u along the edge (250 mm a repeat), v one stack through the thickness – the Eiermann board one stack,
+  Schöpfer's 60 mm top three (a 60 mm board with seven plies would read as stripes). Schöpfer's model now has an `edge`
+  material too (`editor/tools/desk-eiermann.py`).
+- Found while there: the default desk (Eiermann) never got its plywood look until the desk was switched – `setDesk`
+  returned early for the desk the stage started with. Fixed with the same change.
+
+## 2026-10-30 – Tutorial re-shoot and a look at the Stage panel (#148)
+
+- **The key shots are re-shot** (demo 03, 05, 10; tools 07, 08, 12; new tools 13): the local demo draft was imported
+  again from the demo's content base on the CDN (`https://buildingfictions.b-cdn.net/demo`, 1.36.1), whose key is the
+  brass key – the reader dev server's bundled content was still an old build with the dragon. The stage frames the key
+  from low over the left page, so the printed sheet's outdated text ("a dragon") stays out of the picture until the
+  sheets are rendered again (#179).
+- **A `$state` that an effect both reads and writes on its first run loops**: the Entity panel's timeline effect called
+  its frame tick synchronously, read `timeline` and wrote it – with a model that has clips (the key) selecting it ended
+  in `effect_update_depth_exceeded`. The timeline is `$state.raw` (a proxied object never equals the raw one) and the
+  first tick runs `untrack`ed.
+- **A scrolling element in a panel's flex column needs `flex-shrink: 0`**: `overflow: auto` drops its automatic minimum
+  height, so the timeline collapsed to nothing in the phone's sheet (the rows and sections already had it, #170).
+- Found and left for later: ‹ › over the stage toolbar at the sheet's almost-full height (#177), sticky hover on touch
+  (#178), the demo's sheet text (#179) – all in Backlog.
+
+## 2026-10-30 – Type-only imports, `verbatimModuleSyntax` on (#176)
+
+- **The flag is on in every TypeScript config** (client + service worker, engine, editor + its plugin API, scripts,
+  mcp – all ESM, none emits CommonJS); the editor's `false` override is gone, and Kit 3's `tsconfig_invalid` warning
+  with it. Found with the compiler and fixed by TypeScript's own quick fix (whole declaration → `import type` where
+  every name is a type, else `type` on the name), no reformatting.
+- **No runtime change, checked by emitting**: with the flag on, the bundlers (oxc, esbuild) keep every import not
+  marked `type`. So a value a file used only as a type (three.js classes in signatures, enums like `EntryCategory`
+  or `GameMode` in type positions, element classes like `EntryDetail`, a test's `BaseStore`) got `type` too –
+  otherwise `entry-page.ts` would newly import `@/components/consultation`, `types/game.ts` `./common`, … Every
+  program was emitted with the flag off and on and the import lists compared: identical (one cosmetic
+  `import i18next, {} from "i18next"`). An existing `import { type A, type B }` (scripts' `build/entities.ts`) would
+  have become a side-effect import `import {} from …`; it is `import type` now.
+- **Content schema 2.16** only because `shared/` changed (RULES #10: every change there needs a bump) – nothing new in
+  the content; the row's app version in docs/content.md is filled in at the merge.
+- Open: `tsc -p engine` on its own fails before and after (`vite/client` and three's types are not found through
+  `../client/node_modules`) – the engine is checked through the reader's and the editor's configs.
+
+## 2026-10-30 – The Stage panel taps, sets variables, keeps a timeline; the demo's key (#88)
+
+- **The tap button goes through the engine's own tap**: `ArScene.tapTarget` is the one path (the entity's `onTap`, the
+  app's `targetTapped`, the core event); the reader's document click reaches it after the hit test, the editor through
+  `SceneInspection.tap(targetId)` – on the inspection, not `IArScene`, because only editor tools use it (RULES #32: the
+  reader never calls `inspect()`). It taps nothing unless the scene runs and the target is found with an entity, as a
+  reader's tap could not either; the panel disables those buttons.
+- **A manual `set` is a plugin's `set`**: the Stage writes through `runtimeApi("stage").vars` – the same name, scope and
+  value checks and the same `varChanged` – so a branch tested by hand behaves as if a plugin had set it. The scopes are
+  the API's four (spread, stage, session, book); the brief's "entry" scope does not exist in API 1.1. Numbers are
+  committed on change, not on every scrub step, so the timeline does not fill with `varChanged`.
+- **The timeline counts from the spread's opening** (the core `spreadChanged`, or a reset); 100 events kept (was 12).
+- **The key's model is written by a Node script, not Blender** (`editor/tools/key-model.mjs`, glTF binary by hand, 7 KB,
+  one clip `rattle`): reproducible on any machine, so a test rebuilds it and compares it with the committed file. The
+  desks stay Blender models. The tutorial's demo screenshots still show the old stand-in (a dragon) – re-shoot with the
+  next tutorial pass.
+- Still open in #88: the `behaviour` component and declared `variables:`, bubbling scopes, two spreads on one stage.
+
+## 2026-10-30 – The editor on SvelteKit 3 (#157)
+
+- **`@engine/…` and `@shared/…` stay aliases** (Vite `resolve.alias` + `paths` in `editor/tsconfig.json`), not
+  package.json subpath imports: the engine's own files import `@shared/…`, and an editor `#…` import reaches only files
+  of the editor package; Node and TypeScript also refuse `imports` targets outside the package (`./../engine`). Only
+  SvelteKit's deprecated `alias` option is gone. `$lib` (removed in Kit 3) became `#lib/…` with the file's extension.
+- **`verbatimModuleSyntax` stays `false`** in `editor/tsconfig.json` (as under Kit 2): turning it on gives 108
+  "must be a type-only import" errors, most in `engine/` (shared with the reader). Kit 3 prints a `tsconfig_invalid`
+  warning for it; build, check and tests pass. Open: `import type` across engine and editor, then drop the override.
+  → done (#176): the flag is on everywhere, the override and the warning are gone.
+- **No version polling**: Kit 3 polls `version.json` hourly by default; `version.pollInterval: 0` keeps Kit 2's
+  behaviour (the editor reloads on a stale chunk instead – #160). → replaced (#230): a 5-minute poll and the
+  new-version bar, no reload of its own.
+
+## 2026-10-30 – Touch height, tablet portrait, words as labels (#171, #172, #173)
+
+- **Touch control height = the dogma's 44 px** (2.75rem), not the review's 2.5rem: one token raised under
+  `@media (pointer: coarse)` in `app.css` (Scutoons does the same in tokens.css); `--top-height` 3rem with it. The
+  dogma CSS test checks the token and that the primitives, ScrubNumber and the tree's rows take it.
+- **The phone's sheet head is the six tab icons alone** (they share the row, each ≥ the control height): six at 44 px
+  fit 360 px, nine did not. ‹ › went to the stage's lower corners (framed icon buttons, phone only); × went to the
+  top bar, whose book crumb already leads to the spreads – no second way back was added. The double tap on the grip
+  still restores the default height; the drag (pointer capture, the `lostpointercapture` guard of 1.26.5) is unchanged
+  and was checked with emulated touch (grip up → half, a tab dragged down → closed, a tap opens).
+- **Tablet portrait**: the tree starts collapsed below 64rem until toggled on the device (`treeStartsOpen`), the tabs
+  turn to icons in a panel narrower than their words (`wordTabs`: 24rem, 28rem with a finger – measured), and the
+  placement rows stack their label above X / Y / Z under `@container panel (max-width: 23rem)`. The column clamping
+  order (panel against the tree's width) was left as it was.
+- **Labels are part of the contract** (`ParamText.label` in `shared/types/components.ts`, `FilterParamSpec.label`):
+  content schema 2.15 (shared/ changed – RULES #10; develop's #90 took 2.14 meanwhile) and plugin API 1.3 (MINOR
+  adds). Since #90 the content build records a plugin's specs in `registered`, so a label reaches the content there; a
+  2.14 guard ignores the unknown key, a 1.x engine the label. `paramSpecProblems` refuses a label that is not 1–24
+  characters (the recording build and the guard both check it). The fallback is
+  `paramWords` (camelCase → words), shared so any UI can use it.
+- [ ] The default stage view has a fixed vertical field of view (as the reader's camera intrinsics): on a tall, narrow
+  stage (a tablet in portrait, 327 × 984 px) the book fills the height and is cut at the sides until the author zooms
+  out. Fitting the view to the stage's width would change what the "reader's view" simulates – a decision for Tilman.
+- [ ] A touch tablet in portrait with the tree opened leaves the panel 272 px: its head (× ‹ › and five icons at 44 px)
+  scrolls sideways there – the documented fallback.
+
+## 2026-10-30 – The plugins' recorded specs (#90) and the MCP tools for the new endpoints (#174)
+
+- One optional field per declared plugin, `registered: { components?, nodeTypes?, passes? }` (type → spec; layers are
+  components – the content does not tell them apart), schema 2.14. Present = what the plugin registers is known;
+  absent = an older build, unknown until it runs. `recordedRegistrations` merges the declared plugins' specs and says
+  `complete` (every one recorded).
+- The guard: recorded specs are looked up after the registry (`componentProblems`' new `specs` option, the node type
+  spec), so a plugin's parameters are checked before the plugin loads. With every declared plugin recorded, a type none
+  registers is refused – a node type only when the content's schema is not newer than the app's (a later MINOR may add
+  a built-in node type, which must keep loading in an older app). A plugin without `registered` keeps the old leniency.
+- The server reads only the type names (`Editor::recorded`), never the parameters (the guard's job, as before). Code tab
+  sources have no recorded specs (nothing is built on the server until #78), so a book with sources keeps today's
+  behaviour: any camelCase node type passes a save. The publish now also refuses a component / node type the recorded
+  plugins do not register (before: only without any plugins).
+- The editor adopts the recorded specs into the shared registry when a draft loads (`plugins/recorded.ts`); a loaded or
+  run plugin registers over them, and the next load takes back only the specs it added (same object).
+- The MCP server reads the book's plugins only when an entity names a type that is not built in (saves the requests
+  otherwise). Its source scan (`pluginTypes`) now finds `registerNodeType` and `registerPass` too; with any Code tab
+  source a node type no known plugin registers is a warning, not a refusal (the scan reads text and may miss one).
+- [x] The MCP server has tools for the book's passes and the environment (#174: `put_book_passes`, `put_environment`,
+  plus `add_spread`, `put_spread`, `delete_spread`).
+- [ ] Plugin passes: recorded, listed by `describe_content_model`, but the guard, the build and the API still take
+  built-in pass types only (#97).
+
+## 2026-10-30 – The book's passes as the master; the environment through the chain (#149)
+
+- No content schema change: `book.passes` and the spread override (`getPasses`: spread's own, else the book's) exist
+  since 2.5. Only the editor (Stage panel, `passes-edit.ts`) and the API (`PUT /editor/books/{id}/passes`, modelled on
+  `PUT …/environment`, change kind `passes`) were missing. The editor sends `null` for an empty book list (removes the
+  field); a spread's empty own list stays `[]` (off there).
+- The look-around underlay is drawn into the chain's buffer (an `UnderlayPass` before the `RenderPass`, which then does
+  not clear) only while passes run; without passes the old screen path is unchanged, so a phone without passes pays
+  nothing. The look-around shader outputs linear into a render target (three picks the output colour space by target),
+  matching the buffer.
+- With the world in the buffer the reader needs the AR layer's mask for a `reach: ar` grade. To keep that extra scene
+  render off when nothing uses it, passes say `usesMask` (the grade: false for `reach: all`). Kept engine-internal
+  (`MaskUsage` in `post/registry.ts`, not on `PostPass`), so the plugin API (1.2) does not change; a plugin's pass with
+  `setMask` always gets the mask. A plugin's pass now also sees the world in its buffer (documented in the d.ts).
+- [x] The MCP server has no tool for the book's passes (nor for the environment) – RULES #32 says a new endpoint is a
+  new tool there; left out of #149's scope. Done in #174 (`put_book_passes`, `put_environment`).
+
+## 2026-10-30 – A plugin's own node type (#77)
+
+- `api.registerNodeType(type, spec, build)` is the engine's builder contract for a book's code: `build` returns `{ object,
+  …hooks }`, `buildNode` places it like a built-in node (placement, children, components, layers). Plugin API **1.2**,
+  content schema **2.13** (the contract in `shared/types/node-types.ts`; `EntityData.type` widened to `NodeType`).
+- **The parameters live in the node's `params`**, next to the placement – no new field: `params` already passed other
+  keys through, and an older app ignores them. A spec may not name a parameter `position`, `rotation` or `scale`.
+- `src` is one kind (`glb` / `video` / `image` / `none`), not a list: what the issue asked, and enough for the Library
+  picker's filter. A model's loaded asset is handed over shared – the plugin clones what it changes.
+- The server cannot tell which types a plugin registers (only the stage and the content build run the code), so it
+  follows #66's pattern for components: an entity body may name a camelCase type outside `ENTITY_TYPES` when the book has
+  plugins (declared, or Code tab sources – `Editor::hasPlugins`), and a publish without declared plugins refuses such
+  nodes (409 `unknown-node-types`). In a book with plugins a lower-case typo like `hologram` now passes the API; the
+  content build still refuses it. A type is at most 32 characters (`entities.type` is `VARCHAR(32)`; no ALTER needed).
+- [x] *(done – `pluginTypes` reads `registerNodeType`, #19 review)* The MCP server still refuses a plugin's node type (`mcp/src/model.ts` `unknownNodeTypes`, `pluginTypes` does not
+  read `registerNodeType`) – it follows when an agent needs one.
+
+## 2026-10-30 – A video's size and duration on upload (#91)
+
+- Read in plain PHP (`server/api/src/VideoInfo.php`): mp4 / mov boxes (`mvhd`, the `vide` track's `tkhd`, a quarter-turn
+  matrix swaps width and height like a browser's `videoWidth`), webm / mkv EBML (`Info`, the video `TrackEntry`). One new
+  column `assets.duration_ms` (ms, like the content's other durations); width / height reuse the image columns.
+- No backfill: older rows would need their whole file fetched from the store (the CDN) – they stay null until replaced.
+- `+ node` does **not** write `scale: [1, h/w, 1]` for a video: the engine's video plane already takes the file's
+  proportions at load (`entities.ts` `fit`), so that would square the aspect. The known size only starts a portrait
+  video at a uniform scale of w/h, so it stays within one target width (`videoNodeScale`, `editor/src/lib/values.ts`).
+- [ ] Image nodes are 1 × 1 planes and the library knows an image's size too – `+ node` could start them at
+  `[1, h/w, 1]` the same way; not done here (not asked in #91).
+
+## 2026-10-30 – Typed boundaries and test gaps (#28, #29)
+
+- Option C, then A (hand-written checks, no schema library): `ApiService.requestAs(isResponse, …)` checks an answer's
+  shape (a wrong one is `ApiError` `server-error`, status 502); `UserService` reads localStorage through readers that
+  keep a session with fewer fields signed in. The content build's types come from `lib/schema.ts` (`Authored<T>`);
+  nested parts get their contract type through `contractPart` after the shared `*Problems` check.
+- `shared/` was left alone on purpose: every change there needs a content schema bump (RULES #10), and none of this is
+  a content change. So `TriggerInfo` lives in the engine (it reads the file) and `scripts/src/protocol.ts` imports the
+  type from there.
+- The osct CLI accepts only its known options (`lib/cli-args.ts`): a misspelt safety flag must never run for real.
+- [ ] Still open from #28 (`PlacementData` removed in content schema 2.24, #214): `BaseStore`'s
+  `propertyListeners` cast. From #29: `loadBuild` still re-implements the pipeline, the server matrix (PHP 8.1, MySQL),
+  `service-worker.ts` and the AR scene lifecycle.
+## 2026-10-30 – Spreads added and removed on the book page (#166)
+
+- Tilman on the disabled format select: "no hint next to it, the disabled state just has to be clearer" – disabled
+  controls are dimmed, get a not-allowed cursor and a select loses its arrow, editor-wide (`app.css`); the reason stays
+  in the Info view (RULES #32).
+- A new double page **renumbers the pages after it** (Tilman: "the pages are numbered on") – later spreads, entries and
+  `print.page` move by two, and removing a double page reverses it. The layout's sheets are matched by page and do
+  not move, so later cards show the sheets of their new numbers until a layout with the new pages is imported.
+- *(Replaced by #198: removed with everything on it, after a confirmation.)* **Removing a spread with entries is refused** (409 `spread-not-empty`), not "ask and remove them too": the entries
+  carry targets and AR (work), a bulk delete is not undone by anything but the change log, and deleting entries one by
+  one already exists in the tree. The spread the book opens on cannot be removed either (`initial-spread`).
+- The hint "New spreads come in with an import for now" shows only where adding is impossible: the API refuses a
+  double page (an older server) – then the book page offers no double pages.
+- [x] *(done – `add_spread`, `put_spread`, `delete_spread`)* The MCP server has no tool for adding or removing spreads yet (RULES #32: a new endpoint is a new tool there).
+
+## 2026-10-30 – The Library as the picker; entry category vs what appears (#164, #165)
+
+- Tilman on staging: file dropdowns of identical names ("Target Image, …"), and the Library opened from a video node
+  changed the **target's image** (its *Target image* button sat next to *Use* on every image card). Built: every file
+  field (`components/FileField.svelte`) opens the **Library in place as a picker** (`LibraryPanel` with `pick`,
+  `library-pick.ts`) – the filter preselected, only fitting files pickable, the pick fills the one field it was opened
+  for. In place (not the Library tab) because the tab replaces the panel that asked: the new-target form lost its
+  values and the Entity panel was unmounted (the tab's *Use* reached no node – fixed too, the Entity tab opens first).
+  The Environment tab's pick moved in place as well, so there is one picker; the tab stays the browser of the files.
+- **Target images** = images a target of the draft uses, or the import's `target.*`. There is no "marked as a target"
+  flag in the API; [ ] add one if uploads meant as targets should show there before a target uses them.
+- **#165**: develop, which staging deploys, has offered `model` in the new-target form since 1.10.0. The likely cause
+  was the form: an unlabelled category select (glossary, video, text, link) on the *page* row read as "the type", and
+  the AR content select sat below the placement under "AR content (optional)". The category and the content stay
+  **two choices** – the category is where the reader's consultation menu lists the entry (a glossary term may show a
+  model), not what appears – but the category **follows** what appears (video → Videos, else Glossary) until set by
+  hand, and both are labelled ("What appears on the page" as pills, then "Entry category"). [ ] Staging itself could
+  not be opened from the agent's container – check the form there by hand.
+- [ ] iOS Safari may grey out `.glb` files in a file picker (no system type for glTF); the model upload names the
+  media types next to the extensions. Check on an iPhone / iPad.
+## 2026-10-30 – Local MariaDB in Docker, staging's data, the API test on MariaDB (#168)
+
+- Tilman after #161: *"in future, for testing locally, start a MariaDB in a Docker container, as in SCUTOONS"*, plus a
+  dump of staging. Built in 1.26.8: `docker-compose.yml` in the repository root (service `db`, MariaDB **10.11** – the
+  version of the all-inkl host could not be read from here, so the LTS the task named; `OSCT_MARIADB_VERSION=11.4`
+  matches the Kamal accessory), `scripts/db/pull-staging.sh`, `OSCT_TEST_DB=mysql` for the API test, the CI job
+  "Accounts API (MariaDB)". Local development against MariaDB is the recommended setup now; SQLite stays for quick
+  tests (docs/server.md).
+- **Personal data in a staging dump**: pseudonymised on load by default (addresses → `user-<id>@example.invalid`,
+  passwords, sessions, sign-in requests and failed sign-ins gone; `KEEP_EMAILS` exempts your own), the dump deleted
+  after loading unless `--keep`. Credentials in `server/.env`, dumps in `server/db-dumps/` – both outside the Docker
+  build context and git. One bash script (Git Bash on Windows) rather than a PowerShell twin: the repo's tooling
+  scripts are bash, and the dump runs inside the container (no MySQL client needed).
+- The first MariaDB run found a second MySQL-only bug: `LIKE … ESCAPE '\'` (admin user search, asset usages) is an
+  unterminated string literal on MySQL. `Db::contains` escapes with `!`; the API test scans for the backslash form.
+- [ ] Open: once staging is on the Kamal VM, check the SSH route of `pull-staging.sh` against the accessory
+  (`STAGING_DUMP_COMMAND="docker exec -i -e MYSQL_PWD osct-staging-db mariadb-dump"`, docs/server.md "Staging's data").
+- [ ] Open: the real staging pull is untested here (no credentials in this session) – the script was checked against
+  a second database in the local container, directly and over a stand-in for ssh.
+## 2026-10-30 – The editor's selection levels and the tree's hierarchy (#162, #163)
+
+- From Tilman's walkthrough on staging: no feedback on a click in the tree, target and entity always shown together,
+  a second video added with the first selected became its child, nothing could be moved or named afterwards.
+- **One selection** (`editor/src/lib/selection.svelte.ts`): target, entity (the root) or node – the tree, the stage
+  and the Entity panel read and write it. A target without AR content is always selected as the target. The Entity
+  panel shows the target fields only at the target level and the node rows only at the entity / node level; its head
+  is a breadcrumb. The target picker of the panel's head is kept, shrunk to a ▾ after the breadcrumb's target crumb
+  (RULES #1: restructured, not removed).
+- **Next to the root wraps the root in a group** (adding, dropping before / after the root, outdenting a child of
+  the root): the only way to get two siblings under one target, which is what Tilman expected. A group's placement
+  defaults to none, so nothing moves on the stage.
+- **A moved node keeps its placement values** (relative to its new parent, so it may move on the stage) – no "keep
+  transform"; the issue asks for parent and order only.
+- **Keys**: Alt + ↑ ↓ to move, Tab / Shift + Tab to indent / outdent (Tab falls through when nothing moves, so the
+  focus can leave the tree). Not Alt + ← →: that is the browser's Back on Windows. A finger drags a row by its type
+  icon (`touch-action: none` there only), so the tree still scrolls on a phone.
+- Content schema **2.12**: a node's optional `name`; its row in docs/content.md says *next* for the app version – the
+  version is set at the merge.
+- [ ] Not checked in a browser or on the S22 (this session ran no dev server): the drag with a mouse and a finger,
+  the selected row's contrast in day and night, the target outline on the stage.
+- [ ] Open: renaming in the tree itself (double click / F2), moving a node to another target's entity.
+
+## 2026-10-30 – The phone sheet: icon tabs, a frozen stage while dragging, the camera on the spread's root (#155, #105)
+
+- Tilman on the S22 after 1.26.0: the sheet drag "glitches and competes with the scene drag", the stage still jumps on
+  a spread change ("first it jumps, then it is fixed") and flickers on resize. Causes: a 14 px grip (a drag just above
+  it landed on the stage), the WebGL canvas resized on every pointer move, the engine waited for its loop's next frame
+  after a resize (a blank frame), and the mock camera looked at the first target (different per spread, missing until
+  the targets arrived). Fixed in 1.26.4.
+- **Tabs as icons on a phone** – Tilman: "Mobile bitte die tabs auch mit icons statt text. Dann ist es auch einfacher
+  und auf einer zeile." An exception to the editor's words-over-icons rule, added to RULES #32's UI part.
+- **1.26.5**: the touch drag still did nothing on the S22 (Tilman's screen recording). Cause: a touch is implicitly
+  captured by the element it starts on; taking the capture for the head fired `lostpointercapture` on that child, which
+  bubbled up and ended the drag. A mouse has no implicit capture, so desktop and tests never showed it. **Test touch
+  gestures on the phone** (CDP `Input.dispatchTouchEvent` over `adb forward … chrome_devtools_remote`, Brave too).
+- [x] The sheet drag on the S22 (1.26.5, over CDP). [ ] Still to check by hand: the icon tabs, a spread change, the
+  Code tab with the soft keyboard.
+
+## 2026-10-30 – The books page as covers, the demo's pages rendered (#153)
+
+- Tilman: "a clean dashboard with the books cover as image … bigger preview pictures, less useless info … left the
+  books, right half import". Built (1.25.0). The demo has no designed PDFs, so its sheets are **rendered from the
+  content** (`render-layout.py`, Pillow) and committed in `fixtures/demo/layout/` (~1.2 MB, small JPEGs) – unlike the
+  real book's `layout/`, which stays out of git. The rendered sheets leave the **targets out**: cards and the stage lay
+  each `print` over the sheet, so nothing goes stale when a print moves. Run the script again when the demo's spreads
+  or texts change.
+- Open: the books page fetches every book's tree for its cover's prints – fine for a few books; a cover field in
+  `GET /editor/books` when there are many.
+
+## 2026-10-30 – Monaco in the Code tab (#76)
+
+- Tilman (#76, after the textarea on staging: "I thought we use the code completion editor?"): **Monaco**, not
+  CodeMirror – its TypeScript worker gives completion and type errors without a worker of our own. Built (1.24.0):
+  `editor/src/lib/plugins/monaco.ts`, a lazy chunk of the Code tab; the compiler options are the content build's, the
+  declarations `plugin-api.d.ts` (generated from the engine by `dts-bundle-generator`, checked in, drift checked in CI)
+  and three's own `@types/three` (the core, ~250 files; WebGPU / node material parts left out – a plugin never sees
+  them). Syntax colours are Monaco's own `vs` / `vs-dark` token colours on the editor's grey surface – the one place
+  with colour in the editor; say so if they should be greys.
+- Open: the Monaco package also builds its CSS / HTML / JSON workers (~2 MB in the image, never fetched – only
+  TypeScript is used); trimming means importing Monaco's editor core piece by piece instead of `monaco-editor`.
+- Open: a Run's error line comes from sucrase's position and can point at the enclosing statement rather than the
+  token; the TypeScript marker underneath is exact.
+
+## 2026-10-30 – One book per environment, made visible and guarded (#143, refs #87)
+
+- Tilman (#143): run the demo on staging once, deliberately – nothing may silently replace the real book. Built
+  (1.22.0, content schema **2.11**, MINOR): `latest.json` and each `versions.json` entry carry `book` (the editor
+  writes the book row's id, `osct content sync` the configuration's `book.id` – the same by convention). An older
+  manifest without it is resolved through its version's `game.config.json` (`book.id`) rather than assumed to be "the
+  instance's book" – exact, and only until the next publish. The API refuses a publish over another book (or one it
+  cannot tell) without `replace: true` (409 `other-book`); the editor asks naming both, production more strictly.
+  The guard applies to `local` too (same rule everywhere). The MCP server never sends `replace`. `osct content sync`
+  does not ask – it syncs whatever content source it is given; a store per book stays #87.
+
+## 2026-10-30 – The environment on the stage, world and sky as assets, schema 2.10 (#79)
+
+- Tilman (#79 comment): the Environment block on the book page was too limited – edit it in the editor's stage with a
+  preview, the world and the sky as assets from the Library or uploaded, the café one choice. Built (1.21.0): an
+  **Environment** tab in the workspace; `worldSrc` (glTF) and `skySrc` (equirectangular jpg / png / webp) in
+  `environment` (schema **2.10**, MINOR); the engine draws them in the same single pass – the model is **baked once into a
+  cube** from the reader's eye (3DoF makes the cube exact; RULES #4 amended), so the phone pays one texture lookup, not a
+  scene per frame. The stage previews the **reader's own pass** (`ArScene.previewEnvironment`, orientation from the view)
+  instead of a stand-in world (RULES #32: the author sees the engine the reader runs).
+- **Compatibility caveat:** the 2.8 and 2.9 guards (apps 1.17.0–1.20.x) refuse unknown environment fields, so such an app refuses
+  a book whose environment names `worldSrc` / `skySrc` (books without them load). From 2.10 on the reader's guard lets
+  unknown environment fields pass (the build and the API stay strict), so the next additions are real MINOR steps. Kept
+  MINOR instead of a MAJOR: nothing deployed to readers uses an environment yet.
+- Open (#79): per-spread overrides; tuning values (window, floor, fade) as content; `.hdr` skies (the Library has no HDR
+  kind – a new upload kind and the RGBE loader); the onion sky's preview on the stage (needs a synthetic camera picture);
+  animated world models (the cube is static); lighting the AR scene from the sky (#71).
+
+## 2026-10-30 – Editor help in an Info view, Stage panel in sections (#102, #133)
+
+- Tilman, on the Stage panel: explanations "could be in the left side bar, a collapsible info like in Ableton – not
+  really needed for using things". The Info view sits at the bottom of the tree column (the book page: bottom left);
+  controls carry their help as `data-help` or `title` (RULES #32). The spread's format moved from the top bar into
+  the Stage panel's *spread* section, where the world of #79 is meant to join it.
+- Open: the books page's import form (`ImportForm.svelte`) still has its hint lines – the books page has no Info view
+  yet.
+
+## 2026-10-30 – The grade's reach, content schema 2.9 (#136)
+
+- `grade` has `reach: ar | all`. The phone's camera picture is drawn by the 8th Wall engine into its own canvas (a
+  second WebGL context) and never reaches the post chain; `all` grades it through the engine's camera renderer
+  instead (`XR8.GlTextureRenderer.configure({ fragmentSource })`, `cameraGradeShader` in `post/grade.ts`) – check that
+  this API is still there on an engine upgrade. It is graded before the AR layer lies over it, so passes before the
+  grade are not graded on it, and the look-around world is not graded at all.
+- A new pass parameter is now MINOR in earnest: the app's guard ignores a pass parameter it does not know
+  (`unknownParams: "ignore"`); the build and the API still refuse it. A 2.8 app still refuses `reach`.
+
 ## 2026-10-30 – content out of git, one rewrite with the Claude cleanup (#5, #30)
 
 - Tilman: the old Claude attribution leaves the history in the **same** filter-repo run as the content (one force push,
@@ -53,8 +1706,8 @@ outcome in the line (or move it into a dated decision block).
   Tilman's call). The start bundles `src/` + `shared/` with esbuild (`shared/` imports without extensions and OSCT has no
   root `package.json`, so Node's own type stripping – SCUTOONS' way – cannot run it). `.mcp.json` at the root gives every
   Claude Code session here the server. RULES #10 / #23: `mcp/package.json` carries the one version too.
-- [ ] Open: personal access tokens (SCUTOONS' `sct_` tokens, "AI connections" on the account page) when a non-developer
-  connects; a one-file build + Claude Desktop extension; a headless render of the stage for the agent (follow-up issue).
+- [ ] Open: ~~personal access tokens (SCUTOONS' `sct_` tokens, "AI connections" on the account page) when a non-developer
+  connects~~ (done: `ApiTokens.php`, #142); a one-file build + Claude Desktop extension; a headless render of the stage for the agent (follow-up issue).
 - [x] Tilman, 2026-10-30: **"publish soll beim Menschen bleiben … so lassen wie in PR #92"** – the MCP may publish to
   `local` and `staging` (a check), production is the editor's Publish button; the one step more than SCUTOONS is the
   content build behind that button, on the server (#78) – "letztlich ist das ähnlich". His flow: Claude builds the draft
@@ -78,8 +1731,8 @@ outcome in the line (or move it into a dated decision block).
   staging editor imports a content base URL. Found on the way: **a publish is per environment, not per book** – a
   second book published to `staging` would replace the book's current version once the store is bunny → #87
   (Proposals, decide). Until then the demo's Publish stays `local`.
-- [ ] Open: #88 (an animated GLB for the key, a tap button and editable variables in the Stage panel, the
-  `behaviour` component and declared variables, bubbling scopes, two spreads on one stage); the Entity panel's rows
+- [ ] Open: #88 (~~an animated GLB for the key, a tap button and editable variables in the Stage panel~~ – done
+  2026-10-30, see above; the `behaviour` component and declared variables, bubbling scopes, two spreads on one stage); the Entity panel's rows
   now follow the engine's plugin load (`plugins.version` bumped when the scene runs) – a small fix found by the demo.
 
 ## 2026-10-29 (night) – Light nodes, content schema 2.6 (#71)
@@ -156,7 +1809,7 @@ outcome in the line (or move it into a dated decision block).
   how the content schema links to the app's and the editor's versions is still open.
 - [ ] Open: how the content schema version relates to the app's and the editor's versions (today: MAJOR refused,
   MINOR ignored – RULES #10; the editor reads the same engine).
-- [ ] Open: the plugin API's own version (`PLUGIN_API_VERSION` 1.0) against app releases – bump the MINOR when the
+- [x] *(settled – the API is at 1.5, one MINOR per addition)* Open: the plugin API's own version (`PLUGIN_API_VERSION` 1.0) against app releases – bump the MINOR when the
   API grows (#77 registerNodeType), MAJOR when a hook changes meaning.
 - Schema clash resolved in the merge: the covers took 2.3 on develop while this branch used 2.3 too → the plugins are
   **2.4** (RULES #23's rule for version files, applied to the content schema).
@@ -180,7 +1833,8 @@ outcome in the line (or move it into a dated decision block).
   has the desk always and the HDRI as its sky while rendered (the scene's lights in wire / solid / textured); the
   Stage panel keeps *desk* and *sky*.
 - [ ] Open: the frames' finishes (dark metallic steel, Schöpfer's white; chrome would be a material change in the
-  script) and Schöpfer's leg geometry (four straight splayed legs read from one photograph).
+  script) and Schöpfer's leg geometry (four straight splayed legs read from one photograph). – Schöpfer's part done
+  in #187 (black powder coat, the catalogue's frame); the Eiermann's graphite stays as #184 left it.
 
 ## 2026-10-29 (evening) – The boundary: engine, reader, editor (#61, Tilman decided, then "durchziehen")
 
@@ -326,9 +1980,9 @@ outcome in the line (or move it into a dated decision block).
   chunk, recommended now) or B (a SvelteKit app in the OSCT repo under /editor). Then: "OSCT wird das nie. Das ist für
   Building Fictions im Moment" (the instance is the brand, the editor belongs to it, not to the title) and "Der Editor
   erstmal im OSCT-Repo". Ids without leading zeros: #63 (Backlog). Day / night of the editor: only the flag, no button.
-- [ ] Open: an editor-only progress – *unlock ↺* and every find write the device's progress (fine on staging, not for
+- [x] *(done – the stage simulates its own progress, `editor/src/lib/stage/progress.ts`)* Open: an editor-only progress – *unlock ↺* and every find write the device's progress (fine on staging, not for
   Kévin's own phone later); comes with accounts / roles in step 2.
-- [ ] Open: the spread switched to the next one once when leaving the editor on the desktop (the spread menu's
+- [x] *(obsolete – the in-reader editor is gone, RULES #32)* Open: the spread switched to the next one once when leaving the editor on the desktop (the spread menu's
   loop settling?) – seen once in the browser pane, not reproduced.
 - [ ] Open (Tilman): 35 cm / 30° as the reader's view, or measure; the desktop default could start closer (20 cm).
 
@@ -450,9 +2104,10 @@ outcome in the line (or move it into a dated decision block).
   documents keep their names. #17: file casing per folder (PascalCase in services/store, kebab-case elsewhere) until
   #27 decides otherwise.
 - Content schema 1.1 → 1.2: only comments changed in `shared/`, but the lock covers the whole folder (RULES #10).
-- [ ] Open (#5): the `content/` fallback in `scripts/src/config.ts` and the "while it is in git" CI step go with
+- [ ] Open (#5): the `content/` fallback in `scripts/src/config.ts` (the "while it is in git" CI step is gone) goes with
   the content removal; RULES #8 says so.
-- [ ] Open (#28): `PlacementData` (`shared/types/placement.ts`) is unused – type `EntityData.params` with it or drop it.
+- [x] Open (#28): `PlacementData` (`shared/types/placement.ts`) is unused – type `EntityData.params` with it or drop it.
+  Dropped in content schema 2.24 (#214, 2026-10-31).
 
 ## 2026-10-28 – The trigger trial runs at ±0 (#14, Tilman, 1.7.8)
 
@@ -481,9 +2136,9 @@ outcome in the line (or move it into a dated decision block).
   `targets/`, `.mindar/`, page images, committed build output). `main` still tracks
   `client/public/assets/content/` (build output from before 2026-09-28) → release the content-free tree first.
   The repository is public; GitHub keeps old objects through PR refs until GitHub Support collects them.
-- [ ] Open (Tilman): where `osct-content` is backed up (private repository or the storage zone) – before the
+- [x] *(decided 2026-10-30: kept locally – docs/content-out-of-git.md step 2)* Open (Tilman): where `osct-content` is backed up (private repository or the storage zone) – before the
   rewrite, the history is the only other copy.
-- [x] Deploys build with `VITE_CONTENT_BASE_URL` (1.7.9, #6: Kamal image + FTPS staging). [ ] Open: `Dockerfile`
+- [x] Deploys build with `VITE_CONTENT_BASE_URL` (1.7.9, #6: Kamal image + FTPS staging). [x] Done: `Dockerfile`
   without `COPY content` with the removal commit – then the removal commit, release, freeze, rewrite, force push (Tilman), GitHub Support.
 
 ## 2026-10-28 – Content deployment apart from the app: versions + strict purge; content schema MAJOR.MINOR (#5, Tilman, 1.7.6)
@@ -527,15 +2182,15 @@ outcome in the line (or move it into a dated decision block).
 - [ ] Open (Tilman): `staging/` still holds the leftovers of the in-place sync of the same day (`game.config.json`,
   `files.json`, `assets/` at the environment root). `npm run osct -- content purge --env staging --unknown`
   (or the Content button with "unknown") removes them – try `--dry-run` first.
-- [ ] Open (dashboard, Tilman): edge rule `*/latest.json` → cache time 0, or "Vary cache → URL query string"
+- [x] *(done – in place 2026-10-30, docs/content-cdn.md)* Open (dashboard, Tilman): edge rule `*/latest.json` → cache time 0, or "Vary cache → URL query string"
   (checked 2026-10-28: query strings still ignored). Until then an edge can hand out the previous version for up
   to 30 days.
 - [x] CORS (checked 2026-10-28): `latest.json`, `game.config.json`, `files.json` and `.jpg` send
   `Access-Control-Allow-Origin: *`. Models and videos not checked – none in the CI sync.
 - [x] 1.7.9 (#6): the image build passes `VITE_CONTENT_BASE_URL` (GitHub environment variable `CONTENT_BASE_URL`,
-  `config/deploy.yml` builder.args → `Dockerfile` ARG), the FTPS staging deploy too. [ ] Later `Dockerfile` drops
+  `config/deploy.yml` builder.args → `Dockerfile` ARG), the FTPS staging deploy too. [x] `Dockerfile` dropped
   `COPY content` (with the removal commit, docs/content-out-of-git.md step 1).
-- [~] Open (Tilman): content out of git, history included ("aus dem Git … raus purgen, auch in der History, dass das
+- [x] *(done – the history was rewritten 2026-10-29; GitHub's cached views: docs/content-out-of-git.md step 7)* Open (Tilman): content out of git, history included ("aus dem Git … raus purgen, auch in der History, dass das
   Repository wieder klein und handelbar wird") – prepared, see the entry above and `docs/content-out-of-git.md`.
 - [ ] Open: #15 – trial videos go through the same sync once they are part of the content folder outside git.
 ## 2026-10-27 – Sessions start with their issue; deploys move issues on the board (Tilman, 1.7.1, #11)
@@ -752,7 +2407,7 @@ outcome in the line (or move it into a dated decision block).
   content discussion with Kévin (PLAN Phase 10 has the questions). Code split into `book-anchor.ts`, `sky-sample.ts`,
   `shader.ts` (placeholder world in its own GLSL block), `look-around.ts`; the gyroscope is read only while an option is
   on; `ArView.underlay` is an object with `active` (no clear when inactive).
-- [ ] Open: the world is a placeholder in the shader (`PLACEHOLDER_WORLD` in `look-around/shader.ts`) – the real one comes as
+- [x] *(done – the book's environment, schema 2.8 / 2.10)* Open: the world is a placeholder in the shader (`PLACEHOLDER_WORLD` in `look-around/shader.ts`) – the real one comes as
   content in Phase 14 (RULES #5).
 
 ## 2026-09-28 – Content build output not in git (Tilman; branch `build-content-in-ci`)
@@ -982,7 +2637,9 @@ outcome in the line (or move it into a dated decision block).
 
 ## 2026-09-28 – Tutorial steps belong to the app, not the content (Tilman)
 
-- [ ] Refactor (Tilman): the onboarding/tutorial steps (`content/steps/<id>/step.yaml` → `tutorial` in
+- [x] *(done 2026-10-31, #236 – see that day's entry: the steps in `client/src/utils/onboarding.ts`, the texts in the
+      `tutorial` namespace in four languages, the content and the database without them, a compat copy for older apps)*
+      Refactor (Tilman): the onboarding/tutorial steps (`content/steps/<id>/step.yaml` → `tutorial` in
       `game.config.json`) are app UI, not book content – keeping them in `content/` overloads what content
       is. Move them into the app (e.g. `client/src/` data + i18n keys for the texts, illustrations in
       `client/public/assets/illustrations/`). Touches: `buildTutorial()` in `scripts/src/index.ts`,
@@ -1630,7 +3287,7 @@ outcome in the line (or move it into a dated decision block).
 - [x] `services/PreloaderService.ts`: neighbouring spreads (±1) on `arReady` – `.mind`, then (user) their content
       (entity assets, entry images; videos last). Uses the `LoadOptions` / `LoadResult` types kept for this.
       Not all spreads: ~1 MB `.mind` each, the final book has many spreads.
-- [ ] Open: production cache headers for content; iOS range requests for preloaded videos (Phase 7).
+- [ ] Open: ~~production cache headers for content~~ (the CDN's); iOS range requests for preloaded videos (Phase 7).
 - [x] Lesson: PowerShell 5.1 `Get-Content -Raw | Set-Content -Encoding utf8` mangles non-ASCII (reads ANSI)
       and adds a BOM – use the Edit tool (or Bash `sed`) for file edits.
 
@@ -1740,7 +3397,7 @@ outcome in the line (or move it into a dated decision block).
       problem list shown in dev only. Before: the app hung on "Loading book" with the error only in the console.
 - [x] The "page is part of a spread" rule moved into the shared guard (the app model maps entries to
       spreads by page; a config that passes the guard can always be mapped).
-- [ ] Phase 2: the startup compatibility checks (app ↔ content ↔ storage) use the same path, e.g.
+- [x] *(done – `checkContentCompatibility` → `ErrorCode.NOT_SUPPORTED`)* Phase 2: the startup compatibility checks (app ↔ content ↔ storage) use the same path, e.g.
       content ahead of app → `ErrorCode.NOT_SUPPORTED`.
 
 ## 2026-09-24 – Unused types audit (cleanup by Tilman, see RULES #15)
@@ -1863,7 +3520,7 @@ the per-target `bookId`.
       `getUserMedia` call – reusing one stream breaks MindAR restarts because `stop()` ends its tracks):
       5 sequential + 4 rapid switches → right `.mind`, 1 scene, 1 live camera stream, no errors.
       User tested the changes on 2026-09-24 ("tested everything") – no issues reported.
-- [~] (fixed in 1e, section E) Target listeners use the number in the target **id** as "index" (`target-003` → 3), not the
+- [x] *(done – targets are keyed by id since 1.3.2)* (fixed in 1e, section E) Target listeners use the number in the target **id** as "index" (`target-003` → 3), not the
       MindAR index; history is keyed by it. Works but fragile → Phase 2 history rekey.
 
 ## 2026-09-24 – Phase 1d done (entries) + Phase 0 constant
@@ -1923,7 +3580,7 @@ Agent decisions (reversible, flagged for review):
       `HistoryManager` + `TargetManager` (seen/persist/resume/corrupt storage), and a
       **content-config** check on the built `game.config.json` (≤ 5 targets per group, MindAR indices
       0..n-1, unique ids, referenced files exist in `public/`). These guard Phase 1c/1d/2.
-- [ ] Found by the tests: `RouterManager.navigate()` with an unknown slug **throws** in
+- [x] *(done – an unknown slug routes to not-found, `RouterManager.ts`; no `it.fails` left)* Found by the tests: `RouterManager.navigate()` with an unknown slug **throws** in
       `RouteResolver.createRoute`, so the `/not-found` branch is unreachable. Documented in a test;
       fix in Phase 2 together with `isSameRoute` (that one is an `it.fails` test – drop `.fails` when fixed).
 - [x] Browser smoke run (in-app browser, camera blocked there): home, tutorial, scan HUD, index open

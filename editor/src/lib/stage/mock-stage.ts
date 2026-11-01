@@ -1,13 +1,21 @@
 import {
-  BoxGeometry, CanvasTexture, EquirectangularReflectionMapping, Group, Light, LineBasicMaterial, LineSegments, BufferGeometry, Float32BufferAttribute, Material, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, Plane,
-  PlaneGeometry, Raycaster, RepeatWrapping, Scene, SphereGeometry, SRGBColorSpace, Texture, TextureLoader, UVMapping, Vector3,
+  AddEquation, CustomBlending, NormalBlending, OneFactor, OneMinusDstAlphaFactor,
+  BoxGeometry, CanvasTexture, EquirectangularReflectionMapping, Group, Light, LineBasicMaterial, LineSegments, BufferGeometry, Float32BufferAttribute, type Material, type Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, Plane,
+  PlaneGeometry, type Raycaster, RepeatWrapping, type Scene, SphereGeometry, SRGBColorSpace, type Texture, TextureLoader, UVMapping, Vector3,
 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { BACKDROP_LAYER } from "@engine/scene/view";
-import { surfaceLeft, type PageFormat, type StageBook, type StageSheet, type StageSurface, type StageTarget, type StageView } from "./mock-tracker";
+import type { PageFormat, StageBook, StageSheet, StageSurface, StageTarget, StageView } from "./mock-tracker";
+import { printCentre, printedHeight } from "./placement";
+import { DEFAULT_PAGE_MM } from "./stage-layout";
 import { gridAreas, gridLines, type OriginId } from "./origin";
-import type { DeskId, HdriId, ShadingMode } from "./preview";
+import { linoleumTexture } from "./linoleum";
+import { oakTexture } from "./oak";
+import { plywoodEdgeTexture } from "./plywood";
+import { applyShading, ownMaterial } from "./shading";
+import type { HdriId, ShadingMode, TopId } from "./preview";
+import { stageLook, type StageLook } from "./sky";
 
 /**
  * A plane sits a hair below the one above it, so nothing flickers: the entities' plane is the target's (z = 0, as
@@ -17,11 +25,22 @@ import type { DeskId, HdriId, ShadingMode } from "./preview";
 const LAYER = 0.0005;
 /**
  * Colours. The Eiermann desk's top is a screen-printed plywood board (Siebdruckplatte): Poly Haven's plywood texture
- * tinted to the dark phenolic brown on the faces, roughness from its map; the cut edges show the plywood's plies
- * untinted. The cover is a white hardcover board.
+ * tinted to the dark phenolic brown on the faces, roughness from its map; its cut edges show the plywood's plies
+ * (`plywood.ts`, drawn in code), untinted and matt. The linoleum top (#226, once Schöpfer's – #187) is blue-grey
+ * linoleum (`linoleum.ts`) on an oak-faced plywood board: its cut edges show the same plies tinted to oak, its underside
+ * the oak veneer (`oak.ts`) – all drawn in code, matt. The cover is a white hardcover board.
  */
 const DESK_TINT = 0x3b2416;
-const DESK_EDGE_TINT = 0xffffff;
+const DESK_EDGE_TINT = 0xc8c8c8;
+const OAK_EDGE_TINT = 0xe8c290;
+const DESK_EDGE_ROUGHNESS = 0.8;
+const LINOLEUM_ROUGHNESS = 0.85;
+const OAK_ROUGHNESS = 0.65;
+/**
+ * The plies in one stack of the edges' texture: both tops' boards are 18 mm plywood – 13 plies of about 1.4 mm, as the
+ * trade's 18 mm birch plywood. Each board's edge is one stack (the model's UVs)
+ */
+const DESK_EDGE_PLIES = 13;
 const PAGE_COLOR = 0xf3efe6;
 const PAGE_EDGE_COLOR = 0xe6e1d6;
 const SPINE_COLOR = 0xd8d2c4;
@@ -62,15 +81,16 @@ function coverEdgeTexture(): CanvasTexture | null {
   return texture;
 }
 /**
- * The desks (the Stage panel's choice): 1.8 × 0.8 m tops, 72 cm high – our own low-poly models, built by
- * `editor/tools/desk-eiermann.py` (`editor/static/models/README.md`). Each model's origin is the centre of the top's
- * upper surface; its material `top` (and the Eiermann top's `edge`) becomes the stage's own – the Eiermann top is
- * the screen-printed plywood (see below), Schöpfer's a white board – while `steel` and `drawer` stay as exported.
- * glTF is Y up: a model is turned so its up is the page's +z.
+ * The desk (#226): the Eiermann frame, 72 cm high, with two tops of the same 1.8 × 0.8 m and the same surface height,
+ * one model with a mesh per top (`TOP_NODES`) – loaded once, the top not chosen hidden, so a switch moves nothing
+ * (our own low-poly model, built by `editor/tools/desk-eiermann.py` – `editor/static/models/README.md`). Its origin is
+ * the centre of the tops' upper surface; the materials with a drawn look become the stage's own – the plywood top's
+ * `top` (the screen-printed plywood, see below) and `edge` (its plies), the linoleum top's `linoleum`, `oak_edge` (the
+ * plies in oak) and `oak` – while `steel` stays as exported. glTF is Y up: the model is turned so its up is the page's +z.
  */
-const DESK_MODELS: Record<DeskId, string> = { eiermann: "models/desk-eiermann.glb", schoepfer: "models/desk-schoepfer.glb" };
-const DESK_WHITE = 0xf2f2f0;
-/** The desk texture's files and how often it repeats across the top (the edges carry their own UVs, one repeat) */
+const DESK_MODEL = "models/desk-eiermann.glb";
+const TOP_NODES: Readonly<Record<TopId, string>> = { plywood: "TopEiermann", linoleum: "TopLinoleum" };
+/** The desk texture's files and how often it repeats across the top (the edges have their own texture and UVs) */
 const DESK_DIFFUSE = "textures/plywood_diff_1k.jpg";
 const DESK_ROUGHNESS = "textures/plywood_rough_1k.jpg";
 const DESK_REPEAT = [3, 2] as const;
@@ -83,39 +103,95 @@ const HDRI_EXPOSURE_DEFAULT = 0.4;
 const LIGHTS_WITH_HDRI = 0.35;
 /** The sky sphere's radius (metres) – far beyond the table, near enough for the depth buffer */
 const SKY_RADIUS = 30;
+/**
+ * The sky sphere behind the environment's world (#185): the world's pass is drawn first and leaves its camera window
+ * transparent (alpha 0, premultiplied soft edges), so the sphere adds itself only where the frame is not yet covered –
+ * `(1 − destination alpha) · sky + frame` – and fills the window as a stand-in for the reader's camera picture. Off: the
+ * sphere draws normally (the HDRI as the sky).
+ */
+export const behindWorld = (material: Material, on: boolean): void => {
+  material.blending = on ? CustomBlending : NormalBlending;
+  material.blendEquation = AddEquation;
+  material.blendSrc = OneMinusDstAlphaFactor;
+  material.blendDst = OneFactor;
+  material.blendSrcAlpha = OneMinusDstAlphaFactor;
+  material.blendDstAlpha = OneFactor;
+};
 /** The ghost's corner handle (mm) */
 const GHOST_HANDLE = 8;
 /** The sharper sheet image is fetched once the camera is this close to the page (mm) */
 const SHARP_DISTANCE_MM = 500;
 const GRID_COLOR = 0x2d7ff9;
 const GRID_ZERO_COLOR = 0xe5484d;
+/** The vertical axis: the height's line through the origin, in the 3D tools' colour for the up axis, this tall (mm) */
+const GRID_AXIS_COLOR = 0x30a46c;
+const GRID_AXIS_MM = 150;
+/** A snap guide: the line a drag snapped to, across the spread and this far beyond it (mm) */
+const GUIDE_COLOR = 0xd23cf0;
+const GUIDE_OVERHANG_MM = 20;
 
-/** The plywood: repeated over the top, and once more as the edges' (their own repeat is in the model's UVs) */
+/** Frees and removes a group's lines (the grid, the guides) */
+const clearLines = (group: Group): void => {
+  group.children.forEach(child => {
+    if (child instanceof LineSegments) {
+      child.geometry.dispose();
+      (child.material as Material).dispose();
+    }
+  });
+  group.clear();
+};
+
+/**
+ * Adds line segments (pairs of points, stage metres) to a group, drawn over what lies under them without hiding it;
+ * `throughAll` draws them through everything (the guides, which an entity must not cover)
+ */
+const addLines = (group: Group, positions: number[], color: number, opacity: number, throughAll = false): void => {
+  if (!positions.length) return;
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  const lines = new LineSegments(geometry, new LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false, depthTest: !throughAll }));
+  if (throughAll) lines.renderOrder = 1;
+  group.add(lines);
+};
+
+/** The Eiermann top's plywood faces, repeated over the top */
 interface DeskTextures {
   map: Texture;
   roughnessMap: Texture;
-  edgeMap: Texture;
-  edgeRoughnessMap: Texture;
 }
 
 /**
  * The mock stage: what the camera would show – a desk, the open book in its page format (the sheet as laid out when
  * the content has the book's layout, blank pages otherwise), the current spread's printed images where they are
  * printed (or in a row), all in the same three.js scene as the entities, moved as one group by the tracker's camera
- * (the three.js camera stays at the origin, as in AR). The sky and the light: the chosen HDRI while the shading is
- * rendered, the scene's own lights otherwise. The desk keeps its own materials under every viewport shading
+ * (the three.js camera stays at the origin, as in AR). The sky and the light (`sky.ts`, #185): the chosen HDRI while the
+ * shading is rendered, the scene's own lights otherwise – and while the book's environment is drawn under the stage,
+ * its world as the sky and the scene's own lights, as in the reader. The desk keeps its own materials under every viewport shading
  * (`shading.ts` applies to the entities), like the gizmo and the outlines.
  */
 export class MockStage implements StageView {
   private group = new Group();
-  /** The desk (the chosen model, once loaded): its origin is the top's surface, placed at the table height */
+  /** The desk (the model, once loaded): its origin is the tops' surface, placed at the table height */
   private table = new Group();
-  private deskId: DeskId = "eiermann";
-  /** The desks' models by id, loaded once and kept for a switch back */
-  private models = new Map<DeskId, Group>();
-  private loadingDesks = new Set<DeskId>();
+  /** The chosen top: its mesh shows, the other's is hidden */
+  private topId: TopId = "plywood";
+  private model: Group | null = null;
   private topMaterial = new MeshStandardMaterial({ color: DESK_TINT, roughness: 0.5 });
-  private edgeMaterial = new MeshStandardMaterial({ color: DESK_EDGE_TINT, roughness: 0.7 });
+  private edgeMaterial = new MeshStandardMaterial({ color: DESK_EDGE_TINT, roughness: DESK_EDGE_ROUGHNESS });
+  /** The linoleum top's surfaces: their drawn textures are put on when the top is first shown */
+  private linoleumMaterial = new MeshStandardMaterial({ roughness: LINOLEUM_ROUGHNESS });
+  private oakEdgeMaterial = new MeshStandardMaterial({ color: OAK_EDGE_TINT, roughness: DESK_EDGE_ROUGHNESS });
+  private oakMaterial = new MeshStandardMaterial({ roughness: OAK_ROUGHNESS });
+  /** The desk's materials that are the stage's own, by the model's material names (shared, disposed apart) */
+  private deskMaterials = new Map<string, MeshStandardMaterial>([
+    ["top", this.topMaterial],
+    ["edge", this.edgeMaterial],
+    ["linoleum", this.linoleumMaterial],
+    ["oak_edge", this.oakEdgeMaterial],
+    ["oak", this.oakMaterial],
+  ]);
+  /** The tops whose look their materials show (each put on once, when the top is first chosen) */
+  private looks = new Set<TopId>();
   private disposed = false;
   private book = new Group();
   private pages = new Group();
@@ -123,30 +199,58 @@ export class MockStage implements StageView {
   private loader = new TextureLoader();
   private layoutRun = 0;
   private desk: DeskTextures | null = null;
+  /** The drawn textures, each drawn once on first use: the boards' plies (both tops), the linoleum and the oak */
+  private plies: Texture | null = null;
+  private linoleum: Texture | null = null;
+  private oak: Texture | null = null;
   /** The page format of the last layout (the ghost is placed on it) */
-  private page: PageFormat = { width: 230, height: 320 };
+  private page: PageFormat = { ...DEFAULT_PAGE_MM };
   /** What the current spread is: the open book, or the closed book seen from the front or the back */
   private format: StageBook["format"] = "spread";
   private ghostGroup = new Group();
   private gridGroup = new Group();
-  private grid = { on: false, mm: 10, origin: "top-left" as OriginId };
+  private grid = { on: false, mm: 10, origin: "top-left" as OriginId, axis: true };
+  /** The snap guides of the drag going on */
+  private guideGroup = new Group();
   /** The current sheet's page plane and its sharper image, fetched on demand (see `setDetail`) */
   private sheetPaper: Mesh<PlaneGeometry, MeshBasicMaterial> | null = null;
   private sharpSource: string | null = null;
   private sharpRequested = false;
   private ghostTextures = new Map<string, Texture>();
+  /** Every printed image's height per width by its source, once loaded (the ghost and a moved print know it at once) */
+  private aspects = new Map<string, number>();
   private hdris = new Map<string, Texture>();
   private wantedHdri: string | null = null;
   /** The sky: the HDRI on a sphere inside the stage's group, so it turns with the stage by construction */
   private sky: Mesh<SphereGeometry, MeshBasicMaterial> | null = null;
   private shading: ShadingMode = "rendered";
   private hdri: HdriId | null = null;
+  /** The book's environment is drawn under the stage (the engine's look-around world): it replaces the HDRI (#185) */
+  private world = false;
 
-  /** The viewport's shading: the sky and the HDRI's light belong to "rendered" only */
+  /** The environment's world is drawn under the stage (true) or not: the HDRI steps aside – sky and light – while it is */
+  setWorld(world: boolean): void {
+    if (this.world === world) return;
+    this.world = world;
+    this.setHdri(this.hdri);
+  }
+
+  /** Which sky and which light now (`sky.ts`) */
+  private look(): StageLook {
+    return stageLook({ shading: this.shading, hdri: this.hdri, world: this.world });
+  }
+
+  /** The viewport's shading: the sky and the HDRI's light belong to "rendered" only; wireframe and solid reach the book and the desk too (#137) */
   setShading(mode: ShadingMode): void {
     if (this.shading === mode) return;
     this.shading = mode;
     this.setHdri(this.hdri);
+    this.shadeStage();
+  }
+
+  /** The current shading on the desk, the book and the pages – not the ghost, the grid or the sky */
+  private shadeStage(): void {
+    applyShading([this.table, this.book, this.pages], this.shading);
   }
   /** The scene's own lights at their intensity before the HDRI dimmed them */
   private dimmed = new Map<Light, number>();
@@ -159,79 +263,84 @@ export class MockStage implements StageView {
     this.table.position.z = -BLOCK_MIN - COVER_THICKNESS - 6 * LAYER;
     this.ghostGroup.name = "mock-ghost";
     this.gridGroup.name = "mock-grid";
-    this.group.add(this.table, this.book, this.pages, this.gridGroup, this.ghostGroup);
+    this.guideGroup.name = "mock-guides";
+    this.group.add(this.table, this.book, this.pages, this.gridGroup, this.guideGroup, this.ghostGroup);
     scene.add(this.group);
-    this.showDesk();
+    this.loadDesk();
   }
 
-  /** The desk under the book: its model (loaded once) into the desk's group, its top in its own look */
-  setDesk(desk: DeskId): void {
-    if (this.deskId === desk) return;
-    this.deskId = desk;
-    this.showDesk();
-    this.applyDeskLook();
+  /** The desk's top (#226): only the top switches – the frame, the size and the height stay, so nothing else moves */
+  setTop(top: TopId): void {
+    if (this.topId === top && this.looks.has(top)) return;
+    this.topId = top;
+    this.showTop();
+    this.applyTopLook(top);
   }
 
-  private showDesk(): void {
-    const id = this.deskId;
-    [...this.table.children].forEach(child => this.table.remove(child));
-    const loaded = this.models.get(id);
-    if (loaded) {
-      this.table.add(loaded);
-      this.toBackdropLayer();
-      return;
-    }
-    if (this.loadingDesks.has(id)) return;
-    this.loadingDesks.add(id);
-    new GLTFLoader().load(this.assetUrl(DESK_MODELS[id]), gltf => {
-      this.loadingDesks.delete(id);
+  /** The desk's model, loaded once into the desk's group: the frame and both tops, the chosen one shown */
+  private loadDesk(): void {
+    new GLTFLoader().load(this.assetUrl(DESK_MODEL), gltf => {
       const model = gltf.scene;
       if (this.disposed) {
         this.clear(model);
         return;
       }
       model.rotation.x = Math.PI / 2; // glTF's +y (up) becomes the page's +z
-      // The top's materials become the stage's own; the frame keeps the file's steel
+      // The surfaces with a drawn look become the stage's own; the frame keeps the file's steel
       model.traverse(object => {
         if (!(object instanceof Mesh) || Array.isArray(object.material)) return;
         const material = object.material as Material;
-        const own = material.name === "top" ? this.topMaterial : material.name === "edge" ? this.edgeMaterial : null;
+        const own = this.deskMaterials.get(material.name);
         if (!own) return;
         material.dispose();
         object.material = own;
       });
-      this.models.set(id, model);
-      if (this.deskId === id) {
-        this.table.add(model);
-        this.toBackdropLayer();
-      }
+      this.model = model;
+      this.table.add(model);
+      this.showTop();
+      this.toBackdropLayer();
     }, undefined, error => {
-      this.loadingDesks.delete(id);
-      console.warn(`[mock-stage] the desk "${id}" could not be loaded:`, error);
+      console.warn("[mock-stage] the desk could not be loaded:", error);
     });
   }
 
-  /** The top's look by desk: plywood with the plies on the edges, or Schöpfer's white */
-  private applyDeskLook(): void {
+  /** Shows the chosen top's mesh and hides the other's (nothing before the model is loaded) */
+  private showTop(): void {
+    if (!this.model) return;
+    for (const [id, name] of Object.entries(TOP_NODES)) {
+      const node = this.model.getObjectByName(name);
+      if (node) node.visible = id === this.topId;
+    }
+  }
+
+  /**
+   * A top's look, its textures loaded or drawn on first use: the screen-printed plywood with the plies on its edges, or
+   * the linoleum with the same plies in oak on its edges and the oak veneer underneath
+   */
+  private applyTopLook(id: TopId): void {
+    if (this.looks.has(id)) return;
+    this.looks.add(id);
+    this.plies ??= plywoodEdgeTexture({ plies: DESK_EDGE_PLIES });
+    if (id === "linoleum") {
+      this.linoleum ??= linoleumTexture();
+      this.oak ??= oakTexture();
+      this.linoleumMaterial.map = this.linoleum;
+      this.oakMaterial.map = this.oak;
+      this.oakEdgeMaterial.map = this.plies;
+      [this.linoleumMaterial, this.oakMaterial, this.oakEdgeMaterial].forEach(material => (material.needsUpdate = true));
+      return;
+    }
     const top = this.topMaterial;
     const edge = this.edgeMaterial;
-    if (this.deskId === "schoepfer") {
-      top.map = edge.map = null;
-      top.roughnessMap = edge.roughnessMap = null;
-      top.color.setHex(DESK_WHITE);
-      edge.color.setHex(DESK_WHITE);
-      top.roughness = edge.roughness = 0.6;
-    } else {
-      const desk = this.ensureDesk();
-      top.map = desk.map;
-      top.roughnessMap = desk.roughnessMap;
-      top.color.setHex(DESK_TINT);
-      top.roughness = 0.5;
-      edge.map = desk.edgeMap;
-      edge.roughnessMap = desk.edgeRoughnessMap;
-      edge.color.setHex(DESK_EDGE_TINT);
-      edge.roughness = 0.7;
-    }
+    const desk = this.ensureDesk();
+    top.map = desk.map;
+    top.roughnessMap = desk.roughnessMap;
+    top.color.setHex(DESK_TINT);
+    top.roughness = 0.5;
+    edge.map = this.plies;
+    edge.roughnessMap = null;
+    edge.color.setHex(DESK_EDGE_TINT);
+    edge.roughness = DESK_EDGE_ROUGHNESS;
     top.needsUpdate = true;
     edge.needsUpdate = true;
   }
@@ -312,8 +421,9 @@ export class MockStage implements StageView {
         }
         texture.colorSpace = SRGBColorSpace;
         this.textures.push(texture);
-        paper.material.map = texture;
-        paper.material.needsUpdate = true;
+        const own = ownMaterial<MeshBasicMaterial>(paper);
+        own.map = texture;
+        own.needsUpdate = true;
         this.setDetail(this.distance);
       });
     } else if (!closed) {
@@ -323,15 +433,11 @@ export class MockStage implements StageView {
     }
 
     targets.forEach(target => {
-      const plane = new Mesh(new PlaneGeometry(target.width / 1000, target.height / 1000), new MeshBasicMaterial({ color: 0xffffff }));
+      // A unit plane scaled to the print: a move or the image's own aspect only rescales it, so whatever hangs on it
+      // (the selection's outline) follows
+      const plane = new Mesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({ color: 0xffffff }));
       plane.userData.targetId = target.id;
-      const pageLeft = surfaceLeft(target.surface, page);
-      // One layer under the target's own plane: the entities sit at z = 0 of the target, the print just below
-      plane.position.set(
-        (pageLeft + target.x + target.width / 2) / 1000,
-        (page.height / 2 - target.y - target.height / 2) / 1000,
-        -LAYER,
-      );
+      this.placePrint(plane, target);
       this.pages.add(plane);
       this.loader.setCrossOrigin("anonymous");
       this.loader.load(target.imageSrc, texture => {
@@ -342,16 +448,36 @@ export class MockStage implements StageView {
         texture.colorSpace = SRGBColorSpace;
         this.textures.push(texture);
         // The printed width is known; the height follows the image, as the print does
-        const aspect = texture.image.height / texture.image.width;
-        plane.geometry.dispose();
-        plane.geometry = new PlaneGeometry(target.width / 1000, (target.width * aspect) / 1000);
-        plane.position.y = (page.height / 2 - target.y - (target.width * aspect) / 2) / 1000;
-        plane.material.map = texture;
-        plane.material.needsUpdate = true;
+        this.aspects.set(target.imageSrc, texture.image.height / texture.image.width);
+        this.placePrint(plane, plane.userData.place as StageTarget);
+        const own = ownMaterial<MeshBasicMaterial>(plane);
+        own.map = texture;
+        own.needsUpdate = true;
       });
     });
     this.drawGrid();
     this.toBackdropLayer();
+  }
+
+  /** Lay a print's plane where its target lies: one layer under the target's own plane (the entities sit at its z = 0) */
+  private placePrint(plane: Mesh, target: StageTarget): void {
+    plane.userData.place = target;
+    const aspect = this.aspects.get(target.imageSrc);
+    const centre = printCentre(target, this.page, aspect);
+    plane.scale.set(target.width / 1000, printedHeight(target, aspect) / 1000, 1);
+    plane.position.set(centre.x / 1000, centre.y / 1000, -LAYER);
+  }
+
+  /** A target's print moves (the placement being edited): the same plane, so its texture and outline stay */
+  movePrint(target: StageTarget): void {
+    const plane = this.printedPlanes().find(p => p.userData.targetId === target.id);
+    if (plane) this.placePrint(plane, target);
+  }
+
+  /** A printed image's height per width, once its image has loaded */
+  printedAspect(targetId: string): number | undefined {
+    const place = this.printedPlanes().find(p => p.userData.targetId === targetId)?.userData.place as StageTarget | undefined;
+    return place ? this.aspects.get(place.imageSrc) : undefined;
   }
 
   /** The camera's distance from the page (mm) as last reported */
@@ -366,7 +492,7 @@ export class MockStage implements StageView {
     const paper = this.sheetPaper;
     if (!paper || !this.sharpSource || this.sharpRequested || distanceMm > SHARP_DISTANCE_MM) return;
     // The base image first: the sharper one only replaces a picture that is already there
-    if (!paper.material.map) return;
+    if (!ownMaterial<MeshBasicMaterial>(paper).map) return;
     this.sharpRequested = true;
     const run = this.layoutRun;
     this.loader.load(this.sharpSource, texture => {
@@ -377,13 +503,20 @@ export class MockStage implements StageView {
       texture.colorSpace = SRGBColorSpace;
       texture.anisotropy = 8;
       this.textures.push(texture);
-      paper.material.map = texture;
-      paper.material.needsUpdate = true;
+      const own = ownMaterial<MeshBasicMaterial>(paper);
+      own.map = texture;
+      own.needsUpdate = true;
     }, undefined, error => console.warn("[mock-stage] the sharper sheet image could not be loaded:", error));
   }
 
-  /** The grid over the page, counted from the chosen origin; off = none */
-  setGrid(grid: { on: boolean; mm: number; origin: OriginId }): void {
+  /** The stage's frame (metres, origin in the middle of the book, z out of the page) – snapping counts in it */
+  frame(): Object3D {
+    this.group.updateMatrixWorld(true);
+    return this.group;
+  }
+
+  /** The grid over the page, counted from the chosen origin, and its vertical axis; off = none */
+  setGrid(grid: { on: boolean; mm: number; origin: OriginId; axis: boolean }): void {
     this.grid = grid;
     this.drawGrid();
     this.toBackdropLayer();
@@ -391,16 +524,11 @@ export class MockStage implements StageView {
 
   /**
    * Lines every `mm` from the origin's zero (per page for a corner origin, over both pages for the book's centre),
-   * the zero lines in another colour; they lie just above the prints and below the entities
+   * the zero lines in another colour; they lie just above the prints and below the entities. The vertical axis rises
+   * from each zero, out of the page.
    */
   private drawGrid(): void {
-    this.gridGroup.children.forEach(child => {
-      if (child instanceof LineSegments) {
-        child.geometry.dispose();
-        (child.material as Material).dispose();
-      }
-    });
-    this.gridGroup.clear();
+    clearLines(this.gridGroup);
     if (!this.grid.on) return;
     const page = this.page;
     const spread = { page, format: this.format };
@@ -409,6 +537,7 @@ export class MockStage implements StageView {
     const top = page.height / 2;
     const lines: number[] = [];
     const zeros: number[] = [];
+    const verticals: number[] = [];
     // spread frame (mm, top left, y down) -> stage metres
     const point = (target: number[], x: number, y: number) => target.push((left + x) / 1000, (top - y) / 1000, -LAYER / 2);
     for (const area of gridAreas(this.grid.origin, spread)) {
@@ -422,15 +551,31 @@ export class MockStage implements StageView {
         point(target, area.left, y);
         point(target, area.left + area.width, y);
       }
+      if (this.grid.axis) {
+        const [x, y] = [(left + area.zeroX) / 1000, (top - area.zeroY) / 1000];
+        verticals.push(x, y, -LAYER / 2, x, y, GRID_AXIS_MM / 1000);
+      }
     }
-    const add = (positions: number[], color: number, opacity: number) => {
-      if (!positions.length) return;
-      const geometry = new BufferGeometry();
-      geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
-      this.gridGroup.add(new LineSegments(geometry, new LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false })));
-    };
-    add(lines, GRID_COLOR, 0.45);
-    add(zeros, GRID_ZERO_COLOR, 0.9);
+    addLines(this.gridGroup, lines, GRID_COLOR, 0.45);
+    addLines(this.gridGroup, zeros, GRID_ZERO_COLOR, 0.9);
+    addLines(this.gridGroup, verticals, GRID_AXIS_COLOR, 0.9);
+  }
+
+  /**
+   * The snap guides: a line across the spread for each line a drag snapped to (x = a line up the page, y = one across
+   * it, in mm of the stage frame); an empty list clears them. They lie on the page and show through the entities.
+   */
+  setGuides(guides: ReadonlyArray<{ axis: 0 | 1 | 2; at: number }>): void {
+    clearLines(this.guideGroup);
+    const half = (this.format === "spread" ? this.page.width : this.page.width / 2) + GUIDE_OVERHANG_MM;
+    const high = this.page.height / 2 + GUIDE_OVERHANG_MM;
+    const positions: number[] = [];
+    for (const { axis, at } of guides) {
+      if (axis === 0) positions.push(at / 1000, -high / 1000, 0, at / 1000, high / 1000, 0);
+      if (axis === 1) positions.push(-half / 1000, at / 1000, 0, half / 1000, at / 1000, 0);
+    }
+    addLines(this.guideGroup, positions, GUIDE_COLOR, 1, true);
+    this.toBackdropLayer();
   }
 
   /**
@@ -439,12 +584,17 @@ export class MockStage implements StageView {
    */
   private toBackdropLayer(): void {
     this.group.traverse(object => object.layers.set(BACKDROP_LAYER));
+    // Called whenever the stage built something new: it gets the current shading as well
+    this.shadeStage();
   }
 
-  /** The sky and the light: the HDRI while rendered, else the scene's own lights over the editor's dark ground */
+  /**
+   * The sky and the light: the HDRI while rendered, else the scene's own lights over the editor's dark ground – or the
+   * environment's world (drawn by the engine under the stage) with the scene's own lights (`sky.ts`)
+   */
   setHdri(hdri: HdriId | null): void {
     this.hdri = hdri;
-    this.wantedHdri = hdri && this.shading === "rendered" ? hdri : null;
+    this.wantedHdri = this.look().hdri;
     if (!this.wantedHdri) {
       this.scene.background = null;
       this.scene.environment = null;
@@ -498,31 +648,34 @@ export class MockStage implements StageView {
 
   /**
    * A translucent print of `ghost` where it would lie (above the print, below the entities), with a small square at
-   * its bottom right corner – the handles: drag the image to move it, the corner to set its printed width
+   * its bottom right corner – the handles: drag the image to move it, the corner to set its printed width. With
+   * `handlesOnly` the target's own print moves instead (`movePrint`): the image stays a handle but is not drawn, so
+   * the target never shows twice.
    */
-  setGhost(ghost: StageTarget | null): void {
+  setGhost(ghost: StageTarget | null, options: { handlesOnly?: boolean } = {}): void {
     this.clear(this.ghostGroup);
     if (!ghost) return;
-    const page = this.page;
     const material = new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75, depthWrite: false });
-    const height = ghost.height || ghost.width * 0.75;
-    const plane = new Mesh(new PlaneGeometry(ghost.width / 1000, height / 1000), material);
+    material.visible = !options.handlesOnly;
+    const plane = new Mesh(new PlaneGeometry(1, 1), material);
     plane.name = "ghost";
-    const pageLeft = surfaceLeft(ghost.surface, page);
-    plane.position.set((pageLeft + ghost.x + ghost.width / 2) / 1000, (page.height / 2 - ghost.y - height / 2) / 1000, -LAYER / 2);
     const corner = new Mesh(new PlaneGeometry(GHOST_HANDLE / 1000, GHOST_HANDLE / 1000), new MeshBasicMaterial({ color: 0x1e1e1e, transparent: true, opacity: 0.9, depthWrite: false }));
     corner.name = "ghost-corner";
-    const placeCorner = (h: number) => corner.position.set((pageLeft + ghost.x + ghost.width) / 1000, (page.height / 2 - ghost.y - h) / 1000, 0);
-    placeCorner(height);
+    const place = () => {
+      const aspect = this.aspects.get(ghost.imageSrc);
+      const centre = printCentre(ghost, this.page, aspect);
+      const height = printedHeight(ghost, aspect);
+      plane.scale.set(ghost.width / 1000, height / 1000, 1);
+      plane.position.set(centre.x / 1000, centre.y / 1000, -LAYER / 2);
+      corner.position.set((centre.x + ghost.width / 2) / 1000, (centre.y - height / 2) / 1000, 0);
+    };
+    place();
     this.ghostGroup.add(plane, corner);
     this.toBackdropLayer();
     const apply = (texture: Texture) => {
       if (!plane.parent) return;
-      const aspect = texture.image.height / texture.image.width;
-      plane.geometry.dispose();
-      plane.geometry = new PlaneGeometry(ghost.width / 1000, (ghost.width * aspect) / 1000);
-      plane.position.y = (page.height / 2 - ghost.y - (ghost.width * aspect) / 2) / 1000;
-      placeCorner(ghost.width * aspect);
+      this.aspects.set(ghost.imageSrc, texture.image.height / texture.image.width);
+      place();
       material.map = texture;
       material.needsUpdate = true;
     };
@@ -541,10 +694,11 @@ export class MockStage implements StageView {
 
   private applyHdri(texture: Texture): void {
     const exposure = HDRI_EXPOSURE[this.wantedHdri ?? ""] ?? HDRI_EXPOSURE_DEFAULT;
+    const look = this.look();
     // The light: the equirectangular map as the scene's environment (its direction does not follow the orbit – the
-    // room's light is even enough for that not to show)
+    // room's light is even enough for that not to show) – not while the world is the sky (the reader's lights, `sky.ts`)
     this.scene.background = null;
-    this.scene.environment = texture;
+    this.scene.environment = look.light === "hdri" ? texture : null;
     this.scene.environmentIntensity = exposure;
     // The sky: the same image on a sphere around the stage, seen from inside; the HDRI's up is the page's +z
     const map = texture.clone();
@@ -563,9 +717,10 @@ export class MockStage implements StageView {
     this.sky.material.map?.dispose();
     this.sky.material.map = map;
     this.sky.material.color.setScalar(exposure);
+    behindWorld(this.sky.material, look.behindWorld);
     this.sky.material.needsUpdate = true;
-    this.sky.visible = true;
-    this.dimLights(true);
+    this.sky.visible = look.sky === "hdri" || look.behindWorld;
+    this.dimLights(look.light === "hdri");
   }
 
   /**
@@ -598,8 +753,6 @@ export class MockStage implements StageView {
     this.desk = {
       map: load(DESK_DIFFUSE, true, DESK_REPEAT),
       roughnessMap: load(DESK_ROUGHNESS, false, DESK_REPEAT),
-      edgeMap: load(DESK_DIFFUSE, true, [1, 1]),
-      edgeRoughnessMap: load(DESK_ROUGHNESS, false, [1, 1]),
     };
     return this.desk;
   }
@@ -617,17 +770,18 @@ export class MockStage implements StageView {
     this.clear(this.ghostGroup);
     this.grid = { ...this.grid, on: false };
     this.drawGrid();
+    clearLines(this.guideGroup);
     this.ghostTextures.forEach(texture => texture.dispose());
     this.ghostTextures.clear();
     this.clear(this.table);
-    this.models.forEach(model => this.clear(model));
-    this.models.clear();
-    this.topMaterial.dispose();
-    this.edgeMaterial.dispose();
+    this.model = null;
+    this.deskMaterials.forEach(material => material.dispose());
     this.textures.forEach(texture => texture.dispose());
     this.textures = [];
     if (this.desk) Object.values(this.desk).forEach(texture => texture.dispose());
     this.desk = null;
+    [this.plies, this.linoleum, this.oak].forEach(texture => texture?.dispose());
+    this.plies = this.linoleum = this.oak = null;
     this.hdris.forEach(texture => texture.dispose());
     this.hdris.clear();
     if (this.sky) {
@@ -650,7 +804,7 @@ export class MockStage implements StageView {
         if (!(object instanceof Mesh)) return;
         object.geometry.dispose();
         (Array.isArray(object.material) ? object.material : [object.material]).forEach(material => {
-          if (material !== this.topMaterial && material !== this.edgeMaterial) material.dispose();
+          if (![...this.deskMaterials.values()].includes(material as MeshStandardMaterial)) material.dispose();
         });
       });
       group.remove(child);

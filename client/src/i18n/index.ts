@@ -1,4 +1,4 @@
-import i18next, { Resource } from "i18next";
+import i18next, { type Resource } from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { DEFAULT_LANGUAGE, LANGUAGES } from "./languages";
 

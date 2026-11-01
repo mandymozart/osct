@@ -1,4 +1,4 @@
-import { Matrix4, Quaternion, Vector3 } from "three";
+import { type Matrix4, type Quaternion, Vector3 } from "three";
 
 const DEG = Math.PI / 180;
 

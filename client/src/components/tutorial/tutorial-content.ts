@@ -1,6 +1,6 @@
-import { getBook, getTutorial } from "@/utils/game-config";
-import { ITutorialContent } from "@/types";
-import { escapeHtml, paragraphs } from "@/utils";
+import { getBook } from "@/utils/game-config";
+import type { ITutorialContent } from "@/types";
+import { escapeHtml, onboardingSteps, paragraphs } from "@/utils";
 import { MARK_IMAGE_SRC } from "@/components/header";
 import "@/components/common";
 import { adoptDesignStyles } from "@/styles";
@@ -12,17 +12,19 @@ const DEFAULT_FADE_MS = 600;
 const DEFAULT_STAGGER_MS = 250;
 
 /**
- * Replaces `{{title}}`, `{{author}}` and `{{publisher}}` in step texts with the values from `book.yaml`.
+ * Replaces `{{title}}`, `{{author}}` and `{{publisher}}` in step texts with the book's values (the splash's parts).
  * Unknown placeholders are left unchanged.
  */
-export const fillBookFields = (text: string, book: Record<string, string | undefined> = getBook() as unknown as Record<string, string | undefined>): string =>
-  text.replace(/\{\{(title|author|publisher)\}\}/g, (_, field: string) => book[field] ?? "").trim();
+type BookField = "title" | "author" | "publisher";
+
+export const fillBookFields = (text: string, book: Partial<Record<BookField, string>> = getBook()): string =>
+  text.replace(/\{\{(title|author|publisher)\}\}/g, (_, field: BookField) => book[field] ?? "").trim();
 
 /** Fills book fields, escapes, then turns `*emphasis*` into <em> */
 const inline = (text: string): string => escapeHtml(fillBookFields(text)).replace(/\*([^*]+)\*/g, "<em>$1</em>");
 
 /**
- * Onboarding step content from `content/steps`: Mark, optional illustration, title, text and footer, plus an
+ * An onboarding step (`utils/onboarding.ts` – the app's own steps, not the book's): Mark, optional illustration, title, text and footer, plus an
  * `actions` slot for the step button. Parts fade in one after another (`fadeIn` / `stagger` per step); the
  * resulting timing is exposed as `--fade-duration` / `--actions-delay` for the slotted button.
  */
@@ -59,7 +61,7 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
 
   private render() {
     if (!this.shadowRoot) return;
-    const step = getTutorial().find(s => s.index === this._currentStep);
+    const step = onboardingSteps(getBook()).find(s => s.index === this._currentStep);
     if (!step) return;
 
     // Fade sequence: Mark (only on steps that set `stagger`, i.e. the splash; otherwise it stays still),
@@ -69,11 +71,13 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
     let slot = 0;
     /** Style attribute with the animation delay of the next part in the sequence */
     const next = () => `style="animation-delay: ${slot++ * stagger}ms"`;
+    /** A part that is shown: its text and its place in the sequence */
+    const part = (value: string | undefined, shown = !!value) => (value && shown ? { value, delay: next() } : null);
     const mark = step.stagger !== undefined ? next() : null;
-    const illustration = step.illustration ? next() : null;
-    const title = step.title ? next() : null;
-    const text = step.description ? next() : null;
-    const footer = step.footer && fillBookFields(step.footer) ? next() : null;
+    const illustration = part(step.illustration);
+    const title = part(step.title);
+    const text = part(step.description);
+    const footer = part(step.footer, !!step.footer && !!fillBookFields(step.footer));
     this.style.setProperty("--fade-duration", `${duration}ms`);
     this.style.setProperty("--actions-delay", `${slot * stagger}ms`);
     this.shadowRoot.innerHTML = /* html */ `
@@ -108,12 +112,12 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
       </style>
       <div class="head">
         <img class="${mark ? "fade" : ""}" ${mark ?? ""} src="${MARK_IMAGE_SRC}" alt="${t("common:markAlt")}" data-mark>
-        ${illustration ? `<gold-illustration class="fade" ${illustration} src="${escapeHtml(step.illustration!)}"></gold-illustration>` : ""}
-        ${title ? `<h1 class="design gold text fade" ${title}>${inline(step.title!)}</h1>` : ""}
-        ${text ? `<div class="text design gold fade" ${text}>${paragraphs(step.description!).map(p => `<p>${inline(p)}</p>`).join("")}</div>` : ""}
+        ${illustration ? `<gold-illustration class="fade" ${illustration.delay} src="${escapeHtml(illustration.value)}"></gold-illustration>` : ""}
+        ${title ? `<h1 class="design gold text fade" ${title.delay}>${inline(title.value)}</h1>` : ""}
+        ${text ? `<div class="text design gold fade" ${text.delay}>${paragraphs(text.value).map(p => `<p>${inline(p)}</p>`).join("")}</div>` : ""}
       </div>
       <slot name="actions"></slot>
-      ${footer ? `<div class="footer design gold fade" ${footer}>${inline(step.footer!)}</div>` : ""}
+      ${footer ? `<div class="footer design gold fade" ${footer.delay}>${inline(footer.value)}</div>` : ""}
     `;
   }
 }

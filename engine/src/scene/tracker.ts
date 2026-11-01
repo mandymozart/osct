@@ -1,22 +1,24 @@
-import { PerspectiveCamera } from "three";
-import { CAMERA_NOT_RESPONDING } from "../types/index";
+import type { PerspectiveCamera } from "three";
+import { ArSceneError, ErrorCode } from "../types/index";
 import { getTargetBudget } from "../utils/prepared-spreads";
 import { publishEngineState, EMPTY_ENGINE_STATE, registerLoadTest } from "../utils/tracker-debug";
 import { setCameraTrack } from "../utils/camera-debug";
 import { applyCameraDefaults, releaseCameraRequest, wrapCameraRequest } from "../utils/camera-request";
 import { runLoadTest } from "./load-test";
-import { CAMERA_START_TIMEOUT_MS, IImageTracker, ImageTrackerOptions, TrackedSpread } from "./tracker-types";
+import { CAMERA_START_TIMEOUT_MS, type IImageTracker, type ImageTrackerOptions, type TrackedSpread } from "./tracker-types";
 import {
   anchorMatrix,
   loadXr8,
   makeImageTarget,
-  PreparedImageTarget,
-  XR8Api,
-  XrImageDetail,
-  XrPipelineModule,
-  XrReality,
+  type PreparedImageTarget,
+  type XR8Tracking,
+  type XrImageDetail,
+  type XrPipelineModule,
+  type XrReality,
 } from "./xr8";
 
+/** The engine's own shader for the camera picture (8th Wall `GlTextureRenderer`'s default) – restored when no grade reaches it */
+const CAMERA_SHADER = "precision lowp float;\nvarying vec2 texUv;\nuniform sampler2D sampler;\nvoid main() {\n  gl_FragColor = texture2D(sampler, texUv);\n}\n";
 /** Loading the targets into the engine may take this long before tracking starts anyway */
 const TARGETS_LOAD_TIMEOUT_MS = 15000;
 /** A neighbouring spread's target seen this long (and none of the current spread's) switches the spread */
@@ -65,8 +67,10 @@ interface LoadedTarget {
  * the origin and gets the engine's projection, as in the engine's own three.js module.
  */
 export class ImageTracker implements IImageTracker {
-  private XR8: XR8Api | null = null;
+  private XR8: XR8Tracking | null = null;
   private canvas: HTMLCanvasElement | null = null;
+  /** The camera picture's shader (a grade with `reach: all`), null = the engine's own */
+  private cameraShader: string | null = null;
   private camera: PerspectiveCamera | null = null;
   private intrinsics: number[] | null = null;
   private started = false;
@@ -113,7 +117,8 @@ export class ImageTracker implements IImageTracker {
   /** Counters for the load test: engine frames, frames with a current target found, current targets lost */
   private counters = { frames: 0, framesFound: 0, lost: 0 };
 
-  constructor(private container: HTMLElement, private options: ImageTrackerOptions) {}
+  /** `xr8Base`: where the app serves the 8th Wall engine's files (`xr.js`, `xr-tracking.js`), ending in `/` */
+  constructor(private container: HTMLElement, private options: ImageTrackerOptions, private xr8Base: string) {}
 
   get hasCamera(): boolean {
     return this.started;
@@ -160,7 +165,7 @@ export class ImageTracker implements IImageTracker {
 
   async startCamera(): Promise<void> {
     if (this.started) return;
-    const XR8 = await loadXr8();
+    const XR8 = await loadXr8(this.xr8Base);
     this.XR8 = XR8;
 
     const canvas = document.createElement("canvas");
@@ -172,7 +177,7 @@ export class ImageTracker implements IImageTracker {
 
     const started = new Promise<void>((resolve, reject) => {
       const timer = window.setTimeout(
-        () => reject(new Error(`${CAMERA_NOT_RESPONDING} (no picture after ${CAMERA_START_TIMEOUT_MS / 1000} s)`)),
+        () => reject(new ArSceneError(ErrorCode.CAMERA_NOT_RESPONDING, `camera not responding (no picture after ${CAMERA_START_TIMEOUT_MS / 1000} s)`)),
         CAMERA_START_TIMEOUT_MS,
       );
       this.startWaiter = {
@@ -180,8 +185,9 @@ export class ImageTracker implements IImageTracker {
         reject: error => { window.clearTimeout(timer); reject(error); },
       };
     });
-    XR8.XrController!.configure({ disableWorldTracking: true, imageTargetData: [] });
-    XR8.addCameraPipelineModules([XR8.GlTextureRenderer.pipelineModule(), XR8.XrController!.pipelineModule(), this.module()]);
+    XR8.XrController.configure({ disableWorldTracking: true, imageTargetData: [] });
+    XR8.addCameraPipelineModules([XR8.GlTextureRenderer.pipelineModule(), XR8.XrController.pipelineModule(), this.module()]);
+    if (this.cameraShader) XR8.GlTextureRenderer.configure({ fragmentSource: this.cameraShader });
     // The engine's camera request gets the main back lens (and the debug zoom request) – camera-request.ts
     wrapCameraRequest();
     // Any device: desktop browsers (dev, tests) too – the default allows phones only
@@ -257,7 +263,7 @@ export class ImageTracker implements IImageTracker {
         const now = performance.now();
         this.windowTimes = { configuredAt: now, prepareMs: now - requested, extractMs: 0 };
         this.configureEngine();
-        console.info(`[8th Wall] ${this.ready.size} of ${this.current!.targets.length + upcoming.reduce((n, spread) => n + spread.targets.length, 0)} targets extracted so far – next spreads loaded: ${upcoming.map(spread => `${spread.spreadId} (${spread.targets.length})`).join(", ")}`);
+        console.info(`[8th Wall] ${this.ready.size} of ${(this.current?.targets.length ?? 0) + upcoming.reduce((n, spread) => n + spread.targets.length, 0)} targets extracted so far – next spreads loaded: ${upcoming.map(spread => `${spread.spreadId} (${spread.targets.length})`).join(", ")}`);
       },
       error => {
         if (run === this.prepareRun) this.preparing = [];
@@ -368,7 +374,7 @@ export class ImageTracker implements IImageTracker {
     // New targets: the engine extracts them now (the queue restarts with every configure)
     const extracting = [...byName.keys()].some(name => !this.ready.has(name));
     this.extractingSince = extracting ? (this.extractingSince ?? performance.now()) : null;
-    XR8.XrController!.configure({ imageTargetData: [...byName.values()] });
+    XR8.XrController.configure({ imageTargetData: [...byName.values()] });
     this.publishState();
   }
 
@@ -423,6 +429,13 @@ export class ImageTracker implements IImageTracker {
     this.scanningWaiter = null;
     this.seenSince.clear();
     // The engine keeps its targets (a switch back or to a neighbour needs no new extraction)
+  }
+
+  gradeCamera(fragmentShader: string | null): void {
+    if (fragmentShader === this.cameraShader) return;
+    this.cameraShader = fragmentShader;
+    // The engine keeps a shader it was given: none = its own again (`configure` ignores an empty source)
+    if (this.XR8 && this.canvas) this.XR8.GlTextureRenderer.configure({ fragmentSource: fragmentShader ?? CAMERA_SHADER });
   }
 
   stop(): void {

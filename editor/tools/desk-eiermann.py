@@ -1,27 +1,33 @@
 """
-The editor stage's desks, built from primitives as low-poly glTF for `editor/src/lib/stage/mock-stage.ts` (the Stage
-panel's *desk* choice): a table on Egon Eiermann's steel tube frame (Tischgestell 1, 1953) with a screen-printed
-plywood top, and Philipp Camille Schöpfer's white desk – a thick white top with three drawer cutouts in its front
-edge on four slender white steel legs splayed outward.
+The editor stage's desk, built from primitives as low-poly glTF for `editor/src/lib/stage/mock-stage.ts`: a table on
+Egon Eiermann's steel tube frame (Tischgestell 1, 1953) with two tops to choose from (the editor toolbar's view group's *top*, #226) –
+its own screen-printed plywood top, and a linoleum top: blue-grey linoleum on an oak-faced plywood board, the board's
+cut edges showing its plies. Both tops have the same outer size and surface height; the stage shows one of them.
 
     "C:/Program Files/Blender Foundation/Blender 5.1/blender.exe" -b -P editor/tools/desk-eiermann.py [-- out-dir]
 
-Writes `desk-eiermann.glb` and `desk-schoepfer.glb` into `editor/static/models/` (next to this script's folder) unless
-another folder follows `--`.
+Writes `desk-eiermann.glb` into `editor/static/models/` (next to this script's folder) unless another folder follows
+`--`.
 
-The Eiermann frame's measurements (mm) come from a 3ds Max model of the frame Tilman supplied
+The Eiermann frame's measurements (mm) come from a 3ds Max model of the frame
 (`01_E1_1100x660-exzentrisch`, not in the repository, 17 000 triangles): round tube Ø 20, four vertical legs with the
 thinner Ø 17 inner tube of the height adjustment showing under the top, an upper and a lower cross tube per end
 frame, and two diagonal struts that cross between the ends – from the back of one lower cross tube to the front of
 the other's upper one, placed off the middle ("exzentrisch"). The clamps and screws of the original are left out.
-Schöpfer's desk is modelled after a photograph. Every tube has eight segments, no caps where none shows, and no
-bevels: a few hundred triangles a desk.
+The linoleum top's linoleum and oak came with #187. Every tube has eight segments, no caps where none shows, and no
+bevels: a few hundred triangles.
 
 Units: the scene is built in millimetres, Z up, and exported in metres, Y up (glTF). The origin is the centre of the
-top's upper surface, so the stage sets the table's height directly. Materials by name – the stage assigns its own
-look to `top` (the plywood faces, UV 0..1 over the top, or Schöpfer's white) and `edge` (the Eiermann top's cut
-edges, the plies along the edge); `steel` (the frame) and `drawer` (the inside of Schöpfer's cutouts) stay as
-exported.
+tops' upper surface, so the stage sets the table's height directly. Three meshes: `Frame`, `TopEiermann` and
+`TopLinoleum` (the stage hides the top not chosen). Materials by name – the stage assigns its own look to the
+Eiermann top's `top` (the plywood faces, UV 0..1 over the top) and `edge` (the board's cut sides: the plywood's plies,
+drawn by the stage – `editor/src/lib/stage/plywood.ts`), and to the linoleum top's `linoleum` (the surface and the
+layer's thin edge – `linoleum.ts`), `oak_edge` (the board's cut sides: the same plies in an oak tint) and `oak` (the
+board's oak-veneered underside – `oak.ts`); `steel` (the frame) stays as exported. The edges' UVs: u runs along the
+edge (one texture repeat every `EDGE_REPEAT_MM`), v through the board, one stack of plies from 0 at the underside to 1
+at the board's upper face (the glTF export flips v; a whole stack doesn't mind) – both boards are 18 mm, so both show
+13 plies per 18 mm. The linoleum: millimetres over `LINOLEUM_REPEAT_MM`, both ways; the oak: u along the grain (the
+top's long side) in units of `OAK_U_MM`, v across it in units of `OAK_V_MM`.
 """
 
 import os
@@ -32,13 +38,14 @@ import bpy
 import bmesh
 from mathutils import Matrix, Vector
 
-# ── Both tables (mm) ──────────────────────────────────────────────────────────────────────────────────────────────
-TOP_WIDTH, TOP_DEPTH = 1800.0, 800.0                         # the stage's desks: 180 × 80 cm
-HEIGHT = 720.0                                               # floor to the top's surface
+# ── The table (mm) ────────────────────────────────────────────────────────────────────────────────────────────────
+TOP_WIDTH, TOP_DEPTH = 1800.0, 800.0                         # the stage's desk: 180 × 80 cm, both tops
+HEIGHT = 720.0                                               # the floor to the tops' surface
 FLOOR = -HEIGHT
 SEGMENTS = 8
+EDGE_REPEAT_MM = 250.0                                       # the plies' texture repeats every quarter metre along an edge
 
-# ── The Eiermann table ────────────────────────────────────────────────────────────────────────────────────────────
+# ── The Eiermann top and frame ────────────────────────────────────────────────────────────────────────────────────
 E_TOP_THICKNESS = 18.0                                       # a Siebdruckplatte
 E_TUBE_RADIUS = 10.0                                         # Ø 20 round steel tube
 E_INNER_RADIUS = 8.5                                         # the height adjustment's inner tube, Ø 17
@@ -48,21 +55,17 @@ E_UPPER_BAR = E_UNDERSIDE - 112.0                            # the upper cross t
 E_LOWER_BAR = FLOOR + 140.0                                  # the lower cross tube's axis above the floor
 E_LEG_TOP = E_UNDERSIDE - 55.0                               # the outer leg ends here, the inner tube shows above
 E_STRUT_LOWER_Y, E_STRUT_UPPER_Y = 254.0, -144.0             # where the struts meet the lower and the upper tubes
-E_EDGE_REPEAT_MM = 500.0                                     # the edge texture repeats every half metre
-E_EDGE_V = (0.46, 0.54)                                      # the slice of the texture across the thickness
 
-# ── Schöpfer's desk ───────────────────────────────────────────────────────────────────────────────────────────────
-S_TOP_THICKNESS = 60.0                                       # the thick white top
-S_LEG_RADIUS = 8.0                                           # Ø 16 slender steel legs
-S_LEG_TOP_X, S_LEG_TOP_Y = 520.0, 350.0                      # where a leg meets the top (inside the corner)
-S_LEG_FOOT_X, S_LEG_FOOT_Y = 760.0, 560.0                    # where it stands (outside the top: splayed)
-S_CUTOUT_WIDTH, S_CUTOUT_HEIGHT, S_CUTOUT_DEPTH = 240.0, 26.0, 50.0
-S_CUTOUT_X = (-400.0, 0.0, 400.0)                            # three cutouts along the front edge
-S_CUTOUT_Z = (-40.0, -14.0)                                  # from the surface: the slot's bottom and top
+# ── The linoleum top (#226): linoleum glued on an oak-faced plywood board ─────────────────────────────────────────
+L_LINOLEUM = 2.0                                             # the linoleum layer, its edge a blue-grey line over the board
+L_BOARD = 18.0                                               # the board under it: 18 mm, 13 plies like the Eiermann's
+LINOLEUM_REPEAT_MM = 400.0                                   # the linoleum's speckle repeats every 40 cm
+OAK_U_MM, OAK_V_MM = 500.0, 125.0                            # the oak veneer underneath: 50 cm along the grain, 12.5 cm across
 
 # ── Materials ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
-def material(name, rgb, metallic, roughness):
+def material(name, rgb, metallic, roughness, specular=None):
+    """A Principled material; `specular` (Specular IOR Level, 0.5 = the default) exports as KHR_materials_specular"""
     mat = bpy.data.materials.new(name)
     if mat.node_tree is None:
         mat.use_nodes = True
@@ -70,6 +73,8 @@ def material(name, rgb, metallic, roughness):
     principled.inputs["Base Color"].default_value = (*rgb, 1.0)
     principled.inputs["Metallic"].default_value = metallic
     principled.inputs["Roughness"].default_value = roughness
+    if specular is not None:
+        principled.inputs["Specular IOR Level"].default_value = specular
     return mat
 
 # ── Geometry ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -108,6 +113,19 @@ def mesh_object(name, bm, materials, smooth=False):
     return obj
 
 
+def edge_uv(co, normal, thickness, bottom=None):
+    """An edge's UV (mm): u along the edge, v through the board – 0 at its underside (`bottom`, by default
+    -`thickness`), 1 at its upper face: one stack of plies"""
+    along = co.y if abs(normal.x) > 0.5 else co.x
+    bottom = -thickness if bottom is None else bottom
+    return (along / EDGE_REPEAT_MM, (co.z - bottom) / thickness)
+
+
+def top_uv(co):
+    """The top's faces: UV 0..1 over the top"""
+    return (co.x / TOP_WIDTH + 0.5, co.y / TOP_DEPTH + 0.5)
+
+
 def slab(bm, width, depth, thickness):
     """A box whose upper surface is z = 0, centred on the origin"""
     bmesh.ops.create_cube(bm, size=1.0)
@@ -115,7 +133,8 @@ def slab(bm, width, depth, thickness):
         vert.co = Vector((vert.co.x * width, vert.co.y * depth, (vert.co.z - 0.5) * thickness))
 
 
-def build_eiermann():
+def build_eiermann_top():
+    """The Eiermann's own top: a screen-printed plywood board (Siebdruckplatte), 18 mm"""
     bm = bmesh.new()
     slab(bm, TOP_WIDTH, TOP_DEPTH, E_TOP_THICKNESS)
     uv_layer = bm.loops.layers.uv.verify()
@@ -124,15 +143,64 @@ def build_eiermann():
         if abs(n.z) > 0.5:
             face.material_index = 0  # top: the stage's plywood map repeats over UV 0..1
             for loop in face.loops:
-                loop[uv_layer].uv = (loop.vert.co.x / TOP_WIDTH + 0.5, loop.vert.co.y / TOP_DEPTH + 0.5)
+                loop[uv_layer].uv = top_uv(loop.vert.co)
         else:
-            face.material_index = 1  # edge: the plies run along the edge
-            along = (lambda co: co.y) if abs(n.x) > 0.5 else (lambda co: co.x)
+            face.material_index = 1  # edge: the plies run along the edge, stacked through the thickness
             for loop in face.loops:
-                t = (loop.vert.co.z + E_TOP_THICKNESS) / E_TOP_THICKNESS
-                loop[uv_layer].uv = (along(loop.vert.co) / E_EDGE_REPEAT_MM, E_EDGE_V[0] + t * (E_EDGE_V[1] - E_EDGE_V[0]))
-    top = mesh_object("Top", bm, (bpy.data.materials["top"], bpy.data.materials["edge"]))
+                loop[uv_layer].uv = edge_uv(loop.vert.co, n, E_TOP_THICKNESS)
+    return mesh_object("TopEiermann", bm, (bpy.data.materials["top"], bpy.data.materials["edge"]))
 
+
+def rect(bm, x0, y0, x1, y1, z):
+    """Four new vertices: a rectangle at height z, counter-clockwise from above"""
+    return [bm.verts.new(co) for co in ((x0, y0, z), (x1, y0, z), (x1, y1, z), (x0, y1, z))]
+
+
+def band(bm, upper, lower, material):
+    """The four quads between two rings of four vertices"""
+    faces = []
+    for i in range(4):
+        j = (i + 1) % 4
+        face = bm.faces.new((upper[i], upper[j], lower[j], lower[i]))
+        face.material_index = material
+        faces.append(face)
+    return faces
+
+
+def build_linoleum_top():
+    """The linoleum top (#226): a linoleum layer over the whole top – its edge a thin line of its own – glued on an
+    18 mm oak-faced plywood board whose cut edges show its plies; one closed box, the Eiermann top's outer size"""
+    w, d = TOP_WIDTH / 2, TOP_DEPTH / 2
+    lino, ply, oak = 0, 1, 2
+    bottom = -L_LINOLEUM - L_BOARD
+    bm = bmesh.new()
+    surface = rect(bm, -w, -d, w, d, 0.0)
+    layer = rect(bm, -w, -d, w, d, -L_LINOLEUM)
+    under = rect(bm, -w, -d, w, d, bottom)
+    bm.faces.new(surface).material_index = lino
+    lino_edges = band(bm, surface, layer, lino)
+    ply_edges = band(bm, layer, under, ply)
+    bm.faces.new(under[::-1]).material_index = oak
+    uv_layer = bm.loops.layers.uv.verify()
+    for face in bm.faces:
+        face.normal_update()
+        for loop in face.loops:
+            co = loop.vert.co
+            if face in ply_edges:
+                loop[uv_layer].uv = edge_uv(co, face.normal, L_BOARD, bottom)
+            elif face in lino_edges:
+                along = co.y if abs(face.normal.x) > 0.5 else co.x
+                loop[uv_layer].uv = (along / LINOLEUM_REPEAT_MM, co.z / LINOLEUM_REPEAT_MM)
+            elif face.material_index == lino:
+                loop[uv_layer].uv = (co.x / LINOLEUM_REPEAT_MM, co.y / LINOLEUM_REPEAT_MM)
+            else:
+                loop[uv_layer].uv = (co.x / OAK_U_MM, co.y / OAK_V_MM)
+    materials = tuple(bpy.data.materials[n] for n in ("linoleum", "oak_edge", "oak"))
+    return mesh_object("TopLinoleum", bm, materials)
+
+
+def build_frame():
+    """Eiermann's frame: four legs with the inner tubes above them, two cross tubes per end, the two struts"""
     bm = bmesh.new()
     for sx in (-1, 1):
         x = sx * E_LEG_X
@@ -145,61 +213,32 @@ def build_eiermann():
     # The struts: each from one end's lower tube (at the back) up to the other end's upper tube (at the front)
     for sx in (-1, 1):
         tube(bm, Vector((-sx * E_LEG_X, E_STRUT_LOWER_Y, E_LOWER_BAR)), Vector((sx * E_LEG_X, E_STRUT_UPPER_Y, E_UPPER_BAR)), E_TUBE_RADIUS)
-    frame = mesh_object("Frame", bm, (bpy.data.materials["steel"],), smooth=True)
-    return [top, frame]
+    return mesh_object("Frame", bm, (bpy.data.materials["steel"],), smooth=True)
 
 
-def build_schoepfer():
-    bm = bmesh.new()
-    slab(bm, TOP_WIDTH, TOP_DEPTH, S_TOP_THICKNESS)
-    top = mesh_object("Top", bm, (bpy.data.materials["top"], bpy.data.materials["drawer"]))
-    # The drawer cutouts: three boxes taken out of the front edge (a boolean, evaluated once and baked)
-    bm = bmesh.new()
-    for x in S_CUTOUT_X:
-        result = bmesh.ops.create_cube(bm, size=1.0)
-        bmesh.ops.scale(bm, vec=(S_CUTOUT_WIDTH, S_CUTOUT_DEPTH + 2, S_CUTOUT_HEIGHT), verts=result["verts"])
-        bmesh.ops.translate(bm, vec=(x, -TOP_DEPTH / 2 + S_CUTOUT_DEPTH / 2 - 1, (S_CUTOUT_Z[0] + S_CUTOUT_Z[1]) / 2), verts=result["verts"])
-    cutter = mesh_object("Cutter", bm, ())
-    modifier = top.modifiers.new("cutouts", "BOOLEAN")
-    modifier.operation = "DIFFERENCE"
-    modifier.object = cutter
-    evaluated = bpy.data.meshes.new_from_object(top.evaluated_get(bpy.context.evaluated_depsgraph_get()))
-    top.modifiers.clear()
-    old = top.data
-    top.data = evaluated
-    bpy.data.meshes.remove(old)
-    bpy.data.objects.remove(cutter)
-    for mat in (bpy.data.materials["top"], bpy.data.materials["drawer"]):
-        if mat.name not in evaluated.materials:
-            evaluated.materials.append(mat)
-    for poly in evaluated.polygons:
-        c = poly.center
-        inside = any(abs(c.x - x) <= S_CUTOUT_WIDTH / 2 + 0.5 for x in S_CUTOUT_X)
-        inside = inside and c.y <= -TOP_DEPTH / 2 + S_CUTOUT_DEPTH + 0.5 and S_CUTOUT_Z[0] - 0.5 <= c.z <= S_CUTOUT_Z[1] + 0.5
-        front_face = c.y <= -TOP_DEPTH / 2 + 0.5
-        poly.material_index = 1 if inside and not front_face else 0
-
-    bm = bmesh.new()
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            a = Vector((sx * S_LEG_TOP_X, sy * S_LEG_TOP_Y, -S_TOP_THICKNESS + 10))  # the join is inside the top
-            b = Vector((sx * S_LEG_FOOT_X, sy * S_LEG_FOOT_Y, FLOOR))
-            tube(bm, a, b, S_LEG_RADIUS)
-    legs = mesh_object("Legs", bm, (bpy.data.materials["steel"],), smooth=True)
-    return [top, legs]
+def build_desk():
+    return [build_eiermann_top(), build_linoleum_top(), build_frame()]
 
 # ── Build and export ───────────────────────────────────────────────────────────────────────────────────────────────
 
-DESKS = {
-    "desk-eiermann": (build_eiermann, {"top": ((0.23, 0.14, 0.09), 0.0, 0.5), "edge": ((0.78, 0.64, 0.46), 0.0, 0.7), "steel": ((0.16, 0.16, 0.17), 0.85, 0.4)}),
-    "desk-schoepfer": (build_schoepfer, {"top": ((0.92, 0.92, 0.9), 0.0, 0.6), "drawer": ((0.12, 0.12, 0.12), 0.0, 0.9), "steel": ((0.9, 0.9, 0.89), 0.3, 0.5)}),
+# Materials: (base colour – linear, metallic, roughness[, specular level]). The frame is powder-coated steel, not bare
+# metal: a metal shows almost only what it reflects, and thin dark tubes would vanish before a dark studio or under the
+# stage's own lights. The tops' materials get the stage's drawn or loaded textures; these colours stand in for them
+# elsewhere (a glTF viewer).
+MATERIALS = {
+    "top": ((0.23, 0.14, 0.09), 0.0, 0.5),
+    "edge": ((0.78, 0.64, 0.46), 0.0, 0.7),
+    "linoleum": ((0.22, 0.34, 0.5), 0.0, 0.8),
+    "oak_edge": ((0.62, 0.45, 0.27), 0.0, 0.7),
+    "oak": ((0.55, 0.42, 0.28), 0.0, 0.6),
+    "steel": ((0.16, 0.16, 0.17), 0.15, 0.45),
 }
 
 
 def export(name, build, materials, out_dir):
     bpy.ops.wm.read_factory_settings(use_empty=True)
-    for mat_name, (rgb, metallic, roughness) in materials.items():
-        material(mat_name, rgb, metallic, roughness)
+    for mat_name, values in materials.items():
+        material(mat_name, *values)
     desk = bpy.data.objects.new("Desk", None)
     bpy.context.scene.collection.objects.link(desk)
     for obj in build():
@@ -230,8 +269,7 @@ def main():
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     out_dir = os.path.abspath(args[0] if args else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static", "models"))
     os.makedirs(out_dir, exist_ok=True)
-    for name, (build, materials) in DESKS.items():
-        export(name, build, materials, out_dir)
+    export("desk-eiermann", build_desk, MATERIALS, out_dir)
 
 
 main()

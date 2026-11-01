@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { printedPlaceOf, sheetForSpread, sheetImageUrl, sheetSharpImageUrl, StageLayout } from "../stage-layout";
+import { printedPlaceOf, sheetForSpread, sheetImageUrl, sheetSharpImageUrl, type StageLayout } from "../stage-layout";
 
 const layout: StageLayout = {
   page: { width: 230, height: 320 },

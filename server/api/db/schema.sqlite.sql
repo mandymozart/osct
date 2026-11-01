@@ -67,7 +67,6 @@ CREATE TABLE IF NOT EXISTS books (
   title TEXT NOT NULL,
   author TEXT NOT NULL,
   book_json TEXT NOT NULL,
-  tutorial_json TEXT NOT NULL,
   initial_spread_id TEXT NOT NULL,
   assets_base TEXT NOT NULL DEFAULT '',
   files_json TEXT NOT NULL,
@@ -219,3 +218,27 @@ CREATE TABLE IF NOT EXISTS plugins (
   PRIMARY KEY (book_id, id)
 );
 ALTER TABLE books ADD COLUMN plugins_json TEXT NOT NULL DEFAULT '[]';
+
+-- A video's duration (schema.mysql.sql has the notes)
+ALTER TABLE assets ADD COLUMN duration_ms INTEGER NULL DEFAULT NULL;
+
+-- AI connections' personal access tokens (schema.mysql.sql has the notes)
+CREATE TABLE IF NOT EXISTS api_tokens (
+  id TEXT NOT NULL PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  token_prefix TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  last_used_at TEXT NULL DEFAULT NULL,
+  expires_at TEXT NULL DEFAULT NULL,
+  revoked_at TEXT NULL DEFAULT NULL
+);
+CREATE INDEX IF NOT EXISTS api_tokens_user ON api_tokens (user_id);
+ALTER TABLE changes ADD COLUMN token_name TEXT NULL DEFAULT NULL;
+
+-- What the draft is based on (schema.mysql.sql has the notes)
+ALTER TABLE books ADD COLUMN imported_json TEXT NULL DEFAULT NULL;
+
+-- The onboarding belongs to the reader (schema.mysql.sql has the notes)
+ALTER TABLE books DROP COLUMN tutorial_json;

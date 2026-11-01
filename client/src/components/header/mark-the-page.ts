@@ -1,5 +1,5 @@
 import { GameStoreService } from "@/services";
-import { GameMode, IGame } from "@/types";
+import { GameMode, type IGame } from "@/types";
 import { t } from "i18next";
 
 /**

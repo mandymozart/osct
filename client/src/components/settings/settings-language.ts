@@ -1,6 +1,6 @@
 import { goldButton } from "@/components/buttons";
 import i18next, { t } from "i18next";
-import { DEFAULT_LANGUAGE, isLanguage, Language, LANGUAGE_NAMES, LANGUAGES } from "@/i18n";
+import { DEFAULT_LANGUAGE, isLanguage, type Language, LANGUAGE_NAMES, LANGUAGES } from "@/i18n";
 import { SettingsSection } from "./settings-section";
 
 /**

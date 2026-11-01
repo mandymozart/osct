@@ -1,5 +1,6 @@
 import { LocalProgressStorage } from '@/services/ProgressStorage';
-import {
+import { ErrorCode } from '@/types';
+import type {
   EntryCategory,
   IGame,
   IHistoryManager,
@@ -8,7 +9,7 @@ import {
   ProgressVariable,
 } from '@/types';
 import { getBook, getEntry, getSpread, getTarget, getTargets } from '@/utils/game-config';
-import { ProgressReadStatus, createProgressRecord, mergeProgress, readProgress } from '@/utils';
+import { type ProgressReadStatus, createProgressRecord, mergeProgress, readProgress } from '@/utils';
 import { t } from "i18next";
 
 /**
@@ -74,7 +75,7 @@ export class HistoryManager implements IHistoryManager {
     this.loadStatus = null;
     if (status !== 'converted' && status !== 'unreadable') return;
     this.game.notifyError({
-      code: status === 'converted' ? 'progress-converted' : 'progress-reset',
+      code: status === 'converted' ? ErrorCode.PROGRESS_CONVERTED : ErrorCode.PROGRESS_RESET,
       msg: t(status === 'converted' ? 'progress:converted' : 'progress:reset'),
       type: 'info',
     });

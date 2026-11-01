@@ -32,9 +32,11 @@ describe("spread grid", () => {
     for (const cell of cells) if (!cell.spacer && cell.span === 2) expect(cell.side).toBeNull();
   });
 
-  it("never wraps a double page", () => {
-    for (const { cell, start } of layoutOf()) {
-      if (!cell.spacer) expect((start % GRID_COLUMNS) + cell.span).toBeLessThanOrEqual(GRID_COLUMNS);
+  it("never wraps a double page, at every column count the page uses", () => {
+    for (let columns = 2; columns <= GRID_COLUMNS; columns += 2) {
+      for (const { cell, start } of layoutOf()) {
+        if (!cell.spacer) expect((start % columns) + cell.span).toBeLessThanOrEqual(columns);
+      }
     }
   });
 });

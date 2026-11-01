@@ -1,25 +1,30 @@
 import {
-  AnimationAction, AnimationMixer, CanvasTexture, DirectionalLight, DoubleSide, Group, Light, LoopOnce, LoopRepeat, MathUtils, Mesh, MeshBasicMaterial,
-  Object3D, PlaneGeometry, PointLight, ShaderMaterial, SpotLight, SRGBColorSpace, Vector3,
+  type AnimationAction, AnimationMixer, CanvasTexture, DirectionalLight, DoubleSide, Group, type Light, LoopOnce, LoopRepeat, MathUtils, Mesh, MeshBasicMaterial,
+  type Object3D, PlaneGeometry, PointLight, ShaderMaterial, SpotLight, SRGBColorSpace, Vector3,
 } from "three";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { COMPONENT_TYPES, EntityData, EntityType, Light as LightValues, NodeTimeline, resolveComponent, resolveLight, resolvePlacement, Target } from "../types/index";
+import { COMPONENT_TYPES, type EntityData, type EntityType, type Light as LightValues, type NodeTimeline, resolveComponent, resolveLight, resolvePlacement, type Target } from "../types/index";
 import { chromaKeyMaterial, parseChromaKey, setChromaKey } from "../utils/chroma-key";
 import { composeLayers, layerObject, tuneLayers } from "../utils/layers";
-import { LoadedAsset } from "./assets";
-import { applyComponents, unknownComponentTypes } from "./plugins";
+import type { LoadedAsset } from "./assets";
+import { applyComponents, buildPluginNode, nodeTypeRegistration, unknownComponentTypes } from "./plugins";
+import { applyMaterial } from "./materials";
+import { applyBehaviour, behaviourOf } from "./behaviour";
 import { getBook, getEntry } from "../content/game-config";
 
 /**
  * Entity registry: one builder per node type creates the three.js object for a node and may return hooks for
  * found / lost / pause and a per-frame update. New types: `registerEntity("type", builder)` – no logic
- * in the content. `buildEntity` builds the entity's **node tree** (content schema 2.0): every node's object goes
+ * in the content; a book's own types come from its plugins (`registerNodeType`, `plugins.ts` – the same contract: an
+ * object and its hooks). `buildEntity` builds the entity's **node tree**: every node's object goes
  * into a group placed by the node's `params` (position / rotation / scale – shared/types/placement.ts; axes: x
  * right, y up the page, z out of the page, 1 unit = target width, origin in its centre) relative to its parent, the
  * root on the target's anchor. A node of a type without a builder renders nothing (logged) but keeps its children.
- * A node's **components** are the built-in ones its builder knows (`animation` on a model) and the ones a plugin
- * registered (`plugins.ts`): applied after the node's object exists, with their hooks joined to the node's; a
- * node's **material layers** (a plugin's GLSL) are composed into its materials (`utils/layers.ts`).
+ * A node's **components** are the built-in ones its builder knows (`animation` on a model), the built-in `behaviour` of
+ * any node (`behaviour.ts` – its rules act on the node's subtree, joined after its children) and the ones a plugin
+ * registered (`plugins.ts`): applied after the node's object exists, with their hooks joined to the node's; a node's
+ * **material** of a plugin (`material: { type, params }`, `materials.ts`) replaces the material of its meshes first, then
+ * its **material layers** (a plugin's GLSL) are composed into its materials (`utils/layers.ts`).
  */
 
 export interface EntityInstance {
@@ -71,9 +76,11 @@ export const buildEntity = (target: Target, asset: EntityContext["asset"]): Enti
 
 /** One node: its own object (if its type has a builder) and its children, in a group placed by its params */
 const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset"], name: string): EntityInstance | null => {
-  const builder = registry.get(node.type);
-  if (!builder) console.warn(`[entities] No builder for node type "${node.type}" (target ${target.id})`);
-  const own = builder ? builder({ target, entity: node, asset }) : null;
+  // A built-in type's builder, else a plugin's node type (`registerNodeType`), else nothing (the children stay)
+  const builder = registry.get(node.type as EntityType);
+  const plugin = !builder && nodeTypeRegistration(node.type);
+  if (!builder && !plugin) console.warn(`[entities] No builder for node type "${node.type}" (target ${target.id})`);
+  const own: EntityInstance | null = builder ? builder({ target, entity: node, asset }) : plugin ? buildPluginNode(node, target, asset) : null;
   const children = (node.children ?? [])
     .map((child, i) => buildNode(target, child, asset, `${name}.${i}`))
     .filter((child): child is EntityInstance => child !== null);
@@ -85,11 +92,13 @@ const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset
   children.forEach(child => placed.add(child.object));
   // The plugin's components and material layers of this node
   unknownComponentTypes(node, COMPONENT_TYPES).forEach(type => console.warn(`[entities] No component "${type}" registered (target ${target.id}) – ignored`));
+  // The node's material of a plugin replaces its meshes' own; the layers then add on top of it
+  const material = own && node.material ? applyMaterial(node, own.object, target) : null;
   const components = applyComponents({ node, object: own?.object ?? placed, placed, children: children.map(child => child.object), target });
   const layers = own ? composeLayers(node) : null;
   const layered = own && layers ? layerObject(own.object, layers) : null;
   const all: Array<Pick<EntityInstance, "onTap" | "onFound" | "onLost" | "onUnlocked" | "onPause" | "update" | "dispose">> = [
-    ...(own ? [own] : []), ...components.parts, ...children,
+    ...(own ? [own] : []), ...(material ? [material] : []), ...components.parts, ...children,
   ];
   const nodes: Record<string, Object3D> = { "": placed };
   const timelines: Record<string, NodeTimeline> = {};
@@ -98,6 +107,9 @@ const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset
     Object.entries(child.nodes ?? {}).forEach(([key, object]) => (nodes[key === "" ? `${i}` : `${i}.${key}`] = object));
     Object.entries(child.timelines ?? {}).forEach(([key, timeline]) => (timelines[key === "" ? `${i}` : `${i}.${key}`] = timeline));
   });
+  // The node's behaviour (built-in): its rules act on the node's subtree – heard after the node's other parts
+  const behaviour = applyBehaviour({ node, target, nodes, timelines });
+  if (behaviour) all.push(behaviour);
   return {
     object: placed,
     nodes,
@@ -108,12 +120,16 @@ const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset
     onUnlocked: () => all.forEach(part => part.onUnlocked?.()),
     onPause: () => all.forEach(part => part.onPause?.()),
     update: delta => {
-      if (layers) (layers.time.value as number) += delta;
+      if (layers) {
+        (layers.time.value as number) += delta;
+        layers.textures.forEach(textures => textures.update(delta));
+      }
       all.forEach(part => part.update?.(delta));
     },
     dispose: () => {
       all.forEach(part => part.dispose?.());
       layered?.dispose();
+      layers?.textures.forEach(textures => textures.dispose());
     },
     // The same tree shape with other values: every node tunes in place and is placed again; else rebuild
     tune: tuned => {
@@ -121,7 +137,10 @@ const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset
       const next = tuned.children ?? [];
       if (next.length !== children.length || (node.children ?? []).length !== next.length) return false;
       if (own && !(own.tune?.(tuned) ?? true)) return false;
+      // A material added, removed or of another type (or one that did not apply): built anew
+      if (material ? !material.tune(tuned) : !!own && JSON.stringify(tuned.material ?? null) !== JSON.stringify(node.material ?? null)) return false;
       if (!components.tune(tuned)) return false;
+      if (behaviour ? !behaviour.tune(tuned) : !!behaviourOf(tuned)) return false;
       if (own && (layers ? !tuneLayers(layers, tuned) : composeLayers(tuned) !== null)) return false;
       for (let i = 0; i < children.length; i++) {
         if (!children[i].tune!(next[i])) return false;
@@ -214,7 +233,7 @@ registerEntity("video", ({ entity, asset }) => {
 });
 
 /**
- * glTF model. Without an `animation` component every clip plays in a loop (as before 2.2). With one, the chosen
+ * glTF model. Without an `animation` component every clip plays in a loop. With one, the chosen
  * clip (or the first) plays when the component says (`playOn`: found / tap / never), stops when the page is lost
  * (`stopOn`), loops or holds its last frame, at `speed` – and the editor's timeline drives it directly.
  */
@@ -363,7 +382,7 @@ const scaleLight = (light: Light, values: LightValues): void => {
 };
 
 /**
- * Light (schema 2.6): a point, spot or directional light at the node's origin; spot and directional aim along the
+ * Light: a point, spot or directional light at the node's origin; spot and directional aim along the
  * node's own −z (their target is a child of the node, so turning the node turns the light). No shadows. The reveal
  * and the outro fade it with the entity (`celebration.ts` sets `userData.fade`); other values apply in place,
  * another kind builds the node anew.

@@ -1,0 +1,28 @@
+# The ink painting (#225): a node type of the plugin `fluid` (plugins/fluid, `registerNodeType`) placed as a child of
+# this target – a framed canvas standing on the page (built y up with its lowest edge at y = 0, so `rotation: [90, 0, 0]`
+# stands it up). Its picture is a 2D fluid simulated on the GPU every frame: two feedback buffers of plugin API 1.6
+# (`api.feedback`), the passes of the Shadertoy shader XlsBDf by trapcode (CC BY-NC-SA 3.0) through `api.shadertoy`. A tap
+# stirs the ink where it lands. The target picture is a frame of the same simulation in a drawn frame (CC BY-NC-SA 3.0).
+category: glossary
+title: The ink painting
+page: 6
+body: "A painting whose ink never stops flowing: a fluid simulated on the GPU every frame by a plugin's feedback buffers – the Shadertoy shader XlsBDf by trapcode (CC BY-NC-SA 3.0), pasted in nearly unchanged through `api.shadertoy`. Tap it to stir the ink where your finger lands; the pen speed and the ink's dissipation are its rows in the editor, the resolution its cost."
+tags: [plugin, shader, feedback]
+target:
+  image: target.jpg
+  print:
+    surface: right
+    x: 70
+    y: 205
+    width: 85
+  entity:
+    type: group
+    name: Ink painting
+    children:
+      - type: inkPainting
+        name: Painting
+        params:
+          rotation: [90, 0, 0]
+          resolution: "256"
+          penSpeed: 1
+          dissipation: 4

@@ -1,6 +1,6 @@
 # Content on the bunny.net CDN, by hand (docs/content-cdn.md). Content has its own lifecycle, apart from the app
 # deployment: nothing here runs on a push. It runs the osct CLI against the storage:
-#   status – the versions on the storage and what the CDN serves
+#   status – the versions on the storage, what the CDN serves, whether latest.json and versions.json agree
 #   purge  – delete old versions that are provably out of use (strict checks, see the CLI)
 # No sync here: the book content is not in this repository, so a checkout has nothing to upload (the CLI refuses
 # the test fixture). Sync runs where the content source is – `osct content sync` on that machine, later perhaps a

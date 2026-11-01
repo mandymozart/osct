@@ -2,19 +2,21 @@ import fs from 'fs';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
 import { DEMO_DIR, DEMO_MARKER, FIXTURE_DIR, FIXTURE_MARKER } from '../src/config';
-import { ContentVersion } from '../../shared/types/content-manifest';
+import { type ContentVersion, isContentManifest } from '../../shared/types/content-manifest';
 import {
   activate,
-  ContentBuild,
+  type ContentBuild,
   DEFAULT_PURGE,
-  EnvironmentState,
+  type EnvironmentState,
   fileIndex,
   isDemoBuild,
   isFixtureBuild,
   planPurge,
+  versionProblems,
   videosMissing,
 } from '../src/lib/content-sync';
-import { StoredFile } from '../src/lib/storage';
+import type { StoredFile } from '../src/lib/storage';
+import { ENV_NAME } from '../../shared/api/rules';
 
 /**
  * Content versions on the CDN: every content build is its own immutable folder, latest.json names the current one,
@@ -84,6 +86,19 @@ describe('content versions', () => {
     expect(entry.activatedAt).toBe('2026-12-31T00:00:00.000Z');
   });
 
+  it('records which book a version is of', () => {
+    const after = activate([], { ...build, book: 'osct' }, '2026-12-31T00:00:00.000Z', true);
+    expect(after[0].book).toBe('osct');
+    expect(activate([], build, '2026-12-31T00:00:00.000Z', true)[0]).not.toHaveProperty('book');
+  });
+
+  it('reads manifests with and without the book', () => {
+    const manifest = { build: CURRENT, hash: CURRENT, schema: '2.11', version: '1.22.0', activatedAt: daysAgo(1) };
+    expect(isContentManifest(manifest)).toBe(true);
+    expect(isContentManifest({ ...manifest, book: 'demo' })).toBe(true);
+    expect(isContentManifest({ ...manifest, book: 7 })).toBe(false);
+  });
+
   it('spots videos a build without the git-ignored videos would drop', () => {
     const current = {
       '/assets/content/entries/one/image.jpg': { size: 1, v: 'x' },
@@ -96,6 +111,37 @@ describe('content versions', () => {
 
   it('indexes every file with its size and a short checksum', () => {
     expect(fileIndex(build)['/assets/content/entries/one/image.jpg']).toEqual({ size: 10, v: 'aaa111' });
+  });
+});
+
+describe('latest.json and versions.json agree (#175)', () => {
+  const { current, versions } = state();
+
+  it('agree when versions.json records the build latest.json names as its only current one, or when neither exists', () => {
+    expect(versionProblems(current, versions)).toEqual([]);
+    expect(versionProblems(undefined, undefined)).toEqual([]);
+    expect(versionProblems(undefined, [version(OLD, 10, 5)])).toEqual([]);
+  });
+
+  it("staging's case: latest.json names a build versions.json does not list", () => {
+    expect(versionProblems(current, [version(OLD, 10, null)])).toEqual([
+      `versions.json does not list ${CURRENT}, the build latest.json names`,
+      `versions.json has ${OLD} as current, latest.json names ${CURRENT}`,
+    ]);
+  });
+
+  it('listed, but retired, or another version still open', () => {
+    expect(versionProblems(current, [version(CURRENT, 10, 5)])).toEqual([`versions.json has no version as current, latest.json names ${CURRENT}`]);
+    expect(versionProblems(current, [version(OLD, 10, null), version(CURRENT, 5, null)])).toEqual([
+      `versions.json has ${OLD}, ${CURRENT} as current, latest.json names ${CURRENT}`,
+    ]);
+  });
+
+  it('missing or unreadable files', () => {
+    expect(versionProblems(current, undefined)).toEqual([`versions.json is missing (latest.json names ${CURRENT})`]);
+    expect(versionProblems(undefined, [version(OLD, 10, null)])).toEqual([`latest.json is missing, versions.json has ${OLD} as current`]);
+    expect(versionProblems(null, null)).toEqual(['latest.json is not readable', 'versions.json is not readable']);
+    expect(versionProblems(current, null)).toEqual(['versions.json is not readable']);
   });
 });
 
@@ -176,5 +222,13 @@ describe('demo book', () => {
     expect(isDemoBuild(build)).toBe(false);
     expect(isDemoBuild({ files: [...build.files, { file: DEMO_MARKER, size: 1, sha256: 'A' }] })).toBe(true);
     expect(isDemoBuild({ files: [{ file: `entries/x/${DEMO_MARKER}`, size: 1, sha256: 'A' }] })).toBe(false);
+  });
+});
+
+// The rule is the API's (shared/api/rules.ts, pinned to ContentStore::ENV by mcp/test/php-rules.test.ts)
+describe('environment names', () => {
+  it('takes staging, production, demo and an instance of its own; refuses the rest', () => {
+    for (const env of ['staging', 'production', 'demo', 'white-label-2', 'a'.repeat(32)]) expect(ENV_NAME.test(env)).toBe(true);
+    for (const env of ['', 'Staging', '2staging', '-x', 'a_b', 'a'.repeat(33)]) expect(ENV_NAME.test(env)).toBe(false);
   });
 });

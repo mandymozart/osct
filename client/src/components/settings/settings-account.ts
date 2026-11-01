@@ -1,7 +1,7 @@
 import { goldButton, GoldSwitch } from "@/components/buttons";
 import { t } from "i18next";
 import { UserService } from "@/services";
-import { UserData, UserNotice, UserOption, UserOptions, UserSnapshot } from "@/types";
+import type { UserData, UserNotice, UserOption, UserOptions, UserSnapshot } from "@/types";
 import { escapeHtml } from "@/utils";
 import { getBook } from "@/utils/game-config";
 import { SettingsSection } from "./settings-section";

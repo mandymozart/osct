@@ -408,7 +408,8 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
   - ~~Decide which version `osct` carries (app or content)~~ → resolved by "one version": `osct` = the
     one semver. Since 2026-09-25 links also carry `h` = short content build hash (first 12 hex chars of
     `version.hash`): `/?code=c-<spread>&osct=<semver>&h=<hash12>`.
-  - [ ] **Handle version conflicts on incoming links** (later phase, with the deep link reader): other
+  - [x] *(obsolete – RULES #10: no content hash in links, no old link formats; `LinkService` routes any version)*
+    **Handle version conflicts on incoming links** (later phase, with the deep link reader): other
     MAJOR in `osct`, other `h` (content changed since the code was generated – e.g. the spread/entry no
     longer exists), missing `h` (links printed before 2026-09-25).
   - Dev QR generator (`dev-tools/qr-generator.ts`) produces these URLs for testing
@@ -420,7 +421,8 @@ index order, refs resolve), `.mind` order vs image dimensions, single-import rul
   `arReady` of the active spread (`static-scene-bridge.ts`) it preloads the **neighbouring** spreads
   (±1 in book order): their `.mind` first, then (Tilman) their content – entity assets and entry images,
   videos last; external URLs skipped. Browser: MindAR's later `.mind` request came from the cache (4 ms).
-  - [ ] Production cache headers (Netlify / FTP server) for `/assets/content/**` – today the dev server and
+  - [x] *(obsolete – content comes from the CDN, the app's headers are `server/docker/apache.conf`)* Production cache
+    headers (Netlify / FTP server) for `/assets/content/**` – today the dev server and
     Netlify's default revalidate (304), which works but costs a round trip per file.
   - [ ] Device check (Phase 7): preloaded videos vs. the `<video>` element's range requests (iOS Safari).
 
@@ -869,9 +871,9 @@ tracking, a "connected space". Research: MEMORY 2026-09-26 "Pinning".
 
 - [ ] **Concept: tap vs. pin** (Tilman is working it out first – see the concept notes of 2026-09-26 in
   MEMORY): what a tap does (unlock only / open the entry), what keeps an object in space, how it ends.
-- [ ] Pinning with the gyroscope (3DoF, works with MindAR, Android + iOS) – if the concept keeps it.
+- [ ] Pinning with the gyroscope (3DoF, works with the 8th Wall engine, Android + iOS) – if the concept keeps it.
 - [ ] Floor / surface tracking (6DoF): WebXR `immersive-ar` (hit test, anchors) – Android Chrome only,
-  the WebXR session takes over the camera (MindAR stops while it runs); iOS Safari has no WebXR AR.
+  the WebXR session takes over the camera (the image tracking stops while it runs); iOS Safari has no WebXR AR.
   Alternatives: a commercial web SDK with world tracking (licence), or a native app later.
   8th Wall's engine binary has SLAM + image targets + Sky Effects together, but its licence (no paid products
   whose value comes substantially from it, no changes, credit, 5-day termination) rules it out; the MIT engine
@@ -882,7 +884,8 @@ tracking, a "connected space". Research: MEMORY 2026-09-26 "Pinning".
   - Built: world anchored to the book + gyroscope (3DoF), book and table stay clear, open roof, fades 45 s after the
     last page; onion sky = sky test on a small camera copy; one full-screen pass, placeholder café in the shader.
   - [x] S22 check (2026-09-28): orientation right, world stays with the book, book + table clear, ~27 fps (dev server).
-  - [ ] Merge `spatialisation` into `develop` when Tilman says so (1.5.0 is only on the branch).
+  - [x] Merge `spatialisation` into `develop` – done: the look-around world is `engine/src/scene/look-around/`, the
+    book's environment (schema 2.8, 2.10) is built on it.
   - **To decide with Kévin (content):**
     - [ ] What the world is: one for the book or one per spread? A still panorama (equirectangular image), a video,
           or 3D (heavier – then the pass needs a render target again)?
@@ -950,7 +953,7 @@ Sign-in by email: link + 6-digit code; PHP API + MySQL in `server/` (docs/server
       no top padding; in Sound & vibration the first switch row's text (not its 4rem box) starts there.
 - Review done 2026-09-27 – develop merged into main.
 - [x] Progress text without an accounts API doesn't point to the (hidden) account section.
-- [~] Production (osct.netlify.app, `main`) uses the dev API for now (Tilman): `VITE_API_URL=https://osct.porschuetz.de/api`
+- [x] *(obsolete – Netlify dropped 2026-10-27, production is the Kamal deploy)* Production (osct.netlify.app, `main`) used the dev API (Tilman): `VITE_API_URL=https://osct.porschuetz.de/api`
       on the production Netlify site + https://osct.netlify.app in ALLOWED_ORIGINS (GitHub environment `staging`).
 - [x] Update switches before sign-up stay **off** (opt-in) – confirmed by Tilman.
 - [x] Entry view like Info (Tilman): "Entries" in the page at the category pill's height, content where the list starts –
@@ -1020,8 +1023,12 @@ Research and phone results: `research/webworker-tracking.md`, `MEMORY.md` 2026-0
 - [x] Preload flow decided from the first load test (Tilman, 2026-10-27): **grow** – hold the current spread, add the
       nearest spreads in idle time (3 targets per batch) until the whole book is held; default since 1.7.0, fixed
       windows stay selectable.
-- [ ] Still open from `docs/tracking.md` "Options": one configure per switch, image targets at build time, Tilman's
-      regrouping of spreads, a budget/eviction only if a slower phone needs it.
+- [ ] Still open (from `docs/tracking.md`'s options list, #218): one configure per switch (a switch configures twice –
+      current, then the new window – and the second cancels and re-queues what the first had not extracted), image
+      targets at build time, Tilman's regrouping of spreads (a few spreads or a chapter as one tracked group: fewer
+      switches, the budget decides how many groups are held), a switch that does not wait for the new spread's models
+      and videos (`changeSpread()` waits, so a large video delays it), a budget/eviction only if a slower phone needs
+      it. The window itself is #38, preloading in steps #13.
 - [ ] Build-time image targets (grey 480×640 per target in the content build) instead of making them on the
       device (~150–260 ms per image on the S22) – if first-scan time matters.
 
@@ -1048,8 +1055,10 @@ The final content goes in and the app is tuned on it, on the devices readers wil
 - [x] Tune panel for the content session (1.5.1, 2026-10-03 – Tilman): debug overlay → tune; every placement value
       and filter parameter as slider + number field (three.js names), live on the page, "Copy YAML" (only non-defaults,
       with the file path) to paste into the content / a Claude session – no USB tunnel needed on staging.
-  - [ ] Phone check on staging (S22, iPhone): sliders and fields with the on-screen keyboard, copy to the Claude app.
-  - [ ] Later: look-around values (`window.osctLookAround`) as a section of the panel (copy → code defaults).
+  - [x] *(obsolete – the tune panel was removed in 1.10.0, RULES #32; the editor took its place)* Phone check on staging
+    (S22, iPhone): sliders and fields with the on-screen keyboard, copy to the Claude app.
+  - [x] *(obsolete – the panel is gone; the book's environment is edited in the editor)* Later: look-around values
+    (`window.osctLookAround`) as a section of the panel (copy → code defaults).
 
 ---
 
@@ -1070,7 +1079,9 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
 2b. [~] **Asset upload** (Tilman 2026-10-29): [x] the asset layer after Scutoons' in OSCT size – registry (assets,
        versions, usages computed), the content store as storage (local + bunny), upload, replace with relink, guarded
        delete, the editor's Library, a node's file, a target's image; [x] the Library and the picker also list the
-       imported files of `files.json`, read-only (1.16.2, #111); [x] targets made in the editor (`print`
+       imported files of `files.json`, read-only (1.16.2, #111); [x] the Library as the picker of every file – the filter
+       preselected, a target-image filter, it fills only the field it was opened for (#164); the new target's two
+       choices labelled, the category following what appears (#165); [x] targets made in the editor (`print`
        placement, `POST /entries`, `DELETE /entries/{id}`, "+ target" in the tree); [ ] renditions (1x / 2x / 3x,
        480p / 720p / 1080p) and transcoding – the content build or a job; [x] a target made in the editor tracks in
        the reader: the 8th Wall engine makes the image-target data from the image at runtime (`xr8.ts`), nothing to
@@ -1112,18 +1123,29 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        the context's `children`, `onUnlocked` – Studio C made real as the **demo book** `fixtures/demo/` (six spreads,
        six plugins, the key / door / lamp narrative, the tally, a tap that switches scenes; synced to the environment
        `demo` by `demo.yml`, `?content=` in the staging reader); [ ] more built-in components (`behaviour` with
-       actions – the concept's events → actions without code, `audio`), declared variables, the node-type registry
-       (`registerNodeType`, #77), nodes without a target on the spread (scope `spread`), bubbling scopes (#88); the
+       actions – the concept's events → actions without code, `audio`), declared variables, ~~the node-type registry~~
+       (`registerNodeType`, #77 – done, step 4 below), nodes without a target on the spread (scope `spread`), bubbling scopes (#88); the
        content store per book (#87).
+4b. [x] **The books page and page previews** (#153, 1.25.0): the books as covers beside the import; sheets rendered from
+       the content for a book without PDFs (`scripts/layout/render-layout.py`, the demo's `fixtures/demo/layout/`);
+       prints laid over the spread cards.
 4. [x] Code in the editor (#66, 1.11.0): the **Code** tab – plugin sources stored through the API (`plugins` table),
        a plain code editor, Run = browser transpile (sucrase) into the stage's registry, Save, Download; the editor's
        stage is the only place unchecked code runs, a publish refuses component types no declared plugin provides.
-       Open: [ ] the content build in the image, run by the API on publish (#78, Tilman: option 2), [ ] the API's type stubs with
-       completion and type errors in the Code tab (#76, Monaco), [ ] `registerNodeType` (#77), [x] an MCP server
+       Open: [ ] the content build in the image, run by the API on publish (#78, Tilman: option 2), [x] the API's type stubs with
+       completion and type errors in the Code tab (#76, Monaco – 1.24.0), [x] `registerNodeType` (#77 – plugin API 1.2,
+       schema 2.13: a plugin builds the object, the engine places it; the demo's `sparkle`), [x] an MCP server
        over the editor's API for building with Claude in Amsterdam (#75, 1.16.0: `mcp/` after SCUTOONS' model – whoami,
        the sign-in pair, the book's tree / spreads / entities / targets / entries / assets / plugin sources / draft /
        publish to local and staging / logs, `describe_content_model`, the shared guard before every write; the stage
-       itself stays unseen – `agents/research/2026-10-30-mcp-server.md`).
+       itself stays unseen – `agents/research/2026-10-30-mcp-server.md`), [x] the plugins' specs recorded in the
+       configuration (#90, schema 2.14: `plugins[].registered` – the guard, the API, the MCP server and the Entity panel
+       know a plugin's components, node types and passes without running it), [x] the MCP tools for spreads, the book's
+       passes and the environment (#174: `add_spread`, `put_spread`, `delete_spread`, `put_book_passes`,
+       `put_environment`), [x] plugins everywhere (#188, plugin API 1.4, schema 2.17: `registerMaterial` – a node's
+       `material` –, `registerTexture` and the parameter kind `texture`, recorded and checked like node types; the Entity
+       panel's material row and **make it code**; the demo's aquarium), [x] the demo's zero plane (#189: every model
+       on its page, the content build warns when one floats or sinks).
 5. [~] Spread **formats** (Tilman 2026-10-29: "Format als assignable ins Modell … default Spread, special Front und
        Back, Bonus Museumswand") and the geometry import (#60): [x] the import from the designed PDFs (`npm run
        layout`, 1.10.0); [x] `format` on a spread (schema 2.3): `spread`, `cover`, `back` – the covers as spreads of

@@ -1,18 +1,32 @@
-import { ApiError, getToken, logout, me, requestCode, setToken, signInWithPassword, verifyCode, type User } from "./api";
+import { resolve } from "$app/paths";
+import { ApiError, errorText, exchangeStoredToken, logout, me, onSessionEnd, requestCode, setSession, signInWithPassword, verifyCode, type SignedIn, type User } from "./api";
+
+/** The sign-in form's note after the session ended under the page */
+export const SESSION_ENDED = "Your session ended – sign in again.";
 
 /**
  * Who is signed in: the instance user of the accounts API (sign-in by email code or password, as the reader's
  * account). The editor needs the role `editor`, the admin page (`/admin`) the role `admin` – an admin grants them
  * there, or the deployment's `EDITORS` / `ADMINS` lists at sign-in (docs/server.md "Roles").
+ * The session is the API's HttpOnly cookie (#207) – shared with the reader on the same site; the editor holds only its
+ * CSRF token, in memory (`api.ts`). A session that ends under the page (any API call answers 401 while signed in)
+ * goes back to the sign-in form with a note; the page the person was on stays the route, so signing in again returns
+ * there.
  */
 class Session {
   user = $state<User | null>(null);
-  /** `unknown` until the stored token was checked */
+  /** `unknown` until the browser's session was checked */
   status = $state<"unknown" | "out" | "in">("unknown");
   error = $state<string | null>(null);
   busy = $state(false);
   /** A code was requested for this address: the code form shows */
   pending = $state<{ email: string; requestId: string } | null>(null);
+  /** Why the sign-in form shows, when it is not the first visit: the session ended (`SESSION_ENDED`) */
+  notice = $state<string | null>(null);
+
+  constructor() {
+    onSessionEnd(() => this.ended());
+  }
 
   get isEditor(): boolean {
     return this.has("editor");
@@ -26,18 +40,23 @@ class Session {
     return this.user?.roles?.includes(role) ?? false;
   }
 
-  /** The stored token, checked once at startup (`again`: reload the user, e.g. after their own roles changed) */
+  /**
+   * The browser's session (its cookie), checked once at startup – a token stored by an editor from before the cookie
+   * is exchanged for it first (`exchangeStoredToken`, temporary) – or again (`again`: reload the user, e.g. after their
+   * own roles changed). Signed out, the API answers 401: the sign-in form, without a note.
+   */
   async restore(again = false): Promise<void> {
     if (this.status !== "unknown" && !again) return;
-    if (!getToken()) {
-      this.status = "out";
-      return;
-    }
     try {
-      this.user = (await me()).user;
+      const exchanged = again ? null : await exchangeStoredToken();
+      const { user, csrfToken } = exchanged ?? (await me());
+      setSession({ csrfToken: csrfToken ?? "", email: user.email });
+      this.user = user;
       this.status = "in";
     } catch (error) {
-      if (error instanceof ApiError && error.status === 401) setToken(null);
+      // A reload of the signed-in user (`again`) that answers 401: the session ended under the page
+      if (error instanceof ApiError && error.status === 401 && this.status === "in") return this.ended();
+      setSession(null);
       this.status = "out";
       this.error = error instanceof ApiError && error.status !== 401 ? error.message : null;
     }
@@ -53,35 +72,42 @@ class Session {
   async confirmCode(code: string): Promise<void> {
     const pending = this.pending;
     if (!pending) return;
-    await this.run(async () => {
-      const { session, user } = await verifyCode(pending.requestId, code);
-      this.signedIn(session, user);
-    });
+    await this.run(async () => this.signedIn(await verifyCode(pending.requestId, code)));
   }
 
   async signInPassword(email: string, password: string): Promise<void> {
-    await this.run(async () => {
-      const { session, user } = await signInWithPassword(email, password);
-      this.signedIn(session, user);
-    });
+    await this.run(async () => this.signedIn(await signInWithPassword(email, password)));
   }
 
+  /** Ends the session: the API deletes it and clears the cookie (with the CSRF token, like any write) */
   async signOut(): Promise<void> {
     try {
       await logout();
     } catch {
-      // the token may be gone already
+      // the session may be gone already
     }
-    setToken(null);
+    setSession(null);
     this.user = null;
     this.pending = null;
+    this.notice = null;
     this.status = "out";
   }
 
-  private signedIn(token: string, user: User) {
-    setToken(token);
+  /** The session ended under the page: it is forgotten and the sign-in form shows with a note */
+  ended(): void {
+    setSession(null);
+    this.user = null;
+    this.pending = null;
+    this.error = null;
+    this.notice = SESSION_ENDED;
+    this.status = "out";
+  }
+
+  private signedIn({ csrfToken, user }: SignedIn) {
+    setSession({ csrfToken, email: user.email });
     this.user = user;
     this.pending = null;
+    this.notice = null;
     this.status = "in";
   }
 
@@ -91,7 +117,7 @@ class Session {
     try {
       await action();
     } catch (error) {
-      this.error = error instanceof Error ? error.message : String(error);
+      this.error = errorText(error);
     } finally {
       this.busy = false;
     }
@@ -99,3 +125,6 @@ class Session {
 }
 
 export const session = new Session();
+
+/** The admin page (docs/admin.md) and below – for admins; every other page is for editors */
+export const isAdminPath = (pathname: string): boolean => `${pathname}/` === resolve("admin/") || pathname.startsWith(resolve("admin/"));

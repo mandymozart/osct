@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { EntityData } from "@engine/types";
 import { contentTree, getValue, lightRows, newNode, setValue, valueRows } from "../values";
 
-describe("the Entity panel's rows of a light node", () => {
+describe("the Inspector's rows of a light node", () => {
   it("come from LIGHT_PARAMS, after the placement rows", () => {
     const node = newNode("light");
     expect(node).toEqual({ type: "light", assets: [] });

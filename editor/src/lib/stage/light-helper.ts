@@ -1,4 +1,4 @@
-import { BufferGeometry, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, Object3D, SphereGeometry } from "three";
+import { BufferGeometry, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, type Object3D, SphereGeometry } from "three";
 import { entityNodes } from "@engine/content/game-config";
 import { resolveLight, type EntityData, type Light, type SceneInspection } from "@engine/types";
 import { SELECTION_COLOR } from "./shading";

@@ -1,4 +1,4 @@
-import { EntityData } from "./game-config";
+import type { EntityData } from "./game-config";
 
 // The scene's contract is the engine's (engine/src/types/scene.ts)
 export * from "@engine/types/scene";

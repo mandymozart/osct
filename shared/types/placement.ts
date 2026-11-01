@@ -16,17 +16,13 @@
  * out of the page, its front towards the bottom edge – the reader); videos and images lie flat on it.
  * Every missing value takes the default, so `rotation: [90, 180, 0]` alone turns a model around.
  *
- * Checked by the content build and the config guard (`placementProblems`), applied by the client
+ * Checked by the content build and the config guard (`placementProblems`), applied by the engine
  * (`resolvePlacement`).
  */
 
-export type Vector3Data = [number, number, number];
+import { isObject } from "../guards/primitives";
 
-export interface PlacementData {
-  position?: Vector3Data;
-  rotation?: Vector3Data;
-  scale?: number | Vector3Data;
-}
+export type Vector3Data = [number, number, number];
 
 export interface Placement {
   position: Vector3Data;
@@ -75,8 +71,8 @@ const isVector = (value: unknown): value is Vector3Data =>
 
 /** Problems of the placement keys in `params` (other keys of params are not checked here) */
 export const placementProblems = (params: unknown, path: string): string[] => {
-  if (params === undefined || params === null || typeof params !== "object" || Array.isArray(params)) return [];
-  const p = params as Record<string, unknown>;
+  if (!isObject(params)) return [];
+  const p = params;
   const problems: string[] = [];
   (["position", "rotation"] as const).forEach(key => {
     if (p[key] !== undefined && !isVector(p[key])) {

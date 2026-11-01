@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { DirectionalLight, Group, Light, MathUtils, Object3D, PointLight, SpotLight } from "three";
-import { EntityData, resolveLight, Target } from "../../types/index";
+import { DirectionalLight, Group, type Light, MathUtils, type Object3D, PointLight, SpotLight } from "three";
+import { type EntityData, resolveLight, type Target } from "../../types/index";
 import { celebrate } from "../celebration";
 import { buildEntity, LIGHT_AIM } from "../entities";
 

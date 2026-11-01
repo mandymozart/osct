@@ -1,7 +1,9 @@
 /**
- * Colour maths for the colour popover (after Scutoons' `@scutoons/ui` colour.ts): hex ⟷ HSV, the editor's palette,
+ * Colour maths for the colour popover: hex ⟷ HSV, the editor's palette,
  * this browser's recent colours. No Svelte.
  */
+
+import { readStoredJson, writeStoredJson } from "#lib/storage.js";
 
 export const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
@@ -37,10 +39,6 @@ export const hsvToHex = ({ h, s, v }: Hsv): string => {
   return `#${[f(5), f(3), f(1)].map(x => x.toString(16).padStart(2, "0")).join("")}`;
 };
 
-/** Three bytes (0–255) → `#rrggbb` */
-export const rgbToHex = (r: number, g: number, b: number): string =>
-  `#${[r, g, b].map(x => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, "0")).join("")}`;
-
 /**
  * The palette offered first: the keys a chroma key usually meets (green and blue screen, white, black) and the
  * book's own gold (the reader's design, `agents/DESIGN.md`).
@@ -63,20 +61,12 @@ const RECENT_MAX = 8;
 
 /** This browser's last picked colours, newest first */
 export const recentColours = (): string[] => {
-  try {
-    const list = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
-    return Array.isArray(list) ? list.filter(c => typeof c === "string" && HEX.test(c)).slice(0, RECENT_MAX) : [];
-  } catch {
-    return [];
-  }
+  const list = readStoredJson(RECENT_KEY);
+  return Array.isArray(list) ? list.filter((c): c is string => typeof c === "string" && HEX.test(c)).slice(0, RECENT_MAX) : [];
 };
 
 export const rememberColour = (hex: string): void => {
   if (!HEX.test(hex)) return;
   const c = longHex(hex);
-  try {
-    localStorage.setItem(RECENT_KEY, JSON.stringify([c, ...recentColours().filter(x => x !== c)].slice(0, RECENT_MAX)));
-  } catch {
-    // not remembered – fine
-  }
+  writeStoredJson(RECENT_KEY, [c, ...recentColours().filter(x => x !== c)].slice(0, RECENT_MAX));
 };

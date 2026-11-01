@@ -1,4 +1,4 @@
-import { Draft } from "immer";
+import type { Draft } from "immer";
 
 export interface IBaseStore<T extends Record<string, any>> {
   state: T;

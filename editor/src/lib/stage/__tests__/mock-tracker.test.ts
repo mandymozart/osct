@@ -3,12 +3,17 @@ import { Matrix4, PerspectiveCamera, Quaternion, Vector3 } from "three";
 import type { Target } from "@engine/types";
 import type { TriggerInfos } from "@engine/utils/trigger-protocol";
 import { setPreviewActive, setTargetHidden, updatePreview } from "../preview";
+import { DEFAULT_PAGE_MM } from "../stage-layout";
 import { getEngineState } from "@engine/utils/tracker-debug";
 import {
-  BOOK_PAGE_MM, cameraMatrix, layoutTargets, MockTracker, PREVIEW_FOV, StageView, targetCentre, VIEW_PRESETS, wobbled,
+  cameraMatrix, layoutTargets, MockTracker, PREVIEW_FOV, type StageTarget, type StageView, targetCentre, VIEW_PRESETS, wobbled,
 } from "../mock-tracker";
 
 const target = (id: string): Target => ({ id, entryId: id, spreadId: "s", imageSrc: `/${id}.jpg` });
+
+/** A target printed with its centre on the spread's root (the spine's middle): the camera's distance to it is the orbit's */
+const atRoot = (id: string, spreadId = "s"): Target =>
+  ({ ...target(id), spreadId, print: { surface: "right", x: -20, y: DEFAULT_PAGE_MM.height / 2 - 20, width: 40, height: 40 } }) as Target;
 
 /** The anchor's scale (1 unit = the printed width, in metres) and its position in camera space */
 const decompose = (matrix: Matrix4) => {
@@ -25,8 +30,8 @@ describe("mock stage layout", () => {
     expect(row[0].x).toBeLessThan(row[1].x);
     expect(row[1].x).toBeLessThan(row[2].x);
     expect(row[0].width).toBe(row[2].width);
-    expect(row[2].x + row[2].width).toBeLessThanOrEqual(BOOK_PAGE_MM.width);
-    expect(row[0].y + row[0].height / 2).toBeCloseTo(BOOK_PAGE_MM.height / 2, 5);
+    expect(row[2].x + row[2].width).toBeLessThanOrEqual(DEFAULT_PAGE_MM.width);
+    expect(row[0].y + row[0].height / 2).toBeCloseTo(DEFAULT_PAGE_MM.height / 2, 5);
   });
 
   it("places printed images by their size and position words, stacking several in one region", () => {
@@ -39,8 +44,8 @@ describe("mock stage layout", () => {
     expect(a.width).toBe(31);
     expect(a.x).toBe(20);
     expect(a.y).toBe(20);
-    expect(b.x + b.width).toBe(BOOK_PAGE_MM.width - 20);
-    expect(b.y + b.height).toBe(BOOK_PAGE_MM.height - 20);
+    expect(b.x + b.width).toBe(DEFAULT_PAGE_MM.width - 20);
+    expect(b.y + b.height).toBe(DEFAULT_PAGE_MM.height - 20);
     expect(c.y).toBeGreaterThan(a.y + a.height);
   });
 
@@ -165,9 +170,21 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
     const { position, scale } = decompose(updates[0][1]!);
     expect(scale.x).toBeCloseTo(0.05, 6); // 50 mm
     expect(position.z).toBeLessThan(0); // in front of the camera
-    expect(position.length()).toBeCloseTo(0.35, 3); // the focus (target a) at the reader's distance
     expect(getEngineState().current).toEqual({ spreadId: "s", targets: 2 });
     expect(getEngineState().seen).toEqual(["a", "b"]);
+  });
+
+  it("keeps the camera on the spread's root when the spread and its targets change (#105)", async () => {
+    await tracker.startCamera();
+    await tracker.loadTargets({ spreadId: "s", targets: [atRoot("a")] });
+    tracker.tick(now);
+    const before = updates.filter(([id]) => id === "a").at(-1)![1]!.clone();
+    expect(decompose(before).position.length()).toBeCloseTo(0.35, 3); // the root at the reader's distance
+    const elsewhere: Target = { ...target("z"), spreadId: "t", print: { surface: "left", x: 10, y: 10, width: 40 } } as Target;
+    await tracker.loadTargets({ spreadId: "t", targets: [elsewhere, atRoot("a", "t")] });
+    tracker.tick(now);
+    const after = updates.filter(([id]) => id === "a").at(-1)![1]!;
+    expect(after.equals(before)).toBe(true); // the first target moved, the camera did not
   });
 
   it("reports a hidden target lost once and found again when shown", async () => {
@@ -203,7 +220,7 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
 
   it("follows the preview's view preset and a free orbit", async () => {
     await tracker.startCamera();
-    await tracker.loadTargets({ spreadId: "s", targets: [target("a")] });
+    await tracker.loadTargets({ spreadId: "s", targets: [atRoot("a")] });
     tracker.tick(now);
     const reader = decompose(updates[0][1]!).position.length();
     updatePreview({ view: "far" });
@@ -225,6 +242,26 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
     expect(camera.aspect).toBe(0.5);
   });
 
+  // The environment's preview: the engine's look-around world is turned by this, as by a phone's gyroscope
+  it("reports the camera's orientation in a world with y up, and looks up from the book on request", async () => {
+    await tracker.startCamera();
+    await tracker.loadTargets({ spreadId: "s", targets: [target("a")] });
+    updatePreview({ orbit: { distance: 350, tilt: 90, yaw: 0 } });
+    tracker.tick(now);
+    // The reader's eye level, at the book: the view is level, ahead (−z), the book on the stage's +y
+    const ahead = new Vector3(0, 0, -1).applyQuaternion(tracker.worldOrientation());
+    expect(ahead.y).toBeCloseTo(0, 3);
+    expect(ahead.z).toBeCloseTo(-1, 3);
+    updatePreview({ orbit: { distance: 350, tilt: 0, yaw: 0 } });
+    tracker.tick(now + 16);
+    expect(new Vector3(0, 0, -1).applyQuaternion(tracker.worldOrientation()).y).toBeCloseTo(-1, 3); // from above: down
+    tracker.setLookUp(90);
+    tracker.tick(now + 32);
+    expect(new Vector3(0, 0, -1).applyQuaternion(tracker.worldOrientation()).y).toBeCloseTo(0, 3); // raised to the horizon
+    // The targets stay found: the book anchors the world while the camera looks away
+    expect(decompose(updates[updates.length - 1][1]!).position.y).toBeLessThan(0);
+  });
+
   it("feeds the stage the layout, the sky and every frame's camera", async () => {
     const view = stage();
     tracker.attachStage(view);
@@ -238,5 +275,141 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
     expect(view.hdris[view.hdris.length - 1]).toBe("wooden_studio_07");
     tracker.stop();
     expect(view.disposed).toBe(true);
+  });
+});
+
+describe("MockTracker input (#131: the panels are no stage)", () => {
+  let container: HTMLElement;
+  let canvas: HTMLElement;
+  let field: HTMLElement;
+  let toolbarGap: HTMLElement;
+  let tracker: MockTracker;
+
+  const pointer = (type: string, target: EventTarget, x: number) =>
+    target.dispatchEvent(new PointerEvent(type, { bubbles: true, composed: true, pointerId: 1, button: 0, clientX: x, clientY: 100 }));
+  const wheel = (target: EventTarget) =>
+    target.dispatchEvent(new WheelEvent("wheel", { bubbles: true, composed: true, cancelable: true, deltaY: 100 }));
+
+  beforeEach(async () => {
+    vi.stubGlobal("requestAnimationFrame", () => 1);
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    localStorage.clear();
+    setPreviewActive(true);
+    updatePreview({ view: "reader", orbit: null, hidden: [] });
+    // The editor's layout: the stage between the side panels, its toolbar inside it
+    document.body.innerHTML = `
+      <header class="top" data-app-ui><span class="crumb">book</span></header>
+      <aside class="tree" data-app-ui><div class="spread-row">spread</div></aside>
+      <div class="stage"><canvas></canvas><div class="tools" role="toolbar" data-app-ui><span class="gap"></span></div></div>
+      <aside class="panel" data-app-ui><div class="body"><span class="field">value</span></div></aside>`;
+    container = document.querySelector(".stage")!;
+    canvas = container.querySelector("canvas")!;
+    field = document.querySelector(".field")!;
+    toolbarGap = document.querySelector(".gap")!;
+    tracker = new MockTracker(container, { onUpdate: () => {} }, async () => ({}), () => 1000);
+    await tracker.startCamera();
+  });
+
+  afterEach(() => {
+    tracker.stop();
+    setPreviewActive(false);
+    document.body.innerHTML = "";
+    vi.unstubAllGlobals();
+  });
+
+  it("orbits on a drag that starts on the stage, also once the pointer leaves it", () => {
+    const yaw = tracker.currentOrbit.yaw;
+    pointer("pointerdown", canvas, 100);
+    pointer("pointermove", canvas, 140);
+    pointer("pointermove", field, 200); // over the right panel now
+    pointer("pointerup", field, 200);
+    expect(tracker.currentOrbit.yaw).not.toBe(yaw);
+  });
+
+  it("ignores drags and the wheel in the top bar, the panels, the spread list and the toolbar", () => {
+    const orbit = { ...tracker.currentOrbit };
+    for (const target of [document.querySelector(".crumb")!, field, document.querySelector(".spread-row")!, toolbarGap]) {
+      pointer("pointerdown", target, 100);
+      pointer("pointermove", canvas, 200);
+      pointer("pointerup", canvas, 200);
+      wheel(target);
+    }
+    expect(tracker.currentOrbit).toEqual(orbit);
+  });
+
+  it("zooms with the wheel over the stage", () => {
+    const distance = tracker.currentOrbit.distance;
+    wheel(canvas);
+    expect(tracker.currentOrbit.distance).toBeGreaterThan(distance);
+  });
+});
+
+describe("MockTracker: the placement being edited is the target itself (#191)", () => {
+  let updates: Array<[string, Matrix4 | null]>;
+  let moved: StageTarget[];
+  let aspect: number | undefined;
+  let tracker: MockTracker;
+
+  beforeEach(async () => {
+    vi.stubGlobal("requestAnimationFrame", () => 1);
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    localStorage.clear();
+    setPreviewActive(true);
+    // Straight down: camera space x / y are the stage's, so the anchors' offsets read in mm
+    updatePreview({ view: "top", orbit: null, wobble: 0, hidden: [] });
+    updates = [];
+    moved = [];
+    aspect = undefined;
+    tracker = new MockTracker(document.createElement("div"), { onUpdate: (id, matrix) => updates.push([id, matrix]) }, async () => ({}), () => 0, async () => null);
+    tracker.attachStage({
+      setLayout() {},
+      setHdri() {},
+      update() {},
+      dispose() {},
+      movePrint(target) { moved.push(target); },
+      printedAspect: () => aspect,
+    });
+    await tracker.startCamera();
+    const placed = { ...target("a"), print: { surface: "right", x: 70, y: 100, width: 80 } } as Target;
+    await tracker.loadTargets({ spreadId: "s", targets: [placed, target("b")] });
+  });
+
+  afterEach(() => {
+    tracker.stop();
+    setPreviewActive(false);
+    vi.unstubAllGlobals();
+  });
+
+  const anchorOf = (id: string) => {
+    updates = [];
+    tracker.tick(0);
+    return decompose(updates.find(([at]) => at === id)![1]!).position;
+  };
+
+  it("moves the print and the entity's anchor with the placement, and puts them back without it", () => {
+    const saved = anchorOf("a");
+    tracker.placeTarget("a", { surface: "left", x: 70, y: 100, width: 80 });
+    expect(moved.at(-1)).toMatchObject({ id: "a", surface: "left", x: 70 });
+    const placed = anchorOf("a");
+    expect(placed.x - saved.x).toBeCloseTo(-0.23, 6);
+    expect(placed.y - saved.y).toBeCloseTo(0, 6);
+    // The content's place stays what the inspector falls back to
+    expect(tracker.placeOf("a")).toMatchObject({ surface: "right", x: 70, y: 100, width: 80 });
+    tracker.placeTarget(null, null);
+    expect(moved.at(-1)).toMatchObject({ id: "a", surface: "right", x: 70 });
+    expect(anchorOf("a").distanceTo(saved)).toBeCloseTo(0, 6);
+  });
+
+  it("puts the previous target back when another one is placed", () => {
+    tracker.placeTarget("a", { surface: "left", x: 10, y: 10, width: 40 });
+    const b = tracker.placeOf("b")!;
+    tracker.placeTarget("b", { ...b, x: b.x + 5 });
+    expect(moved.slice(-2).map(t => [t.id, t.surface, t.x])).toEqual([["a", "right", 70], ["b", b.surface, b.x + 5]]);
+  });
+
+  it("anchors the entity at the centre of the printed image, whose height follows the image", () => {
+    const guessed = anchorOf("a"); // the 0.75 box until the image is known
+    aspect = 1.45; // a portrait image: 116 mm high, its centre 28 mm lower
+    expect(anchorOf("a").y - guessed.y).toBeCloseTo(-0.028, 6);
   });
 });

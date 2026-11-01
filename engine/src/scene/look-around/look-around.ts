@@ -1,8 +1,9 @@
-import { Matrix4, PerspectiveCamera, ShaderMaterial, Vector2, Vector3, WebGLRenderer } from "three";
+import { type Matrix4, PerspectiveCamera, type Quaternion, type ShaderMaterial, Vector2, Vector3, type WebGLRenderer } from "three";
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
-import { DEFAULT_ENVIRONMENT, EnvironmentData } from "@shared/types/environment";
-import { GraphicsSettings, GraphicsSource, NO_GRAPHICS } from "../../types/index";
+import { DEFAULT_ENVIRONMENT, type EnvironmentData } from "@shared/types/environment";
+import { type GraphicsSettings, type GraphicsSource, NO_GRAPHICS } from "../../types/index";
 import { BookAnchor, yawTowards } from "./book-anchor";
+import { EnvironmentAssets, type EnvironmentLoaders } from "./environment-assets";
 import { DeviceOrientation } from "./orientation";
 import { lookAroundMaterial } from "./shader";
 import { SkySample } from "./sky-sample";
@@ -12,9 +13,10 @@ const DEG = Math.PI / 180;
 const FADE_OUT = 3;
 
 /**
- * What is drawn: the book's environment (content schema 2.7) says which world and whether the onion sky, the reader's
+ * What is drawn: the book's environment says which world and whether the onion sky, the reader's
  * Graphics switches apply on top – either can turn a part off, neither turns on what the book leaves out. The café is
- * the only world, so `surroundings` follows the world; a new world adds its own check here. Pure, for the tests.
+ * the only built-in world (a world model or sky image of 2.10 is drawn over it), so `surroundings` follows the world; a
+ * new built-in world adds its own check here. Pure, for the tests.
  */
 export const effectiveGraphics = (reader: GraphicsSettings, environment: EnvironmentData): GraphicsSettings => ({
   onionSky: reader.onionSky && environment.onionSky,
@@ -37,6 +39,15 @@ export interface LookAroundSettings {
   /** Looking down, the world is fully clear this many degrees below the horizon, fully there `floorSoftness` above */
   floorClear: number;
   floorSoftness: number;
+}
+
+/**
+ * The editor's preview of the environment (`IArScene.previewEnvironment`): the world is drawn whatever the reader's
+ * switches say (the onion sky needs a camera picture – not in the preview), turned by `orientation` – the camera's
+ * orientation in the world (y up) – instead of the gyroscope
+ */
+export interface LookAroundPreview {
+  orientation: () => Quaternion;
 }
 
 export const DEFAULT_LOOK_AROUND: LookAroundSettings = {
@@ -63,6 +74,9 @@ export class LookAround {
   /** The reader's switches, and what is drawn of them (`effectiveGraphics`, the book's environment applied) */
   private reader: GraphicsSettings;
   private options: GraphicsSettings;
+  private preview: LookAroundPreview | null = null;
+  /** The environment's sky image and world model, loaded while something is drawn */
+  private assets: EnvironmentAssets;
   private unsubscribe: () => void;
   private orientation = new DeviceOrientation();
   private book = new BookAnchor();
@@ -81,20 +95,42 @@ export class LookAround {
   /** Some of the view is above the horizon (only there the sky can be keyed) */
   private skyInView = false;
 
+  /** Put the desktop debug handle (`osctLookAroundDebug`) on `window` when the scene runs – the app's dev build (`ArSceneOptions.debug`) */
+  debugTools = false;
+
   constructor(
     private renderer: WebGLRenderer,
     cameraVideo: () => HTMLVideoElement | null,
     graphics: GraphicsSource = NO_GRAPHICS,
     private environment: EnvironmentData = DEFAULT_ENVIRONMENT,
+    loaders?: EnvironmentLoaders,
   ) {
     this.sky = new SkySample(cameraVideo);
+    this.assets = new EnvironmentAssets(renderer, loaders);
+    this.assets.onChange = () => this.applyAssets();
     this.reader = graphics.getSettings();
-    this.options = effectiveGraphics(this.reader, this.environment);
+    this.options = this.drawn();
     this.unsubscribe = graphics.subscribe(reader => {
       this.reader = reader;
-      this.options = effectiveGraphics(reader, this.environment);
+      this.options = this.drawn();
       this.followOptions();
     });
+  }
+
+  /** The book's environment changed (the editor saved, or edits it live): what is drawn and its assets follow */
+  setEnvironment(environment: EnvironmentData): void {
+    this.environment = environment;
+    this.options = this.drawn();
+    this.followOptions();
+  }
+
+  /** The editor's preview on (the world drawn, turned by its orientation) or off (`null`: the reader's switches again) */
+  setPreview(preview: LookAroundPreview | null): void {
+    // The preview ends at once (the editor's studio returns), it does not fade
+    if (this.preview && !preview) this.presence = 0;
+    this.preview = preview;
+    this.options = this.drawn();
+    this.followOptions();
   }
 
   /** Something to draw this frame */
@@ -118,9 +154,15 @@ export class LookAround {
 
   /** Every frame: the found pages' anchors (relative to the camera) place the book; `delta` in seconds */
   update(delta: number, viewCamera: PerspectiveCamera, anchors: readonly Matrix4[]): void {
-    if (!this.running || !this.anyOption()) return;
+    if (!this.running) return;
+    if (!this.anyOption()) {
+      // Both turned off while scanning: the world fades out as when the book is forgotten, nothing else is read
+      this.presence = Math.max(0, this.presence - delta / FADE_OUT);
+      this.skyInView = false;
+      return;
+    }
     this.time += delta;
-    const orientation = this.orientation.quaternion;
+    const orientation = this.preview?.orientation() ?? this.orientation.quaternion;
     if (anchors.length) this.book.see(anchors, orientation, this.settings.windowMargin, this.settings.windowSoftness);
     else this.book.unseen(delta);
 
@@ -139,7 +181,7 @@ export class LookAround {
     this.skyInView = pitch + (this.camera.fov / 2) * 1.3 * DEG > 2 * DEG; // 1.3: the diagonal reaches higher
   }
 
-  /** Draw into the cleared screen, before the AR scene */
+  /** Draw into the bound target (the cleared screen, or the post chain's buffer while passes run), before the AR scene */
   render(): void {
     if (!this.active) return;
     const size = this.renderer.getDrawingBufferSize(this.size);
@@ -164,6 +206,7 @@ export class LookAround {
   dispose(): void {
     this.pause();
     this.unsubscribe();
+    this.assets.dispose();
     this.sky.dispose();
     this.material.dispose();
     this.quad.dispose();
@@ -173,17 +216,35 @@ export class LookAround {
     return this.options.onionSky || this.options.surroundings;
   }
 
-  /** The gyroscope (and on iOS its permission prompt) only while an option is on and scan mode runs */
-  private followOptions(): void {
-    if (this.running && this.anyOption()) this.orientation.listen();
-    else this.orientation.stop();
+  /** The reader's switches on the book's environment – in the editor's preview the world whatever they say */
+  private drawn(): GraphicsSettings {
+    return this.preview ? { onionSky: false, surroundings: true } : effectiveGraphics(this.reader, this.environment);
   }
 
-  /** `window.osctLookAround` = the settings; dev builds also get `osctLookAroundDebug` (desktop: fake book / tilt) */
+  /**
+   * The gyroscope (and on iOS its permission prompt) only while an option is on and scan mode runs – the preview turns
+   * the world by its own orientation. The environment's assets load once something is drawn (never for a reader with
+   * both switches off) and follow the environment from then on.
+   */
+  private followOptions(): void {
+    if (this.running && this.anyOption() && !this.preview) this.orientation.listen();
+    else this.orientation.stop();
+    if (this.running && this.anyOption()) void this.assets.set(this.environment);
+  }
+
+  private applyAssets(): void {
+    const u = this.material.uniforms;
+    u.tSky.value = this.assets.sky;
+    u.uSkyImage.value = this.assets.sky ? 1 : 0;
+    u.tWorld.value = this.assets.world;
+    u.uWorldModel.value = this.assets.world ? 1 : 0;
+  }
+
+  /** `window.osctLookAround` = the settings; with `debugTools` also `osctLookAroundDebug` (desktop: fake book / tilt) */
   private exposeForTuning(): void {
     const handle = window as unknown as { osctLookAround?: LookAroundSettings; osctLookAroundDebug?: object };
     handle.osctLookAround = this.settings;
-    if (!import.meta.env.DEV) return;
+    if (!this.debugTools) return;
     handle.osctLookAroundDebug = {
       seeBook: (x = 0, y = -0.6, z = -1) => {
         this.book.direction = new Vector3(x, y, z).normalize();

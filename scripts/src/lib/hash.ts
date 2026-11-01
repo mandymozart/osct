@@ -9,7 +9,7 @@ import { listFiles } from './files';
 // (a new hash = new content to sync)
 const COMMAND_FILES = [
   'sounds.ts', 'cli.ts', 'schema-lock.ts', 'import-delivery.ts', 'protocol.ts',
-  'lib/storage.ts', 'lib/content-sync.ts', 'lib/contract.ts', 'lib/entry.ts',
+  'lib/storage.ts', 'lib/content-sync.ts', 'lib/contract.ts', 'lib/entry.ts', 'lib/cli-args.ts',
 ];
 const isCommandFile = (file: string) => COMMAND_FILES.some(prefix => file.startsWith(prefix));
 
@@ -42,7 +42,8 @@ export function hashBuildInputs(): string {
  */
 export function readPreviousHash(): string | null {
   try {
-    return JSON.parse(fs.readFileSync(OUTPUT_FILE, 'utf8')).version?.hash ?? null;
+    const hash: unknown = (JSON.parse(fs.readFileSync(OUTPUT_FILE, 'utf8')) as { version?: { hash?: unknown } }).version?.hash;
+    return typeof hash === 'string' ? hash : null;
   } catch {
     return null;
   }

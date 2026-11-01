@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ".."; // registers the elements
 import i18next from "i18next";
 import { FeedbackService, GameStoreService, GraphicsService, InstallService, PreloaderService, UserService } from "@/services";
-import { UserSnapshot } from "@/types";
+import type { UserSnapshot } from "@/types";
 import { LANGUAGE_STORAGE_KEY } from "@/i18n";
-import { Pages } from "@/types";
+import type { Pages } from "@/types";
 import { getEntries } from "@/utils/game-config";
 
 const game = GameStoreService.getInstance();

@@ -1,5 +1,5 @@
 import i18next from "i18next";
-import {
+import type {
   UserData,
   UserNotice,
   UserOption,
@@ -10,6 +10,7 @@ import {
   PendingLogin,
   ProgressRecord,
 } from "@/types";
+import { isObject } from "@shared/guards/game-config";
 import { ApiError, ApiService } from "./ApiService";
 
 /** Query parameter of the link in the confirmation email: `/about?login=<token>` (server: Auth.php) */
@@ -25,13 +26,21 @@ const syncKey = (bookId: string) => `osct-user-sync:${bookId}`;
  */
 const PASSWORD_RESET_MS = 15 * 60_000;
 
+/**
+ * What this device keeps about its sign-in – never the session itself, which is the API's HttpOnly cookie (#207): the
+ * user as last seen (shown offline, replaced by `GET /user` at startup), how and when it signed in.
+ */
 interface StoredSession {
-  session: string;
   user: UserData;
   /** How this device signed in; missing on sessions stored before passwords existed (= email, long ago) */
   method?: "email" | "password";
   /** When this device signed in (ms) */
   signedInAt?: number;
+  /**
+   * TEMPORARY (#207 – remove with `POST /auth/cookie`, MEMORY open item): the session token a reader app from before the
+   * cookie stored here. Exchanged for the cookie at the next start, then gone.
+   */
+  session?: string;
 }
 
 /** Chromium's Credential Management API (not in TypeScript's DOM types): asks the browser to save the password */
@@ -57,10 +66,85 @@ interface ProgressResponse {
   updatedAt: number | null;
 }
 
-const read = <T>(key: string): T | null => {
+/** A browser's sign-in (`session: "cookie"`) and the exchange: the cookie was set, the CSRF token is for the writes */
+interface SignedInResponse {
+  csrfToken: string;
+  user: UserData;
+}
+
+// --- Checks of what the API answers and what localStorage holds: both are data from outside the app ---
+
+const isString = (value: unknown): value is string => typeof value === "string";
+const isTime = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
+
+const isUserOptions = (value: unknown): value is UserOptions =>
+  isObject(value) && typeof value.bookUpdates === "boolean" && typeof value.artistUpdates === "boolean" &&
+  typeof value.publisherUpdates === "boolean";
+
+const isUserData = (value: unknown): value is UserData =>
+  isObject(value) && isString(value.email) && isString(value.language) && isUserOptions(value.options) &&
+  typeof value.hasPassword === "boolean" && isString(value.createdAt);
+
+/** `GET /user` (with the cookie's CSRF token), `PATCH /user`, `PUT /user/password` */
+const isUserResponse = (data: unknown): data is { user: UserData; csrfToken?: string } =>
+  isObject(data) && isUserData(data.user) && (data.csrfToken === undefined || isString(data.csrfToken));
+const isSignedInResponse = (data: unknown): data is SignedInResponse =>
+  isObject(data) && isString(data.csrfToken) && isUserData(data.user);
+const isPendingResponse = (data: unknown): data is { requestId: string; expiresAt: string } =>
+  isObject(data) && isString(data.requestId) && isString(data.expiresAt);
+const isProgressResponse = (data: unknown): data is ProgressResponse =>
+  isObject(data) && data.record !== undefined && (data.updatedAt === null || isTime(data.updatedAt));
+const isSavedResponse = (data: unknown): data is { updatedAt: number } => isObject(data) && isTime(data.updatedAt);
+
+/** Seconds until a refused request may be sent again (429: `{ error: { code, retryAfter } }`) */
+const retryAfterOf = (data: unknown): number | undefined =>
+  isObject(data) && isObject(data.error) && isTime(data.error.retryAfter) ? data.error.retryAfter : undefined;
+
+/**
+ * The stored user, fields this app version does not find filled with their defaults: a session stays signed in
+ * when an older app stored it with fewer fields (`GET /user` replaces it at startup). Only the email is required.
+ */
+const storedUser = (value: unknown): UserData | null => {
+  if (!isObject(value) || !isString(value.email)) return null;
+  const options = isObject(value.options) ? value.options : {};
+  return {
+    email: value.email,
+    language: isString(value.language) ? value.language : "en",
+    options: {
+      bookUpdates: options.bookUpdates === true,
+      artistUpdates: options.artistUpdates === true,
+      publisherUpdates: options.publisherUpdates === true,
+    },
+    hasPassword: value.hasPassword === true,
+    createdAt: isString(value.createdAt) ? value.createdAt : "",
+  };
+};
+
+const readSession = (raw: unknown): StoredSession | null => {
+  const user = isObject(raw) ? storedUser(raw.user) : null;
+  if (!isObject(raw) || !user || (raw.session !== undefined && !isString(raw.session))) return null;
+  const stored: StoredSession = { user };
+  if (isString(raw.session)) stored.session = raw.session;
+  if (raw.method === "email" || raw.method === "password") stored.method = raw.method;
+  if (isTime(raw.signedInAt)) stored.signedInAt = raw.signedInAt;
+  return stored;
+};
+
+const readPending = (raw: unknown): PendingLogin | null =>
+  isObject(raw) && isString(raw.requestId) && isString(raw.email) && isString(raw.expiresAt)
+    ? { requestId: raw.requestId, email: raw.email, expiresAt: raw.expiresAt }
+    : null;
+
+const readSyncState = (raw: unknown): SyncState | null =>
+  isObject(raw) && isString(raw.email) && (raw.updatedAt === null || isTime(raw.updatedAt)) && typeof raw.dirty === "boolean"
+    ? { email: raw.email, updatedAt: raw.updatedAt, dirty: raw.dirty }
+    : null;
+
+/** A stored value through its reader; missing, unparsable or of the wrong shape = null */
+const read = <T>(key: string, reader: (raw: unknown) => T | null): T | null => {
   try {
     const text = localStorage.getItem(key);
-    return text === null ? null : (JSON.parse(text) as T);
+    return text === null ? null : reader(JSON.parse(text));
   } catch {
     return null;
   }
@@ -77,7 +161,8 @@ const write = (key: string, value: unknown): void => {
 
 /**
  * The reader's account (the *user* in code, types/user.ts): email sign-in (link or code) or with the optional password, update options,
- * and progress sync with the account.
+ * and progress sync with the account. The session is the API's HttpOnly cookie, shared with the editor on the same site
+ * (#207, `ApiService`); localStorage keeps only the user as last seen.
  *
  * Progress sync – the device's record (localStorage) stays the working copy; the account holds a copy:
  * - every change is sent after a short pause (`PUT` with the version it builds on);
@@ -90,8 +175,8 @@ export class UserService implements IUserService {
   private static instance: UserService | null = null;
 
   private game: IGame | null = null;
-  private stored: StoredSession | null = read<StoredSession>(SESSION_KEY);
-  private pending: PendingLogin | null = read<PendingLogin>(PENDING_KEY);
+  private stored: StoredSession | null = read(SESSION_KEY, readSession);
+  private pending: PendingLogin | null = read(PENDING_KEY, readPending);
   private snapshot: UserSnapshot;
   private listeners = new Set<(snapshot: UserSnapshot) => void>();
   private pushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -137,7 +222,8 @@ export class UserService implements IUserService {
       window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
       return this.confirmLink(token);
     }
-    return this.stored ? this.refresh() : Promise.resolve();
+    if (!this.stored) return Promise.resolve();
+    return this.stored.session ? this.exchangeStoredToken(this.stored.session) : this.refresh();
   }
 
   getSnapshot(): UserSnapshot {
@@ -151,7 +237,7 @@ export class UserService implements IUserService {
 
   async requestLogin(email: string, options: UserOptions): Promise<boolean> {
     return this.run(async () => {
-      const result = await this.api.request<{ requestId: string; expiresAt: string }>("POST", "/auth/request", {
+      const result = await this.api.requestAs(isPendingResponse, "POST", "/auth/request", {
         body: { email: email.trim(), options, language: i18next.resolvedLanguage },
       });
       this.setPending({ requestId: result.requestId, email: email.trim(), expiresAt: result.expiresAt });
@@ -163,15 +249,16 @@ export class UserService implements IUserService {
     const pending = this.pending;
     if (!pending) return false;
     return this.run(async () => {
-      await this.signedIn(await this.api.request("POST", "/auth/verify", { body: { requestId: pending.requestId, code } }), null);
+      const body = { requestId: pending.requestId, code, session: "cookie" };
+      await this.signedIn(await this.api.requestAs(isSignedInResponse, "POST", "/auth/verify", { body }), null);
       return true;
     }, false);
   }
 
   async signInWithPassword(email: string, password: string): Promise<boolean> {
     return this.run(async () => {
-      const result = await this.api.request<{ session: string; user: UserData }>("POST", "/auth/password", {
-        body: { email: email.trim(), password },
+      const result = await this.api.requestAs(isSignedInResponse, "POST", "/auth/password", {
+        body: { email: email.trim(), password, session: "cookie" },
       });
       await this.signedIn(result, "signed-in", "password");
       offerToSavePassword(result.user.email, password);
@@ -182,9 +269,8 @@ export class UserService implements IUserService {
   async setPassword(password: string, currentPassword?: string): Promise<boolean> {
     return this.run(async () => {
       try {
-        const { user } = await this.api.request<{ user: UserData }>("PUT", "/user/password", {
+        const { user } = await this.api.requestAs(isUserResponse, "PUT", "/user/password", {
           body: currentPassword ? { password, currentPassword } : { password },
-          token: this.stored?.session,
         });
         this.needsCurrentPassword = false;
         this.setSession(this.stored && { ...this.stored, user });
@@ -213,25 +299,27 @@ export class UserService implements IUserService {
 
   async setOption(option: UserOption, on: boolean): Promise<void> {
     await this.run(async () => {
-      const { user } = await this.api.request<{ user: UserData }>("PATCH", "/user", {
+      const { user } = await this.api.requestAs(isUserResponse, "PATCH", "/user", {
         body: { options: { [option]: on } },
-        token: this.stored?.session,
       });
       this.setSession(this.stored && { ...this.stored, user });
     }, undefined);
   }
 
   async signOut(): Promise<void> {
-    const session = this.stored?.session;
+    const stored = this.stored;
     this.signedOutLocally("signed-out");
-    // Ask the server to drop the session; if unreachable, it expires on the server by itself
-    if (session) await this.api.request("POST", "/auth/logout", { token: session }).catch(() => undefined);
+    // Ask the server to drop the session and clear the cookie (a token from before the cookie: that token's session);
+    // if unreachable, it expires on the server by itself
+    if (stored) await this.api.request("POST", "/auth/logout", stored.session ? { token: stored.session } : {}).catch(() => undefined);
+    this.api.setCsrfToken(null);
   }
 
   async deleteUser(): Promise<boolean> {
     return this.run(async () => {
-      await this.api.request("DELETE", "/user", { token: this.stored?.session });
+      await this.api.request("DELETE", "/user");
       this.signedOutLocally("deleted");
+      this.api.setCsrfToken(null);
       return true;
     }, false);
   }
@@ -250,9 +338,7 @@ export class UserService implements IUserService {
     const state = link ? this.freshSyncState() : this.syncState();
     this.update({ sync: "syncing" });
     try {
-      const remote = await this.api.request<ProgressResponse>("GET", `/progress/${encodeURIComponent(game.state.progress.bookId)}`, {
-        token: this.stored?.session,
-      });
+      const remote = await this.api.requestAs(isProgressResponse, "GET", `/progress/${encodeURIComponent(game.state.progress.bookId)}`);
       if (remote.record !== null && remote.updatedAt !== state.updatedAt) {
         const mode = link || state.dirty ? "merge" : "replace";
         const applied = this.apply(remote.record, mode);
@@ -309,16 +395,15 @@ export class UserService implements IUserService {
       const state = this.syncState();
       this.update({ sync: "syncing" });
       try {
-        const result = await this.api.request<{ updatedAt: number }>("PUT", `/progress/${encodeURIComponent(record.bookId)}`, {
+        const result = await this.api.requestAs(isSavedResponse, "PUT", `/progress/${encodeURIComponent(record.bookId)}`, {
           body: { record: game.state.progress, baseUpdatedAt: state.updatedAt },
-          token: this.stored?.session,
         });
         this.setSyncState({ ...state, updatedAt: result.updatedAt, dirty: this.changedDuringPush });
         this.update({ sync: this.changedDuringPush ? "pending" : "synced" });
         return;
       } catch (error) {
-        if (error instanceof ApiError && error.status === 409 && error.code === "conflict") {
-          const remote = error.data as ProgressResponse;
+        if (error instanceof ApiError && error.status === 409 && error.code === "conflict" && isProgressResponse(error.data)) {
+          const remote = error.data;
           this.apply(remote.record, "merge");
           this.setSyncState({ ...state, updatedAt: remote.updatedAt, dirty: true });
           continue;
@@ -350,10 +435,32 @@ export class UserService implements IUserService {
     }
   }
 
-  /** Validates the stored session, takes over the account's current options, then syncs */
+  /**
+   * TEMPORARY (#207 – remove with `POST /auth/cookie`, MEMORY open item): the session token a reader app from before the
+   * cookie stored is sent once to the exchange endpoint, which sets the cookie; then the stored session keeps no token.
+   * A token the API refuses signs out (sign in as usual); offline or a server error keeps it for the next start – no
+   * sync meanwhile (`canSync`).
+   */
+  private async exchangeStoredToken(token: string): Promise<void> {
+    try {
+      const { user, csrfToken } = await this.api.requestAs(isSignedInResponse, "POST", "/auth/cookie", { token });
+      this.api.setCsrfToken(csrfToken);
+      const stored: StoredSession = { user };
+      if (this.stored?.method) stored.method = this.stored.method;
+      if (this.stored?.signedInAt !== undefined) stored.signedInAt = this.stored.signedInAt;
+      this.setSession(stored);
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) this.signedOutLocally("signed-out");
+      return;
+    }
+    await this.syncProgress(false);
+  }
+
+  /** Validates the session (the cookie), takes over the account's current options and the CSRF token, then syncs */
   private async refresh(): Promise<void> {
     try {
-      const { user } = await this.api.request<{ user: UserData }>("GET", "/user", { token: this.stored?.session });
+      const { user, csrfToken } = await this.api.requestAs(isUserResponse, "GET", "/user");
+      if (csrfToken) this.api.setCsrfToken(csrfToken);
       this.setSession(this.stored && { ...this.stored, user });
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -368,7 +475,7 @@ export class UserService implements IUserService {
   private async confirmLink(token: string): Promise<void> {
     this.update({ busy: true, notice: null });
     try {
-      await this.signedIn(await this.api.request("POST", "/auth/verify", { body: { token } }), "confirmed");
+      await this.signedIn(await this.api.requestAs(isSignedInResponse, "POST", "/auth/verify", { body: { token, session: "cookie" } }), "confirmed");
     } catch (error) {
       this.update({ notice: { error: error instanceof ApiError ? error.code : "server-error" } });
       // Invalid link (e.g. from an older email) while already signed in: stay signed in
@@ -378,9 +485,10 @@ export class UserService implements IUserService {
     }
   }
 
-  private async signedIn(result: { session: string; user: UserData }, notice: UserNotice | null, method: "email" | "password" = "email"): Promise<void> {
+  private async signedIn(result: SignedInResponse, notice: UserNotice | null, method: "email" | "password" = "email"): Promise<void> {
     this.needsCurrentPassword = false;
-    this.setSession({ session: result.session, user: result.user, method, signedInAt: Date.now() });
+    this.api.setCsrfToken(result.csrfToken);
+    this.setSession({ user: result.user, method, signedInAt: Date.now() });
     this.setPending(null);
     this.setSyncState(this.freshSyncState());
     this.update({ notice: notice ?? "confirmed", sync: "syncing" });
@@ -402,17 +510,18 @@ export class UserService implements IUserService {
       return await action();
     } catch (error) {
       const code = error instanceof ApiError ? error.code : "server-error";
-      const retryAfter = error instanceof ApiError ? (error.data as { error?: { retryAfter?: number } } | undefined)?.error?.retryAfter : undefined;
+      const retryAfter = error instanceof ApiError ? retryAfterOf(error.data) : undefined;
       if (error instanceof ApiError && error.status === 401) this.signedOutLocally({ error: code });
-      else this.update({ notice: typeof retryAfter === "number" && retryAfter > 0 ? { error: code, retryAfter } : { error: code } });
+      else this.update({ notice: retryAfter !== undefined && retryAfter > 0 ? { error: code, retryAfter } : { error: code } });
       return onError;
     } finally {
       this.update({ busy: false });
     }
   }
 
+  /** Signed in with the cookie – not while a token from before it waits for its exchange (no cookie yet) */
   private canSync(): boolean {
-    return this.stored !== null;
+    return this.stored !== null && this.stored.session === undefined;
   }
 
   private freshSyncState(): SyncState {
@@ -421,7 +530,7 @@ export class UserService implements IUserService {
 
   private syncState(): SyncState {
     const bookId = this.game?.state.progress.bookId ?? "";
-    const stored = read<SyncState>(syncKey(bookId));
+    const stored = read(syncKey(bookId), readSyncState);
     return stored && stored.email === this.stored?.user.email ? stored : this.freshSyncState();
   }
 

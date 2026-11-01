@@ -6,8 +6,9 @@ declare(strict_types=1);
  * preferences and language), grant / revoke a role, the newsletter list as CSV. The admin page of the editor app
  * (/editor/admin, docs/admin.md) is their UI; after SCUTOONS' admin API (`/api/admin/users`, `…/roles/{role}`).
  *
- * Access: a signed-in user with the role `admin` (Bearer token), or the admin secret in `X-Admin-Secret` – the
- * break-glass path from the deploy or the shell, which also runs /admin/migrate (secret only, index.php).
+ * Access: a signed-in user with the role `admin` (the session cookie, or a Bearer session), or the admin secret in
+ * `X-Admin-Secret` – the break-glass path from the deploy or the shell, which also runs /admin/migrate (secret only,
+ * index.php).
  */
 final class Admin
 {
@@ -27,7 +28,10 @@ final class Admin
             if (strlen($secret) < 32 || !hash_equals($secret, $given)) throw new ApiError(403, 'forbidden', 'Not allowed.');
             return null;
         }
-        return Roles::require(Auth::user(), Roles::ADMIN);
+        $user = Auth::user();
+        // An AI connection's token never reaches the admin page: roles and editors are the person's own business (#142)
+        Auth::refuseToken('The admin page');
+        return Roles::require($user, Roles::ADMIN);
     }
 
     /** user_roles.granted_by for this caller: the admin's id, or `secret` */
@@ -97,10 +101,17 @@ final class Admin
         if ($on) {
             $changed = Roles::grant($userId, $role, self::by($actor));
         } else {
-            if ($role === Roles::ADMIN && Roles::has($user, $role) && Roles::count(Roles::ADMIN) <= 1) {
-                throw new ApiError(409, 'last-admin', 'The last admin keeps the role – make another admin first.', ['role' => $role]);
-            }
-            $changed = Roles::revoke($userId, $role);
+            // The check and the revoke in one transaction, the admins' grants locked: two admins revoking each other at the
+            // same moment cannot both pass the check – the second waits, then counts one admin and is refused
+            $changed = Db::transaction(static function () use ($userId, $role): bool {
+                if ($role === Roles::ADMIN) {
+                    $admins = Roles::holders(Roles::ADMIN, true);
+                    if (in_array($userId, $admins, true) && count($admins) <= 1) {
+                        throw new ApiError(409, 'last-admin', 'The last admin keeps the role – make another admin first.', ['role' => $role]);
+                    }
+                }
+                return Roles::revoke($userId, $role);
+            });
         }
         Http::json(200, ['changed' => $changed, 'user' => self::userJson($user)]);
     }
@@ -111,22 +122,21 @@ final class Admin
      */
     public static function makeEditor(array $body): never
     {
-        $actor = self::actor();
+        $by = self::by(self::actor());
         $email = Auth::email($body['email'] ?? null);
-        $user = Db::one('SELECT * FROM users WHERE email = :email', ['email' => $email]);
-        $created = $user === null;
-        if ($created) {
+        // The new user, its reader role and the editor role in one transaction: never a user without its roles
+        [$id, $created, $changed] = Db::transaction(static function () use ($email, $by): array {
+            $user = Db::one('SELECT id FROM users WHERE email = :email', ['email' => $email]);
+            if ($user) return [(string) $user['id'], false, Roles::grant((string) $user['id'], Roles::EDITOR, $by)];
             $id = Db::uuid();
             $now = Db::now();
             Db::run(
                 'INSERT INTO users (id, email, language, created_at, confirmed_at, updated_at) VALUES (:id, :email, :language, :now, :now2, :now3)',
                 ['id' => $id, 'email' => $email, 'language' => 'en', 'now' => $now, 'now2' => $now, 'now3' => $now]
             );
-            Roles::grant($id, Roles::READER, self::by($actor));
-        } else {
-            $id = (string) $user['id'];
-        }
-        $changed = Roles::grant($id, Roles::EDITOR, self::by($actor));
+            Roles::grant($id, Roles::READER, $by);
+            return [$id, true, Roles::grant($id, Roles::EDITOR, $by)];
+        });
         Http::json(200, ['user' => self::userJson(Db::one('SELECT * FROM users WHERE id = :id', ['id' => $id])), 'created' => $created, 'changed' => $changed]);
     }
 
@@ -164,8 +174,8 @@ final class Admin
         $params = [];
         $q = is_string($query['q'] ?? null) ? trim($query['q']) : '';
         if ($q !== '') {
-            $where[] = "u.email LIKE :q ESCAPE '\\'";
-            $params['q'] = '%' . addcslashes(strtolower($q), '%_\\') . '%';
+            $where[] = "u.email LIKE :q ESCAPE '!'";
+            $params['q'] = Db::contains(strtolower($q));
         }
         $role = is_string($query['role'] ?? null) ? $query['role'] : '';
         if ($role !== '') {

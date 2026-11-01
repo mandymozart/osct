@@ -3,3 +3,8 @@ title: The switch
 order: 2
 firstPage: 5
 lastPage: 6
+# A plugin's pass switched off (#216, #233): the scanlines plugin's lines, there to find in post-processing, on with its toggle
+passes:
+  - type: scanLines
+    enabled: false
+    spacing: 4

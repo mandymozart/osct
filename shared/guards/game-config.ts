@@ -6,24 +6,33 @@
  */
 import {
   ASSET_TYPES,
-  AssetType,
+  type AssetType,
+  CONTENT_SCHEMA_VERSION,
   ENTITY_TYPES,
-  EntityRefData,
-  EntityType,
-  GameConfiguration,
+  type EntityRefData,
+  type EntityType,
+  type GameConfiguration,
   parseContentSchema,
   STEP_ACTIONS,
-  StepAction,
+  type StepAction,
 } from "../types/game-config";
-import { ENTRY_CATEGORIES, EntryCategory } from "../types/entry";
+import { ENTRY_CATEGORIES, type EntryCategory } from "../types/entry";
 import { componentProblems } from "../types/components";
-import { passProblems } from "../types/passes";
+import { materialProblems } from "../types/materials";
+import { type PassCheckOptions, passProblems } from "../types/passes";
 import { environmentProblems } from "../types/environment";
-import { pluginProblems } from "../types/plugins";
+import { pluginProblems, recordedRegistrations } from "../types/plugins";
+import { NODE_TYPE_PATTERN, nodeParamProblems, nodeTypeSpec } from "../types/node-types";
 import { PRINT_SURFACES, SPREAD_FORMATS } from "../types/game-config";
 import { filterProblems } from "../types/filters";
 import { lightProblems } from "../types/lights";
 import { placementProblems } from "../types/placement";
+import { isObject } from "./primitives";
+
+export { isObject } from "./primitives";
+
+/** A pass parameter a newer MINOR adds is ignored here (the newer app reads it); the build and the API refuse it */
+const GUARD_PASSES: PassCheckOptions = { unknownParams: "ignore" };
 
 const oneOf = <T extends string>(values: readonly T[]) =>
   (value: unknown): value is T => typeof value === "string" && (values as readonly string[]).includes(value);
@@ -35,9 +44,6 @@ export const isEntityType: (value: unknown) => value is EntityType = oneOf(ENTIT
 export const MAX_NODE_DEPTH = 8;
 export const isAssetType: (value: unknown) => value is AssetType = oneOf(ASSET_TYPES);
 export const isStepAction: (value: unknown) => value is StepAction = oneOf(STEP_ACTIONS);
-
-export const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 export const isEntityRef = (value: unknown): value is EntityRefData =>
   isObject(value) && typeof value.ref === "string";
@@ -51,8 +57,12 @@ export class GameConfigurationError extends Error {
 
 export interface GuardOptions {
   /**
-   * Component types the registry does not know: refused unless the configuration declares plugins (the default) –
-   * or always allowed (`"allow"`: the editor's stage, where the Code tab's plugins register them at Run)
+   * Component types the registry does not know (the default, `"declared"`): refused without plugins; with plugins that
+   * all recorded what they register (schema 2.14) checked against those specs and refused when none registers them;
+   * with a plugin that recorded nothing (an older build) allowed – it registers them at load. Or always allowed
+   * (`"allow"`: the editor's stage, where the Code tab's plugins register them at Run). The same for a plugin's node
+   * type: checked against the recorded specs, refused when no declared plugin registers it, allowed where unknown – and
+   * for a plugin's pass in `passes` (schema 2.21).
    */
   unknownComponentTypes?: "declared" | "allow";
 }
@@ -85,14 +95,31 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     return null;
   };
 
-  // With plugins declared, a component type the registry does not know yet is the plugin's (it registers it at load)
+  // The declared plugins' recorded specs (schema 2.14): what they register is known without running them. A plugin that
+  // recorded nothing registers what it registers at load – a type the registry does not know may be its own
   const root0 = isObject(raw) ? raw : {};
-  const hasPlugins = options.unknownComponentTypes === "allow" || (Array.isArray(root0.plugins) && root0.plugins.length > 0);
+  const declared = Array.isArray(root0.plugins) ? root0.plugins : [];
+  const recorded = recordedRegistrations(declared);
+  const allowUnknown = options.unknownComponentTypes === "allow" || (declared.length > 0 && !recorded.complete);
+  // Content of a newer schema may have built-in node types this app does not know: those only warn (below)
+  const ours = parseContentSchema(CONTENT_SCHEMA_VERSION)!;
+  const theirs = isObject(root0.version) ? parseContentSchema(root0.version.schema) : null;
+  const newerContent = !!theirs && (theirs.major > ours.major || (theirs.major === ours.major && theirs.minor > ours.minor));
+  const refuseUnknownNodes = declared.length > 0 && recorded.complete && !newerContent;
+  // A plugin's pass (schema 2.21): checked against the recorded spec like a built-in pass; a type no declared plugin
+  // recorded is refused (as a 2.20 guard refuses every plugin pass), unless a plugin is unknown until it runs
+  const passOptions: PassCheckOptions = {
+    ...GUARD_PASSES,
+    spec: type => recorded.passes.get(type),
+    pluginTypes: [...recorded.passes.keys()],
+    unknownTypes: allowUnknown ? "allow" : "refuse",
+  };
 
   const entity = (value: unknown, path: string, depth = 0) => {
     const e = obj(value, path);
     if (!e) return;
     if (e.id !== undefined && typeof e.id !== "string") fail(`${path}.id`, "expected a string");
+    if (e.name !== undefined && typeof e.name !== "string") fail(`${path}.name`, "expected a string");
     if (e.text !== undefined && typeof e.text !== "string") fail(`${path}.text`, "expected a string");
     if (e.color !== undefined && !(typeof e.color === "string" && /^#[0-9a-f]{6}$/i.test(e.color))) fail(`${path}.color`, "expected #rrggbb");
     if (e.children !== undefined) {
@@ -100,10 +127,24 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
       else if (depth >= MAX_NODE_DEPTH) fail(`${path}.children`, `nested deeper than ${MAX_NODE_DEPTH} levels`);
       else e.children.forEach((child, i) => entity(child, `${path}.children[${i}]`, depth + 1));
     }
-    // A node type this contract does not know is a later MINOR's: the engine renders nothing for it and keeps its
-    // children (the content build and the editor's API refuse it – an author's typo never gets this far)
+    // A plugin's node type (schema 2.13): registered or recorded by a declared plugin (2.14) – its parameters are checked
+    // against its spec; declared plugins recorded what they register and none registers it – refused (unless the content
+    // is of a newer schema, below); a declared plugin recorded nothing – it may register it when it loads. Any other
+    // type this contract does not know is a later MINOR's: the engine renders nothing for it and keeps its children
+    // (the content build and the editor's API refuse it – an author's typo never gets this far)
     if (typeof e.type !== "string" || e.type === "") fail(`${path}.type`, `expected a node type (${ENTITY_TYPES.join(", ")})`);
-    else if (!isEntityType(e.type)) console.warn(`[game-config] ${path}.type: "${e.type}" is not a node type this app knows (${ENTITY_TYPES.join(", ")}) – it renders nothing, its children stay`);
+    else if (!isEntityType(e.type)) {
+      const spec = nodeTypeSpec(e.type) ?? recorded.nodeTypes.get(e.type);
+      if (spec) nodeParamProblems(spec, e.params, `${path}.params`, e.type).forEach(problem => problems.push(problem));
+      else if (allowUnknown && NODE_TYPE_PATTERN.test(e.type)) {
+        // the plugin registers it when it loads
+      } else if (refuseUnknownNodes) {
+        const plugins = [...recorded.nodeTypes.keys()];
+        fail(`${path}.type`, `"${e.type}" is not a node type – neither built in (${ENTITY_TYPES.join(", ")}) nor registered by a plugin of the book${plugins.length ? ` (${plugins.join(", ")})` : ""}`);
+      } else {
+        console.warn(`[game-config] ${path}.type: "${e.type}" is not a node type this app knows (${ENTITY_TYPES.join(", ")}) – it renders nothing, its children stay`);
+      }
+    }
     if (e.light !== undefined) {
       if (e.type !== "light") fail(`${path}.light`, "only light nodes have a light");
       lightProblems(e.light, `${path}.light`).forEach(problem => problems.push(problem));
@@ -124,7 +165,12 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
       filterProblems(e.filters, `${path}.filters`).forEach(problem => problems.push(problem));
     }
     if (e.components !== undefined) {
-      componentProblems(e.components, `${path}.components`, typeof e.type === "string" ? e.type : undefined, { unknownTypes: hasPlugins ? "allow" : "refuse" })
+      componentProblems(e.components, `${path}.components`, typeof e.type === "string" ? e.type : undefined, { unknownTypes: allowUnknown ? "allow" : "refuse", specs: recorded.components })
+        .forEach(problem => problems.push(problem));
+    }
+    // A plugin's material (schema 2.17): checked against the registry or the declared plugins' recorded specs, like a component
+    if (e.material !== undefined) {
+      materialProblems(e.material, `${path}.material`, typeof e.type === "string" ? e.type : undefined, { unknownTypes: allowUnknown ? "allow" : "refuse", specs: recorded.materials })
         .forEach(problem => problems.push(problem));
     }
   };
@@ -144,8 +190,8 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
   if (book) {
     ["id", "title", "author"].forEach(key => str(book, key, "book"));
     str(book, "publisher", "book", true);
-    if (book.passes !== undefined) passProblems(book.passes, "book.passes").forEach(problem => problems.push(problem));
-    if (book.environment !== undefined) environmentProblems(book.environment, "book.environment").forEach(problem => problems.push(problem));
+    if (book.passes !== undefined) passProblems(book.passes, "book.passes", passOptions).forEach(problem => problems.push(problem));
+    if (book.environment !== undefined) environmentProblems(book.environment, "book.environment", false).forEach(problem => problems.push(problem));
   }
 
   str(root, "initialSpreadId", "config");
@@ -162,7 +208,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     if (spread.format !== undefined && !(SPREAD_FORMATS as readonly unknown[]).includes(spread.format)) {
       fail(`${path}.format`, `"${spread.format}" is not one of ${SPREAD_FORMATS.join(", ")}`);
     }
-    if (spread.passes !== undefined) passProblems(spread.passes, `${path}.passes`).forEach(problem => problems.push(problem));
+    if (spread.passes !== undefined) passProblems(spread.passes, `${path}.passes`, passOptions).forEach(problem => problems.push(problem));
     if (typeof spread.id === "string") {
       if (spreadIds.has(spread.id)) fail(`${path}.id`, `duplicate spread id "${spread.id}"`);
       spreadIds.add(spread.id);
@@ -231,7 +277,8 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     }
   });
 
-  arr(root, "tutorial", "config").forEach((s, i) => {
+  // The onboarding apps of schema 2.24 and before read (optional since 2.25 – the reader has its own)
+  if (root.tutorial !== undefined) arr(root, "tutorial", "config").forEach((s, i) => {
     const path = `tutorial[${i}]`;
     const step = obj(s, path);
     if (!step) return;

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { Document, NodeIO, Texture } from '@gltf-transform/core';
+import { type Document, NodeIO, type Texture } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { dedup, meshopt, prune } from '@gltf-transform/functions';
 import { gzipSync } from 'fflate';

@@ -1,6 +1,6 @@
 import { Page } from "./page";
 import { GameStoreService } from "@/services";
-import { CameraPermissionStatus, GameMode, IGame } from "@/types";
+import { CameraPermissionStatus, GameMode, type IGame } from "@/types";
 import { t } from "i18next";
 import "@/components/common";
 import { goldButton } from "@/components/buttons";

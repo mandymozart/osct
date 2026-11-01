@@ -1,9 +1,9 @@
-import { Spread } from "../types/index";
+import { BEHAVIOUR_CORE_EVENTS, BEHAVIOUR_NAME_PATTERN, BEHAVIOUR_SCOPES, type BehaviourScope, type BehaviourValue, type Spread } from "../types/index";
 import { getSpread } from "../content/game-config";
 
 /**
- * The plugin runtime behind `api.events`, `api.vars`, `api.progress` and `api.spread` (plugin API 1.1,
- * agents/research/2026-10-30-demo-book.md): what lets a book's code reach across nodes and pages.
+ * The plugin runtime behind `api.events`, `api.vars`, `api.progress` and `api.spread`
+ * (docs/plugins.md "Across nodes and pages"): what lets a book's code reach across nodes and pages.
  *
  * - **Events** have two owners (the concept's rule): *core events* describe the book and are emitted by the scene
  *   only (`CORE_EVENTS` – a plugin that emits one gets an error); *scene events* are the content's own, any other
@@ -17,13 +17,16 @@ import { getSpread } from "../content/game-config";
  * - **The spread** is the engine's own content model of the current spread.
  *
  * Listeners are kept per plugin id so that uninstalling a plugin (the editor's Run) removes them.
+ *
+ * The vocabulary – the scopes, the core events' names, the name pattern and the value type – is the behaviour
+ * grammar's (`shared/types/behaviour.ts`): a behaviour rule and a plugin speak the same words.
  */
 
 /** A variable's value: a JSON scalar; `null` on a write deletes the variable */
-export type VarValue = string | number | boolean;
+export type VarValue = BehaviourValue;
 
-export const VAR_SCOPES = ["spread", "stage", "session", "book"] as const;
-export type VarScope = (typeof VAR_SCOPES)[number];
+export const VAR_SCOPES = BEHAVIOUR_SCOPES;
+export type VarScope = BehaviourScope;
 
 export const SCENE_STATES = ["running", "paused", "stopped"] as const;
 export type SceneStateName = (typeof SCENE_STATES)[number];
@@ -40,14 +43,17 @@ export interface CoreEvents {
   varChanged: { name: string; scope: VarScope; value: VarValue | undefined; previous: VarValue | undefined };
 }
 
-export const CORE_EVENTS = Object.keys({
-  targetFound: true, targetLost: true, targetUnlocked: true, targetTapped: true, spreadChanged: true, sceneState: true, varChanged: true,
-} satisfies Record<keyof CoreEvents, true>) as Array<keyof CoreEvents>;
+type CoreEventName = (typeof BEHAVIOUR_CORE_EVENTS)[number];
+/** True when two unions hold the same members */
+type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 
-export const isCoreEvent = (name: string): name is keyof CoreEvents => (CORE_EVENTS as string[]).includes(name);
+/** The core events' names: the shared list, which must name exactly the events `CoreEvents` has a payload for (else a type error) */
+export const CORE_EVENTS: Same<keyof CoreEvents, CoreEventName> extends true ? ReadonlyArray<keyof CoreEvents> : never = BEHAVIOUR_CORE_EVENTS;
 
-/** A scene event's name: like a component type (`doorOpened`) */
-export const EVENT_NAME_PATTERN = /^[a-z][a-zA-Z0-9]{0,39}$/;
+export const isCoreEvent = (name: string): name is keyof CoreEvents => (CORE_EVENTS as readonly string[]).includes(name);
+
+/** A scene event's or a variable's name: like a component type (`doorOpened`) */
+export const EVENT_NAME_PATTERN = BEHAVIOUR_NAME_PATTERN;
 
 export type EventListener<P = unknown> = (payload: P) => void;
 
@@ -278,6 +284,13 @@ export const allVars = (): Array<{ scope: VarScope; name: string; value: VarValu
     const values = scope === "book" ? (bookVars() ? bookVars()!.all() : Object.fromEntries(bookInMemory)) : Object.fromEntries(scopes[scope]);
     return Object.entries(values).map(([name, value]) => ({ scope, name, value }));
   });
+
+/**
+ * A rule of a `behaviour` component fired (`behaviour.ts`): told to the observers only, as the pseudo-event `behaviour` –
+ * the editor's log shows which rule ran and what it did; it is no event of the bus, plugins never hear it
+ */
+export const noteBehaviour = (payload: { targetId: string; node?: string; rule: number; on: string; do: string }): void =>
+  observers.forEach(observer => observer("behaviour", payload));
 
 /** Hear every event of the stage without being a plugin (the editor's log); returns the unsubscribe */
 export const observeEvents = (listener: (event: string, payload: unknown) => void): (() => void) => {

@@ -11,7 +11,7 @@ vi.mock("../api", () => ({
 }));
 
 const asset = (id: string, kind: Asset["kind"], url: string, imported: boolean): Asset => ({
-  id, name: url.split("/").pop() ?? url, kind, mime: "", size: 1, width: null, height: null, version: 1, url, usages: 0, imported, createdAt: "", updatedAt: "",
+  id, name: url.split("/").pop() ?? url, kind, mime: "", size: 1, width: null, height: null, durationMs: null, version: 1, url, usages: 0, imported, createdAt: "", updatedAt: "",
 });
 
 describe("the library with imported files", () => {

@@ -1,12 +1,13 @@
 import type { Spread } from "../types/index";
 import { getSpreads, getTargets } from "../content/game-config";
+import { readSwitch, writeSwitch } from "./device-storage";
 
 /**
  * The window of spreads kept ready next to the current one: their targets stay loaded in the engine
  * (their pages are recognised at once and switch the spread by themselves) and their content is preloaded
  * (`PreloaderService.preloadSpreads()`). Nearest spreads first (the next before the previous).
  *
- * Setting (debug overlay, this device only):
+ * Setting (debug overlay, this device only – in the app's storage, `device-storage.ts`):
  * - ±n spreads (0, 1, 2) or all: a fixed window that slides with the current spread (`prepareTargets()`).
  *   **±1 is the default**: the next and the previous spread switch by themselves.
  * - **grow**: the current spread first, then the nearest spreads are added in idle time, a few targets at a time,
@@ -14,14 +15,13 @@ import { getSpreads, getTargets } from "../content/game-config";
  *   preloaded for ±1. Not the default: with the whole book held, pages of a printout were no longer found.
  * The engine load test sets a **target budget** instead (the nearest spreads until their targets reach it) while
  * it runs; the window follows every change at once.
- * The trigger trial overrides the setting with ±1 while its panel is open (`setWindowOverride()`, not stored; ±0 from
- * 1.7.8 to 1.9.0 – since 1.9.1 the next page is found by itself while scanning the sheet in order): only
- * the current spread is held and nothing else is prepared or preloaded, so a target that is not found is down to
- * the engine and the printout, not to work in the background (Tilman, 2026-10-28).
+ * The trigger trial overrides the setting with ±1 while its panel is open (`setWindowOverride()`, not stored), so the
+ * next page is found by itself while the sheet is scanned in order, and nothing beyond the neighbours is prepared or
+ * preloaded: a target that is not found is down to the engine and the printout, not to work in the background.
  */
 export type PreparedWindowSetting = "grow" | number;
 export const PREPARED_WINDOW_SETTINGS: readonly PreparedWindowSetting[] = ["grow", 0, 1, 2, Infinity];
-const RANGE_KEY = "osct-ar-prepared-spreads";
+const RANGE_KEY = "ar-prepared-spreads";
 const DEFAULT_WINDOW: PreparedWindowSetting = 1;
 /** Content preload in grow mode: the neighbours (their media add up – the whole book stays a separate step) */
 const GROW_CONTENT_RANGE = 1;
@@ -33,16 +33,11 @@ export const getPreparedWindowSetting = (): PreparedWindowSetting => windowOverr
 
 /** The setting chosen in the debug overlay (stored on this device), regardless of an override */
 export const getStoredWindowSetting = (): PreparedWindowSetting => {
-  try {
-    const stored = localStorage.getItem(RANGE_KEY);
-    if (stored === "grow") return "grow";
-    if (stored === null) return DEFAULT_WINDOW;
-    const range = stored === "all" ? Infinity : Number(stored);
-    if (PREPARED_WINDOW_SETTINGS.includes(range)) return range;
-  } catch {
-    // storage blocked: default
-  }
-  return DEFAULT_WINDOW;
+  const stored = readSwitch(RANGE_KEY);
+  if (stored === "grow") return "grow";
+  if (stored === null) return DEFAULT_WINDOW;
+  const range = stored === "all" ? Infinity : Number(stored);
+  return PREPARED_WINDOW_SETTINGS.includes(range) ? range : DEFAULT_WINDOW;
 };
 
 /** The window as ±n spreads: the setting's range, or the neighbours in grow mode (content preload) */
@@ -54,11 +49,7 @@ export const getPreparedSpreadRange = (): number => {
 /** The next setting in `PREPARED_WINDOW_SETTINGS`, stored – applies at once (the scene re-prepares its window) */
 export const cyclePreparedSpreadRange = (): PreparedWindowSetting => {
   const next = PREPARED_WINDOW_SETTINGS[(PREPARED_WINDOW_SETTINGS.indexOf(getStoredWindowSetting()) + 1) % PREPARED_WINDOW_SETTINGS.length];
-  try {
-    localStorage.setItem(RANGE_KEY, next === Infinity ? "all" : String(next));
-  } catch {
-    // storage blocked: stays at the default
-  }
+  writeSwitch(RANGE_KEY, next === Infinity ? "all" : String(next));
   windowListeners.forEach(listener => listener());
   return next;
 };

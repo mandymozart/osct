@@ -1,16 +1,19 @@
-import { Box3, Group, Matrix4, Vector3 } from "three";
-import { ArSceneEvents, ArStatus, EntityData, GraphicsSource, IArScene, PassData, SceneInspection, SceneState, Target } from "../types/index";
+import { Box3, Group, type Matrix4, type Quaternion, Vector3 } from "three";
+import {
+  type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type PassData, type SceneInspection, SceneState, type Target,
+} from "../types/index";
 import { entityAssets, getAssets, getBook, getPasses, getPlugins, getSpread, getSpreads, getTargets } from "../content/game-config";
-import { environmentOf } from "@shared/types/environment";
+import { type EnvironmentData, environmentOf } from "@shared/types/environment";
 import { focusAtTap } from "../utils/camera-request";
 import { Emitter } from "../utils/emitter";
 import { getPreparedWindow, isGrowingWindow, spreadsByDistance, subscribePreparedWindow } from "../utils/prepared-spreads";
 import { AssetStore } from "./assets";
-import { AnimationKind, celebrate, Celebration } from "./celebration";
-import { buildEntity, EntityInstance, placeEntity } from "./entities";
+import { type AnimationKind, celebrate, type Celebration } from "./celebration";
+import { buildEntity, type EntityInstance, placeEntity } from "./entities";
 import { loadPlugins } from "./plugins";
-import { emitCoreEvent, ProgressReader, setProgressReader, setSpreadSource, spreadChanged, stageEnded } from "./plugin-runtime";
-import { IImageTracker, ImageTrackerOptions, TrackerContext } from "./tracker-types";
+import { cameraGrades, cameraGradeShader } from "./post/grade";
+import { emitCoreEvent, type ProgressReader, setProgressReader, setSpreadSource, spreadChanged, stageEnded } from "./plugin-runtime";
+import type { IImageTracker, ImageTrackerOptions, TrackerContext } from "./tracker-types";
 import { LookAround } from "./look-around";
 import { onAppUi } from "./ui";
 import { ArView } from "./view";
@@ -38,13 +41,21 @@ export interface ArSceneOptions {
    * adapter over its history, the editor its simulation – never a store (RULES #32). Without it nothing is unlocked.
    */
   progress?: ProgressReader;
+  /** The app's development build: debug handles on `window` (the look-around's `osctLookAroundDebug`) */
+  debug?: boolean;
+}
+
+/**
+ * The editor's preview of the book's environment (`ArScene.previewEnvironment`): the values being edited, and the
+ * camera's orientation in the world (y up) that turns the world instead of the gyroscope
+ */
+export interface EnvironmentPreview {
+  environment: EnvironmentData;
+  orientation: () => Quaternion;
 }
 
 /** A tap this close to an entity's on-screen bounds still hits it (small models) */
 const TAP_MARGIN_PX = 24;
-
-/** Scanning indicator (index.html, styles/gold-spinner.css): shown while no target is found */
-const scanningIndicator = () => document.getElementById("osct-scanning");
 
 /**
  * The AR scene: plain three.js + image tracking (the app's tracker, `ArSceneOptions.createTracker` – the 8th Wall
@@ -71,6 +82,7 @@ export class ArScene implements IArScene {
   private view: ArView | null = null;
   /** The world around the reader + its sky (3DoF, anchored to the book) (off per the reader's graphics options) */
   private lookAround: LookAround | null = null;
+  private environmentPreview: EnvironmentPreview | null = null;
   private tracker: IImageTracker | null = null;
   private assets = new AssetStore();
   private content: SpreadContent | null = null;
@@ -92,6 +104,8 @@ export class ArScene implements IArScene {
   private passOverride: PassData[] | null = null;
   private postProcessing = true;
   private windowCleanup: (() => void) | null = null;
+  /** Last told `scanning` state: tracking runs and no target is found */
+  private scanning = false;
 
   constructor(private container: HTMLElement, private options: ArSceneOptions) {
     setProgressReader(options.progress);
@@ -123,7 +137,24 @@ export class ArScene implements IArScene {
 
   refresh(): Promise<void> {
     this.stale = true;
+    this.lookAround?.setEnvironment(this.environment());
     return this.reconcile();
+  }
+
+  /**
+   * The editor's environment preview (not part of `IArScene` – the reader never previews): the look-around world drawn
+   * with these values instead of the book's, whatever the graphics switches say, turned by the preview's orientation;
+   * `null` ends it (the book's environment and the switches again)
+   */
+  previewEnvironment(preview: EnvironmentPreview | null): void {
+    this.environmentPreview = preview;
+    this.lookAround?.setPreview(preview ? { orientation: preview.orientation } : null);
+    this.lookAround?.setEnvironment(this.environment());
+  }
+
+  /** The environment the look-around draws: the editor's preview, else the book's */
+  private environment(): EnvironmentData {
+    return this.environmentPreview?.environment ?? environmentOf(getBook());
   }
 
   /** The unlock animation (first find – called by the bridge right after `targetFound`; replaces the reveal) */
@@ -137,6 +168,14 @@ export class ArScene implements IArScene {
 
   sampleColor(x: number, y: number): string | null {
     return this.view?.sample(x, y) ?? null;
+  }
+
+  /**
+   * The colours along a row of the canvas (CSS px from its top) in `segments` averaged parts, left to right (not part of
+   * `IArScene` – the editor paints the room its sheet uncovers with the stage's bottom edge); empty while nothing renders
+   */
+  sampleRow(y: number, segments: number): string[] {
+    return this.view?.sampleRow(y, segments) ?? [];
   }
 
   overrideEntity(targetId: string, entity: EntityData | null): void {
@@ -157,12 +196,23 @@ export class ArScene implements IArScene {
 
   overridePasses(passes: PassData[] | null): void {
     this.passOverride = passes;
-    if (this.view && this.content) this.view.setPasses(this.passesOf(this.content.spreadId));
+    if (this.content) this.applyPasses(this.content.spreadId);
   }
 
   setPostProcessing(enabled: boolean): void {
     this.postProcessing = enabled;
     this.view?.setPostProcessing(enabled);
+    if (this.content) this.applyPasses(this.content.spreadId);
+  }
+
+  /**
+   * A spread's passes to the view, and a grade that reaches the whole picture to the camera picture too (it lies in
+   * the engine's own canvas under the view's – the tracker draws it with the grade)
+   */
+  private applyPasses(spreadId: string): void {
+    const passes = this.passesOf(spreadId);
+    this.view?.setPasses(passes);
+    this.tracker?.gradeCamera?.(this.postProcessing ? cameraGradeShader(cameraGrades(passes)) : null);
   }
 
   /** The passes a spread shows: the editor's override or the content's (the spread's own, else the book's) */
@@ -218,15 +268,23 @@ export class ArScene implements IArScene {
   private reconcile(): Promise<void> {
     this.queue = this.queue.then(() => this.step()).catch(error => {
       console.error("[ArScene]", error);
-      this.setStatus("error", error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      this.setStatus("error", { code: error instanceof ArSceneError ? error.code : ErrorCode.AR_FAILED, message });
     });
     return this.queue;
   }
 
-  private setStatus(status: ArStatus, error?: string) {
+  private setStatus(status: ArStatus, error?: ArError) {
     if (status === this._status && !error) return;
     this._status = status;
     this.emitter.emit("status", status, error);
+  }
+
+  /** Tell the app whether the scanning indicator shows: tracking runs and no target is found (`scanning` event) */
+  private setScanning(scanning: boolean): void {
+    if (scanning === this.scanning) return;
+    this.scanning = scanning;
+    this.emitter.emit("scanning", scanning);
   }
 
   private async step(): Promise<void> {
@@ -261,20 +319,24 @@ export class ArScene implements IArScene {
     },
   };
 
-  private async ensureView(): Promise<ArView> {
+  /** The one view and its tracker, created on the first call */
+  private async ensureView(): Promise<{ view: ArView; tracker: IImageTracker }> {
     if (!this.view) {
-      this.view = new ArView(this.container, camera => this.tracker?.fit(camera));
-      this.view.setPostProcessing(this.postProcessing);
-      this.tracker = this.options.createTracker({ container: this.container, options: this.trackerOptions, scene: this.view.scene });
-      this.view.resize();
-      this.lookAround = new LookAround(this.view.renderer, () => this.tracker?.cameraVideo ?? null, this.options.graphics, environmentOf(getBook()));
-      this.view.underlay = this.lookAround;
+      const view = new ArView(this.container, camera => this.tracker?.fit(camera));
+      this.view = view;
+      view.setPostProcessing(this.postProcessing);
+      this.tracker = this.options.createTracker({ container: this.container, options: this.trackerOptions, scene: view.scene });
+      view.resize();
+      this.lookAround = new LookAround(view.renderer, () => this.tracker?.cameraVideo ?? null, this.options.graphics, this.environment());
+      this.lookAround.debugTools = this.options.debug ?? false;
+      if (this.environmentPreview) this.lookAround.setPreview({ orientation: this.environmentPreview.orientation });
+      view.underlay = this.lookAround;
       // A simulated tracker's stage is drawn every frame (the page is always in view)
-      this.view.needsRender = () =>
+      view.needsRender = () =>
         !!this.tracker?.continuous || this.animations.size > 0 || !!this.content?.anchors.some(a => a.group.visible) || !!this.lookAround?.active;
-      this.view.onFrame(delta => {
+      view.onFrame(delta => {
         const anchors = this.content?.anchors.filter(a => this.found.has(a.target.id)).map(a => a.group.matrix) ?? [];
-        this.lookAround?.update(delta, this.view!.camera, anchors);
+        this.lookAround?.update(delta, view.camera, anchors);
         this.content?.anchors.forEach(a => a.entity?.update?.(delta));
         let bloom = 0;
         this.animations.forEach((animation, id) => {
@@ -287,7 +349,7 @@ export class ArScene implements IArScene {
           const anchor = animation.kind === "outro" && !this.found.has(id) && this.content?.anchors.find(a => a.target.id === id);
           if (anchor) anchor.group.visible = false;
         });
-        this.view!.bloomStrength = bloom;
+        view.bloomStrength = bloom;
       });
       document.addEventListener("click", this.onTap);
       // The window's size changed (load test budget): the tracker and the preload follow at once
@@ -297,14 +359,15 @@ export class ArScene implements IArScene {
         this.emitter.emit("ready", this.content.spreadId);
       });
     }
-    return this.view;
+    // Created with the view: missing only when creating it failed – never a second view
+    if (!this.tracker) throw new Error("AR could not start: no image tracker");
+    return { view: this.view, tracker: this.tracker };
   }
 
   /** Bring the scene to `spreadId`: tracking stops, content is swapped, tracking restarts if it ran */
   private async changeSpread(spreadId: string): Promise<void> {
     if (!getSpread(spreadId)) throw new Error(`Unknown spread ${spreadId}`);
-    const view = await this.ensureView();
-    const tracker = this.tracker!;
+    const { view, tracker } = await this.ensureView();
     const cameraOn = tracker.hasCamera;
     this.setStatus(cameraOn ? "starting" : "loading");
 
@@ -327,7 +390,7 @@ export class ArScene implements IArScene {
     anchors.forEach(anchor => view.scene.add(anchor.group));
     this.content = { spreadId, targets, anchors };
     // The spread's passes (the previous spread's are disposed; none = the scene renders straight to the canvas)
-    view.setPasses(this.passesOf(spreadId));
+    this.applyPasses(spreadId);
 
     // 3. Tracking restarts in run() (camera kept); paused / stopped it waits for the next start
     if (this.wantedState !== SceneState.RUNNING) this.setStatus("ready");
@@ -386,7 +449,7 @@ export class ArScene implements IArScene {
       this.emitter.emit("targetLost", id);
       emitCoreEvent("targetLost", { targetId: id });
     }
-    scanningIndicator()?.classList.toggle("hidden", this.found.size > 0);
+    this.setScanning(this.found.size === 0);
   }
 
   /**
@@ -402,14 +465,22 @@ export class ArScene implements IArScene {
       return;
     }
     const hit = this.hitTest(event.clientX, event.clientY);
-    if (hit) {
-      this.content.anchors.find(a => a.target.id === hit)?.entity?.onTap?.();
-      this.emitter.emit("targetTapped", hit);
-      emitCoreEvent("targetTapped", { targetId: hit });
-    } else {
-      void focusAtTap(event.clientX, event.clientY);
-    }
+    if (!hit || !this.tapTarget(hit)) void focusAtTap(event.clientX, event.clientY);
   };
+
+  /**
+   * A tap on a found target's entity: its hooks hear `onTap`, the app `targetTapped`, the plugins the core event of
+   * the same name. The reader's tap reaches it through the hit test, an editor tool directly (`inspect().tap`).
+   * False – nothing happens – while the scene does not run, or when the target is not found or has no entity.
+   */
+  private tapTarget(targetId: string): boolean {
+    const anchor = this.content?.anchors.find(a => a.target.id === targetId);
+    if (!this.running || !anchor?.entity || !this.found.has(targetId)) return false;
+    anchor.entity.onTap?.();
+    this.emitter.emit("targetTapped", targetId);
+    emitCoreEvent("targetTapped", { targetId });
+    return true;
+  }
 
   /** The nearest found entity whose on-screen bounds (+ margin) contain the point (client px), or null */
   private hitTest(clientX: number, clientY: number): string | null {
@@ -453,6 +524,7 @@ export class ArScene implements IArScene {
       nodeObject: (targetId, path) => this.content?.anchors.find(a => a.target.id === targetId)?.entity?.nodes?.[path.join(".")] ?? null,
       nodeTimeline: (targetId, path) => this.content?.anchors.find(a => a.target.id === targetId)?.entity?.timelines?.[path.join(".")] ?? null,
       hitTest: (clientX, clientY) => this.hitTest(clientX, clientY),
+      tap: targetId => this.tapTarget(targetId),
     };
   }
 
@@ -472,7 +544,7 @@ export class ArScene implements IArScene {
     this.view = null;
     this.started = false;
     this.running = false;
-    scanningIndicator()?.classList.add("hidden");
+    this.setScanning(false);
     stageEnded();
     this.setStatus("idle");
   }
@@ -481,8 +553,8 @@ export class ArScene implements IArScene {
 
   /** Camera (if off) + tracking of the current spread's targets */
   private async startTracking(): Promise<void> {
-    const tracker = this.tracker!;
-    const content = this.content!;
+    const { view, tracker, content } = this;
+    if (!view || !tracker || !content) throw new ArSceneError(ErrorCode.AR_START_FAILED, "AR could not start: no spread loaded");
     try {
       await tracker.startCamera();
       await tracker.loadTargets(content);
@@ -491,9 +563,10 @@ export class ArScene implements IArScene {
       this.started = false;
       this.running = false;
       this.startFailed = true;
-      throw new Error(`AR could not start: ${(error as Error)?.message ?? error}`);
+      const code = error instanceof ArSceneError ? error.code : ErrorCode.AR_START_FAILED;
+      throw new ArSceneError(code, `AR could not start: ${(error as Error)?.message ?? error}`);
     }
-    this.view!.resize(); // field of view from the engine's projection
+    view.resize(); // field of view from the engine's projection
     this.started = true;
     // The spreads around this one: their targets get ready ahead (instant switch, found pages switch by themselves)
     this.prepareWindow();
@@ -520,20 +593,20 @@ export class ArScene implements IArScene {
       if (this.wantedState !== SceneState.RUNNING || this.wantedSpread !== this.spreadId) return;
     } else if (!this.running) {
       // Tracking starts afresh: targets are found again (all were lost at the pause)
-      this.tracker!.resume();
+      this.tracker?.resume();
     }
     this.running = true;
     this.lookAround?.start();
-    this.view!.start();
-    scanningIndicator()?.classList.toggle("hidden", this.found.size > 0);
+    this.view?.start();
+    this.setScanning(this.found.size === 0);
     this.setStatus("running");
     emitCoreEvent("sceneState", { state: "running" });
   }
 
   private pause(): void {
     if (this.started && this.running) {
-      this.tracker!.pause();
-      this.view!.stop();
+      this.tracker?.pause();
+      this.view?.stop();
       this.running = false;
     }
     this.lookAround?.pause();
@@ -542,7 +615,7 @@ export class ArScene implements IArScene {
     // their anchors would stay visible at the old position ("stuck in space")
     this.finishAnimations();
     this.loseAll();
-    scanningIndicator()?.classList.add("hidden");
+    this.setScanning(false);
     this.setStatus(this.started ? "paused" : "ready");
     emitCoreEvent("sceneState", { state: "paused" });
   }
@@ -555,7 +628,7 @@ export class ArScene implements IArScene {
     this.loseAll();
     this.started = false;
     this.running = false;
-    scanningIndicator()?.classList.add("hidden");
+    this.setScanning(false);
     this.setStatus("ready");
     emitCoreEvent("sceneState", { state: "stopped" });
   }

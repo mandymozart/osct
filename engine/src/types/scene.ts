@@ -1,9 +1,10 @@
 import type { Camera, Object3D, Scene } from "three";
-import { EntityData, PassData } from "./content";
+import type { EntityData, PassData } from "./content";
+import type { ArError } from "./errors";
 
 /**
- * What the AR scene (three.js / 8th Wall) should be doing. Derived from the game mode and the current
- * route (`ar-bridges/utils/scene-state.ts`), applied by `<ar-bridge>`. Ordered from least to most active.
+ * What the AR scene (three.js / 8th Wall) should be doing – the app derives it from its own state and sets it.
+ * Ordered from least to most active.
  * STOPPED: camera released · PAUSED: tracking + video paused, camera stream kept (instant resume,
  * last frame frozen behind the UI) · RUNNING: camera, tracking and rendering.
  */
@@ -14,10 +15,10 @@ export enum SceneState {
 }
 
 /**
- * What the AR scene is doing. Reported to the store as `arStatus`.
+ * What the AR scene is doing, reported to the app.
  * idle: no scene · loading: building the spread's scene · ready: scene loaded, camera off ·
  * starting: camera requested, targets loading · running: tracking · paused: tracking + camera video
- * paused (stream kept) · error: camera or AR failed (see `arError`).
+ * paused (stream kept) · error: camera or AR failed (an `ArError` – its code and message – comes with it).
  */
 export type ArStatus = "idle" | "loading" | "ready" | "starting" | "running" | "paused" | "error";
 
@@ -27,19 +28,18 @@ export type ArStatus = "idle" | "loading" | "ready" | "starting" | "running" | "
  */
 export const ENTITY_UNLOCK_MS = 3000;
 
-/** Marker in the AR error message for a camera start timeout (maps to CameraPermissionStatus.NOT_RESPONDING) */
-export const CAMERA_NOT_RESPONDING = "camera not responding";
-
 export type ArSceneEvents = {
   targetFound: (targetId: string) => void;
   targetLost: (targetId: string) => void;
-  status: (status: ArStatus, error?: string) => void;
+  status: (status: ArStatus, error?: ArError) => void;
   /** A found target's AR entity was tapped (scan mode) */
   targetTapped: (targetId: string) => void;
   /** The spread's targets are loaded and tracking began */
   ready: (spreadId: string) => void;
   /** A neighbouring spread's page is in view instead of the current spread (the reader turned the page) */
   spreadSeen: (spreadId: string) => void;
+  /** Tracking runs and no target is found (true), or a target is found or tracking stopped (false) – the app's scanning indicator */
+  scanning: (scanning: boolean) => void;
 };
 
 /**
@@ -68,6 +68,8 @@ export interface SceneInspection {
   nodeObject(targetId: string, path: number[]): Object3D | null;
   /** The found entity under a point of the screen (client px), as a tap would report it */
   hitTest(clientX: number, clientY: number): string | null;
+  /** Tap a found target's entity without aiming at it – the same path as the reader's tap (`onTap`, `targetTapped`); false when nothing was tapped (not found, no entity, the scene not running) */
+  tap(targetId: string): boolean;
   /** The timeline of a model node (its clips), null for other nodes or before it is built */
   nodeTimeline(targetId: string, path: number[]): NodeTimeline | null;
 }

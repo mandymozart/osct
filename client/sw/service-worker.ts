@@ -17,7 +17,8 @@
  *   with the last content it saw.
  * - Editor pages (/editor, inside this scope): not handled, their requests go to the network as without a worker
  *   (sw/editor-clients.ts).
- * - A new worker takes over at once (no waiting for all tabs to close); a running page keeps its code.
+ * - A new worker takes over at once (no waiting for all tabs to close); a running page keeps its code. The page asks the
+ *   worker for its build (sw/build-query.ts) and, when it is another one, offers a reload (services/UpdateService.ts).
  */
 import { clientsClaim } from "workbox-core";
 import { cleanupOutdatedCaches, matchPrecache, precacheAndRoute } from "workbox-precaching";
@@ -27,11 +28,13 @@ import { CacheableResponsePlugin } from "workbox-cacheable-response";
 import type { WorkboxPlugin } from "workbox-core/types";
 import type { RouteHandlerCallback } from "workbox-core/types";
 import { RangeRequestsPlugin } from "workbox-range-requests";
-import { EditorClients } from "./editor-clients";
+import { EditorClients, isEditorPage } from "./editor-clients";
+import { answerBuildQuery } from "./build-query";
 
 declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<{ url: string; revision: string | null }> };
 declare const __VITE_CONTENT_HASH__: string;
 declare const __VITE_CONTENT_BASE_URL__: string;
+declare const __VITE_BUILD_DATE__: string;
 
 const CONTENT_CACHE_PREFIX = "osct-content-";
 const CONTENT_CACHE = `${CONTENT_CACHE_PREFIX}${__VITE_CONTENT_HASH__.slice(0, 16)}`; // "cdn" in a CDN build
@@ -44,6 +47,11 @@ const MANIFEST_TIMEOUT_SECONDS = 5;
 
 self.skipWaiting();
 clientsClaim();
+
+// A page asks which build this worker serves: a takeover from another build offers the reader a reload
+self.addEventListener("message", event => {
+  answerBuildQuery(event.data, event.ports, __VITE_BUILD_DATE__);
+});
 
 // Must be the first fetch listener (before every route): the editor's pages and their requests are left to the browser
 const editorClients = new EditorClients(self.clients);
@@ -59,7 +67,8 @@ const readerOnly = (strategy: Strategy): RouteHandlerCallback => async options =
 };
 
 // Must be registered before the precache route: "/" and "/index.html" are precached, but pages come from the network first
-registerRoute(({ request }) => request.mode === "navigate", new NetworkOnly({ networkTimeoutSeconds: PAGE_TIMEOUT_SECONDS }));
+// (never an editor page: a slow network would time out into the catch handler and show the reader's shell there)
+registerRoute(({ request }) => request.mode === "navigate" && !isEditorPage(request.url), new NetworkOnly({ networkTimeoutSeconds: PAGE_TIMEOUT_SECONDS }));
 
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
@@ -116,6 +125,8 @@ registerRoute(
 
 // Offline page load: the precached app shell (the app routes itself, like the server's SPA fallback)
 setCatchHandler(async ({ request }) => {
+  // An editor page never gets the reader's shell – the browser's own error page is the honest answer offline
+  if (request.mode === "navigate" && isEditorPage(request.url)) return fetch(request);
   if (request.mode === "navigate") return (await matchPrecache("/index.html")) ?? Response.error();
   return Response.error();
 });

@@ -2,20 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import { CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR } from '../config';
 
-export function deleteFolderRecursive(folderPath: string): void {
-  if (fs.existsSync(folderPath)) {
-    fs.readdirSync(folderPath).forEach((file) => {
-      const curPath = path.join(folderPath, file);
-      if (fs.lstatSync(curPath).isDirectory()) {
-        deleteFolderRecursive(curPath);
-      } else {
-        fs.unlinkSync(curPath);
-      }
-    });
-    fs.rmdirSync(folderPath);
-  }
-}
-
 /**
  * Recursively copy a directory
  * @returns Number of files copied
@@ -46,7 +32,7 @@ export function copyContentToPublic(): void {
   console.log(`\n📦 Copying content to client public assets directory...`);
   if (fs.existsSync(CLIENT_PUBLIC_ASSETS_DIR)) {
     console.log(`🧹 Cleaning client public assets directory: ${CLIENT_PUBLIC_ASSETS_DIR}`);
-    deleteFolderRecursive(CLIENT_PUBLIC_ASSETS_DIR);
+    fs.rmSync(CLIENT_PUBLIC_ASSETS_DIR, { recursive: true, force: true });
   }
   fs.mkdirSync(CLIENT_PUBLIC_ASSETS_DIR, { recursive: true });
   const fileCount = copyFolderRecursive(CONTENT_DIR, CLIENT_PUBLIC_ASSETS_DIR);

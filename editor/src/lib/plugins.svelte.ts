@@ -1,14 +1,81 @@
-import { installPlugin, PluginError, type PluginModule } from "@engine/scene/plugins";
+import { nodeTypeFailure, pluginNodeTypesOf } from "@engine/scene/plugins";
 import { getPlugins } from "@engine/content/game-config";
-import { ApiError, deletePlugin, getPlugin, listPlugins, putPlugin, type PluginSummary } from "./api";
-import { importPluginCode, transpilePlugin, type CompileError } from "./plugins/compile";
-import type { Stage } from "./stage/stage.svelte";
+import type { EntityData } from "@engine/types";
+import { deletePlugin, errorText, getPlugin, listPlugins, putPlugin, replacePluginFile, uploadPlugin, type PluginSource, type PluginSummary } from "./api";
+import { library } from "./library.svelte";
+import { transpilePlugin, type CompileError } from "#lib/plugins/compile.js";
+import type { Stage } from "#lib/stage/stage.svelte.js";
+import type { FrameLog } from "#lib/stage/frame-protocol.js";
+import { trackUnsaved } from "#lib/unsaved.js";
+import { unsavedPlugin } from "#lib/library-code.js";
+import { nodeAt, withNode } from "./values";
+
+/** A node made code whose new type has not built yet: it shows as it was until its plugin's code builds it (#199) */
+export interface PendingSwitch {
+  /** The made plugin */
+  plugin: string;
+  /** The node type it registers */
+  type: string;
+  targetId: string;
+  /** The node in the target's tree */
+  path: number[];
+  /** The node's type before – a tree whose node at `path` is no longer of it drops the switch */
+  from: string;
+  /** The node switched to the new type */
+  node: EntityData;
+}
+
+/** What a Run needs of the stage: the frame's runner, a refresh and the overrides (a node made code switches through them) */
+export type RunStage = Pick<Stage, "runPlugin" | "refresh" | "treeOf" | "overrideOf" | "override">;
 
 /**
- * The Code tab's plugins (agents/research/2026-10-29-code-in-the-editor.md): the sources stored for the book (the
+ * The Code tab's open source: the plugin open (or a new one being added), its text and the text as stored. It lives
+ * here, not in the tab, so a tab switch loses no edit and the Library marks the script with unsaved edits (#232).
+ */
+export class CodeBuffer {
+  open = $state<string | null>(null);
+  adding = $state(false);
+  /** The new plugin's id while it is being added */
+  newId = $state("");
+  source = $state("");
+  /** The source as stored – "" for a plugin only the content declares, so Save stores a copy of it */
+  saved = $state("");
+  /** The source as loaded or last saved: the edits are unsaved while the text differs */
+  loaded = $state("");
+
+  get unsaved(): boolean {
+    return this.source !== this.loaded;
+  }
+
+  /** The plugin with unsaved edits, null for none (a new plugin has no id yet) */
+  get unsavedId(): string | null {
+    return unsavedPlugin(this);
+  }
+
+  reset(): void {
+    this.open = null;
+    this.adding = false;
+    this.newId = "";
+    this.source = "";
+    this.saved = "";
+    this.loaded = "";
+  }
+}
+
+/** How many lines of the book's code the Code tab keeps */
+export const LOG_LINES = 50;
+
+/**
+ * The Code tab's plugins (docs/plugins.md "Trying it: the Code tab"): the sources stored for the book (the
  * API's `plugins`), the plugins the content declares (compiled by the content build, loaded by the engine with the
- * spread), and **Run** – transpile in the browser, import, install in the stage's registry under the plugin's id,
- * build the spread again. `version` counts the runs: the Entity panel's rows follow the registry through it.
+ * spread), and **Run** – transpile in the browser, then import and install in the stage's registry under the plugin's
+ * id, in the stage frame (the page runs no plugin code, #234), build the spread again. `version` counts the runs and the
+ * registry's changes the frame reports: the Inspector's rows follow the registry (mirrored from the frame) through it.
+ * `logs` are the plugins' lines from the stage (`api.log`, their errors), newest last, for the Code tab.
+ * The Library lists the same sources as its scripts (#186): it uploads a script file as a new source, replaces one
+ * from a file, and asks the Code tab to open one (`focus`).
+ * A Run also reports a node type of the plugin that did not build on the stage (its error, as a Run's), and switches a
+ * node made code (`pending`) once its type builds – until then the node keeps its old type on the stage.
  */
 class Plugins {
   bookId = $state<string | null>(null);
@@ -23,15 +90,35 @@ class Plugins {
   runError = $state<(CompileError & { plugin: string }) | null>(null);
   /** The last good Run: the plugin and the component types it registered */
   lastRun = $state<{ plugin: string; types: string[] } | null>(null);
+  /** A plugin the Code tab should open (the Library's *Open in Code*, a node made code that did not build); the tab clears it once open */
+  focus = $state<string | null>(null);
+  /** A node made code that switches to its type once that builds (#199) */
+  pending = $state<PendingSwitch | null>(null);
+  /** The Code tab's open source, kept while the tab is closed */
+  readonly code = new CodeBuffer();
+  /** The plugins' lines from the stage, newest last (at most `LOG_LINES`) */
+  logs = $state<FrameLog[]>([]);
+  /** The sources run here, by plugin id: what is installed, saved or not */
+  private ran = new Map<string, string>();
+
+  /** A line from the stage frame (a plugin's log, its error) */
+  addLog(line: FrameLog): void {
+    this.logs = [...this.logs.slice(-(LOG_LINES - 1)), line];
+  }
 
   async load(bookId: string): Promise<void> {
     this.loading = true;
     this.error = null;
     try {
       this.stored = (await listPlugins(bookId)).plugins;
+      if (this.bookId !== bookId) {
+        this.ran.clear();
+        this.pending = null;
+        this.code.reset();
+      }
       this.bookId = bookId;
     } catch (e) {
-      this.error = e instanceof ApiError ? e.message : String(e);
+      this.error = errorText(e);
     } finally {
       this.loading = false;
     }
@@ -54,60 +141,133 @@ class Plugins {
     return response.text();
   }
 
+  /** The source of a plugin as it runs on the stage: the source last run here, else the stored one, else the declared one's */
+  async sourceOf(bookId: string, id: string): Promise<string> {
+    const ran = this.ran.get(id);
+    if (ran !== undefined) return ran;
+    if (this.bookId !== bookId) await this.load(bookId);
+    if (this.stored.some(p => p.id === id)) return this.source(bookId, id);
+    const declared = this.declared().find(p => p.id === id);
+    if (declared) return this.declaredSource(declared.src);
+    throw new Error(`the plugin ${id} has no source in this book`);
+  }
+
   async save(bookId: string, id: string, source: string): Promise<PluginSummary> {
     this.error = null;
     try {
       const { plugin } = await putPlugin(bookId, id, source);
-      const summary: PluginSummary = { id: plugin.id, size: plugin.size, updatedAt: plugin.updatedAt, updatedBy: plugin.updatedBy };
-      this.stored = [...this.stored.filter(p => p.id !== id), summary].sort((a, b) => a.id.localeCompare(b.id));
-      return summary;
+      return this.keep(plugin);
     } catch (e) {
-      this.error = e instanceof ApiError ? `${e.message} (${e.code})` : String(e);
+      this.error = errorText(e, { code: true });
       throw e;
     }
   }
 
-  async remove(bookId: string, id: string): Promise<void> {
+  /** A script file as a new source, its id from the file's name (409 plugin-exists when that id is taken) */
+  async upload(bookId: string, file: File): Promise<PluginSummary> {
+    return this.keep(await uploadPlugin(bookId, file));
+  }
+
+  /** A script file replaces the source of `id` */
+  async replaceFile(bookId: string, id: string, file: File): Promise<PluginSummary> {
+    return this.keep(await replacePluginFile(bookId, id, file));
+  }
+
+  /** Remove a source; refused while the draft uses what it registers (409 plugin-in-use with the usages) unless forced */
+  async remove(bookId: string, id: string, force = false): Promise<void> {
     this.error = null;
-    await deletePlugin(bookId, id);
+    await deletePlugin(bookId, id, force);
     this.stored = this.stored.filter(p => p.id !== id);
+    void library.refresh();
+  }
+
+  /** A saved source into the list (its uses as counted before – a source's text does not change the draft's rows); the
+   * Library's shaders count the sources that load them, so their uses are read again */
+  private keep(plugin: PluginSource): PluginSummary {
+    const usages = this.stored.find(p => p.id === plugin.id)?.usages ?? 0;
+    const summary: PluginSummary = { id: plugin.id, size: plugin.size, usages, updatedAt: plugin.updatedAt, updatedBy: plugin.updatedBy };
+    this.stored = [...this.stored.filter(p => p.id !== plugin.id), summary].sort((a, b) => a.id.localeCompare(b.id));
+    void library.refresh();
+    return summary;
   }
 
   /**
-   * Run a plugin's source on the stage: transpile, import, install (replacing the plugin's previous registrations),
-   * build the spread again so its effect shows. Returns true when it ran; the error is in `runError` otherwise.
+   * Run a plugin's source on the stage: transpile here, then import and install it in the stage frame (replacing the
+   * plugin's previous registrations), build the spread again so its effect shows. Returns true when it ran; the error
+   * is in `runError` otherwise. The log starts anew with every Run.
    */
-  async run(id: string, source: string, stage: Stage | null, importer?: (url: string) => Promise<unknown>): Promise<boolean> {
+  async run(id: string, source: string, stage: RunStage | null): Promise<boolean> {
     this.running = true;
     this.runError = null;
+    this.logs = [];
     try {
       const result = await transpilePlugin(source, id);
       if ("error" in result) {
         this.runError = { ...result.error, plugin: id };
         return false;
       }
-      let module: PluginModule;
-      try {
-        module = (await importPluginCode(result.code, importer)) as PluginModule;
-      } catch (e) {
-        this.runError = { plugin: id, message: `The module did not load – ${e instanceof Error ? e.message : String(e)}`, line: null };
+      if (!stage) {
+        this.runError = { plugin: id, message: "The stage is not running – open a spread to run the code", line: null };
         return false;
       }
-      try {
-        installPlugin(id, module);
-      } catch (e) {
-        this.runError = { plugin: id, message: e instanceof PluginError ? e.message : `register failed – ${e instanceof Error ? e.message : String(e)}`, line: null };
+      const ran = await stage.runPlugin(id, result.code);
+      if (!ran.ok) {
+        this.runError = { plugin: id, message: ran.error, line: null };
         return false;
       }
-      const { pluginTypes } = await import("@engine/scene/plugins");
-      this.lastRun = { plugin: id, types: pluginTypes(id) };
+      this.ran.set(id, source);
+      this.lastRun = { plugin: id, types: ran.types };
       this.version += 1;
-      await stage?.refresh();
-      return true;
+      // The spread is built again from the new registrations: a node whose type failed before builds anew
+      await stage.refresh();
+      return (await this.switchPending(id, stage)) && this.builtOnStage(id);
+    } catch (e) {
+      this.runError = { plugin: id, message: errorText(e), line: null };
+      return false;
     } finally {
       this.running = false;
     }
   }
+
+  /**
+   * The pending node made code of this plugin takes its new type on the stage – unless the type's build fails: then the
+   * node shows as it was, the switch waits for the next Run and the failure is the Run's error. False when it failed.
+   */
+  private async switchPending(id: string, stage: RunStage): Promise<boolean> {
+    const pending = this.pending;
+    if (!pending || pending.plugin !== id) return true;
+    const tree = stage.treeOf(pending.targetId);
+    if (!tree || nodeAt(tree, pending.path)?.type !== pending.from) {
+      this.pending = null;
+      return true;
+    }
+    const before = stage.overrideOf(pending.targetId) ?? null;
+    // The frame builds the node and reports its registry (the build's failure with it) before this resolves
+    await stage.override(pending.targetId, withNode(tree, pending.path, pending.node));
+    const failure = nodeTypeFailure(pending.type);
+    if (!failure) {
+      this.pending = null;
+      return true;
+    }
+    await stage.override(pending.targetId, before);
+    this.runError = { plugin: id, message: `${pending.type} did not build – ${failure}. The node stays a ${pending.from} until it builds: fix the code, Run.`, line: null };
+    return false;
+  }
+
+  /** The plugin's node types built on the stage; a failed one is the Run's error. False when one failed */
+  private builtOnStage(id: string): boolean {
+    for (const type of pluginNodeTypesOf(id)) {
+      const failure = nodeTypeFailure(type);
+      if (failure) {
+        this.runError = { plugin: id, message: `${type} did not build on the stage – ${failure}`, line: null };
+        return false;
+      }
+    }
+    return true;
+  }
 }
 
 export const plugins = new Plugins();
+
+// A reload (the new-version bar) would drop the Code tab's edits, whether the tab is open or not
+trackUnsaved(() => plugins.code.unsaved);

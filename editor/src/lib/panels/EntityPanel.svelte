@@ -1,40 +1,76 @@
 <script lang="ts">
-  import { untrack } from "svelte";
+  import { onMount, untrack } from "svelte";
+  import { trackUnsaved } from "#lib/unsaved.js";
   import { getAssets, getEntityRef, getTargetsUsingEntity } from "@engine/content/game-config";
-  import { ENTITY_TYPES, FILTER_TYPES, type AssetData, type EntityData, type EntityType, type FilterType, type Target } from "@engine/types";
-  import { ApiError, putEntity, putTarget, putTargetEntity, type PrintPlacement } from "$lib/api";
-  import { content } from "$lib/content.svelte";
-  import { ACCEPT, library, NODE_ASSET_KINDS } from "$lib/library.svelte";
-  import { plugins } from "$lib/plugins.svelte";
-  import { Stage } from "$lib/stage/stage.svelte";
-  import { fromOrigin, toOrigin } from "$lib/stage/origin";
-  import { getPreview, subscribePreview } from "$lib/stage/preview";
   import {
-    addChild, addComponent, addFilter, componentTypesFor, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeComponent, removeFilter,
-    sameValue, setValue, valueRows, withNode, type ValueRow,
-  } from "$lib/values";
+    BEHAVIOUR_TYPE, ENTITY_TYPES, FILTER_TYPES, materialSpec, materialTypesFor, nodeTypeSpec, pluginNodeTypes, type AssetData, type EntityData, type FilterType, type NodeType,
+    type Target,
+  } from "@engine/types";
+  import { errorText, isMediaAsset, putEntity, putTarget, putTargetEntity, type PrintPlacement } from "#lib/api.js";
+  import { content } from "#lib/content.svelte.js";
+  import { library } from "#lib/library.svelte.js";
+  import { nodeAssetKinds, pickAccept, type LibraryPick } from "#lib/library-pick.js";
+  import { fileNameOf } from "#lib/library-place.js";
+  import { plugins } from "#lib/plugins.svelte.js";
+  import { Stage } from "#lib/stage/stage.svelte.js";
+  import { fromOrigin, toOrigin } from "#lib/stage/origin.js";
+  import { withWidth } from "#lib/stage/placement.js";
+  import { DEFAULT_PAGE_MM } from "#lib/stage/stage-layout.js";
+  import { getPreview, subscribePreview } from "#lib/stage/preview.js";
+  import {
+    addComponent, addFilter, componentTypesFor, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeComponent, removeFilter,
+    helpName, sameValue, setMaterial, setValue, valueRows, withNode, type ValueRow,
+  } from "#lib/values.js";
+  import { MakeCodeError, materialCode, nodeTypeCode, nodeTypeOwner, takesMaterial, type MadeCode } from "#lib/plugins/make-code.js";
+  import { selection } from "#lib/selection.svelte.js";
+  import { breadcrumb } from "#lib/selection.js";
+  import { ADD_PLACES, addNode, defaultAddPlace, nodeLabel, typeLabel, withName, type AddPlace } from "#lib/tree.js";
   import type { NodeTimeline } from "@engine/types";
-  import ColourField from "$lib/components/ColourField.svelte";
-  import Icon from "$lib/components/Icon.svelte";
-  import ScrubNumber from "$lib/components/ScrubNumber.svelte";
-  import Segmented from "$lib/components/Segmented.svelte";
+  import ColourField from "#lib/components/ColourField.svelte";
+  import Icon from "#lib/components/Icon.svelte";
+  import ScrubNumber from "#lib/components/ScrubNumber.svelte";
+  import Segmented from "#lib/components/Segmented.svelte";
+  import FileField from "#lib/components/FileField.svelte";
+  import TextureField from "#lib/components/TextureField.svelte";
+  import Toggle from "#lib/components/Toggle.svelte";
+  import LibraryPanel from "./LibraryPanel.svelte";
+  import BehaviourRules from "./BehaviourRules.svelte";
+  import EntryForm from "./EntryForm.svelte";
+  import { entries } from "#lib/entries.svelte.js";
+  import SpreadView from "./SpreadView.svelte";
+  import BookPanel from "./BookPanel.svelte";
+  import { bookEvents, bookVariables, pathOfName, rulesOf, subtreeNames, treeBehaviourIssues, withRules } from "#lib/behaviour-edit.js";
 
   /**
-   * The selected **node** of a target's entity (content schema 2.0: the entity is a tree; the tree panel or a tap
+   * The selected **node** of a target's entity (the entity is a tree; the tree panel or a tap
    * on the stage selects, `node` is the path from the root) – every adjustable value as rows of one control height:
    * placement (three.js names, the three axes in one row as in Blender), a text node's text and colour, a light
    * node's values, each filter's and component's parameters. Changes show live on the stage (`stage.override` with
    * the whole tree), the draft stays unchanged until **Save** writes the entity to the API (the shared entity when
-   * the target refers to one, else the target's own). **+ node** appends a child (group, model, video, image, text,
-   * light – files from the book's assets), **remove node** drops the selected node and its children. Rows come from
-   * the content contract's definitions (one `specRow` snippet draws a parameter of any kind).
+   * the target refers to one, else the target's own). **+ node** adds a node (group, model, video, image, text,
+   * light, or a node type the book's plugins registered – #77; files from the Library) next to the selected one or
+   * inside it (#163); a plugin type's parameters are rows from its spec, like a component's. **remove node** drops the
+   * selected node and its children. Rows come from the content contract's definitions (one `specRow` snippet draws a
+   * parameter of any kind – a `texture` as a choice of the book's procedural textures and Library pictures, #188). A node
+   * with meshes may carry a plugin's **material** (#188): its rows follow the node type's. **make it code** turns the
+   * node into a node type of the book's own, **make code** beside the material does it for its look
+   * (`plugins/make-code.ts`): the plugin is saved to the Code tab and run, the node switched to it once its code builds on
+   * the stage (until then it shows as it was, the error is the Code tab's – #199).
+   *
+   * The panel is the workspace's **Inspector** (#229): it shows whatever is selected (#162) – a selected target its
+   * target fields, its entity or a node that node's rows, the breadcrumb in the head stepping up; a selected **entry**
+   * (#227) the entry (`EntryView`); the **book** (the top bar's crumb, #237) its texts and settings (`BookPanel`); the
+   * **spread** – selected in the tree, or nothing else selected – its sections (`SpreadView`: the spread,
+   * post-processing, vars and events).
    */
-  let { stage, bookId, spreadId, selected = $bindable(), node = $bindable([]), pickColour, onlibrary, ontargetchanged }: {
+  let { stage, bookId, spreadId, selected, node = $bindable([]), pickColour, ontargetchanged, oncode, onenvironment }: {
     stage: Stage | null; bookId: string; spreadId: string; selected: string | null; node: number[];
+    /** The spread's environment row: the workspace opens the Environment tab */
+    onenvironment?: () => void;
+    /** Show the Code tab (a made plugin's error is there) */
+    oncode?: () => void;
     /** Pick a colour from the stage (the workspace owns the picking overlay) */
     pickColour?: () => Promise<string | null>;
-    /** Open the library (to choose a file for the selected node) */
-    onlibrary?: () => void;
     /** The target's image or print placement changed in the draft: reload the content and the stage */
     ontargetchanged?: () => Promise<void>;
   } = $props();
@@ -42,9 +78,23 @@
   $effect(() => {
     if (library.bookId !== bookId) void library.load(bookId);
   });
+  $effect(() => {
+    if (entries.bookId !== bookId) void entries.load(bookId);
+  });
 
   const targets = $derived((content.spread(spreadId)?.targets ?? []).filter(target => target.imageSrc));
-  const target = $derived<Target | undefined>(targets.find(t => t.id === selected) ?? targets.find(t => t.entity && stage?.found.includes(t.id)) ?? targets.find(t => t.entity) ?? targets[0]);
+  /** The selected target; none while the spread is selected – nothing stands in for a selection (#229) */
+  const target = $derived<Target | undefined>(selection.spread ? undefined : targets.find(t => t.id === selected));
+  /**
+   * The entry selected in the tree (#227), as the content holds it: its form instead of its target (#223) – it stays
+   * when a save moved it to another spread
+   */
+  const entry = $derived(entries.byId(selection.entry));
+  /** An entry's save changed the draft: read it again, the stage shows its texts (`{{entry.title}}`) */
+  const entrySaved = async () => {
+    await content.load(bookId);
+    await stage?.refresh();
+  };
 
   /** The whole tree being edited (null = the target has no entity yet) */
   let entity = $state<EntityData | null>(null);
@@ -65,12 +115,9 @@
     if (editingTarget === t.id && entity) return;
     const other = editingTarget !== t.id;
     editingTarget = t.id;
-    // The tree and the stage follow the target shown here (a fallback when nothing is selected yet)
-    if (selected !== t.id) selected = t.id;
     const override = stage?.overrideOf(t.id);
     entity = override === Stage.REMOVED ? null : override ?? t.entity ?? null;
     if (other) {
-      node = [];
       saved = null;
       error = null;
     }
@@ -78,6 +125,9 @@
 
   /** The selected node; a path the tree no longer has falls back to the root */
   const current = $derived<EntityData | null>(entity ? (nodeAt(entity, node) ?? entity) : null);
+  /** The level of the selection (#162): the target's fields, or its entity / a node of it (a target without a tree: the target) */
+  const atTarget = $derived(selection.onTarget || !entity);
+  const crumbs = $derived(target ? breadcrumb({ target: target.id, node, onTarget: atTarget }, entity ?? undefined) : []);
   $effect(() => {
     if (entity && !nodeAt(entity, node)) node = [];
   });
@@ -105,13 +155,95 @@
   // The rows and the addable components follow the registry: a plugin's Run registers new types
   const rows = $derived.by(() => { void plugins.version; return current ? valueRows(current, uniformScale) : []; });
   const addable = $derived.by(() => { void plugins.version; return current ? componentTypesFor(current.type) : []; });
+  /** The selected node's file kinds (a plugin's node type declares them – #77), undefined when it takes no file */
+  const fileKinds = $derived.by(() => { void plugins.version; return current ? nodeAssetKinds(current.type) : undefined; });
+  /** The selected node's plugin node type: its description heads its rows; null for a built-in type */
+  const nodeSpec = $derived.by(() => { void plugins.version; return current ? nodeTypeSpec(current.type) ?? null : null; });
+  /** The selected node's plugin material (#188): its spec heads its rows; the materials it may take instead */
+  const materialOf = $derived.by(() => { void plugins.version; return current?.material ? materialSpec(current.material.type) ?? null : null; });
+  const materialChoices = $derived.by(() => { void plugins.version; return current ? materialTypesFor(current.type) : []; });
+
+  // ── make it code (#188): the node, or its look, becomes the book's own code in the Code tab ──
+  let making = $state(false);
+  /** The error shown is a made plugin's: the Code tab has it too */
+  let codeError = $state(false);
+  /** A plugin node type is copied with its plugin's whole source (the source as it runs on the stage) */
+  const ownerSource = async (type: string) => {
+    const owner = nodeTypeOwner(type);
+    if (!owner) return undefined;
+    try {
+      return { plugin: owner, source: await plugins.sourceOf(bookId, owner) };
+    } catch (e) {
+      throw new MakeCodeError(`Make it code copies the whole plugin ${owner}, and its source could not be read – ${errorText(e)}`);
+    }
+  };
+  const makeCode = async (kind: "node" | "material") => {
+    const n = current;
+    const t = target;
+    if (!n || !t || making) return;
+    making = true;
+    error = null;
+    codeError = false;
+    try {
+      if (plugins.bookId !== bookId) await plugins.load(bookId);
+      const taken = { plugins: [...plugins.stored.map(p => p.id), ...plugins.declared().map(p => p.id)] };
+      const made: MadeCode = kind === "node" ? nodeTypeCode(n, taken, await ownerSource(n.type)) : materialCode(n, taken);
+      await plugins.save(bookId, made.plugin, made.source);
+      // The Run switches the node once the made code builds it on the stage; until then it shows as it was
+      plugins.pending = { plugin: made.plugin, type: made.type, targetId: t.id, path: [...node], from: n.type, node: made.node };
+      if (!(await plugins.run(made.plugin, made.source, stage))) {
+        error = `${made.plugin}: ${plugins.runError?.message ?? "the code did not run"}`;
+        codeError = true;
+        // The Code tab opens the made plugin with its error
+        plugins.focus = made.plugin;
+        return;
+      }
+      saved = `made ${made.type} – the plugin ${made.plugin} in the Code tab`;
+    } catch (e) {
+      error = errorText(e, { code: true });
+    } finally {
+      making = false;
+    }
+  };
   const ref = $derived(target ? getEntityRef(target.id) : undefined);
   const source = $derived(ref ? `shared: ${ref} (${getTargetsUsingEntity(ref).length}×)` : target ? `entry: ${target.entryId}` : "");
   const dirty = $derived(!!target && JSON.stringify(entity ? contentTree(entity) : null) !== JSON.stringify(target.entity ? contentTree(target.entity) : null));
+  // A reload (the new-version bar) would drop these edits
+  onMount(() => trackUnsaved(() => dirty));
 
   const changed = (row: ValueRow) => !!current && (!draftNode || !sameValue(getValue(current, row), getValue(draftNode, row)));
   const anyChanged = (ids: ValueRow[]) => ids.some(changed);
   const pathLabel = $derived(node.length ? `root › ${node.join(" › ")}` : "root");
+
+  // ── a behaviour component (#88): its rule editor's pickers and what keeps Save off ──
+  const hasBehaviour = $derived(!!current?.components?.some(c => c.type === BEHAVIOUR_TYPE));
+  /** What is wrong with the tree's behaviours (an empty name, an event not chosen yet): shown, and Save waits */
+  const behaviourProblems = $derived(entity ? treeBehaviourIssues(entity) : []);
+  /** Every tree of the book (the draft's, this one as edited): the variables and events its behaviours use */
+  const bookTrees = $derived([...content.spreads.flatMap(s => s.targets).filter(t => t.id !== target?.id).flatMap(t => (t.entity ? [t.entity] : [])), ...(entity ? [entity] : [])]);
+  const ruleVariables = $derived(bookVariables(bookTrees, (stage?.vars ?? []).map(v => v.name)));
+  const ruleEvents = $derived(bookEvents(bookTrees, (stage?.events ?? []).map(e => e.event)));
+  /** The clips of the models under the selected node by node name ("" = the node itself), read from the stage as the models load */
+  let behaviourClips = $state<Record<string, string[]>>({});
+  $effect(() => {
+    const t = target;
+    const s = stage;
+    const n = current;
+    const at = node;
+    if (!t || !s || !n || !hasBehaviour) return;
+    const read = () => {
+      const next: Record<string, string[]> = {};
+      for (const name of ["", ...subtreeNames(n)]) {
+        const path = pathOfName(n, name);
+        const clips = path ? s.timeline(t.id, [...at, ...path])?.clips.map(c => c.name) : undefined;
+        if (clips?.length) next[name] = clips;
+      }
+      if (JSON.stringify(next) !== JSON.stringify(untrack(() => behaviourClips))) behaviourClips = next;
+    };
+    read();
+    const timer = setInterval(read, 500);
+    return () => clearInterval(timer);
+  });
 
   const apply = (next: EntityData) => {
     entity = next;
@@ -155,23 +287,51 @@
       }
       await afterSave(target.id, node, ref && entity ? `saved ${ref}` : `saved ${target.id}`);
     } catch (e) {
-      error = e instanceof ApiError ? `${e.message} (${e.code})` : String(e);
+      error = errorText(e, { code: true });
     } finally {
       saving = false;
     }
   };
 
+  // ── the Library as the picker of a file (#164): opened for one field – the target's image, the node's file, the
+  // new node's file – it fills only that one; the panel keeps its state underneath ──
+  let picking = $state<LibraryPick | null>(null);
+  const pickFor = (pick: Omit<LibraryPick, "oncancel">) => {
+    picking = { ...pick, onpick: asset => { picking = null; return pick.onpick(asset); }, oncancel: () => (picking = null) };
+  };
+  // Another target or node selected (the tree, the stage) while picking: the field it was opened for is gone
+  const pickContext = $derived(`${target?.id}|${node.join(".")}|${selection.entry}`);
+  $effect(() => {
+    void pickContext;
+    untrack(() => (picking = null));
+  });
+  const pickTargetImage = () => {
+    const t = target;
+    if (t) pickFor({ subject: { for: "target-image" }, label: `the printed image of ${t.id}`, current: t.imageSrc, onpick: asset => setTargetImage(t.id, asset.url) });
+  };
+  const pickNodeFile = () => {
+    const t = target;
+    const type = current?.type;
+    if (!t || !type) return;
+    // The picker's head names the node as the tree does: its name, else where it sits (#170)
+    const which = current?.name ? `“${current.name}”` : node.length ? `node ${pathLabel}` : "the root node";
+    pickFor({ subject: { for: "node", nodeType: type }, label: `the ${type} of ${which}`, current: current?.assets[0]?.src,
+      onpick: asset => { if (isMediaAsset(asset)) useAsset(asset.kind, asset.url, asset.id); } });
+  };
+  const pickNewNodeFile = () => {
+    const type = addType;
+    if (type) pickFor({ subject: { for: "node", nodeType: type }, label: `the new ${type} node`, current: addAsset, onpick: asset => { addAsset = asset.url; } });
+  };
+
   // ── the target: its printed image and placement ──
-  let targetImageInput = $state<HTMLInputElement>();
-  let nodeFileInput = $state<HTMLInputElement>();
   let printOpen = $state(false);
   let targetBusy = $state(false);
   let targetError = $state<string | null>(null);
   let print = $state<PrintPlacement>({ surface: "right", x: 40, y: 60, width: 80 });
-  // The x / y rows are read and entered from the stage's origin (Stage panel); `print` keeps the content's frame
+  // The x / y rows are read and entered from the stage's origin (the toolbar's view group); `print` keeps the content's frame
   let origin = $state(getPreview().origin);
   $effect(() => subscribePreview(state => (origin = state.origin)));
-  const frame = $derived({ page: stage?.pageFormat() ?? { width: 230, height: 320 }, format: stage?.format() ?? "spread" });
+  const frame = $derived({ page: stage?.pageFormat() ?? DEFAULT_PAGE_MM, format: stage?.format() ?? "spread" });
   const shown = $derived(toOrigin(origin, frame, print.surface, print.x, print.y));
   const setShown = (x: number, y: number) => (print = { ...print, ...fromOrigin(origin, frame, print.surface, x, y) });
   /** The shown place is where the book's layout prints the target (until saved), not one set in the editor */
@@ -181,11 +341,17 @@
     const format = stage?.format() ?? "spread";
     return format === "cover" ? ["front"] : format === "back" ? ["back"] : ["left", "right"];
   });
-  /** The target's place in the book's layout; without one the ghost stays where it is */
+  /**
+   * A target without a place of its own: where the stage shows it – the book's layout, else the stage's fallback place –
+   * so the rows, the handles and the print agree from the first look
+   */
   const placeFromBookLayout = (t: Target) => {
-    const place = stage?.printedPlace(t.id) ?? null;
-    placeFromLayout = !!place;
-    if (place) print = place;
+    placeFromLayout = !!stage?.printedPlace(t.id);
+    const place = stage?.placeOf(t.id) ?? null;
+    if (!place) return;
+    // The layout's box is the print's; a fallback's height is only a guess (the image's aspect decides)
+    const { height, ...box } = place;
+    print = placeFromLayout && height !== undefined ? { ...box, height } : box;
   };
   // The placement follows the target: its own print; else the book's layout while the placement is open
   $effect(() => {
@@ -197,12 +363,12 @@
     if (!printOpen && target && !target.print) placeFromBookLayout(target);
     printOpen = !printOpen;
   };
-  // While the placement rows are open the stage shows the edited place as a translucent image
+  // While the placement rows are open the target lies at the edited place on the stage (its print and its entity), with handles
   $effect(() => {
     const t = target;
     const open = printOpen;
     const where = { surface: print.surface, x: print.x, y: print.y, width: print.width };
-    stage?.ghost(open && t ? { imageSrc: t.imageSrc, ...where } : null);
+    stage?.ghost(open && t ? { targetId: t.id, imageSrc: t.imageSrc, ...where, ...(print.height !== undefined ? { height: print.height } : {}) } : null);
   });
   $effect(() => () => stage?.ghost(null));
   // The handles on the stage move the ghost: the placement rows follow
@@ -211,16 +377,16 @@
     stage.onGhostChange = place => { print = { ...print, ...place }; };
     return () => { if (stage) stage.onGhostChange = null; };
   });
-  const replaceTargetImage = async (file: File) => {
-    if (!target) return;
+  /** The target's printed image becomes a library file (picked) or a new upload */
+  const setTargetImage = async (targetId: string, src: string | File) => {
     targetBusy = true;
     targetError = null;
     try {
-      const asset = await library.upload(bookId, file);
-      await putTarget(bookId, target.id, { imageSrc: asset.url });
+      const url = typeof src === "string" ? src : (await library.upload(bookId, src)).url;
+      await putTarget(bookId, targetId, { imageSrc: url });
       await ontargetchanged?.();
     } catch (e) {
-      targetError = e instanceof ApiError ? e.message : String(e);
+      targetError = errorText(e);
     } finally {
       targetBusy = false;
     }
@@ -233,7 +399,7 @@
       await putTarget(bookId, target.id, { print: { ...print, page: target.print?.page } });
       await ontargetchanged?.();
     } catch (e) {
-      targetError = e instanceof ApiError ? e.message : String(e);
+      targetError = errorText(e);
     } finally {
       targetBusy = false;
     }
@@ -243,7 +409,7 @@
     if (!current || !target) return;
     try {
       const asset = await library.upload(bookId, file);
-      useAsset(asset.kind, asset.url, asset.id);
+      if (isMediaAsset(asset)) useAsset(asset.kind, asset.url, asset.id);
     } catch {
       // library.error says
     }
@@ -251,7 +417,7 @@
   /** The selected node takes a file (the library's Use, an upload) */
   export const useAsset = (kind: AssetData["assetType"], src: string, assetId: string) => {
     if (!current || !target) return;
-    const kinds = ASSET_KINDS[current.type];
+    const kinds = nodeAssetKinds(current.type);
     if (!kinds?.includes(kind)) return;
     applyNode({ ...current, assets: [{ id: `${target.id}-${assetId.slice(0, 8)}`, assetType: kind, src }] });
   };
@@ -259,7 +425,7 @@
   // ── the timeline of a model node (the animation component drives the same clip) ──
   // The scene builds a node once its model is loaded: the panel looks every frame until the timeline is there, then
   // reads its state every frame (the time runs)
-  let timeline = $state<NodeTimeline | null>(null);
+  let timeline = $state.raw<NodeTimeline | null>(null);
   let timelineState = $state<{ clip: string; time: number; playing: boolean; duration: number } | null>(null);
   $effect(() => {
     const t = target;
@@ -276,45 +442,51 @@
       timelineState = tl ? tl.state() : null;
       frame = requestAnimationFrame(tick);
     };
-    tick();
+    // Untracked: the first look runs inside the effect, and reading `timeline` there would rerun it endlessly
+    untrack(tick);
     return () => cancelAnimationFrame(frame);
   });
   const clipNames = $derived(timeline?.clips.map(c => c.name) ?? []);
   const fmt = (seconds: number) => `${seconds.toFixed(2)} s`;
 
   // ── + node ──
-  let addType = $state<EntityType | "">("");
+  let addType = $state<NodeType | "">("");
   let addAsset = $state("");
-  const ASSET_KINDS = NODE_ASSET_KINDS;
+  /** The node types + node offers: the built-in ones, then the ones the book's plugins registered (#77) */
+  const pluginTypes = $derived.by(() => { void plugins.version; return pluginNodeTypes(); });
   /** The files the new node may take: the library's of its kind, and the content's (deduplicated by src) */
   const assetChoices = $derived.by(() => {
-    const kinds = ASSET_KINDS[addType];
+    const kinds = addType ? nodeAssetKinds(addType) : undefined;
     if (!kinds) return [];
     const seen = new Map<string, AssetData>();
-    library.ofKinds(kinds).forEach(a => seen.set(a.url, { id: a.id, assetType: a.kind, src: a.url }));
+    library.ofKinds(kinds).filter(isMediaAsset).forEach(a => seen.set(a.url, { id: a.id, assetType: a.kind, src: a.url }));
     getAssets().filter(a => kinds.includes(a.assetType)).forEach(a => { if (!seen.has(a.src)) seen.set(a.src, a); });
     return [...seen.values()];
   });
-  const fileLabel = (src: string) => library.byUrl(src)?.name ?? fileName(src);
-  const fileName = (src: string) => decodeURIComponent(src.split("/").pop() ?? src);
-  const canAdd = $derived(!!addType && (!ASSET_KINDS[addType] || !!addAsset));
+  const fileLabel = (src: string) => library.byUrl(src)?.name ?? fileNameOf(src);
+  const canAdd = $derived(!!addType && (!nodeAssetKinds(addType) || !!addAsset));
   const add = () => {
     if (!target || !canAdd) return;
     const chosen = assetChoices.find(a => a.src === addAsset);
-    const child = newNode(addType as EntityType, chosen ? { id: `${target.id}-${Date.now().toString(36)}`, assetType: chosen.assetType, src: chosen.src } : undefined);
-    if (!entity) {
-      // The target's first node is the root
-      apply(child);
-      node = [];
-    } else {
-      const parent = nodeAt(entity, node) ? node : [];
-      const index = nodeAt(entity, parent)?.children?.length ?? 0;
-      apply(addChild(entity, parent, child));
-      node = [...parent, index];
-    }
+    // a file of the library (picked there or chosen here) brings its size: a video node is sized to it
+    const child = newNode(addType, chosen ? { id: `${target.id}-${Date.now().toString(36)}`, assetType: chosen.assetType, src: chosen.src } : undefined,
+      chosen ? library.byUrl(chosen.src) : null);
+    // The target's first node is the root; else next to the selected node or inside it
+    const placed = addNode(entity, node, child, addPlace);
+    apply(placed.tree);
+    selection.selectNode(target.id, placed.path);
     addType = "";
     addAsset = "";
   };
+  // Where "+ node" puts the new node (#163): chosen, else the default for the selected node (next to a file node)
+  let addPlaceChosen = $state<AddPlace | null>(null);
+  const addPlace = $derived<AddPlace>(addPlaceChosen ?? defaultAddPlace(current ?? undefined));
+  const ADD_PLACE_LABELS: Record<AddPlace, string> = { next: "next to it", inside: "inside it" };
+  $effect(() => {
+    void node.join(".");
+    void target?.id;
+    untrack(() => (addPlaceChosen = null));
+  });
   const remove = () => {
     if (!entity || !target || !stage) return;
     // Through the stage (the tree's menu and the Delete key do the same): the override is the shared source
@@ -323,57 +495,94 @@
   };
 </script>
 
+{#snippet actions()}
+  <div class="actions">
+    <button type="button" class="text-link" onclick={revert} disabled={!dirty}>Back to the draft</button>
+    <span class="grow"></span>
+    {#if saved}<span class="small muted">{saved}</span>{/if}
+    {#if error}<span class="small danger">{error}</span>{/if}
+    {#if error && codeError && oncode}<button type="button" class="text-link" onclick={oncode}>Code tab</button>{/if}
+    <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving || behaviourProblems.length > 0}>{saving ? "Saving…" : "Save"}</button>
+  </div>
+{/snippet}
+
 {#snippet specRow(row: ValueRow, name: string)}
   <!-- A parameter of a spec (a component's, the light's) by its kind: choice, on / off, string, colour, number -->
   {#if current}
-    <div class="row" class:changed={changed(row)} title="{row.description} – default {row.default || (name === 'clip' ? '(first clip)' : row.default)}">
-      <span class="label">{name}</span>
+    <!-- The label is the spec's words (#173); the Info view names it with the content's name too -->
+    <div class="row" class:changed={changed(row)} data-help-name={helpName(row)} title="{row.description} – default {row.default || (name === 'clip' ? '(first clip)' : row.default)}">
+      <span class="label">{row.label}</span>
       {#if row.kind === "choice"}
         <span class="controls"><Segmented options={row.options ?? []} value={String(getValue(current, row))} onchange={v => set(row, v)} /></span>
       {:else if row.kind === "boolean"}
-        <span class="controls"><button type="button" class="pill" class:on={getValue(current, row) === "true"} aria-pressed={getValue(current, row) === "true"}
-          onclick={() => set(row, getValue(current!, row) === "true" ? "false" : "true")}>{getValue(current, row) === "true" ? "on" : "off"}</button></span>
+        <span class="controls"><Toggle on={getValue(current, row) === "true"} label={row.label} onchange={on => set(row, on ? "true" : "false")} /></span>
       {:else if row.kind === "string" && name === "clip" && clipNames.length}
         <select class="field" aria-label="Clip" value={String(getValue(current, row))} onchange={e => set(row, (e.currentTarget as HTMLSelectElement).value)}>
           <option value="">first clip ({clipNames[0]})</option>
           {#each clipNames as clip (clip)}<option value={clip}>{clip}</option>{/each}
         </select>
       {:else if row.kind === "string"}
-        <input class="field" value={String(getValue(current, row))} aria-label={name} oninput={e => set(row, (e.currentTarget as HTMLInputElement).value)} />
+        <input class="field" value={String(getValue(current, row))} aria-label={row.label} oninput={e => set(row, (e.currentTarget as HTMLInputElement).value)} />
+      {:else if row.kind === "texture"}
+        <!-- A texture (#188): none, a procedural texture of the book's plugins, or a Library picture or video -->
+        <TextureField value={String(getValue(current, row))} label={row.label} onchange={v => set(row, v)} />
       {:else if row.kind === "color"}
-        <ColourField value={String(getValue(current, row))} label={row.id} onchange={hex => set(row, hex)} onpick={pickColour} />
+        <ColourField value={String(getValue(current, row))} label={row.label} onchange={hex => set(row, hex)} onpick={pickColour} />
       {:else}
         <span class="w"><ScrubNumber value={Number(getValue(current, row))} min={row.min} max={row.max} step={row.step} fallback={Number(row.default)}
-          unit={row.unit ?? ""} label={row.id} strict={row.strict} oninput={v => set(row, v)} /></span>
+          unit={row.unit ?? ""} label={row.label} strict={row.strict} oninput={v => set(row, v)} /></span>
       {/if}
     </div>
   {/if}
 {/snippet}
 
-{#if !target}
-  <p class="muted">No target on this spread.</p>
+{#if selection.book}
+  <BookPanel {bookId} />
+{:else if entry}
+  <!-- The form stays while the Library picks its picture: its edits are its own -->
+  {#if picking}<LibraryPanel {bookId} pick={picking} />{/if}
+  <div class="entry-form" hidden={!!picking}>
+    <EntryForm {bookId} {entry} assetsBase={content.assetsBase} vars={stage?.vars ?? []} onpick={pickFor} onsaved={entrySaved}
+      onselecttarget={id => selection.selectTarget(id)} />
+  </div>
+{:else if selection.entry}
+  <p class="small muted">{entries.error ?? "Loading the entry…"}</p>
+{:else if picking}
+  <LibraryPanel {bookId} pick={picking} />
+{:else if !target}
+  <!-- The spread: selected, or nothing else is (a target id this spread does not have shows it too) -->
+  <SpreadView {stage} {bookId} {spreadId} {onenvironment} />
 {:else}
   <div class="head">
-    <select class="field" aria-label="Target" value={target.id} onchange={e => { selected = (e.currentTarget as HTMLSelectElement).value; node = []; }}>
-      {#each targets as t (t.id)}
-        <option value={t.id}>{stage?.found.includes(t.id) ? "◉ " : ""}{t.id}{t.entity ? ` · ${t.entity.type}` : " · no AR"}{stage?.overrideOf(t.id) ? " *" : ""}</option>
+    <!-- The breadcrumb (#162): target › entity › group › node – a crumb selects that level; ▾ after the target picks another -->
+    <nav class="crumbs" aria-label="Selected level">
+      {#each crumbs as crumb, i (i)}
+        {#if i}<span class="crumb-sep" aria-hidden="true">›</span>{/if}
+        {#if crumb.current}
+          <span class="crumb current" aria-current="true" title="Selected: the {crumb.level}">{crumb.label}</span>
+        {:else}
+          <button type="button" class="crumb" onclick={() => selection.set(crumb.selection)} title="Select the {crumb.level}">{crumb.label}</button>
+        {/if}
+        {#if !i}
+          <select class="crumb-switch" aria-label="Target" title="Another target on this spread" value={target.id} onchange={e => selection.selectTarget((e.currentTarget as HTMLSelectElement).value)}>
+            {#each targets as t (t.id)}
+              <option value={t.id}>{stage?.found.includes(t.id) ? "◉ " : ""}{t.id}{t.entity ? ` · ${t.entity.type}` : " · no AR"}{stage?.overrideOf(t.id) ? " *" : ""}</option>
+            {/each}
+          </select>
+        {/if}
       {/each}
-    </select>
+    </nav>
     <span class="small muted">{source}</span>
   </div>
 
+  {#if atTarget}
   <div class="section"><span class="section-label">target · {target.id}</span>
     <span class="controls">
-      <button type="button" class="text-link" onclick={() => targetImageInput?.click()} title="Upload another printed image for this target">Replace image…</button>
       <button type="button" class="text-link placement-toggle" class:on={printOpen} onclick={togglePlacement}>{printOpen ? "hide placement" : "placement"}</button>
     </span></div>
   <div class="row"><span class="label">image</span>
-    <span class="controls file">
-      <img class="target-thumb" src={target.imageSrc} alt="" />
-      <span class="small muted name" title={target.imageSrc}>{fileLabel(target.imageSrc)}</span>
-      <input bind:this={targetImageInput} type="file" accept=".jpg,.jpeg,.png,.webp" hidden
-        onchange={e => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) void replaceTargetImage(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
-    </span></div>
+    <FileField src={target.imageSrc} picture accept={pickAccept({ for: "target-image" })} label="the printed image of {target.id}"
+      onlibrary={pickTargetImage} onupload={f => { const id = target?.id; if (id) void setTargetImage(id, f); }} /></div>
   {#if printOpen}
     <div class="row"><span class="label">surface</span>
       <span class="controls"><Segmented options={surfaces} value={print.surface} onchange={s => (print = { ...print, surface: s })} /></span></div>
@@ -384,47 +593,72 @@
       </span></div>
     <div class="row"><span class="label">width</span>
       <span class="controls">
-        <span class="w"><ScrubNumber value={print.width} min={10} max={230} step={1} fallback={60} unit="mm" label="printed width" positive oninput={v => (print = { ...print, width: v })} /></span>
+        <span class="w"><ScrubNumber value={print.width} min={10} max={230} step={1} fallback={60} unit="mm" label="printed width" positive oninput={v => (print = withWidth(print, v))} /></span>
         <button type="button" class="pill" disabled={targetBusy} onclick={savePrint}>{targetBusy ? "Saving…" : "Save placement"}</button>
-        {#if !target.print}<span class="small muted">{placeFromLayout ? "from the book's layout until saved" : "not in the book's layout – set by hand until saved"}</span>{/if}
+        {#if !target.print}<span class="small muted" data-help-name="Placement" data-help={placeFromLayout ? "Taken from the book's layout until you save a placement of this target's own." : "The target is not in the book's layout: its placement is set by hand and kept once saved."}>{placeFromLayout ? "from the layout" : "by hand"}</span>{/if}
       </span></div>
   {/if}
   {#if targetError}<p class="small danger">{targetError}</p>{/if}
+  {/if}
 
-  <div class="section"><span class="section-label">node · {pathLabel}{current ? ` · ${current.type}` : ""}</span>
+  {#if !atTarget}
+  <div class="section"><span class="section-label">{node.length ? "node" : "entity"}{current ? ` · ${current.type}` : ""}</span>
     <span class="controls">
+      {#if current}<button type="button" class="text-link" onclick={() => void makeCode("node")} disabled={making}
+        data-help-name="Make it code" data-help="Turns this node into a node type of the book's own: a plugin in the Code tab whose build reproduces the node (its type's builder as a starting point, its values as parameters), saved and run – the node switches to it once the code builds (a plugin's node type comes with its plugin's whole source). From then on it is your code.">make it code</button>{/if}
       {#if entity}<button type="button" class="text-link" onclick={remove} title="Delete removes the selected node too">{node.length ? "remove node" : "remove entity"}</button>{/if}
     </span></div>
-  <div class="row add"><span class="label">+ node</span>
+  {#if current}
+    <div class="row" class:changed={(draftNode?.name ?? "") !== (current.name ?? "")} data-help-name="Name" data-help="The node's name in the tree – for the people who make the book; the reader does not show it. Empty: the tree shows the node's type.">
+      <span class="label">name</span>
+      <input class="field" value={current.name ?? ""} placeholder={typeLabel(current)} spellcheck="false" aria-label="Node name"
+        oninput={e => current && applyNode(withName(current, (e.currentTarget as HTMLInputElement).value))} />
+    </div>
+  {/if}
+  {/if}
+  {#if !atTarget || !entity}
+  <div class="row add" data-help="Adds a node of this type: with no AR content yet the target's root (a model, video, image, text or light, or a group to hold several – or a node type of the book's plugins, listed under plugins once they are loaded), else next to the selected node or inside it (add as)."><span class="label">+ node</span>
     <span class="controls">
-      <select class="field" aria-label="New node type" value={addType} onchange={e => { addType = (e.currentTarget as HTMLSelectElement).value as EntityType | ""; addAsset = ""; }}>
+      <select class="field" aria-label="New node type" value={addType} onchange={e => { addType = (e.currentTarget as HTMLSelectElement).value as NodeType | ""; addAsset = ""; }}>
         <option value="">type…</option>
         {#each ENTITY_TYPES as type (type)}<option value={type}>{type}</option>{/each}
+        {#if pluginTypes.length}
+          <optgroup label="plugins">
+            {#each pluginTypes as type (type)}<option value={type} title={nodeTypeSpec(type)?.description}>{type}</option>{/each}
+          </optgroup>
+        {/if}
       </select>
-      {#if addType && ASSET_KINDS[addType]}
-        <select class="field grow" aria-label="File" value={addAsset} onchange={e => (addAsset = (e.currentTarget as HTMLSelectElement).value)}>
-          <option value="">{assetChoices.length ? "file…" : "no file of this kind in the book"}</option>
-          {#each assetChoices as a (a.src)}<option value={a.src}>{fileLabel(a.src)}</option>{/each}
-        </select>
+      {#if addType && nodeAssetKinds(addType)}
+        <button type="button" class="pill framed grow file-pick" title="Choose the new node's file in the Library" onclick={pickNewNodeFile}>{addAsset ? fileLabel(addAsset) : "file…"}</button>
       {/if}
-      <button type="button" class="icon-button framed" title={entity ? "Add as a child of the selected node" : "Add as the target's root node"} aria-label="Add node" disabled={!canAdd} onclick={add}><Icon name="plus" /></button>
+      <button type="button" class="pill framed" title={!entity ? "Add as the target's root node" : addPlace === "next" ? "Add next to the selected node" : "Add inside the selected node"} disabled={!canAdd} onclick={add}>add</button>
     </span></div>
+    {#if entity}
+      <div class="row" data-help-name="Add as" data-help="Where + node puts the new node: next to the selected node (the same parent, right after it) or inside it (its last child). Next to it is the default for a model, video or image, which rarely hold children; next to the root, both go into a new group."><span class="label">add as</span>
+        <span class="controls"><Segmented options={ADD_PLACES} value={addPlace} labels={ADD_PLACE_LABELS} onchange={place => (addPlaceChosen = place)} /></span></div>
+    {/if}
+  {/if}
 
   {#if !entity || !current}
-    <p class="muted small">No AR content on this target yet: add a root node above (a model, video, image, text or light, or a group to hold several).</p>
+    <p class="muted small">No AR content on this target yet.</p>
     <div class="actions">
       <button type="button" class="text-link" onclick={revert} disabled={!dirty}>Back to the draft</button>
       <span class="grow"></span>
       {#if saved}<span class="small muted">{saved}</span>{/if}
       {#if error}<span class="small danger">{error}</span>{/if}
-      <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving}>{saving ? "Saving…" : "Save"}</button>
+      <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving || behaviourProblems.length > 0}>{saving ? "Saving…" : "Save"}</button>
     </div>
+  {:else if atTarget}
+    <!-- The target is selected: its entity is one step down -->
+    <div class="row"><span class="label">AR content</span>
+      <span class="controls"><button type="button" class="text-link" onclick={() => target && selection.selectNode(target.id, [])} title="Select the entity (its root node)">{nodeLabel(entity)}</button></span></div>
+    {@render actions()}
   {:else}
     <div class="section"><span class="section-label">placement</span></div>
     {#each ["position", "rotation", "scale"] as key (key)}
       {@const axes = rows.filter(r => r.id === key || r.id.startsWith(`${key}.`))}
       {#if axes.length}
-        <div class="row" class:changed={anyChanged(axes)} title="{axes[0].description}{axes[0].unit ? ` (${axes[0].unit})` : ''} – default {axes.map(r => r.default).join(', ')}">
+        <div class="row axis" class:changed={anyChanged(axes)} title="{axes[0].description}{axes[0].unit ? ` (${axes[0].unit})` : ''} – default {axes.map(r => r.default).join(', ')}">
           <span class="label">{key}</span>
           <span class="axes">
             <span class="fields">
@@ -435,29 +669,50 @@
                   oninput={v => set(row, v)} />
               {/each}
             </span>
-            {#if key === "scale"}
-              <!-- The chain (Blender): pressed = one scale for x, y and z -->
-              <button type="button" class="icon-button" class:on={uniformScale} aria-pressed={uniformScale} aria-label="Uniform scale"
-                title={uniformScale ? "Uniform scale: one value for x, y and z – tap to scale per axis" : "Scale per axis – tap to link x, y and z"}
-                onclick={() => { uniformScale = !uniformScale; current && applyNode(current); }}><Icon name="link" /></button>
-            {:else}
-              <span class="link-slot"></span>
-            {/if}
           </span>
         </div>
+        {#if key === "scale"}
+          <!-- One scale for x, y and z, or one per axis – a switch like every on / off (#241; was Blender's chain icon) -->
+          <div class="row"><span class="label">uniform</span>
+            <span class="controls"><Toggle on={uniformScale} label="Uniform scale"
+              title={uniformScale ? "Uniform scale: one value for x, y and z – switch off to scale per axis" : "Scale per axis – switch on for one value for x, y and z"}
+              onchange={on => { uniformScale = on; if (current) applyNode(current); }} /></span></div>
+        {/if}
       {/if}
     {/each}
 
-    {#if ASSET_KINDS[current.type]}
-      <div class="section"><span class="section-label">file</span>
-        <span class="controls">
-          <button type="button" class="text-link" onclick={() => nodeFileInput?.click()} title="Upload a file for this node">Upload…</button>
-          {#if onlibrary}<button type="button" class="text-link" onclick={onlibrary} title="Choose a file from the library (Use)">Library…</button>{/if}
-          <input bind:this={nodeFileInput} type="file" accept={ACCEPT} hidden
-            onchange={e => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) void uploadForNode(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
-        </span></div>
-      <div class="row"><span class="label">{current.type === "model" ? "model" : current.type}</span>
-        <span class="small muted name" title={current.assets[0]?.src ?? ""}>{current.assets[0] ? fileLabel(current.assets[0].src) : "no file"}</span></div>
+    {#if fileKinds}
+      <div class="section"><span class="section-label">file</span></div>
+      <div class="row"><span class="label">{current.type}</span>
+        <FileField src={current.assets[0]?.src} picture={fileKinds.includes("image")} accept={pickAccept({ for: "node", nodeType: current.type })}
+          label="the {current.type} file of this node" onlibrary={pickNodeFile} onupload={f => void uploadForNode(f)} /></div>
+    {/if}
+    {#if nodeSpec}
+      <!-- A plugin's node type (#77): its parameters from its spec, in the node's params -->
+      <div class="section" title={nodeSpec.description}><span class="section-label">node type · {current.type}</span></div>
+      {#each rows.filter(r => r.id.startsWith("params.")) as row (row.id)}
+        {@render specRow(row, row.id.split(".")[1])}
+      {/each}
+    {/if}
+    {#if takesMaterial(current.type)}
+      {#if current.material}
+        <!-- A plugin's material (#188): it replaces the node's own; its parameters from its spec -->
+        <div class="section" title={materialOf?.description}><span class="section-label">material · {current.material.type}</span>
+          <button type="button" class="text-link" onclick={() => current && applyNode(setMaterial(current, null))}>remove</button></div>
+        {#each rows.filter(r => r.id.startsWith("material.")) as row (row.id)}
+          {@render specRow(row, row.id.split(".")[1])}
+        {/each}
+      {:else}
+        <div class="row" data-help-name="Material" data-help="The material of the node's meshes: its own (what its type draws), or a material a plugin of the book registers – it replaces the node's own; the layers still add on top. make code turns the node's own look into a material of the book's own in the Code tab.">
+          <span class="label">material</span>
+          <span class="controls">
+            <select class="field grow" aria-label="Material" value="" onchange={e => { const type = (e.currentTarget as HTMLSelectElement).value; if (type && current) applyNode(setMaterial(current, type)); }}>
+              <option value="">its own</option>
+              {#each materialChoices as type (type)}<option value={type} title={materialSpec(type)?.description}>{type}</option>{/each}
+            </select>
+            <button type="button" class="pill framed" disabled={making} onclick={() => void makeCode("material")} title="Make the node's own look a material of the book's own (Code tab)">make code</button>
+          </span></div>
+      {/if}
     {/if}
     {#if current.type === "text"}
       <div class="section"><span class="section-label">text</span></div>
@@ -483,24 +738,24 @@
     {/if}
 
     {#each current.filters ?? [] as filter, i (i)}
-      <div class="section"><span class="section-label">filters[{i}] {filter.type}</span>
+      <div class="section"><span class="section-label">filter {i + 1} · {filter.type}</span>
         <button type="button" class="text-link" onclick={() => current && applyNode(removeFilter(current, i))}>remove</button></div>
       {#each rows.filter(r => r.id.startsWith(`filters.${i}.`)) as row (row.id)}
-        <div class="row" class:changed={changed(row)} title="{row.description} – default {row.default}">
-          <span class="label">{row.id.replace(/^filters\.\d+\./, "")}</span>
+        <div class="row" class:changed={changed(row)} data-help-name={helpName(row)} title="{row.description} – default {row.default}">
+          <span class="label">{row.label}</span>
           {#if row.kind === "color"}
-            <ColourField value={String(getValue(current, row))} label={row.id} onchange={hex => set(row, hex)} onpick={pickColour} />
+            <ColourField value={String(getValue(current, row))} label={row.label} onchange={hex => set(row, hex)} onpick={pickColour} />
           {:else if row.kind === "choice"}
             <span class="controls"><Segmented options={row.options ?? []} value={String(getValue(current, row))} onchange={v => set(row, v)} /></span>
           {:else}
             <span class="w"><ScrubNumber value={Number(getValue(current, row))} min={row.min} max={row.max} step={row.step} fallback={Number(row.default)}
-              unit={row.unit ?? ""} label={row.id} strict={row.strict} oninput={v => set(row, v)} /></span>
+              unit={row.unit ?? ""} label={row.label} strict={row.strict} oninput={v => set(row, v)} /></span>
           {/if}
         </div>
       {/each}
     {/each}
     {#each current.components ?? [] as component, i (i)}
-      <div class="section"><span class="section-label">components[{i}] {component.type}</span>
+      <div class="section"><span class="section-label">component · {component.type}</span>
         <button type="button" class="text-link" onclick={() => current && applyNode(removeComponent(current, i))}>remove</button></div>
       {#if component.type === "animation" && timeline}
         <!-- The timeline: the model's clips, play / pause, the time – it drives the same clip the component plays -->
@@ -516,6 +771,11 @@
           <input class="time" type="range" min="0" max={timelineState?.duration ?? 0} step="0.01" value={timelineState?.time ?? 0} aria-label="Time in the clip"
             oninput={e => timeline?.seek(Number((e.currentTarget as HTMLInputElement).value))} />
         </div>
+      {/if}
+      {#if component.type === BEHAVIOUR_TYPE}
+        <!-- The behaviour's rules (#88): event, condition and actions as pickers -->
+        <BehaviourRules rules={rulesOf(current, i)} names={subtreeNames(current)} clipsOf={name => behaviourClips[name] ?? []}
+          variables={ruleVariables} events={ruleEvents} uid="behaviour-{i}" onchange={rules => current && applyNode(withRules(current, i, rules))} />
       {/if}
       {#each rows.filter(r => r.id.startsWith(`components.${i}.`)) as row (row.id)}
         {@render specRow(row, row.id.split(".")[2])}
@@ -538,36 +798,60 @@
         </span></div>
     {/if}
 
+    {#if behaviourProblems.length}
+      <ul class="problems small danger" aria-label="Behaviour problems">{#each behaviourProblems as problem (problem)}<li>{problem}</li>{/each}</ul>
+    {/if}
     <div class="actions">
       <button type="button" class="text-link" onclick={revert} disabled={!dirty}>Back to the draft</button>
       <span class="grow"></span>
       {#if saved}<span class="small muted">{saved}</span>{/if}
       {#if error}<span class="small danger">{error}</span>{/if}
-      <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving}>{saving ? "Saving…" : "Save"}</button>
+      {#if error && codeError && oncode}<button type="button" class="text-link" onclick={oncode}>Code tab</button>{/if}
+      <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving || behaviourProblems.length > 0}>{saving ? "Saving…" : "Save"}</button>
     </div>
   {/if}
 {/if}
 
 <style>
   .head { display: flex; align-items: center; gap: .5rem; min-height: var(--control-height); }
-  .head .field { max-width: 60%; }
   .head .small { overflow-wrap: anywhere; }
+  .crumbs { flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 0 .125rem; }
+  .crumb { max-width: 10rem; height: var(--control-height); padding: 0 .375rem; border: none; border-radius: var(--control-radius); background: none; color: var(--muted);
+    cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (hover: hover) {
+    button.crumb:hover { background: var(--hover-background); color: var(--text); }
+  }
+  .crumb.current { display: inline-flex; align-items: center; background: var(--selected-background); color: var(--pressed-color); cursor: default; }
+  .crumb-sep { color: var(--muted); }
+  /* Only the select's arrow shows; its options name the targets */
+  .crumb-switch { width: 1.25rem; height: var(--control-height); padding: 0; border: none; border-radius: var(--control-radius); color: transparent; cursor: pointer; appearance: none;
+    background: linear-gradient(45deg, transparent 50%, var(--muted) 50%) calc(50% - 2px) 55% / 4px 4px no-repeat,
+      linear-gradient(135deg, var(--muted) 50%, transparent 50%) calc(50% + 2px) 55% / 4px 4px no-repeat; }
+  @media (hover: hover) {
+    .crumb-switch:hover { background-color: var(--hover-background); }
+  }
+  .crumb-switch option { color: var(--text); background: var(--surface); }
+  @media (pointer: coarse) { .crumb-switch { width: var(--control-height); } }
+  @container panel (max-width: 20rem) {
+    .head { flex-wrap: wrap; gap: 0 .5rem; }
+  }
   .add .controls { flex-wrap: nowrap; }
   .add .field { min-width: 0; max-width: 7rem; }
-  .add .field.grow { flex: 1; max-width: none; }
+  .add .file-pick { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; justify-content: flex-start; }
   .w { width: 6rem; display: inline-flex; }
   .w :global(.scrub) { width: 100%; }
   .fields :global(.scrub) { width: 100%; }
   .axes { display: flex; align-items: center; gap: .25rem; min-width: 0; }
   .axes .fields { flex: 1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .link-slot { flex: none; width: var(--control-height); }
+  /* Narrow: the label goes above the X / Y / Z fields, so each still shows "-180°" and its reset */
+  @container panel (max-width: 23rem) {
+    .row.axis { grid-template-columns: minmax(0, 1fr); gap: .125rem; padding-bottom: .125rem; }
+  }
   .row > .field { width: 100%; }
   .tabular { font-variant-numeric: tabular-nums; }
   .time { width: 100%; margin: 0; accent-color: var(--text); }
-  .file { flex-wrap: nowrap; }
-  .target-thumb { width: 2.5rem; height: 1.875rem; object-fit: contain; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface-head); }
-  .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .text-link.on { color: var(--text); }
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; border-top: 1px solid var(--line); padding-top: .5rem; }
   .grow { flex: 1; }
+  .problems { margin: .25rem 0 0; padding-left: 1rem; overflow-wrap: anywhere; }
 </style>

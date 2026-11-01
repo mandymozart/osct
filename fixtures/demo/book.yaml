@@ -3,3 +3,5 @@ id: demo
 title: The Demo Book
 author: OSCT
 publisher: Building Fictions
+# Made in the editor, not from a printed layout: spreads are added and removed there (#238)
+sourceOfTruth: digital

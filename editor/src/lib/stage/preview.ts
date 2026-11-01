@@ -4,13 +4,17 @@
  *
  * - `active`: the editor page is open – `ArScene` builds the mock tracker instead of the engine (a change while the
  *   scene exists rebuilds it). Not stored: the route decides.
- * - The settings the preview panel changes, stored on this device (`osct-preview`): the view preset or a free orbit,
- *   the sky (an HDRI), the desk, the hand-shake amount.
+ * - The settings the stage toolbar changes, stored on this device (`osct-preview`): the view preset or a free orbit,
+ *   the shading, the sky (an HDRI), the desk's top, the hand-shake amount and the origin (the *view* group, #229), the
+ *   grid and its vertical axis, and the snapping (the *grid & snap* group: on / off, what it snaps to, the precision
+ *   per gizmo mode – `snap.ts`).
  * - `hidden`: targets switched off in the panel – the mock reports them as lost (outro), on again as found (reveal).
  *   Not stored.
  */
 
-import { isOriginId, type OriginId } from "./origin";
+import { isOriginId, originLabel, type OriginFrame, type OriginId } from "./origin";
+import { clampSnap, SNAP_TARGETS, type SnapTarget } from "./snap";
+import { readStoredJson, writeStoredJson } from "#lib/storage.js";
 
 export const PREVIEW_VIEWS = ["reader", "top", "low", "far"] as const;
 export type PreviewView = (typeof PREVIEW_VIEWS)[number];
@@ -28,16 +32,45 @@ export type HdriId = (typeof HDRIS)[number]["id"];
 export const isHdriId = (value: unknown): value is HdriId => HDRIS.some(h => h.id === value);
 
 /**
- * The desks the stage offers (our own low-poly models – `editor/static/models/README.md`; Tilman: the tool is for
- * designers, they should feel at home): Egon Eiermann's table frame with a screen-printed plywood top, Philipp Camille
- * Schöpfer's white desk
+ * The stage's desk (our own low-poly model – `editor/static/models/README.md`; designers' furniture, so the designers
+ * who use the tool feel at home): Egon Eiermann's table frame with one of two tops of the same size (#226) – its own
+ * screen-printed plywood top, or blue-grey linoleum on an oak-faced plywood board. The setting switches only the top.
  */
-export const DESKS = [
-  { id: "eiermann", name: "Eiermann" },
-  { id: "schoepfer", name: "Schöpfer" },
+export const DESK_NAME = "Eiermann";
+export const TOPS = [
+  { id: "plywood", name: "plywood" },
+  { id: "linoleum", name: "linoleum" },
 ] as const;
-export type DeskId = (typeof DESKS)[number]["id"];
-export const isDeskId = (value: unknown): value is DeskId => DESKS.some(d => d.id === value);
+export type TopId = (typeof TOPS)[number]["id"];
+export const isTopId = (value: unknown): value is TopId => TOPS.some(t => t.id === value);
+const DEFAULT_TOP: TopId = "plywood";
+
+/**
+ * The top from stored settings: `top`, or the desk stored before #226 (`desk`) – the Eiermann desk is its plywood
+ * top, Schöpfer's desk (gone) the linoleum top, so nobody's stage breaks; anything else the default
+ */
+const LEGACY_DESKS: Readonly<Record<string, TopId>> = { eiermann: "plywood", schoepfer: "linoleum" };
+export const storedTop = (stored: { top?: unknown; desk?: unknown }): TopId =>
+  isTopId(stored.top) ? stored.top
+    : typeof stored.desk === "string" && Object.hasOwn(LEGACY_DESKS, stored.desk) ? LEGACY_DESKS[stored.desk]
+      : DEFAULT_TOP;
+
+/**
+ * The stage toolbar's *view* group in a few words (#229 – the Stage tab's closed *stage* head until then): the desk and
+ * its top, the origin, the hand shake and the sky – "Eiermann · plywood · origin top left · no shake · sky Wooden
+ * Studio 17"; with the book's environment the sky is its world ("· the environment's sky"). The group's tooltip; the
+ * grid and snapping are the *grid & snap* group's own.
+ */
+export const viewSummary = (
+  settings: Pick<PreviewSettings, "top" | "wobble" | "origin" | "hdri">,
+  { format = "spread", environment = false }: { format?: OriginFrame["format"]; environment?: boolean } = {},
+): string => [
+  DESK_NAME,
+  TOPS.find(t => t.id === settings.top)?.name ?? settings.top,
+  `origin ${originLabel(settings.origin, format)}`,
+  settings.wobble > 0 ? `shake ${Math.round(settings.wobble * 100) / 100}` : "no shake",
+  environment ? "the environment's sky" : `sky ${HDRIS.find(h => h.id === settings.hdri)?.name ?? settings.hdri}`,
+].join(" · ");
 
 /** A free view of the stage: distance from the looked-at point in mm, tilt from the vertical and yaw in degrees */
 export interface PreviewOrbit {
@@ -48,8 +81,15 @@ export interface PreviewOrbit {
   pan?: { x: number; y: number };
 }
 
+/**
+ * The viewport's shading, after Blender's: **wireframe** (every entity as lines), **solid** (one matte grey, the
+ * scene's lights), **textured** (the content's materials, the scene's lights, no sky) and **rendered** (the
+ * content's materials under the HDRI's sky and light). Applied per entity mesh – the originals are kept and come
+ * back – so the stage, the gizmo and the outlines keep their own materials.
+ */
 export const SHADING_MODES = ["wireframe", "solid", "textured", "rendered"] as const;
 export type ShadingMode = (typeof SHADING_MODES)[number];
+export const isShadingMode = (value: unknown): value is ShadingMode => SHADING_MODES.includes(value as ShadingMode);
 
 export interface PreviewSettings {
   view: PreviewView;
@@ -59,14 +99,24 @@ export interface PreviewSettings {
   orbit: PreviewOrbit | null;
   /** The HDRI shown as sky and used as light (while the shading is rendered) */
   hdri: HdriId;
-  /** The desk under the book */
-  desk: DeskId;
+  /** The desk's top under the book (the frame is always the Eiermann) */
+  top: TopId;
   /** 0 = still, 1 = a hand holding a phone */
   wobble: number;
   /** A grid over the page (the stage), its spacing in mm, and the origin it and the positions are counted from */
   grid: boolean;
   gridMm: number;
   origin: OriginId;
+  /** The vertical axis: a line for the height through the origin, shown with the grid */
+  axis: boolean;
+  /** The gizmo and the placement handles snap (Shift or Ctrl held turns it around for a drag) */
+  snap: boolean;
+  /** What a move snaps to */
+  snapTo: SnapTarget[];
+  /** The precision per mode: the move's step when the grid is no snap target (mm), the rotation's (degrees), the scale's */
+  snapMove: number;
+  snapRotate: number;
+  snapScale: number;
 }
 
 export interface PreviewState extends PreviewSettings {
@@ -76,31 +126,40 @@ export interface PreviewState extends PreviewSettings {
 
 const STORAGE_KEY = "osct-preview";
 
-const DEFAULTS: PreviewSettings = { view: "reader", shading: "rendered", orbit: null, hdri: "ferndale_studio_04", desk: "eiermann", wobble: 0, grid: false, gridMm: 10, origin: "top-left" };
+const DEFAULTS: PreviewSettings = {
+  view: "reader", shading: "rendered", orbit: null, hdri: "wooden_studio_17", top: DEFAULT_TOP, wobble: 0, grid: false, gridMm: 10, origin: "top-left",
+  axis: true, snap: false, snapTo: [...SNAP_TARGETS], snapMove: 1, snapRotate: 15, snapScale: 0.1,
+};
 
 /** The grid's spacing stays between 1 mm and the page's size */
 export const clampGrid = (mm: number): number => Math.min(500, Math.max(1, mm));
 
-const readSettings = (): PreviewSettings => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULTS };
-    const stored = JSON.parse(raw) as Partial<PreviewSettings>;
-    return {
-      view: PREVIEW_VIEWS.includes(stored.view as PreviewView) ? (stored.view as PreviewView) : DEFAULTS.view,
-      shading: SHADING_MODES.includes(stored.shading as ShadingMode) ? (stored.shading as ShadingMode) : DEFAULTS.shading,
-      orbit: isOrbit(stored.orbit) ? stored.orbit : null,
-      hdri: isHdriId(stored.hdri) ? stored.hdri : DEFAULTS.hdri,
-      desk: isDeskId(stored.desk) ? stored.desk : DEFAULTS.desk,
-      wobble: typeof stored.wobble === "number" && Number.isFinite(stored.wobble) ? Math.min(1, Math.max(0, stored.wobble)) : 0,
-      grid: stored.grid === true,
-      gridMm: typeof stored.gridMm === "number" && Number.isFinite(stored.gridMm) ? clampGrid(stored.gridMm) : DEFAULTS.gridMm,
-      origin: isOriginId(stored.origin) ? stored.origin : DEFAULTS.origin,
-    };
-  } catch {
-    return { ...DEFAULTS };
-  }
+const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
+
+/** Settings from a stored (or sent) value, each one checked – a missing or wrong one is the default */
+export const parseSettings = (parsed: unknown): PreviewSettings => {
+  if (!parsed || typeof parsed !== "object") return { ...DEFAULTS, snapTo: [...DEFAULTS.snapTo] };
+  const stored = parsed as Partial<PreviewSettings> & { desk?: unknown };
+  return {
+    view: PREVIEW_VIEWS.includes(stored.view as PreviewView) ? (stored.view as PreviewView) : DEFAULTS.view,
+    shading: isShadingMode(stored.shading) ? stored.shading : DEFAULTS.shading,
+    orbit: isOrbit(stored.orbit) ? stored.orbit : null,
+    hdri: isHdriId(stored.hdri) ? stored.hdri : DEFAULTS.hdri,
+    top: storedTop(stored),
+    wobble: typeof stored.wobble === "number" && Number.isFinite(stored.wobble) ? Math.min(1, Math.max(0, stored.wobble)) : 0,
+    grid: stored.grid === true,
+    gridMm: typeof stored.gridMm === "number" && Number.isFinite(stored.gridMm) ? clampGrid(stored.gridMm) : DEFAULTS.gridMm,
+    origin: isOriginId(stored.origin) ? stored.origin : DEFAULTS.origin,
+    axis: typeof stored.axis === "boolean" ? stored.axis : DEFAULTS.axis,
+    snap: stored.snap === true,
+    snapTo: Array.isArray(stored.snapTo) ? SNAP_TARGETS.filter(target => (stored.snapTo as unknown[]).includes(target)) : [...DEFAULTS.snapTo],
+    snapMove: finite(stored.snapMove) ? clampSnap("move", stored.snapMove) : DEFAULTS.snapMove,
+    snapRotate: finite(stored.snapRotate) ? clampSnap("rotate", stored.snapRotate) : DEFAULTS.snapRotate,
+    snapScale: finite(stored.snapScale) ? clampSnap("scale", stored.snapScale) : DEFAULTS.snapScale,
+  };
 };
+
+const readSettings = (): PreviewSettings => parseSettings(readStoredJson(STORAGE_KEY));
 
 const isOrbit = (value: unknown): value is PreviewOrbit => {
   if (!value || typeof value !== "object") return false;
@@ -111,11 +170,7 @@ const isOrbit = (value: unknown): value is PreviewOrbit => {
 };
 
 const writeSettings = (settings: PreviewSettings): void => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // storage blocked (or the photo too large for it): the settings hold for this session
-  }
+  writeStoredJson(STORAGE_KEY, settings);
 };
 
 let state: PreviewState = { ...readSettings(), active: false, hidden: [] };
@@ -126,8 +181,6 @@ const publish = (): void => {
 };
 
 export const getPreview = (): PreviewState => state;
-
-export const isPreviewActive = (): boolean => state.active;
 
 /** The editor page is open (true) or left (false) */
 export const setPreviewActive = (active: boolean): void => {
@@ -150,6 +203,29 @@ export const updatePreview = (patch: Partial<Omit<PreviewState, "active">>): voi
 export const setTargetHidden = (targetId: string, hidden: boolean): void => {
   const without = state.hidden.filter(id => id !== targetId);
   updatePreview({ hidden: hidden ? [...without, targetId] : without });
+};
+
+/**
+ * The preview as the page and the stage frame keep it in step (#234): the settings and the hidden targets, checked
+ * and in one order – the same preview gives the same text on both sides. `active` is each side's own.
+ */
+export const previewSync = (value: unknown = state): string => {
+  const hidden = (value as { hidden?: unknown } | null)?.hidden;
+  return JSON.stringify({ ...parseSettings(value), hidden: Array.isArray(hidden) ? hidden.filter((id): id is string => typeof id === "string") : [] });
+};
+
+/** Take the preview the other side sent (`previewSync`'s text, checked again here); false when it is the one shown already or no JSON */
+export const applyPreviewSync = (sync: string): boolean => {
+  let sent: unknown;
+  try {
+    sent = JSON.parse(sync);
+  } catch {
+    return false;
+  }
+  const checked = previewSync(sent);
+  if (checked === previewSync()) return false;
+  updatePreview(JSON.parse(checked) as Partial<PreviewState>);
+  return true;
 };
 
 export const subscribePreview = (listener: (state: PreviewState) => void): (() => void) => {

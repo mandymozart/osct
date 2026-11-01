@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { assertGameConfiguration, GameConfigurationError } from "@shared/guards/game-config";
-import { componentSpecProblems, pluginApiCompatible, pluginProblems } from "@shared/types/game-config";
+import { componentSpecProblems, PARAM_LABEL_MAX, paramLabel, paramWords, pluginApiCompatible, pluginProblems } from "@shared/types/game-config";
 
-/** Content schema 2.3: the configuration declares the book's plugins; their components pass the guard */
+/** The configuration declares the book's plugins; their components pass the guard */
 
 const config = (extra: Record<string, unknown>, components?: unknown[]) => ({
   version: { version: "1.11.0", timestamp: "2026-01-01T00:00:00.000Z", schema: "2.3" },
@@ -32,7 +32,7 @@ describe("plugins in the configuration", () => {
   it("accepts a declared plugin and lets its component types through – the plugin registers them at load", () => {
     const plugins = [{ id: "tint", src: "/assets/content/plugins/tint/plugin.js", api: "1.0" }];
     expect(problemsOf(config({ plugins }, [{ type: "tint", opacity: 0.4 }]))).toEqual([]);
-    expect(problemsOf(config({}, [{ type: "tint", opacity: 0.4 }]))).toEqual(['entries[0].target.entity.components[0].type: "tint" is not one of animation']);
+    expect(problemsOf(config({}, [{ type: "tint", opacity: 0.4 }]))).toEqual(['entries[0].target.entity.components[0].type: "tint" is not one of animation, behaviour']);
     expect(problemsOf(config({ plugins }, [{ type: "animation" }]))).toEqual(["entries[0].target.entity.components[0]: animation applies to model nodes, not to a video"]);
   });
 
@@ -46,6 +46,89 @@ describe("plugins in the configuration", () => {
       "plugins[3]: expected { id, src, api }",
     ]);
     expect(problemsOf(config({ plugins: "no" }))).toEqual(["plugins: expected a list of plugins"]);
+  });
+
+  describe("what the plugins recorded (schema 2.14, #90)", () => {
+    const TINT = { description: "Tints.", nodeTypes: ["video"], params: { opacity: { kind: "number", default: 0.3, min: 0, max: 1, description: "How much." } } };
+    const SPARKLE = { description: "Points.", params: { count: { kind: "number", default: 50, min: 1, max: 500, description: "How many." } } };
+    const recorded = { id: "tint", src: "/assets/content/plugins/tint/plugin.js", api: "1.2", registered: { components: { tint: TINT }, nodeTypes: { sparkle: SPARKLE }, passes: {} } };
+    const at2_14 = (extra: Record<string, unknown>, components?: unknown[]) => {
+      const c = config(extra, components);
+      return { ...c, version: { ...c.version, schema: "2.14" } };
+    };
+    const withNode = (node: Record<string, unknown>, plugins: unknown[], schema = "2.14") => ({ ...at2_14({ plugins }), version: { version: "x", timestamp: "t", schema }, entities: { fx: { assets: [], ...node } } });
+
+    it("checks a plugin component's parameters like a built-in one's, and refuses a type no declared plugin registers", () => {
+      expect(problemsOf(at2_14({ plugins: [recorded] }, [{ type: "tint", opacity: 0.4 }]))).toEqual([]);
+      expect(problemsOf(at2_14({ plugins: [recorded] }, [{ type: "tint", opacity: 4, glow: true }]))).toEqual([
+        "entries[0].target.entity.components[0].opacity: expected a number from 0 to 1, got 4",
+        "entries[0].target.entity.components[0].glow: unknown parameter of tint (opacity)",
+      ]);
+      expect(problemsOf(at2_14({ plugins: [recorded] }, [{ type: "tnit" }]))).toEqual(['entries[0].target.entity.components[0].type: "tnit" is not one of animation, behaviour, tint']);
+    });
+
+    it("checks a plugin node type's parameters, refuses a node type no declared plugin registers – unless the content is newer", () => {
+      expect(problemsOf(withNode({ type: "sparkle", params: { count: 120 } }, [recorded]))).toEqual([]);
+      expect(problemsOf(withNode({ type: "sparkle", params: { count: 0 } }, [recorded]))).toEqual(["entities.fx.params.count: expected a number from 1 to 500, got 0"]);
+      expect(problemsOf(withNode({ type: "sparkel" }, [recorded]))).toEqual([
+        'entities.fx.type: "sparkel" is not a node type – neither built in (group, model, video, image, text, light) nor registered by a plugin of the book (sparkle)',
+      ]);
+      // A later MINOR may add a built-in node type this app does not know: it renders nothing, the content loads
+      expect(problemsOf(withNode({ type: "hologram" }, [recorded], "2.99"))).toEqual([]);
+    });
+
+    it("lets an unknown type pass while a declared plugin recorded nothing (an older build) – what the others recorded is still checked", () => {
+      const older = { id: "old", src: "/assets/content/plugins/old/plugin.js", api: "1.0" };
+      expect(problemsOf(at2_14({ plugins: [recorded, older] }, [{ type: "tnit" }]))).toEqual([]);
+      expect(problemsOf(withNode({ type: "sparkel" }, [recorded, older]))).toEqual([]);
+      expect(problemsOf(withNode({ type: "sparkle", params: { count: 0 } }, [recorded, older]))).toEqual(["entities.fx.params.count: expected a number from 1 to 500, got 0"]);
+    });
+
+    describe("a plugin's pass in passes (schema 2.21, #216)", () => {
+      const SCAN = { description: "Scan lines.", params: { lines: { kind: "number", default: 200, min: 10, max: 800, description: "How many." } } };
+      const scanning = { ...recorded, registered: { ...recorded.registered, passes: { scanLines: SCAN } } };
+      const withPasses = (plugins: unknown[], spread: unknown[], book?: unknown[]) => {
+        const c = at2_14({ plugins });
+        return { ...c, version: { ...c.version, schema: "2.21" }, book: { ...c.book, ...(book ? { passes: book } : {}) }, spreads: [{ ...c.spreads[0], passes: spread }] };
+      };
+
+      it("checks its parameters against the recorded spec, on a spread and on the book", () => {
+        expect(problemsOf(withPasses([scanning], [{ type: "vignette" }, { type: "scanLines", lines: 400 }], [{ type: "scanLines" }]))).toEqual([]);
+        expect(problemsOf(withPasses([scanning], [{ type: "scanLines", lines: 2 }], [{ type: "scanLines", lines: 900 }]))).toEqual([
+          "book.passes[0].lines: expected a number from 10 to 800, got 900",
+          "spreads[0].passes[0].lines: expected a number from 10 to 800, got 2",
+        ]);
+        // A parameter a newer MINOR adds is left to the newer app, as with a built-in pass
+        expect(problemsOf(withPasses([scanning], [{ type: "scanLines", later: 1 }]))).toEqual([]);
+      });
+
+      it("refuses a pass type no declared plugin recorded, naming the plugins' passes – as a 2.20 app refuses every plugin pass", () => {
+        expect(problemsOf(withPasses([scanning], [{ type: "scanLine" }]))).toEqual([
+          'spreads[0].passes[0].type: "scanLine" is not one of bloom, vignette, grade or a pass of the book\'s plugins (scanLines)',
+        ]);
+        expect(problemsOf(withPasses([], [{ type: "scanLines" }]))).toEqual(['spreads[0].passes[0].type: "scanLines" is not one of bloom, vignette, grade']);
+      });
+
+      it("lets it pass while a declared plugin recorded nothing (it registers its passes at load), or on the editor's stage", () => {
+        const older = { id: "old", src: "/assets/content/plugins/old/plugin.js", api: "1.0" };
+        expect(problemsOf(withPasses([scanning, older], [{ type: "grain" }]))).toEqual([]);
+        expect(() => assertGameConfiguration(withPasses([], [{ type: "grain" }]), { unknownComponentTypes: "allow" })).not.toThrow();
+      });
+
+      it("a recorded pass may not take a built-in pass's name", () => {
+        expect(pluginProblems([{ ...recorded, registered: { passes: { bloom: SCAN } } }])).toEqual(['plugins[0].registered.passes: "bloom" is a built-in pass']);
+      });
+    });
+
+    it("checks the recorded specs themselves", () => {
+      expect(pluginProblems([recorded])).toEqual([]);
+      expect(pluginProblems([{ ...recorded, registered: { components: { tint: { ...TINT, params: { opacity: { kind: "number", default: 2, min: 0, max: 1, description: "x" } } } }, nodeTypes: [], passes: { scan: { params: {} } } } }])).toEqual([
+        "plugins[0].registered.components: tint.opacity: a number needs min ≤ default ≤ max",
+        "plugins[0].registered.nodeTypes: expected an object of type → spec",
+        "plugins[0].registered.passes: scan: description must be a string",
+      ]);
+      expect(pluginProblems([{ ...recorded, registered: "all" }])).toEqual(["plugins[0].registered: expected { components?, nodeTypes?, passes?, materials?, textures? }"]);
+    });
   });
 
   it("the plugin API is compatible within a MAJOR", () => {
@@ -64,8 +147,28 @@ describe("plugins in the configuration", () => {
       "tint: description must be a string",
       "tint.Bad: a parameter name is camelCase letters and digits",
       "tint.Bad: description must be a string",
-      "tint.Bad: kind must be color, number, choice, boolean or string",
+      "tint.Bad: kind must be color, number, choice, boolean, string or texture",
       "tint.c: a choice needs options (strings) and a default among them",
     ]);
+  });
+
+  it("takes a parameter's optional label – a short text (schema 2.15, plugin API 1.3)", () => {
+    const spec = (label: unknown) => ({ description: "d", params: { degreesPerSecond: { kind: "number", default: 30, min: -360, max: 360, label, description: "d" } } });
+    expect(componentSpecProblems("spin", spec("speed"))).toEqual([]);
+    expect(componentSpecProblems("spin", spec(undefined))).toEqual([]);
+    for (const bad of [3, "", "  ", "a label far too long for the row"]) {
+      expect(componentSpecProblems("spin", spec(bad))).toEqual([`spin.degreesPerSecond: label must be a short text (1–${PARAM_LABEL_MAX} characters)`]);
+    }
+  });
+
+  it("names a parameter by its label, else by its name split into words", () => {
+    expect(paramWords("degreesPerSecond")).toBe("degrees per second");
+    expect(paramWords("playOn")).toBe("play on");
+    expect(paramWords("uvScale2")).toBe("uv scale 2");
+    expect(paramWords("HDRImage")).toBe("hdr image");
+    expect(paramWords("opacity")).toBe("opacity");
+    expect(paramLabel("degreesPerSecond", { label: "speed" })).toBe("speed");
+    expect(paramLabel("degreesPerSecond", {})).toBe("degrees per second");
+    expect(paramLabel("degreesPerSecond", { label: " " })).toBe("degrees per second");
   });
 });

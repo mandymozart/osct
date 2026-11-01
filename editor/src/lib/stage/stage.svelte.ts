@@ -1,316 +1,323 @@
 import { SvelteMap } from "svelte/reactivity";
-import { base } from "$app/paths";
-import { Object3D, Raycaster, Vector2 } from "three";
-import { entityNodes } from "@engine/content/game-config";
-import { onAppUi } from "@engine/scene/ui";
-import { allVars, ArScene, observeEvents, resetVars, type VarScope, type VarValue } from "@engine/scene";
-import { BACKDROP_LAYER } from "@engine/scene/view";
-import { getSpread, getTarget, getTargets } from "@engine/content/game-config";
-import { SceneState, type ArStatus, type EntityData, type IArScene, type NodeTimeline, type PassData } from "@engine/types";
-import { nodeAt, removeNode, withNode } from "$lib/values";
-import { Gizmo, type GizmoMode, type GizmoSelection } from "./gizmo";
-import { LightHelpers } from "./light-helper";
-import { applyShading } from "./shading";
-import { getPreview, subscribePreview, type ShadingMode } from "./preview";
-import { MockStage } from "./mock-stage";
-import { MockTracker } from "./mock-tracker";
-import { StageProgress } from "./progress";
-import { plugins } from "$lib/plugins.svelte";
-import { setPreviewActive, setTargetHidden } from "./preview";
-import type { PrintPlacement } from "$lib/api";
+import { resolve } from "$app/paths";
+import type { PrintSurface } from "@shared/types/game-config";
+import type { EnvironmentData } from "@shared/types/environment";
+import { getSpread, getTarget } from "@engine/content/game-config";
+import { mirrorPluginRegistry } from "@engine/scene/plugins";
+import type { VarScope, VarValue } from "@engine/scene";
+import type { ArStatus, EntityData, NodeTimeline, PassData, SpreadFormat } from "@engine/types";
+import { nodeAt, removeNode, withNode } from "#lib/values.js";
+import type { PrintPlacement } from "#lib/api.js";
+import { content } from "#lib/content.svelte.js";
+import { plugins } from "#lib/plugins.svelte.js";
+import { help } from "#lib/help.svelte.js";
+import {
+  type ContentSnapshot, FRAME_SANDBOX, type FrameEvent, type FrameInit, FrameRequests, type LayoutSnapshot, readFrameEvent, readFrameReply,
+  REMOVED_ENTITY, REMOVED_WIRE, type RunResult, type TimelineSnapshot,
+} from "./frame-protocol";
+import type { GizmoMode } from "./gizmo";
+import type { PickMode, StagePick } from "./pick";
+import { applyPreviewSync, getPreview, previewSync, subscribePreview, type ShadingMode } from "./preview";
+import type { StageEvent } from "./event-log";
+import type { GhostPlace } from "./stage-core.svelte";
+import { DEFAULT_PAGE_MM } from "./stage-layout";
 
-/** Hide → show again: the outro (0.7 s) ends before the target is found again */
-const REPLAY_GAP_MS = 900;
+export type { StageEvent } from "./event-log";
+export type { PickMode, StagePick } from "./pick";
+export type { GhostPlace } from "./stage-core.svelte";
 
 /**
- * The editor's stage: the engine's `ArScene` with the mock tracker and the mock stage instead of a camera, and the
- * editor's simulation of the game around it – which spread is open, which targets the "camera" sees, which were
- * found for the first time (the unlock animation plays once per target, *replay* plays it again), and the reader's
- * progress for the book's plugins (`StageProgress`: unlocked targets, book variables – the engine's `api.progress`).
- * The reader's store does none of this here: the editor owns its state. For the Stage panel it keeps the plugins'
- * variables and the last events of the stage (`vars`, `events`).
+ * The editor's stage as the workspace sees it (#234, docs/editor.md "The stage frame"). The stage itself – the engine's
+ * `ArScene` over the mock stage, and with it **every plugin of the book and the Code tab's Run** – runs in an iframe
+ * sandboxed without `allow-same-origin` (`stage-core.svelte.ts` in `frame-host.svelte.ts`): an opaque origin, so plugin
+ * code has no session cookie, no CSRF token, no storage of the editor's and no way into this page. This class is the
+ * page's side: it puts the frame into the stage's container, sends it the draft (as text – the frame never asks the
+ * API), the preview, the environment and every live edit, and mirrors what the frame reports – its state, the plugins'
+ * variables and timeline, the plugin registry (as specs, so the panels read them), the layout and the models' timelines.
+ *
+ * The live overrides are the page's own (`overrides`, the tree's and the Inspector's source): every change is sent to the
+ * frame, and a gizmo drag in the frame only reports the new placement, which the page writes into its override. What
+ * the frame sends is checked (`readFrameEvent`) and never reaches the API – saving stays the person's click here. A
+ * frame that loads again (a reload, another content base) is given everything again: the draft, the preview, the
+ * overrides, the selection, the spread.
  */
-
-/** An event of the stage as the panel lists it */
-export interface StageEvent {
-  event: string;
-  detail: string;
-}
-
-/** How many events the panel keeps */
-const EVENT_LOG_SIZE = 12;
-export type PickMode = "entity" | "node" | "target";
-
-/** A placement being edited: the image and where it would be printed (mm) */
-export interface GhostPlace {
-  imageSrc: string;
-  surface: "left" | "right" | "front" | "back";
-  x: number;
-  y: number;
-  width: number;
-  height?: number;
-}
-
-/** What a click on the stage hit: a target (its printed image, or its entity's node at `path`) */
-export interface StagePick {
-  targetId: string;
-  path: number[];
-  /** The printed image was hit, not an entity */
-  printed?: boolean;
-}
-
 export class Stage {
-  /**
-   * The override that stands for "the entity is removed" (the root went): the stage shows nothing, the Entity panel
-   * shows no node, Save writes no entity. Compared by reference.
-   */
-  static readonly REMOVED: EntityData = Object.freeze({ type: "group", assets: [] }) as EntityData;
+  /** The override that stands for "the entity is removed" (the root went): the stage shows nothing, the Inspector shows no node, Save writes no entity */
+  static readonly REMOVED: EntityData = REMOVED_ENTITY;
 
   status = $state<ArStatus>("idle");
   error = $state<string | null>(null);
   spreadId = $state<string | null>(null);
   /** Targets the tracker reports found right now */
   found = $state<string[]>([]);
-  /** A tap on the stage picked something (the Entity panel selects it) – or nothing (null) */
+  /** A tap on the stage picked something (the Inspector selects it) – or nothing (null) */
   onPick: ((hit: StagePick | null) => void) | null = null;
-  /** A right click on the stage: what lies there (null = the page or the table) and where */
+  /** A right click on the stage: what lies there (null = the page or the table) and where (the page's client px) */
   onContextMenu: ((hit: StagePick | null, clientX: number, clientY: number) => void) | null = null;
-  /** What a click picks (Blender's select mode): the entity (its root), the node under the pointer, or the printed target */
+  /** The form or the panel editing a placement listens: a handle moved it */
+  onGhostChange: ((place: { surface: PrintSurface; x: number; y: number; width: number; height?: number }) => void) | null = null;
+  /** What a click picks (Blender's select mode): an entity, the node under the pointer, or a printed target */
   pickMode = $state<PickMode>("entity");
   /** The viewport's shading (stored with the preview settings) */
   shading = $state<ShadingMode>(getPreview().shading);
-
-  private scene: IArScene;
-  private tracker: MockTracker | null = null;
-  private gizmo: Gizmo | null = null;
-  /** The helpers of the spread's light nodes (Blender-style, the editor's only) */
-  private lightHelpers: LightHelpers | null = null;
-  private selection: GizmoSelection | null = null;
-  private wantedMode: GizmoMode = "translate";
-  /** The gizmo's mode (reactive: the toolbar shows it) */
+  /** The environment's world is drawn under the stage now (the toolbar says so) */
+  world = $state(false);
+  /** The gizmo's mode (the toolbar shows it) */
   gizmoMode = $state<GizmoMode>("translate");
-  /** The simulated reader's progress: the first finds and the plugins' book variables */
-  private progress = new StageProgress();
-  /** The plugins' variables with their scopes (reactive: the Stage panel lists them) */
+  /** The plugins' variables with their scopes (the Inspector lists them) */
   vars = $state<Array<{ scope: VarScope; name: string; value: VarValue }>>([]);
-  /** The last events of the stage, newest first */
+  /** The stage's event timeline, newest first */
   events = $state<StageEvent[]>([]);
-  /** Entities shown with other values than the draft's, by target id (reactive: the panels mark them) */
+  /** Entities shown with other values than the draft's, by target id (the panels mark them) */
   overrides = new SvelteMap<string, EntityData>();
-  private replayTimer = 0;
+
+  private frame: HTMLIFrameElement;
+  private requests: FrameRequests;
+  private layout = $state.raw<LayoutSnapshot>({ pageFormat: DEFAULT_PAGE_MM, places: {} });
+  private timelines: Record<string, TimelineSnapshot> = {};
+  private timelineProxies = new Map<string, { clips: string; timeline: NodeTimeline }>();
+  /** What a frame that loads (again) is given: the content sent last, and the state the page set */
+  private sentContent: ContentSnapshot | null = null;
+  private passes: PassData[] | null | undefined = undefined;
+  private environment: { environment: EnvironmentData | null; previewing: boolean } | null = null;
+  private lookUp = 0;
+  private selected: { node: [string | null, number[]]; target: string | null } = { node: [null, []], target: null };
+  private ghostPlace: GhostPlace | null = null;
+  private snapModifier = false;
+  private lastPreview = previewSync();
+  /** The frame said it is ready, answered `init`, and has been initialised before (a frame that loads again is given the state anew) */
+  private ready = false;
+  private initialised = false;
+  private initialising = false;
+  private initialisedBefore = false;
+  /** The frame was replaced here (another content base): its `ready` is expected */
+  private replaced = false;
   private cleanups: Array<() => void> = [];
+  private disposed = false;
 
-  constructor(container: HTMLElement) {
-    setPreviewActive(true);
-    const scene = new ArScene(container, {
-      createTracker: ({ container, options, scene }) => {
-        const tracker = new MockTracker(container, options);
-        tracker.attachStage(new MockStage(scene, path => `${base}/${path}`));
-        tracker.ignorePointer = event => !!this.gizmo?.busy || !!this.ghostDrag || (!!this.ghostPlace && !!this.ghostHandleAt(event.clientX, event.clientY));
-        this.tracker = tracker;
-        return tracker;
-      },
-      progress: this.progress.reader(),
-    });
-    this.scene = scene;
+  constructor(private container: HTMLElement) {
+    this.frame = this.makeFrame();
+    this.requests = new FrameRequests(request => this.frame.contentWindow?.postMessage(request, "*"));
+    window.addEventListener("message", this.onMessage);
     this.cleanups.push(
-      scene.on("status", (status, error) => {
-        this.status = status;
-        this.error = status === "error" ? error ?? "unknown" : null;
-        if (status === "running") {
-          this.ensureGizmo();
-          this.shade();
-          // The book's declared plugins registered their components while the spread loaded: the panels' rows follow
-          plugins.version += 1;
-        }
-      }),
+      () => window.removeEventListener("message", this.onMessage),
       subscribePreview(state => {
-        if (state.shading !== this.shading) {
-          this.shading = state.shading;
-          this.shade();
-        }
-      }),
-      scene.on("targetFound", id => {
-        if (!this.found.includes(id)) this.found = [...this.found, id];
-        this.shade();
-        // The first find unlocks: the entity's unlock animation plays (replaces the reveal)
-        if (this.progress.unlock(id)) scene.celebrate(id);
-      }),
-      scene.on("targetLost", id => {
-        this.found = this.found.filter(found => found !== id);
-      }),
-      // The plugins' events and variables for the panel
-      observeEvents((event, payload) => {
-        const detail = payload === undefined ? "" : typeof payload === "object" && payload !== null
-          ? Object.entries(payload as Record<string, unknown>).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(" · ")
-          : String(payload);
-        this.events = [{ event, detail }, ...this.events].slice(0, EVENT_LOG_SIZE);
-        if (event === "varChanged" || event === "spreadChanged") this.vars = allVars();
+        this.shading = state.shading;
+        const sync = previewSync(state);
+        if (sync === this.lastPreview) return;
+        this.lastPreview = sync;
+        void this.requests.request("preview", [sync]).catch(() => undefined);
       }),
     );
-    // Picking is the editor's own: a click (not the one that ends a gizmo drag; the tracker swallows an orbit's)
-    // picks by the mode, a right click asks for the menu
-    const onClick = (event: MouseEvent) => {
-      if (onAppUi(event) || this.gizmo?.recentlyDragged() || this.ghostHandleAt(event.clientX, event.clientY) || !container.contains(event.target as Node)) return;
-      this.onPick?.(this.pick(event.clientX, event.clientY));
-    };
-    const onContext = (event: MouseEvent) => {
-      if (onAppUi(event) || !container.contains(event.target as Node)) return;
-      event.preventDefault();
-      this.onContextMenu?.(this.pick(event.clientX, event.clientY), event.clientX, event.clientY);
-    };
-    container.addEventListener("click", onClick);
-    container.addEventListener("contextmenu", onContext);
-    // The placement handles: before the tracker sees the pointer (capture), only while a ghost is shown
-    container.addEventListener("pointerdown", this.onGhostPointerDown, true);
-    container.addEventListener("pointermove", this.onGhostPointerMove, true);
-    container.addEventListener("pointerup", this.onGhostPointerUp, true);
-    container.addEventListener("pointercancel", this.onGhostPointerUp, true);
-    this.cleanups.push(
-      () => container.removeEventListener("click", onClick),
-      () => container.removeEventListener("contextmenu", onContext),
-      () => container.removeEventListener("pointerdown", this.onGhostPointerDown, true),
-      () => container.removeEventListener("pointermove", this.onGhostPointerMove, true),
-      () => container.removeEventListener("pointerup", this.onGhostPointerUp, true),
-      () => container.removeEventListener("pointercancel", this.onGhostPointerUp, true),
-    );
-    this.container = container;
-    this.raycaster.layers.enable(BACKDROP_LAYER);
   }
 
-  private container: HTMLElement;
-  /** Reaches the entities and the stage's own objects (the printed images, the page lie on the backdrop layer) */
-  private raycaster = new Raycaster();
+  /** The frame, sandboxed: scripts only, its own opaque origin – first in the container, under the toolbar and the notices */
+  private makeFrame(): HTMLIFrameElement {
+    const frame = document.createElement("iframe");
+    frame.className = "stage-frame";
+    frame.title = "Stage";
+    frame.setAttribute("sandbox", FRAME_SANDBOX);
+    frame.src = resolve("/stage-frame");
+    this.container.prepend(frame);
+    return frame;
+  }
 
-  /** What lies under a point of the stage (client px) by the pick mode, null for the page or the table */
-  pick(clientX: number, clientY: number): StagePick | null {
-    const inspection = this.scene.inspect();
-    const spread = this.spreadId;
-    if (!inspection || !spread) return null;
-    const rect = this.container.getBoundingClientRect();
-    const point = new Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
-    this.raycaster.setFromCamera(point, inspection.camera);
-    // The entities' nodes: every placement group by its object, for the climb from a hit mesh
-    const byObject = new Map<Object3D, StagePick>();
-    const roots: Object3D[] = [];
-    if (this.pickMode !== "target") {
-      for (const target of getTargets(spread)) {
-        const tree = this.treeOf(target.id);
-        if (!tree) continue;
-        for (const { path } of entityNodes(tree)) {
-          const object = inspection.nodeObject(target.id, path);
-          if (object) byObject.set(object, { targetId: target.id, path });
-          if (object && !path.length) roots.push(object);
-        }
-      }
-      const hit = this.raycaster.intersectObjects(roots, true).find(h => h.object.visible);
-      if (hit) {
-        for (let object: Object3D | null = hit.object; object; object = object.parent) {
-          const pick = byObject.get(object);
-          if (pick) return this.pickMode === "node" ? pick : { targetId: pick.targetId, path: [] };
-        }
-      }
+  // ── what the frame sends ──
+
+  private onMessage = (event: MessageEvent): void => {
+    if (event.source !== this.frame.contentWindow) return;
+    const reply = readFrameReply(event.data);
+    if (reply) {
+      this.requests.settle(reply);
+      return;
     }
-    // The printed images: the target itself
-    const planes = this.tracker?.printedPlanes() ?? [];
-    const printed = this.raycaster.intersectObjects(planes, false)[0];
-    const targetId = printed?.object.userData.targetId as string | undefined;
-    return targetId ? { targetId, path: [], printed: true } : null;
+    const message = readFrameEvent(event.data);
+    if (message) this.handle(message);
+  };
+
+  private handle(message: FrameEvent): void {
+    switch (message.name) {
+      case "ready":
+        // A frame that loaded again by itself answers nothing it was asked before (a frame replaced here starts clean)
+        if (this.initialisedBefore && !this.replaced) this.requests.close("the stage frame loaded again");
+        this.replaced = false;
+        this.ready = true;
+        this.initialised = false;
+        void this.initialise();
+        break;
+      case "state": {
+        const state = message.data;
+        this.status = state.status;
+        this.error = state.error;
+        this.found = state.found;
+        this.pickMode = state.pickMode;
+        this.world = state.world;
+        this.gizmoMode = state.gizmoMode;
+        break;
+      }
+      case "vars":
+        this.vars = message.data as typeof this.vars;
+        break;
+      case "events":
+        this.events = message.data;
+        break;
+      case "registry":
+        mirrorPluginRegistry(message.data).forEach(problem => console.warn(`[stage] the registry's ${problem}`));
+        plugins.version += 1;
+        break;
+      case "layout":
+        this.layout = message.data;
+        break;
+      case "timelines":
+        this.timelines = message.data;
+        break;
+      case "pick":
+        this.onPick?.(message.data);
+        break;
+      case "contextMenu": {
+        const rect = this.frame.getBoundingClientRect();
+        this.onContextMenu?.(message.data.hit, message.data.x + rect.left, message.data.y + rect.top);
+        break;
+      }
+      case "placement": {
+        const { targetId, path, placement } = message.data;
+        const base = this.overrides.get(targetId) ?? getTarget(targetId)?.entity;
+        const node = base && base !== Stage.REMOVED ? nodeAt(base, path) : undefined;
+        if (base && node) this.override(targetId, withNode(base, path, { ...node, params: { ...node.params, ...placement } }));
+        break;
+      }
+      case "ghostChange":
+        this.onGhostChange?.(message.data);
+        break;
+      case "preview":
+        this.lastPreview = message.data;
+        applyPreviewSync(message.data);
+        break;
+      case "key":
+        // The page's shortcuts, as if pressed here (the frame forwards only the keys `FORWARDED_KEYS` lists)
+        this.frame.dispatchEvent(new KeyboardEvent(message.data.type, { ...message.data, bubbles: true, cancelable: true }));
+        break;
+      case "log":
+        plugins.addLog(message.data);
+        break;
+      case "hover":
+        help.hover(this.frame);
+        break;
+    }
   }
 
-  setPickMode(mode: PickMode): void {
-    this.pickMode = mode;
+  /**
+   * The frame is ready: the draft (the newest the content loaded) and the preview go first; then what waited for it.
+   * A frame that loads again (a reload, a new frame for another content base) is also given everything the page set:
+   * the overrides, the passes, the environment, the modes, the selection, the ghost and the spread.
+   */
+  private async initialise(): Promise<void> {
+    const snapshot = content.snapshot ?? this.sentContent;
+    if (!this.ready || this.initialised || this.initialising || !snapshot) return;
+    this.initialising = true;
+    this.requests.hold();
+    try {
+      await this.requests.first("init", [{ content: snapshot, preview: previewSync() } satisfies FrameInit]);
+    } catch (e) {
+      this.status = "error";
+      this.error = e instanceof Error ? e.message : String(e);
+      return;
+    } finally {
+      this.initialising = false;
+    }
+    this.initialised = true;
+    this.sentContent = snapshot;
+    const opening = this.requests.waiting("open");
+    this.requests.open();
+    if (!this.initialisedBefore) {
+      this.initialisedBefore = true;
+      return;
+    }
+    this.overrides.forEach((entity, targetId) => void this.send("override", [targetId, this.wire(entity)]));
+    if (this.passes !== undefined) void this.send("overridePasses", [this.passes]);
+    if (this.environment) void this.send("showEnvironment", [this.environment.environment, this.environment.previewing]);
+    if (this.lookUp) void this.send("setLookUp", [this.lookUp]);
+    void this.send("setPickMode", [this.pickMode]);
+    void this.send("setGizmoMode", [this.gizmoMode]);
+    void this.send("selectNode", this.selected.node);
+    void this.send("selectTarget", [this.selected.target]);
+    if (this.ghostPlace) void this.send("ghost", [this.ghostPlace]);
+    if (this.spreadId && !opening) await this.send("open", [this.spreadId]);
   }
+
+  /** A request whose failure is logged, not thrown (a fire-and-forget change) */
+  private send(method: Parameters<FrameRequests["request"]>[0], args: unknown[] = []): Promise<unknown> {
+    return this.requests.request(method, args).catch(e => {
+      // A change sent while the workspace closes is no failure
+      if (!this.disposed) console.warn(`[stage] ${method}: ${e instanceof Error ? e.message : e}`);
+    });
+  }
+
+  private wire(entity: EntityData | null): EntityData | typeof REMOVED_WIRE | null {
+    return entity === Stage.REMOVED ? REMOVED_WIRE : entity ? ($state.snapshot(entity) as EntityData) : null;
+  }
+
+  /**
+   * The draft as the content loaded it last goes to the frame before the stage builds from it. A draft whose files
+   * moved to another base needs a new frame (its policy names the bases it may load from): the frame is replaced.
+   */
+  private async syncContent(): Promise<void> {
+    const snapshot = content.snapshot;
+    if (!snapshot || snapshot === this.sentContent) return;
+    // Not initialised yet: `init` takes the newest draft
+    if (!this.initialised) return this.initialise();
+    try {
+      await this.requests.request("content", [snapshot]);
+      this.sentContent = snapshot;
+    } catch (e) {
+      if (!(e instanceof Error) || e.message !== "content-bases-changed") throw e;
+      this.reload(snapshot);
+    }
+  }
+
+  /** A new frame for this content: everything else follows once it is ready */
+  private reload(snapshot: ContentSnapshot): void {
+    this.requests.close("the stage frame was replaced");
+    this.replaced = true;
+    this.ready = false;
+    this.initialised = false;
+    this.sentContent = snapshot;
+    this.frame.remove();
+    this.frame = this.makeFrame();
+  }
+
+  // ── the stage's API for the workspace ──
 
   /** Show a spread on the stage (the scene runs as soon as it is asked to) */
   async open(spreadId: string): Promise<void> {
     this.spreadId = spreadId;
     this.found = [];
-    await this.scene.load(spreadId);
-    await this.scene.setState(SceneState.RUNNING);
-    this.shade();
+    await this.syncContent();
+    await this.requests.request("open", [spreadId]);
   }
 
-  /** Show a target's entity with other values than the content's (live edit), `null` = the content's again */
-  override(targetId: string, entity: EntityData | null): void {
+  /** The draft changed (a save): the spread is built again from it; overrides stay until cleared */
+  async refresh(): Promise<void> {
+    await this.syncContent();
+    await this.requests.request("refresh");
+  }
+
+  /** The current spread's format changed in the draft: the book takes its new shape on the stage at once */
+  relayout(): void {
+    void this.send("relayout");
+  }
+
+  /** Show a target's entity with other values than the content's (live edit), `null` = the content's again; resolves once the frame built it */
+  override(targetId: string, entity: EntityData | null): Promise<void> {
     if (entity) this.overrides.set(targetId, entity);
     else this.overrides.delete(targetId);
-    this.scene.overrideEntity(targetId, entity);
-    this.shade();
-    this.gizmo?.select(this.visibleSelection());
-    if (this.lightHelpers) this.lightHelpers.selection = this.visibleSelection();
+    return this.send("override", [targetId, this.wire(entity)]).then(() => undefined);
   }
 
   /** Show the spread with these post-processing passes instead of the draft's (live edit), `null` = the draft's again */
   overridePasses(passes: PassData[] | null): void {
-    this.scene.overridePasses(passes);
-  }
-
-  /** The viewport's shading on every entity of the spread (the engine builds fresh meshes: applied again after) */
-  private shade(): void {
-    const inspection = this.scene.inspect();
-    const spread = this.spreadId;
-    if (!inspection || !spread) return;
-    const roots = getTargets(spread).map(target => inspection.nodeObject(target.id, [])).filter((o): o is NonNullable<typeof o> => !!o);
-    applyShading(roots, this.shading);
-    // The spread's post-processing belongs to rendered only, like the HDRI's sky
-    this.scene.setPostProcessing(this.shading === "rendered");
-    this.gizmo?.refreshOutline();
-  }
-
-  /** The selection while its target shows a tree (a removed root leaves the gizmo nothing to hold) */
-  private visibleSelection(): GizmoSelection | null {
-    return this.selection && this.treeOf(this.selection.targetId) ? this.selection : null;
-  }
-
-  // ── The gizmo: TransformControls on the selected node, writing the node's placement into the override ──
-
-  private ensureGizmo(): void {
-    if (this.gizmo) return;
-    const inspection = this.scene.inspect();
-    if (!inspection) return;
-    this.gizmo = new Gizmo(inspection, (selection, placement) => {
-      const target = getTarget(selection.targetId);
-      const base = this.overrides.get(selection.targetId) ?? target?.entity;
-      const node = base && nodeAt(base, selection.path);
-      if (!base || !node) return;
-      this.override(selection.targetId, withNode(base, selection.path, { ...node, params: { ...node.params, ...placement } }));
-    });
-    this.gizmo.mode = this.wantedMode;
-    this.gizmo.select(this.visibleSelection());
-    this.lightHelpers = new LightHelpers(inspection, () => {
-      const spread = this.spreadId;
-      if (!spread) return [];
-      return getTargets(spread).flatMap(target => {
-        const tree = this.treeOf(target.id);
-        return tree ? [{ targetId: target.id, tree }] : [];
-      });
-    });
-    this.lightHelpers.selection = this.visibleSelection();
-  }
-
-  /** A model node's timeline (the animation component), null for other nodes */
-  timeline(targetId: string, path: number[]): NodeTimeline | null {
-    return this.scene.inspect()?.nodeTimeline(targetId, path) ?? null;
-  }
-
-  /** The gizmo and the light helpers follow the selection (null = none) */
-  selectNode(targetId: string | null, path: number[] = []): void {
-    this.selection = targetId ? { targetId, path } : null;
-    this.ensureGizmo();
-    this.gizmo?.select(this.visibleSelection());
-    if (this.lightHelpers) this.lightHelpers.selection = this.visibleSelection();
-  }
-
-  setGizmoMode(mode: GizmoMode): void {
-    this.wantedMode = mode;
-    this.gizmoMode = mode;
-    if (this.gizmo) this.gizmo.mode = mode;
-  }
-
-  /** Ctrl held: the gizmo snaps */
-  setSnap(on: boolean): void {
-    this.gizmo?.snap(on);
+    this.passes = passes;
+    void this.send("overridePasses", [passes]);
   }
 
   overrideOf(targetId: string): EntityData | undefined {
@@ -324,6 +331,15 @@ export class Stage {
     return override ?? getTarget(targetId)?.entity;
   }
 
+  /** Change a target's tree (live; Save writes it): the tree's moves, indent, outdent (#163) */
+  editTree(targetId: string, edit: (tree: EntityData) => EntityData | null): boolean {
+    const base = this.treeOf(targetId);
+    const next = base ? edit(base) : null;
+    if (!next) return false;
+    void this.override(targetId, next);
+    return true;
+  }
+
   /**
    * Remove a node of a target's entity (live; Save writes it): a child goes with its children, the root leaves the
    * target without AR content (`REMOVED`). Returns the path to select next – the parent, or the root.
@@ -332,148 +348,157 @@ export class Stage {
     const base = this.treeOf(targetId);
     if (!base) return [];
     if (!path.length) {
-      this.override(targetId, Stage.REMOVED);
+      void this.override(targetId, Stage.REMOVED);
       return [];
     }
-    this.override(targetId, removeNode(base, path));
+    void this.override(targetId, removeNode(base, path));
     return path.slice(0, -1);
   }
 
-  /** The colour under a point of the stage (CSS px from the container's top left), `#rrggbb` or null */
-  sampleColor(x: number, y: number): string | null {
-    return this.scene.sampleColor(x, y);
+  /** The book's environment on the stage (it replaces the HDRI sky box); `previewing` while the Environment tab is open */
+  showEnvironment(environment: EnvironmentData | null, previewing = false): void {
+    this.environment = { environment, previewing };
+    void this.send("showEnvironment", [environment, previewing]);
   }
 
-  /** The ghost shown (the placement being edited) and who follows its handles */
-  private ghostPlace: GhostPlace | null = null;
-  /** A drag of the ghost: the image (move) or its corner (width) */
-  private ghostDrag: { kind: "move" | "width"; grabX: number; grabY: number } | null = null;
-  /** The form or the panel editing the placement listens: a handle moved it */
-  onGhostChange: ((place: { surface: "left" | "right" | "front" | "back"; x: number; y: number; width: number }) => void) | null = null;
+  /** How far the previewing camera looks up from the book (degrees) */
+  setLookUp(degrees: number): void {
+    this.lookUp = degrees;
+    void this.send("setLookUp", [degrees]);
+  }
+
+  /** The gizmo and the light helpers follow the selection (null = none) */
+  selectNode(targetId: string | null, path: number[] = []): void {
+    this.selected.node = [targetId, [...path]];
+    void this.send("selectNode", this.selected.node);
+  }
+
+  /** The selected target: its printed image wears the selection's outline; null = none */
+  selectTarget(targetId: string | null): void {
+    this.selected.target = targetId;
+    void this.send("selectTarget", [targetId]);
+  }
+
+  setPickMode(mode: PickMode): void {
+    this.pickMode = mode;
+    void this.send("setPickMode", [mode]);
+  }
+
+  setGizmoMode(mode: GizmoMode): void {
+    this.gizmoMode = mode;
+    void this.send("setGizmoMode", [mode]);
+  }
+
+  /** Shift or Ctrl held (true) or let go: snapping is turned around while it is held */
+  setSnapModifier(held: boolean): void {
+    if (held === this.snapModifier) return;
+    this.snapModifier = held;
+    void this.send("setSnapModifier", [held]);
+  }
+
+  /**
+   * A model node's timeline (the animation component), null for other nodes or before the frame built it – its clips
+   * and state as the frame reported them last, its play / pause / seek sent to the frame
+   */
+  timeline(targetId: string, path: number[]): NodeTimeline | null {
+    const key = `${targetId}|${path.join(".")}`;
+    const snapshot = this.timelines[key];
+    if (!snapshot) {
+      this.timelineProxies.delete(key);
+      return null;
+    }
+    const clips = JSON.stringify(snapshot.clips);
+    const known = this.timelineProxies.get(key);
+    if (known?.clips === clips) return known.timeline;
+    const timeline: NodeTimeline = {
+      clips: snapshot.clips,
+      state: () => (this.timelines[key] ?? snapshot).state,
+      play: clip => void this.send("timeline", [targetId, path, "play", clip]),
+      pause: () => void this.send("timeline", [targetId, path, "pause"]),
+      seek: time => void this.send("timeline", [targetId, path, "seek", time]),
+    };
+    this.timelineProxies.set(key, { clips, timeline });
+    return timeline;
+  }
+
+  /** The colour under a point of the stage (CSS px from the container's top left), `#rrggbb` or null */
+  sampleColor(x: number, y: number): Promise<string | null> {
+    return this.requests.request<string | null>("sampleColor", [x, y]).catch(() => null);
+  }
+
+  /** The colours along the stage's bottom edge, in `segments` averaged parts from left to right (empty while nothing renders) */
+  sampleBottom(segments: number): Promise<string[]> {
+    return this.requests.request<string[]>("sampleBottom", [segments]).catch(() => []);
+  }
 
   /** Where a target is printed in the book's layout, null when the layout has no place for it */
   printedPlace(targetId: string): PrintPlacement | null {
-    return this.tracker?.printedPlace(targetId) ?? null;
+    return this.layout.places[targetId]?.printed ?? null;
   }
 
-  /** Show where a target would be printed (a translucent image on the page with handles); null = none */
+  /** Where a target lies on the stage as the content places it (its own print, else the layout's, else the stage's fallback) */
+  placeOf(targetId: string): PrintPlacement | null {
+    return this.layout.places[targetId]?.place ?? null;
+  }
+
+  /** Show where a target would be printed, with handles; null = none (`StageCore.ghost`) */
   ghost(target: GhostPlace | null): void {
     this.ghostPlace = target;
-    this.tracker?.setGhost(target ? { id: "ghost", imageSrc: target.imageSrc, surface: target.surface, x: target.x, y: target.y, width: target.width, height: target.height ?? target.width * 0.75 } : null);
+    void this.send("ghost", [target ? $state.snapshot(target) : null]);
   }
 
   /** The base format (one page, mm) the positions and the grid are counted in */
   pageFormat(): { width: number; height: number } {
-    return this.tracker?.pageFormat() ?? { width: 230, height: 320 };
+    const format = this.layout.pageFormat;
+    return format.width > 0 && format.height > 0 ? format : DEFAULT_PAGE_MM;
   }
 
   /** The current spread's format (the form and the panel offer the right surfaces) */
-  format(): "spread" | "cover" | "back" {
+  format(): SpreadFormat {
     return (this.spreadId ? getSpread(this.spreadId)?.format : undefined) ?? "spread";
-  }
-
-  /** The ghost's handle under the pointer: "move" over the image, "width" over its corner, null elsewhere */
-  private ghostHandleAt(clientX: number, clientY: number): "move" | "width" | null {
-    const inspection = this.scene.inspect();
-    const parts = this.tracker?.ghostParts();
-    if (!inspection || !parts || !this.ghostPlace) return null;
-    const rect = this.container.getBoundingClientRect();
-    this.raycaster.setFromCamera(new Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1), inspection.camera);
-    if (parts.corner && this.raycaster.intersectObject(parts.corner, false).length) return "width";
-    if (parts.image && this.raycaster.intersectObject(parts.image, false).length) return "move";
-    return null;
-  }
-
-  private onGhostPointerDown = (event: PointerEvent): void => {
-    if (event.button !== 0 || !this.ghostPlace) return;
-    const kind = this.ghostHandleAt(event.clientX, event.clientY);
-    if (!kind) return;
-    const hit = this.pageAt(event.clientX, event.clientY);
-    if (!hit) return;
-    const place = this.ghostPlace;
-    // The grab point inside the image (mm), so the image does not jump to the pointer
-    const grabX = hit.surface === place.surface ? hit.x - place.x : 0;
-    const grabY = hit.y - place.y;
-    this.ghostDrag = { kind, grabX, grabY };
-    this.container.setPointerCapture?.(event.pointerId);
-    event.preventDefault();
-    event.stopPropagation();
-  };
-
-  private onGhostPointerMove = (event: PointerEvent): void => {
-    if (!this.ghostPlace) return;
-    if (!this.ghostDrag) {
-      const kind = this.ghostHandleAt(event.clientX, event.clientY);
-      this.container.style.cursor = kind === "width" ? "nwse-resize" : kind === "move" ? "grab" : "";
-      return;
-    }
-    const hit = this.pageAt(event.clientX, event.clientY);
-    if (!hit) return;
-    const place = this.ghostPlace;
-    let next: GhostPlace;
-    if (this.ghostDrag.kind === "move") {
-      next = { ...place, surface: hit.surface, x: Math.round(hit.x - this.ghostDrag.grabX), y: Math.round(hit.y - this.ghostDrag.grabY) };
-    } else {
-      // The corner sets the width from the image's left edge (on the image's own page)
-      const pageX = hit.surface === place.surface ? hit.x : hit.surface === "right" ? hit.x + 230 : hit.surface === "left" ? hit.x - 230 : hit.x;
-      next = { ...place, width: Math.max(10, Math.round(pageX - place.x)) };
-    }
-    this.ghostPlace = next;
-    this.ghost(next);
-    this.onGhostChange?.({ surface: next.surface, x: next.x, y: next.y, width: next.width });
-    event.preventDefault();
-  };
-
-  private onGhostPointerUp = (): void => {
-    if (!this.ghostDrag) return;
-    this.ghostDrag = null;
-    this.container.style.cursor = "";
-  };
-
-  /** Where a point of the screen meets the page (mm from the page's top left corner) */
-  private pageAt(clientX: number, clientY: number): { surface: "left" | "right" | "front" | "back"; x: number; y: number } | null {
-    const inspection = this.scene.inspect();
-    if (!inspection) return null;
-    const rect = this.container.getBoundingClientRect();
-    this.raycaster.setFromCamera(new Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1), inspection.camera);
-    return this.tracker?.pageHit(this.raycaster) ?? null;
-  }
-
-  /** The draft changed (a save): the spread is built again from it; overrides stay until cleared */
-  async refresh(): Promise<void> {
-    await this.scene.refresh();
-    this.shade();
   }
 
   /** Every shown target is locked again, hidden, and found anew: the unlock animation plays */
   replayUnlock(targetIds?: readonly string[]): void {
-    const hidden = new Set(getPreview().hidden);
-    const spread = this.spreadId;
-    const ids = (targetIds ?? (spread ? getTargets(spread).filter(t => t.imageSrc).map(t => t.id) : [])).filter(id => !hidden.has(id));
-    this.progress.lock(ids);
-    ids.forEach(id => setTargetHidden(id, true));
-    window.clearTimeout(this.replayTimer);
-    this.replayTimer = window.setTimeout(() => ids.forEach(id => setTargetHidden(id, false)), REPLAY_GAP_MS);
+    void this.send("replayUnlock", targetIds ? [[...targetIds]] : []);
   }
 
-  /** A new game: every variable of every scope cleared, nothing unlocked, the spread's targets found anew */
+  /** A new game: every variable cleared, nothing unlocked, the timeline empty, the spread's targets found anew */
   resetNarrative(): void {
-    resetVars();
-    this.progress.reset();
-    this.vars = allVars();
+    void this.send("resetNarrative");
+  }
+
+  /** Set (or delete with `null`) a variable by hand, through the plugin API in the frame. The API's refusal as text, null when written */
+  async setVar(name: string, value: VarValue | null, scope: VarScope): Promise<string | null> {
+    try {
+      return await this.requests.request<string | null>("setVar", [name, value, scope]);
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  /** Tap a found target's entity without aiming at it – the reader's tap; false when nothing was tapped */
+  tap(targetId: string): Promise<boolean> {
+    return this.requests.request<boolean>("tap", [targetId]).catch(() => false);
+  }
+
+  /** Empty the timeline (variables and progress stay) */
+  clearEvents(): void {
     this.events = [];
-    this.replayUnlock();
+    void this.send("clearEvents");
+  }
+
+  /** The Code tab's Run in the frame: the transpiled module imported and installed there (`plugin-run.ts`) */
+  runPlugin(id: string, code: string): Promise<RunResult> {
+    return this.requests.request<RunResult>("runPlugin", [id, code]);
   }
 
   async dispose(): Promise<void> {
-    window.clearTimeout(this.replayTimer);
-    this.gizmo?.dispose();
-    this.gizmo = null;
-    this.lightHelpers?.dispose();
-    this.lightHelpers = null;
+    if (this.disposed) return;
+    this.disposed = true;
     this.cleanups.forEach(cleanup => cleanup());
     this.cleanups = [];
-    await this.scene.dispose();
-    setPreviewActive(false);
+    this.requests.end();
+    this.frame.remove();
   }
 }

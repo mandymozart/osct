@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Group, MathUtils } from "three";
-import { placementProblems, resolvePlacement, Target } from "../../types/index";
-import { LoadedAsset } from "../assets";
+import { placementProblems, resolvePlacement, type Target } from "../../types/index";
+import type { LoadedAsset } from "../assets";
 import { buildEntity } from "../entities";
 
 const model = (params?: Record<string, unknown>): Target => ({

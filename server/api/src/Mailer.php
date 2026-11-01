@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /**
  * Sends one email (text + HTML). MAIL_TRANSPORT:
- * - `log`: appends the mail to MAIL_LOG_PATH (default: the system temp folder) – local development
+ * - `log`: appends the mail to MAIL_LOG_PATH (default: var/mail/mail.log – Paths) – local development
  * - `mail`: PHP mail() – quick tests on a host that has it set up
  * - `smtp`: the SMTP account in SMTP_* – production (Smtp.php, no library needed)
  */
@@ -15,7 +15,7 @@ final class Mailer
         $message = self::message($to, $subject, $text, $html);
         switch ($transport) {
             case 'log':
-                $path = Config::get('MAIL_LOG_PATH') ?: sys_get_temp_dir() . '/osct-mail.log';
+                $path = Paths::mailLog();
                 $entry = "=== " . gmdate('c') . " ===\r\n" . $message['headers'] . "\r\nTo: $to\r\nSubject: $subject\r\n\r\n$text\r\n\r\n";
                 if (file_put_contents($path, $entry, FILE_APPEND | LOCK_EX) === false) {
                     throw new RuntimeException("Mail log not writable: $path");

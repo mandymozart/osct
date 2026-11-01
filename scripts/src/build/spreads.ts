@@ -1,26 +1,28 @@
 import type { SpreadData } from '../../../shared/types/game-config';
-import { passProblems } from '../../../shared/types/passes';
+import type { PassSpec } from '../../../shared/types/passes';
 import { buildErrors } from '../lib/errors';
 import { readSection, validate } from '../lib/content';
+import { checkedPasses } from './book';
 
-export function buildSpreads(): SpreadData[] {
+/** The spreads; `pluginPasses` = the passes the book's plugins recorded (schema 2.21), which a spread may name */
+export function buildSpreads(pluginPasses: ReadonlyMap<string, PassSpec> = new Map()): SpreadData[] {
   const spreads = readSection('spreads', 'spread.yaml')
-    .map(({ id, data }) => {
+    .map(({ id, data }): { order: number; spread: SpreadData } | null => {
       const label = `spreads/${id}`;
-      const s = validate<any>(data, 'spread', label);
+      const s = validate(data, 'spread', label);
       if (!s) return null;
       if (s.firstPage > s.lastPage) buildErrors.push(`${label}: firstPage ${s.firstPage} > lastPage ${s.lastPage}`);
-      if (s.passes !== undefined) passProblems(s.passes, 'passes').forEach(problem => buildErrors.push(`${label}: ${problem}`));
+      const passes = s.passes === undefined ? undefined : checkedPasses(s.passes, label, pluginPasses);
       return {
-        order: s.order as number,
+        order: s.order,
         spread: {
           id,
           title: s.title,
           firstPage: s.firstPage,
           lastPage: s.lastPage,
           ...(s.format && s.format !== 'spread' ? { format: s.format } : {}),
-          ...(s.passes !== undefined ? { passes: s.passes } : {}),
-        } satisfies SpreadData,
+          ...(passes !== undefined ? { passes } : {}),
+        },
       };
     })
     .filter((item): item is { order: number; spread: SpreadData } => item !== null)

@@ -91,7 +91,6 @@ CREATE TABLE IF NOT EXISTS `books` (
   `title` VARCHAR(255) NOT NULL,
   `author` VARCHAR(255) NOT NULL,
   `book_json` TEXT NOT NULL COMMENT 'BookData',
-  `tutorial_json` MEDIUMTEXT NOT NULL COMMENT 'StepData[]',
   `initial_spread_id` VARCHAR(64) NOT NULL,
   `assets_base` VARCHAR(1024) NOT NULL DEFAULT '' COMMENT 'where /assets/content/… resolves; empty = as imported',
   `files_json` MEDIUMTEXT NOT NULL COMMENT 'files.json of the imported version',
@@ -187,11 +186,11 @@ CREATE TABLE IF NOT EXISTS assets (
   id CHAR(36) NOT NULL PRIMARY KEY,
   book_id VARCHAR(64) NOT NULL,
   name VARCHAR(255) NOT NULL,          -- the file name as uploaded
-  kind VARCHAR(16) NOT NULL,           -- glb | gltf | video | image | audio (the contract's asset types)
+  kind VARCHAR(16) NOT NULL,           -- glb | gltf | video | image | audio (the contract's asset types), shader (#186)
   mime VARCHAR(64) NOT NULL,
   size BIGINT NOT NULL,
   sha256 CHAR(64) NOT NULL,
-  width INT NULL DEFAULT NULL,         -- images
+  width INT NULL DEFAULT NULL,         -- images and videos (duration_ms: videos – added at the end of the file)
   height INT NULL DEFAULT NULL,
   version INT NOT NULL DEFAULT 1,      -- the current version
   path VARCHAR(255) NOT NULL,          -- in the store: <book>/<asset>/v<n>.<ext>
@@ -267,3 +266,34 @@ CREATE TABLE IF NOT EXISTS plugins (
   CONSTRAINT plugins_book_fk FOREIGN KEY (book_id) REFERENCES books (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ALTER TABLE `books` ADD COLUMN `plugins_json` TEXT NOT NULL DEFAULT '[]';
+
+-- A video's duration as its file states it (Assets.php, VideoInfo.php); width / height hold its picture's size
+ALTER TABLE `assets` ADD COLUMN `duration_ms` BIGINT NULL DEFAULT NULL;
+
+-- AI connections' personal access tokens (ApiTokens.php, docs/server.md "AI connections"): the token `osct_…` is
+-- shown once, only its SHA-256 hash is kept (like sessions); `token_prefix` = its first characters, to tell tokens apart
+CREATE TABLE IF NOT EXISTS `api_tokens` (
+  `id` CHAR(36) NOT NULL,
+  `user_id` CHAR(36) NOT NULL,
+  `name` VARCHAR(80) NOT NULL,
+  `token_hash` CHAR(64) NOT NULL,
+  `token_prefix` VARCHAR(16) NOT NULL,
+  `created_at` DATETIME NOT NULL,
+  `last_used_at` DATETIME NULL DEFAULT NULL,
+  `expires_at` DATETIME NULL DEFAULT NULL,
+  `revoked_at` DATETIME NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `api_tokens_token` (`token_hash`),
+  KEY `api_tokens_user` (`user_id`),
+  CONSTRAINT `api_tokens_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- A save made through an AI connection names its token in the change log
+ALTER TABLE `changes` ADD COLUMN `token_name` VARCHAR(80) NULL DEFAULT NULL;
+
+-- What the draft is based on (Books::import): the imported build, its date, the app and schema version that built it,
+-- where it came from, when and by whom – the import's version comparison reads it, and the change log after `at`
+ALTER TABLE `books` ADD COLUMN `imported_json` TEXT NULL DEFAULT NULL;
+
+-- The onboarding belongs to the reader (#236): the steps an import kept in `books` go. A column of a removed feature is
+-- removed by name and only that (RULES #25); the migration skips it once the column is gone
+ALTER TABLE `books` DROP COLUMN `tutorial_json`;

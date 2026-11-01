@@ -1,6 +1,6 @@
 import { BottomSheet, SHEET_CSS } from "./debug-sheet";
 import {
-  DEFAULT_LOAD_TEST, getEngineState, getLoadTest, LoadTestControl, LoadTestOptions, LoadTestProgress,
+  DEFAULT_LOAD_TEST, getEngineState, getLoadTest, type LoadTestControl, type LoadTestOptions, type LoadTestProgress,
   subscribeEngineState, subscribeLoadTest,
 } from "@engine/utils/tracker-debug";
 import { getBook, getConfigVersion } from "@/utils/game-config";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LineSegments, Mesh, MeshBasicMaterial, Object3D } from "three";
+import { LineSegments, Mesh, type MeshBasicMaterial, Object3D } from "three";
 import { resolveLight, type EntityData, type SceneInspection } from "@engine/types";
 import { SELECTION_COLOR } from "../shading";
 import { buildLightHelper, LIGHT_HELPER_NAME, LightHelpers } from "../light-helper";
