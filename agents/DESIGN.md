@@ -193,4 +193,10 @@ RULES #32 (the Scutoons dogma, the editor tokens):
   value – in the content it is `enabled: false`, never a removal.
 - **Nested** (a section inside a section, `nested`): the name reads as a name (the text colour, normal case), the line
   above it dotted – the outer heads stay the small capitals.
-- Applied so far: each post-processing pass. The other places are follow-ups (`agents/MEMORY.md`, 2026-10-31).
+- **Every on/off is a switch** (#241): a boolean row, an option in a confirmation, a role per user, a snap target – the
+  `Toggle`, never an on/off `Segmented`, a pressed pill or an icon button. Its label is the row's word; `words` only where
+  the value has its own (a variable's *false* / *true*). Choices stay `Segmented`, actions stay buttons, open / closed
+  stays the chevron. The reader's dev tools use the same pattern in their green (`debugSwitch`), the reader's settings
+  `<gold-switch>`.
+- Applied so far: each post-processing pass (head toggle); the #241 rows (`agents/MEMORY.md`, 2026-10-31). The other
+  section toggles are follow-ups (`agents/MEMORY.md`, 2026-10-31, #233).

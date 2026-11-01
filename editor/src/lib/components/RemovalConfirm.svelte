@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import Toggle from "./Toggle.svelte";
   import { deleteFilesLabel, elsewhereLine, filesLine, keptEntitiesLine, onlyHereNames, pagesLine, removalHeadline, removeLabel, type RemovalStep } from "#lib/removal.js";
 
   /**
@@ -33,9 +34,12 @@
   {#if keptEntitiesLine(impact)}<p class="muted">{keptEntitiesLine(impact)}</p>{/if}
   <p>{filesLine(impact, deleteFiles)}</p>
   {#if optionLabel}
-    <button type="button" class="pill framed option" class:on={deleteFiles} aria-pressed={deleteFiles} disabled={busy}
-      onclick={() => (deleteFiles = !deleteFiles)}
-      data-help-name="Delete the files" data-help="Also deletes the Library files only this removal used – from the Library and the content store. Off by default; files used elsewhere are never deleted.">{optionLabel}</button>
+    <!-- The option is a switch (#241): its words on the left, on / off on the right -->
+    <div class="option">
+      <span>{optionLabel}</span>
+      <Toggle on={deleteFiles} label="Delete the files" disabled={busy} onchange={on => (deleteFiles = on)}
+        help="Also deletes the Library files only this removal used – from the Library and the content store. Off by default; files used elsewhere are never deleted." />
+    </div>
     <p class="muted names">{onlyHereNames(impact)}</p>
   {/if}
   {#if elsewhereLine(impact)}<p class="muted">{elsewhereLine(impact)}</p>{/if}
@@ -50,7 +54,7 @@
   .removal { display: grid; gap: .375rem; justify-items: start; padding: .5rem 0; }
   .removal p { margin: 0; line-height: 1.45; overflow-wrap: anywhere; }
   .headline { font-weight: 600; }
-  .option { white-space: normal; text-align: left; min-height: var(--control-height); height: auto; padding-block: .25rem; max-width: 100%; }
+  .option { display: flex; align-items: center; gap: .5rem; min-height: var(--control-height); max-width: 100%; overflow-wrap: anywhere; }
   .names { margin-top: -.125rem; }
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .75rem; margin-top: .125rem; }
 </style>

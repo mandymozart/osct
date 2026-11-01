@@ -4,6 +4,26 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-10-31 – every on/off is a switch (#241)
+
+- **Tilman** (#241): *"Ich will so einen Toggle. An manchen Stellen sind keine Toggles, sondern Buttons."* The inventory
+  (editor and reader, comment on #241) sorted every control that holds a state: **on/off → `Toggle`** (editor) or the
+  reader's switch; **choices** (Segmented, radio menus, tabs) stay choices; **actions** (save, add, remove, play, copy,
+  apply continuous focus) stay buttons.
+- **Changed**: *grid & snap* (grid, vertical axis, snap: on/off `Segmented` → `Toggle`; *snap to*: four pressed pills →
+  one row with a switch per target), Environment *onion sky*, a boolean variable in *vars and events* (`Toggle` with
+  `words={["false", "true"]}` – a variable's value reads as its value), the Inspector's uniform scale (the chain icon → a
+  *uniform* row under scale), the removal confirmation's *delete the files* option, the admin page's roles per user.
+  Reader dev tools: *ask zoom* and *QR* became `debugSwitch` (a `role="switch"` button, `debug-sheet.ts`); the reader's
+  settings were `<gold-switch>` already.
+- **Kept on purpose**: the tree's **eye** (found / lost – the simulation's state per target, an icon in a tree row as in
+  a design tool's layers; a pill per row would not fit), the tree's and sections' **open / closed** (disclosure, not a
+  setting – `aria-expanded`), the Inspector's *placement* / *hide placement* link (a disclosure; a `Section` for it is a
+  follow-up of #233), play / pause (playback actions), the camera panel's **AF** (it applies continuous focus, a second
+  tap does not turn it off) and **◎** (arms one tap to focus, then disarms).
+- [ ] **Open**: should the tree's eye become a `Toggle` after all (Tilman's call); the *placement* link as a nested
+  `Section`.
+
 ## 2026-10-31 – print first or digital first: the book's source of truth (#238)
 
 - **Tilman** (#238): *"+ spread … an option we only give when the book's meta notes whether it is print first or

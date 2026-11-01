@@ -6,6 +6,7 @@ import {
   cyclePreparedSpreadRange, getArError, getEngineState, getStoredWindowSetting, getWindowOverride, subscribeCamera,
   subscribeEngineState,
 } from "@/components/ar-bridges";
+import { debugSwitch, SWITCH_CSS } from "./debug-sheet";
 
 type DebugTab = "spread" | "progress";
 /** The bottom panels the overlay opens (`<name>-panel`), at most one at a time */
@@ -202,6 +203,7 @@ export class DebugOverlay extends HTMLElement {
           cursor: pointer;
         }
         button.active { background: #0F0; color: #000; }
+        ${SWITCH_CSS}
         table { border-collapse: collapse; width: 100%; }
         td { padding: 0 .5rem 0 0; vertical-align: top; width: 50%; }
         td + td { color: #ccc; }
@@ -352,7 +354,7 @@ export class DebugOverlay extends HTMLElement {
     let html = `
       <div class="section">
         <div>Spread: ${spread.id || "unknown"}
-          <button data-action="toggle-qr" class="${this.showQr ? "active" : ""}">QR</button></div>
+          ${debugSwitch("QR", this.showQr, "toggle-qr", "QR code of this spread")}</div>
         ${this.showQr ? "<qr-generator></qr-generator>" : ""}
       </div>
     `;

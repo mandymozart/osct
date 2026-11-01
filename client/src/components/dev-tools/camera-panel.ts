@@ -1,5 +1,5 @@
 import type { IGame } from "@/types";
-import { BottomSheet, SHEET_CSS } from "./debug-sheet";
+import { BottomSheet, debugSwitch, SHEET_CSS, SWITCH_CSS } from "./debug-sheet";
 import { GameStoreService } from "@/services";
 import {
   applyContinuousFocus, armTapToFocus, CAMERA_RESOLUTIONS, getArError, getAskZoom, getCameraResolution, setCameraResolution, getCameraInfo, getLensChoice, setAskZoom, setLensChoice, setWindowOverride,
@@ -82,6 +82,7 @@ export class CameraPanel extends HTMLElement {
     this.shadow.innerHTML = `
       <style>
         ${SHEET_CSS}
+        ${SWITCH_CSS}
         .body { display: flex; flex-direction: column; gap: .25rem; padding: .25rem; }
         .row { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; }
         .spread { margin-right: auto; color: #fff; white-space: nowrap; }
@@ -140,7 +141,7 @@ export class CameraPanel extends HTMLElement {
     const restartSwitches = `
       <button data-action="lens" aria-label="Lens on the next start">lens: ${lens}</button>
       <button data-action="resolution" aria-label="Camera size on the next start">res: ${resolution ? `${resolution.width}×${resolution.height}` : "engine"}</button>
-      <button data-action="ask-zoom" class="${getAskZoom() ? "on" : ""}" aria-label="Ask for zoom on the next start">ask zoom</button>`;
+      ${debugSwitch("ask zoom", getAskZoom(), "ask-zoom", "Ask for zoom on the next start")}`;
     if (!camera) {
       const error = getArError();
       box.innerHTML = `<div class="row"><span class="small">camera: – (not running)</span>${restartSwitches}</div>${error ? `<div class="action">AR error: ${escapeHtml(error)}</div>` : ""}`;

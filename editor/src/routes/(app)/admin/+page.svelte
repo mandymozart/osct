@@ -4,6 +4,7 @@
   import { session } from "#lib/session.svelte.js";
   import { csvDownload, type UserFilter } from "#lib/users-csv.js";
   import Segmented from "#lib/components/Segmented.svelte";
+  import Toggle from "#lib/components/Toggle.svelte";
 
   /**
    * The admin page (docs/admin.md): the instance's users found by e-mail, each one's roles as toggles (granted when and
@@ -174,14 +175,10 @@
               <span class="controls">
                 <span class="pill fixed muted" title={grantTitle(user, "reader")}>reader</span>
                 {#each toggleable as role (role.id)}
-                  <button
-                    type="button"
-                    class="pill framed"
-                    class:on={user.roles.includes(role.name)}
-                    disabled={working === user.id}
-                    aria-pressed={user.roles.includes(role.name)}
-                    title={grantTitle(user, role.name)}
-                    onclick={() => toggle(user, role.name)}>{role.name}</button>
+                  <!-- A role is on or off for the user: its name and a switch (#241) -->
+                  <span class="role" title={grantTitle(user, role.name)}>{role.name}
+                    <Toggle on={user.roles.includes(role.name)} label="{role.name} role of {user.email}" title={grantTitle(user, role.name)}
+                      disabled={working === user.id} onchange={() => toggle(user, role.name)} /></span>
                 {/each}
               </span>
             </td>
@@ -220,6 +217,7 @@
   .users td { padding: .25rem .5rem .25rem 0; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap; }
   .users .email { font-weight: 500; }
   .pill.fixed { cursor: default; padding: 0 .375rem; }
+  .role { display: inline-flex; align-items: center; gap: .25rem; margin-left: .25rem; }
   @media (hover: hover) {
     .pill.fixed:hover { background: none; }
   }
