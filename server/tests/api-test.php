@@ -760,6 +760,24 @@ try {
     [, $data] = call($api, 'GET', '/editor/books', null, $editor);
     $byId = array_column($data['books'], null, 'id');
     check($byId['demo']['live'] === [] && count($byId['osct']['live']) === 1, 'the demo is draft only');
+    // #244: an import without `files` reads <assetsBase>/files.json – served by a second built-in server standing in for
+    // the CDN (the API's own handles one request at a time, so it cannot fetch from itself)
+    $cdnDir = "$tmp/cdn/demo/abc";
+    mkdir($cdnDir, 0777, true);
+    file_put_contents("$cdnDir/files.json", json_encode($files, $flags));
+    $cdnPort = freePort();
+    $cdnLog = ['file', sys_get_temp_dir() . '/osct-api-test.log', 'a'];
+    $processes[] = proc_open([PHP_BINARY, '-S', "127.0.0.1:$cdnPort", '-t', "$tmp/cdn"], [1 => $cdnLog, 2 => $cdnLog], $cdnPipes, "$tmp/cdn");
+    for ($i = 0; $i < 50 && !@fsockopen('127.0.0.1', $cdnPort); $i++) usleep(100000);
+    [$status] = importing($api, 'demo', $editor, json_encode(['configuration' => $demo, 'assetsBase' => "http://127.0.0.1:$cdnPort/nowhere"], $flags));
+    [$status2, $data] = call($api, 'GET', '/editor/books/demo/assets', null, $editor);
+    check($status === 200 && $status2 === 200 && ($data['assets'] ?? null) === [], '#244: a base without a files.json imports as before – no imported files');
+    [$status] = importing($api, 'demo', $editor, json_encode(['configuration' => $demo, 'assetsBase' => "http://127.0.0.1:$cdnPort/demo/abc"], $flags));
+    [$status2, $data] = call($api, 'GET', '/editor/books/demo/assets', null, $editor);
+    $names = array_column($data['assets'] ?? [], 'name');
+    check($status === 200 && $status2 === 200 && $names === ['racoon.glb', 'img.jpg'] && ($data['assets'][0]['imported'] ?? null) === true
+        && str_starts_with((string) ($data['assets'][0]['url'] ?? ''), "http://127.0.0.1:$cdnPort/demo/abc/"),
+        '#244: an import without files reads <assetsBase>/files.json – the Library lists the imported files below the base');
     [$status, $data] = call($api, 'POST', '/editor/books/demo/publish', ['env' => 'local'], $editor);
     check($status === 409 && $data['error']['code'] === 'other-book' && $data['error']['current']['book'] === 'osct' && $data['error']['current']['title'] === 'Test Book' && $data['error']['current']['build'] === $second['build'], 'publishing another book over it → 409 other-book naming the current one');
     check(json_decode((string) file_get_contents("$storeDir/local/latest.json"), true)['book'] === 'osct', '… and nothing moved');

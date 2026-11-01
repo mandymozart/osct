@@ -6,7 +6,7 @@
   import { plugins } from "#lib/plugins.svelte.js";
   import { assetPlace, formatDuration, formatSize, LIBRARY_VIEWS, matchesSearch, readLibraryView, saveLibraryView, type LibraryView } from "#lib/library-place.js";
   import {
-    FILTER_LABELS, LIBRARY_FILTERS, matchesFilter, nodeAssetKinds, pickAccept, pickFilter, pickFits, targetImagesOf, type LibraryFilter, type LibraryPick,
+    FILTER_LABELS, LIBRARY_FILTERS, LIBRARY_ORIGINS, matchesFilter, matchesOrigin, nodeAssetKinds, pickAccept, pickFilter, pickFits, targetImagesOf, type LibraryFilter, type LibraryOrigin, type LibraryPick,
   } from "#lib/library-pick.js";
   import Icon from "#lib/components/Icon.svelte";
   import Segmented from "#lib/components/Segmented.svelte";
@@ -18,7 +18,7 @@
    * read-only – docs/server.md "Assets"). A grid of cards – a preview (`AssetThumb`: images, a video's poster that
    * plays) – with where the file belongs (`p015-1 · target`, `assetPlace`), kind, size, dimensions, a video's duration and the number of
    * uses, or a plain list of the same (a click on a row opens its actions; the view is remembered per browser); filter
-   * by kind – target images apart from the other images –, search name and place; **Upload** (the button, or files
+   * by kind – target images apart from the other images – and by origin (uploaded / imported, #245), search name and place; **Upload** (the button, or files
    * dropped anywhere on the panel). Opened from the tab: per asset **Use** (the selected node takes the file, when its
    * type fits), **Target image** (the selected target's printed image), **Replace…** (a new version, every use
    * relinked) and **Delete** (refused while used – *Delete anyway* forces it). Opened as a **picker** (`pick`, a file
@@ -48,6 +48,7 @@
 
   // svelte-ignore state_referenced_locally
   let filter = $state<LibraryFilter>(pick ? pickFilter(pick.subject) : "all");
+  let origin = $state<LibraryOrigin>("all");
   let search = $state("");
   let fileInput = $state<HTMLInputElement>();
   let replaceInput = $state<HTMLInputElement>();
@@ -69,7 +70,7 @@
 
   const targetImages = $derived(targetImagesOf(content.spreads));
   /** The media shown (the shaders are in the code list) */
-  const shown = $derived(library.assets.filter(asset => asset.kind !== "shader" && matchesFilter(asset, filter, targetImages) && matchesSearch(asset, search)));
+  const shown = $derived(library.assets.filter(asset => asset.kind !== "shader" && matchesFilter(asset, filter, targetImages) && matchesOrigin(asset, origin) && matchesSearch(asset, search)));
   /** Scripts uploading (they become plugin sources), by file name */
   let scriptUploads = $state<string[]>([]);
   const uploading = $derived([...library.uploading, ...scriptUploads]);
@@ -204,6 +205,10 @@
     <span class="controls"><Segmented options={LIBRARY_FILTERS} value={filter} labels={FILTER_LABELS}
       titles={{ target: "Pictures printed in the book: used as a target's image, or the import's target of an entry", image: "Images that are no target image" }}
       onchange={f => (filter = f)} /></span></div>
+  <div class="row"><span class="label">from</span>
+    <span class="controls"><Segmented options={LIBRARY_ORIGINS} value={origin}
+      titles={{ uploaded: "Files uploaded in the editor – replaced and deleted here", imported: "Files of the content import (files.json) – read-only, replaced by the next import" }}
+      onchange={o => (origin = o)} /></span></div>
   <div class="row"><span class="label">search</span>
     <span class="controls">
       <input class="field grow" placeholder="name or entry" bind:value={search} aria-label="Search the library" />

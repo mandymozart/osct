@@ -826,7 +826,8 @@ hovered or after a click on ▷ –, the type's icon else; where the file belong
 `image.jpg`, `target.jpg`, `video.mp4` in a folder per entry, so a card reads `p015-1 · target` –, kind, size,
 dimensions, a video's duration, the number of uses) or a plain **list** (name, place, kind, size, uses; a click on a row
 opens its actions) – the **view** is remembered per browser; filter by kind (**target image** – a target's image in the
-draft, or the import's `target.*` – apart from the other images, video, model, audio), search by name and place
+draft, or the import's `target.*` – apart from the other images, video, model, audio) and by origin (**from**: all ·
+uploaded · imported – the editor's uploads apart from the files of the content import, #245), search by name and place
 (`p015 target`), **Upload** (the button, or files dropped on the panel); per file **Use** (the selected node takes it,
 when its type fits), **Target image** (an image becomes the selected target's printed image), **Replace…** (a new
 version, every use relinked, the stage rebuilt) and **Delete** (refused while used – *Delete anyway* forces it). Nodes

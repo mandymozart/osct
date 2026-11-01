@@ -177,7 +177,9 @@ final class Books
 
     /**
      * What an import (or its preview) reads: the configuration, its files, the assets base and the source – from the
-     * body, or for `source: "cdn"` from the current version of CONTENT_BASE_URL, with that latest.json
+     * body, or for `source: "cdn"` from the current version of CONTENT_BASE_URL, with that latest.json. A body without
+     * `files` but with an assets base (the editor's URL and file modes, the MCP's `url`) reads `<assetsBase>/files.json`
+     * from there – optional, as for the reader: a base without one (the reader's dev server) imports with none (#244)
      * @return array{0: stdClass, 1: stdClass, 2: string, 3: string, 4: ?array{base: string, url: string, build: string, activatedAt: ?string}}
      */
     private static function source(stdClass $body): array
@@ -197,6 +199,14 @@ final class Books
         if (isset($body->assetsBase)) {
             if (!is_string($body->assetsBase)) throw new ApiError(400, 'invalid-configuration', 'assetsBase must be a string.');
             $assetsBase = rtrim($body->assetsBase, '/');
+        }
+        if (!isset($body->files) && $assetsBase !== '') {
+            try {
+                $fetched = self::fetchJson("$assetsBase/files.json");
+                if ($fetched instanceof stdClass) $files = $fetched;
+            } catch (ApiError) {
+                // no files.json below the base – the import carries no imported files, as before
+            }
         }
         return [$configuration, $files, $assetsBase, 'configuration', null];
     }

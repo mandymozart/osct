@@ -7,6 +7,23 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.63.0 – 2026-11-01
+
+### Added
+- **The Library filters by origin** (#245, Tilman: *"i thought we solved imported content to show up and be filterable
+  in the library"*): a second filter, *from* – all · uploaded · imported –, next to the kind filter, in the Library and
+  when it is opened as the picker. The editor's uploads (replaced and deleted in the Library) are told apart from the
+  files of the content import (`files.json`, read-only until the next import), which the card's *imported* mark alone
+  showed so far (#111). `matchesOrigin` in `library-pick.ts`.
+
+### Fixed
+- **A book imported from a URL or a file had no imported files in the Library** (#244): staging's demo book listed no
+  files at all, although the stage shows its models and images from the CDN build. Only the CDN import fetched
+  `files.json`; the editor's URL and file modes and the MCP's `import_book` with `url` sent the configuration and the
+  assets base alone, so `books.files_json` stayed empty. An import (and its preview) without `files` now reads
+  `<assetsBase>/files.json` – optional, as for the reader: a base without one (the reader's dev server) imports with
+  none, as before. A book imported that way before lists its files after a re-import.
+
 ## 1.62.1 – 2026-11-01
 
 ### Fixed

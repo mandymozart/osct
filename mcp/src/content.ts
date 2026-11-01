@@ -250,7 +250,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         book: ID.describe("the configuration's own book.id (preview_import's incoming.book) – another id is refused (400 invalid-configuration)"),
         url: z.string().url().optional().describe("a game.config.json to fetch"),
         configuration: z.record(z.string(), z.unknown()).optional().describe("the game configuration itself"),
-        assetsBase: z.string().url().optional().describe("the origin the configuration's /assets/content/… paths resolve against"),
+        assetsBase: z.string().url().optional().describe("the origin the configuration's /assets/content/… paths resolve against – its files.json is read from there, so the Library lists the imported files (a base without one imports with none)"),
         source: z.enum(["cdn"]).optional().describe('"cdn" = the instance CDN\'s current version (CONTENT_BASE_URL)'),
         confirm: z.string().optional().describe("the second step: the confirmation id of the comparison the person agreed to"),
       }),
@@ -278,7 +278,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       inputSchema: z.object({
         url: z.string().url().optional().describe("a game.config.json to fetch"),
         configuration: z.record(z.string(), z.unknown()).optional().describe("the game configuration itself"),
-        assetsBase: z.string().url().optional().describe("the origin the configuration's /assets/content/… paths resolve against"),
+        assetsBase: z.string().url().optional().describe("the origin the configuration's /assets/content/… paths resolve against – its files.json is read from there, so the Library lists the imported files (a base without one imports with none)"),
         source: z.enum(["cdn"]).optional().describe('"cdn" = the instance CDN\'s current version (CONTENT_BASE_URL)'),
       }),
       annotations: { readOnlyHint: true, openWorldHint: true },

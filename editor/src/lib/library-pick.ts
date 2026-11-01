@@ -31,6 +31,15 @@ const FILTER_KINDS: Record<Exclude<LibraryFilter, "all" | "target">, readonly As
   image: ["image"], video: ["video"], model: ["glb", "gltf"], audio: ["audio"], code: ["shader"],
 };
 
+/**
+ * The Library's second filter (#245): where a file comes from – the editor's uploads (replaced and deleted in the
+ * Library) apart from the files of the content import (`files.json`, read-only until the next import)
+ */
+export const LIBRARY_ORIGINS = ["all", "uploaded", "imported"] as const;
+export type LibraryOrigin = (typeof LIBRARY_ORIGINS)[number];
+export const matchesOrigin = (asset: Pick<Asset, "imported">, origin: LibraryOrigin): boolean =>
+  origin === "all" || (origin === "imported") === asset.imported;
+
 type AssetRef = Pick<Asset, "kind" | "name" | "url">;
 
 /** A printed target's image: one a target of the draft uses, or the import's `target.*` of an entry */

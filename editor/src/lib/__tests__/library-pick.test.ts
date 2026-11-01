@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acceptOf, isTargetImage, matchesFilter, pickAccept, pickFilter, pickFits, pickKinds, targetImagesOf, type PickSubject } from "../library-pick";
+import { acceptOf, isTargetImage, matchesFilter, matchesOrigin, pickAccept, pickFilter, pickFits, pickKinds, targetImagesOf, type PickSubject } from "../library-pick";
 import type { Asset } from "../api";
 
 const asset = (kind: Asset["kind"], url: string, name = url.split("/").pop() ?? url) => ({ kind, url, name });
@@ -40,6 +40,21 @@ describe("the library's filters", () => {
     expect(shown("video")).toEqual([video]);
     expect(shown("audio")).toEqual([sound]);
     expect(shown("all")).toEqual(all);
+  });
+});
+
+// #245: the origin filter – the editor's uploads apart from the files of the content import
+describe("the origin filter", () => {
+  const uploaded = { imported: false };
+  const ofImport = { imported: true };
+
+  it("tells uploads from imported files, and all shows both", () => {
+    expect(matchesOrigin(uploaded, "uploaded")).toBe(true);
+    expect(matchesOrigin(ofImport, "uploaded")).toBe(false);
+    expect(matchesOrigin(uploaded, "imported")).toBe(false);
+    expect(matchesOrigin(ofImport, "imported")).toBe(true);
+    expect(matchesOrigin(uploaded, "all")).toBe(true);
+    expect(matchesOrigin(ofImport, "all")).toBe(true);
   });
 });
 

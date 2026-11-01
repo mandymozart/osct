@@ -4,6 +4,22 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-01 – the import reads files.json from the assets base; the Library filters by origin (#244, #245)
+
+- **Imported files were missing after a URL or file import** (#244, 1.63.0): only `source: "cdn"` fetched `files.json`,
+  so a book imported from a URL (the editor's URL mode, the MCP's `import_book` with `url`) listed no imported files in
+  the Library – staging's demo and the local demo both. Now an import without `files` reads `<assetsBase>/files.json`
+  (optional – the reader's dev server has none). Verified locally: the demo re-imported from
+  `https://buildingfictions.b-cdn.net/demo` lists its 78 files.
+- [ ] **Staging's demo needs a re-import once 1.63.0 is deployed** (the editor's URL mode with the demo's content base,
+  or `import_book` with `url` + `assetsBase`): its draft's edits since the import are one beacon move (2026-10-29) and
+  a plugin added and removed again – nothing to keep. Tilman decides when.
+- **The Library's second filter *from*** (#245): all · uploaded · imported (`matchesOrigin`, `library-pick.ts`), in the
+  Library and the picker – Tilman: "i thought we solved imported content to show up and be filterable in the library".
+- Local dev: the SQLite in `var/db/local.sqlite` was behind the schema (no `api_tokens`, no `token_name` – every
+  tokens list and import preview a 500); `php server/deploy/migrate.php` brought it level. Run it after pulling a
+  schema change.
+
 ## 2026-11-01 – the Toggle is a track with a knob (#243)
 
 - **`Toggle.svelte` is a real switch** (#243): a `<button role="switch" aria-checked>` with a track and a sliding knob,
