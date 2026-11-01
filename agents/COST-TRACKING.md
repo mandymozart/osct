@@ -7,7 +7,11 @@ benutzen und die sollen alle kosten tracken."* And on 2026-11-01: *"wir halten a
 auch ein ordner agents/costs.json – dieser kann und sollte auch mit einem online shareable punkt verknüpft sein. ggf.
 ein privates repo, wo wir alle services tracken. auch jeden anderen provider für video etc."* And: *"Wichtig: Kosten
 sollen nur getrackt werden, wenn sie tatsächlich anfallen und nicht Teil des Abos sind."* Then: *"can we use a sqlite
-db instead of the json? and actually just create a super simple tool with maria db on agents.porschuetz.de?"* (§3).
+db instead of the json? and actually just create a super simple tool with maria db on agents.porschuetz.de?"* (§3). And last, 2026-11-01, **superseding the "only what is charged" rule**:
+*"Ich denke es ist sinnvoll, Kosten zu tracken, ohne Subscriptions zu berücksichtigen. Danach kann das agents Tool reale
+Kosten daraus berechnen, denn es kennt die Subscriptions. Wichtig: das Modell muss an den Kosten mit dran stehen und der
+aktuelle Preis pro Token. Und die verbrauchten Tokens."* So: the projects record **usage**; the agents tool works out the
+**real cost** (§1, §4).
 
 **Status: proposal only. Nothing has been built.** Tilman decides; then it becomes issues.
 
@@ -22,41 +26,69 @@ or **open** (has to be measured before anyone relies on it).
 
 ## 1. Summary
 
-**The rule (Tilman, 2026-11-01): a cost is recorded only when money is actually charged. Usage that the subscription
-already covers is not a cost.**
+**Two layers (Tilman, 2026-11-01, last word):**
 
-| recorded | not recorded |
-| --- | --- |
-| **extra usage**: Claude work past the plan's limits, billed in EUR | local and cloud sessions **within the plan** (Ultra) |
-| **pay-per-use charges** of any provider (per run, per minute, per GB) | runs inside a provider's included quota |
-| **purchases**: credit packs, top-ups | the runs that draw a pack already bought |
-| **subscription fees**, once per period, as fixed costs | the included cloud session credit ($250, a promotion) and anything drawn from it |
+| layer | records or computes | knows about subscriptions? |
+| --- | --- | --- |
+| **1. Usage record**, written by orchestrators, workers, hooks and apps in every project | **what was used**: the **model**, the **tokens** (per type), the **price per token that applied**, and the list-price cost that follows | **no**, on purpose |
+| **2. Real cost**, computed by the agents tool | what the usage **really cost**, from the usage records plus the subscriptions, the extra-usage windows and the bills | **yes**, it is the only place that knows them |
 
-- **Per issue, only extra usage and pay-per-use show up.** Most issues therefore cost nothing extra and get no entry.
-  An issue gets one when its work ran while extra usage was on, or caused a provider charge.
+This replaces the earlier rule "record only what is actually charged". Reason: a projects' orchestrator cannot know
+whether a turn was covered by the plan, and should not have to. The money question is answered once, centrally, and can
+be **re-answered** when a subscription changes, a bill arrives or a price is corrected, because the tokens are kept.
+
+**What a usage record always carries** (§3.3 has the fields):
+- **the model** (`claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`, a video model, …). A session that switches
+  models, as this one did, has one record per model: the `result` event's `modelUsage` is already split that way;
+- **the tokens per type**: input, cache write (5 minutes and 1 hour), cache read, output (thinking tokens are part of
+  output and noted separately);
+- **the price per million tokens per type that applied** when the record was made (a snapshot, with the date and the
+  source of the price list), so the stored list-price cost can be checked and, if a price list was wrong, recalculated
+  from the tokens;
+- `list_usd` = tokens × those prices, and the multipliers that applied (US-only routing ×1.1, fast mode, Haiku above
+  100k tokens);
+- for other services the same shape with their unit: `unit` (generations, seconds, GB) and `quantity`, the unit price
+  that applied, and the cost the provider reported.
+
+**What the record deliberately leaves out:** whether the plan, the cloud credit or extra usage paid for it. One fact
+that is already known at that moment is kept as a plain observation, not a judgement: `overage` (`true` / `false` /
+`null`) from the cloud session's `rate_limit_event` (§2.1a). The agents tool may use it; it doesn't have to.
+
+**What the agents tool does with it (§4):**
+- within the plan, or on the included cloud credit ($250, ends 2026-11-05 08:00 UTC): real cost per issue is **0**, and
+  the fee sits in `subscriptions` as a fixed cost;
+- extra usage: the month's EUR bill is split over the issues in proportion to the list-price cost of the usage that ran
+  in the extra-usage windows;
+- pay-per-use providers: the charged figure if the provider reports it, else tokens or units × the unit price;
+- credit packs: the purchase is the cost, the runs that draw it cost nothing more.
+
+Both numbers stay visible per issue: **list price** (usage, comparable across months, models and services) and **real
+cost** (what left the account). Usage within the plan still shows up as usage, which is what the agents project's
+usage ceilings and tiers need.
+
 - **Whether a session ran on extra usage is measurable, in cloud sessions verified.** Each cloud session's
   `rate_limit_event` has `isUsingOverage`, and its `rateLimitType` names what paid for it. The #28+#29 worker shows
   `ccr_promotional`, the cloud credit, resetting on 2026-11-05, with `isUsingOverage: false`. Locally, the status line's
   `rate_limits.seven_day.used_percentage` reaching 100 marks the same thing (§2.3).
-- **How much it cost per session is measurable too.** Cloud sessions: the `result` event's `total_cost_usd`. Local
-  sessions: the transcripts' token counts × list price, which reproduces Claude Code's own figure to the cent. That
-  figure is used **only** to split the month's real extra-usage bill over the issues that caused it, never as a cost
-  of its own (§4).
+- **Model, tokens and list cost are measurable for every Claude session, verified.** Cloud: the `result` event's
+  `modelUsage` per model (tokens per type, `costUSD`, `costBasis: "list"`). Local: the transcripts' `message.usage`
+  and `message.model`, which reproduces Claude Code's own figure to the cent.
 - **The record: one database, a small tool on `agents.porschuetz.de`** (§3). It runs on MariaDB on the server and
   SQLite locally and in tests, the same stack as osct's API. It lives in its own private repo (proposed
-  `mandymozart/agents`). It holds projects, services, subscriptions, sessions, the extra-usage parts, bills and the
-  cost ledger (`charges`) for every project. It has one page with a read-only share link, and an API with a token per
-  writer. No money sits in any project repo, which matters because osct is public. It can later grow into a web-based
+  `mandymozart/agents`). It holds projects, services, subscriptions, sessions, bills, the
+  usage records (model, tokens, price per token) and the computed real costs for every project. It has one page with a
+  read-only share link, and an API with a token per writer. No subscription and no real cost sits in any project repo,
+  which matters because osct is public; a project's ledger holds usage and list price only. It can later grow into a web-based
   orchestration tool (§3.10).
 - **Who writes it:** the orchestrator at merge, a local hook for sessions no orchestrator sees, and Tilman or a monthly
   session for bills and subscriptions.
-- **Orchestrator sessions** are judged by the same rule. If one ran on extra usage, its share is booked to its own shift
-  issue, never hidden inside the workers' numbers.
+- **Orchestrator sessions** are recorded like any other: their usage goes to their own shift issue, never hidden
+  inside the workers' numbers.
 - **Any service:** a provider is a row in `services`, not a code change. Apps such as the scutoons storyboard read the
   report and post their run log through the API, to reconcile their runs against the provider's charges (§3.7).
-- **Tomorrow:** set `cleanupPeriodDays` to 365. Have the orchestrator check `isUsingOverage` at merge and note any
-  extra usage in the closing comment. Tilman sets up the repo, the subdomain and the database, then the first version
-  of the tool gets built (§8).
+- **Tomorrow:** set `cleanupPeriodDays` to 365. Make every ledger entry carry model, tokens per type, price per token and
+  list cost (§8). Tilman sets up the repo, the subdomain and the database, then the first version of the tool gets
+  built.
 
 ---
 
@@ -249,33 +281,37 @@ This **replaces** the earlier files (`agents/costs.json` per repo, a `costs` dat
 | `services` | Claude, Flora, video providers, hosting, CDN, GitHub, …: kind (subscription / usage / both), currency, billing page | a new provider is a row, not a code change |
 | `subscriptions` | service, plan, fee (cents), currency, period, since, renews, cancel-by, ended | the fixed costs |
 | `subscription_splits` | subscription × project → share | optional, for fees per project |
-| `sessions` | Claude session id (cloud `session_…` or local id), cloud/local, role (worker / orchestrator), project, title, issue numbers, start and end, branch | **activity, not cost**: needed for the split and later for orchestration |
-| `extra_usage` | session, turn or time span, list-price weight | only the parts that ran on extra usage (§4) |
+| `sessions` | Claude session id (cloud `session_…` or local id), cloud/local, role (worker / orchestrator), project, title, issue numbers, start and end, branch | activity, the parent of its `usage` rows; needed later for orchestration |
+| `price_list` | service, model, token type (`input` · `cache_write_5m` · `cache_write_1h` · `cache_read` · `output`), USD per million tokens, valid from / to, source (URL, date read) | the **current price per token**; one row per change, never overwritten. Haiku 5.5 has two price tiers (up to and above 100k-token prompts) |
+| `usage` | **the usage record (layer 1)**: id, source (`result-event` · `transcript` · `provider` · `app`), session id or run id, project, issue(s), role, service, **model**, time (or turn), **tokens per type**, **price snapshot** (the five USD/MTok that applied + `price_list` version), multipliers, `list_usd`, `overage` (observed, nullable), reference | **no subscription logic**; for non-token services `unit` + `quantity` + unit price instead of tokens |
 | `extra_windows` | from, until, source (status line, limit notice) | when the account was on extra usage, for local sessions |
-| `charges` | the **cost ledger**: service, project, issue, kind (`extra-usage` · `pay-per-use` · `purchase` · `subscription-fee`), date, amount (cents) + currency, reference (run id, invoice no.), source | **only real money** (§1) |
-| `bills` | service, month, total, currency, reference | the monthly real totals. The split turns them into `charges` per issue |
+| `real_costs` | **layer 2, computed**: usage id or issue × month, amount (cents) + currency, method (`plan` = 0 · `extra-usage-share` · `pay-per-use` · `pack-run` = 0), rule version, computed at | thrown away and recomputed whenever a subscription, a bill or the rule changes |
+| `bills` | service, month, total, currency, reference, kind (`extra-usage` · `pay-per-use` · `purchase` · `subscription-fee`) | the monthly real totals. They feed `real_costs` |
 | `runs` | app (storyboard, …), service, run id, project, issue, reported cost, time | an app's own log, **for reconciling only** |
 | `tokens` | name, scope (`write:project` / `read`), project, hash | one per writer (each project's orchestrator, the hook, the storyboard) |
 
-- Amounts in cents (integers) with an explicit currency. Converting currencies is done at the month's rate, in the
+- Tokens are integers. Prices are USD per million tokens with at least four decimals (cache read of Haiku 5.5 is
+  $0.01). Money amounts are cents (integers) with an explicit currency. Converting currencies is done at the month's rate, in the
   report only.
 - Additive migrations at start, as in osct (`server/deploy/migrate.php`).
 
 ### 3.4 Subscriptions
 
-They are **rows in `subscriptions`**: Claude Ultra, Flora, video providers, hosting, domains, CDN, GitHub. The fee is
-charged once per period as a `subscription-fee` charge, optionally split over projects. It is **never** spread over
-issues: work within the plan costs nothing extra. **Credit packs:** buying the pack is a `purchase`. The runs drawing
-it are not costs (`runs` keeps them for reconciling). The monthly check lists what renews or must be cancelled next
+They are **rows in `subscriptions`**: Claude Ultra, Flora, video providers, hosting, domains, CDN, GitHub. Only the agents
+tool has them. The fee counts once per period as a fixed cost, optionally split over projects. It is **never** spread
+over issues: work within the plan adds nothing to a fee already paid. **Credit packs:** buying the pack is a `purchase`.
+The runs drawing it are usage records with real cost 0. The monthly check lists what renews or must be cancelled next
 month. The amounts are Tilman's to enter; nothing is guessed.
 
 ### 3.5 API and page
 
 - **API** (JSON, `Authorization: Bearer <token>`):
-  - `POST /api/sessions` (orchestrator, hook): records the session, its issues and its extra-usage parts.
-  - `POST /api/charges` (provider charge, purchase).
+  - `POST /api/usage` (orchestrator, hook, apps): the usage records of a session, run or turn. Tokens and model are
+    required; the price snapshot and `list_usd` are filled in by the tool from `price_list` if the writer leaves them out.
+  - `POST /api/sessions` (orchestrator, hook): the session itself, its title and issues.
   - `POST /api/bills` (the month's totals → the split).
   - `POST /api/runs` (the storyboard, other apps).
+  - `GET /api/prices` and `PUT /api/prices` (the price list).
   - `GET /api/report?month=&project=`, `GET /api/issues/<project>/<n>`, `GET /api/health`.
 - **One page:** month × project × service, the costliest issues, unassigned extra usage, budgets and what is left,
   renewals. Plus forms for subscriptions and bills.
@@ -298,7 +334,7 @@ month. The amounts are Tilman's to enter; nothing is guessed.
 
 Tilman, 2026-11-01: *"scutoons storyboard wird darauf auch zugreifen müssen, um Kosten zumindest abzugleichen."*
 
-- It gets a token of its own: `read` for the report and the providers' charges, `write:runs` for its run log.
+- It gets a token of its own: `read` for the report and the providers' charges, `write:usage` for its run log (`source: app`).
 - **Reconciling:** its runs (provider, run id, reported cost, shot or scene, issue) against the provider's charges and
   bills by run id and month. The page shows what matches, what the provider charged that the storyboard doesn't know,
   and the other way round. Runs inside a quota or drawn from a pack are not costs. That is what the check is for.
@@ -315,15 +351,15 @@ field "Cost (EUR)" from the API.
 
 | what | who | when | how |
 | --- | --- | --- | --- |
-| cloud worker sessions | **orchestrator** | at merge | `list_events` → `isUsingOverage`? If not → `POST /api/sessions` without extra parts (activity only), or nothing. If so → with the extra parts and their weight from the `result` events |
-| local worker sessions | **orchestrator** | at merge | extra-usage window during the session? → transcript script for that part → `POST /api/sessions` |
+| cloud worker sessions | **orchestrator** | at merge | `list_events` → `result` (per-model `modelUsage`, or `model_usage_since_last_result` per turn) and `rate_limit_event` (`overage` observed) → `POST /api/usage`. Always, whatever paid for it |
+| local worker sessions | **orchestrator** | at merge | the transcript script (§2.2) on the worker's `session-id` → one usage record per model → `POST /api/usage` |
 | the orchestrator itself | **orchestrator** | at the end of the shift | the same, booked to its shift issue (`role: orchestrator`) |
-| sessions no orchestrator sees | **`SessionEnd` hook** (user level, all projects) | when the session ends | the same check → `POST /api/sessions` |
-| provider charges | whoever started the run, or the provider adapter | when charged | `POST /api/charges` |
-| subscriptions, bills | **Tilman** (page forms) or a monthly session | when they change, and on the 1st | the page or `POST /api/bills` → the split |
-| app run logs | **the app** | per run | `POST /api/runs` |
+| sessions no orchestrator sees | **`SessionEnd` hook** (user level, all projects) | when the session ends | the same → `POST /api/usage` |
+| provider runs and charges | whoever started the run, or the provider adapter | when it runs | `POST /api/usage` with `unit`, `quantity`, the unit price and the reported cost |
+| subscriptions, bills, prices | **Tilman** (page forms) or a monthly session | when they change, and on the 1st | the page or `POST /api/bills`, `PUT /api/prices` → `real_costs` recomputed |
+| app run logs | **the app** | per run | `POST /api/usage` (`source: app`), the same record as a provider run, so it can be reconciled |
 
-**Orchestrator sessions** are judged by the same rule: if one ran on extra usage, that part goes to its own shift issue
+**Orchestrator sessions** are recorded like any other: their usage goes to their own shift issue
 (RULES #30: every session starts with its issue, e.g. `#N Night shift 31.10`). That keeps it visible as overhead, and
 nothing is counted twice.
 
@@ -342,35 +378,67 @@ Each step is its own issue in `mandymozart/agents`. None of this is needed for c
 
 ---
 
-## 4. What counts, and how extra usage is split over issues
+## 4. How the agents tool computes the real cost
 
-| what paid | recorded? | per issue |
+The input is the `usage` table (layer 1), the `subscriptions`, the `extra_windows`, the `bills` and the `price_list`.
+The output is `real_costs`, thrown away and rebuilt whenever one of the inputs changes.
+
+| what paid for the usage | real cost computed as | per issue |
 | --- | --- | --- |
-| the plan (Ultra), local or cloud, within the limits | **no** | nothing |
-| the cloud session credit (`ccr_promotional`, until 2026-11-05) | **no**: a promotion, no money | nothing |
-| extra usage (`isUsingOverage`, or weekly limit used up) | **yes**, the monthly bill in EUR | a share of that bill |
-| a provider's pay-per-use charge | **yes**, as charged | the charge, on the issue that caused it |
-| a credit pack, a top-up | **yes**, the purchase | nothing (the runs are not costs) |
-| a subscription fee | **yes**, once per period | nothing (optionally split over projects) |
+| the plan (Ultra), local or cloud, within the limits | 0 | nothing (the fee is in `subscriptions`) |
+| the cloud session credit (`ccr_promotional`, until 2026-11-05) | 0, a promotion | nothing |
+| extra usage (inside an `extra_windows` span, or `overage = true`) | a share of the month's extra-usage bill | the issue's share |
+| a provider's pay-per-use charge | the charged figure, else units × unit price | the issue that caused it |
+| a credit pack, a top-up | the purchase (a bill) | nothing (the runs cost 0) |
+| a subscription fee | once per period, fixed | nothing (optionally split over projects) |
 
 **Finding the extra-usage part of a session:**
-- **Cloud:** `isUsingOverage` in the session's `rate_limit_event`s (§2.1a, verified). From the first event with `true`,
-  the turns are extra usage. Their cost comes from the `result` events of those turns (`model_usage_since_last_result`).
+- **Cloud:** `overage` in the session's `rate_limit_event`s (§2.1a, verified). From the first event with `true`, the
+  turns are extra usage. Their usage comes from the `result` events of those turns (`model_usage_since_last_result`).
 - **Local:** the moment the weekly (or five-hour) limit was used up and extra usage took over. The status line's
   `rate_limits.*.used_percentage` reaching 100 marks it (§2.3, verified in the docs), and so does Claude Code's notice
   when the limit is hit. A small log of these **extra-usage windows** (from, until the `resets_at`) covers every
-  session of the account, local and cloud, because they share the plan. The transcript's responses inside a window
-  are the extra part (each line has a timestamp). **Open:** whether local transcripts record the same
-  `rate_limit_info` as the cloud events. If they do, no window log is needed.
+  session of the account, local and cloud, because they share the plan. The usage records inside a window (each has a
+  time) are the extra part. **Open:** whether local transcripts record the same `rate_limit_info` as the cloud events.
+  If they do, no window log is needed.
 
 **From list price to real money:**
-- The session's extra part, at list price, is only a **weight** (`list_usd`). **Open:** whether extra usage is billed
-  at API list price. The monthly bill settles it either way.
-- At the end of the month: each issue's share of the month's extra-usage weight × the bill's EUR (claude.ai →
-  Settings → Usage, extra usage) = one `charges` row per issue. The shares add up to 100 %, so the per-issue amounts
-  add up to the real bill.
-- Anything in the bill that no entry explains (a session without `#N`, a chat on claude.ai, idle check-ins) stays
-  visible as **unassigned**, not spread over the issues.
+- A usage record's `list_usd` is a **weight**, and the tokens and prices behind it are kept. **Open:** whether extra
+  usage is billed at API list price. The monthly bill settles it either way, and the stored tokens allow another
+  weighting later if it isn't.
+- At the end of the month: each issue's share of the month's extra-usage weight × the bill's EUR (claude.ai → Settings
+  → Usage, extra usage) = one `real_costs` row per issue. The shares add up to 100 %, so the per-issue amounts add up to
+  the real bill.
+- Anything in the bill that no usage record explains (a session without `#N`, a chat on claude.ai, idle check-ins)
+  stays visible as **unassigned**, not spread over the issues.
+
+**Price per token that applied** (examples, USD per million tokens, read from the pricing page on 2026-11-01; the
+`price_list` is the place for these, not this file):
+
+| model | input | cache write 5 min | cache write 1 h | cache read | output |
+| --- | --- | --- | --- | --- | --- |
+| Opus 5.5 | 4 | 5 | 8 | 0.20 | 20 |
+| Sonnet 5.5 | 2 | 2.50 | 4 | 0.10 | 10 |
+| Haiku 5.5 (prompts up to 100k) | 0.10 | 0.125 | 0.20 | 0.01 | 0.50 |
+| Haiku 5.5 (prompts over 100k) | 0.50 | 0.625 | 1 | 0.05 | 2.50 |
+| Fable 5.1 | 10 | 12.50 | 20 | 0.25 | 50 |
+
+Checked: the #28+#29 worker, 334 input, 291,637 cache write (1 h), 38,098,701 cache read, 110,212 output tokens on Opus
+5.5 = 0.0013 + 2.333 + 7.620 + 2.204 = **$12.158**, the `result` event's `total_cost_usd` to the cent.
+
+A usage record for that session, as the tool would take it:
+
+```json
+{ "source": "result-event", "session": "session_01AabNG9LQhaNiESL1TuMzMP", "project": "osct", "issue": [28, 29],
+  "role": "worker", "service": "claude", "model": "claude-opus-5-5", "time": "2026-10-29T22:29:20Z",
+  "tokens": { "input": 334, "cache_write_5m": 0, "cache_write_1h": 291637, "cache_read": 38098701, "output": 110212,
+              "thinking_in_output": 32985 },
+  "price_usd_per_mtok": { "input": 4, "cache_write_5m": 5, "cache_write_1h": 8, "cache_read": 0.2, "output": 20,
+                          "list": "2026-11-01 pricing page" },
+  "list_usd": 12.158, "overage": false }
+```
+
+---
 
 ## 5. Monthly check (5 minutes)
 
@@ -385,7 +453,7 @@ The tool then:
 - reconciles the apps' runs against the providers' charges,
 - lists next month's renewals and cancellation dates.
 
-A month without extra usage has no Claude charges, only the fixed fees.
+A month without extra usage has real costs of 0 for Claude, only the fixed fees.
 
 ---
 
@@ -407,31 +475,32 @@ A month without extra usage has no Claude charges, only the fixed fees.
 
 ## 7. What to decide
 
-1. **The rule** (§1, §4): only extra usage, pay-per-use charges, purchases and subscription fees. Nothing within the
-   plan, nothing on the included cloud credit. Subscription fees per project by fixed shares, or only as a total?
+1. **The rule** (§1, §4), Tilman's last word: projects record **usage** (model, tokens, price per token, list cost) and
+   never look at subscriptions. The agents tool computes the **real cost**. Does the optional `overage` observation
+   stay in the record (my addition, a fact the writer already has), or is it left to the tool?
 2. **The tool:** its own private repo `mandymozart/agents` (name OK?) on `agents.porschuetz.de`.
 3. **Hosting now:** the all-inkl shared host over FTPS (PHP plus a database, quickest), or wait for the Kamal VM?
 4. **Sign-in:** osct's email code or HTTP Basic, plus read-only share links?
-5. **Sessions without extra usage:** record them as activity (needed for the orchestration page later; not costs), or
-   only sessions with extra usage?
+5. **Price list:** who keeps it current, and how? Proposed: `PUT /api/prices` by hand or a monthly session reading
+   the pricing page; every usage record keeps the snapshot that applied.
 6. **Budget per project:** a monthly EUR cap. When it is reached: a note to Tilman, or the orchestrator starts no new
    workers while extra usage is on?
 7. **Cloud sessions writing directly:** allow `agents.porschuetz.de` in the cloud environment's network policy, with
    the token as a secret? Or leave it to the local orchestrator?
-8. **The scutoons storyboard:** its own token, read plus `write:runs` (§3.7)?
+8. **The scutoons storyboard:** its own token, read plus `write:usage` (§3.7)?
 
 ---
 
 ## 8. The smallest first steps
 
 **Tomorrow, no code:**
-1. `"cleanupPeriodDays": 365` in `C:\Users\<you>\.claude\settings.json`, so local sessions can still be costed later.
-2. **One step in the orchestrator's merge routine** (workspace `ORCHESTRATION.md`):
-   > *Before closing a worker's issue: `list_events(<worker session>, kinds: ["rate_limit_event"])`. If no event has
-   > `isUsingOverage: true`, there is nothing to record. If one does, note `extra usage, list weight $x` (x from the
-   > `result` events from that point on) and tell Tilman.*
-
-   Until the tool exists, the notes go into the closing comment, and the tool imports them later.
+1. `"cleanupPeriodDays": 365` in `C:\Users\<you>\.claude\settings.json`, so local sessions can still be recorded
+   later.
+2. **Every ledger entry carries model, tokens per type, price per token and list cost**, whatever paid for it. The
+   agents project's `costs/add_entry.py` already books a transcript with `est_usd`; it needs the model, the five token
+   counts and the five prices per entry (one entry per model), and `costs/report.py` should total tokens and list cost
+   per model. The orchestrator's merge routine records the worker's usage always, and no longer filters by
+   `isUsingOverage`.
 
 **Tilman sets up (the session can't):**
 - the private repo `mandymozart/agents`,
@@ -460,5 +529,14 @@ credit, presumably, so under the rule in §1 **not a cost**):
   $0.011).
 - **Turn 2** (2026-11-01, subscriptions, central repo, storyboard): **$2.010**, from its `result` event. That makes
   **$3.651** in total.
-- **Turns 3 and 4** (2026-11-01, "only real costs", then the database and tool): about **$1.7** from the transcript,
-  so about **$5.3** in total.*
+- **Turns 3 to 6** (2026-11-01, up to this commit): the rest, from the transcript, which no longer shows the `result`
+  events to this session after the owner's trust change.
+- **The whole session so far, from its transcript, one record per model** (the example of what §1 asks for):
+
+  | model | requests | input | cache write 5 min | cache write 1 h | cache read | output | list price |
+  | --- | --- | --- | --- | --- | --- | --- | --- |
+  | claude-opus-5-5 | 66 | 132 | 92,368 | 227,461 | 12,126,900 | 89,101 | $6.489 |
+  | claude-sonnet-5-5 (from the model switch) | 7 | 13 | 0 | 208,340 | 1,541,355 | 12,250 | $1.110 |
+
+  Total **$7.60** at list price, without the small-model helper calls (about $0.01 per turn). Presumably all drawn from
+  the cloud credit, so its real cost is 0 under §4.*
