@@ -34,7 +34,7 @@
   {#if keptEntitiesLine(impact)}<p class="muted">{keptEntitiesLine(impact)}</p>{/if}
   <p>{filesLine(impact, deleteFiles)}</p>
   {#if optionLabel}
-    <!-- The option is a switch (#241): its words on the left, on / off on the right -->
+    <!-- The option is a switch (#241, #243): its words on the left, the track and knob on the right -->
     <div class="option">
       <span>{optionLabel}</span>
       <Toggle on={deleteFiles} label="Delete the files" disabled={busy} onchange={on => (deleteFiles = on)}

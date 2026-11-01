@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
-import { defaultAllowedOrigins, defineConfig } from 'vite';
+import { defaultAllowedOrigins, defaultClientConditions, defineConfig } from 'vite';
 
 /** A source folder next to the app, as an absolute path with a trailing slash */
 const sibling = (folder: string) => fileURLToPath(new URL(`../${folder}/`, import.meta.url));
@@ -32,6 +32,8 @@ export default defineConfig({
   // so they stay Vite aliases (with tsconfig.json paths) rather than SvelteKit's deprecated `alias` option (#157)
   resolve: {
     dedupe: ['three'],
+    // Tests mount components (Toggle.svelte, #243): happy-dom is a browser, so Svelte's client build, not its server one
+    ...(process.env.VITEST ? { conditions: [...defaultClientConditions] } : {}),
     alias: [
       { find: /^\.\/dompurify\/dompurify\.js$/, replacement: 'dompurify' },
       { find: /^@engine\//, replacement: sibling('engine/src') },

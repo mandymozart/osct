@@ -4,6 +4,18 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-01 – the Toggle is a track with a knob (#243)
+
+- **`Toggle.svelte` is a real switch** (#243): a `<button role="switch" aria-checked>` with a track and a sliding knob,
+  modelled on the reader's `<gold-switch>`; the *on* / *off* text is gone (`words` stays only as a quiet value, a
+  variable's *false* / *true*). Measurements in `DESIGN.md` §9. Round on purpose – the one round control in the square
+  editor, as a switch reads as one only with its round track.
+- **Keyboard**: the switch flips on `keydown` of Space / Enter (once, not on a held key's repeats) and cancels the
+  button's own activation (Enter's click on keydown, Space's on keyup) – checked in Chromium: one press, one flip.
+- **Component tests mount Svelte now**: `editor/vite.config.ts` resolves the browser conditions under vitest
+  (`process.env.VITEST`), so `mount()` from `svelte` works in happy-dom (`lib/__tests__/toggle.svelte.test.ts` – a
+  `*.svelte.test.ts` may use runes). The build is unchanged.
+
 ## 2026-11-01 – cost per issue: agents/costs.json and a line in every closing comment (#242)
 
 - **Tilman (2026-11-01):** accepted the #242 proposal with the closing-comment line and the local ledger, as

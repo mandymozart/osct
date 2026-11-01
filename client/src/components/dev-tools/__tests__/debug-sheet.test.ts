@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { debugSwitch } from "../debug-sheet";
+import { debugSwitch, SWITCH_CSS } from "../debug-sheet";
 
 const render = (html: string) => {
   const box = document.createElement("div");
@@ -23,5 +23,19 @@ describe("debugSwitch (#241)", () => {
     const button = render(debugSwitch('a "b" <i>', false, "x"));
     expect(button.textContent).toBe('a "b" <i>');
     expect(button.querySelector("i")).toBeNull();
+  });
+});
+
+describe("SWITCH_CSS: the editor's switch shape in the debug green (#243)", () => {
+  it("is a track with a knob that slides right and fills the track while on – no on / off text", () => {
+    expect(SWITCH_CSS).toMatch(/\.track \{[^}]*width: 1\.875rem; height: 1\.125rem;/);
+    expect(SWITCH_CSS).toMatch(/\.track::before \{[^}]*width: \.75rem; height: \.75rem;/);
+    expect(SWITCH_CSS).toMatch(/\[aria-checked="true"\] \.track \{ background: #0f0; \}/);
+    expect(SWITCH_CSS).toMatch(/\[aria-checked="true"\] \.track::before \{[^}]*translate\(\.875rem, -50%\)/);
+  });
+
+  it("shows its focus on the track and dims when disabled", () => {
+    expect(SWITCH_CSS).toMatch(/:focus-visible \.track \{ outline:/);
+    expect(SWITCH_CSS).toMatch(/:disabled \{ opacity: \.45; cursor: not-allowed; \}/);
   });
 });

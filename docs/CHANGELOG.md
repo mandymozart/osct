@@ -7,6 +7,18 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.62.1 – 2026-11-01
+
+### Fixed
+- **The editor's switch is a real switch** (#243, Tilman: *"Ich will so einen Toggle."*): `Toggle` was still a pill that
+  read *on* / *off* – the button look #241 meant to replace. It is now a track with a knob that slides right and fills the
+  track while on (`role="switch"`, `aria-checked`; Space and Enter flip it once per press; dimmed when disabled; the focus
+  ring round the track), in the editor's colours, so it inverts at night. The row's word stays its label and the *on* /
+  *off* text is gone – a boolean variable keeps its *false* / *true* as a quiet value after the track. Every user is
+  unchanged: section heads (post-processing passes), *grid & snap*, *vars and events*, *uniform*, the removal's *delete
+  the files*, the admin page's roles. The reader's dev-tools `debugSwitch` takes the same shape in its green.
+  Screenshots: `docs/screenshots/243/`.
+
 ## 1.62.0 – 2026-11-01
 
 ### Changed

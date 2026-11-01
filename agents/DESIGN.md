@@ -187,16 +187,23 @@ RULES #32 (the Scutoons dogma, the editor tokens):
 - **A group of settings is a collapsible section** (`editor/src/lib/components/Section.svelte`): a head with the chevron
   and the group's name; closed, the head adds its values in one line (*bloom · strength 0.35* – the values set away from
   the default, at most two, else the first), so closed hides nothing that matters. The open state is kept per section.
-- **What can be switched as a whole has a toggle in its head** (`Section` with `enabled` / `onenabled`): the on / off
-  pill (`Toggle.svelte` – the editor's one boolean control, pressed while on, the same in a row) sits in the head before
-  the group's other actions (↑ ↓, remove), and works without opening the section. Off dims the name and keeps every
+- **What can be switched as a whole has a toggle in its head** (`Section` with `enabled` / `onenabled`): the switch
+  (`Toggle.svelte` – the editor's one boolean control, the same in a row) sits in the head before the group's other
+  actions (↑ ↓, remove), and works without opening the section. Off dims the name and keeps every
   value – in the content it is `enabled: false`, never a removal.
 - **Nested** (a section inside a section, `nested`): the name reads as a name (the text colour, normal case), the line
   above it dotted – the outer heads stay the small capitals.
 - **Every on/off is a switch** (#241): a boolean row, an option in a confirmation, a role per user, a snap target – the
-  `Toggle`, never an on/off `Segmented`, a pressed pill or an icon button. Its label is the row's word; `words` only where
-  the value has its own (a variable's *false* / *true*). Choices stay `Segmented`, actions stay buttons, open / closed
-  stays the chevron. The reader's dev tools use the same pattern in their green (`debugSwitch`), the reader's settings
-  `<gold-switch>`.
+  `Toggle`, never an on/off `Segmented`, a pressed pill, a pill that reads *on* / *off* or an icon button. Its label is the
+  row's word; `words` only where the value has its own (a variable's *false* / *true*, a quiet value after the track).
+- **The switch is a track with a knob** (#243, the reader's `<gold-switch>` is its model): a `<button role="switch">`
+  with `aria-checked`; Space and Enter flip it, once per press. The track 1.875 × 1.125rem with a 1px `--line` border on
+  `--control-background`, fully round – the one round control in the square editor; the knob a .75rem circle .125rem from
+  the edge, `--muted` while off. On: the track fills with `--text`, the knob turns `--surface` and slides right by
+  .875rem (.15s, none with reduced motion) – so it inverts with the scheme. Hover (a pointer) darkens the off track's
+  border to `--muted`; the focus ring (2px `--text`) goes round the track; disabled dims to .45 with a not-allowed cursor.
+  The button is the hit area: `--control-height` high and at least as wide (44px on touch), the track at its start. Choices stay `Segmented`, actions stay buttons, open / closed
+  stays the chevron. The reader's dev tools use the same shape in their green (`debugSwitch`: a `#0f0`
+  track, filled while on, the knob `#070` → black), the reader's settings `<gold-switch>`.
 - Applied so far: each post-processing pass (head toggle); the #241 rows (`agents/MEMORY.md`, 2026-10-31). The other
   section toggles are follow-ups (`agents/MEMORY.md`, 2026-10-31, #233).
