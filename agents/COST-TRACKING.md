@@ -5,7 +5,8 @@ Issue am besten für jedes Projekt den Preis tracken kann."* Also: *"zusätzlich
 getrackt werden. projekt budget sollte ggf. teil des repos werden"* and *"ich werde mehrere services in zukunft parallel
 benutzen und die sollen alle kosten tracken."* And on 2026-11-01: *"wir halten auch kosten für abos fest. dazu in develop
 auch ein ordner agents/costs.json – dieser kann und sollte auch mit einem online shareable punkt verknüpft sein. ggf.
-ein privates repo, wo wir alle services tracken. auch jeden anderen provider für video etc."*
+ein privates repo, wo wir alle services tracken. auch jeden anderen provider für video etc."* And: *"Wichtig: Kosten
+sollen nur getrackt werden, wenn sie tatsächlich anfallen und nicht Teil des Abos sind."*
 
 **Status: proposal only. Nothing has been built.** Tilman decides; then it becomes issues.
 
@@ -16,40 +17,43 @@ or **open** (has to be measured before anyone relies on it).
 
 ## 1. Summary
 
-- **Every Claude Code session already works out its own cost at list price** (`costBasis: "list"`), down to the
-  model and token type. Nothing needs inventing. The work is to collect that number per session and attach the
-  issue number to it.
-- **Cloud sessions: you can read the cost now, and for past sessions too.** Each finished turn leaves a `result` event
-  with `total_cost_usd`. Any session on the account can read it with `list_events` (claude-code-remote MCP), so an
-  orchestrator can read its workers' cost. The session title carries `#N`. Verified on a real worker session.
-- **Local sessions: compute it from the transcripts.** `~/.claude/projects/*/*.jsonl` has the token counts of every
-  response. List price × tokens gives exactly the number Claude Code computes itself (checked to the cent). The
-  transcripts are deleted after 30 days by default.
-- **Plan usage has no price per call, and it stays an estimate.** Every row records *list USD* (an estimate) and
-  *what paid for it* (plan, extra usage, cloud credit). Real money (extra usage EUR, cloud credit USD) is only ever
-  taken from the bills, once a month, and is spread over the rows. It is never mixed into the estimate columns.
+**The rule (Tilman, 2026-11-01): a cost is recorded only when money is actually charged. Usage that the subscription
+already covers is not a cost.**
+
+| recorded | not recorded |
+| --- | --- |
+| **extra usage**: Claude work past the plan's limits, billed in EUR | local and cloud sessions **within the plan** (Ultra) |
+| **pay-per-use charges** of any provider (per run, per minute, per GB) | runs inside a provider's included quota |
+| **purchases**: credit packs, top-ups | the runs that draw a pack already bought |
+| **subscription fees**, once per period, as fixed costs | the included cloud session credit ($250, a promotion) and anything drawn from it |
+
+- **Per issue, only extra usage and pay-per-use show up.** Most issues therefore cost nothing extra and get no entry.
+  An issue gets one when its work ran while extra usage was on, or caused a provider charge.
+- **Whether a session ran on extra usage is measurable, in cloud sessions verified.** Each cloud session's
+  `rate_limit_event` has `isUsingOverage`, and its `rateLimitType` names what paid for it. The #28+#29 worker shows
+  `ccr_promotional`, the cloud credit, resetting on 2026-11-05, with `isUsingOverage: false`. Locally, the status line's
+  `rate_limits.seven_day.used_percentage` reaching 100 marks the same thing (§2.3).
+- **How much it cost per session is measurable too.** Cloud sessions: the `result` event's `total_cost_usd`. Local
+  sessions: the transcripts' token counts × list price, which reproduces Claude Code's own figure to the cent. That
+  figure is used **only** to split the month's real extra-usage bill over the issues that caused it, never as a cost
+  of its own (§4).
 - **The record, in two places:**
-  - Every project has **`agents/costs.json` on `develop`**: the project's key, its budget, its sessions per issue, and
-    a link to the shared overview.
-  - A **private central repo** (proposed name `mandymozart/costs`) holds what spans projects or is private: all
-    **subscriptions** (Claude Ultra, Flora, video providers, hosting, CDN, …), the monthly bills, every provider's
-    charges, the tooling and the overview. Being a private repo, it is the **online, shareable place**: invite someone
-    to it, or publish a private, link-shareable dashboard from it (§3.5).
-  - The issue gets a cost line in its closing comment, and the board gets a number field.
-- **osct is a public repo.** Anything in its `agents/costs.json` is public. Proposal: public repos keep only list-price
-  *estimates* per issue there (or only the link). Subscriptions, bills, budgets in EUR and real charges live only in
-  the private repo (§3.6, decision §7).
-- **Who writes it:** the orchestrator writes at merge. A local hook catches sessions that no orchestrator sees.
-- **Orchestrator sessions get their own rows**, booked to their own issue (a "shift" issue), never hidden inside the
-  workers' numbers.
-- **Not only Claude, and not only usage:** every entry has the same service-neutral fields (`service`, `kind`, `unit`,
-  `quantity`, `est_usd`, `billed`). That covers Flora, video and other providers, other AI APIs and GitHub Actions
-  minutes, each through a small adapter. Subscriptions are their own kind, a fixed amount per period, split over
-  projects by share (§3.4). Apps such as the scutoons storyboard read the central repo to reconcile their own
-  run costs (§3.7).
-- **Tomorrow:** set `cleanupPeriodDays` to 365 (keeps the raw data), start the private repo with a `subscriptions.json`,
-  and add one step to the orchestrator's merge
-  routine: read the worker's `total_cost_usd` and put it in the merge comment. No code needed for either. See §8.
+  - Every project has **`agents/costs.json` on `develop`**: the project's key, its budget, its charged work per issue,
+    and a link to the central repo.
+  - A **private central repo** (proposed name `mandymozart/costs`) holds the subscriptions, the monthly bills, every
+    provider's charges (Flora, video, hosting, …), the tooling and the overview. It is the **online, shareable place**:
+    invite someone to it, or publish a private dashboard from it that can be shared by link (§3.5).
+  - When an issue had a real cost, its closing comment gets a cost line and the board's number field is set.
+- **osct is a public repo.** Subscriptions, bills and EUR live only in the private repo. A public repo's
+  `agents/costs.json` holds the per-issue extra-usage shares, or only the link (§3.6, decision §7).
+- **Who writes it:** the orchestrator at merge, a local hook for sessions no orchestrator sees, and Tilman or a monthly
+  session for bills and subscriptions.
+- **Orchestrator sessions** are judged by the same rule. If one ran on extra usage, its share is booked to its own shift
+  issue, never hidden inside the workers' numbers.
+- **Any service:** every entry has the same service-neutral fields (`service`, `kind`, `amount`, `currency`). Apps
+  such as the scutoons storyboard read the central repo to reconcile their own run charges (§3.7).
+- **Tomorrow:** start the private repo with a `subscriptions.json`. Set `cleanupPeriodDays` to 365. Have the
+  orchestrator check `isUsingOverage` at merge and write a cost line only when it is true. No code needed. See §8.
 
 ---
 
@@ -75,14 +79,33 @@ Measured today on `session_01AabNG9LQhaNiESL1TuMzMP` ("#28+#29 Typed boundaries 
   `get_session` itself has **no** cost field. **Verified.**
 - This works for **past** sessions, so all cloud work so far can be costed today. **Verified** (the session above is
   two days old).
-- **Open:** in a session that runs several turns (resumed, or messaged by the orchestrator), is `total_cost_usd` the
-  running total or the cost of the last turn? The field `model_usage_since_last_result` suggests running totals with
-  a delta beside them. Until it is checked on a multi-turn session, add up `model_usage_since_last_result` across all
-  `result` events. That is correct either way.
+- **Running total, verified on this session (#242):** turn 1 `total_cost_usd` 1.6404. Turn 2, a day later in a fresh
+  container, `total_cost_usd` 3.6507 with `model_usage_since_last_result` 2.0103 = 3.6507 − 1.6404. So
+  `total_cost_usd` and `modelUsage` are **running totals for the session**, and `model_usage_since_last_result` is
+  **that turn's** share. The session's cost is the last `total_cost_usd`. One turn's cost, which is what the
+  extra-usage split needs (§4), is its `model_usage_since_last_result`.
 - **Guess:** `total_cost_usd` includes the session's subagents (Agent tool, workflows). `subagent_stats` sits on the
   same event. Check it on a session that spawned some.
 - **Open:** a session's own *current* turn has no `result` yet. A session can only report its earlier turns this way
   (see §2.3 for the rest).
+
+### 2.1a Cloud session `rate_limit_event` – **verified**: who paid
+
+The same `list_events`, with `kinds: ["rate_limit_event"]`, gives `rate_limit_info` (checked on the #28+#29 worker,
+2026-10-29):
+
+| field | value | meaning |
+| --- | --- | --- |
+| `rateLimitType` | `ccr_promotional` | drawn from the cloud session credit |
+| `resetsAt` | 1793865600 = **2026-11-05 08:00 UTC** | the credit's expiry |
+| `isUsingOverage` | `false` | **not** billed as extra usage |
+| `overageStatus`, `overageDisabledReason` | `rejected`, `org_level_disabled_until` | extra usage was not allowed for it at the time |
+| `unifiedWindows.five_hour` / `.seven_day` | utilization 0.05 / 0.61, with `resetsAt` | the plan's own windows (61 % of the week used) |
+
+That is the signal the rule needs: **`isUsingOverage: true` is the moment a cloud session starts costing money.** A
+session that crosses the line mid-way has several events, one per change. **Open:** what `rateLimitType` reads once
+the credit has expired and a session draws the plan (probably the plan's window type). Check it on the first cloud
+session after 2026-11-05.
 
 ### 2.2 Local transcripts `~/.claude/projects/<cwd-slug>/<session-id>.jsonl` – **verified**
 
@@ -188,12 +211,12 @@ desktop app. If it doesn't run one, the hook in §2.5 does the same job from the
 
 | | `agents/costs.json` in every project repo, on `develop` | private central repo `mandymozart/costs` |
 | --- | --- | --- |
-| what | the project's key, a link to the central repo, its budget, its **sessions per issue** (estimates) | **subscriptions**, **bills and real charges** of every service and provider, how they split over projects, the overview, the tooling, the schema |
+| what | the project's key, a link to the central repo, its budget, its **charged work per issue** (extra-usage shares, provider charges) | **subscriptions**, **bills and real charges** of every service and provider, how they split over projects, the overview, the tooling, the schema |
 | who writes | the orchestrator, at merge (§3.9) | Tilman or a monthly session (bills, subscriptions); tools and adapters |
 | who reads | the orchestrator, the issue and board, the central report | Tilman, whoever he shares it with, the dashboard, apps such as the scutoons storyboard (§3.7) |
 
-**The rule:** list-price *estimates* of agent work may sit in a project repo, the same figure the issue's closing comment
-shows. Real money stays in the private repo only: subscriptions, bills, EUR, credit balances. osct is public (§3.6).
+**The rules:** only real charges are recorded (§1, §4). Usage within the plan and on the included credit is not. In a
+public repo, no EUR amounts, subscriptions or bills, only in the private repo (§3.6).
 
 ### 3.2 `agents/costs.json` – per project, on `develop`
 
@@ -206,31 +229,29 @@ index. It is **written only by the orchestrator on `develop`**, so it never conf
   "schema": 1,
   "project": "osct",
   "central": "https://github.com/mandymozart/costs",
-  "budget": { "monthly_est_usd": 300, "per_issue_hint_usd": { "design": 5, "feature": 20 } },
+  "budget": { "monthly_eur": 50, "covers": "extra usage and provider charges of this project" },
   "entries": [
-    { "date": "2026-10-29", "issue": [28, 29], "role": "worker", "service": "claude-cloud", "kind": "usage",
-      "session": "session_01AabNG9LQhaNiESL1TuMzMP", "model": "claude-opus-5-5", "unit": "tokens", "quantity": 38500884,
-      "est_usd": 12.16, "paid_from": "cloud-credit", "source": "result-event" },
-    { "date": "2026-10-31", "issue": [242], "role": "worker", "service": "claude-cloud", "kind": "usage",
-      "session": "session_01AabNG8dMQq5pG2cR11qY1R", "est_usd": null, "paid_from": "cloud-credit", "source": "result-event" },
-    { "date": "2026-10-31", "issue": ["<shift issue>"], "role": "orchestrator", "service": "claude-local", "kind": "usage",
-      "session": "<session-id>", "est_usd": null, "paid_from": "extra", "source": "transcript" }
+    { "month": "2026-11", "issue": [251], "role": "worker", "service": "claude", "kind": "extra-usage",
+      "session": "<session id>", "list_usd": 6.40, "share": 0.21, "amount": null, "currency": "EUR",
+      "source": "isUsingOverage + result-event; amount set when the November bill is in" },
+    { "month": "2026-11", "issue": ["<shift issue>"], "role": "orchestrator", "service": "claude", "kind": "extra-usage",
+      "session": "<session id>", "list_usd": 3.10, "share": 0.10, "amount": null, "currency": "EUR", "source": "transcript" }
   ]
 }
 ```
 
-(The budget figures are only examples. `null` means not collected yet.)
+(All figures, including the budget's, are examples. `null` means not known yet.)
 
 - `issue` comes from the title's `#N …` (several: `#28+#29` → split evenly unless the orchestrator says otherwise).
   If the title has no number, the entry has no issue: the "untracked" bucket, shown as such.
 - `role`: `worker` · `orchestrator` · `subagent` (only if it ever needs splitting out).
-- `service`: `claude-local`, `claude-cloud`, `flora`, `gh-actions`, `<video provider>`, … A new service adds a value,
-  not a field.
-- `kind`: `usage` (sessions, runs, generations). Subscriptions and bills live in the central repo only.
-- `est_usd` is **always an estimate**: list price, or the service's own reported figure. There is no `billed` field
-  here on purpose (§3.6).
-- `paid_from`: `plan` · `extra` · `cloud-credit` · `cloud-plan` · `<service>` (§4). `source` says where the figure
-  came from.
+- `kind`: `extra-usage` (Claude past the plan) · `charge` (a provider's pay-per-use charge caused by this issue, e.g. a
+  video render outside any quota). Subscriptions, purchases and bills live in the central repo only.
+- **Only sessions that cost money get an entry.** A session within the plan, or on the cloud credit, gets none.
+- `list_usd` is the extra-usage part of the session at list price. It is only a **weight** for the split, not a cost.
+  `share` is its part of the month's extra usage. `amount` + `currency` is the real money: share × the month's bill.
+  It is filled in once the bill is in (§4). For a `charge`, `amount` is the provider's charged figure straight away.
+- `source` says where the figures came from.
 
 ### 3.3 The central private repo `mandymozart/costs`
 
@@ -257,18 +278,17 @@ costs/
 ```json
 { "service": "claude", "plan": "Ultra", "amount": null, "currency": "EUR", "period": "month",
   "since": null, "renews": null, "cancel_by": null,
-  "split": "by-est-usd", "notes": "weekly limits; extra usage billed separately, see bills/" }
+  "split": { "osct": 0.5, "scutoons": 0.4, "nadeos": 0.1 }, "notes": "extra usage billed separately, see bills/" }
 { "service": "flora", "plan": null, "amount": null, "currency": "USD", "period": "month",
   "split": { "scutoons": 1.0 } }
 { "service": "<video provider>", "plan": "credits", "amount": null, "currency": "USD", "period": "pack",
-  "credits": null, "split": "by-usage" }
+  "credits": null, "split": { "scutoons": 1.0 } }
 ```
 
-- **Fixed per period:** the amount is spread over the projects by `split`. That is either fixed shares
-  (`{ "osct": 0.5, … }`) or `by-est-usd`, meaning each project's share of the month's estimated usage of that service
-  (right for Claude Ultra).
-- **Credit packs** (common with video and image providers): buying the pack is a bill. Each run is a usage entry with
-  `est_usd` = credits used × pack price ÷ pack credits.
+- **Fixed per period:** the fee is recorded once per period as a fixed cost. If wanted, it is split over projects by
+  fixed shares (`split`, examples above). It is **never** spread over issues: work within the plan costs nothing extra.
+- **Credit packs** (common with video and image providers): **buying the pack is the cost**, one line in `bills/`. The
+  runs that draw it are not costs. The storyboard's run log still records them, for reconciling (§3.7).
 - **`renews` / `cancel_by`:** the monthly check lists what renews next month, so nothing renews unnoticed.
 - The amounts are Tilman's to fill in. Nothing here is guessed.
 
@@ -285,16 +305,18 @@ costs/
 
 `mandymozart/osct` is public (so are vred, palazzo-listening, resradio and others), and scutoons and nadeos are
 private. Whatever osct's `agents/costs.json` or its issue comments say, the world can read.
-- **Proposed default:** public repos carry list-price estimates per issue, a measure of the agent work, the same as
-  the closing comment. No subscriptions, no bills, no EUR.
+- **Proposed default:** a public repo's `agents/costs.json` holds the per-issue extra-usage entries (share and list
+  weight) without the EUR amount. The amount stays in the central repo. No subscriptions, no bills.
 - **If even that is too much:** osct's `agents/costs.json` holds only the project key and the link, and its entries go
-  to `costs/projects/osct.json` in the central repo. The closing comment then says "cost recorded" without a figure.
-  This is a decision (§7).
+  to `costs/projects/osct.json` in the central repo. The closing comment then says "extra usage recorded" without a
+  figure. This is a decision (§7).
 
 ### 3.7 Apps that read it: the scutoons storyboard
 
 Tilman, 2026-11-01: *"scutoons storyboard wird darauf auch zugreifen müssen, um Kosten zumindest abzugleichen."*
 
+- **Only real charges count** here too: runs inside a plan's quota or drawn from a credit pack already bought are not
+  costs. The run log matters for reconciling: did the provider charge for runs the storyboard thinks were included?
 - **Reconciling:** I assume the storyboard runs generations (image, video) through providers and knows what each run
   reported. **This is a guess**: scutoons is not in this session's scope. Reconciling then means matching its own log
   (provider, run id, reported cost, shot or scene, issue if any) against the provider's charges in `bills/` by run id
@@ -314,79 +336,90 @@ Tilman, 2026-11-01: *"scutoons storyboard wird darauf auch zugreifen müssen, um
 
 ### 3.8 On the issue and on the board
 
-- **Issue:** the orchestrator's closing comment on `develop` (it is needed anyway, see ORCHESTRATION.md) gets one line:
-  `Cost: ≈ $14.80 list (2 sessions: worker $12.16 cloud credit, orchestrator share $2.64 plan) – estimate.`
-  (The figures are an example.)
-- **Board:** a number field *"Cost (USD, est.)"* on the project board, set by the orchestrator. The board then
-  sums by lane or label. Every project gets the same field.
+- **Issue:** only when the issue had a real cost, the orchestrator's closing comment on `develop` (it is needed anyway,
+  see ORCHESTRATION.md) gets one line:
+  `Cost: extra usage, ≈ 21 % of November's bill (2 sessions, list weight $9.50) – amount when the bill is in.` Or, for
+  a provider: `Cost: 3 video renders, $4.20 charged.` (The figures are examples.) An issue without real cost gets no
+  line.
+- **Board:** a number field *"Cost (EUR)"*, set once the month's bill is in (or straight away for a provider charge).
+  It stays empty for issues without real cost. Every project gets the same field.
 
 ### 3.9 Who writes it
 
 | what | who | when | how |
 | --- | --- | --- | --- |
-| cloud worker sessions | **orchestrator** | at merge | `list_events(kinds: ["result"])` on the worker's session → sum of `model_usage_since_last_result`; title → issue; entry in `agents/costs.json` |
-| local worker sessions (worktrees) | **orchestrator** | at merge | the transcript script (§2.2) on the worker's `session-id` (the orchestrator runs on the same machine) |
-| the orchestrator itself | **orchestrator** | at the end of the shift (and once a day in long shifts) | its own earlier `result` events (cloud) or its own transcript (local); booked to its shift issue |
-| sessions no orchestrator sees (ad hoc, chats about code) | **`SessionEnd` hook** (user level, all projects) | when the session ends | transcript script → a row in a workspace inbox (§6), taken into the project's `agents/costs.json` by the next orchestrator run |
-| the worker itself | **worker** | in its final report | "Cost so far: ≈ $x" from its own transcript. Only a hint (the last turn is missing). The orchestrator's figure counts |
+| cloud worker sessions | **orchestrator** | at merge | `list_events(kinds: ["rate_limit_event"])`: was `isUsingOverage` ever true? If not → nothing to record. If so → that part's cost from the `result` events (§2.1) as the weight, an entry in `agents/costs.json` |
+| local worker sessions (worktrees) | **orchestrator** | at merge | was the weekly limit used up while it ran (§4)? If so → the transcript script (§2.2) on the part after that moment |
+| the orchestrator itself | **orchestrator** | at the end of the shift | the same two checks on its own session; booked to its shift issue |
+| sessions no orchestrator sees | **`SessionEnd` hook** (user level, all projects) | when the session ends | the same check → a row in a workspace inbox (§6) only if it ran on extra usage |
+| provider charges caused by an issue | **whoever started the run** (worker, orchestrator, an app's log) | when charged | `kind: charge` with the provider's charged figure |
 | subscriptions | **Tilman** | when one starts, changes or ends | `subscriptions.json` in the central repo |
-| monthly bills, provider charges | **Tilman** or a monthly session | on the 1st | `bills/<month>.json`: extra-usage EUR, cloud credit used, Flora, video providers, …; then the report and the dashboard |
-| app run logs (storyboard) | **the app**, imported by the monthly run | monthly | `sources/<app>/<month>.json` |
+| monthly bills, purchases | **Tilman** or a monthly session | on the 1st | `bills/<month>.json`: extra usage EUR, provider charges, credit packs, subscription fees; then the shares get their `amount`, and the report and the dashboard are rebuilt |
+| app run logs (storyboard) | **the app**, imported by the monthly run | monthly | `sources/<app>/<month>.json`, for reconciling only |
 
 **Orchestrator sessions** (Tilman's addition): every orchestrator shift starts with its own issue, as RULES #30 already
-asks of every session, e.g. `#N Night shift 31.10`. Its cost is booked to **that issue** as `role: orchestrator`.
-That keeps it visible as overhead. The report can additionally *show* each worker issue's share of the orchestrator
-(split by the workers' `est_usd`), but the entry itself stays with the shift issue, so nothing is counted twice.
+asks of every session, e.g. `#N Night shift 31.10`. If it ran on extra usage, that part is booked to **that
+issue** as `role: orchestrator`. That keeps it visible as overhead, and nothing is counted twice.
 
 ---
 
-## 4. From plan usage to an estimate, kept apart from real charges
+## 4. What counts, and how extra usage is split over issues
 
-What pays for a session, and what the ledger can know about it:
+| what paid | recorded? | per issue |
+| --- | --- | --- |
+| the plan (Ultra), local or cloud, within the limits | **no** | nothing |
+| the cloud session credit (`ccr_promotional`, until 2026-11-05) | **no**: a promotion, no money | nothing |
+| extra usage (`isUsingOverage`, or weekly limit used up) | **yes**, the monthly bill in EUR | a share of that bill |
+| a provider's pay-per-use charge | **yes**, as charged | the charge, on the issue that caused it |
+| a credit pack, a top-up | **yes**, the purchase | nothing (the runs are not costs) |
+| a subscription fee | **yes**, once per period | nothing (optionally split over projects) |
 
-| `paid_from` | what it is | per session | real money |
-| --- | --- | --- | --- |
-| `plan` | local session within the weekly limit (Ultra) | `est_usd` (list) | none extra: the flat subscription |
-| `extra` | local session after the weekly limit | `est_usd` (list) | monthly EUR from claude.ai, spread over these rows |
-| `cloud-credit` | cloud session while the $250 credit lasts | `est_usd` (list) | **open** whether the credit is drawn at list (§2.7); monthly from the balance |
-| `cloud-plan` | cloud session after the credit (from 2026-11-05) | `est_usd` (list) | like `plan` / `extra` |
-| `flora`, … | another service | the service's own figure | usually charged directly → the central repo's `bills/` |
+**Finding the extra-usage part of a session:**
+- **Cloud:** `isUsingOverage` in the session's `rate_limit_event`s (§2.1a, verified). From the first event with `true`,
+  the turns are extra usage. Their cost comes from the `result` events of those turns (`model_usage_since_last_result`).
+- **Local:** the moment the weekly (or five-hour) limit was used up and extra usage took over. The status line's
+  `rate_limits.*.used_percentage` reaching 100 marks it (§2.3, verified in the docs), and so does Claude Code's notice
+  when the limit is hit. A small log of these **extra-usage windows** (from, until the `resets_at`) covers every
+  session of the account, local and cloud, because they share the plan. The transcript's responses inside a window
+  are the extra part (each line has a timestamp). **Open:** whether local transcripts record the same
+  `rate_limit_info` as the cloud events. If they do, no window log is needed.
 
-- **How a row gets its `paid_from`:** the status line's `rate_limits.seven_day.used_percentage` (§2.3) says whether the
-  weekly limit was reached. If there is no status line, the time of the session is compared with the time the limit
-  was hit, which the orchestrator notes when Claude Code reports it ("You've hit your weekly limit"). Cloud sessions
-  before 2026-11-05 are `cloud-credit`.
-- **Real charges are never computed per session.** Once a month the bills in the central repo (`bills/<month>.json`:
-  EUR extra usage, USD credit used) are spread over the month's `extra` / `cloud-credit` entries in proportion to `est_usd`. That gives an
-  *allocated* figure per issue, which the report shows in its own column. Subscriptions are spread over projects by
-  their `split` (§3.4). Per issue, the subscription fee can be shown as an effective rate (fee ÷ the month's `plan`
-  list USD), clearly marked as a way of looking at it, not as a cost.
-- So every issue shows two numbers: **≈ list USD** (always, comparable across months and services) and **allocated
-  real money** (once the month's bills are in).
-- Currencies stay as charged (EUR, USD). Converting them is the report's job, at the month's rate, in its own column.
-
----
+**From list price to real money:**
+- The session's extra part, at list price, is only a **weight** (`list_usd`). **Open:** whether extra usage is billed
+  at API list price. The monthly bill settles it either way.
+- At the end of the month: the bill's EUR (claude.ai → Settings → Usage, extra usage) × each entry's `share` =
+  `amount`. The shares add up to 100 % of the month's extra usage, so the per-issue amounts add up to the real bill.
+- Anything in the bill that no entry explains (a session without `#N`, a chat on claude.ai, idle check-ins) stays
+  visible as **unassigned**, not spread over the issues.
 
 ## 5. Monthly check (5 minutes)
 
-On the 1st: claude.ai → Settings → Usage (extra usage EUR, cloud credit balance), Flora's usage, the video and other
-providers, every subscription that was charged. One line each in `bills/<month>.json` in the central repo. The report
-then compares estimated against billed, reconciles the apps' run logs (§3.7), lists the subscriptions that renew
-next month, and republishes the dashboard. A large gap means something is not being
-collected (most likely sessions with no `#N` in the title, or helper calls). The check also answers the open
-question of how cloud credits are drawn (§2.7).
+On the 1st:
+1. Read the extra-usage EUR from claude.ai → Settings → Usage.
+2. Read the provider charges and purchases (Flora, video and the others) and the subscription fees actually charged.
+3. Write one line each into `bills/<month>.json` in the central repo.
+
+The report then:
+- fills the extra-usage entries' `amount`,
+- shows what stays unassigned,
+- reconciles the apps' run logs (§3.7),
+- lists the subscriptions that renew next month,
+- and republishes the dashboard.
+
+A month without extra usage has no Claude entries at all, only the fixed fees.
 
 ---
 
 ## 6. For every project in `C:\Development\`
 
 - **Tooling once, in the central repo** (`costs/tools/`, cloned to `C:\Development\costs\`, next to
-  `C:\Development\ORCHESTRATION.md`). In it: the transcript costing, the `result` reader (through the claude-code-remote MCP, or the orchestrator calling it
+  `C:\Development\ORCHESTRATION.md`). In it: the extra-usage check (`isUsingOverage`, the window log), the transcript costing, the `result` reader (through the claude-code-remote MCP, or the orchestrator calling it
   directly), the price table, the service adapters (Flora, …) and the report. One script for all projects.
 - **Project from the path:** the transcript folder (`C--Development-scutoons-…`) or the cloud session's repository
   gives the project. Issue numbers belong to each project's own repo (`osct#242` ≠ `scutoons#242`), so `project` +
   `issue` together are the key.
-- **Inbox for the hook:** the `SessionEnd` hook (in `~/.claude/settings.json`, so in every project) appends to
+- **Inbox for the hook:** the `SessionEnd` hook (in `~/.claude/settings.json`, so in every project) checks whether the
+  session ran in an extra-usage window. Only then does it append to
   `C:\Development\.costs\inbox.csv`, outside git. Each project's orchestrator moves its own rows into its repo's
   `agents/costs.json` at its next run. Cloud sessions need no inbox, because their
   `result` events can be read at any time.
@@ -403,50 +436,52 @@ question of how cloud credits are drawn (§2.7).
 
 ## 7. What to decide
 
-1. **Where:** `agents/costs.json` in every project on `develop`, plus the private central repo `mandymozart/costs` for
-   subscriptions, bills and the overview. Is that right, and is the name OK? *Recommended: yes.*
-2. **Public repos (osct):** list-price estimates per issue in `agents/costs.json` and in the closing comment (the
-   proposed default), or only a link, with the figures in the central repo (§3.6)?
-3. **Shareable:** the private repo, plus a private claude.ai dashboard Tilman can share by link (recommended), or a
+1. **The rule** (§1, §4): only extra usage, pay-per-use charges, purchases and subscription fees. Nothing within the
+   plan, nothing on the included cloud credit. *As Tilman said, 2026-11-01.* Subscription fees: per project by fixed
+   shares, or only as one total?
+2. **Where:** `agents/costs.json` in every project on `develop`, plus the private central repo `mandymozart/costs`.
+   Is that right, and is the name OK?
+3. **Public repos (osct):** the per-issue extra-usage shares without EUR (proposed), or only a link (§3.6)?
+4. **Shareable:** the private repo, plus a private claude.ai dashboard Tilman can share by link (recommended), or a
    Google Sheet?
-4. **Per-issue line in the closing comment and the board field:** both, or one of them?
-5. **Orchestrator overhead:** only on the shift issue (recommended), or also spread over the workers' issues in the
-   entries themselves?
-6. **Budget per project:** a monthly figure in list USD (in the project file) and/or in EUR real money (central), and
-   what happens when it is reached: a note to Tilman, or the orchestrator stops starting new workers.
-7. **The scutoons storyboard:** read-only through a token for the `costs` repo (recommended), or only the published
-   `overview.json`? And does it log its run costs itself? (§3.7, to be checked in scutoons.)
-8. **The cloud credit expires on 2026-11-05.** Run the one reconciliation test (§2.7) before then?
+5. **Budget per project:** a monthly EUR cap on its real costs (extra usage + provider charges). What happens when it
+   is reached: a note to Tilman, or the orchestrator starts no new workers while extra usage is on?
+6. **The scutoons storyboard:** read-only through a token for the `costs` repo (recommended), or only the published
+   `overview.json`? (§3.7, to be checked in scutoons.)
 
 ---
 
 ## 8. The smallest first step (tomorrow, no code)
 
-1. **Keep the raw data:** in `C:\Users\<you>\.claude\settings.json` add `"cleanupPeriodDays": 365`. Local transcripts
-   then stay for a year instead of 30 days, and every later report can be run backwards over them.
-2. **One step in the orchestrator's merge routine** (workspace `ORCHESTRATION.md`, worker brief unchanged):
-   *"Before closing a worker's issue, read its cost: `list_events(<worker session>, kinds: ["result"])` → add up
-   `model_usage_since_last_result[*].costUSD` (for a one-turn session that is `total_cost_usd`). Write
-   `Cost: ≈ $x list (estimate), paid from: cloud credit` into the closing comment."* That is a number for every cloud
-   worker from the next shift on. Since past `result` events are still there, the same step can be run once over all
-   finished cloud sessions to cost the work done so far.
-3. **Start the central repo by hand:** create the private repo `mandymozart/costs` with one file,
-   `subscriptions.json`: every subscription and provider in use, its amount, period and renewal date. About 15
-   minutes, no code, and the subscriptions are on record from day one.
+1. **Start the central repo by hand:** create the private repo `mandymozart/costs` with `subscriptions.json`: every
+   subscription in use, its fee, period and renewal date. About 15 minutes, and the fixed costs are on record from
+   day one.
+2. **One step in the orchestrator's merge routine** (workspace `ORCHESTRATION.md`):
+   > *Before closing a worker's issue: `list_events(<worker session>, kinds: ["rate_limit_event"])`. If no event has
+   > `isUsingOverage: true`, there is nothing to record. If one does, write `Cost: extra usage, list weight $x` into
+   > the closing comment (x from the `result` events from that point on) and tell Tilman.*
+
+   Most issues will show nothing, which is correct. The ones that do are exactly where money went.
+3. **Keep the raw data:** `"cleanupPeriodDays": 365` in `C:\Users\<you>\.claude\settings.json`, so local sessions in
+   an extra-usage window can still be costed when the bill comes.
 
 After that, in this order:
-1. `schema.json` and `agents/costs.json` in each project, filled by the orchestrator at merge.
-2. The transcript script, for local sessions and orchestrators.
-3. The `SessionEnd` hook and the inbox.
-4. The monthly bills and the report, with the dashboard.
+1. The extra-usage window log and the transcript script, for local sessions.
+2. `agents/costs.json` in each project, and the monthly bill with the split.
+3. The `SessionEnd` hook.
+4. The report and the dashboard.
 5. The provider adapters and the storyboard's read access.
+
+**Also worth checking:** whether extra usage should be allowed for cloud sessions at all. On 2026-10-29 it wasn't
+(`overageDisabledReason: org_level_disabled_until`). So the EUR 41 → 87 came from local sessions past the weekly
+limit. That is a guess from one event.
 
 ---
 
-*This session (#242, a cloud session) as far as it can see itself:
-- **Turn 1 (2026-10-31), the proposal itself:** exactly **$1.640** at list price, from its own `result` event
-  (`total_cost_usd`; Opus $1.629 + Haiku helper calls $0.011). The transcript estimate at commit time was $1.44, made
-  before the turn's last steps.
-- **Turn 2 (2026-11-01), subscriptions, central repo, storyboard:** about **$1.6 more** from the transcript so far, so
-  about **$3.3** in total. Paid from: cloud credit, presumably. This turn's `result` event will show whether
-  `total_cost_usd` adds up across turns (§2.1, open).*
+*This session (#242, a cloud session) as far as it can see itself, at list price (all of it drawn from the cloud
+credit, presumably, so under the rule in §1 **not a cost**):
+- **Turn 1** (2026-10-31, the proposal): **$1.640**, from its `result` event (Opus $1.629 + Haiku helper calls
+  $0.011).
+- **Turn 2** (2026-11-01, subscriptions, central repo, storyboard): **$2.010**, from its `result` event. That makes
+  **$3.651** in total.
+- **Turn 3** (2026-11-01, "only real costs"): about **$0.7** so far from the transcript, so about **$4.4** in total.*
