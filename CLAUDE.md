@@ -11,6 +11,7 @@ Before working, read:
 - `agents/MEMORY.md` – dated decisions and open items
 - `agents/STRATEGY.md` – where this goes: scutoons-animus-ar, a white-label core; data sovereignty (milestone 2)
 - `agents/ORCHESTRATION.md` – OSCT's specifics for orchestrating sessions and night shifts (the general rules: `C:\Development\ORCHESTRATION.md`)
+- `agents/HANDOFF.md` – an orchestrator session starts here: where the last one left off, what is next, what waits for Tilman
 - `agents/DESIGN.md` – measured design spec (colors, gold gradient, sizes, buttons) – before any styling
 - `agents/reference/README.md` – design PDF, rendered frames and extracted placeholder images
 - `README.md` – the index of `docs/` (architecture, content, CDN, server, deploy, i18n, tests)

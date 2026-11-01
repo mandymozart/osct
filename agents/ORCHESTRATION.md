@@ -2,7 +2,7 @@
 
 The general rules are workspace-wide: **`C:\Development\ORCHESTRATION.md`** (roles, resources, coordination between
 projects, cloud sessions, the worker brief, merging, what needs Tilman, screenshots in the chat, lessons). Read it first.
-This file adds what is special to OSCT. Written after the first night shift, 2026-10-29/30 (1.26.4 → 1.36.x).
+This file adds what is special to OSCT. Where the last orchestrator left off: `agents/HANDOFF.md` (sessions are short, §1 "Fresh sessions"). Written after the first night shift, 2026-10-29/30 (1.26.4 → 1.36.x).
 
 ## Branches, merging, versions
 - No PRs: workers push a branch, the orchestrator merges into `develop` with `--no-ff` after green CI (Tilman,
