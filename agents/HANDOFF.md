@@ -31,8 +31,8 @@ four days for one orchestrator, `agents/costs.json`), so sessions are short and 
   is Tilman's. The #243 cloud worker ran on cloud credit (`ccr_promotional`, no overage) – unlike #241's.
 - Cost tracking accepted (#242, closed): `agents/costs.json`, a cost line in every closing comment. The #242 cloud
   session reported (2026-11-01) that the cost work moves to the new **agents** project (Tilman's session "Agents project
-  cost tracking"); its branch `origin/docs/242-cost-tracking` (5 commits, the latest `COST-TRACKING.md`, agents/ only)
-  is **not merged** – develop has an older copy from d7ad3ea4, a merge would conflict in that file. Tilman's call.
+  cost tracking"). Its design record `agents/COST-TRACKING.md` is merged into develop (5fdf4013); the branch is
+  superseded by it, the work itself lives in the agents project.
 - Transcripts are never deleted (`cleanupPeriodDays` 36500; never 0).
 - Cost rule in motion (the #242 session, 2026-11-01): at merge, record the worker's usage always – model, tokens per type
   (input, cache write 5m/1h, cache read, output), the price snapshot, the list cost, one entry per model – with no look at
@@ -59,8 +59,7 @@ four days for one orchestrator, `agents/costs.json`), so sessions are short and 
 
 ## Waiting for Tilman
 - Should the tree's eye ("found/lost") become a switch too? (open from #241)
-- `origin/docs/242-cost-tracking`: merge the latest `COST-TRACKING.md` into develop, or leave it with the agents project?
-  And the #242 session asked that the agents-project session reports to the OSCT orchestrator as its child – an
+- The #242 session asked that the agents-project session reports to the OSCT orchestrator as its child – an
   orchestration question across projects, not decided here.
 - Delete the merged remote branches (the classifier refuses it in auto mode), or allow `git push --delete` for the
   orchestrator.
