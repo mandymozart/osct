@@ -5,8 +5,11 @@ updates this file before it ends; it is the only state that carries over. Long s
 four days for one orchestrator, `agents/costs.json`), so sessions are short and this file is complete.
 
 ## Starting a session (in this order)
-1. Read `CLAUDE.md`, `agents/RULES.md`, `agents/PLAN.md`, the top of `agents/MEMORY.md`, `C:\Development\ORCHESTRATION.md`,
-   `agents/ORCHESTRATION.md`, then this file.
+1. Read `CLAUDE.md`, `agents/RULES.md`, `agents/PLAN.md`, the top of `agents/MEMORY.md`,
+   `C:\Developmentgents\ORCHESTRATION.md` (moved there 2026-11-01; its new §11 "Usage": worker sizes S/M/L with ceilings,
+   S tickets as a subagent, a shift budget of $150 list and an orchestrator ceiling of 200 turns / $100, every title
+   `#N`, each check once) and its guides `C:\Developmentgents\guides\` (orchestrator-shift.md, worker.md,
+   cost-booking.md), `agents/ORCHESTRATION.md`, then this file.
 2. Find or create the session's issue and start the session title with `#N` (RULES #30).
 3. `git status` in `C:\Development\osct\osct` (other sessions' uncommitted work is not yours), `git log --oneline -5`,
    `gh issue list --repo mandymozart/osct --state open`, and `https://osct.porschuetz.de/api/health`.
