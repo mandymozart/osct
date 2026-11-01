@@ -4,6 +4,18 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-01 – cost per issue: agents/costs.json and a line in every closing comment (#242)
+
+- **Tilman (2026-11-01):** accepted the #242 proposal with the closing-comment line and the local ledger, as
+  `agents/costs.json` in every project for analysis across projects. Format and routine: `C:\Development\ORCHESTRATION.md`
+  §10; background: `agents/COST-TRACKING.md`; script: `C:\Development	ools\costs	ranscript_cost.py`.
+- **Backfill (list-price estimates, local sessions only):** ≈ $2,400 for osct since 2026-04. Of that ≈ $1,360 is
+  orchestrator sessions on 10-28 to 11-01 (≈ $550 on 10-30 alone), more than all workers together. The cause is cache
+  reads: a long orchestrator context is reread on every turn (≈ 3.2 billion cache-read tokens in one session).
+- Open: the board field, a budget per project, the `SessionEnd` hook, `cleanupPeriodDays` 365 (transcripts are
+  deleted after 30 days, so the backfill only reaches back that far for most sessions). `paid_from` of local sessions
+  is unknown (plan or extra usage) and stays `null` until the monthly bill entries.
+
 ## 2026-11-01 – plugins in the reader run in its page; the Toggle still looks like a button
 
 - **Tilman (2026-10-31):** *"Auf der Leser-Seite sollen die Plugins auf jeden Fall auf der Seite laufen."* The reader
