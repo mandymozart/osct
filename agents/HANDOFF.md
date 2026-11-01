@@ -28,7 +28,9 @@ four days for one orchestrator, `agents/costs.json`), so sessions are short and 
 
 ## State (2026-11-01, mid-morning)
 - `develop` = 1.62.1 (#243, merge 25883077) – the editor's Toggle is a real switch (track and knob). `main` (production)
-  is Tilman's. The #243 cloud worker ran on cloud credit (`ccr_promotional`, no overage) – unlike #241's.
+  is Tilman's; on 2026-11-01 he had it brought level with develop (merge ac307cbb, 1.19.3 → 1.62.1, tag v1.62.1). The
+  production Kamal deploy still skips (GitHub environment `production` has no `SSH_HOST`; osct.buildingfictions.com does
+  not resolve yet) – a server/DNS step for Tilman, not a repo change. The #243 cloud worker ran on cloud credit (`ccr_promotional`, no overage) – unlike #241's.
 - Cost tracking accepted (#242, closed): `agents/costs.json`, a cost line in every closing comment. The #242 cloud
   session reported (2026-11-01) that the cost work moves to the new **agents** project (Tilman's session "Agents project
   cost tracking"). Its design record `agents/COST-TRACKING.md` is merged into develop (5fdf4013); the branch is
@@ -68,4 +70,3 @@ four days for one orchestrator, `agents/costs.json`), so sessions are short and 
 - Raw transcripts "in every repo": osct is public, so where may they go (only `costs.json` in the repo, or a private
   archive)?
 - #242's open parts: board field, budget per project, `SessionEnd` hook – now in the agents project.
-- The board-status workflow fails until the next release to `main` (it runs main's old copy).
