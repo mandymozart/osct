@@ -4,6 +4,16 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-01 – plugins in the reader run in its page; the Toggle still looks like a button
+
+- **Tilman (2026-10-31):** *"Auf der Leser-Seite sollen die Plugins auf jeden Fall auf der Seite laufen."* The reader
+  keeps running book plugins in its own page on purpose – no sandbox for the reader. The editor's stage and its plugins
+  are sandboxed since 1.58.0 (#234); that question is closed.
+- **#241 shipped (1.62.0), but `Toggle.svelte` is still a pill that reads *on* / *off*** – the button look Tilman
+  objected to. #243: a real switch (track and knob, `role="switch"`), modelled on the reader's `<gold-switch>`.
+- **Cost (#242):** the #241 cloud worker reported it ran on **overage** (the 7-day limit was full) although cloud
+  session credit was left – to check with Tilman against the usage page before trusting cloud credit for night shifts.
+
 ## 2026-10-31 – every on/off is a switch (#241)
 
 - **Tilman** (#241): *"Ich will so einen Toggle. An manchen Stellen sind keine Toggles, sondern Buttons."* The inventory
