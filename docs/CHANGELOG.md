@@ -7,6 +7,16 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.64.5 – 2026-11-05
+
+### Fixed
+- **The editor's stage showed no target images after a re-import** (#252, Tilman: *"there is some cors error. we need to
+  fix this now"*): the stage frame's policy admitted images only from the book's current assets base, while the draft's
+  rows named files of an earlier content build. The frame now admits images and media (never scripts or requests) from
+  every content build the draft names. Staging's draft is back on content paths of the current build.
+- The stage frame's version check no longer fails its CORS preflight (`_app/version.json` asked with `cache-control` and
+  `pragma`; the `.htaccess` allows them).
+
 ## 1.64.4 – 2026-11-05
 
 ### Fixed

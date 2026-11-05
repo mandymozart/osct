@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  eventMessage, FORWARDED_KEYS, FRAME_SANDBOX, frameCsp, FrameRequests, isForwardedKey, type KeyForward, MESSAGE_TAG, readFrameEvent, readFrameReply,
+  contentBasesNamed, eventMessage, FORWARDED_KEYS, FRAME_SANDBOX, frameCsp, FrameRequests, isForwardedKey, type KeyForward, MESSAGE_TAG, readFrameEvent, readFrameReply,
   readFrameRequest,
 } from "../frame-protocol";
 
@@ -128,6 +128,28 @@ describe("frameCsp: plugin code reaches the content, never the API", () => {
     // An API on another host: its content route only
     const remote = frameCsp({ origin: ORIGIN, appBase: "/editor/", apiBase: "https://api.example/api", contentBases: ["https://api.example"] });
     expect(directive(remote, "connect-src")).toEqual(["https://osct.example/editor/", "https://api.example/api/content/", "https://api.example/assets/content/", "blob:", "data:"]);
+  });
+
+  it("admits other content builds the draft names for images and media only (#252)", () => {
+    const old = "https://cdn.example/staging/53099b9d32d8";
+    const policy = csp(["https://cdn.example/staging/b2a34c9b8be6"], { mediaBases: [old] });
+    expect(directive(policy, "img-src")).toContain(`${old}/assets/content/`);
+    expect(directive(policy, "media-src")).toContain(`${old}/assets/content/`);
+    expect(directive(policy, "script-src")).not.toContain(`${old}/assets/content/`);
+    expect(directive(policy, "connect-src")).not.toContain(`${old}/assets/content/`);
+    // Never into the API, as every other source
+    expect(directive(csp([], { mediaBases: [`${ORIGIN}/api/editor`] }), "img-src")).not.toContain(`${ORIGIN}/api/editor/assets/content/`);
+  });
+
+  it("finds the content builds a draft names besides its own (#252)", () => {
+    const own = "https://cdn.example/staging/b2a34c9b8be6";
+    const config = JSON.stringify({ entries: [
+      { image: `${own}/assets/content/entries/a/image.jpg`, target: { imageSrc: "/assets/content/entries/a/target.jpg" } },
+      { target: { entity: { assets: [{ src: "https://cdn.example/staging/2e0a4af94ca2/assets/content/entries/p106-1/video.mp4" }] } } },
+      { media: "https://www.youtube.com/watch?v=x" },
+    ] });
+    expect(contentBasesNamed([config], `${own}/`)).toEqual(["https://cdn.example/staging/2e0a4af94ca2"]);
+    expect(contentBasesNamed([config], null)).toEqual(["https://cdn.example/staging/2e0a4af94ca2", own]);
   });
 
   it("admits the dev server's socket only when asked", () => {

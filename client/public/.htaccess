@@ -23,5 +23,7 @@
 <IfModule mod_headers.c>
   <If "%{REQUEST_URI} =~ m#^/((editor|assets/content)/|trigger-protocol\.json$)#">
     Header set Access-Control-Allow-Origin "*"
+    # SvelteKit's version check (`_app/version.json`) asks with these: its preflight must allow them
+    Header set Access-Control-Allow-Headers "cache-control, pragma"
   </If>
 </IfModule>
