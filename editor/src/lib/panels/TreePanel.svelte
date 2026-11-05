@@ -148,7 +148,8 @@
     enabled ? menuTrigger({ open: at => { pick({ kind: "spread" }); menu = { at, kind: "spread" }; }, pressing: pressed("spread") })(element) : undefined;
   /** Remove an entry with everything on it: the workspace shows the API's impact and asks first (#198) */
   const removeEntry = (entry: Entry) => void onremoveentry?.(entry.id, entry.target?.id ?? null);
-  const REMOVE_ENTRY_HELP = "Removes the entry with its target, its entity and – only if you choose it – the Library files used only there. It shows what goes and asks first.";
+  const EYE_HELP = "Shows or hides this target in the scene – its printed image and its AR content. Hidden, the stage reports the target lost (a behaviour's lost and found run when you hide and show it). Only the stage changes: whether readers find it is the Inspector's In the book switch.";
+  const REMOVE_ENTRY_HELP ="Removes the entry with its target, its entity and – only if you choose it – the Library files used only there. It shows what goes and asks first.";
   const menuItems = (m: Menu): MenuItem[] => {
     if (m.kind === "spread") {
       return spread ? [{ label: "Add a double page after", icon: "plus", disabled: followBlockedBy(spread), select: () => onaddspread?.(spread.id),
@@ -445,7 +446,9 @@
           {#if target && !isTargetEnabled(target)}<span class="small muted" title="Switched off: not in the reader's book">off</span>{/if}
         </button>
         {#if target}
-          <button type="button" class="eye" aria-pressed={shown} title={shown ? "Found – tap to lose" : "Lost – tap to find"} aria-label="Found" onclick={() => setTargetHidden(target.id, shown)}><Icon name={shown ? "eye" : "eye-off"} size="1em" stroke={2} /></button>
+          <button type="button" class="eye" aria-pressed={shown} title={shown ? "Visible in the scene – click to hide" : "Hidden in the scene – click to show"}
+            aria-label="Visible in the scene" data-help-name="Visibility" data-help={EYE_HELP} onclick={() => setTargetHidden(target.id, shown)}><Icon
+            name={shown ? "eye" : "eye-off"} size="1em" stroke={2} /></button>
         {:else}
           <span class="eye"></span>
         {/if}

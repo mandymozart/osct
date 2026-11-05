@@ -7,6 +7,28 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.64.4 – 2026-11-05
+
+### Fixed
+- **The editor's page has one white** (#250, Tilman: *"it has a different white"*): the stage tinted the spread's page
+  image with its paper colour, while the printed targets on it stayed untinted – with the final content's many targets
+  per spread their white showed as patches. The page image is drawn as it is; the paper colour stays for a page without
+  one.
+- **The tree's eye hides the target in the scene** (#250, Tilman: *"clicking the eye does not show the right info text
+  and it does not hide it in the scene"*): it only made the stage lose the target, so its AR content went and its
+  printed image stayed. Hidden now means neither, and the eye's Info text says what it does (and that the reader's book
+  is the Inspector's *In the book* switch).
+
+### Changed
+- **A fold of the editor's own** (#250): the stage draws the paper's curve into the spine over every open double page;
+  the page previews are the flat pages. `prepare-delivery --sheets <pdf>` takes the page previews from another PDF
+  than the targets (the print PDF – a preview export bakes a fold shadow into every spread), `--sheets-only` draws
+  them again without cutting the targets.
+
+### Removed
+- The × in the panel's bar (#250, Tilman: *"the x can also go. its irritating"*) – back to the spreads is the top
+  bar's book crumb.
+
 ## 1.64.3 – 2026-11-05
 
 ### Added

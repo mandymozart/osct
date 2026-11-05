@@ -816,8 +816,8 @@ the sheets (kind `spread`, `cover-front`, `cover-back`, front and back matter; t
 numbers printed at the foot), and per target its page, surface (`left` / `right`), `x`, `y`, `width`, `height` in
 mm from the page's top left corner. Trigger images are matched to the targets of their page (the entry's `page`)
 by the aspect ratio of the target image, then by reading order; pages where the counts differ are listed. The content build copies `layout/` with the rest of
-the content; the folder is generated. Run it again when the PDFs change, and rebuild the content
-with `--force` (the layout is not part of the build hash).
+the content; the folder is generated. Run it again when the PDFs change, then rebuild the content (`layout/` is part of
+the content, so new page images make a new build).
 
 ### Importing the final print PDFs
 

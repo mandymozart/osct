@@ -345,3 +345,46 @@ describe("mock stage: the environment replaces the HDRI (#185)", () => {
     expect(sun.intensity).toBeCloseTo(0.6 * 0.35);
   });
 });
+
+describe("mock stage: the page image, the fold and the eye (#250)", () => {
+  const sheet = { image: "/s.jpg", widthMm: 460, heightMm: 320 };
+  /** A stage whose loader hands every texture over at once */
+  const loadingStage = () => {
+    const made = newStage();
+    (made.stage as unknown as { loader: unknown }).loader = { setCrossOrigin: () => {}, load: (_url: string, onLoad: (t: Texture) => void) => onLoad(new Texture()) } as never;
+    return made;
+  };
+  const bookOf = (stage: MockStage) => (stage as unknown as { book: Group }).book;
+  const folds = (stage: MockStage) =>
+    bookOf(stage).children.filter(child => ((child as Mesh).material as MeshBasicMaterial | undefined)?.transparent === true && !!((child as Mesh).material as MeshBasicMaterial).map);
+
+  it("draws the page image untinted: its white is the prints' white", () => {
+    const { stage } = loadingStage();
+    stage.setLayout([], page, sheet, book);
+    const paper = (stage as unknown as { sheetPaper: Mesh }).sheetPaper;
+    expect((paper.material as MeshBasicMaterial).map).toBeTruthy();
+    expect((paper.material as MeshBasicMaterial).color.getHex()).toBe(0xffffff);
+  });
+
+  it("lays a fold over the spine of an open book, none on a closed one", () => {
+    // happy-dom draws no canvas: a context that takes the gradient is enough
+    const gradient = { addColorStop: () => {} };
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
+      { createLinearGradient: () => gradient, fillRect: () => {}, fillStyle: "" } as never);
+    const { stage } = loadingStage();
+    stage.setLayout([], page, sheet, book);
+    expect(folds(stage)).toHaveLength(1);
+    stage.setLayout([], page, sheet, { ...book, format: "cover" });
+    expect(folds(stage)).toHaveLength(0);
+  });
+
+  it("leaves out the printed images of the targets hidden in the tree", () => {
+    const { stage } = newStage();
+    const target = (id: string) => ({ id, imageSrc: `/${id}.jpg`, surface: "right", x: 20, y: 20, width: 40, height: 30 });
+    stage.setLayout([target("a"), target("b")], page, null, book);
+    stage.setHiddenPrints(new Set(["a"]));
+    expect(stage.printedPlanes().map(p => [p.userData.targetId, p.visible])).toEqual([["a", false], ["b", true]]);
+    stage.setHiddenPrints(new Set());
+    expect(stage.printedPlanes().every(p => p.visible)).toBe(true);
+  });
+});
