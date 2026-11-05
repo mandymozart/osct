@@ -1043,10 +1043,10 @@ The final content goes in and the app is tuned on it, on the devices readers wil
       with the **trial delivery 2110** (1.6.0): `content/` holds the delivered content (138 entries, 131 targets, 87
       spreads), the placeholder content moved to `content-demo/`. Import through `scripts/import/2110.yaml` +
       `npm run import` (docs/content.md "Importing a delivery"); MEMORY 2026-10-27 "Trial content".
-- [~] **Final content after the printer submission** (#248, 2026-11-05): the final PDFs (print, preview, trigger PDFs
+- [x] **Final content after the printer submission** (#248, 2026-11-05): the final PDFs (print, preview, trigger PDFs
       active / inactive / Kévin's artworks) → `npm run prepare-delivery` + `npm run import`; active triggers in the book,
-      inactive and artwork ones switched off (#249, `artwork` tag); covers kept. Staging import after Tilman's yes to the
-      comparison (MEMORY 2026-11-05).
+      inactive and artwork ones switched off (#249, `artwork` tag); covers kept. Imported into staging 2026-11-05 (build
+      53099b9d32d8, images from Rudy's high-res export; MEMORY 2026-11-05).
 - [ ] **Trigger trial** (Tilman, printout of `All_Triggers.pdf` from a print shop): go through the protocol
       (debug overlay → trial, Markdown report) on the S22 and an iPhone; the report to the designers and into the issue; then decide
       per failing trigger with Kévin (bigger print, other crop, other image).

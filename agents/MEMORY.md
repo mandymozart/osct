@@ -26,6 +26,17 @@ outcome in the line (or move it into a dated decision block).
 
 ## 2026-11-05 – targets can be switched off (#249); the final content after the printer submission (#248)
 
+- **Imported into staging** (2026-11-05, 17:33; Tilman: "do the content import", "not a separate folder … i want to update
+  the existing book", staging is not public – "we can still work pretty brutal on staging", production goes live with
+  the book release): the delivery went into the content source through `npm run import` (`scripts/import/2026-11-final.yaml`,
+  images and page previews from Rudy's `OSCT_FULL_preview_spreads_HIGHRES.pdf` – active targets median 1,201 px), the build
+  `53099b9d32d8` was synced to the CDN's `staging` env (it is staging's `latest.json` now), and staging's draft, laid over
+  it (`merge.py`), was imported into the existing book `osct` with that build as its assets base: 130 spreads, 1,376
+  entries, 121 targets on, 1,247 off, 239 tagged `artwork`, the 10 deleted. Entry pictures kept (Tilman: "existing pictures
+  for bw targets can be kept … the picture reference"). The content source before: `osct-incoming-content6-11-final\content-before`.
+- [ ] **Publish the draft to staging** (Tilman, in the editor): staging's readers load the plain build until then – it
+  lacks the editor-only edits (p041-1's video, the text-placeholder entry); an AI connection cannot publish.
+
 - **The switch is the target's `enabled`** (#249, 1.64.0, schema 2.26) – Tilman: "the active inactive toggle in the
   editor. as we will incrementally activate them later on", "on off switch for targets (appearing in the book or not)".
   Named `enabled` like a pass's (#233, RULES #32: off keeps the values, never a removal). **Off = not in the reader's
