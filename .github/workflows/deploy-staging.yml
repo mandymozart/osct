@@ -1,10 +1,10 @@
-# Staging https://osct.porschuetz.de: every push to `develop` (or by hand) deploys the site – app + API in
-# one container – with Kamal (deploy.yml, GitHub environment "staging"). Production: deploy-production.yml.
+# Staging https://osct.porschuetz.de with Kamal (deploy.yml, GitHub environment "staging") – app + API in one
+# container. By hand only for now: staging stays on the FTPS host (deploy-staging-ftps.yml uploads every push to
+# `develop`) until Tilman moves it to the server (Tilman, 2026-11-05); then `push: branches: [develop]` comes back.
+# Production: deploy-production.yml.
 name: Deploy staging (osct.porschuetz.de)
 
 on:
-  push:
-    branches: [develop]
   workflow_dispatch:
 
 # The called deploy.yml pushes the image to ghcr.io and needs `packages: write`; the repository's default token is

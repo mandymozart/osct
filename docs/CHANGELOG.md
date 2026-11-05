@@ -7,6 +7,19 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.64.2 – 2026-11-05
+
+### Fixed
+- **The production deploy finds its SSH key** (#6): the server's deploy keys were handed over as the repository
+  secrets `SSH_PRIVATE_KEY_PRODUCTION` / `SSH_PRIVATE_KEY_STAGING`, while the deploy only read `SSH_PRIVATE_KEY` and
+  stopped with an empty key. It now takes the environment's `SSH_PRIVATE_KEY`, else the repository key of its
+  destination.
+
+### Changed
+- **Staging stays on the FTPS host for now**: the Kamal staging deploy no longer runs on every push to `develop` (by
+  hand only) – with the server's address set for the whole repository, each push had started a Kamal deploy to it.
+  `deploy-staging-ftps.yml` keeps uploading `develop` to osct.porschuetz.de.
+
 ## 1.64.1 – 2026-11-05
 
 ### Added

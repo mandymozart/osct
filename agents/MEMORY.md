@@ -4,6 +4,25 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-05 – the deploy credentials as asger set them (#6, #7)
+
+- **Where asger put them** (set 2026-11-03, after #151): `SSH_HOST` (49.13.13.159), `SSH_USER` (`osct`) and
+  `SSH_KNOWN_HOSTS` as **repository** variables, the keys as **repository** secrets `SSH_PRIVATE_KEY_PRODUCTION` /
+  `SSH_PRIVATE_KEY_STAGING` – not in the environments, and not under the name `SSH_PRIVATE_KEY` that #151 and #7
+  describe. The repository variables resolve in the environment jobs; the keys did not, so the Kamal staging deploys
+  of 1.64.0 / 1.64.1 failed at ssh-agent ("ssh-private-key argument is empty"). 1.64.2: `deploy.yml` falls back to
+  the destination's repository key. Tilman: "that's what i meant" (a workflow change instead of re-entering the keys –
+  GitHub cannot rename a secret or show its value).
+- **Staging stays on FTPS** (Tilman, 2026-11-05: "staging stays on the ftp on osct.porschuetz.de"):
+  `deploy-staging.yml` lost its push trigger (by hand only) – with the repository-wide `SSH_HOST` every `develop` push
+  would have deployed to the server. Give it back when staging moves (#10).
+- **Open before the first production deploy** (#7): the `production` environment has no `DB_PASS`, `DB_ROOT_PASS`,
+  `SECRET`, `SMTP_USER` / `SMTP_PASS`; the database is created by the first `kamal setup -d production` (from a
+  laptop – `kamal deploy` in the workflow boots no accessory). Recommended to Tilman: his own SSH key on the server
+  (public key to asger). A `MAIL_TRANSPORT` value `mail` shows up in the staging job although no environment or
+  repository variable of that name is listed – find out where it comes from before relying on the mail check.
+- [ ] Once staging moves to the server: `push: branches: [develop]` back into `deploy-staging.yml`, FTPS workflow out (#10).
+
 ## 2026-11-05 – targets can be switched off (#249); the final content after the printer submission (#248)
 
 - **The switch is the target's `enabled`** (#249, 1.64.0, schema 2.26) – Tilman: "the active inactive toggle in the
