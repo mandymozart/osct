@@ -28,10 +28,13 @@ outcome in the line (or move it into a dated decision block).
   1,237 new targets (1,008 inactive, 239 artwork on book pages; 640 artworks on covers / end papers / title skipped).
   Working files: `C:\Development\osct\osct-incoming-content\2026-11-final\` (`content-before` = the content source before,
   `content-work` = the trial run) and `analysis\2026-11-final\` (staging's draft, `merge.py`, `mcp-call.mjs`).
-- **Resolution** (open, Tilman decides): the print PDF holds every picture at ~300 dpi – the active triggers (20–40 mm)
-  cut to a median 443 px long side, none ≥ 1000 px (PLAN Phase 14 asks ≥ 1000). The current target images (delivery
-  2110) are the same crops at a median 1,120 px: 111 of 131 would get smaller. Recommendation: keep the current image
-  where a target is found again, print cuts for the new (switched-off) ones; or originals from Kévin.
+- **Resolution**: the print PDF holds every picture at ~300 dpi – the active triggers (23–52 mm) cut to a median 443 px
+  long side, none ≥ 1000 px (PLAN Phase 14 asks ≥ 1000); the current target images (delivery 2110) are the same crops
+  at a median 1,120 px. **Decided (Tilman): wait for Rudy's re-export** of the inside pages without image downsampling
+  (≈ 1200 ppi gets every active trigger to 1000 px, 1000 ppi 115 of 121) – then rerun with `--print <new pdf>`.
+- **Deleted with the import** (Tilman: "those we can delete"): p002-1, p030-2, p034-1, p035-1, p095-2, p100-1, p106-1,
+  p158-1, p192-1, p222-2 – the current targets the final layout marks inactive. `--retire` keeps their ids taken; their
+  triggers come in as new switched-off placeholders.
 - **The staging import path** (proposed, waits for Tilman's yes to the comparison): the delivery into the content source
   → content build → `osct content sync --env delivery` (an env no reader loads – `staging`'s `latest.json` is what the
   staging reader reads, so a sync there would publish at once) → staging's draft laid over the new build (`merge.py`:
