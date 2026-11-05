@@ -145,6 +145,41 @@ describe('delivery import', () => {
     expect(() => readMapping(file)).toThrow(`${file}: expected a mapping with "entries"`);
   });
 
+  it('a target switched off and tagged: entry.yaml says so and the build takes it (#249, #248)', async () => {
+    const { delivery, mapping, content } = makeDelivery();
+    fs.appendFileSync(mapping, [
+      '  p009-2:',
+      '    category: glossary',
+      '    title: "p. 9 · 2"',
+      '    page: 9',
+      '    target: glossary/P8_Print_01.jpg',
+      '    enabled: false',
+      '    tags: [artwork]',
+      '  p009-3: { category: glossary, title: Three, page: 9, enabled: "no", tags: [1] }',
+      '',
+    ].join('\n'));
+    const importer = await loadImporter(content);
+    const report = importer.importDelivery(delivery, mapping);
+    expect(report.problems).toContain('p009-3.enabled: expected true or false');
+    expect(report.problems).toContain('p009-3.tags: expected a list of words');
+    const entry = fs.readFileSync(path.join(content, 'entries/p009-2/entry.yaml'), 'utf8');
+    expect(entry).toContain('tags: ["artwork"]');
+    expect(entry).toContain('target:\n  image: target.jpg\n  enabled: false');
+
+    const build = await loadBuild({ content });
+    const result = build.buildAll();
+    const off = result.entries.find(e => e.id === 'p009-2');
+    expect(off?.tags).toEqual(['artwork']);
+    expect(off?.target?.enabled).toBe(false);
+
+    // A later delivery switches off a target whose entry.yaml exists: the file is kept, the import says so
+    expect(report.warnings.some(w => w.includes('switches its target off'))).toBe(false);
+    const next = path.join(path.dirname(mapping), 'next.yaml');
+    fs.writeFileSync(next, 'entries:\n  p009-1: { category: link, title: Shot, page: 9, target: shot.png, enabled: false }\n');
+    expect(importer.importDelivery(delivery, next).warnings).toContain(
+      'p009-1: the delivery switches its target off, but entry.yaml is kept – add "enabled: false" under target (or switch it off in the editor)');
+  });
+
   it('an entry with a page that is no number does not spoil the other spreads', async () => {
     const { delivery, mapping, content } = makeDelivery();
     fs.appendFileSync(mapping, '  p010-1:\n    category: glossary\n    title: Ten\n    page: ten\n');

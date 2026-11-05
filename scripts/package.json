@@ -1,7 +1,7 @@
 {
   "name": "osct-scripts",
   "private": true,
-  "version": "1.64.0",
+  "version": "1.64.1",
   "engines": {
     "node": ">=22"
   },
@@ -20,6 +20,7 @@
     "import": "npm run build && node dist/import-delivery.js",
     "protocol": "npm run build && node dist/protocol.js",
     "layout": "python layout/extract-layout.py",
+    "prepare-delivery": "python layout/prepare-delivery.py",
     "test": "vitest run"
   },
   "dependencies": {

@@ -4,6 +4,47 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-05 – targets can be switched off (#249); the final content after the printer submission (#248)
+
+- **The switch is the target's `enabled`** (#249, 1.64.0, schema 2.26) – Tilman: "the active inactive toggle in the
+  editor. as we will incrementally activate them later on", "on off switch for targets (appearing in the book or not)".
+  Named `enabled` like a pass's (#233, RULES #32: off keeps the values, never a removal). **Off = not in the reader's
+  book at all**: the engine's loader drops the target *and its entry* (no image target, not listed, not counted) unless
+  the app passes `keepSwitchedOffTargets` – the editor does, so the stage, the tree (an *off* mark) and the Inspector
+  (*In the book* switch) work on them as before. Chosen because the switched-off entries are placeholders made by the
+  import; an entry whose text should stay readable without AR keeps its target on (or loses the target). A 2.25 app
+  ignores the field and shows them. Switched-off targets do not count towards the 10 per spread (RULES #3).
+- **Sources of the final content** (Tilman, 2026-11-05): images from the final print PDF
+  (`OSCT_INSIDE_256p_SymbolFreelifeMatt150g.pdf`, 256 pages with bleed – taken as "the final print pdf"), data from the
+  three trigger PDFs in `Downloads\APP\` – ACTIVE (in the book), INACTIVE ("potentials", switched off), KevinWORKS
+  (Kévin's artworks: switched off and tagged `artwork` – "it will help to find them later"). "The target data is
+  extracted from the page they are on"; "proper resolution page previews, which we impose our targets to". Cover front
+  and back are missing from every document and stay as the book has them; the end papers and the title sheet (no page
+  numbers) are left out too. Only what got updates is replaced on staging.
+- **The tooling** (#248): `scripts/layout/prepare-delivery.py` → delivery folder + mapping + layout (page previews from
+  the print PDF, boxes by id) + report; the delivery import takes `enabled` and `tags`. A trigger that shows a current
+  target's image (dHash on the same double page) keeps its id: all 131 current targets are found again – 121 active,
+  10 (p002-1, p030-2, p034-1, p035-1, p095-2, p100-1, p106-1, p158-1, p192-1, p222-2) inactive in the final layout.
+  1,237 new targets (1,008 inactive, 239 artwork on book pages; 640 artworks on covers / end papers / title skipped).
+  Working files: `C:\Development\osct\osct-incoming-content\2026-11-final\` (`content-before` = the content source before,
+  `content-work` = the trial run) and `analysis\2026-11-final\` (staging's draft, `merge.py`, `mcp-call.mjs`).
+- **Resolution** (open, Tilman decides): the print PDF holds every picture at ~300 dpi – the active triggers (20–40 mm)
+  cut to a median 443 px long side, none ≥ 1000 px (PLAN Phase 14 asks ≥ 1000). The current target images (delivery
+  2110) are the same crops at a median 1,120 px: 111 of 131 would get smaller. Recommendation: keep the current image
+  where a target is found again, print cuts for the new (switched-off) ones; or originals from Kévin.
+- **The staging import path** (proposed, waits for Tilman's yes to the comparison): the delivery into the content source
+  → content build → `osct content sync --env delivery` (an env no reader loads – `staging`'s `latest.json` is what the
+  staging reader reads, so a sync there would publish at once) → staging's draft laid over the new build (`merge.py`:
+  the editors' texts, entities, covers and book kept; images, boxes and on/off from the delivery) → `import_book` with
+  that configuration and `assetsBase` = the `delivery` build → Tilman checks the draft and publishes.
+- [ ] **Kamal staging deploy blocked**: GitHub environment `staging` now has `SSH_HOST` (49.13.13.159) but
+  `MAIL_TRANSPORT=smtp` without `SMTP_USER` / `SMTP_PASS` – the workflow refuses (1.64.0 deploy, 2026-11-05). The FTPS
+  deploy still updates osct.porschuetz.de. Tilman's secrets.
+- [ ] The book's `back` spread sits on page 256, but the print PDF has 256 printed pages – the back cover should be page
+  257 (no trigger on page 256 yet, so nothing collides now).
+- [ ] `extract-layout.py` and `prepare-delivery.py` both write `layout/`: the older one matches by aspect ratio (one
+  trigger PDF, the preview's low-res sheets); keep it for older deliveries or retire it – Tilman decides (RULES #1, #15).
+
 ## 2026-11-01 – the import reads files.json from the assets base; the Library filters by origin (#244, #245)
 
 - **Imported files were missing after a URL or file import** (#244, 1.63.0): only `source: "cdn"` fetched `files.json`,

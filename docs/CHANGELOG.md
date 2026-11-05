@@ -7,6 +7,17 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.64.1 – 2026-11-05
+
+### Added
+- **The final print PDFs as a delivery** (#248): `npm run prepare-delivery` (`scripts/layout/prepare-delivery.py`)
+  reads the trigger PDFs of the finished book – one per kind: active, inactive, Kévin's artworks – and cuts every
+  trigger from the print PDF at the resolution printed there. A trigger showing a current target's image keeps the
+  target's id (its image is replaced, its entry kept); every other one becomes a new entry. It writes the mapping for
+  `npm run import`, the page previews rendered from the print PDF and every target's printed box (`layout/`), and a
+  report of resolutions and matches. Covers and the sheets without page numbers are left out.
+- The delivery mapping takes `enabled: false` (the target switched off, #249) and `tags` (e.g. `artwork`).
+
 ## 1.64.0 – 2026-11-05
 
 ### Added
