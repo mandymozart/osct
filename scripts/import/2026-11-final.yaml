@@ -1,5 +1,5 @@
 # Made by scripts/layout/prepare-delivery.py from OSCT_FULL_preview_spreads_HIGHRES.pdf and the trigger PDFs (OSCT_TRIGGERS_ACTIVE.pdf, OSCT_TRIGGERS_INACTIVE.pdf, OSCT_TRIGGERS_KevinWORKS.pdf).
-# Delivery folder: C:Developmentosctosct-incoming-content2026-11-finaldelivery (made by prepare-delivery with --print OSCT_FULL_preview_spreads_HIGHRES.pdf and --retire p002-1,p030-2,p034-1,p035-1,p095-2,p100-1,p106-1,p158-1,p192-1,p222-2).
+# Delivery folder: C:/Development/osct/osct-incoming-content/2026-11-final/delivery (made by prepare-delivery with --print OSCT_FULL_preview_spreads_HIGHRES.pdf and --retire p002-1,p030-2,p034-1,p035-1,p095-2,p100-1,p106-1,p158-1,p192-1,p222-2).
 book: osct
 entries:
   p001-1:
