@@ -325,6 +325,21 @@ const sourceOf = (url: string, base: string): string | null => {
 /** Where a content base's files live: `contentUrl` puts every content path (`/assets/content/…`) after the base */
 const CONTENT_FILES = "/assets/content/";
 
+/**
+ * The content builds a draft's text names besides `own` (#252): every `<base>` of an absolute URL `<base>/assets/content/…`
+ * in it – a file of an earlier build that a row still points at
+ */
+export const contentBasesNamed = (texts: readonly string[], own: string | null): string[] => {
+  const ownBase = own?.replace(/\/+$/, "") ?? null;
+  const bases = new Set<string>();
+  for (const text of texts) {
+    for (const match of text.matchAll(/https?:\/\/[^"'\s\\]+?(?=\/assets\/content\/)/g)) {
+      if (match[0] !== ownBase) bases.add(match[0]);
+    }
+  }
+  return [...bases].sort();
+};
+
 /** An exact file a URL names under the frame's policy (`<origin><path>`), none for an unparseable or non-http(s) URL */
 const fileOf = (url: string, base: string): string | null => {
   try {
@@ -340,16 +355,19 @@ const fileOf = (url: string, base: string): string | null => {
  * (`<origin><appBase>`), the Library's files (`<origin><apiBase>/content/`), the book's content under each content base
  * (`<base>/assets/content/` – the CDN or wherever the draft's files live; the declared plugins' modules are there too),
  * a few exact `files` (the trigger protocol at the site's root), plus `blob:` and `data:` (the Code tab's transpiled
- * module, textures and buffers inside a model). **No request reaches the rest of the API** – every source is
+ * module, textures and buffers inside a model). `mediaBases` are other content builds the draft's rows still name (a
+ * file of an earlier build, #252): their `assets/content/` is admitted for images and media only, never for scripts or
+ * requests. **No request reaches the rest of the API** – every source is
  * path-restricted, never `'self'` (which would be the whole origin, `/api` included); a source that would still reach
  * into the API other than its public `content/` route is left out. `devSocket` admits the dev server's hot reload.
  * Nothing may be framed, posted or embedded, and no worker started.
  */
-export const frameCsp = ({ origin, appBase, apiBase, contentBases, files = [], devSocket }: {
+export const frameCsp = ({ origin, appBase, apiBase, contentBases, mediaBases = [], files = [], devSocket }: {
   origin: string;
   appBase: string;
   apiBase: string;
   contentBases: readonly string[];
+  mediaBases?: readonly string[];
   files?: readonly string[];
   devSocket?: string | null;
 }): string => {
@@ -359,10 +377,11 @@ export const frameCsp = ({ origin, appBase, apiBase, contentBases, files = [], d
   /** Not into the API, unless it is its public content route */
   const outsideApi = (source: string | null): source is string =>
     !!source && (!(source.startsWith(api) || api.startsWith(source)) || source.startsWith(library));
-  const content = contentBases.map(base => sourceOf(`${base.replace(/\/+$/, "")}${CONTENT_FILES}`, origin)).filter(outsideApi);
+  const contentOf = (bases: readonly string[]) => bases.map(base => sourceOf(`${base.replace(/\/+$/, "")}${CONTENT_FILES}`, origin)).filter(outsideApi);
+  const content = contentOf(contentBases);
   const exact = files.map(file => fileOf(file, origin)).filter(outsideApi);
   const scripts = [...new Set([app, ...content])].join(" ");
-  const media = [...new Set([app, library, ...content])].join(" ");
+  const media = [...new Set([app, library, ...content, ...contentOf(mediaBases)])].join(" ");
   const connect = [...new Set([app, library, ...content, ...exact])].join(" ");
   const socket = devSocket ? ` ${devSocket}` : "";
   return [
