@@ -387,8 +387,9 @@ final class Books
     }
 
     /**
-     * PUT /editor/books/{id}/targets/{targetId} { entity } | { ref } → { target }: the target's entity – inline
-     * (`entity`, null removes it) or a shared one (`ref`); records a change with the whole target before and after.
+     * PUT /editor/books/{id}/targets/{targetId} { entity } | { ref } | { imageSrc } | { print } | { enabled } → { target }:
+     * the target's entity – inline (`entity`, null removes it) or a shared one (`ref`) –, its printed image and placement,
+     * and whether it is in the book (`enabled`, #249); records a change with the whole target before and after.
      */
     public static function putTarget(string $bookId, string $targetId): never
     {
@@ -427,7 +428,12 @@ final class Books
                 else $target->print = Editor::print($body->print);
                 $touched = true;
             }
-            if (!$touched) throw new ApiError(400, 'invalid-target', 'Send { entity } or { ref }, { imageSrc } or { print }.');
+            // In the book or switched off (#249): only `false` is stored, on is the default
+            if (property_exists($body, 'enabled')) {
+                $target = self::withEnabled($target, $body->enabled, 'enabled');
+                $touched = true;
+            }
+            if (!$touched) throw new ApiError(400, 'invalid-target', 'Send { entity } or { ref }, { imageSrc }, { print } or { enabled }.');
             $json = Editor::encode($target);
             Db::run('UPDATE targets SET entity_ref = :ref, image_src = :image, data_json = :data WHERE book_id = :book AND id = :id', $params + ['ref' => $ref, 'image' => $target->imageSrc, 'data' => $json]);
             self::touch($bookId);
@@ -467,6 +473,7 @@ final class Books
             if (Db::one('SELECT id FROM targets WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $targetId])) throw new ApiError(409, 'duplicate-id', "A target \"$targetId\" exists.");
             $target = (object) ['id' => $targetId, 'imageSrc' => $targetIn->imageSrc];
             if (isset($targetIn->print)) $target->print = Editor::print($targetIn->print);
+            if (property_exists($targetIn, 'enabled')) $target = self::withEnabled($target, $targetIn->enabled, 'target.enabled', 'invalid-entry');
         }
         if ($target !== null && isset($targetIn->entity)) {
             if ($targetIn->entity instanceof stdClass && property_exists($targetIn->entity, 'ref')) {
@@ -1308,6 +1315,7 @@ final class Books
             $target = $e->target ?? null;
             if ($target === null) continue;
             if (!$target instanceof stdClass || !is_string($target->imageSrc ?? null)) $fail("entries[$i].target needs id and imageSrc.");
+            if (property_exists($target, 'enabled') && !is_bool($target->enabled)) $fail("entries[$i].target.enabled must be true or false.");
             $targetId = Editor::id($target->id ?? null, "entries[$i].target.id");
             if (isset($targets[$targetId])) $fail("Duplicate target id \"$targetId\".");
             $targets[$targetId] = ['id' => $targetId, 'entry' => $id, 'image' => $target->imageSrc, 'ref' => self::entityRef($target->entity ?? null, $entities, "entries[$i].target.entity", $pluginTypes, $pluginMaterials), 'data' => $target];
@@ -1317,6 +1325,18 @@ final class Books
             'initialSpreadId' => $c->initialSpreadId, 'plugins' => $plugins,
             'spreads' => array_values($spreads), 'entities' => array_values($entities), 'entries' => array_values($entries), 'targets' => array_values($targets),
         ];
+    }
+
+    /**
+     * The target switched on or off (#249): `false` is stored as `enabled: false`, `true` removes the field (on is the
+     * default); anything else is a 400 with `$code`
+     */
+    private static function withEnabled(stdClass $target, mixed $enabled, string $path, string $code = 'invalid-target'): stdClass
+    {
+        if (!is_bool($enabled)) throw new ApiError(400, $code, "$path must be true or false.");
+        if ($enabled) unset($target->enabled);
+        else $target->enabled = false;
+        return $target;
     }
 
     /**

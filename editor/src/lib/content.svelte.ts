@@ -33,7 +33,8 @@ class Content {
     this.loading = true;
     try {
       if (this.bookId !== bookId || this.assetsBase === null) this.assetsBase = (await getBook(bookId)).book.assetsBase;
-      // The stage is the sandbox: a node may use a component the Code tab's plugins register at Run
+      // The stage is the sandbox: a node may use a component the Code tab's plugins register at Run; targets switched off
+      // stay with their entries – the editor works on them, only the reader leaves them out (#249)
       const baseUrl = draftBaseUrl(bookId);
       const responses: Record<string, string | null> = {};
       const recording: typeof fetch = async (input, init) => {
@@ -42,7 +43,7 @@ class Content {
         responses[url.split("?")[0]] = response.ok ? await response.clone().text() : null;
         return response;
       };
-      const error = await loadGameConfiguration({ baseUrl, fetch: recording, assetsBase: this.assetsBase || undefined, unknownComponentTypes: "allow" });
+      const error = await loadGameConfiguration({ baseUrl, fetch: recording, assetsBase: this.assetsBase || undefined, unknownComponentTypes: "allow", keepSwitchedOffTargets: true });
       this.snapshot = error ? null : { baseUrl, assetsBase: this.assetsBase || null, responses };
       this.bookId = bookId;
       this.error = error;

@@ -394,7 +394,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_target",
     {
       description:
-        "Changes a target: `entity` = its own AR content (EntityData; null removes it), `ref` = a shared entity instead, `imageSrc` = the printed image (an uploaded image asset's url), `print` = where it is printed (null removes it). Send what changes. Checked against the contract; a change is recorded.",
+        "Changes a target: `entity` = its own AR content (EntityData; null removes it), `ref` = a shared entity instead, `imageSrc` = the printed image (an uploaded image asset's url), `print` = where it is printed (null removes it), `enabled` = in the reader's book (false switches it off: the reader leaves the target and its entry out, the editor keeps both – content schema 2.26). Send what changes. Checked against the contract; a change is recorded.",
       inputSchema: z.object({
         book: BOOK,
         target: ID.describe("the target's id (get_spread)"),
@@ -402,16 +402,18 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         ref: ID.optional().describe("a shared entity's ref"),
         imageSrc: z.string().min(1).optional(),
         print: printSchema.nullable().optional(),
+        enabled: z.boolean().optional().describe("false = switched off: not in the reader's book; true = in the book again"),
       }),
       annotations: write,
     },
-    guard(async ({ book, target, entity, ref, imageSrc, print }) => {
+    guard(async ({ book, target, entity, ref, imageSrc, print, enabled }) => {
       const body: Json = {};
       if (ref !== undefined) body.ref = ref;
       else if (entity !== undefined) body.entity = entity;
       if (imageSrc !== undefined) body.imageSrc = imageSrc;
       if (print !== undefined) body.print = print;
-      if (Object.keys(body).length === 0) return fail({ error: { code: "mcp", message: "send entity, ref, imageSrc or print" } });
+      if (enabled !== undefined) body.enabled = enabled;
+      if (Object.keys(body).length === 0) return fail({ error: { code: "mcp", message: "send entity, ref, imageSrc, print or enabled" } });
       const { refused, warnings } = entity ? await checkWrite(entity, "entity", () => bookModel(book)) : { refused: null, warnings: {} };
       if (refused) return refused;
       const [result, t] = await Promise.all([api.call<TargetSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/targets/${encodeURIComponent(target)}`, body), tree(book)]);
@@ -436,6 +438,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
           imageSrc: z.string().min(1),
           print: printSchema.optional(),
           entity: z.union([z.object({ ref: ID }), entitySchema]).optional(),
+          enabled: z.boolean().optional().describe("false = switched off: the reader leaves the target and its entry out"),
         }).optional().describe("none: an entry read only in the list"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },

@@ -7,6 +7,19 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.64.0 – 2026-11-05
+
+### Added
+- **Targets can be switched off** (#249, content schema 2.26, Tilman: *"the active inactive toggle in the editor. as we
+  will incrementally activate them later on"*): a target's `enabled: false` takes it out of the reader's book – no image
+  target, its entry not in the list and not counted – while the content keeps the target and its entry with all their
+  values. The editor's Inspector has an *In the book* switch in the target's head, the tree marks a target that is off,
+  and the stage still shows and edits it. The API (`PUT …/targets/{id}` and a new entry's target), the content build
+  (`entry.yaml` `target.enabled`) and the MCP server (`put_target`, `add_entry`) take it. Targets that are off do not
+  count towards the 10 per spread. A 2.25 app ignores the field and shows them.
+- `isTargetEnabled` and `isEntryInBook` in `shared/types/game-config.ts`; the engine's `loadGameConfiguration` takes
+  `keepSwitchedOffTargets` (the editor).
+
 ## 1.63.0 – 2026-11-01
 
 ### Added

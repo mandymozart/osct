@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { getEntityRef } from "@engine/content/game-config";
-  import { nodeTypeSpec, type EntityData, type Entry, type Target } from "@engine/types";
+  import { isTargetEnabled, nodeTypeSpec, type EntityData, type Entry, type Target } from "@engine/types";
   import { content } from "#lib/content.svelte.js";
   import { Stage } from "#lib/stage/stage.svelte.js";
   import { getPreview, setTargetHidden, subscribePreview, type PreviewState } from "#lib/stage/preview.js";
@@ -442,6 +442,7 @@
         <button type="button" class="pick" class:muted={!!target && !shown} onclick={() => pick(entryRow(entry))} aria-haspopup="menu" {@attach entryMenu(entry)}
           title={entryRowHelp(entry, !!target?.imageSrc)}>
           <span class="name">{entry.title}</span>
+          {#if target && !isTargetEnabled(target)}<span class="small muted" title="Switched off: not in the reader's book">off</span>{/if}
         </button>
         {#if target}
           <button type="button" class="eye" aria-pressed={shown} title={shown ? "Found – tap to lose" : "Lost – tap to find"} aria-label="Found" onclick={() => setTargetHidden(target.id, shown)}><Icon name={shown ? "eye" : "eye-off"} size="1em" stroke={2} /></button>

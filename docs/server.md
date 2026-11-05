@@ -535,9 +535,10 @@ JSON holds `"type":"<type>"` (a component, layer, node type, pass or material) o
 
 `PUT /editor/books/{id}/targets/{tid}` also takes `{ imageSrc }` (the printed image – an asset's URL) and
 `{ print }` (`PrintPlacement`, content schema 2.1: `surface` left / right, `x`, `y`, `width` in mm from the surface's
-top left corner, optional `height` and `page`) – the editor's stage lays the target there; `null` removes it. 400
-`invalid-target`. `POST /editor/books/{id}/entries` `{ title, page, category?, body?, target?: { id?, imageSrc, print?,
-entity? } }` → 201 `{ entry, spreadId }` makes an entry (id from title and page, `p102-shadows`, or the given one;
+top left corner, optional `height` and `page`) – the editor's stage lays the target there; `null` removes it – and
+`{ enabled }` (content schema 2.26, #249: `false` switches the target off, the reader leaves it and its entry out;
+`true` removes the field, on is the default). 400 `invalid-target`. `POST /editor/books/{id}/entries` `{ title, page,
+category?, body?, target?: { id?, imageSrc, print?, entity?, enabled? } }` → 201 `{ entry, spreadId }` makes an entry (id from title and page, `p102-shadows`, or the given one;
 409 `duplicate-id`) on the spread its page belongs to, with its target – or without one (no `target`): an entry read
 only in the list, a glossary term or a text ([Texts](#texts)); `DELETE /editor/books/{id}/entries/{eid}`
 removes the entry with its target and the entity used only there, in two steps ([Removing a spread or an

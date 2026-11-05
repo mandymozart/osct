@@ -265,6 +265,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
         if (print.page !== undefined && (typeof print.page !== "number" || !Number.isInteger(print.page))) fail(`${tPath}.print.page`, "expected a page number");
       }
     }
+    if (target.enabled !== undefined && typeof target.enabled !== "boolean") fail(`${tPath}.enabled`, "expected true or false");
     if (typeof target.id === "string") {
       if (targetIds.has(target.id)) fail(`${tPath}.id`, `duplicate target id "${target.id}"`);
       targetIds.add(target.id);

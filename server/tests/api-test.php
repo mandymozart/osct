@@ -1307,6 +1307,12 @@ try {
     check($status === 200 && $data['target']['imageSrc'] === 'https://cdn.example/racoon-v2.jpg' && $data['target']['print']['width'] == 80, 'PUT target: image and print placement');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['print' => ['surface' => 'top', 'x' => 1, 'y' => 1, 'width' => 1]], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-target', 'a bad surface → 400 invalid-target');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['enabled' => false], $editor);
+    check($status === 200 && $data['target']['enabled'] === false && $data['target']['print']['width'] == 80, 'PUT target: switched off (#249), its other values kept');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['enabled' => 'off'], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-target', 'enabled other than true or false → 400 invalid-target');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['enabled' => true], $editor);
+    check($status === 200 && !array_key_exists('enabled', $data['target']), 'switched on again: the field goes, on is the default');
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
     $racoonEntry = $tree['spreads'][0]['entries'][0];
     check($racoonEntry['target']['print']['surface'] === 'right', 'the tree carries the print placement');

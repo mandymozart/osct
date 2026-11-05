@@ -3,8 +3,8 @@
   import { trackUnsaved } from "#lib/unsaved.js";
   import { getAssets, getEntityRef, getTargetsUsingEntity } from "@engine/content/game-config";
   import {
-    BEHAVIOUR_TYPE, ENTITY_TYPES, FILTER_TYPES, materialSpec, materialTypesFor, nodeTypeSpec, pluginNodeTypes, type AssetData, type EntityData, type FilterType, type NodeType,
-    type Target,
+    BEHAVIOUR_TYPE, ENTITY_TYPES, FILTER_TYPES, isTargetEnabled, materialSpec, materialTypesFor, nodeTypeSpec, pluginNodeTypes, type AssetData, type EntityData, type FilterType,
+    type NodeType, type Target,
   } from "@engine/types";
   import { errorText, isMediaAsset, putEntity, putTarget, putTargetEntity, type PrintPlacement } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
@@ -404,6 +404,20 @@
       targetBusy = false;
     }
   };
+  /** The target in the book or switched off (#249): the reader leaves a switched-off target and its entry out */
+  const setInBook = async (on: boolean) => {
+    if (!target) return;
+    targetBusy = true;
+    targetError = null;
+    try {
+      await putTarget(bookId, target.id, { enabled: on });
+      await ontargetchanged?.();
+    } catch (e) {
+      targetError = errorText(e);
+    } finally {
+      targetBusy = false;
+    }
+  };
   /** A file uploaded for the selected node: the node takes it (live; Save writes it) */
   const uploadForNode = async (file: File) => {
     if (!current || !target) return;
@@ -578,6 +592,8 @@
   {#if atTarget}
   <div class="section"><span class="section-label">target · {target.id}</span>
     <span class="controls">
+      <Toggle on={isTargetEnabled(target)} label="In the book" disabled={targetBusy} onchange={setInBook}
+        help="On: readers find this target and read its entry. Off: the reader leaves both out until it is switched on again – the editor keeps everything and works on it as before." />
       <button type="button" class="text-link placement-toggle" class:on={printOpen} onclick={togglePlacement}>{printOpen ? "hide placement" : "placement"}</button>
     </span></div>
   <div class="row"><span class="label">image</span>

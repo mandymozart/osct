@@ -107,6 +107,19 @@ ${environment}`,
       expect(await errorsFor(files)).toContainEqual('spreads/a has 11 targets, max is 10.');
     });
 
+    it('targets switched off do not count towards the 10 (#249)', async () => {
+      const files: Record<string, string> = { ...valid() };
+      for (let i = 0; i < 9; i++) {
+        files[`entries/extra${i}/entry.yaml`] = entry(1, 'z.jpg', '  enabled: false\n');
+        files[`entries/extra${i}/z.jpg`] = `z${i}`;
+      }
+      expect(await errorsFor(files)).not.toContainEqual('spreads/a has 11 targets, max is 10.');
+    });
+
+    it('a target enabled other than true or false', async () => {
+      expect((await errorsFor({ ...valid(), 'entries/first/entry.yaml': entry(1, 'x.jpg', '  enabled: maybe\n') })).join('\n')).toMatch(/enabled/);
+    });
+
     it('a missing file', async () => {
       const { 'entries/first/x.jpg': _, ...files } = valid();
       expect(await errorsFor(files)).toContainEqual('entries/first target: file "x.jpg" not found in content/entries/first/');

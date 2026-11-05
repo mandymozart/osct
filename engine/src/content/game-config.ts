@@ -28,6 +28,7 @@ import {
   ErrorCode,
   type ErrorInfo,
   type GameConfiguration,
+  isEntryInBook,
   type PassData,
   type PluginData,
   type Spread,
@@ -163,6 +164,11 @@ export interface LoadOptions {
   unknownComponentTypes?: GuardOptions["unknownComponentTypes"];
   /** What this app knows of the contract (default `currentFeatures()`; a test reads content as an older app would) */
   knownFeatures?: KnownFeatures;
+  /**
+   * The editor: targets switched off (`enabled: false`, #249) stay, with their entries, so they can be worked on. The
+   * reader (default) leaves them and their entries out – they are not in its book.
+   */
+  keepSwitchedOffTargets?: boolean;
 }
 
 /** The content's version when it names a content schema – checked before the guard reads a shape it may not know */
@@ -211,7 +217,7 @@ export const loadGameConfiguration = async (options: LoadOptions = {}): Promise<
     if (skipped.length) {
       console.warn(`[game-config] Content schema ${version.schema} is newer than this app's ${known.schema} – skipped what it does not know:\n  - ${skipped.map(describeSkipped).join('\n  - ')}`);
     }
-    apply(readable, (options.assetsBase ?? '').replace(/\/+$/, '') || versionUrl, files);
+    apply(readable, (options.assetsBase ?? '').replace(/\/+$/, '') || versionUrl, files, options.keepSwitchedOffTargets ?? false);
   } catch (error) {
     const invalid = error instanceof GameConfigurationError;
     const problems = invalid ? error.problems : [String(error instanceof Error ? error.message : error)];
@@ -290,7 +296,7 @@ const withContentUrls = (raw: GameConfiguration, base: string): GameConfiguratio
   };
 };
 
-const apply = (raw: GameConfiguration, base: string, files: ContentFiles): void => {
+const apply = (raw: GameConfiguration, base: string, files: ContentFiles, keepSwitchedOff = false): void => {
   contentBase = base;
   contentFiles = files;
   config = withContentUrls(raw, base);
@@ -304,7 +310,9 @@ const apply = (raw: GameConfiguration, base: string, files: ContentFiles): void 
     return spread.id;
   };
 
-  entries = config.entries.map(({ target, ...data }) => {
+  // A switched-off target and its entry are not in the reader's book: no image target, no list entry, not counted
+  const inBook = keepSwitchedOff ? config.entries : config.entries.filter(isEntryInBook);
+  entries = inBook.map(({ target, ...data }) => {
     const spreadId = spreadForPage(data.page);
     return {
       ...data,
