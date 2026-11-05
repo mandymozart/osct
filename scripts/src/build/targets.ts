@@ -1,12 +1,13 @@
 import { MAX_TARGETS_PER_SPREAD } from '../config';
-import type { SpreadData } from '../../../shared/types/game-config';
+import { isTargetEnabled, type SpreadData } from '../../../shared/types/game-config';
 import { buildErrors } from '../lib/errors';
 import type { EntryBuild } from './entries';
 
-/** A spread has at most MAX_TARGETS_PER_SPREAD targets (RULES.md #3) */
+/** A spread has at most MAX_TARGETS_PER_SPREAD targets switched on (RULES.md #3) – the reader tracks no other */
 export function checkTargetsPerSpread(spreads: SpreadData[], builds: EntryBuild[]): void {
   for (const spread of spreads) {
-    const targets = builds.flatMap(b => (b.spreadId === spread.id && b.entry.target ? [{ id: b.entry.target.id, page: b.entry.page }] : []));
+    const targets = builds.flatMap(b =>
+      b.spreadId === spread.id && b.entry.target && isTargetEnabled(b.entry.target) ? [{ id: b.entry.target.id, page: b.entry.page }] : []);
     if (targets.length > MAX_TARGETS_PER_SPREAD) {
       buildErrors.push(`spreads/${spread.id} has ${targets.length} targets, max is ${MAX_TARGETS_PER_SPREAD}.`);
     }

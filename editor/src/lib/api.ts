@@ -482,7 +482,7 @@ export const deleteAsset = (bookId: string, assetId: string, force = false) =>
 // ── Targets and entries made in the editor ───────────────────────────────────────────────────────
 
 /** The target's printed image and / or where it is printed */
-export const putTarget = (bookId: string, targetId: string, body: { imageSrc?: string; print?: PrintPlacement | null }) =>
+export const putTarget = (bookId: string, targetId: string, body: { imageSrc?: string; print?: PrintPlacement | null; enabled?: boolean }) =>
   api<TargetSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/targets/${encodeURIComponent(targetId)}`, body);
 
 /** A new entry – with its target, or without one: an entry read only in the list (the Entries page, #223) */

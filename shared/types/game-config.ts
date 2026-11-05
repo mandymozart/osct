@@ -79,11 +79,13 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   removed – #214), and since 2.25 the configuration's `tutorial` is optional: the reader owns its onboarding (its steps
  *   and their texts in its translations, #236) and reads none from the content; the content build and a publish still
  *   write the steps older apps require (`../compat/tutorial.ts`) until the next MAJOR – and the book's optional
- *   `sourceOfTruth` (print | digital: which side the spreads come from, #238; an older app ignores it).
+ *   `sourceOfTruth` (print | digital: which side the spreads come from, #238; an older app ignores it), and since 2.26 a
+ *   target's optional `enabled` (`false` = switched off, #249: the reader leaves the target and its entry out until it is
+ *   switched on; a 2.25 app ignores the field and shows both).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.25";
+export const CONTENT_SCHEMA_VERSION = "2.26";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
@@ -226,7 +228,18 @@ export interface TargetData {
   entity?: EntityData | EntityRefData;
   /** Where it is printed (optional, schema 2.1 – targets made in the editor carry it) */
   print?: PrintPlacement;
+  /**
+   * Optional (schema 2.26): `false` = switched off (#249) – the target keeps its values and its entry in the content, the
+   * reader leaves both out (no image target, no entry in the list, not counted); none or `true` = in the book
+   */
+  enabled?: boolean;
 }
+
+/** The target is in the book: anything but `enabled: false` */
+export const isTargetEnabled = (target: Pick<TargetData, "enabled">): boolean => target.enabled !== false;
+
+/** The entry is in the reader's book: no target, or a target that is switched on */
+export const isEntryInBook = (entry: Pick<EntryData, "target">): boolean => !entry.target || isTargetEnabled(entry.target);
 
 export interface EntryData {
   id: string;

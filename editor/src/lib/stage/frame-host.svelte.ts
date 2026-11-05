@@ -95,7 +95,7 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
 
   const loadContent = async (content: ContentSnapshot) => {
     installCsp(content);
-    const error = await loadGameConfiguration({ baseUrl: content.baseUrl, fetch: replayFetch(content), assetsBase: content.assetsBase || undefined, unknownComponentTypes: "allow" });
+    const error = await loadGameConfiguration({ baseUrl: content.baseUrl, fetch: replayFetch(content), assetsBase: content.assetsBase || undefined, unknownComponentTypes: "allow", keepSwitchedOffTargets: true });
     if (error) throw new Error(`${error.msg}${error.details?.[0] ? ` – ${error.details[0]}` : ""}`);
   };
 

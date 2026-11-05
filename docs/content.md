@@ -84,6 +84,12 @@ What each category shows in the app:
 An entry **without** `target` has nothing to scan – e.g. a glossary term that is only read in the
 list.
 
+**Switched off** (content schema 2.26, #249): `enabled: false` under `target` takes the target out of the reader's
+book – no image target and no entry in the list or the count – while the content keeps both with all their values. The
+editor shows and edits them as before (the Inspector's *In the book* switch, an *off* mark in the tree); switching on
+again is `enabled: true` or no `enabled` at all. Targets that are off do not count towards the 10 per spread
+(`agents/RULES.md` #3).
+
 ### The text: Markdown and variables
 
 An entry's `body` (content schema 2.23, #223) is a small Markdown with the book's variables. One renderer,
@@ -715,6 +721,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 2.23 | 1.59.0 | in develop | no new field – an entry's `body` is Markdown (paragraphs, `*emphasis*`, `**strong**`, `[links](https://…)`) with the book's variables in braces (`{hasKey}`, `{hasKey: …\|…}`, #223); plain text reads as before | the body as written: the stars, brackets and braces show as they are (`**strong**` stays `**strong**`, `{hasKey}` stays `{hasKey}`) – nothing breaks, nothing is skipped |
 | 2.24 | 1.60.0 | in develop | nothing new in the content – `shared/` tidied: one `isObject`, one camelCase name pattern, unused `isComponentType` and `PlacementData` removed (#214) | nothing changes |
 | 2.25 | 1.61.0 | in develop | the configuration's `tutorial` is optional: the reader's onboarding is its own (steps in code, texts in its translations, #236); the build and a publish still write the app's English steps for older apps (`shared/compat/tutorial.ts`) until the next MAJOR – and the book's optional `sourceOfTruth` (`print` \| `digital`, #238: whether the editor adds and removes spreads) | nothing changes: it finds the `tutorial` it requires and shows those steps (in English, the book's fields filled in); `sourceOfTruth` is ignored (the guard reads no unknown field of the book) |
+| 2.26 | 1.64.0 | in develop | a target's optional `enabled` – `false` switches it off: the reader leaves the target and its entry out, the content and the editor keep both (#249) | ignored: a 2.25 app shows a switched-off target and its entry (the guard reads no unknown field of a target) |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

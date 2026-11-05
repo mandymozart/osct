@@ -297,6 +297,11 @@ interface TargetData {
 	entity?: EntityData | EntityRefData;
 	/** Where it is printed (optional, schema 2.1 – targets made in the editor carry it) */
 	print?: PrintPlacement;
+	/**
+	 * Optional (schema 2.26): `false` = switched off (#249) – the target keeps its values and its entry in the content, the
+	 * reader leaves both out (no image target, no entry in the list, not counted); none or `true` = in the book
+	 */
+	enabled?: boolean;
 }
 interface EntryData {
 	id: string;

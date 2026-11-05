@@ -75,6 +75,7 @@ export const schemas = {
       image: { type: "String", required: true },
       entity: { type: "Object", required: false }, // inline { type, src?, params?, filters? } or { ref }
       print: { type: "Object", required: false }, // where it is printed: { surface, x, y, width, height? } in mm
+      enabled: { type: "Boolean", required: false }, // false = switched off: the reader leaves the target and its entry out
     },
   },
 

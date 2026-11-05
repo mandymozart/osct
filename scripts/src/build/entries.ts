@@ -50,6 +50,7 @@ export function buildEntries(spreads: SpreadData[], entities: Record<string, Ent
             buildErrors.push(`${label} target: print needs surface (${PRINT_SURFACES.join(', ')}) and x, y, width in mm`);
           }
         }
+        if (t.enabled === false) target.enabled = false;
         entry.target = target;
       }
     }
