@@ -7,6 +7,14 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.64.3 – 2026-11-05
+
+### Added
+- **`prepare-delivery` cuts from a high-resolution export of the sheets** (#248): `--print` also takes a PDF of the
+  same sheets as the trigger PDFs (`OSCT_FULL_preview_spreads_HIGHRES.pdf`, exported without downsampling) – targets
+  and page previews are cut by sheet. With it the active targets reach a median 1,200 px (the print PDF's 300 ppi gave
+  440). `--last-page` when the preview's highest page number is not the book's last page.
+
 ## 1.64.2 – 2026-11-05
 
 ### Fixed

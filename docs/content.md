@@ -849,9 +849,12 @@ an existing `entry.yaml` stays as it is. Entries the delivery makes obsolete are
 they are never matched (their triggers become new entries, their ids stay taken) – delete their folders before the
 import.
 
-The page previews follow the print PDF's resolution, and so do the cuts: a picture printed at 300 ppi gives a 30 mm
+The page previews follow the image source's resolution, and so do the cuts: a picture printed at 300 ppi gives a 30 mm
 target about 350 px. For targets of 1000 px the book's pictures need an export without downsampling (about 1200 ppi
-for the smallest printed triggers); the script takes whatever resolution the PDF holds.
+for the smallest printed triggers); the script takes whatever resolution the PDF holds. `--print` takes either the
+print PDF (one page per book page, with bleed) or such an export of the preview's sheets
+(`OSCT_FULL_preview_spreads_HIGHRES.pdf`: the same sheets as the trigger PDFs, cut by sheet; `--last-page` when the
+highest page number printed on the preview is not the book's last page).
 
 ### Videos
 
