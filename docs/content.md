@@ -843,7 +843,8 @@ overlapping box in the layout) keeps that target's id, so the import replaces it
 other trigger becomes a new entry `p<page>-<n>`. The kind decides the rest: `active` = a target in the book,
 `inactive` = a target switched off (`enabled: false`, #249), `artwork` = switched off and its entry tagged `artwork`.
 It writes the mapping, the cut images, the layout (the page previews rendered from the print PDF, the other sheets as
-they were, every target's box by id) and a report (`report.json`: per trigger its kind, box, the printed picture's
+they were, every target's box by id) and a report (`report.json` – re-importing the editor's draft over the new build
+takes its URLs back to `/assets/content/…` paths first, `agents/RULES.md` #36: per trigger its kind, box, the printed picture's
 resolution and the cut's pixels; the current targets no trigger shows). The import then writes the entries as usual –
 an existing `entry.yaml` stays as it is. Entries the delivery makes obsolete are named with `--retire p002-1,p030-2`:
 they are never matched (their triggers become new entries, their ids stay taken) – delete their folders before the

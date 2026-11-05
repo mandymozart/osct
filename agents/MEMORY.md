@@ -41,6 +41,11 @@ outcome in the line (or move it into a dated decision block).
   image untinted and a fold of its own over the spine. The tree's eye hides a target's print with its AR content (it
   only made the tracker lose it before – "it does not hide it in the scene"); the panel bar's × is gone. Replacing a
   spread's page image in the editor: #251 (Proposals, needs Tilman's choice).
+- **The stage showed no target images after the re-import** (#252, 1.64.5): re-importing staging's draft (read back with
+  `get_draft`) carried absolute URLs below the previous build; the stage frame's CSP admits only the current assets base.
+  Fixed on staging (the URLs back to content paths, 1,368 targets + 88 entry pictures; p041-1's video stays on build
+  2e0a4af94ca2 – its source entry p106-1 was deleted) and in code (the frame admits images/media of every build the draft
+  names). Rule: RULES #36 (Tilman: "please save this as a rule for imports").
 - [ ] **Publish the draft to staging** (Tilman, in the editor): staging's readers load the plain build until then – it
   lacks the editor-only edits (p041-1's video, the text-placeholder entry); an AI connection cannot publish.
 

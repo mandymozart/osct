@@ -430,3 +430,12 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     token. A new place that runs book code (a preview, a thumbnail, a test bench) runs it in such a frame. docs/editor.md
     "The stage frame". The reader is the open exception: its scene runs the published plugins in its own page
     (`agents/MEMORY.md` 2026-10-31).
+
+36. **Imports keep content paths** (Tilman, 2026-11-05, #252: "please save this as a rule for imports"): a configuration
+    imported into the editor (`POST …/import`, the MCP's `import_book`) names the content's files as `/assets/content/…`
+    paths, which resolve against the import's `assetsBase` – **never the absolute URLs the draft endpoint hands out**
+    (`get_draft`, `GET …/draft/…` resolve every path below the book's current assets base). Before a draft is imported
+    again – over a new content build, or after a merge with one – every `<base>/assets/content/<path>` goes back to
+    `/assets/content/<path>` where the new build has that file; an absolute URL to an older build stays only for a file
+    the new build no longer has (the stage frame admits such builds for images and media, #252). After the import, open
+    one of the book's spreads in the editor and check that its targets' images show before handing it over.
