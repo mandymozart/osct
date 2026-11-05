@@ -370,7 +370,7 @@ describe("mock stage: the page image, the fold and the eye (#250)", () => {
     // happy-dom draws no canvas: a context that takes the gradient is enough
     const gradient = { addColorStop: () => {} };
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
-      { createLinearGradient: () => gradient, fillRect: () => {}, fillStyle: "" } as unknown as CanvasRenderingContext2D);
+      { createLinearGradient: () => gradient, fillRect: () => {}, fillStyle: "" } as never);
     const { stage } = loadingStage();
     stage.setLayout([], page, sheet, book);
     expect(folds(stage)).toHaveLength(1);
