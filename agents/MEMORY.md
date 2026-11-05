@@ -19,8 +19,9 @@ outcome in the line (or move it into a dated decision block).
 - **Open before the first production deploy** (#7): the `production` environment has no `DB_PASS`, `DB_ROOT_PASS`,
   `SECRET`, `SMTP_USER` / `SMTP_PASS`; the database is created by the first `kamal setup -d production` (from a
   laptop – `kamal deploy` in the workflow boots no accessory). Recommended to Tilman: his own SSH key on the server
-  (public key to asger). A `MAIL_TRANSPORT` value `mail` shows up in the staging job although no environment or
-  repository variable of that name is listed – find out where it comes from before relying on the mail check.
+  (public key to asger). No SES credentials anywhere yet (no `SMTP_*` in either environment or the repository);
+  staging's FTPS site sends with `MAIL_TRANSPORT=mail` (the all-inkl host's `mail()`), which is why the Kamal staging
+  job passed its mail check. Note: `gh api …/environments/<env>/variables` lists 10 per page – pass `?per_page=100`.
 - [ ] Once staging moves to the server: `push: branches: [develop]` back into `deploy-staging.yml`, FTPS workflow out (#10).
 
 ## 2026-11-05 – targets can be switched off (#249); the final content after the printer submission (#248)
