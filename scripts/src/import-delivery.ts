@@ -12,6 +12,8 @@
  *       image: <file>       the entry image – becomes image.jpg (JPEG, ≤ MAX_ENTRY_IMAGE_SIZE px)
  *       video: <file>       AR video on the target – becomes video.mp4 (ffmpeg: H.264, ≤ 1280 px, ~2 Mbit/s)
  *       printed: { width, height, position }   mm and position on the page – for the trigger protocol only
+ *       enabled: false      the target is switched off (#249): in the content, not in the reader's book
+ *       tags: [<tag>, …]    the entry's tags (e.g. `artwork`, to find a kind of target again)
  *       note: <text>        anything the editors should know – written as a comment into entry.yaml
  * Paths are relative to the delivery folder.
  *
@@ -50,6 +52,9 @@ export interface MappedEntry {
   image?: string;
   video?: string;
   printed?: { width: number; height: number; position: string };
+  /** `false`: the target is switched off (#249) – written into entry.yaml; on is the default */
+  enabled?: boolean;
+  tags?: string[];
   note?: string;
 }
 
@@ -76,7 +81,7 @@ function readMappedEntry(id: string, value: unknown, problems: string[]): Mapped
     problems.push(required);
     return null;
   }
-  const { category, title, page, printed } = value;
+  const { category, title, page, printed, enabled, tags } = value;
   if (typeof category !== 'string' || !category || typeof title !== 'string' || !title || typeof page !== 'number' || !Number.isFinite(page)) {
     problems.push(required);
     return null;
@@ -92,6 +97,10 @@ function readMappedEntry(id: string, value: unknown, problems: string[]): Mapped
   } else if (printed !== undefined && printed !== null) {
     problems.push(`${id}.printed: expected { width, height, position } (mm and the place on the page)`);
   }
+  if (typeof enabled === 'boolean') entry.enabled = enabled;
+  else if (enabled !== undefined && enabled !== null) problems.push(`${id}.enabled: expected true or false`);
+  if (Array.isArray(tags) && tags.every(tag => typeof tag === 'string' && tag !== '')) entry.tags = tags;
+  else if (tags !== undefined && tags !== null) problems.push(`${id}.tags: expected a list of words`);
   return entry;
 }
 
@@ -181,8 +190,10 @@ function entryYaml(e: MappedEntry, files: { target: boolean; image: boolean; vid
   lines.push(`body: ${quote(e.body ?? 'Placeholder – the text follows.')}`);
   if (files.image) lines.push(`image: ${IMAGE_FILE}`);
   if (e.media) lines.push(`media: ${quote(e.media)}`);
+  if (e.tags?.length) lines.push(`tags: [${e.tags.map(quote).join(', ')}]`);
   if (files.target) {
     lines.push('target:', `  image: ${TARGET_FILE}`);
+    if (e.enabled === false) lines.push('  enabled: false');
     if (files.video) lines.push('  entity:', '    type: video', `    src: ${VIDEO_FILE}`);
   }
   return lines.join('\n') + '\n';
@@ -214,6 +225,8 @@ export function importDelivery(deliveryDir: string, mappingFile: string): Import
     if (!fs.existsSync(yamlFile)) {
       fs.writeFileSync(yamlFile, entryYaml(e, files, mappingName));
       report.entriesWritten.push(id);
+    } else if (e.enabled === false && !/^ {2}enabled: false\s*$/m.test(fs.readFileSync(yamlFile, 'utf8'))) {
+      report.warnings.push(`${id}: the delivery switches its target off, but entry.yaml is kept – add "enabled: false" under target (or switch it off in the editor)`);
     }
   }
 

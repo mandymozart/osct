@@ -770,6 +770,8 @@ entries:
     image: glossary/P38_Online_01.jpg   # the entry image → image.jpg
     video: documentation/P38.mov        # AR video on the target → video.mp4 (optional)
     printed: { width: 44, height: 26, position: top left }   # mm – only for the protocol
+    enabled: false                      # the target switched off: not in the reader's book (optional)
+    tags: [artwork]                     # the entry's tags (optional)
     note: "anything the editors should know"
 ```
 
@@ -816,6 +818,40 @@ mm from the page's top left corner. Trigger images are matched to the targets of
 by the aspect ratio of the target image, then by reading order; pages where the counts differ are listed. The content build copies `layout/` with the rest of
 the content; the folder is generated. Run it again when the PDFs change, and rebuild the content
 with `--force` (the layout is not part of the build hash).
+
+### Importing the final print PDFs
+
+When the book has gone to the printer (#248), its final PDFs are the delivery: the **print PDF** (one page per book
+page, with bleed), the **preview** of every sheet (as above) and **trigger PDFs** of the same sheets, one per kind of
+target – each printed trigger as an image where it is printed:
+
+```bash
+cd scripts
+npm run prepare-delivery -- --print "C:/path/OSCT_INSIDE_256p.pdf" --preview "C:/path/OSCT_FULL_preview_spreads.pdf" \
+  --triggers active="C:/path/OSCT_TRIGGERS_ACTIVE.pdf" --triggers inactive="C:/path/OSCT_TRIGGERS_INACTIVE.pdf" \
+  --triggers artwork="C:/path/OSCT_TRIGGERS_KevinWORKS.pdf" --content "$OSCT_CONTENT_DIR" \
+  --delivery "C:/path/delivery" --mapping import/<name>.yaml
+npm run import -- "C:/path/delivery" import/<name>.yaml
+```
+
+`scripts/layout/prepare-delivery.py` (PyMuPDF and Pillow) reads every trigger's page and box from its sheet (the
+trigger PDFs carry no page numbers: the sheets are counted from page 1's sheet; covers, end papers and the title
+sheet are left out – the book keeps its own) and cuts its image from the print PDF's page, at the resolution of the
+picture printed there (at least `--min-dpi`, at most `--max-size` px on the long side) – the target is what the camera
+sees on paper. A trigger that shows a current target's image on the same double page (a perceptual hash, else an
+overlapping box in the layout) keeps that target's id, so the import replaces its image and keeps its entry; every
+other trigger becomes a new entry `p<page>-<n>`. The kind decides the rest: `active` = a target in the book,
+`inactive` = a target switched off (`enabled: false`, #249), `artwork` = switched off and its entry tagged `artwork`.
+It writes the mapping, the cut images, the layout (the page previews rendered from the print PDF, the other sheets as
+they were, every target's box by id) and a report (`report.json`: per trigger its kind, box, the printed picture's
+resolution and the cut's pixels; the current targets no trigger shows). The import then writes the entries as usual –
+an existing `entry.yaml` stays as it is. Entries the delivery makes obsolete are named with `--retire p002-1,p030-2`:
+they are never matched (their triggers become new entries, their ids stay taken) – delete their folders before the
+import.
+
+The page previews follow the print PDF's resolution, and so do the cuts: a picture printed at 300 ppi gives a 30 mm
+target about 350 px. For targets of 1000 px the book's pictures need an export without downsampling (about 1200 ppi
+for the smallest printed triggers); the script takes whatever resolution the PDF holds.
 
 ### Videos
 
