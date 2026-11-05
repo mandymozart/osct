@@ -278,13 +278,17 @@ def main() -> int:
     parser.add_argument("--print", dest="print_pdf", required=True,
                         help="the images' source: the print PDF (one page per book page, with bleed) or a PDF of the same "
                              "sheets as the trigger PDFs (a high-resolution export of the preview)")
+    parser.add_argument("--sheets", help="the page previews' source, when not --print: the print PDF draws the flat pages "
+                        "(a preview export may bake a fold shadow into every spread)")
+    parser.add_argument("--sheets-only", action="store_true", help="only draw the page previews again: the layout's "
+                        "target boxes stay, nothing is cut and no mapping is written")
     parser.add_argument("--last-page", type=int, help="the book's last page (default: the print PDF's page count; for a "
                         "PDF of sheets the highest page number printed on the preview)")
     parser.add_argument("--preview", required=True, help="the preview PDF of the same sheets as the trigger PDFs (page numbers)")
-    parser.add_argument("--triggers", action="append", required=True, help="<kind>=<pdf>, kind: " + ", ".join(KINDS))
+    parser.add_argument("--triggers", action="append", default=[], help="<kind>=<pdf>, kind: " + ", ".join(KINDS))
     parser.add_argument("--content", required=True, help="the content source folder (OSCT_CONTENT_DIR)")
-    parser.add_argument("--delivery", required=True, help="the folder the cut target images go to")
-    parser.add_argument("--mapping", required=True, help="the mapping file to write (scripts/import/<name>.yaml)")
+    parser.add_argument("--delivery", help="the folder the cut target images go to")
+    parser.add_argument("--mapping", help="the mapping file to write (scripts/import/<name>.yaml)")
     parser.add_argument("--report", help="a JSON report (default: <delivery>/report.json)")
     parser.add_argument("--max-size", type=int, default=1600, help="long side of a cut target at most (px)")
     parser.add_argument("--min-dpi", type=int, default=300, help="cut at least at this resolution (vector art, text)")
@@ -294,16 +298,72 @@ def main() -> int:
     parser.add_argument("--retire", default="", help="current entry ids to be deleted, comma-separated: never matched, "
                         "their triggers become new entries; delete their folders before the import")
     args = parser.parse_args()
+    if not args.sheets_only and not (args.triggers and args.delivery and args.mapping):
+        parser.error("--triggers, --delivery and --mapping are needed (or --sheets-only)")
 
     preview = pymupdf.open(args.preview)
     print_doc = pymupdf.open(args.print_pdf)
-    # A PDF of the preview's sheets (double pages, no bleed) is cut by sheet; a print PDF by book page
-    by_sheet = len(print_doc) == len(preview) and any(p.rect.width > p.rect.height for p in print_doc)
+    sheets_doc = pymupdf.open(args.sheets) if args.sheets else print_doc
+
+    # A PDF of the preview's sheets (double pages, no bleed) is used by sheet; a print PDF by book page
+    def by_sheet_of(doc) -> bool:
+        return len(doc) == len(preview) and any(p.rect.width > p.rect.height for p in doc)
+
+    by_sheet = by_sheet_of(print_doc)
     last_page = args.last_page or (max(n for p in preview for n in page_numbers(p).values()) if by_sheet else len(print_doc))
     sheets = sheet_pages(preview, last_page)
     print(f"images from {os.path.basename(args.print_pdf)}: {'by sheet' if by_sheet else 'by page'}, pages 1–{last_page}")
     layout_file = os.path.join(args.content, "layout", "layout.json")
     old_layout = json.load(open(layout_file, encoding="utf-8")) if os.path.isfile(layout_file) else {"sheets": [], "targets": {}}
+    page_sheets = sorted({tuple(p) for p in sheets if p}, key=lambda p: p[0])
+
+    if args.sheets_only:
+        targets = old_layout["targets"]
+    else:
+        targets = cut_delivery(args, print_doc, by_sheet, sheets, page_sheets, old_layout)
+
+    # The layout: the page previews, the other sheets as they were, every target's box by id
+    sheets_dir = os.path.join(args.content, "layout", "sheets")
+    os.makedirs(sheets_dir, exist_ok=True)
+    layout_sheets = [s for s in old_layout["sheets"] if not s.get("pages")]
+    first = print_doc[0].trimbox
+    page_mm = {"width": mm(first.width), "height": mm(first.height)}  # a sheet PDF's first sheet is the single front cover
+    sheet_index = {tuple(p): i for i, p in enumerate(sheets) if p}
+    sheets_by_sheet = by_sheet_of(sheets_doc)
+    for pages in page_sheets:
+        name = "pp-" + "-".join(f"{n:03d}" for n in pages)
+        entry = {"id": name, "kind": "spread", "pages": list(pages), "image": f"sheets/{name}.jpg",
+                 "widthMm": page_mm["width"] * 2, "heightMm": page_mm["height"], "surfaces": ["left", "right"]}
+        if not args.no_sheets:
+            sharp = render_sheet(sheets_doc, list(pages), args.sharp_width or args.width, sheet_index[pages] if sheets_by_sheet else None)
+            normal = sharp.resize((args.width, round(args.width * sharp.height / sharp.width)), Image.LANCZOS)
+            normal.save(os.path.join(sheets_dir, f"{name}.jpg"), quality=78)
+            entry.update({"widthPx": normal.width, "heightPx": normal.height})
+            if args.sharp_width:
+                sharp.save(os.path.join(sheets_dir, f"{name}@sharp.jpg"), quality=82)
+                entry.update({"imageSharp": f"sheets/{name}@sharp.jpg", "widthPxSharp": sharp.width, "heightPxSharp": sharp.height})
+        else:
+            old = next((s for s in old_layout["sheets"] if s.get("id") == name), None)
+            if old:
+                entry = old
+        layout_sheets.append(entry)
+    order = {"cover-front": 0, "front-matter": 1, "spread": 2, "sheet": 2, "back-matter": 3, "cover-back": 4}
+    layout_sheets.sort(key=lambda s: (order.get(s["kind"], 2), s.get("pages", [0])[0] if s.get("pages") else s.get("pdfPage", 0)))
+    source = dict(old_layout.get("source") or {}) if args.sheets_only else {
+        "print": os.path.basename(args.print_pdf), "preview": os.path.basename(args.preview),
+        "triggers": [os.path.basename(s.partition("=")[2]) for s in args.triggers]}
+    if not args.no_sheets:
+        source["sheets"] = os.path.basename(args.sheets or args.print_pdf)
+    source["generatedAt"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    with open(layout_file, "w", encoding="utf-8") as f:
+        json.dump({"page": page_mm, "sheets": layout_sheets, "targets": targets, "source": source}, f, indent=1, ensure_ascii=False)
+    print(f"layout: {len(page_sheets)} page previews{'' if args.no_sheets else ' from ' + os.path.basename(args.sheets or args.print_pdf)}, "
+          f"{len(targets)} target boxes -> {layout_file}")
+    return 0
+
+
+def cut_delivery(args, print_doc, by_sheet: bool, sheets: list[list[int]], page_sheets: list[tuple], old_layout: dict) -> dict:
+    """The targets: matched and new ids, the cut images, the mapping and the report – the layout's target boxes back"""
     entries, all_ids = read_content(args.content)
     triggers = read_triggers(args.triggers, sheets)
     retired = {i.strip() for i in args.retire.split(",") if i.strip()}
@@ -313,15 +373,12 @@ def main() -> int:
     ids, gone = assign_ids(triggers, entries, all_ids, old_layout["targets"], retired)
     os.makedirs(args.delivery, exist_ok=True)
 
-    # The cut targets and the mapping
     lines = [f"# Made by scripts/layout/prepare-delivery.py from {os.path.basename(args.print_pdf)} and the trigger PDFs "
              f"({', '.join(os.path.basename(s.partition('=')[2]) for s in args.triggers)}).",
              "book: osct", "entries:"]
     report = []
-    per_page: dict[int, int] = {}
     for i, t in sorted(enumerate(triggers), key=lambda item: ids[item[0]]):
         entry_id = ids[i]
-        per_page[t["page"]] = per_page.get(t["page"], 0) + 1
         file = f"P{t['page']}_{t['kind']}_{entry_id.split('-')[-1]}.jpg"
         cutting = cut(print_doc, t, os.path.join(args.delivery, file), args.max_size, args.min_dpi, by_sheet)
         current = entries.get(entry_id)
@@ -336,44 +393,11 @@ def main() -> int:
     with open(args.mapping, "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(lines) + "\n")
 
-    # The layout: the page previews from the print PDF, the other sheets as they were, every target's box by id
-    sheets_dir = os.path.join(args.content, "layout", "sheets")
-    os.makedirs(sheets_dir, exist_ok=True)
-    page_sheets = sorted({tuple(p) for p in sheets if p}, key=lambda p: p[0])
-    layout_sheets = [s for s in old_layout["sheets"] if not s.get("pages")]
-    first = print_doc[0].trimbox
-    page_mm = {"width": mm(first.width), "height": mm(first.height)}  # a sheet PDF's first sheet is the single front cover
-    sheet_index = {tuple(p): i for i, p in enumerate(sheets) if p}
-    for pages in page_sheets:
-        name = "pp-" + "-".join(f"{n:03d}" for n in pages)
-        entry = {"id": name, "kind": "spread", "pages": list(pages), "image": f"sheets/{name}.jpg",
-                 "widthMm": page_mm["width"] * 2, "heightMm": page_mm["height"], "surfaces": ["left", "right"]}
-        if not args.no_sheets:
-            sharp = render_sheet(print_doc, list(pages), args.sharp_width or args.width, sheet_index[pages] if by_sheet else None)
-            normal = sharp.resize((args.width, round(args.width * sharp.height / sharp.width)), Image.LANCZOS)
-            normal.save(os.path.join(sheets_dir, f"{name}.jpg"), quality=78)
-            entry.update({"widthPx": normal.width, "heightPx": normal.height})
-            if args.sharp_width:
-                sharp.save(os.path.join(sheets_dir, f"{name}@sharp.jpg"), quality=82)
-                entry.update({"imageSharp": f"sheets/{name}@sharp.jpg", "widthPxSharp": sharp.width, "heightPxSharp": sharp.height})
-        else:
-            old = next((s for s in old_layout["sheets"] if s.get("id") == name), None)
-            if old:
-                entry = old
-        layout_sheets.append(entry)
-    order = {"cover-front": 0, "front-matter": 1, "spread": 2, "sheet": 2, "back-matter": 3, "cover-back": 4}
-    layout_sheets.sort(key=lambda s: (order.get(s["kind"], 2), s.get("pages", [0])[0] if s.get("pages") else s.get("pdfPage", 0)))
     targets = {k: v for k, v in old_layout["targets"].items() if k in entries and k not in ids.values() and k not in retired}
     for i, t in enumerate(triggers):
         sheet = next(("pp-" + "-".join(f"{n:03d}" for n in p) for p in page_sheets if t["page"] in p), None)
         targets[entries[ids[i]]["target"] if ids[i] in entries else ids[i]] = {
             **{k: t[k] for k in ("page", "surface", "x", "y", "width", "height")}, "sheet": sheet}
-    layout = {"page": page_mm, "sheets": layout_sheets, "targets": targets, "source": {
-        "print": os.path.basename(args.print_pdf), "preview": os.path.basename(args.preview),
-        "triggers": [os.path.basename(s.partition("=")[2]) for s in args.triggers],
-        "generatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds")}}
-    with open(layout_file, "w", encoding="utf-8") as f:
-        json.dump(layout, f, indent=1, ensure_ascii=False)
 
     report_file = args.report or os.path.join(args.delivery, "report.json")
     with open(report_file, "w", encoding="utf-8") as f:
@@ -383,9 +407,8 @@ def main() -> int:
     matched = sum(1 for r in report if r["matched"])
     print(f"delivery: {len(triggers)} triggers ({', '.join(f'{n} {k}' for k, n in kinds.items())}), {matched} keep a current "
           f"target's id, {len(triggers) - matched} new; {len(gone)} current targets without a trigger: {', '.join(gone) or '–'}")
-    print(f"layout: {len(page_sheets)} page previews, {len(targets)} target boxes -> {layout_file}")
     print(f"mapping -> {args.mapping}, report -> {report_file}")
-    return 0
+    return targets
 
 
 if __name__ == "__main__":

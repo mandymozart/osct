@@ -8,8 +8,8 @@
  *   the shading, the sky (an HDRI), the desk's top, the hand-shake amount and the origin (the *view* group, #229), the
  *   grid and its vertical axis, and the snapping (the *grid & snap* group: on / off, what it snaps to, the precision
  *   per gizmo mode – `snap.ts`).
- * - `hidden`: targets switched off in the panel – the mock reports them as lost (outro), on again as found (reveal).
- *   Not stored.
+ * - `hidden`: targets hidden in the scene by the tree's eye – the mock reports them as lost (outro), on again as found
+ *   (reveal), and the stage leaves out their printed images (#250). Not stored.
  */
 
 import { isOriginId, originLabel, type OriginFrame, type OriginId } from "./origin";

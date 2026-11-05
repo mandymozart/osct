@@ -200,6 +200,8 @@ const LOOK_UP = new Matrix4();
 export interface StageView {
   /** The spread's targets on the page format, over the sheet's image when the book's layout has one */
   setLayout(targets: readonly StageTarget[], page: PageFormat, sheet: StageSheet | null, book: StageBook): void;
+  /** The targets hidden in the tree (the eye, #250): their printed images are not drawn either */
+  setHiddenPrints?(hidden: ReadonlySet<string>): void;
   /** The sky and the light: an HDRI (shown while the shading is rendered) */
   setHdri(hdri: PreviewState["hdri"]): void;
   /** The desk's top under the book (the frame stays) */
@@ -530,6 +532,7 @@ export class MockTracker implements IImageTracker {
       }
       this.options.onUpdate(target.id, matrix);
     }
+    this.stage?.setHiddenPrints?.(hidden);
     this.stage?.setDetail?.(this.orbit.distance);
     this.stage?.update(this.cameraInverse);
   }

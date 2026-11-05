@@ -289,7 +289,7 @@ tree as its first tab. The tabs (#229, `lib/panel-tabs.ts`): **Inspector** (what
 **Library**, **Code** – no Stage tab: the spread is the Inspector's, the preview settings are the stage toolbar's; a tab
 stored before (`stage`, `entity`) opens the Inspector, as does a first visit.
 
-The bar: × back to the spreads, ‹ › (also ← →) through the spreads – on the last spread of a digital-first book a **+**
+The bar: ‹ › (also ← →) through the spreads (back to the spreads is the top bar's book crumb – #250) – on the last spread of a digital-first book a **+**
 after › opens the creation step of a new spread (#238; on a phone beside › at the stage's corner) –, the tabs – as words, or as icons in a panel too
 narrow for them (under 24rem, 28rem with a finger), so the head stays one line (#172). On a phone the head is the five
 tab icons alone, sharing its width (#171): ‹ › sit at the stage's lower corners, and the top bar's book crumb selects

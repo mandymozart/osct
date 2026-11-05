@@ -726,8 +726,8 @@
     {/if}
     <div class="bar" class:icons={iconTabs}>
       {#if !narrow}
-        <!-- A phone has the top bar's book link for ×, and ‹ › on the stage: its head is the tabs alone (#171) -->
-        <a href={resolve(`${bookId}/`)} class="icon-button" title="Back to the spreads" aria-label="Back to the spreads"><Icon name="close" /></a>
+        <!-- Back to the spreads is the top bar's book crumb (no × here – #250); a phone has ‹ › on the stage: its head is
+             the tabs alone (#171) -->
         <button type="button" class="icon-button" onclick={() => step(-1)} title="Previous spread (←)" aria-label="Previous spread"><Icon name="previous" /></button>
         <button type="button" class="icon-button" onclick={() => step(1)} title="Next spread (→)" aria-label="Next spread"><Icon name="next" /></button>
         {#if canAddSpread && atLastSpread}

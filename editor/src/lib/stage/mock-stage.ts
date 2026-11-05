@@ -81,6 +81,28 @@ function coverEdgeTexture(): CanvasTexture | null {
   return texture;
 }
 /**
+ * The fold of an open book (#250): the paper curving into the spine, drawn over the double page's middle – a shadow
+ * that is darkest at the spine and fades out towards both pages. The page images carry none: they are the flat pages.
+ */
+const FOLD_WIDTH_MM = 36;
+const FOLD_DARKNESS = 0.22;
+function foldTexture(): CanvasTexture | null {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 4;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+  // Steeper close to the spine, as the page bends away there
+  [[0, 0], [0.3, 0.12], [0.44, 0.45], [0.5, 1], [0.56, 0.45], [0.7, 0.12], [1, 0]].forEach(([at, alpha]) =>
+    gradient.addColorStop(at, `rgba(40, 32, 20, ${alpha * FOLD_DARKNESS})`));
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+/**
  * The desk (#226): the Eiermann frame, 72 cm high, with two tops of the same 1.8 × 0.8 m and the same surface height,
  * one model with a mesh per top (`TOP_NODES`) – loaded once, the top not chosen hidden, so a switch moves nothing
  * (our own low-poly model, built by `editor/tools/desk-eiermann.py` – `editor/static/models/README.md`). Its origin is
@@ -423,6 +445,9 @@ export class MockStage implements StageView {
         this.textures.push(texture);
         const own = ownMaterial<MeshBasicMaterial>(paper);
         own.map = texture;
+        // The image's white is the book's paper, as on the printed targets lying on it – the paper colour is for a
+        // page without a picture (#250)
+        own.color.setHex(0xffffff);
         own.needsUpdate = true;
         this.setDetail(this.distance);
       });
@@ -430,6 +455,16 @@ export class MockStage implements StageView {
       const spine = new Mesh(new PlaneGeometry(0.002, h), new MeshBasicMaterial({ color: SPINE_COLOR }));
       spine.position.z = -2 * LAYER;
       this.book.add(spine);
+    }
+    if (!closed) {
+      // The fold over the spine, above the page image and under the prints and the entities
+      const fold = foldTexture();
+      if (fold) {
+        this.textures.push(fold);
+        const shade = new Mesh(new PlaneGeometry(FOLD_WIDTH_MM / 1000, h), new MeshBasicMaterial({ map: fold, transparent: true, depthWrite: false }));
+        shade.position.z = -1.5 * LAYER;
+        this.book.add(shade);
+      }
     }
 
     targets.forEach(target => {
@@ -457,6 +492,13 @@ export class MockStage implements StageView {
     });
     this.drawGrid();
     this.toBackdropLayer();
+  }
+
+  /** The targets hidden in the tree (the eye): their printed images go with their AR content, so the scene shows neither */
+  setHiddenPrints(hidden: ReadonlySet<string>): void {
+    this.printedPlanes().forEach(plane => {
+      plane.visible = !hidden.has(plane.userData.targetId as string);
+    });
   }
 
   /** Lay a print's plane where its target lies: one layer under the target's own plane (the entities sit at its z = 0) */
@@ -505,6 +547,7 @@ export class MockStage implements StageView {
       this.textures.push(texture);
       const own = ownMaterial<MeshBasicMaterial>(paper);
       own.map = texture;
+      own.color.setHex(0xffffff);
       own.needsUpdate = true;
     }, undefined, error => console.warn("[mock-stage] the sharper sheet image could not be loaded:", error));
   }
