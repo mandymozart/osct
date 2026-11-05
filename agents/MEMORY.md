@@ -34,6 +34,13 @@ outcome in the line (or move it into a dated decision block).
   it (`merge.py`), was imported into the existing book `osct` with that build as its assets base: 130 spreads, 1,376
   entries, 121 targets on, 1,247 off, 239 tagged `artwork`, the 10 deleted. Entry pictures kept (Tilman: "existing pictures
   for bw targets can be kept … the picture reference"). The content source before: `osct-incoming-content6-11-final\content-before`.
+- **Page previews from the print PDF, the fold the editor's own** (#250, 1.64.4): Rudy's preview export bakes a grey fold
+  into every spread, and the stage tinted the page image with its paper colour (#f3efe6) while the prints on it stayed
+  white – Tilman: "it has a different white". Now `prepare-delivery --sheets <print pdf> --sheets-only` draws the flat
+  pages (build `b2a34c9b8be6`, staging's draft re-imported over it as it was – its edits kept), the stage draws the page
+  image untinted and a fold of its own over the spine. The tree's eye hides a target's print with its AR content (it
+  only made the tracker lose it before – "it does not hide it in the scene"); the panel bar's × is gone. Replacing a
+  spread's page image in the editor: #251 (Proposals, needs Tilman's choice).
 - [ ] **Publish the draft to staging** (Tilman, in the editor): staging's readers load the plain build until then – it
   lacks the editor-only edits (p041-1's video, the text-placeholder entry); an AI connection cannot publish.
 
