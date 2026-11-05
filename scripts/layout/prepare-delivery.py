@@ -175,16 +175,18 @@ def read_triggers(specs: list[str], sheets: list[list[int]]) -> list[dict]:
     return triggers
 
 
-def assign_ids(triggers: list[dict], entries: dict, all_ids: set[str], layout_targets: dict) -> tuple[dict, list[str]]:
+def assign_ids(triggers: list[dict], entries: dict, all_ids: set[str], layout_targets: dict,
+               retired: set[str] = frozenset()) -> tuple[dict, list[str]]:
     """
     Trigger → entry id: a current target's when the trigger shows its image (same double page), else the next id of its
-    page that no entry has – entries without a target (a video read in the list) included
+    page that no entry has – entries without a target (a video read in the list) and retired ones included. A retired
+    entry (`--retire`, to be deleted) is never matched: its trigger becomes a new entry
     """
     taken: set[str] = set()
     pairs = []
     for i, t in enumerate(triggers):
         for entry_id, e in entries.items():
-            if spread_of(e["page"]) != spread_of(t["page"]):
+            if entry_id in retired or spread_of(e["page"]) != spread_of(t["page"]):
                 continue
             d = distance(t["hash"], e["hash"]) if t["hash"] is not None and e["hash"] is not None else 64
             box = layout_targets.get(e["target"])
@@ -208,7 +210,7 @@ def assign_ids(triggers: list[dict], entries: dict, all_ids: set[str], layout_ta
             continue
         counters[t["page"]] = counters.get(t["page"], 0) + 1
         ids[i] = f"p{t['page']:03d}-{counters[t['page']]}"
-    gone = [entry_id for entry_id in entries if entry_id not in taken]
+    gone = [entry_id for entry_id in entries if entry_id not in taken and entry_id not in retired]
     return ids, gone
 
 
@@ -270,6 +272,8 @@ def main() -> int:
     parser.add_argument("--width", type=int, default=1200, help="pixel width of a page preview (double page)")
     parser.add_argument("--sharp-width", type=int, default=4096, help="pixel width of the sharper page preview (0 = none)")
     parser.add_argument("--no-sheets", action="store_true", help="keep the layout's page previews (targets only)")
+    parser.add_argument("--retire", default="", help="current entry ids to be deleted, comma-separated: never matched, "
+                        "their triggers become new entries; delete their folders before the import")
     args = parser.parse_args()
 
     preview = pymupdf.open(args.preview)
@@ -279,7 +283,11 @@ def main() -> int:
     old_layout = json.load(open(layout_file, encoding="utf-8")) if os.path.isfile(layout_file) else {"sheets": [], "targets": {}}
     entries, all_ids = read_content(args.content)
     triggers = read_triggers(args.triggers, sheets)
-    ids, gone = assign_ids(triggers, entries, all_ids, old_layout["targets"])
+    retired = {i.strip() for i in args.retire.split(",") if i.strip()}
+    unknown = retired - all_ids
+    if unknown:
+        sys.exit(f"--retire: no entry {', '.join(sorted(unknown))} in the content")
+    ids, gone = assign_ids(triggers, entries, all_ids, old_layout["targets"], retired)
     os.makedirs(args.delivery, exist_ok=True)
 
     # The cut targets and the mapping
@@ -331,7 +339,7 @@ def main() -> int:
         layout_sheets.append(entry)
     order = {"cover-front": 0, "front-matter": 1, "spread": 2, "sheet": 2, "back-matter": 3, "cover-back": 4}
     layout_sheets.sort(key=lambda s: (order.get(s["kind"], 2), s.get("pages", [0])[0] if s.get("pages") else s.get("pdfPage", 0)))
-    targets = {k: v for k, v in old_layout["targets"].items() if k in entries and k not in ids.values()}
+    targets = {k: v for k, v in old_layout["targets"].items() if k in entries and k not in ids.values() and k not in retired}
     for i, t in enumerate(triggers):
         sheet = next(("pp-" + "-".join(f"{n:03d}" for n in p) for p in page_sheets if t["page"] in p), None)
         targets[entries[ids[i]]["target"] if ids[i] in entries else ids[i]] = {
@@ -345,7 +353,8 @@ def main() -> int:
 
     report_file = args.report or os.path.join(args.delivery, "report.json")
     with open(report_file, "w", encoding="utf-8") as f:
-        json.dump({"triggers": report, "gone": gone, "skippedSheets": [i + 1 for i, p in enumerate(sheets) if not p]}, f, indent=1)
+        json.dump({"triggers": report, "gone": gone, "retired": sorted(retired),
+                   "skippedSheets": [i + 1 for i, p in enumerate(sheets) if not p]}, f, indent=1)
     kinds = {k: sum(1 for t in triggers if t["kind"] == k) for k in KINDS}
     matched = sum(1 for r in report if r["matched"])
     print(f"delivery: {len(triggers)} triggers ({', '.join(f'{n} {k}' for k, n in kinds.items())}), {matched} keep a current "

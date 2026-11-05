@@ -845,7 +845,13 @@ other trigger becomes a new entry `p<page>-<n>`. The kind decides the rest: `act
 It writes the mapping, the cut images, the layout (the page previews rendered from the print PDF, the other sheets as
 they were, every target's box by id) and a report (`report.json`: per trigger its kind, box, the printed picture's
 resolution and the cut's pixels; the current targets no trigger shows). The import then writes the entries as usual –
-an existing `entry.yaml` stays as it is.
+an existing `entry.yaml` stays as it is. Entries the delivery makes obsolete are named with `--retire p002-1,p030-2`:
+they are never matched (their triggers become new entries, their ids stay taken) – delete their folders before the
+import.
+
+The page previews follow the print PDF's resolution, and so do the cuts: a picture printed at 300 ppi gives a 30 mm
+target about 350 px. For targets of 1000 px the book's pictures need an export without downsampling (about 1200 ppi
+for the smallest printed triggers); the script takes whatever resolution the PDF holds.
 
 ### Videos
 
