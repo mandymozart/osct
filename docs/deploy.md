@@ -10,14 +10,16 @@ switch) and keeps **MariaDB** next to it as an accessory. Nothing is uploaded fi
 | **Staging** | `develop` | https://osct.porschuetz.de (debug bar on) – a staging VM on the production server | `staging` | `staging` |
 | **Production** | `main` | https://osct.buildingfictions.com | `production` | `production` |
 
-A push to `develop` runs `.github/workflows/deploy-staging.yml`, a push to `main` `deploy-production.yml`; both
-call `deploy.yml` (API tests → `kamal deploy -d <destination>` → `/api/health`). `main` only changes when Tilman
-says so (`agents/RULES.md` #11). `tag-version.yml` still tags every version on `main`.
+A push to `main` runs `.github/workflows/deploy-production.yml`; `deploy-staging.yml` runs by hand only for now (see
+Transition). Both call `deploy.yml` (API tests → `kamal deploy -d <destination>` → `/api/health`). `main` only changes
+when Tilman says so (`agents/RULES.md` #11). `tag-version.yml` still tags every version on `main`.
 
 **Transition:** while a GitHub environment has no `SSH_HOST`, its Kamal deploy is skipped with a warning. Staging
-runs on the all-inkl shared host (no Docker) until the staging VM exists – `deploy-staging-ftps.yml` keeps
-uploading `develop` there over FTPS in the meantime (the old way: `server/deploy/write-config.php` writes
-`config.local.php`). Once the VM is live and DNS points at it, delete that workflow and the script. On that host the
+stays on the all-inkl shared host (no Docker) until Tilman moves it to the server (Tilman, 2026-11-05) –
+`deploy-staging-ftps.yml` uploads `develop` there over FTPS (the old way: `server/deploy/write-config.php` writes
+`config.local.php`), and the Kamal `deploy-staging.yml` has no push trigger, since the repository's `SSH_HOST` would
+otherwise send every `develop` push to the server. Once staging moves and DNS points at it, give `deploy-staging.yml`
+its `push: branches: [develop]` back and delete the FTPS workflow and the script. On that host the
 content store and the API's logs live in the API's folder – `api/content-store`, `api/var` ([server, "Content store and
 var"](server.md#content-store-and-var)): the upload never contains them and deletes nothing, so they survive every
 deploy; the first request after the deploy that brought them moved the older `api/db/content` and `api/db/error.log`
@@ -85,7 +87,7 @@ The files are ERB: the server and the mail settings come from environment variab
 | variable | `ADMINS` | e-mail addresses (comma-separated) that get the role `admin` when they sign in – the instance's first admin, who then grants roles at `/editor/admin`; set it on `staging` and `production` |
 | variable | `CONTENT_STORE` | where the editor's publishes and uploaded assets go ([server, "Editor data"](server.md#editor-data), ["Assets"](server.md#assets)): `bunny` (the content CDN's storage zone, the same the osct CLI syncs to – a connected CDN has priority) or `local` (the content store on the server's volume, served at `/api/content/{env}/…`; the editor then warns that no CDN is connected). Each instance publishes to its own environment (`OSCT_ENV`) only. Default: `bunny` as soon as `BUNNY_STORAGE_PASSWORD` is set (the FTPS staging), `local` in the Kamal configuration |
 | variable | `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_ENDPOINT` (or `BUNNY_STORAGE_ZONE_ENDPOINT`) | the storage zone (`osct`) and its endpoint host (default `storage.bunnycdn.com`) – only read with the bunny store |
-| secret | `SSH_PRIVATE_KEY` | a deploy key whose public key is in the server user's `authorized_keys` |
+| secret | `SSH_PRIVATE_KEY` | a deploy key whose public key is in the server user's `authorized_keys`. Without it in the environment, the deploy takes the repository secret of its destination: `SSH_PRIVATE_KEY_PRODUCTION` / `SSH_PRIVATE_KEY_STAGING` (how the server's keys were handed over, #7) |
 | secret | `DB_PASS` | the API's database password (also the MariaDB user `osct`) |
 | secret | `DB_ROOT_PASS` | MariaDB root password |
 | secret | `SECRET` | 32+ random characters (`openssl rand -hex 32`) – hashes codes and IPs |

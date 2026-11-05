@@ -325,7 +325,8 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     `server/api` as `/api`, Apache + PHP) deployed with Kamal over SSH behind kamal-proxy; MariaDB as a Kamal
     accessory per destination. Staging: `develop` → https://osct.porschuetz.de (`deploy-staging.yml`) ·
     Production: `main` → https://osct.buildingfictions.com (`deploy-production.yml`); both call `deploy.yml`.
-    The FTPS upload (`deploy-staging-ftps.yml`) stays only until the staging VM exists (#10).
+    Staging stays on the FTPS upload (`deploy-staging-ftps.yml`) until Tilman moves it to the server (Tilman,
+    2026-11-05) – until then `deploy-staging.yml` runs by hand only (#10).
     Settings are `OSCT_*` environment variables (`config/deploy.yml` + `config/deploy.<destination>.yml`), secrets
     through `.kamal/secrets` from the GitHub environments `staging` / `production` – never values in git.
     Server-side HTTP behaviour (cache headers, MIME types, SPA fallback, client IP) lives in

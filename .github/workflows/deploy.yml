@@ -12,7 +12,8 @@
 #              CONTENT_STORE (local, default, or bunny: where the editor publishes – docs/server.md "Editor data"),
 #              BUNNY_STORAGE_ZONE, BUNNY_STORAGE_ENDPOINT (default storage.bunnycdn.com), EDITORS, ADMINS (addresses
 #              that get the role editor / admin when they sign in – docs/server.md "Roles")
-#   secrets:   SSH_PRIVATE_KEY (its public key on the server), DB_PASS, DB_ROOT_PASS, SECRET (32+ characters),
+#   secrets:   SSH_PRIVATE_KEY (its public key on the server; else the repository secret SSH_PRIVATE_KEY_PRODUCTION /
+#              SSH_PRIVATE_KEY_STAGING), DB_PASS, DB_ROOT_PASS, SECRET (32+ characters),
 #              SMTP_PASS (SES SMTP password), BUNNY_STORAGE_PASSWORD (the zone's access key, with CONTENT_STORE=bunny)
 # With MAIL_TRANSPORT=smtp the deploy stops before Kamal when SMTP_USER or SMTP_PASS is missing – a site whose
 # sign-in mails fail is worse than no deploy (docs/deploy.md "Mail").
@@ -83,10 +84,12 @@ jobs:
         if: steps.configured.outputs.ok == 'true'
         run: gem install kamal -v "~> 2.0" --no-document
 
+      # The environment's SSH_PRIVATE_KEY, else the repository's key of this destination (SSH_PRIVATE_KEY_PRODUCTION /
+      # SSH_PRIVATE_KEY_STAGING – how the server's keys were handed over, #7)
       - uses: webfactory/ssh-agent@v0.9.1
         if: steps.configured.outputs.ok == 'true'
         with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY || (inputs.destination == 'production' && secrets.SSH_PRIVATE_KEY_PRODUCTION || secrets.SSH_PRIVATE_KEY_STAGING) }}
       # The pinned key, not one fetched at deploy time: a server that answers with another key gets no deploy
       - name: Trust the server's host key
         if: steps.configured.outputs.ok == 'true'
