@@ -228,11 +228,18 @@ def printed_dpi(page, clip) -> float | None:
     return best if best_area > 0.25 * clip.width * clip.height else None
 
 
-def cut(print_doc, t: dict, path: str, max_size: int, min_dpi: int) -> dict:
-    page = print_doc[t["page"] - 1]
-    trim = page.trimbox
-    clip = pymupdf.Rect(trim.x0 + t["x"] / PT_TO_MM, trim.y0 + t["y"] / PT_TO_MM,
-                        trim.x0 + (t["x"] + t["width"]) / PT_TO_MM, trim.y0 + (t["y"] + t["height"]) / PT_TO_MM)
+def cut(print_doc, t: dict, path: str, max_size: int, min_dpi: int, by_sheet: bool = False) -> dict:
+    """The trigger's box cut from its page – or, from a PDF of the same sheets as the trigger PDFs, from its sheet"""
+    if by_sheet:
+        page = print_doc[t["sheet"] - 1]
+        double = page.rect.width > page.rect.height
+        left = page.rect.width / 2 if double and t["surface"] == "right" else 0
+        origin = pymupdf.Point(page.rect.x0 + left, page.rect.y0)
+    else:
+        page = print_doc[t["page"] - 1]
+        origin = page.trimbox.tl
+    clip = pymupdf.Rect(origin.x + t["x"] / PT_TO_MM, origin.y + t["y"] / PT_TO_MM,
+                        origin.x + (t["x"] + t["width"]) / PT_TO_MM, origin.y + (t["y"] + t["height"]) / PT_TO_MM)
     native = printed_dpi(page, clip)
     dpi = max(min_dpi, native or min_dpi)
     longest = max(clip.width, clip.height) / 72 * dpi
@@ -243,8 +250,16 @@ def cut(print_doc, t: dict, path: str, max_size: int, min_dpi: int) -> dict:
     return {"printedDpi": round(native) if native else None, "px": [pix.width, pix.height]}
 
 
-def render_sheet(print_doc, pages: list[int], width_px: int) -> Image.Image:
-    """A double page from the print PDF's trimmed pages; page 1 on the right, a last single page on the left"""
+def render_sheet(print_doc, pages: list[int], width_px: int, sheet: int | None = None) -> Image.Image:
+    """
+    A double page: the sheet itself from a PDF of sheets (`sheet`, 0-based), else composed of the print PDF's trimmed
+    pages – page 1 on the right, a last single page on the left
+    """
+    if sheet is not None:
+        page = print_doc[sheet]
+        zoom = width_px / page.rect.width
+        pix = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), alpha=False)
+        return Image.open(io.BytesIO(pix.tobytes("png"))).convert("RGB")
     half = width_px // 2
     first = print_doc[0]
     height = round(half * first.trimbox.height / first.trimbox.width)
@@ -260,7 +275,11 @@ def render_sheet(print_doc, pages: list[int], width_px: int) -> Image.Image:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--print", dest="print_pdf", required=True, help="the print PDF: one page per book page, with bleed")
+    parser.add_argument("--print", dest="print_pdf", required=True,
+                        help="the images' source: the print PDF (one page per book page, with bleed) or a PDF of the same "
+                             "sheets as the trigger PDFs (a high-resolution export of the preview)")
+    parser.add_argument("--last-page", type=int, help="the book's last page (default: the print PDF's page count; for a "
+                        "PDF of sheets the highest page number printed on the preview)")
     parser.add_argument("--preview", required=True, help="the preview PDF of the same sheets as the trigger PDFs (page numbers)")
     parser.add_argument("--triggers", action="append", required=True, help="<kind>=<pdf>, kind: " + ", ".join(KINDS))
     parser.add_argument("--content", required=True, help="the content source folder (OSCT_CONTENT_DIR)")
@@ -278,7 +297,11 @@ def main() -> int:
 
     preview = pymupdf.open(args.preview)
     print_doc = pymupdf.open(args.print_pdf)
-    sheets = sheet_pages(preview, len(print_doc))
+    # A PDF of the preview's sheets (double pages, no bleed) is cut by sheet; a print PDF by book page
+    by_sheet = len(print_doc) == len(preview) and any(p.rect.width > p.rect.height for p in print_doc)
+    last_page = args.last_page or (max(n for p in preview for n in page_numbers(p).values()) if by_sheet else len(print_doc))
+    sheets = sheet_pages(preview, last_page)
+    print(f"images from {os.path.basename(args.print_pdf)}: {'by sheet' if by_sheet else 'by page'}, pages 1–{last_page}")
     layout_file = os.path.join(args.content, "layout", "layout.json")
     old_layout = json.load(open(layout_file, encoding="utf-8")) if os.path.isfile(layout_file) else {"sheets": [], "targets": {}}
     entries, all_ids = read_content(args.content)
@@ -300,7 +323,7 @@ def main() -> int:
         entry_id = ids[i]
         per_page[t["page"]] = per_page.get(t["page"], 0) + 1
         file = f"P{t['page']}_{t['kind']}_{entry_id.split('-')[-1]}.jpg"
-        cutting = cut(print_doc, t, os.path.join(args.delivery, file), args.max_size, args.min_dpi)
+        cutting = cut(print_doc, t, os.path.join(args.delivery, file), args.max_size, args.min_dpi, by_sheet)
         current = entries.get(entry_id)
         title = current["title"] if current else f"p. {t['page']} · {entry_id.split('-')[-1]}"
         category = current["category"] if current else "glossary"
@@ -319,13 +342,14 @@ def main() -> int:
     page_sheets = sorted({tuple(p) for p in sheets if p}, key=lambda p: p[0])
     layout_sheets = [s for s in old_layout["sheets"] if not s.get("pages")]
     first = print_doc[0].trimbox
-    page_mm = {"width": mm(first.width), "height": mm(first.height)}
+    page_mm = {"width": mm(first.width), "height": mm(first.height)}  # a sheet PDF's first sheet is the single front cover
+    sheet_index = {tuple(p): i for i, p in enumerate(sheets) if p}
     for pages in page_sheets:
         name = "pp-" + "-".join(f"{n:03d}" for n in pages)
         entry = {"id": name, "kind": "spread", "pages": list(pages), "image": f"sheets/{name}.jpg",
                  "widthMm": page_mm["width"] * 2, "heightMm": page_mm["height"], "surfaces": ["left", "right"]}
         if not args.no_sheets:
-            sharp = render_sheet(print_doc, list(pages), args.sharp_width or args.width)
+            sharp = render_sheet(print_doc, list(pages), args.sharp_width or args.width, sheet_index[pages] if by_sheet else None)
             normal = sharp.resize((args.width, round(args.width * sharp.height / sharp.width)), Image.LANCZOS)
             normal.save(os.path.join(sheets_dir, f"{name}.jpg"), quality=78)
             entry.update({"widthPx": normal.width, "heightPx": normal.height})
