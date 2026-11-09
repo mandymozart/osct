@@ -6,7 +6,7 @@ import type { VarScope, VarValue } from "@engine/scene";
 import type { EntityData, PassData } from "@engine/types";
 import type { EnvironmentData } from "@shared/types/environment";
 import {
-  type ContentSnapshot, contentBasesNamed, eventMessage, type FrameEventName, type FrameEvents, type FrameInit, frameCsp, isForwardedKey, type KeyForward, type LayoutSnapshot,
+  type ContentSnapshot, contentBasesNamed, libraryFoldersNamed, eventMessage, type FrameEventName, type FrameEvents, type FrameInit, frameCsp, isForwardedKey, type KeyForward, type LayoutSnapshot,
   LOG_MAX, readFrameRequest, REMOVED_WIRE, type TimelineSnapshot,
 } from "./frame-protocol";
 import type { GizmoMode } from "./gizmo";
@@ -40,9 +40,12 @@ export interface FrameHostOptions {
 
 /** The content bases a draft names: where its files live (the API's draft URL itself is no file source) */
 const contentBasesOf = (content: ContentSnapshot): string[] => (content.assetsBase ? [content.assetsBase] : []);
+/** The draft's texts as the page recorded them */
+const draftTexts = (content: ContentSnapshot): string[] => Object.values(content.responses).filter((text): text is string => typeof text === "string");
 /** Other content builds the draft's rows still name – their images and media only (#252) */
-const mediaBasesOf = (content: ContentSnapshot): string[] =>
-  contentBasesNamed(Object.values(content.responses).filter((text): text is string => typeof text === "string"), content.assetsBase || null);
+const mediaBasesOf = (content: ContentSnapshot): string[] => contentBasesNamed(draftTexts(content), content.assetsBase || null);
+/** The Library's folders the draft's rows name (#254) */
+const libraryFoldersOf = (content: ContentSnapshot): string[] => libraryFoldersNamed(draftTexts(content));
 
 /** A fetch that answers from the responses the page recorded (the frame never asks the API for the draft) */
 const replayFetch = (content: ContentSnapshot): typeof fetch => async input => {
@@ -82,7 +85,7 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
 
   /** The document's policy, once: a meta element cannot widen what an earlier one allows, so another content base needs a new frame */
   const installCsp = (content: ContentSnapshot) => {
-    const key = [...contentBasesOf(content), "|", ...mediaBasesOf(content)].join(" ");
+    const key = [...contentBasesOf(content), "|", ...mediaBasesOf(content), "|", ...libraryFoldersOf(content)].join(" ");
     if (cspKey !== null) {
       if (key !== cspKey) throw new Error("content-bases-changed");
       return;
@@ -90,7 +93,7 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     const meta = document.createElement("meta");
     meta.httpEquiv = "Content-Security-Policy";
     meta.content = frameCsp({
-      origin: location.origin, appBase: options.appBase, apiBase: options.apiBase, contentBases: contentBasesOf(content), mediaBases: mediaBasesOf(content),
+      origin: location.origin, appBase: options.appBase, apiBase: options.apiBase, contentBases: contentBasesOf(content), mediaBases: mediaBasesOf(content), libraryFolders: libraryFoldersOf(content),
       files: [TRIGGER_INFO_URL], devSocket: options.devSocket,
     });
     document.head.prepend(meta);

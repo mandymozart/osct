@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-09 – Mark the Page as 3D: baked per frame; Library uploads on a CDN (#253, #254)
+
+- Kévin's rig (`mark_ready_to_animate_3.blend`, not in the repository) is a sheet of paper with the face cut through it
+  by booleans, so its topology changes every frame: no skinning, no morph targets. A trial baked one mesh per frame into
+  a GLB and moves all but the current frame out of view with a STEP animation (three.js culls them); it plays through
+  the plain `model` node and `animation` component, no engine change. Findings and the routes: #253.
+- Upload URLs before 1.64.6 point at `<root>/<env>/assets/…` and are stored in `assets.url`. Only the two trial files on
+  staging's demo book had one when this was fixed.
+- [ ] Decide the route for Mark (baked 3D, video, live rig); phone not measured yet; Kévin's `Mark first speak.m4a` is
+  referenced by the file but not packed.
+
 ## 2026-11-05 – the deploy credentials as asger set them (#6, #7)
 
 - **Where asger put them** (set 2026-11-03, after #151): `SSH_HOST` (49.13.13.159), `SSH_USER` (`osct`) and

@@ -340,6 +340,18 @@ export const contentBasesNamed = (texts: readonly string[], own: string | null):
   return [...bases].sort();
 };
 
+/** An uploaded file's absolute URL (`Assets.php`): its folder `…/assets/<book>/`, then `<asset id>/v<n>.<ext>` */
+const LIBRARY_FILE = /(https?:\/\/[^"'\s\\]+?\/assets\/[A-Za-z0-9_-]{1,64}\/)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/v\d+\.[a-z0-9]{2,5}/g;
+
+/** The Library folders a draft's text names (#254): on a CDN instance the uploads lie under `<root>/assets/<book>/`, in no content base */
+export const libraryFoldersNamed = (texts: readonly string[]): string[] => {
+  const folders = new Set<string>();
+  for (const text of texts) {
+    for (const match of text.matchAll(LIBRARY_FILE)) folders.add(match[1]);
+  }
+  return [...folders].sort();
+};
+
 /** An exact file a URL names under the frame's policy (`<origin><path>`), none for an unparseable or non-http(s) URL */
 const fileOf = (url: string, base: string): string | null => {
   try {
@@ -357,17 +369,19 @@ const fileOf = (url: string, base: string): string | null => {
  * a few exact `files` (the trigger protocol at the site's root), plus `blob:` and `data:` (the Code tab's transpiled
  * module, textures and buffers inside a model). `mediaBases` are other content builds the draft's rows still name (a
  * file of an earlier build, #252): their `assets/content/` is admitted for images and media only, never for scripts or
- * requests. **No request reaches the rest of the API** – every source is
+ * requests. `libraryFolders` are the uploads' folders the draft names on a CDN (#254): models and shaders are requests,
+ * so they are admitted for those too, never for scripts. **No request reaches the rest of the API** – every source is
  * path-restricted, never `'self'` (which would be the whole origin, `/api` included); a source that would still reach
  * into the API other than its public `content/` route is left out. `devSocket` admits the dev server's hot reload.
  * Nothing may be framed, posted or embedded, and no worker started.
  */
-export const frameCsp = ({ origin, appBase, apiBase, contentBases, mediaBases = [], files = [], devSocket }: {
+export const frameCsp = ({ origin, appBase, apiBase, contentBases, mediaBases = [], libraryFolders = [], files = [], devSocket }: {
   origin: string;
   appBase: string;
   apiBase: string;
   contentBases: readonly string[];
   mediaBases?: readonly string[];
+  libraryFolders?: readonly string[];
   files?: readonly string[];
   devSocket?: string | null;
 }): string => {
@@ -381,8 +395,9 @@ export const frameCsp = ({ origin, appBase, apiBase, contentBases, mediaBases = 
   const content = contentOf(contentBases);
   const exact = files.map(file => fileOf(file, origin)).filter(outsideApi);
   const scripts = [...new Set([app, ...content])].join(" ");
-  const media = [...new Set([app, library, ...content, ...contentOf(mediaBases)])].join(" ");
-  const connect = [...new Set([app, library, ...content, ...exact])].join(" ");
+  const folders = libraryFolders.map(folder => sourceOf(folder, origin)).filter(outsideApi);
+  const media = [...new Set([app, library, ...content, ...contentOf(mediaBases), ...folders])].join(" ");
+  const connect = [...new Set([app, library, ...content, ...folders, ...exact])].join(" ");
   const socket = devSocket ? ` ${devSocket}` : "";
   return [
     "default-src 'none'",

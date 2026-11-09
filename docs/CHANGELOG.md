@@ -7,6 +7,15 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.64.6 – 2026-11-09
+
+### Fixed
+- **Files uploaded to the Library on a CDN instance reached neither the stage nor the reader** (#254, found trying Kévin's
+  Mark on staging's demo book, #253): the API answered `<root>/<env>/assets/…` for a file the storage zone keeps at
+  `<root>/assets/…` (404), and the stage frame's policy admitted no CDN folder for uploads. The URL now names the zone's
+  `assets` folder next to the environment, and the frame admits the Library folders the draft names, for files and
+  requests but never for scripts.
+
 ## 1.64.5 – 2026-11-05
 
 ### Fixed

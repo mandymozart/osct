@@ -1761,6 +1761,12 @@ try {
     call($plainStaging, 'DELETE', "/editor/books/osct/assets/{$forgedAsset['id']}?force=1", null, $editor);
     [, $data] = call($plainStaging, 'GET', '/editor/environments', null, $editor, 'http://localhost:5173', null, $forged);
     check(($data['environments'][0]['url'] ?? null) === 'https://app.example/api/content/staging', '#209: the environments list names APP_URL\'s host for the server store too');
+    $cdnAssets = startApi(['ENV' => 'staging', 'CONTENT_BASE_URL' => 'https://cdn.example/staging/'] + $bunny + $settings);
+    [$status, $data] = upload($cdnAssets, 'POST', '/editor/books/osct/assets', $png . 'on the cdn', 'cdn.png', $editor);
+    $cdnAsset = $data['asset'] ?? [];
+    check($status === 201 && preg_match('#^https://cdn\.example/assets/osct/[0-9a-f-]{36}/v1\.png$#', (string) ($cdnAsset['url'] ?? '')) === 1
+        && is_file("$bunnyDir/osct/assets/" . substr((string) ($cdnAsset['url'] ?? ''), strlen('https://cdn.example/assets/'))), '#254: an upload\'s CDN URL is where the storage zone has the file – next to the environment, not in it');
+    call($cdnAssets, 'DELETE', "/editor/books/osct/assets/" . ($cdnAsset['id'] ?? 'none') . "?force=1", null, $editor);
     $noAppUrl = startApi(['ENV' => 'staging', 'APP_URL' => ''] + $settings);
     $filesBefore = $storedFiles();
     [$status, $data] = upload($noAppUrl, 'POST', '/editor/books/osct/assets', $png . 'nowhere', 'nowhere.png', $editor);

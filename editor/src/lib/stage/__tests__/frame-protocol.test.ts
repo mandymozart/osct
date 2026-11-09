@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  contentBasesNamed, eventMessage, FORWARDED_KEYS, FRAME_SANDBOX, frameCsp, FrameRequests, isForwardedKey, type KeyForward, MESSAGE_TAG, readFrameEvent, readFrameReply,
+  contentBasesNamed, libraryFoldersNamed, eventMessage, FORWARDED_KEYS, FRAME_SANDBOX, frameCsp, FrameRequests, isForwardedKey, type KeyForward, MESSAGE_TAG, readFrameEvent, readFrameReply,
   readFrameRequest,
 } from "../frame-protocol";
 
@@ -150,6 +150,26 @@ describe("frameCsp: plugin code reaches the content, never the API", () => {
     ] });
     expect(contentBasesNamed([config], `${own}/`)).toEqual(["https://cdn.example/staging/2e0a4af94ca2"]);
     expect(contentBasesNamed([config], null)).toEqual(["https://cdn.example/staging/2e0a4af94ca2", own]);
+  });
+
+  it("admits the Library's folders the draft names for files and requests, never scripts (#254)", () => {
+    const folder = "https://cdn.example/assets/demo/";
+    const policy = csp(["https://cdn.example/demo/abc"], { libraryFolders: [folder] });
+    for (const name of ["img-src", "media-src", "connect-src"]) expect(directive(policy, name)).toContain(folder);
+    expect(directive(policy, "script-src")).not.toContain(folder);
+    // Never into the API, as every other source
+    expect(directive(csp([], { libraryFolders: [`${ORIGIN}/api/assets/demo/`] }), "connect-src")).not.toContain(`${ORIGIN}/api/assets/demo/`);
+  });
+
+  it("finds the Library's folders in a draft, and nothing else (#254)", () => {
+    const id = "2d327604-9439-4930-9815-55f0016177db";
+    const config = JSON.stringify({ entries: [
+      { target: { imageSrc: `https://cdn.example/assets/demo/${id}/v1.jpg`, entity: { assets: [{ src: `https://cdn.example/assets/demo/${id}/v12.glb` }] } } },
+      { target: { imageSrc: `https://other.example/x/assets/My_Book/${id}/v2.png` } },
+      { image: "https://cdn.example/staging/b2a34c9b8be6/assets/content/entries/a/image.jpg" },
+      { media: `https://cdn.example/assets/demo/${id}/notes.jpg` },
+    ] });
+    expect(libraryFoldersNamed([config])).toEqual(["https://cdn.example/assets/demo/", "https://other.example/x/assets/My_Book/"]);
   });
 
   it("admits the dev server's socket only when asked", () => {
