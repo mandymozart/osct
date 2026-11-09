@@ -338,8 +338,16 @@ final class Assets
     {
         $configured = rtrim(Config::get('ASSET_BASE_URL'), '/');
         if ($configured !== '') return "$configured/$path";
-        if (!$store->isLocal()) return rtrim(Config::get('CONTENT_BASE_URL'), '/') . '/' . self::STORE_ENV . "/$path";
+        if (!$store->isLocal()) return self::cdnRoot() . '/' . self::STORE_ENV . "/$path";
         return Http::apiUrl() . '/content/' . self::STORE_ENV . "/$path";
+    }
+
+    /** The zone's public root: CONTENT_BASE_URL names this instance's environment (`<root>/<env>`), the `assets` folder lies next to it (#254) */
+    private static function cdnRoot(): string
+    {
+        $base = rtrim(Config::get('CONTENT_BASE_URL'), '/');
+        $env = '/' . Config::env();
+        return str_ends_with($base, $env) ? substr($base, 0, -strlen($env)) : $base;
     }
 
     /** @return array{0: ?int, 1: ?int, 2: ?int} width, height (images, videos), duration in ms (videos) */

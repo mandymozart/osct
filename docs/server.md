@@ -452,7 +452,7 @@ plugin source ("Plugin sources" – the 400 says so). They live in the content s
 `assets/<book>/<asset id>/v<n>.<ext>` – in the content store's folder for the local store, served (for every book id the
 editor accepts, capitals and `_` included) by `GET /content/assets/…` with the file's type, a year's cache and `Access-Control-Allow-Origin: *` (the reader's
 engine loads them cross-origin), or in the CDN's storage zone (`CONTENT_STORE=bunny`, reached at
-`CONTENT_BASE_URL/assets/…`). `ASSET_BASE_URL` overrides where their URLs point. The local store's URLs are this API's
+`<root>/assets/…`, next to the environment that `CONTENT_BASE_URL` = `<root>/<env>` names). `ASSET_BASE_URL` overrides where their URLs point. The local store's URLs are this API's
 own (`Http::apiUrl()`): on a deployed instance (`ENV` not `local`) the host of `APP_URL` – the API is served as `/api`
 next to the app – and never the request's `Host` / `X-Forwarded-Host`, which the client chooses and which would end up
 in the content; without `APP_URL` such an instance refuses the upload (500 `not-configured`). A local instance takes

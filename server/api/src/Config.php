@@ -60,7 +60,7 @@ final class Config
         // Editor (docs/server.md "Editor data"): largest request body (the import of a game configuration)
         'EDITOR_MAX_BYTES' => '8388608',
         // Assets uploaded in the editor (docs/server.md "Assets"): the largest file; where their URLs point
-        // (empty = the CDN's CONTENT_BASE_URL + /assets for the bunny store, this API's /content/assets for the local one)
+        // (empty = /assets next to the environment's CONTENT_BASE_URL for the bunny store, this API's /content/assets for the local one)
         'ASSET_MAX_BYTES' => '67108864',
         'ASSET_BASE_URL' => '',
         // Where published content versions go: local = the content store's folder (served by GET /content/{env}/…), bunny =
