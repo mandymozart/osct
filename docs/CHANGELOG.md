@@ -7,6 +7,29 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.65.0 – 2026-11-14
+
+### Added
+- **The editor saves by itself** (#259, Tilman: *"autosave – it is confusing to save after adding uploads for
+  example"*): every edit in the Inspector reaches the draft a moment after the last change – a node's values, a file
+  picked or uploaded for a node, the tree's moves and removals, a gizmo drag, a target's placement, the
+  post-processing, the environment, an entry, the book's texts. A drag or a word being typed is not saved half-way;
+  switching the tab, the selection or the spread loses nothing, and hiding or closing the browser tab writes what
+  still waits.
+- **The top bar says where the draft stands**: *Saving…*, *Saved*, or *Not saved* with the reason – a failed save with
+  **Retry** (a failure of the server or the network is tried again by itself), or what keeps it back, such as a
+  behaviour rule that is not complete or an entry without a title.
+- **Undo edits** in each panel takes its subject back to how the draft had it before its first edit since the page was
+  opened – the way back from a slipped drag or a removed node.
+
+### Changed
+- The Inspector has no **Save** button any more, and no *Save placement*; *Back to the draft* is *Undo edits*. The Code
+  tab keeps Save (Ctrl+S) and Run. Readers still get nothing before Publish.
+- A save no longer builds the stage again: clips, videos and the view go on while a value is changed. The stage is
+  built again only for a target's placement, an entry's title or page, and an entity several targets share.
+- An entry's and the book's fields keep exactly what was typed; a save's answer no longer rewrites them.
+- The stage accepts a gizmo's placement only for the node selected in the page.
+
 ## 1.64.7 – 2026-11-14
 
 ### Fixed

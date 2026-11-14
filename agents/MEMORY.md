@@ -29,6 +29,7 @@ outcome in the line (or move it into a dated decision block).
 - Checking it: the built-in browser pane blocks the sandboxed stage frame (`ERR_BLOCKED_BY_CLIENT`), so the panels can
   be tried there but the stage only in headless Edge (ORCHESTRATION "Running the editor"). The local demo's media need
   the reader's dev server on 5174.
+
 ## 2026-11-14 – the stage frame admits the book's Library folder; same bytes take the upload's name (#258)
 
 - The frame's policy named only the Library folders the *saved* draft names (#254), so a fresh upload picked for a node
