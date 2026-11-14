@@ -2,6 +2,7 @@ import { Box3, Group, type Matrix4, type Quaternion, Vector3 } from "three";
 import {
   type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type TextureQuality, type PassData, type SceneInspection, SceneState, type Target,
 } from "../types/index";
+import { momentAppearance } from "@shared/types/appearance";
 import { entityAssets, getAssets, getBook, getPasses, getPlugins, getSpread, getSpreads, getTargets } from "../content/game-config";
 import { type EnvironmentData, environmentOf } from "@shared/types/environment";
 import { focusAtTap } from "../utils/camera-request";
@@ -100,7 +101,7 @@ export class ArScene implements IArScene {
    */
   private startFailed = false;
   private _status: ArStatus = "idle";
-  /** Running appear / disappear animation per target id (unlock, reveal, outro), removed when done */
+  /** Running appear / disappear animation per target id (reveal, found, lost), removed when done */
   private animations = new Map<string, Celebration>();
   /** Entities shown with other values than the content's, by target id (the editor's live edit) */
   private overrides = new Map<string, EntityData>();
@@ -162,11 +163,11 @@ export class ArScene implements IArScene {
     return this.environmentPreview?.environment ?? environmentOf(getBook());
   }
 
-  /** The unlock animation (first find – called by the bridge right after `targetFound`; replaces the reveal) */
+  /** The first find's animation, the reveal (called by the bridge right after `targetFound`; replaces the found one) */
   celebrate(targetId: string): void {
     const anchor = this.content?.anchors.find(a => a.target.id === targetId);
     if (!anchor) return;
-    this.animate(anchor, "unlock");
+    this.animate(anchor, "reveal");
     anchor.entity?.onUnlocked?.();
     emitCoreEvent("targetUnlocked", { targetId });
   }
@@ -261,7 +262,8 @@ export class ArScene implements IArScene {
     const id = anchor.target.id;
     this.animations.get(id)?.finish();
     this.animations.delete(id);
-    if (anchor.entity && this.view) this.animations.set(id, celebrate(anchor.group, anchor.entity.object, kind));
+    // The look the book names for the moment – a built-in one or a plugin's
+    if (anchor.entity && this.view) this.animations.set(id, celebrate(anchor.group, anchor.entity.object, kind, momentAppearance(getBook(), kind)));
   }
 
   dispose(): Promise<void> {
@@ -356,8 +358,8 @@ export class ArScene implements IArScene {
             return;
           }
           this.animations.delete(id);
-          // Outro done: the entity has dissolved – hide the anchor (unless found again meanwhile)
-          const anchor = animation.kind === "outro" && !this.found.has(id) && this.content?.anchors.find(a => a.target.id === id);
+          // Lost and gone: hide the anchor (unless found again meanwhile)
+          const anchor = animation.kind === "lost" && !this.found.has(id) && this.content?.anchors.find(a => a.target.id === id);
           if (anchor) anchor.group.visible = false;
         });
         view.bloomStrength = bloom;
@@ -445,16 +447,16 @@ export class ArScene implements IArScene {
       anchor.group.visible = true;
     }
     if (matrix && !this.found.has(id)) {
-      // Found: the entity appears (reveal); the first find becomes the unlock (the bridge calls celebrate)
+      // Found: the entity appears; the first find becomes the reveal (the bridge calls celebrate)
       this.found.add(id);
-      this.animate(anchor, "reveal");
+      this.animate(anchor, "found");
       anchor.entity?.onFound?.();
       this.emitter.emit("targetFound", id);
       emitCoreEvent("targetFound", { targetId: id });
     } else if (!matrix && this.found.has(id)) {
-      // Lost: the entity dissolves away at its last position (outro), then the anchor hides
+      // Lost: the entity goes at its last position, then the anchor hides
       this.found.delete(id);
-      if (anchor.entity) this.animate(anchor, "outro");
+      if (anchor.entity) this.animate(anchor, "lost");
       else anchor.group.visible = false;
       anchor.entity?.onLost?.();
       this.emitter.emit("targetLost", id);

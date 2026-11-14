@@ -4,6 +4,67 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-14 – a look per moment in the book: reveal, found, lost – built in or a plugin's (#264)
+
+- Tilman: "i want a built in and an overwrite via plugin for the reveal, found and lost."
+- **The moments' names are his**: `reveal` = the first find (the unlock's sound and label come with it), `found` = every
+  later find, `lost` = the page is lost. The engine's kinds were `unlock` / `reveal` / `outro` – renamed, so "reveal"
+  now means the *first* find everywhere in the animation code (my reading of his three words; the entry is still
+  "unlocked", `onUnlocked` and the events keep their names).
+- Content schema **2.29**: `book.appearance: { reveal?, found?, lost? }`, each `{ type, ...parameters }` like a pass
+  (`shared/types/appearance.ts`). A moment without a look takes `found`'s, then `inflateDissolve`; `lost` plays its
+  look rewound in the look's `outDuration`. The built-in looks (`inflateDissolve`, `printLift`, `fade` – camelCase,
+  as a plugin's types must be) share one parameter set and differ in their defaults. Not inside `environment` (the
+  look-around world; older guards refuse unknown fields there).
+- Plugin API **1.8**: `api.registerAppearance(type, spec, factory)` – the factory returns
+  `{ duration, update(visible), dispose? }`, `visible` 0 → 1 (on `lost` 1 → 0); `materials()` hands out copies. The
+  content build records it (`registered.appearances`, written only when a plugin has some). A look that throws leaves
+  the default look or ends.
+- The built-in animation now covers the entity's **whole node tree**: it took the placement group's first child only,
+  so a `group` root dissolved nothing and child nodes popped in.
+- The found indicator's label takes the reveal's duration from the book's look (`momentDuration`); a plugin's look
+  falls back to `ENTITY_UNLOCK_MS`.
+- [ ] Not built: the editor's panel for `appearance`, the API route and the MCP tool to save it, the server's list of
+  plugin kinds (`Plugins.php`, `Books.php` name five). Until then a book gets it from its content source (`book.yaml`).
+- [ ] A look per spread or per entity (a `found` of its own on one target) – not asked for yet.
+
+## 2026-11-14 – the appear animation is a look of plain values; three looks in the engine (#262)
+
+- Tilman tuned `inflate-dissolve` in the sandbox and asked "can we try this one to implement?", then: "save this
+  configuration too" (`print-lift`, the sandbox's starting values), "I want to also allow for a fade in and fade out
+  animation", and "can we put the json config for this in the book environment so we can dynamically add these values
+  later? or how could we add a plugin hook which we got in the code view to define a fade in and fade out animation?"
+- `engine/src/scene/celebration.ts`: an `Appearance` – the sandbox's names and units, so its JSON is a look as it is –
+  with three parts: shape (a transform of the entity's object in the anchor's space, so a skinned model inflates too),
+  the noise mask with edge, glow and sparks, the surface (tint, opacity). Three looks: `inflateDissolve` (default,
+  3470 ms / 600 ms), `printLift`, `fade` – since #264 defined in the contract. `DISSOLVE` / `ANIMATIONS` are gone.
+- **Every find plays the look** – the first (unlock: its sound and label stay) and every later one; the outro is it
+  rewound in `outDuration`. My reading of "this one": the first find had to show it too, or a try on the phone would
+  show the old unlock first. `ENTITY_UNLOCK_MS` = 3470 (the found indicator's label).
+- The noise's scale is measured in the entity's own space now (it was a box of the world box: it changed with the
+  camera's angle). Sparks are children of the anchor: they start on the shaped surface and fly unshaped.
+- [ ] 3.47 s on every later find against #57 (reveal shortened to 0.6 s: readers lost the trigger) – judge on the phone.
+- [x] Where a book sets its look: `book.appearance` and `api.registerAppearance` (#264, above).
+- Locally `game-config-loading.test.ts` fails twice (it reads the first spread's first target; the book's own build
+  has none there) – the fixture build CI uses passes; not from this change.
+
+## 2026-11-14 – reveal sandbox: a dev page of its own on the engine (#261)
+
+- Tilman: "give me a sandbox for the reveal animation. I want to fine tune it … the same conditions as our osct client
+  … controls, colors, and a selection of different concepts. One idea was for the mesh to be also flat at first and
+  inflate to its actual dimensions. Easiest idea is to animate the vertical axis from 0 to 1."
+- It lives in `sandbox/reveal/` with its own vite config, served by the client's vite (its three.js, the engine's
+  sources): not in `client/` (RULES #32 – the reader carries no tuning tool) and not in the editor (no session, no book
+  needed). It uses the engine's `ArView`, asset store, `model` builder, `placeEntity` and – for "As shipped" – the real
+  `celebrate` with the look the panel holds.
+- The other concepts are one sandbox-side injection (`src/reveal.ts`: shape per vertex, mask per fragment, surface).
+  "Flat on the page" is measured in the **anchor's** space (the page normal), not the model's own up: `fight_2.glb`
+  (Kévin, Blender) is authored in the page's axes – its up is already out of the page, so the engine's default
+  `rotation: [90, 0, 0]` lays it down. The sandbox picks 90° or 0° by which puts the base on the page.
+- Seen there, not judged on a phone yet: the shipped **unlock** (bloom 1.0, 700 sparks) washes a pale page out to white
+  when the entity fills the view – the bloom is added over the picture.
+- [x] A concept Tilman picks moves into `engine/src/scene/celebration.ts`: done for `inflate-dissolve` (#262, above).
+
 ## 2026-11-14 – a plugin takes a Library model: the parameter kind `model`, `api.loadModel`, the paper (#263)
 
 - **Tilman**: "i want a concept in which i can pick a type of folded paper for videos. ideally this is a plugin." Then,

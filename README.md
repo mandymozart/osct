@@ -36,6 +36,7 @@ the camera only works over https). The accounts API runs locally with `npm run d
 | `shared/` | The content contract: game-configuration types and guards used by app and build; `shared/api/` – the instance API's answers and rules for the editor, the MCP server and the CLI (no content, outside the schema lock) |
 | `fixtures/content/` | Test fixture with the content layout – CI and the tests build it |
 | `fixtures/demo/` | The demo book: a sandbox that uses everything the editor and the engine can do – [plugins](docs/plugins.md) "The demo book" |
+| `sandbox/reveal/` | A dev-only page to tune the entity's appear / disappear animation on the engine, with concepts to compare – [README](sandbox/reveal/README.md) |
 | `docs/` | Documentation (below) · `agents/` – plan, rules and memory for agent sessions ([CLAUDE.md](CLAUDE.md)) |
 
 The book's content is not in the repository: its source lives in a folder of its own, the built content is served

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="data:,">
+  <title>OSCT – reveal sandbox</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #17171a;
+      --panel: #202024;
+      --line: #34343a;
+      --text: #e6e6ea;
+      --muted: #9a9aa4;
+      --accent: #d2ae5a;
+      --control: 1.75rem;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 23rem;
+      background: var(--bg);
+      color: var(--text);
+      font: 0.75rem/1.35 system-ui, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+    button, select, input, textarea { font: inherit; color: inherit; }
+    button, select {
+      height: var(--control);
+      padding: 0 0.6rem;
+      background: #2b2b31;
+      border: 1px solid var(--line);
+      border-radius: 0.25rem;
+      cursor: pointer;
+    }
+    button:hover, select:hover { border-color: #55555e; }
+    button.on { border-color: var(--accent); color: var(--accent); }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #17171a; font-weight: 600; }
+
+    main { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; }
+    #stage-area { display: grid; place-items: center; min-height: 0; padding: 1rem; }
+    /* The reader's screen: a phone held upright (360 × 780 CSS px), or the whole area */
+    #viewport { height: min(48.75rem, 100%); aspect-ratio: 360 / 780; max-width: 100%; border-radius: 1.25rem; overflow: hidden; outline: 1px solid var(--line); }
+    #viewport.fill { width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0.25rem; }
+    #stage { position: relative; width: 100%; height: 100%; cursor: grab; }
+    #stage:active { cursor: grabbing; }
+
+    #transport {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem;
+      padding: 0.6rem 1rem; background: var(--panel); border-top: 1px solid var(--line);
+    }
+    #transport label { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--muted); }
+    #scrub { flex: 1 1 10rem; min-width: 6rem; accent-color: var(--accent); }
+    #readout { min-width: 11rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+    #panel-toggle { display: none; }
+
+    aside { display: flex; flex-direction: column; min-height: 0; background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; }
+    aside header { padding: 0.75rem 0.75rem 0.5rem; border-bottom: 1px solid var(--line); }
+    aside h1 { margin: 0 0 0.5rem; font-size: 0.875rem; font-weight: 600; }
+    .model { display: flex; gap: 0.5rem; align-items: center; }
+    .model select { flex: 1; min-width: 0; }
+    #status { margin-top: 0.4rem; color: var(--muted); min-height: 1.35em; overflow-wrap: anywhere; }
+    .block { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--line); }
+    .block h2 { margin: 0 0 0.4rem; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    #concepts { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; }
+    #concepts button { text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #about { margin: 0.5rem 0 0; color: var(--muted); min-height: 2.7em; }
+
+    .section { border-bottom: 1px solid var(--line); }
+    .section summary { padding: 0.45rem 0.75rem; font-weight: 600; cursor: pointer; user-select: none; }
+    .section[open] { padding-bottom: 0.4rem; }
+    .row { display: grid; grid-template-columns: 6.25rem minmax(0, 1fr) auto auto; align-items: center; gap: 0.4rem; min-height: var(--control); padding: 0 0.75rem; }
+    .row .label { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .row input[type=range] { width: 100%; min-width: 0; accent-color: var(--accent); }
+    .row .number { width: 4.1rem; height: 1.5rem; padding: 0 0.25rem; background: #19191c; border: 1px solid var(--line); border-radius: 0.2rem; text-align: right; font-variant-numeric: tabular-nums; }
+    .row .unit { width: 2.4rem; color: var(--muted); font-size: 0.6875rem; }
+    .row select { width: 100%; grid-column: 2 / -1; }
+    .row input[type=checkbox] { justify-self: start; width: 1rem; height: 1rem; accent-color: var(--accent); }
+    .row input[type=color] { width: 2.5rem; height: 1.5rem; padding: 0; background: none; border: 1px solid var(--line); border-radius: 0.2rem; }
+    .swatches { display: inline-flex; gap: 0.2rem; grid-column: 3 / -1; }
+    .swatch { width: 1.1rem; height: 1.1rem; padding: 0; border-radius: 50%; }
+    .buttons { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0.4rem 0.75rem 0.2rem; }
+    #values { width: 100%; height: 9rem; margin-top: 0.4rem; padding: 0.4rem; background: #19191c; border: 1px solid var(--line); border-radius: 0.25rem; font: 0.6875rem/1.4 ui-monospace, Consolas, monospace; resize: vertical; }
+
+    /* A phone: the stage fills the screen, the panel is a sheet over it */
+    @media (max-width: 47.5em) {
+      body { grid-template-columns: minmax(0, 1fr); }
+      #stage-area { padding: 0; }
+      #viewport, #viewport.fill { width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0; outline: none; }
+      #panel-toggle { display: inline-block; }
+      aside { position: fixed; inset: 45dvh 0 0 0; border-left: none; border-top: 1px solid var(--line); transform: translateY(100%); transition: transform 0.2s; z-index: 2; }
+      body.panel-open aside { transform: none; }
+      /* The stage keeps the part of the screen the sheet leaves free */
+      body.panel-open main { height: 45dvh; }
+      body.panel-open #readout, body.panel-open #transport label { display: none; }
+      #readout { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div id="stage-area">
+      <div id="viewport"><div id="stage"></div></div>
+    </div>
+    <div id="transport">
+      <button id="found" class="primary" type="button" title="The target is found: the entity appears (Space)">Found</button>
+      <button id="lost" type="button" title="The target is lost: the entity disappears, then hides">Lost</button>
+      <label title="Found, hold, lost, hold – again and again"><input id="loop" type="checkbox"> Loop</label>
+      <label title="Play again after every change of a value (not while scrubbed)"><input id="replay" type="checkbox"> Replay on change</label>
+      <select id="speed" title="Playback speed">
+        <option value="1">1×</option>
+        <option value="0.5">0.5×</option>
+        <option value="0.25">0.25×</option>
+        <option value="0.1">0.1×</option>
+      </select>
+      <input id="scrub" type="range" min="0" max="1" step="0.001" value="1" title="Scrub through the animation – values then change the held frame">
+      <span id="readout"></span>
+      <button id="panel-toggle" type="button">Controls</button>
+    </div>
+  </main>
+  <aside>
+    <header>
+      <h1>Reveal sandbox</h1>
+      <div class="model">
+        <select id="model" title="Models in sandbox/reveal/models/ – or drop a .glb on the page"></select>
+      </div>
+      <div id="status"></div>
+    </header>
+    <div class="block">
+      <h2>Concept</h2>
+      <div id="concepts"></div>
+      <p id="about"></p>
+    </div>
+    <div id="concept-controls"></div>
+    <div class="block">
+      <h2>Values</h2>
+      <div class="buttons" style="padding: 0">
+        <button id="copy" type="button" title="The concept's values as JSON, to hand back">Copy</button>
+        <button id="apply" type="button" title="Take the values in the box (pasted JSON)">Apply pasted</button>
+        <button id="reset" type="button" title="Back to the concept's starting values">Reset concept</button>
+      </div>
+      <textarea id="values" spellcheck="false"></textarea>
+    </div>
+    <div id="scene-controls"></div>
+  </aside>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

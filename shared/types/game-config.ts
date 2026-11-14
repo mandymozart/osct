@@ -10,6 +10,7 @@
 import type { EntryCategory } from "./entry";
 import type { FilterData } from "./filters";
 import type { ComponentData } from "./components";
+import type { BookAppearance } from "./appearance";
 import type { EnvironmentData } from "./environment";
 import type { LightData } from "./lights";
 import type { TextureSetData } from "./textures";
@@ -24,6 +25,7 @@ export * from "./behaviour";
 export * from "./lights";
 export * from "./textures";
 export * from "./passes";
+export * from "./appearance";
 export * from "./plugins";
 export * from "./node-types";
 export * from "./materials";
@@ -88,11 +90,14 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   quality asks for; a 2.26 app ignores the field and shows the model with the map in its file), and since 2.28 the
  *   parameter kind `model` (plugin API 1.7, `./components.ts`, #263: a model file a plugin's code loads with
  *   `api.loadModel`) – an older app skips a component's, a node type's or a material's parameter of that kind with a
- *   warning, as every parameter kind it does not know.
+ *   warning, as every parameter kind it does not know, and since 2.29 the
+ *   book's optional `appearance` (the look an entity appears with on reveal, found and lost – a built-in one with its
+ *   values or a plugin's, `./appearance.ts`; an older app ignores the field and plays its own animation) with a plugin's
+ *   recorded `registered.appearances` (plugin API 1.8).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.28";
+export const CONTENT_SCHEMA_VERSION = "2.29";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
@@ -126,6 +131,8 @@ export interface BookData {
   passes?: PassData[];
   /** Optional (schema 2.8; world and sky assets 2.9): the world around the reader and the onion sky (`./environment.ts`); none = the default */
   environment?: EnvironmentData;
+  /** Optional (schema 2.29): the look an entity appears with on reveal, found and lost (`./appearance.ts`); none = the default look */
+  appearance?: BookAppearance;
   /**
    * Optional (schema 2.25): the book's source of truth (#238) – `print` (print first: the printed book is the truth, its
    * spreads, pages and printed placements come from an import of the layout) or `digital` (digital first: the editor is

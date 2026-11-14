@@ -584,6 +584,42 @@ target:
     ref: castle
 ```
 
+## How entities appear: `appearance`
+
+How an AR entity appears and disappears is the book's (content schema 2.29), in `book.yaml` – a **look** for each of
+three moments:
+
+```yaml
+appearance:
+  reveal: { type: inflateDissolve }            # the first find of a target – the entry is unlocked with it
+  found:  { type: printLift, duration: 900 }   # every later find
+  lost:   { type: fade }                       # the page is lost
+```
+
+Every moment is optional: one without a look takes `found`'s, and a book without `appearance` plays
+`inflateDissolve` everywhere. `reveal` and `found` play a look forwards in its `duration`; `lost` plays its look
+rewound in the look's `outDuration`.
+
+A look is `{ type, ...parameters }`, like a pass. The built-in looks share one set of parameters and differ in what
+they set (`shared/types/appearance.ts` has every parameter with its range):
+
+| Look | What it is | What it sets |
+|---|---|---|
+| `inflateDissolve` | Flat and small on the page, the entity rises, grows and turns half around under a noise dissolve with a gold edge and sparks | 3470 ms in, 600 ms out · `mask: noise` until 0.75, edge 0.06 → 0.015 at intensity 0.6, glow 0.6 · `heightFrom: 0`, `scaleFrom: 0`, `spin: -0.5` until 0.8 · 300 sparks |
+| `printLift` | A pale print on the paper lifts off the page and takes its colours | 1100 ms in, 600 ms out · `heightFrom: 0` from 0.2, eased in and out · `fade: 0.15` · `tint: 0.85` gone at 0.7 |
+| `fade` | Fades in, fades out | 600 ms in, 400 ms out · `fade: 1` |
+
+The parts: the **shape** (`heightFrom` – 0 lies flat on the page –, `scaleFrom`, `spin`, between `shapeStart` and
+`shapeEnd` with `shapeEase`), the **mask** (`mask: noise` with `waves`, between `maskStart` and `maskEnd`; its
+`edgeStart` → `edgeEnd` in `edgeColor` × `edgeIntensity`, the `glow` over `glowWidth` in `glowColor`), the
+**surface** (`fade`, `tint` in `tintColor` until `tintEnd`), `sparks` (`sparkColor`, `sparkSize`, `sparkDistance`
+in target widths) and `bloom`. Starts and ends are shares of the duration (0–1). A look can be tuned by eye in the
+reveal sandbox (`sandbox/reveal`, "As shipped"): its **Values** show the look as it is written here.
+
+A look of the book's own code – a plugin's, `api.registerAppearance` – is named the same way, by its type with its
+own parameters ([plugins](plugins.md), "A look"). A fade keeps the entity's materials see-through while it runs: a
+model shows through itself a little.
+
 ## Spreads
 
 `content/spreads/<id>/spread.yaml`
@@ -757,6 +793,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 2.26 | 1.64.0 | in develop | a target's optional `enabled` – `false` switches it off: the reader leaves the target and its entry out, the content and the editor keep both (#249) | ignored: a 2.25 app shows a switched-off target and its entry (the guard reads no unknown field of a target) |
 | 2.27 | 1.66.0 | in develop | a model file's optional `textures` – its colour map in several sizes (512, 1024, 2048, 4096 px), one set for the whole model or one per material: the file carries the smallest map, the app loads the size the reader's texture quality asks for (#260) | ignored: a 2.26 app shows the model with the map in its file (it reads `src` and no unknown field of an asset) |
 | 2.28 | 1.67.0 | in develop | the parameter kind `model` in a spec (a component's, a node type's, a material's, a pass's): a model file – a Library model's URL or a content path, a `.glb` / `.gltf` next to the node in the YAML – which the plugin's code loads with `api.loadModel` (plugin API 1.7, #263) | skipped: an app since 1.55.0 drops the parameter and its value with the update hint and runs the rest of the component; an older one refuses the recorded spec |
+| 2.29 | 1.68.0 | in develop | the book's optional `appearance`: the look an entity appears with on `reveal` (the first find), `found` (every later find) and `lost` – a built-in look (`inflateDissolve`, `printLift`, `fade`) with its values, or one a plugin of the book registers (`registerAppearance`, plugin API 1.8), recorded in `registered.appearances` (#264) | ignored: an older app reads no `appearance` and plays its own animation at every moment; a plugin that registers a look calls a method an older engine does not have and is not loaded there |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

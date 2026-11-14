@@ -14,7 +14,8 @@
  * text file – a shader of the Library – by its URL, content schema 2.18); 1.6 `api.feedback` (a GPU feedback buffer the
  * engine steps every frame) and `api.shadertoy` (a Shadertoy pass as its fragment) – content schema 2.20; neither is a
  * registration (no type, no spec), so nothing of them is recorded; 1.7 `api.loadModel` (a model file by its URL) and the
- * parameter kind `model` (a Library model picked in the editor – content schema 2.28).
+ * parameter kind `model` (a Library model picked in the editor – content schema 2.28); 1.8 `api.registerAppearance` (a look an entity
+ * appears with, `./appearance.ts` – content schema 2.29).
  *
  * What a plugin registers is recorded by the content build (content schema 2.14, #90): it runs every plugin once with a
  * recording API and writes the specs into the plugin's `registered` – so the guard, the editor's API, the MCP server and
@@ -25,11 +26,12 @@
 
 import { componentSpecProblems, type ComponentSpec } from "./components";
 import { nodeTypeSpecProblems, type NodeTypeSpec } from "./node-types";
+import { type AppearanceSpec, isBuiltInAppearanceType } from "./appearance";
 import { isBuiltInPassType, type PassSpec } from "./passes";
 import { materialSpecProblems, textureSpecProblems, type MaterialSpec, type TextureSpec } from "./materials";
 import { isObject } from "../guards/primitives";
 
-export const PLUGIN_API_VERSION = "1.7";
+export const PLUGIN_API_VERSION = "1.8";
 
 /** What a plugin registered, as the content build recorded it (schema 2.14); a missing kind = none of it */
 export interface PluginRegistrations {
@@ -43,6 +45,8 @@ export interface PluginRegistrations {
   materials?: Record<string, MaterialSpec>;
   /** Its procedural textures (`registerTexture`, API 1.4 – schema 2.17), type → spec */
   textures?: Record<string, TextureSpec>;
+  /** Its looks (`registerAppearance`, API 1.8 – schema 2.29), type → spec */
+  appearances?: Record<string, AppearanceSpec>;
 }
 
 /** A plugin as the game configuration declares it */
@@ -81,11 +85,11 @@ export const pluginProblems = (raw: unknown, path = "plugins"): string[] => {
   return problems;
 };
 
-const KINDS = ["components", "nodeTypes", "passes", "materials", "textures"] as const;
+const KINDS = ["components", "nodeTypes", "passes", "materials", "textures", "appearances"] as const;
 
 /** Problems of a plugin's recorded `registered`: every spec checked as the engine checks it when the plugin registers it */
 export const registrationProblems = (raw: unknown, path: string): string[] => {
-  if (!isObject(raw)) return [`${path}: expected { components?, nodeTypes?, passes?, materials?, textures? }`];
+  if (!isObject(raw)) return [`${path}: expected { components?, nodeTypes?, passes?, materials?, textures?, appearances? }`];
   const problems: string[] = [];
   const checks: Record<(typeof KINDS)[number], (type: string, spec: unknown) => string[]> = {
     components: componentSpecProblems,
@@ -97,6 +101,11 @@ export const registrationProblems = (raw: unknown, path: string): string[] => {
     ],
     materials: materialSpecProblems,
     textures: textureSpecProblems,
+    // A look's spec is a component's without nodeTypes, too; never a built-in look's name
+    appearances: (type, spec) => [
+      ...componentSpecProblems(type, spec).filter(problem => !problem.endsWith("is a built-in component")),
+      ...(isBuiltInAppearanceType(type) ? [`"${type}" is a built-in look`] : []),
+    ],
   };
   for (const kind of KINDS) {
     const specs = raw[kind];
@@ -117,6 +126,7 @@ export interface RecordedRegistrations {
   passes: Map<string, PassSpec>;
   materials: Map<string, MaterialSpec>;
   textures: Map<string, TextureSpec>;
+  appearances: Map<string, AppearanceSpec>;
   /**
    * Every declared plugin recorded what it registers: a type outside the maps is registered by none of them. False when
    * one recorded nothing (an older build – what it registers is known only when it runs) or there is no list
@@ -128,7 +138,8 @@ export interface RecordedRegistrations {
 export const recordedRegistrations = (plugins: unknown): RecordedRegistrations => {
   const recorded = {
     components: new Map<string, unknown>(), nodeTypes: new Map<string, unknown>(), passes: new Map<string, unknown>(),
-    materials: new Map<string, unknown>(), textures: new Map<string, unknown>(), complete: Array.isArray(plugins),
+    materials: new Map<string, unknown>(), textures: new Map<string, unknown>(), appearances: new Map<string, unknown>(),
+    complete: Array.isArray(plugins),
   };
   for (const plugin of Array.isArray(plugins) ? plugins : []) {
     const registered = isObject(plugin) ? plugin.registered : undefined;

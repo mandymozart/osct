@@ -27,6 +27,7 @@ const HALO: PassSpec = { description: "A halo.", params: { strength: { kind: "nu
 const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", spreadId: "s", imageSrc: "/t.jpg", entity });
 
 /** A plugin that registers one of every kind – its code counts the calls */
+const SOFT_FADE = { description: "Fades in and out.", params: {} };
 const calls: string[] = [];
 const installFx = () => installPlugin("fx", {
   register: api => {
@@ -36,6 +37,7 @@ const installFx = () => installPlugin("fx", {
     api.registerMaterial("water", WATER, ({ three }) => new three.MeshBasicMaterial());
     api.registerTexture("caustics", CAUSTICS, ({ three }) => ({ texture: new three.Texture() }));
     api.registerPass("halo", HALO, ({ shaderPass }) => shaderPass("void main() { gl_FragColor = texture2D(tDiffuse, vUv); }"));
+    api.registerAppearance("softFade", SOFT_FADE, () => ({ duration: 100, update: () => {} }));
   },
 });
 
@@ -52,6 +54,7 @@ describe("pluginRegistrySnapshot", () => {
     const snapshot = pluginRegistrySnapshot();
     expect(snapshot.plugins.fx).toEqual({
       components: { spin: SPIN }, layers: { tint: TINT }, nodeTypes: { sparkle: SPARKLE }, materials: { water: WATER }, textures: { caustics: CAUSTICS }, passes: { halo: HALO },
+      appearances: { softFade: SOFT_FADE },
     });
     // Copies – a structured clone of it never meets the plugin's own objects or a function
     expect(snapshot.plugins.fx.components.spin).not.toBe(SPIN);
@@ -123,7 +126,7 @@ describe("mirrorPluginRegistry", () => {
 
   it("checks a mirrored spec like a plugin's own: an invalid one is refused and named", () => {
     const bad: PluginRegistrySnapshot = {
-      plugins: { fx: { components: { Spin: SPIN }, layers: {}, nodeTypes: {}, materials: {}, textures: {}, passes: {} } },
+      plugins: { fx: { components: { Spin: SPIN }, layers: {}, nodeTypes: {}, materials: {}, textures: {}, passes: {}, appearances: {} } },
       failures: {},
     };
     const problems = mirrorPluginRegistry(bad);

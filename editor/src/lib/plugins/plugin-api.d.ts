@@ -143,6 +143,16 @@ interface ComponentData {
 	type: string;
 	[param: string]: unknown;
 }
+declare const MOMENTS: readonly [
+	"reveal",
+	"found",
+	"lost"
+];
+type Moment = (typeof MOMENTS)[number];
+interface AppearanceSpec {
+	description: string;
+	params: Record<string, ComponentParamSpec>;
+}
 declare const LIGHT_KINDS: readonly [
 	"point",
 	"spot",
@@ -587,6 +597,38 @@ export interface TextureInstance {
 }
 /** Draws a procedural texture: a texture (a `CanvasTexture`, a `DataTexture`) or a `TextureInstance` */
 export type TextureDraw = (context: TextureContext) => TextureInstance | Texture | null | void;
+interface AppearanceContext {
+	/**
+	 * The entity on its anchor – its whole node tree. Its position, rotation and scale are its placement; whatever the
+	 * look sets on them is put back when the animation ends
+	 */
+	object: Object3D;
+	/** The target's anchor: the page – x to the right, y to the top of the page, z out of it, 1 unit = the target's width */
+	anchor: Object3D;
+	/** The look's parameters with the spec's defaults filled in */
+	params: Record<string, unknown>;
+	/** What happens: the first find (`reveal`), a later one (`found`), the page is lost (`lost`) */
+	moment: Moment;
+	/** The app's three.js (one instance – a plugin never imports three itself) */
+	three: typeof THREE;
+	/**
+	 * Copies of the entity's materials for this animation, on its meshes until it ends (a model's own materials are
+	 * shared with every entity of the same file – never change those): set opacity, colour or a shader of your own on these
+	 */
+	materials(): Material[];
+}
+interface AppearanceRun {
+	/** ms */
+	duration: number;
+	/**
+	 * Show the entity `visible` of the way there: 0 = nothing of it, 1 = as it is. `reveal` and `found` run from 0 to 1,
+	 * `lost` from 1 to 0 – a look that only says how the entity looks at `visible` covers all three
+	 */
+	update(visible: number): void;
+	/** Free what the look created; the engine puts the placement and the materials back itself */
+	dispose?(): void;
+}
+type AppearanceFactory = (context: AppearanceContext) => AppearanceRun;
 declare const FEEDBACK_TYPES: readonly [
 	"half",
 	"float",
@@ -649,6 +691,7 @@ export interface Feedback {
  *   api.registerNodeType("sparkle", NODE_SPEC, ({ params, three }) => ({ object: new three.Points(…) }))
  *   api.registerMaterial("water", MATERIAL_SPEC, ({ params, time, three }) => new three.ShaderMaterial({ uniforms: { time }, … }))
  *   api.registerTexture("caustics", TEXTURE_SPEC, ({ params, three }) => ({ texture: new three.CanvasTexture(canvas), update }))
+ *   api.registerAppearance("softFade", LOOK_SPEC, ({ params, materials }) => ({ duration: params.duration, update: visible => … }))
  *
  * – with the specs of `shared/types/components.ts` (a pass: `shared/types/passes.ts`, a node type:
  * `shared/types/node-types.ts`), so the editor's Entity panel, the content build and the guard read a plugin's
@@ -659,7 +702,8 @@ export interface Feedback {
  * registry for a type without a built-in builder – the node is placed, holds children, components and layers like
  * any); a **material** (`materials.ts`) replaces the material of a node's meshes (`material: { type, params }`);
  * a **procedural texture** (`textures.ts`) is drawn by code and taken by any spec's `texture` parameter. Components
- * and layers are used in the content as `components: [{ type, … }]`, a node type as `type`.
+ * and layers are used in the content as `components: [{ type, … }]`, a node type as `type`. A **look** (`appearances.ts`)
+ * is how an entity appears and disappears: the book names it for a moment (`appearance: { reveal, found, lost }`).
  * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`): `api.events` (core events of the
  * scene, scene events of the content), `api.vars` (variables in the scopes spread / stage / session / book),
  * `api.progress` (what the reader unlocked – from the app) and `api.spread` (the current spread). A file of the book's
@@ -785,6 +829,13 @@ export interface PluginApi {
 	 * material's, a layer's, a component's, a node type's.
 	 */
 	registerTexture(type: string, spec: TextureSpec, draw: TextureDraw): void;
+	/**
+	 * A look of the plugin's own: how an entity appears and disappears. The factory runs once per animation with the
+	 * entity, its anchor, the resolved parameters and the moment (`AppearanceContext`) and returns
+	 * `{ duration, update(visible), dispose? }` – `visible` runs from 0 to 1 on `reveal` and `found`, from 1 to 0 on
+	 * `lost`. The book names it by its type in `appearance: { reveal, found, lost }`, in a built-in look's place.
+	 */
+	registerAppearance(type: string, spec: AppearanceSpec, factory: AppearanceFactory): void;
 	/** Core events of the scene (read-only) and scene events of the content */
 	readonly events: PluginEvents;
 	/** Variables in the scopes spread, stage, session and book */
