@@ -51,7 +51,7 @@ that note.
 ## Try it (the demo book, or the fixture's studio spreads)
 
 The **demo book** (`fixtures/demo/`, `DEMO.md`): six spreads that use every node type, placement, filter and
-component, thirteen plugins, and a narrative across its pages – the key on page 1 opens the door on page 3, the lamp
+component, fourteen plugins, and a narrative across its pages – the key on page 1 opens the door on page 3, the lamp
 lights when the door opened, a tally counts the pages found, a tap switches a scene ([plugins](plugins.md) "The demo
 book", the note `agents/research/2026-10-30-demo-book.md`). The fixture's **studio spreads**
 (`fixtures/content/FIXTURE.md`, pages 28–31) are the smaller scene of every entity type, placement and filter. Locally,
@@ -79,7 +79,7 @@ with SQLite and the local content store:
    stage's right-click menu plays it again, *reset* in the spread's *vars and events* starts a new game – on *The door*
    the hint shows then; *set* `hasKey` (book, true), switch the door off and on, and it opens without a visit to the
    key's page. Open *The switch* and click the entity on the stage: the next scene shows; its *post-processing* holds
-   *scanLines* switched off – the toggle in the pass's head turns the lines on. The **Code** tab lists the thirteen
+   *scanLines* switched off – the toggle in the pass's head turns the lines on. The **Code** tab lists the fourteen
    plugins (compiled by the content build, their sources next to them): change one, **Run**, and the stage shows it.
    Move a node in the **Inspector** (type a scale, or press and slide) – the top bar says *Saved* a moment later –,
    then **Publish** – it goes to

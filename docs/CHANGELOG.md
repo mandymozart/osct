@@ -7,6 +7,14 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.71.1 – 2026-11-15
+
+### Added
+- **The other two built-in looks as code, examples** (#267, Tilman: *"Yes"* to `printLift` and `fade` as plugin code too): the
+  demo book's `plugins/lifts` writes `printLift` and `fade` as plugin looks (`printLiftCode`, `fadeCode`) next to
+  `plugins/reveal` – opacity and tint on copies of the materials, a lift carried into the parent's space so it works on
+  any node. The demo book counts fourteen plugins.
+
 ## 1.71.0 – 2026-11-15
 
 ### Added

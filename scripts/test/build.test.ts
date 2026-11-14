@@ -247,7 +247,7 @@ describe('the test fixture', () => {
 });
 
 describe('the demo book', () => {
-  it('builds without errors: every node type, the covers, a shared entity, thirteen plugins (three with a node type, one with a material and a texture, two with a pass, one that takes a model file, one with a look)', { timeout: 60000 }, async () => {
+  it('builds without errors: every node type, the covers, a shared entity, fourteen plugins (three with a node type, one with a material and a texture, two with a pass, one that takes a model file, two with looks)', { timeout: 60000 }, async () => {
     const build = await loadBuild({ content: path.resolve(__dirname, '../../fixtures/demo') });
     vi.spyOn(console, 'log').mockImplementation(() => {});
     const plugins = await build.plugins.buildPlugins();
@@ -255,7 +255,7 @@ describe('the demo book', () => {
     vi.restoreAllMocks();
     expect(build.errors).toEqual([]);
     expect(book.id).toBe('demo');
-    expect(plugins.map(p => p.data.id)).toEqual(['aquarium', 'fluid', 'grain', 'narrative', 'paper', 'pulse', 'reveal', 'scanlines', 'scenes', 'sparkle', 'spin', 'tally', 'tint']);
+    expect(plugins.map(p => p.data.id)).toEqual(['aquarium', 'fluid', 'grain', 'lifts', 'narrative', 'paper', 'pulse', 'reveal', 'scanlines', 'scenes', 'sparkle', 'spin', 'tally', 'tint']);
     // A plugin's pass (#216): the grain plugin's film grain on The twins, checked against its recorded spec
     expect(Object.keys(plugins.find(p => p.data.id === 'grain')!.data.registered!.passes ?? {})).toEqual(['filmGrain']);
     expect(spreads.find(s => s.id === 'the-twins')?.passes).toEqual([{ type: 'filmGrain', amount: 0.14 }]);
@@ -294,6 +294,7 @@ describe('the demo book', () => {
     // The reveal (#267): the engine's inflate-and-dissolve look as code – a plugin's look, recorded with its parameters for the book's appearance
     const reveal = plugins.find(p => p.data.id === 'reveal')!.data.registered!.appearances ?? {};
     expect(Object.keys(reveal)).toEqual(['revealCode']);
+    expect(Object.keys(plugins.find(p => p.data.id === 'lifts')!.data.registered!.appearances ?? {})).toEqual(['fadeCode', 'printLiftCode']);
     expect(reveal.revealCode.params).toMatchObject({ duration: { kind: 'number', default: 3470 }, spin: { default: -0.5 }, sparks: { default: 300 }, edgeColor: { kind: 'color' } });
     // Every model stands on its page (#189)
     const { contentModelBounds, zeroPlaneFindings } = await import('../src/build/zero-plane');

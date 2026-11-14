@@ -842,12 +842,12 @@ characters), keep it small
 
 ## The demo book: everything at once
 
-`fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and thirteen plugins that
+`fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and fourteen plugins that
 together use every part of the API – a narrative across its spreads (the key and the door with their `behaviour` rules,
 the door's opening and the lamp as plugin code, a tally of the pages found, a tap that switches a scene, a sparkle of its
 own node type), the aquarium with its material, texture and WebGPU fluid, the ink painting on two feedback buffers, a
 video on a bent sheet of paper picked as a model file (`plugins/paper`), and a
 film grain pass over *The twins* (`plugins/grain`) and a scan-line pass on *The switch*, switched off to be found
-(`plugins/scanlines`), and the built-in reveal written as a plugin's look (`plugins/reveal`). Build it with
+(`plugins/scanlines`), and the built-in looks written as plugins' looks (`plugins/reveal`: the dissolve; `plugins/lifts`: `printLiftCode` and `fadeCode`). Build it with
 `OSCT_CONTENT_DIR=fixtures/demo`, import it into the editor ([editor](editor.md) "Try it"); the plugins are the examples to copy from. What it shows per spread, and what the
 model still lacks: `agents/research/2026-10-30-demo-book.md`.

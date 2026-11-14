@@ -1,4 +1,5 @@
 import { installPlugin } from "@engine/scene/plugins";
+import { register as registerLifts } from "../../../fixtures/demo/plugins/lifts/index";
 import { register as registerReveal } from "../../../fixtures/demo/plugins/reveal/index";
 
 /**
@@ -9,6 +10,9 @@ export const DEMO_LOOK = "softFade";
 /** The demo book's `reveal` plugin: the built-in look as code, with the built-in look's parameters */
 export const REVEAL_CODE_LOOK = "revealCode";
 installPlugin("reveal", { register: registerReveal });
+/** The demo book's `lifts` plugin: printLiftCode and fadeCode (their own parameters; the sandbox passes the durations) */
+export const LIFT_LOOKS = ["printLiftCode", "fadeCode"] as const;
+installPlugin("lifts", { register: registerLifts });
 
 installPlugin("sandbox", {
   register: api => {
