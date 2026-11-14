@@ -5,6 +5,7 @@
 import { assertGameConfiguration, GameConfigurationError, MAX_NODE_DEPTH } from "../../shared/guards/game-config";
 import {
   ASSET_TYPES,
+  TEXTURE_SIZES,
   BEHAVIOUR_ACTIONS,
   BEHAVIOUR_CORE_EVENTS,
   BEHAVIOUR_NODE_EVENTS,
@@ -246,6 +247,7 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
       assets: {
         description: "The node's own files: [{ id, assetType, src }] – empty for group and text. src is an absolute URL (an uploaded asset's url) or a /assets/content/… path of the imported content.",
         assetTypes: ASSET_TYPES,
+        textures: `textures (content schema 2.27, optional, a model file only): the model's colour map in several sizes – [{ material?, sizes: [{ size, src }] }], size one of ${TEXTURE_SIZES.join(", ")} (px, a square picture), each once, smallest first. The model file carries the smallest map and shows with it at once; the reader's texture quality chooses the size that is loaded, so the mesh loads once. material = the glTF material whose map the set is; none = every material of the model (a model baked into one map). Upload each size as an image (upload_asset tells its width) and put its url into src.`,
       },
       text: "text nodes: `text` (the line; {{entry.title}} and {{book.title}} are replaced) and `color` (#rrggbb, default white).",
       pluginNodeTypes: {

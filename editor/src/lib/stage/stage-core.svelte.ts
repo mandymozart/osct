@@ -130,6 +130,11 @@ export class StageCore {
     setPreviewActive(true);
     setDeviceStorage(deviceStorage);
     const scene = new ArScene(container, {
+      // No surroundings on the stage; models with a texture set show the map size the view menu asks for (#260)
+      graphics: {
+        getSettings: () => ({ onionSky: false, surroundings: false, textureQuality: getPreview().textureQuality }),
+        subscribe: listener => subscribePreview(state => listener({ onionSky: false, surroundings: false, textureQuality: state.textureQuality })),
+      },
       createTracker: ({ container, options, scene }) => {
         const tracker = new MockTracker(container, options);
         this.mockStage = new MockStage(scene, path => asset(path as AssetPath)); // static/ files the content names at runtime

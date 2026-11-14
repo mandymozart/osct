@@ -3,7 +3,7 @@
   import Segmented from "./Segmented.svelte";
   import ScrubNumber from "./ScrubNumber.svelte";
   import ToolMenu from "./ToolMenu.svelte";
-  import { getPreview, HDRIS, isHdriId, subscribePreview, TOPS, updatePreview, viewSummary, type PreviewState } from "#lib/stage/preview.js";
+  import { getPreview, HDRIS, isHdriId, isTextureQuality, subscribePreview, TEXTURE_QUALITIES, TOPS, updatePreview, viewSummary, type PreviewState } from "#lib/stage/preview.js";
   import { isOriginId, ORIGIN_SPOTS, ORIGINS, originHelp, originLabel, type OriginFrame } from "#lib/stage/origin.js";
   import { stageEnvironment } from "#lib/environment.svelte.js";
   import { library } from "#lib/library.svelte.js";
@@ -75,6 +75,15 @@
         {#each HDRIS as hdri (hdri.id)}<option value={hdri.id}>{hdri.name}</option>{/each}
       </select>
       {#if environment}<span class="small muted">without an environment</span>{/if}
+    </span>
+  </div>
+  <div class="row" data-help="Texture quality: the size models with a texture set show their map at – auto as a reader's device would choose, or one size to see what readers on that quality see. Only models with a texture set change (Inspector → textures).">
+    <span class="label">textures</span>
+    <span class="controls">
+      <select class="field" aria-label="Texture quality" value={String(preview.textureQuality)}
+        onchange={e => { const raw = (e.currentTarget as HTMLSelectElement).value; const quality = raw === "auto" ? raw : Number(raw); if (isTextureQuality(quality)) updatePreview({ textureQuality: quality }); }}>
+        {#each TEXTURE_QUALITIES as quality (quality)}<option value={String(quality)}>{quality === "auto" ? "auto" : `${quality} px`}</option>{/each}
+      </select>
     </span>
   </div>
 </ToolMenu>
