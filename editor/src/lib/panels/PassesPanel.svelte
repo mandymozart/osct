@@ -19,6 +19,7 @@
   import Segmented from "#lib/components/Segmented.svelte";
   import ScrubNumber from "#lib/components/ScrubNumber.svelte";
   import Section from "#lib/components/Section.svelte";
+  import ModelField from "#lib/components/ModelField.svelte";
   import TextureField from "#lib/components/TextureField.svelte";
   import Toggle from "#lib/components/Toggle.svelte";
 
@@ -177,6 +178,8 @@
         <input class="field" value={String(passValue(pass, row))} aria-label={row.label} oninput={e => set(i, row, (e.currentTarget as HTMLInputElement).value)} />
       {:else if row.kind === "texture"}
         <TextureField value={String(passValue(pass, row))} label={row.label} onchange={v => set(i, row, v)} />
+      {:else if row.kind === "model"}
+        <ModelField value={String(passValue(pass, row))} label={row.label} onchange={v => set(i, row, v)} />
       {:else if row.kind === "color"}
         <ColourField value={String(passValue(pass, row))} label={row.label} onchange={hex => set(i, row, hex)} />
       {:else}

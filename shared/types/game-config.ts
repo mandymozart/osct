@@ -81,11 +81,13 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   write the steps older apps require (`../compat/tutorial.ts`) until the next MAJOR – and the book's optional
  *   `sourceOfTruth` (print | digital: which side the spreads come from, #238; an older app ignores it), and since 2.26 a
  *   target's optional `enabled` (`false` = switched off, #249: the reader leaves the target and its entry out until it is
- *   switched on; a 2.25 app ignores the field and shows both).
+ *   switched on; a 2.25 app ignores the field and shows both), and since 2.27 the parameter kind `model` (plugin API 1.7,
+ *   `./components.ts`, #263: a model file a plugin's code loads with `api.loadModel`) – an older app skips a component,
+ *   a node type's or a material's parameter of that kind with a warning, as every parameter kind it does not know.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.26";
+export const CONTENT_SCHEMA_VERSION = "2.27";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 

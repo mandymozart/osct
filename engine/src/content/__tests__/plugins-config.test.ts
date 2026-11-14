@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { assertGameConfiguration, GameConfigurationError } from "@shared/guards/game-config";
-import { componentSpecProblems, PARAM_LABEL_MAX, paramLabel, paramWords, pluginApiCompatible, pluginProblems } from "@shared/types/game-config";
+import { componentSpecProblems, PARAM_LABEL_MAX, paramLabel, paramProblem, paramProblems, paramWords, pluginApiCompatible, pluginProblems } from "@shared/types/game-config";
 
 /** The configuration declares the book's plugins; their components pass the guard */
 
@@ -137,6 +137,20 @@ describe("plugins in the configuration", () => {
     expect(pluginApiCompatible("2.0")).toBe(false);
   });
 
+  it("a model parameter takes a file's address or none, and a string as its default (#263)", () => {
+    const spec = { description: "d", params: { sheet: { kind: "model", default: "", description: "d" } } } as const;
+    expect(componentSpecProblems("paper", spec)).toEqual([]);
+    expect(componentSpecProblems("paper", { description: "d", params: { sheet: { kind: "model", default: 1, description: "d" } } })).toEqual([
+      "paper.sheet: a model's default is a string (empty = none, or a file)",
+    ]);
+    expect(paramProblem(spec.params.sheet, "/assets/content/entries/a/sheet.glb")).toBeNull();
+    expect(paramProblem(spec.params.sheet, "")).toBeNull();
+    expect(paramProblem(spec.params.sheet, 3)).toBe('expected a model: a file (.glb, .gltf) or "" for none, got 3');
+    expect(paramProblems(spec.params, { sheet: { type: "caustics" } }, "components[0]", "paper")).toEqual([
+      'components[0].sheet: expected a model: a file (.glb, .gltf) or "" for none, got {"type":"caustics"}',
+    ]);
+  });
+
   it("checks a spec a plugin registers", () => {
     expect(componentSpecProblems("tint", { description: "d", nodeTypes: ["video"], params: { opacity: { kind: "number", default: 0.3, min: 0, max: 1, description: "d" } } })).toEqual([]);
     expect(componentSpecProblems("Tint", null)).toEqual([
@@ -147,7 +161,7 @@ describe("plugins in the configuration", () => {
       "tint: description must be a string",
       "tint.Bad: a parameter name is camelCase letters and digits",
       "tint.Bad: description must be a string",
-      "tint.Bad: kind must be color, number, choice, boolean, string or texture",
+      "tint.Bad: kind must be color, number, choice, boolean, string, texture or model",
       "tint.c: a choice needs options (strings) and a default among them",
     ]);
   });

@@ -313,7 +313,7 @@ describe('a plugin\'s feedback buffers (API 1.6)', () => {
     build.buildAll();
     vi.restoreAllMocks();
     expect(build.errors).toEqual([]);
-    expect(plugins[0].data).toMatchObject({ api: '1.6', registered: { nodeTypes: { painting: { description: 'A painting.', params: {} } } } });
+    expect(plugins[0].data).toMatchObject({ api: '1.7', registered: { nodeTypes: { painting: { description: 'A painting.', params: {} } } } });
     // Nothing of the buffer is recorded: it is no registration
     expect(Object.keys(plugins[0].data.registered ?? {})).toEqual(['components', 'nodeTypes', 'passes']);
 

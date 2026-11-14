@@ -71,6 +71,20 @@ describe('a plugin\'s materials and textures (#188)', () => {
     expect((await build('    material:\n      type: water\n      params:\n        ripples: m.glb\n')).errors).toEqual([expect.stringMatching(/a texture is an image or a video, not "m\.glb"/)]);
   }, 60000);
 
+  it('a model parameter (#263): a file next to the node becomes its content path, an address stays, a picture is refused', async () => {
+    const shaped = WATER.replace('deep: {', 'shape: { kind: "model", default: "", description: "Its shape." }, deep: {');
+    const withShape = (value: string) => build(`    material:\n      type: water\n      params:\n        shape: ${value}\n`, shaped);
+    const next = await withShape('m.glb');
+    expect(next.errors).toEqual([]);
+    expect(next.plugins[0].data.registered?.materials?.water.params.shape).toEqual({ kind: 'model', default: '', description: 'Its shape.' });
+    expect(next.entries[0].target?.entity).toMatchObject({ material: { params: { shape: '/assets/content/entries/first/m.glb' } } });
+    const library = await withShape('https://cdn.example/assets/book/one/v1.glb');
+    expect(library.errors).toEqual([]);
+    expect(library.entries[0].target?.entity).toMatchObject({ material: { params: { shape: 'https://cdn.example/assets/book/one/v1.glb' } } });
+    expect((await withShape('sand.jpg')).errors).toEqual([expect.stringMatching(/material\.shape: a model is a \.glb or \.gltf file, not "sand\.jpg"/)]);
+    expect((await withShape('3')).errors).toEqual([expect.stringMatching(/material\.params\.shape: expected a model/)]);
+  }, 60000);
+
   it('refuses a texture spec whose parameter is a texture, and a material without a build', async () => {
     const bad = WATER
       .replace('cells: { kind: "number", default: 3, min: 1, max: 8, step: 1, description: "Cells." }', 'inner: { kind: "texture", default: "", description: "No." }')

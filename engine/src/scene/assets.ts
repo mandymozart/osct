@@ -60,16 +60,22 @@ const media = <T extends HTMLMediaElement>(tag: "video" | "audio", data: AssetDa
   return el;
 };
 
+/**
+ * A model file by its URL – .glb: the content build's gzip copy, unpacked (hosts serve .glb uncompressed); .gltf: its
+ * own files
+ */
+export const loadGltf = async (src: string, assetType: "glb" | "gltf"): Promise<{ scene: Group; animations: AnimationClip[] }> => {
+  const gltf = assetType === "glb"
+    ? await getGltfLoader().parseAsync(await loadCompressed(src), src.replace(/[^/]*$/, ""))
+    : await getGltfLoader().loadAsync(src);
+  return { scene: gltf.scene, animations: gltf.animations };
+};
+
 const load = async (data: AssetData): Promise<LoadedAsset | null> => {
   switch (data.assetType) {
     case "glb":
-    case "gltf": {
-      // .glb: the content build's gzip copy, unpacked (hosts serve .glb uncompressed); .gltf: its own files
-      const gltf = data.assetType === "glb"
-        ? await getGltfLoader().parseAsync(await loadCompressed(data.src), data.src.replace(/[^/]*$/, ""))
-        : await getGltfLoader().loadAsync(data.src);
-      return { assetType: data.assetType, scene: gltf.scene, animations: gltf.animations };
-    }
+    case "gltf":
+      return { assetType: data.assetType, ...(await loadGltf(data.src, data.assetType)) };
     case "image": {
       const texture = await new TextureLoader().setCrossOrigin("anonymous").loadAsync(data.src);
       texture.colorSpace = SRGBColorSpace;

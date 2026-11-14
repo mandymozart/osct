@@ -28,7 +28,10 @@ import { CAMEL_CASE_NAME, isObject } from "../guards/primitives";
  * (schema 2.15, plugin API 1.3) – the few words the editor's row shows. Without a label the row shows the name split
  * into words (`paramLabel`). A `texture` (schema 2.17, plugin API 1.4) takes a picture: a file (a Library image or
  * video, a file of the content) or a procedural texture a plugin registers (`registerTexture`) – its value is a
- * `TextureValue` (below); the engine hands the plugin's code a three.js texture.
+ * `TextureValue` (below); the engine hands the plugin's code a three.js texture. A `model` (schema 2.27, plugin API
+ * 1.7) takes a model file: a Library model's URL or a `/assets/content/…` path (in the content's YAML a `.glb` / `.gltf`
+ * next to the node, which the content build resolves to its path), `""` = none – its value is that string, and the
+ * plugin's code loads it with `api.loadModel(value)`.
  */
 export type ComponentParamSpec = ParamText & (
   | { kind: "color"; default: string }
@@ -37,6 +40,7 @@ export type ComponentParamSpec = ParamText & (
   | { kind: "boolean"; default: boolean }
   | { kind: "string"; default: string }
   | { kind: "texture"; default: string }
+  | { kind: "model"; default: string }
 );
 
 /**
@@ -74,6 +78,8 @@ export const textureSource = (value: unknown): TextureSource => {
   }
   return { kind: "none" };
 };
+
+const MODEL_VALUE_EXPECTED = "expected a model: a file (.glb, .gltf) or \"\" for none";
 
 /** What every parameter says about itself, whatever its kind */
 export interface ParamText {
@@ -187,6 +193,8 @@ export const paramProblems = (specs: Record<string, ComponentParamSpec>, params:
       problems.push(`${at}.${name}: expected a string, got ${JSON.stringify(value)}`);
     } else if (param.kind === "texture" && !isTextureValue(value)) {
       problems.push(`${at}.${name}: ${TEXTURE_VALUE_EXPECTED}, got ${JSON.stringify(value)}`);
+    } else if (param.kind === "model" && typeof value !== "string") {
+      problems.push(`${at}.${name}: ${MODEL_VALUE_EXPECTED}, got ${JSON.stringify(value)}`);
     }
   }
   return problems;
@@ -240,7 +248,8 @@ export const paramSpecProblems = (type: string, params: Record<string, unknown>)
       case "boolean": if (typeof p.default !== "boolean") problems.push(`${at}: default must be true or false`); break;
       case "string": if (typeof p.default !== "string") problems.push(`${at}: default must be a string`); break;
       case "texture": if (typeof p.default !== "string") problems.push(`${at}: a texture's default is a string (empty = none, or a procedural texture's type)`); break;
-      default: problems.push(`${at}: kind must be color, number, choice, boolean, string or texture`);
+      case "model": if (typeof p.default !== "string") problems.push(`${at}: a model's default is a string (empty = none, or a file)`); break;
+      default: problems.push(`${at}: kind must be color, number, choice, boolean, string, texture or model`);
     }
   }
   return problems;
@@ -310,6 +319,7 @@ export const paramProblem = (param: ComponentParamSpec, value: unknown): string 
   if (param.kind === "boolean" && typeof value !== "boolean") return `expected true or false, got ${JSON.stringify(value)}`;
   if (param.kind === "string" && typeof value !== "string") return `expected a string, got ${JSON.stringify(value)}`;
   if (param.kind === "texture" && !isTextureValue(value)) return `${TEXTURE_VALUE_EXPECTED}, got ${JSON.stringify(value)}`;
+  if (param.kind === "model" && typeof value !== "string") return `${MODEL_VALUE_EXPECTED}, got ${JSON.stringify(value)}`;
   return null;
 };
 

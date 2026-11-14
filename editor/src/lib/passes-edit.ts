@@ -92,7 +92,7 @@ const SUMMARY_VALUES = 2;
 export const passSummary = (pass: PassData, rows: readonly ValueRow[]): string | undefined => {
   const words = (row: ValueRow) => {
     const value = passValue(pass, row);
-    const shown = row.kind === "choice" ? passOptionLabels(pass, row)[String(value)] ?? String(value) : row.kind === "texture" && value === "" ? "none" : String(value);
+    const shown = row.kind === "choice" ? passOptionLabels(pass, row)[String(value)] ?? String(value) : (row.kind === "texture" || row.kind === "model") && value === "" ? "none" : String(value);
     return `${row.label} ${shown}${row.unit && row.kind === "number" ? ` ${row.unit}` : ""}`;
   };
   const set = rows.filter(row => !sameValue(passValue(pass, row), row.default));

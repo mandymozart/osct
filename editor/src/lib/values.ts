@@ -40,8 +40,11 @@ export type RowValue = number | string;
 
 export interface ValueRow {
   id: string;
-  /** `texture` (#188): a file (a Library image or video by its URL) or a procedural texture's type – a string; "" = none */
-  kind: "number" | "color" | "choice" | "boolean" | "string" | "texture";
+  /**
+   * `texture` (#188): a file (a Library image or video by its URL) or a procedural texture's type – a string; "" = none.
+   * `model` (#263): a model file (a Library model by its URL) – a string; "" = none
+   */
+  kind: "number" | "color" | "choice" | "boolean" | "string" | "texture" | "model";
   default: RowValue;
   /** Scrub range (number rows) */
   min?: number;
@@ -140,6 +143,7 @@ const specRows = (prefix: string, params: Record<string, ComponentParamSpec>): V
       case "boolean": return { id, kind: "boolean", default: param.default ? "true" : "false", label, description: param.description };
       case "string": return { id, kind: "string", default: param.default, label, description: param.description };
       case "texture": return { id, kind: "texture", default: param.default, label, description: param.description };
+      case "model": return { id, kind: "model", default: param.default, label, description: param.description };
       default: return {
         id, kind: "number", default: param.default, min: param.min, max: param.max, step: param.step ?? (param.max - param.min <= 1 ? 0.001 : 0.01),
         unit: param.unit, strict: true, label, description: param.description,

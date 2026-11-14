@@ -44,7 +44,7 @@ import {
 } from "../types/index";
 
 /** The parameter kinds of a spec (`ComponentParamSpec` in shared/ – a test keeps them equal) */
-export const PARAM_KINDS = ["color", "number", "choice", "boolean", "string", "texture"] as const;
+export const PARAM_KINDS = ["color", "number", "choice", "boolean", "string", "texture", "model"] as const;
 
 /** What an app knows of the content contract */
 export interface KnownFeatures {

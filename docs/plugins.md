@@ -16,7 +16,7 @@ export const register = (api: PluginApi): void => {
 };
 ```
 
-`register` runs once when the plugin loads. Eleven things you can do with `api` – and, for a book's logic across
+`register` runs once when the plugin loads. Twelve things you can do with `api` – and, for a book's logic across
 nodes and pages, four more ("Across nodes and pages" below):
 
 - **`api.registerLayer(type, spec, { glsl })`** – a **material layer**: a few lines of GLSL that run on every
@@ -36,6 +36,8 @@ nodes and pages, four more ("Across nodes and pages" below):
   the app has one three.js and a plugin that brings another is refused by the build.
 - **`api.loadText(url)`** (API 1.5) – a **text file** by its URL: a shader you uploaded to the editor's Library ("A
   shader file" below).
+- **`api.loadModel(url)`** (API 1.7) – a **model file** (`.glb`, `.gltf`): the one the author picked in a parameter of
+  the kind `model` ("A file from the Library" below).
 - **`api.feedback({ width, height, fragment, … })`** (API 1.6) – a **feedback buffer**: a fragment shader the engine runs
   every frame into a render target of its own, its last frame as input – a fluid on the GPU ("A feedback buffer" below).
 - **`api.shadertoy(source)`** (API 1.6) – a Shadertoy pass (`mainImage`) as a feedback buffer's fragment.
@@ -44,8 +46,9 @@ nodes and pages, four more ("Across nodes and pages" below):
 - **`api.log(…)`** – to the console, prefixed with the plugin's id; in the editor also the Code tab's log.
 
 A `spec` describes the parameters the author sets in the editor: every one with a `kind` (`number` with `min`
-and `max`, `color`, `choice` with `options`, `boolean`, `string`, and since API 1.4 `texture` – a picture: a Library
-image or video, or a procedural texture; your code gets a three.js `Texture` or `null`, a layer's GLSL a `sampler2D`), a `default`, a `description` (the row's help in the
+and `max`, `color`, `choice` with `options`, `boolean`, `string`, since API 1.4 `texture` – a picture: a Library
+image or video, or a procedural texture; your code gets a three.js `Texture` or `null`, a layer's GLSL a `sampler2D` – and
+since API 1.7 `model` – a model file of the Library; your code gets its address and loads it with `api.loadModel`), a `default`, a `description` (the row's help in the
 editor's Info view) and, if you like, a `label` (API 1.3, 1–24 characters): the few words the row shows –
 `degreesPerSecond` with `label: "speed"` reads *speed*; without a label the row shows the name split into words
 (*degrees per second*). Add `nodeTypes` when the spec only makes sense on some nodes. The Inspector builds its rows
@@ -418,6 +421,63 @@ it). That is why a plugin loads a shader by its URL, not its name: the URL is th
 Library – can fetch, and the editor keeps it right. Your plugin's own `.ts` / `.js` files go the same way into the
 Library – they become plugin sources, the ones the Code tab lists ([editor](editor.md) "Library").
 
+## A file from the Library: a model parameter (API 1.7)
+
+A plugin reaches the book's files in three ways, and none of them is a path written into its code:
+
+| the file | how the author names it | what your code gets |
+|---|---|---|
+| the node's own file | the node's `src` (a node type's spec says which kind: `glb`, `video`, `image`) | `asset` in a node type's `build` – a model's scene and clips, a video's element and texture |
+| a picture or a video | a parameter of the kind `texture` – the row lists the Library's pictures and the procedural textures | a three.js `Texture` in `params` |
+| a model | a parameter of the kind **`model`** – the row lists the Library's models | the file's address in `params`; **`api.loadModel(address)`** loads it |
+
+(A shader is loaded by its URL, `api.loadText` – above.) So a plugin that needs a shape – a sheet of paper to show a video
+on, a frame around a picture, a path to walk along – asks for it as a parameter, and the author uploads a `.glb` to the
+**Library** and picks it in the row. A new shape is an upload, never a change of the code.
+
+```ts
+api.registerComponent("paper", {
+  description: "Shows the picture on a bent sheet of paper – a model file from the Library.",
+  nodeTypes: ["video", "image"],
+  params: {
+    sheet: { kind: "model", default: "", description: "The sheet: a model of one bent plane with UVs across it. None keeps the picture flat." },
+  },
+}, ({ object, params, three }) => {
+  const mesh = object as InstanceType<typeof three.Mesh>;
+  const plane = mesh.geometry;
+  let disposed = false;
+  api.loadModel(String(params.sheet)).then(model => {
+    if (disposed) return;                       // the node went while the file loaded
+    mesh.geometry = sheetGeometry(three, model.scene) ?? plane;
+  }).catch(error => api.log("the sheet did not load", error));
+  return { dispose: () => { disposed = true; } };
+});
+```
+
+- **The value** is a string: `""` for none (the spec's `default` – usually that), a Library model's URL, or a content
+  path. In the content's YAML a file next to the node is enough – `sheet: sheet.glb` – and the content build makes it
+  the file's content path (and refuses a file that is no `.glb` / `.gltf`).
+- **`api.loadModel(address)`** returns a promise of `{ scene, animations }`, as three's glTF loader gives them. It asks
+  for each file once, however many nodes use it, and rejects when the file is missing or is no model. The model is
+  **shared** by everyone who loads the same file: clone what you change (`model.scene.clone()`, a geometry's `clone()`),
+  never dispose it.
+- **It arrives later.** A build returns before the file is there: start with what the node has, apply the model when the
+  promise resolves, and not at all once the node is disposed or the value has changed (`tune`).
+- **In the editor** the row is a list: *none*, then the Library's models and the content's own. Upload a `.glb` to the
+  Library and it is in the list; a pick shows on the stage at once.
+- **An older reader** (before content schema 2.27) skips the parameter with its update hint and runs the rest of the
+  component.
+
+**The paper** (`fixtures/demo/plugins/paper`, the demo's *The screen* – #263) is exactly that: a video or an image on a
+slightly bent sheet. The component takes the first mesh with UVs from the model, reads the sheet's own axes from its UVs
+(where `u` grows is the picture's right, where `v` grows its bottom – so the file may lie, stand or be turned as the
+artist left it), scales it to the plane the node shows its picture on (1 wide and 1 high around the centre; the bend in
+the same measure as the width, its lowest point on the plane) and puts it in the plane's place. The node stays a video:
+it plays, pauses, keys its green and takes layers as before, and the engine still gives it the video's proportions – a
+sheet made for another proportion stretches with the picture. For a sheet from Blender: one plane, subdivided where it
+bends, UVs 0–1 across it, exported as `.glb` with *Apply Modifiers* on. The demo's own sheet is written by
+`editor/tools/paper-sheet.mjs`.
+
 ## A feedback buffer: the GPU remembers (API 1.6)
 
 Some pictures need their own last frame: a fluid, a reaction-diffusion, ink that keeps flowing. A plugin never gets the
@@ -709,10 +769,11 @@ characters), keep it small
 
 ## The demo book: everything at once
 
-`fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and eleven plugins that
+`fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and twelve plugins that
 together use every part of the API – a narrative across its spreads (the key and the door with their `behaviour` rules,
 the door's opening and the lamp as plugin code, a tally of the pages found, a tap that switches a scene, a sparkle of its
-own node type), the aquarium with its material, texture and WebGPU fluid, the ink painting on two feedback buffers, and a
+own node type), the aquarium with its material, texture and WebGPU fluid, the ink painting on two feedback buffers, a
+video on a bent sheet of paper picked as a model file (`plugins/paper`), and a
 film grain pass over *The twins* (`plugins/grain`) and a scan-line pass on *The switch*, switched off to be found
 (`plugins/scanlines`). Build it with
 `OSCT_CONTENT_DIR=fixtures/demo`, import it into the editor ([editor](editor.md) "Try it"); the plugins are the examples to copy from. What it shows per spread, and what the
