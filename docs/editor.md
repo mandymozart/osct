@@ -658,8 +658,11 @@ the page.
   say it): its own scripts and the editor's static files under `/editor/`, the Library's files under
   `/api/content/`, the book's content under `<content base>/assets/content/`, the trigger protocol at the site's root,
   `blob:` (the Code tab's module) and `data:` – every source with its path, never `'self'`, so no request reaches the
-  rest of the API. Nothing may be framed, posted or opened; no worker. A draft whose files move to another base gets a
-  new frame (a policy cannot widen).
+  rest of the API. On a CDN instance the uploads lie in no content base: the frame admits **the book's own Library
+  folder** (`…/assets/<book>/`, the book's `libraryBase` – a file uploaded and picked for a node shows at once, before
+  any saved row names it, #258) and the folders of other books' uploads the draft names, for files and requests, never
+  for scripts; other content builds the draft still names only for images and media. Nothing may be framed, posted or
+  opened; no worker. A draft whose files move to another base gets a new frame (a policy cannot widen).
 - **Serving it**: the opaque frame loads the editor's module scripts and static files with `Origin: null`, so they are
   served with `Access-Control-Allow-Origin: *` – `client/public/.htaccess` for `/editor/` and `/assets/content/`, the
   editor's and the reader's dev servers allow `null` (`server.cors`). The Library's media already allow any origin
@@ -855,7 +858,9 @@ dimensions, a video's duration, the number of uses) or a plain **list** (name, p
 opens its actions) – the **view** is remembered per browser; filter by kind (**target image** – a target's image in the
 draft, or the import's `target.*` – apart from the other images, video, model, audio) and by origin (**from**: all ·
 uploaded · imported – the editor's uploads apart from the files of the content import, #245), search by name and place
-(`p015 target`), **Upload** (the button, or files dropped on the panel); per file **Use** (the selected node takes it,
+(`p015 target`), **Upload** (the button, or files dropped on the panel – the file just uploaded is marked *just uploaded*
+and shown whatever the filters said; bytes the Library holds already stay one file, which takes the upload's name and
+says so, #258); per file **Use** (the selected node takes it,
 when its type fits), **Target image** (an image becomes the selected target's printed image), **Replace…** (a new
 version, every use relinked, the stage rebuilt) and **Delete** (refused while used – *Delete anyway* forces it). Nodes
 name a file by its absolute URL, so draft and every publish point at the same file.

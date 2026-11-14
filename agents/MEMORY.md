@@ -29,6 +29,18 @@ outcome in the line (or move it into a dated decision block).
 - Checking it: the built-in browser pane blocks the sandboxed stage frame (`ERR_BLOCKED_BY_CLIENT`), so the panels can
   be tried there but the stage only in headless Edge (ORCHESTRATION "Running the editor"). The local demo's media need
   the reader's dev server on 5174.
+## 2026-11-14 – the stage frame admits the book's Library folder; same bytes take the upload's name (#258)
+
+- The frame's policy named only the Library folders the *saved* draft names (#254), so a fresh upload picked for a node
+  (a live override) was blocked until Save. The API now names the book's upload folder (`libraryBase` in the book's
+  summary, `Assets::folderUrl`), the snapshot carries it and `libraryFoldersOf` puts it into the policy; the folders the
+  draft names stay for other books' uploads. An override that names another book's upload, or an older content build, is
+  still blocked until saved – not seen in practice.
+- An upload of bytes the Library holds answers with that asset (200). It now takes the upload's name: staging held
+  `face_against_face.glb` with the bytes of `face_against_face_1.glb`, which read as "my upload was not taken".
+- [ ] Tilman asked for the upload "to replace and to select the just uploaded file": a file field's *Upload…* and the
+  picker already hand the upload to the node; the Library **tab**'s Upload only marks it. Whether the tab's Upload should
+  also give the file to the selected node is his call.
 
 ## 2026-11-09 – Mark the Page as 3D: baked per frame; Library uploads on a CDN (#253, #254)
 
