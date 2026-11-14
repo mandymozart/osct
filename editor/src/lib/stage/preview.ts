@@ -15,6 +15,15 @@
 import { isOriginId, originLabel, type OriginFrame, type OriginId } from "./origin";
 import { clampSnap, SNAP_TARGETS, type SnapTarget } from "./snap";
 import { readStoredJson, writeStoredJson } from "#lib/storage.js";
+import { isTextureSize, TEXTURE_SIZES } from "@shared/types/textures";
+import type { TextureQuality } from "@engine/types/graphics";
+
+/**
+ * The texture quality the stage shows models with a texture set at (#260): `auto` as a reader's device would choose
+ * (this computer: its memory and connection), or one size – to see what readers on each quality see.
+ */
+export const TEXTURE_QUALITIES: readonly TextureQuality[] = ["auto", ...TEXTURE_SIZES];
+export const isTextureQuality = (value: unknown): value is TextureQuality => value === "auto" || isTextureSize(value);
 
 export const PREVIEW_VIEWS = ["reader", "top", "low", "far"] as const;
 export type PreviewView = (typeof PREVIEW_VIEWS)[number];
@@ -101,6 +110,8 @@ export interface PreviewSettings {
   hdri: HdriId;
   /** The desk's top under the book (the frame is always the Eiermann) */
   top: TopId;
+  /** The size models with a texture set show their map at (the reader's texture quality, previewed) */
+  textureQuality: TextureQuality;
   /** 0 = still, 1 = a hand holding a phone */
   wobble: number;
   /** A grid over the page (the stage), its spacing in mm, and the origin it and the positions are counted from */
@@ -127,7 +138,7 @@ export interface PreviewState extends PreviewSettings {
 const STORAGE_KEY = "osct-preview";
 
 const DEFAULTS: PreviewSettings = {
-  view: "reader", shading: "rendered", orbit: null, hdri: "wooden_studio_17", top: DEFAULT_TOP, wobble: 0, grid: false, gridMm: 10, origin: "top-left",
+  view: "reader", shading: "rendered", orbit: null, hdri: "wooden_studio_17", top: DEFAULT_TOP, textureQuality: "auto", wobble: 0, grid: false, gridMm: 10, origin: "top-left",
   axis: true, snap: false, snapTo: [...SNAP_TARGETS], snapMove: 1, snapRotate: 15, snapScale: 0.1,
 };
 
@@ -146,6 +157,7 @@ export const parseSettings = (parsed: unknown): PreviewSettings => {
     orbit: isOrbit(stored.orbit) ? stored.orbit : null,
     hdri: isHdriId(stored.hdri) ? stored.hdri : DEFAULTS.hdri,
     top: storedTop(stored),
+    textureQuality: isTextureQuality(stored.textureQuality) ? stored.textureQuality : DEFAULTS.textureQuality,
     wobble: typeof stored.wobble === "number" && Number.isFinite(stored.wobble) ? Math.min(1, Math.max(0, stored.wobble)) : 0,
     grid: stored.grid === true,
     gridMm: typeof stored.gridMm === "number" && Number.isFinite(stored.gridMm) ? clampGrid(stored.gridMm) : DEFAULTS.gridMm,

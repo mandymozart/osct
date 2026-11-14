@@ -152,6 +152,22 @@ interface LightData {
 	angle?: number;
 	penumbra?: number;
 }
+declare const TEXTURE_SIZES: readonly [
+	512,
+	1024,
+	2048,
+	4096
+];
+type TextureSize = (typeof TEXTURE_SIZES)[number];
+interface TextureSizeData {
+	size: TextureSize;
+	src: string;
+}
+interface TextureSetData {
+	material?: string;
+	/** At least one, each size once, smallest first */
+	sizes: TextureSizeData[];
+}
 export interface PassSpec {
 	description: string;
 	params: Record<string, ComponentParamSpec>;
@@ -238,6 +254,8 @@ interface AssetData {
 	id: string;
 	assetType: AssetType;
 	src: string;
+	/** Optional (schema 2.27), a model file only (glb / gltf): its maps in several sizes */
+	textures?: TextureSetData[];
 }
 interface EntityData {
 	/** Optional, unique within the tree: the editor's selection */

@@ -23,7 +23,7 @@ import { APP_VERSION, CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, DEMO_ENV, DEMO_MARK
 import { buildConfig } from './build/game-config';
 import { buildPlugins, writePluginBundles } from './build/plugins';
 import { hashBuildInputs, readPreviousHash } from './lib/hash';
-import { optimizeMedia } from './lib/optimize-media';
+import { optimizeMedia, textureSetFiles } from './lib/optimize-media';
 import { buildWarnings } from './lib/errors';
 
 console.log('🚀 OSCT Content Build Tool 🚀');
@@ -61,7 +61,7 @@ async function generateConfigFile(): Promise<void> {
 
     // Media in the client copy: models, images, large videos reported (content/ stays as authored)
     console.log('\n🗜️  Optimising media...');
-    for (const { file, before, after, note } of await optimizeMedia(CLIENT_PUBLIC_ASSETS_DIR)) {
+    for (const { file, before, after, note } of await optimizeMedia(CLIENT_PUBLIC_ASSETS_DIR, textureSetFiles(config))) {
       const kb = (bytes: number) => `${Math.round(bytes / 1024)} KB`;
       const name = path.relative(CLIENT_PUBLIC_ASSETS_DIR, file).split(path.sep).join('/');
       if (note) console.warn(`   ⚠️  ${name}: ${kb(before)} – ${note}`);

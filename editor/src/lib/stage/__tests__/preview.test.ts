@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyPreviewSync, clampGrid, getPreview, previewSync, setPreviewActive, setTargetHidden, subscribePreview, updatePreview, viewSummary } from "../preview";
+import { applyPreviewSync, clampGrid, getPreview, parseSettings, previewSync, setPreviewActive, setTargetHidden, subscribePreview, updatePreview, viewSummary } from "../preview";
 
 describe("editor preview settings", () => {
   beforeEach(() => {
@@ -27,7 +27,7 @@ describe("editor preview settings", () => {
     setPreviewActive(true);
     const stored = JSON.parse(localStorage.getItem("osct-preview")!);
     expect(stored).toEqual({
-      view: "top", shading: "rendered", orbit: null, hdri: "wooden_studio_07", top: "plywood", wobble: 0.4, grid: false, gridMm: 10, origin: "top-left",
+      view: "top", shading: "rendered", orbit: null, hdri: "wooden_studio_07", top: "plywood", textureQuality: "auto", wobble: 0.4, grid: false, gridMm: 10, origin: "top-left",
       axis: true, snap: false, snapTo: ["grid", "axes", "objects", "outlines"], snapMove: 1, snapRotate: 15, snapScale: 0.1,
     });
     expect(getPreview().hidden).toEqual(["a"]);
@@ -175,5 +175,11 @@ describe("the preview kept in step with the stage frame (#234)", () => {
     expect(applyPreviewSync("not json")).toBe(false);
     expect(seen).toEqual(["solid", "rendered"]);
     unsubscribe();
+  });
+  it("keeps the texture quality the stage previews (#260): auto, or one of the four sizes – anything else is auto", () => {
+    expect(parseSettings({ textureQuality: 2048 }).textureQuality).toBe(2048);
+    expect(parseSettings({ textureQuality: "auto" }).textureQuality).toBe("auto");
+    expect(parseSettings({ textureQuality: 800 }).textureQuality).toBe("auto");
+    expect(parseSettings({}).textureQuality).toBe("auto");
   });
 });
