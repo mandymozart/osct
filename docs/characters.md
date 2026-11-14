@@ -175,6 +175,16 @@ and `<name>_mesh.glb` with the 512 map embedded (*face against face*: mesh GLB 1
 1.46 MB). For a model that is already baked, `texture_versions.py` does the same from its map (fight_2: mesh GLB
 269 KB; maps 72 KB, 206 KB, 595 KB, 1.76 MB, against 14.3 MB for the GLB with its 4K PNG).
 
+**The workflow in two steps** (Tilman, 2026-11-14). Step one is the remesh and the bake at full size. Step two makes
+what OSCT imports: the texture sizes (now the default – `--texture-sizes ""` turns them off; a size above the bake is
+left out), `<name>_mesh.glb` with the smallest map inside, and `<name>_import.json` – the mesh, its texture sets (one
+for every material of a model baked into one map, one per material otherwise, the material named after its object),
+the model's size and the node's placement: turned by 90° onto the flat page, and a scale that makes the model stand
+1.04 target widths large (`--page-size`; *face against face*, 6.93 units, gets 0.15 – the scale both examples sit
+well at). The import script (#256, planned for 2026-11-15) uploads the mesh and the maps into a book's Library and
+places the node with these values; in the editor the same is done by hand in the Inspector's *file* and *textures*
+sections.
+
 **Padding against seams** (2026-11-14). The black lines along UV islands are the empty map around them: texture
 filtering and the reader's mipmaps sample past an island's edge. A downscaled map shrinks the bake margin with it – Kévin's
 16 px on an 8K bake are 1 px in the 512 version. So the batch measures the margin at the smallest map it ships:
