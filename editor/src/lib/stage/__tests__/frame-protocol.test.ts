@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  contentBasesNamed, libraryFoldersNamed, eventMessage, FORWARDED_KEYS, FRAME_SANDBOX, frameCsp, FrameRequests, isForwardedKey, type KeyForward, MESSAGE_TAG, readFrameEvent, readFrameReply,
+  contentBasesNamed, libraryFoldersNamed, libraryFoldersOf, eventMessage, FORWARDED_KEYS, FRAME_SANDBOX, frameCsp, FrameRequests, isForwardedKey, type KeyForward, MESSAGE_TAG, readFrameEvent, readFrameReply,
   readFrameRequest,
 } from "../frame-protocol";
 
@@ -170,6 +170,25 @@ describe("frameCsp: plugin code reaches the content, never the API", () => {
       { media: `https://cdn.example/assets/demo/${id}/notes.jpg` },
     ] });
     expect(libraryFoldersNamed([config])).toEqual(["https://cdn.example/assets/demo/", "https://other.example/x/assets/My_Book/"]);
+  });
+
+  it("admits the book's own Library folder before the draft names a file of it (#258)", () => {
+    const id = "72df7022-276d-4aaf-bb70-52a6631a7ad7";
+    const draft = { baseUrl: "/api/editor/books/osct/draft", assetsBase: "https://cdn.example/staging/abc" };
+    // A draft that names no upload yet: the file just uploaded and picked for a node still loads
+    const fresh = { ...draft, libraryBase: "https://cdn.example/assets/osct", responses: { "/latest.json": "{}", "/missing.json": null } };
+    expect(libraryFoldersOf(fresh)).toEqual(["https://cdn.example/assets/osct/"]);
+    const policy = csp([draft.assetsBase], { libraryFolders: libraryFoldersOf(fresh) });
+    expect(directive(policy, "connect-src")).toContain("https://cdn.example/assets/osct/");
+    expect(directive(policy, "script-src")).not.toContain("https://cdn.example/assets/osct/");
+    // Once saved the draft names the same folder: the policy's sources stay as they were (no new frame)
+    const saved = { ...fresh, libraryBase: "https://cdn.example/assets/osct/", responses: { "/game.config.json": JSON.stringify({ src: `https://cdn.example/assets/osct/${id}/v1.glb` }) } };
+    expect(libraryFoldersOf(saved)).toEqual(libraryFoldersOf(fresh));
+    // Another book's upload a row names comes on top; an instance that names no folder admits only those
+    const other = { ...saved, responses: { "/game.config.json": JSON.stringify({ src: `https://cdn.example/assets/demo/${id}/v2.glb` }) } };
+    expect(libraryFoldersOf(other)).toEqual(["https://cdn.example/assets/demo/", "https://cdn.example/assets/osct/"]);
+    expect(libraryFoldersOf({ ...other, libraryBase: null })).toEqual(["https://cdn.example/assets/demo/"]);
+    expect(libraryFoldersOf({ ...draft, responses: {} })).toEqual([]);
   });
 
   it("admits the dev server's socket only when asked", () => {

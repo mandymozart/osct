@@ -44,6 +44,15 @@ export function matchesSearch(asset: Pick<Asset, "name" | "url">, query: string)
   return words.every(word => text.includes(word));
 }
 
+/**
+ * What the Library says when an upload's bytes were a file of it already (the API answers with that asset, named as
+ * the upload names it): `heldName` is the name it had – undefined for a new file, which needs no line
+ */
+export const heldNotice = (asset: Pick<Asset, "name">, heldName: string | undefined): string | null =>
+  heldName === undefined ? null
+    : heldName === asset.name ? `${asset.name} is in the Library already – the same file, nothing new stored`
+      : `${heldName} is the same file – it is now named ${asset.name}`;
+
 /** A file's size as the library shows it: `850 kB`, `12.3 MB` */
 export const formatSize = (bytes: number): string => (bytes >= 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1e3))} kB`);
 

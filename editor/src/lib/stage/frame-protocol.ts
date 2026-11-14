@@ -38,10 +38,14 @@ export const MESSAGE_TAG = "stage";
 export const REMOVED_ENTITY: EntityData = Object.freeze({ type: "group", assets: [] }) as EntityData;
 export const REMOVED_WIRE = "removed";
 
-/** The draft as the page loaded it: the content base, where its files live and the responses of the base's files (by path, null = not there) */
+/**
+ * The draft as the page loaded it: the content base, where its files live, the folder of the book's uploads (the
+ * Library's files – null where the instance names none) and the responses of the base's files (by path, null = not there)
+ */
 export interface ContentSnapshot {
   baseUrl: string;
   assetsBase: string | null;
+  libraryBase?: string | null;
   responses: Record<string, string | null>;
 }
 
@@ -352,6 +356,16 @@ export const libraryFoldersNamed = (texts: readonly string[]): string[] => {
   return [...folders].sort();
 };
 
+/**
+ * The Library folders the frame admits for a draft: the book's own – a file uploaded and picked for a node reaches the
+ * stage as a live edit, before any saved row names it (#258) – and those the draft's rows name (another book's upload)
+ */
+export const libraryFoldersOf = (content: ContentSnapshot): string[] => {
+  const texts = Object.values(content.responses).filter((text): text is string => typeof text === "string");
+  const own = content.libraryBase ? [`${content.libraryBase.replace(/\/+$/, "")}/`] : [];
+  return [...new Set([...own, ...libraryFoldersNamed(texts)])].sort();
+};
+
 /** An exact file a URL names under the frame's policy (`<origin><path>`), none for an unparseable or non-http(s) URL */
 const fileOf = (url: string, base: string): string | null => {
   try {
@@ -369,8 +383,8 @@ const fileOf = (url: string, base: string): string | null => {
  * a few exact `files` (the trigger protocol at the site's root), plus `blob:` and `data:` (the Code tab's transpiled
  * module, textures and buffers inside a model). `mediaBases` are other content builds the draft's rows still name (a
  * file of an earlier build, #252): their `assets/content/` is admitted for images and media only, never for scripts or
- * requests. `libraryFolders` are the uploads' folders the draft names on a CDN (#254): models and shaders are requests,
- * so they are admitted for those too, never for scripts. **No request reaches the rest of the API** – every source is
+ * requests. `libraryFolders` are the uploads' folders on a CDN – the book's own and those the draft names (#254, #258):
+ * models and shaders are requests, so they are admitted for those too, never for scripts. **No request reaches the rest of the API** – every source is
  * path-restricted, never `'self'` (which would be the whole origin, `/api` included); a source that would still reach
  * into the API other than its public `content/` route is left out. `devSocket` admits the dev server's hot reload.
  * Nothing may be framed, posted or embedded, and no worker started.

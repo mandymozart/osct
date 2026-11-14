@@ -148,7 +148,7 @@ final class Assets
 
     /**
      * POST /editor/books/{id}/assets – the file as the raw body, `X-File-Name: <name.ext>` → 201 { asset }, or 200 with
-     * the asset that already holds these bytes. 400 `invalid-file` (no name, unsupported type, empty, a shader that is no
+     * the asset that already holds these bytes, named as this upload names it. 400 `invalid-file` (no name, unsupported type, empty, a shader that is no
      * text), 413 `body-too-large` (ASSET_MAX_BYTES, a shader TEXT_MAX_BYTES).
      */
     public static function upload(string $bookId): never
@@ -158,7 +158,14 @@ final class Assets
         [$name, $extension, $data] = self::file();
         $sha = hash('sha256', $data);
         $same = Db::one('SELECT * FROM assets WHERE book_id = :book AND sha256 = :sha AND status = :status', ['book' => $bookId, 'sha' => $sha, 'status' => 'active']);
-        if ($same) Http::json(200, ['asset' => self::summary($same, count(self::usagesOf($bookId, $same)))]);
+        if ($same) {
+            // The file keeps its place and its uses; it is listed under the name it was uploaded with last
+            if ($same['name'] !== $name) {
+                $same = ['name' => $name, 'updated_at' => Editor::nowMs()] + $same;
+                Db::run('UPDATE assets SET name = :name, updated_at = :now WHERE id = :id', ['name' => $name, 'now' => $same['updated_at'], 'id' => $same['id']]);
+            }
+            Http::json(200, ['asset' => self::summary($same, count(self::usagesOf($bookId, $same)))]);
+        }
         $id = Db::uuid();
         $path = self::path($bookId, $id, 1, $extension);
         $store = ContentStore::for(self::STORE_ENV);
@@ -340,6 +347,19 @@ final class Assets
         if ($configured !== '') return "$configured/$path";
         if (!$store->isLocal()) return self::cdnRoot() . '/' . self::STORE_ENV . "/$path";
         return Http::apiUrl() . '/content/' . self::STORE_ENV . "/$path";
+    }
+
+    /**
+     * The public folder of a book's uploads (`…/assets/<book>/`, every file of the Library lies below it) – "" where this
+     * instance has no public URL for stored files
+     */
+    public static function folderUrl(string $bookId): string
+    {
+        try {
+            return self::url(ContentStore::for(self::STORE_ENV), "$bookId/");
+        } catch (ApiError) {
+            return '';
+        }
     }
 
     /** The zone's public root: CONTENT_BASE_URL names this instance's environment (`<root>/<env>`), the `assets` folder lies next to it (#254) */

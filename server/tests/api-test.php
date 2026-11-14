@@ -1136,6 +1136,15 @@ try {
     check(str_starts_with($asset['url'], "$api/content/assets/osct/"), 'the local store\'s URL is this API\'s content route');
     [$status, $same] = upload($api, 'POST', '/editor/books/osct/assets', $png, 'again.png', $editor);
     check($status === 200 && $same['asset']['id'] === $asset['id'], 'the same bytes again → the same asset');
+    check($same['asset']['name'] === 'again.png' && $same['asset']['url'] === $asset['url'] && $same['asset']['version'] === 1,
+        '#258: the same bytes under another name → the asset takes the name it was uploaded with last, its file and version stay');
+    [, $data] = call($api, 'GET', '/editor/books/osct/assets?kind=image', null, $editor);
+    check(count(array_filter($data['assets'], static fn(array $a) => !$a['imported'] && in_array($a['name'], ['Dot.png', 'again.png'], true))) === 1, '#258: and the Library lists it once, under that name');
+    [$status, $same] = upload($api, 'POST', '/editor/books/osct/assets', $png, 'Dot.png', $editor);
+    check($status === 200 && $same['asset']['name'] === 'Dot.png', '#258: uploaded under its first name again, it has that one');
+    [, $data] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    check(($data['book']['libraryBase'] ?? null) === "$api/content/assets/osct/" && str_starts_with($asset['url'], $data['book']['libraryBase']),
+        '#258: the book names the folder of its uploads – every Library file lies below it');
     [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', 'not a model', 'thing.exe', $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-file', 'an unsupported type → 400 invalid-file');
     [$status] = upload($api, 'POST', '/editor/books/osct/assets', '', 'empty.png', $editor);
@@ -1766,11 +1775,15 @@ try {
     $cdnAsset = $data['asset'] ?? [];
     check($status === 201 && preg_match('#^https://cdn\.example/assets/osct/[0-9a-f-]{36}/v1\.png$#', (string) ($cdnAsset['url'] ?? '')) === 1
         && is_file("$bunnyDir/osct/assets/" . substr((string) ($cdnAsset['url'] ?? ''), strlen('https://cdn.example/assets/'))), '#254: an upload\'s CDN URL is where the storage zone has the file – next to the environment, not in it');
+    [, $data] = call($cdnAssets, 'GET', '/editor/books/osct', null, $editor);
+    check(($data['book']['libraryBase'] ?? null) === 'https://cdn.example/assets/osct/', '#258: on a CDN the Library folder of a book is the zone\'s – the stage frame admits it before a row names a file');
     call($cdnAssets, 'DELETE', "/editor/books/osct/assets/" . ($cdnAsset['id'] ?? 'none') . "?force=1", null, $editor);
     $noAppUrl = startApi(['ENV' => 'staging', 'APP_URL' => ''] + $settings);
     $filesBefore = $storedFiles();
     [$status, $data] = upload($noAppUrl, 'POST', '/editor/books/osct/assets', $png . 'nowhere', 'nowhere.png', $editor);
     check($status === 500 && $data['error']['code'] === 'not-configured' && $storedFiles() === $filesBefore, '#209: a deployed instance without APP_URL refuses the upload (500 not-configured) and stores nothing');
+    [$status, $data] = call($noAppUrl, 'GET', '/editor/books/osct', null, $editor);
+    check($status === 200 && ($data['book']['libraryBase'] ?? null) === '', '#258: without a public URL for stored files the book names no Library folder – and still opens');
     $wrongKey = startApi(['ENV' => 'production', 'BUNNY_STORAGE_PASSWORD' => 'wrong'] + $bunny + $settings);
     [$status, $data] = call($wrongKey, 'POST', '/editor/books/osct/publish', ['env' => 'production'], $editor);
     check($status === 502 && $data['error']['code'] === 'content-store-failed', 'a refused upload → 502 content-store-failed');
