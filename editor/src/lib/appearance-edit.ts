@@ -41,6 +41,20 @@ export const playedType = (draft: BookAppearance, moment: Moment): string =>
   draft[moment]?.type ?? draft.found?.type ?? DEFAULT_APPEARANCE_TYPE;
 
 /**
+ * The look the moment plays, with its values: its own, else `found`'s (a moment other than `found`), else the default look
+ * at its defaults – what the panel shows rows for, so the values of a look can be read and changed before any look was picked
+ */
+export const playedLook = (draft: BookAppearance, moment: Moment): AppearanceData =>
+  draft[moment] ?? (moment !== "found" ? draft.found : undefined) ?? { type: DEFAULT_APPEARANCE_TYPE };
+
+/**
+ * The moment with a look of its own: the one it has, else a copy of the look it plays (`found`'s or the default) – so the
+ * first change to an inherited moment starts from what played, not from nothing
+ */
+export const ownLook = (draft: BookAppearance, moment: Moment): BookAppearance =>
+  draft[moment] ? draft : { ...draftAppearance(draft), [moment]: { ...playedLook(draft, moment) } };
+
+/**
  * The moment with a look of `type` – or, `null`, without one of its own. The same type keeps its values; another type
  * starts with its defaults (`{ type }`)
  */
@@ -51,11 +65,14 @@ export const setLook = (draft: BookAppearance, moment: Moment, type: string | nu
   return draftAppearance(next);
 };
 
-/** The moment's look with one value changed (a row's); a value equal to the default is dropped from the data */
+/**
+ * The moment's look with one value changed (a row's); a value equal to the default is dropped from the data. A moment
+ * that plays another's look takes a copy of it first (`ownLook`)
+ */
 export const setLookValue = (draft: BookAppearance, moment: Moment, row: ValueRow, value: RowValue): BookAppearance => {
-  const look = draft[moment];
-  if (!look) return draft;
-  return { ...draft, [moment]: setPassValue(look as PassData, row, value) as AppearanceData };
+  const owned = ownLook(draft, moment);
+  const look = owned[moment]!;
+  return draftAppearance({ ...owned, [moment]: setPassValue(look as PassData, row, value) as AppearanceData });
 };
 
 /** The words of the picker's empty choice: the moment plays another's look */

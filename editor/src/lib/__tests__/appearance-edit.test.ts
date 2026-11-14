@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { APPEARANCES, type AppearanceSpec, type BookAppearance } from "@engine/types";
 import {
-  appearanceHeading, appearanceToSave, draftAppearance, inheritLabel, lookSource, momentSummary, playedType, sameAppearance, setLook, setLookValue,
+  appearanceHeading, appearanceToSave, draftAppearance, inheritLabel, lookSource, momentSummary, ownLook, playedLook, playedType, sameAppearance,
+  setLook, setLookValue,
 } from "../appearance-edit";
 import { lookRows, passValue } from "../values";
 
@@ -69,8 +70,53 @@ describe("picking a look and changing its values", () => {
     expect(setLookValue(longer, "found", duration, 600)).toEqual({ found: { type: "fade" } });
     const mask = rowsOf(book, "found").find(row => row.id === "appearance.found.mask")!;
     expect(setLookValue(book, "found", mask, "noise")).toEqual({ found: { type: "fade", mask: "noise" } });
-    // A moment without a look of its own has no values to set
-    expect(setLookValue(book, "reveal", duration, 900)).toBe(book);
+    // A moment without a look of its own takes a copy of the look it plays, with the change (#267)
+    expect(setLookValue(book, "reveal", duration, 900)).toEqual({ found: { type: "fade" }, reveal: { type: "fade", duration: 900 } });
+  });
+});
+
+describe("the parameters of the look that plays (#267)", () => {
+  const rowOf = (book: BookAppearance, moment: "reveal" | "found" | "lost", id: string) => {
+    const row = lookRows(playedLook(book, moment), moment, builtInSpec).find(r => r.id === `appearance.${moment}.${id}`);
+    if (!row) throw new Error(`no row ${id}`);
+    return row;
+  };
+
+  it("a moment plays its own look, else found's, else the default – with its values", () => {
+    expect(playedLook({}, "found")).toEqual({ type: "inflateDissolve" });
+    expect(playedLook({}, "reveal")).toEqual({ type: "inflateDissolve" });
+    const book: BookAppearance = { found: { type: "printLift", duration: 900 }, lost: { type: "fade" } };
+    expect(playedLook(book, "reveal")).toEqual({ type: "printLift", duration: 900 });
+    expect(playedLook(book, "lost")).toEqual({ type: "fade" });
+    // found never inherits
+    expect(playedLook({ reveal: { type: "fade" } }, "found")).toEqual({ type: "inflateDissolve" });
+  });
+
+  it("the rows of a moment without a look of its own are those of the look it plays, at its values", () => {
+    const rows = lookRows(playedLook({}, "found"), "found", builtInSpec);
+    expect(rows.map(r => r.label).slice(0, 2)).toEqual(["appear", "disappear"]);
+    expect(rows.length).toBeGreaterThan(20);
+    expect(passValue(playedLook({}, "found") as never, rowOf({}, "found", "duration"))).toBe(3470);
+    const book: BookAppearance = { found: { type: "printLift", duration: 900 } };
+    expect(passValue(playedLook(book, "reveal") as never, rowOf(book, "reveal", "duration"))).toBe(900);
+  });
+
+  it("the first change to an inherited moment makes it its own: a copy of the look that played, with the change", () => {
+    const book: BookAppearance = { found: { type: "printLift", duration: 900 } };
+    const next = setLookValue(book, "reveal", rowOf(book, "reveal", "outDuration"), 250);
+    expect(next.reveal).toEqual({ type: "printLift", duration: 900, outDuration: 250 });
+    expect(next.found).toEqual({ type: "printLift", duration: 900 }); // found stays as it was
+    expect(book.reveal).toBeUndefined(); // the draft is not changed
+    // found inheriting the default
+    expect(setLookValue({}, "found", rowOf({}, "found", "duration"), 1200)).toEqual({ found: { type: "inflateDissolve", duration: 1200 } });
+    // a moment with a look of its own changes it in place
+    const own: BookAppearance = { lost: { type: "fade", outDuration: 300 } };
+    expect(setLookValue(own, "lost", rowOf(own, "lost", "outDuration"), 500).lost).toEqual({ type: "fade", outDuration: 500 });
+    expect(ownLook(own, "lost")).toBe(own);
+  });
+
+  it("a change back to the default keeps the moment its own – the look stays named", () => {
+    expect(setLookValue({}, "found", rowOf({}, "found", "duration"), 3470)).toEqual({ found: { type: "inflateDissolve" } });
   });
 });
 

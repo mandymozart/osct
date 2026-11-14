@@ -7,6 +7,20 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.70.1 – 2026-11-15
+
+### Added
+- **The built-in reveal as code, an example** (#267, Tilman: *"put the reveal animation into code as a copy of the current
+  reveal as an example"*): the demo book's `plugins/reveal` writes the engine's `inflateDissolve` as a plugin's look –
+  the shape, the noise dissolve with its glowing edge, the sparks – with the built-in look's parameters under the same
+  names. Pick `revealCode` for a moment (the Code tab lists the plugin) and it plays the same animation, ready to change.
+
+### Fixed
+- **The appearance panel shows the parameters** (#267, Tilman: *"The parameters are not in the UI"*): a moment without a
+  look of its own – every moment of a book that names none – showed only its look picker. Its rows are those of the look
+  it plays now (its own, else found's, else the default), at their values; the first change makes the moment its own,
+  a copy of the look that played with the change.
+
 ## 1.70.0 – 2026-11-14
 
 ### Added

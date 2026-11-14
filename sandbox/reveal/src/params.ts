@@ -1,6 +1,6 @@
 import { lookOf } from "@engine/scene/celebration";
 import { type Appearance, APPEARANCE_TYPES, DEFAULT_APPEARANCE_TYPE, isBuiltInAppearanceType, SHAPE_EASINGS } from "@shared/types/appearance";
-import { DEMO_LOOK } from "./demo-plugin";
+import { DEMO_LOOK, REVEAL_CODE_LOOK } from "./demo-plugin";
 import { EASINGS, EASING_LABELS, type Easing } from "./easing";
 
 /**
@@ -123,6 +123,7 @@ export type EngineParams = Appearance & { look: string };
  * in the panel (its code plays, with the panel's two durations)
  */
 export const engineLook = (name: string): EngineParams => {
+  if (name === REVEAL_CODE_LOOK) return { ...lookOf({ type: DEFAULT_APPEARANCE_TYPE })!, look: name };
   if (name === DEMO_LOOK) return { ...lookOf({ type: DEFAULT_APPEARANCE_TYPE })!, look: name, duration: 800, outDuration: 500 };
   const look = isBuiltInAppearanceType(name) ? name : DEFAULT_APPEARANCE_TYPE;
   return { look, ...lookOf({ type: look })! };
@@ -268,7 +269,11 @@ export const ENGINE_SECTIONS: SpecSection[] = [
     title: "Look",
     specs: [{
       key: "look", label: "Look", kind: "select",
-      options: [...APPEARANCE_TYPES.map(name => [name, name] as const), [DEMO_LOOK, `${DEMO_LOOK} (a plugin's)`] as const],
+      options: [
+        ...APPEARANCE_TYPES.map(name => [name, name] as const),
+        [REVEAL_CODE_LOOK, `${REVEAL_CODE_LOOK} (plugin: the built-in as code)`] as const,
+        [DEMO_LOOK, `${DEMO_LOOK} (a plugin's)`] as const,
+      ],
       help: "The type a book names in its appearance: a built-in look (choosing one takes its values), or a plugin's – its code plays and only the two durations apply",
     }],
   },

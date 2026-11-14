@@ -4,13 +4,28 @@
     "noEmit": true,
     "baseUrl": ".",
     "types": [],
-    "typeRoots": ["../../client/node_modules/@types"],
+    "typeRoots": [
+      "../../client/node_modules/@types"
+    ],
     "paths": {
-      "@shared/*": ["../../shared/*"],
-      "@engine/*": ["../../engine/src/*"],
-      "three": ["../../client/node_modules/@types/three"],
-      "three/*": ["../../client/node_modules/@types/three/*"]
+      "@shared/*": [
+        "../../shared/*"
+      ],
+      "@engine/*": [
+        "../../engine/src/*"
+      ],
+      "three": [
+        "../../client/node_modules/@types/three"
+      ],
+      "three/*": [
+        "../../client/node_modules/@types/three/*"
+      ],
+      "osct-plugin-api": [
+        "../../editor/src/lib/plugins/plugin-api.d.ts"
+      ]
     }
   },
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/**/*.ts"
+  ]
 }

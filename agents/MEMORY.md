@@ -43,6 +43,23 @@ outcome in the line (or move it into a dated decision block).
   three built-in looks plus any number of a plugin's are too many for pills.
 - No content schema change: `shared/api/` is outside the lock, and `shared/types/` was not touched.
 
+## 2026-11-15 – the looks' parameters in the panel; the built-in reveal as plugin code; the moments as components? (#267)
+
+- Tilman on staging 1.69.0 (screenshot): "The parameters are not in the UI" – a moment without a look of its own showed
+  only its picker. The panel now shows the rows of the look the moment *plays* (own, else found's, else the default) and the
+  first change makes the moment its own, a copy of the look that played with the change (`playedLook`, `ownLook` in
+  `appearance-edit.ts`). Checked by tests and svelte-check, **not seen in the editor** (it needs a signed-in session).
+- "Put the reveal animation into code as a copy of the current reveal as an example": `fixtures/demo/plugins/reveal` –
+  the built-in `inflateDissolve` as a plugin look `revealCode` (shape, noise mask with edge and glow, sparks; the built-in
+  look's parameter names, so a sandbox JSON goes in as it is). Played next to the built-in in the sandbox: the same frames
+  (the sparks sit on the vertices, the built-in's on the surface – not the same points). Left out on purpose: lights, a
+  material's own layers, tint, fade, bloom. The demo book counts thirteen plugins.
+- **Open, Tilman's idea**: "I wanted those three to be plugin components so I can have more flexibility and edit them via
+  MCP or in the code editor or through the exposed parameters" – `reveal`, `found`, `lost` as **components of a node** (rows in
+  the Inspector, `put_entity`, YAML, the Code tab), not only the book-level field. Proposed: three built-in components on
+  the entity's root node, falling back to `book.appearance`, then the default; a plugin's look chosen in the same picker.
+  Asked whether root node only or any node; no answer yet – nothing built.
+
 ## 2026-11-14 – a look per moment in the book: reveal, found, lost – built in or a plugin's (#264)
 
 - Tilman: "i want a built in and an overwrite via plugin for the reveal, found and lost."

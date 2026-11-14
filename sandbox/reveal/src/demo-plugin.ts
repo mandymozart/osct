@@ -1,10 +1,14 @@
 import { installPlugin } from "@engine/scene/plugins";
+import { register as registerReveal } from "../../../fixtures/demo/plugins/reveal/index";
 
 /**
  * A plugin's look, as a book's plugin would register it (docs/plugins.md "A look"): installed through the engine's
  * plugin API so "As shipped" can play a look that is code – in a built-in look's place.
  */
 export const DEMO_LOOK = "softFade";
+/** The demo book's `reveal` plugin: the built-in look as code, with the built-in look's parameters */
+export const REVEAL_CODE_LOOK = "revealCode";
+installPlugin("reveal", { register: registerReveal });
 
 installPlugin("sandbox", {
   register: api => {

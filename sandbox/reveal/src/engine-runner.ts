@@ -1,6 +1,7 @@
 import type { Object3D } from "three";
 import { celebrate, type Celebration } from "@engine/scene/celebration";
 import { type AppearanceData, DEFAULT_APPEARANCE_TYPE, isBuiltInAppearanceType, type Moment } from "@shared/types/appearance";
+import { REVEAL_CODE_LOOK } from "./demo-plugin";
 import { engineLook, type EngineParams } from "./params";
 import type { Runner } from "./reveal";
 
@@ -24,7 +25,8 @@ export const startEngine = (anchor: Object3D, entity: Object3D, params: EnginePa
   /** A built-in look with the panel's values; a plugin's look with its duration for this phase */
   const look = (phase: "in" | "out"): AppearanceData => {
     const { look: type, ...values } = params;
-    return isBuiltInAppearanceType(type) ? { type, ...values } : { type, duration: msOf(phase) };
+    // revealCode takes the built-in look's parameters; another plugin look only its duration
+    return isBuiltInAppearanceType(type) || type === REVEAL_CODE_LOOK ? { type, ...values } : { type, duration: msOf(phase) };
   };
 
   const end = () => {

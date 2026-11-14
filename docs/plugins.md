@@ -615,7 +615,10 @@ passes:
 ## A look: how an entity appears (API 1.8)
 
 The engine has looks of its own – `inflateDissolve`, `printLift`, `fade`, each a set of values the book can change
-([content](content.md), "How entities appear"). When values are not enough, a plugin brings a look as code:
+([content](content.md), "How entities appear"). When values are not enough, a plugin brings a look as code. The demo
+book's `plugins/reveal` is the built-in `inflateDissolve` itself written as a look – the shape, the noise dissolve with
+its glowing edge, the sparks, with the built-in look's parameters under the same names – a copy to start from: pick
+`revealCode` for a moment and it plays the same animation, now yours to change. A smaller one:
 
 ```ts
 api.registerAppearance("softFade", {
@@ -834,12 +837,12 @@ characters), keep it small
 
 ## The demo book: everything at once
 
-`fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and twelve plugins that
+`fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and thirteen plugins that
 together use every part of the API – a narrative across its spreads (the key and the door with their `behaviour` rules,
 the door's opening and the lamp as plugin code, a tally of the pages found, a tap that switches a scene, a sparkle of its
 own node type), the aquarium with its material, texture and WebGPU fluid, the ink painting on two feedback buffers, a
 video on a bent sheet of paper picked as a model file (`plugins/paper`), and a
 film grain pass over *The twins* (`plugins/grain`) and a scan-line pass on *The switch*, switched off to be found
-(`plugins/scanlines`). Build it with
+(`plugins/scanlines`), and the built-in reveal written as a plugin's look (`plugins/reveal`). Build it with
 `OSCT_CONTENT_DIR=fixtures/demo`, import it into the editor ([editor](editor.md) "Try it"); the plugins are the examples to copy from. What it shows per spread, and what the
 model still lacks: `agents/research/2026-10-30-demo-book.md`.

@@ -7,7 +7,7 @@
   import { content } from "#lib/content.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import {
-    appearanceHeading, appearanceToSave, draftAppearance, inheritLabel, lookSource, momentSummary, playedType, sameAppearance, setLook, setLookValue,
+    appearanceHeading, appearanceToSave, draftAppearance, inheritLabel, lookSource, momentSummary, playedLook, playedType, sameAppearance, setLook, setLookValue,
   } from "#lib/appearance-edit.js";
   import { liveLookChoices, lookPluginOf, lookSpecOf } from "#lib/plugin-appearances.js";
   import { plugins } from "#lib/plugins.svelte.js";
@@ -24,8 +24,9 @@
    * How the book's entities **appear** (#265, `book.appearance`): a look per moment – the first find (`reveal`), every
    * later find (`found`), the lost page (`lost`) –, each a collapsible section with a look picker (the built-in looks and
    * the looks of the book's plugins: recorded, loaded on the stage or run in the Code tab, `plugins.version`) and the
-   * look's rows from its spec. A moment without a look of its own plays `found`'s, then the default; closed, its head
-   * names the look and its values set. Book-level: every spread shares it. A change plays on the stage at once – the
+   * rows of the look it plays from its spec. A moment without a look of its own plays `found`'s, then the default – its
+   * rows show that look's values, and the first change makes the moment its own (a copy of the look that played, with the
+   * change); closed, its head names the look and its values set. Book-level: every spread shares it. A change plays on the stage at once – the
    * stage's next animations take the panel's looks, and each moment's *play* shows it on the shown targets – and reaches
    * the draft by itself a moment later (`PUT …/appearance`, #259). *Undo edits* takes it back to how the draft had it
    * before the first edit in this page. The model is `PassesPanel.svelte`; the logic `appearance-edit.ts`.
@@ -52,9 +53,11 @@
     void plugins.version;
     return MOMENTS.map(moment => {
       const look = edit[moment];
-      const rows = look ? lookRows(look, moment) : [];
+      /** What plays: the look's rows are shown for it, own or not */
+      const played = playedLook(edit, moment);
+      const rows = lookRows(played, moment);
       return {
-        moment, look, rows, source: lookSource(edit, moment), summary: momentSummary(edit, moment, rows),
+        moment, look, played, rows, source: lookSource(edit, moment), summary: momentSummary(edit, moment, rows),
         plugin: look ? lookPluginOf(look.type) : null, description: look ? lookSpecOf(look.type)?.description : undefined,
         known: !look || choices.some(choice => choice.type === look.type),
       };
@@ -108,14 +111,14 @@
   };
   /** A row's value as the draft has it – the default when the draft's look is another one */
   const savedValue = (moment: Moment, row: ValueRow) => {
-    const look = saved[moment];
-    return look && look.type === edit[moment]?.type ? passValue(look as PassData, row) : row.default;
+    const look = playedLook(saved, moment);
+    return look.type === playedLook(edit, moment).type ? passValue(look as PassData, row) : row.default;
   };
 </script>
 
 <Section id="stage.appearance" label={appearanceHeading(edit)} open={false}
   help="How the book's AR entities appear and disappear: a look for the first find (reveal), every later find (found) and the lost page (lost) – a built-in look with its values, or a look of the book's plugins. It is the whole book's: every spread plays it. A change plays on the stage at once – play in a moment's head shows it – and reaches the draft by itself.">
-{#each moments as { moment, look, rows, source, summary, plugin, description, known } (moment)}
+{#each moments as { moment, look, played, rows, source, summary, plugin, description, known } (moment)}
   <Section id="stage.appearance.{moment}" label={moment} {summary} open={false} nested
     help={`${MOMENT_HELP[moment]} ${look ? (description ? (plugin ? `${description} – a look of the plugin ${plugin}.` : description) : "A plugin's look that no plugin of the book registers here – Run its plugin in the Code tab, or pick another.") : source === "found" ? "It has no look of its own: it plays found's." : "It has no look of its own: it plays the default look."}`}>
     {#snippet aside()}
@@ -139,23 +142,23 @@
         </select>
       </span>
     </div>
-    {#if look}
+    {#if rows.length}
       {#each rows as row (row.id)}
         <!-- The parameter's words (#173): its spec's label, else its name split into words -->
-        <div class="row" class:changed={passValue(look as PassData, row) !== savedValue(moment, row)} data-help-name="{moment} · {helpName(row)}" data-help="{row.description} – default {row.default === '' ? 'none' : row.default}">
+        <div class="row" class:changed={passValue(played as PassData, row) !== savedValue(moment, row)} data-help-name="{moment} · {helpName(row)}" data-help="{row.description} – default {row.default === '' ? 'none' : row.default}">
           <span class="label sub">{row.label}</span>
           {#if row.kind === "choice"}
-            <span class="controls"><Segmented options={row.options ?? []} value={String(passValue(look as PassData, row))} labels={passOptionLabels(look as PassData, row)} onchange={v => set(moment, row, v)} /></span>
+            <span class="controls"><Segmented options={row.options ?? []} value={String(passValue(played as PassData, row))} labels={passOptionLabels(played as PassData, row)} onchange={v => set(moment, row, v)} /></span>
           {:else if row.kind === "boolean"}
-            <span class="controls"><Toggle on={passValue(look as PassData, row) === "true"} label={row.label} onchange={value => set(moment, row, value ? "true" : "false")} /></span>
+            <span class="controls"><Toggle on={passValue(played as PassData, row) === "true"} label={row.label} onchange={value => set(moment, row, value ? "true" : "false")} /></span>
           {:else if row.kind === "string"}
-            <input class="field" value={String(passValue(look as PassData, row))} aria-label={row.label} oninput={e => set(moment, row, (e.currentTarget as HTMLInputElement).value)} />
+            <input class="field" value={String(passValue(played as PassData, row))} aria-label={row.label} oninput={e => set(moment, row, (e.currentTarget as HTMLInputElement).value)} />
           {:else if row.kind === "texture"}
-            <TextureField value={String(passValue(look as PassData, row))} label={row.label} onchange={v => set(moment, row, v)} />
+            <TextureField value={String(passValue(played as PassData, row))} label={row.label} onchange={v => set(moment, row, v)} />
           {:else if row.kind === "color"}
-            <ColourField value={String(passValue(look as PassData, row))} label={row.label} onchange={hex => set(moment, row, hex)} />
+            <ColourField value={String(passValue(played as PassData, row))} label={row.label} onchange={hex => set(moment, row, hex)} />
           {:else}
-            <span class="w"><ScrubNumber value={Number(passValue(look as PassData, row))} min={row.min} max={row.max} step={row.step} fallback={Number(row.default)}
+            <span class="w"><ScrubNumber value={Number(passValue(played as PassData, row))} min={row.min} max={row.max} step={row.step} fallback={Number(row.default)}
               unit={row.unit ?? ""} label={row.label} strict={row.strict} oninput={v => set(moment, row, v)} /></span>
           {/if}
         </div>
