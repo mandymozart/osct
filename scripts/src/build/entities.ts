@@ -4,6 +4,7 @@ import { type FilterData, filterProblems } from '../../../shared/types/filters';
 import { componentProblems, componentSpec, paramProblems, textureSource, type ComponentData, type ComponentParamSpec } from '../../../shared/types/components';
 import { materialProblems, materialSpec, textureSpec, type MaterialData } from '../../../shared/types/materials';
 import { lightProblems, type LightData } from '../../../shared/types/lights';
+import { textureSetProblems, type TextureSetData, type TextureSize } from '../../../shared/types/textures';
 import { placementProblems } from '../../../shared/types/placement';
 import { isObject, MAX_NODE_DEPTH } from '../../../shared/guards/game-config';
 import fs from 'fs';
@@ -16,6 +17,37 @@ import { assetType, contentFile, readSection, validate } from '../lib/content';
 type RawNode = Record<string, unknown>;
 
 const isMapping: (value: unknown) => value is RawNode = isObject;
+
+/**
+ * A model's `textures` as authored: one map as a mapping of size to file (`512: face_512.jpg`), or a list of
+ * `{ material, sizes: { 512: … } }` for a model with a map per material. The files are checked like every file of
+ * the node; sizes come out smallest first. The values are checked by `textureSetProblems` on the built asset.
+ */
+function textureSets(raw: unknown, label: string, file: (src: string) => string): TextureSetData[] | undefined {
+  if (raw === undefined) return undefined;
+  const sizes = (map: unknown, where: string): TextureSetData['sizes'] => {
+    if (!isMapping(map)) {
+      buildErrors.push(`${where}: expected sizes and their files (512: map_512.jpg)`);
+      return [];
+    }
+    return Object.entries(map)
+      .map(([size, src]) => ({ size: Number(size) as TextureSize, src: typeof src === 'string' ? file(src) : '' }))
+      .sort((a, b) => a.size - b.size);
+  };
+  if (isMapping(raw)) return [{ sizes: sizes(raw, `${label}: textures`) }];
+  if (!Array.isArray(raw)) {
+    buildErrors.push(`${label}: textures must be sizes and their files, or a list of { material, sizes }`);
+    return undefined;
+  }
+  return raw.map((set: unknown, i): TextureSetData => {
+    const where = `${label}: textures[${i}]`;
+    if (!isMapping(set)) {
+      buildErrors.push(`${where}: expected { material, sizes }`);
+      return { sizes: [] };
+    }
+    return { ...(typeof set.material === 'string' ? { material: set.material } : {}), sizes: sizes(set.sizes, where) };
+  });
+}
 
 export function buildEntities(): Record<string, EntityData> {
   const entities: Record<string, EntityData> = {};
@@ -67,7 +99,8 @@ export function buildNode(
         buildErrors.push(`${label}: assets[${i}] needs a src`);
         return null;
       }
-      return { id: `${idBase}-${asset.id ?? i}`, assetType: assetType(asset.src, label), src: file(asset.src) };
+      const textures = textureSets(asset.textures, `${label}: assets[${i}]`, file);
+      return { id: `${idBase}-${asset.id ?? i}`, assetType: assetType(asset.src, label), src: file(asset.src), ...(textures ? { textures } : {}) };
     }).filter((asset): asset is AssetData => asset !== null);
   } else if (typeof raw.src === 'string') {
     // Entry videos may be missing from a checkout (they reach the CDN by the content sync): a build without
@@ -76,8 +109,14 @@ export function buildNode(
       buildWarnings.push(`${label}: video "${raw.src}" is not on this machine (videos are not in git) – built without its AR video`);
       return null;
     }
-    assets = [{ id: depth === 0 && kind === 'entries' ? `${idBase}-media` : idBase, assetType: assetType(raw.src, label), src: file(raw.src) }];
+    const textures = textureSets(raw.textures, label, file);
+    assets = [{ id: depth === 0 && kind === 'entries' ? `${idBase}-media` : idBase, assetType: assetType(raw.src, label), src: file(raw.src), ...(textures ? { textures } : {}) }];
+  } else if (raw.textures !== undefined) {
+    buildErrors.push(`${label}: textures belong to a model file – the node has no src`);
   }
+  assets.forEach(asset => {
+    if (asset.textures) textureSetProblems(asset.textures, asset.assetType).forEach(problem => buildErrors.push(`${label}: textures${problem.startsWith('[') ? '' : ': '}${problem}`));
+  });
   // The files a type takes: none (group, text, light, a plugin's type without src), else at least one of its kind
   const takes = nodeAssetTypes(type) ?? [];
   if (!assets.length && takes.length) {

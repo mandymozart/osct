@@ -1,6 +1,6 @@
 import { Box3, Group, type Matrix4, type Quaternion, Vector3 } from "three";
 import {
-  type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type PassData, type SceneInspection, SceneState, type Target,
+  type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type TextureQuality, type PassData, type SceneInspection, SceneState, type Target,
 } from "../types/index";
 import { entityAssets, getAssets, getBook, getPasses, getPlugins, getSpread, getSpreads, getTargets } from "../content/game-config";
 import { type EnvironmentData, environmentOf } from "@shared/types/environment";
@@ -8,6 +8,7 @@ import { focusAtTap } from "../utils/camera-request";
 import { Emitter } from "../utils/emitter";
 import { getPreparedWindow, isGrowingWindow, spreadsByDistance, subscribePreparedWindow } from "../utils/prepared-spreads";
 import { AssetStore } from "./assets";
+import { deviceHints, wantedTextureSize } from "./model-textures";
 import { type AnimationKind, celebrate, type Celebration } from "./celebration";
 import { buildEntity, type EntityInstance, placeEntity } from "./entities";
 import { loadPlugins } from "./plugins";
@@ -84,7 +85,10 @@ export class ArScene implements IArScene {
   private lookAround: LookAround | null = null;
   private environmentPreview: EnvironmentPreview | null = null;
   private tracker: IImageTracker | null = null;
-  private assets = new AssetStore();
+  /** Models with a texture set show their map at the size the reader's texture quality asks for on this device (#260) */
+  private assets = new AssetStore(() => wantedTextureSize(this.textureQuality, deviceHints(this.view?.renderer.capabilities.maxTextureSize)));
+  private textureQuality: TextureQuality | undefined;
+  private graphicsCleanup: (() => void) | null = null;
   private content: SpreadContent | null = null;
   private found = new Set<string>();
   /** Tracking runs for `content` (camera on, its targets loaded) */
@@ -110,6 +114,7 @@ export class ArScene implements IArScene {
   constructor(private container: HTMLElement, private options: ArSceneOptions) {
     setProgressReader(options.progress);
     setSpreadSource(getSpread, getSpreads);
+    this.textureQuality = options.graphics?.getSettings().textureQuality;
   }
 
   get status(): ArStatus {
@@ -329,6 +334,12 @@ export class ArScene implements IArScene {
       view.resize();
       this.lookAround = new LookAround(view.renderer, () => this.tracker?.cameraVideo ?? null, this.options.graphics, this.environment());
       this.lookAround.debugTools = this.options.debug ?? false;
+      // The reader changes the texture quality: the loaded models swap their maps
+      this.graphicsCleanup = this.options.graphics?.subscribe(settings => {
+        if (settings.textureQuality === this.textureQuality) return;
+        this.textureQuality = settings.textureQuality;
+        this.assets.refreshTextures();
+      }) ?? null;
       if (this.environmentPreview) this.lookAround.setPreview({ orientation: this.environmentPreview.orientation });
       view.underlay = this.lookAround;
       // A simulated tracker's stage is drawn every frame (the page is always in view)
@@ -532,6 +543,8 @@ export class ArScene implements IArScene {
     document.removeEventListener("click", this.onTap);
     this.windowCleanup?.();
     this.windowCleanup = null;
+    this.graphicsCleanup?.();
+    this.graphicsCleanup = null;
     this.pauseEntities();
     this.loseAll();
     this.removeContent();

@@ -26,6 +26,7 @@ import { NODE_TYPE_PATTERN, nodeParamProblems, nodeTypeSpec } from "../types/nod
 import { PRINT_SURFACES, SPREAD_FORMATS } from "../types/game-config";
 import { filterProblems } from "../types/filters";
 import { lightProblems } from "../types/lights";
+import { textureSetProblems } from "../types/textures";
 import { placementProblems } from "../types/placement";
 import { isObject } from "./primitives";
 
@@ -156,6 +157,9 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
       str(asset, "src", `${path}.assets[${i}]`);
       if (!isAssetType(asset.assetType)) {
         fail(`${path}.assets[${i}].assetType`, `"${asset.assetType}" is not one of ${ASSET_TYPES.join(", ")}`);
+      }
+      if (asset.textures !== undefined) {
+        textureSetProblems(asset.textures, asset.assetType).forEach(problem => fail(`${path}.assets[${i}].textures`, problem));
       }
     });
     if (e.params !== undefined && !isObject(e.params)) fail(`${path}.params`, "expected an object");

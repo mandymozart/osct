@@ -1,6 +1,9 @@
 import type { LoadOptions, LoadResult } from "@/types";
 import { contentUrl, getAssets, getContentSizes, getNeighbourSpreads, getSpread, getSpreads, getTargets, isContentUrl } from "@/utils/game-config";
 import { compressedUrl } from "@/utils/compressed";
+import { deviceHints, wantedTextureSize } from "@engine/scene/model-textures";
+import { textureSizeFor } from "@shared/types/textures";
+import { GraphicsService } from "./GraphicsService";
 
 const DEFAULT_TIMEOUT = 30000;
 /** Whole-book download: timeout per file (large videos on slow connections) and parallel downloads */
@@ -23,12 +26,17 @@ const getTargetImages = (spreadId: string): LoadOptions[] =>
 
 /**
  * Files a spread uses besides its target images: entity assets (AR models, images, audio, videos) and entry
- * images (consultation). Videos come last since they are the largest.
+ * images (consultation). Videos come last since they are the largest. A model with a texture set (#260) brings its
+ * map at the size the reader's texture quality asks for – the one size the AR scene loads, not the whole set.
  */
 const getSpreadContent = (spreadId: string): LoadOptions[] => {
+  const wanted = wantedTextureSize(GraphicsService.getInstance().getSettings().textureQuality, deviceHints());
   const assets: LoadOptions[] = getAssets(spreadId)
     .filter(a => isContentUrl(a.src))
-    .map(a => ({ src: compressedUrl(a.src), type: a.assetType })); // the same URL the AR scene loads
+    .flatMap(a => [
+      { src: compressedUrl(a.src), type: a.assetType }, // the same URL the AR scene loads
+      ...(a.textures ?? []).map(set => textureSizeFor(set, wanted)?.src).filter(isContentUrl).map(src => ({ src, type: "image" as const })),
+    ]);
   const images: LoadOptions[] = (getSpread(spreadId)?.entries ?? [])
     .map(e => e.image)
     .filter(isContentUrl)

@@ -624,6 +624,7 @@ Recommendations – final numbers follow the device tests.
 | **Target images** | JPG, the picture **as printed**, cropped to its edges | Recognition needs detail and contrast: textured, asymmetric images work best; large flat areas, repeating patterns and very dark images work poorly. ~1000 px on the long side is plenty. |
 | **AR video** | MP4 (H.264) | Portrait or the target's aspect ratio, 720p is enough, short loops. It starts muted; keep files small – readers load them over mobile data. |
 | **3D models** | GLB with embedded textures | All animations loop. Keep polygons modest (phones). The content build optimises every `.glb` automatically: textures down to max. 1024 px (opaque ones as JPEG), geometry compressed (meshopt) – your file in `content/` stays untouched. |
+| **A model's texture set** | The model file with its smallest map, the same map as JPEG at 512 / 1024 / 2048 / 4096 px | `textures` on the model node ("A model's map by texture quality" below). The mesh loads once; the reader's texture quality chooses the map. These files stay exactly as you made them – the build does not shrink them. |
 | **Entry images** | JPG / PNG / WebP | ~1200 px wide is enough. |
 
 Allowed file types: `.jpg .jpeg .png .webp` (images), `.mp4 .webm .mov` (video), `.glb .gltf`
@@ -722,6 +723,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 2.24 | 1.60.0 | in develop | nothing new in the content – `shared/` tidied: one `isObject`, one camelCase name pattern, unused `isComponentType` and `PlacementData` removed (#214) | nothing changes |
 | 2.25 | 1.61.0 | in develop | the configuration's `tutorial` is optional: the reader's onboarding is its own (steps in code, texts in its translations, #236); the build and a publish still write the app's English steps for older apps (`shared/compat/tutorial.ts`) until the next MAJOR – and the book's optional `sourceOfTruth` (`print` \| `digital`, #238: whether the editor adds and removes spreads) | nothing changes: it finds the `tutorial` it requires and shows those steps (in English, the book's fields filled in); `sourceOfTruth` is ignored (the guard reads no unknown field of the book) |
 | 2.26 | 1.64.0 | in develop | a target's optional `enabled` – `false` switches it off: the reader leaves the target and its entry out, the content and the editor keep both (#249) | ignored: a 2.25 app shows a switched-off target and its entry (the guard reads no unknown field of a target) |
+| 2.27 | 1.66.0 | in develop | a model file's optional `textures` – its colour map in several sizes (512, 1024, 2048, 4096 px), one set for the whole model or one per material: the file carries the smallest map, the app loads the size the reader's texture quality asks for (#260) | ignored: a 2.26 app shows the model with the map in its file (it reads `src` and no unknown field of an asset) |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

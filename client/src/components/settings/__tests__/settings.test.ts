@@ -209,6 +209,31 @@ describe("settings sections", () => {
     graphics.setSettings({ onionSky: true, surroundings: true });
   });
 
+  it("graphics: the models' texture quality – the choice shown, the list on Change, a choice kept and the scan view told (#260)", () => {
+    const graphics = GraphicsService.getInstance();
+    graphics.setSettings({ onionSky: false, surroundings: false, textureQuality: "auto" });
+    const changes: unknown[] = [];
+    const unsubscribe = graphics.subscribe(settings => changes.push(settings.textureQuality));
+    const section = mount("settings-graphics");
+    const root = section.shadowRoot!;
+    expect(root.querySelector(".options")).toBeNull();
+    expect(root.querySelector(".row")!.textContent).toContain("Automatic");
+
+    root.querySelector<HTMLElement>("[data-action=toggle]")!.click();
+    const choices = Array.from(root.querySelectorAll<HTMLElement>("[data-action=choose]"));
+    expect(choices.map(choice => choice.dataset.quality)).toEqual(["auto", "512", "1024", "2048", "4096"]);
+    expect(choices.find(choice => choice.getAttribute("aria-current") === "true")!.dataset.quality).toBe("auto");
+
+    root.querySelector<HTMLElement>("[data-quality='2048']")!.click();
+    expect(graphics.getSettings().textureQuality).toBe(2048);
+    expect(changes).toEqual([2048]);
+    expect(JSON.parse(localStorage.getItem("osct-graphics")!).textureQuality).toBe(2048);
+    expect(root.querySelector(".options")).toBeNull();
+    expect(root.querySelector(".row")!.textContent).toContain("High");
+    unsubscribe();
+    graphics.setSettings({ textureQuality: "auto" });
+  });
+
   it("history (reset): says it reaches the account when signed in", () => {
     vi.spyOn(UserService.getInstance(), "getSnapshot").mockReturnValue({
       status: "signed-in", pending: null, sync: "synced", busy: false, notice: null,

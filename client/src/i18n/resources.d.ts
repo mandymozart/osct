@@ -165,7 +165,15 @@ export default interface Resources {
     "languageLabel": "Language:",
     "onionSkyLabel": "Onion sky",
     "soundLabel": "Sounds",
-    "surroundingsLabel": "Scene around the book"
+    "surroundingsLabel": "Scene around the book",
+    "textureQualityAuto": "Automatic",
+    "textureQualityBest": "Best",
+    "textureQualityChange": "Change",
+    "textureQualityDescription": "Models can load their surfaces in more or less detail. Automatic chooses by your phone and connection. More detail takes longer to load; choose less if your phone gets slow or warm.",
+    "textureQualityHigh": "High",
+    "textureQualityLabel": "Model detail:",
+    "textureQualityLow": "Low",
+    "textureQualityMedium": "Medium"
   },
   "startup": {
     "contentNewer": "The book content is newer than this app. Please update the app.",

@@ -52,6 +52,146 @@ Not an option (checked 2026-11-14): the free `microdevweb/blender-quad-remesher`
 placeholder that only reports "Remeshing executed!", its panel calls an operator name that does not exist, the helper
 functions only subdivide and smooth, and it has no release and no licence file.
 
+## Trial: Kévin's *face against face* (2026-11-14)
+
+Two ZBrush meshes (444,800 + 386,560 triangles) with one material and three 4K maps, 75 MB. Run through the Blender
+MCP add-on (Blender Lab's, port 9876 – it starts only with Blender's online access on: `blender --online-mode`), with
+QuadriFlow in place of Quad Remesher, the bake on the GPU in about 4 s per map:
+
+| | Triangles | GLB | Look |
+|---|---|---|---|
+| Original | 831,360 | 75 MB | |
+| **Separate** – each mesh 500 quads at Multiresolution level 1, own 2048 maps (colour, normals, roughness) | 5,976 | 3.1 MB | close to the original; the lowest edge a little ragged |
+| **One** – both joined at level 0, one 2048 map set | 1,494 | 1.7 MB | softer outline, a few seams |
+
+What the automation must do that the hand flow does not say:
+
+- **QuadriFlow needs a closed, clean surface.** On the raw ZBrush mesh it gives overlapping, flipped faces. A voxel remesh
+  first (0.05 on a 5.5-unit model), merged vertices, consistent normals and the non-manifold spots removed – then
+  QuadriFlow is clean (Quad Remesher may not need this).
+- **No projection limit on the Shrinkwrap**: a limit leaves the vertices that miss where they were – tears.
+- **The bake's rays must reach the high model**: the further the low surface lies from it, the longer they must be
+  (cage extrusion 0.08 / ray 0.3 for level 1, 0.25 / 0.8 for level 0). Too short shows as black patches.
+- **Export only the active scene and the selected objects** (`use_active_scene`, and deselect hidden objects too):
+  the glTF exporter takes every scene by default.
+- **glTF has no quads**: every export is triangles (the GLB above is 5,976 triangles = 2,988 quads in Blender). The quad
+  meshes stay in the `.blend` saved with the results, for further work by hand.
+
+**Light from the camera, baked** (Tilman, 2026-11-14): a sun along the camera's view and a soft grey world as fill,
+baked into the colour map (Cycles *Diffuse*: direct, indirect, colour), exported **unlit** (the colour map straight into
+the material output – the exporter writes `KHR_materials_unlit`), so the reader shows the bake as it is and the stage's
+light does not add to it. Only the high models may cast light and shadow during that bake: the lows and earlier bakes
+lie on the same surface and shadow it into black patches.
+
+| | Triangles | GLB |
+|---|---|---|
+| Separate, lit from the camera (one 2048 colour map per mesh) | 5,976 | 0.9 MB |
+| One, lit from the camera | 1,494 | 0.5 MB |
+| Separate, lit with gloss (*Combined*: diffuse and glossy) | 5,976 | 0.9 MB |
+
+A glossy black part (the ear) bakes near black with *Diffuse* alone; with gloss it gets its sheen back, but lighter and
+more silver than the original, since a bake has no view direction; and it takes 20 s per map instead of 4.
+
+Scripts and results: `C:\Development\tools\osct\remesh\` (`bl.py` sends a script to the MCP bridge; `s1_import`,
+`s2_remesh`, `s3_bake`, `s4_check`; `out/`).
+
+## The workflow, step by step (what the batch does, in Blender's words)
+
+Per model; steps 2–6 for every object of it, one after another.
+
+1. **Open** the model: a `.blend` with its own world and lights, or a `.glb` imported into the lighting template (the
+   sunset HDRI and two point lights of the hand-made file, moved and scaled to the model's size).
+2. **Duplicate** the high-resolution object; the copy becomes the low one.
+3. **Clean** the copy: *Remesh* modifier, *Voxel*, voxel size = model size / 110, apply; *Merge by Distance*,
+   *Recalculate Outside*, delete non-manifold vertices, *Fill Holes*. (QuadriFlow needs a closed surface; Quad Remesher
+   may not.)
+4. **Quad remesh** the copy: *Remesh › QuadriFlow*, target 750 faces (Quad Remesher 1.2 at 500 in Kévin's flow lands at
+   about the same count).
+5. **Multiresolution**: add it, *Subdivide* 3 times. **Shrinkwrap** after it: target = the high-resolution object, *Project*,
+   *Negative* and *Positive* on, no limit. Then set Multiresolution back to level 0 and apply both – the low object is the
+   remeshed base, pulled onto the high surface.
+6. **UVs**: *Smart UV Project* on the low object (angle 66°, margin 0.005).
+7. **Bake** (Cycles, GPU, 128 samples, *Combined*: direct, indirect, diffuse, glossy, transmission, emission; *Selected
+   to Active*, extrusion = model size × 0.036, max ray distance × 3.2, margin *Adjacent Faces*, 8 px at the smallest map
+   shipped – see "Padding against seams" below): a new 1024 image on
+   the low object; select the **high** object first, then the **low** one (active); only the high objects cast light and
+   shadow; *Bake*.
+8. **Material**: the baked image straight into the *Material Output* (unlit), backface culling off (double-sided).
+9. **Export** glTF binary: the low objects only, the active scene only, images as PNG. With `--one` the lows are also
+   joined, unwrapped and baked again into one map.
+10. **Check**: the original and the exported GLB rendered front and side (Eevee, one sun), side by side.
+
+## The batch: many models in one command
+
+Tilman's hand-made version of *face against face* (2026-11-14) is the reference the batch matches: each object remeshed
+to its base (no Multiresolution level exported), one 1024 map per object, baked *Combined* under the scene's own light (a
+sunset HDRI and two point lights), exported unlit and double-sided – 3,056 triangles, 1.6 MB.
+
+```
+python C:\Development\tools\osct\remesh\batch.py <models or folders> --out <folder> [-- --one --faces 750 ...]
+```
+
+- One Blender process per model (headless, `--factory-startup --disable-autoexec`), one after another; each model gets
+  `<out>/<name>/`: the GLB, `_one.glb` with `--one`, the baked maps, a report (triangles, sizes, seconds per step), the
+  original and the result rendered front and side, and `_sheet.png` with all four. `<out>/summary.json` and a table
+  at the end.
+- **Lighting**: a `.blend` brings its own world and lights; a `.glb` is lit by `lighting.blend`, the template saved
+  from the hand-made file (`make_lighting.py`: world, render-visible lights, camera, the size it was lit for). Its
+  lights move and scale with each model (point lights' energy with the size²). `--camera-light <strength>` adds a sun
+  along the camera's view.
+- **Defaults**: `--faces 750` (QuadriFlow lands on its target; Quad Remesher at Kévin's 500 lands near 720–810, the
+  hand-made density), `--subdivisions 3`, `--level 0`, `--size 1024`, `--samples 128`, voxel clean-up at the model's
+  size / 110, `--padding 8` (bake margin: 8 px at the smallest map shipped – "Padding against seams").
+  `--save-blend` keeps the working file (large: the high meshes and the HDRI).
+- *face against face* through the batch: 686 + 719 quads, 2,810 triangles, 1.62 MB, 46 s – with `--one` also a single
+  mesh with one map, 0.9 MB.
+
+## Kévin's "Baking HD to LD" (2026-11-14) and the `kevin` preset
+
+Kévin's own description: **join** all HD meshes into one (Ctrl+J); **Quad Remesher, target 2000 quads**, lowered until
+the LD has **under 3,000 polygons**; Smart UV Project, island margin 0.01–0.02; a material with only an Image Texture
+(**4096 × 4096**) into the Material Output, the node selected; select HD, then LD (active); bake **Combined**, Selected to
+Active, **extrusion 0.2, max ray distance 0.25** (at his usual scale – scale them with the object), margin 16 px
+Adjacent Faces; save the image as PNG; the colour straight into the output (unlit). Against seam lines: bake at 8K and
+scale down to 4K, or soften the seams by hand (Texture Paint, Soften, bleed 16 px) or in Krita along the UV layout.
+No Multiresolution/Shrinkwrap in this one.
+
+`--preset kevin` sets exactly that (QuadriFlow instead of Quad Remesher; extrusion and ray scaled by model size / 6.93,
+the size of *face against face*), except the margin: the batch's padding replaces the 16 px (128 px on an 8K bake with a
+512 version; `--padding 1` gives Kévin's 16 px back). With *face against face*:
+
+| | Quads | Triangles | GLB | Bake |
+|---|---|---|---|---|
+| Per object (the batch's default) | 686 + 719 | 2,810 | 1.62 MB (two 1024 PNG) | 18 s |
+| `--preset kevin` | 1,780 | 3,560 | 12.9 MB (one 4096 PNG) | 104 s |
+| `--preset kevin --supersample 2 --jpeg` (8K bake, scaled to 4K) | 1,780 | 3,560 | 0.98 MB | 427 s |
+
+Close up, the 8K-to-4K bake is a little smoother than the plain 4K one; neither shows seam lines on this model.
+
+**Texture sizes** (Tilman: the mesh once, the texture by the reader's quality setting – #260): `--texture-sizes
+512,1024,2048,4096` writes the map at each size as JPEG 90, every one scaled down from the full bake, the 8K master PNG,
+and `<name>_mesh.glb` with the 512 map embedded (*face against face*: mesh GLB 121 KB; maps 41 KB, 131 KB, 441 KB,
+1.46 MB). For a model that is already baked, `texture_versions.py` does the same from its map (fight_2: mesh GLB
+269 KB; maps 72 KB, 206 KB, 595 KB, 1.76 MB, against 14.3 MB for the GLB with its 4K PNG).
+
+**Padding against seams** (2026-11-14). The black lines along UV islands are the empty map around them: texture
+filtering and the reader's mipmaps sample past an island's edge. A downscaled map shrinks the bake margin with it – Kévin's
+16 px on an 8K bake are 1 px in the 512 version. So the batch measures the margin at the smallest map it ships:
+`--padding 8` (the default) is 8 px at 512, 128 px on the 8K bake (*Adjacent Faces*; Blender takes margins up to 32,767 px).
+*face against face* from its `.blend`, `--preset kevin --supersample 2 --texture-sizes 512,1024,2048,4096`, once at the
+old 16 px (`--padding 1`) and once at 128 px:
+
+| | Empty map (8K master) | Maps 512 / 1024 / 2048 / 4096 | Mesh GLB |
+|---|---|---|---|
+| 16 px (before) | 44 % | 41 / 129 / 435 / 1,442 KB | 121 KB |
+| 128 px (`--padding 8`) | 27 % | 48 / 156 / 536 / 1,776 KB | 125 KB |
+
+Rendered with each map, every pixel that differs is darker in the 16 px version: the black edges and bands along the
+islands are gone at 512, 1024 and 2048; the maps grow by 17–23 %. Further against seams, not automated: fewer, larger
+UV islands with their seams in hidden places (a hand unwrap instead of Smart UV), and a larger island margin (at 0.015
+two islands lie 8 px apart at 512, so each gets about 4 px of padding between them however large the bake margin).
+`compare_maps.py` renders one mesh with each of its maps (close-up and full, unlit) to check this.
+
 ## Rigs whose topology changes: one mesh per frame
 
 Mark is a sheet of paper with his face cut through it by **booleans**, so the sheet's vertex count changes every frame

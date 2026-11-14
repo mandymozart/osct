@@ -12,6 +12,7 @@ import type { FilterData } from "./filters";
 import type { ComponentData } from "./components";
 import type { EnvironmentData } from "./environment";
 import type { LightData } from "./lights";
+import type { TextureSetData } from "./textures";
 import type { PassData } from "./passes";
 import type { PluginData } from "./plugins";
 import type { MaterialData } from "./materials";
@@ -21,6 +22,7 @@ export * from "./placement";
 export * from "./components";
 export * from "./behaviour";
 export * from "./lights";
+export * from "./textures";
 export * from "./passes";
 export * from "./plugins";
 export * from "./node-types";
@@ -81,11 +83,13 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   write the steps older apps require (`../compat/tutorial.ts`) until the next MAJOR – and the book's optional
  *   `sourceOfTruth` (print | digital: which side the spreads come from, #238; an older app ignores it), and since 2.26 a
  *   target's optional `enabled` (`false` = switched off, #249: the reader leaves the target and its entry out until it is
- *   switched on; a 2.25 app ignores the field and shows both).
+ *   switched on; a 2.25 app ignores the field and shows both), and since 2.27 a model asset's optional `textures`
+ *   (#260: its maps in several sizes – the file carries the smallest, the app swaps in the size the reader's texture
+ *   quality asks for; a 2.26 app ignores the field and shows the model with the map in its file).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.26";
+export const CONTENT_SCHEMA_VERSION = "2.27";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
@@ -157,6 +161,8 @@ export interface AssetData {
   id: string; // unique per scene, referenced by entities (`#id`)
   assetType: AssetType;
   src: string;
+  /** Optional (schema 2.27), a model file only (glb / gltf): its maps in several sizes */
+  textures?: TextureSetData[];
 }
 
 /**
