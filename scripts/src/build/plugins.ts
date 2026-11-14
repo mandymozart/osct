@@ -13,7 +13,7 @@ import {
 } from '../../../shared/types/materials';
 import type { EntityData } from '../../../shared/types/game-config';
 import { isBuiltInPassType } from '../../../shared/types/passes';
-import { isBuiltInAppearanceType } from '../../../shared/types/appearance';
+import { isBuiltInAppearanceType, registerAppearanceSpec } from '../../../shared/types/appearance';
 import { CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, projectRoot } from '../config';
 import { buildErrors, buildWarnings, messageOf } from '../lib/errors';
 import type { PluginApi } from '../../../engine/src/scene/plugins';
@@ -247,6 +247,8 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
         taken.set(key, id);
         types.push(type);
         registered.appearances[type] = plain({ description: spec.description, params: spec.params });
+        // The entities' own looks (`reveal`, `found`, `lost` components) are checked against it
+        registerAppearanceSpec(type, registered.appearances[type]);
       },
       // A node type (API 1.2): its spec joins the registry, so the nodes of that type are checked (params, src)
       registerNodeType: (type: string, spec: NodeTypeSpec, build: unknown) => {

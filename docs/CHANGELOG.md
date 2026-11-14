@@ -7,6 +7,23 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.71.0 – 2026-11-15
+
+### Added
+- **An entity's own looks** (#268, Tilman: *"I wanted those three to be plugin components so I can have more flexibility
+  and edit them via MCP or in the code editor or through the exposed parameters"* – *"build the per entity node
+  overwrite … on any node"*): the built-in components `reveal`, `found` and `lost` on a node say how *that* entity –
+  or that node's subtree, on any node – appears, in place of the book's `appearance` – `{ type: reveal, look: printLift, duration: 900 }`: a built-in look or
+  a plugin's, with its parameters (content schema 2.30, docs/content.md "An entity's own looks"). Per moment the
+  entity's own component wins, then its `found`, then the book's moment, the book's `found`, the default look.
+- **In the Inspector**, *add component* on any node offers them; the component shows a *look* row and the rows of the
+  look it names – a plugin's look with its own rows –, saved like every component. `put_entity`, the YAML and the Code
+  tab write the same values; `describe_content_model` explains them (`components.moments`).
+- The publish refuses a look no compiled plugin provides in an entity's component too (409 `unknown-appearances`).
+
+### Changed
+- The found indicator's "New entry unlocked" label stays as long as the entity's own reveal look takes.
+
 ## 1.70.1 – 2026-11-15
 
 ### Added

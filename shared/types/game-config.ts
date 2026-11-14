@@ -93,11 +93,13 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   warning, as every parameter kind it does not know, and since 2.29 the
  *   book's optional `appearance` (the look an entity appears with on reveal, found and lost – a built-in one with its
  *   values or a plugin's, `./appearance.ts`; an older app ignores the field and plays its own animation) with a plugin's
- *   recorded `registered.appearances` (plugin API 1.8).
+ *   recorded `registered.appearances` (plugin API 1.8), and since 2.30 the built-in components `reveal`, `found` and `lost` on
+ *   an entity's root node (its own look for a moment, in place of the book's – `./appearance.ts`; an older app skips the
+ *   components with a warning and plays the book's look, or its own animation).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.29";
+export const CONTENT_SCHEMA_VERSION = "2.30";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 

@@ -13,6 +13,12 @@
  * A moment without a look takes `found`'s, and without that the default; `lost` plays its look rewound, in the look's
  * `outDuration`. A book without `appearance` plays the default look at every moment.
  *
+ * An entity may carry its own (schema 2.30): the components `reveal`, `found` and `lost` on a node, each
+ * `{ type: reveal, look: printLift, duration: 900 }` – `look` is the look's type (empty = the book's), the other keys its
+ * parameters. They win over the book's: a node's moment plays its own look, else its `found`'s, else (the root) the book's
+ * (`entityMomentAppearance`). Any node may carry them: a node with a look of its own animates its subtree with it, apart
+ * from the rest of the entity.
+ *
  * The built-in looks share one set of parameters (the engine's animation, `engine/src/scene/celebration.ts`) and differ
  * in their defaults. The reveal sandbox (`sandbox/reveal`) names and measures the values the same way: a look tuned
  * there is the parameters as they are. Starts and ends are shares of the duration (0–1); the widths of the edge and
@@ -22,13 +28,14 @@
  * PARAMS and the part to the engine. Document it in docs/content.md.
  */
 
-import type { ComponentParamSpec } from "./components";
+import type { ComponentData, ComponentParamSpec } from "./components";
 import { paramProblems } from "./components";
 import { isObject } from "../guards/primitives";
 
 /** The moments an entity appears or disappears at */
 export const MOMENTS = ["reveal", "found", "lost"] as const;
 export type Moment = (typeof MOMENTS)[number];
+export const isMoment = (value: unknown): value is Moment => typeof value === "string" && (MOMENTS as readonly string[]).includes(value);
 
 export interface AppearanceSpec {
   description: string;
@@ -163,9 +170,20 @@ export interface AppearanceCheckOptions {
   unknown?: "refuse" | "ignore";
 }
 
-/** The spec of a look's type: built in, or from `options.spec` */
+/** The looks plugins registered (type → spec), as the components' registry is: the engine's plugin API and the content build fill it */
+const registered = new Map<string, AppearanceSpec>();
+
+export const registerAppearanceSpec = (type: string, spec: AppearanceSpec): void => {
+  registered.set(type, spec);
+};
+
+export const unregisterAppearanceSpec = (type: string): void => {
+  registered.delete(type);
+};
+
+/** The spec of a look's type: built in, from `options.spec` (the specs declared plugins recorded) or registered by a plugin */
 export const appearanceSpec = (type: string, options: AppearanceCheckOptions = {}): AppearanceSpec | undefined =>
-  isBuiltInAppearanceType(type) ? APPEARANCES[type] : options.spec?.(type);
+  isBuiltInAppearanceType(type) ? APPEARANCES[type] : options.spec?.(type) ?? registered.get(type);
 
 /** Problems of a book's `appearance` (the content build, the guard, the API) */
 export const appearanceProblems = (raw: unknown, path: string, options: AppearanceCheckOptions = {}): string[] => {
@@ -212,11 +230,63 @@ export const momentAppearance = (book: { appearance?: BookAppearance } | null | 
   book?.appearance?.[moment] ?? book?.appearance?.found ?? { type: DEFAULT_APPEARANCE_TYPE };
 
 /**
- * How long a moment's built-in look takes, in ms (`lost`: its `outDuration`); undefined for a plugin's look, whose
- * duration only its code knows
+ * Problems of the parameters of a moment's component (`reveal`, `found`, `lost` – schema 2.30), `params` being the
+ * component's keys but `type`: `look` names the look ("" = the book's), the rest are its parameters, checked against its spec
+ * like a book's look
  */
-export const momentDuration = (book: { appearance?: BookAppearance } | null | undefined, moment: Moment): number | undefined => {
-  const data = momentAppearance(book, moment);
+export const momentComponentProblems = (params: Record<string, unknown>, at: string, options: AppearanceCheckOptions = {}): string[] => {
+  const { look, ...values } = params;
+  if (look === undefined || look === "") {
+    const names = Object.keys(values);
+    return names.length ? [`${at}.look: name a look – ${names.join(", ")} are its parameters (${APPEARANCE_TYPES.join(", ")}${options.pluginTypes?.length ? `, ${options.pluginTypes.join(", ")}` : ""})`] : [];
+  }
+  if (typeof look !== "string") return [`${at}.look: expected a look (${APPEARANCE_TYPES.join(", ")}) or "" for the book's, got ${JSON.stringify(look)}`];
+  const spec = appearanceSpec(look, options);
+  if (!spec) {
+    if (options.unknownTypes === "allow") return [];
+    const plugins = options.pluginTypes?.length ? ` or a look of the book's plugins (${options.pluginTypes.join(", ")})` : "";
+    return [`${at}.look: "${look}" is not one of ${APPEARANCE_TYPES.join(", ")}${plugins}`];
+  }
+  const known = options.unknown === "ignore" ? Object.fromEntries(Object.entries(values).filter(([name]) => name in spec.params)) : values;
+  return paramProblems(spec.params, known, at, look);
+};
+
+/** The look a moment's component names: `{ type: look, ...parameters }`; none when it names none (the book's look plays) */
+export const momentComponentLook = (entity: { components?: readonly ComponentData[] } | null | undefined, moment: Moment): AppearanceData | undefined => {
+  const component = entity?.components?.find(c => c.type === moment);
+  if (!component || typeof component.look !== "string" || !component.look) return undefined;
+  const { type: _type, look, ...params } = component;
+  return { type: look, ...params };
+};
+
+/**
+ * The look a node names for a moment with its own components: the moment's, else its `found`'s (for `reveal` and `lost`);
+ * none when it names none
+ */
+export const nodeMomentLook = (node: { components?: readonly ComponentData[] } | null | undefined, moment: Moment): AppearanceData | undefined =>
+  momentComponentLook(node, moment) ?? (moment !== "found" ? momentComponentLook(node, "found") : undefined);
+
+/**
+ * The look an entity's root node plays at a moment: its own look (`nodeMomentLook`), else the book's (`momentAppearance`:
+ * the book's moment, its `found`, the default). A child node with a look of its own animates apart, with that one
+ */
+export const entityMomentAppearance = (
+  entity: { components?: readonly ComponentData[] } | null | undefined,
+  book: { appearance?: BookAppearance } | null | undefined,
+  moment: Moment,
+): AppearanceData =>
+  nodeMomentLook(entity, moment) ?? momentAppearance(book, moment);
+
+/**
+ * How long a moment's built-in look takes, in ms (`lost`: its `outDuration`); undefined for a plugin's look, whose
+ * duration only its code knows. With `entity`, the look it plays (`entityMomentAppearance`)
+ */
+export const momentDuration = (
+  book: { appearance?: BookAppearance } | null | undefined,
+  moment: Moment,
+  entity?: { components?: readonly ComponentData[] } | null,
+): number | undefined => {
+  const data = entityMomentAppearance(entity, book, moment);
   if (!isBuiltInAppearanceType(data.type)) return undefined;
   const value = resolveAppearance(APPEARANCES[data.type], data)[moment === "lost" ? "outDuration" : "duration"];
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;

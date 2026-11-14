@@ -11,6 +11,7 @@ import {
   type FilterData,
   FILTERS,
   type FilterType,
+  isMoment,
   keyMode,
   LIGHT_PARAMS,
   type LightData,
@@ -26,7 +27,7 @@ import {
   type Vector3Data,
 } from "@engine/types";
 import { passSpecOf } from "#lib/plugin-passes.js";
-import { lookSpecOf } from "#lib/plugin-appearances.js";
+import { liveLookChoices, lookSpecOf } from "#lib/plugin-appearances.js";
 import type { AppearanceData, AppearanceSpec } from "@engine/types";
 
 /**
@@ -113,10 +114,21 @@ export const filterRows = (filter: FilterData, index: number): ValueRow[] => {
   });
 };
 
-/** The rows of a component (`components.{i}.{name}`), from its spec */
+/**
+ * The rows of a component (`components.{i}.{name}`), from its spec. A moment's component (`reveal`, `found`, `lost` – the
+ * entity's own look, #268) has its `look` row – a choice of the built-in looks and the book's plugins', "" = the book's –
+ * and then the rows of the look it names, from the look's spec, like the book's appearance panel
+ */
 export const componentRows = (component: ComponentData, index: number): ValueRow[] => {
   const spec = componentSpec(component.type);
-  return spec ? specRows(`components.${index}`, spec.params) : [];
+  if (!spec) return [];
+  const rows = specRows(`components.${index}`, spec.params);
+  if (!isMoment(component.type)) return rows;
+  const look = typeof component.look === "string" ? component.look : "";
+  return [
+    ...rows.map(row => (row.id.endsWith(".look") ? { ...row, kind: "choice" as const, options: ["", ...liveLookChoices().map(choice => choice.type)] } : row)),
+    ...(look ? lookRows({ type: look }, component.type).map(row => ({ ...row, id: `components.${index}.${row.id.split(".")[2]}` })) : []),
+  ];
 };
 
 /** The rows of a light node (`light.{name}`), from `LIGHT_PARAMS` */
@@ -278,8 +290,12 @@ export const setValue = (entity: EntityData, row: ValueRow, value: RowValue): En
     return { ...entity, filters };
   }
   if (head === "components") {
-    const components = (entity.components ?? []).map((component, i) =>
-      i === Number(second) ? { ...component, [third]: row.kind === "boolean" ? value === "true" : value } : component);
+    const components = (entity.components ?? []).map((component, i) => {
+      if (i !== Number(second)) return component;
+      // Another look: its parameters are not the old look's – the moment starts with the look alone
+      if (isMoment(component.type) && third === "look") return { type: component.type, look: value };
+      return { ...component, [third]: row.kind === "boolean" ? value === "true" : value };
+    });
     return { ...entity, components };
   }
   if (head === "light") return { ...entity, light: { ...entity.light, [second]: value } };

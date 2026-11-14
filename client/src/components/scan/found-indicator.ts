@@ -233,7 +233,7 @@ export class FoundIndicator extends HTMLElement {
       this.removeAttribute("unlocking");
       this.shadowRoot?.querySelector(".label")?.setAttribute("aria-hidden", "true");
       this.unlockTimer = window.setTimeout(() => this.update(), LABEL_FADE_MS);
-    }, (target.entity ? momentDuration(getBook(), "reveal") ?? ENTITY_UNLOCK_MS : LABEL_MS) - LABEL_FADE_MS);
+    }, (target.entity ? momentDuration(getBook(), "reveal", target.entity) ?? ENTITY_UNLOCK_MS : LABEL_MS) - LABEL_FADE_MS);
   }
 
   /** Open the entry in consultation mode (the route sets the mode; the entry view marks it consulted) */

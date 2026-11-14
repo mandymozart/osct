@@ -178,8 +178,9 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
       filterProblems(e.filters, `${path}.filters`).forEach(problem => problems.push(problem));
     }
     if (e.components !== undefined) {
-      componentProblems(e.components, `${path}.components`, typeof e.type === "string" ? e.type : undefined, { unknownTypes: allowUnknown ? "allow" : "refuse", specs: recorded.components })
-        .forEach(problem => problems.push(problem));
+      componentProblems(e.components, `${path}.components`, typeof e.type === "string" ? e.type : undefined, {
+        unknownTypes: allowUnknown ? "allow" : "refuse", specs: recorded.components, appearance: appearanceOptions,
+      }).forEach(problem => problems.push(problem));
     }
     // A plugin's material (schema 2.17): checked against the registry or the declared plugins' recorded specs, like a component
     if (e.material !== undefined) {

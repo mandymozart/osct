@@ -335,7 +335,7 @@ describe("the content tools", () => {
 
   it("describe_content_model explains an entry's Markdown and variables, the book and that the onboarding is the app's (#223, #236)", async () => {
     const model = (await rec.call("describe_content_model", {})).data;
-    expect(model.contentSchema).toBe("2.29");
+    expect(model.contentSchema).toBe("2.30");
     expect(model.entity.assets.textures).toMatch(/512, 1024, 2048, 4096/);
     expect(model.entryText.description).toMatch(/\*emphasis\*/);
     expect(model.entryText.description).toMatch(/\{hasKey\}/);

@@ -1130,7 +1130,7 @@ final class Books
         // And for a plugin's look: the reader's guard refuses a look no declared plugin recorded
         $unknownLooks = $recorded === null ? [] : array_values(array_diff(self::pluginAppearanceTypes($version['configuration']), $recorded['appearances']));
         if ($unknownLooks) {
-            throw new ApiError(409, 'unknown-appearances', 'The book\'s appearance names looks no compiled plugin provides: ' . implode(', ', $unknownLooks) . '. A plugin of the Code tab reaches readers only when the publish carries it (the editor\'s Publish sends the saved sources, #78).', ['appearances' => $unknownLooks]);
+            throw new ApiError(409, 'unknown-appearances', 'The book\'s appearance or an entity\'s own looks name looks no compiled plugin provides: ' . implode(', ', $unknownLooks) . '. A plugin of the Code tab reaches readers only when the publish carries it (the editor\'s Publish sends the saved sources, #78).', ['appearances' => $unknownLooks]);
         }
         $root = $version['build'];
         $uploaded = $store->exists("$root/game.config.json");
@@ -1261,7 +1261,8 @@ final class Books
     }
 
     /**
-     * The looks of the book's `appearance` that are not built in (APPEARANCE_TYPES) – a plugin's, sorted
+     * The looks of the book's `appearance` and of the entities' own moments (the components reveal, found and lost) that are
+     * not built in (APPEARANCE_TYPES) – a plugin's, sorted
      * @return list<string>
      */
     public static function pluginAppearanceTypes(stdClass $configuration): array
@@ -1272,6 +1273,16 @@ final class Books
             $type = $look instanceof stdClass ? ($look->type ?? null) : null;
             if (is_string($type) && !in_array($type, self::APPEARANCE_TYPES, true)) $types[$type] = true;
         }
+        $ownLooks = self::typesOfNodes($configuration, static function (stdClass $node): array {
+            $looks = [];
+            foreach ((array) ($node->components ?? []) as $component) {
+                if (!$component instanceof stdClass || !in_array($component->type ?? null, self::MOMENTS, true)) continue;
+                $look = $component->look ?? null;
+                if (is_string($look) && $look !== '' && !in_array($look, self::APPEARANCE_TYPES, true)) $looks[] = $look;
+            }
+            return $looks;
+        });
+        foreach ($ownLooks as $look) $types[$look] = true;
         $list = array_map('strval', array_keys($types));
         sort($list);
         return $list;

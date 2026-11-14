@@ -309,6 +309,14 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
       description: "entity.components: [{ type, …params }] – the built-in types, and the components and material layers a plugin registers (used the same way).",
       builtIn: COMPONENTS,
       typePattern: COMPONENT_TYPE_PATTERN.source,
+      moments: {
+        description:
+          "An entity's own look for a moment (content schema 2.30): the built-in components reveal (the first find of a target), found (every later find) and lost (the page is lost) on a node of the entity – any node – { type: reveal, look: printLift, duration: 900 }. " +
+          "look = a look's type – a built-in one (appearance.builtIn) or one a plugin of the book registers (api.registerAppearance, appearance.plugins) – and \"\" or no look = the book's; the other keys are the look's parameters (appearance.builtIn[look].params), only the values that differ from its defaults. " +
+          "Changing the look means writing the component anew with its parameters. They win over the book's appearance: the root node's moment, else its found (for reveal and lost), else the book's moment, the book's found, the default. A node with a look of its own animates its subtree apart from the rest, with that look (a child's moment: its own, else its found, else it is part of its parent's); the root plays the book's look where it names none.",
+        types: MOMENTS,
+        example: [{ type: "reveal", look: "printLift", duration: 900 }, { type: "lost", look: "fade", outDuration: 250 }],
+      },
       behaviour: {
         description:
           "The built-in behaviour (content schema 2.19, any node type): rules without code – { type: behaviour, rules: [{ on, when?, do }] }. " +

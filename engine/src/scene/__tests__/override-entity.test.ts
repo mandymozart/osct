@@ -52,7 +52,8 @@ describe("ArScene.overrideEntity (the editor's live edit)", () => {
 });
 
 describe("ArScene.overrideAppearance (the editor's live edit of the book's looks, #265)", () => {
-  const lookOf = (scene: ArScene, moment: "reveal" | "found" | "lost") => (scene as unknown as { momentLook(m: string): { type: string } }).momentLook(moment);
+  const lookOf = (scene: ArScene, moment: "reveal" | "found" | "lost", on: Target = target) =>
+    (scene as unknown as { momentLook(m: string, t: Target): { type: string } }).momentLook(moment, on);
 
   it("plays the editor's looks instead of the book's until restored; a moment without one takes found's", () => {
     const { scene } = sceneWithAnchor();
@@ -65,5 +66,20 @@ describe("ArScene.overrideAppearance (the editor's live edit of the book's looks
     // Restored: the book's (this test's content has no book – the default)
     scene.overrideAppearance(null);
     expect(lookOf(scene, "lost").type).toBe("inflateDissolve");
+  });
+
+  it("an entity's own looks (its root node's components) win over the book's and the editor's override (#268)", () => {
+    const { scene } = sceneWithAnchor();
+    scene.overrideAppearance({ appearance: { found: { type: "printLift" }, reveal: { type: "fade" } } });
+    const own: Target = { ...target, entity: { ...image, components: [{ type: "reveal", look: "inflateDissolve" }, { type: "lost", look: "fade" }] } };
+    expect(lookOf(scene, "reveal", own).type).toBe("inflateDissolve");
+    expect(lookOf(scene, "lost", own).type).toBe("fade");
+    // no found of its own, no look named for it: the editor's override plays
+    expect(lookOf(scene, "found", own).type).toBe("printLift");
+    expect(lookOf(scene, "reveal").type).toBe("fade");
+    // the editor's own edit of the entity (overrideEntity) is what plays
+    scene.overrideEntity("page", { ...image, components: [{ type: "found", look: "fade", duration: 900 }] });
+    expect(lookOf(scene, "found")).toEqual({ type: "fade", duration: 900 });
+    expect(lookOf(scene, "reveal")).toEqual({ type: "fade", duration: 900 });
   });
 });

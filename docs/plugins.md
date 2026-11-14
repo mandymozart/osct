@@ -614,6 +614,11 @@ passes:
 
 ## A look: how an entity appears (API 1.8)
 
+A look is named by the book (`appearance`) and, since content schema 2.30, by an entity itself: the built-in components
+`reveal`, `found` and `lost` on a node take the look's type – a plugin's too – and its parameters
+([content](content.md), "An entity's own looks"). A plugin's look needs nothing more for that: the picker of the
+component offers it next to the built-in ones, with the rows of its spec.
+
 The engine has looks of its own – `inflateDissolve`, `printLift`, `fade`, each a set of values the book can change
 ([content](content.md), "How entities appear"). When values are not enough, a plugin brings a look as code. The demo
 book's `plugins/reveal` is the built-in `inflateDissolve` itself written as a look – the shape, the noise dissolve with

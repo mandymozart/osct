@@ -32,6 +32,7 @@ import {
   FILTER_TYPES,
   FILTERS,
   LIGHT_PARAMS,
+  isMoment,
   MATERIAL_TYPE_PATTERN,
   materialSpec,
   MOMENTS,
@@ -180,6 +181,23 @@ export const skipUnknownFeatures = (
   };
 
   /**
+   * An entity's own look (`reveal`, `found`, `lost` components – schema 2.30): its parameters are its look's. A look this app
+   * does not know is skipped with its parameters – the component then names none and the book's look plays; a known look
+   * loses the parameters it does not have
+   */
+  const momentComponent = (item: Record<string, unknown>, path: string) => {
+    const look = typeof item.look === "string" ? item.look : "";
+    if (!look) return;
+    const spec = (known.appearances.includes(look) ? (APPEARANCES as unknown as Record<string, Spec>)[look] : undefined) ?? recorded.appearances.get(look);
+    if (spec) {
+      dropUnknownParams(item, spec, path, ["type", "look"]);
+    } else if (!allowUnknown) {
+      Object.keys(item).filter(key => key !== "type").forEach(key => delete item[key]);
+      skip(`${path}.look`, "look", look);
+    }
+  };
+
+  /**
    * A typed list (`components`, `filters`, `passes`): unknown types dropped, known ones without unknown parameters;
    * `fields` are an item's keys that are no parameter
    */
@@ -194,6 +212,7 @@ export const skipUnknownFeatures = (
         return allow;
       }
       if (item.type === BEHAVIOUR_TYPE && kind === "component") behaviour(item, `${path}[${i}]`);
+      else if (kind === "component" && isMoment(item.type)) momentComponent(item, `${path}[${i}]`);
       else dropUnknownParams(item, spec, `${path}[${i}]`, fields);
       return true;
     });

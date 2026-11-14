@@ -542,7 +542,13 @@
     <!-- The label is the spec's words (#173); the Info view names it with the content's name too -->
     <div class="row" class:changed={changed(row)} data-help-name={helpName(row)} title="{row.description} – default {row.default || (name === 'clip' ? '(first clip)' : row.default)}">
       <span class="label">{row.label}</span>
-      {#if row.kind === "choice"}
+      {#if row.kind === "choice" && name === "look"}
+        <!-- A moment's look (#268): the built-in looks and the book's plugins' – empty plays the book's -->
+        <select class="field" aria-label="Look" value={String(getValue(current, row))} onchange={e => set(row, (e.currentTarget as HTMLSelectElement).value)}>
+          <option value="">as the book</option>
+          {#each (row.options ?? []).filter(Boolean) as look (look)}<option value={look}>{look}</option>{/each}
+        </select>
+      {:else if row.kind === "choice"}
         <span class="controls"><Segmented options={row.options ?? []} value={String(getValue(current, row))} onchange={v => set(row, v)} /></span>
       {:else if row.kind === "boolean"}
         <span class="controls"><Toggle on={getValue(current, row) === "true"} label={row.label} onchange={on => set(row, on ? "true" : "false")} /></span>

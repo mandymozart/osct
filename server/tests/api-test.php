@@ -1186,6 +1186,17 @@ try {
     check($status === 400 && $data['error']['code'] === 'invalid-appearance' && str_contains($data['error']['message'], 'a plugin of the book registers (softFade)'), 'a look no declared plugin recorded → 400 naming the plugins\' looks');
     [$status] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
     check($status === 200, 'publish: a recorded plugin look → 200');
+    // An entity's own looks (#268): the components reveal, found and lost are built in; a plugin's look they name must be provided
+    $ownLooks = $configuration['entities']['castle'];
+    $ownLooks['components'] = [['type' => 'reveal', 'look' => 'softFade', 'duration' => 400], ['type' => 'found', 'look' => 'fade'], ['type' => 'lost']];
+    call($api, 'PUT', '/editor/books/osct/entities/castle', $ownLooks, $editor);
+    [$status] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 200, 'publish: an entity\'s own looks – built in components, a recorded plugin look → 200');
+    $ownLooks['components'][0]['look'] = 'nowhere';
+    call($api, 'PUT', '/editor/books/osct/entities/castle', $ownLooks, $editor);
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 409 && $data['error']['code'] === 'unknown-appearances' && $data['error']['appearances'] === ['nowhere'], 'publish: an entity\'s look no compiled plugin provides → 409 unknown-appearances naming it');
+    call($api, 'PUT', '/editor/books/osct/entities/castle', $configuration['entities']['castle'], $editor);
     // A Code tab source may register any look: the save passes, the publish refuses one no compiled plugin provides
     call($api, 'PUT', '/editor/books/osct/plugins/looks', ['source' => "export const register = (api) => api.registerAppearance('popIn', { description: 'x', params: {} }, () => ({ duration: 300, update: () => {} }));\n"], $editor);
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/appearance', ['appearance' => ['reveal' => ['type' => 'popIn']]], $editor);

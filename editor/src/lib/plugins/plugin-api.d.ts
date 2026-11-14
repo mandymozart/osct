@@ -76,6 +76,16 @@ interface FilterData {
 	type: FilterType;
 	[param: string]: string | number;
 }
+declare const MOMENTS: readonly [
+	"reveal",
+	"found",
+	"lost"
+];
+type Moment = (typeof MOMENTS)[number];
+interface AppearanceSpec {
+	description: string;
+	params: Record<string, ComponentParamSpec>;
+}
 /**
  * A parameter of a spec (a component's, a material layer's, a pass's, a light's, a plugin node type's, a material's, a
  * procedural texture's): its kind with default and range, a `description` (the editor's help) and an optional `label`
@@ -142,16 +152,6 @@ export interface ComponentSpec {
 interface ComponentData {
 	type: string;
 	[param: string]: unknown;
-}
-declare const MOMENTS: readonly [
-	"reveal",
-	"found",
-	"lost"
-];
-type Moment = (typeof MOMENTS)[number];
-interface AppearanceSpec {
-	description: string;
-	params: Record<string, ComponentParamSpec>;
 }
 declare const LIGHT_KINDS: readonly [
 	"point",

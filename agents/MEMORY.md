@@ -43,6 +43,30 @@ outcome in the line (or move it into a dated decision block).
   three built-in looks plus any number of a plugin's are too many for pills.
 - No content schema change: `shared/api/` is outside the lock, and `shared/types/` was not touched.
 
+## 2026-11-15 – an entity's own looks: the components reveal, found, lost (#268, schema 2.30)
+
+- Three **built-in components** (`shared/types/components.ts`) named as the moments, on **any node** (first
+  built root-only; Tilman: "Then on any node"): `{ type: reveal, look: printLift, duration: 900 }`. `look` is the look's type
+  (built in or a plugin's, "" = the book's); the other keys are the look's parameters, checked against its spec
+  (`momentComponentProblems` in `appearance.ts`) – a grammar of their own like `behaviour`'s, not a fixed spec.
+- Order per moment (`entityMomentAppearance`): the entity's own component → the entity's `found` (for reveal and lost) → the
+  book's moment → the book's `found` → the default. My reading: more specific wins, so an entity's `found` beats the book's
+  `reveal`. Say if the book's reveal should win for the first find.
+- A plugin's look must be known to the checks of the entities, which run in the build before any plugin loads: a module
+  registry in `appearance.ts` (`registerAppearanceSpec`), filled by the engine's plugin API and the build's recording run, as
+  the component registry is. `appearance.ts` and `components.ts` import each other (call-time use only).
+- Editor: `componentRows` makes a moment's rows dynamic (look row + the look's rows under the component's index); choosing
+  another look rewrites the component to `{ type, look }` – the old look's parameters would be refused by the new one. The
+  Inspector offers the three only at the root (`node.length === 0`). Server: `Editor::COMPONENT_TYPES` lists them as
+  built in; the publish check counts the entities' looks (`unknown-appearances`).
+- [ ] Not seen in the editor itself (needs a signed-in session); covered by tests (`values-moments`,
+  `moment-components`, the scene's `momentLook`, the API test).
+- [ ] No demo entity uses it yet – the demo book's `plugins/reveal` can be picked for any moment.
+- A node with a look of its own animates its subtree apart (`celebrate(…, exclude)`, `together`): the root's animation skips
+  those subtrees; the shape is computed in the page's space and carried into the parent's (`parent⁻¹·shape·parent·placement`).
+  A child's moment without a component is part of its parent's. A child's `found` stands in for its reveal / lost.
+- [ ] Not seen on a stage with a real model: a child node's look is covered by tests of the chain, not by a drawn frame.
+
 ## 2026-11-15 – the looks' parameters in the panel; the built-in reveal as plugin code; the moments as components? (#267)
 
 - Tilman on staging 1.69.0 (screenshot): "The parameters are not in the UI" – a moment without a look of its own showed
@@ -54,11 +78,9 @@ outcome in the line (or move it into a dated decision block).
   look's parameter names, so a sandbox JSON goes in as it is). Played next to the built-in in the sandbox: the same frames
   (the sparks sit on the vertices, the built-in's on the surface – not the same points). Left out on purpose: lights, a
   material's own layers, tint, fade, bloom. The demo book counts thirteen plugins.
-- **Open, Tilman's idea**: "I wanted those three to be plugin components so I can have more flexibility and edit them via
-  MCP or in the code editor or through the exposed parameters" – `reveal`, `found`, `lost` as **components of a node** (rows in
-  the Inspector, `put_entity`, YAML, the Code tab), not only the book-level field. Proposed: three built-in components on
-  the entity's root node, falling back to `book.appearance`, then the default; a plugin's look chosen in the same picker.
-  Asked whether root node only or any node; no answer yet – nothing built.
+- Tilman's idea, built as #268 (below): "I wanted those three to be plugin components so I can have more flexibility and
+  edit them via MCP or in the code editor or through the exposed parameters" – he answered "build the per entity node
+  overwrite. That's fine" to my proposal of the root node – then: "Then on any node".
 
 ## 2026-11-14 – a look per moment in the book: reveal, found, lost – built in or a plugin's (#264)
 

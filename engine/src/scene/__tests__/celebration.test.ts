@@ -134,6 +134,35 @@ describe("appear / disappear animation", () => {
     animation.finish();
   });
 
+  it("a node below the root animates its own subtree apart: the root's animation skips it, its shape stays around its own footprint (#268)", () => {
+    const { anchor, placement } = entity();
+    const child = new Group(); // a child node's placement group, carrying its own look
+    child.position.set(2, 0, 0);
+    child.updateMatrix();
+    const material = new MeshBasicMaterial();
+    const mesh = new Mesh(new BoxGeometry(), material);
+    mesh.position.z = 0.5; // stands on the page
+    child.add(mesh);
+    placement.add(child);
+
+    const apart = new Set<Object3D>([child]);
+    const whole = celebrate(anchor, placement, "found", { type: "fade" }, apart);
+    expect(mesh.material).toBe(material); // the root's look does not touch the child's meshes
+    const own = celebrate(anchor, child, "found", { type: "inflateDissolve" }, apart);
+    expect(mesh.material).not.toBe(material);
+    for (let i = 0; i < 10; i++) own.update(FRAME);
+    child.updateMatrixWorld(true);
+    // The middle of the child's base stays where it is – two units to the right of the root – whatever its shape
+    const base = new Vector3(0, 0, -0.5).applyMatrix4(mesh.matrixWorld);
+    expect(base.x).toBeCloseTo(2);
+    expect(base.z).toBeCloseTo(0);
+    own.finish();
+    whole.finish();
+    expect(mesh.material).toBe(material);
+    expect(child.matrixAutoUpdate).toBe(true);
+    expect(child.matrix.elements[12]).toBeCloseTo(2);
+  });
+
   it("reveal and found play a look forwards, lost plays it rewound in its own time", () => {
     expect(DEFAULT.duration).toBe(ENTITY_UNLOCK_MS); // the found indicator's label stays as long without a book's look
     const { anchor, placement } = entity();

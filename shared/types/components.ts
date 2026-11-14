@@ -16,9 +16,12 @@
  * Adding a built-in component: define it in COMPONENTS, implement it in the engine, document it in docs/content.md.
  * The editor shows its rows without panel code. One built-in component is not made of parameters: `behaviour` (schema
  * 2.19) holds a list of rules, its grammar and checks are its own (`./behaviour.ts`) and the editor has a rule editor for it.
+ * `reveal`, `found` and `lost` (schema 2.30) are the entity's own looks for the three moments (`./appearance.ts`): their
+ * parameters are the chosen look's, so their grammar and checks are its own too.
  */
 
 import type { NodeType } from "./game-config";
+import { type AppearanceCheckOptions, isMoment, momentComponentProblems } from "./appearance";
 import { BEHAVIOUR_TYPE, behaviourProblems } from "./behaviour";
 import { CAMEL_CASE_NAME, isObject } from "../guards/primitives";
 
@@ -113,6 +116,12 @@ export interface ComponentSpec {
   params: Record<string, ComponentParamSpec>;
 }
 
+/** The `look` of a moment's component: the look's type, or "" for the book's – what the other parameters belong to */
+const MOMENT_LOOK = {
+  kind: "string", default: "", label: "look",
+  description: "The look this entity appears with – a built-in one (inflateDissolve, printLift, fade) or a plugin's – in place of the book's. Empty = the book's. The look's own parameters follow.",
+} as const;
+
 export const COMPONENTS = {
   /** A model's glTF animation: which clip plays, when it starts and stops, how it loops – the editor's timeline */
   animation: {
@@ -136,6 +145,23 @@ export const COMPONENTS = {
    * Rules without code (schema 2.19): on an event, when the variables match, do actions – its `rules` are no parameters
    * (no rows), their grammar is `./behaviour.ts`
    */
+  /**
+   * The entity's own look for a moment (schema 2.30, `./appearance.ts`), in place of the book's `appearance` – on the
+   * any node – a node with a look of its own animates its subtree with it. Not made of parameters of its own: after `look` come the look's parameters (a built-in look's or
+   * a plugin's), checked against its spec.
+   */
+  reveal: {
+    description: "How this entity appears the first time its target is found (the entry is unlocked with it): a look – built in or a plugin's – with its parameters, in place of the book's. On any node: its subtree animates with it.",
+    params: { look: MOMENT_LOOK },
+  },
+  found: {
+    description: "How this entity appears every time its target is found after the first (and the first too, while it has no reveal): a look with its parameters, in place of the book's. On any node: its subtree animates with it.",
+    params: { look: MOMENT_LOOK },
+  },
+  lost: {
+    description: "How this entity disappears when its target is lost: a look with its parameters – it plays rewound, in the look's disappear time – in place of the book's. On any node: its subtree animates with it.",
+    params: { look: MOMENT_LOOK },
+  },
   behaviour: {
     description: "Rules without code: on an event (found, lost, tap, unlocked or a named event), when variables match, do actions – play, pause or stop a clip, show or hide a node, set a variable, emit an event.",
     params: {},
@@ -266,6 +292,8 @@ export interface ComponentCheckOptions {
    * type found here is checked like a registered one
    */
   specs?: ReadonlyMap<string, ComponentSpec>;
+  /** How a moment's look is checked (`reveal`, `found`, `lost` – schema 2.30): the plugin looks recorded, what an unknown one is */
+  appearance?: AppearanceCheckOptions;
 }
 
 /** Problems of a node's `components` list (the content build, the guard); `nodeType` checks that each applies */
@@ -292,6 +320,11 @@ export const componentProblems = (raw: unknown, path: string, nodeType?: string,
     // The behaviour's rules are no parameters: their own grammar
     if (type === BEHAVIOUR_TYPE) {
       problems.push(...behaviourProblems(params, at));
+      return;
+    }
+    // A moment's parameters are its look's: checked against the look's spec
+    if (isMoment(type)) {
+      problems.push(...momentComponentProblems(params, at, options.appearance));
       return;
     }
     for (const [name, value] of Object.entries(params)) {

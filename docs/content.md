@@ -622,6 +622,26 @@ section ([editor](editor.md) "Appearance"), an AI connection with `put_book_appe
 the draft's `book.appearance` (`PUT /editor/books/{id}/appearance`). A fade keeps the entity's materials see-through while it runs: a
 model shows through itself a little.
 
+**An entity's own looks** (content schema 2.30, #268): the built-in components `reveal`, `found` and `lost` on the
+node say how *this* entity – or that node's subtree – appears, in place of the book's:
+
+```yaml
+components:
+  - type: reveal
+    look: printLift       # a built-in look or a plugin's; "" or none = the book's
+    duration: 900         # the look's own parameters follow – only what differs from its defaults
+  - type: lost
+    look: fade
+```
+
+A component is written, edited and checked like any other (`put_entity`, the YAML, the Code tab, the Inspector's *add
+component*), but its parameters are the look's: the Inspector shows a *look* row and then the rows of the look it names.
+Another look starts with its own defaults. Per moment the order for the root node is: its own component, else its `found`
+(for `reveal` and `lost`), else the book's moment, the book's `found`, the default look. **Any node** may carry them:
+a node with a look of its own animates its subtree with it, at the same moment but apart – its shape (rising, growing,
+turning) around its own footprint – while the rest of the entity plays the root's look; a child's moment without a look of
+its own is part of its parent's animation.
+
 ## Spreads
 
 `content/spreads/<id>/spread.yaml`
@@ -796,6 +816,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 2.27 | 1.66.0 | in develop | a model file's optional `textures` – its colour map in several sizes (512, 1024, 2048, 4096 px), one set for the whole model or one per material: the file carries the smallest map, the app loads the size the reader's texture quality asks for (#260) | ignored: a 2.26 app shows the model with the map in its file (it reads `src` and no unknown field of an asset) |
 | 2.28 | 1.67.0 | in develop | the parameter kind `model` in a spec (a component's, a node type's, a material's, a pass's): a model file – a Library model's URL or a content path, a `.glb` / `.gltf` next to the node in the YAML – which the plugin's code loads with `api.loadModel` (plugin API 1.7, #263) | skipped: an app since 1.55.0 drops the parameter and its value with the update hint and runs the rest of the component; an older one refuses the recorded spec |
 | 2.29 | 1.68.0 | in develop | the book's optional `appearance`: the look an entity appears with on `reveal` (the first find), `found` (every later find) and `lost` – a built-in look (`inflateDissolve`, `printLift`, `fade`) with its values, or one a plugin of the book registers (`registerAppearance`, plugin API 1.8), recorded in `registered.appearances` (#264) | ignored: an older app reads no `appearance` and plays its own animation at every moment; a plugin that registers a look calls a method an older engine does not have and is not loaded there |
+| 2.30 | 1.71.0 | in develop | the built-in components `reveal`, `found` and `lost` on a node: its own look for a moment – `{ type: reveal, look, …the look's parameters }` – in place of the book's `appearance` (#268) | skipped: a 2.29 app drops the components with the update hint (an unknown component) and plays the book's look |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

@@ -148,7 +148,7 @@ describe("describeContentModel – the contract as an agent reads it", () => {
     expect(model.entity.nodeTypes).toEqual([...ENTITY_TYPES]);
     expect(model.entity.nodeTypes).toEqual(expect.arrayContaining(["group", "model", "video", "image", "text"]));
     expect(Object.keys(model.filters.types)).toEqual(["chromaKey"]);
-    expect(Object.keys(model.components.builtIn)).toEqual(["animation", "behaviour"]);
+    expect(Object.keys(model.components.builtIn)).toEqual(["animation", "reveal", "found", "lost", "behaviour"]);
     // the behaviour's rules are no parameters: their grammar in words, with an example the contract accepts (#88)
     expect(model.components.behaviour.actions).toEqual(["play", "pause", "stop", "show", "hide", "set", "emit"]);
     expect(checkEntity({ type: "group", assets: [], components: [model.components.behaviour.example] }).problems).toEqual([]);

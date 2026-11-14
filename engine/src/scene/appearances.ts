@@ -1,6 +1,6 @@
 import type * as THREE from "three";
 import type { Material, Object3D } from "three";
-import type { AppearanceSpec, Moment } from "../types/index";
+import { type AppearanceSpec, type Moment, registerAppearanceSpec, unregisterAppearanceSpec } from "../types/index";
 
 /**
  * The looks of a plugin's own: how an entity appears and disappears, in code. The content names a look by its type
@@ -70,12 +70,16 @@ export const registerAppearance = (type: string, spec: AppearanceSpec, factory: 
   const existing = registry.get(type);
   if (existing && existing.owner !== owner) throw new Error(`The look "${type}" is registered by ${existing.owner}`);
   registry.set(type, { owner, spec, factory });
+  // The checks of a book's and an entity's looks read the spec from the contract's registry
+  registerAppearanceSpec(type, spec);
 };
 
 /** Every look an owner registered leaves the registry (a plugin is uninstalled) */
 export const unregisterAppearancesOf = (owner: string): void => {
   registry.forEach((registration, type) => {
-    if (registration.owner === owner) registry.delete(type);
+    if (registration.owner !== owner) return;
+    registry.delete(type);
+    unregisterAppearanceSpec(type);
   });
 };
 

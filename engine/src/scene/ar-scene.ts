@@ -1,8 +1,8 @@
-import { Box3, Group, type Matrix4, type Quaternion, Vector3 } from "three";
+import { Box3, Group, type Matrix4, type Object3D, type Quaternion, Vector3 } from "three";
 import {
   type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type TextureQuality, type PassData, type SceneInspection, SceneState, type Target,
 } from "../types/index";
-import { type AppearanceData, type BookAppearance, type Moment, momentAppearance } from "@shared/types/appearance";
+import { type AppearanceData, type BookAppearance, entityMomentAppearance, type Moment, nodeMomentLook } from "@shared/types/appearance";
 import { entityAssets, getAssets, getBook, getPasses, getPlugins, getSpread, getSpreads, getTargets } from "../content/game-config";
 import { type EnvironmentData, environmentOf } from "@shared/types/environment";
 import { focusAtTap } from "../utils/camera-request";
@@ -10,7 +10,7 @@ import { Emitter } from "../utils/emitter";
 import { getPreparedWindow, isGrowingWindow, spreadsByDistance, subscribePreparedWindow } from "../utils/prepared-spreads";
 import { AssetStore } from "./assets";
 import { deviceHints, wantedTextureSize } from "./model-textures";
-import { type AnimationKind, celebrate, type Celebration } from "./celebration";
+import { type AnimationKind, celebrate, type Celebration, together } from "./celebration";
 import { buildEntity, type EntityInstance, placeEntity } from "./entities";
 import { loadPlugins } from "./plugins";
 import { cameraGrades, cameraGradeShader } from "./post/grade";
@@ -216,10 +216,13 @@ export class ArScene implements IArScene {
     this.appearanceOverride = override;
   }
 
-  /** The look a moment plays: the editor's override, else the book's (`momentAppearance`) */
-  private momentLook(kind: Moment): AppearanceData {
+  /**
+   * The look a moment plays on a target's entity: its own (the components `reveal`, `found`, `lost` of its root node, as
+   * overridden by the editor), else the book's – the editor's override, else the content's (`entityMomentAppearance`)
+   */
+  private momentLook(kind: Moment, target: Target): AppearanceData {
     const override = this.appearanceOverride;
-    return momentAppearance(override ? { appearance: override.appearance ?? undefined } : getBook(), kind);
+    return entityMomentAppearance(this.entityOf(target), override ? { appearance: override.appearance ?? undefined } : getBook(), kind);
   }
 
   setPostProcessing(enabled: boolean): void {
@@ -279,8 +282,24 @@ export class ArScene implements IArScene {
     const id = anchor.target.id;
     this.animations.get(id)?.finish();
     this.animations.delete(id);
-    // The look the book names for the moment – a built-in one or a plugin's
-    if (anchor.entity && this.view) this.animations.set(id, celebrate(anchor.group, anchor.entity.object, kind, this.momentLook(kind)));
+    if (!anchor.entity || !this.view) return;
+    // The root plays the entity's look for the moment (its own, else the book's) over the whole tree but the nodes that name
+    // a look of their own: each of those animates its subtree with it – a built-in one or a plugin's
+    const data = this.entityOf(anchor.target);
+    const own: Array<{ object: Object3D; look: AppearanceData }> = [];
+    const find = (node: EntityData | undefined, path: string) => {
+      (node?.children ?? []).forEach((child, i) => {
+        const at = path ? `${path}.${i}` : `${i}`;
+        const look = nodeMomentLook(child, kind);
+        const object = anchor.entity?.nodes?.[at];
+        if (look && object) own.push({ object, look });
+        find(child, at);
+      });
+    };
+    find(data, "");
+    const apart = new Set(own.map(node => node.object));
+    const root = celebrate(anchor.group, anchor.entity.object, kind, this.momentLook(kind, anchor.target), apart);
+    this.animations.set(id, own.length ? together(kind, [root, ...own.map(node => celebrate(anchor.group, node.object, kind, node.look, apart))]) : root);
   }
 
   dispose(): Promise<void> {

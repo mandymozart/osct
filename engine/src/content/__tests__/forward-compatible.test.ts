@@ -219,7 +219,7 @@ describe("forward compatibility: a newer MINOR read by an older app", () => {
   it("a broken shape and a wrong type for a known field are still refused", () => {
     const refused = (node: Record<string, unknown>) => problemsOf(skipUnknownFeatures(book2_21("2.21", node), APP_2_19).config);
     expect(refused({ components: "nope" })).toEqual(["entities.fx.components: expected a list of components"]);
-    expect(refused({ components: [{ type: 3 }] })).toEqual(['entities.fx.components[0].type: "3" is not one of animation, behaviour']);
+    expect(refused({ components: [{ type: 3 }] })).toEqual(['entities.fx.components[0].type: "3" is not one of animation, reveal, found, lost, behaviour']);
     expect(refused({ params: { speed: "fast" } })).toEqual(["entities.fx.params.speed: expected a number from 0 to 4, got \"fast\""]);
     expect(refused({ components: [{ type: "behaviour", rules: [{ on: "tap", do: { play: 3 } }] }] }))
       .toEqual(["entities.fx.components[0].rules[0].do.play: expected a clip's name (empty = the node's own clip), got 3"]);

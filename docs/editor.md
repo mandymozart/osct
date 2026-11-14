@@ -834,6 +834,14 @@ names no look). A collapsible section per moment, each closed on a first visit:
 - An edit is [saved by itself](#autosave) (`PUT /editor/books/{id}/appearance`, the whole appearance; a book whose
   moments all play another's look saves `null`). *Undo edits* takes it back (`editor/src/lib/appearance-edit.ts`, the
   looks offered `plugin-appearances.ts`).
+- **A node's own looks** (#268, content schema 2.30): select a node of the entity in the tree – the root or any child – and *add
+  component* → **reveal**, **found** or **lost**. The component has a **look**
+  row – *as the book*, the built-in looks, the looks of the book's plugins – and, under it, the rows of the look it
+  names, the same as in the book's appearance above; another look starts with its own defaults. On the root it wins over the
+  book's look for the entity (its `found` also stands in for a moment it has no look of its own for, before the book's);
+  on a child node that node's subtree animates with it, apart from the rest.
+  The stage plays it at once; the rows are written like any component's (`components.N.look`, `components.N.duration`),
+  so `put_entity`, the YAML and the Code tab set the same values.
 
 #### Vars and events
 

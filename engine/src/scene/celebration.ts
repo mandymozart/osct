@@ -332,12 +332,23 @@ const boundsIn = (meshes: Mesh[], inverse: Matrix4): Box3 => {
   return box;
 };
 
-/** Every mesh of the entity's node tree */
-const meshesOf = (entity: Object3D): Mesh[] => {
-  const meshes: Mesh[] = [];
-  entity.traverse(object => {
-    if ((object as Mesh).isMesh) meshes.push(object as Mesh);
+/**
+ * Visit `root`'s node tree – except the subtrees whose top is in `exclude` (the nodes with a look of their own: they are
+ * animated apart, with theirs)
+ */
+const walk = (root: Object3D, visit: (object: Object3D) => void, exclude?: ReadonlySet<Object3D>): void => {
+  visit(root);
+  root.children.forEach(child => {
+    if (!exclude?.has(child)) walk(child, visit, exclude);
   });
+};
+
+/** Every mesh of the node tree (but the excluded subtrees) */
+const meshesOf = (entity: Object3D, exclude?: ReadonlySet<Object3D>): Mesh[] => {
+  const meshes: Mesh[] = [];
+  walk(entity, object => {
+    if ((object as Mesh).isMesh) meshes.push(object as Mesh);
+  }, exclude);
   return meshes;
 };
 
@@ -372,7 +383,7 @@ const swapMaterials = (meshes: Mesh[], prepare: (clone: Material, original: Mate
 const SPARK_TAIL = 0.45;
 
 /** A built-in look's animation: shape, mask and surface from its values (the module's head) */
-const playLook = (anchor: Object3D, entity: Object3D, moment: Moment, look: Appearance): Celebration => {
+const playLook = (anchor: Object3D, entity: Object3D, moment: Moment, look: Appearance, exclude?: ReadonlySet<Object3D>): Celebration => {
   const reverse = moment === "lost";
   const ms = Math.max(1, reverse ? look.outDuration : look.duration);
   const masked = look.mask === "noise";
@@ -380,7 +391,7 @@ const playLook = (anchor: Object3D, entity: Object3D, moment: Moment, look: Appe
   entity.updateWorldMatrix(true, true);
   const entityInverse = new Matrix4().copy(entity.matrixWorld).invert();
   const anchorInverse = new Matrix4().copy(anchor.matrixWorld).invert();
-  const drawn = meshesOf(entity);
+  const drawn = meshesOf(entity, exclude);
 
   // Size of the entity in its own space → frequency: the same number of noise waves on every object
   const box = boundsIn(drawn, entityInverse);
@@ -420,9 +431,9 @@ const playLook = (anchor: Object3D, entity: Object3D, moment: Moment, look: Appe
   // Lights (light nodes) fade with the entity: `userData.fade` is their share of the intensity, applied by the
   // light node every frame (entities.ts); 1 again at the end
   const lights: Light[] = [];
-  entity.traverse(object => {
+  walk(entity, object => {
     if ((object as Light).isLight) lights.push(object as Light);
-  });
+  }, exclude);
   const dim = (visible: number) => lights.forEach(light => (light.userData.fade = visible));
 
   // Shape: the entity's object is transformed in the anchor's space around the centre of its footprint (the middle
@@ -436,6 +447,7 @@ const playLook = (anchor: Object3D, entity: Object3D, moment: Moment, look: Appe
   const fromPivot = new Matrix4().makeTranslation(pivot.x, pivot.y, pivot.z);
   const turn = new Matrix4();
   const stretch = new Matrix4();
+  const toParent = new Matrix4();
   const autoUpdate = entity.matrixAutoUpdate;
   if (shaped) entity.matrixAutoUpdate = false;
   /** The shape at its progress `k` (0 = the start: flat, small, turned; 1 = the entity as it is) */
@@ -446,9 +458,18 @@ const playLook = (anchor: Object3D, entity: Object3D, moment: Moment, look: Appe
     stretch.makeScale(scale, scale, scale * height);
     turn.makeRotationZ(look.spin * 2 * Math.PI * (1 - k));
     shape.copy(fromPivot).multiply(turn).multiply(stretch).multiply(toPivot);
-    // The placement as it is now: a tool may move the entity while it appears
+    // The placement as it is now: a tool may move the entity while it appears. The shape lives in the page's space, the matrix
+    // in the parent's: for a node below the root the shape is carried over (parent⁻¹ · shape · parent · placement); the
+    // root's parent is the page itself
     placement.compose(entity.position, entity.quaternion, entity.scale);
-    entity.matrix.multiplyMatrices(shape, placement);
+    if (entity.parent && entity.parent !== anchor) {
+      anchor.updateWorldMatrix(true, false);
+      entity.parent.updateWorldMatrix(true, false);
+      toParent.copy(anchor.matrixWorld).invert().multiply(entity.parent.matrixWorld);
+      entity.matrix.copy(toParent).invert().multiply(shape).multiply(toParent).multiply(placement);
+    } else {
+      entity.matrix.multiplyMatrices(shape, placement);
+    }
     entity.matrixWorldNeedsUpdate = true;
   };
 
@@ -556,8 +577,10 @@ const playLook = (anchor: Object3D, entity: Object3D, moment: Moment, look: Appe
  * set on the entity's placement and the material copies it asked for are put back at the end; a look that throws ends
  * there, with the entity as it is.
  */
-const playPlugin = (registration: AppearanceRegistration, anchor: Object3D, entity: Object3D, moment: Moment, data: AppearanceData): Celebration => {
-  const drawn = meshesOf(entity);
+const playPlugin = (
+  registration: AppearanceRegistration, anchor: Object3D, entity: Object3D, moment: Moment, data: AppearanceData, exclude?: ReadonlySet<Object3D>,
+): Celebration => {
+  const drawn = meshesOf(entity, exclude);
   let swap: ReturnType<typeof swapMaterials> | null = null;
   const placed = { position: entity.position.clone(), quaternion: entity.quaternion.clone(), scale: entity.scale.clone(), visible: entity.visible };
   const run = registration.factory({
@@ -620,21 +643,37 @@ const playPlugin = (registration: AppearanceRegistration, anchor: Object3D, enti
 };
 
 /**
- * Start the animation of a moment on `entity` – the placement group of the entity's node tree, a child of `anchor`.
+ * Start the animation of a moment on `entity` – the placement group of a node of the entity's tree (the root's or a child
+ * node's: its subtree animates, except the subtrees in `exclude` – nodes that animate with a look of their own), below `anchor`.
  * `look` is what the content names for the moment (`momentAppearance`): a built-in look with its values, or a plugin's;
  * a type nobody knows, or a plugin's look that fails to start, plays the default look. `lost` ends with the entity
  * gone – hide it before its materials come back.
  */
-export const celebrate = (anchor: Object3D, entity: Object3D, moment: Moment = "reveal", look: AppearanceData = DEFAULT_LOOK): Celebration => {
+export const celebrate = (
+  anchor: Object3D, entity: Object3D, moment: Moment = "reveal", look: AppearanceData = DEFAULT_LOOK, exclude?: ReadonlySet<Object3D>,
+): Celebration => {
   const registration = appearanceRegistration(look.type);
   if (registration) {
     try {
-      return playPlugin(registration, anchor, entity, moment, look);
+      return playPlugin(registration, anchor, entity, moment, look, exclude);
     } catch (error) {
       console.warn(`[celebration] The look "${look.type}" failed to start – the default look plays:`, error);
     }
   } else if (!isBuiltInAppearanceType(look.type)) {
     console.warn(`[celebration] No look "${look.type}" – the default look plays`);
   }
-  return playLook(anchor, entity, moment, lookOf(look) ?? lookOf(DEFAULT_LOOK)!);
+  return playLook(anchor, entity, moment, lookOf(look) ?? lookOf(DEFAULT_LOOK)!, exclude);
 };
+
+/** Several animations as one: the nodes of an entity that animate each with their own look */
+export const together = (moment: Moment, parts: readonly Celebration[]): Celebration => ({
+  kind: moment,
+  get bloom() {
+    return Math.max(0, ...parts.map(part => part.bloom));
+  },
+  finish: () => parts.forEach(part => part.finish()),
+  update(delta: number): boolean {
+    // Every part advances, whether or not another is still running
+    return parts.map(part => part.update(delta)).some(Boolean);
+  },
+});
