@@ -1,12 +1,14 @@
 <script lang="ts">
-  import { onMount, untrack } from "svelte";
-  import { trackUnsaved } from "#lib/unsaved.js";
+  import { untrack } from "svelte";
+  import { autosave } from "#lib/autosave.svelte.js";
+  import { baselineOf, differsFromBaseline } from "#lib/baselines.js";
+  import { treeContent, treeKey } from "#lib/tree-autosave.js";
   import { getAssets, getEntityRef, getTargetsUsingEntity } from "@engine/content/game-config";
   import {
     BEHAVIOUR_TYPE, ENTITY_TYPES, FILTER_TYPES, isTargetEnabled, materialSpec, materialTypesFor, nodeTypeSpec, pluginNodeTypes, type AssetData, type EntityData, type FilterType,
     type NodeType, type Target,
   } from "@engine/types";
-  import { errorText, isMediaAsset, putEntity, putTarget, putTargetEntity, type PrintPlacement } from "#lib/api.js";
+  import { errorText, isMediaAsset, putTarget, type PrintPlacement } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import { library } from "#lib/library.svelte.js";
   import { nodeAssetKinds, pickAccept, type LibraryPick } from "#lib/library-pick.js";
@@ -18,7 +20,7 @@
   import { DEFAULT_PAGE_MM } from "#lib/stage/stage-layout.js";
   import { getPreview, subscribePreview } from "#lib/stage/preview.js";
   import {
-    addComponent, addFilter, componentTypesFor, contentTree, getValue, hasUniformScale, newNode, nodeAt, removeComponent, removeFilter,
+    addComponent, addFilter, componentTypesFor, getValue, hasUniformScale, newNode, nodeAt, removeComponent, removeFilter,
     helpName, sameValue, setMaterial, setValue, valueRows, withNode, type ValueRow,
   } from "#lib/values.js";
   import { MakeCodeError, materialCode, nodeTypeCode, nodeTypeOwner, takesMaterial, type MadeCode } from "#lib/plugins/make-code.js";
@@ -46,8 +48,9 @@
    * on the stage selects, `node` is the path from the root) – every adjustable value as rows of one control height:
    * placement (three.js names, the three axes in one row as in Blender), a text node's text and colour, a light
    * node's values, each filter's and component's parameters. Changes show live on the stage (`stage.override` with
-   * the whole tree), the draft stays unchanged until **Save** writes the entity to the API (the shared entity when
-   * the target refers to one, else the target's own). **+ node** adds a node (group, model, video, image, text,
+   * the whole tree) and reach the draft by themselves a moment later (#259, `tree-autosave.ts`: the shared entity when
+   * the target refers to one, else the target's own); **Undo edits** takes the target's tree back to how the draft had
+   * it before its first edit in this page. **+ node** adds a node (group, model, video, image, text,
    * light, or a node type the book's plugins registered – #77; files from the Library) next to the selected one or
    * inside it (#163); a plugin type's parameters are rows from its spec, like a component's. **remove node** drops the
    * selected node and its children. Rows come from the content contract's definitions (one `specRow` snippet draws a
@@ -90,37 +93,41 @@
    * when a save moved it to another spread
    */
   const entry = $derived(entries.byId(selection.entry));
-  /** An entry's save changed the draft: read it again, the stage shows its texts (`{{entry.title}}`) */
-  const entrySaved = async () => {
+  /**
+   * An entry's save changed the draft: read it again. The stage is built again only for what it shows of an entry –
+   * its title (`{{entry.title}}`) and the spread its page puts it on; a text typed further restarts nothing there
+   */
+  const entrySaved = async (_saved: unknown, changes: Record<string, unknown>) => {
     await content.load(bookId);
-    await stage?.refresh();
+    if ("title" in changes || "page" in changes) await stage?.refresh();
   };
 
   /** The whole tree being edited (null = the target has no entity yet) */
   let entity = $state<EntityData | null>(null);
   let uniformScale = $state(true);
-  let saving = $state(false);
+  /** What an action of the panel says when it is done (a node made code) */
   let saved = $state<string | null>(null);
   let error = $state<string | null>(null);
   let editingTarget = $state<string | null>(null);
 
-  // A new target (or a reload of the draft): start from the stage's override, else the content
+  // The tree shown: the stage's live tree of the target (the rows, the tree's moves and the gizmo write it) while the
+  // draft does not hold it yet, else the draft's – a save, a reload and another target all arrive here
+  let shownTree: EntityData | null = null;
   $effect(() => {
     const t = target;
-    if (!t) {
-      entity = null;
-      editingTarget = null;
-      return;
-    }
-    if (editingTarget === t.id && entity) return;
-    const other = editingTarget !== t.id;
-    editingTarget = t.id;
-    const override = stage?.overrideOf(t.id);
-    entity = override === Stage.REMOVED ? null : override ?? t.entity ?? null;
-    if (other) {
-      saved = null;
-      error = null;
-    }
+    const live = t ? stage?.overrides.get(t.id) : undefined;
+    const next = !t || live === Stage.REMOVED ? null : live ?? t.entity ?? null;
+    untrack(() => {
+      if (editingTarget !== (t?.id ?? null)) {
+        editingTarget = t?.id ?? null;
+        saved = null;
+        error = null;
+      }
+      if (shownTree !== next || (entity === null) !== (next === null)) {
+        shownTree = next;
+        entity = next;
+      }
+    });
   });
 
   /** The selected node; a path the tree no longer has falls back to the root */
@@ -139,15 +146,6 @@
     void t;
     const n = untrack(() => current);
     if (n) uniformScale = hasUniformScale(n);
-  });
-  // The stage's override is the shared source of the live tree (the gizmo writes it too): follow it
-  $effect(() => {
-    const t = target;
-    const live = t ? stage?.overrides.get(t.id) : undefined;
-    if (!t || !live || !untrack(() => editingTarget === t.id)) return;
-    if (live === Stage.REMOVED) {
-      if (untrack(() => entity !== null)) entity = null;
-    } else if (untrack(() => entity !== live)) entity = live;
   });
   /** The same node in the draft (undefined for a node the draft does not have yet) */
   const draftNode = $derived(target?.entity ? nodeAt(target.entity, node) : undefined);
@@ -207,17 +205,16 @@
   };
   const ref = $derived(target ? getEntityRef(target.id) : undefined);
   const source = $derived(ref ? `shared: ${ref} (${getTargetsUsingEntity(ref).length}×)` : target ? `entry: ${target.entryId}` : "");
-  const dirty = $derived(!!target && JSON.stringify(entity ? contentTree(entity) : null) !== JSON.stringify(target.entity ? contentTree(target.entity) : null));
-  // A reload (the new-version bar) would drop these edits
-  onMount(() => trackUnsaved(() => dirty));
+  /** The target's tree is not as the draft had it before its first edit in this page: *Undo edits* goes back there */
+  const canUndo = $derived(!!target && differsFromBaseline(treeKey(bookId, target.id), treeContent(entity)));
 
   const changed = (row: ValueRow) => !!current && (!draftNode || !sameValue(getValue(current, row), getValue(draftNode, row)));
   const anyChanged = (ids: ValueRow[]) => ids.some(changed);
   const pathLabel = $derived(node.length ? `root › ${node.join(" › ")}` : "root");
 
-  // ── a behaviour component (#88): its rule editor's pickers and what keeps Save off ──
+  // ── a behaviour component (#88): its rule editor's pickers and what keeps the save back ──
   const hasBehaviour = $derived(!!current?.components?.some(c => c.type === BEHAVIOUR_TYPE));
-  /** What is wrong with the tree's behaviours (an empty name, an event not chosen yet): shown, and Save waits */
+  /** What is wrong with the tree's behaviours (an empty name, an event not chosen yet): shown, and the save waits until it is complete */
   const behaviourProblems = $derived(entity ? treeBehaviourIssues(entity) : []);
   /** Every tree of the book (the draft's, this one as edited): the variables and events its behaviours use */
   const bookTrees = $derived([...content.spreads.flatMap(s => s.targets).filter(t => t.id !== target?.id).flatMap(t => (t.entity ? [t.entity] : [])), ...(entity ? [entity] : [])]);
@@ -245,7 +242,9 @@
     return () => clearInterval(timer);
   });
 
+  /** An edit of the tree: shown at once (the stage's live tree, which the panel follows), saved by itself */
   const apply = (next: EntityData) => {
+    shownTree = next;
     entity = next;
     saved = null;
     if (target) stage?.override(target.id, next);
@@ -254,43 +253,14 @@
   const applyNode = (next: EntityData) => entity && apply(withNode(entity, node, next));
   const set = (row: ValueRow, value: number | string) => current && applyNode(setValue(current, row, value));
 
+  /** Undo edits: the tree as the draft had it before its first edit in this page – live at once, saved like any edit */
   const revert = () => {
-    if (!target) return;
-    stage?.override(target.id, null);
-    entity = target.entity ?? null;
+    if (!target || !stage) return;
+    const before = baselineOf<EntityData>(treeKey(bookId, target.id));
+    if (before === undefined) return;
+    void stage.override(target.id, before ?? Stage.REMOVED);
     node = [];
     saved = null;
-  };
-
-  const afterSave = async (id: string, path: number[], label: string) => {
-    // The draft now holds these values: reload it and build the spread again from it (markers, revert follow)
-    await content.load(bookId);
-    stage?.override(id, null);
-    await stage?.refresh();
-    editingTarget = null;
-    node = path;
-    saved = label;
-  };
-
-  const save = async () => {
-    if (!target) return;
-    saving = true;
-    error = null;
-    try {
-      if (entity) {
-        const body = contentTree(entity);
-        if (ref) await putEntity(bookId, ref, body);
-        else await putTargetEntity(bookId, target.id, body);
-      } else {
-        // No tree left: the target's entity is removed in the draft
-        await putTargetEntity(bookId, target.id, null);
-      }
-      await afterSave(target.id, node, ref && entity ? `saved ${ref}` : `saved ${target.id}`);
-    } catch (e) {
-      error = errorText(e, { code: true });
-    } finally {
-      saving = false;
-    }
   };
 
   // ── the Library as the picker of a file (#164): opened for one field – the target's image, the node's file, the
@@ -333,8 +303,8 @@
   $effect(() => subscribePreview(state => (origin = state.origin)));
   const frame = $derived({ page: stage?.pageFormat() ?? DEFAULT_PAGE_MM, format: stage?.format() ?? "spread" });
   const shown = $derived(toOrigin(origin, frame, print.surface, print.x, print.y));
-  const setShown = (x: number, y: number) => (print = { ...print, ...fromOrigin(origin, frame, print.surface, x, y) });
-  /** The shown place is where the book's layout prints the target (until saved), not one set in the editor */
+  const setShown = (x: number, y: number) => editPrint({ ...print, ...fromOrigin(origin, frame, print.surface, x, y) });
+  /** The shown place is where the book's layout prints the target (until it is moved), not one set in the editor */
   let placeFromLayout = $state(false);
   /** The surfaces this spread has: the pages of the open book, or the cover's face */
   const surfaces = $derived.by<readonly PrintPlacement["surface"][]>(() => {
@@ -353,9 +323,14 @@
     const { height, ...box } = place;
     print = placeFromLayout && height !== undefined ? { ...box, height } : box;
   };
-  // The placement follows the target: its own print; else the book's layout while the placement is open
+  /** The target whose edited placement is on its way to the draft, and which edit of it is the newest */
+  let printPending: string | null = null;
+  let printEdits = 0;
+  // The placement follows the target: its own print; else the book's layout while the placement is open. An edit on
+  // its way to the draft is not taken back by the draft as it still is
   $effect(() => {
     const t = target;
+    if (t && printPending === t.id) return;
     if (t?.print) print = { ...t.print };
     else if (t && untrack(() => printOpen)) placeFromBookLayout(t);
   });
@@ -374,7 +349,7 @@
   // The handles on the stage move the ghost: the placement rows follow
   $effect(() => {
     if (!stage || !printOpen) return;
-    stage.onGhostChange = place => { print = { ...print, ...place }; };
+    stage.onGhostChange = place => editPrint({ ...print, ...place });
     return () => { if (stage) stage.onGhostChange = null; };
   });
   /** The target's printed image becomes a library file (picked) or a new upload */
@@ -391,18 +366,24 @@
       targetBusy = false;
     }
   };
-  const savePrint = async () => {
-    if (!target) return;
-    targetBusy = true;
-    targetError = null;
-    try {
-      await putTarget(bookId, target.id, { print: { ...print, page: target.print?.page } });
+  /**
+   * A placement edit (the rows, the handles on the stage): shown at once, in the draft a moment after the last one
+   * (#259) – from then on the target has a placement of its own
+   */
+  const editPrint = (next: PrintPlacement) => {
+    print = next;
+    const t = target;
+    if (!t) return;
+    const book = bookId;
+    const id = t.id;
+    const page = t.print?.page;
+    const edit = ++printEdits;
+    printPending = id;
+    autosave.queue(`print:${book}:${id}`, async () => {
+      await putTarget(book, id, { print: { ...next, page } });
+      if (printEdits === edit) printPending = null;
       await ontargetchanged?.();
-    } catch (e) {
-      targetError = errorText(e);
-    } finally {
-      targetBusy = false;
-    }
+    });
   };
   /** The target in the book or switched off (#249): the reader leaves a switched-off target and its entry out */
   const setInBook = async (on: boolean) => {
@@ -418,7 +399,7 @@
       targetBusy = false;
     }
   };
-  /** A file uploaded for the selected node: the node takes it (live; Save writes it) */
+  /** A file uploaded for the selected node: the node takes it (live, and saved by itself like every edit) */
   const uploadForNode = async (file: File) => {
     if (!current || !target) return;
     try {
@@ -511,12 +492,12 @@
 
 {#snippet actions()}
   <div class="actions">
-    <button type="button" class="text-link" onclick={revert} disabled={!dirty}>Back to the draft</button>
+    <button type="button" class="text-link" onclick={revert} disabled={!canUndo} data-help-name="Undo edits"
+      data-help="Edits reach the draft by themselves, a moment after the last change – the top bar says Saved. Undo edits takes this target's AR content back to how the draft had it before its first edit since this page was opened.">Undo edits</button>
     <span class="grow"></span>
     {#if saved}<span class="small muted">{saved}</span>{/if}
     {#if error}<span class="small danger">{error}</span>{/if}
     {#if error && codeError && oncode}<button type="button" class="text-link" onclick={oncode}>Code tab</button>{/if}
-    <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving || behaviourProblems.length > 0}>{saving ? "Saving…" : "Save"}</button>
   </div>
 {/snippet}
 
@@ -601,7 +582,7 @@
       onlibrary={pickTargetImage} onupload={f => { const id = target?.id; if (id) void setTargetImage(id, f); }} /></div>
   {#if printOpen}
     <div class="row"><span class="label">surface</span>
-      <span class="controls"><Segmented options={surfaces} value={print.surface} onchange={s => (print = { ...print, surface: s })} /></span></div>
+      <span class="controls"><Segmented options={surfaces} value={print.surface} onchange={s => editPrint({ ...print, surface: s })} /></span></div>
     <div class="row"><span class="label">x · y</span>
       <span class="fields">
         <ScrubNumber value={shown.x} step={1} fallback={0} prefix="X" unit="mm" label="printed x" oninput={v => setShown(v, shown.y)} />
@@ -609,9 +590,8 @@
       </span></div>
     <div class="row"><span class="label">width</span>
       <span class="controls">
-        <span class="w"><ScrubNumber value={print.width} min={10} max={230} step={1} fallback={60} unit="mm" label="printed width" positive oninput={v => (print = withWidth(print, v))} /></span>
-        <button type="button" class="pill" disabled={targetBusy} onclick={savePrint}>{targetBusy ? "Saving…" : "Save placement"}</button>
-        {#if !target.print}<span class="small muted" data-help-name="Placement" data-help={placeFromLayout ? "Taken from the book's layout until you save a placement of this target's own." : "The target is not in the book's layout: its placement is set by hand and kept once saved."}>{placeFromLayout ? "from the layout" : "by hand"}</span>{/if}
+        <span class="w"><ScrubNumber value={print.width} min={10} max={230} step={1} fallback={60} unit="mm" label="printed width" positive oninput={v => editPrint(withWidth(print, v))} /></span>
+        {#if !target.print}<span class="small muted" data-help-name="Placement" data-help={placeFromLayout ? "Taken from the book's layout until it is moved here: then the target has a placement of its own, saved by itself." : "The target is not in the book's layout: its placement is set by hand, and kept as soon as it is moved."}>{placeFromLayout ? "from the layout" : "by hand"}</span>{/if}
       </span></div>
   {/if}
   {#if targetError}<p class="small danger">{targetError}</p>{/if}
@@ -657,13 +637,7 @@
 
   {#if !entity || !current}
     <p class="muted small">No AR content on this target yet.</p>
-    <div class="actions">
-      <button type="button" class="text-link" onclick={revert} disabled={!dirty}>Back to the draft</button>
-      <span class="grow"></span>
-      {#if saved}<span class="small muted">{saved}</span>{/if}
-      {#if error}<span class="small danger">{error}</span>{/if}
-      <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving || behaviourProblems.length > 0}>{saving ? "Saving…" : "Save"}</button>
-    </div>
+    {@render actions()}
   {:else if atTarget}
     <!-- The target is selected: its entity is one step down -->
     <div class="row"><span class="label">AR content</span>
@@ -817,14 +791,7 @@
     {#if behaviourProblems.length}
       <ul class="problems small danger" aria-label="Behaviour problems">{#each behaviourProblems as problem (problem)}<li>{problem}</li>{/each}</ul>
     {/if}
-    <div class="actions">
-      <button type="button" class="text-link" onclick={revert} disabled={!dirty}>Back to the draft</button>
-      <span class="grow"></span>
-      {#if saved}<span class="small muted">{saved}</span>{/if}
-      {#if error}<span class="small danger">{error}</span>{/if}
-      {#if error && codeError && oncode}<button type="button" class="text-link" onclick={oncode}>Code tab</button>{/if}
-      <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving || behaviourProblems.length > 0}>{saving ? "Saving…" : "Save"}</button>
-    </div>
+    {@render actions()}
   {/if}
 {/if}
 

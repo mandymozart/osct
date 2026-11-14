@@ -9,11 +9,13 @@
   import { captionOf, formatLabelOf, pagesOf } from "#lib/spread-grid.js";
   import PublishButton from "#lib/PublishButton.svelte";
   import BookSearch from "#lib/BookSearch.svelte";
+  import SaveStatus from "#lib/SaveStatus.svelte";
   import { selection } from "#lib/selection.svelte.js";
 
   /**
    * The editor's one top bar (every page, drawn by the layout): the breadcrumb `Books › book › spread` at the left, the
-   * book's search while a book is open (#237, `BookSearch`), Publish (with its environment), then Admin, the e-mail and
+   * book's search while a book is open (#237, `BookSearch`), where the draft stands (#259, `SaveStatus`: edits save
+   * themselves), Publish (with its environment), then Admin, the e-mail and
    * Sign out at the right. In a spread's workspace the book's crumb selects the book (#237): the Inspector shows its
    * texts and settings (a modified click still opens the book page). When the open
    * book's draft has features this editor's engine does not know (a newer content build – RULES #10), a small warning
@@ -75,7 +77,7 @@
     </details>
   {/if}
   {#if bookId}
-    {#key bookId}<BookSearch {bookId} /><PublishButton {bookId} />{/key}
+    {#key bookId}<BookSearch {bookId} /><SaveStatus /><PublishButton {bookId} />{/key}
   {/if}
   {#if session.isAdmin && !isAdminRoute}<a href={resolve("admin/")} class="pill admin" class:in-book={!!bookId}>Admin</a>{/if}
   <span class="muted small email">{session.user?.email}</span>

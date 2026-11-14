@@ -48,7 +48,8 @@ This file adds what is special to OSCT. Where the last orchestrator left off: `a
 - Headless Edge over CDP (`--headless=new --remote-debugging-port=<93xx> --user-data-dir=<temp>`) and a small Node 22
   script: `Page.addScriptToEvaluateOnNewDocument` for the token, `Emulation.setDeviceMetricsOverride` (and touch) per
   width (360 / 768 / 1280).
-- Don't save edits to the demo draft; undo with *Back to the draft*. Re-importing book `demo` from
+- Edits save themselves (#259): take every trial edit of the demo draft back with *Undo edits* before leaving the page
+  (a reload forgets what it goes back to), or type the old value back. Re-importing book `demo` from
   `https://buildingfictions.b-cdn.net/demo` is allowed (local test data).
 - The S22: `adb` (PowerShell), `adb forward tcp:9444 localabstract:chrome_devtools_remote` (Chrome or Brave), CDP
   `Input.dispatchTouchEvent` for gestures; the local editor reaches it through `adb reverse` (the editor dev server

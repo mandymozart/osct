@@ -36,13 +36,15 @@ export type { GhostPlace } from "./stage-core.svelte";
  * variables and timeline, the plugin registry (as specs, so the panels read them), the layout and the models' timelines.
  *
  * The live overrides are the page's own (`overrides`, the tree's and the Inspector's source): every change is sent to the
- * frame, and a gizmo drag in the frame only reports the new placement, which the page writes into its override. What
- * the frame sends is checked (`readFrameEvent`) and never reaches the API – saving stays the person's click here. A
+ * frame, and a gizmo drag in the frame only reports the new placement, which the page writes into its override. An
+ * override is an edit the draft does not hold yet: the workspace saves it by itself (`tree-autosave.ts`) and `adopt`
+ * ends it. What the frame sends is checked (`readFrameEvent`); the one thing of it that reaches the draft that way is
+ * a placement – three vectors of numbers – of the node the page itself selected, the node the gizmo sits on. A
  * frame that loads again (a reload, another content base) is given everything again: the draft, the preview, the
  * overrides, the selection, the spread.
  */
 export class Stage {
-  /** The override that stands for "the entity is removed" (the root went): the stage shows nothing, the Inspector shows no node, Save writes no entity */
+  /** The override that stands for "the entity is removed" (the root went): the stage shows nothing, the Inspector shows no node, the draft gets no entity */
   static readonly REMOVED: EntityData = REMOVED_ENTITY;
 
   status = $state<ArStatus>("idle");
@@ -68,7 +70,7 @@ export class Stage {
   vars = $state<Array<{ scope: VarScope; name: string; value: VarValue }>>([]);
   /** The stage's event timeline, newest first */
   events = $state<StageEvent[]>([]);
-  /** Entities shown with other values than the draft's, by target id (the panels mark them) */
+  /** Entities shown with other values than the draft's, by target id: edits not saved yet (the panels mark them) */
   overrides = new SvelteMap<string, EntityData>();
 
   private frame: HTMLIFrameElement;
@@ -181,6 +183,9 @@ export class Stage {
       }
       case "placement": {
         const { targetId, path, placement } = message.data;
+        // The gizmo sits on the selected node alone: a placement of any other node is no drag of the person's
+        const [selectedTarget, selectedPath] = this.selected.node;
+        if (targetId !== selectedTarget || path.join(".") !== selectedPath.join(".")) break;
         const base = this.overrides.get(targetId) ?? getTarget(targetId)?.entity;
         const node = base && base !== Stage.REMOVED ? nodeAt(base, path) : undefined;
         if (base && node) this.override(targetId, withNode(base, path, { ...node, params: { ...node.params, ...placement } }));
@@ -314,6 +319,18 @@ export class Stage {
     return this.send("override", [targetId, this.wire(entity)]).then(() => undefined);
   }
 
+  /**
+   * The draft holds a target's live tree now (its save ran): the frame gets the draft and keeps showing the tree – no
+   * rebuild, clips and videos play on – and the tree is no override any more. A tree edited again meanwhile stays one.
+   * The save never waits for the frame.
+   */
+  async adopt(targetId: string, saved: EntityData): Promise<void> {
+    // A frame that is not up yet takes the newest draft when it starts; one that fails here keeps showing the tree
+    // and gets the draft with the next spread – the save itself is done either way
+    if (this.initialised) await this.syncContent().catch(e => console.warn(`[stage] content: ${e instanceof Error ? e.message : e}`));
+    if (this.overrides.get(targetId) === saved) this.overrides.delete(targetId);
+  }
+
   /** Show the spread with these post-processing passes instead of the draft's (live edit), `null` = the draft's again */
   overridePasses(passes: PassData[] | null): void {
     this.passes = passes;
@@ -331,7 +348,7 @@ export class Stage {
     return override ?? getTarget(targetId)?.entity;
   }
 
-  /** Change a target's tree (live; Save writes it): the tree's moves, indent, outdent (#163) */
+  /** Change a target's tree (live, saved by itself): the tree's moves, indent, outdent (#163) */
   editTree(targetId: string, edit: (tree: EntityData) => EntityData | null): boolean {
     const base = this.treeOf(targetId);
     const next = base ? edit(base) : null;
@@ -341,7 +358,7 @@ export class Stage {
   }
 
   /**
-   * Remove a node of a target's entity (live; Save writes it): a child goes with its children, the root leaves the
+   * Remove a node of a target's entity (live, saved by itself): a child goes with its children, the root leaves the
    * target without AR content (`REMOVED`). Returns the path to select next – the parent, or the root.
    */
   removeNode(targetId: string, path: number[]): number[] {

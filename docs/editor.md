@@ -81,7 +81,8 @@ with SQLite and the local content store:
    key's page. Open *The switch* and click the entity on the stage: the next scene shows; its *post-processing* holds
    *scanLines* switched off – the toggle in the pass's head turns the lines on. The **Code** tab lists the eleven
    plugins (compiled by the content build, their sources next to them): change one, **Run**, and the stage shows it.
-   Move a node in the **Inspector** (type a scale, or press and slide), **Save**, then **Publish** – it goes to
+   Move a node in the **Inspector** (type a scale, or press and slide) – the top bar says *Saved* a moment later –,
+   then **Publish** – it goes to
    `local · this server`, the local API's own environment. With the fixture: open *Studio A – models* the same way.
 7. The reader reads the published version when it is started with
    `VITE_CONTENT_BASE_URL=http://127.0.0.1:8080/api/content/local` (`latest.json` names the new build).
@@ -258,15 +259,16 @@ translated with the app (#236, `docs/content.md` "Onboarding screens").
 
 - **An entry's form** (`EntryForm.svelte`, the logic in `entry-edit.ts`) – in the Inspector's place when the tree
   selects an entry, in the order the view had: title, category (segmented), access page (`ScrubNumber`; a page on another
-  spread moves the entry there on Save – the form stays, its head names the spread), author, tags (one line, commas), the
+  spread moves the entry there with its save – the form stays, its head names the spread), author, tags (one line, commas), the
   **text** in a textarea with its **live preview**, the picture (a `FileField`: *Library…* opens the Library as its picker
   in the Inspector's place – the form stays mounted underneath, its edits kept –, *Upload…* uploads; *remove the
   picture*), a link's URL (*open* only over http(s)) and the target with *select the target*. The fields come from
   `GET …/entries` as the content holds them (`entries.svelte.ts` – an imported picture's path unresolved, shown below the
-  book's assets base); Save sends only the fields that changed (`PUT …/entries/{id}`, an emptied author, picture or link
-  removes it), reloads the draft and refreshes the stage (its `{{entry.title}}` text nodes). *Back to the draft* drops
-  the edits; the form registers its dirty state with `unsaved.ts`. What keeps Save off is listed under the form (the
-  API's checks before it is asked).
+  book's assets base); the form [saves itself](#autosave): only the fields that changed (`PUT …/entries/{id}`, an
+  emptied author, picture or link removes it), the draft is read again, and the stage is built again only for what it
+  shows of an entry – a changed title (its `{{entry.title}}` text nodes) or page. The form keeps what was typed: a
+  save's answer never writes over it. *Undo edits* takes the entry back. What keeps the save back is listed under the
+  form (the API's checks before it is asked) and named in the top bar.
 - **The preview** is the reader's renderer (`shared/text/entry-text.ts` `renderEntryText`) – the same Markdown, the same
   escaping. On the stage the variables have their current values: the page's mirror of the stage frame's `vars` (#234 –
   data from the frame, never code), read innermost scope first like `api.vars.get`. Under the preview the variables the
@@ -277,7 +279,7 @@ translated with the app (#236, `docs/content.md` "Onboarding screens").
   `POST …/entries` without `target`); its form opens in the Inspector. On the stage the variables have their values; an
   entry found with the [book search](#the-book-search) opens the same way.
 - **The book's texts** (`BookTexts.svelte`) – in the Inspector while the book is selected (the top bar's book crumb,
-  [Inspector: the book](#inspector-the-book)): title, author, publisher; Save → `PUT /editor/books/{id}`.
+  [Inspector: the book](#inspector-the-book)): title, author, publisher; saved by themselves → `PUT /editor/books/{id}`.
 - Every text field is one value today; a language variant (#224) becomes a draft of the same shape per language, so a
   language switch can be added to these forms without reshaping them.
 
@@ -301,9 +303,31 @@ When the draft cannot be loaded (the API is down, the book is not there) the sta
 of *Building the stage…*; an action that fails (a removal, a target image, the reload after a change) shows its error
 over the stage until dismissed (#208).
 
-Every edit shows live on the stage; a panel's **Save** writes it to the draft and **Back to the draft** drops it (the
-Inspector's entity, a target's placement, the post-processing, the environment, an entry's form); the Code tab saves its
-source.
+### Autosave
+
+Every edit shows live on the stage and **reaches the draft by itself** (#259) – the Inspector's entity (its rows, a
+file picked or uploaded for a node, the tree's moves and removals, a gizmo drag), a target's placement, the
+post-processing, the environment, an entry's form, the book's texts. There is no Save button in the Inspector. Only the
+Code tab keeps **Save** (Ctrl+S): half-typed code does not belong in the draft. Readers get nothing before Publish.
+
+- **When**: a subject (a target's tree, a spread's passes, an entry, …) is saved once it was left alone for 0.8 s – a
+  drag or a word being typed is not saved half-way – and a newer edit replaces the save still waiting. Saves run one
+  after another, in the order they became due. A save carries what it writes, so it runs after its panel closed, the
+  selection moved or the spread changed. Hiding or closing the tab starts what waits at once; while something is
+  unsaved the browser asks before the page closes (`autosave.svelte.ts`, tested).
+- **The top bar** says where the draft stands (`SaveStatus.svelte`): *Saving…*, *Saved*, or *Not saved* with what keeps
+  it back – a failed save (**Retry**; a failure of the server or the network is tried again by itself after 8 s, a
+  refusal waits for the next edit) or a subject that cannot be saved as it stands (a behaviour rule that is not
+  complete, an entry without a title). In the tree a ● after a target's name marks a tree not saved yet.
+- **Quiet**: a target's tree and the passes are not built again by their save – the stage shows them already, the
+  draft only takes them over (`Stage.adopt`), so clips, videos and the view go on. The stage is built again only where
+  it shows the draft's own data: a target's placement, an entry's title or page, an entity several targets share.
+- **Undo edits** (in each panel's foot) takes its subject back to how the draft had it
+  before its first edit since the page was opened (`baselines.ts`) – the way back from a slipped drag or a removed
+  node. It is saved like any edit. Step-by-step undo is not built.
+- **In the code**: a panel queues its save with every edit (`autosave.queue(key, save)`); a target's tree is saved by
+  the workspace, not by a panel – every live tree of the stage (`stage.overrides`) is an edit the draft does not hold
+  yet (`tree-autosave.ts`). A new kind of edit queues its own save the same way; it never adds a Save button.
 
 ### The book search
 
@@ -369,13 +393,14 @@ stage the rest, #172). With a finger the rows are the touch control height, the 
   its key at the right (not with a finger; a move that cannot be made is disabled with its reason).
 - **Delete** (or Backspace) removes the selected node – its children with it, the root leaves the target without AR
   content; on an entry row it removes nothing silently but opens the entry's removal confirmation (#198); on the spread
-  or a target row it does nothing. Removing is live on the stage; Save writes it, Back to the draft undoes it.
+  or a target row it does nothing. Removing is live on the stage and [saved by itself](#autosave); the Inspector's
+  *Undo edits* brings the node back.
 - **Hierarchy** (#163, `editor/src/lib/tree.ts`) – a node row is **dragged** onto another row of the same entity (it
   becomes that node's last child; the row shows a frame) or between two rows (a sibling there, the order set; a line
   shows where) – a mouse drags the whole row, a finger the row's type icon. **Alt + ↑ ↓** move the selected node among
   its siblings, **Tab / Shift + Tab** indent it (into the node above) and outdent it (right after its parent). A node
   placed next to the root wraps the root in a new group, so both are siblings under the target. Only parent and order
-  change: a moved node keeps its placement values, now relative to its new parent. Live on the stage, Save writes it.
+  change: a moved node keeps its placement values, now relative to its new parent. Live on the stage, saved by itself.
 
 ### Selection
 
@@ -547,7 +572,7 @@ the book, x right, y up the page, z out of it):
 
 Three.js `TransformControls` on the selected node (the tree's or the stage's selection): **move / rotate / scale** by
 the toolbar or **W / E / R**, handles in the node's own space, so a drag changes the node's placement **relative to its
-parent** – the Inspector's rows follow live, Save writes them. It snaps as *grid & snap* says ([above](#grid-origin-and-snapping)).
+parent** – the Inspector's rows follow live, the drag is [saved by itself](#autosave) once it ends. It snaps as *grid & snap* says ([above](#grid-origin-and-snapping)).
 A click that ends a drag selects nothing. The tracker lets the gizmo's gestures through (`MockTracker.ignorePointer`);
 the engine opens the running scene to such tools with `IArScene.inspect()` (scene, camera, canvas, frame hook, a node's
 object by its path, the tap's hit test) – the reader never calls it.
@@ -574,8 +599,7 @@ it is open no key reaches the stage's shortcuts.
 **A target's placement on the page**: while it is edited (the Inspector's rows) **the target itself lies at the edited
 place** – its printed image, its outline and its AR content move together, so it never shows twice (#191) – with
 **handles**: drag the image to move it (across the spine it changes the page), drag the small square at its bottom right
-corner to set the printed width – the fields follow, Save placement writes them; hiding the placement unsaved puts the
-target back. The new-target form shows a translucent **ghost** of the image with the same handles. The placement opens
+corner to set the printed width – the fields follow, and the placement is [saved by itself](#autosave). The new-target form shows a translucent **ghost** of the image with the same handles. The placement opens
 at the place the stage shows (its own, the book's layout's, or the stage's fallback). The print is as wide as its place
 says and as high as its image's aspect makes it; the stage anchors the AR content at the image's centre, as the
 reader's tracker does – the placement math is `editor/src/lib/stage/placement.ts`.
@@ -622,10 +646,13 @@ the page.
   draft's plugins and runs the Code tab's modules (`stage/plugin-run.ts`), and answers the page's requests. It
   accepts requests only from its parent at the editor's origin and posts its events only there.
 - **The protocol** (`stage/frame-protocol.ts`): requests with an id and their replies, events with a name and their
-  data. The page acts only on events whose shape it checked (`readFrameEvent`), and **no event leads to an API call**:
-  a gizmo drag reports the node's new placement and the page writes it into its own override (unsaved, like every
-  live edit), a pick selects, a key the frame forwards is one of the page's shortcuts (`FORWARDED_KEYS`: Shift, Ctrl,
-  ← →, W E R, Delete, Escape – nothing that saves or publishes). Save and Publish stay the person's click in the page.
+  data. The page acts only on events whose shape it checked (`readFrameEvent`). Since edits save themselves (#259),
+  **two events reach the draft**, both numbers only, both for what the person has open in the page: a gizmo drag's
+  placement (three vectors) – taken only for the node the page itself selected, the one the gizmo sits on – which the
+  page writes into its own live tree, and a placement handle's move (surface, x, y, width) while the selected target's
+  placement rows are open. Nothing else does: a pick selects, a key the frame forwards is one of the page's shortcuts
+  (`FORWARDED_KEYS`: Shift, Ctrl, ← →, W E R, Delete, Escape – Delete removes the node the page selected, which is
+  saved like every edit). Publish stays the person's click in the page.
 - **The frame's policy**: before the draft and its plugins load, the frame takes a Content Security Policy
   (`frameCsp`, as a `<meta>` – it names the book's content bases, which only the draft knows, so no static header can
   say it): its own scripts and the editor's static files under `/editor/`, the Library's files under
@@ -643,8 +670,10 @@ the page.
 - **What it costs**: on a desktop (headless Edge, 1280 × 800) the stage renders at the same 60 fps with the same
   main-thread time per frame as in the page (≈ 1.25 ms on *The switch*, ≈ 1.5 ms on *The key*).
 - **What it does not do**: plugin code can still send what it sees – the draft, which its author can read anyway –
-  away by navigating its own frame, and it can post stage events (a placement, a pick, a forwarded key) that change
-  the person's unsaved live state; it cannot save, publish or read anything of the session. In the editor a plugin
+  away by navigating its own frame, and it can post stage events (a placement, a pick, a forwarded key): with them it
+  can move the node the person has selected, or the target whose placement is open, in this book's draft – visible on
+  the stage, taken back with *Undo edits* – and nothing more; it cannot publish, write anything else or read anything
+  of the session. In the editor a plugin
   reaches only the content and the Library (`api.loadText`), no other origin. **The reader runs plugins in its own
   page** – not sandboxed yet ([server](server.md#sessions-cookies-and-csrf) "What the cookie does not do").
 
@@ -663,7 +692,7 @@ the spread). A selected spread shows [its sections](#inspector-the-spread), a se
 [its form](#texts-entries-and-the-book).
 
 **A target**: its printed image (thumbnail and name; **Replace image…** uploads another) and, behind *placement*, where
-it is printed – surface, x / y and width in mm (`print`, content schema 2.1; **Save placement** writes it; until then a
+it is printed – surface, x / y and width in mm (`print`, content schema 2.1; an edit is saved by itself; until one a
 target made in the editor lies where its form put it, an imported one where the book's layout says –
 [the handles on the stage](#picking-hover-and-the-stages-menu)), and its AR content as a link one level down.
 
@@ -706,20 +735,20 @@ Library as the picker, with the filter set – or **Upload…**), then:
   stage, and the node by name; *pause*, *stop*, *show*, *hide* a node, *this node* or one of its subtree by name; *set* a
   variable, its value and scope; *emit* an event), × removes a rule, a test or an action. Every change runs on the stage
   at once (the engine takes new rules in place); what is not complete yet (an empty name, an event not chosen) is
-  listed under the rows in red and keeps **Save** off. Save writes the rules in the content's shortest form. A component
+  listed under the rows in red and keeps the tree's save back (the top bar says so). A save writes the rules in the content's shortest form. A component
   or material layer a **plugin** registers shows like a built-in one, with **+ type** after a Run in the Code tab.
 
 Rows come from the content contract's definitions (`PLACEMENT_PARAMS`, `FILTERS`, `componentSpec`, `LIGHT_PARAMS`): a
 new filter, component, light parameter or parameter needs no panel code (one snippet draws a parameter of any kind).
-Changes show live on the stage; **Save** writes the **whole tree** of the entity to the API – the shared entity when the
-target refers to one (the head says `shared: <ref> (n×)`), else the target's own – and the stage rebuilds from the
-draft; **Back to the draft** drops them.
+Changes show live on the stage and are [saved by themselves](#autosave): the **whole tree** of the entity goes to the
+API – the shared entity when the target refers to one (the head says `shared: <ref> (n×)`), else the target's own;
+**Undo edits** takes the tree back to how the draft had it before its first edit in this page.
 
 ### Inspector: the book
 
 A plain click on the book's crumb in the top bar selects the book (#237, `panels/BookPanel.svelte`; Ctrl- or ⌘-click
 still opens the book page): its head *book* with **All spreads** (the book page), the book's texts – title, author,
-publisher (`BookTexts.svelte`, a section open at first; Save → `PUT /editor/books/{id}`, *Back to the draft*) –,
+publisher (`BookTexts.svelte`, a section open at first; saved by themselves → `PUT /editor/books/{id}`, *Undo edits*) –,
 its **source of truth** (#238, a section: *print first* / *digital first*, saved when chosen – `book-source.svelte.ts`;
 the explanation is its help: print first, the printed book is the truth and spreads come from the layout's import;
 digital first, the editor is the truth and adds and removes spreads) and where its content files are read from
@@ -760,10 +789,9 @@ spread* with **back to the book's**, which drops the override.
   pictures and the plugins' procedural textures.
 - A list beyond the phone budget (three passes, one bloom – #86) says so under the passes
   (`editor/src/lib/plugin-passes.ts`).
-- **Save** says what it saves – *Save for the whole book*, *Save for this spread* or *Save for the book and this spread* –
-  and writes what changed: the book's list (`PUT /editor/books/{id}/passes`, an empty one removes it) and / or the
-  spread's (`PUT …/spreads/{id} { passes }`, `null` = back to the book's) –, *Back to the draft* undoes both
-  (`editor/src/lib/passes-edit.ts`).
+- An edit is [saved by itself](#autosave) – what changed: the book's list (`PUT /editor/books/{id}/passes`, an empty
+  one removes it) and / or the spread's (`PUT …/spreads/{id} { passes }`, `null` = back to the book's); the level line
+  says which it is before the edit is made. *Undo edits* takes both lists back (`editor/src/lib/passes-edit.ts`).
 - **On the stage** the passes show under **rendered** only (like the HDRI's sky): the mock stage's table, book, printed
   images and sky lie on the engine's **backdrop layer** and stand in for the camera picture: bloom and vignette run over
   them as they run over the camera picture in the reader; the grade's **reach** row (*AR layer / whole picture*) keeps it
@@ -807,9 +835,8 @@ aside, sky and light), turned by the view as a phone's gyroscope would turn it (
 book towards the horizon and the sky (the targets stay found, as the reader's world stays for 45 s). Rows: **world** –
 the built-in *café*, or a glTF model; **sky** – *the world's*, or an equirectangular image; each with *Library…* (the
 Library as the picker), *Upload* (into the Library and taken at once) and *remove* (back to the built-in part); **onion
-sky** on / off (it needs a camera picture, so only the reader shows it). Changes show at once; **Save** writes the
-environment to the draft (`PUT /editor/books/{id}/environment`), *Back to the draft* undoes, *Use the default* removes
-it.
+sky** on / off (it needs a camera picture, so only the reader shows it). Changes show at once and are [saved by themselves](#autosave)
+(`PUT /editor/books/{id}/environment`); *Undo edits* takes the environment back, *Use the default* removes it.
 
 **The environment replaces the HDRI sky box** (#185): once the book has an environment – the draft's, or edits that
 start one – the stage shows its world as the sky in every tab while the shading is rendered (the same pass, *look up*
@@ -900,14 +927,13 @@ another tab shows (`plugins.code`), so a tab switch loses no edit.
   `version.pollInterval`, `editor/vite.config.ts`) and whenever the tab gets the focus or becomes visible; when the
   deployed version differs, a quiet bar says *A new version of the editor is ready* with **Reload** – at the foot of the
   window (it covers no tool), under the top bar on a phone, its buttons at the touch height. It **never reloads by
-  itself**. With unsaved edits – a panel with *Back to the draft* and Save (the Inspector's entity, the post-processing,
-  the environment) or the Code tab's source – it says *reloading now drops your unsaved edits* and offers **Reload after
-  saving** (the page reloads as soon as nothing is left unsaved: saved, or taken back to the draft) and **Reload now**.
+  itself**. With unsaved edits – a save still waiting, running, failed or held back, or the Code tab's source – it says *reloading now drops your unsaved edits* and offers **Reload after
+  saving** (the page reloads as soon as nothing is left unsaved) and **Reload now**.
   The cross (*Later*) hides it; the next reload loads the new version anyway. A code file that fails to load – a lazy
   chunk such as Monaco after a deploy renamed it, or one a deploy still uploading has not delivered yet (#160) – shows the
   same bar, and the panel says what it could not load (until #230 the editor reloaded once on its own). The decision is
-  `editor/src/lib/new-version.ts` (tested), the unsaved edits are collected by `unsaved.ts` (each panel registers its
-  dirty state), the failed loads by `stale-chunks.ts`, the bar is `NewVersionBar.svelte` in the layout. Locally the dev
+  `editor/src/lib/new-version.ts` (tested), the unsaved edits are collected by `unsaved.ts` (the autosaver and the Code
+  tab register theirs), the failed loads by `stale-chunks.ts`, the bar is `NewVersionBar.svelte` in the layout. Locally the dev
   server never reports a new version (`updated` is off in dev); `vite preview` of a build does.
 
 ## UI rules

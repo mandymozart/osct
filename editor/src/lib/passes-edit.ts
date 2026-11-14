@@ -4,7 +4,7 @@ import { passOptionLabels, passValue, sameValue, type ValueRow } from "./values"
 /**
  * The post-processing panel's model: the book's passes are the master every spread shows; a
  * spread's own list overrides them (`[]` = off there). The panel edits both at once – the book's list and the spread's
- * own (`null` = it uses the book's) – and compares them with the draft to know what Save writes. Pure, for the tests.
+ * own (`null` = it uses the book's) – and compares them with the draft to know what a save writes. Pure, for the tests.
  */
 export interface PassesDraft {
   book: PassData[];
@@ -54,10 +54,6 @@ export const levelLine = (draft: PassesDraft, spreads: number): string =>
   draft.own !== null ? "overrides the book's for this spread"
     : spreads === 1 ? "changes the 1 spread that uses the book's" : `changes all ${spreads} spreads that use the book's`;
 
-/** Save's words: what it saves – the whole book, this spread, or both */
-export const saveLabel = (pending: { book?: unknown; spread?: unknown }): string =>
-  "book" in pending && "spread" in pending ? "Save for the book and this spread"
-    : "spread" in pending ? "Save for this spread" : "Save for the whole book";
 
 /** *Own passes for this spread*: the override starts as a copy of the book's */
 export const ownPasses = (draft: PassesDraft): PassesDraft => ({ ...draft, own: copy(draft.book) });
@@ -109,7 +105,7 @@ export const editInEffect = (draft: PassesDraft, change: (list: PassData[]) => P
   draft.own === null ? { ...draft, book: change(draft.book) } : { ...draft, own: change(draft.own) };
 
 /**
- * What Save writes, only what changed: `book` – the book's list (`null` when it is empty: the book holds none) for
+ * What a save writes, only what changed: `book` – the book's list (`null` when it is empty: the book holds none) for
  * `PUT …/passes`; `spread` – the spread's own (`null`: back to the book's) for `PUT …/spreads/{id}`
  */
 export const pendingSaves = (draft: PassesDraft, saved: PassesDraft): { book?: PassData[] | null; spread?: PassData[] | null } => ({

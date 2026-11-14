@@ -1,13 +1,14 @@
 <script lang="ts">
-  import { onMount, untrack } from "svelte";
-  import { trackUnsaved } from "#lib/unsaved.js";
+  import { untrack } from "svelte";
+  import { autosave } from "#lib/autosave.svelte.js";
+  import { baselineOf, differsFromBaseline, noteBaseline } from "#lib/baselines.js";
   import { isPassEnabled, passBudgetWarning, type PassData } from "@engine/types";
-  import { errorText, putBookPasses, putSpread } from "#lib/api.js";
+  import { putBookPasses, putSpread } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import {
     backToBooks, draftPasses, editInEffect, effectivePasses, levelLine, movePass, ownPasses, passesHeading, passesSource, passSummary, pendingSaves,
-    saveLabel, setPassEnabled, spreadsOnBooks, type PassesDraft, type PassesSource,
+    setPassEnabled, spreadsOnBooks, type PassesDraft, type PassesSource,
   } from "#lib/passes-edit.js";
   import { sections } from "#lib/sections.svelte.js";
   import { livePassGroups, passPluginOf, passSpecOf } from "#lib/plugin-passes.js";
@@ -29,14 +30,15 @@
    * shown is the one in effect – while the spread uses the book's, editing it edits the book's (every spread without its
    * own). The level is unmistakable (#181): the head names it ("post-processing · the whole book" / "· only this spread"),
    * the line under it says what editing changes (all N spreads that use the book's, or this spread's override) with the
-   * switch to the other, and Save says what it saves. Each pass is a collapsible section of its own (#233): closed, its
+   * switch to the other. Each pass is a collapsible section of its own (#233): closed, its
    * head names the type and its values set ("bloom · strength 0.35"); the head's toggle switches it on and off without
    * opening it (off keeps its place and values, the chain skips it), and it moves up and down in the list or goes. A
    * pass added opens. *add pass* offers the
    * built-in passes and each plugin's under its id – the declared plugins' (recorded, or loaded on the stage) and a plugin
    * run in the Code tab at once (`plugins.version`). A list beyond the phone budget says so (#86). Changes show live on
-   * the stage (under *rendered*), the draft stays unchanged until **Save** writes what changed: the book's list
-   * (`PUT …/passes`) and / or the spread's (`PUT …/spreads/{id}`). A collapsible section of the Inspector's spread view,
+   * the stage (under *rendered*) and reach the draft by themselves a moment later (#259) – what changed: the book's list
+   * (`PUT …/passes`) and / or the spread's (`PUT …/spreads/{id}`); the stage keeps showing them, nothing is built again.
+   * *Undo edits* takes both lists back to how the draft had them before the first edit in this page. A collapsible section of the Inspector's spread view,
    * closed on the first visit; the passes' descriptions are their help in the Info view.
    */
   let { stage, bookId, spreadId }: { stage: Stage | null; bookId: string; spreadId: string } = $props();
@@ -48,16 +50,12 @@
   let edit = $state<PassesDraft>({ book: [], own: null });
   /** The draft lists the panel started from (by identity: a reload makes new ones) */
   let seen = $state<{ id: string; book: PassData[] | null; own: PassData[] | undefined; draft: PassesDraft } | null>(null);
-  let saving = $state(false);
-  let notice = $state<string | null>(null);
-  let error = $state<string | null>(null);
 
   const shown = $derived<PassData[]>(effectivePasses(edit));
   const source = $derived<PassesSource>(passesSource(edit));
-  const pending = $derived(pendingSaves(edit, saved));
-  const dirty = $derived(Object.keys(pending).length > 0);
-  // A reload (the new-version bar) would drop these edits
-  onMount(() => trackUnsaved(() => dirty));
+  /** The lists as a subject of the autosaver and of *Undo edits* */
+  const key = $derived(`passes:${bookId}:${spreadId}`);
+  const canUndo = $derived(differsFromBaseline(key, edit));
   /** The spreads editing the book's list changes: every one without a list of its own, this one as it stands now */
   const onBooks = $derived(spreadsOnBooks(content.spreads, spreadId, edit.own));
   /** The list in effect as the draft holds it – what a changed row is compared with */
@@ -90,16 +88,27 @@
     seen = { id, book, own, draft: draftPasses(book, own) };
     if (!switching && edited) return;
     edit = draftPasses(book, own);
-    notice = null;
-    error = null;
     // A live preview belongs to the spread it was made on
     if (previous && switching) untrack(() => stage)?.overridePasses(null);
   });
 
+  /** An edit: live on the stage at once, in the draft a moment after the last one */
   const apply = (next: PassesDraft) => {
     edit = next;
-    notice = null;
     stage?.overridePasses($state.snapshot(effectivePasses(next)) as PassData[]);
+    const book = bookId;
+    const id = spreadId;
+    const lists = $state.snapshot(next) as PassesDraft;
+    noteBaseline(key, saved);
+    autosave.queue(key, async () => {
+      // What differs from the draft as it is when the save runs (an earlier save may have changed it)
+      const todo = pendingSaves(lists, draftPasses(content.bookPasses, content.spread(id)?.passes));
+      if (!Object.keys(todo).length) return;
+      if ("book" in todo) await putBookPasses(book, todo.book ?? null);
+      if ("spread" in todo) await putSpread(book, id, { passes: todo.spread ?? null });
+      // The draft holds the lists; the stage shows them already (its live passes), so nothing is built again
+      await content.load(book);
+    });
   };
   const set = (index: number, row: ValueRow, value: number | string) =>
     apply(editInEffect(edit, list => list.map((pass, i) => (i === index ? setPassValue(pass, row, value) : pass))));
@@ -125,35 +134,15 @@
   const choose = (next: PassesSource) => {
     if (next !== source) apply(next === "spread" ? ownPasses(edit) : backToBooks(edit));
   };
+  /** Undo edits: both lists as the draft had them before the first edit in this page – saved like any edit */
   const revert = () => {
-    edit = draftPasses(content.bookPasses, spread?.passes);
-    notice = null;
-    stage?.overridePasses(null);
-  };
-
-  const save = async () => {
-    if (!spread) return;
-    saving = true;
-    error = null;
-    try {
-      const todo = $state.snapshot(pending) as ReturnType<typeof pendingSaves>;
-      if ("book" in todo) await putBookPasses(bookId, todo.book ?? null);
-      if ("spread" in todo) await putSpread(bookId, spreadId, { passes: todo.spread ?? null });
-      // The draft reloads with the lists; the stage builds the spread from it, so the live override goes
-      stage?.overridePasses(null);
-      await content.load(bookId);
-      await stage?.refresh();
-      notice = "Saved";
-    } catch (e) {
-      error = errorText(e);
-    } finally {
-      saving = false;
-    }
+    const before = baselineOf<PassesDraft>(key);
+    if (before) apply(before);
   };
 </script>
 
 <Section id="stage.passes" label={passesHeading(edit)} open={false}
-  help="The passes over the rendered image, in order – the look-around world and its sky included: the built-in ones and the passes of the book's plugins. The head names the level: the whole book – the book's passes, the master every spread without its own shows – or only this spread – an override of its own. Changes show live on the stage (rendered shading); Save writes them to the draft.">
+  help="The passes over the rendered image, in order – the look-around world and its sky included: the built-in ones and the passes of the book's plugins. The head names the level: the whole book – the book's passes, the master every spread without its own shows – or only this spread – an override of its own. Changes show live on the stage (rendered shading) and reach the draft by themselves.">
 <div class="level" data-help-name="Level" data-help={source === "book"
   ? "The list below is the book's: editing it changes every spread without passes of its own (counted here, this one included). Own for this spread gives this spread an override of its own, starting as a copy of the book's."
   : "The list below is this spread's own: it overrides the book's here alone; removing every pass turns post-processing off here. Back to the book's drops the override – the spread shows the book's passes again."}>
@@ -212,13 +201,10 @@
       {/each}
     </span></div>
 {/each}
-{#if dirty || notice || error}
+{#if canUndo}
   <div class="actions">
-    <button type="button" class="text-link" onclick={revert} disabled={!dirty}>Back to the draft</button>
-    <span class="grow"></span>
-    {#if notice}<span class="small muted">{notice}</span>{/if}
-    {#if error}<span class="small danger">{error}</span>{/if}
-    <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving}>{saving ? "Saving…" : saveLabel(pending)}</button>
+    <button type="button" class="text-link" onclick={revert} data-help-name="Undo edits"
+      data-help="Edits reach the draft by themselves, a moment after the last change. Undo edits takes the post-processing – the book's passes and this spread's own – back to how the draft had it before its first edit since this page was opened.">Undo edits</button>
   </div>
 {/if}
 </Section>

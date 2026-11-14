@@ -1,15 +1,19 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
   import type { BookData } from "@shared/types/game-config";
-  import { errorText, putBookTexts } from "#lib/api.js";
+  import { putBookTexts } from "#lib/api.js";
+  import { autosave } from "#lib/autosave.svelte.js";
+  import { baselineOf, differsFromBaseline, noteBaseline } from "#lib/baselines.js";
   import { bookChanges, bookDraftOf, bookProblems, type BookDraft } from "#lib/book-texts.js";
   import { trackUnsaved } from "#lib/unsaved.js";
   import Section from "#lib/components/Section.svelte";
 
   /**
    * The book's texts in the Inspector while the book is selected (#223, #237): its title, author and publisher – the
-   * reader's splash, home page and onboarding show them. A collapsible section, closed naming them; Save writes what
-   * changed (`PUT /editor/books/{id}`), *Back to the draft* drops the edits.
+   * reader's splash, home page and onboarding show them. A collapsible section, closed naming them. Edits reach the
+   * draft by themselves a moment after the last one (#259: what changed, `PUT /editor/books/{id}`) – the fields keep
+   * what was typed; an empty title or author waits until it is filled. *Undo edits* goes back to the texts the draft
+   * had before the first edit in this page.
    */
   let { bookId, book, onsaved }: {
     bookId: string;
@@ -20,33 +24,39 @@
 
   let saved = $state<BookData>(untrack(() => book));
   let draft = $state<BookDraft>(untrack(() => bookDraftOf(book)));
-  let saving = $state(false);
-  let notice = $state<string | null>(null);
-  let error = $state<string | null>(null);
 
   const changes = $derived(bookChanges(saved, draft));
   const dirty = $derived(Object.keys(changes).length > 0);
   const problems = $derived(bookProblems(draft));
+  // Typed, not in the draft yet (a problem keeps it back): a reload would lose it
   onMount(() => trackUnsaved(() => dirty));
+  /** The texts as a subject of the autosaver and of *Undo edits* */
+  const key = $derived(`book:${bookId}`);
+  const canUndo = $derived(differsFromBaseline(key, draft));
 
+  /** An edit: in the draft a moment after the last one – unless a problem keeps it back */
   const edit = (patch: Partial<BookDraft>) => {
-    draft = { ...draft, ...patch };
-    notice = null;
-  };
-  const save = async () => {
-    saving = true;
-    error = null;
-    try {
-      const answer = await putBookTexts(bookId, changes);
+    const book = bookId;
+    const subject = key;
+    const typed: BookDraft = { ...draft, ...patch };
+    noteBaseline(subject, bookDraftOf(saved));
+    draft = typed;
+    const [problem] = bookProblems(typed);
+    if (problem) return autosave.hold(subject, problem);
+    const done = onsaved;
+    autosave.queue(subject, async () => {
+      // What differs from the texts as the draft holds them when the save runs
+      const fields = bookChanges(saved, typed);
+      if (!Object.keys(fields).length) return;
+      const answer = await putBookTexts(book, fields);
       saved = answer.book;
-      draft = bookDraftOf(answer.book);
-      notice = "Saved";
-      onsaved?.(answer.book);
-    } catch (e) {
-      error = errorText(e);
-    } finally {
-      saving = false;
-    }
+      done?.(answer.book);
+    });
+  };
+  /** Undo edits: the texts as the draft had them before the first edit in this page – saved like any edit */
+  const revert = () => {
+    const before = baselineOf<BookDraft>(key);
+    if (before) edit(before);
   };
   const fields: Array<{ key: keyof BookDraft; label: string; help: string }> = [
     { key: "title", label: "title", help: "The book's title – the reader's splash, home page and onboarding show it." },
@@ -65,11 +75,8 @@
     {/each}
     {#if problems.length}<p class="small danger">{problems.join(" ")}</p>{/if}
     <div class="actions">
-      <button type="button" class="text-link" onclick={() => { draft = bookDraftOf(saved); notice = null; }} disabled={!dirty || saving}>Back to the draft</button>
-      <span class="grow"></span>
-      {#if notice}<span class="small muted">{notice}</span>{/if}
-      {#if error}<span class="small danger">{error}</span>{/if}
-      <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving || problems.length > 0}>{saving ? "Saving…" : "Save"}</button>
+      <button type="button" class="text-link" onclick={revert} disabled={!canUndo} data-help-name="Undo edits"
+        data-help="Edits reach the draft by themselves, a moment after the last change. Undo edits takes the book's texts back to how the draft had them before their first edit since this page was opened.">Undo edits</button>
     </div>
   </Section>
 </div>
@@ -78,5 +85,4 @@
   .book-texts { max-width: var(--panel-width); margin-bottom: .5rem; }
   .row > .field { width: 100%; min-width: 0; }
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .25rem; }
-  .grow { flex: 1; }
 </style>

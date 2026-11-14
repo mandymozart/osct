@@ -1,9 +1,9 @@
 import { SvelteSet } from "svelte/reactivity";
 
 /**
- * The editor's unsaved edits in one place: every panel that holds edits not yet in the draft (the ones with *Back to the
- * draft* and Save, the Code tab's source, the book's environment) registers a getter for its own dirty state while it
- * exists. `hasUnsaved()` is reactive (read in a `$derived`, it follows the registrations and each getter's state) – the
+ * The editor's unsaved edits in one place: whatever holds edits not yet in the draft – the autosaver (a save waiting,
+ * running, failed or held back), a form whose problem keeps its save back, the Code tab's source – registers a getter
+ * for its own dirty state while it exists. `hasUnsaved()` is reactive (read in a `$derived`, it follows the registrations and each getter's state) – the
  * new-version bar asks it before it offers a reload.
  */
 const sources = new SvelteSet<() => boolean>();

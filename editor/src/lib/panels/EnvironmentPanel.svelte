@@ -3,14 +3,12 @@
   import { library } from "#lib/library.svelte.js";
   import { pickAccept, type LibraryPick } from "#lib/library-pick.js";
   import { fileNameOf } from "#lib/library-place.js";
-  import { content } from "#lib/content.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import ScrubNumber from "#lib/components/ScrubNumber.svelte";
   import Toggle from "#lib/components/Toggle.svelte";
   import FileField from "#lib/components/FileField.svelte";
   import Section from "#lib/components/Section.svelte";
   import LibraryPanel from "./LibraryPanel.svelte";
-  import { errorText } from "#lib/api.js";
 
   /**
    * The book's **environment** on the stage: the world around the reader while scanning, its
@@ -20,8 +18,8 @@
    * rendered – it replaces the HDRI, sky and light (#185, `stage/sky.ts`).
    * **World**: the built-in café, or a glTF model from the Library (or uploaded here); **sky**: the world's own, or an
    * equirectangular image. *Library…* opens the Library here as a picker (a glTF model, a sky image – the stage keeps
-   * previewing); **Save** writes the
-   * environment to the draft, *Back to the draft* undoes, *Use the default* removes it (the café with the onion sky).
+   * previewing). Every edit reaches the draft by itself a moment later (#259); *Undo edits* goes back to the environment
+   * the draft had before the first edit in this page, *Use the default* removes it (the café with the onion sky).
    * Book-level only; the reader's Graphics switches (Info → Settings) still apply on top. Two collapsible sections: the
    * environment open on the first visit, the stage's *preview* (look up) closed, its head naming the angle.
    */
@@ -62,19 +60,6 @@
     } catch {
       // the library shows the error
     }
-  };
-
-  const afterSave = async (ok: boolean) => {
-    if (!ok) return;
-    notice = "Saved";
-    // The draft carries it now: the stage builds from it (the preview keeps showing the same values)
-    try {
-      await content.load(bookId);
-      await stage?.refresh();
-    } catch (e) {
-      edit.error = errorText(e);
-    }
-    void library.refresh();
   };
 </script>
 
@@ -124,16 +109,15 @@
 </div>
 </Section>
 
-{#if edit.dirty || edit.saved || notice || edit.error}
+{#if edit.canUndo || edit.saved || notice || edit.error}
   <div class="actions">
-    <button type="button" class="text-link" onclick={() => { edit.revert(); notice = null; }} disabled={!edit.dirty}>Back to the draft</button>
-    {#if edit.saved}<button type="button" class="text-link" disabled={edit.saving} onclick={async () => afterSave(await edit.save(null))}>Use the default</button>{/if}
+    <button type="button" class="text-link" onclick={() => { edit.undo(); notice = null; }} disabled={!edit.canUndo} data-help-name="Undo edits"
+      data-help="Edits reach the draft by themselves, a moment after the last change. Undo edits takes the environment back to how the draft had it before its first edit since this page was opened.">Undo edits</button>
+    {#if edit.saved}<button type="button" class="text-link" onclick={() => { edit.useDefault(); notice = null; }}
+      data-help-name="Use the default" data-help="Removes the book's environment: the built-in café with the onion sky applies again.">Use the default</button>{/if}
     <span class="grow"></span>
     {#if notice}<span class="small muted">{notice}</span>{/if}
     {#if edit.error}<span class="small danger">{edit.error}</span>{/if}
-    <button type="button" class="pill primary" disabled={!edit.dirty || edit.saving} onclick={async () => afterSave(await edit.save())}>
-      {edit.saving ? "Saving…" : "Save"}
-    </button>
   </div>
 {/if}
 {/if}

@@ -1,8 +1,10 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
+  import { autosave } from "#lib/autosave.svelte.js";
+  import { baselineOf, differsFromBaseline, noteBaseline } from "#lib/baselines.js";
   import { ENTRY_CATEGORIES } from "@shared/types/entry";
   import { exprMessage, renderEntryText, textVariables, variablesOf } from "@shared/text/entry-text";
-  import { errorText, putEntry, type EditorEntry, type EntrySaved } from "#lib/api.js";
+  import { putEntry, type EditorEntry, type EntrySaved } from "#lib/api.js";
   import { draftOf, draftProblems, entryChanges, imageUrl, type EntryDraft } from "#lib/entry-edit.js";
   import { entryLink } from "#lib/entry-view.js";
   import { entries } from "#lib/entries.svelte.js";
@@ -18,8 +20,10 @@
    * category and access page, the author and tags, the text with its live preview, the picture from the Library, a
    * link's URL and the target. The preview is the reader's renderer (`renderEntryText`: Markdown with the book's
    * variables) – on the stage with the variables' current values, elsewhere with none set; the variables the text reads
-   * are listed with their values, what does not parse below. Edits stay here until **Save** (only the fields that
-   * changed, `PUT …/entries/{id}`); *Back to the draft* drops them; a reload asks first (`unsaved.ts`).
+   * are listed with their values, what does not parse below. Edits reach the draft by themselves a moment after the
+   * last one (#259: only the fields that changed, `PUT …/entries/{id}`) – the form keeps what was typed, a save never
+   * writes over it; an entry with a problem (an empty title) waits until it is solved. *Undo edits* goes back to the
+   * entry as the draft had it before its first edit in this page.
    */
   let { bookId, entry, assetsBase = null, vars = null, onpick, onsaved, onselecttarget }: {
     bookId: string;
@@ -30,25 +34,25 @@
     vars?: ReadonlyArray<{ scope: string; name: string; value: unknown }> | null;
     /** Open the Library as a picker for the picture (the host shows it in this place) */
     onpick?: (pick: Omit<LibraryPick, "oncancel">) => void;
-    /** After a save: the draft changed (reload it; a new page may have moved the entry to another spread) */
-    onsaved?: (saved: EntrySaved) => void | Promise<void>;
+    /** After a save: the draft changed (reload it; a new page may have moved the entry to another spread) – `changes`: the fields written */
+    onsaved?: (saved: EntrySaved, changes: Record<string, unknown>) => void | Promise<void>;
     onselecttarget?: (targetId: string) => void;
   } = $props();
 
   let draft = $state<EntryDraft>(untrack(() => draftOf(entry)));
   let editing = $state(untrack(() => entry.id));
-  let saving = $state(false);
+  /** The entry was edited in this form: what was typed stays as typed, whatever a save answers */
+  let touched = false;
   let notice = $state<string | null>(null);
-  let error = $state<string | null>(null);
 
-  // Another entry, or this one saved: the form starts from it
+  // Another entry: the form starts from it. The same entry read again (a save, a reload): only a form nobody typed in follows
   $effect(() => {
     const e = entry;
     untrack(() => {
-      if (editing === e.id && dirty) return;
+      if (editing === e.id && touched) return;
       if (editing !== e.id) {
         notice = null;
-        error = null;
+        touched = false;
       }
       editing = e.id;
       draft = draftOf(e);
@@ -59,7 +63,11 @@
   const changes = $derived(entry ? entryChanges(entry, draft) : {});
   const dirty = $derived(Object.keys(changes).length > 0);
   const problems = $derived(draftProblems(draft));
+  // Typed, not in the draft yet (a problem keeps it back): a reload would lose it
   onMount(() => trackUnsaved(() => dirty));
+  /** The entry as a subject of the autosaver and of *Undo edits* */
+  const key = $derived(`entry:${bookId}:${entry?.id}`);
+  const canUndo = $derived(differsFromBaseline(key, draft));
 
   const lookup = $derived(variablesOf(vars ?? []));
   const rendered = $derived(renderEntryText(draft.body, { variables: lookup }));
@@ -68,30 +76,34 @@
   const link = $derived(entryLink(draft.media));
   const imageSrc = $derived(draft.image ? imageUrl(draft.image, assetsBase) : "");
 
+  /** An edit: in the preview at once, in the draft a moment after the last one – unless a problem keeps it back */
   const edit = (patch: Partial<EntryDraft>) => {
-    draft = { ...draft, ...patch };
+    const book = bookId;
+    const id = entry.id;
+    const subject = key;
+    const typed: EntryDraft = { ...draft, ...patch };
+    noteBaseline(subject, draftOf(entry));
+    draft = typed;
+    touched = true;
     notice = null;
-  };
-  const revert = () => {
-    draft = draftOf(entry);
-    notice = null;
-    error = null;
-  };
-  const save = async () => {
-    if (!dirty || problems.length) return;
-    saving = true;
-    error = null;
-    try {
-      const saved = await putEntry(bookId, entry.id, changes);
+    const [problem] = draftProblems(typed);
+    if (problem) return autosave.hold(subject, problem);
+    const done = onsaved;
+    autosave.queue(subject, async () => {
+      // What differs from the entry as the draft holds it when the save runs (an earlier save may have changed it)
+      const stored = entries.byId(id);
+      const fields = stored ? entryChanges(stored, typed) : {};
+      if (!Object.keys(fields).length) return;
+      const saved = await putEntry(book, id, fields);
       entries.saved(saved.entry, saved.spreadId);
-      draft = draftOf({ ...saved.entry });
-      notice = saved.spreadId !== saved.previousSpreadId ? `Saved – now on ${saved.spreadId ?? "no spread"}` : "Saved";
-      await onsaved?.(saved);
-    } catch (e) {
-      error = errorText(e);
-    } finally {
-      saving = false;
-    }
+      if (saved.spreadId !== saved.previousSpreadId) notice = `Now on ${saved.spreadId ?? "no spread"}`;
+      await done?.(saved, fields);
+    });
+  };
+  /** Undo edits: the entry as the draft had it before its first edit in this page – saved like any edit */
+  const revert = () => {
+    const before = baselineOf<EntryDraft>(key);
+    if (before) edit(before);
   };
   const pickImage = () =>
     onpick?.({ subject: { for: "entry-image" }, label: `the picture of ${entry.title}`, current: draft.image || undefined, onpick: asset => edit({ image: asset.url }) });
@@ -109,7 +121,7 @@
   };
 </script>
 
-<div class="section" data-help-name="Entry" data-help="The entry as the reader reads it in the list: its fields, its text, its picture and link, and its target. Edits show in the preview at once and reach the draft with Save.">
+<div class="section" data-help-name="Entry" data-help="The entry as the reader reads it in the list: its fields, its text, its picture and link, and its target. Edits show in the preview at once and reach the draft by themselves, a moment after the last change.">
   <span class="section-label">entry · {entry.title}</span>
   <span class="small muted">{entry.spreadId ? `on ${entry.spreadId}` : "on no spread"}</span>
 </div>
@@ -162,11 +174,10 @@
   </span></div>
 {#if problems.length}<ul class="small danger problems">{#each problems as problem (problem)}<li>{problem}</li>{/each}</ul>{/if}
 <div class="actions">
-  <button type="button" class="text-link" onclick={revert} disabled={!dirty || saving}>Back to the draft</button>
+  <button type="button" class="text-link" onclick={revert} disabled={!canUndo} data-help-name="Undo edits"
+    data-help="Edits reach the draft by themselves, a moment after the last change. Undo edits takes the entry back to how the draft had it before its first edit since this page was opened.">Undo edits</button>
   <span class="grow"></span>
   {#if notice}<span class="small muted">{notice}</span>{/if}
-  {#if error}<span class="small danger">{error}</span>{/if}
-  <button type="button" class="pill primary" onclick={save} disabled={!dirty || saving || problems.length > 0}>{saving ? "Saving…" : "Save"}</button>
 </div>
 
 <style>

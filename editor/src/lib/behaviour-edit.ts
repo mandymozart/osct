@@ -106,7 +106,7 @@ export const bookEvents = (trees: readonly EntityData[], seen: readonly string[]
   return [...scene, ...core];
 };
 
-/** What is wrong with a node's behaviour components – the panel shows it and keeps Save off until it is fixed */
+/** What is wrong with a node's behaviour components – the panel shows it, and the tree is not saved until it is fixed */
 export const behaviourIssues = (node: EntityData): string[] =>
   (node.components ?? []).flatMap((component, i) =>
     component.type === BEHAVIOUR_TYPE
@@ -114,5 +114,5 @@ export const behaviourIssues = (node: EntityData): string[] =>
         problem.replace(/^behaviour\[0\]\.rules\[(\d+)\]\.?/, (_, n: string) => `rule ${Number(n) + 1} – `).replace(/^behaviour\[0\]\.?/, `component ${i + 1} – `))
       : []);
 
-/** The issues of every node of a tree (Save checks the whole tree) */
+/** The issues of every node of a tree (a save needs the whole tree complete) */
 export const treeBehaviourIssues = (tree: EntityData): string[] => allNodes([tree]).flatMap(behaviourIssues);
