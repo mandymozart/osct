@@ -465,7 +465,7 @@ api.registerComponent("paper", {
   promise resolves, and not at all once the node is disposed or the value has changed (`tune`).
 - **In the editor** the row is a list: *none*, then the Library's models and the content's own. Upload a `.glb` to the
   Library and it is in the list; a pick shows on the stage at once.
-- **An older reader** (before content schema 2.27) skips the parameter with its update hint and runs the rest of the
+- **An older reader** (before content schema 2.28) skips the parameter with its update hint and runs the rest of the
   component.
 
 **The paper** (`fixtures/demo/plugins/paper`, the demo's *The screen* – #263) is exactly that: a video or an image on a

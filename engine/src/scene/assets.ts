@@ -3,6 +3,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import type { AssetData } from "../types/index";
 import { loadCompressed } from "../content/compressed";
+import { applyTextureSets, cancelTextureSets } from "./model-textures";
 
 /**
  * The AR scene's assets by id. Loaded once per id, kept while a spread uses them (a spread switch keeps
@@ -114,6 +115,7 @@ const dispose = (asset: LoadedAsset): void => {
   switch (asset.assetType) {
     case "glb":
     case "gltf":
+      cancelTextureSets(asset.scene); // a map still loading for it is dropped
       disposeObject(asset.scene);
       break;
     case "image":
@@ -133,6 +135,21 @@ const dispose = (asset: LoadedAsset): void => {
 export class AssetStore {
   private entries = new Map<string, Entry>();
 
+  /** `textureSize`: the map size (px) models with a texture set are shown at – asked on every load and refresh */
+  constructor(private textureSize: () => number = () => 512) {}
+
+  /** A model with a texture set shows with its file's map at once; the wanted size follows (#260) */
+  private applyTextures(entry: Entry): void {
+    const { loaded, data } = entry;
+    if (!loaded || !data.textures?.length || (loaded.assetType !== "glb" && loaded.assetType !== "gltf")) return;
+    void applyTextureSets(loaded.scene, data.textures, this.textureSize());
+  }
+
+  /** The wanted map size changed (the reader's texture quality): swap the maps of every loaded model */
+  refreshTextures(): void {
+    this.entries.forEach(entry => this.applyTextures(entry));
+  }
+
   /** Load assets (known ids are reused). A failed asset resolves to null – its entity is skipped. */
   async load(assets: readonly AssetData[]): Promise<void> {
     await Promise.all(assets.map(data => {
@@ -140,7 +157,11 @@ export class AssetStore {
       if (!entry) {
         const created: Entry = { data, loaded: null, loading: Promise.resolve(null) };
         created.loading = load(data)
-          .then(loaded => (created.loaded = loaded))
+          .then(loaded => {
+            created.loaded = loaded;
+            this.applyTextures(created);
+            return loaded;
+          })
           .catch(error => {
             console.warn(`[assets] Could not load ${data.id} (${data.src}):`, error);
             return null;

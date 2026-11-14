@@ -36,6 +36,17 @@ describe("GraphicsService", () => {
     }
   });
 
+  it("texture quality: auto until the reader chooses, the choice kept on this device, anything else ignored (#260)", () => {
+    const graphics = new GraphicsService();
+    expect(graphics.getSettings().textureQuality).toBeUndefined();
+    graphics.setSettings({ textureQuality: 2048 });
+    expect(new GraphicsService().getSettings()).toEqual({ onionSky: false, surroundings: false, textureQuality: 2048 });
+    graphics.setSettings({ textureQuality: "auto" });
+    expect(new GraphicsService().getSettings().textureQuality).toBe("auto");
+    localStorage.setItem(GRAPHICS_STORAGE_KEY, JSON.stringify({ onionSky: true, surroundings: true, textureQuality: 800 }));
+    expect(new GraphicsService().getSettings()).toEqual({ onionSky: true, surroundings: true });
+  });
+
   it("keeps a change for the session when the storage refuses it", () => {
     const graphics = new GraphicsService();
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("QuotaExceededError"); });

@@ -280,7 +280,11 @@ const withContentUrls = (raw: GameConfiguration, base: string): GameConfiguratio
   const url = (path?: string) => (path === undefined ? undefined : contentUrl(path));
   const node = (e: EntityData): EntityData => ({
     ...e,
-    assets: e.assets.map(a => ({ ...a, src: contentUrl(a.src) })),
+    assets: e.assets.map(a => ({
+      ...a,
+      src: contentUrl(a.src),
+      ...(a.textures ? { textures: a.textures.map(set => ({ ...set, sizes: set.sizes.map(size => ({ ...size, src: contentUrl(size.src) })) })) } : {}),
+    })),
     ...(e.children ? { children: e.children.map(node) } : {}),
   });
   const entity = (e?: EntityData | EntityRefData): EntityData | EntityRefData | undefined =>

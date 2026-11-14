@@ -5,6 +5,7 @@
 import { assertGameConfiguration, GameConfigurationError, MAX_NODE_DEPTH } from "../../shared/guards/game-config";
 import {
   ASSET_TYPES,
+  TEXTURE_SIZES,
   BEHAVIOUR_ACTIONS,
   BEHAVIOUR_CORE_EVENTS,
   BEHAVIOUR_NODE_EVENTS,
@@ -246,6 +247,7 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
       assets: {
         description: "The node's own files: [{ id, assetType, src }] – empty for group and text. src is an absolute URL (an uploaded asset's url) or a /assets/content/… path of the imported content.",
         assetTypes: ASSET_TYPES,
+        textures: `textures (content schema 2.27, optional, a model file only): the model's colour map in several sizes – [{ material?, sizes: [{ size, src }] }], size one of ${TEXTURE_SIZES.join(", ")} (px, a square picture), each once, smallest first. The model file carries the smallest map and shows with it at once; the reader's texture quality chooses the size that is loaded, so the mesh loads once. material = the glTF material whose map the set is; none = every material of the model (a model baked into one map). Upload each size as an image (upload_asset tells its width) and put its url into src.`,
       },
       text: "text nodes: `text` (the line; {{entry.title}} and {{book.title}} are replaced) and `color` (#rrggbb, default white).",
       pluginNodeTypes: {
@@ -354,7 +356,7 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     },
     plugin: {
       description:
-        "A plugin source (the Code tab) exports register(api): api.registerLayer(type, spec, { glsl }) for a material layer, api.registerComponent(type, spec, apply) for code on a node, api.registerNodeType(type, spec, build) for a node type of its own, api.registerMaterial(type, spec, build) for a whole material (a ShaderMaterial …, plugin API 1.4), api.registerTexture(type, spec, draw) for a procedural texture, api.feedback({ width, height, fragment }) for a GPU feedback buffer the engine steps every frame and api.shadertoy(source) for a Shadertoy pass as its fragment (plugin API 1.6, in a build – nothing of it is recorded), api.three for three.js – never import three. The spec's params have kind (number | color | choice | boolean | string | texture | model), default, description and an optional label (the few words the editor's row shows, plugin API 1.3); nodeTypes narrows the node types. A parameter of kind model (plugin API 1.7, content schema 2.27) takes a model file – an uploaded glb / gltf asset's url or a /assets/content/… path, \"\" = none – which the plugin's code loads with api.loadModel(value). Read the resource osct://guides/plugins.",
+        "A plugin source (the Code tab) exports register(api): api.registerLayer(type, spec, { glsl }) for a material layer, api.registerComponent(type, spec, apply) for code on a node, api.registerNodeType(type, spec, build) for a node type of its own, api.registerMaterial(type, spec, build) for a whole material (a ShaderMaterial …, plugin API 1.4), api.registerTexture(type, spec, draw) for a procedural texture, api.feedback({ width, height, fragment }) for a GPU feedback buffer the engine steps every frame and api.shadertoy(source) for a Shadertoy pass as its fragment (plugin API 1.6, in a build – nothing of it is recorded), api.three for three.js – never import three. The spec's params have kind (number | color | choice | boolean | string | texture | model), default, description and an optional label (the few words the editor's row shows, plugin API 1.3); nodeTypes narrows the node types. A parameter of kind model (plugin API 1.7, content schema 2.28) takes a model file – an uploaded glb / gltf asset's url or a /assets/content/… path, \"\" = none – which the plugin's code loads with api.loadModel(value). Read the resource osct://guides/plugins.",
       idPattern: PLUGIN_ID_PATTERN.source,
     },
   };

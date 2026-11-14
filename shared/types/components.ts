@@ -28,7 +28,7 @@ import { CAMEL_CASE_NAME, isObject } from "../guards/primitives";
  * (schema 2.15, plugin API 1.3) – the few words the editor's row shows. Without a label the row shows the name split
  * into words (`paramLabel`). A `texture` (schema 2.17, plugin API 1.4) takes a picture: a file (a Library image or
  * video, a file of the content) or a procedural texture a plugin registers (`registerTexture`) – its value is a
- * `TextureValue` (below); the engine hands the plugin's code a three.js texture. A `model` (schema 2.27, plugin API
+ * `TextureValue` (below); the engine hands the plugin's code a three.js texture. A `model` (schema 2.28, plugin API
  * 1.7) takes a model file: a Library model's URL or a `/assets/content/…` path (in the content's YAML a `.glb` / `.gltf`
  * next to the node, which the content build resolves to its path), `""` = none – its value is that string, and the
  * plugin's code loads it with `api.loadModel(value)`.

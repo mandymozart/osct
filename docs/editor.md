@@ -745,6 +745,16 @@ Changes show live on the stage and are [saved by themselves](#autosave): the **w
 API – the shared entity when the target refers to one (the head says `shared: <ref> (n×)`), else the target's own;
 **Undo edits** takes the tree back to how the draft had it before its first edit in this page.
 
+**A model's textures** (#260). A model node with a file has a *textures* section: its colour map in several sizes,
+which the reader's texture quality chooses from – the mesh loads once (`docs/content.md`, "A model's map by texture
+quality"). Each size is a chip with the file's weight and a × to remove it; **Library…** picks a map among the
+pictures, **Upload…** takes several files at once. The size is never typed: it is read from the picture, which must be
+square and 512, 1024, 2048 or 4096 px wide – any other picture is named below the row and left out. *+ a set for
+another material* starts a second set for a model with a map per material; its *material* field names the glTF
+material (empty: every material). Choosing another model file drops the sets – they belong to the file. The stage's
+view menu has *textures*: auto, or one size, to see the stage as readers on that quality see it
+(`lib/model-textures.ts`, `components/ModelTextures.svelte`, the preview setting `textureQuality`).
+
 ### Inspector: the book
 
 A plain click on the book's crumb in the top bar selects the book (#237, `panels/BookPanel.svelte`; Ctrl- or ⌘-click

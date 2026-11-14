@@ -136,15 +136,15 @@ describe("forward compatibility: a newer MINOR read by an older app", () => {
     expect((config as typeof raw).entities.fx.components).toEqual([{ type: "mossy", tone: "#112211" }]);
   });
 
-  it("a 2.27 book in a 2.26 app: a recorded model parameter and its value are skipped, the component stays (#263)", () => {
-    const app2_26: KnownFeatures = { ...currentFeatures(), schema: "2.26", pluginApi: "1.6", paramKinds: PARAM_KINDS.filter(kind => kind !== "model") };
+  it("a 2.28 book in a 2.27 app: a recorded model parameter and its value are skipped, the component stays (#263)", () => {
+    const app2_27: KnownFeatures = { ...currentFeatures(), schema: "2.27", pluginApi: "1.6", paramKinds: PARAM_KINDS.filter(kind => kind !== "model") };
     const paper = { description: "Paper.", params: { sheet: { kind: "model", default: "", description: "The sheet." }, tone: { kind: "color", default: "#ffffff", description: "Its colour." } } };
     const raw = {
-      ...book2_21("2.27", { components: [{ type: "paper", sheet: "/assets/content/entries/a/sheet.glb", tone: "#eeeeee" }] }),
+      ...book2_21("2.28", { components: [{ type: "paper", sheet: "/assets/content/entries/a/sheet.glb", tone: "#eeeeee" }] }),
       plugins: [{ id: "paper", src: "/assets/content/plugins/paper/plugin.js", api: "1.7", registered: { components: { paper }, nodeTypes: { ripple: RIPPLE } } }],
       spreads: [{ id: "s1", title: "1–2", firstPage: 1, lastPage: 2 }],
     };
-    const { config, skipped } = skipUnknownFeatures(raw, app2_26);
+    const { config, skipped } = skipUnknownFeatures(raw, app2_27);
     expect(skipped.map(describeSkipped)).toEqual([
       'plugins[0]: plugin API "1.7"',
       'plugins[0].registered.components.paper.params.sheet: parameter kind "model"',

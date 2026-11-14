@@ -82,7 +82,7 @@ interface FilterData {
  * (schema 2.15, plugin API 1.3) – the few words the editor's row shows. Without a label the row shows the name split
  * into words (`paramLabel`). A `texture` (schema 2.17, plugin API 1.4) takes a picture: a file (a Library image or
  * video, a file of the content) or a procedural texture a plugin registers (`registerTexture`) – its value is a
- * `TextureValue` (below); the engine hands the plugin's code a three.js texture. A `model` (schema 2.27, plugin API
+ * `TextureValue` (below); the engine hands the plugin's code a three.js texture. A `model` (schema 2.28, plugin API
  * 1.7) takes a model file: a Library model's URL or a `/assets/content/…` path (in the content's YAML a `.glb` / `.gltf`
  * next to the node, which the content build resolves to its path), `""` = none – its value is that string, and the
  * plugin's code loads it with `api.loadModel(value)`.
@@ -157,6 +157,22 @@ interface LightData {
 	decay?: number;
 	angle?: number;
 	penumbra?: number;
+}
+declare const TEXTURE_SIZES: readonly [
+	512,
+	1024,
+	2048,
+	4096
+];
+type TextureSize = (typeof TEXTURE_SIZES)[number];
+interface TextureSizeData {
+	size: TextureSize;
+	src: string;
+}
+interface TextureSetData {
+	material?: string;
+	/** At least one, each size once, smallest first */
+	sizes: TextureSizeData[];
 }
 export interface PassSpec {
 	description: string;
@@ -244,6 +260,8 @@ interface AssetData {
 	id: string;
 	assetType: AssetType;
 	src: string;
+	/** Optional (schema 2.27), a model file only (glb / gltf): its maps in several sizes */
+	textures?: TextureSetData[];
 }
 interface EntityData {
 	/** Optional, unique within the tree: the editor's selection */

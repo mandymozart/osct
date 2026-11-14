@@ -7,6 +7,37 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.67.0 – 2026-11-14
+
+### Added
+- **A plugin can take a model from the Library** (#263): a parameter of the new kind `model` shows in the Inspector as a
+  list of the book's models; the plugin loads the picked file with `api.loadModel`. A new shape for a plugin is an
+  upload, never a change of its code. Content schema 2.28, plugin API 1.7 – an older reader skips such a parameter
+  with its update hint and runs the rest of the plugin.
+- **Paper** in the demo book: the `paper` component shows a video or an image on a slightly bent sheet of paper – the
+  sheet is a model the author picks in its one row. *The screen* (page 6) stands on a stand-in sheet.
+
+## 1.66.0 – 2026-11-14
+
+### Added
+- **A model loads its mesh once and its surface by quality** (#260, Tilman: *"import the mesh once and load the texture
+  separately … load resolution depending on user quality settings"*). A model can bring its colour map in four sizes –
+  512, 1024, 2048 and 4096 px. The model file carries the smallest one, so the model shows at once; the app then
+  loads the size that fits and puts it in place. *face against face*: the mesh is 125 KB, the maps 48 KB, 156 KB,
+  536 KB and 1.8 MB – instead of one 12 MB file for everybody.
+- **Reader – Info page, Settings: *Model detail***: Automatic (by the phone's memory and connection: Low on a
+  data-saving or slow connection, Medium on phones with up to 4 GB, else High), or Low, Medium, High, Best. The scan
+  view follows at once, and downloading a spread fetches only the size chosen.
+- **Editor – Inspector, a model node: *textures***: the sizes the model has, each with its file's weight; **Library…**
+  and **Upload…** add maps, several at once – the size is read from each picture (square, one of the four sizes; any
+  other picture is named and left out). A model with a map per material takes a set for each.
+- **Editor – stage, view menu: *textures***: show the stage at one quality (auto, 512 to 4096 px) to see what readers
+  on that setting see.
+- **Content**: `textures` on a model node in the YAML – `512: face_512.jpg` and so on, or a list of
+  `{ material, sizes }`. The content build checks the files and leaves them exactly as made (no shrinking). Content
+  schema 2.27 – an older app shows the model with the map in its file.
+- **MCP**: `describe_content_model` explains the texture sets; `put_entity` checks them.
+
 ## 1.65.0 – 2026-11-14
 
 ### Added

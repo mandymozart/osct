@@ -12,7 +12,7 @@ outcome in the line (or move it into a dated decision block).
   paper slot? they should be addable. so this is also a general purpose concept. how can a plugin access assets."
 - **So the paper is a component with one row**: `paper` on a video or an image, `sheet` = a model file. No list of
   folds in the code, no depth, no shade. A new sheet is an upload to the Library.
-- **The general part**: a parameter kind `model` (content schema 2.27, plugin API 1.7) next to `texture`. Its value is the
+- **The general part**: a parameter kind `model` (content schema 2.28, plugin API 1.7) next to `texture`. Its value is the
   file's address (a Library URL, a content path; `""` = none); the code loads it with `api.loadModel(address)`.
   - Why a kind of its own and not `file` with a list of accepted types: an older app already skips a parameter kind it
     does not know (#220), so a new kind needs no new rule; a new accepted type inside a known kind would.
@@ -27,9 +27,32 @@ outcome in the line (or move it into a dated decision block).
   planes (9 × 9 vertices, every height 0): the bend was not exported – most likely modifiers without *Apply Modifiers*.
   The demo ships a stand-in (`editor/tools/paper-sheet.mjs`, laid out like his export).
 - [ ] Kévin exports the sheets again (announced for 2026-11-15); upload them to the book's Library and pick them.
-- [ ] "Each paper slot" was read as one sheet row per video. A book-wide list of named sheets (slots a video picks
-  from) would be plugin settings per book, which the model does not have yet – ask Tilman if he meant that.
-- [ ] The Library's *uses* count and its delete protection for a model named only by a parameter were not checked.
+- "Each paper slot" is one sheet row per video – Tilman: "forget the slots idea. works fine with just picking the right
+  paper asset from the asset manager". No book-wide list of named sheets.
+- **The schema number**: #260 landed first with 2.27, so this is 2.28 – the appearance work in the main checkout (see
+  #260 below) is then the third and takes 2.29.
+- The Library's *uses*, its delete protection and *Replace…*'s relink cover a sheet picked in a parameter: they look for
+  the asset's URL anywhere in a target's or entity's `data_json` (`Assets::usages`) – read in the code, not tested.
+
+## 2026-11-14 – a model's map by texture quality (#260)
+
+- **Tilman**: "i want our tool to perhaps be able to import the mesh once and load the texture separately … load
+  resolution depending on user quality settings", then "i need to also implement this concept of loading a 3d model
+  with various texture qualities into the app, reader and editor side". Option 1 of the issue: an explicit texture set
+  on the model's asset (`AssetData.textures`, schema 2.27), not a naming rule – the build checks it, the editor shows it.
+- **Why the file carries the smallest map**: an older app (and this one, at once) shows the model without knowing the
+  set; the swap happens on the loaded model's materials, which every copy shares (`engine/src/scene/model-textures.ts`).
+- **Why `auto` stops at 2048**: an uncompressed 4096 map is about 85 MB of graphics memory; *Best* is the reader's own
+  choice. `auto` reads `navigator.deviceMemory` and `connection` (Chromium only – Safari gets 2048).
+- **The size is the picture's width**, never typed (the Library knows it): square, 512 / 1024 / 2048 / 4096.
+- **The server needed no change**: `Editor.php` passes an asset's other keys through, uses and relinks go by the URL
+  in the draft's text.
+- **The schema number**: the appearance work in the main checkout (uncommitted on 2026-11-14) also calls itself 2.27 –
+  whichever lands second takes 2.28 (table row in docs/content.md, the history comment, `npm run schema:lock`).
+- [ ] The built-in browser pane blocks the local stage frame (`ERR_BLOCKED_BY_CLIENT`); the stage was checked in Chrome.
+- [ ] The import script for the sculptures (#256): upload mesh + maps, place the node turned 90° at a scale from the
+  model's size (both examples sit well at 0.15) – planned for 2026-11-15.
+- [ ] Not tested on a phone: the swap while scanning, and `auto` on iOS.
 
 ## 2026-11-14 – the editor saves by itself (#259)
 

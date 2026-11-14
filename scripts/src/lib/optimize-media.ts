@@ -196,11 +196,30 @@ export function gzipCopy(file: string): MediaOptimization {
 const matchingFiles = (dir: string, pattern: RegExp): string[] =>
   listFiles(dir).filter(file => pattern.test(path.basename(file))).map(file => path.join(dir, file));
 
-/** Optimise the content copy: models (+ gzip copy), images; report large videos */
-export async function optimizeMedia(dir: string): Promise<MediaOptimization[]> {
+/** The files of every texture set in a built configuration, as paths below the content copy (`entities/x/map_512.jpg`) */
+export function textureSetFiles(config: unknown, found = new Set<string>()): Set<string> {
+  if (Array.isArray(config)) config.forEach(value => textureSetFiles(value, found));
+  else if (config && typeof config === 'object') {
+    for (const [key, value] of Object.entries(config)) {
+      if (key === 'textures' && Array.isArray(value)) {
+        value.forEach(set => (Array.isArray(set?.sizes) ? set.sizes : []).forEach((entry: { src?: unknown }) => {
+          if (typeof entry?.src === 'string') found.add(entry.src.replace(/^\/assets\/content\//, ''));
+        }));
+      } else textureSetFiles(value, found);
+    }
+  }
+  return found;
+}
+
+/**
+ * Optimise the content copy: models (+ gzip copy), images; report large videos. `keep` names the images that stay
+ * as authored (paths below `dir`, forward slashes): a model's texture set is its map at exact sizes (#260).
+ */
+export async function optimizeMedia(dir: string, keep: ReadonlySet<string> = new Set()): Promise<MediaOptimization[]> {
   const results: MediaOptimization[] = [];
+  const kept = (file: string) => keep.has(path.relative(dir, file).split(path.sep).join('/'));
   for (const file of matchingFiles(dir, /\.glb$/i)) results.push(await optimizeModel(file));
-  for (const file of matchingFiles(dir, /\.(jpe?g|png)$/i)) results.push(optimizeImage(file));
+  for (const file of matchingFiles(dir, /\.(jpe?g|png)$/i)) if (!kept(file)) results.push(optimizeImage(file));
   // After the model optimisation: the .glb.gz holds the optimised model (client: utils/compressed.ts)
   for (const file of matchingFiles(dir, /\.glb$/i)) results.push(gzipCopy(file));
   for (const file of matchingFiles(dir, /\.(mp4|webm|mov)$/i)) {

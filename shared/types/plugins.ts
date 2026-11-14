@@ -14,7 +14,7 @@
  * text file – a shader of the Library – by its URL, content schema 2.18); 1.6 `api.feedback` (a GPU feedback buffer the
  * engine steps every frame) and `api.shadertoy` (a Shadertoy pass as its fragment) – content schema 2.20; neither is a
  * registration (no type, no spec), so nothing of them is recorded; 1.7 `api.loadModel` (a model file by its URL) and the
- * parameter kind `model` (a Library model picked in the editor – content schema 2.27).
+ * parameter kind `model` (a Library model picked in the editor – content schema 2.28).
  *
  * What a plugin registers is recorded by the content build (content schema 2.14, #90): it runs every plugin once with a
  * recording API and writes the specs into the plugin's `registered` – so the guard, the editor's API, the MCP server and
