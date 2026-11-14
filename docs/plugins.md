@@ -290,8 +290,8 @@ it was. The type is named after the node (`oldDoorCode` for a node named "Old do
 From then on it is your code: change the build, Run, Save. **make code** beside the *material* row does the same for
 the node's look: a `registerMaterial` that draws what the type's material drew (a plane's picture as a
 `ShaderMaterial` with colour, opacity and another picture; a model's as a `MeshStandardMaterial`), and the node carries
-it. Nothing is saved to the draft until you press **Save**; the plugin is in the Code tab (and reaches readers through
-the content source, as every Code tab plugin until #78).
+it. Nothing is saved to the draft until you press **Save**; the plugin is in the Code tab and reaches readers with the
+next **Publish** ("Shipping it" below).
 
 **5 · A shader study: a toy that displaces the water (#202).** The tank also shows what a node type and a material can
 do together. A plastic toy fish – an ellipsoid body, a tail and a dorsal fin of flattened cones, eyes, a glossy
@@ -743,7 +743,22 @@ The reader runs the published plugins in its own page – the same API, without 
 
 ## Shipping it: the content build
 
-What runs in the Code tab stays in the editor until a **publish** compiles it: the content build – the same one
+A plugin reaches readers one of two ways.
+
+**From the Code tab, with the editor's Publish** (#78): the publish carries every saved source of the book, transpiled
+in the browser exactly as **Run** transpiles it. The API writes each into the published version as
+`/assets/content/plugins/<id>/plugin-<hash of its code>.js` – so other code is another version – and declares it in the
+configuration (a compiled plugin of the same id gives way); the reader loads it from the CDN with the AR scene like a
+compiled one. What the publish checks against the nodes (a component, node type, material or pass no plugin provides →
+409) it reads from the saved source's `api.register…("type", …)` calls. A source that ran on the stage in that session
+is declared with the specs that run registered (`registered`, below); one that did not, or whose run named other types
+than the saved source, is declared without them – its types are known when it loads. **What it does not do**: no type
+check (a type error the transpile lets through reaches readers – the Code tab underlines them, fix them first), no
+bundling (one file per plugin, as the Code tab has it), and a source that does not transpile stops the publish with its
+line. Only saved sources go – the Code tab's unsaved edits do not. Whether the server compiles them instead once a server
+of ours can run Node is #266.
+
+**From the content source, with the content build**: the content build – the same one
 that builds the book from its source – type-checks every plugin, bundles it, runs it once to learn what it
 registers (so the nodes that use it are checked), and declares it in the configuration together with what it
 registered: the specs of its components, layers, node types and passes (`registered`, content schema 2.14), and its
@@ -756,10 +771,9 @@ your component or node type before anyone presses Run. The reader's check refuse
 a plugin declared without `registered` (an older build) is unknown until it loads, so the check lets its types pass. The
 engine ignores the field and registers from the module. From there it travels to
 the CDN with the content version and the reader loads it with the AR scene. A plugin that does not compile fails
-the build with the file and line, like a missing image. The build behind the publish is #78 (decided: it runs on
-the server); until it lands, only the plugins in the content source (`content/plugins/<id>/index.ts`, built with
-`npm run build:content` in `scripts/`) are compiled, and a publish whose nodes use a component or a node type no
-such plugin provides is refused.
+the build with the file and line, like a missing image. Those are the plugins in the content source
+(`content/plugins/<id>/index.ts`, built with `npm run build:content` in `scripts/`) – an import brings them into the
+editor declared and compiled.
 
 Rules of the road: one `index.ts` per plugin (more files next to it are bundled in), no imports but
 `import type`, `camelCase` type names (`tint`, `spin`, `sparkle`, `water`, `caustics` – a node type at most 32

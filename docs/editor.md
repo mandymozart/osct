@@ -923,10 +923,11 @@ another tab shows (`plugins.code`), so a tab switch loses no edit.
 - **Save** stores the source (`/api/editor/books/{id}/plugins/{pid}`, a change recorded), **Delete** removes it –
   refused while the draft uses a type it registers (*used by entity castle – Delete anyway*). The Library lists the
   stored sources as its scripts and opens one here (**Open in Code**); a script file uploaded there is a source here.
-- **Nothing run here reaches readers**: a plugin gets there through the content build – today as a folder
-  `plugins/<id>/index.ts` of the content source and the import, later compiled by the publish itself on the server
-  (#78) – and a publish whose nodes use a component no compiled plugin can provide is refused (409
-  `unknown-components`), a pass no compiled plugin provides too (409 `unknown-passes`).
+- **A Run reaches no reader; Publish does**: the publish carries every saved source, transpiled in the browser as a
+  Run transpiles it, and the API puts it into the version (#78, [plugins](plugins.md) "Shipping it"). Unsaved edits stay
+  behind; a source that does not transpile stops the publish with its line; type errors are not checked there (#266). A
+  node whose component, node type, material or pass neither a compiled plugin nor a saved source provides is refused
+  (409 `unknown-components`, `unknown-node-types`, `unknown-materials`, `unknown-passes`).
 
 ## Settings and new versions
 
@@ -1023,16 +1024,16 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
 - The plugin API ([plugins](plugins.md)) has components, material layers, materials, procedural textures, passes, node
   types, parameter labels, text files, feedback buffers, events, variables in scopes, the progress and the spread, and
   rules without code are the `behaviour` component (#88); declared variables (with a type, a default and a write list)
-  and bubbling event scopes come when a work needs them. The plugins' build runs locally or in CI, not yet behind the
-  publish (#78).
+  and bubbling event scopes come when a work needs them. The content build compiles the content source's plugins
+  locally or in CI; the Code tab's go with the publish as the browser transpiled them – no type check (#78, #266).
 - What the stage cannot simulate of a reader's game: consulted entries (no entry view), a reader's stored progress
   (the stage's progress lives while the workspace is open – leaving to the spread list starts a new game), two
   spreads on one stage (the mock tracker reports the current spread's targets only; a `stage` variable survives the
   switch, a `spread` variable does not), the reader's UI around the scene.
 - The pass registry (`engine/src/scene/post/`) is what `api.registerPass` calls: `registerPass` with the plugin as
   owner, and `unregisterPassesOf` on uninstall. The content names the built-in passes and, since schema 2.21, a pass
-  a plugin of the book recorded (#216); a pass that exists only in a Code tab source saves to the draft but is refused
-  by the publish (409 `unknown-passes`) until the content build compiles its plugin (#78). *Make it code* for a built-in
+  a plugin of the book recorded (#216); a pass of a Code tab source goes with the publish, which carries the source
+  (#78). *Make it code* for a built-in
   pass is not built.
 - The phone layout of the workspace (the sheet, its touch heights – #171) was last checked in a desktop browser
   emulating a 360 px touch phone; the bunny store against the real zone and MariaDB against the new tables are

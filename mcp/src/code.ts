@@ -38,7 +38,7 @@ export function registerCodeTools(server: McpServer, api: OsctApi, links: AppLin
     "put_plugin",
     {
       description:
-        "Saves a plugin source (new or changed; at most 256 KB; a change is recorded). TypeScript that exports register(api) – see osct://guides/plugins: api.registerLayer(type, spec, { glsl }) for a material layer, api.registerComponent(type, spec, apply) for code on a node, api.registerNodeType(type, spec, build) for a node type of its own, api.three for three.js (never import it), api.loadText(url) for a shader file of the Library (upload_asset, kind shader – in a material's or pass's build, never a layer's glsl), api.feedback({ width, height, fragment }) for a GPU feedback buffer and api.shadertoy(source) for a Shadertoy pass as its fragment (plugin API 1.6). Nothing runs here: the person presses Run in the Code tab to see it on the stage; readers get it through the content build.",
+        "Saves a plugin source (new or changed; at most 256 KB; a change is recorded). TypeScript that exports register(api) – see osct://guides/plugins: api.registerLayer(type, spec, { glsl }) for a material layer, api.registerComponent(type, spec, apply) for code on a node, api.registerNodeType(type, spec, build) for a node type of its own, api.three for three.js (never import it), api.loadText(url) for a shader file of the Library (upload_asset, kind shader – in a material's or pass's build, never a layer's glsl), api.feedback({ width, height, fragment }) for a GPU feedback buffer and api.shadertoy(source) for a Shadertoy pass as its fragment (plugin API 1.6). Nothing runs here: the person presses Run in the Code tab to see it on the stage; readers get the saved source with the person's next Publish in the editor (transpiled, not type-checked).",
       inputSchema: z.object({ book: BOOK, plugin: PLUGIN, source: z.string().describe("the TypeScript source") }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
@@ -49,7 +49,7 @@ export function registerCodeTools(server: McpServer, api: OsctApi, links: AppLin
       if (/^\s*import\s+(?!type\b)/m.test(source)) warnings.push("the source imports a module – plugins import nothing but types (three.js is api.three)");
       if (Object.values(registers).every(types => types.length === 0)) warnings.push("no registerComponent / registerLayer / registerNodeType / registerPass call found");
       const { plugin: row } = await api.call<{ plugin: PluginSource }>("PUT", path(book, plugin), { source });
-      return text({ plugin: { ...row, source: undefined }, registers, ...(warnings.length ? { warnings } : {}), open: editorHref(links, book), next: "Open a spread in the editor → Code → the plugin → Run shows it on the stage; the content build ships it to readers." });
+      return text({ plugin: { ...row, source: undefined }, registers, ...(warnings.length ? { warnings } : {}), open: editorHref(links, book), next: "Open a spread in the editor → Code → the plugin → Run shows it on the stage; the next Publish in the editor takes it to readers." });
     }),
   );
 

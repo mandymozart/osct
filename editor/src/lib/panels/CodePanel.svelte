@@ -17,9 +17,8 @@
    * the browser and installs the module in the stage's registry, so a layer or component shows on the stage and in
    * the Inspector at once; **Save** stores the source; a Run's error shows under the editor and as a marker on its
    * line; **Download** gives the source with `plugin-api.d.ts` and a tsconfig, so it type-checks the same way
-   * elsewhere. Nothing run
-   * here reaches readers: a publish compiles the stored plugins with the content build (#78); until then only the
-   * plugins of the content source are compiled. The Library lists the stored sources as its scripts and opens one here
+   * elsewhere. A Run reaches no reader; the stored sources do with the next **Publish**, which carries them transpiled as a
+   * Run transpiles them – not type-checked (#78, #266). The Library lists the stored sources as its scripts and opens one here
    * (`plugins.focus`); **Delete** is refused while the draft uses what the plugin registers (*Delete anyway* forces it).
    * The picker names each plugin alone, the one with unsaved edits with an asterisk (`pluginLabel`, #232); the open source
    * is kept in `plugins.code`, so a tab switch loses no edit. The code runs in the stage frame, never in this page (#234):
@@ -224,7 +223,7 @@
     </span></div>
 {/if}
 
-<div class="editor" class:has-error={errorLine !== null} data-help-name="Plugin source" data-help="The plugin's TypeScript, checked against the plugin API as the content build checks it: completion with Ctrl+Space, type errors underlined. Run (Ctrl+Enter) shows it on the stage; Save (Ctrl+S) stores the source. Readers get a plugin with a publish once it compiles them (#78) – today only the content source's plugins are compiled.">
+<div class="editor" class:has-error={errorLine !== null} data-help-name="Plugin source" data-help="The plugin's TypeScript, checked against the plugin API as the content build checks it: completion with Ctrl+Space, type errors underlined. Run (Ctrl+Enter) shows it on the stage; Save (Ctrl+S) stores the source. Readers get the saved source with the next Publish, transpiled as Run does it – the type errors are not checked there, so fix them first.">
   <div class="monaco" bind:this={host}></div>
   {#if !code}<p class="small muted loading">{codeError ?? "loading the code editor…"}</p>{/if}
 </div>

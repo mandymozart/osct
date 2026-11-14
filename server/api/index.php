@@ -56,8 +56,9 @@ declare(strict_types=1);
  *   DELETE /editor/books/{id}/entries/{id}      { confirm?, deleteFiles? } the entry with its target and entity, the same two steps
  *   GET    /editor/books/{id}/draft/latest.json · …/draft/{build}/game.config.json · …/draft/{build}/files.json
  *                                               the draft as a content version (the engine's loader reads it like the CDN)
- *   POST   /editor/books/{id}/publish           { env, note?, replace? } → writes the version to the content store (env = this
- *                                               instance's own environment, else 403 other-environment)
+ *   POST   /editor/books/{id}/publish           { env, note?, replace?, plugins? } → writes the version to the content store (env =
+ *                                               this instance's own environment, else 403 other-environment); `plugins` = the
+ *                                               Code tab's sources as the editor transpiled them [{ id, code, api, registered? }]
  *   GET    /editor/books/{id}/versions          the publish log
  *   GET    /editor/books/{id}/changes?limit=    the change log, newest first
  *   GET    /editor/books/{id}/assets[?kind=]    the uploaded files (docs/server.md "Assets"), with their number of uses
@@ -167,7 +168,7 @@ try {
         (bool) preg_match("#^DELETE /editor/books/($id)/entries/($id)$#", $route, $match) => Books::deleteEntry($match[1], $match[2]),
         (bool) preg_match("#^GET /editor/books/($id)/draft/latest\\.json$#", $route, $match) => ContentVersion::draftManifest($match[1]),
         (bool) preg_match("#^GET /editor/books/($id)/draft/[0-9a-f]{12}/(game\\.config|files)\\.json$#", $route, $match) => ContentVersion::draftFile($match[1], $match[2]),
-        (bool) preg_match("#^POST /editor/books/($id)/publish$#", $route, $match) => Books::publish($match[1], Http::body()),
+        (bool) preg_match("#^POST /editor/books/($id)/publish$#", $route, $match) => Books::publish($match[1], Editor::body()),
         (bool) preg_match("#^GET /editor/books/($id)/versions$#", $route, $match) => Books::versions($match[1]),
         (bool) preg_match("#^GET /editor/books/($id)/changes$#", $route, $match) => Books::changes($match[1]),
         (bool) preg_match("#^GET /editor/books/($id)/assets$#", $route, $match) => Assets::list($match[1]),

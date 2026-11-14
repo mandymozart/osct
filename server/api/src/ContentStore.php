@@ -32,6 +32,8 @@ final class ContentStore
 
     /** The files below an environment that the local store serves (nothing else, no other folders) */
     private const SERVED = '#^(latest\.json|versions\.json|[0-9a-f]{12}/(game\.config|files)\.json)$#';
+    /** A Code tab plugin a publish put into a version (#78): JavaScript, loaded cross-origin by the reader */
+    private const SERVED_PLUGIN = '#^[0-9a-f]{12}/assets/content/plugins/[a-z][a-z0-9-]{0,39}/plugin-[0-9a-f]{12}\.js$#';
     /** The assets' files (Assets.php): `<book>/<asset>/v<n>.<ext>` under the `assets` environment – any book id (`Editor::ID`) */
     private const SERVED_ASSET = '#^' . Editor::ID . '/[0-9a-f-]{36}/v\d+\.([a-z0-9]{2,5})$#';
 
@@ -159,17 +161,23 @@ final class ContentStore
     }
 
     /**
-     * GET /content/{env}/{path} – a json file of the local store. Public, like the CDN: latest.json and versions.json
-     * are revalidated, a version folder's files never change.
+     * GET /content/{env}/{path} – a json file of the local store, an asset of the Library, or a plugin a publish put into
+     * a version (#78). Public, like the CDN: latest.json and versions.json are revalidated, a version folder's files never
+     * change.
      */
     public static function serve(string $env, string $path): never
     {
         $asset = $env === Assets::STORE_ENV && preg_match(self::SERVED_ASSET, $path, $match) ? strtolower($match[1]) : null;
+        if ($asset === null && preg_match(self::SERVED_PLUGIN, $path)) $asset = 'js';
         if ($asset === null && !preg_match(self::SERVED, $path)) throw new ApiError(404, 'not-found', 'Unknown endpoint.');
         $file = self::dir() . "/$env/$path";
         if (!is_file($file)) throw new ApiError(404, 'not-found', 'No such content file.');
         http_response_code(200);
-        header('Content-Type: ' . ($asset !== null ? (Assets::MIMES[$asset] ?? 'application/octet-stream') : 'application/json; charset=utf-8'));
+        header('Content-Type: ' . match (true) {
+            $asset === 'js' => 'text/javascript; charset=utf-8',
+            $asset !== null => Assets::MIMES[$asset] ?? 'application/octet-stream',
+            default => 'application/json; charset=utf-8',
+        });
         header('Cache-Control: ' . (str_contains($path, '/') ? 'public, max-age=31536000, immutable' : 'no-cache'));
         header('Content-Length: ' . (string) filesize($file));
         // Media are loaded cross-origin by the reader's engine (video textures, models): any origin may read them

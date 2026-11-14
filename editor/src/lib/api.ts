@@ -31,6 +31,7 @@ import type {
 } from "@shared/api/editor";
 import { apiErrorFields } from "@shared/api/errors";
 import { readStored, writeStored } from "#lib/storage.js";
+import type { PublishedPlugin } from "#lib/publish-plugins.js";
 
 export type { PrintPlacement };
 // The editor API's answers, typed once for the editor and the MCP server (shared/api/editor.ts)
@@ -441,8 +442,11 @@ export const putEntity = (bookId: string, ref: string, entity: EntityData) =>
 export const putTargetEntity = (bookId: string, targetId: string, entity: EntityData | EntityRefData | null) =>
   api<TargetSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/targets/${encodeURIComponent(targetId)}`, { entity });
 
-/** `replace` = publish although the environment serves another book (else 409 other-book) */
-export const publishBook = (bookId: string, env: string, options: { note?: string; replace?: boolean } = {}) =>
+/**
+ * `replace` = publish although the environment serves another book (else 409 other-book); `plugins` = the Code tab's
+ * saved sources as the browser transpiled them (`publish-plugins.ts`, #78) – the API puts them into the version
+ */
+export const publishBook = (bookId: string, env: string, options: { note?: string; replace?: boolean; plugins?: PublishedPlugin[] } = {}) =>
   api<PublishResult>("POST", `/editor/books/${encodeURIComponent(bookId)}/publish`, { env, ...options });
 
 /** The draft as a content version – the engine's `loadGameConfiguration({ baseUrl, fetch: authFetch })` reads it */
