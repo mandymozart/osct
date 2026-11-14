@@ -283,6 +283,7 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
       spread: { current: null, get: () => undefined },
       // A file is loaded where a build runs (a material, a pass, a node type) – never while recording
       loadText: () => Promise.resolve(''),
+      loadModel: () => new Promise<never>(() => undefined),
       // A feedback buffer (API 1.6) runs on a renderer: here its options are checked and a dummy stands in
       feedback: (options: FeedbackOptions) => {
         const problems = feedbackProblems(options);

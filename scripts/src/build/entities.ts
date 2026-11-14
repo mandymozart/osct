@@ -147,7 +147,7 @@ export function buildNode(
     if (!problems.length) {
       components = (raw.components as ComponentData[]).map((component, i) => {
         const spec = componentSpec(component.type);
-        return spec ? { ...component, ...resolveTextureParams(spec.params, component, `${label}: components[${i}]`, file) } as ComponentData : component;
+        return spec ? { ...component, ...resolveFileParams(spec.params, component, `${label}: components[${i}]`, file) } as ComponentData : component;
       });
     }
   }
@@ -158,10 +158,10 @@ export function buildNode(
     if (!problems.length) {
       const data = raw.material as MaterialData;
       const spec = materialSpec(data.type)!;
-      material = { type: data.type, ...(data.params ? { params: resolveTextureParams(spec.params, data.params, `${label}: material`, file) } : {}) };
+      material = { type: data.type, ...(data.params ? { params: resolveFileParams(spec.params, data.params, `${label}: material`, file) } : {}) };
     }
   }
-  const params = isMapping(raw.params) && pluginSpec ? resolveTextureParams(pluginSpec.params, raw.params, `${label}: params`, file) : raw.params;
+  const params = isMapping(raw.params) && pluginSpec ? resolveFileParams(pluginSpec.params, raw.params, `${label}: params`, file) : raw.params;
   let children: EntityData[] | undefined;
   if (raw.children !== undefined) {
     if (!Array.isArray(raw.children)) buildErrors.push(`${label}: children must be a list`);
@@ -189,13 +189,19 @@ export function buildNode(
 
 /** A texture file of the content: an image or a video */
 const TEXTURE_ASSET_TYPES = ['image', 'video'];
+/** A model file of the content */
+const MODEL_ASSET_TYPES = ['glb', 'gltf'];
+
+/** A file named as a URL or a path of its own (`/assets/content/…`) – not one next to the node */
+const isAddress = (src: string): boolean => /^[a-z]+:\/\//i.test(src) || src.startsWith('/');
 
 /**
- * The `texture` parameters of a spec in `values` (schema 2.17): a file next to the node (`sand.jpg`) becomes its content
- * path (an image or a video); a URL or a `/assets/content/…` path stays as it is; a procedural texture must be one a
- * plugin of the book registers, its own parameters checked. Every other value is returned as it is.
+ * The parameters of a spec in `values` that name a file. A `texture` (schema 2.17): a file next to the node (`sand.jpg`)
+ * becomes its content path (an image or a video); a procedural texture must be one a plugin of the book registers, its
+ * own parameters checked. A `model` (schema 2.27): a file next to the node (`sheet.glb`) becomes its content path (a
+ * `.glb` or `.gltf`). A URL or a `/assets/content/…` path stays as it is; every other value is returned as it is.
  */
-export function resolveTextureParams(
+export function resolveFileParams(
   specParams: Record<string, ComponentParamSpec>,
   values: Record<string, unknown>,
   label: string,
@@ -203,10 +209,21 @@ export function resolveTextureParams(
 ): Record<string, unknown> {
   const resolved = { ...values };
   for (const [name, param] of Object.entries(specParams)) {
-    if (param.kind !== 'texture' || values[name] === undefined) continue;
+    if (values[name] === undefined) continue;
+    if (param.kind === 'model') {
+      const src = values[name];
+      if (typeof src !== 'string' || !src.trim() || isAddress(src)) continue;
+      if (!MODEL_ASSET_TYPES.includes(assetType(src, `${label}.${name}`))) {
+        buildErrors.push(`${label}.${name}: a model is a .glb or .gltf file, not "${src}"`);
+        continue;
+      }
+      resolved[name] = file(src);
+      continue;
+    }
+    if (param.kind !== 'texture') continue;
     const source = textureSource(values[name]);
     if (source.kind === 'file') {
-      if (/^[a-z]+:\/\//i.test(source.src) || source.src.startsWith('/')) continue;
+      if (isAddress(source.src)) continue;
       if (!TEXTURE_ASSET_TYPES.includes(assetType(source.src, `${label}.${name}`))) {
         buildErrors.push(`${label}.${name}: a texture is an image or a video, not "${source.src}"`);
         continue;

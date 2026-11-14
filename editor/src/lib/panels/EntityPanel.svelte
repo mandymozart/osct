@@ -33,6 +33,7 @@
   import ScrubNumber from "#lib/components/ScrubNumber.svelte";
   import Segmented from "#lib/components/Segmented.svelte";
   import FileField from "#lib/components/FileField.svelte";
+  import ModelField from "#lib/components/ModelField.svelte";
   import ModelTextures from "#lib/components/ModelTextures.svelte";
   import { setNodeTextures, textureSizeOf, withMaterial, withoutTexture, withTexture } from "#lib/model-textures.js";
   import TextureField from "#lib/components/TextureField.svelte";
@@ -555,6 +556,9 @@
       {:else if row.kind === "texture"}
         <!-- A texture (#188): none, a procedural texture of the book's plugins, or a Library picture or video -->
         <TextureField value={String(getValue(current, row))} label={row.label} onchange={v => set(row, v)} />
+      {:else if row.kind === "model"}
+        <!-- A model file (#263): none, a Library model or one of the content's own -->
+        <ModelField value={String(getValue(current, row))} label={row.label} onchange={v => set(row, v)} />
       {:else if row.kind === "color"}
         <ColourField value={String(getValue(current, row))} label={row.label} onchange={hex => set(row, hex)} onpick={pickColour} />
       {:else}

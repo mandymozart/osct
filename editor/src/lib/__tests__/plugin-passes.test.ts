@@ -13,6 +13,7 @@ const GRAIN: PassSpec = {
     amount: { kind: "number", default: 0.08, min: 0, max: 0.4, step: 0.01, label: "grain", description: "How strong." },
     animated: { kind: "boolean", default: true, description: "Moves." },
     pattern: { kind: "texture", default: "", description: "A picture as the grain." },
+    shape: { kind: "model", default: "", description: "A model as the grain's shape." },
   },
 };
 const SCAN: PassSpec = { description: "Scan lines.", params: { lines: { kind: "number", default: 200, min: 10, max: 800, description: "How many." } } };
@@ -57,12 +58,13 @@ describe("a plugin pass's rows", () => {
   afterEach(() => uninstallPlugin("grain"));
   const specOf = (type: string) => specOfPass(type, [], [declared("grain", { filmGrain: GRAIN })]);
 
-  it("come from its spec – labels, ranges, every kind, a texture too", () => {
+  it("come from its spec – labels, ranges, every kind, a texture and a model file too", () => {
     const rows = passRows({ type: "filmGrain" }, 1, specOf);
     expect(rows.map(row => [row.id, row.kind, row.label])).toEqual([
       ["passes.1.amount", "number", "grain"],
       ["passes.1.animated", "boolean", "animated"],
       ["passes.1.pattern", "texture", "pattern"],
+      ["passes.1.shape", "model", "shape"],
     ]);
     expect(rows[0]).toMatchObject({ min: 0, max: 0.4, step: 0.01, default: 0.08, description: "How strong." });
     expect(passRows({ type: "unknownPass" }, 0, specOf)).toEqual([]);
@@ -79,7 +81,7 @@ describe("a plugin pass's rows", () => {
 
   it("the default lookup reads the engine's registry: a running plugin's pass has rows", () => {
     installPlugin("grain", { register: api => api.registerPass("filmGrain", GRAIN, ({ shaderPass }) => shaderPass("void main() {}")) });
-    expect(passRows({ type: "filmGrain" }, 0).map(row => row.label)).toEqual(["grain", "animated", "pattern"]);
+    expect(passRows({ type: "filmGrain" }, 0).map(row => row.label)).toEqual(["grain", "animated", "pattern", "shape"]);
   });
 });
 

@@ -136,6 +136,24 @@ describe("forward compatibility: a newer MINOR read by an older app", () => {
     expect((config as typeof raw).entities.fx.components).toEqual([{ type: "mossy", tone: "#112211" }]);
   });
 
+  it("a 2.28 book in a 2.27 app: a recorded model parameter and its value are skipped, the component stays (#263)", () => {
+    const app2_27: KnownFeatures = { ...currentFeatures(), schema: "2.27", pluginApi: "1.6", paramKinds: PARAM_KINDS.filter(kind => kind !== "model") };
+    const paper = { description: "Paper.", params: { sheet: { kind: "model", default: "", description: "The sheet." }, tone: { kind: "color", default: "#ffffff", description: "Its colour." } } };
+    const raw = {
+      ...book2_21("2.28", { components: [{ type: "paper", sheet: "/assets/content/entries/a/sheet.glb", tone: "#eeeeee" }] }),
+      plugins: [{ id: "paper", src: "/assets/content/plugins/paper/plugin.js", api: "1.7", registered: { components: { paper }, nodeTypes: { ripple: RIPPLE } } }],
+      spreads: [{ id: "s1", title: "1–2", firstPage: 1, lastPage: 2 }],
+    };
+    const { config, skipped } = skipUnknownFeatures(raw, app2_27);
+    expect(skipped.map(describeSkipped)).toEqual([
+      'plugins[0]: plugin API "1.7"',
+      'plugins[0].registered.components.paper.params.sheet: parameter kind "model"',
+      'entities.fx.components[0].sheet: parameter "sheet"',
+    ]);
+    expect(problemsOf(config)).toEqual([]);
+    expect((config as typeof raw).entities.fx.components).toEqual([{ type: "paper", tone: "#eeeeee" }]);
+  });
+
   it("loads in the app: the spread shows the passes it knows, the list is kept for the reader's hint", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {});
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -225,6 +243,6 @@ describe("forward compatibility: a newer MINOR read by an older app", () => {
   it("knows every parameter kind of shared/ (PARAM_KINDS)", () => {
     const param = (kind: string) => ({ kind, default: kind === "number" ? 0 : kind === "boolean" ? false : kind === "color" ? "#000000" : kind === "choice" ? "a" : "", min: 0, max: 1, options: ["a"], description: "d" });
     PARAM_KINDS.forEach(kind => expect(paramSpecProblems("t", { p: param(kind) })).toEqual([]));
-    expect(paramSpecProblems("t", { p: param("sound") })).toEqual(["t.p: kind must be color, number, choice, boolean, string or texture"]);
+    expect(paramSpecProblems("t", { p: param("sound") })).toEqual(["t.p: kind must be color, number, choice, boolean, string, texture or model"]);
   });
 });

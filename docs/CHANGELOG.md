@@ -7,6 +7,16 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.67.0 – 2026-11-14
+
+### Added
+- **A plugin can take a model from the Library** (#263): a parameter of the new kind `model` shows in the Inspector as a
+  list of the book's models; the plugin loads the picked file with `api.loadModel`. A new shape for a plugin is an
+  upload, never a change of its code. Content schema 2.28, plugin API 1.7 – an older reader skips such a parameter
+  with its update hint and runs the rest of the plugin.
+- **Paper** in the demo book: the `paper` component shows a video or an image on a slightly bent sheet of paper – the
+  sheet is a model the author picks in its one row. *The screen* (page 6) stands on a stand-in sheet.
+
 ## 1.66.0 – 2026-11-14
 
 ### Added

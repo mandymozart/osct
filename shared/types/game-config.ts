@@ -85,11 +85,14 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   target's optional `enabled` (`false` = switched off, #249: the reader leaves the target and its entry out until it is
  *   switched on; a 2.25 app ignores the field and shows both), and since 2.27 a model asset's optional `textures`
  *   (#260: its maps in several sizes – the file carries the smallest, the app swaps in the size the reader's texture
- *   quality asks for; a 2.26 app ignores the field and shows the model with the map in its file).
+ *   quality asks for; a 2.26 app ignores the field and shows the model with the map in its file), and since 2.28 the
+ *   parameter kind `model` (plugin API 1.7, `./components.ts`, #263: a model file a plugin's code loads with
+ *   `api.loadModel`) – an older app skips a component's, a node type's or a material's parameter of that kind with a
+ *   warning, as every parameter kind it does not know.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.27";
+export const CONTENT_SCHEMA_VERSION = "2.28";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 

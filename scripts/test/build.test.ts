@@ -247,7 +247,7 @@ describe('the test fixture', () => {
 });
 
 describe('the demo book', () => {
-  it('builds without errors: every node type, the covers, a shared entity, eleven plugins (three with a node type, one with a material and a texture, two with a pass)', { timeout: 60000 }, async () => {
+  it('builds without errors: every node type, the covers, a shared entity, twelve plugins (three with a node type, one with a material and a texture, two with a pass, one that takes a model file)', { timeout: 60000 }, async () => {
     const build = await loadBuild({ content: path.resolve(__dirname, '../../fixtures/demo') });
     vi.spyOn(console, 'log').mockImplementation(() => {});
     const plugins = await build.plugins.buildPlugins();
@@ -255,7 +255,7 @@ describe('the demo book', () => {
     vi.restoreAllMocks();
     expect(build.errors).toEqual([]);
     expect(book.id).toBe('demo');
-    expect(plugins.map(p => p.data.id)).toEqual(['aquarium', 'fluid', 'grain', 'narrative', 'pulse', 'scanlines', 'scenes', 'sparkle', 'spin', 'tally', 'tint']);
+    expect(plugins.map(p => p.data.id)).toEqual(['aquarium', 'fluid', 'grain', 'narrative', 'paper', 'pulse', 'scanlines', 'scenes', 'sparkle', 'spin', 'tally', 'tint']);
     // A plugin's pass (#216): the grain plugin's film grain on The twins, checked against its recorded spec
     expect(Object.keys(plugins.find(p => p.data.id === 'grain')!.data.registered!.passes ?? {})).toEqual(['filmGrain']);
     expect(spreads.find(s => s.id === 'the-twins')?.passes).toEqual([{ type: 'filmGrain', amount: 0.14 }]);
@@ -288,6 +288,9 @@ describe('the demo book', () => {
       { on: 'tap', do: [{ play: 'rattle' }, { set: { hasKey: true }, scope: 'book' }, { emit: 'keyRattled' }] },
     ]);
     expect(componentsOf('door').map(c => c.type)).toEqual(['door', 'behaviour']);
+    // The paper (#263): a component whose parameter is a model file – recorded as such, the file next to the node as its content path
+    expect(plugins.find(p => p.data.id === 'paper')!.data.registered!.components?.paper.params.sheet).toMatchObject({ kind: 'model', default: '' });
+    expect(componentsOf('screen').find(c => c.type === 'paper')).toEqual({ type: 'paper', sheet: '/assets/content/entries/screen/sheet.glb' });
     // Every model stands on its page (#189)
     const { contentModelBounds, zeroPlaneFindings } = await import('../src/build/zero-plane');
     const trees = [

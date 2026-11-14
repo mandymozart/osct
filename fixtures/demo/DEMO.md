@@ -1,7 +1,7 @@
 # The demo book – a sandbox, not the book
 
 `fixtures/demo/` is the **demo book** (`demo`): every node type, placement, filter and component the content model has,
-eleven plugins that use every part of the plugin API (node types of their own among them, `sparkle`, `aquarium` and `inkPainting`, and two
+twelve plugins that use every part of the plugin API (node types of their own among them, `sparkle`, `aquarium` and `inkPainting`, and two
 post-processing passes, `filmGrain` and `scanLines`), and a
 narrative across its spreads – a key tapped on one page opens a door on another, a lamp lights when the door opened, a tally counts the pages found, a tap switches a scene.
 

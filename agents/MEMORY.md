@@ -4,6 +4,36 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-14 – a plugin takes a Library model: the parameter kind `model`, `api.loadModel`, the paper (#263)
+
+- **Tilman**: "i want a concept in which i can pick a type of folded paper for videos. ideally this is a plugin." Then,
+  while it was built: "i dont think we need shade", "the thickness is also redundant. since it should be just a flat
+  surface bend", "they are just slightly bend. not extra vaganza", and "can i pick files from the asset manager for each
+  paper slot? they should be addable. so this is also a general purpose concept. how can a plugin access assets."
+- **So the paper is a component with one row**: `paper` on a video or an image, `sheet` = a model file. No list of
+  folds in the code, no depth, no shade. A new sheet is an upload to the Library.
+- **The general part**: a parameter kind `model` (content schema 2.28, plugin API 1.7) next to `texture`. Its value is the
+  file's address (a Library URL, a content path; `""` = none); the code loads it with `api.loadModel(address)`.
+  - Why a kind of its own and not `file` with a list of accepted types: an older app already skips a parameter kind it
+    does not know (#220), so a new kind needs no new rule; a new accepted type inside a known kind would.
+  - Why the code gets the address and a loader, not the loaded model (as `texture` hands over a three.js texture): a
+    texture object exists before its picture loaded, a model does not; a build is synchronous. `loadText` set the
+    pattern: a promise, one request per URL, shared.
+  - Why a component and not a node type or a material: a node type would copy the whole video node; a material never
+    sees the geometry, and a plane's four vertices cannot bend in a vertex shader.
+- **The fit reads the sheet's axes from its UVs** (least squares), so a file may lie on the floor, be scaled and turned
+  by its node, as Kévin's are. A sheet for another proportion than the picture's stretches with the picture.
+- **Kévin's first delivery** (`video_mesh_paper.zip`, 2026-11-14, seven `video_mesh_N.glb`) held seven identical flat
+  planes (9 × 9 vertices, every height 0): the bend was not exported – most likely modifiers without *Apply Modifiers*.
+  The demo ships a stand-in (`editor/tools/paper-sheet.mjs`, laid out like his export).
+- [ ] Kévin exports the sheets again (announced for 2026-11-15); upload them to the book's Library and pick them.
+- "Each paper slot" is one sheet row per video – Tilman: "forget the slots idea. works fine with just picking the right
+  paper asset from the asset manager". No book-wide list of named sheets.
+- **The schema number**: #260 landed first with 2.27, so this is 2.28 – the appearance work in the main checkout (see
+  #260 below) is then the third and takes 2.29.
+- The Library's *uses*, its delete protection and *Replace…*'s relink cover a sheet picked in a parameter: they look for
+  the asset's URL anywhere in a target's or entity's `data_json` (`Assets::usages`) – read in the code, not tested.
+
 ## 2026-11-14 – a model's map by texture quality (#260)
 
 - **Tilman**: "i want our tool to perhaps be able to import the mesh once and load the texture separately … load

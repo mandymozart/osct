@@ -82,7 +82,10 @@ interface FilterData {
  * (schema 2.15, plugin API 1.3) – the few words the editor's row shows. Without a label the row shows the name split
  * into words (`paramLabel`). A `texture` (schema 2.17, plugin API 1.4) takes a picture: a file (a Library image or
  * video, a file of the content) or a procedural texture a plugin registers (`registerTexture`) – its value is a
- * `TextureValue` (below); the engine hands the plugin's code a three.js texture.
+ * `TextureValue` (below); the engine hands the plugin's code a three.js texture. A `model` (schema 2.28, plugin API
+ * 1.7) takes a model file: a Library model's URL or a `/assets/content/…` path (in the content's YAML a `.glb` / `.gltf`
+ * next to the node, which the content build resolves to its path), `""` = none – its value is that string, and the
+ * plugin's code loads it with `api.loadModel(value)`.
  */
 export type ComponentParamSpec = ParamText & ({
 	kind: "color";
@@ -106,6 +109,9 @@ export type ComponentParamSpec = ParamText & ({
 	default: string;
 } | {
 	kind: "texture";
+	default: string;
+} | {
+	kind: "model";
 	default: string;
 });
 /**
@@ -657,7 +663,8 @@ export interface Feedback {
  * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`): `api.events` (core events of the
  * scene, scene events of the content), `api.vars` (variables in the scopes spread / stage / session / book),
  * `api.progress` (what the reader unlocked – from the app) and `api.spread` (the current spread). A file of the book's
- * Library – a shader (`.glsl`, `.frag`, `.vert`, `.wgsl`) – comes in as text through `api.loadText(url)` (#186).
+ * Library – a shader (`.glsl`, `.frag`, `.vert`, `.wgsl`) – comes in as text through `api.loadText(url)` (#186), a
+ * model the author picked in a `model` parameter through `api.loadModel(url)` (#263).
  * A **feedback buffer** (`feedback.ts`) is a fragment shader the engine runs once per frame into a render target
  * of its own (`api.feedback`), its own previous frame as `iChannel0` – a fluid on the GPU without the renderer in the
  * plugin's hands; `api.shadertoy(source)` turns a Shadertoy pass (`mainImage`) into its fragment.
@@ -794,6 +801,14 @@ export interface PluginApi {
 	 */
 	loadText(url: string): Promise<string>;
 	/**
+	 * A model file (`.glb`, `.gltf`): a model of the book's Library by its URL, or a content path (`/assets/content/…`) –
+	 * the value of a `model` parameter, which the author picks in the editor. One request per URL however often it is
+	 * asked for; rejects on an HTTP error or a file that is no model. The model is shared by everyone who loads the same
+	 * file: clone what you change (`model.scene.clone()`, a geometry's `clone()`), never dispose it. It loads after the
+	 * build that asked for it returned – apply it when it arrives, and not at all once the node is disposed.
+	 */
+	loadModel(url: string): Promise<PluginModel>;
+	/**
 	 * A GPU feedback buffer: `fragment` runs once per frame into a render target the engine keeps (two, swapped
 	 * every frame, while it reads its own previous frame – the channel `"self"`, the default `iChannel0`), before the scene
 	 * renders, with `iTime`, `iTimeDelta`, `iFrame`, `iResolution` and `iChannel0…3` set. Show `texture` – or put `uniform`
@@ -809,6 +824,10 @@ export interface PluginApi {
 	shadertoy(source: string): string;
 	/** To the console, prefixed with the plugin's id */
 	log(...args: unknown[]): void;
+}
+interface PluginModel {
+	scene: THREE.Group;
+	animations: THREE.AnimationClip[];
 }
 /** What a compiled plugin module exports */
 export interface PluginModule {

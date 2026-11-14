@@ -28,7 +28,7 @@ import {
   unregisterTextureSpec,
 } from "../types/index";
 import { contentUrl } from "../content/game-config";
-import type { LoadedAsset } from "./assets";
+import { type LoadedAsset, loadGltf } from "./assets";
 import { dropPluginListeners, nextRun, type PluginEvents, type PluginProgress, type PluginSpread, type PluginVars, runtimeApi } from "./plugin-runtime";
 import { type PassFactory, passRegistration, registeredPassTypes, registerPass, unregisterPassesOf } from "./post/registry";
 import { deleteMaterialRegistration, type MaterialBuild, materialRegistration, setMaterialRegistration } from "./materials";
@@ -59,7 +59,8 @@ import { collectFeedbacks, createFeedback, disposePluginFeedbacks, type Feedback
  * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`): `api.events` (core events of the
  * scene, scene events of the content), `api.vars` (variables in the scopes spread / stage / session / book),
  * `api.progress` (what the reader unlocked – from the app) and `api.spread` (the current spread). A file of the book's
- * Library – a shader (`.glsl`, `.frag`, `.vert`, `.wgsl`) – comes in as text through `api.loadText(url)` (#186).
+ * Library – a shader (`.glsl`, `.frag`, `.vert`, `.wgsl`) – comes in as text through `api.loadText(url)` (#186), a
+ * model the author picked in a `model` parameter through `api.loadModel(url)` (#263).
  * A **feedback buffer** (`feedback.ts`) is a fragment shader the engine runs once per frame into a render target
  * of its own (`api.feedback`), its own previous frame as `iChannel0` – a fluid on the GPU without the renderer in the
  * plugin's hands; `api.shadertoy(source)` turns a Shadertoy pass (`mainImage`) into its fragment.
@@ -204,6 +205,14 @@ export interface PluginApi {
    */
   loadText(url: string): Promise<string>;
   /**
+   * A model file (`.glb`, `.gltf`): a model of the book's Library by its URL, or a content path (`/assets/content/…`) –
+   * the value of a `model` parameter, which the author picks in the editor. One request per URL however often it is
+   * asked for; rejects on an HTTP error or a file that is no model. The model is shared by everyone who loads the same
+   * file: clone what you change (`model.scene.clone()`, a geometry's `clone()`), never dispose it. It loads after the
+   * build that asked for it returned – apply it when it arrives, and not at all once the node is disposed.
+   */
+  loadModel(url: string): Promise<PluginModel>;
+  /**
    * A GPU feedback buffer: `fragment` runs once per frame into a render target the engine keeps (two, swapped
    * every frame, while it reads its own previous frame – the channel `"self"`, the default `iChannel0`), before the scene
    * renders, with `iTime`, `iTimeDelta`, `iFrame`, `iResolution` and `iChannel0…3` set. Show `texture` – or put `uniform`
@@ -219,6 +228,12 @@ export interface PluginApi {
   shadertoy(source: string): string;
   /** To the console, prefixed with the plugin's id */
   log(...args: unknown[]): void;
+}
+
+/** A model `api.loadModel` loaded: its scene and its animation clips */
+export interface PluginModel {
+  scene: THREE.Group;
+  animations: THREE.AnimationClip[];
 }
 
 /** What a compiled plugin module exports */
@@ -260,6 +275,24 @@ export const loadText = (url: string, fetcher: typeof fetch = (input, init) => f
     });
     loading.catch(() => texts.delete(resolved));
     texts.set(resolved, loading);
+  }
+  return loading;
+};
+
+/** The model files plugins loaded (`api.loadModel`), by resolved URL – a failed one is asked for again next time */
+const models = new Map<string, Promise<PluginModel>>();
+
+/** `api.loadModel`: a model file by URL or content path, one request per URL */
+export const loadModel = (url: string, loader: (src: string, assetType: "glb" | "gltf") => Promise<PluginModel> = loadGltf): Promise<PluginModel> => {
+  const resolved = contentUrl(url);
+  let loading = models.get(resolved);
+  if (!loading) {
+    const file = resolved.split(/[?#]/)[0];
+    loading = /\.(glb|gltf)$/i.test(file)
+      ? loader(resolved, /\.gltf$/i.test(file) ? "gltf" : "glb")
+      : Promise.reject(new Error(`a model is a .glb or .gltf file (${url || "no file"})`));
+    loading.catch(() => models.delete(resolved));
+    models.set(resolved, loading);
   }
   return loading;
 };
@@ -385,6 +418,7 @@ export const installPlugin = (id: string, module: PluginModule): void => {
       staged.textures.set(type, { spec, draw });
     },
     loadText: url => loadText(url),
+    loadModel: url => loadModel(url),
     feedback: options => createFeedback(id, options),
     shadertoy: source => shadertoyFragment(source),
     log: (...args) => console.info(`[plugin ${id}]`, ...args),
