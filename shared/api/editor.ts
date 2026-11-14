@@ -4,6 +4,7 @@
  * sends: a field is optional only where the PHP leaves it out, `| null` where it sends null.
  * Not content: `shared/api/` is outside the content schema lock (RULES #10).
  */
+import type { BookAppearance } from "../types/appearance";
 import type { ContentManifest } from "../types/content-manifest";
 import type { EnvironmentData } from "../types/environment";
 import type { BookData, EntityData, EntryData, PassData, SpreadData, TargetData } from "../types/game-config";
@@ -26,7 +27,7 @@ export interface BookSummary {
   id: string;
   title: string;
   author: string;
-  /** The configuration's `book` as imported and edited since: its environment, its passes */
+  /** The configuration's `book` as imported and edited since: its environment, its passes, its appearance */
   book: BookData;
   /** The spread the book opens on – it cannot be removed */
   initialSpreadId: string;
@@ -222,7 +223,7 @@ export interface Confirmation {
   expiresAt: string;
 }
 
-// ── Rows: entities, targets, entries, spreads, the book's passes and environment ─────────────────────────
+// ── Rows: entities, targets, entries, spreads, the book's passes, appearance and environment ─────────────
 
 /** `GET /editor/books/{id}/entities`: the shared entities by ref */
 export interface SharedEntities {
@@ -293,6 +294,11 @@ export interface SpreadAdded {
 /** `PUT /editor/books/{id}/passes`: the book's post-processing, null when removed */
 export interface BookPassesSaved {
   passes: PassData[] | null;
+}
+
+/** `PUT /editor/books/{id}/appearance`: the book's looks by moment, null when removed (the default look plays everywhere) */
+export interface BookAppearanceSaved {
+  appearance: BookAppearance | null;
 }
 
 /** `PUT /editor/books/{id}/environment`: the book's environment, null when removed (the default applies) */

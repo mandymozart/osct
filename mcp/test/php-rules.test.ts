@@ -7,6 +7,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { MAX_NODE_DEPTH } from "../../shared/guards/game-config";
+import { APPEARANCE_TYPES, MOMENTS } from "../../shared/types/appearance";
 import { CONTENT_BUILD } from "../../shared/types/content-manifest";
 import { ENTRY_CATEGORIES } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS } from "../../shared/types/environment";
@@ -44,7 +45,7 @@ if (!hasPhp) console.warn("php-rules: php is not on the path – the PHP API's c
 /** Plugin sources the scanners must read alike: every quote, spacing, repeats, and calls that register nothing */
 const SOURCES = [
   `export const register = (api) => {\n  api.registerLayer("tint", SPEC, { glsl });\n  api.registerComponent('spin', SPEC2, apply);\n  api.registerComponent(\`spin\`, SPEC2, apply);\n};`,
-  `api.registerNodeType( "sparkle2", S, b);\napi.registerPass ('scan', S, f);\napi.registerMaterial("water", S, m);\napi.registerTexture(\`caustics\`, S, t);`,
+  `api.registerNodeType( "sparkle2", S, b);\napi.registerPass ('scan', S, f);\napi.registerMaterial("water", S, m);\napi.registerTexture(\`caustics\`, S, t);\napi.registerAppearance( 'softFade', S, f);`,
   `api.registerComponent(name, S, a); api.registerLayer("with-dash", S); api.registerPass("", S);`,
   "nothing here",
 ];
@@ -76,6 +77,8 @@ function readPhp(): Record<string, unknown> {
       'PRINT_SURFACES' => Editor::PRINT_SURFACES,
       'FORMATS' => Books::FORMATS,
       'PASS_TYPES' => Books::PASS_TYPES,
+      'MOMENTS' => Books::MOMENTS,
+      'APPEARANCE_TYPES' => Books::APPEARANCE_TYPES,
       'PLUGIN_PASS_TYPE' => Books::PLUGIN_PASS_TYPE,
       'WORLDS' => Books::WORLDS,
       'WORLD_MODEL_EXTENSIONS' => Books::WORLD_MODEL_EXTENSIONS,
@@ -129,9 +132,11 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(whole(php.ENV)).toBe(ENV_NAME.source);
   });
 
-  it("spread formats, passes (the built-in list) and the environment (Books)", () => {
+  it("spread formats, passes (the built-in list), the appearance's moments and looks, and the environment (Books)", () => {
     expect(php.FORMATS).toEqual([...SPREAD_FORMATS]);
     expect(php.PASS_TYPES).toEqual([...PASS_TYPES]);
+    expect(php.MOMENTS).toEqual([...MOMENTS]);
+    expect(php.APPEARANCE_TYPES).toEqual([...APPEARANCE_TYPES]);
     expect(php.WORLDS).toEqual([...ENVIRONMENT_WORLDS]);
     expect(php.WORLD_MODEL_EXTENSIONS).toEqual([...WORLD_MODEL_EXTENSIONS]);
     expect(php.SKY_IMAGE_EXTENSIONS).toEqual([...SKY_IMAGE_EXTENSIONS]);
@@ -147,6 +152,6 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
   it("the plugin-type scanner: the same functions, the same types read from the same sources (Plugins::registers)", () => {
     expect(php.REGISTERS).toEqual(PLUGIN_REGISTER_FUNCTIONS);
     expect(php.registers).toEqual(SOURCES.map(pluginTypes));
-    expect(pluginTypes(SOURCES[2])).toEqual({ components: [], layers: [], nodeTypes: [], passes: [], materials: [], textures: [] });
+    expect(pluginTypes(SOURCES[2])).toEqual({ components: [], layers: [], nodeTypes: [], passes: [], materials: [], textures: [], appearances: [] });
   });
 });

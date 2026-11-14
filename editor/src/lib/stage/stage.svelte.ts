@@ -2,6 +2,7 @@ import { SvelteMap } from "svelte/reactivity";
 import { resolve } from "$app/paths";
 import type { PrintSurface } from "@shared/types/game-config";
 import type { EnvironmentData } from "@shared/types/environment";
+import type { BookAppearance, Moment } from "@shared/types/appearance";
 import { getSpread, getTarget } from "@engine/content/game-config";
 import { mirrorPluginRegistry } from "@engine/scene/plugins";
 import type { VarScope, VarValue } from "@engine/scene";
@@ -82,6 +83,8 @@ export class Stage {
   private sentContent: ContentSnapshot | null = null;
   private passes: PassData[] | null | undefined = undefined;
   private environment: { environment: EnvironmentData | null; previewing: boolean } | null = null;
+  /** The looks the appearance panel holds (#265), sent again to a new frame */
+  private appearance: { appearance: BookAppearance | null } | null = null;
   private lookUp = 0;
   private selected: { node: [string | null, number[]]; target: string | null } = { node: [null, []], target: null };
   private ghostPlace: GhostPlace | null = null;
@@ -240,6 +243,7 @@ export class Stage {
     }
     this.overrides.forEach((entity, targetId) => void this.send("override", [targetId, this.wire(entity)]));
     if (this.passes !== undefined) void this.send("overridePasses", [this.passes]);
+    if (this.appearance) void this.send("overrideAppearance", [this.appearance]);
     if (this.environment) void this.send("showEnvironment", [this.environment.environment, this.environment.previewing]);
     if (this.lookUp) void this.send("setLookUp", [this.lookUp]);
     void this.send("setPickMode", [this.pickMode]);
@@ -335,6 +339,20 @@ export class Stage {
   overridePasses(passes: PassData[] | null): void {
     this.passes = passes;
     void this.send("overridePasses", [passes]);
+  }
+
+  /**
+   * Play these looks instead of the draft's (live edit, #265): the book's `appearance` as the panel holds it – `null` =
+   * the book names none, the default look plays everywhere
+   */
+  overrideAppearance(appearance: BookAppearance | null): void {
+    this.appearance = { appearance };
+    void this.send("overrideAppearance", [this.appearance]);
+  }
+
+  /** Play a moment's look on the stage's shown targets: the first find, a later find, the page lost */
+  playMoment(moment: Moment): void {
+    void this.send("playMoment", [moment]);
   }
 
   overrideOf(targetId: string): EntityData | undefined {

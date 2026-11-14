@@ -1,4 +1,4 @@
-import type { EntityData, EntityRefData, GameConfiguration, PassData } from "@engine/types";
+import type { BookAppearance, EntityData, EntityRefData, GameConfiguration, PassData } from "@engine/types";
 import type { EnvironmentData } from "@shared/types/environment";
 import type { AssetType, PrintPlacement, SourceOfTruth, SpreadFormat } from "@shared/types/game-config";
 import type {
@@ -8,6 +8,7 @@ import type {
   AssetUploaded,
   AssetUsages,
   BookList,
+  BookAppearanceSaved,
   BookPassesSaved,
   BookSaved,
   BookTree,
@@ -509,6 +510,10 @@ export const putEnvironment = (bookId: string, environment: EnvironmentData | nu
 /** The book's post-processing – the master of every spread without a list of its own; `null` removes it */
 export const putBookPasses = (bookId: string, passes: PassData[] | null) =>
   api<BookPassesSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/passes`, { passes });
+
+/** How the book's entities appear: a look per moment (#265); `null` removes it – the default look plays everywhere */
+export const putBookAppearance = (bookId: string, appearance: BookAppearance | null) =>
+  api<BookAppearanceSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/appearance`, { appearance });
 
 /** `passes`: the spread's post-processing; `null` removes the list (the book's applies), `[]` turns it off */
 export const putSpread = (bookId: string, spreadId: string, body: { title?: string; format?: SpreadFormat; passes?: PassData[] | null }) =>

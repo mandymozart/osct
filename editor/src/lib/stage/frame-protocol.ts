@@ -131,7 +131,7 @@ export type FrameEvent = { [N in FrameEventName]: { name: N; data: FrameEvents[N
 
 /** The methods the frame answers (`frame-host.svelte.ts`) */
 export const FRAME_METHODS = [
-  "init", "content", "open", "refresh", "relayout", "override", "overridePasses", "selectNode", "selectTarget", "setPickMode", "setGizmoMode",
+  "init", "content", "open", "refresh", "relayout", "override", "overridePasses", "overrideAppearance", "playMoment", "selectNode", "selectTarget", "setPickMode", "setGizmoMode",
   "setSnapModifier", "showEnvironment", "setLookUp", "ghost", "preview", "replayUnlock", "resetNarrative", "clearEvents", "setVar", "tap",
   "sampleColor", "sampleBottom", "timeline", "runPlugin",
 ] as const;

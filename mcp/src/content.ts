@@ -1,5 +1,5 @@
 // The editor's content tools over the API (`/api/editor/*`, docs/server.md "Editor data", "Assets"): the book's tree
-// and spreads, entities and targets, entries, the spreads themselves, the book's passes and environment, assets, the
+// and spreads, entities and targets, entries, the spreads themselves, the book's passes, appearance and environment, assets, the
 // draft, publishing to the instance's own environment, the logs. Every write is checked against the shared content
 // contract first and answers with the editor's link, where the person checks the draft on the stage. Production stays
 // with the person – the tool refuses it. Re-importing a book and removing a spread or an entry take the API's two steps:
@@ -9,17 +9,18 @@ import { basename } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod";
 import { ApiError, type OsctApi } from "./api.ts";
-import { checkEntity, checkPasses, describeContentModel, usesPluginPasses, usesPluginTypes, type BookModel } from "./model.ts";
+import { checkAppearance, checkEntity, checkPasses, describeContentModel, usesPluginAppearances, usesPluginPasses, usesPluginTypes, type BookModel } from "./model.ts";
 import { fail, guard, text, type Result } from "./result.ts";
 import { editorHref, type AppLinks } from "./services.ts";
 import type { PluginData } from "../../shared/types/game-config";
-import { PASS_TYPES, PRINT_SURFACES, SOURCES_OF_TRUTH, SPREAD_FORMATS } from "../../shared/types/game-config";
+import { APPEARANCE_TYPES, MOMENTS, PASS_TYPES, PRINT_SURFACES, SOURCES_OF_TRUTH, SPREAD_FORMATS } from "../../shared/types/game-config";
 import { EntryCategory } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
 import { exprMessage, renderEntryText } from "../../shared/text/entry-text";
 import type {
   AssetList,
   AssetUploaded,
+  BookAppearanceSaved,
   BookList,
   BookPassesSaved,
   BookSaved,
@@ -157,6 +158,10 @@ async function checkPassWrite(passes: unknown, path: string, book: () => Promise
     warnings: unverified.length ? { warnings: [`passes no recorded plugin provides: ${unverified.join(", ")} – a compiled plugin of the book must register them, else the publish is refused (unknown-passes)`] } : {},
   };
 }
+
+const lookSchema = z.object({ type: z.string().min(1) }).catchall(z.union([z.number(), z.string(), z.boolean()]))
+  .describe("a look: { type, …parameters } – only the values that differ from the look's defaults (describe_content_model appearance)");
+const appearanceSchema = z.object(Object.fromEntries(MOMENTS.map(moment => [moment, lookSchema.optional()])) as Record<(typeof MOMENTS)[number], z.ZodOptional<typeof lookSchema>>).strict();
 
 /**
  * Checks an entity against the content contract before it is sent: the guard's verdict as a tool error (`refused`),
@@ -635,6 +640,32 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       if (check.refused) return check.refused;
       const result = await api.call<BookPassesSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/passes`, { passes });
       return text({ ...result, ...check.warnings, open: editorHref(links, book) });
+    }),
+  );
+
+  server.registerTool(
+    "put_book_appearance",
+    {
+      description:
+        `How the book's AR entities appear and disappear – a look per moment: { reveal?, found?, lost? }, each { type, …parameters } like a pass. reveal = the first find of a target, found = every later find, lost = the page is lost (played rewound in the look's outDuration). A moment left out takes found's look, then the default; null (or {}) removes the field – the default look plays everywhere. The whole appearance is replaced: send every moment that keeps a look. Types: the built-in ${APPEARANCE_TYPES.join(", ")} and the looks the book's plugins register (describe_content_model { book } appearance, with every parameter's range and default). Checked against the contract; a change is recorded.`,
+      inputSchema: z.object({ book: BOOK, appearance: appearanceSchema.nullable() }),
+      annotations: write,
+    },
+    guard(async ({ book, appearance }) => {
+      if (appearance !== null) {
+        const { problems, unverified } = checkAppearance(appearance, "appearance", usesPluginAppearances(appearance) ? await bookModel(book) : undefined);
+        if (problems.length) {
+          return fail({
+            error: { code: "invalid-appearance", message: "appearance does not match the content contract (nothing was sent).", problems },
+            hint: `describe_content_model { book } lists the looks (${APPEARANCE_TYPES.join(", ")} and the book's plugins') with their parameters.`,
+          });
+        }
+        const result = await api.call<BookAppearanceSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/appearance`, { appearance });
+        const warnings = unverified.length ? { warnings: [`looks no recorded plugin provides: ${unverified.join(", ")} – a compiled plugin of the book must register them, else the publish is refused (unknown-appearances)`] } : {};
+        return text({ ...result, ...warnings, open: editorHref(links, book) });
+      }
+      const result = await api.call<BookAppearanceSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/appearance`, { appearance: null });
+      return text({ ...result, open: editorHref(links, book) });
     }),
   );
 

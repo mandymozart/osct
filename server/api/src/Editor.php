@@ -173,7 +173,7 @@ Please, grant access to proceed.",
     }
 
     /**
-     * The types of a kind (`materials`, `passes`) a save in this book accepts: from the compiled plugins its
+     * The types of a kind (`materials`, `passes`, `appearances`) a save in this book accepts: from the compiled plugins its
      * configuration declares and its Code tab sources (`typesOf`)
      * @return bool|list<string>
      */
@@ -185,7 +185,7 @@ Please, grant access to proceed.",
     }
 
     /**
-     * The types of a kind (`nodeTypes`, `materials`, `passes`) the declared plugins and Code tab sources may register: the recorded
+     * The types of a kind (`nodeTypes`, `materials`, `passes`, `appearances`) the declared plugins and Code tab sources may register: the recorded
      * ones when every declared plugin recorded what it registers and there are no sources; `true` when a plugin is unknown
      * until it runs; `false` without plugins
      * @param array<mixed> $declared
@@ -203,11 +203,11 @@ Please, grant access to proceed.",
      * (shared/types/plugins.ts `recordedRegistrations`) – null when one of them recorded nothing (an older build: what it
      * registers is known only when it runs). No plugins: nothing registered.
      * @param array<mixed> $declared
-     * @return array{components: list<string>, nodeTypes: list<string>, passes: list<string>, materials: list<string>, textures: list<string>}|null
+     * @return array{components: list<string>, nodeTypes: list<string>, passes: list<string>, materials: list<string>, textures: list<string>, appearances: list<string>}|null
      */
     public static function recorded(array $declared): ?array
     {
-        $recorded = ['components' => [], 'nodeTypes' => [], 'passes' => [], 'materials' => [], 'textures' => []];
+        $recorded = ['components' => [], 'nodeTypes' => [], 'passes' => [], 'materials' => [], 'textures' => [], 'appearances' => []];
         foreach ($declared as $plugin) {
             $registered = $plugin instanceof stdClass ? ($plugin->registered ?? null) : null;
             if (!$registered instanceof stdClass) return null;
