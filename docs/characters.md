@@ -168,7 +168,8 @@ the size of *face against face*), except the margin: the batch's padding replace
 
 Close up, the 8K-to-4K bake is a little smoother than the plain 4K one; neither shows seam lines on this model.
 
-**Texture sizes** (Tilman: the mesh once, the texture by the reader's quality setting – #260): `--texture-sizes
+**Texture sizes** (Tilman: the mesh once, the texture by the reader's quality setting – #260, in the app since
+1.66.0: `docs/content.md` "A model's map by texture quality", the editor's *textures* section): `--texture-sizes
 512,1024,2048,4096` writes the map at each size as JPEG 90, every one scaled down from the full bake, the 8K master PNG,
 and `<name>_mesh.glb` with the 512 map embedded (*face against face*: mesh GLB 121 KB; maps 41 KB, 131 KB, 441 KB,
 1.46 MB). For a model that is already baked, `texture_versions.py` does the same from its map (fight_2: mesh GLB

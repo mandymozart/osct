@@ -4,6 +4,26 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-14 – a model's map by texture quality (#260)
+
+- **Tilman**: "i want our tool to perhaps be able to import the mesh once and load the texture separately … load
+  resolution depending on user quality settings", then "i need to also implement this concept of loading a 3d model
+  with various texture qualities into the app, reader and editor side". Option 1 of the issue: an explicit texture set
+  on the model's asset (`AssetData.textures`, schema 2.27), not a naming rule – the build checks it, the editor shows it.
+- **Why the file carries the smallest map**: an older app (and this one, at once) shows the model without knowing the
+  set; the swap happens on the loaded model's materials, which every copy shares (`engine/src/scene/model-textures.ts`).
+- **Why `auto` stops at 2048**: an uncompressed 4096 map is about 85 MB of graphics memory; *Best* is the reader's own
+  choice. `auto` reads `navigator.deviceMemory` and `connection` (Chromium only – Safari gets 2048).
+- **The size is the picture's width**, never typed (the Library knows it): square, 512 / 1024 / 2048 / 4096.
+- **The server needed no change**: `Editor.php` passes an asset's other keys through, uses and relinks go by the URL
+  in the draft's text.
+- **The schema number**: the appearance work in the main checkout (uncommitted on 2026-11-14) also calls itself 2.27 –
+  whichever lands second takes 2.28 (table row in docs/content.md, the history comment, `npm run schema:lock`).
+- [ ] The built-in browser pane blocks the local stage frame (`ERR_BLOCKED_BY_CLIENT`); the stage was checked in Chrome.
+- [ ] The import script for the sculptures (#256): upload mesh + maps, place the node turned 90° at a scale from the
+  model's size (both examples sit well at 0.15) – planned for 2026-11-15.
+- [ ] Not tested on a phone: the swap while scanning, and `auto` on iOS.
+
 ## 2026-11-14 – the editor saves by itself (#259)
 
 - **Tilman**: "autosave – it is confusing to save after adding uploads for example". The Inspector's six Save buttons

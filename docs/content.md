@@ -627,6 +627,38 @@ Recommendations – final numbers follow the device tests.
 | **A model's texture set** | The model file with its smallest map, the same map as JPEG at 512 / 1024 / 2048 / 4096 px | `textures` on the model node ("A model's map by texture quality" below). The mesh loads once; the reader's texture quality chooses the map. These files stay exactly as you made them – the build does not shrink them. |
 | **Entry images** | JPG / PNG / WebP | ~1200 px wide is enough. |
 
+### A model's map by texture quality
+
+A model can bring its colour map in several sizes; the reader's texture quality (Info page → Settings → *Model
+detail*) chooses which one loads, and the mesh loads once (schema 2.27, #260). Put the model file – with its
+**smallest** map inside – and the same map as JPEG at the other sizes next to the entry, and name them on the node:
+
+```yaml
+target:
+  image: target.jpg
+  entity:
+    type: model
+    src: face_mesh.glb          # the mesh, with the 512 map inside
+    textures:
+      512: face_512.jpg
+      1024: face_1024.jpg
+      2048: face_2048.jpg
+      4096: face_4096.jpg
+    params:
+      rotation: [90, 0, 0]
+      scale: 0.15
+```
+
+- Sizes: 512, 1024, 2048, 4096 – square maps, each size once; not every size has to be there. The app shows the
+  largest one that is not above what the quality asks for, else the smallest there is.
+- A model with a map per material names the material of each set:
+  `textures: [{ material: LOW_left, sizes: { 512: left_512.jpg, … } }, { material: LOW_right, sizes: { … } }]`.
+  Without `material` the set is the map of every material of the model.
+- The build checks that the files exist and leaves them exactly as you made them. The Blender batch writes this set
+  (`docs/characters.md`, "Texture sizes").
+- *Automatic* chooses 512 on a data-saving or slow connection, 1024 on a phone with up to 4 GB of memory, else 2048;
+  4096 only when the reader chooses *Best*.
+
 Allowed file types: `.jpg .jpeg .png .webp` (images), `.mp4 .webm .mov` (video), `.glb .gltf`
 (models), `.mp3 .wav .ogg` (audio).
 
