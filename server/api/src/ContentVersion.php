@@ -75,6 +75,36 @@ final class ContentVersion
         return ['configuration' => $configuration, 'files' => $files, 'hash' => $hash, 'build' => substr($hash, 0, 12), 'schema' => $schema];
     }
 
+    /**
+     * The version with plugins of the Code tab declared (#78, `Books::publish`): each replaces a declared plugin of the same
+     * id, the others follow in their order. Their `src` is a content path the version's own folder holds – not rewritten
+     * below the assets base. The hash and the build follow the new configuration, so other code is another version.
+     * @param array{configuration: stdClass, files: stdClass, hash: string, build: string, schema: string} $version
+     * @param list<stdClass> $plugins
+     * @return array{configuration: stdClass, files: stdClass, hash: string, build: string, schema: string}
+     */
+    public static function withPlugins(array $version, array $plugins): array
+    {
+        $configuration = $version['configuration'];
+        $byId = [];
+        foreach ($plugins as $plugin) $byId[$plugin->id] = $plugin;
+        $declared = [];
+        foreach ((array) ($configuration->plugins ?? []) as $plugin) {
+            $id = $plugin instanceof stdClass ? ($plugin->id ?? null) : null;
+            if (is_string($id) && isset($byId[$id])) {
+                $declared[] = $byId[$id];
+                unset($byId[$id]);
+            } else {
+                $declared[] = $plugin;
+            }
+        }
+        $configuration->plugins = [...$declared, ...array_values($byId)];
+        $configuration->version = (object) ['version' => Version::APP, 'schema' => $version['schema']];
+        $hash = hash('sha256', Editor::encode($configuration));
+        $configuration->version = (object) ['version' => Version::APP, 'timestamp' => Editor::iso(), 'hash' => $hash, 'schema' => $version['schema']];
+        return [...$version, 'configuration' => $configuration, 'hash' => $hash, 'build' => substr($hash, 0, 12)];
+    }
+
     /** GET /editor/books/{id}/draft/latest.json → the draft's ContentManifest (no-store: it changes with every edit) */
     public static function draftManifest(string $bookId): never
     {

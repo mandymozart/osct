@@ -4,7 +4,11 @@
     ApiError, errorText, getDraftManifest, listBooks, listEnvironments, publishBook,
     type BookSummary, type EnvironmentServing, type EnvironmentsInfo, type OtherBook, type PublishResult,
   } from "#lib/api.js";
+  import { pluginRegistrySnapshot } from "@engine/scene/plugins";
   import { liveLabels, liveShort } from "#lib/live.js";
+  import { plugins } from "#lib/plugins.svelte.js";
+  import { transpilePlugin } from "#lib/plugins/compile.js";
+  import { carriedPlugins } from "#lib/publish-plugins.js";
   import { publishStep, targetLabel, targetOf, type PublishStep } from "#lib/publish-target.js";
 
   /**
@@ -12,7 +16,8 @@
    * – an instance publishes there and nowhere else (#183). Next to the button: where the book is live, the target with
    * its backend (`staging · CDN`, `local · this server`) and, where this server is the target, that no CDN is
    * connected. The button opens a step in the page that names the book, the build, the target and what it replaces –
-   * publishing over another book is said there and sends `replace`.
+   * publishing over another book is said there and sends `replace`. The publish carries the Code tab's saved sources,
+   * transpiled here (#78): a source that does not compile stops it with its line.
    */
   let { bookId }: { bookId: string } = $props();
   let info = $state<EnvironmentsInfo | null>(null);
@@ -52,7 +57,8 @@
       // the step still names the book and the target
     }
     const serving = current ? { env: current.env, book: current.book, build: current.build, since: current.since } : environments.find(e => e.env === target.env);
-    step = publishStep(bookId, self?.title ?? bookId, build, target, serving, titleOf);
+    if (plugins.bookId !== bookId) await plugins.load(bookId);
+    step = publishStep(bookId, self?.title ?? bookId, build, target, serving, titleOf, plugins.stored.length);
     await tick();
     stepElement?.querySelector<HTMLButtonElement>("button.primary")?.focus();
   };
@@ -63,7 +69,15 @@
     busy = true;
     error = null;
     try {
-      result = await publishBook(bookId, target.env, replacing ? { replace: true } : {});
+      // The saved sources (not the Code tab's unsaved edits), with the specs of their stage runs
+      if (plugins.bookId !== bookId) await plugins.load(bookId);
+      const sources = await Promise.all(plugins.stored.map(async p => ({ id: p.id, source: await plugins.source(bookId, p.id) })));
+      const carried = await carriedPlugins(sources, transpilePlugin, pluginRegistrySnapshot());
+      if ("error" in carried) {
+        error = carried.error;
+        return;
+      }
+      result = await publishBook(bookId, target.env, { ...(replacing ? { replace: true } : {}), ...(carried.plugins.length ? { plugins: carried.plugins } : {}) });
       step = null;
     } catch (e) {
       // The environment changed since the list was read: the step again, with what the API says it serves now

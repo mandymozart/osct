@@ -984,6 +984,50 @@ try {
     [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
     check($status === 409 && $data['error']['code'] === 'unknown-components' && $data['error']['components'] === ['tint'], 'without one, publish → 409 unknown-components naming the types');
 
+    echo "editor: the publish carries the Code tab's plugins (#78)\n";
+    // A saved source, carried by the publish as the editor transpiled it, provides the component
+    $tintSource = "import type { PluginApi } from \"osct-plugin-api\";\nexport const register = (api: PluginApi): void => { api.registerLayer('tint', { description: 'x', params: {} }, { glsl: 'return rgba;' }); };\n";
+    $tintCode = "\nexport const register = (api) => { api.registerLayer('tint', { description: 'x', params: {} }, { glsl: 'return rgba;' }); };\n";
+    $carry = static fn(array $plugins): string => json_encode(['env' => 'local', 'plugins' => $plugins], $flags);
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', null, $editor, 'http://localhost:5173', $carry([['id' => 'tint', 'code' => $tintCode, 'api' => '1.7']]));
+    check($status === 400 && $data['error']['code'] === 'invalid-plugins' && str_contains($data['error']['message'], 'no saved source "tint"'), 'carrying a plugin the book has no saved source of → 400 invalid-plugins');
+    call($api, 'PUT', '/editor/books/osct/plugins/tint', ['source' => $tintSource], $editor);
+    foreach ([
+        [['id' => 'tint', 'code' => '  ', 'api' => '1.7']],
+        [['id' => 'tint', 'code' => $tintCode, 'api' => 'one']],
+        [['id' => 'Tint', 'code' => $tintCode, 'api' => '1.7']],
+        [['id' => 'tint', 'code' => $tintCode, 'api' => '1.7'], ['id' => 'tint', 'code' => $tintCode, 'api' => '1.7']],
+        [['id' => 'tint', 'code' => $tintCode, 'api' => '1.7', 'registered' => ['components' => [1]]]],
+        'tint',
+    ] as $badPlugins) {
+        [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', null, $editor, 'http://localhost:5173', $carry(is_array($badPlugins) ? $badPlugins : [$badPlugins]));
+        check($status === 400 && $data['error']['code'] === 'invalid-plugins', 'carried plugins that are no list of { id, code, api, registered? } (' . substr(json_encode($badPlugins), 0, 60) . ') → 400');
+    }
+    $registered = '{"components":{"tint":{"description":"x","params":{}}}}';
+    $raw = '{"env":"local","plugins":[{"id":"tint","code":' . json_encode($tintCode) . ',"api":"1.7","registered":' . $registered . '}]}';
+    [$status, $carried] = call($api, 'POST', '/editor/books/osct/publish', null, $editor, 'http://localhost:5173', $raw);
+    check($status === 200, 'publish carrying the saved source → 200: the component is provided');
+    $src = '/assets/content/plugins/tint/plugin-' . substr(hash('sha256', $tintCode), 0, 12) . '.js';
+    $publishedConfig = json_decode((string) file_get_contents("$storeDir/local/{$carried['build']}/game.config.json"));
+    check(is_file("$storeDir/local/{$carried['build']}$src") && file_get_contents("$storeDir/local/{$carried['build']}$src") === $tintCode, 'the module is in the version folder, named after its code');
+    check(count($publishedConfig->plugins) === 1 && $publishedConfig->plugins[0]->id === 'tint' && $publishedConfig->plugins[0]->src === $src && $publishedConfig->plugins[0]->api === '1.7'
+        && $publishedConfig->plugins[0]->registered->components->tint->params instanceof stdClass, 'the configuration declares it by its content path, with the specs as sent ({} stays an object)');
+    $servedPlugin = (string) @file_get_contents("$api/content/local/{$carried['build']}$src", false, stream_context_create(['http' => ['ignore_errors' => true]]));
+    check($servedPlugin === $tintCode && (bool) preg_grep('#^Content-Type: text/javascript#', $http_response_header) && (bool) preg_grep('/^Access-Control-Allow-Origin: \*$/', $http_response_header),
+        'the local store serves it as JavaScript to any origin');
+    [$status] = call($api, 'GET', "/content/local/{$carried['build']}/assets/content/plugins/tint/plugin.js");
+    check($status === 404, 'nothing else below the version\'s plugins folder is served');
+    $stale = '{"env":"local","plugins":[{"id":"tint","code":' . json_encode($tintCode) . ',"api":"1.7","registered":{"components":{"glow":{"description":"x","params":{}}}}}]}';
+    [$status, $staleBuild] = call($api, 'POST', '/editor/books/osct/publish', null, $editor, 'http://localhost:5173', $stale);
+    $staleConfig = json_decode((string) file_get_contents("$storeDir/local/{$staleBuild['build']}/game.config.json"));
+    check($status === 200 && !property_exists($staleConfig->plugins[0], 'registered'), 'specs naming other types than the saved source → declared without them');
+    $otherCode = str_replace('rgba', 'rgba * 0.5', $tintCode);
+    [$status, $changed] = call($api, 'POST', '/editor/books/osct/publish', null, $editor, 'http://localhost:5173', $carry([['id' => 'tint', 'code' => $otherCode, 'api' => '1.7']]));
+    check($status === 200 && $changed['build'] !== $carried['build'], 'other code is another version');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 409 && $data['error']['code'] === 'unknown-components', 'a publish that carries nothing is refused as before');
+    call($api, 'DELETE', '/editor/books/osct/plugins/tint?force=1', null, $editor);
+
     echo "editor: a plugin's node type (#77)\n";
     // A node type outside ENTITY_TYPES passes only in a book with plugins (declared, or sources of the Code tab)
     $sparkly = $configuration['entities']['castle'];

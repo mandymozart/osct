@@ -30,7 +30,7 @@ const EDITOR = [
   "add_spread / put_spread / delete_spread for the spreads themselves, put_book_passes, put_book_appearance and",
   "put_environment for the book's post-processing, how its entities appear and its world.",
   "Every save is the draft the editor shows – give the person the link from the result so they check it on the stage.",
-  "Plugins: osct://guides/plugins, then put_plugin; the Code tab's Run shows it on the stage, the content build ships it.",
+  "Plugins: osct://guides/plugins, then put_plugin; the Code tab's Run shows it on the stage, the person's next Publish takes it to readers.",
   "",
   "Never publish to production – that is the person's button in the editor. publish (local or staging, the instance's own) only when asked.",
   "import_book over an existing book answers a comparison first: show it to the person and confirm only with their yes.",

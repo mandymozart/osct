@@ -4,6 +4,27 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-14 – the publish carries the Code tab's plugins, transpiled in the browser (#78)
+
+- **Tilman**: "can we do some other way to inject the plugins properly? lazy load them via the cdn as we planned? … of
+  course a proper compile is nice. but injection should work fine too." Then: "yes, but create a follow up ticket for the
+  decision on guard rail of 66 once the server is up" (#266).
+- **Why not option 2 of #78 (decided 2026-10-29)**: it needs Node next to the API. Staging is still the PHP-only shared
+  host (#10) and production's Kamal server is not set up (waiting for Asger). Injection runs on PHP alone.
+- **This reverses the guard rail of #66** (no browser transpile published, no type check skipped) on Tilman's word – the
+  type check and a server build are #266's decision once a Kamal destination runs. The content format is the same either
+  way, so #266 can swap the way without touching the reader.
+- **Why the file is named after its code** (`plugin-<sha12>.js`) and not `plugin.js`: the version's build is the hash of
+  the configuration, and the configuration names only the path – the code's hash in the path makes other code another
+  version (a version folder is never written twice).
+- **Why the types for the 409 checks come from the saved source**, not from the editor's specs: the specs exist only
+  where the source ran on the stage in that session; the source's `api.register…("type"` calls are always there
+  (`Plugins::registers`). The editor's specs are kept only when they name the same types – stale specs would make the
+  reader refuse a node of a newer type.
+- **Only saved sources go**, every one of them (also one no node uses – a plugin may only listen to events).
+- [ ] A saved source runs on the editor's stage only after **Run** (found with #263: Tilman did not see `paper`) – run
+  the saved sources when the stage opens; not filed yet.
+
 ## 2026-11-14 – the book's appearance is set in the editor, the API and the MCP (#265)
 
 - The follow-up of #264's open item: `PUT /editor/books/{id}/appearance` (the whole appearance, `null` – or no moment –

@@ -33,6 +33,14 @@ describe("the step before a publish", () => {
     expect(step).toMatchObject({ readers: null, warning: null, replace: false, action: "Publish to staging" });
   });
 
+  it("with the Code tab's plugins, no draft build: their code makes the published one (#78)", () => {
+    const serving = { env: "staging", book: "osct", build: "1a2b3c4d5e6f", since: null };
+    const one = publishStep("osct", "Test Book", "1a2b3c4d5e6f", staging, serving, titleOf, 1);
+    expect(one.build).toBe("The draft now, with the Code tab's plugin – transpiled, not type-checked; the build gets its name when it is published.");
+    expect(one.replaces).toBe("Replaces build 1a2b3c4d5e6f of “Test Book” on staging.");
+    expect(publishStep("osct", "Test Book", null, staging, undefined, titleOf, 3).build).toContain("with the Code tab's 3 plugins");
+  });
+
   it("an environment that serves nothing yet, or this very build", () => {
     expect(publishStep("osct", "Test Book", "1a2b3c4d5e6f", staging, undefined, titleOf).replaces).toBe("Nothing is published on staging yet.");
     expect(publishStep("osct", "Test Book", "1a2b3c4d5e6f", staging, { env: "staging", book: "osct", build: "1a2b3c4d5e6f", since: null }, titleOf).replaces).toContain("serves this build already");

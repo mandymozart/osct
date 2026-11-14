@@ -7,6 +7,15 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.70.0 – 2026-11-14
+
+### Added
+- **Plugins from the Code tab reach readers** (#78): the editor's Publish carries every saved plugin source of the book,
+  transpiled in the browser as Run transpiles it, and the server puts it into the published version – readers load it
+  from the CDN like a compiled plugin. Works on every server, PHP alone included. Not type-checked: fix what the Code tab
+  underlines before publishing (a server-side build is decided later, #266). A source that does not compile stops the
+  publish with its line.
+
 ## 1.69.0 – 2026-11-14
 
 ### Added

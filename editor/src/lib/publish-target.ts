@@ -33,7 +33,9 @@ export interface PublishStep {
 
 /**
  * The step for publishing `title` (book `bookId`, its draft now at `build`) to `target`, which serves `serving`
- * (undefined: nothing; `book` null: a book the editor cannot tell); `titleOf` names a book by its id
+ * (undefined: nothing; `book` null: a book the editor cannot tell); `titleOf` names a book by its id. `plugins` = the
+ * Code tab's saved sources the publish carries (#78): their code is part of the version, so the build published is
+ * another than the draft's – the step says so instead of naming the draft's.
  */
 export const publishStep = (
   bookId: string,
@@ -42,6 +44,7 @@ export const publishStep = (
   target: EnvironmentInfo,
   serving: EnvironmentServing | undefined,
   titleOf: (id: string) => string | null,
+  plugins = 0,
 ): PublishStep => {
   const where = targetLabel(target);
   const live = serving && !("error" in serving) ? serving : undefined;
@@ -53,12 +56,15 @@ export const publishStep = (
       : `Nothing is published on ${target.env} yet.`
     : other
       ? replaceQuestion(target.env, title, otherTitle)
-      : live.build && live.build === build
+      : live.build && live.build === build && !plugins
         ? `${target.env} serves this build already – it stays current.`
         : `Replaces build ${live.build ?? "?"} of “${title}” on ${target.env}.`;
+  const carried = plugins === 1 ? "the Code tab's plugin" : `the Code tab's ${plugins} plugins`;
   return {
     title: `Publish “${title}” to ${where}`,
-    build: build ? `Build ${build} – the draft now.` : "The draft now.",
+    build: plugins
+      ? `The draft now, with ${carried} – transpiled, not type-checked; the build gets its name when it is published.`
+      : build ? `Build ${build} – the draft now.` : "The draft now.",
     replaces,
     readers: target.env === "production" ? "Every reader of the app gets this version on their next start." : null,
     warning: target.warning,

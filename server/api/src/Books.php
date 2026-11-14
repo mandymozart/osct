@@ -1052,14 +1052,21 @@ final class Books
      * An environment serves one book: when it serves another one (or one that cannot be told) the publish needs
      * `replace: true`, else 409 other-book with `current` { env, book, title, build, since }. `replaced` names the
      * book replaced there, null when there was none.
+     *
+     * `plugins` (#78) = the book's Code tab sources as the editor transpiled them, `[{ id, code, api, registered? }]`: every
+     * id a saved source of the book, `code` the module (JavaScript, `export const register`), `api` the plugin API it was
+     * written against, `registered` the specs a stage run recorded (optional – without them the reader learns the types when
+     * the plugin loads). Each goes into the version as `assets/content/plugins/<id>/plugin-<hash of the code>.js` and is
+     * declared in its configuration (a compiled plugin of the same id gives way); the types the publish checks are read from
+     * the saved source. The server compiles nothing: the code is the browser's transpile, not type-checked (#266).
      */
-    public static function publish(string $bookId, array $body): never
+    public static function publish(string $bookId, stdClass $body): never
     {
         $user = Editor::user();
         // Readers are reached only by a person: no environment takes a publish from an AI connection
         Auth::refuseToken('Publishing');
         self::book($bookId);
-        $env = $body['env'] ?? null;
+        $env = $body->env ?? null;
         $own = Config::env();
         if (!is_string($env) || !preg_match(ContentStore::ENV_NAME, $env)) {
             throw new ApiError(400, 'invalid-env', "env must be this instance's environment ($own).");
@@ -1068,9 +1075,9 @@ final class Books
         if ($env !== $own) {
             throw new ApiError(403, 'other-environment', "This instance publishes to $own only – $env is published from its own editor.", ['env' => $own]);
         }
-        $note = $body['note'] ?? null;
+        $note = $body->note ?? null;
         if ($note !== null && !is_string($note)) throw new ApiError(400, 'invalid-note', 'note must be a string.');
-        $replace = $body['replace'] ?? false;
+        $replace = $body->replace ?? false;
         if (!is_bool($replace)) throw new ApiError(400, 'invalid-replace', 'replace must be true or false.');
 
         $store = ContentStore::for($env);
@@ -1083,38 +1090,53 @@ final class Books
                 ['current' => ['env' => $env, 'book' => $replaced['book'], 'title' => $title ?: null, 'build' => $replaced['build'], 'since' => $replaced['since']]]);
         }
 
+        $injected = self::injectedPlugins($bookId, $body->plugins ?? null);
         $version = ContentVersion::assemble($bookId);
-        // A component type no plugin can register would make the reader refuse the whole content: a plugin written
-        // in the editor reaches readers through the content source, not through a publish. What the compiled plugins
-        // register is known when they recorded it (none declared: nothing) – else they may register anything
-        $recorded = Editor::recorded((array) ($version['configuration']->plugins ?? []));
+        if ($injected) $version = ContentVersion::withPlugins($version, array_map(static fn(array $plugin): stdClass => $plugin['declaration'], $injected));
+        // A component type no plugin can register would make the reader refuse the whole content: a plugin of the Code tab
+        // reaches readers only when the publish carries it (`plugins`). What the compiled plugins register is known when
+        // they recorded it (none declared: nothing) – else they may register anything; what a carried source registers
+        // is read from its text
+        $compiled = array_values(array_filter((array) ($version['configuration']->plugins ?? []),
+            static fn(mixed $plugin): bool => !($plugin instanceof stdClass && isset($injected[$plugin->id ?? ''])))); 
+        $recorded = Editor::recorded($compiled);
+        if ($recorded !== null) {
+            foreach ($injected as $plugin) {
+                foreach ($plugin['registers'] as $kind => $types) {
+                    $into = $kind === 'layers' ? 'components' : $kind;
+                    if (isset($recorded[$into])) $recorded[$into] = array_values(array_unique([...$recorded[$into], ...$types]));
+                }
+            }
+        }
         $unknown = $recorded === null ? [] : array_values(array_diff(self::unknownComponentTypes($version['configuration']), $recorded['components']));
         if ($unknown) {
-            throw new ApiError(409, 'unknown-components', 'Nodes use components no compiled plugin provides: ' . implode(', ', $unknown) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['components' => $unknown]);
+            throw new ApiError(409, 'unknown-components', 'Nodes use components no compiled plugin provides: ' . implode(', ', $unknown) . '. A plugin of the Code tab reaches readers only when the publish carries it (the editor\'s Publish sends the saved sources, #78).', ['components' => $unknown]);
         }
         // The same for a plugin's node type: without a compiled plugin the reader renders nothing for those nodes
         $unknownNodes = $recorded === null ? [] : array_values(array_diff(self::unknownNodeTypes($version['configuration']), $recorded['nodeTypes']));
         if ($unknownNodes) {
-            throw new ApiError(409, 'unknown-node-types', 'Nodes have types no compiled plugin provides: ' . implode(', ', $unknownNodes) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['nodeTypes' => $unknownNodes]);
+            throw new ApiError(409, 'unknown-node-types', 'Nodes have types no compiled plugin provides: ' . implode(', ', $unknownNodes) . '. A plugin of the Code tab reaches readers only when the publish carries it (the editor\'s Publish sends the saved sources, #78).', ['nodeTypes' => $unknownNodes]);
         }
         // The same for a plugin's material: without a compiled plugin the reader keeps the node's own material
         $unknownMaterials = $recorded === null ? [] : array_values(array_diff(self::materialTypes($version['configuration']), $recorded['materials']));
         if ($unknownMaterials) {
-            throw new ApiError(409, 'unknown-materials', 'Nodes use materials no compiled plugin provides: ' . implode(', ', $unknownMaterials) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['materials' => $unknownMaterials]);
+            throw new ApiError(409, 'unknown-materials', 'Nodes use materials no compiled plugin provides: ' . implode(', ', $unknownMaterials) . '. A plugin of the Code tab reaches readers only when the publish carries it (the editor\'s Publish sends the saved sources, #78).', ['materials' => $unknownMaterials]);
         }
         // And for a plugin's pass: the reader's guard refuses a pass type no declared plugin recorded
         $unknownPasses = $recorded === null ? [] : array_values(array_diff(self::pluginPassTypes($version['configuration']), $recorded['passes']));
         if ($unknownPasses) {
-            throw new ApiError(409, 'unknown-passes', 'The book\'s or a spread\'s post-processing names passes no compiled plugin provides: ' . implode(', ', $unknownPasses) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['passes' => $unknownPasses]);
+            throw new ApiError(409, 'unknown-passes', 'The book\'s or a spread\'s post-processing names passes no compiled plugin provides: ' . implode(', ', $unknownPasses) . '. A plugin of the Code tab reaches readers only when the publish carries it (the editor\'s Publish sends the saved sources, #78).', ['passes' => $unknownPasses]);
         }
         // And for a plugin's look: the reader's guard refuses a look no declared plugin recorded
         $unknownLooks = $recorded === null ? [] : array_values(array_diff(self::pluginAppearanceTypes($version['configuration']), $recorded['appearances']));
         if ($unknownLooks) {
-            throw new ApiError(409, 'unknown-appearances', 'The book\'s appearance names looks no compiled plugin provides: ' . implode(', ', $unknownLooks) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['appearances' => $unknownLooks]);
+            throw new ApiError(409, 'unknown-appearances', 'The book\'s appearance names looks no compiled plugin provides: ' . implode(', ', $unknownLooks) . '. A plugin of the Code tab reaches readers only when the publish carries it (the editor\'s Publish sends the saved sources, #78).', ['appearances' => $unknownLooks]);
         }
         $root = $version['build'];
         $uploaded = $store->exists("$root/game.config.json");
         if (!$uploaded) {
+            // The plugins' modules first: a version whose configuration is there is complete
+            foreach ($injected as $plugin) $store->put("$root/" . ltrim($plugin['declaration']->src, '/'), $plugin['code'], 'text/javascript');
             $store->put("$root/files.json", Editor::encode($version['files']));
             // Last in the folder: the configuration marks the version as complete
             $store->put("$root/game.config.json", Editor::encode($version['configuration']));
@@ -1130,6 +1152,76 @@ final class Books
             ['id' => Db::uuid(), 'book' => $bookId, 'env' => $env, 'build' => $version['build'], 'hash' => $version['hash'], 'by' => $user['id'], 'at' => Editor::nowMs(), 'note' => $note]);
         Http::json(200, ['env' => $env, 'store' => $store->isLocal() ? 'server' : 'cdn', 'build' => $version['build'], 'hash' => $version['hash'], 'publishedAt' => $now,
             'replaced' => $replaced !== null ? ['book' => $replaced['book'], 'build' => $replaced['build']] : null]);
+    }
+
+    /**
+     * The publish's `plugins` (#78), checked: by id → { declaration (the configuration's `PluginData`), code, registers (the
+     * types the saved source registers, `Plugins::registers`) }. Null or absent = none.
+     * @return array<string, array{declaration: stdClass, code: string, registers: array<string, array<int, string>>}>
+     */
+    private static function injectedPlugins(string $bookId, mixed $raw): array
+    {
+        if ($raw === null) return [];
+        if (!is_array($raw)) throw new ApiError(400, 'invalid-plugins', 'plugins must be a list of { id, code, api, registered? }.');
+        $sources = [];
+        foreach (Db::run('SELECT id, source FROM plugins WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) $sources[$row['id']] = (string) $row['source'];
+        $injected = [];
+        foreach ($raw as $i => $plugin) {
+            $at = "plugins[$i]";
+            if (!$plugin instanceof stdClass) throw new ApiError(400, 'invalid-plugins', "$at must be an object { id, code, api, registered? }.");
+            $id = $plugin->id ?? null;
+            if (!is_string($id) || !preg_match('/^' . Plugins::ID . '$/', $id)) throw new ApiError(400, 'invalid-plugins', "$at.id must be a plugin id (letters, digits, -).");
+            if (isset($injected[$id])) throw new ApiError(400, 'invalid-plugins', "$at.id: \"$id\" is there twice.");
+            if (!isset($sources[$id])) throw new ApiError(400, 'invalid-plugins', "$at.id: the book has no saved source \"$id\" – save it in the Code tab first.");
+            $code = $plugin->code ?? null;
+            if (!is_string($code) || trim($code) === '') throw new ApiError(400, 'invalid-plugins', "$at.code must be the transpiled module.");
+            if (strlen($code) > 2 * Plugins::MAX_SOURCE_BYTES) throw new ApiError(413, 'plugin-too-large', "$at.code is larger than " . (2 * Plugins::MAX_SOURCE_BYTES / 1024) . ' KB.');
+            $api = $plugin->api ?? null;
+            if (!is_string($api) || !preg_match('/^\d+\.\d+$/', $api)) throw new ApiError(400, 'invalid-plugins', "$at.api must be the plugin API version \"MAJOR.MINOR\".");
+            $declaration = (object) ['id' => $id, 'src' => '/assets/content/plugins/' . $id . '/plugin-' . substr(hash('sha256', $code), 0, 12) . '.js', 'api' => $api];
+            $registers = Plugins::registers($sources[$id]);
+            if (property_exists($plugin, 'registered') && $plugin->registered !== null) {
+                $problem = self::registeredProblem($plugin->registered);
+                if ($problem !== null) throw new ApiError(400, 'invalid-plugins', "$at.registered $problem");
+                // Specs of an older run name other types than the saved source: the reader would refuse a node of a newer
+                // type, so the plugin is declared without them (its types are known when it loads)
+                if (self::sameTypes($plugin->registered, $registers)) $declaration->registered = $plugin->registered;
+            }
+            $injected[$id] = ['declaration' => $declaration, 'code' => $code, 'registers' => $registers];
+        }
+        return $injected;
+    }
+
+    /**
+     * Do the specs name the types the source registers (`Plugins::registers` – its layers are components in the content)?
+     * @param array<string, array<int, string>> $registers
+     */
+    private static function sameTypes(stdClass $registered, array $registers): bool
+    {
+        $expected = [
+            'components' => [...($registers['components'] ?? []), ...($registers['layers'] ?? [])],
+            'nodeTypes' => $registers['nodeTypes'] ?? [], 'passes' => $registers['passes'] ?? [],
+            'materials' => $registers['materials'] ?? [], 'textures' => $registers['textures'] ?? [],
+            'appearances' => $registers['appearances'] ?? [],
+        ];
+        foreach ($expected as $kind => $types) {
+            $named = ($registered->{$kind} ?? null) instanceof stdClass ? array_map('strval', array_keys(get_object_vars($registered->{$kind}))) : [];
+            sort($named);
+            $types = array_values(array_unique($types));
+            sort($types);
+            if ($named !== $types) return false;
+        }
+        return true;
+    }
+
+    /** Why a plugin's `registered` is not { components?, nodeTypes?, passes?, materials?, textures?, appearances? } of type → spec, or null */
+    private static function registeredProblem(mixed $registered): ?string
+    {
+        if (!$registered instanceof stdClass) return 'must be an object { components?, nodeTypes?, passes?, materials?, textures?, appearances? }.';
+        foreach (['components', 'nodeTypes', 'passes', 'materials', 'textures', 'appearances'] as $kind) {
+            if (property_exists($registered, $kind) && !$registered->{$kind} instanceof stdClass) return ".$kind must be an object of type → spec.";
+        }
+        return null;
     }
 
     /**
@@ -1362,11 +1454,8 @@ final class Books
             }
             // What it registered (optional): the specs by kind – the app's guard checks them in depth
             if (property_exists($plugin, 'registered')) {
-                $registered = $plugin->registered;
-                if (!$registered instanceof stdClass) $fail("plugins[$i].registered must be an object { components?, nodeTypes?, passes?, materials?, textures?, appearances? }.");
-                foreach (['components', 'nodeTypes', 'passes', 'materials', 'textures', 'appearances'] as $kind) {
-                    if (property_exists($registered, $kind) && !$registered->{$kind} instanceof stdClass) $fail("plugins[$i].registered.$kind must be an object of type → spec.");
-                }
+                $problem = self::registeredProblem($plugin->registered);
+                if ($problem !== null) $fail("plugins[$i].registered" . (str_starts_with($problem, '.') ? $problem : " $problem"));
             }
         }
         // A plugin's node type: the ones the declared plugins recorded, any camelCase name while a
