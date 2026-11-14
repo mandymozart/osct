@@ -1,6 +1,6 @@
 import { GameStoreService } from "@/services";
-import { ENTITY_UNLOCK_MS, GameMode, type IGame, type Target, TARGET_UNLOCKED_EVENT } from "@/types";
-import { getEntry, getTarget } from "@/utils/game-config";
+import { ENTITY_UNLOCK_MS, GameMode, type IGame, momentDuration, type Target, TARGET_UNLOCKED_EVENT } from "@/types";
+import { getBook, getEntry, getTarget } from "@/utils/game-config";
 import { adoptDesignStyles } from "@/styles";
 import { t } from "i18next";
 
@@ -30,7 +30,8 @@ export const getIndicatorTarget = (trackedTargetIds: readonly string[]): Target 
  * A tap opens the entry view (`/entry`) in consultation mode, which marks the entry consulted.
  * On unlock (the first find of a target, TARGET_UNLOCKED_EVENT from `<ar-bridge>`) it shows a gold
  * "New entry unlocked" label with shine, glow and sparkles, plus a small rotation of the image; for
- * targets with an AR entity only the label, for as long as the entity's unlock animation (ENTITY_UNLOCK_MS).
+ * targets with an AR entity only the label, for as long as the entity's reveal takes: the duration of the look the book
+ * names for it (ENTITY_UNLOCK_MS where only a plugin's code knows it).
  * Lives in the scan page, so it is hidden in consultation mode.
  */
 export class FoundIndicator extends HTMLElement {
@@ -232,7 +233,7 @@ export class FoundIndicator extends HTMLElement {
       this.removeAttribute("unlocking");
       this.shadowRoot?.querySelector(".label")?.setAttribute("aria-hidden", "true");
       this.unlockTimer = window.setTimeout(() => this.update(), LABEL_FADE_MS);
-    }, (target.entity ? ENTITY_UNLOCK_MS : LABEL_MS) - LABEL_FADE_MS);
+    }, (target.entity ? momentDuration(getBook(), "reveal") ?? ENTITY_UNLOCK_MS : LABEL_MS) - LABEL_FADE_MS);
   }
 
   /** Open the entry in consultation mode (the route sets the mode; the entry view marks it consulted) */

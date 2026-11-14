@@ -16,8 +16,10 @@ import { buildTutorial } from './tutorial';
  */
 export function buildConfig(versionStr: string, inputHash: string, plugins: PluginData[] = []): GameConfiguration {
   // The passes the plugins recorded (schema 2.21): the book and a spread may name them
-  const pluginPasses = recordedRegistrations(plugins).passes;
-  const book = buildBook(pluginPasses);
+  const recorded = recordedRegistrations(plugins);
+  const pluginPasses = recorded.passes;
+  // The looks they recorded (schema 2.29): the book may name them in `appearance`
+  const book = buildBook(pluginPasses, recorded.appearances);
   const spreads = buildSpreads(pluginPasses);
   const entities = buildEntities();
   const builds = buildEntries(spreads, entities);

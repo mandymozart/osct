@@ -147,6 +147,6 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
   it("the plugin-type scanner: the same functions, the same types read from the same sources (Plugins::registers)", () => {
     expect(php.REGISTERS).toEqual(PLUGIN_REGISTER_FUNCTIONS);
     expect(php.registers).toEqual(SOURCES.map(pluginTypes));
-    expect(pluginTypes(SOURCES[2])).toEqual({ components: [], layers: [], nodeTypes: [], passes: [], materials: [], textures: [] });
+    expect(pluginTypes(SOURCES[2])).toEqual({ components: [], layers: [], nodeTypes: [], passes: [], materials: [], textures: [], appearances: [] });
   });
 });

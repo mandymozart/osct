@@ -30,13 +30,17 @@ export type CarriedPlugins = { plugins: PublishedPlugin[] } | { error: string };
 
 type SnapshotEntry = PluginRegistrySnapshot["plugins"][string];
 
-/** A stage run's registrations as the content declares them: its material layers among its components */
+/**
+ * A stage run's registrations as the content declares them: its material layers among its components, its looks only
+ * when it has some (as the content build writes them)
+ */
 export const declaredRegistrations = (entry: SnapshotEntry): PluginRegistrations => ({
   components: { ...entry.components, ...entry.layers },
   nodeTypes: { ...entry.nodeTypes },
   passes: { ...entry.passes },
   materials: { ...entry.materials },
   textures: { ...entry.textures },
+  ...(Object.keys(entry.appearances ?? {}).length ? { appearances: { ...entry.appearances } } : {}),
 });
 
 /**

@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import {
   AdditiveBlending,
   Box3,
@@ -11,77 +12,95 @@ import {
   type Object3D,
   Points,
   ShaderMaterial,
+  type SkinnedMesh,
   Vector3,
   type WebGLProgramParametersWithUniforms,
 } from "three";
 import { MeshSurfaceSampler } from "three/examples/jsm/math/MeshSurfaceSampler.js";
-import { ENTITY_UNLOCK_MS } from "../types/index";
+import {
+  type Appearance,
+  type AppearanceData,
+  APPEARANCES,
+  DEFAULT_APPEARANCE_TYPE,
+  isBuiltInAppearanceType,
+  type Moment,
+  resolveAppearance,
+  type ShapeEasing,
+} from "../types/index";
+import { type AppearanceRegistration, appearanceRegistration } from "./appearances";
 
 /**
- * Appear / disappear animations of an AR entity – the Codrops emissive dissolve (Jatin Chopra,
- * "Implementing a Dissolve Effect with Shaders and Particles in Three.js", 2025 –
- * github.com/JatinChopra/emissive-dissolve-effect, MIT):
+ * Appear / disappear animations of an AR entity, at three moments: `reveal` (the first find of a target), `found`
+ * (every later find) and `lost` (the page is lost – the entity goes, then the anchor hides). What plays is the **look**
+ * the content names for the moment (`book.appearance`, `shared/types/appearance.ts`): a plugin's own
+ * (`./appearances`), or a built-in one, played here from its values in three parts, each with its own share of the time –
  *
- *   noise = snoise(position × frequency) × amplitude;  noise < progress → discarded;
- *   progress ≤ noise < progress + edge → the glowing edge (HDR gold, picked up by the bloom).
+ *   - **shape**: the entity starts flat on the page and / or small and turned, and rises to its height and size. A
+ *     transform of the entity's object in the anchor's space (the page: z is its normal), around the centre of the
+ *     entity's footprint – so it holds for every entity type, a skinned model included.
+ *   - **mask**: the Codrops emissive dissolve (Jatin Chopra, "Implementing a Dissolve Effect with Shaders and
+ *     Particles in Three.js", 2025 – github.com/JatinChopra/emissive-dissolve-effect, MIT): a front moves through 3D
+ *     noise; what it has not reached is discarded, the edge at the front takes the edge colour, the band behind it
+ *     shines and cools down, sparks fly from the surface where the front passes.
+ *   - **surface**: a tint that fades away, an opacity fade.
  *
- * Three kinds:
- *   - `unlock` (first find): the entity materialises – progress from positive (nothing) to negative
- *     (everything), a wide gold edge narrowing, gold glow behind it, sparks from the surface, gold bloom.
- *   - `reveal` (every later find): the same dissolve, plain – no colour, no sparks, no bloom, quick.
- *   - `outro` (target lost): the reveal rewound – the entity dissolves away, then the anchor hides.
- * Works for every entity type (model, video / image plane, chroma key): the entity's materials are cloned
- * for the animation (model materials are shared with the cached asset) with the dissolve injected
+ * `reveal` and `found` play a look forwards, `lost` plays it rewound in the look's own time for it.
+ * Works for the entity's whole node tree and every node type (model, video / image plane, chroma key): the materials
+ * are copied for the animation (model materials are shared with the cached asset) with the injection
  * (onBeforeCompile); the originals come back afterwards.
  */
 
-export type AnimationKind = "unlock" | "reveal" | "outro";
+/** The moment an animation plays at */
+export type AnimationKind = Moment;
 
-/** Dissolve tuning (units: noise × amplitude; the object's size spans ~3 noise waves) */
-export const DISSOLVE = {
-  /** Noise waves across the object (frequency = WAVES / object size) */
-  waves: 3,
-  amplitude: 1,
-  /** Progress: from START (nothing visible) to END (everything visible); unlock runs on to TAIL (sparks) */
-  progressStart: 0.85,
-  progressEnd: -1.05,
-  progressTail: -1.9,
-  /**
-   * Colours from the gold palette (main.css --gold-1 … --gold-4). Edge colour × intensity (> 1 = brighter
-   * than white: only the edge and the sparks bloom – the bloom is gold, too)
-   */
-  edgeColor: new Color(0xf3cc94), // --gold-4: on screen a pale gold-white core, the bloom around it gold
-  edgeIntensity: 1.3,
-  glowColor: new Color(0xf3cc94), // --gold-4
-  sparks: 700,
-  sparkColors: [0xf5e7c8, 0x7f6032, 0xd2ae5a, 0xf3cc94], // --gold-1 … --gold-4
+const isColor = (value: unknown): value is string => typeof value === "string" && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value);
+
+/**
+ * The values of a built-in look: the type's defaults with the content's values over them, each taken only where it is
+ * of its parameter's kind (the reader's content is checked before; a tool hands loose values). null for a type that is
+ * not built in.
+ */
+export const lookOf = (data: AppearanceData): Appearance | null => {
+  if (!isBuiltInAppearanceType(data.type)) return null;
+  const spec = APPEARANCES[data.type];
+  const look: Record<string, unknown> = {};
+  for (const [name, param] of Object.entries(spec.params)) {
+    const value = data[name];
+    const ok = param.kind === "number" ? typeof value === "number" && Number.isFinite(value)
+      : param.kind === "color" ? isColor(value)
+      : param.kind === "choice" ? param.options.includes(value as string)
+      : false;
+    look[name] = ok ? value : param.default;
+  }
+  return look as unknown as Appearance;
 };
 
-interface AnimationPreset {
-  ms: number;
-  /** Share of the time for (de)materialising (eased); unlock: the rest lets sparks and glow fade */
-  materialise: number;
-  /** Edge width (wide at the start, narrow at the end); 0 = no coloured edge */
-  edgeStart: number;
-  edgeEnd: number;
-  /** Freshly materialised areas behind the edge glow gold over this range; 0 = no glow */
-  glowWidth: number;
-  sparks: boolean;
-  /** Bloom strength (ArView adds it over the camera image) – rises fast, holds, fades with the glow */
-  bloomStrength: number;
-  /** outro: from visible to nothing */
-  reverse: boolean;
-}
+/** The look a moment plays where the content names none */
+const DEFAULT_LOOK: AppearanceData = { type: DEFAULT_APPEARANCE_TYPE };
 
-export const ANIMATIONS: Record<AnimationKind, AnimationPreset> = {
-  unlock: { ms: ENTITY_UNLOCK_MS, materialise: 0.72, edgeStart: 0.15, edgeEnd: 0.03, glowWidth: 0.4, sparks: true, bloomStrength: 1.0, reverse: false },
-  reveal: { ms: 600, materialise: 1, edgeStart: 0, edgeEnd: 0, glowWidth: 0, sparks: false, bloomStrength: 0, reverse: false },
-  outro: { ms: 700, materialise: 1, edgeStart: 0, edgeEnd: 0, glowWidth: 0, sparks: false, bloomStrength: 0, reverse: true },
-};
+/** A plugin's look that names no usable duration takes this long (ms) */
+const PLUGIN_LOOK_MS = 600;
 
+/** The noise spans −amplitude … amplitude: twice a pattern's 0 … 1 */
+const NOISE_AMPLITUDE = 1;
+const PATTERN = 2;
+/** The flat entity keeps this share of its height (faces in one plane would flicker), the smallest this share of its size */
+const MIN_HEIGHT = 0.004;
+const MIN_SCALE = 0.001;
+
+const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+/** Where `u` is between `from` and `to`, 0 → 1 */
+const span = (u: number, from: number, to: number) => (to > from ? clamp01((u - from) / (to - from)) : u >= to ? 1 : 0);
 const smoothstep = (x: number) => {
-  const t = Math.min(1, Math.max(0, x));
+  const t = clamp01(x);
   return t * t * (3 - 2 * t);
+};
+const EASINGS: Record<ShapeEasing, (t: number) => number> = {
+  linear: t => t,
+  smooth: smoothstep,
+  out: t => 1 - (1 - t) ** 3,
+  inOut: t => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2),
+  in: t => t * t * t,
 };
 
 /** 3D simplex noise (Ashima Arts / Stefan Gustavson, MIT) → about −1…1 */
@@ -131,8 +150,10 @@ float dsNoise(vec3 v) {
 }
 `;
 
-/** Uniforms shared by the entity's materials and its sparks */
+/** Uniforms of the entity's materials during an animation */
 export interface DissolveUniforms {
+  /** 1 = the noise dissolve runs, 0 = every fragment is drawn */
+  uDissolve: { value: number };
   uFreq: { value: number };
   uAmp: { value: number };
   uProgress: { value: number };
@@ -140,14 +161,19 @@ export interface DissolveUniforms {
   uEdgeColor: { value: Color };
   uGlowWidth: { value: number };
   uGlowColor: { value: Color };
-  /** 0–1: strength of the gold glow behind the edge (fades out once the object is complete) */
+  /** 0–1: strength of the glow behind the edge */
   uGlow: { value: number };
+  /** 0–1: how much of the tint colour lies over the surface */
+  uTint: { value: number };
+  uTintColor: { value: Color };
+  uOpacity: { value: number };
 }
 
 /**
- * Add the dissolve to a material's shaders: a position in the entity's space (`uToEntity` – the same for
- * every mesh of the entity, so the noise is continuous over the whole object), fragments below the progress
- * are discarded, the edge band glows (HDR), the band behind it shines gold and cools down.
+ * Add the animation to a material's shaders: a position in the entity's space (`uToEntity` – the same for
+ * every mesh of the entity, so the noise is continuous over the whole object); with the dissolve, fragments below
+ * the progress are discarded, the edge band takes the edge colour, the band behind it shines in the glow colour and
+ * cools down; then the tint and the opacity.
  */
 export const injectDissolve = (
   shader: Pick<WebGLProgramParametersWithUniforms, "vertexShader" | "fragmentShader" | "uniforms">,
@@ -158,45 +184,54 @@ export const injectDissolve = (
   shader.vertexShader = shader.vertexShader
     .replace("void main() {", "uniform mat4 uToEntity;\nvarying vec3 vDissolvePosition;\nvoid main() {\n  vDissolvePosition = (uToEntity * vec4(position, 1.0)).xyz;");
   const declarations = [
-    "uniform float uFreq;", "uniform float uAmp;", "uniform float uProgress;", "uniform float uEdge;",
+    "uniform float uDissolve;", "uniform float uFreq;", "uniform float uAmp;", "uniform float uProgress;", "uniform float uEdge;",
     "uniform vec3 uEdgeColor;", "uniform float uGlowWidth;", "uniform vec3 uGlowColor;", "uniform float uGlow;",
+    "uniform float uTint;", "uniform vec3 uTintColor;", "uniform float uOpacity;",
     "varying vec3 vDissolvePosition;",
   ].join("\n");
   shader.fragmentShader = `${declarations}\n${NOISE_GLSL}\n${shader.fragmentShader}`.replace(/\}\s*$/, `
-  float dissolveNoise = dsNoise(vDissolvePosition * uFreq) * uAmp;
-  if (dissolveNoise < uProgress) discard;
-  // Freshly materialised areas shine gold and cool down behind the edge
-  float dissolveGlow = 1.0 - smoothstep(uProgress, uProgress + uGlowWidth, dissolveNoise);
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, uGlowColor, uGlow * 0.8 * dissolveGlow * dissolveGlow);
-  // The edge (brighter than white – it blooms)
-  if (dissolveNoise < uProgress + uEdge) gl_FragColor = vec4(uEdgeColor, 1.0);
+  if (uDissolve > 0.5) {
+    float dissolveNoise = dsNoise(vDissolvePosition * uFreq) * uAmp;
+    if (dissolveNoise < uProgress) discard;
+    // Freshly materialised areas shine and cool down behind the edge
+    float dissolveGlow = 1.0 - smoothstep(uProgress + uEdge, uProgress + uEdge + uGlowWidth, dissolveNoise);
+    gl_FragColor.rgb = mix(gl_FragColor.rgb, uGlowColor, uGlow * dissolveGlow * dissolveGlow);
+    // The edge
+    if (dissolveNoise < uProgress + uEdge) gl_FragColor = vec4(uEdgeColor, 1.0);
+  }
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, uTintColor, uTint);
+  gl_FragColor.a *= uOpacity;
 }`);
 };
 
 const sparkVertexShader = /* glsl */ `
 uniform float uFreq;
 uniform float uAmp;
-uniform float uProgress;
+uniform float uByNoise;
+uniform float uSparkProgress;
 uniform float uSize;
 uniform float uDistance;
 uniform float uViewportHalfHeight;
+uniform mat4 uRest;
+uniform mat4 uShape;
 attribute vec3 aDirection;
 attribute float aRandom;
-attribute vec3 aColor;
 varying float vLife;
-varying vec3 vColor;
 ${NOISE_GLSL}
 void main() {
-  // Born when the edge passes its point on the surface (progress drops below its noise), flies off, fades
-  float born = dsNoise(position * uFreq) * uAmp - uProgress;
-  float life = born / (0.45 + 0.35 * aRandom);
+  // Born when the dissolve's front passes its point on the surface – without a dissolve, spread over the shape's
+  // time –, flies off, fades
+  float born = uByNoise > 0.5 ? 0.5 - 0.5 * dsNoise(position * uFreq) * uAmp : fract(aRandom * 7.13);
+  float life = (uSparkProgress - born) / (0.25 + 0.2 * aRandom);
   vLife = life;
-  vColor = aColor;
-  vec3 p = position + aDirection * (1.0 - pow(1.0 - clamp(life, 0.0, 1.0), 3.0)) * uDistance * (0.4 + aRandom);
+  // It starts on the surface as the entity is shaped right now and flies unshaped (the anchor's space)
+  vec3 origin = (uShape * uRest * vec4(position, 1.0)).xyz;
+  vec3 direction = normalize(mat3(uRest) * aDirection);
+  vec3 p = origin + direction * (1.0 - pow(1.0 - clamp(life, 0.0, 1.0), 3.0)) * uDistance * (0.4 + aRandom);
   vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
   gl_Position = projectionMatrix * mvPosition;
   float visible = step(0.0, life) * step(life, 1.0);
-  // Perspective size: uSize is in the entity's units (the model-view matrix scales them)
+  // Perspective size: uSize is in the anchor's units (the model-view matrix scales them)
   float viewScale = length(modelViewMatrix[0].xyz);
   gl_PointSize = visible * uSize * viewScale * projectionMatrix[1][1] * uViewportHalfHeight / -mvPosition.z
     * (0.5 + aRandom) * (1.0 - life);
@@ -204,8 +239,8 @@ void main() {
 `;
 
 const sparkFragmentShader = /* glsl */ `
+uniform vec3 uColor;
 varying float vLife;
-varying vec3 vColor;
 void main() {
   // Round, soft dot (no pow() of a negative number – undefined on some mobile GPUs)
   float d = length(gl_PointCoord - vec2(0.5));
@@ -213,20 +248,18 @@ void main() {
   if (edge <= 0.0) discard;
   float glow = edge * edge;
   // Brighter than white while young: the sparks bloom too
-  gl_FragColor = vec4(vColor * (2.5 - 2.0 * vLife), glow * (1.0 - vLife));
+  gl_FragColor = vec4(uColor * (2.5 - 2.0 * vLife), glow * (1.0 - vLife));
 }
 `;
 
 /** Sparks on the entity's surface: positions and flight directions (normals) in the entity's space */
-const sampleSparks = (meshes: Array<{ mesh: Mesh; toEntity: Matrix4 }>): BufferGeometry | null => {
+const sampleSparks = (meshes: Array<{ mesh: Mesh; toEntity: Matrix4 }>, count: number): BufferGeometry | null => {
   const positions: number[] = [];
   const directions: number[] = [];
-  const colors: number[] = [];
   const randoms: number[] = [];
   const position = new Vector3();
   const normal = new Vector3();
-  const color = new Color();
-  const perMesh = Math.max(1, Math.floor(DISSOLVE.sparks / Math.max(1, meshes.length)));
+  const perMesh = Math.max(1, Math.floor(count / Math.max(1, meshes.length)));
   let seed = 1;
   const random = () => {
     const x = Math.sin(seed++ * 12.9898) * 43758.5453; // deterministic
@@ -258,8 +291,6 @@ const sampleSparks = (meshes: Array<{ mesh: Mesh; toEntity: Matrix4 }>): BufferG
       normal.add(new Vector3(random() - 0.5, random() - 0.5, random() - 0.5).multiplyScalar(0.8)).normalize();
       positions.push(position.x, position.y, position.z);
       directions.push(normal.x, normal.y, normal.z);
-      color.set(DISSOLVE.sparkColors[i % DISSOLVE.sparkColors.length]);
-      colors.push(color.r, color.g, color.b);
       randoms.push(random());
     }
   }
@@ -267,7 +298,6 @@ const sampleSparks = (meshes: Array<{ mesh: Mesh; toEntity: Matrix4 }>): BufferG
   const geometry = new BufferGeometry();
   geometry.setAttribute("position", new BufferAttribute(new Float32Array(positions), 3));
   geometry.setAttribute("aDirection", new BufferAttribute(new Float32Array(directions), 3));
-  geometry.setAttribute("aColor", new BufferAttribute(new Float32Array(colors), 3));
   geometry.setAttribute("aRandom", new BufferAttribute(new Float32Array(randoms), 1));
   return geometry;
 };
@@ -283,79 +313,161 @@ export interface Celebration {
 }
 
 /**
- * Start an animation of `entity` (the placement group; its first child is the entity's own object).
- * `outro` ends with the entity fully dissolved – hide it before its materials come back.
+ * The meshes' box in another space (`inverse`: the inverse of that space's world matrix), from their vertices as they
+ * are posed now – a box of the meshes' world boxes would be too large for a turned model, and would change with the
+ * camera's angle. A sample of the vertices of a large mesh.
  */
-export const celebrate = (_anchor: Object3D, entity: Object3D, kind: AnimationKind = "unlock"): Celebration => {
-  const preset = ANIMATIONS[kind];
-  const root = entity.children[0] ?? entity;
-  root.updateWorldMatrix(true, true);
-  const rootInverse = new Matrix4().copy(root.matrixWorld).invert();
+const boundsIn = (meshes: Mesh[], inverse: Matrix4): Box3 => {
+  const box = new Box3();
+  const point = new Vector3();
+  const toSpace = new Matrix4();
+  for (const mesh of meshes) {
+    const position = mesh.geometry.getAttribute("position");
+    if (!position) continue;
+    (mesh as SkinnedMesh).skeleton?.update(); // the bones' matrices, before the first frame drew them
+    toSpace.multiplyMatrices(inverse, mesh.matrixWorld);
+    const step = Math.max(1, Math.floor(position.count / 4000));
+    for (let i = 0; i < position.count; i += step) box.expandByPoint(mesh.getVertexPosition(i, point).applyMatrix4(toSpace));
+  }
+  return box;
+};
 
-  // Size of the entity → frequency: the same number of noise waves on every object
-  const box = new Box3().setFromObject(root);
-  box.applyMatrix4(rootInverse);
-  const size = Math.max(1e-3, box.getSize(new Vector3()).length());
+/** Every mesh of the entity's node tree */
+const meshesOf = (entity: Object3D): Mesh[] => {
+  const meshes: Mesh[] = [];
+  entity.traverse(object => {
+    if ((object as Mesh).isMesh) meshes.push(object as Mesh);
+  });
+  return meshes;
+};
 
-  const from = preset.reverse ? DISSOLVE.progressEnd : DISSOLVE.progressStart;
-  const to = preset.reverse ? DISSOLVE.progressStart : DISSOLVE.progressEnd;
-  const uniforms: DissolveUniforms = {
-    uFreq: { value: DISSOLVE.waves / size },
-    uAmp: { value: DISSOLVE.amplitude },
-    uProgress: { value: from },
-    uEdge: { value: preset.edgeStart },
-    uEdgeColor: { value: DISSOLVE.edgeColor.clone().multiplyScalar(DISSOLVE.edgeIntensity) },
-    uGlowWidth: { value: Math.max(preset.glowWidth, 1e-3) },
-    uGlowColor: { value: DISSOLVE.glowColor },
-    uGlow: { value: preset.glowWidth > 0 ? 1 : 0 },
-  };
-
-  // Materials: a clone per mesh with the dissolve; the originals come back at the end
-  const swapped: Array<{ mesh: Mesh; original: Material | Material[]; clones: Material[] }> = [];
-  const meshes: Array<{ mesh: Mesh; toEntity: Matrix4 }> = [];
-  root.traverse(object => {
-    const mesh = object as Mesh;
-    if (!mesh.isMesh) return;
-    const toEntity = new Matrix4().multiplyMatrices(rootInverse, mesh.matrixWorld);
-    meshes.push({ mesh, toEntity });
+/**
+ * Copies of the meshes' materials for one animation, on the meshes until `restore` (model materials are shared with
+ * the cached asset – an animation never changes those). `prepare` gets every copy before it is first drawn.
+ */
+const swapMaterials = (meshes: Mesh[], prepare: (clone: Material, original: Material, mesh: Mesh) => void = () => {}) => {
+  const swapped = meshes.map(mesh => {
     const original = mesh.material;
     const clones = (Array.isArray(original) ? original : [original]).map(material => {
       const clone = material.clone();
       if (material instanceof ShaderMaterial && clone instanceof ShaderMaterial) {
         clone.uniforms = { ...material.uniforms }; // keep the same textures (clone() would copy them)
       }
-      // A material with its own injection (a plugin's layers) keeps it under the dissolve
-      const previous = material.onBeforeCompile;
-      clone.onBeforeCompile = (shader, renderer) => {
-        previous.call(material, shader, renderer);
-        injectDissolve(shader, uniforms, toEntity);
-      };
-      clone.customProgramCacheKey = () => `dissolve-${material.customProgramCacheKey()}`;
+      prepare(clone, material, mesh);
       return clone;
     });
     mesh.material = Array.isArray(original) ? clones : clones[0];
-    swapped.push({ mesh, original, clones });
+    return { mesh, original, clones };
+  });
+  return {
+    clones: swapped.flatMap(({ clones }) => clones),
+    restore: () => swapped.forEach(({ mesh, original, clones }) => {
+      mesh.material = original;
+      clones.forEach(clone => clone.dispose());
+    }),
+  };
+};
+
+/** Sparks born last fly on for this much of the pattern after the front has passed */
+const SPARK_TAIL = 0.45;
+
+/** A built-in look's animation: shape, mask and surface from its values (the module's head) */
+const playLook = (anchor: Object3D, entity: Object3D, moment: Moment, look: Appearance): Celebration => {
+  const reverse = moment === "lost";
+  const ms = Math.max(1, reverse ? look.outDuration : look.duration);
+  const masked = look.mask === "noise";
+  anchor.updateWorldMatrix(true, false);
+  entity.updateWorldMatrix(true, true);
+  const entityInverse = new Matrix4().copy(entity.matrixWorld).invert();
+  const anchorInverse = new Matrix4().copy(anchor.matrixWorld).invert();
+  const drawn = meshesOf(entity);
+
+  // Size of the entity in its own space → frequency: the same number of noise waves on every object
+  const box = boundsIn(drawn, entityInverse);
+  const size = box.isEmpty() ? 1 : Math.max(1e-3, box.getSize(new Vector3()).length());
+
+  const uniforms: DissolveUniforms = {
+    uDissolve: { value: masked ? 1 : 0 },
+    uFreq: { value: look.waves / size },
+    uAmp: { value: NOISE_AMPLITUDE },
+    uProgress: { value: 1 },
+    uEdge: { value: 0 },
+    uEdgeColor: { value: new Color(look.edgeColor).multiplyScalar(look.edgeIntensity) },
+    uGlowWidth: { value: Math.max(look.glowWidth * PATTERN, 1e-3) },
+    uGlowColor: { value: new Color(look.glowColor) },
+    uGlow: { value: look.glow },
+    uTint: { value: 0 },
+    uTintColor: { value: new Color(look.tintColor) },
+    uOpacity: { value: 1 },
+  };
+
+  // Materials: a copy per mesh with the injection; the originals come back at the end. The position every mesh hands
+  // the noise is in the entity's space, so the noise is continuous over the whole node tree
+  const meshes = drawn.map(mesh => ({ mesh, toEntity: new Matrix4().multiplyMatrices(entityInverse, mesh.matrixWorld) }));
+  const blended = new Map<Material, boolean>();
+  const swap = swapMaterials(drawn, (clone, original, mesh) => {
+    const toEntity = meshes.find(entry => entry.mesh === mesh)!.toEntity;
+    // A material with its own injection (a plugin's layers) keeps it under the dissolve
+    const previous = original.onBeforeCompile;
+    clone.onBeforeCompile = (shader, renderer) => {
+      previous.call(original, shader, renderer);
+      injectDissolve(shader, uniforms, toEntity);
+    };
+    clone.customProgramCacheKey = () => `dissolve-${original.customProgramCacheKey()}`;
+    blended.set(clone, original.transparent);
   });
 
   // Lights (light nodes) fade with the entity: `userData.fade` is their share of the intensity, applied by the
   // light node every frame (entities.ts); 1 again at the end
   const lights: Light[] = [];
-  root.traverse(object => {
+  entity.traverse(object => {
     if ((object as Light).isLight) lights.push(object as Light);
   });
   const dim = (visible: number) => lights.forEach(light => (light.userData.fade = visible));
-  dim(preset.reverse ? 1 : 0);
 
-  // Sparks (unlock only) in the entity's space – children of its own object: they follow tracking and placement
-  const sparkGeometry = preset.sparks ? sampleSparks(meshes) : null;
+  // Shape: the entity's object is transformed in the anchor's space around the centre of its footprint (the middle
+  // of its box on the page, at its base). The matrix is the shape × the placement, so the placement stays its own
+  const bounds = boundsIn(drawn, anchorInverse);
+  const shaped = !bounds.isEmpty() && (look.heightFrom !== 1 || look.scaleFrom !== 1 || look.spin !== 0);
+  const pivot = shaped ? new Vector3((bounds.min.x + bounds.max.x) / 2, (bounds.min.y + bounds.max.y) / 2, bounds.min.z) : new Vector3();
+  const shape = new Matrix4();
+  const placement = new Matrix4();
+  const toPivot = new Matrix4().makeTranslation(-pivot.x, -pivot.y, -pivot.z);
+  const fromPivot = new Matrix4().makeTranslation(pivot.x, pivot.y, pivot.z);
+  const turn = new Matrix4();
+  const stretch = new Matrix4();
+  const autoUpdate = entity.matrixAutoUpdate;
+  if (shaped) entity.matrixAutoUpdate = false;
+  /** The shape at its progress `k` (0 = the start: flat, small, turned; 1 = the entity as it is) */
+  const shapeAt = (k: number) => {
+    if (!shaped) return;
+    const scale = Math.max(MIN_SCALE, look.scaleFrom + (1 - look.scaleFrom) * k);
+    const height = Math.max(MIN_HEIGHT, look.heightFrom + (1 - look.heightFrom) * k);
+    stretch.makeScale(scale, scale, scale * height);
+    turn.makeRotationZ(look.spin * 2 * Math.PI * (1 - k));
+    shape.copy(fromPivot).multiply(turn).multiply(stretch).multiply(toPivot);
+    // The placement as it is now: a tool may move the entity while it appears
+    placement.compose(entity.position, entity.quaternion, entity.scale);
+    entity.matrix.multiplyMatrices(shape, placement);
+    entity.matrixWorldNeedsUpdate = true;
+  };
+
+  // Sparks in the anchor's space – children of the anchor: they follow tracking, start on the shaped surface and fly
+  // unshaped. Sampled on the entity as it is placed now
+  const sparkGeometry = look.sparks > 0 ? sampleSparks(meshes, look.sparks) : null;
+  const sparkProgress = { value: 0 };
   const sparkMaterial = sparkGeometry && new ShaderMaterial({
     uniforms: {
       uFreq: uniforms.uFreq,
       uAmp: uniforms.uAmp,
-      uProgress: uniforms.uProgress,
-      uSize: { value: 0.06 * size },
-      uDistance: { value: 0.35 * size },
+      uByNoise: uniforms.uDissolve,
+      uSparkProgress: sparkProgress,
+      uSize: { value: look.sparkSize },
+      uDistance: { value: look.sparkDistance },
+      uColor: { value: new Color(look.sparkColor) },
       uViewportHalfHeight: { value: (window.innerHeight * Math.min(window.devicePixelRatio, 2)) / 2 },
+      uRest: { value: new Matrix4().multiplyMatrices(anchorInverse, entity.matrixWorld) },
+      uShape: { value: shape },
     },
     vertexShader: sparkVertexShader,
     fragmentShader: sparkFragmentShader,
@@ -366,20 +478,54 @@ export const celebrate = (_anchor: Object3D, entity: Object3D, kind: AnimationKi
   const sparks = sparkGeometry && sparkMaterial ? new Points(sparkGeometry, sparkMaterial) : null;
   if (sparks) {
     sparks.frustumCulled = false;
-    root.add(sparks);
+    anchor.add(sparks);
   }
 
+  // The front runs from before the pattern's start to past its end, edge and glow included
+  const reach = 1.001 + Math.max(look.edgeStart, look.edgeEnd) + (look.glow > 0 ? look.glowWidth : 0);
   let elapsed = 0;
   let bloom = 0;
   let done = false;
+
+  /** Everything at `u`: 0 = nothing there yet, 1 = the entity as it is */
+  const show = (u: number) => {
+    const m = smoothstep(span(u, look.maskStart, look.maskEnd));
+    const front = -0.001 + (reach + 0.001) * m;
+    uniforms.uProgress.value = (1 - PATTERN * front) * NOISE_AMPLITUDE;
+    uniforms.uEdge.value = PATTERN * (look.edgeStart + (look.edgeEnd - look.edgeStart) * m);
+
+    const shapeShare = span(u, look.shapeStart, look.shapeEnd);
+    const k = EASINGS[look.shapeEase](shapeShare);
+    shapeAt(k);
+
+    const opacity = look.fade > 0 ? smoothstep(u / look.fade) : 1;
+    uniforms.uOpacity.value = opacity;
+    uniforms.uTint.value = look.tint * (1 - smoothstep(span(u, 0, look.tintEnd)));
+    // Blended only while it is see-through; a material that blends anyway keeps doing so
+    blended.forEach((transparent, clone) => (clone.transparent = transparent || opacity < 1));
+
+    // Sparks: with the front, and on for a while after it has passed; without a dissolve over the shape's time
+    sparkProgress.value = (masked ? front : shapeShare) + SPARK_TAIL * span(u, masked ? look.maskEnd : look.shapeEnd, 1);
+    if (sparks) sparks.visible = u > 0 && u < 1;
+
+    // Bloom: rises fast, holds, fades towards the end
+    bloom = u <= 0 || u >= 1 ? 0 : look.bloom * smoothstep(u / 0.15) * (1 - smoothstep((u - 0.7) / 0.3));
+    // Lights follow what makes the entity visible: the dissolve, else the fade, else the shape
+    dim(masked ? m : look.fade > 0 ? opacity : shaped ? clamp01(k) : 1);
+  };
+  show(reverse ? 1 : 0);
+
   const finish = () => {
     if (done) return;
     done = true;
-    swapped.forEach(({ mesh, original, clones }) => {
-      mesh.material = original;
-      clones.forEach(clone => clone.dispose());
-    });
+    swap.restore();
     dim(1);
+    if (shaped) {
+      // The placement alone again
+      entity.matrixAutoUpdate = autoUpdate;
+      entity.updateMatrix();
+      entity.matrixWorldNeedsUpdate = true;
+    }
     sparks?.removeFromParent();
     sparkGeometry?.dispose();
     sparkMaterial?.dispose();
@@ -387,34 +533,108 @@ export const celebrate = (_anchor: Object3D, entity: Object3D, kind: AnimationKi
   };
 
   return {
-    kind,
+    kind: moment,
     get bloom() {
       return bloom;
     },
     finish,
     update(delta: number): boolean {
-      // At most one 30 fps frame per step: the first unlock compiles the dissolve shaders (a stall of a few
-      // hundred ms on phones) – the animation waits instead of jumping past the materialisation
+      // At most one 30 fps frame per step: the first animation compiles the injected shaders (a stall of a few
+      // hundred ms on phones) – the animation waits instead of jumping past its start
       elapsed += Math.min(delta, 1 / 30) * 1000;
-      const t = Math.min(1, elapsed / preset.ms);
-      if (t < preset.materialise || preset.materialise >= 1) {
-        const m = smoothstep(t / preset.materialise);
-        uniforms.uProgress.value = from + (to - from) * m;
-        uniforms.uEdge.value = preset.edgeStart + (preset.edgeEnd - preset.edgeStart) * m;
-        bloom = preset.bloomStrength * smoothstep(t / (preset.materialise * 0.15)); // rises fast, then holds
-        dim(preset.reverse ? 1 - m : m);
-      } else {
-        // Unlock only: past the materialisation the last sparks fly out, glow and bloom fade
-        const f = (t - preset.materialise) / (1 - preset.materialise);
-        uniforms.uProgress.value = to + (DISSOLVE.progressTail - to) * f;
-        uniforms.uEdge.value = preset.edgeEnd;
-        uniforms.uGlow.value = 1 - smoothstep(f);
-        bloom = preset.bloomStrength * (1 - smoothstep(f));
-        dim(1);
+      const t = Math.min(1, elapsed / ms);
+      show(reverse ? 1 - t : t);
+      if (t < 1) return true;
+      finish();
+      return false;
+    },
+  };
+};
+
+/**
+ * A plugin's look: its factory's run driven over its duration – `visible` from 0 to 1, for `lost` from 1 to 0. What it
+ * set on the entity's placement and the material copies it asked for are put back at the end; a look that throws ends
+ * there, with the entity as it is.
+ */
+const playPlugin = (registration: AppearanceRegistration, anchor: Object3D, entity: Object3D, moment: Moment, data: AppearanceData): Celebration => {
+  const drawn = meshesOf(entity);
+  let swap: ReturnType<typeof swapMaterials> | null = null;
+  const placed = { position: entity.position.clone(), quaternion: entity.quaternion.clone(), scale: entity.scale.clone(), visible: entity.visible };
+  const run = registration.factory({
+    object: entity,
+    anchor,
+    params: resolveAppearance(registration.spec, data),
+    moment,
+    three: THREE,
+    materials: () => (swap ??= swapMaterials(drawn)).clones,
+  });
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    try {
+      run?.dispose?.();
+    } catch (error) {
+      console.warn(`[celebration] The look "${data.type}" failed in dispose:`, error);
+    }
+    swap?.restore();
+    entity.position.copy(placed.position);
+    entity.quaternion.copy(placed.quaternion);
+    entity.scale.copy(placed.scale);
+    entity.visible = placed.visible;
+  };
+  if (!run || typeof run.update !== "function") {
+    finish();
+    throw new Error(`the look "${data.type}" returned no { duration, update }`);
+  }
+  const duration = Number(run.duration);
+  const ms = Number.isFinite(duration) && duration > 0 ? duration : PLUGIN_LOOK_MS;
+  const show = (t: number) => run.update(moment === "lost" ? 1 - t : t);
+  try {
+    show(0);
+  } catch (error) {
+    finish();
+    throw error;
+  }
+  let elapsed = 0;
+  return {
+    kind: moment,
+    bloom: 0,
+    finish,
+    update(delta: number): boolean {
+      if (done) return false;
+      elapsed += Math.min(delta, 1 / 30) * 1000;
+      const t = Math.min(1, elapsed / ms);
+      try {
+        show(t);
+      } catch (error) {
+        console.warn(`[celebration] The look "${data.type}" failed – ended:`, error);
+        finish();
+        return false;
       }
       if (t < 1) return true;
       finish();
       return false;
     },
   };
+};
+
+/**
+ * Start the animation of a moment on `entity` – the placement group of the entity's node tree, a child of `anchor`.
+ * `look` is what the content names for the moment (`momentAppearance`): a built-in look with its values, or a plugin's;
+ * a type nobody knows, or a plugin's look that fails to start, plays the default look. `lost` ends with the entity
+ * gone – hide it before its materials come back.
+ */
+export const celebrate = (anchor: Object3D, entity: Object3D, moment: Moment = "reveal", look: AppearanceData = DEFAULT_LOOK): Celebration => {
+  const registration = appearanceRegistration(look.type);
+  if (registration) {
+    try {
+      return playPlugin(registration, anchor, entity, moment, look);
+    } catch (error) {
+      console.warn(`[celebration] The look "${look.type}" failed to start – the default look plays:`, error);
+    }
+  } else if (!isBuiltInAppearanceType(look.type)) {
+    console.warn(`[celebration] No look "${look.type}" – the default look plays`);
+  }
+  return playLook(anchor, entity, moment, lookOf(look) ?? lookOf(DEFAULT_LOOK)!);
 };

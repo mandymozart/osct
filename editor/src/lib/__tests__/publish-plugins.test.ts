@@ -15,8 +15,8 @@ const SPIN = `export const register = (api: any) => api.registerComponent("spin"
 
 const snapshot: PluginRegistrySnapshot = {
   plugins: {
-    tint: { components: {}, layers: { tint: { description: "Tints.", params: {} } }, nodeTypes: {}, materials: {}, textures: {}, passes: {} },
-    aquarium: { components: {}, layers: {}, nodeTypes: { aquarium: { description: "A tank.", params: {} } }, materials: {}, textures: {}, passes: {} },
+    tint: { components: {}, layers: { tint: { description: "Tints.", params: {} } }, nodeTypes: {}, materials: {}, textures: {}, passes: {}, appearances: {} },
+    aquarium: { components: {}, layers: {}, nodeTypes: { aquarium: { description: "A tank.", params: {} } }, materials: {}, textures: {}, passes: {}, appearances: {} },
   },
   failures: {},
 };
@@ -51,9 +51,11 @@ describe("the plugins a publish carries", () => {
     expect(importing).toEqual({ error: expect.stringContaining("The plugin threes does not compile (line 1): A plugin imports nothing") });
   });
 
-  it("declares a run's registrations without sharing its objects", () => {
+  it("declares a run's registrations without sharing its objects, its looks only when it has some", () => {
     const declared = declaredRegistrations(snapshot.plugins.tint);
     expect(declared.components).not.toBe(snapshot.plugins.tint.layers);
     expect(Object.keys(declared)).toEqual(["components", "nodeTypes", "passes", "materials", "textures"]);
+    const look = { description: "Glows in.", params: {} } as unknown as NonNullable<typeof snapshot.plugins.tint.appearances>[string];
+    expect(declaredRegistrations({ ...snapshot.plugins.tint, appearances: { glowIn: look } }).appearances).toEqual({ glowIn: look });
   });
 });

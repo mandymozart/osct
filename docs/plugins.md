@@ -43,6 +43,9 @@ nodes and pages, four more ("Across nodes and pages" below):
 - **`api.shadertoy(source)`** (API 1.6) – a Shadertoy pass (`mainImage`) as a feedback buffer's fragment.
 - **`api.registerPass(type, spec, factory)`** – a **post-processing pass** over the rendered picture: a spread or the
   book names it in `passes` like a built-in pass (content schema 2.21, "A pass: film grain" below).
+- **`api.registerAppearance(type, spec, factory)`** (API 1.8) – a **look**: how an entity appears and disappears, in
+  code. The book names it for a moment – `reveal`, `found`, `lost` – in a built-in look's place (content schema 2.29,
+  "A look" below).
 - **`api.log(…)`** – to the console, prefixed with the plugin's id; in the editor also the Code tab's log.
 
 A `spec` describes the parameters the author sets in the editor: every one with a `kind` (`number` with `min`
@@ -608,6 +611,54 @@ passes:
 - **A second example**: `fixtures/demo/plugins/scanlines` – `scanLines`, dark lines across the picture like an old screen
   (line spacing, strength, scroll speed, `reach: all | ar`), on the demo's *The switch* with `enabled: false`: found in
   the section, switched on with the toggle in its head.
+
+## A look: how an entity appears (API 1.8)
+
+The engine has looks of its own – `inflateDissolve`, `printLift`, `fade`, each a set of values the book can change
+([content](content.md), "How entities appear"). When values are not enough, a plugin brings a look as code:
+
+```ts
+api.registerAppearance("softFade", {
+  description: "Fades in while it grows a little; fades out the same way back.",
+  params: { duration: { kind: "number", default: 800, min: 50, max: 10000, step: 10, unit: "ms", description: "How long it takes." } },
+}, ({ object, params, materials }) => {
+  const surface = materials();        // copies of the entity's materials, for this animation only
+  const size = object.scale.clone();  // the entity's placement, as the content has it
+  return {
+    duration: params.duration as number,
+    update: visible => {
+      surface.forEach(material => {
+        material.transparent = true;
+        material.opacity = visible;
+      });
+      object.scale.copy(size).multiplyScalar(0.8 + 0.2 * visible);
+    },
+  };
+});
+```
+
+and the book names it where it should play, in `book.yaml`:
+
+```yaml
+appearance:
+  found: { type: softFade, duration: 500 }   # every find – and the first one, while `reveal` names no other
+  lost:  { type: softFade, duration: 300 }
+```
+
+- The factory runs **once per animation** and returns `{ duration, update(visible), dispose? }`. The engine calls
+  `update` every frame with how much of the entity is there: from 0 to 1 on `reveal` and `found`, from 1 to 0 on
+  `lost` – a look that only says what the entity looks like at `visible` covers all three. `context.moment` tells
+  which one it is, for a look that wants to differ.
+- `object` is the entity on its anchor, its whole node tree; `anchor` is the page (x to the right, y to the top of the
+  page, z out of it, 1 unit = the target's width). Whatever the look sets on `object`'s position, rotation and scale is
+  put back when the animation ends.
+- **Never change a mesh's own material** – a model's materials are shared by every entity of the same file.
+  `materials()` hands out copies that sit on the meshes until the animation ends; set opacity, a colour or a shader of
+  your own on those. `dispose` is for what the look itself created.
+- A look that throws does not break the scene: one that fails to start leaves the moment to the default look, one that
+  fails later ends there with the entity as it is.
+- The content build records the look's spec (`registered.appearances`), so the build and the reader's guard check the
+  book's `appearance` against it like a built-in look's parameters.
 
 ## Across nodes and pages: events, variables, the progress (API 1.1)
 

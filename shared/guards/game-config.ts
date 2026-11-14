@@ -20,6 +20,7 @@ import { ENTRY_CATEGORIES, type EntryCategory } from "../types/entry";
 import { componentProblems } from "../types/components";
 import { materialProblems } from "../types/materials";
 import { type PassCheckOptions, passProblems } from "../types/passes";
+import { type AppearanceCheckOptions, appearanceProblems } from "../types/appearance";
 import { environmentProblems } from "../types/environment";
 import { pluginProblems, recordedRegistrations } from "../types/plugins";
 import { NODE_TYPE_PATTERN, nodeParamProblems, nodeTypeSpec } from "../types/node-types";
@@ -116,6 +117,14 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     unknownTypes: allowUnknown ? "allow" : "refuse",
   };
 
+  // A plugin's look (schema 2.29): as a plugin's pass. A moment or a parameter a newer MINOR adds is left to the newer app
+  const appearanceOptions: AppearanceCheckOptions = {
+    unknown: "ignore",
+    spec: type => recorded.appearances.get(type),
+    pluginTypes: [...recorded.appearances.keys()],
+    unknownTypes: allowUnknown ? "allow" : "refuse",
+  };
+
   const entity = (value: unknown, path: string, depth = 0) => {
     const e = obj(value, path);
     if (!e) return;
@@ -196,6 +205,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     str(book, "publisher", "book", true);
     if (book.passes !== undefined) passProblems(book.passes, "book.passes", passOptions).forEach(problem => problems.push(problem));
     if (book.environment !== undefined) environmentProblems(book.environment, "book.environment", false).forEach(problem => problems.push(problem));
+    if (book.appearance !== undefined) appearanceProblems(book.appearance, "book.appearance", appearanceOptions).forEach(problem => problems.push(problem));
   }
 
   str(root, "initialSpreadId", "config");

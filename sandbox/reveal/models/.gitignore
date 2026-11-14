@@ -1,0 +1,3 @@
+# Models stay out of git (RULES #8): drop .glb files here
+*
+!.gitignore

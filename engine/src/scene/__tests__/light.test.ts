@@ -82,7 +82,7 @@ describe("light nodes (content schema 2.6)", () => {
       return running;
     };
 
-    const reveal = celebrate(anchor, built.object, "reveal");
+    const reveal = celebrate(anchor, built.object, "found");
     built.update!(0);
     expect(light.intensity).toBe(0);
     frame(reveal, 0.3);
@@ -91,10 +91,10 @@ describe("light nodes (content schema 2.6)", () => {
     while (frame(reveal, 0.1));
     expect(light.intensity).toBe(2);
 
-    const outro = celebrate(anchor, built.object, "outro");
+    const outro = celebrate(anchor, built.object, "lost");
     built.update!(0);
     expect(light.intensity).toBe(2);
-    frame(outro, 0.35);
+    for (let i = 0; i < 10; i++) frame(outro, 0.05); // the outro starts with the sparks flying back, then the entity goes
     expect(light.intensity).toBeLessThan(2);
     outro.finish();
     built.update!(0);

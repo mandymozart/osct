@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.69.0 – 2026-11-14
 
 ### Added
 - **Plugins from the Code tab reach readers** (#78): the editor's Publish carries every saved plugin source of the book,
@@ -15,6 +15,35 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   from the CDN like a compiled plugin. Works on every server, PHP alone included. Not type-checked: fix what the Code tab
   underlines before publishing (a server-side build is decided later, #266). A source that does not compile stops the
   publish with its line.
+
+## 1.68.0 – 2026-11-14
+
+### Added
+- **A look per moment** (#264, Tilman: *"i want a built in and an overwrite via plugin for the reveal, found and
+  lost"*): a book says in its `appearance` how an entity appears on **reveal** (the first find of a target), on
+  **found** (every later find) and how it goes when the page is **lost** – each a look with its values, like a pass
+  (content schema 2.29, docs/content.md "How entities appear"). A moment without a look takes `found`'s; `lost` plays
+  its look rewound.
+- **Three built-in looks**: `inflateDissolve` – flat and small on the page, the entity rises, grows and turns half
+  around under a noise dissolve with a dim gold edge and sparks (the default, tuned by Tilman in the sandbox, #262) –,
+  `printLift` – a pale print lifts off the page and takes its colours – and `fade`. Every value can be set per book.
+- **A plugin's own look** (plugin API 1.8): `api.registerAppearance(type, spec, factory)` – code that says what the
+  entity looks like while it appears and disappears; the book names it in a built-in look's place
+  (docs/plugins.md "A look"). A look that fails leaves the moment to the default look.
+- **The reveal sandbox** (#261): a page for developers to tune these animations on a real model under the reader's
+  conditions, with concepts to compare, live controls and the values to copy (`sandbox/reveal/README.md`). Not part of
+  the reader or the editor.
+
+### Changed
+- Every find plays the book's look – the first one too (its sound and label stay) –, and the entity leaves the same way
+  back. Without an `appearance` that is `inflateDissolve`: 3.5 s to appear, 0.6 s to go, in place of the gold-bloom
+  unlock and the quick plain dissolve (#262).
+- The appear animation covers an entity's whole node tree: child nodes dissolve and inflate with their parent.
+- "New entry unlocked" stays as long as the book's look for the reveal takes.
+
+### Fixed
+- The dissolve's noise has the same scale on an entity from every camera angle (it grew coarser the more the page was
+  tilted).
 
 ## 1.67.0 – 2026-11-14
 

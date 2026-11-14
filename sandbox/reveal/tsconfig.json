@@ -1,0 +1,16 @@
+{
+  "extends": "../../client/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "baseUrl": ".",
+    "types": [],
+    "typeRoots": ["../../client/node_modules/@types"],
+    "paths": {
+      "@shared/*": ["../../shared/*"],
+      "@engine/*": ["../../engine/src/*"],
+      "three": ["../../client/node_modules/@types/three"],
+      "three/*": ["../../client/node_modules/@types/three/*"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

@@ -23,7 +23,7 @@ final class Plugins
     /** What a source registers, by kind → the API function (`api.registerLayer("tint", …)` – shared/api/rules.ts `PLUGIN_REGISTER_FUNCTIONS`) */
     private const REGISTERS = [
         'components' => 'registerComponent', 'layers' => 'registerLayer', 'nodeTypes' => 'registerNodeType', 'passes' => 'registerPass',
-        'materials' => 'registerMaterial', 'textures' => 'registerTexture',
+        'materials' => 'registerMaterial', 'textures' => 'registerTexture', 'appearances' => 'registerAppearance',
     ];
 
     /** GET /editor/books/{id}/plugins → { plugins: [{ id, size, usages, updatedAt, updatedBy }] } */

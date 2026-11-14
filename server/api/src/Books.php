@@ -1127,6 +1127,7 @@ final class Books
             'components' => [...($registers['components'] ?? []), ...($registers['layers'] ?? [])],
             'nodeTypes' => $registers['nodeTypes'] ?? [], 'passes' => $registers['passes'] ?? [],
             'materials' => $registers['materials'] ?? [], 'textures' => $registers['textures'] ?? [],
+            'appearances' => $registers['appearances'] ?? [],
         ];
         foreach ($expected as $kind => $types) {
             $named = ($registered->{$kind} ?? null) instanceof stdClass ? array_map('strval', array_keys(get_object_vars($registered->{$kind}))) : [];
@@ -1138,11 +1139,11 @@ final class Books
         return true;
     }
 
-    /** Why a plugin's `registered` is not { components?, nodeTypes?, passes?, materials?, textures? } of type → spec, or null */
+    /** Why a plugin's `registered` is not { components?, nodeTypes?, passes?, materials?, textures?, appearances? } of type → spec, or null */
     private static function registeredProblem(mixed $registered): ?string
     {
-        if (!$registered instanceof stdClass) return 'must be an object { components?, nodeTypes?, passes?, materials?, textures? }.';
-        foreach (['components', 'nodeTypes', 'passes', 'materials', 'textures'] as $kind) {
+        if (!$registered instanceof stdClass) return 'must be an object { components?, nodeTypes?, passes?, materials?, textures?, appearances? }.';
+        foreach (['components', 'nodeTypes', 'passes', 'materials', 'textures', 'appearances'] as $kind) {
             if (property_exists($registered, $kind) && !$registered->{$kind} instanceof stdClass) return ".$kind must be an object of type → spec.";
         }
         return null;

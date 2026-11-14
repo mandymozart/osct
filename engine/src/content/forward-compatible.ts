@@ -18,6 +18,8 @@
  */
 import { isObject } from "@shared/guards/game-config";
 import {
+  APPEARANCE_TYPES,
+  APPEARANCES,
   BEHAVIOUR_ACTIONS,
   BEHAVIOUR_NODE_ACTIONS,
   BEHAVIOUR_TYPE,
@@ -32,6 +34,7 @@ import {
   LIGHT_PARAMS,
   MATERIAL_TYPE_PATTERN,
   materialSpec,
+  MOMENTS,
   NODE_TYPE_PATTERN,
   nodeTypeSpec,
   parseContentSchema,
@@ -58,6 +61,8 @@ export interface KnownFeatures {
   passes: readonly string[];
   /** The fields of a pass that are no parameter: `type`, and `enabled` (#233) – an older app knows only `type` */
   passFields: readonly string[];
+  /** Built-in looks an entity appears with (`book.appearance`) */
+  appearances: readonly string[];
   /** Video filter types */
   filters: readonly string[];
   /** The verbs of a behaviour rule's actions */
@@ -71,7 +76,7 @@ export interface KnownFeatures {
 }
 
 /** The kinds of a plugin's recorded registrations the content can use */
-export type PluginKind = "components" | "nodeTypes" | "passes" | "materials";
+export type PluginKind = "components" | "nodeTypes" | "passes" | "materials" | "appearances";
 
 /** What this app knows right now (the registered components included) */
 export const currentFeatures = (): KnownFeatures => ({
@@ -80,16 +85,17 @@ export const currentFeatures = (): KnownFeatures => ({
   nodeTypes: ENTITY_TYPES,
   passes: PASS_TYPES,
   passFields: PASS_FIELDS,
+  appearances: APPEARANCE_TYPES,
   filters: FILTER_TYPES,
   behaviourActions: BEHAVIOUR_ACTIONS,
   paramKinds: PARAM_KINDS,
   pluginApi: PLUGIN_API_VERSION,
-  pluginKinds: ["components", "nodeTypes", "passes", "materials"],
+  pluginKinds: ["components", "nodeTypes", "passes", "materials", "appearances"],
 });
 
 /** What a skipped feature is */
 export type SkippedKind =
-  | "component" | "filter" | "pass" | "material" | "node type" | "behaviour action" | "parameter" | "parameter kind" | "field" | "plugin API";
+  | "component" | "filter" | "pass" | "look" | "material" | "node type" | "behaviour action" | "parameter" | "parameter kind" | "field" | "plugin API";
 
 /** A feature of newer content this app skipped */
 export interface SkippedFeature {
@@ -158,6 +164,7 @@ export const skipUnknownFeatures = (
     nodeTypes: known.pluginKinds.includes("nodeTypes") ? all.nodeTypes : none,
     passes: known.pluginKinds.includes("passes") ? all.passes : none,
     materials: known.pluginKinds.includes("materials") ? all.materials : none,
+    appearances: known.pluginKinds.includes("appearances") ? all.appearances : none,
     complete: all.complete,
   };
   // As the guard: with a plugin that recorded nothing (or on the editor's stage) an unknown type may be registered at load
@@ -281,7 +288,28 @@ export const skipUnknownFeatures = (
     typedList(list, path, "pass", t => (known.passes.includes(t) ? (PASSES as unknown as Record<string, Spec>)[t] : undefined) ?? recorded.passes.get(t), allowUnknown,
       known.passFields);
 
+  /** The book's looks by moment: an unknown moment or look is dropped (the moment then plays `found`'s or the default) */
+  const appearance = (value: unknown, path: string) => {
+    if (!isObject(value)) return;
+    for (const [moment, look] of Object.entries(value)) {
+      if (!(MOMENTS as readonly string[]).includes(moment)) {
+        delete value[moment];
+        skip(`${path}.${moment}`, "field", moment);
+        continue;
+      }
+      if (!isObject(look) || typeof look.type !== "string") continue;
+      const spec = (known.appearances.includes(look.type) ? (APPEARANCES as unknown as Record<string, Spec>)[look.type] : undefined)
+        ?? recorded.appearances.get(look.type);
+      if (spec) dropUnknownParams(look, spec, `${path}.${moment}`, ["type"]);
+      else if (!allowUnknown) {
+        delete value[moment];
+        skip(`${path}.${moment}`, "look", look.type);
+      }
+    }
+  };
+
   if (isObject(config.book)) passes(config.book.passes, "book.passes");
+  if (isObject(config.book)) appearance(config.book.appearance, "book.appearance");
   if (Array.isArray(config.spreads)) config.spreads.forEach((spread, i) => isObject(spread) && passes(spread.passes, `spreads[${i}].passes`));
   if (isObject(config.entities)) Object.entries(config.entities).forEach(([id, entity]) => node(entity, `entities.${id}`));
   if (Array.isArray(config.entries)) {

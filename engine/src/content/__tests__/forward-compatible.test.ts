@@ -25,6 +25,7 @@ const APP_2_19: KnownFeatures = {
   passes: ["bloom", "vignette", "grade"],
   passFields: ["type"],
   pluginApi: "1.5",
+  appearances: [],
   pluginKinds: ["components", "nodeTypes", "materials"],
 };
 /** What a 2.21 app knew: everything but a pass's `enabled` (#233) */

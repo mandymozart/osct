@@ -57,7 +57,8 @@
       // the step still names the book and the target
     }
     const serving = current ? { env: current.env, book: current.book, build: current.build, since: current.since } : environments.find(e => e.env === target.env);
-    step = publishStep(bookId, self?.title ?? bookId, build, target, serving, titleOf);
+    if (plugins.bookId !== bookId) await plugins.load(bookId);
+    step = publishStep(bookId, self?.title ?? bookId, build, target, serving, titleOf, plugins.stored.length);
     await tick();
     stepElement?.querySelector<HTMLButtonElement>("button.primary")?.focus();
   };

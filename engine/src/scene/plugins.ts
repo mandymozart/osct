@@ -3,7 +3,9 @@ import type { Object3D } from "three";
 import {
   type ComponentData,
   type ComponentSpec,
+  type AppearanceSpec,
   componentSpecProblems,
+  isBuiltInAppearanceType,
   type EntityData,
   type MaterialSpec,
   materialSpecProblems,
@@ -33,6 +35,9 @@ import { dropPluginListeners, nextRun, type PluginEvents, type PluginProgress, t
 import { type PassFactory, passRegistration, registeredPassTypes, registerPass, unregisterPassesOf } from "./post/registry";
 import { deleteMaterialRegistration, type MaterialBuild, materialRegistration, setMaterialRegistration } from "./materials";
 import { deleteTextureRegistration, resolveTextures, sameTextures, setTextureRegistration, type TextureDraw, textureRegistration } from "./textures";
+import {
+  type AppearanceFactory, appearanceRegistration, registerAppearance, registeredAppearanceTypes, unregisterAppearancesOf,
+} from "./appearances";
 import { collectFeedbacks, createFeedback, disposePluginFeedbacks, type Feedback, type FeedbackOptions, type OwnedFeedbacks, shadertoyFragment } from "./feedback";
 
 /**
@@ -45,6 +50,7 @@ import { collectFeedbacks, createFeedback, disposePluginFeedbacks, type Feedback
  *   api.registerNodeType("sparkle", NODE_SPEC, ({ params, three }) => ({ object: new three.Points(…) }))
  *   api.registerMaterial("water", MATERIAL_SPEC, ({ params, time, three }) => new three.ShaderMaterial({ uniforms: { time }, … }))
  *   api.registerTexture("caustics", TEXTURE_SPEC, ({ params, three }) => ({ texture: new three.CanvasTexture(canvas), update }))
+ *   api.registerAppearance("softFade", LOOK_SPEC, ({ params, materials }) => ({ duration: params.duration, update: visible => … }))
  *
  * – with the specs of `shared/types/components.ts` (a pass: `shared/types/passes.ts`, a node type:
  * `shared/types/node-types.ts`), so the editor's Entity panel, the content build and the guard read a plugin's
@@ -55,7 +61,8 @@ import { collectFeedbacks, createFeedback, disposePluginFeedbacks, type Feedback
  * registry for a type without a built-in builder – the node is placed, holds children, components and layers like
  * any); a **material** (`materials.ts`) replaces the material of a node's meshes (`material: { type, params }`);
  * a **procedural texture** (`textures.ts`) is drawn by code and taken by any spec's `texture` parameter. Components
- * and layers are used in the content as `components: [{ type, … }]`, a node type as `type`.
+ * and layers are used in the content as `components: [{ type, … }]`, a node type as `type`. A **look** (`appearances.ts`)
+ * is how an entity appears and disappears: the book names it for a moment (`appearance: { reveal, found, lost }`).
  * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`): `api.events` (core events of the
  * scene, scene events of the content), `api.vars` (variables in the scopes spread / stage / session / book),
  * `api.progress` (what the reader unlocked – from the app) and `api.spread` (the current spread). A file of the book's
@@ -189,6 +196,13 @@ export interface PluginApi {
    * material's, a layer's, a component's, a node type's.
    */
   registerTexture(type: string, spec: TextureSpec, draw: TextureDraw): void;
+  /**
+   * A look of the plugin's own: how an entity appears and disappears. The factory runs once per animation with the
+   * entity, its anchor, the resolved parameters and the moment (`AppearanceContext`) and returns
+   * `{ duration, update(visible), dispose? }` – `visible` runs from 0 to 1 on `reveal` and `found`, from 1 to 0 on
+   * `lost`. The book names it by its type in `appearance: { reveal, found, lost }`, in a built-in look's place.
+   */
+  registerAppearance(type: string, spec: AppearanceSpec, factory: AppearanceFactory): void;
   /** Core events of the scene (read-only) and scene events of the content */
   readonly events: PluginEvents;
   /** Variables in the scopes spread, stage, session and book */
@@ -245,6 +259,7 @@ export interface PluginModule {
 interface ComponentRegistration { plugin: string; spec: ComponentSpec; apply: ComponentApply }
 interface LayerRegistration { plugin: string; spec: ComponentSpec; layer: LayerDefinition }
 interface PassRegistrationStaged { spec: PassSpec; factory: PassFactory }
+interface AppearanceStaged { spec: AppearanceSpec; factory: AppearanceFactory }
 interface NodeTypeRegistration { plugin: string; spec: NodeTypeSpec; build: NodeTypeBuild }
 interface MaterialStaged { spec: MaterialSpec; build: MaterialBuild }
 interface TextureStaged { spec: TextureSpec; draw: TextureDraw }
@@ -333,6 +348,7 @@ const removeRegistrations = (id: string): void => {
     unregisterTextureSpec(type);
   });
   unregisterPassesOf(id);
+  unregisterAppearancesOf(id);
   installed.delete(id);
   installedNodeTypes.delete(id);
   installedMaterials.delete(id);
@@ -350,6 +366,7 @@ export const installPlugin = (id: string, module: PluginModule): void => {
   const staged: {
     components: Map<string, ComponentRegistration>; layers: Map<string, LayerRegistration>; passes: Map<string, PassRegistrationStaged>;
     nodeTypes: Map<string, NodeTypeRegistration>; materials: Map<string, MaterialStaged>; textures: Map<string, TextureStaged>;
+    appearances: Map<string, AppearanceStaged>;
   } = {
     components: new Map(),
     layers: new Map(),
@@ -357,6 +374,7 @@ export const installPlugin = (id: string, module: PluginModule): void => {
     nodeTypes: new Map(),
     materials: new Map(),
     textures: new Map(),
+    appearances: new Map(),
   };
   // The listeners this run subscribes replace the previous run's once register succeeded
   const run = nextRun();
@@ -417,6 +435,16 @@ export const installPlugin = (id: string, module: PluginModule): void => {
       if (problems.length) throw new PluginError(id, `${id}: ${problems.join("; ")}`);
       staged.textures.set(type, { spec, draw });
     },
+    registerAppearance: (type, spec, factory) => {
+      const problems = componentSpecProblems(type, spec).filter(problem => !problem.endsWith("is a built-in component"));
+      if (isBuiltInAppearanceType(type)) problems.push(`"${type}" is a built-in look`);
+      const owner = appearanceRegistration(type)?.owner;
+      if (owner && owner !== id) problems.push(`the look "${type}" is registered by ${owner}`);
+      if (staged.appearances.has(type)) problems.push(`the look "${type}" is registered twice`);
+      if (typeof factory !== "function") problems.push(`the look "${type}" needs a factory`);
+      if (problems.length) throw new PluginError(id, `${id}: ${problems.join("; ")}`);
+      staged.appearances.set(type, { spec, factory });
+    },
     loadText: url => loadText(url),
     loadModel: url => loadModel(url),
     feedback: options => createFeedback(id, options),
@@ -441,6 +469,7 @@ export const installPlugin = (id: string, module: PluginModule): void => {
     registerComponentSpec(type, registration.spec);
   });
   staged.passes.forEach(({ spec, factory }, type) => registerPass(type, spec, factory, id));
+  staged.appearances.forEach(({ spec, factory }, type) => registerAppearance(type, spec, factory, id));
   staged.nodeTypes.forEach((registration, type) => {
     failures.delete(type);
     nodeTypes.set(type, registration);
@@ -656,6 +685,7 @@ export interface PluginRegistrations {
   materials: Record<string, MaterialSpec>;
   textures: Record<string, TextureSpec>;
   passes: Record<string, PassSpec>;
+  appearances: Record<string, AppearanceSpec>;
 }
 
 /** The plugin registry as data: every installed plugin's registrations and the node types whose last build failed */
@@ -674,7 +704,7 @@ const plain = <T>(spec: T): T => JSON.parse(JSON.stringify(spec)) as T;
 export const pluginRegistrySnapshot = (): PluginRegistrySnapshot => {
   const plugins: Record<string, PluginRegistrations> = {};
   installed.forEach((types, id) => {
-    const entry: PluginRegistrations = { components: {}, layers: {}, nodeTypes: {}, materials: {}, textures: {}, passes: {} };
+    const entry: PluginRegistrations = { components: {}, layers: {}, nodeTypes: {}, materials: {}, textures: {}, passes: {}, appearances: {} };
     types.forEach(type => {
       const component = components.get(type);
       if (component?.plugin === id) entry.components[type] = plain(component.spec);
@@ -696,6 +726,10 @@ export const pluginRegistrySnapshot = (): PluginRegistrySnapshot => {
     registeredPassTypes().forEach(type => {
       const registration = passRegistration(type);
       if (registration?.owner === id) entry.passes[type] = plain(registration.spec);
+    });
+    registeredAppearanceTypes().forEach(type => {
+      const registration = appearanceRegistration(type);
+      if (registration?.owner === id) entry.appearances[type] = plain(registration.spec);
     });
     plugins[id] = entry;
   });
@@ -737,6 +771,7 @@ export const mirrorPluginRegistry = (snapshot: PluginRegistrySnapshot): string[]
           Object.entries(registrations.materials ?? {}).forEach(([type, spec]) => api.registerMaterial(type, spec, notHere));
           Object.entries(registrations.textures ?? {}).forEach(([type, spec]) => api.registerTexture(type, spec, notHere));
           Object.entries(registrations.passes ?? {}).forEach(([type, spec]) => api.registerPass(type, spec, notHere));
+          Object.entries(registrations.appearances ?? {}).forEach(([type, spec]) => api.registerAppearance(type, spec, notHere));
         },
       });
       mirrored.set(id, json);

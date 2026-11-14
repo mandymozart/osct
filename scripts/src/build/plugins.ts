@@ -13,6 +13,7 @@ import {
 } from '../../../shared/types/materials';
 import type { EntityData } from '../../../shared/types/game-config';
 import { isBuiltInPassType } from '../../../shared/types/passes';
+import { isBuiltInAppearanceType } from '../../../shared/types/appearance';
 import { CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, projectRoot } from '../config';
 import { buildErrors, buildWarnings, messageOf } from '../lib/errors';
 import type { PluginApi } from '../../../engine/src/scene/plugins';
@@ -181,7 +182,7 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'osct-plugin-')), `${id}.mjs`);
   fs.writeFileSync(file, code);
   const types: string[] = [];
-  const registered: Required<PluginRegistrations> = { components: {}, nodeTypes: {}, passes: {}, materials: {}, textures: {} };
+  const registered: Required<PluginRegistrations> = { components: {}, nodeTypes: {}, passes: {}, materials: {}, textures: {}, appearances: {} };
   const record: PluginRecord = { types, registered };
   const take = (type: string, spec: ComponentSpec) => {
     const problems = componentSpecProblems(type, spec);
@@ -230,6 +231,22 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
         taken.set(key, id);
         types.push(type);
         registered.passes[type] = plain({ description: spec.description, params: spec.params });
+      },
+      // A look (API 1.8): its spec and factory checked and recorded – the book names it in `appearance` (schema 2.29,
+      // checked against the recorded spec); a built-in look's name or one another plugin took is an error
+      registerAppearance: (type: string, spec: ComponentSpec, factory: unknown) => {
+        const problems = componentSpecProblems(type, spec).filter(problem => !problem.endsWith('is a built-in component'));
+        const key = `look:${type}`;
+        if (isBuiltInAppearanceType(type)) problems.push(`the look "${type}" is a built-in look`);
+        if (taken.has(key) && taken.get(key) !== id) problems.push(`the look "${type}" is registered by the plugin ${taken.get(key)} too`);
+        if (typeof factory !== 'function') problems.push(`the look ${type} needs a factory`);
+        if (problems.length) {
+          problems.forEach(problem => buildErrors.push(`plugins/${id}: ${problem}`));
+          return;
+        }
+        taken.set(key, id);
+        types.push(type);
+        registered.appearances[type] = plain({ description: spec.description, params: spec.params });
       },
       // A node type (API 1.2): its spec joins the registry, so the nodes of that type are checked (params, src)
       registerNodeType: (type: string, spec: NodeTypeSpec, build: unknown) => {
@@ -332,9 +349,12 @@ export async function buildPlugins(): Promise<PluginBuild[]> {
     if (code === null) continue;
     const { types, registered } = await recordPlugin(id, code, taken);
     console.log(`   ${id}: ${Math.round(code.length / 1024)} KB${types.length ? ` – ${types.join(', ')}` : ''}`);
-    // Materials and textures (API 1.4) only when the plugin registers some
-    const { materials, textures, ...kinds } = registered;
-    const recorded: PluginRegistrations = { ...kinds, ...(Object.keys(materials).length ? { materials } : {}), ...(Object.keys(textures).length ? { textures } : {}) };
+    // Materials and textures (API 1.4) and looks (API 1.8) only when the plugin registers some
+    const { materials, textures, appearances, ...kinds } = registered;
+    const recorded: PluginRegistrations = {
+      ...kinds, ...(Object.keys(materials).length ? { materials } : {}), ...(Object.keys(textures).length ? { textures } : {}),
+      ...(Object.keys(appearances).length ? { appearances } : {}),
+    };
     builds.push({ data: { id, src: `/assets/content/${PLUGINS_DIR}/${id}/plugin.js`, api: PLUGIN_API_VERSION, registered: recorded }, code });
   }
   return builds;

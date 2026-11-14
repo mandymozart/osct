@@ -333,7 +333,7 @@ describe("the content tools", () => {
 
   it("describe_content_model explains an entry's Markdown and variables, the book and that the onboarding is the app's (#223, #236)", async () => {
     const model = (await rec.call("describe_content_model", {})).data;
-    expect(model.contentSchema).toBe("2.28");
+    expect(model.contentSchema).toBe("2.29");
     expect(model.entity.assets.textures).toMatch(/512, 1024, 2048, 4096/);
     expect(model.entryText.description).toMatch(/\*emphasis\*/);
     expect(model.entryText.description).toMatch(/\{hasKey\}/);
@@ -412,7 +412,7 @@ describe("the content tools", () => {
     expect(book.data.components.plugins.tint).toMatchObject({ plugin: "tint", params: { opacity: { min: 0, max: 1 } } });
     expect(book.data.entity.pluginNodeTypes.recorded.sparkle).toMatchObject({ plugin: "tint", params: { count: { max: 500 } } });
     expect(book.data.entity.pluginNodeTypes.known).toEqual(["sparkle", "beam"]);
-    expect(book.data.components.codeTabSources).toEqual([{ id: "glow", components: [], layers: ["glow"], nodeTypes: ["beam"], passes: [], materials: [], textures: [] }]);
+    expect(book.data.components.codeTabSources).toEqual([{ id: "glow", components: [], layers: ["glow"], nodeTypes: ["beam"], passes: [], materials: [], textures: [], appearances: [] }]);
   });
 
   it("add_spread: a double page after a spread, a cover; the link opens the new spread", async () => {

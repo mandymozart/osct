@@ -127,7 +127,7 @@ describe("plugins in the configuration", () => {
         "plugins[0].registered.nodeTypes: expected an object of type → spec",
         "plugins[0].registered.passes: scan: description must be a string",
       ]);
-      expect(pluginProblems([{ ...recorded, registered: "all" }])).toEqual(["plugins[0].registered: expected { components?, nodeTypes?, passes?, materials?, textures? }"]);
+      expect(pluginProblems([{ ...recorded, registered: "all" }])).toEqual(["plugins[0].registered: expected { components?, nodeTypes?, passes?, materials?, textures?, appearances? }"]);
     });
   });
 
