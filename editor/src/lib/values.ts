@@ -26,6 +26,8 @@ import {
   type Vector3Data,
 } from "@engine/types";
 import { passSpecOf } from "#lib/plugin-passes.js";
+import { lookSpecOf } from "#lib/plugin-appearances.js";
+import type { AppearanceData, AppearanceSpec } from "@engine/types";
 
 /**
  * The Inspector's values: one row per adjustable value of an entity, generated from the content contract's
@@ -158,6 +160,15 @@ const specRows = (prefix: string, params: Record<string, ComponentParamSpec>): V
 export const passRows = (pass: PassData, index: number, specOf: (type: string) => PassSpec | undefined = passSpecOf): ValueRow[] => {
   const spec = specOf(pass.type);
   return spec ? specRows(`passes.${index}`, spec.params) : [];
+};
+
+/**
+ * The rows of a moment's look (`appearance.{moment}.{name}` – #265), from its spec – a built-in look's or a plugin's; a
+ * type the editor does not know has none. Read and written like a pass's (`passValue`, `setPassValue`).
+ */
+export const lookRows = (look: AppearanceData, moment: string, specOf: (type: string) => AppearanceSpec | undefined = lookSpecOf): ValueRow[] => {
+  const spec = specOf(look.type);
+  return spec ? specRows(`appearance.${moment}`, spec.params) : [];
 };
 
 /** The words a pass's choice row shows for its options (`{type}.{name}`); an option without one shows its value */

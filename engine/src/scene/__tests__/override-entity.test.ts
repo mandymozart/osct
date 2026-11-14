@@ -50,3 +50,20 @@ describe("ArScene.overrideEntity (the editor's live edit)", () => {
     expect(before.parent).toBeNull();
   });
 });
+
+describe("ArScene.overrideAppearance (the editor's live edit of the book's looks, #265)", () => {
+  const lookOf = (scene: ArScene, moment: "reveal" | "found" | "lost") => (scene as unknown as { momentLook(m: string): { type: string } }).momentLook(moment);
+
+  it("plays the editor's looks instead of the book's until restored; a moment without one takes found's", () => {
+    const { scene } = sceneWithAnchor();
+    scene.overrideAppearance({ appearance: { found: { type: "printLift" }, lost: { type: "fade" } } });
+    expect(lookOf(scene, "reveal").type).toBe("printLift");
+    expect(lookOf(scene, "lost").type).toBe("fade");
+    // None named: the default everywhere, whatever the book says
+    scene.overrideAppearance({ appearance: null });
+    expect(lookOf(scene, "found").type).toBe("inflateDissolve");
+    // Restored: the book's (this test's content has no book – the default)
+    scene.overrideAppearance(null);
+    expect(lookOf(scene, "lost").type).toBe("inflateDissolve");
+  });
+});

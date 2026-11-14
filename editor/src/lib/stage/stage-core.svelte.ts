@@ -8,7 +8,8 @@ import { onAppUi } from "@engine/scene/ui";
 import { allVars, ArScene, observeEvents, resetVars, runtimeApi, type VarScope, type VarValue } from "@engine/scene";
 import { BACKDROP_LAYER } from "@engine/scene/view";
 import { setDeviceStorage } from "@engine/utils/device-storage";
-import { getSpread, getTarget, getTargets } from "@engine/content/game-config";
+import { getBook, getSpread, getTarget, getTargets } from "@engine/content/game-config";
+import { type BookAppearance, type Moment, momentDuration } from "@shared/types/appearance";
 import { SceneState, type ArStatus, type EntityData, type NodeTimeline, type PassData, type SpreadFormat } from "@engine/types";
 import { deviceStorage } from "#lib/storage.js";
 import { Gizmo, type GizmoMode, type GizmoPlacement, type GizmoSelection } from "./gizmo";
@@ -108,6 +109,8 @@ export class StageCore {
   /** Entities shown with other values than the draft's, by target id (the page's overrides, as it sent them) */
   private overrides = new Map<string, EntityData>();
   private replayTimer = 0;
+  /** The looks the panel holds (#265), played instead of the draft's; null = the draft's */
+  private appearanceOverride: { appearance: BookAppearance | null } | null = null;
   private cleanups: Array<() => void> = [];
   /** Shift or Ctrl is held: snapping is turned around for the drag */
   private snapModifier = false;
@@ -405,6 +408,12 @@ export class StageCore {
     this.scene.overridePasses(passes);
   }
 
+  /** Play these looks instead of the draft's (live edit, #265) – `{ appearance: null }` = none; `null` = the draft's again */
+  overrideAppearance(override: { appearance: BookAppearance | null } | null): void {
+    this.appearanceOverride = override;
+    this.scene.overrideAppearance(override);
+  }
+
   /** The viewport's shading on every entity of the spread (the engine builds fresh meshes: applied again after) */
   private shade(): void {
     const inspection = this.scene.inspect();
@@ -637,13 +646,33 @@ export class StageCore {
 
   /** Every shown target is locked again, hidden, and found anew: the unlock animation plays */
   replayUnlock(targetIds?: readonly string[]): void {
+    const ids = this.shownTargets(targetIds);
+    this.progress.lock(ids);
+    this.hideFor(ids, REPLAY_GAP_MS);
+  }
+
+  /**
+   * Play a moment's look on the shown targets (#265): `reveal` – the first find again (`replayUnlock`); `found` – lost
+   * and found again, unlocked as they are; `lost` – lost, and found again once the look has played out
+   */
+  playMoment(moment: Moment): void {
+    if (moment === "reveal") return this.replayUnlock();
+    const book = this.appearanceOverride ? { appearance: this.appearanceOverride.appearance ?? undefined } : getBook();
+    this.hideFor(this.shownTargets(), moment === "lost" ? (momentDuration(book, "lost") ?? REPLAY_GAP_MS) + REPLAY_GAP_MS : REPLAY_GAP_MS);
+  }
+
+  /** The spread's targets with an image that are not hidden (or those of `targetIds`) */
+  private shownTargets(targetIds?: readonly string[]): string[] {
     const hidden = new Set(getPreview().hidden);
     const spread = this.spreadId;
-    const ids = (targetIds ?? (spread ? getTargets(spread).filter(t => t.imageSrc).map(t => t.id) : [])).filter(id => !hidden.has(id));
-    this.progress.lock(ids);
+    return (targetIds ?? (spread ? getTargets(spread).filter(t => t.imageSrc).map(t => t.id) : [])).filter(id => !hidden.has(id));
+  }
+
+  /** Hide the targets (they are lost), and show them again after `ms` (found anew) */
+  private hideFor(ids: readonly string[], ms: number): void {
     ids.forEach(id => setTargetHidden(id, true));
     window.clearTimeout(this.replayTimer);
-    this.replayTimer = window.setTimeout(() => ids.forEach(id => setTargetHidden(id, false)), REPLAY_GAP_MS);
+    this.replayTimer = window.setTimeout(() => ids.forEach(id => setTargetHidden(id, false)), ms);
   }
 
   /** A new game: every variable of every scope cleared, nothing unlocked, the timeline empty and counting from now, the spread's targets found anew */

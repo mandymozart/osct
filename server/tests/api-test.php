@@ -1127,6 +1127,41 @@ try {
     [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files], $flags));
     check($status === 200, 'import again with the recorded plugins');
 
+    echo "editor: a plugin's look (#265)\n";
+    // A look the declared plugins recorded passes in the book's appearance; another name is a typo
+    $fading = $configuration;
+    $fading['plugins'][0]['registered']['appearances'] = ['softFade' => ['description' => 'Fades.', 'params' => [
+        'duration' => ['kind' => 'number', 'default' => 800, 'min' => 50, 'max' => 10000, 'description' => 'How long.'],
+    ]]];
+    [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $fading, 'files' => $files], $flags));
+    check($status === 200, 'import: a plugin with a recorded look → 200');
+    $pluginLooks = ['found' => ['type' => 'softFade', 'duration' => 500], 'lost' => ['type' => 'fade']];
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/appearance', ['appearance' => $pluginLooks], $editor);
+    check($status === 200 && $data['appearance'] === $pluginLooks, 'a moment names the recorded look, its params kept, next to a built-in one');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/appearance', ['appearance' => ['found' => ['type' => 'softFad']]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-appearance' && str_contains($data['error']['message'], 'a plugin of the book registers (softFade)'), 'a look no declared plugin recorded → 400 naming the plugins\' looks');
+    [$status] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 200, 'publish: a recorded plugin look → 200');
+    // A Code tab source may register any look: the save passes, the publish refuses one no compiled plugin provides
+    call($api, 'PUT', '/editor/books/osct/plugins/looks', ['source' => "export const register = (api) => api.registerAppearance('popIn', { description: 'x', params: {} }, () => ({ duration: 300, update: () => {} }));\n"], $editor);
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/appearance', ['appearance' => ['reveal' => ['type' => 'popIn']]], $editor);
+    check($status === 200 && $data['appearance'] === ['reveal' => ['type' => 'popIn']], 'with a source in the Code tab, a look it may register passes');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/appearance', ['appearance' => ['reveal' => ['type' => 'Pop-in']]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-appearance', 'a look not named like a plugin\'s → 400 even with sources');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
+    check($status === 409 && $data['error']['code'] === 'unknown-appearances' && $data['error']['appearances'] === ['popIn'], 'publish: a look no compiled plugin provides → 409 unknown-appearances naming it');
+    [$status, $data] = call($api, 'GET', '/editor/books/osct/plugins/looks/usages', null, $editor);
+    check($status === 200 && $data['registers']['appearances'] === ['popIn'] && $data['usages'] === [['kind' => 'book', 'ref' => 'osct']], 'the source registers the look, and the book uses it');
+    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/plugins/looks', null, $editor);
+    check($status === 409 && $data['error']['usages'] === [['kind' => 'book', 'ref' => 'osct']], 'a source whose look the book names is in use');
+    call($api, 'DELETE', '/editor/books/osct/plugins/looks?force=1', null, $editor);
+    // Without plugins a plugin's look is refused
+    importing($api, 'osct', $editor, json_encode(['configuration' => $noPlugins, 'files' => $files], $flags));
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/appearance', ['appearance' => ['found' => ['type' => 'softFade']]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-appearance' && str_contains($data['error']['message'], 'needs a plugin'), 'a book without plugins: a plugin look → 400');
+    [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files], $flags));
+    check($status === 200, 'import again with the recorded plugins');
+
     echo "editor: assets\n";
     // A 1×1 PNG and a tiny glb-like file (the API checks the type by the name, not the bytes)
     $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
@@ -1685,6 +1720,41 @@ try {
     check($status === 200, 'the spread back to the book’s');
     [, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
     check(count(array_filter($data['changes'], fn($c) => $c['kind'] === 'passes' && $c['ref'] === 'osct')) === 3, 'the change log has both book passes edits (and the plugin pass edit of #216)');
+
+    echo "editor: the book's appearance – a look per moment (#265)\n";
+    $looks = ['reveal' => ['type' => 'inflateDissolve'], 'found' => ['type' => 'printLift', 'duration' => 900], 'lost' => ['type' => 'fade', 'outDuration' => 250]];
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/appearance', ['appearance' => $looks], $editor);
+    check($status === 200 && $data['appearance'] === $looks, 'PUT book appearance: a look per moment, its params kept');
+    [, $draftNow] = $draftOf();
+    check(($draftNow['book']['appearance'] ?? null) === $looks, 'the draft carries the book appearance');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/appearance', ['appearance' => ['lost' => ['type' => 'fade']]], $editor);
+    [, $draftNow] = $draftOf();
+    check($status === 200 && ($draftNow['book']['appearance'] ?? null) === ['lost' => ['type' => 'fade']], 'a save replaces the whole appearance: a moment left out has no look of its own');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/appearance', ['appearance' => ['unlock' => ['type' => 'fade']]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-appearance' && str_contains($data['error']['message'], 'appearance.unlock is not a moment (reveal, found, lost)'), 'an unknown moment is refused, the moments named');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/appearance', ['appearance' => ['found' => ['type' => 'glow']]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-appearance' && str_contains($data['error']['message'], 'appearance.found.type must be one of inflateDissolve, printLift, fade'), 'an unknown look is refused, the built-in looks named');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/appearance', ['appearance' => [['type' => 'fade']]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-appearance', 'appearance must be an object of moments');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/appearance', ['appearance' => ['found' => ['duration' => 500]]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-appearance' && str_contains($data['error']['message'], 'appearance.found needs a type'), 'a look needs a type');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/appearance', ['appearance' => ['found' => ['type' => 'fade', 'duration' => [500]]]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-appearance', 'a parameter must be a scalar');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/appearance', ['found' => ['type' => 'fade']], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-appearance', 'the body needs appearance');
+    [, $draftNow] = $draftOf();
+    check(($draftNow['book']['appearance'] ?? null) === ['lost' => ['type' => 'fade']], 'a refused save leaves the appearance as it was');
+    [$status] = call($api, 'PUT', '/editor/books/nowhere/appearance', ['appearance' => null], $editor);
+    check($status === 404, 'an unknown book → 404');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/appearance', ['appearance' => new stdClass()], $editor);
+    [, $draftNow] = $draftOf();
+    check($status === 200 && $data['appearance'] === null && !array_key_exists('appearance', $draftNow['book']), 'an appearance without a moment removes the field');
+    call($api, 'PUT', '/editor/books/osct/appearance', ['appearance' => $looks], $editor);
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/appearance', ['appearance' => null], $editor);
+    [, $draftNow] = $draftOf();
+    check($status === 200 && $data['appearance'] === null && !array_key_exists('appearance', $draftNow['book']), 'appearance: null removes it from the book – the default look plays');
+    [, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
+    check(count(array_filter($data['changes'], fn($c) => $c['kind'] === 'appearance' && $c['ref'] === 'osct')) === 7, 'the change log has the five appearance edits (and the two plugin look edits)');
 
     echo "editor: the environment's world and sky as assets (content schema 2.10)
 ";

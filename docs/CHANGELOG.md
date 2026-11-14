@@ -7,6 +7,19 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.69.0 – 2026-11-14
+
+### Added
+- **The book's looks in the editor** (#265): a spread's Inspector has an *appearance* section under the
+  post-processing – a look per moment (**reveal**, **found**, **lost**) picked from the built-in looks and the looks of
+  the book's plugins, its values in rows like a pass's. A change plays on the stage at once, **play** in a moment's head
+  shows it on the page's targets, and it saves itself like every edit (docs/editor.md "Appearance").
+- **An API route for it**: `PUT /editor/books/{id}/appearance` saves the book's `appearance` and records the change; a
+  publish refuses a look no compiled plugin provides (409 `unknown-appearances`), and a Code tab plugin whose look the
+  book names counts as in use (docs/server.md).
+- **An MCP tool for it**: `put_book_appearance` sets the looks from an AI connection, checked against the contract
+  first; `describe_content_model` describes the moments and every look's parameters (docs/mcp.md).
+
 ## 1.68.0 – 2026-11-14
 
 ### Added

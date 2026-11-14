@@ -23,7 +23,7 @@ final class Plugins
     /** What a source registers, by kind → the API function (`api.registerLayer("tint", …)` – shared/api/rules.ts `PLUGIN_REGISTER_FUNCTIONS`) */
     private const REGISTERS = [
         'components' => 'registerComponent', 'layers' => 'registerLayer', 'nodeTypes' => 'registerNodeType', 'passes' => 'registerPass',
-        'materials' => 'registerMaterial', 'textures' => 'registerTexture',
+        'materials' => 'registerMaterial', 'textures' => 'registerTexture', 'appearances' => 'registerAppearance',
     ];
 
     /** GET /editor/books/{id}/plugins → { plugins: [{ id, size, usages, updatedAt, updatedBy }] } */
@@ -152,9 +152,9 @@ final class Plugins
     }
 
     /**
-     * Where the draft uses what the source registers: the book (its passes), spreads, targets, shared entities and entries
-     * whose JSON names one of its types – `"type":"<t>"` (a component, layer, node type, pass, material, a texture as
-     * `{ type }`), or a procedural texture's type as a parameter's value
+     * Where the draft uses what the source registers: the book (its passes, its appearance), spreads, targets, shared
+     * entities and entries whose JSON names one of its types – `"type":"<t>"` (a component, layer, node type, pass,
+     * material, look, a texture as `{ type }`), or a procedural texture's type as a parameter's value
      * @return array<int, array{kind: string, ref: string}>
      */
     public static function usagesOf(string $bookId, string $source): array
@@ -187,7 +187,7 @@ final class Plugins
     }
 
     /**
-     * The draft's rows as text, read once: the book (its master passes), spreads, targets, entities, entries
+     * The draft's rows as text, read once: the book (its master passes, its appearance), spreads, targets, entities, entries
      * @return array<int, array{kind: string, ref: string, text: string}>
      */
     private static function draftTexts(string $bookId): array

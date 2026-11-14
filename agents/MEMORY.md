@@ -4,6 +4,24 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-14 – the book's appearance is set in the editor, the API and the MCP (#265)
+
+- The follow-up of #264's open item: `PUT /editor/books/{id}/appearance` (the whole appearance, `null` – or no moment –
+  removes it, a change `appearance`), `appearances` / `registerAppearance` in the server's plugin kinds, a publish refuses
+  a look no compiled plugin provides (409 `unknown-appearances`); the MCP's `put_book_appearance`; the editor's
+  *appearance* section in the spread's Inspector, under the post-processing.
+- **Book-level only**, like the book's passes, but without a spread override: #264 has no look per spread (open item
+  there). My call to put the panel in the spread view next to the passes – the task named that place.
+- **The whole appearance per save**, not a moment at a time: a moment left out has no look of its own. The panel saves
+  `null` when no moment has one, so the book holds no empty `appearance: {}`.
+- The stage plays the panel's looks at once through an override (`ArScene.overrideAppearance`, the editor's only – not
+  in `IArScene`): the frame gets the draft only on a refresh, so without it a saved look would show only after the next
+  spread switch. Each moment's **play** replays it on the shown targets (`StageCore.playMoment`: reveal = the first find
+  again, found = lost and found, lost = lost and found once the look has played out).
+- The look picker is a `<select>` with the plugins' looks in an optgroup per plugin, like the spread's format – my call:
+  three built-in looks plus any number of a plugin's are too many for pills.
+- No content schema change: `shared/api/` is outside the lock, and `shared/types/` was not touched.
+
 ## 2026-11-14 – a look per moment in the book: reveal, found, lost – built in or a plugin's (#264)
 
 - Tilman: "i want a built in and an overwrite via plugin for the reveal, found and lost."
@@ -24,8 +42,8 @@ outcome in the line (or move it into a dated decision block).
   so a `group` root dissolved nothing and child nodes popped in.
 - The found indicator's label takes the reveal's duration from the book's look (`momentDuration`); a plugin's look
   falls back to `ENTITY_UNLOCK_MS`.
-- [ ] Not built: the editor's panel for `appearance`, the API route and the MCP tool to save it, the server's list of
-  plugin kinds (`Plugins.php`, `Books.php` name five). Until then a book gets it from its content source (`book.yaml`).
+- [x] Not built: the editor's panel for `appearance`, the API route and the MCP tool to save it, the server's list of
+  plugin kinds (`Plugins.php`, `Books.php` name five) – built in #265 (above).
 - [ ] A look per spread or per entity (a `found` of its own on one target) – not asked for yet.
 
 ## 2026-11-14 – the appear animation is a look of plain values; three looks in the engine (#262)

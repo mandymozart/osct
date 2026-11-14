@@ -37,6 +37,7 @@ export const PLUGIN_REGISTER_FUNCTIONS = {
   passes: "registerPass",
   materials: "registerMaterial",
   textures: "registerTexture",
+  appearances: "registerAppearance",
 } as const;
 
 /** The types a plugin source registers, by kind, each once in the order of the source */

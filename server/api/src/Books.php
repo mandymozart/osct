@@ -616,6 +616,36 @@ final class Books
         Http::json(200, ['passes' => $passes]);
     }
 
+    /**
+     * PUT /editor/books/{id}/appearance { appearance: { reveal?, found?, lost? } | null } → 200 { appearance }: how the
+     * book's entities appear and disappear (`book.appearance`, shared/types/appearance.ts) – a look `{ type, …parameters }`
+     * for the first find (`reveal`), every later find (`found`) and the lost page (`lost`), each a built-in look or one
+     * the book's plugins register (`appearances`). A moment left out takes `found`'s look, then the default; `null` – or
+     * no moment at all – removes the field, so the default look plays everywhere.
+     */
+    public static function putAppearance(string $bookId): never
+    {
+        $user = Editor::user();
+        self::book($bookId);
+        $body = Editor::body();
+        if (!property_exists($body, 'appearance')) {
+            throw new ApiError(400, 'invalid-appearance', 'Send { appearance: { reveal?, found?, lost? } }, each { type, …parameters }, or { appearance: null }.');
+        }
+        $appearance = $body->appearance === null ? null : self::appearance($body->appearance, Editor::pluginTypesOfBook($bookId, 'appearances'));
+        // As putPasses: the book's JSON read, changed and written back in one transaction, the row locked
+        Db::transaction(static function () use ($bookId, $appearance, $user) {
+            $row = self::book($bookId, true);
+            $book = Editor::decode($row['book_json']);
+            if ($appearance === null) unset($book->appearance);
+            else $book->appearance = $appearance;
+            $json = Editor::encode($book);
+            Db::run('UPDATE books SET book_json = :book WHERE id = :id', ['book' => $json, 'id' => $bookId]);
+            self::touch($bookId);
+            self::change($bookId, $user, 'appearance', $bookId, $row['book_json'], $json);
+        });
+        Http::json(200, ['appearance' => $appearance]);
+    }
+
     /** The problems of an `environment` (shared/types/environment.ts `environmentProblems`, strict); [] when valid */
     public static function environmentProblems(mixed $value): array
     {
@@ -881,6 +911,10 @@ final class Books
     public const PASS_TYPES = ['bloom', 'vignette', 'grade'];
     /** A plugin's pass type (shared/types/components.ts `COMPONENT_TYPE_PATTERN`, which a pass's spec is checked with) */
     public const PLUGIN_PASS_TYPE = '[a-z][a-zA-Z0-9]{0,39}';
+    /** The moments an entity appears or disappears at (shared/types/appearance.ts `MOMENTS`) */
+    public const MOMENTS = ['reveal', 'found', 'lost'];
+    /** The built-in looks of the contract (shared/types/appearance.ts `APPEARANCES`) */
+    public const APPEARANCE_TYPES = ['inflateDissolve', 'printLift', 'fade'];
     /** The environment's worlds (shared/types/environment.ts ENVIRONMENT_WORLDS) */
     public const WORLDS = ['cafe'];
     /** The files a world model and a sky may be (shared/types/environment.ts WORLD_MODEL_EXTENSIONS, SKY_IMAGE_EXTENSIONS) */
@@ -933,6 +967,42 @@ final class Books
             $passes[] = $pass;
         }
         return $passes;
+    }
+
+    /**
+     * A book's `appearance` as the content holds it: an object of moments (MOMENTS), each a look – an object with a
+     * built-in `type` or one of the book's plugins (`$pluginLooks`: a list = the recorded ones, `true` = any camelCase
+     * name, `false` = none) and scalar parameters (the engine and the guard check the parameters against the specs; the
+     * API keeps the shape). Null when it names no moment: the book holds no `appearance` then.
+     * @param bool|list<string> $pluginLooks
+     */
+    private static function appearance(mixed $value, bool|array $pluginLooks = false): ?stdClass
+    {
+        $code = 'invalid-appearance';
+        if (!$value instanceof stdClass) throw new ApiError(400, $code, 'appearance must be an object { reveal?, found?, lost? }, each { type, …parameters }.');
+        $appearance = new stdClass();
+        foreach (get_object_vars($value) as $moment => $look) {
+            if (!in_array($moment, self::MOMENTS, true)) throw new ApiError(400, $code, "appearance.$moment is not a moment (" . implode(', ', self::MOMENTS) . ').');
+            if (!$look instanceof stdClass || !is_string($look->type ?? null)) throw new ApiError(400, $code, "appearance.$moment needs a type.");
+            $type = $look->type;
+            $plugin = is_array($pluginLooks)
+                ? in_array($type, $pluginLooks, true)
+                : $pluginLooks && preg_match('/^' . self::PLUGIN_PASS_TYPE . '$/', $type) === 1;
+            if (!in_array($type, self::APPEARANCE_TYPES, true) && !$plugin) {
+                $plugins = match (true) {
+                    is_array($pluginLooks) && $pluginLooks !== [] => ' or a look a plugin of the book registers (' . implode(', ', $pluginLooks) . ').',
+                    is_array($pluginLooks) => ' – the book\'s plugins register no look.',
+                    $pluginLooks => ' or a plugin\'s look (camelCase letters and digits).',
+                    default => ' – a plugin\'s look needs a plugin in the book.',
+                };
+                throw new ApiError(400, $code, "appearance.$moment.type must be one of " . implode(', ', self::APPEARANCE_TYPES) . $plugins);
+            }
+            foreach (get_object_vars($look) as $name => $param) {
+                if (!is_scalar($param)) throw new ApiError(400, $code, "appearance.$moment.$name must be a number, a string or true / false.");
+            }
+            $appearance->{$moment} = $look;
+        }
+        return get_object_vars($appearance) ? $appearance : null;
     }
 
     /**
@@ -1037,6 +1107,11 @@ final class Books
         if ($unknownPasses) {
             throw new ApiError(409, 'unknown-passes', 'The book\'s or a spread\'s post-processing names passes no compiled plugin provides: ' . implode(', ', $unknownPasses) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['passes' => $unknownPasses]);
         }
+        // And for a plugin's look: the reader's guard refuses a look no declared plugin recorded
+        $unknownLooks = $recorded === null ? [] : array_values(array_diff(self::pluginAppearanceTypes($version['configuration']), $recorded['appearances']));
+        if ($unknownLooks) {
+            throw new ApiError(409, 'unknown-appearances', 'The book\'s appearance names looks no compiled plugin provides: ' . implode(', ', $unknownLooks) . '. The publish does not compile the Code tab\'s plugins yet (#78); the content source\'s plugins are compiled by the content build.', ['appearances' => $unknownLooks]);
+        }
         $root = $version['build'];
         $uploaded = $store->exists("$root/game.config.json");
         if (!$uploaded) {
@@ -1087,6 +1162,23 @@ final class Books
                 $type = $pass instanceof stdClass ? ($pass->type ?? null) : null;
                 if (is_string($type) && !in_array($type, self::PASS_TYPES, true)) $types[$type] = true;
             }
+        }
+        $list = array_map('strval', array_keys($types));
+        sort($list);
+        return $list;
+    }
+
+    /**
+     * The looks of the book's `appearance` that are not built in (APPEARANCE_TYPES) – a plugin's, sorted
+     * @return list<string>
+     */
+    public static function pluginAppearanceTypes(stdClass $configuration): array
+    {
+        $types = [];
+        $appearance = $configuration->book->appearance ?? null;
+        foreach ($appearance instanceof stdClass ? get_object_vars($appearance) : [] as $look) {
+            $type = $look instanceof stdClass ? ($look->type ?? null) : null;
+            if (is_string($type) && !in_array($type, self::APPEARANCE_TYPES, true)) $types[$type] = true;
         }
         $list = array_map('strval', array_keys($types));
         sort($list);
@@ -1271,8 +1363,8 @@ final class Books
             // What it registered (optional): the specs by kind – the app's guard checks them in depth
             if (property_exists($plugin, 'registered')) {
                 $registered = $plugin->registered;
-                if (!$registered instanceof stdClass) $fail("plugins[$i].registered must be an object { components?, nodeTypes?, passes?, materials?, textures? }.");
-                foreach (['components', 'nodeTypes', 'passes', 'materials', 'textures'] as $kind) {
+                if (!$registered instanceof stdClass) $fail("plugins[$i].registered must be an object { components?, nodeTypes?, passes?, materials?, textures?, appearances? }.");
+                foreach (['components', 'nodeTypes', 'passes', 'materials', 'textures', 'appearances'] as $kind) {
                     if (property_exists($registered, $kind) && !$registered->{$kind} instanceof stdClass) $fail("plugins[$i].registered.$kind must be an object of type → spec.");
                 }
             }
