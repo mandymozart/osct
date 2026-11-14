@@ -25,6 +25,8 @@ class Content {
 
   /** Where the book's content files live (the import's `assetsBase`), read once per book */
   assetsBase = $state<string | null>(null);
+  /** The public folder of the book's uploads (the Library's files), read with the assets base; null = the instance names none */
+  libraryBase = $state<string | null>(null);
   /** The draft as loaded last, for the stage frame: the base, the files' base and the responses (a new object per load) */
   snapshot = $state.raw<ContentSnapshot | null>(null);
 
@@ -32,7 +34,11 @@ class Content {
   async load(bookId: string): Promise<ErrorInfo | null> {
     this.loading = true;
     try {
-      if (this.bookId !== bookId || this.assetsBase === null) this.assetsBase = (await getBook(bookId)).book.assetsBase;
+      if (this.bookId !== bookId || this.assetsBase === null) {
+        const { book } = await getBook(bookId);
+        this.assetsBase = book.assetsBase;
+        this.libraryBase = book.libraryBase || null;
+      }
       // The stage is the sandbox: a node may use a component the Code tab's plugins register at Run; targets switched off
       // stay with their entries – the editor works on them, only the reader leaves them out (#249)
       const baseUrl = draftBaseUrl(bookId);
@@ -44,7 +50,7 @@ class Content {
         return response;
       };
       const error = await loadGameConfiguration({ baseUrl, fetch: recording, assetsBase: this.assetsBase || undefined, unknownComponentTypes: "allow", keepSwitchedOffTargets: true });
-      this.snapshot = error ? null : { baseUrl, assetsBase: this.assetsBase || null, responses };
+      this.snapshot = error ? null : { baseUrl, assetsBase: this.assetsBase || null, libraryBase: this.libraryBase, responses };
       this.bookId = bookId;
       this.error = error;
       this.spreads = error ? [] : getSpreads();

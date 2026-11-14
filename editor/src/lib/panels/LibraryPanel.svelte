@@ -4,7 +4,7 @@
   import { codeKindOf, codeUploadProblem, pluginIdFrom } from "#lib/library-code.js";
   import { ACCEPT, library } from "#lib/library.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
-  import { assetPlace, formatDuration, formatSize, LIBRARY_VIEWS, matchesSearch, readLibraryView, saveLibraryView, type LibraryView } from "#lib/library-place.js";
+  import { assetPlace, formatDuration, formatSize, heldNotice, LIBRARY_VIEWS, matchesSearch, readLibraryView, saveLibraryView, type LibraryView } from "#lib/library-place.js";
   import {
     FILTER_LABELS, LIBRARY_FILTERS, LIBRARY_ORIGINS, matchesFilter, matchesOrigin, nodeAssetKinds, pickAccept, pickFilter, pickFits, targetImagesOf, type LibraryFilter, type LibraryOrigin, type LibraryPick,
   } from "#lib/library-pick.js";
@@ -19,7 +19,8 @@
    * plays) – with where the file belongs (`p015-1 · target`, `assetPlace`), kind, size, dimensions, a video's duration and the number of
    * uses, or a plain list of the same (a click on a row opens its actions; the view is remembered per browser); filter
    * by kind – target images apart from the other images – and by origin (uploaded / imported, #245), search name and place; **Upload** (the button, or files
-   * dropped anywhere on the panel). Opened from the tab: per asset **Use** (the selected node takes the file, when its
+   * dropped anywhere on the panel) – the files just uploaded are marked and shown whatever the filters said, and bytes the
+   * Library held already say so (the file takes the upload's name). Opened from the tab: per asset **Use** (the selected node takes the file, when its
    * type fits), **Target image** (the selected target's printed image), **Replace…** (a new version, every use
    * relinked) and **Delete** (refused while used – *Delete anyway* forces it). Opened as a **picker** (`pick`, a file
    * field's *Library…* – #164): the filter starts at the kind being picked, a click on a fitting file picks it for that
@@ -59,6 +60,8 @@
   let view = $state<LibraryView>(readLibraryView());
   /** The list's row whose actions are open */
   let opened = $state<string | null>(null);
+  /** The files uploaded here since the panel opened: marked in the grid and the list */
+  let fresh = $state<string[]>([]);
   const setView = (next: LibraryView) => {
     view = next;
     saveLibraryView(next);
@@ -118,16 +121,29 @@
         continue;
       }
       try {
+        const names = new Map(library.assets.map(a => [a.id, a.name]));
         const asset = await library.upload(bookId, file);
         // Picking: the first upload that fits is the pick
         if (pick) {
           if (pickFits(pick.subject, asset)) return choose(asset);
           notice = `${asset.name} does not fit ${pick.label} – it stays in the Library`;
+          continue;
         }
+        notice = heldNotice(asset, names.get(asset.id)) ?? notice;
+        showUploaded(asset);
       } catch {
         // library.error says
       }
     }
+  };
+  /** The file just uploaded is marked and in view: a filter or a search that hides it gives way, the list opens its actions */
+  const showUploaded = (asset: Asset) => {
+    fresh = [...fresh.filter(id => id !== asset.id), asset.id];
+    if (asset.kind === "shader") return;
+    if (!matchesFilter(asset, filter, targetImages)) filter = "all";
+    if (!matchesOrigin(asset, origin)) origin = "all";
+    if (!matchesSearch(asset, search)) search = "";
+    opened = asset.id;
   };
   const onDrop = (event: DragEvent) => {
     event.preventDefault();
@@ -237,7 +253,7 @@
           {@const place = assetPlace(asset)}
           <tr class:on={opened === asset.id || (!!pick && pick.current === asset.url)} class:unfit={!!pick && !pickable(asset)}
             onclick={e => (pick ? pickFrom(e, asset) : (opened = opened === asset.id ? null : asset.id))}>
-            <td class="name" title={asset.url}>{#if pick}<button type="button" class="open" disabled={!pickable(asset)} onclick={() => choose(asset)}>{asset.name}</button>{:else}<button type="button" class="open" aria-expanded={opened === asset.id}>{asset.name}</button>{/if}{#if asset.version > 1} <span class="muted">v{asset.version}</span>{/if}</td>
+            <td class="name" title={asset.url}>{#if pick}<button type="button" class="open" disabled={!pickable(asset)} onclick={() => choose(asset)}>{asset.name}</button>{:else}<button type="button" class="open" aria-expanded={opened === asset.id}>{asset.name}</button>{/if}{#if asset.version > 1} <span class="muted">v{asset.version}</span>{/if}{#if fresh.includes(asset.id)} <span class="muted">· just uploaded</span>{/if}</td>
             <td class="name place" title={place.place ?? ""}>{place.place ?? "upload"}</td>
             <td class="muted kind">{asset.kind}</td>
             <td class="num muted size">{formatSize(asset.size)}</td>
@@ -254,11 +270,11 @@
       {#each shown as asset (asset.id)}
         {@const place = assetPlace(asset)}
         <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions (the Pick button is the keyboard's way) -->
-        <li class="card" class:picking={!!pick} class:current={!!pick && pick.current === asset.url} class:unfit={!!pick && !pickable(asset)}
+        <li class="card" class:picking={!!pick} class:current={(!!pick && pick.current === asset.url) || fresh.includes(asset.id)} class:unfit={!!pick && !pickable(asset)}
           onclick={pick ? e => pickFrom(e, asset) : undefined}>
           {#key asset.url}<AssetThumb {asset} />{/key}
           <div class="name" title={asset.url}>{place.label}{#if asset.version > 1} <span class="muted">v{asset.version}</span>{/if}</div>
-          <div class="small muted">{asset.kind} · {formatSize(asset.size)}{#if asset.width} · {asset.width}×{asset.height}{/if}{#if asset.durationMs} · {formatDuration(asset.durationMs)}{/if} · {asset.usages} use{asset.usages === 1 ? "" : "s"}</div>
+          <div class="small muted">{#if fresh.includes(asset.id)}just uploaded · {/if}{asset.kind} · {formatSize(asset.size)}{#if asset.width} · {asset.width}×{asset.height}{/if}{#if asset.durationMs} · {formatDuration(asset.durationMs)}{/if} · {asset.usages} use{asset.usages === 1 ? "" : "s"}</div>
           <div class="actions">{@render actions(asset)}</div>
         </li>
       {/each}

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { assetPlace, matchesSearch, readLibraryView, saveLibraryView } from "../library-place";
+import { assetPlace, heldNotice, matchesSearch, readLibraryView, saveLibraryView } from "../library-place";
 
 const file = (url: string, name = url.split("/").pop() ?? url) => ({ name, url });
 
@@ -32,6 +32,17 @@ describe("the library search", () => {
     expect(matchesSearch(target, "entries")).toBe(true);
     expect(matchesSearch(target, "p015 video")).toBe(false);
     expect(matchesSearch(target, "  ")).toBe(true);
+  });
+});
+
+describe("an upload whose bytes the library held already (#258)", () => {
+  it("says which file it was and the name it has now", () => {
+    expect(heldNotice({ name: "face_1.glb" }, "face.glb")).toBe("face.glb is the same file – it is now named face_1.glb");
+    expect(heldNotice({ name: "face.glb" }, "face.glb")).toBe("face.glb is in the Library already – the same file, nothing new stored");
+  });
+
+  it("says nothing about a new file", () => {
+    expect(heldNotice({ name: "face.glb" }, undefined)).toBeNull();
   });
 });
 

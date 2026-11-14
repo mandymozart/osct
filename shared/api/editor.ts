@@ -34,6 +34,8 @@ export interface BookSummary {
   schema: string;
   /** Where the content's `/assets/content/…` paths resolve (the layout, the cover); "" = the draft's origin */
   assetsBase: string;
+  /** The public folder of the book's uploads (`…/assets/<book>/`, the Library's files lie below it); "" = the instance has no public URL for them */
+  libraryBase: string;
   /** `version.hash` of the imported configuration, null when it had none */
   importedHash: string | null;
   spreads: number;
@@ -374,7 +376,7 @@ export interface AssetList {
   assets: Asset[];
 }
 
-/** `POST /editor/books/{id}/assets` → 201 (or 200: the same bytes are an asset already) */
+/** `POST /editor/books/{id}/assets` → 201 (or 200: the same bytes are an asset already – it takes this upload's name) */
 export interface AssetUploaded {
   asset: Asset;
 }

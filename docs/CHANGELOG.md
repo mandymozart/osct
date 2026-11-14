@@ -7,6 +7,19 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.64.7 – 2026-11-14
+
+### Fixed
+- **A file uploaded and picked for a node did not show on the stage until the draft was saved** (#258, found uploading a
+  model on staging): on a CDN instance the stage frame's policy admitted only the Library folders the saved draft
+  already names, so the request for a fresh upload was blocked and the stage kept the node's previous file. The book
+  now names the folder of its uploads (`libraryBase`), and the frame admits it from the start – for files and requests,
+  never for scripts.
+- **The same file uploaded under another name kept the old name** (#258): the Library answers with the file it already
+  holds, and showed it under the name of the first upload – as if the new upload had not been taken. The file now takes
+  the name it was uploaded with last (its URL, version and uses stay), the Library says so, and the file just uploaded
+  is marked and shown whatever the filters said.
+
 ## 1.64.6 – 2026-11-09
 
 ### Fixed

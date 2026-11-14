@@ -6,7 +6,7 @@ import type { VarScope, VarValue } from "@engine/scene";
 import type { EntityData, PassData } from "@engine/types";
 import type { EnvironmentData } from "@shared/types/environment";
 import {
-  type ContentSnapshot, contentBasesNamed, libraryFoldersNamed, eventMessage, type FrameEventName, type FrameEvents, type FrameInit, frameCsp, isForwardedKey, type KeyForward, type LayoutSnapshot,
+  type ContentSnapshot, contentBasesNamed, libraryFoldersOf, eventMessage, type FrameEventName, type FrameEvents, type FrameInit, frameCsp, isForwardedKey, type KeyForward, type LayoutSnapshot,
   LOG_MAX, readFrameRequest, REMOVED_WIRE, type TimelineSnapshot,
 } from "./frame-protocol";
 import type { GizmoMode } from "./gizmo";
@@ -44,8 +44,6 @@ const contentBasesOf = (content: ContentSnapshot): string[] => (content.assetsBa
 const draftTexts = (content: ContentSnapshot): string[] => Object.values(content.responses).filter((text): text is string => typeof text === "string");
 /** Other content builds the draft's rows still name – their images and media only (#252) */
 const mediaBasesOf = (content: ContentSnapshot): string[] => contentBasesNamed(draftTexts(content), content.assetsBase || null);
-/** The Library's folders the draft's rows name (#254) */
-const libraryFoldersOf = (content: ContentSnapshot): string[] => libraryFoldersNamed(draftTexts(content));
 
 /** A fetch that answers from the responses the page recorded (the frame never asks the API for the draft) */
 const replayFetch = (content: ContentSnapshot): typeof fetch => async input => {

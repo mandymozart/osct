@@ -1224,6 +1224,7 @@ final class Books
             'initialSpreadId' => $row['initial_spread_id'],
             'schema' => $row['content_schema'],
             'assetsBase' => $row['assets_base'],
+            'libraryBase' => Assets::folderUrl((string) $row['id']),
             'importedHash' => $row['imported_hash'],
             'spreads' => (int) Db::value('SELECT COUNT(*) FROM spreads WHERE book_id = :book', ['book' => $row['id']]),
             'createdAt' => Editor::isoOf($row['created_at']),
