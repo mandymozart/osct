@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  backToBooks, draftPasses, editInEffect, effectivePasses, levelLine, ownPasses, passesHeading, passesSource, passSummary, pendingSaves, saveLabel,
+  backToBooks, draftPasses, editInEffect, effectivePasses, levelLine, ownPasses, passesHeading, passesSource, passSummary, pendingSaves,
   setPassEnabled, spreadsOnBooks,
 } from "../passes-edit";
 import type { PassData } from "@engine/types";
@@ -82,12 +82,6 @@ describe("the level in words", () => {
     expect(levelLine(book, 4)).toBe("changes all 4 spreads that use the book's");
     expect(levelLine(book, 1)).toBe("changes the 1 spread that uses the book's");
     expect(levelLine(ownPasses(book), 4)).toBe("overrides the book's for this spread");
-  });
-
-  it("Save says what it saves", () => {
-    expect(saveLabel({ book: [] })).toBe("Save for the whole book");
-    expect(saveLabel({ spread: null })).toBe("Save for this spread");
-    expect(saveLabel({ book: null, spread: [] })).toBe("Save for the book and this spread");
   });
 });
 

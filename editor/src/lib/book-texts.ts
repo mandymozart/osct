@@ -3,7 +3,7 @@ import { TEXT_MAX_LENGTH } from "@shared/api/rules";
 
 /**
  * The book's texts (#223): its title, author and publisher (`PUT /editor/books/{id}`) – what a save sends and what
- * keeps Save off. Pure: `BookTexts.svelte` holds the draft and draws it. The onboarding is the reader's own (#236).
+ * keeps it back. Pure: `BookTexts.svelte` holds the draft and draws it. The onboarding is the reader's own (#236).
  */
 
 export interface BookDraft {

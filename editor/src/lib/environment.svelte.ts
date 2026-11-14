@@ -1,7 +1,8 @@
 import { DEFAULT_ENVIRONMENT, environmentOf, referenceExtension, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS, type EnvironmentData } from "@shared/types/environment";
 import { errorText, getBook, putEnvironment, type Asset } from "./api";
+import { autosave } from "./autosave.svelte";
+import { baselineOf, differsFromBaseline, noteBaseline } from "./baselines";
 import { bookEnvironment } from "#lib/stage/sky.js";
-import { trackUnsaved } from "#lib/unsaved.js";
 
 /** The environment's two files: the world model and the sky image */
 export type EnvironmentSlot = "world" | "sky";
@@ -24,22 +25,41 @@ export const withSlot = (environment: EnvironmentData, slot: EnvironmentSlot, ur
 export const sameEnvironment = (a: EnvironmentData, b: EnvironmentData): boolean =>
   a.world === b.world && a.onionSky === b.onionSky && (a.worldSrc ?? null) === (b.worldSrc ?? null) && (a.skySrc ?? null) === (b.skySrc ?? null);
 
+/** An environment in one written form (`null`: the book has none), so two that say the same compare as the same text */
+const written = (environment: EnvironmentData | null | undefined): Required<EnvironmentData> | null =>
+  environment ? { world: environment.world, onionSky: environment.onionSky, worldSrc: environment.worldSrc ?? "", skySrc: environment.skySrc ?? "" } : null;
+
 /**
  * The book's environment as the workspace edits it: the draft's (`saved`, undefined = the
  * book has none, the default applies), the values being edited (`edited` – the stage previews them live) and the slot
  * the Library is choosing a file for (`picking` – the Environment tab shows the Library as its picker meanwhile). Kept
- * across the workspace's tabs; **Save** writes it to the draft (`PUT /editor/books/{id}/environment`).
+ * across the workspace's tabs. Every edit reaches the draft by itself a moment later (#259,
+ * `PUT /editor/books/{id}/environment`); *Undo edits* goes back to the environment the draft had before the first edit
+ * in this page.
  */
 class EnvironmentEdit {
   bookId = $state<string | null>(null);
   saved = $state<EnvironmentData | undefined>(undefined);
   edited = $state<EnvironmentData>({ ...DEFAULT_ENVIRONMENT });
   picking = $state<EnvironmentSlot | null>(null);
-  saving = $state(false);
+  /** The draft's environment could not be read */
   error = $state<string | null>(null);
+  /** The draft holds an edit now: the workspace reads the draft again (this store knows neither the content nor the Library) */
+  onsaved: ((bookId: string) => Promise<void>) | null = null;
 
+  /** The edited values are not in the draft yet */
   get dirty(): boolean {
     return !sameEnvironment(this.edited, environmentOf({ environment: this.saved }));
+  }
+
+  /** The environment as a subject of the autosaver and of *Undo edits* */
+  private get key(): string {
+    return `environment:${this.bookId}`;
+  }
+
+  /** The environment is not as the draft had it before its first edit in this page */
+  get canUndo(): boolean {
+    return differsFromBaseline(this.key, written(this.saved || this.dirty ? this.edited : null));
   }
 
   /** Read the draft's environment (a book switch, or after a save); edits in progress for the same book stay. A failed
@@ -61,40 +81,51 @@ class EnvironmentEdit {
   }
 
   set(patch: Partial<EnvironmentData>): void {
-    this.edited = { ...this.edited, ...patch };
+    this.edit({ ...this.edited, ...patch });
   }
 
   use(slot: EnvironmentSlot, url: string | null): void {
-    this.edited = withSlot(this.edited, slot, url);
+    this.edit(withSlot(this.edited, slot, url));
     this.picking = null;
   }
 
-  revert(): void {
-    this.edited = { ...environmentOf({ environment: this.saved }) };
+  /** Undo edits: the environment as the draft had it before its first edit in this page (none: the default again) */
+  undo(): void {
+    const before = baselineOf<Required<EnvironmentData>>(this.key);
+    if (before === undefined) return;
+    if (before) this.edit(withSlot(withSlot({ world: before.world, onionSky: before.onionSky }, "world", before.worldSrc || null), "sky", before.skySrc || null));
+    else this.useDefault();
   }
 
-  /** Write the edited values (or `null`: remove the book's environment, the default applies) to the draft */
-  async save(environment: EnvironmentData | null = this.edited): Promise<boolean> {
-    if (!this.bookId) return false;
-    this.saving = true;
-    this.error = null;
-    try {
-      const { environment: stored } = await putEnvironment(this.bookId, environment);
-      this.saved = stored ?? undefined;
-      this.edited = { ...environmentOf({ environment: this.saved }) };
-      return true;
-    } catch (e) {
-      this.error = errorText(e);
-      return false;
-    } finally {
-      this.saving = false;
-    }
+  /** Remove the book's environment: the default applies (the café with the onion sky) */
+  useDefault(): void {
+    this.edit({ ...DEFAULT_ENVIRONMENT }, null);
+  }
+
+  /**
+   * An edit: previewed at once, written to the draft a moment after the last one (`write`: the values, or `null` – the
+   * book keeps none)
+   */
+  private edit(next: EnvironmentData, write: EnvironmentData | null = next): void {
+    const bookId = this.bookId;
+    if (!bookId) return;
+    noteBaseline(this.key, written(this.saved ? environmentOf({ environment: this.saved }) : null));
+    this.edited = next;
+    autosave.queue(this.key, async () => {
+      const { environment: stored } = await putEnvironment(bookId, write);
+      if (this.bookId === bookId) {
+        // Values edited again meanwhile stay: their own save follows
+        const untouched = sameEnvironment(this.edited, next);
+        this.saved = stored ?? undefined;
+        if (untouched) this.edited = { ...environmentOf({ environment: this.saved }) };
+      }
+      // The draft carries it now; the stage shows the same values already
+      await this.onsaved?.(bookId);
+    });
   }
 }
 
 export const environmentEdit = new EnvironmentEdit();
-// Its edits outlive the Environment tab, so they count as unsaved for the new-version bar for the page's life
-trackUnsaved(() => environmentEdit.dirty);
 
 /**
  * The book's environment as the stage shows it in place of the HDRI (#185, `stage/sky.ts`): the edited values once the

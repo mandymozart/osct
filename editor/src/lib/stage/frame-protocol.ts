@@ -33,7 +33,7 @@ export const MESSAGE_TAG = "stage";
 
 /**
  * The override that stands for "the entity is removed" (the root went): the stage shows nothing, the Inspector shows no
- * node, Save writes no entity. Compared by reference in each realm; it crosses the frame's boundary as `REMOVED_WIRE`.
+ * node, the draft gets no entity. Compared by reference in each realm; it crosses the frame's boundary as `REMOVED_WIRE`.
  */
 export const REMOVED_ENTITY: EntityData = Object.freeze({ type: "group", assets: [] }) as EntityData;
 export const REMOVED_WIRE = "removed";
@@ -158,7 +158,7 @@ const isPlacement = (value: unknown): value is PrintPlacement =>
 
 /**
  * The keys a frame may forward to the page: Shift and Control (snapping turned around), ← → (the spreads), the gizmo's
- * mode keys, Delete / Backspace (the selected node, live – Save stays the person's click), Escape. Nothing else
+ * mode keys, Delete / Backspace (the node the page selected, removed like every edit of it), Escape. Nothing else
  * reaches the page's shortcuts.
  */
 export const FORWARDED_KEYS: readonly string[] = ["Shift", "Control", "ArrowLeft", "ArrowRight", "Delete", "Backspace", "Escape", ...Object.keys(GIZMO_KEYS)];

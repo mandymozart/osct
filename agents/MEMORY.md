@@ -4,6 +4,32 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-14 – the editor saves by itself (#259)
+
+- **Tilman**: "autosave – it is confusing to save after adding uploads for example". The Inspector's six Save buttons
+  are gone (a target's tree, its placement, the post-processing, the environment, an entry, the book's texts); RULES #37.
+- **Why a save does not rebuild the stage**: every Save used to reload the draft and build the spread again. Once a
+  second while scrubbing a value that restarts clips and videos, so a tree's and the passes' save only hand the draft
+  to the frame (`Stage.adopt`): the stage shows the edit already.
+- **Why the saves are queued by the edit, not by a `$effect` on "dirty"**: a panel that closes within the delay would
+  drop its own save when it mounts again from the old draft, and a save computed when queued writes the wrong fields
+  after an earlier save changed the draft. So the job carries the edited values and compares when it runs.
+- **Why forms keep what was typed**: the API trims; a save landing between two words ("Anna " → "Anna") would eat the
+  space under the cursor. `EntryForm` and `BookTexts` no longer take a save's answer into their fields.
+- *Back to the draft* had nothing left to go back to, so it became *Undo edits* – the draft's state before the first
+  edit since the page was opened (kept per subject in `baselines.ts`, lost with a reload). Not a removal (RULES #1):
+  the way back stays, one step deep.
+- Decided by the session, **for Tilman to confirm**:
+  - [ ] RULES #35 said no message from the stage frame makes the page call the API. A gizmo drag is such a message, and
+    it saves itself now. Narrowed instead of dropped: only a placement (numbers) of the node the page selected, and a
+    placement handle's move while that target's placement is open. The alternative: gizmo drags stay live-only until
+    the next edit in the page.
+  - [ ] The Code tab keeps Save (Ctrl+S) and Run: half-typed code would otherwise be stored and run by the next load.
+  - [ ] Step-by-step undo / redo (Ctrl+Z) is not built – its own issue if wanted.
+- Checking it: the built-in browser pane blocks the sandboxed stage frame (`ERR_BLOCKED_BY_CLIENT`), so the panels can
+  be tried there but the stage only in headless Edge (ORCHESTRATION "Running the editor"). The local demo's media need
+  the reader's dev server on 5174.
+
 ## 2026-11-09 – Mark the Page as 3D: baked per frame; Library uploads on a CDN (#253, #254)
 
 - Kévin's rig (`mark_ready_to_animate_3.blend`, not in the repository) is a sheet of paper with the face cut through it

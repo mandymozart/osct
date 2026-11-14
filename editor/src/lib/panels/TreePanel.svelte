@@ -34,8 +34,8 @@
    * panel, Delete removes the node – on an entry row it asks first (#198's confirmation). An entry, target or node
    * row's menu (`ContextMenu`: a right click, a long press, or the menu key for the selected row) has the same moves
    * and the removal; a digital-first book's spread row has one too, *Add a double page after* (#238). Changes are live on the stage
-   * (`stage.editTree`); Save in the Inspector writes them. Folding is per entry and per node and not stored. ● after a name: the stage shows it with other
-   * values than the draft's.
+   * (`stage.editTree`) and saved by themselves (#259). Folding is per entry and per node and not stored. ● after a name: its tree is
+   * not in the draft yet (a save waits, or something keeps it back – the top bar says what).
    */
   let { stage, spreadId, onselect, onaddtarget, onaddentry, onaddspread, onremoveentry }: {
     stage: Stage | null; spreadId: string;
@@ -183,7 +183,7 @@
         ]
       : [];
     return [...moves, { label: m.path.length ? "Remove node" : "Remove entity", icon: "trash", keys: "Delete", danger: true, select: removeSelected,
-      help: m.path.length ? "Removes the node with its children – live on the stage, Save writes it." : "Removes the entity: the target keeps no AR content – live on the stage, Save writes it." }];
+      help: m.path.length ? "Removes the node with its children – live on the stage and saved by itself; Undo edits in the Inspector brings it back." : "Removes the entity: the target keeps no AR content – live on the stage and saved by itself; Undo edits in the Inspector brings it back." }];
   };
   /** What the menu is for: the entry's title, the target's id, or the node's name */
   const menuHead = (m: Menu): string => {
@@ -287,7 +287,7 @@
         break;
       case "Enter": case " ": if (row) onselect?.(row.kind); break;
       case "Delete": case "Backspace": {
-        // An entry goes only after the confirmation (#198); a node at once (live on the stage, Save writes it)
+        // An entry goes only after the confirmation (#198); a node at once (live on the stage, saved by itself)
         const entry = row?.kind === "entry" ? spread?.entries.find(e => e.id === row.entryId) : undefined;
         if (entry) removeEntry(entry);
         else removeSelected();
@@ -396,7 +396,7 @@
         ? `${n.type} – a tap selects this node: the Inspector shows its values, the gizmo sits on it on the stage`
         : `${n.type} – a tap selects the entity (its root node): the Inspector shows its values, the gizmo sits on it on the stage`}>
       <span class="name">{rowName(n, target, path)}</span>
-      {#if !path.length && stage?.overrideOf(target.id)}<span class="dot" title="Shown with other values than the draft's">●</span>{/if}
+      {#if !path.length && stage?.overrideOf(target.id)}<span class="dot" title="Not saved yet">●</span>{/if}
     </button>
     <span class="eye"></span>
   </div>

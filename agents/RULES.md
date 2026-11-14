@@ -425,9 +425,11 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     (`/editor/stage-frame/`, an iframe with `sandbox="allow-scripts"` and never `allow-same-origin`, its policy from
     `frameCsp`: no path of the API but its public `content/` route, every source with its path, never `'self'`). The
     editor's page imports no plugin module and calls no `installPlugin`; it mirrors the registry's specs
-    (`mirrorPluginRegistry`). What crosses the boundary is data, checked where it arrives (`readFrameEvent`); no message
-    from the frame makes the page call the API, and the frame gets the draft as text, never the session or the CSRF
-    token. A new place that runs book code (a preview, a thumbnail, a test bench) runs it in such a frame. docs/editor.md
+    (`mirrorPluginRegistry`). What crosses the boundary is data, checked where it arrives (`readFrameEvent`). Since edits
+    save themselves (#37), two checked events reach the draft – numbers only, for what the person has open in the page:
+    a gizmo's placement of the node the page itself selected, and a placement handle's move while the selected target's
+    placement is open. No other message from the frame makes the page call the API, none publishes, and the frame gets
+    the draft as text, never the session or the CSRF token. A new place that runs book code (a preview, a thumbnail, a test bench) runs it in such a frame. docs/editor.md
     "The stage frame". The reader is the open exception: its scene runs the published plugins in its own page
     (`agents/MEMORY.md` 2026-10-31).
 
@@ -439,3 +441,15 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     `/assets/content/<path>` where the new build has that file; an absolute URL to an older build stays only for a file
     the new build no longer has (the stage frame admits such builds for images and media, #252). After the import, open
     one of the book's spreads in the editor and check that its targets' images show before handing it over.
+
+37. **Edits save themselves** (Tilman, 2026-11-14, #259: "autosave – it is confusing to save after adding uploads for
+    example"): the editor has no Save button for an edit of the content. An edit shows at once and queues its save with
+    the one autosaver (`editor/src/lib/autosave.svelte.ts`: `autosave.queue(key, save)`, one key per subject – a target's
+    tree goes through the stage's live trees, `tree-autosave.ts`). The save carries what it writes, so it runs after its
+    panel is gone, and compares with the draft when it runs, not when it was queued. A form keeps what was typed: a
+    save's answer never writes over a field. A save does not build the stage again unless the stage shows the draft's
+    own data (a placement, an entry's title or page, a shared entity). What keeps a save back is `autosave.hold` with
+    its reason – the top bar shows it (`SaveStatus.svelte`), no panel text. A panel that edits offers *Undo edits*
+    (`baselines.ts`). The exceptions: the Code tab's source (Save, Ctrl+S – half-typed code never reaches the draft),
+    the forms that create something (*add*), and Publish, which stays the person's click (#32). docs/editor.md
+    "Autosave".

@@ -28,6 +28,8 @@
   import RemovalConfirm from "#lib/components/RemovalConfirm.svelte";
   import { library } from "#lib/library.svelte.js";
   import { nodeAt } from "#lib/values.js";
+  import { queueTreeSaves } from "#lib/tree-autosave.js";
+  import type { EntityData } from "@engine/types";
   import { selection } from "#lib/selection.svelte.js";
   import { firstTab as openingTab, type Tab } from "#lib/panel-tabs.js";
   import InfoView from "#lib/components/InfoView.svelte";
@@ -350,6 +352,12 @@
   $effect(() => {
     void environmentEdit.load(bookId);
   });
+  // An environment edit reached the draft: the content follows (nothing is built again – the stage shows the values
+  // already), the Library counts the files' uses
+  environmentEdit.onsaved = async id => {
+    await content.load(id);
+    void library.refresh();
+  };
   $effect(() => {
     const previewing = shown === "environment";
     const environment = previewing ? environmentEdit.edited : stageEnvironment.current;
@@ -357,6 +365,21 @@
   });
   $effect(() => {
     if (shown !== "environment") environmentEdit.picking = null;
+  });
+
+  // ── autosave (#259): a target's live tree is an edit the draft does not hold yet – the Inspector's rows, a file for
+  // a node, the tree's moves, a gizmo drag – and is saved by itself, whichever panel is open ──
+  let queuedTrees: { stage: Stage; trees: Map<string, EntityData> } | null = null;
+  $effect(() => {
+    const s = stage;
+    const book = bookId;
+    if (!s) return;
+    // Every change of the live trees runs this again
+    void [...s.overrides];
+    untrack(() => {
+      if (queuedTrees?.stage !== s) queuedTrees = { stage: s, trees: new Map() };
+      queueTreeSaves(s, book, queuedTrees.trees);
+    });
   });
 
   /** The library's Use: the selected node takes the file (the Inspector shows first – the Library tab replaced it) */

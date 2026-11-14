@@ -4,6 +4,7 @@
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import { isAdminPath, session } from "#lib/session.svelte.js";
+  import { guardUnsavedOnLeave } from "#lib/autosave.svelte.js";
   import SignIn from "#lib/SignIn.svelte";
   import TopBar from "#lib/TopBar.svelte";
   import NewVersionBar from "#lib/NewVersionBar.svelte";
@@ -11,6 +12,8 @@
   let { children } = $props();
 
   onMount(() => void session.restore());
+  // Edits save themselves: leaving the page writes what still waits
+  onMount(guardUnsavedOnLeave);
 
   /** The admin page (docs/admin.md) is for admins, everything else for editors – an account may be both */
   const isAdminRoute = $derived(isAdminPath(page.url.pathname));

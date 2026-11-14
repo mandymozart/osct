@@ -75,11 +75,42 @@ describe("the stage frame from the page's side", () => {
     const { stage, sent, emit, ready } = make();
     await ready();
     void stage.override("door", DOOR);
+    stage.selectNode("door", [0]);
     emit("placement", { targetId: "door", path: [0], placement: { position: [0.2, 0, 0], rotation: [0, 45, 0], scale: 2 } });
     const node = stage.overrideOf("door")!.children![0];
     expect(node.params).toMatchObject({ position: [0.2, 0, 0], rotation: [0, 45, 0], scale: 2 });
     await vi.waitFor(() => expect(sent.filter(r => r.method === "override")).toHaveLength(2));
     expect(sent.filter(r => r.method === "override")[1].args[1]).toEqual(stage.overrideOf("door"));
+  });
+
+  it("takes a placement only for the node the page selected – the gizmo sits on no other (#259: a live tree is saved by itself)", async () => {
+    const { stage, emit, ready } = make();
+    await ready();
+    void stage.override("door", DOOR);
+    const moved = { position: [0.2, 0, 0], rotation: [0, 45, 0], scale: 2 };
+    // Nothing selected, another node, another target: the frame's word alone moves nothing
+    emit("placement", { targetId: "door", path: [0], placement: moved });
+    stage.selectNode("door", []);
+    emit("placement", { targetId: "door", path: [0], placement: moved });
+    stage.selectNode("window", [0]);
+    emit("placement", { targetId: "door", path: [0], placement: moved });
+    expect(stage.overrideOf("door")).toBe(DOOR);
+  });
+
+  it("adopts a saved tree: the frame gets the draft, the tree is no override any more – unless it was edited again", async () => {
+    const { stage, sent, ready } = make();
+    await ready();
+    void stage.override("door", DOOR);
+    await stage.adopt("door", DOOR);
+    expect(stage.overrideOf("door")).toBeUndefined();
+    // No rebuild, and the frame is not told to drop what it shows
+    expect(sent.filter(r => r.method === "refresh")).toEqual([]);
+    expect(sent.filter(r => r.method === "override")).toHaveLength(1);
+    const edited = { ...DOOR, name: "edited" };
+    void stage.override("door", DOOR);
+    void stage.override("door", edited);
+    await stage.adopt("door", DOOR);
+    expect(stage.overrideOf("door")).toBe(edited);
   });
 
   it("sends a removed entity as the wire's marker", async () => {
