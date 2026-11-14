@@ -1,10 +1,17 @@
 // The content model an agent may write, from the shared content contract (`shared/`): node types, placement, filters,
-// components (built in, and what a book's plugins register), post-processing, the environment, printed placement,
+// components (built in, and what a book's plugins register), post-processing, the looks an entity appears with, the
+// environment, printed placement,
 // spread formats, entry categories – and the contract's own guard run over one entity before it is sent, so a wrong
 // body never reaches the API.
 import { assertGameConfiguration, GameConfigurationError, MAX_NODE_DEPTH } from "../../shared/guards/game-config";
 import {
+  APPEARANCE_TYPES,
+  APPEARANCES,
+  appearanceProblems,
+  type AppearanceSpec,
   ASSET_TYPES,
+  DEFAULT_APPEARANCE_TYPE,
+  MOMENTS,
   TEXTURE_SIZES,
   BEHAVIOUR_ACTIONS,
   BEHAVIOUR_CORE_EVENTS,
@@ -55,6 +62,8 @@ export interface KnownPluginTypes {
   textures: string[];
   /** post-processing passes (`registerPass`, a `passes` entry), the same way */
   passes: string[];
+  /** looks an entity appears with (`registerAppearance`, a `book.appearance` moment), the same way */
+  appearances: string[];
   /**
    * every plugin's registrations are known: each declared plugin recorded them and the book has no Code tab
    * source (a source's types are read from its text, which may miss one) – a type outside the lists is then a typo
@@ -72,6 +81,7 @@ export function knownPluginTypes(book: BookModel): KnownPluginTypes {
     materials: unique([...recorded.flatMap(r => Object.keys(r.materials ?? {})), ...book.sources.flatMap(s => s.materials)]),
     textures: unique([...recorded.flatMap(r => Object.keys(r.textures ?? {})), ...book.sources.flatMap(s => s.textures)]),
     passes: unique([...recorded.flatMap(r => Object.keys(r.passes ?? {})), ...book.sources.flatMap(s => s.passes)]),
+    appearances: unique([...recorded.flatMap(r => Object.keys(r.appearances ?? {})), ...book.sources.flatMap(s => s.appearances)]),
     complete: book.declared.every(plugin => plugin.registered) && book.sources.length === 0,
   };
 }
@@ -103,6 +113,37 @@ export function checkPasses(passes: unknown, path: string, book?: BookModel): { 
   const unverified = Array.isArray(passes)
     ? [...new Set(passes.map(pass => pass?.type).filter((type): type is string => typeof type === "string" && !(PASS_TYPES as readonly string[]).includes(type) && !specs.has(type) && allowed(type)))]
     : [];
+  return { problems, unverified };
+}
+
+/** A book's `appearance` names a look that is not built in – only then the book's plugins matter */
+export function usesPluginAppearances(appearance: unknown): boolean {
+  if (typeof appearance !== "object" || appearance === null) return false;
+  return Object.values(appearance).some(look => typeof look?.type === "string" && !(APPEARANCE_TYPES as readonly string[]).includes(look.type));
+}
+
+/**
+ * The contract's check of a book's `appearance` (a plugin's look too), as `checkPasses`: a look the declared plugins
+ * recorded is checked against its spec like a built-in one; one a Code tab source registers (read from its text, no
+ * spec) passes, listed as unverified; any other is refused – unless a declared plugin recorded nothing. The publish
+ * refuses a look no compiled plugin provides.
+ */
+export function checkAppearance(appearance: unknown, path: string, book?: BookModel): { problems: string[]; unverified: string[] } {
+  const specs = new Map<string, AppearanceSpec>(
+    (book?.declared ?? []).flatMap(plugin => Object.entries(plugin.registered?.appearances ?? {})),
+  );
+  const fromSources = new Set((book?.sources ?? []).flatMap(source => source.appearances));
+  const unrecorded = (book?.declared ?? []).some(plugin => !plugin.registered);
+  const known = book ? knownPluginTypes(book).appearances : [];
+  const allowed = (type: string) => fromSources.has(type) || (unrecorded && COMPONENT_TYPE_PATTERN.test(type));
+  const problems = appearanceProblems(appearance, path, { spec: type => specs.get(type), pluginTypes: known })
+    .filter(problem => {
+      const type = /\.type: "([^"]*)" is not one of/.exec(problem)?.[1];
+      return type === undefined || !allowed(type);
+    });
+  const looks = typeof appearance === "object" && appearance !== null ? Object.values(appearance) : [];
+  const unverified = [...new Set(looks.map(look => look?.type).filter((type): type is string =>
+    typeof type === "string" && !(APPEARANCE_TYPES as readonly string[]).includes(type) && !specs.has(type) && allowed(type)))];
   return { problems, unverified };
 }
 
@@ -228,7 +269,7 @@ export function usesPluginTypes(entity: unknown): boolean {
 }
 
 /** The recorded specs of a kind, type → the spec with the plugin that registers it */
-const recordedSpecs = (book: BookModel, kind: "components" | "nodeTypes" | "passes" | "materials" | "textures") =>
+const recordedSpecs = (book: BookModel, kind: "components" | "nodeTypes" | "passes" | "materials" | "textures" | "appearances") =>
   Object.fromEntries(book.declared.flatMap(plugin => Object.entries(plugin.registered?.[kind] ?? {}).map(([type, spec]) => [type, { plugin: plugin.id, ...spec }])));
 
 /** The static model (the contract) and, with a book, what its plugins add */
@@ -314,6 +355,16 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
         "The built-in types, and (content schema 2.21) a pass a plugin of the book registers (api.registerPass) – written the same way, its parameters checked against the recorded spec. A pass no compiled plugin provides is refused by the publish (409 unknown-passes); a 2.20 reader refuses a book that names one. Up to three passes and one bloom per list fit the phone budget.",
       builtIn: PASSES,
       ...(book ? { plugins: recordedSpecs(book, "passes"), known: known!.passes } : {}),
+    },
+    appearance: {
+      description:
+        "How an AR entity appears and disappears (content schema 2.29, put_book_appearance): book.appearance { reveal?, found?, lost? }, each a look { type, …params } like a pass – reveal = the first find of a target (the entry is unlocked with it), found = every later find, lost = the page is lost (its look plays rewound, in the look's outDuration). " +
+        `A moment without a look takes found's, and without that ${DEFAULT_APPEARANCE_TYPE}; a book without appearance plays ${DEFAULT_APPEARANCE_TYPE} everywhere. ` +
+        "The built-in looks share one set of parameters and differ in their defaults (builtIn: each look's params with its defaults); write only the values that differ. A look a plugin of the book registers (api.registerAppearance, plugin API 1.8) is named the same way, its parameters checked against the recorded spec; the publish refuses a look no compiled plugin provides (409 unknown-appearances). An app before 2.29 ignores the field and plays its own animation.",
+      moments: MOMENTS,
+      default: DEFAULT_APPEARANCE_TYPE,
+      builtIn: APPEARANCES,
+      ...(book ? { plugins: recordedSpecs(book, "appearances"), known: known!.appearances } : {}),
     },
     environment: {
       description:

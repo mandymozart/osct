@@ -353,7 +353,7 @@ so the same rows are the same version. With an `assets_base`, every `/assets/con
 `image`, and every key of `files.json`, becomes a URL below it: a published version points at the
 imported build's media on the CDN and copies nothing. `PUT …/entities/{ref}` and `PUT …/targets/{id}` change one
 entity and record before and after with the user in `changes`. Every save that changes a row from its current value
-(`PUT …/targets/{id}`, `…/spreads/{id}`, `…/environment`, `…/passes`, `…/entities/{ref}`, an asset's replace) reads,
+(`PUT …/targets/{id}`, `…/spreads/{id}`, `…/environment`, `…/passes`, `…/appearance`, `…/entities/{ref}`, an asset's replace) reads,
 changes and writes it in one transaction with the row locked (`SELECT … FOR UPDATE` on MySQL, `BEGIN IMMEDIATE` on
 SQLite – `Db::transaction`, `Db::forUpdate`), so two saves at the same moment never lose one's change. **Publish** writes the same assembly to the content
 store as a version of the environment (`local`, `staging`, `production`) with the osct CLI's bookkeeping
@@ -513,7 +513,12 @@ without plugins); a publish whose nodes use a material no declared plugin record
 book's or a spread's `passes` (content schema 2.21, #216) is a built-in one (`Books::PASS_TYPES`) or one the declared
 plugins recorded the same way (`Editor::pluginTypesOfBook($bookId, 'passes')` – a typo is 400 naming them, any camelCase
 name passes while a plugin is unknown, `Books::PLUGIN_PASS_TYPE`; none without plugins); a publish whose passes name one no
-declared plugin recorded answers 409 `unknown-passes` with `passes`.
+declared plugin recorded answers 409 `unknown-passes` with `passes`. A **look** of the book's `appearance` (content schema
+2.29, #265) is checked the same way: a built-in one (`Books::APPEARANCE_TYPES`) or one the declared plugins recorded
+(`registered.appearances`, `Editor::pluginTypesOfBook($bookId, 'appearances')`), any camelCase name while a plugin is
+unknown; a publish whose appearance names a look no declared plugin recorded answers 409 `unknown-appearances` with
+`appearances`. A Code tab source's `registerAppearance` is read from its text like the other kinds, so a source whose look
+the book names is in use.
 
 | Endpoint | Body | Answer |
 |---|---|---|
@@ -586,6 +591,7 @@ its spread and the contract stays as the content build writes it. Every moved ro
 | `PUT /editor/books/{id}/spreads/{sid}` | `{ title?, format?, passes? }` | `{ spread }` – title, format (`cover` only on page 0) and the spread's own post-processing (an override of the book's: `null` removes it so the book's apply, `[]` turns them off there); the pages stay |
 | `PUT /editor/books/{id}/environment` | `{ environment: { world, onionSky, worldSrc?, skySrc? } \| null }` | `{ environment }` – the book's world and onion sky (`book.environment`, content schema 2.8; the world model and the sky image as references 2.10); `null` removes it – the default applies. A change `environment` in the log. 400 `invalid-environment`; 404 |
 | `PUT /editor/books/{id}/passes` | `{ passes: [{ type, …parameters }] \| null }` | `{ passes }` – the book's post-processing (`book.passes`, content schema 2.5), the master every spread without a list of its own shows; `null` removes it. Checked as a spread's list (a built-in `type` or a plugin's pass – schema 2.21, scalar parameters); a change `passes` in the log. 400 `invalid-passes`; 404 |
+| `PUT /editor/books/{id}/appearance` | `{ appearance: { reveal?, found?, lost? } \| null }` | `{ appearance }` – how the book's entities appear (`book.appearance`, content schema 2.29, #265): a look `{ type, …parameters }` per moment (`Books::MOMENTS`), a built-in `type` or a plugin's look, scalar parameters (their ranges are the guard's). The whole appearance is replaced; `null`, or one without a moment, removes the field – the default look plays everywhere. A change `appearance` in the log. 400 `invalid-appearance`; 404 |
 | `DELETE /editor/books/{id}/spreads/{sid}` | `{ confirm?, deleteFiles? }` | the spread with everything on it, in two steps ([below](#removing-a-spread-or-an-entry)): 409 `confirm-delete` with `impact` and `confirmation`, then with `confirm` 200 `{ deleted, moved }` – a double page's later pages are numbered back by its pages (the reverse of adding it), a cover moves nothing. 409 `initial-spread` for the spread the book opens on (it never goes); 404 |
 
 ### Removing a spread or an entry

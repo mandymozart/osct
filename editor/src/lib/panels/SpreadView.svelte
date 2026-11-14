@@ -11,6 +11,7 @@
   import { formatVar, initialValue, numberStep, tapTargets, VAR_TYPES, withTypes, type VarType } from "#lib/stage/narrative.js";
   import { VAR_SCOPES, type VarScope, type VarValue } from "@engine/scene/plugin-runtime";
   import PassesPanel from "./PassesPanel.svelte";
+  import AppearancePanel from "./AppearancePanel.svelte";
   import { stageEnvironment } from "#lib/environment.svelte.js";
   import { library } from "#lib/library.svelte.js";
   import { environmentSkyLabel } from "#lib/stage/sky.js";
@@ -102,6 +103,8 @@
 </Section>
 
 <PassesPanel {stage} {bookId} {spreadId} />
+
+<AppearancePanel {stage} {bookId} />
 
 {#snippet valueControl(type: VarType, value: VarValue, label: string, commit: (value: VarValue) => void)}
   {#if type === "boolean"}

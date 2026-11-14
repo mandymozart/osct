@@ -617,7 +617,9 @@ in target widths) and `bloom`. Starts and ends are shares of the duration (0–1
 reveal sandbox (`sandbox/reveal`, "As shipped"): its **Values** show the look as it is written here.
 
 A look of the book's own code – a plugin's, `api.registerAppearance` – is named the same way, by its type with its
-own parameters ([plugins](plugins.md), "A look"). A fade keeps the entity's materials see-through while it runs: a
+own parameters ([plugins](plugins.md), "A look"). In the editor a spread's Inspector sets it in its *appearance*
+section ([editor](editor.md) "Appearance"), an AI connection with `put_book_appearance` ([MCP](mcp.md)); both save
+the draft's `book.appearance` (`PUT /editor/books/{id}/appearance`). A fade keeps the entity's materials see-through while it runs: a
 model shows through itself a little.
 
 ## Spreads

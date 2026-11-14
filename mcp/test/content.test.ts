@@ -38,6 +38,7 @@ const REGISTERED = {
   components: { tint: { description: "Tints.", nodeTypes: ["video"], params: { opacity: { kind: "number", default: 0.3, min: 0, max: 1, description: "How much." } } } },
   nodeTypes: { sparkle: { description: "Points.", params: { count: { kind: "number", default: 50, min: 1, max: 500, description: "How many." } } } },
   passes: { scanLines: { description: "Scan lines.", params: { lines: { kind: "number", default: 200, min: 10, max: 800, description: "How many." } } } },
+  appearances: { softFade: { description: "Fades.", params: { duration: { kind: "number", default: 800, min: 50, max: 10000, description: "How long." } } } },
 };
 
 const CONFIRMATION = "1900000000.0123456789abcdef0123456789abcdef";
@@ -83,7 +84,7 @@ function editorApi(seen: Seen, { sources = true } = {}) {
   if (path === "/editor/books/osct/draft/abcdef012345/game.config.json") return { json: { version: { schema: "2.14" }, plugins: [{ id: "tint", src: "/p.js", api: "1.2", registered: REGISTERED }], entities: ENTITIES.entities } };
   if (path === "/editor/books/osct/draft/abcdef012345/files.json") return { json: { "/m.glb": { size: 1 } } };
   if (path === "/editor/books/osct/plugins") return { json: { plugins: sources ? [{ id: "glow", size: 10 }] : [] } };
-  if (path === "/editor/books/osct/plugins/glow") return { json: { plugin: { id: "glow", source: 'api.registerLayer("glow", {}, { glsl: "" }); api.registerNodeType("beam", {}, build);' } } };
+  if (path === "/editor/books/osct/plugins/glow") return { json: { plugin: { id: "glow", source: 'api.registerLayer("glow", {}, { glsl: "" }); api.registerNodeType("beam", {}, build); api.registerAppearance("popIn", {}, look);' } } };
   if (method === "POST" && path === "/editor/books/osct/spreads") {
     const body = seen.body as any;
     return { status: 201, json: { spread: { id: body.id ?? (body.format === "spread" ? "spread-1" : body.format), title: body.title ?? "New spread", firstPage: 5, lastPage: 6 }, moved: { spreads: 0, entries: 0, targets: 0 } } };
@@ -91,6 +92,7 @@ function editorApi(seen: Seen, { sources = true } = {}) {
   if (method === "PUT" && path === "/editor/books/osct/spreads/s2") return { json: { spread: { id: "s2", title: "Two", firstPage: 3, lastPage: 4, ...(seen.body as object) } } };
   if (method === "DELETE" && path === "/editor/books/osct/spreads/s1") return { status: 409, json: { error: { code: "initial-spread", message: "The book opens on this spread." } } };
   if (method === "PUT" && path === "/editor/books/osct/passes") return { json: { passes: (seen.body as any).passes } };
+  if (method === "PUT" && path === "/editor/books/osct/appearance") return { json: { appearance: (seen.body as any).appearance } };
   if (method === "PUT" && path === "/editor/books/osct/environment") return { json: { environment: (seen.body as any).environment } };
   if (method === "GET" && path === "/editor/environments") return { json: { env: "local", environments: [{ env: "local", store: "server", publish: true, url: "http://127.0.0.1:8080/api/content/local", warning: "No CDN connected – the published content is stored and served by this server only." }, { env: "staging", store: "cdn", publish: false, url: null, warning: null }] } };
   if (method === "POST" && path === "/editor/books/osct/publish")
@@ -134,7 +136,7 @@ describe("the content tools", () => {
     expect([...rec.tools.keys()].sort()).toEqual(
       [
         "add_entry", "add_spread", "delete_asset", "delete_entry", "delete_spread", "describe_content_model", "get_book", "get_draft", "get_entity", "get_spread", "import_book", "list_assets", "preview_import",
-        "list_books", "list_changes", "list_versions", "publish", "put_book_passes", "put_entity", "put_environment", "put_spread", "put_target", "upload_asset",
+        "list_books", "list_changes", "list_versions", "publish", "put_book_appearance", "put_book_passes", "put_entity", "put_environment", "put_spread", "put_target", "upload_asset",
         "get_entries", "update_entry", "update_book",
       ].sort(),
     );
@@ -412,7 +414,7 @@ describe("the content tools", () => {
     expect(book.data.components.plugins.tint).toMatchObject({ plugin: "tint", params: { opacity: { min: 0, max: 1 } } });
     expect(book.data.entity.pluginNodeTypes.recorded.sparkle).toMatchObject({ plugin: "tint", params: { count: { max: 500 } } });
     expect(book.data.entity.pluginNodeTypes.known).toEqual(["sparkle", "beam"]);
-    expect(book.data.components.codeTabSources).toEqual([{ id: "glow", components: [], layers: ["glow"], nodeTypes: ["beam"], passes: [], materials: [], textures: [], appearances: [] }]);
+    expect(book.data.components.codeTabSources).toEqual([{ id: "glow", components: [], layers: ["glow"], nodeTypes: ["beam"], passes: [], materials: [], textures: [], appearances: ["popIn"] }]);
   });
 
   it("add_spread: a double page after a spread, a cover; the link opens the new spread", async () => {
@@ -474,6 +476,41 @@ describe("the content tools", () => {
     expect(opening.ok).toBe(false);
     expect(opening.data.error).toMatchObject({ status: 409, code: "initial-spread" });
     expect(opening.data.error.hint).toContain("cannot be removed");
+  });
+
+  it("put_book_appearance: a look per moment, checked against the contract; null removes it (#265)", async () => {
+    const looks = { reveal: { type: "inflateDissolve" }, found: { type: "printLift", duration: 900 }, lost: { type: "fade" } };
+    const ok = await rec.call("put_book_appearance", { book: "osct", appearance: looks });
+    expect(ok.ok).toBe(true);
+    // Built-in looks alone: the book's plugins are not read
+    expect(seen.map(s => s.method)).toEqual(["PUT"]);
+    expect(seen[0]).toMatchObject({ path: "/editor/books/osct/appearance", body: { appearance: looks } });
+    expect(ok.data.open).toBe("http://localhost:5175/editor/osct/");
+    expect((await rec.call("put_book_appearance", { book: "osct", appearance: null })).data.appearance).toBeNull();
+    seen.length = 0;
+    const bad = await rec.call("put_book_appearance", { book: "osct", appearance: { found: { type: "fade", duration: 20 }, lost: { type: "fade", mask: "stars" } } });
+    expect(bad.ok).toBe(false);
+    expect(bad.data.error.code).toBe("invalid-appearance");
+    expect(bad.data.error.problems).toEqual([expect.stringMatching(/^appearance\.found\.duration: expected a number from 50/), expect.stringMatching(/^appearance\.lost\.mask: expected one of none, noise/)]);
+    expect(seen).toHaveLength(0);
+    // A moment the contract does not have is refused by the tool's input schema before anything is sent
+    await expect(rec.call("put_book_appearance", { book: "osct", appearance: { unlock: { type: "fade" } } })).rejects.toThrow(/unlock|Unrecognized/);
+  });
+
+  it("put_book_appearance takes a plugin's look: recorded ones checked against their spec, a Code tab source's with a warning (#265)", async () => {
+    const ok = await rec.call("put_book_appearance", { book: "osct", appearance: { found: { type: "softFade", duration: 500 } } });
+    expect(ok.ok).toBe(true);
+    expect(ok.data.warnings).toBeUndefined();
+    expect(seen.find(s => s.method === "PUT")).toMatchObject({ path: "/editor/books/osct/appearance", body: { appearance: { found: { type: "softFade", duration: 500 } } } });
+    seen.length = 0;
+    const bad = await rec.call("put_book_appearance", { book: "osct", appearance: { found: { type: "softFade", duration: 5 } } });
+    expect(bad.data.error.problems).toEqual(["appearance.found.duration: expected a number from 50 to 10000, got 5"]);
+    expect(seen.filter(s => s.method !== "GET")).toHaveLength(0);
+    const fromSource = await rec.call("put_book_appearance", { book: "osct", appearance: { reveal: { type: "popIn" } } });
+    expect(fromSource.ok).toBe(true);
+    expect(fromSource.data.warnings).toEqual([expect.stringContaining("popIn")]);
+    const typo = await rec.call("put_book_appearance", { book: "osct", appearance: { reveal: { type: "popin" } } });
+    expect(typo.data.error.problems).toEqual([expect.stringMatching(/^appearance\.reveal\.type: "popin" is not one of inflateDissolve, printLift, fade or a look of the book's plugins \(softFade, popIn\)/)]);
   });
 
   it("put_book_passes: the book's master chain, checked; null removes it", async () => {

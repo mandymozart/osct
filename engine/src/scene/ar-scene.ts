@@ -2,7 +2,7 @@ import { Box3, Group, type Matrix4, type Quaternion, Vector3 } from "three";
 import {
   type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type TextureQuality, type PassData, type SceneInspection, SceneState, type Target,
 } from "../types/index";
-import { momentAppearance } from "@shared/types/appearance";
+import { type AppearanceData, type BookAppearance, type Moment, momentAppearance } from "@shared/types/appearance";
 import { entityAssets, getAssets, getBook, getPasses, getPlugins, getSpread, getSpreads, getTargets } from "../content/game-config";
 import { type EnvironmentData, environmentOf } from "@shared/types/environment";
 import { focusAtTap } from "../utils/camera-request";
@@ -107,6 +107,8 @@ export class ArScene implements IArScene {
   private overrides = new Map<string, EntityData>();
   /** The passes shown instead of the content's (the editor's live edit), until restored */
   private passOverride: PassData[] | null = null;
+  /** The book's looks played instead of the content's (the editor's live edit – `appearance: null` = none), until restored */
+  private appearanceOverride: { appearance: BookAppearance | null } | null = null;
   private postProcessing = true;
   private windowCleanup: (() => void) | null = null;
   /** Last told `scanning` state: tracking runs and no target is found */
@@ -205,6 +207,21 @@ export class ArScene implements IArScene {
     if (this.content) this.applyPasses(this.content.spreadId);
   }
 
+  /**
+   * The editor's live edit of the book's looks (not part of `IArScene`): the next animations play these instead of the
+   * content's – `{ appearance: null }` = the book names none (the default look everywhere); `null` = the content's again.
+   * A running animation plays on.
+   */
+  overrideAppearance(override: { appearance: BookAppearance | null } | null): void {
+    this.appearanceOverride = override;
+  }
+
+  /** The look a moment plays: the editor's override, else the book's (`momentAppearance`) */
+  private momentLook(kind: Moment): AppearanceData {
+    const override = this.appearanceOverride;
+    return momentAppearance(override ? { appearance: override.appearance ?? undefined } : getBook(), kind);
+  }
+
   setPostProcessing(enabled: boolean): void {
     this.postProcessing = enabled;
     this.view?.setPostProcessing(enabled);
@@ -263,7 +280,7 @@ export class ArScene implements IArScene {
     this.animations.get(id)?.finish();
     this.animations.delete(id);
     // The look the book names for the moment – a built-in one or a plugin's
-    if (anchor.entity && this.view) this.animations.set(id, celebrate(anchor.group, anchor.entity.object, kind, momentAppearance(getBook(), kind)));
+    if (anchor.entity && this.view) this.animations.set(id, celebrate(anchor.group, anchor.entity.object, kind, this.momentLook(kind)));
   }
 
   dispose(): Promise<void> {

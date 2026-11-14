@@ -773,7 +773,7 @@ With the spread selected the Inspector shows `SpreadView.svelte` (#227, #229 –
 - *spread* – open on a first visit: title, pages, the format (the one control, saved to the draft), the
   post-processing in effect (the whole book's passes or the spread's own, and which) and the book's environment, or
   none – the stage's HDRI – with *edit* to the Environment tab. Closed: *spread · The door · spread*.
-- *post-processing* and *vars and events* – closed on a first visit (#193), below.
+- *post-processing*, *appearance* and *vars and events* – closed on a first visit (#193), below.
 
 #### Post-processing
 
@@ -809,6 +809,29 @@ spread* with **back to the book's**, which drops the override.
   on the AR layer (it gets the layer's coverage as a mask) or grades the desk too, as the reader grades the camera
   picture. The **environment** (the look-around world and its sky – the stage's sky once the book has one, and while the
   Environment tab is open) goes through the same passes, as it does in the reader.
+
+#### Appearance
+
+How the book's AR entities appear and disappear (#265, content schema 2.29, [content guide](content.md) "How entities
+appear", `AppearancePanel.svelte`): **appearance · the whole book** – every spread plays it (*· default* while the book
+names no look). A collapsible section per moment, each closed on a first visit:
+
+- **reveal** – the first find of a target (the entry is unlocked with it), **found** – every later find, **lost** – the
+  page is lost (its look plays rewound, in the look's *disappear* time). Closed, a moment's head names its look and up to
+  two values set away from the default (*found · printLift · appear 900 ms*), or where its look comes from (*reveal · as
+  found · printLift*, *lost · default · inflateDissolve*).
+- **look** picks the moment's look: the built-in **inflateDissolve**, **printLift** and **fade**, then the looks of the
+  book's plugins under each plugin's id (a compiled plugin's from its recorded spec as soon as the book is open, a plugin
+  **Run** in the Code tab at once). The first choice gives the moment no look of its own: **as found** for reveal and
+  lost (they play found's), **default (inflateDissolve)** for found. Another look starts at its own defaults; a look's
+  rows come from its spec – the built-in looks share one set (appear / disappear time, the noise mask with its edge and
+  glow, the shape, fade, tint, sparks, bloom; `shared/types/appearance.ts`), a plugin's are its own.
+- **play** in a moment's head plays its look on the stage's shown targets: reveal replays the first find (as the
+  stage menu's *Replay the first find*), found loses and finds them again, lost loses them and finds them again once the
+  look has played out. A change plays at once – the stage's next animations take the panel's looks (`overrideAppearance`).
+- An edit is [saved by itself](#autosave) (`PUT /editor/books/{id}/appearance`, the whole appearance; a book whose
+  moments all play another's look saves `null`). *Undo edits* takes it back (`editor/src/lib/appearance-edit.ts`, the
+  looks offered `plugin-appearances.ts`).
 
 #### Vars and events
 
@@ -926,8 +949,8 @@ another tab shows (`plugins.code`), so a tab switch loses no edit.
 - **A Run reaches no reader; Publish does**: the publish carries every saved source, transpiled in the browser as a
   Run transpiles it, and the API puts it into the version (#78, [plugins](plugins.md) "Shipping it"). Unsaved edits stay
   behind; a source that does not transpile stops the publish with its line; type errors are not checked there (#266). A
-  node whose component, node type, material or pass neither a compiled plugin nor a saved source provides is refused
-  (409 `unknown-components`, `unknown-node-types`, `unknown-materials`, `unknown-passes`).
+  node whose component, node type, material, pass or look neither a compiled plugin nor a saved source provides is
+  refused (409 `unknown-components`, `unknown-node-types`, `unknown-materials`, `unknown-passes`, `unknown-appearances`).
 
 ## Settings and new versions
 

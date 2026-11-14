@@ -89,8 +89,8 @@ describe("checkEntity with a book – its plugins' types (#90)", () => {
   const book = (sources: BookModel["sources"] = [], declared: BookModel["declared"] = [recorded]): BookModel => ({ declared, sources });
 
   it("knows what the declared plugins recorded and what the sources register; complete only without sources and with every plugin recorded", () => {
-    expect(knownPluginTypes(book())).toEqual({ components: ["tint"], nodeTypes: ["sparkle"], materials: ["water"], textures: ["caustics"], passes: ["scanLines"], complete: true });
-    expect(knownPluginTypes(book([{ id: "glow", components: [], layers: ["glow"], nodeTypes: ["beam"], passes: ["grain"], materials: [], textures: [], appearances: [] }]))).toEqual({ components: ["tint", "glow"], nodeTypes: ["sparkle", "beam"], materials: ["water"], textures: ["caustics"], passes: ["scanLines", "grain"], complete: false });
+    expect(knownPluginTypes(book())).toEqual({ components: ["tint"], nodeTypes: ["sparkle"], materials: ["water"], textures: ["caustics"], passes: ["scanLines"], appearances: [], complete: true });
+    expect(knownPluginTypes(book([{ id: "glow", components: [], layers: ["glow"], nodeTypes: ["beam"], passes: ["grain"], materials: [], textures: [], appearances: [] }]))).toEqual({ components: ["tint", "glow"], nodeTypes: ["sparkle", "beam"], materials: ["water"], textures: ["caustics"], passes: ["scanLines", "grain"], appearances: [], complete: false });
     expect(knownPluginTypes(book([], [recorded, { id: "old", src: "/o.js", api: "1.0" }])).complete).toBe(false);
   });
 
