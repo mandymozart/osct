@@ -8,7 +8,7 @@
     BEHAVIOUR_TYPE, ENTITY_TYPES, FILTER_TYPES, isTargetEnabled, materialSpec, materialTypesFor, nodeTypeSpec, pluginNodeTypes, type AssetData, type EntityData, type FilterType,
     type NodeType, type Target,
   } from "@engine/types";
-  import { errorText, isMediaAsset, putTarget, type PrintPlacement } from "#lib/api.js";
+  import { errorText, isMediaAsset, putTarget, type Asset, type PrintPlacement } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import { library } from "#lib/library.svelte.js";
   import { nodeAssetKinds, pickAccept, type LibraryPick } from "#lib/library-pick.js";
@@ -33,6 +33,8 @@
   import ScrubNumber from "#lib/components/ScrubNumber.svelte";
   import Segmented from "#lib/components/Segmented.svelte";
   import FileField from "#lib/components/FileField.svelte";
+  import ModelTextures from "#lib/components/ModelTextures.svelte";
+  import { setNodeTextures, textureSizeOf, withMaterial, withoutTexture, withTexture } from "#lib/model-textures.js";
   import TextureField from "#lib/components/TextureField.svelte";
   import Toggle from "#lib/components/Toggle.svelte";
   import LibraryPanel from "./LibraryPanel.svelte";
@@ -273,7 +275,7 @@
   const pickContext = $derived(`${target?.id}|${node.join(".")}|${selection.entry}`);
   $effect(() => {
     void pickContext;
-    untrack(() => (picking = null));
+    untrack(() => { picking = null; textureError = null; });
   });
   const pickTargetImage = () => {
     const t = target;
@@ -409,6 +411,38 @@
       // library.error says
     }
   };
+  // ── a model's texture sets (#260): its map in several sizes, chosen by the reader's texture quality ──
+  let textureError = $state<string | null>(null);
+  const modelTextures = $derived(current?.type === "model" ? current.assets[0]?.textures : undefined);
+  /** Library pictures become maps of the set at `index`: each by its own size; what is no map is named, the rest taken */
+  const addTextures = (index: number, assets: readonly Asset[]) => {
+    if (!current) return;
+    let sets = current.assets[0]?.textures;
+    const problems: string[] = [];
+    for (const asset of assets) {
+      const size = textureSizeOf(asset);
+      if ("problem" in size) problems.push(size.problem);
+      else sets = withTexture(sets, index, size.size, asset.url);
+    }
+    textureError = problems.length ? problems.join(" ") : null;
+    if (sets !== current.assets[0]?.textures) applyNode(setNodeTextures(current, sets ? [...sets] : undefined));
+  };
+  const pickTexture = (index: number) => {
+    const which = current?.name ? `“${current.name}”` : node.length ? `node ${pathLabel}` : "the root node";
+    pickFor({ subject: { for: "model-texture" }, label: `a map of the model of ${which}`, onpick: asset => addTextures(index, [asset]) });
+  };
+  const uploadTextures = async (index: number, files: File[]) => {
+    const assets: Asset[] = [];
+    for (const file of files) {
+      try {
+        assets.push(await library.upload(bookId, file));
+      } catch {
+        // library.error says
+      }
+    }
+    addTextures(index, assets);
+  };
+
   /** The selected node takes a file (the library's Use, an upload) */
   export const useAsset = (kind: AssetData["assetType"], src: string, assetId: string) => {
     if (!current || !target) return;
@@ -676,6 +710,13 @@
       <div class="row"><span class="label">{current.type}</span>
         <FileField src={current.assets[0]?.src} picture={fileKinds.includes("image")} accept={pickAccept({ for: "node", nodeType: current.type })}
           label="the {current.type} file of this node" onlibrary={pickNodeFile} onupload={f => void uploadForNode(f)} /></div>
+    {/if}
+    {#if current.type === "model" && current.assets[0]}
+      <div class="section" title="The model's map in several sizes – the reader's texture quality chooses (the mesh loads once)"><span class="section-label">textures</span></div>
+      <ModelTextures textures={modelTextures} accept={pickAccept({ for: "model-texture" })} error={textureError}
+        onlibrary={pickTexture} onupload={(i, files) => void uploadTextures(i, files)}
+        onremove={(i, size) => current && applyNode(setNodeTextures(current, withoutTexture(modelTextures, i, size)))}
+        onmaterial={(i, material) => current && modelTextures && applyNode(setNodeTextures(current, withMaterial(modelTextures, i, material)))} />
     {/if}
     {#if nodeSpec}
       <!-- A plugin's node type (#77): its parameters from its spec, in the node's params -->
