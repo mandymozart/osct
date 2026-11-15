@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-15 – tracker window ±2, counted in spreads with targets (#38, 1.73.1)
+
+- Tilman: *"lets load at least +2 for now"* – *"we will still do 13 once the content spring is over. before the
+  release"* – *"once content is all in, we can optimize for performance"*. ±2 is an **interim** default; #38's
+  decision (grow / sliding budget) and #13's progressive preload come after the content is complete, before release.
+- Found on staging: from 4–5 the reader never found 8–9 – 6–7 has no active targets (switched off, #249), and the
+  ±n window counted it, so ±1 held only an empty spread ahead. `getPreparedWindow()` now counts and orders only
+  spreads with targets (fixed window and load-test budget alike).
+- A device that stored a window in the debug overlay (`ar-prepared-spreads`) keeps it – the new default reaches
+  only devices that never changed it.
+
 ## 2026-11-15 – the stage is always live; the book's code is part of it (#269)
 
 - **Tilman**: "can you do an auto run like we have auto save in the editor? … or every time the editor page loads", then

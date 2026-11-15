@@ -20,10 +20,16 @@ describe("window of spreads kept ready", () => {
     expect(ordered[1]).toBe(spreads[index - 1]);
   });
 
-  it("±n: the spreads within n, nearest first", () => {
-    expect(getPreparedWindow(middle.id, 1, null)).toEqual([spreads[index + 1], spreads[index - 1]]);
+  /** The other spreads with targets, nearest first – the window skips the ones without */
+  const held = spreadsByDistance(middle.id).filter(s => getTargets(s.id).length > 0);
+  const next = spreads.slice(index + 1).find(s => getTargets(s.id).length > 0);
+  const previous = spreads.slice(0, index).reverse().find(s => getTargets(s.id).length > 0);
+
+  it("±n: the n nearest spreads with targets on either side, the next before the previous", () => {
+    expect(getPreparedWindow(middle.id, 1, null)).toEqual([next, previous].filter(Boolean));
     expect(getPreparedWindow(middle.id, 0, null)).toEqual([]);
-    expect(getPreparedWindow(middle.id, Infinity, null).length).toBe(spreads.length - 1);
+    expect(getPreparedWindow(middle.id, Infinity, null)).toHaveLength(held.length);
+    expect(getPreparedWindow(middle.id, Infinity, null).every(s => getTargets(s.id).length > 0)).toBe(true);
   });
 
   it("target budget: the nearest spreads until their targets reach it", () => {
@@ -31,7 +37,8 @@ describe("window of spreads kept ready", () => {
     const targets = window.reduce((n, s) => n + getTargets(s.id).length, 0);
     expect(targets).toBeGreaterThanOrEqual(10);
     expect(targets - getTargets(window.at(-1)!.id).length).toBeLessThan(10);
-    expect(window).toEqual(spreadsByDistance(middle.id).slice(0, window.length));
+    expect(window[0]).toBe(next);
+    expect(window.every(s => getTargets(s.id).length > 0)).toBe(true);
     expect(getPreparedWindow(middle.id, 1, 0)).toEqual([]);
   });
 

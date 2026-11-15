@@ -7,6 +7,21 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.73.1 – 2026-11-15
+
+### Changed
+- **The reader holds two spreads on either side (±2) by default** (#38, Tilman: *"lets load at least +2 for now"*):
+  the tracker keeps the targets of the next two and the previous two spreads loaded (it was ±1) and the content of
+  those spreads is preloaded, so scanning a page two spreads ahead switches by itself. An interim default while the
+  content is coming in; the performance tuning and the progressive preload (#13) follow once it is complete. A device
+  that chose a window in the debug overlay keeps its choice.
+
+### Fixed
+- **A spread without targets no longer breaks the window** (#38): the window counted every spread, so a spread whose
+  targets are all switched off (or that has none yet) used up a place and the page beyond it was not held – from
+  pages 4–5 the reader did not find 8–9 because 6–7 has no active targets. The window now counts only spreads with
+  targets and orders them nearest first among those (`getPreparedWindow()`); the load test's budget skips them too.
+
 ## 1.73.0 – 2026-11-15
 
 ### Added

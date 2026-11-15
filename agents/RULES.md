@@ -35,7 +35,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
    camera canvas under the three.js canvas. (The look-around world is one full-screen pass of the same renderer
    under the AR scene, `engine/src/scene/look-around/` – no scene of its own; a book's world model is rendered once into
    a cube when it loads, `look-around/environment-assets.ts`, never per frame.) The tracker keeps the neighbouring
-   spreads' image targets loaded (`prepareTargets()`, ±1 by default – `engine/src/utils/prepared-spreads.ts`);
+   spreads' image targets loaded (`prepareTargets()`, ±2 spreads with targets by default – `engine/src/utils/prepared-spreads.ts`);
    that is the engine's state, not the scene's. The AR code (three.js, the 8th Wall engine) is only imported
    lazily (`ar-bridges/lazy-ar-scene.ts`) – nothing on the startup path may import `ar-bridges/ar/` statically;
    the scene is built on the first scan (RUNNING).

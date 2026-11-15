@@ -18,13 +18,13 @@ describe("spreads kept loaded", () => {
     setWindowOverride(null);
   });
 
-  it("holds the neighbours (±1) by default and cycles through the other windows", () => {
-    expect(getPreparedWindowSetting()).toBe(1);
-    expect(getPreparedSpreadRange()).toBe(1);
+  it("holds two spreads on either side (±2) by default and cycles through the other windows", () => {
+    expect(getPreparedWindowSetting()).toBe(2);
+    expect(getPreparedSpreadRange()).toBe(2);
     expect(isGrowingWindow()).toBe(false);
     expect([cyclePreparedSpreadRange(), cyclePreparedSpreadRange(), cyclePreparedSpreadRange(), cyclePreparedSpreadRange(), cyclePreparedSpreadRange()])
-      .toEqual([2, Infinity, "grow", 0, 1]);
-    expect(stored.get("ar-prepared-spreads")).toBe("1");
+      .toEqual([Infinity, "grow", 0, 1, 2]);
+    expect(stored.get("ar-prepared-spreads")).toBe("2");
   });
 
   it("grows towards the whole book when grow is chosen (content for the neighbours)", () => {
@@ -49,14 +49,14 @@ describe("spreads kept loaded", () => {
 
   it("ignores a stored value it does not know", () => {
     stored.set("ar-prepared-spreads", "7");
-    expect(getPreparedWindowSetting()).toBe(1);
+    expect(getPreparedWindowSetting()).toBe(2);
   });
 
-  it("a storage that refuses leaves the default (±1)", () => {
+  it("a storage that refuses leaves the default (±2)", () => {
     setDeviceStorage({ get: () => { throw new Error("blocked"); }, set: () => { throw new Error("blocked"); } });
-    expect(getPreparedWindowSetting()).toBe(1);
-    expect(cyclePreparedSpreadRange()).toBe(2);
-    expect(getStoredWindowSetting()).toBe(1);
+    expect(getPreparedWindowSetting()).toBe(2);
+    expect(cyclePreparedSpreadRange()).toBe(Infinity);
+    expect(getStoredWindowSetting()).toBe(2);
   });
 
   it("the trial's override holds the current spread only, applies at once and leaves the stored setting alone", () => {
@@ -68,10 +68,10 @@ describe("spreads kept loaded", () => {
     expect(isGrowingWindow()).toBe(false);
     expect(getPreparedWindow(getSpreads()[5].id)).toEqual([]); // nothing prepared or preloaded next to it
     cyclePreparedSpreadRange(); // the overlay's Change: the stored setting, not the override
-    expect(getStoredWindowSetting()).toBe(2);
+    expect(getStoredWindowSetting()).toBe(Infinity);
     expect(getPreparedWindowSetting()).toBe(0);
     setWindowOverride(null);
-    expect(getPreparedWindowSetting()).toBe(2);
+    expect(getPreparedWindowSetting()).toBe(Infinity);
     expect(calls).toBe(3);
     unsubscribe();
   });

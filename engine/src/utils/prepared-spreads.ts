@@ -9,7 +9,9 @@ import { readSwitch, writeSwitch } from "./device-storage";
  *
  * Setting (debug overlay, this device only – in the app's storage, `device-storage.ts`):
  * - ±n spreads (0, 1, 2) or all: a fixed window that slides with the current spread (`prepareTargets()`).
- *   **±1 is the default**: the next and the previous spread switch by themselves.
+ *   **±2 is the default**: the next two spreads on either side switch by themselves. Only spreads with targets
+ *   count – one without (all its targets switched off, or none yet) is skipped, it has nothing to recognise, so a
+ *   page beyond it is still in reach.
  * - **grow**: the current spread first, then the nearest spreads are added in idle time, a few targets at a time,
  *   until the whole book is held (`IImageTracker.growTargets()`). Nothing is dropped on a switch. Content is
  *   preloaded for ±1. Not the default: with the whole book held, pages of a printout were no longer found.
@@ -22,7 +24,7 @@ import { readSwitch, writeSwitch } from "./device-storage";
 export type PreparedWindowSetting = "grow" | number;
 export const PREPARED_WINDOW_SETTINGS: readonly PreparedWindowSetting[] = ["grow", 0, 1, 2, Infinity];
 const RANGE_KEY = "ar-prepared-spreads";
-const DEFAULT_WINDOW: PreparedWindowSetting = 1;
+const DEFAULT_WINDOW: PreparedWindowSetting = 2;
 /** Content preload in grow mode: the neighbours (their media add up – the whole book stays a separate step) */
 const GROW_CONTENT_RANGE = 1;
 
@@ -97,14 +99,25 @@ export const spreadsByDistance = (spreadId: string): Spread[] => {
   return ordered;
 };
 
-/** The spreads kept ready next to `spreadId` (target budget while the load test runs, else ±range), nearest first */
+/**
+ * The spreads kept ready next to `spreadId` (target budget while the load test runs, else ±range), nearest first.
+ * Only spreads with targets count: one without any is left out and neither uses up the range nor the distance, so
+ * the next spread with targets comes first even when an empty one lies between.
+ */
 export const getPreparedWindow = (spreadId: string, range = getPreparedSpreadRange(), budget = targetBudget): Spread[] => {
-  const ordered = spreadsByDistance(spreadId);
-  if (budget === null) {
-    const index = getSpreads().findIndex(spread => spread.id === spreadId);
-    const spreads = getSpreads();
-    return ordered.filter(spread => Math.abs(spreads.indexOf(spread) - index) <= range);
+  const spreads = getSpreads();
+  const index = spreads.findIndex(spread => spread.id === spreadId);
+  if (index === -1) return [];
+  const withTargets = (spread: Spread) => getTargets(spread.id).length > 0;
+  const ahead = spreads.slice(index + 1).filter(withTargets);
+  const behind = spreads.slice(0, index).reverse().filter(withTargets);
+  const ordered: Spread[] = [];
+  for (let step = 0; step < Math.max(ahead.length, behind.length); step++) {
+    if (budget === null && step >= range) break;
+    if (step < ahead.length) ordered.push(ahead[step]);
+    if (step < behind.length) ordered.push(behind[step]);
   }
+  if (budget === null) return ordered;
   const window: Spread[] = [];
   let targets = 0;
   for (const spread of ordered) {

@@ -9,8 +9,9 @@ and engine – the editor's stage with the mock tracker – see [Editor](editor.
 1. **Current spread** – `ArScene.changeSpread()` swaps anchors, entities and assets (it waits for the new spread's
    models and videos), then `ImageTracker.loadTargets()` makes the spread's targets the ones reported to the app.
 2. **Window** – once the spread is tracked, `ArScene` gives the tracker the other spreads, nearest first
-   (`prepared-spreads.ts` – the engine extracts in the order its queue gets them). **Fixed** (±1 by default; ±0 / ±2 / all in the debug overlay, or the load test's target
-   budget): `prepareTargets()` holds exactly that window and **slides** with the current spread – spreads that fall
+   (`prepared-spreads.ts` – the engine extracts in the order its queue gets them). **Fixed** (±2 by default since 1.73.1; ±0 / ±1 / all in the debug overlay, or the load test's
+   target budget): `prepareTargets()` holds exactly that window – counted in spreads **with targets**: a spread without
+   any (all switched off, or none yet) is skipped and does not use up the range, so a page beyond it stays in reach – and **slides** with the current spread – spreads that fall
    out of it are unloaded (their files stay in the browser cache). **Grow** (debug overlay; the default from 1.7.0
    to 1.8.1, see issue #38): `growTargets()` adds them in idle time, three targets per batch, each batch after the
    previous one is extracted, until the whole book is held; a switch only re-orders what is still to add, nothing is
@@ -39,7 +40,7 @@ side by side.
 | Spreads with 0 / 1 / 2 / 3 / 4 targets | 3 / 43 / 36 / 4 / 1 |
 
 With mostly one or two targets per spread, ±1 holds about 3 spreads and 4–5 targets: only the next and the previous
-spread can be found without the menu. ±2 holds about 5 spreads and 7–8 targets. "All" holds 131 targets, which
+spread can be found without the menu. ±2 (the default) holds about 5 spreads and 7–8 targets. "All" holds 131 targets, which
 costs about 131 × (prepare + extract) on the main thread at the start – tens of seconds of busy main thread on a
 phone, while the reader is already scanning.
 
@@ -241,7 +242,7 @@ small target as well as a large one.
 
 ## Open decisions
 
-- **How many targets the engine holds** – keep ±1, grow to the whole book, or a sliding target budget from the load
+- **How many targets the engine holds** – keep ±2 (the interim default until the content is complete), grow to the whole book, or a sliding target budget from the load
   test: open in #38.
 - **Preloading in steps** – targets first, then their content, then higher resolutions (the quality levels): open in
   #13.
