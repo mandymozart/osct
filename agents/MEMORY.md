@@ -20,6 +20,11 @@ outcome in the line (or move it into a dated decision block).
 - The paper is already there: the demo's `paper` component (#263) shows a **`video` node** on a sheet model, and a
   video node plays with sound – so the route for a speaking paper is a video node with a component, not a video as a
   texture. The demo's screen speaks this way (a synthetic voice, `editor/tools/narration-video.mjs`).
+- [ ] Open (Tilman, bunny.net dashboard – #257): **`vtt` is not in the pull zone's "CORS headers" extension list**
+  (checked 2026-11-16 on `buildingfictions.b-cdn.net`: a missing `.glb` or `.mp4` answers 404 *with*
+  `Access-Control-Allow-Origin: *`, a missing `.vtt` without it; `.yaml` and `.md` files answer 200 without it – the
+  header goes by extension). Until it is added, subtitles do not show for content on the CDN (staging, production, the
+  editor's stage): the fetch is refused, the video plays without a line.
 - [ ] Open (#257): a narration loops like every video (play once per find?); where the real `.vtt` come from (typed,
   or a speech-recognition draft) and who translates; a paired subtitle file is not counted as used in the Library
   (no delete protection); a subtitle file of an older content build is not admitted by the stage frame's `connect-src`;
