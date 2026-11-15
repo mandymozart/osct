@@ -7,6 +7,20 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.74.0 – 2026-11-15
+
+### Added
+- **The MCP server as one file, served by every instance** (#272, Tilman: the editor gave no valid link to the
+  server file): `/mcp/osct-mcp.mjs` next to the app – the server bundled with its dependencies, the content contract
+  and the plugin guide, so it needs Node 22 and no checkout. The editor's *Connect an AI agent* guide links the
+  download and asks where it was saved; a checkout's `mcp/bin/osct-mcp.mjs` keeps working. Built by
+  `mcp/scripts/bundle.mjs` (`npm run bundle` in `mcp/`) in the Docker image and the FTPS staging deploy; the editor's
+  dev server bundles it on request.
+
+### Fixed
+- The image's `.dockerignore` let in neither `editor/` nor `engine/`, which the Dockerfile copies – a Kamal build
+  failed on them; they are in, with `mcp/` and `docs/plugins.md`.
+
 ## 1.73.1 – 2026-11-15
 
 ### Changed

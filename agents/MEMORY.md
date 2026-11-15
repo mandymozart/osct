@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-15 – the MCP server as one file, served by the instance (#272, 1.74.0)
+
+- Tilman: the editor gave no valid link to the server file (it pointed at the repository on GitHub) – *"include it
+  into the deployment that it is served from the deployment as well"*. `/mcp/osct-mcp.mjs` next to the app, bundled
+  with its dependencies and `docs/plugins.md` (an esbuild `define`, `OSCT_BUNDLED_DOCS`), about 1 MB, Node 22 only.
+- Headers (`no-cache`, `Content-Disposition: attachment`, `.mjs` as `text/javascript`) sit in the root `.htaccess`,
+  not `apache.conf`: staging is still the FTPS shared host, production the Kamal image – both read it.
+- Found: `.dockerignore` whitelisted neither `editor/` nor `engine/` although the Dockerfile copies both, so a Kamal
+  build could not have worked since the editor landed (the Kamal staging runs fail since 2026-11-05 – not checked
+  whether for this reason). Fixed alongside; a real image build was **not** run here.
+
 ## 2026-11-15 – tracker window ±2, counted in spreads with targets (#38, 1.73.1)
 
 - Tilman: *"lets load at least +2 for now"* – *"we will still do 13 once the content spring is over. before the
@@ -1620,7 +1631,7 @@ outcome in the line (or move it into a dated decision block).
   server (`osct-osct-porschuetz-de`).
 - **The path is the person's**: the editor cannot know the checkout, so a field takes it once (localStorage
   `osct-editor-mcp-file`); without it the snippets say `/path/to/osct/mcp/bin/osct-mcp.mjs` openly.
-- Open: a **one-file download of the MCP server** (SCUTOONS §3a) – a bundled `osct-mcp.mjs` built in CI or the image and
+- Done in 1.74.0 (#272): ~~a **one-file download of the MCP server**~~ (SCUTOONS §3a) – a bundled `osct-mcp.mjs` built in CI or the image and
   served by the instance, so a person needs Node but no checkout. Not built here: `bin/osct-mcp.mjs` bundles `src/` with
   esbuild at start and needs `mcp/node_modules`; a served bundle needs a build step in the Dockerfile (the mcp
   dependencies in the build stage), a route or static file next to `/editor`, and the version kept with the app. Its

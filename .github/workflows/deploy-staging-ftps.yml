@@ -41,6 +41,7 @@ jobs:
             client/package-lock.json
             scripts/package-lock.json
             editor/package-lock.json
+            mcp/package-lock.json
       - name: Build the content and the app (prebuild runs the content build)
         working-directory: client
         env:
@@ -58,6 +59,13 @@ jobs:
         run: |
           npm ci
           npm run build
+
+      # The MCP server as one file (#272, docs/mcp.md): served at /mcp/osct-mcp.mjs, the editor's AI guide links it
+      - name: Bundle the MCP server
+        working-directory: mcp
+        run: |
+          npm ci --omit=dev
+          node scripts/bundle.mjs ../site-mcp/osct-mcp.mjs
 
       - name: Write the server configuration
         env:
@@ -93,6 +101,7 @@ jobs:
           mkdir -p site/api site/editor
           cp -r client/dist/. site/
           cp -r editor/build/. site/editor/
+          mkdir -p site/mcp && cp site-mcp/osct-mcp.mjs site/mcp/
           cp -r server/api/. site/api/
           rm -f site/api/config.local.php.example site/api/db/*.sqlite site/api/db/*.log
           # The host's content store and var/ (published content, uploads, the error log) live in the API's folder there –

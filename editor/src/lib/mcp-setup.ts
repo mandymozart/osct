@@ -3,15 +3,23 @@
  * MCP client that starts a stdio server needs the same four things: a name for the server, the command
  * `node <file>`, and the environment `OSCT_API_URL` (this instance's API) and `OSCT_EDITOR_TOKEN` (a token from the
  * list). The builders here write them for the generic block and as each client's own snippet. A token just made is
- * filled in, else a placeholder; the file is the MCP server in the person's own checkout (docs/mcp.md), typed once on
- * the page – the editor cannot know it.
+ * filled in, else a placeholder; the file is the MCP server on the person's computer – the one file this instance serves
+ * (`/mcp/osct-mcp.mjs`, #272) where they saved it, or the start in a checkout (docs/mcp.md) – typed once on the page:
+ * the editor cannot know it.
  */
 
 export const TOKEN_PLACEHOLDER = "osct_…";
 /** The MCP server's start inside a checkout of the repository */
 export const SERVER_FILE = "mcp/bin/osct-mcp.mjs";
+/** The MCP server as one file, served by every deployed instance next to the app (#272, docs/mcp.md) */
+export const SERVER_DOWNLOAD = "/mcp/osct-mcp.mjs";
 /** Shown in every snippet until the person has typed the path */
-export const FILE_PLACEHOLDER = `/path/to/osct/${SERVER_FILE}`;
+export const FILE_PLACEHOLDER = "/path/to/osct-mcp.mjs";
+
+/** Where this instance serves the one-file MCP server: next to the app, at the page's origin */
+export function serverDownloadUrl(origin: string): string {
+  return new URL(SERVER_DOWNLOAD, `${origin.replace(/\/+$/, "")}/`).href;
+}
 
 export const CLIENTS = ["claude-code", "claude-desktop", "codex", "opencode", "cursor"] as const;
 export type McpClient = (typeof CLIENTS)[number];

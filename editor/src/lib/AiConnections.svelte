@@ -3,7 +3,7 @@
   import { API_URL, createApiToken, errorText, getHealth, listApiTokens, renewApiToken, revokeApiToken, type ApiToken } from "#lib/api.js";
   import Segmented from "#lib/components/Segmented.svelte";
   import {
-    ago, apiUrlFor, CLIENT_INFO, CLIENTS, commandLine, day, expiresSoon, FILE_PLACEHOLDER, SERVER_FILE, SERVER_NAME_PLACEHOLDER, serverFileFrom, serverNameFor,
+    ago, apiUrlFor, CLIENT_INFO, CLIENTS, commandLine, day, expiresSoon, FILE_PLACEHOLDER, SERVER_FILE, SERVER_NAME_PLACEHOLDER, serverDownloadUrl, serverFileFrom, serverNameFor,
     snippetFor, tokenNameFor, TOKEN_PLACEHOLDER, type McpClient, type McpSetup,
   } from "#lib/mcp-setup.js";
   import { readStored, writeStored } from "#lib/storage.js";
@@ -30,16 +30,18 @@
   let env = $state<string | null>(null);
 
   const FILE_KEY = "osct-editor-mcp-file";
-  /** What the person typed for the server file – the checkout's `mcp/bin/osct-mcp.mjs` or the checkout itself */
+  /** What the person typed for the server file – the downloaded `osct-mcp.mjs`, a checkout's `mcp/bin/osct-mcp.mjs` or the checkout itself */
   let fileInput = $state(readStored(FILE_KEY) ?? "");
   const storeFile = () => writeStored(FILE_KEY, fileInput.trim() || null);
 
   const apiUrl = typeof location === "undefined" ? API_URL : apiUrlFor(API_URL, location.origin);
+  /** The one-file MCP server this instance serves (#272) */
+  const download = typeof location === "undefined" ? "/mcp/osct-mcp.mjs" : serverDownloadUrl(location.origin);
   const setup = $derived<McpSetup>({ name: env ? serverNameFor(env) : SERVER_NAME_PLACEHOLDER, api: apiUrl, token: fresh?.token ?? null, file: serverFileFrom(fileInput) });
   const snippet = $derived(snippetFor(client, setup));
   const generic = $derived([
     { key: "name", label: "name", value: setup.name, help: "The name the client lists the server under – one per instance, so several sit side by side." },
-    { key: "command", label: "command", value: commandLine(setup), help: "What the client starts: Node 22 with the MCP server of your checkout." },
+    { key: "command", label: "command", value: commandLine(setup), help: "What the client starts: Node 22 with the MCP server file on your computer." },
     { key: "api", label: "OSCT_API_URL", value: setup.api, help: "This instance's API – the server talks to it as you." },
     { key: "token", label: "OSCT_EDITOR_TOKEN", value: setup.token ?? TOKEN_PLACEHOLDER, help: "A token from the list on the left – filled in right after you create one, never stored." },
   ]);
@@ -169,9 +171,11 @@
 
     <h3>Any MCP client (stdio)</h3>
     <label class="file">
-      <span class="small">The path to <code>{SERVER_FILE}</code> in your osct checkout</span>
+      <span class="small">Where you saved <a href={download} download="osct-mcp.mjs"
+        data-help-name="Download osct-mcp.mjs" data-help="The MCP server as one file, served by this instance – always its deployed version. Needs Node 22, nothing else.">osct-mcp.mjs</a>
+        (or <code>{SERVER_FILE}</code> in an osct checkout)</span>
       <input class="field" bind:value={fileInput} onchange={storeFile} onblur={storeFile} placeholder={FILE_PLACEHOLDER} spellcheck="false" autocomplete="off"
-        data-help-name="Server file" data-help="Where the MCP server lies on your computer – typed once, this browser remembers it and fills it into every snippet. The checkout's folder works too." />
+        data-help-name="Server file" data-help="Where the MCP server lies on your computer – typed once, this browser remembers it and fills it into every snippet. A checkout's folder works too." />
     </label>
     <dl class="rows">
       {#each generic as row (row.key)}
@@ -188,8 +192,9 @@
     </div>
     <pre class="snippet"><code>{snippet}</code></pre>
     <ol class="steps">
-      <li>Once: a checkout of the OSCT repository and <code>npm ci</code> in its <code>mcp/</code> folder (Node 22); type the
-        path above.</li>
+      <li>Once: <a href={download} download="osct-mcp.mjs">download osct-mcp.mjs</a> (needs Node 22) and type where you saved
+        it above. After a deploy of this instance, download it again for the new version. A checkout of the repository works
+        too: <code>npm ci</code> in its <code>mcp/</code> folder, then its path.</li>
       <li>Create a token named after the agent and the machine, then
         {#if client === "claude-code"}
           run the command in a terminal.

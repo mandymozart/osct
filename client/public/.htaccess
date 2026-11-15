@@ -27,3 +27,12 @@
     Header set Access-Control-Allow-Headers "cache-control, pragma"
   </If>
 </IfModule>
+
+# The MCP server as one file (#272, docs/mcp.md): /mcp/osct-mcp.mjs is a download, always the deployed version
+AddType text/javascript .mjs
+<IfModule mod_headers.c>
+  <If "%{REQUEST_URI} =~ m#^/mcp/osct-mcp\.mjs$#">
+    Header set Cache-Control "no-cache"
+    Header set Content-Disposition "attachment; filename=\"osct-mcp.mjs\""
+  </If>
+</IfModule>
