@@ -7,6 +7,18 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.76.0 – 2026-11-15
+
+### Changed
+- **Connect an AI agent: two tabs and one prompt** (#273, Tilman: the guide was all too detailed – "make it one prompt
+  someone has to copy, including the newly created token"): the AI connections on the books page are two tabs,
+  *Connect an AI agent* and *Existing connections*. The first is three steps – pick the agent, copy the prompt, let
+  the agent set itself up: the prompt has the agent check Node, download this instance's `osct-mcp.mjs`, add its
+  client's entry with a token in it, ask for a restart and call `whoami`. With no token yet one is made at once
+  ("Claude Code on Windows"); else **Create token & copy prompt** makes it and copies the prompt in one click. The
+  server file, the snippet and the four values fold under *Set it up by hand*. The second tab is the list with Renew
+  and Revoke and a named **Create token**.
+
 ## 1.75.0 – 2026-11-15
 
 ### Added
