@@ -15,7 +15,12 @@ export interface Rule {
   text: () => string;
 }
 
+/** The docs the one-file bundle carries (scripts/bundle.mjs defines it); undefined when run from a checkout */
+declare const OSCT_BUNDLED_DOCS: Record<string, string> | undefined;
+
 const doc = (file: string, fallback: string) => {
+  const bundled = typeof OSCT_BUNDLED_DOCS === "undefined" ? undefined : OSCT_BUNDLED_DOCS[file];
+  if (bundled !== undefined) return bundled;
   const path = resolve(ROOT, file);
   return existsSync(path) ? readFileSync(path, "utf8") : fallback;
 };

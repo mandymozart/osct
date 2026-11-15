@@ -61,14 +61,19 @@ A signed-in user without the editor role gets `whoami`'s hint and no tools: an a
 
 ## Connecting an agent
 
-The server runs from a checkout of the repository: once `cd mcp && npm ci` (Node 22). Any MCP client that starts a
+The server is **one file every instance serves**: `/mcp/osct-mcp.mjs` next to the app
+(`https://osct.porschuetz.de/mcp/osct-mcp.mjs`, #272) – `scripts/bundle.mjs` bundles `src/` with its dependencies, the
+shared contract and `docs/plugins.md` into it, so it needs Node 22 and nothing else; the Docker image and the FTPS
+staging deploy build it, the editor's dev server bundles it on request (`npm ci` in `mcp/` first), and it is always the
+instance's deployed version (download it again after a deploy). Or from a checkout of the repository: once
+`cd mcp && npm ci` (Node 22), then `mcp/bin/osct-mcp.mjs`, which bundles the checkout's current code at every start. Any MCP client that starts a
 stdio server needs four things – the editor's books page shows them under *Connect an AI agent*
 ([editor](editor.md#ai-connections)) with the instance's values, a token just made and the path the person typed once:
 
 | | what |
 |---|---|
 | name | `osct-<env>` after the instance's environment (`GET /health` → `env`, the API's `ENV` setting – [server](server.md#configuration)): `osct-local`, `osct-staging`, `osct-production`. One name per instance, so several sit side by side, and none is `osct` – the repository's own `.mcp.json` (below) has that name, and in Claude Code a project's server hides a user server of the same name |
-| command | `node <checkout>/mcp/bin/osct-mcp.mjs` – the path to the file in the person's osct checkout (the editor cannot know it: the guide's field takes it once, the browser keeps it, a folder gets `mcp/bin/osct-mcp.mjs` appended) |
+| command | `node <file>` – where the person saved the downloaded `osct-mcp.mjs`, or `<checkout>/mcp/bin/osct-mcp.mjs` (the editor cannot know it: the guide's field takes it once, the browser keeps it, a folder gets `mcp/bin/osct-mcp.mjs` appended) |
 | `OSCT_API_URL` | the instance's API, absolute: `https://osct.porschuetz.de/api` |
 | `OSCT_EDITOR_TOKEN` | an AI connection's token `osct_…` ([above](#signing-in)) |
 

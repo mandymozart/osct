@@ -25,6 +25,8 @@ COPY engine engine
 COPY scripts scripts
 COPY client client
 COPY editor editor
+COPY mcp mcp
+COPY docs/plugins.md docs/plugins.md
 
 # Build flags (client/.env lists them): the API lives next to the app, the debug bar only where asked for.
 # VITE_CONTENT_BASE_URL (the environment's content CDN, docs/content-cdn.md): with it the app loads its content from
@@ -39,6 +41,8 @@ ENV VITE_API_URL=/api VITE_DEBUG=$VITE_DEBUG VITE_SHOW_LOCKED_ENTRIES=$VITE_SHOW
 RUN cd client && npm run build && find dist -name '*.map' -delete
 # The editor: a SvelteKit single-page app at /editor (its API is the same /api)
 RUN cd editor && npx svelte-kit sync && npm run build
+# The MCP server as one file (#272, docs/mcp.md): served at /mcp/osct-mcp.mjs, the editor's AI guide links it
+RUN cd mcp && node scripts/bundle.mjs /src/mcp-bundle/osct-mcp.mjs
 
 # ---- 2. Serve it ------------------------------------------------------------------------------------------
 FROM php:8.3-apache-bookworm
@@ -62,6 +66,7 @@ RUN rm -rf /var/www/html/api/config.local.php /var/www/html/api/config.local.php
 # The reader (index.html, assets/, the service worker, .htaccess with the SPA fallbacks) and the editor
 COPY --from=build /src/client/dist /var/www/html
 COPY --from=build /src/editor/build /var/www/html/editor
+COPY --from=build /src/mcp-bundle /var/www/html/mcp
 COPY client/public/.htaccess /var/www/html/.htaccess
 
 ENV OSCT_API_DIR=/var/www/html/api

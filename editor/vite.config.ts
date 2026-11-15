@@ -1,16 +1,42 @@
 /// <reference types="vitest/config" />
+import { execFile } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
-import { defaultAllowedOrigins, defaultClientConditions, defineConfig } from 'vite';
+import { defaultAllowedOrigins, defaultClientConditions, defineConfig, type Plugin } from 'vite';
 
 /** A source folder next to the app, as an absolute path with a trailing slash */
 const sibling = (folder: string) => fileURLToPath(new URL(`../${folder}/`, import.meta.url));
 
+/**
+ * The one-file MCP server the AI guide links (#272): a deployed instance serves it at /mcp/osct-mcp.mjs (Dockerfile, the
+ * FTPS deploy); the dev server bundles the checkout's mcp/ on each request (needs `npm ci` in mcp/), so the link works here too.
+ */
+const mcpDownload = (): Plugin => ({
+  name: 'osct-mcp-download',
+  configureServer(server) {
+    server.middlewares.use('/mcp/osct-mcp.mjs', async (_req, res) => {
+      const out = fileURLToPath(new URL('../mcp/dist/bundle/osct-mcp.mjs', import.meta.url));
+      try {
+        await promisify(execFile)(process.execPath, [fileURLToPath(new URL('../mcp/scripts/bundle.mjs', import.meta.url)), out]);
+        res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="osct-mcp.mjs"');
+        res.end(await readFile(out));
+      } catch (e) {
+        res.statusCode = 500;
+        res.end(`The MCP bundle failed (npm ci in mcp/?): ${e instanceof Error ? e.message : e}`);
+      }
+    });
+  },
+});
+
 // Dev server on 5175 (the reader runs on 5174); /api goes to the PHP dev API (`npm run dev:api` in client/).
 export default defineConfig({
   plugins: [
+    mcpDownload(),
     // SvelteKit 3 reads its configuration here. The editor is a single-page app served at
     // /editor next to the reader (Dockerfile, client/public/.htaccess): every route renders in the browser (the sign-in
     // gate, the instance's API), index.html is the fallback. src/lib is `#lib` (package.json "imports").

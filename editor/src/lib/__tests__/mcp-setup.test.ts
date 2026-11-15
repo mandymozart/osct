@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ago, apiUrlFor, CLIENTS, claudeCodeCommand, claudeDesktopConfig, codexConfig, commandLine, cursorConfig, day, envOf, expiresSoon,
-  FILE_PLACEHOLDER, opencodeConfig, SERVER_NAME_PLACEHOLDER, serverFileFrom, serverNameFor, shellArg, snippetFor, tokenNameFor, TOKEN_PLACEHOLDER, tomlString,
+  FILE_PLACEHOLDER, opencodeConfig, serverDownloadUrl, SERVER_NAME_PLACEHOLDER, serverFileFrom, serverNameFor, shellArg, snippetFor, tokenNameFor, TOKEN_PLACEHOLDER, tomlString,
   type McpSetup,
 } from "../mcp-setup";
 
@@ -127,5 +127,12 @@ describe("connecting an AI agent (#142, #194)", () => {
     expect(expiresSoon("2027-04-30T12:00:00Z", now)).toBe(false);
     expect(expiresSoon("2026-10-01T12:00:00Z", now)).toBe(false);
     expect(expiresSoon(null, now)).toBe(false);
+  });
+});
+
+describe("serverDownloadUrl", () => {
+  it("is /mcp/osct-mcp.mjs at the page's origin (#272)", () => {
+    expect(serverDownloadUrl("https://osct.porschuetz.de")).toBe("https://osct.porschuetz.de/mcp/osct-mcp.mjs");
+    expect(serverDownloadUrl("http://localhost:5175/")).toBe("http://localhost:5175/mcp/osct-mcp.mjs");
   });
 });
