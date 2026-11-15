@@ -157,7 +157,7 @@ scale down to 4K, or soften the seams by hand (Texture Paint, Soften, bleed 16 p
 No Multiresolution/Shrinkwrap in this one.
 
 `--preset kevin` sets exactly that (QuadriFlow instead of Quad Remesher; extrusion and ray scaled by model size / 6.93,
-the size of *face against face*), except the margin: the batch's padding replaces the 16 px (128 px on an 8K bake with a
+the size of *face against face*), except the island margin (from the padding, below) and the bake margin: the batch's padding replaces the 16 px (128 px on an 8K bake with a
 512 version; `--padding 1` gives Kévin's 16 px back). With *face against face*:
 
 | | Quads | Triangles | GLB | Bake |
@@ -170,10 +170,15 @@ Close up, the 8K-to-4K bake is a little smoother than the plain 4K one; neither 
 
 **Texture sizes** (Tilman: the mesh once, the texture by the reader's quality setting – #260, in the app since
 1.66.0: `docs/content.md` "A model's map by texture quality", the editor's *textures* section): `--texture-sizes
-512,1024,2048,4096` writes the map at each size as JPEG 90, every one scaled down from the full bake, the 8K master PNG,
-and `<name>_mesh.glb` with the 512 map embedded (*face against face*: mesh GLB 121 KB; maps 41 KB, 131 KB, 441 KB,
-1.46 MB). For a model that is already baked, `texture_versions.py` does the same from its map (fight_2: mesh GLB
-269 KB; maps 72 KB, 206 KB, 595 KB, 1.76 MB, against 14.3 MB for the GLB with its 4K PNG).
+512,1024,2048,4096` writes the map at each size, every one scaled down from the full bake, the 8K master PNG, and
+`<name>_mesh.glb` with the 512 map embedded. The maps are **WebP** (quality 85) since 2026-11-15 (Tilman: *"okay, we go
+webp for images"* – #13; `--map-format jpeg` gives JPEG 90 back), and the mesh GLB carries its map as WebP too
+(`EXT_texture_webp`, which three.js reads). *face against face*: mesh GLB 124 KB; maps 26 KB, 75 KB, 244 KB, 756 KB –
+as JPEG 48 KB, 156 KB, 536 KB, 1.78 MB. Measured on the 2048 map against one lossless reference, at the same PSNR
+(44 dB): JPEG 290 KB, WebP 218 KB, AV1 / AVIF about 172 KB – AVIF saves another 30 %, but took 42–48 s per map to
+encode here and Safari reads it only from iOS 16. For a model that is already baked, `texture_versions.py` does the
+same from its map (fight_2: mesh GLB 269 KB; maps as JPEG 72 KB, 206 KB, 595 KB, 1.69 MB, against 14.3 MB for the GLB
+with its 4K PNG); a map within 5 % of a size (4000 px) is brought to it, since OSCT's texture sets are exact sizes.
 
 **The workflow in two steps** (Tilman, 2026-11-14). Step one is the remesh and the bake at full size. Step two makes
 what OSCT imports: the texture sizes (now the default – `--texture-sizes ""` turns them off; a size above the bake is
@@ -202,6 +207,28 @@ islands are gone at 512, 1024 and 2048; the maps grow by 17–23 %. Further agai
 UV islands with their seams in hidden places (a hand unwrap instead of Smart UV), and a larger island margin (at 0.015
 two islands lie 8 px apart at 512, so each gets about 4 px of padding between them however large the bake margin).
 `compare_maps.py` renders one mesh with each of its maps (close-up and full, unlit) to check this.
+
+**Island spacing follows the padding** (2026-11-15, Tilman: *"why not bake again? the uv unwrap only gets the new
+expanding that way"*). A bake margin cannot be larger than half the gap between two islands. So the batch sets Smart
+UV's island margin from the padding: twice `--padding` at the smallest map, 0.031 with a 512 version (`--uv-margin`
+sets another one; Kévin's is 0.01–0.02). `island_gaps.py` measures the room the islands of a GLB leave each other.
+*face against face*, 42 islands, in the 512 map:
+
+| Island margin | Smallest gap | Typical gap to the nearest island | Islands closer than 8 px | Map covered |
+|---|---|---|---|---|
+| 0.015 (Kévin's) | 5 px | 5 px | 41 of 42 | 62 % |
+| 0.031 (the default now) | 9 px | 11 px | 0 | 54 % |
+
+Each island gets about 5 px of padding per side at 512 instead of 2.5 px; the islands are about 7 % smaller (in
+length), so a little less sharp. In a close-up with the 512 map the two look alike and neither shows black edges – the
+black went with the bake margin; the wider spacing is the reserve for the mip levels of a model that is small on
+screen (not shown in a render yet).
+
+**A finished LD is no source for the remesh** (fight_2, 2026-11-15). `fight_2.blend` holds only the hand-made LD
+(7,216 triangles). Remeshed with the preset it has 1,958 quads – and lost its thin parts: the curled tail is cut off,
+the thin arm shortened, fingers and teeth merge. A finer voxel clean-up (0.045 to 0.01) and none at all (`--voxel -1`:
+the mesh as it is, the clean-up only after QuadriFlow fails) are worse or fail. The remesh needs the HD sculpt; an LD
+that exists gets its texture sizes from `texture_versions.py` and keeps its mesh.
 
 ## Rigs whose topology changes: one mesh per frame
 
