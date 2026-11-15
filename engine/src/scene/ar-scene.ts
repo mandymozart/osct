@@ -17,6 +17,7 @@ import { cameraGrades, cameraGradeShader } from "./post/grade";
 import { emitCoreEvent, type ProgressReader, setProgressReader, setSpreadSource, spreadChanged, stageEnded } from "./plugin-runtime";
 import type { IImageTracker, ImageTrackerOptions, TrackerContext } from "./tracker-types";
 import { LookAround } from "./look-around";
+import { Subtitles } from "./subtitles";
 import { onAppUi } from "./ui";
 import { ArView } from "./view";
 
@@ -45,6 +46,8 @@ export interface ArSceneOptions {
   progress?: ProgressReader;
   /** The app's development build: debug handles on `window` (the look-around's `osctLookAroundDebug`) */
   debug?: boolean;
+  /** The language the app shows subtitles in (asked while a video plays, so a change applies at once); none = English */
+  subtitleLanguage?: () => string;
 }
 
 /**
@@ -89,6 +92,8 @@ export class ArScene implements IArScene {
   /** Models with a texture set show their map at the size the reader's texture quality asks for on this device (#260) */
   private assets = new AssetStore(() => wantedTextureSize(this.textureQuality, deviceHints(this.view?.renderer.capabilities.maxTextureSize)));
   private textureQuality: TextureQuality | undefined;
+  /** The line of the playing video's subtitle file, told to the app when it changes (`subtitle`) */
+  private subtitles = new Subtitles(() => this.options.subtitleLanguage?.() ?? "en", text => this.emitter.emit("subtitle", text));
   private graphicsCleanup: (() => void) | null = null;
   private content: SpreadContent | null = null;
   private found = new Set<string>();
@@ -412,6 +417,7 @@ export class ArScene implements IArScene {
         const anchors = this.content?.anchors.filter(a => this.found.has(a.target.id)).map(a => a.group.matrix) ?? [];
         this.lookAround?.update(delta, view.camera, anchors);
         if (!this.clockHeld) this.content?.anchors.forEach(a => a.entity?.update?.(delta));
+        this.subtitles.update(this.assets.videos());
         let bloom = 0;
         this.animations.forEach((animation, id) => {
           if (animation.update(delta)) {
@@ -711,6 +717,7 @@ export class ArScene implements IArScene {
 
   private pauseEntities(): void {
     this.content?.anchors.forEach(a => a.entity?.onPause?.());
+    this.subtitles.clear();
   }
 
   /** Report every found target as lost (tracking stops or the targets go away) */

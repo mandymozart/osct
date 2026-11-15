@@ -7,6 +7,25 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **Subtitles for a speaking video** (#257, Tilman: "we will use only a video on a animated paper mesh for our
+  narration. so the only thing we need to streamline is the subtitles"): a video that carries its own sound can show
+  what it says as a line of text in the reader's language. Put a WebVTT file per language beside the video, named
+  like it – `speak.mp4` → `speak.en.vtt`, `speak.fr.vtt` – and nothing else: the content build and the editor's API
+  pair the files by their names (content schema 2.31, the configuration's `subtitles`), and the pairing holds wherever
+  the video is used. The line follows the video's own time, so it cannot drift from the sound.
+  - **Reader:** the line shows over the scan view, above the spread menu, in the app's language (else English, else
+    the first there is). *Info → Settings → Subtitles* switches it off; it is on by default, because a video plays
+    muted where the browser blocks sound. Subtitle files are preloaded with their spread and the whole-book download.
+  - **Editor:** `.vtt` files upload to the Library (the kind `subtitles`, listed with the videos) and belong to every
+    video of their name, uploaded or imported. The stage shows the English line while the video plays.
+  - **Content build:** a `.vtt` whose name fits no video beside it is reported and left out; one that is no WebVTT
+    stops the build. `docs/content.md` "Subtitles of a video".
+  - **Demo book:** the screen on page 6 speaks four lines and has subtitles in English, German, French and Dutch
+    (`fixtures/demo/entries/screen/`, written by `editor/tools/narration-video.mjs` with a synthetic voice).
+
 ## 1.76.1 – 2026-11-15
 
 ### Fixed

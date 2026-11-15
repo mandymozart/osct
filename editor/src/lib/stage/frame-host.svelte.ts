@@ -155,7 +155,7 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     cleanups.push($effect.root(() => {
       $effect(() => {
         post("state", {
-          status: s.status, error: s.error, spreadId: s.spreadId, found: [...s.found], pickMode: s.pickMode, shading: s.shading, world: s.world, gizmoMode: s.gizmoMode,
+          status: s.status, error: s.error, spreadId: s.spreadId, found: [...s.found], subtitle: s.subtitle, pickMode: s.pickMode, shading: s.shading, world: s.world, gizmoMode: s.gizmoMode,
         });
         // The declared plugins registered while the spread loaded
         if (s.status === "running") untrack(sync);

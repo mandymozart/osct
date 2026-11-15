@@ -6,6 +6,7 @@ export * from "./DeviceStorage";
 export * from "./LinkService";
 export * from "./FeedbackService";
 export * from "./GraphicsService";
+export * from "./SubtitleService";
 export * from "./ServiceWorkerService";
 export * from "./UpdateService";
 export * from "./InstallService";

@@ -1,4 +1,4 @@
-import { GameStoreService, PreloaderService, UpdateService } from "@/services";
+import { GameStoreService, PreloaderService, SubtitleService, UpdateService } from "@/services";
 import { type ArError, type ArStatus, CameraPermissionStatus, ErrorCode, GameMode, type IArScene, type IGame, LoadingState, TARGET_UNLOCKED_EVENT } from "@/types";
 import { getTarget } from "@/utils/game-config";
 import { LazyArScene } from "./lazy-ar-scene";
@@ -21,7 +21,8 @@ const showScanning = (scanning: boolean): void => {
  *   spreads kept ready next to the current one (the same window the tracker holds, `prepared-spreads.ts`).
  * A target's first find (unlock) plays the entity's unlock animation and dispatches TARGET_UNLOCKED_EVENT;
  * tapping an entity opens its entry. The scene's `scanning` shows the reader's scanning indicator (`#osct-scanning`,
- * index.html) while tracking runs and nothing is found; an AR error's code picks the camera overlay, a failed AR chunk
+ * index.html) while tracking runs and nothing is found, its `subtitle` goes to `SubtitleService` (the line of a speaking
+ * video, drawn by `<subtitle-line>`); an AR error's code picks the camera overlay, a failed AR chunk
  * also the new-version notice (`UpdateService`). The scene is a `LazyArScene` (three.js + the 8th Wall engine load on the first
  * scan, warmed up in idle time after startup); tests inject one via `sceneFactory`.
  */
@@ -52,6 +53,7 @@ export class ArBridge extends HTMLElement {
       scene.on("targetLost", id => game.targets.removeTarget(id)),
       scene.on("targetTapped", id => this.handleTap(id)),
       scene.on("scanning", scanning => showScanning(scanning)),
+      scene.on("subtitle", text => SubtitleService.getInstance().show(text)),
       // The reader turned to a neighbouring spread (8th Wall): switch like the spread menu does
       scene.on("spreadSeen", id => {
         if (this.game.state.mode === GameMode.SCAN && id !== this.game.state.currentSpread) this.game.spreads.switchSpread(id);
@@ -104,6 +106,7 @@ export class ArBridge extends HTMLElement {
     this.cleanups.forEach(cleanup => cleanup());
     this.cleanups = [];
     showScanning(false);
+    SubtitleService.getInstance().show(null);
     void this.scene?.dispose();
     this.scene = null;
   }

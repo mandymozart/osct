@@ -53,6 +53,8 @@ export class Stage {
   spreadId = $state<string | null>(null);
   /** Targets the tracker reports found right now */
   found = $state<string[]>([]);
+  /** The subtitle line of the video that plays on the stage (English, or the first language its video has) */
+  subtitle = $state<string | null>(null);
   /** A tap on the stage picked something (the Inspector selects it) – or nothing (null) */
   onPick: ((hit: StagePick | null) => void) | null = null;
   /** A right click on the stage: what lies there (null = the page or the table) and where (the page's client px) */
@@ -165,6 +167,7 @@ export class Stage {
         this.status = state.status;
         this.error = state.error;
         this.found = state.found;
+        this.subtitle = state.subtitle;
         this.pickMode = state.pickMode;
         this.world = state.world;
         this.gizmoMode = state.gizmoMode;

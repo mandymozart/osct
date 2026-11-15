@@ -921,6 +921,11 @@ name a file by its absolute URL, so draft and every publish point at the same fi
 **is** a plugin source of the Code tab (the same rows, no second copy – its uses are the draft's rows that name a type it
 registers; one with unsaved edits in the Code tab reads *name.ts\**, as the Code tab marks it – #232); a shader is an
 asset of the kind `shader` (`.glsl`, `.frag`, `.vert`, `.wgsl` – its uses are the plugin sources that name its URL).
+
+**Subtitles** (#257): a video's subtitle files (`.vtt`, the kind `subtitles`) are listed with the videos. A file named
+`<video name>.<language>.vtt` belongs to the video of that name – no field names it – and while that video plays on
+the stage, its English line (else the first language there is) shows at the stage's lower edge
+([content](content.md) "Subtitles of a video").
 **Upload** and drop take both: a `.ts` / `.js` becomes a plugin source named after the file (`Wobble Effect.ts` →
 `wobble-effect`; a taken id is refused – *Replace…* that plugin instead), a shader file a shader asset; a code file is
 at most 256 KB, and the API checks extension, content type and text. A click on a row opens it: where it is used, a

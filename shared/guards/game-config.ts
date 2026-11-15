@@ -29,6 +29,7 @@ import { filterProblems } from "../types/filters";
 import { lightProblems } from "../types/lights";
 import { textureSetProblems } from "../types/textures";
 import { placementProblems } from "../types/placement";
+import { subtitleProblems } from "../types/subtitles";
 import { isObject } from "./primitives";
 
 export { isObject } from "./primitives";
@@ -211,6 +212,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
 
   str(root, "initialSpreadId", "config");
   if (root.plugins !== undefined) pluginProblems(root.plugins).forEach(problem => problems.push(problem));
+  if (root.subtitles !== undefined) subtitleProblems(root.subtitles, "subtitles").forEach(problem => problems.push(problem));
 
   const spreadIds = new Set<string>();
   const pageRanges: [number, number][] = [];

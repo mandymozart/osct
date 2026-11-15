@@ -2,3 +2,4 @@
 export * from "./spread-menu-loop";
 export * from "./spread-menu";
 export * from "./found-indicator";
+export * from "./subtitle-line";

@@ -17,6 +17,7 @@ import type { TextureSetData } from "./textures";
 import type { PassData } from "./passes";
 import type { PluginData } from "./plugins";
 import type { MaterialData } from "./materials";
+import type { SubtitleData } from "./subtitles";
 
 export * from "./filters";
 export * from "./placement";
@@ -28,6 +29,7 @@ export * from "./passes";
 export * from "./appearance";
 export * from "./plugins";
 export * from "./node-types";
+export * from "./subtitles";
 export * from "./materials";
 
 /**
@@ -95,11 +97,13 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   values or a plugin's, `./appearance.ts`; an older app ignores the field and plays its own animation) with a plugin's
  *   recorded `registered.appearances` (plugin API 1.8), and since 2.30 the built-in components `reveal`, `found` and `lost` on
  *   an entity's root node (its own look for a moment, in place of the book's – `./appearance.ts`; an older app skips the
- *   components with a warning and plays the book's look, or its own animation).
+ *   components with a warning and plays the book's look, or its own animation), and since 2.31 the configuration's
+ *   optional `subtitles` (#257: the WebVTT files of a video, one per language – `./subtitles.ts`; an older app ignores
+ *   the field and plays the video without a subtitle line).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.30";
+export const CONTENT_SCHEMA_VERSION = "2.31";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
@@ -320,4 +324,9 @@ export interface GameConfiguration {
   tutorial?: readonly StepData[];
   /** The book's own code (schema 2.4, optional): compiled plugins the engine loads before the first spread */
   plugins?: readonly PluginData[];
+  /**
+   * Optional (schema 2.31, #257): the subtitle files of the book's videos, per language (`./subtitles.ts`) – read from the
+   * files' names by the content build and the editor's API, never filled in by hand
+   */
+  subtitles?: readonly SubtitleData[];
 }

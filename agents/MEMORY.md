@@ -4,6 +4,27 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-15 – narration is a video with its sound, on an animated paper mesh; only subtitles are built (#257)
+
+- Tilman: *"we will use only a video on a animated paper mesh for our narration. so the only thing we need to
+  streamline is the subtitles. the audio will be embedded in the video. much easier"*. No separate audio file, no
+  audio paired with a GLB's animation clip (the first plan of #257, dropped), no use of the Blender lip-sync add-on's
+  keyframes in the app.
+- Found from the code, not run: a video used as a mesh's texture plays muted in a loop from the moment it loads
+  (`engine/src/scene/textures.ts`); only a `video` node plays with sound and follows found / lost. Every video loops.
+- Tilman, 2026-11-15: *"You can build this basic implementation... perhaps use an example video and put it into the
+  demo book."* Built with the ticket's recommendations, none of them confirmed by him: a subtitle file belongs to its
+  video **by its name** (`<video name>.<language>.vtt`, the configuration's `subtitles` list is derived – content schema
+  2.31), the video's own time is the clock, the reader's line is **on by default** with a switch in the settings, the
+  editor's stage shows the English line.
+- The paper is already there: the demo's `paper` component (#263) shows a **`video` node** on a sheet model, and a
+  video node plays with sound – so the route for a speaking paper is a video node with a component, not a video as a
+  texture. The demo's screen speaks this way (a synthetic voice, `editor/tools/narration-video.mjs`).
+- [ ] Open (#257): a narration loops like every video (play once per find?); where the real `.vtt` come from (typed,
+  or a speech-recognition draft) and who translates; a paired subtitle file is not counted as used in the Library
+  (no delete protection); a subtitle file of an older content build is not admitted by the stage frame's `connect-src`;
+  the stage always shows English; not tried on a phone.
+
 ## 2026-11-15 – the MCP server as one file, served by the instance (#272, 1.75.0)
 
 - Tilman: the editor gave no valid link to the server file (it pointed at the repository on GitHub) – *"include it

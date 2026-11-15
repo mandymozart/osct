@@ -64,6 +64,8 @@ export interface StageState {
   error: string | null;
   spreadId: string | null;
   found: string[];
+  /** The subtitle line of the video that plays (the scene's `subtitle`), null when there is none */
+  subtitle: string | null;
   pickMode: PickMode;
   shading: ShadingMode;
   world: boolean;
@@ -187,6 +189,7 @@ const CHECKS: { [N in FrameEventName]: (data: unknown) => boolean } = {
   hover: data => data === null,
   state: data => isObject(data) && AR_STATUSES.includes(data.status as ArStatus) && (data.error === null || isString(data.error))
     && (data.spreadId === null || isId(data.spreadId)) && Array.isArray(data.found) && data.found.every(isId)
+    && (data.subtitle === null || isString(data.subtitle))
     && PICK_MODES.includes(data.pickMode as PickMode) && SHADING_MODES.includes(data.shading as ShadingMode) && typeof data.world === "boolean"
     && GIZMO_MODES.includes(data.gizmoMode as GizmoMode),
   vars: data => Array.isArray(data) && data.every(v => isObject(v) && isString(v.scope) && isString(v.name)),
