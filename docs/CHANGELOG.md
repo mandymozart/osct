@@ -7,6 +7,19 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.76.1 – 2026-11-15
+
+### Fixed
+- **Back to the spreads from the editor** (#274, Tilman: "i can not find the link to get back to the index"): in a
+  spread the book's title in the top bar now always leads back to the book's spreads overview. The book's texts and
+  settings, which a click on the title used to open, are the ⚙ right after it. When the bar runs short of room, the
+  search and *Books* give way before the book's title and the spread.
+
+### Changed
+- **A lighter top bar** (#274): Publish is an icon (a cloud with an arrow; borderless on a phone), and the label of
+  where it publishes (`local · this server`, `staging · CDN`) is gone from the bar – the button's tooltip and the
+  publish step still name it.
+
 ## 1.76.0 – 2026-11-15
 
 ### Changed

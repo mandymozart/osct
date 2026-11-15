@@ -474,7 +474,7 @@
     selectedOn = id;
     selection.enter(id);
   });
-  // The search or the book crumb asked to show the selection: the Inspector opens (the sheet too, on a phone)
+  // The search or the book's ⚙ asked to show the selection: the Inspector opens (the sheet too, on a phone)
   $effect(() => {
     const asked = selection.reveal;
     if (asked === revealSeen) return;
@@ -763,7 +763,7 @@
     {/if}
     <div class="bar" class:icons={iconTabs}>
       {#if !narrow}
-        <!-- Back to the spreads is the top bar's book crumb (no × here – #250); a phone has ‹ › on the stage: its head is
+        <!-- Back to the spreads is the top bar's book crumb (no × here – #250, #274); a phone has ‹ › on the stage: its head is
              the tabs alone (#171) -->
         <button type="button" class="icon-button" onclick={() => step(-1)} title="Previous spread (←)" aria-label="Previous spread"><Icon name="previous" /></button>
         <button type="button" class="icon-button" onclick={() => step(1)} title="Next spread (→)" aria-label="Next spread"><Icon name="next" /></button>

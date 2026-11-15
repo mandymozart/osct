@@ -117,7 +117,7 @@ describe("settledSelection (#229)", () => {
 });
 
 describe("the book and a selection asked for on another spread (#237)", () => {
-  it("the book crumb selects the book: no spread, target, node or entry; one level up keeps it", () => {
+  it("the book (the top bar's ⚙) selects the book: no spread, target, node or entry; one level up keeps it", () => {
     selection.selectNode("p015-1", [1]);
     selection.selectBook();
     expect(selection.snapshot()).toEqual({ target: null, node: [], onTarget: true, spread: false, entry: null, book: true });

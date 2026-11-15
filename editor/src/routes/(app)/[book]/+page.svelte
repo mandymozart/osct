@@ -21,7 +21,7 @@
   /**
    * A book: its title and author, then its **spreads**, each as its picture – the layout's sheet (when the content
    * carries one) with the targets' prints over it (#153); open one to work on its stage. The book's texts and settings
-   * are the Inspector's (the top bar's book crumb in a spread, #237), its entries are found with the top bar's search
+   * are the Inspector's (the top bar's ⚙ in a spread, #237), its entries are found with the top bar's search
    * and edited in their spread – the page has no other views (an old `?view=` link shows the spreads).
    * A digital-first book (#238) ends its grid with the add tile – a double page's size, a large + – that opens the
    * creation step in its place (`NewSpreadForm`, the tile's size); a card's menu adds after it and removes. A print-first book's spreads

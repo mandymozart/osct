@@ -10,12 +10,13 @@
   import { transpilePlugin } from "#lib/plugins/compile.js";
   import { carriedPlugins } from "#lib/publish-plugins.js";
   import { publishStep, targetLabel, targetOf, type PublishStep } from "#lib/publish-target.js";
+  import Icon from "#lib/components/Icon.svelte";
 
   /**
    * Publish: the draft becomes a content version of this instance's own environment (`POST /editor/books/{id}/publish`)
-   * – an instance publishes there and nowhere else (#183). Next to the button: where the book is live, the target with
-   * its backend (`staging · CDN`, `local · this server`) and, where this server is the target, that no CDN is
-   * connected. The button opens a step in the page that names the book, the build, the target and what it replaces –
+   * – an instance publishes there and nowhere else (#183). Next to the button: where the book is live and, where this
+   * server is the target, that no CDN is connected. The button is an icon (#274); its title names the target with its
+   * backend (`staging · CDN`, `local · this server`), as does the step. The button opens a step in the page that names the book, the build, the target and what it replaces –
    * publishing over another book is said there and sends `replace`. The publish carries the Code tab's saved sources,
    * transpiled here (#78): a source that does not compile stops it with its line.
    */
@@ -99,10 +100,10 @@
     <span class="small muted live" data-help-name="Live" data-help={`Where this book is live – each environment serves one book, the last one published there: ${liveLabels(self.live).join("; ")}.`}>{liveShort(self.live)}</span>
   {/if}
   {#if target}
-    <span class="small target" data-help-name="Publishes to" data-help={`This instance publishes to ${target.env} only – another environment is published from its own editor. ${target.store === "cdn" ? "The CDN is connected: readers load from its edges." : "No CDN is connected: this server stores and serves the published content."}`}>{targetLabel(target)}</span>
     {#if target.warning}<span class="small danger no-cdn" title={target.warning} data-help-name="No CDN" data-help={target.warning}>No CDN connected</span>{/if}
   {/if}
-  <button type="button" class="pill primary" onclick={() => open()} disabled={busy || !target || !!step} title={target ? `Publish the draft to ${targetLabel(target)} – a step in the page names the book and the build first.` : "Publish the draft"}>{busy ? "Publishing…" : "Publish"}</button>
+  <button type="button" class="icon-button publish-button" onclick={() => open()} disabled={busy || !target || !!step} aria-label={busy ? "Publishing…" : "Publish"}
+    title={busy ? "Publishing…" : target ? `Publish the draft to ${targetLabel(target)} – a step in the page names the book and the build first.` : "Publish the draft"}><Icon name="publish" stroke={2} /></button>
   {#if result}<span class="small muted done">published {result.build}{result.replaced ? ` – replaced ${titleOf(result.replaced.book) ?? "another book"}` : ""}</span>{/if}
   {#if error && !step}<span class="small danger">{error}</span>{/if}
   {#if step}
@@ -124,8 +125,8 @@
 
 <style>
   .publish { position: relative; display: inline-flex; align-items: center; gap: .375rem; }
-  .live, .target, .no-cdn, .done { white-space: nowrap; }
-  .target { padding: 0 .375rem; line-height: 1.5; border: 1px solid var(--line); }
+  .live, .no-cdn, .done { white-space: nowrap; }
+  .publish-button { border-color: var(--text); }
   .step { position: absolute; top: calc(100% + .5rem); right: 0; z-index: 30; width: min(24rem, calc(100vw - 1rem)); display: grid; gap: .375rem;
     padding: .75rem; border: 1px solid var(--line); background: var(--surface); color: var(--text); box-shadow: 0 8px 24px -8px rgb(0 0 0 / .25); }
   .step p { margin: 0; line-height: 1.45; white-space: normal; }
@@ -135,6 +136,7 @@
   @media (max-width: 47.9rem) {
     .live, .done { display: none; }
     .no-cdn { display: none; }
+    .publish-button { border-color: transparent; }
     .step { position: fixed; top: calc(var(--top-height) + .25rem); right: .5rem; left: .5rem; width: auto; }
   }
 </style>

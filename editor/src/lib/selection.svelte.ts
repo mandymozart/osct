@@ -5,7 +5,7 @@ import { parentSelection, selectionLevel, settledSelection, type SelectionLevel,
  * top rows (#227) – read and written by the tree, the stage (picking, the gizmo, the outline) and the Inspector:
  * selecting in one selects in the others. Nothing else selected is the spread (#229): a fresh workspace, a click on
  * the stage that picks nothing and the tree's top row all select it – its row highlighted, no outline, no gizmo, the
- * Inspector showing it. The top bar's book crumb selects the book (#237). The rules are `selection.ts`; the workspace
+ * Inspector showing it. The top bar's ⚙ after the book's crumb selects the book (#237). The rules are `selection.ts`; the workspace
  * page calls `enter` when it opens and on another spread: the selection asked for there (`requestOn` – the header search
  * picks on another spread, #237), else the spread. `reveal` counts the asks to show the selection in the Inspector.
  */
@@ -19,7 +19,7 @@ class Selection implements SelectionState {
   entry = $state<string | null>(null);
   /** The book is selected (#237): the Inspector shows its texts and settings */
   book = $state(false);
-  /** Goes up whenever something asks the workspace to show the selection in the Inspector (the search, the book crumb) */
+  /** Goes up whenever something asks the workspace to show the selection in the Inspector (the search, the book's ⚙) */
   reveal = $state(0);
   /** A selection asked for on a spread whose workspace is not open yet */
   private pending: { spreadId: string; state: SelectionState } | null = null;

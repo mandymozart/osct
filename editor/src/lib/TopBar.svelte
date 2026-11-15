@@ -11,13 +11,14 @@
   import BookSearch from "#lib/BookSearch.svelte";
   import SaveStatus from "#lib/SaveStatus.svelte";
   import { selection } from "#lib/selection.svelte.js";
+  import Icon from "#lib/components/Icon.svelte";
 
   /**
    * The editor's one top bar (every page, drawn by the layout): the breadcrumb `Books › book › spread` at the left, the
    * book's search while a book is open (#237, `BookSearch`), where the draft stands (#259, `SaveStatus`: edits save
    * themselves), Publish (with its environment), then Admin, the e-mail and
-   * Sign out at the right. In a spread's workspace the book's crumb selects the book (#237): the Inspector shows its
-   * texts and settings (a modified click still opens the book page). When the open
+   * Sign out at the right. The book's crumb always leads to the book page – the spreads overview (#274); in a spread's
+   * workspace the ⚙ after it selects the book (#237): the Inspector shows its texts and settings. When the open
    * book's draft has features this editor's engine does not know (a newer content build – RULES #10), a small warning
    * opens their list: the stage shows the book without them.
    */
@@ -38,12 +39,8 @@
   /** The spread's full name, never cut: `p. 12–13 · title`, a cover by its title (else its format) */
   const spreadLabel = $derived(!spread ? spreadId : formatLabelOf(spread) ? spread.title || formatLabelOf(spread) : `p. ${captionOf(spread) || pagesOf(spread)}`);
 
-  /** In a workspace a plain click on the book's crumb selects the book instead of leaving the spread */
-  const selectBook = (event: MouseEvent) => {
-    if (!spreadId || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-    event.preventDefault();
-    selection.show({ target: null, node: [], onTarget: true, book: true });
-  };
+  /** The book's settings button in a workspace: the Inspector shows the book */
+  const selectBook = () => selection.show({ target: null, node: [], onTarget: true, book: true });
 
   /** The open book's features the stage skips */
   const skipped = $derived(bookId && content.bookId === bookId ? content.skipped : []);
@@ -59,9 +56,11 @@
     {/if}
     {#if bookId}
       <span class="sep" aria-hidden="true">›</span>
-      <a href={resolve(`${bookId}/`)} class="crumb" class:selected={!!spreadId && selection.book} aria-current={spreadId ? undefined : "page"}
-        onclick={selectBook} title={spreadId ? "The book – a tap selects it: the Inspector shows its title, author, publisher and settings" : undefined}>{titles[bookId] ?? bookId}</a>
+      <a href={resolve(`${bookId}/`)} class="crumb" aria-current={spreadId ? undefined : "page"}
+        title={spreadId ? "Back to all spreads" : undefined}>{titles[bookId] ?? bookId}</a>
       {#if spreadId}
+        <button type="button" class="icon-button book-settings" class:on={selection.book} aria-pressed={selection.book} onclick={selectBook}
+          aria-label="Book settings" title="The book's title, author, publisher and settings in the Inspector"><Icon name="settings" stroke={2} /></button>
         <span class="sep" aria-hidden="true">›</span>
         <span class="crumb current spread" aria-current="page" title={spreadLabel}>{spreadLabel}</span>
       {/if}
@@ -87,7 +86,8 @@
 <style>
   .top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: .75rem; height: var(--top-height); padding: 0 .75rem; background: var(--surface-head); border-bottom: 1px solid var(--line); }
   .top a { text-decoration: none; }
-  .crumbs { flex: 1; display: flex; align-items: center; gap: .375rem; min-width: 0; white-space: nowrap; }
+  /* The search gives way before the crumbs: book and spread stay readable */
+  .crumbs { flex: 1; display: flex; align-items: center; gap: .375rem; min-width: 14rem; white-space: nowrap; }
   .crumb { overflow: hidden; text-overflow: ellipsis; }
   a.crumb { color: var(--muted); }
   a.crumb[aria-current="page"], .crumb.current { color: var(--text); }
@@ -95,20 +95,25 @@
     a.crumb:hover { color: var(--text); }
   }
   .crumb[aria-current="page"] { font-weight: 600; }
-  a.crumb.selected { color: var(--text); text-decoration: underline; text-underline-offset: .25em; }
+  /* Short of room, Books gives way first: the book's crumb is the way back to the spreads */
+  .crumbs > .crumb:first-child { flex-shrink: 4; }
+  .crumbs > .crumb:nth-child(3) { min-width: 3rem; }
+  .book-settings { flex: none; }
   .sep { flex: none; color: var(--muted); }
   .crumb.spread { flex: none; }
   .skipped { position: relative; flex: none; }
   .skipped summary { cursor: pointer; white-space: nowrap; }
   .skipped ul { position: absolute; right: 0; top: calc(100% + .375rem); z-index: 30; width: max-content; max-width: min(32rem, calc(100vw - 1rem));
     margin: 0; padding: .5rem .75rem .5rem 1.5rem; border: 1px solid var(--line); background: var(--surface); color: var(--text); overflow-wrap: anywhere; }
-  /* A full-height touch target: on a phone the book's crumb selects the book, its Inspector leads back to the spreads */
+  /* A full-height touch target: on a phone the book's crumb is the way back to the spreads */
   @media (pointer: coarse) { a.crumb { line-height: var(--control-height); } }
   @media (max-width: 47.9rem) {
     .top { gap: .375rem; padding: 0 .5rem; }
     .crumbs { min-width: 6rem; }
-    .crumbs > :not(:nth-last-child(-n + 3)) { display: none; }
-    .crumbs > :last-child { flex-shrink: 0; max-width: 75%; }
+    /* Books › leaves first: the book's crumb (the way back) stays in a spread */
+    .crumbs > :nth-child(-n + 2):not(:nth-last-child(-n + 3)) { display: none; }
+    .crumbs { overflow: hidden; }
+    .crumbs > :last-child { flex-shrink: 1; min-width: 0; }
     .email, .in-book { display: none; }
   }
 </style>
