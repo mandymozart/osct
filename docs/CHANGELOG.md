@@ -7,6 +7,18 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.73.0 – 2026-11-15
+
+### Added
+- Code on an entity can follow its reveal, find and loss: every look – built in or a plugin's – writes how much of
+  the entity is there (`userData.shown`, 0…1) on the object it animates, every frame, and takes it away at the end.
+  A component multiplies the values up from its node (docs/plugins.md "Code that comes and goes with its entity"). The
+  books' contact shadow fades in with the entity's dissolve instead of guessing (#270).
+
+### Fixed
+- Light nodes now fade with a plugin's look (`revealCode`, `printLiftCode`, `fadeCode`) as they do with a built-in
+  one; before, they stayed at full strength while the entity dissolved in (#270).
+
 ## 1.72.0 – 2026-11-15
 
 ### Added

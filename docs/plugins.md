@@ -668,6 +668,32 @@ appearance:
 - The content build records the look's spec (`registered.appearances`), so the build and the reader's guard check the
   book's `appearance` against it like a built-in look's parameters.
 
+### Code that comes and goes with its entity (1.73.0)
+
+Every look – a built-in one or a plugin's – tells the entity how much of it is there, every frame of a reveal, a find
+and a loss (#270):
+
+- **`userData.shown`** (0…1) on the object the look animates: 0 nothing yet, 1 the entity as it is. It is taken away
+  when the animation ends – no value means all of it. A node with a look of its own animates apart, inside its parent's,
+  so a node's share is the **product** of the values on it and its ancestors.
+- The entity's **light nodes** fade with it (`userData.fade` on each light, the same value) – with a plugin's look too.
+
+A built-in look reports what makes the entity visible – the dissolve's front, else the fade, else the shape; a plugin's
+look reports the `visible` its `update` gets. A component that should follow – a contact shadow, a glow, a sound –
+multiplies the values up from its node:
+
+```ts
+const shown = (node: Object3D | null): number => {
+  let share = 1;
+  for (; node; node = node.parent) if (typeof node.userData.shown === "number") share *= node.userData.shown;
+  return share;
+};
+// in update: material.opacity = strength * shown(placed);
+```
+
+An engine before 1.73.0 writes nothing, which reads as all of it. The demo book's and OSCT's `contact-shadow` plugin
+fades this way.
+
 ## Across nodes and pages: events, variables, the progress (API 1.1)
 
 A component knows its own node. A **narrative** needs more: a key found on one page opens a door on another, a lamp
