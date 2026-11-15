@@ -7,6 +7,13 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.74.0 – 2026-11-15
+
+### Added
+- Code on the editor's stage can tell the viewport shading: `userData.shading` on the three.js scene (wireframe,
+  solid, textured, rendered; no value in the reader = rendered). An effect of the rendered picture – the books' contact
+  shadow – stays out of Wire, Solid and Textured (docs/plugins.md "The stage's shading", #271).
+
 ## 1.73.1 – 2026-11-15
 
 ### Changed

@@ -807,6 +807,27 @@ the edits stay while you look at another tab. Whether readers have the saved sou
 (`npm install --save-dev @types/three typescript` there for three's types and `npx tsc`). `plugin-api.d.ts` is
 generated from the engine (`editor/src/lib/plugins/plugin-api.d.ts`, `npm run plugin-api` in `editor/`).
 
+## The stage's shading (1.74.0)
+
+The editor's stage has four viewport shadings – **Wire**, **Solid**, **Textured**, **Rendered** – and code on the stage
+can read which one is on: `userData.shading` on the three.js scene (`"wireframe"`, `"solid"`, `"textured"`,
+`"rendered"`; #271). The reader never sets it – what readers see is the rendered picture – so **no value means
+rendered**. An effect of the rendered picture that would get in the way of the working views – a contact shadow, a
+glow – checks it and stays away in the others:
+
+```ts
+const rendered = (object: Object3D): boolean => {
+  let root = object;
+  while (root.parent) root = root.parent;
+  const shading = root.userData.shading;
+  return shading === undefined || shading === "rendered";
+};
+// in update: shadowPlane.visible = rendered(placed);
+```
+
+Wire and Solid swap the entities' materials for the stage's own; Textured keeps them – only this value tells Textured
+from Rendered.
+
 ## Where it runs: the stage's sandbox
 
 In the editor a plugin runs in the **stage frame** – an iframe sandboxed without `allow-same-origin`, an origin of its

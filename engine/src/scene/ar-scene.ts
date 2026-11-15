@@ -112,6 +112,8 @@ export class ArScene implements IArScene {
   /** The book's looks played instead of the content's (the editor's live edit – `appearance: null` = none), until restored */
   private appearanceOverride: { appearance: BookAppearance | null } | null = null;
   private postProcessing = true;
+  /** The editor's viewport shading, once it set one (the reader never does) */
+  private shading: string | null = null;
   private windowCleanup: (() => void) | null = null;
   /** Last told `scanning` state: tracking runs and no target is found */
   private scanning = false;
@@ -234,6 +236,17 @@ export class ArScene implements IArScene {
   private momentLook(kind: Moment, target: Target): AppearanceData {
     const override = this.appearanceOverride;
     return entityMomentAppearance(this.entityOf(target), override ? { appearance: override.appearance ?? undefined } : getBook(), kind);
+  }
+
+  /**
+   * The editor's viewport shading (`wireframe`, `solid`, `textured`, `rendered`), for the code on the stage: written as
+   * `userData.shading` on the three.js scene, so a plugin that draws an effect of the rendered picture – a contact
+   * shadow – leaves it out of the working views (docs/plugins.md "The stage's shading"). The reader never sets it: what
+   * readers see is `rendered`, and no value reads the same.
+   */
+  setShading(mode: string): void {
+    this.shading = mode;
+    if (this.view) this.view.scene.userData.shading = mode;
   }
 
   setPostProcessing(enabled: boolean): void {
@@ -379,7 +392,8 @@ export class ArScene implements IArScene {
       const view = new ArView(this.container, camera => this.tracker?.fit(camera));
       this.view = view;
       view.setPostProcessing(this.postProcessing);
-      this.tracker = this.options.createTracker({ container: this.container, options: this.trackerOptions, scene: view.scene });
+      if (this.shading) view.scene.userData.shading = this.shading;
+      this.tracker =this.options.createTracker({ container: this.container, options: this.trackerOptions, scene: view.scene });
       view.resize();
       this.lookAround = new LookAround(view.renderer, () => this.tracker?.cameraVideo ?? null, this.options.graphics, this.environment());
       this.lookAround.debugTools = this.options.debug ?? false;

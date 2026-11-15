@@ -416,6 +416,8 @@ export class StageCore {
 
   /** The viewport's shading on every entity of the spread (the engine builds fresh meshes: applied again after) */
   private shade(): void {
+    // The code on the stage reads it too: a plugin's effect of the rendered picture stays out of the working views
+    this.scene.setShading(this.shading);
     const inspection = this.scene.inspect();
     const spread = this.spreadId;
     if (!inspection || !spread) return;

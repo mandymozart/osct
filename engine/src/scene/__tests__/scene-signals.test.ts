@@ -68,3 +68,16 @@ describe("ArScene: what the app is told", () => {
     expect(errors).toEqual([{ code: ErrorCode.AR_FAILED, message: "the spread could not be built" }]);
   });
 });
+
+describe("ArScene: the editor's viewport shading for the code on the stage (#271)", () => {
+  it("is written on the three.js scene; the reader never sets it", () => {
+    const { scene, internals } = sceneWith({ resume: () => {}, pause: () => {}, stop: () => {} });
+    const three = { userData: {} as Record<string, unknown> };
+    internals.view = { ...(internals.view as object), scene: three };
+    expect(three.userData.shading).toBeUndefined();
+    scene.setShading("solid");
+    expect(three.userData.shading).toBe("solid");
+    scene.setShading("rendered");
+    expect(three.userData.shading).toBe("rendered");
+  });
+});
