@@ -65,7 +65,7 @@
    *
    * The panel is the workspace's **Inspector** (#229): it shows whatever is selected (#162) – a selected target its
    * target fields, its entity or a node that node's rows, the breadcrumb in the head stepping up; a selected **entry**
-   * (#227) the entry (`EntryView`); the **book** (the top bar's crumb, #237) its texts and settings (`BookPanel`); the
+   * (#227) the entry (`EntryView`); the **book** (the top bar's ⚙, #237) its texts and settings (`BookPanel`); the
    * **spread** – selected in the tree, or nothing else selected – its sections (`SpreadView`: the spread,
    * post-processing, vars and events).
    */

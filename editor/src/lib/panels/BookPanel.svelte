@@ -8,7 +8,7 @@
   import Segmented from "#lib/components/Segmented.svelte";
 
   /**
-   * The Inspector while the book is selected (#237 – the top bar's book crumb): the book's texts (title, author,
+   * The Inspector while the book is selected (#237 – the top bar's ⚙ after the book's crumb): the book's texts (title, author,
    * publisher – `BookTexts`), its **source of truth** (#238: print first or digital first – saved when chosen,
    * `bookSource`) and where its content files live; *All spreads* leads to the book page.
    */
