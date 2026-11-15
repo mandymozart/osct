@@ -547,6 +547,10 @@
         <select class="field" aria-label="Look" value={String(getValue(current, row))} onchange={e => set(row, (e.currentTarget as HTMLSelectElement).value)}>
           <option value="">as the book</option>
           {#each (row.options ?? []).filter(Boolean) as look (look)}<option value={look}>{look}</option>{/each}
+          {#if getValue(current, row) && !(row.options ?? []).includes(String(getValue(current, row)))}
+            <!-- #269: a look nobody registered (yet): why -->
+            <option value={String(getValue(current, row))}>{getValue(current, row)} ({plugins.missingNote()})</option>
+          {/if}
         </select>
       {:else if row.kind === "choice"}
         <span class="controls"><Segmented options={row.options ?? []} value={String(getValue(current, row))} onchange={v => set(row, v)} /></span>

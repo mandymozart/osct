@@ -276,6 +276,16 @@ const installedMaterials = new Map<string, string[]>();
 const installedTextures = new Map<string, string[]>();
 /** The compiled modules loaded, by URL (a spread switch never loads a plugin twice) */
 const loaded = new Map<string, Promise<void>>();
+/** Plugins whose code the editor installed itself (a Run, the saved sources' auto-load, #269): the content's module of the same id is not loaded over them */
+const keptPlugins = new Set<string>();
+
+/**
+ * The editor installed this plugin from its own source (#269): `loadPlugins` leaves it be – the content's compiled
+ * module of the same id (an older build of it) is not installed over it, whichever arrives first
+ */
+export const keepPlugin = (id: string): void => {
+  keptPlugins.add(id);
+};
 /** The text files plugins loaded (`api.loadText`), by resolved URL – a failed one is asked for again next time */
 const texts = new Map<string, Promise<string>>();
 
@@ -596,7 +606,9 @@ export const loadPlugins = async (
     let loading = loaded.get(plugin.src);
     if (!loading) {
       loading = importer(plugin.src)
-        .then(module => installPlugin(plugin.id, module as PluginModule))
+        .then(module => {
+          if (!keptPlugins.has(plugin.id)) installPlugin(plugin.id, module as PluginModule);
+        })
         .catch(error => {
           loaded.delete(plugin.src);
           console.error(`[plugins] ${plugin.id} (${plugin.src}) could not be loaded:`, error);

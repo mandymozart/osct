@@ -196,6 +196,7 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     },
     replayUnlock: (targetIds?: string[]) => stage().replayUnlock(targetIds),
     resetNarrative: () => stage().resetNarrative(),
+    setLive: (live: boolean) => stage().setLive(live),
     clearEvents: () => stage().clearEvents(),
     setVar: (name: string, value: VarValue | null, scope: VarScope) => stage().setVar(name, value, scope),
     tap: (targetId: string) => stage().tap(targetId),

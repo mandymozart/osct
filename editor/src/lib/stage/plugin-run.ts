@@ -1,11 +1,12 @@
-import { installPlugin, PluginError, pluginTypes, type PluginModule } from "@engine/scene/plugins";
+import { installPlugin, keepPlugin, PluginError, pluginTypes, type PluginModule } from "@engine/scene/plugins";
 import { importPluginCode } from "#lib/plugins/compile.js";
 import type { RunResult } from "./frame-protocol";
 
 /**
  * The stage frame's half of the Code tab's **Run** (#234): the page transpiled the TypeScript (`transpilePlugin`); here,
  * in the sandboxed frame and nowhere else, the module is imported from a blob URL and installed in the frame's
- * registry under the plugin's id, replacing its previous registrations. The answer is data: the types it registered,
+ * registry under the plugin's id, replacing its previous registrations – and the content's compiled module of that id
+ * is not loaded over it later (`keepPlugin`). The answer is data: the types it registered,
  * or why it did not run – the module did not load, or `register` refused or threw.
  */
 export const runPluginCode = async (id: string, code: string, importer?: (url: string) => Promise<unknown>): Promise<RunResult> => {
@@ -17,6 +18,8 @@ export const runPluginCode = async (id: string, code: string, importer?: (url: s
   }
   try {
     installPlugin(id, module);
+    // The content's compiled module of the same id never replaces it (#269: a saved copy of a declared plugin wins)
+    keepPlugin(id);
   } catch (e) {
     return { ok: false, error: e instanceof PluginError ? e.message : `register failed – ${messageOf(e)}` };
   }

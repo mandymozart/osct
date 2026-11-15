@@ -27,6 +27,7 @@
   import { removalStep, type RemovalStep } from "#lib/removal.js";
   import RemovalConfirm from "#lib/components/RemovalConfirm.svelte";
   import { library } from "#lib/library.svelte.js";
+  import { plugins } from "#lib/plugins.svelte.js";
   import { nodeAt } from "#lib/values.js";
   import { queueTreeSaves } from "#lib/tree-autosave.js";
   import type { EntityData } from "@engine/types";
@@ -431,6 +432,9 @@
           if (hit) selectHit(hit);
           stageMenu = { hit, x, y };
         };
+        // The Code tab's saved sources run on every frame that starts (#269): their looks and components are known at once
+        const started = stage;
+        started.onStarted = () => void plugins.autoLoad(bookId, started);
       }
       await stage.open(spreadId);
     } catch (e) {
@@ -684,6 +688,16 @@
           onchoose={mode => updatePreview({ shading: mode as ShadingMode })} />
         <GridSnapMenu />
         <ViewMenu bind:this={viewMenu} format={spread?.format ?? "spread"} />
+        <!-- #269: the stage runs the book live (Unreal's Realtime) – Live off holds the entities' clock for placing; Restart is a new game -->
+        <span class="tool-group live" role="group" aria-label="Live">
+          <button type="button" class="icon-button" class:on={stage.live} aria-pressed={stage.live} onclick={() => stage?.setLive(!stage.live)}
+            aria-label={stage.live ? "Live: on" : "Live: off"} title={stage.live ? "Live: the scene moves by itself – click to hold it still for placing" : "Held: the scene stands still – click to let it move again"}
+            data-help-name="Live" data-help="On: the stage plays the book as a reader sees it – components, clips, the book's code move by themselves. Off: their clock holds, so the scene stands still while you place things; what is found still appears. The code is loaded either way.">
+            <Icon name={stage.live ? "pause" : "play"} /></button>
+          <button type="button" class="icon-button" onclick={() => stage?.resetNarrative()} aria-label="Restart" title="Restart: a new game – nothing found, no variables; every reveal plays again"
+            data-help-name="Restart" data-help="A new game on the stage: nothing found, every variable cleared, the timeline empty – the spread's targets are found anew and play their reveal, as a reader meets the page the first time.">
+            <Icon name="replay" /></button>
+        </span>
       </div>
       {#if narrow}
         <!-- A phone: ‹ › through the spreads at the stage's lower corners, out of the sheet's head (#171); on a short
@@ -809,6 +823,8 @@
   .notice { position: absolute; left: 50%; top: 1rem; transform: translateX(-50%); margin: 0; padding: .25rem .75rem; border-radius: var(--control-radius); background: var(--surface); }
   /* Above ‹ › so a group's menu covers them; the page computes the groups' widths from these sizes */
   .tools { position: absolute; left: .5rem; top: .5rem; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: .125rem; max-width: calc(100% - 1rem); padding: .125rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
+  .live { display: flex; gap: .125rem; }
+  .live .on { color: var(--accent, currentColor); }
   .tools :global(.tool-group + .tool-group) { margin-left: .125rem; padding-left: .25rem; border-left: 1px solid var(--line); }
   .step { position: absolute; bottom: .5rem; z-index: 1; color: var(--text); }
   .step-previous { left: .5rem; }

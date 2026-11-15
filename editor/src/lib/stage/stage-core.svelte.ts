@@ -676,6 +676,11 @@ export class StageCore {
   }
 
   /** A new game: every variable of every scope cleared, nothing unlocked, the timeline empty and counting from now, the spread's targets found anew */
+  /** The Live switch (#269): off holds the entities' clock (`ArScene.holdClock`) – the scene stands still for placing */
+  setLive(live: boolean): void {
+    this.scene.holdClock(!live);
+  }
+
   resetNarrative(): void {
     resetVars();
     this.progress.reset();

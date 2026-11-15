@@ -769,7 +769,9 @@ of the book's. The editor is Monaco with the plugin API's types: completion as y
 `api.` and `api.three.` know every member), type errors underlined as the content build would report them, a hover
 shows a member's documentation. **Run** (Ctrl+Enter) shows it on the stage at once – a layer tints the video, a
 component appears under *add component* in the Inspector, a pass under *add pass* in the spread's post-processing. A Run's errors show under the editor and on their line.
-**Save** (Ctrl+S) keeps the source in the editor's database for the next session. The list names every plugin by its
+**Save** (Ctrl+S) keeps the source in the editor's database and runs it. The saved sources load onto the stage by
+themselves whenever it starts (#269) – a Run is only for trying edits before you save them; a source that fails keeps
+what ran before, and the line under the picker says why. The list names every plugin by its
 name alone; one with unsaved edits has an asterisk after it (*aquarium\**), here and in the Library's code list (#232) –
 the edits stay while you look at another tab. Whether readers have the saved sources, the top bar says (*draft only*,
 *live on …*).

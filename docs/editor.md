@@ -515,6 +515,13 @@ names), every button's label its tooltip:
   the gear: *shake*, *origin*, *top* and *sky* ([Camera and view settings](#camera-and-view-settings)). Its tooltip names
   them all (`viewSummary`: *Eiermann · plywood · origin top left · no shake · sky Wooden Studio 17*); the stage menu's
   *View settings…* opens it.
+- **live** and **restart** (#269) – the stage plays the book live, as a reader sees it, all the time: there is no play
+  mode to enter (the SCUTOONS deck editor's way, and Unreal's *Realtime* viewport). **Live** (pause / play icon) holds
+  the entities' clock while it is off (`ArScene.holdClock`): components, clips, materials, textures and the book's code
+  get no time, so the scene stands still for placing – what is found still appears (the moments' looks play on), and the
+  code loads either way; videos and a plugin's own timers keep theirs. Not stored: every workspace starts live.
+  **Restart** is a new game (`resetNarrative`): nothing found, every variable cleared, the timeline empty – the spread's
+  targets are found anew and play their reveal.
 
 The two one-button groups are `components/ToolMenu.svelte` (the button, the panel, the keys), and the toolbar's room
 counts them (`TOOL_SHAPES`). In their panels ↓ on the button opens it on its first control, ↑ ↓ / Home / End move
@@ -944,7 +951,20 @@ another tab shows (`plugins.code`), so a tab switch loses no edit.
   three's own types, so completion, hover documentation and type errors inline are the build's; Tab indents,
   Ctrl+Enter runs, Ctrl+S saves; the colours follow the editor's day / night tokens. **Download** gives the plugin's
   folder as a zip (`index.ts`, `plugin-api.d.ts`, a `tsconfig.json`).
-- **Run** transpiles the TypeScript in the browser (sucrase, types erased – no type check, that is the build's half);
+- **The saved sources are part of the live stage** (#269): every frame that starts – the workspace opens, the frame
+  loads again – gets each stored source by itself (`plugins.autoLoad`): the text last run in this page if there is one,
+  else the saved one, transpiled and installed one after the other, then the spread built once – as soon as the frame
+  answers, so a spread that does not build keeps no code from loading. A source stored under the id of a plugin the
+  content declares wins over its compiled module (`keepPlugin`: the engine does not install that module over it).
+  **Save** runs the saved text too. So the looks, components and node types of the book's code are known to the pickers and the
+  Inspector without a Run, on every visit. A line under the picker says what of the open plugin runs on the stage:
+  *the saved version*, *edits not saved* (a Run), *failed* with the error – what ran before stays registered – or *not
+  loaded*; another stored source that is not on the stage is named below it. A picker whose value no plugin registers
+  says why instead of *unknown*: *loading the book's code…*, *not loaded – reveal failed*, or *unknown – no plugin
+  registers it*. **The way out of a hang**: a source the frame does not answer for within 10 s stops the auto-load
+  (the rest wait), and its mark stays in this browser (`osct-code-autoload:<book>`), so the next open skips it and
+  says so – fix it, then Run it by hand.
+- **Run** tries the open text, saved or not: it transpiles the TypeScript in the browser (sucrase, types erased – no type check, that is the build's half);
   the stage frame imports the module and installs it in the stage's registry under the plugin's id (a second Run
   replaces the first) – the code runs there, never in the editor's page ([The stage frame](#the-stage-frame-plugins-in-a-sandbox-234)) –,
   then builds the spread again: a material layer tints the video at once, a component shows under *add component* in

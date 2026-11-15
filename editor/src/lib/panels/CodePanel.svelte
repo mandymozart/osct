@@ -23,6 +23,8 @@
    * The picker names each plugin alone, the one with unsaved edits with an asterisk (`pluginLabel`, #232); the open source
    * is kept in `plugins.code`, so a tab switch loses no edit. The code runs in the stage frame, never in this page (#234):
    * its `api.log` lines and its errors there come back as the **log** under the editor, newest last, empty with each Run.
+   * The stored sources load onto the stage by themselves whenever it starts and run again on Save (#269,
+   * `plugins.autoLoad`); the line under the picker says what of the open plugin runs there (`plugins.status`).
    */
   let { bookId, stage }: { bookId: string; stage: Stage | null } = $props();
 
@@ -130,6 +132,8 @@
       buffer.open = id;
       buffer.adding = false;
       notice = `saved ${id}`;
+      // Saved code is what the stage runs (#269): the save runs it too
+      if (stage && (await plugins.run(id, text, stage))) notice = `saved and ran ${id}`;
     } catch {
       // plugins.error says
     } finally {
@@ -203,6 +207,23 @@
   $effect(() => { code?.setReadOnly(readOnly); });
   $effect(() => { code?.setRunError(plugins.runError); });
   const errorLine = $derived(plugins.runError?.line ?? null);
+
+  /** What of the open plugin runs on the stage (#269) */
+  const openStatus = $derived.by((): { text: string; danger: boolean } | null => {
+    if (!buffer.open || !current?.stored) return null;
+    const status = plugins.status.get(buffer.open);
+    if (!status) return { text: plugins.autoLoading ? "on the stage: waiting to load…" : "on the stage: not loaded yet", danger: false };
+    switch (status.state) {
+      case "loading": return { text: "on the stage: loading…", danger: false };
+      case "saved": return { text: buffer.unsaved ? "on the stage: the saved version – Run tries the edits" : "on the stage: the saved version", danger: false };
+      case "edits": return { text: "on the stage: edits not saved – Save keeps them", danger: false };
+      // A Run's own error shows below, with its line
+      case "failed": return plugins.runError?.plugin === buffer.open ? null : { text: `failed on the stage: ${status.error} – what ran before stays`, danger: true };
+      case "skipped": return { text: `not loaded: ${status.error}`, danger: true };
+    }
+  });
+  /** The other stored sources that are not on the stage */
+  const othersFailed = $derived(plugins.failed().filter(f => f.id !== buffer.open));
 </script>
 
 <div class="row"><span class="label">plugin</span>
@@ -228,6 +249,12 @@
   {#if !code}<p class="small muted loading">{codeError ?? "loading the code editor…"}</p>{/if}
 </div>
 
+{#if openStatus}
+  <p class="small message status" class:danger={openStatus.danger} data-help-name="On the stage" data-help="What of this plugin runs on the stage. The saved sources load by themselves whenever the stage starts, and again on Save; Run tries the unsaved edits. A source that fails keeps what ran before.">{openStatus.text}</p>
+{/if}
+{#if othersFailed.length}
+  <p class="small danger message" title={othersFailed.map(f => `${f.id}: ${f.error}`).join("\n")}>not on the stage: {othersFailed.map(f => f.id).join(", ")}</p>
+{/if}
 {#if plugins.runError}
   <p class="small danger message">{plugins.runError.line !== null ? `line ${plugins.runError.line}: ` : ""}{plugins.runError.message}</p>
 {:else if plugins.error}

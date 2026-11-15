@@ -7,6 +7,21 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.72.0 – 2026-11-15
+
+### Added
+- **The book's code runs on the live stage by itself** (#269, Tilman: *"can you do an auto run like we have auto save
+  in the editor?"* – *"check box play in edit view … check out how scutoons did it"*): the editor's stage already plays
+  the book live; now the Code tab's saved sources are part of it. Every stage frame that starts loads them by itself
+  and **Save** runs them, so their looks, components and node types are known without a Run on every visit – **Run**
+  stays for trying unsaved edits. The Code tab says per plugin what runs on the stage (the saved version, edits not
+  saved, failed with the error – what ran before stays – or not loaded); a picker whose look no plugin registers says
+  why (*loading the book's code…*, *not loaded – reveal failed*) instead of *(unknown)*. A source that hangs the stage
+  (no answer in 10 s) stops the loading and is skipped at the next open, named (docs/editor.md "Code").
+- **Live** and **Restart** in the stage toolbar (docs/editor.md "The stage toolbar"): Live off holds the entities' clock
+  (`ArScene.holdClock`) – the scene stands still for placing while found things still appear; Restart is a new game,
+  every reveal plays again.
+
 ## 1.71.1 – 2026-11-15
 
 ### Added

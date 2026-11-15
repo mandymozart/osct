@@ -4,6 +4,19 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-15 – the stage is always live; the book's code is part of it (#269)
+
+- **Tilman**: "can you do an auto run like we have auto save in the editor? … or every time the editor page loads", then
+  "maybe a better way for us is to have something like in unreal... check box play in edit view … check out how
+  scutoons kind of did it", and "Yes, build it" to the proposal.
+- **No play mode**: the SCUTOONS deck editor always runs its rig (edits replay it; its Play / Wire switch changes what the
+  pointer does, not whether it runs; a shader that fails keeps the last good one). OSCT's stage already ran the book
+  live – only the Code tab's sources waited for Run. A separate play mode would have stopped everything else in the
+  edit view, so: saved sources auto-load on every frame start and on Save, a **Live** switch (Unreal's Realtime) holds
+  the entities' clock for placing, **Restart** is the existing new game.
+- **Mine**: Live off still plays the moments' looks (a found thing must appear while placing), and the Live state is not
+  stored. A hung source stops the auto-load and is skipped once at the next open (a mark in localStorage).
+
 ## 2026-11-14 – the publish carries the Code tab's plugins, transpiled in the browser (#78)
 
 - **Tilman**: "can we do some other way to inject the plugins properly? lazy load them via the cdn as we planned? … of

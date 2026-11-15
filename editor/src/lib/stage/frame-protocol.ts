@@ -129,10 +129,13 @@ export interface FrameEvents {
 export type FrameEventName = keyof FrameEvents;
 export type FrameEvent = { [N in FrameEventName]: { name: N; data: FrameEvents[N] } }[FrameEventName];
 
+/** How a run that the frame did not answer in time begins (`Stage.runPlugin` with a timeout, #269) */
+export const NO_ANSWER = "the stage did not answer";
+
 /** The methods the frame answers (`frame-host.svelte.ts`) */
 export const FRAME_METHODS = [
   "init", "content", "open", "refresh", "relayout", "override", "overridePasses", "overrideAppearance", "playMoment", "selectNode", "selectTarget", "setPickMode", "setGizmoMode",
-  "setSnapModifier", "showEnvironment", "setLookUp", "ghost", "preview", "replayUnlock", "resetNarrative", "clearEvents", "setVar", "tap",
+  "setSnapModifier", "showEnvironment", "setLookUp", "ghost", "preview", "replayUnlock", "resetNarrative", "setLive", "clearEvents", "setVar", "tap",
   "sampleColor", "sampleBottom", "timeline", "runPlugin",
 ] as const;
 export type FrameMethod = (typeof FRAME_METHODS)[number];

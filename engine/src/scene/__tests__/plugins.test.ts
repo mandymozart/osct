@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Group, type Mesh, type MeshBasicMaterial, PerspectiveCamera, Scene, type ShaderMaterial, Vector2 } from "three";
 import { componentProblems, componentSpec, componentTypes, type ComponentSpec, type EntityData, type PassSpec, PLUGIN_API_VERSION, type Target } from "../../types/index";
 import { buildEntity } from "../entities";
-import { installedPlugins, installPlugin, loadPlugins, type PluginApi, PluginError, pluginTypes, uninstallPlugin } from "../plugins";
+import { installedPlugins, installPlugin, keepPlugin, loadPlugins, type PluginApi, PluginError, pluginTypes, uninstallPlugin } from "../plugins";
 import { PostChain } from "../post/chain";
 import { passRegistration, registeredPassTypes } from "../post/registry";
 import "../post/index";
@@ -237,5 +237,13 @@ describe("loadPlugins", () => {
     expect(installedPlugins()).toEqual(["fx"]);
     expect(error).toHaveBeenCalledWith(expect.stringContaining("broken"), expect.any(Error));
     expect(error).toHaveBeenCalledWith(expect.stringContaining("plugin API 0.9"));
+  });
+
+  it("leaves a plugin the editor installed from its own source (#269): the content's module of that id is not installed over it", async () => {
+    installPlugin("kept", { register: api => api.registerComponent("keptSpin", SPIN, () => ({})) });
+    keepPlugin("kept");
+    const importer = async () => ({ register: (api: PluginApi) => api.registerComponent("oldSpin", SPIN, () => ({})) });
+    await loadPlugins([{ id: "kept", src: "/p/kept/plugin.js", api: PLUGIN_API_VERSION }], importer);
+    expect(pluginTypes("kept")).toEqual(["keptSpin"]);
   });
 });

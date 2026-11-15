@@ -14,7 +14,7 @@ import { plugins } from "#lib/plugins.svelte.js";
 import { help } from "#lib/help.svelte.js";
 import {
   type ContentSnapshot, FRAME_SANDBOX, type FrameEvent, type FrameInit, FrameRequests, type LayoutSnapshot, readFrameEvent, readFrameReply,
-  REMOVED_ENTITY, REMOVED_WIRE, type RunResult, type TimelineSnapshot,
+  NO_ANSWER, REMOVED_ENTITY, REMOVED_WIRE, type RunResult, type TimelineSnapshot,
 } from "./frame-protocol";
 import type { GizmoMode } from "./gizmo";
 import type { PickMode, StagePick } from "./pick";
@@ -73,6 +73,14 @@ export class Stage {
   events = $state<StageEvent[]>([]);
   /** Entities shown with other values than the draft's, by target id: edits not saved yet (the panels mark them) */
   overrides = new SvelteMap<string, EntityData>();
+  /** The Live switch (#269): on, the entities move by themselves; off, their clock holds (the looks play on) */
+  live = $state(true);
+  /**
+   * A frame has started (answered `init`): the Code tab's saved sources load now (#269, `plugins.autoLoad`) – before or
+   * while the first spread builds, so a spread that does not build keeps no code from loading. Called again for every
+   * new frame (its registry starts empty).
+   */
+  onStarted: (() => void) | null = null;
 
   private frame: HTMLIFrameElement;
   private requests: FrameRequests;
@@ -99,6 +107,8 @@ export class Stage {
   private replaced = false;
   private cleanups: Array<() => void> = [];
   private disposed = false;
+  /** `onStarted` was called for this frame */
+  private started = false;
 
   constructor(private container: HTMLElement) {
     this.frame = this.makeFrame();
@@ -237,6 +247,8 @@ export class Stage {
     this.sentContent = snapshot;
     const opening = this.requests.waiting("open");
     this.requests.open();
+    // The frame's registry is there now (empty in a new frame): the book's code loads, whether a spread builds or not
+    this.markStarted();
     if (!this.initialisedBefore) {
       this.initialisedBefore = true;
       return;
@@ -251,7 +263,15 @@ export class Stage {
     void this.send("selectNode", this.selected.node);
     void this.send("selectTarget", [this.selected.target]);
     if (this.ghostPlace) void this.send("ghost", [this.ghostPlace]);
+    if (!this.live) void this.send("setLive", [false]);
     if (this.spreadId && !opening) await this.send("open", [this.spreadId]);
+  }
+
+  /** The frame is up: the first time for this frame, `onStarted` */
+  private markStarted(): void {
+    if (this.started || this.disposed) return;
+    this.started = true;
+    this.onStarted?.();
   }
 
   /** A request whose failure is logged, not thrown (a fire-and-forget change) */
@@ -288,6 +308,7 @@ export class Stage {
   private reload(snapshot: ContentSnapshot): void {
     this.requests.close("the stage frame was replaced");
     this.replaced = true;
+    this.started = false;
     this.ready = false;
     this.initialised = false;
     this.sentContent = snapshot;
@@ -503,6 +524,12 @@ export class Stage {
     void this.send("resetNarrative");
   }
 
+  /** The Live switch (#269): off holds the entities' clock on the stage, on lets it run */
+  setLive(live: boolean): void {
+    this.live = live;
+    void this.send("setLive", [live]);
+  }
+
   /** Set (or delete with `null`) a variable by hand, through the plugin API in the frame. The API's refusal as text, null when written */
   async setVar(name: string, value: VarValue | null, scope: VarScope): Promise<string | null> {
     try {
@@ -523,9 +550,18 @@ export class Stage {
     void this.send("clearEvents");
   }
 
-  /** The Code tab's Run in the frame: the transpiled module imported and installed there (`plugin-run.ts`) */
-  runPlugin(id: string, code: string): Promise<RunResult> {
-    return this.requests.request<RunResult>("runPlugin", [id, code]);
+  /**
+   * The Code tab's Run in the frame: the transpiled module imported and installed there (`plugin-run.ts`). With
+   * `timeoutMs`, a frame that does not answer in time (the code hangs it) is a failed run, not a wait for ever.
+   */
+  runPlugin(id: string, code: string, timeoutMs?: number): Promise<RunResult> {
+    const run = this.requests.request<RunResult>("runPlugin", [id, code]);
+    if (!timeoutMs) return run;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const late = new Promise<RunResult>(resolve => {
+      timer = setTimeout(() => resolve({ ok: false, error: `${NO_ANSWER} within ${Math.round(timeoutMs / 1000)} s` }), timeoutMs);
+    });
+    return Promise.race([run, late]).finally(() => clearTimeout(timer));
   }
 
   async dispose(): Promise<void> {

@@ -1,3 +1,4 @@
+import { SvelteMap } from "svelte/reactivity";
 import { nodeTypeFailure, pluginNodeTypesOf } from "@engine/scene/plugins";
 import { getPlugins } from "@engine/content/game-config";
 import type { EntityData } from "@engine/types";
@@ -5,7 +6,7 @@ import { deletePlugin, errorText, getPlugin, listPlugins, putPlugin, replacePlug
 import { library } from "./library.svelte";
 import { transpilePlugin, type CompileError } from "#lib/plugins/compile.js";
 import type { Stage } from "#lib/stage/stage.svelte.js";
-import type { FrameLog } from "#lib/stage/frame-protocol.js";
+import { NO_ANSWER, type FrameLog } from "#lib/stage/frame-protocol.js";
 import { trackUnsaved } from "#lib/unsaved.js";
 import { unsavedPlugin } from "#lib/library-code.js";
 import { nodeAt, withNode } from "./values";
@@ -24,6 +25,38 @@ export interface PendingSwitch {
   /** The node switched to the new type */
   node: EntityData;
 }
+
+/**
+ * A stored source on the stage (#269): loading, running as saved, running the Code tab's unsaved edits (a Run), failed
+ * (the error – what ran before stays registered), or skipped at the auto-load because it hung the stage the last time
+ */
+export type SourceStatus =
+  | { state: "loading" }
+  | { state: "saved" }
+  | { state: "edits" }
+  | { state: "failed"; error: string }
+  | { state: "skipped"; error: string };
+
+/** How long the auto-load waits for one source before it counts as hanging the stage */
+export const AUTO_LOAD_TIMEOUT_MS = 10_000;
+
+/** The source whose auto-load has not answered yet, per book: a page that froze on it skips it at the next open */
+const hungKey = (bookId: string) => `osct-code-autoload:${bookId}`;
+const readHung = (bookId: string): string | null => {
+  try {
+    return window.localStorage.getItem(hungKey(bookId));
+  } catch {
+    return null;
+  }
+};
+const writeHung = (bookId: string, id: string | null): void => {
+  try {
+    if (id) window.localStorage.setItem(hungKey(bookId), id);
+    else window.localStorage.removeItem(hungKey(bookId));
+  } catch {
+    // no storage: the way out of a hang is only the timeout
+  }
+};
 
 /** What a Run needs of the stage: the frame's runner, a refresh and the overrides (a node made code switches through them) */
 export type RunStage = Pick<Stage, "runPlugin" | "refresh" | "treeOf" | "overrideOf" | "override">;
@@ -100,6 +133,12 @@ class Plugins {
   logs = $state<FrameLog[]>([]);
   /** The sources run here, by plugin id: what is installed, saved or not */
   private ran = new Map<string, string>();
+  /** Each stored source on the stage (#269): loaded by itself, run, failed – the Code tab and the pickers say it */
+  readonly status = new SvelteMap<string, SourceStatus>();
+  /** The saved sources are being loaded onto a new stage */
+  autoLoading = $state(false);
+  /** The stored text of each source as last read or saved: a run of the same text runs the saved version */
+  private storedText = new Map<string, string>();
 
   /** A line from the stage frame (a plugin's log, its error) */
   addLog(line: FrameLog): void {
@@ -113,6 +152,8 @@ class Plugins {
       this.stored = (await listPlugins(bookId)).plugins;
       if (this.bookId !== bookId) {
         this.ran.clear();
+        this.status.clear();
+        this.storedText.clear();
         this.pending = null;
         this.code.reset();
       }
@@ -130,7 +171,97 @@ class Plugins {
   }
 
   async source(bookId: string, id: string): Promise<string> {
-    return (await getPlugin(bookId, id)).plugin.source;
+    const text = (await getPlugin(bookId, id)).plugin.source;
+    this.storedText.set(id, text);
+    return text;
+  }
+
+  /** Whether a source's text is the saved one (a run of it runs the saved version) */
+  private stateOf(id: string, source: string): SourceStatus {
+    return this.storedText.get(id) === source ? { state: "saved" } : { state: "edits" };
+  }
+
+  /**
+   * Why a type the draft names (a look, a component) is not registered (#269), for a picker: the book's code is still
+   * loading, a source failed (it may be the one registering it), or nothing registers it
+   */
+  missingNote(): string {
+    if (this.autoLoading || [...this.status.values()].some(s => s.state === "loading")) return "loading the book's code…";
+    const failed = this.failed();
+    if (failed.length) return `not loaded – ${failed.map(f => f.id).join(", ")} failed`;
+    return "unknown – no plugin registers it";
+  }
+
+  /** The stored sources that are not on the stage: failed or skipped, with why */
+  failed(): Array<{ id: string; error: string }> {
+    return [...this.status].flatMap(([id, s]) => (s.state === "failed" || s.state === "skipped" ? [{ id, error: s.error }] : []));
+  }
+
+  /**
+   * The Code tab's code is part of the live stage (#269): a frame that starts (the editor opens, the frame loads again)
+   * gets every stored source – the text last run here if there is one, else the saved one – transpiled, imported and
+   * installed as a Run would, one after the other, then the spread built once. A source that fails keeps what ran
+   * before and says why (`status`); one that does not answer in `AUTO_LOAD_TIMEOUT_MS` counts as hanging the stage,
+   * and a page that froze on it (the mark stays in the browser) skips it the next time it opens. The Code tab's log
+   * and the Run's error stay the Run's.
+   */
+  async autoLoad(bookId: string, stage: RunStage): Promise<void> {
+    if (this.autoLoading) return;
+    this.autoLoading = true;
+    try {
+      if (this.bookId !== bookId) await this.load(bookId);
+      if (this.bookId !== bookId) return;
+      const hung = readHung(bookId);
+      let loaded = 0;
+      /** The source the stage stopped answering at: the rest wait (the frame is likely still in it) */
+      let stuck: string | null = null;
+      for (const { id } of this.stored) {
+        if (stuck) {
+          this.status.set(id, { state: "failed", error: `not loaded – the stage stopped answering at ${stuck}` });
+          continue;
+        }
+        if (id === hung) {
+          writeHung(bookId, null);
+          this.status.set(id, { state: "skipped", error: "it hung the stage when it loaded last time – fix it, then Run it" });
+          continue;
+        }
+        this.status.set(id, { state: "loading" });
+        try {
+          const source = this.ran.get(id) ?? (await this.source(bookId, id));
+          const result = await transpilePlugin(source, id);
+          if ("error" in result) {
+            this.status.set(id, { state: "failed", error: `${result.error.line !== null ? `line ${result.error.line}: ` : ""}${result.error.message}` });
+            continue;
+          }
+          writeHung(bookId, id);
+          const ran = await stage.runPlugin(id, result.code, AUTO_LOAD_TIMEOUT_MS);
+          // A stage that did not answer may still be stuck in it: the mark stays, the next open skips it
+          if (!ran.ok && ran.error.startsWith(NO_ANSWER)) stuck = id;
+          else writeHung(bookId, null);
+          if (!ran.ok) {
+            this.status.set(id, { state: "failed", error: ran.error });
+            continue;
+          }
+          this.ran.set(id, source);
+          this.status.set(id, this.stateOf(id, source));
+          loaded += 1;
+        } catch (e) {
+          this.status.set(id, { state: "failed", error: errorText(e) });
+        }
+      }
+      if (!loaded) return;
+      this.version += 1;
+      await stage.refresh();
+      // A node type that does not build is the source's failure (its registrations stay)
+      for (const { id } of this.stored) {
+        const type = pluginNodeTypesOf(id).find(t => nodeTypeFailure(t));
+        if (type) this.status.set(id, { state: "failed", error: `${type} did not build on the stage – ${nodeTypeFailure(type)}` });
+      }
+    } catch (e) {
+      console.warn(`[code] the saved sources did not load: ${errorText(e)}`);
+    } finally {
+      this.autoLoading = false;
+    }
   }
 
   /** The source of a declared plugin: the content build copies `index.ts` next to the compiled module */
@@ -156,6 +287,7 @@ class Plugins {
     this.error = null;
     try {
       const { plugin } = await putPlugin(bookId, id, source);
+      this.storedText.set(id, source);
       return this.keep(plugin);
     } catch (e) {
       this.error = errorText(e, { code: true });
@@ -178,6 +310,8 @@ class Plugins {
     this.error = null;
     await deletePlugin(bookId, id, force);
     this.stored = this.stored.filter(p => p.id !== id);
+    this.status.delete(id);
+    this.storedText.delete(id);
     void library.refresh();
   }
 
@@ -204,6 +338,7 @@ class Plugins {
       const result = await transpilePlugin(source, id);
       if ("error" in result) {
         this.runError = { ...result.error, plugin: id };
+        this.runFailed(id, `${result.error.line !== null ? `line ${result.error.line}: ` : ""}${result.error.message}`);
         return false;
       }
       if (!stage) {
@@ -213,9 +348,11 @@ class Plugins {
       const ran = await stage.runPlugin(id, result.code);
       if (!ran.ok) {
         this.runError = { plugin: id, message: ran.error, line: null };
+        this.runFailed(id, ran.error);
         return false;
       }
       this.ran.set(id, source);
+      if (this.stored.some(p => p.id === id)) this.status.set(id, this.stateOf(id, source));
       this.lastRun = { plugin: id, types: ran.types };
       this.version += 1;
       // The spread is built again from the new registrations: a node whose type failed before builds anew
@@ -227,6 +364,11 @@ class Plugins {
     } finally {
       this.running = false;
     }
+  }
+
+  /** A Run of a stored source failed: it says so – what ran before stays registered */
+  private runFailed(id: string, error: string): void {
+    if (this.stored.some(p => p.id === id)) this.status.set(id, { state: "failed", error });
   }
 
   /**

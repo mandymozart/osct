@@ -103,6 +103,8 @@ export class ArScene implements IArScene {
   private _status: ArStatus = "idle";
   /** Running appear / disappear animation per target id (reveal, found, lost), removed when done */
   private animations = new Map<string, Celebration>();
+  /** The entities' clock holds (the editor's Live switch off, #269): their updates get no time, the looks play on */
+  private clockHeld = false;
   /** Entities shown with other values than the content's, by target id (the editor's live edit) */
   private overrides = new Map<string, EntityData>();
   /** The passes shown instead of the content's (the editor's live edit), until restored */
@@ -212,6 +214,15 @@ export class ArScene implements IArScene {
    * content's – `{ appearance: null }` = the book names none (the default look everywhere); `null` = the content's again.
    * A running animation plays on.
    */
+  /**
+   * Hold the entities' clock (the editor's Live switch off, #269) or let it run again: while held, no entity's `update`
+   * runs – components, clips, materials, textures and plugin updates stand still where they are – while the moments'
+   * looks (reveal, found, lost) play on, so what is found still appears. Videos and a plugin's own timers keep theirs.
+   */
+  holdClock(held: boolean): void {
+    this.clockHeld = held;
+  }
+
   overrideAppearance(override: { appearance: BookAppearance | null } | null): void {
     this.appearanceOverride = override;
   }
@@ -386,7 +397,7 @@ export class ArScene implements IArScene {
       view.onFrame(delta => {
         const anchors = this.content?.anchors.filter(a => this.found.has(a.target.id)).map(a => a.group.matrix) ?? [];
         this.lookAround?.update(delta, view.camera, anchors);
-        this.content?.anchors.forEach(a => a.entity?.update?.(delta));
+        if (!this.clockHeld) this.content?.anchors.forEach(a => a.entity?.update?.(delta));
         let bloom = 0;
         this.animations.forEach((animation, id) => {
           if (animation.update(delta)) {

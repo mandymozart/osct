@@ -46,6 +46,8 @@
   /** What the picker offers: built in, then each plugin's (a Code tab Run adds its looks at once) */
   const choices = $derived.by(() => { void plugins.version; void content.bookAppearance; return liveLookChoices(); });
   const builtIns = $derived(choices.filter(choice => !choice.plugin));
+  /** Why a look the draft names is not offered: the code loading, a source failed, or nobody registers it (#269) */
+  const missing = $derived(plugins.missingNote());
   const byPlugin = $derived([...new Set(choices.filter(choice => choice.plugin).map(choice => choice.plugin!))]
     .map(plugin => ({ plugin, choices: choices.filter(choice => choice.plugin === plugin) })));
   /** Per moment: its look, its rows, where the look comes from and its words (the registry follows a Run) */
@@ -120,7 +122,7 @@
   help="How the book's AR entities appear and disappear: a look for the first find (reveal), every later find (found) and the lost page (lost) – a built-in look with its values, or a look of the book's plugins. It is the whole book's: every spread plays it. A change plays on the stage at once – play in a moment's head shows it – and reaches the draft by itself.">
 {#each moments as { moment, look, played, rows, source, summary, plugin, description, known } (moment)}
   <Section id="stage.appearance.{moment}" label={moment} {summary} open={false} nested
-    help={`${MOMENT_HELP[moment]} ${look ? (description ? (plugin ? `${description} – a look of the plugin ${plugin}.` : description) : "A plugin's look that no plugin of the book registers here – Run its plugin in the Code tab, or pick another.") : source === "found" ? "It has no look of its own: it plays found's." : "It has no look of its own: it plays the default look."}`}>
+    help={`${MOMENT_HELP[moment]} ${look ? (description ? (plugin ? `${description} – a look of the plugin ${plugin}.` : description) : `A plugin's look that is not registered on the stage (${missing}) – the Code tab says why, or pick another.`) : source === "found" ? "It has no look of its own: it plays found's." : "It has no look of its own: it plays the default look."}`}>
     {#snippet aside()}
       {#if plugin}<span class="small muted plugin" title="A look of the plugin {plugin}">{plugin}</span>{/if}
       <button type="button" class="icon-button" aria-label="Play {moment}" title="Play the {moment} look on the stage's targets" disabled={!stage} onclick={() => stage?.playMoment(moment)}><Icon name="play" /></button>
@@ -138,7 +140,7 @@
               {#each group.choices as choice (choice.type)}<option value={choice.type} title={choice.spec.description}>{choice.type}</option>{/each}
             </optgroup>
           {/each}
-          {#if look && !known}<option value={look.type}>{look.type} (unknown)</option>{/if}
+          {#if look && !known}<option value={look.type} title={plugins.failed().map(f => `${f.id}: ${f.error}`).join("\n")}>{look.type} ({missing})</option>{/if}
         </select>
       </span>
     </div>
