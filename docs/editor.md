@@ -177,27 +177,26 @@ visible and safe (#143):
 ## AI connections
 
 Connecting an AI agent is a first step of working here, so it sits on the books page under the covers (#142, #194,
-`lib/AiConnections.svelte`, `lib/mcp-setup.ts`), two columns where the shelf has room, one under the other on a phone:
+#273, `lib/AiConnections.svelte`, `lib/mcp-setup.ts`) as two tabs:
 
-- **AI connections** – a name and **Create token**; the field suggests the agent and the machine after the client picked
-  in the guide ("Codex on my laptop") – the name stands in the change log of every save. The token `osct_…` shows once in a framed
-  box with **Copy** and the warning that it is not shown again; **Done** closes it (it is never stored in the browser).
-  The list: each token's name and prefix, *last used* (never, 5 min ago, yesterday …) and *expires* (red in its last
-  14 days and once expired), **Renew** (182 days from today – the same token works on) and **Revoke** (asks first; it
-  stops at once). Every call is the person's own session – the API refuses them to a token ([server, "AI
-  connections"](server.md#ai-connections)).
-- **Connect an AI agent** – the MCP guide: what the server does (an AI agent – Claude, Codex, OpenCode, Cursor or any
-  other MCP client – works in this editor as you, saves drafts, never publishes), then **Any MCP client (stdio)**: a
-  field for *where you saved [osct-mcp.mjs](mcp.md#connecting-an-agent)* – a link that downloads the one-file server
-  this instance serves at `/mcp/osct-mcp.mjs` – *(or `mcp/bin/osct-mcp.mjs` in an osct checkout)* (typed once, kept in this browser under
-  `osct-editor-mcp-file`; a folder gets the file appended, quotes of a copied path go) and four rows with **Copy** – the
-  **name** `osct-<env>` after the environment `GET /health` names (`osct-staging` on staging; `osct-…` until it answers), the **command**
-  `node <file>`, **OSCT_API_URL** (the editor's `/api` as an absolute URL) and **OSCT_EDITOR_TOKEN**. Under it the same
-  as each client's snippet, segmented pills **Claude Code** (`claude mcp add …`) / **Claude Desktop**
-  (`claude_desktop_config.json`) / **Codex CLI** (`~/.codex/config.toml`) / **OpenCode** (`opencode.json`) / **Cursor**
-  (`.cursor/mcp.json`) with **Copy** – a token just made is filled in, else `osct_…`; no path typed, `/path/to/osct-mcp.mjs` –
-  and the first steps: download the file (or a checkout with `npm ci` in `mcp/`), where the snippet goes, then `whoami` and
-  `describe_content_model` ([mcp, "Connecting an agent"](mcp.md#connecting-an-agent)).
+- **Connect an AI agent** – one line on what an agent does here (works as you, saves drafts, never publishes), then three
+  steps: **1** *Which agent?* – segmented pills **Claude Code** / **Claude Desktop** / **Codex CLI** / **OpenCode** /
+  **Cursor** (kept in this browser under `osct-editor-mcp-client`); **2** the prompt to paste into it (`agentPrompt`):
+  check Node 22, download this instance's `/mcp/osct-mcp.mjs` into `~/.osct/` (or use the file typed by hand), add the
+  client's entry – `claude mcp add …`, `claude_desktop_config.json`, `~/.codex/config.toml`, `opencode.json`,
+  `~/.cursor/mcp.json` – with the server's name `osct-<env>` after `GET /health`, `OSCT_API_URL` and the token, ask for a
+  restart, then `whoami` and `describe_content_model`; it tells the agent to keep the token secret and, if it cannot run
+  commands, to show the steps instead. With no token yet one is made as the tab opens, named after the agent and the
+  machine the browser reports ("Claude Code on Windows"); with tokens, **Create token & copy prompt** makes one and copies
+  the prompt (a token is shown only once, so every agent gets its own). The token stays on the page until it is left,
+  never stored. **3** the agent sets itself up. *Set it up by hand* (closed) holds the download link, the field for
+  where the file was saved (`osct-editor-mcp-file`; a checkout's folder gets `mcp/bin/osct-mcp.mjs` appended), the
+  client's snippet with **Copy** and the four values any MCP client takes ([mcp, "Connecting an agent"](mcp.md#connecting-an-agent)).
+- **Existing connections** (with their count) – a name and **Create token** (the token shows once in a framed box with
+  **Copy**; the prompt has it too). The list: each token's name and prefix, *last used* (never, 5 min ago, yesterday …)
+  and *expires* (red in its last 14 days and once expired), **Renew** (182 days from today – the same token works on)
+  and **Revoke** (asks first; it stops at once). Every call is the person's own session – the API refuses them to a
+  token ([server, "AI connections"](server.md#ai-connections)).
 
 ## The book page
 

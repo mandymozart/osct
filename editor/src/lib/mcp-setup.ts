@@ -71,8 +71,52 @@ export function serverFileFrom(input: string): string {
 }
 
 /** A token's name that says which agent on which machine (it names the agent in the change log) */
-export function tokenNameFor(client: McpClient): string {
-  return `${CLIENT_INFO[client].agent} on my laptop`;
+export function tokenNameFor(client: McpClient, machine = "my laptop"): string {
+  return `${CLIENT_INFO[client].agent} on ${machine}`;
+}
+
+/** The machine in words from the browser's platform (`Win32`, `MacIntel`, `Linux x86_64`, …) – "my laptop" when unknown */
+export function machineFrom(platform: string | undefined): string {
+  const p = (platform ?? "").toLowerCase();
+  if (p.startsWith("win")) return "Windows";
+  if (p.startsWith("mac")) return "Mac";
+  if (p.includes("linux") || p.includes("x11")) return "Linux";
+  return "my laptop";
+}
+
+/** Where each client keeps the server, said to the agent in the prompt */
+const PROMPT_WHERE: Record<McpClient, string> = {
+  "claude-code": "Run this command – it adds the server for every project:",
+  "claude-desktop": "Add this entry under `mcpServers` in `claude_desktop_config.json` (Windows: `%APPDATA%\\Claude`, macOS: `~/Library/Application Support/Claude`) – keep the servers already there:",
+  codex: "Add this table to `~/.codex/config.toml` – keep what is already there:",
+  opencode: "Add this entry under `mcp` in `~/.config/opencode/opencode.json` – keep what is already there:",
+  cursor: "Add this entry under `mcpServers` in `~/.cursor/mcp.json` – keep the servers already there:",
+};
+
+/**
+ * The one prompt the person copies into their agent (#273): the agent checks Node, downloads this instance's server file,
+ * adds the client's entry with the token in it, has itself restarted and calls `whoami`. A file the person typed is used
+ * as it is; else the agent saves the download in `~/.osct/` and puts its absolute path in place of the placeholder.
+ */
+export function agentPrompt(client: McpClient, setup: McpSetup, download: string): string {
+  const site = setup.api.replace(/\/api\/?$/, "");
+  const fileStep = setup.file
+    ? `2. The server file should be at \`${setup.file}\`. If it is missing, download ${download} to that place.`
+    : `2. Download ${download} into a folder \`.osct\` in my home folder. Use its absolute path in place of \`${FILE_PLACEHOLDER}\` below.`;
+  return [
+    `Connect yourself to OSCT, the book editor at ${site}, through its MCP server, so you can work in it as me.`,
+    "",
+    "1. Check that Node 22 or newer is installed (`node --version`). If not, tell me and stop.",
+    fileStep,
+    `3. ${PROMPT_WHERE[client]}`,
+    "",
+    snippetFor(client, setup),
+    "",
+    `4. Tell me to restart ${CLIENT_INFO[client].label} – it loads new MCP servers on start. After the restart call \`whoami\` (it names me and this connection), then \`describe_content_model\` before the first change.`,
+    "",
+    "The value of OSCT_EDITOR_TOKEN is a secret that works as me: don't repeat it, write it anywhere else or commit it.",
+    "If you cannot run commands or edit files, show me these steps so I can do them.",
+  ].join("\n");
 }
 
 const fileOf = (setup: McpSetup) => setup.file || FILE_PLACEHOLDER;

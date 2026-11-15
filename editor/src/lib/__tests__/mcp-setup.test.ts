@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ago, apiUrlFor, CLIENTS, claudeCodeCommand, claudeDesktopConfig, codexConfig, commandLine, cursorConfig, day, envOf, expiresSoon,
-  FILE_PLACEHOLDER, opencodeConfig, serverDownloadUrl, SERVER_NAME_PLACEHOLDER, serverFileFrom, serverNameFor, shellArg, snippetFor, tokenNameFor, TOKEN_PLACEHOLDER, tomlString,
+  agentPrompt, FILE_PLACEHOLDER, machineFrom, opencodeConfig, serverDownloadUrl, SERVER_NAME_PLACEHOLDER, serverFileFrom, serverNameFor, shellArg, snippetFor, tokenNameFor, TOKEN_PLACEHOLDER, tomlString,
   type McpSetup,
 } from "../mcp-setup";
 
@@ -134,5 +134,38 @@ describe("serverDownloadUrl", () => {
   it("is /mcp/osct-mcp.mjs at the page's origin (#272)", () => {
     expect(serverDownloadUrl("https://osct.porschuetz.de")).toBe("https://osct.porschuetz.de/mcp/osct-mcp.mjs");
     expect(serverDownloadUrl("http://localhost:5175/")).toBe("http://localhost:5175/mcp/osct-mcp.mjs");
+  });
+});
+
+describe("the one prompt to copy into an agent (#273)", () => {
+  const download = "https://osct.porschuetz.de/mcp/osct-mcp.mjs";
+  const noFile: McpSetup = { ...setup, file: "" };
+
+  it("names the machine from the browser's platform", () => {
+    expect(machineFrom("Win32")).toBe("Windows");
+    expect(machineFrom("MacIntel")).toBe("Mac");
+    expect(machineFrom("Linux x86_64")).toBe("Linux");
+    expect(machineFrom(undefined)).toBe("my laptop");
+    expect(tokenNameFor("cursor", "Mac")).toBe("Cursor on Mac");
+  });
+
+  it("holds the download, the client's snippet with the token, the restart and whoami", () => {
+    for (const client of CLIENTS) {
+      const prompt = agentPrompt(client, noFile, download);
+      expect(prompt).toContain(download);
+      expect(prompt).toContain(snippetFor(client, noFile));
+      expect(prompt).toContain("osct_abc");
+      expect(prompt).toContain("whoami");
+      expect(prompt).toContain("https://osct.porschuetz.de,");
+    }
+    expect(agentPrompt("claude-code", noFile, download)).toContain("claude mcp add osct-staging");
+    expect(agentPrompt("codex", noFile, download)).toContain("~/.codex/config.toml");
+  });
+
+  it("asks the agent to save the download in ~/.osct unless the person typed the file", () => {
+    expect(agentPrompt("cursor", noFile, download)).toContain("`.osct`");
+    const typed = agentPrompt("cursor", setup, download);
+    expect(typed).toContain(`\`${file}\``);
+    expect(typed).not.toContain("`.osct`");
   });
 });
