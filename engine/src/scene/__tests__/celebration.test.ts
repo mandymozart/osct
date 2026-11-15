@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BoxGeometry, Color, Group, Matrix4, Mesh, MeshBasicMaterial, type Object3D, ShaderMaterial, Vector3 } from "three";
+import { BoxGeometry, Color, Group, Matrix4, Mesh, MeshBasicMaterial, type Object3D, PointLight, ShaderMaterial, Vector3 } from "three";
 import { APPEARANCES, type AppearanceData, DEFAULT_APPEARANCE_TYPE, ENTITY_UNLOCK_MS, momentDuration } from "../../types/index";
 import { registerAppearance, unregisterAppearancesOf } from "../appearances";
-import { celebrate, injectDissolve, lookOf } from "../celebration";
+import { celebrate, injectDissolve, lookOf, SHOWN } from "../celebration";
 
 const uniforms = () => ({
   uDissolve: { value: 1 },
@@ -249,6 +249,33 @@ describe("a plugin's look", () => {
     expect(seen[0]).toEqual({ moment: "lost", visible: 1 });
     while (lost.update(FRAME));
     expect(seen.at(-1)).toEqual({ moment: "lost", visible: 0 });
+  });
+
+  it("tells the entity how much of it is there – userData.shown and its lights' fade, as a built-in look does – and takes it back at the end (#270)", () => {
+    registerAppearance("softFade", SPEC, ({ params }) => ({ duration: params.duration as number, update: () => {} }), "test");
+    for (const look of [softFade, { type: "fade" }] as const) {
+      const { anchor, placement, root } = entity();
+      const light = new PointLight();
+      root.add(light);
+      const reveal = celebrate(anchor, placement, "reveal", look);
+      expect(placement.userData[SHOWN]).toBe(0);
+      expect(light.userData.fade).toBe(0);
+      for (let i = 0; i < 6; i++) reveal.update(FRAME);
+      const midway = placement.userData[SHOWN] as number;
+      expect(midway).toBeGreaterThan(0);
+      expect(midway).toBeLessThan(1);
+      expect(light.userData.fade).toBe(midway);
+      while (reveal.update(FRAME));
+      expect(SHOWN in placement.userData).toBe(false); // no value: all of it
+      expect(light.userData.fade).toBe(1);
+
+      const lost = celebrate(anchor, placement, "lost", look);
+      expect(placement.userData[SHOWN]).toBe(1);
+      for (let i = 0; i < 6; i++) lost.update(FRAME);
+      expect(placement.userData[SHOWN]).toBeLessThan(1);
+      lost.finish();
+      expect(SHOWN in placement.userData).toBe(false);
+    }
   });
 
   it("gets copies of the materials and the placement back when it ends, and is disposed", () => {

@@ -343,6 +343,36 @@ const walk = (root: Object3D, visit: (object: Object3D) => void, exclude?: Reado
   });
 };
 
+/**
+ * How much of an entity its look shows right now, for the code on it: `userData.shown` (0…1) on the object a look
+ * animates – 0 nothing yet, 1 the entity as it is – written every frame of a reveal, a find and a loss, by the
+ * built-in looks and a plugin's alike, and taken away at the end (no value = all of it). A node's share is the product
+ * of the values on it and its ancestors (a node with a look of its own animates apart, inside its parent's). A
+ * component that should come and go with its entity – a contact shadow – reads it (docs/plugins.md "A look").
+ */
+export const SHOWN = "shown";
+
+/**
+ * What a look tells the entity every frame: its lights' share of their intensity (`userData.fade`, applied by the
+ * light node – entities.ts) and `userData.shown` on the entity; `done` puts both back
+ */
+const tell = (entity: Object3D, exclude?: ReadonlySet<Object3D>) => {
+  const lights: Light[] = [];
+  walk(entity, object => {
+    if ((object as Light).isLight) lights.push(object as Light);
+  }, exclude);
+  return {
+    shown: (visible: number) => {
+      lights.forEach(light => (light.userData.fade = visible));
+      entity.userData[SHOWN] = visible;
+    },
+    done: () => {
+      lights.forEach(light => (light.userData.fade = 1));
+      delete entity.userData[SHOWN];
+    },
+  };
+};
+
 /** Every mesh of the node tree (but the excluded subtrees) */
 const meshesOf = (entity: Object3D, exclude?: ReadonlySet<Object3D>): Mesh[] => {
   const meshes: Mesh[] = [];
@@ -428,13 +458,8 @@ const playLook = (anchor: Object3D, entity: Object3D, moment: Moment, look: Appe
     blended.set(clone, original.transparent);
   });
 
-  // Lights (light nodes) fade with the entity: `userData.fade` is their share of the intensity, applied by the
-  // light node every frame (entities.ts); 1 again at the end
-  const lights: Light[] = [];
-  walk(entity, object => {
-    if ((object as Light).isLight) lights.push(object as Light);
-  }, exclude);
-  const dim = (visible: number) => lights.forEach(light => (light.userData.fade = visible));
+  // Lights (light nodes) and the code on the entity hear how much of it is there; all of it again at the end
+  const told = tell(entity, exclude);
 
   // Shape: the entity's object is transformed in the anchor's space around the centre of its footprint (the middle
   // of its box on the page, at its base). The matrix is the shape × the placement, so the placement stays its own
@@ -531,8 +556,8 @@ const playLook = (anchor: Object3D, entity: Object3D, moment: Moment, look: Appe
 
     // Bloom: rises fast, holds, fades towards the end
     bloom = u <= 0 || u >= 1 ? 0 : look.bloom * smoothstep(u / 0.15) * (1 - smoothstep((u - 0.7) / 0.3));
-    // Lights follow what makes the entity visible: the dissolve, else the fade, else the shape
-    dim(masked ? m : look.fade > 0 ? opacity : shaped ? clamp01(k) : 1);
+    // How much is there: what makes the entity visible – the dissolve, else the fade, else the shape
+    told.shown(masked ? m : look.fade > 0 ? opacity : shaped ? clamp01(k) : 1);
   };
   show(reverse ? 1 : 0);
 
@@ -540,7 +565,7 @@ const playLook = (anchor: Object3D, entity: Object3D, moment: Moment, look: Appe
     if (done) return;
     done = true;
     swap.restore();
-    dim(1);
+    told.done();
     if (shaped) {
       // The placement alone again
       entity.matrixAutoUpdate = autoUpdate;
@@ -583,6 +608,8 @@ const playPlugin = (
   const drawn = meshesOf(entity, exclude);
   let swap: ReturnType<typeof swapMaterials> | null = null;
   const placed = { position: entity.position.clone(), quaternion: entity.quaternion.clone(), scale: entity.scale.clone(), visible: entity.visible };
+  // The look's `visible` reaches the lights and the code on the entity as a built-in look's does
+  const told = tell(entity, exclude);
   const run = registration.factory({
     object: entity,
     anchor,
@@ -601,6 +628,7 @@ const playPlugin = (
       console.warn(`[celebration] The look "${data.type}" failed in dispose:`, error);
     }
     swap?.restore();
+    told.done();
     entity.position.copy(placed.position);
     entity.quaternion.copy(placed.quaternion);
     entity.scale.copy(placed.scale);
@@ -612,7 +640,11 @@ const playPlugin = (
   }
   const duration = Number(run.duration);
   const ms = Number.isFinite(duration) && duration > 0 ? duration : PLUGIN_LOOK_MS;
-  const show = (t: number) => run.update(moment === "lost" ? 1 - t : t);
+  const show = (t: number) => {
+    const visible = moment === "lost" ? 1 - t : t;
+    told.shown(visible);
+    run.update(visible);
+  };
   try {
     show(0);
   } catch (error) {
