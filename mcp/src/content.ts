@@ -18,6 +18,7 @@ import { EntryCategory } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
 import { exprMessage, renderEntryText } from "../../shared/text/entry-text";
 import type {
+  AssetCreditsSaved,
   AssetList,
   AssetUploaded,
   BookAppearanceSaved,
@@ -48,6 +49,7 @@ import type {
   TargetSaved,
 } from "../../shared/api/editor";
 import { confirmationStep } from "../../shared/api/errors";
+import { CREDITS_BATCH_MAX, CREDITS_MAX } from "../../shared/api/editor";
 import {
   ASSET_KINDS,
   BODY_MAX_LENGTH,
@@ -702,7 +704,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
 
   server.registerTool(
     "list_assets",
-    { description: `The book's files: id, name, kind (${ASSET_KINDS.join(" | ")}), mime, size, width / height (pixels, images and videos), durationMs (videos), version, url (what nodes and targets name – and what a plugin loads a shader by, api.loadText(url)), usages (a shader's: the plugin sources that name its url). width / height / durationMs are read from the file on upload – null when unknown (an imported file, an older upload). A video plane is one target width wide and as high as the file's proportions; scale a portrait video's node by width / height to keep it within the target's width, and time an animation by durationMs. \`imported\`: a file of the content import (no upload) – read-only.`, inputSchema: z.object({ book: BOOK, kind: z.enum(ASSET_KINDS).optional() }), annotations: read },
+    { description: `The book's files: id, name, kind (${ASSET_KINDS.join(" | ")}), mime, size, width / height (pixels, images and videos), durationMs (videos), version, url (what nodes and targets name – and what a plugin loads a shader by, api.loadText(url)), usages (a shader's: the plugin sources that name its url), credits (the picture credits line, null: none yet – set_asset_credits). width / height / durationMs are read from the file on upload – null when unknown (an imported file, an older upload). A video plane is one target width wide and as high as the file's proportions; scale a portrait video's node by width / height to keep it within the target's width, and time an animation by durationMs. \`imported\`: a file of the content import (no upload) – read-only.`, inputSchema: z.object({ book: BOOK, kind: z.enum(ASSET_KINDS).optional() }), annotations: read },
     guard(async ({ book, kind }) => text(await api.call<AssetList>("GET", `/editor/books/${encodeURIComponent(book)}/assets${kind ? `?kind=${kind}` : ""}`))),
   );
 
@@ -719,6 +721,20 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       const result = await api.upload<AssetUploaded>("POST", `/editor/books/${encodeURIComponent(book)}/assets`, bytes, name ?? basename(file));
       return text({ ...result, size: bytes.byteLength });
     }),
+  );
+
+  server.registerTool(
+    "set_asset_credits",
+    {
+      description:
+        `Sets the picture credits of the book's files (#277): one free text line per file, by its url (list_assets – uploaded and imported files alike), as the book prints its credits – e.g. "Book Golem by TER-JAN / DeviantArt", "Lindsey Carr, An Issue of Control, 2013. Available via DogStreets", "Gene Kelly dancing, 1944. Gjon Mili The LIFE Picture Collection/Shutterstock". No fixed structure. Empty or null removes a line. At most ${CREDITS_BATCH_MAX} files per call, ${CREDITS_MAX} characters per line; one url that is no file of the Library refuses the whole call. Credits are no content: nothing to publish, no change in the book's log.`,
+      inputSchema: z.object({
+        book: BOOK,
+        items: z.array(z.object({ url: z.string().min(1).describe("the file's url (list_assets)"), credits: z.string().max(CREDITS_MAX).nullable() })).min(1).max(CREDITS_BATCH_MAX),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    guard(async ({ book, items }) => text(await api.call<AssetCreditsSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/assets/credits`, { items }))),
   );
 
   server.registerTool(

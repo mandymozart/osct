@@ -297,3 +297,15 @@ ALTER TABLE `books` ADD COLUMN `imported_json` TEXT NULL DEFAULT NULL;
 -- The onboarding belongs to the reader (#236): the steps an import kept in `books` go. A column of a removed feature is
 -- removed by name and only that (RULES #25); the migration skips it once the column is gone
 ALTER TABLE `books` DROP COLUMN `tutorial_json`;
+
+-- Picture credits (#277, Assets::setCredits): one free text line per file of a book's Library, by its URL – the imported
+-- files have no `assets` row, so the line is kept by URL for both
+CREATE TABLE IF NOT EXISTS `asset_credits` (
+  `book_id` VARCHAR(64) NOT NULL,
+  `url` VARCHAR(512) NOT NULL,
+  `credits` TEXT NOT NULL,
+  `updated_by` CHAR(36) NULL DEFAULT NULL,
+  `updated_at` BIGINT NOT NULL,
+  PRIMARY KEY (`book_id`, `url`),
+  CONSTRAINT `asset_credits_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

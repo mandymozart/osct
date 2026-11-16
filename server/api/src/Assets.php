@@ -59,7 +59,76 @@ final class Assets
         $rows = Db::run('SELECT * FROM assets WHERE book_id = :book AND status = :status' . (is_string($kind) && $kind !== '' ? ' AND kind = :kind' : '') . ' ORDER BY updated_at DESC',
             ['book' => $bookId, 'status' => 'active'] + (is_string($kind) && $kind !== '' ? ['kind' => $kind] : []))->fetchAll();
         $assets = array_map(fn(array $row) => self::summary($row, count(self::usagesOf($bookId, $row))), $rows);
-        Http::json(200, ['assets' => array_merge($assets, self::imported($bookId, is_string($kind) && $kind !== '' ? $kind : null))]);
+        $assets = array_merge($assets, self::imported($bookId, is_string($kind) && $kind !== '' ? $kind : null));
+        $credits = self::creditsOf($bookId);
+        foreach ($assets as $i => $asset) $assets[$i]['credits'] = $credits[$asset['url']] ?? null;
+        Http::json(200, ['assets' => $assets]);
+    }
+
+    /** The longest credits line (#277) */
+    public const CREDITS_MAX = 1000;
+    /** The most files one credits request sets */
+    public const CREDITS_BATCH_MAX = 500;
+
+    /**
+     * PUT /editor/books/{id}/assets/credits { items: [{ url, credits }] } → { saved, credits: { <url>: line|null } } (#277):
+     * the picture credits of the book's files – one free text line per file, as the book prints them
+     * ("Book Golem by TER-JAN / DeviantArt"). Kept per file URL, so the imported files (no asset row, read-only) carry them
+     * as the uploaded ones do; a replace keeps the line on the old URL (a new version may be another picture). `credits`
+     * empty or null removes the line. Every url must be a file the Library lists (400 `invalid-credits` otherwise,
+     * nothing saved). Credits are no content: no change in the book's log, no publish needed.
+     */
+    public static function setCredits(string $bookId): never
+    {
+        $user = Editor::user();
+        Books::exists($bookId);
+        $items = Editor::body()->items ?? null;
+        if (!is_array($items) || $items === [] || count($items) > self::CREDITS_BATCH_MAX) {
+            throw new ApiError(400, 'invalid-credits', 'items must be a list of 1–' . self::CREDITS_BATCH_MAX . ' { url, credits }.');
+        }
+        $known = array_flip(self::fileUrls($bookId));
+        $lines = [];
+        foreach ($items as $i => $item) {
+            $url = is_object($item) ? ($item->url ?? null) : null;
+            $credits = is_object($item) ? ($item->credits ?? null) : null;
+            if (!is_string($url) || !isset($known[$url])) throw new ApiError(400, 'invalid-credits', "items[$i].url is no file of the book's Library.");
+            if ($credits !== null && !is_string($credits)) throw new ApiError(400, 'invalid-credits', "items[$i].credits must be text or null.");
+            $credits = $credits === null ? '' : trim((string) preg_replace('/\s+/u', ' ', $credits));
+            if (mb_strlen($credits) > self::CREDITS_MAX) throw new ApiError(400, 'invalid-credits', "items[$i].credits is longer than " . self::CREDITS_MAX . ' characters.');
+            $lines[$url] = $credits === '' ? null : $credits;
+        }
+        $now = Editor::nowMs();
+        Db::transaction(static function () use ($bookId, $lines, $user, $now) {
+            foreach ($lines as $url => $credits) {
+                Db::run('DELETE FROM asset_credits WHERE book_id = :book AND url = :url', ['book' => $bookId, 'url' => (string) $url]);
+                if ($credits !== null) {
+                    Db::run('INSERT INTO asset_credits (book_id, url, credits, updated_by, updated_at) VALUES (:book, :url, :credits, :by, :at)',
+                        ['book' => $bookId, 'url' => (string) $url, 'credits' => $credits, 'by' => $user['id'], 'at' => $now]);
+                }
+            }
+        });
+        Http::json(200, ['saved' => count($lines), 'credits' => $lines]);
+    }
+
+    /** @return array<string, string> the book's credits lines by file URL */
+    private static function creditsOf(string $bookId): array
+    {
+        $result = [];
+        foreach (Db::run('SELECT url, credits FROM asset_credits WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+            $result[(string) $row['url']] = (string) $row['credits'];
+        }
+        return $result;
+    }
+
+    /** @return list<string> the URLs the Library lists: the uploaded files and the import's */
+    private static function fileUrls(string $bookId): array
+    {
+        $urls = [];
+        foreach (Db::run('SELECT url FROM assets WHERE book_id = :book AND status = :status', ['book' => $bookId, 'status' => 'active'])->fetchAll() as $row) {
+            $urls[] = (string) $row['url'];
+        }
+        foreach (self::imported($bookId, null, false) as $file) $urls[] = (string) $file['url'];
+        return $urls;
     }
 
     /**
@@ -68,7 +137,7 @@ final class Assets
      * delete answer 404; replacing one is the content build's business (`imported: true`, id `import-<hash of the url>`, version 1, no dimensions).
      * @return array<int, array<string, mixed>>
      */
-    private static function imported(string $bookId, ?string $kind): array
+    private static function imported(string $bookId, ?string $kind, bool $count = true): array
     {
         $book = Db::one('SELECT files_json, assets_base, updated_at, created_at FROM books WHERE id = :id', ['id' => $bookId]);
         $files = Editor::decode($book['files_json'] ?? null);
@@ -87,11 +156,11 @@ final class Assets
             $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?: $url, PATHINFO_EXTENSION));
             if (!isset(self::KINDS[$extension]) || ($kind !== null && self::KINDS[$extension] !== $kind)) continue;
             // the book's rows read once: a build has hundreds of files, and three queries per file are too slow
-            $rows ??= self::usageRows($bookId);
+            if ($count) $rows ??= self::usageRows($bookId);
             $result[] = [
                 'id' => 'import-' . substr(sha1($url), 0, 16), 'name' => rawurldecode(basename(parse_url($url, PHP_URL_PATH) ?: $url)),
                 'kind' => self::KINDS[$extension], 'mime' => self::MIMES[$extension], 'size' => (int) (is_object($file) ? ($file->size ?? 0) : 0),
-                'width' => null, 'height' => null, 'durationMs' => null, 'version' => 1, 'url' => $url, 'usages' => self::countUsages($rows, $path),
+                'width' => null, 'height' => null, 'durationMs' => null, 'version' => 1, 'url' => $url, 'usages' => $count ? self::countUsages($rows, $path) : 0,
                 'createdAt' => $at, 'updatedAt' => $at, 'imported' => true,
             ];
         }

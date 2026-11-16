@@ -367,6 +367,11 @@ export interface Asset {
   usages: number;
   /** A file of the content import (`files.json`), not an upload: read-only, no replace or delete */
   imported: boolean;
+  /**
+   * The picture credits (#277): one free text line, as the book prints them ("Book Golem by TER-JAN / DeviantArt"); null =
+   * none yet. Kept per URL – imported files carry one too.
+   */
+  credits: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -385,6 +390,22 @@ export interface AssetList {
 /** `POST /editor/books/{id}/assets` → 201 (or 200: the same bytes are an asset already – it takes this upload's name) */
 export interface AssetUploaded {
   asset: Asset;
+}
+
+/** The most files one `PUT /editor/books/{id}/assets/credits` sets (`Assets::CREDITS_BATCH_MAX`) */
+export const CREDITS_BATCH_MAX = 500;
+/** The longest credits line (`Assets::CREDITS_MAX`) */
+export const CREDITS_MAX = 1000;
+
+/** `PUT /editor/books/{id}/assets/credits` – a file's credits line by its URL; empty or null removes it (#277) */
+export interface AssetCreditsChange {
+  items: { url: string; credits: string | null }[];
+}
+
+/** The answer: how many files, and each one's line now (null: none) */
+export interface AssetCreditsSaved {
+  saved: number;
+  credits: Record<string, string | null>;
 }
 
 /** `PUT /editor/books/{id}/assets/{assetId}/file`: the new version, and how many rows now name it */
