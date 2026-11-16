@@ -9,7 +9,7 @@ import { DEFAULT_LANGUAGE, LANGUAGES } from "./languages";
  * report missing translations). English is the fallback – a missing or empty translation shows English.
  * Components use i18next's `t` directly (`import { t } from "i18next"` – bound to the default instance):
  *
- *   t("entry:accessPage")                            → "Access page"
+ *   t("entry:page")                                  → "Page"
  *   t("entry:goToPage", { page: 4 })                 → placeholders {{page}}, values escaped for HTML
  *
  * Language: the reader's choice from localStorage (`osct-language`), else the device language. It is not

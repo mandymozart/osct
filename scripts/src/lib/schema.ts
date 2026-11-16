@@ -64,6 +64,7 @@ export const schemas = {
       author: { type: "String", required: false },
       body: { type: "String", required: false, default: "" },
       image: { type: "String", required: false },
+      caption: { type: "String", required: false }, // the line under the image (schema 2.34, #289)
       media: { type: "String", required: false },
       tags: { type: "List", required: false, default: [] },
       target: { type: "Object", required: false }, // { id?, image, entity? }

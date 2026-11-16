@@ -1,6 +1,7 @@
 {
-  "entryName": "Naam",
-  "accessPage": "Toegangspagina",
+  "name": "Naam",
+  "title": "Titel",
+  "page": "Pagina",
   "category": "Categorie",
   "author": "Auteur",
   "goToPage": "Ga in de scanmodus naar toegangspagina {{page}} om de video te zien.",

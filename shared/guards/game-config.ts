@@ -259,7 +259,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     const entry = obj(e, path);
     if (!entry) return;
     ["id", "title"].forEach(key => str(entry, key, path));
-    ["author", "image", "media"].forEach(key => str(entry, key, path, true));
+    ["author", "image", "caption", "media"].forEach(key => str(entry, key, path, true));
     if (typeof entry.body !== "string") fail(`${path}.body`, "expected a string");
     num(entry, "page", path);
     // The access page decides the spread

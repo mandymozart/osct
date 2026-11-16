@@ -7,9 +7,11 @@ import { categoryLabel, linkEmbed, pageLabel } from "./entries-model";
 import { t } from "i18next";
 
 /**
- * One entry: meta table (name, access page, category, author for texts), then per category –
- * glossary: text + image; text: long text; video: a note to scan the access page + a preview player;
- * link: embedded player/page + "open in a new tab".
+ * One entry (design p. 23–25, 32–33, 38–39, #289): meta table – Name, Page, Category; for texts Title, Page, Category,
+ * Author –, then per category – glossary: text + image with its caption (the entry's `caption`, Small, muted); text:
+ * long text; video: a note to scan the access page + a preview player; link: the embedded player across the screen's
+ * full width (the page's gutter, `--content-gutter`, is bled) or the embedded page, + "open in a new tab".
+ * The body is set in Medium (`--text-size`).
  * The body is the content's Markdown with the book's variables (`renderEntryText`, the editor's preview renders the same):
  * the page sets `variables` (their values when the entry opens), then `entry`; `null` empties it and stops media.
  */
@@ -47,7 +49,16 @@ export class EntryDetail extends HTMLElement {
           p { margin: 0 0 1em; }
           a { color: var(--color-accent); }
           .rule-table { margin-bottom: 1.5rem; }
+          .body { font-size: var(--text-size); }
           .body p + p { text-indent: 2em; margin-top: -1em; }
+          figure { margin: 1rem 0; }
+          figure img.entry-image { margin: 0; }
+          figcaption {
+            margin-top: .5rem;
+            font-size: var(--text-size-small);
+            line-height: var(--text-line);
+            color: var(--color-muted);
+          }
           img.entry-image, video, iframe {
             display: block;
             width: 100%;
@@ -56,13 +67,18 @@ export class EntryDetail extends HTMLElement {
             background: #000;
           }
           img.entry-image { background: none; }
-          iframe.video { aspect-ratio: 16 / 9; }
+          iframe.video {
+            aspect-ratio: 16 / 9;
+            /* Full width (#289): across the page's gutter to the screen's edges */
+            width: calc(100% + 2 * var(--content-gutter, 0px));
+            margin-inline: calc(-1 * var(--content-gutter, 0px));
+          }
           iframe.page { height: 70vh; background: #fff; }
           .hint { color: var(--color-muted); font-size: var(--text-size-small); }
         </style>
         <table class="rule-table">
-          <tr><th scope="row">${t("entry:entryName")}</th><td>${escapeHtml(entry.title)}</td></tr>
-          <tr><th scope="row">${t("entry:accessPage")}</th><td>${escapeHtml(pageLabel(entry.page, getSpread(entry.spreadId)))}</td></tr>
+          <tr><th scope="row">${t(entry.category === EntryCategory.Text ? "entry:title" : "entry:name")}</th><td>${escapeHtml(entry.title)}</td></tr>
+          <tr><th scope="row">${t("entry:page")}</th><td>${escapeHtml(pageLabel(entry.page, getSpread(entry.spreadId)))}</td></tr>
           <tr><th scope="row">${t("entry:category")}</th><td>${escapeHtml(categoryLabel(entry.category))}</td></tr>
           ${entry.category === EntryCategory.Text && entry.author ? `<tr><th scope="row">${t("entry:author")}</th><td>${escapeHtml(entry.author)}</td></tr>` : ""}
         </table>
@@ -73,7 +89,8 @@ export class EntryDetail extends HTMLElement {
 
   private bodyHtml(entry: Entry): string {
     const text = renderEntryText(entry.body, { variables: this.variables }).html;
-    const image = entry.image ? `<img class="entry-image" src="${escapeHtml(entry.image)}" alt="" loading="lazy">` : "";
+    const picture = entry.image ? `<img class="entry-image" src="${escapeHtml(entry.image)}" alt="" loading="lazy">` : "";
+    const image = picture && entry.caption ? `<figure>${picture}<figcaption>${escapeHtml(entry.caption)}</figcaption></figure>` : picture;
 
     switch (entry.category) {
       case EntryCategory.Glossary:

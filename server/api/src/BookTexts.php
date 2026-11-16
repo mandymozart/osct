@@ -15,7 +15,7 @@ declare(strict_types=1);
 final class BookTexts
 {
     /** The fields of an entry a PUT may change */
-    private const ENTRY_FIELDS = ['title', 'body', 'author', 'image', 'media', 'tags', 'category', 'page'];
+    private const ENTRY_FIELDS = ['title', 'body', 'author', 'image', 'caption', 'media', 'tags', 'category', 'page'];
     /** At most this many tags, each at most TAG_MAX_LENGTH characters (shared/api/rules.ts `ENTRY_TAGS`) */
     public const TAGS_MAX = 32;
     public const TAG_MAX_LENGTH = 64;
@@ -48,9 +48,9 @@ final class BookTexts
     }
 
     /**
-     * PUT /editor/books/{id}/entries/{eid} { title?, body?, author?, image?, media?, tags?, category?, page? } → 200
-     * { entry, spreadId, previousSpreadId }: the fields sent change, `null` removes an optional one (author, image,
-     * media). A new page moves the entry to the spread its page belongs to – the first whose pages include it, none
+     * PUT /editor/books/{id}/entries/{eid} { title?, body?, author?, image?, caption?, media?, tags?, category?, page? }
+     * → 200 { entry, spreadId, previousSpreadId }: the fields sent change, `null` removes an optional one (author, image,
+     * caption – the line under the picture, plain text, #289 –, media). A new page moves the entry to the spread its page belongs to – the first whose pages include it, none
      * when no spread does (as `POST …/entries`). 400 `invalid-entry`, 404.
      */
     public static function putEntry(string $bookId, string $entryId): never
@@ -80,6 +80,7 @@ final class BookTexts
                 }
                 self::optional($entry, 'image', $image);
             }
+            if (property_exists($body, 'caption')) self::optional($entry, 'caption', $body->caption === null ? null : self::text($body->caption, 'caption', false));
             if (property_exists($body, 'media')) {
                 $media = $body->media === null ? null : self::text($body->media, 'media', false);
                 if ($media !== null && !self::isLinkUrl($media)) throw new ApiError(400, 'invalid-entry', 'media must be an http(s) link.');

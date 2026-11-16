@@ -131,14 +131,15 @@ export default interface Resources {
     "videosHint": "Go to page in scan mode to play the video."
   },
   "entry": {
-    "accessPage": "Access page",
     "author": "Author",
     "category": "Category",
-    "entryName": "Entry name",
     "goToPage": "Go to access page {{page}} in scan mode to see the video.",
     "missing": "This entry is not part of the book (anymore).",
+    "name": "Name",
     "openInNewTab": "Open in a new tab",
-    "preview": "Preview (the AR version is shown on the page):"
+    "page": "Page",
+    "preview": "Preview (the AR version is shown on the page):",
+    "title": "Title"
   },
   "header": {
     "backToScan": "Back to scan mode",

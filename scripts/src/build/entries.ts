@@ -28,6 +28,7 @@ export function buildEntries(spreads: SpreadData[], entities: Record<string, Ent
       tags: e.tags,
       ...(e.author ? { author: e.author } : {}),
       ...(e.image ? { image: contentFile('entries', id, e.image, label) } : {}),
+      ...(e.caption ? { caption: e.caption } : {}),
       ...(e.media ? { media: e.media } : {}),
     };
 

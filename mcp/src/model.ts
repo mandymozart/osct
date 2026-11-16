@@ -401,7 +401,7 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     },
     entry: {
       description:
-        "An entry is top level: { id, category, title, page, body, author?, image?, media?, tags, target? } – page decides the spread. add_entry makes one, with its target or without (read only in the list); get_entries reads every field; update_entry changes them (image: a Library picture, media: a link's http(s) URL).",
+        "An entry is top level: { id, category, title, page, body, author?, image?, caption?, media?, tags, target? } – page decides the spread. add_entry makes one, with its target or without (read only in the list); get_entries reads every field; update_entry changes them (image: a Library picture, caption: the line under it in plain text – schema 2.34, an older app shows the picture without it –, media: a link's http(s) URL).",
       categories: ENTRY_CATEGORIES,
     },
     entryText: {
