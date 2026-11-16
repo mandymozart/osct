@@ -1,5 +1,4 @@
 import {
-  AdditiveBlending,
   BufferAttribute,
   CanvasTexture,
   CatmullRomCurve3,
@@ -17,41 +16,48 @@ import {
 } from "three";
 
 /**
- * The marginalia card (#285): a found picture peels off the page as a playing card, rises, spins about its vertical
- * axis (the back shows, then the front again), and slaps against the screen dead centre – a gold flash, a rumble.
+ * The marginalia card (#285): the printed picture peels off the page as a playing card, rises, spins about its
+ * vertical axis (the back shows, then the front again), and slaps against the screen dead centre – where it turns into
+ * the entry's own picture in full resolution (`reveal`), with a rumble.
  *
  * All in the camera's space (the three.js camera stays at the origin, a target's anchor is its pose relative to the
  * camera, 1 unit = the image's width – `tracker.ts`), so only the start moves while the card flies:
  *   start  P0 = the anchor's position, n = its +z (the page's normal), q0 = its rotation, w = its scale (image width)
  *   end    P1 = the camera's (0, 0, −d), q1 = the camera's rotation (the card faces the reader, upright)
- *   path   a centripetal Catmull-Rom through P0 → up off the page (P0 + lift·n) → a turn on the way to a point
- *          straight behind the landing → P1, walked in three phases (`phases`): rise (eases out to a hover), spin
- *          (eases in and out), slap (eases in – full speed at the screen). The page's points follow the anchor each
- *          frame; their weight is gone by the slap, so the tracking's jitter never reaches the landing.
+ *   path   a centripetal Catmull-Rom through P0 → a slide up the page → up off it (+ lift·n) → a turn on the way
+ *          to a point straight behind the landing → P1: the rise (slide and lift, easing out to a hover), the spin
+ *          (easing in and out), the slap (a steep ease-in – fastest at the screen). The page's points follow the
+ *          anchor each frame; their weight is gone by the slap, so the tracking's jitter never reaches the landing.
  *   turn   q(t) = slerp(q0, q1, w(t)) · peel · spinY · roll
- *   bend   during the rise the card's top edge curls up off the page (the bottom edge stays down), then it is stiff
- *   impact after landing (`IMPACT_MS`): the card is pushed at the reader and bounces back, shakes, a gold halo flashes
- *          behind it (`flash`, also the scene's bloom), the phone vibrates once.
+ *   bend   paper until the spin is over: the top edge curls up off the page (the bottom edge stays down), then it
+ *          turns into a convex bow that breathes and twists a little; it stiffens into a card early in the slap
+ *   time   0.8 s from a close page to 1.2 s from a far one (`flightMs`); all of it fluid, only the smash is hard
+ *   impact after landing (`IMPACT_MS`): the front becomes the entry's picture, the card is pushed at the reader and
+ *          bounces back, shakes, the phone vibrates once.
  */
 
 /** Share of the screen's width and height the card may fill at the end */
 export const CARD_FILL = 0.62;
-/** The flight from the page to the screen */
-export const CARD_FLIGHT_MS = 2700;
-/** The slap: push, bounce, shake and flash after the card reached the screen */
+/** The flight from the page to the screen: short from a close page, longer from a far one (`flightMs`) */
+export const CARD_FLIGHT_MS = { near: 800, far: 1200 } as const;
+/** The slap: push, bounce and shake after the card reached the screen */
 export const IMPACT_MS = 480;
 /** How long the card stays in the centre after the impact (the entry opens over it) */
 export const CARD_HOLD_MS = 250;
 /** Where the rise ends and the slap starts (0…1 of the flight) */
 const RISE_END = 0.28;
-const SLAP_START = 0.74;
+const SLAP_START = 0.8;
 /** Up off the page, in card widths; how far the turn swings out to the side */
 const LIFT = 0.6;
+/** First the card slides up the page (towards its top edge), barely off it, in card widths */
+const SLIDE = 0.45;
 const SWING = 0.18;
 /** The slap starts from this far behind the landing, in end distances */
 const BEHIND = 1.9;
 /** The bend's strongest curl of the top edge, radians */
-const CURL = 1.1;
+const CURL = 1.8;
+/** The twist's strongest turn between the bottom and the top edge, radians */
+const TWIST = 0.55;
 /** Bend segments along the card's height */
 const BEND_SEGMENTS = 18;
 
@@ -90,7 +96,6 @@ export const endDistance = (projection: Matrix4, width: number, aspect: number, 
 const clamp01 = (x: number): number => Math.min(1, Math.max(0, x));
 export const easeInOutCubic = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 const easeOutCubic = (t: number): number => 1 - (1 - t) ** 3;
-const easeInCubic = (t: number): number => t * t * t;
 const easeInOutSine = (t: number): number => -(Math.cos(Math.PI * t) - 1) / 2;
 
 /** The three phases' local progress (each 0…1) at `t` of the flight */
@@ -100,16 +105,72 @@ export const phases = (t: number): { rise: number; spin: number; slap: number } 
   slap: clamp01((t - SLAP_START) / (1 - SLAP_START)),
 });
 
-/** How far along the path (0…1, the Catmull-Rom's own parameter: a third per leg) the card is at `t` */
+/** Before the slap the card walks the first three legs of four; at the slap's start its speed carries straight on */
+const BEFORE_SLAP = 0.75;
+/** The slap's share that is the speed carried on (the rest is the steep acceleration into the screen) */
+const CARRY = (BEFORE_SLAP * (1 - SLAP_START)) / ((1 - BEFORE_SLAP) * SLAP_START);
+
+/**
+ * How far along the path (0…1, the Catmull-Rom's own parameter: a quarter per leg) the card is at `t`. Fluid: from
+ * rest it gathers speed and never stops (x²(2 − x) – ends at full speed), the slap carries that speed on and then
+ * accelerates hard (x⁴) – the only abrupt part is the smash itself.
+ */
 export const pathProgress = (t: number): number => {
-  const { rise, spin, slap } = phases(t);
-  return (easeOutCubic(rise) + easeInOutSine(spin) + easeInCubic(slap)) / 3;
+  t = clamp01(t);
+  if (t <= SLAP_START) {
+    const x = t / SLAP_START;
+    return BEFORE_SLAP * x * x * (2 - x);
+  }
+  const y = (t - SLAP_START) / (1 - SLAP_START);
+  return BEFORE_SLAP + (1 - BEFORE_SLAP) * (CARRY * y + (1 - CARRY) * y ** 4);
 };
 
-/** How far the top edge curls at `t`: up fast while it peels, back to flat by the end of the rise */
+/** The peel's peak (0…1 of the flight): the top edge is fully curled up off the page */
+const PEEL_PEAK = 0.12;
+/** The curl turns into the convex bow (the middle towards the reader) between these – already while it peels */
+const CONVEX_FROM = 0.04;
+const CONVEX_BY = 0.36;
+/** The twist swells from here – also while it peels; peel, bow and twist overlap and blend */
+const TWIST_FROM = 0.05;
+
+/** 1 until the spin is over, then smoothly down to 0 early in the slap: when the paper becomes a stiff card */
+const paperLeft = (t: number): number => 1 - easeInOutSine(clamp01((t - SLAP_START) / (0.4 * (1 - SLAP_START))));
+/** 0 → 1 between `CONVEX_FROM` and `CONVEX_BY`: from the curl off the page to the convex bow */
+const toConvex = (t: number): number => easeInOutSine(clamp01((t - CONVEX_FROM) / (CONVEX_BY - CONVEX_FROM)));
+
+/**
+ * How far the card bends at `t` (1 = curled by `CURL` towards the reader, negative = the other way): paper until the
+ * spin is over, a card after it. It curls its top edge up as it peels off the page and, already while it does, turns
+ * into a convex bow (its middle towards the reader, the edges back) that swells a little once through the rise and the
+ * spin, and stiffens only once the spin is done. The bend's axis moves with it (`bendPivotAt`).
+ */
 export const bendAt = (t: number): number => {
-  const rise = phases(t).rise;
-  return rise < 0.35 ? easeOutCubic(rise / 0.35) : 1 - easeInOutSine((rise - 0.35) / 0.65);
+  const peel = Math.sin((Math.PI / 2) * clamp01(t / PEEL_PEAK)) ** 2;
+  // One slow swell of the bow over the way to the slap – no oscillation
+  const bow = -(0.6 + 0.12 * Math.sin(Math.PI * clamp01((t - PEEL_PEAK) / (SLAP_START - PEEL_PEAK))));
+  const c = toConvex(t);
+  return ((1 - c) * peel + c * bow) * paperLeft(t);
+};
+
+/** Where the bend's axis lies at `t`, 0 = the bottom edge (the peel), 1 = the middle (the convex bow) */
+export const bendPivotAt = (t: number): number => toConvex(t);
+
+/** How far the card twists at `t` (1 = `TWIST` between its bottom and top edge): one slow twist, paper only */
+export const twistAt = (t: number): number => {
+  // One slow twist and back, swelling in while the card still peels and bows
+  return Math.sin(Math.PI * clamp01((t - TWIST_FROM) / (SLAP_START - TWIST_FROM))) ** 2 * paperLeft(t);
+};
+
+/**
+ * How long a flight from this page takes (ms): `near` when the page is about as close as the landing (the card barely
+ * travels), `far` from three landing distances away and more – in between in proportion.
+ */
+export const flightMs = (start: CardStart, camera: Pick<PerspectiveCamera, "matrixWorld" | "projectionMatrix">, aspect: number): number => {
+  const d = endDistance(camera.projectionMatrix, start.width, aspect);
+  const camPos = new Vector3().setFromMatrixPosition(camera.matrixWorld);
+  const away = start.position.distanceTo(camPos) / d;
+  const share = clamp01((away - 1) / 2);
+  return CARD_FLIGHT_MS.near + (CARD_FLIGHT_MS.far - CARD_FLIGHT_MS.near) * share;
 };
 
 const X_AXIS = new Vector3(1, 0, 0);
@@ -130,35 +191,37 @@ export const cardPose = (
   const d = endDistance(camera.projectionMatrix, start.width, aspect);
   const end = new Vector3(0, 0, -d).applyMatrix4(camera.matrixWorld);
   const right = new Vector3(1, 0, 0).transformDirection(camera.matrixWorld);
-  const up = start.position.clone().addScaledVector(start.normal, LIFT * start.width);
+  // Up the page first (its +y, towards the top edge), only just off it – then up off the page
+  const pageUp = new Vector3(0, 1, 0).applyQuaternion(start.rotation);
+  const slide = start.position.clone().addScaledVector(pageUp, SLIDE * start.width).addScaledVector(start.normal, 0.08 * start.width);
+  const up = slide.clone().addScaledVector(start.normal, LIFT * start.width);
   // The turn: on the way to a point straight behind the landing (so the slap comes straight at the reader), swung
   // out a little to the side
   const behind = new Vector3(0, 0, -BEHIND * d).applyMatrix4(camera.matrixWorld);
   const turn = up.clone().lerp(behind, 0.65).addScaledVector(right, SWING * start.width);
-  const curve = new CatmullRomCurve3([start.position, up, turn, end], false, "centripetal");
+  const curve = new CatmullRomCurve3([start.position, slide, up, turn, end], false, "centripetal");
   const position = curve.getPoint(pathProgress(t));
 
   const { rise, spin } = phases(t);
-  // Towards facing the reader: a little during the rise, the rest during the spin
-  const facing = rise < 1 ? 0.2 * easeOutCubic(rise) : 0.2 + 0.8 * easeInOutSine(spin);
-  const peel = new Quaternion().setFromAxisAngle(X_AXIS, -0.35 * Math.sin(Math.PI * rise));
-  const turnY = new Quaternion().setFromAxisAngle(Y_AXIS, 2 * Math.PI * easeInOutCubic(spin));
-  const roll = new Quaternion().setFromAxisAngle(Z_AXIS, 0.28 * Math.sin(Math.PI * spin));
+  // Every turn rises and falls smoothly over the whole way to the slap (no phase starts or stops a turn abruptly)
+  const facing = easeInOutSine(clamp01(t / SLAP_START));
+  const peel = new Quaternion().setFromAxisAngle(X_AXIS, -0.35 * Math.sin(Math.PI * rise) ** 2);
+  const turnY = new Quaternion().setFromAxisAngle(Y_AXIS, 2 * Math.PI * easeInOutSine(spin));
+  const roll = new Quaternion().setFromAxisAngle(Z_AXIS, 0.28 * Math.sin(Math.PI * clamp01(t / SLAP_START)));
   const rotation = start.rotation.clone().slerp(camera.quaternion, facing).multiply(peel).multiply(turnY).multiply(roll);
   return { position, rotation };
 };
 
 /**
- * The impact at `ms` after the card reached the screen: `push` towards the reader (a share of the end distance; it
- * bounces back), `shake` sideways (card widths) and the `flash` (0…1).
+ * The impact at `ms` after the card reached the screen: `push` towards the reader (a share of the distance; it
+ * bounces back) and `shake` sideways (card widths).
  */
-export const impactAt = (ms: number): { push: number; shake: [number, number]; flash: number } => {
-  if (ms < 0 || ms >= IMPACT_MS) return { push: 0, shake: [0, 0], flash: 0 };
+export const impactAt = (ms: number): { push: number; shake: [number, number] } => {
+  if (ms < 0 || ms >= IMPACT_MS) return { push: 0, shake: [0, 0] };
   const decay = Math.exp(-ms / 110);
   return {
     push: 0.09 * Math.exp(-ms / 70) * Math.cos(ms / 38),
     shake: [0.018 * decay * Math.sin(ms * 0.11), 0.014 * decay * Math.sin(ms * 0.17 + 1)],
-    flash: ms < 50 ? ms / 50 : Math.max(0, 1 - (ms - 50) / (IMPACT_MS - 50)) ** 2,
   };
 };
 
@@ -193,26 +256,6 @@ const defaultBack = (): Texture => {
   return texture;
 };
 
-/** The flash's halo: the reveal's golds, bright in the middle, gone at the edge */
-const haloTexture = (): Texture => {
-  const canvas = document.createElement("canvas");
-  canvas.width = 128;
-  canvas.height = 128;
-  const g = canvas.getContext("2d");
-  if (g) {
-    const glow = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-    glow.addColorStop(0, "rgba(245, 231, 200, 1)");
-    glow.addColorStop(0.35, "rgba(243, 204, 148, .85)");
-    glow.addColorStop(0.65, "rgba(210, 174, 90, .35)");
-    glow.addColorStop(1, "rgba(127, 96, 50, 0)");
-    g.fillStyle = glow;
-    g.fillRect(0, 0, 128, 128);
-  }
-  const texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
-  return texture;
-};
-
 /** The back's geometry: the front's positions (shared, so the bend reaches both), the other winding, mirrored u */
 const backOf = (front: PlaneGeometry): PlaneGeometry => {
   const back = front.clone() as PlaneGeometry;
@@ -230,45 +273,46 @@ const backOf = (front: PlaneGeometry): PlaneGeometry => {
 
 /**
  * One flight: a two-sided card added to the scene, moved every frame by `update`, removed by `dispose`.
- * The back reads upright once the card has turned half way about its vertical axis.
+ * The back reads upright once the card has turned half way about its vertical axis. `front` is the printed picture
+ * (the target), `reveal` the entry's own picture that takes its place when the card hits the screen (none: it stays).
  */
 export class CardFlight {
   readonly object = new Group();
-  /** The impact's flash now (0…1): the halo, and the scene's bloom */
-  flash = 0;
   private elapsed = 0;
+  /** The flight's length (ms): given, or set from the page's distance on the first frame (`flightMs`) */
+  private duration: number;
+
+  get length(): number {
+    return this.duration;
+  }
   private start: CardStart;
   private textures: Texture[] = [];
   private geometry: PlaneGeometry;
   private flat: Float32Array;
-  private halo: Mesh;
-  private rumbled = false;
+  private frontMaterial: MeshBasicMaterial;
+  private revealed = false;
 
   constructor(
     anchor: Matrix4,
     front: Texture,
     private aspect: number,
     back: Texture | null = null,
-    private duration = CARD_FLIGHT_MS,
+    duration: number | null = null,
+    private reveal: Texture | null = null,
   ) {
     this.start = startFromAnchor(anchor);
+    this.duration = duration ?? 0;
     const backTexture = back ?? defaultBack();
-    const glow = haloTexture();
-    this.textures = [front, backTexture, glow];
+    this.textures = [front, backTexture, ...(reveal ? [reveal] : [])];
     this.geometry = new PlaneGeometry(1, aspect, 1, BEND_SEGMENTS);
     this.flat = (this.geometry.getAttribute("position").array as Float32Array).slice();
     // On top of the page and its entities: no depth test, drawn last
     const material = (map: Texture) => new MeshBasicMaterial({ map, side: FrontSide, depthTest: false, depthWrite: false, transparent: true });
-    const frontMesh = new Mesh(this.geometry, material(front));
+    this.frontMaterial = material(front);
+    const frontMesh = new Mesh(this.geometry, this.frontMaterial);
     const backMesh = new Mesh(backOf(this.geometry), material(backTexture));
-    this.halo = new Mesh(
-      new PlaneGeometry(1.9, aspect + 0.9),
-      new MeshBasicMaterial({ map: glow, blending: AdditiveBlending, depthTest: false, depthWrite: false, transparent: true, opacity: 0 }),
-    );
-    this.halo.position.z = -0.02;
-    this.halo.renderOrder = 9_999;
-    for (const mesh of [frontMesh, backMesh]) mesh.renderOrder = 10_000;
-    for (const mesh of [this.halo, frontMesh, backMesh]) {
+    for (const mesh of [frontMesh, backMesh]) {
+      mesh.renderOrder = 10_000;
       mesh.frustumCulled = false;
       this.object.add(mesh);
     }
@@ -284,13 +328,19 @@ export class CardFlight {
       // Only the pose follows the page; the width stays, so the end distance does not jump with the tracking's scale
       this.start = { ...startFromAnchor(anchor), width: this.start.width };
     }
+    if (!this.duration) this.duration = flightMs(this.start, camera, this.aspect);
     this.elapsed += delta * 1000;
     const t = Math.min(1, this.elapsed / this.duration);
     const { position, rotation } = cardPose(this.start, camera, this.aspect, t);
     const impact = impactAt(this.elapsed - this.duration);
     if (this.elapsed >= this.duration) {
-      if (!this.rumbled) {
-        this.rumbled = true;
+      if (!this.revealed) {
+        // The smash: the printed picture becomes the entry's own
+        this.revealed = true;
+        if (this.reveal) {
+          this.frontMaterial.map = this.reveal;
+          this.frontMaterial.needsUpdate = true;
+        }
         if (typeof navigator !== "undefined") navigator.vibrate?.([40, 30, 60]);
       }
       const towards = new Vector3().setFromMatrixPosition(camera.matrixWorld).sub(position);
@@ -299,10 +349,7 @@ export class CardFlight {
       const up = new Vector3(0, 1, 0).applyQuaternion(rotation);
       position.addScaledVector(right, impact.shake[0] * this.start.width).addScaledVector(up, impact.shake[1] * this.start.width);
     }
-    this.flash = impact.flash;
-    (this.halo.material as MeshBasicMaterial).opacity = impact.flash;
-    this.halo.scale.setScalar(1 + 0.35 * (1 - impact.flash));
-    this.bend(bendAt(t));
+    this.bend(bendAt(t), twistAt(t), bendPivotAt(t));
     this.object.position.copy(position);
     this.object.quaternion.copy(rotation);
     this.object.scale.setScalar(this.start.width);
@@ -310,15 +357,22 @@ export class CardFlight {
   }
 
   /** Curl the card's top edge up off the page by `amount` (0 = flat): a cylinder whose axis lies along the bottom edge */
-  private bend(amount: number): void {
+  private bend(amount: number, twist = 0, pivot = 0): void {
     const positions = this.geometry.getAttribute("position") as BufferAttribute;
     const height = this.aspect;
     const bottom = -height / 2;
-    const k = (amount * CURL) / height; // curvature: the top edge turns by `amount · CURL`
+    // The bend's axis: from the bottom edge (the peel) to the middle (the bow)
+    const axis = bottom + (pivot * height) / 2;
+    const k = (amount * CURL) / height; // curvature: an edge turns by up to `amount · CURL`
     for (let i = 0; i < positions.count; i++) {
-      const y = this.flat[i * 3 + 1] - bottom;
-      if (k < 1e-5) positions.setXYZ(i, this.flat[i * 3], this.flat[i * 3 + 1], 0);
-      else positions.setXYZ(i, this.flat[i * 3], bottom + Math.sin(k * y) / k, (1 - Math.cos(k * y)) / k);
+      const x = this.flat[i * 3];
+      const y = this.flat[i * 3 + 1];
+      const along = y - axis;
+      const by = Math.abs(k) < 1e-5 ? y : axis + Math.sin(k * along) / k;
+      const bz = Math.abs(k) < 1e-5 ? 0 : (1 - Math.cos(k * along)) / k;
+      // The twist: each row turns about the card's vertical axis, more towards the top
+      const angle = twist * TWIST * ((y - bottom) / height - 0.5);
+      positions.setXYZ(i, x * Math.cos(angle), by, bz + x * Math.sin(angle));
     }
     positions.needsUpdate = true;
   }
@@ -331,7 +385,7 @@ export class CardFlight {
         node.geometry.dispose();
       }
     });
-    // The flight owns its textures (the front is loaded for it)
+    // The flight owns its textures (the pictures are loaded for it)
     this.textures.forEach(texture => texture.dispose());
   }
 }

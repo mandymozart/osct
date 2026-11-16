@@ -228,12 +228,14 @@ export class FoundIndicator extends HTMLElement {
   /** The card flight for a glossary entry not consulted yet, null when there is none (the entry opens at once) */
   private flyCard(target: Target): Promise<boolean> | null {
     const entry = getEntry(target.entryId);
-    const front = entry?.image ?? target.imageSrc;
+    // It flies as the printed picture and becomes the entry's own when it hits the screen
+    const front = target.imageSrc;
+    const reveal = entry?.image && entry.image !== front ? entry.image : undefined;
     if (target.entity || !entry || !front || entry.category !== EntryCategory.Glossary) return null;
     if (this.game.history.isConsulted(entry.id)) return null;
     if (typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
     let flown: Promise<boolean> | null = null;
-    const detail: CardFlightDetail = { targetId: target.id, front, respond: promise => (flown = promise) };
+    const detail: CardFlightDetail = { targetId: target.id, front, reveal, respond: promise => (flown = promise) };
     const event = new CustomEvent(CARD_FLIGHT_EVENT, { detail, cancelable: true });
     return document.dispatchEvent(event) ? null : flown;
   }

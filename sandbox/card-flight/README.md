@@ -1,7 +1,7 @@
 # Card flight sandbox
 
-A dev-only page to watch and time the marginalia card (#285): the picture lifts off the page as a stiff playing card,
-turns over once and lands dead centre. It runs the engine's own `CardFlight` (`engine/src/scene/card-flight.ts`);
+A dev-only page to watch and time the marginalia card (#285): the printed picture peels off the page, rises, spins
+and slaps against the screen dead centre, where it turns into the entry's own picture in colour. It runs the engine's own `CardFlight` (`engine/src/scene/card-flight.ts`);
 only the page's pose is simulated. No part of the reader's or the editor's build.
 
 ## Run
@@ -18,5 +18,5 @@ so the tracking's jitter during the flight can be judged.
 
 | The same as in the reader | Simulated |
 |---|---|
-| `CardFlight`: path, turn, end distance, the default back, render order | The page: a sheet with the fixture picture, its pose from the sliders |
+| `CardFlight`: path, spin, bend, end distance, the default back, the picture swap at the smash | The page: a sheet with the printed picture (made grey and small from the fixture's colour picture), its pose from the sliders |
 | Camera at the origin, the anchor's pose relative to it, 1 unit = the picture's width | The field of view: fixed 60° vertical |

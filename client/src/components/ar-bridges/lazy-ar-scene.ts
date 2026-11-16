@@ -113,7 +113,7 @@ export class LazyArScene implements IArScene {
     this.scene?.celebrate(targetId);
   }
 
-  flyCard(targetId: string, card: { front: string; back?: string }): Promise<boolean> {
+  flyCard(targetId: string, card: { front: string; reveal?: string; back?: string }): Promise<boolean> {
     return this.scene?.flyCard(targetId, card) ?? Promise.resolve(false);
   }
 

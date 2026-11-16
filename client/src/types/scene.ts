@@ -20,8 +20,10 @@ export const CARD_FLIGHT_EVENT = "osct:card-flight";
 
 export interface CardFlightDetail {
   targetId: string;
-  /** The card's picture */
+  /** The card's picture while it flies: the printed one (the target's image) */
   front: string;
+  /** What it becomes when it hits the screen: the entry's own picture */
+  reveal?: string;
   respond: (flown: Promise<boolean>) => void;
 }
 

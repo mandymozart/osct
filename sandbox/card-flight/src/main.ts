@@ -1,8 +1,8 @@
-import { Group, Matrix4, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Scene, SRGBColorSpace, TextureLoader, Vector3, WebGLRenderer } from "three";
+import { CanvasTexture, Group, Matrix4, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Scene, SRGBColorSpace, type Texture, TextureLoader, Vector3, WebGLRenderer } from "three";
 import { CARD_HOLD_MS, CardFlight } from "@engine/scene/card-flight";
 
-/** The fixture's picture stands in for a glossary entry's image */
-const PICTURE = new URL("../../../fixtures/content/entries/ancient-tree/images-102.jpg", import.meta.url).href;
+/** A fixture's colour picture stands in for a glossary entry's own image; the printed target is made from it */
+const PICTURE = new URL("../../../fixtures/content/entries/metafiction/metafiction.jpg", import.meta.url).href;
 
 const renderer = new WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
@@ -31,7 +31,23 @@ const loadPicture = () => loader.loadAsync(PICTURE).then(texture => {
   texture.colorSpace = SRGBColorSpace;
   return texture;
 });
-void loadPicture().then(texture => {
+/** The picture as the page prints it: small, grey, a little faded – the target the card flies as */
+const printed = (picture: Texture): Texture => {
+  const image = picture.image as HTMLImageElement;
+  const canvas = document.createElement("canvas");
+  canvas.width = 180;
+  canvas.height = Math.round((180 * image.height) / image.width);
+  const g = canvas.getContext("2d");
+  if (g) {
+    g.filter = "grayscale(1) contrast(.85) brightness(1.05)";
+    g.drawImage(image, 0, 0, canvas.width, canvas.height);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+};
+void loadPicture().then(colour => {
+  const texture = printed(colour);
   const image = texture.image as { width: number; height: number };
   aspect = image.height / image.width;
   picture.scale.y = aspect;
@@ -59,7 +75,7 @@ document.getElementById("fly")?.addEventListener("click", () => {
   flight?.dispose();
   flight = null;
   void loadPicture().then(front => {
-    flight = new CardFlight(page.matrix, front, aspect, null, Number(input("length").value));
+    flight = new CardFlight(page.matrix, printed(front), aspect, null, Number(input("length").value) || null, front);
     scene.add(flight.object);
     picture.visible = false;
   });
@@ -86,9 +102,10 @@ let frozen = false;
   page.matrix.copy(anchorMatrix(0));
   camera.updateMatrixWorld();
   const length = Number(input("length").value);
-  const still = new CardFlight(page.matrix, front, aspect, null, length);
+  const still = new CardFlight(page.matrix, printed(front), aspect, null, length || null, front);
   scene.add(still.object);
-  still.update((t * length) / 1000, page.matrix, camera);
+  still.update(0, page.matrix, camera); // sets the length from the page's distance when it is auto
+  still.update((t * still.length) / 1000, page.matrix, camera);
   picture.visible = false;
   renderer.render(scene, camera);
   flight = null;
@@ -100,7 +117,8 @@ renderer.setAnimationLoop(now => {
   const delta = Math.min(0.1, (now - last) / 1000);
   last = now;
   if (frozen) return;
-  show("length", `${(Number(input("length").value) / 1000).toFixed(1)} s`);
+  const auto = flight?.length;
+  show("length", Number(input("length").value) ? `${(Number(input("length").value) / 1000).toFixed(1)} s` : `auto${auto ? ` ${(auto / 1000).toFixed(2)} s` : ""}`);
   show("distance", input("distance").value);
   show("tilt", `${input("tilt").value}°`);
   page.matrix.copy(anchorMatrix(now / 1000));

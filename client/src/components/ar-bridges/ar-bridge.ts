@@ -1,6 +1,7 @@
 import { GameStoreService, PreloaderService, SubtitleService, UpdateService } from "@/services";
 import { type ArError, type ArStatus, CameraPermissionStatus, CARD_FLIGHT_EVENT, type CardFlightDetail, ErrorCode, GameMode, type IArScene, type IGame, LoadingState, TARGET_UNLOCKED_EVENT } from "@/types";
 import { getTarget } from "@/utils/game-config";
+import { bookCoverUrl } from "@/utils/book-cover";
 import { LazyArScene } from "./lazy-ar-scene";
 import { reportArError } from "@engine/utils/camera-debug";
 import { getPreparedWindow } from "@engine/utils/prepared-spreads";
@@ -136,7 +137,9 @@ export class ArBridge extends HTMLElement {
     const scene = this.scene;
     if (!scene || this.game.state.mode !== GameMode.SCAN) return;
     event.preventDefault();
-    event.detail.respond(scene.flyCard(event.detail.targetId, { front: event.detail.front }));
+    const { targetId, front, reveal } = event.detail;
+    // The card's back is the book's cover (when the content has a print layout)
+    event.detail.respond(bookCoverUrl().then(back => scene.flyCard(targetId, { front, reveal, back: back ?? undefined })));
   }
 
   private applySceneState() {

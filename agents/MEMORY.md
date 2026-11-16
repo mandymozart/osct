@@ -21,10 +21,18 @@ outcome in the line (or move it into a dated decision block).
   Path: a Catmull-Rom page → up → a turn on the way to a point behind the landing → the landing, in three eased
   phases (rise, spin about the card's Y, slap that eases in); the impact pushes, bounces, shakes, flashes a gold halo
   (also the bloom) and vibrates.
+- Then, watching the sandbox live: a path after his drawing (a loop, a big arc) was tried and **dropped** (*"movement
+  was much better before. just revert"*); a gold flash over the card (sheen / the reveal's noise) was tried and
+  **dropped** – *"just replace the target image with the high res image for each glossary once it hits the screen.
+  that is surprise enough"*. Kept: it slides **up the page** first; peel, convex bow (*"not concave"*) and a slight
+  twist **overlap and blend**; it stays paper until the spin is over; everything fluid except the smash, which is
+  faster; the back is the **book's cover** (the print layout's `cover-front` sheet, fetched by the reader from
+  `layout/layout.json` – the gold pattern when there is none); the length follows the page's distance, **0.8–1.2 s**.
 - Built: `engine/src/scene/card-flight.ts`, `IArScene.flyCard`, the indicator asks over `CARD_FLIGHT_EVENT` and opens
   the entry once the card landed. Seen in `sandbox/card-flight/` (simulated page), **not on a phone yet**.
-- [ ] Open (Kévin, #285): the higher-resolution colour picture per card (the card uses the entry's image now), the
-  back (the front cover?; a gold frame and diamond now), the sounds (rattle at the pick-up, whoosh). Length to tune.
+- [ ] Open (Kévin, #285): the higher-resolution colour picture per glossary entry (the reveal uses the entry's
+  `image` now – often the same as the target; then the card does not change), the sounds (rattle at the pick-up,
+  whoosh). Not seen with a real layout's cover yet (the fixture has no layout); not tried on a phone.
 
 ## 2026-11-16 – front and back matter are spreads with internal pages (#296, 1.80.0)
 

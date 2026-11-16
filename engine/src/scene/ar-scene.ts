@@ -190,14 +190,14 @@ export class ArScene implements IArScene {
   }
 
   /**
-   * The marginalia card (#285): the picture `front` peels off the found target's page, rises, spins (showing `back`,
-   * a default pattern without one) and slaps against the screen dead centre with a gold flash and a rumble
-   * (`card-flight.ts`). Resolves true once the impact is over (the card stays a moment longer, for the entry to open
+   * The marginalia card (#285): the printed picture `front` peels off the found target's page, rises, spins (showing
+   * `back`, a default pattern without one) and slaps against the screen dead centre, where it becomes `reveal` (the
+   * entry's own picture in full resolution) with a rumble (`card-flight.ts`). Resolves true once the impact is over (the card stays a moment longer, for the entry to open
    * over it), false at once when there is nothing to fly from
    * (the target is not found, the scene does not run, the picture does not load) or a newer flight or a teardown
    * ended it.
    */
-  flyCard(targetId: string, card: { front: string; back?: string }): Promise<boolean> {
+  flyCard(targetId: string, card: { front: string; reveal?: string; back?: string }): Promise<boolean> {
     const anchor = this.content?.anchors.find(a => a.target.id === targetId);
     const view = this.view;
     if (!anchor || !view || !this.running || !this.found.has(targetId)) return Promise.resolve(false);
@@ -207,16 +207,18 @@ export class ArScene implements IArScene {
         texture.colorSpace = SRGBColorSpace;
         return texture;
       });
-      void Promise.all([load(card.front), card.back ? load(card.back).catch(() => null) : Promise.resolve(null)]).then(
-        ([front, back]: [Texture, Texture | null]) => {
+      const optional = (src?: string) => (src ? load(src).catch(() => null) : Promise.resolve(null));
+      void Promise.all([load(card.front), optional(card.back), optional(card.reveal)]).then(
+        ([front, back, reveal]: [Texture, Texture | null, Texture | null]) => {
           const image = front.image as { width?: number; height?: number } | undefined;
           const aspect = image?.width && image.height ? image.height / image.width : 1;
           if (this.view !== view || !this.found.has(targetId) || this.card) {
             front.dispose();
             back?.dispose();
+            reveal?.dispose();
             return resolve(false);
           }
-          const flight = new CardFlight(anchor.group.matrix, front, aspect, back);
+          const flight = new CardFlight(anchor.group.matrix, front, aspect, back, undefined, reveal);
           view.scene.add(flight.object);
           this.card = { flight, targetId, landed: false, done: resolve };
         },
@@ -499,8 +501,7 @@ export class ArScene implements IArScene {
           const anchor = animation.kind === "lost" && !this.found.has(id) && this.content?.anchors.find(a => a.target.id === id);
           if (anchor) anchor.group.visible = false;
         });
-        // The marginalia card's impact flashes like a reveal
-        view.bloomStrength = Math.max(bloom, 0.8 * (this.card?.flight.flash ?? 0));
+        view.bloomStrength = bloom;
       });
       document.addEventListener("click", this.onTap);
       // The window's size changed (load test budget): the tracker and the preload follow at once
