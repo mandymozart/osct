@@ -9,8 +9,9 @@ import { t } from "i18next";
 /**
  * Top chrome, per mode (reflected in the `mode` and `page` attributes):
  * - IDLE (home, tutorial): nothing.
- * - SCAN: Mark the Page + counter.
- * - CONSULTATION: Mark + "i" (→ About); the counter with "Entries consulted" only on the entries list.
+ * - SCAN: Mark the Page only (#283).
+ * - CONSULTATION: Mark with the current target's picture beside it + a white "i" (→ About); the counter with
+ *   "Marginalia consulted" only on the entries list. A backdrop lets the pages scroll under the header (#283).
  *   The "Entries" back button lives in ConsultationPage, not here. On Info and the image credits a gold × takes the
  *   place of the "i" (#291): Info closes to the entries list, the credits back to Info.
  */
@@ -56,23 +57,44 @@ export class GameHeader extends HTMLElement {
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    gap: .25rem;
                     pointer-events: none;
                     /* above the full-screen consultation pages */
                     z-index: 1100;
                 }
+                /* Consultation: the pages' text scrolls under the header, not through the icon (design p. 59) – a
+                   near-black backdrop (the page's own is translucent and would let the text show), fading out a
+                   little below the header */
+                .chrome::before {
+                    content: "";
+                    position: absolute;
+                    inset: 0 0 -1.5rem 0;
+                    background: linear-gradient(to bottom,
+                        rgba(0, 0, 0, .96) 0%,
+                        rgba(0, 0, 0, .96) calc(100% - 2.5rem),
+                        transparent 100%);
+                    z-index: -1;
+                    display: none;
+                }
+                :host([mode="consultation"]) .chrome::before { display: block; }
 
-                /* Compensates the Mark image's transparent top margin; the counter below keeps its place */
+                /* Compensates the Mark image's transparent top margin; the counter follows close below (design p. 2) */
                 mark-the-page {
                     margin-top: calc(-1 * var(--mark-inset-top));
-                    margin-bottom: var(--mark-inset-top);
                 }
                 .counter { text-align: center; }
-                .counter-label { color: var(--color-muted); }
+                /* Two classes: the adopted design styles come after this sheet (.design sets the Medium size) */
+                .counter .counter-label { font-size: var(--text-size-small); }
 
                 .info, .close {
                     position: absolute;
                     pointer-events: all;
+                }
+                /* The "i": Medium text in white, not gold (design p. 2, 26); the × stays gold */
+                .chrome .info { font-size: var(--text-size); }
+                .info .gold {
+                    background: none;
+                    color: var(--color-on-dark);
+                    -webkit-text-fill-color: currentColor;
                 }
                 /* Same gap above and to the right, counted below the safe area (DESIGN.md §3) */
                 .info, .close {
@@ -86,7 +108,7 @@ export class GameHeader extends HTMLElement {
                 :host([page="about"]) .info,
                 :host([page="credits"]) .info,
                 :host(:not([page="about"]):not([page="credits"])) .close,
-                :host(:not([mode="consultation"])) .counter-label,
+                :host(:not([mode="consultation"])) .counter,
                 :host([mode="consultation"]:not([page="entries"])) .counter {
                     display: none;
                 }
@@ -95,7 +117,7 @@ export class GameHeader extends HTMLElement {
               <mark-the-page></mark-the-page>
               <div class="counter">
                 <entries-counter></entries-counter>
-                <div class="counter-label design">${t("header:entriesConsulted")}</div>
+                <div class="counter-label design gold">${t("header:entriesConsulted")}</div>
               </div>
               ${goldButton({ label: "i", shape: "icon", className: "info", attrs: { id: "info", "aria-label": t("header:info") } })}
               ${goldButton({ label: "×", shape: "icon", className: "close", attrs: { id: "close", "aria-label": t("header:close") } })}
