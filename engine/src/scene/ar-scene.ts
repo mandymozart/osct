@@ -17,6 +17,10 @@ import { cameraGrades, cameraGradeShader } from "./post/grade";
 import { emitCoreEvent, type ProgressReader, setProgressReader, setSpreadSource, spreadChanged, stageEnded } from "./plugin-runtime";
 import type { IImageTracker, ImageTrackerOptions, TrackerContext } from "./tracker-types";
 import { LookAround } from "./look-around";
+import { Subtitles } from "./subtitles";
+import { holdMedia, releaseMedia } from "./media";
+import { textureMedia } from "./textures";
+import { holdFeedbacks } from "./feedback";
 import { onAppUi } from "./ui";
 import { ArView } from "./view";
 
@@ -45,6 +49,8 @@ export interface ArSceneOptions {
   progress?: ProgressReader;
   /** The app's development build: debug handles on `window` (the look-around's `osctLookAroundDebug`) */
   debug?: boolean;
+  /** The language the app shows subtitles in (asked while a video plays, so a change applies at once); none = English */
+  subtitleLanguage?: () => string;
 }
 
 /**
@@ -89,6 +95,8 @@ export class ArScene implements IArScene {
   /** Models with a texture set show their map at the size the reader's texture quality asks for on this device (#260) */
   private assets = new AssetStore(() => wantedTextureSize(this.textureQuality, deviceHints(this.view?.renderer.capabilities.maxTextureSize)));
   private textureQuality: TextureQuality | undefined;
+  /** The line of the playing video's subtitle file, told to the app when it changes (`subtitle`) */
+  private subtitles = new Subtitles(() => this.options.subtitleLanguage?.() ?? "en", text => this.emitter.emit("subtitle", text));
   private graphicsCleanup: (() => void) | null = null;
   private content: SpreadContent | null = null;
   private found = new Set<string>();
@@ -218,11 +226,15 @@ export class ArScene implements IArScene {
    */
   /**
    * Hold the entities' clock (the editor's Live switch off, #269) or let it run again: while held, no entity's `update`
-   * runs – components, clips, materials, textures and plugin updates stand still where they are – while the moments'
-   * looks (reveal, found, lost) play on, so what is found still appears. Videos and a plugin's own timers keep theirs.
+   * runs – components, clips, materials, textures and plugin updates stand still where they are –, the videos and sounds
+   * stop where they are and a page found meanwhile does not start its video (`media.ts`, #275), and the plugins' GPU
+   * feedback buffers keep their last frame. The moments' looks (reveal, found, lost) play on, so what is found still
+   * appears. Let go, everything goes on from where it stood. A plugin's own timers keep theirs.
    */
   holdClock(held: boolean): void {
     this.clockHeld = held;
+    holdMedia(held, [...this.assets.media(), ...textureMedia()]);
+    holdFeedbacks(held);
   }
 
   overrideAppearance(override: { appearance: BookAppearance | null } | null): void {
@@ -412,6 +424,7 @@ export class ArScene implements IArScene {
         const anchors = this.content?.anchors.filter(a => this.found.has(a.target.id)).map(a => a.group.matrix) ?? [];
         this.lookAround?.update(delta, view.camera, anchors);
         if (!this.clockHeld) this.content?.anchors.forEach(a => a.entity?.update?.(delta));
+        this.subtitles.update(this.assets.videos());
         let bloom = 0;
         this.animations.forEach((animation, id) => {
           if (animation.update(delta)) {
@@ -622,6 +635,10 @@ export class ArScene implements IArScene {
     this.running = false;
     this.setScanning(false);
     stageEnded();
+    // The editor's hold ends with the scene: the next one starts with its media and buffers free
+    releaseMedia();
+    holdFeedbacks(false);
+    this.clockHeld = false;
     this.setStatus("idle");
   }
 
@@ -711,6 +728,7 @@ export class ArScene implements IArScene {
 
   private pauseEntities(): void {
     this.content?.anchors.forEach(a => a.entity?.onPause?.());
+    this.subtitles.clear();
   }
 
   /** Report every found target as lost (tracking stops or the targets go away) */

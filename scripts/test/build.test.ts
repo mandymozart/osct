@@ -305,3 +305,41 @@ describe('the demo book', () => {
     expect(trees.flatMap(({ node, label }) => zeroPlaneFindings(node, label, contentModelBounds))).toEqual([]);
   });
 });
+
+// A video's subtitle files are found by their names (#257): nothing in the YAML names them
+describe('subtitles', () => {
+  const VTT = 'WEBVTT\n\n00:01.000 --> 00:02.000\nHello\n';
+
+  it('pairs the subtitle files beside a video with it, per language', async () => {
+    const build = await loadBuild(makeContent({
+      ...valid(),
+      'entries/first/speak.mp4': 'video',
+      'entries/first/speak.fr.vtt': VTT,
+      'entries/first/speak.en.vtt': VTT,
+    }));
+    const { buildSubtitles } = await import('../src/build/subtitles');
+    expect(buildSubtitles()).toEqual([{
+      media: '/assets/content/entries/first/speak.mp4',
+      tracks: { en: '/assets/content/entries/first/speak.en.vtt', fr: '/assets/content/entries/first/speak.fr.vtt' },
+    }]);
+    expect(build.errors).toEqual([]);
+    expect(build.warnings).toEqual([]);
+  });
+
+  it('leaves out a subtitle file without its video or without a language, and refuses one that is no WebVTT', async () => {
+    const build = await loadBuild(makeContent({
+      ...valid(),
+      'entries/first/speak.mp4': 'video',
+      'entries/first/speak.en.vtt': 'Hello\n',
+      'entries/first/other.en.vtt': VTT,
+      'entries/second/speak.vtt': VTT,
+    }));
+    const { buildSubtitles } = await import('../src/build/subtitles');
+    expect(buildSubtitles().map(s => Object.keys(s.tracks))).toEqual([['en']]);
+    expect(build.errors).toEqual(['entries/first/speak.en.vtt: the first line must be "WEBVTT"', 'entries/first/speak.en.vtt: no cue found']);
+    expect(build.warnings).toEqual([
+      'entries/first/other.en.vtt: no video "other.mp4" (or .webm, .mov) beside it – the subtitles are left out',
+      'entries/second/speak.vtt: a subtitle file is named <video name>.<language>.vtt (speak.en.vtt) – left out',
+    ]);
+  });
+});

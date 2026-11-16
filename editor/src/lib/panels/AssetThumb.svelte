@@ -10,7 +10,7 @@
    */
   let { asset }: { asset: Asset } = $props();
 
-  const ICONS: Record<string, IconName> = { glb: "model", gltf: "model", video: "video", image: "image", audio: "layers" };
+  const ICONS: Record<string, IconName> = { glb: "model", gltf: "model", video: "video", image: "image", audio: "layers", subtitles: "type" };
   let loaded = $state(false);
   let failed = $state(false);
   let visible = $state(false);

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ArSceneEvents, type ArStatus, CameraPermissionStatus, ErrorCode, type IArScene, LoadingState, SceneState, TARGET_UNLOCKED_EVENT } from "@/types";
-import { GameStoreService, PreloaderService, UpdateService } from "@/services";
+import { GameStoreService, PreloaderService, SubtitleService, UpdateService } from "@/services";
 import { getSpreads, getTargets } from "@/utils/game-config";
 import { getArError } from "@engine/utils/camera-debug";
 import { getPreparedWindow } from "@engine/utils/prepared-spreads";
@@ -193,6 +193,18 @@ describe("<ar-bridge>", () => {
     bridge.remove();
     expect(indicator.classList.contains("hidden")).toBe(true);
     indicator.remove();
+  });
+
+  it("hands the scene's subtitle line to the subtitles, and takes it away when removed", () => {
+    const subtitles = SubtitleService.getInstance();
+    subtitles.setSettings({ enabled: true });
+    scene.emit("subtitle", "Hello.");
+    expect(subtitles.line).toBe("Hello.");
+    scene.emit("subtitle", null);
+    expect(subtitles.line).toBeNull();
+    scene.emit("subtitle", "Still speaking");
+    bridge.remove();
+    expect(subtitles.line).toBeNull();
   });
 
   it("disposes the scene and stops listening when removed", () => {

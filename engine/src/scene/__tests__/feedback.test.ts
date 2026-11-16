@@ -5,7 +5,7 @@ import { buildEntity } from "../entities";
 import { installedPlugins, installPlugin, uninstallPlugin } from "../plugins";
 import {
   collectFeedbacks, createFeedback, type Feedback, feedbackCount, type FeedbackRenderer, feedbackProblems, setFeedbackRenderer, shadertoyFragment,
-  stepFeedbacks, supportedFeedbackType,
+  holdFeedbacks, stepFeedbacks, supportedFeedbackType,
 } from "../feedback";
 
 /** GPU feedback buffers the engine steps once per frame, and the Shadertoy adapter (#225) */
@@ -44,10 +44,27 @@ afterEach(() => {
   made.splice(0).forEach(buffer => buffer.dispose());
   installedPlugins().forEach(uninstallPlugin);
   setFeedbackRenderer(null);
+  holdFeedbacks(false);
   vi.restoreAllMocks();
 });
 
 describe("a feedback buffer's stepping", () => {
+  it("stands still while held (the editor's Live switch off, #275) and goes on from its last frame and time", () => {
+    const { renderer, draws } = stubRenderer();
+    const buffer = feedback();
+    stepFeedbacks(renderer, 0.5);
+    const frame = buffer.texture;
+    holdFeedbacks(true);
+    stepFeedbacks(renderer, 0.5);
+    stepFeedbacks(renderer, 0.5);
+    expect(draws).toHaveLength(1);
+    expect(buffer.texture).toBe(frame);
+    holdFeedbacks(false);
+    stepFeedbacks(renderer, 0.5);
+    expect(draws).toHaveLength(2);
+    expect(draws[1]).toMatchObject({ frame: 1, time: 0.5 });
+  });
+
   it("ping-pongs: each step reads the last output and writes the other target, then the texture is the new frame", () => {
     const { renderer, draws } = stubRenderer();
     const buffer = feedback();

@@ -3,7 +3,7 @@ import "@/components/scan";
 
 /**
  * Scan mode page: transparent over the camera, found-target indicator in the center, spread menu at the
- * bottom. The top chrome comes from `header.ts`.
+ * bottom, the subtitle line of a speaking video above it. The top chrome comes from `header.ts`.
  */
 export class SpreadPage extends PageMinimal {
   get styles(): string {
@@ -24,6 +24,12 @@ export class SpreadPage extends PageMinimal {
         top: 50%;
         transform: translateY(-50%);
       }
+      subtitle-line {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: calc(max(1rem, env(safe-area-inset-bottom)) + var(--subtitle-offset));
+      }
       spread-menu {
         position: fixed;
         left: 0;
@@ -36,6 +42,7 @@ export class SpreadPage extends PageMinimal {
   get template(): string {
     return /* html */ `
       <found-indicator></found-indicator>
+      <subtitle-line></subtitle-line>
       <spread-menu></spread-menu>
     `;
   }

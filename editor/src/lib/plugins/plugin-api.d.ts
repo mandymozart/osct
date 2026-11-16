@@ -580,7 +580,8 @@ export type MaterialBuild = (context: MaterialContext) => Material | MaterialIns
  * three.js `Texture` first (`resolveTextures`): the code never loads a file itself.
  *
  * A **file** texture is shared by every use of the same file (counted, disposed with its last use) – change its wrap or
- * repeat once, never dispose it. A video plays muted in a loop while it is used. A **procedural** texture is drawn per
+ * repeat once, never dispose it. A video plays muted in a loop while it is used (unless the editor holds the scene's
+ * media, `media.ts`). A **procedural** texture is drawn per
  * use: the use owns it (its `update` runs every frame, it is disposed with the node).
  */
 /** What a procedural texture's `draw` gets: its parameters resolved (the spec's defaults filled in), three.js */

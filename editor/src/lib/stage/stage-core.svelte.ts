@@ -67,6 +67,8 @@ export class StageCore {
   spreadId = $state<string | null>(null);
   /** Targets the tracker reports found right now */
   found = $state<string[]>([]);
+  /** The subtitle line of the video that plays, null when there is none */
+  subtitle = $state<string | null>(null);
   /** A tap on the stage picked something (the Inspector selects it) – or nothing (null) */
   onPick: ((hit: StagePick | null) => void) | null = null;
   /** A right click on the stage: what lies there (null = the page or the table) and where */
@@ -177,6 +179,9 @@ export class StageCore {
       }),
       scene.on("targetLost", id => {
         this.found = this.found.filter(found => found !== id);
+      }),
+      scene.on("subtitle", text => {
+        this.subtitle = text;
       }),
       // The plugins' events and variables for the panel
       observeEvents((event, payload) => {

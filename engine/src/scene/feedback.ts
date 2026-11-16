@@ -222,12 +222,22 @@ export const setFeedbackRenderer = (renderer: Pick<FeedbackRenderer, "extensions
   probe = renderer;
 };
 
+let feedbacksHeld = false;
+
 /**
- * Step every live buffer once (creation order), before the scene renders; the render target is left unbound (null).
+ * Hold every buffer (the editor's Live switch off – `ArScene.holdClock`, #275): no step, each keeps its last frame and
+ * its time, and goes on from there when the hold ends
+ */
+export const holdFeedbacks = (held: boolean): void => {
+  feedbacksHeld = held;
+};
+
+/**
+ * Step every live buffer once (creation order), before the scene renders – none while they are held; the render target is left unbound (null).
  * Called by the view's loop in each frame it draws.
  */
 export const stepFeedbacks = (renderer: FeedbackRenderer, delta: number): void => {
-  if (!buffers.size) return;
+  if (!buffers.size || feedbacksHeld) return;
   const previous = renderer.getRenderTarget();
   let stepped = false;
   buffers.forEach(buffer => {

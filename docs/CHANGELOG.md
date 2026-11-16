@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.77.0 – 2026-11-16
+## 1.78.0 – 2026-11-16
 
 ### Added
 - **Picture credits in the Library** (#277): every file of a book's Library – the uploaded ones and the imported ones,
@@ -17,6 +17,34 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   its search finds files by their credits. The API keeps the line per file URL (`asset_credits`, `PUT
   /editor/books/{id}/assets/credits` with up to 500 files at once), `GET …/assets` lists it as `credits`; the MCP server
   sets it with `set_asset_credits`. Credits are no content: no publish, no change in the book's log.
+
+## 1.77.1 – 2026-11-16
+
+### Fixed
+- **Pausing the editor's stage stops videos too** (#275, Tilman: "Videos and such should not play when the editor stage
+  is in pause mode"): with *Live* off, every video and sound of the spread stops where it is – a video node's (picture,
+  sound and its subtitle line) and a video a plugin shows as a texture – and a page found meanwhile does not start its
+  video. The plugins' GPU simulations, such as the demo's ink painting, stand still on their last frame. *Live* again,
+  everything goes on from where it stood. The reader is unchanged.
+
+## 1.77.0 – 2026-11-16
+
+### Added
+- **Subtitles for a speaking video** (#257, Tilman: "we will use only a video on a animated paper mesh for our
+  narration. so the only thing we need to streamline is the subtitles"): a video that carries its own sound can show
+  what it says as a line of text in the reader's language. Put a WebVTT file per language beside the video, named
+  like it – `speak.mp4` → `speak.en.vtt`, `speak.fr.vtt` – and nothing else: the content build and the editor's API
+  pair the files by their names (content schema 2.31, the configuration's `subtitles`), and the pairing holds wherever
+  the video is used. The line follows the video's own time, so it cannot drift from the sound.
+  - **Reader:** the line shows over the scan view, above the spread menu, in the app's language (else English, else
+    the first there is). *Info → Settings → Subtitles* switches it off; it is on by default, because a video plays
+    muted where the browser blocks sound. Subtitle files are preloaded with their spread and the whole-book download.
+  - **Editor:** `.vtt` files upload to the Library (the kind `subtitles`, listed with the videos) and belong to every
+    video of their name, uploaded or imported. The stage shows the English line while the video plays.
+  - **Content build:** a `.vtt` whose name fits no video beside it is reported and left out; one that is no WebVTT
+    stops the build. `docs/content.md` "Subtitles of a video".
+  - **Demo book:** the screen on page 6 speaks four lines and has subtitles in English, German, French and Dutch
+    (`fixtures/demo/entries/screen/`, written by `editor/tools/narration-video.mjs` with a synthetic voice).
 
 ## 1.76.1 – 2026-11-15
 

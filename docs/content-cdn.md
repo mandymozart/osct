@@ -125,7 +125,11 @@ settings, made in the bunny.net dashboard:
 
 - **CORS for every file type.** The app's origin differs from the CDN, so every file needs
   `Access-Control-Allow-Origin: *`. A type that lacks it goes into the "CORS headers" extension list, or an edge rule
-  "Set response header `Access-Control-Allow-Origin: *`" covers the whole zone.
+  "Set response header `Access-Control-Allow-Origin: *`" covers the whole zone. The zone sends the header by file
+  extension, so a new kind of file needs its extension there before the app can read it: **`vtt`** for a video's
+  subtitles (#257 – the app fetches them; without the header the video plays without its subtitle line). To check a
+  type, ask for any path with that extension, also one that does not exist – a listed extension answers with the header
+  even on a 404: `curl -sI -H "Origin: https://osct.porschuetz.de" https://buildingfictions.b-cdn.net/x.vtt`.
 - **`latest.json` is not cached at the edge**: an edge rule for `*/latest.json`, "Override Cache Time" → 0 (or a
   minute) – or "Vary cache → URL query string", then the app's `?t=<minute>` does the same. Without it a reader whose
   edge cached the old `latest.json` keeps the previous version for up to 30 days (it stays complete on the storage,

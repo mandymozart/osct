@@ -1,11 +1,12 @@
 # The screen: a video standing upright on the page like a screen, tinted (plugins/tint), slowly turning (plugins/spin)
 # and shown on a slightly bent sheet of paper (plugins/paper – the sheet is the model file next to it, a `model`
-# parameter).
+# parameter). The video speaks – its sound is in the file – and has subtitles (#257): the files screen.<language>.vtt
+# beside it belong to it by their names, nothing here names them (the video and the files: editor/tools/narration-video.mjs).
 category: video
 title: The screen
 page: 6
-body: "A video standing upright, its bottom edge on the paper, tinted gold and turning slowly around its own axis, on a slightly bent sheet of paper – a layer and two components on one node. The sheet is a model file the `paper` component takes: pick another in its row."
-tags: [placement, layer]
+body: "A video standing upright, its bottom edge on the paper, tinted gold and turning slowly around its own axis, on a slightly bent sheet of paper – a layer and two components on one node. The sheet is a model file the `paper` component takes: pick another in its row. The video speaks, and what it says shows as a subtitle line in your language: the files `screen.en.vtt`, `screen.de.vtt`, `screen.fr.vtt` and `screen.nl.vtt` lie beside `screen.mp4` and belong to it by their names."
+tags: [placement, layer, subtitles]
 target:
   image: target.jpg
   print:

@@ -15,8 +15,11 @@ export const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
  */
 export const ENV_NAME = /^[a-z][a-z0-9-]{0,31}$/;
 
-/** The kinds of a Library file (`Assets::KINDS`): the content contract's asset types and `shader`, a source file a plugin loads */
-export const ASSET_KINDS = [...ASSET_TYPES, "shader"] as const;
+/**
+ * The kinds of a Library file (`Assets::KINDS`): the content contract's asset types, `shader` (a source file a plugin
+ * loads) and `subtitles` (a video's WebVTT file, `<video name>.<language>.vtt` – shared/types/subtitles.ts)
+ */
+export const ASSET_KINDS = [...ASSET_TYPES, "shader", "subtitles"] as const;
 export type AssetKind = (typeof ASSET_KINDS)[number];
 
 /** The file extensions of each kind, with the dot (`Assets::KINDS`, extension → kind) */
@@ -27,6 +30,7 @@ export const ASSET_KIND_EXTENSIONS: Record<AssetKind, readonly string[]> = {
   image: [".jpg", ".jpeg", ".png", ".webp"],
   audio: [".mp3", ".m4a", ".ogg", ".wav"],
   shader: [".glsl", ".frag", ".vert", ".wgsl"],
+  subtitles: [".vtt"],
 };
 
 /** What a plugin source registers, by kind → the plugin API's function (`Plugins::REGISTERS`) */

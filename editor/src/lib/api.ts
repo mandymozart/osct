@@ -456,9 +456,9 @@ export const draftBaseUrl = (bookId: string): string => `${API_URL}/editor/books
 
 // ── Assets (docs/server.md "Assets") ─────────────────────────────────────────────────────────────
 
-/** The kinds a node's or a target's file can be (the content contract's asset types): every asset kind but `shader` */
+/** The kinds a node's or a target's file can be (the content contract's asset types): every asset kind but `shader` and `subtitles` */
 export type MediaKind = AssetType;
-export const isMediaAsset = (asset: Asset): asset is Asset & { kind: MediaKind } => asset.kind !== "shader";
+export const isMediaAsset = (asset: Asset): asset is Asset & { kind: MediaKind } => asset.kind !== "shader" && asset.kind !== "subtitles";
 
 export const listAssets = (bookId: string, kind?: string) =>
   api<AssetList>("GET", `/editor/books/${encodeURIComponent(bookId)}/assets${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`);

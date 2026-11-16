@@ -1,5 +1,5 @@
 import type { LoadOptions, LoadResult } from "@/types";
-import { contentUrl, getAssets, getContentSizes, getNeighbourSpreads, getSpread, getSpreads, getTargets, isContentUrl } from "@/utils/game-config";
+import { contentUrl, getAssets, getContentSizes, getNeighbourSpreads, getSpread, getSpreads, getSubtitleFiles, getTargets, isContentUrl } from "@/utils/game-config";
 import { compressedUrl } from "@/utils/compressed";
 import { deviceHints, wantedTextureSize } from "@engine/scene/model-textures";
 import { textureSizeFor } from "@shared/types/textures";
@@ -25,8 +25,9 @@ const getTargetImages = (spreadId: string): LoadOptions[] =>
   getTargets(spreadId).map(t => t.imageSrc).filter(isContentUrl).map(src => ({ src, type: "image" }));
 
 /**
- * Files a spread uses besides its target images: entity assets (AR models, images, audio, videos) and entry
- * images (consultation). Videos come last since they are the largest. A model with a texture set (#260) brings its
+ * Files a spread uses besides its target images: entity assets (AR models, images, audio, videos), the subtitle files
+ * of its videos (every language – they are small) and entry images (consultation). Videos come last since they are the
+ * largest. A model with a texture set (#260) brings its
  * map at the size the reader's texture quality asks for – the one size the AR scene loads, not the whole set.
  */
 const getSpreadContent = (spreadId: string): LoadOptions[] => {
@@ -41,8 +42,9 @@ const getSpreadContent = (spreadId: string): LoadOptions[] => {
     .map(e => e.image)
     .filter(isContentUrl)
     .map(src => ({ src, type: "image" }));
+  const subtitles: LoadOptions[] = getSubtitleFiles(spreadId).filter(isContentUrl).map(src => ({ src, type: "subtitles" }));
   const isVideo = (o: LoadOptions) => o.type === "video";
-  return [...assets.filter(o => !isVideo(o)), ...images, ...assets.filter(isVideo)];
+  return [...assets.filter(o => !isVideo(o)), ...subtitles, ...images, ...assets.filter(isVideo)];
 };
 
 /** Every content file of the book – all spreads' target images, entity assets and entry images – each once */

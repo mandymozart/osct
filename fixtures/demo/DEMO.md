@@ -49,6 +49,14 @@ https://github.com/matsuoka-601/Splash, under the MIT licence:
 
 The adapted part adds 43 KB to the plugin's bundle (72 KB, 20 KB gzipped).
 
+**The speaking screen** (page 6, *The switch* – #257): the screen's video carries its own sound – four spoken lines –
+and has subtitles: `screen.en.vtt`, `screen.de.vtt`, `screen.fr.vtt` and `screen.nl.vtt` lie beside `screen.mp4` and
+belong to it by their names (`<video name>.<language>.vtt`); nothing in `entry.yaml` names them. While the video plays,
+the reader shows the line of its own language over the scan view (Info → Settings switches subtitles off), the editor's
+stage the English one. The video and the four files are written by `editor/tools/narration-video.mjs`: Windows' speech
+synthesis reads the lines, the picture is a row of bars that follow the loudness, and the cue times are the times the
+lines were laid at.
+
 **The ink painting** (page 6, *The switch*'s right page, under the screen – #225): the entry `ink-painting` with a target
 of its own (`entries/ink-painting/target.jpg`: a frame of the same simulation in a drawn frame), whose AR content is a
 group holding the plugin node `inkPainting` (`plugins/fluid`) – a framed canvas standing on the page whose ink keeps

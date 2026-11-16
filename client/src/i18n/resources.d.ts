@@ -165,6 +165,8 @@ export default interface Resources {
     "languageLabel": "Language:",
     "onionSkyLabel": "Onion sky",
     "soundLabel": "Sounds",
+    "subtitlesDescription": "Shows what a video says as text while it plays.",
+    "subtitlesLabel": "Subtitles",
     "surroundingsLabel": "Scene around the book",
     "textureQualityAuto": "Automatic",
     "textureQualityBest": "Best",
