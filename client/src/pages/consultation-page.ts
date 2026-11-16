@@ -45,7 +45,9 @@ export abstract class ConsultationPage extends PageMinimal {
         box-sizing: border-box;
         max-width: 36rem;
         margin: 0 auto;
-        padding: var(--consultation-top) 1.25rem calc(3rem + env(safe-area-inset-bottom));
+        /* The side gutter: what a full-width part (the entry's player, #289) bleeds across */
+        --content-gutter: 1.25rem;
+        padding: var(--consultation-top) var(--content-gutter) calc(3rem + env(safe-area-inset-bottom));
       }
       p { margin: 0 0 1em; white-space: pre-line; }
       a { color: var(--color-accent); }

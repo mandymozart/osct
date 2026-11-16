@@ -21,7 +21,7 @@ describe("i18n (i18next)", () => {
 
   it("uses English on an English device", () => {
     expect(i18next.resolvedLanguage).toBe("en");
-    expect(t("entry:accessPage")).toBe("Access page");
+    expect(t("entry:page")).toBe("Page");
   });
 
   it("fills placeholders and escapes their values for HTML", () => {

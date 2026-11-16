@@ -18,8 +18,8 @@
 
   /**
    * An entry's form (#223), in the Inspector's place of the entry the tree selects and on the Entries page: the title,
-   * category and access page, the author and tags, the text with its live preview, the picture from the Library, a
-   * link's URL and the target. The preview is the reader's renderer (`renderEntryText`: Markdown with the book's
+   * category and access page, the author and tags, the text with its live preview, the picture from the Library and its
+   * caption (#289), a link's URL and the target. The preview is the reader's renderer (`renderEntryText`: Markdown with the book's
    * variables) – on the stage with the variables' current values, elsewhere with none set; the variables the text reads
    * are listed with their values, what does not parse below. Edits reach the draft by themselves a moment after the
    * last one (#259: only the fields that changed, `PUT …/entries/{id}`) – the form keeps what was typed, a save never
@@ -154,6 +154,9 @@
 {#if draft.image}
   <div class="row"><span class="label"></span><span class="controls"><button type="button" class="text-link" onclick={() => edit({ image: "" })}>remove the picture</button></span></div>
 {/if}
+<div class="row" class:changed={"caption" in changes}><span class="label">caption</span>
+  <input class="field" value={draft.caption} aria-label="Caption" placeholder="none – Image: … by …" oninput={e => edit({ caption: e.currentTarget.value })}
+    data-help-name="Caption" data-help="The line under the picture in the reader, in small type – e.g. Image: anatomical illustration by … It is the entry's own text; a file's credit line is set in the Library." /></div>
 <div class="row" class:changed={"media" in changes}><span class="label">link</span>
   <span class="controls link">
     <input class="field" value={draft.media} type="url" inputmode="url" aria-label="Link" placeholder="none – https://…" oninput={e => edit({ media: e.currentTarget.value })}

@@ -444,7 +444,7 @@ final class Books
     }
 
     /**
-     * POST /editor/books/{id}/entries { id?, category, title, page, body?, target?: { id?, imageSrc, print?, entity? } }
+     * POST /editor/books/{id}/entries { id?, category, title, page, body?, caption?, target?: { id?, imageSrc, print?, entity? } }
      * → 201 { entry, spreadId }: a new entry on the spread its page belongs to, with its target (made in the editor –
      * docs/server.md "Targets") or without one – an entry read only in the list (a glossary term, a text). 400
      * `invalid-entry`, 409 `duplicate-id`.
@@ -460,6 +460,10 @@ final class Books
         if (!is_string($title) || trim($title) === '') throw new ApiError(400, 'invalid-entry', 'title must be a non-empty string.');
         if (!is_int($page) && !(is_float($page) && floor($page) === $page)) throw new ApiError(400, 'invalid-entry', 'page must be a whole number.');
         if (!is_string($category) || !in_array($category, Editor::ENTRY_CATEGORIES, true)) throw new ApiError(400, 'invalid-entry', 'category must be one of ' . implode(', ', Editor::ENTRY_CATEGORIES) . '.');
+        $caption = $body->caption ?? null;
+        if ($caption !== null && (!is_string($caption) || mb_strlen(trim($caption)) > BookTexts::TEXT_MAX_LENGTH)) {
+            throw new ApiError(400, 'invalid-entry', 'caption must be a string of at most ' . BookTexts::TEXT_MAX_LENGTH . ' characters.');
+        }
         $page = (int) $page;
         $id = Editor::id($body->id ?? self::slug($title, $page), 'id');
         if (Db::one('SELECT id FROM entries WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $id])) throw new ApiError(409, 'duplicate-id', "An entry \"$id\" exists.");
@@ -488,6 +492,8 @@ final class Books
         // allows it (RULES #25)
         $spreadId = Db::value('SELECT id FROM spreads WHERE book_id = :book AND first_page <= :first AND last_page >= :last ORDER BY position LIMIT 1', ['book' => $bookId, 'first' => $page, 'last' => $page]);
         $entry = (object) ['id' => $id, 'category' => $category, 'title' => trim($title), 'page' => $page, 'body' => is_string($body->body ?? null) ? $body->body : '', 'tags' => []];
+        // The line under the picture (#289): optional, left out when empty
+        if (is_string($caption) && trim($caption) !== '') $entry->caption = trim($caption);
         $position = (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM entries WHERE book_id = :book', ['book' => $bookId]);
         $entryJson = Editor::encode($entry);
         $targetJson = $target === null ? null : Editor::encode($target);

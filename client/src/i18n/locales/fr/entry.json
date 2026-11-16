@@ -1,6 +1,7 @@
 {
-  "entryName": "Nom de l'entrée",
-  "accessPage": "Page d'accès",
+  "name": "Nom",
+  "title": "Titre",
+  "page": "Page",
   "category": "Catégorie",
   "author": "Auteur",
   "goToPage": "Va à la page d'accès {{page}} en mode scan pour voir la vidéo.",

@@ -69,6 +69,7 @@ Lines starting with `#` are comments and are ignored.
 | `body` | no | the text – Markdown with the book's variables (below) |
 | `author` | no | for texts – shown in the list as *'Title', Author* |
 | `image` | no | an image shown in the entry (glossary), file in the entry folder |
+| `caption` | no | the line under the image ("Image: anatomical illustration by …"), plain text in Small (schema 2.34, #289) – the entry's own text, not the Library's credit line (`credits`) |
 | `media` | no | for links: the web address (YouTube / Vimeo play inside the app, other pages are embedded) |
 | `tags` | no | list of keywords, e.g. `tags: [forest, animal]` |
 | `target` | no | the printed image that unlocks the entry – see below |
@@ -882,6 +883,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 2.31 | 1.77.0 | in develop | the configuration's optional `subtitles`: the WebVTT files of a video, one per language – `[{ media, tracks: { en: …, fr: … } }]`, read from the files' names (`<video name>.<language>.vtt`) by the content build and the editor's API (#257) | ignored: an older app reads no `subtitles` and plays the video without a subtitle line |
 | 2.32 | 1.80.0 | in develop | a spread's optional `matter` (`front` \| `back`): a double page without printed numbers before page 1 or after the last printed page, its pages internal (front matter below 0, #296) | ignored: an older app shows the spread like any other – in the page scroller with its internal numbers |
 | 2.33 | 1.82.0 | in develop | the configuration's optional `credits` (file → credit line, #292): the picture credits of the files the book uses, from the editor's Library | ignored: an older app has no image credits page |
+| 2.34 | 1.88.0 | in develop | an entry's optional `caption` (#289): the line under the entry's picture, written in the editor's entry form, `update_entry` / `add_entry` or the entry's YAML | ignored: an older app shows the picture without the line (the guard reads no unknown field of an entry) |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

@@ -103,11 +103,13 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   `back` – a double page without printed numbers before page 1 or after the last printed page, its pages internal; an
  *   older app ignores the field and shows the spread like any other, its pages as numbers), and since 2.33 the
  *   configuration's optional `credits` (#292: the credit line of a file the book uses, by the file's path or URL – written
- *   in the editor's Library; an older app ignores the field and has no image credits page).
+ *   in the editor's Library; an older app ignores the field and has no image credits page), and since 2.34 an entry's
+ *   optional `caption` (#289: the line under the entry's picture – an older app ignores the field and shows the picture
+ *   without it).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.33";
+export const CONTENT_SCHEMA_VERSION = "2.34";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
@@ -293,6 +295,8 @@ export interface EntryData {
   body: string;
   author?: string; // texts
   image?: string;
+  /** Optional (schema 2.34, #289): the line under the picture ("Image: … by …"), plain text */
+  caption?: string;
   media?: string; // links: external URL
   tags: string[];
   target?: TargetData;

@@ -432,13 +432,14 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "add_entry",
     {
       description:
-        "Makes a new entry on the spread its `page` belongs to: title, page, category (default glossary – the reader lists it as "Marginalia"), body (Markdown with the book's variables – describe_content_model entryText), and its target – `imageSrc` (the printed image: an uploaded image asset's url), `print` (where it is printed, in mm), `entity` (its AR content as a node tree, or { ref }) – or no target: an entry read only in the list (a glossary term, a text). The id comes from title and page (e.g. p30-shadows) unless given; 409 duplicate-id. The reader tracks a target after a publish.",
+        "Makes a new entry on the spread its `page` belongs to: title, page, category (default glossary – the reader lists it as \"Marginalia\"), body (Markdown with the book's variables – describe_content_model entryText), caption (the line under the entry's picture, plain text), and its target – `imageSrc` (the printed image: an uploaded image asset's url), `print` (where it is printed, in mm), `entity` (its AR content as a node tree, or { ref }) – or no target: an entry read only in the list (a glossary term, a text). The id comes from title and page (e.g. p30-shadows) unless given; 409 duplicate-id. The reader tracks a target after a publish.",
       inputSchema: z.object({
         book: BOOK,
         title: z.string().min(1),
         page: z.number().int(),
         category: z.enum(EntryCategory).optional(),
         body: z.string().optional(),
+        caption: z.string().max(TEXT_MAX_LENGTH).optional().describe("the line under the entry's picture (\"Image: … by …\"), plain text"),
         id: ID.optional(),
         target: z.object({
           id: ID.optional().describe("default: the entry's id"),
@@ -470,7 +471,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "get_entries",
     {
       description:
-        "Every entry of the book with its fields as written – title, category, page, body (Markdown with the book's variables), author, image, media (a link's URL), tags – its spread (null: its page is in none) and its target's id and image (null: read in the list only). Optionally only one category, or the entries whose title, body or tags hold a word.",
+        "Every entry of the book with its fields as written – title, category, page, body (Markdown with the book's variables), author, image, caption (the line under the picture), media (a link's URL), tags – its spread (null: its page is in none) and its target's id and image (null: read in the list only). Optionally only one category, or the entries whose title, body or tags hold a word.",
       inputSchema: z.object({
         book: BOOK,
         category: z.enum(EntryCategory).optional(),
@@ -490,7 +491,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "update_entry",
     {
       description:
-        "Changes an entry's fields – send only what changes: title, category, page (the access page – a page on another spread moves the entry there, a page no spread has leaves it on none), body (Markdown: paragraphs at blank lines, *emphasis*, **strong**, [links](https://…); the book's variables in braces – {hasKey}, {hasKey: …|…} – describe_content_model entryText), author, tags (the whole list), image (a picture of the book's Library: an uploaded image's url or a file of the import), media (a link's http(s) URL); null removes author, image or media. A body whose braces do not parse is refused before it is sent. The change is recorded; the person checks it in the editor.",
+        "Changes an entry's fields – send only what changes: title, category, page (the access page – a page on another spread moves the entry there, a page no spread has leaves it on none), body (Markdown: paragraphs at blank lines, *emphasis*, **strong**, [links](https://…); the book's variables in braces – {hasKey}, {hasKey: …|…} – describe_content_model entryText), author, tags (the whole list), image (a picture of the book's Library: an uploaded image's url or a file of the import), caption (the line under the picture, plain text – \"Image: … by …\"; not the Library's credit line, set_asset_credits), media (a link's http(s) URL); null removes author, image, caption or media. A body whose braces do not parse is refused before it is sent. The change is recorded; the person checks it in the editor.",
       inputSchema: z.object({
         book: BOOK,
         entry: ID.describe("the entry's id (get_entries, get_book)"),
@@ -501,6 +502,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         author: z.string().max(TEXT_MAX_LENGTH).nullable().optional(),
         tags: z.array(z.string().max(ENTRY_TAGS.length)).max(ENTRY_TAGS.max).optional(),
         image: z.string().min(1).nullable().optional().describe("a Library picture's url (list_assets kind image); null removes it"),
+        caption: z.string().max(TEXT_MAX_LENGTH).nullable().optional().describe("the line under the picture, plain text; null removes it"),
         media: z.string().nullable().optional().describe("an http(s) URL; null removes it"),
       }),
       annotations: write,

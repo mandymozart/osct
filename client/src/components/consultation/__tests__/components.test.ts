@@ -142,4 +142,23 @@ describe("entry detail", () => {
     expect(body.querySelector("a")).toBeNull();
     expect(body.querySelector("p")?.textContent).toBe('<img src=x onerror="alert(1)"> [x](javascript:alert(1)) !');
   });
+
+  it("labels the meta table Name / Page / Category, a text's Title / Page / Category / Author (#289)", () => {
+    const detail = mount<EntryDetail>("entry-detail");
+    const labels = () => Array.from(detail.shadowRoot!.querySelectorAll(".rule-table th")).map(th => th.textContent);
+    detail.entry = glossaryEntry();
+    expect(labels()).toEqual(["Name", "Page", "Category"]);
+    detail.entry = { ...glossaryEntry(), category: EntryCategory.Text, author: "Catherine Guiral" };
+    expect(labels()).toEqual(["Title", "Page", "Category", "Author"]);
+  });
+
+  it("puts the caption under the picture, escaped; none without a picture (#289)", () => {
+    const detail = mount<EntryDetail>("entry-detail");
+    detail.entry = { ...glossaryEntry(), image: "/a.jpg", caption: "Image: <b>Kevin Hong</b>" };
+    const figure = detail.shadowRoot!.querySelector("figure")!;
+    expect(figure.querySelector("img.entry-image")).not.toBeNull();
+    expect(figure.querySelector("figcaption")?.textContent).toBe("Image: <b>Kevin Hong</b>");
+    detail.entry = { ...glossaryEntry(), image: undefined, caption: "Image: nothing" };
+    expect(detail.shadowRoot!.querySelector("figcaption")).toBeNull();
+  });
 });

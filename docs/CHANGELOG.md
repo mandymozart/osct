@@ -7,6 +7,20 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.88.0 – 2026-11-17
+
+### Added
+- Image caption (#289, content schema 2.34): an entry's optional `caption` – the line under its picture ("Image:
+  anatomical illustration by …"), plain text in Small, muted. Written in the editor's entry form (under the picture),
+  with the MCP tools `add_entry` / `update_entry` (`get_entries` reads it), `PUT` / `POST …/entries` of the API, or
+  `caption:` in the entry's YAML (and the delivery import's mapping). An older app ignores the field. It is the entry's
+  own text, not the Library's credit line (`credits`, #292).
+
+### Changed
+- Entry page (#289, design p. 23–25, 32–33, 38–39): the meta table reads Name / Page / Category, a text's Title /
+  Page / Category / Author (before: Entry name / Access page); the body is set in Medium; a link's video player runs
+  across the screen's full width (the consultation pages' side gutter is the token `--content-gutter`).
+
 ## 1.87.0 – 2026-11-16
 
 ### Added

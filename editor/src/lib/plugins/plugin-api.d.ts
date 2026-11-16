@@ -356,6 +356,8 @@ interface EntryData {
 	body: string;
 	author?: string;
 	image?: string;
+	/** Optional (schema 2.34, #289): the line under the picture ("Image: … by …"), plain text */
+	caption?: string;
 	media?: string;
 	tags: string[];
 	target?: TargetData;

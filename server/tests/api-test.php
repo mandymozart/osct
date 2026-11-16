@@ -1480,8 +1480,11 @@ try {
     check(!in_array('p1-shadows-light', array_column($tree['spreads'][0]['entries'], 'id'), true), 'gone from the tree');
 
     echo "editor: texts – entries, the book, the onboarding (#223)\n";
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Onion', 'page' => 1, 'category' => 'glossary', 'body' => 'A *bulb*.'], $editor);
-    check($status === 201 && $data['entry']['id'] === 'p1-onion' && !isset($data['entry']['target']) && $data['spreadId'] === 's1', 'POST entry without a target → 201, read in the list only');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Onion', 'page' => 1, 'category' => 'glossary', 'body' => 'A *bulb*.', 'caption' => ' Image: an onion '], $editor);
+    check($status === 201 && $data['entry']['id'] === 'p1-onion' && !isset($data['entry']['target']) && $data['spreadId'] === 's1' && $data['entry']['caption'] === 'Image: an onion',
+        'POST entry without a target → 201, read in the list only; its caption trimmed (#289)');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Leek', 'page' => 1, 'caption' => ['x']], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-entry', 'POST entry: a caption that is no text → 400');
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
     $onion = array_values(array_filter($tree['spreads'][0]['entries'], fn($e) => $e['id'] === 'p1-onion'))[0] ?? null;
     check($onion !== null && $onion['target'] === null, 'the tree lists it on its spread, without a target');
@@ -1508,11 +1511,16 @@ try {
         'back on its page; null removes the author; a picture of the import is a Library image');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/link', ['media' => 'https://example.org/new', 'category' => 'link'], $editor);
     check($status === 200 && $data['entry']['media'] === 'https://example.org/new', 'a link\'s URL');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/castle', ['caption' => ' Image: anatomical illustration by Kevin Hong '], $editor);
+    check($status === 200 && $data['entry']['caption'] === 'Image: anatomical illustration by Kevin Hong' && $data['entry']['image'] === '/assets/content/entries/castle/cover.jpg',
+        'PUT entry: the caption under the picture (#289), trimmed');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/castle', ['caption' => null], $editor);
+    check($status === 200 && !isset($data['entry']['caption']), 'null removes the caption');
     $refusals = [
         [['category' => 'poem'], 'an unknown category'], [['media' => 'javascript:alert(1)'], 'a link that is not http(s)'], [['media' => 'https://'], 'a link without a host'],
         [['title' => '  '], 'an empty title'], [['image' => 'https://evil.example/x.jpg'], 'an image that is no Library picture'], [['image' => '/assets/content/entries/racoon/racoon.glb'], 'a Library file that is no picture'],
         [['page' => 1.5], 'a page that is no whole number'], [['tags' => 'a, b'], 'tags that are no list'], [['target' => null], 'a field the PUT does not change'],
-        [['body' => ['x']], 'a body that is no text'],
+        [['body' => ['x']], 'a body that is no text'], [['caption' => str_repeat('x', 501)], 'a caption longer than 500 characters'], [['caption' => 7], 'a caption that is no text'],
     ];
     foreach ($refusals as [$change, $what]) {
         [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/link', $change, $editor);

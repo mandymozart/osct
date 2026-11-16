@@ -7,7 +7,7 @@
  *   book: osct
  *   entries:
  *     <entry id>:
- *       category: glossary | video | text | link      title, page   (entry fields; author, body, media optional)
+ *       category: glossary | video | text | link      title, page   (entry fields; author, body, caption, media optional)
  *       target: <file>      the image as printed – becomes target.jpg (JPEG, ≤ MAX_TARGET_SIZE px)
  *       image: <file>       the entry image – becomes image.jpg (JPEG, ≤ MAX_ENTRY_IMAGE_SIZE px)
  *       video: <file>       AR video on the target – becomes video.mp4 (ffmpeg: H.264, ≤ 1280 px, ~2 Mbit/s)
@@ -50,6 +50,8 @@ export interface MappedEntry {
   page: number;
   author?: string;
   body?: string;
+  /** The line under the entry image (schema 2.34, #289) */
+  caption?: string;
   media?: string;
   target?: string;
   image?: string;
@@ -75,7 +77,7 @@ export interface ImportReport {
   warnings: string[];
 }
 
-const OPTIONAL_TEXTS = ['author', 'body', 'media', 'target', 'image', 'video', 'note'] as const;
+const OPTIONAL_TEXTS = ['author', 'body', 'caption', 'media', 'target', 'image', 'video', 'note'] as const;
 
 /** One entry of the mapping, read field by field; null (and why in `problems`) when it cannot be imported */
 function readMappedEntry(id: string, value: unknown, problems: string[]): MappedEntry | null {
@@ -271,6 +273,7 @@ function entryYaml(e: MappedEntry, files: { target: boolean; image: boolean; vid
   if (e.author) lines.push(`author: ${quote(e.author)}`);
   lines.push(`body: ${quote(e.body ?? 'Placeholder – the text follows.')}`);
   if (files.image) lines.push(`image: ${IMAGE_FILE}`);
+  if (e.caption) lines.push(`caption: ${quote(e.caption)}`);
   if (e.media) lines.push(`media: ${quote(e.media)}`);
   if (e.tags?.length) lines.push(`tags: [${e.tags.map(quote).join(', ')}]`);
   if (files.target) {

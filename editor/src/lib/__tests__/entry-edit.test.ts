@@ -15,7 +15,7 @@ describe("the entry form", () => {
 
   it("starts from the entry and sends nothing while nothing changed", () => {
     const draft = draftOf(racoon);
-    expect(draft).toEqual({ title: "Racoon", category: "glossary", page: 2, author: "Kévin", tags: "animal", body: "A beast.", image: "/assets/content/entries/racoon/img.jpg", media: "" });
+    expect(draft).toEqual({ title: "Racoon", category: "glossary", page: 2, author: "Kévin", tags: "animal", body: "A beast.", image: "/assets/content/entries/racoon/img.jpg", caption: "", media: "" });
     expect(entryChanges(racoon, draft)).toEqual({});
     expect(isDirty(racoon, { ...draft, tags: " animal, ", title: "Racoon " })).toBe(false);
   });
@@ -24,6 +24,9 @@ describe("the entry form", () => {
     const draft = { ...draftOf(racoon), body: "A **beast**.", author: " ", tags: "animal, mask, animal", page: 5, media: " https://example.org " };
     expect(entryChanges(racoon, draft)).toEqual({ body: "A **beast**.", author: null, tags: ["animal", "mask"], page: 5, media: "https://example.org" });
     expect(entryChanges(racoon, { ...draftOf(racoon), image: "" })).toEqual({ image: null });
+    // #289: the caption under the picture – trimmed, emptied removes it
+    expect(entryChanges(racoon, { ...draftOf(racoon), caption: " Image: a racoon " })).toEqual({ caption: "Image: a racoon" });
+    expect(entryChanges({ ...racoon, caption: "Image: a racoon" }, { ...draftOf(racoon), caption: "" })).toEqual({ caption: null });
     expect(tagsOf(" a ,, b , a")).toEqual(["a", "b"]);
   });
 
@@ -35,6 +38,7 @@ describe("the entry form", () => {
       "The access page is no whole number.",
       "The link is no http(s) address.",
     ]);
+    expect(draftProblems({ ...draftOf(racoon), caption: "x".repeat(501) })).toEqual(["The caption is longer than 500 characters."]);
     expect(draftProblems({ ...draftOf(racoon), tags: Array.from({ length: 33 }, (_, i) => `t${i}`).join(",") })).toEqual(["More than 32 tags."]);
   });
 

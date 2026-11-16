@@ -20,6 +20,8 @@ export interface EntryDraft {
   tags: string;
   body: string;
   image: string;
+  /** The line under the picture (#289) */
+  caption: string;
   media: string;
 }
 
@@ -32,6 +34,7 @@ export const draftOf = (entry: EntryFields): EntryDraft => ({
   tags: entry.tags.join(", "),
   body: entry.body ?? "",
   image: entry.image ?? "",
+  caption: entry.caption ?? "",
   media: entry.media ?? "",
 });
 
@@ -45,12 +48,13 @@ export const entryChanges = (entry: EntryFields, draft: EntryDraft): Record<stri
   if (draft.category !== entry.category) changes.category = draft.category;
   if (draft.page !== entry.page) changes.page = draft.page;
   if (draft.body !== (entry.body ?? "")) changes.body = draft.body;
-  const optional = (key: "author" | "image" | "media") => {
+  const optional = (key: "author" | "image" | "caption" | "media") => {
     const value = draft[key].trim();
     if (value !== (entry[key] ?? "")) changes[key] = value === "" ? null : value;
   };
   optional("author");
   optional("image");
+  optional("caption");
   optional("media");
   const tags = tagsOf(draft.tags);
   if (JSON.stringify(tags) !== JSON.stringify(entry.tags)) changes.tags = tags;
@@ -64,7 +68,7 @@ export const isDirty = (entry: EntryFields, draft: EntryDraft): boolean => Objec
 export const draftProblems = (draft: EntryDraft): string[] => {
   const problems: string[] = [];
   if (!draft.title.trim()) problems.push("The title is empty.");
-  for (const [key, value] of [["title", draft.title], ["author", draft.author]] as const) {
+  for (const [key, value] of [["title", draft.title], ["author", draft.author], ["caption", draft.caption]] as const) {
     if (value.trim().length > TEXT_MAX_LENGTH) problems.push(`The ${key} is longer than ${TEXT_MAX_LENGTH} characters.`);
   }
   if (!(ENTRY_CATEGORIES as readonly string[]).includes(draft.category)) problems.push(`The category is none of ${ENTRY_CATEGORIES.join(", ")}.`);
