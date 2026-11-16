@@ -115,6 +115,7 @@ function editorApi(seen: Seen, { sources = true } = {}) {
   if (path === "/editor/books/osct/versions") return { json: { versions: [{ env: "local", build: "abcdef012345" }] } };
   if (path.startsWith("/editor/books/osct/changes")) return { json: { changes: [{ kind: "entity", ref: "castle" }], limit: path } };
   if (path.startsWith("/editor/books/osct/assets") && method === "GET") return { json: { assets: [{ id: "a", kind: "image" }], query: path } };
+  if (path === "/editor/books/osct/assets/credits" && method === "PUT") return { json: { saved: 1, credits: {}, sent: seen.body } };
   if (method === "POST" && path === "/editor/books/osct/assets") return { status: 201, json: { asset: { id: "11111111-1111-4111-8111-111111111111", name: seen.headers["X-File-Name"], size: (seen.rawBody as Uint8Array).byteLength } } };
   if (method === "DELETE" && path === "/editor/books/osct/assets/11111111-1111-4111-8111-111111111111") return { status: 409, json: { error: { code: "asset-in-use", message: "Used.", usages: [{ kind: "target", ref: "racoon" }] } } };
   if (method === "DELETE" && path === "/editor/books/osct/assets/11111111-1111-4111-8111-111111111111?force=1") return { status: 204 };
@@ -137,7 +138,7 @@ describe("the content tools", () => {
       [
         "add_entry", "add_spread", "delete_asset", "delete_entry", "delete_spread", "describe_content_model", "get_book", "get_draft", "get_entity", "get_spread", "import_book", "list_assets", "preview_import",
         "list_books", "list_changes", "list_versions", "publish", "put_book_appearance", "put_book_passes", "put_entity", "put_environment", "put_spread", "put_target", "upload_asset",
-        "get_entries", "update_entry", "update_book",
+        "get_entries", "update_entry", "update_book", "set_asset_credits",
       ].sort(),
     );
     for (const [name, tool] of rec.tools) {
@@ -396,6 +397,13 @@ describe("the content tools", () => {
     expect(inUse.data.error).toMatchObject({ code: "asset-in-use", usages: [{ kind: "target", ref: "racoon" }] });
     expect(inUse.data.error.hint).toContain("force");
     expect((await rec.call("delete_asset", { book: "osct", asset: "11111111-1111-4111-8111-111111111111", force: true })).ok).toBe(true);
+  });
+
+  it("set_asset_credits sends the lines by url (#277)", async () => {
+    const items = [{ url: "https://cdn/a.jpg", credits: "Book Golem by TER-JAN / DeviantArt" }, { url: "https://cdn/b.jpg", credits: null }];
+    const saved = await rec.call("set_asset_credits", { book: "osct", items });
+    expect(saved.ok).toBe(true);
+    expect(saved.data.sent).toEqual({ items });
   });
 
   it("get_draft: the manifest, the configuration, the files", async () => {

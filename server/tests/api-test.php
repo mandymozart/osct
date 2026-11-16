@@ -778,6 +778,19 @@ try {
     check($status === 200 && $status2 === 200 && $names === ['racoon.glb', 'img.jpg'] && ($data['assets'][0]['imported'] ?? null) === true
         && str_starts_with((string) ($data['assets'][0]['url'] ?? ''), "http://127.0.0.1:$cdnPort/demo/abc/"),
         '#244: an import without files reads <assetsBase>/files.json – the Library lists the imported files below the base');
+    // #277: a credits line per file, by its URL – an imported file's too
+    $imgUrl = (string) ($data['assets'][1]['url'] ?? '');
+    check(array_key_exists('credits', $data['assets'][1] ?? []) && $data['assets'][1]['credits'] === null, '#277: a file without credits lists null');
+    [$status, $saved] = call($api, 'PUT', '/editor/books/demo/assets/credits', ['items' => [['url' => $imgUrl, 'credits' => "  Book Golem by\nTER-JAN / DeviantArt "]]], $editor);
+    [, $data] = call($api, 'GET', '/editor/books/demo/assets', null, $editor);
+    check($status === 200 && ($saved['credits'][$imgUrl] ?? null) === 'Book Golem by TER-JAN / DeviantArt'
+        && ($data['assets'][1]['credits'] ?? null) === 'Book Golem by TER-JAN / DeviantArt' && array_key_exists('credits', $data['assets'][0] ?? []) && $data['assets'][0]['credits'] === null,
+        '#277: credits are saved per file url (white space folded) and listed with the file');
+    [$status, $refused] = call($api, 'PUT', '/editor/books/demo/assets/credits', ['items' => [['url' => $imgUrl, 'credits' => 'x'], ['url' => 'https://elsewhere/x.jpg', 'credits' => 'y']]], $editor);
+    check($status === 400 && ($refused['error']['code'] ?? null) === 'invalid-credits', '#277: a url that is no file of the Library refuses the whole request');
+    [$status] = call($api, 'PUT', '/editor/books/demo/assets/credits', ['items' => [['url' => $imgUrl, 'credits' => '']]], $editor);
+    [, $data] = call($api, 'GET', '/editor/books/demo/assets', null, $editor);
+    check($status === 200 && array_key_exists('credits', $data['assets'][1] ?? []) && $data['assets'][1]['credits'] === null, '#277: an empty line removes the credits');
     [$status, $data] = call($api, 'POST', '/editor/books/demo/publish', ['env' => 'local'], $editor);
     check($status === 409 && $data['error']['code'] === 'other-book' && $data['error']['current']['book'] === 'osct' && $data['error']['current']['title'] === 'Test Book' && $data['error']['current']['build'] === $second['build'], 'publishing another book over it → 409 other-book naming the current one');
     check(json_decode((string) file_get_contents("$storeDir/local/latest.json"), true)['book'] === 'osct', '… and nothing moved');

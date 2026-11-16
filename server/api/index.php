@@ -65,6 +65,7 @@ declare(strict_types=1);
  *   GET    /editor/books/{id}/changes?limit=    the change log, newest first
  *   GET    /editor/books/{id}/assets[?kind=]    the uploaded files (docs/server.md "Assets"), with their number of uses
  *   POST   /editor/books/{id}/assets            the file as the body, X-File-Name → 201 { asset } (200 when these bytes exist)
+ *   PUT    /editor/books/{id}/assets/credits    { items: [{ url, credits }] } → the files' picture credits (#277)
  *   PUT    /editor/books/{id}/assets/{aid}/file the new file as the body → a new version, every use relinked
  *   GET    /editor/books/{id}/assets/{aid}/usages · DELETE /editor/books/{id}/assets/{aid}[?force=1]
  *   GET    /editor/books/{id}/plugins · GET | PUT { source } | DELETE[?force=1] /editor/books/{id}/plugins/{pid}
@@ -176,6 +177,7 @@ try {
         (bool) preg_match("#^GET /editor/books/($id)/changes$#", $route, $match) => Books::changes($match[1]),
         (bool) preg_match("#^GET /editor/books/($id)/assets$#", $route, $match) => Assets::list($match[1]),
         (bool) preg_match("#^POST /editor/books/($id)/assets$#", $route, $match) => Assets::upload($match[1]),
+        (bool) preg_match("#^PUT /editor/books/($id)/assets/credits$#", $route, $match) => Assets::setCredits($match[1]),
         (bool) preg_match("#^PUT /editor/books/($id)/assets/($uuid)/file$#", $route, $match) => Assets::replace($match[1], $match[2]),
         (bool) preg_match("#^GET /editor/books/($id)/assets/($uuid)/usages$#", $route, $match) => Assets::usages($match[1], $match[2]),
         (bool) preg_match("#^DELETE /editor/books/($id)/assets/($uuid)$#", $route, $match) => Assets::delete($match[1], $match[2]),

@@ -242,3 +242,13 @@ ALTER TABLE books ADD COLUMN imported_json TEXT NULL DEFAULT NULL;
 
 -- The onboarding belongs to the reader (schema.mysql.sql has the notes)
 ALTER TABLE books DROP COLUMN tutorial_json;
+
+-- Picture credits per file (schema.mysql.sql has the notes)
+CREATE TABLE IF NOT EXISTS asset_credits (
+  book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  credits TEXT NOT NULL,
+  updated_by TEXT NULL DEFAULT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (book_id, url)
+);

@@ -464,7 +464,15 @@ they are, so draft and every version point at the same file. Tables: `assets` (o
 size, sha256, width / height, `duration_ms`, the current version's path and URL) and `asset_versions` (one per upload). The same
 bytes uploaded twice are one asset. An upload or a replace writes the file first and then its rows in one transaction;
 rows that cannot be written take the file with them (no file without its row). A replace locks the asset's row from
-reading its version to the new version's rows, so two replaces at once take two version numbers. A delete removes the
+reading its version to the new version's rows, so two replaces at once take two version numbers.
+
+**Credits** (#277): every file the Library lists – uploaded or imported – may carry one free text line of picture
+credits, as the book prints them. `asset_credits` keeps it per book and file **URL** (an imported file has no `assets`
+row), `GET …/assets` lists it as `credits` (null: none), `PUT /editor/books/{id}/assets/credits { items: [{ url,
+credits }] }` sets up to `CREDITS_BATCH_MAX` (500) at once – white space folded, at most `CREDITS_MAX` (1000)
+characters, empty or null removes the line; a URL the Library does not list refuses the whole request (400
+`invalid-credits`). A replace leaves the line on the old URL (the new version may be another picture). Credits are no
+content: no change in the book's log, nothing to publish; an AI connection's token may set them. A delete removes the
 rows in one transaction with a change in the book's log (kind `asset`, `before` = the asset with its versions – as a
 [removal](#removing-a-spread-or-an-entry) records the files it takes), so a forced delete is in the history; the files
 go after the commit.

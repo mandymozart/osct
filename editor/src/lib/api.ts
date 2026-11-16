@@ -3,6 +3,7 @@ import type { EnvironmentData } from "@shared/types/environment";
 import type { AssetType, PrintPlacement, SourceOfTruth, SpreadFormat } from "@shared/types/game-config";
 import type {
   Asset,
+  AssetCreditsSaved,
   AssetList,
   AssetReplaced,
   AssetUploaded,
@@ -480,6 +481,10 @@ export const replaceAsset = (bookId: string, assetId: string, file: File) =>
 
 export const assetUsages = (bookId: string, assetId: string) =>
   api<AssetUsages>("GET", `/editor/books/${encodeURIComponent(bookId)}/assets/${encodeURIComponent(assetId)}/usages`);
+
+/** Files' credits lines by URL (#277); empty or null removes one */
+export const setAssetCredits = (bookId: string, items: { url: string; credits: string | null }[]) =>
+  api<AssetCreditsSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/assets/credits`, { items });
 
 export const deleteAsset = (bookId: string, assetId: string, force = false) =>
   api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/assets/${encodeURIComponent(assetId)}${force ? "?force=1" : ""}`);

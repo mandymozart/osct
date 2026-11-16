@@ -7,6 +7,17 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.77.0 – 2026-11-16
+
+### Added
+- **Picture credits in the Library** (#277): every file of a book's Library – the uploaded ones and the imported ones,
+  the target images among them – has one free text credits line, written as the book prints its credits (`Book Golem
+  by TER-JAN / DeviantArt`, `Gene Kelly dancing, 1944. Gjon Mili The LIFE Picture Collection/Shutterstock`). The
+  Library shows it under each file (*add credits* opens the field; Enter or leaving it saves, Esc keeps the old one), and
+  its search finds files by their credits. The API keeps the line per file URL (`asset_credits`, `PUT
+  /editor/books/{id}/assets/credits` with up to 500 files at once), `GET …/assets` lists it as `credits`; the MCP server
+  sets it with `set_asset_credits`. Credits are no content: no publish, no change in the book's log.
+
 ## 1.76.1 – 2026-11-15
 
 ### Fixed

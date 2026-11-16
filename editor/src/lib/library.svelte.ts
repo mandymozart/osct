@@ -1,4 +1,4 @@
-import { deleteAsset, errorText, listAssets, replaceAsset, uploadAsset, type Asset } from "./api";
+import { deleteAsset, errorText, listAssets, replaceAsset, setAssetCredits, uploadAsset, type Asset } from "./api";
 import { CODE_EXTENSIONS } from "./library-code";
 import { acceptOf } from "./library-pick";
 import { ASSET_KINDS } from "@shared/api/rules";
@@ -77,6 +77,18 @@ class Library {
     this.error = null;
     await deleteAsset(bookId, assetId, force);
     this.assets = this.assets.filter(a => a.id !== assetId);
+  }
+
+  /** A file's credits line (#277): every asset of that URL shows the saved line */
+  async setCredits(bookId: string, url: string, credits: string): Promise<void> {
+    this.error = null;
+    try {
+      const saved = (await setAssetCredits(bookId, [{ url, credits }])).credits[url] ?? null;
+      this.assets = this.assets.map(a => (a.url === url ? { ...a, credits: saved } : a));
+    } catch (e) {
+      this.error = errorText(e);
+      throw e;
+    }
   }
 
   /** The number of uses changed (a save): read the list again without a loading state */

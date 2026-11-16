@@ -31,13 +31,13 @@ export function assetPlace(asset: Pick<Asset, "name" | "url">): AssetPlace {
 }
 
 /** The search's text: the name, the place and the collection (`p015-1`, `entries`, `target`) */
-export function assetSearchText(asset: Pick<Asset, "name" | "url">): string {
+export function assetSearchText(asset: Pick<Asset, "name" | "url"> & { credits?: string | null }): string {
   const { collection, place, label } = assetPlace(asset);
-  return [asset.name, label, place, collection].filter(Boolean).join(" ").toLowerCase();
+  return [asset.name, label, place, collection, asset.credits].filter(Boolean).join(" ").toLowerCase();
 }
 
 /** Every word of the query in the asset's search text */
-export function matchesSearch(asset: Pick<Asset, "name" | "url">, query: string): boolean {
+export function matchesSearch(asset: Pick<Asset, "name" | "url"> & { credits?: string | null }, query: string): boolean {
   const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   if (!words.length) return true;
   const text = assetSearchText(asset);
