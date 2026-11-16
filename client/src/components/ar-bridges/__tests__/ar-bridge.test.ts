@@ -136,13 +136,20 @@ describe("<ar-bridge>", () => {
   it("a tapped entity opens its entry in scan mode (= consulted), not elsewhere", () => {
     const target = getTargets(spread1.id).find(t => t.entity)!;
     game.router.navigate("/about");
-    scene.emit("targetTapped", target.id);
+    scene.emit("targetTapped", target.id, false);
     expect(game.state.currentRoute?.page).toBe("about");
 
     game.router.navigate("/spread");
-    scene.emit("targetTapped", target.id);
+    scene.emit("targetTapped", target.id, false);
     expect(game.state.currentRoute?.page).toBe("entry");
     expect(game.state.currentRoute?.param?.value).toBe(target.entryId);
+  });
+
+  it("a tap the entity used itself (a video paused or played, #290) opens nothing", () => {
+    const target = getTargets(spread1.id).find(t => t.entity)!;
+    game.router.navigate("/spread");
+    scene.emit("targetTapped", target.id, true);
+    expect(game.state.currentRoute?.page).toBe("spread");
   });
 
   it("reports the AR status, shows loading while building / starting, marks the running scene", () => {

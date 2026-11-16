@@ -11,7 +11,7 @@ import { applyComponents, buildPluginNode, nodeTypeRegistration, unknownComponen
 import { applyMaterial } from "./materials";
 import { applyBehaviour, behaviourOf } from "./behaviour";
 import { getBook, getEntry } from "../content/game-config";
-import { pauseMedia, playMedia } from "./media";
+import { pauseMedia, playMedia, soundRestored } from "./media";
 
 /**
  * Entity registry: one builder per node type creates the three.js object for a node and may return hooks for
@@ -48,8 +48,12 @@ export interface EntityInstance {
   tune?(entity: EntityData): boolean;
   /** The placement group of every node of the tree by its path (`""` = the root, `"1.0"` = the second child's first) – editor tools */
   nodes?: Record<string, Object3D>;
-  /** A tap on the entity (the scene's hit test found it): a component may react (the animation's `playOn: tap`) */
-  onTap?(): void;
+  /**
+   * A tap on the entity (the scene's hit test found it): a component may react (the animation's `playOn: tap`).
+   * True when the entity used the tap itself – a video paused, played or got its sound (#290): the app then does not
+   * open the target's entry.
+   */
+  onTap?(): boolean | void;
   /** A model node's animation for the editor's timeline */
   timeline?: NodeTimeline;
   /** The timelines of every node of the tree by its path – editor tools */
@@ -115,7 +119,8 @@ const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset
     object: placed,
     nodes,
     timelines,
-    onTap: () => all.forEach(part => part.onTap?.()),
+    // Every part hears the tap; the node used it when one of them did
+    onTap: () => all.map(part => part.onTap?.() === true).includes(true),
     onFound: () => all.forEach(part => part.onFound?.()),
     onLost: () => all.forEach(part => part.onLost?.()),
     onUnlocked: () => all.forEach(part => part.onUnlocked?.()),
@@ -172,7 +177,7 @@ const plane = (material: MeshBasicMaterial | ReturnType<typeof chromaKeyMaterial
 
 // ── Built-in types ────────────────────────────────────────────────────────────────────────────
 
-/** Video: plays when the target is found, pauses when lost / paused; optional chroma key filter */
+/** Video: plays when the target is found (on from where it stopped), pauses when lost / paused, a tap pauses or plays it; optional chroma key filter */
 registerEntity("video", ({ entity, asset }) => {
   const data = entity.assets.find(a => a.assetType === "video");
   if (!data) return null;
@@ -200,8 +205,18 @@ registerEntity("video", ({ entity, asset }) => {
       // With sound where the browser allows it, else muted – not while the editor holds the media (`media.ts`)
       if (element) void playMedia(element);
     },
+    // Lost or paused: it stops where it is – found again, it goes on from there (the element keeps its time)
     onLost: () => { if (element) pauseMedia(element); },
     onPause: () => { if (element) pauseMedia(element); },
+    // A tap (#290): a video the browser silenced gets its sound (the tap is the gesture it waited for), else it
+    // pauses or plays on – the subtitles follow its time (`subtitles.ts`)
+    onTap: () => {
+      if (!element) return false;
+      if (soundRestored(element)) return true;
+      if (element.paused) void playMedia(element);
+      else pauseMedia(element);
+      return true;
+    },
     // A keyed video stays keyed: new values go into the uniforms; adding or removing the key needs a new material
     tune: tuned => {
       const key = parseChromaKey(tuned.filters);

@@ -21,7 +21,7 @@ const showScanning = (scanning: boolean): void => {
  *   AR → store: found / lost → `game.targets`, status → `arStatus` + loading page, ready → content preload of the
  *   spreads kept ready next to the current one (the same window the tracker holds, `prepared-spreads.ts`).
  * A target's first find (unlock) plays the entity's unlock animation and dispatches TARGET_UNLOCKED_EVENT;
- * tapping an entity opens its entry; a glossary picture tapped for the first time flies its card first
+ * tapping an entity opens its entry (a video's tap pauses / plays it instead, #290); a glossary picture tapped for the first time flies its card first
  * (CARD_FLIGHT_EVENT). The scene's `scanning` shows the reader's scanning indicator (`#osct-scanning`,
  * index.html) while tracking runs and nothing is found, its `subtitle` goes to `SubtitleService` (the line of a speaking
  * video, drawn by `<subtitle-line>`); an AR error's code picks the camera overlay, a failed AR chunk
@@ -56,7 +56,7 @@ export class ArBridge extends HTMLElement {
       scene.on("status", (status, error) => this.handleStatus(status, error)),
       scene.on("targetFound", id => this.handleFound(id)),
       scene.on("targetLost", id => game.targets.removeTarget(id)),
-      scene.on("targetTapped", id => this.handleTap(id)),
+      scene.on("targetTapped", (id, used) => this.handleTap(id, used)),
       scene.on("scanning", scanning => showScanning(scanning)),
       scene.on("subtitle", text => SubtitleService.getInstance().show(text)),
       // The reader turned to a neighbouring spread (8th Wall): switch like the spread menu does
@@ -125,9 +125,12 @@ export class ArBridge extends HTMLElement {
     document.dispatchEvent(new CustomEvent(TARGET_UNLOCKED_EVENT, { detail: { targetId } }));
   }
 
-  /** Tap on an AR entity in scan mode opens its entry (the route sets consultation mode; the entry view marks it consulted) */
-  private handleTap(targetId: string) {
-    if (this.game.state.mode !== GameMode.SCAN) return;
+  /**
+   * Tap on an AR entity in scan mode opens its entry (the route sets consultation mode; the entry view marks it
+   * consulted) – unless the entity used the tap itself: a video pauses / plays on a tap (#290)
+   */
+  private handleTap(targetId: string, used = false) {
+    if (this.game.state.mode !== GameMode.SCAN || used) return;
     const target = getTarget(targetId);
     if (target) this.game.router.navigate("/entry", { key: "entryId", value: target.entryId });
   }

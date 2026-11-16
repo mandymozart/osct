@@ -19,7 +19,7 @@ import { emitCoreEvent, type ProgressReader, setProgressReader, setSpreadSource,
 import type { IImageTracker, ImageTrackerOptions, TrackerContext } from "./tracker-types";
 import { LookAround } from "./look-around";
 import { Subtitles } from "./subtitles";
-import { holdMedia, releaseMedia } from "./media";
+import { endTap, holdMedia, releaseMedia, restoreSound, setMediaSound } from "./media";
 import { textureMedia } from "./textures";
 import { holdFeedbacks } from "./feedback";
 import { onAppUi } from "./ui";
@@ -52,6 +52,8 @@ export interface ArSceneOptions {
   debug?: boolean;
   /** The language the app shows subtitles in (asked while a video plays, so a change applies at once); none = English */
   subtitleLanguage?: () => string;
+  /** The app's sound setting: may videos and sounds play with sound (asked at every start); none = with sound (#290) */
+  sound?: () => boolean;
 }
 
 /**
@@ -132,6 +134,7 @@ export class ArScene implements IArScene {
   constructor(private container: HTMLElement, private options: ArSceneOptions) {
     setProgressReader(options.progress);
     setSpreadSource(getSpread, getSpreads);
+    setMediaSound(options.sound);
     this.textureQuality = options.graphics?.getSettings().textureQuality;
   }
 
@@ -609,28 +612,34 @@ export class ArScene implements IArScene {
    * A tap on the screen: the canvas lies under the app's pages, so taps are read from the document. Taps on
    * app UI are ignored; otherwise the nearest found entity whose on-screen bounds (+ margin) contain the
    * tap is reported (`targetTapped`). A tap that hits no entity focuses the camera there (`focusAtTap()`).
+   * Every tap – on app UI too – is a user gesture: videos the browser silenced get their sound (`restoreSound`, #290).
    */
   private onTap = (event: MouseEvent): void => {
     if (!this.running || !this.view) return;
-    if (onAppUi(event)) return;
-    if (!this.content) {
-      void focusAtTap(event.clientX, event.clientY);
-      return;
+    restoreSound();
+    try {
+      if (onAppUi(event)) return;
+      if (!this.content) {
+        void focusAtTap(event.clientX, event.clientY);
+        return;
+      }
+      const hit = this.hitTest(event.clientX, event.clientY);
+      if (!hit || !this.tapTarget(hit)) void focusAtTap(event.clientX, event.clientY);
+    } finally {
+      endTap();
     }
-    const hit = this.hitTest(event.clientX, event.clientY);
-    if (!hit || !this.tapTarget(hit)) void focusAtTap(event.clientX, event.clientY);
   };
 
   /**
-   * A tap on a found target's entity: its hooks hear `onTap`, the app `targetTapped`, the plugins the core event of
-   * the same name. The reader's tap reaches it through the hit test, an editor tool directly (`inspect().tap`).
+   * A tap on a found target's entity: its hooks hear `onTap`, the app `targetTapped` (with whether the entity used the
+   * tap itself – a video paused or played, #290), the plugins the core event of the same name. The reader's tap reaches it through the hit test, an editor tool directly (`inspect().tap`).
    * False – nothing happens – while the scene does not run, or when the target is not found or has no entity.
    */
   private tapTarget(targetId: string): boolean {
     const anchor = this.content?.anchors.find(a => a.target.id === targetId);
     if (!this.running || !anchor?.entity || !this.found.has(targetId)) return false;
-    anchor.entity.onTap?.();
-    this.emitter.emit("targetTapped", targetId);
+    const used = anchor.entity.onTap?.() === true;
+    this.emitter.emit("targetTapped", targetId, used);
     emitCoreEvent("targetTapped", { targetId });
     return true;
   }

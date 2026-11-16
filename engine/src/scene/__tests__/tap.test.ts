@@ -9,7 +9,7 @@ const target: Target = { id: "page", entryId: "page", spreadId: "s", imageSrc: "
 const bare: Target = { id: "bare", entryId: "bare", spreadId: "s", imageSrc: "/bare.jpg" };
 
 interface Internals {
-  buildAnchor(t: Target): { group: Group; entity: { object: Group; onTap?: () => void } | null };
+  buildAnchor(t: Target): { group: Group; entity: { object: Group; onTap?: () => boolean | void } | null };
   tapTarget(id: string): boolean;
   content: unknown;
   running: boolean;
@@ -36,13 +36,15 @@ describe("ArScene: a tap without aiming (the editor's tap button)", () => {
     anchors[0].entity!.onTap = onTap;
     const tapped: string[] = [];
     const core: unknown[] = [];
-    cleanups.push(scene.on("targetTapped", id => tapped.push(id)));
+    const used: boolean[] = [];
+    cleanups.push(scene.on("targetTapped", (id, wasUsed) => { tapped.push(id); used.push(wasUsed); }));
     cleanups.push(observeEvents((event, payload) => { if (event === "targetTapped") core.push(payload); }));
     internals.found.add("page");
 
     expect(internals.tapTarget("page")).toBe(true);
     expect(onTap).toHaveBeenCalledOnce();
     expect(tapped).toEqual(["page"]);
+    expect(used).toEqual([false]);
     expect(core).toEqual([{ targetId: "page" }]);
   });
 
