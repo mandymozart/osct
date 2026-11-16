@@ -82,6 +82,10 @@
 
   --category-width: 6.25rem;
 
+  /* The phone frame around the app preview on the desktop landing page (#293) */
+  --phone-frame: #1c1c1c;
+  --phone-frame-width: .6rem;
+
   --mark-width: 6.1875rem;
   --mark-height: 6rem;
   /* Transparent margin above the drawing in the Mark image; the header offsets it so the visible Mark sits 1rem from the top */

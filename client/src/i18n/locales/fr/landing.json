@@ -1,0 +1,13 @@
+{
+  "label": "À propos de l'app",
+  "intro": "L'app compagnon de <em>{{title}}</em> de {{author}}. Pointe ton téléphone vers les pages du livre imprimé pour découvrir vidéos, textes et références en réalité augmentée.",
+  "getApp": "Obtenir l'app",
+  "openOnPhone": "L'app est faite pour ton téléphone : ouvre cette adresse dans le navigateur de ton téléphone.",
+  "openHere": "Ouvrir l'app ici",
+  "openHereNote": "Sans téléphone, tu peux quand même explorer sur cet ordinateur – pour scanner, il faut une caméra.",
+  "shop": "En boutique",
+  "shopBook": "Le livre",
+  "shopShirt": "Le T-shirt",
+  "toShop": "Boutique",
+  "previewAlt": "L'app sur un téléphone"
+}

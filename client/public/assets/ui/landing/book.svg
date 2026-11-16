@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 120" fill="none" stroke="#d2ae5a" stroke-width="2" stroke-linejoin="round">
+  <!-- Placeholder book drawing for the desktop landing page (#293): shown while the content has no cover; replace with the shop's product picture -->
+  <path d="M10 4 H80 V112 H10 Z"/>
+  <path d="M18 4 V112"/>
+  <path d="M80 112 L86 116 V8 L80 4"/>
+</svg>

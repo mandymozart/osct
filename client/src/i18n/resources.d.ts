@@ -150,6 +150,19 @@ export default interface Resources {
     "info": "Info",
     "openConsultation": "Open consultation mode"
   },
+  "landing": {
+    "getApp": "Get the app",
+    "intro": "The companion app to <em>{{title}}</em> by {{author}}. Point your phone at the pages of the printed book to unlock videos, texts and references in augmented reality.",
+    "label": "About the app",
+    "openHere": "Open the app here",
+    "openHereNote": "Without a phone you can still look around on this computer – scanning needs a camera.",
+    "openOnPhone": "The app is made for your phone: open this address in your phone's browser.",
+    "previewAlt": "The app on a phone",
+    "shop": "In the shop",
+    "shopBook": "The book",
+    "shopShirt": "The T-shirt",
+    "toShop": "Shop"
+  },
   "notFound": {
     "text": "This page doesn't exist (anymore)."
   },

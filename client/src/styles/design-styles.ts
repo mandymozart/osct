@@ -88,6 +88,7 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     letter-spacing: inherit;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+    text-decoration: none;            /* goldButton({ href }) renders an <a> */
   }
 
   .button {

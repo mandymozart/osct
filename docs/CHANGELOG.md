@@ -7,6 +7,18 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.92.0 – 2026-11-17
+
+### Added
+- Desktop landing page (#293, design p. 59 "web only"): a visitor on a computer (mouse or trackpad, no phone or tablet
+  browser, a window at least 900 px wide; never in the installed app) first sees what the app is – the companion to the
+  book – and how to get it: the address to open on the phone, or install (the Info page's install section). Beside it
+  the app in a phone frame, below it the book and the T-shirt with links to the Building Fictions shop. "Open the app
+  here" starts the app as before (remembered for the browser tab); nothing starts behind the page. Phones and tablets
+  are unchanged. Shop URLs, preview and pictures are configuration (`components/desktop-landing/landing-config.ts`,
+  `public/assets/ui/landing/`); the shop URLs and pictures are placeholders.
+- `goldButton({ href })` renders a link in the design-button look (new tab).
+
 ## 1.91.1 – 2026-11-17
 
 ### Fixed

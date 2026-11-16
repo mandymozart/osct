@@ -9,6 +9,9 @@ import { escapeHtml } from "@/utils";
  *   pill    – glass pill (default)
  *   icon    – round glass button; needs an `aria-label`
  *   primary – shining label and border sweep; otherwise secondary
+ *
+ * With `href` the result is a link (`<a>`, opened in a new tab) in the same look – for actions that leave the app
+ * (the shop on the desktop landing page).
  */
 export type GoldButtonShape = "button" | "pill" | "icon";
 
@@ -21,6 +24,8 @@ export interface GoldButtonOptions {
   type?: "button" | "submit";
   /** Extra classes for the component's own styles */
   className?: string;
+  /** External link: renders an `<a>` opening in a new tab instead of a button (`type` is then ignored) */
+  href?: string;
   /** Attributes: `true` = present without value, `false` / `undefined` = left out */
   attrs?: Record<string, string | number | boolean | undefined>;
 }
@@ -33,7 +38,10 @@ const attributes = (attrs: GoldButtonOptions["attrs"] = {}): string =>
     .map(([name, value]) => (value === true ? ` ${name}` : ` ${name}="${escapeHtml(String(value))}"`))
     .join("");
 
-export const goldButton = ({ label, shape = "pill", primary = false, type = "button", className, attrs }: GoldButtonOptions): string => {
+export const goldButton = ({ label, shape = "pill", primary = false, type = "button", className, href, attrs }: GoldButtonOptions): string => {
   const classes = [SHAPE_CLASS[shape], primary ? "primary" : "", "design", className ?? ""].filter(Boolean).join(" ");
+  if (href !== undefined) {
+    return `<a class="${classes}" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer"${attributes(attrs)}><span class="gold">${escapeHtml(label)}</span></a>`;
+  }
   return `<button type="${type}" class="${classes}"${attributes(attrs)}><span class="gold">${escapeHtml(label)}</span></button>`;
 };

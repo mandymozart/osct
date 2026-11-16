@@ -1,0 +1,13 @@
+{
+  "label": "Over de app",
+  "intro": "De begeleidende app bij <em>{{title}}</em> van {{author}}. Richt je telefoon op de pagina's van het gedrukte boek en ontdek video's, teksten en referenties in augmented reality.",
+  "getApp": "Download de app",
+  "openOnPhone": "De app is gemaakt voor je telefoon: open dit adres in de browser van je telefoon.",
+  "openHere": "App hier openen",
+  "openHereNote": "Zonder telefoon kun je ook op deze computer rondkijken – om te scannen heb je een camera nodig.",
+  "shop": "In de shop",
+  "shopBook": "Het boek",
+  "shopShirt": "Het T-shirt",
+  "toShop": "Naar de shop",
+  "previewAlt": "De app op een telefoon"
+}

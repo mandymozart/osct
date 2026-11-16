@@ -4,6 +4,20 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-17 – Desktop landing page (#293)
+`<desktop-landing>` (client `components/desktop-landing/`) covers the app for desktop visitors; `main.ts` awaits its
+`whenDone()` before the start (onboarding, opened link, camera), and it removes the static splash, so a desktop visitor
+who continues starts the onboarding at step 0. The test (*my reading* of "decide the exact test"): not standalone, primary
+pointer not coarse, no phone/tablet user agent (iPadOS-as-Mac counts as tablet), viewport ≥ 56.25 em. The rear camera
+is not probed (needs the permission). "Open the app here" = desktop visitors may still enter (*my reading*), remembered
+in sessionStorage (`osct-desktop-landing-skipped`), so every new visit shows the page again. "Get the app" = the
+address as text plus `<settings-install>` – no QR code (the only QR generator is in the dev tools).
+- [ ] Shop URLs for the book and the T-shirt (Tilman): both are `SHOP_URL_PLACEHOLDER` (https://buildingfictions.com)
+  in `landing-config.ts`.
+- [ ] Product pictures (book, T-shirt) and the phone preview (Rudy's video loop or a better still): placeholder line
+  drawings and a screenshot of the onboarding in `public/assets/ui/landing/`; `previewVideo` takes a loop.
+- [ ] Landing copy: placeholder texts in the `landing` i18n namespace, until the final copy.
+
 ## 2026-11-16 – Marginalia menu, All, every entry listed (#286–#288)
 The list's choices are `ListCategory` = an `EntryCategory` or `"all"` (`ALL_CATEGORY`, client `types/entries.ts`) – All
 is a view, not a content category, so no schema change. `progress.lastCategory` may now hold `"all"`, additive within
