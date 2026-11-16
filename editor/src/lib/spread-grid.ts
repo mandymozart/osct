@@ -10,6 +10,8 @@ export interface GridSpread {
   firstPage: number;
   lastPage: number;
   format?: string;
+  /** `front` / `back` matter: a double page without printed numbers (#296) */
+  matter?: string;
 }
 
 /** `side`: a single page's side of the gutter (a right-hand page on an odd column) – its padding there is dropped */
@@ -28,9 +30,11 @@ export const gridCells = <T extends GridSpread>(spreads: T[]): GridCell<T>[] => 
   let column = 0;
   for (const spread of spreads) {
     const span = spanOf(spread);
-    const rightHand = spread.format === "cover" || (span === 1 && spread.format !== "back");
-    // A right-hand single page goes on an odd column, a double page on an even one
-    const wanted = rightHand ? 1 : span === 2 ? 0 : column % 2;
+    // An even single page (the last printed one) is a left-hand page, every other single page but the back cover a right-hand one
+    const leftHand = span === 1 && (!spread.format || spread.format === "spread") && spread.firstPage % 2 === 0;
+    const rightHand = spread.format === "cover" || (span === 1 && spread.format !== "back" && !leftHand);
+    // A right-hand single page goes on an odd column, a left-hand one and a double page on an even one
+    const wanted = rightHand ? 1 : leftHand || span === 2 ? 0 : column % 2;
     if (column % 2 !== wanted) {
       cells.push({ spacer: true });
       column += 1;
@@ -43,10 +47,10 @@ export const gridCells = <T extends GridSpread>(spreads: T[]): GridCell<T>[] => 
 
 /** The pages a spread covers, e.g. `4–5`, or its format for the covers */
 export const pagesOf = (spread: GridSpread): string =>
-  spread.format === "cover" ? "cover" : spread.format === "back" ? "back" : `${spread.firstPage}${spread.lastPage !== spread.firstPage ? `–${spread.lastPage}` : ""}`;
+  spread.format === "cover" ? "cover" : spread.format === "back" ? "back" : spread.matter ? `${spread.matter} matter` : `${spread.firstPage}${spread.lastPage !== spread.firstPage ? `–${spread.lastPage}` : ""}`;
 
 /** The format worth a label: anything but the default double page */
-export const formatLabelOf = (spread: GridSpread): string => (spread.format && spread.format !== "spread" ? spread.format : "");
+export const formatLabelOf = (spread: GridSpread): string => (spread.format && spread.format !== "spread" ? spread.format : spread.matter ? `${spread.matter} matter` : "");
 
 /**
  * The one-line caption: the pages (the covers have none) and the title, when the title is more than the pages again.

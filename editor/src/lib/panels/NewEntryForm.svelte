@@ -19,7 +19,7 @@
 
   const pages = $derived(Array.from({ length: spread.lastPage - spread.firstPage + 1 }, (_, i) => spread.firstPage + i));
   const format = $derived(spread.format ?? "spread");
-  const pageLabel = (p: number) => (format === "cover" ? "cover" : format === "back" ? "back cover" : String(p));
+  const pageLabel = (p: number) => (format === "cover" ? "cover" : format === "back" ? "back cover" : spread.matter ? `${spread.matter} matter, ${p === spread.firstPage ? "left" : "right"}` : String(p));
   let title = $state("");
   // svelte-ignore state_referenced_locally
   let page = $state(spread.firstPage);

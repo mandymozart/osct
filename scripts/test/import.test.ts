@@ -112,6 +112,31 @@ describe('delivery import', () => {
     expect(spreadPages(256, 256)).toEqual([256, 256]);
   });
 
+  it('the print layout gives the cover, the front and back matter and the back cover their spreads (#296)', async () => {
+    const { layoutSpreads } = await import('../src/import-delivery');
+    const spreads = layoutSpreads([
+      { id: 'cover-front', kind: 'cover-front', pages: [] },
+      { id: 'front-matter-002', kind: 'front-matter', pages: [] },
+      { id: 'front-matter-003', kind: 'front-matter', pages: [] },
+      { id: 'pp-001', kind: 'spread', pages: [1] },
+      { id: 'pp-002-003', kind: 'spread', pages: [2, 3] },
+      { id: 'pp-004', kind: 'spread', pages: [4] },
+      { id: 'back-matter-006', kind: 'back-matter', pages: [] },
+      { id: 'cover-back', kind: 'cover-back', pages: [] },
+    ]);
+    expect(spreads.map(s => [s.id, s.firstPage, s.lastPage, s.format ?? s.matter ?? ''])).toEqual([
+      ['cover', 0, 0, 'cover'],
+      ['front-1', -4, -3, 'front'],
+      ['front-2', -2, -1, 'front'],
+      ['s001', 1, 1, ''],
+      ['s002-003', 2, 3, ''],
+      ['s004', 4, 4, ''],
+      ['back-1', 5, 6, 'back'],
+      ['back', 7, 7, 'back'],
+    ]);
+    expect(spreads.map(s => s.order)).toEqual([...spreads.map(s => s.order)].sort((a, b) => a - b));
+  });
+
   it('reads the mapping field by field: entries that cannot be imported are reported and left out', async () => {
     const root = tempDir('osct-mapping-');
     const file = path.join(root, 'mapping.yaml');

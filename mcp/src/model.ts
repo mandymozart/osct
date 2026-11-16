@@ -37,6 +37,7 @@ import {
   PRINT_SURFACES,
   SOURCES_OF_TRUTH,
   SPREAD_FORMATS,
+  MATTERS,
   type PluginData,
 } from "../../shared/types/game-config";
 import { DEFAULT_ENVIRONMENT, ENVIRONMENT_WORLDS, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS } from "../../shared/types/environment";
@@ -414,8 +415,9 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     },
     spread: {
       description:
-        "SpreadData: { id, title, firstPage, lastPage, format?, passes? }. add_spread adds a double page (later pages are numbered on by two), the front cover (page 0) or the back cover; delete_spread removes one with everything on it (two steps: the impact, then the confirmation); put_spread changes title, format and passes.",
+        "SpreadData: { id, title, firstPage, lastPage, format?, matter?, passes? }. matter (front | back, content schema 2.32) marks a double page without printed numbers – front matter between the cover and page 1 (internal pages counting down to −1), back matter between the last printed page and the back cover; a print-first book gets them from its layout through an import. add_spread adds a double page (later pages are numbered on by two), the front cover (page 0) or the back cover; delete_spread removes one with everything on it (two steps: the impact, then the confirmation); put_spread changes title, format and passes.",
       formats: SPREAD_FORMATS,
+      matters: MATTERS,
     },
     plugin: {
       description:

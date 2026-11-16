@@ -20,7 +20,10 @@
  * Contract: media files are (re)written when the delivered file is newer; `entry.yaml` and `spread.yaml`
  * are written only when missing, so edited texts survive a second import. One spread per pair of facing
  * pages (page 1 and the last page stand alone) for every page with an entry: `s<first>-<last>`, title
- * "<first>–<last>", order = first page. Every problem is reported; the import exits 1 when something
+ * "<first>–<last>", order = first page. When the content has a print layout (`layout/layout.json`), every sheet
+ * of it gets its spread too (#296): the cover, the front and back matter (double pages without printed numbers –
+ * `matter`, internal pages below 0 and after the last printed page), the numbered sheets without an entry and the
+ * back cover (`layoutSpreads`). Every problem is reported; the import exits 1 when something
  * could not be done (a warning – e.g. a video without a target – does not).
  */
 import { spawnSync } from 'child_process';
@@ -132,6 +135,85 @@ const spreadId = ([first, last]: [number, number]) =>
 const newer = (source: string, output: string) =>
   !fs.existsSync(output) || fs.statSync(source).mtimeMs > fs.statSync(output).mtimeMs;
 
+/** A layout sheet as `layout/layout.json` lists it – what `layoutSpreads` reads */
+export interface LayoutSheetLike {
+  id: string;
+  kind: string;
+  pages: number[];
+}
+
+/** A spread the layout asks for: its folder id, title, order and pages, and its format or matter */
+export interface LayoutSpread {
+  id: string;
+  title: string;
+  order: number;
+  firstPage: number;
+  lastPage: number;
+  format?: 'cover' | 'back';
+  matter?: 'front' | 'back';
+}
+
+/**
+ * The spreads of a print layout's sheets, in book order: the cover (page 0), the front matter counting down to −1
+ * (`front-1` … `front-<n>`, the last one next to page 1), one spread per numbered sheet, the back matter after the last
+ * printed page (`back-1` …) and the back cover after it. Order = first page; the cover comes first.
+ */
+export const layoutSpreads = (sheets: readonly LayoutSheetLike[]): LayoutSpread[] => {
+  const front = sheets.filter(sheet => sheet.kind === 'front-matter');
+  const back = sheets.filter(sheet => sheet.kind === 'back-matter');
+  const numbered = sheets.filter(sheet => sheet.kind === 'spread' && sheet.pages.length > 0);
+  const lastPrinted = Math.max(0, ...numbered.flatMap(sheet => sheet.pages));
+  const spreads: LayoutSpread[] = [];
+  if (sheets.some(sheet => sheet.kind === 'cover-front')) {
+    spreads.push({ id: 'cover', title: 'Cover', order: -2 * front.length - 1, firstPage: 0, lastPage: 0, format: 'cover' });
+  }
+  front.forEach((_, i) => {
+    const first = -2 * (front.length - i);
+    spreads.push({ id: `front-${i + 1}`, title: `Front matter ${i + 1}`, order: first, firstPage: first, lastPage: first + 1, matter: 'front' });
+  });
+  for (const sheet of numbered) {
+    const range: [number, number] = [Math.min(...sheet.pages), Math.max(...sheet.pages)];
+    const title = range[0] === range[1] ? `${range[0]}` : `${range[0]}–${range[1]}`;
+    spreads.push({ id: spreadId(range), title, order: range[0], firstPage: range[0], lastPage: range[1] });
+  }
+  back.forEach((_, i) => {
+    const first = lastPrinted + 1 + 2 * i;
+    spreads.push({ id: `back-${i + 1}`, title: `Back matter ${i + 1}`, order: first, firstPage: first, lastPage: first + 1, matter: 'back' });
+  });
+  if (sheets.some(sheet => sheet.kind === 'cover-back')) {
+    const page = lastPrinted + 2 * back.length + 1;
+    spreads.push({ id: 'back', title: 'Back cover', order: page, firstPage: page, lastPage: page, format: 'back' });
+  }
+  return spreads;
+};
+
+/** spread.yaml of a layout spread */
+const layoutSpreadYaml = (spread: LayoutSpread, source: string) =>
+  `${comment(`From the print layout (${source}): ${spread.title}.`)}
+title: ${quote(spread.title)}
+order: ${spread.order}
+`
+  + `firstPage: ${spread.firstPage}
+lastPage: ${spread.lastPage}
+`
+  + (spread.format ? `format: ${spread.format}
+` : '') + (spread.matter ? `matter: ${spread.matter}
+` : '');
+
+/** Writes the layout's spreads that the content does not have yet (by id) – nothing when it has no layout */
+function writeLayoutSpreads(report: ImportReport): void {
+  const file = path.join(CONTENT_DIR, 'layout', 'layout.json');
+  if (!fs.existsSync(file)) return;
+  const layout = JSON.parse(fs.readFileSync(file, 'utf8')) as { sheets?: LayoutSheetLike[] };
+  for (const spread of layoutSpreads(layout.sheets ?? [])) {
+    const yamlFile = path.join(CONTENT_DIR, 'spreads', spread.id, 'spread.yaml');
+    if (fs.existsSync(yamlFile)) continue;
+    fs.mkdirSync(path.dirname(yamlFile), { recursive: true });
+    fs.writeFileSync(yamlFile, layoutSpreadYaml(spread, 'layout/layout.json'));
+    report.spreadsWritten.push(spread.id);
+  }
+}
+
 const quote = (text: string) => `"${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 
 const comment = (text: string) => text.split('\n').map(line => `# ${line}`).join('\n');
@@ -242,6 +324,7 @@ export function importDelivery(deliveryDir: string, mappingFile: string): Import
     fs.writeFileSync(file, `${comment(`Imported from ${mappingName}: pages ${title}.`)}\ntitle: ${quote(title)}\norder: ${range[0]}\nfirstPage: ${range[0]}\nlastPage: ${range[1]}\n`);
     report.spreadsWritten.push(id);
   }
+  writeLayoutSpreads(report);
   return report;
 }
 

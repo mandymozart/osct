@@ -20,6 +20,12 @@ describe("spread grid", () => {
     expect(placed.start).toBe(1);
   });
 
+  it("puts the last printed page on the left when it is even, front and back matter as double pages (#296)", () => {
+    const book = gridCells([spread("cover", 0, 0, "cover"), { ...spread("f1", -2, -1), matter: "front" }, spread("p1", 1, 1), spread("p2", 2, 3), spread("p4", 4, 4), { ...spread("b1", 5, 6), matter: "back" }, spread("back", 7, 7, "back")]);
+    const placed = book.filter(cell => !cell.spacer);
+    expect(placed.map(cell => [cell.spread.id, cell.side])).toEqual([["cover", "right"], ["f1", null], ["p1", "right"], ["p2", null], ["p4", "left"], ["b1", null], ["back", "left"]]);
+  });
+
   it("starts every double page on an even column so 2–3, 4–5 line up as spreads", () => {
     for (const { cell, start } of layoutOf()) {
       if (!cell.spacer && cell.span === 2) expect(start % 2).toBe(0);

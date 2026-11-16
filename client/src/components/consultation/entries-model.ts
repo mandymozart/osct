@@ -1,4 +1,5 @@
-import { type Entry, EntryCategory } from "@/types";
+import { type Entry, EntryCategory, type Spread } from "@/types";
+import { matterOf } from "@shared/types/game-config";
 import { isEntryCategory } from "@shared/guards/game-config";
 import { t } from "i18next";
 
@@ -11,6 +12,13 @@ import { t } from "i18next";
  * menu and the entry's category row alike.
  */
 export const categoryLabel = (category: EntryCategory): string => t(`entries:categories.${category}`);
+
+/**
+ * The page an entry is on, as the reader finds it in the book: its printed number, or – on a cover or the front and
+ * back matter, which have none – its spread's title
+ */
+export const pageLabel = (page: number, spread: Pick<Spread, "title" | "format" | "matter"> | undefined): string =>
+  spread && (spread.format === "cover" || spread.format === "back" || matterOf(spread)) ? spread.title : String(page);
 
 export const DEFAULT_CATEGORY = EntryCategory.Glossary;
 

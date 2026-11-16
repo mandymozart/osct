@@ -4,6 +4,23 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-16 – front and back matter are spreads with internal pages (#296, 1.80.0)
+
+- Rudy (via Tilman): the editor misses the 6 pages before page 1 and the 6 after page 256 (`START BOOK.pdf`,
+  `END BOOK.pdf`), and AR there would be nice. The print layout already had them as sheets (`cover-front`,
+  `front-matter-002/003`, the unnumbered half of `pp-001` / `pp-256`, `back-matter-133/134`, `cover-back`); the content
+  had no spread for them – and none for page 256, so staging's back cover sat on page 256.
+- Decided here (not asked): an optional `matter: front | back` on a double page (content schema 2.32, a MINOR – an optional field,
+  not a new spread format, which would be a MAJOR). Pages stay the key that ties
+  entries to spreads, so the matter gets **internal pages**: front −4…−1 (counting down to −1), back after the last
+  printed page, the back cover after it. No printed page number moves. The stage finds a matter sheet by its position
+  (`sheetForSpread`), so `layout.json` and the CDN stay as they are.
+- A print-first book gets them through the delivery import (`layoutSpreads`: a spread for every layout sheet without
+  one); adding them in the editor stays refused for print-first books (#238).
+- [ ] Open: staging's draft has edits since its import, so the new spreads reach it only through a draft round trip
+  (draft → add the spreads, move the back cover from 256 to 261 → import with the comparison shown to Tilman), not a
+  re-import of the content folder. Rudy's two PDFs are not compared with the sheet images yet.
+
 ## 2026-11-15 – narration is a video with its sound, on an animated paper mesh; only subtitles are built (#257)
 
 - Tilman: *"we will use only a video on a animated paper mesh for our narration. so the only thing we need to

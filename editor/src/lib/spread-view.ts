@@ -7,12 +7,14 @@ export interface SpreadPagesSource {
   firstPage: number;
   lastPage: number;
   format?: string;
+  matter?: string;
 }
 
-/** "28–29", "3", "cover", "back" */
+/** "28–29", "3", "cover", "back", "front matter", "back matter" */
 export const spreadPages = (spread: SpreadPagesSource): string => {
   if (spread.format === "cover") return "cover";
   if (spread.format === "back") return "back";
+  if (spread.matter === "front" || spread.matter === "back") return `${spread.matter} matter`;
   return spread.lastPage !== spread.firstPage ? `${spread.firstPage}–${spread.lastPage}` : `${spread.firstPage}`;
 };
 

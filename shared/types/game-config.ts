@@ -99,11 +99,13 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   an entity's root node (its own look for a moment, in place of the book's – `./appearance.ts`; an older app skips the
  *   components with a warning and plays the book's look, or its own animation), and since 2.31 the configuration's
  *   optional `subtitles` (#257: the WebVTT files of a video, one per language – `./subtitles.ts`; an older app ignores
- *   the field and plays the video without a subtitle line).
+ *   the field and plays the video without a subtitle line), and since 2.32 a spread's optional `matter` (#296: `front` or
+ *   `back` – a double page without printed numbers before page 1 or after the last printed page, its pages internal; an
+ *   older app ignores the field and shows the spread like any other, its pages as numbers).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.31";
+export const CONTENT_SCHEMA_VERSION = "2.32";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
@@ -162,6 +164,18 @@ export const sourceOfTruthOf = (book: Pick<BookData, "sourceOfTruth"> | null | u
 export const SPREAD_FORMATS = ["spread", "cover", "back"] as const;
 export type SpreadFormat = (typeof SPREAD_FORMATS)[number];
 
+/**
+ * A double page without printed numbers (`SpreadData.matter`, #296): `front` matter lies between the cover and page 1,
+ * `back` matter between the last printed page and the back cover. Its pages are internal – front matter counts down
+ * to −1 (the sheet next to page 1 is −2…−1), back matter follows the last printed page – and never shown to readers.
+ */
+export const MATTERS = ["front", "back"] as const;
+export type Matter = (typeof MATTERS)[number];
+
+/** A spread's matter: `front` / `back` when it says so, null for a numbered spread or a cover */
+export const matterOf = (spread: { format?: SpreadFormat; matter?: unknown }): Matter | null =>
+  (!spread.format || spread.format === "spread") && (MATTERS as readonly unknown[]).includes(spread.matter) ? (spread.matter as Matter) : null;
+
 export interface SpreadData {
   id: string;
   title: string;
@@ -169,6 +183,8 @@ export interface SpreadData {
   lastPage: number;
   /** Optional (schema 2.3): `cover` or `back` for the covers, `spread` or none for a double page */
   format?: SpreadFormat;
+  /** Optional (schema 2.32), a double page only: `front` or `back` matter – pages without printed numbers (`MATTERS`) */
+  matter?: Matter;
   /** Optional (schema 2.5): the post-processing passes over this spread's rendered image, in order; replaces the book's (`[]` = none) */
   passes?: PassData[];
 }

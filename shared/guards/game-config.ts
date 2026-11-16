@@ -24,7 +24,7 @@ import { type AppearanceCheckOptions, appearanceProblems } from "../types/appear
 import { environmentProblems } from "../types/environment";
 import { pluginProblems, recordedRegistrations } from "../types/plugins";
 import { NODE_TYPE_PATTERN, nodeParamProblems, nodeTypeSpec } from "../types/node-types";
-import { PRINT_SURFACES, SPREAD_FORMATS } from "../types/game-config";
+import { MATTERS, PRINT_SURFACES, SPREAD_FORMATS } from "../types/game-config";
 import { filterProblems } from "../types/filters";
 import { lightProblems } from "../types/lights";
 import { textureSetProblems } from "../types/textures";
@@ -224,6 +224,10 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     ["firstPage", "lastPage"].forEach(key => num(spread, key, path));
     if (spread.format !== undefined && !(SPREAD_FORMATS as readonly unknown[]).includes(spread.format)) {
       fail(`${path}.format`, `"${spread.format}" is not one of ${SPREAD_FORMATS.join(", ")}`);
+    }
+    if (spread.matter !== undefined) {
+      if (!(MATTERS as readonly unknown[]).includes(spread.matter)) fail(`${path}.matter`, `"${spread.matter}" is not one of ${MATTERS.join(", ")}`);
+      else if (spread.format !== undefined && spread.format !== "spread") fail(`${path}.matter`, `a ${spread.format} is no front or back matter`);
     }
     if (spread.passes !== undefined) passProblems(spread.passes, `${path}.passes`, passOptions).forEach(problem => problems.push(problem));
     if (typeof spread.id === "string") {

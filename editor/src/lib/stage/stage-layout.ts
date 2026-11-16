@@ -82,13 +82,21 @@ export const sheetImageUrl = (sheet: LayoutSheet): string => contentUrl(`${LAYOU
 export const sheetSharpImageUrl = (sheet: LayoutSheet): string | undefined => (sheet.imageSharp ? contentUrl(`${LAYOUT_PATH}${sheet.imageSharp}`) : undefined);
 
 /** The sheet that shows a spread's pages (the one with its first page, else its last), null when there is none */
-export const sheetForSpread = (layout: StageLayout | null, spread: Pick<Spread, "firstPage" | "lastPage" | "format"> | undefined): LayoutSheet | null => {
+export const sheetForSpread = (layout: StageLayout | null, spread: Pick<Spread, "firstPage" | "lastPage" | "format" | "matter"> | undefined): LayoutSheet | null => {
   if (!layout || !spread) return null;
   // The covers have no page: their sheets are the layout's cover-front / cover-back
   if (spread.format === "cover" || spread.format === "back") {
     return layout.sheets.find(sheet => sheet.kind === (spread.format === "cover" ? "cover-front" : "cover-back")) ?? null;
   }
-  return layout.sheets.find(sheet => sheet.pages.includes(spread.firstPage))
-    ?? layout.sheets.find(sheet => sheet.pages.includes(spread.lastPage))
-    ?? null;
+  const numbered = layout.sheets.find(sheet => sheet.pages.includes(spread.firstPage))
+    ?? layout.sheets.find(sheet => sheet.pages.includes(spread.lastPage));
+  if (numbered) return numbered;
+  // Front and back matter have no printed numbers: their sheets are the layout's front-matter / back-matter sheets in
+  // book order – front matter counts down to page −1, back matter on from the last printed page (#296)
+  const matter = spread.matter === "front" || spread.matter === "back" ? spread.matter : null;
+  if (!matter) return null;
+  const sheets = layout.sheets.filter(sheet => sheet.kind === `${matter}-matter`);
+  const lastPrinted = Math.max(0, ...layout.sheets.flatMap(sheet => sheet.pages));
+  const index = matter === "front" ? sheets.length - Math.floor(-spread.firstPage / 2) : Math.floor((spread.firstPage - lastPrinted - 1) / 2);
+  return sheets[index] ?? null;
 };

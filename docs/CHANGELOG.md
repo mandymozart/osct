@@ -7,6 +7,16 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.80.0 – 2026-11-16
+
+### Added
+- The six pages before page 1 and the six after page 256 – the cover, the front matter, the back matter and the back
+  cover – are spreads of their own, so AR can be placed on them in the editor (#296). A double page without printed
+  numbers is marked as front or back matter (content schema 2.32); the editor's stage shows its sheet from the print
+  layout, the reader's page scroller and an entry's page show its title instead of a number.
+- The delivery import writes a spread for every sheet of the print layout that has none: the covers, the front and
+  back matter, and numbered pages without an entry (page 256).
+
 ## 1.79.0 – 2026-11-16
 
 ### Added
