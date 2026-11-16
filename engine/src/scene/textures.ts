@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { SRGBColorSpace, Texture, TextureLoader, VideoTexture } from "three";
 import { type ComponentParamSpec, resolveSpecParams, textureSource, type TextureSpec } from "../types/index";
 import { contentUrl } from "../content/game-config";
+import { playMedia } from "./media";
 
 /**
  * Texture parameters: a spec's parameter of kind `texture` takes a file – a Library
@@ -11,7 +12,8 @@ import { contentUrl } from "../content/game-config";
  * three.js `Texture` first (`resolveTextures`): the code never loads a file itself.
  *
  * A **file** texture is shared by every use of the same file (counted, disposed with its last use) – change its wrap or
- * repeat once, never dispose it. A video plays muted in a loop while it is used. A **procedural** texture is drawn per
+ * repeat once, never dispose it. A video plays muted in a loop while it is used (unless the editor holds the scene's
+ * media, `media.ts`). A **procedural** texture is drawn per
  * use: the use owns it (its `update` runs every frame, it is disposed with the node).
  */
 
@@ -81,7 +83,7 @@ const loadFile = (src: string): FileTexture => {
     element.setAttribute("playsinline", "");
     element.src = url;
     videoHome().appendChild(element);
-    void element.play?.()?.catch?.(() => undefined);
+    void playMedia(element).catch(() => undefined);
     const texture = new VideoTexture(element);
     texture.colorSpace = SRGBColorSpace;
     return { texture, element, users: 0 };
@@ -118,6 +120,10 @@ const useFile = (src: string): TextureUse => {
     },
   };
 };
+
+/** The videos file textures show now – the scene holds them with its other media */
+export const textureMedia = (): HTMLVideoElement[] =>
+  [...files.values()].flatMap(file => (file.element ? [file.element] : []));
 
 const NONE: TextureUse = { texture: null, dispose: () => undefined };
 

@@ -182,6 +182,15 @@ export class AssetStore {
     return this.entries.has(id);
   }
 
+  /** Every loaded video and sound element – what the editor's hold pauses (`media.ts`) */
+  media(): HTMLMediaElement[] {
+    const media: HTMLMediaElement[] = [];
+    this.entries.forEach(({ loaded }) => {
+      if (loaded?.assetType === "video" || loaded?.assetType === "audio") media.push(loaded.element);
+    });
+    return media;
+  }
+
   /** The loaded videos with their files – what the scene's subtitles follow */
   videos(): Array<{ src: string; element: HTMLVideoElement }> {
     const videos: Array<{ src: string; element: HTMLVideoElement }> = [];

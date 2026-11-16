@@ -1,7 +1,7 @@
 {
   "name": "osct-scripts",
   "private": true,
-  "version": "1.77.0",
+  "version": "1.77.1",
   "engines": {
     "node": ">=22"
   },
