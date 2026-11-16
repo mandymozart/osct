@@ -22,13 +22,14 @@ export const nodeAssetKinds = (type: string): readonly AssetKind[] | undefined =
 
 /**
  * The Library's filters (#164): target images – the pictures printed in the book – apart from the other images, so a
- * choice is among one kind; `code` – the scripts (plugin sources) and shaders (#186), listed apart from the media.
+ * choice is among one kind; `code` – the scripts (plugin sources) and shaders (#186), listed apart from the media. A
+ * video's subtitle files (`speak.en.vtt`, #257) are listed with the videos.
  */
 export const LIBRARY_FILTERS = ["all", "target", "image", "video", "model", "audio", "code"] as const;
 export type LibraryFilter = (typeof LIBRARY_FILTERS)[number];
 export const FILTER_LABELS: Partial<Record<LibraryFilter, string>> = { target: "target image" };
 const FILTER_KINDS: Record<Exclude<LibraryFilter, "all" | "target">, readonly AssetKind[]> = {
-  image: ["image"], video: ["video"], model: ["glb", "gltf"], audio: ["audio"], code: ["shader"],
+  image: ["image"], video: ["video", "subtitles"], model: ["glb", "gltf"], audio: ["audio"], code: ["shader"],
 };
 
 /**

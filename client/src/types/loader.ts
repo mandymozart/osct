@@ -6,8 +6,8 @@ import type { AssetType } from "./game-config";
 export interface LoadOptions {
   /** Source URL of the asset */
   src: string;
-  /** Type of asset to load */
-  type: AssetType;
+  /** Type of asset to load – a video's subtitle file is no asset of a node, it comes with its video */
+  type: AssetType | "subtitles";
   /** Optional timeout in milliseconds (default: 30000) */
   timeout?: number;
 }

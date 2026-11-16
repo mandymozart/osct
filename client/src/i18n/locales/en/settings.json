@@ -33,5 +33,7 @@
   "downloadFailed": "Some files could not be downloaded ({{size}} in total). Check your connection and try again.",
   "historyDescriptionAccount": "The app keeps track of all the entries you have found and explored in the book – on this device and in your account. Resetting deletes your progress in both places, so you can start over.",
   "historyConfirmAccount": "Delete all saved progress for this book – on this device and in your account?",
-  "installAdded": "The app is installed – open it from your home screen or app list."
+  "installAdded": "The app is installed – open it from your home screen or app list.",
+  "subtitlesLabel": "Subtitles",
+  "subtitlesDescription": "Shows what a video says as text while it plays."
 }

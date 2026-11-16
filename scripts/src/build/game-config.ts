@@ -10,6 +10,7 @@ import { buildEntries } from './entries';
 import { buildSpreads } from './spreads';
 import { checkTargetsPerSpread } from './targets';
 import { buildTutorial } from './tutorial';
+import { buildSubtitles } from './subtitles';
 
 /**
  * Build the final config object; `plugins` = the compiled plugins (build/plugins.ts), declared when there are any
@@ -32,6 +33,7 @@ export function buildConfig(versionStr: string, inputHash: string, plugins: Plug
   // Every model stands on its page (#189): its lowest point at the target's z = 0
   warnZeroPlane(trees);
   const tutorial = buildTutorial();
+  const subtitles = buildSubtitles();
 
   const entries = builds
     .map(b => b.entry)
@@ -56,6 +58,7 @@ export function buildConfig(versionStr: string, inputHash: string, plugins: Plug
     entities,
     tutorial,
     ...(plugins.length ? { plugins } : {}),
+    ...(subtitles.length ? { subtitles } : {}),
   };
 
   // The same contract check the app runs on load

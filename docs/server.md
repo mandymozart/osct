@@ -447,7 +447,10 @@ OSCT): models (glb, gltf), videos (mp4, webm, mov), images (jpg, png, webp) and 
 (`Assets::TEXT_MAX_BYTES`). A shader is a source file: the upload checks it is text – sent as `text/*`, as a type that
 says nothing (`application/octet-stream`, none) or as JavaScript / TypeScript, UTF-8 without NUL bytes – else 400
 `invalid-file` (a picture renamed `.glsl` stops there); it is served as `text/x-glsl` / `text/wgsl`. A plugin loads it
-by its URL (`api.loadText`, [plugins](plugins.md) "A shader file"). A script (`.ts`, `.js`) is no asset: it is a
+by its URL (`api.loadText`, [plugins](plugins.md) "A shader file"). **Subtitles** (vtt – the kind `subtitles`, #257) are
+text too, checked and limited like a shader and served as `text/vtt`: a file named `<video name>.<language>.vtt` belongs
+to every video of that name in the book, uploaded or imported, and the draft and a publish list it in the
+configuration's `subtitles` (`Subtitles`, [content](content.md) "Subtitles of a video"). A script (`.ts`, `.js`) is no asset: it is a
 plugin source ("Plugin sources" – the 400 says so). They live in the content store under the pseudo environment `assets`:
 `assets/<book>/<asset id>/v<n>.<ext>` – in the content store's folder for the local store, served (for every book id the
 editor accepts, capitals and `_` included) by `GET /content/assets/…` with the file's type, a year's cache and `Access-Control-Allow-Origin: *` (the reader's

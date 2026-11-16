@@ -1401,6 +1401,32 @@ try {
     check($status === 200 && $data['asset']['width'] === 1080 && $data['asset']['height'] === 1920 && $data['asset']['durationMs'] === 4200, 'a replace (a webm) records the new file\'s numbers');
     foreach ([$video, $still, $broken] as $uploaded) call($api, 'DELETE', "/editor/books/osct/assets/{$uploaded['id']}?force=1", null, $editor);
 
+    echo "editor: a video's subtitles – WebVTT files that belong to it by their names (#257)\n";
+    $vtt = "WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nHello\n";
+    [, $data] = upload($api, 'POST', '/editor/books/osct/assets', mp4File(1000, 3000, [[320, 180, 'vide']]), 'Speak.mp4', $editor);
+    $speak = $data['asset'];
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', $vtt, 'Speak.en.vtt', $editor, 'text/vtt');
+    $subtitleEn = $data['asset'] ?? null;
+    check($status === 201 && $subtitleEn && $subtitleEn['kind'] === 'subtitles' && $subtitleEn['mime'] === 'text/vtt; charset=utf-8' && str_ends_with($subtitleEn['url'], '/v1.vtt'),
+        'a .vtt file → 201 asset of the kind subtitles');
+    check(file_get_contents($subtitleEn['url']) === $vtt && in_array('Content-Type: text/vtt; charset=utf-8', $http_response_header, true), 'served as text/vtt');
+    [, $data] = upload($api, 'POST', '/editor/books/osct/assets', str_replace('Hello', 'Bonjour', $vtt), 'Speak.fr.vtt', $editor);
+    $subtitleFr = $data['asset'];
+    [, $data] = upload($api, 'POST', '/editor/books/osct/assets', str_replace('Hello', 'Hallo', $vtt), 'Other.de.vtt', $editor);
+    $subtitleOther = $data['asset'];
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', $png, 'Speak.nl.vtt', $editor, 'image/png');
+    check($status === 400 && $data['error']['code'] === 'invalid-file', 'a picture renamed .vtt → 400 invalid-file');
+    $draftSubtitles = function () use ($api, $editor, $withToken): mixed {
+        [, $manifest] = call($api, 'GET', '/editor/books/osct/draft/latest.json', null, $editor);
+        return json_decode((string) file_get_contents("$api/editor/books/osct/draft/{$manifest['build']}/game.config.json", false, $withToken), true)['subtitles'] ?? null;
+    };
+    check($draftSubtitles() === [['media' => $speak['url'], 'tracks' => ['en' => $subtitleEn['url'], 'fr' => $subtitleFr['url']]]],
+        'the draft lists the files named like the video with it, per language – a file whose name fits no video is left out');
+    [$status] = deleting($api, "/editor/books/osct/assets/{$subtitleEn['id']}", $editor);
+    check($status === 204 && $draftSubtitles() === [['media' => $speak['url'], 'tracks' => ['fr' => $subtitleFr['url']]]], 'a deleted subtitle file leaves the list');
+    foreach ([$subtitleFr, $subtitleOther, $speak] as $gone) deleting($api, "/editor/books/osct/assets/{$gone['id']}", $editor);
+    check($draftSubtitles() === null, 'a book without subtitle files has no list');
+
     echo "editor: targets and entries\n";
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['imageSrc' => 'https://cdn.example/racoon-v2.jpg', 'print' => ['surface' => 'right', 'x' => 20, 'y' => 30, 'width' => 80]], $editor);
     check($status === 200 && $data['target']['imageSrc'] === 'https://cdn.example/racoon-v2.jpg' && $data['target']['print']['width'] == 80, 'PUT target: image and print placement');

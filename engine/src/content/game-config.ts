@@ -16,6 +16,7 @@
  */
 import { assertGameConfiguration, GameConfigurationError, type GuardOptions, isEntityRef } from '@shared/guards/game-config';
 import { CONTENT_SCHEMA_VERSION, OLDEST_READABLE_SCHEMA_MAJOR, parseContentSchema } from '@shared/types/game-config';
+import { pickSubtitleTrack } from '@shared/types/subtitles';
 import { currentFeatures, describeSkipped, type KnownFeatures, skipUnknownFeatures, type SkippedFeature } from './forward-compatible';
 import { type ContentFiles, type ContentManifest, isContentFiles, isContentManifest } from '@shared/types/content-manifest';
 import {
@@ -399,6 +400,24 @@ export const getAssets = (spreadId?: string): AssetData[] => {
 
 /** The plugins the content declares, their modules as URLs of the loaded version */
 export const getPlugins = (): PluginData[] => (config.plugins ?? []).map(plugin => ({ ...plugin, src: contentUrl(plugin.src) }));
+
+/**
+ * The subtitle file of a video for a language (the video as its asset names it, a URL of the loaded version): the
+ * language's track or its fallback (`pickSubtitleTrack`); undefined for a video without subtitles
+ */
+export const getSubtitleTrack = (media: string, language: string): string | undefined => {
+  const subtitle = config.subtitles?.find(s => contentUrl(s.media) === media);
+  const track = subtitle && pickSubtitleTrack(subtitle.tracks, language);
+  return track === undefined ? undefined : contentUrl(track);
+};
+
+/** Every subtitle file of the book's videos (optionally of one spread's), as URLs of the loaded version – for preloading */
+export const getSubtitleFiles = (spreadId?: string): string[] => {
+  const media = spreadId === undefined ? null : new Set(getAssets(spreadId).map(asset => asset.src));
+  return (config.subtitles ?? [])
+    .filter(s => !media || media.has(contentUrl(s.media)))
+    .flatMap(s => Object.values(s.tracks).map(contentUrl));
+};
 
 /** The shared entity (`content/entities/<id>`) a target refers to with `ref`, or undefined for an inline entity */
 export const getEntityRef = (targetId: string): string | undefined => {

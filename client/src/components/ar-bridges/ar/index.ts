@@ -5,6 +5,7 @@
  * The reader tells the engine what it knows from its build: where the tracking engine's files are served and whether
  * this is a development build (the scene's debug handles).
  */
+import i18next from "i18next";
 import { GameStoreService, GraphicsService } from "@/services";
 import { ArScene, type ProgressReader } from "@engine/scene";
 import type { IArScene } from "@engine/types/scene";
@@ -38,4 +39,5 @@ export const createReaderScene = (container: HTMLElement): IArScene =>
     graphics: GraphicsService.getInstance(),
     progress: readerProgress(),
     debug: import.meta.env.DEV,
+    subtitleLanguage: () => i18next.language,
   });

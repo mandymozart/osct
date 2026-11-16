@@ -23,13 +23,14 @@ declare(strict_types=1);
  */
 final class Assets
 {
-    /** Kinds of the content contract (`ASSET_TYPES`) and `shader` by file extension; `kind` = the node's `assetType` (shared/api/rules.ts `ASSET_KIND_EXTENSIONS`) */
+    /** Kinds of the content contract (`ASSET_TYPES`), `shader` and `subtitles` (a video's WebVTT file, paired by its name – `Subtitles`) by file extension; `kind` = the node's `assetType` (shared/api/rules.ts `ASSET_KIND_EXTENSIONS`) */
     public const KINDS = [
         'glb' => 'glb', 'gltf' => 'gltf',
         'mp4' => 'video', 'webm' => 'video', 'mov' => 'video',
         'jpg' => 'image', 'jpeg' => 'image', 'png' => 'image', 'webp' => 'image',
         'mp3' => 'audio', 'm4a' => 'audio', 'ogg' => 'audio', 'wav' => 'audio',
         'glsl' => 'shader', 'frag' => 'shader', 'vert' => 'shader', 'wgsl' => 'shader',
+        'vtt' => 'subtitles',
     ];
     public const MIMES = [
         'glb' => 'model/gltf-binary', 'gltf' => 'model/gltf+json',
@@ -37,9 +38,10 @@ final class Assets
         'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp',
         'mp3' => 'audio/mpeg', 'm4a' => 'audio/mp4', 'ogg' => 'audio/ogg', 'wav' => 'audio/wav',
         'glsl' => 'text/x-glsl; charset=utf-8', 'frag' => 'text/x-glsl; charset=utf-8', 'vert' => 'text/x-glsl; charset=utf-8', 'wgsl' => 'text/wgsl; charset=utf-8',
+        'vtt' => 'text/vtt; charset=utf-8',
     ];
-    /** The kinds whose files are source code: checked as text, at most TEXT_MAX_BYTES */
-    public const TEXT_KINDS = ['shader'];
+    /** The kinds whose files are text – source code, a video's subtitles (`Subtitles`): checked as text, at most TEXT_MAX_BYTES */
+    public const TEXT_KINDS = ['shader', 'subtitles'];
     /** A source file (a shader, a script) larger than this is refused – a plugin source's limit */
     public const TEXT_MAX_BYTES = Plugins::MAX_SOURCE_BYTES;
     /** The content types a text file may be sent as besides text/* (a browser sends octet-stream for a type it does not know) */

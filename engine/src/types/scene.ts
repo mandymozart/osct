@@ -41,6 +41,8 @@ export type ArSceneEvents = {
   spreadSeen: (spreadId: string) => void;
   /** Tracking runs and no target is found (true), or a target is found or tracking stopped (false) – the app's scanning indicator */
   scanning: (scanning: boolean) => void;
+  /** The subtitle line of the video that plays – its cue at the video's time, null when there is none; the app draws it */
+  subtitle: (text: string | null) => void;
 };
 
 /**

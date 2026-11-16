@@ -16,6 +16,7 @@ const SCENE_EVENTS = Object.keys({
   ready: true,
   spreadSeen: true,
   scanning: true,
+  subtitle: true,
 } satisfies Record<keyof ArSceneEvents, true>) as Array<keyof ArSceneEvents>;
 
 /**

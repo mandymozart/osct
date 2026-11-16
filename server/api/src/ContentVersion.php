@@ -9,7 +9,8 @@ declare(strict_types=1);
  *
  * `version` = { version: this server's app version, timestamp: now, hash, schema: the imported schema }; `tutorial` is
  * the onboarding older apps require (`Editor::COMPAT_TUTORIAL` – the reader has its own, #236); `plugins` (the compiled
- * plugins the import declared) follows it when the book has any, as the build writes it. The hash is the sha256 of the
+ * plugins the import declared) follows it when the book has any, as the build writes it, and `subtitles` (the subtitle
+ * files of the book's videos, read from the files' names – `Subtitles`) when there are any. The hash is the sha256 of the
  * configuration JSON without timestamp and hash – the same rows give the same hash, and the build name is its first 12
  * hex digits. With an assets base every content path (`/assets/content/…` under src, imageSrc, image, and the keys of
  * files.json) becomes a URL below it: a published version points at the imported build's media, no file is copied.
@@ -65,10 +66,13 @@ final class ContentVersion
         if (!$files instanceof stdClass) $files = new stdClass();
 
         $base = rtrim((string) $book['assets_base'], '/');
+        // The subtitle files of the book's videos, paired by their names (`Subtitles`) – already below the assets base
+        $subtitles = Subtitles::of($bookId, $files, $base);
         if ($base !== '') {
             self::rewrite($configuration, $base);
             $files = self::rewriteFiles($files, $base);
         }
+        if ($subtitles) $configuration->subtitles = $subtitles;
 
         $hash = hash('sha256', Editor::encode($configuration));
         $configuration->version = (object) ['version' => Version::APP, 'timestamp' => Editor::iso(), 'hash' => $hash, 'schema' => $schema];

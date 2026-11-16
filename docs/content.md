@@ -681,9 +681,51 @@ Recommendations – final numbers follow the device tests.
 |---|---|---|
 | **Target images** | JPG, the picture **as printed**, cropped to its edges | Recognition needs detail and contrast: textured, asymmetric images work best; large flat areas, repeating patterns and very dark images work poorly. ~1000 px on the long side is plenty. |
 | **AR video** | MP4 (H.264) | Portrait or the target's aspect ratio, 720p is enough, short loops. It starts muted; keep files small – readers load them over mobile data. |
+| **Subtitles** | WebVTT (`.vtt`), one per language | Beside the video, named like it: `speak.mp4` → `speak.en.vtt`, `speak.fr.vtt` ("Subtitles of a video" below). |
 | **3D models** | GLB with embedded textures | All animations loop. Keep polygons modest (phones). The content build optimises every `.glb` automatically: textures down to max. 1024 px (opaque ones as JPEG), geometry compressed (meshopt) – your file in `content/` stays untouched. |
 | **A model's texture set** | The model file with its smallest map, the same map as JPEG at 512 / 1024 / 2048 / 4096 px | `textures` on the model node ("A model's map by texture quality" below). The mesh loads once; the reader's texture quality chooses the map. These files stay exactly as you made them – the build does not shrink them. |
 | **Entry images** | JPG / PNG / WebP | ~1200 px wide is enough. |
+
+### Subtitles of a video
+
+A video that speaks carries its sound in the file. What it says can show as a line of text in the reader's language:
+put a **WebVTT** file per language **beside the video, named like it** – `<video name>.<language>.vtt`:
+
+```
+entries/screen/
+  screen.mp4
+  screen.en.vtt
+  screen.de.vtt
+  screen.fr.vtt
+  screen.nl.vtt
+```
+
+Nothing in the YAML names them: the content build pairs the files by their names and writes the list into the
+configuration (`subtitles`, content schema 2.31), and the pairing holds wherever the video is used. The language is a
+two- or three-letter code, with a region if needed (`pt-BR`). A subtitle file is plain text:
+
+```
+WEBVTT
+
+00:00:00.500 --> 00:00:04.500
+Hello. I am a video, standing on a sheet of paper.
+
+00:00:04.800 --> 00:00:06.900
+My sound is part of the file.
+```
+
+Each cue is a start and an end time (hours optional) and the text below it, cues apart by an empty line. The times are
+the video's own – the app reads the video's time while it plays, so the line cannot drift from the sound. Positions,
+styles and tags inside the text (`<i>`, `<v Mark>`) are left out; a cue over two lines shows as two lines.
+
+The reader shows the line of the app's language over the scan view – without that language, the language's other
+variant, then English, then the first there is. *Info → Settings → Subtitles* switches the line off; it is on by
+default, since a video plays muted where the browser blocks sound. The build reports a `.vtt` file whose name fits no
+video beside it (it is left out) and stops at one that is no WebVTT.
+
+In the editor, upload the `.vtt` files to the Library (they are listed with the videos): a file belongs to every video
+of its name, uploaded or imported, and replaces an imported file of the same language. The stage shows the English line
+while the video plays. The demo book's screen speaks this way (`fixtures/demo/entries/screen/`).
 
 ### A model's map by texture quality
 
@@ -817,6 +859,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 2.28 | 1.67.0 | in develop | the parameter kind `model` in a spec (a component's, a node type's, a material's, a pass's): a model file – a Library model's URL or a content path, a `.glb` / `.gltf` next to the node in the YAML – which the plugin's code loads with `api.loadModel` (plugin API 1.7, #263) | skipped: an app since 1.55.0 drops the parameter and its value with the update hint and runs the rest of the component; an older one refuses the recorded spec |
 | 2.29 | 1.68.0 | in develop | the book's optional `appearance`: the look an entity appears with on `reveal` (the first find), `found` (every later find) and `lost` – a built-in look (`inflateDissolve`, `printLift`, `fade`) with its values, or one a plugin of the book registers (`registerAppearance`, plugin API 1.8), recorded in `registered.appearances` (#264) | ignored: an older app reads no `appearance` and plays its own animation at every moment; a plugin that registers a look calls a method an older engine does not have and is not loaded there |
 | 2.30 | 1.71.0 | in develop | the built-in components `reveal`, `found` and `lost` on a node: its own look for a moment – `{ type: reveal, look, …the look's parameters }` – in place of the book's `appearance` (#268) | skipped: a 2.29 app drops the components with the update hint (an unknown component) and plays the book's look |
+| 2.31 | 1.77.0 | in develop | the configuration's optional `subtitles`: the WebVTT files of a video, one per language – `[{ media, tracks: { en: …, fr: … } }]`, read from the files' names (`<video name>.<language>.vtt`) by the content build and the editor's API (#257) | ignored: an older app reads no `subtitles` and plays the video without a subtitle line |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

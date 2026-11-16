@@ -33,5 +33,7 @@
   "downloadFailed": "Einige Dateien konnten nicht geladen werden ({{size}} insgesamt). Prüfe deine Verbindung und versuch es noch einmal.",
   "historyDescriptionAccount": "Die App merkt sich alle Einträge, die du im Buch gefunden und erkundet hast – auf diesem Gerät und in deinem Konto. Zurücksetzen löscht deinen Fortschritt an beiden Orten, damit du neu anfangen kannst.",
   "historyConfirmAccount": "Deinen gesamten Fortschritt für dieses Buch löschen – auf diesem Gerät und in deinem Konto?",
-  "installAdded": "Die App ist installiert – öffne sie über deinen Startbildschirm oder deine App-Liste."
+  "installAdded": "Die App ist installiert – öffne sie über deinen Startbildschirm oder deine App-Liste.",
+  "subtitlesLabel": "Untertitel",
+  "subtitlesDescription": "Zeigt als Text, was in einem Video gesprochen wird."
 }

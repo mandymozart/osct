@@ -78,7 +78,7 @@ declare(strict_types=1);
  * (ApiTokens). docs/server.md "Sessions, cookies and CSRF".
  */
 
-foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Confirmation', 'Removal', 'Books', 'BookTexts', 'ContentVersion', 'ContentStore', 'Assets', 'VideoInfo', 'Plugins'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Confirmation', 'Removal', 'Books', 'BookTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Plugins'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 

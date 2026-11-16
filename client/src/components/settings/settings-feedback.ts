@@ -1,12 +1,13 @@
 import { GoldSwitch } from "@/components/buttons";
 import { t } from "i18next";
-import { FeedbackService, type FeedbackSettings } from "@/services";
+import { FeedbackService, type FeedbackSettings, SubtitleService } from "@/services";
 import { escapeHtml } from "@/utils";
 import { SettingsSection } from "./settings-section";
 
 /**
  * Sound & vibration section: one `<gold-switch>` each for sounds and haptics. `FeedbackService` stores the
- * choice on this device; enabling one plays a tap sample.
+ * choice on this device; enabling one plays a tap sample. Below them the switch for the subtitles of speaking videos
+ * (`SubtitleService`, on until turned off).
  */
 export class SettingsFeedback extends SettingsSection {
   private feedback = FeedbackService.getInstance();
@@ -33,6 +34,8 @@ export class SettingsFeedback extends SettingsSection {
       ${toggle("sound", t("settings:soundLabel"))}
       ${toggle("haptics", t("settings:hapticsLabel"))}
       <p class="description">${t("settings:feedbackDescription")}</p>
+      <gold-switch label="${escapeHtml(t("settings:subtitlesLabel"))}" data-setting="subtitles" data-feedback="none"${SubtitleService.getInstance().getSettings().enabled ? " checked" : ""}></gold-switch>
+      <p class="description">${t("settings:subtitlesDescription")}</p>
     `;
   }
 
@@ -44,6 +47,7 @@ export class SettingsFeedback extends SettingsSection {
     const element = event.target;
     if (!(element instanceof GoldSwitch)) return;
     const setting = element.dataset.setting;
+    if (setting === "subtitles") return SubtitleService.getInstance().setSettings({ enabled: element.checked });
     if (setting !== "sound" && setting !== "haptics") return;
     this.feedback.setSettings({ [setting]: element.checked });
     if (element.checked) this.feedback.play("tap");
