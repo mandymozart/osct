@@ -1,12 +1,14 @@
 <script lang="ts">
   import { library } from "#lib/library.svelte.js";
   import { assetPlace, fileNameOf } from "#lib/library-place.js";
+  import CreditsField from "./CreditsField.svelte";
 
   /**
    * A file field (#164): the chosen file – a picture as a small preview, every file by where it belongs
    * (`p015-1 · target`, the Library's label) –, **Library…** (the Library as a picker for this field) and **Upload…**
    * (a file of the accepted kinds). Used by every file a panel picks: a target's printed image, a node's file, the
-   * environment's world and sky.
+   * environment's world and sky. Under it the file's **credits** (`CreditsField`, #277) – any kind of file, kept with it in
+   * the Library.
    */
   let { src, picture = false, empty = "no file", accept, label, onlibrary, onupload }: {
     /** The chosen file's URL ("" or undefined = none) */
@@ -24,9 +26,9 @@
   } = $props();
 
   let input = $state<HTMLInputElement>();
+  const asset = $derived(src ? library.bySrc(src) : undefined);
   const name = $derived.by(() => {
     if (!src) return empty;
-    const asset = library.byUrl(src);
     return asset ? assetPlace(asset).label : fileNameOf(src);
   });
 </script>
@@ -38,6 +40,7 @@
   <button type="button" class="pill framed" title="Upload {label}" onclick={() => input?.click()}>Upload…</button>
   <input bind:this={input} type="file" {accept} hidden
     onchange={e => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) onupload(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
+  {#if asset}<CreditsField {asset} />{/if}
 </span>
 
 <style>

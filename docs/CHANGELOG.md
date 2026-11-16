@@ -7,6 +7,15 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.79.0 – 2026-11-16
+
+### Added
+- **Credits in the Inspector** (#277, Tilman: "the credits field works for 3d items as well. any content"): every file
+  field of the Inspector – a target's printed image, a node's model, video, image or sound, the environment's files –
+  shows the file's credits line under it and edits it there. One field for it (`CreditsField`): the Library opens the
+  same one with its new *Credits…* action beside *Replace…* and *Delete*; the line belongs to the file, so every use of
+  it shows the same credits.
+
 ## 1.78.0 – 2026-11-16
 
 ### Added
