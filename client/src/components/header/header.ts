@@ -68,7 +68,8 @@ export class GameHeader extends HTMLElement {
                     margin-bottom: var(--mark-inset-top);
                 }
                 .counter { text-align: center; }
-                .counter-label { color: var(--color-muted); }
+                /* Small, like the count above it (beats .design's Medium) */
+                .counter .counter-label { color: var(--color-muted); font-size: var(--text-size-small); }
 
                 .info, .close {
                     position: absolute;

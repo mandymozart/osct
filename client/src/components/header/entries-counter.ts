@@ -35,7 +35,7 @@ export class EntriesCounter extends HTMLElement {
           display: block;
           font-family: var(--font-design);
           letter-spacing: var(--tracking-design);
-          font-size: var(--text-size);
+          font-size: var(--text-size-small);
           color: var(--color-muted);
           text-align: center;
         }

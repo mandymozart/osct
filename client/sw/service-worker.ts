@@ -15,6 +15,8 @@
  *   immutable folder (`<base>/<build>/`), and when `latest.json` names another version the entries of the other
  *   versions are dropped. `latest.json` is fetched network-first and kept, so the installed app starts offline
  *   with the last content it saw.
+ * - Design font (ABC Areal, from the CDN font folder – src/utils/font-face-html.ts): cached when first used and served
+ *   from the cache afterwards, in a cache of its own that outlives builds and content versions (the files do not change).
  * - Editor pages (/editor, inside this scope): not handled, their requests go to the network as without a worker
  *   (sw/editor-clients.ts).
  * - A new worker takes over at once (no waiting for all tabs to close); a running page keeps its code. The page asks the
@@ -35,11 +37,15 @@ declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<{ url: str
 declare const __VITE_CONTENT_HASH__: string;
 declare const __VITE_CONTENT_BASE_URL__: string;
 declare const __VITE_BUILD_DATE__: string;
+declare const __VITE_FONT_BASE_URL__: string;
 
 const CONTENT_CACHE_PREFIX = "osct-content-";
 const CONTENT_CACHE = `${CONTENT_CACHE_PREFIX}${__VITE_CONTENT_HASH__.slice(0, 16)}`; // "cdn" in a CDN build
 /** Content CDN base URL of this build ("" = content served with the app) */
 const CONTENT_BASE_URL = __VITE_CONTENT_BASE_URL__.replace(/\/+$/, "");
+/** Font folder of this build ("" = no web font) and the cache that keeps its files */
+const FONT_BASE_URL = __VITE_FONT_BASE_URL__.replace(/\/+$/, "");
+const FONT_CACHE = "osct-fonts";
 /** Network timeout for index.html; after it, the precached copy is served */
 const PAGE_TIMEOUT_SECONDS = 4;
 /** Network timeout for the content configuration; after it, the last one seen is served */
@@ -122,6 +128,15 @@ registerRoute(
     plugins: [new CacheableResponsePlugin({ statuses: [200] }), new RangeRequestsPlugin()],
   })),
 );
+
+// The design font: one download, then from the cache (offline too). Fonts are requested with CORS, so the stored
+// response is a full one (never opaque). A replaced font file needs a new name (or a new FONT_CACHE) to reach installed apps.
+if (FONT_BASE_URL) {
+  registerRoute(
+    ({ url }) => url.href.startsWith(`${FONT_BASE_URL}/`),
+    new CacheFirst({ cacheName: FONT_CACHE, plugins: [new CacheableResponsePlugin({ statuses: [200] })] }),
+  );
+}
 
 // Offline page load: the precached app shell (the app routes itself, like the server's SPA fallback)
 setCatchHandler(async ({ request }) => {

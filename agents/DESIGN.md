@@ -65,8 +65,25 @@ The PDF cannot express a backdrop blur; the **frosted glass** look is confirmed 
 ---
 
 ## 2. Typography
-- Arial (Regular, Italic for the book title), **8 pt ≈ 15 px**, tracking 0.02 em (Tc 0.02).
-- Line height: body **1.25**; table rows and list rows **12.5 pt ≈ 24 px**.
+Measured from the design of 2026-11-13 (`261113_Application_AR_Rudy.pdf`, p. 1, 2, 5 and the frames that use
+Areal: 8–16, 23). The phone screenshots there are 204.5 pt wide for a 393 px screen → **1 pt ≈ 1.92 px**.
+
+- Font **ABC Areal** by Dinamo (`ABCArealSuperfamilyVariable` in the PDF), extra tracking **40** = **0.04 em**
+  (Tc 0.04, p. 5). The reader loads the variable WOFF2 (weights 400–700) and the Regular Italic from the CDN font
+  folder (`docs/content-cdn.md`, #278); **Arial** is the fallback until they load or when they cannot. Latin only:
+  the Japanese release needs its own font (open). Before 2026-11-16: Arial, tracking 0.02 em.
+- **Two sizes only** (p. 2):
+
+  | Size | Measured | Token | Used for |
+  |---|---|---|---|
+  | **Medium** | 8 pt ≈ 15.4 px → **1 rem (16 px)** | `--text-size` | titles, body text, buttons, the category menu labels, the "i" |
+  | **Small** | 6 pt ≈ 11.5 px → **0.75 rem (12 px)** | `--text-size-small` | captions, the consulted counter under the Mark, the install note and settings hints, the "skip" link |
+
+  Medium is rounded up to 1 rem – "type size slightly bigger" than the old 15 px (p. 1). Before 2026-11-16: 15 / 13 px.
+- Line height ("leading slightly bigger", p. 1): body **11 pt on 8 pt = 1.375** (`--text-line`, entry text p. 23);
+  centred short texts – onboarding steps, camera notices – **12.5 pt on 8 pt = 1.5625** (`--text-line-loose`, p. 8–16);
+  Small lines measure 8 pt on 6 pt (1.33) – they keep the line height of their parent. Table rows and list rows
+  **12.5 pt ≈ 24 px** (`--row-height`). Before 2026-11-16: 1.25.
 - Rules: 0.5 pt ≈ **1 px**, `#8b8d8c`.
 
 ## 3. Sizes and placement
@@ -175,7 +192,7 @@ scene reports `scanning` and `<ar-bridge>` toggles `.hidden` on it (shown while 
    white book pages? Active item: gold gradient text?
 6. **Found indicator:** exact shadow (the ellipse below the image) and the "New entry unlocked"
    animation (duration, scale, rotation)?
-7. **Type:** Arial 15 px / 0.02 em on all phones, or a smaller size for small screens?
+7. **Type:** Arial 15 px / 0.02 em on all phones, or a smaller size for small screens? → since 2026-11-16 Areal 16 / 12 px, 0.04 em, the same on all phones (§2, #279).
 8. **Counter:** grey in scan mode, and in consultation "12 / 150 Entries consulted" – gold or grey?
 9. **Final accent color** for the flat uses (focus rings, selection) if any.
 

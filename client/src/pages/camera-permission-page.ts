@@ -111,6 +111,7 @@ export class CameraPermissionPage extends Page {
         flex-direction: column;
         text-align: center;
         pointer-events: none;
+        --text-line: var(--text-line-loose);
       }
 
       :host([active]) {

@@ -7,6 +7,17 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- The reader is set in ABC Areal (Dinamo), loaded from the CDN font folder (`@font-face` written into `index.html`
+  at build time, `VITE_FONT_BASE_URL`, Arial as the fallback) and kept by the service worker for offline use (#278).
+
+### Changed
+- Typography: two type sizes – Medium 1 rem for titles, body text and buttons (was 15 px), Small 0.75 rem for
+  captions, the consulted counter and hints (was 13 px); tracking 0.04 em (was 0.02), line height 1.375 (was 1.25),
+  onboarding and camera texts 1.5625 (#279).
+
 ## 1.82.0 – 2026-11-16
 
 ### Added

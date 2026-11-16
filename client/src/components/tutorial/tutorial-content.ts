@@ -88,6 +88,7 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
           align-items: center;
           text-align: center;
           min-height: 100%;
+          --text-line: var(--text-line-loose);
         }
         /* At least --actions-top tall (set by the page): the actions start there for short texts and follow longer ones */
         .head {
