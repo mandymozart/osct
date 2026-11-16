@@ -6,7 +6,7 @@
  * this is a development build (the scene's debug handles).
  */
 import i18next from "i18next";
-import { GameStoreService, GraphicsService } from "@/services";
+import { FeedbackService, GameStoreService, GraphicsService } from "@/services";
 import { ArScene, type ProgressReader } from "@engine/scene";
 import type { IArScene } from "@engine/types/scene";
 import { ImageTracker, prefetchXr8 as prefetchEngine } from "@engine/scene/xr8-tracker";
@@ -40,4 +40,6 @@ export const createReaderScene = (container: HTMLElement): IArScene =>
     progress: readerProgress(),
     debug: import.meta.env.DEV,
     subtitleLanguage: () => i18next.language,
+    // The Sounds switch (settings): off, the videos play muted (their subtitles still show)
+    sound: () => FeedbackService.getInstance().getSettings().sound,
   });

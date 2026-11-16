@@ -45,6 +45,26 @@ const mediaContainer = (): HTMLElement => {
   return el;
 };
 
+/**
+ * Where each video stopped when its asset was released (a spread switch, the scene disposed), by file: loaded again –
+ * the reader came back to its page – it goes on from there, not from the start (#290). Kept for the page's life.
+ */
+const positions = new Map<string, number>();
+
+/** The time a video file stopped at when it was last released (0: never, or at its start) */
+export const videoPosition = (src: string): number => positions.get(src) ?? 0;
+
+/** Start a new video element where its file stopped last (once its duration is known) */
+const resumeAt = (element: HTMLVideoElement, src: string): void => {
+  const at = positions.get(src);
+  if (!at) return;
+  const seek = () => {
+    if (element.duration && at < element.duration) element.currentTime = at;
+  };
+  if (element.readyState >= 1) seek();
+  else element.addEventListener("loadedmetadata", seek, { once: true });
+};
+
 const media = <T extends HTMLMediaElement>(tag: "video" | "audio", data: AssetData): T => {
   const el = document.createElement(tag) as T;
   el.id = data.id;
@@ -84,6 +104,7 @@ const load = async (data: AssetData): Promise<LoadedAsset | null> => {
     }
     case "video": {
       const element = media<HTMLVideoElement>("video", data);
+      resumeAt(element, data.src);
       const texture = new VideoTexture(element);
       texture.colorSpace = SRGBColorSpace;
       return { assetType: "video", element, texture };
@@ -111,7 +132,7 @@ export const disposeObject = (root: Object3D): void => {
   });
 };
 
-const dispose = (asset: LoadedAsset): void => {
+const dispose = (asset: LoadedAsset, src: string): void => {
   switch (asset.assetType) {
     case "glb":
     case "gltf":
@@ -123,7 +144,10 @@ const dispose = (asset: LoadedAsset): void => {
       break;
     case "video":
     case "audio":
-      if (asset.assetType === "video") asset.texture.dispose();
+      if (asset.assetType === "video") {
+        asset.texture.dispose();
+        if (asset.element.currentTime > 0) positions.set(src, asset.element.currentTime);
+      }
       asset.element.pause();
       asset.element.removeAttribute("src");
       asset.element.load(); // release the media buffer
@@ -206,7 +230,7 @@ export class AssetStore {
       if (keep.has(id)) return;
       this.entries.delete(id);
       // Still loading: dispose when it arrives
-      void entry.loading.then(loaded => loaded && dispose(loaded));
+      void entry.loading.then(loaded => loaded && dispose(loaded, entry.data.src));
     });
   }
 }

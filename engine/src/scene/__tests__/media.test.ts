@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { holdMedia, isMediaHeld, pauseMedia, playMedia, releaseMedia } from "../media";
+import { endTap, holdMedia, isMediaHeld, isSilenced, pauseMedia, playMedia, releaseMedia, restoreSound, setMediaSound, soundRestored } from "../media";
 
 /** A media element that records play and pause; `refuse` = the browser blocks unmuted playback */
 const element = ({ playing = false, refuse = false } = {}) => {
@@ -93,5 +93,45 @@ describe("the scene's media and the editor's hold (#275)", () => {
     holdMedia(false);
     await Promise.resolve();
     expect(playing.play).not.toHaveBeenCalled();
+  });
+});
+
+describe("sound: the app's setting and the browser's autoplay rule (#290)", () => {
+  afterEach(() => setMediaSound(undefined));
+
+  it("a video the browser silenced gets its sound with the next tap, once", async () => {
+    const blocked = element({ refuse: true });
+    await playMedia(blocked.media);
+    expect(blocked.media.muted).toBe(true);
+    expect(isSilenced(blocked.media)).toBe(true);
+    restoreSound();
+    expect(blocked.media.muted).toBe(false);
+    expect(soundRestored(blocked.media)).toBe(true);
+    expect(isSilenced(blocked.media)).toBe(false);
+    endTap();
+    expect(soundRestored(blocked.media)).toBe(false);
+    restoreSound();
+    expect(soundRestored(blocked.media)).toBe(false);
+  });
+
+  it("with the Sounds switch off media play muted, and a tap does not unmute them", async () => {
+    setMediaSound(() => false);
+    const free = element();
+    await playMedia(free.media);
+    expect(free.media.muted).toBe(true);
+    expect(free.media.paused).toBe(false);
+    expect(isSilenced(free.media)).toBe(false);
+    restoreSound();
+    expect(free.media.muted).toBe(true);
+  });
+
+  it("switched on again, the next start tries with sound", async () => {
+    setMediaSound(() => false);
+    const free = element();
+    await playMedia(free.media);
+    setMediaSound(() => true);
+    pauseMedia(free.media);
+    await playMedia(free.media);
+    expect(free.media.muted).toBe(false);
   });
 });

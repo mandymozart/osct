@@ -7,6 +7,21 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.90.0 – 2026-11-17
+
+### Added
+- AR video: a tap on a video pauses it, the next tap plays it on (design p. 46–52, #290). A video entity's tap is the
+  video's – it no longer opens the target's entry (`targetTapped` tells the app whether the entity used the tap); a
+  tap on any other entity still opens its entry, a glossary picture still flies its card. The subtitles follow the
+  video's time, so a pause holds them in step.
+- AR video sound within the browser's rules (#290): the reader's Sounds switch decides whether videos play with sound
+  (off: muted, subtitles still show). A video the browser starts muted (no user gesture yet, e.g. iOS) gets its sound
+  with the next tap on the scan view; a tap on that video itself gives the sound and does not pause it.
+
+### Changed
+- AR video position (#290): a lost video stops where it is and goes on from there when found again; switching to
+  another spread and back (or rebuilding the scene) now resumes it where it stopped instead of from the start.
+
 ## 1.89.0 – 2026-11-17
 
 ### Added

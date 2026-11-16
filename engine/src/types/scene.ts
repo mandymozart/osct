@@ -33,8 +33,11 @@ export type ArSceneEvents = {
   targetFound: (targetId: string) => void;
   targetLost: (targetId: string) => void;
   status: (status: ArStatus, error?: ArError) => void;
-  /** A found target's AR entity was tapped (scan mode) */
-  targetTapped: (targetId: string) => void;
+  /**
+   * A found target's AR entity was tapped (scan mode); `used`: the entity used the tap itself – a video paused, played
+   * or got its sound (#290) – so the app does not act on it too
+   */
+  targetTapped: (targetId: string, used: boolean) => void;
   /** The spread's targets are loaded and tracking began */
   ready: (spreadId: string) => void;
   /** A neighbouring spread's page is in view instead of the current spread (the reader turned the page) */
