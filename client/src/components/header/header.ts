@@ -1,5 +1,5 @@
 import { GameStoreService } from "@/services";
-import type { IGame } from "@/types";
+import { type IGame, Pages } from "@/types";
 import "./entries-counter";
 import "./mark-the-page";
 import { adoptDesignStyles } from "@/styles";
@@ -11,7 +11,8 @@ import { t } from "i18next";
  * - IDLE (home, tutorial): nothing.
  * - SCAN: Mark the Page + counter.
  * - CONSULTATION: Mark + "i" (→ About); the counter with "Entries consulted" only on the entries list.
- *   The "Entries" back button lives in ConsultationPage, not here.
+ *   The "Entries" back button lives in ConsultationPage, not here. On Info and the image credits a gold × takes the
+ *   place of the "i" (#291): Info closes to the entries list, the credits back to Info.
  */
 export class GameHeader extends HTMLElement {
   private game: Readonly<IGame>;
@@ -69,18 +70,22 @@ export class GameHeader extends HTMLElement {
                 .counter { text-align: center; }
                 .counter-label { color: var(--color-muted); }
 
-                .info {
+                .info, .close {
                     position: absolute;
                     pointer-events: all;
                 }
                 /* Same gap above and to the right, counted below the safe area (DESIGN.md §3) */
-                .info {
+                .info, .close {
                     top: calc(env(safe-area-inset-top) + 1rem);
                     right: 1rem;
                 }
 
                 :host([mode="idle"]) .chrome,
                 :host(:not([mode="consultation"])) .info,
+                :host(:not([mode="consultation"])) .close,
+                :host([page="about"]) .info,
+                :host([page="credits"]) .info,
+                :host(:not([page="about"]):not([page="credits"])) .close,
                 :host(:not([mode="consultation"])) .counter-label,
                 :host([mode="consultation"]:not([page="entries"])) .counter {
                     display: none;
@@ -93,6 +98,7 @@ export class GameHeader extends HTMLElement {
                 <div class="counter-label design">${t("header:entriesConsulted")}</div>
               </div>
               ${goldButton({ label: "i", shape: "icon", className: "info", attrs: { id: "info", "aria-label": t("header:info") } })}
+              ${goldButton({ label: "×", shape: "icon", className: "close", attrs: { id: "close", "aria-label": t("header:close") } })}
             </div>
         `;
   }
@@ -105,6 +111,9 @@ export class GameHeader extends HTMLElement {
   private initialize() {
     this.shadowRoot?.querySelector("#info")?.addEventListener("click", () => {
       this.game.router.navigate("/about");
+    });
+    this.shadowRoot?.querySelector("#close")?.addEventListener("click", () => {
+      this.game.router.navigate(this.game.state.currentRoute?.page === Pages.CREDITS ? "/about" : "/entries");
     });
   }
 }

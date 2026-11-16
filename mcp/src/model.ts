@@ -310,6 +310,10 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
       description:
         "A video's subtitles (content schema 2.31): no field of a node. Upload a WebVTT file named <video name>.<language>.vtt with upload_asset – speak.en.vtt, speak.fr.vtt for speak.mp4 – and it belongs to every video of that name in the book, uploaded or imported; the draft's configuration lists the files per video in `subtitles`. One file per language (en, de, fr, nl, pt-BR …), each cue `00:00:01.000 --> 00:00:03.500` and its text below, the times the video's own. The reader shows the line of its language while the video plays (else English, else the first), the editor's stage the English one.",
     },
+    credits: {
+      description:
+        "Picture credits (content schema 2.33, #292): no field of an entry or a node. A file's credit line (one free text line – \"Book Golem by TER-JAN / DeviantArt\") is set in the Library with set_asset_credits and listed by list_assets; the book's configuration carries the lines of the files it uses (credits: { <file URL>: <line> }), and the reader lists them per spread on its image credits page (Info → here).",
+    },
     components: {
       description: "entity.components: [{ type, …params }] – the built-in types, and the components and material layers a plugin registers (used the same way).",
       builtIn: COMPONENTS,

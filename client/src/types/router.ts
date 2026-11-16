@@ -42,6 +42,8 @@ export enum Pages {
   TUTORIAL = "tutorial",
   SPREAD = "spread",
   ABOUT = "about",
+  /** Image credits, from Info (#292) */
+  CREDITS = "credits",
   ERROR = "error",
   ENTRIES = "entries",
   ENTRY = "entry",

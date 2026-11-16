@@ -7,6 +7,22 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.82.0 – 2026-11-16
+
+### Added
+- **Image credits page** (#292): Info links to a page that lists the credit lines of the pictures in the book's
+  margins, grouped by spread (*Pages 2–3*, by page). The lines are the ones written per file in the editor's Library
+  (#277): the editor's API puts the lines of the files the book uses into the configuration (content schema 2.33,
+  `credits`), so an edited line is in the draft at once and reaches readers with the next publish. The MCP server's
+  content model explains it.
+
+### Changed
+- **Info page** (#291): the design's order – the info text with the link to the image credits, install as app,
+  Account, Settings (sounds and vibration, language, then graphics and the download), colophon with the new lines
+  (app development, design and editing, glossary editing, font, publisher, ISBN, ©). A gold × in the header takes the
+  place of the "i" on Info and the image credits: it closes Info to the entries list and the credits back to Info; the
+  "Entries" button on Info is gone.
+
 ## 1.81.0 – 2026-11-16
 
 ### Added

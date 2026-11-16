@@ -4,6 +4,12 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-16 – Picture credits reach the reader through the configuration (#292)
+The credit lines stay per file URL in the instance's Library (`asset_credits`, #277); `ContentVersion::assemble` puts the
+lines of the files the configuration names anywhere into `credits` (content schema 2.33). The reader's image credits page
+groups them by spread (`getCredits()`), by page, each line once per spread. A YAML-built book has none. Info's "Entries"
+button gave way to the design's gold × in the header (#291).
+
 ## 2026-11-16 – the marginalia pick-up is a card that flips to the centre, no hand (#285, 1.81.0)
 
 - Tilman first wanted a hand that pockets the card in a shirt pocket (crocodile hand by Kévin, a stand-in from a free

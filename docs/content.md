@@ -737,6 +737,16 @@ In the editor, upload the `.vtt` files to the Library (they are listed with the 
 of its name, uploaded or imported, and replaces an imported file of the same language. The stage shows the English line
 while the video plays. The demo book's screen speaks this way (`fixtures/demo/entries/screen/`).
 
+### Picture credits
+
+The pictures in the book's margins are found images; their credit lines (*Book Golem by TER-JAN / DeviantArt*) are kept
+**per file in the editor's Library** (#277 – one free text line, `docs/server.md` "Credits"), not in an entry. When the
+editor's API assembles the book (draft and publish) the configuration gets the lines of the files it uses anywhere – a
+target image, an entry's picture, an entity's file – as `credits: { "<file path or URL>": "<line>" }` (content schema
+2.33, #292); a credited file the book does not use is left out. The reader lists them per spread (*Pages 2–3*, by page,
+each line once per spread; a spread without printed numbers by its title) on its **Image credits** page, reached from
+Info ("…in the margins of the book *here*"). A book built from YAML has no credits – they live on the instance.
+
 ### A model's map by texture quality
 
 A model can bring its colour map in several sizes; the reader's texture quality (Info page → Settings → *Model
@@ -871,6 +881,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 2.30 | 1.71.0 | in develop | the built-in components `reveal`, `found` and `lost` on a node: its own look for a moment – `{ type: reveal, look, …the look's parameters }` – in place of the book's `appearance` (#268) | skipped: a 2.29 app drops the components with the update hint (an unknown component) and plays the book's look |
 | 2.31 | 1.77.0 | in develop | the configuration's optional `subtitles`: the WebVTT files of a video, one per language – `[{ media, tracks: { en: …, fr: … } }]`, read from the files' names (`<video name>.<language>.vtt`) by the content build and the editor's API (#257) | ignored: an older app reads no `subtitles` and plays the video without a subtitle line |
 | 2.32 | 1.80.0 | in develop | a spread's optional `matter` (`front` \| `back`): a double page without printed numbers before page 1 or after the last printed page, its pages internal (front matter below 0, #296) | ignored: an older app shows the spread like any other – in the page scroller with its internal numbers |
+| 2.33 | 1.82.0 | in develop | the configuration's optional `credits` (file → credit line, #292): the picture credits of the files the book uses, from the editor's Library | ignored: an older app has no image credits page |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

@@ -4,5 +4,6 @@
   "entriesConsulted": "Entrées consultées",
   "counterAria": "{{consulted}} entrées consultées sur {{total}}",
   "openConsultation": "Ouvrir le mode consultation",
-  "backToScan": "Retour au mode scan"
+  "backToScan": "Retour au mode scan",
+  "close": "Fermer"
 }

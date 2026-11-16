@@ -786,11 +786,19 @@ try {
     check($status === 200 && ($saved['credits'][$imgUrl] ?? null) === 'Book Golem by TER-JAN / DeviantArt'
         && ($data['assets'][1]['credits'] ?? null) === 'Book Golem by TER-JAN / DeviantArt' && array_key_exists('credits', $data['assets'][0] ?? []) && $data['assets'][0]['credits'] === null,
         '#277: credits are saved per file url (white space folded) and listed with the file');
+    $demoDraft = function () use ($api, $editor, $withToken): array {
+        [, $manifest] = call($api, 'GET', '/editor/books/demo/draft/latest.json', null, $editor);
+        return json_decode((string) file_get_contents("$api/editor/books/demo/draft/{$manifest['build']}/game.config.json", false, $withToken), true);
+    };
+    $config = $demoDraft();
+    check(($config['credits'] ?? null) === [$imgUrl => 'Book Golem by TER-JAN / DeviantArt'] && $config['entries'][0]['target']['imageSrc'] === $imgUrl,
+        '#292: the draft carries the credit line of a file the book uses, by the URL the configuration names');
     [$status, $refused] = call($api, 'PUT', '/editor/books/demo/assets/credits', ['items' => [['url' => $imgUrl, 'credits' => 'x'], ['url' => 'https://elsewhere/x.jpg', 'credits' => 'y']]], $editor);
     check($status === 400 && ($refused['error']['code'] ?? null) === 'invalid-credits', '#277: a url that is no file of the Library refuses the whole request');
     [$status] = call($api, 'PUT', '/editor/books/demo/assets/credits', ['items' => [['url' => $imgUrl, 'credits' => '']]], $editor);
     [, $data] = call($api, 'GET', '/editor/books/demo/assets', null, $editor);
     check($status === 200 && array_key_exists('credits', $data['assets'][1] ?? []) && $data['assets'][1]['credits'] === null, '#277: an empty line removes the credits');
+    check(!array_key_exists('credits', $demoDraft()), '#292: … and a book without credit lines has no credits');
     [$status, $data] = call($api, 'POST', '/editor/books/demo/publish', ['env' => 'local'], $editor);
     check($status === 409 && $data['error']['code'] === 'other-book' && $data['error']['current']['book'] === 'osct' && $data['error']['current']['title'] === 'Test Book' && $data['error']['current']['build'] === $second['build'], 'publishing another book over it → 409 other-book naming the current one');
     check(json_decode((string) file_get_contents("$storeDir/local/latest.json"), true)['book'] === 'osct', '… and nothing moved');

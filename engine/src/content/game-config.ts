@@ -419,6 +419,32 @@ export const getSubtitleFiles = (spreadId?: string): string[] => {
     .flatMap(s => Object.values(s.tracks).map(contentUrl));
 };
 
+/** A spread's credit lines (#292): the spread and the lines of the files its entries use, by page, each once */
+export interface SpreadCredits {
+  spread: Spread;
+  lines: string[];
+}
+
+/**
+ * The book's credit lines per spread (the configuration's `credits`, schema 2.33): a spread lists the line of every file
+ * its entries in the book name anywhere (by page) – the target image, the entry's picture, the entity's files (a shared entity's
+ * too). Spreads without a line are left out; a line a spread repeats is listed once.
+ */
+export const getCredits = (): SpreadCredits[] => {
+  const credited = Object.entries(config.credits ?? {}).map(([file, line]) => [contentUrl(file), line] as const);
+  if (!credited.length) return [];
+  return spreads.flatMap(spread => {
+    const lines: string[] = [];
+    for (const entry of [...spread.entries].sort((a, b) => a.page - b.page)) {
+      const text = JSON.stringify(entry);
+      for (const [url, line] of credited) {
+        if (!lines.includes(line) && text.includes(JSON.stringify(url))) lines.push(line);
+      }
+    }
+    return lines.length ? [{ spread, lines }] : [];
+  });
+};
+
 /** The shared entity (`content/entities/<id>`) a target refers to with `ref`, or undefined for an inline entity */
 export const getEntityRef = (targetId: string): string | undefined => {
   const entity = config.entries.find(e => e.target?.id === targetId)?.target?.entity;

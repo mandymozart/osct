@@ -101,11 +101,13 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   optional `subtitles` (#257: the WebVTT files of a video, one per language – `./subtitles.ts`; an older app ignores
  *   the field and plays the video without a subtitle line), and since 2.32 a spread's optional `matter` (#296: `front` or
  *   `back` – a double page without printed numbers before page 1 or after the last printed page, its pages internal; an
- *   older app ignores the field and shows the spread like any other, its pages as numbers).
+ *   older app ignores the field and shows the spread like any other, its pages as numbers), and since 2.33 the
+ *   configuration's optional `credits` (#292: the credit line of a file the book uses, by the file's path or URL – written
+ *   in the editor's Library; an older app ignores the field and has no image credits page).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.32";
+export const CONTENT_SCHEMA_VERSION = "2.33";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
@@ -345,4 +347,11 @@ export interface GameConfiguration {
    * files' names by the content build and the editor's API, never filled in by hand
    */
   subtitles?: readonly SubtitleData[];
+  /**
+   * Optional (schema 2.33, #292): the credit line of each file the book uses that has one (`"Book Golem by TER-JAN /
+   * DeviantArt"`), keyed by the file's path or URL exactly as the configuration names it – written in the editor's
+   * Library, filled in by the editor's API when it assembles the book, never by hand. The reader lists them per spread
+   * on its image credits page
+   */
+  credits?: Readonly<Record<string, string>>;
 }
