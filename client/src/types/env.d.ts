@@ -17,6 +17,11 @@ interface ImportMetaEnv {
    * with the app (dev server, tests)
    */
   readonly VITE_CONTENT_BASE_URL?: string;
+  /**
+   * Font folder of the design font (ABC Areal – `utils/font-face-html.ts`); read by the build only. Unset = the shared
+   * folder on the CDN, empty = no web font (Arial)
+   */
+  readonly VITE_FONT_BASE_URL?: string;
 }
 
 interface ImportMeta {

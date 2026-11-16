@@ -69,8 +69,8 @@ export class GameHeader extends HTMLElement {
                     position: absolute;
                     inset: 0 0 -1.5rem 0;
                     background: linear-gradient(to bottom,
-                        rgba(0, 0, 0, .96) 0%,
-                        rgba(0, 0, 0, .96) calc(100% - 2.5rem),
+                        var(--header-backdrop) 0%,
+                        var(--header-backdrop) calc(100% - 2.5rem),
                         transparent 100%);
                     z-index: -1;
                     display: none;

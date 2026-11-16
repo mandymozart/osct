@@ -2,7 +2,7 @@
 @import "./styles/static-splash.css";
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: var(--font-design);
   line-height: 1.5;
   /* 100 %, not px: respects the reader's text size setting; all sizes are in rem */
   font-size: 100%;
@@ -11,11 +11,15 @@
   --offset-top: 4rem;
 
   /* Design tokens (agents/DESIGN.md) – components use only these */
-  --font-design: Arial, Helvetica, sans-serif;
-  --tracking-design: 0.02em;
-  --text-size: 0.9375rem;
-  --text-size-small: 0.8125rem;
-  --text-line: 1.25;
+  /* ABC Areal from the CDN font folder (index.html, utils/font-face-html.ts); Arial until it has loaded or without it */
+  --font-design: "ABC Areal", Arial, Helvetica, sans-serif;
+  --tracking-design: 0.04em;
+  /* Two type sizes (DESIGN.md §2): Medium – titles, body text, buttons; Small – captions, counters, small instructions */
+  --text-size: 1rem;
+  --text-size-small: 0.75rem;
+  --text-line: 1.375;
+  /* Centred short texts (onboarding steps, camera notices) are set looser */
+  --text-line-loose: 1.5625;
   --row-height: 1.5rem;
 
   /* Gold is always this gradient, clipped to the text, left → right per element (DESIGN.md §1) */
@@ -35,6 +39,8 @@
 
   --app-background: #000;
   --consultation-background: rgba(0, 0, 0, 0.82);
+  /* The header's backdrop in consultation: the pages' text scrolls under the icon, not through it (#283) */
+  --header-backdrop: rgba(0, 0, 0, 0.96);
   --loading-background:
     radial-gradient(ellipse 60% 55% at 50% 50%, rgba(0, 0, 0, 0.94) 0%, rgba(0, 0, 0, 0.82) 100%);
   /* farthest-corner: the gradient must reach the corners, or a grey base shows there */

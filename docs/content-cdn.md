@@ -27,6 +27,17 @@ the content source it is given. A store per book is #87. `<build>` is the first 
 content is the same folder, whatever app version built it. A content file on the CDN never changes, so no edge
 cache, browser cache or service worker can serve a stale copy of it – only `latest.json` and `versions.json` change.
 
+### The font folder
+
+`osct/fonts/abc-areal/` at the zone root holds the reader's design font, ABC Areal by Dinamo (WOFF2 as delivered, never
+in git – the repository is public; licence: Dinamo's permission for this release). It sits outside the environment
+folders, so staging and production share it and `osct content purge` never touches it (it is no version on record).
+The app build writes the `@font-face` rules for it into `index.html` (`client/src/utils/font-face-html.ts`; the
+reader loads `ABCArealVariable.woff2` and `ABCAreal-RegularItalic.woff2`), the service worker keeps the files in a
+cache of its own for offline use. `VITE_FONT_BASE_URL` points a build elsewhere; empty = no web font (Arial). The pull
+zone must answer with `access-control-allow-origin` (fonts are CORS requests). A replaced file gets a new name, or
+installed apps keep the old one.
+
 ## Versions
 
 - **Content version** = the content build checksum (`version.hash` in `game.config.json`): content files, build

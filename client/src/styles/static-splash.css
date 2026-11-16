@@ -22,7 +22,7 @@
   font-family: var(--font-design);
   letter-spacing: var(--tracking-design);
   font-size: var(--text-size);
-  line-height: var(--text-line);
+  line-height: var(--text-line-loose);
 }
 /* Footer sits at 58 % of the viewport; longer text pushes it down. */
 #static-splash .head {

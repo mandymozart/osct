@@ -4,6 +4,20 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-16 – ABC Areal from the CDN, two type sizes (#278, #279)
+
+- **Font (Tilman, 2026-11-16, #278):** the reader is set in **ABC Areal** by Dinamo. Licence: Dinamo's own permission
+  for this collaboration release – no per-domain web licence. The WOFF2 files (as delivered, not converted) live on
+  the CDN at `https://buildingfictions.b-cdn.net/fonts/abc-areal/` (storage zone root, outside the environment
+  folders – shared by staging and production, untouched by `content purge`), **never in git** (public repository).
+  Areal is Latin only: Tilman finds a Japanese font separately (open).
+- **Loading:** the build writes `@font-face` rules into `index.html` (`client/src/utils/font-face-html.ts`, a vite
+  plugin) for `ABCArealVariable.woff2` (400–700) and `ABCAreal-RegularItalic.woff2`, `font-display: swap`, Arial as the
+  fallback. `VITE_FONT_BASE_URL` changes the folder (unset = the CDN folder, empty = no web font). The service worker
+  keeps the files in the cache `osct-fonts` (cache-first, survives builds). The editor keeps its own system font.
+- **Typography (#279):** two sizes – Medium 1 rem (8 pt ≈ 15.4 px in the PDF), Small 0.75 rem (6 pt ≈ 11.5 px);
+  tracking 0.04 em; line height 1.375, centred onboarding / camera texts 1.5625. Measurements: `DESIGN.md` §2.
+
 ## 2026-11-16 – Picture credits reach the reader through the configuration (#292)
 The credit lines stay per file URL in the instance's Library (`asset_credits`, #277); `ContentVersion::assemble` puts the
 lines of the files the configuration names anywhere into `credits` (content schema 2.33). The reader's image credits page

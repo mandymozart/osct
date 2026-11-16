@@ -37,6 +37,10 @@ export class EntriesCounter extends HTMLElement {
           font-family: var(--font-design);
           letter-spacing: var(--tracking-design);
           font-size: var(--text-size-small);
+<<<<<<< HEAD
+=======
+          color: var(--color-muted);
+>>>>>>> feature/279-areal-typography
           text-align: center;
         }
         span.count {

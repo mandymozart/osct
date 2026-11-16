@@ -5,6 +5,7 @@ import basicSsl from '@vitejs/plugin-basic-ssl';
 import { VitePWA } from 'vite-plugin-pwa';
 import { networkInterfaces } from 'os';
 import { renderStaticSplash, SPLASH_STEP } from './src/utils/static-splash-html.ts';
+import { fontBaseUrl, renderFontFaces } from './src/utils/font-face-html.ts';
 
 // One version for app and content build (RULES.md #10). Read from package.json because
 // npm_package_version is missing outside `npm run` (e.g. `npx vite`).
@@ -159,6 +160,18 @@ function staticSplash(config) {
 }
 
 /**
+ * The design font (ABC Areal, src/utils/font-face-html.ts): `@font-face` rules for the font folder on the CDN
+ * (`VITE_FONT_BASE_URL`, default the shared folder; empty = no web font), written into index.html before the
+ * stylesheet. The files are licensed and never part of the build.
+ */
+function designFont(baseUrl) {
+  return {
+    name: 'osct-design-font',
+    transformIndexHtml: (html) => html.replace('<!--osct:font-->', renderFontFaces(baseUrl)),
+  };
+}
+
+/**
  * Content file sizes (`virtual:osct-content-sizes`): every file under public/assets/content, by URL. Lets the
  * whole-book download (PreloaderService) show the total size up front and progress in bytes. Empty in a CDN
  * build (the sizes come with the content: files.json).
@@ -227,6 +240,8 @@ export default defineConfig(async ({command,mode})=>{
   // Content CDN of the environment (client/.env.local or the deploy's environment); '' = bundled content
   const contentBaseUrl = (loadEnv(mode, import.meta.dirname, 'VITE_').VITE_CONTENT_BASE_URL ?? '').replace(/\/+$/, '');
   const shellConfig = await readShellConfig(contentBaseUrl);
+  // The design font's folder (src/utils/font-face-html.ts); the service worker caches what it loads from there
+  const fontUrl = fontBaseUrl(loadEnv(mode, import.meta.dirname, 'VITE_').VITE_FONT_BASE_URL);
   const port = 5173;
   // Dev server over https: phones only grant camera access on https (http works on localhost only).
   // Self-signed certificate, accepted once on the phone. `npm run dev:http` (mode "http") serves plain
@@ -235,7 +250,7 @@ export default defineConfig(async ({command,mode})=>{
 
   return {
   plugins: [
-    staticSplash(shellConfig), gameConfigModule(contentBaseUrl), contentSizes(contentBaseUrl), xr8Engine(), ...pwa(shellConfig),
+    designFont(fontUrl), staticSplash(shellConfig), gameConfigModule(contentBaseUrl), contentSizes(contentBaseUrl), xr8Engine(), ...pwa(shellConfig),
     contentFromCdn(contentBaseUrl), ...(https ? [basicSsl()] : []),
   ],
   define: {
@@ -244,6 +259,7 @@ export default defineConfig(async ({command,mode})=>{
     // Service worker content cache: one per bundled content build; a CDN build keeps one cache and drops other versions
     __VITE_CONTENT_HASH__: JSON.stringify(contentBaseUrl ? 'cdn' : (shellConfig.version?.hash ?? APP_VERSION)),
     __VITE_CONTENT_BASE_URL__: JSON.stringify(contentBaseUrl), // the service worker (the app reads import.meta.env)
+    __VITE_FONT_BASE_URL__: JSON.stringify(fontUrl), // the service worker: font files are kept for offline use
     // The dev server's Wi-Fi address for the debug overlay's QR code; empty in builds (the page's own origin then)
     __VITE_SERVER_URL__: JSON.stringify(command === 'serve' ? `${https ? 'https' : 'http'}://${localIP}:${port}` : ''),
   },
