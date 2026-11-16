@@ -190,9 +190,10 @@ export class ArScene implements IArScene {
   }
 
   /**
-   * The marginalia card (#285): the picture `front` lifts off the found target's page, turns over once (showing
-   * `back`, a default pattern without one) and lands in the centre of the screen. Resolves true once it landed (it
-   * stays there a moment longer, for the entry to open over it), false at once when there is nothing to fly from
+   * The marginalia card (#285): the picture `front` peels off the found target's page, rises, spins (showing `back`,
+   * a default pattern without one) and slaps against the screen dead centre with a gold flash and a rumble
+   * (`card-flight.ts`). Resolves true once the impact is over (the card stays a moment longer, for the entry to open
+   * over it), false at once when there is nothing to fly from
    * (the target is not found, the scene does not run, the picture does not load) or a newer flight or a teardown
    * ended it.
    */
@@ -498,7 +499,8 @@ export class ArScene implements IArScene {
           const anchor = animation.kind === "lost" && !this.found.has(id) && this.content?.anchors.find(a => a.target.id === id);
           if (anchor) anchor.group.visible = false;
         });
-        view.bloomStrength = bloom;
+        // The marginalia card's impact flashes like a reveal
+        view.bloomStrength = Math.max(bloom, 0.8 * (this.card?.flight.flash ?? 0));
       });
       document.addEventListener("click", this.onTap);
       // The window's size changed (load test budget): the tracker and the preload follow at once

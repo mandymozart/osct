@@ -15,6 +15,12 @@ outcome in the line (or move it into a dated decision block).
   relative to it, so **only the start moves**; the end is a constant `(0, 0, −d)` in camera space. `d` comes from the
   projection matrix (the tracker sets the matrix, not `fov`). A cubic Bézier (lift along the page normal, settle from
   behind) and `slerp(q0, q1) · rotX(2π·s)`; `P0`'s weight `(1−t)³` fades the tracking jitter out by the end.
+- Then (Tilman): *"more organic … go first back up, than rotate and twist to reveal the front after a spin in the
+  vertical axis and than slap against the screen with a rumble … a glow flash like the gold flash"* and *"bending the
+  card of the page first is nice"*. So the card is not quite stiff: its top edge curls up while it peels, then it is.
+  Path: a Catmull-Rom page → up → a turn on the way to a point behind the landing → the landing, in three eased
+  phases (rise, spin about the card's Y, slap that eases in); the impact pushes, bounces, shakes, flashes a gold halo
+  (also the bloom) and vibrates.
 - Built: `engine/src/scene/card-flight.ts`, `IArScene.flyCard`, the indicator asks over `CARD_FLIGHT_EVENT` and opens
   the entry once the card landed. Seen in `sandbox/card-flight/` (simulated page), **not on a phone yet**.
 - [ ] Open (Kévin, #285): the higher-resolution colour picture per card (the card uses the entry's image now), the

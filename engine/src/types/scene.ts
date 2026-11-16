@@ -87,8 +87,8 @@ export interface IArScene {
   /** Play the discovery animation on a found target's entity (first find = unlock) */
   celebrate(targetId: string): void;
   /**
-   * The marginalia card (#285): the picture `front` lifts off the found target's page, turns over once (`back`, a
-   * default pattern without one) and lands in the centre of the screen. True once it landed; false at once when there
+   * The marginalia card (#285): the picture `front` peels off the found target's page, rises, spins (`back`, a
+   * default pattern without one) and slaps against the screen dead centre. True once it landed; false at once when there
    * is nothing to fly from (target not found, scene not running, picture not loaded) or the flight was cut short.
    */
   flyCard(targetId: string, card: { front: string; back?: string }): Promise<boolean>;

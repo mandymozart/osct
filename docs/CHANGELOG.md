@@ -10,11 +10,13 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 ## 1.81.0 – 2026-11-16
 
 ### Added
-- **The marginalia card** (#285): tapping a glossary picture whose entry is not consulted yet lifts the picture off
-  the page as a stiff playing card. It turns over once (a gold-framed back for now) and lands dead centre on the screen,
-  then the entry opens. The card flies from where the page is, followed every frame, and keeps going from the last
-  pose when the page is lost. Already-consulted entries, Texts, Links, Videos and reduced motion open the entry at once
-  as before. A sandbox (`sandbox/card-flight/`) shows the flight on a simulated page for timing.
+- **The marginalia card** (#285): tapping a glossary picture whose entry is not consulted yet peels the picture off
+  the page – its top edge bends up first – and it rises as a playing card, spins about its vertical axis (a
+  gold-framed back for now), drops back and slaps against the screen dead centre: it bounces, shakes, a gold halo
+  flashes with the reveal's bloom and the phone vibrates. Then the entry opens. The card flies from where the page is,
+  followed every frame, and keeps going from the last pose when the page is lost. Already-consulted entries, Texts,
+  Links, Videos and reduced motion open the entry at once as before. A sandbox (`sandbox/card-flight/`) shows the
+  flight on a simulated page for timing.
 
 ## 1.80.0 – 2026-11-16
 
