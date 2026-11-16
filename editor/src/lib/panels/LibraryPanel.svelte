@@ -12,6 +12,7 @@
   import Segmented from "#lib/components/Segmented.svelte";
   import AssetThumb from "./AssetThumb.svelte";
   import CodeFiles from "./CodeFiles.svelte";
+  import CreditsField from "#lib/components/CreditsField.svelte";
 
   /**
    * The book's library: the files uploaded in the editor and, after them, the files of the content import (`files.json`,
@@ -58,23 +59,8 @@
   let notice = $state<string | null>(null);
   let dragging = $state(false);
   let view = $state<LibraryView>(readLibraryView());
-  /** The file whose credits line is being written (#277), and the text so far */
+  /** The file whose credits line is open in the Library (#277) */
   let crediting = $state<string | null>(null);
-  let creditsText = $state("");
-  const startCredits = (asset: Asset) => {
-    crediting = asset.id;
-    creditsText = asset.credits ?? "";
-  };
-  const saveCredits = async (asset: Asset) => {
-    if (crediting !== asset.id) return;
-    crediting = null;
-    if (creditsText.trim() === (asset.credits ?? "")) return;
-    try {
-      await library.setCredits(bookId, asset.url, creditsText);
-    } catch {
-      // library.error tells
-    }
-  };
   /** The list's row whose actions are open */
   let opened = $state<string | null>(null);
   /** The files uploaded here since the panel opened: marked in the grid and the list */
@@ -200,16 +186,9 @@
 
 {#snippet credits(asset: Asset)}
   {#if crediting === asset.id}
-    <!-- svelte-ignore a11y_autofocus -->
-    <input class="field credits-field" autofocus placeholder="Book Golem by TER-JAN / DeviantArt" aria-label="Credits of {asset.name}" bind:value={creditsText}
-      onclick={e => e.stopPropagation()}
-      onkeydown={e => { if (e.key === "Enter") void saveCredits(asset); else if (e.key === "Escape") { e.preventDefault(); crediting = null; } }}
-      onblur={() => void saveCredits(asset)} />
-  {:else if !pick}
-    <button type="button" class="credits text-link" class:muted={!asset.credits} title="The picture credits – one line, as the book prints them"
-      onclick={e => { e.stopPropagation(); startCredits(asset); }}>{asset.credits ?? "add credits"}</button>
+    <CreditsField {asset} autofocus onclose={() => (crediting = null)} />
   {:else if asset.credits}
-    <span class="credits small muted">{asset.credits}</span>
+    <span class="credits small muted" title={asset.credits}>{asset.credits}</span>
   {/if}
 {/snippet}
 
@@ -226,6 +205,8 @@
     {#if asset.kind === "image" && targetId && onusetarget}
       <button type="button" class="pill" title="Becomes the printed image of the target {targetId}" onclick={() => void onusetarget(asset)}>Target image</button>
     {/if}
+    <button type="button" class="text-link" title="The picture credits – one line, as the book prints them"
+      onclick={e => { e.stopPropagation(); crediting = crediting === asset.id ? null : asset.id; }}>Credits…</button>
     {#if asset.imported}
       <span class="small muted" title="From the content import – replaced by the next import, not here">imported</span>
     {:else}
@@ -358,7 +339,6 @@
   @media (pointer: coarse) { .actions .pill { height: var(--control-height); } }
   .text-link.danger { color: var(--danger); }
   .credits { display: block; font-size: var(--text-small); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-  .credits-field { width: 100%; box-sizing: border-box; font-size: var(--text-small); }
   .list .unit { display: none; }
   @container library (max-width: 26rem) {
     .list, .list tbody { display: block; }

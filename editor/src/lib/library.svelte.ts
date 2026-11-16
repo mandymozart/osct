@@ -36,6 +36,15 @@ class Library {
     return url ? this.assets.find(asset => asset.url === url) : undefined;
   }
 
+  /**
+   * The asset behind a src the draft names: an upload's absolute URL, or an imported file's content path
+   * (`/assets/content/…`), which its Library URL ends with (below the assets base)
+   */
+  bySrc(src: string | undefined): Asset | undefined {
+    if (!src) return undefined;
+    return this.byUrl(src) ?? (src.startsWith("/") ? this.assets.find(asset => asset.imported && asset.url.endsWith(src)) : undefined);
+  }
+
   ofKinds(kinds: readonly string[]): Asset[] {
     return this.assets.filter(asset => kinds.includes(asset.kind));
   }
