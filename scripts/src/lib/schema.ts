@@ -4,7 +4,7 @@
  * Folder names are the ids; nested objects (entry.target, entity assets) are checked in the build.
  */
 import { ENTRY_CATEGORIES } from "../../../shared/types/entry";
-import { SOURCES_OF_TRUTH, SPREAD_FORMATS } from "../../../shared/types/game-config";
+import { MATTERS, SOURCES_OF_TRUTH, SPREAD_FORMATS } from "../../../shared/types/game-config";
 
 /** `List`: an array of texts, or the texts in one comma-separated string */
 export type FieldType = "String" | "Number" | "Array" | "List" | "Boolean" | "Object";
@@ -46,6 +46,7 @@ export const schemas = {
       firstPage: { type: "Number", required: true },
       lastPage: { type: "Number", required: true },
       format: { type: "String", required: false, enum: SPREAD_FORMATS }, // the covers: page 0, and the page after the last
+      matter: { type: "String", required: false, enum: MATTERS }, // a double page without printed numbers: front (pages below 0) or back
       passes: { type: "Array", required: false }, // post-processing over the rendered image: [{ type, ...parameters }], see shared/types/passes.ts
     },
   },

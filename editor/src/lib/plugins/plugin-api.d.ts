@@ -256,6 +256,11 @@ declare const SPREAD_FORMATS: readonly [
 	"back"
 ];
 type SpreadFormat = (typeof SPREAD_FORMATS)[number];
+declare const MATTERS: readonly [
+	"front",
+	"back"
+];
+type Matter = (typeof MATTERS)[number];
 interface SpreadData {
 	id: string;
 	title: string;
@@ -263,6 +268,8 @@ interface SpreadData {
 	lastPage: number;
 	/** Optional (schema 2.3): `cover` or `back` for the covers, `spread` or none for a double page */
 	format?: SpreadFormat;
+	/** Optional (schema 2.32), a double page only: `front` or `back` matter – pages without printed numbers (`MATTERS`) */
+	matter?: Matter;
 	/** Optional (schema 2.5): the post-processing passes over this spread's rendered image, in order; replaces the book's (`[]` = none) */
 	passes?: PassData[];
 }

@@ -907,6 +907,9 @@ final class Books
     /** The spread formats of the content contract (shared/types/game-config.ts `SPREAD_FORMATS`) */
     public const FORMATS = ['spread', 'cover', 'back'];
 
+    /** Front and back matter: double pages without printed numbers (shared/types/game-config.ts `MATTERS`, #296) */
+    public const MATTERS = ['front', 'back'];
+
     /** The built-in post-processing passes of the contract (shared/types/passes.ts `PASSES`) */
     public const PASS_TYPES = ['bloom', 'vignette', 'grade'];
     /** A plugin's pass type (shared/types/components.ts `COMPONENT_TYPE_PATTERN`, which a pass's spec is checked with) */
@@ -1478,6 +1481,7 @@ final class Books
         foreach ($c->spreads as $i => $s) {
             if (!$s instanceof stdClass || !is_string($s->title ?? null) || !is_numeric($s->firstPage ?? null) || !is_numeric($s->lastPage ?? null)) $fail("spreads[$i] needs id, title, firstPage and lastPage.");
             $id = Editor::id($s->id ?? null, "spreads[$i].id");
+            if (property_exists($s, 'matter') && !in_array($s->matter, self::MATTERS, true)) $fail("spreads[$i].matter must be one of " . implode(', ', self::MATTERS) . '.');
             if (isset($spreads[$id])) $fail("Duplicate spread id \"$id\".");
             $spreads[$id] = ['id' => $id, 'position' => $i, 'title' => $s->title, 'first' => (int) $s->firstPage, 'last' => (int) $s->lastPage, 'data' => $s];
         }

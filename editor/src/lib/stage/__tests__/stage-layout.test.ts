@@ -20,6 +20,24 @@ describe("stage layout: the sheet of a spread", () => {
 
   it("has no sheet without a layout or a spread", () => {
     expect(sheetForSpread(null, { firstPage: 4, lastPage: 5 })).toBeNull();
+  });
+
+  it("front and back matter find their sheets in book order (#296)", () => {
+    const matterLayout = {
+      ...layout,
+      sheets: [
+        ...layout.sheets,
+        { id: "front-matter-002", kind: "front-matter" as const, pages: [], image: "f2.jpg", widthMm: 460, heightMm: 320, widthPx: 1200, heightPx: 835, surfaces: ["left", "right"] },
+        { id: "front-matter-003", kind: "front-matter" as const, pages: [], image: "f3.jpg", widthMm: 460, heightMm: 320, widthPx: 1200, heightPx: 835, surfaces: ["left", "right"] },
+        { id: "back-matter-009", kind: "back-matter" as const, pages: [], image: "b9.jpg", widthMm: 460, heightMm: 320, widthPx: 1200, heightPx: 835, surfaces: ["left", "right"] },
+      ],
+    };
+    const last = Math.max(...layout.sheets.flatMap(sheet => sheet.pages));
+    expect(sheetForSpread(matterLayout, { firstPage: -4, lastPage: -3, matter: "front" })?.id).toBe("front-matter-002");
+    expect(sheetForSpread(matterLayout, { firstPage: -2, lastPage: -1, matter: "front" })?.id).toBe("front-matter-003");
+    expect(sheetForSpread(matterLayout, { firstPage: last + 1, lastPage: last + 2, matter: "back" })?.id).toBe("back-matter-009");
+    expect(sheetForSpread(matterLayout, { firstPage: last + 3, lastPage: last + 4, matter: "back" })).toBeNull();
+    expect(sheetForSpread(matterLayout, { firstPage: -2, lastPage: -1 })).toBeNull();
     expect(sheetForSpread(layout, undefined)).toBeNull();
   });
 

@@ -367,6 +367,16 @@ back spread the page after the last printed one; an entry on that page belongs t
 surface `front` or `back` (see `print` below). The editor shows the closed book for them; the reader treats them like
 any spread. More formats (a museum wall, an object) come with the layout templates of issue #60.
 
+**Front and back matter** (content schema 2.32, #296): the double pages between the cover and page 1 and between the
+last printed page and the back cover carry no printed numbers. A double page says so with `matter: front` or
+`matter: back`; its pages are internal and never shown to readers – front matter counts down to −1 (the sheet next to
+page 1 is −2…−1, the one before it −4…−3), back matter goes on from the last printed page, and the back cover comes
+after it. Entries and targets on those pages belong to the spread like on any other; the reader's page scroller and
+the entry's page show the spread's title instead of a number, the editor's stage finds the layout's `front-matter` /
+`back-matter` sheet in book order. A print-first book gets these spreads from its layout: the delivery import writes a
+spread for every sheet of `layout/layout.json` that has none (`cover`, `front-1` …, the numbered ones, `back-1` …,
+`back`).
+
 **Source of truth** (content schema 2.25, #238): `book.yaml` may say where the book's spreads come from –
 `sourceOfTruth: print` (print first, the default: the printed book is the truth, its spreads, pages and printed
 placements come from the layout and an import) or `sourceOfTruth: digital` (digital first: the book is made in the
@@ -860,6 +870,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 2.29 | 1.68.0 | in develop | the book's optional `appearance`: the look an entity appears with on `reveal` (the first find), `found` (every later find) and `lost` – a built-in look (`inflateDissolve`, `printLift`, `fade`) with its values, or one a plugin of the book registers (`registerAppearance`, plugin API 1.8), recorded in `registered.appearances` (#264) | ignored: an older app reads no `appearance` and plays its own animation at every moment; a plugin that registers a look calls a method an older engine does not have and is not loaded there |
 | 2.30 | 1.71.0 | in develop | the built-in components `reveal`, `found` and `lost` on a node: its own look for a moment – `{ type: reveal, look, …the look's parameters }` – in place of the book's `appearance` (#268) | skipped: a 2.29 app drops the components with the update hint (an unknown component) and plays the book's look |
 | 2.31 | 1.77.0 | in develop | the configuration's optional `subtitles`: the WebVTT files of a video, one per language – `[{ media, tracks: { en: …, fr: … } }]`, read from the files' names (`<video name>.<language>.vtt`) by the content build and the editor's API (#257) | ignored: an older app reads no `subtitles` and plays the video without a subtitle line |
+| 2.32 | 1.80.0 | in develop | a spread's optional `matter` (`front` \| `back`): a double page without printed numbers before page 1 or after the last printed page, its pages internal (front matter below 0, #296) | ignored: an older app shows the spread like any other – in the page scroller with its internal numbers |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

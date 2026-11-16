@@ -23,6 +23,7 @@ import {
   PRINT_SURFACES,
   SOURCES_OF_TRUTH,
   SPREAD_FORMATS,
+  MATTERS,
 } from "../../shared/types/game-config";
 import {
   ASSET_KIND_EXTENSIONS,
@@ -77,6 +78,7 @@ function readPhp(): Record<string, unknown> {
       'SOURCES_OF_TRUTH' => Editor::SOURCES_OF_TRUTH,
       'PRINT_SURFACES' => Editor::PRINT_SURFACES,
       'FORMATS' => Books::FORMATS,
+      'MATTERS' => Books::MATTERS,
       'PASS_TYPES' => Books::PASS_TYPES,
       'MOMENTS' => Books::MOMENTS,
       'APPEARANCE_TYPES' => Books::APPEARANCE_TYPES,
@@ -136,6 +138,7 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
 
   it("spread formats, passes (the built-in list), the appearance's moments and looks, and the environment (Books)", () => {
     expect(php.FORMATS).toEqual([...SPREAD_FORMATS]);
+    expect(php.MATTERS).toEqual([...MATTERS]);
     expect(php.PASS_TYPES).toEqual([...PASS_TYPES]);
     expect(php.MOMENTS).toEqual([...MOMENTS]);
     expect(php.APPEARANCE_TYPES).toEqual([...APPEARANCE_TYPES]);

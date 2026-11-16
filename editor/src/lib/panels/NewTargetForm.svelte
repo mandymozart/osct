@@ -41,7 +41,7 @@
   const format = $derived(spread.format ?? "spread");
   const closed = $derived(format === "cover" || format === "back");
   const surfaces = $derived<readonly PrintSurface[]>(closed ? [format === "cover" ? "front" : "back"] : ["left", "right"]);
-  const pageLabel = (p: number) => (format === "cover" ? "cover" : format === "back" ? "back cover" : String(p));
+  const pageLabel = (p: number) => (format === "cover" ? "cover" : format === "back" ? "back cover" : spread.matter ? `${spread.matter} matter, ${p === spread.firstPage ? "left" : "right"}` : String(p));
   let surface = $state<PrintSurface>("right");
   let x = $state(40);
   let y = $state(60);

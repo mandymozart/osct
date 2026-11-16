@@ -56,6 +56,20 @@ describe("game configuration guards", () => {
     expect(problemsOf(valid())).toEqual([]);
   });
 
+  it("front and back matter: a double page's matter is front or back, never a cover's (#296)", () => {
+    const config = valid();
+    config.spreads.push(
+      { id: "front-1", title: "Front matter 1", firstPage: -2, lastPage: -1, matter: "front" } as never,
+      { id: "back-1", title: "Back matter 1", firstPage: 3, lastPage: 4, matter: "back" } as never,
+    );
+    expect(problemsOf(config)).toEqual([]);
+    config.spreads.push(
+      { id: "odd", title: "Odd", firstPage: 5, lastPage: 6, matter: "middle" } as never,
+      { id: "back", title: "Back cover", firstPage: 7, lastPage: 7, format: "back", matter: "back" } as never,
+    );
+    expect(problemsOf(config).map(p => p.split(":")[0])).toEqual(["spreads[3].matter", "spreads[4].matter"]);
+  });
+
   it("report every problem with its path", () => {
     const config = valid() as any;
     config.entries[0].category = "poems";

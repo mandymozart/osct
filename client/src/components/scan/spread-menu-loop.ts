@@ -1,4 +1,5 @@
 import type { Spread } from "@/types";
+import { matterOf } from "@shared/types/game-config";
 import { getSpreads } from "@/utils/game-config";
 
 /**
@@ -12,9 +13,9 @@ import { getSpreads } from "@/utils/game-config";
 /** Only spreads with content: something to scan (targets) */
 export const getMenuSpreads = (): Spread[] => getSpreads().filter(s => s.targets.length > 0);
 
-/** "20–21" (en dash); a single page as "20" */
-export const formatPages = (spread: Pick<Spread, "firstPage" | "lastPage" | "title" | "format">): string =>
-  spread.format === "cover" || spread.format === "back" ? spread.title
+/** "20–21" (en dash); a single page as "20"; a cover and the front and back matter by their title (no printed number) */
+export const formatPages = (spread: Pick<Spread, "firstPage" | "lastPage" | "title" | "format" | "matter">): string =>
+  spread.format === "cover" || spread.format === "back" || matterOf(spread) ? spread.title
     : spread.firstPage === spread.lastPage ? `${spread.firstPage}` : `${spread.firstPage}–${spread.lastPage}`;
 
 /** Odd number of copies so that one full viewport of items exists on both sides of the middle copy */

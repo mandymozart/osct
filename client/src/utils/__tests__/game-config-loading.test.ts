@@ -57,7 +57,7 @@ describe("loading the game configuration from a content base URL", () => {
   });
 
   it("follows latest.json to the version folder and turns content paths into its URLs", async () => {
-    const imagePath = getTargets(getSpreads()[0].id)[0].imageSrc as string;
+    const imagePath = getSpreads().flatMap(s => getTargets(s.id))[0].imageSrc as string;
     const fetch = cdn({
       [`${BASE}/latest.json`]: manifest,
       [`${VERSION}/game.config.json`]: bundled,
@@ -69,7 +69,7 @@ describe("loading the game configuration from a content base URL", () => {
 
     const spreads = getSpreads();
     expect(spreads.length).toBe(bundled.spreads.length);
-    const imageSrc = getTargets(spreads[0].id)[0].imageSrc;
+    const imageSrc = spreads.flatMap(s => getTargets(s.id))[0].imageSrc;
     expect(imageSrc).toBe(`${VERSION}${imagePath}`);
     expect(getAssets().every(a => a.src.startsWith(`${VERSION}/assets/content/`))).toBe(true);
     expect(getEntries().flatMap(e => (e.image ? [e.image] : [])).every(src => src.startsWith(`${VERSION}/assets/content/`))).toBe(true);
@@ -107,7 +107,7 @@ describe("loading the game configuration from a content base URL", () => {
     await loadGameConfiguration({ baseUrl: "" });
     expect(getContentBaseUrl()).toBe("");
     expect(getContentSizes()).toBeNull();
-    const imageSrc = getTargets(getSpreads()[0].id)[0].imageSrc;
+    const imageSrc = getSpreads().flatMap(s => getTargets(s.id))[0].imageSrc;
     expect(imageSrc).toMatch(/^\/assets\/content\//);
     expect(isContentUrl(imageSrc)).toBe(true);
     expect(contentUrl(imageSrc)).toBe(imageSrc);

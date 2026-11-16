@@ -12,6 +12,8 @@ export function buildSpreads(pluginPasses: ReadonlyMap<string, PassSpec> = new M
       const s = validate(data, 'spread', label);
       if (!s) return null;
       if (s.firstPage > s.lastPage) buildErrors.push(`${label}: firstPage ${s.firstPage} > lastPage ${s.lastPage}`);
+      if (s.matter && s.format && s.format !== 'spread') buildErrors.push(`${label}: a ${s.format} is no ${s.matter} matter`);
+      if (s.matter === 'front' && s.lastPage >= 0) buildErrors.push(`${label}: front matter has pages below 0 (the cover is 0, page 1 the first printed one)`);
       const passes = s.passes === undefined ? undefined : checkedPasses(s.passes, label, pluginPasses);
       return {
         order: s.order,
@@ -21,6 +23,7 @@ export function buildSpreads(pluginPasses: ReadonlyMap<string, PassSpec> = new M
           firstPage: s.firstPage,
           lastPage: s.lastPage,
           ...(s.format && s.format !== 'spread' ? { format: s.format } : {}),
+          ...(s.matter ? { matter: s.matter } : {}),
           ...(passes !== undefined ? { passes } : {}),
         },
       };
