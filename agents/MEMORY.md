@@ -4,6 +4,36 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-16 – the marginalia pick-up is a card that flips to the centre, no hand (#285, 1.81.0)
+
+- Tilman first wanted a hand that pockets the card in a shirt pocket (crocodile hand by Kévin, a stand-in from a free
+  VR hands pack), then: *"we changed our mind. only a card that flips up and ends up dead center of the screen, like a
+  playing card"*. Decided with him: glossary entries only; the normal reveal first, the **tap** starts it; only for an
+  entry not consulted yet (*"second time straight away for now"*); a stiff card in the picture's shape; a **full flip**
+  (the back shows halfway); reduced motion opens at once. #285's body holds the decisions and the maths.
+- The maths (Tilman's two moving vectors): in this engine the camera stays at the origin and an anchor is its pose
+  relative to it, so **only the start moves**; the end is a constant `(0, 0, −d)` in camera space. `d` comes from the
+  projection matrix (the tracker sets the matrix, not `fov`). A cubic Bézier (lift along the page normal, settle from
+  behind) and `slerp(q0, q1) · rotX(2π·s)`; `P0`'s weight `(1−t)³` fades the tracking jitter out by the end.
+- Then (Tilman): *"more organic … go first back up, than rotate and twist to reveal the front after a spin in the
+  vertical axis and than slap against the screen with a rumble … a glow flash like the gold flash"* and *"bending the
+  card of the page first is nice"*. So the card is not quite stiff: its top edge curls up while it peels, then it is.
+  Path: a Catmull-Rom page → up → a turn on the way to a point behind the landing → the landing, in three eased
+  phases (rise, spin about the card's Y, slap that eases in); the impact pushes, bounces, shakes, flashes a gold halo
+  (also the bloom) and vibrates.
+- Then, watching the sandbox live: a path after his drawing (a loop, a big arc) was tried and **dropped** (*"movement
+  was much better before. just revert"*); a gold flash over the card (sheen / the reveal's noise) was tried and
+  **dropped** – *"just replace the target image with the high res image for each glossary once it hits the screen.
+  that is surprise enough"*. Kept: it slides **up the page** first; peel, convex bow (*"not concave"*) and a slight
+  twist **overlap and blend**; it stays paper until the spin is over; everything fluid except the smash, which is
+  faster; the back is the **book's cover** (the print layout's `cover-front` sheet, fetched by the reader from
+  `layout/layout.json` – the gold pattern when there is none); the length follows the page's distance, **0.8–1.2 s**.
+- Built: `engine/src/scene/card-flight.ts`, `IArScene.flyCard`, the indicator asks over `CARD_FLIGHT_EVENT` and opens
+  the entry once the card landed. Seen in `sandbox/card-flight/` (simulated page), **not on a phone yet**.
+- [ ] Open (Kévin, #285): the higher-resolution colour picture per glossary entry (the reveal uses the entry's
+  `image` now – often the same as the target; then the card does not change), the sounds (rattle at the pick-up,
+  whoosh). Not seen with a real layout's cover yet (the fixture has no layout); not tried on a phone.
+
 ## 2026-11-16 – front and back matter are spreads with internal pages (#296, 1.80.0)
 
 - Rudy (via Tilman): the editor misses the 6 pages before page 1 and the 6 after page 256 (`START BOOK.pdf`,

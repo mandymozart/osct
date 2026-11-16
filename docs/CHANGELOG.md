@@ -7,6 +7,19 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.81.0 – 2026-11-16
+
+### Added
+- **The marginalia card** (#285): tapping a glossary picture whose entry is not consulted yet peels the printed
+  picture off the page like a sheet of paper – it slides up the page, curls its top edge up and, while it rises,
+  turns into a convex bow with a slight twist. It spins about its vertical axis (the back is the book's cover from the
+  print layout, a gold-framed pattern without one), stiffens into a card and smashes against the screen dead centre,
+  where it becomes the entry's own picture in full resolution; it bounces, shakes and the phone vibrates. Then the
+  entry opens. All of it is fluid, only the smash is hard; it takes 0.8 s from a close page up to 1.2 s from a far
+  one. The card follows the page every frame and goes on from its last pose when the page is lost.
+  Already-consulted entries, Texts, Links, Videos and reduced motion open the entry at once as before. A sandbox
+  (`sandbox/card-flight/`) shows the flight on a simulated page.
+
 ## 1.80.0 – 2026-11-16
 
 ### Added

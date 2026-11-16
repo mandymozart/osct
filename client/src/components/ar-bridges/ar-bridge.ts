@@ -1,6 +1,7 @@
 import { GameStoreService, PreloaderService, SubtitleService, UpdateService } from "@/services";
-import { type ArError, type ArStatus, CameraPermissionStatus, ErrorCode, GameMode, type IArScene, type IGame, LoadingState, TARGET_UNLOCKED_EVENT } from "@/types";
+import { type ArError, type ArStatus, CameraPermissionStatus, CARD_FLIGHT_EVENT, type CardFlightDetail, ErrorCode, GameMode, type IArScene, type IGame, LoadingState, TARGET_UNLOCKED_EVENT } from "@/types";
 import { getTarget } from "@/utils/game-config";
+import { bookCoverUrl } from "@/utils/book-cover";
 import { LazyArScene } from "./lazy-ar-scene";
 import { reportArError } from "@engine/utils/camera-debug";
 import { getPreparedWindow } from "@engine/utils/prepared-spreads";
@@ -20,7 +21,8 @@ const showScanning = (scanning: boolean): void => {
  *   AR → store: found / lost → `game.targets`, status → `arStatus` + loading page, ready → content preload of the
  *   spreads kept ready next to the current one (the same window the tracker holds, `prepared-spreads.ts`).
  * A target's first find (unlock) plays the entity's unlock animation and dispatches TARGET_UNLOCKED_EVENT;
- * tapping an entity opens its entry. The scene's `scanning` shows the reader's scanning indicator (`#osct-scanning`,
+ * tapping an entity opens its entry; a glossary picture tapped for the first time flies its card first
+ * (CARD_FLIGHT_EVENT). The scene's `scanning` shows the reader's scanning indicator (`#osct-scanning`,
  * index.html) while tracking runs and nothing is found, its `subtitle` goes to `SubtitleService` (the line of a speaking
  * video, drawn by `<subtitle-line>`); an AR error's code picks the camera overlay, a failed AR chunk
  * also the new-version notice (`UpdateService`). The scene is a `LazyArScene` (three.js + the 8th Wall engine load on the first
@@ -47,7 +49,10 @@ export class ArBridge extends HTMLElement {
     const scene = this.scene;
     const game = this.game;
 
+    const onCardFlight = (event: Event) => this.handleCardFlight(event as CustomEvent<CardFlightDetail>);
+    document.addEventListener(CARD_FLIGHT_EVENT, onCardFlight);
     this.cleanups.push(
+      () => document.removeEventListener(CARD_FLIGHT_EVENT, onCardFlight),
       scene.on("status", (status, error) => this.handleStatus(status, error)),
       scene.on("targetFound", id => this.handleFound(id)),
       scene.on("targetLost", id => game.targets.removeTarget(id)),
@@ -125,6 +130,16 @@ export class ArBridge extends HTMLElement {
     if (this.game.state.mode !== GameMode.SCAN) return;
     const target = getTarget(targetId);
     if (target) this.game.router.navigate("/entry", { key: "entryId", value: target.entryId });
+  }
+
+  /** A glossary picture tapped for the first time (#285): the scene flies its card, the indicator opens the entry after */
+  private handleCardFlight(event: CustomEvent<CardFlightDetail>) {
+    const scene = this.scene;
+    if (!scene || this.game.state.mode !== GameMode.SCAN) return;
+    event.preventDefault();
+    const { targetId, front, reveal } = event.detail;
+    // The card's back is the book's cover (when the content has a print layout)
+    event.detail.respond(bookCoverUrl().then(back => scene.flyCard(targetId, { front, reveal, back: back ?? undefined })));
   }
 
   private applySceneState() {

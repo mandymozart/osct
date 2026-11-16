@@ -1,4 +1,4 @@
-import { Box3, Group, type Matrix4, type Object3D, type Quaternion, Vector3 } from "three";
+import { Box3, Group, type Matrix4, type Object3D, type Quaternion, SRGBColorSpace, type Texture, TextureLoader, Vector3 } from "three";
 import {
   type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type TextureQuality, type PassData, type SceneInspection, SceneState, type Target,
 } from "../types/index";
@@ -11,6 +11,7 @@ import { getPreparedWindow, isGrowingWindow, spreadsByDistance, subscribePrepare
 import { AssetStore } from "./assets";
 import { deviceHints, wantedTextureSize } from "./model-textures";
 import { type AnimationKind, celebrate, type Celebration, together } from "./celebration";
+import { CARD_HOLD_MS, CardFlight } from "./card-flight";
 import { buildEntity, type EntityInstance, placeEntity } from "./entities";
 import { loadPlugins } from "./plugins";
 import { cameraGrades, cameraGradeShader } from "./post/grade";
@@ -111,6 +112,8 @@ export class ArScene implements IArScene {
   private _status: ArStatus = "idle";
   /** Running appear / disappear animation per target id (reveal, found, lost), removed when done */
   private animations = new Map<string, Celebration>();
+  /** The marginalia card in flight (#285), at most one */
+  private card: { flight: CardFlight; targetId: string; landed: boolean; done: (flown: boolean) => void; timer?: number } | null = null;
   /** The entities' clock holds (the editor's Live switch off, #269): their updates get no time, the looks play on */
   private clockHeld = false;
   /** Entities shown with other values than the content's, by target id (the editor's live edit) */
@@ -184,6 +187,67 @@ export class ArScene implements IArScene {
     this.animate(anchor, "reveal");
     anchor.entity?.onUnlocked?.();
     emitCoreEvent("targetUnlocked", { targetId });
+  }
+
+  /**
+   * The marginalia card (#285): the printed picture `front` peels off the found target's page, rises, spins (showing
+   * `back`, a default pattern without one) and slaps against the screen dead centre, where it becomes `reveal` (the
+   * entry's own picture in full resolution) with a rumble (`card-flight.ts`). Resolves true once the impact is over (the card stays a moment longer, for the entry to open
+   * over it), false at once when there is nothing to fly from
+   * (the target is not found, the scene does not run, the picture does not load) or a newer flight or a teardown
+   * ended it.
+   */
+  flyCard(targetId: string, card: { front: string; reveal?: string; back?: string }): Promise<boolean> {
+    const anchor = this.content?.anchors.find(a => a.target.id === targetId);
+    const view = this.view;
+    if (!anchor || !view || !this.running || !this.found.has(targetId)) return Promise.resolve(false);
+    this.endCard();
+    return new Promise(resolve => {
+      const load = (src: string) => new TextureLoader().setCrossOrigin("anonymous").loadAsync(src).then(texture => {
+        texture.colorSpace = SRGBColorSpace;
+        return texture;
+      });
+      const optional = (src?: string) => (src ? load(src).catch(() => null) : Promise.resolve(null));
+      void Promise.all([load(card.front), optional(card.back), optional(card.reveal)]).then(
+        ([front, back, reveal]: [Texture, Texture | null, Texture | null]) => {
+          const image = front.image as { width?: number; height?: number } | undefined;
+          const aspect = image?.width && image.height ? image.height / image.width : 1;
+          if (this.view !== view || !this.found.has(targetId) || this.card) {
+            front.dispose();
+            back?.dispose();
+            reveal?.dispose();
+            return resolve(false);
+          }
+          const flight = new CardFlight(anchor.group.matrix, front, aspect, back, undefined, reveal);
+          view.scene.add(flight.object);
+          this.card = { flight, targetId, landed: false, done: resolve };
+        },
+        () => resolve(false),
+      );
+    });
+  }
+
+  /** Card: one frame of the flight; once landed, resolve and remove it after the hold */
+  private updateCard(delta: number): void {
+    const card = this.card;
+    if (!card || card.landed || !this.view) return;
+    const anchor = this.found.has(card.targetId) ? this.content?.anchors.find(a => a.target.id === card.targetId) : undefined;
+    if (card.flight.update(delta, anchor?.group.matrix ?? null, this.view.camera)) return;
+    card.landed = true;
+    card.done(true);
+    card.timer = window.setTimeout(() => {
+      if (this.card === card) this.endCard();
+    }, CARD_HOLD_MS);
+  }
+
+  /** Remove the card (a flight still on its way resolves false) */
+  private endCard(): void {
+    const card = this.card;
+    if (!card) return;
+    this.card = null;
+    window.clearTimeout(card.timer);
+    card.flight.dispose();
+    if (!card.landed) card.done(false);
   }
 
   sampleColor(x: number, y: number): string | null {
@@ -419,12 +483,13 @@ export class ArScene implements IArScene {
       view.underlay = this.lookAround;
       // A simulated tracker's stage is drawn every frame (the page is always in view)
       view.needsRender = () =>
-        !!this.tracker?.continuous || this.animations.size > 0 || !!this.content?.anchors.some(a => a.group.visible) || !!this.lookAround?.active;
+        !!this.tracker?.continuous || this.animations.size > 0 || !!this.card || !!this.content?.anchors.some(a => a.group.visible) || !!this.lookAround?.active;
       view.onFrame(delta => {
         const anchors = this.content?.anchors.filter(a => this.found.has(a.target.id)).map(a => a.group.matrix) ?? [];
         this.lookAround?.update(delta, view.camera, anchors);
         if (!this.clockHeld) this.content?.anchors.forEach(a => a.entity?.update?.(delta));
         this.subtitles.update(this.assets.videos());
+        this.updateCard(delta);
         let bloom = 0;
         this.animations.forEach((animation, id) => {
           if (animation.update(delta)) {
@@ -495,6 +560,7 @@ export class ArScene implements IArScene {
 
   private removeContent(): void {
     this.finishAnimations();
+    this.endCard();
     this.content?.anchors.forEach(anchor => {
       anchor.entity?.onPause?.();
       anchor.entity?.dispose?.();
