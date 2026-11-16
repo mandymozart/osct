@@ -25,6 +25,9 @@ export interface ProgressRecord {
   lastCategory: ListCategory | null;
   /** Onboarding finished or skipped; until then the app starts with the onboarding */
   onboarded: boolean;
+  /** The coach marks over the first scan (page scroller, icon – #282) were seen; reset when the onboarding ends
+   *  again (replayed from Info). Additive within format 1: an older app drops it, a record without it shows them */
+  coached: boolean;
   /** The book's variables set by its plugins (the `book` scope of the plugin API) – additive within format 1 */
   variables: Record<string, ProgressVariable>;
 }
@@ -75,6 +78,9 @@ export interface IHistoryManager {
 
   /** The reader finished or skipped the onboarding */
   setOnboarded(): void;
+
+  /** The reader saw the scan view's coach marks (`true`), or should see them on the next scan (`false`, #282) */
+  setCoached(coached: boolean): void;
 
   /** A book variable of the plugins' `book` scope (persisted with the progress) */
   getVariable(name: string): ProgressVariable | undefined;

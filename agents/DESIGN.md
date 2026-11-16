@@ -121,6 +121,13 @@ arrives), the header keeps the Mark. The splash shows icon and title at once; au
 after 1 s, over 1 s. The onboarding steps do not fade: the button shows the next step at once. The camera notice during
 onboarding uses the same grid (icon row 1, text from row 3, buttons from row 5).
 
+**Coach marks (#282, design p. 15–16):** the first scan after the onboarding is dimmed by a veil (`--coach-veil`,
+black 80 %) with a hole around the control the step talks about – a rounded box (1.5 rem) around the page scroller,
+then a circle around the icon; the hole is the element's box plus .5 rem. Text and button on the onboarding grid (text
+from row 3, button from row 5). The scroller step adds two gold arrows at the hole's ends that nudge outwards (1.6 s);
+the hole moves between the steps in 400 ms. Reduced motion: no nudge, no move. The p. 17 drops under the eye are left
+out (Tilman has not decided on them).
+
 ### Details (moved from code comments, 2026-09-28)
 | Element | Value |
 |---|---|

@@ -15,5 +15,16 @@
   "done": {
     "title": "Thank you!",
     "button": "Access scan"
+  },
+  "coach": {
+    "dialog": "How to scan",
+    "scroller": {
+      "text": "To activate content in the printed publication, use the horizontal scroll located at the bottom of your screen.\n\nMatch page numbers in the app and in the book.",
+      "button": "Continue"
+    },
+    "icon": {
+      "text": "Scan the pages of the book with your camera. Tap on AR marginalia to access an entry.\n\nUnlocked marginalia are saved as you browse. Tap the icon located at the top of your screen to consult them and access general menu.",
+      "button": "Ok, I get it"
+    }
   }
 }

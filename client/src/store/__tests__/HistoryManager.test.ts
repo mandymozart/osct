@@ -115,6 +115,14 @@ describe("HistoryManager (progress)", () => {
     expect(stored().onboarded).toBe(true);
   });
 
+  it("remembers that the scan view's coach marks were seen, and forgets it for a replay (#282)", () => {
+    expect(game.state.progress.coached).toBe(false);
+    game.history.setCoached(true);
+    expect(stored().coached).toBe(true);
+    game.history.setCoached(false);
+    expect(stored().coached).toBe(false);
+  });
+
   it("resets the progress but keeps the app version history", () => {
     game.history.unlockTarget(targets[0].id);
     game.history.reset();

@@ -7,6 +7,18 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- Scan: coach marks over the first scan (#282, design p. 15–16). After the onboarding a dark veil walks the reader
+  through two steps, each with a hole that shows the control the text talks about: the page scroller at the bottom
+  (arrows at its ends nudge left and right – it scrolls; they stand still with reduced motion), then the icon at the top. "Continue",
+  then "Ok, I get it". An overlay only – the mode, the route and the AR scene stay as they are. Texts in all four
+  languages (`tutorial:coach`).
+- Progress record: `coached` (additive within format 1 – an older app drops it, a record without it shows the coach
+  marks once). Ending the onboarding clears it, so a replay from Info shows the coach marks again; account sync keeps
+  it if either side has it.
+
 ## 1.88.0 – 2026-11-17
 
 ### Added

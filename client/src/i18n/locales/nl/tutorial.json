@@ -15,5 +15,16 @@
   "done": {
     "title": "Bedankt!",
     "button": "Naar de scan"
+  },
+  "coach": {
+    "dialog": "Zo scan je",
+    "scroller": {
+      "text": "Om inhoud in de gedrukte publicatie te activeren, gebruik je de horizontale balk onderaan je scherm.\n\nLaat de paginanummers in de app en in het boek overeenkomen.",
+      "button": "Verder"
+    },
+    "icon": {
+      "text": "Scan de pagina’s van het boek met je camera. Tik op AR-marginalia om een item te openen.\n\nOntgrendelde marginalia worden bewaard terwijl je bladert. Tik op het icoon bovenaan je scherm om ze te raadplegen en het algemene menu te openen.",
+      "button": "Oké, begrepen"
+    }
   }
 }

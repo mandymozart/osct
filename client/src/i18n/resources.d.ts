@@ -213,6 +213,17 @@ export default interface Resources {
       "button": "Grant access",
       "text": "This application requires access to your camera.\n\nPlease, grant access to proceed."
     },
+    "coach": {
+      "dialog": "How to scan",
+      "icon": {
+        "button": "Ok, I get it",
+        "text": "Scan the pages of the book with your camera. Tap on AR marginalia to access an entry.\n\nUnlocked marginalia are saved as you browse. Tap the icon located at the top of your screen to consult them and access general menu."
+      },
+      "scroller": {
+        "button": "Continue",
+        "text": "To activate content in the printed publication, use the horizontal scroll located at the bottom of your screen.\n\nMatch page numbers in the app and in the book."
+      }
+    },
     "done": {
       "button": "Access scan",
       "title": "Thank you!"
