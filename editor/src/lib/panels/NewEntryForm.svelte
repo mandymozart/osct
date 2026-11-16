@@ -3,6 +3,7 @@
   import { ENTRY_CATEGORIES, EntryCategory } from "@shared/types/entry";
   import { addEntry, errorText } from "#lib/api.js";
   import Segmented from "#lib/components/Segmented.svelte";
+  import { CATEGORY_LABELS } from "#lib/new-target.js";
 
   /**
    * A new entry without a printed image on the spread (the tree's "+ entry", #237): read in the reader's list only, like
@@ -47,9 +48,9 @@
   <div class="row"><span class="label">title</span>
     <!-- svelte-ignore a11y_autofocus -->
     <input class="field" bind:value={title} placeholder="the term or the text's title" aria-label="New entry's title" autofocus /></div>
-  <div class="row" data-help-name="Entry category" data-help="Where the entry is listed in the reader's consultation menu: Glossary, Videos, Texts or Links.">
+  <div class="row" data-help-name="Entry category" data-help="Where the entry is listed in the reader's consultation menu: Marginalia (the glossary), Texts, Links – or behind the Videos button.">
     <span class="label">listed in</span>
-    <span class="controls"><Segmented options={ENTRY_CATEGORIES} value={category} label="New entry's category" onchange={c => (category = c)} /></span></div>
+    <span class="controls"><Segmented options={ENTRY_CATEGORIES} value={category} labels={CATEGORY_LABELS} label="New entry's category" onchange={c => (category = c)} /></span></div>
   {#if pages.length > 1}
     <div class="row" data-help-name="Access page" data-help="The page the entry belongs to – it decides the spread, and the reader's list names it.">
       <span class="label">page</span>

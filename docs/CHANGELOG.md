@@ -7,6 +7,24 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- **Consultation list** (#286, design review): on the left a burger dropdown (≡) – the **Marginalia menu** with
+  Marginalia, Texts, Links and the new **All** – the selected choice gold and on top, the others white, one radio
+  group; on the right a separate **Videos** button. The button of the list shown is gold and glows, the other white.
+  On the Videos and on an entry the left button reads **"Marginalia"** (it goes back to the list). Under the menu a
+  counter per category – "32 / 60 Marginalia consulted", "1 / 1 Texts consulted", "2 / 35 Links consulted" – counted
+  like the header's (only entries in the content); none for All and the Videos. The glossary is labelled
+  **"Marginalia"** in the reader (and named so in the editor and the MCP description); its key stays `glossary`.
+- **List rows** (#287): a "Name | Page" head ("Title | Page" for texts), the page right-aligned. **Every entry is listed
+  from the start** – consulted ones open, the others are greyed and cannot be opened (until now production hid them;
+  `VITE_SHOW_LOCKED_ENTRIES` is gone). All lists every entry but the videos by page, without letters. Works (texts,
+  videos, links) show the title in italics without quotes – *Fake For Real*, Catherine Guiral. A name too long for its
+  line ends in "…" and after 2 s scrolls once to its end and back (not with reduced motion).
+- **Videos list** (#288): "Go to page in scan mode to play the video." above a white Name | Page list whose rows cannot
+  be opened – a video is found by scanning its page; tapping it there still opens its entry.
+
 ## 1.83.0 – 2026-11-16
 
 ### Changed

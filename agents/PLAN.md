@@ -515,9 +515,11 @@ Built 2026-09-25 (pages extend `pages/consultation-page.ts`; pure logic in
   Mark (scan) → `/entries`; found indicator → `/entry`; "Entries" → `/entries`.
 - [x] Entries list (p.17–29, `pages/entries-page.ts`): category dropdown (Glossary / Videos / Texts /
   Links), count per category "consulted / total", glossary grouped by letter (entries
-  without a letter first, no header), texts labelled `'Title', Author`.
+  without a letter first, no header), texts labelled `'Title', Author`. **Since #286–#288:** Marginalia menu
+  (Marginalia / Texts / Links / All) + Videos button, "N / M Marginalia consulted" per category, Name | Page table,
+  works as *Title*, Author, All by page, the Videos list not clickable.
 - [x] Unconsulted entries: **hidden**; listed **locked** when `showLockedEntries()` – dev builds by
-  default, `VITE_SHOW_LOCKED_ENTRIES=true|false` overrides.
+  default, `VITE_SHOW_LOCKED_ENTRIES=true|false` overrides. **Since #287:** always listed, greyed, not openable.
 - [x] Entry view (p.15, 20, 25, 30–31, `pages/entry-page.ts`): meta table (name, access page, category,
   author for texts), then per category:
   - Glossary – text + image

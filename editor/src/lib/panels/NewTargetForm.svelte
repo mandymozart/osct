@@ -4,7 +4,7 @@
   import { addEntry, errorText, isMediaAsset, type Asset } from "#lib/api.js";
   import { library } from "#lib/library.svelte.js";
   import { nodeAssetKinds, pickAccept, type LibraryPick } from "#lib/library-pick.js";
-  import { APPEARS, CATEGORIES, categoryFor } from "#lib/new-target.js";
+  import { APPEARS, CATEGORIES, CATEGORY_LABELS, categoryFor } from "#lib/new-target.js";
   import { newNode } from "#lib/values.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import { fromOrigin, toOrigin } from "#lib/stage/origin.js";
@@ -180,9 +180,9 @@
   {/if}
 
   <div class="section"><span class="section-label">entry category</span></div>
-  <div class="row" data-help-name="Entry category" data-help="Where the entry is listed in the reader's consultation menu (Glossary, Videos, Texts, Links) – not what appears on the page. It follows what appears (a video makes a Videos entry) until you choose one.">
+  <div class="row" data-help-name="Entry category" data-help="Where the entry is listed in the reader's consultation menu (Marginalia – the glossary –, Texts, Links, or the Videos) – not what appears on the page. It follows what appears (a video makes a Videos entry) until you choose one.">
     <span class="label">listed in</span>
-    <span class="controls"><Segmented options={CATEGORIES} value={category} onchange={c => (chosenCategory = c)} /></span></div>
+    <span class="controls"><Segmented options={CATEGORIES} value={category} labels={CATEGORY_LABELS} onchange={c => (chosenCategory = c)} /></span></div>
 
   <!-- The explanation is the section's help, not its title (RULES #32 – #170) -->
   <div class="section" data-help-name="Printed on the page" data-help="Where the image is printed: the surface, x / y in mm from the origin set in the toolbar's view group, and the printed width."><span class="section-label">printed on the page</span></div>

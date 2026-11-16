@@ -110,14 +110,25 @@ export default interface Resources {
   },
   "entries": {
     "categories": {
-      "glossary": "Glossary",
+      "all": "All",
+      "glossary": "Marginalia",
       "link": "Links",
       "text": "Texts",
       "video": "Videos"
     },
-    "countAria": "{{consulted}} of {{total}} consulted",
-    "empty": "No entries consulted yet.",
-    "locked": "locked"
+    "consulted": {
+      "glossary": "Marginalia consulted",
+      "link": "Links consulted",
+      "text": "Texts consulted"
+    },
+    "countAria": "{{consulted}} of {{total}} {{noun}}",
+    "empty": "No entries here yet.",
+    "locked": "locked",
+    "marginalia": "Marginalia",
+    "name": "Name",
+    "page": "Page",
+    "title": "Title",
+    "videosHint": "Go to page in scan mode to play the video."
   },
   "entry": {
     "accessPage": "Access page",
@@ -133,7 +144,7 @@ export default interface Resources {
     "backToScan": "Back to scan mode",
     "close": "Close",
     "counterAria": "{{consulted}} of {{total}} marginalia consulted",
-    "entries": "Entries",
+    "entries": "Marginalia",
     "entriesConsulted": "Marginalia consulted",
     "info": "Info",
     "openConsultation": "Open consultation mode"

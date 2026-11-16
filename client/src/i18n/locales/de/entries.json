@@ -1,11 +1,22 @@
 {
-  "countAria": "{{consulted}} von {{total}} gelesen",
-  "empty": "Noch keine Einträge gelesen.",
+  "countAria": "{{consulted}} von {{total}} {{noun}}",
+  "empty": "Hier gibt es noch keine Einträge.",
   "locked": "gesperrt",
+  "marginalia": "Marginalien",
+  "name": "Name",
+  "title": "Titel",
+  "page": "Seite",
+  "videosHint": "Geh im Scan-Modus zur Seite, um das Video abzuspielen.",
   "categories": {
-    "glossary": "Glossar",
+    "glossary": "Marginalien",
     "video": "Videos",
     "text": "Texte",
-    "link": "Links"
+    "link": "Links",
+    "all": "Alle"
+  },
+  "consulted": {
+    "glossary": "Marginalien gelesen",
+    "text": "Texte gelesen",
+    "link": "Links gelesen"
   }
 }

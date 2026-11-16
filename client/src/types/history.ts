@@ -1,4 +1,5 @@
 import type { EntryCategory } from "./game-config";
+import type { ListCategory } from "./entries";
 
 /**
  * What one reader discovered in one book, keyed by stable content ids and stored per `book.id` via
@@ -19,8 +20,9 @@ export interface ProgressRecord {
   consulted: Record<string, number>;
   /** Last active spread; restored as the active spread on the next start */
   lastSpreadId: string | null;
-  /** Last selected entries category ("Entries" button) */
-  lastCategory: EntryCategory | null;
+  /** Last list shown – a category, or All (#286) – the "Marginalia" button goes back to it. "all" is additive within
+   *  format 1: an older app reads it as none */
+  lastCategory: ListCategory | null;
   /** Onboarding finished or skipped; until then the app starts with the onboarding */
   onboarded: boolean;
   /** The book's variables set by its plugins (the `book` scope of the plugin API) – additive within format 1 */
@@ -65,10 +67,11 @@ export interface IHistoryManager {
   /** Stage 2: an entry was opened */
   consultEntry(entryId: string): void;
   isConsulted(entryId: string): boolean;
-  /** Consulted entries that are in the content (header counter: consulted / total) */
-  getConsultedCount(): number;
+  /** Consulted entries that are in the content (header counter: consulted / total); with a category, only its own –
+   *  the counter under the Marginalia menu (#286) */
+  getConsultedCount(category?: EntryCategory): number;
 
-  setLastCategory(category: EntryCategory): void;
+  setLastCategory(category: ListCategory): void;
 
   /** The reader finished or skipped the onboarding */
   setOnboarded(): void;

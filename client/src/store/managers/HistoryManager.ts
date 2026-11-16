@@ -3,6 +3,7 @@ import { ErrorCode } from '@/types';
 import type {
   EntryCategory,
   IGame,
+  ListCategory,
   IHistoryManager,
   IProgressStorage,
   ProgressRecord,
@@ -121,12 +122,15 @@ export class HistoryManager implements IHistoryManager {
     return entryId in this.progress.consulted;
   }
 
-  /** Counts only consulted ids that still exist in the content */
-  public getConsultedCount(): number {
-    return Object.keys(this.progress.consulted).filter(id => getEntry(id)).length;
+  /** Counts only consulted ids that still exist in the content – of one category, if given */
+  public getConsultedCount(category?: EntryCategory): number {
+    return Object.keys(this.progress.consulted).filter(id => {
+      const entry = getEntry(id);
+      return entry && (category === undefined || entry.category === category);
+    }).length;
   }
 
-  public setLastCategory(category: EntryCategory): void {
+  public setLastCategory(category: ListCategory): void {
     if (this.progress.lastCategory === category) return;
     this.change(draft => { draft.lastCategory = category; });
   }

@@ -1,18 +1,20 @@
 import { GameStoreService } from "@/services";
-import { ENTRY_CATEGORIES, type EntryCategory, type IGame } from "@/types";
+import type { IGame, ListCategory } from "@/types";
 import { adoptDesignStyles } from "@/styles";
-import { goldButton } from "@/components/buttons";
-import { categoryLabel, DEFAULT_CATEGORY } from "./entries-model";
+import { categoryLabel, DEFAULT_CATEGORY, MARGINALIA_MENU } from "./entries-model";
 import { escapeHtml } from "@/utils";
+import { t } from "i18next";
 
 /**
- * Category dropdown of the entries list: a glass pill with the current category; when open it grows
- * downwards into the menu (same width and left edge, first item on the label). Choosing an option
- * navigates to `/entries` with that category. Closes on an outside tap and Escape. The page sets `value`.
+ * The Marginalia menu of the entries list (#286): a glass pill acting as a burger dropdown (≡ beside the label) with
+ * Glossary ("Marginalia"), Texts, Links and All. When open it grows downwards into the menu (same width and left edge,
+ * the selected choice on top, on the label); the choices are one radio group – the selected one gold, the others white.
+ * Choosing one navigates to `/entries` with it. Closes on an outside tap and Escape. The page sets `value`; a value
+ * outside the menu (the Videos) shows the pill as "Marginalia", white and without glow, nothing selected.
  */
 export class EntriesFilterElement extends HTMLElement {
   private game: Readonly<IGame>;
-  private _value: EntryCategory = DEFAULT_CATEGORY;
+  private _value: ListCategory = DEFAULT_CATEGORY;
   private open = false;
 
   constructor() {
@@ -22,11 +24,11 @@ export class EntriesFilterElement extends HTMLElement {
     adoptDesignStyles(this.shadowRoot);
   }
 
-  get value(): EntryCategory {
+  get value(): ListCategory {
     return this._value;
   }
 
-  set value(value: EntryCategory) {
+  set value(value: ListCategory) {
     if (value === this._value && this.shadowRoot?.childElementCount) return;
     this._value = value;
     this.open = false;
@@ -45,20 +47,28 @@ export class EntriesFilterElement extends HTMLElement {
 
   private render() {
     if (!this.shadowRoot) return;
-    const item = (category: EntryCategory) =>
-      `<li><button type="button" class="gold" role="menuitem" data-filter="${category}" aria-current="${category === this._value}">${escapeHtml(categoryLabel(category))}</button></li>`;
+    const selected = MARGINALIA_MENU.includes(this._value) ? this._value : null;
+    // The selected choice first (it lies on the label), the others in menu order
+    const choices = selected ? [selected, ...MARGINALIA_MENU.filter(c => c !== selected)] : MARGINALIA_MENU;
+    const item = (category: ListCategory) =>
+      `<li><button type="button" class="${category === selected ? "gold" : "white"}" role="menuitemradio" data-filter="${category}" aria-checked="${category === selected}">${escapeHtml(categoryLabel(category))}</button></li>`;
+    const label = selected ? categoryLabel(selected) : t("entries:marginalia");
     this.shadowRoot.innerHTML = /* html */ `
       <style>
-        :host { display: block; position: relative; width: var(--category-width); }
+        :host { display: block; position: relative; min-width: var(--category-width); width: max-content; }
         /* :host raises specificity – the adopted design sheet comes after this <style> */
-        :host .pill { width: 100%; }
+        :host .pill { width: 100%; gap: .4em; }
+        /* Outside its section (the Videos) the pill is white and does not glow gold (#286) */
+        :host .pill.inactive { box-shadow: var(--shadow-grey); }
+        .burger { font-size: 1.1em; line-height: 1; }
+        .white { color: var(--color-on-dark); }
         .menu {
           position: absolute;
           top: 0;
           left: 0;
           z-index: 1;
           box-sizing: border-box;
-          width: 100%;
+          min-width: 100%;
           margin: 0;
           padding: .3rem 0 .55rem;
           list-style: none;
@@ -66,7 +76,7 @@ export class EntriesFilterElement extends HTMLElement {
           background: var(--glass-background);
           -webkit-backdrop-filter: var(--glass-blur);
           backdrop-filter: var(--glass-blur);
-          box-shadow: var(--shadow-grey);
+          box-shadow: var(--shadow-bronze);
           animation: menu-open .18s ease-out;
         }
         @keyframes menu-open {
@@ -77,7 +87,7 @@ export class EntriesFilterElement extends HTMLElement {
         .menu button {
           display: block;
           width: 100%;
-          padding: 0;
+          padding: 0 1rem;
           border: none;
           /* Only the color: background: none would also remove the .gold gradient (more specific) */
           background-color: transparent;
@@ -85,11 +95,12 @@ export class EntriesFilterElement extends HTMLElement {
           letter-spacing: inherit;
           line-height: 1.5;
           text-align: center;
+          white-space: nowrap;
           cursor: pointer;
         }
       </style>
-      ${goldButton({ label: categoryLabel(this._value), attrs: { "data-action": "toggle", "aria-haspopup": "menu", "aria-expanded": String(this.open) } })}
-      ${this.open ? `<ul class="menu" role="menu">${ENTRY_CATEGORIES.map(item).join("")}</ul>` : ""}
+      <button type="button" class="pill design${selected ? "" : " inactive"}" data-action="toggle" aria-haspopup="menu" aria-expanded="${this.open}"><span class="${selected ? "gold" : "white"}"><span class="burger" aria-hidden="true">≡</span> <span class="label">${escapeHtml(label)}</span></span></button>
+      ${this.open ? `<ul class="menu" role="menu" aria-label="${escapeHtml(t("entries:marginalia"))}">${choices.map(item).join("")}</ul>` : ""}
     `;
   }
 
@@ -120,7 +131,8 @@ export class EntriesFilterElement extends HTMLElement {
   };
 
   private handleOutside = (event: Event) => {
-    if (!event.composedPath().includes(this)) this.setOpen(false);
+    const path = event.composedPath();
+    if (!path.includes(this)) this.setOpen(false);
   };
 
   private handleKey = (event: KeyboardEvent) => {

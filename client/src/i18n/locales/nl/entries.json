@@ -1,11 +1,22 @@
 {
-  "countAria": "{{consulted}} van {{total}} geraadpleegd",
-  "empty": "Nog geen items geraadpleegd.",
+  "countAria": "{{consulted}} van {{total}} {{noun}}",
+  "empty": "Hier zijn nog geen items.",
   "locked": "vergrendeld",
+  "marginalia": "Marginalia",
+  "name": "Naam",
+  "title": "Titel",
+  "page": "Pagina",
+  "videosHint": "Ga in scanmodus naar de pagina om de video af te spelen.",
   "categories": {
-    "glossary": "Woordenlijst",
+    "glossary": "Marginalia",
     "video": "Video's",
     "text": "Teksten",
-    "link": "Links"
+    "link": "Links",
+    "all": "Alles"
+  },
+  "consulted": {
+    "glossary": "Marginalia geraadpleegd",
+    "text": "Teksten geraadpleegd",
+    "link": "Links geraadpleegd"
   }
 }

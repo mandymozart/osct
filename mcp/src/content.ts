@@ -432,7 +432,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "add_entry",
     {
       description:
-        "Makes a new entry on the spread its `page` belongs to: title, page, category (default glossary), body (Markdown with the book's variables – describe_content_model entryText), and its target – `imageSrc` (the printed image: an uploaded image asset's url), `print` (where it is printed, in mm), `entity` (its AR content as a node tree, or { ref }) – or no target: an entry read only in the list (a glossary term, a text). The id comes from title and page (e.g. p30-shadows) unless given; 409 duplicate-id. The reader tracks a target after a publish.",
+        "Makes a new entry on the spread its `page` belongs to: title, page, category (default glossary – the reader lists it as "Marginalia"), body (Markdown with the book's variables – describe_content_model entryText), and its target – `imageSrc` (the printed image: an uploaded image asset's url), `print` (where it is printed, in mm), `entity` (its AR content as a node tree, or { ref }) – or no target: an entry read only in the list (a glossary term, a text). The id comes from title and page (e.g. p30-shadows) unless given; 409 duplicate-id. The reader tracks a target after a publish.",
       inputSchema: z.object({
         book: BOOK,
         title: z.string().min(1),

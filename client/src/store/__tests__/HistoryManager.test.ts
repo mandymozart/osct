@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createGameStore } from "@/store/GameStore";
 import { PROGRESS_FORMAT, PROGRESS_READERS, readProgress } from "@/utils";
 import { LocalProgressStorage } from "@/services/ProgressStorage";
-import { EntryCategory, type IGame, type Pages, type ProgressRecord } from "@/types";
+import { ALL_CATEGORY, ENTRY_CATEGORIES, EntryCategory, type IGame, type Pages, type ProgressRecord } from "@/types";
 import { getBook, getEntries, getSpreads, getTargets } from "@/utils/game-config";
 
 const bookId = getBook().id;
@@ -68,6 +68,18 @@ describe("HistoryManager (progress)", () => {
     game.spreads.switchSpread(other);
     game.history.setLastCategory(EntryCategory.Text);
     expect(stored()).toMatchObject({ lastSpreadId: other, lastCategory: "text" });
+    game.history.setLastCategory(ALL_CATEGORY);
+    expect(stored().lastCategory).toBe("all");
+    game = createGameStore();
+    expect(game.state.progress.lastCategory).toBe("all"); // All is read back (#286)
+  });
+
+  it("counts consulted entries per category, adding up to the header's count (#286)", () => {
+    const entries = getEntries();
+    entries.slice(0, 3).forEach(e => game.history.consultEntry(e.id));
+    const perCategory = ENTRY_CATEGORIES.map(c => game.history.getConsultedCount(c));
+    expect(perCategory.reduce((a, b) => a + b, 0)).toBe(game.history.getConsultedCount());
+    expect(game.history.getConsultedCount(entries[0].category)).toBe(entries.slice(0, 3).filter(e => e.category === entries[0].category).length);
   });
 
   it("computes completion per spread from unlocked targets", () => {

@@ -1,6 +1,7 @@
-import { type Entry, EntryCategory, type Spread } from "@/types";
+import { ALL_CATEGORY, type Entry, EntryCategory, type ListCategory, type Spread } from "@/types";
 import { matterOf } from "@shared/types/game-config";
 import { isEntryCategory } from "@shared/guards/game-config";
+import { escapeHtml } from "@/utils/strings";
 import { t } from "i18next";
 
 /**
@@ -8,10 +9,16 @@ import { t } from "i18next";
  */
 
 /**
- * Label of a category in the current language. Always the plural form ("Videos"), in the list, the
- * menu and the entry's category row alike.
+ * The Marginalia menu (#286), in its order: the categories the reader looks up, then All. Videos have a button of their
+ * own beside it – they cannot be opened from the list (#288).
  */
-export const categoryLabel = (category: EntryCategory): string => t(`entries:categories.${category}`);
+export const MARGINALIA_MENU: readonly ListCategory[] = [EntryCategory.Glossary, EntryCategory.Text, EntryCategory.Link, ALL_CATEGORY];
+
+/**
+ * Label of a category (or All) in the current language. Always the plural form ("Videos"), in the list, the menu and
+ * the entry's category row alike; the glossary is labelled "Marginalia" (#286 – the key stays `glossary`).
+ */
+export const categoryLabel = (category: ListCategory): string => t(`entries:categories.${category}`);
 
 /**
  * The page an entry is on, as the reader finds it in the book: its printed number, or – on a cover or the front and
@@ -24,24 +31,38 @@ export const DEFAULT_CATEGORY = EntryCategory.Glossary;
 
 export const isCategory = isEntryCategory;
 
+/** A content category or All – a route param or a stored last category */
+export const isListCategory = (value: unknown): value is ListCategory => value === ALL_CATEGORY || isEntryCategory(value);
+
+/** The entries a list of `category` shows: its own, or for All every entry but the videos */
+export const entriesOf = <T extends Pick<Entry, "category">>(entries: readonly T[], category: ListCategory): T[] =>
+  entries.filter(e => (category === ALL_CATEGORY ? e.category !== EntryCategory.Video : e.category === category));
+
+/** Categories whose entries are works with a title (and an author): the title is set in italics, no quotes (#287) */
+const isWork = (category: EntryCategory): boolean => category !== EntryCategory.Glossary;
+
 /**
- * Whether unconsulted entries are listed as locked. Production hides them (the reader discovers entries);
- * development shows them so the complete list can be checked. `VITE_SHOW_LOCKED_ENTRIES=true|false`
- * overrides the default.
+ * List label as HTML (escaped): a glossary term as it is; a work's title in italics, followed by its author if it has
+ * one – *Fake For Real*, Catherine Guiral (#287)
  */
-export const showLockedEntries = (): boolean => {
-  const flag = import.meta.env.VITE_SHOW_LOCKED_ENTRIES;
-  return flag === undefined ? import.meta.env.DEV : flag === "true";
+export const entryLabelHtml = (entry: Pick<Entry, "category" | "title" | "author">): string => {
+  if (!isWork(entry.category)) return escapeHtml(entry.title);
+  const title = `<i>${escapeHtml(entry.title)}</i>`;
+  return entry.author ? `${title}, ${escapeHtml(entry.author)}` : title;
 };
 
-/** List label: texts show their author, all other categories their title */
+/** List label as plain text (accessible names, tests): "Fake For Real, Catherine Guiral" */
 export const entryLabel = (entry: Pick<Entry, "category" | "title" | "author">): string =>
-  entry.category === EntryCategory.Text && entry.author ? `'${entry.title}', ${entry.author}` : entry.title;
+  isWork(entry.category) && entry.author ? `${entry.title}, ${entry.author}` : entry.title;
 
 const collator = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
 
 export const sortEntries = <T extends Pick<Entry, "title">>(entries: readonly T[]): T[] =>
   [...entries].sort((a, b) => collator.compare(a.title, b.title));
+
+/** By page, then by title (the All view, #287) */
+export const sortByPage = <T extends Pick<Entry, "title" | "page">>(entries: readonly T[]): T[] =>
+  [...entries].sort((a, b) => a.page - b.page || collator.compare(a.title, b.title));
 
 export interface EntryGroup<T> {
   /** Letter header (glossary), or null for entries without one (e.g. "4th wall", other categories) */
@@ -51,13 +72,14 @@ export interface EntryGroup<T> {
 
 /**
  * Sorted entries. The glossary is grouped by first letter; entries not starting with a letter
- * (e.g. "4th wall") come first without a header. Other categories form one ungrouped list.
+ * (e.g. "4th wall") come first without a header. Other categories form one ungrouped list; All is sorted by page.
  */
-export const groupEntries = <T extends Pick<Entry, "title" | "category">>(
+export const groupEntries = <T extends Pick<Entry, "title" | "category" | "page">>(
   entries: readonly T[],
-  category: EntryCategory,
+  category: ListCategory,
 ): EntryGroup<T>[] => {
-  const sorted = sortEntries(entries.filter(e => e.category === category));
+  const own = entriesOf(entries, category);
+  const sorted = category === ALL_CATEGORY ? sortByPage(own) : sortEntries(own);
   if (category !== EntryCategory.Glossary) return sorted.length ? [{ letter: null, entries: sorted }] : [];
 
   const groups: EntryGroup<T>[] = [];
