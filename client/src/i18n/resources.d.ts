@@ -90,7 +90,7 @@ export default interface Resources {
     "allow": "Please allow the camera to scan the book.",
     "continueWithout": "Continue without camera",
     "denied": "Camera access was denied.",
-    "enable": "Allow the camera for this site in your browser settings, then reload the page.",
+    "enable": "Please, allow the camera access for this site in your settings, then reload the page.",
     "illustration": "Camera",
     "notResponding": "The camera is not responding.",
     "notRespondingHelp": "Reload the page. If that doesn't help, close your browser completely and open it again – another app may still be using the camera.",
@@ -210,7 +210,7 @@ export default interface Resources {
   "tutorial": {
     "camera": {
       "button": "Grant access",
-      "text": "To scan the book and display interactive content, this application requires access to your camera.\n\nPlease, grant access to proceed."
+      "text": "This application requires access to your camera.\n\nPlease, grant access to proceed."
     },
     "done": {
       "button": "Access scan",
@@ -218,7 +218,11 @@ export default interface Resources {
     },
     "intro": {
       "button": "Continue",
-      "text": "This application allows you to reveal videos, texts and key references hidden in the printed publication *{{title}}*."
+      "text": "This application allows you to reveal entries (videos, texts and key references) hidden in the printed publication *{{title}}*."
+    },
+    "marginalia": {
+      "button": "Continue",
+      "text": "In the context of this publication, these entries are called ‘marginalia’."
     },
     "skip": "Skip"
   },

@@ -103,8 +103,8 @@ below the status bar (y 90 pt) to the top of the browser's bottom bar (y 434 pt)
 
 | Row | Holds (measured) |
 |---|---|
-| 1 | the icon, centred (eye at 24 pt of the 57 pt row) |
-| 2 | empty – the onboarding illustration where a step has one (today's app; #281 drops the camera drawing) |
+| 1 | the icon, centred horizontally, its centre at 24.5 pt of the 57.3 pt row (`--onboarding-icon-centre` .43); the eye placeholder measures 102.75 × 44 pt with its glow → 12.33 × 5.28 rem (`--onboarding-icon-width/-height`, #281) |
+| 2 | empty – the onboarding illustration where a step has one (the intro's drawing; the camera drawing is gone since #281) |
 | 3–4 | title and text from the **top of row 3** (first line box at 203 pt vs. the row at 204.7 pt): book title + author, the onboarding texts |
 | 5 | the button (label at 320.7 pt) or the footer "Building Fictions" (317.6 pt) from the **top of row 5** (319.3 pt) |
 | 6 | empty |
@@ -114,6 +114,12 @@ Tokens (`main.css`): `--grid-row` = max(`--grid-row-min`, (100dvh − safe areas
 rows stop shrinking and the page scrolls. A text longer than rows 3–4 pushes the button down (1.5 rem gap).
 The rest of the app (header, scroller, consultation, Info) only where it comes naturally (later issues).
 Debug overlay: dev tools → "Grid" (`<html data-row-grid>`).
+
+**Icon and motion (#281, design p. 4–14):** splash and onboarding show the eye placeholder
+(`public/assets/ui/onboarding/icon.png`, cut from the PDF's eye with its soft shadow; replace the file when Kévin's icon
+arrives), the header keeps the Mark. The splash shows icon and title at once; author and publisher fade in together
+after 1 s, over 1 s. The onboarding steps do not fade: the button shows the next step at once. The camera notice during
+onboarding uses the same grid (icon row 1, text from row 3, buttons from row 5).
 
 ### Details (moved from code comments, 2026-09-28)
 | Element | Value |

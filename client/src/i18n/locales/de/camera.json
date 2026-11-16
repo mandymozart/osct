@@ -3,7 +3,7 @@
   "waiting": "Warte auf Kamerazugriff…",
   "allow": "Bitte erlaube die Kamera, um das Buch zu scannen.",
   "denied": "Der Kamerazugriff wurde verweigert.",
-  "enable": "Erlaube die Kamera für diese Seite in den Einstellungen deines Browsers und lade die Seite dann neu.",
+  "enable": "Bitte erlaube den Kamerazugriff für diese Seite in deinen Einstellungen und lade die Seite dann neu.",
   "unavailable": "Die Kamera funktioniert nur über eine sichere Verbindung. Öffne die App mit https:// und versuche es erneut.",
   "continueWithout": "Ohne Kamera weiter",
   "notResponding": "Die Kamera reagiert nicht.",

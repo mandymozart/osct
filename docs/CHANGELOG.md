@@ -7,6 +7,27 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- Onboarding: a new step after the intro – "In the context of this publication, these entries are called
+  'marginalia'." (#281, design p. 9). The onboarding now has five steps (splash, intro, marginalia, camera, done).
+- Splash and onboarding: the design's green eye (a placeholder until the final icon) in row 1 of the grid instead of
+  the Mark – `public/assets/ui/onboarding/icon.png`, swappable without code changes (#281). The header keeps the Mark.
+
+### Changed
+- Splash: the icon and the book title show at once, then the author and the publisher fade in together (after 1 s,
+  over 1 s) – in the static splash too (#281, design p. 5–7).
+- Onboarding steps: no fade-in any more – the button shows the next step at once (#281).
+- Onboarding texts (en, de, fr, nl): the intro names the entries, the camera step is shorter, the denied notice reads
+  "Please, allow the camera access for this site in your settings, then reload the page." (#281). The non-English
+  texts are first drafts for the translation review (#224).
+- Camera notice during onboarding: on the grid of the steps (icon, text from row 3, buttons from row 5, #281).
+
+### Removed
+- The gold camera drawing on the camera step and the camera notice (#281, agreed in the design review). The file
+  `tutorial-step-2.svg` stays in `public/` for now.
+
 ## 1.86.0 – 2026-11-16
 
 ### Added

@@ -3,7 +3,7 @@
   "waiting": "Wachten op toegang tot de camera…",
   "allow": "Sta de camera toe om het boek te scannen.",
   "denied": "Toegang tot de camera is geweigerd.",
-  "enable": "Sta de camera toe voor deze site in je browserinstellingen en laad de pagina daarna opnieuw.",
+  "enable": "Sta de cameratoegang voor deze site toe in je instellingen en laad de pagina daarna opnieuw.",
   "unavailable": "De camera werkt alleen via een beveiligde verbinding. Open de app met https:// en probeer het opnieuw.",
   "continueWithout": "Doorgaan zonder camera",
   "notResponding": "De camera reageert niet.",

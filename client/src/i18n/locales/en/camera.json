@@ -3,7 +3,7 @@
   "waiting": "Waiting for camera access…",
   "allow": "Please allow the camera to scan the book.",
   "denied": "Camera access was denied.",
-  "enable": "Allow the camera for this site in your browser settings, then reload the page.",
+  "enable": "Please, allow the camera access for this site in your settings, then reload the page.",
   "unavailable": "The camera only works over a secure connection. Open the app with https:// and try again.",
   "continueWithout": "Continue without camera",
   "notResponding": "The camera is not responding.",

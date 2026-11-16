@@ -1,11 +1,15 @@
 {
   "skip": "Overslaan",
   "intro": {
-    "text": "Met deze app ontdek je video’s, teksten en belangrijke verwijzingen die verborgen zitten in de gedrukte publicatie *{{title}}*.",
+    "text": "Met deze app ontdek je items (video’s, teksten en belangrijke verwijzingen) die verborgen zitten in de gedrukte publicatie *{{title}}*.",
+    "button": "Verder"
+  },
+  "marginalia": {
+    "text": "In de context van deze publicatie heten deze items ‘marginalia’.",
     "button": "Verder"
   },
   "camera": {
-    "text": "Om het boek te scannen en interactieve inhoud te tonen, heeft deze app toegang tot je camera nodig.\n\nGeef toegang om verder te gaan.",
+    "text": "Deze app heeft toegang tot je camera nodig.\n\nGeef toegang om verder te gaan.",
     "button": "Toegang geven"
   },
   "done": {
