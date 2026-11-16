@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { GameStoreService } from "@/services";
 import { EntryCategory, Pages } from "@/types";
-import { getEntries } from "@/utils/game-config";
+import { getEntries, getSpread } from "@/utils/game-config";
+import { pageLabel } from "../entries-model";
 import ".."; // registers the elements (the named import below is type-only)
 import type { EntriesFilterElement, EntriesList, EntryDetail } from "..";
 
@@ -15,19 +16,36 @@ beforeEach(() => {
 });
 
 describe("entries filter", () => {
-  it("shows the value, opens the menu and navigates to the chosen filter", () => {
+  it("shows the value, opens the menu with the selected choice on top and navigates to the chosen one", () => {
+    const filter = mount<EntriesFilterElement>("entries-filter");
+    filter.value = EntryCategory.Text;
+    const root = filter.shadowRoot!;
+    const toggle = root.querySelector<HTMLElement>("[data-action=toggle]")!;
+    expect(toggle.querySelector(".label")?.textContent).toBe("Texts");
+    expect(toggle.querySelector(".burger")).not.toBeNull();
+
+    toggle.click();
+    const items = Array.from(root.querySelectorAll<HTMLElement>("[data-filter]"));
+    expect(items.map(b => b.dataset.filter)).toEqual(["text", "glossary", "link", "all"]);
+    expect(items.map(b => b.getAttribute("aria-checked"))).toEqual(["true", "false", "false", "false"]);
+    expect(items[0].classList.contains("gold")).toBe(true);
+    expect(items[1].classList.contains("white")).toBe(true);
+
+    root.querySelector<HTMLElement>("[data-filter=all]")!.click();
+    expect(game.state.currentRoute).toMatchObject({ page: Pages.ENTRIES, param: { value: "all" } });
+    expect(root.querySelector(".menu")).toBeNull();
+  });
+
+  it("reads Marginalia, white and with nothing selected, while the Videos are shown (#286)", () => {
     const filter = mount<EntriesFilterElement>("entries-filter");
     filter.value = EntryCategory.Video;
     const root = filter.shadowRoot!;
-    expect(root.querySelector("[data-action=toggle]")?.textContent).toBe("Videos");
-
-    root.querySelector<HTMLElement>("[data-action=toggle]")!.click();
-    expect(Array.from(root.querySelectorAll<HTMLElement>("[data-filter]"), b => b.dataset.filter))
-      .toEqual(["glossary", "video", "text", "link"]);
-
-    root.querySelector<HTMLElement>("[data-filter=text]")!.click();
-    expect(game.state.currentRoute).toMatchObject({ page: Pages.ENTRIES, param: { value: "text" } });
-    expect(root.querySelector(".menu")).toBeNull();
+    const toggle = root.querySelector<HTMLElement>("[data-action=toggle]")!;
+    expect(toggle.querySelector(".label")?.textContent).toBe("Marginalia");
+    expect(toggle.classList.contains("inactive")).toBe(true);
+    toggle.click();
+    expect(Array.from(root.querySelectorAll<HTMLElement>("[data-filter]"), b => b.dataset.filter)).toEqual(["glossary", "text", "link", "all"]);
+    expect(root.querySelectorAll("[aria-checked=true]")).toHaveLength(0);
   });
 
   it("closes on an outside tap and on Escape", async () => {
@@ -48,23 +66,52 @@ describe("entries filter", () => {
 });
 
 describe("entries list", () => {
-  it("groups glossary entries by letter and opens an entry on tap", () => {
+  const glossary = () => getEntries().filter(e => e.category === EntryCategory.Glossary);
+
+  it("lists every entry with its page: consulted ones open, the others are greyed and do not (#287)", () => {
     const list = mount<EntriesList>("entries-list");
-    const glossary = getEntries().filter(e => e.category === EntryCategory.Glossary);
-    list.setEntries(EntryCategory.Glossary, glossary);
+    const [first, second] = glossary();
+    game.history.consultEntry(first.id);
+    list.setEntries(EntryCategory.Glossary, glossary());
     const root = list.shadowRoot!;
 
-    expect(root.querySelectorAll(".row")).toHaveLength(glossary.length);
+    expect(root.querySelectorAll(".row")).toHaveLength(glossary().length);
     expect(root.querySelectorAll(".letter").length).toBeGreaterThan(0);
+    expect(root.querySelector(".head")?.textContent).toContain("Name");
+    expect(root.querySelectorAll("button.row")).toHaveLength(1);
+    expect(root.querySelectorAll(".row.locked")).toHaveLength(glossary().length - 1);
+    expect(root.querySelector(`button[data-entry="${first.id}"] .page`)?.textContent).toBe(pageLabel(first.page, getSpread(first.spreadId)));
 
-    root.querySelector<HTMLElement>(".row")!.click();
+    root.querySelector<HTMLElement>(".row.locked")!.click();
+    expect(game.state.currentRoute?.page).not.toBe(Pages.ENTRY);
+    root.querySelector<HTMLElement>("button.row")!.click();
     expect(game.state.currentRoute?.page).toBe(Pages.ENTRY);
+    expect(second).toBeDefined();
   });
 
-  it("says when a category has no consulted entries", () => {
+  it("heads the texts with Title", () => {
+    const list = mount<EntriesList>("entries-list");
+    list.setEntries(EntryCategory.Text, [{ ...getEntries()[0], category: EntryCategory.Text, author: "Catherine Guiral" }]);
+    expect(list.shadowRoot!.querySelector(".head")?.textContent).toContain("Title");
+    expect(list.shadowRoot!.querySelector(".row i")).not.toBeNull();
+  });
+
+  it("lists the videos white and not clickable, under the scan hint (#288)", () => {
+    const list = mount<EntriesList>("entries-list");
+    const videos = getEntries().filter(e => e.category === EntryCategory.Video);
+    videos.forEach(v => game.history.consultEntry(v.id));
+    list.setEntries(EntryCategory.Video, videos);
+    const root = list.shadowRoot!;
+    expect(root.textContent).toContain("Go to page in scan mode to play the video.");
+    expect(root.querySelectorAll("button")).toHaveLength(0);
+    expect(root.querySelectorAll(".row")).toHaveLength(videos.length);
+    expect(root.querySelector("ul.gold")).toBeNull();
+  });
+
+  it("says when a category has no entries", () => {
     const list = mount<EntriesList>("entries-list");
     list.setEntries(EntryCategory.Link, []);
-    expect(list.shadowRoot!.textContent).toContain("No entries consulted yet.");
+    expect(list.shadowRoot!.textContent).toContain("No entries here yet.");
   });
 });
 

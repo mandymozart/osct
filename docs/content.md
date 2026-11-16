@@ -63,7 +63,7 @@ Lines starting with `#` are comments and are ignored.
 
 | Field | Required | What |
 |---|---|---|
-| `category` | yes | `glossary`, `video`, `text` or `link` – always singular here; the app shows "Glossary", "Videos", "Texts", "Links" |
+| `category` | yes | `glossary`, `video`, `text` or `link` – always singular here; the app shows "Marginalia" (the glossary, #286), "Videos", "Texts", "Links" |
 | `title` | yes | name of the entry |
 | `page` | yes | access page in the book (decides which spread the entry belongs to) |
 | `body` | no | the text – Markdown with the book's variables (below) |

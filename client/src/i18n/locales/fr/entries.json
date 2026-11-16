@@ -1,11 +1,22 @@
 {
-  "countAria": "{{consulted}} consultées sur {{total}}",
-  "empty": "Aucune entrée consultée pour l'instant.",
+  "countAria": "{{consulted}} sur {{total}} {{noun}}",
+  "empty": "Aucune entrée pour l’instant.",
   "locked": "verrouillée",
+  "marginalia": "Marginalia",
+  "name": "Nom",
+  "title": "Titre",
+  "page": "Page",
+  "videosHint": "Allez à la page en mode scan pour lire la vidéo.",
   "categories": {
-    "glossary": "Glossaire",
+    "glossary": "Marginalia",
     "video": "Vidéos",
     "text": "Textes",
-    "link": "Liens"
+    "link": "Liens",
+    "all": "Tout"
+  },
+  "consulted": {
+    "glossary": "Marginalia consultés",
+    "text": "Textes consultés",
+    "link": "Liens consultés"
   }
 }

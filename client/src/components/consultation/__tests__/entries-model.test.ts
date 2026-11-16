@@ -1,25 +1,49 @@
 import { describe, expect, it } from "vitest";
-import { categoryLabel, entryLabel, groupEntries, isCategory, linkEmbed, sortEntries } from "../entries-model";
-import { EntryCategory } from "@/types";
+import { categoryLabel, entriesOf, entryLabel, entryLabelHtml, groupEntries, isCategory, isListCategory, linkEmbed, MARGINALIA_MENU, sortEntries } from "../entries-model";
+import { ALL_CATEGORY, EntryCategory } from "@/types";
 
-const entry = (title: string, category: EntryCategory = EntryCategory.Glossary, author?: string) => ({ title, category, author });
+const entry = (title: string, category: EntryCategory = EntryCategory.Glossary, author?: string, page = 1) => ({ title, category, author, page });
 
 describe("entries model", () => {
   it("knows the four categories", () => {
     expect(["glossary", "video", "text", "link"].every(isCategory)).toBe(true);
     expect(isCategory("poems")).toBe(false);
     expect(isCategory("videos")).toBe(false);
+    expect(isCategory("all")).toBe(false);
+    expect(isListCategory("all")).toBe(true);
+    expect(isListCategory("text")).toBe(true);
+    expect(isListCategory("poems")).toBe(false);
   });
 
-  it("labels categories from the enum values in the plural, the glossary without", () => {
+  it("has the Marginalia menu – Glossary, Texts, Links, All – without the Videos (#286)", () => {
+    expect(MARGINALIA_MENU).toEqual(["glossary", "text", "link", "all"]);
+  });
+
+  it("lists every entry but the videos under All, one category otherwise", () => {
+    const entries = [entry("G"), entry("V", EntryCategory.Video), entry("T", EntryCategory.Text), entry("L", EntryCategory.Link)];
+    expect(entriesOf(entries, ALL_CATEGORY).map(e => e.title)).toEqual(["G", "T", "L"]);
+    expect(entriesOf(entries, EntryCategory.Video).map(e => e.title)).toEqual(["V"]);
+  });
+
+  it("labels categories from the enum values in the plural, the glossary as Marginalia (#286)", () => {
     expect(categoryLabel(EntryCategory.Video)).toBe("Videos");
-    expect(categoryLabel(EntryCategory.Glossary)).toBe("Glossary");
+    expect(categoryLabel(EntryCategory.Glossary)).toBe("Marginalia");
+    expect(categoryLabel(ALL_CATEGORY)).toBe("All");
   });
 
-  it("labels texts with their author, other entries with the title", () => {
-    expect(entryLabel(entry("Fake For Real", EntryCategory.Text, "Catherine Guiral"))).toBe("'Fake For Real', Catherine Guiral");
+  it("labels works with title and author, without quotes, the title in italics (#287)", () => {
+    expect(entryLabel(entry("Fake For Real", EntryCategory.Text, "Catherine Guiral"))).toBe("Fake For Real, Catherine Guiral");
     expect(entryLabel(entry("Fake For Real", EntryCategory.Text))).toBe("Fake For Real");
     expect(entryLabel(entry("Metafiction"))).toBe("Metafiction");
+    expect(entryLabelHtml(entry("Morpher", EntryCategory.Video, "Rijksakademie <Amsterdam>"))).toBe("<i>Morpher</i>, Rijksakademie &lt;Amsterdam&gt;");
+    expect(entryLabelHtml(entry("Metafiction"))).toBe("Metafiction");
+  });
+
+  it("sorts All by page, then by title", () => {
+    const groups = groupEntries([entry("B", EntryCategory.Text, undefined, 4), entry("Z", EntryCategory.Glossary, undefined, 2), entry("A", EntryCategory.Link, undefined, 4), entry("V", EntryCategory.Video, undefined, 1)], ALL_CATEGORY);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].letter).toBeNull();
+    expect(groups[0].entries.map(e => e.title)).toEqual(["Z", "A", "B"]);
   });
 
   it("sorts naturally and case-insensitively", () => {

@@ -3,6 +3,7 @@
   import { autosave } from "#lib/autosave.svelte.js";
   import { baselineOf, differsFromBaseline, noteBaseline } from "#lib/baselines.js";
   import { ENTRY_CATEGORIES } from "@shared/types/entry";
+  import { CATEGORY_LABELS } from "#lib/new-target.js";
   import { exprMessage, renderEntryText, textVariables, variablesOf } from "@shared/text/entry-text";
   import { putEntry, type EditorEntry, type EntrySaved } from "#lib/api.js";
   import { draftOf, draftProblems, entryChanges, imageUrl, type EntryDraft } from "#lib/entry-edit.js";
@@ -128,7 +129,7 @@
 <div class="row" class:changed={"title" in changes}><span class="label">title</span>
   <input class="field" value={draft.title} aria-label="Title" oninput={e => edit({ title: e.currentTarget.value })} data-help="The entry's name – the list and the entry's head show it." /></div>
 <div class="row" class:changed={"category" in changes}><span class="label">category</span>
-  <span class="controls"><Segmented options={ENTRY_CATEGORIES} value={draft.category as (typeof ENTRY_CATEGORIES)[number]} label="Category" onchange={category => edit({ category })} /></span></div>
+  <span class="controls"><Segmented options={ENTRY_CATEGORIES} value={draft.category as (typeof ENTRY_CATEGORIES)[number]} labels={CATEGORY_LABELS} label="Category" onchange={category => edit({ category })} /></span></div>
 <div class="row" class:changed={"page" in changes} data-help-name="Access page" data-help="The printed page the entry belongs to – it decides the spread. A page on another spread moves the entry there; a page no spread has leaves it on none.">
   <span class="label">access page</span>
   <span class="w"><ScrubNumber value={draft.page} min={0} step={1} prefix="p." label="access page" oninput={page => edit({ page: Math.round(page) })} /></span></div>

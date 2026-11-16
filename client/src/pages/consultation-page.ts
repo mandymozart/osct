@@ -63,7 +63,7 @@ export abstract class ConsultationPage extends PageMinimal {
     `;
   }
 
-  /** "Entries" → back to the list with the last category; put it first in `<div class="content below-toolbar">` */
+  /** "Marginalia" (#286) → back to the list with the last category; put it first in `<div class="content below-toolbar">` */
   protected entriesToolbar(): string {
     return `<div class="entries-toolbar">${goldButton({ label: t("header:entries"), attrs: { "data-action": "entries" } })}</div>`;
   }

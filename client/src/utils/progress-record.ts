@@ -1,4 +1,4 @@
-import type { ProgressRecord, ProgressVariable } from "@/types";
+import { ALL_CATEGORY, type ProgressRecord, type ProgressVariable } from "@/types";
 import { isEntryCategory, isObject } from "@shared/guards/game-config";
 import { parseVersion } from "./version";
 
@@ -44,7 +44,7 @@ const readFormat1 = (raw: Record<string, unknown>, bookId: string): ProgressReco
   unlocked: pick(raw.unlocked, isNumber),
   consulted: pick(raw.consulted, isNumber),
   lastSpreadId: isString(raw.lastSpreadId) ? raw.lastSpreadId : null,
-  lastCategory: isEntryCategory(raw.lastCategory) ? raw.lastCategory : null,
+  lastCategory: isEntryCategory(raw.lastCategory) || raw.lastCategory === ALL_CATEGORY ? raw.lastCategory : null,
   // Additive field within format 1: records without it count as not onboarded
   onboarded: raw.onboarded === true,
   // Additive field within format 1: the plugins' book variables, scalars only

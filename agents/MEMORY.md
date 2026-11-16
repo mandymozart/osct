@@ -4,6 +4,15 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-16 – Marginalia menu, All, every entry listed (#286–#288)
+The list's choices are `ListCategory` = an `EntryCategory` or `"all"` (`ALL_CATEGORY`, client `types/entries.ts`) – All
+is a view, not a content category, so no schema change. `progress.lastCategory` may now hold `"all"`, additive within
+format 1 (an older app reads it as none). The per-category counter and the header's both come from
+`history.getConsultedCount(category?)` – only entries in the content count, so the category counts add up to the
+header's. All = glossary + texts + links (videos have their own button) – *my reading*. Locked rows are listed in
+production now (Tilman 2026-11-16), so `showLockedEntries()` / `VITE_SHOW_LOCKED_ENTRIES` were removed; the Dockerfile
+still passes the build arg (harmless, unused) – open item: drop it with the next deploy change.
+
 ## 2026-11-16 – ABC Areal from the CDN, two type sizes (#278, #279)
 
 - **Font (Tilman, 2026-11-16, #278):** the reader is set in **ABC Areal** by Dinamo. Licence: Dinamo's own permission

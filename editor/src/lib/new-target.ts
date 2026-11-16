@@ -3,8 +3,16 @@ import { ENTRY_CATEGORIES, EntryCategory, type EntityType } from "@engine/types"
 /** What may appear on the page of a new target ("" = nothing yet, the Inspector adds it later) */
 export const APPEARS: readonly (EntityType | "")[] = ["", "model", "video", "image", "text", "group", "light"];
 
-/** The entry's categories – the reader's consultation menu (Glossary, Videos, Texts, Links) */
+/** The entry's categories – the reader's consultation menu (Marginalia, Texts, Links) and its Videos button */
 export const CATEGORIES: readonly EntryCategory[] = ENTRY_CATEGORIES;
+
+/** How the editor names the categories: the glossary is called "marginalia" in the reader (#286), its key stays */
+export const CATEGORY_LABELS: Record<EntryCategory, string> = {
+  [EntryCategory.Glossary]: "marginalia",
+  [EntryCategory.Video]: "video",
+  [EntryCategory.Text]: "text",
+  [EntryCategory.Link]: "link",
+};
 
 /**
  * The entry category a new target starts with, following what appears on the page (#165): a video makes an entry of
