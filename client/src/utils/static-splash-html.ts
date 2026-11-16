@@ -61,7 +61,8 @@ const paragraphs = (text: string): string[] => text.split(/\n\s*\n/).map(p => p.
 
 /**
  * `<div id="static-splash">` plus a first-paint timestamp script. Parts fade in staggered like tutorial-content
- * (Mark, title, text, footer); `data-step` / `data-advance` tell the app which step it showed and for how long.
+ * (Mark, title, text, footer) and sit on the same vertical grid (Mark row 1, row 2 empty, title and text from row 3,
+ * footer from row 5); the title shimmers. `data-step` / `data-advance` tell the app which step it showed and for how long.
  */
 export const renderStaticSplash = ({ book, step, markSrc, markAlt, loadingLabel }: StaticSplashSource): string => {
   const stamp = `<script>window.__osctSplashAt = performance.now();</script>`;
@@ -78,9 +79,10 @@ export const renderStaticSplash = ({ book, step, markSrc, markAlt, loadingLabel 
   return [
     `<div id="static-splash" role="status" aria-label="${escapeHtml(loadingLabel)}"`,
     ` data-step="${step.index}" data-advance="${step.advance ?? DEFAULT_ADVANCE_MS}" style="--fade-duration: ${duration}ms">`,
-    `<div class="content"><div class="head">`,
+    `<div class="content"><div class="row">`,
     `<img ${next()} src="${escapeHtml(markSrc)}" alt="${escapeHtml(markAlt)}" width="99" height="96">`,
-    step.title && title ? `<h1 ${next()}><span class="gold">${inline(step.title, book)}</span></h1>` : "",
+    `</div><div class="row"></div><div class="head">`,
+    step.title && title ? `<h1 ${next()}><span class="gold shimmer">${inline(step.title, book)}</span></h1>` : "",
     step.description && text ? `<div ${next()}>${paragraphs(step.description).map(p => `<p class="gold">${inline(p, book)}</p>`).join("")}</div>` : "",
     `</div>`,
     step.footer && footer ? `<div ${next().replace('class="fade"', 'class="fade footer"')}><span class="gold">${inline(step.footer, book)}</span></div>` : "",

@@ -7,6 +7,22 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- Gold shimmer (#280): a slow light band sweeps through gold text – the shared `.gold.shimmer` modifier with the
+  tokens `--gold-shimmer` and `--shimmer-duration` (4 s, a sweep then a pause; CSS `background-position` only). On
+  the book title of the splash (also in the static splash of `index.html`) and on "New marginalia unlocked"; the
+  primary buttons' shine uses the same band (`--shine-duration`, 1.8 s). Off with reduced motion.
+- Vertical grid (#295): the page area (the screen without the safe areas) in six equal rows, tokens `--grid-row`,
+  `--grid-rows`, `--grid-top`, `--grid-bottom`, rows at least 6 rem (`--grid-row-min`, short and landscape screens
+  scroll). Dev tools: a "Grid" switch draws the rows over every screen (`<html data-row-grid>`).
+
+### Changed
+- The splash and onboarding sit on the vertical grid (#295): the Mark centred in row 1, the illustration in row 2,
+  title and text from the top of row 3, the button or the footer (publisher) from the top of row 5 – before: the
+  Mark at 11 % of the screen and the button at 58 %. A longer text still pushes the button down.
+
 ## 1.84.0 – 2026-11-16
 
 ### Added

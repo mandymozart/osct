@@ -22,6 +22,16 @@
   --text-line-loose: 1.5625;
   --row-height: 1.5rem;
 
+  /* Vertical grid (DESIGN.md §3a, #295): the page area – the screen without the safe areas – in six equal rows.
+     The splash and onboarding place their parts on it: Mark row 1, illustration row 2, text rows 3–4, button or
+     footer row 5. Rows never get shorter than --grid-row-min (landscape, short screens): the page scrolls instead */
+  --grid-rows: 6;
+  --grid-top: env(safe-area-inset-top, 0px);
+  --grid-bottom: env(safe-area-inset-bottom, 0px);
+  --grid-height: calc(100vh - var(--grid-top) - var(--grid-bottom));
+  --grid-row-min: 6rem;              /* the Mark's height: row 1 always holds it */
+  --grid-row: max(var(--grid-row-min), calc(var(--grid-height) / var(--grid-rows)));
+
   /* Gold is always this gradient, clipped to the text, left → right per element (DESIGN.md §1) */
   --gold-1: #f5e7c8;
   --gold-2: #7f6032;
@@ -31,6 +41,11 @@
     var(--gold-1) 0%, var(--gold-1) 3.8%, var(--gold-2) 31.5%,
     var(--gold-3) 57%, var(--gold-4) 73.6%, var(--gold-4) 100%);
   --color-accent: var(--gold-3);   /* where a gradient is not possible (borders, focus) */
+  /* Shimmer (#280, DESIGN.md §5): a pale band sweeping left → right through the gold of a text, laid over
+     --gold-gradient; slow with a pause on gold text (.gold.shimmer), quick and constant on primary labels (.primary) */
+  --gold-shimmer: linear-gradient(110deg, transparent 40%, rgba(255, 248, 230, .95) 50%, transparent 60%);
+  --shimmer-duration: 4s;
+  --shine-duration: 1.8s;
 
   --color-muted: #8b8d8c;
   --color-inactive: #d6d8d8;
@@ -87,6 +102,28 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* The visible height where the browser knows it (the address bar comes and goes) */
+@supports (height: 100dvh) {
+  :root { --grid-height: calc(100dvh - var(--grid-top) - var(--grid-bottom)); }
+}
+
+/* Debug overlay of the vertical grid (dev tools → "Grid", or <html data-row-grid>): the six rows over everything */
+html[data-row-grid] body::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--grid-top);
+  height: calc(var(--grid-rows) * var(--grid-row));
+  z-index: 2147483647;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(0, 255, 255, .08) 0 var(--grid-row), rgba(255, 0, 255, .08) var(--grid-row) calc(2 * var(--grid-row))),
+    repeating-linear-gradient(180deg,
+      rgba(0, 255, 255, .7) 0 .0625rem, transparent .0625rem var(--grid-row));
 }
 
 html, body {

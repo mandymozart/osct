@@ -17,24 +17,32 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: max(11vh, 5.5rem) 1.5rem 1rem;
+  padding: var(--grid-top) 1.5rem var(--grid-bottom);
   box-sizing: border-box;
   font-family: var(--font-design);
   letter-spacing: var(--tracking-design);
   font-size: var(--text-size);
   line-height: var(--text-line-loose);
 }
-/* Footer sits at 58 % of the viewport; longer text pushes it down. */
+/* The vertical grid (DESIGN.md §3a): Mark centred in row 1, row 2 empty, title and text in rows 3–4,
+   the footer from row 5; longer text pushes it down. */
+#static-splash .row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: var(--grid-row);
+}
 #static-splash .head {
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
-  min-height: calc(58vh - max(11vh, 5.5rem));
+  min-height: calc(2 * var(--grid-row));
   padding-bottom: 1.5rem;
   box-sizing: border-box;
 }
-#static-splash img { width: var(--mark-width); height: var(--mark-height); object-fit: contain; margin-bottom: 1.5rem; }
+#static-splash img { width: var(--mark-width); height: var(--mark-height); object-fit: contain; }
 #static-splash h1 { font-size: inherit; font-weight: 400; margin: 0 0 1.25rem; }
 #static-splash .head > div { width: min(15.5rem, 100%); }
 #static-splash p { margin: 0 0 1.25em; }
@@ -47,9 +55,20 @@
   color: transparent;
   -webkit-text-fill-color: transparent;
 }
+/* As the shared .gold.shimmer (styles/design-styles.ts, #280) */
+#static-splash .gold.shimmer {
+  background-image: var(--gold-shimmer), var(--gold-gradient);
+  background-size: 300% 100%, 100% 100%;
+  animation: static-splash-shimmer var(--shimmer-duration) ease-in-out infinite;
+}
+@keyframes static-splash-shimmer {
+  0% { background-position: 150% 0, 0 0; }
+  60%, 100% { background-position: -50% 0, 0 0; }
+}
 #static-splash .fade { animation: static-splash-fade var(--fade-duration, 600ms) ease both; }
 @keyframes static-splash-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   #static-splash .fade { animation: none; }
+  #static-splash .gold.shimmer { animation: none; background-image: var(--gold-gradient); }
   #static-splash { transition: none; }
 }
