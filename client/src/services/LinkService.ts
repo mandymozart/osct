@@ -1,5 +1,5 @@
 import { router } from "@/router";
-import { type GameState, type IGame, type PageRoute, Pages } from "@/types";
+import { ALL_CATEGORY, type GameState, type IGame, type PageRoute, Pages } from "@/types";
 import { getBook, getEntry, getSpread } from "@/utils/game-config";
 import { onboardingSteps } from "@/utils";
 import { isEntryCategory } from "@shared/guards/game-config";
@@ -9,10 +9,11 @@ import { isEntryCategory } from "@shared/guards/game-config";
  *
  *   /                          start (onboarding on a first visit, else the splash → scan mode)
  *   /spread/<spreadId>         scan mode on that spread
- *   /entries/<category>        entries list (also /entries/category/<category>)
+ *   /entries/<category>        entries list (also /entries/category/<category>; `all` = All, #286)
  *   /entry/<entryId>           one entry
  *   /tutorial/<step>           onboarding step
  *   /about                     info
+ *   /credits                   image credits (#292)
  *   …?osct=<version>           the app version the link was made with
  *
  * Incoming links only route. A link to an entry the reader hasn't consulted yet opens scan mode on the
@@ -89,6 +90,7 @@ export const resolveLink = (game: IGame, link: Link): boolean => {
   switch (slug) {
     case "/":
     case "/about":
+    case "/credits":
       if (value !== undefined) return notFound();
       game.router.navigate(slug);
       return true;
@@ -100,7 +102,7 @@ export const resolveLink = (game: IGame, link: Link): boolean => {
       game.router.navigate(slug);
       return true;
     case "/entries":
-      if (value !== undefined && !isEntryCategory(value)) return notFound();
+      if (value !== undefined && value !== ALL_CATEGORY && !isEntryCategory(value)) return notFound();
       game.router.navigate("/entries", value === undefined ? undefined : { key: "category", value });
       return true;
     case "/entry": {

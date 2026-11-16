@@ -7,6 +7,12 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.91.1 – 2026-11-17
+
+### Fixed
+- A link straight to the image credits (`/credits`, #292) or to the entries list's All view (`/entries/all`, #286)
+  showed "This page doesn't exist" – both open now.
+
 ## 1.91.0 – 2026-11-17
 
 ### Changed
