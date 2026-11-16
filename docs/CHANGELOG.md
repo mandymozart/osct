@@ -7,6 +7,15 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.77.1 – 2026-11-16
+
+### Fixed
+- **Pausing the editor's stage stops videos too** (#275, Tilman: "Videos and such should not play when the editor stage
+  is in pause mode"): with *Live* off, every video and sound of the spread stops where it is – a video node's (picture,
+  sound and its subtitle line) and a video a plugin shows as a texture – and a page found meanwhile does not start its
+  video. The plugins' GPU simulations, such as the demo's ink painting, stand still on their last frame. *Live* again,
+  everything goes on from where it stood. The reader is unchanged.
+
 ## 1.77.0 – 2026-11-16
 
 ### Added

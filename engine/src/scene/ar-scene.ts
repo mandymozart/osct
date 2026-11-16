@@ -18,6 +18,9 @@ import { emitCoreEvent, type ProgressReader, setProgressReader, setSpreadSource,
 import type { IImageTracker, ImageTrackerOptions, TrackerContext } from "./tracker-types";
 import { LookAround } from "./look-around";
 import { Subtitles } from "./subtitles";
+import { holdMedia, releaseMedia } from "./media";
+import { textureMedia } from "./textures";
+import { holdFeedbacks } from "./feedback";
 import { onAppUi } from "./ui";
 import { ArView } from "./view";
 
@@ -223,11 +226,15 @@ export class ArScene implements IArScene {
    */
   /**
    * Hold the entities' clock (the editor's Live switch off, #269) or let it run again: while held, no entity's `update`
-   * runs – components, clips, materials, textures and plugin updates stand still where they are – while the moments'
-   * looks (reveal, found, lost) play on, so what is found still appears. Videos and a plugin's own timers keep theirs.
+   * runs – components, clips, materials, textures and plugin updates stand still where they are –, the videos and sounds
+   * stop where they are and a page found meanwhile does not start its video (`media.ts`, #275), and the plugins' GPU
+   * feedback buffers keep their last frame. The moments' looks (reveal, found, lost) play on, so what is found still
+   * appears. Let go, everything goes on from where it stood. A plugin's own timers keep theirs.
    */
   holdClock(held: boolean): void {
     this.clockHeld = held;
+    holdMedia(held, [...this.assets.media(), ...textureMedia()]);
+    holdFeedbacks(held);
   }
 
   overrideAppearance(override: { appearance: BookAppearance | null } | null): void {
@@ -628,6 +635,10 @@ export class ArScene implements IArScene {
     this.running = false;
     this.setScanning(false);
     stageEnded();
+    // The editor's hold ends with the scene: the next one starts with its media and buffers free
+    releaseMedia();
+    holdFeedbacks(false);
+    this.clockHeld = false;
     this.setStatus("idle");
   }
 

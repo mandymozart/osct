@@ -11,6 +11,7 @@ import { applyComponents, buildPluginNode, nodeTypeRegistration, unknownComponen
 import { applyMaterial } from "./materials";
 import { applyBehaviour, behaviourOf } from "./behaviour";
 import { getBook, getEntry } from "../content/game-config";
+import { pauseMedia, playMedia } from "./media";
 
 /**
  * Entity registry: one builder per node type creates the three.js object for a node and may return hooks for
@@ -159,23 +160,6 @@ export const placeEntity = (placed: Object3D, entity: EntityData): void => {
   placed.scale.set(...scale);
 };
 
-/**
- * Play with sound; if the browser blocks unmuted autoplay (no user gesture yet, e.g. iOS), play
- * muted instead of not at all.
- */
-export const playVideo = async (video: HTMLVideoElement): Promise<void> => {
-  try {
-    await video.play();
-  } catch (error) {
-    if ((error as DOMException)?.name !== "NotAllowedError") {
-      console.warn("[entities] Could not play video:", error);
-      return;
-    }
-    video.muted = true;
-    await video.play().catch(e => console.warn("[entities] Could not play muted video:", e));
-  }
-};
-
 /** Height of a video plane of width 1 until the video's proportions are known (16:9) */
 export const DEFAULT_VIDEO_HEIGHT = 0.552;
 
@@ -213,10 +197,11 @@ registerEntity("video", ({ entity, asset }) => {
   return {
     object: mesh,
     onFound: () => {
-      if (element) void playVideo(element);
+      // With sound where the browser allows it, else muted – not while the editor holds the media (`media.ts`)
+      if (element) void playMedia(element);
     },
-    onLost: () => element?.pause(),
-    onPause: () => element?.pause(),
+    onLost: () => { if (element) pauseMedia(element); },
+    onPause: () => { if (element) pauseMedia(element); },
     // A keyed video stays keyed: new values go into the uniforms; adding or removing the key needs a new material
     tune: tuned => {
       const key = parseChromaKey(tuned.filters);

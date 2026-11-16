@@ -519,7 +519,10 @@ names), every button's label its tooltip:
   mode to enter (the SCUTOONS deck editor's way, and Unreal's *Realtime* viewport). **Live** (pause / play icon) holds
   the entities' clock while it is off (`ArScene.holdClock`): components, clips, materials, textures and the book's code
   get no time, so the scene stands still for placing – what is found still appears (the moments' looks play on), and the
-  code loads either way; videos and a plugin's own timers keep theirs. Not stored: every workspace starts live.
+  code loads either way. Videos and sounds stop where they are and a page found meanwhile does not start its video
+  (`engine/src/scene/media.ts`, #275); the plugins' GPU feedback buffers (the ink painting) keep their last frame. Live
+  again, everything goes on from where it stood. A plugin's own timers, and a video its code plays itself, keep theirs.
+  Not stored: every workspace starts live.
   **Restart** is a new game (`resetNarrative`): nothing found, every variable cleared, the timeline empty – the spread's
   targets are found anew and play their reveal.
 
