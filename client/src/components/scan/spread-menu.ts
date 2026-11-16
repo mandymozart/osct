@@ -10,8 +10,9 @@ const SETTLE_MS = 140;
 const ACTIVATE_MS = 250;
 
 /**
- * "Pages activated": looped horizontal spread menu at the bottom of scan mode. Lists only spreads with
- * content; the item under the center gets the pill highlight and a tick (sound + vibration,
+ * The page scroller: looped horizontal spread menu at the bottom of scan mode, under the hint "Scroll to spread to
+ * activate content" (#284). Lists only spreads with content; the item under the center gets the pill highlight
+ * (whitish pill, gold text, gold glow – design p. 17–22) and a tick (sound + vibration,
  * FeedbackService) marks each new item. When the scroll settles, the centered spread is activated
  * (debounced).
  */
@@ -75,10 +76,12 @@ export class SpreadMenu extends HTMLElement {
           pointer-events: none;
         }
         :host([hidden]) { display: none; }
+        /* The hint: grey, wraps in the longer languages */
         .label {
           text-align: center;
           color: var(--color-muted);
-          margin-bottom: .35rem;
+          padding: 0 1.25rem;
+          margin-bottom: .1rem;
         }
         .track {
           display: flex;
@@ -87,7 +90,7 @@ export class SpreadMenu extends HTMLElement {
           overscroll-behavior-x: contain;
           scroll-snap-type: x mandatory;
           scrollbar-width: none;
-          padding: .5rem 0 .75rem;
+          padding: .9rem 0;         /* room for the active pill's glow: the track clips its overflow */
           pointer-events: all;
           -webkit-mask-image: linear-gradient(to right, transparent, #000 25%, #000 75%, transparent);
           mask-image: linear-gradient(to right, transparent, #000 25%, #000 75%, transparent);
@@ -108,8 +111,13 @@ export class SpreadMenu extends HTMLElement {
           cursor: pointer;
           -webkit-tap-highlight-color: transparent;
         }
+        /* The active spread: whitish pill, gold text, gold glow (instead of the glass pill's bronze glow) */
+        .item.pill {
+          background: var(--scroller-pill-background);
+          box-shadow: var(--shadow-gold);
+        }
       </style>
-      <div class="label design" id="label">${t("scan:pagesActivated")}</div>
+      <div class="label design" id="label">${t("scan:scrollToActivate")}</div>
       <div class="track design" role="listbox" aria-labelledby="label"></div>
     `;
     this.toggleAttribute("hidden", this.spreads.length === 0);

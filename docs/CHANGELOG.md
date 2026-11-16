@@ -7,6 +7,15 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.91.0 – 2026-11-17
+
+### Changed
+- Scan: the page scroller in the new design (#284, design p. 17–22, 44–52). The hint above it reads "Scroll to spread
+  to activate content" (was "Pages activated:"; `scan:scrollToActivate` in all four languages, wraps in the longer
+  ones); the active spread is a whitish pill with gold text and a gold glow (`--scroller-pill-background`,
+  `--shadow-gold`) instead of the bronze glass pill, so it reads on the white page and over the camera picture alike.
+  When a spread is activated is unchanged.
+
 ## 1.90.0 – 2026-11-17
 
 ### Added

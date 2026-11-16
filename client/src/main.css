@@ -75,6 +75,10 @@
   --shadow-bronze: 0 0.15rem 1.2rem rgba(149, 113, 73, 0.55);
   --shadow-grey: 0 0.2rem 1.4rem rgba(139, 141, 140, 0.45);
   --shadow-glow-soft: 0 0 0.5rem rgba(255, 255, 255, 0.25);
+  /* The page scroller's active spread (#284, design p. 17-22): a whitish pill with a gold glow, on the white page and
+     over the camera picture alike (measured: body #fff, glow #c7a144 about 6.5 pt round the 31 x 15 pt body) */
+  --scroller-pill-background: rgba(255, 255, 255, 0.72);
+  --shadow-gold: 0 0 0.75rem 0.15rem rgba(199, 161, 68, 0.85);
 
   --category-width: 6.25rem;
 

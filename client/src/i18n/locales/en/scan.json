@@ -1,5 +1,5 @@
 {
-  "pagesActivated": "Pages activated:",
+  "scrollToActivate": "Scroll to spread to activate content",
   "pagesAria": "Pages {{pages}}",
   "newEntryUnlocked": "New entry unlocked",
   "openEntry": "Open entry {{title}}"

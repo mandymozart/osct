@@ -1,5 +1,5 @@
 {
-  "pagesActivated": "Aktivierte Seiten:",
+  "scrollToActivate": "Zur Doppelseite scrollen, um Inhalte zu aktivieren",
   "pagesAria": "Seiten {{pages}}",
   "newEntryUnlocked": "Neuer Eintrag freigeschaltet",
   "openEntry": "Eintrag {{title}} öffnen"
