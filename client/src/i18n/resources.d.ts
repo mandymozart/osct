@@ -132,9 +132,9 @@ export default interface Resources {
   "header": {
     "backToScan": "Back to scan mode",
     "close": "Close",
-    "counterAria": "{{consulted}} of {{total}} entries consulted",
+    "counterAria": "{{consulted}} of {{total}} marginalia consulted",
     "entries": "Entries",
-    "entriesConsulted": "Entries consulted",
+    "entriesConsulted": "Marginalia consulted",
     "info": "Info",
     "openConsultation": "Open consultation mode"
   },

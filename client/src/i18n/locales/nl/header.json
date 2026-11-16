@@ -1,8 +1,8 @@
 {
   "entries": "Items",
   "info": "Info",
-  "entriesConsulted": "Items geraadpleegd",
-  "counterAria": "{{consulted}} van {{total}} items geraadpleegd",
+  "entriesConsulted": "Marginalia geraadpleegd",
+  "counterAria": "{{consulted}} van {{total}} marginalia geraadpleegd",
   "openConsultation": "Raadpleegmodus openen",
   "backToScan": "Terug naar scanmodus",
   "close": "Sluiten"

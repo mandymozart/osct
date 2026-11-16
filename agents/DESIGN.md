@@ -85,7 +85,7 @@ The PDF cannot express a backdrop blur; the **frosted glass** look is confirmed 
 | Category pill and its open menu | width **52.5 pt ≈ 100 px** (`--category-width`, frames 17, 18); menu corner radius **12 pt** (1.45 rem) |
 | Pill / "i" glow | bronze `#957149` (frame 17) → `--shadow-bronze`; open category menu: grey `#8b8d8c` (frame 18) → `--shadow-grey` |
 | Mark image margin | the drawing starts 14 of 125 px below the top of `scan.png` → `--mark-inset-top`; the header pulls the Mark up by it |
-| Entries list top | 1 rem below the "Entries consulted" counter, which ends at 9.75 rem under the Mark. Info uses the list's positions: the "Entries" pill where the category pill is, the text where the list starts |
+| Entries list top | 1 rem below the "Marginalia consulted" counter (#283: close under the icon, small, gold; consultation only), which ends at 9.75 rem under the Mark. Info uses the list's positions: the "Entries" pill where the category pill is, the text where the list starts |
 | Info page groups | the first section of a group has no top padding (sits right below the group title); the last has no bottom rule (the next group title brings its own) |
 | Switch rows | `.switch-row` min-height 4 rem, .5 rem padding top/bottom – each option stands alone, two text lines fit |
 | Language options | the current choice: thin gold inset ring on top of the bronze pill glow (`aria-current="true"`) |

@@ -7,6 +7,16 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- **Header** (#283, design review): scan mode shows the icon only – the counter is gone there. In consultation the
+  picture of the current target sits beside the icon as a slanted card (on an entry its own target, elsewhere the
+  current spread's target found last); a tap still goes back to scan mode with the tap sound. The counter sits close
+  under the icon, small and gold, and reads **"Marginalia consulted"** (all four languages). The "i" is white at the
+  Medium size; the × on Info and the image credits stays gold. A dark backdrop that fades out below the header lets the
+  pages' text scroll under the icon instead of through it.
+
 ## 1.82.0 – 2026-11-16
 
 ### Added

@@ -31,16 +31,23 @@ export class EntriesCounter extends HTMLElement {
 
     this.shadowRoot.innerHTML = /* html */ `
       <style>
+        /* Small and gold, like the label under it (design p. 2, 23) */
         :host {
           display: block;
           font-family: var(--font-design);
           letter-spacing: var(--tracking-design);
-          font-size: var(--text-size);
-          color: var(--color-muted);
+          font-size: var(--text-size-small);
           text-align: center;
         }
+        span.count {
+          background-image: var(--gold-gradient);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          -webkit-text-fill-color: transparent;
+        }
       </style>
-      <span aria-label="${t("header:counterAria", { consulted, total })}">${consulted}<span aria-hidden="true"> / </span>${total}</span>
+      <span class="count" aria-label="${t("header:counterAria", { consulted, total })}">${consulted}<span aria-hidden="true"> / </span>${total}</span>
     `;
   }
 }

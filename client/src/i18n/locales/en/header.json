@@ -1,8 +1,8 @@
 {
   "entries": "Entries",
   "info": "Info",
-  "entriesConsulted": "Entries consulted",
-  "counterAria": "{{consulted}} of {{total}} entries consulted",
+  "entriesConsulted": "Marginalia consulted",
+  "counterAria": "{{consulted}} of {{total}} marginalia consulted",
   "openConsultation": "Open consultation mode",
   "backToScan": "Back to scan mode",
   "close": "Close"

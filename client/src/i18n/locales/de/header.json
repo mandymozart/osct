@@ -1,8 +1,8 @@
 {
   "entries": "Einträge",
   "info": "Info",
-  "entriesConsulted": "Einträge gelesen",
-  "counterAria": "{{consulted}} von {{total}} Einträgen gelesen",
+  "entriesConsulted": "Marginalien gelesen",
+  "counterAria": "{{consulted}} von {{total}} Marginalien gelesen",
   "openConsultation": "Lesemodus öffnen",
   "backToScan": "Zurück zum Scanmodus",
   "close": "Schließen"
