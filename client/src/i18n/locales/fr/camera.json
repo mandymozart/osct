@@ -3,7 +3,7 @@
   "waiting": "En attente de l'accès à la caméra…",
   "allow": "Autorise la caméra pour scanner le livre.",
   "denied": "L'accès à la caméra a été refusé.",
-  "enable": "Autorise la caméra pour ce site dans les réglages de ton navigateur, puis recharge la page.",
+  "enable": "Autorise l’accès à la caméra pour ce site dans tes réglages, puis recharge la page.",
   "unavailable": "La caméra ne fonctionne qu’avec une connexion sécurisée. Ouvre l’application avec https:// et réessaie.",
   "continueWithout": "Continuer sans caméra",
   "notResponding": "La caméra ne répond pas.",

@@ -1,16 +1,9 @@
 import { getBook } from "@/utils/game-config";
 import type { ITutorialContent } from "@/types";
 import { escapeHtml, onboardingSteps, paragraphs } from "@/utils";
-import { SPLASH_STEP } from "@/utils/static-splash-html";
-import { MARK_IMAGE_SRC } from "@/components/header";
+import { ONBOARDING_ICON_SRC, SPLASH_STEP } from "@/utils/static-splash-html";
 import "@/components/common";
 import { adoptDesignStyles } from "@/styles";
-import { t } from "i18next";
-
-
-/** Default fade duration per part and delay between consecutive parts; a step can override both */
-const DEFAULT_FADE_MS = 600;
-const DEFAULT_STAGGER_MS = 250;
 
 /**
  * Replaces `{{title}}`, `{{author}}` and `{{publisher}}` in step texts with the book's values (the splash's parts).
@@ -25,14 +18,17 @@ export const fillBookFields = (text: string, book: Partial<Record<BookField, str
 const inline = (text: string): string => escapeHtml(fillBookFields(text)).replace(/\*([^*]+)\*/g, "<em>$1</em>");
 
 /**
- * An onboarding step (`utils/onboarding.ts` – the app's own steps, not the book's): Mark, optional illustration, title, text and footer, plus an
- * `actions` slot for the step button. Parts fade in one after another (`fadeIn` / `stagger` per step); the
- * resulting timing is exposed as `--fade-duration` / `--actions-delay` for the slotted button.
+ * An onboarding step (`utils/onboarding.ts` – the app's own steps, not the book's): the icon, optional illustration,
+ * title, text and footer, plus an `actions` slot for the step button.
  *
- * Laid out on the vertical grid (`--grid-row`, six rows – DESIGN.md §3a, #295): the Mark centred in row 1, the
- * illustration in row 2, title and text from the top of row 3, the button (or the footer) from the top of row 5.
- * A text longer than rows 3–4 pushes the button down. The host starts at the top of the page area (the page pads
- * the safe area). The splash's book title shimmers (#280).
+ * No fade between the onboarding steps: a tap on the button shows the next one at once (design p. 8–14, #281). Only a
+ * step with `fadeIn` fades – the splash: the icon and the title show at once, the text and the footer fade in together
+ * after `fadeAfter`; the timing is exposed as `--fade-duration` / `--actions-delay` for a slotted button.
+ *
+ * Laid out on the vertical grid (`--grid-row`, six rows – DESIGN.md §3a, #295): the icon in row 1 (its centre at
+ * `--onboarding-icon-centre` of the row), the illustration in row 2, title and text from the top of row 3, the button
+ * (or the footer) from the top of row 5. A text longer than rows 3–4 pushes the button down. The host starts at the
+ * top of the page area (the page pads the safe area). The splash's book title shimmers (#280).
  */
 export class TutorialContent extends HTMLElement implements ITutorialContent {
   private _currentStep = 0;
@@ -70,22 +66,15 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
     const step = onboardingSteps(getBook()).find(s => s.index === this._currentStep);
     if (!step) return;
 
-    // Fade sequence: Mark (only on steps that set `stagger`, i.e. the splash; otherwise it stays still),
-    // illustration, title, text, footer; the slotted button follows after the last part
-    const duration = step.fadeIn ?? DEFAULT_FADE_MS;
-    const stagger = step.stagger ?? DEFAULT_STAGGER_MS;
-    let slot = 0;
-    /** Style attribute with the animation delay of the next part in the sequence */
-    const next = () => `style="animation-delay: ${slot++ * stagger}ms"`;
-    /** A part that is shown: its text and its place in the sequence */
-    const part = (value: string | undefined, shown = !!value) => (value && shown ? { value, delay: next() } : null);
-    const mark = step.stagger !== undefined ? next() : null;
-    const illustration = part(step.illustration);
-    const title = part(step.title);
-    const text = part(step.description);
-    const footer = part(step.footer, !!step.footer && !!fillBookFields(step.footer));
+    // Only the splash fades: its text and footer together, after the title has shown alone
+    const duration = step.fadeIn ?? 0;
+    const delay = step.fadeAfter ?? 0;
+    const fades = duration > 0;
+    /** Class and style of a part that fades in on the splash */
+    const parts = (classes: string) => `class="${classes}${fades ? " fade" : ""}"${fades ? ` style="animation-delay: ${delay}ms"` : ""}`;
+    const footer = step.footer && fillBookFields(step.footer) ? step.footer : undefined;
     this.style.setProperty("--fade-duration", `${duration}ms`);
-    this.style.setProperty("--actions-delay", `${slot * stagger}ms`);
+    this.style.setProperty("--actions-delay", `${fades ? delay : 0}ms`);
     this.shadowRoot.innerHTML = /* html */ `
       <style>
         :host {
@@ -117,28 +106,32 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
         ::slotted([slot="actions"]) { width: 100%; }
         .fade { animation: fade-in ${duration}ms ease both; }
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-        /* The shimmering title fades in too (both animations; the shared .gold.shimmer alone would drop the fade) */
-        h1.fade.shimmer { animation: fade-in ${duration}ms ease both, gold-shimmer var(--shimmer-duration) ease-in-out infinite; }
-        @media (prefers-reduced-motion: reduce) { .fade, h1.fade.shimmer { animation: none; } }
-        img[data-mark] { width: var(--mark-width); height: var(--mark-height); object-fit: contain; }
+        @media (prefers-reduced-motion: reduce) { .fade { animation: none; } }
+        .icon-row { justify-content: flex-start; }
+        img[data-icon] {
+          width: var(--onboarding-icon-width);
+          height: var(--onboarding-icon-height);
+          margin-top: max(0px, calc(var(--grid-row) * var(--onboarding-icon-centre) - var(--onboarding-icon-height) / 2));
+          object-fit: contain;
+        }
         gold-illustration { width: 5.5rem; max-height: 100%; }
         h1 { font-size: inherit; font-weight: 400; margin: 0 0 1.25rem; }
         .text { width: min(15.5rem, 100%); }
         p { margin: 0 0 1.25em; }
         .footer { padding-bottom: 1rem; }
       </style>
-      <div class="row mark-row">
-        <img class="${mark ? "fade" : ""}" ${mark ?? ""} src="${MARK_IMAGE_SRC}" alt="${t("common:markAlt")}" data-mark>
+      <div class="row icon-row">
+        <img src="${ONBOARDING_ICON_SRC}" alt="" data-icon>
       </div>
       <div class="row illustration-row">
-        ${illustration ? `<gold-illustration class="fade" ${illustration.delay} src="${escapeHtml(illustration.value)}"></gold-illustration>` : ""}
+        ${step.illustration ? `<gold-illustration src="${escapeHtml(step.illustration)}"></gold-illustration>` : ""}
       </div>
       <div class="head">
-        ${title ? `<h1 class="design gold ${step.id === SPLASH_STEP.id ? "shimmer " : ""}text fade" ${title.delay}>${inline(title.value)}</h1>` : ""}
-        ${text ? `<div class="text design gold fade" ${text.delay}>${paragraphs(text.value).map(p => `<p>${inline(p)}</p>`).join("")}</div>` : ""}
+        ${step.title ? `<h1 class="design gold ${step.id === SPLASH_STEP.id ? "shimmer " : ""}text">${inline(step.title)}</h1>` : ""}
+        ${step.description ? `<div ${parts("text design gold")}>${paragraphs(step.description).map(p => `<p>${inline(p)}</p>`).join("")}</div>` : ""}
       </div>
       <slot name="actions"></slot>
-      ${footer ? `<div class="footer design gold fade" ${footer.delay}>${inline(footer.value)}</div>` : ""}
+      ${footer ? `<div ${parts("footer design gold")}>${inline(footer)}</div>` : ""}
     `;
   }
 }

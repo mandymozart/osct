@@ -16,10 +16,10 @@ export interface Step {
   /** Button label; with `action` (default `next`; `camera` asks for the camera first, `scan` opens scan mode) */
   button?: string;
   action?: StepAction;
-  /** Fade-in duration of the step's parts (ms; default in the app) */
+  /** Fade-in duration (ms) of the text and footer – the splash; a step without it shows everything at once (#281) */
   fadeIn?: number;
-  /** Delay between its parts fading in one after the other (ms); with it Mark fades in too (the splash) */
-  stagger?: number;
+  /** When the text and footer start to fade in (ms) – the icon and the title show at once */
+  fadeAfter?: number;
   /** Auto-advance after ms (steps without button) */
   advance?: number;
 }

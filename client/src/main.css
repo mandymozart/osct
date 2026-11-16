@@ -23,13 +23,13 @@
   --row-height: 1.5rem;
 
   /* Vertical grid (DESIGN.md §3a, #295): the page area – the screen without the safe areas – in six equal rows.
-     The splash and onboarding place their parts on it: Mark row 1, illustration row 2, text rows 3–4, button or
+     The splash and onboarding place their parts on it: icon row 1, illustration row 2, text rows 3–4, button or
      footer row 5. Rows never get shorter than --grid-row-min (landscape, short screens): the page scrolls instead */
   --grid-rows: 6;
   --grid-top: env(safe-area-inset-top, 0px);
   --grid-bottom: env(safe-area-inset-bottom, 0px);
   --grid-height: calc(100vh - var(--grid-top) - var(--grid-bottom));
-  --grid-row-min: 6rem;              /* the Mark's height: row 1 always holds it */
+  --grid-row-min: 6rem;              /* the Mark's height: row 1 always holds it (and the onboarding icon) */
   --grid-row: max(var(--grid-row-min), calc(var(--grid-height) / var(--grid-rows)));
 
   /* Gold is always this gradient, clipped to the text, left → right per element (DESIGN.md §1) */
@@ -80,6 +80,12 @@
   --mark-height: 6rem;
   /* Transparent margin above the drawing in the Mark image; the header offsets it so the visible Mark sits 1rem from the top */
   --mark-inset-top: calc(var(--mark-height) * 14 / 125);
+
+  /* The splash and onboarding icon (#281, the eye placeholder, DESIGN.md §3a): 102.75 × 44 pt with its glow, centred
+     horizontally, its centre at 24.5 of the 57.3 pt of row 1 */
+  --onboarding-icon-width: 12.33rem;
+  --onboarding-icon-height: 5.28rem;
+  --onboarding-icon-centre: .43;
 
   /* Where consultation content starts below the header: entry and Info pages / entries list (below the counter) */
   --consultation-top: calc(env(safe-area-inset-top) + 8.5rem);

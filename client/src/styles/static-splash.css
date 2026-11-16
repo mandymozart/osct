@@ -24,7 +24,7 @@
   font-size: var(--text-size);
   line-height: var(--text-line-loose);
 }
-/* The vertical grid (DESIGN.md §3a): Mark centred in row 1, row 2 empty, title and text in rows 3–4,
+/* The vertical grid (DESIGN.md §3a): the icon in row 1, row 2 empty, title and text in rows 3–4,
    the footer from row 5; longer text pushes it down. */
 #static-splash .row {
   display: flex;
@@ -42,7 +42,14 @@
   padding-bottom: 1.5rem;
   box-sizing: border-box;
 }
-#static-splash img { width: var(--mark-width); height: var(--mark-height); object-fit: contain; }
+/* As tutorial-content: the icon's centre at --onboarding-icon-centre of row 1 */
+#static-splash .icon-row { align-items: flex-start; }
+#static-splash img {
+  width: var(--onboarding-icon-width);
+  height: var(--onboarding-icon-height);
+  margin-top: max(0px, calc(var(--grid-row) * var(--onboarding-icon-centre) - var(--onboarding-icon-height) / 2));
+  object-fit: contain;
+}
 #static-splash h1 { font-size: inherit; font-weight: 400; margin: 0 0 1.25rem; }
 #static-splash .head > div { width: min(15.5rem, 100%); }
 #static-splash p { margin: 0 0 1.25em; }
