@@ -25,6 +25,7 @@ export const createProgressRecord = (bookId: string): ProgressRecord => ({
   lastSpreadId: null,
   lastCategory: null,
   onboarded: false,
+  coached: false,
   variables: {},
 });
 
@@ -47,6 +48,8 @@ const readFormat1 = (raw: Record<string, unknown>, bookId: string): ProgressReco
   lastCategory: isEntryCategory(raw.lastCategory) || raw.lastCategory === ALL_CATEGORY ? raw.lastCategory : null,
   // Additive field within format 1: records without it count as not onboarded
   onboarded: raw.onboarded === true,
+  // Additive field within format 1 (#282): records without it show the scan view's coach marks once
+  coached: raw.coached === true,
   // Additive field within format 1: the plugins' book variables, scalars only
   variables: pick(raw.variables, isVariable),
 });
@@ -101,7 +104,7 @@ const union = (a: Record<string, number>, b: Record<string, number>): Record<str
 
 /**
  * Merges two records of the same book (account sync): union of unlocked and consulted ids with the
- * earliest time, onboarded if either was; this device's last spread / category and variables win, the other's fill
+ * earliest time, onboarded (and coached) if either was; this device's last spread / category and variables win, the other's fill
  * gaps.
  */
 export const mergeProgress = (local: ProgressRecord, other: ProgressRecord): ProgressRecord => ({
@@ -113,5 +116,6 @@ export const mergeProgress = (local: ProgressRecord, other: ProgressRecord): Pro
   lastSpreadId: local.lastSpreadId ?? other.lastSpreadId,
   lastCategory: local.lastCategory ?? other.lastCategory,
   onboarded: local.onboarded || other.onboarded,
+  coached: local.coached || other.coached,
   variables: { ...other.variables, ...local.variables },
 });

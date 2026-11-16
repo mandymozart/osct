@@ -51,6 +51,13 @@ describe("progress record", () => {
     expect(readProgress({ format: PROGRESS_FORMAT }, bookId).record.onboarded).toBe(false);
   });
 
+  it("reads records without the coach-marks flag as not coached, and keeps it when set – additive within format 1 (#282)", () => {
+    expect(readProgress({ format: PROGRESS_FORMAT }, bookId).record.coached).toBe(false);
+    const { record, status } = readProgress({ format: PROGRESS_FORMAT, coached: true }, bookId);
+    expect(record.coached).toBe(true);
+    expect(status).toBe("current");
+  });
+
   it("keeps the plugins' book variables (scalars) and reads records without them as empty – additive within format 1", () => {
     expect(readProgress({ format: PROGRESS_FORMAT }, bookId).record.variables).toEqual({});
     const { record, status } = readProgress({ format: PROGRESS_FORMAT, variables: { hasKey: true, chapter: 2, name: "x", bad: { a: 1 } } }, bookId);
@@ -77,8 +84,8 @@ describe("mergeProgress (account sync)", () => {
       .toEqual({ hasKey: true, chapter: 3 });
   });
 
-  it("this device's last spread and category win, the other's fill in; onboarded if either was", () => {
-    expect(mergeProgress(record({ lastSpreadId: "s1" }), record({ lastSpreadId: "s2", lastCategory: ENTRY_CATEGORIES[0], onboarded: true })))
-      .toMatchObject({ lastSpreadId: "s1", lastCategory: ENTRY_CATEGORIES[0], onboarded: true });
+  it("this device's last spread and category win, the other's fill in; onboarded and coached if either was", () => {
+    expect(mergeProgress(record({ lastSpreadId: "s1" }), record({ lastSpreadId: "s2", lastCategory: ENTRY_CATEGORIES[0], onboarded: true, coached: true })))
+      .toMatchObject({ lastSpreadId: "s1", lastCategory: ENTRY_CATEGORIES[0], onboarded: true, coached: true });
   });
 });

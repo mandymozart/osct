@@ -15,5 +15,16 @@
   "done": {
     "title": "Merci !",
     "button": "Accéder au scan"
+  },
+  "coach": {
+    "dialog": "Comment scanner",
+    "scroller": {
+      "text": "Pour activer le contenu de la publication imprimée, utilise le défilement horizontal situé en bas de ton écran.\n\nFais correspondre les numéros de page de l’application et du livre.",
+      "button": "Continuer"
+    },
+    "icon": {
+      "text": "Scanne les pages du livre avec ta caméra. Touche les marginalia AR pour accéder à une entrée.\n\nLes marginalia débloquées sont enregistrées au fil de ta lecture. Touche l’icône située en haut de ton écran pour les consulter et accéder au menu général.",
+      "button": "OK, j’ai compris"
+    }
   }
 }

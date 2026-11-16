@@ -92,10 +92,12 @@ export const goToStep = (game: Readonly<IGame>, index: number) => {
 
 /**
  * Ends onboarding (last step or "Skip") in scan mode; the route sets the mode. Marks the reader as
- * onboarded, so the next visit starts at home.
+ * onboarded, so the next visit starts at home, and lets the scan view's coach marks show (again, after a replay from
+ * Info – #282).
  */
 export const goToScan = (game: Readonly<IGame>) => {
   game.history.setOnboarded();
+  game.history.setCoached(false);
   game.router.navigate("/spread");
 };
 

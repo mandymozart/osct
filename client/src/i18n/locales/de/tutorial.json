@@ -15,5 +15,16 @@
   "done": {
     "title": "Danke!",
     "button": "Zum Scan"
+  },
+  "coach": {
+    "dialog": "So scannst du",
+    "scroller": {
+      "text": "Um Inhalte in der gedruckten Publikation zu aktivieren, nutze die waagrechte Leiste unten auf deinem Bildschirm.\n\nStimme die Seitenzahlen in der App und im Buch ab.",
+      "button": "Weiter"
+    },
+    "icon": {
+      "text": "Scanne die Seiten des Buchs mit deiner Kamera. Tippe auf AR-Marginalien, um einen Eintrag zu öffnen.\n\nFreigeschaltete Marginalien werden beim Stöbern gespeichert. Tippe auf das Symbol oben auf deinem Bildschirm, um sie nachzulesen und das Menü zu öffnen.",
+      "button": "Alles klar"
+    }
   }
 }

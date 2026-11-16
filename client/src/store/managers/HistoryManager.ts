@@ -140,6 +140,11 @@ export class HistoryManager implements IHistoryManager {
     this.change(draft => { draft.onboarded = true; });
   }
 
+  public setCoached(coached: boolean): void {
+    if (this.progress.coached === coached) return;
+    this.change(draft => { draft.coached = coached; });
+  }
+
   public getVariable(name: string): ProgressVariable | undefined {
     return this.progress.variables[name];
   }

@@ -67,6 +67,8 @@
   --glass-blur: blur(0.625rem);
   /* The subtitle line over the camera picture: its backdrop, and how far above the screen's bottom edge it sits (clear of the spread menu) */
   --subtitle-background: rgba(0, 0, 0, 0.62);
+  /* The coach marks' veil over the first scan, around the hole that shows the scroller or the icon (#282, design p. 15–16) */
+  --coach-veil: rgba(0, 0, 0, 0.8);
   --subtitle-offset: 7rem;
   --shadow-dark: 0 0.15rem 1.2rem rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 0.95rem rgba(255, 255, 255, 0.6);

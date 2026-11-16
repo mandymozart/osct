@@ -81,6 +81,7 @@ export class BookGame extends HTMLElement {
   template = /* html */ `
     <camera-permission-page></camera-permission-page>
     <game-header></game-header>
+    <coach-marks></coach-marks>
 
     <pages-router>
       <about-page></about-page>
