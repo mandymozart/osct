@@ -213,6 +213,13 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
   str(root, "initialSpreadId", "config");
   if (root.plugins !== undefined) pluginProblems(root.plugins).forEach(problem => problems.push(problem));
   if (root.subtitles !== undefined) subtitleProblems(root.subtitles, "subtitles").forEach(problem => problems.push(problem));
+  if (root.credits !== undefined) {
+    const credits = root.credits;
+    if (typeof credits !== "object" || credits === null || Array.isArray(credits)) fail("credits", "expected an object of file → credit line");
+    else Object.entries(credits).forEach(([file, line]) => {
+      if (typeof line !== "string" || !line.trim()) fail(`credits[${JSON.stringify(file)}]`, "expected a credit line (text)");
+    });
+  }
 
   const spreadIds = new Set<string>();
   const pageRanges: [number, number][] = [];

@@ -474,8 +474,10 @@ credits, as the book prints them. `asset_credits` keeps it per book and file **U
 row), `GET …/assets` lists it as `credits` (null: none), `PUT /editor/books/{id}/assets/credits { items: [{ url,
 credits }] }` sets up to `CREDITS_BATCH_MAX` (500) at once – white space folded, at most `CREDITS_MAX` (1000)
 characters, empty or null removes the line; a URL the Library does not list refuses the whole request (400
-`invalid-credits`). A replace leaves the line on the old URL (the new version may be another picture). Credits are no
-content: no change in the book's log, nothing to publish; an AI connection's token may set them. A delete removes the
+`invalid-credits`). A replace leaves the line on the old URL (the new version may be another picture). Saving credits
+writes no change in the book's log; an AI connection's token may set them. The book's configuration carries the lines
+of the files it uses (`credits`, content schema 2.33, #292 – `ContentVersion::credits`), so an edited line is in the
+draft at once and reaches readers with the next publish. A delete removes the
 rows in one transaction with a change in the book's log (kind `asset`, `before` = the asset with its versions – as a
 [removal](#removing-a-spread-or-an-entry) records the files it takes), so a forced delete is in the history; the files
 go after the commit.

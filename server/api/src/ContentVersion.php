@@ -10,7 +10,8 @@ declare(strict_types=1);
  * `version` = { version: this server's app version, timestamp: now, hash, schema: the imported schema }; `tutorial` is
  * the onboarding older apps require (`Editor::COMPAT_TUTORIAL` – the reader has its own, #236); `plugins` (the compiled
  * plugins the import declared) follows it when the book has any, as the build writes it, and `subtitles` (the subtitle
- * files of the book's videos, read from the files' names – `Subtitles`) when there are any. The hash is the sha256 of the
+ * files of the book's videos, read from the files' names – `Subtitles`) and `credits` (the Library's credit lines of the
+ * files the book uses, #292) when there are any. The hash is the sha256 of the
  * configuration JSON without timestamp and hash – the same rows give the same hash, and the build name is its first 12
  * hex digits. With an assets base every content path (`/assets/content/…` under src, imageSrc, image, and the keys of
  * files.json) becomes a URL below it: a published version points at the imported build's media, no file is copied.
@@ -73,10 +74,33 @@ final class ContentVersion
             $files = self::rewriteFiles($files, $base);
         }
         if ($subtitles) $configuration->subtitles = $subtitles;
+        // The credit lines of the files the book uses (#292) – the Library keys them by the URL the configuration names
+        $credits = self::credits(Assets::creditsOf($bookId), $configuration);
+        if ($credits) $configuration->credits = (object) $credits;
 
         $hash = hash('sha256', Editor::encode($configuration));
         $configuration->version = (object) ['version' => Version::APP, 'timestamp' => Editor::iso(), 'hash' => $hash, 'schema' => $schema];
         return ['configuration' => $configuration, 'files' => $files, 'hash' => $hash, 'build' => substr($hash, 0, 12), 'schema' => $schema];
+    }
+
+    /**
+     * The credit lines (#292, file URL → line) of the files the configuration names anywhere – a file of the Library
+     * the book does not use is left out; sorted by URL, so the same rows give the same hash
+     * @param array<string, string> $credits
+     * @return array<string, string>
+     */
+    public static function credits(array $credits, stdClass $configuration): array
+    {
+        if (!$credits) return [];
+        $used = [];
+        $collect = static function (mixed $node) use (&$collect, &$used): void {
+            if (is_string($node)) $used[$node] = true;
+            elseif ($node instanceof stdClass || is_array($node)) foreach ((array) $node as $value) $collect($value);
+        };
+        $collect($configuration);
+        $result = array_filter($credits, static fn(string $line, string $url): bool => isset($used[$url]) && trim($line) !== '', ARRAY_FILTER_USE_BOTH);
+        ksort($result, SORT_STRING);
+        return $result;
     }
 
     /**

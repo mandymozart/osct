@@ -111,7 +111,7 @@ final class Assets
     }
 
     /** @return array<string, string> the book's credits lines by file URL */
-    private static function creditsOf(string $bookId): array
+    public static function creditsOf(string $bookId): array
     {
         $result = [];
         foreach (Db::run('SELECT url, credits FROM asset_credits WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {

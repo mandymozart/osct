@@ -30,6 +30,11 @@ export const router: PageRouterConfiguration = {
       mode: GameMode.CONSULTATION,
     },
     {
+      page: Pages.CREDITS,
+      slug: "/credits",
+      mode: GameMode.CONSULTATION,
+    },
+    {
       page: Pages.TUTORIAL,
       slug: "/tutorial",
       mode: GameMode.IDLE,
