@@ -1,5 +1,5 @@
 {
-  "pagesActivated": "Geactiveerde pagina's:",
+  "scrollToActivate": "Scroll naar de dubbele pagina om de inhoud te activeren",
   "pagesAria": "Pagina's {{pages}}",
   "newEntryUnlocked": "Nieuw item ontgrendeld",
   "openEntry": "Item {{title}} openen"

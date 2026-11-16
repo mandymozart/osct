@@ -790,7 +790,7 @@ The app plays short sounds (and vibrates on Android) – they are app files, not
 
 | File | When |
 |---|---|
-| `tick.wav` | Each notch of the "Pages activated" slider – plays often, keep it tiny (~20 ms) |
+| `tick.wav` | Each notch of the page scroller – plays often, keep it tiny (~20 ms) |
 | `tap.wav` | A button is tapped |
 | `found.wav` | A page is recognised again (at most every 4 s per page) |
 | `unlock.wav` | A page is recognised for the first time – a new entry is unlocked |

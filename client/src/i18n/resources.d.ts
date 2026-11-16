@@ -160,8 +160,8 @@ export default interface Resources {
   "scan": {
     "newEntryUnlocked": "New entry unlocked",
     "openEntry": "Open entry {{title}}",
-    "pagesActivated": "Pages activated:",
-    "pagesAria": "Pages {{pages}}"
+    "pagesAria": "Pages {{pages}}",
+    "scrollToActivate": "Scroll to spread to activate content"
   },
   "settings": {
     "downloadButton": "Download all content",

@@ -39,7 +39,7 @@ itself is `#000000`). One linear gradient is used on all 40 pages:
 ### Greys, white, black
 | Token | Value | Used for |
 |---|---|---|
-| muted | `#8b8d8c` | scan counter "12 / 150", "Pages activated:", consultation labels (Entry name, Access page …), 0.5 pt rules |
+| muted | `#8b8d8c` | scan counter "12 / 150", the scroller hint "Scroll to spread to activate content", consultation labels (Entry name, Access page …), 0.5 pt rules |
 | inactive | `#d6d8d8` | spread menu items that are not active |
 | text-on-dark | `#ffffff` | consultation values, entry body, Info text |
 | black | `#000000` | onboarding button body, shadows |
@@ -127,6 +127,12 @@ then a circle around the icon; the hole is the element's box plus .5 rem. Text a
 from row 3, button from row 5). The scroller step adds two gold arrows at the hole's ends that nudge outwards (1.6 s);
 the hole moves between the steps in 400 ms. Reduced motion: no nudge, no move. The p. 17 drops under the eye are left
 out (Tilman has not decided on them).
+
+**Page scroller (#284, design p. 17–22, 44–52):** the hint "Scroll to spread to activate content" in muted grey above
+the scroller – measured 8 pt like the page numbers, so Medium (1 rem), not Small; neighbours `#d6d8d8`; the active spread
+a pill (31 × 15 pt ≈ 60 × 29 px) with a **white body** and a **gold glow** (`#c7a144`, ≈ 6.5 pt round the body) and
+gold text – the same on the white page (p. 18) and over the dark picture (p. 17), where the body lets the picture show
+through a little (`--scroller-pill-background`, `--shadow-gold`). The edges fade (mask).
 
 ### Details (moved from code comments, 2026-09-28)
 | Element | Value |
