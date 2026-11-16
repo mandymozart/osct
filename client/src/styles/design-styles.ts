@@ -6,6 +6,8 @@
  * Primitives:
  *   .design         design font, tracking, size and line height
  *   .gold           gold gradient text (per element, left to right; DESIGN.md §5)
+ *   .shimmer        modifier for .gold: a slow light band sweeps through the gold (#280) – the book title, "New
+ *                   marginalia unlocked"; not for body text. Off with reduced motion
  *   .muted          muted grey text
  *   .button         onboarding button: black body, white glow, gold label (<span class="gold">)
  *   .pill           glass pill: near-transparent, backdrop blur, bronze glow, gold label
@@ -38,6 +40,7 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     --color-accent: #0f0;
     --rule: .0625rem solid #0f0;
     --gold-gradient: linear-gradient(90deg, #0f0, #0f0);
+    --gold-shimmer: linear-gradient(transparent, transparent);
     --glass-background: rgba(0, 0, 0, .4);
     --glass-blur: none;
     --shadow-bronze: none;
@@ -203,14 +206,25 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
   .pill:active,
   .icon-button:active { transform: scale(.97); }
 
-  .primary { position: relative; isolation: isolate; }
+  /* Shimmer and shine: the light band (--gold-shimmer) over the gold, moved with background-position only –
+     no layout, no JS (cheap on phones). Gold text: slow, with a pause between sweeps; primary labels: constant */
+  .gold.shimmer,
   .primary .gold {
-    background-image:
-      linear-gradient(110deg, transparent 40%, var(--gold-1) 50%, transparent 60%),
-      var(--gold-gradient);
+    background-image: var(--gold-shimmer), var(--gold-gradient);
     background-size: 300% 100%, 100% 100%;
-    animation: gold-shine 1.8s linear infinite;
+    background-repeat: no-repeat;
   }
+  .gold.shimmer { animation: gold-shimmer var(--shimmer-duration) ease-in-out infinite; }
+  @keyframes gold-shimmer {
+    0% { background-position: 150% 0, 0 0; }
+    60%, 100% { background-position: -50% 0, 0 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .gold.shimmer { animation: none; background-image: var(--gold-gradient); }
+  }
+
+  .primary { position: relative; isolation: isolate; }
+  .primary .gold { animation: gold-shine var(--shine-duration) linear infinite; }
   .primary::before {
     content: "";
     position: absolute;
@@ -225,7 +239,7 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-    animation: gold-shine 1.8s linear infinite;
+    animation: gold-shine var(--shine-duration) linear infinite;
     pointer-events: none;
   }
   @keyframes gold-shine {

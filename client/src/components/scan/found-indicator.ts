@@ -119,12 +119,8 @@ export class FoundIndicator extends HTMLElement {
           transform: scale(.6);
           transition: opacity ${LABEL_FADE_MS}ms ease, transform .5s cubic-bezier(.2, 1.4, .4, 1);
         }
+        /* The shimmer is the shared .gold.shimmer (#280); while unlocking it also glows */
         .label .gold {
-          background-image:
-            linear-gradient(110deg, transparent 40%, var(--gold-1) 50%, transparent 60%),
-            var(--gold-gradient);
-          background-size: 300% 100%, 100% 100%;
-          animation: gold-shine 1.8s linear infinite;
           filter: drop-shadow(0 0 .45rem rgba(243, 204, 148, .45));
         }
         .label::before {
@@ -139,7 +135,9 @@ export class FoundIndicator extends HTMLElement {
           opacity: 1;
           transform: none;
         }
-        :host([unlocking]) .label .gold { animation: gold-shine 1.8s linear infinite, label-glow 2.4s ease-in-out infinite; }
+        :host([unlocking]) .label .gold {
+          animation: gold-shimmer var(--shimmer-duration) ease-in-out infinite, label-glow 2.4s ease-in-out infinite;
+        }
         @keyframes label-glow {
           50% { filter: drop-shadow(0 0 .9rem rgba(243, 204, 148, .8)); }
         }
@@ -205,7 +203,7 @@ export class FoundIndicator extends HTMLElement {
         }
       </style>
       <div class="label design" aria-hidden="true">
-        <span class="gold">${t("scan:newEntryUnlocked")}</span>
+        <span class="gold shimmer">${t("scan:newEntryUnlocked")}</span>
         ${SPARKLES.map(([x, y, size, delay]) =>
           `<i class="sparkle" style="left: ${x}%; top: ${y}%; --size: ${size}rem; animation-delay: ${delay}s"></i>`).join("")}
       </div>

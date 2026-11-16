@@ -46,14 +46,13 @@ export class SplashPage extends Page {
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: max(11vh, 5.5rem) 1.5rem 1rem;   /* Mark position as in the onboarding, see DESIGN.md §3 */
+        padding: var(--grid-top) 1.5rem var(--grid-bottom);   /* the six rows of tutorial-content (DESIGN.md §3a) */
         box-sizing: border-box;
       }
-      /* As the onboarding: the text block reaches down to 58 % of the screen, where the footer sits */
+      /* As the onboarding: tutorial-content places the parts on the vertical grid, the footer in row 5 */
       tutorial-content {
         flex: 1 0 auto;
         width: 100%;
-        --actions-top: calc(58vh - max(11vh, 5.5rem));
       }
     `;
   }

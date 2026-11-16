@@ -40,14 +40,13 @@ export class TutorialPage extends Page {
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: max(11vh, 5.5rem) 1.5rem 1rem;   /* Mark position, see DESIGN.md §3 */
+        padding: var(--grid-top) 1.5rem var(--grid-bottom);   /* the six rows of tutorial-content (DESIGN.md §3a) */
         box-sizing: border-box;
       }
-      /* The button stays in the flow below the text: at 58 % of the screen for short texts, pushed down by longer ones */
+      /* tutorial-content places the parts on the vertical grid: the button in row 5 for short texts, pushed down by longer ones */
       tutorial-content {
         flex: 1 0 auto;
         width: 100%;
-        --actions-top: calc(58vh - max(11vh, 5.5rem));
       }
       .skip {
         position: absolute;

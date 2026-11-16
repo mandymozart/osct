@@ -7,6 +7,7 @@ import {
   subscribeEngineState,
 } from "@/components/ar-bridges";
 import { debugSwitch, SWITCH_CSS } from "./debug-sheet";
+import { isRowGridShown, restoreRowGrid, showRowGrid } from "./row-grid";
 
 type DebugTab = "spread" | "progress";
 /** The bottom panels the overlay opens (`<name>-panel`), at most one at a time */
@@ -55,6 +56,7 @@ export class DebugOverlay extends HTMLElement {
   protected connectedCallback() {
     // The collapsed line covers the top of the screen; app chrome moves down by this offset
     document.documentElement.style.setProperty("--debug-offset", "1.25rem");
+    restoreRowGrid();
     this.render();
     this.initialize();
   }
@@ -104,6 +106,11 @@ export class DebugOverlay extends HTMLElement {
     }
     if (control?.dataset.action === "toggle-qr") {
       this.showQr = !this.showQr;
+      this.updateContent();
+      return;
+    }
+    if (control?.dataset.action === "toggle-grid") {
+      showRowGrid(!isRowGridShown());
       this.updateContent();
       return;
     }
@@ -230,6 +237,7 @@ export class DebugOverlay extends HTMLElement {
       <div>AR: ${this.arStatusLabel()}</div>
       <div>Spreads held: ${this.preparedLabel()}
         <button data-action="cycle-prepared">Change</button></div>
+      <div>Layout: ${debugSwitch("Grid", isRowGridShown(), "toggle-grid", "Vertical grid: the six rows of the splash and onboarding")}</div>
       ${this.renderEngine()}
     </div>`;
 

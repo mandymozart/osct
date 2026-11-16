@@ -96,6 +96,25 @@ Areal: 8–16, 23). The phone screenshots there are 204.5 pt wide for a 393 px s
 | Found indicator image | 171 × 212 px, ~234 px from the top |
 | Onboarding text block | gradient box 247 px, centred |
 
+### 3a. Vertical grid – six rows (#295, measured 2026-11-16)
+From `261113_Application_AR_Rudy.pdf`, frames 6–14 (splash and onboarding; 1 pt ≈ 1.92 px). The page area runs from
+below the status bar (y 90 pt) to the top of the browser's bottom bar (y 434 pt): **344 pt ≈ 661 px**, divided into
+**six equal rows of 57.3 pt ≈ 110 px** – no gutters, no extra margins; the safe areas lie outside.
+
+| Row | Holds (measured) |
+|---|---|
+| 1 | the icon, centred (eye at 24 pt of the 57 pt row) |
+| 2 | empty – the onboarding illustration where a step has one (today's app; #281 drops the camera drawing) |
+| 3–4 | title and text from the **top of row 3** (first line box at 203 pt vs. the row at 204.7 pt): book title + author, the onboarding texts |
+| 5 | the button (label at 320.7 pt) or the footer "Building Fictions" (317.6 pt) from the **top of row 5** (319.3 pt) |
+| 6 | empty |
+
+Tokens (`main.css`): `--grid-row` = max(`--grid-row-min`, (100dvh − safe areas) / `--grid-rows`); `--grid-top`,
+`--grid-bottom` = the safe-area insets. **Minimum row 6 rem** (the Mark's 96 px): on short or landscape screens the
+rows stop shrinking and the page scrolls. A text longer than rows 3–4 pushes the button down (1.5 rem gap).
+The rest of the app (header, scroller, consultation, Info) only where it comes naturally (later issues).
+Debug overlay: dev tools → "Grid" (`<html data-row-grid>`).
+
 ### Details (moved from code comments, 2026-09-28)
 | Element | Value |
 |---|---|
@@ -136,6 +155,13 @@ All options use `--gold-gradient` from §1.
 **Animated variant** (like the camera): a second, narrow highlight gradient over A, moved with
 `background-position` (`@keyframes`), off with `prefers-reduced-motion`. Use sparingly (e.g. "New entry
 unlocked", illustrations), not for body text.
+
+**Shimmer (#280, design p. 5 "animated gold … on the font")**: `.gold.shimmer` – the light band
+`--gold-shimmer` (110°, transparent → `rgba(255, 248, 230, .95)` → transparent over 20 % of a 300 % wide layer) laid
+over `--gold-gradient` and moved left → right with `background-position` only: one sweep in 60 % of
+`--shimmer-duration` (4 s), then a pause. Used on the book title of the splash and "New marginalia unlocked"; all
+other gold text stays still. Primary labels use the same band without a pause (`--shine-duration`, 1.8 s, §6).
+Reduced motion: no band.
 
 **Recommendation:** A as the default (`.gold` utility) – it is what the PDF does. C if we want a
 page-wide sweep later; B only for desktop.
