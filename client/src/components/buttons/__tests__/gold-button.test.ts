@@ -21,4 +21,10 @@ describe("goldButton", () => {
   it("escapes the label", () => {
     expect(goldButton({ label: "<Resume>" })).toContain(`<span class="gold">&lt;Resume&gt;</span>`);
   });
+
+  it("renders a link in the same look with href (new tab, no opener)", () => {
+    expect(goldButton({ label: "Shop", href: "https://example.com/?a=1&b=2" })).toBe(
+      `<a class="pill design" href="https://example.com/?a=1&amp;b=2" target="_blank" rel="noopener noreferrer"><span class="gold">Shop</span></a>`,
+    );
+  });
 });
