@@ -86,6 +86,12 @@ export interface IArScene {
   setState(state: SceneState): Promise<void>;
   /** Play the discovery animation on a found target's entity (first find = unlock) */
   celebrate(targetId: string): void;
+  /**
+   * The marginalia card (#285): the picture `front` lifts off the found target's page, turns over once (`back`, a
+   * default pattern without one) and lands in the centre of the screen. True once it landed; false at once when there
+   * is nothing to fly from (target not found, scene not running, picture not loaded) or the flight was cut short.
+   */
+  flyCard(targetId: string, card: { front: string; back?: string }): Promise<boolean>;
   /** The content changed under the current spread (the editor saved): build the spread again from it */
   refresh(): Promise<void>;
   /** The colour under a point of the scene's canvas (CSS px from its top left) as `#rrggbb`, null while nothing renders */

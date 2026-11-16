@@ -7,6 +7,15 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.81.0 – 2026-11-16
+
+### Added
+- **The marginalia card** (#285): tapping a glossary picture whose entry is not consulted yet lifts the picture off
+  the page as a stiff playing card. It turns over once (a gold-framed back for now) and lands dead centre on the screen,
+  then the entry opens. The card flies from where the page is, followed every frame, and keeps going from the last
+  pose when the page is lost. Already-consulted entries, Texts, Links, Videos and reduced motion open the entry at once
+  as before. A sandbox (`sandbox/card-flight/`) shows the flight on a simulated page for timing.
+
 ## 1.80.0 – 2026-11-16
 
 ### Added

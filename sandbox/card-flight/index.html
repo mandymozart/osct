@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="data:,">
+  <title>OSCT – card flight sandbox</title>
+  <style>
+    :root { color-scheme: dark; --accent: #d2ae5a; }
+    html, body { height: 100%; margin: 0; background: #2a2622; color: #e6e6ea; font: 13px/1.4 system-ui, sans-serif; overflow: hidden; }
+    canvas { display: block; position: fixed; inset: 0; width: 100%; height: 100%; }
+    .panel { position: fixed; left: 12px; right: 12px; bottom: 12px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center;
+      padding: 10px 12px; background: rgba(20, 18, 16, .82); border: 1px solid #44403a; border-radius: 6px; }
+    label { display: flex; gap: 6px; align-items: center; }
+    input[type=range] { width: 110px; accent-color: var(--accent); }
+    button { height: 30px; padding: 0 16px; background: #2b2b31; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; cursor: pointer; }
+    output { min-width: 3.2em; color: #b8b2a6; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <button id="fly" type="button">Fly</button>
+    <label>Length <input id="length" type="range" min="1200" max="4500" step="100" value="2700"><output id="length-out"></output></label>
+    <label>Distance <input id="distance" type="range" min="0.6" max="3" step="0.05" value="1.6"><output id="distance-out"></output></label>
+    <label>Tilt <input id="tilt" type="range" min="0" max="70" step="1" value="35"><output id="tilt-out"></output></label>
+    <label><input id="shake" type="checkbox"> Hand shake</label>
+  </div>
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 import { GameStoreService } from "@/services";
-import { ENTITY_UNLOCK_MS, GameMode, type IGame, momentDuration, type Target, TARGET_UNLOCKED_EVENT } from "@/types";
+import { CARD_FLIGHT_EVENT, type CardFlightDetail, ENTITY_UNLOCK_MS, EntryCategory, GameMode, type IGame, momentDuration, type Target, TARGET_UNLOCKED_EVENT } from "@/types";
 import { getBook, getEntry, getTarget } from "@/utils/game-config";
 import { adoptDesignStyles } from "@/styles";
 import { t } from "i18next";
@@ -27,7 +27,9 @@ export const getIndicatorTarget = (trackedTargetIds: readonly string[]): Target 
 
 /**
  * Found-target indicator: the entry's image with a drop shadow while its target is found in scan mode.
- * A tap opens the entry view (`/entry`) in consultation mode, which marks the entry consulted.
+ * A tap opens the entry view (`/entry`) in consultation mode, which marks the entry consulted. A glossary entry not
+ * consulted yet flies its card first (#285, CARD_FLIGHT_EVENT – `<ar-bridge>` asks the scene); the image hides
+ * meanwhile, the card is the picture. Reduced motion: the entry opens at once.
  * On unlock (the first find of a target, TARGET_UNLOCKED_EVENT from `<ar-bridge>`) it shows a gold
  * "New entry unlocked" label with shine, glow and sparkles, plus a small rotation of the image; for
  * targets with an AR entity only the label, for as long as the entity's reveal takes: the duration of the look the book
@@ -166,6 +168,8 @@ export class FoundIndicator extends HTMLElement {
           -webkit-tap-highlight-color: transparent;
         }
         :host(:not([visible])) button { pointer-events: none; }
+        /* The card flies (#285): the picture is the card now */
+        :host([flying]) button { visibility: hidden; }
         /* 171 × 212 px, DESIGN.md §3 */
         img {
           display: block;
@@ -211,8 +215,27 @@ export class FoundIndicator extends HTMLElement {
 
   private handleClick(event: Event) {
     const target = this.target;
-    if (!target || !(event.target as HTMLElement).closest("button")) return;
-    this.open(target.entryId);
+    if (!target || this.hasAttribute("flying") || !(event.target as HTMLElement).closest("button")) return;
+    const flown = this.flyCard(target);
+    if (!flown) return this.open(target.entryId);
+    this.setAttribute("flying", "");
+    void flown.catch(() => false).then(() => {
+      this.removeAttribute("flying");
+      this.open(target.entryId);
+    });
+  }
+
+  /** The card flight for a glossary entry not consulted yet, null when there is none (the entry opens at once) */
+  private flyCard(target: Target): Promise<boolean> | null {
+    const entry = getEntry(target.entryId);
+    const front = entry?.image ?? target.imageSrc;
+    if (target.entity || !entry || !front || entry.category !== EntryCategory.Glossary) return null;
+    if (this.game.history.isConsulted(entry.id)) return null;
+    if (typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
+    let flown: Promise<boolean> | null = null;
+    const detail: CardFlightDetail = { targetId: target.id, front, respond: promise => (flown = promise) };
+    const event = new CustomEvent(CARD_FLIGHT_EVENT, { detail, cancelable: true });
+    return document.dispatchEvent(event) ? null : flown;
   }
 
   /** Shows "New entry unlocked" and rotates the image briefly; the indicator stays tappable */

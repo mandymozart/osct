@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type ArSceneEvents, type ArStatus, CameraPermissionStatus, ErrorCode, type IArScene, LoadingState, SceneState, TARGET_UNLOCKED_EVENT } from "@/types";
+import { type ArSceneEvents, type ArStatus, CameraPermissionStatus, CARD_FLIGHT_EVENT, type CardFlightDetail, ErrorCode, type IArScene, LoadingState, SceneState, TARGET_UNLOCKED_EVENT } from "@/types";
 import { GameStoreService, PreloaderService, SubtitleService, UpdateService } from "@/services";
 import { getSpreads, getTargets } from "@/utils/game-config";
 import { getArError } from "@engine/utils/camera-debug";
@@ -22,6 +22,8 @@ class FakeArScene implements IArScene {
   celebrated: string[] = [];
   async dispose() { this.disposed = true; }
   celebrate(targetId: string) { this.celebrated.push(targetId); }
+  flown: string[] = [];
+  flyCard(targetId: string) { this.flown.push(targetId); return Promise.resolve(true); }
   async refresh() {}
   sampleColor() { return null; }
   inspect() { return null; }
@@ -111,6 +113,24 @@ describe("<ar-bridge>", () => {
     expect(scene.celebrated).toEqual([withEntity.id]);
     expect(unlocked).toEqual([withEntity.id]);
     document.removeEventListener(TARGET_UNLOCKED_EVENT, listener);
+  });
+
+  it("flies a glossary card in scan mode (#285) and leaves the event alone elsewhere", async () => {
+    const fly = (targetId: string) => {
+      let flown: Promise<boolean> | null = null;
+      const detail: CardFlightDetail = { targetId, front: "/card.jpg", respond: p => (flown = p) };
+      const taken = !document.dispatchEvent(new CustomEvent(CARD_FLIGHT_EVENT, { detail, cancelable: true }));
+      return { taken, flown: flown as Promise<boolean> | null };
+    };
+    game.router.navigate("/spread");
+    const scanned = fly("t1");
+    expect(scanned.taken).toBe(true);
+    await expect(scanned.flown).resolves.toBe(true);
+    expect(scene.flown).toEqual(["t1"]);
+
+    game.router.navigate("/entries");
+    expect(fly("t2").taken).toBe(false);
+    expect(scene.flown).toEqual(["t1"]);
   });
 
   it("a tapped entity opens its entry in scan mode (= consulted), not elsewhere", () => {

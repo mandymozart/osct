@@ -4,6 +4,22 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-16 – the marginalia pick-up is a card that flips to the centre, no hand (#285, 1.81.0)
+
+- Tilman first wanted a hand that pockets the card in a shirt pocket (crocodile hand by Kévin, a stand-in from a free
+  VR hands pack), then: *"we changed our mind. only a card that flips up and ends up dead center of the screen, like a
+  playing card"*. Decided with him: glossary entries only; the normal reveal first, the **tap** starts it; only for an
+  entry not consulted yet (*"second time straight away for now"*); a stiff card in the picture's shape; a **full flip**
+  (the back shows halfway); reduced motion opens at once. #285's body holds the decisions and the maths.
+- The maths (Tilman's two moving vectors): in this engine the camera stays at the origin and an anchor is its pose
+  relative to it, so **only the start moves**; the end is a constant `(0, 0, −d)` in camera space. `d` comes from the
+  projection matrix (the tracker sets the matrix, not `fov`). A cubic Bézier (lift along the page normal, settle from
+  behind) and `slerp(q0, q1) · rotX(2π·s)`; `P0`'s weight `(1−t)³` fades the tracking jitter out by the end.
+- Built: `engine/src/scene/card-flight.ts`, `IArScene.flyCard`, the indicator asks over `CARD_FLIGHT_EVENT` and opens
+  the entry once the card landed. Seen in `sandbox/card-flight/` (simulated page), **not on a phone yet**.
+- [ ] Open (Kévin, #285): the higher-resolution colour picture per card (the card uses the entry's image now), the
+  back (the front cover?; a gold frame and diamond now), the sounds (rattle at the pick-up, whoosh). Length to tune.
+
 ## 2026-11-16 – front and back matter are spreads with internal pages (#296, 1.80.0)
 
 - Rudy (via Tilman): the editor misses the 6 pages before page 1 and the 6 after page 256 (`START BOOK.pdf`,
