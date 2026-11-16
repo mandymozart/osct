@@ -55,6 +55,7 @@ const anchorMatrix = (time: number): Matrix4 => {
 
 let flight: CardFlight | null = null;
 document.getElementById("fly")?.addEventListener("click", () => {
+  frozen = false; // a still (`cardAt`) stopped the loop
   flight?.dispose();
   flight = null;
   void loadPicture().then(front => {
