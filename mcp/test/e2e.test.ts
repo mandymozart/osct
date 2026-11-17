@@ -11,6 +11,7 @@ import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ROOT } from "../src/config.ts";
+import { assertGameConfiguration } from "../../shared/guards/game-config";
 
 const php = spawnSync("php", ["--version"], { encoding: "utf8" });
 const hasPhp = php.status === 0;
@@ -74,7 +75,7 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     return { ok: !result.isError, data };
   };
   /** A removal in its two steps (#198): the impact (nothing removed), then the same call with the confirmation */
-  const remove = async (name: "delete_spread" | "delete_entry", args: Record<string, unknown>, via = call) => {
+  const remove = async (name: "delete_spread" | "delete_scene" | "delete_entry", args: Record<string, unknown>, via = call) => {
     const first = await via(name, args);
     expect(first.ok, JSON.stringify(first.data)).toBe(true);
     expect(first.data).toMatchObject({ deleted: false, impact: expect.any(Object), confirmation: { id: expect.stringMatching(/^\d{10}\.[0-9a-f]{32}$/) } });
@@ -297,17 +298,15 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
   });
 
   it("adds a double page and a back cover, sets passes and the environment, removes what is empty (#174)", async () => {
-    // An imported book is print first: the spreads are its layout's until the person makes it digital first (#238)
-    const refused = await call("add_spread", { book: "osct", format: "spread", after: "s1" });
-    expect([refused.ok, refused.data.error.code]).toEqual([false, "print-first"]);
-    expect(refused.data.error.hint).toMatch(/sourceOfTruth/);
-    expect((await call("update_book", { book: "osct", sourceOfTruth: "digital" })).data.book.sourceOfTruth).toBe("digital");
+    // An imported book is print first – since scenes (#307) it takes new spreads like a digital-first one
     const page = await call("add_spread", { book: "osct", format: "spread", after: "s1", title: "Studio A" });
     expect(page.ok, JSON.stringify(page.data)).toBe(true);
     expect(page.data.spread).toMatchObject({ id: "spread-1", title: "Studio A", firstPage: 3, lastPage: 4 });
-    expect(page.data.moved.spreads).toBe(1);
+    expect(page.data.moved.spreads).toBe(0);
     expect(page.data.open).toBe("http://localhost:5175/editor/osct/spread-1/");
-    expect((await call("get_spread", { book: "osct", spread: "studio-b" })).data.spread).toMatchObject({ firstPage: 32, lastPage: 33 });
+    // Nothing renumbers, and studio-b's pages 30–31 still come after 3–4: it keeps them
+    expect((await call("get_spread", { book: "osct", spread: "studio-b" })).data.spread).toMatchObject({ firstPage: 30, lastPage: 31 });
+    expect((await call("update_book", { book: "osct", sourceOfTruth: "digital" })).data.book.sourceOfTruth).toBe("digital");
     const back = await call("add_spread", { book: "osct", format: "back" });
     expect(back.data.spread).toMatchObject({ id: "back", format: "back", firstPage: 34 });
     const own = await call("put_spread", { book: "osct", spread: "spread-1", title: "Studio A – night", passes: [{ type: "vignette", strength: 0.8 }] });
@@ -324,10 +323,48 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect(full.data).toMatchObject({ deleted: false, impact: { spread: { id: "studio-b" }, entries: [{ id: "castle" }] } });
     expect(full.data.next).toContain("Show the person the impact");
     expect((await remove("delete_spread", { book: "osct", spread: "back" })).second.ok).toBe(true);
-    expect((await remove("delete_spread", { book: "osct", spread: "spread-1" })).second.data.moved).toMatchObject({ spreads: 1 });
+    expect((await remove("delete_spread", { book: "osct", spread: "spread-1" })).second.data.moved).toMatchObject({ spreads: 0 });
     expect((await call("get_spread", { book: "osct", spread: "studio-b" })).data.spread).toMatchObject({ firstPage: 30, lastPage: 31 });
     expect((await call("put_environment", { book: "osct", environment: null })).data.environment).toBeNull();
     expect((await call("put_book_passes", { book: "osct", passes: null })).data.passes).toBeNull();
+  });
+
+  it("scenes (#307): migrates, adds and moves scenes, groups them – the draft passes the shipped guard and an older app places every entry", async () => {
+    /** The draft as an app before schema 2.35 reads it: the guard passes, every entry lies on the first spread whose pages hold its page – its scene */
+    const olderAppReads = async () => {
+      const draft = (await call("get_draft", { book: "osct" })).data.configuration;
+      expect(() => assertGameConfiguration(draft, { unknownComponentTypes: "allow" })).not.toThrow();
+      for (const entry of draft.entries) {
+        const spread = draft.spreads.find((s: any) => entry.page >= s.firstPage && entry.page <= s.lastPage);
+        expect(spread?.id, entry.id).toBe(entry.scene);
+      }
+      return draft;
+    };
+    await olderAppReads();
+    const plan = await call("migrate_scenes", { book: "osct" });
+    expect(plan.ok, JSON.stringify(plan.data)).toBe(true);
+    expect(plan.data).toMatchObject({ applied: false, plan: { upToDate: false, counts: { scenes: 2, surfaces: 4 } } });
+    expect(plan.data.next).toContain("apply: true");
+    expect((await call("migrate_scenes", { book: "osct", apply: true })).data.applied).toBe(true);
+    expect((await call("migrate_scenes", { book: "osct", apply: true })).data.plan.upToDate).toBe(true);
+    const wall = await call("add_scene", { book: "osct", preset: "wall", before: "s1", id: "wall", label: "The wall" });
+    expect(wall.ok, JSON.stringify(wall.data)).toBe(true);
+    expect(wall.data.scene).toMatchObject({ id: "wall", label: "The wall", surfaces: [{ id: "wall", side: "wall" }] });
+    expect((await call("add_entry", { book: "osct", title: "On the wall", id: "on-the-wall", scene: "wall", surface: "wall" })).data.spreadId).toBe("wall");
+    const moving = await call("move_scenes", { book: "osct", scenes: ["studio-b"], position: 0 });
+    expect(moving.data).toMatchObject({ applied: false, plan: { order: ["studio-b", "wall", "s1"], moved: ["studio-b"] } });
+    expect((await call("move_scenes", { book: "osct", scenes: ["studio-b"], position: 0, apply: true })).data.applied).toBe(true);
+    const moved = await olderAppReads();
+    expect(moved.spreads.map((s: any) => s.id)).toEqual(["studio-b", "wall", "s1"]);
+    const grouped = await call("group_scenes", { book: "osct", label: "Studios", scenes: ["s1", "studio-b"], apply: true });
+    expect(grouped.data).toMatchObject({ applied: true, plan: { group: { id: "studios" }, order: ["studio-b", "s1", "wall"] } });
+    expect((await olderAppReads()).groups).toEqual([{ id: "studios", label: "Studios" }]);
+    const scenes = await call("list_scenes", { book: "osct" });
+    expect(scenes.data.groups).toEqual([{ id: "studios", label: "Studios", scenes: ["studio-b", "s1"] }]);
+    expect((await call("ungroup", { book: "osct", group: "studios" })).data.scenes).toEqual(["studio-b", "s1"]);
+    expect((await remove("delete_scene", { book: "osct", scene: "wall" })).second.data.deleted.entries).toEqual(["on-the-wall"]);
+    expect((await call("move_scenes", { book: "osct", scenes: ["s1"], position: 0, apply: true })).data.plan.order).toEqual(["s1", "studio-b"]);
+    await olderAppReads();
   });
 
   it("starts with an AI connection's token instead: no mail step, whoami names it, saves name it in the log, publish is refused (#142)", async () => {

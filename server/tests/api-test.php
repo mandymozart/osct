@@ -1639,11 +1639,10 @@ try {
     echo "editor: print first or digital first (#238)\n";
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
     check(($tree['book']['book']['sourceOfTruth'] ?? null) === 'print', 'an imported book starts print first');
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'cover'], $editor);
-    [$status2, $data2] = call($api, 'DELETE', '/editor/books/osct/spreads/' . $tree['spreads'][1]['id'], null, $editor);
-    check($status === 409 && $data['error']['code'] === 'print-first' && $status2 === 409 && $data2['error']['code'] === 'print-first',
-        'a print-first book takes no new spread and loses none → 409 print-first');
-    check(str_contains($data['error']['message'], 'digital first'), 'the refusal says how to change it');
+    // Scenes (#307): #238's restriction goes – a print-first book takes new scenes and loses them like a digital-first one
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/scenes', ['preset' => 'wall', 'id' => 'pf-wall'], $editor);
+    [$status2] = deleting($api, '/editor/books/osct/scenes/pf-wall', $editor);
+    check($status === 201 && $data['scene']['id'] === 'pf-wall' && $status2 === 200, '#307: a print-first book takes a new scene and loses it again (no 409 print-first)');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct', ['sourceOfTruth' => 'paper'], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-book', 'sourceOfTruth paper → 400 invalid-book');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct', ['sourceOfTruth' => 'digital'], $editor);
@@ -1664,7 +1663,8 @@ try {
 
     echo "editor: spread formats (content schema 2.3)\n";
     [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'cover'], $editor);
-    check($status === 201 && $data['spread'] === ['id' => 'cover', 'title' => 'Cover', 'firstPage' => 0, 'lastPage' => 0, 'format' => 'cover'], 'POST spreads cover → page 0, first');
+    check($status === 201 && ['id' => $data['spread']['id'], 'title' => $data['spread']['title'], 'firstPage' => $data['spread']['firstPage'], 'lastPage' => $data['spread']['lastPage'], 'format' => $data['spread']['format']]
+        === ['id' => 'cover', 'title' => 'Cover', 'firstPage' => 0, 'lastPage' => 0, 'format' => 'cover'] && array_column($data['spread']['surfaces'], 'side') === ['front'], 'POST spreads cover → page 0, first, its front as its surface (#307)');
     [$status] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'cover'], $editor);
     check($status === 409, 'a second cover → 409');
     [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'back', 'title' => 'Rückseite'], $editor);
@@ -1701,24 +1701,32 @@ try {
     check($status === 200, 'the castle is printed on page 3');
     [$buildBefore] = $draftOf();
     [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'spread'], $editor);
-    check($status === 201 && $data['spread'] === ['id' => 'spread-1', 'title' => 'Pages 5–6', 'firstPage' => 5, 'lastPage' => 6], 'POST spreads { format: spread } → a double page after the last one, before the back cover – titled by its pages (#298)');
-    check($data['moved'] === ['spreads' => 1, 'entries' => 1, 'targets' => 0], 'the back cover and the entry on page 99 are numbered on');
+    $pagesOfSpread = fn(array $spread) => [$spread['id'], $spread['title'], $spread['firstPage'], $spread['lastPage']];
+    check($status === 201 && $pagesOfSpread($data['spread']) === ['spread-1', 'Pages 5–6', 5, 6] && array_column($data['spread']['surfaces'], 'id') === ['left', 'right'],
+        'POST spreads { format: spread } → a double page after the last one, before the back cover – titled by its pages (#298), left and right its surfaces');
+    check($data['moved'] === ['spreads' => 0, 'entries' => 0, 'targets' => 0] && $data['pages'] === [['scene' => 'back', 'from' => [5, 5], 'to' => [7, 7]]],
+        '#307: nothing renumbers – only the pages older apps read move on (the back cover 5 → 7)');
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
     check($pagesOf($tree) === [['cover', 0, 0], ['s1', 1, 2], ['s2', 3, 4], ['spread-1', 5, 6], ['back', 7, 7]], 'the tree: the new spread before the back cover, the back on page 7');
     [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'spread', 'after' => 's1', 'title' => 'Between'], $editor);
-    check($status === 201 && $data['spread'] === ['id' => 'spread-2', 'title' => 'Between', 'firstPage' => 3, 'lastPage' => 4], 'POST spreads { after: s1 } → pages 3–4');
-    check($data['moved'] === ['spreads' => 3, 'entries' => 3, 'targets' => 1], 'between two: the later spreads, their entries and the printed page move');
+    check($status === 201 && $pagesOfSpread($data['spread']) === ['spread-2', 'Between', 3, 4], 'POST spreads { after: s1 } → pages 3–4 for older apps');
+    check($data['moved'] === ['spreads' => 0, 'entries' => 0, 'targets' => 0] && array_column($data['pages'], 'scene') === ['s2', 'spread-1', 'back'], '#307: between two – no row renumbered, the later scenes\' pages for older apps follow the order');
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
     check($pagesOf($tree) === [['cover', 0, 0], ['s1', 1, 2], ['spread-2', 3, 4], ['s2', 5, 6], ['spread-1', 7, 8], ['back', 9, 9]], 'pages numbered on: s2 5–6, spread-1 7–8, back 9');
     $castle = array_values(array_filter($tree['spreads'][3]['entries'], fn($e) => $e['id'] === 'castle'))[0] ?? null;
-    check(array_column($tree['spreads'][3]['entries'], 'page') === [5, 6] && ($castle['target']['print']['page'] ?? null) === 5, 'the entries moved with their spread: castle on 5 (and printed there), the link on 6');
-    check($tree['spreads'][2]['entries'] === [] && $tree['unassigned'][0]['page'] === 103, 'the new spread is empty; the entry in no spread moved on too');
+    check(array_column($tree['spreads'][3]['entries'], 'page') === [5, 6] && ($castle['target']['print']['page'] ?? null) === 3, 'the entries go with their scene: castle on 5, the link on 6 (older apps); the printed page is no more renumbered');
+    check($tree['spreads'][2]['entries'] === [] && $tree['unassigned'][0]['page'] === 99, 'the new spread is empty; the entry in no spread keeps its page');
+    $pdo = connect('test');
+    $storedRows = $pdo->query("SELECT id, first_page, last_page FROM spreads WHERE book_id = 'osct' AND id IN ('s2', 'back') ORDER BY id")->fetchAll(PDO::FETCH_NUM);
+    $castleRow = $pdo->query("SELECT page, spread_id FROM entries WHERE book_id = 'osct' AND id = 'castle'")->fetch(PDO::FETCH_NUM);
+    $pdo = null;
+    check(array_map(fn($r) => [(int) $r[1], (int) $r[2]], $storedRows) === [[5, 5], [3, 4]] && (int) $castleRow[0] === 3 && $castleRow[1] === 's2', '#307: the rows are not renumbered – s2 still stored as 3–4, the castle on page 3 of s2');
     [, $draftNow] = $draftOf();
     $entryPages = array_column($draftNow['entries'], 'page', 'id');
     check($draftNow['spreads'][3] === ['id' => 's2', 'title' => 'Two', 'firstPage' => 5, 'lastPage' => 6, 'note' => 'an extra field'] && $entryPages['castle'] === 5 && $entryPages['racoon'] === 1 && $entryPages['p0-seal'] === 0,
         'the draft: the moved spread keeps its fields, the earlier entries stay');
     [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'spread', 'after' => 'cover', 'id' => 'opening'], $editor);
-    check($status === 201 && $data['spread']['id'] === 'opening' && $data['spread']['firstPage'] === 1 && $data['moved']['spreads'] === 5, 'after the cover → pages 1–2 with the given id, everything after moves');
+    check($status === 201 && $data['spread']['id'] === 'opening' && $data['spread']['firstPage'] === 1 && $data['moved']['spreads'] === 0 && count($data['pages']) === 5, 'after the cover → pages 1–2 with the given id; the later scenes\' pages for older apps follow');
     [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'spread', 'after' => 'back'], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-spread', 'nothing after the back cover → 400');
     [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'spread', 'after' => 'nowhere'], $editor);
@@ -1781,8 +1789,8 @@ try {
     $first = $data['error']['confirmation']['id'] ?? '';
     check($status === 409 && $data['error']['code'] === 'confirm-delete' && preg_match('/^\d{10}\.[0-9a-f]{32}$/', $first) === 1
         && strtotime($data['error']['confirmation']['expiresAt']) > time(), 'without confirm → 409 confirm-delete with a confirmation id that expires');
-    check(($impact['spread'] ?? null) === ['id' => 'doomed', 'title' => 'Doomed', 'firstPage' => 5, 'lastPage' => 6, 'format' => 'spread'] && $impact['pagesBack'] === 2 && $impact['kind'] === 'spread',
-        'the impact: the spread, the pages that move back');
+    check(($impact['spread'] ?? null) === ['id' => 'doomed', 'title' => 'Doomed', 'firstPage' => 5, 'lastPage' => 6, 'format' => 'spread'] && $impact['pagesBack'] === 0 && $impact['kind'] === 'spread'
+        && $impact['pages'] === [['scene' => 'back', 'from' => [7, 7], 'to' => [5, 5]]], 'the impact: the spread; nothing renumbers – only the back cover\'s pages for older apps (#307)');
     check($impact['counts'] === ['entries' => 3, 'targets' => 3, 'entities' => 2, 'keptEntities' => 1, 'filesOnlyHere' => 2, 'filesElsewhere' => 1]
         && array_column($impact['entries'], 'id') === ['e1', 'e2', 'e3'] && array_column($impact['targets'], 'id') === ['e1', 'e2', 'e3'], 'the impact counts: 3 entries, 3 targets, 2 entities, 1 kept, 2 files only here, 1 elsewhere');
     check($impact['entities'] === [['ref' => 'lamp', 'type' => 'model', 'shared' => true, 'targets' => ['e3']], ['ref' => null, 'type' => 'image', 'shared' => false, 'targets' => ['e2']]]
@@ -1818,7 +1826,7 @@ try {
     check($status === 500 && count($tree['spreads'][3]['entries']) === 3 && isset($entities['entities']['lamp']), 'the spread\'s row refused: entries, targets and the entity are all still there (rolled back)');
     [$status, $data] = call($api, 'DELETE', '/editor/books/osct/spreads/doomed', ['confirm' => $fresh], $editor);
     check($status === 200 && $data['deleted'] === ['spread' => 'doomed', 'entries' => ['e1', 'e2', 'e3'], 'targets' => ['e1', 'e2', 'e3'], 'entities' => ['lamp'], 'files' => []]
-        && $data['moved'] === ['spreads' => 1, 'entries' => 1, 'targets' => 0], 'confirmed → 200: exactly what the impact listed; the back cover and the entry on page 101 move back');
+        && $data['moved'] === ['spreads' => 0, 'entries' => 0, 'targets' => 0], 'confirmed → 200: exactly what the impact listed; nothing renumbered');
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
     [, $entities] = call($api, 'GET', '/editor/books/osct/entities', null, $editor);
     check($pagesOf($tree) === [['cover', 0, 0], ['s1', 1, 2], ['s2', 3, 4], ['back', 5, 5]] && $tree['unassigned'][0]['page'] === 99
@@ -1858,6 +1866,229 @@ try {
     call($api, 'DELETE', "/editor/books/osct/assets/{$onlyB['id']}", null, $editor);
     call($api, 'PUT', '/editor/books/osct/spreads/s2', ['title' => 'Two'], $editor);
     check($draftOf()[0] === $buildStart, 'cleaned up: the same draft as before');
+
+    echo "editor: scenes – order, surfaces, groups and the pages older apps read (#307 phase 2)\n";
+    // A print-first book: the cover, front matter −2…−1, page 1 alone, 2–3, 4–5, 6–7, the back cover on 8
+    $scenesConfig = $configuration;
+    $scenesConfig['book'] = ['id' => 'scenes', 'title' => 'Scenes', 'author' => 'Someone'];
+    $scenesConfig['initialSpreadId'] = 's1';
+    $scenesConfig['spreads'] = [
+        ['id' => 'cover', 'title' => 'Cover', 'firstPage' => 0, 'lastPage' => 0, 'format' => 'cover'],
+        ['id' => 'front-1', 'title' => 'Front matter 1', 'firstPage' => -2, 'lastPage' => -1, 'matter' => 'front'],
+        ['id' => 's1', 'title' => '1', 'firstPage' => 1, 'lastPage' => 1],
+        ['id' => 's2', 'title' => '2–3', 'firstPage' => 2, 'lastPage' => 3],
+        ['id' => 's3', 'title' => '4–5', 'firstPage' => 4, 'lastPage' => 5],
+        ['id' => 's4', 'title' => '6–7', 'firstPage' => 6, 'lastPage' => 7],
+        ['id' => 'back', 'title' => 'Back cover', 'firstPage' => 8, 'lastPage' => 8, 'format' => 'back'],
+    ];
+    $sceneEntry = fn(string $id, int $page) => ['id' => $id, 'category' => 'text', 'title' => strtoupper($id), 'page' => $page, 'body' => '', 'tags' => []];
+    $scenesConfig['entries'] = [$sceneEntry('a', 1), $sceneEntry('b', 3), $sceneEntry('c', 4) + ['target' => ['id' => 'c', 'imageSrc' => '/assets/content/entries/racoon/img.jpg']],
+        $sceneEntry('d', 5), $sceneEntry('e', 7), $sceneEntry('f', 8), $sceneEntry('g', -2), $sceneEntry('lost', 99)];
+    unset($scenesConfig['plugins']);
+    [$status] = importing($api, 'scenes', $editor, json_encode(['configuration' => $scenesConfig, 'files' => $files], $flags));
+    check($status === 200, '#307: a print-first book of seven spreads imported');
+    $sceneDraft = function () use ($api, $editor): array {
+        [, $m] = call($api, 'GET', '/editor/books/scenes/draft/latest.json?t=' . mt_rand(), null, $editor);
+        [, $d] = call($api, 'GET', "/editor/books/scenes/draft/{$m['build']}/game.config.json", null, $editor);
+        return [$m['build'], $d];
+    };
+    $sceneOrder = function () use ($api, $editor): array {
+        [, $data] = call($api, 'GET', '/editor/books/scenes/scenes', null, $editor);
+        return array_column($data['scenes'] ?? [], 'id');
+    };
+    // What an app before schema 2.35 does with the content: an entry is on the first spread whose pages hold its page
+    $oldAppKeepsUp = function (array $config): bool {
+        $ranges = [];
+        foreach ($config['spreads'] as $s) $ranges[] = [$s['id'], $s['firstPage'], $s['lastPage'], ($s['format'] ?? null) === 'cover'];
+        // The ranges never overlap, and (but for the front cover) go up in order – the guard's and the old apps' terms
+        $last = null;
+        foreach ($ranges as $i => [$id, $first, $lastPage, $cover]) {
+            if ($lastPage < $first) return false;
+            foreach ($ranges as $j => $other) if ($j !== $i && $first <= $other[2] && $lastPage >= $other[1]) return false;
+            if (!$cover) {
+                if ($last !== null && $first <= $last) return false;
+                $last = $lastPage;
+            }
+        }
+        foreach ($config['entries'] as $entry) {
+            if (!isset($entry['scene'])) continue;
+            $found = null;
+            foreach ($ranges as [$id, $first, $lastPage]) if ($entry['page'] >= $first && $entry['page'] <= $lastPage) { $found = $id; break; }
+            if ($found !== $entry['scene']) return false;
+        }
+        return true;
+    };
+    [$importBuild, $importDraft] = $sceneDraft();
+    check($oldAppKeepsUp($importDraft) && array_column($importDraft['entries'], 'page', 'id') === ['a' => 1, 'b' => 3, 'c' => 4, 'd' => 5, 'e' => 7, 'f' => 8, 'g' => -2, 'lost' => 99],
+        '#307: as imported, every scene keeps its printed pages (the front cover before the front matter included)');
+
+    // The migration: surfaces, labels and groups from the pages – the plan first
+    [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes/migrate', null, $editor);
+    $plan = $data['plan'] ?? [];
+    $planned = array_column($plan['scenes'] ?? [], null, 'scene');
+    check($status === 200 && $data['applied'] === false && $plan['upToDate'] === false
+        && $plan['counts'] === ['scenes' => 7, 'scenesWithSurfaces' => 7, 'surfaces' => 12, 'groups' => 1, 'entriesPlaced' => 7, 'entriesUnplaced' => 1],
+        '#307 migrate: the plan counts 7 scenes, 12 surfaces, the front matter group, 7 entries placed and 1 it cannot place');
+    $labels = fn(array $surfaces) => array_map(fn($s) => [$s['id'], $s['label'] ?? null], $surfaces);
+    check($labels($planned['s2']['surfaces']) === [['left', '2'], ['right', '3']] && $labels($planned['s1']['surfaces']) === [['left', null], ['right', '1']]
+        && $labels($planned['front-1']['surfaces']) === [['left', null], ['right', null]] && $labels($planned['cover']['surfaces']) === [['front', null]]
+        && $labels($planned['back']['surfaces']) === [['back', null]] && ($planned['front-1']['group'] ?? null) === 'front-matter',
+        '#307 migrate: a double page left and right labelled with its numbers, page 1 alone with its unnumbered half, the matter and covers without labels, the front matter grouped');
+    check(array_column($plan['entries']['unplaced'], 'id') === ['lost'] && array_column($plan['entries']['placed'], 'surface', 'entry') === ['a' => 'right', 'b' => 'right', 'c' => 'left', 'd' => 'right', 'e' => 'right', 'f' => 'back', 'g' => 'left']
+        && $plan['groups'] === [['id' => 'front-matter', 'label' => 'Front matter', 'scenes' => ['front-1'], 'new' => true]] && $plan['pageImages']['count'] === 0,
+        '#307 migrate: every entry on the surface its page lies on; the entry on no scene is listed; page images stay (none here)');
+    [, $overview] = call($api, 'GET', '/editor/books/scenes/scenes', null, $editor);
+    check(array_sum(array_map(fn($s) => count($s['surfaces']), $overview['scenes'])) === 0 && $overview['groups'] === [], '#307 migrate: … and the plan wrote nothing');
+    [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes/migrate', ['apply' => true], $editor);
+    [, $overview] = call($api, 'GET', '/editor/books/scenes/scenes', null, $editor);
+    $byScene = array_column($overview['scenes'], null, 'id');
+    check($status === 200 && $data['applied'] === true && array_column($byScene['s3']['surfaces'], 'label') === ['4', '5'] && $byScene['front-1']['group'] === 'front-matter'
+        && $overview['groups'] === [['id' => 'front-matter', 'label' => 'Front matter', 'scenes' => ['front-1']]] && $byScene['s3']['entries'] === 2 && $byScene['s3']['targets'] === 1,
+        '#307 migrate apply: the scenes have their surfaces and labels, the group its scene; GET …/scenes counts entries and targets');
+    [$migratedBuild, $migrated] = $sceneDraft();
+    $entriesOf = fn(array $config) => array_column($config['entries'], null, 'id');
+    check(($migrated['groups'] ?? null) === [['id' => 'front-matter', 'label' => 'Front matter']] && $entriesOf($migrated)['a']['scene'] === 's1' && $entriesOf($migrated)['a']['surface'] === 'right'
+        && array_column($migrated['entries'], 'page', 'id') === array_column($importDraft['entries'], 'page', 'id') && $oldAppKeepsUp($migrated)
+        && array_column($migrated['spreads'], 'firstPage', 'id') === array_column($importDraft['spreads'], 'firstPage', 'id'),
+        '#307 migrate apply: the draft carries groups, scenes and surfaces – every page as before');
+    [, $changes] = call($api, 'GET', '/editor/books/scenes/changes?limit=500', null, $editor);
+    check(count(array_filter($changes['changes'], fn($c) => $c['kind'] === 'spread')) === 7 && count(array_filter($changes['changes'], fn($c) => $c['kind'] === 'entry')) === 7
+        && count(array_filter($changes['changes'], fn($c) => $c['kind'] === 'groups')) === 1, '#307 migrate apply: a change per scene, entry and the groups');
+    [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes/migrate', ['apply' => true], $editor);
+    check($status === 200 && $data['applied'] === false && $data['plan']['upToDate'] === true && $data['plan']['counts']['surfaces'] === 0 && $sceneDraft()[0] === $migratedBuild,
+        '#307 migrate: again – nothing left to do (idempotent)');
+
+    // Add a scene anywhere – nothing renumbers; the pages older apps read follow the order
+    [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes', ['preset' => 'foldout', 'after' => 's2', 'id' => 'fold'], $editor);
+    check($status === 201 && $data['position'] === 4 && array_column($data['scene']['surfaces'], 'side') === ['left', 'middle', 'right'] && $data['scene']['firstPage'] === 4
+        && $data['scene']['lastPage'] === 6 && $data['scene']['title'] === 'Pages 4–6' && array_column($data['pages'], 'scene') === ['s3', 's4', 'back'],
+        '#307: a fold-out of three after s2 in a print-first book → older apps read it as pages 4–6, the later scenes follow');
+    $pdo = connect('test');
+    $storedPages = array_map(fn($r) => [(string) $r[0], (int) $r[1], (int) $r[2]], $pdo->query("SELECT id, first_page, last_page FROM spreads WHERE book_id = 'scenes' ORDER BY position")->fetchAll(PDO::FETCH_NUM));
+    $storedEntries = array_map('intval', array_column($pdo->query("SELECT id, page FROM entries WHERE book_id = 'scenes' ORDER BY id")->fetchAll(PDO::FETCH_NUM), 1, 0));
+    $pdo = null;
+    check(array_slice($storedPages, 5) === [['s3', 4, 5], ['s4', 6, 7], ['back', 8, 8]] && $storedPages[4] === ['fold', 9, 11] && $storedEntries['c'] === 4 && $storedEntries['e'] === 7,
+        '#307: no row renumbered – s3, s4 and the back cover keep their pages, the new scene is stored after every other');
+    [, $added] = $sceneDraft();
+    check($oldAppKeepsUp($added) && array_column($added['entries'], 'page', 'id')['c'] === 7 && array_column($added['entries'], 'page', 'id')['d'] === 8,
+        '#307: the draft passes an app before 2.35 – every entry on its scene (c on 7, d on 8 – by their surfaces)');
+    foreach ([[['preset' => 'poster'], 400, 'invalid-scene'], [['preset' => 'single', 'after' => 'nowhere'], 400, 'unknown-scene'], [['preset' => 'single', 'id' => 's1'], 409, 'duplicate-id'],
+        [['preset' => 'single', 'after' => 's1', 'position' => 2], 400, 'invalid-scene'], [['preset' => 'single', 'group' => 'nope'], 400, 'unknown-group']] as [$body, $code, $error]) {
+        [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes', $body, $editor);
+        check($status === $code && ($data['error']['code'] ?? null) === $error, "#307: POST …/scenes " . json_encode($body) . " → $code $error");
+    }
+    // An entry by scene and surface
+    [$status, $data] = call($api, 'POST', '/editor/books/scenes/entries', ['title' => 'On the fold', 'id' => 'folded', 'scene' => 'fold', 'surface' => 'middle'], $editor);
+    check($status === 201 && $data['spreadId'] === 'fold' && $data['entry']['surface'] === 'middle' && $data['entry']['page'] === 5, '#307: POST entries { scene, surface } → on the fold-out\'s middle, page 5 for older apps');
+    [$status, $data] = call($api, 'POST', '/editor/books/scenes/entries', ['title' => 'Nowhere', 'scene' => 'fold', 'surface' => 'top'], $editor);
+    [$status2, $data2] = call($api, 'POST', '/editor/books/scenes/entries', ['title' => 'Nowhere', 'scene' => 'nope'], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-entry' && $status2 === 400 && $data2['error']['code'] === 'unknown-scene', '#307: a surface the scene does not have, a scene the book does not have → 400');
+    [$status, $data] = call($api, 'POST', '/editor/books/scenes/entries', ['title' => 'By page', 'id' => 'by-page', 'page' => 8], $editor);
+    check($status === 201 && $data['spreadId'] === 's3' && $data['entry']['surface'] === 'right' && $data['entry']['page'] === 8, '#307: an older client\'s page finds the scene the editor shows there (s3 on 7–8 now), and the surface');
+    [$withFold] = $sceneDraft();
+
+    // Move one scene – a plan first
+    [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes/move', ['scenes' => ['s4'], 'after' => 'front-1'], $editor);
+    check($status === 200 && $data['applied'] === false && $data['plan']['order'] === ['cover', 'front-1', 's4', 's1', 's2', 'fold', 's3', 'back'] && $data['plan']['moved'] === ['s4'] && $data['plan']['pages'] !== []
+        && $sceneOrder() === ['cover', 'front-1', 's1', 's2', 'fold', 's3', 's4', 'back'], '#307 move: the plan – the new order, what moves, the pages older apps read – and nothing written');
+    [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes/move', ['scenes' => ['s4'], 'after' => 'front-1', 'apply' => true], $editor);
+    [, $moved] = $sceneDraft();
+    [, $log] = call($api, 'GET', '/editor/books/scenes/changes?limit=1', null, $editor);
+    check($status === 200 && $data['applied'] === true && $sceneOrder() === ['cover', 'front-1', 's4', 's1', 's2', 'fold', 's3', 'back'] && array_column($moved['spreads'], 'id') === $sceneOrder()
+        && $log['changes'][0]['kind'] === 'order' && $log['changes'][0]['after'][2] === 's4', '#307 move apply: the order written, the change log has it');
+    check($oldAppKeepsUp($moved) && array_column($moved['spreads'], 'firstPage', 'id')['s4'] === 1 && array_column($moved['entries'], 'page', 'id')['e'] === 2,
+        '#307 move: the moved draft passes an app before 2.35 – s4 now reads as pages 1–2, its entry e on 2; every entry on its scene');
+    $pdo = connect('test');
+    $storedAfterMove = array_map('intval', array_column($pdo->query("SELECT id, page FROM entries WHERE book_id = 'scenes' ORDER BY id")->fetchAll(PDO::FETCH_NUM), 1, 0));
+    $pdo = null;
+    check(array_intersect_key($storedAfterMove, $storedEntries) === $storedEntries, '#307 move: no entry renumbered in the rows');
+    [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes/move', ['scenes' => ['s4'], 'after' => 's3', 'apply' => true], $editor);
+    check($status === 200 && $sceneDraft()[0] === $withFold, '#307 move: moved back → the same draft as before');
+    foreach ([[['scenes' => ['s4']], 'invalid-move'], [['scenes' => [], 'position' => 0], 'invalid-move'], [['scenes' => ['s4'], 'after' => 's4'], 'invalid-move'],
+        [['scenes' => ['nope'], 'position' => 0], 'unknown-scene'], [['scenes' => ['s4'], 'group' => 'nope'], 'unknown-group']] as [$body, $error]) {
+        [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes/move', $body, $editor);
+        check($status === 400 && ($data['error']['code'] ?? null) === $error, "#307 move " . json_encode($body) . " → 400 $error");
+    }
+
+    // Groups: from picked scenes, rename, into and out of a group, ungroup
+    [$status, $data] = call($api, 'POST', '/editor/books/scenes/groups', ['label' => 'Chapter one', 'scenes' => ['s3', 's1']], $editor);
+    check($status === 200 && $data['applied'] === false && $data['plan']['group'] === ['id' => 'chapter-one', 'label' => 'Chapter one']
+        && $data['plan']['order'] === ['cover', 'front-1', 's1', 's3', 's2', 'fold', 's4', 'back'] && $data['plan']['moved'] === ['s3'] && $sceneOrder()[3] === 's2',
+        '#307 group: the plan brings the picked scenes together where the first of them is – nothing written yet');
+    [$status, $data] = call($api, 'POST', '/editor/books/scenes/groups', ['label' => 'Chapter one', 'scenes' => ['s3', 's1'], 'apply' => true], $editor);
+    [, $overview] = call($api, 'GET', '/editor/books/scenes/scenes', null, $editor);
+    check($status === 200 && $data['applied'] === true && array_column($overview['scenes'], 'id') === ['cover', 'front-1', 's1', 's3', 's2', 'fold', 's4', 'back']
+        && $overview['groups'][1] === ['id' => 'chapter-one', 'label' => 'Chapter one', 'scenes' => ['s1', 's3']], '#307 group apply: the group with its scenes, together');
+    [, $grouped] = $sceneDraft();
+    check($oldAppKeepsUp($grouped) && array_column($grouped['spreads'], 'group', 'id')['s3'] === 'chapter-one' && count($grouped['groups']) === 2, '#307 group: the draft carries the group – and an app before 2.35 still places every entry');
+    [$status, $data] = call($api, 'PUT', '/editor/books/scenes/groups/chapter-one', ['label' => 'The first chapter'], $editor);
+    [$status2] = call($api, 'PUT', '/editor/books/scenes/groups/nope', ['label' => 'x'], $editor);
+    [$status3, $data3] = call($api, 'PUT', '/editor/books/scenes/groups/chapter-one', ['label' => '  '], $editor);
+    check($status === 200 && $data['group'] === ['id' => 'chapter-one', 'label' => 'The first chapter'] && $status2 === 404 && $status3 === 400 && $data3['error']['code'] === 'invalid-group', '#307 group: renamed; an unknown group 404, an empty label 400');
+    [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes/move', ['scenes' => ['fold'], 'group' => 'chapter-one', 'apply' => true], $editor);
+    check($status === 200 && $sceneOrder() === ['cover', 'front-1', 's1', 's3', 'fold', 's2', 's4', 'back'] && $data['plan']['groups'] === [['scene' => 'fold', 'from' => null, 'to' => 'chapter-one']],
+        '#307 move into a group: after its last scene, the group set');
+    [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes/move', ['scenes' => ['s3'], 'group' => null, 'apply' => true], $editor);
+    [, $overview] = call($api, 'GET', '/editor/books/scenes/scenes', null, $editor);
+    check($status === 200 && array_column($overview['scenes'], 'id') === ['cover', 'front-1', 's1', 'fold', 's3', 's2', 's4', 'back'] && $overview['groups'][1]['scenes'] === ['s1', 'fold']
+        && array_column($overview['scenes'], 'group', 'id')['s3'] === null, '#307 move out of a group: from its middle to right after it, without a group');
+    [$status, $data] = call($api, 'DELETE', '/editor/books/scenes/groups/chapter-one', null, $editor);
+    [, $overview] = call($api, 'GET', '/editor/books/scenes/scenes', null, $editor);
+    check($status === 200 && $data === ['ungrouped' => 'chapter-one', 'scenes' => ['s1', 'fold']] && array_column($overview['scenes'], 'id') === ['cover', 'front-1', 's1', 'fold', 's3', 's2', 's4', 'back']
+        && count($overview['groups']) === 1 && array_column($overview['scenes'], 'group', 'id')['fold'] === null, '#307 ungroup: the group goes, its scenes stay in place and in order');
+    [$status] = call($api, 'DELETE', '/editor/books/scenes/groups/chapter-one', null, $editor);
+    check($status === 404, '#307 ungroup: a group that is gone → 404');
+
+    // A scene's own fields: surfaces, layout, label, group – surfaces with entries on them go only with apply
+    [$status, $data] = call($api, 'PUT', '/editor/books/scenes/scenes/s2', ['label' => 'Two and three', 'layout' => 'fixed', 'group' => 'front-matter',
+        'surfaces' => [['id' => 'left', 'side' => 'left', 'label' => 'ii'], ['id' => 'right', 'side' => 'right', 'label' => 'iii', 'widthMm' => 210]]], $editor);
+    check($status === 200 && $data['scene']['label'] === 'Two and three' && $data['scene']['layout'] === 'fixed' && $data['scene']['group'] === 'front-matter'
+        && $data['scene']['surfaces'][1] === ['id' => 'right', 'side' => 'right', 'widthMm' => 210, 'heightMm' => 320, 'label' => 'iii'] && $data['cleared'] === [],
+        '#307 PUT scene: label, layout, group and surfaces (a size and a label each, a page\'s size by default)');
+    [$status, $data] = call($api, 'PUT', '/editor/books/scenes/scenes/s2', ['surfaces' => [['id' => 'left', 'side' => 'left']]], $editor);
+    check($status === 409 && $data['error']['code'] === 'surfaces-in-use' && array_column($data['error']['entries'], 'id') === ['b'], '#307 PUT scene: a surface an entry lies on goes only with apply → 409 surfaces-in-use names the entry');
+    [$status, $data] = call($api, 'PUT', '/editor/books/scenes/scenes/s2', ['surfaces' => [['id' => 'left', 'side' => 'left']], 'apply' => true], $editor);
+    [, $edited] = $sceneDraft();
+    check($status === 200 && $data['cleared'] === ['b'] && !isset($entriesOf($edited)['b']['surface']) && $entriesOf($edited)['b']['scene'] === 's2' && $oldAppKeepsUp($edited),
+        '#307 PUT scene with apply: the entry stays on the scene without a surface');
+    foreach ([[['surfaces' => [['id' => 'x', 'side' => 'Left']]], 'invalid-scene'], [['surfaces' => [['id' => 'x', 'side' => 'left'], ['id' => 'x', 'side' => 'right']]], 'invalid-scene'],
+        [['layout' => 'stacked'], 'invalid-scene'], [['group' => 'nope'], 'unknown-group'], [['surfaces' => [['id' => 'x', 'side' => 'left', 'widthMm' => 0]]], 'invalid-scene']] as [$body, $error]) {
+        [$status, $data] = call($api, 'PUT', '/editor/books/scenes/scenes/s2', $body, $editor);
+        check($status === 400 && ($data['error']['code'] ?? null) === $error, "#307 PUT scene " . json_encode($body) . " → 400 $error");
+    }
+    call($api, 'PUT', '/editor/books/scenes/scenes/s2', ['group' => null, 'label' => null], $editor);
+
+    // An entry's scene and surface; an older client's page
+    [$status, $data] = call($api, 'PUT', '/editor/books/scenes/entries/e', ['scene' => 'fold', 'surface' => 'right'], $editor);
+    [, $tree] = call($api, 'GET', '/editor/books/scenes', null, $editor);
+    $foldRange = array_column($tree['spreads'], null, 'id')['fold'];
+    check($status === 200 && $data['spreadId'] === 'fold' && $data['previousSpreadId'] === 's4' && $data['entry']['surface'] === 'right' && $data['entry']['page'] === $foldRange['lastPage'],
+        '#307 PUT entry { scene, surface }: on the fold-out\'s right page');
+    $s4Range = array_column($tree['spreads'], null, 'id')['s4'];
+    [$status, $data] = call($api, 'PUT', '/editor/books/scenes/entries/e', ['page' => $s4Range['lastPage']], $editor);
+    check($status === 200 && $data['spreadId'] === 's4' && $data['entry']['surface'] === 'right' && $data['entry']['page'] === $s4Range['lastPage'],
+        '#307 PUT entry { page } (an older client): the scene the tree shows there, and its surface');
+    [$status, $data] = call($api, 'PUT', '/editor/books/scenes/entries/e', ['surface' => 'middle'], $editor);
+    [$status2, $data2] = call($api, 'PUT', '/editor/books/scenes/entries/e', ['scene' => null], $editor);
+    [$status3] = call($api, 'PUT', '/editor/books/scenes/entries/e', ['scene' => 's4', 'surface' => 'right'], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-entry' && $status2 === 200 && $data2['spreadId'] === null && !isset($data2['entry']['surface']) && $status3 === 200,
+        '#307 PUT entry: a surface its scene does not have → 400; scene null → on no scene; and back');
+
+    // Delete a scene: the impact first, nothing renumbers
+    [$status, $data] = call($api, 'DELETE', '/editor/books/scenes/scenes/fold', null, $editor);
+    check($status === 409 && $data['error']['code'] === 'confirm-delete' && array_column($data['error']['impact']['entries'], 'id') === ['folded'] && $data['error']['impact']['pagesBack'] === 0,
+        '#307 DELETE scene: 409 confirm-delete with its entry – nothing moves back');
+    [$status, $data] = deleting($api, '/editor/books/scenes/scenes/fold', $editor);
+    $pdo = connect('test');
+    $storedAfterDelete = array_map(fn($r) => [(string) $r[0], (int) $r[1], (int) $r[2]], $pdo->query("SELECT id, first_page, last_page FROM spreads WHERE book_id = 'scenes' ORDER BY position")->fetchAll(PDO::FETCH_NUM));
+    $pdo = null;
+    [, $afterDelete] = $sceneDraft();
+    check($status === 200 && $data['deleted']['spread'] === 'fold' && $data['moved'] === ['spreads' => 0, 'entries' => 0, 'targets' => 0]
+        && array_column($storedAfterDelete, 0) === ['cover', 'front-1', 's1', 's3', 's2', 's4', 'back'] && array_column($storedAfterDelete, 1) === [0, -2, 1, 4, 2, 6, 8]
+        && $oldAppKeepsUp($afterDelete), '#307 DELETE scene confirmed: gone, the rows keep their pages, the draft still passes an app before 2.35');
+    call($api, 'POST', '/editor/books/scenes/scenes/move', ['scenes' => ['s2'], 'after' => 's1', 'apply' => true], $editor);
+    [, $restored] = $sceneDraft();
+    check(array_column($restored['spreads'], 'firstPage', 'id') === array_column($importDraft['spreads'], 'firstPage', 'id'), '#307: in the printed order again → every scene reads its printed pages again');
 
     echo "editor: the book's environment (content schema 2.8)\n";
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => ['world' => 'cafe', 'onionSky' => false]], $editor);

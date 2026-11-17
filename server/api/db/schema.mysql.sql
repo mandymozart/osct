@@ -337,3 +337,7 @@ CREATE TABLE IF NOT EXISTS `asset_names` (
   PRIMARY KEY (`book_id`, `url`),
   CONSTRAINT `asset_names_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Scenes (#307 phase 2): the book's groups – a label over several scenes (`GroupData[]`, the content's root `groups`);
+-- a scene (a `spreads` row) names its group in its data_json (`group`), with its surfaces, layout and label
+ALTER TABLE `books` ADD COLUMN `groups_json` TEXT NOT NULL DEFAULT '[]';

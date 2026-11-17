@@ -43,6 +43,7 @@ import {
   type PluginData,
 } from "../../shared/types/game-config";
 import { DEFAULT_ENVIRONMENT, ENVIRONMENT_WORLDS, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS } from "../../shared/types/environment";
+import { SCENE_PRESETS } from "../../shared/api/editor";
 import { ENTRY_CATEGORIES } from "../../shared/types/entry";
 import type { SourceTypes } from "../../shared/api/rules";
 import { IMAGE_MAX_PIXELS, IMAGE_MAX_SIDE, IMAGE_WEBP_QUALITY } from "../../shared/api/images";
@@ -422,7 +423,7 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
       example: "Hello {name: **{name}**|stranger}.\n\n{hasKey: The door opens.|The door is *locked*.} See [the map](https://example.org/map).",
     },
     book: {
-      description: "BookData: { id, title, author, publisher?, passes?, environment?, sourceOfTruth? }. update_book changes title, author and publisher – the reader's splash and home page show them – and sourceOfTruth: print (print first, the default: the spreads come from the printed book's layout) or digital (digital first: add_spread and delete_spread work).",
+      description: "BookData: { id, title, author, publisher?, passes?, environment?, sourceOfTruth? }. update_book changes title, author and publisher – the reader's splash and home page show them – and sourceOfTruth: print (print first, the default: the spreads come from the printed book's layout) or digital (digital first: the editor is the truth). Scenes are added, moved and removed in both (#307).",
       sourcesOfTruth: SOURCES_OF_TRUTH,
     },
     onboarding: {
@@ -430,8 +431,11 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     },
     spread: {
       description:
-        "SpreadData: { id, title, firstPage, lastPage, format?, matter?, passes? }. matter (front | back, content schema 2.32) marks a double page without printed numbers – front matter between the cover and page 1 (internal pages counting down to −1), back matter between the last printed page and the back cover; a print-first book gets them from its layout through an import, or from add_matter (the missing front and back matter, the last printed page's spread and the back cover moved after them – a print-first book too, plan first, then apply). add_spread adds a double page (later pages are numbered on by two), the front cover (page 0) or the back cover; delete_spread removes one with everything on it (two steps: the impact, then the confirmation); put_spread changes title, format and passes. " +
-        "Scenes (content schema 2.35, #307 – a spread is a scene, the type also named SceneData): optional surfaces: [{ id, side (left | middle | right | front | back | wall), widthMm, heightMm, label? }] – its physical areas, label written exactly as printed (\"41\", \"ii\", \"Cover\"), free text, never arithmetic; layout (fixed | free – side by side as printed, or each surface on its own anchor; none = fixed); group (the id of one of the book's groups: [{ id, label }] at the configuration's root); label (what the reader's switcher and credits show for the scene, else its surfaces' labels, else its pages or title). An older app ignores all of it. The tools do not edit them yet (phase 2 of #307).",
+        "SpreadData: { id, title, firstPage, lastPage, format?, matter?, passes? }. matter (front | back, content schema 2.32) marks a double page without printed numbers – front matter between the cover and page 1 (internal pages counting down to −1), back matter between the last printed page and the back cover; a print-first book gets them from its layout through an import, or from add_matter (the missing front and back matter, the last printed page's spread and the back cover moved after them – a print-first book too, plan first, then apply). add_spread adds a double page, the front cover or the back cover; delete_spread removes one with everything on it (two steps: the impact, then the confirmation); put_spread changes title, format and passes. " +
+        "Scenes (content schema 2.35, #307 – a spread is a scene, the type also named SceneData): optional surfaces: [{ id, side (left | middle | right | front | back | wall), widthMm, heightMm, label? }] – its physical areas, label written exactly as printed (\"41\", \"ii\", \"Cover\"), free text, never arithmetic; layout (fixed | free – side by side as printed, or each surface on its own anchor; none = fixed); group (the id of one of the book's groups: [{ id, label }] at the configuration's root); label (what the reader's switcher and credits show for the scene, else its surfaces' labels, else its pages or title). An older app ignores all of it. " +
+        "The order is the scenes' position – nothing renumbers (#307 phase 2): list_scenes reads them, add_scene adds one anywhere from a preset (" + SCENE_PRESETS.join(", ") + "), move_scenes moves one or several (or into / out of a group), put_scene edits surfaces, label, layout and group, delete_scene removes one; group_scenes / rename_group / ungroup handle groups; migrate_scenes gives a book's spreads their surfaces, labels and groups from their pages. An entry names its scene and surface (add_entry / update_entry scene, surface). " +
+        "firstPage / lastPage stay for apps before schema 2.35: the API writes a scene's stored range while the order allows, else one derived from the order, and every entry's page inside its scene's – those apps then show those numbers as pages.",
+      presets: SCENE_PRESETS,
       formats: SPREAD_FORMATS,
       matters: MATTERS,
       surfaceSides: SURFACE_SIDES,

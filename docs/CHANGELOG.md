@@ -7,6 +7,36 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+
+- **Scenes on the server** (#307 phase 2, `agents/SCENES.md`, docs/server.md "Scenes"): a book is an ordered list of
+  scenes – the order is `spreads.position` only, an entry's scene is `entries.spread_id` (its own truth, never recomputed
+  from a page), its surface in the entry; groups in `books.groups_json` (migration: `ALTER TABLE books ADD COLUMN
+  groups_json`). New routes: `GET …/scenes`, `POST …/scenes` (a scene anywhere from a preset: single, double, cover, back,
+  fold-out of three, wall), `POST …/scenes/move` (one or several, to a place or into / out of a group – plan, then
+  `apply`), `PUT …/scenes/{id}` (surfaces, layout, label, group), `DELETE …/scenes/{id}`, `POST …/groups` (from picked
+  scenes – plan, then `apply`), `PUT …/groups/{gid}` (rename), `DELETE …/groups/{gid}` (ungroup, the scenes stay in place),
+  `POST …/scenes/migrate` (a book's spreads get surfaces labelled with the printed numbers, the front / back matter
+  their groups, every entry its surface – plan, then `apply`; idempotent). `POST …/entries` and `PUT …/entries/{id}`
+  take `scene` / `surface`; a `page` alone still finds its scene (older clients).
+- MCP: `list_scenes`, `add_scene`, `move_scenes`, `put_scene`, `delete_scene`, `group_scenes`, `rename_group`,
+  `ungroup`, `migrate_scenes`; `add_entry` / `update_entry` take `scene` / `surface` (docs/mcp.md).
+
+### Changed
+
+- **Nothing renumbers any more** (#307): adding, moving or removing a scene changes no other row's pages, no entry's
+  page, no `print.page` and no page image (`Books::renumber`, `Pages::shift` / `drop` and `Pages::reorder` are gone;
+  the matter's new spreads take their places in the order – `Pages::placeMatter`). `moved` is always zero, `pagesBack` 0.
+- **The pages older apps read** (RULES #10): the draft writes a scene's stored range while the ranges stay in order and
+  apart, else a range derived from the order, and every entry's `page` inside its scene's (`Scenes::ranges` /
+  `pageOf`); the editor's tree and the entries list show the same. Apps before schema 2.35 show those numbers as pages
+  after a scene moved out of its printed place – documented, accepted.
+- **Print-first books take new scenes and lose them like digital-first ones** (#238's restriction goes): `POST
+  …/spreads` and `DELETE …/spreads/{id}` no longer answer 409 `print-first`; a cover or back cover may be any one-page
+  scene.
+
 ## 1.98.0 – 2026-11-17
 
 ### Added

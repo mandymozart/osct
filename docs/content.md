@@ -690,6 +690,12 @@ range. `page` stays required in this MINOR – apps before 2.35 place every entr
 writing a page inside the scene's pages: the content build writes `scene` from the spread the page lies in, the editor's
 draft writes it from the spread the editor keeps the entry on (`entries.spread_id`), both still write `page`.
 
+**Pages after a reorder** (#307 phase 2): the server's order is the scenes' position and nothing renumbers, so a scene
+moved or added in the middle no longer fits its stored pages. The draft then writes that scene – and the later ones
+until a stored range fits again – a range **derived from the order** (sequential, never overlapping) and every entry's
+`page` inside its scene's range (docs/server.md "Scenes"). An app before 2.35 places every entry right and shows those
+numbers as page numbers; an app of 2.35 shows the labels.
+
 **Labels in the reader** – the most specific one: an entry's place (the entries list's page column, the entry's *Page*
 row) is its surface's label, else its page number (or the spread's title on a cover and front or back matter, as
 before); a scene in the page scroller and the image credits shows its own `label`, else its surfaces' labels (`40–41`,

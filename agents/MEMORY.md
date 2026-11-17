@@ -4,6 +4,26 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-17 – Scenes phase 2: the server keeps scenes (#307)
+- A scene = a `spreads` row; surfaces / layout / label / group in its `data_json`, groups in `books.groups_json` (a
+  column, not `book_json`: the content writes them at the root, not in `book`). Order = `spreads.position` only;
+  `entries.spread_id` is the entry's scene (set by `scene`, or once from a page an older client sends), its surface in
+  the entry's data. Nothing renumbers; `Books::renumber`, `Pages::shift` / `drop` / `reorder` are gone.
+- **Pages for older apps** (`Scenes::ranges`): a scene keeps its stored range while it comes after the scene before it
+  and before the next one's stored range (one-step look-ahead, so a moved scene is the one that gets derived, not all
+  after it); the front cover (page 0 before the front matter's negative pages) only has to stay apart. Else a derived
+  range right after the scene before, as wide as its own. A new scene is stored with pages after every other's (no
+  page images or layout sheets collide). Entry rows keep their page in the scene's stored numbers (`storedPage`);
+  `pageOf` writes stored page / surface place / same offset. Tree, entries list and routes show the derived numbers,
+  and an older client's `page` resolves among them first, then by a surface label.
+- Two steps by `apply: true` (as the matter): move, group, migrate, and a `PUT …/scenes/{id}` that removes a surface
+  entries lie on (409 `surfaces-in-use` first). Add, rename, ungroup are one step; delete keeps the confirmation id.
+- The migration labels single pages with both halves (the unnumbered half as a surface without label, as
+  `Pages::pagesOf`), covers and matter without labels, groups `front-matter` / `back-matter`; page images stay keyed by
+  page (phase 3). The orchestrator runs it on staging after showing Tilman the plan.
+- [ ] Until phase 3 the editor's print layout sheets (matched by page) follow the derived numbers of a scene moved out
+  of its printed place; a removed scene's page images stay orphaned (keyed by its pages).
+
 ## 2026-11-17 – Scenes phase 1: schema 2.35 (#307)
 - An entry's `scene` (a spread id) **wins over its `page`** in the engine and in an import; `page` stays required and is
   still written inside the scene's range (older apps place entries by it; the guard still checks the page lies in some

@@ -7,7 +7,7 @@
 import type { BookAppearance } from "../types/appearance";
 import type { ContentManifest } from "../types/content-manifest";
 import type { EnvironmentData } from "../types/environment";
-import type { BookData, EntityData, EntryData, PassData, SpreadData, TargetData } from "../types/game-config";
+import type { BookData, EntityData, EntryData, GroupData, PassData, SceneLayout, SpreadData, SpreadFormat, SurfaceData, TargetData } from "../types/game-config";
 import type { AssetKind, SourceTypes } from "./rules";
 
 // ── Books ──────────────────────────────────────────────────────────────────────────────────────────
@@ -58,19 +58,27 @@ export interface TreeEntry {
   id: string;
   category: string;
   title: string;
+  /** The page older apps read: inside its scene's range (#307 – `Scenes::pageOf`) */
   page: number;
+  /** The surface of its scene it lies on (#307), when it has one */
+  surface?: string;
   /** Its target (the entity inline or `{ ref }`), null when it has none */
   target: TargetData | null;
 }
 
-/** A spread in the tree: the spread as the content holds it, with the entries on its pages */
+/**
+ * A spread (a scene, #307) in the tree: the spread as the content holds it – `firstPage` / `lastPage` the range older apps
+ * read (`Scenes::ranges`) – with the entries on it
+ */
 export type TreeSpread = SpreadData & { entries: TreeEntry[] };
 
-/** `GET /editor/books/{id}`: the book, its spreads with their entries, and the entries whose page is in no spread */
+/** `GET /editor/books/{id}`: the book, its scenes in order with their entries, the entries on no scene, the groups */
 export interface BookTree {
   book: BookSummary;
   spreads: TreeSpread[];
   unassigned: TreeEntry[];
+  /** The book's groups (#307) – an API before scenes sends none */
+  groups?: GroupData[];
 }
 
 /** `GET /editor/books/{id}/draft/latest.json`: the draft's manifest – its build now (what a publish would write) */
@@ -246,7 +254,7 @@ export interface TargetSaved {
  * spread its page belongs to (null: none)
  */
 export interface EntryAdded {
-  entry: { id: string; category: string; title: string; page: number; body: string; tags: string[]; target?: TargetData };
+  entry: { id: string; category: string; title: string; page: number; body: string; tags: string[]; surface?: string; target?: TargetData };
   spreadId: string | null;
 }
 
@@ -285,10 +293,118 @@ export interface MovedRows {
   targets: number;
 }
 
-/** `POST /editor/books/{id}/spreads` → 201 */
+/** `POST /editor/books/{id}/spreads` → 201 – `moved` is zero since scenes (#307): nothing renumbers */
 export interface SpreadAdded {
   spread: SpreadData;
   moved: MovedRows;
+  /** The scenes whose page range older apps read changes (#307) – an API before scenes sends none */
+  pages?: ScenePageChange[];
+}
+
+// ── Scenes (#307, docs/server.md "Scenes") ───────────────────────────────────────────────────────────
+
+/** The layout presets a new scene starts from (`Scenes::PRESETS`) */
+export const SCENE_PRESETS = ["single", "double", "cover", "back", "foldout", "wall"] as const;
+export type ScenePreset = (typeof SCENE_PRESETS)[number];
+/** A page's size when a request names none (`Scenes::PAGE_MM`) */
+export const SCENE_PAGE_MM = { width: 230, height: 320 } as const;
+/** The most surfaces one scene has (`Scenes::SURFACES_MAX`) */
+export const SCENE_SURFACES_MAX = 32;
+
+/** A scene whose page range – what apps before schema 2.35 read – changes: [first, last] before and after */
+export interface ScenePageChange {
+  scene: string;
+  from: [number, number];
+  to: [number, number];
+}
+
+/** A scene of `GET /editor/books/{id}/scenes` */
+export interface SceneSummary {
+  id: string;
+  position: number;
+  title: string;
+  label: string | null;
+  format: SpreadFormat;
+  matter: "front" | "back" | null;
+  layout: SceneLayout | null;
+  group: string | null;
+  surfaces: SurfaceData[];
+  /** The range older apps read (`Scenes::ranges`) */
+  firstPage: number;
+  lastPage: number;
+  /** The range the scene is stored with (its printed pages, or after every other for a scene made here) */
+  stored: { firstPage: number; lastPage: number };
+  /** Whether `firstPage` / `lastPage` are derived from the order (not the stored range) */
+  derived: boolean;
+  entries: number;
+  targets: number;
+}
+
+/** `GET /editor/books/{id}/scenes`: the scenes in order and the groups with their scenes */
+export interface SceneList {
+  scenes: SceneSummary[];
+  groups: (GroupData & { scenes: string[] })[];
+}
+
+/** `POST /editor/books/{id}/scenes` → 201: the scene as the tree shows it, its place, the page changes for older apps */
+export interface SceneAdded {
+  scene: SpreadData;
+  position: number;
+  pages: ScenePageChange[];
+}
+
+/** `PUT /editor/books/{id}/scenes/{sceneId}` (= `PUT …/spreads/{id}`): the scene, and the entries whose surface went (`apply`) */
+export interface SceneSaved {
+  spread: SpreadData;
+  scene: SpreadData;
+  cleared: string[];
+}
+
+/** A new order (a move, a group): every id in order, the picked scenes that move, group changes, page changes */
+export interface SceneOrderPlan {
+  order: string[];
+  moved: string[];
+  groups: { scene: string; from: string | null; to: string | null }[];
+  pages: ScenePageChange[];
+}
+
+/** `POST /editor/books/{id}/scenes/move`: the plan, and whether it was written (`apply: true`) */
+export interface ScenesMoved {
+  plan: SceneOrderPlan;
+  applied: boolean;
+}
+
+/** `POST /editor/books/{id}/groups`: the group and its plan, and whether it was written */
+export interface GroupPlanned {
+  plan: SceneOrderPlan & { group: GroupData };
+  applied: boolean;
+}
+
+/** `PUT /editor/books/{id}/groups/{gid}` */
+export interface GroupSaved {
+  group: GroupData;
+}
+
+/** `DELETE /editor/books/{id}/groups/{gid}`: the group that went and its scenes (in place, without a group now) */
+export interface Ungrouped {
+  ungrouped: string;
+  scenes: string[];
+}
+
+/** `POST /editor/books/{id}/scenes/migrate`: what makes a book's spreads scenes, and whether it was written */
+export interface ScenesMigration {
+  plan: {
+    upToDate: boolean;
+    counts: { scenes: number; scenesWithSurfaces: number; surfaces: number; groups: number; entriesPlaced: number; entriesUnplaced: number };
+    scenes: { scene: string; surfaces?: SurfaceData[]; group?: string }[];
+    groups: (GroupData & { scenes: string[]; new: boolean })[];
+    entries: {
+      placed: { entry: string; scene: string; surface: string }[];
+      unplaced: { id: string; title: string; page: number; scene: string | null; reason: string }[];
+    };
+    pageImages: { count: number; note: string };
+  };
+  applied: boolean;
 }
 
 /** `PUT /editor/books/{id}/passes`: the book's post-processing, null when removed */
@@ -336,7 +452,7 @@ interface RemovalTakes {
 /** `details.impact` of a 409 confirm-delete (docs/server.md "Removing a spread or an entry") */
 export type RemovalImpact = RemovalTakes &
   (
-    | { kind: "spread"; spread: { id: string; title: string; firstPage: number; lastPage: number; format: string } }
+    | { kind: "spread"; spread: { id: string; title: string; firstPage: number; lastPage: number; format: string }; pages?: ScenePageChange[] }
     | { kind: "entry"; entry: { id: string; title: string; page: number; category: string; spread: string | null } }
   );
 
@@ -344,6 +460,8 @@ export type RemovalImpact = RemovalTakes &
 export interface RemovalResult {
   deleted: { spread: string | null; entries: string[]; targets: string[]; entities: string[]; files: string[] };
   moved: MovedRows;
+  /** A scene's removal: the scenes whose page range older apps read changes (#307) */
+  pages?: ScenePageChange[];
 }
 
 // ── Assets ───────────────────────────────────────────────────────────────────────────────────────────

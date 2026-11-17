@@ -41,6 +41,9 @@ cover and back; flows between scenes). Codebase analysis of 2026-11-17: summary 
 - *Since schema 2.35 (phase 1):* an entry's optional `scene` decides its spread (`engine/src/content/scenes.ts`
   `sceneIdOf`), the build and the draft write it on every entry, the server's import honours it. Everything below still
   derives from the page – the editor, the API's add/put, renumbering.
+- *Since phase 2 (server):* the API keeps scenes – order by position, `entries.spread_id` as the truth, surfaces / labels
+  / groups stored, nothing renumbers, print-first books take scenes too. The bullets below describe the state before it
+  for the server; the editor's own derivations and the page images remain for phase 3.
 - The content ties an entry to its spread **only** through `EntryData.page` (required). The guard
   (`shared/guards/game-config.ts:264`), the engine (`engine/src/content/game-config.ts:312 spreadForPage`, which
   throws on an unmatched page), the content build, the server import, `addEntry`/`putEntry` and MCP `get_spread` all
@@ -124,7 +127,13 @@ reorder, Shift/Ctrl to pick several, a group's own settings), which SCUTOONS wil
    schema 2.35 (`docs/content.md` "Scenes, surfaces, labels and groups"); `engine/src/content/scenes.ts`; the reader's
    labels; the build and the draft write `scene`. Left for phase 2: writing `surfaces`/`label`/`group`/`groups` anywhere
    (no writer fills them yet – only hand-made content has them), the editor's own page→spread derivations, MCP tools.
-2. **Server: scenes, order, surfaces, labels, groups; migration**; stop renumbering.
+2. [x] **Server: scenes, order, surfaces, labels, groups; migration**; stop renumbering. Done 2026-11-17: `Scenes.php`
+   (docs/server.md "Scenes"), `books.groups_json`, the routes `…/scenes`, `…/scenes/move`, `…/scenes/migrate`, `…/groups`;
+   entries take `scene` / `surface`; print-first books take scenes too; nothing renumbers. Older apps read a scene's stored
+   range while the order allows, else one derived from the order (`Scenes::ranges`), every entry's page inside it. MCP
+   tools (`list_scenes`, `add_scene`, `move_scenes`, `put_scene`, `group_scenes`, `ungroup`, `migrate_scenes` …) came with
+   it. Left: the migration on staging (the orchestrator, after Tilman saw the plan); page images → surface references
+   (phase 3).
 3. **Editor: scene overview, reference images, pickers**; the Pages view goes.
 4. **MCP and importers**.
 5. **Groups as loading windows**; free layouts with world tracking after #299.

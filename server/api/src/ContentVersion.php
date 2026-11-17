@@ -36,10 +36,11 @@ final class ContentVersion
         foreach (Db::run('SELECT entry_id, data_json FROM targets WHERE book_id = :book', $params)->fetchAll() as $row) {
             $targets[$row['entry_id']] = Editor::decode($row['data_json']);
         }
-        $spreads = [];
-        foreach (Db::run('SELECT data_json FROM spreads WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
-            $spreads[] = Editor::decode($row['data_json']);
-        }
+        // The scenes in order (#307): each with the page range older apps read – its stored one while the ranges stay in
+        // order and apart, else one derived from the order (`Scenes::ranges`, RULES #10)
+        $context = Scenes::context($bookId);
+        $groups = Scenes::groups($book);
+        $spreads = Scenes::shown($context, array_map(static fn($g) => (string) $g->id, $groups));
         // A spread without a title of its own shows its pages' (#298): the reader reads `title` (RULES #10)
         $spreads = Pages::withTitles($spreads);
         // A scene's surfaces by scene id (schema 2.35, #307) – an entry's `surface` must be one of its scene's
@@ -51,9 +52,11 @@ final class ContentVersion
         $entries = [];
         foreach (Db::run('SELECT id, spread_id, data_json FROM entries WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
             $entry = Editor::decode($row['data_json']);
-            // The entry's scene (schema 2.35, #307): `spread_id` is the truth the editor keeps (its page still written for
-            // older apps); a surface that is not on that scene (the entry moved) is dropped
-            $entry = self::withScene($entry, $row['spread_id'] === null ? null : (string) $row['spread_id']);
+            // The entry's scene (schema 2.35, #307): `spread_id` is the truth the editor keeps; its page is written inside
+            // the scene's range for older apps (`Scenes::pageOf`); a surface that is not on that scene is dropped
+            $scene = $row['spread_id'] === null || !isset($context['data'][$row['spread_id']]) ? null : (string) $row['spread_id'];
+            if ($scene !== null) $entry->page = Scenes::pageOf($context, $scene, $entry);
+            $entry = self::withScene($entry, $scene);
             if (property_exists($entry, 'surface') && !in_array($entry->surface, $surfaces[$entry->scene ?? ''] ?? [], true)) unset($entry->surface);
             if (isset($targets[$row['id']])) $entry->target = $targets[$row['id']];
             $entries[] = $entry;
@@ -64,15 +67,19 @@ final class ContentVersion
         }
 
         $schema = (string) $book['content_schema'];
-        $configuration = (object) [
+        $configuration = [
             'version' => (object) ['version' => Version::APP, 'schema' => $schema],
             'book' => Editor::decode($book['book_json']),
             'initialSpreadId' => $book['initial_spread_id'],
             'spreads' => $spreads,
+        ];
+        // The groups scenes name (schema 2.35) – only when the book has any
+        if ($groups) $configuration['groups'] = array_map(static fn(stdClass $g) => (object) ['id' => $g->id, 'label' => (string) ($g->label ?? '')], $groups);
+        $configuration = (object) ($configuration + [
             'entries' => $entries,
             'entities' => $entities,
             'tutorial' => Editor::COMPAT_TUTORIAL,
-        ];
+        ]);
         $plugins = Editor::decode($book['plugins_json'] ?? '[]');
         if (is_array($plugins) && $plugins) $configuration->plugins = $plugins;
         $files = Editor::decode($book['files_json']);
