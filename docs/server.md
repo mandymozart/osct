@@ -482,6 +482,31 @@ rows in one transaction with a change in the book's log (kind `asset`, `before` 
 [removal](#removing-a-spread-or-an-entry) records the files it takes), so a forced delete is in the history; the files
 go after the commit.
 
+### What counts as a use
+
+One function lists every use of every Library file (#298 phase 2, `AssetNames::usesOf`): the Library's count
+(`usages`) and its `place`, the usages endpoint, the delete check (409 `asset-in-use`), a removal's files
+(`Removal`) and the names plan all read it, so they can never disagree. It reads every table once (a book has ~2,000
+files). A row's JSON uses a file when one of its strings **is** the file's URL – or, for an imported file, its content
+path `/assets/content/…`; a plugin source when its text **contains** it. The kinds (`{ kind, ref }`):
+
+| kind | ref | the use |
+|---|---|---|
+| `target` | the target's id | its printed image (`imageSrc`), a file of its own inline entity |
+| `entry` | the entry's id | its colour picture (`image`), any other file it names |
+| `entity` | the shared entity's ref | a file of the shared entity |
+| `spread` | the spread's id | a spread's own data – its environment, passes or appearance naming a file (placed on the spread's first page) |
+| `page` | the page key (`12`, `1f`) | a page image (#251) |
+| `environment` | the book | the book's environment: its world model or sky |
+| `book` | the book | any other setting of the book – appearance, passes with a texture or model parameter … |
+| `plugin` | the source's id | a plugin source naming the URL as text (a shader it loads) |
+| `layout` | `layout.json` | a file of the print layout's folder (`layout/sheets/*.jpg`, `*@sharp.jpg`): the editor's stage and cards read them through `layout/layout.json`, never through a row – each file below `/assets/content/layout/` counts as used whenever the book's files (`files.json`) hold `layout/layout.json` (it is not read: the sheets it lists are the folder's) |
+
+A file's uses come in page order (per page: target, entry, entity, spread, page image), the book-wide ones last
+(environment, book, plugin, layout). Only `target`, `entry`, `entity`, `page`, `environment` and `plugin` give a name
+("Files named by use"); a file only a spread, a book setting or the layout uses counts as used and keeps its name.
+An imported file is read-only (no delete); its count tells the Library it is in use.
+
 ### Files named by use
 
 A Library file's **name** follows where it is used (#298 phase 3, `AssetNames.php`) – the name only: its URL never
@@ -565,10 +590,10 @@ the column existed stay `null` until their file is replaced.
 
 | Endpoint | Body | Answer |
 |---|---|---|
-| `GET /editor/books/{id}/assets[?kind=]` | | `{ assets: [{ id, name, kind, mime, size, width, height, durationMs, version, url, usages, imported, createdAt, updatedAt }] }` – `width` / `height` in pixels (images, videos), `durationMs` (videos), null when unknown; `usages` = rows of the book naming the URL; the uploads first, then the files of the import's `files.json` (`imported: true`, id `import-<hash>`, read-only: no replace, usages or delete; `url` below the assets base, `usages` counted with the content path `/assets/content/…` the rows name) |
+| `GET /editor/books/{id}/assets[?kind=]` | | `{ assets: [{ id, name, kind, mime, size, width, height, durationMs, version, url, usages, imported, createdAt, updatedAt }] }` – `width` / `height` in pixels (images, videos), `durationMs` (videos), null when unknown; `usages` = the file's uses ("What counts as a use"); the uploads first, then the files of the import's `files.json` (`imported: true`, id `import-<hash>`, read-only: no replace, usages or delete; `url` below the assets base, the rows name it by its content path `/assets/content/…`, the uses know both) |
 | `POST /editor/books/{id}/assets[?fit=]` | the file; `X-File-Name: name.ext` | 201 `{ asset, converted }`, or 200 with the asset that already holds these bytes – it takes this upload's name; its file, URL, version and uses stay. A picture is stored under the image rule (`converted: true` – WebP, `<name>.webp`; [The image rule at upload](#the-image-rule-at-upload)). 400 `invalid-file` (no name, unsupported type, empty, a shader that is no text), 400 `invalid-fit`, 413 `body-too-large` (a shader above 256 KB), 413 `image-too-large` (above 50 MP) |
 | `PUT /editor/books/{id}/assets/{aid}/file[?fit=]` | the file (`X-File-Name` optional, the kind must stay) | `{ asset, relinked, converted }` – a picture under the image rule as at upload; a new version at a new path (`v2.ext`: nothing to purge on a CDN); every target, entity and entry naming the old URL now names the new one, and the book's environment (`worldSrc`, `skySrc`), and every plugin source that names it (a shader it loads – the URL replaced in its text) (a change each) |
-| `GET /editor/books/{id}/assets/{aid}/usages` | | `{ usages: [{ kind: environment | target | entity | entry | plugin, ref }], asset }` (`environment`: the book's world model or sky, `ref` = the book; `plugin`: a plugin source naming the URL, `ref` = its id; `asset` as the list has it) |
+| `GET /editor/books/{id}/assets/{aid}/usages` | | `{ usages: [{ kind: target | entry | entity | spread | page | environment | book | plugin, ref }], asset }` in page order ("What counts as a use"; `asset` as the list has it) |
 | `DELETE /editor/books/{id}/assets/{aid}[?force=1]` | | 204; 409 `asset-in-use` with `usages` unless forced (the files of every version go; a change `asset` in the log) |
 
 Renditions (1x / 2x / 3x, 480p / 720p / 1080p) and transcoding stay with the content build (PLAN 2b).

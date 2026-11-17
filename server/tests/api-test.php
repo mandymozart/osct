@@ -2038,6 +2038,78 @@ try {
     [$status, $data] = upload($api, 'POST', '/editor/books/printed/assets?fit=page&page=42', $blue, 'scan.png', $editor);
     check($status === 400 && ($data['error']['code'] ?? null) === 'invalid-use', '#298: a page the book does not have → 400 invalid-use');
 
+    echo "editor: one list of a file's uses – the Library's count, the delete check and the names agree (#298 phase 2)\n";
+    $usesBook = $configuration;
+    $usesBook['book'] = ['id' => 'uses', 'title' => 'Uses', 'author' => 'Someone'];
+    unset($usesBook['plugins']);
+    $layoutFiles = ['/assets/content/layout/layout.json' => ['size' => 100, 'v' => 'aaaaaaaaaaaa'], '/assets/content/layout/sheets/s1.jpg' => ['size' => 20, 'v' => 'bbbbbbbbbbbb'],
+        '/assets/content/layout/sheets/s1@sharp.jpg' => ['size' => 40, 'v' => 'cccccccccccc']];
+    $usesFiles = $files + $layoutFiles + ['/assets/content/extra/loose.jpg' => ['size' => 5, 'v' => 'dddddddddddd']];
+    [$status] = importing($api, 'uses', $editor, json_encode(['configuration' => $usesBook, 'files' => $usesFiles], $flags));
+    check($status === 200, '#298: a book with a print layout (layout/layout.json, a sheet and its sharp image) and a loose imported file');
+    $usesKinds = ['entry', 'target', 'inline', 'shared', 'plugin', 'page', 'environment', 'spread', 'book'];
+    $usesMade = [];
+    foreach ($usesKinds as $i => $kind) {
+        [, $data] = upload($api, 'POST', '/editor/books/uses/assets', pngOf(2 + $i, 1, [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0x00ffff, 0xff00ff, 0x808080, 0x804000, 0x004080][$i]), "$kind.png", $editor);
+        $usesMade[$kind] = $data['asset'] ?? ['id' => 'none', 'url' => 'none'];
+    }
+    $usesLibrary = static function () use ($api, $editor): array {
+        [, $list] = call($api, 'GET', '/editor/books/uses/assets', null, $editor);
+        return array_column($list['assets'] ?? [], null, 'url');
+    };
+    $library = $usesLibrary();
+    check(array_map(static fn(array $a) => $library[$a['url']]['usages'] ?? null, $usesMade) === array_fill_keys($usesKinds, 0), '#298: the uploads, unused, count 0');
+    $u = static fn(string $kind): string => (string) $usesMade[$kind]['url'];
+    $usesPuts = [
+        'entry' => ['/editor/books/uses/entries/racoon', ['image' => $u('entry')]],
+        'target' => ['/editor/books/uses/targets/racoon', ['imageSrc' => $u('target')]],
+        'inline' => ['/editor/books/uses/targets/castle-target', ['entity' => ['type' => 'image', 'assets' => [['id' => 'pic', 'assetType' => 'image', 'src' => $u('inline')]]]]],
+        'shared' => ['/editor/books/uses/entities/castle', ['type' => 'image', 'assets' => [['id' => 'castle-img', 'assetType' => 'image', 'src' => $u('shared')]]]],
+        'plugin' => ['/editor/books/uses/plugins/glow', ['source' => "export const register = (api) => { api.loadText('" . $u('plugin') . "'); };\n"]],
+        'page' => ['/editor/books/uses/page-images', ['items' => [['page' => 3, 'url' => $u('page')]]]],
+        'environment' => ['/editor/books/uses/environment', ['environment' => ['world' => 'cafe', 'onionSky' => true, 'skySrc' => $u('environment')]]],
+        'spread' => ['/editor/books/uses/spreads/s2', ['passes' => [['type' => 'bloom', 'texture' => $u('spread')]]]],
+        'book' => ['/editor/books/uses/passes', ['passes' => [['type' => 'vignette', 'texture' => $u('book')]]]],
+    ];
+    $statuses = [];
+    foreach ($usesPuts as $kind => [$path, $body]) $statuses[$kind] = call($api, 'PUT', $path, $body, $editor)[0];
+    check($statuses === array_fill_keys($usesKinds, 200), '#298: each upload gets one use – ' . json_encode($statuses));
+    $expected = [
+        'entry' => ['kind' => 'entry', 'ref' => 'racoon'], 'target' => ['kind' => 'target', 'ref' => 'racoon'], 'inline' => ['kind' => 'target', 'ref' => 'castle-target'],
+        'shared' => ['kind' => 'entity', 'ref' => 'castle'], 'plugin' => ['kind' => 'plugin', 'ref' => 'glow'], 'page' => ['kind' => 'page', 'ref' => '3'],
+        'environment' => ['kind' => 'environment', 'ref' => 'uses'], 'spread' => ['kind' => 'spread', 'ref' => 's2'], 'book' => ['kind' => 'book', 'ref' => 'uses'],
+    ];
+    $library = $usesLibrary();
+    $labels = ['entry' => 'an entry\'s image', 'target' => 'a target image', 'inline' => 'a target\'s inline entity', 'shared' => 'a shared entity', 'plugin' => 'a plugin source',
+        'page' => 'a page image (#251)', 'environment' => 'the book\'s environment', 'spread' => 'a spread\'s own file (its pass)', 'book' => 'a book setting\'s file (its pass)'];
+    foreach ($usesKinds as $kind) {
+        $asset = $usesMade[$kind];
+        [, $usages] = call($api, 'GET', "/editor/books/uses/assets/{$asset['id']}/usages", null, $editor);
+        [$deleted, $refused] = call($api, 'DELETE', "/editor/books/uses/assets/{$asset['id']}", null, $editor);
+        check(($library[$asset['url']]['usages'] ?? null) === 1 && ($usages['usages'] ?? null) === [$expected[$kind]] && ($usages['asset']['usages'] ?? null) === 1
+            && $deleted === 409 && ($refused['error']['usages'] ?? null) === [$expected[$kind]],
+            "#298: {$labels[$kind]} – the Library counts the use, the usages name it, the delete is refused without force");
+    }
+    check(($library[$u('spread')]['place'] ?? null) === ['spread' => 's2', 'page' => 3, 'order' => 2, 'more' => 0] && ($library[$u('book')]['place'] ?? null) === ['spread' => null, 'page' => null, 'order' => -1, 'more' => 0],
+        '#298: a spread\'s file is placed at its spread, a book setting\'s book-wide');
+    $sheets = array_values(array_filter($library, static fn(array $a) => str_contains($a['url'], '/assets/content/layout/sheets/')));
+    $loose = array_values(array_filter($library, static fn(array $a) => str_ends_with($a['url'], '/extra/loose.jpg')))[0] ?? [];
+    check(count($sheets) === 2 && array_column($sheets, 'usages') === [1, 1] && ($sheets[0]['place'] ?? null) === ['spread' => null, 'page' => null, 'order' => -1, 'more' => 0] && ($loose['usages'] ?? null) === 0,
+        '#298: a layout sheet and its sharp image count as used (the stage reads them through layout.json) – a loose imported file does not');
+    [$status, $data] = call($api, 'DELETE', "/editor/books/uses/assets/{$sheets[0]['id']}", null, $editor);
+    check($status === 404, '#298: … and, imported, it cannot be deleted at all (read-only)');
+    [, $data] = call($api, 'POST', '/editor/books/uses/assets/names', ['apply' => false], $editor);
+    $renamed = array_column($data['plan']['renames'] ?? [], 'to', 'url');
+    check(!isset($renamed[$u('spread')]) && !isset($renamed[$u('book')]) && !array_filter(array_keys($renamed), static fn(string $url) => str_contains($url, '/layout/'))
+        && ($renamed[$u('target')] ?? null) === 'racoon_target.' . $extOf($u('target')) && ($data['plan']['unused'] ?? null) === 2,
+        '#298: the names plan reads the same uses – a spread\'s, a book setting\'s and the layout\'s use name nothing; unused only the loose file and the target image the upload replaced');
+    // Without layout.json the layout's files are no use
+    $noLayout = $usesFiles;
+    unset($noLayout['/assets/content/layout/layout.json']);
+    [$status] = importing($api, 'uses', $editor, json_encode(['configuration' => $usesBook, 'files' => $noLayout], $flags));
+    $sheets = array_values(array_filter($usesLibrary(), static fn(array $a) => str_contains($a['url'], '/assets/content/layout/sheets/')));
+    check($status === 200 && array_column($sheets, 'usages') === [0, 0], '#298: without the book\'s layout.json the sheets are unused');
+
     echo "editor: the book's passes – the master, spreads override (#149)\n";
     $bookPasses = [['type' => 'grade', 'reach' => 'all', 'exposure' => 0.5], ['type' => 'vignette', 'strength' => 0.4]];
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => $bookPasses], $editor);

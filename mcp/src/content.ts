@@ -788,7 +788,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
 
   server.registerTool(
     "delete_asset",
-    { description: "Deletes an uploaded file (every version). Refused while a target, entity, entry or plugin source names its url or a page image shows it (409 asset-in-use with the usages) unless `force` – a forced delete takes those page images too.", inputSchema: z.object({ book: BOOK, asset: z.string().uuid().describe("the asset's id (list_assets)"), force: z.boolean().optional() }), annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false } },
+    { description: "Deletes an uploaded file (every version). Refused while the file is used – a target, entry, entity, spread, page image, the book (its environment or another setting) or a plugin source names it, the same uses list_assets counts (409 asset-in-use with the usages) unless `force` – a forced delete takes those page images too.", inputSchema: z.object({ book: BOOK, asset: z.string().uuid().describe("the asset's id (list_assets)"), force: z.boolean().optional() }), annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false } },
     guard(async ({ book, asset, force }) => {
       await api.call<void>("DELETE", `/editor/books/${encodeURIComponent(book)}/assets/${encodeURIComponent(asset)}${force ? "?force=1" : ""}`);
       return text({ deleted: asset });

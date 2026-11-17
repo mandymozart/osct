@@ -59,11 +59,12 @@ final class Assets
         $kind = $_GET['kind'] ?? null;
         $rows = Db::run('SELECT * FROM assets WHERE book_id = :book AND status = :status' . (is_string($kind) && $kind !== '' ? ' AND kind = :kind' : '') . ' ORDER BY updated_at DESC',
             ['book' => $bookId, 'status' => 'active'] + (is_string($kind) && $kind !== '' ? ['kind' => $kind] : []))->fetchAll();
-        $assets = array_map(fn(array $row) => self::summary($row, count(self::usagesOf($bookId, $row))), $rows);
-        $assets = array_merge($assets, self::imported($bookId, is_string($kind) && $kind !== '' ? $kind : null));
+        // Every use of every file, read once (#298, `AssetNames::usesOf` – the one source the delete check and the names share)
+        $uses = AssetNames::usesOf($bookId);
+        $assets = array_map(fn(array $row) => self::summary($row, count($uses[(string) $row['url']] ?? [])), $rows);
+        $assets = array_merge($assets, self::imported($bookId, is_string($kind) && $kind !== '' ? $kind : null, $uses));
         $credits = self::creditsOf($bookId);
         // Where each file is used first – the Library groups by it (#298): its spread (null: book-wide), page, order, more uses
-        $uses = AssetNames::usesOf($bookId);
         foreach ($assets as $i => $asset) {
             $assets[$i]['credits'] = $credits[$asset['url']] ?? null;
             $assets[$i]['place'] = AssetNames::place($uses[$asset['url']] ?? []);
@@ -151,7 +152,7 @@ final class Assets
         foreach (Db::run('SELECT id, url, name FROM assets WHERE book_id = :book AND status = :status ORDER BY created_at, id', ['book' => $bookId, 'status' => 'active'])->fetchAll() as $row) {
             $files[] = ['id' => (string) $row['id'], 'url' => (string) $row['url'], 'name' => (string) $row['name'], 'imported' => false];
         }
-        foreach (self::imported($bookId, null, false) as $file) {
+        foreach (self::imported($bookId, null) as $file) {
             $files[] = ['id' => (string) $file['id'], 'url' => (string) $file['url'], 'name' => (string) $file['name'], 'imported' => true];
         }
         return $files;
@@ -167,7 +168,7 @@ final class Assets
         foreach (Db::run('SELECT url, name FROM assets WHERE book_id = :book AND kind = :kind AND status = :status', ['book' => $bookId, 'kind' => 'image', 'status' => 'active'])->fetchAll() as $row) {
             $names[(string) $row['url']] = (string) $row['name'];
         }
-        foreach (self::imported($bookId, 'image', false) as $file) $names[(string) $file['url']] ??= (string) $file['name'];
+        foreach (self::imported($bookId, 'image') as $file) $names[(string) $file['url']] ??= (string) $file['name'];
         return $names;
     }
 
@@ -175,20 +176,21 @@ final class Assets
      * The files of the book's import (its `files.json`, keys below the assets base like the content): images, videos,
      * models and sounds the stage uses although nobody uploaded them. Read-only – their ids are no uuids, so replace, usages and
      * delete answer 404; replacing one is the content build's business (`imported: true`, id `import-<hash of the url>`, version 1, no dimensions).
+     * `usages` counts the file's uses in `$uses` (`AssetNames::usesOf`, by Library URL) – 0 without them.
+     * @param ?array<string, list<array<string, mixed>>> $uses
      * @return array<int, array<string, mixed>>
      */
-    private static function imported(string $bookId, ?string $kind, bool $count = true): array
+    private static function imported(string $bookId, ?string $kind, ?array $uses = null): array
     {
         $book = Db::one('SELECT files_json, assets_base, updated_at, created_at FROM books WHERE id = :id', ['id' => $bookId]);
         $files = Editor::decode($book['files_json'] ?? null);
         if (!$files instanceof stdClass) return [];
         $base = rtrim((string) $book['assets_base'], '/');
         $at = Editor::iso((int) $book['updated_at']);
-        $rows = null;
         $result = [];
         // A name given by use (#298, `AssetNames`) replaces the file's own in the list – the URL stays the import's
         $names = AssetNames::importedNames($bookId);
-        // the list shows the URL below the assets base, the rows name the content path (`/assets/content/…`) – count with that (#121)
+        // the list shows the URL below the assets base, the rows name the content path (`/assets/content/…`) – `usesOf` knows both (#121)
         $paths = array_keys(get_object_vars($files));
         $urls = $base !== '' ? array_keys(get_object_vars(ContentVersion::rewriteFiles($files, $base))) : $paths;
         foreach ($paths as $i => $path) {
@@ -197,12 +199,10 @@ final class Assets
             $file = $files->{$path};
             $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?: $url, PATHINFO_EXTENSION));
             if (!isset(self::KINDS[$extension]) || ($kind !== null && self::KINDS[$extension] !== $kind)) continue;
-            // the book's rows read once: a build has hundreds of files, and three queries per file are too slow
-            if ($count) $rows ??= self::usageRows($bookId);
             $result[] = [
                 'id' => 'import-' . substr(sha1($url), 0, 16), 'name' => $names[$url] ?? rawurldecode(basename(parse_url($url, PHP_URL_PATH) ?: $url)),
                 'kind' => self::KINDS[$extension], 'mime' => self::MIMES[$extension], 'size' => (int) (is_object($file) ? ($file->size ?? 0) : 0),
-                'width' => null, 'height' => null, 'durationMs' => null, 'version' => 1, 'url' => $url, 'usages' => $count ? self::countUsages($rows, $path) : 0,
+                'width' => null, 'height' => null, 'durationMs' => null, 'version' => 1, 'url' => $url, 'usages' => count($uses[$url] ?? []),
                 'createdAt' => $at, 'updatedAt' => $at, 'imported' => true, 'named' => isset($names[$url]),
             ];
         }
@@ -225,38 +225,6 @@ final class Assets
         $files = Editor::decode($book['files_json'] ?? null);
         $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?: $url, PATHINFO_EXTENSION));
         return $files instanceof stdClass && property_exists($files, $url) && (self::KINDS[$extension] ?? null) === 'image';
-    }
-
-    /**
-     * The texts `usagesOf` searches, one per row: the book (its environment's world and sky), targets (data and image),
-     * entities, entries
-     * @return array<int, string>
-     */
-    private static function usageRows(string $bookId): array
-    {
-        $rows = [['text' => self::environmentText($bookId), 'exact' => null]];
-        foreach (Db::run('SELECT image_src, data_json FROM targets WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
-            $rows[] = ['text' => (string) $row['data_json'], 'exact' => (string) $row['image_src']];
-        }
-        foreach (['entities', 'entries'] as $table) {
-            foreach (Db::run("SELECT data_json FROM $table WHERE book_id = :book", ['book' => $bookId])->fetchAll() as $row) {
-                $rows[] = ['text' => (string) $row['data_json'], 'exact' => null];
-            }
-        }
-        foreach (Db::run('SELECT source FROM plugins WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
-            $rows[] = ['text' => (string) $row['source'], 'exact' => null];
-        }
-        return $rows;
-    }
-
-    /** = count(usagesOf(...)) over rows read once: a row uses the url when its JSON contains it (or a target's image is it) */
-    private static function countUsages(array $rows, string $url): int
-    {
-        $count = 0;
-        foreach ($rows as $row) {
-            if ($row['exact'] === $url || str_contains($row['text'], $url)) $count++;
-        }
-        return $count;
     }
 
     /**
@@ -571,31 +539,17 @@ final class Assets
     }
 
     /**
-     * Where the asset's current URL appears in the book: the book's environment (its world model or sky), targets
-     * (`imageSrc`, the inline entity), shared entities, entries, plugin sources (a shader they load – #186), page images (#251).
+     * Where the asset's current URL is used in the book: { kind, ref } per use, in page order – what `AssetNames::usesOf`
+     * finds (#298: the one source of truth the Library's count, the delete check, the names and the Library's place share;
+     * docs/server.md "What counts as a use"). `$uses` = that function's result when the caller has it already.
      * @param array<string, mixed> $asset
-     * @return array<int, array{kind: string, ref: string}>
+     * @param ?array<string, list<array<string, mixed>>> $uses
+     * @return list<array{kind: string, ref: string}>
      */
-    public static function usagesOf(string $bookId, array $asset): array
+    public static function usagesOf(string $bookId, array $asset, ?array $uses = null): array
     {
-        $needle = Db::contains($asset['url']);
-        $usages = [];
-        if (str_contains(self::environmentText($bookId), Editor::encode($asset['url']))) $usages[] = ['kind' => 'environment', 'ref' => $bookId];
-        foreach (Db::run("SELECT id FROM targets WHERE book_id = :book AND (data_json LIKE :needle ESCAPE '!' OR image_src = :url) ORDER BY id", ['book' => $bookId, 'needle' => $needle, 'url' => $asset['url']])->fetchAll() as $row) {
-            $usages[] = ['kind' => 'target', 'ref' => $row['id']];
-        }
-        foreach (Db::run("SELECT ref FROM entities WHERE book_id = :book AND data_json LIKE :needle ESCAPE '!' ORDER BY ref", ['book' => $bookId, 'needle' => $needle])->fetchAll() as $row) {
-            $usages[] = ['kind' => 'entity', 'ref' => $row['ref']];
-        }
-        foreach (Db::run("SELECT id FROM entries WHERE book_id = :book AND data_json LIKE :needle ESCAPE '!' ORDER BY id", ['book' => $bookId, 'needle' => $needle])->fetchAll() as $row) {
-            $usages[] = ['kind' => 'entry', 'ref' => $row['id']];
-        }
-        // A plugin source names a file by its URL as a string (a shader it loads, a picture it shows)
-        foreach (Db::run("SELECT id FROM plugins WHERE book_id = :book AND source LIKE :needle ESCAPE '!' ORDER BY id", ['book' => $bookId, 'needle' => $needle])->fetchAll() as $row) {
-            $usages[] = ['kind' => 'plugin', 'ref' => $row['id']];
-        }
-        // A page image (#251) shows the file over its page
-        return array_merge($usages, Pages::usagesOf($bookId, (string) $asset['url']));
+        $uses ??= AssetNames::usesOf($bookId);
+        return array_map(static fn(array $use) => ['kind' => (string) $use['kind'], 'ref' => (string) $use['ref']], $uses[(string) $asset['url']] ?? []);
     }
 
     /** Every row naming `$from` now names `$to` (a change per row); returns how many rows changed */
@@ -655,13 +609,6 @@ final class Assets
         if ($count) Books::touchBook($bookId);
         // Page images are no draft rows (#251): they follow the new version without a change
         return $count + Pages::relink($bookId, $from, $to);
-    }
-
-    /** The book's environment as JSON ("" without one): the text a world model's or a sky's URL is searched in */
-    private static function environmentText(string $bookId): string
-    {
-        $book = Editor::decode(Db::value('SELECT book_json FROM books WHERE id = :id', ['id' => $bookId]));
-        return $book instanceof stdClass && isset($book->environment) ? Editor::encode($book->environment) : '';
     }
 
     /** @param array<string, mixed> $row */

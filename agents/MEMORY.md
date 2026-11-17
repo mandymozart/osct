@@ -4,6 +4,21 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-17 – one list of a file's uses (#298 phase 2)
+- Found on staging: the Library's count (`Assets::usageRows`) and the delete check (`Assets::usagesOf`) disagreed, and
+  both missed uses – 264 layout sheets showed as unused. Now **`AssetNames::usesOf` is the one source of truth**: the
+  Library's count and place, `GET …/usages`, the delete check, `Removal` and the names plan read it (docs/server.md
+  "What counts as a use"). Matching is the names plan's: a JSON string **equal** to the URL / content path (the old
+  checks used `LIKE %url%`); a plugin source still by substring.
+- New kinds: `spread` (a spread's data), `book` (book_json beyond `environment`), `layout`. **Reading of the layout**:
+  the server does not fetch `layout.json` (it lives on the CDN, not in the DB) – every imported file below
+  `/assets/content/layout/` counts as used whenever the book's `files.json` holds `layout/layout.json`. A stale sheet
+  the layout no longer lists would count too (harmless: imported files cannot be deleted anyway).
+- Naming unchanged: only target / entry / entity / page / environment / plugin uses give a name; a file only a spread,
+  book setting or the layout uses keeps its own.
+- Open: `Removal` of a spread does not count the removed spread's own data as removed – a file named by an entry and by
+  that spread is listed "elsewhere" (conservative: never deleted).
+
 ## 2026-11-17 – pictures become WebP in the browser (#298 follow-up)
 - Tilman: "in scutoons asset manager I automatically upload images to webp when they are uploaded". Staging's shared
   FTPS host may have no GD, so the API's conversion (phase 1) can store files unconverted there. The editor now converts

@@ -7,6 +7,19 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Fixed
+
+- **The Library's count and the delete check agree – one list of a file's uses** (#298 phase 2): `AssetNames::usesOf`
+  is now the only place that finds a file's uses; the Library's count and place, the usages endpoint, the delete check,
+  a removal's files and the names plan all read it. It now also counts **page images** in the Library (they were
+  only in the delete check), a **spread's own files** (its environment, passes or appearance naming a file), the
+  **book's other settings** (appearance, passes with a texture or model) and the **print layout's sheets**
+  (`layout/sheets/*.jpg`, `*@sharp.jpg` – the stage reads them through `layout.json`; used whenever the book has
+  `layout/layout.json`). The 264 sheets staging listed as unused now count as used. New usage kinds `spread`, `book`,
+  `layout`; usages come in page order. A file only a spread, a book setting or the layout uses keeps its name.
+
 ## 1.97.2 – 2026-11-17
 
 ### Changed
