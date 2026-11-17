@@ -7,6 +7,12 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.97.1 – 2026-11-17
+
+### Changed
+- **Name by use** keeps an uploaded model's or texture's own name after its place instead of its asset id:
+  `fight_2_remesh_4096.jpg` → `p010-3_fight-2-remesh-4096.jpg`, not `p010-3_p010-3-18f8e17a-4096.jpg` (#298, Tilman).
+
 ## 1.97.0 – 2026-11-17
 
 ### Added
