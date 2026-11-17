@@ -376,7 +376,9 @@ after it. Entries and targets on those pages belong to the spread like on any ot
 the entry's page show the spread's title instead of a number, the editor's stage finds the layout's `front-matter` /
 `back-matter` sheet in book order. A print-first book gets these spreads from its layout: the delivery import writes a
 spread for every sheet of `layout/layout.json` that has none (`cover`, `front-1` …, the numbered ones, `back-1` …,
-`back`).
+`back`). A draft that misses them gets them in the editor's Pages view or with the MCP server's `add_matter` (#251, a
+print-first book too – an exception to #238), which also moves a back cover that sits on the last printed page behind
+the back matter and gives that page its own spread.
 
 **Source of truth** (content schema 2.25, #238): `book.yaml` may say where the book's spreads come from –
 `sourceOfTruth: print` (print first, the default: the printed book is the truth, its spreads, pages and printed
