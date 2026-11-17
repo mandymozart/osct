@@ -172,5 +172,58 @@
   <div class="verdict"><span class="pro">+ both at once, each scrolls on its own; collapse Scenes (▾) and the tree takes the column; reorder while a scene is open.</span> <span class="con">− two lists share one narrow column; on a phone only one fits.</span></div>
 </section>
 
+<!-- ============ C2: a group selected ============ -->
+<!-- C2: the column splits – Scenes on top (collapsible), the scene's tree below ============ -->
+<section class="option" id="c2">
+  <div class="title"><b>C</b> · a group selected: the Inspector shows the group's parameters <span>(click the group row; Ctrl+G / Ctrl+Shift+G)</span></div>
+  <div class="main" style="grid-template-columns: 17rem 1fr 18rem">
+    <div class="panel">
+      <div class="split">
+        <div class="tree">
+          <div class="head">▾ Scenes <span class="muted">133</span></div>
+          <div class="row grp sel"><span class="grip">⋮⋮</span><span class="fold">▾</span><b>Morpher</b><span class="n warn">5 · 31 ⚠</span></div>
+          <div class="row in"><span class="grip">⋮⋮</span><span class="thumb"><i class="a"></i><i class="b"></i></span>Pages 22–23<span class="n">8</span></div>
+          <div class="row in"><span class="grip">⋮⋮</span><span class="thumb"><i class="b"></i><i class="c"></i></span>Pages 24–25<span class="n">9</span></div>
+          <div class="row"><span class="grip">⋮⋮</span><span class="thumb"><i class="a"></i><i class="b"></i></span>Pages 38–39<span class="n">7</span></div>
+          
+          <div class="row"><span class="grip">⋮⋮</span><span class="thumb"><i class="b"></i><i class="a"></i></span>Pages 42–43<span class="n">9</span></div>
+          <div class="row"><span class="grip">⋮⋮</span><span class="thumb"><i class="c"></i><i class="b"></i></span>Pages 44–45<span class="n">8</span></div>
+        </div>
+        <div class="tree sash">
+          <div class="head">▾ Tree · Pages 40–41 <span class="muted">(the open scene stays open)</span></div>
+          <div class="t"><span class="ic">▭</span>40 <span class="muted">· reference</span></div>
+          <div class="t" style="padding-left:1.2rem"><span class="ic">◎</span>p040-1 It Is Crying</div>
+          <div class="t sel" style="padding-left:2.2rem"><span class="ic">◇</span>video · Morpher loop</div>
+          <div class="t" style="padding-left:1.2rem"><span class="ic">◎</span>p040-2 Janus</div>
+          <div class="t"><span class="ic">▭</span>41</div>
+          <div class="t" style="padding-left:1.2rem"><span class="ic">◎</span>p041-4 It Bends Over</div>
+          <div class="t"><span class="ic">▭</span>41a <span class="muted">· fold-out</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="stage"><div class="bar"><span>✥</span><span>↻</span><span>⤢</span><span>◑</span></div>
+      <div class="book"><div class="pg a"><div class="tg sel" style="left:2rem;top:3rem;width:3.5rem;height:4.5rem"></div></div><div class="pg c"><div class="tg" style="left:5rem;top:7rem;width:4rem;height:3.5rem"></div></div><div class="pg" style="background:#fafafa"></div></div>
+    </div>
+    <div class="panel right insp"><div class="head">Inspector</div>
+      <div class="s"><h3>Group</h3>
+        <div class="kv"><span>label</span><span style="background:var(--control-background);padding:.15rem .4rem">Morpher</span></div>
+        <div class="kv"><span>scenes</span><span>5 · Pages 22–23 … Pages 30–31</span></div>
+        <div class="kv"><span>switcher</span><span>one stop: “Morpher”</span></div>
+      </div>
+      <div class="s"><h3>Targets</h3>
+        <div class="kv"><span>in the group</span><span class="warn">31</span></div>
+        <div style="height:.35rem;background:var(--control-background);position:relative;margin:.2rem 0 .3rem"><i style="position:absolute;inset:0 0 0 0;background:var(--warn)"></i></div>
+        <div class="muted" style="font-size:var(--text-small)">The loading window holds e.g. 20 targets at once (the number is to be measured, #300) (engine: 4 tracked, 10 per scene). Above it the window moves through the group by order – the reader may wait at a scene change.</div>
+        <div class="kv"><span>window</span><span><span style="background:var(--pressed-background);padding:.1rem .4rem">whole group</span> <span style="background:var(--control-background);padding:.1rem .4rem">by order</span></span></div>
+      </div>
+      <div class="s"><h3>Scenes in the group</h3>
+        <div class="kv"><span>Pages 22–23</span><span class="n">8</span></div><div class="kv"><span>Pages 24–25</span><span class="n">9</span></div><div class="kv"><span>Pages 26–27</span><span class="n">6</span></div><div class="kv"><span>…</span><span></span></div>
+        <div style="margin-top:.3rem"><span style="background:var(--control-background);padding:.2rem .5rem">Ungroup <span class="muted">Ctrl+Shift+G</span></span></div>
+      </div>
+    </div>
+  </div>
+  <div class="verdict"><span class="pro">+ a group is selected like anything else: its row in Scenes, its parameters in the Inspector – label, the switcher stop, the targets against the loading window, its scenes, Ungroup.</span></div>
+</section>
+
 </body>
 </html>
