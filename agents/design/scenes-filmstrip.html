@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scenes filmstrip – design draft (#307)</title>
+<style>
+  /* The editor's dark tokens (editor/src/app.css) – a static draft, not the app */
+  :root {
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --text-size: .75rem; --text-small: .6875rem;
+    --text: #fff; --muted: #a3a3a3; --line: #444; --surface: #2c2c2c; --surface-head: #1e1e1e;
+    --control-background: #383838; --pressed-background: #4f4f4f; --hover-background: #353535; --selected-background: #5a5a5a;
+    --stage-background: #0c0c0c; --warn: #e0a030; --accent: #c7a144; --pick: #8ab4f8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: var(--text-size)/1.4 var(--font); color: var(--text); background: #111; }
+  .state { margin-bottom: 1.5rem; border: 1px solid #333; }
+  .cap { background: #000; padding: .45rem .75rem; font-size: .85rem; } .cap b { color: var(--accent); } .cap span { color: var(--muted); font-size: var(--text-size); }
+  .app { display: grid; grid-template-rows: 2.5rem 1fr 9.5rem; grid-template-columns: 15rem 1fr 19rem; height: 46rem; }
+  .top { grid-column: 1 / -1; display: flex; align-items: center; gap: .6rem; padding: 0 .75rem; border-bottom: 1px solid var(--line); background: var(--surface-head); }
+  .top .muted, .muted { color: var(--muted); }
+  .top .sp { flex: 1; }
+  .top .pill { background: var(--control-background); padding: .15rem .5rem; }
+  .panel { background: var(--surface); overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+  .tree { border-right: 1px solid var(--line); grid-row: 2 / 4; }
+  .insp { border-left: 1px solid var(--line); grid-row: 2 / 4; grid-column: 3; }
+  .head { display: flex; align-items: center; gap: .4rem; padding: .4rem .6rem; border-bottom: 1px solid var(--line); flex: none;
+          text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-size: var(--text-small); }
+  .head .sp { flex: 1; }
+  .tool { background: var(--control-background); color: var(--text); text-transform: none; letter-spacing: 0; padding: .12rem .45rem; font-size: var(--text-small); white-space: nowrap; }
+  .tool kbd { color: var(--muted); font: inherit; margin-left: .25rem; }
+  .t { padding: .22rem .5rem; display: flex; gap: .35rem; align-items: center; }
+  .t.sel { background: var(--selected-background); }
+  .ic { width: .9rem; text-align: center; color: var(--muted); }
+  .stage { grid-column: 2; grid-row: 2; background: var(--stage-background); position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .bar { position: absolute; top: .45rem; left: .45rem; display: flex; gap: 1px; }
+  .bar span { background: #eee; color: #111; width: 1.5rem; height: 1.5rem; display: grid; place-items: center; font-size: .65rem; }
+  .book { display: flex; transform: perspective(55rem) rotateX(16deg); box-shadow: 0 1.5rem 3rem #000; }
+  .pg { width: 12rem; height: 16.5rem; position: relative; } .pg + .pg { border-left: 1px solid #ccc; }
+  .tg { position: absolute; border: 2px solid #2b8; background: rgba(40,180,120,.15); }
+  .tg.sel { border-color: var(--accent); background: rgba(199,161,68,.2); }
+  .pglbl { position: absolute; bottom: .35rem; width: 100%; text-align: center; font-size: .6rem; color: #666; }
+  .a { background: linear-gradient(135deg,#c44 0 35%,#335 35% 65%,#eee 65%); }
+  .b { background: linear-gradient(45deg,#8a6 0 40%,#fff 40%); }
+  .c { background: radial-gradient(circle at 40% 40%,#99a 0 30%,#fff 31%); }
+  .e { background: repeating-linear-gradient(90deg,#fff 0 .8rem,#eee .8rem 1.6rem); }
+  .w0 { background: #fff; }
+  /* The Scenes panel: the filmstrip under the stage */
+  .scenes { grid-column: 2; grid-row: 3; border-top: 1px solid var(--line); }
+  .sash { height: 4px; background: var(--line); cursor: ns-resize; flex: none; }
+  .strip { flex: 1; display: flex; gap: .55rem; padding: .45rem .6rem .35rem; overflow: hidden; align-items: flex-end; }
+  .g { display: flex; flex-direction: column; gap: .2rem; }
+  .band { font-size: .62rem; color: var(--accent); border-top: 3px solid var(--accent); padding: .1rem .2rem 0; white-space: nowrap; }
+  .band.sel { background: #3a3120; color: #fff; }
+  .band .w { color: var(--warn); }
+  .row { display: flex; gap: .3rem; }
+  .card { display: flex; flex-direction: column; gap: .12rem; font-size: .6rem; color: var(--muted); position: relative; }
+  .card .th { height: 3.6rem; display: flex; border: 1px solid #555; background: #fff; }
+  .card .th i { width: 2.4rem; border-right: 1px solid #ddd; } .card .th i:last-child { border-right: 0; }
+  .card .th.single i { width: 2.6rem; } .card .th.wall i { width: 5rem; }
+  .card .n { display: flex; justify-content: space-between; gap: .3rem; white-space: nowrap; }
+  .card .n b { color: var(--text); font-weight: 500; }
+  .card.sel .th { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .card.pick .th { outline: 2px solid var(--pick); outline-offset: 1px; }
+  .drop { width: 2px; background: var(--accent); align-self: stretch; margin: 1rem .1rem 1.2rem; }
+  .ghost { position: absolute; transform: rotate(-4deg); opacity: .8; box-shadow: 0 .4rem 1rem #000; }
+  .add { align-self: stretch; display: grid; place-items: center; width: 3.2rem; border: 1px dashed var(--line); color: var(--muted); margin-bottom: 1.15rem; }
+  .s { border-bottom: 1px solid var(--line); padding: .45rem .6rem; }
+  .s h3 { margin: 0 0 .35rem; font-size: var(--text-small); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 500; }
+  .kv { display: grid; grid-template-columns: 6rem 1fr; min-height: 1.65rem; align-items: center; gap: .4rem; }
+  .kv > span:first-child { color: var(--muted); }
+  .f { background: var(--control-background); padding: .15rem .4rem; }
+  .seg { display: inline-flex; gap: 1px; } .seg span { background: var(--control-background); padding: .1rem .45rem; } .seg span.on { background: var(--pressed-background); }
+  .meter { height: .35rem; background: var(--control-background); position: relative; margin: .25rem 0; }
+  .meter i { position: absolute; inset: 0 auto 0 0; }
+  .surf { display: grid; grid-template-columns: 2.6rem 1fr; gap: .45rem; padding: .35rem 0; border-top: 1px solid var(--line); }
+  .surf:first-of-type { border-top: 0; }
+  .surf .mini { height: 3.5rem; border: 1px solid #555; }
+  .surf .mini.empty { border-style: dashed; display: grid; place-items: center; color: var(--muted); font-size: .55rem; text-align: center; background: transparent; }
+  .note { color: var(--muted); font-size: var(--text-small); }
+  .call { position: absolute; background: #ffd34d; color: #111; padding: .3rem .45rem; font-size: .64rem; max-width: 14rem; box-shadow: 0 .2rem .6rem #000a; z-index: 5; }
+  .call::before { content: attr(data-n); font-weight: 700; margin-right: .3rem; }
+</style>
+</head>
+<body>
+
+<!-- ======================= 1: a scene open ======================= -->
+<section class="state" id="scene">
+  <div class="cap"><b>1</b> A scene open – the Scenes filmstrip under the stage, the scene's tree left, the scene in the Inspector</div>
+  <div class="app">
+    <div class="top"><span class="muted">Experiences ›</span><b>Onion Skin &amp; Crocodile Tears</b><span class="muted">›</span>Pages 40–41<span class="sp"></span><span class="pill">draft · #307 design draft</span></div>
+
+    <div class="panel tree">
+      <div class="head">Tree <span class="sp"></span><span class="tool">+ target</span><span class="tool">+ entry</span></div>
+      <div class="t"><span class="ic">▣</span><b>Pages 40–41</b> <span class="muted">· 3 surfaces</span></div>
+      <div class="t" style="padding-left:1.2rem"><span class="ic">▭</span>40 <span class="muted">· reference</span></div>
+      <div class="t" style="padding-left:2.2rem"><span class="ic">◎</span>p040-1 It Is Crying</div>
+      <div class="t sel" style="padding-left:3.2rem"><span class="ic">◇</span>video · Morpher loop</div>
+      <div class="t" style="padding-left:2.2rem"><span class="ic">◎</span>p040-2 Janus</div>
+      <div class="t" style="padding-left:1.2rem"><span class="ic">▭</span>41 <span class="muted">· reference</span></div>
+      <div class="t" style="padding-left:2.2rem"><span class="ic">◎</span>p041-4 It Bends Over</div>
+      <div class="t" style="padding-left:1.2rem"><span class="ic">▭</span>41a <span class="muted">· fold-out</span></div>
+      <div class="t" style="padding-left:1.2rem"><span class="ic">≡</span><span class="muted">entries without a target · 1</span></div>
+    </div>
+
+    <div class="stage"><div class="bar"><span>✥</span><span>↻</span><span>⤢</span><span>◑</span><span>▦</span></div>
+      <div class="book"><div class="pg a"><div class="tg sel" style="left:2rem;top:3rem;width:3.5rem;height:4.5rem"></div><div class="pglbl">40</div></div><div class="pg c"><div class="tg" style="left:5.5rem;top:8rem;width:4rem;height:3.5rem"></div><div class="pglbl">41</div></div><div class="pg e"><div class="pglbl">41a</div></div></div>
+    </div>
+
+    <div class="panel scenes">
+      <div class="sash" title="Drag to resize the Scenes panel"></div>
+      <div class="head">▾ Scenes <span class="muted" style="text-transform:none;letter-spacing:0">· Onion Skin &amp; Crocodile Tears · 133 scenes · 7 groups</span><span class="sp"></span>
+        <span class="tool">+ Scene…</span><span class="tool" title="Group the picked scenes">⬚ Group<kbd>Ctrl+G</kbd></span><span class="tool">Ungroup<kbd>Ctrl+Shift+G</kbd></span><span class="tool">− zoom +</span></div>
+      <div class="strip">
+        <div class="g"><div class="band">Front matter · 4 · 6 targets</div><div class="row">
+          <div class="card"><span class="th single"><i class="c"></i></span><span class="n"><b>Cover</b><span>0</span></span></div>
+          <div class="card"><span class="th"><i class="e"></i><i class="c"></i></span><span class="n"><b>Front 1</b><span>2</span></span></div>
+          <div class="card"><span class="th"><i class="e"></i><i class="c"></i></span><span class="n"><b>Front 2</b><span>3</span></span></div>
+          <div class="card"><span class="th"><i class="w0"></i><i class="b"></i></span><span class="n"><b>– | 1</b><span>1</span></span></div></div></div>
+        <div class="g"><div class="band">Morpher · 5 · <span class="w">31 targets ⚠</span></div><div class="row">
+          <div class="card"><span class="th"><i class="a"></i><i class="b"></i></span><span class="n"><b>22–23</b><span>8</span></span></div>
+          <div class="card"><span class="th"><i class="b"></i><i class="c"></i></span><span class="n"><b>24–25</b><span>9</span></span></div>
+          <div class="card"><span class="th"><i class="c"></i><i class="a"></i></span><span class="n"><b>26–27</b><span>6</span></span></div></div></div>
+        <div class="g"><div class="row">
+          <div class="card"><span class="th"><i class="a"></i><i class="b"></i></span><span class="n"><b>38–39</b><span>7</span></span></div>
+          <div class="card sel"><span class="th"><i class="a"></i><i class="c"></i><i class="e"></i></span><span class="n"><b>40–41</b><span>10</span></span></div>
+          <div class="card"><span class="th"><i class="b"></i><i class="a"></i></span><span class="n"><b>42–43</b><span>9</span></span></div>
+          <div class="card"><span class="th wall"><i class="c"></i></span><span class="n"><b>Studio wall</b><span>2</span></span></div></div></div>
+        <div class="add">+</div>
+      </div>
+    </div>
+
+    <div class="panel insp">
+      <div class="head">Inspector</div>
+      <div class="s"><h3>Scene</h3>
+        <div class="kv"><span>title</span><span class="f">Pages 40–41</span></div>
+        <div class="kv"><span>layout</span><span class="seg"><span class="on">fixed</span><span>free</span></span></div>
+        <div class="kv"><span>group</span><span class="f">– its own stop</span></div>
+        <div class="kv"><span>targets</span><span>10 of 10<div class="meter"><i style="width:100%;background:var(--accent)"></i></div></span></div>
+      </div>
+      <div class="s"><h3>Surfaces <span style="float:right" class="tool">+ Surface</span></h3>
+        <div class="surf"><div class="mini a"></div><div><div class="kv"><span>label</span><span class="f">40</span></div><div class="kv"><span>size</span><span>230 × 320 mm</span></div><div class="kv"><span>reference</span><span class="seg"><span class="on">left</span><span>across</span><span>right</span></span></div></div></div>
+        <div class="surf"><div class="mini c"></div><div><div class="kv"><span>label</span><span class="f">41</span></div><div class="kv"><span>size</span><span>230 × 320 mm</span></div><div class="kv"><span>reference</span><span class="seg"><span>left</span><span>across</span><span class="on">right</span></span></div></div></div>
+        <div class="surf"><div class="mini empty">drop or<br>Library…</div><div><div class="kv"><span>label</span><span class="f">41a</span></div><div class="kv"><span>size</span><span>200 × 320 mm · fold-out</span></div><div class="note">No reference: the thumbnail is generated from targets and content.</div></div></div>
+      </div>
+      <div class="s"><h3>Reader</h3><div class="kv"><span>switcher</span><span>“Pages 40–41”</span></div><div class="kv"><span>link</span><span class="muted">/scene/s040-041</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 2: a group selected, a scene being dragged ======================= -->
+<section class="state" id="group" style="position:relative">
+  <div class="cap"><b>2</b> A group selected (click its band) – its parameters in the Inspector; a picked scene dragged along the strip</div>
+  <div class="app">
+    <div class="top"><span class="muted">Experiences ›</span><b>Onion Skin &amp; Crocodile Tears</b><span class="muted">›</span>Morpher<span class="sp"></span><span class="pill">draft · #307 design draft</span></div>
+
+    <div class="panel tree">
+      <div class="head">Tree <span class="muted" style="text-transform:none;letter-spacing:0">· Pages 40–41 stays open</span></div>
+      <div class="t"><span class="ic">▣</span><b>Pages 40–41</b> <span class="muted">· 3 surfaces</span></div>
+      <div class="t" style="padding-left:1.2rem"><span class="ic">▭</span>40 <span class="muted">· reference</span></div>
+      <div class="t" style="padding-left:2.2rem"><span class="ic">◎</span>p040-1 It Is Crying</div>
+      <div class="t" style="padding-left:2.2rem"><span class="ic">◎</span>p040-2 Janus</div>
+      <div class="t" style="padding-left:1.2rem"><span class="ic">▭</span>41</div>
+      <div class="t" style="padding-left:1.2rem"><span class="ic">▭</span>41a <span class="muted">· fold-out</span></div>
+    </div>
+
+    <div class="stage"><div class="bar"><span>✥</span><span>↻</span><span>⤢</span><span>◑</span><span>▦</span></div>
+      <div class="book"><div class="pg a"><div class="pglbl">40</div></div><div class="pg c"><div class="pglbl">41</div></div><div class="pg e"><div class="pglbl">41a</div></div></div>
+    </div>
+
+    <div class="panel scenes" style="position:relative">
+      <div class="sash"></div>
+      <div class="head">▾ Scenes <span class="muted" style="text-transform:none;letter-spacing:0">· 133 scenes · 7 groups · 1 picked</span><span class="sp"></span>
+        <span class="tool">+ Scene…</span><span class="tool">⬚ Group<kbd>Ctrl+G</kbd></span><span class="tool">Ungroup<kbd>Ctrl+Shift+G</kbd></span><span class="tool">− zoom +</span></div>
+      <div class="strip">
+        <div class="g"><div class="band">Front matter · 4 · 6 targets</div><div class="row">
+          <div class="card"><span class="th single"><i class="c"></i></span><span class="n"><b>Cover</b><span>0</span></span></div>
+          <div class="card"><span class="th"><i class="e"></i><i class="c"></i></span><span class="n"><b>Front 1</b><span>2</span></span></div>
+          <div class="card"><span class="th"><i class="e"></i><i class="c"></i></span><span class="n"><b>Front 2</b><span>3</span></span></div>
+          <div class="card"><span class="th"><i class="w0"></i><i class="b"></i></span><span class="n"><b>– | 1</b><span>1</span></span></div></div></div>
+        <div class="g"><div class="band sel">Morpher · 5 · <span class="w">31 targets ⚠</span></div><div class="row">
+          <div class="card"><span class="th"><i class="a"></i><i class="b"></i></span><span class="n"><b>22–23</b><span>8</span></span></div>
+          <div class="card"><span class="th"><i class="b"></i><i class="c"></i></span><span class="n"><b>24–25</b><span>9</span></span></div>
+          <div class="drop"></div>
+          <div class="card"><span class="th"><i class="c"></i><i class="a"></i></span><span class="n"><b>26–27</b><span>6</span></span></div></div></div>
+        <div class="g"><div class="row">
+          <div class="card"><span class="th"><i class="a"></i><i class="b"></i></span><span class="n"><b>38–39</b><span>7</span></span></div>
+          <div class="card"><span class="th"><i class="a"></i><i class="c"></i><i class="e"></i></span><span class="n"><b>40–41</b><span>10</span></span></div>
+          <div class="card pick" style="opacity:.35"><span class="th"><i class="b"></i><i class="a"></i></span><span class="n"><b>42–43</b><span>9</span></span></div>
+          <div class="card"><span class="th wall"><i class="c"></i></span><span class="n"><b>Studio wall</b><span>2</span></span></div></div></div>
+        <div class="add">+</div>
+      </div>
+      <div class="card ghost" style="left:28.6rem;top:3.4rem"><span class="th" style="outline:2px solid var(--pick)"><i class="b"></i><i class="a"></i></span></div>
+    </div>
+
+    <div class="panel insp">
+      <div class="head">Inspector</div>
+      <div class="s"><h3>Group</h3>
+        <div class="kv"><span>label</span><span class="f">Morpher</span></div>
+        <div class="kv"><span>scenes</span><span>5 · 22–23 … 30–31</span></div>
+        <div class="kv"><span>switcher</span><span>one stop: “Morpher”</span></div>
+      </div>
+      <div class="s"><h3>Targets</h3>
+        <div class="kv"><span>in the group</span><span style="color:var(--warn)">31</span></div>
+        <div class="meter"><i style="width:100%;background:var(--warn)"></i></div>
+        <div class="note">More than the loading window holds at once (measured on the phone, #300). The window moves through the group by order – the reader may wait at a scene change.</div>
+        <div class="kv"><span>window</span><span class="seg"><span>whole group</span><span class="on">by order</span></span></div>
+      </div>
+      <div class="s"><h3>Scenes in the group</h3>
+        <div class="kv"><span>Pages 22–23</span><span>8</span></div><div class="kv"><span>Pages 24–25</span><span>9</span></div><div class="kv"><span>Pages 26–27</span><span>6</span></div><div class="kv"><span>Pages 28–29</span><span>5</span></div><div class="kv"><span>Pages 30–31</span><span>3</span></div>
+        <div style="margin-top:.35rem"><span class="tool">Ungroup<kbd>Ctrl+Shift+G</kbd></span></div>
+      </div>
+    </div>
+  </div>
+  <div class="call" data-n="1" style="left:16rem;top:31.2rem">Scene 42–43 is dragged into the group – the gold line shows where it lands. Nothing renumbers.</div>
+  <div class="call" data-n="2" style="left:16rem;top:23.5rem">The band is the group: click it to select, drag it to move the whole group.</div>
+</section>
+
+</body>
+</html>

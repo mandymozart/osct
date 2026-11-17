@@ -82,7 +82,13 @@ cover and back; flows between scenes). Codebase analysis of 2026-11-17: summary 
 
 ### Editor
 
-Design draft: `agents/design/scenes-panel.html` (static, the editor's dark tokens; open it in a browser). The scene
+**Layout decided (Tilman, 2026-11-17): the Scenes panel is a filmstrip under the stage** – `agents/design/scenes-filmstrip.html`
+(a scene open; a group selected while a scene is dragged). The scene's tree keeps the left column, the Inspector the right;
+the strip shows every scene as a thumbnail with its label and target count, groups as bands over their scenes (click a
+band = the group in the Inspector: label, switcher stop, targets against the loading window, its scenes, Ungroup);
+drag along the strip to reorder, Shift/Ctrl to pick, Ctrl+G / Ctrl+Shift+G; the panel collapses and resizes; a zoom for
+long experiences. It is the row of stops the reader's bottom switcher shows. Earlier drafts (options A–E):
+`scene-open.html`, `scene-open-2.html`. First draft: `agents/design/scenes-panel.html` (static, the editor's dark tokens; open it in a browser). The scene
 organisation lives in a **Scenes panel** of the editor – like SCUTOONS' chapter tree (groups → their slices, grips to
 reorder, Shift/Ctrl to pick several, a group's own settings), which SCUTOONS will in turn inherit from here.
 **Grouping (Tilman, 2026-11-17)**: a **group icon** in the panel's toolbar groups the picked scenes; **Ctrl+G** groups,
