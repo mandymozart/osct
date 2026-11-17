@@ -11,13 +11,13 @@
   import ContextMenu, { type MenuItem } from "#lib/components/ContextMenu.svelte";
   import { menuTrigger } from "#lib/menu-trigger.js";
   import type { Point } from "#lib/context-menu.js";
-  import { sheetForSpread, type StageLayout } from "#lib/stage/stage-layout.js";
-  import { cardPageImages, fetchBookLayout, pageOf, printBoxes, sheetUrl } from "#lib/sheet-preview.js";
+  import { facingHalfOf, sheetForSpread, type StageLayout } from "#lib/stage/stage-layout.js";
+  import { cardPicture, fetchBookLayout, pageOf, printBoxes } from "#lib/sheet-preview.js";
   import { pageImages } from "#lib/page-images.svelte.js";
   import PagesView from "#lib/PagesView.svelte";
   import Segmented from "#lib/components/Segmented.svelte";
   import SheetPreview from "#lib/components/SheetPreview.svelte";
-  import { captionOf, formatLabelOf, gridCells } from "#lib/spread-grid.js";
+  import { captionOf, formatLabelOf, gridCells, type GridSpread } from "#lib/spread-grid.js";
   import Icon from "#lib/components/Icon.svelte";
   import InfoView from "#lib/components/InfoView.svelte";
 
@@ -139,14 +139,16 @@
   });
 
   const withTarget = (spread: BookTree["spreads"][number]) => spread.entries.filter(entry => entry.target?.imageSrc);
-  const cells = $derived(gridCells(tree?.spreads ?? []));
-  /** The add tile is a double page: a spacer before it when the last spread ends on a left-hand page */
-  const tileSpacer = $derived.by(() => {
-    const withTile = gridCells([...(tree?.spreads ?? []), { id: "", title: "", firstPage: 0, lastPage: 1 }]);
-    return withTile.length > 1 && withTile[withTile.length - 2].spacer;
-  });
   /** One page's proportions: a double page is twice as wide, so every card has the cover's height */
   const pageMm = $derived(pageOf(layout));
+  /** A single printed page with its unnumbered facing half (a page image, the layout sheet's other half) is a double page card (#251) */
+  const facingOf = (spread: GridSpread) => facingHalfOf(spread, sheetForSpread(layout, spread), pageMm, pageImageUrls);
+  const cells = $derived(gridCells(tree?.spreads ?? [], facingOf));
+  /** The add tile is a double page: a spacer before it when the last spread ends on a left-hand page */
+  const tileSpacer = $derived.by(() => {
+    const withTile = gridCells([...(tree?.spreads ?? []), { id: "", title: "", firstPage: 0, lastPage: 1 }], facingOf);
+    return withTile.length > 1 && withTile[withTile.length - 2].spacer;
+  });
   const pageRatio = $derived(pageMm.width / pageMm.height);
 </script>
 
@@ -173,6 +175,7 @@
           {@const targets = withTarget(spread)}
           {@const caption = captionOf(spread)}
           {@const format = formatLabelOf(spread)}
+          {@const picture = cardPicture(spread, cell, sheet, layout, pageImageUrls, assetsBase)}
           <li style:grid-column="span {cell.span}" class:right={cell.side === "right"} class:left={cell.side === "left"}
             class:pressing={pressing === spread.id} class:menu-open={menu?.id === spread.id}>
             <a href={resolve(`${bookId}/${spread.id}/`)} class="spread" draggable="false" aria-haspopup="menu" aria-expanded={menu?.id === spread.id}
@@ -183,9 +186,7 @@
                 pressing: on => { pressing = on ? spread.id : pressing === spread.id ? null : pressing; },
               })}>
               <span class="frame">
-                <SheetPreview ratio={cell.span * pageRatio} image={sheet ? sheetUrl(assetsBase, sheet) : null}
-                  single={cell.span === 1 && !!sheet && !!layout && sheet.widthMm > layout.page.width * 1.5} half={cell.side === "left" ? "left" : "right"}
-                  pages={cardPageImages(spread, pageImageUrls, cell.span, cell.side, assetsBase)}
+                <SheetPreview ratio={cell.span * pageRatio} image={picture.image} single={picture.single} half={picture.half} pages={picture.pages}
                   prints={printBoxes(targets.map(e => e.target!), cell.span, pageMm, assetsBase)} />
               </span>
               <span class="caption muted small">

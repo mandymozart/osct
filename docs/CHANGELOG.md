@@ -7,6 +7,16 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+
+- **Page 1 and the last printed page show their facing half** (#251): a single printed page whose unnumbered half
+  exists – a page image of its own (*next to 1*, *next to 256*) or the other half of the layout's double sheet – is a
+  double page card on the book page, the half on its side of the gutter (page 1's left, page 256's right). Its targets
+  stay on the printed page; without the half the card stays the single page, the covers stay single pages. On the stage
+  a one-page layout sheet of such a page now lies on its printed half instead of across the spine.
+
 ## 1.97.1 – 2026-11-17
 
 ### Changed

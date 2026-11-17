@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { matchNames, pageKey, pageOfName } from "@shared/api/page-names";
 import type { BookPage } from "@shared/api/editor";
-import { pageImagesOfSpread } from "../stage/stage-layout";
-import { cardPageImages } from "../sheet-preview";
+import { facingHalfOf, onePageSheetSide, pageImagesOfSpread } from "../stage/stage-layout";
+import { cardPageImages, cardPicture } from "../sheet-preview";
 import { pageImageMap } from "../stage/frame-protocol";
 import { bulkClashes, bulkRows, layoutHalfOf, printFormatOf } from "../pages-view";
 
@@ -104,5 +104,57 @@ describe("the Pages view's layout reading (#251)", () => {
     expect(layoutHalfOf(page(1, "facing", "next to 1", "left", true), { firstPage: 1, lastPage: 1 }, layout, "https://cdn/book")).toEqual({ url: "https://cdn/book/assets/content/layout/sheets/pp-001.jpg", part: "left" });
     expect(layoutHalfOf(page(0, "cover", "Cover", "front"), { firstPage: 0, lastPage: 0, format: "cover" }, layout, "https://cdn/book")?.part).toBe("whole");
     expect(layoutHalfOf(page(3, "page", "3", "right"), { firstPage: 2, lastPage: 3 }, null, "https://cdn/book")).toBeNull();
+  });
+});
+
+describe("a single page with its facing half (#251)", () => {
+  const format = { width: 230, height: 320 };
+  const sheetOf = (id: string, widthMm: number, pages: number[]) =>
+    ({ id, kind: "spread" as const, pages, image: `sheets/${id}.jpg`, widthMm, heightMm: 320, widthPx: 1, heightPx: 1, surfaces: ["left", "right"] });
+  const double = sheetOf("pp-001", 460, [1]);
+  const narrow = sheetOf("p-001", 230, [1]);
+  const layout = { page: format, targets: {}, sheets: [double] };
+
+  it("shows it when the half exists – a page image of its own or the layout's double sheet – beside the printed page", () => {
+    expect(facingHalfOf({ firstPage: 1, lastPage: 1 }, null, format, { "1f": "beside.jpg" })).toBe("left");
+    expect(facingHalfOf({ firstPage: 1, lastPage: 1 }, double, format, {})).toBe("left");
+    expect(facingHalfOf({ firstPage: 256, lastPage: 256 }, null, format, { "256f": "after.jpg" })).toBe("right");
+    expect(facingHalfOf({ firstPage: 256, lastPage: 256 }, { widthMm: 460 }, format, {})).toBe("right");
+  });
+
+  it("keeps the single page without the half, and never makes a cover or a double page one", () => {
+    expect(facingHalfOf({ firstPage: 1, lastPage: 1 }, null, format, { "1": "one.jpg" })).toBeNull();
+    expect(facingHalfOf({ firstPage: 1, lastPage: 1 }, narrow, format, {})).toBeNull();
+    expect(facingHalfOf({ firstPage: 0, lastPage: 0, format: "cover" }, { widthMm: 460 }, format, { "0f": "x.jpg" })).toBeNull();
+    expect(facingHalfOf({ firstPage: 261, lastPage: 261, format: "back" }, null, format, { "261f": "x.jpg" })).toBeNull();
+    expect(facingHalfOf({ firstPage: 2, lastPage: 3 }, double, format, {})).toBeNull();
+    expect(facingHalfOf(undefined, null, format, {})).toBeNull();
+  });
+
+  it("draws the card as the double page: the double sheet whole, the page images on their halves", () => {
+    const images = { "1": "one.jpg", "1f": "beside.jpg" };
+    expect(cardPicture({ firstPage: 1, lastPage: 1 }, { span: 2, side: null, facing: "left" }, double, layout, images, "https://cdn/book")).toEqual({
+      image: "https://cdn/book/assets/content/layout/sheets/pp-001.jpg", single: false, half: "right", pages: { left: "beside.jpg", right: "one.jpg" },
+    });
+    // Without the facing half: the single page's half of the double sheet, as before
+    expect(cardPicture({ firstPage: 256, lastPage: 256 }, { span: 1, side: "left", facing: null }, double, layout, {}, "https://cdn/book"))
+      .toMatchObject({ single: true, half: "left", pages: {} });
+  });
+
+  it("puts a one-page sheet on the printed half, next to the facing page image", () => {
+    const narrowLayout = { page: format, targets: {}, sheets: [narrow] };
+    expect(cardPicture({ firstPage: 1, lastPage: 1 }, { span: 2, side: null, facing: "left" }, narrow, narrowLayout, { "1f": "beside.jpg" }, "https://cdn/book")).toEqual({
+      image: null, single: false, half: "right", pages: { right: "https://cdn/book/assets/content/layout/sheets/p-001.jpg", left: "beside.jpg" },
+    });
+    // The printed page's own image wins over the sheet
+    expect(cardPicture({ firstPage: 256, lastPage: 256 }, { span: 2, side: null, facing: "right" }, narrow, narrowLayout, { "256": "last.jpg", "256f": "after.jpg" }).pages)
+      .toEqual({ left: "last.jpg", right: "after.jpg" });
+  });
+
+  it("lays a one-page sheet on its printed half of the stage's open book", () => {
+    expect(onePageSheetSide({ firstPage: 1, lastPage: 1 }, narrow, format)).toEqual({ side: "right" });
+    expect(onePageSheetSide({ firstPage: 256, lastPage: 256 }, narrow, format)).toEqual({ side: "left" });
+    expect(onePageSheetSide({ firstPage: 1, lastPage: 1 }, double, format)).toEqual({});
+    expect(onePageSheetSide({ firstPage: 0, lastPage: 0, format: "cover" }, narrow, format)).toEqual({});
   });
 });

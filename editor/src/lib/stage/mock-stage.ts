@@ -432,7 +432,8 @@ export class MockStage implements StageView {
     if (sheet) {
       // The sheet as laid out, centred on the spine (a double page spans both pages)
       const paper = new Mesh(new PlaneGeometry(sheet.widthMm / 1000, sheet.heightMm / 1000), new MeshBasicMaterial({ color: PAGE_COLOR }));
-      paper.position.set(0, 0, -2 * LAYER);
+      // A one-page sheet of a single printed page lies on its own half (#251), the facing half beside it
+      paper.position.set(sheet.side ? ((sheet.side === "left" ? -1 : 1) * sheet.widthMm) / 2000 : 0, 0, -2 * LAYER);
       this.book.add(paper);
       this.sheetPaper = paper;
       this.loader.setCrossOrigin("anonymous");
