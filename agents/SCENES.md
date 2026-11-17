@@ -85,6 +85,8 @@ cover and back; flows between scenes). Codebase analysis of 2026-11-17: summary 
 Design draft: `agents/design/scenes-panel.html` (static, the editor's dark tokens; open it in a browser). The scene
 organisation lives in a **Scenes panel** of the editor – like SCUTOONS' chapter tree (groups → their slices, grips to
 reorder, Shift/Ctrl to pick several, a group's own settings), which SCUTOONS will in turn inherit from here.
+**Grouping (Tilman, 2026-11-17)**: a **group icon** in the panel's toolbar groups the picked scenes; **Ctrl+G** groups,
+**Ctrl+Shift+G** ungroups (the scenes stay in place, in order).
 
 - **Scene overview** replaces the spreads overview and the Pages view: cards with the reference image (or a
   thumbnail made from the placed targets and content), drag to reorder, groups as headed sections, add/delete/layout
