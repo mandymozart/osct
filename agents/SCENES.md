@@ -112,7 +112,9 @@ cover and back; flows between scenes). Codebase analysis of 2026-11-17: summary 
 6. **MAJOR**: drop the page fields when no older app needs them.
 
 ## Open questions (Tilman)
-- [ ] The word in the UI and the API: "scene" everywhere (and `/scene/<id>`), or "spread" kept for books?
+- [x] The word in the UI and the API: **"scene" everywhere** (Tilman, 2026-11-17) – UI, API, MCP, links `/scene/<id>`, code
+  and content types (`SceneData`); "spread" survives only as an alias for old links and content, and RULES #2's term
+  "spread" changes with it.
 - [ ] Are surface sizes per scene, or does an experience have a few surface types (A4 page, wall 3 × 2 m)?
 - [ ] Thumbnails: the reference image, or always generated from targets and content when there is none?
 - [ ] Groups: only for loading and the scroller, or also for flows (`STRATEGY.md`)?
