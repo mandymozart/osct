@@ -699,6 +699,31 @@ Recommendations – final numbers follow the device tests.
 | **A model's texture set** | The model file with its smallest map, the same map as JPEG at 512 / 1024 / 2048 / 4096 px | `textures` on the model node ("A model's map by texture quality" below). The mesh loads once; the reader's texture quality chooses the map. These files stay exactly as you made them – the build does not shrink them. |
 | **Entry images** | JPG / PNG / WebP | ~1200 px wide is enough. |
 
+### The image rule
+
+Every picture takes the same way into the book (#298) – an upload in the editor, through the MCP server, a script, and
+(behind a switch for now) the content build. The numbers live in one place, `shared/api/images.ts`:
+
+| Use | Longest side | |
+|---|---|---|
+| A page image (#251) | 2048 px | shown over the whole page |
+| An entry's colour picture | 2048 px | the card flip shows it full screen |
+| A target's printed image | 1200 px | what the image tracker learns – more detail only costs memory |
+| Every other Library picture | 2048 px | a texture, a sky, a picture on a node |
+
+- **WebP**, quality 82; **lossless** when the picture has transparency (an icon, a cut-out).
+- **Never scaled up**; a JPEG's **EXIF orientation** is applied; **metadata** (EXIF, XMP, ICC colour profiles) is dropped –
+  export pictures in sRGB.
+- A picture above **50 MP** is refused before it is decoded. **TIFF and PDF** are no Library files: convert them locally
+  (Pillow / PyMuPDF) before uploading.
+- **At upload** the API applies it ([server](server.md) "The image rule at upload"): the stored file is `<name>.webp`.
+  The upload does not know the use, so it keeps 2048 px; where the use is known – the editor's target image field, the
+  MCP server's `upload_asset fit: "target"` – a target's image is cut to 1200 px.
+- **In the content build** (`scripts/src/lib/optimize-media.ts`) the default stays JPEG at 1200 px. `OSCT_IMAGE_FORMAT=webp`
+  writes every image the configuration names as WebP at the sizes above (a target's `imageSrc` 1200 px, the rest
+  2048 px) and renames it in the configuration (`target.jpg` → `target.webp`); images nobody names stay as they are.
+  The default changes once the image targets (8th Wall) are checked with WebP targets on a phone.
+
 ### Subtitles of a video
 
 A video that speaks carries its sound in the file. What it says can show as a line of text in the reader's language:

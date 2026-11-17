@@ -387,9 +387,15 @@ export interface AssetList {
   assets: Asset[];
 }
 
-/** `POST /editor/books/{id}/assets` → 201 (or 200: the same bytes are an asset already – it takes this upload's name) */
+/**
+ * `POST /editor/books/{id}/assets[?fit=<use>]` → 201 (or 200: the same bytes are an asset already – it takes this upload's
+ * name). `converted`: the picture was stored under the image rule (#298, `shared/api/images.ts`) – as WebP named
+ * `<name>.webp`, scaled down to the use's longest side; false for every other file, and for a picture this instance
+ * stores as it came (no GD, unreadable, animated, a WebP within the rule).
+ */
 export interface AssetUploaded {
   asset: Asset;
+  converted: boolean;
 }
 
 /** The most files one `PUT /editor/books/{id}/assets/credits` sets (`Assets::CREDITS_BATCH_MAX`) */
@@ -408,10 +414,11 @@ export interface AssetCreditsSaved {
   credits: Record<string, string | null>;
 }
 
-/** `PUT /editor/books/{id}/assets/{assetId}/file`: the new version, and how many rows now name it */
+/** `PUT /editor/books/{id}/assets/{assetId}/file[?fit=<use>]`: the new version, how many rows now name it, and whether the image rule converted it */
 export interface AssetReplaced {
   asset: Asset;
   relinked: number;
+  converted: boolean;
 }
 
 /** `GET /editor/books/{id}/assets/{assetId}/usages` */

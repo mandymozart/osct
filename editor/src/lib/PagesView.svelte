@@ -121,7 +121,7 @@
     uploadFor = null;
     if (!page) return;
     void run(async () => {
-      const asset = await library.upload(bookId, file);
+      const asset = await library.upload(bookId, file, "page");
       await pageImages.save(bookId, [setItem(page, asset.url, file.name)]);
     }, `${file.name} is the image of ${page.label}`);
   };
@@ -166,7 +166,7 @@
         const page = pageByKey(pageImages.pages, row.key);
         if (!page) continue;
         progress = `uploading ${i + 1} of ${chosen.length}: ${row.file.name}`;
-        const asset = await library.upload(bookId, row.file);
+        const asset = await library.upload(bookId, row.file, "page");
         items.push(setItem(page, asset.url, row.file.name));
       }
       progress = "setting the page images…";

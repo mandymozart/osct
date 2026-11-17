@@ -56,6 +56,7 @@ import type {
 import { confirmationStep } from "../../shared/api/errors";
 import { CREDITS_BATCH_MAX, CREDITS_MAX, MATTER_MAX, PAGE_IMAGES_BATCH_MAX } from "../../shared/api/editor";
 import { pageOfName } from "../../shared/api/page-names";
+import { IMAGE_FITS, IMAGE_MAX_SIDE, IMAGE_WEBP_QUALITY } from "../../shared/api/images";
 import {
   ASSET_KINDS,
   BODY_MAX_LENGTH,
@@ -410,7 +411,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_target",
     {
       description:
-        "Changes a target: `entity` = its own AR content (EntityData; null removes it), `ref` = a shared entity instead, `imageSrc` = the printed image (an uploaded image asset's url), `print` = where it is printed (null removes it), `enabled` = in the reader's book (false switches it off: the reader leaves the target and its entry out, the editor keeps both – content schema 2.26). Send what changes. Checked against the contract; a change is recorded.",
+        "Changes a target: `entity` = its own AR content (EntityData; null removes it), `ref` = a shared entity instead, `imageSrc` = the printed image (an uploaded image asset's url – upload it with upload_asset fit: \"target\", at most 1200 px), `print` = where it is printed (null removes it), `enabled` = in the reader's book (false switches it off: the reader leaves the target and its entry out, the editor keeps both – content schema 2.26). Send what changes. Checked against the contract; a change is recorded.",
       inputSchema: z.object({
         book: BOOK,
         target: ID.describe("the target's id (get_spread)"),
@@ -723,13 +724,20 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "upload_asset",
     {
       description:
-        "Uploads a file from this computer into the book's library: models (glb, gltf), videos (mp4, webm, mov), images (jpg, png, webp), sounds (mp3, m4a, ogg, wav), at most 64 MB, and shaders (glsl, frag, vert, wgsl – UTF-8 text, at most 256 KB; a plugin loads one by its url with api.loadText) and a video's subtitles (vtt – WebVTT text, at most 256 KB; named <video name>.<language>.vtt, e.g. speak.en.vtt for speak.mp4, it belongs to every video of that name in the book and shows as its subtitle line – no node names it). Answers the asset with its `url` – put it into a node's assets[].src or a target's imageSrc – and the file's width / height (images, videos) and durationMs (videos), null when the file does not tell. The same bytes twice are one asset, named as the last upload names it. A script (.ts, .js) is no asset: upload_plugin.",
-      inputSchema: z.object({ book: BOOK, file: z.string().describe("a local file path"), name: z.string().optional().describe("the file name to store (default: the path's base name)") }),
+        "Uploads a file from this computer into the book's library: models (glb, gltf), videos (mp4, webm, mov), images (jpg, png, webp), sounds (mp3, m4a, ogg, wav), at most 64 MB, and shaders (glsl, frag, vert, wgsl – UTF-8 text, at most 256 KB; a plugin loads one by its url with api.loadText) and a video's subtitles (vtt – WebVTT text, at most 256 KB; named <video name>.<language>.vtt, e.g. speak.en.vtt for speak.mp4, it belongs to every video of that name in the book and shows as its subtitle line – no node names it). Answers the asset with its `url` – put it into a node's assets[].src or a target's imageSrc – and the file's width / height (images, videos) and durationMs (videos), null when the file does not tell. The same bytes twice are one asset, named as the last upload names it. A script (.ts, .js) is no asset: upload_plugin. " +
+        `**Images go under the image rule** (#298): the API stores a jpg / png / webp as WebP (quality ${IMAGE_WEBP_QUALITY}, lossless when it has transparency), upright by its EXIF orientation, metadata dropped, its longest side at most ${IMAGE_MAX_SIDE.default} px – never scaled up – and named <name>.webp (\`converted\` says so; an instance without GD stores it as it came). Pass \`fit: "target"\` for a target's printed image (at most ${IMAGE_MAX_SIDE.target} px). TIFF and PDF are no Library files: convert them locally first.`,
+      inputSchema: z.object({
+        book: BOOK,
+        file: z.string().describe("a local file path"),
+        name: z.string().optional().describe("the file name to store (default: the path's base name; a converted image ends in .webp)"),
+        fit: z.enum(IMAGE_FITS as [string, ...string[]]).optional().describe(`an image's use: target (${IMAGE_MAX_SIDE.target} px), page, entryImage, default (${IMAGE_MAX_SIDE.default} px)`),
+      }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    guard(async ({ book, file, name }) => {
+    guard(async ({ book, file, name, fit }) => {
       const bytes = new Uint8Array(await readFile(file));
-      const result = await api.upload<AssetUploaded>("POST", `/editor/books/${encodeURIComponent(book)}/assets`, bytes, name ?? basename(file));
+      const query = fit && fit !== "default" ? `?fit=${encodeURIComponent(fit)}` : "";
+      const result = await api.upload<AssetUploaded>("POST", `/editor/books/${encodeURIComponent(book)}/assets${query}`, bytes, name ?? basename(file));
       return text({ ...result, size: bytes.byteLength });
     }),
   );
@@ -823,7 +831,8 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       for (const [i, item] of items.entries()) {
         if (item.upload === undefined) continue;
         const bytes = new Uint8Array(await readFile(item.upload));
-        const { asset } = await api.upload<AssetUploaded>("POST", `/editor/books/${encodeURIComponent(book)}/assets`, bytes, basename(item.upload));
+        // A page image under the image rule (#298): WebP, at most 2048 px
+        const { asset } = await api.upload<AssetUploaded>("POST", `/editor/books/${encodeURIComponent(book)}/assets?fit=page`, bytes, basename(item.upload));
         (changes[i] as { url: string }).url = asset.url;
         uploaded.push(asset.url);
       }

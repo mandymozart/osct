@@ -47,7 +47,12 @@ RUN cd mcp && node scripts/bundle.mjs /src/mcp-bundle/osct-mcp.mjs
 # ---- 2. Serve it ------------------------------------------------------------------------------------------
 FROM php:8.3-apache-bookworm
 
-RUN docker-php-ext-install pdo_mysql \
+# GD with WebP, JPEG and PNG: the image rule converts every uploaded picture to WebP (#298, docs/server.md "The image
+# rule at upload") – without it the API stores pictures as they come
+RUN apt-get update && apt-get install -y --no-install-recommends libwebp-dev libjpeg62-turbo-dev libpng-dev zlib1g-dev \
+    && docker-php-ext-configure gd --with-webp --with-jpeg \
+    && docker-php-ext-install gd pdo_mysql \
+    && rm -rf /var/lib/apt/lists/* \
     && a2enmod rewrite headers deflate remoteip \
     && mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
     && echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf && a2enconf servername

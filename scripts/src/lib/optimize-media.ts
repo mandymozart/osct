@@ -1,12 +1,15 @@
 import fs from 'fs';
+import { createRequire } from 'module';
 import path from 'path';
 import { type Document, NodeIO, type Texture } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { dedup, meshopt, prune } from '@gltf-transform/functions';
+import encodeWebp, { init as initWebp } from '@jsquash/webp/encode.js';
 import { gzipSync } from 'fflate';
 import jpeg from 'jpeg-js';
 import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
 import { PNG } from 'pngjs';
+import { IMAGE_WEBP_QUALITY, fitImage, type ImageFit } from '../../../shared/api/images';
 import { listFiles } from './files';
 
 /**
@@ -23,6 +26,13 @@ import { listFiles } from './files';
  *     recommended export settings.
  * A file is kept as it is when the result would not be smaller. Pure JavaScript / WebAssembly (no sharp):
  * the output is the same on every platform, CI compares it.
+ *
+ * The image rule (#298, shared/api/images.ts) behind a switch: with `OSCT_IMAGE_FORMAT=webp` every image the
+ * configuration names is written as WebP (`<name>.webp`, the configuration renamed with it – `renameContentPaths`) at
+ * the rule's sizes: a target's printed image (`imageSrc`) at most 1200 px, every other at most 2048 px, quality 82,
+ * lossless with transparency, EXIF orientation applied, metadata dropped (libwebp as WebAssembly – @jsquash/webp).
+ * Images nobody names (a plugin may load one by its path) stay as they are. The default stays JPEG until the image
+ * targets (8th Wall) are checked with WebP on a phone.
  */
 
 /** Longest side of a model texture after the build (phones: 1024 is plenty for a page-sized model) */
@@ -130,6 +140,128 @@ export const toJpeg = (image: Uint8Array, mimeType: string, maxSize: number, qua
   return new Uint8Array(jpeg.encode({ width: resized.width, height: resized.height, data: resized.data }, quality).data);
 };
 
+// ── The image rule as WebP (#298) ────────────────────────────────────────────────────────────────
+
+/** The content build's image format: `jpeg` (the default) or `webp` (`OSCT_IMAGE_FORMAT=webp`) */
+export type ImageFormat = 'jpeg' | 'webp';
+export const imageFormat = (value = process.env.OSCT_IMAGE_FORMAT): ImageFormat => (value?.trim().toLowerCase() === 'webp' ? 'webp' : 'jpeg');
+
+/** A JPEG's EXIF orientation (1 = upright, 0 = none named) – the API reads it the same way (Images::orientation) */
+export function jpegOrientation(data: Uint8Array): number {
+  if (data[0] !== 0xff || data[1] !== 0xd8) return 0;
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  let offset = 2;
+  while (offset + 4 <= data.length && data[offset] === 0xff) {
+    const marker = data[offset + 1];
+    if (marker === 0xda || marker === 0xd9) break;
+    const size = view.getUint16(offset + 2);
+    const exif = offset + 4;
+    if (marker === 0xe1 && String.fromCharCode(...data.subarray(exif, exif + 4)) === 'Exif' && data[exif + 4] === 0 && data[exif + 5] === 0) {
+      const tiff = exif + 6;
+      const little = data[tiff] === 0x49;
+      if (!little && data[tiff] !== 0x4d) return 0;
+      const u16 = (at: number) => (at + 2 <= data.length ? view.getUint16(at, little) : -1);
+      const u32 = (at: number) => (at + 4 <= data.length ? view.getUint32(at, little) : -1);
+      const directory = tiff + u32(tiff + 4);
+      const count = u16(directory);
+      for (let i = 0; i < count; i++) {
+        const entry = directory + 2 + i * 12;
+        if (u16(entry) !== 0x0112) continue;
+        const value = u16(entry + 8);
+        return value >= 1 && value <= 8 ? value : 0;
+      }
+      return 0;
+    }
+    offset += 2 + size;
+  }
+  return 0;
+}
+
+/** The picture as it is meant to be seen: EXIF orientation 2–8 undone */
+export function upright(image: Rgba, orientation: number): Rgba {
+  if (orientation < 2 || orientation > 8) return image;
+  const { width: w, height: h } = image;
+  const turned = orientation >= 5;
+  const width = turned ? h : w;
+  const height = turned ? w : h;
+  const data = new Uint8Array(image.data.length);
+  // Where the source pixel (x, y) lands, per orientation (EXIF: 2 mirror, 3 180°, 4 flip, 5 transpose, 6 90° cw, 7 transverse, 8 90° ccw)
+  const target: Record<number, (x: number, y: number) => [number, number]> = {
+    2: (x, y) => [w - 1 - x, y],
+    3: (x, y) => [w - 1 - x, h - 1 - y],
+    4: (x, y) => [x, h - 1 - y],
+    5: (x, y) => [y, x],
+    6: (x, y) => [h - 1 - y, x],
+    7: (x, y) => [h - 1 - y, w - 1 - x],
+    8: (x, y) => [y, w - 1 - x],
+  };
+  const to = target[orientation];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const [tx, ty] = to(x, y);
+      data.set(image.data.subarray((y * w + x) * 4, (y * w + x) * 4 + 4), (ty * width + tx) * 4);
+    }
+  }
+  return { width, height, data };
+}
+
+let webpReady: Promise<unknown> | null = null;
+/** libwebp's WebAssembly, compiled once from the package (Node has no fetch for a file URL) */
+const webpEncoder = (): Promise<unknown> => {
+  if (!webpReady) {
+    const wasm = createRequire(import.meta.url).resolve('@jsquash/webp/codec/enc/webp_enc_simd.wasm');
+    const init = initWebp as unknown as (module: WebAssembly.Module) => Promise<unknown>;
+    webpReady = WebAssembly.compile(fs.readFileSync(wasm)).then(init);
+  }
+  return webpReady;
+};
+
+/**
+ * An image under the rule as WebP: upright, at most `IMAGE_MAX_SIDE[fit]` px (never larger), lossy at quality 82 or
+ * lossless when it has transparency. Null when it cannot be read (WebP, KTX2, … are not decoded here).
+ */
+export async function toWebp(image: Uint8Array, mimeType: string, fit: ImageFit = 'default'): Promise<Uint8Array | null> {
+  const read = decode(image, mimeType);
+  if (!read) return null;
+  const decoded = mimeType === 'image/jpeg' ? upright(read, jpegOrientation(image)) : read;
+  const size = fitImage(decoded.width, decoded.height, fit);
+  const resized = size.width < decoded.width ? downscale(decoded, size.width, size.height) : decoded;
+  await webpEncoder();
+  const pixels = { data: new Uint8ClampedArray(resized.data.buffer, resized.data.byteOffset, resized.data.byteLength), width: resized.width, height: resized.height };
+  const lossless = !isOpaque(resized);
+  const encoded = await encodeWebp(pixels as unknown as ImageData, lossless ? { lossless: 1, exact: 0 } : { quality: IMAGE_WEBP_QUALITY });
+  return new Uint8Array(encoded);
+}
+
+/** The content paths (`/assets/content/…`) a configuration names, and those a target's `imageSrc` names */
+export function contentImagePaths(config: unknown): { named: Set<string>; targets: Set<string> } {
+  const named = new Set<string>();
+  const targets = new Set<string>();
+  const walk = (value: unknown, key?: string): void => {
+    if (typeof value === 'string') {
+      if (value.startsWith('/assets/content/')) {
+        named.add(value);
+        if (key === 'imageSrc') targets.add(value);
+      }
+    } else if (Array.isArray(value)) value.forEach(item => walk(item, key));
+    else if (value && typeof value === 'object') for (const [k, v] of Object.entries(value)) walk(v, k);
+  };
+  walk(config);
+  return { named, targets };
+}
+
+/** The configuration with every renamed content path replaced (whole string values only) */
+export function renameContentPaths<T>(config: T, renames: ReadonlyMap<string, string>): T {
+  if (!renames.size) return config;
+  const rename = (value: unknown): unknown => {
+    if (typeof value === 'string') return renames.get(value) ?? value;
+    if (Array.isArray(value)) return value.map(rename);
+    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, rename(v)]));
+    return value;
+  };
+  return rename(config) as T;
+}
+
 /** Smaller texture (scaled down, opaque → JPEG), or false when it would not get smaller */
 const optimizeTexture = (texture: Texture): boolean => {
   const image = texture.getImage();
@@ -161,6 +293,9 @@ export interface MediaOptimization {
   after: number;
   /** Something the author should know (e.g. a large video) */
   note?: string;
+  /** An image written as WebP (#298): its content path before and after – the configuration follows */
+  renamedFrom?: string;
+  renamedTo?: string;
 }
 
 /** Optimise one `.glb` in place; returns the sizes (after = before when it was kept) */
@@ -183,6 +318,17 @@ export function optimizeImage(file: string): MediaOptimization {
   const result = shrinkImage(image, mimeType, MAX_IMAGE_SIZE);
   if (result) fs.writeFileSync(file, result.data);
   return { file, before: image.byteLength, after: result?.data.byteLength ?? image.byteLength };
+}
+
+/** An image as WebP next to it (`<name>.webp`, the original removed); kept as it is when it cannot be read */
+async function writeWebp(file: string, contentPath: string, fit: ImageFit): Promise<MediaOptimization> {
+  const image = new Uint8Array(fs.readFileSync(file));
+  const result = await toWebp(image, /\.png$/i.test(file) ? 'image/png' : 'image/jpeg', fit);
+  if (!result) return { file, before: image.byteLength, after: image.byteLength };
+  const renamed = file.replace(/\.(jpe?g|png)$/i, '.webp');
+  fs.writeFileSync(renamed, result);
+  fs.rmSync(file);
+  return { file: renamed, before: image.byteLength, after: result.byteLength, renamedFrom: contentPath, renamedTo: contentPath.replace(/\.(jpe?g|png)$/i, '.webp') };
 }
 
 /** `<file>.gz` next to a `.glb` file (header time fixed: the same bytes on every build) */
@@ -214,12 +360,21 @@ export function textureSetFiles(config: unknown, found = new Set<string>()): Set
 /**
  * Optimise the content copy: models (+ gzip copy), images; report large videos. `keep` names the images that stay
  * as authored (paths below `dir`, forward slashes): a model's texture set is its map at exact sizes (#260).
+ * `webp` (#298, `OSCT_IMAGE_FORMAT=webp`): the configuration the images belong to – the images it names are written as
+ * WebP under the image rule; each such result has `renamedFrom`/`renamedTo` (content paths) for `renameContentPaths`.
  */
-export async function optimizeMedia(dir: string, keep: ReadonlySet<string> = new Set()): Promise<MediaOptimization[]> {
+export async function optimizeMedia(dir: string, keep: ReadonlySet<string> = new Set(), webp?: { config: unknown }): Promise<MediaOptimization[]> {
   const results: MediaOptimization[] = [];
-  const kept = (file: string) => keep.has(path.relative(dir, file).split(path.sep).join('/'));
+  const relative = (file: string) => path.relative(dir, file).split(path.sep).join('/');
+  const kept = (file: string) => keep.has(relative(file));
+  const images = webp ? contentImagePaths(webp.config) : null;
   for (const file of matchingFiles(dir, /\.glb$/i)) results.push(await optimizeModel(file));
-  for (const file of matchingFiles(dir, /\.(jpe?g|png)$/i)) if (!kept(file)) results.push(optimizeImage(file));
+  for (const file of matchingFiles(dir, /\.(jpe?g|png)$/i)) {
+    if (kept(file)) continue;
+    const contentPath = `/assets/content/${relative(file)}`;
+    if (images?.named.has(contentPath)) results.push(await writeWebp(file, contentPath, images.targets.has(contentPath) ? 'target' : 'default'));
+    else results.push(optimizeImage(file));
+  }
   // After the model optimisation: the .glb.gz holds the optimised model (client: utils/compressed.ts)
   for (const file of matchingFiles(dir, /\.glb$/i)) results.push(gzipCopy(file));
   for (const file of matchingFiles(dir, /\.(mp4|webm|mov)$/i)) {

@@ -34,6 +34,8 @@ export function hashBuildInputs(): string {
       hash.update(data);
     }
   }
+  // The image format of the content build (#298): WebP builds differ – the default (JPEG) keeps the hash it had
+  if (process.env.OSCT_IMAGE_FORMAT?.trim().toLowerCase() === 'webp') hash.update('image-format/webp\n');
   return hash.digest('hex');
 }
 

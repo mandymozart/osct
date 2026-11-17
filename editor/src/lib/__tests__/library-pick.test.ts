@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { acceptOf, isTargetImage, matchesFilter, matchesOrigin, pickAccept, pickFilter, pickFits, pickKinds, targetImagesOf, type PickSubject } from "../library-pick";
+import { acceptOf, isTargetImage, matchesFilter, matchesOrigin, pickAccept, pickFilter, pickFit, pickFits, pickKinds, targetImagesOf, type PickSubject } from "../library-pick";
 import type { Asset } from "../api";
+
+describe("the use an upload while picking names (#298)", () => {
+  it("a target's printed image is cut to the target size, an entry's picture to its own; the rest keep the default", () => {
+    expect(pickFit({ for: "target-image" })).toBe("target");
+    expect(pickFit({ for: "entry-image" })).toBe("entryImage");
+    expect(pickFit({ for: "model-texture" })).toBeUndefined();
+    expect(pickFit({ for: "node", nodeType: "image" })).toBeUndefined();
+  });
+});
 
 const asset = (kind: Asset["kind"], url: string, name = url.split("/").pop() ?? url) => ({ kind, url, name });
 

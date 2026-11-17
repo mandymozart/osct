@@ -3,6 +3,7 @@
 // loaded as the API loads them) and every copy is compared with shared/ – a difference fails. Skipped with a message
 // when php is not on the path; CI has it.
 import { CREDITS_BATCH_MAX, CREDITS_MAX } from "../../shared/api/editor";
+import { IMAGE_MAX_PIXELS, IMAGE_MAX_SIDE, IMAGE_WEBP_QUALITY } from "../../shared/api/images";
 import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -91,6 +92,7 @@ function readPhp(): Record<string, unknown> {
       'PLUGIN_ID' => Plugins::ID,
       'ASSET_KINDS' => Assets::KINDS,
       'CREDITS' => [Assets::CREDITS_BATCH_MAX, Assets::CREDITS_MAX],
+      'IMAGE' => ['maxSide' => Assets::IMAGE_MAX_SIDE, 'quality' => Assets::IMAGE_WEBP_QUALITY, 'maxPixels' => Assets::IMAGE_MAX_PIXELS],
       'REGISTERS' => $registers,
       'registers' => array_map(static fn(string $source): array => Plugins::registers($source), $input['sources']),
     ], JSON_THROW_ON_ERROR);
@@ -156,6 +158,10 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
 
   it("the credits limits (#277, Assets::CREDITS_*)", () => {
     expect(php.CREDITS).toEqual([CREDITS_BATCH_MAX, CREDITS_MAX]);
+  });
+
+  it("the image rule (#298, Assets::IMAGE_*): the longest side per use, the WebP quality, the pixel limit", () => {
+    expect(php.IMAGE).toEqual({ maxSide: IMAGE_MAX_SIDE, quality: IMAGE_WEBP_QUALITY, maxPixels: IMAGE_MAX_PIXELS });
   });
 
   it("the plugin-type scanner: the same functions, the same types read from the same sources (Plugins::registers)", () => {

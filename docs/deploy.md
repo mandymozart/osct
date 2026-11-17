@@ -40,7 +40,10 @@ there once. Bring them along when staging moves to the VM (into the volume below
    files do what they do on a shared host (SPA fallback, API routing); `server/docker/apache.conf` adds the cache
    headers (`assets/app/*` immutable, `index.html` / service worker / manifest `no-cache`), the MIME types the
    PWA needs, gzip for text, and takes the client IP from kamal-proxy's `X-Forwarded-For` (the API rate-limits
-   per IP). API errors go to the container log.
+   per IP). API errors go to the container log. PHP has `pdo_mysql` and **GD with WebP, JPEG and PNG** (#298): the
+   API converts every uploaded picture to WebP ([server](server.md) "The image rule at upload"). A host without GD –
+   the FTPS shared host while staging is still there, if its PHP lacks it – stores pictures as they come
+   (`converted: false`), nothing fails.
 
 At every start `server/docker/entrypoint.sh` runs `server/deploy/migrate.php` – the same additive migration as
 `POST /api/admin/migrate` (missing tables and columns only; a deploy never resets data) – waits for the database

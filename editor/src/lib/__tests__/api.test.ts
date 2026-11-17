@@ -93,6 +93,13 @@ describe("api() – the cookie session (#207)", () => {
     expect(headersOf(upload).get("X-File-Name")).toBe("dot.png");
     expect(headersOf(replace).get("X-CSRF-Token")).toBe("csrf-1");
     expect(headersOf(draft).has("X-CSRF-Token")).toBe(false);
+    // #298: where the use of a picture is known, the upload names it – the API cuts a target's printed image to 1200 px
+    await uploadAsset("osct", new File(["x"], "target.jpg", { type: "image/jpeg" }), "target");
+    await replaceAsset("osct", "a1", new File(["y"], "target.jpg", { type: "image/jpeg" }), "target");
+    await uploadAsset("osct", new File(["x"], "sky.jpg", { type: "image/jpeg" }), "default");
+    expect(fetchMock.mock.calls.slice(3).map(([url]) => String(url).replace(/^.*\/api/, ""))).toEqual([
+      "/editor/books/osct/assets?fit=target", "/editor/books/osct/assets/a1/file?fit=target", "/editor/books/osct/assets",
+    ]);
   });
 
   it("the sign-ins ask for the cookie and answer the CSRF token; the editor stores nothing", async () => {

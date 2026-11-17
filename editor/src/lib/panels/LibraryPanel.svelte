@@ -4,9 +4,9 @@
   import { codeKindOf, codeUploadProblem, pluginIdFrom } from "#lib/library-code.js";
   import { ACCEPT, library } from "#lib/library.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
-  import { assetPlace, formatDuration, formatSize, heldNotice, LIBRARY_VIEWS, matchesSearch, readLibraryView, saveLibraryView, type LibraryView } from "#lib/library-place.js";
+  import { assetPlace, convertedNotice, formatDuration, formatSize, heldNotice, LIBRARY_VIEWS, matchesSearch, readLibraryView, saveLibraryView, type LibraryView } from "#lib/library-place.js";
   import {
-    FILTER_LABELS, LIBRARY_FILTERS, LIBRARY_ORIGINS, matchesFilter, matchesOrigin, nodeAssetKinds, pickAccept, pickFilter, pickFits, targetImagesOf, type LibraryFilter, type LibraryOrigin, type LibraryPick,
+    FILTER_LABELS, LIBRARY_FILTERS, LIBRARY_ORIGINS, matchesFilter, matchesOrigin, nodeAssetKinds, pickAccept, pickFilter, pickFit, pickFits, targetImagesOf, type LibraryFilter, type LibraryOrigin, type LibraryPick,
   } from "#lib/library-pick.js";
   import Icon from "#lib/components/Icon.svelte";
   import Segmented from "#lib/components/Segmented.svelte";
@@ -125,14 +125,15 @@
       }
       try {
         const names = new Map(library.assets.map(a => [a.id, a.name]));
-        const asset = await library.upload(bookId, file);
+        const asset = await library.upload(bookId, file, pick ? pickFit(pick.subject) : undefined);
         // Picking: the first upload that fits is the pick
         if (pick) {
           if (pickFits(pick.subject, asset)) return choose(asset);
           notice = `${asset.name} does not fit ${pick.label} – it stays in the Library`;
           continue;
         }
-        notice = heldNotice(asset, names.get(asset.id)) ?? notice;
+        const conversion = library.converted?.assetId === asset.id ? library.converted : null;
+        notice = heldNotice(asset, names.get(asset.id)) ?? (conversion ? convertedNotice(asset, conversion) : notice);
         showUploaded(asset);
       } catch {
         // library.error says
@@ -163,7 +164,8 @@
     if (!asset) return;
     try {
       const next = await library.replace(bookId, asset.id, file);
-      notice = `${next.name} is version ${next.version}; ${next.usages} use${next.usages === 1 ? "" : "s"} relinked`;
+      const conversion = library.converted?.assetId === next.id ? library.converted : null;
+      notice = `${next.name} is version ${next.version}; ${next.usages} use${next.usages === 1 ? "" : "s"} relinked${conversion ? ` · ${convertedNotice(next, conversion)}` : ""}`;
       await onchanged?.();
     } catch {
       // library.error says

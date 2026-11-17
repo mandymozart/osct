@@ -36,6 +36,7 @@ import type {
   TargetSaved,
 } from "@shared/api/editor";
 import { apiErrorFields } from "@shared/api/errors";
+import type { ImageFit } from "@shared/api/images";
 import { readStored, writeStored } from "#lib/storage.js";
 import type { PublishedPlugin } from "#lib/publish-plugins.js";
 
@@ -481,11 +482,15 @@ const sendFile = async <T>(method: string, path: string, file: File): Promise<T>
   return (await response.json().catch(() => null)) as T;
 };
 
-export const uploadAsset = async (bookId: string, file: File): Promise<Asset> =>
-  (await sendFile<AssetUploaded>("POST", `/editor/books/${encodeURIComponent(bookId)}/assets`, file)).asset;
+/** `?fit=<use>` where the use of a picture is known (#298): a target's printed image is cut to 1200 px, the rest to 2048 */
+export const fitQuery = (fit: ImageFit | undefined): string => (fit && fit !== "default" ? `?fit=${encodeURIComponent(fit)}` : "");
 
-export const replaceAsset = (bookId: string, assetId: string, file: File) =>
-  sendFile<AssetReplaced>("PUT", `/editor/books/${encodeURIComponent(bookId)}/assets/${encodeURIComponent(assetId)}/file`, file);
+/** The uploaded asset, and whether the image rule converted it (a picture stored as WebP) */
+export const uploadAsset = (bookId: string, file: File, fit?: ImageFit): Promise<AssetUploaded> =>
+  sendFile<AssetUploaded>("POST", `/editor/books/${encodeURIComponent(bookId)}/assets${fitQuery(fit)}`, file);
+
+export const replaceAsset = (bookId: string, assetId: string, file: File, fit?: ImageFit) =>
+  sendFile<AssetReplaced>("PUT", `/editor/books/${encodeURIComponent(bookId)}/assets/${encodeURIComponent(assetId)}/file${fitQuery(fit)}`, file);
 
 export const assetUsages = (bookId: string, assetId: string) =>
   api<AssetUsages>("GET", `/editor/books/${encodeURIComponent(bookId)}/assets/${encodeURIComponent(assetId)}/usages`);
