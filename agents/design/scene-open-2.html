@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>An opened scene – options D and E (#307)</title>
+<style>
+  :root {
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --text-size: .75rem; --text-small: .6875rem;
+    --text: #fff; --muted: #a3a3a3; --line: #444; --surface: #2c2c2c; --surface-head: #1e1e1e;
+    --control-background: #383838; --pressed-background: #4f4f4f; --hover-background: #353535; --selected-background: #5a5a5a;
+    --stage-background: #0c0c0c; --warn: #e0a030; --accent: #c7a144;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: var(--text-size)/1.4 var(--font); color: var(--text); background: #111; }
+  .option { height: 34rem; margin: 0 0 1.5rem; display: grid; grid-template-rows: 2.2rem 1fr; border: 1px solid #333; }
+  .title { display: flex; align-items: center; gap: .75rem; padding: 0 .75rem; background: #000; font-size: .85rem; }
+  .title b { color: var(--accent); }
+  .title span { color: var(--muted); font-size: var(--text-size); }
+  .main { display: grid; min-height: 0; }
+  .panel { background: var(--surface); border-right: 1px solid var(--line); overflow: hidden; display: flex; flex-direction: column; }
+  .panel.right { border: 0; border-left: 1px solid var(--line); }
+  .head { display: flex; align-items: center; justify-content: space-between; padding: .4rem .6rem; border-bottom: 1px solid var(--line);
+          text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-size: var(--text-small); flex: none; }
+  .head .tabs span { padding: .15rem .45rem; margin-left: .15rem; } .head .tabs span.on { background: var(--pressed-background); color: var(--text); }
+  .row { display: grid; align-items: center; gap: .35rem; padding: .25rem .5rem; grid-template-columns: .8rem 2.2rem 1fr auto; }
+  .row.sel { background: var(--selected-background); }
+  .row.grp { grid-template-columns: .8rem .8rem 1fr auto; background: var(--surface-head); }
+  .row .grip, .row .fold { color: var(--muted); }
+  .row.in { padding-left: 1.3rem; }
+  .thumb { height: 1.5rem; display: flex; border: 1px solid #555; background: #fff; }
+  .thumb i { flex: 1; border-right: 1px solid #ddd; } .thumb i:last-child { border: 0; }
+  .a { background: linear-gradient(135deg,#c44 0 35%,#335 35% 65%,#eee 65%); }
+  .b { background: linear-gradient(45deg,#8a6 0 40%,#fff 40%); }
+  .c { background: radial-gradient(circle at 40% 40%,#99a 0 30%,#fff 31%); }
+  .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .warn { color: var(--warn); }
+  .tree .t { padding: .22rem .5rem; display: flex; gap: .35rem; align-items: center; }
+  .tree .t.sel { background: var(--selected-background); }
+  .ic { width: .9rem; text-align: center; color: var(--muted); }
+  .muted { color: var(--muted); }
+  .stage { background: var(--stage-background); position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .book { display: flex; transform: perspective(50rem) rotateX(16deg); box-shadow: 0 1.5rem 3rem #000; }
+  .pg { width: 11rem; height: 15rem; position: relative; } .pg + .pg { border-left: 1px solid #ccc; }
+  .tg { position: absolute; border: 2px solid #2b8; background: rgba(40,180,120,.15); }
+  .tg.sel { border-color: var(--accent); background: rgba(199,161,68,.2); }
+  .bar { position: absolute; top: .45rem; left: .45rem; display: flex; gap: 1px; }
+  .bar span { background: #eee; color: #111; width: 1.4rem; height: 1.4rem; display: grid; place-items: center; font-size: .65rem; }
+  .insp .s { border-bottom: 1px solid var(--line); padding: .45rem .6rem; }
+  .insp h3 { margin: 0 0 .35rem; font-size: var(--text-small); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 500; }
+  .kv { display: grid; grid-template-columns: 5.5rem 1fr; min-height: 1.6rem; align-items: center; }
+  .kv span:first-child { color: var(--muted); }
+  .rail { background: var(--surface-head); border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: .3rem; padding: .4rem .3rem; overflow: hidden; }
+  .rail .thumb { height: 1.6rem; width: 100%; }
+  .rail .thumb.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .rail .gl { height: 1px; background: var(--muted); margin: .15rem 0; }
+  .rail .grpb { border-left: 3px solid var(--accent); padding-left: .2rem; display: flex; flex-direction: column; gap: .3rem; }
+  .rail .dropl { height: 2px; background: var(--accent); margin: -.1rem 0; }
+  .rail .thumb.picked { outline: 2px solid #8ab4f8; outline-offset: 1px; }
+  .rail .ghost { position: absolute; left: 1.4rem; top: 6.6rem; width: 2.4rem; opacity: .75; box-shadow: 0 .3rem .8rem #000; transform: rotate(-4deg); }
+  .rail .exp { color: var(--muted); text-align: center; font-size: .9rem; }
+  .split { flex: 1; display: grid; grid-template-rows: 13rem 1fr; min-height: 0; }
+  .split > div { overflow: hidden; } .split .sash { border-top: 3px double var(--line); }
+  .note { position: absolute; background: #ffd34d; color: #111; padding: .3rem .45rem; font-size: .65rem; max-width: 15rem; box-shadow: 0 .2rem .6rem #000a; z-index: 2; }
+  .pro { color: #7c7; } .con { color: #e88; }
+  .verdict { padding: .35rem .6rem; font-size: .7rem; border-top: 1px solid var(--line); background: #191919; }
+</style>
+</head>
+<body><style>
+  .rail.d { position: relative; overflow: visible; }
+  .gm { font-size: .55rem; line-height: 1.1; color: var(--accent); border-left: 3px solid var(--accent); padding: .15rem .2rem; background: #2a2416; }
+  .gm.sel { outline: 1px solid var(--accent); }
+  .gm .w { color: var(--warn); }
+  .peek { position: absolute; left: 3.4rem; top: 0; bottom: 0; width: 15rem; background: var(--surface); border-right: 1px solid var(--line);
+          box-shadow: .6rem 0 1.2rem #000a; z-index: 3; }
+  .strip { background: var(--surface-head); border-top: 1px solid var(--line); display: flex; gap: .6rem; padding: .35rem .6rem .5rem; overflow: hidden; align-items: flex-end; }
+  .strip .g { display: flex; flex-direction: column; gap: .2rem; }
+  .strip .band { font-size: .6rem; color: var(--accent); border-top: 3px solid var(--accent); padding-top: .1rem; white-space: nowrap; }
+  .strip .band.sel { background: #2a2416; }
+  .strip .band .w { color: var(--warn); }
+  .strip .row2 { display: flex; gap: .3rem; }
+  .strip .card { width: 4.2rem; display: flex; flex-direction: column; gap: .1rem; font-size: .58rem; color: var(--muted); }
+  .strip .card .thumb { height: 2.4rem; }
+  .strip .card.sel .thumb { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .strip .card.sel { color: var(--text); }
+  .strip .drop { width: 2px; background: var(--accent); align-self: stretch; margin-top: 1rem; }
+</style>
+<section class="option" id="d">
+  <div class="title"><b>D</b> The rail with group markers – as narrow as A; hovering opens the full Scenes list over the tree <span>(A + C's groups)</span></div>
+  <div class="main" style="grid-template-columns: 3.4rem 15rem 1fr 18rem">
+    <div class="rail d">
+      <div class="exp">»</div>
+      <div class="gm">Front<br>2 · 6</div><div class="thumb"><i class="c"></i></div><div class="thumb"><i class="c"></i><i></i></div>
+      <div class="gm sel">Morpher<br><span class="w">5 · 31⚠</span></div><div class="thumb"><i class="a"></i><i class="b"></i></div><div class="thumb"><i class="b"></i><i class="c"></i></div>
+      <div class="gl"></div><div class="thumb sel"><i class="a"></i><i class="c"></i></div><div class="thumb"><i class="b"></i><i class="a"></i></div>
+      <div class="peek tree"><div class="head">Scenes <span class="muted">on hover · Esc closes</span></div>
+        <div class="row grp"><span class="grip">⋮⋮</span><span class="fold">▸</span><b>Front matter</b><span class="n">2 · 6</span></div>
+        <div class="row grp sel"><span class="grip">⋮⋮</span><span class="fold">▾</span><b>Morpher</b><span class="n warn">5 · 31 ⚠</span></div>
+        <div class="row in"><span class="grip">⋮⋮</span><span class="thumb"><i class="a"></i><i class="b"></i></span>Pages 22–23<span class="n">8</span></div>
+        <div class="row in"><span class="grip">⋮⋮</span><span class="thumb"><i class="b"></i><i class="c"></i></span>Pages 24–25<span class="n">9</span></div>
+        <div class="row"><span class="grip">⋮⋮</span><span class="thumb"><i class="a"></i><i class="c"></i></span>Pages 40–41<span class="n">10</span></div>
+      </div>
+    </div>
+    <div class="panel tree"><div class="head">Pages 40–41</div>
+      <div class="t"><span class="ic">▣</span><b>Pages 40–41</b> <span class="muted">· 3 surfaces</span></div>
+      <div class="t" style="padding-left:1.2rem"><span class="ic">▭</span>40 <span class="muted">· reference</span></div>
+      <div class="t" style="padding-left:2.2rem"><span class="ic">◎</span>p040-1 It Is Crying</div>
+      <div class="t sel" style="padding-left:3.2rem"><span class="ic">◇</span>video · Morpher loop</div>
+      <div class="t" style="padding-left:2.2rem"><span class="ic">◎</span>p040-2 Janus</div>
+      <div class="t" style="padding-left:1.2rem"><span class="ic">▭</span>41</div>
+      <div class="t" style="padding-left:2.2rem"><span class="ic">◎</span>p041-4 It Bends Over</div>
+      <div class="t" style="padding-left:1.2rem"><span class="ic">▭</span>41a <span class="muted">· fold-out</span></div>
+    </div>
+    <div class="stage"><div class="bar"><span>✥</span><span>↻</span><span>⤢</span><span>◑</span></div>
+      <div class="book"><div class="pg a"><div class="tg sel" style="left:2rem;top:3rem;width:3.5rem;height:4.5rem"></div></div><div class="pg c"><div class="tg" style="left:5rem;top:7rem;width:4rem;height:3.5rem"></div></div><div class="pg" style="background:#fafafa"></div></div>
+    </div>
+    <div class="panel right insp"><div class="head">Inspector</div>
+      <div class="s"><h3>Group</h3><div class="kv"><span>label</span><span style="background:var(--control-background);padding:.15rem .4rem">Morpher</span></div>
+        <div class="kv"><span>switcher</span><span>one stop: “Morpher”</span></div></div>
+      <div class="s"><h3>Targets</h3><div class="kv"><span>in the group</span><span class="warn">31</span></div>
+        <div style="height:.35rem;background:var(--control-background);position:relative;margin:.2rem 0 .3rem"><i style="position:absolute;inset:0;background:var(--warn)"></i></div>
+        <div class="kv"><span>window</span><span><span style="background:var(--pressed-background);padding:.1rem .4rem">whole group</span> <span style="background:var(--control-background);padding:.1rem .4rem">by order</span></span></div></div>
+      <div class="s"><span style="background:var(--control-background);padding:.2rem .5rem">Ungroup <span class="muted">Ctrl+Shift+G</span></span></div>
+    </div>
+  </div>
+  <div class="verdict"><span class="pro">+ the space of A; groups are markers you click (the Inspector shows the group); hovering the rail shows the full Scenes list over the tree – group rows, names, counts, drag, Ctrl+G.</span> <span class="con">− the hover list covers the tree while open; short labels on the markers.</span></div>
+</section>
+<section class="option" id="e">
+  <div class="title"><b>E</b> A filmstrip under the stage – the scenes as the reader's bottom switcher shows them <span>(Keynote / a timeline)</span></div>
+  <div class="main" style="grid-template-columns: 15rem 1fr 18rem; grid-template-rows: 1fr auto">
+    <div class="panel tree" style="grid-row: span 2"><div class="head">Tree · Pages 40–41</div>
+      <div class="t"><span class="ic">▣</span><b>Pages 40–41</b> <span class="muted">· 3 surfaces</span></div>
+      <div class="t" style="padding-left:1.2rem"><span class="ic">▭</span>40 <span class="muted">· reference</span></div>
+      <div class="t" style="padding-left:2.2rem"><span class="ic">◎</span>p040-1 It Is Crying</div>
+      <div class="t sel" style="padding-left:3.2rem"><span class="ic">◇</span>video · Morpher loop</div>
+      <div class="t" style="padding-left:2.2rem"><span class="ic">◎</span>p040-2 Janus</div>
+      <div class="t" style="padding-left:1.2rem"><span class="ic">▭</span>41</div>
+      <div class="t" style="padding-left:2.2rem"><span class="ic">◎</span>p041-4 It Bends Over</div>
+      <div class="t" style="padding-left:1.2rem"><span class="ic">▭</span>41a <span class="muted">· fold-out</span></div>
+    </div>
+    <div class="stage"><div class="bar"><span>✥</span><span>↻</span><span>⤢</span><span>◑</span></div>
+      <div class="book"><div class="pg a"><div class="tg sel" style="left:2rem;top:3rem;width:3.5rem;height:4.5rem"></div></div><div class="pg c"><div class="tg" style="left:5rem;top:7rem;width:4rem;height:3.5rem"></div></div><div class="pg" style="background:#fafafa"></div></div>
+    </div>
+    <div style="grid-column:3;grid-row:1 / span 2;display:flex;flex-direction:column"><div class="panel right insp"><div class="head">Inspector</div>
+      <div class="s"><h3>Group</h3><div class="kv"><span>label</span><span style="background:var(--control-background);padding:.15rem .4rem">Morpher</span></div>
+        <div class="kv"><span>switcher</span><span>one stop: “Morpher”</span></div></div>
+      <div class="s"><h3>Targets</h3><div class="kv"><span>in the group</span><span class="warn">31</span></div>
+        <div style="height:.35rem;background:var(--control-background);position:relative;margin:.2rem 0 .3rem"><i style="position:absolute;inset:0;background:var(--warn)"></i></div>
+        <div class="kv"><span>window</span><span><span style="background:var(--pressed-background);padding:.1rem .4rem">whole group</span> <span style="background:var(--control-background);padding:.1rem .4rem">by order</span></span></div></div>
+      <div class="s"><span style="background:var(--control-background);padding:.2rem .5rem">Ungroup <span class="muted">Ctrl+Shift+G</span></span></div>
+    </div></div>
+    <div class="strip" style="grid-column:2;grid-row:2">
+      <div class="g"><div class="band">Front matter · 2 · 6</div><div class="row2"><div class="card"><span class="thumb"><i class="c"></i></span>Cover</div><div class="card"><span class="thumb"><i class="c"></i><i></i></span>Front 1</div></div></div>
+      <div class="g"><div class="band sel">Morpher · 5 · <span class="w">31 ⚠</span></div><div class="row2"><div class="card"><span class="thumb"><i class="a"></i><i class="b"></i></span>22–23 · 8</div><div class="card"><span class="thumb"><i class="b"></i><i class="c"></i></span>24–25 · 9</div><div class="card"><span class="thumb"><i class="c"></i><i class="a"></i></span>26–27 · 6</div></div></div>
+      <div class="g"><div class="row2"><div class="card"><span class="thumb"><i class="a"></i><i class="b"></i></span>38–39 · 7</div><div class="drop"></div><div class="card sel"><span class="thumb"><i class="a"></i><i class="c"></i><i class="b"></i></span>40–41 · 10</div><div class="card"><span class="thumb"><i class="b"></i><i class="a"></i></span>42–43 · 9</div><div class="card"><span class="thumb"><i class="c"></i></span>Wall · 2</div></div></div>
+    </div>
+  </div>
+  <div class="verdict"><span class="pro">+ the tree keeps the full left column; one row shows names, counts and groups (bands) at once; drag along it, Ctrl+G / Ctrl+Shift+G; a band is a group you click; the same row of stops the reader's bottom switcher shows.</span> <span class="con">− takes about 4 rem of height from the stage; 133 scenes need a sideways scroll and a zoom.</span></div>
+</section>
+</body>
+</html>
