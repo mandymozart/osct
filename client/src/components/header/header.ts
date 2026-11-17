@@ -61,23 +61,9 @@ export class GameHeader extends HTMLElement {
                     /* above the full-screen consultation pages */
                     z-index: 1100;
                 }
-                /* Consultation: the pages' text scrolls under the header, not through the icon (design p. 59) – a
-                   near-black backdrop (the page's own is translucent and would let the text show), fading out a
-                   little below the header */
-                .chrome::before {
-                    content: "";
-                    position: absolute;
-                    inset: 0 0 -1.5rem 0;
-                    background: linear-gradient(to bottom,
-                        var(--header-backdrop) 0%,
-                        var(--header-backdrop) calc(100% - 2.5rem),
-                        transparent 100%);
-                    z-index: -1;
-                    display: none;
-                }
-                :host([mode="consultation"]) .chrome::before { display: block; }
+                /* The header is transparent: the pages scroll under it (Tilman, #297) */
 
-                /* Compensates the Mark image's transparent top margin; the counter follows close below (design p. 2) */
+                /* Compensates the eye image's transparent top margin; the counter follows close below (design p. 53) */
                 mark-the-page {
                     margin-top: calc(-1 * var(--mark-inset-top));
                 }

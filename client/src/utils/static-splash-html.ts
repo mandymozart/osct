@@ -21,7 +21,7 @@ export interface SplashStepSource {
 /**
  * The icon of the splash and the onboarding steps (#281): the design's green eye, a placeholder until Kévin's icon
  * arrives – swap the file in `public/` (same name, same proportions) and nothing else changes. Its size and place in
- * row 1 are tokens in `main.css` (`--onboarding-icon-*`). The header keeps the Mark (`MARK_IMAGE_SRC`).
+ * row 1 are tokens in `main.css` (`--onboarding-icon-*`). The header shows the same eye (#297).
  */
 export const ONBOARDING_ICON_SRC = "/assets/ui/onboarding/icon.png";
 

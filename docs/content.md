@@ -233,7 +233,7 @@ field for every placement value and every filter parameter – the names are thr
 **Publish** makes a content version of the draft. The content source is imported into the editor, not written
 by it: carry a saved value back into `entry.yaml` (or the shared `entity.yaml`) when the source should keep it.
 
-**Unlock and consult:** finding a target for the first time unlocks its entry – "New entry unlocked"
+**Unlock and consult:** finding a target for the first time unlocks its entry – "New marginalia unlocked"
 appears, AR content (model, video, image) pops, turns once and sparkles on the page. Tapping the found
 image or the AR content opens the entry – from then on it counts as consulted.
 

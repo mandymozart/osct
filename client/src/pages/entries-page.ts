@@ -31,8 +31,8 @@ export class EntriesPage extends ConsultationPage {
       .count { text-align: center; font-size: var(--text-size-small); }
       .count[hidden] { display: none; }
       .count .noun { display: block; max-width: var(--category-width); }
-      /* The Videos button: gold and glowing when it is the list shown, white otherwise (#286) */
-      .toolbar .videos:not(.selected) { box-shadow: var(--shadow-grey); }
+      /* The Videos button: gold and glowing when it is the list shown, white with the grey shadow otherwise (#286, #297) */
+      .toolbar .videos.selected { box-shadow: var(--shadow-bronze); }
       .toolbar .videos:not(.selected) .gold {
         background: none;
         color: var(--color-on-dark);

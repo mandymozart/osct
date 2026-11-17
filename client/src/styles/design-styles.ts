@@ -9,14 +9,16 @@
  *   .shimmer        modifier for .gold: a slow light band sweeps through the gold (#280) – the book title, "New
  *                   marginalia unlocked"; not for body text. Off with reduced motion
  *   .muted          muted grey text
- *   .button         onboarding button: black body, white glow, gold label (<span class="gold">)
- *   .pill           glass pill: near-transparent, backdrop blur, bronze glow, gold label
+ *   .button         onboarding button: glass body (transparent), white glow, gold label (<span class="gold">)
+ *   .pill           glass pill: transparent, backdrop blur, grey shadow, gold label; the active item glows gold
+ *                   (bronze, set by the component – #297)
  *   .icon-button    round glass button ("i")
+ *                   Buttons have no fill and never a border, only a drop shadow (Tilman, #297)
  *   .switch         on/off switch (checkbox role="switch"), knob gold when on;
  *                   .switch-row is the surrounding label row (text left, switch right)
  *   .field          text input: glass pill with a muted rule, gold focus border
  *   .text-link      secondary action as underlined muted text (a native <button>), e.g. next to a pill
- *   .primary        modifier for .button / .pill: animated label shine and border sweep; absent = secondary
+ *   .primary        modifier for .button / .pill: animated label shine; absent = secondary
  *   .rule-table     meta table with 1 px rules, muted labels, white values
  *   .section-title  muted title between two rules
  *   .gold-spinner   gold loader ring (from styles/gold-spinner.css, shared with the startup loader)
@@ -44,6 +46,7 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     --glass-background: rgba(0, 0, 0, .4);
     --glass-blur: none;
     --shadow-bronze: none;
+    --shadow-grey: none;
     --control-height: 1.5rem;
     --control-radius: .25rem;
     --pressed-background: #0f0;
@@ -96,7 +99,9 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     min-height: 1.95rem;
     padding: 0 1.5rem;
     border-radius: 999rem;
-    background: #000;
+    background: var(--glass-background);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
     box-shadow: var(--shadow-glow);
   }
   .button:not(.primary) { box-shadow: var(--shadow-glow-soft); }
@@ -106,7 +111,7 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     background: var(--glass-background);
     -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
-    box-shadow: var(--shadow-bronze);
+    box-shadow: var(--shadow-grey);
   }
   .pill {
     min-height: 1.8rem;
@@ -224,32 +229,13 @@ export const DESIGN_CSS = goldSpinnerCss + /* css */ `
     .gold.shimmer { animation: none; background-image: var(--gold-gradient); }
   }
 
-  .primary { position: relative; isolation: isolate; }
   .primary .gold { animation: gold-shine var(--shine-duration) linear infinite; }
-  .primary::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    padding: 0.0625rem;              /* ring width of the masked border sweep */
-    border-radius: inherit;
-    background:
-      linear-gradient(110deg, transparent 35%, var(--gold-1) 48%, var(--gold-3) 52%, transparent 65%)
-      0 0 / 300% 100% no-repeat,
-      linear-gradient(90deg, rgba(210, 174, 90, .25), rgba(210, 174, 90, .25));
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-    animation: gold-shine var(--shine-duration) linear infinite;
-    pointer-events: none;
-  }
   @keyframes gold-shine {
     from { background-position: 150% 0, 0 0; }
     to { background-position: -50% 0, 0 0; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .primary .gold,
-    .primary::before { animation: none; }
+    .primary .gold { animation: none; }
   }
   .button:disabled,
   .pill:disabled { opacity: .6; cursor: wait; }

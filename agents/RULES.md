@@ -177,11 +177,14 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
       (`<button class="pill"><span class="gold">…`), never on an element that needs its own background.
       On a `.gold` element don't set `background` in the component (a more specific selector wipes the
       gradient – the text turns invisible); use `background-color` if needed.
-    - Glass: `--glass-background` (alpha 0.001, never 0 – else no backdrop blur) + `--glass-blur` +
-      a drop shadow: pills and "i" get the light bronze glow of the category pill (`--shadow-bronze`; a dark
-      shadow disappears on black); onboarding buttons `--shadow-glow`.
+    - Buttons have **no fill and never a border, only a drop shadow** (Tilman, #297) – the primary too. Their body is
+      the glass: `--glass-background` (alpha 0.001, never 0 – else no backdrop blur; transparent in look) +
+      `--glass-blur`. The shadow: the **gold glow marks the active item** (`--shadow-bronze`: the selected list's pill,
+      Videos while shown, the current option; the scroller's active spread `--shadow-gold`), every other pill and the
+      "i" the **grey shadow** (`--shadow-grey`); onboarding buttons the white glow (`--shadow-glow`, secondary
+      `--shadow-glow-soft`).
     - Animated gold art: `<gold-illustration src="…svg">` (files stay in `public/`).
-    - Primary actions get `.primary` (shining label + border sweep); everything else stays secondary.
+    - Primary actions get `.primary` (shining label, no border sweep since #297); everything else stays secondary.
     - **Sizes in rem, never px** (accessibility): the root font size is `100%`, so the reader's text size
       setting scales the whole app; media queries in `em`. 1rem = 16 px at the default size (DESIGN.md values:
       px ÷ 16). Every size and distance (widths, heights, gaps, paddings, offsets, radii) is rem. Only where the

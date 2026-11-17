@@ -4,16 +4,10 @@ import { getBook, getEntry, getTarget } from "@/utils/game-config";
 import { adoptDesignStyles } from "@/styles";
 import { t } from "i18next";
 
-/** The image's small rotation on the unlock (the first find of a target) */
-const UNLOCK_MS = 1200;
-/** How long "New entry unlocked" stays for an image target (entity targets: as long as their animation) */
+/** How long "New marginalia unlocked" stays for an image target (entity targets: as long as their animation) */
 const LABEL_MS = 2600;
 /** The label's fade-out before the indicator renders its next state */
 const LABEL_FADE_MS = 400;
-/** Gold sparkles around the label: position (% of the label box), size (rem), delay (s) */
-const SPARKLES: Array<[number, number, number, number]> = [
-  [-6, -40, 1.35, 0], [104, -30, 1.05, 0.5], [12, 120, 0.9, 0.9], [92, 115, 1.2, 0.3], [50, -80, 0.8, 1.2],
-];
 
 /**
  * The target the indicator shows: the most recently found target **without** an AR entity
@@ -26,14 +20,15 @@ export const getIndicatorTarget = (trackedTargetIds: readonly string[]): Target 
     .find((target): target is Target => !!target && !target.entity);
 
 /**
- * Found-target indicator: the entry's image with a drop shadow while its target is found in scan mode.
- * A tap opens the entry view (`/entry`) in consultation mode, which marks the entry consulted. A glossary entry not
- * consulted yet flies its card first (#285, CARD_FLIGHT_EVENT – `<ar-bridge>` asks the scene); the image hides
- * meanwhile, the card is the picture. Reduced motion: the entry opens at once.
- * On unlock (the first find of a target, TARGET_UNLOCKED_EVENT from `<ar-bridge>`) it shows a gold
- * "New entry unlocked" label with shine, glow and sparkles, plus a small rotation of the image; for
- * targets with an AR entity only the label, for as long as the entity's reveal takes: the duration of the look the book
- * names for it (ENTITY_UNLOCK_MS where only a plugin's code knows it).
+ * Found-target indicator: no picture of its own (#297) – the page in the camera picture is the picture, the card flight
+ * (#285) the one animation. While a target without an AR entity is found in scan mode it lays a transparent tap area
+ * over the middle of the screen: a tap opens the entry view (`/entry`) in consultation mode, which marks the entry
+ * consulted. A glossary entry not consulted yet flies its card first (CARD_FLIGHT_EVENT – `<ar-bridge>` asks the scene),
+ * "New marginalia unlocked" shows with it, and the entry opens when it lands. Reduced motion: the entry opens at once.
+ * On unlock (the first find of a target, TARGET_UNLOCKED_EVENT from `<ar-bridge>`) it shows the gold shimmering
+ * "New marginalia unlocked" (the sound comes from the TargetManager); for targets with an AR entity for as long as the
+ * entity's reveal takes: the duration of the look the book names for it (ENTITY_UNLOCK_MS where only a plugin's code
+ * knows it).
  * Lives in the scan page, so it is hidden in consultation mode.
  */
 export class FoundIndicator extends HTMLElement {
@@ -87,8 +82,7 @@ export class FoundIndicator extends HTMLElement {
     const target = this.target;
     const entry = target ? getEntry(target.entryId) : undefined;
     this.toggleAttribute("visible", !!target);
-    // Entity targets (unlocked in the AR scene): the label only, the entity is the picture
-    const src = target?.entity ? undefined : entry?.image ?? target?.imageSrc;
+    // Entity targets (unlocked in the AR scene): the label only, the entity takes the taps itself
 
     this.shadowRoot.innerHTML = /* html */ `
       <style>
@@ -109,55 +103,21 @@ export class FoundIndicator extends HTMLElement {
           transform: none;
         }
         .label.design {           /* outranks the shared .design text size, which comes later in the cascade */
-          position: relative;
-          isolation: isolate;
           font-size: 1.5rem;
           line-height: 1.3;
           text-align: center;
           padding: .4rem 1.5rem;
           opacity: 0;
-          transform: scale(.6);
-          transition: opacity ${LABEL_FADE_MS}ms ease, transform .5s cubic-bezier(.2, 1.4, .4, 1);
+          transition: opacity ${LABEL_FADE_MS}ms ease;
         }
-        /* The shimmer is the shared .gold.shimmer (#280); while unlocking it also glows */
-        .label .gold {
-          filter: drop-shadow(0 0 .45rem rgba(243, 204, 148, .45));
-        }
-        .label::before {
-          content: "";
-          position: absolute;
-          inset: -.8rem -1.2rem;
-          z-index: -1;
-          background: radial-gradient(closest-side, rgba(0, 0, 0, .65), rgba(0, 0, 0, .4) 55%, transparent);
-          filter: blur(.4rem);
-        }
-        :host([unlocking]) .label {
-          opacity: 1;
-          transform: none;
-        }
-        :host([unlocking]) .label .gold {
-          animation: gold-shimmer var(--shimmer-duration) ease-in-out infinite, label-glow 2.4s ease-in-out infinite;
-        }
-        @keyframes label-glow {
-          50% { filter: drop-shadow(0 0 .9rem rgba(243, 204, 148, .8)); }
-        }
-        .sparkle {
-          position: absolute;
-          width: var(--size);
-          height: var(--size);
-          margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
-          background: var(--gold-gradient);
-          clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
-          opacity: 0;
-          filter: drop-shadow(0 0 .3rem rgba(245, 231, 200, .9));
-        }
-        :host([unlocking]) .sparkle { animation: twinkle 1.6s ease-in-out infinite; }
-        @keyframes twinkle {
-          0%, 100% { opacity: 0; transform: scale(.3) rotate(0deg); }
-          50% { opacity: 1; transform: scale(1) rotate(45deg); }
-        }
+        /* Shown on the unlock and while the card flies (#297); the shimmer is the shared .gold.shimmer (#280) */
+        :host([unlocking]) .label,
+        :host([flying]) .label { opacity: 1; }
+        /* The tap area: transparent, where the found page sits in the camera picture (no picture, frame or shadow, #297) */
         button {
-          position: relative;
+          display: block;
+          width: min(20rem, 80vw);
+          height: min(20rem, 40vh);
           padding: 0;
           border: none;
           background: none;
@@ -165,49 +125,13 @@ export class FoundIndicator extends HTMLElement {
           pointer-events: all;
           -webkit-tap-highlight-color: transparent;
         }
-        :host(:not([visible])) button { pointer-events: none; }
-        /* The card flies (#285): the picture is the card now */
-        :host([flying]) button { visibility: hidden; }
-        /* 171 × 212 px, DESIGN.md §3 */
-        img {
-          display: block;
-          max-width: min(10.6875rem, 55vw);
-          max-height: min(13.25rem, 32vh);
-          object-fit: contain;
-          box-shadow: 0 .6rem 1.2rem rgba(0, 0, 0, .35);
-        }
-        button::after {
-          content: "";
-          position: absolute;
-          left: -20%;
-          right: -20%;
-          bottom: -1.2rem;
-          height: 2.2rem;
-          z-index: -1;
-          background: radial-gradient(closest-side, rgba(0, 0, 0, .35), transparent);
-        }
-        :host([unlocking]) img {
-          animation: unlock ${UNLOCK_MS}ms ease-in-out;
-        }
-        @keyframes unlock {
-          0% { transform: rotate(0); }
-          25% { transform: rotate(-4deg); }
-          60% { transform: rotate(3deg); }
-          100% { transform: rotate(0); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          :host([unlocking]) img,
-          :host([unlocking]) .label .gold,
-          :host([unlocking]) .sparkle { animation: none; }
-          :host([unlocking]) .sparkle { opacity: .8; }
-        }
+        :host(:not([visible])) button,
+        :host([flying]) button { pointer-events: none; }
       </style>
       <div class="label design" aria-hidden="true">
         <span class="gold shimmer">${t("scan:newEntryUnlocked")}</span>
-        ${SPARKLES.map(([x, y, size, delay]) =>
-          `<i class="sparkle" style="left: ${x}%; top: ${y}%; --size: ${size}rem; animation-delay: ${delay}s"></i>`).join("")}
       </div>
-      ${target && src ? `<button type="button" aria-label="${t("scan:openEntry", { title: entry?.title ?? "" })}"><img src="${src}" alt=""></button>` : ""}
+      ${target && !target.entity ? `<button type="button" aria-label="${t("scan:openEntry", { title: entry?.title ?? "" })}"></button>` : ""}
     `;
   }
 
@@ -238,7 +162,7 @@ export class FoundIndicator extends HTMLElement {
     return document.dispatchEvent(event) ? null : flown;
   }
 
-  /** Shows "New entry unlocked" and rotates the image briefly; the indicator stays tappable */
+  /** Shows "New marginalia unlocked"; the indicator stays tappable */
   private showUnlock(target: Target) {
     window.clearTimeout(this.unlockTimer);
     if (target.id !== this.target?.id) {
@@ -246,7 +170,7 @@ export class FoundIndicator extends HTMLElement {
       this.render();
       void this.offsetWidth; // style the new content first, so the unlock transitions run
     }
-    // Attribute only (no re-render), so the label and image transitions run
+    // Attribute only (no re-render), so the label transition runs
     this.removeAttribute("unlocking");
     void this.offsetWidth;
     this.setAttribute("unlocking", "");
