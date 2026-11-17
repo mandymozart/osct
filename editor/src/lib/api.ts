@@ -22,6 +22,10 @@ import type {
   EnvironmentsInfo,
   ImportPreview,
   ImportResult,
+  MatterResult,
+  PageImageChange,
+  PageImagesSaved,
+  PageList,
   PluginSource,
   PluginSummary,
   PluginUsages,
@@ -52,8 +56,12 @@ export type {
   ImportedBuild,
   ImportPreview,
   LiveIn,
+  MatterResult,
   MovedRows,
   OtherBook,
+  BookPage,
+  PageImage,
+  PageImageChange,
   PluginSource,
   PluginSummary,
   PublishResult,
@@ -488,6 +496,19 @@ export const setAssetCredits = (bookId: string, items: { url: string; credits: s
 
 export const deleteAsset = (bookId: string, assetId: string, force = false) =>
   api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/assets/${encodeURIComponent(assetId)}${force ? "?force=1" : ""}`);
+
+// ── Pages and page images (#251, docs/server.md "Pages and page images") ─────────────────────────
+
+/** Every page of the book in order and its page images */
+export const getPages = (bookId: string) => api<PageList>("GET", `/editor/books/${encodeURIComponent(bookId)}/pages`);
+
+/** Sets, replaces, moves, renames and removes page images in one batch – all or nothing */
+export const putPageImages = (bookId: string, items: PageImageChange[]) =>
+  api<PageImagesSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/page-images`, { items });
+
+/** The spreads the book misses against its print format: the plan, written with `apply` */
+export const addMatter = (bookId: string, body: { front?: number; back?: number; lastPage?: number; apply?: boolean }) =>
+  api<MatterResult>("POST", `/editor/books/${encodeURIComponent(bookId)}/matter`, body);
 
 // ── Targets and entries made in the editor ───────────────────────────────────────────────────────
 

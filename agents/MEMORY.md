@@ -4,6 +4,30 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-17 – page images per book page, and the missing matter added in the editor (#251)
+- Tilman decided (issue comment): one image per **book page**, an override of the print layout's sheet, editor-only,
+  no content schema change. Built so; decided here (not asked):
+  - Kept in `page_images` keyed by book + internal `page` + `facing`. `facing` addresses the **unnumbered half of a
+    single page's sheet** (next to page 1, next to page 256) – those halves have no internal page number in #296, and
+    the gap between −1 and 1 is the cover's 0, so a flag rather than a new numbering.
+  - **Not in the change log** and not touching the book's `updated_at` – like the picture credits (#277): they are no
+    draft content, and the import comparison would otherwise count edits a re-import does not lose. A re-import keeps
+    them. A page image counts as a use of its Library file (delete refused, a forced one takes it, a replace relinks).
+  - Bulk names: `P012…`/`012`/`page-12` (numbered), `P001-facing`, `cover`/`back-cover`, `F1…`/`B1…` (labels), and
+    `start-N` / `end-N` in print order – the PDFs' order (`START BOOK.pdf` pages 1–6 = cover, F1–F4, next to 1; `END
+    BOOK.pdf` 1–6 = next to 256, B1–B4, back cover).
+  - The Pages view is a **Spreads | Pages** switch on the book page (`?view=pages`), not a route of its own (a
+    `[book]/pages` route would shadow a spread with the id `pages`). Library pick is a plain select there – the book page
+    has no Library panel.
+- Orchestrator's scope addition: the Pages view and the MCP (`add_matter`) add the front/back matter a book misses,
+  **on a print-first book too** – a deliberate exception to #238 (they are the printed book's spreads, only missing).
+  It also gives the last printed page its own spread (`s256`) and moves a back cover that sat there after the back matter
+  (256 → 261 for staging), entries on the old cover page going to `s256`. Plan first, then apply – nothing renumbers
+  printed pages, so no risky renumbering. Supersedes the open item of 2026-11-16 (the draft round trip) once staging
+  is done.
+- [ ] Open: staging – `add_matter { book: "osct", front: 2, back: 2, lastPage: 256 }` (show the plan), apply, then
+  `set_page_images` with the twelve rendered pages as `upload` (`start-1…6`, `end-1…6`). Left to the orchestrator.
+
 ## 2026-11-17 – Desktop landing page (#293)
 `<desktop-landing>` (client `components/desktop-landing/`) covers the app for desktop visitors; `main.ts` awaits its
 `whenDone()` before the start (onboarding, opened link, camera), and it removes the static splash, so a desktop visitor

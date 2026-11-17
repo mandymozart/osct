@@ -586,7 +586,9 @@ The limits are `shared/api/rules.ts`' too (`TEXT_MAX_LENGTH`, `BODY_MAX_LENGTH`,
 
 **Only a digital-first book** (#238): a book's `book.sourceOfTruth` says where its spreads come from – `print` (print
 first: the printed book's layout, through an import) or `digital` (digital first: the editor). `POST …/spreads` and
-`DELETE …/spreads/{id}` answer 409 `print-first` (with how to change it) unless the book is digital first. An import keeps
+`DELETE …/spreads/{id}` answer 409 `print-first` (with how to change it) unless the book is digital first. The one
+exception is the matter ([Pages and page images](#pages-and-page-images), #251): the front and back matter a print-first
+book is missing, which are the printed book's own. An import keeps
 the configuration's value and writes `print` when it has none (an imported book is print first; a value other than
 `print` / `digital` is a 400 `invalid-configuration`); `PUT /editor/books/{id}` `{ sourceOfTruth }` changes it, recorded
 as a `book` change. The draft and a publish carry it in `book` (content schema 2.25 – an older app ignores it).
@@ -606,6 +608,37 @@ its spread and the contract stays as the content build writes it. Every moved ro
 | `PUT /editor/books/{id}/passes` | `{ passes: [{ type, …parameters }] \| null }` | `{ passes }` – the book's post-processing (`book.passes`, content schema 2.5), the master every spread without a list of its own shows; `null` removes it. Checked as a spread's list (a built-in `type` or a plugin's pass – schema 2.21, scalar parameters); a change `passes` in the log. 400 `invalid-passes`; 404 |
 | `PUT /editor/books/{id}/appearance` | `{ appearance: { reveal?, found?, lost? } \| null }` | `{ appearance }` – how the book's entities appear (`book.appearance`, content schema 2.29, #265): a look `{ type, …parameters }` per moment (`Books::MOMENTS`), a built-in `type` or a plugin's look, scalar parameters (their ranges are the guard's). The whole appearance is replaced; `null`, or one without a moment, removes the field – the default look plays everywhere. A change `appearance` in the log. 400 `invalid-appearance`; 404 |
 | `DELETE /editor/books/{id}/spreads/{sid}` | `{ confirm?, deleteFiles? }` | the spread with everything on it, in two steps ([below](#removing-a-spread-or-an-entry)): 409 `confirm-delete` with `impact` and `confirmation`, then with `confirm` 200 `{ deleted, moved }` – a double page's later pages are numbered back by its pages (the reverse of adding it), a cover moves nothing. 409 `initial-spread` for the spread the book opens on (it never goes); 404 |
+
+### Pages and page images
+
+A book's **pages** (#251, `Pages`) are derived from its spreads in order: a cover is one page (`side` front / back), a
+double page two (left, right), front and back matter their internal pages (#296), and a **single page** (first =
+last, e.g. page 1 or the last printed page) its page on its side (odd right, even left) plus the unnumbered half of its
+sheet on the other – addressed as `{ page, facing: true }`. Labels: `Cover`, `F1` …, `next to 1`, `12`, `B1` …,
+`Back cover`.
+
+**Page images** are kept in `page_images` (`book_id`, `page` – negative for the front matter –, `facing`, `url` of a
+Library image, `name`, `updated_by`, `updated_at`; primary key book + page + facing): one image per page that the
+editor shows instead of the print layout's sheet for that page. They are **no content** – the draft, a publish and the
+reader never carry them, an import keeps them, and they are not in the change log (as the picture credits). A page
+image is a use of its Library file (`usages` kind `page`, ref the page key `12` / `1f`): a delete is refused without
+`force`, a forced one removes the page images too, and a replace moves them to the new version. Adding or removing a
+double page in a digital-first book moves the later pages' images with them; a removed spread takes its pages' images.
+
+The **matter** (`POST …/matter`) makes a book's spreads whole against its print format – also on a **print-first book**,
+a deliberate exception to #238: the spreads it adds are the printed book's, only missing. It plans (and with
+`apply: true` writes, in one transaction): a single-page spread `s<NNN>` for the last printed page when no spread holds it,
+the front matter `front-1` … (two internal pages each, counting down to −1), the back matter `back-1` … (after the last
+printed page), and the back cover moved to the page after the back matter – its entries move with it (page and their
+targets' `print.page`), except those on a page that is now a printed page, which go to that page's spread; entries of no
+spread on a new page find it. Spreads that are there already are kept, every spread's order follows its pages, every
+written row is a change in the log.
+
+| Endpoint | Body | Answer |
+|---|---|---|
+| `GET /editor/books/{id}/pages` | – | `{ pages: [{ page, facing, spread, side, kind, label }], pageImages: [{ page, facing, url, name, updatedBy, updatedAt }] }` in book order |
+| `PUT /editor/books/{id}/page-images` | `{ items: [{ page, facing?, url? \| from? \| name? }] }` (1–500) | `{ pageImages, saved }` – all or nothing: `url` sets or replaces (a Library image of the book; `name` defaults to the file's Library name), `url: null` removes, `from: { page, facing? }` moves that page's image here (moves read the images as they were – two items swap), `name` alone renames (trimmed, 1–255). 400 `invalid-page-image`: no page of the book, two items for one page, nothing to move or rename, no Library image, a bad name |
+| `POST /editor/books/{id}/matter` | `{ front?, back?, lastPage?, apply? }` | `{ plan: { front, back, lastPage, create, moveBackCover, entries }, applied }` – `front` / `back` the matter sheets (0–8, default 2), `lastPage` the last printed page (default the last page of a numbered spread, at most one more); without `apply` nothing is written. 400 `invalid-matter`; 409 `matter-conflict` when a spread that is no matter holds a page the plan needs |
 
 ### Removing a spread or an entry
 

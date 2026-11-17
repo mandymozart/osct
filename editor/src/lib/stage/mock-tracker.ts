@@ -4,7 +4,7 @@ import type { PrintSurface } from "@shared/types/game-config";
 import { getSpread, getSpreads } from "@engine/content/game-config";
 import { EMPTY_ENGINE_STATE, publishEngineState } from "@engine/utils/tracker-debug";
 import { fetchTriggerInfos, type TriggerInfos } from "@engine/utils/trigger-protocol";
-import { DEFAULT_PAGE_MM, fetchStageLayout, type LayoutSheet, printedPlaceOf, sheetForSpread, sheetImageUrl, sheetSharpImageUrl, type StageLayout } from "./stage-layout";
+import { DEFAULT_PAGE_MM, fetchStageLayout, type LayoutSheet, pageImagesOfSpread, printedPlaceOf, sheetForSpread, sheetImageUrl, sheetSharpImageUrl, type SheetPageImages, type StageLayout } from "./stage-layout";
 import { getPreview, type PreviewOrbit, type PreviewState, type PreviewView, subscribePreview, updatePreview } from "./preview";
 import type { IImageTracker, ImageTrackerOptions, TrackedSpread } from "@engine/scene/tracker-types";
 import { onAppUi } from "@engine/scene/ui";
@@ -47,6 +47,8 @@ export interface StageSheet {
   imageSharp?: string;
   widthMm: number;
   heightMm: number;
+  /** Page images (#251) over its halves, one page in size each, shown as uploaded – absent: the sheet's image only */
+  pages?: SheetPageImages;
 }
 
 /** The book as an object: how many spreads it has (the stage's block thickness follows), and what the spread is */
@@ -397,9 +399,25 @@ export class MockTracker implements IImageTracker {
     return { spreads: Math.max(1, getSpreads().filter(s => !s.format || s.format === "spread").length), format: spread?.format ?? "spread" };
   }
 
+  /** The book's page images by page key (#251): set by the page (`setPageImages`), laid over the current spread's sheet */
+  private pageImages: Record<string, string> = {};
+
+  setPageImages(images: Record<string, string>): void {
+    this.pageImages = { ...images };
+    this.relayout();
+  }
+
+  /** The layout's sheet with the spread's page images over it; without a layout sheet a blank one of the book's size carries them */
   private stageSheet(): StageSheet | null {
     const sheet = this.sheet;
-    return sheet ? { image: sheetImageUrl(sheet), imageSharp: sheetSharpImageUrl(sheet), widthMm: sheet.widthMm, heightMm: sheet.heightMm } : null;
+    const spread = this.spreadId ? getSpread(this.spreadId) : undefined;
+    const pages = pageImagesOfSpread(spread, this.pageImages);
+    const withPages = Object.keys(pages).length ? { pages } : {};
+    if (sheet) return { image: sheetImageUrl(sheet), imageSharp: sheetSharpImageUrl(sheet), widthMm: sheet.widthMm, heightMm: sheet.heightMm, ...withPages };
+    if (!withPages.pages) return null;
+    const page = this.pageFormat();
+    const closed = spread?.format === "cover" || spread?.format === "back";
+    return { image: "", widthMm: closed ? page.width : 2 * page.width, heightMm: page.height, pages };
   }
 
   async startCamera(): Promise<void> {

@@ -146,6 +146,7 @@ export class StageCore {
         this.mockStage.setWorld(this.world);
         tracker.attachStage(this.mockStage);
         tracker.setLookUp(this.world && this.previewing ? this.lookUp : 0);
+        tracker.setPageImages(this.pageImages);
         tracker.ignorePointer = event => !!this.gizmo?.busy || !!this.ghostDrag || (!!this.ghostPlace && !!this.ghostHandleAt(event.clientX, event.clientY));
         this.tracker = tracker;
         return tracker;
@@ -396,6 +397,14 @@ export class StageCore {
   /** The current spread's format changed in the draft: the book takes its new shape on the stage at once */
   relayout(): void {
     this.tracker?.relayout();
+  }
+
+  /** The book's page images by page key (#251): kept for a tracker made later, laid over the sheet at once */
+  private pageImages: Record<string, string> = {};
+
+  setPageImages(images: Record<string, string>): void {
+    this.pageImages = { ...images };
+    this.tracker?.setPageImages(this.pageImages);
   }
 
   /** Show a target's entity with other values than the content's (live edit), `null` = the content's again */

@@ -116,12 +116,31 @@ function editorApi(seen: Seen, { sources = true } = {}) {
   if (path.startsWith("/editor/books/osct/changes")) return { json: { changes: [{ kind: "entity", ref: "castle" }], limit: path } };
   if (path.startsWith("/editor/books/osct/assets") && method === "GET") return { json: { assets: [{ id: "a", kind: "image" }], query: path } };
   if (path === "/editor/books/osct/assets/credits" && method === "PUT") return { json: { saved: 1, credits: {}, sent: seen.body } };
-  if (method === "POST" && path === "/editor/books/osct/assets") return { status: 201, json: { asset: { id: "11111111-1111-4111-8111-111111111111", name: seen.headers["X-File-Name"], size: (seen.rawBody as Uint8Array).byteLength } } };
+  if (method === "POST" && path === "/editor/books/osct/assets") return { status: 201, json: { asset: { id: "11111111-1111-4111-8111-111111111111", name: seen.headers["X-File-Name"], size: (seen.rawBody as Uint8Array).byteLength, url: `https://cdn/up/${seen.headers["X-File-Name"]}` } } };
+  if (method === "GET" && path === "/editor/books/osct/pages") return { json: { pages: PAGES, pageImages: [] } };
+  if (method === "PUT" && path === "/editor/books/osct/page-images") return { json: { pageImages: [], saved: (seen.body as any).items.length, sent: seen.body } };
+  if (method === "POST" && path === "/editor/books/osct/matter") return { json: { plan: { create: [{ id: "front-1" }], moveBackCover: null, entries: [] }, applied: !!(seen.body as any).apply, sent: seen.body } };
   if (method === "DELETE" && path === "/editor/books/osct/assets/11111111-1111-4111-8111-111111111111") return { status: 409, json: { error: { code: "asset-in-use", message: "Used.", usages: [{ kind: "target", ref: "racoon" }] } } };
   if (method === "DELETE" && path === "/editor/books/osct/assets/11111111-1111-4111-8111-111111111111?force=1") return { status: 204 };
   if (method === "POST" && path === "/editor/books/osct/import") return { json: { book: { id: "osct" }, counts: { spreads: 2 }, body: seen.body } };
   return undefined;
 }
+
+/** A small book after the matter (#251): the cover, F1–F2, the half next to 1, 1–3, the half next to 3, B1–B2, the back cover */
+const PAGES = [
+  { page: 0, facing: false, spread: "cover", side: "front", kind: "cover", label: "Cover" },
+  { page: -2, facing: false, spread: "front-1", side: "left", kind: "front-matter", label: "F1" },
+  { page: -1, facing: false, spread: "front-1", side: "right", kind: "front-matter", label: "F2" },
+  { page: 1, facing: true, spread: "s001", side: "left", kind: "facing", label: "next to 1" },
+  { page: 1, facing: false, spread: "s001", side: "right", kind: "page", label: "1" },
+  { page: 2, facing: false, spread: "s002-003", side: "left", kind: "page", label: "2" },
+  { page: 3, facing: false, spread: "s002-003", side: "right", kind: "page", label: "3" },
+  { page: 4, facing: false, spread: "s004", side: "left", kind: "page", label: "4" },
+  { page: 4, facing: true, spread: "s004", side: "right", kind: "facing", label: "next to 4" },
+  { page: 5, facing: false, spread: "back-1", side: "left", kind: "back-matter", label: "B1" },
+  { page: 6, facing: false, spread: "back-1", side: "right", kind: "back-matter", label: "B2" },
+  { page: 7, facing: false, spread: "back", side: "back", kind: "back", label: "Back cover" },
+];
 
 describe("the content tools", () => {
   let rec: ReturnType<typeof recorder>;
@@ -138,7 +157,7 @@ describe("the content tools", () => {
       [
         "add_entry", "add_spread", "delete_asset", "delete_entry", "delete_spread", "describe_content_model", "get_book", "get_draft", "get_entity", "get_spread", "import_book", "list_assets", "preview_import",
         "list_books", "list_changes", "list_versions", "publish", "put_book_appearance", "put_book_passes", "put_entity", "put_environment", "put_spread", "put_target", "upload_asset",
-        "get_entries", "update_entry", "update_book", "set_asset_credits",
+        "get_entries", "update_entry", "update_book", "set_asset_credits", "list_pages", "set_page_images", "add_matter",
       ].sort(),
     );
     for (const [name, tool] of rec.tools) {
@@ -405,6 +424,44 @@ describe("the content tools", () => {
     const saved = await rec.call("set_asset_credits", { book: "osct", items });
     expect(saved.ok).toBe(true);
     expect(saved.data.sent).toEqual({ items });
+  });
+
+  it("set_page_images finds pages by number, label and file name, uploads first only when every page is known (#251)", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "osct-mcp-"));
+    const files = ["start-1.jpg", "start-4.jpg", "end-1.jpg", "end-4.jpg"].map(name => {
+      const file = join(dir, name);
+      writeFileSync(file, Buffer.from([255, 216, 255]));
+      return file;
+    });
+    const saved = await rec.call("set_page_images", { book: "osct", items: [
+      ...files.map(upload => ({ upload })),
+      { label: "f2", url: "https://cdn/x.jpg" }, { page: 2, from: { label: "3" } }, { match: "P003.jpg", url: null }, { page: 4, name: "Four" },
+    ] });
+    expect(saved.ok).toBe(true);
+    expect(saved.data.uploaded).toBe(4);
+    expect(saved.data.sent.items).toEqual([
+      { page: 0, facing: false, url: "https://cdn/up/start-1.jpg", name: "start-1.jpg" },
+      { page: 1, facing: true, url: "https://cdn/up/start-4.jpg", name: "start-4.jpg" },
+      { page: 4, facing: true, url: "https://cdn/up/end-1.jpg", name: "end-1.jpg" },
+      { page: 7, facing: false, url: "https://cdn/up/end-4.jpg", name: "end-4.jpg" },
+      { page: -1, facing: false, url: "https://cdn/x.jpg" },
+      { page: 2, facing: false, from: { page: 3, facing: false } },
+      { page: 3, facing: false, url: null },
+      { page: 4, facing: false, name: "Four" },
+    ]);
+    const before = seen.length;
+    const unknown = await rec.call("set_page_images", { book: "osct", items: [{ upload: files[0] }, { match: "holiday.jpg", url: "https://cdn/x.jpg" }] });
+    expect(unknown.ok).toBe(false);
+    expect(unknown.data.error.code).toBe("invalid-page-image");
+    expect(seen.slice(before).map(s => s.method)).toEqual(["GET"]);
+  });
+
+  it("add_matter answers the plan, writes it with apply (#251)", async () => {
+    const plan = await rec.call("add_matter", { book: "osct", front: 2, back: 2, lastPage: 256 });
+    expect(plan.data.applied).toBe(false);
+    expect(plan.data.hint).toContain("apply");
+    expect(plan.data.sent).toEqual({ front: 2, back: 2, lastPage: 256 });
+    expect((await rec.call("add_matter", { book: "osct", apply: true })).data.applied).toBe(true);
   });
 
   it("get_draft: the manifest, the configuration, the files", async () => {

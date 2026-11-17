@@ -27,6 +27,7 @@
   import { removalStep, type RemovalStep } from "#lib/removal.js";
   import RemovalConfirm from "#lib/components/RemovalConfirm.svelte";
   import { library } from "#lib/library.svelte.js";
+  import { pageImages } from "#lib/page-images.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { nodeAt } from "#lib/values.js";
   import { queueTreeSaves } from "#lib/tree-autosave.js";
@@ -366,6 +367,14 @@
   });
   $effect(() => {
     if (shown !== "environment") environmentEdit.picking = null;
+  });
+  // ── page images (#251): the book's own images of single pages lie over the layout's sheet on the stage ──
+  $effect(() => {
+    if (pageImages.bookId !== bookId) void pageImages.load(bookId);
+  });
+  $effect(() => {
+    const images = pageImages.bookId === bookId ? pageImages.byKey : {};
+    stage?.setPageImages(images);
   });
 
   // ── autosave (#259): a target's live tree is an edit the draft does not hold yet – the Inspector's rows, a file for

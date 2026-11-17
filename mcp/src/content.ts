@@ -37,6 +37,11 @@ import type {
   ImportComparison,
   ImportPreview,
   ImportResult,
+  MatterResult,
+  PageAddress,
+  PageImageChange,
+  PageImagesSaved,
+  PageList,
   PluginSource,
   PluginSummary,
   PublishedVersion,
@@ -49,7 +54,8 @@ import type {
   TargetSaved,
 } from "../../shared/api/editor";
 import { confirmationStep } from "../../shared/api/errors";
-import { CREDITS_BATCH_MAX, CREDITS_MAX } from "../../shared/api/editor";
+import { CREDITS_BATCH_MAX, CREDITS_MAX, MATTER_MAX, PAGE_IMAGES_BATCH_MAX } from "../../shared/api/editor";
+import { pageOfName } from "../../shared/api/page-names";
 import {
   ASSET_KINDS,
   BODY_MAX_LENGTH,
@@ -62,6 +68,9 @@ import {
 } from "../../shared/api/rules";
 
 type Json = Record<string, unknown>;
+
+/** An item of set_page_images that names no page of the book */
+class PageNotFound extends Error {}
 
 /**
  * An entry's body as the reader would render it: a construct that does not parse (a brace not closed, a list, a
@@ -741,10 +750,105 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
 
   server.registerTool(
     "delete_asset",
-    { description: "Deletes an uploaded file (every version). Refused while a target, entity, entry or plugin source names its url (409 asset-in-use with the usages) unless `force`.", inputSchema: z.object({ book: BOOK, asset: z.string().uuid().describe("the asset's id (list_assets)"), force: z.boolean().optional() }), annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false } },
+    { description: "Deletes an uploaded file (every version). Refused while a target, entity, entry or plugin source names its url or a page image shows it (409 asset-in-use with the usages) unless `force` – a forced delete takes those page images too.", inputSchema: z.object({ book: BOOK, asset: z.string().uuid().describe("the asset's id (list_assets)"), force: z.boolean().optional() }), annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false } },
     guard(async ({ book, asset, force }) => {
       await api.call<void>("DELETE", `/editor/books/${encodeURIComponent(book)}/assets/${encodeURIComponent(asset)}${force ? "?force=1" : ""}`);
       return text({ deleted: asset });
+    }),
+  );
+
+  // ── pages and page images (#251) ──
+
+  server.registerTool(
+    "list_pages",
+    {
+      description:
+        "Every page of the book in book order (`pages`: page, facing, spread, side, kind, label) and its page images (`pageImages`: page, facing, url, name, updatedBy, updatedAt). `page` is the internal page: the cover 0, the front matter negative (counting down to −1), the numbered pages, the back matter after the last printed page, the back cover after it (#296). `facing: true` is the unnumbered half of a single page's sheet (the half next to page 1, the one next to the last printed page). Labels: `Cover`, `F1`…, `next to 1`, `12`, `B1`…, `Back cover`. A page image is a Library image the editor's stage and spread cards show instead of the print layout's sheet for that page – never content, the reader does not show it.",
+      inputSchema: z.object({ book: BOOK }),
+      annotations: read,
+    },
+    guard(async ({ book }) => text(await api.call<PageList>("GET", `/editor/books/${encodeURIComponent(book)}/pages`))),
+  );
+
+  const PAGE_REF = {
+    page: z.number().int().optional().describe("the internal page (list_pages)"),
+    facing: z.boolean().optional().describe("the unnumbered half next to a single page (default false)"),
+    label: z.string().optional().describe("the page by its label instead: Cover, F1, next to 1, 12, B1, Back cover"),
+  };
+  server.registerTool(
+    "set_page_images",
+    {
+      description:
+        `Sets, replaces, moves, renames and removes the book's page images in one call – all or nothing (at most ${PAGE_IMAGES_BATCH_MAX} items). Each item names its page by \`page\` (+ \`facing\`), by \`label\`, or – with \`upload\` or \`match\` – by a file name: P012…, p12, 012, page-12 (a numbered page), P001-facing (the half next to page 1), cover / back-cover, F1… / B1… (front / back matter), start-1… (every page before page 1 from the cover on: the cover, the front matter, the half next to page 1) and end-1… (every page after the last printed page: the half next to it, the back matter, the back cover) – the print PDFs' order. Then one action: \`upload\` (a local image file – uploaded into the Library, then set), \`url\` (a Library image's url, list_assets; null removes the page image – the page shows the layout again), \`from\` (moves another page's image here; moves read the images as they were, so two items can swap), or \`name\` alone (renames). \`name\` defaults to the file's name. Page images are no content: nothing to publish, no change in the book's log; the stage shows them at once. Add the front and back matter spreads first (add_matter) when the book has none.`,
+      inputSchema: z.object({
+        book: BOOK,
+        items: z.array(z.object({
+          ...PAGE_REF,
+          match: z.string().optional().describe("the page by a file name (see above)"),
+          upload: z.string().optional().describe("a local image file (jpg, png, webp) to upload and set; its name gives the page when no page, label or match is given"),
+          url: z.string().min(1).nullable().optional(),
+          from: z.object(PAGE_REF).optional(),
+          name: z.string().min(1).max(255).optional(),
+        })).min(1).max(PAGE_IMAGES_BATCH_MAX),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    guard(async ({ book, items }) => {
+      const { pages } = await api.call<PageList>("GET", `/editor/books/${encodeURIComponent(book)}/pages`);
+      const find = (ref: { page?: number; facing?: boolean; label?: string }, name: string | undefined, where: string): PageAddress => {
+        if (ref.page !== undefined) return { page: ref.page, facing: ref.facing ?? false };
+        const found = ref.label !== undefined
+          ? pages.find(p => p.label.toLowerCase() === ref.label!.trim().toLowerCase())
+          : name !== undefined ? pageOfName(name, pages) : undefined;
+        if (!found) throw new PageNotFound(`${where}: ${ref.label !== undefined ? `no page labelled "${ref.label}"` : name !== undefined ? `"${name}" names no page of the book` : "name a page: page, label, match or upload"}`);
+        return { page: found.page, facing: found.facing };
+      };
+      let changes: PageImageChange[];
+      try {
+        changes = items.map((item, i) => {
+          const fileName = item.upload !== undefined ? basename(item.upload) : undefined;
+          const at = find(item, item.match ?? fileName, `items[${i}]`);
+          if (item.from) return { ...at, from: find(item.from, undefined, `items[${i}].from`), ...(item.name ? { name: item.name } : {}) };
+          if (item.upload !== undefined) return { ...at, url: "", name: item.name ?? fileName };
+          if (item.url !== undefined) return { ...at, url: item.url, ...(item.name ? { name: item.name } : {}) };
+          if (item.name) return { ...at, name: item.name };
+          throw new PageNotFound(`items[${i}]: send upload, url, from or name`);
+        }) as PageImageChange[];
+      } catch (e) {
+        if (e instanceof PageNotFound) return fail({ error: { code: "invalid-page-image", message: e.message }, hint: "list_pages has every page with its label." });
+        throw e;
+      }
+      // Uploads only once every page is known – a wrong name uploads nothing
+      const uploaded: string[] = [];
+      for (const [i, item] of items.entries()) {
+        if (item.upload === undefined) continue;
+        const bytes = new Uint8Array(await readFile(item.upload));
+        const { asset } = await api.upload<AssetUploaded>("POST", `/editor/books/${encodeURIComponent(book)}/assets`, bytes, basename(item.upload));
+        (changes[i] as { url: string }).url = asset.url;
+        uploaded.push(asset.url);
+      }
+      const result = await api.call<PageImagesSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/page-images`, { items: changes });
+      return text({ ...result, uploaded: uploaded.length, open: editorHref(links, book) });
+    }),
+  );
+
+  server.registerTool(
+    "add_matter",
+    {
+      description:
+        `Makes the book's spreads whole against its print format (#296), in two steps like an import: without \`apply\` it answers the plan only – show it to the person – then call again with \`apply: true\`. The plan: the front matter spreads front-1… (two pages each, internal pages counting down to −1), the back matter spreads back-1… (after the last printed page), a single-page spread for the last printed page when none holds it (e.g. s256, when the back cover sat on page 256), and the back cover moved after the back matter (its entries on a printed page go to that page's spread). \`front\` / \`back\` = the matter sheets of the print format (0–${MATTER_MAX}, default 2), \`lastPage\` = the last printed page (default: the last page of a numbered spread; at most one more). Spreads that are there already are kept; works on a print-first book too (the spreads are the printed book's, only missing). 409 matter-conflict when a spread that is no matter holds a page the plan needs. Then set the new pages' images with set_page_images.`,
+      inputSchema: z.object({
+        book: BOOK,
+        front: z.number().int().min(0).max(MATTER_MAX).optional(),
+        back: z.number().int().min(0).max(MATTER_MAX).optional(),
+        lastPage: z.number().int().optional(),
+        apply: z.boolean().optional().describe("write the plan – only after the person saw it"),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    guard(async ({ book, ...body }) => {
+      const result = await api.call<MatterResult>("POST", `/editor/books/${encodeURIComponent(book)}/matter`, body);
+      return text({ ...result, open: editorHref(links, book), ...(body.apply ? {} : { hint: "Nothing written yet: show the plan to the person, then call again with apply: true." }) });
     }),
   );
 

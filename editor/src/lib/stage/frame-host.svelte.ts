@@ -8,7 +8,7 @@ import type { EnvironmentData } from "@shared/types/environment";
 import type { BookAppearance, Moment } from "@shared/types/appearance";
 import {
   type ContentSnapshot, contentBasesNamed, libraryFoldersOf, eventMessage, type FrameEventName, type FrameEvents, type FrameInit, frameCsp, isForwardedKey, type KeyForward, type LayoutSnapshot,
-  LOG_MAX, readFrameRequest, REMOVED_WIRE, type TimelineSnapshot,
+  LOG_MAX, pageImageMap, readFrameRequest, REMOVED_WIRE, type TimelineSnapshot,
 } from "./frame-protocol";
 import type { GizmoMode } from "./gizmo";
 import type { PickMode } from "./pick";
@@ -178,6 +178,7 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     open: (spreadId: string) => stage().open(spreadId),
     refresh: () => stage().refresh(),
     relayout: () => stage().relayout(),
+    pageImages: (images: unknown) => stage().setPageImages(pageImageMap(images)),
     override: (targetId: string, entity: EntityData | typeof REMOVED_WIRE | null) => stage().override(targetId, entity === REMOVED_WIRE ? StageCore.REMOVED : entity),
     overridePasses: (passes: PassData[] | null) => stage().overridePasses(passes),
     overrideAppearance: (override: { appearance: BookAppearance | null } | null) => stage().overrideAppearance(override),

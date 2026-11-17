@@ -802,6 +802,7 @@ final class Books
         [$deleted, $moved] = Db::transaction(function () use ($bookId, $spreadId, $row, $pages, $user, $removal, $deleteFiles) {
             $deleted = $removal->remove($user, $deleteFiles);
             Db::run('DELETE FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $spreadId]);
+            Pages::drop($bookId, (int) $row['first_page'], (int) $row['last_page']);
             self::change($bookId, $user, 'spread', $spreadId, $row['data_json'], 'null');
             Db::run('UPDATE spreads SET position = position - 1 WHERE book_id = :book AND position > :position', ['book' => $bookId, 'position' => (int) $row['position']]);
             $moved = $pages > 0 ? self::renumber($bookId, (int) $row['last_page'], -$pages, $user) : ['spreads' => 0, 'entries' => 0, 'targets' => 0];
@@ -907,6 +908,7 @@ final class Books
             self::change($bookId, $user, 'target', $row['id'], $row['data_json'], $json);
             $moved['targets']++;
         }
+        Pages::shift($bookId, $after, $by);
         return $moved;
     }
 

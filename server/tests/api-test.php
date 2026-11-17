@@ -1793,6 +1793,114 @@ try {
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => null], $editor);
     check($status === 200 && !isset($data['environment']), 'environment: null removes it – the default applies');
 
+    echo "editor: pages, page images and the matter (#251)\n";
+    // A print-first book like staging's: the cover, page 1 alone, 2–3, and the back cover on page 4 – the last printed page
+    $printed = $configuration;
+    $printed['book'] = ['id' => 'printed', 'title' => 'Printed', 'author' => 'Someone'];
+    $printed['initialSpreadId'] = 's001';
+    $printed['spreads'] = [
+        ['id' => 'cover', 'title' => 'Cover', 'firstPage' => 0, 'lastPage' => 0, 'format' => 'cover'],
+        ['id' => 's001', 'title' => '1', 'firstPage' => 1, 'lastPage' => 1],
+        ['id' => 's002-003', 'title' => '2–3', 'firstPage' => 2, 'lastPage' => 3],
+        ['id' => 'back', 'title' => 'Back cover', 'firstPage' => 4, 'lastPage' => 4, 'format' => 'back'],
+    ];
+    $printed['entries'] = [
+        ['id' => 'on-four', 'category' => 'text', 'title' => 'On four', 'page' => 4, 'body' => '', 'tags' => [], 'target' => [
+            'id' => 'on-four', 'imageSrc' => '/assets/content/entries/racoon/img.jpg', 'print' => ['page' => 4, 'surface' => 'back', 'x' => 1, 'y' => 1, 'width' => 10, 'height' => 10]]],
+    ];
+    unset($printed['plugins']);
+    [$status] = importing($api, 'printed', $editor, json_encode(['configuration' => $printed, 'files' => $files], $flags));
+    check($status === 200, '#251: a print-first book with the back cover on its last printed page');
+    [$status, $data] = call($api, 'GET', '/editor/books/printed/pages', null, $editor);
+    check($status === 200 && array_column($data['pages'], 'label') === ['Cover', 'next to 1', '1', '2', '3', 'Back cover'] && $data['pageImages'] === []
+        && $data['pages'][1]['facing'] === true && $data['pages'][1]['page'] === 1 && $data['pages'][1]['side'] === 'left' && $data['pages'][5]['side'] === 'back',
+        '#251: the pages in book order – the cover, the unnumbered half next to page 1, the numbered pages, the back cover');
+
+    [$status, $data] = call($api, 'POST', '/editor/books/printed/matter', ['front' => 2, 'back' => 2, 'lastPage' => 4], $editor);
+    $plan = $data['plan'] ?? [];
+    check($status === 200 && $data['applied'] === false && array_column($plan['create'] ?? [], 'id') === ['s004', 'front-1', 'front-2', 'back-1', 'back-2']
+        && ($plan['moveBackCover'] ?? null) === ['spread' => 'back', 'from' => 4, 'to' => 9] && ($plan['entries'] ?? null) === [['id' => 'on-four', 'spread' => 's004', 'page' => 4]],
+        '#251: the matter plan – page 4 gets its spread, front −4…−1, back 5…8, the back cover to 9, its entry on page 4 to page 4\'s spread');
+    [, $tree] = call($api, 'GET', '/editor/books/printed', null, $editor);
+    check(array_column($tree['spreads'], 'id') === ['cover', 's001', 's002-003', 'back'], '#251: … and without apply nothing is written');
+    [$status, $data] = call($api, 'POST', '/editor/books/printed/matter', ['front' => 9], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-matter', '#251: more matter sheets than allowed → 400');
+    [$status, $data] = call($api, 'POST', '/editor/books/printed/matter', ['lastPage' => 6], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-matter', '#251: a last page beyond the one after the numbered spreads → 400');
+    [$status, $data] = call($api, 'POST', '/editor/books/printed/matter', ['front' => 2, 'back' => 2, 'lastPage' => 4, 'apply' => true], $editor);
+    check($status === 200 && $data['applied'] === true, '#251: the matter applied on a print-first book (#238\'s exception)');
+    [, $tree] = call($api, 'GET', '/editor/books/printed', null, $editor);
+    $bySpread = array_column($tree['spreads'], null, 'id');
+    check(array_column($tree['spreads'], 'id') === ['cover', 'front-1', 'front-2', 's001', 's002-003', 's004', 'back-1', 'back-2', 'back']
+        && $bySpread['front-1']['firstPage'] === -4 && $bySpread['front-2']['lastPage'] === -1 && ($bySpread['front-1']['matter'] ?? null) === 'front'
+        && $bySpread['back-1']['firstPage'] === 5 && $bySpread['back']['firstPage'] === 9 && $bySpread['back']['lastPage'] === 9
+        && array_column($bySpread['s004']['entries'], 'id') === ['on-four'] && $bySpread['back']['entries'] === [],
+        '#251: the spreads in book order, the back cover after the back matter, page 4 a normal page with its entry');
+    [, $changes] = call($api, 'GET', '/editor/books/printed/changes', null, $editor);
+    check(count(array_filter($changes['changes'], fn($c) => $c['kind'] === 'spread')) === 6 && in_array('on-four', array_column($changes['changes'], 'ref'), true),
+        '#251: the new spreads, the moved back cover and the moved entry are in the change log');
+    [$status, $data] = call($api, 'POST', '/editor/books/printed/matter', ['front' => 2, 'back' => 2, 'apply' => true], $editor);
+    check($status === 200 && $data['applied'] === false && $data['plan']['create'] === [] && $data['plan']['moveBackCover'] === null, '#251: again → nothing left to do');
+    [, $data] = call($api, 'GET', '/editor/books/printed/pages', null, $editor);
+    $labels = array_column($data['pages'], 'label');
+    check($labels === ['Cover', 'F1', 'F2', 'F3', 'F4', 'next to 1', '1', '2', '3', '4', 'next to 4', 'B1', 'B2', 'B3', 'B4', 'Back cover'],
+        '#251: the whole book: cover, front matter F1–F4, the halves next to 1 and 4, back matter B1–B4, the back cover');
+
+    // Page images: Library images per page
+    $red = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==');
+    [, $one] = upload($api, 'POST', '/editor/books/printed/assets', $red, 'P001.png', $editor);
+    [, $two] = upload($api, 'POST', '/editor/books/printed/assets', $png, 'start-1.png', $editor);
+    $oneUrl = (string) ($one['asset']['url'] ?? '');
+    $twoUrl = (string) ($two['asset']['url'] ?? '');
+    [$status, $data] = call($api, 'PUT', '/editor/books/printed/page-images', ['items' => [
+        ['page' => 1, 'url' => $oneUrl], ['page' => 0, 'url' => $twoUrl, 'name' => '  Front  cover '], ['page' => 1, 'facing' => true, 'url' => $twoUrl], ['page' => -4, 'url' => $oneUrl],
+    ]], $editor);
+    $byKey = [];
+    foreach ($data['pageImages'] ?? [] as $image) $byKey[$image['page'] . ($image['facing'] ? 'f' : '')] = $image;
+    check($status === 200 && $data['saved'] === 4 && array_map('strval', array_keys($byKey)) === ['-4', '0', '1', '1f'] && $byKey['1']['name'] === 'P001.png' && $byKey['0']['name'] === 'Front cover'
+        && $byKey['1f']['url'] === $twoUrl && $byKey['1']['updatedBy'] === 'author@example.com',
+        '#251: set page images – the name defaults to the Library\'s, is trimmed; the facing half and a front matter page take one');
+    [$status, $data] = call($api, 'PUT', '/editor/books/printed/page-images', ['items' => [['page' => 1, 'from' => ['page' => -4]], ['page' => -4, 'from' => ['page' => 1]], ['page' => 0, 'name' => 'Cover']]], $editor);
+    $byKey = [];
+    foreach ($data['pageImages'] ?? [] as $image) $byKey[$image['page'] . ($image['facing'] ? 'f' : '')] = $image;
+    check($status === 200 && $byKey['1']['name'] === 'P001.png' && $byKey['-4']['url'] === $oneUrl && $byKey['0']['name'] === 'Cover',
+        '#251: moves are taken from the images as they were (a swap), a rename keeps the image');
+    [$status, $data] = call($api, 'PUT', '/editor/books/printed/page-images', ['items' => [['page' => 5, 'from' => ['page' => -4]]]], $editor);
+    check($status === 200 && in_array(5, array_column($data['pageImages'], 'page'), true) && !in_array(-4, array_column($data['pageImages'], 'page'), true), '#251: move to another page');
+    foreach ([
+        [['page' => 42, 'url' => $oneUrl], 'a page the book does not have'],
+        [['page' => 2, 'url' => 'https://elsewhere/x.png'], 'a url that is no image of the Library'],
+        [['page' => 2, 'name' => 'x'], 'renaming a page without an image'],
+        [['page' => 2, 'from' => ['page' => 3]], 'moving from a page without an image'],
+        [['page' => 2, 'url' => $oneUrl, 'name' => '   '], 'an empty name'],
+        [['page' => 2, 'facing' => true, 'url' => $oneUrl], 'a facing half of a double page'],
+        [['page' => 2], 'no action'],
+    ] as [$item, $what]) {
+        [$status, $data] = call($api, 'PUT', '/editor/books/printed/page-images', ['items' => [['page' => 3, 'url' => $oneUrl], $item]], $editor);
+        check($status === 400 && $data['error']['code'] === 'invalid-page-image', "#251: $what → 400, nothing saved");
+    }
+    [$status, $data] = call($api, 'PUT', '/editor/books/printed/page-images', ['items' => [['page' => 3, 'url' => $oneUrl], ['page' => 3, 'url' => null]]], $editor);
+    check($status === 400, '#251: two changes for one page → 400');
+    [, $data] = call($api, 'GET', '/editor/books/printed/pages', null, $editor);
+    check(!in_array(3, array_column($data['pageImages'], 'page'), true), '#251: … and the refused batches saved nothing');
+    [, $usages] = call($api, 'GET', "/editor/books/printed/assets/{$one['asset']['id']}/usages", null, $editor);
+    check(in_array(['kind' => 'page', 'ref' => '1'], $usages['usages'] ?? [], true), '#251: a page image is a use of its Library file');
+    [$status, $data] = call($api, 'DELETE', "/editor/books/printed/assets/{$one['asset']['id']}", null, $editor);
+    check($status === 409 && $data['error']['code'] === 'asset-in-use', '#251: … so the file is not deleted while it shows a page');
+    $green = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/AAAADhQGBzE1CwgAAAABJRU5ErkJggg==');
+    [$status, $replaced] = upload($api, 'PUT', "/editor/books/printed/assets/{$one['asset']['id']}/file", $green, 'P001.png', $editor);
+    [, $data] = call($api, 'GET', '/editor/books/printed/pages', null, $editor);
+    $urls = array_column(array_filter($data['pageImages'], fn($image) => !$image['facing']), 'url', 'page');
+    check($status === 200 && ($urls[1] ?? null) === ($replaced['asset']['url'] ?? '-') && ($urls[1] ?? null) !== $oneUrl, '#251: a replaced Library file: its page images show the new version');
+    [$status, $data] = call($api, 'PUT', '/editor/books/printed/page-images', ['items' => [['page' => 1, 'url' => null]]], $editor);
+    check($status === 200 && !in_array(1, array_column(array_filter($data['pageImages'], fn($image) => !$image['facing']), 'page'), true) && $data['saved'] === 1, '#251: remove – the page shows the layout again');
+    [, $draft] = call($api, 'GET', '/editor/books/printed/draft/latest.json', null, $editor);
+    [, $config] = call($api, 'GET', '/editor/books/printed/draft/' . ($draft['build'] ?? 'x') . '/game.config.json', null, $editor);
+    check(is_array($config) && isset($config['spreads']) && !str_contains((string) json_encode($config), basename($twoUrl)), '#251: page images are no content – the draft does not carry them');
+    [$status] = importing($api, 'printed', $editor, json_encode(['configuration' => $printed, 'files' => $files], $flags));
+    [, $data] = call($api, 'GET', '/editor/books/printed/pages', null, $editor);
+    check($status === 200 && count($data['pageImages'] ?? []) === 3, '#251: a re-import keeps the page images');
+
     echo "editor: the book's passes – the master, spreads override (#149)\n";
     $bookPasses = [['type' => 'grade', 'reach' => 'all', 'exposure' => 0.5], ['type' => 'vignette', 'strength' => 0.4]];
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => $bookPasses], $editor);

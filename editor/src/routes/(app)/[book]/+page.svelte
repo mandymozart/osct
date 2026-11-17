@@ -12,7 +12,10 @@
   import { menuTrigger } from "#lib/menu-trigger.js";
   import type { Point } from "#lib/context-menu.js";
   import { sheetForSpread, type StageLayout } from "#lib/stage/stage-layout.js";
-  import { fetchBookLayout, pageOf, printBoxes, sheetUrl } from "#lib/sheet-preview.js";
+  import { cardPageImages, fetchBookLayout, pageOf, printBoxes, sheetUrl } from "#lib/sheet-preview.js";
+  import { pageImages } from "#lib/page-images.svelte.js";
+  import PagesView from "#lib/PagesView.svelte";
+  import Segmented from "#lib/components/Segmented.svelte";
   import SheetPreview from "#lib/components/SheetPreview.svelte";
   import { captionOf, formatLabelOf, gridCells } from "#lib/spread-grid.js";
   import Icon from "#lib/components/Icon.svelte";
@@ -22,12 +25,22 @@
    * A book: its title and author, then its **spreads**, each as its picture – the layout's sheet (when the content
    * carries one) with the targets' prints over it (#153); open one to work on its stage. The book's texts and settings
    * are the Inspector's (the top bar's ⚙ in a spread, #237), its entries are found with the top bar's search
-   * and edited in their spread – the page has no other views (an old `?view=` link shows the spreads).
+   * and edited in their spread. The **Pages** view (`?view=pages`, #251) lists every page with its page image – one
+   * Library image per page that wins over the layout's half on the cards and the stage (`PagesView`); any other `?view=`
+   * shows the spreads.
    * A digital-first book (#238) ends its grid with the add tile – a double page's size, a large + – that opens the
    * creation step in its place (`NewSpreadForm`, the tile's size); a card's menu adds after it and removes. A print-first book's spreads
    * are its layout's: no tile, no adding or removing in the menu.
    */
   const bookId = $derived(page.params.book!);
+  /** Spreads or Pages (#251), kept in the URL */
+  const VIEWS = ["spreads", "pages"] as const;
+  const view = $derived(page.url.searchParams.get("view") === "pages" ? "pages" : "spreads");
+  const setView = (next: (typeof VIEWS)[number]) => {
+    void goto(`${resolve(`${bookId}/`)}${next === "pages" ? "?view=pages" : ""}`, { replace: true });
+  };
+  /** The book's page images over the cards (#251) */
+  const pageImageUrls = $derived(pageImages.bookId === bookId ? pageImages.byKey : {});
   let tree = $state<BookTree | null>(null);
   let layout = $state<StageLayout | null>(null);
   let error = $state<string | null>(null);
@@ -121,6 +134,9 @@
     // The layout lives with the book's assets; without it (or without an assets base) the cards are blank pages with their prints
     layout = await fetchBookLayout(assetsBase);
   });
+  $effect(() => {
+    if (pageImages.bookId !== bookId) void pageImages.load(bookId);
+  });
 
   const withTarget = (spread: BookTree["spreads"][number]) => spread.entries.filter(entry => entry.target?.imageSrc);
   const cells = $derived(gridCells(tree?.spreads ?? []));
@@ -140,7 +156,13 @@
     <header class="book-head">
       <h1>{tree.book.title}</h1>
       <p class="muted">{tree.book.author}</p>
+      <span class="views"><Segmented options={VIEWS} value={view} label="View" labels={{ spreads: "Spreads", pages: "Pages" }}
+        titles={{ spreads: "The book's spreads as cards – open one to work on its stage", pages: "Every page with its page image: upload, replace, move, rename, remove – one or many at once" }}
+        onchange={setView} /></span>
     </header>
+    {#if view === "pages"}
+      <PagesView {bookId} {tree} {layout} {assetsBase} onspreadschanged={async () => { tree = await getBook(bookId, { fresh: true }); }} />
+    {:else}
     <ul class="spreads" style:--page-ratio={pageRatio}>
       {#each cells as cell, i (cell.spacer ? `spacer-${i}` : cell.spread.id)}
         {#if cell.spacer}
@@ -162,7 +184,8 @@
               })}>
               <span class="frame">
                 <SheetPreview ratio={cell.span * pageRatio} image={sheet ? sheetUrl(assetsBase, sheet) : null}
-                  single={cell.span === 1 && !!sheet && !!layout && sheet.widthMm > layout.page.width * 1.5}
+                  single={cell.span === 1 && !!sheet && !!layout && sheet.widthMm > layout.page.width * 1.5} half={cell.side === "left" ? "left" : "right"}
+                  pages={cardPageImages(spread, pageImageUrls, cell.span, cell.side, assetsBase)}
                   prints={printBoxes(targets.map(e => e.target!), cell.span, pageMm, assetsBase)} />
               </span>
               <span class="caption muted small">
@@ -202,6 +225,7 @@
         </li>
       {/if}
     </ul>
+    {/if}
   {:else if !error}
     <p class="muted">Loading…</p>
   {/if}
@@ -212,6 +236,7 @@
 <style>
   main { padding: 1rem 1.5rem; }
   .book-head { margin-bottom: .75rem; }
+  .book-head .views { display: block; margin-top: .5rem; }
   .book-head h1 { margin: 0; font-size: 1rem; font-weight: 600; }
   .book-head p { margin: .125rem 0 0; }
   /* The repeated track is a pair of pages: the column count stays even, a double page never wraps */

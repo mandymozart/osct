@@ -7,6 +7,24 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- Editor: a **Pages** view on the book page – every page in order (the covers, the front and back matter, the
+  unnumbered halves next to page 1 and the last page) with its own image. A page image is uploaded or picked from the
+  Library on its own and wins over the print layout's sheet for that page on the stage and the spread cards; replace,
+  move, rename and remove it, or drop many pictures at once – they are matched to pages by their names (`P012…`,
+  `F1`, `start-1` …) and shown as a list to correct before anything is applied. The reader never shows page images
+  (#251).
+- Editor and MCP: the front and back matter a book is missing are added in one step (the Pages view's *Add the missing
+  pages*, `add_matter`) – also on a print-first book; the last printed page gets its own spread and the back cover moves
+  after the back matter (#251).
+- MCP: `list_pages`, `set_page_images` (by page, label or file name, uploading local files) and `add_matter` (#251).
+
+### Fixed
+- Editor: a single left-hand page's card (the last printed page) shows the left half of its sheet, the half with the
+  page (#251).
+
 ## 1.92.2 – 2026-11-17
 
 ### Fixed

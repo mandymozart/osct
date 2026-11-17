@@ -1,6 +1,7 @@
 import { CONTENT_PATH } from "@engine/content/game-config";
 import type { PrintPlacement } from "./api";
-import { DEFAULT_PAGE_MM, LAYOUT_PATH, layoutFrom, type LayoutSheet, type StageLayout } from "#lib/stage/stage-layout.js";
+import type { Spread } from "@engine/types";
+import { DEFAULT_PAGE_MM, LAYOUT_PATH, layoutFrom, pageImagesOfSpread, type LayoutSheet, type StageLayout } from "#lib/stage/stage-layout.js";
 
 /**
  * Pictures of a book's pages outside the stage (#153): the books page's covers and the book page's spread cards.
@@ -35,6 +36,34 @@ export const coverSheetOf = (layout: StageLayout | null): LayoutSheet | null => 
 
 /** One page in mm: the layout's, else the stage's default */
 export const pageOf = (layout: StageLayout | null): { width: number; height: number } => layout?.page ?? DEFAULT_PAGE_MM;
+
+/** Page images over a card (#251): its left and right half (a double page) or the whole card (a cover, a single page) */
+export type CardPageImages = Partial<Record<"left" | "right" | "full", string>>;
+
+/**
+ * The page images a spread's card shows over the layout's sheet: a double page's halves, the cover's whole card, a
+ * single page's image over the card (`side`: the half of the sheet the card shows – a left-hand single page its left)
+ */
+export const cardPageImages = (
+  spread: Pick<Spread, "firstPage" | "lastPage" | "format">,
+  images: Readonly<Record<string, string>>,
+  span: 1 | 2,
+  side: "left" | "right" | null,
+  assetsBase?: string | null,
+): CardPageImages => {
+  const sheet = pageImagesOfSpread(spread, images);
+  const url = (src: string | undefined) => (src ? assetUrl(assetsBase, src) : undefined);
+  const result: CardPageImages = {};
+  if (sheet.whole) result.full = url(sheet.whole);
+  else if (span === 2) {
+    if (sheet.left) result.left = url(sheet.left);
+    if (sheet.right) result.right = url(sheet.right);
+  } else {
+    const shown = sheet[side === "left" ? "left" : "right"];
+    if (shown) result.full = url(shown);
+  }
+  return result;
+};
 
 export interface PrintBox {
   id: string;

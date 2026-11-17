@@ -200,7 +200,8 @@ Connecting an AI agent is a first step of working here, so it sits on the books 
 
 ## The book page
 
-`/editor/<book>/`: the book's title and author, then its spreads (#237) – nothing else. The book's texts and settings
+`/editor/<book>/`: the book's title and author, then its spreads (#237), or – with the **Spreads | Pages** switch under
+the title – its [pages](#pages) (`?view=pages`, #251). The book's texts and settings
 are the Inspector's (the top bar's book crumb in a spread, [Inspector: the book](#inspector-the-book)), its entries are
 found with the [book search](#the-book-search) and edited in their spread; the environment is its tab in the workspace.
 An old link with `?view=entries` or `?view=onboarding` shows the spreads. **Publish** with its target and where the book
@@ -250,6 +251,49 @@ Inspector's *assets* names it; without a layout the cards are text), their entri
   dialog. Should the book have changed meanwhile, the card shows the fresh impact to confirm again. A double page's later
   pages are numbered back by its pages, a cover moves nothing; the spread the book opens on (`initialSpreadId`) cannot
   go – the reason is shown under the disabled item.
+- **Page images** (#251, [below](#pages)) lie over a card's sheet where its pages have one: a double page's halves, a
+  cover's whole card, a single page's card. A single left-hand page (the last printed one) shows the left half of its
+  sheet – the half with the page.
+
+### Pages
+
+The **Pages** view (`lib/PagesView.svelte`, its logic in `pages-view.ts`, the names in `shared/api/page-names.ts`) lists
+every page of the book in book order – the cover, the front matter (`F1` … – internal pages, #296), the **unnumbered half
+next to page 1**, 1 … N, the unnumbered half next to the last printed page, the back matter (`B1` …), the back cover –
+as the API derives them from the spreads (`GET …/pages`). Each page shows the picture the stage shows for it: its
+**page image** when it has one (framed darker), else the layout's half of its sheet (*layout*), else nothing (*empty*).
+
+A **page image** is one image of the book's Library per page that **wins over the print layout's sheet for that page** –
+on the stage (that half of the sheet, a cover the whole, scaled to the page in mm; the other half keeps the layout's
+sheet, and its sharp-on-demand image stays the layout's) and on the spread cards. It is the editor's only: the reader
+never shows it, the draft and a publish do not carry it, and a re-import of the book keeps it – fixing one page after an
+import needs no content source, build, sync or re-import. The delivery tooling stays the way to bring a whole book.
+
+Per page: **Upload…** / **Replace…** (a file from the computer – it goes into the Library), **Library…** (a select of the
+Library's images), and with an image **Move…** (to another page – that page's image is replaced, the Library keeps it),
+**Rename…** and **Remove** (back to the layout). A Library file a page image shows counts as a use (it is not deleted
+without *Delete anyway*, which takes the page image too), and a replaced file's new version is shown at once.
+
+**Upload many…** (or drop pictures on the view): every JPEG, PNG or WebP is matched to a page **by its name** and listed
+with the proposed page – a select to change it or *skip* it, a note where the name names no page, a warning where two
+files go to one page or a file replaces a page's image. **Apply** uploads them and sets the page images in one batch;
+nothing is uploaded or set before. Case does not matter, the extension is ignored:
+
+| Name | Page |
+|---|---|
+| `P012…`, `p12`, `pp-012`, `page-12`, `page12`, `012`, `12` (anything after a non-digit is ignored: `P012_Print.jpg`) | the numbered page 12 |
+| `P001-facing`, `page-256-facing` | the unnumbered half next to page 1 / 256 |
+| `cover`, `front-cover`, `cover-front` · `back`, `back-cover`, `cover-back` | the covers |
+| `F1` … `F4`, `B1` … `B4` | the front / back matter's pages by their labels (F1 the first after the cover) |
+| `start-1` … `start-6`, `end-1` … `end-6` | in print order, as the print PDFs come (`START BOOK.pdf`, `END BOOK.pdf`): every page before page 1 from the cover on (cover, F1–F4, the half next to page 1), and every page after the last printed page to the back cover (the half next to it, B1–B4, the back cover) |
+
+Above the list, the **print format**: the front and back matter sheets and the last printed page – read from the book's
+layout (its `front-matter` / `back-matter` sheets and its highest page), typed otherwise – and *Check*. When the book's
+spreads miss pages of that format (`POST …/matter`, checked by itself with a layout), the view lists what is missing –
+the front matter spreads `front-1` …, the back matter `back-1` …, a spread for the last printed page when none holds it,
+the back cover moving after the back matter, entries that change spread – and **Add the missing pages** adds them. This
+works on a print-first book too: a deliberate exception to #238 – the spreads are the printed book's, only missing
+(staging's book had no matter and its back cover on page 256). Then the new pages take their images like any other.
 
 ### Texts: entries and the book
 
