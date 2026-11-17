@@ -124,7 +124,7 @@ export class CoachMarks extends HTMLElement {
   }
 
   private stopFollowing() {
-    if (this.frame) cancelAnimationFrame(this.frame);
+    if (this.frame !== undefined && typeof cancelAnimationFrame === "function") cancelAnimationFrame(this.frame);
     this.frame = undefined;
     this.hole = "";
   }
@@ -216,6 +216,8 @@ export class CoachMarks extends HTMLElement {
 
   /** Keeps the hole (and the arrows) on the revealed element while the coach marks show */
   private follow() {
+    // Stopped, taken out of the page, or a frame that fires after the window went away (a test's teardown)
+    if (this.frame === undefined || !this.isConnected || typeof requestAnimationFrame !== "function") return;
     this.frame = requestAnimationFrame(this.follow);
     const root = this.getRootNode() as ParentNode;
     const element = findThroughShadows(root, this.mark.target);

@@ -7,6 +7,12 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.92.2 – 2026-11-17
+
+### Fixed
+- The coach marks stop following the page scroller once they are taken out of the page – a frame that fired after a
+  test's window was gone failed the client checks in CI (#282).
+
 ## 1.92.1 – 2026-11-17
 
 ### Fixed
