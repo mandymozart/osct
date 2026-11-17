@@ -314,6 +314,10 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
       description:
         "Picture credits (content schema 2.33, #292): no field of an entry or a node. A file's credit line (one free text line – \"Book Golem by TER-JAN / DeviantArt\") is set in the Library with set_asset_credits and listed by list_assets; the book's configuration carries the lines of the files it uses (credits: { <file URL>: <line> }), and the reader lists them per spread on its image credits page (Info → here).",
     },
+    pageImages: {
+      description:
+        "Page images (#251): no content – an editor-only override of the print layout. One Library image per book page (the covers, the front and back matter's internal pages, the numbered pages, and the unnumbered half next to a single page – `facing`) that the editor's stage and spread cards show instead of the layout's sheet for that page; the reader never shows them and the draft does not carry them. list_pages lists every page in book order with its label (Cover, F1…, next to 1, 12, B1…, Back cover) and its image; set_page_images sets, replaces, moves, renames and removes them in one call – by page, label or a file name (P012…, start-1… / end-1… in print order), uploading local files on the way.",
+    },
     components: {
       description: "entity.components: [{ type, …params }] – the built-in types, and the components and material layers a plugin registers (used the same way).",
       builtIn: COMPONENTS,
@@ -419,7 +423,7 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     },
     spread: {
       description:
-        "SpreadData: { id, title, firstPage, lastPage, format?, matter?, passes? }. matter (front | back, content schema 2.32) marks a double page without printed numbers – front matter between the cover and page 1 (internal pages counting down to −1), back matter between the last printed page and the back cover; a print-first book gets them from its layout through an import. add_spread adds a double page (later pages are numbered on by two), the front cover (page 0) or the back cover; delete_spread removes one with everything on it (two steps: the impact, then the confirmation); put_spread changes title, format and passes.",
+        "SpreadData: { id, title, firstPage, lastPage, format?, matter?, passes? }. matter (front | back, content schema 2.32) marks a double page without printed numbers – front matter between the cover and page 1 (internal pages counting down to −1), back matter between the last printed page and the back cover; a print-first book gets them from its layout through an import, or from add_matter (the missing front and back matter, the last printed page's spread and the back cover moved after them – a print-first book too, plan first, then apply). add_spread adds a double page (later pages are numbered on by two), the front cover (page 0) or the back cover; delete_spread removes one with everything on it (two steps: the impact, then the confirmation); put_spread changes title, format and passes.",
       formats: SPREAD_FORMATS,
       matters: MATTERS,
     },
