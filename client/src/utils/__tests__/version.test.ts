@@ -1,5 +1,5 @@
 import { readFileSync } from "fs";
-import { resolve } from "path";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseVersion } from "../version";
 

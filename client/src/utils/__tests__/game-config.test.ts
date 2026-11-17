@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "fs";
-import { join, relative, resolve } from "path";
+import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   getAssets,
