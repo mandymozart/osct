@@ -997,7 +997,8 @@ filters and *Credits…* work as before, on the files the groups show.
 `p118-1_target.webp`, its colour picture `p118-1_image.webp`, another file of the entry or its own entity
 `p118-1_<asset id>.glb` (a model's texture maps add their size), a page image `page-118.webp`, `page-cover.webp`,
 `page-back-cover.webp`, `page-1-facing.webp`, `page-front-1-left.webp`, a shared entity's file `<entity>_<asset id>.ext`,
-the environment's `environment_world.glb` / `environment_sky.webp`. A file used in several places takes its first use;
+the environment's `environment_world.glb` / `environment_sky.webp`. An uploaded model or texture keeps its own name after
+the place (`fight_2_remesh_4096.jpg` → `p010-3_fight-2-remesh-4096.jpg`). A file used in several places takes its first use;
 unused files and files only a plugin's source names keep their names; two files that would take one name get `-2`,
 `-3`. The first click shows the plan (*from → to*, the first twelve), **Rename N** applies it, *cancel* leaves it. The
 **name only** changes – every URL and every use stays. An imported file (read-only) gets a listed name and shows it

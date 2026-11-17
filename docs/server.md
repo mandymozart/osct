@@ -493,7 +493,9 @@ by its name).
   `key_model-1024.webp`); a page image (#251) `page-118`, `page-cover`, `page-back-cover`, `page-1-facing`,
   `page-front-1-left`, `page-back-2-right` (front and back matter by sheet and side, `AssetNames::pageStem`); a shared
   entity's file `<ref>_<asset id>.<ext>`; the environment's `environment_world` / `environment_sky`. The extension is
-  the stored file's.
+  the stored file's. An **upload** among the entry's, entity's or shared entity's files keeps **its own name** after the
+  place instead of the asset id (Tilman, 2026-11-17): `fight_2_remesh_4096.jpg` → `p010-3_fight-2-remesh-4096.jpg`
+  (lower case, words joined by `-`, a place prefix it already has is not doubled – a second plan changes nothing).
 - **First use**: a file used in several places takes its first use in page order (`Pages::pagesOf`; per page the
   target before the entry, the entity, the page image); a shared entity sits on the page of its first target; uses
   without a page (the environment, plugins, an entity no target shows) come last. Files only a plugin's source names, and

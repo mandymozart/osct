@@ -6,10 +6,11 @@ declare(strict_types=1);
  * what the Library lists; its URL never changes with it, so no use breaks.
  *
  * - an entry's target image `p118-1_target.webp`, its colour picture `p118-1_image.webp`, another file of the entry or
- *   of its own entity `p118-1_<asset id or field>.ext`;
+ *   of its own entity `p118-1_<asset id or field>.ext` – an **upload** keeps its own name after the place:
+ *   `fight_2_remesh_4096.jpg` → `p010-3_fight-2-remesh-4096.jpg` (Tilman, 2026-11-17: "keep their own part");
  * - a page image (#251) `page-118.webp`, `page-cover.webp`, `page-back-cover.webp`, `page-1-facing.webp`,
  *   `page-front-1-left.webp` / `page-back-2-right.webp` (front and back matter by sheet and side);
- * - a shared entity's file `<entity ref>_<asset id>.ext`; the book's environment `environment_world.glb`,
+ * - a shared entity's file `<entity ref>_<asset id>.ext` (an upload: `<entity ref>_<its own name>.ext`); the book's environment `environment_world.glb`,
  *   `environment_sky.webp`;
  * - a file used in several places takes its first use in page order (the rest are "+N more"); a file only a plugin's
  *   source names, and an unused file, keep their names. Two files that would take the same name are told apart by
@@ -65,7 +66,13 @@ final class AssetNames
         foreach ($used as $file) {
             $first = $uses[$file['url']][0];
             if ($first['stem'] === null) continue;
-            $name = self::unique($first['stem'], self::extension($file['url'], $file['name']), $taken);
+            $stem = $first['stem'];
+            // An upload named by its asset id keeps its own name after the place instead (`p010-3_fight-2-remesh-4096`)
+            if (!$file['imported'] && ($first['prefix'] ?? null) !== null) {
+                $own = self::own((string) $file['name'], (string) $first['prefix']);
+                if ($own !== '') $stem = self::clean("{$first['prefix']}_{$own}");
+            }
+            $name = self::unique($stem, self::extension($file['url'], $file['name']), $taken);
             $taken[strtolower($name)] = true;
             if ($name === $file['name']) continue;
             $renames[] = ['id' => $file['id'], 'url' => $file['url'], 'imported' => $file['imported'], 'from' => $file['name'], 'to' => $name,
@@ -132,11 +139,11 @@ final class AssetNames
         $pages = [];
         foreach (Pages::pagesOf($bookId) as $i => $page) $pages[Pages::key($page['page'], $page['facing'])] ??= ['order' => $i, 'page' => $page];
         $uses = [];
-        $add = static function (string $value, string $kind, string $ref, ?string $spread, ?int $page, int $order, ?string $stem) use (&$uses, $keys): void {
+        $add = static function (string $value, string $kind, string $ref, ?string $spread, ?int $page, int $order, ?string $stem, ?string $prefix = null) use (&$uses, $keys): void {
             $url = $keys[$value] ?? null;
             if ($url === null) return;
             foreach ($uses[$url] ?? [] as $use) if ($use['kind'] === $kind && $use['ref'] === $ref) return;
-            $uses[$url][] = ['kind' => $kind, 'ref' => $ref, 'spread' => $spread, 'page' => $page, 'order' => $order, 'stem' => $stem === null ? null : self::clean($stem)];
+            $uses[$url][] = ['kind' => $kind, 'ref' => $ref, 'spread' => $spread, 'page' => $page, 'order' => $order, 'stem' => $stem === null ? null : self::clean($stem), 'prefix' => $prefix];
         };
         $orderOf = static fn(?int $page, ?string $spread): int => $spread !== null && $page !== null && isset($pages[(string) $page]) ? $pages[(string) $page]['order'] : self::BOOK_WIDE;
 
@@ -147,8 +154,8 @@ final class AssetNames
             $spread = $row['spread_id'] === null ? null : (string) $row['spread_id'];
             $entries[$id] = ['spread' => $spread, 'page' => (int) $row['page'], 'order' => $orderOf((int) $row['page'], $spread)];
             $at = $entries[$id];
-            self::walk(Editor::decode($row['data_json']), null, null, static function (string $value, ?string $part) use ($add, $id, $at) {
-                $add($value, 'entry', $id, $at['spread'], $at['page'], $at['order'], "{$id}_" . ($part ?? 'file'));
+            self::walk(Editor::decode($row['data_json']), null, null, static function (string $value, ?string $part, bool $src = false) use ($add, $id, $at) {
+                $add($value, 'entry', $id, $at['spread'], $at['page'], $at['order'], "{$id}_" . ($part ?? 'file'), $src ? $id : null);
             });
         }
         // Targets: on their entry's page; the printed image `_target`, the files of its own entity by asset id
@@ -158,8 +165,8 @@ final class AssetNames
             $at = $entries[$entry] ?? ['spread' => null, 'page' => null, 'order' => self::BOOK_WIDE];
             $ref = (string) $row['id'];
             if (is_string($row['image_src']) && $row['image_src'] !== '') $add($row['image_src'], 'target', $ref, $at['spread'], $at['page'], $at['order'], "{$entry}_target");
-            self::walk(Editor::decode($row['data_json']), null, null, static function (string $value, ?string $part) use ($add, $entry, $ref, $at) {
-                $add($value, 'target', $ref, $at['spread'], $at['page'], $at['order'], "{$entry}_" . ($part ?? 'file'));
+            self::walk(Editor::decode($row['data_json']), null, null, static function (string $value, ?string $part, bool $src = false) use ($add, $entry, $ref, $at) {
+                $add($value, 'target', $ref, $at['spread'], $at['page'], $at['order'], "{$entry}_" . ($part ?? 'file'), $src ? $entry : null);
             });
             // A shared entity sits where its first target is
             $shares = $row['entity_ref'] === null ? null : (string) $row['entity_ref'];
@@ -168,8 +175,8 @@ final class AssetNames
         foreach (Db::run('SELECT ref, data_json FROM entities WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
             $ref = (string) $row['ref'];
             $at = $shared[$ref] ?? ['spread' => null, 'page' => null, 'order' => self::BOOK_WIDE];
-            self::walk(Editor::decode($row['data_json']), null, null, static function (string $value, ?string $part) use ($add, $ref, $at) {
-                $add($value, 'entity', $ref, $at['spread'], $at['page'], $at['order'], "{$ref}_" . ($part ?? 'file'));
+            self::walk(Editor::decode($row['data_json']), null, null, static function (string $value, ?string $part, bool $src = false) use ($add, $ref, $at) {
+                $add($value, 'entity', $ref, $at['spread'], $at['page'], $at['order'], "{$ref}_" . ($part ?? 'file'), $src ? $ref : null);
             });
         }
         // Page images: their page's label
@@ -220,7 +227,7 @@ final class AssetNames
             } else {
                 $part = $key === null ? null : (self::PARTS[$key] ?? $key);
             }
-            $found($node, $part);
+            $found($node, $part, $key === 'src');
         } elseif ($node instanceof stdClass) {
             $owner = is_string($node->id ?? null) && $node->id !== '' ? $node->id : $owner;
             foreach (get_object_vars($node) as $k => $value) self::walk($value, (string) $k, $node, $found, $owner);
@@ -285,6 +292,18 @@ final class AssetNames
             throw new ApiError(400, 'invalid-use', ($facing ? "The half next to page $page" : "Page $page") . ' is no page of the book.');
         }
         return null;
+    }
+
+    /**
+     * A file's own part of its name: the name without extension and without a place prefix it already carries (so a second
+     * plan changes nothing), lower case, words joined by `-` – `fight_2_remesh_4096.jpg` → `fight-2-remesh-4096`
+     */
+    private static function own(string $name, string $prefix): string
+    {
+        $stem = pathinfo($name, PATHINFO_FILENAME);
+        $lead = strtolower($prefix) . '_';
+        while ($lead !== '_' && str_starts_with(strtolower($stem), $lead)) $stem = substr($stem, strlen($lead));
+        return trim((string) preg_replace('/[^a-z0-9.]+/', '-', strtolower($stem)), '-.');
     }
 
     /** A stem as a file name may hold it: letters, digits, `.`, `_` and `-` */

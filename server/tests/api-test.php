@@ -1990,6 +1990,12 @@ try {
     [$status, $data] = call($api, 'PUT', '/editor/books/printed/spreads/s002-003', ['title' => 3], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-spread', '#298: a title that is no text → 400');
 
+    // An upload named by its use keeps its own part (Tilman, 2026-11-17): a shared entity's model `fightref_fight-2-remesh.glb`
+    [, $fight] = upload($api, 'POST', '/editor/books/printed/assets', 'glTF fight', 'Fight_2 remesh.glb', $editor);
+    $fightUrl = (string) ($fight['asset']['url'] ?? '');
+    [$status] = call($api, 'PUT', '/editor/books/printed/entities/fightref', ['type' => 'model', 'assets' => [['id' => 'fight-mesh', 'assetType' => 'glb', 'src' => $fightUrl]]], $editor);
+    check($status === 200, '#298: a shared entity with an uploaded model');
+
     // Files named by use: the plan first, nothing written
     $libraryOf = static function () use ($api, $editor): array {
         [, $list] = call($api, 'GET', '/editor/books/printed/assets', null, $editor);
@@ -2003,6 +2009,7 @@ try {
     check($status === 200 && $data['applied'] === false && ($renamedTo[$twoUrl] ?? null) === 'page-cover.' . $extOf($twoUrl) && ($renamedTo[$importedImage] ?? null) === 'on-four_target.jpg'
         && ($renamedTo[$replaced['asset']['url'] ?? '-'] ?? null) === 'page-back-1-left.' . $extOf((string) ($replaced['asset']['url'] ?? '')),
         '#298: the names plan – a page image takes its page\'s (page-cover, page-back-1-left), the target image its entry\'s (on-four_target.jpg)');
+    check(($renamedTo[$fightUrl] ?? null) === 'fightref_fight-2-remesh.glb', '#298: an upload keeps its own name after the place – Fight_2 remesh.glb → fightref_fight-2-remesh.glb, not its asset id');
     $coverRename = array_values(array_filter($data['plan']['renames'] ?? [], fn($r) => $r['url'] === $twoUrl))[0] ?? [];
     check(($coverRename['more'] ?? null) === 1 && ($coverRename['use'] ?? null) === ['kind' => 'page', 'ref' => '0', 'spread' => 'cover', 'page' => 0],
         '#298: … a file used twice takes its first use in page order (the cover before the half next to 1), +1 more');
