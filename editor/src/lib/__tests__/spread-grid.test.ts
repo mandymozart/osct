@@ -26,6 +26,17 @@ describe("spread grid", () => {
     expect(placed.map(cell => [cell.spread.id, cell.side])).toEqual([["cover", "right"], ["f1", null], ["p1", "right"], ["p2", null], ["p4", "left"], ["b1", null], ["back", "left"]]);
   });
 
+  it("shows a single printed page with its facing half as the double page, the half on its side (#251)", () => {
+    const book = [spread("cover", 0, 0, "cover"), spread("p1", 1, 1), spread("p2", 2, 3), spread("p4", 4, 4), spread("back", 5, 5, "back")];
+    const facing = (s: { firstPage: number; lastPage: number; format?: string }) => (s.format || s.firstPage !== s.lastPage ? null : s.firstPage % 2 ? "left" : "right");
+    const placed = gridCells(book, facing);
+    expect(placed.map(cell => (cell.spacer ? "_" : [cell.spread.id, cell.span, cell.side, cell.facing]))).toEqual([
+      "_", ["cover", 1, "right", null], ["p1", 2, null, "left"], ["p2", 2, null, null], ["p4", 2, null, "right"], ["back", 1, "left", null],
+    ]);
+    // Without the half: the single pages as before
+    expect(gridCells(book, () => null).filter(cell => !cell.spacer).map(cell => !cell.spacer && [cell.span, cell.facing])).toEqual([[1, null], [1, null], [2, null], [1, null], [1, null]]);
+  });
+
   it("starts every double page on an even column so 2–3, 4–5 line up as spreads", () => {
     for (const { cell, start } of layoutOf()) {
       if (!cell.spacer && cell.span === 2) expect(start % 2).toBe(0);

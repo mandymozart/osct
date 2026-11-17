@@ -4,7 +4,7 @@ import type { PrintSurface } from "@shared/types/game-config";
 import { getSpread, getSpreads } from "@engine/content/game-config";
 import { EMPTY_ENGINE_STATE, publishEngineState } from "@engine/utils/tracker-debug";
 import { fetchTriggerInfos, type TriggerInfos } from "@engine/utils/trigger-protocol";
-import { DEFAULT_PAGE_MM, fetchStageLayout, type LayoutSheet, pageImagesOfSpread, printedPlaceOf, sheetForSpread, sheetImageUrl, sheetSharpImageUrl, type SheetPageImages, type StageLayout } from "./stage-layout";
+import { DEFAULT_PAGE_MM, fetchStageLayout, type LayoutSheet, onePageSheetSide, pageImagesOfSpread, printedPlaceOf, sheetForSpread, sheetImageUrl, sheetSharpImageUrl, type SheetPageImages, type StageLayout } from "./stage-layout";
 import { getPreview, type PreviewOrbit, type PreviewState, type PreviewView, subscribePreview, updatePreview } from "./preview";
 import type { IImageTracker, ImageTrackerOptions, TrackedSpread } from "@engine/scene/tracker-types";
 import { onAppUi } from "@engine/scene/ui";
@@ -49,6 +49,8 @@ export interface StageSheet {
   heightMm: number;
   /** Page images (#251) over its halves, one page in size each, shown as uploaded – absent: the sheet's image only */
   pages?: SheetPageImages;
+  /** A one-page sheet of a single printed page on its half of the open book (#251) – absent: centred on the spine */
+  side?: "left" | "right";
 }
 
 /** The book as an object: how many spreads it has (the stage's block thickness follows), and what the spread is */
@@ -413,7 +415,7 @@ export class MockTracker implements IImageTracker {
     const spread = this.spreadId ? getSpread(this.spreadId) : undefined;
     const pages = pageImagesOfSpread(spread, this.pageImages);
     const withPages = Object.keys(pages).length ? { pages } : {};
-    if (sheet) return { image: sheetImageUrl(sheet), imageSharp: sheetSharpImageUrl(sheet), widthMm: sheet.widthMm, heightMm: sheet.heightMm, ...withPages };
+    if (sheet) return { image: sheetImageUrl(sheet), imageSharp: sheetSharpImageUrl(sheet), widthMm: sheet.widthMm, heightMm: sheet.heightMm, ...withPages, ...onePageSheetSide(spread, sheet, this.pageFormat()) };
     if (!withPages.pages) return null;
     const page = this.pageFormat();
     const closed = spread?.format === "cover" || spread?.format === "back";

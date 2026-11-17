@@ -116,8 +116,44 @@ export const pageImagesOfSpread = (
   return result;
 };
 
+/** A sheet two pages wide – a double page – against one page of the book (in mm) */
+export const isDoubleSheet = (sheet: Pick<LayoutSheet, "widthMm">, page: { width: number }): boolean => sheet.widthMm > page.width * 1.5;
+
+/** The side of a single printed page's unnumbered facing half (#251): left of an odd (right-hand) page, right of an even one */
+export const facingSideOf = (page: number): "left" | "right" => (page % 2 === 0 ? "right" : "left");
+
+/**
+ * Whether a single printed page (page 1, the last printed page – not a cover, not matter) shows as its double page
+ * (#251), and on which side its unnumbered facing half lies: when the half exists – a page image of its own (`1f`) or
+ * the other half of the layout's double sheet. Null: anything else, or a single page without its facing half.
+ */
+export const facingHalfOf = (
+  spread: { firstPage: number; lastPage: number; format?: string } | undefined,
+  sheet: Pick<LayoutSheet, "widthMm"> | null,
+  page: { width: number },
+  images: Readonly<Record<string, string>>,
+): "left" | "right" | null => {
+  if (!spread || (spread.format && spread.format !== "spread") || spread.firstPage !== spread.lastPage) return null;
+  const exists = !!images[keyOf(spread.firstPage, true)] || (!!sheet && isDoubleSheet(sheet, page));
+  return exists ? facingSideOf(spread.firstPage) : null;
+};
+
+/**
+ * The half a single printed page's one-page layout sheet lies on in the stage's open book (#251): its printed page's
+ * (odd right, even left), the facing half beside it free for its page image; nothing for a double sheet, a cover or a
+ * double page (centred on the spine)
+ */
+export const onePageSheetSide = (
+  spread: { firstPage: number; lastPage: number; format?: string } | undefined,
+  sheet: Pick<LayoutSheet, "widthMm">,
+  page: { width: number },
+): { side?: "left" | "right" } => {
+  if (!spread || (spread.format && spread.format !== "spread") || spread.firstPage !== spread.lastPage || isDoubleSheet(sheet, page)) return {};
+  return { side: facingSideOf(spread.firstPage) === "left" ? "right" : "left" };
+};
+
 /** The sheet that shows a spread's pages (the one with its first page, else its last), null when there is none */
-export const sheetForSpread = (layout: StageLayout | null, spread: Pick<Spread, "firstPage" | "lastPage" | "format" | "matter"> | undefined): LayoutSheet | null => {
+export const sheetForSpread = (layout: StageLayout | null, spread: { firstPage: number; lastPage: number; format?: string; matter?: string } | undefined): LayoutSheet | null => {
   if (!layout || !spread) return null;
   // The covers have no page: their sheets are the layout's cover-front / cover-back
   if (spread.format === "cover" || spread.format === "back") {

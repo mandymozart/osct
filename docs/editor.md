@@ -255,6 +255,15 @@ Inspector's *assets* names it; without a layout the cards are text), their entri
 - **Page images** (#251, [below](#pages)) lie over a card's sheet where its pages have one: a double page's halves, a
   cover's whole card, a single page's card. A single left-hand page (the last printed one) shows the left half of its
   sheet – the half with the page.
+- **A single printed page with its facing half** (#251) – page 1, the last printed page – is a **double page card**
+  when the unnumbered half next to it exists: a page image of its own (*next to 1*, key `1f`) or the other half of the
+  layout's double sheet. The half lies on its side of the gutter – page 1's on the left (it fills the first row's empty
+  cell), the last page's on the right – and the card is a double page's size; the printed half shows as before, the
+  facing half carries no targets (prints keep their page). A one-page layout sheet lies on the printed half, beside the
+  facing page image. Without the half the card stays the single page; the covers stay single pages
+  (`facingHalfOf` in `stage/stage-layout.ts`, `gridCells`' `facingOf`, `cardPicture` in `sheet-preview.ts`). The stage
+  shows such a spread as the open book anyway: the double sheet, the facing page image on its half, a one-page sheet on
+  the printed half (`onePageSheetSide`).
 
 ### Spread titles
 

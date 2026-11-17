@@ -16,8 +16,14 @@ export interface GridSpread {
   matter?: string;
 }
 
-/** `side`: a single page's side of the gutter (a right-hand page on an odd column) – its padding there is dropped */
-export type GridCell<T extends GridSpread> = { spacer: true } | { spacer: false; spread: T; span: 1 | 2; side: "left" | "right" | null };
+/**
+ * `side`: a single page's side of the gutter (a right-hand page on an odd column) – its padding there is dropped.
+ * `facing`: a single printed page shown as its double page (#251) – the side its unnumbered half lies on.
+ */
+export type GridCell<T extends GridSpread> = { spacer: true } | { spacer: false; spread: T; span: 1 | 2; side: "left" | "right" | null; facing: "left" | "right" | null };
+
+/** Where a single page's unnumbered facing half lies when its card shows it (`facingHalfOf`), null: the single page alone */
+export type FacingOf<T> = (spread: T) => "left" | "right" | null;
 
 /** An even column count for the walk (only the parity matters): the cells hold for any even count, the page's grid repeats pairs of pages to follow the width (#159) */
 export const GRID_COLUMNS = 12;
@@ -26,11 +32,25 @@ const isDoublePage = (spread: GridSpread) => !spread.format || spread.format ===
 
 export const spanOf = (spread: GridSpread): 1 | 2 => (isDoublePage(spread) ? 2 : 1);
 
-/** The spreads in book order with empty spacer cells where a page has to start on the other side of the gutter */
-export const gridCells = <T extends GridSpread>(spreads: T[]): GridCell<T>[] => {
+/**
+ * The spreads in book order with empty spacer cells where a page has to start on the other side of the gutter. A single
+ * printed page with its facing half shown (`facingOf`, #251) is a double page: page 1 with its half on the left fills
+ * the first row's empty cell, the last printed page with its half on the right lies before the back cover.
+ */
+export const gridCells = <T extends GridSpread>(spreads: T[], facingOf?: FacingOf<T>): GridCell<T>[] => {
   const cells: GridCell<T>[] = [];
   let column = 0;
   for (const spread of spreads) {
+    const facing = spanOf(spread) === 1 ? (facingOf?.(spread) ?? null) : null;
+    if (facing) {
+      if (column % 2 !== 0) {
+        cells.push({ spacer: true });
+        column += 1;
+      }
+      cells.push({ spacer: false, spread, span: 2, side: null, facing });
+      column = (column + 2) % GRID_COLUMNS;
+      continue;
+    }
     const span = spanOf(spread);
     // An even single page (the last printed one) is a left-hand page, every other single page but the back cover a right-hand one
     const leftHand = span === 1 && (!spread.format || spread.format === "spread") && spread.firstPage % 2 === 0;
@@ -41,7 +61,7 @@ export const gridCells = <T extends GridSpread>(spreads: T[]): GridCell<T>[] => 
       cells.push({ spacer: true });
       column += 1;
     }
-    cells.push({ spacer: false, spread, span, side: span === 2 ? null : column % 2 === 1 ? "right" : "left" });
+    cells.push({ spacer: false, spread, span, side: span === 2 ? null : column % 2 === 1 ? "right" : "left", facing: null });
     column = (column + span) % GRID_COLUMNS;
   }
   return cells;

@@ -1,7 +1,7 @@
 import { CONTENT_PATH } from "@engine/content/game-config";
 import type { PrintPlacement } from "./api";
 import type { Spread } from "@engine/types";
-import { DEFAULT_PAGE_MM, LAYOUT_PATH, layoutFrom, pageImagesOfSpread, type LayoutSheet, type StageLayout } from "#lib/stage/stage-layout.js";
+import { DEFAULT_PAGE_MM, isDoubleSheet, LAYOUT_PATH, layoutFrom, pageImagesOfSpread, type LayoutSheet, type StageLayout } from "#lib/stage/stage-layout.js";
 
 /**
  * Pictures of a book's pages outside the stage (#153): the books page's covers and the book page's spread cards.
@@ -63,6 +63,38 @@ export const cardPageImages = (
     if (shown) result.full = url(shown);
   }
   return result;
+};
+
+/** What a spread's card draws (`SheetPreview`): the sheet's image, whether it is a half of it, and the page images over it */
+export interface CardPicture {
+  image: string | null;
+  /** A single page shown from a double sheet: the image twice as wide, its `half` in view */
+  single: boolean;
+  half: "left" | "right";
+  pages: CardPageImages;
+}
+
+/**
+ * A spread's card picture from its grid cell (`gridCells`): a double page shows its sheet whole; a single page its half
+ * of a double sheet (a left-hand page its left, #251); a single page with its facing half (`cell.facing`, #251) its
+ * double page – the double sheet whole, or a one-page sheet on the printed half next to the facing page image
+ */
+export const cardPicture = (
+  spread: Pick<Spread, "firstPage" | "lastPage" | "format">,
+  cell: { span: 1 | 2; side: "left" | "right" | null; facing: "left" | "right" | null },
+  sheet: LayoutSheet | null,
+  layout: StageLayout | null,
+  images: Readonly<Record<string, string>>,
+  assetsBase?: string | null,
+): CardPicture => {
+  const image = sheet ? sheetUrl(assetsBase, sheet) : null;
+  const double = !!sheet && !!layout && isDoubleSheet(sheet, pageOf(layout));
+  const pages = cardPageImages(spread, images, cell.span, cell.side, assetsBase);
+  if (cell.facing && image && !double) {
+    const printed = cell.facing === "left" ? "right" : "left";
+    return { image: null, single: false, half: "right", pages: { [printed]: image, ...pages } };
+  }
+  return { image, single: cell.span === 1 && double, half: cell.side === "left" ? "left" : "right", pages };
 };
 
 export interface PrintBox {
