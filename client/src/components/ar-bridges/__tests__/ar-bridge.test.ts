@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type ArSceneEvents, type ArStatus, CameraPermissionStatus, CARD_FLIGHT_EVENT, type CardFlightDetail, ErrorCode, type IArScene, LoadingState, SceneState, TARGET_UNLOCKED_EVENT } from "@/types";
+import { type ArSceneEvents, type ArStatus, CameraPermissionStatus, CARD_FLIGHT_EVENT, type CardFlightDetail, EntryCategory, ErrorCode, type IArScene, LoadingState, SceneState, TARGET_UNLOCKED_EVENT } from "@/types";
 import { GameStoreService, PreloaderService, SubtitleService, UpdateService } from "@/services";
-import { getSpreads, getTargets } from "@/utils/game-config";
+import { getEntry, getSpreads, getTargets } from "@/utils/game-config";
 import { getArError } from "@engine/utils/camera-debug";
 import { getPreparedWindow } from "@engine/utils/prepared-spreads";
 import { targetWithVideo } from "@/test/content-fixtures";
@@ -115,22 +115,46 @@ describe("<ar-bridge>", () => {
     document.removeEventListener(TARGET_UNLOCKED_EVENT, listener);
   });
 
-  it("flies a glossary card in scan mode (#285) and leaves the event alone elsewhere", async () => {
-    const fly = (targetId: string) => {
-      let flown: Promise<boolean> | null = null;
-      const detail: CardFlightDetail = { targetId, front: "/card.jpg", respond: p => (flown = p) };
-      const taken = !document.dispatchEvent(new CustomEvent(CARD_FLIGHT_EVENT, { detail, cancelable: true }));
-      return { taken, flown: flown as Promise<boolean> | null };
-    };
-    game.router.navigate("/spread");
-    const scanned = fly("t1");
-    expect(scanned.taken).toBe(true);
-    await expect(scanned.flown).resolves.toBe(true);
-    expect(scene.flown).toEqual(["t1"]);
+  it("flies a glossary card as soon as its target is found in scan mode, opens the entry when it landed (#285)", async () => {
+    const glossary = getSpreads().flatMap(s => getTargets(s.id))
+      .find(t => !t.entity && getEntry(t.entryId)?.category === EntryCategory.Glossary)!;
+    const flights: boolean[] = [];
+    const listener = (e: Event) => flights.push((e as CustomEvent<CardFlightDetail>).detail.flying);
+    document.addEventListener(CARD_FLIGHT_EVENT, listener);
 
+    // Not in consultation mode
     game.router.navigate("/entries");
-    expect(fly("t2").taken).toBe(false);
-    expect(scene.flown).toEqual(["t1"]);
+    scene.emit("targetFound", glossary.id);
+    expect(scene.flown).toEqual([]);
+
+    game.router.navigate("/spread");
+    scene.emit("targetFound", glossary.id);
+    await vi.waitFor(() => expect(game.state.currentRoute?.slug).toBe("/entry"));
+    expect(scene.flown).toEqual([glossary.id]);
+    expect(flights).toEqual([true, false]);
+
+    // Back in the scan with the page still in view: found again, but no second flight until it has left the camera
+    game.router.navigate("/spread");
+    scene.emit("targetLost", glossary.id);
+    scene.emit("targetFound", glossary.id);
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(scene.flown).toEqual([glossary.id]);
+
+    // It left the camera a while after the return: the next find flies again
+    vi.spyOn(Date, "now").mockReturnValue(Date.now() + 5000);
+    scene.emit("targetLost", glossary.id);
+    scene.emit("targetFound", glossary.id);
+    await vi.waitFor(() => expect(scene.flown).toEqual([glossary.id, glossary.id]));
+    document.removeEventListener(CARD_FLIGHT_EVENT, listener);
+  });
+
+  it("no card for a target with an AR entity or another category", async () => {
+    game.router.navigate("/spread");
+    const others = getSpreads().flatMap(s => getTargets(s.id))
+      .filter(t => t.entity || getEntry(t.entryId)?.category !== EntryCategory.Glossary).slice(0, 3);
+    others.forEach(t => scene.emit("targetFound", t.id));
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(scene.flown).toEqual([]);
   });
 
   it("a tapped entity opens its entry in scan mode (= consulted), not elsewhere", () => {
