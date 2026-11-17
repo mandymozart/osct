@@ -3,8 +3,12 @@ import { CODE_EXTENSIONS } from "./library-code";
 import { acceptOf } from "./library-pick";
 import { ASSET_KINDS } from "@shared/api/rules";
 import type { ImageFit, ImageUse } from "@shared/api/images";
+import { fitOf, toWebp } from "./browser-webp";
 
-/** A picture the image rule converted at upload (#298): the asset, and the file's name and size as it came */
+/**
+ * A picture the image rule converted (#298): the asset, and the file's name and size as it came – converted in the
+ * browser before the upload (browser-webp.ts) or, as the fallback, by the API
+ */
 export interface Conversion {
   assetId: string;
   name: string;
@@ -61,14 +65,16 @@ class Library {
 
   /**
    * Upload a file; the asset (new, or the one that already holds these bytes). `fit` names the use of a picture where it
-   * is known (`target`: cut to 1200 px – the image rule, #298); the API stores pictures as WebP.
+   * is known (`target`: cut to 1200 px – the image rule, #298). A picture becomes WebP in the browser first
+   * (browser-webp.ts); the API converts what still comes unconverted.
    */
   async upload(bookId: string, file: File, fit?: ImageFit | ImageUse): Promise<Asset> {
     this.uploading = [...this.uploading, file.name];
     this.error = null;
     try {
-      const { asset, converted } = await uploadAsset(bookId, file, fit);
-      this.converted = converted ? { assetId: asset.id, name: file.name, size: file.size } : null;
+      const sent = await toWebp(file, fitOf(fit));
+      const { asset, converted } = await uploadAsset(bookId, sent.file, fit);
+      this.converted = converted || sent.converted ?{ assetId: asset.id, name: file.name, size: file.size } : null;
       this.assets = [asset, ...this.assets.filter(a => a.id !== asset.id)];
       return asset;
     } catch (e) {
@@ -84,8 +90,9 @@ class Library {
     this.uploading = [...this.uploading, file.name];
     this.error = null;
     try {
-      const { asset, converted } = await replaceAsset(bookId, assetId, file, fit);
-      this.converted = converted ? { assetId: asset.id, name: file.name, size: file.size } : null;
+      const sent = await toWebp(file, fitOf(fit));
+      const { asset, converted } = await replaceAsset(bookId, assetId, sent.file, fit);
+      this.converted = converted || sent.converted ?{ assetId: asset.id, name: file.name, size: file.size } : null;
       this.assets = this.assets.map(a => (a.id === asset.id ? asset : a));
       return asset;
     } catch (e) {

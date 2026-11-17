@@ -7,6 +7,18 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- The editor converts pictures to WebP in the browser before uploading (#298, like SCUTOONS' asset manager;
+  `editor/src/lib/browser-webp.ts`): every upload and replace (Library, file fields, Pages view single and *Upload many*,
+  new target and entry forms) turns a JPEG, PNG or WebP upright by its EXIF orientation, scales it down to the use's
+  longest side (target 1200 px, the rest 2048 – never up) and writes WebP at quality 82 with its transparency (lossy – a
+  canvas has no lossless WebP), named `<name>.webp`. SVG, GIF, animated PNG / WebP, a WebP within the size, pictures
+  above 50 MP and anything the browser cannot decode or encode go as they came; the API's conversion stays the fallback
+  (MCP, scripts, a server without GD converts nothing – staging's shared host). The Library's notice line reports the
+  browser's conversion as it reports the API's.
+
 ## 1.96.0 – 2026-11-17
 
 ### Added

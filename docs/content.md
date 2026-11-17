@@ -716,6 +716,8 @@ Every picture takes the same way into the book (#298) – an upload in the edito
   export pictures in sRGB.
 - A picture above **50 MP** is refused before it is decoded. **TIFF and PDF** are no Library files: convert them locally
   (Pillow / PyMuPDF) before uploading.
+- **In the editor** the browser applies it before uploading ([editor](editor.md) "Library") – lossy WebP also for a
+  transparent picture (a canvas cannot write lossless); the API's conversion is the fallback.
 - **At upload** the API applies it ([server](server.md) "The image rule at upload"): the stored file is `<name>.webp`.
   The upload does not know the use, so it keeps 2048 px; where the use is known – the editor's target image field, the
   MCP server's `upload_asset fit: "target"` – a target's image is cut to 1200 px.

@@ -543,6 +543,10 @@ above). The original is not kept.
 - **Stored as it came** (`converted: false` in the answer, never an error): an instance whose PHP has no GD with WebP,
   a file GD cannot read, an animated PNG or WebP (GD would keep its first frame only), and a WebP that already keeps the
   rule (no scaling, no orientation – a second lossy pass would only cost quality).
+- **Where the rule runs**: the editor converts in the browser before it uploads ([editor](editor.md) "Library",
+  `browser-webp.ts`), so its uploads arrive as a WebP within the size and pass here unchanged – also on an instance
+  without GD (the shared FTPS host of staging). This conversion is the **fallback**: the MCP server, scripts, and a
+  browser that cannot decode or encode the picture send the file as it is, and it is converted here where GD allows.
 
 **GD with WebP** is in the image (Dockerfile: `libwebp-dev libjpeg62-turbo-dev libpng-dev`, `docker-php-ext-configure
 gd --with-webp --with-jpeg`, `docker-php-ext-install gd`). A local PHP for Windows ships `php_gd.dll`; enable it in

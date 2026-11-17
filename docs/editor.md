@@ -975,6 +975,18 @@ when its type fits), **Target image** (an image becomes the selected target's pr
 version, every use relinked, the stage rebuilt) and **Delete** (refused while used – *Delete anyway* forces it). Nodes
 name a file by its absolute URL, so draft and every publish point at the same file.
 
+**Pictures become WebP in the browser** (#298, [content](content.md) "The image rule"; `editor/src/lib/browser-webp.ts`):
+every upload and replace of the editor – the Library, a file field, the Pages view (one page and *Upload many*), the new
+target and entry forms – goes through `library.upload` / `library.replace`, which converts a JPEG, PNG or WebP before the
+request: `createImageBitmap(file, { imageOrientation: "from-image" })` (EXIF orientation applied), scaled down to the
+longest side of the use's `?fit=` (a target 1200 px, the rest 2048 – never up), written by a canvas (`OffscreenCanvas`
+where there is one) as WebP at quality 82, named `<name>.webp`. A canvas cannot write **lossless** WebP: a transparent
+picture keeps its alpha but is lossy here (the server writes it lossless). Kept as they come: other files, SVG, GIF, an
+animated PNG or WebP, a WebP already within the size, a picture above 50 MP (the API refuses it with its message), and
+anything the browser cannot decode or encode as WebP – then the API's conversion is the fallback ([server](server.md)
+"The image rule at upload"). The converted file is a WebP within the size, so the API stores it unchanged. Either way the
+Library's notice line says what became of the file: *Photo.jpg (6.2 MB) is stored as Photo.webp – 2048×1536, 412 kB*.
+
 **Grouped by spread** (#298 phase 3): the media – cards and list alike – come in groups: a header per spread in book
 order (its [title](#spread-titles) and how many files), each file under the spread of its **first use** in page order,
 then **Not in a spread** (the book-wide uses: the environment's world and sky, a plugin's source, a shared entity no
