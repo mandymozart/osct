@@ -105,11 +105,15 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   configuration's optional `credits` (#292: the credit line of a file the book uses, by the file's path or URL – written
  *   in the editor's Library; an older app ignores the field and has no image credits page), and since 2.34 an entry's
  *   optional `caption` (#289: the line under the entry's picture – an older app ignores the field and shows the picture
- *   without it).
+ *   without it), and since 2.35 scenes (#307, `agents/SCENES.md` phase 1): a spread's optional `surfaces` (its physical
+ *   areas, each with a size in mm and a `label` as printed), `layout`, `group` and `label`, the configuration's optional
+ *   `groups`, and an entry's optional `scene` and `surface` – **an entry's `scene` decides its spread, not its `page`**;
+ *   writers keep writing `page` inside the scene's range (an older app ignores the new fields and places the entry by
+ *   its page, as before).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.34";
+export const CONTENT_SCHEMA_VERSION = "2.35";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
@@ -180,9 +184,47 @@ export type Matter = (typeof MATTERS)[number];
 export const matterOf = (spread: { format?: SpreadFormat; matter?: unknown }): Matter | null =>
   (!spread.format || spread.format === "spread") && (MATTERS as readonly unknown[]).includes(spread.matter) ? (spread.matter as Matter) : null;
 
+/**
+ * The sides a surface of a scene is known by (`SurfaceData.side`, schema 2.35): a page of a double page (`left`, `right`,
+ * `middle` for a fold-out's third), a cover's `front` and `back`, a `wall`. A side this list does not know is a later
+ * MINOR's – the guard lets any lower-case word pass, so adding one never breaks an older app.
+ */
+export const SURFACE_SIDES = ["left", "middle", "right", "front", "back", "wall"] as const;
+export type SurfaceSide = (typeof SURFACE_SIDES)[number];
+/** What the guard accepts as a surface's side: a known one or a later MINOR's (a lower-case word) */
+export const SURFACE_SIDE_PATTERN = /^[a-z][a-z0-9-]*$/;
+
+/**
+ * One physical area of a scene (schema 2.35, #307): a left or right page, a cover, a wall. Its `label` is written exactly
+ * as printed (`41`, `ii`, `Cover`) – free text, never arithmetic; none = nothing printed.
+ */
+export interface SurfaceData {
+  /** Unique within its scene; an entry names it (`EntryData.surface`) */
+  id: string;
+  side: SurfaceSide | (string & {});
+  widthMm: number;
+  heightMm: number;
+  /** Optional: the label as printed – the reader shows it where it showed the page number */
+  label?: string;
+}
+
+/**
+ * How a scene's surfaces relate (schema 2.35): `fixed` – side by side (a double page, a fold-out), front and back, as
+ * printed together; `free` – each on its own anchor (a page and a wall, a room). None = fixed.
+ */
+export const SCENE_LAYOUTS = ["fixed", "free"] as const;
+export type SceneLayout = (typeof SCENE_LAYOUTS)[number];
+
+/** Several scenes under one label (schema 2.35, #307): `Front matter`, a chapter, a room – a scene names it (`SpreadData.group`) */
+export interface GroupData {
+  id: string;
+  label: string;
+}
+
 export interface SpreadData {
   id: string;
   title: string;
+  /** Kept for apps before schema 2.35 and for the page ranges; a scene's place in the book is its position in `spreads` */
   firstPage: number;
   lastPage: number;
   /** Optional (schema 2.3): `cover` or `back` for the covers, `spread` or none for a double page */
@@ -191,7 +233,21 @@ export interface SpreadData {
   matter?: Matter;
   /** Optional (schema 2.5): the post-processing passes over this spread's rendered image, in order; replaces the book's (`[]` = none) */
   passes?: PassData[];
+  /** Optional (schema 2.35, #307): the scene's physical areas, in order (`SurfaceData`) */
+  surfaces?: SurfaceData[];
+  /** Optional (schema 2.35): how the surfaces relate – `fixed` (none) or `free` */
+  layout?: SceneLayout;
+  /** Optional (schema 2.35): the id of the group the scene belongs to (`GameConfiguration.groups`) */
+  group?: string;
+  /** Optional (schema 2.35): what the reader's switcher and lists show for the scene – free text (`Pages 40–41`) */
+  label?: string;
 }
+
+/**
+ * A scene: one step of the experience (#307, `agents/SCENES.md`). Today's `SpreadData` under its coming name – the rename
+ * of the type and of `spreads` is phase 2/3; until then both names are the same type.
+ */
+export type SceneData = SpreadData;
 
 export interface AssetData {
   id: string; // unique per scene, referenced by entities (`#id`)
@@ -287,7 +343,15 @@ export interface EntryData {
   id: string;
   category: EntryCategory;
   title: string;
-  page: number; // access page – decides the spread
+  /**
+   * The access page. It decides the spread unless `scene` is set (schema 2.35). Still required: apps before 2.35 place the
+   * entry by it, so writers keep writing a page within the scene's range
+   */
+  page: number;
+  /** Optional (schema 2.35, #307): the id of the entry's scene (a spread) – when set it decides the spread, not `page` */
+  scene?: string;
+  /** Optional (schema 2.35): the id of one of its scene's `surfaces` the entry lies on – its label is the entry's place */
+  surface?: string;
   /**
    * The text (schema 2.23: Markdown – paragraphs, *emphasis*, **strong**, [links](https://…) – with the book's variables
    * in braces, `{hasKey}`; `../text/entry-text.ts` renders it). Plain text reads as before.
@@ -358,4 +422,6 @@ export interface GameConfiguration {
    * on its image credits page
    */
   credits?: Readonly<Record<string, string>>;
+  /** Optional (schema 2.35, #307): the groups scenes name (`SpreadData.group`) – a label over several scenes */
+  groups?: readonly GroupData[];
 }

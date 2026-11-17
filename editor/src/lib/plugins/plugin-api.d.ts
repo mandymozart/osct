@@ -261,9 +261,33 @@ declare const MATTERS: readonly [
 	"back"
 ];
 type Matter = (typeof MATTERS)[number];
+declare const SURFACE_SIDES: readonly [
+	"left",
+	"middle",
+	"right",
+	"front",
+	"back",
+	"wall"
+];
+type SurfaceSide = (typeof SURFACE_SIDES)[number];
+interface SurfaceData {
+	/** Unique within its scene; an entry names it (`EntryData.surface`) */
+	id: string;
+	side: SurfaceSide | (string & {});
+	widthMm: number;
+	heightMm: number;
+	/** Optional: the label as printed – the reader shows it where it showed the page number */
+	label?: string;
+}
+declare const SCENE_LAYOUTS: readonly [
+	"fixed",
+	"free"
+];
+type SceneLayout = (typeof SCENE_LAYOUTS)[number];
 interface SpreadData {
 	id: string;
 	title: string;
+	/** Kept for apps before schema 2.35 and for the page ranges; a scene's place in the book is its position in `spreads` */
 	firstPage: number;
 	lastPage: number;
 	/** Optional (schema 2.3): `cover` or `back` for the covers, `spread` or none for a double page */
@@ -272,6 +296,14 @@ interface SpreadData {
 	matter?: Matter;
 	/** Optional (schema 2.5): the post-processing passes over this spread's rendered image, in order; replaces the book's (`[]` = none) */
 	passes?: PassData[];
+	/** Optional (schema 2.35, #307): the scene's physical areas, in order (`SurfaceData`) */
+	surfaces?: SurfaceData[];
+	/** Optional (schema 2.35): how the surfaces relate – `fixed` (none) or `free` */
+	layout?: SceneLayout;
+	/** Optional (schema 2.35): the id of the group the scene belongs to (`GameConfiguration.groups`) */
+	group?: string;
+	/** Optional (schema 2.35): what the reader's switcher and lists show for the scene – free text (`Pages 40–41`) */
+	label?: string;
 }
 interface AssetData {
 	id: string;
@@ -348,7 +380,15 @@ interface EntryData {
 	id: string;
 	category: EntryCategory;
 	title: string;
+	/**
+	 * The access page. It decides the spread unless `scene` is set (schema 2.35). Still required: apps before 2.35 place the
+	 * entry by it, so writers keep writing a page within the scene's range
+	 */
 	page: number;
+	/** Optional (schema 2.35, #307): the id of the entry's scene (a spread) – when set it decides the spread, not `page` */
+	scene?: string;
+	/** Optional (schema 2.35): the id of one of its scene's `surfaces` the entry lies on – its label is the entry's place */
+	surface?: string;
 	/**
 	 * The text (schema 2.23: Markdown – paragraphs, *emphasis*, **strong**, [links](https://…) – with the book's variables
 	 * in braces, `{hasKey}`; `../text/entry-text.ts` renders it). Plain text reads as before.

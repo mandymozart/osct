@@ -2,8 +2,8 @@ import { type Entry, EntryCategory } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { escapeHtml } from "@/utils";
 import { renderEntryText, type VariableLookup } from "@shared/text/entry-text";
-import { getSpread } from "@/utils/game-config";
-import { categoryLabel, linkEmbed, pageLabel } from "./entries-model";
+import { getEntryPlaceLabel } from "@/utils/game-config";
+import { categoryLabel, linkEmbed } from "./entries-model";
 import { t } from "i18next";
 
 /**
@@ -78,7 +78,7 @@ export class EntryDetail extends HTMLElement {
         </style>
         <table class="rule-table">
           <tr><th scope="row">${t(entry.category === EntryCategory.Text ? "entry:title" : "entry:name")}</th><td>${escapeHtml(entry.title)}</td></tr>
-          <tr><th scope="row">${t("entry:page")}</th><td>${escapeHtml(pageLabel(entry.page, getSpread(entry.spreadId)))}</td></tr>
+          <tr><th scope="row">${t("entry:page")}</th><td>${escapeHtml(getEntryPlaceLabel(entry))}</td></tr>
           <tr><th scope="row">${t("entry:category")}</th><td>${escapeHtml(categoryLabel(entry.category))}</td></tr>
           ${entry.category === EntryCategory.Text && entry.author ? `<tr><th scope="row">${t("entry:author")}</th><td>${escapeHtml(entry.author)}</td></tr>` : ""}
         </table>
@@ -100,7 +100,7 @@ export class EntryDetail extends HTMLElement {
       case EntryCategory.Video: {
         const video = entry.target?.entity?.assets.find(a => a.assetType === "video");
         return /* html */ `
-          <p>${escapeHtml(t("entry:goToPage", { page: pageLabel(entry.page, getSpread(entry.spreadId)) }))}</p>
+          <p>${escapeHtml(t("entry:goToPage", { page: getEntryPlaceLabel(entry) }))}</p>
           ${text}
           ${video ? `<p class="hint">${t("entry:preview")}</p>
             <video src="${escapeHtml(video.src)}" controls playsinline preload="metadata"></video>` : ""}

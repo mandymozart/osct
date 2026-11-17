@@ -14,7 +14,7 @@ export interface Target extends Omit<TargetData, "entity"> {
   entity?: EntityData;
 }
 
-/** App model of an entry (mapped from `EntryData`): the spread is derived from the access page */
+/** App model of an entry (mapped from `EntryData`): the spread is its `scene` (schema 2.35), else derived from the access page */
 export interface Entry extends Omit<EntryData, "target"> {
   spreadId: string;
   target?: Target;

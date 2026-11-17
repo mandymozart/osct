@@ -1513,14 +1513,18 @@ final class Books
             if (isset($entries[$id])) $fail("Duplicate entry id \"$id\".");
             $page = (int) $e->page;
             $spreadId = null;
-            foreach ($spreads as $s) {
+            // Schema 2.35 (#307): the entry's scene decides its spread, else its access page
+            if (is_string($e->scene ?? null) && isset($spreads[$e->scene])) {
+                $spreadId = $e->scene;
+            } else foreach ($spreads as $s) {
                 if ($s['first'] <= $page && $page <= $s['last']) {
                     $spreadId = $s['id'];
                     break;
                 }
             }
             $data = clone $e;
-            unset($data->target);
+            // `spread_id` holds the scene; the draft writes it back (`ContentVersion::assemble`)
+            unset($data->target, $data->scene);
             $entries[$id] = ['id' => $id, 'spread' => $spreadId, 'position' => $i, 'category' => $e->category, 'title' => $e->title, 'page' => $page, 'data' => $data];
             $target = $e->target ?? null;
             if ($target === null) continue;

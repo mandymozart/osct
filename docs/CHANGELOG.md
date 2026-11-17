@@ -7,6 +7,25 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+
+- **Scenes in the content contract – schema 2.35** (#307 phase 1, `agents/SCENES.md`): a spread (the scene – the type is
+  also named `SceneData`) may carry `surfaces` (`id`, `side`, `widthMm`, `heightMm`, `label` as printed), `layout`
+  (`fixed` | `free`), `group` and `label`; the configuration `groups` (`id`, `label`); an entry `scene` and `surface`.
+  **An entry's `scene` decides its spread, not its `page`** – the engine reads it (`sceneIdOf`, `engine/src/content/scenes.ts`),
+  with `getGroups()`, `getSurfaces()` and `getEntryPlaceLabel()`. The guard checks that a scene names a group that exists,
+  an entry a spread that exists and a surface of that scene. Old content reads as before; an older app ignores the fields
+  and places entries by `page`, which stays required and written.
+- **The reader shows labels as printed**: the entries list's page column, the entry's *Page* row and its "go to page"
+  note show the entry's surface label when it has one; the page scroller and the image credits show a scene's `label`,
+  else its surfaces' labels (`40–41`, *Pages 40–41*). Without labels nothing changes.
+- **Writers carry `scene`**: the content build writes it on every entry from the spread its page lies in; the editor's
+  draft (`ContentVersion::assemble`) from `entries.spread_id`, right after `page`, dropping a `surface` the entry's
+  scene does not have. An import places an entry on its `scene` when it names a spread of the configuration. The MCP
+  content model describes the new fields.
+
 ## 1.97.3 – 2026-11-17
 
 ### Fixed

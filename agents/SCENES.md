@@ -38,6 +38,9 @@ cover and back; flows between scenes). Codebase analysis of 2026-11-17: summary 
 
 ## Today (analysis 2026-11-17, ~30 linking sites in ~20 files)
 
+- *Since schema 2.35 (phase 1):* an entry's optional `scene` decides its spread (`engine/src/content/scenes.ts`
+  `sceneIdOf`), the build and the draft write it on every entry, the server's import honours it. Everything below still
+  derives from the page – the editor, the API's add/put, renumbering.
 - The content ties an entry to its spread **only** through `EntryData.page` (required). The guard
   (`shared/guards/game-config.ts:264`), the engine (`engine/src/content/game-config.ts:312 spreadForPage`, which
   throws on an unmatched page), the content build, the server import, `addEntry`/`putEntry` and MCP `get_spread` all
@@ -117,7 +120,10 @@ reorder, Shift/Ctrl to pick several, a group's own settings), which SCUTOONS wil
 4. A check: the reader's content before and after has the same entries per scene and the same targets.
 
 ## Phases
-1. **Contract MINOR + engine/reader read `scene`** (old content keeps working) – the safe base.
+1. [x] **Contract MINOR + engine/reader read `scene`** (old content keeps working) – the safe base. Done 2026-11-17:
+   schema 2.35 (`docs/content.md` "Scenes, surfaces, labels and groups"); `engine/src/content/scenes.ts`; the reader's
+   labels; the build and the draft write `scene`. Left for phase 2: writing `surfaces`/`label`/`group`/`groups` anywhere
+   (no writer fills them yet – only hand-made content has them), the editor's own page→spread derivations, MCP tools.
 2. **Server: scenes, order, surfaces, labels, groups; migration**; stop renumbering.
 3. **Editor: scene overview, reference images, pickers**; the Pages view goes.
 4. **MCP and importers**.

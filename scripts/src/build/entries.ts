@@ -24,6 +24,8 @@ export function buildEntries(spreads: SpreadData[], entities: Record<string, Ent
       category: e.category,
       title: e.title,
       page: e.page,
+      // Schema 2.35 (#307): the scene the page lies in, by id – the reader places the entry by it; `page` stays for older apps
+      ...(spread ? { scene: spread.id } : {}),
       body: e.body,
       tags: e.tags,
       ...(e.author ? { author: e.author } : {}),

@@ -1,5 +1,5 @@
 import { ALL_CATEGORY, type Entry, EntryCategory, type ListCategory, type Spread } from "@/types";
-import { matterOf } from "@shared/types/game-config";
+import { entryPlaceLabel } from "@engine/content/scenes";
 import { isEntryCategory } from "@shared/guards/game-config";
 import { escapeHtml } from "@/utils/strings";
 import { t } from "i18next";
@@ -21,11 +21,14 @@ export const MARGINALIA_MENU: readonly ListCategory[] = [EntryCategory.Glossary,
 export const categoryLabel = (category: ListCategory): string => t(`entries:categories.${category}`);
 
 /**
- * The page an entry is on, as the reader finds it in the book: its printed number, or – on a cover or the front and
- * back matter, which have none – its spread's title
+ * The place an entry is on, as the reader finds it in the book (the engine's `entryPlaceLabel`, #307): its surface's
+ * printed label (schema 2.35), else its printed page number, or – on a cover or the front and back matter, which have
+ * none – its spread's title. The app reads it through `getEntryPlaceLabel(entry)`.
  */
-export const pageLabel = (page: number, spread: Pick<Spread, "title" | "format" | "matter"> | undefined): string =>
-  spread && (spread.format === "cover" || spread.format === "back" || matterOf(spread)) ? spread.title : String(page);
+export const pageLabel = (
+  entry: Pick<Entry, "page" | "surface">,
+  spread: Pick<Spread, "title" | "format" | "matter" | "surfaces"> | undefined,
+): string => entryPlaceLabel(entry, spread);
 
 export const DEFAULT_CATEGORY = EntryCategory.Glossary;
 

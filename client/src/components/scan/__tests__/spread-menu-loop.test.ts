@@ -14,6 +14,16 @@ describe("spread menu loop", () => {
     expect(formatPages({ title: "", firstPage: 1, lastPage: 1 })).toBe("1");
   });
 
+  it("shows a scene's label, else its surfaces' printed labels (schema 2.35, #307)", () => {
+    const surfaces = [
+      { id: "l", side: "left", widthMm: 170, heightMm: 240, label: "40" },
+      { id: "r", side: "right", widthMm: 170, heightMm: 240, label: "41" },
+    ];
+    expect(formatPages({ title: "", firstPage: 6, lastPage: 7, surfaces })).toBe("40–41");
+    expect(formatPages({ title: "", firstPage: 6, lastPage: 7, surfaces, label: "Fold-out" })).toBe("Fold-out");
+    expect(formatPages({ title: "Front matter", firstPage: -2, lastPage: -1, matter: "front", surfaces: surfaces.map(({ label: _, ...s }) => s) })).toBe("Front matter");
+  });
+
   it("renders an odd number of copies, enough to fill the viewport on both sides", () => {
     expect(loopCopies(216, 375)).toBe(7); // 3 per side + middle
     expect(loopCopies(2000, 375)).toBe(5);

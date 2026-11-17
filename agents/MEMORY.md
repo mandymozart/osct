@@ -4,6 +4,18 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-17 – Scenes phase 1: schema 2.35 (#307)
+- An entry's `scene` (a spread id) **wins over its `page`** in the engine and in an import; `page` stays required and is
+  still written inside the scene's range (older apps place entries by it; the guard still checks the page lies in some
+  spread). The draft writes `scene` from `entries.spread_id` (the truth the editor keeps) and drops a stale `surface`.
+- A surface's `side` is open: the guard accepts any lower-case word, so a new side (`ceiling`, a fold-out's `middle` is
+  already in) is a MINOR. An entry's `surface` needs its `scene`.
+- Labels: entry → surface label, else page (or the title on covers/matter); scene → own `label`, else its surfaces'
+  labels first–last, else as before. No writer fills surfaces, labels or groups yet – phase 2.
+- [ ] The client tests that import bare `"path"` (`utils/__tests__/game-config*.test.ts`, `version.test.ts`) fail on
+  Node 24 (the npm `path` package's `util.isString` is gone) – they pass with `node:path`; the `path` dependency in
+  `client/package.json` looks unneeded.
+
 ## 2026-11-17 – Scenes instead of pages: the concept (#307)
 Tilman: an experience is an ordered list of scenes; a book is one kind. Scenes have surfaces (any number – a fold-out
 makes three, a room many) with labels written as printed and reference images; everything links by id, order is the

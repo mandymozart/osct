@@ -38,6 +38,8 @@ import {
   SOURCES_OF_TRUTH,
   SPREAD_FORMATS,
   MATTERS,
+  SCENE_LAYOUTS,
+  SURFACE_SIDES,
   type PluginData,
 } from "../../shared/types/game-config";
 import { DEFAULT_ENVIRONMENT, ENVIRONMENT_WORLDS, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS } from "../../shared/types/environment";
@@ -410,7 +412,7 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     },
     entry: {
       description:
-        "An entry is top level: { id, category, title, page, body, author?, image?, caption?, media?, tags, target? } – page decides the spread. add_entry makes one, with its target or without (read only in the list); get_entries reads every field; update_entry changes them (image: a Library picture, caption: the line under it in plain text – schema 2.34, an older app shows the picture without it –, media: a link's http(s) URL).",
+        "An entry is top level: { id, category, title, page, scene?, surface?, body, author?, image?, caption?, media?, tags, target? } – page decides the spread unless scene is set (content schema 2.35, #307: scene = a spread id and wins over page; surface = the id of one of that scene's surfaces, whose printed label the reader shows in place of the page number). The page stays required and in the scene's range – older apps place the entry by it; the draft writes scene on every entry from the spread it is on, and add_entry / update_entry still place an entry by its page. add_entry makes one, with its target or without (read only in the list); get_entries reads every field; update_entry changes them (image: a Library picture, caption: the line under it in plain text – schema 2.34, an older app shows the picture without it –, media: a link's http(s) URL).",
       categories: ENTRY_CATEGORIES,
     },
     entryText: {
@@ -428,9 +430,12 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     },
     spread: {
       description:
-        "SpreadData: { id, title, firstPage, lastPage, format?, matter?, passes? }. matter (front | back, content schema 2.32) marks a double page without printed numbers – front matter between the cover and page 1 (internal pages counting down to −1), back matter between the last printed page and the back cover; a print-first book gets them from its layout through an import, or from add_matter (the missing front and back matter, the last printed page's spread and the back cover moved after them – a print-first book too, plan first, then apply). add_spread adds a double page (later pages are numbered on by two), the front cover (page 0) or the back cover; delete_spread removes one with everything on it (two steps: the impact, then the confirmation); put_spread changes title, format and passes.",
+        "SpreadData: { id, title, firstPage, lastPage, format?, matter?, passes? }. matter (front | back, content schema 2.32) marks a double page without printed numbers – front matter between the cover and page 1 (internal pages counting down to −1), back matter between the last printed page and the back cover; a print-first book gets them from its layout through an import, or from add_matter (the missing front and back matter, the last printed page's spread and the back cover moved after them – a print-first book too, plan first, then apply). add_spread adds a double page (later pages are numbered on by two), the front cover (page 0) or the back cover; delete_spread removes one with everything on it (two steps: the impact, then the confirmation); put_spread changes title, format and passes. " +
+        "Scenes (content schema 2.35, #307 – a spread is a scene, the type also named SceneData): optional surfaces: [{ id, side (left | middle | right | front | back | wall), widthMm, heightMm, label? }] – its physical areas, label written exactly as printed (\"41\", \"ii\", \"Cover\"), free text, never arithmetic; layout (fixed | free – side by side as printed, or each surface on its own anchor; none = fixed); group (the id of one of the book's groups: [{ id, label }] at the configuration's root); label (what the reader's switcher and credits show for the scene, else its surfaces' labels, else its pages or title). An older app ignores all of it. The tools do not edit them yet (phase 2 of #307).",
       formats: SPREAD_FORMATS,
       matters: MATTERS,
+      surfaceSides: SURFACE_SIDES,
+      layouts: SCENE_LAYOUTS,
     },
     plugin: {
       description:
