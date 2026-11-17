@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>An opened scene – three options (#307)</title>
+<style>
+  :root {
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --text-size: .75rem; --text-small: .6875rem;
+    --text: #fff; --muted: #a3a3a3; --line: #444; --surface: #2c2c2c; --surface-head: #1e1e1e;
+    --control-background: #383838; --pressed-background: #4f4f4f; --hover-background: #353535; --selected-background: #5a5a5a;
+    --stage-background: #0c0c0c; --warn: #e0a030; --accent: #c7a144;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: var(--text-size)/1.4 var(--font); color: var(--text); background: #111; }
+  .option { height: 34rem; margin: 0 0 1.5rem; display: grid; grid-template-rows: 2.2rem 1fr; border: 1px solid #333; }
+  .title { display: flex; align-items: center; gap: .75rem; padding: 0 .75rem; background: #000; font-size: .85rem; }
+  .title b { color: var(--accent); }
+  .title span { color: var(--muted); font-size: var(--text-size); }
+  .main { display: grid; min-height: 0; }
+  .panel { background: var(--surface); border-right: 1px solid var(--line); overflow: hidden; display: flex; flex-direction: column; }
+  .panel.right { border: 0; border-left: 1px solid var(--line); }
+  .head { display: flex; align-items: center; justify-content: space-between; padding: .4rem .6rem; border-bottom: 1px solid var(--line);
+          text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-size: var(--text-small); flex: none; }
+  .head .tabs span { padding: .15rem .45rem; margin-left: .15rem; } .head .tabs span.on { background: var(--pressed-background); color: var(--text); }
+  .row { display: grid; align-items: center; gap: .35rem; padding: .25rem .5rem; grid-template-columns: .8rem 2.2rem 1fr auto; }
+  .row.sel { background: var(--selected-background); }
+  .row.grp { grid-template-columns: .8rem .8rem 1fr auto; background: var(--surface-head); }
+  .row .grip, .row .fold { color: var(--muted); }
+  .row.in { padding-left: 1.3rem; }
+  .thumb { height: 1.5rem; display: flex; border: 1px solid #555; background: #fff; }
+  .thumb i { flex: 1; border-right: 1px solid #ddd; } .thumb i:last-child { border: 0; }
+  .a { background: linear-gradient(135deg,#c44 0 35%,#335 35% 65%,#eee 65%); }
+  .b { background: linear-gradient(45deg,#8a6 0 40%,#fff 40%); }
+  .c { background: radial-gradient(circle at 40% 40%,#99a 0 30%,#fff 31%); }
+  .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .warn { color: var(--warn); }
+  .tree .t { padding: .22rem .5rem; display: flex; gap: .35rem; align-items: center; }
+  .tree .t.sel { background: var(--selected-background); }
+  .ic { width: .9rem; text-align: center; color: var(--muted); }
+  .muted { color: var(--muted); }
+  .stage { background: var(--stage-background); position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .book { display: flex; transform: perspective(50rem) rotateX(16deg); box-shadow: 0 1.5rem 3rem #000; }
+  .pg { width: 11rem; height: 15rem; position: relative; } .pg + .pg { border-left: 1px solid #ccc; }
+  .tg { position: absolute; border: 2px solid #2b8; background: rgba(40,180,120,.15); }
+  .tg.sel { border-color: var(--accent); background: rgba(199,161,68,.2); }
+  .bar { position: absolute; top: .45rem; left: .45rem; display: flex; gap: 1px; }
+  .bar span { background: #eee; color: #111; width: 1.4rem; height: 1.4rem; display: grid; place-items: center; font-size: .65rem; }
+  .insp .s { border-bottom: 1px solid var(--line); padding: .45rem .6rem; }
+  .insp h3 { margin: 0 0 .35rem; font-size: var(--text-small); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 500; }
+  .kv { display: grid; grid-template-columns: 5.5rem 1fr; min-height: 1.6rem; align-items: center; }
+  .kv span:first-child { color: var(--muted); }
+  .rail { background: var(--surface-head); border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: .3rem; padding: .4rem .3rem; overflow: hidden; }
+  .rail .thumb { height: 1.6rem; width: 100%; }
+  .rail .thumb.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .rail .gl { height: 1px; background: var(--muted); margin: .15rem 0; }
+  .rail .exp { color: var(--muted); text-align: center; font-size: .9rem; }
+  .split { flex: 1; display: grid; grid-template-rows: 13rem 1fr; min-height: 0; }
+  .split > div { overflow: hidden; } .split .sash { border-top: 3px double var(--line); }
+  .note { position: absolute; background: #ffd34d; color: #111; padding: .3rem .45rem; font-size: .65rem; max-width: 15rem; box-shadow: 0 .2rem .6rem #000a; z-index: 2; }
+  .pro { color: #7c7; } .con { color: #e88; }
+  .verdict { padding: .35rem .6rem; font-size: .7rem; border-top: 1px solid var(--line); background: #191919; }
+</style>
+</head>
+<body>
+
+<!-- ============ A: the Scenes panel collapses to a rail; the panel shows the scene's tree ============ -->
+<section class="option" id="a">
+  <div class="title"><b>A</b> Opened scene: the Scenes panel collapses to a thumbnail rail, the panel becomes the scene's tree <span>(Figma pages / layers)</span></div>
+  <div class="main" style="grid-template-columns: 3.4rem 15rem 1fr 18rem">
+    <div class="rail">
+      <div class="exp" title="Expand the Scenes panel">»</div>
+      <div class="thumb"><i class="c"></i></div><div class="thumb"><i class="c"></i><i></i></div><div class="gl"></div>
+      <div class="thumb"><i class="a"></i><i class="b"></i></div><div class="thumb"><i class="b"></i><i class="c"></i></div>
+      <div class="thumb sel"><i class="a"></i><i class="c"></i></div><div class="thumb"><i class="b"></i><i class="a"></i></div>
+      <div class="thumb"><i class="c"></i><i class="b"></i></div>
+    </div>
+    <div class="panel tree">
+      <div class="head">Pages 40–41 <span class="muted">‹ ›</span></div>
+      <div class="t"><span class="ic">▣</span><b>Pages 40–41</b> <span class="muted">· 3 surfaces</span></div>
+      <div class="t" style="padding-left:1.2rem"><span class="ic">▭</span>40 <span class="muted">· reference</span></div>
+      <div class="t" style="padding-left:2.2rem"><span class="ic">◎</span>p040-1 It Is Crying</div>
+      <div class="t sel" style="padding-left:3.2rem"><span class="ic">◇</span>video · Morpher loop</div>
+      <div class="t" style="padding-left:2.2rem"><span class="ic">◎</span>p040-2 Janus</div>
+      <div class="t" style="padding-left:1.2rem"><span class="ic">▭</span>41</div>
+      <div class="t" style="padding-left:2.2rem"><span class="ic">◎</span>p041-4 It Bends Over</div>
+      <div class="t" style="padding-left:1.2rem"><span class="ic">▭</span>41a <span class="muted">· fold-out</span></div>
+      <div class="t" style="padding-left:1.2rem"><span class="ic">≡</span><span class="muted">entries without target · 1</span></div>
+    </div>
+    <div class="stage"><div class="bar"><span>✥</span><span>↻</span><span>⤢</span><span>◑</span></div>
+      <div class="book"><div class="pg a"><div class="tg sel" style="left:2rem;top:3rem;width:3.5rem;height:4.5rem"></div></div><div class="pg c"><div class="tg" style="left:5rem;top:7rem;width:4rem;height:3.5rem"></div></div><div class="pg" style="background:#fafafa"></div></div>
+    </div>
+    <div class="panel right insp"><div class="head">Inspector</div>
+      <div class="s"><h3>Video</h3><div class="kv"><span>file</span><span>p040-1_morpher.mp4</span></div><div class="kv"><span>surface</span><span>40</span></div></div>
+    </div>
+  </div>
+  <div class="verdict"><span class="pro">+ the stage gets the most room; one tree at a time, never mixed; the rail still shows where you are and jumps to any scene.</span> <span class="con">− reordering and grouping need the panel expanded (» or Esc back to the overview).</span></div>
+</section>
+
+<!-- ============ B: one tree, the opened scene expands inline ============ -->
+<section class="option" id="b">
+  <div class="title"><b>B</b> One panel: the scene list, the opened scene expands inline into its tree <span>(SCUTOONS' chapter tree: the open group's slices)</span></div>
+  <div class="main" style="grid-template-columns: 17rem 1fr 18rem">
+    <div class="panel tree" style="position:relative">
+      <div class="head">Scenes</div>
+      <div class="row grp"><span class="grip">⋮⋮</span><span class="fold">▸</span><b>Front matter</b><span class="n">4 · 6</span></div>
+      <div class="row grp"><span class="grip">⋮⋮</span><span class="fold">▸</span><b>Morpher</b><span class="n warn">5 · 31 ⚠</span></div>
+      <div class="row"><span class="grip">⋮⋮</span><span class="thumb"><i class="a"></i><i class="b"></i></span>Pages 38–39<span class="n">7</span></div>
+      <div class="row sel"><span class="grip">⋮⋮</span><span class="thumb"><i class="a"></i><i class="c"></i></span>Pages 40–41 ▾<span class="n">10</span></div>
+      <div class="t" style="padding-left:1.6rem"><span class="ic">▭</span>40 <span class="muted">· reference</span></div>
+      <div class="t" style="padding-left:2.6rem"><span class="ic">◎</span>p040-1 It Is Crying</div>
+      <div class="t sel" style="padding-left:3.6rem"><span class="ic">◇</span>video · Morpher loop</div>
+      <div class="t" style="padding-left:2.6rem"><span class="ic">◎</span>p040-2 Janus</div>
+      <div class="t" style="padding-left:1.6rem"><span class="ic">▭</span>41</div>
+      <div class="t" style="padding-left:2.6rem"><span class="ic">◎</span>p041-4 It Bends Over</div>
+      <div class="t" style="padding-left:1.6rem"><span class="ic">▭</span>41a <span class="muted">· fold-out</span></div>
+      <div class="row"><span class="grip">⋮⋮</span><span class="thumb"><i class="b"></i><i class="a"></i></span>Pages 42–43<span class="n">9</span></div>
+      <div class="row"><span class="grip">⋮⋮</span><span class="thumb"><i class="c"></i><i class="b"></i></span>Pages 44–45<span class="n">8</span></div>
+      <div class="note" style="right:.4rem;top:13.6rem">With 133 scenes and a big scene open, the list scrolls away from where you are – the risk of mess you named.</div>
+    </div>
+    <div class="stage"><div class="bar"><span>✥</span><span>↻</span><span>⤢</span><span>◑</span></div>
+      <div class="book"><div class="pg a"><div class="tg sel" style="left:2rem;top:3rem;width:3.5rem;height:4.5rem"></div></div><div class="pg c"><div class="tg" style="left:5rem;top:7rem;width:4rem;height:3.5rem"></div></div><div class="pg" style="background:#fafafa"></div></div>
+    </div>
+    <div class="panel right insp"><div class="head">Inspector</div>
+      <div class="s"><h3>Video</h3><div class="kv"><span>file</span><span>p040-1_morpher.mp4</span></div><div class="kv"><span>surface</span><span>40</span></div></div>
+    </div>
+  </div>
+  <div class="verdict"><span class="pro">+ one place for everything; drag a target onto another scene in the same list.</span> <span class="con">− long and deep: scenes, surfaces, targets and nodes in one scroll; the scene's own tree competes with 133 scene rows.</span></div>
+</section>
+
+<!-- ============ C: the column splits – Scenes on top (collapsible), the scene's tree below ============ -->
+<section class="option" id="c">
+  <div class="title"><b>C</b> Split column: the Scenes panel on top (collapsible, resizable), the opened scene's tree below <span>(VS Code's stacked views)</span></div>
+  <div class="main" style="grid-template-columns: 17rem 1fr 18rem">
+    <div class="panel">
+      <div class="split">
+        <div class="tree">
+          <div class="head">▾ Scenes <span class="muted">133</span></div>
+          <div class="row grp"><span class="grip">⋮⋮</span><span class="fold">▸</span><b>Morpher</b><span class="n warn">5 · 31 ⚠</span></div>
+          <div class="row"><span class="grip">⋮⋮</span><span class="thumb"><i class="a"></i><i class="b"></i></span>Pages 38–39<span class="n">7</span></div>
+          <div class="row sel"><span class="grip">⋮⋮</span><span class="thumb"><i class="a"></i><i class="c"></i></span>Pages 40–41<span class="n">10</span></div>
+          <div class="row"><span class="grip">⋮⋮</span><span class="thumb"><i class="b"></i><i class="a"></i></span>Pages 42–43<span class="n">9</span></div>
+          <div class="row"><span class="grip">⋮⋮</span><span class="thumb"><i class="c"></i><i class="b"></i></span>Pages 44–45<span class="n">8</span></div>
+        </div>
+        <div class="tree sash">
+          <div class="head">▾ Tree · Pages 40–41</div>
+          <div class="t"><span class="ic">▭</span>40 <span class="muted">· reference</span></div>
+          <div class="t" style="padding-left:1.2rem"><span class="ic">◎</span>p040-1 It Is Crying</div>
+          <div class="t sel" style="padding-left:2.2rem"><span class="ic">◇</span>video · Morpher loop</div>
+          <div class="t" style="padding-left:1.2rem"><span class="ic">◎</span>p040-2 Janus</div>
+          <div class="t"><span class="ic">▭</span>41</div>
+          <div class="t" style="padding-left:1.2rem"><span class="ic">◎</span>p041-4 It Bends Over</div>
+          <div class="t"><span class="ic">▭</span>41a <span class="muted">· fold-out</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="stage"><div class="bar"><span>✥</span><span>↻</span><span>⤢</span><span>◑</span></div>
+      <div class="book"><div class="pg a"><div class="tg sel" style="left:2rem;top:3rem;width:3.5rem;height:4.5rem"></div></div><div class="pg c"><div class="tg" style="left:5rem;top:7rem;width:4rem;height:3.5rem"></div></div><div class="pg" style="background:#fafafa"></div></div>
+    </div>
+    <div class="panel right insp"><div class="head">Inspector</div>
+      <div class="s"><h3>Video</h3><div class="kv"><span>file</span><span>p040-1_morpher.mp4</span></div><div class="kv"><span>surface</span><span>40</span></div></div>
+    </div>
+  </div>
+  <div class="verdict"><span class="pro">+ both at once, each scrolls on its own; collapse Scenes (▾) and the tree takes the column; reorder while a scene is open.</span> <span class="con">− two lists share one narrow column; on a phone only one fits.</span></div>
+</section>
+
+</body>
+</html>
