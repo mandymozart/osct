@@ -28,6 +28,11 @@
   --within-background: #efefef;
   --danger: #c0392b;
   --stage-background: #0c0c0c;
+  /* The Scenes panel (#307): the open scene and the groups' bands (gold), the picked scenes, a group above its window */
+  --accent: #a8842c;
+  --accent-background: #f3ead2;
+  --pick: #2f6fd6;
+  --warn: #b26a00;
   color-scheme: light;
 }
 /* A finger: the dogma's 44px touch height; every control takes its height from the token */
@@ -51,6 +56,10 @@
     --selected-background: #5e5e5e;
     --within-background: #363636;
     --danger: #ff6b5b;
+    --accent: #c7a144;
+    --accent-background: #3a3120;
+    --pick: #8ab4f8;
+    --warn: #e0a030;
     color-scheme: dark;
   }
 }
@@ -67,6 +76,10 @@
   --selected-background: #5e5e5e;
   --within-background: #363636;
   --danger: #ff6b5b;
+  --accent: #c7a144;
+  --accent-background: #3a3120;
+  --pick: #8ab4f8;
+  --warn: #e0a030;
   color-scheme: dark;
 }
 

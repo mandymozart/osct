@@ -128,6 +128,16 @@ describe("the book and a selection asked for on another spread (#237)", () => {
     expect(settledSelection({ target: "a", node: [1], onTarget: false, book: true })).toEqual({ target: null, node: [], onTarget: true, spread: false, entry: null, book: true });
   });
 
+  it("a group (a band of the Scenes panel, #307) is selected alone; one level up keeps it, another spread resets it", () => {
+    selection.selectTarget("p015-1");
+    selection.selectGroup("front-matter");
+    expect(selection.snapshot()).toEqual({ target: null, node: [], onTarget: true, spread: false, entry: null, group: "front-matter" });
+    selection.up();
+    expect(selection.group).toBe("front-matter");
+    selection.enter("s002-003");
+    expect([selection.group, selection.spread]).toEqual([null, true]);
+  });
+
   it("a search pick on another spread is taken when that spread opens, and shown in the Inspector", () => {
     const before = selection.reveal;
     selection.requestOn("s2", { target: "t2", node: [0], onTarget: false });

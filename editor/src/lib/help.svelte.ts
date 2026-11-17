@@ -81,7 +81,11 @@ class Help {
     const over = (event: Event) => this.hover(event.target instanceof Element ? event.target : null);
     const out = (event: PointerEvent) => { if (!event.relatedTarget) this.hover(null); };
     const focusIn = (event: FocusEvent) => this.focus(event.target instanceof Element ? event.target : null);
-    const focusOut = (event: FocusEvent) => { if (!event.relatedTarget) this.focus(null); };
+    // A focused element removed while the page renders loses the focus inside Svelte's update, where no state may change:
+    // after it, and only when nothing took the focus meanwhile
+    const focusOut = (event: FocusEvent) => {
+      if (!event.relatedTarget) queueMicrotask(() => { if (!root.activeElement || root.activeElement === root.body) this.focus(null); });
+    };
     root.addEventListener("pointerover", over);
     root.addEventListener("pointerout", out);
     root.addEventListener("focusin", focusIn);

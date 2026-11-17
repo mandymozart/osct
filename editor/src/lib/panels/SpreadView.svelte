@@ -11,6 +11,7 @@
   import { formatVar, initialValue, numberStep, tapTargets, VAR_TYPES, withTypes, type VarType } from "#lib/stage/narrative.js";
   import { VAR_SCOPES, type VarScope, type VarValue } from "@engine/scene/plugin-runtime";
   import PassesPanel from "./PassesPanel.svelte";
+  import SceneSection from "./SceneSection.svelte";
   import AppearancePanel from "./AppearancePanel.svelte";
   import { stageEnvironment } from "#lib/environment.svelte.js";
   import { library } from "#lib/library.svelte.js";
@@ -73,6 +74,8 @@
     return varError === null;
   };
 </script>
+
+<SceneSection {bookId} {spreadId} />
 
 <Section id="stage.spread" label="spread" summary={spread ? `${spread.title} · ${format}` : undefined}
   help="The spread the stage shows: its title and pages, its format (saved to the draft), the post-processing in effect and the book's environment. The Inspector shows the spread while it is selected – a tap on the tree's top row, a click on the stage that picks nothing – and when the workspace opens.">

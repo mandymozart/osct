@@ -7,6 +7,24 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- Editor: the **Scenes panel** (#307 phase 3a) – a filmstrip at the bottom of the workspace's stage column: every scene
+  as a card (its picture, name and target count; the open scene framed gold), groups as bands with their scene and
+  target counts and a warning above the loading window; a click opens a scene, Shift / Ctrl pick several, ← → and Enter;
+  drag cards or a whole band to reorder (a gold line shows where they land, over a band they join the group); Ctrl+G /
+  Ctrl+Shift+G group and ungroup; + Scene… with the layout presets; collapse, resize and zoom.
+- Editor Inspector: a **group** (a band clicked) – its label, scenes, switcher stop, targets against the loading window,
+  Ungroup; the open **scene**'s label, layout, group and its **surfaces** (side, size, label) above the spread's sections.
+
+### Changed
+- Editor book page: the spreads grid became the **scenes** – the same cards, groups as headed sections, drag, group,
+  + Scene… with the presets, a card's menu with *Add a scene after…* and *Remove* – for print-first books too.
+
+### Fixed
+- Editor Info view: a focused control removed while the page renders no longer throws (`state_unsafe_mutation`).
+
 ## 1.99.0 – 2026-11-17
 
 ### Added

@@ -310,6 +310,12 @@ export type ScenePreset = (typeof SCENE_PRESETS)[number];
 export const SCENE_PAGE_MM = { width: 230, height: 320 } as const;
 /** The most surfaces one scene has (`Scenes::SURFACES_MAX`) */
 export const SCENE_SURFACES_MAX = 32;
+/**
+ * The targets a group's loading window holds at once (#307 phase 3a): the editor's Scenes panel warns above it. A first
+ * guess – a few scenes at the engine's 10 targets each (RULES #3, `prepareTargets` keeps ±2 scenes ready).
+ * TODO(#300): replace with the window measured on the phone.
+ */
+export const GROUP_WINDOW_TARGETS = 20;
 
 /** A scene whose page range – what apps before schema 2.35 read – changes: [first, last] before and after */
 export interface ScenePageChange {

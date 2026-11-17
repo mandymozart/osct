@@ -134,7 +134,10 @@ reorder, Shift/Ctrl to pick several, a group's own settings), which SCUTOONS wil
    tools (`list_scenes`, `add_scene`, `move_scenes`, `put_scene`, `group_scenes`, `ungroup`, `migrate_scenes` …) came with
    it. Left: the migration on staging (the orchestrator, after Tilman saw the plan); page images → surface references
    (phase 3).
-3. **Editor: scene overview, reference images, pickers**; the Pages view goes.
+3. [~] **Editor: scene overview, reference images, pickers**; the Pages view goes. 3a done 2026-11-17: the Scenes panel
+   (filmstrip under the stage, `ScenesPanel.svelte` / `SceneCards.svelte` / `scene-strip.ts`), the book page's scene
+   cards with groups, drag, group / ungroup, add from presets, remove; the Inspector's group and scene / surfaces
+   (docs/editor.md "The Scenes panel"). Left for 3b: reference images, the scene/surface pickers, removing the Pages view.
 4. **MCP and importers**.
 5. **Groups as loading windows**; free layouts with world tracking after #299.
 6. **MAJOR**: drop the page fields when no older app needs them.

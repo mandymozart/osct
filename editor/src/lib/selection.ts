@@ -28,6 +28,8 @@ export interface SelectionState {
   entry?: string | null;
   /** The book is selected (the top bar's ⚙, #237): no spread, target, node or entry */
   book?: boolean;
+  /** A group is selected (its id – a band of the Scenes panel, #307): the Inspector shows the group, nothing on the stage */
+  group?: string | null;
 }
 
 /**
@@ -36,6 +38,7 @@ export interface SelectionState {
  */
 export const settledSelection = (selection: SelectionState): SelectionState => {
   if (selection.book) return { target: null, node: [], onTarget: true, spread: false, entry: null, book: true };
+  if (selection.group) return { target: null, node: [], onTarget: true, spread: false, entry: null, group: selection.group };
   if (selection.spread || (!selection.target && !selection.entry)) return { target: null, node: [], onTarget: true, spread: true, entry: null };
   return { ...selection, spread: false, entry: selection.entry ?? null };
 };
@@ -49,7 +52,7 @@ export const selectionLevel = (selection: SelectionState, hasTree: boolean): Sel
 
 /** One level up: a node → its parent, the entity → its target; the target (an entry, the spread) stays */
 export const parentSelection = (selection: SelectionState): SelectionState => {
-  if (selection.book || selection.spread || selection.entry || !selection.target || selection.onTarget) return { ...selection, node: [] };
+  if (selection.book || selection.group || selection.spread || selection.entry || !selection.target || selection.onTarget) return { ...selection, node: [] };
   if (!selection.node.length) return { target: selection.target, node: [], onTarget: true };
   return { target: selection.target, node: selection.node.slice(0, -1), onTarget: false };
 };
