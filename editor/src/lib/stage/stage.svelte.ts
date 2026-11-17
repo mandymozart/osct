@@ -326,7 +326,8 @@ export class Stage {
     this.spreadId = spreadId;
     this.found = [];
     await this.syncContent();
-    await this.requests.request("pageImages", [this.pageImages]);
+    // Ahead of the spread, in the same order: the frame lays the page images over its sheet
+    void this.send("pageImages", [this.pageImages]);
     await this.requests.request("open", [spreadId]);
   }
 
