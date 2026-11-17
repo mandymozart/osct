@@ -54,6 +54,10 @@
   .rail .thumb { height: 1.6rem; width: 100%; }
   .rail .thumb.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
   .rail .gl { height: 1px; background: var(--muted); margin: .15rem 0; }
+  .rail .grpb { border-left: 3px solid var(--accent); padding-left: .2rem; display: flex; flex-direction: column; gap: .3rem; }
+  .rail .dropl { height: 2px; background: var(--accent); margin: -.1rem 0; }
+  .rail .thumb.picked { outline: 2px solid #8ab4f8; outline-offset: 1px; }
+  .rail .ghost { position: absolute; left: 1.4rem; top: 6.6rem; width: 2.4rem; opacity: .75; box-shadow: 0 .3rem .8rem #000; transform: rotate(-4deg); }
   .rail .exp { color: var(--muted); text-align: center; font-size: .9rem; }
   .split { flex: 1; display: grid; grid-template-rows: 13rem 1fr; min-height: 0; }
   .split > div { overflow: hidden; } .split .sash { border-top: 3px double var(--line); }
@@ -66,14 +70,18 @@
 
 <!-- ============ A: the Scenes panel collapses to a rail; the panel shows the scene's tree ============ -->
 <section class="option" id="a">
-  <div class="title"><b>A</b> Opened scene: the Scenes panel collapses to a thumbnail rail, the panel becomes the scene's tree <span>(Figma pages / layers)</span></div>
+  <div class="title"><b>A</b> Opened scene: the Scenes panel collapses to a thumbnail rail, the panel becomes the scene's tree; the rail reorders and groups <span>(Figma pages / layers)</span></div>
   <div class="main" style="grid-template-columns: 3.4rem 15rem 1fr 18rem">
-    <div class="rail">
+    <div class="rail" style="position:relative">
       <div class="exp" title="Expand the Scenes panel">»</div>
-      <div class="thumb"><i class="c"></i></div><div class="thumb"><i class="c"></i><i></i></div><div class="gl"></div>
-      <div class="thumb"><i class="a"></i><i class="b"></i></div><div class="thumb"><i class="b"></i><i class="c"></i></div>
-      <div class="thumb sel"><i class="a"></i><i class="c"></i></div><div class="thumb"><i class="b"></i><i class="a"></i></div>
+      <div class="grpb" title="Front matter · 2 scenes · 6 targets"><div class="thumb"><i class="c"></i></div><div class="thumb"><i class="c"></i><i></i></div></div>
+      <div class="thumb"><i class="a"></i><i class="b"></i></div>
+      <div class="dropl"></div>
+      <div class="thumb"><i class="b"></i><i class="c"></i></div>
+      <div class="thumb sel"><i class="a"></i><i class="c"></i></div>
+      <div class="thumb picked"><i class="b"></i><i class="a"></i></div>
       <div class="thumb"><i class="c"></i><i class="b"></i></div>
+      <div class="ghost thumb"><i class="b"></i><i class="a"></i></div>
     </div>
     <div class="panel tree">
       <div class="head">Pages 40–41 <span class="muted">‹ ›</span></div>
@@ -94,7 +102,7 @@
       <div class="s"><h3>Video</h3><div class="kv"><span>file</span><span>p040-1_morpher.mp4</span></div><div class="kv"><span>surface</span><span>40</span></div></div>
     </div>
   </div>
-  <div class="verdict"><span class="pro">+ the stage gets the most room; one tree at a time, never mixed; the rail still shows where you are and jumps to any scene.</span> <span class="con">− reordering and grouping need the panel expanded (» or Esc back to the overview).</span></div>
+  <div class="verdict"><span class="pro">+ the stage gets the most room; one tree at a time, never mixed; the rail still shows where you are and jumps to any scene.</span> <span class="pro">+ the rail reorders too: drag a thumbnail (gold line = where it lands), Shift/Ctrl picks several, Ctrl+G / Ctrl+Shift+G group and ungroup; a group is the gold bracket.</span> <span class="con">− names and target counts only as tooltips on the rail – the expanded panel (») shows them.</span></div>
 </section>
 
 <!-- ============ B: one tree, the opened scene expands inline ============ -->
