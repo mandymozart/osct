@@ -17,7 +17,7 @@ cover and back; flows between scenes). Codebase analysis of 2026-11-17: summary 
 | **Surface** | One physical area of a scene: a left page, a right page, a cover, a wall, an object. It has a size (mm), a **label** written exactly as printed (`41`, `ii`, `Cover`, or none), and an optional **reference image**. | page (by number) |
 | **Layout** | How a scene's surfaces relate: **fixed** (side by side as a double page – or **three** when a fold-out opens, any number in a row; front/back; stacked) or **free** (each surface on its own anchor – a page and a wall ahead; a **room** with many surfaces; placed in the room later with world tracking, #299). A wall can be a scene by itself or one surface of a room scene. | `format` (spread / cover / back), `matter` |
 | **Label** | Free text, never arithmetic. On a surface (`41`), a scene (`Pages 40–41`), a group (`Front matter`). The reader shows the most specific one. | page numbers, derived titles |
-| **Group** | Several scenes under one label (`Front matter`, `Back matter`, a chapter, a room): **a stop of the reader's bottom switcher** (today's spread switcher) and **one loading window** – every target of the group is ready. A scene without a group is a stop of its own. | – (internal pages −4…−1) |
+| **Group** | Several scenes under one label (`Front matter`, `Back matter`, a chapter, a room): **a stop of the reader's bottom switcher** (today's spread switcher) and **one loading window** – every target of the group is ready. A scene without a group is a stop of its own. The group tool shows the group's label and **how many targets** it holds (against the engine's limits). | – (internal pages −4…−1) |
 | **Reference image** | A picture dropped onto a surface (or across a fixed layout): the guide for placing targets and AR content; the scene's thumbnail. Editor only, never shown to readers. | page images (#251), print layout sheets |
 
 ## Rules
@@ -81,6 +81,11 @@ cover and back; flows between scenes). Codebase analysis of 2026-11-17: summary 
 - Names by use (#298): `<scene>_<surface-label>.webp` instead of `page-118.webp`.
 
 ### Editor
+
+Design draft: `agents/design/scenes-panel.html` (static, the editor's dark tokens; open it in a browser). The scene
+organisation lives in a **Scenes panel** of the editor – like SCUTOONS' chapter tree (groups → their slices, grips to
+reorder, Shift/Ctrl to pick several, a group's own settings), which SCUTOONS will in turn inherit from here.
+
 - **Scene overview** replaces the spreads overview and the Pages view: cards with the reference image (or a
   thumbnail made from the placed targets and content), drag to reorder, groups as headed sections, add/delete/layout
   in the card's menu.
