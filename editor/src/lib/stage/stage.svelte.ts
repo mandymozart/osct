@@ -326,6 +326,7 @@ export class Stage {
     this.spreadId = spreadId;
     this.found = [];
     await this.syncContent();
+    await this.requests.request("pageImages", [this.pageImages]);
     await this.requests.request("open", [spreadId]);
   }
 
@@ -338,6 +339,15 @@ export class Stage {
   /** The current spread's format changed in the draft: the book takes its new shape on the stage at once */
   relayout(): void {
     void this.send("relayout");
+  }
+
+  /** The book's page images by page key (#251), sent again with every spread opened (a new frame starts without them) */
+  private pageImages: Record<string, string> = {};
+
+  /** The page images changed (the Pages view, a load): the stage lays them over the sheet at once */
+  setPageImages(images: Record<string, string>): void {
+    this.pageImages = { ...images };
+    void this.send("pageImages", [this.pageImages]);
   }
 
   /** Show a target's entity with other values than the content's (live edit), `null` = the content's again; resolves once the frame built it */

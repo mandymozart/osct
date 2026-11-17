@@ -436,7 +436,8 @@ export class MockStage implements StageView {
       this.book.add(paper);
       this.sheetPaper = paper;
       this.loader.setCrossOrigin("anonymous");
-      this.loader.load(sheet.image, texture => {
+      this.layPageImages(sheet, run);
+      if (sheet.image) this.loader.load(sheet.image, texture => {
         if (run !== this.layoutRun) {
           texture.dispose();
           return;
@@ -492,6 +493,35 @@ export class MockStage implements StageView {
     });
     this.drawGrid();
     this.toBackdropLayer();
+  }
+
+  /**
+   * The sheet's page images (#251): one page-sized plane per half over the sheet's image (under the fold, the prints and
+   * the entities), its picture stretched to the page in mm as uploaded – the sheet's sharper image stays the layout's
+   */
+  private layPageImages(sheet: StageSheet, run: number): void {
+    const w = this.page.width / 1000;
+    const h = this.page.height / 1000;
+    for (const [half, url] of Object.entries(sheet.pages ?? {})) {
+      if (!url) continue;
+      const plane = new Mesh(new PlaneGeometry(w, h), new MeshBasicMaterial({ color: PAGE_COLOR }));
+      plane.position.set(half === "left" ? -w / 2 : half === "right" ? w / 2 : 0, 0, -1.75 * LAYER);
+      plane.userData.pageImage = half;
+      this.book.add(plane);
+      this.loader.load(url, texture => {
+        if (run !== this.layoutRun) {
+          texture.dispose();
+          return;
+        }
+        texture.colorSpace = SRGBColorSpace;
+        texture.anisotropy = 8;
+        this.textures.push(texture);
+        const own = ownMaterial<MeshBasicMaterial>(plane);
+        own.map = texture;
+        own.color.setHex(0xffffff);
+        own.needsUpdate = true;
+      }, undefined, error => console.warn("[mock-stage] a page image could not be loaded:", url, error));
+    }
   }
 
   /** The targets hidden in the tree (the eye): their printed images go with their AR content, so the scene shows neither */

@@ -136,7 +136,7 @@ export const NO_ANSWER = "the stage did not answer";
 
 /** The methods the frame answers (`frame-host.svelte.ts`) */
 export const FRAME_METHODS = [
-  "init", "content", "open", "refresh", "relayout", "override", "overridePasses", "overrideAppearance", "playMoment", "selectNode", "selectTarget", "setPickMode", "setGizmoMode",
+  "init", "content", "open", "refresh", "relayout", "pageImages", "override", "overridePasses", "overrideAppearance", "playMoment", "selectNode", "selectTarget", "setPickMode", "setGizmoMode",
   "setSnapModifier", "showEnvironment", "setLookUp", "ghost", "preview", "replayUnlock", "resetNarrative", "setLive", "clearEvents", "setVar", "tap",
   "sampleColor", "sampleBottom", "timeline", "runPlugin",
 ] as const;
@@ -228,6 +228,19 @@ export const readFrameReply = (message: unknown): FrameReply | null =>
     : null;
 
 /** A message from the page as a request the frame answers, null for anything else */
+/**
+ * The page images the page sends (`pageImages`, #251: page key → image URL) as the frame takes them: keys like `12`,
+ * `-3`, `1f`, http(s) URLs only – anything else is left out
+ */
+export const pageImageMap = (value: unknown): Record<string, string> => {
+  const result: Record<string, string> = {};
+  if (!isObject(value)) return result;
+  for (const [key, url] of Object.entries(value)) {
+    if (/^-?\d{1,6}f?$/.test(key) && isString(url) && /^https?:\/\//.test(url) && url.length <= 2048) result[key] = url;
+  }
+  return result;
+};
+
 export const readFrameRequest = (message: unknown): FrameRequest | null =>
   isObject(message) && message.osct === MESSAGE_TAG && message.kind === "request" && Number.isInteger(message.id)
   && (FRAME_METHODS as readonly unknown[]).includes(message.method) && Array.isArray(message.args)

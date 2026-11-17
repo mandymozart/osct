@@ -81,6 +81,41 @@ export const sheetImageUrl = (sheet: LayoutSheet): string => contentUrl(`${LAYOU
 /** URL of a sheet's sharper image, undefined when the layout has none */
 export const sheetSharpImageUrl = (sheet: LayoutSheet): string | undefined => (sheet.imageSharp ? contentUrl(`${LAYOUT_PATH}${sheet.imageSharp}`) : undefined);
 
+/** Where a page image lies on its sheet: the left or the right half of a double page, or the whole of a cover */
+export type PageHalf = "left" | "right" | "whole";
+
+/** The page images over a sheet, by half (URLs as uploaded) */
+export type SheetPageImages = Partial<Record<PageHalf, string>>;
+
+/** A page image's key – `12`, `-3`, `1f` (the unnumbered half next to page 1) – as the API's `Pages::key` */
+const keyOf = (page: number, facing = false): string => `${page}${facing ? "f" : ""}`;
+
+/**
+ * The page images (#251, by page key) that lie over a spread's sheet: a cover's on the whole, a double page's first page
+ * left and its last right, a single page on its side (odd right, even left) with the unnumbered half on the other.
+ * Pages without an image keep the layout's half.
+ */
+export const pageImagesOfSpread = (
+  spread: Pick<Spread, "firstPage" | "lastPage" | "format"> | undefined,
+  images: Readonly<Record<string, string>>,
+): SheetPageImages => {
+  if (!spread) return {};
+  const result: SheetPageImages = {};
+  const put = (half: PageHalf, key: string) => {
+    if (images[key]) result[half] = images[key];
+  };
+  if (spread.format === "cover" || spread.format === "back") put("whole", keyOf(spread.firstPage));
+  else if (spread.lastPage > spread.firstPage) {
+    put("left", keyOf(spread.firstPage));
+    put("right", keyOf(spread.lastPage));
+  } else {
+    const even = spread.firstPage % 2 === 0;
+    put(even ? "left" : "right", keyOf(spread.firstPage));
+    put(even ? "right" : "left", keyOf(spread.firstPage, true));
+  }
+  return result;
+};
+
 /** The sheet that shows a spread's pages (the one with its first page, else its last), null when there is none */
 export const sheetForSpread = (layout: StageLayout | null, spread: Pick<Spread, "firstPage" | "lastPage" | "format" | "matter"> | undefined): LayoutSheet | null => {
   if (!layout || !spread) return null;

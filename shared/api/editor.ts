@@ -446,3 +446,85 @@ export interface PluginUsages {
   usages: Usage[];
   registers: SourceTypes;
 }
+
+// ── Pages and page images (#251) ─────────────────────────────────────────────────────────────────────
+
+/** Where a page lies: left / right on a double sheet, front / back for a cover */
+export type PageSide = "left" | "right" | "front" | "back";
+/** What a page is: a cover, front or back matter (internal pages, #296), a numbered page, the unnumbered half next to a single page */
+export type PageKind = "cover" | "back" | "front-matter" | "back-matter" | "page" | "facing";
+
+/**
+ * A page of the book (`GET /editor/books/{id}/pages`, in book order): its internal `page` and `facing` (the unnumbered
+ * half of a single page's sheet), its spread and side, and its label (`Cover`, `F1`, `12`, `next to 1`, `B1`, `Back cover`)
+ */
+export interface BookPage {
+  page: number;
+  facing: boolean;
+  spread: string;
+  side: PageSide;
+  kind: PageKind;
+  label: string;
+}
+
+/** A page image: a Library image that overrides the print layout's sheet for its page in the editor – never content */
+export interface PageImage {
+  page: number;
+  facing: boolean;
+  url: string;
+  name: string;
+  /** The e-mail address of who set it last, null when the account is gone */
+  updatedBy: string | null;
+  updatedAt: string;
+}
+
+/** `GET /editor/books/{id}/pages` */
+export interface PageList {
+  pages: BookPage[];
+  pageImages: PageImage[];
+}
+
+/** A page's address in a page images change */
+export interface PageAddress {
+  page: number;
+  facing?: boolean;
+}
+
+/**
+ * One item of `PUT /editor/books/{id}/page-images`: set or replace (`url`), remove (`url: null`), move here from
+ * another page (`from`), rename (`name` alone)
+ */
+export type PageImageChange = PageAddress & ({ url: string | null; name?: string } | { from: PageAddress; name?: string } | { name: string });
+
+/** The answer: the book's page images now, and how many pages changed */
+export interface PageImagesSaved {
+  pageImages: PageImage[];
+  saved: number;
+}
+
+/** The most items one page images request takes (`Pages::BATCH_MAX`) */
+export const PAGE_IMAGES_BATCH_MAX = 500;
+/** The most front or back matter sheets `POST …/matter` makes (`Pages::MATTER_MAX`) */
+export const MATTER_MAX = 8;
+
+/** A spread `POST /editor/books/{id}/matter` makes */
+export interface MatterSpread {
+  id: string;
+  title: string;
+  firstPage: number;
+  lastPage: number;
+  matter?: "front" | "back";
+}
+
+/** `POST /editor/books/{id}/matter`: what makes the book whole against its print format, and whether it was written */
+export interface MatterResult {
+  plan: {
+    front: number;
+    back: number;
+    lastPage: number;
+    create: MatterSpread[];
+    moveBackCover: { spread: string; from: number; to: number } | null;
+    entries: { id: string; spread: string; page: number }[];
+  };
+  applied: boolean;
+}
