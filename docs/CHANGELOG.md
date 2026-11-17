@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 1.95.0 – 2026-11-17
 
 ### Added
 - One image rule for every picture (#298, phase 1; `shared/api/images.ts`, docs/content.md "The image rule"): at most
