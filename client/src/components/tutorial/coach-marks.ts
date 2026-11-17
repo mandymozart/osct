@@ -10,7 +10,7 @@ export interface CoachMark {
   id: "scroller" | "icon";
   /** Path to the revealed element from the app's root, one selector per shadow root */
   target: readonly string[];
-  shape: "pill" | "circle";
+  shape: "pill" | "circle" | "ellipse";
 }
 
 /** A step's text and button, translated when shown (literal keys, so i18next-cli keeps them) */
@@ -22,7 +22,7 @@ const COACH_TEXTS: Record<CoachMark["id"], () => { text: string; button: string 
 /** The two steps over the first scan (design p. 15–16): the page scroller at the bottom, then the icon at the top */
 export const COACH_MARKS: readonly CoachMark[] = [
   { id: "scroller", target: ["spread-page", "spread-menu"], shape: "pill" },
-  { id: "icon", target: ["game-header", "mark-the-page"], shape: "circle" },
+  { id: "icon", target: ["game-header", "mark-the-page"], shape: "ellipse" },
 ];
 
 export interface HoleRect {
@@ -34,12 +34,12 @@ export interface HoleRect {
 
 /**
  * The hole around a revealed element (screen pixels, measured at run time): the element's box grown by `pad` on
- * every side; a circle is the square around the box's centre that holds the grown box's longer side. A missing or
- * hidden element (no box) gives no hole – a zero box in the centre of the screen, so the veil covers everything.
+ * every side (a pill, or an ellipse in that box: the wide eye in the header, #297); a circle is the square around the
+ * box's centre that holds the grown box's longer side. A missing or hidden element (no box) gives no hole – a zero box in the centre of the screen, so the veil covers everything.
  */
 export const holeRect = (box: HoleRect | null, shape: CoachMark["shape"], pad: number, screen: { width: number; height: number }): HoleRect => {
   if (!box || box.width === 0 || box.height === 0) return { left: screen.width / 2, top: screen.height / 2, width: 0, height: 0 };
-  if (shape === "pill") return { left: box.left - pad, top: box.top - pad, width: box.width + 2 * pad, height: box.height + 2 * pad };
+  if (shape !== "circle") return { left: box.left - pad, top: box.top - pad, width: box.width + 2 * pad, height: box.height + 2 * pad };
   const size = Math.max(box.width, box.height) + 2 * pad;
   return { left: box.left + box.width / 2 - size / 2, top: box.top + box.height / 2 - size / 2, width: size, height: size };
 };
@@ -150,7 +150,7 @@ export class CoachMarks extends HTMLElement {
           border-radius: 1.5rem;
           transition: left 400ms ease, top 400ms ease, width 400ms ease, height 400ms ease, border-radius 400ms ease;
         }
-        :host([step="icon"]) .hole { border-radius: 50%; }
+        :host([step="icon"]) .hole { border-radius: 50%; }   /* an ellipse round the eye */
         /* The scroller scrolls: an arrow at each end of the hole nudges outwards */
         .nudge {
           position: fixed;

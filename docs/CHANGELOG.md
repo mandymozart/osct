@@ -7,6 +7,29 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- Buttons have no fill and never a border, only a drop shadow – the primary too (#297): the onboarding buttons are
+  transparent glass with their white glow, the primary loses its border sweep (the label still shines), the scroller's
+  active spread is a transparent pill with the gold glow. The gold glow marks the active item (the selected list's
+  pill, Videos while shown, the current settings option, now without its gold ring); every other pill and the "i" have
+  the grey shadow.
+- The header shows the crocodile eye of the onboarding in scan and consultation instead of the Mark, at the onboarding
+  size (#297); the coach mark cuts an ellipse round it. The old Mark files stay in `public/`.
+- The Info colophon follows the design's lines (p. 61): "Publisher: Building Fictions, Amsterdam", "ISBN: …" (#297).
+- The pick-up: "New marginalia unlocked" (was "New entry unlocked", gold, shimmering) and its sound, with the card
+  flight as the one animation – the label also shows while the card flies (#297).
+- The Marginalia pill has the design's inner padding on both sides (1.1rem), so the ≡ sits as far from the left edge
+  as the label from the right (#297).
+
+### Removed
+- The slanted target picture beside the header icon in consultation (#283, a misreading – #297).
+- The header's dark backdrop in consultation (#283): the header is transparent again, the pages scroll under it (#297).
+- The Building Fictions logo in the Info colophon (#297; `bf.svg` stays in `public/`).
+- The found indicator's picture, its shadow, the unlock rotation, the sparkles and the label's glow and dark backdrop
+  (#297); a transparent tap area where the picture was keeps opening the entry (and starts the card flight).
+
 ## 1.93.0 – 2026-11-17
 
 ### Added

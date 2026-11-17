@@ -55,7 +55,7 @@ itself is `#000000`). One linear gradient is used on all 40 pages:
 ### Buttons, pills, glass
 | Element | Body | Effect | Size |
 |---|---|---|---|
-| Onboarding button ("Continue", "Grant access", "Access scan") | **opaque black** `#000` | **white glow**: a white shape ~15 px larger on each side, soft-masked by a blurred image (Gaussian) | 79 × 16 pt → 151 × 31 px |
+| Onboarding button ("Continue", "Grant access", "Access scan") | **opaque black** `#000` in the PDF → **transparent** glass in the app (Tilman, #297: no fill, no border; the white glow stays) | **white glow**: a white shape ~15 px larger on each side, soft-masked by a blurred image (Gaussian) | 79 × 16 pt → 151 × 31 px |
 | Consultation pill ("Entries", category) | white shape inside a **Multiply** group → effectively **transparent** | **black drop shadow at 50 %**, blurred (~19 px spread) | 31 × 15 pt → 60 × 29 px |
 | "i" button | circle, same Multiply construction → transparent | black shadow, blurred (~15 px) | Ø 17.9 pt → 34 px |
 | Spread menu active item (scan) | same Multiply construction | black shadow 50 %, blurred | ~60 × 29 px |
@@ -93,7 +93,7 @@ Areal: 8–16, 23). The phone screenshots there are 204.5 pt wide for a 393 px s
 | Info button "i" | Ø 34 px, top right corner, **the same gap above and to the right** (≈ 16 px, frame 20); the gap counts from the top of the page area, below the status bar (Tilman, 2026-09-27 – the earlier 4.55 rem was measured from the device top, status bar included) |
 | "Entries" pill | top edge **3.75 rem** below the top of the page area (centre ≈ 4.7 rem), left 1.25 rem = the text column (frame 20, Tilman 2026-09-27 – the earlier 6.4 rem was measured from the device top) |
 | Consultation content top | the same on every consultation screen, from the top of the page area: entry and Info **8.5 rem** (first rule; frames 15, 20, 21, 33); entries list **10.75 rem**, 1 rem below the "Entries consulted" counter (frame 17) – `--consultation-top`, `--consultation-top-counter` (Tilman, 2026-09-27; was 11.5 rem) |
-| Found indicator image | 171 × 212 px, ~234 px from the top |
+| Found indicator image | removed (#297): the card flight (#285) is the one pick-up animation; the indicator keeps "New marginalia unlocked" and a transparent tap area |
 | Onboarding text block | gradient box 247 px, centred |
 
 ### 3a. Vertical grid – six rows (#295, measured 2026-11-16)
@@ -117,7 +117,7 @@ Debug overlay: dev tools → "Grid" (`<html data-row-grid>`).
 
 **Icon and motion (#281, design p. 4–14):** splash and onboarding show the eye placeholder
 (`public/assets/ui/onboarding/icon.png`, cut from the PDF's eye with its soft shadow; replace the file when Kévin's icon
-arrives), the header keeps the Mark. The splash shows icon and title at once; author and publisher fade in together
+arrives), the header shows it too (#297). The splash shows icon and title at once; author and publisher fade in together
 after 1 s, over 1 s. The onboarding steps do not fade: the button shows the next step at once. The camera notice during
 onboarding uses the same grid (icon row 1, text from row 3, buttons from row 5).
 
@@ -132,19 +132,19 @@ out (Tilman has not decided on them).
 the scroller – measured 8 pt like the page numbers, so Medium (1 rem), not Small; neighbours `#d6d8d8`; the active spread
 a pill (31 × 15 pt ≈ 60 × 29 px) with a **white body** and a **gold glow** (`#c7a144`, ≈ 6.5 pt round the body) and
 gold text – the same on the white page (p. 18) and over the dark picture (p. 17), where the body lets the picture show
-through a little (`--scroller-pill-background`, `--shadow-gold`). The edges fade (mask).
+through a little (transparent glass, no fill since #297, `--shadow-gold`). The edges fade (mask).
 
 ### Details (moved from code comments, 2026-09-28)
 | Element | Value |
 |---|---|
 | Category pill and its open menu | width **52.5 pt ≈ 100 px** (`--category-width`, frames 17, 18); menu corner radius **12 pt** (1.45 rem) |
 | Pill / "i" glow | bronze `#957149` (frame 17) → `--shadow-bronze`; open category menu: grey `#8b8d8c` (frame 18) → `--shadow-grey` |
-| Mark image margin | the drawing starts 14 of 125 px below the top of `scan.png` → `--mark-inset-top`; the header pulls the Mark up by it |
+| Header icon | the onboarding's crocodile eye in scan and consultation (#297, p. 53: ~182 × 62 px visible at 390) at the onboarding size (`--mark-width/height` = `--onboarding-icon-*`); its glow margin, 15 of 169 px above the eye, is `--mark-inset-top` – the header pulls the eye up by it. No target picture beside it (#297). The header is transparent: the pages scroll under it (#297). The old Mark files stay in `public/assets/ui/mark-the-page/` |
 | Entries list top | 1 rem below the "Marginalia consulted" counter (#283: close under the icon, small, gold; consultation only), which ends at 9.75 rem under the Mark. Info uses the list's positions: the "Entries" pill where the category pill is, the text where the list starts |
 | Info page groups | the first section of a group has no top padding (sits right below the group title); the last has no bottom rule (the next group title brings its own) |
 | Switch rows | `.switch-row` min-height 4 rem, .5 rem padding top/bottom – each option stands alone, two text lines fit |
 | Language options | the current choice: thin gold inset ring on top of the bronze pill glow (`aria-current="true"`) |
-| Info logo | `bf.svg` is white on transparent – only works on the black page |
+| Info colophon | the lines and their order of p. 61, no logo (#297; `bf.svg` stays in `public/`) |
 | Debug line (dev) | lies over the page and moves nothing, as in the final app |
 
 ## 4. Differences to the build before 2026-09-25 (applied on 2026-09-25 unless noted)
@@ -190,13 +190,14 @@ page-wide sweep later; B only for desktop.
   otherwise browsers skip the backdrop and the layers below are not blurred.
 - `backdrop-filter: blur(…)` + `-webkit-backdrop-filter` for the glass.
 - Depth only by a **drop shadow**: black on light backgrounds (scan, consultation), white (glow) on the
-  black onboarding.
+  black onboarding. **No fill and never a border** on any button, the primary too (Tilman, #297): the gold glow marks
+  the active item, the others have the grey shadow (`--shadow-grey`).
 - Text: gold gradient (A).
 
 ### Primary / secondary (Tilman, 2026-09-25)
 - **Primary** (Continue, Grant access, Access scan, Start, Resume): `.primary` on `.button` / `.pill` – the
-  gold label **shines** (highlight band sweeping through the gradient, like the gold illustrations) and a
-  gold highlight **runs along the border** (skeleton-loader sweep), 1.8 s; off with reduced motion.
+  gold label **shines** (highlight band sweeping through the gradient, like the gold illustrations), 1.8 s; off with
+  reduced motion. (The border sweep is gone – buttons have no border, #297.)
 - **Secondary** (Tutorial, Dismiss, Skip, Entries, category): no animation; the black onboarding
   button gets the softer glow (`--shadow-glow-soft`).
 

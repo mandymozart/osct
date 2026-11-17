@@ -49,7 +49,7 @@ export abstract class SettingsSection extends HTMLElement {
         .description { margin: .6rem 0 0; color: var(--color-muted); font-size: var(--text-size-small); }
         .description.first { margin-top: 0; }
         .options { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
-        :host .options [aria-current="true"] { box-shadow: var(--shadow-bronze), inset 0 0 0 0.0625rem var(--color-accent); }
+        :host .options [aria-current="true"] { box-shadow: var(--shadow-bronze); }
       </style>
       ${this.content()}
     `;

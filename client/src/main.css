@@ -54,8 +54,6 @@
 
   --app-background: #000;
   --consultation-background: rgba(0, 0, 0, 0.82);
-  /* The header's backdrop in consultation: the pages' text scrolls under the icon, not through it (#283) */
-  --header-backdrop: rgba(0, 0, 0, 0.96);
   --loading-background:
     radial-gradient(ellipse 60% 55% at 50% 50%, rgba(0, 0, 0, 0.94) 0%, rgba(0, 0, 0, 0.82) 100%);
   /* farthest-corner: the gradient must reach the corners, or a grey base shows there */
@@ -75,9 +73,8 @@
   --shadow-bronze: 0 0.15rem 1.2rem rgba(149, 113, 73, 0.55);
   --shadow-grey: 0 0.2rem 1.4rem rgba(139, 141, 140, 0.45);
   --shadow-glow-soft: 0 0 0.5rem rgba(255, 255, 255, 0.25);
-  /* The page scroller's active spread (#284, design p. 17-22): a whitish pill with a gold glow, on the white page and
-     over the camera picture alike (measured: body #fff, glow #c7a144 about 6.5 pt round the 31 x 15 pt body) */
-  --scroller-pill-background: rgba(255, 255, 255, 0.72);
+  /* The page scroller's active spread (#284, design p. 17-22): a transparent glass pill with a gold glow (no fill, #297;
+     measured: glow #c7a144 about 6.5 pt round the 31 x 15 pt body) */
   --shadow-gold: 0 0 0.75rem 0.15rem rgba(199, 161, 68, 0.85);
 
   --category-width: 6.25rem;
@@ -86,10 +83,11 @@
   --phone-frame: #1c1c1c;
   --phone-frame-width: .6rem;
 
-  --mark-width: 6.1875rem;
-  --mark-height: 6rem;
-  /* Transparent margin above the drawing in the Mark image; the header offsets it so the visible Mark sits 1rem from the top */
-  --mark-inset-top: calc(var(--mark-height) * 14 / 125);
+  /* The header icon: the onboarding's crocodile eye at the same size (#297, design p. 53: about 182 px wide at 390) */
+  --mark-width: var(--onboarding-icon-width);
+  --mark-height: var(--onboarding-icon-height);
+  /* The glow margin above the eye in its image (15 of 169 px); the header offsets it so the visible eye sits 1rem from the top */
+  --mark-inset-top: calc(var(--mark-height) * 15 / 169);
 
   /* The splash and onboarding icon (#281, the eye placeholder, DESIGN.md §3a): 102.75 × 44 pt with its glow, centred
      horizontally, its centre at 24.5 of the 57.3 pt of row 1 */

@@ -111,9 +111,10 @@ export class SpreadMenu extends HTMLElement {
           cursor: pointer;
           -webkit-tap-highlight-color: transparent;
         }
-        /* The active spread: whitish pill, gold text, gold glow (instead of the glass pill's bronze glow) */
+        /* The active spread: transparent glass pill, gold text, gold glow (instead of the glass pill's grey shadow) –
+           no fill (#297) */
         .item.pill {
-          background: var(--scroller-pill-background);
+          background: var(--glass-background);
           box-shadow: var(--shadow-gold);
         }
       </style>

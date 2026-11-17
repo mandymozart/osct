@@ -15,6 +15,12 @@ describe("coach marks' hole (#282)", () => {
       .toEqual({ left: 137, top: -8, width: 116, height: 116 });
   });
 
+  it("puts an ellipse round the wide eye: its box grown by the padding (#297)", () => {
+    expect(holeRect({ left: 96, top: 8, width: 197, height: 84 }, "ellipse", 8, screen))
+      .toEqual({ left: 88, top: 0, width: 213, height: 100 });
+    expect(COACH_MARKS.find(mark => mark.id === "icon")?.shape).toBe("ellipse");
+  });
+
   it("leaves no hole for a missing or hidden element, so the veil covers everything", () => {
     expect(holeRect(null, "pill", 8, screen)).toEqual({ left: 195, top: 422, width: 0, height: 0 });
     expect(holeRect({ left: 10, top: 10, width: 0, height: 0 }, "circle", 8, screen).width).toBe(0);

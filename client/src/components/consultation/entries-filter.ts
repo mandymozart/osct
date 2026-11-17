@@ -57,9 +57,12 @@ export class EntriesFilterElement extends HTMLElement {
       <style>
         :host { display: block; position: relative; min-width: var(--category-width); width: max-content; }
         /* :host raises specificity – the adopted design sheet comes after this <style> */
-        :host .pill { width: 100%; gap: .4em; }
-        /* Outside its section (the Videos) the pill is white and does not glow gold (#286) */
-        :host .pill.inactive { box-shadow: var(--shadow-grey); }
+        /* The same space before the burger as after the label: the pill's inner padding in the design (p. 26-30: 17.6 px
+           at 390 → 1.1rem), on both sides (#297) */
+        :host .pill { width: 100%; gap: .4em; padding-inline: 1.1rem; }
+        /* The active item glows gold; outside its section (the Videos) the pill is white with the grey shadow of every
+           inactive button (#286, #297) */
+        :host .pill:not(.inactive) { box-shadow: var(--shadow-bronze); }
         .burger { font-size: 1.1em; line-height: 1; }
         .white { color: var(--color-on-dark); }
         .menu {

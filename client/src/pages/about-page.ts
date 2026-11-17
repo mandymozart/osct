@@ -7,8 +7,8 @@ import "@/components/settings";
  * Info page (#291), opened with "i" in consultation mode; the gold × in the header closes it to the entries list.
  * Sections, in the design's order: info text with the link to the image credits (#292) · install as app · Account
  * (sign-in, progress explanation and reset, update options) · Settings (sound & vibration, language, then graphics and
- * the download, which the design leaves out – kept, RULES #1) · colophon. The texts are placeholders until they move
- * into the content (`book.yaml`). The image tracking library is credited in the project README, not here; its MIT
+ * the download, which the design leaves out – kept, RULES #1) · colophon, its lines as in the design (p. 61; no logo,
+ * #297). The texts are placeholders until they move into the content (`book.yaml`). The image tracking library is credited in the project README, not here; its MIT
  * LICENSE is served next to the engine (`assets/xr8/LICENSE`).
  */
 export class AboutPage extends ConsultationPage {
@@ -16,11 +16,6 @@ export class AboutPage extends ConsultationPage {
     return /* css */ `
       .section-title:first-of-type { margin-top: 0; }
       .settings { margin-bottom: 1.5rem; }
-      .logo-link {
-        display: inline-block;
-        margin: .5rem 0 1rem;
-      }
-      .logo { display: block; height: 3rem; }
       .colophon p, .platforms p { margin: 0; }
       .colophon { margin-bottom: 1em; }
     `;
@@ -64,9 +59,6 @@ export class AboutPage extends ConsultationPage {
           <p>${t("about:publisher")}</p>
           <p>${t("about:isbn")}</p>
         </div>
-        <a class="logo-link" href="https://buildingfictions.com" target="_blank" rel="noopener noreferrer">
-          <img src="/assets/bf.svg" class="logo" alt="buildingfictions" />
-        </a>
         <div class="platforms colophon">
           <p>${t("about:requirements")}</p>
           <p>${t("about:android")}</p>

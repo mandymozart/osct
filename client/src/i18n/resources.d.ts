@@ -17,11 +17,11 @@ export default interface Resources {
     "info": "Info",
     "infoText": "<em>{{title}}</em> is the first publication by visual artist {{author}}. This online platform functions as a companion to the printed book. It explores the digital potential offered by augmented reality to unpack the artist's work – his vocabulary, references and obsessions – in an experimental publishing and storytelling attempt.",
     "ios": "iOS: Safari, Chrome",
-    "isbn": "ISBN 978-90-833756-7-0",
+    "isbn": "ISBN: 978-90-833756-7-0",
     "noCredits": "No image credits yet.",
     "page": "Page {{page}}",
     "pages": "Pages {{first}}–{{last}}",
-    "publisher": "Publisher: Building Fictions",
+    "publisher": "Publisher: Building Fictions, Amsterdam",
     "requirements": "Requires a WebXR compatible browser and a copy of the book.",
     "scanText": "Scan the pages of the printed book to unlock video content and marginalia entries (glossary terms, texts, links).",
     "settings": "Settings"
@@ -171,7 +171,7 @@ export default interface Resources {
     "reset": "Your saved progress could not be read by this app version and was reset."
   },
   "scan": {
-    "newEntryUnlocked": "New entry unlocked",
+    "newEntryUnlocked": "New marginalia unlocked",
     "openEntry": "Open entry {{title}}",
     "pagesAria": "Pages {{pages}}",
     "scrollToActivate": "Scroll to spread to activate content"
