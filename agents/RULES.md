@@ -334,6 +334,9 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     through `.kamal/secrets` from the GitHub environments `staging` / `production` – never values in git.
     Server-side HTTP behaviour (cache headers, MIME types, SPA fallback, client IP) lives in
     `server/docker/apache.conf` and the two `.htaccess` files – not at a hosting provider.
+    **The server is shared** with Building Fictions (asger, 2026-11-17): the user `osct` can run Docker, which is
+    effectively root there – never touch the `building_fictions` containers or kamal-proxy (asger runs kamal-proxy
+    v0.9; no `kamal proxy reboot` / `upgrade` / `remove` from osct). Only `osct*` containers, volumes and networks.
 
 29. **Issues and board**: work is tracked as GitHub issues on the project board **OSCT**
     (github.com/users/mandymozart/projects/5: Backlog · Proposals · In progress · Review on staging · Deployed ·

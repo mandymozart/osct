@@ -4,6 +4,19 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-17 – the production server is ready; Tilman makes the SSH keys (#6, #7)
+- asger (mail to Tilman, 2026-11-17): the server 49.13.13.159 is ready – user `osct`, the internal Docker networks
+  `osct` and `osct-staging`, kamal-proxy v0.9; `kamal setup` / `kamal deploy` from Actions "should just work". Tilman
+  makes the key pairs himself and sends asger only the `.pub` files (no private keys by mail): his own key for SSH
+  (backups, maintenance) and a new deploy key for Actions, both for the user `osct`. No jailed user – `osct` can run
+  Docker, effectively root; asger's condition: "just don't touch the building_fictions containers or kamal-proxy"
+  (RULES #28).
+- The deploy key goes into the `production` environment as `SSH_PRIVATE_KEY` (it wins over the repository fallback of
+  1.64.2). [ ] Once it works: delete the repository secrets `SSH_PRIVATE_KEY_PRODUCTION` / `SSH_PRIVATE_KEY_STAGING`,
+  ask asger to remove their public keys, and drop the fallback from `deploy.yml`.
+- [ ] Still open before the first production deploy: `DB_PASS`, `DB_ROOT_PASS`, `SECRET` in `production`; SES
+  (`SMTP_USER` / `SMTP_PASS`, domain verified, out of the sandbox); DNS `osct.buildingfictions.com` → 49.13.13.159.
+
 ## 2026-11-17 – one list of a file's uses (#298 phase 2)
 - Found on staging: the Library's count (`Assets::usageRows`) and the delete check (`Assets::usagesOf`) disagreed, and
   both missed uses – 264 layout sheets showed as unused. Now **`AssetNames::usesOf` is the one source of truth**: the
