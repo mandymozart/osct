@@ -91,6 +91,9 @@ export class GameHeader extends HTMLElement {
                 }
                 /* The "i": Medium text in white, not gold (design p. 2, 26); the × stays gold */
                 .chrome .info { font-size: var(--text-size); }
+                /* The gold glow marks the active item (the selected list); the "i" never is: it has the grey shadow of
+                   an inactive button, like Videos while a Marginalia category is shown */
+                .chrome .info { box-shadow: var(--shadow-grey); }
                 .info .gold {
                     background: none;
                     color: var(--color-on-dark);

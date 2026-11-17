@@ -7,6 +7,12 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.92.1 – 2026-11-17
+
+### Fixed
+- The "i" in the header has the grey shadow of an inactive button, like Videos while a Marginalia category is shown;
+  the gold glow marks only the active item (#283, #286).
+
 ## 1.92.0 – 2026-11-17
 
 ### Added
