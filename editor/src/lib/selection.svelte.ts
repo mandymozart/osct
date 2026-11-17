@@ -19,6 +19,8 @@ class Selection implements SelectionState {
   entry = $state<string | null>(null);
   /** The book is selected (#237): the Inspector shows its texts and settings */
   book = $state(false);
+  /** A group is selected (#307 – a band of the Scenes panel): the Inspector shows the group */
+  group = $state<string | null>(null);
   /** Goes up whenever something asks the workspace to show the selection in the Inspector (the search, the book's ⚙) */
   reveal = $state(0);
   /** A selection asked for on a spread whose workspace is not open yet */
@@ -49,6 +51,11 @@ class Selection implements SelectionState {
     this.set({ target: null, node: [], onTarget: true, book: true });
   }
 
+  /** A group of scenes: its label, its scenes and targets in the Inspector, nothing on the stage */
+  selectGroup(group: string): void {
+    this.set({ target: null, node: [], onTarget: true, group });
+  }
+
   /** Select `state` now and ask the workspace to show it in the Inspector */
   show(state: SelectionState): void {
     this.set(state);
@@ -77,6 +84,7 @@ class Selection implements SelectionState {
     this.spread = settled.spread ?? false;
     this.entry = settled.entry ?? null;
     this.book = settled.book ?? false;
+    this.group = settled.group ?? null;
   }
 
   /** A click on the stage that picks nothing: the spread is selected (the tree, the stage and the Inspector follow) */
@@ -92,7 +100,7 @@ class Selection implements SelectionState {
 
   /** The selection as a plain value */
   snapshot(): SelectionState {
-    return { target: this.target, node: this.node, onTarget: this.onTarget, spread: this.spread, entry: this.entry, ...(this.book ? { book: true } : {}) };
+    return { target: this.target, node: this.node, onTarget: this.onTarget, spread: this.spread, entry: this.entry, ...(this.book ? { book: true } : {}), ...(this.group ? { group: this.group } : {}) };
   }
 
   level(hasTree: boolean): SelectionLevel {

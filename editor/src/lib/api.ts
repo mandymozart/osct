@@ -1,6 +1,6 @@
 import type { BookAppearance, EntityData, EntityRefData, GameConfiguration, PassData } from "@engine/types";
 import type { EnvironmentData } from "@shared/types/environment";
-import type { AssetType, PrintPlacement, SourceOfTruth, SpreadFormat } from "@shared/types/game-config";
+import type { AssetType, PrintPlacement, SceneLayout, SourceOfTruth, SpreadFormat, SurfaceData } from "@shared/types/game-config";
 import type {
   Asset,
   AssetCreditsSaved,
@@ -21,6 +21,8 @@ import type {
   EntrySaved,
   EnvironmentSaved,
   EnvironmentsInfo,
+  GroupPlanned,
+  GroupSaved,
   ImportPreview,
   ImportResult,
   MatterResult,
@@ -32,9 +34,14 @@ import type {
   PluginUsages,
   PublishResult,
   RemovalResult,
+  SceneAdded,
+  ScenePreset,
+  SceneSaved,
+  ScenesMoved,
   SpreadAdded,
   SpreadSaved,
   TargetSaved,
+  Ungrouped,
 } from "@shared/api/editor";
 import { apiErrorFields } from "@shared/api/errors";
 import { imageUseQuery, type ImageFit, type ImageUse } from "@shared/api/images";
@@ -571,6 +578,38 @@ export const putSpread = (bookId: string, spreadId: string, body: { title?: stri
  */
 export const addSpread = (bookId: string, body: { format: Exclude<SpreadFormat, "spread">; title?: string } | { format: "spread"; after?: string; id?: string; title?: string }) =>
   api<SpreadAdded>("POST", `/editor/books/${encodeURIComponent(bookId)}/spreads`, body);
+
+// ── Scenes (#307, docs/server.md "Scenes"): the Scenes panel and the book page ──────────────────────
+
+/** Where a scene goes: after or before a scene, or at a position (0 = first) */
+export type ScenePlace = { after: string } | { before: string } | { position: number };
+
+/** A scene from a layout preset, placed anywhere (none: a cover first, the rest before the back cover) */
+export const addScene = (bookId: string, body: { preset: ScenePreset; title?: string; label?: string; group?: string } & Partial<ScenePlace>) =>
+  api<SceneAdded>("POST", `/editor/books/${encodeURIComponent(bookId)}/scenes`, body);
+
+/**
+ * Moves scenes as a block (in their order) – placed after / before a scene or at a position; `group` puts them into a
+ * group (`null`: out of theirs), left out they keep it. `apply: true` writes; without it the answer is the plan only.
+ */
+export const moveScenes = (bookId: string, body: { scenes: string[]; group?: string | null; apply?: boolean } & Partial<ScenePlace>) =>
+  api<ScenesMoved>("POST", `/editor/books/${encodeURIComponent(bookId)}/scenes/move`, body);
+
+/** A scene's surfaces (the whole list), layout, label or group; `apply` lets surfaces go that entries lie on */
+export const putScene = (bookId: string, sceneId: string, body: { surfaces?: SurfaceData[] | null; layout?: SceneLayout | null; label?: string | null; group?: string | null; apply?: boolean }) =>
+  api<SceneSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/scenes/${encodeURIComponent(sceneId)}`, body);
+
+/** A group of the picked scenes (they come together where the first of them is) */
+export const addGroup = (bookId: string, body: { label: string; scenes: string[]; id?: string; apply?: boolean }) =>
+  api<GroupPlanned>("POST", `/editor/books/${encodeURIComponent(bookId)}/groups`, body);
+
+/** A group's label */
+export const putGroup = (bookId: string, groupId: string, label: string) =>
+  api<GroupSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/groups/${encodeURIComponent(groupId)}`, { label });
+
+/** Ungroup: the group goes, its scenes stay in place and in order */
+export const deleteGroup = (bookId: string, groupId: string) =>
+  api<Ungrouped>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/groups/${encodeURIComponent(groupId)}`);
 
 /**
  * Removes a spread with everything on it, in two steps: without `confirm` the API answers 409 `confirm-delete` with

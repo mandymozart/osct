@@ -44,6 +44,7 @@
   import { entries } from "#lib/entries.svelte.js";
   import SpreadView from "./SpreadView.svelte";
   import BookPanel from "./BookPanel.svelte";
+  import GroupView from "./GroupView.svelte";
   import { bookEvents, bookVariables, pathOfName, rulesOf, subtreeNames, treeBehaviourIssues, withRules } from "#lib/behaviour-edit.js";
 
   /**
@@ -583,6 +584,9 @@
 
 {#if selection.book}
   <BookPanel {bookId} />
+{:else if selection.group}
+  <!-- A band of the Scenes panel (#307): the group -->
+  <GroupView {bookId} groupId={selection.group} />
 {:else if entry}
   <!-- The form stays while the Library picks its picture: its edits are its own -->
   {#if picking}<LibraryPanel {bookId} pick={picking} />{/if}

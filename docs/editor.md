@@ -200,58 +200,44 @@ Connecting an AI agent is a first step of working here, so it sits on the books 
 
 ## The book page
 
-`/editor/<book>/`: the book's title and author, then its spreads (#237), or – with the **Spreads | Pages** switch under
-the title – its [pages](#pages) (`?view=pages`, #251). The book's texts and settings
+`/editor/<book>/`: the book's title and author, then its **scenes** (#237, #307), or – with the **Scenes | Pages** switch
+under the title – its [pages](#pages) (`?view=pages`, #251; phase 3b of #307 turns page images into surface references
+and removes the switch). The book's texts and settings
 are the Inspector's (the top bar's book crumb in a spread, [Inspector: the book](#inspector-the-book)), its entries are
 found with the [book search](#the-book-search) and edited in their spread; the environment is its tab in the workspace.
 An old link with `?view=entries` or `?view=onboarding` shows the spreads. **Publish** with its target and where the book
 is live is in the top bar ([above](#publish-the-instances-own-environment)).
 
-### Spreads
+### Scenes
 
-The spreads as cards with the sheet of each as its preview (from the book's layout below its assets base – the
-Inspector's *assets* names it; without a layout the cards are text), their entries, targets and AR count.
+The book is an ordered list of **scenes** (#307, `agents/SCENES.md`); the book page shows them with the same cards as
+the [Scenes panel](#the-scenes-panel) under the stage (`SceneCards.svelte`, the model `scene-strip.ts`, the data and
+actions `scenes.svelte.ts`) – here in rows that wrap, each **group** a headed section (its label, scene count and target
+count, a warning above the loading window). A card is the scene's picture – the layout's sheet (from the book's layout
+below its assets base – the Inspector's *assets* names it) with the targets' prints and page images over it, or, without
+one, its surfaces drawn side by side with their labels – its name (the scene's label, its own title, else its pages) and
+its target count. Above the cards: the counts, **+ Scene…**, **Group** (Ctrl+G) and **Ungroup** (Ctrl+Shift+G).
 
-- **Print first or digital first** (#238, the book's source of truth – [Inspector: the book](#inspector-the-book)):
-  spreads are added and removed in the editor only for a **digital-first** book. A print-first book's spreads come from
-  its layout and an import: its page has no add tile and its cards' menus only *Open* – absent, not disabled; the API
-  refuses too (409 `print-first`). An imported book starts print first; the demo book is digital first.
-- **The add tile** ends the grid of a digital-first book: a double page's size, a dashed frame with a large **+** – the
-  place a new spread appears. It opens the **creation step** in its place, no browser dialog (`NewSpreadForm.svelte`,
-  its choices in `spread-edit.ts`): the **format** (a double page, the cover, the back cover – only those the book can
-  still take: one cover, one back), the **title** (empty: the title its pages give – *Pages 12–13*, *Cover*, *Back
-  cover*, see "Spread titles" below) and for a double page
-  **after** which spread it goes, with the pages it takes and whether later pages move; *Create*, *cancel*. A card's
-  *Add a double page after* opens the same step with that spread chosen. In the workspace the same step opens in the
-  panel from **+** after the last spread's › and from the tree's spread row menu; the new spread opens. A new double
-  page is empty (*New spread*, id
-  `spread-<n>`) and takes the two pages after the spread before it: **every later page is numbered on by two**, and the
-  entries on those pages (their `page`) and their targets' printed page (`print.page`) move with them, so each entry
-  stays on its spread. The book's layout does not move – a laid-out sheet is matched by its pages, so after an insertion
-  every card from the new spread on shows the sheet of its new page numbers (the new one the sheet the next spread had)
-  until a layout with the new pages is imported.
-- **The covers** are spreads of the format `cover` / `back` (content schema 2.3: page 0, and the page after the last),
-  made in the creation step while the book has none. A one-page spread's **format** (spread, cover, back) is chosen in
-  the Inspector's *spread* section; on a double page the select is disabled (only a one-page spread can be a cover) –
-  the reason is its help in the Info view.
-- **A card's menu** (#196): the card itself carries no buttons – the sheet is the content; a **right click** (a mouse), a
-  **long press** (a finger held still for half a second – the card's frame darkens and shrinks a little while it is
-  held; moving more than a few pixels is a scroll and cancels it, a tap still opens the spread) or the **menu key /
-  Shift+F10** on a focused card opens a small menu with *Open*, *Add a double page after* and *Remove* (the last two only
-  for a digital-first book), each with its icon. It is a WAI-ARIA menu: the first item has the focus, ↑ ↓ wrap, Home / End, a first letter jumps, Enter or Space
-  chooses, Esc, Tab, a click beside it or scrolling the page away close it, and the focus goes back to the card. A
-  disabled item stays in the menu with its reason under its word. The long press and the keys are
-  `editor/src/lib/context-menu.ts` (pure, tested) and `menu-trigger.ts`; the menu is the editor's one context menu
-  (`ContextMenu.svelte`), the tree's and the stage's too.
-- **Remove** takes out a spread **with everything on it** (#198), after the person saw what goes: the API's first step
-  answers the impact (nothing is removed), and the card shows it under its caption (`RemovalConfirm.svelte`, words from
-  `removal.ts`) – *Removes spread 4–5 with 3 entries, 3 targets, 2 entities.*, the later pages that move back, the
-  shared entities kept because other targets use them, *Library files are kept*, and, when files are used only there,
-  the option **Also delete the 2 files used only here** (off at first) with their names; the files used elsewhere are
-  listed as kept. *Remove spread 4–5* sends the confirmation (with the option), *Keep* or Esc keeps it – no browser
-  dialog. Should the book have changed meanwhile, the card shows the fresh impact to confirm again. A double page's later
-  pages are numbered back by its pages, a cover moves nothing; the spread the book opens on (`initialSpreadId`) cannot
-  go – the reason is shown under the disabled item.
+- **Open, pick, drag** as in the Scenes panel: a click opens the scene's stage, Shift+click picks a range, Ctrl+click
+  one more; the picked cards – or a group's head – are dragged to a new place, a gold line shows where they land, over a
+  group's scene they join the group. The drop is written at once (`POST …/scenes/move`) – nothing renumbers.
+- **Print first and digital first alike** (#307 phase 2 lifted #238's restriction): every book adds and removes scenes.
+- **+ Scene…** and the dashed **+** tile at the end add a scene from a **layout preset** – single page, double page,
+  front cover (goes first), back cover (goes last), fold-out (three pages), wall (`POST …/scenes`, `SCENE_PRESETS`).
+- **A card's menu** (#196): the card carries no buttons – the picture is the content; a **right click**, a **long
+  press** (a finger held still for half a second; moving is a drag or a scroll and cancels it) or the **menu key /
+  Shift+F10** on a focused card opens *Open*, *Add a scene after…* (the presets, placed right after it) and *Remove*. It
+  is the editor's one context menu (`ContextMenu.svelte`, `context-menu.ts`, `menu-trigger.ts`): the first item has the
+  focus, ↑ ↓ wrap, Home / End, a first letter jumps, Enter or Space chooses, Esc, Tab or a click beside it close it, and
+  the focus goes back to the card. A disabled item stays with its reason under its word.
+- **Remove** takes out a scene **with everything on it** (#198), after the person saw what goes: the API's first step
+  answers the impact (nothing is removed), shown above the cards (`RemovalConfirm.svelte`, words from `removal.ts`) –
+  its entries, targets, entities, the shared entities kept, *Library files are kept*, and, when files are used only
+  there, the option **Also delete the n files used only here** (off at first). *Remove …* sends the confirmation, *Keep*
+  or Esc keeps it – no browser dialog; a book changed meanwhile shows the fresh impact to confirm again. The scene the
+  book opens on (`initialSpreadId`) cannot go – the reason is shown under the disabled item. Nothing renumbers.
+- **The workspace** still has the older creation step for a spread (`NewSpreadForm.svelte`: a double page, the cover, the
+  back cover; from **+** after the last spread's › and the tree's spread row menu, for a digital-first book).
 - **Page images** (#251, [below](#pages)) lie over a card's sheet where its pages have one: a double page's halves, a
   cover's whole card, a single page's card. A single left-hand page (the last printed one) shows the left half of its
   sheet – the half with the page.
@@ -367,6 +353,39 @@ every sheet height without scrolling (#180).
 When the draft cannot be loaded (the API is down, the book is not there) the stage area says why with **Retry** instead
 of *Building the stage…*; an action that fails (a removal, a target image, the reload after a change) shows its error
 over the stage until dismissed (#208).
+
+### The Scenes panel
+
+Under the stage, on a desktop, the stage column ends in the **Scenes panel** (#307 phase 3a, `ScenesPanel.svelte`; the
+design `agents/design/scenes-filmstrip.html`): the experience's scenes as a **filmstrip** – the row of stops the reader's
+bottom switcher shows. The tree keeps the left column and the Inspector the right.
+
+- **The head**: ▾ collapses the panel to its head (▴ opens it), the book's name, how many scenes and groups and how many
+  are picked; **+ Scene…** adds a scene from a layout preset after the open one (a front cover goes first, a back cover
+  last) and opens it; **Group** (Ctrl+G) and **Ungroup** (Ctrl+Shift+G); − + the zoom of the cards. The **sash** above it
+  is dragged (or ↑ ↓ when focused) to make the panel taller; a double-click restores the default. Open, height and zoom
+  are remembered in this browser (`osct-editor-scenes`).
+- **The cards** (`SceneCards.svelte`, the same as the book page's): the scene's picture, its name and target count; the
+  **open scene is framed gold**, the **picked** ones blue. A **click** opens a scene (and picks it alone), **Shift+click**
+  picks the range from the last one, **Ctrl+click** adds or removes one. With the focus on a card ← → move the pick
+  (Shift: extend it), **Enter** opens. The **+** at the strip's end adds a scene at the end.
+- **Groups are bands** over their scenes: the label, the scene count and the target count – in the warning colour with ⚠
+  above the **loading window** (`GROUP_WINDOW_TARGETS` in `shared/api/editor.ts`, a first guess of 20 until #300
+  measures the window on the phone). A **click on a band** selects the group: the Inspector shows it
+  ([Inspector: a group](#inspector-a-group)).
+- **Drag** a card – the picked ones go together, as a block in their order – or a **band** (the whole group) along the
+  strip: a ghost follows the pointer, a **gold line** shows where they land and the band they join lights up; near the
+  strip's ends it scrolls. Over a group's scene a dropped scene **joins the group**, over a scene of no group it leaves its
+  group; a band keeps its group and lands between groups only. Esc ends a drag without a change. The drop is the
+  confirmation: `POST …/scenes/move` with `apply: true` in one go – nothing renumbers, the draft follows (‹ › and the
+  stage keep the new order).
+- **Ctrl+G** makes a group of the picked scenes (`POST …/groups`, label *Group n*; they come together where the first
+  is) and selects it, so its label can be typed at once. **Ctrl+Shift+G**: the picked scenes leave their group in place
+  – a group all of whose scenes are picked goes as a whole (`DELETE …/groups/{id}`) –, or, with a group selected and no
+  grouped scene picked, that group goes. Both keys work anywhere on the page but in a field.
+- The pure logic – runs and bands, counts, picking, the arrow keys, where a drop lands, the order and the move request it
+  makes, the gold line – is `editor/src/lib/scene-strip.ts`, tested in `lib/__tests__/scene-strip.test.ts`.
+- On a phone the panel is not shown yet (the sheet takes the bottom); the book page has the same cards.
 
 ### Autosave
 
@@ -841,10 +860,23 @@ digital first, the editor is the truth and adds and removes spreads) and where i
 (*assets*, the import's base; empty: the draft's origin). The crumb stays underlined while the book is selected. A tap in
 the tree or on the stage selects something else again.
 
+### Inspector: a group
+
+A band of the Scenes panel clicked (#307 phase 3a, `panels/GroupView.svelte`, `selection.group`): the group's **label**
+(saved by itself, `PUT …/groups/{id}`), its **scenes** (the first and the last), its **switcher** stop (one stop, its
+label), its **targets** against the loading window with a meter (warning colour above it, with a note), the **window** –
+*whole group* while it fits, else *by order* – shown only: the content has no field for it yet (`GroupData` is id and
+label), and **the scenes in the group** with their targets, each a link that opens it, and **Ungroup** (the group goes,
+its scenes stay in place).
+
 ### Inspector: the spread
 
 With the spread selected the Inspector shows `SpreadView.svelte` (#227, #229 – the Stage tab's sections, moved there):
 
+- *scene* and *surfaces* (#307 phase 3a, `SceneSection.svelte`) – above the spread's own: the scene's **label** (what the
+  reader's switcher and lists show; empty: its pages), its **layout** (fixed / free), its **group** (or its own stop) and
+  its targets of 10; then every **surface** with its side, its size in mm and its **label** as printed. Each field saves
+  itself (`PUT …/scenes/{id}` – a surface label with the whole list); reference images per surface come with phase 3b.
 - *spread* – open on a first visit: title, pages, the format (the one control, saved to the draft), the
   post-processing in effect (the whole book's passes or the spread's own, and which) and the book's environment, or
   none – the stage's HDRI – with *edit* to the Environment tab. Closed: *spread · The door · spread*.

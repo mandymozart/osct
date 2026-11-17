@@ -4,6 +4,27 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-17 – Scenes phase 3a: the Scenes panel, a filmstrip under the stage (#307)
+- The editor's scene organisation is one set of cards (`SceneCards.svelte`) in two layouts: the **strip** at the bottom
+  of the workspace's stage column (`ScenesPanel.svelte`, desktop only for now) and the book page's **grid** (groups as
+  headed sections) – one model (`scene-strip.ts`, pure, tested), one store (`scenes.svelte.ts`: the book tree, picks,
+  the actions). The book page's old spreads grid and its add tile / creation step went with it; the workspace keeps
+  `NewSpreadForm` (› +, the tree's row menu) for now.
+- A drop is written at once (`POST …/scenes/move`, `apply: true`) – no plan step in the UI; the drop is the confirmation.
+  A scene dropped over a band's scene joins that group, over a scene of no group it leaves its group; a dragged band
+  keeps its group (no `group` sent) and only lands between runs. Ungroup of picked scenes deletes a group whose scenes
+  are all picked (no empty group stays in `groups_json`), else moves the picked out (`group: null`).
+- A group is a selection of its own (`selection.group`) → Inspector `GroupView.svelte`. **The window "whole group / by
+  order" is display-only**: `GroupData` has only id and label, no server field – a stored setting needs a schema MINOR
+  and a server field (with #300 or phase 5).
+- `GROUP_WINDOW_TARGETS = 20` in `shared/api/editor.ts` is a guess (TODO #300: the window measured on the phone).
+- Editor tokens `--accent` (gold), `--accent-background`, `--pick` (blue), `--warn` added to `editor/src/app.css`.
+- `help.svelte.ts` clears the Info view after a focusout in a microtask: a focused card destroyed while Svelte renders
+  (the strip rebuilt after a move) threw `state_unsafe_mutation` from the synchronous focusout.
+- [ ] The Scenes panel on a phone (the sheet takes the bottom) – after 3b.
+- [ ] Card thumbnails are the layout sheets / page images matched by the scenes' derived pages; reference images per
+  surface replace them in 3b. A scene made here (a wall, a fold-out) draws its surfaces.
+
 ## 2026-11-17 – the marginalia card starts at the find, every time (#285, 1.100.0)
 
 - Tilman, trying staging: the card did not show on page 4's top-left picture – that is p004-1 "Cheap tricks", a

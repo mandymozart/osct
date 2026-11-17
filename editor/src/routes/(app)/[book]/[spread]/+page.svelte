@@ -38,6 +38,10 @@
   import ContextMenu from "#lib/components/ContextMenu.svelte";
   import { clampSheet, clampWidth, LIMITS, maxWidth, SHEET_MAX, sheetFill, snapSheet, stepsOnTop, treeStartsOpen, widths, wordTabs, type Column } from "#lib/widths.svelte.js";
   import { readStored, writeStored } from "#lib/storage.js";
+  import ScenesPanel from "#lib/ScenesPanel.svelte";
+  import { scenes } from "#lib/scenes.svelte.js";
+  import { fetchBookLayout } from "#lib/sheet-preview.js";
+  import type { StageLayout } from "#lib/stage/stage-layout.js";
 
   /**
    * The workspace: the **tree** of the spread at the left (a 3D tool's outliner, collapsible to its bar), the stage
@@ -48,7 +52,9 @@
    * the panel's left edge are dragged to resize the columns (`widths`; the Code tab has its own, wider width), a
    * double-click on an edge restores the default; the stage's view follows its container. On a phone the sheet's head
    * (a grip and the tab row) is dragged up or down to any height and snaps when let go (#155); a double tap on the
-   * grip restores the default height.
+   * grip restores the default height. Under the stage, on a desktop, the **Scenes panel** (#307 phase 3a,
+   * `ScenesPanel.svelte`): the book's scenes as a filmstrip – a card opens its scene, a band selects its group (the
+   * Inspector shows it), a drag reorders; the draft follows its changes (`scenes.version`).
    */
   const bookId = $derived(page.params.book!);
   const spreadId = $derived(page.params.spread!);
@@ -290,6 +296,8 @@
       await content.load(bookId);
       await stage?.refresh();
       void library.refresh();
+      // The Scenes panel's counts (targets per scene)
+      void scenes.load(bookId);
     } catch (e) {
       failed(e);
     }
@@ -376,6 +384,38 @@
     const images = pageImages.bookId === bookId ? pageImages.byKey : {};
     stage?.setPageImages(images);
   });
+
+  // ── the Scenes panel (#307): the strip's pictures are the book page's (the layout's sheets, the page images); a change
+  // of the order, a group or a new scene reaches the draft, so ‹ › and the stage follow ──
+  let sheetLayout = $state<StageLayout | null>(null);
+  $effect(() => {
+    const base = content.bookId === bookId ? content.assetsBase : null;
+    if (base === null) return;
+    let live = true;
+    void fetchBookLayout(base).then(layout => { if (live) sheetLayout = layout; });
+    return () => { live = false; };
+  });
+  let scenesSeen = untrack(() => scenes.version);
+  $effect(() => {
+    const version = scenes.version;
+    if (version === scenesSeen) return;
+    scenesSeen = version;
+    untrack(() => void content.load(bookId).catch(failed));
+  });
+  /** A card opens its scene; a scene just made is in the draft first */
+  const openScene = async (id: string) => {
+    if (id === spreadId) return;
+    try {
+      if (!content.spread(id)) await content.load(bookId);
+    } catch (e) {
+      return failed(e);
+    }
+    void goto(resolve(`${bookId}/${id}/`));
+  };
+  const selectGroup = (id: string) => {
+    selection.selectGroup(id);
+    openTab("inspector");
+  };
 
   // ── autosave (#259): a target's live tree is an edit the draft does not hold yet – the Inspector's rows, a file for
   // a node, the tree's moves, a gizmo drag – and is saved by itself, whichever panel is open ──
@@ -760,6 +800,13 @@
     {/if}
   </div>
 
+  {#if !narrow}
+    <div class="scenes-row">
+      <ScenesPanel {bookId} bookTitle={scenes.tree?.book.title ?? ""} current={spreadId} selectedGroup={selection.group} {sheetLayout}
+        pageImages={pageImages.bookId === bookId ? pageImages.byKey : {}} assetsBase={content.assetsBase ?? ""} onopen={id => void openScene(id)} onselectgroup={selectGroup} />
+    </div>
+  {/if}
+
   <aside class="panel" data-app-ui>
     {#if !narrow}{@render edge(panelColumn, "Panel edge")}{/if}
     <!-- On a phone the head is the sheet's grip: a drag sets its height, a tap on a tab still opens or closes it -->
@@ -820,7 +867,13 @@
 </div>
 
 <style>
-  .workspace { position: fixed; inset: var(--top-height) 0 0; display: grid; grid-template-columns: var(--tree-width) minmax(0, 1fr) var(--panel-width); background: var(--stage-background); }
+  .workspace { position: fixed; inset: var(--top-height) 0 0; display: grid; grid-template-columns: var(--tree-width) minmax(0, 1fr) var(--panel-width);
+    grid-template-rows: minmax(0, 1fr) auto; background: var(--stage-background); }
+  /* The tree and the panel take the whole height; the stage column ends in the Scenes panel (#307) */
+  .workspace > .tree { grid-column: 1; grid-row: 1 / 3; }
+  .workspace > .panel { grid-column: 3; grid-row: 1 / 3; }
+  .workspace > .stage { grid-column: 2; grid-row: 1; }
+  .scenes-row { grid-column: 2; grid-row: 2; min-width: 0; display: flex; flex-direction: column; }
   .workspace.tree-closed { --tree-width: auto; }
   .workspace.dragging { cursor: col-resize; user-select: none; }
   .tree { position: relative; display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-right: 1px solid var(--line); color: var(--text); }
@@ -881,6 +934,7 @@
 
   @media (max-width: 47.9rem) {
     .workspace { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+    .workspace > .stage, .workspace > .panel { grid-column: 1; grid-row: auto; }
     .tree { display: none; }
     .workspace.sheet-dragging { cursor: row-resize; user-select: none; grid-template-rows: minmax(0, 1fr) var(--sheet-row); background: var(--sheet-fill, var(--stage-background)); }
     /* The stage (a WebGL canvas) resizes once, on release – not while the sheet is dragged */

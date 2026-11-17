@@ -1,12 +1,12 @@
 /**
  * Adding and removing spreads – what the API allows (docs/server.md "Spreads made in the editor"), so the editor offers
- * only what will be accepted: only a digital-first book's spreads are added or removed (#238 – a print-first book's come
- * from its layout, the controls are absent); a double page follows any spread but the back cover, a cover and a back
+ * only what will be accepted: a double page follows any spread but the back cover, a cover and a back
  * cover only while the book has none; any spread but the one the book opens on can go, with everything on it – after
- * the person saw the API's impact and confirmed it (`removal.ts`, #198). A double page added or removed renumbers the
- * later pages. The creation step (`NewSpreadForm.svelte`) reads the formats, the place and the pages from here.
+ * the person saw the API's impact and confirmed it (`removal.ts`, #198). Since scenes (#307) print-first books take
+ * them too and nothing renumbers – the book page adds and removes scenes (`scenes.svelte.ts`); the workspace's creation
+ * step (`NewSpreadForm.svelte`) reads the formats, the place and the pages from here.
  */
-import { sourceOfTruthOf, type BookData, type SpreadFormat } from "@shared/types/game-config";
+import type { SpreadFormat } from "@shared/types/game-config";
 
 export interface EditableSpread {
   id: string;
@@ -27,9 +27,6 @@ export const followBlockedBy = (spread: EditableSpread): string | null =>
 /** Why the spread cannot be removed, or null when it can: only the spread the book opens on stays */
 export const removeBlockedBy = (spread: EditableSpread, initialSpreadId: string | null | undefined): string | null =>
   spread.id === initialSpreadId ? "The book opens on this spread." : null;
-
-/** Spreads are added and removed in the editor only for a digital-first book (#238) */
-export const canEditSpreads = (book: Pick<BookData, "sourceOfTruth"> | null | undefined): boolean => sourceOfTruthOf(book) === "digital";
 
 /** The formats the book can still take: a double page always, the cover and the back cover while it has none */
 export const creatableFormats = (spreads: readonly Pick<EditableSpread, "format">[]): SpreadFormat[] => [

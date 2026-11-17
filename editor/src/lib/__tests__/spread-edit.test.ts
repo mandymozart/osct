@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canFollow, followBlockedBy, removeBlockedBy, type EditableSpread, canEditSpreads, creatableFormats, defaultAfter, newPagesAfter } from "../spread-edit";
+import { canFollow, followBlockedBy, removeBlockedBy, type EditableSpread, creatableFormats, defaultAfter, newPagesAfter } from "../spread-edit";
 
 const spread = (id: string, firstPage: number, lastPage: number, format?: string, entries: unknown[] = []): EditableSpread => ({ id, title: id, firstPage, lastPage, format, entries });
 
@@ -32,13 +32,6 @@ describe("print first or digital first; the creation step (#238)", () => {
     { id: "s2", title: "3–4", firstPage: 3, lastPage: 4, entries: [] },
     { id: "back", title: "Back", firstPage: 5, lastPage: 5, format: "back", entries: [] },
   ];
-
-  it("only a digital-first book's spreads are added and removed – none is print", () => {
-    expect(canEditSpreads({ sourceOfTruth: "digital" })).toBe(true);
-    expect(canEditSpreads({ sourceOfTruth: "print" })).toBe(false);
-    expect(canEditSpreads({})).toBe(false);
-    expect(canEditSpreads(null)).toBe(false);
-  });
 
   it("offers only the formats the book can still take", () => {
     expect(creatableFormats(book)).toEqual(["spread"]);
