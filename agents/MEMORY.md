@@ -4,6 +4,12 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-17 – Scenes instead of pages: the concept (#307)
+Tilman: an experience is an ordered list of scenes; a book is one kind. Scenes have surfaces (any number – a fold-out
+makes three, a room many) with labels written as printed and reference images; everything links by id, order is the
+position, nothing renumbers; groups are one scroller stop and one loading window. Concept and migration:
+`agents/SCENES.md`. Until it lands, page numbers stay the glue (see its "Today").
+
 ## 2026-11-17 – the production server is ready; Tilman makes the SSH keys (#6, #7)
 - asger (mail to Tilman, 2026-11-17): the server 49.13.13.159 is ready – user `osct`, the internal Docker networks
   `osct` and `osct-staging`, kamal-proxy v0.9; `kamal setup` / `kamal deploy` from Actions "should just work". Tilman

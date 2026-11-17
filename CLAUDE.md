@@ -9,6 +9,7 @@ Before working, read:
 - `agents/RULES.md` – project rules (stack, naming, versions, issues, what must not be removed)
 - `agents/PLAN.md` – the restructuring plan (phases, checkboxes, open decisions)
 - `agents/MEMORY.md` – dated decisions and open items
+- `agents/SCENES.md` – the scene concept (an experience is an ordered list of scenes with surfaces; replaces page numbers, #307)
 - `agents/STRATEGY.md` – where this goes: scutoons-animus-ar, a white-label core; data sovereignty (milestone 2)
 - `agents/ORCHESTRATION.md` – OSCT's specifics for orchestrating sessions and night shifts (the general rules: `C:\Development\ORCHESTRATION.md`)
 - `agents/HANDOFF.md` – an orchestrator session starts here: where the last one left off, what is next, what waits for Tilman
