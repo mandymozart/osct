@@ -7,6 +7,16 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.100.0 – 2026-11-17
+
+### Changed
+- **The marginalia card starts by itself** (#285, Tilman: *"maybe just target trigger, so it immediately starts – its
+  confusing otherwise"*): a glossary target found in scan mode flies its card at once, every time it is found anew,
+  and the entry opens when the card has landed – no tap. "New marginalia unlocked" shows on the first find only. Once
+  the card opened its entry it flies again only after the page has left the camera, so coming back to the scan with
+  the page in view does not open the entry again. A tap on the found page still opens the entry directly; it takes no
+  taps while the card flies.
+
 ## 1.99.0 – 2026-11-17
 
 ### Added

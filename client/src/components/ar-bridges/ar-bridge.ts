@@ -1,11 +1,15 @@
 import { GameStoreService, PreloaderService, SubtitleService, UpdateService } from "@/services";
 import { type ArError, type ArStatus, CameraPermissionStatus, CARD_FLIGHT_EVENT, type CardFlightDetail, ErrorCode, GameMode, type IArScene, type IGame, LoadingState, TARGET_UNLOCKED_EVENT } from "@/types";
-import { getTarget } from "@/utils/game-config";
+import { getEntry, getTarget } from "@/utils/game-config";
+import { EntryCategory } from "@/types";
 import { bookCoverUrl } from "@/utils/book-cover";
 import { LazyArScene } from "./lazy-ar-scene";
 import { reportArError } from "@engine/utils/camera-debug";
 import { getPreparedWindow } from "@engine/utils/prepared-spreads";
 import { getSceneState } from "./utils/scene-state";
+
+/** Lost this long after coming back to the scan, a target's card may fly again at its next find */
+const REFLY_AFTER_RETURN_MS = 1500;
 
 /** Delay after startup before the AR chunk and the current spread are preloaded in idle time */
 const WARM_UP_DELAY_MS = 1500;
@@ -32,6 +36,12 @@ export class ArBridge extends HTMLElement {
   private game: Readonly<IGame>;
   private scene: IArScene | null = null;
   private cleanups: Array<() => void> = [];
+  /** The target whose card flies now (one at a time) */
+  private flying: string | null = null;
+  /** Targets whose card flew and opened the entry – not again until the page has left the camera */
+  private flown = new Set<string>();
+  /** When the reader last came (back) to the scan */
+  private scanSince = Date.now();
 
   /** Test seam: use this scene instead of creating one */
   static sceneFactory: ((container: HTMLElement) => IArScene) | null = null;
@@ -49,13 +59,10 @@ export class ArBridge extends HTMLElement {
     const scene = this.scene;
     const game = this.game;
 
-    const onCardFlight = (event: Event) => this.handleCardFlight(event as CustomEvent<CardFlightDetail>);
-    document.addEventListener(CARD_FLIGHT_EVENT, onCardFlight);
     this.cleanups.push(
-      () => document.removeEventListener(CARD_FLIGHT_EVENT, onCardFlight),
       scene.on("status", (status, error) => this.handleStatus(status, error)),
       scene.on("targetFound", id => this.handleFound(id)),
-      scene.on("targetLost", id => game.targets.removeTarget(id)),
+      scene.on("targetLost", id => this.handleLost(id)),
       scene.on("targetTapped", (id, used) => this.handleTap(id, used)),
       scene.on("scanning", scanning => showScanning(scanning)),
       scene.on("subtitle", text => SubtitleService.getInstance().show(text)),
@@ -68,7 +75,10 @@ export class ArBridge extends HTMLElement {
       game.subscribeToProperty("currentSpread", id => {
         if (id) void scene.load(id);
       }),
-      game.subscribeToProperty("mode", () => this.applySceneState()),
+      game.subscribeToProperty("mode", mode => {
+        if (mode === GameMode.SCAN) this.scanSince = Date.now();
+        this.applySceneState();
+      }),
       game.subscribeToProperty("currentRoute", () => this.applySceneState()),
     );
 
@@ -120,9 +130,54 @@ export class ArBridge extends HTMLElement {
   private handleFound(targetId: string) {
     const wasUnlocked = this.game.history.isUnlocked(targetId);
     this.game.targets.addTarget(targetId);
-    if (wasUnlocked || !this.game.history.isUnlocked(targetId)) return;
-    if (getTarget(targetId)?.entity) this.scene?.celebrate(targetId);
-    document.dispatchEvent(new CustomEvent(TARGET_UNLOCKED_EVENT, { detail: { targetId } }));
+    if (!wasUnlocked && this.game.history.isUnlocked(targetId)) {
+      if (getTarget(targetId)?.entity) this.scene?.celebrate(targetId);
+      document.dispatchEvent(new CustomEvent(TARGET_UNLOCKED_EVENT, { detail: { targetId } }));
+    }
+    this.flyCard(targetId);
+  }
+
+  /**
+   * A lost target: out of the store; in scan mode, a while after the reader came back to it, its card may fly again
+   * (right after the return the tracker may report it lost and found again – that is no new find)
+   */
+  private handleLost(targetId: string) {
+    this.game.targets.removeTarget(targetId);
+    if (this.game.state.mode === GameMode.SCAN && Date.now() - this.scanSince > REFLY_AFTER_RETURN_MS) this.flown.delete(targetId);
+  }
+
+  /**
+   * The marginalia card (#285): a glossary target found in scan mode flies its card at once – every time it is found
+   * anew – and its entry opens when the card has landed. It flies as the printed picture and becomes the entry's own
+   * when it hits the screen; its back is the book's cover (when the content has a print layout). Once it opened its
+   * entry it does not fly again until the page left the camera (`handleLost`), so coming back to the scan with the
+   * page still in view does not open the entry again. Reduced motion: the entry opens at once.
+   */
+  private flyCard(targetId: string) {
+    const scene = this.scene;
+    if (!scene || this.game.state.mode !== GameMode.SCAN || this.flying || this.flown.has(targetId)) return;
+    const target = getTarget(targetId);
+    const entry = target ? getEntry(target.entryId) : undefined;
+    if (!target || !entry || target.entity || entry.category !== EntryCategory.Glossary || !target.imageSrc) return;
+    this.flown.add(targetId);
+    const open = () => this.game.router.navigate("/entry", { key: "entryId", value: entry.id });
+    if (typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches) return open();
+    const front = target.imageSrc;
+    const reveal = entry.image && entry.image !== front ? entry.image : undefined;
+    const announce = (flying: boolean) =>
+      document.dispatchEvent(new CustomEvent<CardFlightDetail>(CARD_FLIGHT_EVENT, { detail: { targetId, flying } }));
+    this.flying = targetId;
+    announce(true);
+    void bookCoverUrl()
+      .then(back => scene.flyCard(targetId, { front, reveal, back: back ?? undefined }))
+      .catch(() => false)
+      .then(landed => {
+        this.flying = null;
+        announce(false);
+        if (landed && this.isConnected && this.game.state.mode === GameMode.SCAN) open();
+        // Cut short (lost before it took off, the scene stopped): it may fly at the next find
+        else if (!landed) this.flown.delete(targetId);
+      });
   }
 
   /**
@@ -133,16 +188,6 @@ export class ArBridge extends HTMLElement {
     if (this.game.state.mode !== GameMode.SCAN || used) return;
     const target = getTarget(targetId);
     if (target) this.game.router.navigate("/entry", { key: "entryId", value: target.entryId });
-  }
-
-  /** A glossary picture tapped for the first time (#285): the scene flies its card, the indicator opens the entry after */
-  private handleCardFlight(event: CustomEvent<CardFlightDetail>) {
-    const scene = this.scene;
-    if (!scene || this.game.state.mode !== GameMode.SCAN) return;
-    event.preventDefault();
-    const { targetId, front, reveal } = event.detail;
-    // The card's back is the book's cover (when the content has a print layout)
-    event.detail.respond(bookCoverUrl().then(back => scene.flyCard(targetId, { front, reveal, back: back ?? undefined })));
   }
 
   private applySceneState() {

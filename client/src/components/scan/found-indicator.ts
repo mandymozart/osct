@@ -1,5 +1,5 @@
 import { GameStoreService } from "@/services";
-import { CARD_FLIGHT_EVENT, type CardFlightDetail, ENTITY_UNLOCK_MS, EntryCategory, GameMode, type IGame, momentDuration, type Target, TARGET_UNLOCKED_EVENT } from "@/types";
+import { CARD_FLIGHT_EVENT, type CardFlightDetail, ENTITY_UNLOCK_MS, GameMode, type IGame, momentDuration, type Target, TARGET_UNLOCKED_EVENT } from "@/types";
 import { getBook, getEntry, getTarget } from "@/utils/game-config";
 import { adoptDesignStyles } from "@/styles";
 import { t } from "i18next";
@@ -23,8 +23,8 @@ export const getIndicatorTarget = (trackedTargetIds: readonly string[]): Target 
  * Found-target indicator: no picture of its own (#297) – the page in the camera picture is the picture, the card flight
  * (#285) the one animation. While a target without an AR entity is found in scan mode it lays a transparent tap area
  * over the middle of the screen: a tap opens the entry view (`/entry`) in consultation mode, which marks the entry
- * consulted. A glossary entry not consulted yet flies its card first (CARD_FLIGHT_EVENT – `<ar-bridge>` asks the scene),
- * "New marginalia unlocked" shows with it, and the entry opens when it lands. Reduced motion: the entry opens at once.
+ * consulted. A glossary target's card flies by itself as soon as it is found (#285, `<ar-bridge>`); meanwhile the tap
+ * area takes no taps (CARD_FLIGHT_EVENT) and the bridge opens the entry when the card lands.
  * On unlock (the first find of a target, TARGET_UNLOCKED_EVENT from `<ar-bridge>`) it shows the gold shimmering
  * "New marginalia unlocked" (the sound comes from the TargetManager); for targets with an AR entity for as long as the
  * entity's reveal takes: the duration of the look the book names for it (ENTITY_UNLOCK_MS where only a plugin's code
@@ -57,6 +57,7 @@ export class FoundIndicator extends HTMLElement {
     );
     this.shadowRoot?.addEventListener("click", this.handleClick);
     document.addEventListener(TARGET_UNLOCKED_EVENT, this.handleUnlocked);
+    document.addEventListener(CARD_FLIGHT_EVENT, this.handleCardFlight);
     this.update();
   }
 
@@ -65,6 +66,7 @@ export class FoundIndicator extends HTMLElement {
     this.cleanups = [];
     this.shadowRoot?.removeEventListener("click", this.handleClick);
     document.removeEventListener(TARGET_UNLOCKED_EVENT, this.handleUnlocked);
+    document.removeEventListener(CARD_FLIGHT_EVENT, this.handleCardFlight);
     window.clearTimeout(this.unlockTimer);
   }
 
@@ -110,9 +112,8 @@ export class FoundIndicator extends HTMLElement {
           opacity: 0;
           transition: opacity ${LABEL_FADE_MS}ms ease;
         }
-        /* Shown on the unlock and while the card flies (#297); the shimmer is the shared .gold.shimmer (#280) */
-        :host([unlocking]) .label,
-        :host([flying]) .label { opacity: 1; }
+        /* Shown on the unlock only (the first find, #285 / #297); the shimmer is the shared .gold.shimmer (#280) */
+        :host([unlocking]) .label { opacity: 1; }
         /* The tap area: transparent, where the found page sits in the camera picture (no picture, frame or shadow, #297) */
         button {
           display: block;
@@ -137,30 +138,14 @@ export class FoundIndicator extends HTMLElement {
 
   private handleClick(event: Event) {
     const target = this.target;
+    // While the marginalia card flies (#285) the bridge opens the entry when it lands
     if (!target || this.hasAttribute("flying") || !(event.target as HTMLElement).closest("button")) return;
-    const flown = this.flyCard(target);
-    if (!flown) return this.open(target.entryId);
-    this.setAttribute("flying", "");
-    void flown.catch(() => false).then(() => {
-      this.removeAttribute("flying");
-      this.open(target.entryId);
-    });
+    this.open(target.entryId);
   }
 
-  /** The card flight for a glossary entry not consulted yet, null when there is none (the entry opens at once) */
-  private flyCard(target: Target): Promise<boolean> | null {
-    const entry = getEntry(target.entryId);
-    // It flies as the printed picture and becomes the entry's own when it hits the screen
-    const front = target.imageSrc;
-    const reveal = entry?.image && entry.image !== front ? entry.image : undefined;
-    if (target.entity || !entry || !front || entry.category !== EntryCategory.Glossary) return null;
-    if (this.game.history.isConsulted(entry.id)) return null;
-    if (typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
-    let flown: Promise<boolean> | null = null;
-    const detail: CardFlightDetail = { targetId: target.id, front, reveal, respond: promise => (flown = promise) };
-    const event = new CustomEvent(CARD_FLIGHT_EVENT, { detail, cancelable: true });
-    return document.dispatchEvent(event) ? null : flown;
-  }
+  private handleCardFlight = (event: Event) => {
+    this.toggleAttribute("flying", (event as CustomEvent<CardFlightDetail>).detail.flying);
+  };
 
   /** Shows "New marginalia unlocked"; the indicator stays tappable */
   private showUnlock(target: Target) {

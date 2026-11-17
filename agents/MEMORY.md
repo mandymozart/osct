@@ -4,6 +4,19 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-17 – the marginalia card starts at the find, every time (#285, 1.100.0)
+
+- Tilman, trying staging: the card did not show on page 4's top-left picture – that is p004-1 "Cheap tricks", a
+  **Link** (the card is glossary only); the page's glossary target p004-2 lies at the bottom. Then: *"they should every
+  time do the reveal. just found has the new unlocked text"* and *"maybe just target trigger, so it immediately starts
+  … its confusing otherwise"*.
+- So the bridge flies the card on `targetFound` (no tap), every new find, and opens the entry when it lands. Guard
+  against a loop: after a flight opened its entry, the target flies again only after a `targetLost` in scan mode more
+  than 1.5 s after the return to the scan (the tracker may report lost / found right after the return).
+- The 75 glossary entries with an `image.jpg` (the colour version of the grey target, same size) turn colour at the
+  smash; colour pictures for all of the book's images are ordered (Tilman, 2026-11-17) – then set them as the
+  entries' `image` (MCP `update_entry`).
+
 ## 2026-11-17 – Scenes phase 2: the server keeps scenes (#307)
 - A scene = a `spreads` row; surfaces / layout / label / group in its `data_json`, groups in `books.groups_json` (a
   column, not `book_json`: the content writes them at the root, not in `book`). Order = `spreads.position` only;
