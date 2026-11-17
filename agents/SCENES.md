@@ -1,6 +1,6 @@
 # Concept – scenes instead of pages
 
-Status: draft for Tilman, 2026-11-17. Epic: #307. Where it fits: `STRATEGY.md` (a white-label core; formats beyond
+Status: concept agreed with Tilman, 2026-11-17 (all open questions decided). Epic: #307. Where it fits: `STRATEGY.md` (a white-label core; formats beyond
 cover and back; flows between scenes). Codebase analysis of 2026-11-17: summary in "Today" below.
 
 > Tilman: "in the end the index is nothing more but an ordered list of scenes … and I could just reorder them without
@@ -121,6 +121,6 @@ reorder, Shift/Ctrl to pick several, a group's own settings), which SCUTOONS wil
   and content types (`SceneData`); "spread" survives only as an alias for old links and content, and RULES #2's term
   "spread" changes with it.
 - [x] Surface sizes: **per scene** – a scene has a few surfaces, each with its own size (Tilman, 2026-11-17).
-- [ ] Thumbnails: the reference image, or always generated from targets and content when there is none?
+- [x] Thumbnails: **the reference image; without one, generated** from the placed targets and content (Tilman, 2026-11-17).
 - [x] Groups: **what the reader's bottom switcher (today's spread switcher) steps through** – one stop per group, and its
   loading window (Tilman, 2026-11-17). Flows (`STRATEGY.md`: a goto from scene to scene) link scenes, not groups.
