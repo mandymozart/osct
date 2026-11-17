@@ -20,6 +20,7 @@ import { exprMessage, renderEntryText } from "../../shared/text/entry-text";
 import type {
   AssetCreditsSaved,
   AssetList,
+  AssetNamesPlan,
   AssetUploaded,
   BookAppearanceSaved,
   BookList,
@@ -56,7 +57,7 @@ import type {
 import { confirmationStep } from "../../shared/api/errors";
 import { CREDITS_BATCH_MAX, CREDITS_MAX, MATTER_MAX, PAGE_IMAGES_BATCH_MAX } from "../../shared/api/editor";
 import { pageOfName } from "../../shared/api/page-names";
-import { IMAGE_FITS, IMAGE_MAX_SIDE, IMAGE_WEBP_QUALITY } from "../../shared/api/images";
+import { IMAGE_FITS, IMAGE_MAX_SIDE, IMAGE_WEBP_QUALITY, imageUseQuery, type ImageFit } from "../../shared/api/images";
 import {
   ASSET_KINDS,
   BODY_MAX_LENGTH,
@@ -725,18 +726,22 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     {
       description:
         "Uploads a file from this computer into the book's library: models (glb, gltf), videos (mp4, webm, mov), images (jpg, png, webp), sounds (mp3, m4a, ogg, wav), at most 64 MB, and shaders (glsl, frag, vert, wgsl – UTF-8 text, at most 256 KB; a plugin loads one by its url with api.loadText) and a video's subtitles (vtt – WebVTT text, at most 256 KB; named <video name>.<language>.vtt, e.g. speak.en.vtt for speak.mp4, it belongs to every video of that name in the book and shows as its subtitle line – no node names it). Answers the asset with its `url` – put it into a node's assets[].src or a target's imageSrc – and the file's width / height (images, videos) and durationMs (videos), null when the file does not tell. The same bytes twice are one asset, named as the last upload names it. A script (.ts, .js) is no asset: upload_plugin. " +
-        `**Images go under the image rule** (#298): the API stores a jpg / png / webp as WebP (quality ${IMAGE_WEBP_QUALITY}, lossless when it has transparency), upright by its EXIF orientation, metadata dropped, its longest side at most ${IMAGE_MAX_SIDE.default} px – never scaled up – and named <name>.webp (\`converted\` says so; an instance without GD stores it as it came). Pass \`fit: "target"\` for a target's printed image (at most ${IMAGE_MAX_SIDE.target} px). TIFF and PDF are no Library files: convert them locally first.`,
+        `**Images go under the image rule** (#298): the API stores a jpg / png / webp as WebP (quality ${IMAGE_WEBP_QUALITY}, lossless when it has transparency), upright by its EXIF orientation, metadata dropped, its longest side at most ${IMAGE_MAX_SIDE.default} px – never scaled up – and named <name>.webp (\`converted\` says so; an instance without GD stores it as it came). Pass \`fit: "target"\` for a target's printed image (at most ${IMAGE_MAX_SIDE.target} px). TIFF and PDF are no Library files: convert them locally first. ` +
+        "**Named by its use** (#298) when you say it: `entry` with fit target / entryImage → <entry>_target.webp / <entry>_image.webp, `page` (+ `facing`) with fit page → page-118.webp, page-cover.webp, page-front-1-left.webp (400 invalid-use for no page of the book).",
       inputSchema: z.object({
         book: BOOK,
         file: z.string().describe("a local file path"),
         name: z.string().optional().describe("the file name to store (default: the path's base name; a converted image ends in .webp)"),
         fit: z.enum(IMAGE_FITS as [string, ...string[]]).optional().describe(`an image's use: target (${IMAGE_MAX_SIDE.target} px), page, entryImage, default (${IMAGE_MAX_SIDE.default} px)`),
+        entry: ID.optional().describe("with fit target / entryImage: the entry whose image it is – names the file <entry>_target / <entry>_image"),
+        page: z.number().int().optional().describe("with fit page: the page whose image it is – names the file page-<n> (page-cover …)"),
+        facing: z.boolean().optional().describe("with page: the unnumbered half next to that single page"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    guard(async ({ book, file, name, fit }) => {
+    guard(async ({ book, file, name, fit, entry, page, facing }) => {
       const bytes = new Uint8Array(await readFile(file));
-      const query = fit && fit !== "default" ? `?fit=${encodeURIComponent(fit)}` : "";
+      const query = imageUseQuery(fit ? { fit: fit as ImageFit, entry, page: page === undefined ? undefined : { page, facing } } : undefined);
       const result = await api.upload<AssetUploaded>("POST", `/editor/books/${encodeURIComponent(book)}/assets${query}`, bytes, name ?? basename(file));
       return text({ ...result, size: bytes.byteLength });
     }),
@@ -754,6 +759,31 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     guard(async ({ book, items }) => text(await api.call<AssetCreditsSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/assets/credits`, { items }))),
+  );
+
+  server.registerTool(
+    "plan_asset_names",
+    {
+      description:
+        "Step 1 of naming the Library's files by their use (#298) – read-only: the names every used file would take, by its first use in page order: an entry's printed image p118-1_target.webp, its colour picture p118-1_image.webp, another file of the entry or its own entity p118-1_<asset id>.glb, a page image page-118.webp / page-cover.webp / page-back-cover.webp / page-1-facing.webp / page-front-1-left.webp, a shared entity's file <entity>_<asset id>.ext, the environment's environment_world / environment_sky. A file used in several places takes the first (`more` counts the rest); unused files and files only a plugin's source names keep their names; two files that would take one name get -2, -3. `renames` = only the files whose name changes: { url, imported, from, to, use: { kind, ref, spread, page }, more }. The name only – every URL stays, so no use breaks; an imported file (read-only) gets a listed name. Show the list to the person, then apply_asset_names.",
+      inputSchema: z.object({ book: BOOK }),
+      annotations: read,
+    },
+    guard(async ({ book }) => {
+      const result = await api.call<AssetNamesPlan>("POST", `/editor/books/${encodeURIComponent(book)}/assets/names`, { apply: false });
+      return text({ ...result, hint: result.plan.renames.length ? "Nothing renamed yet: show the renames to the person, then apply_asset_names." : "Every used file is named by its use already." });
+    }),
+  );
+
+  server.registerTool(
+    "apply_asset_names",
+    {
+      description:
+        "Step 2 of naming the Library's files by their use (#298): makes the plan again (plan_asset_names – it may have changed since) and renames those files in one step – only after the person saw the plan. The name only: every URL and every use stays; an imported file's listed name is kept by its URL. Names are no content: nothing to publish, no change in the book's log.",
+      inputSchema: z.object({ book: BOOK }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    guard(async ({ book }) => text({ ...(await api.call<AssetNamesPlan>("POST", `/editor/books/${encodeURIComponent(book)}/assets/names`, { apply: true })), open: editorHref(links, book) })),
   );
 
   server.registerTool(
@@ -832,7 +862,10 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         if (item.upload === undefined) continue;
         const bytes = new Uint8Array(await readFile(item.upload));
         // A page image under the image rule (#298): WebP, at most 2048 px
-        const { asset } = await api.upload<AssetUploaded>("POST", `/editor/books/${encodeURIComponent(book)}/assets?fit=page`, bytes, basename(item.upload));
+        // … named by its page (page-118.webp, page-cover.webp – #298 phase 3)
+        const at = changes[i] as PageAddress;
+        const query = imageUseQuery({ fit: "page", page: { page: at.page, facing: at.facing } });
+        const { asset } = await api.upload<AssetUploaded>("POST", `/editor/books/${encodeURIComponent(book)}/assets${query}`, bytes, basename(item.upload));
         (changes[i] as { url: string }).url = asset.url;
         uploaded.push(asset.url);
       }

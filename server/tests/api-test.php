@@ -1688,7 +1688,7 @@ try {
     check($status === 200, 'the castle is printed on page 3');
     [$buildBefore] = $draftOf();
     [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'spread'], $editor);
-    check($status === 201 && $data['spread'] === ['id' => 'spread-1', 'title' => 'New spread', 'firstPage' => 5, 'lastPage' => 6], 'POST spreads { format: spread } → a double page after the last one, before the back cover');
+    check($status === 201 && $data['spread'] === ['id' => 'spread-1', 'title' => 'Pages 5–6', 'firstPage' => 5, 'lastPage' => 6], 'POST spreads { format: spread } → a double page after the last one, before the back cover – titled by its pages (#298)');
     check($data['moved'] === ['spreads' => 1, 'entries' => 1, 'targets' => 0], 'the back cover and the entry on page 99 are numbered on');
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
     check($pagesOf($tree) === [['cover', 0, 0], ['s1', 1, 2], ['s2', 3, 4], ['spread-1', 5, 6], ['back', 7, 7]], 'the tree: the new spread before the back cover, the back on page 7');
@@ -1968,6 +1968,68 @@ try {
     [$status] = importing($api, 'printed', $editor, json_encode(['configuration' => $printed, 'files' => $files], $flags));
     [, $data] = call($api, 'GET', '/editor/books/printed/pages', null, $editor);
     check($status === 200 && count($data['pageImages'] ?? []) === 3, '#251: a re-import keeps the page images');
+    // The re-import brought back the four spreads of the print layout: the matter again for the next checks
+    call($api, 'POST', '/editor/books/printed/matter', ['front' => 2, 'back' => 2, 'lastPage' => 4, 'apply' => true], $editor);
+
+    echo "editor: spread titles and Library files named by use (#298 phase 3)\n";
+    $shownTitles = static function () use ($api, $editor): array {
+        [, $tree] = call($api, 'GET', '/editor/books/printed', null, $editor);
+        return array_column($tree['spreads'] ?? [], 'title', 'id');
+    };
+    check($shownTitles() === ['cover' => 'Cover', 'front-1' => 'Front matter 1', 'front-2' => 'Front matter 2', 's001' => 'Page 1', 's002-003' => 'Pages 2–3',
+        's004' => 'Page 4', 'back-1' => 'Back matter 1', 'back-2' => 'Back matter 2', 'back' => 'Back cover'],
+        '#298: a title that only repeats the pages (1, 2–3, 4) shows the pages\' – Pages 2–3, Page 1, Front matter 1, Back cover');
+    [, $draft] = call($api, 'GET', '/editor/books/printed/draft/latest.json', null, $editor);
+    [, $config] = call($api, 'GET', '/editor/books/printed/draft/' . ($draft['build'] ?? 'x') . '/game.config.json', null, $editor);
+    check(array_column($config['spreads'] ?? [], 'title', 'id')['s002-003'] === 'Pages 2–3' && array_column($config['spreads'] ?? [], 'title', 'id')['front-2'] === 'Front matter 2',
+        '#298: … and the content the reader reads carries the same titles (RULES #10)');
+    [$status, $data] = call($api, 'PUT', '/editor/books/printed/spreads/s002-003', ['title' => 'The opening'], $editor);
+    check($status === 200 && $data['spread']['title'] === 'The opening' && $shownTitles()['s002-003'] === 'The opening', '#298: a title of its own is kept');
+    [$status, $data] = call($api, 'PUT', '/editor/books/printed/spreads/s002-003', ['title' => ''], $editor);
+    check($status === 200 && $data['spread']['title'] === 'Pages 2–3' && $shownTitles()['s002-003'] === 'Pages 2–3', '#298: an empty title → the pages\' title again');
+    [$status, $data] = call($api, 'PUT', '/editor/books/printed/spreads/s002-003', ['title' => 3], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-spread', '#298: a title that is no text → 400');
+
+    // Files named by use: the plan first, nothing written
+    $libraryOf = static function () use ($api, $editor): array {
+        [, $list] = call($api, 'GET', '/editor/books/printed/assets', null, $editor);
+        return array_column($list['assets'] ?? [], null, 'url');
+    };
+    $libBefore = $libraryOf();
+    $extOf = static fn(string $url): string => strtolower(pathinfo((string) parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION));
+    $importedImage = array_values(array_filter(array_keys($libBefore), fn($url) => str_ends_with($url, '/entries/racoon/img.jpg')))[0] ?? '';
+    [$status, $data] = call($api, 'POST', '/editor/books/printed/assets/names', ['apply' => false], $editor);
+    $renamedTo = array_column($data['plan']['renames'] ?? [], 'to', 'url');
+    check($status === 200 && $data['applied'] === false && ($renamedTo[$twoUrl] ?? null) === 'page-cover.' . $extOf($twoUrl) && ($renamedTo[$importedImage] ?? null) === 'on-four_target.jpg'
+        && ($renamedTo[$replaced['asset']['url'] ?? '-'] ?? null) === 'page-back-1-left.' . $extOf((string) ($replaced['asset']['url'] ?? '')),
+        '#298: the names plan – a page image takes its page\'s (page-cover, page-back-1-left), the target image its entry\'s (on-four_target.jpg)');
+    $coverRename = array_values(array_filter($data['plan']['renames'] ?? [], fn($r) => $r['url'] === $twoUrl))[0] ?? [];
+    check(($coverRename['more'] ?? null) === 1 && ($coverRename['use'] ?? null) === ['kind' => 'page', 'ref' => '0', 'spread' => 'cover', 'page' => 0],
+        '#298: … a file used twice takes its first use in page order (the cover before the half next to 1), +1 more');
+    check(array_column($libraryOf(), 'name', 'url') === array_column($libBefore, 'name', 'url'), '#298: … and without apply nothing is renamed');
+    [$status, $data] = call($api, 'POST', '/editor/books/printed/assets/names', ['apply' => true], $editor);
+    $libAfter = $libraryOf();
+    check($status === 200 && $data['applied'] === true && ($libAfter[$twoUrl]['name'] ?? null) === 'page-cover.' . $extOf($twoUrl)
+        && ($libAfter[$importedImage]['name'] ?? null) === 'on-four_target.jpg' && ($libAfter[$importedImage]['named'] ?? null) === true,
+        '#298: applied – an upload\'s name and an imported file\'s listed name (asset_names) follow their use');
+    $urlsBefore = array_keys($libBefore);
+    $urlsAfter = array_keys($libAfter);
+    sort($urlsBefore);
+    sort($urlsAfter);
+    check($urlsAfter === $urlsBefore, '#298: … every URL stays – no use breaks');
+    check(($libAfter[$importedImage]['place'] ?? null) === ['spread' => 's004', 'page' => 4, 'order' => 9, 'more' => 0] && ($libAfter[$twoUrl]['place']['spread'] ?? null) === 'cover',
+        '#298: the Library places each file at its first use: the spread, the page, the page order');
+    [, $data] = call($api, 'POST', '/editor/books/printed/assets/names', ['apply' => false], $editor);
+    check(($data['plan']['renames'] ?? null) === [], '#298: again → nothing left to rename');
+
+    // A new upload whose use is known takes its use's name
+    $blue = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg==');
+    [$status, $data] = upload($api, 'POST', '/editor/books/printed/assets?fit=page&page=2', $blue, 'scan.png', $editor);
+    check(in_array($status, [200, 201], true) && ($data['asset']['name'] ?? null) === 'page-2.' . $extOf((string) ($data['asset']['url'] ?? '')), '#298: ?fit=page&page=2 → page-2');
+    [$status, $data] = upload($api, 'POST', '/editor/books/printed/assets?fit=target&entry=on-four', $blue, 'scan.png', $editor);
+    check(in_array($status, [200, 201], true) && ($data['asset']['name'] ?? null) === 'on-four_target.' . $extOf((string) ($data['asset']['url'] ?? '')), '#298: ?fit=target&entry=on-four → on-four_target');
+    [$status, $data] = upload($api, 'POST', '/editor/books/printed/assets?fit=page&page=42', $blue, 'scan.png', $editor);
+    check($status === 400 && ($data['error']['code'] ?? null) === 'invalid-use', '#298: a page the book does not have → 400 invalid-use');
 
     echo "editor: the book's passes – the master, spreads override (#149)\n";
     $bookPasses = [['type' => 'grade', 'reach' => 'all', 'exposure' => 0.5], ['type' => 'vignette', 'strength' => 0.4]];

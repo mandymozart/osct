@@ -482,6 +482,40 @@ rows in one transaction with a change in the book's log (kind `asset`, `before` 
 [removal](#removing-a-spread-or-an-entry) records the files it takes), so a forced delete is in the history; the files
 go after the commit.
 
+### Files named by use
+
+A Library file's **name** follows where it is used (#298 phase 3, `AssetNames.php`) – the name only: its URL never
+changes, so no use breaks and nothing needs relinking (`Assets::replace`'s relinking is not needed: no row names a file
+by its name).
+
+- **By use**: an entry's target image `<entry>_target.<ext>`, its colour picture `<entry>_image.<ext>`, another file of
+  the entry or of its target's own entity `<entry>_<asset id>.<ext>` (a model's texture map adds its size:
+  `key_model-1024.webp`); a page image (#251) `page-118`, `page-cover`, `page-back-cover`, `page-1-facing`,
+  `page-front-1-left`, `page-back-2-right` (front and back matter by sheet and side, `AssetNames::pageStem`); a shared
+  entity's file `<ref>_<asset id>.<ext>`; the environment's `environment_world` / `environment_sky`. The extension is
+  the stored file's.
+- **First use**: a file used in several places takes its first use in page order (`Pages::pagesOf`; per page the
+  target before the entry, the entity, the page image); a shared entity sits on the page of its first target; uses
+  without a page (the environment, plugins, an entity no target shows) come last. Files only a plugin's source names, and
+  unused files, keep their names. Two files that would take one name get `-2`, `-3` in page order.
+- `GET …/assets` lists each file's **`place`**: `{ spread, page, order, more }` of its first use (`spread` null: book-wide,
+  `order` −1; `more` = its further uses) or null when unused – the Library groups by it.
+
+| Endpoint | Body | Answer |
+|---|---|---|
+| `POST /editor/books/{id}/assets/names` | `{ apply? }` | `{ plan: { renames, files, used, unused }, applied }` – two steps like the matter: without `apply: true` nothing is written; `renames` lists every file whose name changes, `{ id, url, imported, from, to, use: { kind, ref, spread, page }, more }`. With it the plan is made again and written in one transaction |
+
+**Imported files** (#244: no `assets` row, read-only – their URL is the content build's): their **listed** name is
+kept in `asset_names` (book, URL → name, like `asset_credits`), so the Library is consistent; the list marks such a
+file `named: true`. The stored file and its URL stay the build's. Names are no content: no change in the book's log, no
+publish needed; an AI connection's token may apply them.
+
+**New uploads** whose use is known take its name at once (`AssetNames::uploadStem`): `POST …/assets?fit=target&entry=<id>`
+→ `<id>_target.webp`, `?fit=entryImage&entry=<id>` → `<id>_image.webp`, `?fit=page&page=<n>[&facing=1]` → `page-<n>.webp`
+(`page-cover.webp` …; a page the book does not have is 400 `invalid-use`). A replace takes the same parameters. The editor
+sends them from an entry's picture, a target's printed image and the Pages view; the MCP server from `upload_asset`
+(`entry`, `page`, `facing`) and `set_page_images`.
+
 ### The image rule at upload
 
 Every picture takes one way into the book (#298, [content](content.md) "The image rule"): an uploaded or replaced
@@ -490,8 +524,8 @@ encoded as **WebP** (`Images.php`, the numbers `Assets::IMAGE_*` = `shared/api/i
 `mcp/test/php-rules.test.ts`): quality 82, lossless when the picture has transparency (an icon, a cut-out), never
 scaled up; re-encoding drops every piece of metadata (EXIF, XMP, ICC). The stored file is `v<n>.webp` with
 `image/webp`, its width, height, size and sha256 those of the result; its Library name is the upload's with `.webp`
-(`Dot.png` → `Dot.webp`, `Assets::storedName` – the one place naming a stored file, for naming files by their use
-later). The original is not kept.
+(`Dot.png` → `Dot.webp`, `Assets::storedName`) – or, where the upload names its use, the use's name ("Files named by use"
+above). The original is not kept.
 
 - **The use** (`?fit=`): the upload does not know what a picture is for, so it keeps at most 2048 px
   (`default`). Where the use is known, the caller names it: `?fit=target` (a target's printed image, 1200 px – the
@@ -635,13 +669,26 @@ its spread and the contract stays as the content build writes it. Every moved ro
 
 | Endpoint | Body | Answer |
 |---|---|---|
-| `POST /editor/books/{id}/spreads` | `{ format: "spread", after?, id?, title? }` | 201 `{ spread, moved: { spreads, entries, targets } }` – a double page right after the spread `after` (default: the last one before the back cover; a book without one starts on page 1). Its pages are the two after that spread's `lastPage`, its position the next; every later page is numbered on by two. `id` defaults to the first free `spread-<n>`, `title` to *New spread*. 400 `unknown-spread` (no such `after`), `invalid-spread` (after the back cover, an unknown format), `invalid-id`; 409 `duplicate-id` |
+| `POST /editor/books/{id}/spreads` | `{ format: "spread", after?, id?, title? }` | 201 `{ spread, moved: { spreads, entries, targets } }` – a double page right after the spread `after` (default: the last one before the back cover; a book without one starts on page 1). Its pages are the two after that spread's `lastPage`, its position the next; every later page is numbered on by two. `id` defaults to the first free `spread-<n>`; without `title` it has none of its own and shows its pages' (`Pages 12–13`, below). 400 `unknown-spread` (no such `after`), `invalid-spread` (after the back cover, an unknown format), `invalid-id`; 409 `duplicate-id` |
 | `POST /editor/books/{id}/spreads` | `{ format: "cover" \| "back", title? }` | 201 `{ spread, moved }` – the front cover (page 0, first) or the back cover (the page after the last, last); nothing moves. 400 `invalid-spread` with an `after`; 409 `duplicate-id` when the book has one |
-| `PUT /editor/books/{id}/spreads/{sid}` | `{ title?, format?, passes? }` | `{ spread }` – title, format (`cover` only on page 0) and the spread's own post-processing (an override of the book's: `null` removes it so the book's apply, `[]` turns them off there); the pages stay |
+| `PUT /editor/books/{id}/spreads/{sid}` | `{ title?, format?, passes? }` | `{ spread }` – title (`""` or `null`: none of its own – the pages' again), format (`cover` only on page 0) and the spread's own post-processing (an override of the book's: `null` removes it so the book's apply, `[]` turns them off there); the pages stay |
 | `PUT /editor/books/{id}/environment` | `{ environment: { world, onionSky, worldSrc?, skySrc? } \| null }` | `{ environment }` – the book's world and onion sky (`book.environment`, content schema 2.8; the world model and the sky image as references 2.10); `null` removes it – the default applies. A change `environment` in the log. 400 `invalid-environment`; 404 |
 | `PUT /editor/books/{id}/passes` | `{ passes: [{ type, …parameters }] \| null }` | `{ passes }` – the book's post-processing (`book.passes`, content schema 2.5), the master every spread without a list of its own shows; `null` removes it. Checked as a spread's list (a built-in `type` or a plugin's pass – schema 2.21, scalar parameters); a change `passes` in the log. 400 `invalid-passes`; 404 |
 | `PUT /editor/books/{id}/appearance` | `{ appearance: { reveal?, found?, lost? } \| null }` | `{ appearance }` – how the book's entities appear (`book.appearance`, content schema 2.29, #265): a look `{ type, …parameters }` per moment (`Books::MOMENTS`), a built-in `type` or a plugin's look, scalar parameters (their ranges are the guard's). The whole appearance is replaced; `null`, or one without a moment, removes the field – the default look plays everywhere. A change `appearance` in the log. 400 `invalid-appearance`; 404 |
 | `DELETE /editor/books/{id}/spreads/{sid}` | `{ confirm?, deleteFiles? }` | the spread with everything on it, in two steps ([below](#removing-a-spread-or-an-entry)): 409 `confirm-delete` with `impact` and `confirmation`, then with `confirm` 200 `{ deleted, moved }` – a double page's later pages are numbered back by its pages (the reverse of adding it), a cover moves nothing. 409 `initial-spread` for the spread the book opens on (it never goes); 404 |
+
+**Spread titles** (#298 phase 3): a spread whose stored title only repeats its pages – empty, `118–119`, `256`,
+`Pages 118–119`, `Cover`, `Back cover`, `Front matter 1`, `New spread` (`Pages::DERIVED_TITLE` =
+`shared/api/spread-titles.ts`, pinned by `mcp/test/php-rules.test.ts`) – has no title of its own and shows the one its
+pages give: `Pages 118–119`, `Page 256`, `Cover`, `Back cover`, `Front matter <n>` / `Back matter <n>` (`n` = its place
+among the spreads of its matter). `Pages::withTitles` applies it **at read** – the tree (`GET /editor/books/{id}`), the
+spread routes' answers, a removal's impact and **the content `ContentVersion::assemble` writes** (the draft and every
+publish) – so the reader, which reads `title` (RULES #10), gets the derived title in the content and an older app
+needs nothing new. Why at read and not a one-time rewrite: a rewrite would go stale again with the next inserted or
+removed page (the renumbering moves pages, never titles) and would have to run on every instance and after every
+import of the layout; deriving at read keeps the stored rows as the import wrote them, never breaks the reader (the
+assembled title is never empty) and needs no migration. A title of its own (`The Golem`) is kept as it is. Ids never
+change.
 
 ### Pages and page images
 

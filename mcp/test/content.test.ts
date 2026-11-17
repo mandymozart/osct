@@ -119,6 +119,10 @@ function editorApi(seen: Seen, { sources = true } = {}) {
   if (method === "POST" && path.split("?")[0] === "/editor/books/osct/assets") return { status: 201, json: { path, asset: { id: "11111111-1111-4111-8111-111111111111", name: seen.headers["X-File-Name"], size: (seen.rawBody as Uint8Array).byteLength, url: `https://cdn/up/${seen.headers["X-File-Name"]}` } } };
   if (method === "GET" && path === "/editor/books/osct/pages") return { json: { pages: PAGES, pageImages: [] } };
   if (method === "PUT" && path === "/editor/books/osct/page-images") return { json: { pageImages: [], saved: (seen.body as any).items.length, sent: seen.body } };
+  if (method === "POST" && path === "/editor/books/osct/assets/names") {
+    const apply = !!(seen.body as any).apply;
+    return { json: { plan: { renames: [{ id: "a", url: "https://cdn/a.webp", imported: false, from: "Scan.webp", to: "page-cover.webp", use: { kind: "page", ref: "0", spread: "cover", page: 0 }, more: 0 }], files: 2, used: 1, unused: 1 }, applied: apply, sent: seen.body } };
+  }
   if (method === "POST" && path === "/editor/books/osct/matter") return { json: { plan: { create: [{ id: "front-1" }], moveBackCover: null, entries: [] }, applied: !!(seen.body as any).apply, sent: seen.body } };
   if (method === "DELETE" && path === "/editor/books/osct/assets/11111111-1111-4111-8111-111111111111") return { status: 409, json: { error: { code: "asset-in-use", message: "Used.", usages: [{ kind: "target", ref: "racoon" }] } } };
   if (method === "DELETE" && path === "/editor/books/osct/assets/11111111-1111-4111-8111-111111111111?force=1") return { status: 204 };
@@ -157,7 +161,7 @@ describe("the content tools", () => {
       [
         "add_entry", "add_spread", "delete_asset", "delete_entry", "delete_spread", "describe_content_model", "get_book", "get_draft", "get_entity", "get_spread", "import_book", "list_assets", "preview_import",
         "list_books", "list_changes", "list_versions", "publish", "put_book_appearance", "put_book_passes", "put_entity", "put_environment", "put_spread", "put_target", "upload_asset",
-        "get_entries", "update_entry", "update_book", "set_asset_credits", "list_pages", "set_page_images", "add_matter",
+        "get_entries", "update_entry", "update_book", "set_asset_credits", "list_pages", "set_page_images", "add_matter", "plan_asset_names", "apply_asset_names",
       ].sort(),
     );
     for (const [name, tool] of rec.tools) {
@@ -413,6 +417,9 @@ describe("the content tools", () => {
     expect(renamed.data.asset.name).toBe("dot-1x1.png");
     // #298: a target's printed image names its use – the API cuts it to 1200 px; the rule is in the description
     expect((await rec.call("upload_asset", { book: "osct", file, fit: "target" })).data.path).toBe("/editor/books/osct/assets?fit=target");
+    // Named by its use (#298 phase 3)
+    expect((await rec.call("upload_asset", { book: "osct", file, fit: "target", entry: "p118-1" })).data.path).toBe("/editor/books/osct/assets?fit=target&entry=p118-1");
+    expect((await rec.call("upload_asset", { book: "osct", file, fit: "page", page: 118 })).data.path).toBe("/editor/books/osct/assets?fit=page&page=118");
     await expect(rec.call("upload_asset", { book: "osct", file, fit: "poster" })).rejects.toThrow(/fit/);
     expect(rec.tools.get("upload_asset")?.config.description).toMatch(/WebP.*1200 px/s);
     const missing = await rec.call("upload_asset", { book: "osct", file: join(dir, "nope.png") });
@@ -444,7 +451,9 @@ describe("the content tools", () => {
     ] });
     expect(saved.ok).toBe(true);
     expect(saved.data.uploaded).toBe(4);
-    expect(seen.filter(s => s.method === "POST").map(s => s.path)).toContain("/editor/books/osct/assets?fit=page");
+    // Each upload named by its page (#298 phase 3): start-1 is the cover, start-4 the half next to page 1
+    expect(seen.filter(s => s.method === "POST").map(s => s.path)).toContain("/editor/books/osct/assets?fit=page&page=0");
+    expect(seen.filter(s => s.method === "POST").map(s => s.path)).toContain("/editor/books/osct/assets?fit=page&page=1&facing=1");
     expect(saved.data.sent.items).toEqual([
       { page: 0, facing: false, url: "https://cdn/up/start-1.jpg", name: "start-1.jpg" },
       { page: 1, facing: true, url: "https://cdn/up/start-4.jpg", name: "start-4.jpg" },
@@ -460,6 +469,18 @@ describe("the content tools", () => {
     expect(unknown.ok).toBe(false);
     expect(unknown.data.error.code).toBe("invalid-page-image");
     expect(seen.slice(before).map(s => s.method)).toEqual(["GET"]);
+  });
+
+  it("plan_asset_names answers the plan only, apply_asset_names writes it (#298)", async () => {
+    const plan = await rec.call("plan_asset_names", { book: "osct" });
+    expect(plan.data.applied).toBe(false);
+    expect(plan.data.sent).toEqual({ apply: false });
+    expect(plan.data.plan.renames[0].to).toBe("page-cover.webp");
+    expect(plan.data.hint).toContain("apply_asset_names");
+    expect((rec.tools.get("plan_asset_names")?.config.annotations as { readOnlyHint?: boolean } | undefined)?.readOnlyHint).toBe(true);
+    const applied = await rec.call("apply_asset_names", { book: "osct" });
+    expect(applied.data.applied).toBe(true);
+    expect(applied.data.sent).toEqual({ apply: true });
   });
 
   it("add_matter answers the plan, writes it with apply (#251)", async () => {

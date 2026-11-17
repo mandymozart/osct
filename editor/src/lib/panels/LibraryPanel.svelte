@@ -1,10 +1,12 @@
 <script lang="ts">
-  import { ApiError, errorText, type Asset } from "#lib/api.js";
+  import { ApiError, errorText, planAssetNames, type Asset, type AssetRename } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import { codeKindOf, codeUploadProblem, pluginIdFrom } from "#lib/library-code.js";
   import { ACCEPT, library } from "#lib/library.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
-  import { assetPlace, convertedNotice, formatDuration, formatSize, heldNotice, LIBRARY_VIEWS, matchesSearch, readLibraryView, saveLibraryView, type LibraryView } from "#lib/library-place.js";
+  import {
+    assetLabel, assetPlace, convertedNotice, formatDuration, formatSize, groupBySpread, heldNotice, LIBRARY_VIEWS, matchesSearch, moreUses, namesPlanLine, readLibraryView, saveLibraryView, type LibraryView,
+  } from "#lib/library-place.js";
   import {
     FILTER_LABELS, LIBRARY_FILTERS, LIBRARY_ORIGINS, matchesFilter, matchesOrigin, nodeAssetKinds, pickAccept, pickFilter, pickFit, pickFits, targetImagesOf, type LibraryFilter, type LibraryOrigin, type LibraryPick,
   } from "#lib/library-pick.js";
@@ -26,6 +28,10 @@
    * relinked) and **Delete** (refused while used – *Delete anyway* forces it). Opened as a **picker** (`pick`, a file
    * field's *Library…* – #164): the filter starts at the kind being picked, a click on a fitting file picks it for that
    * one field and returns, an upload that fits is picked at once; *cancel* or Esc returns without one.
+   * The media are **grouped by spread** (#298 phase 3): a header per spread in book order – the spread of each file's
+   * first use –, then "Not in a spread" (book-wide uses), then "Unused"; a file used in more places says "+N more".
+   * **Name by use…** proposes the names the files take by their use (`p118-1_target.webp`, `page-118.webp`) and applies
+   * them on a second click – the name only, every URL stays.
    * **Code files** (#186) – scripts (the book's plugin sources) and shaders – are a list of their own under the media
    * (`CodeFiles`, the filter *code* shows it alone): an uploaded or dropped `.ts` / `.js` becomes a plugin source named
    * after the file, a `.glsl` / `.frag` / `.vert` / `.wgsl` a shader asset.
@@ -77,6 +83,37 @@
   const targetImages = $derived(targetImagesOf(content.spreads));
   /** The media shown (the shaders are in the code list) */
   const shown = $derived(library.assets.filter(asset => asset.kind !== "shader" && matchesFilter(asset, filter, targetImages) && matchesOrigin(asset, origin) && matchesSearch(asset, search)));
+  /** The media grouped by the spread of their first use (#298) */
+  const groups = $derived(groupBySpread(shown, content.spreads));
+
+  /** Name by use (#298): the plan shown, then applied – null while none is open */
+  let namesPlan = $state<AssetRename[] | null>(null);
+  let naming = $state(false);
+  const proposeNames = async () => {
+    naming = true;
+    library.error = null;
+    try {
+      namesPlan = (await planAssetNames(bookId)).plan.renames;
+    } catch (e) {
+      library.error = errorText(e);
+    } finally {
+      naming = false;
+    }
+  };
+  const applyNames = async () => {
+    naming = true;
+    try {
+      const { plan } = await planAssetNames(bookId, true);
+      notice = `${plan.renames.length} file${plan.renames.length === 1 ? "" : "s"} renamed by use – every URL stays`;
+      namesPlan = null;
+      await library.load(bookId);
+    } catch (e) {
+      library.error = errorText(e);
+    } finally {
+      naming = false;
+    }
+  };
+
   /** Scripts uploading (they become plugin sources), by file name */
   let scriptUploads = $state<string[]>([]);
   const uploading = $derived([...library.uploading, ...scriptUploads]);
@@ -248,7 +285,23 @@
       <input bind:this={replaceInput} type="file" accept={ACCEPT} hidden onchange={e => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) void doReplace(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
     </span></div>
   <div class="row"><span class="label">view</span>
-    <span class="controls"><Segmented options={LIBRARY_VIEWS} value={view} titles={{ cards: "Cards with previews", list: "A plain list" }} onchange={setView} /></span></div>
+    <span class="controls"><Segmented options={LIBRARY_VIEWS} value={view} titles={{ cards: "Cards with previews", list: "A plain list" }} onchange={setView} />
+      {#if !pick}
+        <button type="button" class="text-link" disabled={naming} data-help-name="Name by use"
+          data-help="Names every used file by where it is used first, in page order: an entry's printed image p118-1_target.webp, its picture p118-1_image.webp, a page image page-118.webp, a shared entity's file castle_model.glb. Shows the plan first; the name only changes – every URL and use stays. Unused files keep their names."
+          onclick={() => void proposeNames()}>Name by use…</button>
+      {/if}</span></div>
+  {#if namesPlan}
+    <div class="names small" aria-live="polite">
+      <span>{namesPlanLine(namesPlan, 0)}{#if namesPlan.length} – the name only, every URL stays{/if}</span>
+      {#if namesPlan.length}
+        <ul>{#each namesPlan.slice(0, 12) as rename (rename.url)}<li><span class="muted">{rename.from}</span> → {rename.to}{#if rename.more} <span class="muted">+{rename.more} more</span>{/if}</li>{/each}
+          {#if namesPlan.length > 12}<li class="muted">… and {namesPlan.length - 12} more</li>{/if}</ul>
+        <button type="button" class="pill primary" disabled={naming} onclick={() => void applyNames()}>Rename {namesPlan.length}</button>
+      {/if}
+      <button type="button" class="text-link" onclick={() => (namesPlan = null)}>{namesPlan.length ? "cancel" : "close"}</button>
+    </div>
+  {/if}
   {#if dragging}<p class="drop small" aria-live="polite">drop to upload – media, shaders, scripts</p>{/if}
   {#if uploading.length}<p class="small muted">uploading {uploading.join(", ")}…</p>{/if}
   {#if library.error}<p class="small danger">{library.error}</p>{/if}
@@ -263,12 +316,14 @@
   {:else if view === "list"}
     <table class="list">
       <thead><tr><th>name</th><th>place</th><th>kind</th><th class="num">size</th><th class="num">uses</th></tr></thead>
+      {#each groups as group (group.key)}
       <tbody>
-        {#each shown as asset (asset.id)}
+        <tr class="group"><th colspan="5" scope="rowgroup">{group.label} <span class="muted">{group.assets.length}</span></th></tr>
+        {#each group.assets as asset (asset.id)}
           {@const place = assetPlace(asset)}
           <tr class:on={opened === asset.id || (!!pick && pick.current === asset.url)} class:unfit={!!pick && !pickable(asset)}
             onclick={e => (pick ? pickFrom(e, asset) : (opened = opened === asset.id ? null : asset.id))}>
-            <td class="name" title={asset.url}>{#if pick}<button type="button" class="open" disabled={!pickable(asset)} onclick={() => choose(asset)}>{asset.name}</button>{:else}<button type="button" class="open" aria-expanded={opened === asset.id}>{asset.name}</button>{/if}{#if asset.version > 1} <span class="muted">v{asset.version}</span>{/if}{#if fresh.includes(asset.id)} <span class="muted">· just uploaded</span>{/if}</td>
+            <td class="name" title={asset.url}>{#if pick}<button type="button" class="open" disabled={!pickable(asset)} onclick={() => choose(asset)}>{asset.name}</button>{:else}<button type="button" class="open" aria-expanded={opened === asset.id}>{asset.name}</button>{/if}{#if moreUses(asset)} <span class="muted">{moreUses(asset)}</span>{/if}{#if asset.version > 1} <span class="muted">v{asset.version}</span>{/if}{#if fresh.includes(asset.id)} <span class="muted">· just uploaded</span>{/if}</td>
             <td class="name place" title={place.place ?? ""}>{place.place ?? "upload"}</td>
             <td class="muted kind">{asset.kind}</td>
             <td class="num muted size">{formatSize(asset.size)}</td>
@@ -279,22 +334,25 @@
           {/if}
         {/each}
       </tbody>
+      {/each}
     </table>
   {:else}
+    {#each groups as group (group.key)}
+    <div class="group-head small"><span>{group.label}</span> <span class="muted">{group.assets.length}</span></div>
     <ul class="grid">
-      {#each shown as asset (asset.id)}
-        {@const place = assetPlace(asset)}
+      {#each group.assets as asset (asset.id)}
         <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions (the Pick button is the keyboard's way) -->
         <li class="card" class:picking={!!pick} class:current={(!!pick && pick.current === asset.url) || fresh.includes(asset.id)} class:unfit={!!pick && !pickable(asset)}
           onclick={pick ? e => pickFrom(e, asset) : undefined}>
           {#key asset.url}<AssetThumb {asset} />{/key}
-          <div class="name" title={asset.url}>{place.label}{#if asset.version > 1} <span class="muted">v{asset.version}</span>{/if}</div>
-          <div class="small muted">{#if fresh.includes(asset.id)}just uploaded · {/if}{asset.kind} · {formatSize(asset.size)}{#if asset.width} · {asset.width}×{asset.height}{/if}{#if asset.durationMs} · {formatDuration(asset.durationMs)}{/if} · {asset.usages} use{asset.usages === 1 ? "" : "s"}</div>
+          <div class="name" title={asset.url}>{assetLabel(asset)}{#if asset.version > 1} <span class="muted">v{asset.version}</span>{/if}</div>
+          <div class="small muted">{#if fresh.includes(asset.id)}just uploaded · {/if}{asset.kind} · {formatSize(asset.size)}{#if asset.width} · {asset.width}×{asset.height}{/if}{#if asset.durationMs} · {formatDuration(asset.durationMs)}{/if} · {asset.usages} use{asset.usages === 1 ? "" : "s"}{#if moreUses(asset)} · {moreUses(asset)}{/if}</div>
           {@render credits(asset)}
           <div class="actions">{@render actions(asset)}</div>
         </li>
       {/each}
     </ul>
+    {/each}
   {/if}
   {#if !pick && (filter === "all" || filter === "code")}
     <CodeFiles {bookId} {search} all={filter === "all"} {onopencode} />
@@ -308,6 +366,15 @@
   .drop { position: absolute; inset: .25rem; z-index: 1; margin: 0; display: flex; align-items: center; justify-content: center; text-align: center;
     pointer-events: none; background: var(--surface); opacity: .92; border-radius: var(--control-radius); }
   .controls .grow { flex: 1; min-width: 6rem; }
+  .group-head { display: flex; gap: .375rem; align-items: baseline; margin-top: .625rem; padding-bottom: .125rem; border-bottom: 1px solid var(--line); }
+  .group-head span:first-child { font-weight: 600; }
+  .list tr.group th { padding-top: .625rem; font-weight: 600; color: var(--text); cursor: default; }
+  .list tbody tr.group { cursor: default; }
+  @media (hover: hover) { .list tbody tr.group:hover { background: none; } }
+  .names { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .5rem; padding: .375rem; border: 1px solid var(--line); border-radius: var(--control-radius); }
+  .names > span { flex-basis: 100%; }
+  .names ul { flex-basis: 100%; margin: 0; padding-left: 1rem; }
+  .names li { overflow-wrap: anywhere; }
   .grid { list-style: none; margin: .375rem 0 0; padding: 0; display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); }
   .card { display: flex; flex-direction: column; gap: .2rem; padding: .375rem; border: 1px solid var(--line); border-radius: var(--control-radius); min-width: 0; }
   .card.picking:not(.unfit) { cursor: pointer; }
@@ -349,6 +416,7 @@
       column-gap: .75rem; row-gap: .125rem; align-items: baseline; min-height: 2.5rem; padding: .3rem .25rem; border-bottom: 1px solid var(--line); box-sizing: border-box; }
     .list tbody tr.on { border-bottom-color: transparent; }
     .list tbody tr.more { display: block; min-height: 0; padding: 0 .25rem .375rem; }
+    .list tbody tr.group { display: block; min-height: 0; padding: .625rem .25rem .125rem; }
     .list th, .list td { padding: 0; border-bottom: none; }
     .list td { display: block; min-width: 0; }
     .list td:nth-child(1) { grid-area: name; }

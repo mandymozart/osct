@@ -264,3 +264,13 @@ CREATE TABLE IF NOT EXISTS page_images (
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (book_id, page, facing)
 );
+
+-- Library file names by use for imported files (schema.mysql.sql has the notes)
+CREATE TABLE IF NOT EXISTS asset_names (
+  book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  name TEXT NOT NULL,
+  updated_by TEXT NULL DEFAULT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (book_id, url)
+);

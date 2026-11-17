@@ -349,7 +349,8 @@ final class Books
             $spread->entries = $bySpread[$row['id']] ?? [];
             $spreads[] = $spread;
         }
-        Http::json(200, ['book' => self::summary($book), 'spreads' => $spreads, 'unassigned' => $unassigned]);
+        // Each spread with the title it shows: its own, else its pages' (#298 – `Pages::withTitles`)
+        Http::json(200, ['book' => self::summary($book), 'spreads' => Pages::withTitles($spreads), 'unassigned' => $unassigned]);
     }
 
     /** GET /editor/books/{id}/entities → { entities: { ref: EntityData } } */
@@ -531,8 +532,9 @@ final class Books
             $spread = Editor::decode($row['data_json']);
             $touched = false;
             if (property_exists($body, 'title')) {
-                if (!is_string($body->title) || trim($body->title) === '') throw new ApiError(400, 'invalid-spread', 'title must be a non-empty string.');
-                $spread->title = trim($body->title);
+                // "" or null: no title of its own – the spread shows its pages' (`Pages::withTitles`, #298)
+                if ($body->title !== null && !is_string($body->title)) throw new ApiError(400, 'invalid-spread', 'title must be a string ("" or null: the title its pages give).');
+                $spread->title = trim((string) $body->title);
                 $touched = true;
             }
             if (property_exists($body, 'format')) {
@@ -555,6 +557,7 @@ final class Books
             self::change($bookId, $user, 'spread', $spreadId, $row['data_json'], $json);
             return $spread;
         });
+        $spread->title = Pages::titlesOf($bookId)[$spreadId] ?? $spread->title;
         Http::json(200, ['spread' => $spread]);
     }
 
@@ -722,7 +725,8 @@ final class Books
         // A book without spreads (or with only a back cover) starts on page 1, before everything
         $last = $anchor !== null ? (int) $anchor['last_page'] : 0;
         $position = $anchor !== null ? (int) $anchor['position'] + 1 : ($spreads ? (int) $spreads[0]['position'] : 0);
-        $spread = (object) ['id' => $id, 'title' => $title ?? 'New spread', 'firstPage' => $last + 1, 'lastPage' => $last + 2];
+        // No title given: none of its own – it shows its pages' (`Pages 12–13`, #298)
+        $spread = (object) ['id' => $id, 'title' => $title ?? '', 'firstPage' => $last + 1, 'lastPage' => $last + 2];
         $json = Editor::encode($spread);
         $moved = Db::transaction(function () use ($bookId, $id, $position, $spread, $last, $json, $user) {
             Db::run('UPDATE spreads SET position = position + 1 WHERE book_id = :book AND position >= :position', ['book' => $bookId, 'position' => $position]);
@@ -733,6 +737,7 @@ final class Books
             self::change($bookId, $user, 'spread', $id, null, $json);
             return $moved;
         });
+        $spread->title = Pages::titlesOf($bookId)[$id] ?? $spread->title;
         Http::json(201, ['spread' => $spread, 'moved' => $moved]);
     }
 
@@ -793,7 +798,7 @@ final class Books
         $later = $pages > 0 && ((int) Db::value('SELECT COUNT(*) FROM spreads WHERE book_id = :book AND first_page > :page', $after)
             + (int) Db::value('SELECT COUNT(*) FROM entries WHERE book_id = :book AND page > :page', $after)) > 0;
         $impact = ['book' => $bookId, 'kind' => 'spread',
-            'spread' => ['id' => $spreadId, 'title' => $row['title'], 'firstPage' => (int) $row['first_page'], 'lastPage' => (int) $row['last_page'], 'format' => $format],
+            'spread' => ['id' => $spreadId, 'title' => Pages::titlesOf($bookId)[$spreadId] ?? $row['title'], 'firstPage' => (int) $row['first_page'], 'lastPage' => (int) $row['last_page'], 'format' => $format],
             'pagesBack' => $later ? $pages : 0] + $removal->impact();
         Confirmation::require("delete-spread|$bookId|$spreadId", $user, $removal->state([$row]), $confirm,
             ['confirm-delete', 'Removing the spread takes ' . self::impactLine($impact) . ' – show this to the person, then remove again with confirm: <confirmation id>.'],

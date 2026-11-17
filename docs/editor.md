@@ -219,7 +219,8 @@ Inspector's *assets* names it; without a layout the cards are text), their entri
 - **The add tile** ends the grid of a digital-first book: a double page's size, a dashed frame with a large **+** – the
   place a new spread appears. It opens the **creation step** in its place, no browser dialog (`NewSpreadForm.svelte`,
   its choices in `spread-edit.ts`): the **format** (a double page, the cover, the back cover – only those the book can
-  still take: one cover, one back), the **title** (empty: *New spread*, *Cover*, *Back cover*) and for a double page
+  still take: one cover, one back), the **title** (empty: the title its pages give – *Pages 12–13*, *Cover*, *Back
+  cover*, see "Spread titles" below) and for a double page
   **after** which spread it goes, with the pages it takes and whether later pages move; *Create*, *cancel*. A card's
   *Add a double page after* opens the same step with that spread chosen. In the workspace the same step opens in the
   panel from **+** after the last spread's › and from the tree's spread row menu; the new spread opens. A new double
@@ -254,6 +255,17 @@ Inspector's *assets* names it; without a layout the cards are text), their entri
 - **Page images** (#251, [below](#pages)) lie over a card's sheet where its pages have one: a double page's halves, a
   cover's whole card, a single page's card. A single left-hand page (the last printed one) shows the left half of its
   sheet – the half with the page.
+
+### Spread titles
+
+A spread shows a **title of its own**, or – when it has none – **the title its pages give** (#298 phase 3,
+`shared/api/spread-titles.ts`): `Pages 118–119`, `Page 256`, `Cover`, `Back cover`, `Front matter 1`, `Back matter 2`
+(matter by its place among the spreads of its matter). A stored title that only repeats the pages – the import's
+`118–119`, `1`, `256`, an older `Cover` or `New spread` – counts as none, so inserting or removing pages never leaves a
+stale title; a title of its own (`The Golem`) is kept. The editor (tree, Inspector, breadcrumb, cards, search), the
+reader's page scroller (where it shows titles: the covers and the matter) and the MCP read the same title – the API
+derives it where it serves spreads, the content it assembles included ([server](server.md) "Spreads made in the editor").
+The tree and the cards leave out the pages next to a derived title (it says them already). Ids never change with a title.
 
 ### Pages
 
@@ -962,6 +974,24 @@ says so, #258); per file **Use** (the selected node takes it,
 when its type fits), **Target image** (an image becomes the selected target's printed image), **Replace…** (a new
 version, every use relinked, the stage rebuilt) and **Delete** (refused while used – *Delete anyway* forces it). Nodes
 name a file by its absolute URL, so draft and every publish point at the same file.
+
+**Grouped by spread** (#298 phase 3): the media – cards and list alike – come in groups: a header per spread in book
+order (its [title](#spread-titles) and how many files), each file under the spread of its **first use** in page order,
+then **Not in a spread** (the book-wide uses: the environment's world and sky, a plugin's source, a shared entity no
+target shows, an entry on no spread), then **Unused**. A file used in more places says **+N more**. The search, the
+filters and *Credits…* work as before, on the files the groups show.
+
+**Name by use…** (#298 phase 3, next to the view) names the files by where they are used: an entry's printed image
+`p118-1_target.webp`, its colour picture `p118-1_image.webp`, another file of the entry or its own entity
+`p118-1_<asset id>.glb` (a model's texture maps add their size), a page image `page-118.webp`, `page-cover.webp`,
+`page-back-cover.webp`, `page-1-facing.webp`, `page-front-1-left.webp`, a shared entity's file `<entity>_<asset id>.ext`,
+the environment's `environment_world.glb` / `environment_sky.webp`. A file used in several places takes its first use;
+unused files and files only a plugin's source names keep their names; two files that would take one name get `-2`,
+`-3`. The first click shows the plan (*from → to*, the first twelve), **Rename N** applies it, *cancel* leaves it. The
+**name only** changes – every URL and every use stays. An imported file (read-only) gets a listed name and shows it
+instead of its place. New uploads whose use is known are named so at once: an entry's picture and a target's printed
+image by their entry, a page image (one or many in the Pages view) by its page ([server](server.md) "Files named by
+use").
 
 **Code files** (#186): the book's **scripts** and **shaders** in a list of their own under the media (the filter
 **code** shows it alone; `CodeFiles.svelte`, `library-code.ts`) – name, kind (*script* / *shader*), size, uses. A script

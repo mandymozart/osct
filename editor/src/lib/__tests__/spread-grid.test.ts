@@ -53,6 +53,11 @@ describe("spread caption", () => {
     expect(captionOf(spread("a", 4, 5, undefined, "The garden"))).toBe("4–5 · The garden");
   });
 
+  it("leaves out a title its pages give (#298: Pages 4–5, a stale 2–3)", () => {
+    expect(captionOf(spread("a", 4, 5, undefined, "Pages 4–5"))).toBe("4–5");
+    expect(captionOf(spread("a", 4, 5, undefined, "2–3"))).toBe("4–5");
+  });
+
   it("does not repeat the cover's format in the caption", () => {
     expect(captionOf(spread("c", 0, 0, "cover", "Cover"))).toBe("");
     expect(captionOf(spread("c", 0, 0, "cover", "Front"))).toBe("Front");

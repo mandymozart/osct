@@ -360,7 +360,9 @@
     targetBusy = true;
     targetError = null;
     try {
-      const url = typeof src === "string" ? src : (await library.upload(bookId, src, "target")).url;
+      // A new printed image is named by its entry (`p118-1_target.webp`, #298)
+      const entryId = target?.id === targetId ? target.entryId : undefined;
+      const url = typeof src === "string" ? src : (await library.upload(bookId, src, { fit: "target", entry: entryId })).url;
       await putTarget(bookId, targetId, { imageSrc: url });
       await ontargetchanged?.();
     } catch (e) {
