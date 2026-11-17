@@ -14,7 +14,7 @@ declare(strict_types=1);
  *   the picture credits, #277).
  * - **Matter** (`POST …/matter`): adds the front and back matter spreads a book is missing compared to its print format,
  *   the single last printed page when no spread holds it, and moves the back cover after the back matter – allowed for a
- *   print-first book too (a deliberate exception to #238: the spreads are the printed book's, only missing).
+ *   print-first book too (since #307 every book takes scenes; the matter adds the printed book's own, only missing).
  */
 final class Pages
 {
@@ -296,23 +296,8 @@ final class Pages
 
     // ── Hooks of other routes ────────────────────────────────────────────────────────────────────
 
-    /** Every page image after `$after` moves by `$by` (a double page added or removed in a digital-first book) – inside the caller's transaction */
-    public static function shift(string $bookId, int $after, int $by): void
-    {
-        $rows = Db::run('SELECT * FROM page_images WHERE book_id = :book AND page > :page', ['book' => $bookId, 'page' => $after])->fetchAll();
-        if (!$rows) return;
-        Db::run('DELETE FROM page_images WHERE book_id = :book AND page > :page', ['book' => $bookId, 'page' => $after]);
-        foreach ($rows as $row) {
-            self::insert($bookId, ['page' => (int) $row['page'] + $by, 'facing' => (bool) (int) $row['facing'], 'url' => (string) $row['url'], 'name' => (string) $row['name']],
-                $row['updated_by'] === null ? null : (string) $row['updated_by'], (int) $row['updated_at']);
-        }
-    }
-
-    /** The page images of pages `$first`…`$last` go (their spread was removed) – inside the caller's transaction */
-    public static function drop(string $bookId, int $first, int $last): void
-    {
-        Db::run('DELETE FROM page_images WHERE book_id = :book AND page >= :first AND page <= :last', ['book' => $bookId, 'first' => $first, 'last' => $last]);
-    }
+    // Since scenes (#307) nothing renumbers pages: adding or removing a scene moves no page image (the former
+    // `shift` / `drop`). A removed scene's page images stay until phase 3 turns them into surface reference images.
 
     /** A Library file's URL changed (a replace): its page images follow – inside the caller's transaction; returns how many */
     public static function relink(string $bookId, string $from, string $to): int
@@ -339,9 +324,9 @@ final class Pages
      * - `moveBackCover`: the back cover's page → the page after the back matter (`lastPage + 2·back + 1`); its entries move
      *   with it, except those on a page that is now a printed page – they go to that page's spread;
      * - `entries`: the entries that change spread or page.
-     * Without `apply: true` nothing is written (the plan only). With it the plan is applied in one transaction, every
-     * spread's order follows its pages, and every changed row is in the change log. A print-first book takes it too (#238's
-     * exception for matter). 400 `invalid-matter`; 409 `matter-conflict` when a spread that is no matter holds a page the
+     * Without `apply: true` nothing is written (the plan only). With it the plan is applied in one transaction, the new
+     * spreads take their places in the order (`placeMatter` – the order is the scenes' position, #307; nothing is sorted by
+     * pages), and every changed row is in the change log. A print-first book takes it too. 400 `invalid-matter`; 409 `matter-conflict` when a spread that is no matter holds a page the
      * plan needs.
      */
     public static function addMatter(string $bookId): never
@@ -494,22 +479,52 @@ final class Pages
                 Books::recordChange($bookId, $user, 'target', $target['id'], $target['data_json'], $targetJson);
             }
         }
-        self::reorder($bookId);
+        self::placeMatter($bookId, $plan['create']);
         Books::touchBook($bookId);
     }
 
-    /** Every spread's position follows its pages: the cover first, the back cover last, the rest by first page */
-    private static function reorder(string $bookId): void
+    /**
+     * The new matter scenes into the order (#307: the order is the scenes' position – nothing is sorted by pages): the
+     * front matter before the first scene that is neither the front cover nor front matter, the last printed page's
+     * spread after the last numbered spread, the back matter after that and the other back matter – so before the back
+     * cover. The scenes there before keep their order.
+     * @param list<array<string, mixed>> $created the spreads `addMatter` made
+     */
+    private static function placeMatter(string $bookId, array $created): void
     {
-        $rows = Db::run('SELECT id, position, first_page, data_json FROM spreads WHERE book_id = :book', ['book' => $bookId])->fetchAll();
-        $rank = static function (array $row): array {
-            $format = Editor::decode($row['data_json'])->format ?? 'spread';
-            return [$format === 'cover' ? 0 : ($format === 'back' ? 2 : 1), (int) $row['first_page'], (int) $row['position']];
-        };
-        usort($rows, static fn(array $a, array $b) => $rank($a) <=> $rank($b));
-        foreach ($rows as $position => $row) {
-            if ((int) $row['position'] === $position) continue;
-            Db::run('UPDATE spreads SET position = :position WHERE book_id = :book AND id = :id', ['position' => $position, 'book' => $bookId, 'id' => $row['id']]);
+        if (!$created) return;
+        $createdIds = array_map(static fn(array $s) => $s['id'], $created);
+        $rows = array_values(array_filter(Scenes::rows($bookId), static fn(array $row) => !in_array((string) $row['id'], $createdIds, true)));
+        $order = [];
+        $kinds = [];
+        foreach ($rows as $row) {
+            $data = Editor::decode($row['data_json']);
+            $format = $data->format ?? 'spread';
+            $order[] = (string) $row['id'];
+            $kinds[] = $format !== 'spread' ? $format : (in_array($data->matter ?? null, Books::MATTERS, true) ? $data->matter . '-matter' : 'page');
         }
+        $insert = static function (int $at, string $id, string $kind) use (&$order, &$kinds): void {
+            array_splice($order, $at, 0, [$id]);
+            array_splice($kinds, $at, 0, [$kind]);
+        };
+        $lastOf = static function (array $wanted) use (&$kinds): int {
+            for ($i = count($kinds) - 1; $i >= 0; $i--) if (in_array($kinds[$i], $wanted, true)) return $i;
+            return -1;
+        };
+        foreach ($created as $spread) {
+            $matter = $spread['matter'] ?? null;
+            if ($matter === 'front') {
+                $at = 0;
+                while ($at < count($kinds) && in_array($kinds[$at], ['cover', 'front-matter'], true)) $at++;
+                $insert($at, $spread['id'], 'front-matter');
+            } elseif ($matter === 'back') {
+                $at = $lastOf(['page', 'back-matter', 'front-matter', 'cover']);
+                $insert($at + 1, $spread['id'], 'back-matter');
+            } else {
+                $at = $lastOf(['page', 'front-matter', 'cover']);
+                $insert($at + 1, $spread['id'], 'page');
+            }
+        }
+        Scenes::writePositions($bookId, Scenes::rows($bookId), $order);
     }
 }

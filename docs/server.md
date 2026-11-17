@@ -654,9 +654,9 @@ JSON holds `"type":"<type>"` (a component, layer, node type, pass or material) o
 `{ print }` (`PrintPlacement`, content schema 2.1: `surface` left / right, `x`, `y`, `width` in mm from the surface's
 top left corner, optional `height` and `page`) – the editor's stage lays the target there; `null` removes it – and
 `{ enabled }` (content schema 2.26, #249: `false` switches the target off, the reader leaves it and its entry out;
-`true` removes the field, on is the default). 400 `invalid-target`. `POST /editor/books/{id}/entries` `{ title, page,
+`true` removes the field, on is the default). 400 `invalid-target`. `POST /editor/books/{id}/entries` `{ title, scene? + surface? | page,
 category?, body?, caption?, target?: { id?, imageSrc, print?, entity?, enabled? } }` → 201 `{ entry, spreadId }` makes an entry (id from title and page, `p102-shadows`, or the given one;
-409 `duplicate-id`) on the spread its page belongs to, with its target – or without one (no `target`): an entry read
+409 `duplicate-id`) on its scene (and surface, #307) – or on the scene its page finds ([Scenes](#scenes)) – with its target – or without one (no `target`): an entry read
 only in the list, a glossary term or a text ([Texts](#texts)); `DELETE /editor/books/{id}/entries/{eid}`
 removes the entry with its target and the entity used only there, in two steps ([Removing a spread or an
 entry](#removing-a-spread-or-an-entry)). The reader tracks such a target after a publish: the 8th Wall
@@ -675,38 +675,86 @@ http(s) – and a picture of the book's Library.
 | Endpoint | Body | Answer |
 |---|---|---|
 | `GET /editor/books/{id}/entries` | | `{ entries: [{ …EntryData without its target, spreadId, target: { id, imageSrc } \| null }] }` – every entry in the book's order, each field as written (an imported picture's `/assets/content/…` path unresolved) |
-| `PUT /editor/books/{id}/entries/{eid}` | `{ title?, body?, author?, image?, caption?, media?, tags?, category?, page? }` | `{ entry, spreadId, previousSpreadId }` – the fields sent change; `null` removes `author`, `image`, `caption` or `media`. `title`, `author` and `caption` (the line under the picture, #289) are trimmed (`title` not empty, at most 500 characters), `body` is Markdown kept as written (at most 100 000 characters – `docs/content.md` "The text: Markdown and variables"; the API does not judge its braces), `tags` a list of words (trimmed, each once, the empty ones left out; at most 32 of 64 characters), `category` one of the contract's, `media` an http(s) URL with a host, `image` the URL of an uploaded image or a file of the import (its path or its URL below the assets base) – or the value the entry has. A new `page` moves the entry to the first spread whose pages include it, none when no spread does (as `POST …/entries`); its target stays as it is. 400 `invalid-entry` (an unknown field too), 404 |
-| `PUT /editor/books/{id}` | `{ title?, author?, publisher?, sourceOfTruth? }` | `{ book }` – the book's `book` after the change (the list's and tree's `title` and `author` follow); title and author not empty, `publisher: null` or `""` removes it; `sourceOfTruth` `print` or `digital` (#238 – [Spreads made in the editor](#spreads-made-in-the-editor)). 400 `invalid-book` |
+| `PUT /editor/books/{id}/entries/{eid}` | `{ title?, body?, author?, image?, caption?, media?, tags?, category?, scene?, surface?, page? }` | `{ entry, spreadId, previousSpreadId }` – the fields sent change; `null` removes `author`, `image`, `caption` or `media`. `title`, `author` and `caption` (the line under the picture, #289) are trimmed (`title` not empty, at most 500 characters), `body` is Markdown kept as written (at most 100 000 characters – `docs/content.md` "The text: Markdown and variables"; the API does not judge its braces), `tags` a list of words (trimmed, each once, the empty ones left out; at most 32 of 64 characters), `category` one of the contract's, `media` an http(s) URL with a host, `image` the URL of an uploaded image or a file of the import (its path or its URL below the assets base) – or the value the entry has. `scene` moves the entry to that scene (`null`: on no scene), `surface` puts it on one of its scene's surfaces (`null`: none; 400 for a surface the scene does not have); a `page` alone (older clients) moves it to the scene that page finds, none when no scene does ([Scenes](#scenes)); its target stays as it is. `page` in the answer and in `GET …/entries` is the one older apps read. 400 `invalid-entry` (an unknown field too), 404 |
+| `PUT /editor/books/{id}` | `{ title?, author?, publisher?, sourceOfTruth? }` | `{ book }` – the book's `book` after the change (the list's and tree's `title` and `author` follow); title and author not empty, `publisher: null` or `""` removes it; `sourceOfTruth` `print` or `digital` (#238 – [Scenes](#scenes)). 400 `invalid-book` |
 
 The limits are `shared/api/rules.ts`' too (`TEXT_MAX_LENGTH`, `BODY_MAX_LENGTH`, `ENTRY_TAGS`, `isLinkUrl`) –
 `mcp/test/php-rules.test.ts` compares them with the PHP.
 
-### Spreads made in the editor
+### Scenes
 
-**Only a digital-first book** (#238): a book's `book.sourceOfTruth` says where its spreads come from – `print` (print
-first: the printed book's layout, through an import) or `digital` (digital first: the editor). `POST …/spreads` and
-`DELETE …/spreads/{id}` answer 409 `print-first` (with how to change it) unless the book is digital first. The one
-exception is the matter ([Pages and page images](#pages-and-page-images), #251): the front and back matter a print-first
-book is missing, which are the printed book's own. An import keeps
-the configuration's value and writes `print` when it has none (an imported book is print first; a value other than
-`print` / `digital` is a 400 `invalid-configuration`); `PUT /editor/books/{id}` `{ sourceOfTruth }` changes it, recorded
-as a `book` change. The draft and a publish carry it in `book` (content schema 2.25 – an older app ignores it).
+A book is an **ordered list of scenes** (#307 phase 2, `agents/SCENES.md`, `Scenes.php`). A scene is a `spreads` row: its
+**order is `spreads.position`** and nothing else – no route sorts by pages any more –, its surfaces, layout, label and
+group live in its `data_json` (`SurfaceData`, `layout`, `group`, `label` – content schema 2.35), the book's groups in
+`books.groups_json` (the content's root `groups`). An entry's scene is `entries.spread_id` – **its own truth**, never
+recomputed from a page – and its surface the entry's `surface`. **Nothing renumbers**: adding, moving or removing a scene
+changes no other row's pages, no entry's page, no `print.page` and no page image. Scenes are added, moved and removed
+in **print-first and digital-first books alike** (#238's restriction went with #307; `sourceOfTruth` still tells
+where a book's pages come from). An import keeps the configuration's `sourceOfTruth` and writes `print` when it has none
+(a value other than `print` / `digital` is a 400 `invalid-configuration`); `PUT /editor/books/{id}` `{ sourceOfTruth }`
+changes it, recorded as a `book` change.
 
-A spread's pages decide which entries are on it: an entry belongs to the first spread whose `firstPage`–`lastPage`
-include its `page` (the `spread_id` column records it), and a target's optional `print.page` names its page. Adding
-or removing a double page therefore **renumbers the pages after it** – every spread starting later, every entry on a
-later page and every later `print.page` move by the same amount, data and typed columns alike, so each entry keeps
-its spread and the contract stays as the content build writes it. Every moved row is a change in the log.
+**The pages older apps read (RULES #10).** An app before schema 2.35 places an entry by its `page` and a spread by its
+`firstPage`–`lastPage`, so the draft keeps writing both (`ContentVersion::assemble`, `Scenes::ranges` / `pageOf`):
+
+- a scene keeps the range it is stored with – an import's printed pages; a scene made here a range after every other –
+  while the ranges stay **in order and apart**: after the scene before it and before the next one's stored range (the
+  front cover, page 0 before the front matter's negative pages, only has to stay apart);
+- where they do not – a scene moved or added in the middle – that scene gets a **derived range**: right after the scene
+  before it, as wide as its own; so do the later ones until a stored range fits again. Ranges never overlap;
+- every entry's `page` lies inside its scene's range: its stored page while the scene keeps its range, else its
+  surface's place in the scene, else the same offset from the scene's first page as before. An entry on no scene keeps
+  its page. Rows keep their pages in the scene's own stored numbers (`Scenes::storedPage`).
+
+Older apps then show those numbers as page numbers – the price of reordering; the reader of 2.35 shows labels. The
+editor's tree (`GET /editor/books/{id}`), the entries list and every scene route show the same ranges, and a `page` an
+older client sends (`POST …/entries { page }`, `PUT …/entries/{eid} { page }`) finds the first scene whose shown range
+holds it, else the first with a surface labelled with it (`Scenes::forPage`), and the surface: the one labelled with the
+page, else the one at the page's place when the scene has one surface per page. Until the editor's phase 3, its print
+layout sheets (matched by page) follow the derived numbers of a scene moved out of its printed place.
 
 | Endpoint | Body | Answer |
 |---|---|---|
-| `POST /editor/books/{id}/spreads` | `{ format: "spread", after?, id?, title? }` | 201 `{ spread, moved: { spreads, entries, targets } }` – a double page right after the spread `after` (default: the last one before the back cover; a book without one starts on page 1). Its pages are the two after that spread's `lastPage`, its position the next; every later page is numbered on by two. `id` defaults to the first free `spread-<n>`; without `title` it has none of its own and shows its pages' (`Pages 12–13`, below). 400 `unknown-spread` (no such `after`), `invalid-spread` (after the back cover, an unknown format), `invalid-id`; 409 `duplicate-id` |
-| `POST /editor/books/{id}/spreads` | `{ format: "cover" \| "back", title? }` | 201 `{ spread, moved }` – the front cover (page 0, first) or the back cover (the page after the last, last); nothing moves. 400 `invalid-spread` with an `after`; 409 `duplicate-id` when the book has one |
-| `PUT /editor/books/{id}/spreads/{sid}` | `{ title?, format?, passes? }` | `{ spread }` – title (`""` or `null`: none of its own – the pages' again), format (`cover` only on page 0) and the spread's own post-processing (an override of the book's: `null` removes it so the book's apply, `[]` turns them off there); the pages stay |
+| `GET /editor/books/{id}/scenes` | | `{ scenes: [{ id, position, title, label, format, matter, layout, group, surfaces, firstPage, lastPage, stored: { firstPage, lastPage }, derived, entries, targets }], groups: [{ id, label, scenes }] }` – in order; `firstPage` / `lastPage` the range older apps read, `derived` = not the stored one; `entries` / `targets` how many lie on it |
+| `POST /editor/books/{id}/scenes` | `{ preset?, after? \| before? \| position?, id?, title?, label?, group?, layout?, surfaces? }` | 201 `{ scene, position, pages }` – a scene anywhere: `preset` (default `double`) `single` (one page, right), `double` (left, right), `cover` (front), `back` (back), `foldout` (left, middle, right), `wall` (one wall, 2000 × 2000 mm) gives its surfaces (a page 230 × 320 mm) unless `surfaces` names them; `cover` / `back` also its `format`. Placed after / before a scene or at `position` (0 = first); none = a cover first, the rest before the back cover. Stored with pages after every other scene's (the front cover on 0 while no scene holds it); `pages` = `[{ scene, from, to }]`, the scenes whose range older apps read changes. `id` defaults to `scene-<n>`. 400 `invalid-scene`, `unknown-scene`, `unknown-group`; 409 `duplicate-id` |
+| `POST /editor/books/{id}/scenes/move` | `{ scenes: [ids], after? \| before? \| position?, group?, apply? }` | `{ plan: { order, moved, groups, pages }, applied }` – one or several scenes as a block (in their order): after / before a scene, to `position` (among the scenes that stay), into `group` (after its last scene unless placed) or out of their group (`group: null` – in place, unless inside the group: then right after it). Without `apply: true` nothing is written; with it the order (a change `order`, before / after the ids) and the scenes' groups (a change `spread` each), in one transaction. 400 `invalid-move`, `unknown-scene`, `unknown-group` |
+| `PUT /editor/books/{id}/scenes/{sid}` = `PUT /editor/books/{id}/spreads/{sid}` | `{ title?, format?, passes?, surfaces?, layout?, label?, group?, apply? }` | `{ spread, scene, cleared }` – title (`""` or `null`: none of its own – the pages' again), format (`cover` / `back` only for a one-page scene), the scene's own post-processing (`null` removes it so the book's apply, `[]` turns them off there), `surfaces` (the whole list `[{ id, side, widthMm?, heightMm?, label? }]` – sizes default to a page's, a wall's for side `wall`; `[]` / `null` removes them; at most 32), `layout` (`fixed` / `free` / `null`), `label` (free text, `""` / `null` removes it), `group` (a group of the book / `null`; the scene stays in place). A surface entries lie on goes only with `apply: true`: else 409 `surfaces-in-use` with `entries` – with it they keep the scene without a surface (`cleared`, a change each). 400 `invalid-spread`, `invalid-scene`, `unknown-group`; 404 |
+| `DELETE /editor/books/{id}/scenes/{sid}` = `DELETE /editor/books/{id}/spreads/{sid}` | `{ confirm?, deleteFiles? }` | the scene with everything on it, in two steps ([below](#removing-a-spread-or-an-entry)): 409 `confirm-delete` with `impact` (its `pages` – the ranges older apps read that change) and `confirmation`, then with `confirm` 200 `{ deleted, moved, pages }` – nothing renumbers (`moved` and `pagesBack` are 0), its page images stay. 409 `initial-spread` for the scene the book opens on (it never goes); 404 |
+| `POST /editor/books/{id}/groups` | `{ label, scenes: [ids], id?, apply? }` | `{ plan: { group, order, moved, groups, pages }, applied }` – a group of the picked scenes: they come together where the first of them is (a scene of another group leaves it). `id` defaults to the label as a slug (`chapter-one`), else `group-<n>`. Without `apply: true` nothing is written; with it the groups (a change `groups`), the order and the scenes. 400 `invalid-group`, `unknown-scene`; 409 `duplicate-id` |
+| `PUT /editor/books/{id}/groups/{gid}` | `{ label }` | `{ group }` – renamed (a change `groups`). 400 `invalid-group`; 404 |
+| `DELETE /editor/books/{id}/groups/{gid}` | | `{ ungrouped, scenes }` – ungroup: the group goes, its scenes stay in place and in order, without a group. 404 |
+| `POST /editor/books/{id}/scenes/migrate` | `{ apply? }` (or no body) | `{ plan: { upToDate, counts, scenes, groups, entries: { placed, unplaced }, pageImages }, applied }` – [the migration](#the-migration-of-a-book) |
+| `POST /editor/books/{id}/spreads` | `{ format: "spread", after?, id?, title? }` | 201 `{ spread, moved, pages }` – the older form of `POST …/scenes`: a double page after the spread `after` (default: before the back cover, else last). `id` defaults to `spread-<n>`; without `title` it shows its pages' (`Pages 12–13`, below). `moved` is always zero. 400 `unknown-spread`, `invalid-spread` (after the back cover, an unknown format), `invalid-id`; 409 `duplicate-id` |
+| `POST /editor/books/{id}/spreads` | `{ format: "cover" \| "back", title? }` | 201 `{ spread, moved, pages }` – the front cover (first; page 0 while free) or the back cover (last). 400 `invalid-spread` with an `after`; 409 `duplicate-id` when the book has one |
 | `PUT /editor/books/{id}/environment` | `{ environment: { world, onionSky, worldSrc?, skySrc? } \| null }` | `{ environment }` – the book's world and onion sky (`book.environment`, content schema 2.8; the world model and the sky image as references 2.10); `null` removes it – the default applies. A change `environment` in the log. 400 `invalid-environment`; 404 |
 | `PUT /editor/books/{id}/passes` | `{ passes: [{ type, …parameters }] \| null }` | `{ passes }` – the book's post-processing (`book.passes`, content schema 2.5), the master every spread without a list of its own shows; `null` removes it. Checked as a spread's list (a built-in `type` or a plugin's pass – schema 2.21, scalar parameters); a change `passes` in the log. 400 `invalid-passes`; 404 |
 | `PUT /editor/books/{id}/appearance` | `{ appearance: { reveal?, found?, lost? } \| null }` | `{ appearance }` – how the book's entities appear (`book.appearance`, content schema 2.29, #265): a look `{ type, …parameters }` per moment (`Books::MOMENTS`), a built-in `type` or a plugin's look, scalar parameters (their ranges are the guard's). The whole appearance is replaced; `null`, or one without a moment, removes the field – the default look plays everywhere. A change `appearance` in the log. 400 `invalid-appearance`; 404 |
-| `DELETE /editor/books/{id}/spreads/{sid}` | `{ confirm?, deleteFiles? }` | the spread with everything on it, in two steps ([below](#removing-a-spread-or-an-entry)): 409 `confirm-delete` with `impact` and `confirmation`, then with `confirm` 200 `{ deleted, moved }` – a double page's later pages are numbered back by its pages (the reverse of adding it), a cover moves nothing. 409 `initial-spread` for the spread the book opens on (it never goes); 404 |
+
+An entry's scene and surface: `POST …/entries` takes `{ scene, surface? }` (a scene of the book – 400 `unknown-scene` –
+and one of its surfaces – 400 `invalid-entry`; its `page` is the surface's, or a `page` inside the scene's range) or, for
+older clients, `{ page }` alone; `PUT …/entries/{eid}` takes `scene` (`null`: on no scene), `surface` (`null`: none) and
+`page` – a page alone moves the entry to the scene `forPage` finds. A surface kept from before goes when the entry
+changes to a scene without it. The draft drops a `surface` its scene does not have.
+
+#### The migration of a book
+
+`POST /editor/books/{id}/scenes/migrate` (MCP `migrate_scenes`) makes a book's spreads scenes (`agents/SCENES.md`
+"Migration"), in two steps – the plan, then `apply: true`, one transaction, a change per row:
+
+- every scene **without surfaces** gets them from its stored pages: a double page `left` / `right`, a single page its
+  side and the unnumbered half next to it (odd: right, even: left – as `Pages::pagesOf`), a fold-out of more pages
+  `left`, `middle`…, `right`, a cover `front`, a back cover `back` – each a page's size, **labelled with its printed page
+  number**; covers, front and back matter and the unnumbered halves get no label;
+- the front and back matter go into the groups `front-matter` *Front matter* / `back-matter` *Back matter* (made when
+  missing; a scene with a group keeps it);
+- every entry on a scene whose surface is missing gets the surface its page lies on; `entries.unplaced` lists those it
+  cannot place (on no scene, or a page that is no surface of their scene – they keep their scene without a surface);
+- order, pages, entries' scenes and **page images** (#251) stay as they are – `pageImages.count` says how many; phase 3
+  turns them into surface reference images.
+
+`counts` = `{ scenes, scenesWithSurfaces, surfaces, groups, entriesPlaced, entriesUnplaced }`, `scenes` what each scene
+gets, `groups` the new groups with their scenes. **Idempotent**: a migrated book answers `upToDate: true` and writes
+nothing. The draft's pages stay the same – the migration adds only fields an older app skips.
 
 **Spread titles** (#298 phase 3): a spread whose stored title only repeats its pages – empty, `118–119`, `256`,
 `Pages 118–119`, `Cover`, `Back cover`, `Front matter 1`, `New spread` (`Pages::DERIVED_TITLE` =
@@ -734,8 +782,9 @@ Library image, `name`, `updated_by`, `updated_at`; primary key book + page + fac
 editor shows instead of the print layout's sheet for that page. They are **no content** – the draft, a publish and the
 reader never carry them, an import keeps them, and they are not in the change log (as the picture credits). A page
 image is a use of its Library file (`usages` kind `page`, ref the page key `12` / `1f`): a delete is refused without
-`force`, a forced one removes the page images too, and a replace moves them to the new version. Adding or removing a
-double page in a digital-first book moves the later pages' images with them; a removed spread takes its pages' images.
+`force`, a forced one removes the page images too, and a replace moves them to the new version. Since scenes (#307)
+nothing renumbers: adding, moving or removing a scene moves no page image, and a removed scene's images stay (phase 3
+turns them into surface reference images).
 
 The **matter** (`POST …/matter`) makes a book's spreads whole against its print format – also on a **print-first book**,
 a deliberate exception to #238: the spreads it adds are the printed book's, only missing. It plans (and with
@@ -743,7 +792,9 @@ a deliberate exception to #238: the spreads it adds are the printed book's, only
 the front matter `front-1` … (two internal pages each, counting down to −1), the back matter `back-1` … (after the last
 printed page), and the back cover moved to the page after the back matter – its entries move with it (page and their
 targets' `print.page`), except those on a page that is now a printed page, which go to that page's spread; entries of no
-spread on a new page find it. Spreads that are there already are kept, every spread's order follows its pages, every
+spread on a new page find it. Spreads that are there already are kept; the new ones take their places in the order
+(front matter after the front cover, the last printed page's after the last numbered spread, the back matter after it –
+`Pages::placeMatter`; nothing is sorted by pages, #307), every
 written row is a change in the log.
 
 | Endpoint | Body | Answer |
@@ -760,8 +811,8 @@ person, only this way; the change log names it). `Removal.php` works out what go
 
 1. **Impact.** Without `confirm` nothing is written: 409 `confirm-delete` with `impact` and `confirmation`. `impact` =
    `kind` (`spread` / `entry`), `spread` `{ id, title, firstPage, lastPage, format }` or `entry` `{ id, title, page,
-   category, spread }`, `pagesBack` (by how many pages the later pages move back – 0 for a cover, an entry, or nothing
-   after it), `entries` `[{ id, title, page, category }]`, `targets` `[{ id, entry, imageSrc }]`, `entities` – the ones
+   category, spread }`, `pagesBack` (always 0 since scenes, #307 – kept for older clients), for a spread `pages` (the scenes whose range
+   older apps read changes – [Scenes](#scenes)), `entries` `[{ id, title, page, category }]`, `targets` `[{ id, entry, imageSrc }]`, `entities` – the ones
    that go: a shared entity no other target uses `{ ref, type, shared: true, targets }` and each target's own
    `{ ref: null, type, shared: false, targets }` –, `keptEntities` – shared entities other targets still use
    `[{ ref, type, targets, usedBy }]`, kept –, `files` `{ onlyHere, elsewhere }` – the Library files (uploaded assets,
@@ -770,11 +821,12 @@ person, only this way; the change log names it). `Removal.php` works out what go
    keptEntities, filesOnlyHere, filesElsewhere }`. The import's files (`files.json`) are the content build's and never
    part of it.
 2. **Confirm.** The same request with `confirm: <id>` removes exactly what the impact listed, in one transaction:
-   targets, the entities used only there, entries, the spread – the later pages move back as when a double page is
-   removed ([above](#spreads-made-in-the-editor)) – and with `deleteFiles: true` also the Library files used only
+   targets, the entities used only there, entries, the spread – nothing renumbers ([Scenes](#scenes)) – and with
+   `deleteFiles: true` also the Library files used only
    there (off by default; a file used elsewhere is never deleted; the store's files go after the commit). Every removed
    row is a change with its `before` and `after: null` (kinds `target`, `entity`, `entry`, `spread`, `asset`). 200
-   `{ deleted: { spread, entries, targets, entities, files }, moved: { spreads, entries, targets } }`. The id is bound
+   `{ deleted: { spread, entries, targets, entities, files }, moved: { spreads, entries, targets } }` (`moved` all 0;
+   a spread's removal adds `pages`). The id is bound
    to every row that goes, the kept entities' users, the files and their uses, and the book's change log and last
    change: anything that changed in the book answers 409 `confirmation-void` with a fresh impact and id.
 

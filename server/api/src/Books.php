@@ -93,14 +93,14 @@ final class Books
                 'id' => $bookId, 'title' => $book->title, 'author' => $book->author, 'book' => Editor::encode($book),
                 'initial' => $parts['initialSpreadId'], 'base' => $assetsBase,
                 'files' => Editor::encode($files), 'schema' => $parts['schema'], 'hash' => $parts['hash'], 'now' => $now,
-                'plugins' => Editor::encode($parts['plugins']), 'imported' => $imported,
+                'plugins' => Editor::encode($parts['plugins']), 'imported' => $imported, 'groups' => Editor::encode(array_values($parts['groups'])),
             ];
             if (Db::value('SELECT id FROM books WHERE id = :id', ['id' => $bookId]) !== null) {
                 Db::run('UPDATE books SET title = :title, author = :author, book_json = :book, initial_spread_id = :initial,
-                         assets_base = :base, files_json = :files, content_schema = :schema, imported_hash = :hash, plugins_json = :plugins, imported_json = :imported, updated_at = :now WHERE id = :id', $params);
+                         assets_base = :base, files_json = :files, content_schema = :schema, imported_hash = :hash, plugins_json = :plugins, imported_json = :imported, groups_json = :groups, updated_at = :now WHERE id = :id', $params);
             } else {
-                Db::run('INSERT INTO books (id, title, author, book_json, initial_spread_id, assets_base, files_json, content_schema, imported_hash, plugins_json, imported_json, created_at, updated_at)
-                         VALUES (:id, :title, :author, :book, :initial, :base, :files, :schema, :hash, :plugins, :imported, :created, :now)', $params + ['created' => $now]);
+                Db::run('INSERT INTO books (id, title, author, book_json, initial_spread_id, assets_base, files_json, content_schema, imported_hash, plugins_json, imported_json, groups_json, created_at, updated_at)
+                         VALUES (:id, :title, :author, :book, :initial, :base, :files, :schema, :hash, :plugins, :imported, :groups, :created, :now)', $params + ['created' => $now]);
             }
             foreach ($parts['spreads'] as $s) {
                 Db::run('INSERT INTO spreads (book_id, id, position, title, first_page, last_page, data_json) VALUES (:book, :id, :position, :title, :first, :last, :data)',
@@ -336,21 +336,24 @@ final class Books
         foreach (Db::run('SELECT entry_id, data_json FROM targets WHERE book_id = :book', $params)->fetchAll() as $row) {
             $targets[$row['entry_id']] = Editor::decode($row['data_json']);
         }
+        // The scenes in order with the page ranges older apps read – the same the draft writes (#307, `Scenes::ranges`)
+        $context = Scenes::context($bookId);
+        $groups = Scenes::groups($book);
         $bySpread = [];
         $unassigned = [];
         foreach (Db::run('SELECT * FROM entries WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
-            $entry = ['id' => $row['id'], 'category' => $row['category'], 'title' => $row['title'], 'page' => (int) $row['page'], 'target' => $targets[$row['id']] ?? null];
-            if ($row['spread_id'] === null) $unassigned[] = $entry;
-            else $bySpread[$row['spread_id']][] = $entry;
+            $data = Editor::decode($row['data_json']);
+            $scene = $row['spread_id'] === null || !isset($context['data'][$row['spread_id']]) ? null : (string) $row['spread_id'];
+            $entry = ['id' => $row['id'], 'category' => $row['category'], 'title' => $row['title'], 'page' => Scenes::pageOf($context, $scene, $data)];
+            if ($scene !== null && is_string($data->surface ?? null) && in_array($data->surface, Scenes::surfaceIds($context['data'][$scene]), true)) $entry['surface'] = $data->surface;
+            $entry['target'] = $targets[$row['id']] ?? null;
+            if ($scene === null) $unassigned[] = $entry;
+            else $bySpread[$scene][] = $entry;
         }
-        $spreads = [];
-        foreach (Db::run('SELECT id, data_json FROM spreads WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
-            $spread = Editor::decode($row['data_json']);
-            $spread->entries = $bySpread[$row['id']] ?? [];
-            $spreads[] = $spread;
-        }
+        $spreads = Scenes::shown($context, array_map(static fn($g) => (string) $g->id, $groups));
+        foreach ($spreads as $spread) $spread->entries = $bySpread[$spread->id] ?? [];
         // Each spread with the title it shows: its own, else its pages' (#298 – `Pages::withTitles`)
-        Http::json(200, ['book' => self::summary($book), 'spreads' => Pages::withTitles($spreads), 'unassigned' => $unassigned]);
+        Http::json(200, ['book' => self::summary($book), 'spreads' => Pages::withTitles($spreads), 'unassigned' => $unassigned, 'groups' => $groups]);
     }
 
     /** GET /editor/books/{id}/entities → { entities: { ref: EntityData } } */
@@ -459,7 +462,24 @@ final class Books
         $page = $body->page ?? null;
         $category = $body->category ?? 'glossary';
         if (!is_string($title) || trim($title) === '') throw new ApiError(400, 'invalid-entry', 'title must be a non-empty string.');
-        if (!is_int($page) && !(is_float($page) && floor($page) === $page)) throw new ApiError(400, 'invalid-entry', 'page must be a whole number.');
+        // Its scene and surface (#307), else the scene its page lies on (`Scenes::forPage` – older clients send a page)
+        $context = Scenes::context($bookId);
+        [$spreadId, $surface] = self::sceneOf($context, $body->scene ?? null, $body->surface ?? null);
+        $whole = is_int($page) || (is_float($page) && floor($page) === $page);
+        if ($spreadId !== null) {
+            $range = $context['ranges'][$spreadId];
+            // A page inside the scene's range is kept, else the surface's (or the scene's first) page
+            if (!$whole || (int) $page < $range['first'] || (int) $page > $range['last']) {
+                $page = Scenes::pageOf($context, $spreadId, (object) ['page' => (int) $context['row'][$spreadId]['first_page'], 'surface' => $surface]);
+            }
+        } else {
+            if (!$whole) throw new ApiError(400, 'invalid-entry', 'page must be a whole number (or send scene).');
+            if (!property_exists($body, 'scene')) {
+                $found = Scenes::forPage($context, (int) $page);
+                $spreadId = $found['scene'] ?? null;
+                $surface = $found['surface'] ?? null;
+            }
+        }
         if (!is_string($category) || !in_array($category, Editor::ENTRY_CATEGORIES, true)) throw new ApiError(400, 'invalid-entry', 'category must be one of ' . implode(', ', Editor::ENTRY_CATEGORIES) . '.');
         $caption = $body->caption ?? null;
         if ($caption !== null && (!is_string($caption) || mb_strlen(trim($caption)) > BookTexts::TEXT_MAX_LENGTH)) {
@@ -489,10 +509,11 @@ final class Books
                 $target->entity = Editor::entity($targetIn->entity, 'target.entity', 0, Editor::pluginNodeTypes($bookId), Editor::pluginMaterials($bookId));
             }
         }
-        // Each named parameter once: MySQL with native prepares (no emulation) refuses a name used twice (HY093), SQLite
-        // allows it (RULES #25)
-        $spreadId = Db::value('SELECT id FROM spreads WHERE book_id = :book AND first_page <= :first AND last_page >= :last ORDER BY position LIMIT 1', ['book' => $bookId, 'first' => $page, 'last' => $page]);
+        // Stored in the scene's own page numbers (`Scenes::storedPage`) – the page shown is what older apps read
+        $shownPage = $page;
+        $page = $spreadId === null ? $page : Scenes::storedPage($context, $spreadId, $page);
         $entry = (object) ['id' => $id, 'category' => $category, 'title' => trim($title), 'page' => $page, 'body' => is_string($body->body ?? null) ? $body->body : '', 'tags' => []];
+        if ($surface !== null) $entry->surface = $surface;
         // The line under the picture (#289): optional, left out when empty
         if (is_string($caption) && trim($caption) !== '') $entry->caption = trim($caption);
         $position = (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM entries WHERE book_id = :book', ['book' => $bookId]);
@@ -510,25 +531,51 @@ final class Books
             if ($target !== null) self::change($bookId, $user, 'target', $targetId, null, $targetJson);
         });
         if ($target !== null) $entry->target = $target;
+        $entry->page = $shownPage;
         Http::json(201, ['entry' => $entry, 'spreadId' => $spreadId]);
     }
 
     /**
-     * PUT /editor/books/{id}/spreads/{spreadId} { title?, format?, passes? } → { spread }: a spread's title, format
-     * (`spread` | `cover` | `back`) and post-processing passes (a list of
-     * `{ type, …parameters }` with a built-in type or a pass the book's plugins register (`passes`) –
-     * `null` removes the list, so the book's passes apply; `[]` turns them off). The pages stay – a cover is page 0, the
-     * back the page after the last; `format: cover` on a spread with other pages is refused.
+     * An entry's scene and surface as a request names them (#307): `scene` a scene of the book (else 400 unknown-scene),
+     * `surface` one of its surfaces (else 400 invalid-entry); no scene → [null, null] (a surface without one: 400)
+     * @param array{data: array<string, stdClass>} $context
+     * @return array{0: ?string, 1: ?string}
+     */
+    public static function sceneOf(array $context, mixed $scene, mixed $surface): array
+    {
+        if ($scene === null) {
+            if ($surface !== null) throw new ApiError(400, 'invalid-entry', 'surface needs the entry\'s scene.');
+            return [null, null];
+        }
+        $scene = Editor::id($scene, 'scene');
+        if (!isset($context['data'][$scene])) throw new ApiError(400, 'unknown-scene', "No scene \"$scene\" in this book.");
+        if ($surface === null) return [$scene, null];
+        $surface = Editor::id($surface, 'surface');
+        if (!in_array($surface, Scenes::surfaceIds($context['data'][$scene]), true)) {
+            throw new ApiError(400, 'invalid-entry', "The scene \"$scene\" has no surface \"$surface\"" . (Scenes::surfaceIds($context['data'][$scene]) ? ' (' . implode(', ', Scenes::surfaceIds($context['data'][$scene])) . ').' : ' – it has none yet.'));
+        }
+        return [$scene, $surface];
+    }
+
+    /**
+     * PUT /editor/books/{id}/spreads/{spreadId} – and PUT /editor/books/{id}/scenes/{sceneId} (#307) – { title?, format?,
+     * passes?, surfaces?, layout?, label?, group?, apply? } → { spread, scene, cleared }: a scene's title, format (`spread` |
+     * `cover` | `back`), post-processing passes (a list of `{ type, …parameters }` with a built-in type or a pass the book's
+     * plugins register (`passes`) – `null` removes the list, so the book's passes apply; `[]` turns them off), and its
+     * surfaces, layout, label and group (`Scenes::edit`). Its pages stay; a cover or back cover is one page – a scene of more
+     * pages cannot become one. Surfaces that entries lie on go only with `apply: true` – without it 409 `surfaces-in-use`
+     * names the entries, nothing written; with it those entries keep the scene without a surface (`cleared`, a change each).
      */
     public static function putSpread(string $bookId, string $spreadId): never
     {
         $user = Editor::user();
-        self::book($bookId);
+        $book = self::book($bookId);
         $body = Editor::body();
+        $apply = ($body->apply ?? false) === true;
         // Read, change and write back in one transaction, the row locked: two saves of the same spread never lose one's change
-        $spread = Db::transaction(static function () use ($bookId, $spreadId, $body, $user) {
+        [$spread, $cleared] = Db::transaction(static function () use ($bookId, $book, $spreadId, $body, $user, $apply) {
             $row = Db::one('SELECT * FROM spreads WHERE book_id = :book AND id = :id' . Db::forUpdate(), ['book' => $bookId, 'id' => $spreadId]);
-            if (!$row) throw new ApiError(404, 'not-found', 'No such spread.');
+            if (!$row) throw new ApiError(404, 'not-found', 'No such scene.');
             $spread = Editor::decode($row['data_json']);
             $touched = false;
             if (property_exists($body, 'title')) {
@@ -540,7 +587,7 @@ final class Books
             if (property_exists($body, 'format')) {
                 $format = $body->format ?? 'spread';
                 if (!in_array($format, self::FORMATS, true)) throw new ApiError(400, 'invalid-spread', 'format must be one of ' . implode(', ', self::FORMATS) . '.');
-                if ($format === 'cover' && ((int) $row['first_page'] !== 0 || (int) $row['last_page'] !== 0)) throw new ApiError(400, 'invalid-spread', 'A cover is page 0 – add it with POST …/spreads { format: "cover" }.');
+                if ($format !== 'spread' && (int) $row['first_page'] !== (int) $row['last_page']) throw new ApiError(400, 'invalid-spread', "A $format is one page – add one with POST …/scenes { preset: \"$format\" }.");
                 if ($format === 'spread') unset($spread->format);
                 else $spread->format = $format;
                 $touched = true;
@@ -550,15 +597,40 @@ final class Books
                 else $spread->passes = self::passes($body->passes, 'invalid-spread', self::pluginPasses($bookId));
                 $touched = true;
             }
-            if (!$touched) throw new ApiError(400, 'invalid-spread', 'Send { title }, { format } and / or { passes }.');
+            $edit = Scenes::edit($bookId, $book, $spread, $body, Scenes::surfaceIds(Editor::decode($row['data_json'])));
+            if (!$touched && !$edit['touched']) throw new ApiError(400, 'invalid-spread', 'Send { title }, { format }, { passes }, { surfaces }, { layout }, { label } and / or { group }.');
+            // Entries on a surface that goes: named first, cleared with apply
+            $onRemoved = [];
+            if ($edit['removed']) {
+                foreach (Db::run('SELECT id, title, data_json FROM entries WHERE book_id = :book AND spread_id = :spread ORDER BY position, id', ['book' => $bookId, 'spread' => $spreadId])->fetchAll() as $entry) {
+                    $data = Editor::decode($entry['data_json']);
+                    if (in_array($data->surface ?? null, $edit['removed'], true)) $onRemoved[] = ['row' => $entry, 'data' => $data];
+                }
+            }
+            if ($onRemoved && !$apply) {
+                throw new ApiError(409, 'surfaces-in-use', 'Entries lie on the surfaces that go (' . implode(', ', $edit['removed']) . ') – send again with apply: true to keep them on the scene without a surface.',
+                    ['entries' => array_map(static fn(array $e) => ['id' => $e['row']['id'], 'title' => $e['row']['title'], 'surface' => $e['data']->surface], $onRemoved)]);
+            }
             $json = Editor::encode($spread);
             Db::run('UPDATE spreads SET title = :title, data_json = :data WHERE book_id = :book AND id = :id', ['title' => $spread->title, 'data' => $json, 'book' => $bookId, 'id' => $spreadId]);
+            $cleared = [];
+            foreach ($onRemoved as $e) {
+                unset($e['data']->surface);
+                $entryJson = Editor::encode($e['data']);
+                Db::run('UPDATE entries SET data_json = :data WHERE book_id = :book AND id = :id', ['data' => $entryJson, 'book' => $bookId, 'id' => $e['row']['id']]);
+                self::change($bookId, $user, 'entry', (string) $e['row']['id'], $e['row']['data_json'], $entryJson);
+                $cleared[] = (string) $e['row']['id'];
+            }
             self::touch($bookId);
             self::change($bookId, $user, 'spread', $spreadId, $row['data_json'], $json);
-            return $spread;
+            return [$spread, $cleared];
         });
+        // As the tree shows it: the range older apps read, the title its pages give
+        $range = Scenes::context($bookId)['ranges'][$spreadId];
+        $spread->firstPage = $range['first'];
+        $spread->lastPage = $range['last'];
         $spread->title = Pages::titlesOf($bookId)[$spreadId] ?? $spread->title;
-        Http::json(200, ['spread' => $spread]);
+        Http::json(200, ['spread' => $spread, 'scene' => $spread, 'cleared' => $cleared]);
     }
 
     /**
@@ -682,156 +754,95 @@ final class Books
     }
 
     /**
-     * POST /editor/books/{id}/spreads { format: "spread" | "cover" | "back", after?, id?, title? } → 201 { spread, moved }:
-     * - `spread`: a double page after the spread `after` (default: after the last one before the back cover). Its pages
-     *   are the two after that spread's last page; every later page is numbered on by two – the later spreads, the
-     *   entries on those pages and their targets' `print.page` move with them (`moved` counts the rows). Its id is
-     *   `id`, else the first free `spread-<n>`. 400 `unknown-spread` for an unknown `after`, `invalid-spread` after
-     *   the back cover; 409 `duplicate-id`.
-     * - `cover` / `back`: the front cover (page 0, first in order) or the back cover (the page after the last, last in
-     *   order) – nothing moves. 409 `duplicate-id` when the book has one.
-     * Only a digital-first book takes new spreads (#238): a print-first one answers 409 `print-first`.
+     * POST /editor/books/{id}/spreads { format: "spread" | "cover" | "back", after?, id?, title? } → 201 { spread, moved, pages }
+     * – the older form of `POST …/scenes` (#307, `Scenes::add`), for print-first and digital-first books alike:
+     * - `spread`: a double page after the spread `after` (default: before the back cover, else last). Its id is `id`, else
+     *   the first free `spread-<n>`. 400 `unknown-spread` for an unknown `after`, `invalid-spread` after the back cover;
+     *   409 `duplicate-id`.
+     * - `cover` / `back`: the front cover (first, page 0) or the back cover (last) – 409 `duplicate-id` when the book has one.
+     * Nothing renumbers any more: `moved` is always zero; `pages` = the scenes whose page range older apps read changes
+     * (`Scenes::ranges`).
      */
     public static function addSpread(string $bookId): never
     {
         $user = Editor::user();
-        self::requireDigitalFirst(self::book($bookId), 'added');
+        $book = self::book($bookId);
         $body = Editor::body();
         $format = $body->format ?? null;
         if (!in_array($format, self::FORMATS, true)) throw new ApiError(400, 'invalid-spread', 'format must be one of ' . implode(', ', self::FORMATS) . '.');
-        $title = is_string($body->title ?? null) && trim($body->title) !== '' ? trim($body->title) : null;
+        $fields = new stdClass();
+        if (is_string($body->title ?? null) && trim($body->title) !== '') $fields->title = trim($body->title);
+        $placement = null;
+        $id = null;
         if ($format !== 'spread') {
             if (property_exists($body, 'after')) throw new ApiError(400, 'invalid-spread', 'after is for a double page – the covers have their places.');
-            self::addCover($bookId, $format, $title, $user);
-        }
-        $spreads = Db::run('SELECT id, position, first_page, last_page, data_json FROM spreads WHERE book_id = :book ORDER BY position', ['book' => $bookId])->fetchAll();
-        if (property_exists($body, 'after')) {
-            $afterId = Editor::id($body->after, 'after');
-            $anchor = array_values(array_filter($spreads, fn(array $s) => $s['id'] === $afterId))[0] ?? null;
-            if ($anchor === null) throw new ApiError(400, 'unknown-spread', "No spread \"$afterId\" in this book.");
-            if (self::formatOf($anchor) === 'back') throw new ApiError(400, 'invalid-spread', 'Nothing comes after the back cover.');
+            if (Db::one('SELECT id FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $format])) throw new ApiError(409, 'duplicate-id', "The book has a $format spread.");
+            $id = $format;
         } else {
-            $before = array_values(array_filter($spreads, fn(array $s) => self::formatOf($s) !== 'back'));
-            $anchor = $before ? end($before) : null;
+            if (property_exists($body, 'after')) {
+                $afterId = Editor::id($body->after, 'after');
+                $anchor = Db::one('SELECT data_json FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $afterId]);
+                if ($anchor === null) throw new ApiError(400, 'unknown-spread', "No spread \"$afterId\" in this book.");
+                if ((Editor::decode($anchor['data_json'])->format ?? null) === 'back') throw new ApiError(400, 'invalid-spread', 'Nothing comes after the back cover.');
+                $placement = ['after' => $afterId];
+            }
+            if (property_exists($body, 'id')) $id = Editor::id($body->id, 'id');
         }
-        $ids = array_column($spreads, 'id');
-        if (property_exists($body, 'id')) {
-            $id = Editor::id($body->id, 'id');
-            if (in_array($id, $ids, true)) throw new ApiError(409, 'duplicate-id', "A spread \"$id\" exists.");
-        } else {
-            for ($n = 1; in_array("spread-$n", $ids, true); $n++);
-            $id = "spread-$n";
-        }
-        // A book without spreads (or with only a back cover) starts on page 1, before everything
-        $last = $anchor !== null ? (int) $anchor['last_page'] : 0;
-        $position = $anchor !== null ? (int) $anchor['position'] + 1 : ($spreads ? (int) $spreads[0]['position'] : 0);
-        // No title given: none of its own – it shows its pages' (`Pages 12–13`, #298)
-        $spread = (object) ['id' => $id, 'title' => $title ?? '', 'firstPage' => $last + 1, 'lastPage' => $last + 2];
-        $json = Editor::encode($spread);
-        $moved = Db::transaction(function () use ($bookId, $id, $position, $spread, $last, $json, $user) {
-            Db::run('UPDATE spreads SET position = position + 1 WHERE book_id = :book AND position >= :position', ['book' => $bookId, 'position' => $position]);
-            $moved = self::renumber($bookId, $last, 2, $user);
-            Db::run('INSERT INTO spreads (book_id, id, position, title, first_page, last_page, data_json) VALUES (:book, :id, :position, :title, :first, :last, :data)',
-                ['book' => $bookId, 'id' => $id, 'position' => $position, 'title' => $spread->title, 'first' => $spread->firstPage, 'last' => $spread->lastPage, 'data' => $json]);
-            self::touch($bookId);
-            self::change($bookId, $user, 'spread', $id, null, $json);
-            return $moved;
-        });
-        $spread->title = Pages::titlesOf($bookId)[$id] ?? $spread->title;
-        Http::json(201, ['spread' => $spread, 'moved' => $moved]);
+        [$spread, , $pages] = Scenes::insert($bookId, $book, $format === 'spread' ? 'double' : $format, $id, $placement, $fields, $user, 'spread');
+        Http::json(201, ['spread' => $spread, 'moved' => ['spreads' => 0, 'entries' => 0, 'targets' => 0], 'pages' => $pages]);
     }
 
     /**
-     * The front cover (page 0, first) or the back cover (the page after the last, last) – POST …/spreads { format }
-     * @param array<string, mixed> $user
-     */
-    private static function addCover(string $bookId, string $format, ?string $title, array $user): never
-    {
-        $id = $format;
-        if (Db::one('SELECT id FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $id])) throw new ApiError(409, 'duplicate-id', "The book has a $format spread.");
-        $title ??= $format === 'cover' ? 'Cover' : 'Back cover';
-        $last = (int) Db::value('SELECT COALESCE(MAX(last_page), 0) FROM spreads WHERE book_id = :book', ['book' => $bookId]);
-        $page = $format === 'cover' ? 0 : $last + 1;
-        $position = $format === 'cover'
-            ? (int) Db::value('SELECT COALESCE(MIN(position), 0) - 1 FROM spreads WHERE book_id = :book', ['book' => $bookId])
-            : (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM spreads WHERE book_id = :book', ['book' => $bookId]);
-        $spread = (object) ['id' => $id, 'title' => $title, 'firstPage' => $page, 'lastPage' => $page, 'format' => $format];
-        $json = Editor::encode($spread);
-        Db::transaction(function () use ($bookId, $id, $position, $title, $page, $json, $user) {
-            Db::run('INSERT INTO spreads (book_id, id, position, title, first_page, last_page, data_json) VALUES (:book, :id, :position, :title, :first, :last, :data)',
-                ['book' => $bookId, 'id' => $id, 'position' => $position, 'title' => $title, 'first' => $page, 'last' => $page, 'data' => $json]);
-            self::touch($bookId);
-            self::change($bookId, $user, 'spread', $id, null, $json);
-        });
-        Http::json(201, ['spread' => $spread, 'moved' => ['spreads' => 0, 'entries' => 0, 'targets' => 0]]);
-    }
-
-    /**
-     * DELETE /editor/books/{id}/spreads/{spreadId} { confirm?, deleteFiles? } – the spread with everything on it, in two
-     * steps (`Confirmation`, docs/server.md "Removing a spread or an entry"):
-     * 1. without `confirm` nothing is written: 409 `confirm-delete` with the `impact` (the spread, the pages that move
-     *    back, and what `Removal` takes: entries, targets, entities, kept shared entities, Library files used only here
-     *    and elsewhere) and a `confirmation`;
-     * 2. with `confirm` exactly that goes, in one transaction → 200 { deleted, moved }: entries, targets, the entities
-     *    used only there, the spread; a double page takes its pages with it – every later page is numbered back (the
-     *    reverse of adding it); a cover moves nothing. `deleteFiles: true` also removes the Library files used only here
-     *    (off by default; a file used elsewhere never goes). A confirmation that does not fit any more (anything in the
-     *    book changed, another person or token, expired) → 409 `confirmation-void` with a fresh impact.
-     * 409 `initial-spread` for the spread the book opens on (it never goes); 409 `print-first` on a print-first book
-     * (#238 – its spreads are the printed book's); 404.
+     * DELETE /editor/books/{id}/spreads/{spreadId} – and DELETE /editor/books/{id}/scenes/{sceneId} (#307) – { confirm?,
+     * deleteFiles? }: the scene with everything on it, in two steps (`Confirmation`, docs/server.md "Removing a spread or
+     * an entry"), for print-first and digital-first books alike:
+     * 1. without `confirm` nothing is written: 409 `confirm-delete` with the `impact` (the spread, and what `Removal` takes:
+     *    entries, targets, entities, kept shared entities, Library files used only here and elsewhere; `pages` = the scenes
+     *    whose page range older apps read changes) and a `confirmation`;
+     * 2. with `confirm` exactly that goes, in one transaction → 200 { deleted, moved, pages }: entries, targets, the entities
+     *    used only there, the scene. Nothing renumbers (`moved` and `pagesBack` are zero); the page images (#251) stay.
+     *    `deleteFiles: true` also removes the Library files used only here (off by default; a file used elsewhere never
+     *    goes). A confirmation that does not fit any more (anything in the book changed, another person or token, expired)
+     *    → 409 `confirmation-void` with a fresh impact.
+     * 409 `initial-spread` for the scene the book opens on (it never goes); 404.
      */
     public static function deleteSpread(string $bookId, string $spreadId): never
     {
         $user = Editor::user();
         $book = self::book($bookId);
-        self::requireDigitalFirst($book, 'removed');
         [$confirm, $deleteFiles] = self::deleteOptions();
         $row = Db::one('SELECT * FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $spreadId]);
         if (!$row) throw new ApiError(404, 'not-found', 'No such spread.');
         if ($book['initial_spread_id'] === $spreadId) throw new ApiError(409, 'initial-spread', 'The book opens on this spread.');
         $entries = Db::run('SELECT * FROM entries WHERE book_id = :book AND spread_id = :spread ORDER BY position, id', ['book' => $bookId, 'spread' => $spreadId])->fetchAll();
-        $format = self::formatOf($row);
-        $pages = in_array($format, ['cover', 'back'], true) ? 0 : (int) $row['last_page'] - (int) $row['first_page'] + 1;
+        $context = Scenes::context($bookId);
+        $range = $context['ranges'][$spreadId];
         $removal = new Removal($bookId, $entries);
-        // pagesBack: by how many pages the later pages are numbered back – 0 for a cover, or when nothing lies after it
-        $after = ['book' => $bookId, 'page' => (int) $row['last_page']];
-        $later = $pages > 0 && ((int) Db::value('SELECT COUNT(*) FROM spreads WHERE book_id = :book AND first_page > :page', $after)
-            + (int) Db::value('SELECT COUNT(*) FROM entries WHERE book_id = :book AND page > :page', $after)) > 0;
+        $remaining = array_values(array_filter($context['rows'], static fn(array $r) => $r['id'] !== $spreadId));
+        $pages = Scenes::pageChanges($context['ranges'], Scenes::ranges($remaining));
         $impact = ['book' => $bookId, 'kind' => 'spread',
-            'spread' => ['id' => $spreadId, 'title' => Pages::titlesOf($bookId)[$spreadId] ?? $row['title'], 'firstPage' => (int) $row['first_page'], 'lastPage' => (int) $row['last_page'], 'format' => $format],
-            'pagesBack' => $later ? $pages : 0] + $removal->impact();
+            'spread' => ['id' => $spreadId, 'title' => Pages::titlesOf($bookId)[$spreadId] ?? $row['title'], 'firstPage' => $range['first'], 'lastPage' => $range['last'], 'format' => self::formatOf($row)],
+            'pagesBack' => 0, 'pages' => $pages] + $removal->impact();
         Confirmation::require("delete-spread|$bookId|$spreadId", $user, $removal->state([$row]), $confirm,
             ['confirm-delete', 'Removing the spread takes ' . self::impactLine($impact) . ' – show this to the person, then remove again with confirm: <confirmation id>.'],
             'The confirmation is expired, someone else\'s, or the book changed since – here is what the removal takes now; confirm with the new id.',
             fn() => ['impact' => $impact]);
-        [$deleted, $moved] = Db::transaction(function () use ($bookId, $spreadId, $row, $pages, $user, $removal, $deleteFiles) {
+        $deleted = Db::transaction(function () use ($bookId, $spreadId, $row, $user, $removal, $deleteFiles) {
             $deleted = $removal->remove($user, $deleteFiles);
             Db::run('DELETE FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $spreadId]);
-            Pages::drop($bookId, (int) $row['first_page'], (int) $row['last_page']);
             self::change($bookId, $user, 'spread', $spreadId, $row['data_json'], 'null');
             Db::run('UPDATE spreads SET position = position - 1 WHERE book_id = :book AND position > :position', ['book' => $bookId, 'position' => (int) $row['position']]);
-            $moved = $pages > 0 ? self::renumber($bookId, (int) $row['last_page'], -$pages, $user) : ['spreads' => 0, 'entries' => 0, 'targets' => 0];
             self::touch($bookId);
-            return [$deleted, $moved];
+            return $deleted;
         });
         Removal::deleteStoredFiles($deleted['paths']);
         unset($deleted['paths']);
-        Http::json(200, ['deleted' => ['spread' => $spreadId] + $deleted, 'moved' => $moved]);
+        Http::json(200, ['deleted' => ['spread' => $spreadId] + $deleted, 'moved' => ['spreads' => 0, 'entries' => 0, 'targets' => 0], 'pages' => $pages]);
     }
 
     /**
-     * A book's spreads are added and removed only where the editor is the truth (#238): 409 `print-first` otherwise
-     * @param array<string, mixed> $book the book row
-     */
-    private static function requireDigitalFirst(array $book, string $what): void
-    {
-        if (self::sourceOfTruth($book) === 'digital') return;
-        throw new ApiError(409, 'print-first', "This book is print first: its spreads come from the printed book's layout, so they cannot be $what here. "
-            . 'Switch the book to digital first (its source of truth, in the book\'s Inspector) to add or remove spreads in the editor.');
-    }
-
-    /**
-     * The book's source of truth (`book.sourceOfTruth`): `digital` only when it says so, else `print`
+     * The book's source of truth (`book.sourceOfTruth`): `digital` only when it says so, else `print`. Since scenes (#307)
+     * both add, move and remove scenes alike; it still tells where the book's pages and print placements come from.
      * @param array<string, mixed> $book the book row
      */
     public static function sourceOfTruth(array $book): string
@@ -873,48 +884,6 @@ final class Books
     private static function formatOf(array $row): string
     {
         return Editor::decode($row['data_json'])->format ?? 'spread';
-    }
-
-    /**
-     * Every page after `$after` moves by `$by`: the spreads starting there (pages and data), the entries on those pages
-     * (page and data – they keep their spread, which moves with them) and the targets printed there (`print.page`).
-     * Each moved row is a change. Runs inside the caller's transaction.
-     * @param array<string, mixed> $user
-     * @return array{spreads: int, entries: int, targets: int}
-     */
-    private static function renumber(string $bookId, int $after, int $by, array $user): array
-    {
-        $moved = ['spreads' => 0, 'entries' => 0, 'targets' => 0];
-        $params = ['book' => $bookId, 'page' => $after];
-        foreach (Db::run('SELECT id, data_json FROM spreads WHERE book_id = :book AND first_page > :page', $params)->fetchAll() as $row) {
-            $spread = Editor::decode($row['data_json']);
-            $spread->firstPage = (int) $spread->firstPage + $by;
-            $spread->lastPage = (int) $spread->lastPage + $by;
-            $json = Editor::encode($spread);
-            Db::run('UPDATE spreads SET first_page = :first, last_page = :last, data_json = :data WHERE book_id = :book AND id = :id',
-                ['first' => $spread->firstPage, 'last' => $spread->lastPage, 'data' => $json, 'book' => $bookId, 'id' => $row['id']]);
-            self::change($bookId, $user, 'spread', $row['id'], $row['data_json'], $json);
-            $moved['spreads']++;
-        }
-        foreach (Db::run('SELECT id, data_json FROM entries WHERE book_id = :book AND page > :page', $params)->fetchAll() as $row) {
-            $entry = Editor::decode($row['data_json']);
-            $entry->page = (int) $entry->page + $by;
-            $json = Editor::encode($entry);
-            Db::run('UPDATE entries SET page = :page, data_json = :data WHERE book_id = :book AND id = :id', ['page' => $entry->page, 'data' => $json, 'book' => $bookId, 'id' => $row['id']]);
-            self::change($bookId, $user, 'entry', $row['id'], $row['data_json'], $json);
-            $moved['entries']++;
-        }
-        foreach (Db::run('SELECT id, data_json FROM targets WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
-            $target = Editor::decode($row['data_json']);
-            if (!is_numeric($target->print->page ?? null) || (int) $target->print->page <= $after) continue;
-            $target->print->page = (int) $target->print->page + $by;
-            $json = Editor::encode($target);
-            Db::run('UPDATE targets SET data_json = :data WHERE book_id = :book AND id = :id', ['data' => $json, 'book' => $bookId, 'id' => $row['id']]);
-            self::change($bookId, $user, 'target', $row['id'], $row['data_json'], $json);
-            $moved['targets']++;
-        }
-        Pages::shift($bookId, $after, $by);
-        return $moved;
     }
 
     /** The spread formats of the content contract (shared/types/game-config.ts `SPREAD_FORMATS`) */
@@ -1490,12 +1459,31 @@ final class Books
         $pluginTypes = Editor::nodeTypesOf($plugins, $pluginSources);
         $pluginMaterials = Editor::typesOf($plugins, $pluginSources, 'materials');
 
+        // The groups scenes name (schema 2.35, #307): kept in books.groups_json, written back at the root by the draft
+        $groups = $c->groups ?? [];
+        if (!is_array($groups)) $fail('groups must be an array.');
+        $groupIds = [];
+        foreach ($groups as $i => $group) {
+            if (!$group instanceof stdClass || !is_string($group->label ?? null)) $fail("groups[$i] needs id and label.");
+            $groupId = Editor::id($group->id ?? null, "groups[$i].id");
+            if (in_array($groupId, $groupIds, true)) $fail("Duplicate group id \"$groupId\".");
+            $groupIds[] = $groupId;
+        }
+
         $spreads = [];
         foreach ($c->spreads as $i => $s) {
             if (!$s instanceof stdClass || !is_string($s->title ?? null) || !is_numeric($s->firstPage ?? null) || !is_numeric($s->lastPage ?? null)) $fail("spreads[$i] needs id, title, firstPage and lastPage.");
             $id = Editor::id($s->id ?? null, "spreads[$i].id");
             if (property_exists($s, 'matter') && !in_array($s->matter, self::MATTERS, true)) $fail("spreads[$i].matter must be one of " . implode(', ', self::MATTERS) . '.');
             if (isset($spreads[$id])) $fail("Duplicate spread id \"$id\".");
+            if (property_exists($s, 'group') && !in_array($s->group, $groupIds, true)) $fail("spreads[$i].group names no group of the configuration.");
+            if (property_exists($s, 'surfaces')) {
+                try {
+                    Scenes::checkSurfaces($s->surfaces);
+                } catch (ApiError $error) {
+                    $fail("spreads[$i]." . $error->getMessage());
+                }
+            }
             $spreads[$id] = ['id' => $id, 'position' => $i, 'title' => $s->title, 'first' => (int) $s->firstPage, 'last' => (int) $s->lastPage, 'data' => $s];
         }
         $entities = [];
@@ -1536,7 +1524,7 @@ final class Books
         }
         return [
             'book' => $book, 'schema' => $version->schema, 'hash' => is_string($version->hash ?? null) ? $version->hash : null,
-            'initialSpreadId' => $c->initialSpreadId, 'plugins' => $plugins,
+            'initialSpreadId' => $c->initialSpreadId, 'plugins' => $plugins, 'groups' => $groups,
             'spreads' => array_values($spreads), 'entities' => array_values($entities), 'entries' => array_values($entries), 'targets' => array_values($targets),
         ];
     }

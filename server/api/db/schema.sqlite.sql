@@ -274,3 +274,6 @@ CREATE TABLE IF NOT EXISTS asset_names (
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (book_id, url)
 );
+
+-- Scenes (#307 phase 2): the book's groups (schema.mysql.sql has the notes)
+ALTER TABLE books ADD COLUMN groups_json TEXT NOT NULL DEFAULT '[]';

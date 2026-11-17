@@ -79,7 +79,7 @@ function editorApi(seen: Seen, { sources = true } = {}) {
     return { json: { entry: { ...ENTRIES[0], ...(seen.body as object) }, spreadId: page === 99 ? null : page === 3 ? "s2" : "s1", previousSpreadId: "s1" } };
   }
   if (method === "PUT" && path === "/editor/books/osct") return { json: { book: { id: "osct", title: "Test Book", author: "Someone", ...(seen.body as object) } } };
-  if (method === "DELETE" && /^\/editor\/books\/osct\/(spreads\/s2|entries\/castle)$/.test(path)) return removal(seen);
+  if (method === "DELETE" && /^\/editor\/books\/osct\/(spreads\/s2|scenes\/s2|entries\/castle)$/.test(path)) return removal(seen);
   if (path === "/editor/books/osct/draft/latest.json") return { json: { build: "abcdef012345", hash: "abcdef012345" + "0".repeat(52) } };
   if (path === "/editor/books/osct/draft/abcdef012345/game.config.json") return { json: { version: { schema: "2.14" }, plugins: [{ id: "tint", src: "/p.js", api: "1.2", registered: REGISTERED }], entities: ENTITIES.entities } };
   if (path === "/editor/books/osct/draft/abcdef012345/files.json") return { json: { "/m.glb": { size: 1 } } };
@@ -89,6 +89,14 @@ function editorApi(seen: Seen, { sources = true } = {}) {
     const body = seen.body as any;
     return { status: 201, json: { spread: { id: body.id ?? (body.format === "spread" ? "spread-1" : body.format), title: body.title ?? "New spread", firstPage: 5, lastPage: 6 }, moved: { spreads: 0, entries: 0, targets: 0 } } };
   }
+  if (method === "GET" && path === "/editor/books/osct/scenes") return { json: { scenes: TREE.spreads.map((s, position) => ({ id: s.id, position, title: s.title, surfaces: [] })), groups: [] } };
+  if (method === "POST" && path === "/editor/books/osct/scenes") return { status: 201, json: { scene: { id: (seen.body as any).id ?? "scene-1", title: "", firstPage: 3, lastPage: 5 }, position: 1, pages: [] } };
+  if (method === "POST" && path === "/editor/books/osct/scenes/move") return { json: { plan: { order: ["s2", "s1"], moved: ["s2"], groups: [], pages: [] }, applied: !!(seen.body as any).apply } };
+  if (method === "PUT" && path === "/editor/books/osct/scenes/s2") return { json: { spread: { id: "s2", ...(seen.body as object) }, scene: { id: "s2", ...(seen.body as object) }, cleared: [] } };
+  if (method === "POST" && path === "/editor/books/osct/groups") return { json: { plan: { group: { id: "chapter", label: (seen.body as any).label }, order: ["s1", "s2"], moved: [], groups: [], pages: [] }, applied: !!(seen.body as any).apply } };
+  if (method === "PUT" && path === "/editor/books/osct/groups/chapter") return { json: { group: { id: "chapter", label: (seen.body as any).label } } };
+  if (method === "DELETE" && path === "/editor/books/osct/groups/chapter") return { json: { ungrouped: "chapter", scenes: ["s1", "s2"] } };
+  if (method === "POST" && path === "/editor/books/osct/scenes/migrate") return { json: { plan: { upToDate: false, counts: {}, scenes: [], groups: [], entries: { placed: [], unplaced: [] }, pageImages: { count: 0, note: "" } }, applied: !!(seen.body as any)?.apply } };
   if (method === "PUT" && path === "/editor/books/osct/spreads/s2") return { json: { spread: { id: "s2", title: "Two", firstPage: 3, lastPage: 4, ...(seen.body as object) } } };
   if (method === "DELETE" && path === "/editor/books/osct/spreads/s1") return { status: 409, json: { error: { code: "initial-spread", message: "The book opens on this spread." } } };
   if (method === "PUT" && path === "/editor/books/osct/passes") return { json: { passes: (seen.body as any).passes } };
@@ -162,6 +170,7 @@ describe("the content tools", () => {
         "add_entry", "add_spread", "delete_asset", "delete_entry", "delete_spread", "describe_content_model", "get_book", "get_draft", "get_entity", "get_spread", "import_book", "list_assets", "preview_import",
         "list_books", "list_changes", "list_versions", "publish", "put_book_appearance", "put_book_passes", "put_entity", "put_environment", "put_spread", "put_target", "upload_asset",
         "get_entries", "update_entry", "update_book", "set_asset_credits", "list_pages", "set_page_images", "add_matter", "plan_asset_names", "apply_asset_names",
+        "list_scenes", "add_scene", "move_scenes", "put_scene", "delete_scene", "group_scenes", "rename_group", "ungroup", "migrate_scenes",
       ].sort(),
     );
     for (const [name, tool] of rec.tools) {
@@ -348,13 +357,65 @@ describe("the content tools", () => {
     expect([...rec.tools.keys()].filter(name => /tutorial|onboarding/.test(name))).toEqual([]);
   });
 
-  it("update_book sets the book's source of truth; a print-first refusal of a spread comes with the hint (#238)", async () => {
+  it("update_book sets the book's source of truth; scenes are added and removed in print-first books too (#238, #307)", async () => {
     const book = await rec.call("update_book", { book: "osct", sourceOfTruth: "digital" });
     expect(book.data.book.sourceOfTruth).toBe("digital");
     await expect(rec.call("update_book", { book: "osct", sourceOfTruth: "paper" })).rejects.toThrow();
     expect(hintFor(new ApiError(409, "print-first", "This book is print first"))).toMatch(/person's decision/);
-    expect(rec.tools.get("add_spread")!.config.description).toMatch(/digital-first/);
-    expect(rec.tools.get("delete_spread")!.config.description).toMatch(/print-first/);
+    for (const tool of ["add_spread", "delete_spread", "add_scene"]) expect(rec.tools.get(tool)!.config.description, tool).toMatch(/print-first (and|or) (a )?digital-first/);
+    expect(rec.tools.get("add_spread")!.config.description).toMatch(/Nothing renumbers/);
+  });
+
+  it("scenes (#307): list, add anywhere from a preset, move and group in two steps, put, ungroup, migrate", async () => {
+    const list = await rec.call("list_scenes", { book: "osct" });
+    expect(list.data.scenes.map((s: { id: string }) => s.id)).toEqual(["s1", "s2"]);
+    const added = await rec.call("add_scene", { book: "osct", preset: "foldout", after: "s1", id: "fold" });
+    expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/editor/books/osct/scenes", body: { preset: "foldout", after: "s1", id: "fold" } });
+    expect(added.data.open).toBe("http://localhost:5175/editor/osct/fold/");
+    seen.length = 0;
+    expect((await rec.call("add_scene", { book: "osct", after: "s1", position: 0 })).ok).toBe(false);
+    expect((await rec.call("move_scenes", { book: "osct", scenes: ["s2"] })).ok).toBe(false);
+    expect(seen).toHaveLength(0);
+    const plan = await rec.call("move_scenes", { book: "osct", scenes: ["s2"], position: 0 });
+    expect(plan.data.applied).toBe(false);
+    expect(plan.data.next).toContain("apply: true");
+    const applied = await rec.call("move_scenes", { book: "osct", scenes: ["s2"], position: 0, apply: true });
+    expect(applied.data.applied).toBe(true);
+    expect(applied.data.next).toBeUndefined();
+    expect(seen.at(-1)).toMatchObject({ path: "/editor/books/osct/scenes/move", body: { scenes: ["s2"], position: 0, apply: true } });
+    const out = await rec.call("move_scenes", { book: "osct", scenes: ["s2"], group: null });
+    expect(seen.at(-1)!.body).toEqual({ scenes: ["s2"], group: null });
+    expect(out.ok).toBe(true);
+    const put = await rec.call("put_scene", { book: "osct", scene: "s2", label: "Two", surfaces: [{ id: "left", side: "left", label: "2" }] });
+    expect(put.data.scene).toMatchObject({ id: "s2", label: "Two" });
+    expect(seen.at(-1)).toMatchObject({ method: "PUT", path: "/editor/books/osct/scenes/s2" });
+    await expect(rec.call("put_scene", { book: "osct", scene: "s2", surfaces: [{ id: "left", side: "Left" }] })).rejects.toThrow();
+    expect((await rec.call("put_scene", { book: "osct", scene: "s2", apply: true })).ok).toBe(false);
+    const group = await rec.call("group_scenes", { book: "osct", label: "Chapter", scenes: ["s1", "s2"] });
+    expect(group.data.plan.group).toEqual({ id: "chapter", label: "Chapter" });
+    expect(group.data.next).toContain("apply: true");
+    expect((await rec.call("rename_group", { book: "osct", group: "chapter", label: "One" })).data.group).toEqual({ id: "chapter", label: "One" });
+    expect((await rec.call("ungroup", { book: "osct", group: "chapter" })).data).toMatchObject({ ungrouped: "chapter", scenes: ["s1", "s2"] });
+    const migration = await rec.call("migrate_scenes", { book: "osct" });
+    expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/editor/books/osct/scenes/migrate" });
+    expect(seen.at(-1)!.body).toBeUndefined();
+    expect(migration.data.next).toContain("apply: true");
+    expect((await rec.call("migrate_scenes", { book: "osct", apply: true })).data.applied).toBe(true);
+    const first = await rec.call("delete_scene", { book: "osct", scene: "s2" });
+    expect(first.data.deleted).toBe(false);
+    expect(first.data.next).toContain("call delete_scene again");
+  });
+
+  it("add_entry and update_entry take scene and surface (#307); a page alone still works", async () => {
+    const entry = await rec.call("add_entry", { book: "osct", title: "On the fold", scene: "s2", surface: "left" });
+    expect(seen.at(-1)!.body).toEqual({ title: "On the fold", scene: "s2", surface: "left" });
+    expect(entry.ok).toBe(true);
+    seen.length = 0;
+    expect((await rec.call("add_entry", { book: "osct", title: "Nowhere" })).ok).toBe(false);
+    expect((await rec.call("add_entry", { book: "osct", title: "Nowhere", page: 3, surface: "left" })).ok).toBe(false);
+    expect(seen).toHaveLength(0);
+    await rec.call("update_entry", { book: "osct", entry: "racoon", scene: "s2", surface: null });
+    expect(seen.at(-1)!.body).toEqual({ scene: "s2", surface: null });
   });
 
   it("describe_content_model explains an entry's Markdown and variables, the book and that the onboarding is the app's (#223, #236)", async () => {

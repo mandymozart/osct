@@ -40,17 +40,27 @@ declare(strict_types=1);
  *   GET    /editor/books/{id}/entities          the shared entities { ref: EntityData }
  *   PUT    /editor/books/{id}/entities/{ref}    body EntityData → saves it, records a change
  *   PUT    /editor/books/{id}/targets/{id}      { entity } | { ref } | { imageSrc } | { print } → the target, records a change
- *   POST   /editor/books/{id}/entries           { title, page, category?, target?: { imageSrc, print?, entity? } } → 201 a new entry, with its target or without
- *   PUT    /editor/books/{id}/entries/{id}      { title?, body?, author?, image?, media?, tags?, category?, page? } → an entry's fields; a new page can move it to
- *                                               another spread · GET /editor/books/{id}/entries: every entry with its fields as written
+ *   POST   /editor/books/{id}/entries           { title, scene? + surface? | page, category?, target?: { imageSrc, print?, entity? } } → 201 a new entry,
+ *                                               with its target or without
+ *   PUT    /editor/books/{id}/entries/{id}      { title?, body?, author?, image?, media?, tags?, category?, scene?, surface?, page? } → an entry's
+ *                                               fields; a scene moves it (a page alone finds the scene it lies on) · GET /editor/books/{id}/entries: every entry with its fields as written
  *   PUT    /editor/books/{id}                   { title?, author?, publisher?, sourceOfTruth? } → the book's texts and its source of truth
- *   PUT    /editor/books/{id}/spreads/{id}      { title?, format?, passes? } → a spread's title, format (spread | cover | back) and own passes
+ *   Scenes (#307, docs/server.md "Scenes" – a scene is a spread; its order is its position, nothing renumbers):
+ *   GET    /editor/books/{id}/scenes            the scenes in order (surfaces, layout, label, group, the pages older apps read) and the groups
+ *   POST   /editor/books/{id}/scenes            { preset, after? | before? | position?, id?, title?, label?, group?, surfaces? } → 201 a
+ *                                               scene anywhere (single, double, cover, back, foldout, wall)
+ *   POST   /editor/books/{id}/scenes/move       { scenes, after? | before? | position?, group?, apply? } → the plan, written with apply
+ *   POST   /editor/books/{id}/scenes/migrate    { apply? } → surfaces, labels and groups from the pages: the plan, written with apply
+ *   PUT    /editor/books/{id}/scenes/{id}       = PUT …/spreads/{id}: { title?, format?, passes?, surfaces?, layout?, label?, group?, apply? }
+ *   DELETE /editor/books/{id}/scenes/{id}       = DELETE …/spreads/{id}: the two steps of a removal
+ *   POST   /editor/books/{id}/groups            { label, scenes, id?, apply? } → a group of the picked scenes: the plan, written with apply
+ *   PUT    /editor/books/{id}/groups/{gid}      { label } → renamed · DELETE …/groups/{gid} → ungrouped (the scenes stay in place)
+ *   PUT    /editor/books/{id}/spreads/{id}      { title?, format?, passes?, surfaces?, layout?, label?, group?, apply? } → a scene's fields
  *   POST   /editor/books/{id}/spreads           { format: spread, after?, id?, title? } → 201 a double page after `after` (default: before
- *                                               the back cover), later pages numbered on by two · { format: cover | back, title? } → 201 a cover
+ *                                               the back cover) · { format: cover | back, title? } → 201 a cover – nothing renumbers
  *   DELETE /editor/books/{id}/spreads/{id}      { confirm?, deleteFiles? } the spread with everything on it, in two steps: 409 confirm-delete
- *                                               (the impact, a confirmation id), then again with { confirm } → removed, later pages
- *                                               numbered back (409 confirmation-void, initial-spread) · both only for a digital-first
- *                                               book: a print-first one answers 409 print-first (#238)
+ *                                               (the impact, a confirmation id), then again with { confirm } → removed (409
+ *                                               confirmation-void, initial-spread) – print-first and digital-first books alike
  *   PUT    /editor/books/{id}/environment       { environment: { world, onionSky } | null } → the book's world and onion sky
  *   PUT    /editor/books/{id}/passes            { passes: [{ type, … }] | null } → the book's post-processing (every spread without its own)
  *   PUT    /editor/books/{id}/appearance        { appearance: { reveal?, found?, lost? } | null } → how the book's entities appear: a look
@@ -84,7 +94,7 @@ declare(strict_types=1);
  * (ApiTokens). docs/server.md "Sessions, cookies and CSRF".
  */
 
-foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Confirmation', 'Removal', 'Books', 'BookTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Pages', 'AssetNames'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Confirmation', 'Removal', 'Books', 'BookTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Pages', 'Scenes', 'AssetNames'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -171,6 +181,15 @@ try {
         (bool) preg_match("#^PUT /editor/books/($id)/spreads/($id)$#", $route, $match) => Books::putSpread($match[1], $match[2]),
         (bool) preg_match("#^POST /editor/books/($id)/spreads$#", $route, $match) => Books::addSpread($match[1]),
         (bool) preg_match("#^DELETE /editor/books/($id)/spreads/($id)$#", $route, $match) => Books::deleteSpread($match[1], $match[2]),
+        (bool) preg_match("#^GET /editor/books/($id)/scenes$#", $route, $match) => Scenes::list($match[1]),
+        (bool) preg_match("#^POST /editor/books/($id)/scenes$#", $route, $match) => Scenes::add($match[1]),
+        (bool) preg_match("#^POST /editor/books/($id)/scenes/move$#", $route, $match) => Scenes::move($match[1]),
+        (bool) preg_match("#^POST /editor/books/($id)/scenes/migrate$#", $route, $match) => Scenes::migrate($match[1]),
+        (bool) preg_match("#^PUT /editor/books/($id)/scenes/($id)$#", $route, $match) => Books::putSpread($match[1], $match[2]),
+        (bool) preg_match("#^DELETE /editor/books/($id)/scenes/($id)$#", $route, $match) => Books::deleteSpread($match[1], $match[2]),
+        (bool) preg_match("#^POST /editor/books/($id)/groups$#", $route, $match) => Scenes::addGroup($match[1]),
+        (bool) preg_match("#^PUT /editor/books/($id)/groups/($id)$#", $route, $match) => Scenes::putGroup($match[1], $match[2]),
+        (bool) preg_match("#^DELETE /editor/books/($id)/groups/($id)$#", $route, $match) => Scenes::deleteGroup($match[1], $match[2]),
         (bool) preg_match("#^PUT /editor/books/($id)/environment$#", $route, $match) => Books::putEnvironment($match[1]),
         (bool) preg_match("#^PUT /editor/books/($id)/passes$#", $route, $match) => Books::putPasses($match[1]),
         (bool) preg_match("#^PUT /editor/books/($id)/appearance$#", $route, $match) => Books::putAppearance($match[1]),
