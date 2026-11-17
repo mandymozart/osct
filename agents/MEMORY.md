@@ -4,6 +4,19 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-17 – pictures become WebP in the browser (#298 follow-up)
+- Tilman: "in scutoons asset manager I automatically upload images to webp when they are uploaded". Staging's shared
+  FTPS host may have no GD, so the API's conversion (phase 1) can store files unconverted there. The editor now converts
+  before the request (`editor/src/lib/browser-webp.ts`, modelled on SCUTOONS `shared/media/src/media-standard.ts`);
+  the API keeps its conversion as the fallback (MCP, scripts, browsers that cannot encode).
+- Decided here: **one hook point** – `library.upload` / `library.replace`, which every editor upload goes through (Library,
+  FileField, Pages view, new target / entry forms, code files – non-images pass untouched), not each call site.
+- **Lossy with alpha** for transparent pictures: a canvas cannot write lossless WebP, while the server writes them
+  lossless. The browser's lossy WebP passes the server unchanged (a WebP within the size). If cut-outs/icons show
+  artefacts, open item: keep PNGs with transparency for the server (only where GD exists) or add a wasm encoder.
+- A picture above 50 MP is decoded once in the browser to learn its size, then sent as it came so the API answers its
+  413 message. A replace without `?fit=` (Library *Replace…*) uses `default` (2048) as before.
+
 ## 2026-11-17 – spread titles and files named by use, phase 3 (#298)
 - Tilman's decision (issue comment): titles and file names, ids untouched ("ids are invisible to the user"). Built so;
   decided here (not asked):
