@@ -2,8 +2,8 @@ import { GameStoreService } from "@/services";
 import { type Entry, EntryCategory, type IGame, type ListCategory } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { escapeHtml } from "@/utils";
-import { getSpread } from "@/utils/game-config";
-import { DEFAULT_CATEGORY, entryLabel, entryLabelHtml, groupEntries, pageLabel } from "./entries-model";
+import { getEntryPlaceLabel } from "@/utils/game-config";
+import { DEFAULT_CATEGORY, entryLabel, entryLabelHtml, groupEntries } from "./entries-model";
 import { t } from "i18next";
 
 /** How long a cut-off name rests before it scrolls (Tilman, design p. 40) */
@@ -142,13 +142,13 @@ export class EntriesList extends HTMLElement {
   }
 
   private rowHtml(entry: Entry): string {
-    const page = escapeHtml(pageLabel(entry.page, getSpread(entry.spreadId)));
+    const page = escapeHtml(getEntryPlaceLabel(entry));
     const cells = `<span class="label"><span class="text">${entryLabelHtml(entry)}</span></span><span class="page">${page}</span>`;
     if (this.isVideos) return `<li><div class="row">${cells}</div></li>`;
     if (!this.game.history.isConsulted(entry.id)) {
       return `<li><div class="row locked" aria-disabled="true">${cells}<span class="visually-hidden">${t("entries:locked")}</span></div></li>`;
     }
-    return `<li><button type="button" class="row" data-entry="${escapeHtml(entry.id)}" aria-label="${escapeHtml(`${entryLabel(entry)}, ${t("entries:page")} ${pageLabel(entry.page, getSpread(entry.spreadId))}`)}">${cells}</button></li>`;
+    return `<li><button type="button" class="row" data-entry="${escapeHtml(entry.id)}" aria-label="${escapeHtml(`${entryLabel(entry)}, ${t("entries:page")} ${getEntryPlaceLabel(entry)}`)}">${cells}</button></li>`;
   }
 
   /** After the delay, every name cut off by its line scrolls once (#287) */

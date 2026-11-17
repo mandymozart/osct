@@ -2,6 +2,7 @@ import { ConsultationPage } from "./consultation-page";
 import { escapeHtml } from "@/utils";
 import { getCredits } from "@/utils/game-config";
 import { matterOf } from "@shared/types/game-config";
+import { surfaceLabelRange } from "@engine/content/scenes";
 import type { Spread } from "@/types";
 import { t } from "i18next";
 
@@ -43,8 +44,17 @@ export class CreditsPage extends ConsultationPage {
   }
 }
 
-/** "Pages 2–3"; a spread without printed numbers (cover, back, front and back matter) by its title */
-export const spreadLabel = (spread: Pick<Spread, "title" | "format" | "matter" | "firstPage" | "lastPage">): string => {
+/**
+ * "Pages 2–3"; a scene's own label (schema 2.35, #307) as it is, its surfaces' printed labels as "Pages 40–41"; a spread
+ * without printed numbers (cover, back, front and back matter) by its title
+ */
+export const spreadLabel = (spread: Pick<Spread, "title" | "format" | "matter" | "firstPage" | "lastPage" | "label" | "surfaces">): string => {
+  const own = spread.label?.trim();
+  if (own) return own;
+  const printed = surfaceLabelRange(spread);
+  if (printed) {
+    return printed.first === printed.last ? t("about:page", { page: printed.first }) : t("about:pages", { first: printed.first, last: printed.last });
+  }
   if (spread.format === "cover" || spread.format === "back" || matterOf(spread)) return spread.title;
   return spread.firstPage === spread.lastPage
     ? t("about:page", { page: spread.firstPage })

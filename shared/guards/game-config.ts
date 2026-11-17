@@ -24,7 +24,7 @@ import { type AppearanceCheckOptions, appearanceProblems } from "../types/appear
 import { environmentProblems } from "../types/environment";
 import { pluginProblems, recordedRegistrations } from "../types/plugins";
 import { NODE_TYPE_PATTERN, nodeParamProblems, nodeTypeSpec } from "../types/node-types";
-import { MATTERS, PRINT_SURFACES, SPREAD_FORMATS } from "../types/game-config";
+import { MATTERS, PRINT_SURFACES, SCENE_LAYOUTS, SPREAD_FORMATS, SURFACE_SIDE_PATTERN } from "../types/game-config";
 import { filterProblems } from "../types/filters";
 import { lightProblems } from "../types/lights";
 import { textureSetProblems } from "../types/textures";
@@ -221,8 +221,23 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     });
   }
 
+  // Groups (schema 2.35, #307): a label over several scenes, named by a scene's `group`
+  const groupIds = new Set<string>();
+  if (root.groups !== undefined) arr(root, "groups", "config").forEach((g, i) => {
+    const path = `groups[${i}]`;
+    const group = obj(g, path);
+    if (!group) return;
+    ["id", "label"].forEach(key => str(group, key, path));
+    if (typeof group.id === "string") {
+      if (groupIds.has(group.id)) fail(`${path}.id`, `duplicate group id "${group.id}"`);
+      groupIds.add(group.id);
+    }
+  });
+
   const spreadIds = new Set<string>();
   const pageRanges: [number, number][] = [];
+  /** The surface ids of each scene (schema 2.35) – an entry's `surface` must be one of its scene's */
+  const surfacesOf = new Map<string, Set<string>>();
   arr(root, "spreads", "config").forEach((s, i) => {
     const path = `spreads[${i}]`;
     const spread = obj(s, path);
@@ -237,7 +252,34 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
       else if (spread.format !== undefined && spread.format !== "spread") fail(`${path}.matter`, `a ${spread.format} is no front or back matter`);
     }
     if (spread.passes !== undefined) passProblems(spread.passes, `${path}.passes`, passOptions).forEach(problem => problems.push(problem));
+    // The scene (schema 2.35, #307): its surfaces, layout, group and label
+    const surfaceIds = new Set<string>();
+    if (spread.surfaces !== undefined) arr(spread, "surfaces", path).forEach((f, j) => {
+      const fPath = `${path}.surfaces[${j}]`;
+      const surface = obj(f, fPath);
+      if (!surface) return;
+      str(surface, "id", fPath);
+      if (typeof surface.side !== "string" || !SURFACE_SIDE_PATTERN.test(surface.side)) fail(`${fPath}.side`, "expected a side (left, right, front, back, wall …)");
+      (["widthMm", "heightMm"] as const).forEach(key => {
+        const size = surface[key];
+        if (typeof size !== "number" || !Number.isFinite(size) || size <= 0) fail(`${fPath}.${key}`, "expected a size in mm (> 0)");
+      });
+      str(surface, "label", fPath, true);
+      if (typeof surface.id === "string") {
+        if (surfaceIds.has(surface.id)) fail(`${fPath}.id`, `duplicate surface id "${surface.id}"`);
+        surfaceIds.add(surface.id);
+      }
+    });
+    if (spread.layout !== undefined && !(SCENE_LAYOUTS as readonly unknown[]).includes(spread.layout)) {
+      fail(`${path}.layout`, `"${spread.layout}" is not one of ${SCENE_LAYOUTS.join(", ")}`);
+    }
+    if (spread.group !== undefined) {
+      if (typeof spread.group !== "string" || spread.group === "") fail(`${path}.group`, "expected a group id");
+      else if (!groupIds.has(spread.group)) fail(`${path}.group`, `unknown group "${spread.group}"`);
+    }
+    str(spread, "label", path, true);
     if (typeof spread.id === "string") {
+      surfacesOf.set(spread.id, surfaceIds);
       if (spreadIds.has(spread.id)) fail(`${path}.id`, `duplicate spread id "${spread.id}"`);
       spreadIds.add(spread.id);
     }
@@ -262,10 +304,22 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     ["author", "image", "caption", "media"].forEach(key => str(entry, key, path, true));
     if (typeof entry.body !== "string") fail(`${path}.body`, "expected a string");
     num(entry, "page", path);
-    // The access page decides the spread
+    // The access page decides the spread – unless the entry names its scene (schema 2.35). Either way the page lies in
+    // a spread: apps before 2.35 place the entry by it
     const page = entry.page;
     if (typeof page === "number" && !pageRanges.some(([first, last]) => page >= first && page <= last)) {
       fail(`${path}.page`, `page ${page} is not part of any spread`);
+    }
+    if (entry.scene !== undefined) {
+      if (typeof entry.scene !== "string" || entry.scene === "") fail(`${path}.scene`, "expected a scene (spread) id");
+      else if (!spreadIds.has(entry.scene)) fail(`${path}.scene`, `unknown scene "${entry.scene}"`);
+    }
+    if (entry.surface !== undefined) {
+      if (typeof entry.surface !== "string" || entry.surface === "") fail(`${path}.surface`, "expected a surface id");
+      else if (typeof entry.scene !== "string") fail(`${path}.surface`, "a surface needs the entry's scene");
+      else if (spreadIds.has(entry.scene) && !surfacesOf.get(entry.scene)?.has(entry.surface)) {
+        fail(`${path}.surface`, `scene "${entry.scene}" has no surface "${entry.surface}"`);
+      }
     }
     if (!isEntryCategory(entry.category)) {
       fail(`${path}.category`, `"${entry.category}" is not one of ${ENTRY_CATEGORIES.join(", ")}`);

@@ -18,6 +18,7 @@ import { assertGameConfiguration, GameConfigurationError, type GuardOptions, isE
 import { CONTENT_SCHEMA_VERSION, OLDEST_READABLE_SCHEMA_MAJOR, parseContentSchema } from '@shared/types/game-config';
 import { pickSubtitleTrack } from '@shared/types/subtitles';
 import { currentFeatures, describeSkipped, type KnownFeatures, skipUnknownFeatures, type SkippedFeature } from './forward-compatible';
+import { entryPlaceLabel, sceneIdOf } from './scenes';
 import { type ContentFiles, type ContentManifest, isContentFiles, isContentManifest } from '@shared/types/content-manifest';
 import {
   type AssetData,
@@ -26,6 +27,9 @@ import {
   type EntityData,
   type EntityRefData,
   type Entry,
+  type EntryData,
+  type GroupData,
+  type SurfaceData,
   ErrorCode,
   type ErrorInfo,
   type GameConfiguration,
@@ -309,16 +313,18 @@ const apply = (raw: GameConfiguration, base: string, files: ContentFiles, keepSw
   const resolveEntity = (entity?: EntityData | EntityRefData): EntityData | undefined =>
     entity && isEntityRef(entity) ? config.entities[entity.ref] : entity;
 
-  const spreadForPage = (page: number): string => {
-    const spread = config.spreads.find(s => page >= s.firstPage && page <= s.lastPage);
-    if (!spread) throw new Error(`[game-config] Page ${page} is not part of any spread`);
-    return spread.id;
+  // The entry's spread: its scene when it names one (schema 2.35, #307), else the spread its access page lies in
+  const spreadOf = (entry: EntryData): string => {
+    const spreadId = sceneIdOf(entry, config.spreads);
+    if (!spreadId) throw new Error(`[game-config] Page ${entry.page} is not part of any spread`);
+    return spreadId;
   };
 
   // A switched-off target and its entry are not in the reader's book: no image target, no list entry, not counted
   const inBook = keepSwitchedOff ? config.entries : config.entries.filter(isEntryInBook);
-  entries = inBook.map(({ target, ...data }) => {
-    const spreadId = spreadForPage(data.page);
+  entries = inBook.map(entry => {
+    const { target, ...data } = entry;
+    const spreadId = spreadOf(entry);
     return {
       ...data,
       spreadId,
@@ -372,6 +378,21 @@ export const getNeighbourSpreads = (spreadId: string, range = 1): Spread[] => {
   const index = spreads.findIndex(s => s.id === spreadId);
   return index === -1 ? [] : spreads.filter((_, i) => i !== index && Math.abs(i - index) <= range);
 };
+
+export { entryPlaceLabel, sceneIdOf, sceneLabel, surfaceLabelRange, surfaceOf } from './scenes';
+
+/** The groups scenes name (schema 2.35, #307) – a label over several scenes; none for older content */
+export const getGroups = (): GroupData[] => [...(config.groups ?? [])];
+
+/** A scene's surfaces (schema 2.35), in order – none for older content */
+export const getSurfaces = (spreadId: string): SurfaceData[] => [...(spreadById.get(spreadId)?.surfaces ?? [])];
+
+/**
+ * The place an entry is on as the reader finds it in the book: its surface's printed label (schema 2.35), else its page
+ * number, or its spread's title on a cover and the front and back matter (`./scenes.ts`)
+ */
+export const getEntryPlaceLabel = (entry: Pick<Entry, 'page' | 'surface' | 'spreadId'>): string =>
+  entryPlaceLabel(entry, spreadById.get(entry.spreadId));
 
 export const getEntries = (): Entry[] => [...entries];
 

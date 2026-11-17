@@ -42,9 +42,19 @@ final class ContentVersion
         }
         // A spread without a title of its own shows its pages' (#298): the reader reads `title` (RULES #10)
         $spreads = Pages::withTitles($spreads);
+        // A scene's surfaces by scene id (schema 2.35, #307) – an entry's `surface` must be one of its scene's
+        $surfaces = [];
+        foreach ($spreads as $spread) {
+            if (!$spread instanceof stdClass || !is_string($spread->id ?? null)) continue;
+            $surfaces[$spread->id] = array_map(static fn($s) => $s instanceof stdClass ? ($s->id ?? null) : null, is_array($spread->surfaces ?? null) ? $spread->surfaces : []);
+        }
         $entries = [];
-        foreach (Db::run('SELECT id, data_json FROM entries WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
+        foreach (Db::run('SELECT id, spread_id, data_json FROM entries WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
             $entry = Editor::decode($row['data_json']);
+            // The entry's scene (schema 2.35, #307): `spread_id` is the truth the editor keeps (its page still written for
+            // older apps); a surface that is not on that scene (the entry moved) is dropped
+            $entry = self::withScene($entry, $row['spread_id'] === null ? null : (string) $row['spread_id']);
+            if (property_exists($entry, 'surface') && !in_array($entry->surface, $surfaces[$entry->scene ?? ''] ?? [], true)) unset($entry->surface);
             if (isset($targets[$row['id']])) $entry->target = $targets[$row['id']];
             $entries[] = $entry;
         }
@@ -83,6 +93,22 @@ final class ContentVersion
         $hash = hash('sha256', Editor::encode($configuration));
         $configuration->version = (object) ['version' => Version::APP, 'timestamp' => Editor::iso(), 'hash' => $hash, 'schema' => $schema];
         return ['configuration' => $configuration, 'files' => $files, 'hash' => $hash, 'build' => substr($hash, 0, 12), 'schema' => $schema];
+    }
+
+    /**
+     * The entry with its `scene` (schema 2.35, #307) right after its `page`, as the content build writes it – none for an
+     * entry on no spread; a `scene` the row kept is replaced
+     */
+    public static function withScene(stdClass $entry, ?string $scene): stdClass
+    {
+        $result = new stdClass();
+        foreach (get_object_vars($entry) as $key => $value) {
+            if ($key === 'scene') continue;
+            $result->{$key} = $value;
+            if ($key === 'page' && $scene !== null) $result->scene = $scene;
+        }
+        if ($scene !== null && !property_exists($result, 'scene')) $result->scene = $scene;
+        return $result;
     }
 
     /**

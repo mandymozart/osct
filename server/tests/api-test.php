@@ -668,6 +668,19 @@ try {
     // An imported book is print first unless its content says otherwise (#238)
     check(($draft['book']['sourceOfTruth'] ?? null) === 'print', 'the imported book is print first');
     $expected['book']['sourceOfTruth'] = 'print';
+    // Schema 2.35 (#307): the draft writes every entry's scene – its spread – right after its page; an entry on no spread has none
+    check(array_map(static fn(array $e) => $e['scene'] ?? null, $draft['entries']) === ['s1', 's2', 's2', null]
+        && array_slice(array_keys($draft['entries'][0]), 3, 2) === ['page', 'scene'], 'the draft carries scene on entries (#307), after page');
+    $expected['entries'] = array_map(static function (array $e) use ($draft): array {
+        $scene = array_column($draft['entries'], 'scene', 'id')[$e['id']] ?? null;
+        if ($scene === null) return $e;
+        $result = [];
+        foreach ($e as $key => $value) {
+            $result[$key] = $value;
+            if ($key === 'page') $result['scene'] = $scene;
+        }
+        return $result;
+    }, $expected['entries']);
     check($draft === $expected, 'import → draft round-trips the configuration unchanged (keys, order, extra fields, the entry without a spread)');
     check(str_contains($rawDraft, '"params":{}') && str_contains($rawDraft, '"tags":[]'), 'empty objects and lists keep their kind');
     [$status, $data] = call($api, 'GET', "/editor/books/osct/draft/{$manifest['build']}/files.json", null, $editor);

@@ -668,6 +668,37 @@ lastPage: 2
 
 Spreads may not overlap. Every entry's `page` must fall inside a spread.
 
+### Scenes, surfaces, labels and groups
+
+Since schema 2.35 (#307, phase 1 of `agents/SCENES.md`) a spread is a **scene**: one step of the experience – a double
+page, a cover, a wall, a room. The type is also named `SceneData` (the rename of `spreads` comes later). Everything new is
+optional, and an older app skips it:
+
+| Where | Field | What it is |
+|---|---|---|
+| spread (scene) | `surfaces` | its physical areas, in order: `{ id, side, widthMm, heightMm, label? }` – `side` is `left`, `middle` (a fold-out's third), `right`, `front`, `back` or `wall` (a lower-case word a later version adds passes); the size in mm |
+| surface | `label` | free text **exactly as printed** – `41`, `ii`, `Cover`, or none. Never arithmetic: labels never renumber |
+| spread (scene) | `layout` | `fixed` (side by side or front and back, as printed together – the default) or `free` (each surface on its own anchor: a page and a wall, a room) |
+| spread (scene) | `label` | what the reader's page scroller and the image credits show for the scene (`Preface`, `Pages 40–41`) |
+| spread (scene) | `group` | the id of one of the configuration's `groups` |
+| configuration | `groups` | `[{ id, label }]` – several scenes under one label (`Front matter`, a chapter, a room) |
+| entry | `scene` | the id of the entry's spread. **When set it decides the entry's spread, not `page`** |
+| entry | `surface` | the id of one of its scene's surfaces – needs `scene` |
+
+**Scene wins over page.** An entry with `scene` lies on that scene even when its `page` belongs to another spread's
+range. `page` stays required in this MINOR – apps before 2.35 place every entry by it – so whoever writes content keeps
+writing a page inside the scene's pages: the content build writes `scene` from the spread the page lies in, the editor's
+draft writes it from the spread the editor keeps the entry on (`entries.spread_id`), both still write `page`.
+
+**Labels in the reader** – the most specific one: an entry's place (the entries list's page column, the entry's *Page*
+row) is its surface's label, else its page number (or the spread's title on a cover and front or back matter, as
+before); a scene in the page scroller and the image credits shows its own `label`, else its surfaces' labels (`40–41`,
+*Pages 40–41*), else its pages or title as before.
+
+The guard checks: a scene's `group` names a group, an entry's `scene` names a spread, its `surface` one of that scene's
+surfaces; surface ids are unique within their scene, group ids within the book. The editor does not edit scenes,
+surfaces or groups yet (phase 2–3).
+
 ## Recognition
 
 Nothing to prepare: the app makes the recognition data from the target images itself when a spread is
@@ -913,6 +944,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 2.32 | 1.80.0 | in develop | a spread's optional `matter` (`front` \| `back`): a double page without printed numbers before page 1 or after the last printed page, its pages internal (front matter below 0, #296) | ignored: an older app shows the spread like any other – in the page scroller with its internal numbers |
 | 2.33 | 1.82.0 | in develop | the configuration's optional `credits` (file → credit line, #292): the picture credits of the files the book uses, from the editor's Library | ignored: an older app has no image credits page |
 | 2.34 | 1.88.0 | in develop | an entry's optional `caption` (#289): the line under the entry's picture, written in the editor's entry form, `update_entry` / `add_entry` or the entry's YAML | ignored: an older app shows the picture without the line (the guard reads no unknown field of an entry) |
+| 2.35 | next | in develop | scenes (#307 phase 1, [Scenes](#scenes-surfaces-labels-and-groups)): a spread's optional `surfaces` (`id`, `side`, `widthMm`, `heightMm`, `label` as printed), `layout` (`fixed` \| `free`), `group` and `label`; the configuration's optional `groups` (`id`, `label`); an entry's optional `scene` (a spread id – **it decides the entry's spread, not `page`**) and `surface`. The content build and the editor's draft write `scene` on every entry; `page` stays required and is still written | ignored: an older app reads none of the fields (its guard reads no unknown field of a spread, an entry or the configuration) and places every entry by its `page`, which writers keep inside the scene's pages; it shows page numbers where a 2.35 app shows surface labels |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

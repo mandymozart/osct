@@ -80,7 +80,7 @@ describe("entries list", () => {
     expect(root.querySelector(".head")?.textContent).toContain("Name");
     expect(root.querySelectorAll("button.row")).toHaveLength(1);
     expect(root.querySelectorAll(".row.locked")).toHaveLength(glossary().length - 1);
-    expect(root.querySelector(`button[data-entry="${first.id}"] .page`)?.textContent).toBe(pageLabel(first.page, getSpread(first.spreadId)));
+    expect(root.querySelector(`button[data-entry="${first.id}"] .page`)?.textContent).toBe(pageLabel(first, getSpread(first.spreadId)));
 
     root.querySelector<HTMLElement>(".row.locked")!.click();
     expect(game.state.currentRoute?.page).not.toBe(Pages.ENTRY);
