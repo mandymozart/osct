@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { assetPlace, heldNotice, matchesSearch, readLibraryView, saveLibraryView } from "../library-place";
+import { assetPlace, convertedNotice, heldNotice, matchesSearch, readLibraryView, saveLibraryView } from "../library-place";
+
+describe("a picture the image rule converted at upload (#298)", () => {
+  it("names the file as it came and as it is stored", () => {
+    expect(convertedNotice({ name: "Photo.webp", size: 412_000, width: 2048, height: 1536 }, { name: "Photo.jpg", size: 6_200_000 }))
+      .toBe("Photo.jpg (6.2 MB) is stored as Photo.webp – 2048×1536, 412 kB");
+    expect(convertedNotice({ name: "eye.webp", size: 900, width: null, height: null }, { name: "eye.png", size: 3_000 })).toBe("eye.png (3 kB) is stored as eye.webp – 1 kB");
+  });
+});
 
 const file = (url: string, name = url.split("/").pop() ?? url) => ({ name, url });
 

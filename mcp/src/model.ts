@@ -43,6 +43,7 @@ import {
 import { DEFAULT_ENVIRONMENT, ENVIRONMENT_WORLDS, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS } from "../../shared/types/environment";
 import { ENTRY_CATEGORIES } from "../../shared/types/entry";
 import type { SourceTypes } from "../../shared/api/rules";
+import { IMAGE_MAX_PIXELS, IMAGE_MAX_SIDE, IMAGE_WEBP_QUALITY } from "../../shared/api/images";
 
 export interface BookModel {
   /** the compiled plugins the book's configuration declares, with what they recorded */
@@ -317,6 +318,10 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     pageImages: {
       description:
         "Page images (#251): no content – an editor-only override of the print layout. One Library image per book page (the covers, the front and back matter's internal pages, the numbered pages, and the unnumbered half next to a single page – `facing`) that the editor's stage and spread cards show instead of the layout's sheet for that page; the reader never shows them and the draft does not carry them. list_pages lists every page in book order with its label (Cover, F1…, next to 1, 12, B1…, Back cover) and its image; set_page_images sets, replaces, moves, renames and removes them in one call – by page, label or a file name (P012…, start-1… / end-1… in print order), uploading local files on the way.",
+    },
+    images: {
+      description:
+        `The image rule (#298): every picture takes the same way into the book. An uploaded jpg / png / webp is stored as WebP (quality ${IMAGE_WEBP_QUALITY}; lossless when it has transparency – an icon, a cut-out), turned upright by its EXIF orientation, its metadata dropped, never scaled up, its longest side at most ${IMAGE_MAX_SIDE.page} px for a page image and an entry's colour picture, ${IMAGE_MAX_SIDE.target} px for a target's printed image and ${IMAGE_MAX_SIDE.default} px for every other Library picture; a picture above ${IMAGE_MAX_PIXELS / 1_000_000} MP is refused (413 image-too-large). The upload does not know the use: upload_asset takes fit: "target" for a target's printed image (set_page_images uploads as page images by itself). The stored file is named <name>.webp. TIFF and PDF are no Library files – convert them locally first (Pillow / PyMuPDF), then upload.`,
     },
     components: {
       description: "entity.components: [{ type, …params }] – the built-in types, and the components and material layers a plugin registers (used the same way).",

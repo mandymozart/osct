@@ -360,7 +360,7 @@
     targetBusy = true;
     targetError = null;
     try {
-      const url = typeof src === "string" ? src : (await library.upload(bookId, src)).url;
+      const url = typeof src === "string" ? src : (await library.upload(bookId, src, "target")).url;
       await putTarget(bookId, targetId, { imageSrc: url });
       await ontargetchanged?.();
     } catch (e) {

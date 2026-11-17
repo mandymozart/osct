@@ -1,5 +1,6 @@
 import { nodeAssetTypes } from "@engine/types";
 import { ASSET_KIND_EXTENSIONS, type AssetKind } from "@shared/api/rules";
+import type { ImageFit } from "@shared/api/images";
 import type { Asset } from "./api";
 import { fitsSlot, type EnvironmentSlot } from "./environment.svelte";
 import { assetPlace } from "./library-place";
@@ -95,6 +96,10 @@ export const pickFilter = (subject: PickSubject): LibraryFilter => {
 /** The asset fits the subject (the environment's files also by their extension) */
 export const pickFits = (subject: PickSubject, asset: Pick<Asset, "kind" | "url">): boolean =>
   subject.for === "environment" ? fitsSlot(asset, subject.slot) : pickKinds(subject).includes(asset.kind);
+
+/** The use a picture uploaded while picking is for (#298): a target's printed image is cut to 1200 px, the rest to 2048 */
+export const pickFit = (subject: PickSubject): ImageFit | undefined =>
+  subject.for === "target-image" ? "target" : subject.for === "entry-image" ? "entryImage" : undefined;
 
 /** The upload's `accept` while picking for the subject */
 export const pickAccept = (subject: PickSubject): string => acceptOf(pickKinds(subject));

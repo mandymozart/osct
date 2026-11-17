@@ -1,0 +1,41 @@
+/**
+ * The image rule (#298, docs/content.md "The image rule"): one way for every picture into the book. The API converts an
+ * uploaded image (jpg, png, webp) to WebP at upload (server/api/src/Images.php, the numbers mirrored as `Assets::IMAGE_*`
+ * and pinned by mcp/test/php-rules.test.ts), the editor and the MCP server name the use where they know it (`?fit=`),
+ * and the content build writes the same sizes (scripts/src/lib/optimize-media.ts, WebP behind `OSCT_IMAGE_FORMAT=webp`).
+ *
+ * - the longest side at most `IMAGE_MAX_SIDE[fit]` px – never scaled up;
+ * - WebP at `IMAGE_WEBP_QUALITY`, lossless when the image has transparency (an icon, a cut-out);
+ * - a JPEG's EXIF orientation applied, all metadata dropped (EXIF, XMP, ICC);
+ * - an image above `IMAGE_MAX_PIXELS` is refused before it is decoded.
+ *
+ * Not in the content contract: the rule says how files are made, not what a configuration holds.
+ */
+
+/** The longest side per use, in px. `default` = an upload whose use is not known yet (the Library) */
+export const IMAGE_MAX_SIDE = {
+  /** A page image (#251) – shown over the whole page */
+  page: 2048,
+  /** An entry's colour picture – the card flip shows it full screen */
+  entryImage: 2048,
+  /** A target's printed image – what the image tracker learns; more detail only costs memory */
+  target: 1200,
+  /** Every other Library image (a texture, a sky, a picture on a node) */
+  default: 2048,
+} as const;
+
+/** The uses an upload can name: `POST …/assets?fit=<use>` */
+export type ImageFit = keyof typeof IMAGE_MAX_SIDE;
+export const IMAGE_FITS = Object.keys(IMAGE_MAX_SIDE) as ImageFit[];
+
+/** WebP quality of a lossy image (0–100) */
+export const IMAGE_WEBP_QUALITY = 82;
+
+/** The most pixels an upload may have before it is decoded (width × height) – 50 MP, e.g. 8,660 × 5,773 */
+export const IMAGE_MAX_PIXELS = 50_000_000;
+
+/** The size an image of `width` × `height` gets under the rule for `fit` (never larger than it is) */
+export function fitImage(width: number, height: number, fit: ImageFit = "default"): { width: number; height: number } {
+  const scale = Math.min(1, IMAGE_MAX_SIDE[fit] / Math.max(width, height));
+  return scale < 1 ? { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) } : { width, height };
+}

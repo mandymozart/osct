@@ -53,6 +53,13 @@ export const heldNotice = (asset: Pick<Asset, "name">, heldName: string | undefi
     : heldName === asset.name ? `${asset.name} is in the Library already – the same file, nothing new stored`
       : `${heldName} is the same file – it is now named ${asset.name}`;
 
+/**
+ * What the Library says when the image rule converted an upload (#298): the file as it came and as it is stored –
+ * `Photo.jpg (6.2 MB) is stored as Photo.webp – 2048×1536, 412 kB`
+ */
+export const convertedNotice = (asset: Pick<Asset, "name" | "size" | "width" | "height">, from: { name: string; size: number }): string =>
+  `${from.name} (${formatSize(from.size)}) is stored as ${asset.name} – ${asset.width ? `${asset.width}×${asset.height}, ` : ""}${formatSize(asset.size)}`;
+
 /** A file's size as the library shows it: `850 kB`, `12.3 MB` */
 export const formatSize = (bytes: number): string => (bytes >= 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1e3))} kB`);
 

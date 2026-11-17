@@ -15,6 +15,7 @@ declare(strict_types=1);
  * - the same bytes uploaded twice are one asset (sha256);
  * - an image's width and height and a video's width, height and duration are read from the file on upload and replace
  *   (`VideoInfo` for the video containers) – null when the file does not tell;
+ * - a picture (jpg, png, webp) is stored under the image rule (#298, `Images`): WebP, at most IMAGE_MAX_SIDE[fit] px;
  * - renditions (1x / 2x / 3x, 480p / 720p / 1080p) and transcoding stay with the content build – open (PLAN 2b);
  * - a **shader** (`.glsl`, `.frag`, `.vert`, `.wgsl`, #186) is an asset of the kind `shader`: text a plugin loads by its
  *   URL (`api.loadText`). Its uses are the plugin sources that name the URL; a replace relinks them as it relinks rows.
@@ -64,6 +65,14 @@ final class Assets
         foreach ($assets as $i => $asset) $assets[$i]['credits'] = $credits[$asset['url']] ?? null;
         Http::json(200, ['assets' => $assets]);
     }
+
+    /**
+     * The image rule (#298, shared/api/images.ts – pinned by mcp/test/php-rules.test.ts): the longest side per use in px
+     * (`?fit=<use>` on an upload; `default` without one), WebP quality, the most pixels decoded. `Images` applies it.
+     */
+    public const IMAGE_MAX_SIDE = ['page' => 2048, 'entryImage' => 2048, 'target' => 1200, 'default' => 2048];
+    public const IMAGE_WEBP_QUALITY = 82;
+    public const IMAGE_MAX_PIXELS = 50_000_000;
 
     /** The longest credits line (#277) */
     public const CREDITS_MAX = 1000;
@@ -232,15 +241,20 @@ final class Assets
     }
 
     /**
-     * POST /editor/books/{id}/assets – the file as the raw body, `X-File-Name: <name.ext>` → 201 { asset }, or 200 with
-     * the asset that already holds these bytes, named as this upload names it. 400 `invalid-file` (no name, unsupported type, empty, a shader that is no
-     * text), 413 `body-too-large` (ASSET_MAX_BYTES, a shader TEXT_MAX_BYTES).
+     * POST /editor/books/{id}/assets[?fit=<use>] – the file as the raw body, `X-File-Name: <name.ext>` → 201 { asset, converted },
+     * or 200 with the asset that already holds these bytes, named as this upload names it. A picture (jpg, png, webp) is
+     * stored under the image rule (#298, `Images`): WebP, its longest side at most `IMAGE_MAX_SIDE[fit]` (`target` 1200,
+     * else 2048), named `<name>.webp`; `converted` says whether that happened (false: no GD on this instance, a file GD
+     * cannot read, an animated picture, a WebP within the size – stored as it came). Duplicates are found by the bytes
+     * stored (the result), so the same picture uploaded twice for the same use is one asset. 400 `invalid-file` (no name,
+     * unsupported type, empty, a shader that is no text), 400 `invalid-fit`, 413 `body-too-large` (ASSET_MAX_BYTES, a
+     * shader TEXT_MAX_BYTES), 413 `image-too-large` (above IMAGE_MAX_PIXELS).
      */
     public static function upload(string $bookId): never
     {
         $user = Editor::user();
         Books::exists($bookId);
-        [$name, $extension, $data] = self::file();
+        [$name, $extension, $data, $converted] = self::image(...self::file());
         $sha = hash('sha256', $data);
         $same = Db::one('SELECT * FROM assets WHERE book_id = :book AND sha256 = :sha AND status = :status', ['book' => $bookId, 'sha' => $sha, 'status' => 'active']);
         if ($same) {
@@ -249,7 +263,7 @@ final class Assets
                 $same = ['name' => $name, 'updated_at' => Editor::nowMs()] + $same;
                 Db::run('UPDATE assets SET name = :name, updated_at = :now WHERE id = :id', ['name' => $name, 'now' => $same['updated_at'], 'id' => $same['id']]);
             }
-            Http::json(200, ['asset' => self::summary($same, count(self::usagesOf($bookId, $same)))]);
+            Http::json(200, ['asset' => self::summary($same, count(self::usagesOf($bookId, $same))), 'converted' => $converted]);
         }
         $id = Db::uuid();
         $path = self::path($bookId, $id, 1, $extension);
@@ -276,12 +290,13 @@ final class Assets
             self::deleteFile($store, $path);
             throw $error;
         }
-        Http::json(201, ['asset' => self::summary($row, 0)]);
+        Http::json(201, ['asset' => self::summary($row, 0), 'converted' => $converted]);
     }
 
     /**
-     * PUT /editor/books/{id}/assets/{assetId}/file – the new file as the raw body (`X-File-Name` optional, the kind
-     * must stay) → { asset, relinked }: a new version at a new path; every use in the book's rows now names it.
+     * PUT /editor/books/{id}/assets/{assetId}/file[?fit=<use>] – the new file as the raw body (`X-File-Name` optional, the
+     * kind must stay) → { asset, relinked, converted }: a new version at a new path; every use in the book's rows now names
+     * it. A picture goes under the image rule as an upload does.
      */
     public static function replace(string $bookId, string $assetId): never
     {
@@ -291,6 +306,7 @@ final class Assets
         if (self::KINDS[$extension] !== $asset['kind']) {
             throw new ApiError(400, 'invalid-file', "A {$asset['kind']} asset can only be replaced by a {$asset['kind']} file.");
         }
+        [$name, $extension, $data, $converted] = self::image($name, $extension, $data);
         $store = ContentStore::for(self::STORE_ENV);
         [$width, $height, $duration] = self::dimensions($data, $extension);
         $now = Editor::nowMs();
@@ -315,7 +331,7 @@ final class Assets
                 throw $error;
             }
         });
-        Http::json(200, ['asset' => self::summary(self::row($bookId, $assetId), count(self::usagesOf($bookId, ['url' => $url, 'id' => $assetId]))), 'relinked' => $relinked]);
+        Http::json(200, ['asset' => self::summary(self::row($bookId, $assetId), count(self::usagesOf($bookId, ['url' => $url, 'id' => $assetId]))), 'relinked' => $relinked, 'converted' => $converted]);
     }
 
     /** GET /editor/books/{id}/assets/{assetId}/usages → { usages: [{ kind, ref }], asset } (the asset as the list has it) */
@@ -382,6 +398,35 @@ final class Assets
         $data = self::body($text ? self::TEXT_MAX_BYTES : Config::int('ASSET_MAX_BYTES'), $text ? self::TEXT_MAX_BYTES . ' bytes' : 'ASSET_MAX_BYTES');
         if ($text) self::checkText($name, $extension, $data);
         return [$name, $extension, $data];
+    }
+
+    /**
+     * The upload under the image rule (#298): a picture is checked against IMAGE_MAX_PIXELS and, where `Images` can, stored
+     * as WebP for the use `?fit=` names – name, extension and bytes of what is stored, and whether it was converted.
+     * Every other kind passes as it came.
+     * @return array{0: string, 1: string, 2: string, 3: bool}
+     */
+    private static function image(string $name, string $extension, string $data): array
+    {
+        if (self::KINDS[$extension] !== 'image') return [$name, $extension, $data, false];
+        $fit = $_GET['fit'] ?? 'default';
+        if (!is_string($fit) || !isset(self::IMAGE_MAX_SIDE[$fit])) {
+            throw new ApiError(400, 'invalid-fit', 'fit must be one of ' . implode(', ', array_keys(self::IMAGE_MAX_SIDE)) . '.');
+        }
+        Images::check($data);
+        $result = Images::convert($data, $extension, $fit);
+        if ($result === null) return [$name, $extension, $data, false];
+        return [self::storedName($name, 'webp'), 'webp', $result['data'], true];
+    }
+
+    /**
+     * The name a stored file is listed under: the upload's name with the stored format's extension (`Dot.png` stored as
+     * WebP → `Dot.webp`). One place for it – naming files by their use (#298 phase 3) extends it here.
+     */
+    public static function storedName(string $name, string $extension): string
+    {
+        $base = pathinfo($name, PATHINFO_FILENAME);
+        return ($base === '' ? 'image' : $base) . ".$extension";
     }
 
     /**

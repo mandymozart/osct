@@ -118,7 +118,9 @@ function startApi(array $settings): string
     $env = getenv();
     foreach ($settings as $key => $value) $env["OSCT_$key"] = $value;
     $env['OSCT_CONFIG_FILE'] = '/nonexistent'; // never a developer's config.local.php
-    $command = [PHP_BINARY, '-S', "127.0.0.1:$port", '-t', $root, "$root/api/index.php"];
+    // OSCT_TEST_PHP_ARGS: extra arguments for the API's php, e.g. "-d extension=gd" where php.ini does not load GD (#298)
+    $extra = array_values(array_filter(explode(' ', (string) getenv('OSCT_TEST_PHP_ARGS'))));
+    $command = [PHP_BINARY, ...$extra, '-S', "127.0.0.1:$port", '-t', $root, "$root/api/index.php"];
     $processes[] = proc_open($command, [1 => ['file', sys_get_temp_dir() . '/osct-api-test.log', 'a'], 2 => ['file', sys_get_temp_dir() . '/osct-api-test.log', 'a']], $pipes, $root, $env);
     for ($i = 0; $i < 50; $i++) {
         if (@fsockopen('127.0.0.1', $port)) return "http://127.0.0.1:$port/api";
@@ -217,6 +219,19 @@ function upload(string $base, string $method, string $path, string $bytes, strin
     $response = file_get_contents($base . $path, false, $context);
     $status = (int) explode(' ', $http_response_header[0])[1];
     return [$status, $response === '' ? null : json_decode($response, true), $http_response_header];
+}
+
+/**
+ * A PNG of one colour, written by hand (no GD in the test): `$alpha` < 255 makes it RGBA – a picture with transparency.
+ * Distinct colours give distinct pictures, so uploads under the image rule (#298) stay distinct assets.
+ */
+function pngOf(int $width, int $height, int $rgb, int $alpha = 255): string
+{
+    $pixel = chr(($rgb >> 16) & 255) . chr(($rgb >> 8) & 255) . chr($rgb & 255) . ($alpha < 255 ? chr($alpha) : '');
+    $row = "\0" . str_repeat($pixel, $width);
+    $chunk = static fn(string $type, string $body): string => pack('N', strlen($body)) . $type . $body . pack('N', crc32($type . $body));
+    return "\x89PNG\r\n\x1a\n" . $chunk('IHDR', pack('NN', $width, $height) . chr(8) . chr($alpha < 255 ? 6 : 2) . "\0\0\0")
+        . $chunk('IDAT', (string) gzcompress(str_repeat($row, $height), 9)) . $chunk('IEND', '');
 }
 
 // ── Video containers built as bytes (no binaries in the repository): the headers VideoInfo reads, filler as media ──
@@ -1243,16 +1258,21 @@ try {
     $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
     [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', $png, 'Dot.png', $editor);
     $asset = $data['asset'] ?? null;
-    check($status === 201 && $asset && $asset['kind'] === 'image' && $asset['width'] === 1 && $asset['height'] === 1 && $asset['version'] === 1 && str_ends_with($asset['url'], '/v1.png'), 'upload → 201 image asset with its size');
+    // The image rule (#298): with GD (and WebP) the API stores pictures as WebP – what follows expects either
+    $converting = ($data['converted'] ?? null) === true;
+    check(is_bool($data['converted'] ?? null), '#298: an image upload says whether it was converted (' . ($converting ? 'it was: GD with WebP' : 'it was not: no GD with WebP in this PHP') . ')');
+    $ext = $converting ? 'webp' : 'png';
+    $stored = static fn(string $name): string => $converting ? (string) preg_replace('/\.(png|jpe?g)$/i', '.webp', $name) : $name;
+    check($status === 201 && $asset && $asset['kind'] === 'image' && $asset['width'] === 1 && $asset['height'] === 1 && $asset['version'] === 1 && str_ends_with($asset['url'], "/v1.$ext"), 'upload → 201 image asset with its size');
     check(str_starts_with($asset['url'], "$api/content/assets/osct/"), 'the local store\'s URL is this API\'s content route');
     [$status, $same] = upload($api, 'POST', '/editor/books/osct/assets', $png, 'again.png', $editor);
     check($status === 200 && $same['asset']['id'] === $asset['id'], 'the same bytes again → the same asset');
-    check($same['asset']['name'] === 'again.png' && $same['asset']['url'] === $asset['url'] && $same['asset']['version'] === 1,
+    check($same['asset']['name'] === $stored('again.png') && $same['asset']['url'] === $asset['url'] && $same['asset']['version'] === 1,
         '#258: the same bytes under another name → the asset takes the name it was uploaded with last, its file and version stay');
     [, $data] = call($api, 'GET', '/editor/books/osct/assets?kind=image', null, $editor);
-    check(count(array_filter($data['assets'], static fn(array $a) => !$a['imported'] && in_array($a['name'], ['Dot.png', 'again.png'], true))) === 1, '#258: and the Library lists it once, under that name');
+    check(count(array_filter($data['assets'], static fn(array $a) => !$a['imported'] && in_array($a['name'], [$stored('Dot.png'), $stored('again.png')], true))) === 1, '#258: and the Library lists it once, under that name');
     [$status, $same] = upload($api, 'POST', '/editor/books/osct/assets', $png, 'Dot.png', $editor);
-    check($status === 200 && $same['asset']['name'] === 'Dot.png', '#258: uploaded under its first name again, it has that one');
+    check($status === 200 && $same['asset']['name'] === $stored('Dot.png'), '#258: uploaded under its first name again, it has that one');
     [, $data] = call($api, 'GET', '/editor/books/osct', null, $editor);
     check(($data['book']['libraryBase'] ?? null) === "$api/content/assets/osct/" && str_starts_with($asset['url'], $data['book']['libraryBase']),
         '#258: the book names the folder of its uploads – every Library file lies below it');
@@ -1261,15 +1281,16 @@ try {
     [$status] = upload($api, 'POST', '/editor/books/osct/assets', '', 'empty.png', $editor);
     check($status === 400, 'an empty file → 400');
     $file = file_get_contents($asset['url']);
-    check($file === $png, 'the file is served by the content route');
-    check(in_array('Content-Type: image/png', $http_response_header, true) && in_array('Access-Control-Allow-Origin: *', $http_response_header, true), 'with its type and open CORS');
+    $isStored = static fn(string|false $file): bool => $converting ? is_string($file) && str_starts_with($file, 'RIFF') && substr($file, 8, 4) === 'WEBP' : $file === $png;
+    check($isStored($file), 'the file is served by the content route');
+    check(in_array("Content-Type: image/$ext", $http_response_header, true) && in_array('Access-Control-Allow-Origin: *', $http_response_header, true), 'with its type and open CORS');
     // Rows that cannot be written take their file with them (#209): the version row refused by a trigger
     $storedFiles = static fn() => glob("$storeDir/assets/osct/*/*") ?: [];
     $filesBefore = $storedFiles();
     $pdo = connect('test');
     $pdo->exec($mysql ? "CREATE TRIGGER block_asset_version BEFORE INSERT ON asset_versions FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'blocked'"
         : "CREATE TRIGGER block_asset_version BEFORE INSERT ON asset_versions BEGIN SELECT RAISE(ABORT, 'blocked'); END");
-    [$uploadStatus] = upload($api, 'POST', '/editor/books/osct/assets', $png . 'other bytes', 'orphan.png', $editor);
+    [$uploadStatus] = upload($api, 'POST', '/editor/books/osct/assets', pngOf(1, 1, 0x123456), 'orphan.png', $editor);
     [$replaceStatus] = upload($api, 'PUT', "/editor/books/osct/assets/{$asset['id']}/file", $png . 'v2', 'Dot.png', $editor);
     $pdo->exec('DROP TRIGGER block_asset_version');
     $pdo = null;
@@ -1285,7 +1306,7 @@ try {
     $mixedUrl = $data['asset']['url'] ?? '';
     check($status === 200 && in_array($uploaded, [200, 201], true) && str_starts_with($mixedUrl, "$api/content/assets/My_Book/"), '#205: an upload to book My_Book on the directory store');
     $file = @file_get_contents($mixedUrl);
-    check($file === $png && str_ends_with($http_response_header[0] ?? '', '200 OK') && in_array('Content-Type: image/png', $http_response_header, true), '… is served: GET answers 200 with the file');
+    check($isStored($file) && str_ends_with($http_response_header[0] ?? '', '200 OK') && in_array("Content-Type: image/$ext", $http_response_header, true), '… is served: GET answers 200 with the file');
     [$status, $data] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
     check($status === 200 && count($data['assets']) === 3 && $data['assets'][0]['id'] === $asset['id'] && $data['assets'][0]['usages'] === 0 && $data['assets'][0]['imported'] === false, 'the list: the upload, unused, first');
     $imported = array_values(array_filter($data['assets'], fn($a) => $a['imported']));
@@ -1310,9 +1331,9 @@ try {
     check($status === 200 && $data['usages'] === [['kind' => 'entity', 'ref' => 'castle']], 'usages: the entity');
     [$status, $data] = call($api, 'DELETE', "/editor/books/osct/assets/{$asset['id']}", null, $editor);
     check($status === 409 && $data['error']['code'] === 'asset-in-use' && $data['error']['usages'][0]['ref'] === 'castle', 'delete while used → 409 with the usages');
-    $png2 = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEklEQVR42mNk+M9Qz4AEGHEJAAB3AgT/0hQgCwAAAABJRU5ErkJggg==');
+    $png2 = pngOf(2, 2, 0x445566);
     [$status, $data] = upload($api, 'PUT', "/editor/books/osct/assets/{$asset['id']}/file", $png2, 'dot2.png', $editor);
-    check($status === 200 && $data['asset']['version'] === 2 && str_ends_with($data['asset']['url'], '/v2.png') && $data['relinked'] === 1, 'replace → version 2 at a new path, one row relinked');
+    check($status === 200 && $data['asset']['version'] === 2 && str_ends_with($data['asset']['url'], "/v2.$ext") && $data['relinked'] === 1, 'replace → version 2 at a new path, one row relinked');
     $v2 = $data['asset']['url'];
     [, $data] = call($api, 'GET', '/editor/books/osct/entities', null, $editor);
     check($data['entities']['castle']['assets'][0]['src'] === $v2, 'the node names the new version');
@@ -1329,6 +1350,53 @@ try {
     $change = $data['changes'][0] ?? [];
     check(($change['kind'] ?? null) === 'asset' && $change['ref'] === $asset['id'] && $change['after'] === null && ($change['before']['url'] ?? null) === $v2
         && array_column($change['before']['versions'] ?? [], 'version') === [1, 2], '#209: the forced delete is a change in the log (kind asset, before = the asset with its versions)');
+
+    echo "editor: the image rule at upload (#298)\n";
+    $tooLarge = "\x89PNG\r\n\x1a\n" . pack('N', 13) . 'IHDR' . pack('NN', 10000, 6000) . "\x08\x02\0\0\0" . pack('N', 0) . 'no image data';
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', $tooLarge, 'huge.png', $editor);
+    check($status === 413 && ($data['error']['code'] ?? null) === 'image-too-large', '#298: a picture above 50 MP → 413 image-too-large, read from its header, never decoded');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets?fit=poster', $png, 'Dot.png', $editor);
+    check($status === 400 && ($data['error']['code'] ?? null) === 'invalid-fit', '#298: an unknown fit → 400 invalid-fit');
+    if (!$converting) {
+        echo "  skipped: the conversion checks – this PHP has no GD with WebP (OSCT_TEST_PHP_ARGS=\"-d extension=gd\" where the extension is there but not loaded)\n";
+    } else {
+        $made = [];
+        $wide = pngOf(3000, 1000, 0x3366cc);
+        [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', $wide, 'Wide.png', $editor);
+        $made[] = $wideAsset = $data['asset'] ?? [];
+        $file = @file_get_contents((string) ($wideAsset['url'] ?? ''));
+        check($status === 201 && $data['converted'] === true && $wideAsset['name'] === 'Wide.webp' && $wideAsset['mime'] === 'image/webp' && str_ends_with($wideAsset['url'], '/v1.webp')
+            && $wideAsset['width'] === 2048 && $wideAsset['height'] === 683 && $wideAsset['size'] === strlen((string) $file) && substr((string) $file, 8, 4) === 'WEBP'
+            && in_array('Content-Type: image/webp', $http_response_header, true),
+            '#298: a 3000 px PNG → WebP, its longest side 2048, named .webp, its size and type those of the stored file');
+        [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', $wide, 'Wide.png', $editor);
+        check($status === 200 && ($data['asset']['id'] ?? null) === $wideAsset['id'], '#298: the same picture again → the same asset (duplicates go by the stored bytes)');
+        [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets?fit=target', $wide, 'Wide.png', $editor);
+        $made[] = $data['asset'] ?? [];
+        check($status === 201 && ($data['asset']['width'] ?? null) === 1200 && $data['asset']['height'] === 400 && $data['asset']['id'] !== $wideAsset['id'],
+            '#298: ?fit=target → its longest side 1200 (another file, so another asset)');
+        [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', (string) $file, 'Kept.webp', $editor);
+        check($status === 200 && $data['converted'] === false && ($data['asset']['id'] ?? null) === $wideAsset['id'], '#298: a WebP within the rule is stored as it came (here: the stored file itself, the same asset)');
+        [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', pngOf(30, 20, 0xff0000, 0), 'Eye.png', $editor);
+        $made[] = $data['asset'] ?? [];
+        $file = (string) @file_get_contents((string) ($data['asset']['url'] ?? ''));
+        check($status === 201 && $data['converted'] === true && $data['asset']['width'] === 30 && substr($file, 12, 4) === 'VP8L', '#298: a picture with transparency → lossless WebP (never scaled up)');
+        [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', pngOf(30, 20, 0x00ff00), 'Opaque.png', $editor);
+        $made[] = $data['asset'] ?? [];
+        $file = (string) @file_get_contents((string) ($data['asset']['url'] ?? ''));
+        check($status === 201 && substr($file, 12, 4) === 'VP8 ', '#298: an opaque picture → lossy WebP');
+        // 40 × 20 px, EXIF orientation 6 (turn 90° clockwise to view): stored upright, 20 × 40, no EXIF left
+        $turned = base64_decode('/9j/4QAiRXhpZgAASUkqAAgAAAABABIBAwABAAAABgAAAAAAAAD/4AAQSkZJRgABAQEAYABgAAD//gA7Q1JFQVRPUjogZ2QtanBlZyB2MS4wICh1c2luZyBJSkcgSlBFRyB2ODApLCBxdWFsaXR5ID0gODAK/9sAQwAGBAUGBQQGBgUGBwcGCAoQCgoJCQoUDg8MEBcUGBgXFBYWGh0lHxobIxwWFiAsICMmJykqKRkfLTAtKDAlKCko/9sAQwEHBwcKCAoTCgoTKBoWGigoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgo/8AAEQgAFAAoAwEiAAIRAQMRAf/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/EAB8BAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkKC//EALURAAIBAgQEAwQHBQQEAAECdwABAgMRBAUhMQYSQVEHYXETIjKBCBRCkaGxwQkjM1LwFWJy0QoWJDThJfEXGBkaJicoKSo1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoKDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uLj5OXm5+jp6vLz9PX29/j5+v/aAAwDAQACEQMRAD8A+gK8F+J3/I8al/2y/wDRSV71XgvxO/5HjUv+2X/opK+E8Lv+RtU/69v/ANKgc3EX+7R/xL8mctRRRX70fGhRRRQB9R14L8Tv+R41L/tl/wCikoor8F8Lv+RtU/69v/0qB9lxF/u0f8S/JnLUUUV+9HxoUUUUAf/Z');
+        [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', $turned, 'Photo.JPG', $editor);
+        $made[] = $data['asset'] ?? [];
+        $file = (string) @file_get_contents((string) ($data['asset']['url'] ?? ''));
+        check($status === 201 && $data['asset']['name'] === 'Photo.webp' && $data['asset']['width'] === 20 && $data['asset']['height'] === 40 && !str_contains($file, 'Exif') && !str_contains($file, 'gd-jpeg'),
+            '#298: a JPEG with EXIF orientation 6 → stored upright (20 × 40), its metadata dropped');
+        [$status, $data] = upload($api, 'PUT', "/editor/books/osct/assets/{$wideAsset['id']}/file?fit=target", $wide, 'Wide.png', $editor);
+        check($status === 200 && $data['converted'] === true && $data['asset']['version'] === 2 && str_ends_with($data['asset']['url'], '/v2.webp') && $data['asset']['width'] === 1200 && $data['asset']['mime'] === 'image/webp',
+            '#298: a replace goes under the rule too (?fit=target → 1200)');
+        foreach ($made as $one) if (isset($one['id'])) call($api, 'DELETE', "/editor/books/osct/assets/{$one['id']}?force=1", null, $editor);
+    }
 
     echo "editor: the Library's code files – shaders as assets, scripts as plugin sources (#186)\n";
     $shader = "// a test shader\nuniform float time;\nvoid main() { gl_FragColor = vec4(vec3(0.5 + 0.5 * sin(time)), 1.0); }\n";
@@ -1407,7 +1475,7 @@ try {
     [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets', $mp4, 'Clip.mp4', $editor);
     $video = $data['asset'] ?? null;
     check($status === 201 && $video['kind'] === 'video' && $video['width'] === 640 && $video['height'] === 360 && $video['durationMs'] === 2500, 'upload of an mp4 → its width, height and duration');
-    [, $data] = upload($api, 'POST', '/editor/books/osct/assets', $png . 'still', 'still.png', $editor);
+    [, $data] = upload($api, 'POST', '/editor/books/osct/assets', pngOf(1, 1, 0x223344), 'still.png', $editor);
     $still = $data['asset'];
     check($still['width'] === 1 && $still['durationMs'] === null, 'an image has no duration');
     [, $data] = upload($api, 'POST', '/editor/books/osct/assets', 'no header here', 'broken.mp4', $editor);
@@ -1679,11 +1747,11 @@ try {
     // file used elsewhere too, its own entity naming a second file of its own), e3 (the shared entity lamp, only here)
     [$buildStart] = $draftOf();
     [$status] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'spread', 'after' => 's2', 'id' => 'doomed', 'title' => 'Doomed'], $editor);
-    [, $up] = upload($api, 'POST', '/editor/books/osct/assets', $png . 'only-a', 'a-only.png', $editor);
+    [, $up] = upload($api, 'POST', '/editor/books/osct/assets', pngOf(1, 1, 0xaa0000), 'a-only.png', $editor);
     $onlyA = $up['asset'];
-    [, $up] = upload($api, 'POST', '/editor/books/osct/assets', $png . 'only-b', 'b-only.png', $editor);
+    [, $up] = upload($api, 'POST', '/editor/books/osct/assets', pngOf(1, 1, 0x00aa00), 'b-only.png', $editor);
     $onlyB = $up['asset'];
-    [, $up] = upload($api, 'POST', '/editor/books/osct/assets', $png . 'shared', 'shared.png', $editor);
+    [, $up] = upload($api, 'POST', '/editor/books/osct/assets', pngOf(1, 1, 0x0000aa), 'shared.png', $editor);
     $sharedFile = $up['asset'];
     call($api, 'PUT', '/editor/books/osct/entities/lamp', ['type' => 'model', 'assets' => [['id' => 'lamp-0', 'assetType' => 'glb', 'src' => 'https://cdn.example/lamp.glb']]], $editor);
     $made = [
@@ -1706,7 +1774,7 @@ try {
         && array_column($impact['entries'], 'id') === ['e1', 'e2', 'e3'] && array_column($impact['targets'], 'id') === ['e1', 'e2', 'e3'], 'the impact counts: 3 entries, 3 targets, 2 entities, 1 kept, 2 files only here, 1 elsewhere');
     check($impact['entities'] === [['ref' => 'lamp', 'type' => 'model', 'shared' => true, 'targets' => ['e3']], ['ref' => null, 'type' => 'image', 'shared' => false, 'targets' => ['e2']]]
         && count($impact['keptEntities']) === 1 && $impact['keptEntities'][0]['ref'] === 'castle' && $impact['keptEntities'][0]['targets'] === ['e1'] && $impact['keptEntities'][0]['usedBy'] === ['castle-target'], 'the entities: lamp and e2\'s own go, castle is kept (castle-target uses it)');
-    check(array_column($impact['files']['onlyHere'], 'name') === ['a-only.png', 'b-only.png'] && array_column($impact['files']['elsewhere'], 'name') === ['shared.png']
+    check(array_column($impact['files']['onlyHere'], 'name') === [$stored('a-only.png'), $stored('b-only.png')] && array_column($impact['files']['elsewhere'], 'name') === [$stored('shared.png')]
         && $impact['files']['elsewhere'][0]['usedBy'] === [['kind' => 'target', 'ref' => 'e4']] && !isset($impact['files']['onlyHere'][0]['usedBy']),
         'the Library files: used only here (a-only, b-only) and elsewhere (shared.png, with its other use)');
     check(str_contains($data['error']['message'], '3 entries, 3 targets, 2 entities'), 'the message says it in words');
@@ -1770,7 +1838,7 @@ try {
         'gone from the Library and the store; the file used elsewhere is never deleted');
     [, $after] = call($api, 'GET', '/editor/books/osct/changes?limit=3', null, $editor);
     $assetChange = array_values(array_filter($after['changes'], fn($c) => $c['kind'] === 'asset'))[0] ?? null;
-    check($assetChange && $assetChange['ref'] === $onlyA['id'] && $assetChange['before']['name'] === 'a-only.png' && $assetChange['after'] === null, 'the removed Library file is in the change log with its before');
+    check($assetChange && $assetChange['ref'] === $onlyA['id'] && $assetChange['before']['name'] === $stored('a-only.png') && $assetChange['after'] === null, 'the removed Library file is in the change log with its before');
     [$status] = deleting($api, '/editor/books/osct/entries/e4', $editor, ['deleteFiles' => true]);
     [, $assets] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
     check($status === 200 && !in_array($sharedFile['id'], array_column($assets['assets'], 'id'), true), 'its last use removed with deleteFiles: now the shared file goes too');
@@ -1857,13 +1925,13 @@ try {
     ]], $editor);
     $byKey = [];
     foreach ($data['pageImages'] ?? [] as $image) $byKey[$image['page'] . ($image['facing'] ? 'f' : '')] = $image;
-    check($status === 200 && $data['saved'] === 4 && array_map('strval', array_keys($byKey)) === ['-4', '0', '1', '1f'] && $byKey['1']['name'] === 'P001.png' && $byKey['0']['name'] === 'Front cover'
+    check($status === 200 && $data['saved'] === 4 && array_map('strval', array_keys($byKey)) === ['-4', '0', '1', '1f'] && $byKey['1']['name'] === $stored('P001.png') && $byKey['0']['name'] === 'Front cover'
         && $byKey['1f']['url'] === $twoUrl && $byKey['1']['updatedBy'] === 'author@example.com',
         '#251: set page images – the name defaults to the Library\'s, is trimmed; the facing half and a front matter page take one');
     [$status, $data] = call($api, 'PUT', '/editor/books/printed/page-images', ['items' => [['page' => 1, 'from' => ['page' => -4]], ['page' => -4, 'from' => ['page' => 1]], ['page' => 0, 'name' => 'Cover']]], $editor);
     $byKey = [];
     foreach ($data['pageImages'] ?? [] as $image) $byKey[$image['page'] . ($image['facing'] ? 'f' : '')] = $image;
-    check($status === 200 && $byKey['1']['name'] === 'P001.png' && $byKey['-4']['url'] === $oneUrl && $byKey['0']['name'] === 'Cover',
+    check($status === 200 && $byKey['1']['name'] === $stored('P001.png') && $byKey['-4']['url'] === $oneUrl && $byKey['0']['name'] === 'Cover',
         '#251: moves are taken from the images as they were (a swap), a rename keeps the image');
     [$status, $data] = call($api, 'PUT', '/editor/books/printed/page-images', ['items' => [['page' => 5, 'from' => ['page' => -4]]]], $editor);
     check($status === 200 && in_array(5, array_column($data['pageImages'], 'page'), true) && !in_array(-4, array_column($data['pageImages'], 'page'), true), '#251: move to another page');
@@ -1976,7 +2044,7 @@ try {
 
     echo "editor: the environment's world and sky as assets (content schema 2.10)
 ";
-    [, $sky] = upload($api, 'POST', '/editor/books/osct/assets', $png . 'sky', 'sky.png', $editor);
+    [, $sky] = upload($api, 'POST', '/editor/books/osct/assets', pngOf(2, 1, 0x87ceeb), 'sky.png', $editor);
     [, $world] = upload($api, 'POST', '/editor/books/osct/assets', 'glTF world', 'world.glb', $editor);
     $environment = ['world' => 'cafe', 'onionSky' => true, 'worldSrc' => $world['asset']['url'], 'skySrc' => $sky['asset']['url']];
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => $environment], $editor);
@@ -1998,7 +2066,7 @@ try {
     check(($listed[0]['usages'] ?? null) === 1, 'the list counts the world model use');
     [$status, $data] = call($api, 'DELETE', "/editor/books/osct/assets/{$world['asset']['id']}", null, $editor);
     check($status === 409 && $data['error']['usages'][0]['kind'] === 'environment', 'delete while the environment uses it → 409');
-    [$status, $data] = upload($api, 'PUT', "/editor/books/osct/assets/{$sky['asset']['id']}/file", $png . 'sky 2', 'sky.png', $editor);
+    [$status, $data] = upload($api, 'PUT', "/editor/books/osct/assets/{$sky['asset']['id']}/file", pngOf(2, 1, 0x4682b4), 'sky.png', $editor);
     check($status === 200 && $data['relinked'] === 1, 'replace the sky → the environment relinked');
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
     check(($tree['book']['book']['environment']['skySrc'] ?? null) === $data['asset']['url'] && $tree['book']['book']['environment']['worldSrc'] === $world['asset']['url'], 'the book names the new version, the world stays');
@@ -2050,25 +2118,25 @@ try {
     check($status === 200 && $data['store'] === 'server' && is_file("$storeDir/staging/{$data['build']}/game.config.json"), '… and publishes there');
     // A deployed instance builds the URLs of stored files from APP_URL, never from the client's host headers (#209)
     $forged = ['X-Forwarded-Host: evil.example', 'X-Forwarded-Proto: http'];
-    [$status, $data] = upload($plainStaging, 'POST', '/editor/books/osct/assets', $png . 'staging', 'forged.png', $editor, 'application/octet-stream', $forged);
+    [$status, $data] = upload($plainStaging, 'POST', '/editor/books/osct/assets', pngOf(1, 1, 0x030201), 'forged.png', $editor, 'application/octet-stream', $forged);
     $forgedAsset = $data['asset'] ?? [];
     check($status === 201 && str_starts_with((string) ($forgedAsset['url'] ?? ''), 'https://app.example/api/content/assets/osct/'), '#209: a forged X-Forwarded-Host does not reach a stored URL – APP_URL\'s host');
-    [$status, $data] = upload($plainStaging, 'PUT', "/editor/books/osct/assets/{$forgedAsset['id']}/file", $png . 'staging v2', 'forged.png', $editor, 'application/octet-stream', $forged);
-    check($status === 200 && str_starts_with((string) ($data['asset']['url'] ?? ''), 'https://app.example/api/content/assets/osct/') && str_ends_with($data['asset']['url'], '/v2.png'), '#209: … nor a replaced version\'s');
+    [$status, $data] = upload($plainStaging, 'PUT', "/editor/books/osct/assets/{$forgedAsset['id']}/file", pngOf(1, 1, 0x010203), 'forged.png', $editor, 'application/octet-stream', $forged);
+    check($status === 200 && str_starts_with((string) ($data['asset']['url'] ?? ''), 'https://app.example/api/content/assets/osct/') && str_ends_with($data['asset']['url'], "/v2.$ext"), '#209: … nor a replaced version\'s');
     call($plainStaging, 'DELETE', "/editor/books/osct/assets/{$forgedAsset['id']}?force=1", null, $editor);
     [, $data] = call($plainStaging, 'GET', '/editor/environments', null, $editor, 'http://localhost:5173', null, $forged);
     check(($data['environments'][0]['url'] ?? null) === 'https://app.example/api/content/staging', '#209: the environments list names APP_URL\'s host for the server store too');
     $cdnAssets = startApi(['ENV' => 'staging', 'CONTENT_BASE_URL' => 'https://cdn.example/staging/'] + $bunny + $settings);
-    [$status, $data] = upload($cdnAssets, 'POST', '/editor/books/osct/assets', $png . 'on the cdn', 'cdn.png', $editor);
+    [$status, $data] = upload($cdnAssets, 'POST', '/editor/books/osct/assets', pngOf(1, 1, 0x0a0b0c), 'cdn.png', $editor);
     $cdnAsset = $data['asset'] ?? [];
-    check($status === 201 && preg_match('#^https://cdn\.example/assets/osct/[0-9a-f-]{36}/v1\.png$#', (string) ($cdnAsset['url'] ?? '')) === 1
+    check($status === 201 && preg_match('#^https://cdn\.example/assets/osct/[0-9a-f-]{36}/v1\.' . $ext . '$#', (string) ($cdnAsset['url'] ?? '')) === 1
         && is_file("$bunnyDir/osct/assets/" . substr((string) ($cdnAsset['url'] ?? ''), strlen('https://cdn.example/assets/'))), '#254: an upload\'s CDN URL is where the storage zone has the file – next to the environment, not in it');
     [, $data] = call($cdnAssets, 'GET', '/editor/books/osct', null, $editor);
     check(($data['book']['libraryBase'] ?? null) === 'https://cdn.example/assets/osct/', '#258: on a CDN the Library folder of a book is the zone\'s – the stage frame admits it before a row names a file');
     call($cdnAssets, 'DELETE', "/editor/books/osct/assets/" . ($cdnAsset['id'] ?? 'none') . "?force=1", null, $editor);
     $noAppUrl = startApi(['ENV' => 'staging', 'APP_URL' => ''] + $settings);
     $filesBefore = $storedFiles();
-    [$status, $data] = upload($noAppUrl, 'POST', '/editor/books/osct/assets', $png . 'nowhere', 'nowhere.png', $editor);
+    [$status, $data] = upload($noAppUrl, 'POST', '/editor/books/osct/assets', pngOf(1, 1, 0x0c0b0a), 'nowhere.png', $editor);
     check($status === 500 && $data['error']['code'] === 'not-configured' && $storedFiles() === $filesBefore, '#209: a deployed instance without APP_URL refuses the upload (500 not-configured) and stores nothing');
     [$status, $data] = call($noAppUrl, 'GET', '/editor/books/osct', null, $editor);
     check($status === 200 && ($data['book']['libraryBase'] ?? null) === '', '#258: without a public URL for stored files the book names no Library folder – and still opens');

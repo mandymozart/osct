@@ -482,6 +482,40 @@ rows in one transaction with a change in the book's log (kind `asset`, `before` 
 [removal](#removing-a-spread-or-an-entry) records the files it takes), so a forced delete is in the history; the files
 go after the commit.
 
+### The image rule at upload
+
+Every picture takes one way into the book (#298, [content](content.md) "The image rule"): an uploaded or replaced
+**jpg, png or webp** is decoded, turned upright by its EXIF orientation, scaled down to the longest side of its use and
+encoded as **WebP** (`Images.php`, the numbers `Assets::IMAGE_*` = `shared/api/images.ts`, pinned by
+`mcp/test/php-rules.test.ts`): quality 82, lossless when the picture has transparency (an icon, a cut-out), never
+scaled up; re-encoding drops every piece of metadata (EXIF, XMP, ICC). The stored file is `v<n>.webp` with
+`image/webp`, its width, height, size and sha256 those of the result; its Library name is the upload's with `.webp`
+(`Dot.png` → `Dot.webp`, `Assets::storedName` – the one place naming a stored file, for naming files by their use
+later). The original is not kept.
+
+- **The use** (`?fit=`): the upload does not know what a picture is for, so it keeps at most 2048 px
+  (`default`). Where the use is known, the caller names it: `?fit=target` (a target's printed image, 1200 px – the
+  editor's target image field and the target picker's upload, the MCP server's `upload_asset fit: "target"`),
+  `?fit=page` (a page image – the editor's Pages view, `set_page_images`), `?fit=entryImage` (an entry's picture,
+  2048 px). An unknown fit is 400 `invalid-fit`. A replace takes the same `?fit=`.
+- **Duplicates** go by the stored bytes – the result: the same picture uploaded twice for the same use converts to the
+  same WebP and is one asset (GD's encoder is deterministic). The same picture for another use (a target at 1200 px, a
+  picture at 2048 px) is another file, so another asset. Files stored before the rule keep their sha256, so a new upload
+  of such an original is a new, converted asset (phase 2 re-encodes the old ones).
+- **Limits**: `ASSET_MAX_BYTES` (64 MB) as for every file, and a picture above `IMAGE_MAX_PIXELS` (50 MP) is refused
+  from its header before anything decodes it – 413 `image-too-large` (a conversion may take up to 768 MB of memory
+  for a 50 MP picture; the API raises `memory_limit` for it). TIFF and PDF are no Library files: the import scripts
+  convert them locally first (Pillow / PyMuPDF).
+- **Stored as it came** (`converted: false` in the answer, never an error): an instance whose PHP has no GD with WebP,
+  a file GD cannot read, an animated PNG or WebP (GD would keep its first frame only), and a WebP that already keeps the
+  rule (no scaling, no orientation – a second lossy pass would only cost quality).
+
+**GD with WebP** is in the image (Dockerfile: `libwebp-dev libjpeg62-turbo-dev libpng-dev`, `docker-php-ext-configure
+gd --with-webp --with-jpeg`, `docker-php-ext-install gd`). A local PHP for Windows ships `php_gd.dll`; enable it in
+php.ini (`extension=gd`) for the conversion. The API test checks the conversion only where its API's PHP has GD with
+WebP, and says so otherwise: `OSCT_TEST_PHP_ARGS="-d extension=gd" php server/tests/api-test.php` loads it for the
+test's API without changing php.ini.
+
 An upload or a replace reads the file's own numbers: an image's width and height (its header), a video's width, height
 and duration (`VideoInfo.php`, plain PHP, no ffmpeg): mp4 / mov from `moov › mvhd` (duration, timescale) and the video
 track's `trak › tkhd` (its size, turned when the track's matrix turns it a quarter – a phone's portrait video), webm / mkv
@@ -492,8 +526,8 @@ the column existed stay `null` until their file is replaced.
 | Endpoint | Body | Answer |
 |---|---|---|
 | `GET /editor/books/{id}/assets[?kind=]` | | `{ assets: [{ id, name, kind, mime, size, width, height, durationMs, version, url, usages, imported, createdAt, updatedAt }] }` – `width` / `height` in pixels (images, videos), `durationMs` (videos), null when unknown; `usages` = rows of the book naming the URL; the uploads first, then the files of the import's `files.json` (`imported: true`, id `import-<hash>`, read-only: no replace, usages or delete; `url` below the assets base, `usages` counted with the content path `/assets/content/…` the rows name) |
-| `POST /editor/books/{id}/assets` | the file; `X-File-Name: name.ext` | 201 `{ asset }`, or 200 with the asset that already holds these bytes – it takes this upload's name; its file, URL, version and uses stay. 400 `invalid-file` (no name, unsupported type, empty, a shader that is no text), 413 `body-too-large` (a shader above 256 KB) |
-| `PUT /editor/books/{id}/assets/{aid}/file` | the file (`X-File-Name` optional, the kind must stay) | `{ asset, relinked }` – a new version at a new path (`v2.ext`: nothing to purge on a CDN); every target, entity and entry naming the old URL now names the new one, and the book's environment (`worldSrc`, `skySrc`), and every plugin source that names it (a shader it loads – the URL replaced in its text) (a change each) |
+| `POST /editor/books/{id}/assets[?fit=]` | the file; `X-File-Name: name.ext` | 201 `{ asset, converted }`, or 200 with the asset that already holds these bytes – it takes this upload's name; its file, URL, version and uses stay. A picture is stored under the image rule (`converted: true` – WebP, `<name>.webp`; [The image rule at upload](#the-image-rule-at-upload)). 400 `invalid-file` (no name, unsupported type, empty, a shader that is no text), 400 `invalid-fit`, 413 `body-too-large` (a shader above 256 KB), 413 `image-too-large` (above 50 MP) |
+| `PUT /editor/books/{id}/assets/{aid}/file[?fit=]` | the file (`X-File-Name` optional, the kind must stay) | `{ asset, relinked, converted }` – a picture under the image rule as at upload; a new version at a new path (`v2.ext`: nothing to purge on a CDN); every target, entity and entry naming the old URL now names the new one, and the book's environment (`worldSrc`, `skySrc`), and every plugin source that names it (a shader it loads – the URL replaced in its text) (a change each) |
 | `GET /editor/books/{id}/assets/{aid}/usages` | | `{ usages: [{ kind: environment | target | entity | entry | plugin, ref }], asset }` (`environment`: the book's world model or sky, `ref` = the book; `plugin`: a plugin source naming the URL, `ref` = its id; `asset` as the list has it) |
 | `DELETE /editor/books/{id}/assets/{aid}[?force=1]` | | 204; 409 `asset-in-use` with `usages` unless forced (the files of every version go; a change `asset` in the log) |
 

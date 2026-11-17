@@ -7,6 +7,26 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- One image rule for every picture (#298, phase 1; `shared/api/images.ts`, docs/content.md "The image rule"): at most
+  2,048 px on the longest side for page images, an entry's colour picture and every other Library picture, 1,200 px for a
+  target's printed image; WebP at quality 82, lossless with transparency; never scaled up; EXIF orientation applied,
+  metadata dropped; above 50 MP refused (413 `image-too-large`).
+- The API converts every uploaded or replaced jpg / png / webp to WebP at upload (`Images.php`, GD): stored as
+  `<name>.webp`, `converted` in the answer; `?fit=target` (and `page`, `entryImage`) names the use – 400 `invalid-fit`
+  for another. Without GD, for an unreadable or animated picture and for a WebP within the rule the file is stored as it
+  came. Duplicates go by the stored (converted) bytes. The Docker image has GD with WebP, JPEG and PNG.
+- The editor names the use where it knows it (a target's image field and the target picker's upload: `target`; the
+  Pages view: `page`; an entry's picture: `entryImage`) and the Library says what a conversion made of a file
+  (`Photo.jpg (6.2 MB) is stored as Photo.webp – 2048×1536, 412 kB`).
+- MCP: `upload_asset` takes `fit` (`"target"` for a target's printed image), `set_page_images` uploads as page images;
+  the rule is in `upload_asset`'s description and the content model (`images`).
+- The content build writes WebP behind `OSCT_IMAGE_FORMAT=webp` (libwebp as WebAssembly – `@jsquash/webp`): every image
+  the configuration names, at the rule's sizes, renamed in the configuration. The default stays JPEG until the image
+  targets are checked with WebP on a phone.
+
 ## 1.94.0 – 2026-11-17
 
 ### Changed

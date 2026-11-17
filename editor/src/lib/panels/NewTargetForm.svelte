@@ -122,7 +122,7 @@
   const upload = async (file: File) => {
     error = null;
     try {
-      const asset: Asset = await library.upload(bookId, file);
+      const asset: Asset = await library.upload(bookId, file, "target");
       imageUrl = asset.url;
     } catch (e) {
       error = errorText(e);

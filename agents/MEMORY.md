@@ -4,6 +4,31 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-17 – one image rule, phase 1 (#298)
+- Tilman's go (issue comment): ≤ 2,048 px for page images and an entry's colour picture, ≤ 1,200 px for target images,
+  WebP ~82. Built so; decided here (not asked):
+  - **Where**: on the server at upload (`Images.php`, GD), so editor, MCP and scripts get the same file. The numbers in
+    `shared/api/images.ts` (outside the content contract), mirrored as `Assets::IMAGE_*`, pinned by `php-rules.test.ts`.
+  - **The use** is not known at upload, so the server keeps 2,048 px (`default`); a caller that knows names it with
+    `?fit=` – the editor's target image field and the target picker's upload send `target` (1,200 px), the Pages view
+    `page`, an entry's picture `entryImage`; the MCP's `upload_asset` has `fit`. A target set to an existing Library
+    picture larger than 1,200 px is **not** cut (no conversion on use) – phase 2 can re-encode those.
+  - **Dedup by the stored bytes** (the converted result), not the source: the sha256 column keeps meaning "this file";
+    GD's encoder is deterministic, so the same picture for the same use is one asset. Another use = another file = another
+    asset. Pre-rule uploads keep their sha, so re-uploading such an original makes a new converted asset.
+  - **Stored as it came, never failed** (`converted: false`): no GD with WebP, unreadable, animated PNG/WebP (GD keeps one
+    frame), a WebP that already keeps the rule (no second lossy pass). The 50 MP limit refuses (413) with or without GD.
+  - EXIF orientation is read by hand (no `exif` extension needed); metadata, ICC included, goes with the re-encode.
+  - The content build: WebP only behind `OSCT_IMAGE_FORMAT=webp`, via `@jsquash/webp` (libwebp as WASM – pure, no
+    sharp, deterministic); only images the configuration names are converted and renamed (`.webp`) in it, images
+    nobody names stay (a plugin might load one by path). Default JPEG output and its build hash are unchanged.
+  - Local PHP (`/c/php/php-8.3.24`) ships `php_gd.dll` but php.ini does not load it: the API test then skips the
+    conversion checks with a message; `OSCT_TEST_PHP_ARGS="-d extension=gd"` runs them (all green, 2026-11-17).
+- [ ] Open: check WebP image targets with 8th Wall on a phone (a build with `OSCT_IMAGE_FORMAT=webp`), then make WebP the
+  content build's default.
+- [ ] Open: the staging FTPS host's PHP has no GD (issue #298) – uploads there stay as they come until staging runs the
+  Docker image.
+
 ## 2026-11-17 – page images per book page, and the missing matter added in the editor (#251)
 - Tilman decided (issue comment): one image per **book page**, an override of the print layout's sheet, editor-only,
   no content schema change. Built so; decided here (not asked):

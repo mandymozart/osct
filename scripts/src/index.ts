@@ -23,7 +23,7 @@ import { APP_VERSION, CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, DEMO_ENV, DEMO_MARK
 import { buildConfig } from './build/game-config';
 import { buildPlugins, writePluginBundles } from './build/plugins';
 import { hashBuildInputs, readPreviousHash } from './lib/hash';
-import { optimizeMedia, textureSetFiles } from './lib/optimize-media';
+import { imageFormat, optimizeMedia, renameContentPaths, textureSetFiles } from './lib/optimize-media';
 import { buildWarnings } from './lib/errors';
 
 console.log('🚀 OSCT Content Build Tool 🚀');
@@ -55,13 +55,17 @@ async function generateConfigFile(): Promise<void> {
 
     // Plugins first: what they register is checked on the nodes that use it
     const plugins = await buildPlugins();
-    const config = buildConfig(versionStr, inputHash, plugins.map(p => p.data));
+    let config = buildConfig(versionStr, inputHash, plugins.map(p => p.data));
     writePluginBundles(plugins);
     buildWarnings.forEach(warning => console.warn(`   ⚠️  ${warning}`));
 
-    // Media in the client copy: models, images, large videos reported (content/ stays as authored)
-    console.log('\n🗜️  Optimising media...');
-    for (const { file, before, after, note } of await optimizeMedia(CLIENT_PUBLIC_ASSETS_DIR, textureSetFiles(config))) {
+    // Media in the client copy: models, images, large videos reported (content/ stays as authored). OSCT_IMAGE_FORMAT=webp
+    // (#298): the images the configuration names become WebP under the image rule, and the configuration names those
+    const webp = imageFormat() === 'webp';
+    console.log(`\n🗜️  Optimising media${webp ? ' (images as WebP – OSCT_IMAGE_FORMAT=webp)' : ''}...`);
+    const optimized = await optimizeMedia(CLIENT_PUBLIC_ASSETS_DIR, textureSetFiles(config), webp ? { config } : undefined);
+    config = renameContentPaths(config, new Map(optimized.flatMap(r => (r.renamedFrom && r.renamedTo ? [[r.renamedFrom, r.renamedTo] as const] : []))));
+    for (const { file, before, after, note } of optimized) {
       const kb = (bytes: number) => `${Math.round(bytes / 1024)} KB`;
       const name = path.relative(CLIENT_PUBLIC_ASSETS_DIR, file).split(path.sep).join('/');
       if (note) console.warn(`   ⚠️  ${name}: ${kb(before)} – ${note}`);
