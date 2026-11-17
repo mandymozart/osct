@@ -29,6 +29,13 @@ final class AssetNames
     private const BOOK_WIDE = PHP_INT_MAX;
     /** A field's part of a name: `imageSrc` is the target image, `image` the entry's colour picture */
     private const PARTS = ['imageSrc' => 'target', 'image' => 'image', 'worldSrc' => 'world', 'skySrc' => 'sky'];
+    /** The kinds of use that give a file its name (#298 phase 3) – a spread's, a book setting's or the layout's use counts, but names nothing */
+    private const NAMING = ['target', 'entry', 'entity', 'page', 'environment', 'plugin'];
+    /** A use's kind in the order of a file's uses (`rank`) */
+    private const KIND_ORDER = ['target' => 0, 'entry' => 1, 'entity' => 2, 'spread' => 3, 'page' => 4, 'environment' => 5, 'book' => 6, 'plugin' => 7, 'layout' => 8];
+    /** The print layout's folder in the content (editor/src/lib/stage/stage-layout.ts `LAYOUT_PATH`) and the file that lists its sheets */
+    public const LAYOUT_PATH = '/assets/content/layout/';
+    public const LAYOUT_FILE = self::LAYOUT_PATH . 'layout.json';
 
     /**
      * POST /editor/books/{id}/assets/names { apply? } → { plan: { renames, files, used, unused }, applied }: the names
@@ -59,12 +66,19 @@ final class AssetNames
         $files = Assets::libraryFiles($bookId);
         $uses = self::usesOf($bookId);
         $used = array_values(array_filter($files, static fn(array $f) => isset($uses[$f['url']])));
+        // Only the uses that name (NAMING): a file only a spread, a book setting or the layout uses keeps its name
+        $naming = [];
+        foreach ($used as $file) {
+            $list = array_values(array_filter($uses[$file['url']], static fn(array $use) => in_array($use['kind'], self::NAMING, true)));
+            if ($list) $naming[$file['url']] = $list;
+        }
+        $named = array_values(array_filter($used, static fn(array $f) => isset($naming[$f['url']])));
         // The first use in page order names first: a name two files would take goes to the earlier one
-        usort($used, static fn(array $a, array $b) => self::rank($uses[$a['url']][0]) <=> self::rank($uses[$b['url']][0]) ?: strcmp($a['url'], $b['url']));
+        usort($named, static fn(array $a, array $b) => self::rank($naming[$a['url']][0]) <=> self::rank($naming[$b['url']][0]) ?: strcmp($a['url'], $b['url']));
         $taken = [];
         $renames = [];
-        foreach ($used as $file) {
-            $first = $uses[$file['url']][0];
+        foreach ($named as $file) {
+            $first = $naming[$file['url']][0];
             if ($first['stem'] === null) continue;
             $stem = $first['stem'];
             // An upload named by its asset id keeps its own name after the place instead (`p010-3_fight-2-remesh-4096`)
@@ -128,16 +142,33 @@ final class AssetNames
     // ── Uses ─────────────────────────────────────────────────────────────────────────────────────
 
     /**
-     * Every Library file's uses in page order, by its Library URL: { kind, ref, spread, page, order, stem } – `stem` is
-     * the name the use gives (without extension), null when it gives none (a plugin source)
+     * **The** list of every use of every Library file (#298: the one source of truth – the Library's count and place,
+     * the delete check `Assets::usagesOf`, `Removal` and the names plan all read it; docs/server.md "What counts as a
+     * use"), in page order, by the file's Library URL: { kind, ref, spread, page, order, stem, prefix }. The kinds:
+     * - `target` (its printed image `imageSrc`, its own inline entity), `entry`, `entity` (a shared one) – the rows' JSON;
+     * - `spread` – a spread's own data (its environment, passes, appearance …), on the spread's first page;
+     * - `page` – a page image (#251) over its page;
+     * - `environment` – the book's environment (its world model, its sky); `book` – any other setting of the book
+     *   (appearance, passes with a texture or a model …); both book-wide;
+     * - `plugin` – a plugin source naming the file's URL as text (a shader it loads), book-wide;
+     * - `layout` – a file of the print layout's folder (`layout/sheets/*.jpg`, `*@sharp.jpg`): the editor's stage and cards
+     *   read them through `layout/layout.json`, never through a row – used whenever the book's files hold that layout.json.
+     * A row's JSON uses a file when one of its strings is the file's URL (or, for an imported file, its content path
+     * `/assets/content/…`); a plugin source when its text contains it. Every table is read once – a book has ~2,000 files.
+     * `stem` is the name the use gives (without extension), null when it gives none (a plugin source, a spread, a book
+     * setting, the layout).
      * @return array<string, list<array<string, mixed>>>
      */
     public static function usesOf(string $bookId): array
     {
-        $keys = self::fileKeys($bookId);
+        [$keys, $layout] = self::fileKeys($bookId);
         if (!$keys) return [];
         $pages = [];
-        foreach (Pages::pagesOf($bookId) as $i => $page) $pages[Pages::key($page['page'], $page['facing'])] ??= ['order' => $i, 'page' => $page];
+        $spreads = [];
+        foreach (Pages::pagesOf($bookId) as $i => $page) {
+            $pages[Pages::key($page['page'], $page['facing'])] ??= ['order' => $i, 'page' => $page];
+            $spreads[$page['spread']] ??= ['page' => $page['page'], 'order' => $i];
+        }
         $uses = [];
         $add = static function (string $value, string $kind, string $ref, ?string $spread, ?int $page, int $order, ?string $stem, ?string $prefix = null) use (&$uses, $keys): void {
             $url = $keys[$value] ?? null;
@@ -179,6 +210,14 @@ final class AssetNames
                 $add($value, 'entity', $ref, $at['spread'], $at['page'], $at['order'], "{$ref}_" . ($part ?? 'file'), $src ? $ref : null);
             });
         }
+        // Spreads' own files (their environment, passes, appearance …): on the spread's first page, no name of their own
+        foreach (Db::run('SELECT id, data_json FROM spreads WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+            $id = (string) $row['id'];
+            $at = $spreads[$id] ?? null;
+            self::walk(Editor::decode($row['data_json']), null, null, static function (string $value) use ($add, $id, $at) {
+                $add($value, 'spread', $id, $at === null ? null : $id, $at['page'] ?? null, $at['order'] ?? self::BOOK_WIDE, null);
+            });
+        }
         // Page images: their page's label
         foreach (Db::run('SELECT page, facing, url FROM page_images WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
             $key = Pages::key((int) $row['page'], (bool) (int) $row['facing']);
@@ -193,12 +232,23 @@ final class AssetNames
                 $add($value, 'environment', $bookId, null, null, self::BOOK_WIDE, 'environment_' . ($part ?? 'file'));
             });
         }
+        // The book's other settings (appearance, passes with a texture or a model parameter …): book-wide, no name of their own
+        if ($book instanceof stdClass) {
+            foreach (get_object_vars($book) as $key => $value) {
+                if ($key === 'environment') continue;
+                self::walk($value, (string) $key, $book, static function (string $value) use ($add, $bookId) {
+                    $add($value, 'book', $bookId, null, null, self::BOOK_WIDE, null);
+                });
+            }
+        }
         // Plugin sources name a file by its URL as text: book-wide, no name of their own
         foreach (Db::run('SELECT id, source FROM plugins WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
             foreach ($keys as $value => $url) {
                 if (str_contains((string) $row['source'], (string) $value)) $add((string) $value, 'plugin', (string) $row['id'], null, null, self::BOOK_WIDE, null);
             }
         }
+        // The print layout's files: read by the stage through layout.json – book-wide, no name of their own
+        foreach ($layout as $value) $add($value, 'layout', 'layout.json', null, null, self::BOOK_WIDE, null);
         foreach ($uses as $url => $list) {
             usort($list, static fn(array $a, array $b) => self::rank($a) <=> self::rank($b));
             $uses[$url] = $list;
@@ -206,11 +256,10 @@ final class AssetNames
         return $uses;
     }
 
-    /** A use's place in the order: its page, then target, entry, entity, page image, environment, plugin, then its ref */
+    /** A use's place in the order: its page, then its kind (KIND_ORDER), then its ref */
     private static function rank(array $use): array
     {
-        $kinds = ['target' => 0, 'entry' => 1, 'entity' => 2, 'page' => 3, 'environment' => 4, 'plugin' => 5];
-        return [$use['order'], $kinds[$use['kind']] ?? 9, $use['ref']];
+        return [$use['order'], self::KIND_ORDER[$use['kind']] ?? 9, $use['ref']];
     }
 
     /**
@@ -238,19 +287,27 @@ final class AssetNames
 
     /**
      * The values a row may name a Library file by → its Library URL: an upload's URL; an imported file's URL and its
-     * content path (`/assets/content/…` – what the rows hold below the assets base)
-     * @return array<string, string>
+     * content path (`/assets/content/…` – what the rows hold below the assets base). And the imported files of the print
+     * layout's folder (their URLs) when the book's files hold its `layout.json` – none without it.
+     * @return array{0: array<string, string>, 1: list<string>}
      */
     private static function fileKeys(string $bookId): array
     {
-        $base = rtrim((string) Db::value('SELECT assets_base FROM books WHERE id = :id', ['id' => $bookId]), '/');
+        $book = Db::one('SELECT assets_base, files_json FROM books WHERE id = :id', ['id' => $bookId]);
+        $base = rtrim((string) ($book['assets_base'] ?? ''), '/');
+        $imported = Editor::decode($book['files_json'] ?? null);
+        $hasLayout = $imported instanceof stdClass && property_exists($imported, self::LAYOUT_FILE);
         $keys = [];
+        $layout = [];
         foreach (Assets::libraryFiles($bookId) as $file) {
             $url = (string) $file['url'];
             $keys[$url] = $url;
-            if ($file['imported'] && $base !== '' && str_starts_with($url, $base . '/')) $keys[substr($url, strlen($base))] = $url;
+            if (!$file['imported']) continue;
+            $path = $base !== '' && str_starts_with($url, $base . '/') ? substr($url, strlen($base)) : $url;
+            if ($path !== $url) $keys[$path] = $url;
+            if ($hasLayout && str_starts_with($path, self::LAYOUT_PATH)) $layout[] = $url;
         }
-        return $keys;
+        return [$keys, $layout];
     }
 
     // ── Names ────────────────────────────────────────────────────────────────────────────────────

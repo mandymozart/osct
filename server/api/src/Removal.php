@@ -61,13 +61,16 @@ final class Removal
             'entity' => array_keys($this->entities),
         ];
         $assets = Db::run('SELECT * FROM assets WHERE book_id = :book AND status = :status ORDER BY name, id', ['book' => $this->bookId, 'status' => 'active'])->fetchAll();
+        $uses = null;
         foreach ($assets as $asset) {
             $named = false;
             foreach ($texts as $text) {
                 if (str_contains($text, (string) $asset['url'])) { $named = true; break; }
             }
             if (!$named) continue;
-            $usedBy = array_values(array_filter(Assets::usagesOf($this->bookId, $asset),
+            // Every use of every file, read once (#298, `AssetNames::usesOf`)
+            $uses ??= AssetNames::usesOf($this->bookId);
+            $usedBy = array_values(array_filter(Assets::usagesOf($this->bookId, $asset, $uses),
                 static fn(array $usage) => !in_array($usage['ref'], $removed[$usage['kind']] ?? [], true)));
             if ($usedBy) $this->elsewhere[] = ['asset' => $asset, 'usedBy' => $usedBy];
             else $this->onlyHere[] = ['asset' => $asset, 'usedBy' => []];
