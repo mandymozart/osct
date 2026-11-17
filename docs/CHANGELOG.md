@@ -7,6 +7,31 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- Clear spread titles (#298, phase 3; `shared/api/spread-titles.ts` = `Pages::withTitles`): a spread without a title of
+  its own shows the one its pages give – `Pages 118–119`, `Page 256`, `Cover`, `Back cover`, `Front matter 1`,
+  `Back matter 2` – in the editor, the MCP and the content the server assembles (the reader's page scroller). A stored
+  title that only repeats the pages (`118–119`, `256`, `New spread`) counts as none, so inserting or removing pages never
+  leaves a stale title; a title of its own is kept. `PUT …/spreads/{id} { title: "" }` (or null) goes back to the pages'.
+  Ids never change.
+- Library files named by use (`AssetNames.php`): `POST /editor/books/{id}/assets/names { apply? }` proposes the names
+  every used file takes by its first use in page order (`p118-1_target.webp`, `p118-1_image.webp`, `page-118.webp`,
+  `page-cover.webp`, `page-front-1-left.webp`, `<entity>_<asset>.glb`, `environment_sky.webp`) and writes them with
+  `apply: true` – the name only, every URL stays. Imported files get a listed name (`asset_names`, by URL – a new table).
+  Uploads name their use at once: `?fit=target&entry=<id>`, `?fit=entryImage&entry=<id>`, `?fit=page&page=<n>` (400
+  `invalid-use` for no page of the book).
+- The Library groups its files by spread (a header per spread in book order, then *Not in a spread*, then *Unused*),
+  says *+N more* for a file used in several places, and has **Name by use…** (the plan, then *Rename N*). The editor
+  names an entry's picture, a target's printed image and page images by their use when it uploads them.
+- MCP: `plan_asset_names` (read-only) and `apply_asset_names`; `upload_asset` takes `entry`, `page`, `facing`;
+  `set_page_images` names its uploads by their page.
+
+### Changed
+- A double page added without a title has none of its own (was *New spread*): it shows `Pages 12–13`.
+- `GET …/assets` lists each file's first use (`place`: spread, page, order, more) and an imported file's `named`.
+
 ## 1.95.0 – 2026-11-17
 
 ### Added

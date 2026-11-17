@@ -110,7 +110,8 @@
     onpick?.({ subject: { for: "entry-image" }, label: `the picture of ${entry.title}`, current: draft.image || undefined, onpick: asset => edit({ image: asset.url }) });
   const upload = async (file: File) => {
     try {
-      edit({ image: (await library.upload(bookId, file, "entryImage")).url });
+      // Named by the entry (`p118-1_image.webp`, #298)
+      edit({ image: (await library.upload(bookId, file, { fit: "entryImage", entry: entry.id })).url });
     } catch {
       // library.error says
     }

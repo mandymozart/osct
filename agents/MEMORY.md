@@ -4,6 +4,30 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-17 – spread titles and files named by use, phase 3 (#298)
+- Tilman's decision (issue comment): titles and file names, ids untouched ("ids are invisible to the user"). Built so;
+  decided here (not asked):
+  - **Titles derived at read, not rewritten**: a stored title that only repeats the pages (empty, `118–119`, `256`,
+    `Pages …`, `Cover`, `Back cover`, `Front matter n`, `New spread` – `DERIVED_SPREAD_TITLE`) counts as "no title of its
+    own"; `Pages::withTitles` replaces it wherever spreads are served – the tree, the spread routes, and
+    `ContentVersion::assemble` (RULES #10: the reader reads `title`, so the derived title is in the content; an older app
+    needs nothing). A one-time rewrite would go stale with the next inserted page (renumbering moves pages, never titles)
+    and need a run per instance and per layout import. New double pages store `""` instead of *New spread*.
+    Risk: a hand-made title that is only a number (e.g. `1984`) would be read as pages – none in the book today.
+  - **Names, not URLs**: a rename changes only the listed name, so no relinking (`Assets::replace`) is needed – no row
+    names a file by its name. Imported files (no row, read-only) get a listed name in `asset_names` (by URL, like
+    `asset_credits`) – recommended in the ticket, done.
+  - **First use** in page order (`Pages::pagesOf`); per page target, entry, entity, page image; a shared entity sits on
+    its first target's page; environment/plugins/orphan entities are book-wide ("Not in a spread"). Files only a plugin
+    names keep their names (no use name to give). Collisions get `-2`, `-3`.
+  - Name parts: `imageSrc` → `target`, `image` → `image`, an asset's `src` → its asset id (+ `-<size>` for a model's
+    texture map), page images by `AssetNames::pageStem` (`page-front-1-left` = front matter sheet 1, left page).
+  - New uploads: `?entry=` / `?page=` next to `?fit=` (the editor's entry picture, target image, Pages view; MCP
+    `upload_asset`, `set_page_images`). The new-target form uploads before the entry exists, so that file keeps its name
+    until *Name by use…* runs.
+- [ ] Open: apply the names plan on staging after the merge – the orchestrator shows Tilman the list first
+  (`plan_asset_names` on `osct`).
+
 ## 2026-11-17 – one image rule, phase 1 (#298)
 - Tilman's go (issue comment): ≤ 2,048 px for page images and an entry's colour picture, ≤ 1,200 px for target images,
   WebP ~82. Built so; decided here (not asked):

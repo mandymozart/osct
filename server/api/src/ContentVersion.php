@@ -40,6 +40,8 @@ final class ContentVersion
         foreach (Db::run('SELECT data_json FROM spreads WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
             $spreads[] = Editor::decode($row['data_json']);
         }
+        // A spread without a title of its own shows its pages' (#298): the reader reads `title` (RULES #10)
+        $spreads = Pages::withTitles($spreads);
         $entries = [];
         foreach (Db::run('SELECT id, data_json FROM entries WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
             $entry = Editor::decode($row['data_json']);

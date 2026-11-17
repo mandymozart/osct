@@ -121,7 +121,8 @@
     uploadFor = null;
     if (!page) return;
     void run(async () => {
-      const asset = await library.upload(bookId, file, "page");
+      // Named by its page (`page-118.webp`, `page-cover.webp` – #298)
+      const asset = await library.upload(bookId, file, { fit: "page", page: { page: page.page, facing: page.facing } });
       await pageImages.save(bookId, [setItem(page, asset.url, file.name)]);
     }, `${file.name} is the image of ${page.label}`);
   };
@@ -166,7 +167,7 @@
         const page = pageByKey(pageImages.pages, row.key);
         if (!page) continue;
         progress = `uploading ${i + 1} of ${chosen.length}: ${row.file.name}`;
-        const asset = await library.upload(bookId, row.file, "page");
+        const asset = await library.upload(bookId, row.file, { fit: "page", page: { page: page.page, facing: page.facing } });
         items.push(setItem(page, asset.url, row.file.name));
       }
       progress = "setting the page images…";

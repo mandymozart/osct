@@ -372,8 +372,51 @@ export interface Asset {
    * none yet. Kept per URL – imported files carry one too.
    */
   credits: string | null;
+  /**
+   * Where the file is used first (#298 phase 3, `AssetNames`) – the Library groups by it: the spread of its first use in
+   * page order (null: book-wide – the environment, a plugin, a shared entity no target shows), its page, the page order
+   * (−1 book-wide) and how many uses follow ("+N more"); null for an unused file
+   */
+  place?: LibraryPlace | null;
+  /** An imported file listed under a name given by its use (`asset_names`), not its own */
+  named?: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+/** A file's first use (`Asset.place`) */
+export interface LibraryPlace {
+  spread: string | null;
+  page: number | null;
+  order: number;
+  more: number;
+}
+
+/**
+ * `POST /editor/books/{id}/assets/names { apply? }` (#298 phase 3): the names the Library's files take by their use –
+ * `p118-1_target.webp`, `p118-1_image.webp`, `page-118.webp`, `<entity>_<asset>.glb` … The name only: every URL stays.
+ * Without `apply: true` the plan; with it the plan is written (`applied`: something was renamed).
+ */
+export interface AssetNamesPlan {
+  plan: {
+    renames: AssetRename[];
+    /** The files of the Library, the used ones, the unused ones (they keep their names) */
+    files: number;
+    used: number;
+    unused: number;
+  };
+  applied: boolean;
+}
+
+/** One file of the plan: its name now and by its first use; `more` = its further uses */
+export interface AssetRename {
+  id: string;
+  url: string;
+  imported: boolean;
+  from: string;
+  to: string;
+  use: { kind: string; ref: string; spread: string | null; page: number | null };
+  more: number;
 }
 
 /** Where a file or a plugin is used: a row of the draft (`entity castle`), the book, or a plugin source that loads the file */

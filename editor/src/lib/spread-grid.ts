@@ -4,6 +4,8 @@
  * first cell of the first row stays empty and 2–3, 4–5 … line up as spreads. The back cover follows the flow.
  */
 
+import { hasOwnSpreadTitle } from "@shared/api/spread-titles";
+
 export interface GridSpread {
   id: string;
   title: string;
@@ -59,6 +61,7 @@ export const formatLabelOf = (spread: GridSpread): string => (spread.format && s
 export const captionOf = (spread: GridSpread): string => {
   const pages = formatLabelOf(spread) ? "" : pagesOf(spread);
   const title = spread.title.replace(/[-–—]/g, "–");
-  const same = !title || title.toLowerCase() === pagesOf(spread).toLowerCase() || title.toLowerCase() === formatLabelOf(spread).toLowerCase();
+  // A title its pages give (`Pages 12–13`, `Front matter 1`, #298) says what the pages say
+  const same = !hasOwnSpreadTitle(title) || title.toLowerCase() === pagesOf(spread).toLowerCase() || title.toLowerCase() === formatLabelOf(spread).toLowerCase();
   return [pages, same ? "" : spread.title].filter(Boolean).join(" · ");
 };

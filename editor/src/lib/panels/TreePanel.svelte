@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { getEntityRef } from "@engine/content/game-config";
+  import { hasOwnSpreadTitle } from "@shared/api/spread-titles";
   import { isTargetEnabled, nodeTypeSpec, type EntityData, type Entry, type Target } from "@engine/types";
   import { content } from "#lib/content.svelte.js";
   import { Stage } from "#lib/stage/stage.svelte.js";
@@ -52,7 +53,7 @@
   } = $props();
 
   const spread = $derived(content.spread(spreadId));
-  /** "28–29"; a spread title that only repeats it (the import's default) is not shown twice */
+  /** "28–29"; shown after a title of the spread's own – a title its pages give (`Pages 28–29`, #298) says it already */
   const pages = $derived(spread ? spreadPages(spread) : "");
   let preview = $state<PreviewState>(getPreview());
   onMount(() => subscribePreview(state => (preview = state)));
@@ -421,7 +422,7 @@
       <button type="button" class="pick" onclick={() => pick({ kind: "spread" })} aria-haspopup={onaddspread ? "menu" : undefined} {@attach spreadMenu(!!onaddspread)}
         title="The spread – a tap selects it: the Inspector shows its title, pages, format, post-processing, environment, vars and events">
         <span class="name">{spread.title}</span>
-        {#if spread.title.replace(/[-–—]/g, "–") !== pages}<span class="small muted">{pages}</span>{/if}
+        {#if hasOwnSpreadTitle(spread.title) && spread.title.replace(/[-–—]/g, "–") !== pages}<span class="small muted">{pages}</span>{/if}
       </button>
       <span class="eye"></span>
     </div>

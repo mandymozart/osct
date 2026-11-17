@@ -62,7 +62,12 @@ final class Assets
         $assets = array_map(fn(array $row) => self::summary($row, count(self::usagesOf($bookId, $row))), $rows);
         $assets = array_merge($assets, self::imported($bookId, is_string($kind) && $kind !== '' ? $kind : null));
         $credits = self::creditsOf($bookId);
-        foreach ($assets as $i => $asset) $assets[$i]['credits'] = $credits[$asset['url']] ?? null;
+        // Where each file is used first – the Library groups by it (#298): its spread (null: book-wide), page, order, more uses
+        $uses = AssetNames::usesOf($bookId);
+        foreach ($assets as $i => $asset) {
+            $assets[$i]['credits'] = $credits[$asset['url']] ?? null;
+            $assets[$i]['place'] = AssetNames::place($uses[$asset['url']] ?? []);
+        }
         Http::json(200, ['assets' => $assets]);
     }
 
@@ -132,12 +137,24 @@ final class Assets
     /** @return list<string> the URLs the Library lists: the uploaded files and the import's */
     private static function fileUrls(string $bookId): array
     {
-        $urls = [];
-        foreach (Db::run('SELECT url FROM assets WHERE book_id = :book AND status = :status', ['book' => $bookId, 'status' => 'active'])->fetchAll() as $row) {
-            $urls[] = (string) $row['url'];
+        return array_column(self::libraryFiles($bookId), 'url');
+    }
+
+    /**
+     * Every file the Library lists, uploaded first: { id, url, name, imported } – the name as listed (an imported file's
+     * from `asset_names` when it has one, #298)
+     * @return list<array{id: string, url: string, name: string, imported: bool}>
+     */
+    public static function libraryFiles(string $bookId): array
+    {
+        $files = [];
+        foreach (Db::run('SELECT id, url, name FROM assets WHERE book_id = :book AND status = :status ORDER BY created_at, id', ['book' => $bookId, 'status' => 'active'])->fetchAll() as $row) {
+            $files[] = ['id' => (string) $row['id'], 'url' => (string) $row['url'], 'name' => (string) $row['name'], 'imported' => false];
         }
-        foreach (self::imported($bookId, null, false) as $file) $urls[] = (string) $file['url'];
-        return $urls;
+        foreach (self::imported($bookId, null, false) as $file) {
+            $files[] = ['id' => (string) $file['id'], 'url' => (string) $file['url'], 'name' => (string) $file['name'], 'imported' => true];
+        }
+        return $files;
     }
 
     /**
@@ -169,6 +186,8 @@ final class Assets
         $at = Editor::iso((int) $book['updated_at']);
         $rows = null;
         $result = [];
+        // A name given by use (#298, `AssetNames`) replaces the file's own in the list – the URL stays the import's
+        $names = AssetNames::importedNames($bookId);
         // the list shows the URL below the assets base, the rows name the content path (`/assets/content/…`) – count with that (#121)
         $paths = array_keys(get_object_vars($files));
         $urls = $base !== '' ? array_keys(get_object_vars(ContentVersion::rewriteFiles($files, $base))) : $paths;
@@ -181,10 +200,10 @@ final class Assets
             // the book's rows read once: a build has hundreds of files, and three queries per file are too slow
             if ($count) $rows ??= self::usageRows($bookId);
             $result[] = [
-                'id' => 'import-' . substr(sha1($url), 0, 16), 'name' => rawurldecode(basename(parse_url($url, PHP_URL_PATH) ?: $url)),
+                'id' => 'import-' . substr(sha1($url), 0, 16), 'name' => $names[$url] ?? rawurldecode(basename(parse_url($url, PHP_URL_PATH) ?: $url)),
                 'kind' => self::KINDS[$extension], 'mime' => self::MIMES[$extension], 'size' => (int) (is_object($file) ? ($file->size ?? 0) : 0),
                 'width' => null, 'height' => null, 'durationMs' => null, 'version' => 1, 'url' => $url, 'usages' => $count ? self::countUsages($rows, $path) : 0,
-                'createdAt' => $at, 'updatedAt' => $at, 'imported' => true,
+                'createdAt' => $at, 'updatedAt' => $at, 'imported' => true, 'named' => isset($names[$url]),
             ];
         }
         return $result;
@@ -248,13 +267,16 @@ final class Assets
      * cannot read, an animated picture, a WebP within the size – stored as it came). Duplicates are found by the bytes
      * stored (the result), so the same picture uploaded twice for the same use is one asset. 400 `invalid-file` (no name,
      * unsupported type, empty, a shader that is no text), 400 `invalid-fit`, 413 `body-too-large` (ASSET_MAX_BYTES, a
-     * shader TEXT_MAX_BYTES), 413 `image-too-large` (above IMAGE_MAX_PIXELS).
+     * shader TEXT_MAX_BYTES), 413 `image-too-large` (above IMAGE_MAX_PIXELS). A known use names the file (#298 phase 3,
+     * `AssetNames`): `&entry=<id>` with `fit=target` / `entryImage` → `<id>_target.webp` / `<id>_image.webp`,
+     * `&page=<n>[&facing=1]` with `fit=page` → `page-<n>.webp` (`page-cover.webp` …; 400 `invalid-use` for no page of the book).
      */
     public static function upload(string $bookId): never
     {
         $user = Editor::user();
         Books::exists($bookId);
         [$name, $extension, $data, $converted] = self::image(...self::file());
+        $name = self::useName($bookId, $name, $extension);
         $sha = hash('sha256', $data);
         $same = Db::one('SELECT * FROM assets WHERE book_id = :book AND sha256 = :sha AND status = :status', ['book' => $bookId, 'sha' => $sha, 'status' => 'active']);
         if ($same) {
@@ -307,6 +329,7 @@ final class Assets
             throw new ApiError(400, 'invalid-file', "A {$asset['kind']} asset can only be replaced by a {$asset['kind']} file.");
         }
         [$name, $extension, $data, $converted] = self::image($name, $extension, $data);
+        $name = self::useName($bookId, $name, $extension);
         $store = ContentStore::for(self::STORE_ENV);
         [$width, $height, $duration] = self::dimensions($data, $extension);
         $now = Editor::nowMs();
@@ -420,8 +443,19 @@ final class Assets
     }
 
     /**
+     * The name an upload is listed under when the request names its use (#298 phase 3, `AssetNames::uploadStem`:
+     * `?fit=target&entry=p118-1` → `p118-1_target.webp`, `?fit=page&page=118` → `page-118.webp`), else `$name`
+     */
+    private static function useName(string $bookId, string $name, string $extension): string
+    {
+        $fit = $_GET['fit'] ?? 'default';
+        $stem = is_string($fit) ? AssetNames::uploadStem($bookId, $fit) : null;
+        return $stem === null ? $name : "$stem.$extension";
+    }
+
+    /**
      * The name a stored file is listed under: the upload's name with the stored format's extension (`Dot.png` stored as
-     * WebP → `Dot.webp`). One place for it – naming files by their use (#298 phase 3) extends it here.
+     * WebP → `Dot.webp`). A known use names the file instead (#298 phase 3, `useName` – `AssetNames::uploadStem`).
      */
     public static function storedName(string $name, string $extension): string
     {

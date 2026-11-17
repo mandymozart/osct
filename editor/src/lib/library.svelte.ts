@@ -2,7 +2,7 @@ import { deleteAsset, errorText, listAssets, replaceAsset, setAssetCredits, uplo
 import { CODE_EXTENSIONS } from "./library-code";
 import { acceptOf } from "./library-pick";
 import { ASSET_KINDS } from "@shared/api/rules";
-import type { ImageFit } from "@shared/api/images";
+import type { ImageFit, ImageUse } from "@shared/api/images";
 
 /** A picture the image rule converted at upload (#298): the asset, and the file's name and size as it came */
 export interface Conversion {
@@ -63,7 +63,7 @@ class Library {
    * Upload a file; the asset (new, or the one that already holds these bytes). `fit` names the use of a picture where it
    * is known (`target`: cut to 1200 px – the image rule, #298); the API stores pictures as WebP.
    */
-  async upload(bookId: string, file: File, fit?: ImageFit): Promise<Asset> {
+  async upload(bookId: string, file: File, fit?: ImageFit | ImageUse): Promise<Asset> {
     this.uploading = [...this.uploading, file.name];
     this.error = null;
     try {
@@ -80,7 +80,7 @@ class Library {
   }
 
   /** A new version of an asset; every use in the book now names it (the draft changed: reload the content) */
-  async replace(bookId: string, assetId: string, file: File, fit?: ImageFit): Promise<Asset> {
+  async replace(bookId: string, assetId: string, file: File, fit?: ImageFit | ImageUse): Promise<Asset> {
     this.uploading = [...this.uploading, file.name];
     this.error = null;
     try {

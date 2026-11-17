@@ -39,3 +39,29 @@ export function fitImage(width: number, height: number, fit: ImageFit = "default
   const scale = Math.min(1, IMAGE_MAX_SIDE[fit] / Math.max(width, height));
   return scale < 1 ? { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) } : { width, height };
 }
+
+/**
+ * An upload's use where the caller knows it (#298): the size rule (`fit`) and what names the file – the entry of a target
+ * image or a colour picture (`<entry>_target.webp`, `<entry>_image.webp`), the page of a page image (`page-118.webp`,
+ * `page-cover.webp` – `AssetNames::uploadStem`)
+ */
+export interface ImageUse {
+  fit: ImageFit;
+  entry?: string;
+  page?: { page: number; facing?: boolean };
+}
+
+/** The query of an upload for its use: `?fit=target&entry=p118-1`, `?fit=page&page=118&facing=1` ("" for none) */
+export function imageUseQuery(use: ImageFit | ImageUse | undefined): string {
+  if (!use) return "";
+  const { fit, entry, page } = typeof use === "string" ? { fit: use, entry: undefined, page: undefined } : use;
+  const params = new URLSearchParams();
+  if (fit !== "default") params.set("fit", fit);
+  if (entry && (fit === "target" || fit === "entryImage")) params.set("entry", entry);
+  if (page && fit === "page") {
+    params.set("page", String(page.page));
+    if (page.facing) params.set("facing", "1");
+  }
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}

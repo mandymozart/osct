@@ -73,6 +73,67 @@ final class Pages
         return $pages;
     }
 
+    // ── Spread titles (#298 phase 3) ─────────────────────────────────────────────────────────────
+
+    /**
+     * A title that only says what the pages say – no title of its own (shared/api/spread-titles.ts
+     * `DERIVED_SPREAD_TITLE`, pinned by mcp/test/php-rules.test.ts): empty, page numbers (`118–119`, `256`, `Pages 118–119`,
+     * `Page 256`), the covers' and matter's labels, and the default `New spread`. Such a spread shows the title its pages
+     * give (`displayTitle`), so inserting or removing pages never leaves a stale one; a title of its own is kept.
+     */
+    public const DERIVED_TITLE = '/^(?:|(?:pages?\s*)?-?\d+(?:\s*[-–—]\s*-?\d+)?|cover|front cover|back|back cover|new spread|(?:front|back) matter(?:\s+\d+)?)$/iu';
+
+    /** Whether a spread's stored title is its own (not one its pages give) */
+    public static function hasOwnTitle(mixed $title): bool
+    {
+        return is_string($title) && !preg_match(self::DERIVED_TITLE, trim($title));
+    }
+
+    /**
+     * The title a spread's pages give: `Pages 118–119`, `Page 256`, `Cover`, `Back cover`, `Front matter 1`, `Back matter 2`
+     * (`$matterNumber` = its place among the spreads of its matter, from 1)
+     */
+    public static function pagesTitle(object $spread, int $matterNumber = 1): string
+    {
+        $format = $spread->format ?? 'spread';
+        if ($format === 'cover') return 'Cover';
+        if ($format === 'back') return 'Back cover';
+        $matter = in_array($spread->matter ?? null, Books::MATTERS, true) ? $spread->matter : null;
+        if ($matter !== null) return ucfirst($matter) . " matter $matterNumber";
+        $first = (int) ($spread->firstPage ?? 0);
+        $last = (int) ($spread->lastPage ?? $first);
+        return $last > $first ? "Pages {$first}–{$last}" : "Page {$first}";
+    }
+
+    /**
+     * Every spread (SpreadData objects in book order) with the title it shows: its own, else its pages' – changed in place
+     * and returned. The content a server assembles, the editor's tree and the MCP read titles through here (RULES #10:
+     * the reader reads `title`, so a derived title reaches it in the content).
+     * @param list<object> $spreads
+     * @return list<object>
+     */
+    public static function withTitles(array $spreads): array
+    {
+        $counts = ['front' => 0, 'back' => 0];
+        foreach ($spreads as $spread) {
+            if (!is_object($spread)) continue;
+            $matter = ($spread->format ?? 'spread') === 'spread' && in_array($spread->matter ?? null, Books::MATTERS, true) ? $spread->matter : null;
+            $number = $matter !== null ? ++$counts[$matter] : 1;
+            if (!self::hasOwnTitle($spread->title ?? '')) $spread->title = self::pagesTitle($spread, $number);
+        }
+        return $spreads;
+    }
+
+    /** @return array<string, string> the book's spreads' shown titles by id */
+    public static function titlesOf(string $bookId): array
+    {
+        $spreads = array_map(static fn(array $row) => Editor::decode($row['data_json']),
+            Db::run('SELECT data_json FROM spreads WHERE book_id = :book ORDER BY position', ['book' => $bookId])->fetchAll());
+        $titles = [];
+        foreach (self::withTitles($spreads) as $spread) if (is_object($spread)) $titles[(string) $spread->id] = (string) $spread->title;
+        return $titles;
+    }
+
     /** The key of a page: `12`, `-3`, `1f` (the facing half next to page 1) */
     public static function key(int $page, bool $facing): string
     {

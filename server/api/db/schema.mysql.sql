@@ -325,3 +325,15 @@ CREATE TABLE IF NOT EXISTS `page_images` (
   PRIMARY KEY (`book_id`, `page`, `facing`),
   CONSTRAINT `page_images_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Library file names by use (#298 phase 3, AssetNames): an imported file (no `assets` row, read-only – #244) is listed
+-- under the name its use gives, kept by URL like its credits; the URL and the file never change
+CREATE TABLE IF NOT EXISTS `asset_names` (
+  `book_id` VARCHAR(64) NOT NULL,
+  `url` VARCHAR(512) NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
+  `updated_by` CHAR(36) NULL DEFAULT NULL,
+  `updated_at` BIGINT NOT NULL,
+  PRIMARY KEY (`book_id`, `url`),
+  CONSTRAINT `asset_names_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

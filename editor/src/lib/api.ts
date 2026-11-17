@@ -4,6 +4,7 @@ import type { AssetType, PrintPlacement, SourceOfTruth, SpreadFormat } from "@sh
 import type {
   Asset,
   AssetCreditsSaved,
+  AssetNamesPlan,
   AssetList,
   AssetReplaced,
   AssetUploaded,
@@ -36,7 +37,7 @@ import type {
   TargetSaved,
 } from "@shared/api/editor";
 import { apiErrorFields } from "@shared/api/errors";
-import type { ImageFit } from "@shared/api/images";
+import { imageUseQuery, type ImageFit, type ImageUse } from "@shared/api/images";
 import { readStored, writeStored } from "#lib/storage.js";
 import type { PublishedPlugin } from "#lib/publish-plugins.js";
 
@@ -44,6 +45,9 @@ export type { PrintPlacement };
 // The editor API's answers, typed once for the editor and the MCP server (shared/api/editor.ts)
 export type {
   Asset,
+  AssetNamesPlan,
+  AssetRename,
+  LibraryPlace,
   BookSummary,
   BookTree,
   Confirmation,
@@ -482,15 +486,22 @@ const sendFile = async <T>(method: string, path: string, file: File): Promise<T>
   return (await response.json().catch(() => null)) as T;
 };
 
-/** `?fit=<use>` where the use of a picture is known (#298): a target's printed image is cut to 1200 px, the rest to 2048 */
-export const fitQuery = (fit: ImageFit | undefined): string => (fit && fit !== "default" ? `?fit=${encodeURIComponent(fit)}` : "");
+/**
+ * `?fit=<use>` where the use of a picture is known (#298): a target's printed image is cut to 1200 px, the rest to 2048;
+ * with its entry or page the file is named by it (`p118-1_target.webp`, `page-118.webp` – phase 3)
+ */
+export const fitQuery = (use: ImageFit | ImageUse | undefined): string => imageUseQuery(use);
 
 /** The uploaded asset, and whether the image rule converted it (a picture stored as WebP) */
-export const uploadAsset = (bookId: string, file: File, fit?: ImageFit): Promise<AssetUploaded> =>
-  sendFile<AssetUploaded>("POST", `/editor/books/${encodeURIComponent(bookId)}/assets${fitQuery(fit)}`, file);
+export const uploadAsset = (bookId: string, file: File, use?: ImageFit | ImageUse): Promise<AssetUploaded> =>
+  sendFile<AssetUploaded>("POST", `/editor/books/${encodeURIComponent(bookId)}/assets${fitQuery(use)}`, file);
 
-export const replaceAsset = (bookId: string, assetId: string, file: File, fit?: ImageFit) =>
-  sendFile<AssetReplaced>("PUT", `/editor/books/${encodeURIComponent(bookId)}/assets/${encodeURIComponent(assetId)}/file${fitQuery(fit)}`, file);
+export const replaceAsset = (bookId: string, assetId: string, file: File, use?: ImageFit | ImageUse) =>
+  sendFile<AssetReplaced>("PUT", `/editor/books/${encodeURIComponent(bookId)}/assets/${encodeURIComponent(assetId)}/file${fitQuery(use)}`, file);
+
+/** The Library's files named by their use (#298 phase 3): the plan, or – `apply` – the plan written */
+export const planAssetNames = (bookId: string, apply = false) =>
+  api<AssetNamesPlan>("POST", `/editor/books/${encodeURIComponent(bookId)}/assets/names`, { apply });
 
 export const assetUsages = (bookId: string, assetId: string) =>
   api<AssetUsages>("GET", `/editor/books/${encodeURIComponent(bookId)}/assets/${encodeURIComponent(assetId)}/usages`);

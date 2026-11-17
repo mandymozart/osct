@@ -1,4 +1,5 @@
 import type { Asset } from "./api";
+import { spreadTitles, type TitledSpread } from "@shared/api/spread-titles";
 import { readStored, writeStored } from "#lib/storage.js";
 
 /** Where the content's files live below the assets base (`ContentVersion::CONTENT_PREFIX`) */
@@ -28,6 +29,63 @@ export function assetPlace(asset: Pick<Asset, "name" | "url">): AssetPlace {
   const file = parts[parts.length - 1];
   const stem = file.includes(".") ? file.slice(0, file.lastIndexOf(".")) : file;
   return { collection: parts[0], place, role: stem, label: `${place} · ${stem}` };
+}
+
+/**
+ * What a card or a row calls the file: its name – an imported file under its own (`target.jpg` in a folder per entry)
+ * says nothing alone, so it shows its place (`p015-1 · target`) until a name by its use was given (#298, `named`)
+ */
+export const assetLabel = (asset: Pick<Asset, "name" | "url" | "imported"> & { named?: boolean }): string =>
+  asset.imported && !asset.named ? assetPlace(asset).label : asset.name;
+
+/** "+2 more" when the file is used in more places than its first (#298) – "" otherwise */
+export const moreUses = (asset: Pick<Asset, "place">): string => (asset.place && asset.place.more > 0 ? `+${asset.place.more} more` : "");
+
+/** A group of the Library (#298 phase 3): a spread's files, then the book-wide ones, then the unused ones */
+export interface LibraryGroup {
+  key: string;
+  label: string;
+  assets: Asset[];
+}
+
+/**
+ * The files grouped by where they are used first (`Asset.place`): a group per spread in book order (headed by its
+ * title), then "Not in a spread" (the environment, a plugin, a shared entity no target shows, an entry on no spread),
+ * then "Unused" – a group only when it holds a file. Within a group by page order, then name.
+ */
+export function groupBySpread(assets: readonly Asset[], spreads: readonly TitledSpread[]): LibraryGroup[] {
+  const titles = spreadTitles(spreads);
+  const bySpread = new Map<string, Asset[]>();
+  const bookWide: Asset[] = [];
+  const unused: Asset[] = [];
+  for (const asset of assets) {
+    const place = asset.place;
+    if (!place) unused.push(asset);
+    else if (place.spread && titles.has(place.spread)) bySpread.set(place.spread, [...(bySpread.get(place.spread) ?? []), asset]);
+    else bookWide.push(asset);
+  }
+  const sorted = (list: Asset[]) =>
+    [...list].sort((a, b) => (a.place?.order ?? -1) - (b.place?.order ?? -1) || assetLabel(a).localeCompare(assetLabel(b)));
+  const groups: LibraryGroup[] = [];
+  for (const spread of spreads) {
+    const list = bySpread.get(spread.id);
+    if (list) groups.push({ key: `spread:${spread.id}`, label: titles.get(spread.id) ?? spread.id, assets: sorted(list) });
+  }
+  if (bookWide.length) groups.push({ key: "book", label: "Not in a spread", assets: sorted(bookWide) });
+  if (unused.length) groups.push({ key: "unused", label: "Unused", assets: [...unused].sort((a, b) => assetLabel(a).localeCompare(assetLabel(b))) });
+  return groups;
+}
+
+/**
+ * The names plan in words, for the Library's *Name by use* step: `12 files get the name of their use (3 imported) –
+ * page-cover.webp, p118-1_target.webp, …`; nothing to do says so
+ */
+export function namesPlanLine(renames: readonly { to: string; imported: boolean }[], shown = 3): string {
+  if (!renames.length) return "Every used file is named by its use already.";
+  const imported = renames.filter(r => r.imported).length;
+  const names = renames.slice(0, shown).map(r => r.to).join(", ");
+  const list = shown > 0 ? `: ${names}${renames.length > shown ? ", …" : ""}` : "";
+  return `${renames.length} file${renames.length === 1 ? "" : "s"} take${renames.length === 1 ? "s" : ""} the name of ${renames.length === 1 ? "its" : "their"} use${imported ? ` (${imported} imported – their listed name)` : ""}${list}`;
 }
 
 /** The search's text: the name, the place and the collection (`p015-1`, `entries`, `target`) */
