@@ -68,6 +68,10 @@ declare(strict_types=1);
  *   PUT    /editor/books/{id}/assets/credits    { items: [{ url, credits }] } → the files' picture credits (#277)
  *   PUT    /editor/books/{id}/assets/{aid}/file the new file as the body → a new version, every use relinked
  *   GET    /editor/books/{id}/assets/{aid}/usages · DELETE /editor/books/{id}/assets/{aid}[?force=1]
+ *   GET    /editor/books/{id}/pages             every page of the book in order and its page images (#251, docs/server.md "Pages and page images")
+ *   PUT    /editor/books/{id}/page-images       { items: [{ page, facing?, url? | from? | name? }] } → set, replace, move, rename, remove
+ *   POST   /editor/books/{id}/matter            { front?, back?, lastPage?, apply? } → the missing front / back matter spreads and the
+ *                                               back cover after them – the plan, written with apply (print-first books too)
  *   GET    /editor/books/{id}/plugins · GET | PUT { source } | DELETE[?force=1] /editor/books/{id}/plugins/{pid}
  *   POST   /editor/books/{id}/plugins[?id=]     a script file as the body, X-File-Name → 201 { plugin } (the Library, #186)
  *   PUT    /editor/books/{id}/plugins/{pid}/file a script file as the body → { plugin } · GET …/plugins/{pid}/usages
@@ -79,7 +83,7 @@ declare(strict_types=1);
  * (ApiTokens). docs/server.md "Sessions, cookies and CSRF".
  */
 
-foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Confirmation', 'Removal', 'Books', 'BookTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Plugins'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Confirmation', 'Removal', 'Books', 'BookTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Plugins', 'Pages'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -181,6 +185,9 @@ try {
         (bool) preg_match("#^PUT /editor/books/($id)/assets/($uuid)/file$#", $route, $match) => Assets::replace($match[1], $match[2]),
         (bool) preg_match("#^GET /editor/books/($id)/assets/($uuid)/usages$#", $route, $match) => Assets::usages($match[1], $match[2]),
         (bool) preg_match("#^DELETE /editor/books/($id)/assets/($uuid)$#", $route, $match) => Assets::delete($match[1], $match[2]),
+        (bool) preg_match("#^GET /editor/books/($id)/pages$#", $route, $match) => Pages::list($match[1]),
+        (bool) preg_match("#^PUT /editor/books/($id)/page-images$#", $route, $match) => Pages::putImages($match[1]),
+        (bool) preg_match("#^POST /editor/books/($id)/matter$#", $route, $match) => Pages::addMatter($match[1]),
         (bool) preg_match("#^GET /editor/books/($id)/plugins$#", $route, $match) => Plugins::list($match[1]),
         (bool) preg_match("#^POST /editor/books/($id)/plugins$#", $route, $match) => Plugins::upload($match[1]),
         (bool) preg_match("#^PUT /editor/books/($id)/plugins/($id)/file$#", $route, $match) => Plugins::replaceFile($match[1], $match[2]),

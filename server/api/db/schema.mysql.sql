@@ -309,3 +309,19 @@ CREATE TABLE IF NOT EXISTS `asset_credits` (
   PRIMARY KEY (`book_id`, `url`),
   CONSTRAINT `asset_credits_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Page images (#251, Pages::putImages): one image of the book's Library per book page, an editor-only override of the
+-- print layout's sheet for that page on the stage and the spread cards – the reader never shows it, no content. `page` is
+-- the internal page (negative for the front matter, the cover 0, the back cover after the back matter); `facing` = 1 is
+-- the unnumbered half of a single page's sheet (the half next to page 1, the one next to the last printed page)
+CREATE TABLE IF NOT EXISTS `page_images` (
+  `book_id` VARCHAR(64) NOT NULL,
+  `page` INT NOT NULL,
+  `facing` TINYINT NOT NULL DEFAULT 0,
+  `url` VARCHAR(512) NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
+  `updated_by` CHAR(36) NULL DEFAULT NULL,
+  `updated_at` BIGINT NOT NULL,
+  PRIMARY KEY (`book_id`, `page`, `facing`),
+  CONSTRAINT `page_images_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

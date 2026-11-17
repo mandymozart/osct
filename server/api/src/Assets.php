@@ -132,6 +132,20 @@ final class Assets
     }
 
     /**
+     * The images the Library lists (uploaded and imported), each URL with its name – what a page image may show (#251)
+     * @return array<string, string>
+     */
+    public static function imageNames(string $bookId): array
+    {
+        $names = [];
+        foreach (Db::run('SELECT url, name FROM assets WHERE book_id = :book AND kind = :kind AND status = :status', ['book' => $bookId, 'kind' => 'image', 'status' => 'active'])->fetchAll() as $row) {
+            $names[(string) $row['url']] = (string) $row['name'];
+        }
+        foreach (self::imported($bookId, 'image', false) as $file) $names[(string) $file['url']] ??= (string) $file['name'];
+        return $names;
+    }
+
+    /**
      * The files of the book's import (its `files.json`, keys below the assets base like the content): images, videos,
      * models and sounds the stage uses although nobody uploaded them. Read-only – their ids are no uuids, so replace, usages and
      * delete answer 404; replacing one is the content build's business (`imported: true`, id `import-<hash of the url>`, version 1, no dimensions).
@@ -332,6 +346,8 @@ final class Assets
             $versions = Db::run('SELECT version, path, url FROM asset_versions WHERE asset_id = :id ORDER BY version', ['id' => $assetId])->fetchAll();
             Db::run('DELETE FROM asset_versions WHERE asset_id = :id', ['id' => $assetId]);
             Db::run('DELETE FROM assets WHERE id = :id', ['id' => $assetId]);
+            // A forced delete takes the page images that showed it (#251): those pages show the layout again
+            Db::run('DELETE FROM page_images WHERE book_id = :book AND url = :url', ['book' => $bookId, 'url' => $asset['url']]);
             Books::recordChange($bookId, $user, 'asset', $assetId, Editor::encode(self::before($asset, $versions)), 'null');
             return array_column($versions, 'path');
         });
@@ -477,7 +493,7 @@ final class Assets
 
     /**
      * Where the asset's current URL appears in the book: the book's environment (its world model or sky), targets
-     * (`imageSrc`, the inline entity), shared entities, entries, plugin sources (a shader they load – #186).
+     * (`imageSrc`, the inline entity), shared entities, entries, plugin sources (a shader they load – #186), page images (#251).
      * @param array<string, mixed> $asset
      * @return array<int, array{kind: string, ref: string}>
      */
@@ -499,7 +515,8 @@ final class Assets
         foreach (Db::run("SELECT id FROM plugins WHERE book_id = :book AND source LIKE :needle ESCAPE '!' ORDER BY id", ['book' => $bookId, 'needle' => $needle])->fetchAll() as $row) {
             $usages[] = ['kind' => 'plugin', 'ref' => $row['id']];
         }
-        return $usages;
+        // A page image (#251) shows the file over its page
+        return array_merge($usages, Pages::usagesOf($bookId, (string) $asset['url']));
     }
 
     /** Every row naming `$from` now names `$to` (a change per row); returns how many rows changed */
@@ -557,7 +574,8 @@ final class Assets
             $count++;
         }
         if ($count) Books::touchBook($bookId);
-        return $count;
+        // Page images are no draft rows (#251): they follow the new version without a change
+        return $count + Pages::relink($bookId, $from, $to);
     }
 
     /** The book's environment as JSON ("" without one): the text a world model's or a sky's URL is searched in */

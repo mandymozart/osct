@@ -252,3 +252,15 @@ CREATE TABLE IF NOT EXISTS asset_credits (
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (book_id, url)
 );
+
+-- Page images per book page (schema.mysql.sql has the notes)
+CREATE TABLE IF NOT EXISTS page_images (
+  book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
+  page INTEGER NOT NULL,
+  facing INTEGER NOT NULL DEFAULT 0,
+  url TEXT NOT NULL,
+  name TEXT NOT NULL,
+  updated_by TEXT NULL DEFAULT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (book_id, page, facing)
+);
