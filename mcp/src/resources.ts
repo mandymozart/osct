@@ -30,7 +30,7 @@ export const RULES: Rule[] = [
     name: "content-model",
     uri: "osct://rules/content-model",
     title: "OSCT: the content model",
-    description: "Node types, placement, filters, components, printed placement, entry categories – what put_entity, put_target and add_entry accept (the shared content contract).",
+    description: "Node types, placement, filters, components, scenes and surfaces, a target's place, entries and their categories – what put_entity, put_target, put_scene and add_entry accept (the shared content contract, schema 3.0).",
     mimeType: "application/json",
     text: () => JSON.stringify(describeContentModel(), null, 1),
   },

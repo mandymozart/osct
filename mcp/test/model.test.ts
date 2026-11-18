@@ -153,14 +153,19 @@ describe("describeContentModel – the contract as an agent reads it", () => {
     expect(model.components.behaviour.actions).toEqual(["play", "pause", "stop", "show", "hide", "set", "emit"]);
     expect(checkEntity({ type: "group", assets: [], components: [model.components.behaviour.example] }).problems).toEqual([]);
     expect(model.placement.params.position.unit).toBe("target widths");
-    expect(model.target.print.surfaces).toEqual(["left", "right", "front", "back"]);
+    expect(model.target.print).toBeUndefined();
+    expect(model.target.place.example).toEqual({ surface: "surface", x: 40, y: 60, width: 80 });
+    expect(model.scene.placeKeys).toEqual(["x", "y", "z", "rx", "ry", "rz"]);
+    expect(model.scene.presetSizes.double).toEqual({ widthMm: 460, heightMm: 320 });
     expect(model.entry.categories).toEqual(["glossary", "video", "text", "link"]);
     expect(model.components.declaredPlugins).toBeUndefined();
     expect(Object.keys(model.passes.builtIn)).toEqual(["bloom", "vignette", "grade"]);
     expect(model.environment.worlds).toEqual(["cafe"]);
     expect(model.environment.default).toEqual({ world: "cafe", onionSky: true });
     expect(model.entity.name).toMatch(/editor's tree shows/);
-    expect(model.spread.description).toMatch(/add_spread/);
+    expect(model.spread).toBeUndefined();
+    expect(model.scene.description).toMatch(/add_scene/);
+    expect(model.scene.description).toMatch(/migrate_3/);
   });
 
   it("adds a book's declared plugins with what they recorded, and the Code tab sources", () => {

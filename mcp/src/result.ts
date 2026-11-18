@@ -49,7 +49,7 @@ export function hintFor(error: ApiError): string {
   if (error.code === "unknown-components") return `A node uses a component type no compiled plugin provides – ${UNCOMPILED}`;
   if (error.code === "unknown-node-types") return `A node has a type no compiled plugin provides – ${UNCOMPILED}`;
   if (error.code === "unknown-materials") return `A node uses a material no compiled plugin provides – ${UNCOMPILED}`;
-  if (error.code === "unknown-passes") return `The book's or a spread's post-processing names a pass no compiled plugin provides – ${UNCOMPILED}`;
+  if (error.code === "unknown-passes") return `The book's or a scene's post-processing names a pass no compiled plugin provides – ${UNCOMPILED}`;
   if (error.code === "other-book") return "The environment serves another book (current) – replacing it there is the person's decision: they publish in the editor and confirm the replacement.";
   if (error.code === "invalid-env") return "env is the instance's own environment – leave it out to publish there.";
   if (error.code === "invalid-note") return "note is a line of text for the publish log.";
@@ -61,8 +61,10 @@ export function hintFor(error: ApiError): string {
   if (error.code === "plugin-exists") return "A plugin with that id exists – replace its source with replace: true, or give another plugin id.";
   if (error.code === "duplicate-id") return "Pick another id, or delete the entry first.";
   if (error.code === "unknown-entity") return "No shared entity with that ref – list them with get_book or save one with put_entity.";
-  if (error.code === "initial-spread") return "The book opens on this spread – it cannot be removed.";
-  if (error.code === "print-first") return "The book is print first: its spreads come from the printed book's layout (an import), not from here. Whether to make it digital first – so spreads are added and removed in the editor – is the person's decision: update_book sourceOfTruth: \"digital\" with their yes, or they switch it in the book's Inspector.";
+  if (error.code === "initial-scene") return "The book opens on this scene – it cannot be removed.";
+  if (error.code === "surfaces-in-use") return "Entries or targets lie on surfaces that would go (entries, targets): show the person – only with their yes call put_scene again with the same arguments and apply: true (the entries stay on the scene without a surface, the targets lose their place).";
+  if (error.code === "migrate-first") return "The book is still content schema 2.x: migrate it first – migrate_3 answers the plan; show it to the person and only with their yes call migrate_3 again with apply: true.";
+  if (error.code === "print-first") return "The book is print first: its scenes come from the printed book's layout (an import), not from here. Whether to make it digital first – so scenes are added and removed in the editor – is the person's decision: update_book sourceOfTruth: \"digital\" with their yes, or they switch it in the book's Inspector.";
   if (error.code === "not-found") return "Nothing with that id here – list_books, get_book and list_assets name what exists.";
   return "";
 }

@@ -49,7 +49,7 @@ export function registerCodeTools(server: McpServer, api: OsctApi, links: AppLin
       if (/^\s*import\s+(?!type\b)/m.test(source)) warnings.push("the source imports a module – plugins import nothing but types (three.js is api.three)");
       if (Object.values(registers).every(types => types.length === 0)) warnings.push("no registerComponent / registerLayer / registerNodeType / registerPass call found");
       const { plugin: row } = await api.call<{ plugin: PluginSource }>("PUT", path(book, plugin), { source });
-      return text({ plugin: { ...row, source: undefined }, registers, ...(warnings.length ? { warnings } : {}), open: editorHref(links, book), next: "Open a spread in the editor → Code → the plugin → Run shows it on the stage; the next Publish in the editor takes it to readers." });
+      return text({ plugin: { ...row, source: undefined }, registers, ...(warnings.length ? { warnings } : {}), open: editorHref(links, book), next: "Open a scene in the editor → Code → the plugin → Run shows it on the stage; the next Publish in the editor takes it to readers." });
     }),
   );
 
@@ -73,13 +73,13 @@ export function registerCodeTools(server: McpServer, api: OsctApi, links: AppLin
       const { plugin: row } = replace
         ? await api.upload<{ plugin: PluginSource }>("PUT", `${path(book, plugin)}/file`, bytes, name)
         : await api.upload<{ plugin: PluginSource }>("POST", `${path(book)}${plugin ? `?id=${encodeURIComponent(plugin)}` : ""}`, bytes, name);
-      return text({ plugin: { ...row, source: undefined }, registers: pluginTypes(row.source), open: editorHref(links, book), next: "Open a spread in the editor → Library → code (or Code) → the plugin → Run shows it on the stage." });
+      return text({ plugin: { ...row, source: undefined }, registers: pluginTypes(row.source), open: editorHref(links, book), next: "Open a scene in the editor → Library → code (or Code) → the plugin → Run shows it on the stage." });
     }),
   );
 
   server.registerTool(
     "plugin_usages",
-    { description: "Where the draft uses what a plugin source registers – the book's passes, spreads, targets, shared entities and entries that name one of its types – and those types.", inputSchema: z.object({ book: BOOK, plugin: PLUGIN }), annotations: { readOnlyHint: true, openWorldHint: false } },
+    { description: "Where the draft uses what a plugin source registers – the book's passes, scenes, targets, shared entities and entries that name one of its types – and those types.", inputSchema: z.object({ book: BOOK, plugin: PLUGIN }), annotations: { readOnlyHint: true, openWorldHint: false } },
     guard(async ({ book, plugin }) => text(await api.call<PluginUsages>("GET", `${path(book, plugin)}/usages`))),
   );
 

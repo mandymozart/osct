@@ -3,19 +3,19 @@ declare(strict_types=1);
 
 /**
  * The reading side of a book in the editor (docs/server.md "Texts"): an entry's fields – its title, its text (Markdown
- * with the book's variables, shared/text/entry-text.ts), author, image, link, tags, category and access page –, and the
+ * with the book's variables, shared/text/entry-text.ts), author, image, link, tags, category, its scene and surface –, and the
  * book's title, author and publisher. Every write reads the row, changes it and writes it
  * back in one transaction with the row locked (`Db::forUpdate()`), touches the book and records a change with the row
  * before and after. An AI connection's token may write here like the person – these are the book's texts, not the
  * account; publishing stays the person's (`Books::publish`).
  *
- * The checks are the content build's (scripts/src/lib/schema.ts): the categories, a title and a page, a link that is
+ * The checks are the content build's (scripts/src/lib/schema.ts): the categories, a title and a scene, a link that is
  * http(s) – and an image from the book's Library (an uploaded image or a file of the import).
  */
 final class BookTexts
 {
     /** The fields of an entry a PUT may change */
-    private const ENTRY_FIELDS = ['title', 'body', 'author', 'image', 'caption', 'media', 'tags', 'category', 'page', 'scene', 'surface'];
+    private const ENTRY_FIELDS = ['title', 'body', 'author', 'image', 'caption', 'media', 'tags', 'category', 'scene', 'surface'];
     /** At most this many tags, each at most TAG_MAX_LENGTH characters (shared/api/rules.ts `ENTRY_TAGS`) */
     public const TAGS_MAX = 32;
     public const TAG_MAX_LENGTH = 64;
@@ -25,8 +25,9 @@ final class BookTexts
     public const BODY_MAX_LENGTH = 100000;
 
     /**
-     * GET /editor/books/{id}/entries → { entries: [EntryData without its target + spreadId, target: { id, imageSrc } | null] }
-     * in the book's order: every field as the content holds it (an image's path or URL as written, not resolved)
+     * GET /editor/books/{id}/entries → { entries: [EntryData without its target (its `scene` and `surface` among the
+     * fields), target: { id, imageSrc } | null] } in the book's order: every field as the content holds it (an image's path
+     * or URL as written, not resolved)
      */
     public static function entries(string $bookId): never
     {
@@ -38,12 +39,8 @@ final class BookTexts
             $targets[$row['entry_id']] = ['id' => $row['id'], 'imageSrc' => $row['image_src']];
         }
         $entries = [];
-        $context = Scenes::context($bookId);
         foreach (Db::run('SELECT id, spread_id, data_json FROM entries WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
-            $entry = Editor::decode($row['data_json']);
-            // The page older apps read (#307, `Scenes::pageOf`) – the one the draft writes
-            $entry->page = Scenes::pageOf($context, $row['spread_id'] === null || !isset($context['data'][$row['spread_id']]) ? null : (string) $row['spread_id'], $entry);
-            $entry->spreadId = $row['spread_id'];
+            $entry = ContentVersion::withScene(Editor::decode($row['data_json']), (string) $row['spread_id']);
             $entry->target = $targets[$row['id']] ?? null;
             $entries[] = $entry;
         }
@@ -51,10 +48,11 @@ final class BookTexts
     }
 
     /**
-     * PUT /editor/books/{id}/entries/{eid} { title?, body?, author?, image?, caption?, media?, tags?, category?, page? }
-     * → 200 { entry, spreadId, previousSpreadId }: the fields sent change, `null` removes an optional one (author, image,
-     * caption – the line under the picture, plain text, #289 –, media). A new page moves the entry to the spread its page belongs to – the first whose pages include it, none
-     * when no spread does (as `POST …/entries`). 400 `invalid-entry`, 404.
+     * PUT /editor/books/{id}/entries/{eid} { title?, body?, author?, image?, caption?, media?, tags?, category?, scene?,
+     * surface? } → 200 { entry, scene, previousScene }: the fields sent change, `null` removes an optional one (author,
+     * image, caption – the line under the picture, plain text, #289 –, media, surface). `scene` moves the entry to that
+     * scene (its surface goes unless the new scene has one of that id or `surface` names one). 400 `invalid-entry`,
+     * `unknown-scene`, 404.
      */
     public static function putEntry(string $bookId, string $entryId): never
     {
@@ -64,7 +62,7 @@ final class BookTexts
         $unknown = array_diff(array_keys(get_object_vars($body)), self::ENTRY_FIELDS);
         if ($unknown) throw new ApiError(400, 'invalid-entry', 'Unknown field ' . implode(', ', $unknown) . ' – send ' . implode(', ', self::ENTRY_FIELDS) . '.');
         if (!get_object_vars($body)) throw new ApiError(400, 'invalid-entry', 'Send at least one of ' . implode(', ', self::ENTRY_FIELDS) . '.');
-        [$entry, $spreadId, $previous] = Db::transaction(static function () use ($bookId, $entryId, $body, $user) {
+        [$entry, $sceneId, $previous] = Db::transaction(static function () use ($bookId, $entryId, $body, $user) {
             $params = ['book' => $bookId, 'id' => $entryId];
             $row = Db::one('SELECT * FROM entries WHERE book_id = :book AND id = :id' . Db::forUpdate(), $params);
             if (!$row) throw new ApiError(404, 'not-found', 'No such entry.');
@@ -96,53 +94,30 @@ final class BookTexts
                 }
                 $entry->category = $body->category;
             }
-            $spreadId = $row['spread_id'] === null ? null : (string) $row['spread_id'];
-            // The entry's scene and surface (#307): `scene` / `surface` set them – the scene is the entry's own truth; a
-            // `page` alone (older clients) finds the scene it lies on (`Scenes::forPage`). The page is stored in the
-            // scene's own numbers (`Scenes::storedPage`) – the draft writes the one older apps read (`Scenes::pageOf`)
+            $sceneId = (string) $row['spread_id'];
+            // The entry's scene and surface: `scene` moves it, `surface` (null: none) places it on one of its scene's surfaces
             $hasScene = property_exists($body, 'scene');
             $hasSurface = property_exists($body, 'surface');
-            $hasPage = property_exists($body, 'page');
-            if ($hasPage && !is_int($body->page) && !(is_float($body->page) && floor($body->page) === $body->page)) throw new ApiError(400, 'invalid-entry', 'page must be a whole number.');
-            if ($hasScene || $hasSurface || $hasPage) {
+            if ($hasScene && $body->scene === null) throw new ApiError(400, 'invalid-entry', 'scene must be a scene of the book – an entry always has one.');
+            if ($hasScene || $hasSurface) {
                 $context = Scenes::context($bookId);
-                if ($spreadId !== null && !isset($context['data'][$spreadId])) $spreadId = null;
-                $page = $hasPage ? (int) $body->page : null;
-                if ($hasScene || $hasSurface) {
-                    $scene = $hasScene ? $body->scene : $spreadId;
-                    $surface = $hasSurface ? $body->surface : ($entry->surface ?? null);
-                    // A surface kept from before goes when the entry changes scene and the new one has no such surface
-                    if (!$hasSurface && $scene === null) $surface = null;
-                    if (!$hasSurface && $scene !== null && is_string($surface) && !in_array($surface, Scenes::surfaceIds($context['data'][(string) $scene] ?? new stdClass()), true)) $surface = null;
-                    [$spreadId, $surface] = Books::sceneOf($context, $scene, $surface);
-                    if ($spreadId !== null) {
-                        $range = $context['ranges'][$spreadId];
-                        // A page inside the scene's range is kept; else the surface's page, else where it was on the same
-                        // scene, else the scene's first page
-                        if ($page === null || $page < $range['first'] || $page > $range['last']) {
-                            $page = ($surface !== null ? Scenes::surfacePage($context, $spreadId, $surface) : null)
-                                ?? ($spreadId === $row['spread_id'] ? Scenes::pageOf($context, $spreadId, $entry) : $range['first']);
-                        }
-                    }
-                } else {
-                    $found = Scenes::forPage($context, (int) $page);
-                    $spreadId = $found['scene'] ?? null;
-                    $surface = $found['surface'] ?? null;
-                }
+                $scene = $hasScene ? $body->scene : $sceneId;
+                $surface = $hasSurface ? $body->surface : ($entry->surface ?? null);
+                // A surface kept from before goes when the new scene has no such surface
+                if (!$hasSurface && is_string($surface) && !in_array($surface, Scenes::surfaceIds($context['data'][(string) $scene] ?? new stdClass()), true)) $surface = null;
+                [$sceneId, $surface] = Books::sceneOf($context, $scene, $surface);
                 if ($surface === null) unset($entry->surface);
                 else $entry->surface = $surface;
-                if ($page !== null) $entry->page = $spreadId === null ? $page : Scenes::storedPage($context, $spreadId, $page);
             }
+            unset($entry->page, $entry->scene);
             $json = Editor::encode($entry);
-            Db::run('UPDATE entries SET spread_id = :spread, category = :category, title = :title, page = :page, data_json = :data WHERE book_id = :book AND id = :id',
-                $params + ['spread' => $spreadId, 'category' => $entry->category, 'title' => $entry->title, 'page' => (int) $entry->page, 'data' => $json]);
+            Db::run('UPDATE entries SET spread_id = :scene, category = :category, title = :title, data_json = :data WHERE book_id = :book AND id = :id',
+                $params + ['scene' => $sceneId, 'category' => $entry->category, 'title' => $entry->title, 'data' => $json]);
             Books::touchBook($bookId);
             Books::recordChange($bookId, $user, 'entry', $entryId, $row['data_json'], $json);
-            return [$entry, $spreadId, $row['spread_id']];
+            return [$entry, $sceneId, (string) $row['spread_id']];
         });
-        // The page shown: the one older apps read (`Scenes::pageOf`)
-        $entry->page = Scenes::pageOf(Scenes::context($bookId), $spreadId === null ? null : (string) $spreadId, $entry);
-        Http::json(200, ['entry' => $entry, 'spreadId' => $spreadId, 'previousSpreadId' => $previous]);
+        Http::json(200, ['entry' => ContentVersion::withScene($entry, $sceneId), 'scene' => $sceneId, 'previousScene' => $previous]);
     }
 
     /**

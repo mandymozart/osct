@@ -50,9 +50,9 @@ export interface AppLinks {
 
 export const appLinks = (config: Config): AppLinks => ({ editor: config.editor });
 
-/** The editor's page of a book, a spread of it, or the books list */
-export function editorHref(links: AppLinks, book?: string, spread?: string | null): string {
+/** The editor's page of a book, a scene of it, or the books list */
+export function editorHref(links: AppLinks, book?: string, scene?: string | null): string {
   if (!book) return `${links.editor}/`;
-  if (!spread) return `${links.editor}/${encodeURIComponent(book)}/`;
-  return `${links.editor}/${encodeURIComponent(book)}/${encodeURIComponent(spread)}/`;
+  if (!scene) return `${links.editor}/${encodeURIComponent(book)}/`;
+  return `${links.editor}/${encodeURIComponent(book)}/${encodeURIComponent(scene)}/`;
 }

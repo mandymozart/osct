@@ -16,7 +16,8 @@ declare(strict_types=1);
  *
  * A change is reverted only while its thing still holds what the change wrote (`after`); otherwise it is a **conflict**:
  * listed, never overwritten, and the older changes of that thing are skipped as well. Kinds the log cannot take back –
- * a creation, a removal, a moved entry or scene page, a plugin source, a deleted file – are listed as not revertable.
+ * a creation, a removal, an entry moved to another surface, a plugin source, a deleted file, a change saved before the
+ * content schema 3.0 and the migration itself – are listed as not revertable.
  * A revert changes the draft only; readers see it with the next publish.
  *
  * A surface's reference image (#314, kind `reference`, ref `<scene>/<surface>`) is revertable both ways – set, replaced
@@ -27,7 +28,7 @@ final class Reverts
     /** The book's own JSON (`books.book_json`): a change of one of these kinds compares and restores only the fields it changed */
     private const BOOK_KINDS = ['environment', 'passes', 'appearance', 'book'];
     /** Kinds of rows the log can restore */
-    private const ROW_KINDS = ['entity', 'target', 'entry', 'spread'];
+    private const ROW_KINDS = ['entity', 'target', 'entry', 'scene'];
     /** At most this many changes in one revert */
     public const MAX = 2000;
 
@@ -77,6 +78,7 @@ final class Reverts
             return null;
         }
         if ($kind === 'asset') return 'A file a removal deleted – its bytes are gone.';
+        if ($kind === Migration3::KIND) return 'The migration to the content schema 3.0 – not revertable.';
         if ($kind === 'plugin') return 'A plugin source – change it in the Code tab.';
         if ($row['before_json'] === null) return 'A creation – remove it instead.';
         if ($row['after_json'] === null || $row['after_json'] === 'null') return 'A removal – it cannot be brought back from the log.';
@@ -94,11 +96,12 @@ final class Reverts
         if (in_array($kind, self::BOOK_KINDS, true)) return $before instanceof stdClass && $after instanceof stdClass ? null : 'Not revertable.';
         if (!in_array($kind, self::ROW_KINDS, true)) return 'Not revertable.';
         if (!$before instanceof stdClass || !$after instanceof stdClass) return 'Not revertable.';
-        if ($kind === 'entry' && (self::canon($before->page ?? null) !== self::canon($after->page ?? null) || self::canon($before->surface ?? null) !== self::canon($after->surface ?? null))) {
-            return 'Moves the entry to another page or surface – move it back instead.';
+        // Saved before the content schema 3.0 (#319): its rows held pages, a target's print – nothing to write back now
+        if (property_exists($before, 'page') || property_exists($after, 'page') || property_exists($before, 'print') || property_exists($after, 'print')) {
+            return 'Saved before the content schema 3.0 – not revertable.';
         }
-        if ($kind === 'spread' && (self::canon($before->firstPage ?? null) !== self::canon($after->firstPage ?? null) || self::canon($before->lastPage ?? null) !== self::canon($after->lastPage ?? null))) {
-            return 'Changes the scene\'s pages – not revertable.';
+        if ($kind === 'entry' && self::canon($before->surface ?? null) !== self::canon($after->surface ?? null)) {
+            return 'Moves the entry to another surface – move it back instead.';
         }
         return null;
     }
@@ -294,7 +297,7 @@ final class Reverts
             'entity' => 'SELECT data_json FROM entities WHERE book_id = :book AND ref = :id',
             'target' => 'SELECT data_json FROM targets WHERE book_id = :book AND id = :id',
             'entry' => 'SELECT data_json FROM entries WHERE book_id = :book AND id = :id',
-            'spread' => 'SELECT data_json FROM spreads WHERE book_id = :book AND id = :id',
+            'scene' => 'SELECT data_json FROM spreads WHERE book_id = :book AND id = :id',
             default => null,
         };
         if ($sql === null) return null;
@@ -328,8 +331,8 @@ final class Reverts
         } elseif ($kind === 'entry') {
             Db::run('UPDATE entries SET category = :category, title = :title, data_json = :data WHERE book_id = :book AND id = :id',
                 $params + ['category' => (string) ($next->category ?? ''), 'title' => (string) ($next->title ?? ''), 'data' => $json, 'id' => $ref]);
-        } elseif ($kind === 'spread') {
-            Db::run('UPDATE spreads SET title = :title, data_json = :data WHERE book_id = :book AND id = :id', $params + ['title' => (string) ($next->title ?? ''), 'data' => $json, 'id' => $ref]);
+        } elseif ($kind === 'scene') {
+            Db::run('UPDATE spreads SET title = :title, data_json = :data WHERE book_id = :book AND id = :id', $params + ['title' => (string) ($next->label ?? ''), 'data' => $json, 'id' => $ref]);
         } elseif ($kind === SurfaceReferences::KIND) {
             [$scene, $surface] = SurfaceReferences::split($ref);
             $reference = $next instanceof stdClass ? ['url' => (string) $next->url, 'name' => (string) ($next->name ?? ''), 'fit' => (string) ($next->fit ?? SurfaceReferences::FIT_DEFAULT)] : null;
