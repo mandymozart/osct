@@ -36,14 +36,14 @@
 
 <div class="split">
   <main class="shelf" style:--cover-ratio="{DEFAULT_PAGE_MM.width} / {DEFAULT_PAGE_MM.height}">
-    <h1>Books</h1>
+    <h1>Experiences</h1>
     {#if error}<p class="danger">{error}</p>{/if}
     {#if books === null && !error}
       <ul class="covers" aria-busy="true">
         {#each [0, 1] as i (i)}<li class="skeleton"><span class="cover-box"></span><span class="line"></span><span class="line short"></span></li>{/each}
       </ul>
     {:else if books?.length === 0}
-      <p class="muted empty">No book yet. Import one with <b>Import a book</b>: the CDN, a URL or a file.
+      <p class="muted empty">No experience yet. Import one with <b>Import an experience</b>: the CDN, a URL or a file.
         <a class="text-link" href="/docs/tutorials/#bringing-in">How to bring a book in</a></p>
     {:else if books}
       <ul class="covers">
@@ -53,7 +53,7 @@
               <span class="cover-box"><BookCover {book} /></span>
               <span class="title">{book.title}</span>
               <span class="author muted">{book.author}</span>
-              <span class="live" data-help-name="Live" data-help="Where the book is live: each environment (local, staging, production) serves one book – the last one published there. Draft = no environment serves it.">
+              <span class="live" data-help-name="Live" data-help="Where the experience is live: each environment (local, staging, production) serves one experience – the last one published there. Draft = no environment serves it.">
                 {#each book.live ?? [] as l (l.env)}<span class="badge on" title={l.build ? `build ${l.build}` : undefined}>{l.env}</span>{:else}<span class="badge">draft</span>{/each}
               </span>
             </a>
@@ -62,7 +62,7 @@
       </ul>
     {/if}
     {#each strays as e (e.env)}
-      <p class="small muted" title="An environment whose book is not among the books here, or whose content store cannot be read">
+      <p class="small muted" title="An environment whose experience is not among the experiences here, or whose content store cannot be read">
         {e.env}: {"error" in e ? "the content store cannot be read" : `serves ${e.book}, a book not imported here`}
       </p>
     {/each}

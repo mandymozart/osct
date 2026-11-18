@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { writeStoredJson } from "#lib/storage.js";
   import { onMount, tick, untrack } from "svelte";
   import { resolve } from "$app/paths";
   import { goto } from "$app/navigation";
@@ -403,6 +404,8 @@
     untrack(() => void content.load(bookId).catch(failed));
   });
   /** A card opens its scene; a scene just made is in the draft first */
+  // The experience's address opens the scene last open here (the overview page is gone – Tilman, 2026-11-18)
+  $effect(() => writeStoredJson(`osct-editor-last-scene:${bookId}`, spreadId));
   const openScene = async (id: string) => {
     if (id === spreadId) return;
     try {
