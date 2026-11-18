@@ -496,11 +496,6 @@ export class Stage {
     return this.requests.request<string | null>("sampleColor", [x, y]).catch(() => null);
   }
 
-  /** The colours along the stage's bottom edge, in `segments` averaged parts from left to right (empty while nothing renders) */
-  sampleBottom(segments: number): Promise<string[]> {
-    return this.requests.request<string[]>("sampleBottom", [segments]).catch(() => []);
-  }
-
   /** Where a target is printed in the book's layout, null when the layout has no place for it */
   printedPlace(targetId: string): PrintPlacement | null {
     return this.layout.places[targetId]?.printed ?? null;

@@ -7,6 +7,15 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.110.0 – 2026-11-18
+
+### Removed
+
+- **The editor's phone layout** (#317): the scene workspace's bottom sheet (its drag, snap and stored height), the tree as
+  a tab, ‹ › and + and the toolbar over the stage are gone – the floating panels are the editor's only layout (desktop
+  and iPad). With them went the old column widths store (`widths.svelte.ts`; `wordTabs` moved to `panel-tabs.ts`) and
+  the stage frame's `sampleBottom` (and the engine's `sampleRow`), which only painted the room the sheet uncovered.
+
 ## 1.109.0 – 2026-11-18
 
 ### Added

@@ -138,7 +138,7 @@ export const NO_ANSWER = "the stage did not answer";
 export const FRAME_METHODS = [
   "init", "content", "open", "refresh", "relayout", "pageImages", "override", "overridePasses", "overrideAppearance", "playMoment", "selectNode", "selectTarget", "setPickFilter", "setTool",
   "setSnapModifier", "showEnvironment", "setLookUp", "ghost", "preview", "replayUnlock", "resetNarrative", "setLive", "clearEvents", "setVar", "tap",
-  "sampleColor", "sampleBottom", "timeline", "runPlugin",
+  "sampleColor", "timeline", "runPlugin",
 ] as const;
 export type FrameMethod = (typeof FRAME_METHODS)[number];
 

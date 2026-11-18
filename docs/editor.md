@@ -342,20 +342,15 @@ translated with the app (#236, `docs/content.md` "Onboarding screens").
 
 `/editor/<book>/<spread>/`: on a desktop and an iPad the **stage** is the whole window and the panels **float** over
 it ([Floating panels](#floating-panels), #308) – the **Tree**, the **Inspector** with its tabs, the **Scenes** filmstrip,
-**Info** and the stage's **Tools**. On a phone (the editor is for desktop and iPad – Tilman, 2026-11-18; the phone keeps
-what it had) the stage fills the screen and the panel is a sheet at the bottom whose head is the tab row (closed = the
-row only) with the tree as its first tab. The Inspector's tabs (#229, `lib/panel-tabs.ts`): **Inspector** (what is selected), **Environment**,
+**Info** and the stage's **Tools**. The editor is for desktop and iPad only (Tilman, 2026-11-18): the phone's layout –
+a sheet at the bottom with the tree as a tab, ‹ › over the stage – is gone (#317). The Inspector's tabs (#229, `lib/panel-tabs.ts`): **Inspector** (what is selected), **Environment**,
 **Library**, **Code** – no Stage tab: the spread is the Inspector's, the preview settings are the stage toolbar's; a tab
 stored before (`stage`, `entity`) opens the Inspector, as does a first visit.
 
 The Inspector's head: its grip and icon (the handle), the tabs – as words, or as icons in a panel too narrow for them
 (under 24rem, 28rem with a finger), so the head stays one line (#172) – and, on the last spread of a digital-first book,
-a **+** that opens the creation step of a new spread (#238; on a phone beside › at the stage's corner). ‹ › live in the
-Scenes panel's head (#307; ← → still step); back to the spreads is the top bar's book crumb (#250). On a phone the head is the five
-tab icons alone, sharing its width (#171): ‹ › sit at the stage's lower corners, and the top bar's book crumb selects
-the book, whose Inspector leads back to the spreads (*All spreads*). On a stage too short for them below the toolbar (the sheet almost full) they move to its top
-right, beside the toolbar (#177) – which is one row and always leaves them that room, so every tool stays reachable at
-every sheet height without scrolling (#180).
+a **+** that opens the creation step of a new spread (#238). ‹ › live in the Scenes panel's head (#307; ← → still
+step); back to the spreads is the top bar's book crumb (#250).
 
 When the draft cannot be loaded (the API is down, the book is not there) the stage area says why with **Retry** instead
 of *Building the stage…*; an action that fails (a removal, a target image, the reload after a change) shows its error
@@ -431,7 +426,6 @@ bottom switcher shows. The tree keeps the left column and the Inspector the righ
   grouped scene picked, that group goes. Both keys work anywhere on the page but in a field.
 - The pure logic – runs and bands, counts, picking, the arrow keys, where a drop lands, the order and the move request it
   makes, the gold line – is `editor/src/lib/scene-strip.ts`, tested in `lib/__tests__/scene-strip.test.ts`.
-- On a phone the panel is not shown yet (the sheet takes the bottom); the book page has the same cards.
 
 ### Autosave
 
@@ -476,16 +470,11 @@ Keys: **/** (outside a field) or **Ctrl+K** focuses it, ↑ ↓ walk the hits (t
 none is chosen), Esc empties the field, then closes it. On a phone the bar shows a search icon; a tap lays the field
 over the whole top bar with a × to close it, the hits below at the screen's width.
 
-### The phone's sheet
+### Panel sizes
 
 - The columns and their dragged edges (#144) became the [floating panels](#floating-panels) (#308): the Tree and the
   Inspector are resized by their own edges; the Inspector's rows of position, rotation and scale still put their label
-  above the X / Y / Z fields in a narrow panel (`@container panel`, #172).
-- **Sheet height (phone)** – the panel is a sheet at the bottom; its head (a grip and the tab row) is dragged up or down
-  to any height, from the tab row alone to 85% of the screen, and snaps when let go to closed, a third, half or almost
-  full (a flick carries it on); a movement under 8 px is a tap, so a tab still opens or closes it (#155). The height is
-  kept next to the widths (`sheet`, a share of the screen); a double tap on the grip restores half. The grip is a
-  separator (↑ ↓ when focused). Only the head takes the drag – the panel's content still scrolls.
+  above the X / Y / Z fields in a narrow panel (`@container panel`, #172). The phone's sheet (#155) is gone (#317).
 
 ### The tree
 
@@ -620,7 +609,7 @@ drive and show the narrative ([Vars and events](#vars-and-events)).
 ### The stage toolbar
 
 The **Tools** panel (#180, #308 – an inline [floating panel](#floating-panels) at the stage's top left: it moves,
-folds to its icon and resizes like the others; on a phone over the stage's top left; `components/ToolGroup.svelte`,
+resizes like the others, a row or – its button, #315 – a column, and never folds; `components/ToolGroup.svelte`,
 `lib/tool-groups.ts`), icons only (its menus add the names), every button's label its tooltip:
 
 - **the tool** – **select** (a plain pointer, **Q**: a click picks what the filters allow, the selection is outlined, no
@@ -633,7 +622,7 @@ folds to its icon and resizes like the others; on a phone over the stage's top l
   opens its options in a menu attached to it – icon, name and shortcut, each with its name as tooltip and label – and a
   choice closes it. Where the toolbar has room the tool and the filters stay **expanded**, their options side by side:
   decided by the toolbar's own room (on a desktop the room between the Tree and the Inspector, or the width the Tools
-  panel was resized to; on a phone the stage's width less ‹ ›), never by the device – from the first group on, each
+  panel was resized to), never by the device – from the first group on, each
   expands while the toolbar still fits one row. The menu is a WAI-ARIA menu: ↑ ↓ (← →), Home / End, Enter or Space choose, Esc closes and returns the focus to
   the button, ↓ on the button opens it; a tap outside closes it and picks nothing on the stage. With a finger its items
   are the touch height (44 px).
@@ -781,7 +770,7 @@ the page.
   toolbar and the notices, and keeps the API the panels used before – the overrides (`overrides`, `treeOf`, `editTree`,
   `removeNode`: the page's own), the selection, the gizmo's and the pick's modes, the environment, the ghost, the
   narrative (`setVar`, `tap`, `replayUnlock`, `resetNarrative`), the eyedropper (`sampleColor`) – sent to the frame;
-  what reads the frame (`sampleColor`, `sampleBottom`, `setVar`, `tap`) answers a promise. It mirrors what the frame
+  what reads the frame (`sampleColor`, `setVar`, `tap`) answers a promise. It mirrors what the frame
   reports: the state, the variables and the timeline, the layout of the targets (`pageFormat`, `placeOf`,
   `printedPlace`), the model nodes' timelines (`timeline`), and the **plugin registry as specs** – the engine's
   `pluginRegistrySnapshot` in the frame, `mirrorPluginRegistry` here, so the Inspector, *add pass*, the texture rows and
@@ -1275,6 +1264,5 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
   a plugin of the book recorded (#216); a pass of a Code tab source goes with the publish, which carries the source
   (#78). *Make it code* for a built-in
   pass is not built.
-- The phone layout of the workspace (the sheet, its touch heights – #171) was last checked in a desktop browser
-  emulating a 360 px touch phone; the bunny store against the real zone and MariaDB against the new tables are
+- The bunny store against the real zone and MariaDB against the new tables are
   untested (SQLite and a storage double in the API test).
