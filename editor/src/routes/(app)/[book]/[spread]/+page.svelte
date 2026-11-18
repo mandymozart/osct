@@ -38,7 +38,7 @@
   import { firstTab as openingTab, type Tab } from "#lib/panel-tabs.js";
   import InfoView from "#lib/components/InfoView.svelte";
   import ContextMenu from "#lib/components/ContextMenu.svelte";
-  import { clampSheet, SHEET_MAX, sheetFill, snapSheet, stepsOnTop, widths, wordTabs } from "#lib/widths.svelte.js";
+  import { wordTabs } from "#lib/panel-tabs.js";
   import { readStored, writeStored } from "#lib/storage.js";
   import ScenesPanel from "#lib/ScenesPanel.svelte";
   import { scenes } from "#lib/scenes.svelte.js";
@@ -56,23 +56,19 @@
    * card opens its scene, a band selects its group, a drag reorders; the draft follows `scenes.version`), **Info** and
    * the stage's **Tools** (inline). Each moves by its head, resizes by its edges, folds to its head and – unless
    * essential – closes; the top bar's panels menu reopens them and resets the layout, which is remembered per workspace
-   * in this browser. On a phone (not designed for – the editor is desktop and iPad, 2026-11-18) the panel is a sheet at
-   * the bottom whose head is the tab row (closed = the row only), the tree its first tab and the toolbar over the
-   * stage; its head (a grip and the tab row) is dragged up or down to any height and snaps when let go (#155), a double
-   * tap on the grip restores the default height. `?tab=environment` opens a tab (the book page links the Environment so).
+   * in this browser. The editor is desktop and iPad only (Tilman, 2026-11-18): the phone's layout – a sheet at the
+   * bottom with the tree as a tab, ‹ › over the stage – is gone (#317). `?tab=environment` opens a tab.
    */
   const bookId = $derived(page.params.book!);
   const spreadId = $derived(page.params.spread!);
   const TAB_KEY = "osct-editor-tab";
-  /** The tab row: the word on a desktop, the icon on a phone */
+  /** The Inspector's tab row: the words, or the icons in an Inspector too narrow for them */
   const TAB_BUTTONS: { tab: Tab; label: string; icon: IconName; title?: string }[] = [
-    { tab: "tree", label: "Tree", icon: "tree" },
     { tab: "inspector", label: "Inspector", icon: "inspector", title: "Whatever is selected: the spread, an entry, a target, its entity or a node" },
-    { tab: "environment", label: "Environment", icon: "globe", title: "The world around the reader and its sky, previewed on the stage" },
+    { tab: "environment", label: "Environment", icon: "globe", title: "The sky around the reader and the onion sky, previewed on the stage" },
     { tab: "library", label: "Library", icon: "folder" },
     { tab: "code", label: "Code", icon: "code" },
   ];
-  const NARROW = "(max-width: 47.9rem)";
   const COARSE = "(pointer: coarse)";
 
   let container = $state<HTMLDivElement>();
@@ -80,8 +76,6 @@
   /** `?tab=`, the stored tab (a Stage or Entity tab stored before #229 is the Inspector), the Inspector */
   const firstTab = openingTab(page.url.searchParams.get("tab"), readStored(TAB_KEY));
   let tab = $state<Tab | null>(firstTab);
-  /** A phone: the tree is a tab of the sheet instead of a column; × ‹ › leave the sheet's head (#171) */
-  let narrow = $state(false);
   /** A finger: every control is the touch height (app.css), so the tab row needs more room for its words */
   let coarse = $state(window.matchMedia(COARSE).matches);
   // The one selection of the tree, the stage and the Inspector – a target, its entity or a node (#162), the spread to start
@@ -96,23 +90,20 @@
     actionError = errorText(e);
   };
 
-  /** The tab the sheet opens with when it is dragged open (the last one shown) */
-  let lastTab: Tab = firstTab;
   const setTab = (next: Tab) => {
     tab = tab === next ? null : next;
-    if (tab) lastTab = tab;
     writeStored(TAB_KEY, tab);
   };
   /** Show a tab (no toggle – a panel's link to another) */
   const openTab = (next: Tab) => {
     if (tab !== next) setTab(next);
   };
-  /** The tab the panel shows: on a desktop the tree is a panel of its own and the Inspector panel always shows a tab */
-  const shown = $derived<Tab | null>(!narrow && (tab === "tree" || tab === null) ? "inspector" : tab);
+  /** The tab the Inspector shows: always one (the tree is a panel of its own – a stored "tree" is the Inspector) */
+  const shown = $derived<Tab>(tab === "tree" || tab === null ? "inspector" : tab);
   /** Something was selected (a row of the tree, a pick on the stage): the Inspector shows it – the spread too (#229) */
   const select = () => openTab("inspector");
-  /** A tab of the Inspector panel chosen: on a phone it toggles the sheet, on a desktop it shows that tab */
-  const chooseTab = (next: Tab) => (narrow ? setTab(next) : openTab(next));
+  /** A tab of the Inspector panel chosen: it shows that tab */
+  const chooseTab = (next: Tab) => openTab(next);
 
   // ── the floating panels (#308, desktop and iPad): the stage is the whole window, the panels float over it ──
   /**
@@ -150,9 +141,8 @@
   $effect(() => {
     floats.asks = shown === "code" ? { inspector: { w: 36, h: "fill" } } : {};
   });
-  // The top bar's panels menu lists this workspace's panels (not on a phone: the sheet has none)
+  // The top bar's panels menu lists this workspace's panels
   $effect(() => {
-    if (narrow) return;
     openFloats.current = floats;
     return () => {
       if (openFloats.current === floats) openFloats.current = null;
@@ -160,117 +150,12 @@
   });
   /** A form or a removal step opens in the Inspector: a folded Inspector opens for it */
   $effect(() => {
-    if (!narrow && (removal || addingTarget || addingEntry || addingSpread)) untrack(() => { if (floats.collapsed("inspector")) floats.setCollapsed("inspector", false); });
+    if ((removal || addingTarget || addingEntry || addingSpread)) untrack(() => { if (floats.collapsed("inspector")) floats.setCollapsed("inspector", false); });
   });
 
   let workspace = $state<HTMLDivElement>();
-  /** The tabs as icons: on a phone, and in an Inspector too narrow for the words, so its head stays one line (#172) */
-  const iconTabs = $derived(narrow || !wordTabs(floats.views.inspector?.rect.w ?? 0, coarse));
-  // ── the phone's sheet (#155): its head (the grip and the tab row) is dragged to any height; a movement beyond
-  // DRAG_PX tells a drag from a tap on a tab; let go, it snaps (a flick carries it on); closed = the tab row only ──
-  const DRAG_PX = 8;
-  /** The panel the open sheet shows at least under its head (px) */
-  const SHEET_BODY_MIN = 64;
-  const DOUBLE_TAP_MS = 350;
-  let screenHeight = $state(window.innerHeight);
-  /** The sheet's head (grip and tab row), px */
-  let headHeight = $state(0);
-  let sheetDragging = $state(false);
-  /** The sheet's row while it is dragged (px): the stage keeps its size and the sheet slides over it; let go, it resizes once */
-  let sheetRow = $state(0);
-  /** Dragged down, the sheet uncovers part of its row: the stage's bottom edge continued there, sampled once at the drag's start (#200) */
-  let sheetBackground = $state<string | null>(null);
-  const SHEET_FILL_SEGMENTS = 12;
-  const sheetMin = $derived(Math.min(SHEET_MAX, (headHeight + SHEET_BODY_MIN) / Math.max(1, screenHeight)));
-  const sheetShare = $derived(widths.sheet(sheetMin));
-  const sheetHeight = $derived(Math.round(sheetShare * screenHeight));
-  let sheetDrag: { id: number; startY: number; startHeight: number; moved: boolean; lastY: number; lastT: number; velocity: number; raw: number } | null = null;
-  /** The click that ends a drag is no tap on a tab */
-  let swallowClick = false;
-  let lastTap = 0;
-  const closeSheet = () => { if (tab) setTab(tab); };
-  const openSheet = () => { if (shown === null) openTab(lastTab); };
-  const sheetDown = (event: PointerEvent) => {
-    swallowClick = false;
-    if (!narrow || event.button !== 0) return;
-    const startHeight = shown === null ? headHeight : sheetHeight;
-    sheetDrag = { id: event.pointerId, startY: event.clientY, startHeight, moved: false, lastY: event.clientY, lastT: event.timeStamp, velocity: 0, raw: startHeight / screenHeight };
-  };
-  const sheetMove = (event: PointerEvent) => {
-    const d = sheetDrag;
-    if (!d || event.pointerId !== d.id) return;
-    if (!d.moved) {
-      if (Math.abs(event.clientY - d.startY) < DRAG_PX) return;
-      d.moved = true;
-      sheetRow = ((event.currentTarget as HTMLElement).closest(".panel") as HTMLElement | null)?.offsetHeight ?? d.startHeight;
-      sheetBackground = null;
-      void stage?.sampleBottom(SHEET_FILL_SEGMENTS).then(colours => { if (sheetDragging) sheetBackground = sheetFill(colours); });
-      sheetDragging = true;
-      (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    }
-    const dt = event.timeStamp - d.lastT;
-    if (dt > 0) d.velocity = (d.lastY - event.clientY) / screenHeight / (dt / 1000);
-    d.lastY = event.clientY;
-    d.lastT = event.timeStamp;
-    const height = d.startHeight + d.startY - event.clientY;
-    d.raw = height / screenHeight;
-    if (height > headHeight + DRAG_PX) {
-      openSheet();
-      widths.setSheet(clampSheet(d.raw, sheetMin));
-    }
-  };
-  const sheetUp = (event: PointerEvent) => {
-    const d = sheetDrag;
-    if (!d || event.pointerId !== d.id) return;
-    // A touch is captured by the element it starts on (the grip, a tab): taking the capture for the head makes that
-    // element lose it, and its lostpointercapture bubbles up here – that is no end of the drag (it ended every touch
-    // drag after its first step)
-    if (event.type === "lostpointercapture" && event.target !== event.currentTarget) return;
-    sheetDrag = null;
-    if (d.moved) {
-      sheetDragging = false;
-      swallowClick = true;
-      // Held still before letting go: no flick
-      const snap = snapSheet(d.raw, event.timeStamp - d.lastT > 100 ? 0 : d.velocity);
-      if (snap === 0) closeSheet();
-      else {
-        openSheet();
-        widths.setSheet(clampSheet(snap, sheetMin));
-        widths.save();
-      }
-      return;
-    }
-    if (event.type !== "pointerup" || (event.target as HTMLElement).closest("button, a")) return;
-    // Two taps on the head beside the tabs: the default height
-    if (event.timeStamp - lastTap < DOUBLE_TAP_MS) {
-      lastTap = 0;
-      widths.resetSheet();
-      openSheet();
-    } else lastTap = event.timeStamp;
-  };
-  const sheetClick = (event: MouseEvent) => {
-    if (!swallowClick) return;
-    swallowClick = false;
-    event.stopPropagation();
-    event.preventDefault();
-  };
-  /** ↑ ↓ on the focused grip (Shift: further); below its lowest the sheet closes, ↑ opens it again */
-  const sheetKey = (event: KeyboardEvent) => {
-    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
-    event.preventDefault();
-    event.stopPropagation();
-    const up = event.key === "ArrowUp";
-    if (shown === null) {
-      if (up) openSheet();
-      return;
-    }
-    if (!up && sheetShare <= sheetMin + 0.001) closeSheet();
-    else {
-      widths.setSheet(clampSheet(sheetShare + (up ? 1 : -1) * (event.shiftKey ? 0.15 : 0.05), sheetMin));
-      widths.save();
-    }
-  };
-  const SHEET_HELP = "Drag the tab row or this grip up or down to make the panel taller or shorter (↑ ↓ when focused, Shift for larger steps); it snaps to closed, a third, half or almost full, and the height is remembered in this browser. A double tap restores the default height.";
+  /** The tabs as icons in an Inspector too narrow for the words, so its head stays one line (#172) */
+  const iconTabs = $derived(!wordTabs(floats.views.inspector?.rect.w ?? 0, coarse));
 
 
   // ── targets and entries: the forms, removal, a changed image or placement ──
@@ -283,7 +168,6 @@
     addingTarget = false;
     addingEntry = false;
     addingSpread = { after };
-    if (shown === null) setTab(lastTab);
   };
   const spreadCreated = async (newId: string) => {
     addingSpread = null;
@@ -346,7 +230,6 @@
       if (!step) return failed(e);
       addingTarget = false;
       removal = { targetId, entryId, step };
-      if (shown === null) setTab(lastTab);
     }
   };
   /** The second step: the same removal with the confirmation id; a void id brings the fresh impact */
@@ -504,17 +387,12 @@
 
   onMount(() => {
     disposed = false;
-    const media = window.matchMedia(NARROW);
-    narrow = media.matches;
-    const onMedia = (event: MediaQueryListEvent) => (narrow = event.matches);
-    media.addEventListener("change", onMedia);
     const pointer = window.matchMedia(COARSE);
     const onPointer = (event: MediaQueryListEvent) => (coarse = event.matches);
     pointer.addEventListener("change", onPointer);
     void start();
     return () => {
       disposed = true;
-      media.removeEventListener("change", onMedia);
       pointer.removeEventListener("change", onPointer);
       void stage?.dispose();
       stage = null;
@@ -534,7 +412,7 @@
     selectedOn = id;
     selection.enter(id);
   });
-  // The search or the book's ⚙ asked to show the selection: the Inspector opens (the sheet too, on a phone)
+  // The search or the book's ⚙ asked to show the selection: the Inspector opens
   $effect(() => {
     const asked = selection.reveal;
     if (asked === revealSeen) return;
@@ -631,34 +509,27 @@
 
   const spread = $derived(content.spread(spreadId));
 
-  // ── the toolbar's room (#180) and the phone's ‹ › (#171, #177): the groups stay expanded as far as the toolbar's
-  // room allows – the stage's width less its margins and, on a phone, less ‹ › (they may share the top row) – so the
-  // toolbar is always one row. ‹ › sit at the stage's lower corners; on a stage too short for them below the toolbar
-  // (the sheet almost full) they move to its top right, beside it ──
+  // ── the toolbar's room (#180): the groups stay expanded as far as the Tools panel's room allows, so the toolbar is
+  // always one row (as a column, #315, every group is one button) ──
   let tools = $state<HTMLDivElement>();
-  let stageWidth = $state(0);
-  let stageHeight = $state(0);
-  let stepsUp = $state(false);
   let expanded = $state<boolean[]>(TOOL_SHAPES.map(() => false));
   /** Slack (px) against rounding: a toolbar that only just fits would wrap on a subpixel */
   const ROOM_SLACK = 4;
   $effect(() => {
-    const [bar, width, height] = [tools, stageWidth, stageHeight];
+    const bar = tools;
     void coarse;
-    if (!bar || !width) return;
+    if (!bar) return;
     const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
     // The control height (a rem token, 44 px with a finger – #171)
     const token = getComputedStyle(bar).getPropertyValue("--control-height").trim();
     const button = token.endsWith("rem") ? parseFloat(token) * rem : parseFloat(token) || 1.75 * rem;
     // The toolbar's CSS below: gap .125rem, a rule of .125rem margin + .25rem padding + 1px, padding .125rem and a 1px border
     const metrics = { button, gap: rem / 8, rule: (3 * rem) / 8 + 1, chrome: rem / 4 + 2 };
-    // The toolbar's max-width: on a phone the stage's less 1rem and ‹ › (2 buttons and their margins); on a desktop the
-    // Tools panel's – the width it was resized to, else the room between the Tree and the Inspector
-    const room = (narrow ? width - rem - 2 * button - (3 * rem) / 8 : floatingRoom(rem)) - ROOM_SLACK;
+    // The Tools panel's room: the width it was resized to, else the room between the Tree and the Inspector
+    const room = floatingRoom(rem) - ROOM_SLACK;
     // A column (#315): every group one button and its menu – side by side its options would make it wide
-    const next = !narrow && floats.vertical("tools") ? TOOL_SHAPES.map(() => false) : expandedGroups(TOOL_SHAPES, room, metrics);
+    const next = floats.vertical("tools") ? TOOL_SHAPES.map(() => false) : expandedGroups(TOOL_SHAPES, room, metrics);
     if (next.some((e, i) => e !== expanded[i])) expanded = next;
-    stepsUp = narrow && !!height && stepsOnTop(height, bar.offsetHeight, button, rem / 2);
   });
 
   /** The floating toolbar's room for its groups (px): its resized width, else between the Tree and the Inspector */
@@ -719,14 +590,14 @@
   };
 </script>
 
-<svelte:window bind:innerHeight={screenHeight} onkeydown={onKey} onkeyup={onKeyUp} onblur={() => stage?.setSnapModifier(false)} />
+<svelte:window onkeydown={onKey} onkeyup={onKeyUp} onblur={() => stage?.setSnapModifier(false)} />
 
 
-{#snippet toolbar(inline: boolean)}
+{#snippet toolbar()}
   {#if stage}
     <!-- The tool in hand and the select filters, render quality, then grid & snap and view, one button and its panel each;
          always one row (#180, #190, #229, #308) -->
-    <div class="tools" class:inline class:vertical={inline && floats.vertical("tools")} role="toolbar" aria-orientation={inline && floats.vertical("tools") ? "vertical" : "horizontal"}
+    <div class="tools" class:vertical={floats.vertical("tools")} role="toolbar" aria-orientation={floats.vertical("tools") ? "vertical" : "horizontal"}
       data-app-ui aria-label="Stage tools" bind:this={tools}>
       <ToolGroup label="Tool" options={TOOL_OPTIONS} value={stage.tool} expanded={expanded[0]}
         onchoose={tool => stage?.setTool(tool as StageTool)} />
@@ -754,19 +625,17 @@
 
 {#snippet tabButtons()}
   {#each TAB_BUTTONS as b (b.tab)}
-    {#if b.tab !== "tree" || narrow}
-      <!-- A phone, or a panel too narrow for the words, shows the tabs as icons, so the row stays one line (the
-           name is the tooltip and the label – #172) -->
+    <!-- A panel too narrow for the words shows the tabs as icons, so the row stays one line (the name is the tooltip
+         and the label – #172) -->
       <button type="button" class="pill tab" class:icon-tab={iconTabs} class:on={shown === b.tab} aria-pressed={shown === b.tab}
         aria-label={iconTabs ? b.label : undefined} title={iconTabs ? `${b.label}${b.title ? ` – ${b.title}` : ""}` : b.title}
         onclick={() => chooseTab(b.tab)}>{#if iconTabs}<Icon name={b.icon} />{:else}{b.label}{/if}</button>
-    {/if}
   {/each}
 {/snippet}
 
 {#snippet treeBody()}
   <TreePanel {stage} {spreadId} onselect={select} onaddtarget={() => { addingEntry = false; addingTarget = true; }}
-    onaddentry={() => { addingTarget = false; addingSpread = null; addingEntry = true; if (shown === null) setTab(lastTab); }}
+    onaddentry={() => { addingTarget = false; addingSpread = null; addingEntry = true; }}
     onaddspread={canAddSpread ? openNewSpread : undefined} onremoveentry={removeEntry} />
 {/snippet}
 
@@ -792,26 +661,10 @@
   {/if}
 {/snippet}
 
-<div class="workspace" class:floating={!narrow} class:holding={!!floats.held} class:closed={shown === null} class:sheet-dragging={sheetDragging} bind:this={workspace}
-  bind:clientWidth={workspaceWidth} bind:clientHeight={workspaceHeight}
-  style:--sheet-height={narrow && shown !== null ? `${sheetHeight}px` : undefined} style:--sheet-row={sheetDragging ? `${sheetRow}px` : undefined}
-  style:--sheet-fill={sheetDragging ? sheetBackground ?? undefined : undefined}>
-  <div class="stage" class:steps-up={narrow && stepsUp} bind:this={container} bind:clientWidth={stageWidth} bind:clientHeight={stageHeight}
+<div class="workspace" class:holding={!!floats.held} bind:this={workspace} bind:clientWidth={workspaceWidth} bind:clientHeight={workspaceHeight}>
+  <div class="stage" bind:this={container}
     data-help-name="Stage" data-help={NAVIGATION_HELP}>
     {#if stage && stage.status === "running"}
-      {#if narrow}
-        {@render toolbar(false)}
-        <!-- A phone: ‹ › through the spreads at the stage's lower corners, out of the sheet's head (#171); on a short
-             stage at its top right, beside the toolbar (#177) -->
-        <button type="button" class="icon-button framed step step-previous" data-app-ui onclick={() => step(-1)}
-          title="Previous spread" aria-label="Previous spread"><Icon name="previous" /></button>
-        <button type="button" class="icon-button framed step step-next" data-app-ui onclick={() => step(1)}
-          title="Next spread" aria-label="Next spread"><Icon name="next" /></button>
-        {#if canAddSpread && atLastSpread && !stepsUp}
-          <button type="button" class="icon-button framed step step-add" data-app-ui onclick={() => openNewSpread(spreadId)}
-            title="Add a spread after the last one" aria-label="Add a spread"><Icon name="plus" /></button>
-        {/if}
-      {/if}
       {#if stageMenu?.hit}
         {@const hit = stageMenu.hit}
         {@const hasTree = !!stage.treeOf(hit.targetId)}
@@ -852,23 +705,7 @@
     {/if}
   </div>
 
-  {#if narrow}
-    <aside class="panel" data-app-ui>
-      <!-- The head is the sheet's grip: a drag sets its height, a tap on a tab still opens or closes it -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="head" bind:offsetHeight={headHeight} onpointerdown={sheetDown} onpointermove={sheetMove} onpointerup={sheetUp}
-        onpointercancel={sheetUp} onlostpointercapture={sheetUp} onclickcapture={sheetClick}>
-        <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
-        <div class="grip" class:on={sheetDragging} role="separator" aria-orientation="horizontal" aria-label="Panel height" tabindex="0"
-          data-help-name="Panel height" data-help={SHEET_HELP} aria-valuenow={shown === null ? 0 : Math.round(sheetShare * 100)} aria-valuemin={0}
-          aria-valuemax={Math.round(SHEET_MAX * 100)} aria-valuetext={shown === null ? "closed" : `${Math.round(sheetShare * 100)} % of the screen`}
-          onkeydown={sheetKey}></div>
-        <div class="bar icons">{@render tabButtons()}</div>
-      </div>
-      {@render panelBody()}
-    </aside>
-  {:else}
-    <!-- Desktop and iPad (#308): the panels float over the stage, in the order of growth -->
+  <!-- The panels float over the stage, in the order of growth (#308) -->
     <FloatingPanel {floats} id="tree">
       <div class="float-body"><div class="body tree-body">{@render treeBody()}</div></div>
     </FloatingPanel>
@@ -891,18 +728,14 @@
       <InfoView floating />
     </FloatingPanel>
     {#if stage && stage.status === "running"}
-      <FloatingPanel {floats} id="tools" label="Stage tools">{@render toolbar(true)}</FloatingPanel>
+      <FloatingPanel {floats} id="tools" label="Stage tools">{@render toolbar()}</FloatingPanel>
     {/if}
-  {/if}
 </div>
 
 <style>
-  /* A phone: the stage over the sheet */
-  .workspace { position: fixed; inset: var(--top-height) 0 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto;
-    background: var(--stage-background); }
-  /* Desktop and iPad (#308): the stage is the whole window, the panels float over it */
-  .workspace.floating { display: block; }
-  .workspace.floating > .stage { position: absolute; inset: 0; }
+  /* Desktop and iPad (#308): the stage is the whole window, the panels float over it (the phone's sheet is gone, #317) */
+  .workspace { position: fixed; inset: var(--top-height) 0 0; background: var(--stage-background); }
+  .workspace > .stage { position: absolute; inset: 0; }
   .workspace.holding { user-select: none; }
   .workspace.holding .stage :global(iframe.stage-frame) { pointer-events: none; }
   .float-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -911,63 +744,26 @@
   .float-tabs .tab { flex: none; padding: 0 .375rem; }
   .float-tabs .tab.on { background: var(--surface); }
   .float-tabs .tab.icon-tab { padding: 0; width: var(--control-height); justify-content: center; }
-  .tools.inline { position: static; width: max-content; max-width: none; padding: 0; border: 0; background: none; flex-wrap: nowrap; }
+  /* The toolbar in its floating panel: one row; the page computes the groups' widths from these sizes */
+  .tools { display: flex; flex-wrap: nowrap; align-items: center; gap: .125rem; width: max-content; color: var(--text); }
   /* A column (#315): the groups below each other, a rule above each instead of beside it */
   .tools.vertical { flex-direction: column; width: auto; }
   .tools.vertical .live, .tools.vertical .filters { flex-direction: column; }
+  .tools :global(.tool-group + .tool-group) { margin-left: .125rem; padding-left: .25rem; border-left: 1px solid var(--line); }
   .tools.vertical :global(.tool-group + .tool-group) { margin: .125rem 0 0; padding: .25rem 0 0; border-left: 0; border-top: 1px solid var(--line); }
-  .tree-body { padding: .25rem .375rem .75rem; }
-  .stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
-  /* The stage frame (#234) under the toolbar and the notices; a panel or sheet drag over it stays the page's */
-  .stage :global(iframe.stage-frame) { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border: 0; }
-  .workspace.sheet-dragging .stage :global(iframe.stage-frame) { pointer-events: none; }
-  .subtitle { position: absolute; left: 50%; bottom: 3rem; transform: translateX(-50%); z-index: 1; margin: 0; max-width: min(34rem, calc(100% - 2rem)); padding: .25rem .75rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); text-align: center; white-space: pre-line; pointer-events: none; }
-  .notice { position: absolute; left: 50%; top: 1rem; transform: translateX(-50%); margin: 0; padding: .25rem .75rem; border-radius: var(--control-radius); background: var(--surface); }
-  /* Above ‹ › so a group's menu covers them; the page computes the groups' widths from these sizes */
-  .tools { position: absolute; left: .5rem; top: .5rem; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: .125rem; max-width: calc(100% - 1rem); padding: .125rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
   .live, .filters { display: flex; gap: .125rem; }
   .live .on { color: var(--accent, currentColor); }
-  .tools :global(.tool-group + .tool-group) { margin-left: .125rem; padding-left: .25rem; border-left: 1px solid var(--line); }
-  .step { position: absolute; bottom: .5rem; z-index: 1; color: var(--text); }
-  .step-previous { left: .5rem; }
-  .step-next { right: .5rem; }
-  .step-add { right: calc(.875rem + var(--control-height)); }
-  .steps-up .tools { max-width: calc(100% - 1.375rem - 2 * var(--control-height)); }
-  .steps-up .step { top: calc(.5rem + .1875rem); bottom: auto; }
-  .steps-up .step-previous { left: auto; right: calc(.625rem + var(--control-height)); }
+  .tree-body { padding: .25rem .375rem .75rem; }
+  .stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+  /* The stage frame (#234) under the toolbar and the notices; a panel drag over it stays the page's */
+  .stage :global(iframe.stage-frame) { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border: 0; }
+  .subtitle { position: absolute; left: 50%; bottom: 3rem; transform: translateX(-50%); z-index: 1; margin: 0; max-width: min(34rem, calc(100% - 2rem)); padding: .25rem .75rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); text-align: center; white-space: pre-line; pointer-events: none; }
+  .notice { position: absolute; left: 50%; top: 1rem; transform: translateX(-50%); margin: 0; padding: .25rem .75rem; border-radius: var(--control-radius); background: var(--surface); }
   .picker { position: absolute; inset: 0; z-index: 2; cursor: crosshair; outline: none; touch-action: none; }
   .pick-chip { position: absolute; pointer-events: none; display: inline-flex; align-items: center; gap: .375rem; height: var(--control-height); padding: 0 .5rem;
     border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); font-size: var(--text-small); font-family: ui-monospace, Consolas, monospace; }
   .pick-chip::before { content: ""; width: .875rem; height: .875rem; border-radius: 50%; border: 1px solid var(--line); background: var(--c); }
-  .panel { position: relative; display: flex; flex-direction: column; min-height: 0; background: var(--surface); color: var(--text); }
-  .bar { flex: none; display: flex; align-items: center; gap: .125rem; padding: .25rem .375rem; background: var(--surface-head); border-bottom: 1px solid var(--line); }
-  .panel .bar { flex-wrap: wrap; }
-  .head { flex: none; }
-  .bar .tab { padding: 0 .375rem; }
-  .bar .tab.on { background: var(--surface); }
-  .panel .bar.icons { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
-  .bar .tab.icon-tab, .bar.icons .icon-button { padding: 0; width: var(--control-height); justify-content: center; flex: none; }
   .body { flex: 1; min-height: 0; overflow-y: auto; padding: .375rem .5rem .75rem; display: flex; flex-direction: column; gap: .125rem; container: panel / inline-size; }
   .body.code { overflow: hidden; }
   .icon-button { text-decoration: none; }
-
-  @media (max-width: 47.9rem) {
-    .workspace.sheet-dragging { cursor: row-resize; user-select: none; grid-template-rows: minmax(0, 1fr) var(--sheet-row); background: var(--sheet-fill, var(--stage-background)); }
-    /* The stage (a WebGL canvas) resizes once, on release – not while the sheet is dragged */
-    .workspace.sheet-dragging .panel { align-self: end; position: relative; z-index: 4; }
-    .panel { height: var(--sheet-height, auto); border-top: 1px solid var(--line); }
-    /* The grip and the tab row take the drag; the panel's content still scrolls */
-    .head { touch-action: none; background: var(--surface-head); }
-    /* A drag that starts just above the bar must not land on the stage and orbit it */
-    .grip { position: relative; height: 1.5rem; cursor: row-resize; outline: none; }
-    .grip::after { content: ""; position: absolute; top: calc(50% - 2px); left: calc(50% - 1.25rem); width: 2.5rem; height: 4px; border-radius: 2px; background: var(--muted); opacity: .6; }
-    .grip:focus-visible::after, .grip.on::after { opacity: 1; background: var(--text); }
-    @media (hover: hover) {
-      .grip:hover::after { opacity: 1; background: var(--text); }
-    }
-    .body { padding-bottom: calc(.75rem + env(safe-area-inset-bottom)); }
-    /* Five tabs of the touch height fit 360 px: the row scrolls rather than wraps */
-    .bar .tab.icon-tab { flex: 1 1 0; width: auto; min-width: var(--control-height); }
-    .workspace.closed .panel .bar { padding-bottom: calc(.25rem + env(safe-area-inset-bottom)); }
-  }
 </style>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firstTab, TABS, tabOf } from "../panel-tabs";
+import { firstTab, TABS, tabOf, WORD_TABS_MIN, wordTabs } from "../panel-tabs";
 
 // The panel's tabs (#229): no Stage tab – the spread is the Inspector's, the preview settings the toolbar's
 describe("the panel's tabs", () => {
@@ -31,5 +31,16 @@ describe("the panel's tabs", () => {
     expect(firstTab(null, "library")).toBe("library");
     expect(firstTab(null, null)).toBe("inspector");
     expect(firstTab(undefined, "nonsense")).toBe("inspector");
+  });
+});
+
+// The Inspector's head stays one line (#172): words in a wide panel, icons in a narrow one – wider with a finger
+describe("the Inspector's tabs as words or icons", () => {
+  it("shows words from the least width on, icons below it", () => {
+    expect(wordTabs(WORD_TABS_MIN.fine, false)).toBe(true);
+    expect(wordTabs(WORD_TABS_MIN.fine - 1, false)).toBe(false);
+    expect(wordTabs(400, false)).toBe(true);
+    expect(wordTabs(400, true)).toBe(false);
+    expect(wordTabs(WORD_TABS_MIN.coarse, true)).toBe(true);
   });
 });

@@ -202,7 +202,6 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     setVar: (name: string, value: VarValue | null, scope: VarScope) => stage().setVar(name, value, scope),
     tap: (targetId: string) => stage().tap(targetId),
     sampleColor: (x: number, y: number) => stage().sampleColor(x, y),
-    sampleBottom: (segments: number) => stage().sampleBottom(segments),
     timeline: (targetId: string, path: number[], action: "play" | "pause" | "seek", value?: string | number) => {
       const timeline = stage().timeline(targetId, path);
       if (action === "play") timeline?.play(typeof value === "string" ? value : undefined);
