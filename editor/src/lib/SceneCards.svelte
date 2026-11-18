@@ -5,7 +5,7 @@
   import type { Point } from "#lib/context-menu.js";
   import { scenes } from "#lib/scenes.svelte.js";
   import {
-    bandDrop, dropAtEnd, dropMark, dropOver, pickModeOf, pickScenes, planDrop, runCounts, sceneName, stepScene, stripKey, stripRuns,
+    bandDrop, dropAtEnd, dropMark, dropOver, gridSpan, pickModeOf, pickScenes, planDrop, runCounts, sceneName, stepScene, stripKey, stripRuns,
     surfaceParts, targetsOf, type Drop, type MoveRequest,
   } from "#lib/scene-strip.js";
   import { captionOf, gridCells, type GridCell } from "#lib/spread-grid.js";
@@ -15,27 +15,31 @@
   import { GROUP_WINDOW_TARGETS } from "@shared/api/editor";
 
   /**
-   * The scenes of the book as cards (#307 phase 3a): the Scenes panel's **strip** under the stage (`layout="strip"`, one
-   * row that scrolls) and the book page's **grid** (rows that wrap, a group a headed section). Each card is the scene's
+   * The scenes of the book as cards (#307 phase 3a): the Scenes panel's **strip** (`layout="strip"`, one row that
+   * scrolls sideways, the default) or its **grid** (#315: page-wide `columns` that wrap and scroll down, a card spanning
+   * its pages, `cardHeight` from the panel's width – `gridColumns`; a group a band over its own rows). Each card is the scene's
    * picture – the layout's sheet or the page images with the targets' prints (`sheet-preview.ts`, as the spread cards
    * had), else its surfaces drawn side by side – with its name (label, own title or pages) and its target count; the
-   * open scene is framed gold, the picked ones blue. A group is a **band** over its scenes: its label, scene and target
+   * open scene is framed in the text colour, the picked ones grey (the editor is monochrome). A group is a **band** over its scenes: its label, scene and target
    * count, a warning above the loading window (`GROUP_WINDOW_TARGETS`, #300). A click opens a scene (Shift picks a range,
    * Ctrl one more); a click on a band selects the group; cards – the picked ones together – and a whole band are dragged
-   * along the cards: a gold line shows where they land, over a band's scene they join its group. ← → move the pick
+   * along the cards: a line shows where they land, over a band's scene they join its group. ← → move the pick
    * (Shift: a range), Enter opens, Ctrl+G groups, Ctrl+Shift+G ungroups, Esc ends a drag. The model is `scene-strip.ts`,
    * the data and the actions `scenes.svelte.ts`; the page owns what a drop, a group and a card's menu do.
    */
   let {
-    layout = "strip", current = null, selectedGroup = null, zoom = 1, sheetLayout = null, pageImages = {}, assetsBase = "",
+    layout = "strip", current = null, selectedGroup = null, zoom = 1, columns = 1, cardHeight = 0, sheetLayout = null, pageImages = {}, assetsBase = "",
     onopen, onselectgroup, onmove, ongroup, onungroup, onmenu, onadd,
   }: {
     layout?: "strip" | "grid";
-    /** The open scene (the scene route), framed gold */
+    /** The open scene (the scene route), framed */
     current?: string | null;
     /** The group shown in the Inspector: its band highlighted */
     selectedGroup?: string | null;
     zoom?: number;
+    /** The grid: its columns and its cards' height (px) */
+    columns?: number;
+    cardHeight?: number;
     sheetLayout?: StageLayout | null;
     pageImages?: Readonly<Record<string, string>>;
     assetsBase?: string;
@@ -206,13 +210,13 @@
   {@const ratio = ratioOf(scene, hasPicture, cell.span)}
   {@const targets = targetsOf(scene)}
   {@const caption = captionOf(scene)}
-  <div class="slot" class:drop-before={mark?.index === index && mark.side === "before"} class:drop-after={mark?.index === index && mark.side === "after"}>
+  <div class="slot" style:grid-column={layout === "grid" ? `span ${gridSpan(ratio, pageRatio, columns)}` : undefined} class:drop-before={mark?.index === index && mark.side === "before"} class:drop-after={mark?.index === index && mark.side === "after"}>
     <button type="button" class="card" data-scene-index={index} class:current={scene.id === current} class:picked={picked.has(scene.id)}
       class:dragged={drag?.ids.includes(scene.id)} aria-pressed={picked.has(scene.id)} aria-current={scene.id === current ? "page" : undefined}
       title={[sceneName(scene), caption].filter(Boolean).join(" · ")} bind:this={cards[scene.id]} draggable="false"
       data-help-name="Scene {sceneName(scene)}"
       data-help="A scene: a click opens it, Shift+click picks a range, Ctrl+click one more. Drag it – the picked scenes together – along the cards to move it; over a group's scene it joins the group. ← → move the pick, Enter opens.{onmenu ? ' Its menu (right click, long press, the menu key) adds a scene after it or removes it.' : ''}"
-      style:width="calc({ratio} * var(--card-height))" onpointerdown={e => pressCard(e, scene.id)} onclick={e => clickCard(scene, e)}
+      style:width={layout === "grid" ? undefined : `calc(${ratio} * var(--card-height))`} onpointerdown={e => pressCard(e, scene.id)} onclick={e => clickCard(scene, e)}
       {@attach onmenu ? menuTrigger({ open: at => onmenu(scene, at, cards[scene.id]) }) : undefined}>
       <span class="th">
         {#if parts}
@@ -231,6 +235,7 @@
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div class="cards {layout}" role="group" aria-label="Scenes" bind:this={root} style:--zoom={zoom} class:dragging={!!drag}
+  style:--cols={layout === "grid" ? columns : undefined} style:--grid-card-height={layout === "grid" && cardHeight ? `${cardHeight}px` : undefined}
   ondragstart={e => e.preventDefault()} onkeydown={onkey} onpointermove={move} onpointerup={release} onpointercancel={release} onfocusin={() => (focused = true)} onfocusout={focusOut}>
   {#each runs as run (`${run.start}:${run.group?.id ?? ""}`)}
     {#if run.group}
@@ -261,14 +266,17 @@
 <style>
   .cards { --card-height: calc(3.6rem * var(--zoom, 1)); display: flex; gap: .55rem; user-select: none; -webkit-user-select: none; }
   .cards.strip { flex-wrap: nowrap; align-items: flex-end; overflow-x: auto; overflow-y: hidden; padding: .45rem .6rem .35rem; height: 100%; box-sizing: border-box; }
-  .cards.grid { --card-height: calc(7.5rem * var(--zoom, 1)); flex-direction: column; gap: 1rem; }
+  /* The grid (#315): page-wide columns that wrap, scrolled down; a card fills the columns it spans */
+  .cards.grid { --card-height: var(--grid-card-height, 7.5rem); flex-direction: column; gap: .75rem; overflow-x: hidden; overflow-y: auto; padding: .45rem .6rem .6rem; height: 100%; box-sizing: border-box; }
   .cards.dragging { cursor: grabbing; }
   .run { display: flex; flex-direction: column; gap: .2rem; flex: none; }
   .grid .run { flex: initial; }
   .row { display: flex; gap: .3rem; }
-  .grid .row { flex-wrap: wrap; gap: .75rem; }
+  .grid .row { display: grid; grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr)); gap: .75rem; }
+  .grid .slot { min-width: 0; }
+  .grid .card { width: 100%; min-width: 0; }
   .band { all: unset; box-sizing: border-box; cursor: pointer; font-size: var(--text-small); color: var(--accent); border-top: 3px solid var(--accent); padding: .1rem .25rem 0; white-space: nowrap; }
-  .grid .band { font-size: var(--text-size); padding: .25rem .25rem .125rem; }
+  .grid .band { padding: .2rem .25rem .1rem; }
   .band .label { font-weight: 600; }
   .band:focus-visible { outline: 1px solid var(--accent); }
   .run.selected > .band { background: var(--accent-background); color: var(--text); }
@@ -280,7 +288,7 @@
   .slot.drop-before::before { left: -.2rem; }
   .slot.drop-after::after { right: -.2rem; }
   .card { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: .12rem; cursor: pointer; font-size: var(--text-small); color: var(--muted); touch-action: pan-x; }
-  .grid .card { touch-action: auto; font-size: var(--text-size); }
+  .grid .card { touch-action: pan-y; }
   .th { display: block; width: 100%; height: var(--card-height); border: 1px solid var(--line); background: #fff; overflow: hidden; }
   .th :global(.sheet) { height: 100%; }
   /* A picture is never dragged by the browser: that would cancel the pointer drag */
@@ -300,7 +308,8 @@
   .count { flex: none; }
   .count { display: inline-flex; align-items: center; gap: .125rem; }
   .add { all: unset; box-sizing: border-box; cursor: pointer; flex: none; display: grid; place-items: center; width: 3.2rem; align-self: stretch; margin-bottom: 1.15rem; border: 1px dashed var(--line); color: var(--muted); }
-  .grid .add { width: calc(1.4 * var(--card-height)); height: var(--card-height); align-self: flex-start; }
+  /* One column wide, a card high */
+  .grid .add { width: calc((100% - (var(--cols, 1) - 1) * .75rem) / var(--cols, 1)); height: var(--card-height); margin-bottom: 1.15rem; align-self: flex-start; }
   @media (hover: hover) { .add:hover { border-color: var(--text); color: var(--text); } }
   .add:focus-visible { border-color: var(--text); color: var(--text); }
   .ghost { position: fixed; z-index: 50; pointer-events: none; transform: rotate(-4deg); padding: .25rem .5rem; background: var(--surface); color: var(--text); border: 2px solid var(--pick); box-shadow: 0 .4rem 1rem #000a; font-size: var(--text-small); white-space: nowrap; }

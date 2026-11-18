@@ -9,8 +9,8 @@
    * chrome every panel uses (RULES #32 – built once). Its head is the handle: grip, icon and name (or the panel's own
    * `head`, the Inspector's tabs) – dragged, it moves the panel; then the chevron that folds it to its head and, unless it
    * is essential, the close (the top bar's panels menu brings it back). Open, its edges and corners resize it. An
-   * **inline** panel (the stage toolbar) is one row: grip and icon, its content, the chevron; folded only its icon,
-   * which a click opens again. Where it lies is `floats` (`floats.svelte.ts`): the page lays every panel out there,
+   * **inline** panel (the stage toolbar) is one row – grip and icon, its content, the button that turns it into one
+   * column (#315) – or that column; it never folds (an older editor's fold is ignored). Where it lies is `floats` (`floats.svelte.ts`): the page lays every panel out there,
    * this draws one. A press on a panel brings it to the front.
    */
   let { floats, id, head, children, label }: {
@@ -26,6 +26,7 @@
   const spec = $derived(floats.spec(id)!);
   const view = $derived(floats.views[id]);
   const collapsed = $derived(view?.collapsed ?? false);
+  const vertical = $derived(floats.vertical(id));
   const held = $derived(floats.held?.id === id && floats.held.moved);
   const contentSized = $derived(spec.size.w === "content" || spec.size.h === "content");
 
@@ -70,7 +71,7 @@
   $effect(() => {
     const el = content;
     if (!el || !contentSized) return;
-    const observer = new ResizeObserver(() => floats.measure(id, { w: el.scrollWidth, h: el.offsetHeight }));
+    const observer = new ResizeObserver(() => floats.measure(id, vertical ? { w: el.offsetWidth, h: el.scrollHeight } : { w: el.scrollWidth, h: el.offsetHeight }));
     const inner = el.firstElementChild;
     if (inner) observer.observe(inner);
     observer.observe(el);
@@ -81,9 +82,11 @@
 
 {#if view}
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-  <section class="float" class:inline={spec.inline} class:collapsed class:held aria-label={label ?? spec.name} data-app-ui data-float={id}
-    style:left="{view.rect.x}px" style:top="{view.rect.y}px" style:width="{view.rect.w}px" style:height={spec.inline && !collapsed ? undefined : `${view.rect.h}px`}
-    style:min-height={spec.inline && !collapsed ? `${view.rect.h}px` : undefined} style:z-index={floats.z(id) + (held ? 100 : 0)}
+  <section class="float" class:inline={spec.inline} class:vertical class:collapsed class:held aria-label={label ?? spec.name} data-app-ui data-float={id}
+    style:left="{view.rect.x}px" style:top="{view.rect.y}px" style:width={spec.inline && vertical ? undefined : `${view.rect.w}px`}
+    style:min-width={spec.inline && vertical ? `${view.rect.w}px` : undefined}
+    style:height={spec.inline && !vertical ? undefined : `${view.rect.h}px`}
+    style:min-height={spec.inline && !vertical ? `${view.rect.h}px` : undefined} style:z-index={floats.z(id) + (held ? 100 : 0)}
     onpointerdowncapture={() => floats.front(id)}>
     {#if spec.inline && collapsed}
       <button type="button" class="icon-button handle only" aria-label="{spec.name} – open" title="{spec.name} – click to open, drag to move"
@@ -108,9 +111,18 @@
           <span class="name">{spec.name}</span>
         {/if}
         <span class="buttons">
+          {#if spec.inline}
+            <!-- A toolbar never folds: its button turns it between a row and a column (#315) -->
+            <button type="button" class="icon-button" aria-pressed={vertical} onclick={() => floats.setVertical(id, !vertical)}
+              aria-label={vertical ? `Lay the ${spec.name} out as a row` : `Lay the ${spec.name} out as a column`}
+              title={vertical ? "As a row" : "As a column"} data-help-name="Row / column"
+              data-help="Turns the toolbar between one row and one column – a column fits along the stage's left or right edge. Remembered in this browser.">
+              <span class="orient" class:turned={vertical}><Icon name="orient" /></span></button>
+          {:else}
           <button type="button" class="icon-button" aria-expanded={!collapsed} onclick={() => floats.setCollapsed(id, !collapsed)}
             aria-label={collapsed ? `Open the ${spec.name} panel` : `Fold the ${spec.name} panel`} title={collapsed ? "Open" : "Fold to its head"}>
-            <Icon name={spec.inline ? "previous" : collapsed ? "down" : "up"} /></button>
+            <Icon name={collapsed ? "down" : "up"} /></button>
+          {/if}
           {#if !spec.essential}
             <button type="button" class="icon-button" onclick={() => floats.close(id)} aria-label="Close the {spec.name} panel"
               title="Close – the panels menu in the top bar brings it back"><Icon name="close" /></button>
@@ -152,6 +164,13 @@
   .handle .name { color: var(--text); }
   .own-head { flex: 1; min-width: 0; display: flex; align-items: center; gap: .125rem; }
   .buttons { flex: none; display: inline-flex; margin-left: auto; }
+  /* A vertical toolbar: grip on top, its groups below each other, its button at the bottom */
+  .vertical .line { flex-direction: column; }
+  .vertical .line .handle { width: auto; height: calc(var(--control-height) + .375rem); }
+  .vertical .buttons { margin-left: 0; margin-top: auto; }
+  .vertical .content { flex: 0 1 auto; min-height: 0; }
+  .orient { display: inline-flex; }
+  .orient.turned { transform: rotate(90deg); }
   /* Narrower than its row (resized), the toolbar is cut, never wrapped: its natural width stays measurable (scrollWidth) */
   .content { flex: 0 1 auto; min-width: 0; overflow: hidden; }
   .body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }

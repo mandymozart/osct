@@ -459,3 +459,10 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     (`baselines.ts`). The exceptions: the Code tab's source (Save, Ctrl+S – half-typed code never reaches the draft),
     the forms that create something (*add*), and Publish, which stays the person's click (#32). docs/editor.md
     "Autosave".
+
+38. **The editor is monochrome** (Tilman, 2026-11-18, #315: "dont use the yellow in the interface. keep it monochromatic.
+    the brand color is only for the viewer frontend. not the editor … only error have color"): the editor's UI uses
+    greys, black and white only – the open scene, a group's band, a pick, a toggle that is on. The only colour is an
+    error's (`--danger`; a warning such as a group above its loading window uses it too). The brand's gold and its
+    gradient belong to the reader (`client/`). The stage's 3D helpers (axes, grid lines, guides) keep their own
+    conventions.

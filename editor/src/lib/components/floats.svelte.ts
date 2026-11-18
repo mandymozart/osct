@@ -101,6 +101,18 @@ export class Floats {
     this.front(id);
   }
 
+  /** An inline panel (a toolbar) is one column instead of one row */
+  vertical(id: string): boolean {
+    return !!(this.spec(id)?.inline && this.place(id).vertical);
+  }
+
+  /** Turn a toolbar between a row and a column (#315): a size it was resized to belongs to the other way, so it goes */
+  setVertical(id: string, vertical: boolean): void {
+    const { size: _size, collapsed: _collapsed, ...place } = this.place(id);
+    this.set(id, vertical ? { ...place, vertical } : place);
+    this.front(id);
+  }
+
   /** Close a panel (an essential one only folds) */
   close(id: string): void {
     if (this.spec(id)?.essential) return;

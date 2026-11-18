@@ -28,11 +28,15 @@
   --within-background: #efefef;
   --danger: #c0392b;
   --stage-background: #0c0c0c;
-  /* The Scenes panel (#307): the open scene and the groups' bands (gold), the picked scenes, a group above its window */
-  --accent: #a8842c;
-  --accent-background: #f3ead2;
-  --pick: #2f6fd6;
-  --warn: #b26a00;
+  /*
+   * The editor is monochrome (Tilman, 2026-11-18): the brand's gold belongs to the reader, not the editor; only an error
+   * has a colour (`--danger`; `--warn` – a group above its loading window – is that colour). The accent is the text's
+   * colour (the open scene, the groups' bands), a pick is grey.
+   */
+  --accent: #1e1e1e;
+  --accent-background: #e0e0e0;
+  --pick: #8a8a8a;
+  --warn: var(--danger);
   color-scheme: light;
 }
 /* A finger: the dogma's 44px touch height; every control takes its height from the token */
@@ -56,10 +60,10 @@
     --selected-background: #5e5e5e;
     --within-background: #363636;
     --danger: #ff6b5b;
-    --accent: #c7a144;
-    --accent-background: #3a3120;
-    --pick: #8ab4f8;
-    --warn: #e0a030;
+    --accent: #ffffff;
+    --accent-background: #4f4f4f;
+    --pick: #8f8f8f;
+    --warn: var(--danger);
     color-scheme: dark;
   }
 }
@@ -76,10 +80,10 @@
   --selected-background: #5e5e5e;
   --within-background: #363636;
   --danger: #ff6b5b;
-  --accent: #c7a144;
-  --accent-background: #3a3120;
-  --pick: #8ab4f8;
-  --warn: #e0a030;
+  --accent: #ffffff;
+  --accent-background: #4f4f4f;
+  --pick: #8f8f8f;
+  --warn: var(--danger);
   color-scheme: dark;
 }
 
