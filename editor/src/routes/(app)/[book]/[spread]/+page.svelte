@@ -5,8 +5,9 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { content } from "#lib/content.svelte.js";
-  import { Stage, type PickMode, type StagePick } from "#lib/stage/stage.svelte.js";
-  import { GIZMO_KEYS, GIZMO_MODES, type GizmoMode } from "#lib/stage/gizmo.js";
+  import { Stage, type StagePick } from "#lib/stage/stage.svelte.js";
+  import { PICK_KINDS, toggleKind, type PickKind } from "#lib/stage/pick.js";
+  import { STAGE_TOOLS, TOOL_KEYS, type StageTool } from "#lib/stage/gizmo.js";
   import { updatePreview, type ShadingMode } from "#lib/stage/preview.js";
   import Icon, { type IconName } from "#lib/components/Icon.svelte";
   import ToolGroup, { type ToolGroupOption } from "#lib/components/ToolGroup.svelte";
@@ -37,25 +38,28 @@
   import { firstTab as openingTab, type Tab } from "#lib/panel-tabs.js";
   import InfoView from "#lib/components/InfoView.svelte";
   import ContextMenu from "#lib/components/ContextMenu.svelte";
-  import { clampSheet, clampWidth, LIMITS, maxWidth, SHEET_MAX, sheetFill, snapSheet, stepsOnTop, treeStartsOpen, widths, wordTabs, type Column } from "#lib/widths.svelte.js";
+  import { clampSheet, SHEET_MAX, sheetFill, snapSheet, stepsOnTop, widths, wordTabs } from "#lib/widths.svelte.js";
   import { readStored, writeStored } from "#lib/storage.js";
   import ScenesPanel from "#lib/ScenesPanel.svelte";
   import { scenes } from "#lib/scenes.svelte.js";
   import { fetchBookLayout } from "#lib/sheet-preview.js";
   import type { StageLayout } from "#lib/stage/stage-layout.js";
+  import FloatingPanel from "#lib/components/FloatingPanel.svelte";
+  import { Floats, openFloats } from "#lib/components/floats.svelte.js";
+  import { at, type PanelSpec } from "#lib/components/floats.js";
 
   /**
-   * The workspace: the **tree** of the spread at the left (a 3D tool's outliner, collapsible to its bar), the stage
-   * (the engine over the mock stage, its toolbar with the preview settings) and the panels **Inspector** (whatever is
-   * selected – the spread while nothing else is, #229), **Environment**, **Library** and **Code** in a column at the
-   * right (`panel-tabs.ts`). On a phone the panel is a sheet at the bottom whose head is the tab row (closed = the row
-   * only) and the tree is its first tab. `?tab=environment` opens a tab (the book page links the Environment so). On a desktop the tree's right edge and
-   * the panel's left edge are dragged to resize the columns (`widths`; the Code tab has its own, wider width), a
-   * double-click on an edge restores the default; the stage's view follows its container. On a phone the sheet's head
-   * (a grip and the tab row) is dragged up or down to any height and snaps when let go (#155); a double tap on the
-   * grip restores the default height. Under the stage, on a desktop, the **Scenes panel** (#307 phase 3a,
-   * `ScenesPanel.svelte`): the book's scenes as a filmstrip – a card opens its scene, a band selects its group (the
-   * Inspector shows it), a drag reorders; the draft follows its changes (`scenes.version`).
+   * The workspace. On a desktop and an iPad (#308) the **stage** (the engine over the mock stage) is the whole window
+   * and the panels float over it (`FloatingPanel`, `SCENE_PANELS`): the **Tree** of the spread (a 3D tool's outliner),
+   * the **Inspector** (essential) with its tabs Inspector (whatever is selected – the spread while nothing else is,
+   * #229), Environment, Library and Code (`panel-tabs.ts`), the **Scenes** filmstrip (#307, `ScenesPanel.svelte`: a
+   * card opens its scene, a band selects its group, a drag reorders; the draft follows `scenes.version`), **Info** and
+   * the stage's **Tools** (inline). Each moves by its head, resizes by its edges, folds to its head and – unless
+   * essential – closes; the top bar's panels menu reopens them and resets the layout, which is remembered per workspace
+   * in this browser. On a phone (not designed for – the editor is desktop and iPad, 2026-11-18) the panel is a sheet at
+   * the bottom whose head is the tab row (closed = the row only), the tree its first tab and the toolbar over the
+   * stage; its head (a grip and the tab row) is dragged up or down to any height and snaps when let go (#155), a double
+   * tap on the grip restores the default height. `?tab=environment` opens a tab (the book page links the Environment so).
    */
   const bookId = $derived(page.params.book!);
   const spreadId = $derived(page.params.spread!);
@@ -68,7 +72,6 @@
     { tab: "library", label: "Library", icon: "folder" },
     { tab: "code", label: "Code", icon: "code" },
   ];
-  const TREE_KEY = "osct-editor-tree";
   const NARROW = "(max-width: 47.9rem)";
   const COARSE = "(pointer: coarse)";
 
@@ -77,8 +80,6 @@
   /** `?tab=`, the stored tab (a Stage or Entity tab stored before #229 is the Inspector), the Inspector */
   const firstTab = openingTab(page.url.searchParams.get("tab"), readStored(TAB_KEY));
   let tab = $state<Tab | null>(firstTab);
-  /** The tree column is open (desktop; stored – until then open in a wide window only, #172) */
-  let treeOpen = $state(treeStartsOpen(window.innerWidth, readStored(TREE_KEY)));
   /** A phone: the tree is a tab of the sheet instead of a column; × ‹ › leave the sheet's head (#171) */
   let narrow = $state(false);
   /** A finger: every control is the touch height (app.css), so the tab row needs more room for its words */
@@ -106,57 +107,65 @@
   const openTab = (next: Tab) => {
     if (tab !== next) setTab(next);
   };
-  const setTreeOpen = (open: boolean) => {
-    treeOpen = open;
-    writeStored(TREE_KEY, open ? "open" : "closed");
-  };
-  /** The tab the panel shows: on a desktop the tree has its own column, so a stored "tree" shows the Inspector */
-  const shown = $derived<Tab | null>(tab === "tree" && !narrow ? "inspector" : tab);
+  /** The tab the panel shows: on a desktop the tree is a panel of its own and the Inspector panel always shows a tab */
+  const shown = $derived<Tab | null>(!narrow && (tab === "tree" || tab === null) ? "inspector" : tab);
   /** Something was selected (a row of the tree, a pick on the stage): the Inspector shows it – the spread too (#229) */
   const select = () => openTab("inspector");
+  /** A tab of the Inspector panel chosen: on a phone it toggles the sheet, on a desktop it shows that tab */
+  const chooseTab = (next: Tab) => (narrow ? setTab(next) : openTab(next));
 
-  // ── the columns' widths: the edges are dragged (pointer or arrow keys), a double-click restores the default ──
+  // ── the floating panels (#308, desktop and iPad): the stage is the whole window, the panels float over it ──
+  /**
+   * The scene workspace's panels (rem). The order is the order of growth: an earlier one leaves a later one the room it
+   * asks for – the Tree and the Inspector (they scroll) grow to the full height beside the Scenes strip.
+   */
+  const SCENE_PANELS: PanelSpec[] = [
+    { id: "tree", name: "Tree", icon: "tree", about: "The spread's entries, their targets and the entities' nodes: a click selects, a drag moves a node.",
+      place: at("top-left", 0, 0), size: { w: 16.5, h: "fill" }, min: { w: 12, h: 8 } },
+    { id: "inspector", name: "Inspector", icon: "inspector", about: "Whatever is selected, and the tabs Environment, Library and Code. It folds but never closes.",
+      place: at("top-right", 0, 0), size: { w: 25, h: "fill" }, min: { w: 16, h: 10 }, essential: true },
+    { id: "scenes", name: "Scenes", icon: "film", about: "The experience's scenes as a filmstrip: a card opens its scene, a band selects its group, a drag reorders.",
+      place: at("bottom-left", 17, 0), size: { w: "fill", h: 12 }, min: { w: 20, h: 10 } },
+    { id: "info", name: "Info", icon: "info", about: "The name and description of the control under the pointer or in focus.",
+      place: at("bottom-left", 0, 0, { collapsed: true }), size: { w: 16.5, h: 10 }, min: { w: 12, h: 5 } },
+    { id: "tools", name: "Tools", icon: "tool", about: "The stage's tools: select and its filters, move / rotate / scale, render quality, grid & snap, view and live.",
+      place: at("top-left", 17, 0), size: { w: "content", h: "content" }, min: { w: 12, h: 2 }, essential: true, inline: true },
+  ];
+  const floats = new Floats("scene", SCENE_PANELS);
+  let workspaceWidth = $state(0);
+  let workspaceHeight = $state(0);
+  // The room and the measures from the page's CSS: the control height (44 px with a finger), the gap of .5rem
+  $effect(() => {
+    const [el, w, h] = [workspace, workspaceWidth, workspaceHeight];
+    void coarse;
+    if (!el || !w || !h) return;
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const token = getComputedStyle(el).getPropertyValue("--control-height").trim();
+    const control = token.endsWith("rem") ? parseFloat(token) * rem : parseFloat(token) || 1.75 * rem;
+    const gap = rem / 2;
+    floats.metrics = { rem, gap, head: control + (3 * rem) / 8 + 1, button: control, char: rem / 2 };
+    floats.area = { x: gap, y: gap, w: Math.max(1, w - 2 * gap), h: Math.max(1, h - 2 * gap) };
+  });
+  // The Code tab asks for its wider Inspector (36rem) – until the person resizes the panel
+  $effect(() => {
+    floats.asks = shown === "code" ? { inspector: { w: 36, h: "fill" } } : {};
+  });
+  // The top bar's panels menu lists this workspace's panels (not on a phone: the sheet has none)
+  $effect(() => {
+    if (narrow) return;
+    openFloats.current = floats;
+    return () => {
+      if (openFloats.current === floats) openFloats.current = null;
+    };
+  });
+  /** A form or a removal step opens in the Inspector: a folded Inspector opens for it */
+  $effect(() => {
+    if (!narrow && (removal || addingTarget || addingEntry || addingSpread)) untrack(() => { if (floats.collapsed("inspector")) floats.setCollapsed("inspector", false); });
+  });
+
   let workspace = $state<HTMLDivElement>();
-  let viewport = $state(window.innerWidth);
-  let dragging = $state<Column | null>(null);
-  const panelColumn = $derived<Column>(shown === "code" ? "code" : "panel");
-  const treeShown = $derived(treeOpen && !narrow);
-  /** The panel's width leaves room for the tree's own (clamped alone); the tree's then fits next to the panel */
-  const panelWidth = $derived(widths.width(panelColumn, viewport, treeShown ? widths.width("tree", viewport) : 0));
-  const treeWidth = $derived(widths.width("tree", viewport, panelWidth));
-  /** The tabs as icons: on a phone, and in a panel too narrow for the words, so the head stays one line (#172) */
-  const iconTabs = $derived(narrow || !wordTabs(panelWidth, coarse));
-  const widthOf = (column: Column) => (column === "tree" ? treeWidth : panelWidth);
-  /** The other column's width: the stage keeps its room between both */
-  const otherOf = (column: Column) => (column === "tree" ? panelWidth : treeShown ? treeWidth : 0);
-  const resizeTo = (column: Column, width: number) => widths.set(column, clampWidth(column, width, viewport, otherOf(column)));
-  const startDrag = (column: Column, event: PointerEvent) => {
-    if (event.button !== 0) return;
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    dragging = column;
-    event.preventDefault();
-  };
-  const drag = (event: PointerEvent) => {
-    if (!dragging || !workspace) return;
-    const rect = workspace.getBoundingClientRect();
-    resizeTo(dragging, dragging === "tree" ? event.clientX - rect.left : rect.right - event.clientX);
-  };
-  const endDrag = () => {
-    if (!dragging) return;
-    widths.save();
-    dragging = null;
-  };
-  /** ← → move the focused edge (Shift: further); the tree's edge grows to the right, the panel's to the left */
-  const edgeKey = (column: Column, event: KeyboardEvent) => {
-    const step = event.shiftKey ? 64 : 16;
-    const grow = column === "tree" ? 1 : -1;
-    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-      resizeTo(column, widthOf(column) + (event.key === "ArrowRight" ? grow : -grow) * step);
-      widths.save();
-      event.preventDefault();
-      event.stopPropagation(); // not the spreads' ← →
-    }
-  };
+  /** The tabs as icons: on a phone, and in an Inspector too narrow for the words, so its head stays one line (#172) */
+  const iconTabs = $derived(narrow || !wordTabs(floats.views.inspector?.rect.w ?? 0, coarse));
   // ── the phone's sheet (#155): its head (the grip and the tab row) is dragged to any height; a movement beyond
   // DRAG_PX tells a drag from a tap on a tab; let go, it snaps (a flick carries it on); closed = the tab row only ──
   const DRAG_PX = 8;
@@ -263,7 +272,6 @@
   };
   const SHEET_HELP = "Drag the tab row or this grip up or down to make the panel taller or shorter (↑ ↓ when focused, Shift for larger steps); it snaps to closed, a third, half or almost full, and the height is remembered in this browser. A double tap restores the default height.";
 
-  const EDGE_HELP = "Drag to make the column wider or narrower (← → when focused, Shift for larger steps); the width is remembered in this browser. A double-click restores the default width.";
 
   // ── targets and entries: the forms, removal, a changed image or placement ──
   let addingTarget = $state(false);
@@ -551,21 +559,26 @@
     stage?.selectNode(level === "entity" || level === "node" ? id : null, path);
     stage?.selectTarget(level === "target" ? id : null);
   });
-  // ── the stage toolbar (#180): three groups – transform, pick, shading – each one button with its active option's
-  // icon and a menu, or its options side by side where the toolbar has room; then grid & snap (#190) and view (#229),
-  // each always one button and its panel ──
-  const GIZMO_NAMES: Record<GizmoMode, string> = { translate: "Move", rotate: "Rotate", scale: "Scale" };
-  const GIZMO_ICONS: Record<GizmoMode, IconName> = { translate: "move", rotate: "rotate", scale: "scale" };
-  /** W / E / R, from the gizmo's own keys */
-  const gizmoKey = (mode: GizmoMode) => Object.entries(GIZMO_KEYS).find(([, m]) => m === mode)?.[0].toUpperCase();
-  const TRANSFORM_OPTIONS: ToolGroupOption[] = GIZMO_MODES.map(mode => ({
-    value: mode, name: GIZMO_NAMES[mode], key: gizmoKey(mode), icon: GIZMO_ICONS[mode], label: `${GIZMO_NAMES[mode]} (${gizmoKey(mode)}) – Shift or Ctrl turns snapping around`,
+  // ── the stage toolbar (#180, #308): the tool in hand – select or a gizmo mode –, the select filters and render quality,
+  // each one button with its active option's icon and a menu, or its options side by side where the toolbar has room
+  // (render quality always its menu); then grid & snap (#190) and view (#229), each always one button and its panel ──
+  const TOOL_NAMES: Record<StageTool, string> = { select: "Select", translate: "Move", rotate: "Rotate", scale: "Scale" };
+  const TOOL_ICONS: Record<StageTool, IconName> = { select: "pointer", translate: "move", rotate: "rotate", scale: "scale" };
+  /** Q / W / E / R, from the tools' own keys */
+  const toolKey = (tool: StageTool) => Object.entries(TOOL_KEYS).find(([, t]) => t === tool)?.[0].toUpperCase();
+  const TOOL_OPTIONS: ToolGroupOption[] = STAGE_TOOLS.map(tool => ({
+    value: tool, name: TOOL_NAMES[tool], key: toolKey(tool), icon: TOOL_ICONS[tool],
+    label: tool === "select" ? `Select (${toolKey(tool)}) – a click picks what the filters allow, no gizmo` : `${TOOL_NAMES[tool]} (${toolKey(tool)}) – Shift or Ctrl turns snapping around`,
   }));
-  const PICK_OPTIONS: ToolGroupOption[] = [
-    { value: "entity", name: "Entities", icon: "package", label: "Select entities – a click picks the entity (its root)" },
-    { value: "node", name: "Nodes", icon: "node", label: "Select nodes – a click picks the node under the pointer" },
-    { value: "target", name: "Targets", icon: "target", label: "Select targets – a click picks the printed target" },
-  ] satisfies (ToolGroupOption & { value: PickMode })[];
+  /** The select filters, in this order (Tilman, #308): each says what a click may pick; none on = anything */
+  const FILTER_TEXTS: Record<PickKind, { name: string; icon: IconName; label: string }> = {
+    entity: { name: "Entities", icon: "package", label: "Entities – a click may pick an entity (its root)" },
+    target: { name: "Targets", icon: "target", label: "Targets – a click may pick a printed target" },
+    model: { name: "Models", icon: "model", label: "Models – a click may pick the model under the pointer (the model a part belongs to)" },
+    node: { name: "Nodes", icon: "node", label: "Nodes – a click may pick the node under the pointer, as deep as the tree goes" },
+  };
+  const FILTER_OPTIONS: ToolGroupOption[] = PICK_KINDS.map(kind => ({ value: kind, ...FILTER_TEXTS[kind] }));
+  const FILTER_HELP = "What a click on the stage may pick, for every tool: entities, targets, models, nodes – each a toggle. With none on a click picks anything (the node under the pointer, or the print). With several on, the nearest thing any of them takes, at the finest level that is on.";
   const SHADING_OPTIONS: ToolGroupOption[] = [
     { value: "wireframe", name: "Wire", icon: "shade-wire", label: "Wireframe – the entities as lines" },
     { value: "solid", name: "Solid", icon: "shade-solid", label: "Solid – one grey, the scene's lights" },
@@ -576,8 +589,8 @@
   const shadingOptions = $derived<ToolGroupOption[]>(stageEnvironment.current
     ? SHADING_OPTIONS.map(option => (option.value === "rendered" ? { ...option, label: "Rendered – the environment's world as sky, the reader's light" } : option))
     : SHADING_OPTIONS);
-  /** The groups' shapes in the toolbar's order (the shading spheres sit shoulder to shoulder; grid & snap and view are one button each) */
-  const TOOL_SHAPES: GroupShape[] = [{ options: TRANSFORM_OPTIONS.length }, { options: PICK_OPTIONS.length }, { options: SHADING_OPTIONS.length, tight: true }, { options: 1 }, { options: 1 }];
+  /** The groups' shapes in the toolbar's order (render quality, grid & snap and view are one button each) */
+  const TOOL_SHAPES: GroupShape[] = [{ options: TOOL_OPTIONS.length }, { options: FILTER_OPTIONS.length }, { options: 1 }, { options: 1 }, { options: 1 }];
   /** The view group: the stage's menu opens it (*View settings…*) */
   let viewMenu = $state<{ open: () => void }>();
 
@@ -639,12 +652,23 @@
     const button = token.endsWith("rem") ? parseFloat(token) * rem : parseFloat(token) || 1.75 * rem;
     // The toolbar's CSS below: gap .125rem, a rule of .125rem margin + .25rem padding + 1px, padding .125rem and a 1px border
     const metrics = { button, gap: rem / 8, rule: (3 * rem) / 8 + 1, chrome: rem / 4 + 2 };
-    // The toolbar's max-width: the stage's less 1rem; on a phone also less ‹ › (2 buttons and their margins)
-    const room = width - rem - (narrow ? 2 * button + (3 * rem) / 8 : 0) - ROOM_SLACK;
+    // The toolbar's max-width: on a phone the stage's less 1rem and ‹ › (2 buttons and their margins); on a desktop the
+    // Tools panel's – the width it was resized to, else the room between the Tree and the Inspector
+    const room = (narrow ? width - rem - 2 * button - (3 * rem) / 8 : floatingRoom(rem)) - ROOM_SLACK;
     const next = expandedGroups(TOOL_SHAPES, room, metrics);
     if (next.some((e, i) => e !== expanded[i])) expanded = next;
     stepsUp = narrow && !!height && stepsOnTop(height, bar.offsetHeight, button, rem / 2);
   });
+
+  /** The floating toolbar's room for its groups (px): its resized width, else between the Tree and the Inspector */
+  const floatingRoom = (rem: number) => {
+    const m = floats.metrics;
+    const chrome = m.head + m.button + m.gap + rem / 2;
+    const resized = floats.places.tools?.size?.w;
+    if (resized) return resized - chrome;
+    const views = floats.views;
+    return floats.area.w - (views.tree?.rect.w ?? 0) - (views.inspector?.rect.w ?? 0) - 4 * m.gap - chrome;
+  };
 
   const step = (direction: 1 | -1) => {
     const next = content.neighbour(spreadId, direction);
@@ -657,8 +681,8 @@
     if ((event.target as HTMLElement).closest("input, textarea, select")) return;
     if (event.key === "ArrowLeft") step(-1);
     if (event.key === "ArrowRight") step(1);
-    const mode = GIZMO_KEYS[event.key.toLowerCase()];
-    if (mode && !event.ctrlKey && !event.metaKey && !event.altKey) stage?.setGizmoMode(mode);
+    const tool = TOOL_KEYS[event.key.toLowerCase()];
+    if (tool && !event.ctrlKey && !event.metaKey && !event.altKey) stage?.setTool(tool);
     // Delete removes the selected node (the tree does the same when it has the focus and stops the event)
     if ((event.key === "Delete" || event.key === "Backspace") && removeSelectedNode()) event.preventDefault();
   };
@@ -694,64 +718,87 @@
   };
 </script>
 
-<svelte:window bind:innerWidth={viewport} bind:innerHeight={screenHeight} onkeydown={onKey} onkeyup={onKeyUp} onblur={() => stage?.setSnapModifier(false)} />
+<svelte:window bind:innerHeight={screenHeight} onkeydown={onKey} onkeyup={onKeyUp} onblur={() => stage?.setSnapModifier(false)} />
 
-{#snippet edge(column: Column, name: string)}
-  <!-- A focusable separator is a control (a window splitter): it takes the pointer, a double-click and the arrow keys -->
-  <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
-  <div class="edge {column === 'tree' ? 'edge-right' : 'edge-left'}" class:on={dragging === column}
-    role="separator" aria-orientation="vertical" aria-label={name} tabindex="0" data-app-ui data-help-name={name} data-help={EDGE_HELP}
-    aria-valuenow={widthOf(column)} aria-valuemin={LIMITS[column].min} aria-valuemax={maxWidth(column, viewport, otherOf(column))}
-    onpointerdown={e => startDrag(column, e)} onpointermove={drag} onpointerup={endDrag} onpointercancel={endDrag} onlostpointercapture={endDrag}
-    ondblclick={() => widths.reset(column)} onkeydown={e => edgeKey(column, e)}></div>
+
+{#snippet toolbar(inline: boolean)}
+  {#if stage}
+    <!-- The tool in hand and the select filters, render quality, then grid & snap and view, one button and its panel each;
+         always one row (#180, #190, #229, #308) -->
+    <div class="tools" class:inline role="toolbar" data-app-ui aria-label="Stage tools" bind:this={tools}>
+      <ToolGroup label="Tool" options={TOOL_OPTIONS} value={stage.tool} expanded={expanded[0]}
+        onchoose={tool => stage?.setTool(tool as StageTool)} />
+      <span class="tool-group filters" data-help-name="Select filters" data-help={FILTER_HELP}>
+        <ToolGroup label="Select filters" options={FILTER_OPTIONS} selected={stage.pickFilter} icon="pointer" expanded={expanded[1]}
+          onchoose={kind => stage?.setPickFilter(toggleKind(stage.pickFilter, kind as PickKind))} />
+      </span>
+      <ToolGroup label="Render quality" options={shadingOptions} value={stage.shading} stroke={1.75}
+        onchoose={mode => updatePreview({ shading: mode as ShadingMode })} />
+      <GridSnapMenu />
+      <ViewMenu bind:this={viewMenu} format={spread?.format ?? "spread"} />
+      <!-- #269: the stage runs the book live (Unreal's Realtime) – Live off holds the entities' clock for placing; Restart is a new game -->
+      <span class="tool-group live" role="group" aria-label="Live">
+        <button type="button" class="icon-button" class:on={stage.live} aria-pressed={stage.live} onclick={() => stage?.setLive(!stage.live)}
+          aria-label={stage.live ? "Live: on" : "Live: off"} title={stage.live ? "Live: the scene moves by itself – click to hold it still for placing" : "Held: the scene stands still – click to let it move again"}
+          data-help-name="Live" data-help="On: the stage plays the book as a reader sees it – components, clips, the book's code move by themselves. Off: their clock holds, so the scene stands still while you place things; what is found still appears. The code is loaded either way.">
+          <Icon name={stage.live ? "pause" : "play"} /></button>
+        <button type="button" class="icon-button" onclick={() => stage?.resetNarrative()} aria-label="Restart" title="Restart: a new game – nothing found, no variables; every reveal plays again"
+          data-help-name="Restart" data-help="A new game on the stage: nothing found, every variable cleared, the timeline empty – the spread's targets are found anew and play their reveal, as a reader meets the page the first time.">
+          <Icon name="replay" /></button>
+      </span>
+    </div>
+  {/if}
 {/snippet}
 
-<div class="workspace" class:closed={shown === null} class:tree-closed={!treeOpen} class:dragging class:sheet-dragging={sheetDragging} bind:this={workspace}
-  style:--panel-width="{panelWidth}px" style:--tree-width={treeShown ? `${treeWidth}px` : undefined}
+{#snippet tabButtons()}
+  {#each TAB_BUTTONS as b (b.tab)}
+    {#if b.tab !== "tree" || narrow}
+      <!-- A phone, or a panel too narrow for the words, shows the tabs as icons, so the row stays one line (the
+           name is the tooltip and the label – #172) -->
+      <button type="button" class="pill tab" class:icon-tab={iconTabs} class:on={shown === b.tab} aria-pressed={shown === b.tab}
+        aria-label={iconTabs ? b.label : undefined} title={iconTabs ? `${b.label}${b.title ? ` – ${b.title}` : ""}` : b.title}
+        onclick={() => chooseTab(b.tab)}>{#if iconTabs}<Icon name={b.icon} />{:else}{b.label}{/if}</button>
+    {/if}
+  {/each}
+{/snippet}
+
+{#snippet treeBody()}
+  <TreePanel {stage} {spreadId} onselect={select} onaddtarget={() => { addingEntry = false; addingTarget = true; }}
+    onaddentry={() => { addingTarget = false; addingSpread = null; addingEntry = true; if (shown === null) setTab(lastTab); }}
+    onaddspread={canAddSpread ? openNewSpread : undefined} onremoveentry={removeEntry} />
+{/snippet}
+
+{#snippet panelBody()}
+  {#if removal}
+    <div class="body removal"><RemovalConfirm step={removal.step} busy={removalBusy} error={removalError} onconfirm={deleteFiles => void confirmRemoval(deleteFiles)} oncancel={() => (removal = null)} /></div>
+  {:else if addingTarget && spread}
+    <div class="body"><NewTargetForm {bookId} {spread} {stage} oncreated={targetCreated} oncancel={() => (addingTarget = false)} /></div>
+  {:else if addingSpread}
+    <div class="body"><NewSpreadForm {bookId} spreads={content.spreads} after={addingSpread.after} oncreated={spreadCreated} oncancel={() => (addingSpread = null)} /></div>
+  {:else if addingEntry && spread}
+    <div class="body"><NewEntryForm {bookId} {spread} oncreated={entryCreated} oncancel={() => (addingEntry = false)} /></div>
+  {:else if shown === "tree"}
+    <div class="body">{@render treeBody()}</div>
+  {:else if shown === "inspector"}
+    <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} onenvironment={() => openTab("environment")} /></div>
+  {:else if shown === "environment"}
+    <div class="body"><EnvironmentPanel {stage} {bookId} /></div>
+  {:else if shown === "library"}
+    <div class="body"><LibraryPanel {bookId} nodeType={selectedNodeType} targetId={selection.target} onuse={useAsset} onusetarget={useAsTargetImage} onchanged={reloadContent} onopencode={() => openTab("code")} /></div>
+  {:else if shown === "code"}
+    <div class="body code"><CodePanel {bookId} {stage} /></div>
+  {/if}
+{/snippet}
+
+<div class="workspace" class:floating={!narrow} class:holding={!!floats.held} class:closed={shown === null} class:sheet-dragging={sheetDragging} bind:this={workspace}
+  bind:clientWidth={workspaceWidth} bind:clientHeight={workspaceHeight}
   style:--sheet-height={narrow && shown !== null ? `${sheetHeight}px` : undefined} style:--sheet-row={sheetDragging ? `${sheetRow}px` : undefined}
   style:--sheet-fill={sheetDragging ? sheetBackground ?? undefined : undefined}>
-  <aside class="tree" data-app-ui>
-    <div class="bar">
-      {#if treeOpen}<span class="section-label grow">tree</span>{/if}
-      <button type="button" class="icon-button" onclick={() => setTreeOpen(!treeOpen)} title={treeOpen ? "Hide the tree" : "Show the tree"} aria-label={treeOpen ? "Hide the tree" : "Show the tree"} aria-expanded={treeOpen}>
-        <Icon name={treeOpen ? "previous" : "next"} />
-      </button>
-    </div>
-    {#if treeOpen}
-      <div class="body tree-body"><TreePanel {stage} {spreadId} onselect={select} onaddtarget={() => { addingEntry = false; addingTarget = true; }}
-        onaddentry={() => { addingTarget = false; addingSpread = null; addingEntry = true; if (shown === null) setTab(lastTab); }}
-        onaddspread={canAddSpread ? openNewSpread : undefined} onremoveentry={removeEntry} /></div>
-      <InfoView />
-      {#if treeShown}{@render edge("tree", "Tree edge")}{/if}
-    {/if}
-  </aside>
-
   <div class="stage" class:steps-up={narrow && stepsUp} bind:this={container} bind:clientWidth={stageWidth} bind:clientHeight={stageHeight}
     data-help-name="Stage" data-help={NAVIGATION_HELP}>
     {#if stage && stage.status === "running"}
-      <!-- Three groups, each one button and its menu or – where the toolbar has room – its options side by side, then
-           grid & snap and view, one button and its panel each; always one row (#180, #190, #229) -->
-      <div class="tools" role="toolbar" data-app-ui aria-label="Stage tools" bind:this={tools}>
-        <ToolGroup label="Transform" options={TRANSFORM_OPTIONS} value={stage.gizmoMode} expanded={expanded[0]}
-          onchoose={mode => stage?.setGizmoMode(mode as GizmoMode)} />
-        <ToolGroup label="Pick" options={PICK_OPTIONS} value={stage.pickMode} expanded={expanded[1]}
-          onchoose={mode => stage?.setPickMode(mode as PickMode)} />
-        <ToolGroup label="Shading" options={shadingOptions} value={stage.shading} expanded={expanded[2]} tight stroke={1.75}
-          onchoose={mode => updatePreview({ shading: mode as ShadingMode })} />
-        <GridSnapMenu />
-        <ViewMenu bind:this={viewMenu} format={spread?.format ?? "spread"} />
-        <!-- #269: the stage runs the book live (Unreal's Realtime) – Live off holds the entities' clock for placing; Restart is a new game -->
-        <span class="tool-group live" role="group" aria-label="Live">
-          <button type="button" class="icon-button" class:on={stage.live} aria-pressed={stage.live} onclick={() => stage?.setLive(!stage.live)}
-            aria-label={stage.live ? "Live: on" : "Live: off"} title={stage.live ? "Live: the scene moves by itself – click to hold it still for placing" : "Held: the scene stands still – click to let it move again"}
-            data-help-name="Live" data-help="On: the stage plays the book as a reader sees it – components, clips, the book's code move by themselves. Off: their clock holds, so the scene stands still while you place things; what is found still appears. The code is loaded either way.">
-            <Icon name={stage.live ? "pause" : "play"} /></button>
-          <button type="button" class="icon-button" onclick={() => stage?.resetNarrative()} aria-label="Restart" title="Restart: a new game – nothing found, no variables; every reveal plays again"
-            data-help-name="Restart" data-help="A new game on the stage: nothing found, every variable cleared, the timeline empty – the spread's targets are found anew and play their reveal, as a reader meets the page the first time.">
-            <Icon name="replay" /></button>
-        </span>
-      </div>
       {#if narrow}
+        {@render toolbar(false)}
         <!-- A phone: ‹ › through the spreads at the stage's lower corners, out of the sheet's head (#171); on a short
              stage at its top right, beside the toolbar (#177) -->
         <button type="button" class="icon-button framed step step-previous" data-app-ui onclick={() => step(-1)}
@@ -771,7 +818,7 @@
           ...(hasTree ? [{ label: hit.path.length ? "Remove node" : "Remove entity", select: menuRemoveNode }] : []),
           { label: "Placement on the page…", select: menuPlacement },
           { label: "Replay the first find", select: () => stage?.replayUnlock() },
-          { label: "Library…", select: () => setTab("library") },
+          { label: "Library…", select: () => chooseTab("library") },
           { label: "Remove target", danger: true, select: () => { const t = content.spread(spreadId)?.targets.find(x => x.id === hit.targetId); if (t) void removeEntry(t.entryId, t.id); } },
         ]} />
       {:else if stageMenu}
@@ -803,95 +850,76 @@
     {/if}
   </div>
 
-  {#if !narrow}
-    <div class="scenes-row">
-      <ScenesPanel {bookId} bookTitle={scenes.tree?.book.title ?? ""} current={spreadId} selectedGroup={selection.group} {sheetLayout}
-        pageImages={pageImages.bookId === bookId ? pageImages.byKey : {}} assetsBase={content.assetsBase ?? ""} onopen={id => void openScene(id)} onselectgroup={selectGroup} onstep={step} />
-    </div>
-  {/if}
-
-  <aside class="panel" data-app-ui>
-    {#if !narrow}{@render edge(panelColumn, "Panel edge")}{/if}
-    <!-- On a phone the head is the sheet's grip: a drag sets its height, a tap on a tab still opens or closes it -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="head" bind:offsetHeight={headHeight} onpointerdown={sheetDown} onpointermove={sheetMove} onpointerup={sheetUp}
-      onpointercancel={sheetUp} onlostpointercapture={sheetUp} onclickcapture={sheetClick}>
-    {#if narrow}
-      <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
-      <div class="grip" class:on={sheetDragging} role="separator" aria-orientation="horizontal" aria-label="Panel height" tabindex="0"
-        data-help-name="Panel height" data-help={SHEET_HELP} aria-valuenow={shown === null ? 0 : Math.round(sheetShare * 100)} aria-valuemin={0}
-        aria-valuemax={Math.round(SHEET_MAX * 100)} aria-valuetext={shown === null ? "closed" : `${Math.round(sheetShare * 100)} % of the screen`}
-        onkeydown={sheetKey}></div>
-    {/if}
-    <div class="bar" class:icons={iconTabs}>
-      {#if !narrow}
-        <!-- Back to the spreads is the top bar's book crumb (no × here – #250, #274); a phone has ‹ › on the stage: its head is
-             the tabs alone (#171) -->
-        <!-- ‹ › live in the Scenes panel's head (#307, Tilman 2026-11-18) -->
+  {#if narrow}
+    <aside class="panel" data-app-ui>
+      <!-- The head is the sheet's grip: a drag sets its height, a tap on a tab still opens or closes it -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="head" bind:offsetHeight={headHeight} onpointerdown={sheetDown} onpointermove={sheetMove} onpointerup={sheetUp}
+        onpointercancel={sheetUp} onlostpointercapture={sheetUp} onclickcapture={sheetClick}>
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+        <div class="grip" class:on={sheetDragging} role="separator" aria-orientation="horizontal" aria-label="Panel height" tabindex="0"
+          data-help-name="Panel height" data-help={SHEET_HELP} aria-valuenow={shown === null ? 0 : Math.round(sheetShare * 100)} aria-valuemin={0}
+          aria-valuemax={Math.round(SHEET_MAX * 100)} aria-valuetext={shown === null ? "closed" : `${Math.round(sheetShare * 100)} % of the screen`}
+          onkeydown={sheetKey}></div>
+        <div class="bar icons">{@render tabButtons()}</div>
+      </div>
+      {@render panelBody()}
+    </aside>
+  {:else}
+    <!-- Desktop and iPad (#308): the panels float over the stage, in the order of growth -->
+    <FloatingPanel {floats} id="tree">
+      <div class="float-body"><div class="body tree-body">{@render treeBody()}</div></div>
+    </FloatingPanel>
+    <FloatingPanel {floats} id="inspector">
+      {#snippet head()}
+        <!-- Back to the spreads is the top bar's book crumb; ‹ › live in the Scenes panel's head (#307) -->
+        <span class="float-tabs" role="group" aria-label="Inspector tabs">{@render tabButtons()}</span>
         {#if canAddSpread && atLastSpread}
           <button type="button" class="icon-button" onclick={() => openNewSpread(spreadId)} title="Add a spread after the last one" aria-label="Add a spread"
             data-help-name="Add a spread" data-help="Opens the creation step for a new spread – a double page after this one, or a cover the book does not have yet."><Icon name="plus" /></button>
         {/if}
-        <span class="grow"></span>
-      {/if}
-      {#each TAB_BUTTONS as b (b.tab)}
-        {#if b.tab !== "tree" || narrow}
-          <!-- A phone, or a panel too narrow for the words, shows the tabs as icons, so the row stays one line (the
-               name is the tooltip and the label – #172) -->
-          <button type="button" class="pill tab" class:icon-tab={iconTabs} class:on={shown === b.tab} aria-pressed={shown === b.tab}
-            aria-label={iconTabs ? b.label : undefined} title={iconTabs ? `${b.label}${b.title ? ` – ${b.title}` : ""}` : b.title}
-            onclick={() => setTab(b.tab)}>{#if iconTabs}<Icon name={b.icon} />{:else}{b.label}{/if}</button>
-        {/if}
-      {/each}
-    </div>
-    </div>
-    {#if removal}
-      <div class="body removal"><RemovalConfirm step={removal.step} busy={removalBusy} error={removalError} onconfirm={deleteFiles => void confirmRemoval(deleteFiles)} oncancel={() => (removal = null)} /></div>
-    {:else if addingTarget && spread}
-      <div class="body"><NewTargetForm {bookId} {spread} {stage} oncreated={targetCreated} oncancel={() => (addingTarget = false)} /></div>
-    {:else if addingSpread}
-      <div class="body"><NewSpreadForm {bookId} spreads={content.spreads} after={addingSpread.after} oncreated={spreadCreated} oncancel={() => (addingSpread = null)} /></div>
-    {:else if addingEntry && spread}
-      <div class="body"><NewEntryForm {bookId} {spread} oncreated={entryCreated} oncancel={() => (addingEntry = false)} /></div>
-    {:else if shown === "tree"}
-      <div class="body"><TreePanel {stage} {spreadId} onselect={select} onaddtarget={() => { addingEntry = false; addingTarget = true; }}
-        onaddentry={() => { addingTarget = false; addingSpread = null; addingEntry = true; }} onaddspread={canAddSpread ? openNewSpread : undefined} onremoveentry={removeEntry} /></div>
-    {:else if shown === "inspector"}
-      <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} onenvironment={() => openTab("environment")} /></div>
-    {:else if shown === "environment"}
-      <div class="body"><EnvironmentPanel {stage} {bookId} /></div>
-    {:else if shown === "library"}
-      <div class="body"><LibraryPanel {bookId} nodeType={selectedNodeType} targetId={selection.target} onuse={useAsset} onusetarget={useAsTargetImage} onchanged={reloadContent} onopencode={() => openTab("code")} /></div>
-    {:else if shown === "code"}
-      <div class="body code"><CodePanel {bookId} {stage} /></div>
+      {/snippet}
+      <div class="float-body inspector">{@render panelBody()}</div>
+    </FloatingPanel>
+    <FloatingPanel {floats} id="scenes">
+      <ScenesPanel {bookId} bookTitle={scenes.tree?.book.title ?? ""} current={spreadId} selectedGroup={selection.group} {sheetLayout} floating
+        pageImages={pageImages.bookId === bookId ? pageImages.byKey : {}} assetsBase={content.assetsBase ?? ""} onopen={id => void openScene(id)} onselectgroup={selectGroup} onstep={step} />
+    </FloatingPanel>
+    <FloatingPanel {floats} id="info">
+      <InfoView floating />
+    </FloatingPanel>
+    {#if stage && stage.status === "running"}
+      <FloatingPanel {floats} id="tools" label="Stage tools">{@render toolbar(true)}</FloatingPanel>
     {/if}
-  </aside>
+  {/if}
 </div>
 
 <style>
-  .workspace { position: fixed; inset: var(--top-height) 0 0; display: grid; grid-template-columns: var(--tree-width) minmax(0, 1fr) var(--panel-width);
-    grid-template-rows: minmax(0, 1fr) auto; background: var(--stage-background); }
-  /* The tree and the panel take the whole height; the stage column ends in the Scenes panel (#307) */
-  .workspace > .tree { grid-column: 1; grid-row: 1 / 3; }
-  .workspace > .panel { grid-column: 3; grid-row: 1 / 3; }
-  .workspace > .stage { grid-column: 2; grid-row: 1; }
-  .scenes-row { grid-column: 2; grid-row: 2; min-width: 0; display: flex; flex-direction: column; }
-  .workspace.tree-closed { --tree-width: auto; }
-  .workspace.dragging { cursor: col-resize; user-select: none; }
-  .tree { position: relative; display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-right: 1px solid var(--line); color: var(--text); }
-  .tree .bar { padding-left: .5rem; }
-  .tree-closed .tree .bar { padding-left: .375rem; }
+  /* A phone: the stage over the sheet */
+  .workspace { position: fixed; inset: var(--top-height) 0 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto;
+    background: var(--stage-background); }
+  /* Desktop and iPad (#308): the stage is the whole window, the panels float over it */
+  .workspace.floating { display: block; }
+  .workspace.floating > .stage { position: absolute; inset: 0; }
+  .workspace.holding { user-select: none; }
+  .workspace.holding .stage :global(iframe.stage-frame) { pointer-events: none; }
+  .float-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .float-body.inspector { min-width: 0; }
+  .float-tabs { display: flex; align-items: center; gap: .125rem; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .float-tabs .tab { flex: none; padding: 0 .375rem; }
+  .float-tabs .tab.on { background: var(--surface); }
+  .float-tabs .tab.icon-tab { padding: 0; width: var(--control-height); justify-content: center; }
+  .tools.inline { position: static; width: max-content; max-width: none; padding: 0; border: 0; background: none; flex-wrap: nowrap; }
   .tree-body { padding: .25rem .375rem .75rem; }
-  .grow { flex: 1; }
   .stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
-  /* The stage frame (#234) under the toolbar and the notices; a column or sheet drag over it stays the page's */
+  /* The stage frame (#234) under the toolbar and the notices; a panel or sheet drag over it stays the page's */
   .stage :global(iframe.stage-frame) { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border: 0; }
-  .workspace.dragging .stage :global(iframe.stage-frame), .workspace.sheet-dragging .stage :global(iframe.stage-frame) { pointer-events: none; }
+  .workspace.sheet-dragging .stage :global(iframe.stage-frame) { pointer-events: none; }
   .subtitle { position: absolute; left: 50%; bottom: 3rem; transform: translateX(-50%); z-index: 1; margin: 0; max-width: min(34rem, calc(100% - 2rem)); padding: .25rem .75rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); text-align: center; white-space: pre-line; pointer-events: none; }
   .notice { position: absolute; left: 50%; top: 1rem; transform: translateX(-50%); margin: 0; padding: .25rem .75rem; border-radius: var(--control-radius); background: var(--surface); }
   /* Above ‹ › so a group's menu covers them; the page computes the groups' widths from these sizes */
   .tools { position: absolute; left: .5rem; top: .5rem; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: .125rem; max-width: calc(100% - 1rem); padding: .125rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
-  .live { display: flex; gap: .125rem; }
+  .live, .filters { display: flex; gap: .125rem; }
   .live .on { color: var(--accent, currentColor); }
   .tools :global(.tool-group + .tool-group) { margin-left: .125rem; padding-left: .25rem; border-left: 1px solid var(--line); }
   .step { position: absolute; bottom: .5rem; z-index: 1; color: var(--text); }
@@ -905,7 +933,7 @@
   .pick-chip { position: absolute; pointer-events: none; display: inline-flex; align-items: center; gap: .375rem; height: var(--control-height); padding: 0 .5rem;
     border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); font-size: var(--text-small); font-family: ui-monospace, Consolas, monospace; }
   .pick-chip::before { content: ""; width: .875rem; height: .875rem; border-radius: 50%; border: 1px solid var(--line); background: var(--c); }
-  .panel { position: relative; display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-left: 1px solid var(--line); color: var(--text); }
+  .panel { position: relative; display: flex; flex-direction: column; min-height: 0; background: var(--surface); color: var(--text); }
   .bar { flex: none; display: flex; align-items: center; gap: .125rem; padding: .25rem .375rem; background: var(--surface-head); border-bottom: 1px solid var(--line); }
   .panel .bar { flex-wrap: wrap; }
   .head { flex: none; }
@@ -916,32 +944,12 @@
   .body { flex: 1; min-height: 0; overflow-y: auto; padding: .375rem .5rem .75rem; display: flex; flex-direction: column; gap: .125rem; container: panel / inline-size; }
   .body.code { overflow: hidden; }
   .icon-button { text-decoration: none; }
-  .edge { position: absolute; top: 0; bottom: 0; z-index: 3; width: .5rem; cursor: col-resize; touch-action: none; outline: none; }
-  .edge-right { right: -.25rem; }
-  .edge-left { left: -.25rem; }
-  .edge::before { content: ""; position: absolute; top: 0; bottom: 0; left: calc(50% - 1px); width: 2px; background: var(--muted); opacity: 0; transition: opacity .1s; }
-  .edge::after { content: ""; position: absolute; top: calc(50% - .75rem); left: calc(50% - 2px); width: 4px; height: 1.5rem; border-radius: 2px; background: var(--muted); opacity: .6; }
-  .edge:focus-visible::before, .edge.on::before { opacity: 1; }
-  .edge:focus-visible::after, .edge.on::after { opacity: 1; background: var(--text); }
-  @media (hover: hover) {
-    .edge:hover::before { opacity: 1; }
-    .edge:hover::after { opacity: 1; background: var(--text); }
-  }
-  /* A finger gets a wider edge, mostly over the stage, so the panel's first button stays free */
-  @media (pointer: coarse) {
-    .edge { width: 1.25rem; }
-    .edge-right { right: -1rem; }
-    .edge-left { left: -1rem; }
-  }
 
   @media (max-width: 47.9rem) {
-    .workspace { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
-    .workspace > .stage, .workspace > .panel { grid-column: 1; grid-row: auto; }
-    .tree { display: none; }
     .workspace.sheet-dragging { cursor: row-resize; user-select: none; grid-template-rows: minmax(0, 1fr) var(--sheet-row); background: var(--sheet-fill, var(--stage-background)); }
     /* The stage (a WebGL canvas) resizes once, on release – not while the sheet is dragged */
     .workspace.sheet-dragging .panel { align-self: end; position: relative; z-index: 4; }
-    .panel { height: var(--sheet-height, auto); border-left: none; border-top: 1px solid var(--line); }
+    .panel { height: var(--sheet-height, auto); border-top: 1px solid var(--line); }
     /* The grip and the tab row take the drag; the panel's content still scrolls */
     .head { touch-action: none; background: var(--surface-head); }
     /* A drag that starts just above the bar must not land on the stage and orbit it */

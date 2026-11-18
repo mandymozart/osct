@@ -17,6 +17,13 @@ import { outline, SELECTION_COLOR, type Outline } from "./shading";
 export type GizmoMode = "translate" | "rotate" | "scale";
 export const GIZMO_MODES: readonly GizmoMode[] = ["translate", "rotate", "scale"];
 export const GIZMO_KEYS: Record<string, GizmoMode> = { w: "translate", e: "rotate", r: "scale" };
+/**
+ * The tool in hand (#308): **select**, a plain pointer – a click picks, the selection is outlined, no gizmo – or one of
+ * the gizmo's modes. Q / W / E / R.
+ */
+export type StageTool = "select" | GizmoMode;
+export const STAGE_TOOLS: readonly StageTool[] = ["select", ...GIZMO_MODES];
+export const TOOL_KEYS: Record<string, StageTool> = { q: "select", ...GIZMO_KEYS };
 /** A click this soon after a drag ended is the drag's own click, not a tap */
 const DRAG_CLICK_MS = 300;
 
@@ -147,6 +154,20 @@ export class Gizmo {
     return this.dragging || performance.now() - this.dragEndedAt < DRAG_CLICK_MS;
   }
 
+  /** The handles show (a gizmo mode); off (the select tool) the selected node is only outlined */
+  get handles(): boolean {
+    return this.showHandles;
+  }
+
+  set handles(on: boolean) {
+    if (on === this.showHandles) return;
+    this.showHandles = on;
+    if (on && this.attached) this.controls.attach(this.attached);
+    else this.controls.detach();
+  }
+
+  private showHandles = true;
+
   /** Put the gizmo on a node (null = none) */
   select(selection: GizmoSelection | null): void {
     this.selection = selection;
@@ -156,11 +177,11 @@ export class Gizmo {
   /** Attach the selected node's current object (the scene may have rebuilt it) and outline it */
   sync(): void {
     const object = this.selection ? this.inspection.nodeObject(this.selection.targetId, this.selection.path) : null;
-    if (object === this.attached && (object ? this.controls.object === object : true)) return;
+    if (object === this.attached && (object && this.showHandles ? this.controls.object === object : true)) return;
     this.attached = object;
     this.selectionOutline?.remove();
     this.selectionOutline = object ? outline(object, SELECTION_COLOR) : null;
-    if (object) this.controls.attach(object);
+    if (object && this.showHandles) this.controls.attach(object);
     else this.controls.detach();
   }
 

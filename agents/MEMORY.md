@@ -4,6 +4,31 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-18 – Floating panels in the scene workspace, the select tool and its filters (#308)
+- The scene workspace's panels float over a full-window stage on desktop and iPad (after the SCUTOONS deck editor's
+  `floats.rs`, ported as a concept, nothing shared in code): `components/FloatingPanel.svelte` + pure `components/floats.ts`
+  + `components/floats.svelte.ts` (`Floats`, one per workspace; the top bar's panels menu reaches it through
+  `openFloats`). Specs: Tree TL (fill height), Inspector TR (fill, essential), Scenes BL between them (fill width), Info BL
+  folded, Tools TL beside the Tree (inline, essential – my reading: the deck's Build Tools is essential too, and closing
+  the toolbar would leave no way to the tools but the panels menu). The deck's growth order and corner places are kept;
+  the deck's drag stops at other panels (sweep) – here a held panel moves freely over the others and **settles** when let
+  go (snap 12 px, else the nearest free place), so panels can pass each other. Layout per workspace in
+  `osct-editor-panels`; the Scenes panel's own `osct-editor-scenes` height / open state is unused while it floats.
+- **The phone keeps the sheet** (#171) – nothing extended there. The desktop's column edges are gone with the columns
+  (the panels resize by their own edges): `widths.svelte.ts` keeps the sheet; its tree / panel / code widths and
+  `treeStartsOpen` (and the stored `osct-editor-tree`) are unused now.
+- **The select tool** (Q, the default tool): no gizmo handles, the selection outlined; move / rotate / scale W / E / R.
+  The pick modes (#192, strict, one at a time) became **filters** in Tilman's order entities, targets, models, nodes –
+  toggles, none on = anything (the nearest hit at its finest), several on = the nearest hit any takes at the finest level
+  on (nodes > models > entities) – my reading of "a toggle saying what a click may pick". *Models* = the model node a hit
+  belongs to (itself or the nearest model above it). The filters hold for every tool. The frame protocol's state carries
+  `pickFilter` / `tool` (`setPickFilter`, `setTool`) instead of `pickMode` / `gizmoMode`.
+- **Render quality** = the shading group (wire / solid / textured / rendered) – my reading of Tilman's word; always one
+  button with its menu now.
+- The book page went with #313 (1.105.0) while this was built – the scene workspace is the editor's one workspace
+  with panels, so #308's "book page" part has nothing left to float.
+- [ ] Remove the unused column widths in `widths.svelte.ts` and the stored `osct-editor-tree` (RULES #15).
+
 ## 2026-11-18 – The world café is gone; world tracking is its own epic (#310, #299)
 Tilman: the built-in café "makes not much sense" – removed (1.104.0); the look-around keeps an experience's own world
 model and sky image. World tracking (#299) becomes its own epic for Kévin's next show, in France, summer 2027.

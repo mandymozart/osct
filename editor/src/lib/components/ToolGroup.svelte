@@ -17,23 +17,36 @@
    * its name as tooltip and label (the Info view's help). The menu is a WAI-ARIA menu of radio items: ↑ ↓ (← →) move,
    * Home / End, Enter or Space choose, Esc or Tab close – Esc and a choice return the focus to the button; a tap
    * outside closes it (the backdrop takes that tap, so it picks nothing on the stage). It is fixed to the screen,
-   * so a short stage (the phone's sheet almost full) does not clip it.
+   * so a short stage (the phone's sheet almost full) does not clip it. With `selected` the group is a set of
+   * **toggles** (the select tool's filters, #308): each option on or off, the menu's items are checkboxes and stay open
+   * after a choice; collapsed, its button shows the one option on, else `icon`.
    */
-  let { label, options, value, expanded = false, tight = false, stroke = 2, onchoose }: {
+  let { label, options, value = "", selected, icon, expanded = false, tight = false, stroke = 2, onchoose }: {
     /** The group's name ("Transform") */
     label: string;
     options: readonly ToolGroupOption[];
     /** The active option's value */
-    value: string;
+    value?: string;
+    /** Toggles: the options that are on (instead of one `value`) */
+    selected?: readonly string[];
+    /** Toggles, collapsed: the button's icon unless exactly one option is on */
+    icon?: IconName;
     /** Its options side by side instead of the button and its menu */
     expanded?: boolean;
     /** The buttons shoulder to shoulder (the shading spheres) */
     tight?: boolean;
     stroke?: number;
+    /** An option chosen – or, toggles, switched */
     onchoose: (value: string) => void;
   } = $props();
 
-  const active = $derived(activeOption(options, value));
+  const toggles = $derived(selected !== undefined);
+  const isOn = (option: ToolGroupOption) => (selected ? selected.includes(option.value) : option.value === active.value);
+  const active = $derived(activeOption(options, selected ? (selected[0] ?? "") : value));
+  /** Toggles: the button's icon and the names of the options on */
+  const onNames = $derived(selected ? options.filter(o => selected.includes(o.value)).map(o => o.name) : []);
+  const buttonIcon = $derived<IconName>(!selected ? active.icon : selected.length === 1 ? active.icon : (icon ?? active.icon));
+  const buttonName = $derived(!selected ? active.name : onNames.length ? onNames.join(", ") : "anything");
   const menuId = `tool-menu-${Math.random().toString(36).slice(2, 9)}`;
   let open = $state(false);
   let trigger = $state<HTMLButtonElement>();
@@ -56,7 +69,7 @@
       const top = r.bottom + 2 + m.height > window.innerHeight - 4 ? Math.max(4, r.top - 2 - m.height) : r.bottom + 2;
       at = { left, top };
     }
-    focusItem(activeIndex(options, value));
+    focusItem(toggles ? 0 : activeIndex(options, value));
   };
   const close = (refocus: boolean) => {
     open = false;
@@ -64,7 +77,7 @@
   };
   const choose = (next: string) => {
     onchoose(next);
-    close(true);
+    if (!toggles) close(true);
   };
   // A tap anywhere the backdrop does not reach (the top bar) closes it too
   $effect(() => {
@@ -108,22 +121,23 @@
 <span class="tool-group" class:tight={tight && expanded} role="group" aria-label={label}>
   {#if expanded}
     {#each options as option (option.value)}
-      <button type="button" class="icon-button" class:on={option.value === active.value} aria-pressed={option.value === active.value}
+      <button type="button" class="icon-button" class:on={isOn(option)} aria-pressed={isOn(option)}
         title={option.label} aria-label={option.label} onclick={() => onchoose(option.value)}><Icon name={option.icon} {stroke} /></button>
     {/each}
   {:else}
     <button bind:this={trigger} type="button" class="icon-button group-button" class:open aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined}
-      title="{label}: {active.label} – tap for the others" aria-label="{label}: {active.name}" onclick={() => (open ? close(false) : void show())} onkeydown={triggerKey}>
-      <Icon name={active.icon} {stroke} />
+      title={toggles ? `${label}: ${buttonName} – tap to switch` : `${label}: ${active.label} – tap for the others`} aria-label="{label}: {buttonName}"
+      onclick={() => (open ? close(false) : void show())} onkeydown={triggerKey}>
+      <Icon name={buttonIcon} {stroke} />
     </button>
     {#if open}
       <button type="button" class="backdrop" tabindex="-1" aria-label="Close the menu" onclick={() => close(false)}></button>
       <!-- svelte-ignore a11y_interactive_supports_focus -->
       <div bind:this={menu} id={menuId} class="flyout" role="menu" aria-label={label} tabindex="-1" style:left="{at.left}px" style:top="{at.top}px" onkeydown={menuKey}>
         {#each options as option, i (option.value)}
-          <button bind:this={items[i]} type="button" class="item" class:on={option.value === active.value} role="menuitemradio" aria-checked={option.value === active.value}
-            tabindex={option.value === active.value ? 0 : -1} title={option.label} aria-label={option.label} onclick={() => choose(option.value)}>
-            <Icon name={option.icon} {stroke} /><span class="name">{option.name}</span>{#if option.key}<kbd class="small muted">{option.key}</kbd>{/if}
+          <button bind:this={items[i]} type="button" class="item" class:on={isOn(option)} role={toggles ? "menuitemcheckbox" : "menuitemradio"} aria-checked={isOn(option)}
+            tabindex={(toggles ? i === 0 : option.value === active.value) ? 0 : -1} title={option.label} aria-label={option.label} onclick={() => choose(option.value)}>
+            <Icon name={option.icon} {stroke} /><span class="name">{option.name}</span>{#if option.key}<kbd class="small muted">{option.key}</kbd>{/if}{#if toggles}<span class="check" class:shown={isOn(option)}><Icon name="check" size=".875rem" /></span>{/if}
           </button>
         {/each}
       </div>
@@ -142,6 +156,8 @@
   .item { display: flex; align-items: center; gap: .5rem; height: var(--control-height); padding: 0 .625rem; border: none; border-radius: var(--control-radius); background: none; color: inherit; text-align: left; cursor: pointer; white-space: nowrap; }
   .item.on { background: var(--pressed-background); color: var(--pressed-color); }
   .name { flex: 1; }
+  .check { display: inline-flex; visibility: hidden; }
+  .check.shown { visibility: visible; }
   kbd { font-family: inherit; }
   @media (hover: hover) {
     .item:hover { background: var(--hover-background); }

@@ -5,28 +5,36 @@
 
   /**
    * The **Info view** (like Ableton's): the name and description of the control under the pointer or in focus
-   * (`help`). Collapsible to its header; the open state is stored. One per page – it follows the whole document.
+   * (`help`). Collapsible to its header; the open state is stored. One per page – it follows the whole document. In a
+   * floating panel (`floating`, #308) the panel's head folds it: the view is its body alone, as tall as the panel.
    */
+  let { floating = false }: { floating?: boolean } = $props();
   onMount(() => help.listen(document));
 </script>
 
+{#snippet body()}
+  <div class="body" aria-live="polite">
+    {#if help.current}
+      {#if help.current.name}<strong class="name">{help.current.name}</strong>{/if}
+      <p class="text">{help.current.text}</p>
+    {:else}
+      <p class="text muted">Point at a control to see what it does.</p>
+    {/if}
+  </div>
+{/snippet}
+
+{#if floating}
+  <section class="info floating" aria-label="Info" data-app-ui>{@render body()}</section>
+{:else}
 <section class="info" class:closed={!help.open} aria-label="Info" data-app-ui>
   <button type="button" class="head" aria-expanded={help.open} onclick={() => help.setOpen(!help.open)}
     data-help="The name and description of the control under the pointer or in focus. Click to show or hide it.">
     <Icon name={help.open ? "down" : "up"} size=".875rem" />
     <span class="section-label">info</span>
   </button>
-  {#if help.open}
-    <div class="body" aria-live="polite">
-      {#if help.current}
-        {#if help.current.name}<strong class="name">{help.current.name}</strong>{/if}
-        <p class="text">{help.current.text}</p>
-      {:else}
-        <p class="text muted">Point at a control to see what it does.</p>
-      {/if}
-    </div>
-  {/if}
+  {#if help.open}{@render body()}{/if}
 </section>
+{/if}
 
 <style>
   .info { flex: none; display: flex; flex-direction: column; border-top: 1px solid var(--line); background: var(--surface); }
@@ -35,6 +43,8 @@
     .head:hover, .head:hover .section-label { color: var(--text); }
   }
   .body { height: 9rem; overflow-y: auto; padding: .375rem .625rem .5rem; }
+  .info.floating { flex: 1; min-height: 0; border-top: 0; background: none; }
+  .floating .body { flex: 1; height: auto; }
   .name { display: block; margin-bottom: .25rem; font-weight: 600; }
   .text { margin: 0; overflow-wrap: anywhere; }
 </style>

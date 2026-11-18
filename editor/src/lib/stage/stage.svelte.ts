@@ -16,15 +16,15 @@ import {
   type ContentSnapshot, FRAME_SANDBOX, type FrameEvent, type FrameInit, FrameRequests, type LayoutSnapshot, readFrameEvent, readFrameReply,
   NO_ANSWER, REMOVED_ENTITY, REMOVED_WIRE, type RunResult, type TimelineSnapshot,
 } from "./frame-protocol";
-import type { GizmoMode } from "./gizmo";
-import type { PickMode, StagePick } from "./pick";
+import type { StageTool } from "./gizmo";
+import type { PickFilter, PickKind, StagePick } from "./pick";
 import { applyPreviewSync, getPreview, previewSync, subscribePreview, type ShadingMode } from "./preview";
 import type { StageEvent } from "./event-log";
 import type { GhostPlace } from "./stage-core.svelte";
 import { DEFAULT_PAGE_MM } from "./stage-layout";
 
 export type { StageEvent } from "./event-log";
-export type { PickMode, StagePick } from "./pick";
+export type { PickFilter, PickKind, StagePick } from "./pick";
 export type { GhostPlace } from "./stage-core.svelte";
 
 /**
@@ -61,14 +61,14 @@ export class Stage {
   onContextMenu: ((hit: StagePick | null, clientX: number, clientY: number) => void) | null = null;
   /** The form or the panel editing a placement listens: a handle moved it */
   onGhostChange: ((place: { surface: PrintSurface; x: number; y: number; width: number; height?: number }) => void) | null = null;
-  /** What a click picks (Blender's select mode): an entity, the node under the pointer, or a printed target */
-  pickMode = $state<PickMode>("entity");
+  /** What a click may pick – the select tool's filters: entities, targets, models, nodes; none on = anything */
+  pickFilter = $state<PickKind[]>([]);
   /** The viewport's shading (stored with the preview settings) */
   shading = $state<ShadingMode>(getPreview().shading);
   /** The environment's world is drawn under the stage now (the toolbar says so) */
   world = $state(false);
-  /** The gizmo's mode (the toolbar shows it) */
-  gizmoMode = $state<GizmoMode>("translate");
+  /** The tool in hand (the toolbar shows it): select – no gizmo – or a gizmo mode */
+  tool = $state<StageTool>("select");
   /** The plugins' variables with their scopes (the Inspector lists them) */
   vars = $state<Array<{ scope: VarScope; name: string; value: VarValue }>>([]);
   /** The stage's event timeline, newest first */
@@ -168,9 +168,9 @@ export class Stage {
         this.error = state.error;
         this.found = state.found;
         this.subtitle = state.subtitle;
-        this.pickMode = state.pickMode;
+        this.pickFilter = state.pickFilter;
         this.world = state.world;
-        this.gizmoMode = state.gizmoMode;
+        this.tool = state.tool;
         break;
       }
       case "vars":
@@ -261,8 +261,8 @@ export class Stage {
     if (this.appearance) void this.send("overrideAppearance", [this.appearance]);
     if (this.environment) void this.send("showEnvironment", [this.environment.environment, this.environment.previewing]);
     if (this.lookUp) void this.send("setLookUp", [this.lookUp]);
-    void this.send("setPickMode", [this.pickMode]);
-    void this.send("setGizmoMode", [this.gizmoMode]);
+    void this.send("setPickFilter", [this.pickFilter]);
+    void this.send("setTool", [this.tool]);
     void this.send("selectNode", this.selected.node);
     void this.send("selectTarget", [this.selected.target]);
     if (this.ghostPlace) void this.send("ghost", [this.ghostPlace]);
@@ -449,14 +449,14 @@ export class Stage {
     void this.send("selectTarget", [targetId]);
   }
 
-  setPickMode(mode: PickMode): void {
-    this.pickMode = mode;
-    void this.send("setPickMode", [mode]);
+  setPickFilter(filter: PickFilter): void {
+    this.pickFilter = [...filter];
+    void this.send("setPickFilter", [[...filter]]);
   }
 
-  setGizmoMode(mode: GizmoMode): void {
-    this.gizmoMode = mode;
-    void this.send("setGizmoMode", [mode]);
+  setTool(tool: StageTool): void {
+    this.tool = tool;
+    void this.send("setTool", [tool]);
   }
 
   /** Shift or Ctrl held (true) or let go: snapping is turned around while it is held */

@@ -3,8 +3,8 @@ import type { ArStatus, EntityData } from "@engine/types";
 import type { PrintPlacement } from "@shared/types/game-config";
 import { PRINT_SURFACES } from "@shared/types/game-config";
 import { isObject } from "@shared/guards/primitives";
-import { GIZMO_KEYS, GIZMO_MODES, type GizmoMode, type GizmoPlacement } from "./gizmo";
-import type { PickMode, StagePick } from "./pick";
+import { STAGE_TOOLS, TOOL_KEYS, type GizmoPlacement, type StageTool } from "./gizmo";
+import { PICK_KINDS, type PickKind, type StagePick } from "./pick";
 import { SHADING_MODES, type ShadingMode } from "./preview";
 import type { StageEvent } from "./event-log";
 
@@ -66,10 +66,10 @@ export interface StageState {
   found: string[];
   /** The subtitle line of the video that plays (the scene's `subtitle`), null when there is none */
   subtitle: string | null;
-  pickMode: PickMode;
+  pickFilter: PickKind[];
   shading: ShadingMode;
   world: boolean;
-  gizmoMode: GizmoMode;
+  tool: StageTool;
 }
 
 /** Where the stage lays the spread's targets out: the page format (mm) and per target its layout place and its place */
@@ -136,7 +136,7 @@ export const NO_ANSWER = "the stage did not answer";
 
 /** The methods the frame answers (`frame-host.svelte.ts`) */
 export const FRAME_METHODS = [
-  "init", "content", "open", "refresh", "relayout", "pageImages", "override", "overridePasses", "overrideAppearance", "playMoment", "selectNode", "selectTarget", "setPickMode", "setGizmoMode",
+  "init", "content", "open", "refresh", "relayout", "pageImages", "override", "overridePasses", "overrideAppearance", "playMoment", "selectNode", "selectTarget", "setPickFilter", "setTool",
   "setSnapModifier", "showEnvironment", "setLookUp", "ghost", "preview", "replayUnlock", "resetNarrative", "setLive", "clearEvents", "setVar", "tap",
   "sampleColor", "sampleBottom", "timeline", "runPlugin",
 ] as const;
@@ -153,7 +153,6 @@ const isPath = (value: unknown): value is number[] => Array.isArray(value) && va
 const isId = (value: unknown): value is string => isString(value) && value.length > 0 && value.length <= 200;
 const isVector = (value: unknown): value is [number, number, number] => Array.isArray(value) && value.length === 3 && value.every(isFiniteNumber);
 const AR_STATUSES: readonly ArStatus[] = ["idle", "loading", "ready", "starting", "running", "paused", "error"];
-const PICK_MODES: readonly PickMode[] = ["entity", "node", "target"];
 const LOG_LEVELS: readonly FrameLog["level"][] = ["info", "warn", "error"];
 /** How long a log line may be (a plugin logging a whole buffer is cut) */
 export const LOG_MAX = 2000;
@@ -166,11 +165,11 @@ const isPlacement = (value: unknown): value is PrintPlacement =>
   && (value.height === undefined || isFiniteNumber(value.height));
 
 /**
- * The keys a frame may forward to the page: Shift and Control (snapping turned around), ← → (the spreads), the gizmo's
- * mode keys, Delete / Backspace (the node the page selected, removed like every edit of it), Escape. Nothing else
+ * The keys a frame may forward to the page: Shift and Control (snapping turned around), ← → (the spreads), the tools'
+ * keys, Delete / Backspace (the node the page selected, removed like every edit of it), Escape. Nothing else
  * reaches the page's shortcuts.
  */
-export const FORWARDED_KEYS: readonly string[] = ["Shift", "Control", "ArrowLeft", "ArrowRight", "Delete", "Backspace", "Escape", ...Object.keys(GIZMO_KEYS)];
+export const FORWARDED_KEYS: readonly string[] = ["Shift", "Control", "ArrowLeft", "ArrowRight", "Delete", "Backspace", "Escape", ...Object.keys(TOOL_KEYS)];
 
 /** A key the frame may forward (letters case-insensitively; never with Ctrl, Meta or Alt held unless it is a modifier itself) */
 export const isForwardedKey = (key: KeyForward): boolean => {
@@ -190,8 +189,8 @@ const CHECKS: { [N in FrameEventName]: (data: unknown) => boolean } = {
   state: data => isObject(data) && AR_STATUSES.includes(data.status as ArStatus) && (data.error === null || isString(data.error))
     && (data.spreadId === null || isId(data.spreadId)) && Array.isArray(data.found) && data.found.every(isId)
     && (data.subtitle === null || isString(data.subtitle))
-    && PICK_MODES.includes(data.pickMode as PickMode) && SHADING_MODES.includes(data.shading as ShadingMode) && typeof data.world === "boolean"
-    && GIZMO_MODES.includes(data.gizmoMode as GizmoMode),
+    && Array.isArray(data.pickFilter) && data.pickFilter.every(kind => PICK_KINDS.includes(kind as PickKind))
+    && SHADING_MODES.includes(data.shading as ShadingMode) && typeof data.world === "boolean" && STAGE_TOOLS.includes(data.tool as StageTool),
   vars: data => Array.isArray(data) && data.every(v => isObject(v) && isString(v.scope) && isString(v.name)),
   events: data => Array.isArray(data) && data.every(e => isObject(e) && isString(e.event) && isString(e.detail) && isFiniteNumber(e.at)),
   registry: data => isObject(data) && isObject(data.plugins) && Object.values(data.plugins).every(isObject) && isObject(data.failures)

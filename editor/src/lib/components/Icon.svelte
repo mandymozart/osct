@@ -76,6 +76,20 @@
     /* feather upload-cloud */
     publish: '<polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>',
     link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>',
+    /** The select tool: a plain pointer (Feather mouse-pointer, #308) */
+    pointer: '<path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="M13 13l6 6"></path>',
+    /** A floating panel's handle: the dots it is dragged by (#308) */
+    grip: '<circle cx="9" cy="6" r=".75"></circle><circle cx="15" cy="6" r=".75"></circle><circle cx="9" cy="12" r=".75"></circle><circle cx="15" cy="12" r=".75"></circle><circle cx="9" cy="18" r=".75"></circle><circle cx="15" cy="18" r=".75"></circle>',
+    /** The Info panel (Feather info) */
+    info: '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>',
+    /** The Scenes panel: a filmstrip (Feather film) */
+    film: '<rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line>',
+    /** The stage's toolbar panel (Feather tool) */
+    tool: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>',
+    /** The top bar's panels menu: which floating panels show, Reset layout (Feather layout) */
+    panels: '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line>',
+    /** A menu item that is on (Feather check) */
+    check: '<polyline points="20 6 9 17 4 12"></polyline>',
   } as const;
   export type IconName = keyof typeof ICONS;
 </script>
