@@ -270,14 +270,24 @@ declare const SURFACE_SIDES: readonly [
 	"wall"
 ];
 type SurfaceSide = (typeof SURFACE_SIDES)[number];
+interface SurfacePlace {
+	x: number;
+	y: number;
+	z: number;
+	rx?: number;
+	ry?: number;
+	rz?: number;
+}
 interface SurfaceData {
-	/** Unique within its scene; an entry names it (`EntryData.surface`) */
+	/** Unique within its scene; an entry names it (`EntryData.surface`), a target's print too (`PrintPlacement.surfaceId`) */
 	id: string;
 	side: SurfaceSide | (string & {});
 	widthMm: number;
 	heightMm: number;
 	/** Optional: the label as printed – the reader shows it where it showed the page number */
 	label?: string;
+	/** Optional (schema 2.36, #314): where it lies in the scene (`SurfacePlace`) – used in a `free` scene */
+	place?: SurfacePlace;
 }
 declare const SCENE_LAYOUTS: readonly [
 	"fixed",
@@ -358,7 +368,10 @@ declare const PRINT_SURFACES: readonly [
 type PrintSurface = (typeof PRINT_SURFACES)[number];
 interface PrintPlacement {
 	page?: number;
+	/** The side it is printed on – kept for apps before 2.36; a surface's id (`surfaceId`) wins over it */
 	surface: PrintSurface;
+	/** Optional (schema 2.36, #314): the scene's surface it is printed on, by id (`SurfaceData.id`) – a fold-out's middle, a wall */
+	surfaceId?: string;
 	x: number;
 	y: number;
 	width: number;
