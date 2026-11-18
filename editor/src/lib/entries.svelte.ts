@@ -30,9 +30,9 @@ class Entries {
     return id ? this.list.find(entry => entry.id === id) : undefined;
   }
 
-  /** A save's answer: the entry's fields and its spread now, its target as it was */
-  saved(entry: EntryFields, spreadId: string | null): void {
-    this.list = this.list.map(e => (e.id === entry.id ? { ...entry, spreadId, target: e.target } : e));
+  /** A save's answer: the entry's fields (its scene now), its target as it was */
+  saved(entry: EntryFields): void {
+    this.list = this.list.map(e => (e.id === entry.id ? { ...entry, target: e.target } : e));
   }
 }
 

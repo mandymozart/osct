@@ -1,13 +1,10 @@
 <script lang="ts" module>
   import type { ScenePreset } from "@shared/api/editor";
 
-  /** The layout presets of "+ Scene…" in words (`Scenes::PRESETS`) */
+  /** The presets of "+ Scene…" in words (`Scenes::PRESETS`, schema 3.0) */
   export const PRESET_LABELS: Record<ScenePreset, string> = {
-    single: "Single page",
     double: "Double page",
-    cover: "Front cover",
-    back: "Back cover",
-    foldout: "Fold-out – three pages",
+    single: "Single page",
     wall: "Wall",
   };
 </script>
@@ -19,10 +16,9 @@
   import SceneCards from "#lib/SceneCards.svelte";
   import { scenes } from "#lib/scenes.svelte.js";
   import { gridColumns, groupedOf, stripKey, type MoveRequest } from "#lib/scene-strip.js";
-  import { pageOf } from "#lib/sheet-preview.js";
+  import { PAGE_MM } from "#lib/surface-edit.js";
   import { errorText, type ScenePlace } from "#lib/api.js";
   import { readStoredJson, writeStoredJson } from "#lib/storage.js";
-  import type { StageLayout } from "#lib/stage/stage-layout.js";
   import { SCENE_PRESETS } from "@shared/api/editor";
 
   /**
@@ -37,13 +33,11 @@
    * strip one row whose cards scale with the panel's height; the grid columns that wrap, as many as its width holds
    * (`gridColumns`: one when narrow, each column 88–168 px), its cards scaling with the width, scrolled down.
    */
-  let { bookId, bookTitle = "", current, selectedGroup = null, sheetLayout = null, pageImages = {}, assetsBase = "", floating = false, onopen, onselectgroup, onstep }: {
+  let { bookId, bookTitle = "", current, selectedGroup = null, assetsBase = "", floating = false, onopen, onselectgroup, onstep }: {
     bookId: string;
     bookTitle?: string;
     current: string;
     selectedGroup?: string | null;
-    sheetLayout?: StageLayout | null;
-    pageImages?: Readonly<Record<string, string>>;
     assetsBase?: string;
     /** Inside a floating panel: its size is the panel's */
     floating?: boolean;
@@ -74,7 +68,7 @@
   let stripHeight = $state(0);
   const grid = $derived.by(() => {
     const rem = typeof document === "undefined" ? 16 : parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-    const page = pageOf(sheetLayout);
+    const page = PAGE_MM;
     // Less a scrollbar's room, so the columns never make it scroll sideways
     // A whole row shows in a short panel: its height less the padding, a card's caption and a group's band
     const rowRoom = stripHeight ? stripHeight - 1.05 * rem - 1.3 * rem - 1.4 * rem : Infinity;
@@ -129,13 +123,13 @@
     }
   };
 
-  // ── + Scene…: a preset, after the open scene (a cover first, a back cover last – the API's place) ──
+  // ── + Scene…: a preset, after the open scene ──
   let addMenu = $state<{ at: Point; place?: ScenePlace } | null>(null);
   let addButton = $state<HTMLButtonElement>();
   const presetItems = (place?: ScenePlace): MenuItem[] => SCENE_PRESETS.map(preset => ({
     label: PRESET_LABELS[preset],
     select: () => void run(async () => {
-      const id = await scenes.add(preset, preset === "cover" || preset === "back" ? undefined : place);
+      const id = await scenes.add(preset, place);
       onopen(id);
     }),
   }));
@@ -194,7 +188,7 @@
     <span class="grow"></span>
     <button type="button" class="icon-button" bind:this={addButton} disabled={busy}
       onclick={() => { const r = addButton!.getBoundingClientRect(); openAdd({ x: r.left, y: r.bottom }, { after: current }); }}
-      data-help-name="+ Scene…" data-help="Adds a scene after the open one, from a layout: a single or double page, a fold-out, a wall – a front cover goes first, a back cover last. Nothing else renumbers." title="Add a scene" aria-label="Add a scene"><Icon name="file-plus" /></button>
+      data-help-name="+ Scene…" data-help="Adds a scene after the open one, from a preset: a double page (one surface), a single page (a cover is a single scene first in the order) or a wall standing ahead." title="Add a scene" aria-label="Add a scene"><Icon name="file-plus" /></button>
     <span class="layouts" role="group" aria-label="Layout">
       <button type="button" class="icon-button" class:on={layout === "strip"} aria-pressed={layout === "strip"} onclick={() => setLayout("strip")}
         title="Filmstrip" aria-label="Filmstrip" data-help-name="Filmstrip" data-help="The scenes in one row that scrolls sideways; the cards grow with the panel's height. Remembered in this browser."><Icon name="film" /></button>
@@ -218,7 +212,7 @@
   {#if open || floating}
     <div class="strip" bind:clientWidth={stripWidth} bind:clientHeight={stripHeight}>
       {#if scenes.tree}
-        <SceneCards {layout} {current} {selectedGroup} {zoom} columns={grid.columns} cardHeight={grid.cardHeight} {sheetLayout} {pageImages} {assetsBase} {onopen} {onselectgroup}
+        <SceneCards {layout} {current} {selectedGroup} {zoom} columns={grid.columns} cardHeight={grid.cardHeight} {assetsBase} {onopen} {onselectgroup}
           onmove={move} ongroup={group} onungroup={ungroup} onadd={at => openAdd(at)} />
       {:else}
         <p class="muted small loading">{scenes.error ? errorText(scenes.error) : "Loading the scenes…"}</p>

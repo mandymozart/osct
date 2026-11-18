@@ -5,14 +5,13 @@
 # stirs the ink where it lands. The target picture is a frame of the same simulation in a drawn frame (CC BY-NC-SA 3.0).
 category: glossary
 title: The ink painting
-page: 6
+scene: the-switch
 body: "A painting whose ink never stops flowing: a fluid simulated on the GPU every frame by a plugin's feedback buffers – the Shadertoy shader XlsBDf by trapcode (CC BY-NC-SA 3.0), pasted in nearly unchanged through `api.shadertoy`. Tap it to stir the ink where your finger lands; the pen speed and the ink's dissipation are its rows in the editor, the resolution its cost."
 tags: [plugin, shader, feedback]
 target:
   image: target.jpg
-  print:
-    surface: right
-    x: 70
+  place:
+    x: 300
     y: 205
     width: 85
   entity:

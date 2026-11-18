@@ -10,11 +10,11 @@ fixture with the same layout (`fixtures/content/`).
 
 | Word | Meaning |
 |---|---|
-| **Spread** | Two facing pages of the book. The reader picks the spread in the menu at the bottom of the app; turning to the next or previous spread switches by itself. |
-| **Target** | An image printed in the book that the camera recognises. Max **10 targets per spread** (the camera follows up to 4 at the same moment). |
+| **Scene** | One step of the experience – a double page, a cover, a wall (content schema 3.0, [Scenes](#scenes)). The reader picks the scene in the switcher at the bottom of the app by its label (`186–187`, `Cover`). |
+| **Target** | An image printed in the book that the camera recognises. Max **10 targets per scene** (the camera follows up to 4 at the same moment). |
 | **Entry** | A piece of content the reader unlocks and can read later: a glossary term, a video, a text or a link. |
 | **AR content** | What appears *on top of* a target in the camera view: a video, a 3D model or an image. Optional. |
-| **Access page** | The page of the book where an entry is found (shown as "Access page" in the app). |
+| **Place** | Where an entry is found: its scene (shown as the scene's label, "Place" in the app). |
 
 A reader points the phone at the book → the app recognises a **target** → shows its **AR content**
 (if any) and unlocks the **entry** → the entry appears in the list (consultation mode) under its
@@ -28,9 +28,9 @@ folders after release: reading progress is stored by id.
 ```
 content/
 ├── book.yaml                     the book (title, author, publisher, source of truth)
-├── spreads/
-│   └── spread1/
-│       └── spread.yaml           title and pages of the spread
+├── scenes/
+│   └── s002-003/
+│       └── scene.yaml            label, order and surfaces of the scene
 ├── entries/
 │   └── old-castle/
 │       ├── entry.yaml            the entry's text and settings
@@ -65,7 +65,8 @@ Lines starting with `#` are comments and are ignored.
 |---|---|---|
 | `category` | yes | `glossary`, `video`, `text` or `link` – always singular here; the app shows "Marginalia" (the glossary, #286), "Videos", "Texts", "Links" |
 | `title` | yes | name of the entry |
-| `page` | yes | access page in the book (decides which spread the entry belongs to) |
+| `scene` | yes | the id of its scene (`scenes/<id>`) – where the reader finds it |
+| `surface` | no | the id of one of its scene's surfaces – only when the scene has several |
 | `body` | no | the text – Markdown with the book's variables (below) |
 | `author` | no | for texts – shown in the list as *'Title', Author* |
 | `image` | no | an image shown in the entry (glossary), file in the entry folder |
@@ -77,7 +78,7 @@ Lines starting with `#` are comments and are ignored.
 What each category shows in the app:
 
 - **Glossary** – text and image. Grouped by first letter in the list.
-- **Video** – "Go to access page … in scan mode to see the video", the text and a preview of the
+- **Video** – "Go to … in scan mode to see the video" (the scene's label), the text and a preview of the
   video. The video itself plays in AR on the page.
 - **Text** – longer text with author.
 - **Link** – text, the embedded web page or video, and "Open in a new tab".
@@ -88,7 +89,7 @@ list.
 **Switched off** (content schema 2.26, #249): `enabled: false` under `target` takes the target out of the reader's
 book – no image target and no entry in the list or the count – while the content keeps both with all their values. The
 editor shows and edits them as before (the Inspector's *In the book* switch, an *off* mark in the tree); switching on
-again is `enabled: true` or no `enabled` at all. Targets that are off do not count towards the 10 per spread
+again is `enabled: true` or no `enabled` at all. Targets that are off do not count towards the 10 per scene
 (`agents/RULES.md` #3).
 
 ### The text: Markdown and variables
@@ -129,12 +130,12 @@ their signs (the table in "Schema and app versions"). Plain text reads the same 
 
 ### Recipes
 
-**A glossary term unlocked by an image on page 3:**
+**A glossary term unlocked by an image in the scene `s002-003`:**
 
 ```yaml
 category: glossary
 title: Old Castle
-page: 3
+scene: s002-003
 body: An ancient castle filled with secrets.
 image: castle-drawing.jpg        # optional picture in the entry
 target:
@@ -146,7 +147,7 @@ target:
 ```yaml
 category: video
 title: Death Jam & Living Juice
-page: 4
+scene: s002-003
 body: Documentation of the performance.
 target:
   image: images-007.jpg
@@ -242,7 +243,7 @@ image or the AR content opens the entry – from then on it counts as consulted.
 ```yaml
 category: text
 title: On Building Fictions
-page: 4
+scene: s002-003
 author: Catherine Guiral
 body: |
   First paragraph …
@@ -253,7 +254,7 @@ body: |
 ```yaml
 category: link
 title: Shadows
-page: 1
+scene: s002-003
 body: Light plays a role in architecture.
 media: https://www.youtube.com/watch?v=…
 ```
@@ -362,23 +363,11 @@ target:
         opacity: 0.35
 ```
 
-**The covers** (content schema 2.3): a spread has a **format** – `spread` (a double page, the default), `cover`
-(the front cover) or `back` (the back cover). The covers have no page number: the cover spread is **page 0**, the
-back spread the page after the last printed one; an entry on that page belongs to it. Its targets are printed on the
-surface `front` or `back` (see `print` below). The editor shows the closed book for them; the reader treats them like
-any spread. More formats (a museum wall, an object) come with the layout templates of issue #60.
-
-**Front and back matter** (content schema 2.32, #296): the double pages between the cover and page 1 and between the
-last printed page and the back cover carry no printed numbers. A double page says so with `matter: front` or
-`matter: back`; its pages are internal and never shown to readers – front matter counts down to −1 (the sheet next to
-page 1 is −2…−1, the one before it −4…−3), back matter goes on from the last printed page, and the back cover comes
-after it. Entries and targets on those pages belong to the spread like on any other; the reader's page scroller and
-the entry's page show the spread's title instead of a number, the editor's stage finds the layout's `front-matter` /
-`back-matter` sheet in book order. A print-first book gets these spreads from its layout: the delivery import writes a
-spread for every sheet of `layout/layout.json` that has none (`cover`, `front-1` …, the numbered ones, `back-1` …,
-`back`). A draft that misses them gets them in the editor's Pages view or with the MCP server's `add_matter` (#251, a
-print-first book too – an exception to #238), which also moves a back cover that sits on the last printed page behind
-the back matter and gives that page its own spread.
+**Covers, front and back matter, walls** (content schema 3.0): a scene is what it is by its surfaces and its label – a
+cover is a scene of one surface one page wide (`label: Cover`), front matter a double page labelled `Front matter 1`, a
+wall a scene whose surface stands (`place: { …, rx: 90 }`). No formats, no internal page numbers. A print-first book gets
+these scenes from its layout: the delivery import writes a scene for every sheet of `layout/layout.json` that has none
+(`cover`, `front-1` …, the numbered ones, `back-1` …, `back`).
 
 **Source of truth** (content schema 2.25, #238): `book.yaml` may say where the book's spreads come from –
 `sourceOfTruth: print` (print first, the default: the printed book is the truth, its spreads, pages and printed
@@ -446,10 +435,11 @@ look-around world is part of the chain's image, so it is graded with the AR laye
 ignores a pass parameter it does not know (since 2.9), the build and the API refuse it – a 2.8 app refuses `reach`.
 
 ```yaml
-# content/spreads/studio-b/spread.yaml
-title: Studio B – videos
-firstPage: 30
-lastPage: 31
+# content/scenes/studio-b/scene.yaml
+label: "30–31"
+order: 15
+surfaces:
+  - { id: surface, widthMm: 460, heightMm: 320 }
 passes:
   - type: bloom
     strength: 0.8
@@ -471,28 +461,27 @@ camelCase name while the book has Code tab sources); **the publish refuses a pas
 2.21 app. The demo book's spread *The twins* carries one (`fixtures/demo/plugins/grain`).
 
 ```yaml
-# content/spreads/the-twins/spread.yaml
+# content/scenes/the-twins/scene.yaml
 passes:
   - type: filmGrain
     amount: 0.12
 ```
 
 ```yaml
-# content/spreads/cover/spread.yaml
-title: Cover
+# content/scenes/cover/scene.yaml
+label: Cover
 order: -1
-firstPage: 0
-lastPage: 0
-format: cover
+surfaces:
+  - { id: surface, widthMm: 230, heightMm: 320 }
 ```
 
-**Where a target is printed** (`print`, optional, content schema 2.1): targets made in the editor carry their
-printed place – `surface: left | right` (the pages of a double page) or `front | back` (the covers), `x`, `y`, `width` in mm from the
-surface's top left corner, optional `height` and `page` – so the editor's stage lays them out without the book's
-layout. The content build does not need it.
+**Where a target is printed** (`place`, optional, content schema 3.0): targets made in the editor carry their
+printed place – `x`, `y`, `width` in mm from the top left corner of a surface of the entry's scene, optional `height`,
+and `surface` (its id) when the scene has several – so the editor's stage lays them out. On a double page (one surface)
+a target on the right page has `x` ≥ the page's width. The reader does not need it.
 
 **Several targets on the same page:** one entry each – there is no order to keep and nothing to
-compile (max 10 targets per spread). An older `order:` under `target` is ignored.
+compile (max 10 targets per scene). An older `order:` under `target` is ignored.
 
 **An entity is a tree of nodes** (content schema 2.0): the node under `entity:` is the **root**, it sits on the
 target (1 unit = the target's width); every node may hold `children`, each placed by its own `params` **relative
@@ -655,55 +644,50 @@ a node with a look of its own animates its subtree with it, at the same moment b
 turning) around its own footprint – while the rest of the entity plays the root's look; a child's moment without a look of
 its own is part of its parent's animation.
 
-## Spreads
+## Scenes
 
-`content/spreads/<id>/spread.yaml`
+`content/scenes/<id>/scene.yaml` – content schema 3.0 (#319, `agents/SCENES.md` "Schema 3.0"). A **scene** is one step
+of the experience: a double page, a cover, a wall, a room. The experience is the ordered list of its scenes – nothing
+derives an order or a place from a page number.
 
 ```yaml
-title: The Beginning      # shown in the spread menu
-order: 0                  # position in the menu
-firstPage: 1
-lastPage: 2
+label: "186–187"          # what the reader shows: the switcher at the bottom, the entries list, the image credits
+order: 93                 # its position among the scenes (only the order counts – any numbers)
+surfaces:                 # its physical areas, at least one
+  - id: surface
+    widthMm: 460          # a double page is ONE surface, twice the page's width
+    heightMm: 320
+passes:                   # optional: post-processing over this scene (see above)
+  - type: bloom
 ```
-
-Spreads may not overlap. Every entry's `page` must fall inside a spread.
-
-### Scenes, surfaces, labels and groups
-
-Since schema 2.35 (#307, phase 1 of `agents/SCENES.md`) a spread is a **scene**: one step of the experience – a double
-page, a cover, a wall, a room. The type is also named `SceneData` (the rename of `spreads` comes later). Everything new is
-optional, and an older app skips it:
 
 | Where | Field | What it is |
 |---|---|---|
-| spread (scene) | `surfaces` | its physical areas, in order: `{ id, side, widthMm, heightMm, label? }` – `side` is `left`, `middle` (a fold-out's third), `right`, `front`, `back` or `wall` (a lower-case word a later version adds passes); the size in mm |
-| surface | `label` | free text **exactly as printed** – `41`, `ii`, `Cover`, or none. Never arithmetic: labels never renumber |
-| spread (scene) | `layout` | `fixed` (side by side or front and back, as printed together – the default) or `free` (each surface on its own anchor: a page and a wall, a room) |
-| spread (scene) | `label` | what the reader's page scroller and the image credits show for the scene (`Preface`, `Pages 40–41`) |
-| spread (scene) | `group` | the id of one of the configuration's `groups` |
-| configuration | `groups` | `[{ id, label }]` – several scenes under one label (`Front matter`, a chapter, a room) |
-| entry | `scene` | the id of the entry's spread. **When set it decides the entry's spread, not `page`** |
-| entry | `surface` | the id of one of its scene's surfaces – needs `scene` |
+| scene | `label` | required – free text as the reader should read it (`186–187`, `Cover`, `Studio wall`). Never arithmetic |
+| scene | `order` | its position (default 0; equal orders sort by id) |
+| scene | `surfaces` | `[{ id, label?, widthMm, heightMm, place? }]` – unique ids within the scene, sizes in mm. A double page is one surface (460 × 320), a cover one (230 × 320), a wall or a poster one. No left / right, no front / back |
+| surface | `place` | where it lies in the scene: `{ x, y, z, rx?, ry?, rz? }` – mm and degrees (Euler XYZ) in the **scene's coordinate system**: origin on the table at the middle of the first row, +x right, +y up, +z towards the reader; unrotated a surface lies flat, face up, its top edge away from the reader; a wall ahead is `rx: 90`. Without `place` the build lays the surfaces in a row, touching, flat, the row centred on the origin – the configuration always carries all six numbers |
+| surface | `label` | optional – what is printed on it; the reader shows it as an entry's place when the entry names the surface |
+| scene | `group` | the id of one of the configuration's `groups` (`[{ id, label }]` – several scenes under one label) – not written by the content build yet |
+| entry | `scene` | required – the id of the entry's scene |
+| entry | `surface` | the id of one of its scene's surfaces – only when the scene has several |
+| target | `place` | where it is printed: `{ surface?, x, y, width, height? }` in mm from the surface's top left corner – `surface` (its id) is required when the scene has several |
 
-**Scene wins over page.** An entry with `scene` lies on that scene even when its `page` belongs to another spread's
-range. `page` stays required in this MINOR – apps before 2.35 place every entry by it – so whoever writes content keeps
-writing a page inside the scene's pages: the content build writes `scene` from the spread the page lies in, the editor's
-draft writes it from the spread the editor keeps the entry on (`entries.spread_id`), both still write `page`.
+**Labels in the reader.** The switcher steps through the scenes with targets and shows each scene's `label`; the
+entries list's *Place* column and the entry's *Place* row show the entry's surface label, else its scene's label; the
+All list is sorted by scene order, then by title; the image credits group their lines under the scene's label. Links are
+`/scene/<id>`; the reading progress remembers the last scene by id (`lastScene`).
 
-**Pages after a reorder** (#307 phase 2): the server's order is the scenes' position and nothing renumbers, so a scene
-moved or added in the middle no longer fits its stored pages. The draft then writes that scene – and the later ones
-until a stored range fits again – a range **derived from the order** (sequential, never overlapping) and every entry's
-`page` inside its scene's range (docs/server.md "Scenes"). An app before 2.35 places every entry right and shows those
-numbers as page numbers; an app of 2.35 shows the labels.
+The guard checks: a scene has a label and at least one surface; a surface a size and all six numbers of its place;
+surface ids are unique within their scene, group ids within the book; a scene's `group` names a group; an entry's
+`scene` names a scene, its `surface` one of that scene's surfaces; a target's `place.surface` too, and a target in a
+scene of several surfaces must name its surface.
 
-**Labels in the reader** – the most specific one: an entry's place (the entries list's page column, the entry's *Page*
-row) is its surface's label, else its page number (or the spread's title on a cover and front or back matter, as
-before); a scene in the page scroller and the image credits shows its own `label`, else its surfaces' labels (`40–41`,
-*Pages 40–41*), else its pages or title as before.
-
-The guard checks: a scene's `group` names a group, an entry's `scene` names a spread, its `surface` one of that scene's
-surfaces; surface ids are unique within their scene, group ids within the book. The editor does not edit scenes,
-surfaces or groups yet (phase 2–3).
+**From 2.x** (`npm run convert:3` in `scripts/`, `scripts/src/convert-content-3.ts` – used for the test fixture and the
+demo): `spreads/<id>/spread.yaml` becomes `scenes/<id>/scene.yaml` (same id and order; the label is what the reader
+showed – its label, a cover's or matter's title, else its pages `2–3`; one surface twice the page's width, one page wide
+for a cover or a single page); an entry's `page` becomes its `scene`, a target's `print` its `place` (on the right page
+of a double page `x` moves by the left page's width).
 
 ## Recognition
 
@@ -873,7 +857,7 @@ message when something is wrong, e.g.:
 ```
 entries/old-castle: file "images-022.jpg" not found in content/entries/old-castle/
 entries/ancient-tree: Field 'category' in entry must be one of: glossary, video, text, link
-spreads/spread1 has 11 targets, max is 10.
+scenes/spread1 has 11 targets, max is 10.
 ```
 
 Then look at the result in the app – see the quick start in the [README](../README.md).
@@ -882,8 +866,8 @@ Then look at the result in the app – see the quick start in the [README](../RE
 
 The content schema (`CONTENT_SCHEMA_VERSION`, `shared/types/game-config.ts`) and the app version are separate
 (`agents/RULES.md` #10): the schema says what an app can read, the app version says what was released. An app reads
-every MINOR of its schema MAJOR and every older MAJOR down to `OLDEST_READABLE_SCHEMA_MAJOR`; content of a newer
-MAJOR is refused at startup.
+every MINOR of its schema MAJOR and every older MAJOR down to `OLDEST_READABLE_SCHEMA_MAJOR` (3 since schema 3.0: no
+reader of 2.x content was shipped, #319); content of a newer MAJOR, or of a MAJOR below that, is refused at startup.
 
 **A MINOR never breaks an older app** (#220). An app reading a book of a newer MINOR loads it without what it does not
 know, and lists what it skipped (`getSkippedFeatures()`, `engine/src/content/forward-compatible.ts`):
@@ -952,6 +936,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 2.34 | 1.88.0 | in develop | an entry's optional `caption` (#289): the line under the entry's picture, written in the editor's entry form, `update_entry` / `add_entry` or the entry's YAML | ignored: an older app shows the picture without the line (the guard reads no unknown field of an entry) |
 | 2.35 | 1.98.0 | in develop | scenes (#307 phase 1, [Scenes](#scenes-surfaces-labels-and-groups)): a spread's optional `surfaces` (`id`, `side`, `widthMm`, `heightMm`, `label` as printed), `layout` (`fixed` \| `free`), `group` and `label`; the configuration's optional `groups` (`id`, `label`); an entry's optional `scene` (a spread id – **it decides the entry's spread, not `page`**) and `surface`. The content build and the editor's draft write `scene` on every entry; `page` stays required and is still written | ignored: an older app reads none of the fields (its guard reads no unknown field of a spread, an entry or the configuration) and places every entry by its `page`, which writers keep inside the scene's pages; it shows page numbers where a 2.35 app shows surface labels |
 | 2.36 | 1.112.0 | in develop | surfaces placed in the scene (#314): a surface's optional `place` (`x`, `y`, `z` in mm, `rx`, `ry`, `rz` in degrees – the scene's coordinate system: origin on the table at the middle of the first row, +x right, +y up, +z towards the reader; used by `free` scenes) and a target's optional `print.surfaceId` (the surface it is printed on, by id – wins over `print.surface`) | ignored: an older app reads neither field (its guard skips unknown fields of a surface and a print placement); the reader does not use them yet |
+| 3.0 | next | in develop | **one clean model of scenes – nothing of 2.x kept** (#319, `agents/SCENES.md` "Schema 3.0"): the configuration's `scenes` (was `spreads`) and `initialScene` (was `initialSpreadId`); a scene is `id`, `label`, `group?`, `surfaces` (at least one: `id`, `label?`, `widthMm`, `heightMm`, `place` – all six numbers required), `passes?`; an entry names its `scene` (required) and a `surface` when the scene has several; a target's `place` (`surface?`, `x`, `y`, `width`, `height?`, mm on the surface) replaces `print`. Removed: `page`, `firstPage`, `lastPage`, a spread's `title`, `format`, `matter` and `layout`, a surface's `side`, `print`, the configuration's `tutorial` | refused: no 2.x reader was shipped – every app since reads 3.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 3), and a 2.x app refuses 3.0 content |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.
@@ -1012,9 +997,11 @@ npm run import -- "C:/path/to/delivery" import/2110.yaml
 
 What it does: every image becomes a JPEG (targets ≤ 1600 px, entry images ≤ 1600 px, transparency flattened
 on white), every video is re-encoded with ffmpeg (H.264 MP4, long side ≤ 1280 px, ~2 Mbit/s, AAC – ffmpeg
-has to be installed), `entry.yaml` is written with placeholder texts and the note as a comment, and a spread
-is created for every pair of facing pages that has an entry (`s038-039`, title "38–39"). Media is rewritten
-when the delivered file is newer; **`entry.yaml` and `spread.yaml` are never overwritten** – edit them
+has to be installed), `entry.yaml` is written with placeholder texts and the note as a comment, and a scene
+is created for every pair of facing pages that has an entry (`s038-039`, label "38–39", one surface twice the page's
+width – page 1 and a last even page one page wide). The mapping's `page` is mapped to the scene **once, here**: the
+entry gets `scene: s038-039`, never a page (content schema 3.0). Media is rewritten
+when the delivered file is newer; **`entry.yaml` and `scene.yaml` are never overwritten** – edit them
 freely and run the import again when the next delivery comes. Problems (a file missing, ffmpeg failing, a
 video without a target) are listed at the end.
 
@@ -1037,7 +1024,7 @@ page, each printed trigger as an image where it is printed):
 
 ```bash
 cd scripts
-npm run layout -- --triggers "C:/path/All_Triggers.pdf" --preview "C:/path/OSCT_preview.pdf" --content "$OSCT_CONTENT_DIR"
+npm run layout -- --triggers "C:/path/All_Triggers.pdf" --preview "C:/path/OSCT_preview.pdf" --content "$OSCT_CONTENT_DIR" \n  --mapping scripts/import/<delivery>.yaml   # the targets' pages (content schema 3.0 has none)
 ```
 
 `scripts/layout/extract-layout.py` (Python 3 with PyMuPDF – an external tool like ffmpeg) renders every sheet
@@ -1108,12 +1095,13 @@ scripts/
 ├── src/            everything in TypeScript, bundled into dist/ by `npm run build`
 │   ├── index.ts            the content build: start
 │   ├── config.ts           all folders and limits
-│   ├── build/              content build parts: book, spreads, entities, entries, targets, tutorial (for older apps), plugins
+│   ├── build/              content build parts: book, scenes, entities, entries, targets, plugins
 │   ├── lib/                shared helpers: reading content, files, hash, checks, media, storage, sync
 │   ├── cli.ts              the osct CLI: content build | status | sync | purge (content-cdn.md)
 │   ├── import-delivery.ts  `npm run import` – a publisher delivery into the content (mapping in import/)
 │   ├── protocol.ts         `npm run protocol` – printed-image details for the trigger trial panel
 │   ├── schema-lock.ts      `npm run schema:lock` – locks shared/ to the content schema
+│   ├── convert-content-3.ts `npm run convert:3` – a content source of schema 2.x → 3.0, once (#319)
 │   └── sounds.ts           placeholder app sounds
 ├── import/                 one mapping file per delivery
 └── test/                   tests (npm test)

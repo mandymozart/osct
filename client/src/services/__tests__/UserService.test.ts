@@ -92,7 +92,7 @@ class FakeApi extends ApiService {
 }
 
 const remoteRecord = (consulted: Record<string, number>): ProgressRecord => ({
-  format: 1, bookId, appVersions: ["1.0.0"], unlocked: {}, consulted, lastSpreadId: null, lastCategory: null, onboarded: true, coached: true, variables: {},
+  format: 1, bookId, appVersions: ["1.0.0"], unlocked: {}, consulted, lastScene: null, lastCategory: null, onboarded: true, coached: true, variables: {},
 });
 
 // happy-dom's history API doesn't move window.location (see LinkService.test.ts)

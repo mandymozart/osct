@@ -2,21 +2,21 @@ import { asset } from "$app/paths";
 import type { AssetPath } from "$app/types";
 import { type BufferAttribute, type BufferGeometry, type Camera, Group, type Intersection, type Object3D, Quaternion, Raycaster, Vector2, Vector3 } from "three";
 import type { EnvironmentData } from "@shared/types/environment";
-import type { PrintPlacement, PrintSurface, SurfacePlace } from "@shared/types/game-config";
+import type { SurfacePlace, TargetPlace } from "@shared/types/game-config";
 import { entityNodes } from "@engine/content/game-config";
 import { onAppUi } from "@engine/scene/ui";
 import { allVars, ArScene, observeEvents, resetVars, runtimeApi, type VarScope, type VarValue } from "@engine/scene";
 import { BACKDROP_LAYER } from "@engine/scene/view";
 import { setDeviceStorage } from "@engine/utils/device-storage";
-import { getBook, getSpread, getTarget, getTargets } from "@engine/content/game-config";
+import { getBook, getTarget, getTargets } from "@engine/content/game-config";
 import { type BookAppearance, type Moment, momentDuration } from "@shared/types/appearance";
-import { SceneState, type ArStatus, type EntityData, type NodeTimeline, type PassData, type SpreadFormat } from "@engine/types";
+import { SceneState, type ArStatus, type EntityData, type NodeTimeline, type PassData } from "@engine/types";
 import { deviceStorage } from "#lib/storage.js";
 import { Gizmo, isGizmoTool, type GizmoPlacement, type GizmoSelection, type StageTool } from "./gizmo";
 import { SurfaceGizmo, type SurfaceGizmoMode } from "./surface-gizmo";
 import { LightHelpers } from "./light-helper";
 import { applyShading, HOVER_COLOR, outline, SELECTION_COLOR, type Outline } from "./shading";
-import { getPreview, parseNodeKey, setPreviewActive, setTargetHidden, subscribePreview, type ShadingMode } from "./preview";
+import { getPreview, parseNodeKey, setPreviewActive, setTargetHidden, subscribePreview, surfaceGridOf, type ShadingMode } from "./preview";
 import { NodeHiding } from "./node-hiding";
 import { MockStage } from "./mock-stage";
 import { showsWorld } from "./sky";
@@ -26,15 +26,13 @@ import { describePayload, logEvent, type StageEvent } from "./event-log";
 import { REMOVED_ENTITY } from "./frame-protocol";
 import { modelOf, nearPointer, nodeOf, PICK_KINDS, pickable, pickByFilter, pickForMenu, samePick, type PickFilter, type PickKind, type StageHit, type StagePick } from "./pick";
 import { DEFAULT_ASPECT, draggedPlace, grabOffset, printedHeight, type PlacementDrag, type Surfaces } from "./placement";
-import { DEFAULT_PAGE_MM } from "./stage-layout";
 import { SceneSnapper } from "./snap-scene";
 import type { StageFrame } from "./snap";
-import { findSurface, ownRect, printSideOf, surfaceRects, type SurfaceFrame, type SurfaceReferences } from "./surfaces";
+import { findSurface, ownRect, surfaceRects, type SurfaceFrame, type SurfaceReferences } from "./surfaces";
 
-/** A placement the handles made, as the content writes it: the side, the scene's surface by id when it has its own (#314), the box */
+/** A placement the handles made, as the content writes it (`TargetPlace`): the surface's id while the scene has several, the box */
 export interface PlacementChange {
-  surface: PrintSurface;
-  surfaceId?: string;
+  surface?: string;
   x: number;
   y: number;
   width: number;
@@ -67,10 +65,8 @@ export interface GhostPlace {
   /** The target whose placement this is (absent: a target not made yet – the new-target form) */
   targetId?: string;
   imageSrc: string;
-  /** The side, as the content's `print.surface` (kept for apps before schema 2.36) */
-  surface: PrintSurface;
-  /** The scene's surface by id (#314, `print.surfaceId`): wins over the side */
-  surfaceId?: string;
+  /** The surface it lies on, by id (`TargetPlace.surface`); none: the scene's first */
+  surface?: string;
   x: number;
   y: number;
   width: number;
@@ -141,6 +137,7 @@ export class StageCore {
     frame: () => this.tracker?.stageFrame() ?? null,
     stageFrame: surface => this.snapFrame(surface),
     settings: () => getPreview(),
+    surfaceGrid: surface => surfaceGridOf(getPreview(), surface),
     modifier: () => this.snapModifier,
     objects: () => this.nodeObjects(),
     prints: () => this.tracker?.printedBoxes() ?? [],
@@ -166,7 +163,6 @@ export class StageCore {
         this.mockStage.setWorld(this.world);
         tracker.attachStage(this.mockStage);
         tracker.setLookUp(this.world && this.previewing ? this.lookUp : 0);
-        tracker.setPageImages(this.pageImages);
         tracker.setSurfaceReferences(this.surfaceReferences);
         tracker.ignorePointer = event => !!this.gizmo?.busy || !!this.surfaceGizmo?.busy || !!this.ghostDrag || (!!this.ghostPlace && !!this.ghostHandleAt(event.clientX, event.clientY));
         this.tracker = tracker;
@@ -433,17 +429,9 @@ export class StageCore {
     this.shade();
   }
 
-  /** The current spread's format changed in the draft: the book takes its new shape on the stage at once */
+  /** The open scene's surfaces changed in the draft: the stage lays them out again at once */
   relayout(): void {
     this.tracker?.relayout();
-  }
-
-  /** The book's page images by page key (#251): kept for a tracker made later, laid over the sheet at once */
-  private pageImages: Record<string, string> = {};
-
-  setPageImages(images: Record<string, string>): void {
-    this.pageImages = { ...images };
-    this.tracker?.setPageImages(this.pageImages);
   }
 
   /** Show a target's entity with other values than the content's (live edit), `null` = the content's again */
@@ -591,7 +579,7 @@ export class StageCore {
   /** A drag of the surface gizmo ended: the surface's new place in the scene */
   onSurfacePlace: ((surfaceId: string, place: Required<SurfacePlace>) => void) | null = null;
 
-  /** Put the surface gizmo on a surface of the open scene (null: none) – shown in the Surface mode of a free scene */
+  /** Put the surface gizmo on a surface of the open scene (null: none) – shown in the Surface mode */
   setSurfaceGizmo(surfaceId: string | null, mode: SurfaceGizmoMode): void {
     this.surfaceGizmoAsked = { surfaceId, mode };
     this.syncSurfaceGizmo();
@@ -599,8 +587,7 @@ export class StageCore {
 
   private syncSurfaceGizmo(): void {
     const { surfaceId, mode } = this.surfaceGizmoAsked;
-    const free = !!this.spreadId && getSpread(this.spreadId)?.layout === "free";
-    const surface = this.tool === "surface" && free && surfaceId ? this.tracker?.sceneSurfaces().find(s => s.id === surfaceId && s.own) : undefined;
+    const surface = this.tool === "surface" && surfaceId ? this.tracker?.sceneSurfaces().find(s => s.id === surfaceId) : undefined;
     if (!surface) {
       this.surfaceGizmo?.show(null);
       return;
@@ -613,7 +600,7 @@ export class StageCore {
       this.surfaceGizmo = new SurfaceGizmo(inspection, parent, (id, place) => {
         this.draggedPlace = { surfaceId: id, place, until: performance.now() + DRAGGED_PLACE_MS };
         this.onSurfacePlace?.(id, place);
-      }, () => this.snapper.active());
+      }, () => this.snapper.active(), () => getPreview().floorMm);
       this.cleanups.push(() => this.surfaceGizmo?.dispose());
     }
     this.surfaceGizmo.mode = mode;
@@ -661,49 +648,40 @@ export class StageCore {
   /** A drag of the ghost: the image (move) or its corner (width), with the grab point inside the image */
   private ghostDrag: PlacementDrag | null = null;
   /**
-   * The form or the panel editing the placement listens: a handle moved it (a stored height follows the width). On a
-   * scene's own surface it carries `surfaceId` (#314) and the side apps before schema 2.36 understand.
+   * The form or the panel editing the placement listens: a handle moved it (a stored height follows the width); its
+   * surface by id while the scene has several
    */
   onGhostChange: ((place: PlacementChange) => void) | null = null;
 
-  /** Where a target is printed in the book's layout, null when the layout has no place for it */
-  printedPlace(targetId: string): PrintPlacement | null {
-    return this.tracker?.printedPlace(targetId) ?? null;
-  }
-
   // ── The scene's surfaces (#314) ──
 
-  /** The open scene's surfaces in the stage frame (mm): its own, else the format's pages (empty before a scene is open) */
+  /** The open scene's surfaces in the stage frame (mm) – empty before a scene is open */
   surfaceFrames(): readonly SurfaceFrame[] {
     return this.tracker?.surfaceFrames() ?? [];
   }
 
-  /** The surfaces the placement math counts on: the scene's, else the page format */
+  /** The surfaces the placement math counts on: the scene's (none: the stand-in double page) */
   private placeSurfaces(): Surfaces {
-    const frames = this.surfaceFrames();
-    return frames.length ? frames : this.pageFormat();
+    return this.surfaceFrames();
   }
 
   /** The frame a print on `surface` snaps in: the table's (the flat surfaces), or a wall's own plane */
   private snapFrame(surface?: string): StageFrame {
     const frames = this.surfaceFrames();
-    const base: StageFrame = { page: this.pageFormat(), format: this.format() };
     const on = surface !== undefined ? frames.find(f => f.id === surface) : undefined;
-    if (on && !on.flat) return { ...base, surfaces: [ownRect(on)], local: true };
-    const rects = surfaceRects(frames);
-    return rects.length ? { ...base, surfaces: rects } : base;
+    if (on && !on.flat) return { surfaces: [ownRect(on)], local: true };
+    return { surfaces: surfaceRects(frames) };
   }
 
-  /** The stage's surface id of a place: its `surfaceId`, else the surface with its side, else the side itself */
-  private stageSurfaceOf(place: { surface: string; surfaceId?: string }): string {
-    return findSurface(this.surfaceFrames(), place.surfaceId, place.surface)?.id ?? place.surface;
+  /** The stage's surface id of a place: the surface it names, else the scene's first */
+  private stageSurfaceOf(place: { surface?: string }): string {
+    const frames = this.surfaceFrames();
+    return findSurface(frames, place.surface)?.id ?? frames[0]?.id ?? place.surface ?? "";
   }
 
-  /** A place on a stage surface as the content writes it: the side, and the surface's id when it is the scene's own */
-  private contentSurfaceOf(surface: string): { surface: PrintSurface; surfaceId?: string } {
-    const frame = this.surfaceFrames().find(f => f.id === surface);
-    if (!frame) return { surface: printSideOf(surface, this.format()) };
-    return { surface: printSideOf(frame.side, this.format()), ...(frame.own ? { surfaceId: frame.id } : {}) };
+  /** A place on a stage surface as the content writes it: the surface's id while the scene has several, else none */
+  private contentSurfaceOf(surface: string): { surface?: string } {
+    return this.surfaceFrames().length > 1 ? { surface } : {};
   }
 
   /** The surfaces outlined (`outlined`) and the one highlighted on the stage – ids of the open scene's surfaces (the Surface mode) */
@@ -729,8 +707,8 @@ export class StageCore {
     return { surfaceId: hit.surface, x: Math.round(hit.x * 10) / 10, y: Math.round(hit.y * 10) / 10 };
   }
 
-  /** Where a target lies on the stage as the content places it (its own print, else the layout's, else the stage's fallback) */
-  placeOf(targetId: string): PrintPlacement | null {
+  /** Where a target lies on the stage as the content places it (its own place, else the stage's fallback) */
+  placeOf(targetId: string): TargetPlace | null {
     const place = this.tracker?.placeOf(targetId);
     return place ? { ...this.contentSurfaceOf(place.surface), x: place.x, y: place.y, width: place.width, height: place.height } : null;
   }
@@ -753,15 +731,6 @@ export class StageCore {
     else if (before) this.tracker?.placeTarget(null, null);
   }
 
-  /** The base format (one page, mm) the positions and the grid are counted in */
-  pageFormat(): { width: number; height: number } {
-    return this.tracker?.pageFormat() ?? DEFAULT_PAGE_MM;
-  }
-
-  /** The current spread's format (the form and the panel offer the right surfaces) */
-  format(): SpreadFormat {
-    return (this.spreadId ? getSpread(this.spreadId)?.format : undefined) ?? "spread";
-  }
 
   /** The ghost's handle under the pointer: "move" over the image, "width" over its corner, null elsewhere */
   private ghostHandleAt(clientX: number, clientY: number): "move" | "width" | null {
@@ -778,7 +747,7 @@ export class StageCore {
   /** The ghost's place on the stage's surfaces (its surface by the stage's id) */
   private ghostStagePlace(): (GhostPlace & { surface: string }) | null {
     const ghost = this.ghostPlace;
-    return ghost ? { ...ghost, surface: this.stageSurfaceOf(ghost) as PrintSurface } : null;
+    return ghost ? { ...ghost, surface: this.stageSurfaceOf(ghost) } : null;
   }
 
   private onGhostPointerDown = (event: PointerEvent): void => {
@@ -809,12 +778,12 @@ export class StageCore {
     const id = place.targetId ?? null;
     const height = printedHeight(dragged, id ? this.tracker?.printedAspect(id) : undefined);
     const snapped = this.snapper.place(id, dragged, height, this.ghostDrag.kind, event.shiftKey || event.ctrlKey);
-    // Back to the content's words: the side, and the surface's id on a scene's own surface (#314)
-    const { surfaceId: _old, ...rest } = snapped;
+    // Back to the content's words: the surface's id while the scene has several
+    const { surface: _stage, ...rest } = snapped;
     const next: GhostPlace = { ...rest, ...this.contentSurfaceOf(snapped.surface) };
     this.ghost(next);
     this.onGhostChange?.({
-      surface: next.surface, ...(next.surfaceId !== undefined ? { surfaceId: next.surfaceId } : {}), x: next.x, y: next.y, width: next.width,
+      ...(next.surface !== undefined ? { surface: next.surface } : {}), x: next.x, y: next.y, width: next.width,
       ...(next.height !== undefined ? { height: next.height } : {}),
     });
     event.preventDefault();

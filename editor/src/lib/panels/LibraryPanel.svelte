@@ -5,7 +5,7 @@
   import { ACCEPT, library } from "#lib/library.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import {
-    assetLabel, assetPlace, convertedNotice, formatDuration, formatSize, groupBySpread, heldNotice, LIBRARY_VIEWS, matchesSearch, moreUses, namesPlanLine, readLibraryView, saveLibraryView, type LibraryView,
+    assetLabel, assetPlace, convertedNotice, formatDuration, formatSize, groupByScene, heldNotice, LIBRARY_VIEWS, matchesSearch, moreUses, namesPlanLine, readLibraryView, saveLibraryView, type LibraryView,
   } from "#lib/library-place.js";
   import {
     FILTER_LABELS, LIBRARY_FILTERS, LIBRARY_ORIGINS, matchesFilter, matchesOrigin, nodeAssetKinds, pickAccept, pickFilter, pickFit, pickFits, targetImagesOf, type LibraryFilter, type LibraryOrigin, type LibraryPick,
@@ -83,8 +83,8 @@
   const targetImages = $derived(targetImagesOf(content.spreads));
   /** The media shown (the shaders are in the code list) */
   const shown = $derived(library.assets.filter(asset => asset.kind !== "shader" && matchesFilter(asset, filter, targetImages) && matchesOrigin(asset, origin) && matchesSearch(asset, search)));
-  /** The media grouped by the spread of their first use (#298) */
-  const groups = $derived(groupBySpread(shown, content.spreads));
+  /** The media grouped by the scene of their first use (#298) */
+  const groups = $derived(groupByScene(shown, content.spreads));
 
   /** Name by use (#298): the plan shown, then applied – null while none is open */
   let namesPlan = $state<AssetRename[] | null>(null);
@@ -288,7 +288,7 @@
     <span class="controls"><Segmented options={LIBRARY_VIEWS} value={view} titles={{ cards: "Cards with previews", list: "A plain list" }} onchange={setView} />
       {#if !pick}
         <button type="button" class="text-link" disabled={naming} data-help-name="Name by use"
-          data-help="Names every used file by where it is used first, in page order: an entry's printed image p118-1_target.webp, its picture p118-1_image.webp, a page image page-118.webp, a shared entity's file castle_model.glb. Shows the plan first; the name only changes – every URL and use stays. Unused files keep their names."
+          data-help="Names every used file by where it is used first, in the scenes' order: an entry's printed image p118-1_target.webp, its picture p118-1_image.webp, a shared entity's file castle_model.glb. Shows the plan first; the name only changes – every URL and use stays. Unused files keep their names."
           onclick={() => void proposeNames()}>Name by use…</button>
       {/if}</span></div>
   {#if namesPlan}

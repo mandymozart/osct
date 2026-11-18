@@ -15,14 +15,13 @@ const SOFT_FADE: AppearanceSpec = { description: "Fades.", params: { duration: {
 const config = (root: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
   version: { version: "1.71.0", timestamp: "2026-11-15T00:00:00.000Z", schema: CONTENT_SCHEMA_VERSION },
   book: { id: "b", title: "B", author: "A" },
-  initialSpreadId: "s1",
-  spreads: [{ id: "s1", title: "1–2", firstPage: 1, lastPage: 2 }],
-  entries: [{ id: "e1", category: "video", title: "E", page: 1, body: "", tags: [], target: {
+  initialScene: "s1",
+  scenes: [{ id: "s1", label: "1–2", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
+  entries: [{ id: "e1", category: "video", title: "E", scene: "s1", body: "", tags: [], target: {
     id: "e1", imageSrc: "/assets/content/entries/e1/t.jpg",
     entity: { type: "group", assets: [], ...root },
   } }],
   entities: {},
-  tutorial: [],
   ...extra,
 });
 

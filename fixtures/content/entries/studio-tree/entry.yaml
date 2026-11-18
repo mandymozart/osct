@@ -1,7 +1,7 @@
 # Showcase entry for the editor and the tests (spread studio-a).
 category: glossary
 title: "Studio: tall tree"
-page: 28
+scene: studio-a
 body: "A model scaled up and turned: rotation, scale and a shift towards the top of the page – with a cool point light under it that moves with the model."
 target:
   image: target.jpg

@@ -1,40 +1,52 @@
 import path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BOOK, entry, loadBuild, makeContent, spread } from './helpers';
+import { BOOK, entry, loadBuild, makeContent, scene } from './helpers';
 
 afterEach(() => vi.unstubAllEnvs());
 
 const valid = () => ({
   'book.yaml': BOOK,
-  'spreads/a/spread.yaml': spread(1, 2),
-  'entries/second/entry.yaml': entry(2, 'y.jpg'),
+  'scenes/a/scene.yaml': scene('1–2'),
+  'entries/second/entry.yaml': entry('a', 'y.jpg').replace('title: Entry a', 'title: Second'),
   'entries/second/y.jpg': 'image y',
-  'entries/first/entry.yaml': entry(1, 'x.jpg'),
+  'entries/first/entry.yaml': entry('a', 'x.jpg').replace('title: Entry a', 'title: First'),
   'entries/first/x.jpg': 'image x',
 });
 
 describe('content build', () => {
   it('builds valid content without errors', async () => {
     const build = await loadBuild(makeContent(valid()));
-    const { book, spreads, entries } = build.buildAll();
+    const { book, scenes, entries } = build.buildAll();
     expect(build.errors).toEqual([]);
     expect(book.title).toBe('Test Book');
-    expect(spreads.map(s => s.id)).toEqual(['a']);
+    expect(scenes).toEqual([{ id: 'a', label: '1–2', surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }]);
+    expect(entries.find(e => e.id === 'first')).toMatchObject({ scene: 'a', title: 'First' });
+    expect(entries.find(e => e.id === 'first')).not.toHaveProperty('page');
     expect(entries.find(e => e.id === 'first')?.target?.imageSrc).toBe('/assets/content/entries/first/x.jpg');
   });
 
-  it('orders entries by page, then title', async () => {
-    const build = await loadBuild(makeContent(valid()));
-    const { entries } = build.buildAll();
-    expect(entries.map(e => e.id)).toEqual(['first', 'second']);
-  });
-
-  it('orders spreads by order, then id', async () => {
+  it('orders scenes by order, then id', async () => {
     const build = await loadBuild(makeContent({
       ...valid(),
-      'spreads/b/spread.yaml': spread(3, 4, -1),
+      'scenes/b/scene.yaml': scene('Cover', -1),
     }));
-    expect(build.spreads.buildSpreads().map(s => s.id)).toEqual(['b', 'a']);
+    expect(build.scenes.buildScenes().map(s => s.id)).toEqual(['b', 'a']);
+  });
+
+  it('places surfaces without a place in a row centred on the origin; a place\'s rotations default to 0', async () => {
+    const build = await loadBuild(makeContent({
+      ...valid(),
+      'scenes/a/scene.yaml': 'label: Room\nsurfaces:\n  - { id: a, widthMm: 100, heightMm: 50 }\n  - { id: b, widthMm: 300, heightMm: 50 }\n',
+      'scenes/w/scene.yaml': 'label: Wall\norder: 1\nsurfaces:\n  - { id: wall, widthMm: 2000, heightMm: 1500, place: { x: 0, y: 750, z: -500, rx: 90 } }\n',
+      'entries/first/entry.yaml': entry('a', 'x.jpg', '  place: { surface: b, x: 10, y: 20, width: 30 }\n'),
+      'entries/second/entry.yaml': entry('w', 'y.jpg', '  place: { x: 1, y: 2, width: 3, height: 4 }\n'),
+    }));
+    const { scenes, entries } = build.buildAll();
+    expect(build.errors).toEqual([]);
+    expect(scenes[0].surfaces.map(s => s.place)).toEqual([{ x: -150, y: 0, z: 0, rx: 0, ry: 0, rz: 0 }, { x: 50, y: 0, z: 0, rx: 0, ry: 0, rz: 0 }]);
+    expect(scenes[1].surfaces[0].place).toEqual({ x: 0, y: 750, z: -500, rx: 90, ry: 0, rz: 0 });
+    expect(entries.find(e => e.id === 'first')?.target?.place).toEqual({ surface: 'b', x: 10, y: 20, width: 30 });
+    expect(entries.find(e => e.id === 'second')?.target?.place).toEqual({ x: 1, y: 2, width: 3, height: 4 });
   });
 
   // The world and the sky as assets: paths below the content folder become content paths
@@ -88,36 +100,46 @@ ${environment}`,
       return build.errors;
     };
 
-    it('overlapping spreads', async () => {
-      expect(await errorsFor({ ...valid(), 'spreads/b/spread.yaml': spread(2, 3) }))
-        .toContainEqual('spreads/a and spreads/b: page ranges overlap');
+    it('a scene without surfaces', async () => {
+      expect(await errorsFor({ ...valid(), 'scenes/b/scene.yaml': 'label: B\nsurfaces: []\n' }))
+        .toContainEqual('scenes/b: a scene needs at least one surface');
     });
 
-    it('an entry page outside every spread', async () => {
-      expect(await errorsFor({ ...valid(), 'entries/lost/entry.yaml': entry(9) }))
-        .toContainEqual('entries/lost: page 9 is not part of any spread');
+    it('an entry of a scene that does not exist, or on a surface its scene does not have', async () => {
+      const errors = await errorsFor({ ...valid(), 'entries/lost/entry.yaml': entry('nowhere'), 'entries/off/entry.yaml': entry('a', undefined, 'surface: wall\n') });
+      expect(errors).toContainEqual('entries/lost: scene "nowhere" is not in scenes/');
+      expect(errors).toContainEqual('entries/off: scene "a" has no surface "wall"');
     });
 
-    it('more than 10 targets on a spread', async () => {
+    it('a target\'s place without its surface in a scene of several', async () => {
+      const files = {
+        ...valid(),
+        'scenes/a/scene.yaml': 'label: A\nsurfaces:\n  - { id: l, widthMm: 230, heightMm: 320 }\n  - { id: r, widthMm: 230, heightMm: 320 }\n',
+        'entries/first/entry.yaml': entry('a', 'x.jpg', '  place: { x: 1, y: 2, width: 3 }\n'),
+      };
+      expect(await errorsFor(files)).toContainEqual('entries/first target: scene "a" has several surfaces – place needs the surface it lies on');
+    });
+
+    it('more than 10 targets on a scene', async () => {
       const files: Record<string, string> = { ...valid() };
       for (let i = 0; i < 9; i++) {
-        files[`entries/extra${i}/entry.yaml`] = entry(1, 'z.jpg');
+        files[`entries/extra${i}/entry.yaml`] = entry('a', 'z.jpg');
         files[`entries/extra${i}/z.jpg`] = `z${i}`;
       }
-      expect(await errorsFor(files)).toContainEqual('spreads/a has 11 targets, max is 10.');
+      expect(await errorsFor(files)).toContainEqual('scenes/a has 11 targets, max is 10.');
     });
 
     it('targets switched off do not count towards the 10 (#249)', async () => {
       const files: Record<string, string> = { ...valid() };
       for (let i = 0; i < 9; i++) {
-        files[`entries/extra${i}/entry.yaml`] = entry(1, 'z.jpg', '  enabled: false\n');
+        files[`entries/extra${i}/entry.yaml`] = entry('a', 'z.jpg', '  enabled: false\n');
         files[`entries/extra${i}/z.jpg`] = `z${i}`;
       }
-      expect(await errorsFor(files)).not.toContainEqual('spreads/a has 11 targets, max is 10.');
+      expect(await errorsFor(files)).not.toContainEqual('scenes/a has 11 targets, max is 10.');
     });
 
     it('a target enabled other than true or false', async () => {
-      expect((await errorsFor({ ...valid(), 'entries/first/entry.yaml': entry(1, 'x.jpg', '  enabled: maybe\n') })).join('\n')).toMatch(/enabled/);
+      expect((await errorsFor({ ...valid(), 'entries/first/entry.yaml': entry('a', 'x.jpg', '  enabled: maybe\n') })).join('\n')).toMatch(/enabled/);
     });
 
     it('a missing file', async () => {
@@ -127,7 +149,7 @@ ${environment}`,
 
     it('a missing entry video is a warning: the target is built without its AR video', async () => {
       const videoEntity = ['  entity:', '    type: video', '    src: video.mp4', ''].join('\n');
-      const files = { ...valid(), 'entries/first/entry.yaml': entry(1, 'x.jpg', videoEntity) };
+      const files = { ...valid(), 'entries/first/entry.yaml': entry('a', 'x.jpg', videoEntity) };
       const build = await loadBuild(makeContent(files));
       vi.spyOn(console, 'warn').mockImplementation(() => {});
       vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -139,50 +161,50 @@ ${environment}`,
     });
 
     it('an unknown category', async () => {
-      const errors = await errorsFor({ ...valid(), 'entries/first/entry.yaml': entry(1, 'x.jpg').replace('glossary', 'poem') });
+      const errors = await errorsFor({ ...valid(), 'entries/first/entry.yaml': entry('a', 'x.jpg').replace('glossary', 'poem') });
       expect(errors.join('\n')).toMatch(/entries\/first: .*category.*must be one of/);
     });
 
     it('an entity reference that does not exist', async () => {
-      const errors = await errorsFor({ ...valid(), 'entries/first/entry.yaml': `${entry(1, 'x.jpg')}  entity:\n    ref: nothing\n` });
+      const errors = await errorsFor({ ...valid(), 'entries/first/entry.yaml': `${entry('a', 'x.jpg')}  entity:\n    ref: nothing\n` });
       expect(errors).toContainEqual('entries/first target: entity ref "nothing" not found in content/entities/');
     });
 
     it('a list beyond the phone budget is a warning (#86)', async () => {
       const build = await loadBuild(makeContent({
         'book.yaml': BOOK,
-        'spreads/a/spread.yaml': spread(1, 2) + 'passes:\n  - type: bloom\n  - type: bloom\n  - type: vignette\n  - type: grade\n',
+        'scenes/a/scene.yaml': scene('1–2') + 'passes:\n  - type: bloom\n  - type: bloom\n  - type: vignette\n  - type: grade\n',
       }));
       build.buildAll();
       expect(build.errors).toEqual([]);
-      expect(build.warnings).toEqual(['spreads/a: 4 passes (the phone budget is 3) and 2 blooms (one fits) – every pass is a full-screen render on the phone']);
+      expect(build.warnings).toEqual(['scenes/a: 4 passes (the phone budget is 3) and 2 blooms (one fits) – every pass is a full-screen render on the phone']);
     });
 
-    it('passes of a spread and the book are checked against their specs', async () => {
+    it('passes of a scene and the book are checked against their specs', async () => {
       const { content } = makeContent({
         'book.yaml': BOOK + 'passes:\n  - type: vignette\n    strength: 0.3\n',
-        'spreads/a/spread.yaml': spread(1, 2) + 'passes:\n  - type: bloom\n    strength: 0.8\n',
-        'spreads/b/spread.yaml': spread(3, 4, 1) + 'passes:\n  - type: glow\n  - type: bloom\n    radius: 7\n',
+        'scenes/a/scene.yaml': scene('1–2') + 'passes:\n  - type: bloom\n    strength: 0.8\n',
+        'scenes/b/scene.yaml': scene('3–4', 1) + 'passes:\n  - type: glow\n  - type: bloom\n    radius: 7\n',
       });
       const build = await loadBuild({ content });
-      const { book, spreads } = build.buildAll();
+      const { book, scenes } = build.buildAll();
       expect(book.passes).toEqual([{ type: 'vignette', strength: 0.3 }]);
-      expect(spreads.find(s => s.id === 'a')?.passes).toEqual([{ type: 'bloom', strength: 0.8 }]);
+      expect(scenes.find(s => s.id === 'a')?.passes).toEqual([{ type: 'bloom', strength: 0.8 }]);
       expect(build.errors).toEqual([
-        'spreads/b: passes[0].type: "glow" is not one of bloom, vignette, grade',
-        'spreads/b: passes[1].radius: expected a number from 0 to 1, got 7',
+        'scenes/b: passes[0].type: "glow" is not one of bloom, vignette, grade',
+        'scenes/b: passes[1].radius: expected a number from 0 to 1, got 7',
       ]);
     });
 
     it('a pass that is off is kept with its values and not counted in the phone budget (#233)', async () => {
       const build = await loadBuild(makeContent({
         'book.yaml': BOOK + 'passes:\n  - type: bloom\n    enabled: false\n    strength: 0.35\n  - type: bloom\n  - type: vignette\n  - type: grade\n',
-        'spreads/a/spread.yaml': spread(1, 2) + 'passes:\n  - type: vignette\n    enabled: off\n',
+        'scenes/a/scene.yaml': scene('1–2') + 'passes:\n  - type: vignette\n    enabled: off\n',
       }));
       const { book } = build.buildAll();
       expect(book.passes?.[0]).toEqual({ type: 'bloom', enabled: false, strength: 0.35 });
       expect(build.warnings).toEqual([]);
-      expect(build.errors).toEqual(['spreads/a: passes[0].enabled: expected true or false, got "off"']);
+      expect(build.errors).toEqual(['scenes/a: passes[0].enabled: expected true or false, got "off"']);
     });
 
     it('the book\'s source of truth: print or digital, passed on; another value is an error (#238)', async () => {
@@ -197,27 +219,6 @@ ${environment}`,
     it('a missing book.yaml', async () => {
       const { 'book.yaml': _, ...files } = valid();
       expect(await errorsFor(files)).toContainEqual('book.yaml is missing');
-    });
-  });
-
-  describe('tutorial', () => {
-    it('writes the onboarding older apps require, not the content\'s – a steps folder is not read, only named (#236)', async () => {
-      const build = await loadBuild(makeContent({
-        ...valid(),
-        'steps/one/step.yaml': 'index: 1\ntitle: "{{isbn}}"\n',
-      }));
-      const { tutorial } = build.buildAll();
-      const { COMPAT_TUTORIAL } = await import('../../shared/compat/tutorial');
-      expect(build.errors).toEqual([]);
-      expect(tutorial).toEqual(COMPAT_TUTORIAL);
-      expect(tutorial.map(step => step.id)).toEqual(['splash', 'intro', 'camera', 'done']);
-      expect(build.warnings).toEqual([expect.stringMatching(/^steps\/ is not read/)]);
-    });
-
-    it('a content source without steps builds without a warning', async () => {
-      const build = await loadBuild(makeContent(valid()));
-      build.buildAll();
-      expect(build.warnings).toEqual([]);
     });
   });
 
@@ -251,20 +252,21 @@ describe('the demo book', () => {
     const build = await loadBuild({ content: path.resolve(__dirname, '../../fixtures/demo') });
     vi.spyOn(console, 'log').mockImplementation(() => {});
     const plugins = await build.plugins.buildPlugins();
-    const { book, spreads, entries } = build.buildAll(plugins.map(p => p.data));
+    const { book, scenes, entries } = build.buildAll(plugins.map(p => p.data));
     vi.restoreAllMocks();
     expect(build.errors).toEqual([]);
     expect(book.id).toBe('demo');
     expect(plugins.map(p => p.data.id)).toEqual(['aquarium', 'fluid', 'grain', 'lifts', 'narrative', 'paper', 'pulse', 'reveal', 'scanlines', 'scenes', 'sparkle', 'spin', 'tally', 'tint']);
     // A plugin's pass (#216): the grain plugin's film grain on The twins, checked against its recorded spec
     expect(Object.keys(plugins.find(p => p.data.id === 'grain')!.data.registered!.passes ?? {})).toEqual(['filmGrain']);
-    expect(spreads.find(s => s.id === 'the-twins')?.passes).toEqual([{ type: 'filmGrain', amount: 0.14 }]);
+    expect(scenes.find(s => s.id === 'the-twins')?.passes).toEqual([{ type: 'filmGrain', amount: 0.14 }]);
     // A second pass (#216, #233): the scanlines plugin's lines on The switch, switched off – there to be found and switched on
     const scanLines = plugins.find(p => p.data.id === 'scanlines')!.data.registered!.passes ?? {};
     expect(Object.keys(scanLines)).toEqual(['scanLines']);
     expect(Object.keys(scanLines.scanLines.params)).toEqual(['spacing', 'amount', 'speed', 'reach']);
-    expect(spreads.find(s => s.id === 'the-switch')?.passes).toEqual([{ type: 'scanLines', enabled: false, spacing: 4 }]);
-    expect(spreads.map(s => s.format ?? 'spread')).toEqual(expect.arrayContaining(['cover', 'back', 'spread']));
+    expect(scenes.find(s => s.id === 'the-switch')?.passes).toEqual([{ type: 'scanLines', enabled: false, spacing: 4 }]);
+    expect(scenes.map(s => s.label)).toEqual(['Cover', '1–2', '3–4', '5–6', '7–8', 'Back cover']);
+    expect(scenes.map(s => s.surfaces[0].widthMm)).toEqual([230, 460, 460, 460, 460, 230]);
     const types = new Set<string>();
     const walk = (node: { type: string; children?: Array<{ type: string }> }) => { types.add(node.type); (node.children ?? []).forEach(walk as never); };
     entries.forEach(e => { if (e.target?.entity && !('ref' in e.target.entity)) walk(e.target.entity); });

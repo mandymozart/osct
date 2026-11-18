@@ -5,7 +5,7 @@
  */
 export * from "@shared/types/game-config";
 export { EntryCategory, ENTRY_CATEGORIES } from "@shared/types/entry";
-import type { EntityData, EntryData, SpreadData, TargetData } from "@shared/types/game-config";
+import type { EntityData, EntryData, SceneData, TargetData } from "@shared/types/game-config";
 
 /** App model of a target (mapped from `TargetData`); the entity ref is resolved */
 export interface Target extends Omit<TargetData, "entity"> {
@@ -14,16 +14,16 @@ export interface Target extends Omit<TargetData, "entity"> {
   entity?: EntityData;
 }
 
-/** App model of an entry (mapped from `EntryData`): the spread is its `scene` (schema 2.35), else derived from the access page */
+/** App model of an entry (mapped from `EntryData`): `spreadId` is its `scene` */
 export interface Entry extends Omit<EntryData, "target"> {
   spreadId: string;
   target?: Target;
 }
 
-/** App model of a spread (mapped from `SpreadData`) */
-export interface Spread extends SpreadData {
-  /** Every entry on the spread's pages, with or without target */
+/** App model of a scene (mapped from `SceneData`; the app's name for it is still `Spread`) */
+export interface Spread extends SceneData {
+  /** Every entry of the scene, with or without target */
   entries: Entry[];
-  /** In entry order (page → title) */
+  /** In entry order */
   targets: Target[];
 }

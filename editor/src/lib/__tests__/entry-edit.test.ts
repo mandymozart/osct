@@ -6,7 +6,7 @@ import { bookChanges, bookDraftOf, bookProblems } from "../book-texts";
 
 const { Glossary } = EntryCategory;
 const entry = (fields: Partial<EditorEntry> & Pick<EditorEntry, "id" | "title">): EditorEntry => ({
-  category: Glossary, page: 2, body: "", tags: [], spreadId: "spread-1", target: null, ...fields,
+  category: Glossary, scene: "spread-1", body: "", tags: [], target: null, ...fields,
 });
 
 /** #223: the entry's form – what it edits, what a save sends, what keeps Save off */
@@ -15,14 +15,16 @@ describe("the entry form", () => {
 
   it("starts from the entry and sends nothing while nothing changed", () => {
     const draft = draftOf(racoon);
-    expect(draft).toEqual({ title: "Racoon", category: "glossary", page: 2, author: "Kévin", tags: "animal", body: "A beast.", image: "/assets/content/entries/racoon/img.jpg", caption: "", media: "" });
+    expect(draft).toEqual({ title: "Racoon", category: "glossary", scene: "spread-1", surface: "", author: "Kévin", tags: "animal", body: "A beast.", image: "/assets/content/entries/racoon/img.jpg", caption: "", media: "" });
     expect(entryChanges(racoon, draft)).toEqual({});
     expect(isDirty(racoon, { ...draft, tags: " animal, ", title: "Racoon " })).toBe(false);
   });
 
   it("sends only the fields that changed; an emptied optional field is removed", () => {
-    const draft = { ...draftOf(racoon), body: "A **beast**.", author: " ", tags: "animal, mask, animal", page: 5, media: " https://example.org " };
-    expect(entryChanges(racoon, draft)).toEqual({ body: "A **beast**.", author: null, tags: ["animal", "mask"], page: 5, media: "https://example.org" });
+    const draft = { ...draftOf(racoon), body: "A **beast**.", author: " ", tags: "animal, mask, animal", scene: "spread-2", surface: "wall", media: " https://example.org " };
+    expect(entryChanges(racoon, draft)).toEqual({ body: "A **beast**.", author: null, tags: ["animal", "mask"], scene: "spread-2", surface: "wall", media: "https://example.org" });
+    // A surface emptied goes (the scene as a whole)
+    expect(entryChanges({ ...racoon, surface: "wall" }, draftOf(racoon))).toEqual({ surface: null });
     expect(entryChanges(racoon, { ...draftOf(racoon), image: "" })).toEqual({ image: null });
     // #289: the caption under the picture – trimmed, emptied removes it
     expect(entryChanges(racoon, { ...draftOf(racoon), caption: " Image: a racoon " })).toEqual({ caption: "Image: a racoon" });
@@ -32,10 +34,10 @@ describe("the entry form", () => {
 
   it("keeps Save off with the API's reasons", () => {
     expect(draftProblems(draftOf(racoon))).toEqual([]);
-    expect(draftProblems({ ...draftOf(racoon), title: " ", media: "javascript:alert(1)", category: "poem", page: 1.5 })).toEqual([
+    expect(draftProblems({ ...draftOf(racoon), title: " ", media: "javascript:alert(1)", category: "poem", scene: "" })).toEqual([
       "The title is empty.",
       "The category is none of glossary, video, text, link.",
-      "The access page is no whole number.",
+      "The entry is on no scene.",
       "The link is no http(s) address.",
     ]);
     expect(draftProblems({ ...draftOf(racoon), caption: "x".repeat(501) })).toEqual(["The caption is longer than 500 characters."]);

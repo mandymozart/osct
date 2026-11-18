@@ -3,7 +3,7 @@ import { numberedRows, TRIAL_MODEL_KEY, TRIAL_TESTER_KEY, TRIAL_WINDOW, type Tri
 import type { TrialRow } from "../trial-report";
 
 const row = (targetId: string, printed: boolean | undefined): TrialRow => ({
-  targetId, entryId: targetId, title: targetId, category: "glossary", page: Number(targetId.slice(1, 4)),
+  targetId, entryId: targetId, title: targetId, category: "glossary", place: String(Number(targetId.slice(1, 4))),
   spreadId: "s", spreadTitle: "s", imageSrc: "", result: "untested",
   ...(printed === undefined ? {} : { info: printed ? { width: 30, height: 20 } : { note: "not on the test printout" } }),
 });

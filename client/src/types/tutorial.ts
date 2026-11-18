@@ -1,4 +1,5 @@
-import type { StepAction } from "./game-config";
+/** What an onboarding step's button does: the next step, ask for the camera, or open scan mode */
+export type StepAction = "next" | "camera" | "scan";
 
 /**
  * One onboarding step – the reader's own UI (`utils/onboarding.ts`), not book content. Without `button` the step

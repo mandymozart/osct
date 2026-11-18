@@ -2,8 +2,8 @@ import { GameStoreService } from "@/services";
 import { type Entry, EntryCategory, type IGame, type ListCategory } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { escapeHtml } from "@/utils";
-import { getEntryPlaceLabel } from "@/utils/game-config";
-import { DEFAULT_CATEGORY, entryLabel, entryLabelHtml, groupEntries } from "./entries-model";
+import { getEntryPlaceLabel, getSpreads } from "@/utils/game-config";
+import { DEFAULT_CATEGORY, entryLabel, entryLabelHtml, groupEntries, sceneOrderOf } from "./entries-model";
 import { t } from "i18next";
 
 /** How long a cut-off name rests before it scrolls (Tilman, design p. 40) */
@@ -129,13 +129,13 @@ export class EntriesList extends HTMLElement {
 
   private listHtml(): string {
     const hint = this.isVideos ? `<p class="hint">${t("entries:videosHint")}</p>` : "";
-    const groups = groupEntries(this.entries, this.category);
+    const groups = groupEntries(this.entries, this.category, sceneOrderOf(getSpreads()));
     if (groups.length === 0) return `${hint}<p class="empty">${t("entries:empty")}</p>`;
     const nameHeader = this.category === EntryCategory.Text ? t("entries:title") : t("entries:name");
     // One gradient spans the whole list, so names run from pale to gold top to bottom; the Videos are white (#288)
     return /* html */ `
       ${hint}
-      <div class="head" role="presentation"><span class="label">${nameHeader}</span><span class="page">${t("entries:page")}</span></div>
+      <div class="head" role="presentation"><span class="label">${nameHeader}</span><span class="page">${t("entries:place")}</span></div>
       <ul class="${this.isVideos ? "videos" : "gold"}">${groups
         .map(g => `${g.letter ? `<li class="letter" aria-hidden="true">${g.letter}</li>` : ""}${g.entries.map(e => this.rowHtml(e)).join("")}`)
         .join("")}</ul>`;
@@ -148,7 +148,7 @@ export class EntriesList extends HTMLElement {
     if (!this.game.history.isConsulted(entry.id)) {
       return `<li><div class="row locked" aria-disabled="true">${cells}<span class="visually-hidden">${t("entries:locked")}</span></div></li>`;
     }
-    return `<li><button type="button" class="row" data-entry="${escapeHtml(entry.id)}" aria-label="${escapeHtml(`${entryLabel(entry)}, ${t("entries:page")} ${getEntryPlaceLabel(entry)}`)}">${cells}</button></li>`;
+    return `<li><button type="button" class="row" data-entry="${escapeHtml(entry.id)}" aria-label="${escapeHtml(`${entryLabel(entry)}, ${t("entries:place")} ${getEntryPlaceLabel(entry)}`)}">${cells}</button></li>`;
   }
 
   /** After the delay, every name cut off by its line scrolls once (#287) */

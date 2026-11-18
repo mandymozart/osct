@@ -6,14 +6,13 @@
 # water and the floor. A tap pushes the toy in.
 category: glossary
 title: The aquarium
-page: 2
+scene: the-key
 body: "A plugin's own node type with a material and a texture of its own: the glass tank is `registerNodeType`, the water a `registerMaterial` shader (waves on its surface, a tint that deepens with the angle), the light on the floor the procedural texture `caustics` from `registerTexture`. Tap it: the toy fish is pushed into the water, the surface is simulated as a heightfield and the rings run outward, the light on the floor gathering under them. In the editor, the Entity panel shows the tank's rows and the water's material row; make it code turns any node into a node type of your own."
 tags: [plugin, material, texture]
 target:
   image: target.jpg
-  print:
-    surface: right
-    x: 120
+  place:
+    x: 350
     y: 20
     width: 80
   entity:

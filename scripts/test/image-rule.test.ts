@@ -37,7 +37,7 @@ describe('the image rule in the content build (#298)', () => {
   });
 
   it('the sizes per use, never scaled up', () => {
-    expect(IMAGE_MAX_SIDE).toEqual({ page: 2048, entryImage: 2048, target: 1200, default: 2048 });
+    expect(IMAGE_MAX_SIDE).toEqual({ reference: 2048, entryImage: 2048, target: 1200, default: 2048 });
     expect(fitImage(3000, 1000)).toEqual({ width: 2048, height: 683 });
     expect(fitImage(3000, 1000, 'target')).toEqual({ width: 1200, height: 400 });
     expect(fitImage(800, 600, 'target')).toEqual({ width: 800, height: 600 });

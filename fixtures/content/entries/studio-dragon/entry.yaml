@@ -1,7 +1,7 @@
 # Showcase entry for the editor and the tests (spread studio-a).
 category: glossary
 title: "Studio: small dragon"
-page: 28
+scene: studio-a
 body: "A small model off centre, facing the top edge."
 target:
   image: target.jpg

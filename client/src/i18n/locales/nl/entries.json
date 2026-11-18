@@ -5,8 +5,8 @@
   "marginalia": "Marginalia",
   "name": "Naam",
   "title": "Titel",
-  "page": "Pagina",
-  "videosHint": "Ga in scanmodus naar de pagina om de video af te spelen.",
+  "place": "Plek",
+  "videosHint": "Ga in scanmodus naar de plek om de video af te spelen.",
   "categories": {
     "glossary": "Marginalia",
     "video": "Video's",

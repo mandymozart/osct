@@ -3,17 +3,31 @@ import { Matrix4, PerspectiveCamera, Quaternion, Vector3 } from "three";
 import type { Target } from "@engine/types";
 import type { TriggerInfos } from "@engine/utils/trigger-protocol";
 import { setPreviewActive, setTargetHidden, updatePreview } from "../preview";
-import { DEFAULT_PAGE_MM } from "../stage-layout";
 import { getEngineState } from "@engine/utils/tracker-debug";
-import {
-  cameraMatrix, layoutTargets, MockTracker, PREVIEW_FOV, type StageTarget, type StageView, targetCentre, VIEW_PRESETS, wobbled,
-} from "../mock-tracker";
+import { sceneFrames } from "../surfaces";
+
+// Every scene of these tests: two pages side by side, `left` and `right`, the scene's origin between them (#319 – the
+// surfaces at their places, arranged in a row)
+const PAGE_MM = { width: 230, height: 320 };
+const SURFACES = vi.hoisted(() => [
+  { id: "left", widthMm: 230, heightMm: 320, place: { x: -115, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } },
+  { id: "right", widthMm: 230, heightMm: 320, place: { x: 115, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } },
+]);
+vi.mock("@engine/content/game-config", () => ({ getSpread: (id: string) => ({ id, label: id, surfaces: SURFACES, entries: [], targets: [] }) }));
+const pages = sceneFrames({ surfaces: SURFACES });
+
+const {
+  cameraMatrix, layoutTargets, MockTracker, PREVIEW_FOV, targetCentre, VIEW_PRESETS, wobbled,
+} = await import("../mock-tracker");
+type StageTarget = import("../mock-tracker").StageTarget;
+type StageView = import("../mock-tracker").StageView;
+type MockTracker = InstanceType<typeof MockTracker>;
 
 const target = (id: string): Target => ({ id, entryId: id, spreadId: "s", imageSrc: `/${id}.jpg` });
 
-/** A target printed with its centre on the spread's root (the spine's middle): the camera's distance to it is the orbit's */
+/** A target printed with its centre on the scene's origin (the spine's middle): the camera's distance to it is the orbit's */
 const atRoot = (id: string, spreadId = "s"): Target =>
-  ({ ...target(id), spreadId, print: { surface: "right", x: -20, y: DEFAULT_PAGE_MM.height / 2 - 20, width: 40, height: 40 } }) as Target;
+  ({ ...target(id), spreadId, place: { surface: "right", x: -20, y: PAGE_MM.height / 2 - 20, width: 40, height: 40 } }) as Target;
 
 /** The anchor's scale (1 unit = the printed width, in metres) and its position in camera space */
 const decompose = (matrix: Matrix4) => {
@@ -24,14 +38,16 @@ const decompose = (matrix: Matrix4) => {
 };
 
 describe("mock stage layout", () => {
-  it("lays targets without printed details in a row across the middle of the right page", () => {
-    const row = layoutTargets([target("a"), target("b"), target("c")]);
-    expect(row.map(t => t.surface)).toEqual(["right", "right", "right"]);
+  it("lays targets without a place in a row across the middle of the scene's first surface", () => {
+    const row = layoutTargets([target("a"), target("b"), target("c")], {}, pages);
+    expect(row.map(t => t.surface)).toEqual(["left", "left", "left"]);
     expect(row[0].x).toBeLessThan(row[1].x);
     expect(row[1].x).toBeLessThan(row[2].x);
     expect(row[0].width).toBe(row[2].width);
-    expect(row[2].x + row[2].width).toBeLessThanOrEqual(DEFAULT_PAGE_MM.width);
-    expect(row[0].y + row[0].height / 2).toBeCloseTo(DEFAULT_PAGE_MM.height / 2, 5);
+    expect(row[2].x + row[2].width).toBeLessThanOrEqual(PAGE_MM.width);
+    expect(row[0].y + row[0].height / 2).toBeCloseTo(PAGE_MM.height / 2, 5);
+    // No scene open: the stand-in double page
+    expect(layoutTargets([target("a")]).map(t => t.surface)).toEqual(["surface"]);
   });
 
   it("places printed images by their size and position words, stacking several in one region", () => {
@@ -40,44 +56,34 @@ describe("mock stage layout", () => {
       b: { width: 49, height: 18, position: "bottom right" },
       c: { width: 40, height: 30, position: "top left" },
     };
-    const [a, b, c] = layoutTargets([target("a"), target("b"), target("c")], infos);
+    const [a, b, c] = layoutTargets([target("a"), target("b"), target("c")], infos, pages);
     expect(a.width).toBe(31);
     expect(a.x).toBe(20);
     expect(a.y).toBe(20);
-    expect(b.x + b.width).toBe(DEFAULT_PAGE_MM.width - 20);
-    expect(b.y + b.height).toBe(DEFAULT_PAGE_MM.height - 20);
+    expect(b.x + b.width).toBe(PAGE_MM.width - 20);
+    expect(b.y + b.height).toBe(PAGE_MM.height - 20);
     expect(c.y).toBeGreaterThan(a.y + a.height);
   });
 
-  it("places every target exactly where the book's layout has it, on its own page", () => {
-    const layout = {
-      page: { width: 230, height: 320 },
-      sheets: [],
-      targets: {
-        a: { page: 4, surface: "left", x: 38.7, y: 9.5, width: 30.9, height: 23.3, sheet: "pp-004-005" },
-        b: { page: 5, surface: "right", x: 184.8, y: 287.5, width: 37.1, height: 20.8, sheet: "pp-004-005" },
-      },
-    };
-    const [a, b] = layoutTargets([target("a"), target("b")], {}, layout.page, layout);
-    expect(a).toMatchObject({ surface: "left", x: 38.7, y: 9.5, width: 30.9 });
-    expect(b).toMatchObject({ surface: "right", x: 184.8, width: 37.1 });
-    expect(targetCentre(a, layout.page).x).toBeCloseTo((-230 + 38.7 + 30.9 / 2) / 1000, 6);
-    // A target the layout does not know: the known one stays where it is printed, the other lies in a row on the right page
-    const mixed = layoutTargets([target("a"), target("c")], {}, layout.page, layout);
-    expect(mixed[0]).toMatchObject({ surface: "left", x: 38.7 });
-    expect(mixed[1]).toMatchObject({ surface: "right", y: layout.page.height * 0.6 });
-    // A target made in the editor carries its own place, which wins over the layout
-    const own = layoutTargets([{ ...target("a"), print: { surface: "right", x: 100, y: 50, width: 40 } }], {}, layout.page, layout)[0];
-    expect(own).toMatchObject({ surface: "right", x: 100, y: 50, width: 40, height: 30 });
+  it("places every target exactly where its place has it, on its surface", () => {
+    const placed = (id: string, place: Target["place"]): Target => ({ ...target(id), place });
+    const [a, b] = layoutTargets([placed("a", { surface: "left", x: 38.7, y: 9.5, width: 30.9, height: 23.3 }), placed("b", { surface: "right", x: 184.8, y: 287.5, width: 37.1 })], {}, pages);
+    expect(a).toMatchObject({ surface: "left", x: 38.7, y: 9.5, width: 30.9, height: 23.3 });
+    expect(b).toMatchObject({ surface: "right", x: 184.8, width: 37.1, height: 37.1 * 0.75 });
+    expect(targetCentre(a, pages).x).toBeCloseTo((-230 + 38.7 + 30.9 / 2) / 1000, 6);
+    // A target without a place: the placed one stays where it is, the other lies in a row on the first surface
+    const mixed = layoutTargets([placed("a", { surface: "right", x: 38.7, y: 9.5, width: 30.9 }), target("c")], {}, pages);
+    expect(mixed[0]).toMatchObject({ surface: "right", x: 38.7 });
+    expect(mixed[1]).toMatchObject({ surface: "left", y: PAGE_MM.height * 0.6 });
   });
 
   it("uses exact positions when the layout was imported", () => {
-    const [a] = layoutTargets([target("a")], { a: { width: 30.9, height: 23.3, x: 38.7, y: 9.5 } });
+    const [a] = layoutTargets([target("a")], { a: { width: 30.9, height: 23.3, x: 38.7, y: 9.5 } }, pages);
     expect(a).toMatchObject({ x: 38.7, y: 9.5, width: 30.9, height: 23.3 });
   });
 
   it("falls back to the row when only some targets have printed details", () => {
-    const [a, b] = layoutTargets([target("a"), target("b")], { a: { width: 31, height: 23, position: "top left" } });
+    const [a, b] = layoutTargets([target("a"), target("b")], { a: { width: 31, height: 23, position: "top left" } }, pages);
     expect(a.width).toBe(b.width);
     expect(a.y).toBe(b.y);
   });
@@ -88,11 +94,11 @@ describe("mock stage layout", () => {
 });
 
 describe("mock stage geometry", () => {
-  it("puts a target's centre on the page in metres, the spine at the origin, the page top up", () => {
-    const centre = targetCentre({ id: "a", imageSrc: "", surface: "right", x: 0, y: 0, width: 230, height: 320 });
+  it("puts a target's centre on its surface in metres, the scene's origin at the spine, the surface's top away from the reader", () => {
+    const centre = targetCentre({ id: "a", imageSrc: "", surface: "right", x: 0, y: 0, width: 230, height: 320 }, pages);
     expect(centre.x).toBeCloseTo(0.115, 6);
     expect(centre.y).toBeCloseTo(0, 6);
-    const topLeft = targetCentre({ id: "a", imageSrc: "", surface: "left", x: 0, y: 0, width: 10, height: 10 });
+    const topLeft = targetCentre({ id: "a", imageSrc: "", surface: "left", x: 0, y: 0, width: 10, height: 10 }, pages);
     expect(topLeft.x).toBeCloseTo(-0.225, 6);
     expect(topLeft.y).toBeCloseTo(0.155, 6);
   });
@@ -180,7 +186,7 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
     tracker.tick(now);
     const before = updates.filter(([id]) => id === "a").at(-1)![1]!.clone();
     expect(decompose(before).position.length()).toBeCloseTo(0.35, 3); // the root at the reader's distance
-    const elsewhere: Target = { ...target("z"), spreadId: "t", print: { surface: "left", x: 10, y: 10, width: 40 } } as Target;
+    const elsewhere: Target = { ...target("z"), spreadId: "t", place: { surface: "left", x: 10, y: 10, width: 40 } } as Target;
     await tracker.loadTargets({ spreadId: "t", targets: [elsewhere, atRoot("a", "t")] });
     tracker.tick(now);
     const after = updates.filter(([id]) => id === "a").at(-1)![1]!;
@@ -360,7 +366,7 @@ describe("MockTracker: the placement being edited is the target itself (#191)", 
     updates = [];
     moved = [];
     aspect = undefined;
-    tracker = new MockTracker(document.createElement("div"), { onUpdate: (id, matrix) => updates.push([id, matrix]) }, async () => ({}), () => 0, async () => null);
+    tracker = new MockTracker(document.createElement("div"), { onUpdate: (id, matrix) => updates.push([id, matrix]) }, async () => ({}), () => 0);
     tracker.attachStage({
       setLayout() {},
       setHdri() {},
@@ -370,7 +376,7 @@ describe("MockTracker: the placement being edited is the target itself (#191)", 
       printedAspect: () => aspect,
     });
     await tracker.startCamera();
-    const placed = { ...target("a"), print: { surface: "right", x: 70, y: 100, width: 80 } } as Target;
+    const placed = { ...target("a"), place: { surface: "right", x: 70, y: 100, width: 80 } } as Target;
     await tracker.loadTargets({ spreadId: "s", targets: [placed, target("b")] });
   });
 

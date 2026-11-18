@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * What goes when entries are removed with everything on them (docs/server.md "Removing a spread or an entry"): the
+ * What goes when entries are removed with everything on them (docs/server.md "Removing a scene or an entry"): the
  * entries, their targets, the shared entities no other target uses (a shared entity used elsewhere is kept and
  * listed with its other targets), the targets' own entities with them, and the Library files those rows name – split
  * into the files used only there and the files used elsewhere (`Assets::usagesOf` beyond the removed rows).
@@ -78,7 +78,7 @@ final class Removal
     }
 
     /**
-     * What the removal takes (the first step's `impact`, without the spread – the caller adds it): the entries, their
+     * What the removal takes (the first step's `impact`, without the scene – the caller adds it): the entries, their
      * targets, the entities that go (a shared one with its `ref`, a target's own with `ref: null`), the shared entities
      * kept (with the targets that still use them), the Library files used only here and those used elsewhere, the counts
      * @return array<string, mixed>
@@ -100,7 +100,7 @@ final class Removal
         $file = static fn(array $f) => ['id' => $f['asset']['id'], 'name' => $f['asset']['name'], 'kind' => $f['asset']['kind'], 'size' => (int) $f['asset']['size'], 'url' => $f['asset']['url']]
             + ($f['usedBy'] ? ['usedBy' => $f['usedBy']] : []);
         return [
-            'entries' => array_map(static fn(array $e) => ['id' => $e['id'], 'title' => $e['title'], 'page' => (int) $e['page'], 'category' => $e['category']], $this->entries),
+            'entries' => array_map(static fn(array $e) => ['id' => $e['id'], 'title' => $e['title'], 'scene' => $e['spread_id'], 'category' => $e['category']], $this->entries),
             'targets' => array_map(static fn(array $t) => ['id' => $t['id'], 'entry' => $t['entry_id'], 'imageSrc' => $t['image_src']], $this->targets),
             'entities' => $entities,
             'keptEntities' => $kept,
@@ -115,7 +115,7 @@ final class Removal
     /**
      * What a confirmation of this removal is bound to: every row that goes as it is now, the kept entities' users, the
      * files and their uses, and the book's last change – anything that changes in the book voids the id
-     * @param list<mixed> $more the caller's own rows (the spread)
+     * @param list<mixed> $more the caller's own rows (the scene)
      */
     public function state(array $more = []): string
     {

@@ -2,13 +2,12 @@
 # shows one at a time and a tap on the entity switches to the next (the spread variable `scene` counts).
 category: glossary
 title: The switch
-page: 5
+scene: the-switch
 body: "Three scenes in one entity: a picture, a video with its own alpha, a line of text. The `scenes` component shows one child and a tap shows the next – `scene` in the spread scope says which, `sceneChanged` is emitted."
 tags: [interaction, tap]
 target:
   image: target.jpg
-  print:
-    surface: left
+  place:
     x: 60
     y: 100
     width: 90

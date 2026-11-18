@@ -12,22 +12,22 @@ const kelly = "Gene Kelly dancing, 1944. Gjon Mili The LIFE Picture Collection/S
 const book = (credits?: unknown) => ({
   version: { version: "1.82.0", timestamp: "2026-11-16T00:00:00.000Z", hash: "abc123", schema: CONTENT_SCHEMA_VERSION },
   book: { id: "b", title: "B", author: "A" },
-  initialSpreadId: "s1",
-  spreads: [
-    { id: "s1", title: "2–3", firstPage: 2, lastPage: 3 },
-    { id: "s2", title: "4–5", firstPage: 4, lastPage: 5 },
-    { id: "s3", title: "6–7", firstPage: 6, lastPage: 7 },
+  initialScene: "s1",
+  scenes: [
+    { id: "s1", label: "2–3", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] },
+    { id: "s2", label: "4–5", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] },
+    { id: "s3", label: "6–7", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] },
   ],
   entries: [
-    { id: "golem", category: "glossary", title: "Golem", page: 3, body: "", tags: [], target: { id: "golem", imageSrc: "/assets/content/entries/golem/target.jpg" } },
-    { id: "carr", category: "glossary", title: "Carr", page: 2, body: "", tags: [], image: "https://cdn.example/carr.jpg" },
+    { id: "golem", category: "glossary", title: "Golem", scene: "s1", body: "", tags: [], target: { id: "golem", imageSrc: "/assets/content/entries/golem/target.jpg" } },
+    { id: "carr", category: "glossary", title: "Carr", scene: "s1", body: "", tags: [], image: "https://cdn.example/carr.jpg" },
     {
-      id: "dance", category: "glossary", title: "Dance", page: 4, body: "", tags: [],
+      id: "dance", category: "glossary", title: "Dance", scene: "s2", body: "", tags: [],
       target: { id: "dance", imageSrc: "/assets/content/entries/dance/target.jpg", entity: { ref: "film" } },
     },
     // The same picture again on the next spread, and a switched-off target: not in the reader's book
-    { id: "golem2", category: "glossary", title: "Golem again", page: 5, body: "", tags: [], target: { id: "golem2", imageSrc: "/assets/content/entries/golem/target.jpg" } },
-    { id: "off", category: "glossary", title: "Off", page: 6, body: "", tags: [], target: { id: "off", imageSrc: "/assets/content/entries/off/target.jpg", enabled: false } },
+    { id: "golem2", category: "glossary", title: "Golem again", scene: "s2", body: "", tags: [], target: { id: "golem2", imageSrc: "/assets/content/entries/golem/target.jpg" } },
+    { id: "off", category: "glossary", title: "Off", scene: "s3", body: "", tags: [], target: { id: "off", imageSrc: "/assets/content/entries/off/target.jpg", enabled: false } },
   ],
   entities: { film: { type: "video", assets: [{ id: "film", assetType: "video", src: "/assets/content/entities/film/film.mp4" }] } },
   ...(credits === undefined ? {} : { credits }),
@@ -42,17 +42,17 @@ const credits = {
 };
 
 describe("image credits", () => {
-  it("lists the lines per spread, by page, of every file an entry uses – a shared entity's too", async () => {
+  it("lists the lines per scene, in entry order, of every file an entry uses – a shared entity's too", async () => {
     expect(await loadGameConfiguration({ bundled: async () => book(credits) })).toBeNull();
     expect(getCredits().map(({ spread, lines }) => [spread.id, lines])).toEqual([
-      ["s1", [carr, golem]],
+      ["s1", [golem, carr]],
       ["s2", [kelly, golem]],
     ]);
   });
 
   it("finds the lines below a content base as well", async () => {
     expect(await loadGameConfiguration({ bundled: async () => book(credits), assetsBase: "https://cdn.example/b/v1" })).toBeNull();
-    expect(getCredits()[0].lines).toEqual([carr, golem]);
+    expect(getCredits()[0].lines).toEqual([golem, carr]);
   });
 
   it("none without credits", async () => {

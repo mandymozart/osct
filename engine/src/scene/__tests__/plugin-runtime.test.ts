@@ -12,8 +12,8 @@ import {
 
 const target = (id: string, entity?: EntityData): Target => ({ id, entryId: id, spreadId: "a", imageSrc: `/${id}.jpg`, entity });
 const SPREADS: Spread[] = [
-  { id: "a", title: "A", firstPage: 1, lastPage: 2, entries: [], targets: [target("key"), target("tally")] },
-  { id: "b", title: "B", firstPage: 3, lastPage: 4, format: "spread", entries: [], targets: [target("door")] },
+  { id: "a", label: "A", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }], entries: [], targets: [target("key"), target("tally")] },
+  { id: "b", label: "B", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }], entries: [], targets: [target("door")] },
 ];
 const NOTHING: ComponentSpec = { description: "x", params: {} };
 
@@ -204,7 +204,7 @@ describe("api.progress and api.spread", () => {
     expect(api.spread.current?.targets.map(t => t.id)).toEqual(["key", "tally"]);
     spreadChanged("b");
     expect(seen).toEqual([{ spreadId: "a", previous: null }, { spreadId: "b", previous: "a" }]);
-    expect(api.spread.get("a")?.title).toBe("A");
+    expect(api.spread.get("a")?.label).toBe("A");
     stageEnded();
     expect(api.spread.current).toBeNull();
   });

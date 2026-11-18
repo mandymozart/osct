@@ -136,7 +136,7 @@ export class SplashPage extends Page {
 
   private finish() {
     window.clearTimeout(this.timer);
-    this.game.router.navigate("/spread");
+    this.game.router.navigate("/scene");
   }
 }
 

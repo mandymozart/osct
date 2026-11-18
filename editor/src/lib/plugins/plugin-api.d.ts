@@ -250,70 +250,35 @@ declare const ASSET_TYPES: readonly [
 	"audio"
 ];
 type AssetType = (typeof ASSET_TYPES)[number];
-declare const SPREAD_FORMATS: readonly [
-	"spread",
-	"cover",
-	"back"
-];
-type SpreadFormat = (typeof SPREAD_FORMATS)[number];
-declare const MATTERS: readonly [
-	"front",
-	"back"
-];
-type Matter = (typeof MATTERS)[number];
-declare const SURFACE_SIDES: readonly [
-	"left",
-	"middle",
-	"right",
-	"front",
-	"back",
-	"wall"
-];
-type SurfaceSide = (typeof SURFACE_SIDES)[number];
 interface SurfacePlace {
 	x: number;
 	y: number;
 	z: number;
-	rx?: number;
-	ry?: number;
-	rz?: number;
+	rx: number;
+	ry: number;
+	rz: number;
 }
 interface SurfaceData {
-	/** Unique within its scene; an entry names it (`EntryData.surface`), a target's print too (`PrintPlacement.surfaceId`) */
+	/** Unique within its scene; an entry names it (`EntryData.surface`), a target's place too (`TargetPlace.surface`) */
 	id: string;
-	side: SurfaceSide | (string & {});
+	/** Optional: what is printed on it (`186–187`, `Cover`) – free text, never arithmetic */
+	label?: string;
 	widthMm: number;
 	heightMm: number;
-	/** Optional: the label as printed – the reader shows it where it showed the page number */
-	label?: string;
-	/** Optional (schema 2.36, #314): where it lies in the scene (`SurfacePlace`) – used in a `free` scene */
-	place?: SurfacePlace;
+	/** Where it lies in the scene (`SurfacePlace`) */
+	place: SurfacePlace;
 }
-declare const SCENE_LAYOUTS: readonly [
-	"fixed",
-	"free"
-];
-type SceneLayout = (typeof SCENE_LAYOUTS)[number];
-interface SpreadData {
+interface SceneData {
+	/** Stable and invisible: links (`/scene/<id>`), progress and entries name it */
 	id: string;
-	title: string;
-	/** Kept for apps before schema 2.35 and for the page ranges; a scene's place in the book is its position in `spreads` */
-	firstPage: number;
-	lastPage: number;
-	/** Optional (schema 2.3): `cover` or `back` for the covers, `spread` or none for a double page */
-	format?: SpreadFormat;
-	/** Optional (schema 2.32), a double page only: `front` or `back` matter – pages without printed numbers (`MATTERS`) */
-	matter?: Matter;
-	/** Optional (schema 2.5): the post-processing passes over this spread's rendered image, in order; replaces the book's (`[]` = none) */
-	passes?: PassData[];
-	/** Optional (schema 2.35, #307): the scene's physical areas, in order (`SurfaceData`) */
-	surfaces?: SurfaceData[];
-	/** Optional (schema 2.35): how the surfaces relate – `fixed` (none) or `free` */
-	layout?: SceneLayout;
-	/** Optional (schema 2.35): the id of the group the scene belongs to (`GameConfiguration.groups`) */
+	/** What the reader's switcher and lists show for it – free text (`186–187`, `Cover`, `Studio wall`) */
+	label: string;
+	/** Optional: the id of the group the scene belongs to (`GameConfiguration.groups`) */
 	group?: string;
-	/** Optional (schema 2.35): what the reader's switcher and lists show for the scene – free text (`Pages 40–41`) */
-	label?: string;
+	/** Its physical areas, in order – at least one */
+	surfaces: SurfaceData[];
+	/** Optional (schema 2.5): the post-processing passes over this scene's rendered image, in order; replaces the book's (`[]` = none) */
+	passes?: PassData[];
 }
 interface AssetData {
 	id: string;
@@ -359,19 +324,9 @@ interface EntityData {
 interface EntityRefData {
 	ref: string;
 }
-declare const PRINT_SURFACES: readonly [
-	"left",
-	"right",
-	"front",
-	"back"
-];
-type PrintSurface = (typeof PRINT_SURFACES)[number];
-interface PrintPlacement {
-	page?: number;
-	/** The side it is printed on – kept for apps before 2.36; a surface's id (`surfaceId`) wins over it */
-	surface: PrintSurface;
-	/** Optional (schema 2.36, #314): the scene's surface it is printed on, by id (`SurfaceData.id`) – a fold-out's middle, a wall */
-	surfaceId?: string;
+interface TargetPlace {
+	/** The surface it lies on, by id (`SurfaceData.id`) – required when the scene has several */
+	surface?: string;
 	x: number;
 	y: number;
 	width: number;
@@ -381,8 +336,8 @@ interface TargetData {
 	id: string;
 	imageSrc: string;
 	entity?: EntityData | EntityRefData;
-	/** Where it is printed (optional, schema 2.1 – targets made in the editor carry it) */
-	print?: PrintPlacement;
+	/** Optional: where it is printed (`TargetPlace`) – targets made in the editor carry it */
+	place?: TargetPlace;
 	/**
 	 * Optional (schema 2.26): `false` = switched off (#249) – the target keeps its values and its entry in the content, the
 	 * reader leaves both out (no image target, no entry in the list, not counted); none or `true` = in the book
@@ -393,14 +348,9 @@ interface EntryData {
 	id: string;
 	category: EntryCategory;
 	title: string;
-	/**
-	 * The access page. It decides the spread unless `scene` is set (schema 2.35). Still required: apps before 2.35 place the
-	 * entry by it, so writers keep writing a page within the scene's range
-	 */
-	page: number;
-	/** Optional (schema 2.35, #307): the id of the entry's scene (a spread) – when set it decides the spread, not `page` */
-	scene?: string;
-	/** Optional (schema 2.35): the id of one of its scene's `surfaces` the entry lies on – its label is the entry's place */
+	/** The id of the entry's scene (`SceneData.id`) – where the reader finds it */
+	scene: string;
+	/** Optional: the id of one of its scene's `surfaces` the entry lies on – only when the scene has several */
 	surface?: string;
 	/**
 	 * The text (schema 2.23: Markdown – paragraphs, *emphasis*, **strong**, [links](https://…) – with the book's variables
@@ -424,10 +374,10 @@ interface Entry extends Omit<EntryData, "target"> {
 	spreadId: string;
 	target?: Target;
 }
-interface Spread extends SpreadData {
-	/** Every entry on the spread's pages, with or without target */
+interface Spread extends SceneData {
+	/** Every entry of the scene, with or without target */
 	entries: Entry[];
-	/** In entry order (page → title) */
+	/** In entry order */
 	targets: Target[];
 }
 type LoadedAsset = {

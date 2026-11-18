@@ -17,12 +17,14 @@ afterAll(() => {
 });
 
 export const BOOK = 'id: test\ntitle: Test Book\nauthor: Someone\n';
-export const spread = (first: number, last: number, order = 0) =>
-  `title: Spread\norder: ${order}\nfirstPage: ${first}\nlastPage: ${last}\n`;
-export const entry = (page: number, target?: string, extra = '') =>
-  `category: glossary\ntitle: Entry ${page}\npage: ${page}\n${target ? `target:\n  image: ${target}\n` : ''}${extra}`;
+/** scene.yaml (schema 3.0): a label, an order and one surface – a double page, 460 × 320 mm */
+export const scene = (label: string, order = 0) =>
+  `label: "${label}"\norder: ${order}\nsurfaces:\n  - id: surface\n    widthMm: 460\n    heightMm: 320\n`;
+/** entry.yaml of an entry in the scene `sceneId` (its title: "Entry <sceneId>") */
+export const entry = (sceneId: string, target?: string, extra = '') =>
+  `category: glossary\ntitle: Entry ${sceneId}\nscene: ${sceneId}\n${target ? `target:\n  image: ${target}\n` : ''}${extra}`;
 
-/** Write a content folder into a temp dir: { 'spreads/a/spread.yaml': '…', … } */
+/** Write a content folder into a temp dir: { 'scenes/a/scene.yaml': '…', … } */
 export function makeContent(files: Record<string, string | Buffer>): { root: string; content: string } {
   const root = tempDir('osct-scripts-');
   const content = path.join(root, 'content');
@@ -37,26 +39,25 @@ export function makeContent(files: Record<string, string | Buffer>): { root: str
 export async function loadBuild(dirs: { content: string }) {
   vi.stubEnv('OSCT_CONTENT_DIR', dirs.content);
   vi.resetModules();
-  const [errors, book, spreads, entities, entries, targets, tutorial, hash, plugins] = await Promise.all([
+  const [errors, book, scenes, entities, entries, targets, hash, plugins] = await Promise.all([
     import('../src/lib/errors'),
     import('../src/build/book'),
-    import('../src/build/spreads'),
+    import('../src/build/scenes'),
     import('../src/build/entities'),
     import('../src/build/entries'),
     import('../src/build/targets'),
-    import('../src/build/tutorial'),
     import('../src/lib/hash'),
     import('../src/build/plugins'),
   ]);
   const { recordedRegistrations } = await import('../../shared/types/plugins');
-  /** book → spreads → entities → entries → target limit, like the content build; `plugins` = what buildPlugins declared */
+  /** book → scenes → entities → entries → target limit, like the content build; `plugins` = what buildPlugins declared */
   const buildAll = (plugins: readonly { registered?: unknown }[] = []) => {
     const passes = recordedRegistrations(plugins).passes;
     const b = book.buildBook(passes);
-    const s = spreads.buildSpreads(passes);
+    const s = scenes.buildScenes(passes);
     const builds = entries.buildEntries(s, entities.buildEntities());
-    targets.checkTargetsPerSpread(s, builds);
-    return { book: b, spreads: s, entries: builds.map(x => x.entry), tutorial: tutorial.buildTutorial() };
+    targets.checkTargetsPerScene(s, builds);
+    return { book: b, scenes: s, entries: builds.map(x => x.entry) };
   };
-  return { errors: errors.buildErrors, warnings: errors.buildWarnings, buildAll, book, spreads, entities, entries, targets, tutorial, hash, plugins };
+  return { errors: errors.buildErrors, warnings: errors.buildWarnings, buildAll, book, scenes, entities, entries, targets, hash, plugins };
 }

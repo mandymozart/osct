@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BOOK, entry, loadBuild, makeContent, spread, tempDir } from './helpers';
+import { BOOK, entry, loadBuild, makeContent, scene, tempDir } from './helpers';
 import { optimizeMedia, textureSetFiles } from '../src/lib/optimize-media';
 
 afterEach(() => vi.unstubAllEnvs());
@@ -9,8 +9,8 @@ afterEach(() => vi.unstubAllEnvs());
 /** An entry whose model brings a texture set (#260, content schema 2.27) */
 const content = (textures: string, files: Record<string, string> = {}) => ({
   'book.yaml': BOOK,
-  'spreads/a/spread.yaml': spread(1, 2),
-  'entries/first/entry.yaml': entry(1, 'x.jpg', `  entity:\n    type: model\n    src: face_mesh.glb\n${textures}`),
+  'scenes/a/scene.yaml': scene('1–2'),
+  'entries/first/entry.yaml': entry('a', 'x.jpg', `  entity:\n    type: model\n    src: face_mesh.glb\n${textures}`),
   'entries/first/x.jpg': 'image x',
   'entries/first/face_mesh.glb': 'glb',
   ...files,

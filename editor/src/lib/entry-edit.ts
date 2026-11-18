@@ -15,7 +15,9 @@ import { ENTRY_CATEGORIES } from "@shared/types/entry";
 export interface EntryDraft {
   title: string;
   category: string;
-  page: number;
+  /** The scene the entry is on (`EntryData.scene`) and – in a scene with several surfaces – its surface ("" = none) */
+  scene: string;
+  surface: string;
   author: string;
   tags: string;
   body: string;
@@ -29,7 +31,8 @@ export interface EntryDraft {
 export const draftOf = (entry: EntryFields): EntryDraft => ({
   title: entry.title,
   category: entry.category,
-  page: entry.page,
+  scene: entry.scene,
+  surface: entry.surface ?? "",
   author: entry.author ?? "",
   tags: entry.tags.join(", "),
   body: entry.body ?? "",
@@ -46,7 +49,8 @@ export const entryChanges = (entry: EntryFields, draft: EntryDraft): Record<stri
   const changes: Record<string, unknown> = {};
   if (draft.title.trim() !== entry.title) changes.title = draft.title.trim();
   if (draft.category !== entry.category) changes.category = draft.category;
-  if (draft.page !== entry.page) changes.page = draft.page;
+  if (draft.scene !== entry.scene) changes.scene = draft.scene;
+  if (draft.surface !== (entry.surface ?? "")) changes.surface = draft.surface === "" ? null : draft.surface;
   if (draft.body !== (entry.body ?? "")) changes.body = draft.body;
   const optional = (key: "author" | "image" | "caption" | "media") => {
     const value = draft[key].trim();
@@ -72,7 +76,7 @@ export const draftProblems = (draft: EntryDraft): string[] => {
     if (value.trim().length > TEXT_MAX_LENGTH) problems.push(`The ${key} is longer than ${TEXT_MAX_LENGTH} characters.`);
   }
   if (!(ENTRY_CATEGORIES as readonly string[]).includes(draft.category)) problems.push(`The category is none of ${ENTRY_CATEGORIES.join(", ")}.`);
-  if (!Number.isInteger(draft.page)) problems.push("The access page is no whole number.");
+  if (!draft.scene) problems.push("The entry is on no scene.");
   if (draft.media.trim() && !isLinkUrl(draft.media.trim())) problems.push("The link is no http(s) address.");
   const tags = tagsOf(draft.tags);
   if (tags.length > ENTRY_TAGS.max) problems.push(`More than ${ENTRY_TAGS.max} tags.`);

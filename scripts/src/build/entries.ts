@@ -1,31 +1,36 @@
-import { PRINT_SURFACES, type EntityData, type EntryData, type SpreadData, type TargetData } from '../../../shared/types/game-config';
+import type { EntityData, EntryData, SceneData, TargetData } from '../../../shared/types/game-config';
 import { buildErrors } from '../lib/errors';
 import { contentFile, readSection, validate } from '../lib/content';
 import { buildEntity } from './entities';
 
 export interface EntryBuild {
   entry: EntryData;
-  spreadId: string | null;
+  /** Its scene's id when the scene exists, else null (an error is reported) */
+  sceneId: string | null;
 }
 
-export function buildEntries(spreads: SpreadData[], entities: Record<string, EntityData>): EntryBuild[] {
+const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+
+export function buildEntries(scenes: SceneData[], entities: Record<string, EntityData>): EntryBuild[] {
   const builds: EntryBuild[] = [];
   for (const { id, data } of readSection('entries', 'entry.yaml')) {
     const label = `entries/${id}`;
     const e = validate(data, 'entry', label);
     if (!e) continue;
 
-    // The access page decides the spread
-    const spread = spreads.find(s => e.page >= s.firstPage && e.page <= s.lastPage);
-    if (!spread) buildErrors.push(`${label}: page ${e.page} is not part of any spread`);
+    // The entry names its scene (schema 3.0) – nothing is derived from a page
+    const scene = scenes.find(s => s.id === e.scene);
+    if (!scene) buildErrors.push(`${label}: scene "${e.scene}" is not in scenes/`);
+    if (scene && e.surface !== undefined && !scene.surfaces.some(s => s.id === e.surface)) {
+      buildErrors.push(`${label}: scene "${scene.id}" has no surface "${e.surface}"`);
+    }
 
     const entry: EntryData = {
       id,
       category: e.category,
       title: e.title,
-      page: e.page,
-      // Schema 2.35 (#307): the scene the page lies in, by id – the reader places the entry by it; `page` stays for older apps
-      ...(spread ? { scene: spread.id } : {}),
+      scene: e.scene,
+      ...(e.surface ? { surface: e.surface } : {}),
       body: e.body,
       tags: e.tags,
       ...(e.author ? { author: e.author } : {}),
@@ -44,13 +49,17 @@ export function buildEntries(spreads: SpreadData[], entities: Record<string, Ent
         };
         const entity = buildEntity(t.entity, id, targetId, entities, `${label} target`);
         if (entity) target.entity = entity;
-        if (t.print !== undefined) {
-          const p = t.print;
-          const surface = PRINT_SURFACES.find(s => s === p.surface);
-          if (surface && typeof p.x === 'number' && typeof p.y === 'number' && typeof p.width === 'number') {
-            target.print = { surface, x: p.x, y: p.y, width: p.width, ...(typeof p.height === 'number' ? { height: p.height } : {}), ...(typeof p.page === 'number' ? { page: p.page } : {}) };
+        if (t.place !== undefined) {
+          const p = t.place;
+          if (isNumber(p.x) && isNumber(p.y) && isNumber(p.width) && (p.height === undefined || isNumber(p.height)) && (p.surface === undefined || typeof p.surface === 'string')) {
+            target.place = { ...(typeof p.surface === 'string' ? { surface: p.surface } : {}), x: p.x, y: p.y, width: p.width, ...(isNumber(p.height) ? { height: p.height } : {}) };
+            if (scene && p.surface === undefined && scene.surfaces.length > 1) {
+              buildErrors.push(`${label} target: scene "${scene.id}" has several surfaces – place needs the surface it lies on`);
+            } else if (scene && typeof p.surface === 'string' && !scene.surfaces.some(s => s.id === p.surface)) {
+              buildErrors.push(`${label} target: scene "${scene.id}" has no surface "${p.surface}"`);
+            }
           } else {
-            buildErrors.push(`${label} target: print needs surface (${PRINT_SURFACES.join(', ')}) and x, y, width in mm`);
+            buildErrors.push(`${label} target: place needs x, y, width (and optional height) in mm, and the surface's id when the scene has several`);
           }
         }
         if (t.enabled === false) target.enabled = false;
@@ -58,7 +67,7 @@ export function buildEntries(spreads: SpreadData[], entities: Record<string, Ent
       }
     }
 
-    builds.push({ entry, spreadId: spread?.id ?? null });
+    builds.push({ entry, sceneId: scene?.id ?? null });
   }
   return builds;
 }

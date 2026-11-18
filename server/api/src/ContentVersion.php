@@ -7,8 +7,9 @@ declare(strict_types=1);
  * serve it straight from the rows and a publish writes it to the content store: one assembly, so what the editor
  * previews is what readers get.
  *
- * `version` = { version: this server's app version, timestamp: now, hash, schema: the imported schema }; `tutorial` is
- * the onboarding older apps require (`Editor::COMPAT_TUTORIAL` – the reader has its own, #236); `plugins` (the compiled
+ * Content schema 3.0 (#319): `scenes` in order, `initialScene`, `groups` when the book has any, every entry with its
+ * `scene` (and `surface`), every target with its `place`. `version` = { version: this server's app version, timestamp:
+ * now, hash, schema: the book's schema }; `plugins` (the compiled
  * plugins the import declared) follows it when the book has any, as the build writes it, and `subtitles` (the subtitle
  * files of the book's videos, read from the files' names – `Subtitles`) and `credits` (the Library's credit lines of the
  * files the book uses, #292) when there are any. The hash is the sha256 of the
@@ -36,29 +37,28 @@ final class ContentVersion
         foreach (Db::run('SELECT entry_id, data_json FROM targets WHERE book_id = :book', $params)->fetchAll() as $row) {
             $targets[$row['entry_id']] = Editor::decode($row['data_json']);
         }
-        // The scenes in order (#307): each with the page range older apps read – its stored one while the ranges stay in
-        // order and apart, else one derived from the order (`Scenes::ranges`, RULES #10)
+        // The scenes in order (#307) as the content holds them
         $context = Scenes::context($bookId);
         $groups = Scenes::groups($book);
-        $spreads = Scenes::shown($context, array_map(static fn($g) => (string) $g->id, $groups));
-        // A spread without a title of its own shows its pages' (#298): the reader reads `title` (RULES #10)
-        $spreads = Pages::withTitles($spreads);
-        // A scene's surfaces by scene id (schema 2.35, #307) – an entry's `surface` must be one of its scene's
+        $scenes = Scenes::shown($context, array_map(static fn($g) => (string) $g->id, $groups));
         $surfaces = [];
-        foreach ($spreads as $spread) {
-            if (!$spread instanceof stdClass || !is_string($spread->id ?? null)) continue;
-            $surfaces[$spread->id] = array_map(static fn($s) => $s instanceof stdClass ? ($s->id ?? null) : null, is_array($spread->surfaces ?? null) ? $spread->surfaces : []);
-        }
+        foreach ($scenes as $scene) $surfaces[(string) $scene->id] = Scenes::surfaceIds($scene);
         $entries = [];
         foreach (Db::run('SELECT id, spread_id, data_json FROM entries WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
-            $entry = Editor::decode($row['data_json']);
-            // The entry's scene (schema 2.35, #307): `spread_id` is the truth the editor keeps; its page is written inside
-            // the scene's range for older apps (`Scenes::pageOf`); a surface that is not on that scene is dropped
-            $scene = $row['spread_id'] === null || !isset($context['data'][$row['spread_id']]) ? null : (string) $row['spread_id'];
-            if ($scene !== null) $entry->page = Scenes::pageOf($context, $scene, $entry);
-            $entry = self::withScene($entry, $scene);
-            if (property_exists($entry, 'surface') && !in_array($entry->surface, $surfaces[$entry->scene ?? ''] ?? [], true)) unset($entry->surface);
-            if (isset($targets[$row['id']])) $entry->target = $targets[$row['id']];
+            $scene = (string) $row['spread_id'];
+            if (!isset($surfaces[$scene])) continue;
+            $entry = self::withScene(Editor::decode($row['data_json']), $scene);
+            // A surface that is not on its scene is left out (the guard would refuse it)
+            if (property_exists($entry, 'surface') && !in_array($entry->surface, $surfaces[$scene], true)) unset($entry->surface);
+            if (isset($targets[$row['id']])) {
+                $target = $targets[$row['id']];
+                $place = $target->place ?? null;
+                if ($place instanceof stdClass) {
+                    $on = $place->surface ?? null;
+                    if ($on !== null ? !in_array($on, $surfaces[$scene], true) : count($surfaces[$scene]) > 1) unset($target->place);
+                }
+                $entry->target = $target;
+            }
             $entries[] = $entry;
         }
         $entities = new stdClass();
@@ -70,15 +70,14 @@ final class ContentVersion
         $configuration = [
             'version' => (object) ['version' => Version::APP, 'schema' => $schema],
             'book' => Editor::decode($book['book_json']),
-            'initialSpreadId' => $book['initial_spread_id'],
-            'spreads' => $spreads,
+            'initialScene' => $book['initial_spread_id'],
+            'scenes' => $scenes,
         ];
-        // The groups scenes name (schema 2.35) – only when the book has any
+        // The groups scenes name – only when the book has any
         if ($groups) $configuration['groups'] = array_map(static fn(stdClass $g) => (object) ['id' => $g->id, 'label' => (string) ($g->label ?? '')], $groups);
         $configuration = (object) ($configuration + [
             'entries' => $entries,
             'entities' => $entities,
-            'tutorial' => Editor::COMPAT_TUTORIAL,
         ]);
         $plugins = Editor::decode($book['plugins_json'] ?? '[]');
         if (is_array($plugins) && $plugins) $configuration->plugins = $plugins;
@@ -103,18 +102,24 @@ final class ContentVersion
     }
 
     /**
-     * The entry with its `scene` (schema 2.35, #307) right after its `page`, as the content build writes it – none for an
-     * entry on no spread; a `scene` the row kept is replaced
+     * The entry with its `scene` right after its `title` (then its `surface`), as the content build writes it; a `scene`
+     * the row kept is replaced
      */
-    public static function withScene(stdClass $entry, ?string $scene): stdClass
+    public static function withScene(stdClass $entry, string $scene): stdClass
     {
         $result = new stdClass();
         foreach (get_object_vars($entry) as $key => $value) {
-            if ($key === 'scene') continue;
+            if ($key === 'scene' || $key === 'surface' || $key === 'page') continue;
             $result->{$key} = $value;
-            if ($key === 'page' && $scene !== null) $result->scene = $scene;
+            if ($key === 'title') {
+                $result->scene = $scene;
+                if (property_exists($entry, 'surface')) $result->surface = $entry->surface;
+            }
         }
-        if ($scene !== null && !property_exists($result, 'scene')) $result->scene = $scene;
+        if (!property_exists($result, 'scene')) {
+            $result->scene = $scene;
+            if (property_exists($entry, 'surface')) $result->surface = $entry->surface;
+        }
         return $result;
     }
 
@@ -172,6 +177,7 @@ final class ContentVersion
     public static function draftManifest(string $bookId): never
     {
         Editor::user();
+        Books::exists($bookId);
         $version = self::assemble($bookId);
         Http::json(200, self::manifest($version, Editor::iso(), $bookId));
     }
@@ -183,6 +189,7 @@ final class ContentVersion
     public static function draftFile(string $bookId, string $file): never
     {
         Editor::user();
+        Books::exists($bookId);
         $version = self::assemble($bookId);
         Http::json(200, $file === 'files' ? $version['files'] : $version['configuration']);
     }

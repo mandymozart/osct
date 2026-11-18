@@ -2,14 +2,13 @@
 # listens with api.vars.on; the `pulse` layer makes it breathe once it shows.
 category: video
 title: The lamp
-page: 4
+scene: the-door
 body: "Dark until the door opened: the `lamp` component hides the video until `doorOpen` is set – on this stage, now or earlier – and listens for the change. A chroma key removes the green, the `pulse` layer breathes."
 tags: [narrative, lamp]
 target:
   image: target.jpg
-  print:
-    surface: right
-    x: 70
+  place:
+    x: 300
     y: 110
     width: 90
   entity:

@@ -2,9 +2,8 @@
 // node types, components, formats, patterns, the plugin-type scanner. PHP reads its constants here (the classes
 // loaded as the API loads them) and every copy is compared with shared/ – a difference fails. Skipped with a message
 // when php is not on the path; CI has it.
-import { CREDITS_BATCH_MAX, CREDITS_MAX, SCENE_PAGE_MM, SCENE_PRESETS, SCENE_SURFACES_MAX, SURFACE_REFERENCE_FITS } from "../../shared/api/editor";
+import { CREDITS_BATCH_MAX, CREDITS_MAX, SCENE_PAGE_MM, SCENE_PRESETS, SCENE_SURFACES_MAX, SCENE_WALL_MM, SURFACE_REFERENCE_FITS } from "../../shared/api/editor";
 import { IMAGE_MAX_PIXELS, IMAGE_MAX_SIDE, IMAGE_WEBP_QUALITY } from "../../shared/api/images";
-import { hasOwnSpreadTitle, spreadTitles } from "../../shared/api/spread-titles";
 import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,12 +21,9 @@ import {
   NODE_TYPE_PATTERN,
   PASS_TYPES,
   PLUGIN_ID_PATTERN,
-  PRINT_SURFACES,
   SOURCES_OF_TRUTH,
-  SPREAD_FORMATS,
-  MATTERS,
-  SCENE_LAYOUTS,
-  SURFACE_SIDE_PATTERN,
+  CONTENT_SCHEMA_VERSION,
+  OLDEST_READABLE_SCHEMA_MAJOR,
 } from "../../shared/types/game-config";
 import {
   ASSET_KIND_EXTENSIONS,
@@ -41,7 +37,6 @@ import {
   pluginTypes,
   TEXT_MAX_LENGTH,
 } from "../../shared/api/rules";
-import { COMPAT_TUTORIAL } from "../../shared/compat/tutorial";
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "../../server/api/src");
 
@@ -59,22 +54,6 @@ const SOURCES = [
 /** Links an entry may or may not point to: both sides must judge them alike */
 const LINKS = ["https://example.org/a?b=1", "http://example.org", "HTTPS://EXAMPLE.ORG", "javascript:alert(1)", "https://", "https://exa mple.org", "mailto:a@b.c", "ftp://example.org", "/relative", "example.org"];
 
-/** Spreads whose shown titles both sides must derive alike (#298): stale page titles, covers, matter, titles of their own */
-const SPREADS = [
-  { id: "cover", title: "Cover", firstPage: 0, lastPage: 0, format: "cover" },
-  { id: "front-1", title: "Front matter 1", firstPage: -4, lastPage: -3, matter: "front" },
-  { id: "front-2", title: "", firstPage: -2, lastPage: -1, matter: "front" },
-  { id: "s001", title: "1", firstPage: 1, lastPage: 1 },
-  { id: "s118-119", title: "116–117", firstPage: 118, lastPage: 119 },
-  { id: "s120-121", title: "The Golem", firstPage: 120, lastPage: 121 },
-  { id: "spread-1", title: "New spread", firstPage: 122, lastPage: 123 },
-  { id: "s256", title: "256", firstPage: 256, lastPage: 256 },
-  { id: "back-1", title: "Back matter 3", firstPage: 257, lastPage: 258, matter: "back" },
-  { id: "back", title: "Back cover", firstPage: 261, lastPage: 261, format: "back" },
-];
-/** Titles: which are a spread's own */
-const TITLES = ["", " 12 ", "12-13", "12–13", "Pages 12–13", "page 7", "-2–-1", "Cover", "back cover", "Front matter 2", "New spread", "1984 Orwell", "Prologue", "p. 12", "Back"];
-
 /** The PHP API's constants, read by PHP itself, and what `Plugins::registers` reads from SOURCES */
 function readPhp(): Record<string, unknown> {
   const code = `
@@ -91,15 +70,12 @@ function readPhp(): Record<string, unknown> {
       'PLUGIN_NODE_TYPE' => Editor::PLUGIN_NODE_TYPE,
       'MATERIAL_TYPE' => Editor::MATERIAL_TYPE,
       'ENTRY_CATEGORIES' => Editor::ENTRY_CATEGORIES,
-      'COMPAT_TUTORIAL' => Editor::COMPAT_TUTORIAL,
+      'CONTENT_SCHEMA' => [Editor::CONTENT_SCHEMA, Editor::CONTENT_SCHEMA_MAJOR],
       'TEXTS' => ['text' => BookTexts::TEXT_MAX_LENGTH, 'body' => BookTexts::BODY_MAX_LENGTH, 'tags' => BookTexts::TAGS_MAX, 'tag' => BookTexts::TAG_MAX_LENGTH],
       'links' => array_map(static fn(string $url): bool => BookTexts::isLinkUrl($url), $input['links']),
       'MAX_NODE_DEPTH' => Editor::MAX_NODE_DEPTH,
       'SOURCES_OF_TRUTH' => Editor::SOURCES_OF_TRUTH,
-      'PRINT_SURFACES' => Editor::PRINT_SURFACES,
-      'FORMATS' => Books::FORMATS,
-      'MATTERS' => Books::MATTERS,
-      'SCENES' => ['presets' => Scenes::PRESETS, 'layouts' => Scenes::LAYOUTS, 'side' => Scenes::SIDE_PATTERN, 'pageMm' => Scenes::PAGE_MM, 'surfacesMax' => Scenes::SURFACES_MAX, 'referenceFits' => SurfaceReferences::FITS],
+      'SCENES' => ['presets' => Scenes::PRESETS, 'pageMm' => Scenes::PAGE_MM, 'wallMm' => Scenes::WALL_MM, 'surfacesMax' => Scenes::SURFACES_MAX, 'referenceFits' => SurfaceReferences::FITS],
       'PASS_TYPES' => Books::PASS_TYPES,
       'MOMENTS' => Books::MOMENTS,
       'APPEARANCE_TYPES' => Books::APPEARANCE_TYPES,
@@ -113,13 +89,11 @@ function readPhp(): Record<string, unknown> {
       'ASSET_KINDS' => Assets::KINDS,
       'CREDITS' => [Assets::CREDITS_BATCH_MAX, Assets::CREDITS_MAX],
       'IMAGE' => ['maxSide' => Assets::IMAGE_MAX_SIDE, 'quality' => Assets::IMAGE_WEBP_QUALITY, 'maxPixels' => Assets::IMAGE_MAX_PIXELS],
-      'spreadTitles' => array_column(Pages::withTitles(json_decode(json_encode($input['spreads']))), 'title', 'id'),
-      'ownTitles' => array_map(static fn(string $title): bool => Pages::hasOwnTitle($title), $input['titles']),
       'REGISTERS' => $registers,
       'registers' => array_map(static fn(string $source): array => Plugins::registers($source), $input['sources']),
     ], JSON_THROW_ON_ERROR);
   `;
-  const run = spawnSync("php", ["-r", code], { input: JSON.stringify({ src: SRC, sources: SOURCES, links: LINKS, spreads: SPREADS, titles: TITLES }), encoding: "utf8" });
+  const run = spawnSync("php", ["-r", code], { input: JSON.stringify({ src: SRC, sources: SOURCES, links: LINKS }), encoding: "utf8" });
   if (run.status !== 0) throw new Error(`php failed: ${run.stderr || run.stdout}`);
   return JSON.parse(run.stdout) as Record<string, unknown>;
 }
@@ -135,7 +109,6 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(php.COMPONENT_TYPES).toEqual([...COMPONENT_TYPES]);
     expect(php.ENTRY_CATEGORIES).toEqual([...ENTRY_CATEGORIES]);
     expect(php.MAX_NODE_DEPTH).toBe(MAX_NODE_DEPTH);
-    expect(php.PRINT_SURFACES).toEqual([...PRINT_SURFACES]);
     expect(php.SOURCES_OF_TRUTH).toEqual([...SOURCES_OF_TRUTH]);
   });
 
@@ -145,8 +118,9 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(LINKS.map(isLinkUrl)).toEqual([true, true, true, false, false, false, false, false, false, false]);
   });
 
-  it("the onboarding a draft carries for older apps, key by key in the same order (Editor::COMPAT_TUTORIAL, #236)", () => {
-    expect(JSON.stringify(php.COMPAT_TUTORIAL)).toBe(JSON.stringify(COMPAT_TUTORIAL));
+  it("the content schema the editor reads and the draft writes (Editor::CONTENT_SCHEMA, #319)", () => {
+    expect(php.CONTENT_SCHEMA).toEqual([CONTENT_SCHEMA_VERSION, OLDEST_READABLE_SCHEMA_MAJOR]);
+    expect(Number(CONTENT_SCHEMA_VERSION.split(".")[0])).toBe(OLDEST_READABLE_SCHEMA_MAJOR);
   });
 
   it("the patterns: ids, a plugin's node type and material, a plugin id, a build, an environment's name", () => {
@@ -160,9 +134,7 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(whole(php.ENV)).toBe(ENV_NAME.source);
   });
 
-  it("spread formats, passes (the built-in list), the appearance's moments and looks, and the environment (Books)", () => {
-    expect(php.FORMATS).toEqual([...SPREAD_FORMATS]);
-    expect(php.MATTERS).toEqual([...MATTERS]);
+  it("passes (the built-in list), the appearance's moments and looks, and the environment (Books)", () => {
     expect(php.PASS_TYPES).toEqual([...PASS_TYPES]);
     expect(php.MOMENTS).toEqual([...MOMENTS]);
     expect(php.APPEARANCE_TYPES).toEqual([...APPEARANCE_TYPES]);
@@ -171,13 +143,12 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(php.SKY_IMAGE_EXTENSIONS).toEqual([...SKY_IMAGE_EXTENSIONS]);
   });
 
-  it("scenes (#307, Scenes): the presets, the layouts, a surface's side, a page's size, the most surfaces, a reference's fits (#314)", () => {
-    const scenes = php.SCENES as { presets: string[]; layouts: string[]; side: string; pageMm: unknown; surfacesMax: number; referenceFits: string[] };
+  it("scenes (schema 3.0, Scenes): the presets, a page's and a wall's size, the most surfaces, a reference's fits (#314)", () => {
+    const scenes = php.SCENES as { presets: string[]; pageMm: unknown; wallMm: unknown; surfacesMax: number; referenceFits: string[] };
     expect(scenes.referenceFits).toEqual([...SURFACE_REFERENCE_FITS]);
     expect(scenes.presets).toEqual([...SCENE_PRESETS]);
-    expect(scenes.layouts).toEqual([...SCENE_LAYOUTS]);
-    expect(scenes.side).toBe(`/${SURFACE_SIDE_PATTERN.source}/`);
     expect(scenes.pageMm).toEqual(SCENE_PAGE_MM);
+    expect(scenes.wallMm).toEqual(SCENE_WALL_MM);
     expect(scenes.surfacesMax).toBe(SCENE_SURFACES_MAX);
   });
 
@@ -190,16 +161,6 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
 
   it("the credits limits (#277, Assets::CREDITS_*)", () => {
     expect(php.CREDITS).toEqual([CREDITS_BATCH_MAX, CREDITS_MAX]);
-  });
-
-  it("spread titles (#298, Pages::withTitles): a title of its own, else the pages' – the same on both sides", () => {
-    expect(php.spreadTitles).toEqual(Object.fromEntries(spreadTitles(SPREADS)));
-    expect(php.ownTitles).toEqual(TITLES.map(hasOwnSpreadTitle));
-    expect(Object.fromEntries(spreadTitles(SPREADS))).toEqual({
-      cover: "Cover", "front-1": "Front matter 1", "front-2": "Front matter 2", s001: "Page 1", "s118-119": "Pages 118–119", "s120-121": "The Golem",
-      "spread-1": "Pages 122–123", s256: "Page 256", "back-1": "Back matter 1", back: "Back cover",
-    });
-    expect(TITLES.filter(hasOwnSpreadTitle)).toEqual(["1984 Orwell", "Prologue", "p. 12"]);
   });
 
   it("the image rule (#298, Assets::IMAGE_*): the longest side per use, the WebP quality, the pixel limit", () => {

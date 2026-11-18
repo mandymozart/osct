@@ -70,7 +70,7 @@ export class RouterManager implements IRouterManager {
    * Close overlay pages: back to the scan HUD (scan mode), error cleared
    */
   public close(): void {
-    this.go("/spread", undefined, true, draft => {
+    this.go("/scene", undefined, true, draft => {
       draft.currentError = null;
     });
   }

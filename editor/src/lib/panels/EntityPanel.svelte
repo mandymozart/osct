@@ -8,16 +8,15 @@
     BEHAVIOUR_TYPE, ENTITY_TYPES, FILTER_TYPES, isTargetEnabled, materialSpec, materialTypesFor, nodeTypeSpec, pluginNodeTypes, type AssetData, type EntityData, type FilterType,
     type NodeType, type Target,
   } from "@engine/types";
-  import { errorText, isMediaAsset, putTarget, type Asset, type PrintPlacement } from "#lib/api.js";
+  import { errorText, isMediaAsset, putTarget, type Asset, type TargetPlace } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import { library } from "#lib/library.svelte.js";
   import { nodeAssetKinds, pickAccept, type LibraryPick } from "#lib/library-pick.js";
   import { fileNameOf } from "#lib/library-place.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { Stage } from "#lib/stage/stage.svelte.js";
-  import { fromOrigin, toOrigin } from "#lib/stage/origin.js";
+  import { flatFrame, fromOrigin, toOrigin } from "#lib/stage/origin.js";
   import { withWidth } from "#lib/stage/placement.js";
-  import { DEFAULT_PAGE_MM } from "#lib/stage/stage-layout.js";
   import { getPreview, subscribePreview } from "#lib/stage/preview.js";
   import {
     addComponent, addFilter, componentTypesFor, getValue, hasUniformScale, newNode, nodeAt, removeComponent, removeFilter,
@@ -102,11 +101,11 @@
   const entry = $derived(entries.byId(selection.entry));
   /**
    * An entry's save changed the draft: read it again. The stage is built again only for what it shows of an entry –
-   * its title (`{{entry.title}}`) and the spread its page puts it on; a text typed further restarts nothing there
+   * its title (`{{entry.title}}`) and the scene it is on; a text typed further restarts nothing there
    */
   const entrySaved = async (_saved: unknown, changes: Record<string, unknown>) => {
     await content.load(bookId);
-    if ("title" in changes || "page" in changes) await stage?.refresh();
+    if ("title" in changes || "scene" in changes || "surface" in changes) await stage?.refresh();
   };
 
   /** The whole tree being edited (null = the target has no entity yet) */
@@ -304,67 +303,62 @@
   let printOpen = $state(false);
   let targetBusy = $state(false);
   let targetError = $state<string | null>(null);
-  let print = $state<PrintPlacement>({ surface: "right", x: 40, y: 60, width: 80 });
+  let print = $state<TargetPlace>({ x: 40, y: 60, width: 80 });
   // The x / y rows are read and entered from the stage's origin (the toolbar's view group); `print` keeps the content's frame
   let origin = $state(getPreview().origin);
   $effect(() => subscribePreview(state => (origin = state.origin)));
-  const frame = $derived({ page: stage?.pageFormat() ?? DEFAULT_PAGE_MM, format: stage?.format() ?? "spread" });
-  const shown = $derived(toOrigin(origin, frame, print.surface, print.x, print.y));
-  const setShown = (x: number, y: number) => editPrint({ ...print, ...fromOrigin(origin, frame, print.surface, x, y) });
-  /** A side chosen by hand names the surface: the surface's id (#314, which wins over the side) goes */
-  const withoutSurfaceId = ({ surfaceId: _, ...rest }: PrintPlacement): PrintPlacement => rest;
-  /** The shown place is where the book's layout prints the target (until it is moved), not one set in the editor */
-  let placeFromLayout = $state(false);
-  /**
-   * The surfaces a print may lie on (#314): the scene's own by id – a fold-out's middle, a wall – else the pages of the
-   * open book, or the cover's face; a choice writes the surface's id and a side older apps read (`surfaceChoices`)
-   */
-  const surfaceOptions = $derived(surfaceChoices(scenes.scene(spreadId)?.surfaces, stage?.format() ?? "spread"));
+  const sceneSurfaces = $derived(scenes.scene(spreadId)?.surfaces);
+  const frame = $derived(flatFrame(sceneSurfaces));
+  /** The surfaces a print may lie on: the scene's, by id; a choice writes the id while the scene has several */
+  const surfaceOptions = $derived(surfaceChoices(sceneSurfaces));
   const surfaceLabels = $derived(Object.fromEntries(surfaceOptions.map(c => [c.value, c.label])));
+  /** The surface the place lies on (`TargetPlace.surface`, else the first) */
+  const on = $derived(choiceOf(surfaceOptions, print) ?? undefined);
+  const shown = $derived(toOrigin(origin, frame, on, print.x, print.y));
+  const setShown = (x: number, y: number) => editPrint({ ...print, ...fromOrigin(origin, frame, on, x, y) });
   const chooseSurface = (value: string) => {
     const choice = surfaceOptions.find(c => c.value === value);
-    if (choice) editPrint(placeOnChoice(print, choice));
+    if (choice) editPrint(placeOnChoice(print, choice, surfaceOptions));
   };
   /**
-   * A target without a place of its own: where the stage shows it – the book's layout, else the stage's fallback place –
-   * so the rows, the handles and the print agree from the first look
+   * A target without a place of its own: where the stage shows it – the stage's fallback place – so the rows, the
+   * handles and the print agree from the first look
    */
   const placeFromBookLayout = (t: Target) => {
-    placeFromLayout = !!stage?.printedPlace(t.id);
     const place = stage?.placeOf(t.id) ?? null;
     if (!place) return;
-    // The layout's box is the print's; a fallback's height is only a guess (the image's aspect decides)
-    const { height, ...box } = place;
-    print = placeFromLayout && height !== undefined ? { ...box, height } : box;
+    // A fallback's height is only a guess (the image's aspect decides)
+    const { height: _height, ...box } = place;
+    print = box;
   };
   /** The target whose edited placement is on its way to the draft, and which edit of it is the newest */
   let printPending: string | null = null;
   let printEdits = 0;
-  // The placement follows the target: its own print; else the book's layout while the placement is open. An edit on
+  // The placement follows the target: its own place; else the stage's fallback while the placement is open. An edit on
   // its way to the draft is not taken back by the draft as it still is
   $effect(() => {
     const t = target;
     if (t && printPending === t.id) return;
-    if (t?.print) print = { ...t.print };
+    if (t?.place) print = { ...t.place };
     else if (t && untrack(() => printOpen)) placeFromBookLayout(t);
   });
   const togglePlacement = () => {
-    if (!printOpen && target && !target.print) placeFromBookLayout(target);
+    if (!printOpen && target && !target.place) placeFromBookLayout(target);
     printOpen = !printOpen;
   };
   // While the placement rows are open the target lies at the edited place on the stage (its print and its entity), with handles
   $effect(() => {
     const t = target;
     const open = printOpen;
-    const where = { surface: print.surface, ...(print.surfaceId ? { surfaceId: print.surfaceId } : {}), x: print.x, y: print.y, width: print.width };
+    const where = { ...(print.surface ? { surface: print.surface } : {}), x: print.x, y: print.y, width: print.width };
     stage?.ghost(open && t ? { targetId: t.id, imageSrc: t.imageSrc, ...where, ...(print.height !== undefined ? { height: print.height } : {}) } : null);
   });
   $effect(() => () => stage?.ghost(null));
   // The handles on the stage move the ghost: the placement rows follow
   $effect(() => {
     if (!stage || !printOpen) return;
-    // A move onto another surface without an id of its own (content without surfaces) drops the old id
-    stage.onGhostChange = place => editPrint({ ...withoutSurfaceId(print), ...place });
+    // A move onto another surface names it (while the scene has several); the stored height follows the width
+    stage.onGhostChange = place => editPrint({ ...(print.height !== undefined ? { height: print.height } : {}), ...place });
     return () => { if (stage) stage.onGhostChange = null; };
   });
   /** The target's printed image becomes a library file (picked) or a new upload */
@@ -387,17 +381,16 @@
    * A placement edit (the rows, the handles on the stage): shown at once, in the draft a moment after the last one
    * (#259) – from then on the target has a placement of its own
    */
-  const editPrint = (next: PrintPlacement) => {
+  const editPrint = (next: TargetPlace) => {
     print = next;
     const t = target;
     if (!t) return;
     const book = bookId;
     const id = t.id;
-    const page = t.print?.page;
     const edit = ++printEdits;
     printPending = id;
     autosave.queue(`print:${book}:${id}`, async () => {
-      await putTarget(book, id, { print: { ...next, page } });
+      await putTarget(book, id, { place: next });
       if (printEdits === edit) printPending = null;
       await ontargetchanged?.();
     });
@@ -649,8 +642,10 @@
     <FileField src={target.imageSrc} picture accept={pickAccept({ for: "target-image" })} label="the printed image of {target.id}"
       onlibrary={pickTargetImage} onupload={f => { const id = target?.id; if (id) void setTargetImage(id, f); }} /></div>
   {#if printOpen}
-    <div class="row"><span class="label">surface</span>
-      <span class="controls"><Segmented options={surfaceOptions.map(c => c.value)} labels={surfaceLabels} value={choiceOf(surfaceOptions, print)} label="Surface" onchange={chooseSurface} /></span></div>
+    {#if surfaceOptions.length > 1}
+      <div class="row"><span class="label">surface</span>
+        <span class="controls"><Segmented options={surfaceOptions.map(c => c.value)} labels={surfaceLabels} value={on ?? ""} label="Surface" onchange={chooseSurface} /></span></div>
+    {/if}
     <div class="row"><span class="label">x · y</span>
       <span class="fields">
         <ScrubNumber value={shown.x} step={1} fallback={0} prefix="X" unit="mm" label="printed x" oninput={v => setShown(v, shown.y)} />
@@ -658,8 +653,8 @@
       </span></div>
     <div class="row"><span class="label">width</span>
       <span class="controls">
-        <span class="w"><ScrubNumber value={print.width} min={10} max={230} step={1} fallback={60} unit="mm" label="printed width" positive oninput={v => editPrint(withWidth(print, v))} /></span>
-        {#if !target.print}<span class="small muted" data-help-name="Placement" data-help={placeFromLayout ? "Taken from the book's layout until it is moved here: then the target has a placement of its own, saved by itself." : "The target is not in the book's layout: its placement is set by hand, and kept as soon as it is moved."}>{placeFromLayout ? "from the layout" : "by hand"}</span>{/if}
+        <span class="w"><ScrubNumber value={print.width} min={10} max={2000} step={1} fallback={60} unit="mm" label="printed width" positive oninput={v => editPrint(withWidth(print, v))} /></span>
+        {#if !target.place}<span class="small muted" data-help-name="Placement" data-help="The target has no place of its own yet: the stage lays it out by itself – it keeps a place as soon as it is moved.">by the stage</span>{/if}
       </span></div>
   {/if}
   {#if targetError}<p class="small danger">{targetError}</p>{/if}

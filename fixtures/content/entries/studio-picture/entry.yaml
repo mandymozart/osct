@@ -1,7 +1,7 @@
 # Showcase entry for the editor and the tests (spread studio-a).
 category: text
 title: "Studio: picture"
-page: 29
+scene: studio-a
 body: "An image entity stretched to 1.2 × 0.8 and tilted by 8° – a non-uniform scale."
 target:
   image: target.jpg

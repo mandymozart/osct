@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { entryLink, entryRowHelp } from "../entry-view";
-import { spreadPages } from "../spread-view";
 
-/** #227: the entry and the spread as the panels show them when the tree selects one (the entry's form: entry-edit.test.ts) */
+/** #227: the entry as the panels show it when the tree selects one (the entry's form: entry-edit.test.ts) */
 
 describe("the entry's words", () => {
   it("a link opens only over http(s)", () => {
@@ -14,18 +13,7 @@ describe("the entry's words", () => {
   });
 
   it("the entry row's help says what a tap does, with or without a target", () => {
-    expect(entryRowHelp({ category: "text", page: 3 }, true)).toBe("text · p. 3 – a tap selects the entry: the Inspector shows its form, the stage outlines its target");
-    expect(entryRowHelp({ category: "glossary", page: 2 }, false)).toContain("(it has no target)");
+    expect(entryRowHelp({ category: "text" }, true)).toBe("text – a tap selects the entry: the Inspector shows its form, the stage outlines its target");
+    expect(entryRowHelp({ category: "glossary" }, false)).toContain("(it has no target)");
   });
-});
-
-describe("the spread view", () => {
-  it("the pages in words", () => {
-    expect(spreadPages({ firstPage: 28, lastPage: 29 })).toBe("28–29");
-    expect(spreadPages({ firstPage: 3, lastPage: 3, format: "spread" })).toBe("3");
-    expect(spreadPages({ firstPage: 1, lastPage: 1, format: "cover" })).toBe("cover");
-    expect(spreadPages({ firstPage: 40, lastPage: 40, format: "back" })).toBe("back");
-  });
-
-
 });

@@ -21,14 +21,13 @@ export const MARGINALIA_MENU: readonly ListCategory[] = [EntryCategory.Glossary,
 export const categoryLabel = (category: ListCategory): string => t(`entries:categories.${category}`);
 
 /**
- * The place an entry is on, as the reader finds it in the book (the engine's `entryPlaceLabel`, #307): its surface's
- * printed label (schema 2.35), else its printed page number, or – on a cover or the front and back matter, which have
- * none – its spread's title. The app reads it through `getEntryPlaceLabel(entry)`.
+ * The place an entry is on, as the reader finds it (the engine's `entryPlaceLabel`, #307, schema 3.0): its surface's
+ * label, else its scene's label. The app reads it through `getEntryPlaceLabel(entry)`.
  */
-export const pageLabel = (
-  entry: Pick<Entry, "page" | "surface">,
-  spread: Pick<Spread, "title" | "format" | "matter" | "surfaces"> | undefined,
-): string => entryPlaceLabel(entry, spread);
+export const placeLabel = (
+  entry: Pick<Entry, "surface">,
+  scene: Pick<Spread, "id" | "label" | "surfaces"> | undefined,
+): string => entryPlaceLabel(entry, scene);
 
 export const DEFAULT_CATEGORY = EntryCategory.Glossary;
 
@@ -63,9 +62,17 @@ const collator = new Intl.Collator("en", { numeric: true, sensitivity: "base" })
 export const sortEntries = <T extends Pick<Entry, "title">>(entries: readonly T[]): T[] =>
   [...entries].sort((a, b) => collator.compare(a.title, b.title));
 
-/** By page, then by title (the All view, #287) */
-export const sortByPage = <T extends Pick<Entry, "title" | "page">>(entries: readonly T[]): T[] =>
-  [...entries].sort((a, b) => a.page - b.page || collator.compare(a.title, b.title));
+/** A scene's position in the experience, by scene id (`sortBySceneOrder`) */
+export type SceneOrder = ReadonlyMap<string, number>;
+
+/** The scene order of a list of scenes: their positions by id */
+export const sceneOrderOf = (scenes: readonly Pick<Spread, "id">[]): SceneOrder => new Map(scenes.map((scene, i) => [scene.id, i]));
+
+/** By scene order, then by title (the All view, #287); an entry of an unknown scene comes last */
+export const sortBySceneOrder = <T extends Pick<Entry, "title" | "spreadId">>(entries: readonly T[], order: SceneOrder): T[] => {
+  const position = (entry: T) => order.get(entry.spreadId) ?? Number.MAX_SAFE_INTEGER;
+  return [...entries].sort((a, b) => position(a) - position(b) || collator.compare(a.title, b.title));
+};
 
 export interface EntryGroup<T> {
   /** Letter header (glossary), or null for entries without one (e.g. "4th wall", other categories) */
@@ -75,14 +82,15 @@ export interface EntryGroup<T> {
 
 /**
  * Sorted entries. The glossary is grouped by first letter; entries not starting with a letter
- * (e.g. "4th wall") come first without a header. Other categories form one ungrouped list; All is sorted by page.
+ * (e.g. "4th wall") come first without a header. Other categories form one ungrouped list; All is sorted by scene order.
  */
-export const groupEntries = <T extends Pick<Entry, "title" | "category" | "page">>(
+export const groupEntries = <T extends Pick<Entry, "title" | "category" | "spreadId">>(
   entries: readonly T[],
   category: ListCategory,
+  sceneOrder: SceneOrder = new Map(),
 ): EntryGroup<T>[] => {
   const own = entriesOf(entries, category);
-  const sorted = category === ALL_CATEGORY ? sortByPage(own) : sortEntries(own);
+  const sorted = category === ALL_CATEGORY ? sortBySceneOrder(own, sceneOrder) : sortEntries(own);
   if (category !== EntryCategory.Glossary) return sorted.length ? [{ letter: null, entries: sorted }] : [];
 
   const groups: EntryGroup<T>[] = [];

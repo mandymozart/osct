@@ -14,7 +14,7 @@ describe("scene state", () => {
   });
 
   it("runs the scene only in scan mode", () => {
-    expect(getSceneState(GameMode.SCAN, route("/spread"))).toBe(SceneState.RUNNING);
+    expect(getSceneState(GameMode.SCAN, route("/scene"))).toBe(SceneState.RUNNING);
     expect(getSceneState(GameMode.CONSULTATION, route("/entries"))).toBe(SceneState.PAUSED);
     // The camera only runs in scan mode – released on home / onboarding
     expect(getSceneState(GameMode.IDLE, route("/"))).toBe(SceneState.STOPPED);

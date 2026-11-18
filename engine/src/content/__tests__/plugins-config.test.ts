@@ -5,16 +5,15 @@ import { componentSpecProblems, PARAM_LABEL_MAX, paramLabel, paramProblem, param
 /** The configuration declares the book's plugins; their components pass the guard */
 
 const config = (extra: Record<string, unknown>, components?: unknown[]) => ({
-  version: { version: "1.11.0", timestamp: "2026-01-01T00:00:00.000Z", schema: "2.3" },
+  version: { version: "1.11.0", timestamp: "2026-01-01T00:00:00.000Z", schema: "3.3" },
   book: { id: "b", title: "B", author: "A" },
-  initialSpreadId: "s1",
-  spreads: [{ id: "s1", title: "1–2", firstPage: 1, lastPage: 2 }],
-  entries: [{ id: "e1", category: "video", title: "E", page: 1, body: "", tags: [], target: {
+  initialScene: "s1",
+  scenes: [{ id: "s1", label: "1–2", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
+  entries: [{ id: "e1", category: "video", title: "E", scene: "s1", body: "", tags: [], target: {
     id: "e1", imageSrc: "/assets/content/entries/e1/t.jpg",
     entity: { type: "video", assets: [{ id: "v", assetType: "video", src: "/assets/content/entries/e1/v.mp4" }], ...(components ? { components } : {}) },
   } }],
   entities: {},
-  tutorial: [],
   ...extra,
 });
 
@@ -54,7 +53,7 @@ describe("plugins in the configuration", () => {
     const recorded = { id: "tint", src: "/assets/content/plugins/tint/plugin.js", api: "1.2", registered: { components: { tint: TINT }, nodeTypes: { sparkle: SPARKLE }, passes: {} } };
     const at2_14 = (extra: Record<string, unknown>, components?: unknown[]) => {
       const c = config(extra, components);
-      return { ...c, version: { ...c.version, schema: "2.14" } };
+      return { ...c, version: { ...c.version, schema: "3.14" } };
     };
     const withNode = (node: Record<string, unknown>, plugins: unknown[], schema = "2.14") => ({ ...at2_14({ plugins }), version: { version: "x", timestamp: "t", schema }, entities: { fx: { assets: [], ...node } } });
 
@@ -74,7 +73,7 @@ describe("plugins in the configuration", () => {
         'entities.fx.type: "sparkel" is not a node type – neither built in (group, model, video, image, text, light) nor registered by a plugin of the book (sparkle)',
       ]);
       // A later MINOR may add a built-in node type this app does not know: it renders nothing, the content loads
-      expect(problemsOf(withNode({ type: "hologram" }, [recorded], "2.99"))).toEqual([]);
+      expect(problemsOf(withNode({ type: "hologram" }, [recorded], "3.99"))).toEqual([]);
     });
 
     it("lets an unknown type pass while a declared plugin recorded nothing (an older build) – what the others recorded is still checked", () => {
@@ -89,14 +88,14 @@ describe("plugins in the configuration", () => {
       const scanning = { ...recorded, registered: { ...recorded.registered, passes: { scanLines: SCAN } } };
       const withPasses = (plugins: unknown[], spread: unknown[], book?: unknown[]) => {
         const c = at2_14({ plugins });
-        return { ...c, version: { ...c.version, schema: "2.21" }, book: { ...c.book, ...(book ? { passes: book } : {}) }, spreads: [{ ...c.spreads[0], passes: spread }] };
+        return { ...c, version: { ...c.version, schema: "3.21" }, book: { ...c.book, ...(book ? { passes: book } : {}) }, scenes: [{ ...c.scenes[0], passes: spread }] };
       };
 
       it("checks its parameters against the recorded spec, on a spread and on the book", () => {
         expect(problemsOf(withPasses([scanning], [{ type: "vignette" }, { type: "scanLines", lines: 400 }], [{ type: "scanLines" }]))).toEqual([]);
         expect(problemsOf(withPasses([scanning], [{ type: "scanLines", lines: 2 }], [{ type: "scanLines", lines: 900 }]))).toEqual([
           "book.passes[0].lines: expected a number from 10 to 800, got 900",
-          "spreads[0].passes[0].lines: expected a number from 10 to 800, got 2",
+          "scenes[0].passes[0].lines: expected a number from 10 to 800, got 2",
         ]);
         // A parameter a newer MINOR adds is left to the newer app, as with a built-in pass
         expect(problemsOf(withPasses([scanning], [{ type: "scanLines", later: 1 }]))).toEqual([]);
@@ -104,9 +103,9 @@ describe("plugins in the configuration", () => {
 
       it("refuses a pass type no declared plugin recorded, naming the plugins' passes – as a 2.20 app refuses every plugin pass", () => {
         expect(problemsOf(withPasses([scanning], [{ type: "scanLine" }]))).toEqual([
-          'spreads[0].passes[0].type: "scanLine" is not one of bloom, vignette, grade or a pass of the book\'s plugins (scanLines)',
+          'scenes[0].passes[0].type: "scanLine" is not one of bloom, vignette, grade or a pass of the book\'s plugins (scanLines)',
         ]);
-        expect(problemsOf(withPasses([], [{ type: "scanLines" }]))).toEqual(['spreads[0].passes[0].type: "scanLines" is not one of bloom, vignette, grade']);
+        expect(problemsOf(withPasses([], [{ type: "scanLines" }]))).toEqual(['scenes[0].passes[0].type: "scanLines" is not one of bloom, vignette, grade']);
       });
 
       it("lets it pass while a declared plugin recorded nothing (it registers its passes at load), or on the editor's stage", () => {

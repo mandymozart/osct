@@ -71,12 +71,12 @@ describe("game configuration", () => {
       expect(new Set(targetIds).size).toBe(targetIds.length);
     });
 
-    it("sit on a page of their spread", () => {
+    it("belong to the scene they name (schema 3.0) – no page anywhere", () => {
       for (const entry of entries) {
         const spread = getSpread(entry.spreadId)!;
-        expect(entry.page, entry.id).toBeGreaterThanOrEqual(spread.firstPage);
-        expect(entry.page, entry.id).toBeLessThanOrEqual(spread.lastPage);
+        expect(entry.spreadId, entry.id).toBe(entry.scene);
         expect(spread.entries).toContain(entry);
+        expect(entry).not.toHaveProperty("page");
       }
     });
 

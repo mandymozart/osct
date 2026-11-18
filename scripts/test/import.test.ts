@@ -55,13 +55,13 @@ async function loadImporter(content: string) {
 describe('delivery import', () => {
   afterEach(() => vi.unstubAllEnvs());
 
-  it('writes resized JPEG media, entry.yaml and the spreads, and reports what is missing', async () => {
+  it('writes resized JPEG media, entry.yaml and the scenes (pages mapped once), and reports what is missing', async () => {
     const { delivery, mapping, content } = makeDelivery();
     const importer = await loadImporter(content);
     const report = importer.importDelivery(delivery, mapping);
 
     expect(report.entriesWritten).toEqual(['p008-1', 'p009-1', 'p001-1']);
-    expect(report.spreadsWritten).toEqual(['s001', 's008-009']);
+    expect(report.scenesWritten).toEqual(['s001', 's008-009']);
     expect(report.problems).toEqual([
       path.join('entries', 'p001-1', 'video.mp4') + ': delivered file not found: ' + path.join(delivery, 'missing.mov'),
     ]);
@@ -79,13 +79,17 @@ describe('delivery import', () => {
     expect(entry).toContain('target:\n  image: target.jpg');
     expect(entry).not.toContain('image: image.jpg\n');
     expect(fs.readFileSync(path.join(content, 'entries/p008-1/entry.yaml'), 'utf8')).toContain('image: image.jpg');
-    expect(fs.readFileSync(path.join(content, 'spreads/s008-009/spread.yaml'), 'utf8')).toContain('firstPage: 8\nlastPage: 9');
+    expect(fs.readFileSync(path.join(content, 'scenes/s008-009/scene.yaml'), 'utf8')).toContain('label: "8–9"\norder: 8\nsurfaces:\n  - id: surface\n    widthMm: 460\n    heightMm: 320\n');
+    expect(fs.readFileSync(path.join(content, 'scenes/s001/scene.yaml'), 'utf8')).toContain('widthMm: 230');
+    const p008 = fs.readFileSync(path.join(content, 'entries/p008-1/entry.yaml'), 'utf8');
+    expect(p008).toContain('scene: s008-009');
+    expect(p008).not.toMatch(/^page:/m);
 
     // The imported content builds (page 1 has an entry without a target)
     const build = await loadBuild({ content });
     const result = build.buildAll();
     expect(build.errors).toEqual([]);
-    expect(result.entries.map(e => e.id)).toEqual(['p001-1', 'p008-1', 'p009-1']);
+    expect(result.entries.map(e => [e.id, e.scene])).toEqual([['p001-1', 's001'], ['p008-1', 's008-009'], ['p009-1', 's008-009']]);
     expect(result.entries.find(e => e.id === 'p008-1')?.target?.imageSrc).toBe('/assets/content/entries/p008-1/target.jpg');
   });
 
@@ -94,11 +98,11 @@ describe('delivery import', () => {
     const importer = await loadImporter(content);
     importer.importDelivery(delivery, mapping);
     const yamlFile = path.join(content, 'entries/p008-1/entry.yaml');
-    fs.writeFileSync(yamlFile, 'category: glossary\ntitle: Edited\npage: 8\ntarget:\n  image: target.jpg\n');
+    fs.writeFileSync(yamlFile, 'category: glossary\ntitle: Edited\nscene: s008-009\ntarget:\n  image: target.jpg\n');
 
     const again = importer.importDelivery(delivery, mapping);
     expect(again.entriesWritten).toEqual([]);
-    expect(again.spreadsWritten).toEqual([]);
+    expect(again.scenesWritten).toEqual([]);
     expect(again.mediaWritten).toEqual([]);
     expect(fs.readFileSync(yamlFile, 'utf8')).toContain('title: Edited');
   });
@@ -112,9 +116,9 @@ describe('delivery import', () => {
     expect(spreadPages(256, 256)).toEqual([256, 256]);
   });
 
-  it('the print layout gives the cover, the front and back matter and the back cover their spreads (#296)', async () => {
-    const { layoutSpreads } = await import('../src/import-delivery');
-    const spreads = layoutSpreads([
+  it('the print layout gives the cover, the front and back matter and the back cover their scenes (#296)', async () => {
+    const { layoutScenes } = await import('../src/import-delivery');
+    const scenes = layoutScenes([
       { id: 'cover-front', kind: 'cover-front', pages: [] },
       { id: 'front-matter-002', kind: 'front-matter', pages: [] },
       { id: 'front-matter-003', kind: 'front-matter', pages: [] },
@@ -124,17 +128,17 @@ describe('delivery import', () => {
       { id: 'back-matter-006', kind: 'back-matter', pages: [] },
       { id: 'cover-back', kind: 'cover-back', pages: [] },
     ]);
-    expect(spreads.map(s => [s.id, s.firstPage, s.lastPage, s.format ?? s.matter ?? ''])).toEqual([
-      ['cover', 0, 0, 'cover'],
-      ['front-1', -4, -3, 'front'],
-      ['front-2', -2, -1, 'front'],
-      ['s001', 1, 1, ''],
-      ['s002-003', 2, 3, ''],
-      ['s004', 4, 4, ''],
-      ['back-1', 5, 6, 'back'],
-      ['back', 7, 7, 'back'],
+    expect(scenes.map(s => [s.id, s.label, s.pagesWide])).toEqual([
+      ['cover', 'Cover', 1],
+      ['front-1', 'Front matter 1', 2],
+      ['front-2', 'Front matter 2', 2],
+      ['s001', '1', 1],
+      ['s002-003', '2–3', 2],
+      ['s004', '4', 1],
+      ['back-1', 'Back matter 1', 2],
+      ['back', 'Back cover', 1],
     ]);
-    expect(spreads.map(s => s.order)).toEqual([...spreads.map(s => s.order)].sort((a, b) => a - b));
+    expect(scenes.map(s => s.order)).toEqual([...scenes.map(s => s.order)].sort((a, b) => a - b));
   });
 
   it('reads the mapping field by field: entries that cannot be imported are reported and left out', async () => {
@@ -205,12 +209,12 @@ describe('delivery import', () => {
       'p009-1: the delivery switches its target off, but entry.yaml is kept – add "enabled: false" under target (or switch it off in the editor)');
   });
 
-  it('an entry with a page that is no number does not spoil the other spreads', async () => {
+  it('an entry with a page that is no number does not spoil the other scenes', async () => {
     const { delivery, mapping, content } = makeDelivery();
     fs.appendFileSync(mapping, '  p010-1:\n    category: glossary\n    title: Ten\n    page: ten\n');
     const importer = await loadImporter(content);
     const report = importer.importDelivery(delivery, mapping);
-    expect(report.spreadsWritten).toEqual(['s001', 's008-009']);
+    expect(report.scenesWritten).toEqual(['s001', 's008-009']);
     expect(report.problems).toContain('p010-1: category, title and page are required');
   });
 });

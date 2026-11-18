@@ -1,14 +1,13 @@
 # The second target of the shared entity `beacon`.
 category: glossary
 title: The twins (B)
-page: 8
+scene: the-twins
 body: "The same shared entity as on page 7: edit it once in the editor (the head says `shared: beacon (2×)`) and both change."
 tags: [shared]
 target:
   image: target.jpg
-  print:
-    surface: right
-    x: 70
+  place:
+    x: 300
     y: 100
     width: 80
   entity:

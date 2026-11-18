@@ -4,13 +4,12 @@
 # editor/tools/key-model.mjs (`node editor/tools/key-model.mjs` writes key.glb).
 category: glossary
 title: The key
-page: 1
+scene: the-key
 body: "Tap the key to take it: its `behaviour` rule plays the clip `rattle`, sets `hasKey` in the book scope – persisted with your progress – and sends the scene event `keyRattled` to the stage. The door on page 3 opens only with it. No code: the rule is made in the editor's Entity panel."
 tags: [narrative, key]
 target:
   image: target.jpg
-  print:
-    surface: left
+  place:
     x: 60
     y: 90
     width: 90

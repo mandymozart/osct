@@ -29,7 +29,7 @@ describe("the image rule in the browser (#298)", () => {
     expect(webpName("noext")).toBe("noext.webp");
     expect(fitOf(undefined)).toBe("default");
     expect(fitOf("target")).toBe("target");
-    expect(fitOf({ fit: "page", page: { page: 118 } })).toBe("page");
+    expect(fitOf({ fit: "reference", surface: { scene: "s1", surface: "wall" } })).toBe("reference");
   });
 
   it("finds an animated PNG or WebP as the server does", () => {

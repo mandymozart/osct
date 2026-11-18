@@ -6,33 +6,22 @@
  * scene cards (`SceneCards.svelte`) use it alike, `lib/__tests__/scene-strip.test.ts` tests it.
  */
 import { GROUP_WINDOW_TARGETS } from "@shared/api/editor";
-import { hasOwnSpreadTitle } from "@shared/api/spread-titles";
 import type { GroupData, SurfaceData } from "@shared/types/game-config";
-import { pagesOf } from "./spread-grid";
 
-/** A scene as the strip needs it – the book tree's spread (`TreeSpread`) is one */
+/** A scene as the strip needs it – the book tree's scene (`TreeScene`) is one */
 export interface StripScene {
   id: string;
-  title: string;
-  firstPage: number;
-  lastPage: number;
-  format?: string;
-  matter?: string;
-  label?: string;
+  label: string;
   group?: string;
-  surfaces?: readonly SurfaceData[];
+  surfaces: readonly SurfaceData[];
   entries: readonly { target?: unknown }[];
 }
 
 /** How many targets lie on a scene */
 export const targetsOf = (scene: Pick<StripScene, "entries">): number => scene.entries.filter(entry => !!entry.target).length;
 
-/** The card's name: the scene's label, else its own title (a matter scene's numbered one too), else its pages (`40–41`, `cover`) */
-export const sceneName = (scene: StripScene): string => {
-  if (scene.label?.trim()) return scene.label.trim();
-  const title = scene.title.trim();
-  return title && (hasOwnSpreadTitle(title) || scene.matter) ? title : pagesOf(scene);
-};
+/** The card's name: the scene's label, else its id (schema 3.0 – nothing counted from pages) */
+export const sceneName = (scene: Pick<StripScene, "id" | "label">): string => scene.label?.trim() || scene.id;
 
 /** A run of scenes next to each other: a group's band (`group`) or scenes of no group (`group` null) */
 export interface StripRun<T extends StripScene> {
@@ -234,8 +223,8 @@ export const sceneSpan = (names: readonly string[]): string =>
 export const surfaceSize = (surface: Pick<SurfaceData, "widthMm" | "heightMm">): string => `${Math.round(surface.widthMm)} × ${Math.round(surface.heightMm)} mm`;
 
 /**
- * The parts of a card's thumbnail for a scene drawn from its surfaces (no sheet, no page image): each surface's share of
- * the width, and the whole's width : height. None for a scene without surfaces.
+ * The parts of a card's thumbnail, drawn from the scene's surfaces side by side: each surface's share of the width, and
+ * the whole's width : height. None for a scene without surfaces.
  */
 export const surfaceParts = (surfaces: readonly Pick<SurfaceData, "id" | "widthMm" | "heightMm" | "label">[] | undefined): { parts: { id: string; share: number; label: string }[]; ratio: number } | null => {
   if (!surfaces?.length) return null;
@@ -251,8 +240,8 @@ export const GRID_COLUMN_MAX = 168;
 /**
  * The Scenes panel as a **grid** (#315): page-wide columns that wrap, as many as the panel's width holds – the fewest
  * that keep a column at most `GRID_COLUMN_MAX`, but never so many that one is narrower than `GRID_COLUMN_MIN`, and at
- * least one (a narrow panel is one column). A card spans as many columns as it has pages (a double page two, a fold-out
- * three); its height follows the column's width and the page's ratio, so the cards scale with the panel by themselves.
+ * least one (a narrow panel is one column). A card spans as many columns as its surfaces are pages wide (a double page
+ * two, a wall more); its height follows the column's width and a page's ratio, so the cards scale with the panel by themselves.
  * A short panel (`maxCardHeight`) narrows the columns – down to `GRID_COLUMN_FLOOR` – so a whole row still shows.
  */
 export const GRID_COLUMN_FLOOR = 48;
@@ -269,6 +258,6 @@ export const gridColumns = (width: number, pageRatio: number, gap: number, maxCa
   return { columns, column, cardHeight: column / ratio };
 };
 
-/** How many grid columns a card of `ratio` spans: its pages, at least one, at most the columns there are */
+/** How many grid columns a card of `ratio` spans: its width in pages, at least one, at most the columns there are */
 export const gridSpan = (ratio: number, pageRatio: number, columns: number): number =>
   Math.max(1, Math.min(columns, Math.round(ratio / (pageRatio > 0 ? pageRatio : 1))));

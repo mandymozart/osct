@@ -4,6 +4,24 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-18 – Content schema 3.0, part A: contract, reader, build, fixtures (#319)
+- `CONTENT_SCHEMA_VERSION` 3.0, `OLDEST_READABLE_SCHEMA_MAJOR` 3 (Tilman: no backward compatibility – no reader shipped
+  before Tokyo, Feb 2027). Nothing of the 2.x page model is left in `shared/types` / `shared/guards`; the compat onboarding
+  (`shared/compat/tutorial.ts`, `tutorial`) went with it. `shared/api/editor.ts` keeps three local types
+  (`SpreadData`, `SpreadFormat`, `SceneLayout`) describing what the 2.x server still sends – part B removes them.
+- Engine and reader: the app models keep their names (`Spread`, `spreadId`, `SpreadManager`, `getSpreads`) – only the
+  contract was renamed; a rename of the app's own code is a separate refactor (open item below). A scene's label is
+  `sceneLabel` (its `label`, the id when blank); an entry's place is its surface's label, else its scene's.
+- Labels in the fixture and the demo are what the reader showed before (`1–2`, `Cover`, `Back cover`), not the 2.x
+  titles (`The Beginning`) – the conversion rule in `scripts/src/convert-content-3.ts`; part B's server migration takes
+  "label, else title" per SCENES.md – my reading for the source content: the label the reader showed.
+- Surface id in converted and imported sources: `surface` (one per scene). Source `place` is optional: the build lays the
+  surfaces in a row (touching, flat, centred on the origin); the configuration always carries all six numbers.
+- The i18n word for the page column is *Place* (de *Ort*, fr *Lieu*, nl *Plek*); the switcher's aria label *Scene …*.
+- Open: [ ] rename the app's own `Spread`/`spreadId`/`SpreadManager`/`spread-menu` to scene names (pure refactor, ~440
+  sites); [ ] `scripts/layout/render-layout.py` (the demo's stand-in sheets) still reads the 2.x source – the stage's
+  sheets become surface references in part C; [ ] the build writes no `groups` yet (no source format for them).
+
 ## 2026-11-18 – Floating panels in the scene workspace, the select tool and its filters (#308)
 - The scene workspace's panels float over a full-window stage on desktop and iPad (after the SCUTOONS deck editor's
   `floats.rs`, ported as a concept, nothing shared in code): `components/FloatingPanel.svelte` + pure `components/floats.ts`

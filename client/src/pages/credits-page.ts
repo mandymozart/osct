@@ -1,14 +1,12 @@
 import { ConsultationPage } from "./consultation-page";
 import { escapeHtml } from "@/utils";
 import { getCredits } from "@/utils/game-config";
-import { matterOf } from "@shared/types/game-config";
-import { surfaceLabelRange } from "@engine/content/scenes";
-import type { Spread } from "@/types";
+import { sceneLabel } from "@engine/content/scenes";
 import { t } from "i18next";
 
 /**
  * Image credits (#292), opened from the Info page's "here" link; × in the header goes back to Info. The credit lines of
- * the pictures in the book's margins, grouped by spread – the configuration's `credits` (schema 2.33), written per file
+ * the pictures in the book's margins, grouped by scene (its label) – the configuration's `credits` (schema 2.33), written per file
  * in the editor's Library, so a credit edited there reaches this page with the next publish.
  */
 export class CreditsPage extends ConsultationPage {
@@ -32,7 +30,7 @@ export class CreditsPage extends ConsultationPage {
         <h2 class="section-title">${t("about:imageCredits")}</h2>
         ${groups.length
           ? groups.map(({ spread, lines }) => `
-              <h3 class="section-title">${escapeHtml(spreadLabel(spread))}</h3>
+              <h3 class="section-title">${escapeHtml(sceneLabel(spread))}</h3>
               <ul class="credits">${lines.map(line => `<li>${escapeHtml(line)}</li>`).join("")}</ul>`).join("")
           : `<p class="muted">${t("about:noCredits")}</p>`}
       </div>
@@ -43,22 +41,5 @@ export class CreditsPage extends ConsultationPage {
     // Static page: the credits change only with the content
   }
 }
-
-/**
- * "Pages 2–3"; a scene's own label (schema 2.35, #307) as it is, its surfaces' printed labels as "Pages 40–41"; a spread
- * without printed numbers (cover, back, front and back matter) by its title
- */
-export const spreadLabel = (spread: Pick<Spread, "title" | "format" | "matter" | "firstPage" | "lastPage" | "label" | "surfaces">): string => {
-  const own = spread.label?.trim();
-  if (own) return own;
-  const printed = surfaceLabelRange(spread);
-  if (printed) {
-    return printed.first === printed.last ? t("about:page", { page: printed.first }) : t("about:pages", { first: printed.first, last: printed.last });
-  }
-  if (spread.format === "cover" || spread.format === "back" || matterOf(spread)) return spread.title;
-  return spread.firstPage === spread.lastPage
-    ? t("about:page", { page: spread.firstPage })
-    : t("about:pages", { first: spread.firstPage, last: spread.lastPage });
-};
 
 customElements.define("credits-page", CreditsPage);

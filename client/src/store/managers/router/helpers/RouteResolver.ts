@@ -5,7 +5,7 @@ import { router as routerConfig } from "@/router";
 export class RouteResolver {
   /**
    * Find the route definition for a slug
-   * @param slug URL slug, e.g. "/spread"
+   * @param slug URL slug, e.g. "/scene"
    * @returns The definition (incl. its mode) or undefined for unknown slugs
    */
   public static findDefinition(slug: string): PageRouteDefinition | undefined {

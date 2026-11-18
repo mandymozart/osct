@@ -17,14 +17,16 @@ import {
 
 /** Where the snapper finds the stage's parts (the stage hands them in) */
 export interface SnapSource {
-  /** The stage's frame: metres, origin in the middle of the book, z out of the page (null before the stage is built) */
+  /** The stage's frame: metres, origin at the scene's origin, z up (null before the stage is built) */
   frame(): Object3D | null;
   /**
-   * The spread's page size and format, and its flat surfaces (#314); with `surface`, the frame a print on that surface
-   * snaps in – the table's for a flat surface, the surface's own plane (`local`) for a wall or a turned one
+   * The scene's flat surfaces (#314); with `surface`, the frame a print on that surface snaps in – the table's for a flat
+   * surface, the surface's own plane (`local`) for a wall or a turned one
    */
   stageFrame(surface?: string): StageFrame;
   settings(): PreviewSettings;
+  /** A surface's own grid spacing (mm, #316 part 1) – a print on it steps by that; none: the settings' `gridMm` */
+  surfaceGrid?(surface: string): number;
   /** Shift or Ctrl is held: snapping turned around */
   modifier(): boolean;
   /** The entities' node objects of the spread, with their target */
@@ -151,11 +153,13 @@ export class SceneSnapper {
    * pointer's own Shift / Ctrl), with its guides; the print's own entity and outline are no lines for it
    */
   place<P extends PrintBox>(targetId: string | null, place: P, height: number, kind: "move" | "width", modifier: boolean): P {
-    const settings = this.source.settings();
-    if (!snapActive(settings.snap, this.source.modifier() || modifier)) {
+    const all = this.source.settings();
+    if (!snapActive(all.snap, this.source.modifier() || modifier)) {
       this.source.guides([]);
       return place;
     }
+    // The surface's own grid (#316): its spacing is the step of a print on it
+    const settings = { ...all, gridMm: this.source.surfaceGrid?.(place.surface) ?? all.gridMm };
     const frame = this.source.stageFrame(place.surface);
     const result = snapPlace(place, height, kind, {
       frame, lines: this.lines({ targetId, frame }), threshold: this.threshold(null), settings,

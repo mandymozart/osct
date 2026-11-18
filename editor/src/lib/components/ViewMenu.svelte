@@ -4,7 +4,7 @@
   import ScrubNumber from "./ScrubNumber.svelte";
   import ToolMenu from "./ToolMenu.svelte";
   import { getPreview, HDRIS, isHdriId, isTextureQuality, subscribePreview, TEXTURE_QUALITIES, TOPS, updatePreview, viewSummary, type PreviewState } from "#lib/stage/preview.js";
-  import { isOriginId, ORIGIN_SPOTS, ORIGINS, originHelp, originLabel, type OriginFrame } from "#lib/stage/origin.js";
+  import { isOriginId, ORIGIN_SPOTS, ORIGINS, originHelp, originLabel } from "#lib/stage/origin.js";
   import { stageEnvironment } from "#lib/environment.svelte.js";
   import { library } from "#lib/library.svelte.js";
   import { environmentSkyLabel } from "#lib/stage/sky.js";
@@ -16,17 +16,12 @@
    * environment its world is the sky and the HDRI waits for a book without one, #185). Stored in this browser, not in
    * the content (`stage/preview.ts`); the button's tooltip is `viewSummary`. `open()` opens it from the stage's menu.
    */
-  let { format = "spread" }: {
-    /** The spread's format: a cover's centre is the page's, not the book's */
-    format?: OriginFrame["format"];
-  } = $props();
-
   let preview = $state<PreviewState>(getPreview());
   onMount(() => subscribePreview(state => (preview = state)));
 
   /** The book's environment replaces the HDRI as the sky (#185): the picker says so and stays for books without one */
   const environment = $derived(stageEnvironment.current);
-  const summary = $derived(viewSummary(preview, { format, environment: !!environment }));
+  const summary = $derived(viewSummary(preview, { environment: !!environment }));
 
   let menu = $state<{ open: () => Promise<void> }>();
   /** Open the panel (the stage's menu: *View settings…*) */
@@ -39,17 +34,17 @@
     <span class="controls"><span class="w"><ScrubNumber value={preview.wobble} min={0} max={1} step={0.05} fallback={0} strict label="Hand shake" oninput={wobble => updatePreview({ wobble })} /></span></span>
   </div>
 
-  <div class="row" data-help="Where the grid and every x / y in the editor count from – a point of the alignment square: a corner or an edge's centre of the page a position lies on, or the centre (the book's centre, the spine's middle, on the open book; the page's centre on a cover). x runs to the right, y downwards; left of or above the origin is negative. Saved positions stay mm from the page's top left. Now: {originHelp(preview.origin, format)}">
+  <div class="row" data-help="Where the grid and every x / y in the editor count from – a point of the alignment square: a corner or an edge's centre of the surface a position lies on, or the centre (the scene's origin – a double page's spine). x runs to the right, y downwards; left of or above the origin is negative. Saved positions stay mm from the surface's top left. Now: {originHelp(preview.origin)}">
     <span class="label">origin</span>
     <span class="controls">
       <span class="origin" role="radiogroup" aria-label="Origin">
         {#each ORIGINS as origin (origin)}
-          <button type="button" role="radio" class="spot" class:on={preview.origin === origin} aria-checked={preview.origin === origin} aria-label={originLabel(origin, format)}
-            data-help={originHelp(origin, format)} style:grid-column={ORIGIN_SPOTS[origin].col + 1} style:grid-row={ORIGIN_SPOTS[origin].row + 1}
+          <button type="button" role="radio" class="spot" class:on={preview.origin === origin} aria-checked={preview.origin === origin} aria-label={originLabel(origin)}
+            data-help={originHelp(origin)} style:grid-column={ORIGIN_SPOTS[origin].col + 1} style:grid-row={ORIGIN_SPOTS[origin].row + 1}
             onclick={() => { if (isOriginId(origin)) updatePreview({ origin }); }}></button>
         {/each}
       </span>
-      <span class="small">{originLabel(preview.origin, format)}</span>
+      <span class="small">{originLabel(preview.origin)}</span>
     </span>
   </div>
 

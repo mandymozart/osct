@@ -53,18 +53,17 @@ describe("post-processing passes (content schema 2.5)", () => {
     const config = (passes: unknown, bookPasses?: unknown) => ({
       version: { version: "1.0.0", timestamp: "2026-10-29", schema: CONTENT_SCHEMA_VERSION },
       book: { id: "b", title: "B", author: "A", ...(bookPasses !== undefined ? { passes: bookPasses } : {}) },
-      initialSpreadId: "s",
-      spreads: [{ id: "s", title: "S", firstPage: 1, lastPage: 2, ...(passes !== undefined ? { passes } : {}) }],
+      initialScene: "s",
+      scenes: [{ id: "s", label: "S", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }], ...(passes !== undefined ? { passes } : {}) }],
       entries: [],
       entities: {},
-      tutorial: [],
     });
     expect(() => assertGameConfiguration(config([{ type: "bloom" }], [{ type: "vignette", strength: 0.3 }]))).not.toThrow();
-    expect(() => assertGameConfiguration(config([{ type: "glow" }]))).toThrow(/spreads\[0\]\.passes\[0\]\.type/);
+    expect(() => assertGameConfiguration(config([{ type: "glow" }]))).toThrow(/scenes\[0\]\.passes\[0\]\.type/);
     expect(() => assertGameConfiguration(config(undefined, [{ type: "grade", contrast: 5 }]))).toThrow(/book\.passes\[0\]\.contrast/);
     expect(() => assertGameConfiguration(config([{ type: "grade", reach: "all", later: true }]))).not.toThrow();
     expect(() => assertGameConfiguration(config([{ type: "bloom", enabled: false }], [{ type: "vignette", enabled: true }]))).not.toThrow();
-    expect(() => assertGameConfiguration(config([{ type: "bloom", enabled: "off" }]))).toThrow(/spreads\[0\]\.passes\[0\]\.enabled/);
+    expect(() => assertGameConfiguration(config([{ type: "bloom", enabled: "off" }]))).toThrow(/scenes\[0\]\.passes\[0\]\.enabled/);
   });
 
   it("the phone budget (#86): up to three passes and one bloom, a plugin's pass counting like a built-in one", () => {

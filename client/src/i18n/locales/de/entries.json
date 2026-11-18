@@ -5,8 +5,8 @@
   "marginalia": "Marginalien",
   "name": "Name",
   "title": "Titel",
-  "page": "Seite",
-  "videosHint": "Geh im Scan-Modus zur Seite, um das Video abzuspielen.",
+  "place": "Ort",
+  "videosHint": "Geh im Scan-Modus zu seinem Ort, um das Video abzuspielen.",
   "categories": {
     "glossary": "Marginalien",
     "video": "Videos",

@@ -38,5 +38,7 @@ const clientVersion: unknown = (JSON.parse(readFileSync(resolve(projectRoot, 'cl
 if (typeof clientVersion !== 'string') throw new Error('client/package.json has no version');
 export const APP_VERSION: string = clientVersion;
 
-// Content rule (RULES.md #3): targets per spread (the 8th Wall engine tracks 4 of them at the same moment)
-export const MAX_TARGETS_PER_SPREAD = 10;
+// Content rule (RULES.md #3): targets per scene (the 8th Wall engine tracks 4 of them at the same moment)
+export const MAX_TARGETS_PER_SCENE = 10;
+/** A page of the book in mm when a source names none (the editor API's `Scenes::PAGE_MM`): a double page is one surface of twice its width */
+export const BOOK_PAGE_MM = { width: 230, height: 320 } as const;

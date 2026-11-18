@@ -1,40 +1,41 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { assetLabel, assetPlace, convertedNotice, groupBySpread, heldNotice, matchesSearch, moreUses, namesPlanLine, readLibraryView, saveLibraryView } from "../library-place";
+import { assetLabel, assetPlace, convertedNotice, groupByScene, heldNotice, matchesSearch, moreUses, namesPlanLine, readLibraryView, saveLibraryView } from "../library-place";
 import type { Asset } from "../api";
 import { imageUseQuery } from "@shared/api/images";
 
-describe("the Library grouped by spread (#298 phase 3)", () => {
+describe("the Library grouped by scene (#298 phase 3)", () => {
   const asset = (name: string, place: Asset["place"], extra: Partial<Asset> = {}): Asset => ({
     id: name, name, kind: "image", mime: "image/webp", size: 1, width: null, height: null, durationMs: null, version: 1, url: `https://cdn/${name}`,
     usages: place ? 1 : 0, imported: false, credits: null, place, createdAt: "", updatedAt: "", ...extra,
   });
-  const spreads = [
-    { id: "cover", title: "Cover", firstPage: 0, lastPage: 0, format: "cover" },
-    { id: "s118-119", title: "118–119", firstPage: 118, lastPage: 119 },
-    { id: "s120-121", title: "The Golem", firstPage: 120, lastPage: 121 },
+  const scenes = [
+    { id: "cover", label: "Cover" },
+    { id: "s118-119", label: "118–119" },
+    { id: "s120-121", label: "" },
   ];
 
-  it("a header per spread in book order, then the book-wide files, then the unused ones", () => {
-    const groups = groupBySpread([
+  it("a header per scene in the scenes' order (its label, else its id), then the book-wide files, then the unused ones", () => {
+    const groups = groupByScene([
       asset("unused.webp", null),
-      asset("p120-1_target.webp", { spread: "s120-121", page: 120, order: 5, more: 0 }),
-      asset("environment_sky.webp", { spread: null, page: null, order: -1, more: 0 }),
-      asset("p118-2_target.webp", { spread: "s118-119", page: 119, order: 3, more: 0 }),
-      asset("p118-1_target.webp", { spread: "s118-119", page: 118, order: 2, more: 2 }),
-      asset("page-cover.webp", { spread: "cover", page: 0, order: 0, more: 0 }),
-    ], spreads);
+      asset("p120-1_target.webp", { scene: "s120-121", order: 5, more: 0 }),
+      asset("environment_sky.webp", { scene: null, order: -1, more: 0 }),
+      asset("p118-2_target.webp", { scene: "s118-119", order: 3, more: 0 }),
+      asset("p118-1_target.webp", { scene: "s118-119", order: 2, more: 2 }),
+      asset("cover_target.webp", { scene: "cover", order: 0, more: 0 }),
+      asset("gone_target.webp", { scene: "gone", order: 9, more: 0 }),
+    ], scenes);
     expect(groups.map(g => [g.label, g.assets.map(a => a.name)])).toEqual([
-      ["Cover", ["page-cover.webp"]],
-      ["Pages 118–119", ["p118-1_target.webp", "p118-2_target.webp"]],
-      ["The Golem", ["p120-1_target.webp"]],
-      ["Not in a spread", ["environment_sky.webp"]],
+      ["Cover", ["cover_target.webp"]],
+      ["118–119", ["p118-1_target.webp", "p118-2_target.webp"]],
+      ["s120-121", ["p120-1_target.webp"]],
+      ["Not in a scene", ["environment_sky.webp", "gone_target.webp"]],
       ["Unused", ["unused.webp"]],
     ]);
   });
 
   it("+N more for a file used in more places, the listed name of an imported file once it has one", () => {
-    expect(moreUses(asset("a", { spread: "cover", page: 0, order: 0, more: 2 }))).toBe("+2 more");
-    expect(moreUses(asset("a", { spread: "cover", page: 0, order: 0, more: 0 }))).toBe("");
+    expect(moreUses(asset("a", { scene: "cover", order: 0, more: 2 }))).toBe("+2 more");
+    expect(moreUses(asset("a", { scene: "cover", order: 0, more: 0 }))).toBe("");
     const imported = { name: "target.jpg", url: "/assets/content/entries/p015-1/target.jpg", imported: true };
     expect(assetLabel(imported)).toBe("p015-1 · target");
     expect(assetLabel({ ...imported, name: "p015-1_target.jpg", named: true })).toBe("p015-1_target.jpg");
@@ -52,7 +53,7 @@ describe("the Library grouped by spread (#298 phase 3)", () => {
     expect(imageUseQuery("target")).toBe("?fit=target");
     expect(imageUseQuery({ fit: "target", entry: "p118-1" })).toBe("?fit=target&entry=p118-1");
     expect(imageUseQuery({ fit: "entryImage", entry: "p118-1" })).toBe("?fit=entryImage&entry=p118-1");
-    expect(imageUseQuery({ fit: "page", page: { page: 1, facing: true } })).toBe("?fit=page&page=1&facing=1");
+    expect(imageUseQuery({ fit: "reference", surface: { scene: "s118-119", surface: "surface" } })).toBe("?fit=reference&scene=s118-119&surface=surface");
     expect(imageUseQuery({ fit: "default", entry: "x" })).toBe("");
   });
 });

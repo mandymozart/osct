@@ -4,8 +4,13 @@ import {
   snapAngle, snapAxis, snapMove, snapPlace, snapScale, snapStep, spreadToStage, thresholdMm, toggleSnapTarget, type SnapLine, type SnapSettings,
 } from "../snap";
 
-const book = { page: { width: 230, height: 320 }, format: "spread" as const };
-const cover = { page: { width: 230, height: 320 }, format: "cover" as const };
+import { flatFrame } from "../origin";
+import { arrangeInRow, FLAT } from "#lib/surface-edit.js";
+
+/** Two pages in a row (`left`, `right`, the scene's origin between them) and a cover alone (`front`, centred) */
+const pageOf = (id: string) => ({ id, widthMm: 230, heightMm: 320, place: FLAT });
+const book = flatFrame(arrangeInRow([pageOf("left"), pageOf("right")]));
+const cover = flatFrame([pageOf("front")]);
 const settings = (patch: Partial<SnapSettings> = {}): SnapSettings => ({ snapTo: ["grid", "axes", "objects", "outlines"], gridMm: 10, snapMove: 1, origin: "top-left", ...patch });
 
 describe("snap: on, off and Shift", () => {

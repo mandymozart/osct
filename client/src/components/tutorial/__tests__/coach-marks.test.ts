@@ -54,7 +54,7 @@ describe("coach marks over the scan view (#282)", () => {
 
   it("walks through both steps in scan mode and remembers that they were seen", () => {
     game.history.setCoached(false);
-    game.router.navigate("/spread");
+    game.router.navigate("/scene");
     const marks = mount();
     expect(marks.hidden).toBe(false);
     expect(marks.getAttribute("step")).toBe("scroller");

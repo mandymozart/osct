@@ -3,7 +3,7 @@
   import { autosave } from "#lib/autosave.svelte.js";
   import { baselineOf, differsFromBaseline, noteBaseline } from "#lib/baselines.js";
   import { isPassEnabled, passBudgetWarning, type PassData } from "@engine/types";
-  import { putBookPasses, putSpread } from "#lib/api.js";
+  import { putBookPasses, putScene } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import {
@@ -38,7 +38,7 @@
    * built-in passes and each plugin's under its id – the declared plugins' (recorded, or loaded on the stage) and a plugin
    * run in the Code tab at once (`plugins.version`). A list beyond the phone budget says so (#86). Changes show live on
    * the stage (under *rendered*) and reach the draft by themselves a moment later (#259) – what changed: the book's list
-   * (`PUT …/passes`) and / or the spread's (`PUT …/spreads/{id}`); the stage keeps showing them, nothing is built again.
+   * (`PUT …/passes`) and / or the scene's (`PUT …/scenes/{id}`); the stage keeps showing them, nothing is built again.
    * *Undo edits* takes both lists back to how the draft had them before the first edit in this page. A collapsible section of the Inspector's spread view,
    * closed on the first visit; the passes' descriptions are their help in the Info view.
    */
@@ -115,7 +115,7 @@
       const todo = pendingSaves(lists, draftPasses(content.bookPasses, content.spread(id)?.passes));
       if (!Object.keys(todo).length) return;
       if ("book" in todo) await putBookPasses(book, todo.book ?? null);
-      if ("spread" in todo) await putSpread(book, id, { passes: todo.spread ?? null });
+      if ("spread" in todo) await putScene(book, id, { passes: todo.spread ?? null });
       // The draft holds the lists; the stage shows them already (its live passes), so nothing is built again
       await content.load(book);
     });

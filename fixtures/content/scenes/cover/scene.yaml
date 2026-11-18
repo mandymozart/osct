@@ -1,0 +1,7 @@
+# The front cover: a scene with one surface, one page wide. Its targets lie on that surface.
+label: "Cover"
+order: -1
+surfaces:
+  - id: surface
+    widthMm: 230
+    heightMm: 320

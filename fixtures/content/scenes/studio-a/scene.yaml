@@ -1,0 +1,7 @@
+# Showcase for the editor and the tests: models and placement – rotated, scaled, floating, a picture, a shared entity.
+label: "28–29"
+order: 14
+surfaces:
+  - id: surface
+    widthMm: 460
+    heightMm: 320

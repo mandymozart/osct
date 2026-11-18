@@ -5,7 +5,7 @@ import {
   applyContinuousFocus, armTapToFocus, CAMERA_RESOLUTIONS, getArError, getAskZoom, getCameraResolution, setCameraResolution, getCameraInfo, getLensChoice, setAskZoom, setLensChoice, setWindowOverride,
   setZoom, subscribeCamera, zoomSteps, type CameraInfo,
 } from "@/components/ar-bridges";
-import { getSpreads, getTarget, getTargets } from "@/utils/game-config";
+import { getSpreads, getTarget, getTargets, sceneLabel } from "@/utils/game-config";
 
 /** Target ids to retest, comma-separated (set by hand, e.g. the misses of an earlier trial) – this device */
 const RETEST_KEY = "osct-camera-retest";
@@ -114,7 +114,7 @@ export class CameraPanel extends HTMLElement {
     const current = this.game.state.currentSpread;
     const spread = getSpreads().find(s => s.id === current);
     const label = this.shadow.querySelector(".spread");
-    if (label) label.textContent = spread ? `p. ${spread.title}` : "–";
+    if (label) label.textContent = spread ? sceneLabel(spread) : "–";
     const row = this.shadow.querySelector(".targets");
     if (!row) return;
     const tracked = this.game.state.trackedTargets;

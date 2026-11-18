@@ -4,7 +4,7 @@ A slim copy of the placeholder content (every entity type, chroma key and alpha 
 images, short low-resolution videos and one stand-in model. CI and the tests build it
 (`OSCT_CONTENT_DIR=fixtures/content`). The book content is not in this repository (docs/content-cdn.md).
 
-Two **studio spreads** are the showcase for the editor and the tests – everything the content model has today on
+Content schema 3.0 (#319): `scenes/<id>/scene.yaml`, entries name their scene. Two **studio scenes** are the showcase for the editor and the tests – everything the content model has today on
 two double pages: `studio-a` (pages 28–29: models rotated, scaled and lifted off the page – *Studio: tall tree* with
 a point light under the model that moves with it (schema 2.6) – an image entity with a non-uniform scale, a shared
 entity with its own placement, and *Studio: tree of nodes* – a group with a model, a text and an orange spot light

@@ -2,12 +2,11 @@
 # cover's surface.
 category: glossary
 title: The seal
-page: 0
+scene: cover
 body: "An image on the front cover, tinted gold by the `tint` layer and breathing with the `pulse` layer – two plugins' GLSL composed into one material."
 target:
   image: target.jpg
-  print:
-    surface: front
+  place:
     x: 65
     y: 110
     width: 100

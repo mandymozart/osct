@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyPreviewSync, clampGrid, getPreview, isNodeHidden, isNodeKey, MAX_HIDDEN_NODES, nodeKey, parseHiddenNodes, parseNodeKey, parseSettings, previewSync, setNodeHidden, setPreviewActive,
-  setTargetHidden, subscribePreview, updatePreview, viewSummary,
+  parseSurfaceGrids, setTargetHidden, subscribePreview, surfaceGridOf, updatePreview, viewSummary,
 } from "../preview";
 
 describe("editor preview settings", () => {
@@ -31,7 +31,7 @@ describe("editor preview settings", () => {
     const stored = JSON.parse(localStorage.getItem("osct-preview")!);
     expect(stored).toEqual({
       view: "top", shading: "rendered", orbit: null, hdri: "wooden_studio_07", top: "plywood", textureQuality: "auto", wobble: 0.4, grid: false, gridMm: 10, origin: "top-left",
-      axis: true, snap: false, snapTo: ["grid", "axes", "objects", "outlines"], snapMove: 1, snapRotate: 15, snapScale: 0.1,
+      axis: true, floorGrid: true, floorMm: 50, wallGrid: false, wallZ: -500, snap: false, snapTo: ["grid", "axes", "objects", "outlines"], snapMove: 1, snapRotate: 15, snapScale: 0.1,
     });
     expect(getPreview().hidden).toEqual(["a"]);
   });
@@ -101,6 +101,28 @@ describe("editor preview settings", () => {
     expect(clampGrid(9000)).toBe(500);
   });
 
+  it("keeps the floor grid and the vertical grid (#319), clamped; a broken stored one is the default", async () => {
+    updatePreview({ floorGrid: false, floorMm: 25, wallGrid: true, wallZ: -800 });
+    vi.resetModules();
+    const fresh = await import("../preview");
+    expect(fresh.getPreview()).toMatchObject({ floorGrid: false, floorMm: 25, wallGrid: true, wallZ: -800 });
+    expect([fresh.clampFloorGrid(0), fresh.clampFloorGrid(5000), fresh.clampWallZ(-99999)]).toEqual([1, 1000, -10000]);
+    localStorage.setItem("osct-preview", JSON.stringify({ floorGrid: "yes", floorMm: "x", wallGrid: 1, wallZ: null }));
+    vi.resetModules();
+    const broken = await import("../preview");
+    expect(broken.getPreview()).toMatchObject({ floorGrid: true, floorMm: 50, wallGrid: false, wallZ: -500 });
+  });
+
+  it("hands the open scene's surface grids (#316) to the stage, never stores them", () => {
+    updatePreview({ surfaceGrids: { wall: 25, page: 5 } });
+    expect(JSON.parse(localStorage.getItem("osct-preview")!)).not.toHaveProperty("surfaceGrids");
+    expect(surfaceGridOf(getPreview(), "wall")).toBe(25);
+    expect(surfaceGridOf(getPreview(), "other")).toBe(getPreview().gridMm);
+    expect(JSON.parse(previewSync()).surfaceGrids).toEqual({ wall: 25, page: 5 });
+    expect(parseSurfaceGrids({ a: 0, "b c": 5, d: "5", e: 9000 })).toEqual({ a: 1, e: 500 });
+    expect(parseSurfaceGrids([1])).toEqual({});
+  });
+
   it("keeps the vertical axis and the snapping (#190)", async () => {
     updatePreview({ axis: false, snap: true, snapTo: ["axes", "outlines"], snapMove: 2.5, snapRotate: 45, snapScale: 0.25 });
     vi.resetModules();
@@ -158,9 +180,8 @@ describe("the view group's summary", () => {
       .toBe("Eiermann · linoleum · origin bottom right · shake 0.35 · sky Ferndale Studio 04");
   });
 
-  it("names the centre by the spread's format: the book's on a double page, the page's on a cover", () => {
-    expect(viewSummary({ ...view, origin: "centre" })).toContain("origin book centre");
-    expect(viewSummary({ ...view, origin: "centre" }, { format: "cover" })).toContain("origin page centre");
+  it("names the centre the scene's", () => {
+    expect(viewSummary({ ...view, origin: "centre" })).toContain("origin scene centre");
   });
 
   it("says the book's environment is the sky, not the HDRI (#185)", () => {
@@ -180,7 +201,7 @@ describe("the view group's settings (#229)", () => {
     const unsubscribe = subscribePreview(state => seen.push(viewSummary(state)));
     updatePreview({ wobble: 0.5, origin: "centre", top: "linoleum", hdri: "wooden_studio_13" });
     expect(JSON.parse(localStorage.getItem("osct-preview")!)).toMatchObject({ wobble: 0.5, origin: "centre", top: "linoleum", hdri: "wooden_studio_13" });
-    expect(seen.at(-1)).toBe("Eiermann · linoleum · origin book centre · shake 0.5 · sky Wooden Studio 13");
+    expect(seen.at(-1)).toBe("Eiermann · linoleum · origin scene centre · shake 0.5 · sky Wooden Studio 13");
     unsubscribe();
   });
 

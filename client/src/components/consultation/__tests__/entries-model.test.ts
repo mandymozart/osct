@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { categoryLabel, entriesOf, entryLabel, entryLabelHtml, groupEntries, isCategory, isListCategory, linkEmbed, MARGINALIA_MENU, sortEntries } from "../entries-model";
+import { categoryLabel, entriesOf, entryLabel, entryLabelHtml, groupEntries, isCategory, isListCategory, linkEmbed, MARGINALIA_MENU, sceneOrderOf, sortEntries } from "../entries-model";
 import { ALL_CATEGORY, EntryCategory } from "@/types";
 
-const entry = (title: string, category: EntryCategory = EntryCategory.Glossary, author?: string, page = 1) => ({ title, category, author, page });
+const entry = (title: string, category: EntryCategory = EntryCategory.Glossary, author?: string, spreadId = "s1") => ({ title, category, author, spreadId });
 
 describe("entries model", () => {
   it("knows the four categories", () => {
@@ -39,11 +39,12 @@ describe("entries model", () => {
     expect(entryLabelHtml(entry("Metafiction"))).toBe("Metafiction");
   });
 
-  it("sorts All by page, then by title", () => {
-    const groups = groupEntries([entry("B", EntryCategory.Text, undefined, 4), entry("Z", EntryCategory.Glossary, undefined, 2), entry("A", EntryCategory.Link, undefined, 4), entry("V", EntryCategory.Video, undefined, 1)], ALL_CATEGORY);
+  it("sorts All by scene order, then by title (#319) – an entry of an unknown scene last", () => {
+    const order = sceneOrderOf([{ id: "cover" }, { id: "s9" }, { id: "s2" }]);
+    const groups = groupEntries([entry("B", EntryCategory.Text, undefined, "s2"), entry("Y", EntryCategory.Text, undefined, "gone"), entry("Z", EntryCategory.Glossary, undefined, "s9"), entry("A", EntryCategory.Link, undefined, "s2"), entry("V", EntryCategory.Video, undefined, "cover")], ALL_CATEGORY, order);
     expect(groups).toHaveLength(1);
     expect(groups[0].letter).toBeNull();
-    expect(groups[0].entries.map(e => e.title)).toEqual(["Z", "A", "B"]);
+    expect(groups[0].entries.map(e => e.title)).toEqual(["Z", "A", "B", "Y"]);
   });
 
   it("sorts naturally and case-insensitively", () => {

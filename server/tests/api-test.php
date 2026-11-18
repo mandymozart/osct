@@ -598,21 +598,23 @@ try {
 
     echo "editor: import\n";
     $configuration = [
-        'version' => ['version' => '1.9.0', 'timestamp' => '2026-01-01T00:00:00.000Z', 'hash' => str_repeat('ab', 32), 'schema' => '1.2'],
+        'version' => ['version' => '1.9.0', 'timestamp' => '2026-01-01T00:00:00.000Z', 'hash' => str_repeat('ab', 32), 'schema' => '3.0'],
         'book' => ['id' => 'osct', 'title' => 'Test Book', 'author' => 'Someone', 'publisher' => 'Building Fictions'],
-        'initialSpreadId' => 's1',
-        'spreads' => [['id' => 's1', 'title' => 'One', 'firstPage' => 1, 'lastPage' => 2], ['id' => 's2', 'title' => 'Two', 'firstPage' => 3, 'lastPage' => 4, 'note' => 'an extra field']],
+        'initialScene' => 's1',
+        'scenes' => [
+            ['id' => 's1', 'label' => '1–2', 'surfaces' => [['id' => 'surface', 'widthMm' => 460, 'heightMm' => 320, 'place' => ['x' => 0, 'y' => 0, 'z' => 0, 'rx' => 0, 'ry' => 0, 'rz' => 0]]]],
+            ['id' => 's2', 'label' => '3–4', 'surfaces' => [['id' => 'surface', 'widthMm' => 460, 'heightMm' => 320, 'place' => ['x' => 0, 'y' => 0, 'z' => 0, 'rx' => 0, 'ry' => 0, 'rz' => 0]]], 'note' => 'an extra field'],
+        ],
         'entries' => [
-            ['id' => 'racoon', 'category' => 'glossary', 'title' => 'Racoon', 'page' => 1, 'body' => 'A beast.', 'tags' => [], 'target' => [
+            ['id' => 'racoon', 'category' => 'glossary', 'title' => 'Racoon', 'scene' => 's1', 'body' => 'A beast.', 'tags' => [], 'target' => [
                 'id' => 'racoon', 'imageSrc' => '/assets/content/entries/racoon/img.jpg',
                 'entity' => ['type' => 'model', 'assets' => [['id' => 'racoon-0', 'assetType' => 'glb', 'src' => '/assets/content/entries/racoon/racoon.glb']], 'params' => ['scale' => 0.5]]]],
-            ['id' => 'castle', 'category' => 'video', 'title' => 'Castle', 'page' => 3, 'body' => '', 'image' => '/assets/content/entries/castle/cover.jpg', 'tags' => ['x'], 'target' => [
+            ['id' => 'castle', 'category' => 'video', 'title' => 'Castle', 'scene' => 's2', 'body' => '', 'image' => '/assets/content/entries/castle/cover.jpg', 'tags' => ['x'], 'target' => [
                 'id' => 'castle-target', 'imageSrc' => '/assets/content/entries/castle/img.jpg', 'entity' => ['ref' => 'castle']]],
-            ['id' => 'link', 'category' => 'link', 'title' => 'A link', 'page' => 4, 'body' => '', 'media' => 'https://example.com', 'tags' => []],
-            ['id' => 'lost', 'category' => 'text', 'title' => 'Lost', 'page' => 99, 'body' => 'No spread has page 99.', 'tags' => []],
+            ['id' => 'link', 'category' => 'link', 'title' => 'A link', 'scene' => 's2', 'body' => '', 'media' => 'https://example.com', 'tags' => []],
+            ['id' => 'lost', 'category' => 'text', 'title' => 'Lost', 'scene' => 's2', 'body' => 'Read in the list only.', 'tags' => []],
         ],
         'entities' => ['castle' => ['type' => 'video', 'assets' => [['id' => 'castle-0', 'assetType' => 'video', 'src' => '/assets/content/entities/castle/c.mp4']], 'params' => new stdClass(), 'filters' => [['type' => 'chromaKey', 'color' => '#00ff00']]]],
-        'tutorial' => [['id' => 'step-1', 'index' => 0, 'title' => '{{title}}', 'illustration' => '/assets/content/tutorial/mark.svg', 'advance' => 3800]],
         // What the plugin registered, recorded by the content build (#90): the API tells a typo from its node type
         'plugins' => [['id' => 'tint', 'src' => '/assets/content/plugins/tint/plugin.js', 'api' => '1.0', 'registered' => [
             'components' => ['tint' => ['description' => 'Tints.', 'params' => ['opacity' => ['kind' => 'number', 'default' => 0.3, 'min' => 0, 'max' => 1, 'description' => 'How much.']]]],
@@ -623,7 +625,7 @@ try {
     $files = ['/assets/content/entries/racoon/racoon.glb' => ['size' => 1234, 'v' => 'abcdef012345'], '/assets/content/entries/racoon/img.jpg' => ['size' => 10, 'v' => '0123456789ab']];
     $flags = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
     [$status, $data] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files], $flags));
-    check($status === 200 && $data['counts'] === ['spreads' => 2, 'entries' => 4, 'targets' => 2, 'entities' => 1], 'import → counts');
+    check($status === 200 && $data['counts'] === ['scenes' => 2, 'entries' => 4, 'targets' => 2, 'entities' => 1], 'import → counts');
     check(preg_match('/^[0-9a-f]{12}$/', $data['draft']['build'] ?? '') === 1 && $data['book']['importedHash'] === str_repeat('ab', 32), 'import answers with the draft build and the imported hash');
     [$status, $data] = importing($api, 'osct', $editor, json_encode(['configuration' => ['book' => []]]));
     check($status === 400 && $data['error']['code'] === 'invalid-configuration', 'a configuration without a schema → 400');
@@ -652,19 +654,19 @@ try {
 
     echo "editor: tree, entities\n";
     [$status, $data] = call($api, 'GET', '/editor/books', null, $editor);
-    check($status === 200 && count($data['books']) === 1 && $data['books'][0]['spreads'] === 2 && $data['books'][0]['lastPublish'] === null && $data['books'][0]['book']['publisher'] === 'Building Fictions', 'book list: one book, two spreads, not published');
+    check($status === 200 && count($data['books']) === 1 && $data['books'][0]['scenes'] === 2 && $data['books'][0]['initialScene'] === 's1' && $data['books'][0]['lastPublish'] === null && $data['books'][0]['book']['publisher'] === 'Building Fictions', 'book list: one book, two scenes, not published');
     [$status, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    check($status === 200 && count($tree['spreads']) === 2 && $tree['spreads'][0]['id'] === 's1' && $tree['spreads'][0]['firstPage'] === 1 && $tree['spreads'][1]['note'] === 'an extra field', 'tree: spreads in order with every field');
-    check(($tree['spreads'][0]['entries'][0]['target']['entity']['type'] ?? null) === 'model', 'tree: an inline entity under its entry');
-    check(($tree['spreads'][1]['entries'][0]['target']['entity']['ref'] ?? null) === 'castle' && $tree['spreads'][1]['entries'][1]['target'] === null, 'tree: a ref, and an entry without a target');
-    check(count($tree['unassigned']) === 1 && $tree['unassigned'][0]['id'] === 'lost', 'an entry whose page is in no spread is kept apart');
+    check($status === 200 && count($tree['scenes']) === 2 && $tree['scenes'][0]['id'] === 's1' && $tree['scenes'][0]['label'] === '1–2' && $tree['scenes'][1]['note'] === 'an extra field'
+        && !isset($tree['spreads']) && !isset($tree['unassigned']) && $tree['groups'] === [], 'tree: scenes in order with every field (no spreads, no unassigned)');
+    check(($tree['scenes'][0]['entries'][0]['target']['entity']['type'] ?? null) === 'model' && $tree['scenes'][0]['entries'][0]['scene'] === 's1', 'tree: an inline entity under its entry, the entry names its scene');
+    check(($tree['scenes'][1]['entries'][0]['target']['entity']['ref'] ?? null) === 'castle' && $tree['scenes'][1]['entries'][1]['target'] === null, 'tree: a ref, and an entry without a target');
     [$status, $data] = call($api, 'GET', '/editor/books/osct/entities', null, $editor);
     check($status === 200 && array_keys($data['entities']) === ['castle'] && $data['entities']['castle']['type'] === 'video', 'the shared entities');
 
     echo "editor: draft\n";
     [$status, $manifest, $headers] = call($api, 'GET', '/editor/books/osct/draft/latest.json?t=1', null, $editor);
     check($status === 200 && preg_match('/^[0-9a-f]{12}$/', $manifest['build']) === 1 && strlen($manifest['hash']) === 64 && str_starts_with($manifest['hash'], $manifest['build'])
-        && $manifest['schema'] === '1.2' && $manifest['version'] === $appVersion && isset($manifest['activatedAt']), 'draft latest.json is a content manifest');
+        && $manifest['schema'] === '3.0' && $manifest['version'] === $appVersion && isset($manifest['activatedAt']), 'draft latest.json is a content manifest');
     check(in_array('Cache-Control: no-store', $headers, true), 'the draft is never cached');
     $withToken = stream_context_create(['http' => ['header' => "Authorization: Bearer $editor"]]);
     $rawDraft = (string) file_get_contents("$api/editor/books/osct/draft/{$manifest['build']}/game.config.json", false, $withToken);
@@ -673,26 +675,11 @@ try {
         && array_keys($draft['version']) === ['version', 'timestamp', 'hash', 'schema'], 'game.config.json carries the version block');
     $expected = json_decode(json_encode($configuration, $flags), true);
     unset($expected['version'], $draft['version']);
-    // The import ignores the configuration's onboarding; the draft carries the one older apps require (#236)
-    check(array_column($draft['tutorial'] ?? [], 'id') === ['splash', 'intro', 'camera', 'done'], 'the tutorial of the draft is the compat steps, not the imported one');
-    $expected['tutorial'] = $draft['tutorial'] ?? [];
+    check(!isset($draft['tutorial']) && !isset($draft['spreads']) && !isset($draft['initialSpreadId']), 'the draft is 3.0: no tutorial, no spreads (#319)');
     // An imported book is print first unless its content says otherwise (#238)
     check(($draft['book']['sourceOfTruth'] ?? null) === 'print', 'the imported book is print first');
     $expected['book']['sourceOfTruth'] = 'print';
-    // Schema 2.35 (#307): the draft writes every entry's scene – its spread – right after its page; an entry on no spread has none
-    check(array_map(static fn(array $e) => $e['scene'] ?? null, $draft['entries']) === ['s1', 's2', 's2', null]
-        && array_slice(array_keys($draft['entries'][0]), 3, 2) === ['page', 'scene'], 'the draft carries scene on entries (#307), after page');
-    $expected['entries'] = array_map(static function (array $e) use ($draft): array {
-        $scene = array_column($draft['entries'], 'scene', 'id')[$e['id']] ?? null;
-        if ($scene === null) return $e;
-        $result = [];
-        foreach ($e as $key => $value) {
-            $result[$key] = $value;
-            if ($key === 'page') $result['scene'] = $scene;
-        }
-        return $result;
-    }, $expected['entries']);
-    check($draft === $expected, 'import → draft round-trips the configuration unchanged (keys, order, extra fields, the entry without a spread)');
+    check($draft === $expected, 'import → draft round-trips the configuration unchanged (keys, order, extra fields)');
     check(str_contains($rawDraft, '"params":{}') && str_contains($rawDraft, '"tags":[]'), 'empty objects and lists keep their kind');
     [$status, $data] = call($api, 'GET', "/editor/books/osct/draft/{$manifest['build']}/files.json", null, $editor);
     check($status === 200 && $data === $files, 'files.json as imported');
@@ -750,7 +737,7 @@ try {
     check($status === 200 && $first['env'] === 'local' && preg_match('/^[0-9a-f]{12}$/', $first['build']) === 1 && str_starts_with($first['hash'], $first['build']) && isset($first['publishedAt']), 'publish → env, build, hash');
     check(is_file("$storeDir/local/{$first['build']}/game.config.json") && is_file("$storeDir/local/{$first['build']}/files.json") && is_file("$storeDir/local/latest.json") && is_file("$storeDir/local/versions.json"), 'the version folder, versions.json and latest.json are in the store dir');
     [$status, $data, $headers] = call($api, 'GET', '/content/local/latest.json');
-    check($status === 200 && $data['build'] === $first['build'] && $data['hash'] === $first['hash'] && $data['schema'] === '1.2' && $data['version'] === $appVersion && isset($data['activatedAt']), 'GET /content/local/latest.json serves the manifest (no token needed)');
+    check($status === 200 && $data['build'] === $first['build'] && $data['hash'] === $first['hash'] && $data['schema'] === '3.0' && $data['version'] === $appVersion && isset($data['activatedAt']), 'GET /content/local/latest.json serves the manifest (no token needed)');
     check(in_array('Cache-Control: no-cache', $headers, true), 'latest.json is revalidated');
     [$status, $data, $headers] = call($api, 'GET', "/content/local/{$first['build']}/game.config.json");
     check($status === 200 && $data['version']['hash'] === $first['hash'] && $data['entities']['castle']['params']['scale'] === 2, 'the published game.config.json is the draft');
@@ -860,7 +847,7 @@ try {
     echo "editor: import with a version comparison before it overwrites (#183)\n";
     $raw = fn(array $body) => call($api, 'POST', '/editor/books/osct/import', null, $editor, 'http://localhost:5173', json_encode($body, $flags));
     $incoming = $configuration;
-    $incoming['version'] = ['version' => '1.42.0', 'timestamp' => '2026-10-30T08:00:00.000Z', 'hash' => str_repeat('cd', 32), 'schema' => '1.2'];
+    $incoming['version'] = ['version' => '1.42.0', 'timestamp' => '2026-10-30T08:00:00.000Z', 'hash' => str_repeat('cd', 32), 'schema' => '3.1'];
     [, $before] = call($api, 'GET', '/editor/books/osct/entities', null, $editor);
     [$status, $data] = $raw(['configuration' => $incoming, 'files' => $files]);
     $comparison = $data['error']['comparison'] ?? [];
@@ -868,7 +855,7 @@ try {
     check($status === 409 && $data['error']['code'] === 'confirm-import' && preg_match('/^\d{10}\.[0-9a-f]{32}$/', $confirmation['id'] ?? '') === 1 && strtotime($confirmation['expiresAt'] ?? '') > time(),
         'an import over an existing book → 409 confirm-import with a confirmation id that expires');
     check(($comparison['book'] ?? null) === ['id' => 'osct', 'title' => 'Test Book'] && $comparison['incoming']['build'] === 'cdcdcdcdcdcd' && $comparison['incoming']['date'] === '2026-10-30T08:00:00.000Z'
-        && $comparison['incoming']['appVersion'] === '1.42.0' && $comparison['incoming']['schema'] === '1.2' && $comparison['incoming']['source'] === 'configuration' && !isset($comparison['incoming']['digest']),
+        && $comparison['incoming']['appVersion'] === '1.42.0' && $comparison['incoming']['schema'] === '3.1' && $comparison['incoming']['source'] === 'configuration' && !isset($comparison['incoming']['digest']),
         'the comparison: the incoming build, its date, app and schema version');
     $basedOn = $comparison['draft']['basedOn'] ?? [];
     check(($basedOn['build'] ?? null) === 'abababababab' && $basedOn['date'] === '2026-01-01T00:00:00.000Z' && $basedOn['appVersion'] === '1.9.0' && $basedOn['importedBy'] === 'author@example.com' && is_string($basedOn['importedAt']),
@@ -910,7 +897,7 @@ try {
         && $data['incoming']['book'] === 'osct' && $data['incoming']['title'] === 'Test Book' && $data['incoming']['build'] === 'cdcdcdcdcdcd' && $data['incoming']['appVersion'] === '1.42.0'
         && $data['incoming']['from'] === 'https://cdn.example/x' && !isset($data['incoming']['digest']),
         'preview of a configuration: the book, its build, app version and assets base');
-    check(($data['counts'] ?? null) === ['spreads' => 2, 'entries' => 4, 'targets' => 2, 'entities' => 1], '… the spreads, entries, targets and entities it holds');
+    check(($data['counts'] ?? null) === ['scenes' => 2, 'entries' => 4, 'targets' => 2, 'entities' => 1], '… the scenes, entries, targets and entities it holds');
     check(($data['existing']['book'] ?? null) === ['id' => 'osct', 'title' => 'Test Book'] && $data['existing']['draft']['basedOn']['build'] === 'abababababab' && $data['existing']['draft']['edits'] === 0
         && $data['existing']['same'] === false && !isset($data['existing']['confirmation']),
         '… and the draft of that id it would replace, as the import\'s comparison (no confirmation)');
@@ -968,13 +955,11 @@ try {
         && $data['entries'][1]['image'] === "$base/assets/content/entries/castle/cover.jpg"
         && $data['entities']['castle']['assets'][0]['src'] === "$base/assets/content/entities/castle/c.mp4"
         && $data['entries'][2]['media'] === 'https://example.com', 'content paths become URLs below the base (src, imageSrc, image); other strings stay');
-    check(array_column($data['tutorial'], 'id') === ['splash', 'intro', 'camera', 'done'] && $data['tutorial'][1]['illustration'] === '/assets/illustrations/tutorial-step-1.svg',
-        'the draft carries the onboarding older apps require (the compat steps, #236), not the imported one');
     [, $data] = call($api, 'GET', "/editor/books/osct/draft/{$m['build']}/files.json", null, $editor);
     check(array_keys($data) === ["$base/assets/content/entries/racoon/racoon.glb", "$base/assets/content/entries/racoon/img.jpg"], 'files.json keys rewritten, in order');
     [, $data] = call($api, 'GET', '/editor/books/osct/changes', null, $editor);
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    check(count($data['changes']) === 4 && $tree['spreads'][0]['entries'][0]['target']['entity']['params'] === ['scale' => 0.5], 're-import replaced the edited rows; the change log stays');
+    check(count($data['changes']) === 4 && $tree['scenes'][0]['entries'][0]['target']['entity']['params'] === ['scale' => 0.5], 're-import replaced the edited rows; the change log stays');
 
     echo "editor: node trees (content schema 2.0)
 ";
@@ -1205,8 +1190,8 @@ try {
     ]]];
     [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $scanning, 'files' => $files], $flags));
     check($status === 200, 'import: a plugin with a recorded pass → 200');
-    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/s1', ['passes' => [['type' => 'vignette'], ['type' => 'scanLines', 'lines' => 300]]], $editor);
-    check($status === 200 && $data['spread']['passes'] === [['type' => 'vignette'], ['type' => 'scanLines', 'lines' => 300]], 'a spread names the recorded pass, in its place, its params kept');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/scenes/s1', ['passes' => [['type' => 'vignette'], ['type' => 'scanLines', 'lines' => 300]]], $editor);
+    check($status === 200 && $data['scene']['passes'] === [['type' => 'vignette'], ['type' => 'scanLines', 'lines' => 300]], 'a spread names the recorded pass, in its place, its params kept');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => [['type' => 'scanLine']]], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-passes' && str_contains($data['error']['message'], 'a plugin of the book registers (scanLines)'), 'a pass no declared plugin recorded → 400 naming the plugins\' passes');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => [['type' => 'scanLines']]], $editor);
@@ -1215,19 +1200,19 @@ try {
     check($status === 200, 'publish: a recorded plugin pass → 200');
     // A Code tab source may register any pass: the save passes, the publish refuses one no compiled plugin provides
     call($api, 'PUT', '/editor/books/osct/plugins/grain', ['source' => "export const register = (api) => api.registerPass('filmGrain', { description: 'x', params: {} }, ({ shaderPass }) => shaderPass('void main() {}'));\n"], $editor);
-    [$status] = call($api, 'PUT', '/editor/books/osct/spreads/s2', ['passes' => [['type' => 'filmGrain', 'amount' => 0.1]]], $editor);
+    [$status] = call($api, 'PUT', '/editor/books/osct/scenes/s2', ['passes' => [['type' => 'filmGrain', 'amount' => 0.1]]], $editor);
     check($status === 200, 'with a source in the Code tab, a pass it may register passes');
-    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/s2', ['passes' => [['type' => 'Film-grain']]], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-spread', 'a pass not named like a plugin\'s → 400 even with sources');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/scenes/s2', ['passes' => [['type' => 'Film-grain']]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-scene', 'a pass not named like a plugin\'s → 400 even with sources');
     [$status, $data] = call($api, 'POST', '/editor/books/osct/publish', ['env' => 'local'], $editor);
     check($status === 409 && $data['error']['code'] === 'unknown-passes' && $data['error']['passes'] === ['filmGrain'], 'publish: a pass no compiled plugin provides → 409 unknown-passes naming it');
     [$status, $data] = call($api, 'DELETE', '/editor/books/osct/plugins/grain', null, $editor);
-    check($status === 409 && $data['error']['usages'] === [['kind' => 'spread', 'ref' => 's2']], 'a source whose pass a spread names is in use');
+    check($status === 409 && $data['error']['usages'] === [['kind' => 'scene', 'ref' => 's2']], 'a source whose pass a scene names is in use');
     call($api, 'DELETE', '/editor/books/osct/plugins/grain?force=1', null, $editor);
     // Without plugins a plugin's pass is refused
     importing($api, 'osct', $editor, json_encode(['configuration' => $noPlugins, 'files' => $files], $flags));
-    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/s1', ['passes' => [['type' => 'scanLines']]], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-spread' && str_contains($data['error']['message'], 'needs a plugin'), 'a book without plugins: a plugin pass → 400');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/scenes/s1', ['passes' => [['type' => 'scanLines']]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-scene' && str_contains($data['error']['message'], 'needs a plugin'), 'a book without plugins: a plugin pass → 400');
     [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files], $flags));
     check($status === 200, 'import again with the recorded plugins');
 
@@ -1541,66 +1526,63 @@ try {
     check($draftSubtitles() === null, 'a book without subtitle files has no list');
 
     echo "editor: targets and entries\n";
-    [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['imageSrc' => 'https://cdn.example/racoon-v2.jpg', 'print' => ['surface' => 'right', 'x' => 20, 'y' => 30, 'width' => 80]], $editor);
-    check($status === 200 && $data['target']['imageSrc'] === 'https://cdn.example/racoon-v2.jpg' && $data['target']['print']['width'] == 80, 'PUT target: image and print placement');
-    [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['print' => ['surface' => 'top', 'x' => 1, 'y' => 1, 'width' => 1]], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-target', 'a bad surface → 400 invalid-target');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['imageSrc' => 'https://cdn.example/racoon-v2.jpg', 'place' => ['x' => 250, 'y' => 30, 'width' => 80]], $editor);
+    check($status === 200 && $data['target']['imageSrc'] === 'https://cdn.example/racoon-v2.jpg' && $data['target']['place'] === ['x' => 250, 'y' => 30, 'width' => 80], 'PUT target: image and place');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['place' => ['x' => 'left', 'y' => 1, 'width' => 1]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-target', 'a place that is no number → 400 invalid-target');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['enabled' => false], $editor);
-    check($status === 200 && $data['target']['enabled'] === false && $data['target']['print']['width'] == 80, 'PUT target: switched off (#249), its other values kept');
+    check($status === 200 && $data['target']['enabled'] === false && $data['target']['place']['width'] === 80, 'PUT target: switched off (#249), its other values kept');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['enabled' => 'off'], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-target', 'enabled other than true or false → 400 invalid-target');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['enabled' => true], $editor);
     check($status === 200 && !array_key_exists('enabled', $data['target']), 'switched on again: the field goes, on is the default');
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    $racoonEntry = $tree['spreads'][0]['entries'][0];
-    check($racoonEntry['target']['print']['surface'] === 'right', 'the tree carries the print placement');
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Shadows & Light', 'page' => 1, 'target' => ['imageSrc' => 'https://cdn.example/shadows.jpg', 'print' => ['surface' => 'left', 'x' => 10, 'y' => 10, 'width' => 60]]], $editor);
-    check($status === 201 && $data['entry']['id'] === 'p1-shadows-light' && $data['entry']['target']['id'] === 'p1-shadows-light' && $data['spreadId'] === $tree['spreads'][0]['id'], 'POST entry → 201 with a slug id, on the page\'s spread');
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Shadows & Light', 'page' => 1, 'target' => ['imageSrc' => 'x.jpg']], $editor);
+    check($tree['scenes'][0]['entries'][0]['target']['place']['x'] === 250, 'the tree carries the place');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Shadows & Light', 'scene' => 's1', 'target' => ['imageSrc' => 'https://cdn.example/shadows.jpg', 'place' => ['x' => 10, 'y' => 10, 'width' => 60]]], $editor);
+    check($status === 201 && $data['entry']['id'] === 's1-shadows-light' && $data['entry']['target']['id'] === 's1-shadows-light' && $data['scene'] === 's1', 'POST entry → 201 with a slug id, on its scene');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Shadows & Light', 'scene' => 's1', 'target' => ['imageSrc' => 'x.jpg']], $editor);
     check($status === 409 && $data['error']['code'] === 'duplicate-id', 'the same id again → 409');
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'No target', 'page' => 1, 'target' => ['print' => null]], $editor);
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'No target', 'scene' => 's1', 'target' => ['place' => null]], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-entry', 'a target without its image → 400');
     [, $manifest2] = call($api, 'GET', '/editor/books/osct/draft/latest.json', null, $editor);
     $draft2 = json_decode((string) file_get_contents("$api/editor/books/osct/draft/{$manifest2['build']}/game.config.json", false, $withToken), true);
-    $added = array_values(array_filter($draft2['entries'], fn($e) => $e['id'] === 'p1-shadows-light'));
-    check(count($added) === 1 && $added[0]['target']['print']['surface'] === 'left' && $added[0]['tags'] === [], 'the draft has the new entry with its target');
-    [$status] = deleting($api, '/editor/books/osct/entries/p1-shadows-light', $editor);
+    $added = array_values(array_filter($draft2['entries'], fn($e) => $e['id'] === 's1-shadows-light'));
+    check(count($added) === 1 && $added[0]['target']['place']['x'] === 10 && $added[0]['tags'] === [] && $added[0]['scene'] === 's1', 'the draft has the new entry with its target');
+    [$status] = deleting($api, '/editor/books/osct/entries/s1-shadows-light', $editor);
     check($status === 200, 'DELETE entry, confirmed → 200');
-    [$status] = call($api, 'DELETE', '/editor/books/osct/entries/p1-shadows-light', null, $editor);
+    [$status] = call($api, 'DELETE', '/editor/books/osct/entries/s1-shadows-light', null, $editor);
     check($status === 404, 'again → 404');
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    check(!in_array('p1-shadows-light', array_column($tree['spreads'][0]['entries'], 'id'), true), 'gone from the tree');
+    check(!in_array('s1-shadows-light', array_column($tree['scenes'][0]['entries'], 'id'), true), 'gone from the tree');
 
     echo "editor: texts – entries, the book, the onboarding (#223)\n";
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Onion', 'page' => 1, 'category' => 'glossary', 'body' => 'A *bulb*.', 'caption' => ' Image: an onion '], $editor);
-    check($status === 201 && $data['entry']['id'] === 'p1-onion' && !isset($data['entry']['target']) && $data['spreadId'] === 's1' && $data['entry']['caption'] === 'Image: an onion',
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Onion', 'scene' => 's1', 'category' => 'glossary', 'body' => 'A *bulb*.', 'caption' => ' Image: an onion '], $editor);
+    check($status === 201 && $data['entry']['id'] === 's1-onion' && !isset($data['entry']['target']) && $data['scene'] === 's1' && $data['entry']['caption'] === 'Image: an onion',
         'POST entry without a target → 201, read in the list only; its caption trimmed (#289)');
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Leek', 'page' => 1, 'caption' => ['x']], $editor);
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Leek', 'scene' => 's1', 'caption' => ['x']], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-entry', 'POST entry: a caption that is no text → 400');
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    $onion = array_values(array_filter($tree['spreads'][0]['entries'], fn($e) => $e['id'] === 'p1-onion'))[0] ?? null;
-    check($onion !== null && $onion['target'] === null, 'the tree lists it on its spread, without a target');
+    $onion = array_values(array_filter($tree['scenes'][0]['entries'], fn($e) => $e['id'] === 's1-onion'))[0] ?? null;
+    check($onion !== null && $onion['target'] === null, 'the tree lists it on its scene, without a target');
     [$status, $data] = call($api, 'GET', '/editor/books/osct/entries', null, $editor);
     $byId = array_column($data['entries'] ?? [], null, 'id');
-    check($status === 200 && $byId['racoon']['body'] === 'A beast.' && $byId['racoon']['spreadId'] === 's1' && $byId['racoon']['target'] === ['id' => 'racoon', 'imageSrc' => 'https://cdn.example/racoon-v2.jpg']
-        && $byId['castle']['image'] === '/assets/content/entries/castle/cover.jpg' && $byId['lost']['spreadId'] === null && $byId['p1-onion']['target'] === null,
-        'GET entries: every field as written, the spread and the target');
+    check($status === 200 && $byId['racoon']['body'] === 'A beast.' && $byId['racoon']['scene'] === 's1' && $byId['racoon']['target'] === ['id' => 'racoon', 'imageSrc' => 'https://cdn.example/racoon-v2.jpg']
+        && $byId['castle']['image'] === '/assets/content/entries/castle/cover.jpg' && $byId['lost']['scene'] === 's2' && $byId['s1-onion']['target'] === null,
+        'GET entries: every field as written, the scene and the target');
     $body = "A **beast** with a [mask](https://example.org/racoon).\n\n{hasKey: It opens the door.|It looks at you.}";
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/racoon', ['body' => $body, 'author' => ' Kévin Bray ', 'tags' => [' animal ', 'mask', 'animal', ''], 'title' => 'Racoon '], $editor);
     check($status === 200 && $data['entry']['body'] === $body && $data['entry']['author'] === 'Kévin Bray' && $data['entry']['tags'] === ['animal', 'mask'] && $data['entry']['title'] === 'Racoon'
-        && $data['spreadId'] === 's1' && $data['previousSpreadId'] === 's1' && !isset($data['entry']['target']), 'PUT entry: body (Markdown kept as written), author and title trimmed, tags once each');
+        && $data['scene'] === 's1' && $data['previousScene'] === 's1' && !isset($data['entry']['target']), 'PUT entry: body (Markdown kept as written), author and title trimmed, tags once each');
     [, $log] = call($api, 'GET', '/editor/books/osct/changes?limit=1', null, $editor);
     check($log['changes'][0]['kind'] === 'entry' && $log['changes'][0]['ref'] === 'racoon' && $log['changes'][0]['before']['body'] === 'A beast.' && $log['changes'][0]['after']['body'] === $body,
         'the change log has the entry before and after');
-    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/racoon', ['page' => 3], $editor);
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/racoon', ['scene' => 's2'], $editor);
     [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    check($status === 200 && $data['spreadId'] === 's2' && $data['previousSpreadId'] === 's1' && in_array('racoon', array_column($tree['spreads'][1]['entries'], 'id'), true)
-        && !in_array('racoon', array_column($tree['spreads'][0]['entries'], 'id'), true), 'a new page moves the entry to its spread');
-    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/racoon', ['page' => 500], $editor);
-    check($status === 200 && $data['spreadId'] === null, 'a page no spread has: the entry belongs to none, as an added one');
-    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/racoon', ['page' => 1, 'author' => null, 'image' => '/assets/content/entries/racoon/img.jpg'], $editor);
-    check($status === 200 && $data['spreadId'] === 's1' && !isset($data['entry']['author']) && $data['entry']['image'] === '/assets/content/entries/racoon/img.jpg',
-        'back on its page; null removes the author; a picture of the import is a Library image');
+    check($status === 200 && $data['scene'] === 's2' && $data['previousScene'] === 's1' && in_array('racoon', array_column($tree['scenes'][1]['entries'], 'id'), true)
+        && !in_array('racoon', array_column($tree['scenes'][0]['entries'], 'id'), true), 'a scene moves the entry');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/racoon', ['scene' => 's1', 'author' => null, 'image' => '/assets/content/entries/racoon/img.jpg'], $editor);
+    check($status === 200 && $data['scene'] === 's1' && !isset($data['entry']['author']) && $data['entry']['image'] === '/assets/content/entries/racoon/img.jpg',
+        'back on its scene; null removes the author; a picture of the import is a Library image');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/link', ['media' => 'https://example.org/new', 'category' => 'link'], $editor);
     check($status === 200 && $data['entry']['media'] === 'https://example.org/new', 'a link\'s URL');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/castle', ['caption' => ' Image: anatomical illustration by Kevin Hong '], $editor);
@@ -1611,7 +1593,7 @@ try {
     $refusals = [
         [['category' => 'poem'], 'an unknown category'], [['media' => 'javascript:alert(1)'], 'a link that is not http(s)'], [['media' => 'https://'], 'a link without a host'],
         [['title' => '  '], 'an empty title'], [['image' => 'https://evil.example/x.jpg'], 'an image that is no Library picture'], [['image' => '/assets/content/entries/racoon/racoon.glb'], 'a Library file that is no picture'],
-        [['page' => 1.5], 'a page that is no whole number'], [['tags' => 'a, b'], 'tags that are no list'], [['target' => null], 'a field the PUT does not change'],
+        [['page' => 1], 'a page (2.x)'], [['tags' => 'a, b'], 'tags that are no list'], [['target' => null], 'a field the PUT does not change'],
         [['body' => ['x']], 'a body that is no text'], [['caption' => str_repeat('x', 501)], 'a caption longer than 500 characters'], [['caption' => 7], 'a caption that is no text'],
     ];
     foreach ($refusals as [$change, $what]) {
@@ -1624,7 +1606,7 @@ try {
     $draftTexts = json_decode((string) file_get_contents("$api/editor/books/osct/draft/{$manifestTexts['build']}/game.config.json", false, $withToken), true);
     $draftRacoon = array_values(array_filter($draftTexts['entries'], fn($e) => $e['id'] === 'racoon'))[0];
     check($draftRacoon['body'] === $body && $draftRacoon['tags'] === ['animal', 'mask'] && $draftRacoon['target']['id'] === 'racoon', 'the draft has the edited entry, its target kept');
-    [$status] = deleting($api, '/editor/books/osct/entries/p1-onion', $editor);
+    [$status] = deleting($api, '/editor/books/osct/entries/s1-onion', $editor);
     check($status === 200, 'an entry without a target is removed like any');
 
     [$status, $data] = call($api, 'PUT', '/editor/books/osct', ['title' => ' Onion Skin ', 'publisher' => null], $editor);
@@ -1672,434 +1654,132 @@ try {
     [$status, $data] = call($api, 'POST', '/editor/import/preview', ['configuration' => $badConfig], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-configuration', 'an import whose book names another source of truth → 400');
 
-    echo "editor: spread formats (content schema 2.3)\n";
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'cover'], $editor);
-    check($status === 201 && ['id' => $data['spread']['id'], 'title' => $data['spread']['title'], 'firstPage' => $data['spread']['firstPage'], 'lastPage' => $data['spread']['lastPage'], 'format' => $data['spread']['format']]
-        === ['id' => 'cover', 'title' => 'Cover', 'firstPage' => 0, 'lastPage' => 0, 'format' => 'cover'] && array_column($data['spread']['surfaces'], 'side') === ['front'], 'POST spreads cover → page 0, first, its front as its surface (#307)');
-    [$status] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'cover'], $editor);
-    check($status === 409, 'a second cover → 409');
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'back', 'title' => 'Rückseite'], $editor);
-    $lastPage = max(array_map(fn($s) => $s['lastPage'], $tree['spreads']));
-    check($status === 201 && $data['spread']['firstPage'] === $lastPage + 1 && $data['spread']['title'] === 'Rückseite', 'POST spreads back → the page after the last');
-    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    check($tree['spreads'][0]['id'] === 'cover' && end($tree['spreads'])['id'] === 'back', 'the tree: cover first, back last');
-    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/' . $tree['spreads'][1]['id'], ['title' => 'First pages'], $editor);
-    check($status === 200 && $data['spread']['title'] === 'First pages' && !isset($data['spread']['format']), 'PUT spread title');
-    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/' . $tree['spreads'][1]['id'], ['format' => 'cover'], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-spread', 'a double page cannot become the cover');
-    echo "editor: spread passes (content schema 2.5)\n";
-    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/' . $tree['spreads'][1]['id'], ['passes' => [['type' => 'bloom', 'strength' => 0.8], ['type' => 'vignette']]], $editor);
-    check($status === 200 && $data['spread']['passes'] === [['type' => 'bloom', 'strength' => 0.8], ['type' => 'vignette']], 'PUT spread passes');
-    [, $m] = call($api, 'GET', '/editor/books/osct/draft/latest.json?t=2', null, $editor);
-    [, $draftNow] = call($api, 'GET', "/editor/books/osct/draft/{$m['build']}/game.config.json", null, $editor);
-    check(($draftNow['spreads'][1]['passes'] ?? null) === [['type' => 'bloom', 'strength' => 0.8], ['type' => 'vignette']], 'the draft carries the passes');
-    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/' . $tree['spreads'][1]['id'], ['passes' => [['type' => 'glow']]], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-spread', 'an unknown pass type is refused');
-    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/' . $tree['spreads'][1]['id'], ['passes' => null], $editor);
-    check($status === 200 && !isset($data['spread']['passes']), 'passes: null removes the list');
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Seal', 'page' => 0, 'target' => ['imageSrc' => 'https://cdn.example/seal.jpg', 'print' => ['surface' => 'front', 'x' => 60, 'y' => 100, 'width' => 100]]], $editor);
-    check($status === 201 && $data['spreadId'] === 'cover' && $data['entry']['target']['print']['surface'] === 'front', 'an entry on page 0 lands on the cover, printed on its front');
-
-    echo "editor: add and remove spreads (#166)\n";
-    // The book now: cover (0), s1 (1–2), s2 (3–4), back (5); entries racoon p1, castle p3, link p4, lost p99, seal p0
+    echo "editor: scenes – add, change, move, group, remove (content schema 3.0, #319)\n";
+    $sceneList = static function () use ($api, $editor): array {
+        [, $list] = call($api, 'GET', '/editor/books/osct/scenes', null, $editor);
+        return $list;
+    };
     $draftOf = function () use ($api, $editor): array {
         [, $m] = call($api, 'GET', '/editor/books/osct/draft/latest.json?t=' . mt_rand(), null, $editor);
         [, $d] = call($api, 'GET', "/editor/books/osct/draft/{$m['build']}/game.config.json", null, $editor);
         return [$m['build'], $d];
     };
-    $pagesOf = fn(array $tree) => array_map(fn($s) => [$s['id'], $s['firstPage'], $s['lastPage']], $tree['spreads']);
-    [$status] = call($api, 'PUT', '/editor/books/osct/targets/castle-target', ['print' => ['page' => 3, 'surface' => 'left', 'x' => 10, 'y' => 10, 'width' => 50]], $editor);
-    check($status === 200, 'the castle is printed on page 3');
-    [$buildBefore] = $draftOf();
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'spread'], $editor);
-    $pagesOfSpread = fn(array $spread) => [$spread['id'], $spread['title'], $spread['firstPage'], $spread['lastPage']];
-    check($status === 201 && $pagesOfSpread($data['spread']) === ['spread-1', 'Pages 5–6', 5, 6] && array_column($data['spread']['surfaces'], 'id') === ['left', 'right'],
-        'POST spreads { format: spread } → a double page after the last one, before the back cover – titled by its pages (#298), left and right its surfaces');
-    check($data['moved'] === ['spreads' => 0, 'entries' => 0, 'targets' => 0] && $data['pages'] === [['scene' => 'back', 'from' => [5, 5], 'to' => [7, 7]]],
-        '#307: nothing renumbers – only the pages older apps read move on (the back cover 5 → 7)');
-    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    check($pagesOf($tree) === [['cover', 0, 0], ['s1', 1, 2], ['s2', 3, 4], ['spread-1', 5, 6], ['back', 7, 7]], 'the tree: the new spread before the back cover, the back on page 7');
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'spread', 'after' => 's1', 'title' => 'Between'], $editor);
-    check($status === 201 && $pagesOfSpread($data['spread']) === ['spread-2', 'Between', 3, 4], 'POST spreads { after: s1 } → pages 3–4 for older apps');
-    check($data['moved'] === ['spreads' => 0, 'entries' => 0, 'targets' => 0] && array_column($data['pages'], 'scene') === ['s2', 'spread-1', 'back'], '#307: between two – no row renumbered, the later scenes\' pages for older apps follow the order');
-    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    check($pagesOf($tree) === [['cover', 0, 0], ['s1', 1, 2], ['spread-2', 3, 4], ['s2', 5, 6], ['spread-1', 7, 8], ['back', 9, 9]], 'pages numbered on: s2 5–6, spread-1 7–8, back 9');
-    $castle = array_values(array_filter($tree['spreads'][3]['entries'], fn($e) => $e['id'] === 'castle'))[0] ?? null;
-    check(array_column($tree['spreads'][3]['entries'], 'page') === [5, 6] && ($castle['target']['print']['page'] ?? null) === 3, 'the entries go with their scene: castle on 5, the link on 6 (older apps); the printed page is no more renumbered');
-    check($tree['spreads'][2]['entries'] === [] && $tree['unassigned'][0]['page'] === 99, 'the new spread is empty; the entry in no spread keeps its page');
-    $pdo = connect('test');
-    $storedRows = $pdo->query("SELECT id, first_page, last_page FROM spreads WHERE book_id = 'osct' AND id IN ('s2', 'back') ORDER BY id")->fetchAll(PDO::FETCH_NUM);
-    $castleRow = $pdo->query("SELECT page, spread_id FROM entries WHERE book_id = 'osct' AND id = 'castle'")->fetch(PDO::FETCH_NUM);
-    $pdo = null;
-    check(array_map(fn($r) => [(int) $r[1], (int) $r[2]], $storedRows) === [[5, 5], [3, 4]] && (int) $castleRow[0] === 3 && $castleRow[1] === 's2', '#307: the rows are not renumbered – s2 still stored as 3–4, the castle on page 3 of s2');
-    [, $draftNow] = $draftOf();
-    $entryPages = array_column($draftNow['entries'], 'page', 'id');
-    check($draftNow['spreads'][3] === ['id' => 's2', 'title' => 'Two', 'firstPage' => 5, 'lastPage' => 6, 'note' => 'an extra field'] && $entryPages['castle'] === 5 && $entryPages['racoon'] === 1 && $entryPages['p0-seal'] === 0,
-        'the draft: the moved spread keeps its fields, the earlier entries stay');
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'spread', 'after' => 'cover', 'id' => 'opening'], $editor);
-    check($status === 201 && $data['spread']['id'] === 'opening' && $data['spread']['firstPage'] === 1 && $data['moved']['spreads'] === 0 && count($data['pages']) === 5, 'after the cover → pages 1–2 with the given id; the later scenes\' pages for older apps follow');
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'spread', 'after' => 'back'], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-spread', 'nothing after the back cover → 400');
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'spread', 'after' => 'nowhere'], $editor);
-    check($status === 400 && $data['error']['code'] === 'unknown-spread', 'after an unknown spread → 400 unknown-spread');
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'spread', 'id' => 's1'], $editor);
-    check($status === 409 && $data['error']['code'] === 'duplicate-id', 'a spread id that exists → 409');
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'cover', 'after' => 's1'], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-spread', 'a cover takes no after');
-    [$status, $data] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'poster'], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-spread', 'an unknown format → 400');
-    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/spreads/s2', null, $editor);
-    check($status === 409 && $data['error']['code'] === 'confirm-delete' && array_column($data['error']['impact']['entries'], 'id') === ['castle', 'link'], 'removing a spread with entries → 409 confirm-delete: the impact names them, nothing goes yet');
-    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/spreads/s1', null, $editor);
-    check($status === 409 && $data['error']['code'] === 'initial-spread', 'removing the spread the book opens on → 409 initial-spread');
-    [$status] = call($api, 'DELETE', '/editor/books/osct/spreads/nowhere', null, $editor);
-    check($status === 404, 'removing an unknown spread → 404');
-    [$status] = deleting($api, '/editor/books/osct/spreads/opening', $editor);
-    [$status2] = deleting($api, '/editor/books/osct/spreads/spread-2', $editor);
-    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    check($status === 200 && $status2 === 200 && $pagesOf($tree) === [['cover', 0, 0], ['s1', 1, 2], ['s2', 3, 4], ['spread-1', 5, 6], ['back', 7, 7]], 'DELETE an empty spread, confirmed → 200, the later pages numbered back');
-    [$status] = deleting($api, '/editor/books/osct/spreads/spread-1', $editor);
-    [$buildAfter, $draftNow] = $draftOf();
-    check($status === 200 && $buildAfter === $buildBefore, 'added and removed again: the same draft as before (pages, entries, prints)');
-    [$status, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
-    check(count(array_filter($data['changes'], fn($c) => $c['kind'] === 'spread' && $c['ref'] === 'spread-1' && $c['after'] === null)) === 1, 'the change log has the removal');
-    [$status] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'spread', 'after' => 'cover', 'id' => 'first'], $editor);
-    [$status2] = deleting($api, '/editor/books/osct/spreads/first', $editor);
-    check($status === 201 && $status2 === 200 && $draftOf()[0] === $buildBefore, 'a double page before everything, and gone again');
-    [$status] = deleting($api, '/editor/books/osct/spreads/back', $editor);
-    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    check($status === 200 && $pagesOf($tree) === [['cover', 0, 0], ['s1', 1, 2], ['s2', 3, 4]] && $tree['unassigned'][0]['page'] === 99, 'removing the back cover moves no page');
-    [$status] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'back', 'title' => 'Rückseite'], $editor);
-    check($status === 201 && $draftOf()[0] === $buildBefore, 'the back cover added again: the same draft');
-    [$status] = call($api, 'PUT', '/editor/books/osct/targets/castle-target', ['print' => null], $editor);
-    check($status === 200, 'the castle print removed again');
+    $flat = ['x' => 0, 'y' => 0, 'z' => 0, 'rx' => 0, 'ry' => 0, 'rz' => 0];
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/scenes', ['preset' => 'double'], $editor);
+    check($status === 201 && $data['scene'] === ['id' => 'scene-1', 'label' => 'New scene', 'surfaces' => [['id' => 'surface', 'widthMm' => 460, 'heightMm' => 320, 'place' => $flat]]]
+        && $data['position'] === 2, 'POST scenes → a double page last: one surface twice the page\'s width, placed, labelled New scene');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/scenes', ['preset' => 'single', 'position' => 0, 'id' => 'cover', 'label' => ' Cover '], $editor);
+    check($status === 201 && $data['position'] === 0 && $data['scene']['label'] === 'Cover' && $data['scene']['surfaces'][0]['widthMm'] === 230, 'a single scene first: the cover (no cover preset)');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/scenes', ['preset' => 'wall', 'id' => 'studio', 'label' => 'Studio wall', 'after' => 'scene-1'], $editor);
+    check($status === 201 && $data['position'] === 4 && $data['scene']['surfaces'] === [['id' => 'wall', 'widthMm' => 2000, 'heightMm' => 1500, 'place' => ['x' => 0, 'y' => 750, 'z' => 0, 'rx' => 90, 'ry' => 0, 'rz' => 0]]],
+        'a wall: 2000 × 1500 mm standing on the table (rx 90)');
+    foreach ([[['preset' => 'cover'], 400, 'invalid-scene', 'a preset that is gone (cover)'], [['id' => 's1'], 409, 'duplicate-id', 'a scene id that exists'],
+        [['after' => 'ghost'], 400, 'unknown-scene', 'after an unknown scene'], [['label' => ' '], 400, 'invalid-scene', 'an empty label'],
+        [['surfaces' => []], 400, 'invalid-scene', 'no surface'], [['surfaces' => [['id' => 'a', 'side' => 'left', 'widthMm' => 1, 'heightMm' => 1]]], 400, 'invalid-scene', 'a surface with a side (2.x)'],
+        [['group' => 'ghost'], 400, 'unknown-group', 'an unknown group']] as [$body, $code, $error, $what]) {
+        [$status, $data] = call($api, 'POST', '/editor/books/osct/scenes', $body, $editor);
+        check($status === $code && ($data['error']['code'] ?? null) === $error, "POST scenes: $what → $code $error");
+    }
+    $list = $sceneList();
+    $byId = array_column($list['scenes'], null, 'id');
+    check(array_column($list['scenes'], 'id') === ['cover', 's1', 's2', 'scene-1', 'studio'] && array_column($list['scenes'], 'position') === [0, 1, 2, 3, 4]
+        && $byId['s1']['entries'] === 1 && $byId['s1']['targets'] === 1 && $byId['s1']['surfaces'][0]['reference'] === null && $byId['s1']['label'] === '1–2'
+        && !isset($byId['s1']['firstPage']) && !isset($byId['s1']['group']), 'GET scenes: in order, SceneData + position, entries and targets counted, every surface with its reference');
 
-    echo "editor: removing a spread or an entry with everything on it, in two steps (#198)\n";
-    // A double page 5–6 with three entries: e1 (its own file, the shared entity castle – also on castle-target), e2 (a
-    // file used elsewhere too, its own entity naming a second file of its own), e3 (the shared entity lamp, only here)
-    [$buildStart] = $draftOf();
-    [$status] = call($api, 'POST', '/editor/books/osct/spreads', ['format' => 'spread', 'after' => 's2', 'id' => 'doomed', 'title' => 'Doomed'], $editor);
-    [, $up] = upload($api, 'POST', '/editor/books/osct/assets', pngOf(1, 1, 0xaa0000), 'a-only.png', $editor);
-    $onlyA = $up['asset'];
-    [, $up] = upload($api, 'POST', '/editor/books/osct/assets', pngOf(1, 1, 0x00aa00), 'b-only.png', $editor);
-    $onlyB = $up['asset'];
-    [, $up] = upload($api, 'POST', '/editor/books/osct/assets', pngOf(1, 1, 0x0000aa), 'shared.png', $editor);
-    $sharedFile = $up['asset'];
-    call($api, 'PUT', '/editor/books/osct/entities/lamp', ['type' => 'model', 'assets' => [['id' => 'lamp-0', 'assetType' => 'glb', 'src' => 'https://cdn.example/lamp.glb']]], $editor);
-    $made = [
-        call($api, 'POST', '/editor/books/osct/entries', ['title' => 'One', 'page' => 5, 'id' => 'e1', 'target' => ['imageSrc' => $onlyA['url'], 'entity' => ['ref' => 'castle']]], $editor)[0],
-        call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Two', 'page' => 6, 'id' => 'e2', 'target' => ['imageSrc' => $sharedFile['url'],
-            'entity' => ['type' => 'image', 'assets' => [['id' => 'b', 'assetType' => 'image', 'src' => $onlyB['url']]]]]], $editor)[0],
-        call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Three', 'page' => 6, 'id' => 'e3', 'target' => ['imageSrc' => 'https://cdn.example/three.jpg', 'entity' => ['ref' => 'lamp']]], $editor)[0],
-        call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Elsewhere', 'page' => 1, 'id' => 'e4', 'target' => ['imageSrc' => $sharedFile['url']]], $editor)[0],
-    ];
-    check($status === 201 && $made === [201, 201, 201, 201], 'the double page, three files, the entity lamp and four entries (one of them on page 1)');
-    [, $before] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
-    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/spreads/doomed', null, $editor);
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/scenes/studio', ['label' => 'Studio', 'surfaces' => [
+        ['id' => 'wall', 'widthMm' => 2000, 'heightMm' => 1500, 'place' => ['x' => 0, 'y' => 750, 'z' => -500, 'rx' => 90]], ['id' => 'poster', 'label' => 'Poster', 'widthMm' => 600, 'heightMm' => 800]]], $editor);
+    check($status === 200 && $data['scene']['label'] === 'Studio' && $data['scene']['surfaces'][0]['place'] === ['x' => 0, 'y' => 750, 'z' => -500, 'rx' => 90, 'ry' => 0, 'rz' => 0]
+        && $data['scene']['surfaces'][1]['place'] === ['x' => 1000, 'y' => 0, 'z' => 0, 'rx' => 0, 'ry' => 0, 'rz' => 0] && $data['cleared'] === ['entries' => [], 'targets' => []],
+        'PUT scene: the label, the whole surfaces list – rotations default to 0, a surface without a place lies in a row');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/scenes/studio', ['apply' => false], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-scene', 'PUT scene without a field → 400');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/scenes/studio', ['surfaces' => [['id' => 'wall', 'widthMm' => 2000, 'heightMm' => 1500, 'place' => ['x' => 0, 'y' => 0]]]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-scene', 'a place without z → 400');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/scenes/ghost', ['label' => 'x'], $editor);
+    check($status === 404, 'PUT an unknown scene → 404');
+
+    // Entries and targets on a surface
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'On the poster', 'scene' => 'studio', 'surface' => 'poster', 'target' => ['imageSrc' => 'https://cdn.example/poster.jpg', 'place' => ['surface' => 'poster', 'x' => 10, 'y' => 20, 'width' => 100]]], $editor);
+    check($status === 201 && $data['scene'] === 'studio' && $data['entry']['id'] === 'studio-on-the-poster' && $data['entry']['scene'] === 'studio' && $data['entry']['surface'] === 'poster'
+        && $data['entry']['target']['place'] === ['surface' => 'poster', 'x' => 10, 'y' => 20, 'width' => 100], 'POST entry on a surface, its target placed on it');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Nowhere', 'scene' => 'studio', 'target' => ['imageSrc' => 'x.jpg', 'place' => ['x' => 1, 'y' => 1, 'width' => 1]]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-entry', 'a place without its surface on a scene of several → 400');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'No scene'], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-entry', 'an entry without a scene → 400');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Ghost', 'scene' => 'ghost'], $editor);
+    check($status === 400 && $data['error']['code'] === 'unknown-scene', 'an unknown scene → 400 unknown-scene');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Ghost', 'scene' => 'studio', 'surface' => 'floor'], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-entry', 'a surface the scene does not have → 400');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/scenes/studio', ['surfaces' => [['id' => 'wall', 'widthMm' => 2000, 'heightMm' => 1500]]], $editor);
+    check($status === 409 && $data['error']['code'] === 'surfaces-in-use' && array_column($data['error']['entries'], 'id') === ['studio-on-the-poster'] && array_column($data['error']['targets'], 'id') === ['studio-on-the-poster'],
+        'removing a surface entries and targets lie on → 409 surfaces-in-use naming both');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/scenes/studio', ['surfaces' => [['id' => 'wall', 'widthMm' => 2000, 'heightMm' => 1500]], 'apply' => true], $editor);
+    check($status === 200 && $data['cleared'] === ['entries' => ['studio-on-the-poster'], 'targets' => ['studio-on-the-poster']], '… with apply: the entry keeps its scene without a surface, the target loses its place');
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    $poster = array_column(array_column($tree['scenes'], null, 'id')['studio']['entries'], null, 'id')['studio-on-the-poster'];
+    check(!isset($poster['surface']) && !isset($poster['target']['place']), '… the tree shows it');
+    // A target placed on a scene's one surface keeps lying on it when more surfaces come
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['place' => ['x' => 20, 'y' => 30, 'width' => 80]], $editor);
+    check($status === 200 && $data['target']['place'] === ['x' => 20, 'y' => 30, 'width' => 80], 'PUT target: a place on the scene\'s one surface');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['place' => ['surface' => 'flap', 'x' => 1, 'y' => 1, 'width' => 1]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-target', 'a place on a surface the scene does not have → 400 invalid-target');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/targets/racoon', ['print' => ['surface' => 'left', 'x' => 1, 'y' => 1, 'width' => 1]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-target', 'print (2.x) → 400 invalid-target');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/scenes/s1', ['surfaces' => [['id' => 'surface', 'widthMm' => 460, 'heightMm' => 320], ['id' => 'flap', 'widthMm' => 230, 'heightMm' => 320]]], $editor);
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    check($status === 200 && $tree['scenes'][1]['entries'][0]['target']['place'] === ['surface' => 'surface', 'x' => 20, 'y' => 30, 'width' => 80], '… a second surface: its place names the surface it lies on');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/scenes/s1', ['surfaces' => [['id' => 'surface', 'widthMm' => 460, 'heightMm' => 320, 'place' => $flat]]], $editor);
+    check($status === 200 && $data['cleared'] === ['entries' => [], 'targets' => []], '… and the flap goes again: nothing lay on it');
+
+    // Entries move by scene
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/link', ['scene' => 's1'], $editor);
+    check($status === 200 && $data['scene'] === 's1' && $data['previousScene'] === 's2' && $data['entry']['scene'] === 's1' && !isset($data['entry']['page']), 'PUT entry { scene } moves it');
+    foreach ([[['scene' => null], 'invalid-entry', 'scene null'], [['scene' => 'ghost'], 'unknown-scene', 'an unknown scene'], [['surface' => 'nope'], 'invalid-entry', 'a surface the scene does not have'],
+        [['page' => 3], 'invalid-entry', 'a page (2.x)']] as [$body, $code, $what]) {
+        [$status, $data] = call($api, 'PUT', '/editor/books/osct/entries/link', $body, $editor);
+        check($status === 400 && $data['error']['code'] === $code, "PUT entry: $what → 400 $code");
+    }
+    call($api, 'PUT', '/editor/books/osct/entries/link', ['scene' => 's2'], $editor);
+
+    // Move and group
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/scenes/move', ['scenes' => ['studio'], 'position' => 0], $editor);
+    check($status === 200 && $data['applied'] === false && $data['plan']['order'] === ['studio', 'cover', 's1', 's2', 'scene-1'] && $data['plan']['moved'] === ['studio'] && !isset($data['plan']['pages'])
+        && array_column($sceneList()['scenes'], 'id')[0] === 'cover', 'POST scenes/move: the plan, nothing written');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/scenes/move', ['scenes' => ['studio'], 'position' => 0, 'apply' => true], $editor);
+    check($status === 200 && $data['applied'] === true && array_column($sceneList()['scenes'], 'id') === ['studio', 'cover', 's1', 's2', 'scene-1'], '… applied');
+    call($api, 'POST', '/editor/books/osct/scenes/move', ['scenes' => ['studio'], 'after' => 'scene-1', 'apply' => true], $editor);
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/groups', ['label' => 'Studios', 'scenes' => ['scene-1', 'studio'], 'apply' => true], $editor);
+    $list = $sceneList();
+    check($status === 200 && $data['plan']['group'] === ['id' => 'studios', 'label' => 'Studios'] && $list['groups'] === [['id' => 'studios', 'label' => 'Studios', 'scenes' => ['scene-1', 'studio']]]
+        && array_column($list['scenes'], 'group', 'id') === ['scene-1' => 'studios', 'studio' => 'studios'], 'POST groups: a group of the picked scenes, the scenes name it');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/groups/studios', ['label' => 'Rooms'], $editor);
+    check($status === 200 && $data['group'] === ['id' => 'studios', 'label' => 'Rooms'], 'PUT groups: renamed');
+    [, $m] = call($api, 'GET', '/editor/books/osct/draft/latest.json', null, $editor);
+    [, $draftScenes] = call($api, 'GET', "/editor/books/osct/draft/{$m['build']}/game.config.json", null, $editor);
+    check($draftScenes['groups'] === [['id' => 'studios', 'label' => 'Rooms']] && array_column($draftScenes['scenes'], 'id') === ['cover', 's1', 's2', 'scene-1', 'studio']
+        && ($draftScenes['scenes'][4]['group'] ?? null) === 'studios' && array_keys($draftScenes['scenes'][4]) === ['id', 'label', 'group', 'surfaces'], 'the draft: the scenes in order, the groups, a scene\'s keys in the content\'s order');
+    $posterDraft = array_column($draftScenes['entries'], null, 'id')['studio-on-the-poster'];
+    check(array_slice(array_keys($posterDraft), 0, 4) === ['id', 'category', 'title', 'scene'] && !isset($posterDraft['page']) && !isset($posterDraft['target']['place']), 'an entry in the draft: its scene after its title, no page');
+    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/groups/studios', null, $editor);
+    check($status === 200 && $data === ['ungrouped' => 'studios', 'scenes' => ['scene-1', 'studio']] && $sceneList()['groups'] === [], 'DELETE groups: ungrouped, the scenes stay');
+
+    // Removing a scene: two steps
+    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/scenes/s1', null, $editor);
+    check($status === 409 && $data['error']['code'] === 'initial-scene', 'the scene the book opens on is never removed → 409 initial-scene');
+    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/scenes/studio', null, $editor);
     $impact = $data['error']['impact'] ?? [];
-    $first = $data['error']['confirmation']['id'] ?? '';
-    check($status === 409 && $data['error']['code'] === 'confirm-delete' && preg_match('/^\d{10}\.[0-9a-f]{32}$/', $first) === 1
-        && strtotime($data['error']['confirmation']['expiresAt']) > time(), 'without confirm → 409 confirm-delete with a confirmation id that expires');
-    check(($impact['spread'] ?? null) === ['id' => 'doomed', 'title' => 'Doomed', 'firstPage' => 5, 'lastPage' => 6, 'format' => 'spread'] && $impact['pagesBack'] === 0 && $impact['kind'] === 'spread'
-        && $impact['pages'] === [['scene' => 'back', 'from' => [7, 7], 'to' => [5, 5]]], 'the impact: the spread; nothing renumbers – only the back cover\'s pages for older apps (#307)');
-    check($impact['counts'] === ['entries' => 3, 'targets' => 3, 'entities' => 2, 'keptEntities' => 1, 'filesOnlyHere' => 2, 'filesElsewhere' => 1]
-        && array_column($impact['entries'], 'id') === ['e1', 'e2', 'e3'] && array_column($impact['targets'], 'id') === ['e1', 'e2', 'e3'], 'the impact counts: 3 entries, 3 targets, 2 entities, 1 kept, 2 files only here, 1 elsewhere');
-    check($impact['entities'] === [['ref' => 'lamp', 'type' => 'model', 'shared' => true, 'targets' => ['e3']], ['ref' => null, 'type' => 'image', 'shared' => false, 'targets' => ['e2']]]
-        && count($impact['keptEntities']) === 1 && $impact['keptEntities'][0]['ref'] === 'castle' && $impact['keptEntities'][0]['targets'] === ['e1'] && $impact['keptEntities'][0]['usedBy'] === ['castle-target'], 'the entities: lamp and e2\'s own go, castle is kept (castle-target uses it)');
-    check(array_column($impact['files']['onlyHere'], 'name') === [$stored('a-only.png'), $stored('b-only.png')] && array_column($impact['files']['elsewhere'], 'name') === [$stored('shared.png')]
-        && $impact['files']['elsewhere'][0]['usedBy'] === [['kind' => 'target', 'ref' => 'e4']] && !isset($impact['files']['onlyHere'][0]['usedBy']),
-        'the Library files: used only here (a-only, b-only) and elsewhere (shared.png, with its other use)');
-    check(str_contains($data['error']['message'], '3 entries, 3 targets, 2 entities'), 'the message says it in words');
-    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    [, $after] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
-    check(count($tree['spreads']) === 5 && count($tree['spreads'][3]['entries']) === 3 && count($after['changes']) === count($before['changes']), 'the first step writes nothing');
-    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/spreads/doomed', ['deleteFiles' => 'yes'], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-delete', 'deleteFiles must be true or false → 400');
-    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/spreads/doomed', ['confirm' => '9999999999.' . str_repeat('0', 32)], $editor);
-    check($status === 409 && $data['error']['code'] === 'confirmation-void' && $data['error']['impact']['counts']['entries'] === 3 && isset($data['error']['confirmation']['id']),
-        'a forged id → 409 confirmation-void with a fresh impact and id');
-    [$status] = call($api, 'DELETE', '/editor/books/osct/entries/e1', ['confirm' => $first], $editor);
-    check($status === 409, 'the id is bound to what it was asked for: not an entry\'s removal');
-    // Anything that changes meanwhile voids it – here a title elsewhere in the book
-    call($api, 'PUT', '/editor/books/osct/spreads/s2', ['title' => 'Two again'], $editor);
-    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/spreads/doomed', ['confirm' => $first], $editor);
-    $fresh = $data['error']['confirmation']['id'] ?? '';
-    check($status === 409 && $data['error']['code'] === 'confirmation-void' && $fresh !== $first && $data['error']['impact']['counts']['targets'] === 3, 'a stale id (the book changed) → 409 confirmation-void, a fresh impact and a new id');
-    // One transaction: when the last step fails, nothing of the removal stays done
-    $pdo = connect('test');
-    $pdo->exec($mysql ? "CREATE TRIGGER block_spread_delete BEFORE DELETE ON spreads FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'blocked'"
-        : "CREATE TRIGGER block_spread_delete BEFORE DELETE ON spreads BEGIN SELECT RAISE(ABORT, 'blocked'); END");
-    [$status] = call($api, 'DELETE', '/editor/books/osct/spreads/doomed', ['confirm' => $fresh], $editor);
-    $pdo->exec('DROP TRIGGER block_spread_delete');
-    $pdo = null;
-    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    [, $entities] = call($api, 'GET', '/editor/books/osct/entities', null, $editor);
-    check($status === 500 && count($tree['spreads'][3]['entries']) === 3 && isset($entities['entities']['lamp']), 'the spread\'s row refused: entries, targets and the entity are all still there (rolled back)');
-    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/spreads/doomed', ['confirm' => $fresh], $editor);
-    check($status === 200 && $data['deleted'] === ['spread' => 'doomed', 'entries' => ['e1', 'e2', 'e3'], 'targets' => ['e1', 'e2', 'e3'], 'entities' => ['lamp'], 'files' => []]
-        && $data['moved'] === ['spreads' => 0, 'entries' => 0, 'targets' => 0], 'confirmed → 200: exactly what the impact listed; nothing renumbered');
-    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    [, $entities] = call($api, 'GET', '/editor/books/osct/entities', null, $editor);
-    check($pagesOf($tree) === [['cover', 0, 0], ['s1', 1, 2], ['s2', 3, 4], ['back', 5, 5]] && $tree['unassigned'][0]['page'] === 99
-        && !isset($entities['entities']['lamp']) && isset($entities['entities']['castle']), 'the tree: the spread gone, the pages back; lamp gone, castle kept');
-    [, $assets] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
-    $assetIds = array_column($assets['assets'], 'id');
-    check(in_array($onlyA['id'], $assetIds, true) && in_array($onlyB['id'], $assetIds, true) && in_array($sharedFile['id'], $assetIds, true), 'without deleteFiles every Library file stays (the option is off by default)');
-    [, $after] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
-    $removedRows = array_values(array_filter(array_slice($after['changes'], 0, count($after['changes']) - count($before['changes'])), fn($c) => $c['after'] === null));
-    $kinds = array_map(fn($c) => $c['kind'] . ':' . $c['ref'], $removedRows);
-    sort($kinds);
-    check($kinds === ['entity:lamp', 'entry:e1', 'entry:e2', 'entry:e3', 'spread:doomed', 'target:e1', 'target:e2', 'target:e3']
-        && count(array_filter($removedRows, fn($c) => is_array($c['before']))) === 8, 'the change log: every removed row with its before');
-    [$status] = call($api, 'DELETE', '/editor/books/osct/spreads/doomed', ['confirm' => $fresh], $editor);
-    check($status === 404, 'the id works once: the spread is gone');
-
-    // An entry: its target, its entity and – only with deleteFiles – the files used only there; a file used elsewhere stays
-    call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Five', 'page' => 2, 'id' => 'e5', 'target' => ['imageSrc' => $onlyA['url'],
-        'entity' => ['type' => 'image', 'assets' => [['id' => 's', 'assetType' => 'image', 'src' => $sharedFile['url']]]]]], $editor);
-    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/entries/e5', null, $editor);
-    $impact = $data['error']['impact'] ?? [];
-    check($status === 409 && $data['error']['code'] === 'confirm-delete' && $impact['kind'] === 'entry' && $impact['entry']['id'] === 'e5' && $impact['entry']['spread'] === 's1'
-        && $impact['counts'] === ['entries' => 1, 'targets' => 1, 'entities' => 1, 'keptEntities' => 0, 'filesOnlyHere' => 1, 'filesElsewhere' => 1],
-        'an entry: 409 confirm-delete – its target, its entity, a file only here, one used elsewhere');
-    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/entries/e5', ['confirm' => $data['error']['confirmation']['id'], 'deleteFiles' => true], $editor);
-    check($status === 200 && $data['deleted'] === ['spread' => null, 'entries' => ['e5'], 'targets' => ['e5'], 'entities' => [], 'files' => [$onlyA['id']]], 'confirmed with deleteFiles → the file used only there goes too');
-    [, $assets] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
-    $assetIds = array_column($assets['assets'], 'id');
-    check(!in_array($onlyA['id'], $assetIds, true) && in_array($sharedFile['id'], $assetIds, true) && @file_get_contents($onlyA['url']) === false && @file_get_contents($sharedFile['url']) !== false,
-        'gone from the Library and the store; the file used elsewhere is never deleted');
-    [, $after] = call($api, 'GET', '/editor/books/osct/changes?limit=3', null, $editor);
-    $assetChange = array_values(array_filter($after['changes'], fn($c) => $c['kind'] === 'asset'))[0] ?? null;
-    check($assetChange && $assetChange['ref'] === $onlyA['id'] && $assetChange['before']['name'] === $stored('a-only.png') && $assetChange['after'] === null, 'the removed Library file is in the change log with its before');
-    [$status] = deleting($api, '/editor/books/osct/entries/e4', $editor, ['deleteFiles' => true]);
-    [, $assets] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
-    check($status === 200 && !in_array($sharedFile['id'], array_column($assets['assets'], 'id'), true), 'its last use removed with deleteFiles: now the shared file goes too');
-    call($api, 'DELETE', "/editor/books/osct/assets/{$onlyB['id']}", null, $editor);
-    call($api, 'PUT', '/editor/books/osct/spreads/s2', ['title' => 'Two'], $editor);
-    check($draftOf()[0] === $buildStart, 'cleaned up: the same draft as before');
-
-    echo "editor: scenes – order, surfaces, groups and the pages older apps read (#307 phase 2)\n";
-    // A print-first book: the cover, front matter −2…−1, page 1 alone, 2–3, 4–5, 6–7, the back cover on 8
-    $scenesConfig = $configuration;
-    $scenesConfig['book'] = ['id' => 'scenes', 'title' => 'Scenes', 'author' => 'Someone'];
-    $scenesConfig['initialSpreadId'] = 's1';
-    $scenesConfig['spreads'] = [
-        ['id' => 'cover', 'title' => 'Cover', 'firstPage' => 0, 'lastPage' => 0, 'format' => 'cover'],
-        ['id' => 'front-1', 'title' => 'Front matter 1', 'firstPage' => -2, 'lastPage' => -1, 'matter' => 'front'],
-        ['id' => 's1', 'title' => '1', 'firstPage' => 1, 'lastPage' => 1],
-        ['id' => 's2', 'title' => '2–3', 'firstPage' => 2, 'lastPage' => 3],
-        ['id' => 's3', 'title' => '4–5', 'firstPage' => 4, 'lastPage' => 5],
-        ['id' => 's4', 'title' => '6–7', 'firstPage' => 6, 'lastPage' => 7],
-        ['id' => 'back', 'title' => 'Back cover', 'firstPage' => 8, 'lastPage' => 8, 'format' => 'back'],
-    ];
-    $sceneEntry = fn(string $id, int $page) => ['id' => $id, 'category' => 'text', 'title' => strtoupper($id), 'page' => $page, 'body' => '', 'tags' => []];
-    $scenesConfig['entries'] = [$sceneEntry('a', 1), $sceneEntry('b', 3), $sceneEntry('c', 4) + ['target' => ['id' => 'c', 'imageSrc' => '/assets/content/entries/racoon/img.jpg']],
-        $sceneEntry('d', 5), $sceneEntry('e', 7), $sceneEntry('f', 8), $sceneEntry('g', -2), $sceneEntry('lost', 99)];
-    unset($scenesConfig['plugins']);
-    [$status] = importing($api, 'scenes', $editor, json_encode(['configuration' => $scenesConfig, 'files' => $files], $flags));
-    check($status === 200, '#307: a print-first book of seven spreads imported');
-    $sceneDraft = function () use ($api, $editor): array {
-        [, $m] = call($api, 'GET', '/editor/books/scenes/draft/latest.json?t=' . mt_rand(), null, $editor);
-        [, $d] = call($api, 'GET', "/editor/books/scenes/draft/{$m['build']}/game.config.json", null, $editor);
-        return [$m['build'], $d];
-    };
-    $sceneOrder = function () use ($api, $editor): array {
-        [, $data] = call($api, 'GET', '/editor/books/scenes/scenes', null, $editor);
-        return array_column($data['scenes'] ?? [], 'id');
-    };
-    // What an app before schema 2.35 does with the content: an entry is on the first spread whose pages hold its page
-    $oldAppKeepsUp = function (array $config): bool {
-        $ranges = [];
-        foreach ($config['spreads'] as $s) $ranges[] = [$s['id'], $s['firstPage'], $s['lastPage'], ($s['format'] ?? null) === 'cover'];
-        // The ranges never overlap, and (but for the front cover) go up in order – the guard's and the old apps' terms
-        $last = null;
-        foreach ($ranges as $i => [$id, $first, $lastPage, $cover]) {
-            if ($lastPage < $first) return false;
-            foreach ($ranges as $j => $other) if ($j !== $i && $first <= $other[2] && $lastPage >= $other[1]) return false;
-            if (!$cover) {
-                if ($last !== null && $first <= $last) return false;
-                $last = $lastPage;
-            }
-        }
-        foreach ($config['entries'] as $entry) {
-            if (!isset($entry['scene'])) continue;
-            $found = null;
-            foreach ($ranges as [$id, $first, $lastPage]) if ($entry['page'] >= $first && $entry['page'] <= $lastPage) { $found = $id; break; }
-            if ($found !== $entry['scene']) return false;
-        }
-        return true;
-    };
-    [$importBuild, $importDraft] = $sceneDraft();
-    check($oldAppKeepsUp($importDraft) && array_column($importDraft['entries'], 'page', 'id') === ['a' => 1, 'b' => 3, 'c' => 4, 'd' => 5, 'e' => 7, 'f' => 8, 'g' => -2, 'lost' => 99],
-        '#307: as imported, every scene keeps its printed pages (the front cover before the front matter included)');
-
-    // The migration: surfaces, labels and groups from the pages – the plan first
-    [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes/migrate', null, $editor);
-    $plan = $data['plan'] ?? [];
-    $planned = array_column($plan['scenes'] ?? [], null, 'scene');
-    check($status === 200 && $data['applied'] === false && $plan['upToDate'] === false
-        && $plan['counts'] === ['scenes' => 7, 'scenesWithSurfaces' => 7, 'surfaces' => 12, 'groups' => 1, 'entriesPlaced' => 7, 'entriesUnplaced' => 1],
-        '#307 migrate: the plan counts 7 scenes, 12 surfaces, the front matter group, 7 entries placed and 1 it cannot place');
-    $labels = fn(array $surfaces) => array_map(fn($s) => [$s['id'], $s['label'] ?? null], $surfaces);
-    check($labels($planned['s2']['surfaces']) === [['left', '2'], ['right', '3']] && $labels($planned['s1']['surfaces']) === [['left', null], ['right', '1']]
-        && $labels($planned['front-1']['surfaces']) === [['left', null], ['right', null]] && $labels($planned['cover']['surfaces']) === [['front', null]]
-        && $labels($planned['back']['surfaces']) === [['back', null]] && ($planned['front-1']['group'] ?? null) === 'front-matter',
-        '#307 migrate: a double page left and right labelled with its numbers, page 1 alone with its unnumbered half, the matter and covers without labels, the front matter grouped');
-    check(array_column($plan['entries']['unplaced'], 'id') === ['lost'] && array_column($plan['entries']['placed'], 'surface', 'entry') === ['a' => 'right', 'b' => 'right', 'c' => 'left', 'd' => 'right', 'e' => 'right', 'f' => 'back', 'g' => 'left']
-        && $plan['groups'] === [['id' => 'front-matter', 'label' => 'Front matter', 'scenes' => ['front-1'], 'new' => true]] && $plan['pageImages']['count'] === 0,
-        '#307 migrate: every entry on the surface its page lies on; the entry on no scene is listed; page images stay (none here)');
-    [, $overview] = call($api, 'GET', '/editor/books/scenes/scenes', null, $editor);
-    check(array_sum(array_map(fn($s) => count($s['surfaces']), $overview['scenes'])) === 0 && $overview['groups'] === [], '#307 migrate: … and the plan wrote nothing');
-    [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes/migrate', ['apply' => true], $editor);
-    [, $overview] = call($api, 'GET', '/editor/books/scenes/scenes', null, $editor);
-    $byScene = array_column($overview['scenes'], null, 'id');
-    check($status === 200 && $data['applied'] === true && array_column($byScene['s3']['surfaces'], 'label') === ['4', '5'] && $byScene['front-1']['group'] === 'front-matter'
-        && $overview['groups'] === [['id' => 'front-matter', 'label' => 'Front matter', 'scenes' => ['front-1']]] && $byScene['s3']['entries'] === 2 && $byScene['s3']['targets'] === 1,
-        '#307 migrate apply: the scenes have their surfaces and labels, the group its scene; GET …/scenes counts entries and targets');
-    [$migratedBuild, $migrated] = $sceneDraft();
-    $entriesOf = fn(array $config) => array_column($config['entries'], null, 'id');
-    check(($migrated['groups'] ?? null) === [['id' => 'front-matter', 'label' => 'Front matter']] && $entriesOf($migrated)['a']['scene'] === 's1' && $entriesOf($migrated)['a']['surface'] === 'right'
-        && array_column($migrated['entries'], 'page', 'id') === array_column($importDraft['entries'], 'page', 'id') && $oldAppKeepsUp($migrated)
-        && array_column($migrated['spreads'], 'firstPage', 'id') === array_column($importDraft['spreads'], 'firstPage', 'id'),
-        '#307 migrate apply: the draft carries groups, scenes and surfaces – every page as before');
-    [, $changes] = call($api, 'GET', '/editor/books/scenes/changes?limit=500', null, $editor);
-    check(count(array_filter($changes['changes'], fn($c) => $c['kind'] === 'spread')) === 7 && count(array_filter($changes['changes'], fn($c) => $c['kind'] === 'entry')) === 7
-        && count(array_filter($changes['changes'], fn($c) => $c['kind'] === 'groups')) === 1, '#307 migrate apply: a change per scene, entry and the groups');
-    [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes/migrate', ['apply' => true], $editor);
-    check($status === 200 && $data['applied'] === false && $data['plan']['upToDate'] === true && $data['plan']['counts']['surfaces'] === 0 && $sceneDraft()[0] === $migratedBuild,
-        '#307 migrate: again – nothing left to do (idempotent)');
-
-    // Add a scene anywhere – nothing renumbers; the pages older apps read follow the order
-    [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes', ['preset' => 'foldout', 'after' => 's2', 'id' => 'fold'], $editor);
-    check($status === 201 && $data['position'] === 4 && array_column($data['scene']['surfaces'], 'side') === ['left', 'middle', 'right'] && $data['scene']['firstPage'] === 4
-        && $data['scene']['lastPage'] === 6 && $data['scene']['title'] === 'Pages 4–6' && array_column($data['pages'], 'scene') === ['s3', 's4', 'back'],
-        '#307: a fold-out of three after s2 in a print-first book → older apps read it as pages 4–6, the later scenes follow');
-    $pdo = connect('test');
-    $storedPages = array_map(fn($r) => [(string) $r[0], (int) $r[1], (int) $r[2]], $pdo->query("SELECT id, first_page, last_page FROM spreads WHERE book_id = 'scenes' ORDER BY position")->fetchAll(PDO::FETCH_NUM));
-    $storedEntries = array_map('intval', array_column($pdo->query("SELECT id, page FROM entries WHERE book_id = 'scenes' ORDER BY id")->fetchAll(PDO::FETCH_NUM), 1, 0));
-    $pdo = null;
-    check(array_slice($storedPages, 5) === [['s3', 4, 5], ['s4', 6, 7], ['back', 8, 8]] && $storedPages[4] === ['fold', 9, 11] && $storedEntries['c'] === 4 && $storedEntries['e'] === 7,
-        '#307: no row renumbered – s3, s4 and the back cover keep their pages, the new scene is stored after every other');
-    [, $added] = $sceneDraft();
-    check($oldAppKeepsUp($added) && array_column($added['entries'], 'page', 'id')['c'] === 7 && array_column($added['entries'], 'page', 'id')['d'] === 8,
-        '#307: the draft passes an app before 2.35 – every entry on its scene (c on 7, d on 8 – by their surfaces)');
-    foreach ([[['preset' => 'poster'], 400, 'invalid-scene'], [['preset' => 'single', 'after' => 'nowhere'], 400, 'unknown-scene'], [['preset' => 'single', 'id' => 's1'], 409, 'duplicate-id'],
-        [['preset' => 'single', 'after' => 's1', 'position' => 2], 400, 'invalid-scene'], [['preset' => 'single', 'group' => 'nope'], 400, 'unknown-group']] as [$body, $code, $error]) {
-        [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes', $body, $editor);
-        check($status === $code && ($data['error']['code'] ?? null) === $error, "#307: POST …/scenes " . json_encode($body) . " → $code $error");
-    }
-    // An entry by scene and surface
-    [$status, $data] = call($api, 'POST', '/editor/books/scenes/entries', ['title' => 'On the fold', 'id' => 'folded', 'scene' => 'fold', 'surface' => 'middle'], $editor);
-    check($status === 201 && $data['spreadId'] === 'fold' && $data['entry']['surface'] === 'middle' && $data['entry']['page'] === 5, '#307: POST entries { scene, surface } → on the fold-out\'s middle, page 5 for older apps');
-    [$status, $data] = call($api, 'POST', '/editor/books/scenes/entries', ['title' => 'Nowhere', 'scene' => 'fold', 'surface' => 'top'], $editor);
-    [$status2, $data2] = call($api, 'POST', '/editor/books/scenes/entries', ['title' => 'Nowhere', 'scene' => 'nope'], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-entry' && $status2 === 400 && $data2['error']['code'] === 'unknown-scene', '#307: a surface the scene does not have, a scene the book does not have → 400');
-    [$status, $data] = call($api, 'POST', '/editor/books/scenes/entries', ['title' => 'By page', 'id' => 'by-page', 'page' => 8], $editor);
-    check($status === 201 && $data['spreadId'] === 's3' && $data['entry']['surface'] === 'right' && $data['entry']['page'] === 8, '#307: an older client\'s page finds the scene the editor shows there (s3 on 7–8 now), and the surface');
-    [$withFold] = $sceneDraft();
-
-    // Move one scene – a plan first
-    [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes/move', ['scenes' => ['s4'], 'after' => 'front-1'], $editor);
-    check($status === 200 && $data['applied'] === false && $data['plan']['order'] === ['cover', 'front-1', 's4', 's1', 's2', 'fold', 's3', 'back'] && $data['plan']['moved'] === ['s4'] && $data['plan']['pages'] !== []
-        && $sceneOrder() === ['cover', 'front-1', 's1', 's2', 'fold', 's3', 's4', 'back'], '#307 move: the plan – the new order, what moves, the pages older apps read – and nothing written');
-    [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes/move', ['scenes' => ['s4'], 'after' => 'front-1', 'apply' => true], $editor);
-    [, $moved] = $sceneDraft();
-    [, $log] = call($api, 'GET', '/editor/books/scenes/changes?limit=1', null, $editor);
-    check($status === 200 && $data['applied'] === true && $sceneOrder() === ['cover', 'front-1', 's4', 's1', 's2', 'fold', 's3', 'back'] && array_column($moved['spreads'], 'id') === $sceneOrder()
-        && $log['changes'][0]['kind'] === 'order' && $log['changes'][0]['after'][2] === 's4', '#307 move apply: the order written, the change log has it');
-    check($oldAppKeepsUp($moved) && array_column($moved['spreads'], 'firstPage', 'id')['s4'] === 1 && array_column($moved['entries'], 'page', 'id')['e'] === 2,
-        '#307 move: the moved draft passes an app before 2.35 – s4 now reads as pages 1–2, its entry e on 2; every entry on its scene');
-    $pdo = connect('test');
-    $storedAfterMove = array_map('intval', array_column($pdo->query("SELECT id, page FROM entries WHERE book_id = 'scenes' ORDER BY id")->fetchAll(PDO::FETCH_NUM), 1, 0));
-    $pdo = null;
-    check(array_intersect_key($storedAfterMove, $storedEntries) === $storedEntries, '#307 move: no entry renumbered in the rows');
-    [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes/move', ['scenes' => ['s4'], 'after' => 's3', 'apply' => true], $editor);
-    check($status === 200 && $sceneDraft()[0] === $withFold, '#307 move: moved back → the same draft as before');
-    foreach ([[['scenes' => ['s4']], 'invalid-move'], [['scenes' => [], 'position' => 0], 'invalid-move'], [['scenes' => ['s4'], 'after' => 's4'], 'invalid-move'],
-        [['scenes' => ['nope'], 'position' => 0], 'unknown-scene'], [['scenes' => ['s4'], 'group' => 'nope'], 'unknown-group']] as [$body, $error]) {
-        [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes/move', $body, $editor);
-        check($status === 400 && ($data['error']['code'] ?? null) === $error, "#307 move " . json_encode($body) . " → 400 $error");
-    }
-
-    // Groups: from picked scenes, rename, into and out of a group, ungroup
-    [$status, $data] = call($api, 'POST', '/editor/books/scenes/groups', ['label' => 'Chapter one', 'scenes' => ['s3', 's1']], $editor);
-    check($status === 200 && $data['applied'] === false && $data['plan']['group'] === ['id' => 'chapter-one', 'label' => 'Chapter one']
-        && $data['plan']['order'] === ['cover', 'front-1', 's1', 's3', 's2', 'fold', 's4', 'back'] && $data['plan']['moved'] === ['s3'] && $sceneOrder()[3] === 's2',
-        '#307 group: the plan brings the picked scenes together where the first of them is – nothing written yet');
-    [$status, $data] = call($api, 'POST', '/editor/books/scenes/groups', ['label' => 'Chapter one', 'scenes' => ['s3', 's1'], 'apply' => true], $editor);
-    [, $overview] = call($api, 'GET', '/editor/books/scenes/scenes', null, $editor);
-    check($status === 200 && $data['applied'] === true && array_column($overview['scenes'], 'id') === ['cover', 'front-1', 's1', 's3', 's2', 'fold', 's4', 'back']
-        && $overview['groups'][1] === ['id' => 'chapter-one', 'label' => 'Chapter one', 'scenes' => ['s1', 's3']], '#307 group apply: the group with its scenes, together');
-    [, $grouped] = $sceneDraft();
-    check($oldAppKeepsUp($grouped) && array_column($grouped['spreads'], 'group', 'id')['s3'] === 'chapter-one' && count($grouped['groups']) === 2, '#307 group: the draft carries the group – and an app before 2.35 still places every entry');
-    [$status, $data] = call($api, 'PUT', '/editor/books/scenes/groups/chapter-one', ['label' => 'The first chapter'], $editor);
-    [$status2] = call($api, 'PUT', '/editor/books/scenes/groups/nope', ['label' => 'x'], $editor);
-    [$status3, $data3] = call($api, 'PUT', '/editor/books/scenes/groups/chapter-one', ['label' => '  '], $editor);
-    check($status === 200 && $data['group'] === ['id' => 'chapter-one', 'label' => 'The first chapter'] && $status2 === 404 && $status3 === 400 && $data3['error']['code'] === 'invalid-group', '#307 group: renamed; an unknown group 404, an empty label 400');
-    [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes/move', ['scenes' => ['fold'], 'group' => 'chapter-one', 'apply' => true], $editor);
-    check($status === 200 && $sceneOrder() === ['cover', 'front-1', 's1', 's3', 'fold', 's2', 's4', 'back'] && $data['plan']['groups'] === [['scene' => 'fold', 'from' => null, 'to' => 'chapter-one']],
-        '#307 move into a group: after its last scene, the group set');
-    [$status, $data] = call($api, 'POST', '/editor/books/scenes/scenes/move', ['scenes' => ['s3'], 'group' => null, 'apply' => true], $editor);
-    [, $overview] = call($api, 'GET', '/editor/books/scenes/scenes', null, $editor);
-    check($status === 200 && array_column($overview['scenes'], 'id') === ['cover', 'front-1', 's1', 'fold', 's3', 's2', 's4', 'back'] && $overview['groups'][1]['scenes'] === ['s1', 'fold']
-        && array_column($overview['scenes'], 'group', 'id')['s3'] === null, '#307 move out of a group: from its middle to right after it, without a group');
-    [$status, $data] = call($api, 'DELETE', '/editor/books/scenes/groups/chapter-one', null, $editor);
-    [, $overview] = call($api, 'GET', '/editor/books/scenes/scenes', null, $editor);
-    check($status === 200 && $data === ['ungrouped' => 'chapter-one', 'scenes' => ['s1', 'fold']] && array_column($overview['scenes'], 'id') === ['cover', 'front-1', 's1', 'fold', 's3', 's2', 's4', 'back']
-        && count($overview['groups']) === 1 && array_column($overview['scenes'], 'group', 'id')['fold'] === null, '#307 ungroup: the group goes, its scenes stay in place and in order');
-    [$status] = call($api, 'DELETE', '/editor/books/scenes/groups/chapter-one', null, $editor);
-    check($status === 404, '#307 ungroup: a group that is gone → 404');
-
-    // A scene's own fields: surfaces, layout, label, group – surfaces with entries on them go only with apply
-    [$status, $data] = call($api, 'PUT', '/editor/books/scenes/scenes/s2', ['label' => 'Two and three', 'layout' => 'fixed', 'group' => 'front-matter',
-        'surfaces' => [['id' => 'left', 'side' => 'left', 'label' => 'ii'], ['id' => 'right', 'side' => 'right', 'label' => 'iii', 'widthMm' => 210]]], $editor);
-    check($status === 200 && $data['scene']['label'] === 'Two and three' && $data['scene']['layout'] === 'fixed' && $data['scene']['group'] === 'front-matter'
-        && $data['scene']['surfaces'][1] === ['id' => 'right', 'side' => 'right', 'widthMm' => 210, 'heightMm' => 320, 'label' => 'iii'] && $data['cleared'] === [],
-        '#307 PUT scene: label, layout, group and surfaces (a size and a label each, a page\'s size by default)');
-    [$status, $data] = call($api, 'PUT', '/editor/books/scenes/scenes/s2', ['surfaces' => [['id' => 'left', 'side' => 'left']]], $editor);
-    check($status === 409 && $data['error']['code'] === 'surfaces-in-use' && array_column($data['error']['entries'], 'id') === ['b'], '#307 PUT scene: a surface an entry lies on goes only with apply → 409 surfaces-in-use names the entry');
-    [$status, $data] = call($api, 'PUT', '/editor/books/scenes/scenes/s2', ['surfaces' => [['id' => 'left', 'side' => 'left']], 'apply' => true], $editor);
-    [, $edited] = $sceneDraft();
-    check($status === 200 && $data['cleared'] === ['b'] && !isset($entriesOf($edited)['b']['surface']) && $entriesOf($edited)['b']['scene'] === 's2' && $oldAppKeepsUp($edited),
-        '#307 PUT scene with apply: the entry stays on the scene without a surface');
-    foreach ([[['surfaces' => [['id' => 'x', 'side' => 'Left']]], 'invalid-scene'], [['surfaces' => [['id' => 'x', 'side' => 'left'], ['id' => 'x', 'side' => 'right']]], 'invalid-scene'],
-        [['layout' => 'stacked'], 'invalid-scene'], [['group' => 'nope'], 'unknown-group'], [['surfaces' => [['id' => 'x', 'side' => 'left', 'widthMm' => 0]]], 'invalid-scene']] as [$body, $error]) {
-        [$status, $data] = call($api, 'PUT', '/editor/books/scenes/scenes/s2', $body, $editor);
-        check($status === 400 && ($data['error']['code'] ?? null) === $error, "#307 PUT scene " . json_encode($body) . " → 400 $error");
-    }
-    call($api, 'PUT', '/editor/books/scenes/scenes/s2', ['group' => null, 'label' => null], $editor);
-
-    // An entry's scene and surface; an older client's page
-    [$status, $data] = call($api, 'PUT', '/editor/books/scenes/entries/e', ['scene' => 'fold', 'surface' => 'right'], $editor);
-    [, $tree] = call($api, 'GET', '/editor/books/scenes', null, $editor);
-    $foldRange = array_column($tree['spreads'], null, 'id')['fold'];
-    check($status === 200 && $data['spreadId'] === 'fold' && $data['previousSpreadId'] === 's4' && $data['entry']['surface'] === 'right' && $data['entry']['page'] === $foldRange['lastPage'],
-        '#307 PUT entry { scene, surface }: on the fold-out\'s right page');
-    $s4Range = array_column($tree['spreads'], null, 'id')['s4'];
-    [$status, $data] = call($api, 'PUT', '/editor/books/scenes/entries/e', ['page' => $s4Range['lastPage']], $editor);
-    check($status === 200 && $data['spreadId'] === 's4' && $data['entry']['surface'] === 'right' && $data['entry']['page'] === $s4Range['lastPage'],
-        '#307 PUT entry { page } (an older client): the scene the tree shows there, and its surface');
-    [$status, $data] = call($api, 'PUT', '/editor/books/scenes/entries/e', ['surface' => 'middle'], $editor);
-    [$status2, $data2] = call($api, 'PUT', '/editor/books/scenes/entries/e', ['scene' => null], $editor);
-    [$status3] = call($api, 'PUT', '/editor/books/scenes/entries/e', ['scene' => 's4', 'surface' => 'right'], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-entry' && $status2 === 200 && $data2['spreadId'] === null && !isset($data2['entry']['surface']) && $status3 === 200,
-        '#307 PUT entry: a surface its scene does not have → 400; scene null → on no scene; and back');
-
-    // Delete a scene: the impact first, nothing renumbers
-    [$status, $data] = call($api, 'DELETE', '/editor/books/scenes/scenes/fold', null, $editor);
-    check($status === 409 && $data['error']['code'] === 'confirm-delete' && array_column($data['error']['impact']['entries'], 'id') === ['folded'] && $data['error']['impact']['pagesBack'] === 0,
-        '#307 DELETE scene: 409 confirm-delete with its entry – nothing moves back');
-    [$status, $data] = deleting($api, '/editor/books/scenes/scenes/fold', $editor);
-    $pdo = connect('test');
-    $storedAfterDelete = array_map(fn($r) => [(string) $r[0], (int) $r[1], (int) $r[2]], $pdo->query("SELECT id, first_page, last_page FROM spreads WHERE book_id = 'scenes' ORDER BY position")->fetchAll(PDO::FETCH_NUM));
-    $pdo = null;
-    [, $afterDelete] = $sceneDraft();
-    check($status === 200 && $data['deleted']['spread'] === 'fold' && $data['moved'] === ['spreads' => 0, 'entries' => 0, 'targets' => 0]
-        && array_column($storedAfterDelete, 0) === ['cover', 'front-1', 's1', 's3', 's2', 's4', 'back'] && array_column($storedAfterDelete, 1) === [0, -2, 1, 4, 2, 6, 8]
-        && $oldAppKeepsUp($afterDelete), '#307 DELETE scene confirmed: gone, the rows keep their pages, the draft still passes an app before 2.35');
-    call($api, 'POST', '/editor/books/scenes/scenes/move', ['scenes' => ['s2'], 'after' => 's1', 'apply' => true], $editor);
-    [, $restored] = $sceneDraft();
-    check(array_column($restored['spreads'], 'firstPage', 'id') === array_column($importDraft['spreads'], 'firstPage', 'id'), '#307: in the printed order again → every scene reads its printed pages again');
+    check($status === 409 && $data['error']['code'] === 'confirm-delete' && ($impact['kind'] ?? null) === 'scene' && ($impact['scene'] ?? null) === ['id' => 'studio', 'label' => 'Studio']
+        && ($impact['entries'][0] ?? null) === ['id' => 'studio-on-the-poster', 'title' => 'On the poster', 'scene' => 'studio', 'category' => 'glossary'] && !isset($impact['pagesBack']),
+        'DELETE scene: 409 confirm-delete with the impact – the scene, its entries');
+    [$status, $data] = deleting($api, '/editor/books/osct/scenes/studio', $editor);
+    check($status === 200 && $data['deleted']['scene'] === 'studio' && $data['deleted']['entries'] === ['studio-on-the-poster'] && !isset($data['moved']), '… confirmed: the scene goes with its entry and target');
+    [$status, $data] = call($api, 'DELETE', '/editor/books/osct/entries/link', null, $editor);
+    check($status === 409 && ($data['error']['impact']['entry'] ?? null) === ['id' => 'link', 'title' => 'A link', 'category' => 'link', 'scene' => 's2'], 'DELETE entry: the impact names its scene');
+    deleting($api, '/editor/books/osct/scenes/cover', $editor);
+    deleting($api, '/editor/books/osct/scenes/scene-1', $editor);
+    [, $log] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
+    check(array_column($sceneList()['scenes'], 'id') === ['s1', 's2'] && in_array('scene', array_column($log['changes'], 'kind'), true) && !in_array('spread', array_column($log['changes'], 'kind'), true),
+        'the book is back to its two scenes; the log names scene changes (no spread)');
 
     echo "editor: the book's environment (content schema 2.8)\n";
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => ['world' => 'cafe', 'onionSky' => false]], $editor);
@@ -2116,182 +1796,35 @@ try {
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => null], $editor);
     check($status === 200 && !isset($data['environment']), 'environment: null removes it – the default applies');
 
-    echo "editor: pages, page images and the matter (#251)\n";
-    // A print-first book like staging's: the cover, page 1 alone, 2–3, and the back cover on page 4 – the last printed page
-    $printed = $configuration;
-    $printed['book'] = ['id' => 'printed', 'title' => 'Printed', 'author' => 'Someone'];
-    $printed['initialSpreadId'] = 's001';
-    $printed['spreads'] = [
-        ['id' => 'cover', 'title' => 'Cover', 'firstPage' => 0, 'lastPage' => 0, 'format' => 'cover'],
-        ['id' => 's001', 'title' => '1', 'firstPage' => 1, 'lastPage' => 1],
-        ['id' => 's002-003', 'title' => '2–3', 'firstPage' => 2, 'lastPage' => 3],
-        ['id' => 'back', 'title' => 'Back cover', 'firstPage' => 4, 'lastPage' => 4, 'format' => 'back'],
-    ];
-    $printed['entries'] = [
-        ['id' => 'on-four', 'category' => 'text', 'title' => 'On four', 'page' => 4, 'body' => '', 'tags' => [], 'target' => [
-            'id' => 'on-four', 'imageSrc' => '/assets/content/entries/racoon/img.jpg', 'print' => ['page' => 4, 'surface' => 'back', 'x' => 1, 'y' => 1, 'width' => 10, 'height' => 10]]],
-    ];
-    unset($printed['plugins']);
-    [$status] = importing($api, 'printed', $editor, json_encode(['configuration' => $printed, 'files' => $files], $flags));
-    check($status === 200, '#251: a print-first book with the back cover on its last printed page');
-    [$status, $data] = call($api, 'GET', '/editor/books/printed/pages', null, $editor);
-    check($status === 200 && array_column($data['pages'], 'label') === ['Cover', 'next to 1', '1', '2', '3', 'Back cover'] && $data['pageImages'] === []
-        && $data['pages'][1]['facing'] === true && $data['pages'][1]['page'] === 1 && $data['pages'][1]['side'] === 'left' && $data['pages'][5]['side'] === 'back',
-        '#251: the pages in book order – the cover, the unnumbered half next to page 1, the numbered pages, the back cover');
-
-    [$status, $data] = call($api, 'POST', '/editor/books/printed/matter', ['front' => 2, 'back' => 2, 'lastPage' => 4], $editor);
-    $plan = $data['plan'] ?? [];
-    check($status === 200 && $data['applied'] === false && array_column($plan['create'] ?? [], 'id') === ['s004', 'front-1', 'front-2', 'back-1', 'back-2']
-        && ($plan['moveBackCover'] ?? null) === ['spread' => 'back', 'from' => 4, 'to' => 9] && ($plan['entries'] ?? null) === [['id' => 'on-four', 'spread' => 's004', 'page' => 4]],
-        '#251: the matter plan – page 4 gets its spread, front −4…−1, back 5…8, the back cover to 9, its entry on page 4 to page 4\'s spread');
-    [, $tree] = call($api, 'GET', '/editor/books/printed', null, $editor);
-    check(array_column($tree['spreads'], 'id') === ['cover', 's001', 's002-003', 'back'], '#251: … and without apply nothing is written');
-    [$status, $data] = call($api, 'POST', '/editor/books/printed/matter', ['front' => 9], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-matter', '#251: more matter sheets than allowed → 400');
-    [$status, $data] = call($api, 'POST', '/editor/books/printed/matter', ['lastPage' => 6], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-matter', '#251: a last page beyond the one after the numbered spreads → 400');
-    [$status, $data] = call($api, 'POST', '/editor/books/printed/matter', ['front' => 2, 'back' => 2, 'lastPage' => 4, 'apply' => true], $editor);
-    check($status === 200 && $data['applied'] === true, '#251: the matter applied on a print-first book (#238\'s exception)');
-    [, $tree] = call($api, 'GET', '/editor/books/printed', null, $editor);
-    $bySpread = array_column($tree['spreads'], null, 'id');
-    check(array_column($tree['spreads'], 'id') === ['cover', 'front-1', 'front-2', 's001', 's002-003', 's004', 'back-1', 'back-2', 'back']
-        && $bySpread['front-1']['firstPage'] === -4 && $bySpread['front-2']['lastPage'] === -1 && ($bySpread['front-1']['matter'] ?? null) === 'front'
-        && $bySpread['back-1']['firstPage'] === 5 && $bySpread['back']['firstPage'] === 9 && $bySpread['back']['lastPage'] === 9
-        && array_column($bySpread['s004']['entries'], 'id') === ['on-four'] && $bySpread['back']['entries'] === [],
-        '#251: the spreads in book order, the back cover after the back matter, page 4 a normal page with its entry');
-    [, $changes] = call($api, 'GET', '/editor/books/printed/changes', null, $editor);
-    check(count(array_filter($changes['changes'], fn($c) => $c['kind'] === 'spread')) === 6 && in_array('on-four', array_column($changes['changes'], 'ref'), true),
-        '#251: the new spreads, the moved back cover and the moved entry are in the change log');
-    [$status, $data] = call($api, 'POST', '/editor/books/printed/matter', ['front' => 2, 'back' => 2, 'apply' => true], $editor);
-    check($status === 200 && $data['applied'] === false && $data['plan']['create'] === [] && $data['plan']['moveBackCover'] === null, '#251: again → nothing left to do');
-    [, $data] = call($api, 'GET', '/editor/books/printed/pages', null, $editor);
-    $labels = array_column($data['pages'], 'label');
-    check($labels === ['Cover', 'F1', 'F2', 'F3', 'F4', 'next to 1', '1', '2', '3', '4', 'next to 4', 'B1', 'B2', 'B3', 'B4', 'Back cover'],
-        '#251: the whole book: cover, front matter F1–F4, the halves next to 1 and 4, back matter B1–B4, the back cover');
-
-    // Page images: Library images per page
-    $red = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==');
-    [, $one] = upload($api, 'POST', '/editor/books/printed/assets', $red, 'P001.png', $editor);
-    [, $two] = upload($api, 'POST', '/editor/books/printed/assets', $png, 'start-1.png', $editor);
-    $oneUrl = (string) ($one['asset']['url'] ?? '');
-    $twoUrl = (string) ($two['asset']['url'] ?? '');
-    [$status, $data] = call($api, 'PUT', '/editor/books/printed/page-images', ['items' => [
-        ['page' => 1, 'url' => $oneUrl], ['page' => 0, 'url' => $twoUrl, 'name' => '  Front  cover '], ['page' => 1, 'facing' => true, 'url' => $twoUrl], ['page' => -4, 'url' => $oneUrl],
-    ]], $editor);
-    $byKey = [];
-    foreach ($data['pageImages'] ?? [] as $image) $byKey[$image['page'] . ($image['facing'] ? 'f' : '')] = $image;
-    check($status === 200 && $data['saved'] === 4 && array_map('strval', array_keys($byKey)) === ['-4', '0', '1', '1f'] && $byKey['1']['name'] === $stored('P001.png') && $byKey['0']['name'] === 'Front cover'
-        && $byKey['1f']['url'] === $twoUrl && $byKey['1']['updatedBy'] === 'author@example.com',
-        '#251: set page images – the name defaults to the Library\'s, is trimmed; the facing half and a front matter page take one');
-    [$status, $data] = call($api, 'PUT', '/editor/books/printed/page-images', ['items' => [['page' => 1, 'from' => ['page' => -4]], ['page' => -4, 'from' => ['page' => 1]], ['page' => 0, 'name' => 'Cover']]], $editor);
-    $byKey = [];
-    foreach ($data['pageImages'] ?? [] as $image) $byKey[$image['page'] . ($image['facing'] ? 'f' : '')] = $image;
-    check($status === 200 && $byKey['1']['name'] === $stored('P001.png') && $byKey['-4']['url'] === $oneUrl && $byKey['0']['name'] === 'Cover',
-        '#251: moves are taken from the images as they were (a swap), a rename keeps the image');
-    [$status, $data] = call($api, 'PUT', '/editor/books/printed/page-images', ['items' => [['page' => 5, 'from' => ['page' => -4]]]], $editor);
-    check($status === 200 && in_array(5, array_column($data['pageImages'], 'page'), true) && !in_array(-4, array_column($data['pageImages'], 'page'), true), '#251: move to another page');
-    foreach ([
-        [['page' => 42, 'url' => $oneUrl], 'a page the book does not have'],
-        [['page' => 2, 'url' => 'https://elsewhere/x.png'], 'a url that is no image of the Library'],
-        [['page' => 2, 'name' => 'x'], 'renaming a page without an image'],
-        [['page' => 2, 'from' => ['page' => 3]], 'moving from a page without an image'],
-        [['page' => 2, 'url' => $oneUrl, 'name' => '   '], 'an empty name'],
-        [['page' => 2, 'facing' => true, 'url' => $oneUrl], 'a facing half of a double page'],
-        [['page' => 2], 'no action'],
-    ] as [$item, $what]) {
-        [$status, $data] = call($api, 'PUT', '/editor/books/printed/page-images', ['items' => [['page' => 3, 'url' => $oneUrl], $item]], $editor);
-        check($status === 400 && $data['error']['code'] === 'invalid-page-image', "#251: $what → 400, nothing saved");
-    }
-    [$status, $data] = call($api, 'PUT', '/editor/books/printed/page-images', ['items' => [['page' => 3, 'url' => $oneUrl], ['page' => 3, 'url' => null]]], $editor);
-    check($status === 400, '#251: two changes for one page → 400');
-    [, $data] = call($api, 'GET', '/editor/books/printed/pages', null, $editor);
-    check(!in_array(3, array_column($data['pageImages'], 'page'), true), '#251: … and the refused batches saved nothing');
-    [, $usages] = call($api, 'GET', "/editor/books/printed/assets/{$one['asset']['id']}/usages", null, $editor);
-    check(in_array(['kind' => 'page', 'ref' => '1'], $usages['usages'] ?? [], true), '#251: a page image is a use of its Library file');
-    [$status, $data] = call($api, 'DELETE', "/editor/books/printed/assets/{$one['asset']['id']}", null, $editor);
-    check($status === 409 && $data['error']['code'] === 'asset-in-use', '#251: … so the file is not deleted while it shows a page');
-    $green = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/AAAADhQGBzE1CwgAAAABJRU5ErkJggg==');
-    [$status, $replaced] = upload($api, 'PUT', "/editor/books/printed/assets/{$one['asset']['id']}/file", $green, 'P001.png', $editor);
-    [, $data] = call($api, 'GET', '/editor/books/printed/pages', null, $editor);
-    $urls = array_column(array_filter($data['pageImages'], fn($image) => !$image['facing']), 'url', 'page');
-    check($status === 200 && ($urls[1] ?? null) === ($replaced['asset']['url'] ?? '-') && ($urls[1] ?? null) !== $oneUrl, '#251: a replaced Library file: its page images show the new version');
-    [$status, $data] = call($api, 'PUT', '/editor/books/printed/page-images', ['items' => [['page' => 1, 'url' => null]]], $editor);
-    check($status === 200 && !in_array(1, array_column(array_filter($data['pageImages'], fn($image) => !$image['facing']), 'page'), true) && $data['saved'] === 1, '#251: remove – the page shows the layout again');
-    [, $draft] = call($api, 'GET', '/editor/books/printed/draft/latest.json', null, $editor);
-    [, $config] = call($api, 'GET', '/editor/books/printed/draft/' . ($draft['build'] ?? 'x') . '/game.config.json', null, $editor);
-    check(is_array($config) && isset($config['spreads']) && !str_contains((string) json_encode($config), basename($twoUrl)), '#251: page images are no content – the draft does not carry them');
-    [$status] = importing($api, 'printed', $editor, json_encode(['configuration' => $printed, 'files' => $files], $flags));
-    [, $data] = call($api, 'GET', '/editor/books/printed/pages', null, $editor);
-    check($status === 200 && count($data['pageImages'] ?? []) === 3, '#251: a re-import keeps the page images');
-    // The re-import brought back the four spreads of the print layout: the matter again for the next checks
-    call($api, 'POST', '/editor/books/printed/matter', ['front' => 2, 'back' => 2, 'lastPage' => 4, 'apply' => true], $editor);
-
-    echo "editor: spread titles and Library files named by use (#298 phase 3)\n";
-    $shownTitles = static function () use ($api, $editor): array {
-        [, $tree] = call($api, 'GET', '/editor/books/printed', null, $editor);
-        return array_column($tree['spreads'] ?? [], 'title', 'id');
-    };
-    check($shownTitles() === ['cover' => 'Cover', 'front-1' => 'Front matter 1', 'front-2' => 'Front matter 2', 's001' => 'Page 1', 's002-003' => 'Pages 2–3',
-        's004' => 'Page 4', 'back-1' => 'Back matter 1', 'back-2' => 'Back matter 2', 'back' => 'Back cover'],
-        '#298: a title that only repeats the pages (1, 2–3, 4) shows the pages\' – Pages 2–3, Page 1, Front matter 1, Back cover');
-    [, $draft] = call($api, 'GET', '/editor/books/printed/draft/latest.json', null, $editor);
-    [, $config] = call($api, 'GET', '/editor/books/printed/draft/' . ($draft['build'] ?? 'x') . '/game.config.json', null, $editor);
-    check(array_column($config['spreads'] ?? [], 'title', 'id')['s002-003'] === 'Pages 2–3' && array_column($config['spreads'] ?? [], 'title', 'id')['front-2'] === 'Front matter 2',
-        '#298: … and the content the reader reads carries the same titles (RULES #10)');
-    [$status, $data] = call($api, 'PUT', '/editor/books/printed/spreads/s002-003', ['title' => 'The opening'], $editor);
-    check($status === 200 && $data['spread']['title'] === 'The opening' && $shownTitles()['s002-003'] === 'The opening', '#298: a title of its own is kept');
-    [$status, $data] = call($api, 'PUT', '/editor/books/printed/spreads/s002-003', ['title' => ''], $editor);
-    check($status === 200 && $data['spread']['title'] === 'Pages 2–3' && $shownTitles()['s002-003'] === 'Pages 2–3', '#298: an empty title → the pages\' title again');
-    [$status, $data] = call($api, 'PUT', '/editor/books/printed/spreads/s002-003', ['title' => 3], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-spread', '#298: a title that is no text → 400');
-
-    // An upload named by its use keeps its own part (Tilman, 2026-11-17): a shared entity's model `fightref_fight-2-remesh.glb`
-    [, $fight] = upload($api, 'POST', '/editor/books/printed/assets', 'glTF fight', 'Fight_2 remesh.glb', $editor);
-    $fightUrl = (string) ($fight['asset']['url'] ?? '');
-    [$status] = call($api, 'PUT', '/editor/books/printed/entities/fightref', ['type' => 'model', 'assets' => [['id' => 'fight-mesh', 'assetType' => 'glb', 'src' => $fightUrl]]], $editor);
-    check($status === 200, '#298: a shared entity with an uploaded model');
-
-    // Files named by use: the plan first, nothing written
-    $libraryOf = static function () use ($api, $editor): array {
-        [, $list] = call($api, 'GET', '/editor/books/printed/assets', null, $editor);
-        return array_column($list['assets'] ?? [], null, 'url');
-    };
-    $libBefore = $libraryOf();
+    echo "editor: reference images, named by use (#314, #298)\n";
     $extOf = static fn(string $url): string => strtolower(pathinfo((string) parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION));
-    $importedImage = array_values(array_filter(array_keys($libBefore), fn($url) => str_ends_with($url, '/entries/racoon/img.jpg')))[0] ?? '';
-    [$status, $data] = call($api, 'POST', '/editor/books/printed/assets/names', ['apply' => false], $editor);
-    $renamedTo = array_column($data['plan']['renames'] ?? [], 'to', 'url');
-    check($status === 200 && $data['applied'] === false && ($renamedTo[$twoUrl] ?? null) === 'page-cover.' . $extOf($twoUrl) && ($renamedTo[$importedImage] ?? null) === 'on-four_target.jpg'
-        && ($renamedTo[$replaced['asset']['url'] ?? '-'] ?? null) === 'page-back-1-left.' . $extOf((string) ($replaced['asset']['url'] ?? '')),
-        '#298: the names plan – a page image takes its page\'s (page-cover, page-back-1-left), the target image its entry\'s (on-four_target.jpg)');
-    check(($renamedTo[$fightUrl] ?? null) === 'fightref_fight-2-remesh.glb', '#298: an upload keeps its own name after the place – Fight_2 remesh.glb → fightref_fight-2-remesh.glb, not its asset id');
-    $coverRename = array_values(array_filter($data['plan']['renames'] ?? [], fn($r) => $r['url'] === $twoUrl))[0] ?? [];
-    check(($coverRename['more'] ?? null) === 1 && ($coverRename['use'] ?? null) === ['kind' => 'page', 'ref' => '0', 'spread' => 'cover', 'page' => 0],
-        '#298: … a file used twice takes its first use in page order (the cover before the half next to 1), +1 more');
-    check(array_column($libraryOf(), 'name', 'url') === array_column($libBefore, 'name', 'url'), '#298: … and without apply nothing is renamed');
-    [$status, $data] = call($api, 'POST', '/editor/books/printed/assets/names', ['apply' => true], $editor);
-    $libAfter = $libraryOf();
-    check($status === 200 && $data['applied'] === true && ($libAfter[$twoUrl]['name'] ?? null) === 'page-cover.' . $extOf($twoUrl)
-        && ($libAfter[$importedImage]['name'] ?? null) === 'on-four_target.jpg' && ($libAfter[$importedImage]['named'] ?? null) === true,
-        '#298: applied – an upload\'s name and an imported file\'s listed name (asset_names) follow their use');
-    $urlsBefore = array_keys($libBefore);
-    $urlsAfter = array_keys($libAfter);
-    sort($urlsBefore);
-    sort($urlsAfter);
-    check($urlsAfter === $urlsBefore, '#298: … every URL stays – no use breaks');
-    check(($libAfter[$importedImage]['place'] ?? null) === ['spread' => 's004', 'page' => 4, 'order' => 9, 'more' => 0] && ($libAfter[$twoUrl]['place']['spread'] ?? null) === 'cover',
-        '#298: the Library places each file at its first use: the spread, the page, the page order');
-    [, $data] = call($api, 'POST', '/editor/books/printed/assets/names', ['apply' => false], $editor);
-    check(($data['plan']['renames'] ?? null) === [], '#298: again → nothing left to rename');
-
-    // A new upload whose use is known takes its use's name
-    $blue = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg==');
-    [$status, $data] = upload($api, 'POST', '/editor/books/printed/assets?fit=page&page=2', $blue, 'scan.png', $editor);
-    check(in_array($status, [200, 201], true) && ($data['asset']['name'] ?? null) === 'page-2.' . $extOf((string) ($data['asset']['url'] ?? '')), '#298: ?fit=page&page=2 → page-2');
-    [$status, $data] = upload($api, 'POST', '/editor/books/printed/assets?fit=target&entry=on-four', $blue, 'scan.png', $editor);
-    check(in_array($status, [200, 201], true) && ($data['asset']['name'] ?? null) === 'on-four_target.' . $extOf((string) ($data['asset']['url'] ?? '')), '#298: ?fit=target&entry=on-four → on-four_target');
-    [$status, $data] = upload($api, 'POST', '/editor/books/printed/assets?fit=page&page=42', $blue, 'scan.png', $editor);
-    check($status === 400 && ($data['error']['code'] ?? null) === 'invalid-use', '#298: a page the book does not have → 400 invalid-use');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets?fit=reference&scene=s2&surface=surface', pngOf(4, 2, 0x22aa44), 'scan.png', $editor);
+    $refUrl = (string) ($data['asset']['url'] ?? '');
+    check($status === 201 && ($data['asset']['name'] ?? null) === 's2_surface.' . $extOf($refUrl), '?fit=reference&scene=s2&surface=surface → s2_surface');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets?fit=reference&scene=s2&surface=nope', pngOf(4, 2, 0x22aa45), 'scan.png', $editor);
+    check($status === 400 && ($data['error']['code'] ?? null) === 'invalid-use', 'a surface the scene does not have → 400 invalid-use');
+    [$status, $data] = upload($api, 'POST', '/editor/books/osct/assets?fit=page&page=2', pngOf(4, 2, 0x22aa46), 'scan.png', $editor);
+    check($status === 400 && ($data['error']['code'] ?? null) === 'invalid-fit', '?fit=page (2.x) → 400 invalid-fit');
+    [, $plain] = upload($api, 'POST', '/editor/books/osct/assets', pngOf(4, 2, 0x22aa47), 'photo.png', $editor);
+    $plainUrl = (string) ($plain['asset']['url'] ?? '');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/scenes/s2/surfaces/surface/reference', ['url' => $plainUrl], $editor);
+    check($status === 200 && $data['changed'] === true && $data['reference'] === ['url' => $plainUrl, 'name' => $plain['asset']['name'], 'fit' => 'cover'], 'PUT reference: a Library image on the surface');
+    $list = $sceneList();
+    check(array_column($list['scenes'], null, 'id')['s2']['surfaces'][0]['reference']['url'] === $plainUrl, 'GET scenes shows it');
+    [, $usages] = call($api, 'GET', "/editor/books/osct/assets/{$plain['asset']['id']}/usages", null, $editor);
+    check(($usages['usages'] ?? null) === [['kind' => 'reference', 'ref' => 's2/surface']], 'a reference is a use of its file');
+    [, $data] = call($api, 'POST', '/editor/books/osct/assets/names', ['apply' => false], $editor);
+    $renames = array_column($data['plan']['renames'] ?? [], null, 'url');
+    check(($renames[$plainUrl]['to'] ?? null) === 's2_surface.' . $extOf($plainUrl) && ($renames[$plainUrl]['use'] ?? null) === ['kind' => 'reference', 'ref' => 's2/surface', 'scene' => 's2'],
+        'the names plan: a reference image takes <scene>_<surface>');
+    [, $assets] = call($api, 'GET', '/editor/books/osct/assets', null, $editor);
+    check((array_column($assets['assets'], null, 'url')[$plainUrl]['place'] ?? null) === ['scene' => 's2', 'order' => 1, 'more' => 0], 'the Library places it at its scene (the scenes\' order)');
+    [$status] = call($api, 'PUT', '/editor/books/osct/scenes/s2/surfaces/surface/reference', ['url' => null], $editor);
+    check($status === 200 && $sceneList()['scenes'][1]['surfaces'][0]['reference'] === null, 'null removes it');
+    foreach (['/pages', '/page-images', '/matter', '/spreads', '/spreads/s1', '/scenes/migrate', '/scenes/references/migrate'] as $gone) {
+        [$status] = call($api, $gone === '/pages' ? 'GET' : ($gone === '/page-images' || $gone === '/spreads/s1' ? 'PUT' : 'POST'), "/editor/books/osct$gone", ['apply' => false], $editor);
+        check($status === 404, "$gone is gone (404)");
+    }
 
     echo "editor: one list of a file's uses – the Library's count, the delete check and the names agree (#298 phase 2)\n";
     $usesBook = $configuration;
@@ -2302,7 +1835,7 @@ try {
     $usesFiles = $files + $layoutFiles + ['/assets/content/extra/loose.jpg' => ['size' => 5, 'v' => 'dddddddddddd']];
     [$status] = importing($api, 'uses', $editor, json_encode(['configuration' => $usesBook, 'files' => $usesFiles], $flags));
     check($status === 200, '#298: a book with a print layout (layout/layout.json, a sheet and its sharp image) and a loose imported file');
-    $usesKinds = ['entry', 'target', 'inline', 'shared', 'plugin', 'page', 'environment', 'spread', 'book'];
+    $usesKinds = ['entry', 'target', 'inline', 'shared', 'plugin', 'reference', 'environment', 'scene', 'book'];
     $usesMade = [];
     foreach ($usesKinds as $i => $kind) {
         [, $data] = upload($api, 'POST', '/editor/books/uses/assets', pngOf(2 + $i, 1, [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0x00ffff, 0xff00ff, 0x808080, 0x804000, 0x004080][$i]), "$kind.png", $editor);
@@ -2321,9 +1854,9 @@ try {
         'inline' => ['/editor/books/uses/targets/castle-target', ['entity' => ['type' => 'image', 'assets' => [['id' => 'pic', 'assetType' => 'image', 'src' => $u('inline')]]]]],
         'shared' => ['/editor/books/uses/entities/castle', ['type' => 'image', 'assets' => [['id' => 'castle-img', 'assetType' => 'image', 'src' => $u('shared')]]]],
         'plugin' => ['/editor/books/uses/plugins/glow', ['source' => "export const register = (api) => { api.loadText('" . $u('plugin') . "'); };\n"]],
-        'page' => ['/editor/books/uses/page-images', ['items' => [['page' => 3, 'url' => $u('page')]]]],
+        'reference' => ['/editor/books/uses/scenes/s2/surfaces/surface/reference', ['url' => $u('reference')]],
         'environment' => ['/editor/books/uses/environment', ['environment' => ['world' => 'cafe', 'onionSky' => true, 'skySrc' => $u('environment')]]],
-        'spread' => ['/editor/books/uses/spreads/s2', ['passes' => [['type' => 'bloom', 'texture' => $u('spread')]]]],
+        'scene' => ['/editor/books/uses/scenes/s2', ['passes' => [['type' => 'bloom', 'texture' => $u('scene')]]]],
         'book' => ['/editor/books/uses/passes', ['passes' => [['type' => 'vignette', 'texture' => $u('book')]]]],
     ];
     $statuses = [];
@@ -2331,12 +1864,12 @@ try {
     check($statuses === array_fill_keys($usesKinds, 200), '#298: each upload gets one use – ' . json_encode($statuses));
     $expected = [
         'entry' => ['kind' => 'entry', 'ref' => 'racoon'], 'target' => ['kind' => 'target', 'ref' => 'racoon'], 'inline' => ['kind' => 'target', 'ref' => 'castle-target'],
-        'shared' => ['kind' => 'entity', 'ref' => 'castle'], 'plugin' => ['kind' => 'plugin', 'ref' => 'glow'], 'page' => ['kind' => 'page', 'ref' => '3'],
-        'environment' => ['kind' => 'environment', 'ref' => 'uses'], 'spread' => ['kind' => 'spread', 'ref' => 's2'], 'book' => ['kind' => 'book', 'ref' => 'uses'],
+        'shared' => ['kind' => 'entity', 'ref' => 'castle'], 'plugin' => ['kind' => 'plugin', 'ref' => 'glow'], 'reference' => ['kind' => 'reference', 'ref' => 's2/surface'],
+        'environment' => ['kind' => 'environment', 'ref' => 'uses'], 'scene' => ['kind' => 'scene', 'ref' => 's2'], 'book' => ['kind' => 'book', 'ref' => 'uses'],
     ];
     $library = $usesLibrary();
     $labels = ['entry' => 'an entry\'s image', 'target' => 'a target image', 'inline' => 'a target\'s inline entity', 'shared' => 'a shared entity', 'plugin' => 'a plugin source',
-        'page' => 'a page image (#251)', 'environment' => 'the book\'s environment', 'spread' => 'a spread\'s own file (its pass)', 'book' => 'a book setting\'s file (its pass)'];
+        'reference' => 'a reference image (#314)', 'environment' => 'the book\'s environment', 'scene' => 'a scene\'s own file (its pass)', 'book' => 'a book setting\'s file (its pass)'];
     foreach ($usesKinds as $kind) {
         $asset = $usesMade[$kind];
         [, $usages] = call($api, 'GET', "/editor/books/uses/assets/{$asset['id']}/usages", null, $editor);
@@ -2345,19 +1878,19 @@ try {
             && $deleted === 409 && ($refused['error']['usages'] ?? null) === [$expected[$kind]],
             "#298: {$labels[$kind]} – the Library counts the use, the usages name it, the delete is refused without force");
     }
-    check(($library[$u('spread')]['place'] ?? null) === ['spread' => 's2', 'page' => 3, 'order' => 2, 'more' => 0] && ($library[$u('book')]['place'] ?? null) === ['spread' => null, 'page' => null, 'order' => -1, 'more' => 0],
-        '#298: a spread\'s file is placed at its spread, a book setting\'s book-wide');
+    check(($library[$u('scene')]['place'] ?? null) === ['scene' => 's2', 'order' => 1, 'more' => 0] && ($library[$u('book')]['place'] ?? null) === ['scene' => null, 'order' => -1, 'more' => 0],
+        '#298: a scene\'s file is placed at its scene, a book setting\'s book-wide');
     $sheets = array_values(array_filter($library, static fn(array $a) => str_contains($a['url'], '/assets/content/layout/sheets/')));
     $loose = array_values(array_filter($library, static fn(array $a) => str_ends_with($a['url'], '/extra/loose.jpg')))[0] ?? [];
-    check(count($sheets) === 2 && array_column($sheets, 'usages') === [1, 1] && ($sheets[0]['place'] ?? null) === ['spread' => null, 'page' => null, 'order' => -1, 'more' => 0] && ($loose['usages'] ?? null) === 0,
+    check(count($sheets) === 2 && array_column($sheets, 'usages') === [1, 1] && ($sheets[0]['place'] ?? null) === ['scene' => null, 'order' => -1, 'more' => 0] && ($loose['usages'] ?? null) === 0,
         '#298: a layout sheet and its sharp image count as used (the stage reads them through layout.json) – a loose imported file does not');
     [$status, $data] = call($api, 'DELETE', "/editor/books/uses/assets/{$sheets[0]['id']}", null, $editor);
     check($status === 404, '#298: … and, imported, it cannot be deleted at all (read-only)');
     [, $data] = call($api, 'POST', '/editor/books/uses/assets/names', ['apply' => false], $editor);
     $renamed = array_column($data['plan']['renames'] ?? [], 'to', 'url');
-    check(!isset($renamed[$u('spread')]) && !isset($renamed[$u('book')]) && !array_filter(array_keys($renamed), static fn(string $url) => str_contains($url, '/layout/'))
+    check(!isset($renamed[$u('scene')]) && !isset($renamed[$u('book')]) && !array_filter(array_keys($renamed), static fn(string $url) => str_contains($url, '/layout/'))
         && ($renamed[$u('target')] ?? null) === 'racoon_target.' . $extOf($u('target')) && ($data['plan']['unused'] ?? null) === 2,
-        '#298: the names plan reads the same uses – a spread\'s, a book setting\'s and the layout\'s use name nothing; unused only the loose file and the target image the upload replaced');
+        '#298: the names plan reads the same uses – a scene\'s, a book setting\'s and the layout\'s use name nothing; unused only the loose file and the target image the upload replaced');
     // Without layout.json the layout's files are no use
     $noLayout = $usesFiles;
     unset($noLayout['/assets/content/layout/layout.json']);
@@ -2365,14 +1898,14 @@ try {
     $sheets = array_values(array_filter($usesLibrary(), static fn(array $a) => str_contains($a['url'], '/assets/content/layout/sheets/')));
     check($status === 200 && array_column($sheets, 'usages') === [0, 0], '#298: without the book\'s layout.json the sheets are unused');
 
-    echo "editor: the book's passes – the master, spreads override (#149)\n";
+    echo "editor: the book's passes – the master, scenes override (#149)\n";
     $bookPasses = [['type' => 'grade', 'reach' => 'all', 'exposure' => 0.5], ['type' => 'vignette', 'strength' => 0.4]];
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => $bookPasses], $editor);
     check($status === 200 && $data['passes'] === $bookPasses, 'PUT book passes');
-    [$status] = call($api, 'PUT', '/editor/books/osct/spreads/s2', ['passes' => []], $editor);
+    [$status] = call($api, 'PUT', '/editor/books/osct/scenes/s2', ['passes' => []], $editor);
     check($status === 200, 'a spread turns them off with a list of its own');
     [, $draftNow] = $draftOf();
-    $draftSpreads = array_column($draftNow['spreads'], null, 'id');
+    $draftSpreads = array_column($draftNow['scenes'], null, 'id');
     check(($draftNow['book']['passes'] ?? null) === $bookPasses, 'the draft carries the book passes');
     check(!array_key_exists('passes', $draftSpreads['s1']) && ($draftSpreads['s2']['passes'] ?? null) === [], 'the draft: s1 has no list (the book’s apply), s2 its own empty one');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => [['type' => 'glow']]], $editor);
@@ -2385,20 +1918,20 @@ try {
     check($status === 400 && $data['error']['code'] === 'invalid-passes', 'the body needs passes');
     // A pass switched off keeps its place and values (#233); enabled is true or false, nothing else
     $offPasses = [['type' => 'bloom', 'enabled' => false, 'strength' => 0.5], ['type' => 'vignette', 'enabled' => true]];
-    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/s2', ['passes' => $offPasses], $editor);
-    check($status === 200 && $data['spread']['passes'] === $offPasses, 'a spread\'s pass that is off is kept with its values (enabled: false)');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/scenes/s2', ['passes' => $offPasses], $editor);
+    check($status === 200 && $data['scene']['passes'] === $offPasses, 'a spread\'s pass that is off is kept with its values (enabled: false)');
     [, $draftNow] = $draftOf();
-    check((array_column($draftNow['spreads'], null, 'id')['s2']['passes'] ?? null) === $offPasses, 'the draft carries enabled');
+    check((array_column($draftNow['scenes'], null, 'id')['s2']['passes'] ?? null) === $offPasses, 'the draft carries enabled');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => [['type' => 'bloom', 'enabled' => 'no']]], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-passes' && str_contains($data['error']['message'], 'passes[0].enabled must be true or false'), 'the book\'s: enabled must be true or false');
-    [$status, $data] = call($api, 'PUT', '/editor/books/osct/spreads/s2', ['passes' => [['type' => 'vignette', 'enabled' => 1]]], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-spread', 'a spread\'s: enabled 1 is refused');
+    [$status, $data] = call($api, 'PUT', '/editor/books/osct/scenes/s2', ['passes' => [['type' => 'vignette', 'enabled' => 1]]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-scene', 'a spread\'s: enabled 1 is refused');
     [$status] = call($api, 'PUT', '/editor/books/nowhere/passes', ['passes' => null], $editor);
     check($status === 404, 'an unknown book → 404');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => null], $editor);
     [, $draftNow] = $draftOf();
     check($status === 200 && $data['passes'] === null && !array_key_exists('passes', $draftNow['book']), 'passes: null removes them from the book');
-    [$status] = call($api, 'PUT', '/editor/books/osct/spreads/s2', ['passes' => null], $editor);
+    [$status] = call($api, 'PUT', '/editor/books/osct/scenes/s2', ['passes' => null], $editor);
     check($status === 200, 'the spread back to the book’s');
     [, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
     check(count(array_filter($data['changes'], fn($c) => $c['kind'] === 'passes' && $c['ref'] === 'osct')) === 3, 'the change log has both book passes edits (and the plugin pass edit of #216)');
@@ -2526,179 +2059,128 @@ try {
     [$status, $data] = call($api, 'POST', '/editor/books/osct/changes/revert-to', ['after' => '00000000-0000-0000-0000-000000000000'], $editor);
     check($status === 404, 'an unknown change → 404');
     [, $log] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
-    $removal = array_values(array_filter($log['changes'], fn($c) => $c['after'] === null));
+    $removal = array_values(array_filter($log['changes'], fn($c) => $c['after'] === null && $c['kind'] !== 'reference'));
     check(!$removal || is_string($removal[0]['notRevertable']), 'a removal is not revertable');
 
-    echo "editor: surfaces – place, a print's surfaceId, reference images and the page images' migration (#314)\n";
-    $refBook = $configuration;
-    $refBook['book'] = ['id' => 'surfaced', 'title' => 'Surfaced', 'author' => 'Someone'];
-    $refBook['initialSpreadId'] = 's001';
-    $refBook['spreads'] = [
-        ['id' => 'cover', 'title' => 'Cover', 'firstPage' => 0, 'lastPage' => 0, 'format' => 'cover'],
-        ['id' => 's001', 'title' => '1', 'firstPage' => 1, 'lastPage' => 1],
-        ['id' => 's002-003', 'title' => '2–3', 'firstPage' => 2, 'lastPage' => 3],
-        ['id' => 'extra', 'title' => '4–5', 'firstPage' => 4, 'lastPage' => 5],
-        ['id' => 'back', 'title' => 'Back cover', 'firstPage' => 6, 'lastPage' => 6, 'format' => 'back'],
+    echo "editor: the migration of a 2.x book to schema 3.0 (#319, POST …/migrate-3)\n";
+    // A book as staging's osct was stored before 3.0, written straight into the tables: a cover, page 1 alone with its
+    // unnumbered half (2.x surfaces left / right), 2–3 without surfaces, 4–5 with surfaces and a 2.x reference on 4, the
+    // front matter, the back cover; page images as halves; entries with pages, targets with print
+    $halves = [];
+    foreach (['cover' => 0x101010, '1f' => 0x202020, '1' => 0x303030, '2' => 0xff0000, '3' => 0x0000ff, '4' => 0x404040, '5' => 0x505050, 'ref4' => 0x00ff00] as $key => $rgb) {
+        [, $data] = upload($api, 'POST', '/editor/books/osct/assets', pngOf(23, 32, $rgb), "half-$key.png", $editor);
+        $halves[$key] = (string) ($data['asset']['url'] ?? '');
+    }
+    $pdo = connect('test');
+    $now = gmdate('Y-m-d H:i:s');
+    $pdo->prepare('INSERT INTO books (id, title, author, book_json, initial_spread_id, assets_base, files_json, content_schema, imported_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)')
+        ->execute(['legacy', 'Legacy', 'Someone', json_encode(['id' => 'legacy', 'title' => 'Legacy', 'author' => 'Someone', 'sourceOfTruth' => 'print']), 'cover', '', '{}', '2.36', $now, $now]);
+    $side = static fn(string $id, string $side, ?string $label = null) => ['id' => $id, 'side' => $side, 'widthMm' => 230, 'heightMm' => 320] + ($label !== null ? ['label' => $label] : []);
+    $legacyScenes = [
+        ['cover', 0, 0, ['id' => 'cover', 'title' => 'Cover', 'firstPage' => 0, 'lastPage' => 0, 'format' => 'cover']],
+        ['front-1', -2, -1, ['id' => 'front-1', 'title' => 'Front matter 1', 'firstPage' => -2, 'lastPage' => -1, 'matter' => 'front']],
+        ['s001', 1, 1, ['id' => 's001', 'title' => '1', 'firstPage' => 1, 'lastPage' => 1, 'surfaces' => [$side('left', 'left'), $side('right', 'right', '1')]]],
+        ['s002-003', 2, 3, ['id' => 's002-003', 'title' => '2–3', 'firstPage' => 2, 'lastPage' => 3, 'passes' => []]],
+        ['s004-005', 4, 5, ['id' => 's004-005', 'title' => '4–5', 'label' => 'The golem', 'firstPage' => 4, 'lastPage' => 5, 'layout' => 'fixed', 'surfaces' => [$side('left', 'left', '4'), $side('right', 'right', '5')]]],
+        ['back', 6, 6, ['id' => 'back', 'title' => 'Back cover', 'firstPage' => 6, 'lastPage' => 6, 'format' => 'back']],
     ];
-    $refBook['entries'] = [['id' => 'printed', 'category' => 'text', 'title' => 'Printed', 'page' => 3, 'body' => '', 'tags' => [], 'target' => [
-        'id' => 'printed', 'imageSrc' => '/assets/content/entries/racoon/img.jpg', 'print' => ['page' => 3, 'surface' => 'right', 'surfaceId' => 'right', 'x' => 1, 'y' => 1, 'width' => 10]]]];
-    unset($refBook['plugins']);
-    [$status] = importing($api, 'surfaced', $editor, json_encode(['configuration' => $refBook, 'files' => $files], $flags));
-    check($status === 200, '#314: a print-first book imported with a target printed on a surface by id');
-    [$status, $data] = call($api, 'POST', '/editor/books/surfaced/scenes/migrate', ['apply' => true], $editor);
-    check($status === 200 && $data['applied'] === true, '#314: the book\'s spreads became scenes with surfaces');
-    $refDraft = function () use ($api, $editor): array {
-        [, $m] = call($api, 'GET', '/editor/books/surfaced/draft/latest.json?t=' . mt_rand(), null, $editor);
-        [, $d] = call($api, 'GET', "/editor/books/surfaced/draft/{$m['build']}/game.config.json", null, $editor);
-        return is_array($d) ? $d : [];
-    };
-    $draftTarget = static fn(array $config): ?array => array_column($config['entries'] ?? [], null, 'id')['printed']['target'] ?? null;
-    check(($draftTarget($refDraft())['print']['surfaceId'] ?? null) === 'right', '#314: the import keeps a print\'s surfaceId');
-
-    // A print's surfaceId survives every write path of the print
-    [$status, $data] = call($api, 'PUT', '/editor/books/surfaced/targets/printed', ['print' => ['surface' => 'left', 'surfaceId' => 'left', 'x' => 2, 'y' => 3, 'width' => 20]], $editor);
-    check($status === 200 && ($data['target']['print']['surfaceId'] ?? null) === 'left' && ($draftTarget($refDraft())['print']['surfaceId'] ?? null) === 'left',
-        '#314 PUT target { print { surfaceId } }: kept, and in the draft');
-    [$status, $data] = call($api, 'PUT', '/editor/books/surfaced/targets/printed', ['print' => ['surface' => 'left', 'surfaceId' => 'no good', 'x' => 2, 'y' => 3, 'width' => 20]], $editor);
-    check($status === 400, '#314 PUT target: a surfaceId that is no id → 400');
-    [$status, $data] = call($api, 'POST', '/editor/books/surfaced/entries', ['title' => 'New', 'category' => 'text', 'page' => 2, 'id' => 'new-one',
-        'target' => ['imageSrc' => '/assets/content/entries/racoon/img.jpg', 'print' => ['surface' => 'left', 'surfaceId' => 'left', 'x' => 0, 'y' => 0, 'width' => 5]]], $editor);
-    $newTarget = array_column($refDraft()['entries'] ?? [], null, 'id')['new-one']['target'] ?? null;
-    check($status === 201 && ($newTarget['print']['surfaceId'] ?? null) === 'left',
-        '#314 POST entry with a target: its print keeps surfaceId');
-
-    // place: PUT …/scenes/{id} { surfaces } takes a surface's place
-    [$status, $data] = call($api, 'PUT', '/editor/books/surfaced/scenes/extra', ['layout' => 'free', 'surfaces' => [
-        ['id' => 'left', 'side' => 'left', 'label' => '4', 'place' => ['x' => -115, 'y' => 0, 'z' => 0]],
-        ['id' => 'right', 'side' => 'right', 'label' => '5', 'place' => ['x' => 115, 'y' => 0, 'z' => 0, 'rz' => 0]],
-        ['id' => 'wall', 'side' => 'wall', 'widthMm' => 1200, 'heightMm' => 900, 'place' => ['x' => 0, 'y' => 450, 'z' => -400, 'rx' => 90, 'ry' => null]],
-    ]], $editor);
-    $placed = array_column($data['scene']['surfaces'] ?? [], 'place', 'id');
-    check($status === 200 && $placed === ['left' => ['x' => -115, 'y' => 0, 'z' => 0], 'right' => ['x' => 115, 'y' => 0, 'z' => 0, 'rz' => 0], 'wall' => ['x' => 0, 'y' => 450, 'z' => -400, 'rx' => 90]],
-        '#314 PUT scene: surfaces with their place (a null turn left out)');
-    $draftExtra = array_column($refDraft()['spreads'] ?? [], null, 'id')['extra'] ?? [];
-    check(($draftExtra['surfaces'][2]['place'] ?? null) === ['x' => 0, 'y' => 450, 'z' => -400, 'rx' => 90], '#314: … and the draft carries the place (schema 2.36)');
-    foreach ([
-        [['x' => 0, 'y' => 0], 'a place without z'],
-        [['x' => 0, 'y' => 0, 'z' => '1'], 'a coordinate that is no number'],
-        [['x' => 0, 'y' => 0, 'z' => 0, 'scale' => 2], 'a field a place does not have'],
-        [[1, 2, 3], 'a place that is a list'],
-    ] as [$place, $what]) {
-        [$status, $data] = call($api, 'PUT', '/editor/books/surfaced/scenes/extra', ['surfaces' => [['id' => 'left', 'side' => 'left', 'place' => $place]]], $editor);
-        check($status === 400 && ($data['error']['code'] ?? null) === 'invalid-scene', "#314 PUT scene: $what → 400 invalid-scene");
+    foreach ($legacyScenes as $i => [$id, $first, $last, $data]) {
+        $pdo->prepare('INSERT INTO spreads (book_id, id, position, title, first_page, last_page, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)')
+            ->execute(['legacy', $id, $i, $data['title'], $first, $last, json_encode($data, JSON_UNESCAPED_UNICODE)]);
     }
-
-    // Reference images: set, replace, change the fit, remove
-    [, $imgA] = upload($api, 'POST', '/editor/books/surfaced/assets', pngOf(2, 3, 0x3366aa), 'scan-a.png', $editor);
-    [, $imgB] = upload($api, 'POST', '/editor/books/surfaced/assets', pngOf(3, 2, 0xaa6633), 'scan-b.png', $editor);
-    $urlA = (string) ($imgA['asset']['url'] ?? '');
-    $urlB = (string) ($imgB['asset']['url'] ?? '');
-    $refPath = static fn(string $scene, string $surface): string => "/editor/books/surfaced/scenes/$scene/surfaces/$surface/reference";
-    [$status, $data] = call($api, 'PUT', $refPath('s002-003', 'left'), ['url' => $urlA], $editor);
-    check($status === 200 && $data['changed'] === true && $data['reference'] === ['url' => $urlA, 'name' => $imgA['asset']['name'], 'fit' => 'cover'] && $data['scene'] === 's002-003' && $data['surface'] === 'left',
-        '#314 PUT reference: set – the Library\'s name, fit cover');
-    [$status, $data] = call($api, 'PUT', $refPath('s002-003', 'left'), ['fit' => 'contain', 'name' => '  Page  two '], $editor);
-    check($status === 200 && $data['reference'] === ['url' => $urlA, 'name' => 'Page two', 'fit' => 'contain'], '#314 PUT reference: the fit and the name alone');
-    [$status, $data] = call($api, 'PUT', $refPath('s002-003', 'left'), ['url' => $urlB], $editor);
-    check($status === 200 && $data['reference'] === ['url' => $urlB, 'name' => $imgB['asset']['name'], 'fit' => 'contain'], '#314 PUT reference: replace – keeps its fit');
-    [$status, $data] = call($api, 'PUT', $refPath('s002-003', 'left'), ['url' => $urlB, 'fit' => 'contain'], $editor);
-    check($status === 200 && $data['changed'] === false, '#314 PUT reference: the same again → nothing changed');
-    [$status, $data] = call($api, 'PUT', $refPath('extra', 'wall'), ['url' => $urlA, 'fit' => 'stretch'], $editor);
-    check($status === 200 && $data['reference']['fit'] === 'stretch', '#314 PUT reference: a wall takes one too');
-    [$status, $data] = call($api, 'PUT', $refPath('cover', 'front'), ['url' => '/assets/content/entries/racoon/img.jpg'], $editor);
-    check($status === 200 && $data['reference']['url'] === '/assets/content/entries/racoon/img.jpg', '#314 PUT reference: an imported image by its content path');
-    [$status, $data] = call($api, 'PUT', $refPath('cover', 'front'), ['url' => null], $editor);
-    check($status === 200 && $data['reference'] === null && $data['changed'] === true, '#314 PUT reference: null removes it');
-    foreach ([
-        [$refPath('s001', 'right'), ['url' => 'https://elsewhere/x.png'], 400, 'a url that is no image of the Library'],
-        [$refPath('s001', 'right'), ['url' => $urlA, 'fit' => 'tile'], 400, 'a fit it does not know'],
-        [$refPath('s001', 'right'), ['url' => $urlA, 'name' => '  '], 400, 'an empty name'],
-        [$refPath('s001', 'right'), [], 400, 'nothing to change'],
-        [$refPath('s001', 'right'), ['fit' => 'contain'], 404, 'a fit for a surface without a reference'],
-        [$refPath('s001', 'middle'), ['url' => $urlA], 404, 'a surface the scene does not have'],
-        [$refPath('nope', 'left'), ['url' => $urlA], 404, 'a scene the book does not have'],
-    ] as [$path, $body, $code, $what]) {
-        [$status, $data] = call($api, 'PUT', $path, $body, $editor);
-        check($status === $code, "#314 PUT reference: $what → $code");
+    $legacyEntries = [
+        ['e-cover', 'cover', 0, ['surface' => 'front', 'x' => 10, 'y' => 10, 'width' => 50]],
+        ['e-three', 's002-003', 3, ['page' => 3, 'surface' => 'right', 'x' => 20, 'y' => 30, 'width' => 40, 'height' => 40]],
+        ['e-five', 's004-005', 5, ['surface' => 'right', 'surfaceId' => 'right', 'x' => 5, 'y' => 5, 'width' => 10]],
+        ['e-lost', null, 99, null],
+    ];
+    foreach ($legacyEntries as $i => [$id, $scene, $page, $print]) {
+        $entry = ['id' => $id, 'category' => 'text', 'title' => $id, 'page' => $page, 'body' => '', 'tags' => []] + ($id === 'e-five' ? ['surface' => 'right'] : []);
+        $pdo->prepare('INSERT INTO entries (book_id, id, spread_id, position, category, title, page, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+            ->execute(['legacy', $id, $scene, $i, 'text', $id, $page, json_encode($entry)]);
+        if ($print === null) continue;
+        $pdo->prepare('INSERT INTO targets (book_id, id, entry_id, image_src, entity_ref, data_json) VALUES (?, ?, ?, ?, NULL, ?)')
+            ->execute(['legacy', $id, $id, 'https://cdn.example/t.jpg', json_encode(['id' => $id, 'imageSrc' => 'https://cdn.example/t.jpg', 'print' => $print])]);
     }
-    [, $overview] = call($api, 'GET', '/editor/books/surfaced/scenes', null, $editor);
-    $refs = [];
-    foreach ($overview['scenes'] ?? [] as $scene) foreach ($scene['surfaces'] as $surface) $refs[$scene['id'] . '/' . $surface['id']] = array_key_exists('reference', $surface) ? $surface['reference'] : 'missing';
-    check(($refs['s002-003/left'] ?? null) === ['url' => $urlB, 'name' => $imgB['asset']['name'], 'fit' => 'contain'] && ($refs['extra/wall']['url'] ?? null) === $urlA
-        && $refs['s001/right'] === null && $refs['cover/front'] === null && !in_array('missing', $refs, true),
-        '#314 GET …/scenes: every surface with its reference (null: none)');
-    $draftJson = (string) json_encode($refDraft());
-    check(!str_contains($draftJson, '"reference"') && !str_contains($draftJson, basename($urlB)), '#314: references are no content – the draft carries none');
-
-    // The change log: a change each, revertable both ways
-    [, $log] = call($api, 'GET', '/editor/books/surfaced/changes?limit=20', null, $editor);
-    $refChanges = array_values(array_filter($log['changes'] ?? [], fn($c) => $c['kind'] === 'reference'));
-    check(count($refChanges) === 6 && $refChanges[0]['ref'] === 'cover/front' && $refChanges[0]['after'] === null && $refChanges[0]['notRevertable'] === null
-        && $refChanges[5]['before'] === null && $refChanges[5]['notRevertable'] === null, '#314: every set, replace and remove is a change (kind reference, ref scene/surface), revertable – a removal and a creation too');
-    [$status, $data] = call($api, 'POST', "/editor/books/surfaced/changes/{$refChanges[0]['id']}/revert", ['apply' => true], $editor);
-    check($status === 200 && $data['applied'] === true && SurfaceRef($api, $editor, 'cover', 'front') === '/assets/content/entries/racoon/img.jpg', '#314: reverting a removal brings the reference back');
-    [$status, $data] = call($api, 'POST', '/editor/books/surfaced/changes/revert', ['ids' => $data['written'], 'apply' => true], $editor);
-    check($status === 200 && $data['applied'] === true && SurfaceRef($api, $editor, 'cover', 'front') === null, '#314: … and reverting that removes it again');
-    $wallSet = array_values(array_filter($refChanges, fn($c) => $c['ref'] === 'extra/wall'))[0];
-    [$status, $data] = call($api, 'POST', "/editor/books/surfaced/changes/{$wallSet['id']}/revert", ['apply' => true], $editor);
-    check($status === 200 && $data['applied'] === true && SurfaceRef($api, $editor, 'extra', 'wall') === null, '#314: reverting a set removes the reference');
-    [$status] = call($api, 'POST', '/editor/books/surfaced/changes/revert', ['ids' => $data['written'], 'apply' => true], $editor);
-    check(SurfaceRef($api, $editor, 'extra', 'wall') === $urlA, '#314: … and back');
-
-    // Uses of a Library file: counted, relinked by a replace, gone with a forced delete
-    [, $usages] = call($api, 'GET', "/editor/books/surfaced/assets/{$imgB['asset']['id']}/usages", null, $editor);
-    check(in_array(['kind' => 'reference', 'ref' => 's002-003/left'], $usages['usages'] ?? [], true), '#314: a reference is a use of its Library file');
-    [, $list] = call($api, 'GET', '/editor/books/surfaced/assets', null, $editor);
-    check((array_column($list['assets'] ?? [], 'usages', 'id')[$imgB['asset']['id']] ?? 0) >= 1, '#314: … and the Library counts it');
-    [$status, $data] = call($api, 'DELETE', "/editor/books/surfaced/assets/{$imgB['asset']['id']}", null, $editor);
-    check($status === 409 && $data['error']['code'] === 'asset-in-use', '#314: … so the file is not deleted while it is a reference');
-    [$status, $replacedB] = upload($api, 'PUT', "/editor/books/surfaced/assets/{$imgB['asset']['id']}/file", pngOf(3, 2, 0x22aa66), 'scan-b.png', $editor);
-    $newB = (string) ($replacedB['asset']['url'] ?? '-');
-    check($status === 200 && $newB !== $urlB && SurfaceRef($api, $editor, 's002-003', 'left') === $newB, '#314: a replaced Library file – its references show the new version');
-    [, $log] = call($api, 'GET', '/editor/books/surfaced/changes?limit=5', null, $editor);
-    check(in_array('s002-003/left', array_column(array_filter($log['changes'] ?? [], fn($c) => $c['kind'] === 'reference'), 'ref'), true), '#314: … with a change in the log');
-
-    // The page images become references: plan, apply, idempotent
-    [$status] = call($api, 'PUT', '/editor/books/surfaced/page-images', ['items' => [
-        ['page' => 0, 'url' => $urlA], ['page' => 1, 'url' => $urlA], ['page' => 1, 'facing' => true, 'url' => $newB], ['page' => 3, 'url' => $newB], ['page' => 2, 'url' => $urlA], ['page' => 6, 'url' => $urlA],
-    ]], $editor);
-    $pdo = connect('test');
-    $pdo->exec("INSERT INTO page_images (book_id, page, facing, url, name, updated_by, updated_at) VALUES ('surfaced', 42, 0, " . $pdo->quote($urlA) . ", 'lost', NULL, 1)");
+    foreach ([[0, 0, 'cover'], [1, 1, '1f'], [1, 0, '1'], [2, 0, '2'], [3, 0, '3'], [4, 0, '4'], [5, 0, '5']] as [$page, $facing, $key]) {
+        $pdo->prepare('INSERT INTO page_images (book_id, page, facing, url, name, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, NULL, 0)')->execute(['legacy', $page, $facing, $halves[$key], "page $key"]);
+    }
+    $pdo->prepare('INSERT INTO surface_references (book_id, scene_id, surface_id, url, name, fit, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, NULL, 0)')
+        ->execute(['legacy', 's004-005', 'left', $halves['ref4'], 'scan of 4', 'contain']);
     $pdo = null;
-    call($api, 'PUT', $refPath('back', 'back'), ['url' => $urlA], $editor);
-    check($status === 200, '#314: page images on the cover, page 1 and the half next to it, pages 2 and 3, the back cover (and one on a page the book lost)');
-    [$status, $data] = call($api, 'POST', '/editor/books/surfaced/scenes/references/migrate', null, $editor);
+
+    [$status, $data] = call($api, 'GET', '/editor/books/legacy', null, $editor);
+    check($status === 409 && $data['error']['code'] === 'migrate-first' && $data['error']['schema'] === '2.36', 'a 2.x book is read only after the migration → 409 migrate-first');
+    [$status, $data] = call($api, 'GET', '/editor/books', null, $editor);
+    check($status === 200 && in_array('legacy', array_column($data['books'], 'id'), true), '… the book list shows it');
+    $legacyConfig = $configuration;
+    $legacyConfig['version']['schema'] = '2.36';
+    [$status, $data] = call($api, 'POST', '/editor/import/preview', ['configuration' => $legacyConfig], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-configuration', 'a 2.x configuration is not imported → 400 invalid-configuration');
+
+    [$status, $data] = call($api, 'POST', '/editor/books/legacy/migrate-3', null, $editor);
     $plan = $data['plan'] ?? [];
-    $mapped = array_map(fn($r) => "{$r['page']}" . ($r['facing'] ? 'f' : '') . "→{$r['scene']}/{$r['surface']}", $plan['references'] ?? []);
-    $unmapped = array_map(fn($r) => "{$r['page']}" . ($r['facing'] ? 'f' : '') . '→' . ($r['surface'] ?? '-'), $plan['unmapped'] ?? []);
-    check($status === 200 && $data['applied'] === false && $plan['upToDate'] === false && $mapped === ['0→cover/front', '1→s001/right', '1f→s001/left', '3→s002-003/right']
-        && array_map(fn($r) => "{$r['page']}→{$r['scene']}/{$r['surface']}", $plan['already']) === ['6→back/back']
-        && $unmapped === ['2→left', '42→-'] && str_contains($plan['unmapped'][0]['reason'], 'another reference') && str_contains($plan['unmapped'][1]['reason'], 'no page')
-        && $plan['counts'] === ['pageImages' => 7, 'references' => 4, 'already' => 1, 'unmapped' => 2],
-        '#314 migrate references: the plan – by page and side to scene and surface, one already there, one kept, one on no page');
-    check(SurfaceRef($api, $editor, 's001', 'right') === null, '#314: … and without apply nothing is written');
-    [$status, $data] = call($api, 'POST', '/editor/books/surfaced/scenes/references/migrate', ['apply' => true], $editor);
-    check($status === 200 && $data['applied'] === true && SurfaceRef($api, $editor, 's001', 'right') === $urlA && SurfaceRef($api, $editor, 's001', 'left') === $newB
-        && SurfaceRef($api, $editor, 's002-003', 'left') === $newB, '#314 migrate references: applied – the surfaces show the page images, a reference there already kept');
-    [$status, $data] = call($api, 'POST', '/editor/books/surfaced/scenes/references/migrate', ['apply' => true], $editor);
-    check($status === 200 && $data['applied'] === false && $data['plan']['upToDate'] === true && $data['plan']['counts']['already'] === 5, '#314 migrate references: again → nothing to do');
-    [, $pagesNow] = call($api, 'GET', '/editor/books/surfaced/pages', null, $editor);
-    check(count($pagesNow['pageImages'] ?? []) === 7, '#314: the page images stay');
+    $byScene = array_column($plan['scenes'] ?? [], null, 'scene');
+    $after = static fn(string $scene): array => array_map(static fn(array $s) => [$s['id'], $s['widthMm'], $s['from']], $byScene[$scene]['after'] ?? []);
+    check($status === 200 && $data['applied'] === false && $plan['upToDate'] === false && $plan['schema'] === ['from' => '2.36', 'to' => '3.0'] && $plan['counts']['scenes'] === 6,
+        'migrate-3 without apply: the plan, nothing written');
+    check(array_column($plan['scenes'], 'label', 'scene') === ['cover' => 'Cover', 'front-1' => 'Front matter 1', 's001' => '1', 's002-003' => '2–3', 's004-005' => 'The golem', 'back' => 'Back cover'],
+        'the labels: a cover\'s and the matter\'s title, else the pages, a label of its own wins – ' . json_encode(array_column($plan['scenes'], 'label', 'scene'), JSON_UNESCAPED_UNICODE));
+    check($after('s001') === [['surface', 460, ['left', 'right']]] && $after('s002-003') === [['surface', 460, ['2', '3']]] && $after('cover') === [['surface', 230, ['Cover']]]
+        && $after('s004-005') === [['surface', 460, ['left', 'right']]] && ($byScene['s004-005']['after'][0]['label'] ?? null) === '4–5'
+        && ($byScene['s004-005']['after'][0]['place'] ?? null) === ['x' => 0, 'y' => 0, 'z' => 0, 'rx' => 0, 'ry' => 0, 'rz' => 0],
+        'the surfaces: one per printed double page (the halves merged), a cover one page wide, placed in a row');
+    check(($byScene['front-1']['group'] ?? null) === 'front-matter' && $plan['groups'] === [['id' => 'front-matter', 'label' => 'Front matter', 'scenes' => ['front-1']]], 'the front matter joins its group');
+    check(($byScene['s002-003']['targets'] ?? null) === [['target' => 'e-three', 'entry' => 'e-three', 'from' => ['surface' => 'right', 'x' => 20], 'to' => ['surface' => 'surface', 'x' => 250]]]
+        && ($byScene['s004-005']['targets'][0]['to']['x'] ?? null) === 235 && $plan['counts']['targetsMoved'] === 2, 'a target on the right page moves by the left page\'s width');
+    $refs = static fn(string $scene): array => array_map(static fn(array $r) => [$r['surface'], $r['result'], array_column($r['pieces'], 'label'), array_column($r['pieces'], 'offsetMm')], $byScene[$scene]['references'] ?? []);
+    check($refs('cover') === [['surface', 'as-is', ['Cover'], [0]]] && $refs('s002-003') === [['surface', 'combined', ['2', '3'], [0, 230]]]
+        && $refs('s001') === [['surface', 'combined', ['next to 1', '1'], [0, 230]]] && $refs('s004-005') === [['surface', 'combined', ['left', '5'], [0, 230]]]
+        && ($byScene['s004-005']['references'][0]['pieces'][0]['source'] ?? null) === 'reference', 'the references: halves put together, a cover as it is, a 2.x reference before a page image');
+    $unmapped = array_map(static fn(array $u) => [$u['kind'], $u['ref']], $plan['unmapped']);
+    check($unmapped === [['entry', 'e-lost'], ['page-image', '4']] && str_contains($plan['unmapped'][0]['reason'], '"cover"'), 'what cannot be mapped is listed with the reason: the entry on no scene, page 4\'s image under its 2.x reference');
+    [$status] = call($api, 'GET', '/editor/books/legacy', null, $editor);
+    check($status === 409, '… still 2.x');
 
-    // A surface that leaves its scene, and a deleted scene, take their references
-    [$status, $data] = call($api, 'PUT', '/editor/books/surfaced/scenes/s001', ['surfaces' => [['id' => 'right', 'side' => 'right', 'label' => '1']]], $editor);
-    check($status === 200 && SurfaceRef($api, $editor, 's001', 'left') === null && SurfaceRef($api, $editor, 's001', 'right') === $urlA, '#314: a surface removed from its scene takes its reference');
-    [$status] = call($api, 'PUT', '/editor/books/surfaced/scenes/s001', ['surfaces' => [['id' => 'left', 'side' => 'left'], ['id' => 'right', 'side' => 'right', 'label' => '1']]], $editor);
-    check($status === 200 && SurfaceRef($api, $editor, 's001', 'left') === null, '#314: … and a new surface of that id starts without one');
-    [$status] = deleting($api, '/editor/books/surfaced/scenes/extra', $editor);
-    $pdo = connect('test');
-    $left = (int) $pdo->query("SELECT COUNT(*) FROM surface_references WHERE book_id = 'surfaced' AND scene_id = 'extra'")->fetchColumn();
-    $pdo = null;
-    check($status === 200 && $left === 0, '#314: a deleted scene takes its references');
-    [, $log] = call($api, 'GET', '/editor/books/surfaced/changes?limit=10', null, $editor);
-    check(in_array('extra/wall', array_column(array_filter($log['changes'] ?? [], fn($c) => $c['kind'] === 'reference' && $c['after'] === null), 'ref'), true), '#314: … with a change in the log');
-    [$status] = call($api, 'DELETE', "/editor/books/surfaced/assets/{$imgA['asset']['id']}?force=1", null, $editor);
-    check($status === 204 && SurfaceRef($api, $editor, 's001', 'right') === null && SurfaceRef($api, $editor, 'back', 'back') === null, '#314: a forced delete of the file takes its references');
+    if (($plan['imageTool'] ?? null) === null) {
+        [$status, $data] = call($api, 'POST', '/editor/books/legacy/migrate-3', ['apply' => true], $editor);
+        check($status === 409 && $data['error']['code'] === 'no-image-tool', 'without GD the halves cannot be put together → 409 no-image-tool, nothing written');
+        echo "  skipped: applying the migration – this PHP has no GD with WebP (OSCT_TEST_PHP_ARGS=\"-d extension=gd\")\n";
+    } else {
+        [$status, $data] = call($api, 'POST', '/editor/books/legacy/migrate-3', ['apply' => true], $editor);
+        check($status === 200 && $data['applied'] === true, 'migrate-3 with apply → written');
+        $applied = array_column($data['plan']['scenes'] ?? [], null, 'scene');
+        [$status, $tree] = call($api, 'GET', '/editor/books/legacy', null, $editor);
+        check($status === 200 && $tree['book']['schema'] === '3.0' && array_column($tree['scenes'], 'id') === ['cover', 'front-1', 's001', 's002-003', 's004-005', 'back']
+            && $tree['groups'] === [['id' => 'front-matter', 'label' => 'Front matter']], 'the book reads as 3.0: its scenes in the same order, the group');
+        [, $m] = call($api, 'GET', '/editor/books/legacy/draft/latest.json', null, $editor);
+        [, $legacyDraft] = call($api, 'GET', "/editor/books/legacy/draft/{$m['build']}/game.config.json", null, $editor);
+        $entries = array_column($legacyDraft['entries'] ?? [], null, 'id');
+        $s45 = array_column($legacyDraft['scenes'] ?? [], null, 'id')['s004-005'] ?? [];
+        check(($legacyDraft['version']['schema'] ?? null) === '3.0' && ($legacyDraft['initialScene'] ?? null) === 'cover' && $s45 === ['id' => 's004-005', 'label' => 'The golem',
+            'surfaces' => [['id' => 'surface', 'label' => '4–5', 'widthMm' => 460, 'heightMm' => 320, 'place' => ['x' => 0, 'y' => 0, 'z' => 0, 'rx' => 0, 'ry' => 0, 'rz' => 0]]]]
+            && ($array = array_column($legacyDraft['scenes'], null, 'id')['s002-003']['passes'] ?? null) === [], 'the draft: 3.0 scenes, no page model left, other fields kept (passes)');
+        check(($entries['e-three']['scene'] ?? null) === 's002-003' && !isset($entries['e-three']['page']) && ($entries['e-three']['target']['place'] ?? null) === ['x' => 250, 'y' => 30, 'width' => 40, 'height' => 40]
+            && !isset($entries['e-five']['surface']) && ($entries['e-five']['target']['place']['x'] ?? null) === 235 && ($entries['e-cover']['target']['place'] ?? null) === ['x' => 10, 'y' => 10, 'width' => 50]
+            && ($entries['e-lost']['scene'] ?? null) === 'cover', 'the entries keep their scene (the lost one on the opening scene), the targets their place on the joint surface');
+        $list = call($api, 'GET', '/editor/books/legacy/scenes', null, $editor)[1];
+        $refOf = array_map(static fn(array $s) => $s['surfaces'][0]['reference'] ?? null, array_column($list['scenes'], null, 'id'));
+        check(($refOf['cover']['url'] ?? null) === $halves['cover'] && ($refOf['s002-003']['name'] ?? null) === 's002-003_surface.webp' && $refOf['s002-003']['url'] !== $halves['2']
+            && ($applied['s002-003']['references'][0]['url'] ?? null) === $refOf['s002-003']['url'] && $refOf['front-1'] === null, 'the references set: the cover\'s as it was, the halves as one new image');
+        $joint = (string) @file_get_contents($refOf['s002-003']['url']);
+        $size = @getimagesizefromstring($joint);
+        check(is_array($size) && $size[0] === 46 && $size[1] === 32 && ($size['mime'] ?? null) === 'image/webp', 'the joint image: WebP, twice as wide as a half, as high');
+        [, $assets] = call($api, 'GET', '/editor/books/legacy/assets', null, $editor);
+        check(in_array('s002-003_surface.webp', array_column($assets['assets'], 'name'), true), '… a new Library file of the book');
+        [, $log] = call($api, 'GET', '/editor/books/legacy/changes?limit=500', null, $editor);
+        $kinds = array_count_values(array_column($log['changes'], 'kind'));
+        $migration = array_values(array_filter($log['changes'], static fn(array $c) => $c['kind'] === 'migration'))[0] ?? [];
+        check(($kinds['scene'] ?? 0) === 6 && ($kinds['entry'] ?? 0) === 4 && ($kinds['target'] ?? 0) === 3 && ($kinds['groups'] ?? 0) === 1 && ($migration['after'] ?? null) === ['schema' => '3.0']
+            && is_string($migration['notRevertable'] ?? null) && is_string(array_values(array_filter($log['changes'], static fn(array $c) => $c['kind'] === 'entry'))[0]['notRevertable'] ?? null),
+            'every row is in the change log; the migration and the 2.x rows are not revertable');
+        [$status, $data] = call($api, 'POST', '/editor/books/legacy/migrate-3', ['apply' => true], $editor);
+        check($status === 200 && $data['applied'] === false && $data['plan']['upToDate'] === true, 'again: up to date, nothing written (idempotent)');
+    }
 
     echo "editor: publish to bunny (test double)\n";
     $storagePort = freePort();
@@ -2917,7 +2399,7 @@ try {
     call($api, 'DELETE', '/editor/books/osct/plugins/ai-script', null, $aiToken);
 
     // A token removes like its person – only through the same two steps (#198); its confirmation is its own
-    [$status] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Robot', 'page' => 1, 'id' => 'robot', 'target' => ['imageSrc' => 'https://cdn.example/robot.jpg']], $aiToken);
+    [$status] = call($api, 'POST', '/editor/books/osct/entries', ['title' => 'Robot', 'scene' => 's1', 'id' => 'robot', 'target' => ['imageSrc' => 'https://cdn.example/robot.jpg']], $aiToken);
     [$status2, $data] = call($api, 'DELETE', '/editor/books/osct/entries/robot', null, $aiToken);
     check($status === 201 && $status2 === 409 && $data['error']['code'] === 'confirm-delete' && $data['error']['impact']['counts']['targets'] === 1,
         'a token\'s removal: first 409 confirm-delete with the impact');
@@ -3037,7 +2519,7 @@ try {
     check($status === 200, 'and sets the password (signed in by email just now)');
 
     // A Bearer AI token: no CSRF token, never a cookie, never the person's own session
-    [$status, $data] = call($cookieApi, 'POST', '/editor/books/cookie-book/entries', ['title' => 'x', 'page' => 1, 'target' => ['imageSrc' => 'https://cdn.example/x.jpg']], $cookieAi);
+    [$status, $data] = call($cookieApi, 'POST', '/editor/books/cookie-book/entries', ['title' => 'x', 'scene' => 's1', 'target' => ['imageSrc' => 'https://cdn.example/x.jpg']], $cookieAi);
     check($status !== 403 && $status !== 401, "a Bearer AI token writes without a CSRF token (→ $status, not 401/403)");
     [$status, $data] = call($cookieApi, 'PATCH', '/user', ['language' => 'de'], $cookieAi);
     check($status === 403 && $data['error']['code'] === 'not-for-ai', 'a Bearer AI token still cannot act as the person (PATCH /user → 403 not-for-ai)');
@@ -3121,7 +2603,7 @@ try {
     [, $data] = call($api, 'GET', '/progress/osct', null, $session);
     check(($data['record']['consulted']['e1'] ?? null) === 5, 'migrate again: progress still there');
     [$status, $data] = call($api, 'GET', '/editor/books/osct', null, $editor);
-    check($status === 200 && count($data['spreads']) === 4, "migrate again: the editor's book still there (its two spreads and the covers)");
+    check($status === 200 && count($data['scenes']) === 2, "migrate again: the editor's book still there (its two scenes)");
 
     [$status] = call($api, 'POST', '/auth/password', ['email' => 'reader@example.com', 'password' => 'final password']);
     check($status === 200, 'migrate again: the password still signs in');

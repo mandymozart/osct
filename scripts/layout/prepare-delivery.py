@@ -113,8 +113,26 @@ def sheet_pages(preview, last_page: int) -> list[list[int]]:
     return sheets
 
 
-def read_content(content_dir: str) -> tuple[dict, set[str]]:
-    """The current entries with a target (page, category, title, target image for its hash), and every entry's id"""
+def read_mapping_pages(mapping_file: str | None) -> dict[str, int]:
+    """The page per entry id of an earlier mapping (`  <id>:` then `page: N`, block or inline) – content schema 3.0
+    (#319) has no pages, the delivery mapping keeps them; none when there is no mapping yet"""
+    pages: dict[str, int] = {}
+    if not mapping_file or not os.path.isfile(mapping_file):
+        return pages
+    current = None
+    for line in open(mapping_file, encoding="utf-8"):
+        key = re.match(r"^  ([a-z0-9][a-z0-9-]*):", line)
+        if key:
+            current = key.group(1)
+        page = re.search(r"(?:^\s{4}|[{,]\s*)page:\s*(-?\d+)", line)
+        if current and page:
+            pages[current] = int(page.group(1))
+    return pages
+
+
+def read_content(content_dir: str, pages: dict[str, int]) -> tuple[dict, set[str]]:
+    """The current entries with a target (its page from the earlier mapping, category, title, target image for its
+    hash), and every entry's id"""
     entries, ids = {}, set()
     root = os.path.join(content_dir, "entries")
     for entry_id in sorted(os.listdir(root)):
@@ -123,7 +141,7 @@ def read_content(content_dir: str) -> tuple[dict, set[str]]:
             continue
         ids.add(entry_id)
         text = open(file, encoding="utf-8").read()
-        page, image = scalar(text, "page"), scalar(text, "image", "  ")
+        page, image = pages.get(entry_id), scalar(text, "image", "  ")
         if page is None or image is None or not re.search(r"^target:\s*$", text, re.M):
             continue
         path = os.path.join(root, entry_id, image)
@@ -364,7 +382,7 @@ def main() -> int:
 
 def cut_delivery(args, print_doc, by_sheet: bool, sheets: list[list[int]], page_sheets: list[tuple], old_layout: dict) -> dict:
     """The targets: matched and new ids, the cut images, the mapping and the report – the layout's target boxes back"""
-    entries, all_ids = read_content(args.content)
+    entries, all_ids = read_content(args.content, read_mapping_pages(args.mapping))
     triggers = read_triggers(args.triggers, sheets)
     retired = {i.strip() for i in args.retire.split(",") if i.strip()}
     unknown = retired - all_ids

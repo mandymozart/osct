@@ -1,7 +1,7 @@
 # Showcase entry for the editor and the tests (spread studio-a): an entity as a tree of nodes (content schema 2.0).
 category: glossary
 title: "Studio: tree of nodes"
-page: 29
+scene: studio-a
 body: "A group with three children: the tree, lifted and turned, a line of text under it, and an orange spot light aimed at the tree from the right."
 target:
   image: target.jpg

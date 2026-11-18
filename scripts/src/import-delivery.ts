@@ -17,13 +17,14 @@
  *       note: <text>        anything the editors should know – written as a comment into entry.yaml
  * Paths are relative to the delivery folder.
  *
- * Contract: media files are (re)written when the delivered file is newer; `entry.yaml` and `spread.yaml`
- * are written only when missing, so edited texts survive a second import. One spread per pair of facing
- * pages (page 1 and the last page stand alone) for every page with an entry: `s<first>-<last>`, title
- * "<first>–<last>", order = first page. When the content has a print layout (`layout/layout.json`), every sheet
- * of it gets its spread too (#296): the cover, the front and back matter (double pages without printed numbers –
- * `matter`, internal pages below 0 and after the last printed page), the numbered sheets without an entry and the
- * back cover (`layoutSpreads`). Every problem is reported; the import exits 1 when something
+ * Contract: media files are (re)written when the delivered file is newer; `entry.yaml` and `scene.yaml`
+ * are written only when missing, so edited texts survive a second import. Content schema 3.0 (#319): the delivery's
+ * page numbers are mapped to scenes here, once – an entry's `scene` is written, never its page. One scene per pair of
+ * facing pages (page 1 and the last page stand alone) for every page with an entry: `s<first>-<last>`, label
+ * "<first>–<last>", order = first page, one surface twice the page's width (a single page: one page wide). When the
+ * content has a print layout (`layout/layout.json`), every sheet of it gets its scene too (#296): the cover, the front
+ * and back matter (double pages without printed numbers), the numbered sheets without an entry and the back cover
+ * (`layoutScenes`), the page size from the layout. Every problem is reported; the import exits 1 when something
  * could not be done (a warning – e.g. a video without a target – does not).
  */
 import { spawnSync } from 'child_process';
@@ -31,7 +32,7 @@ import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
 import { isObject } from '../../shared/guards/game-config';
-import { CONTENT_DIR } from './config';
+import { BOOK_PAGE_MM, CONTENT_DIR } from './config';
 import { isMainModule } from './lib/entry';
 import { toJpeg } from './lib/optimize-media';
 
@@ -70,7 +71,7 @@ export interface Mapping {
 
 export interface ImportReport {
   entriesWritten: string[];
-  spreadsWritten: string[];
+  scenesWritten: string[];
   mediaWritten: string[];
   problems: string[];
   /** Things worth knowing that do not stop the import (e.g. a video without a target) */
@@ -131,89 +132,100 @@ export const spreadPages = (page: number, lastPage: number): [number, number] =>
   return [first, Math.min(first + 1, lastPage)];
 };
 
-const spreadId = ([first, last]: [number, number]) =>
+/** The scene id of a page range: `s001`, `s002-003` */
+export const pagesSceneId = ([first, last]: [number, number]) =>
   first === last ? `s${String(first).padStart(3, '0')}` : `s${String(first).padStart(3, '0')}-${String(last).padStart(3, '0')}`;
 
 const newer = (source: string, output: string) =>
   !fs.existsSync(output) || fs.statSync(source).mtimeMs > fs.statSync(output).mtimeMs;
 
-/** A layout sheet as `layout/layout.json` lists it – what `layoutSpreads` reads */
+/** A layout sheet as `layout/layout.json` lists it – what `layoutScenes` reads */
 export interface LayoutSheetLike {
   id: string;
   kind: string;
   pages: number[];
 }
 
-/** A spread the layout asks for: its folder id, title, order and pages, and its format or matter */
-export interface LayoutSpread {
+/**
+ * A scene the import writes (schema 3.0): its folder id, label, order and how many pages wide its one surface is – a
+ * double page is one surface of twice the page's width, a cover or a single page one of the page's width. The pages
+ * are the import's only: they place the scene in the order and the entries in it once, and are not written.
+ */
+export interface ImportScene {
   id: string;
-  title: string;
+  label: string;
   order: number;
-  firstPage: number;
-  lastPage: number;
-  format?: 'cover' | 'back';
-  matter?: 'front' | 'back';
+  /** 1 (a cover, a single page) or 2 (a double page) */
+  pagesWide: 1 | 2;
+  /** The printed pages it holds (internal numbers for front and back matter – only to find an entry's scene) */
+  pages: [number, number];
 }
 
+/** The scene of a page range: `186–187` (one surface, two pages wide), a single page `1` */
+export const pagesScene = (range: [number, number]): ImportScene => ({
+  id: pagesSceneId(range),
+  label: range[0] === range[1] ? `${range[0]}` : `${range[0]}–${range[1]}`,
+  order: range[0],
+  pagesWide: range[0] === range[1] ? 1 : 2,
+  pages: range,
+});
+
 /**
- * The spreads of a print layout's sheets, in book order: the cover (page 0), the front matter counting down to −1
- * (`front-1` … `front-<n>`, the last one next to page 1), one spread per numbered sheet, the back matter after the last
- * printed page (`back-1` …) and the back cover after it. Order = first page; the cover comes first.
+ * The scenes of a print layout's sheets, in book order: the cover, the front matter (`front-1` … `front-<n>`, the
+ * last one next to page 1), one scene per numbered sheet, the back matter after the last printed page (`back-1` …)
+ * and the back cover. `order` sorts them (the cover first); the pages are the import's own numbering.
  */
-export const layoutSpreads = (sheets: readonly LayoutSheetLike[]): LayoutSpread[] => {
+export const layoutScenes = (sheets: readonly LayoutSheetLike[]): ImportScene[] => {
   const front = sheets.filter(sheet => sheet.kind === 'front-matter');
   const back = sheets.filter(sheet => sheet.kind === 'back-matter');
   const numbered = sheets.filter(sheet => sheet.kind === 'spread' && sheet.pages.length > 0);
   const lastPrinted = Math.max(0, ...numbered.flatMap(sheet => sheet.pages));
-  const spreads: LayoutSpread[] = [];
+  const scenes: ImportScene[] = [];
   if (sheets.some(sheet => sheet.kind === 'cover-front')) {
-    spreads.push({ id: 'cover', title: 'Cover', order: -2 * front.length - 1, firstPage: 0, lastPage: 0, format: 'cover' });
+    scenes.push({ id: 'cover', label: 'Cover', order: -2 * front.length - 1, pagesWide: 1, pages: [0, 0] });
   }
   front.forEach((_, i) => {
     const first = -2 * (front.length - i);
-    spreads.push({ id: `front-${i + 1}`, title: `Front matter ${i + 1}`, order: first, firstPage: first, lastPage: first + 1, matter: 'front' });
+    scenes.push({ id: `front-${i + 1}`, label: `Front matter ${i + 1}`, order: first, pagesWide: 2, pages: [first, first + 1] });
   });
-  for (const sheet of numbered) {
-    const range: [number, number] = [Math.min(...sheet.pages), Math.max(...sheet.pages)];
-    const title = range[0] === range[1] ? `${range[0]}` : `${range[0]}–${range[1]}`;
-    spreads.push({ id: spreadId(range), title, order: range[0], firstPage: range[0], lastPage: range[1] });
-  }
+  for (const sheet of numbered) scenes.push(pagesScene([Math.min(...sheet.pages), Math.max(...sheet.pages)]));
   back.forEach((_, i) => {
     const first = lastPrinted + 1 + 2 * i;
-    spreads.push({ id: `back-${i + 1}`, title: `Back matter ${i + 1}`, order: first, firstPage: first, lastPage: first + 1, matter: 'back' });
+    scenes.push({ id: `back-${i + 1}`, label: `Back matter ${i + 1}`, order: first, pagesWide: 2, pages: [first, first + 1] });
   });
   if (sheets.some(sheet => sheet.kind === 'cover-back')) {
     const page = lastPrinted + 2 * back.length + 1;
-    spreads.push({ id: 'back', title: 'Back cover', order: page, firstPage: page, lastPage: page, format: 'back' });
+    scenes.push({ id: 'back', label: 'Back cover', order: page, pagesWide: 1, pages: [page, page] });
   }
-  return spreads;
+  return scenes;
 };
 
-/** spread.yaml of a layout spread */
-const layoutSpreadYaml = (spread: LayoutSpread, source: string) =>
-  `${comment(`From the print layout (${source}): ${spread.title}.`)}
-title: ${quote(spread.title)}
-order: ${spread.order}
-`
-  + `firstPage: ${spread.firstPage}
-lastPage: ${spread.lastPage}
-`
-  + (spread.format ? `format: ${spread.format}
-` : '') + (spread.matter ? `matter: ${spread.matter}
-` : '');
+/** scene.yaml of an imported scene: its label, order and one surface (`surface`) of its pages' width */
+export const sceneYaml = (scene: ImportScene, source: string, page: { width: number; height: number } = BOOK_PAGE_MM) =>
+  `${comment(`${source}: ${scene.label}.`)}
+label: ${quote(scene.label)}
+order: ${scene.order}
+surfaces:
+  - id: surface
+    widthMm: ${page.width * scene.pagesWide}
+    heightMm: ${page.height}
+`;
 
-/** Writes the layout's spreads that the content does not have yet (by id) – nothing when it has no layout */
-function writeLayoutSpreads(report: ImportReport): void {
+/** The layout's page size and scenes, or none when the content has no layout */
+function readLayout(): { page?: { width: number; height: number }; scenes: ImportScene[] } {
   const file = path.join(CONTENT_DIR, 'layout', 'layout.json');
-  if (!fs.existsSync(file)) return;
-  const layout = JSON.parse(fs.readFileSync(file, 'utf8')) as { sheets?: LayoutSheetLike[] };
-  for (const spread of layoutSpreads(layout.sheets ?? [])) {
-    const yamlFile = path.join(CONTENT_DIR, 'spreads', spread.id, 'spread.yaml');
-    if (fs.existsSync(yamlFile)) continue;
-    fs.mkdirSync(path.dirname(yamlFile), { recursive: true });
-    fs.writeFileSync(yamlFile, layoutSpreadYaml(spread, 'layout/layout.json'));
-    report.spreadsWritten.push(spread.id);
-  }
+  if (!fs.existsSync(file)) return { scenes: [] };
+  const layout = JSON.parse(fs.readFileSync(file, 'utf8')) as { page?: { width: number; height: number }; sheets?: LayoutSheetLike[] };
+  return { ...(layout.page ? { page: layout.page } : {}), scenes: layoutScenes(layout.sheets ?? []) };
+}
+
+/** Writes a scene that the content does not have yet (by id) */
+function writeScene(scene: ImportScene, source: string, page: { width: number; height: number } | undefined, report: ImportReport): void {
+  const file = path.join(CONTENT_DIR, 'scenes', scene.id, 'scene.yaml');
+  if (fs.existsSync(file)) return;
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, sceneYaml(scene, source, page));
+  report.scenesWritten.push(scene.id);
 }
 
 const quote = (text: string) => `"${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
@@ -263,13 +275,13 @@ function writeVideo(source: string, output: string, report: ImportReport): boole
   return true;
 }
 
-function entryYaml(e: MappedEntry, files: { target: boolean; image: boolean; video: boolean }, mappingName: string): string {
+function entryYaml(e: MappedEntry, sceneId: string, files: { target: boolean; image: boolean; video: boolean }, mappingName: string): string {
   const lines = [
     comment(`Imported from ${mappingName} (${[e.target, e.image, e.video].filter(Boolean).join(', ')}).`),
     comment('Placeholder title and body – the texts follow.'),
   ];
   if (e.note) lines.push(comment(`Note: ${e.note}`));
-  lines.push(`category: ${e.category}`, `title: ${quote(e.title)}`, `page: ${e.page}`);
+  lines.push(`category: ${e.category}`, `title: ${quote(e.title)}`, `scene: ${sceneId}`);
   if (e.author) lines.push(`author: ${quote(e.author)}`);
   lines.push(`body: ${quote(e.body ?? 'Placeholder – the text follows.')}`);
   if (files.image) lines.push(`image: ${IMAGE_FILE}`);
@@ -286,11 +298,16 @@ function entryYaml(e: MappedEntry, files: { target: boolean; image: boolean; vid
 
 /** Import one mapping into CONTENT_DIR */
 export function importDelivery(deliveryDir: string, mappingFile: string): ImportReport {
-  const report: ImportReport = { entriesWritten: [], spreadsWritten: [], mediaWritten: [], problems: [], warnings: [] };
+  const report: ImportReport = { entriesWritten: [], scenesWritten: [], mediaWritten: [], problems: [], warnings: [] };
   const mapping = readMapping(mappingFile, report.problems);
   const mappingName = path.basename(mappingFile);
   const ids = Object.keys(mapping.entries);
   const lastPage = Math.max(...ids.map(id => mapping.entries[id].page));
+  // The delivery's pages → scenes, once: a sheet of the layout that holds the page, else the pair of facing pages
+  const layout = readLayout();
+  const sceneOfPage = (page: number): ImportScene =>
+    layout.scenes.find(scene => page >= scene.pages[0] && page <= scene.pages[1]) ?? pagesScene(spreadPages(page, lastPage));
+  const scenes = new Map<string, ImportScene>();
 
   for (const id of ids) {
     const e = mapping.entries[id];
@@ -298,6 +315,8 @@ export function importDelivery(deliveryDir: string, mappingFile: string): Import
       report.problems.push(`${id}: entry ids are lowercase letters, digits and dashes`);
       continue;
     }
+    const scene = sceneOfPage(e.page);
+    scenes.set(scene.id, scene);
     const dir = path.join(CONTENT_DIR, 'entries', id);
     fs.mkdirSync(dir, { recursive: true });
     const files = {
@@ -308,26 +327,16 @@ export function importDelivery(deliveryDir: string, mappingFile: string): Import
     if (e.video && !e.target) report.warnings.push(`${id}: a video needs a target to play on – imported as an entry without AR`);
     const yamlFile = path.join(dir, 'entry.yaml');
     if (!fs.existsSync(yamlFile)) {
-      fs.writeFileSync(yamlFile, entryYaml(e, files, mappingName));
+      fs.writeFileSync(yamlFile, entryYaml(e, scene.id, files, mappingName));
       report.entriesWritten.push(id);
     } else if (e.enabled === false && !/^ {2}enabled: false\s*$/m.test(fs.readFileSync(yamlFile, 'utf8'))) {
       report.warnings.push(`${id}: the delivery switches its target off, but entry.yaml is kept – add "enabled: false" under target (or switch it off in the editor)`);
     }
   }
 
-  const pages = new Set(ids.map(id => mapping.entries[id].page));
-  for (const page of [...pages].sort((a, b) => a - b)) {
-    const range = spreadPages(page, lastPage);
-    const id = spreadId(range);
-    const dir = path.join(CONTENT_DIR, 'spreads', id);
-    const file = path.join(dir, 'spread.yaml');
-    if (fs.existsSync(file)) continue;
-    fs.mkdirSync(dir, { recursive: true });
-    const title = range[0] === range[1] ? `${range[0]}` : `${range[0]}–${range[1]}`;
-    fs.writeFileSync(file, `${comment(`Imported from ${mappingName}: pages ${title}.`)}\ntitle: ${quote(title)}\norder: ${range[0]}\nfirstPage: ${range[0]}\nlastPage: ${range[1]}\n`);
-    report.spreadsWritten.push(id);
-  }
-  writeLayoutSpreads(report);
+  const ordered = [...scenes.values()].sort((x, y) => x.order - y.order);
+  ordered.forEach(scene => writeScene(scene, `Imported from ${mappingName}`, layout.page, report));
+  layout.scenes.forEach(scene => writeScene(scene, 'From the print layout (layout/layout.json)', layout.page, report));
   return report;
 }
 
@@ -342,7 +351,7 @@ if (isMainModule(import.meta.url)) {
   console.log('📄 Mapping:', path.resolve(mappingFile));
   console.log('📁 Content:', CONTENT_DIR);
   const report = importDelivery(path.resolve(deliveryDir), path.resolve(mappingFile));
-  console.log(`\n✅ ${report.mediaWritten.length} media files written, ${report.entriesWritten.length} new entries, ${report.spreadsWritten.length} new spreads`);
+  console.log(`\n✅ ${report.mediaWritten.length} media files written, ${report.entriesWritten.length} new entries, ${report.scenesWritten.length} new scenes`);
   for (const warning of report.warnings) console.warn(`   ⚠️  ${warning}`);
   for (const problem of report.problems) console.error(`   ❌ ${problem}`);
   if (report.problems.length) process.exit(1);

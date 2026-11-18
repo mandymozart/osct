@@ -1,6 +1,6 @@
 category: video
 title: Sploosh the sheep
-page: 6
+scene: spread3
 body: A demonstration of a video with alpha channel.
 target:
   image: images-004.jpg

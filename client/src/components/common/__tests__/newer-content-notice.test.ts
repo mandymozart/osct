@@ -58,7 +58,7 @@ describe("<new-version-notice> with a book of newer features", () => {
 
   it("never during AR, back at a calm moment", () => {
     open();
-    game.router.navigate("/spread");
+    game.router.navigate("/scene");
     game.setArStatus("running");
     expect(shown()).toBe(false);
     game.router.navigate("/about");
