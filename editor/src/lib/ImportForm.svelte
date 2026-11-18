@@ -194,7 +194,7 @@
   </section>
 {:else}
 <form class="import" onsubmit={submit}>
-  <h2>Import a book</h2>
+  <h2>Import an experience</h2>
   <p class="lead muted">A book's game configuration becomes a draft here – by URL, as a file, or the instance's published content.</p>
   <div class="seg" role="group" aria-label="source">
     <button type="button" class="pill" class:on={mode === "url"} onclick={() => (mode = "url")}

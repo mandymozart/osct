@@ -64,7 +64,7 @@
 <header class="top" data-app-ui>
   <nav class="crumbs" aria-label="Breadcrumb">
     {#if session.isEditor}
-      <a href={resolve("/(app)")} class="crumb" aria-current={!bookId && !isAdminRoute ? "page" : undefined}>Books</a>
+      <a href={resolve("/(app)")} class="crumb" aria-current={!bookId && !isAdminRoute ? "page" : undefined}>Experiences</a>
     {:else}
       <span class="crumb">OSCT</span>
     {/if}

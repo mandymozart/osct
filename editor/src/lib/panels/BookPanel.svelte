@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { resolve } from "$app/paths";
   import { errorText, getBook, type BookTree } from "#lib/api.js";
   import BookTexts from "#lib/BookTexts.svelte";
   import { SOURCES_OF_TRUTH, type SourceOfTruth } from "@shared/types/game-config";
@@ -14,7 +13,7 @@
    * The Inspector while the book is selected (#237 – the top bar's ⚙ after the book's crumb): the book's texts (title, author,
    * publisher – `BookTexts`), its **source of truth** (#238: print first or digital first – saved when chosen,
    * `bookSource`), the experience's post-processing and appearance (#307 3c – every scene without its own shows them) and
-   * where its content files live; *All spreads* leads to the book page.
+   * where its content files live.
    */
   let { bookId, stage = null, spreadId = null }: {
     bookId: string;
@@ -55,13 +54,12 @@
 </script>
 
 <div class="head">
-  <span class="section-label grow">book</span>
-  <a class="text-link small" href={resolve(`${bookId}/`)} title="The book page: every spread as its sheet">All spreads</a>
+  <span class="section-label grow">experience</span>
 </div>
 {#if error}
   <p class="small danger">{error}</p>
 {:else if !tree}
-  <p class="small muted">Loading the book…</p>
+  <p class="small muted">Loading the experience…</p>
 {:else}
   {#key tree.book.id}
     <BookTexts {bookId} book={tree.book.book} onsaved={reload} />

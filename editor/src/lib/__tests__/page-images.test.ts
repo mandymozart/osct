@@ -4,7 +4,6 @@ import type { BookPage } from "@shared/api/editor";
 import { facingHalfOf, onePageSheetSide, pageImagesOfSpread } from "../stage/stage-layout";
 import { cardPageImages, cardPicture } from "../sheet-preview";
 import { pageImageMap } from "../stage/frame-protocol";
-import { bulkClashes, bulkRows, layoutHalfOf, printFormatOf } from "../pages-view";
 
 /** The pages of staging's book after the matter (#251): cover, F1–F4, the half next to 1, 1…256, the half next to 256, B1–B4, back */
 const page = (p: number, kind: BookPage["kind"], label: string, side: BookPage["side"], facing = false, spread = "x"): BookPage => ({ page: p, facing, spread, side, kind, label });
@@ -46,15 +45,7 @@ describe("page images by file name (#251)", () => {
     expect(matches.map(m => [m.page?.label ?? null, m.duplicate])).toEqual([["12", false], ["12", true], [null, false]]);
   });
 
-  it("proposes the bulk upload's rows: duplicates and unknown names skipped with a note, clashes found", () => {
-    const files = ["P012.jpg", "12.png", "x.jpg"].map(name => new File(["x"], name));
-    const rows = bulkRows(files, pages);
-    expect(rows.map(r => r.key)).toEqual(["12", "", ""]);
-    expect(rows.map(r => !!r.note)).toEqual([false, true, true]);
-    expect([...bulkClashes(rows)]).toEqual([]);
-    rows[1].key = "12";
-    expect([...bulkClashes(rows)]).toEqual(["12"]);
-  });
+
 });
 
 describe("page images over a sheet (#251)", () => {
@@ -79,31 +70,6 @@ describe("page images over a sheet (#251)", () => {
     expect(pageImageMap({ "12": "https://cdn/x.jpg", "-3": "http://a/b.png", "1f": "https://c/d.jpg", bad: "https://x", "4": "javascript:alert(1)", "5": 3 }))
       .toEqual({ "12": "https://cdn/x.jpg", "-3": "http://a/b.png", "1f": "https://c/d.jpg" });
     expect(pageImageMap(null)).toEqual({});
-  });
-});
-
-describe("the Pages view's layout reading (#251)", () => {
-  const layout = {
-    page: { width: 230, height: 320 },
-    targets: {},
-    sheets: [
-      { id: "cover-front", kind: "cover-front" as const, pages: [], image: "sheets/cover-front.jpg", widthMm: 230, heightMm: 320, widthPx: 1, heightPx: 1, surfaces: ["front"] },
-      { id: "front-matter-002", kind: "front-matter" as const, pages: [], image: "sheets/fm2.jpg", widthMm: 460, heightMm: 320, widthPx: 1, heightPx: 1, surfaces: ["left", "right"] },
-      { id: "pp-001", kind: "spread" as const, pages: [1], image: "sheets/pp-001.jpg", widthMm: 460, heightMm: 320, widthPx: 1, heightPx: 1, surfaces: ["left", "right"] },
-      { id: "pp-002-003", kind: "spread" as const, pages: [2, 3], image: "sheets/pp-002-003.jpg", widthMm: 460, heightMm: 320, widthPx: 1, heightPx: 1, surfaces: ["left", "right"] },
-      { id: "back-matter-133", kind: "back-matter" as const, pages: [], image: "sheets/bm.jpg", widthMm: 460, heightMm: 320, widthPx: 1, heightPx: 1, surfaces: ["left", "right"] },
-    ],
-  };
-
-  it("reads the print format from the layout: matter sheets and the last printed page", () => {
-    expect(printFormatOf(layout)).toEqual({ front: 1, back: 1, lastPage: 3 });
-    expect(printFormatOf(null)).toEqual({ front: 2, back: 2 });
-  });
-
-  it("shows the layout's half of a page without its own image", () => {
-    expect(layoutHalfOf(page(1, "facing", "next to 1", "left", true), { firstPage: 1, lastPage: 1 }, layout, "https://cdn/book")).toEqual({ url: "https://cdn/book/assets/content/layout/sheets/pp-001.jpg", part: "left" });
-    expect(layoutHalfOf(page(0, "cover", "Cover", "front"), { firstPage: 0, lastPage: 0, format: "cover" }, layout, "https://cdn/book")?.part).toBe("whole");
-    expect(layoutHalfOf(page(3, "page", "3", "right"), { firstPage: 2, lastPage: 3 }, null, "https://cdn/book")).toBeNull();
   });
 });
 

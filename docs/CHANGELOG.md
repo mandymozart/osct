@@ -7,6 +7,18 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.105.0 – 2026-11-18
+
+### Changed
+- **Experiences, not books** (#313, Tilman): the editor's top bar, start page and settings say *Experiences* /
+  *experience*; *Import an experience*.
+- **No overview page** (#313): an experience's address opens the scene last open in this browser, else the first – the
+  Scenes panel under the stage has the scenes, their order and groups. An experience without scenes offers its first.
+
+### Removed
+- **The book page and its Pages view** (agreed by Tilman, 2026-11-18). Page images stay on the stage; editing them moves
+  to the scenes' reference images (#307 phase 3b) – until then through the MCP (`set_page_images`).
+
 ## 1.104.1 – 2026-11-18
 
 ### Changed

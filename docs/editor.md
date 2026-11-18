@@ -200,6 +200,10 @@ Connecting an AI agent is a first step of working here, so it sits on the books 
 
 ## The book page
 
+> **Since 1.105.0 (Tilman, 2026-11-18):** the book page and its Pages view are gone. An experience's address opens the scene
+> last open in this browser, else the first; the Scenes panel under the stage has the scenes, their order and groups. An
+> experience without scenes offers its first one. The editor says **Experiences** where it said Books.
+
 `/editor/<book>/`: the book's title and author, then its **scenes** (#237, #307), or – with the **Scenes | Pages** switch
 under the title – its [pages](#pages) (`?view=pages`, #251; phase 3b of #307 turns page images into surface references
 and removes the switch). The book's texts and settings
