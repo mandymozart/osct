@@ -583,7 +583,7 @@
 {/snippet}
 
 {#if selection.book}
-  <BookPanel {bookId} />
+  <BookPanel {bookId} {stage} {spreadId} />
 {:else if selection.group}
   <!-- A band of the Scenes panel (#307): the group -->
   <GroupView {bookId} groupId={selection.group} />

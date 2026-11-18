@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { entryLink, entryRowHelp } from "../entry-view";
-import { passesState, spreadPages } from "../spread-view";
+import { spreadPages } from "../spread-view";
 
 /** #227: the entry and the spread as the panels show them when the tree selects one (the entry's form: entry-edit.test.ts) */
 
@@ -27,12 +27,5 @@ describe("the spread view", () => {
     expect(spreadPages({ firstPage: 40, lastPage: 40, format: "back" })).toBe("back");
   });
 
-  it("the post-processing in effect: the level and its passes", () => {
-    expect(passesState([{ type: "bloom" }, { type: "grade" }], undefined)).toBe("the whole book · bloom, grade");
-    expect(passesState(null, null)).toBe("the whole book · none");
-    expect(passesState([{ type: "bloom" }], [{ type: "vignette" }])).toBe("only this spread · vignette");
-    expect(passesState([{ type: "bloom" }], [])).toBe("only this spread · off");
-    // A pass switched off (#233)
-    expect(passesState([{ type: "bloom", enabled: false }, { type: "grade" }], undefined)).toBe("the whole book · bloom off, grade");
-  });
+
 });

@@ -6,13 +6,22 @@
   import { bookSource } from "#lib/book-source.svelte.js";
   import Section from "#lib/components/Section.svelte";
   import Segmented from "#lib/components/Segmented.svelte";
+  import PassesPanel from "./PassesPanel.svelte";
+  import AppearancePanel from "./AppearancePanel.svelte";
+  import type { Stage } from "#lib/stage/stage.svelte.js";
 
   /**
    * The Inspector while the book is selected (#237 – the top bar's ⚙ after the book's crumb): the book's texts (title, author,
    * publisher – `BookTexts`), its **source of truth** (#238: print first or digital first – saved when chosen,
-   * `bookSource`) and where its content files live; *All spreads* leads to the book page.
+   * `bookSource`), the experience's post-processing and appearance (#307 3c – every scene without its own shows them) and
+   * where its content files live; *All spreads* leads to the book page.
    */
-  let { bookId }: { bookId: string } = $props();
+  let { bookId, stage = null, spreadId = null }: {
+    bookId: string;
+    /** In a scene's workspace: the stage the experience's looks preview on (#307 3c) */
+    stage?: Stage | null;
+    spreadId?: string | null;
+  } = $props();
 
   let tree = $state<BookTree | null>(null);
   let error = $state<string | null>(null);
@@ -68,6 +77,11 @@
     {#if sourceBusy}<p class="small muted">Saving…</p>{/if}
     {#if sourceError}<p class="small danger">{sourceError}</p>{/if}
   </Section>
+  {#if spreadId}
+    <!-- The experience's looks (#307 3c, Tilman): its post-processing and how entities appear – every scene without its own -->
+    <PassesPanel {stage} {bookId} {spreadId} level="book" />
+    <AppearancePanel {stage} {bookId} />
+  {/if}
   <div class="row" data-help-name="Assets" data-help="Where the book's content files (the layout, the imported pictures, models and videos) are read from – set by the import; empty: the draft's own origin.">
     <span class="label">assets</span><span class="value small muted" title={tree.book.assetsBase || "the draft's origin"}>{tree.book.assetsBase || "the draft's origin"}</span>
   </div>

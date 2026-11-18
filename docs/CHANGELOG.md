@@ -7,6 +7,16 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.103.0 – 2026-11-18
+
+### Changed
+- **The experience's looks behind its settings** (#307 phase 3c, Tilman): the experience's post-processing and its
+  appearance are edited behind the experience settings ⚙ (the top bar, beside the book's name) – every scene without its
+  own shows them. A scene's Inspector shows its **own** post-processing as a child of the scene (an override – "own for
+  this scene" / "back to the experience's").
+- **The "Spread" section is gone** from the scene's Inspector: its title, pages and format are the scene and its surfaces
+  (a double page is two surfaces); the environment is edited in the Environment tab.
+
 ## 1.102.0 – 2026-11-18
 
 ### Changed

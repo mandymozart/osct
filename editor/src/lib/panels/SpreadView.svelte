@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { errorText, putSpread } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import Segmented from "#lib/components/Segmented.svelte";
@@ -12,18 +11,13 @@
   import { VAR_SCOPES, type VarScope, type VarValue } from "@engine/scene/plugin-runtime";
   import PassesPanel from "./PassesPanel.svelte";
   import SceneSection from "./SceneSection.svelte";
-  import AppearancePanel from "./AppearancePanel.svelte";
-  import { stageEnvironment } from "#lib/environment.svelte.js";
-  import { library } from "#lib/library.svelte.js";
-  import { environmentSkyLabel } from "#lib/stage/sky.js";
-  import { passesState, spreadPages } from "#lib/spread-view.js";
 
   /**
    * The **spread** in the Inspector (#229 – the Stage tab's until then): what the Inspector shows while the spread is
    * selected – the tree's top row, a click on the stage that picks nothing, a fresh workspace. Collapsible sections
-   * (open state kept per section): the **spread** – its title, pages, format, the post-processing in effect and the
-   * book's environment, open on a first visit –, the **post-processing** (the book's passes, a spread's own as an
-   * override – its head names the level), and the **narrative** of the book's plugins: a tap button per target (the
+   * (open state kept per section): the **scene** (`SceneSection`: label, layout, group, surface labels), the scene's own
+   * **post-processing** (an override of the experience's, #307 3c – the experience's passes and appearance are behind the
+   * experience settings ⚙, `BookPanel`; the old "spread" section is gone: a double page is two surfaces), and the **narrative** of the book's plugins: a tap button per target (the
    * reader's tap without aiming), the variables with scope and type, editable and deletable, a form to set one by hand
    * (both written through the plugin API), *reset* for a new game, and the stage's event timeline (time since the
    * spread opened, event, payload) with *clear*. How the stage shows the spread – shake, origin, the desk's top, the
@@ -38,26 +32,6 @@
   } = $props();
 
   const spread = $derived(content.spread(spreadId));
-  /** The spread's format: a double page, the front cover or the back cover – the stage follows */
-  const FORMATS = ["spread", "cover", "back"] as const;
-  const singlePage = $derived(!!spread && spread.firstPage === spread.lastPage);
-  let formatError = $state<string | null>(null);
-  const setFormat = async (format: (typeof FORMATS)[number]) => {
-    formatError = null;
-    try {
-      await putSpread(bookId, spreadId, { format });
-      await content.load(bookId);
-      await stage?.refresh();
-      stage?.relayout();
-    } catch (e) {
-      formatError = errorText(e);
-    }
-  };
-  const format = $derived(spread?.format ?? "spread");
-
-  /** The book's environment (#185): the spread section names it */
-  const environment = $derived(stageEnvironment.current);
-
   const vars = $derived(withTypes(stage?.vars ?? []));
   const events = $derived(stage?.events ?? []);
   /** A target takes a tap when it is found and shows AR content (the stage's live tree: an override, or the draft's) */
@@ -77,37 +51,9 @@
 
 <SceneSection {bookId} {spreadId} />
 
-<Section id="stage.spread" label="spread" summary={spread ? `${spread.title} · ${format}` : undefined}
-  help="The spread the stage shows: its title and pages, its format (saved to the draft), the post-processing in effect and the book's environment. The Inspector shows the spread while it is selected – a tap on the tree's top row, a click on the stage that picks nothing – and when the workspace opens.">
-  <div class="row" data-help="The spread's title in the book.">
-    <span class="label">title</span>
-    <span class="value">{spread?.title ?? spreadId}</span></div>
-  <div class="row" data-help="The book's pages this spread shows – a cover has its face only.">
-    <span class="label">pages</span>
-    <span class="value">{spread ? spreadPages(spread) : ""}</span></div>
-  <div class="row" data-help="What this spread is: a double page, the front cover or the back cover. Only a one-page spread can be a cover; the stage shows the closed book for one.">
-    <span class="label">format</span>
-    <span class="controls">
-      <select class="field" aria-label="Spread format" value={spread?.format ?? "spread"} disabled={!singlePage}
-        onchange={e => void setFormat((e.currentTarget as HTMLSelectElement).value as (typeof FORMATS)[number])}>
-        {#each FORMATS as f (f)}<option value={f}>{f}</option>{/each}
-      </select>
-      {#if formatError}<span class="small danger">{formatError}</span>{/if}
-    </span></div>
-  <div class="row" data-help="The post-processing in effect on this spread: the book's passes (the whole book) or its own (only this spread), and which passes. They are edited in the post-processing section below.">
-    <span class="label">passes</span>
-    <span class="value">{passesState(content.bookPasses, spread?.passes)}</span></div>
-  <div class="row" data-help="The world around the reader and its sky: the book's environment, or none – then the stage's HDRI is the sky. It is edited in the Environment tab.">
-    <span class="label">environment</span>
-    <span class="controls">
-      <span class="value">{environment ? environmentSkyLabel(environment, url => library.byUrl(url)?.name) : "none – the stage's HDRI"}</span>
-      {#if onenvironment}<button type="button" class="text-link" onclick={onenvironment} data-help-name="Environment tab" data-help="Opens the Environment tab, where the book's environment is set.">edit</button>{/if}
-    </span></div>
-</Section>
-
-<PassesPanel {stage} {bookId} {spreadId} />
-
-<AppearancePanel {stage} {bookId} />
+<!-- The scene's own post-processing, a child of its parameters; the experience's passes and appearance are behind the
+     experience settings ⚙ (BookPanel) – #307 3c, Tilman -->
+<PassesPanel {stage} {bookId} {spreadId} level="scene" />
 
 {#snippet valueControl(type: VarType, value: VarValue, label: string, commit: (value: VarValue) => void)}
   {#if type === "boolean"}
@@ -175,7 +121,6 @@
 
 <style>
   .w { width: 5rem; display: inline-flex; }
-  .value { min-width: 0; overflow-wrap: anywhere; }
   .w :global(.scrub) { width: 100%; }
   .row.top { align-items: start; }
   .row.top > .label { line-height: var(--control-height); }
