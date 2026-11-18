@@ -7,7 +7,7 @@
   import { content } from "#lib/content.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import {
-    backToBooks, draftPasses, editInEffect, effectivePasses, levelLine, movePass, ownPasses, passesHeading, passesSource, passSummary, pendingSaves,
+    backToBooks, draftPasses, editInEffect, effectivePasses, movePass, ownPasses, passesHeading, passesSource, passSummary, pendingSaves,
     setPassEnabled, spreadsOnBooks, type PassesDraft, type PassesSource,
   } from "#lib/passes-edit.js";
   import { sections } from "#lib/sections.svelte.js";
@@ -42,7 +42,16 @@
    * *Undo edits* takes both lists back to how the draft had them before the first edit in this page. A collapsible section of the Inspector's spread view,
    * closed on the first visit; the passes' descriptions are their help in the Info view.
    */
-  let { stage, bookId, spreadId }: { stage: Stage | null; bookId: string; spreadId: string } = $props();
+  let { stage, bookId, spreadId, level = "scene" }: {
+    stage: Stage | null; bookId: string; spreadId: string;
+    /** "book": the experience's passes (behind the experience settings, #307 3c) – only the book's list, every scene
+     *  without its own shows it; "scene": the open scene's – its own override, or a link to make one */
+    level?: "book" | "scene";
+  } = $props();
+  const bookLevel = $derived(level === "book");
+  /** Edit the list this panel is about: the book's at the book level, else the one in effect */
+  const editList = (draft: PassesDraft, fn: (list: PassData[]) => PassData[]): PassesDraft =>
+    bookLevel ? { ...draft, book: fn(draft.book) } : editInEffect(draft, fn);
 
   const spread = $derived(content.spread(spreadId));
   /** The draft's lists: the book's (the master) and the spread's own (null = the book's apply) */
@@ -52,7 +61,7 @@
   /** The draft lists the panel started from (by identity: a reload makes new ones) */
   let seen = $state<{ id: string; book: PassData[] | null; own: PassData[] | undefined; draft: PassesDraft } | null>(null);
 
-  const shown = $derived<PassData[]>(effectivePasses(edit));
+  const shown = $derived<PassData[]>(bookLevel ? edit.book : effectivePasses(edit));
   const source = $derived<PassesSource>(passesSource(edit));
   /** The lists as a subject of the autosaver and of *Undo edits* */
   const key = $derived(`passes:${bookId}:${spreadId}`);
@@ -60,7 +69,7 @@
   /** The spreads editing the book's list changes: every one without a list of its own, this one as it stands now */
   const onBooks = $derived(spreadsOnBooks(content.spreads, spreadId, edit.own));
   /** The list in effect as the draft holds it – what a changed row is compared with */
-  const savedShown = $derived<PassData[]>(source === "book" ? saved.book : saved.own ?? saved.book);
+  const savedShown = $derived<PassData[]>(bookLevel || source === "book" ? saved.book : saved.own ?? saved.book);
   /** What *add pass* offers, grouped: built in, then each plugin's (a Code tab Run adds its passes at once) */
   const groups = $derived.by(() => { void plugins.version; void content.bookPasses; return livePassGroups(); });
   /** Per pass shown: its rows, the plugin it belongs to and its description (the registry follows a Run) */
@@ -96,7 +105,7 @@
   /** An edit: live on the stage at once, in the draft a moment after the last one */
   const apply = (next: PassesDraft) => {
     edit = next;
-    stage?.overridePasses($state.snapshot(effectivePasses(next)) as PassData[]);
+    stage?.overridePasses($state.snapshot(bookLevel && next.own !== null ? next.own : effectivePasses(next)) as PassData[]);
     const book = bookId;
     const id = spreadId;
     const lists = $state.snapshot(next) as PassesDraft;
@@ -112,15 +121,15 @@
     });
   };
   const set = (index: number, row: ValueRow, value: number | string) =>
-    apply(editInEffect(edit, list => list.map((pass, i) => (i === index ? setPassValue(pass, row, value) : pass))));
+    apply(editList(edit, list => list.map((pass, i) => (i === index ? setPassValue(pass, row, value) : pass))));
   const add = (type: string) => {
     sections.setOpen(passSection(shown.length), true);
-    apply(editInEffect(edit, list => [...list, { type }]));
+    apply(editList(edit, list => [...list, { type }]));
   };
   const remove = (index: number) => {
     for (let i = index; i < shown.length - 1; i++) sections.setOpen(passSection(i), isPassOpen(i + 1));
     sections.setOpen(passSection(shown.length - 1), false);
-    apply(editInEffect(edit, list => list.filter((_, i) => i !== index)));
+    apply(editList(edit, list => list.filter((_, i) => i !== index)));
   };
   const move = (index: number, by: number) => {
     const to = index + by;
@@ -129,9 +138,9 @@
       sections.setOpen(passSection(index), isPassOpen(to));
       sections.setOpen(passSection(to), open);
     }
-    apply(editInEffect(edit, list => movePass(list, index, by)));
+    apply(editList(edit, list => movePass(list, index, by)));
   };
-  const switchPass = (index: number, on: boolean) => apply(editInEffect(edit, list => setPassEnabled(list, index, on)));
+  const switchPass = (index: number, on: boolean) => apply(editList(edit, list => setPassEnabled(list, index, on)));
   const choose = (next: PassesSource) => {
     if (next !== source) apply(next === "spread" ? ownPasses(edit) : backToBooks(edit));
   };
@@ -142,19 +151,25 @@
   };
 </script>
 
-<Section id="stage.passes" label={passesHeading(edit)} open={false}
+<Section id={bookLevel ? "book.passes" : "stage.passes"} label={bookLevel ? `post-processing · the experience${edit.book.length ? "" : " · none"}` : passesHeading(edit).replace("the whole book", "the experience's").replace("only this spread", "this scene")} open={false}
   help="The passes over the rendered image, in order – the look-around world and its sky included: the built-in ones and the passes of the book's plugins. The head names the level: the whole book – the book's passes, the master every spread without its own shows – or only this spread – an override of its own. Changes show live on the stage (rendered shading) and reach the draft by themselves.">
+{#if bookLevel}
+<div class="level" data-help-name="Level" data-help="The experience's passes: every scene without passes of its own shows them. A scene's own passes are set in its Inspector (Scene).">
+  <span class="small">{onBooks === 1 ? "used by 1 scene" : `used by ${onBooks} scenes`} without their own</span>
+</div>
+{:else}
 <div class="level" data-help-name="Level" data-help={source === "book"
-  ? "The list below is the book's: editing it changes every spread without passes of its own (counted here, this one included). Own for this spread gives this spread an override of its own, starting as a copy of the book's."
-  : "The list below is this spread's own: it overrides the book's here alone; removing every pass turns post-processing off here. Back to the book's drops the override – the spread shows the book's passes again."}>
-  <span class="small">{levelLine(edit, onBooks)}</span>
+  ? "This scene shows the experience's passes (set behind the experience settings ⚙). Own for this scene gives it an override of its own, starting as a copy."
+  : "This scene's own passes: they override the experience's here alone; removing every pass turns post-processing off here. Back to the experience's drops the override."}>
+  <span class="small">{source === "book" ? "the experience's passes" : "this scene's own passes"}</span>
   <span class="grow"></span>
   {#if source === "book"}
-    <button type="button" class="text-link" title="Own passes for this spread, starting as a copy of the book's" onclick={() => choose("spread")}>own for this spread</button>
+    <button type="button" class="text-link" title="Own passes for this scene, starting as a copy of the experience's" onclick={() => choose("spread")}>own for this scene</button>
   {:else}
-    <button type="button" class="text-link" title="Drop this spread's override: it shows the book's passes again" onclick={() => choose("book")}>back to the book's</button>
+    <button type="button" class="text-link" title="Drop this scene's override: it shows the experience's passes again" onclick={() => choose("book")}>back to the experience's</button>
   {/if}
 </div>
+{/if}
 {#each passes as { pass, rows, summary, plugin, description }, i (i)}
   {@const on = isPassEnabled(pass)}
   <Section id={passSection(i)} label={pass.type} {summary} open={false} nested enabled={on} onenabled={next => switchPass(i, next)}
