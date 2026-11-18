@@ -115,6 +115,13 @@ reorder, Shift/Ctrl to pick several, a group's own settings), which SCUTOONS wil
 - Delivery import and layout scripts write scenes, surfaces, labels and reference images; matching by page stays
   inside the importer only.
 
+
+**Phase 3c – corrections (Tilman, 2026-11-18)**: post-processing and appearance are experience-wide → behind the
+experience settings button (gear); environment and passes per scene as a child of the scene's parameters; the "Spread"
+section goes (a double page is two surfaces); "Surfaces" → "Surface labels"; group "self" instead of "its own stop", the
+group as a link; Group/Ungroup one toggle (folder / folder-minus icons, shortcuts only in the tooltip); arrow keys and
+the wheel scroll the strip; resizing the panel scales the cards (no zoom buttons), with a minimum height. Details: #307.
+
 ## Migration of `osct` (and the demo)
 1. Every spread becomes a scene with its id and position; surfaces from `firstPage`/`lastPage` (labels = printed page
    numbers; matter and facing halves: no label or as printed); groups `Front matter` / `Back matter`.
