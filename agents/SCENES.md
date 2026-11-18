@@ -209,6 +209,24 @@ title; the 12 page-image halves become one reference per joint surface (put toge
 CI stays green; (B, after A) server: data, draft/publish writing 3.0, the migration, MCP; (C, after A, beside B) editor
 + stage. Develop is pushed (= staging deploys) only once A–C are merged and the migration plan is approved.
 
+### Editor API 3.0 (parts B and C code against this – 2026-11-18)
+
+- `GET /editor/books/{id}` → `BookTree { book, scenes: TreeScene[], groups }`; `TreeScene` = the content's `SceneData`
+  (3.0) + `entries: TreeEntry[]` (each with `scene`, `surface?`, its target with `place`). `TreeSpread` / `spreads` go.
+- `GET …/scenes` → `{ scenes: SceneSummary[] }`, `SceneSummary` = `SceneData` + `position` + `surfaces: SurfaceSummary[]`
+  (`SurfaceData` + `reference {url,name,fit} | null`).
+- `POST …/scenes { preset?: "double" | "single" | "wall", after? | before? | position?, label?, surfaces? }` – double =
+  one surface of 2 × the page width, single = one page, wall = 2000 × 1500 mm standing ahead (`rx` 90); no cover / back
+  presets (a cover is a single scene first in the order). `PUT …/scenes/{id} { label?, group?, surfaces? }` (the whole
+  list, places included). `POST …/scenes/move`, groups, removal as today.
+- Entries: `{ scene, surface? }` instead of `page`; targets: `place { surface?, x, y, width, height? }` instead of
+  `print`. The draft and every published version are 3.0 content.
+- Gone: page images (`…/page-images`, the `page_images` table after the migration), matter (`…/matter`), page names
+  and titles derived from pages (`shared/api/page-names.ts`, `spread-titles.ts`), `Scenes::ranges`, renumbering, the
+  2.x compat tutorial. Surface references (`…/surfaces/{id}/reference`) stay.
+- Ownership: B – `server/`, `mcp/`, `shared/api/`, docs/server.md, docs/mcp.md; C – `editor/`, docs/editor.md (C may
+  edit `shared/api/editor.ts` only to match these names; the orchestrator reconciles).
+
 ## Open questions (Tilman)
 - [x] The word in the UI and the API: **"scene" everywhere** (Tilman, 2026-11-17) – UI, API, MCP, links `/scene/<id>`, code
   and content types (`SceneData`); "spread" survives only as an alias for old links and content, and RULES #2's term
