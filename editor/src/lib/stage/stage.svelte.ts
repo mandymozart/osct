@@ -355,7 +355,10 @@ export class Stage {
 
   /** The current spread's format changed in the draft: the book takes its new shape on the stage at once */
   relayout(): void {
-    void this.send("relayout");
+    // The frame lays out from its draft: the newest goes first (a scene's surfaces changed, #314)
+    void this.syncContent()
+      .catch(e => console.warn(`[stage] content: ${e instanceof Error ? e.message : e}`))
+      .then(() => this.send("relayout"));
   }
 
   /** The book's page images by page key (#251), sent again with every spread opened (a new frame starts without them) */

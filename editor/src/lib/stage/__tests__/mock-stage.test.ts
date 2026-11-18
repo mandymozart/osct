@@ -413,7 +413,11 @@ describe("mock stage: the page image, the fold and the eye (#250)", () => {
     stage.setLayout([], page, null, book);
     const marks = () => (stage as unknown as { marksGroup: Group }).marksGroup.children as LineSegments[];
     stage.setSurfaceMarks(["left", "right", "nope"], "right");
-    expect(marks().map(m => m.geometry.getAttribute("position").count)).toEqual([8, 8]);
+    // The left one grey (4 edges); the highlighted right one two loops white, two loops black (monochrome, RULES #38)
+    expect(marks().map(m => m.geometry.getAttribute("position").count)).toEqual([8, 16, 16]);
+    stage.setSurfaceHover("left");
+    expect(marks().map(m => m.geometry.getAttribute("position").count)).toEqual([16, 16, 16]);
+    stage.setSurfaceHover(null);
     stage.setSurfaceMarks([], null);
     expect(marks()).toHaveLength(0);
   });

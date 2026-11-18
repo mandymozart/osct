@@ -193,6 +193,7 @@
   </Section>
 
   <div class="row remove">
+    <span class="label"></span>
     {#if removing}
       <p class="small confirm">Remove the surface {surfaceName(surface)}? {warning || "Nothing lies on it."} Its reference image goes with it.
         <button type="button" class="pill framed danger" disabled={busy} onclick={() => void run(() => removeSceneSurface(sceneId, surfaceId))}>remove</button>

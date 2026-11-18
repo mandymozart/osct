@@ -7,6 +7,31 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+
+- **The Surface mode** (#314): a **Surface** tool (S) in the toolbar's tool group – the stage outlines the open scene's
+  surfaces, the hovered one lighter, a click selects a surface (no target, no node), Esc deselects. The selection has a
+  surface level; the Inspector shows the selected surface (`SurfaceView`): label, side, size, its order, in a free scene
+  its place (x y z mm, rx ry rz °) with a **gizmo** on the stage that moves or turns it (saved when the drag ends), its
+  **reference image** (Library… / Upload…, fit cover / contain / stretch, remove – editor-only) and *remove surface* with
+  a confirmation naming the targets and entries on it. The Tree has a **Surfaces** level under the spread row (a tap
+  selects, + adds a page / wall / custom one, Alt ↑ ↓ reorders). Every field saves itself.
+- The placement rows and the new-target form offer the scene's own surfaces by id (a fold-out's middle, a wall) and
+  write `surfaceId` with a side older apps read.
+- The History names a reference image's change (*Reference image · scene · surface*, *image replaced*) and files it
+  under its scene; the Library's usage line says *reference image of …*.
+
+### Changed
+
+- The Inspector's scene section: *surface labels* became **surfaces** (`SurfaceList`) – add a page, a wall (a fixed
+  scene becomes free) or a custom surface, reorder, remove, select; the same edits as the Tree and the selected surface.
+- The stage's surface outlines are monochrome (RULES #38): grey, the selected one white with a black line inside (was
+  blue and orange).
+- A change of the scenes lays the open scene out again from the new draft (`Stage.relayout` sends the draft first), so
+  an added or moved surface shows at once; the reference images come from `scenes.references`.
+
 ## 1.115.0 – 2026-11-18
 
 ### Fixed

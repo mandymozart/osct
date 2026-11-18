@@ -66,11 +66,13 @@
   <div class="surface" class:on={isOn(surface.id)}>
     <div class="row" data-help="The surface's label, written exactly as printed (41, ii, Cover) – none when nothing is printed. Saved by itself. A click on its side selects it: the Inspector shows its size, place and reference image.">
       <button type="button" class="label side" onclick={() => selection.selectSurface(sceneId, surface.id)} title="Select the surface {surface.id}: its fields in the Inspector, highlighted on the stage">{surface.side}</button>
-      <input class="field" aria-label="Label of surface {surface.id}" placeholder="no label" value={labels[surface.id] ?? surface.label ?? ""}
-        oninput={e => editLabel(surface.id, e.currentTarget.value)} />
-      <button type="button" class="icon-button" disabled={busy || i === 0} onclick={() => void run(() => moveSceneSurface(sceneId, surface.id, -1))} title="Move up: one place earlier in the scene" aria-label="Move {surface.id} up"><Icon name="up" /></button>
-      <button type="button" class="icon-button" disabled={busy || i === surfaces.length - 1} onclick={() => void run(() => moveSceneSurface(sceneId, surface.id, 1))} title="Move down: one place later in the scene" aria-label="Move {surface.id} down"><Icon name="down" /></button>
-      <button type="button" class="icon-button" disabled={busy} onclick={() => (removing = removing === surface.id ? null : surface.id)} title="Remove the surface…" aria-label="Remove {surface.id}"><Icon name="close" /></button>
+      <span class="controls line">
+        <input class="field" aria-label="Label of surface {surface.id}" placeholder="no label" value={labels[surface.id] ?? surface.label ?? ""}
+          oninput={e => editLabel(surface.id, e.currentTarget.value)} />
+        <button type="button" class="icon-button" disabled={busy || i === 0} onclick={() => void run(() => moveSceneSurface(sceneId, surface.id, -1))} title="Move up: one place earlier in the scene" aria-label="Move {surface.id} up"><Icon name="up" /></button>
+        <button type="button" class="icon-button" disabled={busy || i === surfaces.length - 1} onclick={() => void run(() => moveSceneSurface(sceneId, surface.id, 1))} title="Move down: one place later in the scene" aria-label="Move {surface.id} down"><Icon name="down" /></button>
+        <button type="button" class="icon-button" disabled={busy} onclick={() => (removing = removing === surface.id ? null : surface.id)} title="Remove the surface…" aria-label="Remove {surface.id}"><Icon name="close" /></button>
+      </span>
     </div>
     <div class="row"><span class="label">size</span><span class="value muted">{surfaceSize(surface)}{surface.place && scene?.layout === "free" ? " · placed" : ""}</span></div>
     {#if removing === surface.id}
@@ -98,6 +100,9 @@
   .surface.on { box-shadow: inset 2px 0 0 var(--text); }
   .side { padding: 0; border: none; background: none; color: inherit; text-align: left; cursor: pointer; text-decoration: underline dotted; text-underline-offset: .2em; }
   .value { min-width: 0; overflow-wrap: anywhere; }
+  .line { flex-wrap: nowrap; }
+  .line .field { flex: 1; min-width: 0; }
+  .line .icon-button { flex: none; }
   .confirm { margin: .125rem 0 .25rem; }
   .confirm .pill { margin-left: .25rem; }
 </style>

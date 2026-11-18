@@ -339,7 +339,8 @@
     const version = scenes.version;
     if (version === scenesSeen) return;
     scenesSeen = version;
-    untrack(() => void content.load(bookId).catch(failed));
+    // The open scene's surfaces may have changed (#314): the stage lays the scene out again from the new draft
+    untrack(() => void content.load(bookId).then(() => stage?.relayout()).catch(failed));
   });
   /** A card opens its scene; a scene just made is in the draft first */
   // The experience's address opens the scene last open here (the overview page is gone – Tilman, 2026-11-18)
