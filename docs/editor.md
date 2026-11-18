@@ -509,7 +509,9 @@ counts, its icon and its empty cells too (the chevron and the eye keep their own
 says what its tap does. Entries and nodes fold; the column collapses to its bar (‹ ›, kept on the device; until it is
 toggled there, it starts collapsed in a window under 64rem – a tablet in portrait gives the panel its 25rem and the
 stage the rest, #172). With a finger the rows are the touch control height, the chevrons and the eye as tall as the row
-(#171).
+(#171). Under the spread row the **Surfaces** level (#314): the scene's surfaces (label · side), a tap selects one
+(the Inspector shows it, the stage highlights it), its **+** adds a page, a wall or a custom one, Alt ↑ ↓ and a row's menu
+reorder.
 
 - **+ target** at the end of the tree opens the form for a new target on the spread: title, page, the printed image
   (*Library…* or *Upload…*), **what appears on the page** (none, model, video, image, text, group or light, with its file
@@ -633,7 +635,8 @@ resizes like the others, a row or – its button, #315 – a column, and never f
 `lib/tool-groups.ts`), icons only (its menus add the names), every button's label its tooltip:
 
 - **the tool** – **select** (a plain pointer, **Q**: a click picks what the filters allow, the selection is outlined, no
-  gizmo; the tool a workspace starts with) or the [gizmo](#the-gizmo)'s **move / rotate / scale** (**W / E / R**) –,
+  gizmo; the tool a workspace starts with), the [gizmo](#the-gizmo)'s **move / rotate / scale** (**W / E / R**) or
+  **surface** (**S**, #314 – the Surface mode: [Surfaces on the stage](#surfaces-on-the-stage-314)) –,
   the **select filters** – **entities, targets, models, nodes**, in this order, each a toggle saying what a click may
   pick, for every tool; with none on a click picks anything ([Picking](#picking-hover-and-the-stages-menu)); the
   collapsed group's menu has checkbox items and stays open while they are switched – and **render quality** (wire /
@@ -715,9 +718,22 @@ on, the table shows a faint **scene grid** (every five grid steps, at least 50 m
 lying flat on the table, each at its size; a print on a wall or a turned surface snaps in that surface's own plane, to
 its edges and the prints on it (no guides; the per-surface grid is #316).
 
-For the Surface mode: `Stage.setSurfaceMarks(outlined, highlighted)` outlines surfaces by id (the highlighted one in
-orange), the `surfacePick` event names the surface a tap hit (mm from its top left corner, or null; `Stage.onSurfacePick`),
-and the layout snapshot lists the open scene's surfaces (`Stage.surfaces()`: id, side, size, `own`, `flat`).
+For the Surface mode: `Stage.setSurfaceMarks(outlined, highlighted)` outlines surfaces by id (grey; the highlighted one
+white with a black line just inside, monochrome – RULES #38), the `surfacePick` event names the surface a tap hit (mm
+from its top left corner, or null; `Stage.onSurfacePick`), and the layout snapshot lists the open scene's surfaces
+(`Stage.surfaces()`: id, side, size, `own`, `flat`).
+
+**The Surface mode** (#314): the toolbar's tool group has a **Surface** tool (S, after Q / W / E / R). With it the
+stage outlines the open scene's own surfaces, the one under the mouse a lighter grey; a click selects a surface – no
+target, no node (the frame sends no `pick` in this mode) – and Esc deselects (the spread again). A surface selected in
+the Tree or the Inspector stays highlighted in the other tools too. In a **free** scene the selected surface carries its
+own gizmo (`stage/surface-gizmo.ts`): `TransformControls` on a stand-in in the scene's coordinate system (a root turned
++90° about x into the stage frame, so position and Euler XYZ are the content's `place`), move or rotate as the
+Inspector's *gizmo* row says, snapped to 10 mm / 15° while snapping is on. The stand-in and its white outline move at
+once; when the drag ends the frame sends `surfacePlace` and the page saves the place with the scene's list (one autosave
+subject per scene) – the board follows once the draft has it (the stand-in holds the dragged place meanwhile). A change
+of the scenes (`scenes.version`) loads the draft and lays the open scene out again (`Stage.relayout` sends the newest
+draft first).
 
 ### Grid, origin and snapping
 
@@ -960,14 +976,37 @@ label), its **targets** against the loading window with a meter (warning colour 
 label), and **the scenes in the group** with their targets, each a link that opens it, and **Ungroup** (the group goes,
 its scenes stay in place).
 
+### Inspector: a surface (#314)
+
+A surface selected (the Surface tool's click, the Tree's Surfaces level, a side in the scene's surfaces – the
+selection's `surface` level, scene and surface id) shows `SurfaceView.svelte`: the crumb *scene › surface*; its
+**label** as printed, its **side** (`SURFACE_SIDES`, a later MINOR's word kept), its **size** (W × H mm) and its place
+in the scene's order (↑ ↓); *place* – in a free scene **position** (x y z mm) and **rotation** (x y z °, Euler XYZ) and
+the *gizmo* row (move / rotate, for the Surface tool's gizmo), *back into the row* drops the place; in a fixed scene a
+line and *make free*; the **reference image** (editor-only, never in the content – Library… with the Library as a
+picker, Upload…, the fit cover / contain / stretch, remove; `PUT …/scenes/{id}/surfaces/{surface}/reference` through
+`scenes.putReference`, which reads the references again – `scenes.references`, the stage's source too); *remove
+surface* with the same confirmation as the list. Every field saves itself with the scene's whole list. The History
+calls a reference's change *Reference image · scene · surface* (*image replaced*, a fit changed, removed) and files it
+under its scene; the Library's usage line says *reference image of scene · surface*.
+
+The placement rows of a target and the new-target form offer the scene's **own surfaces** by id (a fold-out's middle, a
+wall – their label and side) instead of only the sides, and write `surfaceId` with a side older apps read
+(`surfaceChoices`; content without surfaces keeps left / right or the cover's face).
+
 ### Inspector: the spread
 
 With the spread selected the Inspector shows `SpreadView.svelte` (#227, #229 – the Stage tab's sections, moved there):
 
 - *scene* and *surfaces* (#307 phase 3a, `SceneSection.svelte`) – above the spread's own: the scene's **label** (what the
   reader's switcher and lists show; empty: its pages), its **layout** (fixed / free), its **group** (or its own stop) and
-  its targets of 10; then every **surface** with its side, its size in mm and its **label** as printed. Each field saves
-  itself (`PUT …/scenes/{id}` – a surface label with the whole list); reference images per surface come with phase 3b.
+  its targets of 10; then the **surfaces** (#314, `SurfaceList.svelte`): each with its **label** as printed, its side
+  (a click selects the surface – the Inspector below), its size; ↑ ↓ reorder, ✕ removes after a confirmation that names
+  the targets and entries lying on it (they keep their side and fall back to it; its reference image goes too), *+ surface*
+  adds a **page** (the book's page size – the left page, the right, then a fold-out's middle), a **wall** (2000 × 1500 mm,
+  standing ahead behind the pages, `rx` 90 – a fixed scene becomes free) or a **custom** one (300 × 300 mm) and selects
+  it. Each field saves itself (`PUT …/scenes/{id}` – the whole list). The Tree's Surfaces level and the selected surface
+  run the same edits (`surface-actions.ts`, rules in `surface-edit.ts`).
 - *spread* – open on a first visit: title, pages, the format (the one control, saved to the draft), the
   post-processing in effect (the whole book's passes or the spread's own, and which) and the book's environment, or
   none – the stage's HDRI – with *edit* to the Environment tab. Closed: *spread · The door · spread*.

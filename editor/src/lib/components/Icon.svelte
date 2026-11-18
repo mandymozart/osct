@@ -82,6 +82,8 @@
     link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>',
     /** The select tool: a plain pointer (Feather mouse-pointer, #308) */
     pointer: '<path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="M13 13l6 6"></path>',
+    /** The Surface tool and a surface (#314): a sheet lying in perspective, its fold line */
+    surface: '<polygon points="7 5 22 5 17 19 2 19 7 5"></polygon><line x1="12" y1="5" x2="9.5" y2="19"></line>',
     /** A floating panel's handle: the dots it is dragged by (#308) */
     grip: '<circle cx="9" cy="6" r=".75"></circle><circle cx="15" cy="6" r=".75"></circle><circle cx="9" cy="12" r=".75"></circle><circle cx="15" cy="12" r=".75"></circle><circle cx="9" cy="18" r=".75"></circle><circle cx="15" cy="18" r=".75"></circle>',
     /** The Info panel (Feather info) */

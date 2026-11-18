@@ -25,8 +25,12 @@
   import NewSpreadForm from "#lib/NewSpreadForm.svelte";
   import { bookSource } from "#lib/book-source.svelte.js";
   import { entries } from "#lib/entries.svelte.js";
-  import { deleteEntry, errorText, isMediaAsset, listScenes, putTarget, type Asset, type MediaKind } from "#lib/api.js";
+  import { deleteEntry, errorText, isMediaAsset, putTarget, type Asset, type MediaKind } from "#lib/api.js";
   import type { SurfaceReferences } from "#lib/stage/surfaces.js";
+  import { surfaceMode as surfaceTool } from "#lib/surface-mode.svelte.js";
+  import type { SurfacePlace } from "@shared/types/game-config";
+  import { sameSurfaces, updateSurface } from "#lib/surface-edit.js";
+  import { autosave } from "#lib/autosave.svelte.js";
   import { removalStep, type RemovalStep } from "#lib/removal.js";
   import RemovalConfirm from "#lib/components/RemovalConfirm.svelte";
   import { library } from "#lib/library.svelte.js";
@@ -283,28 +287,42 @@
     const images = pageImages.bookId === bookId ? pageImages.byKey : {};
     stage?.setPageImages(images);
   });
-  // ── surface reference images (#314): the scenes list has each surface's; read again whenever the scenes change, and
-  // handed to the stage, which shows them before the page images and the layout sheet ──
-  let surfaceReferences = $state<SurfaceReferences>({});
-  $effect(() => {
-    const id = bookId;
-    void scenes.version;
-    let live = true;
-    void listScenes(id).then(list => {
-      if (!live) return;
-      const refs: SurfaceReferences = {};
-      for (const scene of list.scenes) {
-        for (const surface of scene.surfaces) {
-          if (surface.reference) (refs[scene.id] ??= {})[surface.id] = { url: surface.reference.url, fit: surface.reference.fit };
-        }
-      }
-      surfaceReferences = refs;
-    }).catch(() => { /* the stage keeps the page images and sheets */ });
-    return () => { live = false; };
+  // ── surface reference images (#314): the scenes list has each surface's (`scenes.references`, read again whenever the
+  // scenes change), handed to the stage, which shows them before the page images and the layout sheet ──
+  const surfaceReferences = $derived.by<SurfaceReferences>(() => {
+    const refs: SurfaceReferences = {};
+    if (scenes.bookId !== bookId) return refs;
+    for (const [sceneId, surfaces] of Object.entries(scenes.references)) {
+      for (const [surfaceId, reference] of Object.entries(surfaces)) (refs[sceneId] ??= {})[surfaceId] = { url: reference.url, fit: reference.fit };
+    }
+    return refs;
   });
   $effect(() => {
     stage?.setSurfaceReferences($state.snapshot(surfaceReferences));
   });
+
+  // ── the Surface mode (#314): the Surface tool outlines the open scene's surfaces, a tap selects one (no target, no
+  // node), Esc deselects; the selected one is highlighted – in a free scene with its gizmo, whose drag saves its place ──
+  const surfaceMode = $derived(stage?.tool === "surface");
+  const selectedSurface = $derived(selection.surface && selection.surface.scene === spreadId ? selection.surface.id : null);
+
+  $effect(() => {
+    const s = stage;
+    if (!s) return;
+    const own = (scenes.scene(spreadId)?.surfaces ?? []).map(surface => surface.id);
+    // Outside the Surface mode a surface selected in the Tree or the Inspector is still highlighted
+    s.setSurfaceMarks(surfaceMode ? own : [], selectedSurface);
+    s.setSurfaceGizmo(surfaceMode ? selectedSurface : null, surfaceTool.gizmo);
+  });
+  const placeSurface = (surfaceId: string, place: Required<SurfacePlace>) => {
+    const sceneId = spreadId;
+    const book = bookId;
+    autosave.queue(`scene:${book}:${sceneId}:surfaces`, async () => {
+      const surfaces = scenes.scene(sceneId)?.surfaces ?? [];
+      const next = updateSurface(surfaces, surfaceId, { place });
+      if (!sameSurfaces(next, surfaces)) await scenes.putScene(sceneId, { surfaces: next });
+    });
+  };
 
   // ── the Scenes panel (#307): the strip's pictures are the book page's (the layout's sheets, the page images); a change
   // of the order, a group or a new scene reaches the draft, so ‹ › and the stage follow ──
@@ -321,7 +339,8 @@
     const version = scenes.version;
     if (version === scenesSeen) return;
     scenesSeen = version;
-    untrack(() => void content.load(bookId).catch(failed));
+    // The open scene's surfaces may have changed (#314): the stage lays the scene out again from the new draft
+    untrack(() => void content.load(bookId).then(() => stage?.relayout()).catch(failed));
   });
   /** A card opens its scene; a scene just made is in the draft first */
   // The experience's address opens the scene last open here (the overview page is gone – Tilman, 2026-11-18)
@@ -420,6 +439,20 @@
           if (hit) selectHit(hit);
           stageMenu = { hit, x, y };
         };
+        // The Surface mode (#314): a tap selects the scene's own surface there; on none (or a page of content without
+        // surfaces) the spread
+        stage.onSurfacePick = hit => {
+          if (stage?.tool !== "surface") return;
+          stageMenu = null;
+          const own = hit && scenes.scene(spreadId)?.surfaces?.some(surface => surface.id === hit.surfaceId);
+          if (!hit || !own) {
+            selection.clear();
+            return;
+          }
+          selection.selectSurface(spreadId, hit.surfaceId);
+          select();
+        };
+        stage.onSurfacePlace = placeSurface;
         // The Code tab's saved sources run on every frame that starts (#269): their looks and components are known at once
         const started = stage;
         started.onStarted = () => void plugins.autoLoad(bookId, started);
@@ -485,14 +518,15 @@
   // ── the stage toolbar (#180, #308): the tool in hand – select or a gizmo mode –, the select filters and render quality,
   // each one button with its active option's icon and a menu, or its options side by side where the toolbar has room
   // (render quality always its menu); then grid & snap (#190) and view (#229), each always one button and its panel ──
-  const TOOL_NAMES: Record<StageTool, string> = { select: "Select", translate: "Move", rotate: "Rotate", scale: "Scale" };
-  const TOOL_ICONS: Record<StageTool, IconName> = { select: "pointer", translate: "move", rotate: "rotate", scale: "scale" };
-  /** Q / W / E / R, from the tools' own keys */
+  const TOOL_NAMES: Record<StageTool, string> = { select: "Select", translate: "Move", rotate: "Rotate", scale: "Scale", surface: "Surface" };
+  const TOOL_ICONS: Record<StageTool, IconName> = { select: "pointer", translate: "move", rotate: "rotate", scale: "scale", surface: "surface" };
+  /** Q / W / E / R / S, from the tools' own keys */
   const toolKey = (tool: StageTool) => Object.entries(TOOL_KEYS).find(([, t]) => t === tool)?.[0].toUpperCase();
-  const TOOL_OPTIONS: ToolGroupOption[] = STAGE_TOOLS.map(tool => ({
-    value: tool, name: TOOL_NAMES[tool], key: toolKey(tool), icon: TOOL_ICONS[tool],
-    label: tool === "select" ? `Select (${toolKey(tool)}) – a click picks what the filters allow, no gizmo` : `${TOOL_NAMES[tool]} (${toolKey(tool)}) – Shift or Ctrl turns snapping around`,
-  }));
+  const toolLabel = (tool: StageTool) =>
+    tool === "select" ? `Select (${toolKey(tool)}) – a click picks what the filters allow, no gizmo`
+      : tool === "surface" ? `Surface (${toolKey(tool)}) – the scene's surfaces outlined, a click selects one, Esc deselects; a free scene's surface moves with its gizmo`
+        : `${TOOL_NAMES[tool]} (${toolKey(tool)}) – Shift or Ctrl turns snapping around`;
+  const TOOL_OPTIONS: ToolGroupOption[] = STAGE_TOOLS.map(tool => ({ value: tool, name: TOOL_NAMES[tool], key: toolKey(tool), icon: TOOL_ICONS[tool], label: toolLabel(tool) }));
   /** The select filters, in this order (Tilman, #308): each says what a click may pick; none on = anything */
   const FILTER_TEXTS: Record<PickKind, { name: string; icon: IconName; label: string }> = {
     entity: { name: "Entities", icon: "package", label: "Entities – a click may pick an entity (its root)" },
@@ -602,6 +636,8 @@
     if (event.key === "ArrowRight") step(1);
     const tool = TOOL_KEYS[event.key.toLowerCase()];
     if (tool && !event.ctrlKey && !event.metaKey && !event.altKey) stage?.setTool(tool);
+    // Esc deselects a selected surface (#314, the Surface mode): the spread is selected again
+    if (event.key === "Escape" && selection.surface && !picking) selection.clear();
     // Delete removes the selected node (the tree does the same when it has the focus and stops the event)
     if ((event.key === "Delete" || event.key === "Backspace") && removeSelectedNode()) event.preventDefault();
   };

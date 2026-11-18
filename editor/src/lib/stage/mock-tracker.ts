@@ -450,6 +450,11 @@ export class MockTracker implements IImageTracker {
     return this.frames;
   }
 
+  /** The open scene's surfaces with their places in the scene (#314: the surface gizmo sits on one) */
+  sceneSurfaces(): readonly SceneSurface[] {
+    return this.surfaces;
+  }
+
   /** Where the surfaces lie for the placement math: the scene's frames, else the page format */
   private placeSurfaces(): Surfaces {
     return this.frames.length ? this.frames : this.pageFormat();

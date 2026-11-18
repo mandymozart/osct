@@ -5,6 +5,7 @@
   import { library } from "#lib/library.svelte.js";
   import { nodeAssetKinds, pickAccept, type LibraryPick } from "#lib/library-pick.js";
   import { APPEARS, CATEGORIES, CATEGORY_LABELS, categoryFor } from "#lib/new-target.js";
+  import { choiceOf, surfaceChoices } from "#lib/surface-edit.js";
   import { newNode } from "#lib/values.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import { fromOrigin, toOrigin } from "#lib/stage/origin.js";
@@ -41,6 +42,15 @@
   const format = $derived(spread.format ?? "spread");
   const closed = $derived(format === "cover" || format === "back");
   const surfaces = $derived<readonly PrintSurface[]>(closed ? [format === "cover" ? "front" : "back"] : ["left", "right"]);
+  /** The surfaces the print may lie on (#314): the scene's own by id – a fold-out's middle, a wall – else the sides above */
+  const surfaceOptions = $derived(surfaceChoices(spread.surfaces, format));
+  const surfaceLabels = $derived(Object.fromEntries(surfaceOptions.map(c => [c.value, c.label])));
+  const chooseSurface = (value: string) => {
+    const choice = surfaceOptions.find(c => c.value === value);
+    if (!choice) return;
+    surface = choice.surface;
+    surfaceId = choice.surfaceId;
+  };
   const pageLabel = (p: number) => (format === "cover" ? "cover" : format === "back" ? "back cover" : spread.matter ? `${spread.matter} matter, ${p === spread.firstPage ? "left" : "right"}` : String(p));
   let surface = $state<PrintSurface>("right");
   /** The scene's surface by id (#314): set when the handles put the ghost on one of the scene's own surfaces */
@@ -190,7 +200,7 @@
   <!-- The explanation is the section's help, not its title (RULES #32 – #170) -->
   <div class="section" data-help-name="Printed on the page" data-help="Where the image is printed: the surface, x / y in mm from the origin set in the toolbar's view group, and the printed width."><span class="section-label">printed on the page</span></div>
   <div class="row"><span class="label">surface</span>
-    <span class="controls"><Segmented options={surfaces} value={surface} onchange={s => { surface = s; surfaceId = undefined; }} /></span></div>
+    <span class="controls"><Segmented options={surfaceOptions.map(c => c.value)} labels={surfaceLabels} value={choiceOf(surfaceOptions, { surface, surfaceId })} label="Surface" onchange={chooseSurface} /></span></div>
   <div class="row"><span class="label">x · y</span>
     <span class="fields">
       <ScrubNumber value={shown.x} step={1} fallback={0} prefix="X" unit="mm" label="x from the origin" oninput={v => setShown(v, shown.y)} />

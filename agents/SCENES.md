@@ -169,7 +169,7 @@ coordinate system of #316 (part 2; the per-surface grid of #316 part 1 stays ope
   covers, each at its own size; free scenes each surface at its `place` (a wall stands); each surface shows its reference
   image (else the layout sheet as today, else paper); the scene's axes at the origin and a scene grid; targets lie on
   their surface (`surfaceId`, else the side); picks, the placement ghost and snapping work per surface.
-- **Surface mode (after both):** a Surface tool in the toolbar – the stage outlines the surfaces, a click selects one;
+- **Surface mode (done, worker – in Unreleased):** a Surface tool (S) in the toolbar – the stage outlines the surfaces, a click selects one;
   the Inspector shows it (label, side, size, place and a gizmo in a free scene, reference image, remove); the Tree has a
   Surfaces level with + surface (page / wall / custom); the scene section adds, removes and reorders.
 

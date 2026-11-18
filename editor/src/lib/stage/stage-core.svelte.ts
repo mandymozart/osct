@@ -1,8 +1,8 @@
 import { asset } from "$app/paths";
 import type { AssetPath } from "$app/types";
-import { type BufferAttribute, type BufferGeometry, type Camera, type Intersection, type Object3D, Quaternion, Raycaster, Vector2, Vector3 } from "three";
+import { type BufferAttribute, type BufferGeometry, type Camera, Group, type Intersection, type Object3D, Quaternion, Raycaster, Vector2, Vector3 } from "three";
 import type { EnvironmentData } from "@shared/types/environment";
-import type { PrintPlacement, PrintSurface } from "@shared/types/game-config";
+import type { PrintPlacement, PrintSurface, SurfacePlace } from "@shared/types/game-config";
 import { entityNodes } from "@engine/content/game-config";
 import { onAppUi } from "@engine/scene/ui";
 import { allVars, ArScene, observeEvents, resetVars, runtimeApi, type VarScope, type VarValue } from "@engine/scene";
@@ -12,7 +12,8 @@ import { getBook, getSpread, getTarget, getTargets } from "@engine/content/game-
 import { type BookAppearance, type Moment, momentDuration } from "@shared/types/appearance";
 import { SceneState, type ArStatus, type EntityData, type NodeTimeline, type PassData, type SpreadFormat } from "@engine/types";
 import { deviceStorage } from "#lib/storage.js";
-import { Gizmo, type GizmoPlacement, type GizmoSelection, type StageTool } from "./gizmo";
+import { Gizmo, isGizmoTool, type GizmoPlacement, type GizmoSelection, type StageTool } from "./gizmo";
+import { SurfaceGizmo, type SurfaceGizmoMode } from "./surface-gizmo";
 import { LightHelpers } from "./light-helper";
 import { applyShading, HOVER_COLOR, outline, SELECTION_COLOR, type Outline } from "./shading";
 import { getPreview, parseNodeKey, setPreviewActive, setTargetHidden, subscribePreview, type ShadingMode } from "./preview";
@@ -42,6 +43,8 @@ export interface PlacementChange {
 
 /** Hide → show again: the outro (0.7 s) ends before the target is found again */
 const REPLAY_GAP_MS = 900;
+/** How long a dragged surface place is shown before the draft has it (the save and the rebuild take a moment) */
+const DRAGGED_PLACE_MS = 6000;
 
 /**
  * The editor's stage as it runs in the stage frame (#234, `frame-host.svelte.ts` – the sandbox the book's plugins run
@@ -165,7 +168,7 @@ export class StageCore {
         tracker.setLookUp(this.world && this.previewing ? this.lookUp : 0);
         tracker.setPageImages(this.pageImages);
         tracker.setSurfaceReferences(this.surfaceReferences);
-        tracker.ignorePointer = event => !!this.gizmo?.busy || !!this.ghostDrag || (!!this.ghostPlace && !!this.ghostHandleAt(event.clientX, event.clientY));
+        tracker.ignorePointer = event => !!this.gizmo?.busy || !!this.surfaceGizmo?.busy || !!this.ghostDrag || (!!this.ghostPlace && !!this.ghostHandleAt(event.clientX, event.clientY));
         this.tracker = tracker;
         return tracker;
       },
@@ -214,8 +217,9 @@ export class StageCore {
     // picks by the mode – nothing of the mode's kind there picks nothing –, a right click asks for the menu of what
     // lies there
     const onClick = (event: MouseEvent) => {
-      if (onAppUi(event) || this.gizmo?.recentlyDragged() || this.ghostHandleAt(event.clientX, event.clientY) || !container.contains(event.target as Node)) return;
-      this.onPick?.(this.pick(event.clientX, event.clientY));
+      if (onAppUi(event) || this.gizmo?.recentlyDragged() || this.surfaceGizmo?.recentlyDragged() || this.ghostHandleAt(event.clientX, event.clientY) || !container.contains(event.target as Node)) return;
+      // The Surface mode (#314) picks surfaces only: no target, no node
+      if (this.tool !== "surface") this.onPick?.(this.pick(event.clientX, event.clientY));
       // Which surface the click hit (#314: the Surface mode selects by it), nothing when none
       this.onSurfacePick?.(this.surfaceAt(event.clientX, event.clientY));
     };
@@ -326,11 +330,12 @@ export class StageCore {
   private onHoverMove = (event: PointerEvent): void => {
     // A finger has no hover (its tap shows the pick at once); a mouse on a device that cannot hover neither
     if (event.pointerType !== "mouse" || !window.matchMedia?.("(hover: hover)").matches) return;
-    const busy = !!event.buttons || !!this.gizmo?.busy || !!this.ghostDrag || onAppUi(event)
+    const busy = !!event.buttons || !!this.gizmo?.busy || !!this.surfaceGizmo?.busy || !!this.ghostDrag || onAppUi(event)
       || (!!this.ghostPlace && !!this.ghostHandleAt(event.clientX, event.clientY));
     if (busy) {
       this.hoverPoint = null;
       this.hover(null);
+      this.mockStage?.setSurfaceHover(null);
       return;
     }
     // One pick per frame, however often the pointer moves
@@ -339,13 +344,25 @@ export class StageCore {
     this.hoverFrame = requestAnimationFrame(() => {
       this.hoverFrame = 0;
       const at = this.hoverPoint;
-      if (at) this.hover(this.pick(at.x, at.y));
+      if (!at) return;
+      // The Surface mode (#314) hovers surfaces: the one a click would select, outlined stronger
+      if (this.tool === "surface") {
+        this.hover(null);
+        const surface = this.surfaceAt(at.x, at.y)?.surfaceId ?? null;
+        this.mockStage?.setSurfaceHover(surface);
+        const canvas = this.scene.inspect()?.domElement;
+        if (canvas) canvas.style.cursor = surface ? "pointer" : "";
+        return;
+      }
+      this.mockStage?.setSurfaceHover(null);
+      this.hover(this.pick(at.x, at.y));
     });
   };
 
   private onHoverLeave = (): void => {
     this.hoverPoint = null;
     this.hover(null);
+    this.mockStage?.setSurfaceHover(null);
   };
 
   /** Outline what a click would pick (not again when it is the selection, which is outlined already); null = nothing */
@@ -492,6 +509,8 @@ export class StageCore {
     this.cleanups.push(inspection.onFrame(() => {
       this.syncTargetOutline();
       this.hideNodes();
+      // The surface gizmo follows the draft (a saved place, a rebuilt scene) – only while one is asked for or shown
+      if (this.surfaceGizmoAsked.surfaceId || this.surfaceGizmo) this.syncSurfaceGizmo();
     }));
   }
 
@@ -552,12 +571,57 @@ export class StageCore {
   setTool(tool: StageTool): void {
     this.tool = tool;
     this.applyTool();
+    if (tool !== "surface") this.mockStage?.setSurfaceHover(null);
+    this.syncSurfaceGizmo();
   }
 
   private applyTool(): void {
     if (!this.gizmo) return;
-    if (this.tool !== "select") this.gizmo.mode = this.tool;
-    this.gizmo.handles = this.tool !== "select";
+    if (isGizmoTool(this.tool)) this.gizmo.mode = this.tool;
+    this.gizmo.handles = isGizmoTool(this.tool);
+  }
+
+  // ── The surface gizmo (#314): in the Surface mode, on the selected surface of a free scene ──
+
+  private surfaceGizmo: SurfaceGizmo | null = null;
+  /** The surface the page put the gizmo on (null: none), and its mode */
+  private surfaceGizmoAsked: { surfaceId: string | null; mode: SurfaceGizmoMode } = { surfaceId: null, mode: "translate" };
+  /** A place just dragged, held until the draft has it (the save and the rebuild follow a moment later) */
+  private draggedPlace: { surfaceId: string; place: Required<SurfacePlace>; until: number } | null = null;
+  /** A drag of the surface gizmo ended: the surface's new place in the scene */
+  onSurfacePlace: ((surfaceId: string, place: Required<SurfacePlace>) => void) | null = null;
+
+  /** Put the surface gizmo on a surface of the open scene (null: none) – shown in the Surface mode of a free scene */
+  setSurfaceGizmo(surfaceId: string | null, mode: SurfaceGizmoMode): void {
+    this.surfaceGizmoAsked = { surfaceId, mode };
+    this.syncSurfaceGizmo();
+  }
+
+  private syncSurfaceGizmo(): void {
+    const { surfaceId, mode } = this.surfaceGizmoAsked;
+    const free = !!this.spreadId && getSpread(this.spreadId)?.layout === "free";
+    const surface = this.tool === "surface" && free && surfaceId ? this.tracker?.sceneSurfaces().find(s => s.id === surfaceId && s.own) : undefined;
+    if (!surface) {
+      this.surfaceGizmo?.show(null);
+      return;
+    }
+    if (!this.surfaceGizmo) {
+      const inspection = this.scene.inspect();
+      if (!inspection || !this.mockStage) return;
+      const parent = new Group();
+      this.mockStage.addHelper(parent);
+      this.surfaceGizmo = new SurfaceGizmo(inspection, parent, (id, place) => {
+        this.draggedPlace = { surfaceId: id, place, until: performance.now() + DRAGGED_PLACE_MS };
+        this.onSurfacePlace?.(id, place);
+      }, () => this.snapper.active());
+      this.cleanups.push(() => this.surfaceGizmo?.dispose());
+    }
+    this.surfaceGizmo.mode = mode;
+    const held = this.draggedPlace;
+    const now = performance.now();
+    const holds = !!held && held.surfaceId === surface.id && now < held.until && JSON.stringify(held.place) !== JSON.stringify(surface.place);
+    if (held && !holds) this.draggedPlace = null;
+    this.surfaceGizmo.show({ id: surface.id, place: holds ? held.place : surface.place, widthMm: surface.widthMm, heightMm: surface.heightMm });
   }
 
   /** Shift or Ctrl held (true) or let go: snapping is turned around while it is held */

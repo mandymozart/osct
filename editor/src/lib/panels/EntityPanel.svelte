@@ -25,6 +25,8 @@
   } from "#lib/values.js";
   import { MakeCodeError, materialCode, nodeTypeCode, nodeTypeOwner, takesMaterial, type MadeCode } from "#lib/plugins/make-code.js";
   import { selection } from "#lib/selection.svelte.js";
+  import { scenes } from "#lib/scenes.svelte.js";
+  import { choiceOf, placeOnChoice, surfaceChoices } from "#lib/surface-edit.js";
   import { breadcrumb } from "#lib/selection.js";
   import { ADD_PLACES, addNode, defaultAddPlace, nodeLabel, typeLabel, withName, type AddPlace } from "#lib/tree.js";
   import type { NodeTimeline } from "@engine/types";
@@ -45,6 +47,7 @@
   import SpreadView from "./SpreadView.svelte";
   import BookPanel from "./BookPanel.svelte";
   import GroupView from "./GroupView.svelte";
+  import SurfaceView from "./SurfaceView.svelte";
   import { bookEvents, bookVariables, pathOfName, rulesOf, subtreeNames, treeBehaviourIssues, withRules } from "#lib/behaviour-edit.js";
 
   /**
@@ -312,11 +315,16 @@
   const withoutSurfaceId = ({ surfaceId: _, ...rest }: PrintPlacement): PrintPlacement => rest;
   /** The shown place is where the book's layout prints the target (until it is moved), not one set in the editor */
   let placeFromLayout = $state(false);
-  /** The surfaces this spread has: the pages of the open book, or the cover's face */
-  const surfaces = $derived.by<readonly PrintPlacement["surface"][]>(() => {
-    const format = stage?.format() ?? "spread";
-    return format === "cover" ? ["front"] : format === "back" ? ["back"] : ["left", "right"];
-  });
+  /**
+   * The surfaces a print may lie on (#314): the scene's own by id – a fold-out's middle, a wall – else the pages of the
+   * open book, or the cover's face; a choice writes the surface's id and a side older apps read (`surfaceChoices`)
+   */
+  const surfaceOptions = $derived(surfaceChoices(scenes.scene(spreadId)?.surfaces, stage?.format() ?? "spread"));
+  const surfaceLabels = $derived(Object.fromEntries(surfaceOptions.map(c => [c.value, c.label])));
+  const chooseSurface = (value: string) => {
+    const choice = surfaceOptions.find(c => c.value === value);
+    if (choice) editPrint(placeOnChoice(print, choice));
+  };
   /**
    * A target without a place of its own: where the stage shows it – the book's layout, else the stage's fallback place –
    * so the rows, the handles and the print agree from the first look
@@ -590,6 +598,9 @@
 {:else if selection.group}
   <!-- A band of the Scenes panel (#307): the group -->
   <GroupView {bookId} groupId={selection.group} />
+{:else if selection.surface}
+  <!-- A surface of a scene (#314): the Surface mode's tap, the Tree's Surfaces level -->
+  <SurfaceView {bookId} sceneId={selection.surface.scene} surfaceId={selection.surface.id} />
 {:else if entry}
   <!-- The form stays while the Library picks its picture: its edits are its own -->
   {#if picking}<LibraryPanel {bookId} pick={picking} />{/if}
@@ -639,7 +650,7 @@
       onlibrary={pickTargetImage} onupload={f => { const id = target?.id; if (id) void setTargetImage(id, f); }} /></div>
   {#if printOpen}
     <div class="row"><span class="label">surface</span>
-      <span class="controls"><Segmented options={surfaces} value={print.surface} onchange={s => editPrint({ ...withoutSurfaceId(print), surface: s })} /></span></div>
+      <span class="controls"><Segmented options={surfaceOptions.map(c => c.value)} labels={surfaceLabels} value={choiceOf(surfaceOptions, print)} label="Surface" onchange={chooseSurface} /></span></div>
     <div class="row"><span class="label">x · y</span>
       <span class="fields">
         <ScrubNumber value={shown.x} step={1} fallback={0} prefix="X" unit="mm" label="printed x" oninput={v => setShown(v, shown.y)} />

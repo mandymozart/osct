@@ -19,11 +19,14 @@ export const GIZMO_MODES: readonly GizmoMode[] = ["translate", "rotate", "scale"
 export const GIZMO_KEYS: Record<string, GizmoMode> = { w: "translate", e: "rotate", r: "scale" };
 /**
  * The tool in hand (#308): **select**, a plain pointer – a click picks, the selection is outlined, no gizmo – or one of
- * the gizmo's modes. Q / W / E / R.
+ * the gizmo's modes – or **surface** (#314, the Surface mode): the scene's surfaces outlined, a click selects a surface
+ * (no target, no node), the selected one highlighted (in a free scene with its own gizmo). Q / W / E / R / S.
  */
-export type StageTool = "select" | GizmoMode;
-export const STAGE_TOOLS: readonly StageTool[] = ["select", ...GIZMO_MODES];
-export const TOOL_KEYS: Record<string, StageTool> = { q: "select", ...GIZMO_KEYS };
+export type StageTool = "select" | GizmoMode | "surface";
+export const STAGE_TOOLS: readonly StageTool[] = ["select", ...GIZMO_MODES, "surface"];
+export const TOOL_KEYS: Record<string, StageTool> = { q: "select", ...GIZMO_KEYS, s: "surface" };
+/** The tool is one of the gizmo's modes (the node's handles show) */
+export const isGizmoTool = (tool: StageTool): tool is GizmoMode => (GIZMO_MODES as readonly string[]).includes(tool);
 /** A click this soon after a drag ended is the drag's own click, not a tap */
 const DRAG_CLICK_MS = 300;
 

@@ -23,8 +23,8 @@ describe("the gizmo's placement", () => {
   });
 
   it("Q is the select tool – a pointer without the gizmo – before the modes (#308)", () => {
-    expect(STAGE_TOOLS).toEqual(["select", "translate", "rotate", "scale"]);
-    expect(TOOL_KEYS).toEqual({ q: "select", w: "translate", e: "rotate", r: "scale" });
+    expect(STAGE_TOOLS).toEqual(["select", "translate", "rotate", "scale", "surface"]);
+    expect(TOOL_KEYS).toEqual({ q: "select", w: "translate", e: "rotate", r: "scale", s: "surface" });
   });
 });
 

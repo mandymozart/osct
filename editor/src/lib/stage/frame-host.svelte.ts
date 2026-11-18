@@ -8,7 +8,7 @@ import type { EnvironmentData } from "@shared/types/environment";
 import type { BookAppearance, Moment } from "@shared/types/appearance";
 import {
   type ContentSnapshot, contentBasesNamed, libraryFoldersOf, eventMessage, type FrameEventName, type FrameEvents, type FrameInit, frameCsp, isForwardedKey, type KeyForward, type LayoutSnapshot,
-  LOG_MAX, pageImageMap, readFrameRequest, surfaceMarks, surfaceReferenceMap, REMOVED_WIRE, type TimelineSnapshot,
+  LOG_MAX, pageImageMap, readFrameRequest, surfaceGizmoRequest, surfaceMarks, surfaceReferenceMap, REMOVED_WIRE, type TimelineSnapshot,
 } from "./frame-protocol";
 import { STAGE_TOOLS, type StageTool } from "./gizmo";
 import type { PickFilter } from "./pick";
@@ -153,6 +153,7 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     s.onContextMenu = (hit, x, y) => post("contextMenu", { hit, x, y });
     s.onGhostChange = place => post("ghostChange", place);
     s.onSurfacePick = hit => post("surfacePick", hit);
+    s.onSurfacePlace = (surfaceId, place) => post("surfacePlace", { surfaceId, place });
     s.onPlacement = (selection, placement) => post("placement", { targetId: selection.targetId, path: [...selection.path], placement });
     cleanups.push($effect.root(() => {
       $effect(() => {
@@ -185,6 +186,10 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     surfaceMarks: (outlined: unknown, highlighted: unknown) => {
       const marks = surfaceMarks(outlined, highlighted);
       stage().setSurfaceMarks(marks.outlined, marks.highlighted);
+    },
+    surfaceGizmo: (surfaceId: unknown, mode: unknown) => {
+      const asked = surfaceGizmoRequest(surfaceId, mode);
+      stage().setSurfaceGizmo(asked.surfaceId, asked.mode);
     },
     override: (targetId: string, entity: EntityData | typeof REMOVED_WIRE | null) => stage().override(targetId, entity === REMOVED_WIRE ? StageCore.REMOVED : entity),
     overridePasses: (passes: PassData[] | null) => stage().overridePasses(passes),

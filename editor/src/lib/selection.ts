@@ -30,6 +30,17 @@ export interface SelectionState {
   book?: boolean;
   /** A group is selected (its id – a band of the Scenes panel, #307): the Inspector shows the group, nothing on the stage */
   group?: string | null;
+  /**
+   * A surface of a scene is selected (#314, the Surface mode, the Tree's Surfaces level): the Inspector shows it, the stage
+   * highlights it – no target, node or entry
+   */
+  surface?: SurfaceRef | null;
+}
+
+/** A surface of a scene by ids (#314) */
+export interface SurfaceRef {
+  scene: string;
+  id: string;
 }
 
 /**
@@ -39,6 +50,7 @@ export interface SelectionState {
 export const settledSelection = (selection: SelectionState): SelectionState => {
   if (selection.book) return { target: null, node: [], onTarget: true, spread: false, entry: null, book: true };
   if (selection.group) return { target: null, node: [], onTarget: true, spread: false, entry: null, group: selection.group };
+  if (selection.surface) return { target: null, node: [], onTarget: true, spread: false, entry: null, surface: { scene: selection.surface.scene, id: selection.surface.id } };
   if (selection.spread || (!selection.target && !selection.entry)) return { target: null, node: [], onTarget: true, spread: true, entry: null };
   return { ...selection, spread: false, entry: selection.entry ?? null };
 };
@@ -50,8 +62,9 @@ export const selectionLevel = (selection: SelectionState, hasTree: boolean): Sel
   return selection.node.length ? "node" : "entity";
 };
 
-/** One level up: a node → its parent, the entity → its target; the target (an entry, the spread) stays */
+/** One level up: a node → its parent, the entity → its target, a surface → the spread; the target (an entry, the spread) stays */
 export const parentSelection = (selection: SelectionState): SelectionState => {
+  if (selection.surface) return { target: null, node: [], onTarget: true, spread: true };
   if (selection.book || selection.group || selection.spread || selection.entry || !selection.target || selection.onTarget) return { ...selection, node: [] };
   if (!selection.node.length) return { target: selection.target, node: [], onTarget: true };
   return { target: selection.target, node: selection.node.slice(0, -1), onTarget: false };

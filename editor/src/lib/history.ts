@@ -65,6 +65,7 @@ export const undoKey = (event: Pick<KeyboardEvent, "key" | "ctrlKey" | "metaKey"
 const KIND_WORDS: Record<string, string> = {
   entity: "Entity", target: "Target", entry: "Entry", spread: "Scene", order: "Scene order", groups: "Groups",
   environment: "Environment", passes: "Post-processing", appearance: "Appearance", book: "Experience", plugin: "Plugin", asset: "File",
+  reference: "Reference image",
 };
 /** A kind in words (the History's filter and its rows) */
 export const kindWord = (kind: string): string => KIND_WORDS[kind] ?? kind;
@@ -81,7 +82,18 @@ export const changeTitle = (c: Pick<Change, "kind" | "ref">, names: Names = {}):
   const word = kindWord(c.kind);
   const name = c.kind === "spread" ? names.scene?.(c.ref) : c.kind === "entry" ? names.entry?.(c.ref) : c.kind === "target" ? names.target?.(c.ref) : undefined;
   if (["order", "groups", "environment", "passes", "appearance", "book"].includes(c.kind)) return word;
+  // A surface's reference image (#314): its ref is `scene/surface` – "Reference image Pages 2–3 · left"
+  if (c.kind === "reference") {
+    const { scene, surface } = referenceRef(c.ref);
+    return `${word} ${names.scene?.(scene) || scene} · ${surface}`;
+  }
   return `${word} ${name || c.ref}`;
+};
+
+/** A reference image's change ref (`scene/surface`, #314) as its scene and surface */
+export const referenceRef = (ref: string): { scene: string; surface: string } => {
+  const at = ref.lastIndexOf("/");
+  return at < 0 ? { scene: ref, surface: "" } : { scene: ref.slice(0, at), surface: ref.slice(at + 1) };
 };
 
 const short = (value: unknown, max = 24): string => {
@@ -110,6 +122,11 @@ export const changeSummary = (c: Pick<Change, "kind" | "before" | "after">): str
   if (c.after === null || c.after === undefined) return "removed";
   if (c.kind === "order") return "scenes moved";
   if (c.kind === "plugin") return "source changed";
+  if (c.kind === "reference") {
+    // A reference image (#314): replaced, or its fit / name changed
+    const [before, after] = [c.before as { url?: unknown; fit?: unknown }, c.after as { url?: unknown; fit?: unknown }];
+    if (before?.url !== after?.url) return "image replaced";
+  }
   const diff = differences(c.before, c.after);
   if (!diff.length) return "no difference";
   return diff.map(d => `${d.path ? `${d.path}: ` : ""}${short(d.before)} → ${short(d.after)}`).join(" · ");
@@ -151,6 +168,7 @@ export const treeNames = (tree: BookTree | null): { names: Names; scenesOf: Scen
     },
     scenesOf: c => {
       if (c.kind === "spread") return [c.ref];
+      if (c.kind === "reference") return [referenceRef(c.ref).scene];
       if (c.kind === "entry") return scenesWhere(e => e.id === c.ref);
       if (c.kind === "target") return scenesWhere(e => e.target?.id === c.ref);
       if (c.kind === "entity") return scenesWhere(e => (e.target?.entity as { ref?: string } | undefined)?.ref === c.ref);

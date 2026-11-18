@@ -4,20 +4,22 @@
   import Segmented from "#lib/components/Segmented.svelte";
   import { autosave } from "#lib/autosave.svelte.js";
   import { scenes } from "#lib/scenes.svelte.js";
-  import { sceneName, surfaceSize, targetsOf } from "#lib/scene-strip.js";
+  import { sceneName, targetsOf } from "#lib/scene-strip.js";
   import { errorText } from "#lib/api.js";
   import { selection } from "#lib/selection.svelte.js";
   import Icon from "#lib/components/Icon.svelte";
-  import { SCENE_LAYOUTS, type SceneLayout, type SurfaceData } from "@shared/types/game-config";
+  import { DEFAULT_PAGE_MM } from "#lib/stage/stage-layout.js";
+  import { SCENE_LAYOUTS, type SceneLayout } from "@shared/types/game-config";
+  import SurfaceList from "./SurfaceList.svelte";
 
   /**
    * The open **scene** in the Inspector (#307 phase 3a), above the spread's own sections: its label (what the reader's
    * switcher and lists show), its layout (fixed – printed together – or free), its group, its targets, and its
-   * **surfaces** – each with its side, its size and its label as printed (editable). Every field saves itself
-   * (`PUT …/scenes/{id}`, RULES #37); a surface's label goes with the whole list, as the API takes it. Reference images
-   * per surface come with phase 3b.
+   * **surfaces** (#314, `SurfaceList`): each with its label as printed (editable), side and size; add a page, a wall or a
+   * custom one, reorder, remove; a click on one selects it – the Inspector shows its size, place and reference image (the
+   * same edits as the Tree's Surfaces level and the Surface mode). Every field saves itself (`PUT …/scenes/{id}`, RULES #37).
    */
-  let { bookId, spreadId }: { bookId: string; spreadId: string } = $props();
+  let { bookId, spreadId, page = DEFAULT_PAGE_MM }: { bookId: string; spreadId: string; page?: { width: number; height: number } } = $props();
 
   $effect(() => {
     const id = bookId;
@@ -27,16 +29,12 @@
   const scene = $derived(scenes.scene(spreadId));
   /** What was typed, per scene – a save's answer never writes over it */
   let label = $state("");
-  let surfaceLabels = $state<Record<string, string>>({});
   let shownFor: string | null = null;
   $effect(() => {
     const s = scene;
     if (!s || s.id === shownFor) return;
     shownFor = s.id;
-    untrack(() => {
-      label = s.label ?? "";
-      surfaceLabels = Object.fromEntries((s.surfaces ?? []).map(surface => [surface.id, surface.label ?? ""]));
-    });
+    untrack(() => (label = s.label ?? ""));
   });
 
   let error = $state<string | null>(null);
@@ -53,20 +51,6 @@
     const id = spreadId;
     autosave.queue(`scene:${bookId}:${id}:label`, async () => {
       if ((scenes.scene(id)?.label ?? "") !== value.trim()) await scenes.putScene(id, { label: value.trim() || null });
-    });
-  };
-  const editSurface = (surfaceId: string, value: string) => {
-    surfaceLabels = { ...surfaceLabels, [surfaceId]: value };
-    const id = spreadId;
-    const labels = $state.snapshot(surfaceLabels);
-    autosave.queue(`scene:${bookId}:${id}:surfaces`, async () => {
-      const surfaces = scenes.scene(id)?.surfaces ?? [];
-      const next: SurfaceData[] = surfaces.map(s => {
-        const { label: _old, ...rest } = s;
-        const typed = (labels[s.id] ?? s.label ?? "").trim();
-        return typed ? { ...rest, label: typed } : rest;
-      });
-      if (next.some((s, i) => (s.label ?? "") !== (surfaces[i].label ?? ""))) await scenes.putScene(id, { surfaces: next });
     });
   };
   const LAYOUT_TITLES: Record<SceneLayout, string> = {
@@ -99,24 +83,13 @@
     {#if error}<p class="small danger">{error}</p>{/if}
   </Section>
 
-  <Section id="stage.surfaces" label="surface labels" summary={String(scene.surfaces?.length ?? 0)}
-    help="The scene's physical areas in order – a left and a right page, a fold-out's third, a cover, a wall – with their size and label as printed.">
-    {#each scene.surfaces ?? [] as surface (surface.id)}
-      <div class="surface">
-        <div class="row" data-help="The surface's label, written exactly as printed (41, ii, Cover) – none when nothing is printed. Saved by itself.">
-          <span class="label">{surface.side}</span>
-          <input class="field" aria-label="Label of surface {surface.id}" placeholder="no label" value={surfaceLabels[surface.id] ?? surface.label ?? ""}
-            oninput={e => editSurface(surface.id, e.currentTarget.value)} /></div>
-        <div class="row"><span class="label">size</span><span class="value muted">{surfaceSize(surface)}</span></div>
-      </div>
-    {:else}
-      <p class="small muted">No surfaces yet – the book's migration (migrate_scenes) gives a scene its pages as surfaces.</p>
-    {/each}
+  <Section id="stage.surfaces" label="surfaces" summary={String(scene.surfaces?.length ?? 0)}
+    help="The scene's physical areas in order – a left and a right page, a fold-out's third, a cover, a wall – with their label as printed, side and size. Add, reorder, remove; a click on a side selects the surface (its size, place and reference image). The Surface tool (S) picks them on the stage.">
+    <SurfaceList {bookId} sceneId={spreadId} {page} />
   </Section>
 {/if}
 
 <style>
   .value { min-width: 0; overflow-wrap: anywhere; }
-  .surface + .surface { border-top: 1px solid var(--line); padding-top: .125rem; }
   .group-link { flex: none; margin-left: .25rem; }
 </style>

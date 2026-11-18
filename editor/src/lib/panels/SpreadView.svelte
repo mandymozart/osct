@@ -49,7 +49,7 @@
   };
 </script>
 
-<SceneSection {bookId} {spreadId} />
+<SceneSection {bookId} {spreadId} page={stage?.pageFormat()} />
 
 <!-- The scene's own post-processing, a child of its parameters; the experience's passes and appearance are behind the
      experience settings ⚙ (BookPanel) – #307 3c, Tilman -->

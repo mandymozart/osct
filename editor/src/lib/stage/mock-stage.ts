@@ -162,9 +162,14 @@ const SCENE_GRID_COLOR = 0x9aa4b2;
 const SCENE_GRID_EXTENT_MM = { x: 900, y: 400 };
 /** A free scene's surface is a board this thick (m), lying behind its face */
 const BOARD_THICKNESS = 0.0015;
-/** The surfaces' outlines (#314, the Surface mode): all surfaces, and the highlighted one */
-const SURFACE_OUTLINE_COLOR = 0x2d7ff9;
-const SURFACE_HIGHLIGHT_COLOR = 0xff9f1c;
+/**
+ * The surfaces' outlines (#314, the Surface mode): all surfaces grey, the hovered one lighter, the highlighted (selected)
+ * one white with a black line inside – the editor is monochrome (RULES #38)
+ */
+const SURFACE_OUTLINE_COLOR = 0x8c8c8c;
+const SURFACE_HOVER_COLOR = 0xc8c8c8;
+const SURFACE_HIGHLIGHT_COLOR = 0xffffff;
+const SURFACE_HIGHLIGHT_INNER_COLOR = 0x111111;
 
 /** Lays a plane (its face +z) on a surface: centred at (x, y) mm of the surface, `lift` m off its face, turned with it */
 const layOnSurface = (object: Object3D, frame: SurfaceFrame, x: number, y: number, lift: number): void => {
@@ -707,16 +712,40 @@ export class MockStage implements StageView {
     return this.frames;
   }
 
+  /** The surface under the pointer in the Surface mode (#314): outlined stronger than the others, under the highlight */
+  setSurfaceHover(id: string | null): void {
+    if (id === this.hoveredSurface) return;
+    this.hoveredSurface = id;
+    this.drawMarks();
+    this.toBackdropLayer();
+  }
+  private hoveredSurface: string | null = null;
+
+  /** An editor helper that lives in the stage frame (moves with the stage): the surface gizmo's stand-in */
+  addHelper(object: Object3D): void {
+    this.group.add(object);
+  }
+
   private drawMarks(): void {
     clearLines(this.marksGroup);
-    const outline = (frame: SurfaceFrame): number[] => {
-      const corners = [[0, 0], [frame.widthMm, 0], [frame.widthMm, frame.heightMm], [0, frame.heightMm]].map(([x, y]) => toStage(frame, x, y, 0));
+    // A loop `inset` mm inside the surface's edges
+    const outline = (frame: SurfaceFrame, inset = 0): number[] => {
+      const a = Math.min(inset, frame.widthMm / 4, frame.heightMm / 4);
+      const corners = [[a, a], [frame.widthMm - a, a], [frame.widthMm - a, frame.heightMm - a], [a, frame.heightMm - a]].map(([x, y]) => toStage(frame, x, y, 0));
       return corners.flatMap((corner, i) => [...corner, ...corners[(i + 1) % 4]].map(v => v / 1000));
     };
-    const outlined = this.frames.filter(f => this.marks.outlined.includes(f.id) && f.id !== this.marks.highlighted);
-    addLines(this.marksGroup, outlined.flatMap(outline), SURFACE_OUTLINE_COLOR, 0.9, true);
-    const highlighted = this.frames.find(f => f.id === this.marks.highlighted);
-    if (highlighted) addLines(this.marksGroup, outline(highlighted), SURFACE_HIGHLIGHT_COLOR, 1, true);
+    const { highlighted } = this.marks;
+    const hovered = this.hoveredSurface !== highlighted ? this.hoveredSurface : null;
+    const outlined = this.frames.filter(f => this.marks.outlined.includes(f.id) && f.id !== highlighted && f.id !== hovered);
+    addLines(this.marksGroup, outlined.flatMap(f => outline(f)), SURFACE_OUTLINE_COLOR, 0.9, true);
+    const hover = this.frames.find(f => f.id === hovered);
+    if (hover) addLines(this.marksGroup, [...outline(hover), ...outline(hover, 1)], SURFACE_HOVER_COLOR, 1, true);
+    // The selected one in two tones (monochrome, RULES #38): white on the dark desk, black just inside on the paper
+    const selected = this.frames.find(f => f.id === highlighted);
+    if (selected) {
+      addLines(this.marksGroup, [...outline(selected), ...outline(selected, 0.6)], SURFACE_HIGHLIGHT_COLOR, 1, true);
+      addLines(this.marksGroup, [...outline(selected, 1.4), ...outline(selected, 2)], SURFACE_HIGHLIGHT_INNER_COLOR, 1, true);
+    }
   }
   /** The targets hidden in the tree (the eye): their printed images go with their AR content, so the scene shows neither */
   setHiddenPrints(hidden: ReadonlySet<string>): void {

@@ -62,7 +62,10 @@ describe("readFrameEvent: the page acts only on well-formed events", () => {
     expect(readFrameEvent(event("key", key({ key: "e", ctrlKey: true })))).toBeNull();
     expect(readFrameEvent(event("key", key({ key: "Enter", code: "Enter", ctrlKey: true })))).toBeNull();
     expect(readFrameEvent(event("key", key({ key: "p", code: "KeyP" })))).toBeNull();
-    expect(FORWARDED_KEYS).not.toContain("s");
+    // S is the Surface tool (#314): forwarded alone, never with Ctrl or Meta (the Code tab's save)
+    expect(FORWARDED_KEYS).toContain("s");
+    expect(isForwardedKey(key({ key: "s", code: "KeyS" }))).toBe(true);
+    expect(readFrameEvent(event("key", key({ key: "s", code: "KeyS", metaKey: true })))).toBeNull();
     expect(isForwardedKey(key({ key: "E" }))).toBe(true);
   });
 });

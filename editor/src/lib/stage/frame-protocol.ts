@@ -1,6 +1,6 @@
 import type { PluginRegistrySnapshot } from "@engine/scene/plugins";
 import type { ArStatus, EntityData } from "@engine/types";
-import type { PrintPlacement } from "@shared/types/game-config";
+import type { PrintPlacement, SurfacePlace } from "@shared/types/game-config";
 import { PRINT_SURFACES } from "@shared/types/game-config";
 import { isObject } from "@shared/guards/primitives";
 import { STAGE_TOOLS, TOOL_KEYS, type GizmoPlacement, type StageTool } from "./gizmo";
@@ -142,6 +142,8 @@ export interface FrameEvents {
   ghostChange: { surface: PrintPlacement["surface"]; surfaceId?: string; x: number; y: number; width: number; height?: number };
   /** A tap on the stage: the surface it hit (#314), sent with every tap after `pick` */
   surfacePick: SurfacePick;
+  /** A drag of the surface gizmo ended (#314, a free scene's surface): its new place in the scene (mm, degrees) */
+  surfacePlace: { surfaceId: string; place: Required<SurfacePlace> };
   /** The frame changed the preview (an orbit, a hidden target): the page stores it */
   preview: PreviewSync;
   key: KeyForward;
@@ -158,7 +160,7 @@ export const NO_ANSWER = "the stage did not answer";
 
 /** The methods the frame answers (`frame-host.svelte.ts`) */
 export const FRAME_METHODS = [
-  "init", "content", "open", "refresh", "relayout", "pageImages", "surfaceReferences", "surfaceMarks", "override", "overridePasses", "overrideAppearance", "playMoment", "selectNode", "selectTarget", "setPickFilter", "setTool",
+  "init", "content", "open", "refresh", "relayout", "pageImages", "surfaceReferences", "surfaceMarks", "surfaceGizmo", "override", "overridePasses", "overrideAppearance", "playMoment", "selectNode", "selectTarget", "setPickFilter", "setTool",
   "setSnapModifier", "showEnvironment", "setLookUp", "ghost", "preview", "replayUnlock", "resetNarrative", "setLive", "clearEvents", "setVar", "tap",
   "sampleColor", "timeline", "runPlugin",
 ] as const;
@@ -225,6 +227,8 @@ const CHECKS: { [N in FrameEventName]: (data: unknown) => boolean } = {
     && isObject(data.places) && Object.values(data.places).every(p => isObject(p) && (p.printed === null || isPlacement(p.printed)) && (p.place === null || isPlacement(p.place)))
     && (data.surfaces === undefined || (Array.isArray(data.surfaces) && data.surfaces.length <= 64 && data.surfaces.every(isSurface))),
   surfacePick: data => data === null || (isObject(data) && isId(data.surfaceId) && isFiniteNumber(data.x) && isFiniteNumber(data.y)),
+  surfacePlace: data => isObject(data) && isId(data.surfaceId) && isObject(data.place)
+    && ["x", "y", "z", "rx", "ry", "rz"].every(key => isFiniteNumber((data.place as Record<string, unknown>)[key])),
   timelines: data => isObject(data) && Object.values(data).every(t => isObject(t) && Array.isArray(t.clips)
     && t.clips.every(c => isObject(c) && isString(c.name) && isFiniteNumber(c.duration))
     && isObject(t.state) && isString(t.state.clip) && isFiniteNumber(t.state.time) && typeof t.state.playing === "boolean" && isFiniteNumber(t.state.duration)),
@@ -292,6 +296,12 @@ export const surfaceReferenceMap = (value: unknown): SurfaceReferences => {
 export const surfaceMarks = (outlined: unknown, highlighted: unknown): { outlined: string[]; highlighted: string | null } => ({
   outlined: Array.isArray(outlined) ? outlined.filter(isId).slice(0, 64) : [],
   highlighted: isId(highlighted) ? highlighted : null,
+});
+
+/** The surface gizmo the page asks for (`surfaceGizmo`, #314): a surface id or none, move or rotate */
+export const surfaceGizmoRequest = (surfaceId: unknown, mode: unknown): { surfaceId: string | null; mode: "translate" | "rotate" } => ({
+  surfaceId: isId(surfaceId) ? surfaceId : null,
+  mode: mode === "rotate" ? "rotate" : "translate",
 });
 
 export const readFrameRequest = (message: unknown): FrameRequest | null =>
