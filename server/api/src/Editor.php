@@ -24,26 +24,15 @@ final class Editor
     /** The entry categories of the content contract (shared/types/entry.ts `ENTRY_CATEGORIES`) */
     public const ENTRY_CATEGORIES = ['glossary', 'video', 'text', 'link'];
     /**
-     * The onboarding a configuration carries for apps of content schema 2.24 and before (shared/compat/tutorial.ts
-     * `COMPAT_TUTORIAL`): the reader's own English steps, written by every draft and publish until the next schema MAJOR
+     * The content schema the editor reads and the draft writes (shared/types/game-config.ts `CONTENT_SCHEMA_VERSION`): a
+     * book of an older MAJOR is migrated first (`Migration3`, #319)
      */
-    public const COMPAT_TUTORIAL = [
-        ['id' => 'splash', 'index' => 0, 'title' => '{{title}}', 'description' => '{{author}}', 'footer' => '{{publisher}}', 'fadeIn' => 800, 'stagger' => 500, 'advance' => 3800],
-        ['id' => 'intro', 'index' => 1, 'description' => 'This application allows you to reveal videos, texts and key references hidden in the printed publication *{{title}}*.',
-            'illustration' => '/assets/illustrations/tutorial-step-1.svg', 'button' => 'Continue'],
-        ['id' => 'camera', 'index' => 2, 'description' => "To scan the book and display interactive content, this application requires access to your camera.
-
-Please, grant access to proceed.",
-            'illustration' => '/assets/illustrations/tutorial-step-2.svg', 'button' => 'Grant access', 'action' => 'camera'],
-        ['id' => 'done', 'index' => 3, 'title' => 'Thank you!', 'button' => 'Access scan', 'action' => 'scan'],
-    ];
+    public const CONTENT_SCHEMA = '3.0';
+    public const CONTENT_SCHEMA_MAJOR = 3;
     /** A book's source of truth (shared/types/game-config.ts `SOURCES_OF_TRUTH`, #238): print first or digital first */
     public const SOURCES_OF_TRUTH = ['print', 'digital'];
     /** How deep an entity's node tree may nest (shared/guards: MAX_NODE_DEPTH) */
     public const MAX_NODE_DEPTH = 8;
-    /** The surfaces a target can be printed on (shared/types/game-config.ts `PRINT_SURFACES`) */
-    public const PRINT_SURFACES = ['left', 'right', 'front', 'back'];
-
     /**
      * The signed-in editor, else 401 (not signed in) or 403 (a reader).
      * @return array<string, mixed>
@@ -217,27 +206,6 @@ Please, grant access to proceed.",
             }
         }
         return array_map(static fn(array $types): array => array_values(array_unique($types)), $recorded);
-    }
-
-    /**
-     * A target's printed placement (`PrintPlacement`): surface left / right / front / back, x, y, width (mm), optional
-     * height and page, and optional `surfaceId` (schema 2.36, #314: the scene's surface it is printed on, by id – wins
-     * over the side in `surface`; null or "" leaves it out)
-     */
-    public static function print(mixed $value, string $path = 'print'): stdClass
-    {
-        if (!$value instanceof stdClass) throw new ApiError(400, 'invalid-target', "$path must be an object.");
-        if (!in_array($value->surface ?? null, self::PRINT_SURFACES, true)) throw new ApiError(400, 'invalid-target', "$path.surface must be left, right, front or back.");
-        foreach (['x', 'y', 'width'] as $key) {
-            if (!is_numeric($value->$key ?? null)) throw new ApiError(400, 'invalid-target', "$path.$key must be a number (mm).");
-        }
-        if (property_exists($value, 'height') && $value->height !== null && !is_numeric($value->height)) throw new ApiError(400, 'invalid-target', "$path.height must be a number (mm).");
-        if (property_exists($value, 'page') && $value->page !== null && !is_numeric($value->page)) throw new ApiError(400, 'invalid-target', "$path.page must be a number.");
-        $print = (object) ['surface' => $value->surface, 'x' => (float) $value->x, 'y' => (float) $value->y, 'width' => (float) $value->width];
-        if (isset($value->height)) $print->height = (float) $value->height;
-        if (isset($value->page)) $print->page = (int) $value->page;
-        if (property_exists($value, 'surfaceId') && $value->surfaceId !== null && $value->surfaceId !== '') $print->surfaceId = self::id($value->surfaceId, "$path.surfaceId");
-        return $print;
     }
 
     /** JSON as the *_json columns and the content files hold it – the same flags as the content build */

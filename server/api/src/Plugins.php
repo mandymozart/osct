@@ -152,7 +152,7 @@ final class Plugins
     }
 
     /**
-     * Where the draft uses what the source registers: the book (its passes, its appearance), spreads, targets, shared
+     * Where the draft uses what the source registers: the book (its passes, its appearance), scenes, targets, shared
      * entities and entries whose JSON names one of its types – `"type":"<t>"` (a component, layer, node type, pass,
      * material, look, a texture as `{ type }`), or a procedural texture's type as a parameter's value
      * @return array<int, array{kind: string, ref: string}>
@@ -187,13 +187,13 @@ final class Plugins
     }
 
     /**
-     * The draft's rows as text, read once: the book (its master passes, its appearance), spreads, targets, entities, entries
+     * The draft's rows as text, read once: the book (its master passes, its appearance), scenes, targets, entities, entries
      * @return array<int, array{kind: string, ref: string, text: string}>
      */
     private static function draftTexts(string $bookId): array
     {
         $texts = [['kind' => 'book', 'ref' => $bookId, 'text' => (string) Db::value('SELECT book_json FROM books WHERE id = :id', ['id' => $bookId])]];
-        foreach (['spread' => 'spreads', 'target' => 'targets', 'entry' => 'entries'] as $kind => $table) {
+        foreach (['scene' => 'spreads', 'target' => 'targets', 'entry' => 'entries'] as $kind => $table) {
             foreach (Db::run("SELECT id, data_json FROM $table WHERE book_id = :book ORDER BY id", ['book' => $bookId])->fetchAll() as $row) {
                 $texts[] = ['kind' => $kind, 'ref' => (string) $row['id'], 'text' => (string) $row['data_json']];
             }

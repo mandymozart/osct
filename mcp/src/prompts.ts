@@ -19,22 +19,23 @@ export function instructions(services: Services | null, api: string, local: bool
 }
 
 const EDITOR = [
-  "You help an editor of an OSCT book build its AR content with the OSCT tools: read the book's tree and spreads, place",
+  "You help an editor of an OSCT book build its AR content with the OSCT tools: read the book's tree and its scenes, place",
   "entities (node trees) on targets, set components and filters, upload files, write plugin sources, and publish a draft",
   "to the instance's own environment (local or staging) for a check. You have exactly the editor's rights; the API decides.",
   "",
-  "Work like this: whoami, then list_books and get_spread for the spread at hand; read describe_content_model (or",
-  "osct://rules/content-model) before writing an entity – node types, placement units (target widths, degrees), filters,",
-  "components. Change only what was asked: put_entity for a shared entity, put_target for a target's own entity, image or",
-  "printed place, add_entry for a new target on a page (its image is an uploaded asset's url: upload_asset first);",
-  "add_spread / put_spread / delete_spread for the spreads themselves, put_book_passes, put_book_appearance and",
-  "put_environment for the book's post-processing, how its entities appear and its world.",
+  "Work like this: whoami, then list_books and get_scene for the scene at hand (get_book lists them all); read",
+  "describe_content_model (or osct://rules/content-model) before writing an entity – node types, placement units (target",
+  "widths, degrees), filters, components. Change only what was asked: put_entity for a shared entity, put_target for a",
+  "target's own entity, image or place on a surface, add_entry for a new target on a scene (its image is an uploaded",
+  "asset's url: upload_asset first); list_scenes / add_scene / put_scene / move_scenes / delete_scene for the scenes",
+  "themselves and their surfaces, put_book_passes, put_book_appearance and put_environment for the book's",
+  "post-processing, how its entities appear and its world.",
   "Every save is the draft the editor shows – give the person the link from the result so they check it on the stage.",
   "Plugins: osct://guides/plugins, then put_plugin; the Code tab's Run shows it on the stage, the person's next Publish takes it to readers.",
   "",
   "Never publish to production – that is the person's button in the editor. publish (local or staging, the instance's own) only when asked.",
-  "import_book over an existing book answers a comparison first: show it to the person and confirm only with their yes.",
-  "When something is unclear or risky, ask before saving. Finish with a short summary: which spreads and targets, the links.",
+  "import_book over an existing book answers a comparison first, migrate_3 a plan: show it to the person and go on only with their yes.",
+  "When something is unclear or risky, ask before saving. Finish with a short summary: which scenes and targets, the links.",
 ].join("\n");
 
 const user = (text: string) => ({ messages: [{ role: "user" as const, content: { type: "text" as const, text } }] });
@@ -43,23 +44,23 @@ export function registerPrompts(server: McpServer, services: Services | null): v
   if (!services?.editor) return;
   server.registerPrompt(
     "editor",
-    { title: "OSCT: work on a book", description: "How to read a book's spreads, place entities, write plugins and hand the draft to the person." },
+    { title: "OSCT: work on a book", description: "How to read a book's scenes, place entities, write plugins and hand the draft to the person." },
     () => user(`${EDITOR}\n\nRead this, then ask me what I want to work on.`),
   );
   server.registerPrompt(
     "add-target",
     {
-      title: "OSCT: add a target to a spread",
-      description: "A new target on a page with its printed image, placement and AR content, as a draft.",
+      title: "OSCT: add a target to a scene",
+      description: "A new target on a scene with its printed image, its place on a surface and its AR content, as a draft.",
       argsSchema: z.object({
         book: z.string().describe("the book's id (list_books)"),
-        page: z.string().describe("the page the target is printed on"),
+        scene: z.string().describe("the scene the target lies on – its id or its label (get_book)"),
         what: z.string().describe("what should appear – e.g. a tinted video, a model standing on the page"),
       }),
     },
-    ({ book, page, what }) =>
+    ({ book, scene, what }) =>
       user(
-        `${EDITOR}\n\nAdd a target to book "${book}" on page ${page}: ${what}. Read the spread first (get_spread by page), describe_content_model for what you may write, upload the files with upload_asset, make the entry with add_entry (the printed place in mm, the entity as a node tree), check the result with get_spread and give me the link to the spread.`,
+        `${EDITOR}\n\nAdd a target to book "${book}" on scene ${scene}: ${what}. Find the scene first (get_book – by its id or label – then get_scene), describe_content_model for what you may write, upload the files with upload_asset, make the entry with add_entry (scene, surface, the target's place in mm on that surface, the entity as a node tree), check the result with get_scene and give me the link to the scene.`,
       ),
   );
 }

@@ -15,9 +15,8 @@ declare(strict_types=1);
  *   with them (a change each). A reference whose surface is gone otherwise (a re-import, a reverted surfaces list) is
  *   left alone and shown nowhere – the surface coming back brings it back.
  * - A use of its Library file (`AssetNames::usesOf`, kind `reference`): counted, relinked when the file is replaced,
- *   removed with a forced delete of the file. It gives the file no name (#298 – the page images' names stay).
- * - The page images (#251) migrate to references: `POST …/scenes/references/migrate { apply? }` (plan, then apply;
- *   idempotent; the `page_images` rows stay).
+ *   removed with a forced delete of the file; it names the file `<scene>_<surface>` (#298).
+ * - The page images (#251) became references with the migration to the content schema 3.0 (`Migration3`, #319).
  */
 final class SurfaceReferences
 {
@@ -237,108 +236,5 @@ final class SurfaceReferences
             $count++;
         }
         return $count;
-    }
-
-    // ── POST …/scenes/references/migrate ─────────────────────────────────────────────────────────
-
-    /**
-     * POST /editor/books/{id}/scenes/references/migrate { apply? } → { plan, applied }: the page images (#251) become
-     * surface references. A page image's page (`Pages::pagesOf`: its scene and side) maps to the scene's surface labelled
-     * with the page number (a numbered page), else to the scene's one surface on that side. The plan: `references` (what
-     * each becomes: { page, facing, label, url, name, scene, surface }), `already` (the surface has that image already),
-     * `unmapped` (with a `reason`: no page of the book any more, a scene without surfaces – run the scene migration first –,
-     * no surface on that side, the surface has another reference, or two page images for one surface), `counts`.
-     * Without `apply: true` nothing is written; with it the plan is made again and written in one transaction, a change
-     * per reference (fit `cover`). Idempotent: a migrated book plans nothing. The `page_images` rows stay.
-     */
-    public static function migrate(string $bookId): never
-    {
-        $user = Editor::user();
-        Books::exists($bookId);
-        $body = trim((string) file_get_contents('php://input')) === '' ? new stdClass() : Editor::body();
-        $apply = ($body->apply ?? false) === true;
-        $run = static function () use ($bookId, $apply, $user): array {
-            $plan = self::migrationPlan($bookId, $apply);
-            if ($apply) {
-                foreach ($plan['references'] as $r) {
-                    $reference = ['url' => $r['url'], 'name' => $r['name'], 'fit' => self::FIT_DEFAULT];
-                    self::write($bookId, $r['scene'], $r['surface'], $reference, $user['id']);
-                    Books::recordChange($bookId, $user, self::KIND, self::ref($r['scene'], $r['surface']), 'null', Editor::encode($reference));
-                }
-            }
-            return $plan;
-        };
-        $plan = $apply ? Db::transaction($run) : $run();
-        Http::json(200, ['plan' => $plan, 'applied' => $apply && $plan['references'] !== []]);
-    }
-
-    /**
-     * What `migrate` would do
-     * @return array<string, mixed>
-     */
-    public static function migrationPlan(string $bookId, bool $lock = false): array
-    {
-        $pages = [];
-        foreach (Pages::pagesOf($bookId) as $page) $pages[Pages::key($page['page'], $page['facing'])] ??= $page;
-        $context = Scenes::context($bookId, $lock);
-        $existing = self::byScene($bookId);
-        $references = [];
-        $already = [];
-        $unmapped = [];
-        $taken = [];
-        $images = Db::run('SELECT page, facing, url, name FROM page_images WHERE book_id = :book ORDER BY page, facing', ['book' => $bookId])->fetchAll();
-        foreach ($images as $row) {
-            $pageNo = (int) $row['page'];
-            $facing = (bool) (int) $row['facing'];
-            $key = Pages::key($pageNo, $facing);
-            $page = $pages[$key] ?? null;
-            $item = ['page' => $pageNo, 'facing' => $facing, 'label' => $page['label'] ?? null, 'url' => (string) $row['url'], 'name' => (string) $row['name']];
-            if ($page === null) {
-                $unmapped[] = $item + ['scene' => null, 'reason' => 'no page of the book any more'];
-                continue;
-            }
-            $scene = (string) $page['spread'];
-            $surfaces = isset($context['data'][$scene]) ? Scenes::surfaces($context['data'][$scene]) : [];
-            if (!$surfaces) {
-                $unmapped[] = $item + ['scene' => $scene, 'reason' => 'its scene has no surfaces yet – run the scene migration (POST …/scenes/migrate) first'];
-                continue;
-            }
-            $surface = null;
-            if ($page['kind'] === 'page') {
-                foreach ($surfaces as $s) if (trim((string) ($s->label ?? '')) === (string) $pageNo) $surface = (string) $s->id;
-            }
-            if ($surface === null) {
-                $onSide = array_values(array_filter($surfaces, static fn(stdClass $s) => ($s->side ?? null) === $page['side']));
-                if (count($onSide) === 1) $surface = (string) $onSide[0]->id;
-            }
-            if ($surface === null) {
-                $unmapped[] = $item + ['scene' => $scene, 'reason' => "no surface of scene \"$scene\" lies on its side ({$page['side']})"];
-                continue;
-            }
-            $mapped = $item + ['scene' => $scene, 'surface' => $surface];
-            $present = $existing[$scene][$surface] ?? null;
-            if ($present !== null && $present['url'] === $item['url']) {
-                $already[] = $mapped;
-                continue;
-            }
-            if ($present !== null) {
-                $unmapped[] = $mapped + ['reason' => 'the surface has another reference image – it is kept'];
-                continue;
-            }
-            $surfaceKey = self::ref($scene, $surface);
-            if (isset($taken[$surfaceKey])) {
-                $unmapped[] = $mapped + ['reason' => "another page image ({$taken[$surfaceKey]}) goes to this surface"];
-                continue;
-            }
-            $taken[$surfaceKey] = $page['label'];
-            $references[] = $mapped;
-        }
-        return [
-            'upToDate' => $references === [],
-            'counts' => ['pageImages' => count($images), 'references' => count($references), 'already' => count($already), 'unmapped' => count($unmapped)],
-            'references' => $references,
-            'already' => $already,
-            'unmapped' => $unmapped,
-        ];
     }
 }

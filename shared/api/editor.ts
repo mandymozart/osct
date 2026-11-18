@@ -59,15 +59,15 @@ export interface TreeEntry {
   id: string;
   category: string;
   title: string;
-  /** Its scene (`EntryData.scene`) */
+  /** Its scene (`SceneData.id`) */
   scene: string;
-  /** The surface of its scene it lies on – only when the scene has several */
+  /** The surface of its scene it lies on – only when it names one */
   surface?: string;
-  /** Its target (the entity inline or `{ ref }`), null when it has none */
+  /** Its target (the entity inline or `{ ref }`, its `place`), null when it has none */
   target: TargetData | null;
 }
 
-/** A scene in the tree (schema 3.0): the content's `SceneData` with the entries on it, in the book's order */
+/** A scene in the tree: the scene as the content holds it (schema 3.0) with the entries on it */
 export type TreeScene = SceneData & { entries: TreeEntry[] };
 
 /** `GET /editor/books/{id}`: the book, its scenes in order with their entries, the groups */
@@ -270,7 +270,7 @@ export interface Confirmation {
   expiresAt: string;
 }
 
-// ── Rows: entities, targets, entries, scenes, the book's passes, appearance and environment ─────────────
+// ── Rows: entities, targets, entries, the book's passes, appearance and environment ─────────────
 
 /** `GET /editor/books/{id}/entities`: the shared entities by ref */
 export interface SharedEntities {
@@ -288,9 +288,10 @@ export interface TargetSaved {
   target: TargetData;
 }
 
-/** `POST /editor/books/{id}/entries` → 201: the new entry on its scene, with its target (none when it was made without one) */
+/** `POST /editor/books/{id}/entries` → 201: the new entry with its target (none when it was made without one), and its scene */
 export interface EntryAdded {
-  entry: { id: string; category: string; title: string; scene: string; surface?: string; body: string; tags: string[]; target?: TargetData };
+  entry: { id: string; category: string; title: string; scene: string; surface?: string; body: string; caption?: string; tags: string[]; target?: TargetData };
+  scene: string;
 }
 
 /** An entry as the content holds it, without its target (`BookTexts`): every field as written – an image's path or URL unresolved */
@@ -304,9 +305,10 @@ export interface EntryList {
   entries: EditorEntry[];
 }
 
-/** `PUT /editor/books/{id}/entries/{entryId}`: the entry after the change (its `scene` now) and the scene it was on before */
+/** `PUT /editor/books/{id}/entries/{entryId}`: the entry after the change, its scene now and before */
 export interface EntrySaved {
   entry: EntryFields;
+  scene: string;
   previousScene: string;
 }
 
@@ -315,16 +317,18 @@ export interface BookSaved {
   book: BookData;
 }
 
-// ── Scenes (#307, docs/server.md "Scenes") ───────────────────────────────────────────────────────────
+// ── Scenes (#307, schema 3.0 – docs/server.md "Scenes") ─────────────────────────────────────────────
 
 /**
- * The presets a new scene starts from (`Scenes::PRESETS`, schema 3.0): `double` – one surface twice the page's width,
- * `single` – one page, `wall` – 2000 × 1500 mm standing ahead (`rx` 90). A cover is a single scene first in the order.
+ * The presets a new scene starts from (`Scenes::PRESETS`, `POST …/scenes { preset }`): `double` – one surface twice the
+ * page's width, `single` – one page, `wall` – a wall standing ahead (`rx` 90). A cover is a `single` scene first in the order.
  */
 export const SCENE_PRESETS = ["double", "single", "wall"] as const;
 export type ScenePreset = (typeof SCENE_PRESETS)[number];
-/** A page's size when a request names none (`Scenes::PAGE_MM`) */
+/** A page's size (`Scenes::PAGE_MM`): a double page is twice its width */
 export const SCENE_PAGE_MM = { width: 230, height: 320 } as const;
+/** A wall's size (`Scenes::WALL_MM`) */
+export const SCENE_WALL_MM = { width: 2000, height: 1500 } as const;
 /** The most surfaces one scene has (`Scenes::SURFACES_MAX`) */
 export const SCENE_SURFACES_MAX = 32;
 /**
@@ -369,11 +373,15 @@ export interface SurfaceReferenceSaved {
   changed: boolean;
 }
 
-/** A scene of `GET /editor/books/{id}/scenes`: the content's scene, its place in the order, its surfaces with their reference images */
+/**
+ * A scene of `GET /editor/books/{id}/scenes`: the content's `SceneData`, its place in the order, its surfaces each with
+ * its reference image, and how many entries and targets lie on it
+ */
 export type SceneSummary = Omit<SceneData, "surfaces"> & {
   position: number;
-  /** Its surfaces, each with its reference image (#314) */
   surfaces: SurfaceSummary[];
+  entries: number;
+  targets: number;
 };
 
 /** `GET /editor/books/{id}/scenes`: the scenes in order and the groups with their scenes */
@@ -382,16 +390,26 @@ export interface SceneList {
   groups: (GroupData & { scenes: string[] })[];
 }
 
-/** `POST /editor/books/{id}/scenes` → 201: the new scene and its place in the order */
+/**
+ * A surface a request sends (`POST …/scenes { surfaces }`, `PUT …/scenes/{id} { surfaces }`): `SurfaceData` whose `place`
+ * may be left out (the server lays every surface without one in a row, as the content build does) and whose rotations
+ * default to 0
+ */
+export type SurfaceInput = Omit<SurfaceData, "place"> & { place?: { x: number; y: number; z: number; rx?: number; ry?: number; rz?: number } };
+
+/** `POST /editor/books/{id}/scenes` { preset?, after? | before? | position?, id?, label?, group?, surfaces? } → 201 */
 export interface SceneAdded {
   scene: SceneData;
   position: number;
 }
 
-/** `PUT /editor/books/{id}/scenes/{sceneId}`: the scene, and the entries whose surface went (`apply`) */
+/**
+ * `PUT /editor/books/{id}/scenes/{sceneId}` { label?, group?, surfaces?, passes?, apply? }: the scene after the change; the
+ * entries whose surface went (they stay on the scene without one) and the targets whose surface went (their `place` goes)
+ */
 export interface SceneSaved {
   scene: SceneData;
-  cleared: string[];
+  cleared: { entries: string[]; targets: string[] };
 }
 
 /** A new order (a move, a group): every id in order, the picked scenes that move, group changes */
@@ -424,6 +442,91 @@ export interface Ungrouped {
   scenes: string[];
 }
 
+// ── The migration to schema 3.0 (#319, `POST /editor/books/{id}/migrate-3`) ──────────────────────────────
+
+/** A 2.x surface (or a page of a scene that had none) as the migration found it */
+export interface Migration3OldSurface {
+  id: string;
+  /** left, right, front, back, middle, wall … – null for a page of a scene without surfaces */
+  side: string | null;
+  label: string | null;
+  widthMm: number;
+  heightMm: number;
+}
+
+/** One piece of a reference image: a page image (#251) or a 2.x surface's reference (#314) at its offset on the new surface */
+export interface Migration3Piece {
+  source: "page-image" | "reference";
+  /** The page image's page (`12`, `Cover`, `next to 1`, `F1`) or the 2.x surface's id */
+  label: string;
+  url: string;
+  name: string;
+  /** Where it lies on the new surface, mm from its left edge, and how wide it is */
+  offsetMm: number;
+  widthMm: number;
+}
+
+/** A new surface's reference: one piece that covers it (kept as it is), or pieces put together side by side into a new image */
+export interface Migration3Reference {
+  surface: string;
+  result: "as-is" | "combined";
+  pieces: Migration3Piece[];
+  /** With `apply`: the reference image's URL (a new Library file for a combined one) */
+  url?: string;
+}
+
+/** What the migration does to one scene */
+export interface Migration3Scene {
+  scene: string;
+  /** Its 3.0 label: its own, else what the reader showed (the title of a cover or the matter, else its pages `186–187`) */
+  label: string;
+  before: { title: string; firstPage: number; lastPage: number; format: string; matter: string | null; surfaces: Migration3OldSurface[] };
+  /** Its 3.0 surfaces, placed – with the 2.x surfaces (or pages) each is made of */
+  after: (SurfaceData & { from: string[] })[];
+  /** A group it joins (the front and back matter) */
+  group?: string;
+  entries: number;
+  /** The targets whose place moves onto a joint surface (a right page's x grows by the left page's width) */
+  targets: { target: string; entry: string; from: { surface: string; x: number }; to: { surface: string | null; x: number } }[];
+  references: Migration3Reference[];
+}
+
+/** Something the migration cannot map, with the reason (and what it does instead) */
+export interface Migration3Unmapped {
+  kind: "entry" | "target" | "page-image" | "reference";
+  ref: string;
+  scene: string | null;
+  reason: string;
+}
+
+/**
+ * `POST /editor/books/{id}/migrate-3 { apply? }`: a 2.x book becomes 3.0 – without `apply: true` the plan (nothing
+ * written), with it the plan made again and written in one transaction (`applied`). A 3.0 book plans nothing (`upToDate`).
+ */
+export interface Migration3Result {
+  plan: {
+    upToDate: boolean;
+    schema: { from: string; to: string };
+    counts: {
+      scenes: number;
+      surfacesBefore: number;
+      surfacesAfter: number;
+      entries: number;
+      targetsMoved: number;
+      referencesAsIs: number;
+      referencesCombined: number;
+      unmapped: number;
+    };
+    scenes: Migration3Scene[];
+    /** Groups the migration makes (the front and back matter) */
+    groups: (GroupData & { scenes: string[] })[];
+    unmapped: Migration3Unmapped[];
+    /** What puts images together on this server: `gd`, `imagick`, null (none – combined references cannot be made) */
+    imageTool: "gd" | "imagick" | null;
+  };
+  applied: boolean;
+}
+
 /** `PUT /editor/books/{id}/passes`: the book's post-processing, null when removed */
 export interface BookPassesSaved {
   passes: PassData[] | null;
@@ -454,7 +557,7 @@ export interface RemovalFile {
 /** What every removal takes (`Removal::impact`) */
 interface RemovalTakes {
   book: string;
-  entries: { id: string; title: string; scene: string; category: string }[];
+  entries: { id: string; title: string; scene: string | null; category: string }[];
   targets: { id: string; entry: string; imageSrc: string }[];
   /** The entities that go: a shared one with its `ref`, a target's own with `ref: null` */
   entities: { ref: string | null; type: string | null; shared: boolean; targets: string[] }[];
@@ -468,7 +571,7 @@ interface RemovalTakes {
 export type RemovalImpact = RemovalTakes &
   (
     | { kind: "scene"; scene: { id: string; label: string } }
-    | { kind: "entry"; entry: { id: string; title: string; category: string; scene: string } }
+    | { kind: "entry"; entry: { id: string; title: string; category: string; scene: string | null } }
   );
 
 /** What a confirmed removal took (`files` only with `deleteFiles`) */
@@ -523,7 +626,7 @@ export interface LibraryPlace {
 
 /**
  * `POST /editor/books/{id}/assets/names { apply? }` (#298 phase 3): the names the Library's files take by their use –
- * `p118-1_target.webp`, `p118-1_image.webp`, `page-118.webp`, `<entity>_<asset>.glb` … The name only: every URL stays.
+ * `p118-1_target.webp`, `p118-1_image.webp`, `<scene>_<surface>.webp` (a reference image), `<entity>_<asset>.glb` … The name only: every URL stays.
  * Without `apply: true` the plan; with it the plan is written (`applied`: something was renamed).
  */
 export interface AssetNamesPlan {
