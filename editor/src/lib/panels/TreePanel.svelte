@@ -444,7 +444,7 @@
         <button type="button" class="pick" class:muted={!!target && !shown} onclick={() => pick(entryRow(entry))} aria-haspopup="menu" {@attach entryMenu(entry)}
           title={entryRowHelp(entry, !!target?.imageSrc)}>
           <span class="name">{entry.title}</span>
-          {#if target && !isTargetEnabled(target)}<span class="small muted" title="Switched off: not in the reader's book">off</span>{/if}
+          {#if target && !isTargetEnabled(target)}<span class="off muted" title="Switched off: not in the reader's book (the Inspector's In the book switch)" aria-label="Switched off"><Icon name="slash" size="1em" stroke={2} /></span>{/if}
         </button>
         {#if target}
           <button type="button" class="eye" aria-pressed={shown} title={shown ? "Visible in the scene – click to hide" : "Hidden in the scene – click to show"}
@@ -465,7 +465,6 @@
               ? "The target – a tap selects it: the Inspector shows its printed image and placement, the stage outlines its print"
               : "The target, no AR content yet – a tap selects it: the Inspector shows its printed image and placement and adds a node, the stage outlines its print"}>
             <span class="name">{target.id}</span>
-            {#if stage?.found.includes(target.id)}<span class="small muted" title="In view now">in view</span>{/if}
           </button>
           <span class="eye"></span>
         </div>
@@ -529,6 +528,7 @@
     user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .pick:disabled { cursor: default; }
   .pick.muted { color: var(--muted); }
+  .off { flex: none; display: inline-flex; align-items: center; }
   .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dot { font-size: .6em; }
   .add-target { padding-left: calc(.25rem + var(--indent)); color: var(--muted); gap: .75rem; }
