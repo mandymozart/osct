@@ -11,13 +11,12 @@
   import LibraryPanel from "./LibraryPanel.svelte";
 
   /**
-   * The book's **environment** on the stage: the world around the reader while scanning, its
-   * sky and the onion sky. While this tab is open the stage shows the engine's look-around world with the values being
+   * The book's **environment** on the stage: the sky around the reader while scanning and the onion sky – the world
+   * model is gone (Tilman, 2026-11-18, #310): no world row, a content's `worldSrc` is ignored. While this tab is open the stage shows the engine's look-around world with the values being
    * edited, under the desk and the book, turned by the view (*look up* raises the camera from the book to the horizon).
    * Once the book has an environment (or edits start one) its world is the stage's sky in the other tabs too, while
    * rendered – it replaces the HDRI, sky and light (#185, `stage/sky.ts`).
-   * **World**: none, or a glTF model from the Library (or uploaded here); **sky**: none, or an
-   * equirectangular image. *Library…* opens the Library here as a picker (a glTF model, a sky image – the stage keeps
+   * **Sky**: none, or an equirectangular image. *Library…* opens the Library here as a picker (a sky image – the stage keeps
    * previewing). Every edit reaches the draft by itself a moment later (#259); *Undo edits* goes back to the environment
    * the draft had before the first edit in this page, *Use the default* removes it (nothing around the book).
    * Book-level only; the reader's Graphics switches (Info → Settings) still apply on top. Two collapsible sections: the
@@ -26,8 +25,8 @@
   let { stage, bookId }: { stage: Stage | null; bookId: string } = $props();
 
   const edit = environmentEdit;
-  const BUILT_IN: Record<EnvironmentSlot, string> = { world: "none", sky: "none" };
-  const SOURCE: Record<EnvironmentSlot, "worldSrc" | "skySrc"> = { world: "worldSrc", sky: "skySrc" };
+  const BUILT_IN: Record<EnvironmentSlot, string> = { sky: "none" };
+  const SOURCE: Record<EnvironmentSlot, "skySrc"> = { sky: "skySrc" };
 
   let lookUp = $state(0);
   let notice = $state<string | null>(null);
@@ -35,7 +34,7 @@
   const pick = $derived.by<LibraryPick | null>(() => {
     const slot = edit.picking;
     if (!slot) return null;
-    return { subject: { for: "environment", slot }, label: slot === "world" ? "the world – a glTF model" : "the sky – an equirectangular image",
+    return { subject: { for: "environment", slot }, label: "the sky – an equirectangular image",
       current: edit.edited[SOURCE[slot]], onpick: asset => edit.use(slot, asset.url), oncancel: () => (edit.picking = null) };
   });
 
@@ -53,7 +52,7 @@
     try {
       const asset = await library.upload(bookId, file);
       if (!fitsSlot(asset, slot)) {
-        notice = `${asset.name} is no ${slot === "world" ? "glTF model" : "jpg, png or webp image"} – it stays in the Library`;
+        notice = `${asset.name} is no jpg, png or webp image – it stays in the Library`;
         return;
       }
       edit.use(slot, asset.url);
@@ -73,12 +72,10 @@
 {#snippet slotRow(slot: EnvironmentSlot)}
   {@const src = edit.edited[SOURCE[slot]]}
   <div class="row slot" class:changed={(src ?? null) !== (edit.saved?.[SOURCE[slot]] ?? null)}
-    data-help={slot === "world"
-      ? "The scenery around the reader: a glTF model (its origin the floor under the reader, −z towards the book), or none. Library… picks one, Upload adds one, remove leaves none."
-      : "The sky: an equirectangular image (2:1, its centre towards the book), or none. Library… picks one, Upload adds one, remove leaves none."}>
+    data-help="The sky: an equirectangular image (2:1, its centre towards the book), or none. Library… picks one, Upload adds one, remove leaves none.">
     <span class="label">{slot}</span>
     <span class="controls">
-      <FileField {src} picture={slot === "sky"} empty={BUILT_IN[slot]} accept={pickAccept({ for: "environment", slot })} label={slot === "world" ? "a glTF model as the world" : "an equirectangular image as the sky"}
+      <FileField {src} picture empty={BUILT_IN[slot]} accept={pickAccept({ for: "environment", slot })} label="an equirectangular image as the sky"
         onlibrary={() => (edit.picking = slot)} onupload={f => void upload(slot, f)} />
       {#if src}<button type="button" class="text-link" title="Back to the {BUILT_IN[slot]}" onclick={() => edit.use(slot, null)}>remove</button>{/if}
     </span>
@@ -86,15 +83,14 @@
 {/snippet}
 
 <Section id="environment.world" label="environment" aside={whose}
-  help="The book's world around the reader while scanning, its sky and the onion sky – shown on the stage while this tab is open: the reader's own look-around pass, anchored to the book, turned by the view. Once the book has one, its world replaces the HDRI as the stage's sky (rendered), lit by the scene's own lights as in the reader. The reader's Graphics switches (Info → Settings) still apply on top.">
-{@render slotRow("world")}
+  help="The book's sky around the reader while scanning and the onion sky – shown on the stage while this tab is open: the reader's own look-around pass, anchored to the book, turned by the view. Once the book has one, its sky replaces the HDRI as the stage's sky (rendered), lit by the scene's own lights as in the reader. The reader's Graphics switches (Info → Settings) still apply on top.">
 {@render slotRow("sky")}
 <div class="row" class:changed={edit.edited.onionSky !== (edit.saved?.onionSky ?? true)}
-  data-help="Looking up, sky-like parts of the camera picture show the world's sky. It needs a camera picture, so only the reader shows it.">
+  data-help="Looking up, sky-like parts of the camera picture show the environment's sky. It needs a camera picture, so only the reader shows it.">
   <span class="label">onion sky</span>
   <span class="controls">
     <Toggle on={edit.edited.onionSky} label="Onion sky"
-      title={edit.edited.onionSky ? "On: looking up, sky-like parts of the camera picture show the world's sky" : "Off: the camera picture's sky stays"}
+      title={edit.edited.onionSky ? "On: looking up, sky-like parts of the camera picture show the environment's sky" : "Off: the camera picture's sky stays"}
       onchange={onionSky => edit.set({ onionSky })} />
   </span>
 </div>
@@ -102,8 +98,8 @@
 {#if library.uploading.length}<div class="row"><span class="small muted">Uploading {library.uploading.join(", ")}…</span></div>{/if}
 </Section>
 
-<Section id="environment.preview" label="preview" open={false} summary="look up {lookUp}°" help="How the stage shows the world – not saved.">
-<div class="row" data-help="Raise the stage's camera from the book towards the horizon and the sky (the book stays found, as the reader's world stays).">
+<Section id="environment.preview" label="preview" open={false} summary="look up {lookUp}°" help="How the stage shows the sky – not saved.">
+<div class="row" data-help="Raise the stage's camera from the book towards the horizon and the sky (the book stays found, as in the reader).">
   <span class="label">look up</span>
   <span class="w"><ScrubNumber value={lookUp} min={-30} max={90} step={1} fallback={0} unit="°" label="look up" strict oninput={v => (lookUp = v)} /></span>
 </div>
@@ -127,7 +123,7 @@
   .w :global(.scrub) { width: 100%; }
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; border-top: 1px solid var(--line); padding-top: .5rem; }
   .grow { flex: 1; }
-  /* World and sky each a block of their own: its label at the top, a line between them – the sky's picture can't be read as the world's */
+  /* The sky as a block of its own: its label at the top, beside its picture */
   .slot { align-items: flex-start; padding: .25rem 0; border-bottom: 1px solid var(--line); }
   .slot > .label { padding-top: .35rem; }
 </style>

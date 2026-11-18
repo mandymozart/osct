@@ -7,6 +7,15 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.107.0 – 2026-11-18
+
+### Removed
+
+- **The world model of the look-around** (#310): after the built-in café (1.104.0), the world model (`worldSrc`) is no
+  longer loaded or drawn, in the reader or on the stage – only the sky image and the onion sky remain. The Environment
+  tab loses its world row (sky and onion sky only), the HDRI picker's note names only the sky. Content with `worldSrc`
+  stays valid and is ignored.
+
 ## 1.106.0 – 2026-11-18
 
 ### Added
