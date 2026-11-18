@@ -47,6 +47,10 @@
   import FloatingPanel from "#lib/components/FloatingPanel.svelte";
   import { Floats, openFloats } from "#lib/components/floats.svelte.js";
   import { at, type PanelSpec } from "#lib/components/floats.js";
+  import UndoRedo from "#lib/UndoRedo.svelte";
+  import HistoryPanel from "#lib/panels/HistoryPanel.svelte";
+  import RevertPrompt from "#lib/components/RevertPrompt.svelte";
+  import { history } from "#lib/history.svelte.js";
 
   /**
    * The workspace. On a desktop and an iPad (#308) the **stage** (the engine over the mock stage) is the whole window
@@ -130,6 +134,8 @@
       place: at("bottom-left", 0, 0, { collapsed: true }), size: { w: 16.5, h: 10 }, min: { w: 12, h: 5 } },
     { id: "tools", name: "Tools", icon: "tool", about: "The stage's tools: select and its filters, move / rotate / scale, render quality, grid & snap, view and live.",
       place: at("top-left", 17, 0), size: { w: "content", h: "content" }, min: { w: 12, h: 2 }, essential: true, inline: true },
+    { id: "history", name: "History", icon: "history", about: "Every saved change of the experience: filter by scene, kind or person; revert one, or jump back to a point (#312).",
+      place: at("bottom-right", 0, 0, { closed: true }), size: { w: 28, h: 20 }, min: { w: 16, h: 8 } },
   ];
   const floats = new Floats("scene", SCENE_PANELS);
   let workspaceWidth = $state(0);
@@ -427,6 +433,22 @@
     selection.selectGroup(id);
     openTab("inspector");
   };
+
+  // ── undo, redo and the History (#312): the experience's saved changes; a revert written reloads the draft, the stage
+  // and the panels (their forms start again from the draft) ──
+  $effect(() => history.enter(bookId));
+  let revisionSeen = untrack(() => history.revision);
+  $effect(() => {
+    const revision = history.revision;
+    if (revision === revisionSeen) return;
+    revisionSeen = revision;
+    untrack(() => {
+      void Promise.all([reloadContent(), entries.load(bookId), environmentEdit.load(bookId, true), bookSource.load(bookId), scenes.load(bookId, true)])
+        .finally(() => (panelsRevision = revision));
+    });
+  });
+  /** The panels start again from the draft once a revert's reload is in (their forms keep what was typed otherwise) */
+  let panelsRevision = $state(untrack(() => history.revision));
 
   // ── autosave (#259): a target's live tree is an edit the draft does not hold yet – the Inspector's rows, a file for
   // a node, the tree's moves, a gizmo drag – and is saved by itself, whichever panel is open ──
@@ -726,6 +748,7 @@
     <!-- The tool in hand and the select filters, render quality, then grid & snap and view, one button and its panel each;
          always one row (#180, #190, #229, #308) -->
     <div class="tools" class:inline role="toolbar" data-app-ui aria-label="Stage tools" bind:this={tools}>
+      <UndoRedo onhistory={narrow ? undefined : () => floats.reopen("history")} />
       <ToolGroup label="Tool" options={TOOL_OPTIONS} value={stage.tool} expanded={expanded[0]}
         onchoose={tool => stage?.setTool(tool as StageTool)} />
       <span class="tool-group filters" data-help-name="Select filters" data-help={FILTER_HELP}>
@@ -769,6 +792,11 @@
 {/snippet}
 
 {#snippet panelBody()}
+  <!-- A revert written (#312): the forms start again from the draft -->
+  {#key panelsRevision}{@render panelTabs()}{/key}
+{/snippet}
+
+{#snippet panelTabs()}
   {#if removal}
     <div class="body removal"><RemovalConfirm step={removal.step} busy={removalBusy} error={removalError} onconfirm={deleteFiles => void confirmRemoval(deleteFiles)} oncancel={() => (removal = null)} /></div>
   {:else if addingTarget && spread}
@@ -888,10 +916,14 @@
     <FloatingPanel {floats} id="info">
       <InfoView floating />
     </FloatingPanel>
+    <FloatingPanel {floats} id="history">
+      <HistoryPanel current={spreadId} />
+    </FloatingPanel>
     {#if stage && stage.status === "running"}
       <FloatingPanel {floats} id="tools" label="Stage tools">{@render toolbar(true)}</FloatingPanel>
     {/if}
   {/if}
+  <RevertPrompt />
 </div>
 
 <style>
