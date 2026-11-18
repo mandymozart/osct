@@ -7,6 +7,16 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.102.0 – 2026-11-18
+
+### Changed
+- **Scenes panel** (#307 phase 3c, Tilman): Group / Ungroup are one toggle – a folder icon groups, folder-minus
+  ungroups (Ctrl+G / Ctrl+Shift+G in the tooltip); the mouse wheel scrolls the strip sideways (up/down, no Shift) as the
+  arrow keys do; the cards scale with the panel's height – the zoom buttons are gone – and the panel keeps a minimum
+  height.
+- **Scene Inspector**: a scene without a group reads **self**; a grouped scene has a link icon to its group; the
+  surfaces' section is called **Surface labels**.
+
 ## 1.101.2 – 2026-11-18
 
 ### Changed

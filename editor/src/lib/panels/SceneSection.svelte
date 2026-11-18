@@ -6,6 +6,8 @@
   import { scenes } from "#lib/scenes.svelte.js";
   import { sceneName, surfaceSize, targetsOf } from "#lib/scene-strip.js";
   import { errorText } from "#lib/api.js";
+  import { selection } from "#lib/selection.svelte.js";
+  import Icon from "#lib/components/Icon.svelte";
   import { SCENE_LAYOUTS, type SceneLayout, type SurfaceData } from "@shared/types/game-config";
 
   /**
@@ -83,19 +85,21 @@
       <span class="label">layout</span>
       <Segmented options={SCENE_LAYOUTS} value={scene.layout ?? "fixed"} label="Scene layout" titles={LAYOUT_TITLES}
         onchange={layout => void put({ layout: layout === "fixed" ? null : layout })} /></div>
-    <div class="row" data-help="The group the scene belongs to – one stop of the reader's switcher, one loading window. None: the scene is a stop of its own.">
+    <div class="row" data-help="The group the scene belongs to – one stop of the reader's switcher, one loading window. Self: the scene is a stop of its own; the link icon shows the group.">
       <span class="label">group</span>
       <select class="field" aria-label="Scene group" value={scene.group ?? ""} onchange={e => void put({ group: e.currentTarget.value || null })}>
-        <option value="">– its own stop</option>
+        <option value="">self</option>
         {#each scenes.groups as group (group.id)}<option value={group.id}>{group.label}</option>{/each}
-      </select></div>
+      </select>
+      {#if scene.group}<button type="button" class="icon-button group-link" onclick={() => selection.selectGroup(scene.group!)}
+        title="Show the group in the Inspector" aria-label="Show the group"><Icon name="link" /></button>{/if}</div>
     <div class="row" data-help="The targets on this scene – the engine tracks at most 10 per scene (4 at the same moment).">
       <span class="label">targets</span>
       <span class="value">{targetsOf(scene)} of 10</span></div>
     {#if error}<p class="small danger">{error}</p>{/if}
   </Section>
 
-  <Section id="stage.surfaces" label="surfaces" summary={String(scene.surfaces?.length ?? 0)}
+  <Section id="stage.surfaces" label="surface labels" summary={String(scene.surfaces?.length ?? 0)}
     help="The scene's physical areas in order – a left and a right page, a fold-out's third, a cover, a wall – with their size and label as printed.">
     {#each scene.surfaces ?? [] as surface (surface.id)}
       <div class="surface">
@@ -114,4 +118,5 @@
 <style>
   .value { min-width: 0; overflow-wrap: anywhere; }
   .surface + .surface { border-top: 1px solid var(--line); padding-top: .125rem; }
+  .group-link { flex: none; margin-left: .25rem; }
 </style>

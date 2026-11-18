@@ -68,6 +68,18 @@
   let cursor = $state<string | null>(null);
   const cards: Record<string, HTMLButtonElement> = {};
   let root = $state<HTMLDivElement>();
+  /** The mouse wheel scrolls the strip sideways – up/down without Shift (#307 3c, Tilman) */
+  $effect(() => {
+    const el = root;
+    if (!el || layout !== "strip") return;
+    const wheel = (event: WheelEvent) => {
+      if (event.shiftKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      el.scrollLeft += event.deltaY;
+      event.preventDefault();
+    };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => el.removeEventListener("wheel", wheel);
+  });
   /** The cards had the focus: a change that builds them again (a move, a group) gives it back to the cursor's card */
   let focused = false;
   const focusOut = (event: FocusEvent) => {
