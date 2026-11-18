@@ -248,7 +248,8 @@ final class Scenes
      * GET /editor/books/{id}/scenes → { scenes: [{ id, position, title, label, format, matter, layout, group, surfaces,
      * firstPage, lastPage, stored: { firstPage, lastPage }, derived, entries, targets }], groups: [{ id, label, scenes }] }:
      * the book's scenes in order – `firstPage` / `lastPage` the range older apps read (`derived`: not the stored one),
-     * `entries` / `targets` how many lie on it
+     * `entries` / `targets` how many lie on it; every surface with its `reference` image { url, name, fit } or null
+     * (#314, `SurfaceReferences` – editor-only, never in the content)
      */
     public static function list(string $bookId): never
     {
@@ -271,6 +272,7 @@ final class Scenes
             $counts[(string) $row['spread_id']] = ['entries' => (int) $row['entries'], 'targets' => (int) $row['targets']];
         }
         $shown = Pages::withTitles(self::shown($context, array_map(static fn($g) => (string) $g->id, $groups)));
+        $references = SurfaceReferences::byScene($bookId);
         $scenes = [];
         foreach ($shown as $position => $spread) {
             $id = (string) $spread->id;
@@ -278,7 +280,7 @@ final class Scenes
             $scenes[] = [
                 'id' => $id, 'position' => $position, 'title' => (string) ($spread->title ?? ''), 'label' => $spread->label ?? null,
                 'format' => $spread->format ?? 'spread', 'matter' => $spread->matter ?? null, 'layout' => $spread->layout ?? null, 'group' => $spread->group ?? null,
-                'surfaces' => self::surfaces($spread),
+                'surfaces' => array_map(static fn(stdClass $s) => (object) (get_object_vars($s) + ['reference' => $references[$id][(string) ($s->id ?? '')] ?? null]), self::surfaces($spread)),
                 'firstPage' => $spread->firstPage, 'lastPage' => $spread->lastPage,
                 'stored' => ['firstPage' => (int) $row['first_page'], 'lastPage' => (int) $row['last_page']], 'derived' => $context['ranges'][$id]['derived'],
                 'entries' => $counts[$id]['entries'] ?? 0, 'targets' => $counts[$id]['targets'] ?? 0,
@@ -478,20 +480,22 @@ final class Scenes
     }
 
     /**
-     * A surfaces list as the content holds it (`SurfaceData`): each { id, side, widthMm?, heightMm?, label? } – the size
-     * defaults to a page's (a wall's for side `wall`), a label is trimmed and left out when empty
+     * A surfaces list as the content holds it (`SurfaceData`): each { id, side, widthMm?, heightMm?, label?, place? } – the
+     * size defaults to a page's (a wall's for side `wall`), a label is trimmed and left out when empty, `place` (schema
+     * 2.36, #314: `SurfacePlace` – x, y, z in mm, rx?, ry?, rz? in degrees, in the scene's coordinate system) kept as sent
+     * (null leaves it out)
      * @return list<stdClass>
      */
     public static function checkSurfaces(mixed $value): array
     {
         $fail = static fn(string $message) => throw new ApiError(400, 'invalid-scene', $message);
-        if (!is_array($value)) $fail('surfaces must be a list of { id, side, widthMm?, heightMm?, label? }.');
+        if (!is_array($value)) $fail('surfaces must be a list of { id, side, widthMm?, heightMm?, label?, place? }.');
         if (count($value) > self::SURFACES_MAX) $fail('A scene has at most ' . self::SURFACES_MAX . ' surfaces.');
         $surfaces = [];
         $ids = [];
         foreach ($value as $i => $s) {
             $path = "surfaces[$i]";
-            if (!$s instanceof stdClass) $fail("$path must be an object { id, side, widthMm?, heightMm?, label? }.");
+            if (!$s instanceof stdClass) $fail("$path must be an object { id, side, widthMm?, heightMm?, label?, place? }.");
             $id = Editor::id($s->id ?? null, "$path.id");
             if (in_array($id, $ids, true)) $fail("$path.id: \"$id\" is there twice.");
             $ids[] = $id;
@@ -510,12 +514,43 @@ final class Scenes
                 if (mb_strlen($label) > BookTexts::TEXT_MAX_LENGTH) $fail("$path.label is longer than " . BookTexts::TEXT_MAX_LENGTH . ' characters.');
                 if ($label !== '') $surface->label = $label;
             }
+            if (property_exists($s, 'place') && $s->place !== null) $surface->place = self::checkPlace($s->place, "$path.place");
             foreach (array_keys(get_object_vars($s)) as $key) {
-                if (!in_array($key, ['id', 'side', 'widthMm', 'heightMm', 'label'], true)) $fail("$path.$key is not a field of a surface.");
+                if (!in_array($key, ['id', 'side', 'widthMm', 'heightMm', 'label', 'place'], true)) $fail("$path.$key is not a field of a surface.");
             }
             $surfaces[] = $surface;
         }
         return $surfaces;
+    }
+
+    /** The largest coordinate of a place (mm) and turn (degrees) */
+    public const PLACE_MAX_MM = 1000000;
+    public const PLACE_MAX_DEG = 3600;
+
+    /**
+     * A surface's place in the scene (`SurfacePlace`, schema 2.36): x, y, z required (mm), rx, ry, rz optional (degrees) –
+     * finite numbers, no other field. 400 `invalid-scene`.
+     */
+    public static function checkPlace(mixed $value, string $path = 'place'): stdClass
+    {
+        $fail = static fn(string $message) => throw new ApiError(400, 'invalid-scene', $message);
+        if (!$value instanceof stdClass) $fail("$path must be an object { x, y, z, rx?, ry?, rz? } (mm, degrees).");
+        $place = new stdClass();
+        foreach (['x', 'y', 'z', 'rx', 'ry', 'rz'] as $key) {
+            $required = in_array($key, ['x', 'y', 'z'], true);
+            if (!property_exists($value, $key) || ($value->{$key} === null && !$required)) {
+                if ($required) $fail("$path.$key is required (mm).");
+                continue;
+            }
+            $n = $value->{$key};
+            $max = $required ? self::PLACE_MAX_MM : self::PLACE_MAX_DEG;
+            if (!(is_int($n) || is_float($n)) || !is_finite((float) $n) || abs($n) > $max) $fail("$path.$key must be a number" . ($required ? ' in mm' : ' in degrees') . " (at most $max either way).");
+            $place->{$key} = $n;
+        }
+        foreach (array_keys(get_object_vars($value)) as $key) {
+            if (!in_array($key, ['x', 'y', 'z', 'rx', 'ry', 'rz'], true)) $fail("$path.$key is not a field of a place.");
+        }
+        return $place;
     }
 
     // ── POST …/scenes/move ───────────────────────────────────────────────────────────────────────
@@ -929,7 +964,7 @@ final class Scenes
             'scenes' => $scenes,
             'groups' => array_map(static fn(stdClass $g) => ['id' => $g->id, 'label' => $g->label, 'scenes' => $groupScenes[$g->id] ?? [], 'new' => true], $newGroups),
             'entries' => ['placed' => $placed, 'unplaced' => $unplaced],
-            'pageImages' => ['count' => $pageImages, 'note' => 'Page images stay keyed by page for now – phase 3 turns them into surface reference images.'],
+            'pageImages' => ['count' => $pageImages, 'note' => 'Page images stay keyed by page – POST …/scenes/references/migrate turns them into surface reference images (#314).'],
             'write' => ['scenes' => $writeScenes, 'groups' => $newGroups],
         ];
     }

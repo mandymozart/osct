@@ -7,6 +7,29 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.113.0 – 2026-11-18
+
+### Added
+
+- **Surface reference images** (#314, server): a surface of a scene can carry a reference image of the book's Library –
+  what the editor's stage will show on it (a scanned page, a photo of the wall); editor-only, never in the content.
+  Table `surface_references`, shown in `GET …/scenes` as `surfaces[].reference` { url, name, fit }, set / replaced /
+  removed by `PUT …/scenes/{id}/surfaces/{surfaceId}/reference` (fit cover · contain · stretch), change-logged and
+  revertable both ways (#312), gone with its surface or scene, counted, relinked and deleted with its Library file
+  (#298). `POST …/scenes/references/migrate` turns the page images (#251) into references – plan, then apply,
+  idempotent, the page images stay. MCP `set_surface_reference` and `migrate_surface_references`; the editor's API
+  client `listScenes`, `putSurfaceReference`, `migrateSurfaceReferences` (the UI follows).
+
+### Changed
+
+- `PUT …/scenes/{id}` (and MCP `put_scene`) takes a surface's `place` (schema 2.36); a target's `print.surfaceId` now
+  survives `PUT …/targets/{id}` and `POST …/entries` (it was dropped there) and MCP `put_target` passes it (#314).
+
+### Fixed
+
+- The MCP test's content schema expectation and the editor's generated `plugin-api.d.ts` (`SurfacePlace`) caught up
+  with schema 2.36.
+
 ## 1.112.0 – 2026-11-18
 
 ### Added

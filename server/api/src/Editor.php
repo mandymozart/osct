@@ -219,7 +219,11 @@ Please, grant access to proceed.",
         return array_map(static fn(array $types): array => array_values(array_unique($types)), $recorded);
     }
 
-    /** A target's printed placement (`PrintPlacement`): surface left / right, x, y, width (mm), optional height and page */
+    /**
+     * A target's printed placement (`PrintPlacement`): surface left / right / front / back, x, y, width (mm), optional
+     * height and page, and optional `surfaceId` (schema 2.36, #314: the scene's surface it is printed on, by id – wins
+     * over the side in `surface`; null or "" leaves it out)
+     */
     public static function print(mixed $value, string $path = 'print'): stdClass
     {
         if (!$value instanceof stdClass) throw new ApiError(400, 'invalid-target', "$path must be an object.");
@@ -232,6 +236,7 @@ Please, grant access to proceed.",
         $print = (object) ['surface' => $value->surface, 'x' => (float) $value->x, 'y' => (float) $value->y, 'width' => (float) $value->width];
         if (isset($value->height)) $print->height = (float) $value->height;
         if (isset($value->page)) $print->page = (int) $value->page;
+        if (property_exists($value, 'surfaceId') && $value->surfaceId !== null && $value->surfaceId !== '') $print->surfaceId = self::id($value->surfaceId, "$path.surfaceId");
         return $print;
     }
 

@@ -100,6 +100,15 @@ function editorApi(seen: Seen, { sources = true } = {}) {
     const apply = !!(seen.body as any)?.apply;
     return { json: { plan: { changes: [{ id: "c1", kind: "entity", ref: "castle", status: "revert", later: false, other: false }], chosen: ["c1"], counts: { revert: 1, conflict: 0, notRevertable: 0 }, later: 0, others: [] }, applied: apply, set: apply ? "s1" : null, written: apply ? ["c2"] : [] } };
   }
+  if (method === "PUT" && path === "/editor/books/osct/scenes/s2/surfaces/left/reference") {
+    const body = seen.body as { url?: string | null; fit?: string };
+    return { json: { scene: "s2", surface: "left", reference: body.url === null ? null : { url: body.url ?? "/a.png", name: "a.png", fit: body.fit ?? "cover" }, changed: true } };
+  }
+  if (method === "POST" && path === "/editor/books/osct/scenes/references/migrate") {
+    const apply = !!(seen.body as any)?.apply;
+    const mapped = [{ page: 2, facing: false, label: "2", url: "/a.png", name: "a.png", scene: "s2", surface: "left" }];
+    return { json: { plan: { upToDate: false, counts: { pageImages: 2, references: 1, already: 0, unmapped: 1 }, references: mapped, already: [], unmapped: [{ page: 42, facing: false, label: null, url: "/b.png", name: "b.png", scene: null, reason: "no page of the book any more" }] }, applied: apply } };
+  }
   if (method === "POST" && path === "/editor/books/osct/scenes/migrate") return { json: { plan: { upToDate: false, counts: {}, scenes: [], groups: [], entries: { placed: [], unplaced: [] }, pageImages: { count: 0, note: "" } }, applied: !!(seen.body as any)?.apply } };
   if (method === "PUT" && path === "/editor/books/osct/spreads/s2") return { json: { spread: { id: "s2", title: "Two", firstPage: 3, lastPage: 4, ...(seen.body as object) } } };
   if (method === "DELETE" && path === "/editor/books/osct/spreads/s1") return { status: 409, json: { error: { code: "initial-spread", message: "The book opens on this spread." } } };
@@ -175,6 +184,7 @@ describe("the content tools", () => {
         "list_books", "list_changes", "list_versions", "publish", "put_book_appearance", "put_book_passes", "put_entity", "put_environment", "put_spread", "put_target", "upload_asset",
         "get_entries", "update_entry", "update_book", "set_asset_credits", "list_pages", "set_page_images", "add_matter", "plan_asset_names", "apply_asset_names",
         "list_scenes", "add_scene", "move_scenes", "put_scene", "delete_scene", "group_scenes", "rename_group", "ungroup", "migrate_scenes",
+        "set_surface_reference", "migrate_surface_references",
         "revert_change", "revert_to",
       ].sort(),
     );
@@ -406,6 +416,11 @@ describe("the content tools", () => {
     expect(seen.at(-1)!.body).toBeUndefined();
     expect(migration.data.next).toContain("apply: true");
     expect((await rec.call("migrate_scenes", { book: "osct", apply: true })).data.applied).toBe(true);
+    // #314: a surface's place passes through put_scene
+    const placed = await rec.call("put_scene", { book: "osct", scene: "s2", layout: "free", surfaces: [{ id: "wall", side: "wall", place: { x: 0, y: 450, z: -400, rx: 90 } }] });
+    expect(placed.ok).toBe(true);
+    expect(seen.at(-1)!.body).toMatchObject({ surfaces: [{ id: "wall", side: "wall", place: { x: 0, y: 450, z: -400, rx: 90 } }] });
+    await expect(rec.call("put_scene", { book: "osct", scene: "s2", surfaces: [{ id: "wall", side: "wall", place: { x: 0, y: 0 } }] })).rejects.toThrow();
     const first = await rec.call("delete_scene", { book: "osct", scene: "s2" });
     expect(first.data.deleted).toBe(false);
     expect(first.data.next).toContain("call delete_scene again");
@@ -425,7 +440,7 @@ describe("the content tools", () => {
 
   it("describe_content_model explains an entry's Markdown and variables, the book and that the onboarding is the app's (#223, #236)", async () => {
     const model = (await rec.call("describe_content_model", {})).data;
-    expect(model.contentSchema).toBe("2.35");
+    expect(model.contentSchema).toBe("2.36");
     expect(model.spread.matters).toEqual(["front", "back"]);
     expect(model.entity.assets.textures).toMatch(/512, 1024, 2048, 4096/);
     expect(model.entryText.description).toMatch(/\*emphasis\*/);
@@ -799,6 +814,34 @@ describe("the content tools", () => {
     expect(result.ok).toBe(false);
     expect(result.data.error).toMatchObject({ status: 403, code: "forbidden", message: "Not allowed.", role: "editor" });
     expect(result.data.error.hint).toContain("editor");
+  });
+
+  it("surface reference images (#314): set, change the fit, remove; the page images' migration in two steps", async () => {
+    const set = await rec.call("set_surface_reference", { book: "osct", scene: "s2", surface: "left", url: "/a.png", fit: "contain" });
+    expect(set.data.reference).toEqual({ url: "/a.png", name: "a.png", fit: "contain" });
+    expect(seen.at(-1)).toMatchObject({ method: "PUT", path: "/editor/books/osct/scenes/s2/surfaces/left/reference", body: { url: "/a.png", fit: "contain" } });
+    expect(set.data.open).toBeDefined();
+    await rec.call("set_surface_reference", { book: "osct", scene: "s2", surface: "left", url: null });
+    expect(seen.at(-1)!.body).toEqual({ url: null });
+    seen.length = 0;
+    expect((await rec.call("set_surface_reference", { book: "osct", scene: "s2", surface: "left" })).ok).toBe(false);
+    expect(seen).toHaveLength(0);
+    await expect(rec.call("set_surface_reference", { book: "osct", scene: "s2", surface: "left", fit: "tile" })).rejects.toThrow();
+    const plan = await rec.call("migrate_surface_references", { book: "osct" });
+    expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/editor/books/osct/scenes/references/migrate" });
+    expect(seen.at(-1)!.body).toBeUndefined();
+    expect(plan.data.applied).toBe(false);
+    expect(plan.data.next).toContain("apply: true");
+    const applied = await rec.call("migrate_surface_references", { book: "osct", apply: true });
+    expect(seen.at(-1)!.body).toEqual({ apply: true });
+    expect(applied.data.applied).toBe(true);
+    expect(applied.data.next).toBeUndefined();
+  });
+
+  it("put_target passes a print's surfaceId (#314)", async () => {
+    const out = await rec.call("put_target", { book: "osct", target: "castle-target", print: { surface: "right", surfaceId: "middle", x: 1, y: 2, width: 30 } });
+    expect(out.ok).toBe(true);
+    expect(seen.find(s => s.method === "PUT" && s.path === "/editor/books/osct/targets/castle-target")!.body).toMatchObject({ print: { surfaceId: "middle" } });
   });
 });
 

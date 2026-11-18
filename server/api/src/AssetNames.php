@@ -32,7 +32,7 @@ final class AssetNames
     /** The kinds of use that give a file its name (#298 phase 3) – a spread's, a book setting's or the layout's use counts, but names nothing */
     private const NAMING = ['target', 'entry', 'entity', 'page', 'environment', 'plugin'];
     /** A use's kind in the order of a file's uses (`rank`) */
-    private const KIND_ORDER = ['target' => 0, 'entry' => 1, 'entity' => 2, 'spread' => 3, 'page' => 4, 'environment' => 5, 'book' => 6, 'plugin' => 7, 'layout' => 8];
+    private const KIND_ORDER = ['target' => 0, 'entry' => 1, 'entity' => 2, 'spread' => 3, 'page' => 4, 'reference' => 5, 'environment' => 6, 'book' => 7, 'plugin' => 8, 'layout' => 9];
     /** The print layout's folder in the content (editor/src/lib/stage/stage-layout.ts `LAYOUT_PATH`) and the file that lists its sheets */
     public const LAYOUT_PATH = '/assets/content/layout/';
     public const LAYOUT_FILE = self::LAYOUT_PATH . 'layout.json';
@@ -148,6 +148,8 @@ final class AssetNames
      * - `target` (its printed image `imageSrc`, its own inline entity), `entry`, `entity` (a shared one) – the rows' JSON;
      * - `spread` – a spread's own data (its environment, passes, appearance …), on the spread's first page;
      * - `page` – a page image (#251) over its page;
+     * - `reference` – a surface's reference image (#314, ref `<scene>/<surface>`) on its scene's first page – counted,
+     *   relinked and deleted with the file like a page image, but it gives the file no name (the page images' stay);
      * - `environment` – the book's environment (its world model, its sky); `book` – any other setting of the book
      *   (appearance, passes with a texture or a model …); both book-wide;
      * - `plugin` – a plugin source naming the file's URL as text (a shader it loads), book-wide;
@@ -211,12 +213,23 @@ final class AssetNames
             });
         }
         // Spreads' own files (their environment, passes, appearance …): on the spread's first page, no name of their own
+        $surfaces = [];
         foreach (Db::run('SELECT id, data_json FROM spreads WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
             $id = (string) $row['id'];
             $at = $spreads[$id] ?? null;
-            self::walk(Editor::decode($row['data_json']), null, null, static function (string $value) use ($add, $id, $at) {
+            $data = Editor::decode($row['data_json']);
+            $surfaces[$id] = $data instanceof stdClass ? Scenes::surfaceIds($data) : [];
+            self::walk($data, null, null, static function (string $value) use ($add, $id, $at) {
                 $add($value, 'spread', $id, $at === null ? null : $id, $at['page'] ?? null, $at['order'] ?? self::BOOK_WIDE, null);
             });
+        }
+        // Surface reference images (#314): on their scene's first page, no name of their own – only those whose surface is there
+        foreach (SurfaceReferences::byScene($bookId) as $scene => $references) {
+            $at = $spreads[$scene] ?? null;
+            foreach ($references as $surface => $reference) {
+                if (!in_array((string) $surface, $surfaces[$scene] ?? [], true)) continue;
+                $add($reference['url'], 'reference', SurfaceReferences::ref((string) $scene, (string) $surface), $at === null ? null : (string) $scene, $at['page'] ?? null, $at['order'] ?? self::BOOK_WIDE, null);
+            }
         }
         // Page images: their page's label
         foreach (Db::run('SELECT page, facing, url FROM page_images WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {

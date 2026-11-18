@@ -57,6 +57,8 @@ import type {
   ScenesMigration,
   ScenesMoved,
   RevertResult,
+  SurfaceReferenceSaved,
+  SurfaceReferencesMigration,
   SharedEntities,
   SpreadAdded,
   SpreadSaved,
@@ -64,7 +66,7 @@ import type {
   Ungrouped,
 } from "../../shared/api/editor";
 import { confirmationStep } from "../../shared/api/errors";
-import { CREDITS_BATCH_MAX, CREDITS_MAX, MATTER_MAX, PAGE_IMAGES_BATCH_MAX, SCENE_PAGE_MM, SCENE_PRESETS, SCENE_SURFACES_MAX } from "../../shared/api/editor";
+import { CREDITS_BATCH_MAX, CREDITS_MAX, MATTER_MAX, PAGE_IMAGES_BATCH_MAX, SCENE_PAGE_MM, SCENE_PRESETS, SCENE_SURFACES_MAX, SURFACE_REFERENCE_FITS } from "../../shared/api/editor";
 import { pageOfName } from "../../shared/api/page-names";
 import { IMAGE_FITS, IMAGE_MAX_SIDE, IMAGE_WEBP_QUALITY, imageUseQuery, type ImageFit } from "../../shared/api/images";
 import {
@@ -149,6 +151,7 @@ const printSchema = z
     width: z.number().positive().describe("the printed width in mm"),
     height: z.number().positive().optional(),
     page: z.number().int().optional(),
+    surfaceId: ID.optional().describe("content schema 2.36 (#314): the scene's surface it is printed on, by id (list_scenes) – wins over the side in `surface`, which older apps read"),
   })
   .describe("where the target is printed (PrintPlacement)");
 
@@ -666,6 +669,21 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       widthMm: z.number().positive().optional().describe(`default: a page's ${SCENE_PAGE_MM.width} mm (a wall's 2000)`),
       heightMm: z.number().positive().optional().describe(`default: a page's ${SCENE_PAGE_MM.height} mm (a wall's 2000)`),
       label: z.string().max(TEXT_MAX_LENGTH).optional().describe("written exactly as printed (41, ii, Cover) – free text, never arithmetic; none: nothing printed"),
+      place: z
+        .object({
+          x: z.number(),
+          y: z.number(),
+          z: z.number(),
+          rx: z.number().optional(),
+          ry: z.number().optional(),
+          rz: z.number().optional(),
+        })
+        .strict()
+        .nullable()
+        .optional()
+        .describe(
+          "content schema 2.36 (#314): where the surface lies in the scene's coordinate system – x, y, z in mm, rx, ry, rz in degrees; origin on the table at the middle of the first row (a double page: the spine), +x right, +y up, +z towards the reader; unrotated it lies flat face up, a wall ahead is rx 90. Used in a free scene; a fixed one derives its places",
+        ),
     })
     .strict();
   const surfacesSchema = z.array(surfaceSchema).max(SCENE_SURFACES_MAX);
@@ -745,7 +763,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_scene",
     {
       description:
-        "Changes a scene: `surfaces` (the whole list – add, remove, resize, label: { id, side, widthMm?, heightMm?, label? }; [] or null removes them), `label` (free text; \"\" or null removes it), `layout` (fixed | free; null removes it), `group` (a group of the book; null takes it out – the scene stays in place), `title`, `format`, `passes` (as put_spread). Send what changes. A surface that entries lie on goes only with `apply: true` – the first call answers 409 surfaces-in-use naming them; with apply they stay on the scene without a surface (`cleared`). A change is recorded.",
+        "Changes a scene: `surfaces` (the whole list – add, remove, resize, label, place: { id, side, widthMm?, heightMm?, label?, place? }; [] or null removes them; a surface that goes takes its reference image), `label` (free text; \"\" or null removes it), `layout` (fixed | free; null removes it), `group` (a group of the book; null takes it out – the scene stays in place), `title`, `format`, `passes` (as put_spread). Send what changes. A surface that entries lie on goes only with `apply: true` – the first call answers 409 surfaces-in-use naming them; with apply they stay on the scene without a surface (`cleared`). A change is recorded.",
       inputSchema: z.object({
         book: BOOK,
         scene: ID.describe("the scene's id (list_scenes)"),
@@ -844,6 +862,52 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       return text({
         ...result,
         ...(result.applied || result.plan.upToDate ? {} : { next: "Nothing was written. Show the person the counts, the groups and the entries it cannot place; only with their yes call migrate_scenes again with apply: true." }),
+        open: editorHref(links, book),
+      });
+    }),
+  );
+
+  // ── Surface reference images (#314): editor-only – the stage shows them on the surfaces, the content never carries them ──
+
+  server.registerTool(
+    "set_surface_reference",
+    {
+      description:
+        "Sets, replaces or removes a surface's reference image – the picture the editor's stage shows on that surface (a scanned page, a photo of the wall). Editor-only: never in the content, readers never see it. `url`: an image of the book's Library (list_assets – upload_asset first) or an imported file's /assets/content/… path; null removes it. `fit`: cover (default – cut to cover the surface), contain (fit inside) or stretch; a replace keeps the fit it had. `name` defaults to the Library's. fit / name without url change the present one. list_scenes shows each surface's `reference`. A change is recorded (revertable).",
+      inputSchema: z.object({
+        book: BOOK,
+        scene: ID.describe("the scene's id (list_scenes)"),
+        surface: ID.describe("the surface's id in that scene (list_scenes)"),
+        url: z.string().min(1).nullable().optional().describe("a Library image's URL; null removes the reference"),
+        fit: z.enum(SURFACE_REFERENCE_FITS).optional(),
+        name: z.string().min(1).max(255).optional(),
+      }),
+      annotations: write,
+    },
+    guard(async ({ book, scene, surface, ...body }) => {
+      if (body.url === undefined && body.fit === undefined && body.name === undefined) return fail({ error: { code: "mcp", message: "send url (null removes it), fit or name" } });
+      const result = await api.call<SurfaceReferenceSaved>(
+        "PUT",
+        `/editor/books/${encodeURIComponent(book)}/scenes/${encodeURIComponent(scene)}/surfaces/${encodeURIComponent(surface)}/reference`,
+        body,
+      );
+      return text({ ...result, open: editorHref(links, book, scene) });
+    }),
+  );
+
+  server.registerTool(
+    "migrate_surface_references",
+    {
+      description:
+        "Turns the book's page images (set_page_images, #251) into surface reference images: each page image goes to its scene's surface – the one labelled with its page number, else the scene's one surface on its side. Run migrate_scenes first (scenes without surfaces cannot take one). **Two steps**: without `apply` the plan – `references` (page → scene / surface), `already` (the surface has that image), `unmapped` (with the reason: a page the book lost, no surface on that side, the surface has another reference – kept –, two page images for one surface), `counts`. Show it to the person; with their yes call again with `apply: true`. Idempotent; the page images stay.",
+      inputSchema: z.object({ book: BOOK, apply: z.boolean().optional().describe("the second step: write the plan the person agreed to") }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    guard(async ({ book, apply }) => {
+      const result = await api.call<SurfaceReferencesMigration>("POST", `/editor/books/${encodeURIComponent(book)}/scenes/references/migrate`, apply ? { apply: true } : undefined);
+      return text({
+        ...result,
+        ...(result.applied || result.plan.upToDate ? {} : { next: "Nothing was written. Show the person what maps where and what stays unmapped; only with their yes call migrate_surface_references again with apply: true." }),
         open: editorHref(links, book),
       });
     }),

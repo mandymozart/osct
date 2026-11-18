@@ -367,6 +367,68 @@ export interface ScenePageChange {
   to: [number, number];
 }
 
+/** How a surface's reference image fills it (#314, server `SurfaceReferences::FITS`): cut to cover, fit inside, stretched */
+export const SURFACE_REFERENCE_FITS = ["cover", "contain", "stretch"] as const;
+export type SurfaceReferenceFit = (typeof SURFACE_REFERENCE_FITS)[number];
+
+/**
+ * A surface's reference image (#314): an image of the book's Library the editor's stage shows on the surface – editor-only,
+ * never in the content. `url` = a Library URL or an imported file's content path (`/assets/content/…`).
+ */
+export interface SurfaceReference {
+  url: string;
+  name: string;
+  fit: SurfaceReferenceFit;
+}
+
+/** A surface as the scenes overview shows it: the content's `SurfaceData` and its reference image (null: none) */
+export type SurfaceSummary = SurfaceData & { reference: SurfaceReference | null };
+
+/**
+ * `PUT /editor/books/{id}/scenes/{sceneId}/surfaces/{surfaceId}/reference`: `url` sets or replaces (null removes);
+ * `fit` / `name` without `url` change the present one (a replace keeps its fit unless `fit` is sent)
+ */
+export interface SurfaceReferenceRequest {
+  url?: string | null;
+  fit?: SurfaceReferenceFit;
+  name?: string;
+}
+
+/** The answer of `PUT …/surfaces/{surfaceId}/reference`: the reference now (null: none), whether anything changed */
+export interface SurfaceReferenceSaved {
+  scene: string;
+  surface: string;
+  reference: SurfaceReference | null;
+  changed: boolean;
+}
+
+/** A page image (#251) and the surface it maps to in the references migration */
+export interface SurfaceReferenceMapping {
+  page: number;
+  facing: boolean;
+  /** The page's label (`12`, `Cover`, `next to 1`), null for a page the book no longer has */
+  label: string | null;
+  url: string;
+  name: string;
+  scene: string | null;
+  surface?: string;
+}
+
+/** `POST /editor/books/{id}/scenes/references/migrate { apply? }`: the page images become surface references */
+export interface SurfaceReferencesMigration {
+  plan: {
+    upToDate: boolean;
+    counts: { pageImages: number; references: number; already: number; unmapped: number };
+    /** What becomes a reference (with `apply`: what was written) */
+    references: (SurfaceReferenceMapping & { scene: string; surface: string })[];
+    /** The surface has that image already */
+    already: (SurfaceReferenceMapping & { scene: string; surface: string })[];
+    /** Left as it is, with the reason */
+    unmapped: (SurfaceReferenceMapping & { reason: string })[];
+  };
+  applied: boolean;
+}
+
 /** A scene of `GET /editor/books/{id}/scenes` */
 export interface SceneSummary {
   id: string;
@@ -377,7 +439,8 @@ export interface SceneSummary {
   matter: "front" | "back" | null;
   layout: SceneLayout | null;
   group: string | null;
-  surfaces: SurfaceData[];
+  /** Its surfaces, each with its reference image (#314) */
+  surfaces: SurfaceSummary[];
   /** The range older apps read (`Scenes::ranges`) */
   firstPage: number;
   lastPage: number;

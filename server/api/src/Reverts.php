@@ -18,6 +18,9 @@ declare(strict_types=1);
  * listed, never overwritten, and the older changes of that thing are skipped as well. Kinds the log cannot take back –
  * a creation, a removal, a moved entry or scene page, a plugin source, a deleted file – are listed as not revertable.
  * A revert changes the draft only; readers see it with the next publish.
+ *
+ * A surface's reference image (#314, kind `reference`, ref `<scene>/<surface>`) is revertable both ways – set, replaced
+ * and removed (its `before` / `after` is the reference or null) – while its scene still has the surface.
  */
 final class Reverts
 {
@@ -65,6 +68,14 @@ final class Reverts
     public static function notRevertable(array $row): ?string
     {
         $kind = (string) $row['kind'];
+        // A reference image (#314): set, replaced and removed alike – its before / after is the reference or null
+        if ($kind === SurfaceReferences::KIND) {
+            foreach ([$row['before_json'], $row['after_json']] as $json) {
+                $value = $json === null ? null : Editor::decode($json);
+                if ($value !== null && !($value instanceof stdClass && is_string($value->url ?? null))) return 'Not revertable.';
+            }
+            return null;
+        }
         if ($kind === 'asset') return 'A file a removal deleted – its bytes are gone.';
         if ($kind === 'plugin') return 'A plugin source – change it in the Code tab.';
         if ($row['before_json'] === null) return 'A creation – remove it instead.';
@@ -214,6 +225,12 @@ final class Reverts
             $current = array_key_exists($key, $state) ? $state[$key] : self::read($bookId, $key);
             $after = Editor::decode($row['after_json']);
             $before = Editor::decode($row['before_json']);
+            if ($row['kind'] === SurfaceReferences::KIND && $before !== null && !SurfaceReferences::surfaceExists($bookId, ...SurfaceReferences::split((string) $row['ref']))) {
+                $items[] = $item + ['status' => 'conflict', 'reason' => 'Its scene has no such surface any more.'];
+                $counts['conflict']++;
+                $blocked[$key] = true;
+                continue;
+            }
             if (!self::holds($current, $after, $fields, $key)) {
                 $items[] = $item + ['status' => 'conflict', 'reason' => $current === null ? 'It is gone from the draft.' : 'It was changed since, outside this log – it is left as it is.'];
                 $counts['conflict']++;
@@ -239,6 +256,8 @@ final class Reverts
     /** Whether the thing's current value is what the change wrote (the book: only the fields it changed) */
     private static function holds(mixed $current, mixed $after, array $fields, string $key): bool
     {
+        // A reference image (#314) may be none (null) before and after
+        if (str_starts_with($key, SurfaceReferences::KIND . ':')) return self::canon($current) === self::canon($after);
         if ($current === null) return false;
         if ($key !== 'book') return self::canon($current) === self::canon($after);
         foreach ($fields as $field) {
@@ -266,6 +285,11 @@ final class Reverts
         if ($key === 'groups:' . $bookId) return Editor::decode((string) (Books::bookRow($bookId, true)['groups_json'] ?? '[]'));
         if ($key === 'order:' . $bookId) return array_map(static fn(array $row) => (string) $row['id'], Scenes::context($bookId, true)['rows']);
         [$kind, $ref] = explode(':', $key, 2);
+        if ($kind === SurfaceReferences::KIND) {
+            [$scene, $surface] = SurfaceReferences::split($ref);
+            $reference = SurfaceReferences::one($bookId, $scene, $surface, true);
+            return $reference === null ? null : (object) $reference;
+        }
         $sql = match ($kind) {
             'entity' => 'SELECT data_json FROM entities WHERE book_id = :book AND ref = :id',
             'target' => 'SELECT data_json FROM targets WHERE book_id = :book AND id = :id',
@@ -306,6 +330,10 @@ final class Reverts
                 $params + ['category' => (string) ($next->category ?? ''), 'title' => (string) ($next->title ?? ''), 'data' => $json, 'id' => $ref]);
         } elseif ($kind === 'spread') {
             Db::run('UPDATE spreads SET title = :title, data_json = :data WHERE book_id = :book AND id = :id', $params + ['title' => (string) ($next->title ?? ''), 'data' => $json, 'id' => $ref]);
+        } elseif ($kind === SurfaceReferences::KIND) {
+            [$scene, $surface] = SurfaceReferences::split($ref);
+            $reference = $next instanceof stdClass ? ['url' => (string) $next->url, 'name' => (string) ($next->name ?? ''), 'fit' => (string) ($next->fit ?? SurfaceReferences::FIT_DEFAULT)] : null;
+            SurfaceReferences::write($bookId, $scene, $surface, $reference, $user['id']);
         }
         return Books::recordChange($bookId, $user, $kind, $ref, $before, $json, $set, $reverts);
     }

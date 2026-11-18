@@ -355,6 +355,8 @@ final class Assets
             Db::run('DELETE FROM assets WHERE id = :id', ['id' => $assetId]);
             // A forced delete takes the page images that showed it (#251): those pages show the layout again
             Db::run('DELETE FROM page_images WHERE book_id = :book AND url = :url', ['book' => $bookId, 'url' => $asset['url']]);
+            // … and the surface reference images (#314) – a change each
+            SurfaceReferences::dropUrl($bookId, (string) $asset['url'], $user);
             Books::recordChange($bookId, $user, 'asset', $assetId, Editor::encode(self::before($asset, $versions)), 'null');
             return array_column($versions, 'path');
         });
@@ -607,8 +609,9 @@ final class Assets
             $count++;
         }
         if ($count) Books::touchBook($bookId);
-        // Page images are no draft rows (#251): they follow the new version without a change
-        return $count + Pages::relink($bookId, $from, $to);
+        // Surface reference images (#314) follow with a change each (revertable); page images are no draft rows (#251):
+        // they follow the new version without a change
+        return $count + SurfaceReferences::relink($bookId, $from, $to, $user) + Pages::relink($bookId, $from, $to);
     }
 
     /** @param array<string, mixed> $row */

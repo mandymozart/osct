@@ -221,6 +221,17 @@ function upload(string $base, string $method, string $path, string $bytes, strin
     return [$status, $response === '' ? null : json_decode($response, true), $http_response_header];
 }
 
+/** A surface's reference image URL as the scenes overview shows it (#314), null: none */
+function SurfaceRef(string $base, string $token, string $scene, string $surface): ?string
+{
+    [, $overview] = call($base, 'GET', '/editor/books/surfaced/scenes', null, $token);
+    foreach ($overview['scenes'] ?? [] as $s) {
+        if ($s['id'] !== $scene) continue;
+        foreach ($s['surfaces'] as $f) if ($f['id'] === $surface) return $f['reference']['url'] ?? null;
+    }
+    return null;
+}
+
 /**
  * A PNG of one colour, written by hand (no GD in the test): `$alpha` < 255 makes it RGBA – a picture with transparency.
  * Distinct colours give distinct pictures, so uploads under the image rule (#298) stay distinct assets.
@@ -2517,6 +2528,177 @@ try {
     [, $log] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
     $removal = array_values(array_filter($log['changes'], fn($c) => $c['after'] === null));
     check(!$removal || is_string($removal[0]['notRevertable']), 'a removal is not revertable');
+
+    echo "editor: surfaces – place, a print's surfaceId, reference images and the page images' migration (#314)\n";
+    $refBook = $configuration;
+    $refBook['book'] = ['id' => 'surfaced', 'title' => 'Surfaced', 'author' => 'Someone'];
+    $refBook['initialSpreadId'] = 's001';
+    $refBook['spreads'] = [
+        ['id' => 'cover', 'title' => 'Cover', 'firstPage' => 0, 'lastPage' => 0, 'format' => 'cover'],
+        ['id' => 's001', 'title' => '1', 'firstPage' => 1, 'lastPage' => 1],
+        ['id' => 's002-003', 'title' => '2–3', 'firstPage' => 2, 'lastPage' => 3],
+        ['id' => 'extra', 'title' => '4–5', 'firstPage' => 4, 'lastPage' => 5],
+        ['id' => 'back', 'title' => 'Back cover', 'firstPage' => 6, 'lastPage' => 6, 'format' => 'back'],
+    ];
+    $refBook['entries'] = [['id' => 'printed', 'category' => 'text', 'title' => 'Printed', 'page' => 3, 'body' => '', 'tags' => [], 'target' => [
+        'id' => 'printed', 'imageSrc' => '/assets/content/entries/racoon/img.jpg', 'print' => ['page' => 3, 'surface' => 'right', 'surfaceId' => 'right', 'x' => 1, 'y' => 1, 'width' => 10]]]];
+    unset($refBook['plugins']);
+    [$status] = importing($api, 'surfaced', $editor, json_encode(['configuration' => $refBook, 'files' => $files], $flags));
+    check($status === 200, '#314: a print-first book imported with a target printed on a surface by id');
+    [$status, $data] = call($api, 'POST', '/editor/books/surfaced/scenes/migrate', ['apply' => true], $editor);
+    check($status === 200 && $data['applied'] === true, '#314: the book\'s spreads became scenes with surfaces');
+    $refDraft = function () use ($api, $editor): array {
+        [, $m] = call($api, 'GET', '/editor/books/surfaced/draft/latest.json?t=' . mt_rand(), null, $editor);
+        [, $d] = call($api, 'GET', "/editor/books/surfaced/draft/{$m['build']}/game.config.json", null, $editor);
+        return is_array($d) ? $d : [];
+    };
+    $draftTarget = static fn(array $config): ?array => array_column($config['entries'] ?? [], null, 'id')['printed']['target'] ?? null;
+    check(($draftTarget($refDraft())['print']['surfaceId'] ?? null) === 'right', '#314: the import keeps a print\'s surfaceId');
+
+    // A print's surfaceId survives every write path of the print
+    [$status, $data] = call($api, 'PUT', '/editor/books/surfaced/targets/printed', ['print' => ['surface' => 'left', 'surfaceId' => 'left', 'x' => 2, 'y' => 3, 'width' => 20]], $editor);
+    check($status === 200 && ($data['target']['print']['surfaceId'] ?? null) === 'left' && ($draftTarget($refDraft())['print']['surfaceId'] ?? null) === 'left',
+        '#314 PUT target { print { surfaceId } }: kept, and in the draft');
+    [$status, $data] = call($api, 'PUT', '/editor/books/surfaced/targets/printed', ['print' => ['surface' => 'left', 'surfaceId' => 'no good', 'x' => 2, 'y' => 3, 'width' => 20]], $editor);
+    check($status === 400, '#314 PUT target: a surfaceId that is no id → 400');
+    [$status, $data] = call($api, 'POST', '/editor/books/surfaced/entries', ['title' => 'New', 'category' => 'text', 'page' => 2, 'id' => 'new-one',
+        'target' => ['imageSrc' => '/assets/content/entries/racoon/img.jpg', 'print' => ['surface' => 'left', 'surfaceId' => 'left', 'x' => 0, 'y' => 0, 'width' => 5]]], $editor);
+    $newTarget = array_column($refDraft()['entries'] ?? [], null, 'id')['new-one']['target'] ?? null;
+    check($status === 201 && ($newTarget['print']['surfaceId'] ?? null) === 'left',
+        '#314 POST entry with a target: its print keeps surfaceId');
+
+    // place: PUT …/scenes/{id} { surfaces } takes a surface's place
+    [$status, $data] = call($api, 'PUT', '/editor/books/surfaced/scenes/extra', ['layout' => 'free', 'surfaces' => [
+        ['id' => 'left', 'side' => 'left', 'label' => '4', 'place' => ['x' => -115, 'y' => 0, 'z' => 0]],
+        ['id' => 'right', 'side' => 'right', 'label' => '5', 'place' => ['x' => 115, 'y' => 0, 'z' => 0, 'rz' => 0]],
+        ['id' => 'wall', 'side' => 'wall', 'widthMm' => 1200, 'heightMm' => 900, 'place' => ['x' => 0, 'y' => 450, 'z' => -400, 'rx' => 90, 'ry' => null]],
+    ]], $editor);
+    $placed = array_column($data['scene']['surfaces'] ?? [], 'place', 'id');
+    check($status === 200 && $placed === ['left' => ['x' => -115, 'y' => 0, 'z' => 0], 'right' => ['x' => 115, 'y' => 0, 'z' => 0, 'rz' => 0], 'wall' => ['x' => 0, 'y' => 450, 'z' => -400, 'rx' => 90]],
+        '#314 PUT scene: surfaces with their place (a null turn left out)');
+    $draftExtra = array_column($refDraft()['spreads'] ?? [], null, 'id')['extra'] ?? [];
+    check(($draftExtra['surfaces'][2]['place'] ?? null) === ['x' => 0, 'y' => 450, 'z' => -400, 'rx' => 90], '#314: … and the draft carries the place (schema 2.36)');
+    foreach ([
+        [['x' => 0, 'y' => 0], 'a place without z'],
+        [['x' => 0, 'y' => 0, 'z' => '1'], 'a coordinate that is no number'],
+        [['x' => 0, 'y' => 0, 'z' => 0, 'scale' => 2], 'a field a place does not have'],
+        [[1, 2, 3], 'a place that is a list'],
+    ] as [$place, $what]) {
+        [$status, $data] = call($api, 'PUT', '/editor/books/surfaced/scenes/extra', ['surfaces' => [['id' => 'left', 'side' => 'left', 'place' => $place]]], $editor);
+        check($status === 400 && ($data['error']['code'] ?? null) === 'invalid-scene', "#314 PUT scene: $what → 400 invalid-scene");
+    }
+
+    // Reference images: set, replace, change the fit, remove
+    [, $imgA] = upload($api, 'POST', '/editor/books/surfaced/assets', pngOf(2, 3, 0x3366aa), 'scan-a.png', $editor);
+    [, $imgB] = upload($api, 'POST', '/editor/books/surfaced/assets', pngOf(3, 2, 0xaa6633), 'scan-b.png', $editor);
+    $urlA = (string) ($imgA['asset']['url'] ?? '');
+    $urlB = (string) ($imgB['asset']['url'] ?? '');
+    $refPath = static fn(string $scene, string $surface): string => "/editor/books/surfaced/scenes/$scene/surfaces/$surface/reference";
+    [$status, $data] = call($api, 'PUT', $refPath('s002-003', 'left'), ['url' => $urlA], $editor);
+    check($status === 200 && $data['changed'] === true && $data['reference'] === ['url' => $urlA, 'name' => $imgA['asset']['name'], 'fit' => 'cover'] && $data['scene'] === 's002-003' && $data['surface'] === 'left',
+        '#314 PUT reference: set – the Library\'s name, fit cover');
+    [$status, $data] = call($api, 'PUT', $refPath('s002-003', 'left'), ['fit' => 'contain', 'name' => '  Page  two '], $editor);
+    check($status === 200 && $data['reference'] === ['url' => $urlA, 'name' => 'Page two', 'fit' => 'contain'], '#314 PUT reference: the fit and the name alone');
+    [$status, $data] = call($api, 'PUT', $refPath('s002-003', 'left'), ['url' => $urlB], $editor);
+    check($status === 200 && $data['reference'] === ['url' => $urlB, 'name' => $imgB['asset']['name'], 'fit' => 'contain'], '#314 PUT reference: replace – keeps its fit');
+    [$status, $data] = call($api, 'PUT', $refPath('s002-003', 'left'), ['url' => $urlB, 'fit' => 'contain'], $editor);
+    check($status === 200 && $data['changed'] === false, '#314 PUT reference: the same again → nothing changed');
+    [$status, $data] = call($api, 'PUT', $refPath('extra', 'wall'), ['url' => $urlA, 'fit' => 'stretch'], $editor);
+    check($status === 200 && $data['reference']['fit'] === 'stretch', '#314 PUT reference: a wall takes one too');
+    [$status, $data] = call($api, 'PUT', $refPath('cover', 'front'), ['url' => '/assets/content/entries/racoon/img.jpg'], $editor);
+    check($status === 200 && $data['reference']['url'] === '/assets/content/entries/racoon/img.jpg', '#314 PUT reference: an imported image by its content path');
+    [$status, $data] = call($api, 'PUT', $refPath('cover', 'front'), ['url' => null], $editor);
+    check($status === 200 && $data['reference'] === null && $data['changed'] === true, '#314 PUT reference: null removes it');
+    foreach ([
+        [$refPath('s001', 'right'), ['url' => 'https://elsewhere/x.png'], 400, 'a url that is no image of the Library'],
+        [$refPath('s001', 'right'), ['url' => $urlA, 'fit' => 'tile'], 400, 'a fit it does not know'],
+        [$refPath('s001', 'right'), ['url' => $urlA, 'name' => '  '], 400, 'an empty name'],
+        [$refPath('s001', 'right'), [], 400, 'nothing to change'],
+        [$refPath('s001', 'right'), ['fit' => 'contain'], 404, 'a fit for a surface without a reference'],
+        [$refPath('s001', 'middle'), ['url' => $urlA], 404, 'a surface the scene does not have'],
+        [$refPath('nope', 'left'), ['url' => $urlA], 404, 'a scene the book does not have'],
+    ] as [$path, $body, $code, $what]) {
+        [$status, $data] = call($api, 'PUT', $path, $body, $editor);
+        check($status === $code, "#314 PUT reference: $what → $code");
+    }
+    [, $overview] = call($api, 'GET', '/editor/books/surfaced/scenes', null, $editor);
+    $refs = [];
+    foreach ($overview['scenes'] ?? [] as $scene) foreach ($scene['surfaces'] as $surface) $refs[$scene['id'] . '/' . $surface['id']] = array_key_exists('reference', $surface) ? $surface['reference'] : 'missing';
+    check(($refs['s002-003/left'] ?? null) === ['url' => $urlB, 'name' => $imgB['asset']['name'], 'fit' => 'contain'] && ($refs['extra/wall']['url'] ?? null) === $urlA
+        && $refs['s001/right'] === null && $refs['cover/front'] === null && !in_array('missing', $refs, true),
+        '#314 GET …/scenes: every surface with its reference (null: none)');
+    $draftJson = (string) json_encode($refDraft());
+    check(!str_contains($draftJson, '"reference"') && !str_contains($draftJson, basename($urlB)), '#314: references are no content – the draft carries none');
+
+    // The change log: a change each, revertable both ways
+    [, $log] = call($api, 'GET', '/editor/books/surfaced/changes?limit=20', null, $editor);
+    $refChanges = array_values(array_filter($log['changes'] ?? [], fn($c) => $c['kind'] === 'reference'));
+    check(count($refChanges) === 6 && $refChanges[0]['ref'] === 'cover/front' && $refChanges[0]['after'] === null && $refChanges[0]['notRevertable'] === null
+        && $refChanges[5]['before'] === null && $refChanges[5]['notRevertable'] === null, '#314: every set, replace and remove is a change (kind reference, ref scene/surface), revertable – a removal and a creation too');
+    [$status, $data] = call($api, 'POST', "/editor/books/surfaced/changes/{$refChanges[0]['id']}/revert", ['apply' => true], $editor);
+    check($status === 200 && $data['applied'] === true && SurfaceRef($api, $editor, 'cover', 'front') === '/assets/content/entries/racoon/img.jpg', '#314: reverting a removal brings the reference back');
+    [$status, $data] = call($api, 'POST', '/editor/books/surfaced/changes/revert', ['ids' => $data['written'], 'apply' => true], $editor);
+    check($status === 200 && $data['applied'] === true && SurfaceRef($api, $editor, 'cover', 'front') === null, '#314: … and reverting that removes it again');
+    $wallSet = array_values(array_filter($refChanges, fn($c) => $c['ref'] === 'extra/wall'))[0];
+    [$status, $data] = call($api, 'POST', "/editor/books/surfaced/changes/{$wallSet['id']}/revert", ['apply' => true], $editor);
+    check($status === 200 && $data['applied'] === true && SurfaceRef($api, $editor, 'extra', 'wall') === null, '#314: reverting a set removes the reference');
+    [$status] = call($api, 'POST', '/editor/books/surfaced/changes/revert', ['ids' => $data['written'], 'apply' => true], $editor);
+    check(SurfaceRef($api, $editor, 'extra', 'wall') === $urlA, '#314: … and back');
+
+    // Uses of a Library file: counted, relinked by a replace, gone with a forced delete
+    [, $usages] = call($api, 'GET', "/editor/books/surfaced/assets/{$imgB['asset']['id']}/usages", null, $editor);
+    check(in_array(['kind' => 'reference', 'ref' => 's002-003/left'], $usages['usages'] ?? [], true), '#314: a reference is a use of its Library file');
+    [, $list] = call($api, 'GET', '/editor/books/surfaced/assets', null, $editor);
+    check((array_column($list['assets'] ?? [], 'usages', 'id')[$imgB['asset']['id']] ?? 0) >= 1, '#314: … and the Library counts it');
+    [$status, $data] = call($api, 'DELETE', "/editor/books/surfaced/assets/{$imgB['asset']['id']}", null, $editor);
+    check($status === 409 && $data['error']['code'] === 'asset-in-use', '#314: … so the file is not deleted while it is a reference');
+    [$status, $replacedB] = upload($api, 'PUT', "/editor/books/surfaced/assets/{$imgB['asset']['id']}/file", pngOf(3, 2, 0x22aa66), 'scan-b.png', $editor);
+    $newB = (string) ($replacedB['asset']['url'] ?? '-');
+    check($status === 200 && $newB !== $urlB && SurfaceRef($api, $editor, 's002-003', 'left') === $newB, '#314: a replaced Library file – its references show the new version');
+    [, $log] = call($api, 'GET', '/editor/books/surfaced/changes?limit=5', null, $editor);
+    check(in_array('s002-003/left', array_column(array_filter($log['changes'] ?? [], fn($c) => $c['kind'] === 'reference'), 'ref'), true), '#314: … with a change in the log');
+
+    // The page images become references: plan, apply, idempotent
+    [$status] = call($api, 'PUT', '/editor/books/surfaced/page-images', ['items' => [
+        ['page' => 0, 'url' => $urlA], ['page' => 1, 'url' => $urlA], ['page' => 1, 'facing' => true, 'url' => $newB], ['page' => 3, 'url' => $newB], ['page' => 2, 'url' => $urlA], ['page' => 6, 'url' => $urlA],
+    ]], $editor);
+    $pdo = connect('test');
+    $pdo->exec("INSERT INTO page_images (book_id, page, facing, url, name, updated_by, updated_at) VALUES ('surfaced', 42, 0, " . $pdo->quote($urlA) . ", 'lost', NULL, 1)");
+    $pdo = null;
+    call($api, 'PUT', $refPath('back', 'back'), ['url' => $urlA], $editor);
+    check($status === 200, '#314: page images on the cover, page 1 and the half next to it, pages 2 and 3, the back cover (and one on a page the book lost)');
+    [$status, $data] = call($api, 'POST', '/editor/books/surfaced/scenes/references/migrate', null, $editor);
+    $plan = $data['plan'] ?? [];
+    $mapped = array_map(fn($r) => "{$r['page']}" . ($r['facing'] ? 'f' : '') . "→{$r['scene']}/{$r['surface']}", $plan['references'] ?? []);
+    $unmapped = array_map(fn($r) => "{$r['page']}" . ($r['facing'] ? 'f' : '') . '→' . ($r['surface'] ?? '-'), $plan['unmapped'] ?? []);
+    check($status === 200 && $data['applied'] === false && $plan['upToDate'] === false && $mapped === ['0→cover/front', '1→s001/right', '1f→s001/left', '3→s002-003/right']
+        && array_map(fn($r) => "{$r['page']}→{$r['scene']}/{$r['surface']}", $plan['already']) === ['6→back/back']
+        && $unmapped === ['2→left', '42→-'] && str_contains($plan['unmapped'][0]['reason'], 'another reference') && str_contains($plan['unmapped'][1]['reason'], 'no page')
+        && $plan['counts'] === ['pageImages' => 7, 'references' => 4, 'already' => 1, 'unmapped' => 2],
+        '#314 migrate references: the plan – by page and side to scene and surface, one already there, one kept, one on no page');
+    check(SurfaceRef($api, $editor, 's001', 'right') === null, '#314: … and without apply nothing is written');
+    [$status, $data] = call($api, 'POST', '/editor/books/surfaced/scenes/references/migrate', ['apply' => true], $editor);
+    check($status === 200 && $data['applied'] === true && SurfaceRef($api, $editor, 's001', 'right') === $urlA && SurfaceRef($api, $editor, 's001', 'left') === $newB
+        && SurfaceRef($api, $editor, 's002-003', 'left') === $newB, '#314 migrate references: applied – the surfaces show the page images, a reference there already kept');
+    [$status, $data] = call($api, 'POST', '/editor/books/surfaced/scenes/references/migrate', ['apply' => true], $editor);
+    check($status === 200 && $data['applied'] === false && $data['plan']['upToDate'] === true && $data['plan']['counts']['already'] === 5, '#314 migrate references: again → nothing to do');
+    [, $pagesNow] = call($api, 'GET', '/editor/books/surfaced/pages', null, $editor);
+    check(count($pagesNow['pageImages'] ?? []) === 7, '#314: the page images stay');
+
+    // A surface that leaves its scene, and a deleted scene, take their references
+    [$status, $data] = call($api, 'PUT', '/editor/books/surfaced/scenes/s001', ['surfaces' => [['id' => 'right', 'side' => 'right', 'label' => '1']]], $editor);
+    check($status === 200 && SurfaceRef($api, $editor, 's001', 'left') === null && SurfaceRef($api, $editor, 's001', 'right') === $urlA, '#314: a surface removed from its scene takes its reference');
+    [$status] = call($api, 'PUT', '/editor/books/surfaced/scenes/s001', ['surfaces' => [['id' => 'left', 'side' => 'left'], ['id' => 'right', 'side' => 'right', 'label' => '1']]], $editor);
+    check($status === 200 && SurfaceRef($api, $editor, 's001', 'left') === null, '#314: … and a new surface of that id starts without one');
+    [$status] = deleting($api, '/editor/books/surfaced/scenes/extra', $editor);
+    $pdo = connect('test');
+    $left = (int) $pdo->query("SELECT COUNT(*) FROM surface_references WHERE book_id = 'surfaced' AND scene_id = 'extra'")->fetchColumn();
+    $pdo = null;
+    check($status === 200 && $left === 0, '#314: a deleted scene takes its references');
+    [, $log] = call($api, 'GET', '/editor/books/surfaced/changes?limit=10', null, $editor);
+    check(in_array('extra/wall', array_column(array_filter($log['changes'] ?? [], fn($c) => $c['kind'] === 'reference' && $c['after'] === null), 'ref'), true), '#314: … with a change in the log');
+    [$status] = call($api, 'DELETE', "/editor/books/surfaced/assets/{$imgA['asset']['id']}?force=1", null, $editor);
+    check($status === 204 && SurfaceRef($api, $editor, 's001', 'right') === null && SurfaceRef($api, $editor, 'back', 'back') === null, '#314: a forced delete of the file takes its references');
 
     echo "editor: publish to bunny (test double)\n";
     $storagePort = freePort();

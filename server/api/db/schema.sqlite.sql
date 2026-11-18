@@ -281,3 +281,16 @@ ALTER TABLE books ADD COLUMN groups_json TEXT NOT NULL DEFAULT '[]';
 -- Reverts (#312, schema.mysql.sql has the notes)
 ALTER TABLE changes ADD COLUMN change_set TEXT NULL DEFAULT NULL;
 ALTER TABLE changes ADD COLUMN reverts TEXT NULL DEFAULT NULL;
+
+-- Surface reference images (#314, schema.mysql.sql has the notes)
+CREATE TABLE IF NOT EXISTS surface_references (
+  book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
+  scene_id TEXT NOT NULL,
+  surface_id TEXT NOT NULL,
+  url TEXT NOT NULL,
+  name TEXT NOT NULL,
+  fit TEXT NOT NULL DEFAULT 'cover',
+  updated_by TEXT NULL DEFAULT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (book_id, scene_id, surface_id)
+);

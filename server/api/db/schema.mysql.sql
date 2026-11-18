@@ -345,3 +345,19 @@ ALTER TABLE `books` ADD COLUMN `groups_json` TEXT NOT NULL DEFAULT '[]';
 -- Reverts (#312): a revert is a new change; the changes one revert writes share a set, each names the change it takes back
 ALTER TABLE `changes` ADD COLUMN `change_set` CHAR(36) NULL DEFAULT NULL;
 ALTER TABLE `changes` ADD COLUMN `reverts` CHAR(36) NULL DEFAULT NULL;
+
+-- Surface reference images (#314, SurfaceReferences): one image of the book's Library per surface of a scene, what the
+-- editor's stage shows on it – editor-only, no content (the draft, its publish and the reader never carry it). `fit`:
+-- cover | contain | stretch. Keyed by the scene's and the surface's ids; a removed surface or scene takes its row
+CREATE TABLE IF NOT EXISTS `surface_references` (
+  `book_id` VARCHAR(64) NOT NULL,
+  `scene_id` VARCHAR(64) NOT NULL,
+  `surface_id` VARCHAR(64) NOT NULL,
+  `url` VARCHAR(512) NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
+  `fit` VARCHAR(16) NOT NULL DEFAULT 'cover',
+  `updated_by` CHAR(36) NULL DEFAULT NULL,
+  `updated_at` BIGINT NOT NULL,
+  PRIMARY KEY (`book_id`, `scene_id`, `surface_id`),
+  CONSTRAINT `surface_references_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
