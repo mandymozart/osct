@@ -94,4 +94,4 @@ export const momentSummary = (draft: BookAppearance, moment: Moment, rows: reado
 
 /** The section's head: the book's level, "· default" while it names no look */
 export const appearanceHeading = (draft: BookAppearance): string =>
-  `appearance · the whole book${Object.keys(draft).length ? "" : " · default"}`;
+  `appearance · the experience${Object.keys(draft).length ? "" : " · default"}`;

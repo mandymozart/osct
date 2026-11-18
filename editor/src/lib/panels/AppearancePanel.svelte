@@ -119,7 +119,7 @@
 </script>
 
 <Section id="stage.appearance" label={appearanceHeading(edit)} open={false}
-  help="How the book's AR entities appear and disappear: a look for the first find (reveal), every later find (found) and the lost page (lost) – a built-in look with its values, or a look of the book's plugins. It is the whole book's: every spread plays it. A change plays on the stage at once – play in a moment's head shows it – and reaches the draft by itself.">
+  help="How the book's AR entities appear and disappear: a look for the first find (reveal), every later find (found) and the lost page (lost) – a built-in look with its values, or a look of the book's plugins. It is the experience's: every scene plays it. A change plays on the stage at once – play in a moment's head shows it – and reaches the draft by itself.">
 {#each moments as { moment, look, played, rows, source, summary, plugin, description, known } (moment)}
   <Section id="stage.appearance.{moment}" label={moment} {summary} open={false} nested
     help={`${MOMENT_HELP[moment]} ${look ? (description ? (plugin ? `${description} – a look of the plugin ${plugin}.` : description) : `A plugin's look that is not registered on the stage (${missing}) – the Code tab says why, or pick another.`) : source === "found" ? "It has no look of its own: it plays found's." : "It has no look of its own: it plays the default look."}`}>
