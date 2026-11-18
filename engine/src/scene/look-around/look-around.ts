@@ -14,9 +14,10 @@ const FADE_OUT = 3;
 
 /**
  * What is drawn: the book's environment says which world and whether the onion sky, the reader's
- * Graphics switches apply on top – either can turn a part off, neither turns on what the book leaves out. The café is
- * the only built-in world (a world model or sky image of 2.10 is drawn over it), so `surroundings` follows the world; a
- * new built-in world adds its own check here. Pure, for the tests.
+ * Graphics switches apply on top – either can turn a part off, neither turns on what the book leaves out. There is no
+ * built-in world any more (the café went, Tilman 2026-11-18): only the experience's own world model and sky image are
+ * drawn – without them nothing (the shader's alpha); `world: "cafe"` stays the content's token for "the built-in slot".
+ * Pure, for the tests.
  */
 export const effectiveGraphics = (reader: GraphicsSettings, environment: EnvironmentData): GraphicsSettings => ({
   onionSky: reader.onionSky && environment.onionSky,

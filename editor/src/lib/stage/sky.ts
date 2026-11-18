@@ -62,12 +62,12 @@ export const stageLook = (input: { shading: ShadingMode; hdri: HdriId | null; wo
 };
 
 /**
- * The environment's sky in a few words, for the HDRI picker it overrides: "the environment's (world café)",
+ * The environment's sky in a few words, for the HDRI picker it overrides: "the environment's (world none)",
  * "the environment's (world forest.glb, sky dusk.jpg)". `nameOf` names a file (the Library's name), else its URL's last part.
  */
 export const environmentSkyLabel = (environment: EnvironmentData, nameOf: (url: string) => string | undefined = () => undefined): string => {
   const name = (url: string) => nameOf(url) ?? fileNameOf(url);
-  const world = environment.worldSrc ? name(environment.worldSrc) : environment.world === "cafe" ? "café" : environment.world;
+  const world = environment.worldSrc ? name(environment.worldSrc) : environment.world === "cafe" ? "none" : environment.world;
   const sky = environment.skySrc ? `, sky ${name(environment.skySrc)}` : "";
   return `the environment's (world ${world}${sky})`;
 };

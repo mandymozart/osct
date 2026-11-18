@@ -7,6 +7,13 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.104.0 – 2026-11-18
+
+### Removed
+- **The built-in world café** of the look-around (#310, Tilman): no alien sky and open-air café around the book any
+  more. An experience's own world model and sky image are still drawn while scanning; without them nothing is. The
+  editor's Environment tab says "none" for an empty world or sky. No content change: `world: "cafe"` stays readable.
+
 ## 1.103.3 – 2026-11-18
 
 ### Changed

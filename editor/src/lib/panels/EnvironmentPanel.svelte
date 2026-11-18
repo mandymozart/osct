@@ -16,17 +16,17 @@
    * edited, under the desk and the book, turned by the view (*look up* raises the camera from the book to the horizon).
    * Once the book has an environment (or edits start one) its world is the stage's sky in the other tabs too, while
    * rendered – it replaces the HDRI, sky and light (#185, `stage/sky.ts`).
-   * **World**: the built-in café, or a glTF model from the Library (or uploaded here); **sky**: the world's own, or an
+   * **World**: none, or a glTF model from the Library (or uploaded here); **sky**: none, or an
    * equirectangular image. *Library…* opens the Library here as a picker (a glTF model, a sky image – the stage keeps
    * previewing). Every edit reaches the draft by itself a moment later (#259); *Undo edits* goes back to the environment
-   * the draft had before the first edit in this page, *Use the default* removes it (the café with the onion sky).
+   * the draft had before the first edit in this page, *Use the default* removes it (nothing around the book).
    * Book-level only; the reader's Graphics switches (Info → Settings) still apply on top. Two collapsible sections: the
    * environment open on the first visit, the stage's *preview* (look up) closed, its head naming the angle.
    */
   let { stage, bookId }: { stage: Stage | null; bookId: string } = $props();
 
   const edit = environmentEdit;
-  const BUILT_IN: Record<EnvironmentSlot, string> = { world: "café (built-in)", sky: "the world's" };
+  const BUILT_IN: Record<EnvironmentSlot, string> = { world: "none", sky: "none" };
   const SOURCE: Record<EnvironmentSlot, "worldSrc" | "skySrc"> = { world: "worldSrc", sky: "skySrc" };
 
   let lookUp = $state(0);
@@ -74,8 +74,8 @@
   {@const src = edit.edited[SOURCE[slot]]}
   <div class="row" class:changed={(src ?? null) !== (edit.saved?.[SOURCE[slot]] ?? null)}
     data-help={slot === "world"
-      ? "The scenery around the reader: the built-in café, or a glTF model (its origin the floor under the reader, −z towards the book). Library… picks one, Upload adds one, remove goes back to the café."
-      : "The sky: the world's own, or an equirectangular image (2:1, its centre towards the book). Library… picks one, Upload adds one, remove goes back to the world's."}>
+      ? "The scenery around the reader: a glTF model (its origin the floor under the reader, −z towards the book), or none. Library… picks one, Upload adds one, remove leaves none."
+      : "The sky: an equirectangular image (2:1, its centre towards the book), or none. Library… picks one, Upload adds one, remove leaves none."}>
     <span class="label">{slot}</span>
     <span class="controls">
       <FileField {src} picture={slot === "sky"} empty={BUILT_IN[slot]} accept={pickAccept({ for: "environment", slot })} label={slot === "world" ? "a glTF model as the world" : "an equirectangular image as the sky"}
@@ -114,7 +114,7 @@
     <button type="button" class="text-link" onclick={() => { edit.undo(); notice = null; }} disabled={!edit.canUndo} data-help-name="Undo edits"
       data-help="Edits reach the draft by themselves, a moment after the last change. Undo edits takes the environment back to how the draft had it before its first edit since this page was opened.">Undo edits</button>
     {#if edit.saved}<button type="button" class="text-link" onclick={() => { edit.useDefault(); notice = null; }}
-      data-help-name="Use the default" data-help="Removes the book's environment: the built-in café with the onion sky applies again.">Use the default</button>{/if}
+      data-help-name="Use the default" data-help="Removes the book's environment: nothing is drawn around the book.">Use the default</button>{/if}
     <span class="grow"></span>
     {#if notice}<span class="small muted">{notice}</span>{/if}
     {#if edit.error}<span class="small danger">{edit.error}</span>{/if}

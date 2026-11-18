@@ -4,6 +4,10 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-18 – The world café is gone; world tracking is its own epic (#310, #299)
+Tilman: the built-in café "makes not much sense" – removed (1.104.0); the look-around keeps an experience's own world
+model and sky image. World tracking (#299) becomes its own epic for Kévin's next show, in France, summer 2027.
+
 ## 2026-11-18 – The editor is for desktop and iPad, not phones
 Tilman: "dont worry about the phone... we will tell phone users to use the desktop! so we can save development time.
 ipad is okay." New editor work (#307 phase 3, #308 floating panels) needs no phone layout; the existing phone sheet

@@ -60,8 +60,8 @@ describe("sky: which sky and which light", () => {
 });
 
 describe("sky: the picker's note", () => {
-  it("names the built-in world", () => {
-    expect(environmentSkyLabel(DEFAULT_ENVIRONMENT)).toBe("the environment's (world café)");
+  it("names no world when the experience has none (the café went)", () => {
+    expect(environmentSkyLabel(DEFAULT_ENVIRONMENT)).toBe("the environment's (world none)");
   });
 
   it("names the files: the Library's name, else the URL's last part", () => {
