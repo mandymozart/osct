@@ -7,6 +7,18 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+
+- **An eye on every node of the editor's tree** (#311): models, videos, images, texts, lights, groups – every node of an
+  entity, not only the targets, has the visibility eye at the right. Off, the stage stops drawing that node with its
+  children (and a click on the stage passes through them), to look into a complex tree; the content and the draft never
+  change. The hidden nodes are the stage's preview state by target and path (`nodeKey`, `preview.ts`), cross to the stage
+  frame with the preview (checked there: node keys only, at most 50), hold through every rebuild of the entity, and are
+  forgotten when the editor page closes – not stored. The stage takes them off the camera's layers
+  (`stage/node-hiding.ts`), so the engine's own `visible` (a behaviour's show and hide, a lost target) stays untouched.
+
 ## 1.107.0 – 2026-11-18
 
 ### Removed

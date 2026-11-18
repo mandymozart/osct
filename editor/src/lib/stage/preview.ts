@@ -10,6 +10,9 @@
  *   per gizmo mode – `snap.ts`).
  * - `hidden`: targets hidden in the scene by the tree's eye – the mock reports them as lost (outro), on again as found
  *   (reveal), and the stage leaves out their printed images (#250). Not stored.
+ * - `hiddenNodes`: nodes of an entity hidden on the stage by the tree's eye (#311 – to look into a complex tree), by
+ *   target and path (`nodeKey`); the stage stops drawing that node and its children (`node-hiding.ts`). Only the stage
+ *   changes – never the content. Not stored: forgotten when the editor page closes.
  */
 
 import { isOriginId, originLabel, type OriginFrame, type OriginId } from "./origin";
@@ -133,7 +136,36 @@ export interface PreviewSettings {
 export interface PreviewState extends PreviewSettings {
   active: boolean;
   hidden: readonly string[];
+  /** Nodes hidden on the stage only, as `nodeKey` writes them ("target:0.2", the root "target:") */
+  hiddenNodes: readonly string[];
 }
+
+/** A node of a target's entity as the hidden nodes name it: the target id, a colon, the path ("key:0.2"; the root "key:") */
+export const nodeKey = (targetId: string, path: readonly number[]): string => `${targetId}:${path.join(".")}`;
+
+/**
+ * The most nodes kept hidden; a key is a target id (no spaces, no colon, up to 200 characters, as the frame protocol's
+ * ids) and a path up to 16 deep – so the preview with all of them still crosses to the stage frame as one message
+ */
+export const MAX_HIDDEN_NODES = 50;
+const NODE_KEY = /^[^\s:]{1,200}:(?:\d{1,4}(?:\.\d{1,4}){0,15})?$/;
+export const isNodeKey = (value: unknown): value is string => typeof value === "string" && NODE_KEY.test(value);
+
+/** A node key read back: the target and the path, null when it is none */
+export const parseNodeKey = (key: string): { targetId: string; path: number[] } | null => {
+  if (!isNodeKey(key)) return null;
+  const at = key.lastIndexOf(":");
+  const path = key.slice(at + 1);
+  return { targetId: key.slice(0, at), path: path ? path.split(".").map(Number) : [] };
+};
+
+/** Hidden nodes from a stored or sent value: node keys only, each once, at most `MAX_HIDDEN_NODES` */
+export const parseHiddenNodes = (value: unknown): string[] =>
+  Array.isArray(value) ? [...new Set(value.filter(isNodeKey))].slice(0, MAX_HIDDEN_NODES) : [];
+
+/** The node is hidden on the stage, by itself or by a node above it (its parents, its root) */
+export const isNodeHidden = (hidden: readonly string[], targetId: string, path: readonly number[]): boolean =>
+  Array.from({ length: path.length + 1 }, (_, depth) => nodeKey(targetId, path.slice(0, depth))).some(key => hidden.includes(key));
 
 const STORAGE_KEY = "osct-preview";
 
@@ -185,7 +217,7 @@ const writeSettings = (settings: PreviewSettings): void => {
   writeStoredJson(STORAGE_KEY, settings);
 };
 
-let state: PreviewState = { ...readSettings(), active: false, hidden: [] };
+let state: PreviewState = { ...readSettings(), active: false, hidden: [], hiddenNodes: [] };
 const listeners = new Set<(state: PreviewState) => void>();
 
 const publish = (): void => {
@@ -197,7 +229,7 @@ export const getPreview = (): PreviewState => state;
 /** The editor page is open (true) or left (false) */
 export const setPreviewActive = (active: boolean): void => {
   if (state.active === active) return;
-  state = { ...state, active, hidden: active ? state.hidden : [] };
+  state = { ...state, active, hidden: active ? state.hidden : [], hiddenNodes: active ? state.hiddenNodes : [] };
   publish();
 };
 
@@ -206,7 +238,7 @@ export const updatePreview = (patch: Partial<Omit<PreviewState, "active">>): voi
   const next: PreviewState = { ...state, ...patch };
   if (patch.view !== undefined && patch.orbit === undefined) next.orbit = null;
   state = next;
-  const { active: _active, hidden: _hidden, ...settings } = state;
+  const { active: _active, hidden: _hidden, hiddenNodes: _hiddenNodes, ...settings } = state;
   writeSettings(settings);
   publish();
 };
@@ -217,13 +249,26 @@ export const setTargetHidden = (targetId: string, hidden: boolean): void => {
   updatePreview({ hidden: hidden ? [...without, targetId] : without });
 };
 
+/** Show or hide a node of a target's entity on the stage only (#311): it and its children are not drawn */
+export const setNodeHidden = (targetId: string, path: readonly number[], hidden: boolean): void => {
+  const key = nodeKey(targetId, path);
+  if (!isNodeKey(key)) return;
+  const without = state.hiddenNodes.filter(k => k !== key);
+  if (hidden && without.length >= MAX_HIDDEN_NODES) return;
+  updatePreview({ hiddenNodes: hidden ? [...without, key] : without });
+};
+
 /**
- * The preview as the page and the stage frame keep it in step (#234): the settings and the hidden targets, checked
+ * The preview as the page and the stage frame keep it in step (#234): the settings, the hidden targets and nodes, checked
  * and in one order – the same preview gives the same text on both sides. `active` is each side's own.
  */
 export const previewSync = (value: unknown = state): string => {
-  const hidden = (value as { hidden?: unknown } | null)?.hidden;
-  return JSON.stringify({ ...parseSettings(value), hidden: Array.isArray(hidden) ? hidden.filter((id): id is string => typeof id === "string") : [] });
+  const { hidden, hiddenNodes } = (value ?? {}) as { hidden?: unknown; hiddenNodes?: unknown };
+  return JSON.stringify({
+    ...parseSettings(value),
+    hidden: Array.isArray(hidden) ? hidden.filter((id): id is string => typeof id === "string") : [],
+    hiddenNodes: parseHiddenNodes(hiddenNodes),
+  });
 };
 
 /** Take the preview the other side sent (`previewSync`'s text, checked again here); false when it is the one shown already or no JSON */

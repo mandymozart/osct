@@ -3,6 +3,7 @@ import {
   contentBasesNamed, libraryFoldersNamed, libraryFoldersOf, eventMessage, FORWARDED_KEYS, FRAME_SANDBOX, frameCsp, FrameRequests, isForwardedKey, type KeyForward, MESSAGE_TAG, readFrameEvent, readFrameReply,
   readFrameRequest,
 } from "../frame-protocol";
+import { MAX_HIDDEN_NODES, previewSync } from "../preview";
 
 /**
  * The stage frame's protocol (#234): what the page acts on from the frame, how requests are answered, and the frame
@@ -43,6 +44,14 @@ describe("readFrameEvent: the page acts only on well-formed events", () => {
     expect(readFrameEvent(event("log", { level: "info", text: "x".repeat(5000) }))).toBeNull();
     expect(readFrameEvent(event("ghostChange", { surface: "ceiling", x: 0, y: 0, width: 10 }))).toBeNull();
     expect(readFrameEvent(event("preview", { shading: "rendered" }))).toBeNull();
+  });
+
+  it("carries the preview with the most nodes hidden on the stage the longest keys allow (#311) in one event", () => {
+    const deepest = Array(16).fill(9999).join(".");
+    const hiddenNodes = Array.from({ length: MAX_HIDDEN_NODES }, (_, i) => `${String(i).padStart(200, "t")}:${deepest}`);
+    const sync = previewSync({ hiddenNodes, hidden: [] });
+    expect(JSON.parse(sync).hiddenNodes).toHaveLength(MAX_HIDDEN_NODES);
+    expect(readFrameEvent(event("preview", sync))?.name).toBe("preview");
   });
 
   it("forwards only the page's own shortcuts – never a key that could save or publish", () => {

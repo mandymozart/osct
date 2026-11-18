@@ -5,7 +5,7 @@
   import { isTargetEnabled, nodeTypeSpec, type EntityData, type Entry, type Target } from "@engine/types";
   import { content } from "#lib/content.svelte.js";
   import { Stage } from "#lib/stage/stage.svelte.js";
-  import { getPreview, setTargetHidden, subscribePreview, type PreviewState } from "#lib/stage/preview.js";
+  import { getPreview, isNodeHidden, nodeKey as hiddenKey, setNodeHidden, setTargetHidden, subscribePreview, type PreviewState } from "#lib/stage/preview.js";
   import { selection } from "#lib/selection.svelte.js";
   import { indentNode, isWithin, moveNode, nodeLabel, outdentNode, shiftNode, visiblePaths, type DropZone, type TreeEdit } from "#lib/tree.js";
   import { isRowOn, parentRow, rowSelection, stepRow, treeRows, type TreeRow } from "#lib/tree-rows.js";
@@ -20,7 +20,8 @@
 
   /**
    * The spread as a tree in the style of Blender's outliner: a chevron column, a type icon before every name, guide
-   * lines per depth, zebra rows, the eye in a column at the right (shown = found, off = reported lost). Rows: the
+   * lines per depth, zebra rows, the eye in a column at the right (a target's: shown = found, off = reported lost; a
+   * node's, #311: off = not drawn on the stage with its children, to look into a complex tree – never the content). Rows: the
    * spread, its entries in page order, each entry's target, and the target's
    * entity as its **node tree** (the root node and its children, as deep as the content nests
    * them), each node by its name or its type. It reads and writes the workspace's one selection
@@ -150,6 +151,7 @@
   /** Remove an entry with everything on it: the workspace shows the API's impact and asks first (#198) */
   const removeEntry = (entry: Entry) => void onremoveentry?.(entry.id, entry.target?.id ?? null);
   const EYE_HELP = "Shows or hides this target in the scene – its printed image and its AR content. Hidden, the stage reports the target lost (a behaviour's lost and found run when you hide and show it). Only the stage changes: whether readers find it is the Inspector's In the book switch.";
+  const NODE_EYE_HELP = "Shows or hides this node with its children on the stage only – to look into a complex tree. The content does not change: readers see the node as always. Forgotten when you leave the editor.";
   const REMOVE_ENTRY_HELP ="Removes the entry with its target, its entity and – only if you choose it – the Library files used only there. It shows what goes and asks first.";
   const menuItems = (m: Menu): MenuItem[] => {
     if (m.kind === "spread") {
@@ -381,6 +383,8 @@
   {@const children = n.children ?? []}
   {@const on = isNodeOn(target, path)}
   {@const dropZone = drop?.key === key ? drop.zone : null}
+  {@const own = preview.hiddenNodes.includes(hiddenKey(target.id, path))}
+  {@const drawn = shown && !isNodeHidden(preview.hiddenNodes, target.id, path)}
   <div class="node" class:on class:within={isWithinOn(target, path)} class:pressing={pressing === key} class:dragged={!!drag?.active && drag.target.id === target.id && isWithin(path, drag.from)}
     class:drop-before={dropZone === "before"} class:drop-inside={dropZone === "inside"} class:drop-after={dropZone === "after"}
     role="treeitem" aria-expanded={children.length ? open : undefined} aria-selected={on} aria-level={depth + 1}
@@ -392,14 +396,16 @@
       <span class="chevron"></span>
     {/if}
     <span class="type" class:handle={path.length > 0} title={path.length ? "Drag to move the node: onto a row = its child, between rows = its sibling" : undefined}><Icon name={nodeIcon(n)} size="1em" stroke={2} /></span>
-    <button type="button" class="pick" class:muted={!shown} onclick={() => pick({ kind: "node", targetId: target.id, path })} aria-haspopup="menu" {@attach rowMenu(target, path, "node")}
+    <button type="button" class="pick" class:muted={!drawn} onclick={() => pick({ kind: "node", targetId: target.id, path })} aria-haspopup="menu" {@attach rowMenu(target, path, "node")}
       title={path.length
         ? `${n.type} – a tap selects this node: the Inspector shows its values, the gizmo sits on it on the stage`
         : `${n.type} – a tap selects the entity (its root node): the Inspector shows its values, the gizmo sits on it on the stage`}>
       <span class="name">{rowName(n, target, path)}</span>
       {#if !path.length && stage?.overrideOf(target.id)}<span class="dot" title="Not saved yet">●</span>{/if}
     </button>
-    <span class="eye"></span>
+    <button type="button" class="eye" aria-pressed={!own} title={own ? "Hidden on the stage – click to show" : "Shown on the stage – click to hide (the stage only, not the content)"}
+      aria-label="Shown on the stage" data-help-name="Visibility" data-help={NODE_EYE_HELP} onclick={() => setNodeHidden(target.id, path, !own)}><Icon
+      name={own ? "eye-off" : "eye"} size="1em" stroke={2} /></button>
   </div>
   {#if open}
     {#each children as child, i (i)}
