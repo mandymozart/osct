@@ -804,8 +804,9 @@
   /* The toolbar in its floating panel: one row; the page computes the groups' widths from these sizes */
   .tools { display: flex; flex-wrap: nowrap; align-items: center; gap: .125rem; width: max-content; color: var(--text); }
   /* A column (#315): the groups below each other, a rule above each instead of beside it */
-  .tools.vertical { flex-direction: column; width: auto; }
-  .tools.vertical .live, .tools.vertical .filters { flex-direction: column; }
+  .tools.vertical { flex-direction: column; align-items: center; width: auto; }
+  /* Every group stacks in a column – undo / redo / history and Live too, so the column stays one button wide */
+  .tools.vertical :global(.tool-group) { flex-direction: column; align-items: center; }
   .tools :global(.tool-group + .tool-group) { margin-left: .125rem; padding-left: .25rem; border-left: 1px solid var(--line); }
   .tools.vertical :global(.tool-group + .tool-group) { margin: .125rem 0 0; padding: .25rem 0 0; border-left: 0; border-top: 1px solid var(--line); }
   .live, .filters { display: flex; gap: .125rem; }

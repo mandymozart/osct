@@ -106,3 +106,30 @@ export const openFocus = (byKeyboard: boolean): "first" | "panel" => (byKeyboard
  * a phone's keyboard or its address bar only changes the height.
  */
 export const closesOnResize = (widthAtOpen: number, width: number): boolean => width !== widthAtOpen;
+
+/** A box on the screen (px) – a `DOMRect`'s part a menu's place needs */
+export interface ScreenBox {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Where a toolbar button's menu opens (px, fixed to the screen): in a row below the button – above it when there is no
+ * room below –, in a **column** (#315) beside it – right of it, left when there is no room on the right – its top in
+ * line with the button; always kept 4 px inside the screen
+ */
+export const menuPlace = (button: ScreenBox, menu: { width: number; height: number }, screen: { width: number; height: number }, column: boolean): { left: number; top: number } => {
+  const clamp = (value: number, size: number, room: number) => Math.max(4, Math.min(value, room - size - 4));
+  if (column) {
+    const right = button.right + 2;
+    const left = right + menu.width > screen.width - 4 ? button.left - 2 - menu.width : right;
+    return { left: clamp(left, menu.width, screen.width), top: clamp(button.top, menu.height, screen.height) };
+  }
+  const below = button.bottom + 2;
+  const top = below + menu.height > screen.height - 4 ? Math.max(4, button.top - 2 - menu.height) : below;
+  return { left: clamp(button.left, menu.width, screen.width), top };
+};

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeIndex, activeOption, closesOnResize, expandedGroups, groupWidth, menuStep, openFocus, toolbarWidth, type GroupShape, type ToolbarMetrics } from "../tool-groups";
+import { activeIndex, activeOption, closesOnResize, expandedGroups, groupWidth, menuPlace, menuStep, openFocus, toolbarWidth, type GroupShape, type ToolbarMetrics } from "../tool-groups";
 
 const shading = [
   { value: "wireframe", name: "Wire" },
@@ -91,5 +91,26 @@ describe("a toolbar panel on a phone", () => {
   it("stays open when only the height changes (the keyboard, the address bar)", () => {
     expect(closesOnResize(360, 360)).toBe(false);
     expect(closesOnResize(360, 780)).toBe(true);
+  });
+});
+
+// Where a toolbar button's menu opens (#315): below in a row, beside it in a column, always on the screen
+describe("menuPlace", () => {
+  const screen = { width: 1000, height: 800 };
+  const box = (left: number, top: number, size = 28) => ({ left, top, right: left + size, bottom: top + size, width: size, height: size });
+  const menu = { width: 200, height: 300 };
+
+  it("opens below the button in a row, above it with no room below", () => {
+    expect(menuPlace(box(100, 50), menu, screen, false)).toEqual({ left: 100, top: 80 });
+    expect(menuPlace(box(100, 700), menu, screen, false)).toEqual({ left: 100, top: 398 });
+  });
+
+  it("opens beside the button in a column – right of it, left with no room on the right", () => {
+    expect(menuPlace(box(20, 100), menu, screen, true)).toEqual({ left: 50, top: 100 });
+    expect(menuPlace(box(900, 100), menu, screen, true)).toEqual({ left: 698, top: 100 });
+  });
+
+  it("keeps a column's menu on the screen at its lower edge", () => {
+    expect(menuPlace(box(20, 700), menu, screen, true)).toEqual({ left: 50, top: 496 });
   });
 });

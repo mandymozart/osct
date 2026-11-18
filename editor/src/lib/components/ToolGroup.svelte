@@ -8,7 +8,7 @@
 <script lang="ts">
   import { tick } from "svelte";
   import Icon from "./Icon.svelte";
-  import { activeIndex, activeOption, menuStep } from "#lib/tool-groups.js";
+  import { activeIndex, activeOption, menuPlace, menuStep } from "#lib/tool-groups.js";
 
   /**
    * One group of the stage toolbar (#180), after a 3D tool's tool groups: **collapsed**, one button with the active
@@ -62,12 +62,11 @@
     at = { left: r.left, top: r.bottom + 2 };
     open = true;
     await tick();
-    // Keep the menu on the screen: shifted left at the right edge, above the button when there is no room below
+    // Keep the menu on the screen (`menuPlace`)
     if (menu) {
       const m = menu.getBoundingClientRect();
-      const left = Math.max(4, Math.min(r.left, window.innerWidth - m.width - 4));
-      const top = r.bottom + 2 + m.height > window.innerHeight - 4 ? Math.max(4, r.top - 2 - m.height) : r.bottom + 2;
-      at = { left, top };
+      // Below the button in a row, beside it in a column (#315)
+      at = menuPlace(r, m, { width: window.innerWidth, height: window.innerHeight }, !!trigger.closest('[aria-orientation="vertical"]'));
     }
     focusItem(toggles ? 0 : activeIndex(options, value));
   };
