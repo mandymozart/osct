@@ -7,6 +7,12 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.104.1 – 2026-11-18
+
+### Changed
+- **The tree** (#311, Tilman): a target no longer shows "in view"; a target switched off (not in the reader's
+  book) shows a slash icon instead of the word "off".
+
 ## 1.104.0 – 2026-11-18
 
 ### Removed
