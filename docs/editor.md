@@ -688,6 +688,35 @@ grid and the camera stay; a desk stored before, `desk: "eiermann"` or `"schoepfe
 environment the row names its world (*the environment's (world café)*), the HDRI picker waits below it for a book
 without one, and the group's tooltip ends *· the environment's sky*.
 
+### Surfaces on the stage (#314)
+
+The mock stage draws the open scene **from its surfaces** (`stage/surfaces.ts`, `agents/SCENES.md` "Surfaces"). The
+scene's coordinate system (schema 2.36, `SurfacePlace`): mm, the origin on the table at the middle of the first row,
++x right, +y up, +z towards the reader; the stage frame is the same origin with y away from the reader and z up (a
+scene point (x, y, z) is the stage's (x, −z, y)). A **fixed** scene (or none) lays its surfaces side by side, flat,
+each at its own size, the row centred on the origin – a double page the open book, a fold-out three pages (a fold over
+each seam), a cover the closed book. A **free** scene puts each surface at its `place` (`rx`, `ry`, `rz` degrees,
+three.js Euler `XYZ`; unturned flat, face up, top edge away from the reader; a wall `rx` 90), a surface without a place
+where the row would have it; each is a thin board, the desk stays. Content without surfaces keeps the book: the sides
+`left` / `right` (or `front` / `back`) are the surface ids, one page format each.
+
+Each surface shows its **reference image** (the frame's `surfaceReferences` input, by scene id and surface id:
+`{ url, fit }` with `cover`, `contain` or `stretch` – `fitImage`; the page passes it with `Stage.setSurfaceReferences`
+once the scenes overview carries `surfaces[].reference`), else its page image (#251), else the layout sheet over the
+row (fixed scenes), else paper. A target lies on `print.surfaceId`, else on the surface with its side, else on the
+scene's right page / cover face / last surface. `pageHit` finds the nearest surface a ray meets inside its edges (else
+the one whose edge is nearest, so a drag past an edge stays on it); the ghost, its handles and the snapping work on
+it, and a placement made on a scene's own surface writes `surfaceId` plus a side older apps know (`printSideOf`: the
+surface's side when it is `left` / `right` / `front` / `back`, else the right page or the cover's face). With the grid
+on, the table shows a faint **scene grid** (every five grid steps, at least 50 mm) and, with the axis switch, the
+**scene's axes** at its origin (x red, y green, z blue, 100 mm). The page grid and the 2D snapping count on the surfaces
+lying flat on the table, each at its size; a print on a wall or a turned surface snaps in that surface's own plane, to
+its edges and the prints on it (no guides; the per-surface grid is #316).
+
+For the Surface mode: `Stage.setSurfaceMarks(outlined, highlighted)` outlines surfaces by id (the highlighted one in
+orange), the `surfacePick` event names the surface a tap hit (mm from its top left corner, or null; `Stage.onSurfacePick`),
+and the layout snapshot lists the open scene's surfaces (`Stage.surfaces()`: id, side, size, `own`, `flat`).
+
 ### Grid, origin and snapping
 
 The toolbar's *grid & snap* group sets a **grid** (on / off, spacing in mm; its lines run through the origin, which is

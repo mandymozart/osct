@@ -8,7 +8,7 @@ import type { EnvironmentData } from "@shared/types/environment";
 import type { BookAppearance, Moment } from "@shared/types/appearance";
 import {
   type ContentSnapshot, contentBasesNamed, libraryFoldersOf, eventMessage, type FrameEventName, type FrameEvents, type FrameInit, frameCsp, isForwardedKey, type KeyForward, type LayoutSnapshot,
-  LOG_MAX, pageImageMap, readFrameRequest, REMOVED_WIRE, type TimelineSnapshot,
+  LOG_MAX, pageImageMap, readFrameRequest, surfaceMarks, surfaceReferenceMap, REMOVED_WIRE, type TimelineSnapshot,
 } from "./frame-protocol";
 import { STAGE_TOOLS, type StageTool } from "./gizmo";
 import type { PickFilter } from "./pick";
@@ -115,7 +115,8 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     const spread = s?.spreadId;
     const places: LayoutSnapshot["places"] = {};
     if (s && spread) getTargets(spread).forEach(target => { places[target.id] = { printed: s.printedPlace(target.id), place: s.placeOf(target.id) }; });
-    return { pageFormat: s?.pageFormat() ?? { width: 0, height: 0 }, places };
+    const surfaces = (s?.surfaceFrames() ?? []).map(f => ({ id: f.id, side: f.side, widthMm: f.widthMm, heightMm: f.heightMm, own: f.own, flat: f.flat }));
+    return { pageFormat: s?.pageFormat() ?? { width: 0, height: 0 }, places, surfaces };
   };
 
   const timelines = (): Record<string, TimelineSnapshot> => {
@@ -151,6 +152,7 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     s.onPick = hit => post("pick", hit);
     s.onContextMenu = (hit, x, y) => post("contextMenu", { hit, x, y });
     s.onGhostChange = place => post("ghostChange", place);
+    s.onSurfacePick = hit => post("surfacePick", hit);
     s.onPlacement = (selection, placement) => post("placement", { targetId: selection.targetId, path: [...selection.path], placement });
     cleanups.push($effect.root(() => {
       $effect(() => {
@@ -179,6 +181,11 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     refresh: () => stage().refresh(),
     relayout: () => stage().relayout(),
     pageImages: (images: unknown) => stage().setPageImages(pageImageMap(images)),
+    surfaceReferences: (references: unknown) => stage().setSurfaceReferences(surfaceReferenceMap(references)),
+    surfaceMarks: (outlined: unknown, highlighted: unknown) => {
+      const marks = surfaceMarks(outlined, highlighted);
+      stage().setSurfaceMarks(marks.outlined, marks.highlighted);
+    },
     override: (targetId: string, entity: EntityData | typeof REMOVED_WIRE | null) => stage().override(targetId, entity === REMOVED_WIRE ? StageCore.REMOVED : entity),
     overridePasses: (passes: PassData[] | null) => stage().overridePasses(passes),
     overrideAppearance: (override: { appearance: BookAppearance | null } | null) => stage().overrideAppearance(override),

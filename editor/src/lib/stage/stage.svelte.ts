@@ -14,8 +14,9 @@ import { plugins } from "#lib/plugins.svelte.js";
 import { help } from "#lib/help.svelte.js";
 import {
   type ContentSnapshot, FRAME_SANDBOX, type FrameEvent, type FrameInit, FrameRequests, type LayoutSnapshot, readFrameEvent, readFrameReply,
-  NO_ANSWER, REMOVED_ENTITY, REMOVED_WIRE, type RunResult, type TimelineSnapshot,
+  NO_ANSWER, REMOVED_ENTITY, REMOVED_WIRE, type RunResult, type SurfacePick, type SurfaceSnapshot, type TimelineSnapshot,
 } from "./frame-protocol";
+import type { SurfaceReferences } from "./surfaces";
 import type { StageTool } from "./gizmo";
 import type { PickFilter, PickKind, StagePick } from "./pick";
 import { applyPreviewSync, getPreview, previewSync, subscribePreview, type ShadingMode } from "./preview";
@@ -60,7 +61,9 @@ export class Stage {
   /** A right click on the stage: what lies there (null = the page or the table) and where (the page's client px) */
   onContextMenu: ((hit: StagePick | null, clientX: number, clientY: number) => void) | null = null;
   /** The form or the panel editing a placement listens: a handle moved it */
-  onGhostChange: ((place: { surface: PrintSurface; x: number; y: number; width: number; height?: number }) => void) | null = null;
+  onGhostChange: ((place: { surface: PrintSurface; surfaceId?: string; x: number; y: number; width: number; height?: number }) => void) | null = null;
+  /** A tap on the stage hit a surface of the open scene (#314: the Surface mode selects by it), mm from its top left corner – or none */
+  onSurfacePick: ((hit: SurfacePick) => void) | null = null;
   /** What a click may pick – the select tool's filters: entities, targets, models, nodes; none on = anything */
   pickFilter = $state<PickKind[]>([]);
   /** The viewport's shading (stored with the preview settings) */
@@ -210,6 +213,9 @@ export class Stage {
       case "ghostChange":
         this.onGhostChange?.(message.data);
         break;
+      case "surfacePick":
+        this.onSurfacePick?.(message.data);
+        break;
       case "preview":
         this.lastPreview = message.data;
         applyPreviewSync(message.data);
@@ -326,8 +332,10 @@ export class Stage {
     this.spreadId = spreadId;
     this.found = [];
     await this.syncContent();
-    // Ahead of the spread, in the same order: the frame lays the page images over its sheet
+    // Ahead of the spread, in the same order: the frame lays the page images over its sheet, the references on its surfaces
     void this.send("pageImages", [this.pageImages]);
+    void this.send("surfaceReferences", [this.surfaceReferences]);
+    void this.send("surfaceMarks", [this.marks.outlined, this.marks.highlighted]);
     await this.requests.request("open", [spreadId]);
   }
 
@@ -349,6 +357,30 @@ export class Stage {
   setPageImages(images: Record<string, string>): void {
     this.pageImages = { ...images };
     void this.send("pageImages", [this.pageImages]);
+  }
+
+  /**
+   * The surfaces' reference images (#314) by scene id and surface id – `{ url, fit }` from the scenes overview's
+   * `surfaces[].reference` – sent again with every scene opened; the open scene's lie on its surfaces at once
+   */
+  private surfaceReferences: SurfaceReferences = {};
+
+  setSurfaceReferences(references: SurfaceReferences): void {
+    this.surfaceReferences = $state.snapshot(references) as SurfaceReferences;
+    void this.send("surfaceReferences", [this.surfaceReferences]);
+  }
+
+  /** The surfaces marked on the stage (#314, the Surface mode): `outlined` thin, `highlighted` the selected one – ids of the open scene's surfaces */
+  private marks: { outlined: string[]; highlighted: string | null } = { outlined: [], highlighted: null };
+
+  setSurfaceMarks(outlined: readonly string[], highlighted: string | null): void {
+    this.marks = { outlined: [...outlined], highlighted };
+    void this.send("surfaceMarks", [this.marks.outlined, highlighted]);
+  }
+
+  /** The open scene's surfaces as the stage lays them (#314): their ids, sides, sizes; `own` = the scene's, `flat` = on the table */
+  surfaces(): SurfaceSnapshot[] {
+    return this.layout.surfaces ?? [];
   }
 
   /** Show a target's entity with other values than the content's (live edit), `null` = the content's again; resolves once the frame built it */

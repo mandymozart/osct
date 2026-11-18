@@ -25,9 +25,9 @@ describe("placement: the printed box", () => {
     expect(portrait.x).toBe(110);
     expect(portrait.y).toBeCloseTo(160 - 158, 6);
     // Before the image is known the default aspect stands in (the anchor's old 0.75 box)
-    expect(printCentre({ surface: "right", x: 70, y: 100, width: 80 }, page)).toEqual({ x: 110, y: 160 - 130 });
-    expect(printCentre({ surface: "left", x: 60, y: 100, width: 80, height: 40 }, page)).toEqual({ x: -230 + 100, y: 160 - 120 });
-    expect(printCentre({ surface: "front", x: 65, y: 110, width: 100 }, page, 1)).toEqual({ x: -115 + 115, y: 160 - 160 });
+    expect(printCentre({ surface: "right", x: 70, y: 100, width: 80 }, page)).toEqual({ x: 110, y: 160 - 130, z: 0 });
+    expect(printCentre({ surface: "left", x: 60, y: 100, width: 80, height: 40 }, page)).toEqual({ x: -230 + 100, y: 160 - 120, z: 0 });
+    expect(printCentre({ surface: "front", x: 65, y: 110, width: 100 }, page, 1)).toEqual({ x: -115 + 115, y: 160 - 160, z: 0 });
   });
 });
 

@@ -14,8 +14,8 @@
  * - Snapping is on when the setting says so; Shift (or Ctrl) held turns it around for that drag (`snapActive`).
  */
 
-import { gridAreas, type OriginFrame, type OriginId } from "./origin";
-import { MIN_PRINT_WIDTH, surfaceLeft, withWidth, type PrintBox } from "./placement";
+import { frameBox, frameRects, gridAreas, rectOf, type OriginFrame, type OriginId } from "./origin";
+import { MIN_PRINT_WIDTH, withWidth, type PrintBox } from "./placement";
 
 export const SNAP_TARGETS = ["grid", "axes", "objects", "outlines"] as const;
 export type SnapTarget = (typeof SNAP_TARGETS)[number];
@@ -150,16 +150,20 @@ export const snapMove = (input: MoveSnap): { point: Vec3; guides: SnapGuide[] } 
 
 // ── The stage's lines ──
 
-/** The spread on the stage: one page's size and the format (two pages open, or the closed book) */
-export type StageFrame = OriginFrame;
-
-const spreadWidth = ({ page, format }: StageFrame): number => (format === "spread" ? 2 * page.width : page.width);
+/**
+ * The spread on the stage: one page's size and the format (two pages open, or the closed book), and the scene's flat
+ * surfaces when it has its own (#314). `local`: the frame is one wall's or turned surface's own plane (its top left
+ * corner at 0, y up – `surfaces.ts` `ownRect`), where a print on it snaps to that surface's edges and prints only.
+ */
+export type StageFrame = OriginFrame & { local?: boolean };
 
 /** A point of the spread's frame (mm from its top left corner, y down) in the stage frame */
-export const spreadToStage = (frame: StageFrame, x: number, y: number): { x: number; y: number } => ({
-  x: tidy(x - spreadWidth(frame) / 2),
-  y: tidy(frame.page.height / 2 - y),
-});
+export const spreadToStage = (frame: StageFrame, x: number, y: number): { x: number; y: number } => {
+  const box = frameBox(frame);
+  return { x: tidy(box.left + x), y: tidy(box.top - y) };
+};
+
+const rectFor = rectOf;
 
 /** A box in the stage frame (mm) */
 export interface StageBox {
@@ -189,19 +193,20 @@ export const axisLines = (origin: OriginId, frame: StageFrame): PerAxis<SnapLine
 
 /** The pages' outlines: their edges (the spine too) and the page plane */
 export const pageLines = (frame: StageFrame): PerAxis<SnapLine[]> => {
-  const half = spreadWidth(frame) / 2;
-  const xs = frame.format === "spread" ? [-half, 0, half] : [-half, half];
+  const unique = (values: number[]) => [...new Set(values.map(tidy))];
+  const rects = frameRects(frame);
   return [
-    xs.map(at => ({ at: tidy(at), kind: "outlines" as const })),
-    [frame.page.height / 2, -frame.page.height / 2].map(at => ({ at: tidy(at), kind: "outlines" as const })),
+    unique(rects.flatMap(r => [r.left, r.left + r.width])).map(at => ({ at, kind: "outlines" as const })),
+    unique(rects.flatMap(r => [r.top, r.top - r.height])).map(at => ({ at, kind: "outlines" as const })),
     [{ at: 0, kind: "outlines" }],
   ];
 };
 
 /** A printed target's box in the stage frame (flat on the page), from its place and its printed height */
 export const printStageBox = (box: PrintBox, height: number, frame: StageFrame): StageBox => {
-  const left = surfaceLeft(box.surface, frame.page) + box.x;
-  const top = frame.page.height / 2 - box.y;
+  const rect = rectFor(frame, box.surface);
+  const left = rect.left + box.x;
+  const top = rect.top - box.y;
   return { min: [tidy(left), tidy(top - height), 0], max: [tidy(left + box.width), tidy(top), 0] };
 };
 
@@ -275,7 +280,7 @@ export const snapPlace = <P extends PrintBox>(
   if (x.line) guides.push({ axis: 0, line: x.line });
   if (y.line) guides.push({ axis: 1, line: y.line });
   return {
-    place: { ...place, x: tidy(x.value - surfaceLeft(place.surface, frame.page)), y: tidy(frame.page.height / 2 - y.value) },
+    place: { ...place, x: tidy(x.value - rectFor(frame, place.surface).left), y: tidy(rectFor(frame, place.surface).top - y.value) },
     guides,
   };
 };
