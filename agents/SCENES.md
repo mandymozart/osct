@@ -173,38 +173,41 @@ coordinate system of #316 (part 2; the per-surface grid of #316 part 1 stays ope
   the Inspector shows it (label, side, size, place and a gizmo in a free scene, reference image, remove); the Tree has a
   Surfaces level with + surface (page / wall / custom); the scene section adds, removes and reorders.
 
-## Evaluation 2026-11-18: one clean model for the first release (Tokyo, February 2027)
+## Schema 3.0: one clean model for the first release (Tokyo, February 2027) – decided 2026-11-18
 
 Tilman, 2026-11-18: *"Ältere Reader-Apps sind irrelevant … keine Rückwärtskompatibilität … den Reader einfach anpassen"*;
-the files (cut halves, names) do not matter. Surfaces are free areas that sit next to each other; `left` / `right` make
-no sense. The scene has one coordinate system with a floor grid (a transparent net, as in the SCUTOONS editor) for
-snapping, optionally a vertical one (a single wall, a poster).
+the files (cut halves, names) do not matter. Surfaces are free areas next to each other – no left / right, no front /
+back (the order is the scenes' order in the filmstrip). A page label per page had one use (the entries list's page
+column) – the scene's label does that. **A double page is one surface**; halves of a reference image are put together.
 
-**Proposal – content schema 3.0 (MAJOR, a clean cut):**
-- **Scene** (`scenes`, not `spreads`): `id`, `label`, `group?`, `surfaces[]`, its entries; `initialScene`. Gone:
-  `title` as page range, `firstPage`, `lastPage`, `format` (spread / cover / back), `matter`, `layout`.
-- **Surface**: `id`, `label?` (as printed – `41`, `Cover`, `Studio wall`), `widthMm`, `heightMm`, **`place`
-  (always)** in the scene's coordinate system. Gone: `side`. "Fixed / free" stops being data: the editor's *Arrange in a
-  row* lays surfaces side by side (flat, touching, the row centred on the origin) and is just a command; a fold on the
-  stage is drawn where two surfaces touch edge to edge.
-- **Entry**: `scene` and `surface?` (required scene). Gone: `page`.
-- **Target print** → `place: { surface, x, y, width, height? }` – the surface by id. Gone: `print.surface` sides, `page`.
-- **Reference images** (editor-only): **layers of the scene**, each an image with a place and size in the scene's
-  coordinates (on the floor plane or a vertical plane), *fit to a surface* or *fit across several surfaces* – so one
-  double scan covers a double page without cutting, and halves still work; replaces the per-surface reference of 1.113.
-- **Two surfaces per double page stay the rule for the book** (recommended): the index and the entries name printed
-  pages (41, not 40–41) – each page its label. A scene that is one picture (a poster, a wall) is one surface.
-- **Grids**: the scene's **floor grid** (y = 0, transparent net, the snap grid for places on the table) and an optional
-  **vertical grid** (a plane at a chosen z – a wall exhibition); a surface's own grid (#316 part 1) for prints on it.
-- **Reader**: the switcher, the entries list, links and progress by scene and surface label; `/scene/<id>`; no page
-  arithmetic anywhere. Reading progress and links of earlier test builds are dropped.
-- **Migration**: one server step (plan → apply) turns staging's osct and the demo into 3.0: surfaces get places from
-  their current row, `side` / `format` / `matter` / `layout` / pages go, entries keep scene + surface, prints map side →
-  surface id, page images become reference layers fitted to their surface.
+**Content schema 3.0 (MAJOR – nothing of 2.x kept):**
+- **Configuration**: `scenes` (renamed from `spreads`), `initialScene` (from `initialSpreadId`), `groups`.
+- **Scene**: `id`, `label` (what the switcher and lists show – `186–187`, `Cover`, `Studio wall`), `group?`,
+  `surfaces[]` (at least one), `passes?` and whatever else a spread carries today besides its page model. **Gone**:
+  `title` as page range (the label is the name), `firstPage`, `lastPage`, `format`, `matter`, `layout`.
+- **Surface**: `id`, `label?`, `widthMm`, `heightMm`, **`place`** (required: `x`, `y`, `z` mm, `rx`, `ry`, `rz` °,
+  Euler XYZ, the scene's coordinate system – origin on the table, +x right, +y up, +z towards the reader; unrotated flat,
+  face up, top edge away from the reader; a wall `rx` 90). **Gone**: `side`. A double page = one surface (2 × the page
+  width, e.g. 460 × 320 mm), a cover = one (230 × 320), a wall or poster = one.
+- **Entry**: `scene` (required), `surface?` (only when the scene has several). **Gone**: `page`.
+- **Target**: `place: { surface, x, y, width, height? }` (mm from the surface's top left; `surface` by id, required when
+  the scene has several surfaces). **Gone**: `print` with its sides and page.
+- Reader: scene labels everywhere a page number was (switcher, entries list – sorted by scene order –, entry detail,
+  progress `lastScene`, links `/scene/<id>`); no page arithmetic left. Older test builds' progress is dropped.
 
-**Work** (sequential where marked): (1) contract 3.0 + guards + fixtures + the content build; (2) server + migration +
-MCP (after 1); (3) reader (after 1, beside 2); (4) editor + stage: no side / layout, Arrange in a row, reference layers,
-floor / vertical grid (after 1, beside 2–3). About four workers, roughly a week of evenings with reviews.
+**Editor and stage**: surfaces are plain boards at their places (no fold, no cover board); *Arrange in a row* is a
+command (side by side, touching, the row centred on the origin, flat); the scene's **floor grid** (y = 0, a transparent
+net, snapping places on the table), an optional **vertical grid** (a plane at a chosen z), and a surface's own grid for
+targets on it (#316). The Surface mode of 1.116 stays (minus side / layout / make free).
+
+**Migration (server, plan → apply)** of staging's osct and the demo: each scene's surfaces merge into one per printed
+double page (two pages → one surface of their joint width; a cover stays one), placed in a row; targets on the right
+page move by the left page's width onto the joint surface; entries keep their scene; the scene label from its label /
+title; the 12 page-image halves become one reference per joint surface (put together side by side), single ones stay.
+
+**Work**: (A) contract 3.0 + guards + engine content layer + the reader + the content build + fixtures – one change, so
+CI stays green; (B, after A) server: data, draft/publish writing 3.0, the migration, MCP; (C, after A, beside B) editor
++ stage. Develop is pushed (= staging deploys) only once A–C are merged and the migration plan is approved.
 
 ## Open questions (Tilman)
 - [x] The word in the UI and the API: **"scene" everywhere** (Tilman, 2026-11-17) – UI, API, MCP, links `/scene/<id>`, code
