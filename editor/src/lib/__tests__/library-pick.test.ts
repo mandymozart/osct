@@ -79,7 +79,6 @@ describe("a pick", () => {
     expect(pickFilter(videoNode)).toBe("video");
     expect(pickFilter(imageNode)).toBe("image");
     expect(pickFilter({ for: "node", nodeType: "group" })).toBe("all");
-    expect(pickFilter({ for: "environment", slot: "world" })).toBe("model");
     expect(pickFilter({ for: "environment", slot: "sky" })).toBe("image");
   });
 
@@ -101,7 +100,6 @@ describe("a pick", () => {
   });
 
   it("checks the environment's files by their extension", () => {
-    expect(pickFits({ for: "environment", slot: "world" }, glb)).toBe(true);
     expect(pickFits({ for: "environment", slot: "sky" }, upload)).toBe(true);
     expect(pickFits({ for: "environment", slot: "sky" }, glb)).toBe(false);
   });

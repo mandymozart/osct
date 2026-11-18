@@ -56,7 +56,7 @@ export const matchesFilter = (asset: AssetRef, filter: LibraryFilter, targetImag
   return FILTER_KINDS[filter].includes(asset.kind);
 };
 
-/** What the Library picks a file for: a target's printed image, an entry's picture, a node's file, the environment's world or sky */
+/** What the Library picks a file for: a target's printed image, an entry's picture, a node's file, the environment's sky */
 export type PickSubject =
   | { for: "target-image" }
   | { for: "entry-image" }
@@ -82,13 +82,13 @@ export interface LibraryPick {
 export const pickKinds = (subject: PickSubject): readonly AssetKind[] =>
   subject.for === "target-image" || subject.for === "entry-image" || subject.for === "model-texture" ? ["image"]
     : subject.for === "node" ? nodeAssetKinds(subject.nodeType) ?? []
-      : subject.slot === "world" ? ["glb", "gltf"] : ["image"];
+      : ["image"];
 
 /** The filter the picker starts with */
 export const pickFilter = (subject: PickSubject): LibraryFilter => {
   if (subject.for === "target-image") return "target";
   if (subject.for === "entry-image" || subject.for === "model-texture") return "image";
-  if (subject.for === "environment") return subject.slot === "world" ? "model" : "image";
+  if (subject.for === "environment") return "image";
   const kinds = nodeAssetKinds(subject.nodeType) ?? [];
   return kinds.includes("glb") ? "model" : kinds.includes("video") ? "video" : kinds.includes("image") ? "image" : "all";
 };

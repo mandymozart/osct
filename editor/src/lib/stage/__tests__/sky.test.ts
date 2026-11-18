@@ -60,12 +60,12 @@ describe("sky: which sky and which light", () => {
 });
 
 describe("sky: the picker's note", () => {
-  it("names no world when the experience has none (the café went)", () => {
-    expect(environmentSkyLabel(DEFAULT_ENVIRONMENT)).toBe("the environment's (world none)");
+  it("names no sky when the experience has none – and never a world (#310)", () => {
+    expect(environmentSkyLabel(DEFAULT_ENVIRONMENT)).toBe("the environment's (sky none)");
   });
 
-  it("names the files: the Library's name, else the URL's last part", () => {
-    expect(environmentSkyLabel(forest)).toBe("the environment's (world forest.glb, sky dusk blue.jpg)");
-    expect(environmentSkyLabel(forest, url => (url.endsWith(".glb") ? "Forest" : undefined))).toBe("the environment's (world Forest, sky dusk blue.jpg)");
+  it("names the sky's file: the Library's name, else the URL's last part", () => {
+    expect(environmentSkyLabel(forest)).toBe("the environment's (sky dusk blue.jpg)");
+    expect(environmentSkyLabel(forest, url => (url.endsWith(".jpg") ? "Dusk" : undefined))).toBe("the environment's (sky Dusk)");
   });
 });

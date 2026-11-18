@@ -1,21 +1,19 @@
-import { DEFAULT_ENVIRONMENT, environmentOf, referenceExtension, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS, type EnvironmentData } from "@shared/types/environment";
+import { DEFAULT_ENVIRONMENT, environmentOf, referenceExtension, SKY_IMAGE_EXTENSIONS, type EnvironmentData } from "@shared/types/environment";
 import { errorText, getBook, putEnvironment, type Asset } from "./api";
 import { autosave } from "./autosave.svelte";
 import { baselineOf, differsFromBaseline, noteBaseline } from "./baselines";
 import { bookEnvironment } from "#lib/stage/sky.js";
 
-/** The environment's two files: the world model and the sky image */
-export type EnvironmentSlot = "world" | "sky";
+/** The environment's file: the sky image. The world model is gone (#310) – a content's `worldSrc` is kept, never set here */
+export type EnvironmentSlot = "sky";
 
-const FIELD: Record<EnvironmentSlot, "worldSrc" | "skySrc"> = { world: "worldSrc", sky: "skySrc" };
+const FIELD: Record<EnvironmentSlot, "skySrc"> = { sky: "skySrc" };
 
-/** An asset fits a slot by its file: a glTF model for the world, an equirectangular image (jpg, png, webp) for the sky */
-export const fitsSlot = (asset: Pick<Asset, "kind" | "url">, slot: EnvironmentSlot): boolean =>
-  slot === "world"
-    ? (asset.kind === "glb" || asset.kind === "gltf") && (WORLD_MODEL_EXTENSIONS as readonly string[]).includes(referenceExtension(asset.url))
-    : asset.kind === "image" && (SKY_IMAGE_EXTENSIONS as readonly string[]).includes(referenceExtension(asset.url));
+/** An asset fits the sky by its file: an equirectangular image (jpg, png, webp) */
+export const fitsSlot = (asset: Pick<Asset, "kind" | "url">, _slot: EnvironmentSlot): boolean =>
+  asset.kind === "image" && (SKY_IMAGE_EXTENSIONS as readonly string[]).includes(referenceExtension(asset.url));
 
-/** The environment with a slot's file set (a URL) or removed (null: the built-in world's part again) */
+/** The environment with a slot's file set (a URL) or removed (null: none) */
 export const withSlot = (environment: EnvironmentData, slot: EnvironmentSlot, url: string | null): EnvironmentData => {
   const { [FIELD[slot]]: _dropped, ...rest } = environment;
   return url ? { ...rest, [FIELD[slot]]: url } : rest;
@@ -93,7 +91,7 @@ class EnvironmentEdit {
   undo(): void {
     const before = baselineOf<Required<EnvironmentData>>(this.key);
     if (before === undefined) return;
-    if (before) this.edit(withSlot(withSlot({ world: before.world, onionSky: before.onionSky }, "world", before.worldSrc || null), "sky", before.skySrc || null));
+    if (before) this.edit(withSlot({ world: before.world, onionSky: before.onionSky, ...(before.worldSrc ? { worldSrc: before.worldSrc } : {}) }, "sky", before.skySrc || null));
     else this.useDefault();
   }
 
