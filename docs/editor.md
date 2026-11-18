@@ -362,8 +362,9 @@ bottom switcher shows. The tree keeps the left column and the Inspector the righ
 
 - **The head**: ▾ collapses the panel to its head (▴ opens it), the book's name, how many scenes and groups and how many
   are picked; **+ Scene…** adds a scene from a layout preset after the open one (a front cover goes first, a back cover
-  last) and opens it; **Group** (Ctrl+G) and **Ungroup** (Ctrl+Shift+G); − + the zoom of the cards. The **sash** above it
-  is dragged (or ↑ ↓ when focused) to make the panel taller; a double-click restores the default. Open, height and zoom
+  last) and opens it; one **group toggle** – a folder icon groups the picked scenes (Ctrl+G), folder-minus ungroups (Ctrl+Shift+G); ‹ › the
+  previous / next scene. The mouse wheel scrolls the strip sideways (up/down, no Shift), as the arrow keys do. The **sash** above it
+  is dragged (or ↑ ↓ when focused) to make the panel taller – the cards scale with it, down to a minimum height; a double-click restores the default. Open and height
   are remembered in this browser (`osct-editor-scenes`).
 - **The cards** (`SceneCards.svelte`, the same as the book page's): the scene's picture, its name and target count; the
   **open scene is framed gold**, the **picked** ones blue. A **click** opens a scene (and picks it alone), **Shift+click**

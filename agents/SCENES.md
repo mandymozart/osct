@@ -116,7 +116,7 @@ reorder, Shift/Ctrl to pick several, a group's own settings), which SCUTOONS wil
   inside the importer only.
 
 
-**Phase 3c – corrections (Tilman, 2026-11-18)**: post-processing and appearance are experience-wide → behind the
+**Phase 3c – corrections (Tilman, 2026-11-18)** – done in 1.102.0: the group toggle, the wheel, auto-scaled cards, "self", the group link, "Surface labels"; still open: post-processing / appearance behind the settings, environment and passes per scene, the Spread section out: post-processing and appearance are experience-wide → behind the
 experience settings button (gear); environment and passes per scene as a child of the scene's parameters; the "Spread"
 section goes (a double page is two surfaces); "Surfaces" → "Surface labels"; group "self" instead of "its own stop", the
 group as a link; Group/Ungroup one toggle (folder / folder-minus icons, shortcuts only in the tooltip); the mouse wheel (up/down, no Shift) and

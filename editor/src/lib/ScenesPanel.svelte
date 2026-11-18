@@ -28,7 +28,7 @@
    * The **Scenes panel** (#307 phase 3a, `agents/design/scenes-filmstrip.html`): a filmstrip at the bottom of the stage
    * column – the experience's scenes as cards, groups as bands (`SceneCards`). Its head: ▾ collapses it, the book's name
    * and counts, **+ Scene…** (a layout preset, after the open scene), **Group** (Ctrl+G) and **Ungroup** (Ctrl+Shift+G)
-   * for the picked scenes, the zoom. The sash above it is dragged to resize it (double-click: the default). Open, height
+   * for the picked scenes (one toggle: group / ungroup). The sash above it is dragged to resize it (double-click: the default). Open, height
    * and zoom are remembered in this browser. A drop is written at once (`POST …/scenes/move`, the drop is the
    * confirmation); the workspace follows `scenes.version` (the draft's order for ‹ ›).
    */
@@ -48,16 +48,18 @@
 
   const KEY = "osct-editor-scenes";
   const HEIGHT_DEFAULT = 152;
-  const HEIGHT_MIN = 96;
-  const ZOOMS = [0.75, 1, 1.35, 1.8] as const;
-  const stored = readStoredJson(KEY) as { open?: boolean; height?: number; zoom?: number } | null;
+  /** The panel's least height: cards stay readable (#307 3c) */
+  const HEIGHT_MIN = 130;
+  /** The cards scale with the panel's height (no zoom buttons – #307 3c): the default height is scale 1 */
+  const CARD_HEIGHT_PX = 57.6;
+  const stored = readStoredJson(KEY) as { open?: boolean; height?: number } | null;
   let open = $state(stored?.open ?? true);
   let height = $state(typeof stored?.height === "number" ? stored.height : HEIGHT_DEFAULT);
-  let zoom = $state(ZOOMS.includes(stored?.zoom as (typeof ZOOMS)[number]) ? (stored!.zoom as number) : 1);
-  const save = () => writeStoredJson(KEY, { open, height, zoom });
+  const save = () => writeStoredJson(KEY, { open, height });
   const count = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
   const maxHeight = () => Math.max(HEIGHT_MIN, Math.round(window.innerHeight * 0.5));
   const shownHeight = $derived(Math.min(Math.max(height, HEIGHT_MIN), maxHeight()));
+  const zoom = $derived(Math.max(0.6, (shownHeight - (HEIGHT_DEFAULT - CARD_HEIGHT_PX)) / CARD_HEIGHT_PX));
 
   $effect(() => {
     const id = bookId;
@@ -86,6 +88,8 @@
   const ungroup = () => void run(() => scenes.ungroup(selectedGroup && !groupedOf(scenes.list, scenes.picks.picked).length ? selectedGroup : null));
   const canGroup = $derived(scenes.picks.picked.length > 0);
   const canUngroup = $derived(!!selectedGroup || groupedOf(scenes.list, scenes.picks.picked).length > 0);
+  /** The one toggle: ungroup when a group is selected or every picked scene is in one, else group */
+  const ungroupMode = $derived(!!selectedGroup || (scenes.picks.picked.length > 0 && groupedOf(scenes.list, scenes.picks.picked).length === scenes.picks.picked.length));
 
   /** Ctrl+G / Ctrl+Shift+G anywhere on the page but in a field (the cards handle their own and stop them) */
   const windowKey = (event: KeyboardEvent) => {
@@ -133,11 +137,6 @@
     height = Math.min(Math.max(shownHeight + (event.key === "ArrowUp" ? 1 : -1) * (event.shiftKey ? 64 : 16), HEIGHT_MIN), maxHeight());
     save();
   };
-  const setZoom = (step: 1 | -1) => {
-    const index = Math.max(0, Math.min(ZOOMS.length - 1, ZOOMS.indexOf(zoom as (typeof ZOOMS)[number]) + step));
-    zoom = ZOOMS[index];
-    save();
-  };
   const toggle = () => {
     open = !open;
     save();
@@ -167,14 +166,13 @@
     <button type="button" class="pill" bind:this={addButton} disabled={busy}
       onclick={() => { const r = addButton!.getBoundingClientRect(); openAdd({ x: r.left, y: r.bottom }, { after: current }); }}
       data-help-name="+ Scene…" data-help="Adds a scene after the open one, from a layout: a single or double page, a fold-out, a wall – a front cover goes first, a back cover last. Nothing else renumbers.">+ Scene…</button>
-    <button type="button" class="pill" disabled={busy || !canGroup} onclick={group} title="Group the picked scenes (Ctrl+G)"
-      data-help-name="Group" data-help="Makes a group of the picked scenes (Ctrl+G): they come together where the first of them is. A group is one stop of the reader's switcher and one loading window.">Group <kbd>Ctrl+G</kbd></button>
-    <button type="button" class="pill" disabled={busy || !canUngroup} onclick={ungroup} title="Ungroup (Ctrl+Shift+G)"
-      data-help-name="Ungroup" data-help="The picked scenes leave their group, in place (Ctrl+Shift+G) – with a group selected and no grouped scene picked, the group itself goes; its scenes stay where they are.">Ungroup <kbd>Ctrl+Shift+G</kbd></button>
-    <span class="zoom" role="group" aria-label="Zoom">
-      <button type="button" class="icon-button" onclick={() => setZoom(-1)} disabled={zoom === ZOOMS[0]} aria-label="Smaller cards" title="Smaller cards">−</button>
-      <button type="button" class="icon-button" onclick={() => setZoom(1)} disabled={zoom === ZOOMS[ZOOMS.length - 1]} aria-label="Larger cards" title="Larger cards">+</button>
-    </span>
+    {#if ungroupMode}
+      <button type="button" class="icon-button" disabled={busy || !canUngroup} onclick={ungroup} title="Ungroup (Ctrl+Shift+G)" aria-label="Ungroup"
+        data-help-name="Ungroup" data-help="The picked scenes leave their group, in place (Ctrl+Shift+G) – with a group selected and no grouped scene picked, the group itself goes; its scenes stay where they are."><Icon name="folder-minus" /></button>
+    {:else}
+      <button type="button" class="icon-button" disabled={busy || !canGroup} onclick={group} title="Group the picked scenes (Ctrl+G)" aria-label="Group"
+        data-help-name="Group" data-help="Makes a group of the picked scenes (Ctrl+G): they come together where the first of them is. A group is one stop of the reader's switcher and one loading window."><Icon name="folder" /></button>
+    {/if}
     {#if onstep}
       <span class="steps" role="group" aria-label="Scenes">
         <button type="button" class="icon-button" onclick={() => onstep(-1)} title="Previous scene (←)" aria-label="Previous scene"><Icon name="previous" /></button>
@@ -211,9 +209,7 @@
   .err { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .grow { flex: 1; }
   .head .pill { font-size: var(--text-small); padding: 0 .45rem; }
-  kbd { font: inherit; color: var(--muted); margin-left: .25rem; }
   .steps { display: inline-flex; flex: none; }
-  .zoom { display: inline-flex; gap: 1px; }
   .strip { flex: 1; min-height: 0; }
   .loading { padding: .5rem .75rem; margin: 0; }
 </style>
