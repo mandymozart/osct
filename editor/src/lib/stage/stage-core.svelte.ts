@@ -15,7 +15,8 @@ import { deviceStorage } from "#lib/storage.js";
 import { Gizmo, type GizmoPlacement, type GizmoSelection, type StageTool } from "./gizmo";
 import { LightHelpers } from "./light-helper";
 import { applyShading, HOVER_COLOR, outline, SELECTION_COLOR, type Outline } from "./shading";
-import { getPreview, setPreviewActive, setTargetHidden, subscribePreview, type ShadingMode } from "./preview";
+import { getPreview, parseNodeKey, setPreviewActive, setTargetHidden, subscribePreview, type ShadingMode } from "./preview";
+import { NodeHiding } from "./node-hiding";
 import { MockStage } from "./mock-stage";
 import { showsWorld } from "./sky";
 import { MockTracker } from "./mock-tracker";
@@ -466,8 +467,28 @@ export class StageCore {
       });
     });
     this.lightHelpers.selection = this.visibleSelection();
-    // The selected target's outline follows its print (the layout builds the prints anew)
-    this.cleanups.push(inspection.onFrame(() => this.syncTargetOutline()));
+    // The selected target's outline follows its print (the layout builds the prints anew); the nodes hidden by the
+    // tree's eye stay hidden through every rebuild of their entity (#311)
+    this.cleanups.push(inspection.onFrame(() => {
+      this.syncTargetOutline();
+      this.hideNodes();
+    }));
+  }
+
+  /** The nodes the tree's eye hid (#311): not drawn and not picked, on the stage only */
+  private nodeHiding = new NodeHiding();
+
+  private hideNodes(): void {
+    const inspection = this.scene.inspect();
+    const hidden = getPreview().hiddenNodes;
+    if (!inspection || (!hidden.length && !this.nodeHiding.size)) return;
+    const objects: Object3D[] = [];
+    for (const key of hidden) {
+      const node = parseNodeKey(key);
+      const object = node ? inspection.nodeObject(node.targetId, node.path) : null;
+      if (object) objects.push(object);
+    }
+    this.nodeHiding.apply(objects);
   }
 
   /** A model node's timeline (the animation component), null for other nodes */

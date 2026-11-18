@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyPreviewSync, clampGrid, getPreview, parseSettings, previewSync, setPreviewActive, setTargetHidden, subscribePreview, updatePreview, viewSummary } from "../preview";
+import {
+  applyPreviewSync, clampGrid, getPreview, isNodeHidden, isNodeKey, MAX_HIDDEN_NODES, nodeKey, parseHiddenNodes, parseNodeKey, parseSettings, previewSync, setNodeHidden, setPreviewActive,
+  setTargetHidden, subscribePreview, updatePreview, viewSummary,
+} from "../preview";
 
 describe("editor preview settings", () => {
   beforeEach(() => {
     localStorage.clear();
     setPreviewActive(false);
-    updatePreview({ view: "reader", orbit: null, hdri: "ferndale_studio_04", wobble: 0, hidden: [] });
+    updatePreview({ view: "reader", orbit: null, hdri: "ferndale_studio_04", wobble: 0, hidden: [], hiddenNodes: [] });
   });
 
   afterEach(() => setPreviewActive(false));
@@ -52,6 +55,43 @@ describe("editor preview settings", () => {
     expect(getPreview().hidden).toEqual(["b"]);
     setPreviewActive(false);
     expect(getPreview().hidden).toEqual([]);
+  });
+
+  it("hides and shows nodes on the stage only (#311): never stored, forgotten when the editor closes", () => {
+    setPreviewActive(true);
+    setNodeHidden("key", [0, 2], true);
+    setNodeHidden("key", [0, 2], true);
+    setNodeHidden("key", [], true);
+    setNodeHidden("door", [1], true);
+    expect(getPreview().hiddenNodes).toEqual(["key:0.2", "key:", "door:1"]);
+    expect(localStorage.getItem("osct-preview")).not.toContain("hiddenNodes");
+    setNodeHidden("key", [], false);
+    expect(getPreview().hiddenNodes).toEqual(["key:0.2", "door:1"]);
+    setPreviewActive(false);
+    expect(getPreview().hiddenNodes).toEqual([]);
+  });
+
+  it("a node is hidden by itself or by a node above it, never by a sibling or another target", () => {
+    const hidden = ["key:0", "door:"];
+    expect(isNodeHidden(hidden, "key", [0])).toBe(true);
+    expect(isNodeHidden(hidden, "key", [0, 3, 1])).toBe(true);
+    expect(isNodeHidden(hidden, "key", [])).toBe(false);
+    expect(isNodeHidden(hidden, "key", [1, 0])).toBe(false);
+    expect(isNodeHidden(hidden, "door", [4])).toBe(true);
+    expect(isNodeHidden(hidden, "keys", [0])).toBe(false);
+  });
+
+  it("names a node by its target and path, and reads only such names back", () => {
+    expect(nodeKey("key", [0, 12])).toBe("key:0.12");
+    expect(nodeKey("key", [])).toBe("key:");
+    expect(parseNodeKey("key:0.12")).toEqual({ targetId: "key", path: [0, 12] });
+    expect(parseNodeKey("key:")).toEqual({ targetId: "key", path: [] });
+    for (const bad of ["key", ":0", "key:0.", "key:a", "k ey:0", "a:b:0", "key:-1", `${"x".repeat(201)}:0`, `key:${Array(17).fill(0).join(".")}`, 3, null]) {
+      expect(isNodeKey(bad), String(bad)).toBe(false);
+    }
+    expect(parseHiddenNodes(["key:0", "key:0", "bad", 7, "door:"])).toEqual(["key:0", "door:"]);
+    expect(parseHiddenNodes("key:0")).toEqual([]);
+    expect(parseHiddenNodes(Array.from({ length: 80 }, (_, i) => `t${i}:`))).toHaveLength(MAX_HIDDEN_NODES);
   });
 
   it("keeps the grid, its spacing and the origin, and clamps the spacing", () => {
@@ -175,6 +215,15 @@ describe("the preview kept in step with the stage frame (#234)", () => {
     expect(applyPreviewSync("not json")).toBe(false);
     expect(seen).toEqual(["solid", "rendered"]);
     unsubscribe();
+  });
+
+  it("carries the nodes hidden on the stage (#311), checked on the way in", () => {
+    updatePreview({ hiddenNodes: [] });
+    expect(JSON.parse(previewSync()).hiddenNodes).toEqual([]);
+    expect(applyPreviewSync(JSON.stringify({ ...JSON.parse(previewSync()), hiddenNodes: ["key:0.1", "key:0.1", "<img>", 4] }))).toBe(true);
+    expect(getPreview().hiddenNodes).toEqual(["key:0.1"]);
+    expect(previewSync({ ...JSON.parse(previewSync()), hiddenNodes: "key:0" })).toContain('"hiddenNodes":[]');
+    updatePreview({ hiddenNodes: [] });
   });
   it("keeps the texture quality the stage previews (#260): auto, or one of the four sizes – anything else is auto", () => {
     expect(parseSettings({ textureQuality: 2048 }).textureQuality).toBe(2048);
