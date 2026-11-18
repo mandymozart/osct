@@ -61,8 +61,8 @@ describe("surfaces: the free layout", () => {
 
   it("places each surface at its place; one without a place keeps its place in the row", () => {
     const [own, wall, turned] = sceneSurfaces(scene, page);
-    // The row of all three: 200 + 400 + 100 = 700 wide, the page's centre at −250
-    expect(own.place).toEqual({ x: -250, y: 0, z: 0, rx: 0, ry: 0, rz: 0 });
+    // The row of the surfaces without a place: the page alone, centred on the origin
+    expect(own.place).toEqual({ x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 });
     expect(wall.place).toEqual({ x: 0, y: 150, z: -400, rx: 90, ry: 0, rz: 0 });
     expect(turned.place.ry).toBe(90);
   });
@@ -104,7 +104,7 @@ describe("surfaces: a hit on the stage in a surface's millimetres", () => {
       { id: "m", side: "middle", widthMm: 230, heightMm: 320 },
       { id: "w", side: "wall", widthMm: 400, heightMm: 300, place: { x: 0, y: 150, z: -400, rx: 90 } },
     ] }, page);
-    expect(hitSurfaces(frames, [0, 0, 500], down)?.surface).toBe("m");
+    expect(hitSurfaces(frames, [50, 0, 500], down)?.surface).toBe("m");
     // From the reader's side, level, towards the wall: 100 mm up the wall, 50 right of its middle
     expect(hitSurfaces(frames, [50, -1000, 100], [0, 1, 0])).toEqual({ surface: "w", x: 250, y: 200 });
   });

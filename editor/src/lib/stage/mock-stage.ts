@@ -500,7 +500,17 @@ export class MockStage implements StageView {
     // The seams of the row: where one surface meets the next (the spine of a double page, a fold-out's folds)
     const seams = closed || free ? [] : frames.slice(1).map((frame, i) => ({ x: frame.origin[0] / 1000, h: Math.min(frame.heightMm, frames[i].heightMm) / 1000, y: rowY }));
     const references = book.references ?? {};
-    if (sheet && !free) {
+    // The book's row (its pages, a cover) takes the sheet whole, centred; a fold-out's or a free scene's surfaces each
+    // take their part of it – a double sheet's halves on the left and the right page, a one-page sheet on the cover
+    const bookRow = !free && frames.every(f => ["left", "right", "front", "back"].includes(f.side));
+    if (sheet && !bookRow) {
+      this.laySheetOnSurfaces(sheet, run, references);
+      if (!closed && !free) seams.forEach(seam => {
+        const spine = new Mesh(new PlaneGeometry(0.002, seam.h), new MeshBasicMaterial({ color: SPINE_COLOR }));
+        spine.position.set(seam.x, seam.y, -2 * LAYER);
+        this.book.add(spine);
+      });
+    } else if (sheet && !free) {
       // The sheet as laid out, centred on the row (a double page spans both pages)
       const paper = new Mesh(new PlaneGeometry(sheet.widthMm / 1000, sheet.heightMm / 1000), new MeshBasicMaterial({ color: PAGE_COLOR }));
       // A one-page sheet of a single printed page lies on its own half (#251), the facing half beside it
@@ -568,6 +578,50 @@ export class MockStage implements StageView {
     this.drawGrid();
     this.drawMarks();
     this.toBackdropLayer();
+  }
+
+  /**
+   * The layout's sheet cut onto the scene's surfaces (#314): a double sheet's left half on the left page, its right half
+   * on the right page; a one-page sheet on the cover's face (or the page of its side). Other surfaces stay paper. A
+   * surface with a reference image shows that instead (drawn over it).
+   */
+  private laySheetOnSurfaces(sheet: StageSheet, run: number, references: Readonly<Record<string, SurfaceReference>>): void {
+    if (!sheet.image) return;
+    const double = sheet.widthMm > this.page.width * 1.5;
+    const parts = this.frames.flatMap((frame): Array<{ frame: SurfaceFrame; repeat: [number, number]; offset: [number, number] }> => {
+      if (references[frame.id]) return [];
+      const half = double ? (frame.side === "left" ? 0 : frame.side === "right" ? 1 : -1) : -1;
+      if (double && half >= 0) return [{ frame, repeat: [0.5, 1], offset: [half * 0.5, 0] }];
+      const single = !double && (frame.side === "front" || frame.side === "back" || frame.side === sheet.side);
+      return single ? [{ frame, repeat: [1, 1], offset: [0, 0] }] : [];
+    });
+    if (!parts.length) return;
+    const planes = parts.map(({ frame }) => {
+      const plane = new Mesh(new PlaneGeometry(frame.widthMm / 1000, frame.heightMm / 1000), new MeshBasicMaterial({ color: PAGE_COLOR }));
+      layOnSurface(plane, frame, frame.widthMm / 2, frame.heightMm / 2, -2 * LAYER);
+      this.book.add(plane);
+      return plane;
+    });
+    this.loader.setCrossOrigin("anonymous");
+    this.loader.load(sheet.image, texture => {
+      if (run !== this.layoutRun) {
+        texture.dispose();
+        return;
+      }
+      texture.colorSpace = SRGBColorSpace;
+      this.textures.push(texture);
+      parts.forEach(({ repeat, offset }, i) => {
+        const part = texture.clone();
+        part.repeat.set(repeat[0], repeat[1]);
+        part.offset.set(offset[0], offset[1]);
+        part.needsUpdate = true;
+        this.textures.push(part);
+        const own = ownMaterial<MeshBasicMaterial>(planes[i]);
+        own.map = part;
+        own.color.setHex(0xffffff);
+        own.needsUpdate = true;
+      });
+    }, undefined, error => console.warn("[mock-stage] the sheet could not be loaded:", error));
   }
 
   /** The surface a page image's half lies on: the left / right page, or the scene's one surface (a cover) */

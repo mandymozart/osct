@@ -94,7 +94,10 @@ export const sceneSurfaces = (scene: SceneShape | undefined, page: { width: numb
   const own = (scene?.surfaces ?? []).filter(usable);
   const specs = own.length ? own : legacySurfaces(scene?.format, page);
   const free = own.length > 0 && scene?.layout === "free";
-  const xs = rowCentres(specs.map(s => s.widthMm));
+  // A free scene's row is that of its surfaces without a place (the origin stays the middle of that row, a double page's spine)
+  const inRow = specs.map(s => !(free && s.place));
+  const rowXs = rowCentres(specs.filter((_, i) => inRow[i]).map(s => s.widthMm));
+  const xs = specs.map((_, i) => (inRow[i] ? rowXs[inRow.slice(0, i).filter(Boolean).length] : 0));
   return specs.map((s, i) => ({
     id: s.id,
     side: s.side,

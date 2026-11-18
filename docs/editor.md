@@ -696,8 +696,10 @@ scene's coordinate system (schema 2.36, `SurfacePlace`): mm, the origin on the t
 scene point (x, y, z) is the stage's (x, −z, y)). A **fixed** scene (or none) lays its surfaces side by side, flat,
 each at its own size, the row centred on the origin – a double page the open book, a fold-out three pages (a fold over
 each seam), a cover the closed book. A **free** scene puts each surface at its `place` (`rx`, `ry`, `rz` degrees,
-three.js Euler `XYZ`; unturned flat, face up, top edge away from the reader; a wall `rx` 90), a surface without a place
-where the row would have it; each is a thin board, the desk stays. Content without surfaces keeps the book: the sides
+three.js Euler `XYZ`; unturned flat, face up, top edge away from the reader; a wall `rx` 90), the surfaces without a
+place in a row of their own around the origin; each is a thin board, the desk stays. The layout sheet goes whole over a
+book's row (its pages, a cover); a fold-out's or a free scene's surfaces each take their part of it (a double sheet's
+halves on the left and the right page), the rest stays paper. Content without surfaces keeps the book: the sides
 `left` / `right` (or `front` / `back`) are the surface ids, one page format each.
 
 Each surface shows its **reference image** (the frame's `surfaceReferences` input, by scene id and surface id:
