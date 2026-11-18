@@ -12,6 +12,7 @@
 <script lang="ts">
   import Icon from "#lib/components/Icon.svelte";
   import ContextMenu, { type MenuItem } from "#lib/components/ContextMenu.svelte";
+  import { sceneRemoval } from "#lib/scene-removal.svelte.js";
   import type { Point } from "#lib/context-menu.js";
   import SceneCards from "#lib/SceneCards.svelte";
   import { scenes } from "#lib/scenes.svelte.js";
@@ -161,6 +162,13 @@
     open = !open;
     save();
   };
+  // ── a card's menu (right click, long press, the menu key): add a scene after it, remove it (#319) ──
+  let cardMenu = $state<{ at: Point; sceneId: string } | null>(null);
+  const cardItems = (sceneId: string): MenuItem[] => [
+    { label: "Open", select: () => onopen(sceneId) },
+    { label: "Add a scene after…", select: () => openAdd(cardMenu?.at ?? { x: 0, y: 0 }, { after: sceneId }) },
+    { label: "Remove scene…", danger: true, select: () => { onopen(sceneId); sceneRemoval.ask(sceneId); } },
+  ];
 </script>
 
 <svelte:window onkeydown={windowKey} />
@@ -212,12 +220,16 @@
   {#if open || floating}
     <div class="strip" bind:clientWidth={stripWidth} bind:clientHeight={stripHeight}>
       {#if scenes.tree}
-        <SceneCards {layout} {current} {selectedGroup} {zoom} columns={grid.columns} cardHeight={grid.cardHeight} {assetsBase} {onopen} {onselectgroup}
+        <SceneCards onmenu={(scene, at) => (cardMenu = { at, sceneId: scene.id })} {layout} {current} {selectedGroup} {zoom} columns={grid.columns} cardHeight={grid.cardHeight} {assetsBase} {onopen} {onselectgroup}
           onmove={move} ongroup={group} onungroup={ungroup} onadd={at => openAdd(at)} />
       {:else}
         <p class="muted small loading">{scenes.error ? errorText(scenes.error) : "Loading the scenes…"}</p>
       {/if}
     </div>
+  {/if}
+  {#if cardMenu}
+    <ContextMenu at={cardMenu.at} label="Scene" head={scenes.scene(cardMenu.sceneId)?.label || cardMenu.sceneId} items={cardItems(cardMenu.sceneId)}
+      onclose={() => (cardMenu = null)} />
   {/if}
   {#if addMenu}
     <ContextMenu at={addMenu.at} label="Add a scene" head={addMenu.place ? "A new scene after the open one" : "A new scene at the end"}

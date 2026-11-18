@@ -27,7 +27,7 @@
   import { surfaceGrids } from "#lib/surface-grids.svelte.js";
   import { bookSource } from "#lib/book-source.svelte.js";
   import { entries } from "#lib/entries.svelte.js";
-  import { deleteEntry, errorText, isMediaAsset, putTarget, type Asset, type MediaKind } from "#lib/api.js";
+  import { deleteEntry, deleteScene, errorText, isMediaAsset, putTarget, type Asset, type MediaKind } from "#lib/api.js";
   import type { SurfaceReferences } from "#lib/stage/surfaces.js";
   import { surfaceMode as surfaceTool } from "#lib/surface-mode.svelte.js";
   import type { SurfacePlace } from "@shared/types/game-config";
@@ -35,6 +35,7 @@
   import { autosave } from "#lib/autosave.svelte.js";
   import { removalStep, type RemovalStep } from "#lib/removal.js";
   import RemovalConfirm from "#lib/components/RemovalConfirm.svelte";
+  import { sceneRemoval } from "#lib/scene-removal.svelte.js";
   import { library } from "#lib/library.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { nodeAt } from "#lib/values.js";
@@ -218,8 +219,15 @@
     selection.selectEntry(entryId, null);
     openTab("inspector");
   };
-  /** An entry's removal waiting for the person's confirmation in the panel, with the API's impact (#198) – no browser dialog */
-  let removal = $state<{ targetId: string | null; entryId: string; step: RemovalStep } | null>(null);
+  /**
+   * A removal waiting for the person's confirmation in the panel, with the API's impact and its warnings – an entry's
+   * (#198) or a scene's (#319) – no browser dialog
+   */
+  let removal = $state<
+    | { kind: "entry"; targetId: string | null; entryId: string; step: RemovalStep }
+    | { kind: "scene"; sceneId: string; step: RemovalStep }
+    | null
+  >(null);
   let removalBusy = $state(false);
   let removalError = $state<string | null>(null);
   const removed = async (targetId: string | null, entryId: string) => {
@@ -239,21 +247,58 @@
       const step = removalStep(e);
       if (!step) return failed(e);
       addingTarget = false;
-      removal = { targetId, entryId, step };
+      removal = { kind: "entry", targetId, entryId, step };
     }
+  };
+  /** A scene's removal asked for (the Inspector's scene section, a scene card's menu): first its impact, as an entry's */
+  const removeScene = async (sceneId: string) => {
+    removalError = null;
+    try {
+      await deleteScene(bookId, sceneId);
+    } catch (e) {
+      const step = removalStep(e);
+      if (!step) return failed(e);
+      addingTarget = false;
+      addingEntry = false;
+      addingSpread = null;
+      removal = { kind: "scene", sceneId, step };
+    }
+  };
+  let sceneAsksSeen = untrack(() => sceneRemoval.asked);
+  $effect(() => {
+    const asked = sceneRemoval.asked;
+    if (asked === sceneAsksSeen) return;
+    sceneAsksSeen = asked;
+    const id = untrack(() => sceneRemoval.scene);
+    if (id) void removeScene(id);
+  });
+  /** A scene removed: the open one gives way to its neighbour first, then the scenes and the draft are read again */
+  const sceneRemoved = async (sceneId: string) => {
+    removal = null;
+    if (sceneId === spreadId) {
+      const next = content.neighbour(sceneId, 1) ?? content.neighbour(sceneId, -1);
+      if (next) await goto(resolve(`${bookId}/${next.id}/`), { replace: true });
+    }
+    await scenes.load(bookId, true);
+    await reloadContent();
   };
   /** The second step: the same removal with the confirmation id; a void id brings the fresh impact */
   const confirmRemoval = async (deleteFiles: boolean) => {
-    if (!removal) return;
-    const { targetId, entryId } = removal;
+    const asked = removal;
+    if (!asked) return;
     removalBusy = true;
     removalError = null;
     try {
-      await deleteEntry(bookId, entryId, removal.step.confirmation.id, deleteFiles);
-      await removed(targetId, entryId);
+      if (asked.kind === "scene") {
+        await deleteScene(bookId, asked.sceneId, asked.step.confirmation.id, deleteFiles);
+        await sceneRemoved(asked.sceneId);
+      } else {
+        await deleteEntry(bookId, asked.entryId, asked.step.confirmation.id, deleteFiles);
+        await removed(asked.targetId, asked.entryId);
+      }
     } catch (e) {
       const step = removalStep(e);
-      if (step) removal = { targetId, entryId, step };
+      if (step) removal = { ...asked, step };
       else removalError = errorText(e);
     } finally {
       removalBusy = false;
