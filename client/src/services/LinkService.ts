@@ -8,7 +8,7 @@ import { isEntryCategory } from "@shared/guards/game-config";
  * Deep links: the app state as a plain URL.
  *
  *   /                          start (onboarding on a first visit, else the splash → scan mode)
- *   /spread/<spreadId>         scan mode on that spread
+ *   /scene/<sceneId>           scan mode on that scene (#319: was /spread/<id> – no longer read)
  *   /entries/<category>        entries list (also /entries/category/<category>; `all` = All, #286)
  *   /entry/<entryId>           one entry
  *   /tutorial/<step>           onboarding step
@@ -17,7 +17,7 @@ import { isEntryCategory } from "@shared/guards/game-config";
  *   …?osct=<version>           the app version the link was made with
  *
  * Incoming links only route. A link to an entry the reader hasn't consulted yet opens scan mode on the
- * spread of its access page (no shortcut past the game). An unknown route, spread, entry, category or step
+ * scene it belongs to (no shortcut past the game). An unknown route, scene, entry, category or step
  * shows the not-found page (with "Go to start"). The version in a link is informative only (stored progress
  * of another format is handled by the progress reader). No other link format is
  * supported (RULES.md #10).
@@ -61,7 +61,7 @@ export const pathForRoute = (route: PageRoute | null, currentSpread: string | nu
     case Pages.SPLASH:
       return "/";
     case Pages.SPREAD:
-      return `/spread${segment(currentSpread ?? undefined)}`;
+      return `/scene${segment(currentSpread ?? undefined)}`;
     case Pages.ERROR:
     case Pages.NOT_FOUND:
       return null; // overlays keep the URL
@@ -94,7 +94,7 @@ export const resolveLink = (game: IGame, link: Link): boolean => {
       if (value !== undefined) return notFound();
       game.router.navigate(slug);
       return true;
-    case "/spread":
+    case "/scene":
       if (value !== undefined) {
         if (!getSpread(value)) return notFound();
         game.spreads.switchSpread(value);
@@ -111,7 +111,7 @@ export const resolveLink = (game: IGame, link: Link): boolean => {
       if (!game.history.isConsulted(entry.id)) {
         // Not yet consulted by the reader: no shortcut past the game – open scan mode on the entry's spread instead
         game.spreads.switchSpread(entry.spreadId);
-        game.router.navigate("/spread");
+        game.router.navigate("/scene");
         return true;
       }
       game.router.navigate("/entry", { key: "entryId", value: entry.id });

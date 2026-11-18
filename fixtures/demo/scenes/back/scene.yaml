@@ -1,0 +1,7 @@
+# The back cover: one surface, one page wide – the colophon and the tally of the whole book.
+label: "Back cover"
+order: 4
+surfaces:
+  - id: surface
+    widthMm: 230
+    heightMm: 320

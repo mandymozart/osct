@@ -301,7 +301,7 @@ export class DebugOverlay extends HTMLElement {
       <div class="section">
         <div>Book: ${escapeHtml(progress.bookId)} · format ${progress.format}</div>
         <div>App versions: ${escapeHtml(progress.appVersions.join(" → ") || "–")}</div>
-        <div>Last spread: ${escapeHtml(progress.lastSpreadId ?? "–")} · last category: ${escapeHtml(progress.lastCategory ?? "–")}</div>
+        <div>Last scene: ${escapeHtml(progress.lastScene ?? "–")} · last category: ${escapeHtml(progress.lastCategory ?? "–")}</div>
         <div>Missing from content: ${missingIds.size
           ? `<span class="error">${missing.targets.length} targets, ${missing.entries.length} entries</span>`
           : '<span class="loaded">none</span>'}</div>

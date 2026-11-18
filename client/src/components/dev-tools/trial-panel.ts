@@ -3,7 +3,7 @@ import { GameStoreService } from "@/services";
 import {
   cameraLine, fetchTriggerInfos, getCameraInfo, setWindowOverride, subscribeCamera, type CameraInfo,
 } from "@/components/ar-bridges";
-import { getBook, getConfigVersion, getSpreads } from "@/utils/game-config";
+import { getBook, getConfigVersion, getSpreads, sceneLabel } from "@/utils/game-config";
 import { countResults, trialReport, trialRows, type TrialRow, type TriggerInfos } from "./trial-report";
 import {
   devicePrefill, osLine, pickList, readScreen, readUaHints, screenLine, type DevicePrefill, type ScreenSize, type UaHints,
@@ -206,7 +206,7 @@ export class TrialPanel extends HTMLElement {
     const tile = (row: TrialRow & { number: number | null }) => {
       const own = row.spreadId === current;
       const found = row.result === "found";
-      const page = `p.${row.page}·${row.targetId.split("-").pop()}`;
+      const page = `${row.place}·${row.targetId.split("-").pop()}`;
       const classes = ["tile", own ? "own" : "", found ? "found" : "", tracked.includes(row.targetId) ? "seen" : "", row.number === null ? "absent" : ""];
       return `<button class="${classes.join(" ").trim()}" data-spread="${escapeHtml(row.spreadId)}"
         title="${escapeHtml(`${row.number ?? "not printed"} · ${row.targetId} · ${row.title}`)}">
@@ -219,7 +219,7 @@ export class TrialPanel extends HTMLElement {
       bar.innerHTML = `
         <button data-action="previous" aria-label="Previous spread">‹</button>
         <button data-action="next" aria-label="Next spread">›</button>
-        <span class="left">${escapeHtml(spread ? `p. ${spread.title}` : "–")} · <b>${left}</b> not found</span>
+        <span class="left">${escapeHtml(spread ? sceneLabel(spread) : "–")} · <b>${left}</b> not found</span>
         <button data-action="download">md</button>
         <button class="close" data-action="close" aria-label="Close">×</button>`;
     }

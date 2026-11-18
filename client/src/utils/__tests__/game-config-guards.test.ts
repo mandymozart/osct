@@ -8,28 +8,27 @@ import {
 } from "@shared/guards/game-config";
 
 const valid = () => ({
-  version: { version: "1.0.0", timestamp: "2026-09-24T00:00:00.000Z", hash: "abc", schema: "1.0" },
+  version: { version: "1.0.0", timestamp: "2026-09-24T00:00:00.000Z", hash: "abc", schema: "3.0" },
   book: { id: "osct", title: "Onion Skin & Crocodile Tears", author: "Kévin Bray" },
-  initialSpreadId: "spread1",
-  spreads: [{ id: "spread1", title: "The Beginning", firstPage: 1, lastPage: 2 }],
+  initialScene: "spread1",
+  scenes: [{ id: "spread1", label: "The Beginning", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
   entities: {
     castle: { type: "model", assets: [{ id: "castle", assetType: "glb", src: "/castle.glb" }] },
   },
   entries: [
     {
-      id: "racoon", category: "glossary", title: "Racoon", page: 1, body: "…", tags: [],
+      id: "racoon", category: "glossary", title: "Racoon", scene: "spread1", body: "…", tags: [],
       target: { id: "racoon", imageSrc: "/r.jpg", entity: { ref: "castle" } },
     },
     {
-      id: "video", category: "video", title: "Video", page: 2, body: "", tags: ["demo"],
+      id: "video", category: "video", title: "Video", scene: "spread1", body: "", tags: ["demo"],
       target: {
         id: "video", imageSrc: "/v.jpg",
         entity: { type: "video", assets: [{ id: "video", assetType: "video", src: "/v.mp4" }] },
       },
     },
-    { id: "essay", category: "text", title: "Essay", page: 2, body: "…", author: "A. Author", tags: [] },
+    { id: "essay", category: "text", title: "Essay", scene: "spread1", body: "…", author: "A. Author", tags: [] },
   ],
-  tutorial: [{ id: "step-1", index: 0, title: "Hi", description: "…" }],
 });
 
 const problemsOf = (config: unknown): string[] => {
@@ -56,29 +55,15 @@ describe("game configuration guards", () => {
     expect(problemsOf(valid())).toEqual([]);
   });
 
-  it("front and back matter: a double page's matter is front or back, never a cover's (#296)", () => {
-    const config = valid();
-    config.spreads.push(
-      { id: "front-1", title: "Front matter 1", firstPage: -2, lastPage: -1, matter: "front" } as never,
-      { id: "back-1", title: "Back matter 1", firstPage: 3, lastPage: 4, matter: "back" } as never,
-    );
-    expect(problemsOf(config)).toEqual([]);
-    config.spreads.push(
-      { id: "odd", title: "Odd", firstPage: 5, lastPage: 6, matter: "middle" } as never,
-      { id: "back", title: "Back cover", firstPage: 7, lastPage: 7, format: "back", matter: "back" } as never,
-    );
-    expect(problemsOf(config).map(p => p.split(":")[0])).toEqual(["spreads[3].matter", "spreads[4].matter"]);
-  });
-
   it("report every problem with its path", () => {
     const config = valid() as any;
     config.entries[0].category = "poems";
     config.entries[1].target.entity.type = 42;
     config.entries[1].target.entity.assets[0].assetType = "pdf";
-    delete config.spreads[0].title;
+    delete config.scenes[0].label;
 
     expect(problemsOf(config)).toEqual([
-      'spreads[0].title: expected a non-empty string',
+      'scenes[0].label: expected a non-empty string',
       'entries[0].category: "poems" is not one of glossary, video, text, link',
       'entries[1].target.entity.type: expected a node type (group, model, video, image, text, light)',
       'entries[1].target.entity.assets[0].assetType: "pdf" is not one of glb, gltf, video, image, audio',
@@ -113,35 +98,25 @@ describe("game configuration guards", () => {
     config.entries[0].target.entity = { ref: "missing" };
     config.entries[2].id = "racoon";
     config.entries[1].target.id = "racoon";
-    config.initialSpreadId = "spread9";
-    config.entries[2].page = 7;
+    config.initialScene = "spread9";
+    config.entries[2].scene = "spread7";
 
     expect(problemsOf(config)).toEqual([
-      'config.initialSpreadId: unknown spread "spread9"',
+      'config.initialScene: unknown scene "spread9"',
       'entries[0].target.entity.ref: unknown entity "missing"',
       'entries[1].target.id: duplicate target id "racoon"',
-      'entries[2].page: page 7 is not part of any spread',
+      'entries[2].scene: unknown scene "spread7"',
       'entries[2].id: duplicate entry id "racoon"',
     ]);
   });
 
-  it("a configuration without onboarding is valid (schema 2.25: the reader has its own, #236)", () => {
-    const { tutorial: _, ...config } = valid();
-    expect(problemsOf(config)).toEqual([]);
-  });
-
-  it("check onboarding steps (written for older apps): optional texts, known actions, numeric timings", () => {
+  it("a configuration with the 2.x onboarding or pages carries fields 3.0 does not read: the 2.x page model is refused", () => {
     const config = valid() as any;
-    config.tutorial = [
-      { id: "splash", index: 0, advance: 2000 },
-      { id: "camera", index: 1, description: "…", button: "Grant access", action: "camera" },
-      { id: "broken", index: 2, button: "Go", action: "teleport", fadeIn: "slow" },
-    ];
-
-    expect(problemsOf(config)).toEqual([
-      'tutorial[2].action: expected one of next, camera, scan',
-      'tutorial[2].fadeIn: expected a number',
-    ]);
+    config.tutorial = [{ id: "splash", index: 0 }];
+    expect(problemsOf(config)).toEqual([]);
+    config.entries[0].page = 1;
+    delete config.entries[0].scene;
+    expect(problemsOf(config)).toEqual(["entries[0].scene: expected a scene id"]);
   });
 
   it("reject non-objects", () => {

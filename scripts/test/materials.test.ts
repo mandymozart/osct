@@ -1,6 +1,6 @@
 import { Box3, Vector3 } from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BOOK, entry, loadBuild, makeContent, spread } from './helpers';
+import { BOOK, entry, loadBuild, makeContent, scene } from './helpers';
 import { assertGameConfiguration } from '../../shared/guards/game-config';
 import { gltfBounds, readGltfJson, zeroPlaneFindings } from '../src/build/zero-plane';
 import type { EntityData } from '../../shared/types/game-config';
@@ -23,11 +23,11 @@ export const register = (api: PluginApi): void => {
 };
 `;
 
-const model = (material: string) => entry(1, 'x.jpg', `  entity:\n    type: model\n    src: m.glb\n${material}`);
+const model = (material: string) => entry('a', 'x.jpg', `  entity:\n    type: model\n    src: m.glb\n${material}`);
 
 const content = (material: string, plugin = WATER) => ({
   'book.yaml': BOOK,
-  'spreads/a/spread.yaml': spread(1, 2),
+  'scenes/a/scene.yaml': scene('1–2'),
   'entries/first/entry.yaml': model(material),
   'entries/first/x.jpg': 'image x',
   'entries/first/m.glb': 'model',
@@ -100,11 +100,10 @@ describe('a plugin\'s materials and textures (#188)', () => {
     const config = (material: unknown, plugins?: unknown) => ({
       version: { version: '0.0.0', timestamp: 't', schema: '2.17' },
       book: { id: 'b', title: 'B', author: 'A' },
-      initialSpreadId: 's',
-      spreads: [{ id: 's', title: 'S', firstPage: 1, lastPage: 2 }],
+      initialScene: 's',
+      scenes: [{ id: 's', label: 'S', surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
       entries: [],
       entities: { tank: { type: 'group', assets: [], material } },
-      tutorial: [],
       ...(plugins ? { plugins } : {}),
     });
     const recorded = [{ id: 'water', src: '/p.js', api: '1.4', registered: { materials: { water: { description: 'W.', params: { deep: { kind: 'color', default: '#000000', description: 'D.' } } } } } }];

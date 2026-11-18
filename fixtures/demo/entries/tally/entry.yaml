@@ -2,15 +2,14 @@
 # how many pages of the book were found – and redraws it on every targetUnlocked.
 category: text
 title: The tally
-page: 2
+scene: the-key
 author: The engine
 body: "A text the book writes itself: the `tally` component builds a canvas text with `api.three` and fills it from `api.progress.counts()` – it changes with every page you find, on any spread."
 tags: [narrative, progress]
 target:
   image: target.jpg
-  print:
-    surface: right
-    x: 70
+  place:
+    x: 300
     y: 90
     width: 90
   entity:

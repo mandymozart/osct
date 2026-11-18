@@ -31,7 +31,7 @@ describe("HistoryManager (progress)", () => {
       appVersions: [__VITE_APP_VERSION__],
       unlocked: {},
       consulted: {},
-      lastSpreadId: null,
+      lastScene: null,
     });
     expect(stored().appVersions).toEqual([__VITE_APP_VERSION__]);
   });
@@ -67,7 +67,7 @@ describe("HistoryManager (progress)", () => {
     const other = getSpreads()[1].id;
     game.spreads.switchSpread(other);
     game.history.setLastCategory(EntryCategory.Text);
-    expect(stored()).toMatchObject({ lastSpreadId: other, lastCategory: "text" });
+    expect(stored()).toMatchObject({ lastScene: other, lastCategory: "text" });
     game.history.setLastCategory(ALL_CATEGORY);
     expect(stored().lastCategory).toBe("all");
     game = createGameStore();
@@ -164,7 +164,7 @@ describe("HistoryManager (progress)", () => {
       PROGRESS_READERS[oldFormat] = (raw, id) => ({
         ...readProgress({ format: PROGRESS_FORMAT }, id).record,
         unlocked: raw.found as Record<string, number>,
-        lastSpreadId: spreadId,
+        lastScene: spreadId,
         appVersions: ["0.9.0"],
       });
       try {

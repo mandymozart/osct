@@ -29,11 +29,11 @@ export class HistoryManager implements IHistoryManager {
     this.storage = storage;
     this.load();
     // Resume where the reader left off: the last spread becomes active (a deep link overrides it)
-    const last = this.progress.lastSpreadId;
+    const last = this.progress.lastScene;
     if (last && getSpread(last) && last !== this.game.state.currentSpread) this.game.spreads.switchSpread(last);
     this.game.subscribeToProperty('currentSpread', (spreadId) => {
-      if (spreadId && spreadId !== this.progress.lastSpreadId) {
-        this.change(draft => { draft.lastSpreadId = spreadId; });
+      if (spreadId && spreadId !== this.progress.lastScene) {
+        this.change(draft => { draft.lastScene = spreadId; });
       }
     });
   }
@@ -101,7 +101,7 @@ export class HistoryManager implements IHistoryManager {
     const spreadId = getTarget(targetId)?.spreadId;
     this.change(draft => {
       draft.unlocked[targetId] = Date.now();
-      if (spreadId) draft.lastSpreadId = spreadId;
+      if (spreadId) draft.lastScene = spreadId;
     });
   }
 

@@ -1,0 +1,7 @@
+# Another page reacts to the key: the door opens with it, the lamp lights when the door opened.
+label: "3–4"
+order: 1
+surfaces:
+  - id: surface
+    widthMm: 460
+    heightMm: 320

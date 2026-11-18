@@ -2,7 +2,8 @@
 Book layout from the designed PDFs, for the editor's mock stage (docs/editor.md, docs/content.md "Importing the
 book layout"). An external tool like ffmpeg for the videos: Python 3 with PyMuPDF (`pip install pymupdf`).
 
-    python scripts/layout/extract-layout.py --triggers All_Triggers.pdf --preview OSCT_preview.pdf --content content
+    python scripts/layout/extract-layout.py --triggers All_Triggers.pdf --preview OSCT_preview.pdf --content content \
+        --mapping scripts/import/<delivery>.yaml
 
 Reads
   - the preview PDF (every sheet of the book as laid out: covers as single pages, the rest as double pages)
@@ -10,7 +11,8 @@ Reads
   - the trigger PDF (one page per double page, every printed trigger as an image at its printed position and size)
     → the printed geometry of every target in mm from the top left corner of its page,
 and matches both to the content: sheets by the page numbers printed on them, trigger images to the targets of that
-page (the entry's `page`) by the aspect ratio of the target image, then by reading order. Writes
+page by the aspect ratio of the target image, then by reading order. Content schema 3.0 (#319) has no pages: a
+target's page is the delivery mapping's (`--mapping`, the entry's `page` there – the import maps it to a scene once). Writes
 <content>/layout/layout.json. The content build copies layout/ with the rest of the content; layout/ is generated
 and stays out of git. Run again whenever the PDFs change.
 """
@@ -47,23 +49,30 @@ def read_yaml_scalar(text: str, key: str, indent: str = "") -> str | None:
     return value
 
 
-def read_content(content_dir: str):
-    spreads = []
-    for spread_id in sorted(os.listdir(os.path.join(content_dir, "spreads"))):
-        file = os.path.join(content_dir, "spreads", spread_id, "spread.yaml")
-        if not os.path.isfile(file):
-            continue
-        text = open(file, encoding="utf-8").read()
-        first = read_yaml_scalar(text, "firstPage")
-        last = read_yaml_scalar(text, "lastPage")
-        spreads.append({"id": spread_id, "firstPage": int(first) if first else None, "lastPage": int(last) if last else None})
+def read_mapping_pages(mapping_file: str) -> dict[str, int]:
+    """The delivery mapping's page per entry id (`  <id>:` then `page: N`, block or inline) – no YAML library needed."""
+    pages: dict[str, int] = {}
+    current = None
+    for line in open(mapping_file, encoding="utf-8"):
+        key = re.match(r"^  ([a-z0-9][a-z0-9-]*):", line)
+        if key:
+            current = key.group(1)
+        page = re.search(r"(?:^\s{4}|[{,]\s*)page:\s*(-?\d+)", line)
+        if current and page:
+            pages[current] = int(page.group(1))
+    return pages
+
+
+def read_content(content_dir: str, pages: dict[str, int]):
+    scenes_dir = os.path.join(content_dir, "scenes")
+    scenes = sorted(os.listdir(scenes_dir)) if os.path.isdir(scenes_dir) else []
     targets = []
     for entry_id in sorted(os.listdir(os.path.join(content_dir, "entries"))):
         file = os.path.join(content_dir, "entries", entry_id, "entry.yaml")
         if not os.path.isfile(file):
             continue
         text = open(file, encoding="utf-8").read()
-        page = read_yaml_scalar(text, "page")
+        page = pages.get(entry_id)
         image = read_yaml_scalar(text, "image", indent="  ")
         if page is None or not re.search(r"^target:\s*$", text, re.M) or image is None:
             continue
@@ -74,7 +83,7 @@ def read_content(content_dir: str):
             pix = pymupdf.Pixmap(path)
             aspect = pix.height / pix.width if pix.width else None
         targets.append({"id": target_id, "entryId": entry_id, "page": int(page), "aspect": aspect})
-    return spreads, targets
+    return scenes, targets
 
 
 def page_numbers(page) -> dict:
@@ -99,13 +108,14 @@ def main() -> int:
     parser.add_argument("--triggers", required=True, help="the trigger layout PDF (All_Triggers.pdf)")
     parser.add_argument("--preview", required=True, help="the book preview PDF (every sheet)")
     parser.add_argument("--content", required=True, help="the content source folder (OSCT_CONTENT_DIR)")
+    parser.add_argument("--mapping", required=True, help="the delivery mapping (scripts/import/<delivery>.yaml): the targets' pages")
     parser.add_argument("--width", type=int, default=1200, help="pixel width of a rendered double page")
     parser.add_argument("--sharp-width", type=int, default=4096,
                         help="pixel width of the sharper image of a double page (0 = none); the editor fetches it only "
                              "when the camera is close to the page. Kept at 4096 so every GPU can hold it")
     args = parser.parse_args()
 
-    spreads, targets = read_content(args.content)
+    scenes, targets = read_content(args.content, read_mapping_pages(args.mapping))
     out_dir = os.path.join(args.content, "layout")
     sheets_dir = os.path.join(out_dir, "sheets")
     os.makedirs(sheets_dir, exist_ok=True)
@@ -197,9 +207,7 @@ def main() -> int:
     with open(os.path.join(out_dir, "layout.json"), "w", encoding="utf-8") as f:
         json.dump(layout, f, indent=1, ensure_ascii=False)
 
-    spread_pages = {p for s in spreads for p in (s["firstPage"], s["lastPage"]) if p}
-    covered = sum(1 for s in sheets if any(p in spread_pages for p in s["pages"]))
-    print(f"layout: {len(sheets)} sheets ({covered} of the content's {len(spreads)} spreads have one), "
+    print(f"layout: {len(sheets)} sheets (the content has {len(scenes)} scenes), "
           f"{len(placed)} of {len(targets)} targets placed -> {out_dir}")
     for problem in problems:
         print("  ! " + problem)

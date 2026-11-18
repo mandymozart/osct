@@ -716,7 +716,7 @@ lights when the door opened, a text counts the pages found. Four parts of `api` 
   (0–1, the whole book without an id), `counts(spreadId?)` → `{ unlocked, targets }`. On the editor's stage the
   progress is the stage's own (what was found since the workspace opened); the reader passes its history
   (`ArSceneOptions.progress`).
-- **`api.spread`** – `current` (id, title, pages, format, targets) and `get(id)`.
+- **`api.spread`** – `current` (the current scene: id, label, group, surfaces, passes, targets – content schema 3.0, #319: no title, pages or format) and `get(id)`.
 
 And two more things in a component: the context's **`children`** – the placement groups of the node's children, in
 content order, so a component on a `group` can show, hide or move them – and the hook **`onUnlocked`**, the first

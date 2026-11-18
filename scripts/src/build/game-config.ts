@@ -7,24 +7,23 @@ import { buildEntities } from './entities';
 import { warnLayerStacks } from './plugins';
 import { warnZeroPlane } from './zero-plane';
 import { buildEntries } from './entries';
-import { buildSpreads } from './spreads';
-import { checkTargetsPerSpread } from './targets';
-import { buildTutorial } from './tutorial';
+import { buildScenes } from './scenes';
+import { checkTargetsPerScene } from './targets';
 import { buildSubtitles } from './subtitles';
 
 /**
  * Build the final config object; `plugins` = the compiled plugins (build/plugins.ts), declared when there are any
  */
 export function buildConfig(versionStr: string, inputHash: string, plugins: PluginData[] = []): GameConfiguration {
-  // The passes the plugins recorded (schema 2.21): the book and a spread may name them
+  // The passes the plugins recorded (schema 2.21): the book and a scene may name them
   const recorded = recordedRegistrations(plugins);
   const pluginPasses = recorded.passes;
   // The looks they recorded (schema 2.29): the book may name them in `appearance`
   const book = buildBook(pluginPasses, recorded.appearances);
-  const spreads = buildSpreads(pluginPasses);
+  const scenes = buildScenes(pluginPasses);
   const entities = buildEntities();
-  const builds = buildEntries(spreads, entities);
-  checkTargetsPerSpread(spreads, builds);
+  const builds = buildEntries(scenes, entities);
+  checkTargetsPerScene(scenes, builds);
   const trees = [
     ...Object.entries(entities).map(([ref, node]) => ({ label: `entities/${ref}`, node })),
     ...builds.flatMap(b => (b.entry.target?.entity && !('ref' in b.entry.target.entity) ? [{ label: `entries/${b.entry.id} target`, node: b.entry.target.entity }] : [])),
@@ -32,14 +31,16 @@ export function buildConfig(versionStr: string, inputHash: string, plugins: Plug
   warnLayerStacks(trees);
   // Every model stands on its page (#189): its lowest point at the target's z = 0
   warnZeroPlane(trees);
-  const tutorial = buildTutorial();
   const subtitles = buildSubtitles();
 
+  // In scene order, then by title (an entry of a scene that does not exist – an error – last)
+  const position = new Map(scenes.map((scene, i) => [scene.id, i]));
+  const at = (sceneId: string) => position.get(sceneId) ?? scenes.length;
   const entries = builds
     .map(b => b.entry)
-    .sort((a, b) => a.page - b.page || a.title.localeCompare(b.title));
+    .sort((a, b) => at(a.scene) - at(b.scene) || a.title.localeCompare(b.title));
 
-  console.log(`✨ ${spreads.length} spreads, ${entries.length} entries (${entries.filter(e => e.target).length} with target), ${Object.keys(entities).length} shared entities${plugins.length ? `, ${plugins.length} plugins` : ''}`);
+  console.log(`✨ ${scenes.length} scenes, ${entries.length} entries (${entries.filter(e => e.target).length} with target), ${Object.keys(entities).length} shared entities${plugins.length ? `, ${plugins.length} plugins` : ''}`);
 
   const timestamp = new Date().toISOString();
   console.log(`📊 Building config version: ${versionStr} (${timestamp}, hash ${inputHash.slice(0, 12)})`);
@@ -52,11 +53,10 @@ export function buildConfig(versionStr: string, inputHash: string, plugins: Plug
       schema: CONTENT_SCHEMA_VERSION,
     },
     book,
-    initialSpreadId: spreads[0]?.id ?? '',
-    spreads,
+    initialScene: scenes[0]?.id ?? '',
+    scenes,
     entries,
     entities,
-    tutorial,
     ...(plugins.length ? { plugins } : {}),
     ...(subtitles.length ? { subtitles } : {}),
   };

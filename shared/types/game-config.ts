@@ -51,73 +51,24 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * Content schema version `MAJOR.MINOR`: the version of this contract (shared/), the only compatibility rule
  * between content and app (RULES #10). The app version a content build was made with is information only.
  * - MAJOR: a change an older app cannot read – a new required field, a renamed or removed field, a changed
- *   type, a new enum value (asset type, category, step action, spread format). The app refuses content of a
- *   newer MAJOR at startup; it reads every MAJOR from `OLDEST_READABLE_SCHEMA_MAJOR` on as it is (so far the one
- *   MAJOR, the node tree, only added).
+ *   type, a new enum value (asset type, category). The app refuses content of a newer MAJOR at startup and of a MAJOR
+ *   before `OLDEST_READABLE_SCHEMA_MAJOR`.
  * - MINOR: an addition an older app of the same MAJOR still loads (RULES #10): what it does not know of a kind it knows
- *   is skipped with a warning (`engine/src/content/forward-compatible.ts`), never refused. Apps before #220 refused
- *   some of it (2.17, 2.19 and 2.21 below). The MINORs so far: a new optional field (the book's `environment` since 2.8,
- *   its world and sky assets since 2.10), and since 2.6 a new node type (the guard lets an unknown one pass; a 2.5 app
- *   refuses it), and since 2.9 a new pass parameter
- *   (the grade's `reach`: the guard ignores a parameter it does not know; a 2.8 app refuses it), and since 2.11 the
- *   content manifest's `book`, and since 2.12 a node's `name`, and since 2.13 a plugin's node type
- *   (`registerNodeType`, its parameters in the node's `params`; a 2.12 app renders nothing for it and keeps its
- *   children), and since 2.14 a plugin's recorded `registered` (the specs of what it registers; a 2.13 app ignores
- *   it), and since 2.15 a parameter spec's optional `label` (the words the editor's row shows, plugin API 1.3 – in the
- *   content only inside a plugin's recorded specs; a 2.14 app ignores it), and 2.16 adds nothing to the content (shared/
- *   imports its types type-only, verbatimModuleSyntax – #176), and since 2.17 a node's optional `material` (a plugin's
- *   `registerMaterial`, plugin API 1.4 – a 2.16 app keeps the node's own material), and a plugin's recorded materials and
- *   textures (a 2.16 app ignores them) – but a recorded spec with a parameter of the new kind `texture` is refused by a
- *   2.16 guard (it knows no such kind): a book whose plugins take textures needs a 2.17 app, and 2.18 adds nothing to the
- *   content (plugin API 1.5: `api.loadText`, a declared plugin built against it carries `api: "1.5"`), and since 2.19 the
- *   built-in component `behaviour` (rules without code, `./behaviour.ts`) – a 2.18 guard refuses a node that carries one
- *   (it knows no such component, as a 2.16 guard a `texture` parameter): a book with behaviours needs a 2.19 app, and 2.20
- *   adds nothing to the content (plugin API 1.6: `api.feedback`, a GPU feedback buffer, and `api.shadertoy` – a declared
- *   plugin built against it carries `api: "1.6"`; a 2.19 app's engine has no `api.feedback`, so a build that calls it
- *   fails and its node renders nothing), and since 2.21 a `passes` entry may name a pass a plugin of the book registers
- *   (`registerPass`, its parameters checked against the recorded spec – `./passes.ts`) – a 2.20 guard refuses a pass type
- *   it does not know: a book whose spreads name a plugin's pass needs a 2.21 app, and since 2.22 a pass's optional `enabled`
- *   (`false` = off: it keeps its place and values, the chain skips it, #233) – a 2.21 app skips the field as an unknown
- *   parameter (a 2.20 one ignores it) and runs the pass, and 2.23 changes no field but what an entry's `body` means: Markdown
- *   (paragraphs, emphasis, strong, links) with the book's variables in braces (`../text/entry-text.ts`) – plain text is
- *   valid Markdown and reads as before; an older app shows the source as it is, the stars, brackets and braces included,
- *   and 2.24 adds nothing to the content (shared/ tidied: one `isObject`, one camelCase name pattern, unused types
- *   removed – #214), and since 2.25 the configuration's `tutorial` is optional: the reader owns its onboarding (its steps
- *   and their texts in its translations, #236) and reads none from the content; the content build and a publish still
- *   write the steps older apps require (`../compat/tutorial.ts`) until the next MAJOR – and the book's optional
- *   `sourceOfTruth` (print | digital: which side the spreads come from, #238; an older app ignores it), and since 2.26 a
- *   target's optional `enabled` (`false` = switched off, #249: the reader leaves the target and its entry out until it is
- *   switched on; a 2.25 app ignores the field and shows both), and since 2.27 a model asset's optional `textures`
- *   (#260: its maps in several sizes – the file carries the smallest, the app swaps in the size the reader's texture
- *   quality asks for; a 2.26 app ignores the field and shows the model with the map in its file), and since 2.28 the
- *   parameter kind `model` (plugin API 1.7, `./components.ts`, #263: a model file a plugin's code loads with
- *   `api.loadModel`) – an older app skips a component's, a node type's or a material's parameter of that kind with a
- *   warning, as every parameter kind it does not know, and since 2.29 the
- *   book's optional `appearance` (the look an entity appears with on reveal, found and lost – a built-in one with its
- *   values or a plugin's, `./appearance.ts`; an older app ignores the field and plays its own animation) with a plugin's
- *   recorded `registered.appearances` (plugin API 1.8), and since 2.30 the built-in components `reveal`, `found` and `lost` on
- *   an entity's root node (its own look for a moment, in place of the book's – `./appearance.ts`; an older app skips the
- *   components with a warning and plays the book's look, or its own animation), and since 2.31 the configuration's
- *   optional `subtitles` (#257: the WebVTT files of a video, one per language – `./subtitles.ts`; an older app ignores
- *   the field and plays the video without a subtitle line), and since 2.32 a spread's optional `matter` (#296: `front` or
- *   `back` – a double page without printed numbers before page 1 or after the last printed page, its pages internal; an
- *   older app ignores the field and shows the spread like any other, its pages as numbers), and since 2.33 the
- *   configuration's optional `credits` (#292: the credit line of a file the book uses, by the file's path or URL – written
- *   in the editor's Library; an older app ignores the field and has no image credits page), and since 2.34 an entry's
- *   optional `caption` (#289: the line under the entry's picture – an older app ignores the field and shows the picture
- *   without it), and since 2.35 scenes (#307, `agents/SCENES.md` phase 1): a spread's optional `surfaces` (its physical
- *   areas, each with a size in mm and a `label` as printed), `layout`, `group` and `label`, the configuration's optional
- *   `groups`, and an entry's optional `scene` and `surface` – **an entry's `scene` decides its spread, not its `page`**;
- *   writers keep writing `page` inside the scene's range (an older app ignores the new fields and places the entry by
- *   its page, as before), and since 2.36 a surface's optional `place` (#314: where it lies in the scene's coordinate
- *   system – a wall, a room's surfaces) and a target's optional `print.surfaceId` (the surface it is printed on, by id –
- *   it wins over `print.surface`'s side); an older app ignores both (the reader does not use either yet).
+ *   is skipped with a warning (`engine/src/content/forward-compatible.ts`), never refused.
+ * The history of the 1.x and 2.x MINORs is the table in docs/content.md ("Schema and app versions").
+ *
+ * **3.0** (#319, `agents/SCENES.md` "Schema 3.0" – the first release, no reader of 2.x was shipped): one clean model of
+ * scenes. The configuration's `scenes` (was `spreads`) and `initialScene` (was `initialSpreadId`); a scene has a `label`,
+ * an optional `group` and its `surfaces` (at least one, each placed in the scene – `place`); an entry names its `scene`
+ * (and a `surface` when the scene has several); a target's `place` lies on a surface (was `print`). Gone: page numbers
+ * everywhere (`page`, `firstPage`, `lastPage`, `print.page`), a spread's `title`, `format`, `matter` and `layout`, a
+ * surface's `side`, and the configuration's `tutorial` (the onboarding of 2.24 apps).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.36";
-/** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
-export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
+export const CONTENT_SCHEMA_VERSION = "3.0";
+/** The oldest content schema MAJOR this contract reads – 3: no 2.x content is read (no reader of it was shipped) */
+export const OLDEST_READABLE_SCHEMA_MAJOR = 3;
 
 export interface ContentSchema {
   major: number;
@@ -145,7 +96,7 @@ export interface BookData {
   author: string;
   /** Shown on the home page above "Start" (optional) */
   publisher?: string;
-  /** Optional (schema 2.5): the post-processing passes of every spread without a list of its own (`./passes.ts`) */
+  /** Optional (schema 2.5): the post-processing passes of every scene without a list of its own (`./passes.ts`) */
   passes?: PassData[];
   /** Optional (schema 2.8; world and sky assets 2.9): the world around the reader and the onion sky (`./environment.ts`); none = the default */
   environment?: EnvironmentData;
@@ -153,13 +104,13 @@ export interface BookData {
   appearance?: BookAppearance;
   /**
    * Optional (schema 2.25): the book's source of truth (#238) – `print` (print first: the printed book is the truth, its
-   * spreads, pages and printed placements come from an import of the layout) or `digital` (digital first: the editor is
-   * the truth, spreads are added and removed there). None = print (`sourceOfTruthOf`). The reader does not read it.
+   * scenes, surfaces and printed places come from an import of the layout) or `digital` (digital first: the editor is
+   * the truth, scenes are added and removed there). None = print (`sourceOfTruthOf`). The reader does not read it.
    */
   sourceOfTruth?: SourceOfTruth;
 }
 
-/** Where a book's spreads come from (`BookData.sourceOfTruth`, #238) */
+/** Where a book's scenes come from (`BookData.sourceOfTruth`, #238) */
 export const SOURCES_OF_TRUTH = ["print", "digital"] as const;
 export type SourceOfTruth = (typeof SOURCES_OF_TRUTH)[number];
 
@@ -168,108 +119,61 @@ export const sourceOfTruthOf = (book: Pick<BookData, "sourceOfTruth"> | null | u
   book?.sourceOfTruth === "digital" ? "digital" : "print";
 
 /**
- * What a spread is in the book: a double page (`spread`, the default), the front **cover** or the **back** cover – the
- * covers have no page number: the cover spread is page 0, the back spread the page after the last printed one.
- */
-export const SPREAD_FORMATS = ["spread", "cover", "back"] as const;
-export type SpreadFormat = (typeof SPREAD_FORMATS)[number];
-
-/**
- * A double page without printed numbers (`SpreadData.matter`, #296): `front` matter lies between the cover and page 1,
- * `back` matter between the last printed page and the back cover. Its pages are internal – front matter counts down
- * to −1 (the sheet next to page 1 is −2…−1), back matter follows the last printed page – and never shown to readers.
- */
-export const MATTERS = ["front", "back"] as const;
-export type Matter = (typeof MATTERS)[number];
-
-/** A spread's matter: `front` / `back` when it says so, null for a numbered spread or a cover */
-export const matterOf = (spread: { format?: SpreadFormat; matter?: unknown }): Matter | null =>
-  (!spread.format || spread.format === "spread") && (MATTERS as readonly unknown[]).includes(spread.matter) ? (spread.matter as Matter) : null;
-
-/**
- * The sides a surface of a scene is known by (`SurfaceData.side`, schema 2.35): a page of a double page (`left`, `right`,
- * `middle` for a fold-out's third), a cover's `front` and `back`, a `wall`. A side this list does not know is a later
- * MINOR's – the guard lets any lower-case word pass, so adding one never breaks an older app.
- */
-export const SURFACE_SIDES = ["left", "middle", "right", "front", "back", "wall"] as const;
-export type SurfaceSide = (typeof SURFACE_SIDES)[number];
-/** What the guard accepts as a surface's side: a known one or a later MINOR's (a lower-case word) */
-export const SURFACE_SIDE_PATTERN = /^[a-z][a-z0-9-]*$/;
-
-/**
- * Where a surface lies in its scene (schema 2.36, #314) – the **scene's coordinate system**, one for the whole scene, not
- * per surface: millimetres, the origin on the table at the middle of the scene's first row of surfaces (a double page:
- * its spine), +x to the right, +y up, +z towards the reader (three.js' axes). `x`, `y`, `z` are the surface's centre;
- * unrotated (`rx`, `ry`, `rz` 0, degrees, applied in that order) a surface lies flat, face up, its top edge away from the
- * reader (−z) – a page on the table. A wall ahead stands up: `rx` 90, its face towards the reader. A `fixed` scene
- * derives its surfaces' places (side by side in a row, flat) and ignores `place`; a `free` one places each surface by
- * it, a surface without one as in a fixed row.
+ * Where a surface lies in its scene (schema 3.0) – the **scene's coordinate system**, one for the whole scene, not per
+ * surface: millimetres, the origin on the table at the middle of the scene's first row of surfaces (a double page: its
+ * spine), +x to the right, +y up, +z towards the reader (three.js' axes). `x`, `y`, `z` are the surface's centre;
+ * unrotated (`rx`, `ry`, `rz` 0, degrees, Euler XYZ) a surface lies flat, face up, its top edge away from the reader
+ * (−z) – a page on the table. A wall ahead stands up: `rx` 90, its face towards the reader.
  */
 export interface SurfacePlace {
   x: number;
   y: number;
   z: number;
-  rx?: number;
-  ry?: number;
-  rz?: number;
+  rx: number;
+  ry: number;
+  rz: number;
 }
 
+/** The six numbers of a `SurfacePlace`, all required */
+export const SURFACE_PLACE_KEYS = ["x", "y", "z", "rx", "ry", "rz"] as const;
+
 /**
- * One physical area of a scene (schema 2.35, #307): a left or right page, a cover, a wall. Its `label` is written exactly
- * as printed (`41`, `ii`, `Cover`) – free text, never arithmetic; none = nothing printed.
+ * One physical area of a scene (schema 3.0): a double page (one surface, twice the page's width), a cover, a wall, a
+ * poster. Surfaces are free areas next to each other – no left / right, no front / back.
  */
 export interface SurfaceData {
-  /** Unique within its scene; an entry names it (`EntryData.surface`), a target's print too (`PrintPlacement.surfaceId`) */
+  /** Unique within its scene; an entry names it (`EntryData.surface`), a target's place too (`TargetPlace.surface`) */
   id: string;
-  side: SurfaceSide | (string & {});
+  /** Optional: what is printed on it (`186–187`, `Cover`) – free text, never arithmetic */
+  label?: string;
   widthMm: number;
   heightMm: number;
-  /** Optional: the label as printed – the reader shows it where it showed the page number */
-  label?: string;
-  /** Optional (schema 2.36, #314): where it lies in the scene (`SurfacePlace`) – used in a `free` scene */
-  place?: SurfacePlace;
+  /** Where it lies in the scene (`SurfacePlace`) */
+  place: SurfacePlace;
 }
 
-/**
- * How a scene's surfaces relate (schema 2.35): `fixed` – side by side (a double page, a fold-out), front and back, as
- * printed together; `free` – each on its own anchor (a page and a wall, a room). None = fixed.
- */
-export const SCENE_LAYOUTS = ["fixed", "free"] as const;
-export type SceneLayout = (typeof SCENE_LAYOUTS)[number];
-
-/** Several scenes under one label (schema 2.35, #307): `Front matter`, a chapter, a room – a scene names it (`SpreadData.group`) */
+/** Several scenes under one label (`Front matter`, a chapter, a room) – a scene names it (`SceneData.group`) */
 export interface GroupData {
   id: string;
   label: string;
 }
 
-export interface SpreadData {
-  id: string;
-  title: string;
-  /** Kept for apps before schema 2.35 and for the page ranges; a scene's place in the book is its position in `spreads` */
-  firstPage: number;
-  lastPage: number;
-  /** Optional (schema 2.3): `cover` or `back` for the covers, `spread` or none for a double page */
-  format?: SpreadFormat;
-  /** Optional (schema 2.32), a double page only: `front` or `back` matter – pages without printed numbers (`MATTERS`) */
-  matter?: Matter;
-  /** Optional (schema 2.5): the post-processing passes over this spread's rendered image, in order; replaces the book's (`[]` = none) */
-  passes?: PassData[];
-  /** Optional (schema 2.35, #307): the scene's physical areas, in order (`SurfaceData`) */
-  surfaces?: SurfaceData[];
-  /** Optional (schema 2.35): how the surfaces relate – `fixed` (none) or `free` */
-  layout?: SceneLayout;
-  /** Optional (schema 2.35): the id of the group the scene belongs to (`GameConfiguration.groups`) */
-  group?: string;
-  /** Optional (schema 2.35): what the reader's switcher and lists show for the scene – free text (`Pages 40–41`) */
-  label?: string;
-}
-
 /**
- * A scene: one step of the experience (#307, `agents/SCENES.md`). Today's `SpreadData` under its coming name – the rename
- * of the type and of `spreads` is phase 2/3; until then both names are the same type.
+ * A scene: one step of the experience (#307, `agents/SCENES.md`) – a double page, a cover, a wall, a room. Its place in
+ * the experience is its position in `GameConfiguration.scenes`; nothing derives order from a number.
  */
-export type SceneData = SpreadData;
+export interface SceneData {
+  /** Stable and invisible: links (`/scene/<id>`), progress and entries name it */
+  id: string;
+  /** What the reader's switcher and lists show for it – free text (`186–187`, `Cover`, `Studio wall`) */
+  label: string;
+  /** Optional: the id of the group the scene belongs to (`GameConfiguration.groups`) */
+  group?: string;
+  /** Its physical areas, in order – at least one */
+  surfaces: SurfaceData[];
+  /** Optional (schema 2.5): the post-processing passes over this scene's rendered image, in order; replaces the book's (`[]` = none) */
+  passes?: PassData[];
+}
 
 export interface AssetData {
   id: string; // unique per scene, referenced by entities (`#id`)
@@ -324,21 +228,13 @@ export interface EntityRefData {
   ref: string;
 }
 
-/** The surfaces a target can be printed on: a page of a double page, the front or the back cover */
-export const PRINT_SURFACES = ["left", "right", "front", "back"] as const;
-export type PrintSurface = (typeof PRINT_SURFACES)[number];
-
 /**
- * Where a target is printed: on which page and surface, and its box in mm from the surface's top left corner – the
- * editor's stage lays the target there (before the book's layout from the designed PDFs, which the content build
- * knows); the reader does not need it.
+ * Where a target is printed (schema 3.0): its box in mm from the top left corner of a surface of its entry's scene –
+ * the editor's stage lays the target there; the reader does not need it.
  */
-export interface PrintPlacement {
-  page?: number;
-  /** The side it is printed on – kept for apps before 2.36; a surface's id (`surfaceId`) wins over it */
-  surface: PrintSurface;
-  /** Optional (schema 2.36, #314): the scene's surface it is printed on, by id (`SurfaceData.id`) – a fold-out's middle, a wall */
-  surfaceId?: string;
+export interface TargetPlace {
+  /** The surface it lies on, by id (`SurfaceData.id`) – required when the scene has several */
+  surface?: string;
   x: number;
   y: number;
   width: number;
@@ -349,8 +245,8 @@ export interface TargetData {
   id: string; // defaults to the entry id
   imageSrc: string;
   entity?: EntityData | EntityRefData;
-  /** Where it is printed (optional, schema 2.1 – targets made in the editor carry it) */
-  print?: PrintPlacement;
+  /** Optional: where it is printed (`TargetPlace`) – targets made in the editor carry it */
+  place?: TargetPlace;
   /**
    * Optional (schema 2.26): `false` = switched off (#249) – the target keeps its values and its entry in the content, the
    * reader leaves both out (no image target, no entry in the list, not counted); none or `true` = in the book
@@ -368,14 +264,9 @@ export interface EntryData {
   id: string;
   category: EntryCategory;
   title: string;
-  /**
-   * The access page. It decides the spread unless `scene` is set (schema 2.35). Still required: apps before 2.35 place the
-   * entry by it, so writers keep writing a page within the scene's range
-   */
-  page: number;
-  /** Optional (schema 2.35, #307): the id of the entry's scene (a spread) – when set it decides the spread, not `page` */
-  scene?: string;
-  /** Optional (schema 2.35): the id of one of its scene's `surfaces` the entry lies on – its label is the entry's place */
+  /** The id of the entry's scene (`SceneData.id`) – where the reader finds it */
+  scene: string;
+  /** Optional: the id of one of its scene's `surfaces` the entry lies on – only when the scene has several */
   surface?: string;
   /**
    * The text (schema 2.23: Markdown – paragraphs, *emphasis*, **strong**, [links](https://…) – with the book's variables
@@ -391,49 +282,16 @@ export interface EntryData {
   target?: TargetData;
 }
 
-/** What a tutorial step's button does (onboarding) */
-export const STEP_ACTIONS = ["next", "camera", "scan"] as const;
-export type StepAction = (typeof STEP_ACTIONS)[number];
-
-/**
- * Onboarding / tutorial step, as apps of schema 2.24 and before read it from the content (`tutorial`); since 2.25 the
- * reader owns its onboarding and the content carries the steps only for those apps (`../compat/tutorial.ts`). Without
- * `button` the step advances by itself after `advance` ms (or on tap). `description` may use `*emphasis*` and blank
- * lines for paragraphs; `{{title}}`, `{{author}}` and `{{publisher}}` are the book's.
- */
-export interface StepData {
-  id: string;
-  index: number;
-  title?: string;
-  description?: string;
-  /** Small line near the bottom (e.g. the publisher) */
-  footer?: string;
-  illustration?: string;
-  /** Button label; with `action` (default `next`) */
-  button?: string;
-  action?: StepAction;
-  /** Fade-in duration of the step's parts (ms; default in the app) */
-  fadeIn?: number;
-  /** Delay between its parts fading in one after the other (ms). Set on the splash: Mark, then title,
-   *  author and publisher. Without it the parts follow with a short default delay and Mark stays still. */
-  stagger?: number;
-  /** Auto-advance after ms (steps without button) */
-  advance?: number;
-}
-
 export interface GameConfiguration {
   version: ConfigurationVersion;
   book: BookData;
-  initialSpreadId: string;
-  spreads: readonly SpreadData[];
+  /** The scene the reader starts on (`SceneData.id`) */
+  initialScene: string;
+  /** The experience: its scenes in order */
+  scenes: readonly SceneData[];
   entries: readonly EntryData[];
   entities: Readonly<Record<string, EntityData>>; // shared entities, referenced by `EntityRefData`
-  /**
-   * Optional (schema 2.25; required before): the onboarding for apps of schema 2.24 and before – the reader since 2.25
-   * shows its own and ignores it
-   */
-  tutorial?: readonly StepData[];
-  /** The book's own code (schema 2.4, optional): compiled plugins the engine loads before the first spread */
+  /** The book's own code (schema 2.4, optional): compiled plugins the engine loads before the first scene */
   plugins?: readonly PluginData[];
   /**
    * Optional (schema 2.31, #257): the subtitle files of the book's videos, per language (`./subtitles.ts`) – read from the
@@ -443,10 +301,10 @@ export interface GameConfiguration {
   /**
    * Optional (schema 2.33, #292): the credit line of each file the book uses that has one (`"Book Golem by TER-JAN /
    * DeviantArt"`), keyed by the file's path or URL exactly as the configuration names it – written in the editor's
-   * Library, filled in by the editor's API when it assembles the book, never by hand. The reader lists them per spread
+   * Library, filled in by the editor's API when it assembles the book, never by hand. The reader lists them per scene
    * on its image credits page
    */
   credits?: Readonly<Record<string, string>>;
-  /** Optional (schema 2.35, #307): the groups scenes name (`SpreadData.group`) – a label over several scenes */
+  /** Optional: the groups scenes name (`SceneData.group`) – a label over several scenes */
   groups?: readonly GroupData[];
 }

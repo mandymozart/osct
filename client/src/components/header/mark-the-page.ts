@@ -97,7 +97,7 @@ export class MarkThePage extends HTMLElement {
     const mode = this.game.state.mode;
     // Consultation opens the entries list with the last category (entries page default)
     if (mode === GameMode.SCAN) this.game.router.navigate("/entries");
-    else if (mode === GameMode.CONSULTATION) this.game.router.navigate("/spread");
+    else if (mode === GameMode.CONSULTATION) this.game.router.navigate("/scene");
   }
 }
 

@@ -1,6 +1,6 @@
 category: video
 title: Video Example
-page: 4
+scene: spread2
 body: A demonstration of video content in AR.
 target:
   image: images-007.jpg

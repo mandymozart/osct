@@ -77,11 +77,11 @@ describe("<ar-bridge>", () => {
 
   it("runs the camera only in scan mode (paused in consultation and overlays, stopped at home)", () => {
     expect(scene.lastState).toBe(SceneState.STOPPED);
-    game.router.navigate("/spread");
+    game.router.navigate("/scene");
     expect(scene.lastState).toBe(SceneState.RUNNING);
     game.router.navigate("/entries");
     expect(scene.lastState).toBe(SceneState.PAUSED);
-    game.router.navigate("/spread");
+    game.router.navigate("/scene");
     game.router.navigate("/not-found");
     expect(scene.lastState).toBe(SceneState.PAUSED);
     game.router.navigate("/tutorial", { key: "step", value: "0" });
@@ -127,14 +127,14 @@ describe("<ar-bridge>", () => {
     scene.emit("targetFound", glossary.id);
     expect(scene.flown).toEqual([]);
 
-    game.router.navigate("/spread");
+    game.router.navigate("/scene");
     scene.emit("targetFound", glossary.id);
     await vi.waitFor(() => expect(game.state.currentRoute?.slug).toBe("/entry"));
     expect(scene.flown).toEqual([glossary.id]);
     expect(flights).toEqual([true, false]);
 
     // Back in the scan with the page still in view: found again, but no second flight until it has left the camera
-    game.router.navigate("/spread");
+    game.router.navigate("/scene");
     scene.emit("targetLost", glossary.id);
     scene.emit("targetFound", glossary.id);
     await new Promise(resolve => setTimeout(resolve, 10));
@@ -149,7 +149,7 @@ describe("<ar-bridge>", () => {
   });
 
   it("no card for a target with an AR entity or another category", async () => {
-    game.router.navigate("/spread");
+    game.router.navigate("/scene");
     const others = getSpreads().flatMap(s => getTargets(s.id))
       .filter(t => t.entity || getEntry(t.entryId)?.category !== EntryCategory.Glossary).slice(0, 3);
     others.forEach(t => scene.emit("targetFound", t.id));
@@ -163,7 +163,7 @@ describe("<ar-bridge>", () => {
     scene.emit("targetTapped", target.id, false);
     expect(game.state.currentRoute?.page).toBe("about");
 
-    game.router.navigate("/spread");
+    game.router.navigate("/scene");
     scene.emit("targetTapped", target.id, false);
     expect(game.state.currentRoute?.page).toBe("entry");
     expect(game.state.currentRoute?.param?.value).toBe(target.entryId);
@@ -171,7 +171,7 @@ describe("<ar-bridge>", () => {
 
   it("a tap the entity used itself (a video paused or played, #290) opens nothing", () => {
     const target = getTargets(spread1.id).find(t => t.entity)!;
-    game.router.navigate("/spread");
+    game.router.navigate("/scene");
     scene.emit("targetTapped", target.id, true);
     expect(game.state.currentRoute?.page).toBe("spread");
   });

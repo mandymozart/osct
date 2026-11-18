@@ -1,0 +1,7 @@
+# The front cover: one surface, one page wide – the seal lies on it.
+label: "Cover"
+order: -1
+surfaces:
+  - id: surface
+    widthMm: 230
+    heightMm: 320

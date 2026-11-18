@@ -329,7 +329,7 @@ export const skipUnknownFeatures = (
 
   if (isObject(config.book)) passes(config.book.passes, "book.passes");
   if (isObject(config.book)) appearance(config.book.appearance, "book.appearance");
-  if (Array.isArray(config.spreads)) config.spreads.forEach((spread, i) => isObject(spread) && passes(spread.passes, `spreads[${i}].passes`));
+  if (Array.isArray(config.scenes)) config.scenes.forEach((scene, i) => isObject(scene) && passes(scene.passes, `scenes[${i}].passes`));
   if (isObject(config.entities)) Object.entries(config.entities).forEach(([id, entity]) => node(entity, `entities.${id}`));
   if (Array.isArray(config.entries)) {
     config.entries.forEach((entry, i) => {

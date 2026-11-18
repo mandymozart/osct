@@ -1,5 +1,4 @@
 import type { Spread } from "@/types";
-import { matterOf } from "@shared/types/game-config";
 import { sceneLabel } from "@engine/content/scenes";
 import { getSpreads } from "@/utils/game-config";
 
@@ -14,13 +13,8 @@ import { getSpreads } from "@/utils/game-config";
 /** Only spreads with content: something to scan (targets) */
 export const getMenuSpreads = (): Spread[] => getSpreads().filter(s => s.targets.length > 0);
 
-/**
- * The scene's label when it carries one (schema 2.35, #307 – its own `label`, else its surfaces' printed labels: `40–41`);
- * else "20–21" (en dash), a single page as "20", a cover and the front and back matter by their title (no printed number)
- */
-export const formatPages = (spread: Pick<Spread, "firstPage" | "lastPage" | "title" | "format" | "matter" | "label" | "surfaces">): string =>
-  sceneLabel(spread) ?? (spread.format === "cover" || spread.format === "back" || matterOf(spread) ? spread.title
-    : spread.firstPage === spread.lastPage ? `${spread.firstPage}` : `${spread.firstPage}–${spread.lastPage}`);
+/** What the switcher shows for a scene: its label (`186–187`, `Cover`, `Studio wall` – schema 3.0, #319) */
+export const formatPages = (spread: Pick<Spread, "id" | "label">): string => sceneLabel(spread);
 
 /** Odd number of copies so that one full viewport of items exists on both sides of the middle copy */
 export const loopCopies = (copyWidth: number, viewportWidth: number): number => {

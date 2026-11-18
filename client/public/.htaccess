@@ -1,4 +1,4 @@
-# Links like /entry/<id> or /spread/<id> (services/LinkService.ts): every path that is not a file or
+# Links like /entry/<id> or /scene/<id> (services/LinkService.ts): every path that is not a file or
 # folder is answered with index.html, the app then routes by the URL. The editor (editor/, docs/editor.md) lives
 # under /editor with its own index.html and routes the same way.
 <IfModule mod_rewrite.c>

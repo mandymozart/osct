@@ -145,7 +145,7 @@ export class SpreadMenu extends HTMLElement {
     const middle = copy === Math.floor(this.copies / 2);
     return this.spreads
       .map(s => `<button type="button" class="item" data-feedback="none" role="option" data-spread="${s.id}" data-copy="${copy}"
-        ${middle ? "" : 'aria-hidden="true" tabindex="-1"'} aria-label="${t("scan:pagesAria", { pages: formatPages(s) })}"><span>${formatPages(s)}</span></button>`)
+        ${middle ? "" : 'aria-hidden="true" tabindex="-1"'} aria-label="${t("scan:sceneAria", { scene: formatPages(s) })}"><span>${formatPages(s)}</span></button>`)
       .join("");
   }
 

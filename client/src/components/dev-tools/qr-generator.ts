@@ -172,10 +172,10 @@ export class QRGenerator extends HTMLElement {
     if (!this.qrInstance) return;
 
     const baseUrl = qrBaseUrl(__VITE_SERVER_URL__, location);
-    // Same link format as services/LinkService.ts: /spread/<id>?osct=<app version>
+    // Same link format as services/LinkService.ts: /scene/<id>?osct=<app version>
     const appVersion = this.game.version.version;
     const id = testType === "unknown-spread" ? "no-such-spread" : spreadId;
-    const url = `${baseUrl}/spread/${encodeURIComponent(id)}?${VERSION_PARAM}=${appVersion}`;
+    const url = `${baseUrl}/scene/${encodeURIComponent(id)}?${VERSION_PARAM}=${appVersion}`;
 
     this.qrInstance.clear();
     this.qrInstance.makeCode(url);

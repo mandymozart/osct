@@ -4,7 +4,7 @@
  * Folder names are the ids; nested objects (entry.target, entity assets) are checked in the build.
  */
 import { ENTRY_CATEGORIES } from "../../../shared/types/entry";
-import { MATTERS, SOURCES_OF_TRUTH, SPREAD_FORMATS } from "../../../shared/types/game-config";
+import { SOURCES_OF_TRUTH } from "../../../shared/types/game-config";
 
 /** `List`: an array of texts, or the texts in one comma-separated string */
 export type FieldType = "String" | "Number" | "Array" | "List" | "Boolean" | "Object";
@@ -30,23 +30,20 @@ export const schemas = {
       title: { type: "String", required: true },
       author: { type: "String", required: true },
       publisher: { type: "String", required: false },
-      passes: { type: "Array", required: false }, // post-processing of every spread without its own: [{ type, ...parameters }], see shared/types/passes.ts
+      passes: { type: "Array", required: false }, // post-processing of every scene without its own: [{ type, ...parameters }], see shared/types/passes.ts
       environment: { type: "Object", required: false }, // the world around the reader and the onion sky: { world, onionSky, worldSrc?, skySrc? }, see shared/types/environment.ts
       appearance: { type: "Object", required: false }, // the look an entity appears with: { reveal?, found?, lost? }, each { type, ...parameters }, see shared/types/appearance.ts
-      sourceOfTruth: { type: "String", required: false, enum: SOURCES_OF_TRUTH }, // print (default: spreads from the layout) | digital (spreads made in the editor)
+      sourceOfTruth: { type: "String", required: false, enum: SOURCES_OF_TRUTH }, // print (default: scenes from the layout) | digital (scenes made in the editor)
     },
   },
 
-  // content/spreads/<id>/spread.yaml
-  spread: {
+  // content/scenes/<id>/scene.yaml (schema 3.0)
+  scene: {
     orderBy: "order",
     fields: {
-      title: { type: "String", required: true },
-      order: { type: "Number", required: false, default: 0 },
-      firstPage: { type: "Number", required: true },
-      lastPage: { type: "Number", required: true },
-      format: { type: "String", required: false, enum: SPREAD_FORMATS }, // the covers: page 0, and the page after the last
-      matter: { type: "String", required: false, enum: MATTERS }, // a double page without printed numbers: front (pages below 0) or back
+      label: { type: "String", required: true }, // what the reader shows for the scene: "186–187", "Cover", "Studio wall"
+      order: { type: "Number", required: false, default: 0 }, // its position among the scenes (only the order counts)
+      surfaces: { type: "Array", required: true }, // [{ id, label?, widthMm, heightMm, place? { x, y, z, rx?, ry?, rz? } }] – none placed: a row
       passes: { type: "Array", required: false }, // post-processing over the rendered image: [{ type, ...parameters }], see shared/types/passes.ts
     },
   },
@@ -60,7 +57,8 @@ export const schemas = {
         enum: ENTRY_CATEGORIES,
       },
       title: { type: "String", required: true },
-      page: { type: "Number", required: true },
+      scene: { type: "String", required: true }, // the id of its scene (content/scenes/<id>)
+      surface: { type: "String", required: false }, // the id of the scene's surface it lies on – only when the scene has several
       author: { type: "String", required: false },
       body: { type: "String", required: false, default: "" },
       image: { type: "String", required: false },
@@ -77,7 +75,7 @@ export const schemas = {
       id: { type: "String", required: false }, // defaults to the entry id
       image: { type: "String", required: true },
       entity: { type: "Object", required: false }, // inline { type, src?, params?, filters? } or { ref }
-      print: { type: "Object", required: false }, // where it is printed: { surface, x, y, width, height? } in mm
+      place: { type: "Object", required: false }, // where it is printed: { surface?, x, y, width, height? } in mm on a surface of its scene
       enabled: { type: "Boolean", required: false }, // false = switched off: the reader leaves the target and its entry out
     },
   },

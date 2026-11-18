@@ -1,0 +1,11 @@
+# A shared entity (entities/beacon) used by two targets.
+label: "7–8"
+order: 3
+surfaces:
+  - id: surface
+    widthMm: 460
+    heightMm: 320
+# A post-processing pass of the book's own (#216): the grain plugin's film grain over the whole picture
+passes:
+  - type: filmGrain
+    amount: 0.14

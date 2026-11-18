@@ -1,7 +1,7 @@
 # Showcase entry for the editor and the tests (spread studio-a).
 category: glossary
 title: "Studio: floating boxes"
-page: 29
+scene: studio-a
 body: "A model lifted off the page and turned by 45° – the parallax test when the view moves."
 target:
   image: target.jpg

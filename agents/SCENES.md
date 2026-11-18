@@ -205,7 +205,7 @@ double page (two pages → one surface of their joint width; a cover stays one),
 page move by the left page's width onto the joint surface; entries keep their scene; the scene label from its label /
 title; the 12 page-image halves become one reference per joint surface (put together side by side), single ones stay.
 
-**Work**: (A) contract 3.0 + guards + engine content layer + the reader + the content build + fixtures – one change, so
+**Work**: (A, done in Unreleased – #319) contract 3.0 + guards + engine content layer + the reader + the content build + fixtures – one change, so
 CI stays green; (B, after A) server: data, draft/publish writing 3.0, the migration, MCP; (C, after A, beside B) editor
 + stage. Develop is pushed (= staging deploys) only once A–C are merged and the migration plan is approved.
 

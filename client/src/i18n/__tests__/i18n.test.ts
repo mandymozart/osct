@@ -21,11 +21,11 @@ describe("i18n (i18next)", () => {
 
   it("uses English on an English device", () => {
     expect(i18next.resolvedLanguage).toBe("en");
-    expect(t("entry:page")).toBe("Page");
+    expect(t("entry:place")).toBe("Place");
   });
 
   it("fills placeholders and escapes their values for HTML", () => {
-    expect(t("entry:goToPage", { page: 4 })).toBe("Go to access page 4 in scan mode to see the video.");
+    expect(t("entry:goToPlace", { place: "4–5" })).toBe("Go to 4–5 in scan mode to see the video.");
     expect(t("scan:openEntry", { title: "<b>" })).toBe("Open entry &lt;b&gt;");
   });
 

@@ -40,9 +40,9 @@ describe("SpreadManager", () => {
     const game = createGameStore();
     const target = getInitialSpreadId() === second ? first : second;
     game.spreads.switchSpread(target);
-    expect(game.state.progress.lastSpreadId).toBe(target);
+    expect(game.state.progress.lastScene).toBe(target);
     const stored = JSON.parse(localStorage.getItem(LocalProgressStorage.key(getBook().id)) ?? "null");
-    expect(stored.lastSpreadId).toBe(target);
+    expect(stored.lastScene).toBe(target);
   });
 
   it("a new store resumes on the stored last spread", () => {

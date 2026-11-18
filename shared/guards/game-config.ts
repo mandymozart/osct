@@ -13,8 +13,7 @@ import {
   type EntityType,
   type GameConfiguration,
   parseContentSchema,
-  STEP_ACTIONS,
-  type StepAction,
+  SURFACE_PLACE_KEYS,
 } from "../types/game-config";
 import { ENTRY_CATEGORIES, type EntryCategory } from "../types/entry";
 import { componentProblems } from "../types/components";
@@ -24,7 +23,6 @@ import { type AppearanceCheckOptions, appearanceProblems } from "../types/appear
 import { environmentProblems } from "../types/environment";
 import { pluginProblems, recordedRegistrations } from "../types/plugins";
 import { NODE_TYPE_PATTERN, nodeParamProblems, nodeTypeSpec } from "../types/node-types";
-import { MATTERS, PRINT_SURFACES, SCENE_LAYOUTS, SPREAD_FORMATS, SURFACE_SIDE_PATTERN } from "../types/game-config";
 import { filterProblems } from "../types/filters";
 import { lightProblems } from "../types/lights";
 import { textureSetProblems } from "../types/textures";
@@ -46,7 +44,6 @@ export const isEntityType: (value: unknown) => value is EntityType = oneOf(ENTIT
 /** How deep an entity's node tree may nest (the root is level 0) */
 export const MAX_NODE_DEPTH = 8;
 export const isAssetType: (value: unknown) => value is AssetType = oneOf(ASSET_TYPES);
-export const isStepAction: (value: unknown) => value is StepAction = oneOf(STEP_ACTIONS);
 
 export const isEntityRef = (value: unknown): value is EntityRefData =>
   isObject(value) && typeof value.ref === "string";
@@ -82,9 +79,6 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     const value = obj[key];
     if (value === undefined && optional) return;
     if (typeof value !== "string" || (!optional && value === "")) fail(`${path}.${key}`, "expected a non-empty string");
-  };
-  const num = (obj: Record<string, unknown>, key: string, path: string) => {
-    if (typeof obj[key] !== "number" || !Number.isFinite(obj[key])) fail(`${path}.${key}`, "expected a number");
   };
   const arr = (obj: Record<string, unknown>, key: string, path: string): unknown[] => {
     const value = obj[key];
@@ -210,7 +204,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     if (book.appearance !== undefined) appearanceProblems(book.appearance, "book.appearance", appearanceOptions).forEach(problem => problems.push(problem));
   }
 
-  str(root, "initialSpreadId", "config");
+  str(root, "initialScene", "config");
   if (root.plugins !== undefined) pluginProblems(root.plugins).forEach(problem => problems.push(problem));
   if (root.subtitles !== undefined) subtitleProblems(root.subtitles, "subtitles").forEach(problem => problems.push(problem));
   if (root.credits !== undefined) {
@@ -221,7 +215,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     });
   }
 
-  // Groups (schema 2.35, #307): a label over several scenes, named by a scene's `group`
+  // Groups: a label over several scenes, named by a scene's `group`
   const groupIds = new Set<string>();
   if (root.groups !== undefined) arr(root, "groups", "config").forEach((g, i) => {
     const path = `groups[${i}]`;
@@ -234,73 +228,62 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     }
   });
 
-  const spreadIds = new Set<string>();
-  const pageRanges: [number, number][] = [];
-  /** The surface ids of each scene (schema 2.35) – an entry's `surface` must be one of its scene's */
+  const sceneIds = new Set<string>();
+  /** The surface ids of each scene – an entry's `surface` and a target's `place.surface` must be one of its scene's */
   const surfacesOf = new Map<string, Set<string>>();
-  arr(root, "spreads", "config").forEach((s, i) => {
-    const path = `spreads[${i}]`;
-    const spread = obj(s, path);
-    if (!spread) return;
-    ["id", "title"].forEach(key => str(spread, key, path));
-    ["firstPage", "lastPage"].forEach(key => num(spread, key, path));
-    if (spread.format !== undefined && !(SPREAD_FORMATS as readonly unknown[]).includes(spread.format)) {
-      fail(`${path}.format`, `"${spread.format}" is not one of ${SPREAD_FORMATS.join(", ")}`);
-    }
-    if (spread.matter !== undefined) {
-      if (!(MATTERS as readonly unknown[]).includes(spread.matter)) fail(`${path}.matter`, `"${spread.matter}" is not one of ${MATTERS.join(", ")}`);
-      else if (spread.format !== undefined && spread.format !== "spread") fail(`${path}.matter`, `a ${spread.format} is no front or back matter`);
-    }
-    if (spread.passes !== undefined) passProblems(spread.passes, `${path}.passes`, passOptions).forEach(problem => problems.push(problem));
-    // The scene (schema 2.35, #307): its surfaces, layout, group and label
+  arr(root, "scenes", "config").forEach((s, i) => {
+    const path = `scenes[${i}]`;
+    const scene = obj(s, path);
+    if (!scene) return;
+    ["id", "label"].forEach(key => str(scene, key, path));
+    if (scene.passes !== undefined) passProblems(scene.passes, `${path}.passes`, passOptions).forEach(problem => problems.push(problem));
     const surfaceIds = new Set<string>();
-    if (spread.surfaces !== undefined) arr(spread, "surfaces", path).forEach((f, j) => {
+    const surfaces = arr(scene, "surfaces", path);
+    if (Array.isArray(scene.surfaces) && surfaces.length === 0) fail(`${path}.surfaces`, "a scene has at least one surface");
+    surfaces.forEach((f, j) => {
       const fPath = `${path}.surfaces[${j}]`;
       const surface = obj(f, fPath);
       if (!surface) return;
       str(surface, "id", fPath);
-      if (typeof surface.side !== "string" || !SURFACE_SIDE_PATTERN.test(surface.side)) fail(`${fPath}.side`, "expected a side (left, right, front, back, wall …)");
       (["widthMm", "heightMm"] as const).forEach(key => {
         const size = surface[key];
         if (typeof size !== "number" || !Number.isFinite(size) || size <= 0) fail(`${fPath}.${key}`, "expected a size in mm (> 0)");
       });
       str(surface, "label", fPath, true);
-      // Where it lies in the scene (schema 2.36, #314): finite numbers, the rotations optional
-      if (surface.place !== undefined) {
-        const place = obj(surface.place, `${fPath}.place`);
-        if (place) (["x", "y", "z", "rx", "ry", "rz"] as const).forEach(key => {
-          const value = place[key];
-          if ((value !== undefined || ["x", "y", "z"].includes(key)) && (typeof value !== "number" || !Number.isFinite(value))) fail(`${fPath}.place.${key}`, "expected a number");
-        });
-      }
+      // Where it lies in the scene: six finite numbers
+      const place = obj(surface.place, `${fPath}.place`);
+      if (place) SURFACE_PLACE_KEYS.forEach(key => {
+        if (typeof place[key] !== "number" || !Number.isFinite(place[key])) fail(`${fPath}.place.${key}`, "expected a number");
+      });
       if (typeof surface.id === "string") {
         if (surfaceIds.has(surface.id)) fail(`${fPath}.id`, `duplicate surface id "${surface.id}"`);
         surfaceIds.add(surface.id);
       }
     });
-    if (spread.layout !== undefined && !(SCENE_LAYOUTS as readonly unknown[]).includes(spread.layout)) {
-      fail(`${path}.layout`, `"${spread.layout}" is not one of ${SCENE_LAYOUTS.join(", ")}`);
+    if (scene.group !== undefined) {
+      if (typeof scene.group !== "string" || scene.group === "") fail(`${path}.group`, "expected a group id");
+      else if (!groupIds.has(scene.group)) fail(`${path}.group`, `unknown group "${scene.group}"`);
     }
-    if (spread.group !== undefined) {
-      if (typeof spread.group !== "string" || spread.group === "") fail(`${path}.group`, "expected a group id");
-      else if (!groupIds.has(spread.group)) fail(`${path}.group`, `unknown group "${spread.group}"`);
-    }
-    str(spread, "label", path, true);
-    if (typeof spread.id === "string") {
-      surfacesOf.set(spread.id, surfaceIds);
-      if (spreadIds.has(spread.id)) fail(`${path}.id`, `duplicate spread id "${spread.id}"`);
-      spreadIds.add(spread.id);
-    }
-    if (typeof spread.firstPage === "number" && typeof spread.lastPage === "number") {
-      pageRanges.push([spread.firstPage, spread.lastPage]);
+    if (typeof scene.id === "string") {
+      surfacesOf.set(scene.id, surfaceIds);
+      if (sceneIds.has(scene.id)) fail(`${path}.id`, `duplicate scene id "${scene.id}"`);
+      sceneIds.add(scene.id);
     }
   });
-  if (typeof root.initialSpreadId === "string" && !spreadIds.has(root.initialSpreadId)) {
-    fail("config.initialSpreadId", `unknown spread "${root.initialSpreadId}"`);
+  if (typeof root.initialScene === "string" && !sceneIds.has(root.initialScene)) {
+    fail("config.initialScene", `unknown scene "${root.initialScene}"`);
   }
 
   const entities = obj(root.entities, "entities") ?? {};
   Object.entries(entities).forEach(([id, e]) => entity(e, `entities.${id}`));
+
+  /** A surface of the scene, by id (`what` names the field in the message) */
+  const surfaceProblem = (sceneId: unknown, surfaceId: unknown, path: string, what: string) => {
+    if (typeof surfaceId !== "string" || surfaceId === "") return fail(path, "expected a surface id");
+    if (typeof sceneId === "string" && sceneIds.has(sceneId) && !surfacesOf.get(sceneId)?.has(surfaceId)) {
+      fail(path, `scene "${sceneId}" has no surface "${surfaceId}" (${what})`);
+    }
+  };
 
   const entryIds = new Set<string>();
   const targetIds = new Set<string>();
@@ -311,24 +294,9 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     ["id", "title"].forEach(key => str(entry, key, path));
     ["author", "image", "caption", "media"].forEach(key => str(entry, key, path, true));
     if (typeof entry.body !== "string") fail(`${path}.body`, "expected a string");
-    num(entry, "page", path);
-    // The access page decides the spread – unless the entry names its scene (schema 2.35). Either way the page lies in
-    // a spread: apps before 2.35 place the entry by it
-    const page = entry.page;
-    if (typeof page === "number" && !pageRanges.some(([first, last]) => page >= first && page <= last)) {
-      fail(`${path}.page`, `page ${page} is not part of any spread`);
-    }
-    if (entry.scene !== undefined) {
-      if (typeof entry.scene !== "string" || entry.scene === "") fail(`${path}.scene`, "expected a scene (spread) id");
-      else if (!spreadIds.has(entry.scene)) fail(`${path}.scene`, `unknown scene "${entry.scene}"`);
-    }
-    if (entry.surface !== undefined) {
-      if (typeof entry.surface !== "string" || entry.surface === "") fail(`${path}.surface`, "expected a surface id");
-      else if (typeof entry.scene !== "string") fail(`${path}.surface`, "a surface needs the entry's scene");
-      else if (spreadIds.has(entry.scene) && !surfacesOf.get(entry.scene)?.has(entry.surface)) {
-        fail(`${path}.surface`, `scene "${entry.scene}" has no surface "${entry.surface}"`);
-      }
-    }
+    if (typeof entry.scene !== "string" || entry.scene === "") fail(`${path}.scene`, "expected a scene id");
+    else if (!sceneIds.has(entry.scene)) fail(`${path}.scene`, `unknown scene "${entry.scene}"`);
+    if (entry.surface !== undefined) surfaceProblem(entry.scene, entry.surface, `${path}.surface`, "the entry's surface");
     if (!isEntryCategory(entry.category)) {
       fail(`${path}.category`, `"${entry.category}" is not one of ${ENTRY_CATEGORIES.join(", ")}`);
     }
@@ -344,16 +312,18 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     if (!target) return;
     str(target, "id", tPath);
     str(target, "imageSrc", tPath);
-    if (target.print !== undefined) {
-      const print = obj(target.print, `${tPath}.print`);
-      if (print) {
-        if (!(PRINT_SURFACES as readonly unknown[]).includes(print.surface)) fail(`${tPath}.print.surface`, `expected one of ${PRINT_SURFACES.join(", ")}`);
+    if (target.place !== undefined) {
+      const place = obj(target.place, `${tPath}.place`);
+      if (place) {
         (["x", "y", "width"] as const).forEach(key => {
-          if (typeof print[key] !== "number" || !Number.isFinite(print[key])) fail(`${tPath}.print.${key}`, "expected a number (mm)");
+          if (typeof place[key] !== "number" || !Number.isFinite(place[key])) fail(`${tPath}.place.${key}`, "expected a number (mm)");
         });
-        if (print.height !== undefined && (typeof print.height !== "number" || !Number.isFinite(print.height))) fail(`${tPath}.print.height`, "expected a number (mm)");
-        if (print.page !== undefined && (typeof print.page !== "number" || !Number.isInteger(print.page))) fail(`${tPath}.print.page`, "expected a page number");
-        if (print.surfaceId !== undefined && (typeof print.surfaceId !== "string" || print.surfaceId === "")) fail(`${tPath}.print.surfaceId`, "expected a surface id");
+        if (place.height !== undefined && (typeof place.height !== "number" || !Number.isFinite(place.height))) fail(`${tPath}.place.height`, "expected a number (mm)");
+        // The surface it lies on: required when its scene has several
+        if (place.surface !== undefined) surfaceProblem(entry.scene, place.surface, `${tPath}.place.surface`, "the target's place");
+        else if (typeof entry.scene === "string" && (surfacesOf.get(entry.scene)?.size ?? 0) > 1) {
+          fail(`${tPath}.place.surface`, `scene "${entry.scene}" has several surfaces – name the one the target lies on`);
+        }
       }
     }
     if (target.enabled !== undefined && typeof target.enabled !== "boolean") fail(`${tPath}.enabled`, "expected true or false");
@@ -367,18 +337,6 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     } else {
       entity(target.entity, `${tPath}.entity`);
     }
-  });
-
-  // The onboarding apps of schema 2.24 and before read (optional since 2.25 – the reader has its own)
-  if (root.tutorial !== undefined) arr(root, "tutorial", "config").forEach((s, i) => {
-    const path = `tutorial[${i}]`;
-    const step = obj(s, path);
-    if (!step) return;
-    str(step, "id", path);
-    ["title", "description", "footer", "illustration", "button"].forEach(key => str(step, key, path, true));
-    num(step, "index", path);
-    if (step.action !== undefined && !isStepAction(step.action)) fail(`${path}.action`, `expected one of ${STEP_ACTIONS.join(", ")}`);
-    ["fadeIn", "stagger", "advance"].forEach(key => step[key] !== undefined && num(step, key, path));
   });
 
   if (problems.length > 0) throw new GameConfigurationError(problems);

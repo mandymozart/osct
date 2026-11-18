@@ -1,7 +1,7 @@
 # Showcase entry for the editor and the tests (spread studio-b).
 category: glossary
 title: "Studio: shared tree (B)"
-page: 31
+scene: studio-b
 body: "The shared showcase entity again – a change to the entity moves both."
 target:
   image: target.jpg

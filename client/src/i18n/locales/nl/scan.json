@@ -1,6 +1,6 @@
 {
   "scrollToActivate": "Scroll naar de dubbele pagina om de inhoud te activeren",
-  "pagesAria": "Pagina's {{pages}}",
+  "sceneAria": "Scène {{scene}}",
   "newEntryUnlocked": "Nieuwe marginalia ontgrendeld",
   "openEntry": "Item {{title}} openen"
 }

@@ -1,7 +1,7 @@
 # Showcase entry for the editor and the tests (spread studio-b).
 category: video
 title: "Studio: standing video"
-page: 31
+scene: studio-b
 body: "A video standing upright on the page like a screen, lifted so its bottom edge touches the paper – tinted gold by the fixture's plugin (plugins/tint)."
 target:
   image: target.jpg

@@ -1,6 +1,6 @@
 {
   "scrollToActivate": "Scroll to spread to activate content",
-  "pagesAria": "Pages {{pages}}",
+  "sceneAria": "Scene {{scene}}",
   "newEntryUnlocked": "New marginalia unlocked",
   "openEntry": "Open entry {{title}}"
 }

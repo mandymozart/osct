@@ -9,19 +9,14 @@ describe("spread menu loop", () => {
     expect(expected.length).toBeGreaterThan(0);
   });
 
-  it("formats the page range with an en dash", () => {
-    expect(formatPages({ title: "", firstPage: 20, lastPage: 21 })).toBe("20–21");
-    expect(formatPages({ title: "", firstPage: 1, lastPage: 1 })).toBe("1");
+  it("shows a scene's label: a page range as written", () => {
+    expect(formatPages({ id: "s020-021", label: "20–21" })).toBe("20–21");
+    expect(formatPages({ id: "s001", label: "1" })).toBe("1");
   });
 
-  it("shows a scene's label, else its surfaces' printed labels (schema 2.35, #307)", () => {
-    const surfaces = [
-      { id: "l", side: "left", widthMm: 170, heightMm: 240, label: "40" },
-      { id: "r", side: "right", widthMm: 170, heightMm: 240, label: "41" },
-    ];
-    expect(formatPages({ title: "", firstPage: 6, lastPage: 7, surfaces })).toBe("40–41");
-    expect(formatPages({ title: "", firstPage: 6, lastPage: 7, surfaces, label: "Fold-out" })).toBe("Fold-out");
-    expect(formatPages({ title: "Front matter", firstPage: -2, lastPage: -1, matter: "front", surfaces: surfaces.map(({ label: _, ...s }) => s) })).toBe("Front matter");
+  it("shows the scene's label as it is (schema 3.0, #319): a cover, a wall – never page numbers", () => {
+    expect(formatPages({ id: "cover", label: "Cover" })).toBe("Cover");
+    expect(formatPages({ id: "studio", label: "Studio wall" })).toBe("Studio wall");
   });
 
   it("renders an odd number of copies, enough to fill the viewport on both sides", () => {

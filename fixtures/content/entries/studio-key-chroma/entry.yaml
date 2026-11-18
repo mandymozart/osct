@@ -1,7 +1,7 @@
 # Showcase entry for the editor and the tests (spread studio-b).
 category: video
 title: "Studio: chroma key"
-page: 30
+scene: studio-b
 body: "A video with a green chroma key, spill suppression and 90 % opacity – every filter parameter set."
 target:
   image: target.jpg

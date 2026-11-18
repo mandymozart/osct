@@ -34,7 +34,7 @@ describe("<new-version-notice>", () => {
   });
 
   it("hides while the reader scans and comes back when scanning stops", () => {
-    game.router.navigate("/spread");
+    game.router.navigate("/scene");
     game.setArStatus("starting");
     expect(shown()).toBe(false);
     game.setArStatus("running");
@@ -46,7 +46,7 @@ describe("<new-version-notice>", () => {
   });
 
   it("in the scan view once AR failed (the AR chunk did not load): shown above the spread menu", () => {
-    game.router.navigate("/spread");
+    game.router.navigate("/scene");
     game.setArStatus("error");
     expect(shown()).toBe(true);
     expect(notice.hasAttribute("scan")).toBe(true);

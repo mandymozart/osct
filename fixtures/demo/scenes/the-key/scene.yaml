@@ -1,0 +1,7 @@
+# The narrative starts: the key (its first find is remembered in the book) and the tally of the pages found.
+label: "1–2"
+order: 0
+surfaces:
+  - id: surface
+    widthMm: 460
+    heightMm: 320

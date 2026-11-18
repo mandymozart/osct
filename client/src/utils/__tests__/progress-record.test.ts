@@ -33,7 +33,7 @@ describe("progress record", () => {
     const realReader = PROGRESS_READERS[oldFormat];
     PROGRESS_READERS[oldFormat] = PROGRESS_READERS[PROGRESS_FORMAT];
     try {
-      const stored = { format: oldFormat, bookId, appVersions: ["1.2.2"], unlocked: { a: 1 }, consulted: {}, lastSpreadId: "spread2", lastCategory: null, onboarded: true };
+      const stored = { format: oldFormat, bookId, appVersions: ["1.2.2"], unlocked: { a: 1 }, consulted: {}, lastScene: "spread2", lastCategory: null, onboarded: true };
       expect(readProgress(stored, bookId)).toMatchObject({ status: "current", record: { ...stored, format: PROGRESS_FORMAT } });
       // A field the reader only adds as a default is no change
       const { onboarded: _, ...withoutFlag } = stored;
@@ -41,6 +41,9 @@ describe("progress record", () => {
       // Dropped or corrected fields are
       expect(readProgress({ ...stored, unlocked: { a: 1, b: "x" } }, bookId).status).toBe("converted");
       expect(readProgress({ ...stored, marked: { c: 3 } }, bookId).status).toBe("converted");
+      // The last spread of the 2.x content (#319) is dropped, not converted – the reader starts on the first scene
+      const { lastScene: __, ...before3 } = stored;
+      expect(readProgress({ ...before3, lastSpreadId: "spread2" }, bookId).record.lastScene).toBeNull();
     } finally {
       if (realReader) PROGRESS_READERS[oldFormat] = realReader;
       else delete PROGRESS_READERS[oldFormat];
@@ -85,7 +88,7 @@ describe("mergeProgress (account sync)", () => {
   });
 
   it("this device's last spread and category win, the other's fill in; onboarded and coached if either was", () => {
-    expect(mergeProgress(record({ lastSpreadId: "s1" }), record({ lastSpreadId: "s2", lastCategory: ENTRY_CATEGORIES[0], onboarded: true, coached: true })))
-      .toMatchObject({ lastSpreadId: "s1", lastCategory: ENTRY_CATEGORIES[0], onboarded: true, coached: true });
+    expect(mergeProgress(record({ lastScene: "s1" }), record({ lastScene: "s2", lastCategory: ENTRY_CATEGORIES[0], onboarded: true, coached: true })))
+      .toMatchObject({ lastScene: "s1", lastCategory: ENTRY_CATEGORIES[0], onboarded: true, coached: true });
   });
 });

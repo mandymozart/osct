@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { GameStoreService } from "@/services";
 import { EntryCategory, Pages } from "@/types";
 import { getEntries, getSpread } from "@/utils/game-config";
-import { pageLabel } from "../entries-model";
+import { placeLabel } from "../entries-model";
 import ".."; // registers the elements (the named import below is type-only)
 import type { EntriesFilterElement, EntriesList, EntryDetail } from "..";
 
@@ -68,7 +68,7 @@ describe("entries filter", () => {
 describe("entries list", () => {
   const glossary = () => getEntries().filter(e => e.category === EntryCategory.Glossary);
 
-  it("lists every entry with its page: consulted ones open, the others are greyed and do not (#287)", () => {
+  it("lists every entry with its place (the scene label): consulted ones open, the others are greyed and do not (#287)", () => {
     const list = mount<EntriesList>("entries-list");
     const [first, second] = glossary();
     game.history.consultEntry(first.id);
@@ -80,7 +80,7 @@ describe("entries list", () => {
     expect(root.querySelector(".head")?.textContent).toContain("Name");
     expect(root.querySelectorAll("button.row")).toHaveLength(1);
     expect(root.querySelectorAll(".row.locked")).toHaveLength(glossary().length - 1);
-    expect(root.querySelector(`button[data-entry="${first.id}"] .page`)?.textContent).toBe(pageLabel(first, getSpread(first.spreadId)));
+    expect(root.querySelector(`button[data-entry="${first.id}"] .page`)?.textContent).toBe(placeLabel(first, getSpread(first.spreadId)));
 
     root.querySelector<HTMLElement>(".row.locked")!.click();
     expect(game.state.currentRoute?.page).not.toBe(Pages.ENTRY);
@@ -102,7 +102,7 @@ describe("entries list", () => {
     videos.forEach(v => game.history.consultEntry(v.id));
     list.setEntries(EntryCategory.Video, videos);
     const root = list.shadowRoot!;
-    expect(root.textContent).toContain("Go to page in scan mode to play the video.");
+    expect(root.textContent).toContain("Go to its place in scan mode to play the video.");
     expect(root.querySelectorAll("button")).toHaveLength(0);
     expect(root.querySelectorAll(".row")).toHaveLength(videos.length);
     expect(root.querySelector("ul.gold")).toBeNull();
@@ -143,13 +143,13 @@ describe("entry detail", () => {
     expect(body.querySelector("p")?.textContent).toBe('<img src=x onerror="alert(1)"> [x](javascript:alert(1)) !');
   });
 
-  it("labels the meta table Name / Page / Category, a text's Title / Page / Category / Author (#289)", () => {
+  it("labels the meta table Name / Place / Category, a text's Title / Place / Category / Author (#289, #319)", () => {
     const detail = mount<EntryDetail>("entry-detail");
     const labels = () => Array.from(detail.shadowRoot!.querySelectorAll(".rule-table th")).map(th => th.textContent);
     detail.entry = glossaryEntry();
-    expect(labels()).toEqual(["Name", "Page", "Category"]);
+    expect(labels()).toEqual(["Name", "Place", "Category"]);
     detail.entry = { ...glossaryEntry(), category: EntryCategory.Text, author: "Catherine Guiral" };
-    expect(labels()).toEqual(["Title", "Page", "Category", "Author"]);
+    expect(labels()).toEqual(["Title", "Place", "Category", "Author"]);
   });
 
   it("puts the caption under the picture, escaped; none without a picture (#289)", () => {

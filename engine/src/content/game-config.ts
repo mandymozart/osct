@@ -10,15 +10,14 @@
  * On load it checks that this app can read the content (content schema MAJOR – RULES #10), drops what content of a
  * newer MINOR has that this app does not know (`./forward-compatible.ts` – the list stays for `getSkippedFeatures()`),
  * checks the JSON against the contract (`assertGameConfiguration`), maps `*Data` to the app model (`Spread`, `Entry`,
- * `Target`) and builds in-memory indexes. The configuration's `tutorial` is for older apps and not read (the reader
- * has its own onboarding, #236). Content file paths (`/assets/content/…`) become URLs of the loaded version, so the
+ * `Target`) and builds in-memory indexes. Content file paths (`/assets/content/…`) become URLs of the loaded version, so the
  * rest of the app never knows where the content comes from.
  */
 import { assertGameConfiguration, GameConfigurationError, type GuardOptions, isEntityRef } from '@shared/guards/game-config';
 import { CONTENT_SCHEMA_VERSION, OLDEST_READABLE_SCHEMA_MAJOR, parseContentSchema } from '@shared/types/game-config';
 import { pickSubtitleTrack } from '@shared/types/subtitles';
 import { currentFeatures, describeSkipped, type KnownFeatures, skipUnknownFeatures, type SkippedFeature } from './forward-compatible';
-import { entryPlaceLabel, sceneIdOf } from './scenes';
+import { entryPlaceLabel } from './scenes';
 import { type ContentFiles, type ContentManifest, isContentFiles, isContentManifest } from '@shared/types/content-manifest';
 import {
   type AssetData,
@@ -27,7 +26,6 @@ import {
   type EntityData,
   type EntityRefData,
   type Entry,
-  type EntryData,
   type GroupData,
   type SurfaceData,
   ErrorCode,
@@ -44,8 +42,8 @@ import {
 const EMPTY_CONFIGURATION: GameConfiguration = {
   version: { version: '0.0.0', timestamp: '', schema: CONTENT_SCHEMA_VERSION },
   book: { id: '', title: '', author: '' },
-  initialSpreadId: '',
-  spreads: [],
+  initialScene: '',
+  scenes: [],
   entries: [],
   entities: {},
 };
@@ -313,18 +311,12 @@ const apply = (raw: GameConfiguration, base: string, files: ContentFiles, keepSw
   const resolveEntity = (entity?: EntityData | EntityRefData): EntityData | undefined =>
     entity && isEntityRef(entity) ? config.entities[entity.ref] : entity;
 
-  // The entry's spread: its scene when it names one (schema 2.35, #307), else the spread its access page lies in
-  const spreadOf = (entry: EntryData): string => {
-    const spreadId = sceneIdOf(entry, config.spreads);
-    if (!spreadId) throw new Error(`[game-config] Page ${entry.page} is not part of any spread`);
-    return spreadId;
-  };
 
   // A switched-off target and its entry are not in the reader's book: no image target, no list entry, not counted
   const inBook = keepSwitchedOff ? config.entries : config.entries.filter(isEntryInBook);
   entries = inBook.map(entry => {
     const { target, ...data } = entry;
-    const spreadId = spreadOf(entry);
+    const spreadId = entry.scene;
     return {
       ...data,
       spreadId,
@@ -334,7 +326,7 @@ const apply = (raw: GameConfiguration, base: string, files: ContentFiles, keepSw
     };
   });
 
-  spreads = config.spreads.map(data => {
+  spreads = config.scenes.map(data => {
     const spreadEntries = entries.filter(e => e.spreadId === data.id);
     return {
       ...data,
@@ -364,7 +356,7 @@ export const passesFor = (spread: { passes?: PassData[] } | undefined, book: { p
 export const getPasses = (spreadId: string): PassData[] => passesFor(spreadById.get(spreadId), config.book);
 
 
-export const getInitialSpreadId = (): string => config.initialSpreadId;
+export const getInitialSpreadId = (): string => config.initialScene;
 
 export const getSpreads = (): Spread[] => [...spreads];
 
@@ -379,26 +371,23 @@ export const getNeighbourSpreads = (spreadId: string, range = 1): Spread[] => {
   return index === -1 ? [] : spreads.filter((_, i) => i !== index && Math.abs(i - index) <= range);
 };
 
-export { entryPlaceLabel, sceneIdOf, sceneLabel, surfaceLabelRange, surfaceOf } from './scenes';
+export { entryPlaceLabel, sceneLabel, surfaceOf } from './scenes';
 
-/** The groups scenes name (schema 2.35, #307) – a label over several scenes; none for older content */
+/** The groups scenes name – a label over several scenes */
 export const getGroups = (): GroupData[] => [...(config.groups ?? [])];
 
-/** A scene's surfaces (schema 2.35), in order – none for older content */
+/** A scene's surfaces, in order */
 export const getSurfaces = (spreadId: string): SurfaceData[] => [...(spreadById.get(spreadId)?.surfaces ?? [])];
 
-/**
- * The place an entry is on as the reader finds it in the book: its surface's printed label (schema 2.35), else its page
- * number, or its spread's title on a cover and the front and back matter (`./scenes.ts`)
- */
-export const getEntryPlaceLabel = (entry: Pick<Entry, 'page' | 'surface' | 'spreadId'>): string =>
+/** The place an entry is on as the reader finds it: its surface's label, else its scene's (`./scenes.ts`) */
+export const getEntryPlaceLabel = (entry: Pick<Entry, 'surface' | 'spreadId'>): string =>
   entryPlaceLabel(entry, spreadById.get(entry.spreadId));
 
 export const getEntries = (): Entry[] => [...entries];
 
 export const getEntry = (id: string): Entry | undefined => entryById.get(id);
 
-/** Targets of a spread in entry order (page → title) */
+/** Targets of a spread in entry order */
 export const getTargets = (spreadId: string): Target[] => spreadById.get(spreadId)?.targets ?? [];
 
 export const getTarget = (id: string): Target | undefined => targetById.get(id);
@@ -440,7 +429,7 @@ export const getSubtitleFiles = (spreadId?: string): string[] => {
     .flatMap(s => Object.values(s.tracks).map(contentUrl));
 };
 
-/** A spread's credit lines (#292): the spread and the lines of the files its entries use, by page, each once */
+/** A spread's credit lines (#292): the spread and the lines of the files its entries use, in entry order, each once */
 export interface SpreadCredits {
   spread: Spread;
   lines: string[];
@@ -448,7 +437,7 @@ export interface SpreadCredits {
 
 /**
  * The book's credit lines per spread (the configuration's `credits`, schema 2.33): a spread lists the line of every file
- * its entries in the book name anywhere (by page) – the target image, the entry's picture, the entity's files (a shared entity's
+ * its entries in the book name anywhere (in entry order) – the target image, the entry's picture, the entity's files (a shared entity's
  * too). Spreads without a line are left out; a line a spread repeats is listed once.
  */
 export const getCredits = (): SpreadCredits[] => {
@@ -456,7 +445,7 @@ export const getCredits = (): SpreadCredits[] => {
   if (!credited.length) return [];
   return spreads.flatMap(spread => {
     const lines: string[] = [];
-    for (const entry of [...spread.entries].sort((a, b) => a.page - b.page)) {
+    for (const entry of spread.entries) {
       const text = JSON.stringify(entry);
       for (const [url, line] of credited) {
         if (!lines.includes(line) && text.includes(JSON.stringify(url))) lines.push(line);

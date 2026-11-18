@@ -19,8 +19,6 @@ export default interface Resources {
     "ios": "iOS: Safari, Chrome",
     "isbn": "ISBN: 978-90-833756-7-0",
     "noCredits": "No image credits yet.",
-    "page": "Page {{page}}",
-    "pages": "Pages {{first}}–{{last}}",
     "publisher": "Publisher: Building Fictions, Amsterdam",
     "requirements": "Requires a WebXR compatible browser and a copy of the book.",
     "scanText": "Scan the pages of the printed book to unlock video content and marginalia entries (glossary terms, texts, links).",
@@ -126,18 +124,18 @@ export default interface Resources {
     "locked": "locked",
     "marginalia": "Marginalia",
     "name": "Name",
-    "page": "Page",
+    "place": "Place",
     "title": "Title",
-    "videosHint": "Go to page in scan mode to play the video."
+    "videosHint": "Go to its place in scan mode to play the video."
   },
   "entry": {
     "author": "Author",
     "category": "Category",
-    "goToPage": "Go to access page {{page}} in scan mode to see the video.",
+    "goToPlace": "Go to {{place}} in scan mode to see the video.",
     "missing": "This entry is not part of the book (anymore).",
     "name": "Name",
     "openInNewTab": "Open in a new tab",
-    "page": "Page",
+    "place": "Place",
     "preview": "Preview (the AR version is shown on the page):",
     "title": "Title"
   },
@@ -173,7 +171,7 @@ export default interface Resources {
   "scan": {
     "newEntryUnlocked": "New marginalia unlocked",
     "openEntry": "Open entry {{title}}",
-    "pagesAria": "Pages {{pages}}",
+    "sceneAria": "Scene {{scene}}",
     "scrollToActivate": "Scroll to spread to activate content"
   },
   "settings": {

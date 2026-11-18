@@ -1,4 +1,5 @@
 import type { Spread } from "@/types";
+import { entryPlaceLabel, sceneLabel } from "@engine/content/scenes";
 import type { TrialDevice } from "./trial-device";
 
 /**
@@ -19,8 +20,10 @@ export interface TrialRow {
   entryId: string;
   title: string;
   category: string;
-  page: number;
+  /** Where the entry is: its surface's or its scene's label (schema 3.0) */
+  place: string;
   spreadId: string;
+  /** The scene's label */
   spreadTitle: string;
   imageSrc: string;
   unlockedAt?: number;
@@ -51,9 +54,9 @@ export function trialRows(spreads: Spread[], unlocked: Record<string, number>, i
         entryId: target.entryId,
         title: entry?.title ?? target.entryId,
         category: entry?.category ?? "",
-        page: entry?.page ?? spread.firstPage,
+        place: entry ? entryPlaceLabel(entry, spread) : sceneLabel(spread),
         spreadId: spread.id,
-        spreadTitle: spread.title,
+        spreadTitle: sceneLabel(spread),
         imageSrc: target.imageSrc,
         unlockedAt: unlocked[target.id],
         result: trialResult(unlocked[target.id]),
@@ -103,9 +106,9 @@ export function trialReport(rows: TrialRow[], meta: TrialMeta): string {
     "",
     ...(notFound.length
       ? [
-        "| Page | Target | Entry | Printed image | Note |",
+        "| Place | Target | Entry | Printed image | Note |",
         "|---|---|---|---|---|",
-        ...notFound.map(r => `| ${r.page} | ${cell(r.targetId)} | ${cell(`${r.title} (${r.category})`)} | ${cell(printed(r.info) || "–")} | ${cell(r.info?.note ?? "")} |`),
+        ...notFound.map(r => `| ${cell(r.place)} | ${cell(r.targetId)} | ${cell(`${r.title} (${r.category})`)} | ${cell(printed(r.info) || "–")} | ${cell(r.info?.note ?? "")} |`),
       ]
       : ["None."]),
     "",

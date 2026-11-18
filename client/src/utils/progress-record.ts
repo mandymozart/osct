@@ -22,7 +22,7 @@ export const createProgressRecord = (bookId: string): ProgressRecord => ({
   appVersions: [],
   unlocked: {},
   consulted: {},
-  lastSpreadId: null,
+  lastScene: null,
   lastCategory: null,
   onboarded: false,
   coached: false,
@@ -44,7 +44,8 @@ const readFormat1 = (raw: Record<string, unknown>, bookId: string): ProgressReco
   appVersions: Array.isArray(raw.appVersions) ? raw.appVersions.filter(isString) : [],
   unlocked: pick(raw.unlocked, isNumber),
   consulted: pick(raw.consulted, isNumber),
-  lastSpreadId: isString(raw.lastSpreadId) ? raw.lastSpreadId : null,
+  // `lastScene` since content schema 3.0 (#319) – an older `lastSpreadId` is dropped, not converted
+  lastScene: isString(raw.lastScene) ? raw.lastScene : null,
   lastCategory: isEntryCategory(raw.lastCategory) || raw.lastCategory === ALL_CATEGORY ? raw.lastCategory : null,
   // Additive field within format 1: records without it count as not onboarded
   onboarded: raw.onboarded === true,
@@ -113,7 +114,7 @@ export const mergeProgress = (local: ProgressRecord, other: ProgressRecord): Pro
   appVersions: [...other.appVersions, ...local.appVersions.filter(v => !other.appVersions.includes(v))],
   unlocked: union(local.unlocked, other.unlocked),
   consulted: union(local.consulted, other.consulted),
-  lastSpreadId: local.lastSpreadId ?? other.lastSpreadId,
+  lastScene: local.lastScene ?? other.lastScene,
   lastCategory: local.lastCategory ?? other.lastCategory,
   onboarded: local.onboarded || other.onboarded,
   coached: local.coached || other.coached,

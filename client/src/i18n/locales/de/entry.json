@@ -1,10 +1,10 @@
 {
   "name": "Name",
   "title": "Titel",
-  "page": "Seite",
+  "place": "Ort",
   "category": "Kategorie",
   "author": "Autor",
-  "goToPage": "Geh im Scanmodus zur Zugangsseite {{page}}, um das Video zu sehen.",
+  "goToPlace": "Geh im Scanmodus zu {{place}}, um das Video zu sehen.",
   "preview": "Vorschau (die AR-Version erscheint auf der Seite):",
   "openInNewTab": "In neuem Tab öffnen",
   "missing": "Dieser Eintrag ist (nicht mehr) Teil des Buches."

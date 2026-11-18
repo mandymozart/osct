@@ -52,13 +52,12 @@ describe("environment assets (content schema 2.10)", () => {
     expect(environmentProblems({ ...base, tint: 1 })).toEqual(["environment.tint is not a field of the environment."]);
     expect(environmentProblems({ ...base, tint: 1 }, "book.environment", false)).toEqual([]);
     const config = (environment: unknown) => ({
-      version: { version: "1.21.0", timestamp: "t", schema: "2.10" },
+      version: { version: "1.21.0", timestamp: "t", schema: "3.10" },
       book: { id: "b", title: "B", author: "A", environment },
-      initialSpreadId: "s",
-      spreads: [{ id: "s", title: "S", firstPage: 1, lastPage: 2 }],
+      initialScene: "s",
+      scenes: [{ id: "s", label: "S", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
       entries: [],
       entities: {},
-      tutorial: [],
     });
     expect(() => assertGameConfiguration(config({ ...base, tint: 1, worldSrc: "/assets/content/w.glb" }))).not.toThrow();
     expect(() => assertGameConfiguration(config({ ...base, worldSrc: "w.glb" }))).toThrow(/book\.environment\.worldSrc/);

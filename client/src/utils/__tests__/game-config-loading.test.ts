@@ -2,7 +2,7 @@ import { readFileSync } from "fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ErrorCode } from "@/types";
-import { CONTENT_SCHEMA_VERSION, parseContentSchema } from "@shared/types/game-config";
+import { CONTENT_SCHEMA_VERSION, OLDEST_READABLE_SCHEMA_MAJOR, parseContentSchema } from "@shared/types/game-config";
 import { compressedUrl } from "@/utils/compressed";
 import {
   checkContentCompatibility,
@@ -22,7 +22,7 @@ import {
 /** The bundled configuration as data (read, not imported: only utils/game-config.ts imports it – RULES #14) */
 const bundled = JSON.parse(readFileSync(resolve(__dirname, "../../game.config.json"), "utf8")) as {
   version: { version: string; hash: string; schema: string };
-  spreads: unknown[];
+  scenes: unknown[];
 };
 
 /**
@@ -68,7 +68,7 @@ describe("loading the game configuration from a content base URL", () => {
     expect(getContentBaseUrl()).toBe(VERSION);
 
     const spreads = getSpreads();
-    expect(spreads.length).toBe(bundled.spreads.length);
+    expect(spreads.length).toBe(bundled.scenes.length);
     const imageSrc = spreads.flatMap(s => getTargets(s.id))[0].imageSrc;
     expect(imageSrc).toBe(`${VERSION}${imagePath}`);
     expect(getAssets().every(a => a.src.startsWith(`${VERSION}/assets/content/`))).toBe(true);
@@ -151,11 +151,10 @@ describe("content compatibility", () => {
   it("refuses another MAJOR: newer content asks for an app update", () => {
     expect(check(schema(app.major + 1, 0))).toMatchObject({ code: ErrorCode.NOT_SUPPORTED, type: "critical" });
     expect(check(schema(app.major + 1, 0))?.details?.[0]).toMatch(/update the app/);
-    // Every MAJOR so far only added: older content (schema 1.x: a tree of one node per entity, 2.x: no lights) is
-    // read as it is; anything older than the oldest readable MAJOR is refused
-    expect(check(schema(1, 9))).toBeNull();
-    expect(check(schema(2, 3))).toBeNull();
-    expect(check(schema(0, 9))?.details?.[0]).toMatch(/newer build/);
+    // Schema 3.0 (#319) removed the 2.x page model and no 2.x reader was shipped: content older than MAJOR 3 is refused
+    expect(OLDEST_READABLE_SCHEMA_MAJOR).toBe(3);
+    expect(check(schema(2, 36))?.details?.[0]).toMatch(/newer build/);
+    expect(check(schema(1, 9))?.details?.[0]).toMatch(/newer build/);
   });
 
   it("ignores the app version the content was built with", () => {
@@ -179,7 +178,7 @@ describe("content compatibility", () => {
       fetch: cdn({ [`${BASE}/latest.json`]: manifest, [`${VERSION}/game.config.json`]: withSchema(schema(app.major, app.minor + 1)) }),
     });
     expect(minor).toBeNull();
-    expect(getSpreads().length).toBe(bundled.spreads.length);
+    expect(getSpreads().length).toBe(bundled.scenes.length);
     vi.restoreAllMocks();
     await loadGameConfiguration();
   });

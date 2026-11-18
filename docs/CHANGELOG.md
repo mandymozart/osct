@@ -7,6 +7,36 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+
+- **Content schema 3.0 – one clean model of scenes, nothing of 2.x kept** (#319 part A, `agents/SCENES.md`
+  "Schema 3.0"; a MAJOR: no reader of 2.x was shipped, `OLDEST_READABLE_SCHEMA_MAJOR` is 3, 2.x content is refused).
+  The configuration has `scenes` and `initialScene`; a scene is `id`, `label`, `group?`, `surfaces` (at least one, each
+  with its size and a required `place` in the scene's coordinate system) and `passes?`; an entry names its `scene` (and
+  a `surface` when the scene has several); a target's `place { surface?, x, y, width, height? }` replaces `print`.
+  `SceneData` is the type (`SpreadData` is gone).
+- **The reader shows scene labels where it showed page numbers**: the switcher at the bottom, the entries list's
+  *Place* column (All sorted by scene order, then title), the entry's *Place* row and its video hint, the image credits'
+  headings, the dev tools (camera and trigger trial panels, the trial report). Links are `/scene/<id>`; the progress
+  remembers `lastScene` (a stored `lastSpreadId` is dropped). The words: *Place* / *Ort* / *Lieu* / *Plek*.
+- **The content build writes 3.0** from `content/scenes/<id>/scene.yaml` (`label`, `order`, `surfaces` – unplaced
+  surfaces in a row centred on the origin – `passes`) and an entry's `scene` / `surface` and its target's `place`;
+  the configuration's onboarding for 2.24 apps (`tutorial`, `shared/compat/tutorial.ts`) is gone. The delivery import
+  maps the mapping's pages to scenes once (one surface per double page, twice the page's width; a cover or a single
+  page one page wide) and writes `scene.yaml`; `extract-layout.py` and `prepare-delivery.py` read the targets' pages
+  from the delivery mapping.
+- The test fixture and the demo book are converted (`npm run convert:3`, `scripts/src/convert-content-3.ts` – the
+  rules part B's server migration follows).
+
+### Removed
+
+- From the content schema: `page`, `firstPage`, `lastPage`, a spread's `title`, `format`, `matter` and `layout`, a
+  surface's `side`, a target's `print`, the configuration's `tutorial` and the constants `SPREAD_FORMATS`, `MATTERS`,
+  `SURFACE_SIDES`, `SCENE_LAYOUTS`, `PRINT_SURFACES`, `STEP_ACTIONS`. The editor, the server and the MCP server still
+  read them – parts B and C of #319.
+
 ## 1.116.0 – 2026-11-18
 
 ### Added

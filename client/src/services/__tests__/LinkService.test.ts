@@ -13,7 +13,7 @@ const entry = entries[0].id;
 describe("links: parsing", () => {
   it("reads route, value and version from path and query", () => {
     expect(parseLink(`/entry/${entry}`, `?osct=1.1.0`)).toEqual({ slug: "/entry", value: entry, version: "1.1.0" });
-    expect(parseLink("/spread/spread1", "")).toEqual({ slug: "/spread", value: "spread1", version: undefined });
+    expect(parseLink("/scene/spread1", "")).toEqual({ slug: "/scene", value: "spread1", version: undefined });
     expect(parseLink("/about/", "")).toEqual({ slug: "/about", value: undefined, version: undefined });
   });
 
@@ -37,7 +37,7 @@ describe("links: building", () => {
 
   it("writes one path per view, the active spread for scan mode", () => {
     expect(pathForRoute(route(Pages.SPLASH, "/"), null)).toBe("/");
-    expect(pathForRoute(route(Pages.SPREAD, "/spread"), "spread2")).toBe("/spread/spread2");
+    expect(pathForRoute(route(Pages.SPREAD, "/scene"), "spread2")).toBe("/scene/spread2");
     expect(pathForRoute(route(Pages.ENTRIES, "/entries", { key: "category", value: "video" }), null)).toBe("/entries/video");
     expect(pathForRoute(route(Pages.ENTRY, "/entry", { key: "entryId", value: "a b" }), null)).toBe("/entry/a%20b");
     expect(pathForRoute(route(Pages.TUTORIAL, "/tutorial", { key: "step", value: "2" }), null)).toBe("/tutorial/2");
@@ -59,7 +59,7 @@ describe("links: resolving", () => {
   });
 
   it("opens a spread in scan mode", () => {
-    expect(resolveLink(game, { slug: "/spread", value: spread, version })).toBe(true);
+    expect(resolveLink(game, { slug: "/scene", value: spread, version })).toBe(true);
     expect(game.state.currentSpread).toBe(spread);
     expect(game.state.currentRoute?.page).toBe(Pages.SPREAD);
     expect(game.state.mode).toBe(GameMode.SCAN);
@@ -88,7 +88,7 @@ describe("links: resolving", () => {
 
   it.each([
     [{ slug: "/entry", value: "no-such-entry" }],
-    [{ slug: "/spread", value: "no-such-spread" }],
+    [{ slug: "/scene", value: "no-such-spread" }],
     [{ slug: "/entries", value: "videos" }],
     [{ slug: "/tutorial", value: "99" }],
     [{ slug: "/entry" }],
@@ -103,7 +103,7 @@ describe("links: resolving", () => {
   it("routes links of any version (the version is informative only)", () => {
     expect(resolveLink(game, { slug: "/entry", value: entry, version: "0.9.0" })).toBe(true);
     expect(game.state.currentRoute?.page).toBe(Pages.ENTRY);
-    expect(resolveLink(game, { slug: "/spread", value: spread, version: "999.0.0" })).toBe(true);
+    expect(resolveLink(game, { slug: "/scene", value: spread, version: "999.0.0" })).toBe(true);
     expect(game.state.currentRoute?.page).toBe(Pages.SPREAD);
   });
 });
@@ -152,14 +152,14 @@ describe("links: address bar", () => {
     expect(pushed).toEqual([`/entries/text?osct=${version}`]);
 
     game.spreads.switchSpread(getSpreads()[0].id);
-    game.router.navigate("/spread");
+    game.router.navigate("/scene");
     game.spreads.switchSpread(spread);
-    expect(path()).toBe(`/spread/${spread}?osct=${version}`);
+    expect(path()).toBe(`/scene/${spread}?osct=${version}`);
     expect(pushed).toHaveLength(2);
-    expect(replaced.at(-1)).toBe(`/spread/${spread}?osct=${version}`);
+    expect(replaced.at(-1)).toBe(`/scene/${spread}?osct=${version}`);
 
     game.router.navigate("/not-found");
-    expect(path()).toBe(`/spread/${spread}?osct=${version}`);
+    expect(path()).toBe(`/scene/${spread}?osct=${version}`);
   });
 
   it("follows the back button", () => {

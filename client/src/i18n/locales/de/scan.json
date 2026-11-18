@@ -1,6 +1,6 @@
 {
   "scrollToActivate": "Zur Doppelseite scrollen, um Inhalte zu aktivieren",
-  "pagesAria": "Seiten {{pages}}",
+  "sceneAria": "Szene {{scene}}",
   "newEntryUnlocked": "Neue Marginalie freigeschaltet",
   "openEntry": "Eintrag {{title}} öffnen"
 }

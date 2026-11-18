@@ -5,16 +5,15 @@
  *
  * Source layout (folder name = id):
  *   content/book.yaml
- *   content/spreads/<id>/spread.yaml   title, order, firstPage, lastPage
- *   content/entries/<id>/entry.yaml    category, title, page, body, …, target? { image, order?, id?, entity? }
+ *   content/scenes/<id>/scene.yaml     label, order, surfaces [{ id, label?, widthMm, heightMm, place? }], passes?
+ *   content/entries/<id>/entry.yaml    category, title, scene, surface?, body, …, target? { image, id?, entity?, place? }
  *   content/entities/<id>/entity.yaml  type, assets[{ id?, src }], params   (referenced as entity: { ref })
  *   content/plugins/<id>/index.ts      the book's own code (build/plugins.ts): type-checked, bundled, declared
  *
- * The configuration's `tutorial` is not the content's: the build writes the onboarding older apps require
- * (build/tutorial.ts – the reader has its own, #236).
+ * Content schema 3.0 (#319): scenes, not pages – a scene's place is its order; an entry names its scene.
  *
- * Folders: build/ one file per part of the configuration (book, spreads, entities, entries, targets,
- * tutorial; game-config.ts puts them together), lib/ helpers (reading content, files, hash, schema,
+ * Folders: build/ one file per part of the configuration (book, scenes, entities, entries, targets;
+ * game-config.ts puts them together), lib/ helpers (reading content, files, hash, schema,
  * media optimisation).
  */
 import fs from 'fs';

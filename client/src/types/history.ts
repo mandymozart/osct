@@ -18,8 +18,8 @@ export interface ProgressRecord {
   unlocked: Record<string, number>;
   /** Stage 2: entry opened (entry id → time) */
   consulted: Record<string, number>;
-  /** Last active spread; restored as the active spread on the next start */
-  lastSpreadId: string | null;
+  /** Last active scene (its id); restored as the active scene on the next start – since content schema 3.0 (#319) */
+  lastScene: string | null;
   /** Last list shown – a category, or All (#286) – the "Marginalia" button goes back to it. "all" is additive within
    *  format 1: an older app reads it as none */
   lastCategory: ListCategory | null;

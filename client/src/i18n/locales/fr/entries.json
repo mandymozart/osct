@@ -5,8 +5,8 @@
   "marginalia": "Marginalia",
   "name": "Nom",
   "title": "Titre",
-  "page": "Page",
-  "videosHint": "Allez à la page en mode scan pour lire la vidéo.",
+  "place": "Lieu",
+  "videosHint": "Allez à son lieu en mode scan pour lire la vidéo.",
   "categories": {
     "glossary": "Marginalia",
     "video": "Vidéos",

@@ -1,7 +1,7 @@
 # Showcase entry for the editor and the tests (spread studio-b).
 category: video
 title: "Studio: luma key"
-page: 30
+scene: studio-b
 body: "A video keyed on black (luma), enlarged and lifted a hair above the page."
 target:
   image: target.jpg

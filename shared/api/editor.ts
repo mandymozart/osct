@@ -7,8 +7,29 @@
 import type { BookAppearance } from "../types/appearance";
 import type { ContentManifest } from "../types/content-manifest";
 import type { EnvironmentData } from "../types/environment";
-import type { BookData, EntityData, EntryData, GroupData, PassData, SceneLayout, SpreadData, SpreadFormat, SurfaceData, TargetData } from "../types/game-config";
+import type { BookData, EntityData, EntryData, GroupData, PassData, SceneData, SurfaceData, TargetData } from "../types/game-config";
 import type { AssetKind, SourceTypes } from "./rules";
+
+/*
+ * The API's scene shape until #319 part B: the server still stores and sends the 2.x spread fields the content
+ * schema 3.0 removed (`title`, `firstPage`, `lastPage`, `format`, `layout`, a surface's `side`). Part B moves the server
+ * to `SceneData` and removes these three types.
+ */
+/** What a spread is in the server's data (2.x): a double page, the front or the back cover – part B removes it */
+export type SpreadFormat = "spread" | "cover" | "back";
+/** How a scene's surfaces relate in the server's data (2.x) – part B removes it */
+export type SceneLayout = "fixed" | "free";
+/** A scene as the server sends it until part B (2.x fields) */
+export type SpreadData = Omit<SceneData, "label" | "surfaces"> & {
+  title: string;
+  firstPage: number;
+  lastPage: number;
+  format?: SpreadFormat;
+  matter?: "front" | "back";
+  layout?: SceneLayout;
+  label?: string;
+  surfaces?: SurfaceData[];
+};
 
 // ── Books ──────────────────────────────────────────────────────────────────────────────────────────
 

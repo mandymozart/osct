@@ -2,13 +2,12 @@
 # every page was found.
 category: glossary
 title: The colophon
-page: 9
+scene: back
 body: "The back cover: `{{book.title}}` as a text node, a chest, and the `tally` of the whole book – it says complete when every page was found."
 tags: [narrative, progress]
 target:
   image: target.jpg
-  print:
-    surface: back
+  place:
     x: 65
     y: 120
     width: 100

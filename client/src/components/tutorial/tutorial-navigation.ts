@@ -98,7 +98,7 @@ export const goToStep = (game: Readonly<IGame>, index: number) => {
 export const goToScan = (game: Readonly<IGame>) => {
   game.history.setOnboarded();
   game.history.setCoached(false);
-  game.router.navigate("/spread");
+  game.router.navigate("/scene");
 };
 
 customElements.define("tutorial-navigation", TutorialNavigation);

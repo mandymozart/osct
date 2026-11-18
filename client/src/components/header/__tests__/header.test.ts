@@ -17,7 +17,7 @@ describe("header", () => {
     const mark = header.shadowRoot!.querySelector("mark-the-page")!;
     const icon = () => mark.shadowRoot!.querySelector<HTMLImageElement>("img.mark");
 
-    game.router.navigate("/spread");
+    game.router.navigate("/scene");
     expect(game.state.mode).toBe(GameMode.SCAN);
     expect(icon()?.getAttribute("src")).toBe(ONBOARDING_ICON_SRC);
 

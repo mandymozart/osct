@@ -1,6 +1,6 @@
 # An entry without a target: read in the list only.
 category: glossary
 title: About the demo
-page: 1
+scene: the-key
 body: "The demo book is a sandbox: every node type, placement, filter and component, twelve plugins, a narrative across its pages. Nothing in it is content of a real book – the models and videos are the test fixture's small stand-ins."
 image: about.jpg

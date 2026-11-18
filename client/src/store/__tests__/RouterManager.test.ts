@@ -50,7 +50,7 @@ describe("RouterManager", () => {
   it.each([
     ["/", GameMode.IDLE],
     ["/tutorial", GameMode.IDLE],
-    ["/spread", GameMode.SCAN],
+    ["/scene", GameMode.SCAN],
     ["/entries", GameMode.CONSULTATION],
     ["/entry", GameMode.CONSULTATION],
     ["/about", GameMode.CONSULTATION],
@@ -69,7 +69,7 @@ describe("RouterManager", () => {
     const listener = vi.fn();
     game.subscribe(listener);
 
-    game.router.navigate("/spread");
+    game.router.navigate("/scene");
 
     expect(listener).toHaveBeenCalledTimes(1);
     expect(listener.mock.calls[0][0]).toMatchObject({ mode: GameMode.SCAN, currentRoute: { page: Pages.SPREAD } });
