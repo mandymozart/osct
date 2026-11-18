@@ -7,6 +7,12 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.101.2 – 2026-11-18
+
+### Changed
+- **Editor top bar**: Admin, the e-mail and Sign out moved into an account menu (☰) at the right, beside Publish – the
+  e-mail is the menu's head (#309, Tilman).
+
 ## 1.101.1 – 2026-11-18
 
 ### Changed

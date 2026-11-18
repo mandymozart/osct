@@ -12,12 +12,15 @@
   import SaveStatus from "#lib/SaveStatus.svelte";
   import { selection } from "#lib/selection.svelte.js";
   import Icon from "#lib/components/Icon.svelte";
+  import ContextMenu, { type MenuItem } from "#lib/components/ContextMenu.svelte";
+  import { goto } from "$app/navigation";
+  import type { Point } from "#lib/context-menu.js";
 
   /**
    * The editor's one top bar (every page, drawn by the layout): the breadcrumb `Books › book › spread` at the left, the
    * book's search while a book is open (#237, `BookSearch`), where the draft stands (#259, `SaveStatus`: edits save
-   * themselves), Publish (with its environment), then Admin, the e-mail and
-   * Sign out at the right. The book's crumb always leads to the book page – the spreads overview (#274); in a spread's
+   * themselves), Publish (with its environment), then the account menu ☰ at the right: the e-mail, Admin and Sign out
+   * (Tilman, 2026-11-18). The book's crumb always leads to the book page – the spreads overview (#274); in a spread's
    * workspace the ⚙ after it selects the book (#237): the Inspector shows its texts and settings. When the open
    * book's draft has features this editor's engine does not know (a newer content build – RULES #10), a small warning
    * opens their list: the stage shows the book without them.
@@ -44,6 +47,17 @@
 
   /** The open book's features the stage skips */
   const skipped = $derived(bookId && content.bookId === bookId ? content.skipped : []);
+  /** The account menu: opened under its button, at the right edge */
+  let menuAt = $state<Point | null>(null);
+  let menuButton = $state<HTMLButtonElement | null>(null);
+  const openMenu = () => {
+    const box = menuButton?.getBoundingClientRect();
+    menuAt = box ? { x: box.right, y: box.bottom + 4 } : { x: window.innerWidth, y: 40 };
+  };
+  const menuItems = $derived<MenuItem[]>([
+    ...(session.isAdmin && !isAdminRoute ? [{ label: "Admin", icon: "settings" as const, help: "The instance's users and AI connections.", select: () => void goto(resolve("admin/")) }] : []),
+    { label: "Sign out", icon: "open" as const, help: "Ends this session in this browser.", select: () => session.signOut() },
+  ]);
   const SKIPPED_HELP = "This book was built with a newer content schema than this editor knows. The stage skips what it does not know – update the editor (a newer release) to see and edit everything.";
 </script>
 
@@ -78,9 +92,9 @@
   {#if bookId}
     {#key bookId}<BookSearch {bookId} /><SaveStatus /><PublishButton {bookId} />{/key}
   {/if}
-  {#if session.isAdmin && !isAdminRoute}<a href={resolve("admin/")} class="pill admin" class:in-book={!!bookId}>Admin</a>{/if}
-  <span class="muted small email">{session.user?.email}</span>
-  <button type="button" class="pill sign-out" class:in-book={!!bookId} onclick={() => session.signOut()}>Sign out</button>
+  <button type="button" class="icon-button account" bind:this={menuButton} onclick={openMenu} aria-haspopup="menu" aria-expanded={menuAt !== null}
+    title={session.user?.email ?? "Account"} aria-label="Account menu" data-help-name="Account" data-help="Your account: Admin (for admins) and Sign out."><Icon name="menu" /></button>
+  {#if menuAt}<ContextMenu at={menuAt} items={menuItems} label="Account" head={session.user?.email ?? undefined} returnFocus={menuButton} onclose={() => (menuAt = null)} />{/if}
 </header>
 
 <style>
@@ -98,7 +112,7 @@
   /* Short of room, Books gives way first: the book's crumb is the way back to the spreads */
   .crumbs > .crumb:first-child { flex-shrink: 4; }
   .crumbs > .crumb:nth-child(3) { min-width: 3rem; }
-  .book-settings { flex: none; }
+  .book-settings, .account { flex: none; }
   .sep { flex: none; color: var(--muted); }
   .crumb.spread { flex: none; }
   .skipped { position: relative; flex: none; }
@@ -114,6 +128,5 @@
     .crumbs > :nth-child(-n + 2):not(:nth-last-child(-n + 3)) { display: none; }
     .crumbs { overflow: hidden; }
     .crumbs > :last-child { flex-shrink: 1; min-width: 0; }
-    .email, .in-book { display: none; }
   }
 </style>

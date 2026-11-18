@@ -5,6 +5,8 @@
    * type icons and the eye are the convention of every outliner (Blender, Unity, Figma).
    */
   export const ICONS = {
+    /** The account menu at the top bar's right (Admin, the e-mail, Sign out – Tilman 2026-11-18) */
+    menu: '<line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line>',
     /** The sheet's tabs on a phone: icons there, so the row fits on one line */
     list: '<line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line>',
     // the Tree tab: rows hanging off a branch, as the tree shows them

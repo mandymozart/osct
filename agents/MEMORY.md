@@ -4,6 +4,11 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-18 – The editor is for desktop and iPad, not phones
+Tilman: "dont worry about the phone... we will tell phone users to use the desktop! so we can save development time.
+ipad is okay." New editor work (#307 phase 3, #308 floating panels) needs no phone layout; the existing phone sheet
+(#171) is not extended. The **reader** stays phone-first – this is the editor only.
+
 ## 2026-11-17 – Scenes phase 3a: the Scenes panel, a filmstrip under the stage (#307)
 - The editor's scene organisation is one set of cards (`SceneCards.svelte`) in two layouts: the **strip** at the bottom
   of the workspace's stage column (`ScenesPanel.svelte`, desktop only for now) and the book page's **grid** (groups as
