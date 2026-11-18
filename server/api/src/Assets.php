@@ -64,7 +64,7 @@ final class Assets
         $assets = array_map(fn(array $row) => self::summary($row, count($uses[(string) $row['url']] ?? [])), $rows);
         $assets = array_merge($assets, self::imported($bookId, is_string($kind) && $kind !== '' ? $kind : null, $uses));
         $credits = self::creditsOf($bookId);
-        // Where each file is used first – the Library groups by it (#298): its spread (null: book-wide), page, order, more uses
+        // Where each file is used first – the Library groups by it (#298): its scene (null: book-wide), order, more uses
         foreach ($assets as $i => $asset) {
             $assets[$i]['credits'] = $credits[$asset['url']] ?? null;
             $assets[$i]['place'] = AssetNames::place($uses[$asset['url']] ?? []);
@@ -76,7 +76,7 @@ final class Assets
      * The image rule (#298, shared/api/images.ts – pinned by mcp/test/php-rules.test.ts): the longest side per use in px
      * (`?fit=<use>` on an upload; `default` without one), WebP quality, the most pixels decoded. `Images` applies it.
      */
-    public const IMAGE_MAX_SIDE = ['page' => 2048, 'entryImage' => 2048, 'target' => 1200, 'default' => 2048];
+    public const IMAGE_MAX_SIDE = ['reference' => 2048, 'entryImage' => 2048, 'target' => 1200, 'default' => 2048];
     public const IMAGE_WEBP_QUALITY = 82;
     public const IMAGE_MAX_PIXELS = 50_000_000;
 
@@ -228,6 +228,36 @@ final class Assets
     }
 
     /**
+     * Stores bytes the server made itself (the 3.0 migration's combined reference images, #319) as a Library file of the
+     * book, as an upload stores them: the same bytes are the asset they already are. Inside the caller's transaction for
+     * the rows; the file is written first. Returns the asset's URL.
+     * @param array<string, mixed> $user
+     */
+    public static function storeMade(string $bookId, string $name, string $extension, string $data, array $user): string
+    {
+        $sha = hash('sha256', $data);
+        $same = Db::one('SELECT url FROM assets WHERE book_id = :book AND sha256 = :sha AND status = :status', ['book' => $bookId, 'sha' => $sha, 'status' => 'active']);
+        if ($same) return (string) $same['url'];
+        $id = Db::uuid();
+        $path = self::path($bookId, $id, 1, $extension);
+        $store = ContentStore::for(self::STORE_ENV);
+        $url = self::url($store, $path);
+        [$width, $height] = self::dimensions($data, $extension);
+        $now = Editor::nowMs();
+        $row = [
+            'id' => $id, 'book_id' => $bookId, 'name' => $name, 'kind' => self::KINDS[$extension], 'mime' => self::MIMES[$extension],
+            'size' => strlen($data), 'sha256' => $sha, 'width' => $width, 'height' => $height, 'duration_ms' => null, 'version' => 1,
+            'path' => $path, 'url' => $url, 'status' => 'active', 'created_by' => $user['id'], 'created_at' => $now, 'updated_at' => $now,
+        ];
+        $store->put($path, $data, self::MIMES[$extension]);
+        Db::run('INSERT INTO assets (id, book_id, name, kind, mime, size, sha256, width, height, duration_ms, version, path, url, status, created_by, created_at, updated_at)
+                 VALUES (:id, :book_id, :name, :kind, :mime, :size, :sha256, :width, :height, :duration_ms, :version, :path, :url, :status, :created_by, :created_at, :updated_at)', $row);
+        Db::run('INSERT INTO asset_versions (id, asset_id, version, path, url, size, sha256, mime, created_by, created_at) VALUES (:id, :asset, 1, :path, :url, :size, :sha, :mime, :by, :at)',
+            ['id' => Db::uuid(), 'asset' => $id, 'path' => $path, 'url' => $url, 'size' => $row['size'], 'sha' => $sha, 'mime' => $row['mime'], 'by' => $user['id'], 'at' => $now]);
+        return $url;
+    }
+
+    /**
      * POST /editor/books/{id}/assets[?fit=<use>] – the file as the raw body, `X-File-Name: <name.ext>` → 201 { asset, converted },
      * or 200 with the asset that already holds these bytes, named as this upload names it. A picture (jpg, png, webp) is
      * stored under the image rule (#298, `Images`): WebP, its longest side at most `IMAGE_MAX_SIDE[fit]` (`target` 1200,
@@ -237,7 +267,8 @@ final class Assets
      * unsupported type, empty, a shader that is no text), 400 `invalid-fit`, 413 `body-too-large` (ASSET_MAX_BYTES, a
      * shader TEXT_MAX_BYTES), 413 `image-too-large` (above IMAGE_MAX_PIXELS). A known use names the file (#298 phase 3,
      * `AssetNames`): `&entry=<id>` with `fit=target` / `entryImage` → `<id>_target.webp` / `<id>_image.webp`,
-     * `&page=<n>[&facing=1]` with `fit=page` → `page-<n>.webp` (`page-cover.webp` …; 400 `invalid-use` for no page of the book).
+     * `&scene=<id>&surface=<id>` with `fit=reference` → `<scene>_<surface>.webp` (a reference image, #314; 400 `invalid-use`
+     * for no surface of the book).
      */
     public static function upload(string $bookId): never
     {
@@ -353,9 +384,7 @@ final class Assets
             $versions = Db::run('SELECT version, path, url FROM asset_versions WHERE asset_id = :id ORDER BY version', ['id' => $assetId])->fetchAll();
             Db::run('DELETE FROM asset_versions WHERE asset_id = :id', ['id' => $assetId]);
             Db::run('DELETE FROM assets WHERE id = :id', ['id' => $assetId]);
-            // A forced delete takes the page images that showed it (#251): those pages show the layout again
-            Db::run('DELETE FROM page_images WHERE book_id = :book AND url = :url', ['book' => $bookId, 'url' => $asset['url']]);
-            // … and the surface reference images (#314) – a change each
+            // A forced delete takes the surface reference images that showed it (#314) – a change each
             SurfaceReferences::dropUrl($bookId, (string) $asset['url'], $user);
             Books::recordChange($bookId, $user, 'asset', $assetId, Editor::encode(self::before($asset, $versions)), 'null');
             return array_column($versions, 'path');
@@ -414,7 +443,7 @@ final class Assets
 
     /**
      * The name an upload is listed under when the request names its use (#298 phase 3, `AssetNames::uploadStem`:
-     * `?fit=target&entry=p118-1` → `p118-1_target.webp`, `?fit=page&page=118` → `page-118.webp`), else `$name`
+     * `?fit=target&entry=p118-1` → `p118-1_target.webp`, `?fit=reference&scene=s118&surface=surface` → `s118_surface.webp`), else `$name`
      */
     private static function useName(string $bookId, string $name, string $extension): string
     {
@@ -609,9 +638,8 @@ final class Assets
             $count++;
         }
         if ($count) Books::touchBook($bookId);
-        // Surface reference images (#314) follow with a change each (revertable); page images are no draft rows (#251):
-        // they follow the new version without a change
-        return $count + SurfaceReferences::relink($bookId, $from, $to, $user) + Pages::relink($bookId, $from, $to);
+        // Surface reference images (#314) follow with a change each (revertable)
+        return $count + SurfaceReferences::relink($bookId, $from, $to, $user);
     }
 
     /** @param array<string, mixed> $row */

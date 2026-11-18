@@ -14,8 +14,8 @@
 
 /** The longest side per use, in px. `default` = an upload whose use is not known yet (the Library) */
 export const IMAGE_MAX_SIDE = {
-  /** A page image (#251) – shown over the whole page */
-  page: 2048,
+  /** A surface's reference image (#314) – shown over the whole surface in the editor */
+  reference: 2048,
   /** An entry's colour picture – the card flip shows it full screen */
   entryImage: 2048,
   /** A target's printed image – what the image tracker learns; more detail only costs memory */
@@ -42,25 +42,25 @@ export function fitImage(width: number, height: number, fit: ImageFit = "default
 
 /**
  * An upload's use where the caller knows it (#298): the size rule (`fit`) and what names the file – the entry of a target
- * image or a colour picture (`<entry>_target.webp`, `<entry>_image.webp`), the page of a page image (`page-118.webp`,
- * `page-cover.webp` – `AssetNames::uploadStem`)
+ * image or a colour picture (`<entry>_target.webp`, `<entry>_image.webp`), the scene and surface of a reference image
+ * (`<scene>_<surface>.webp` – `AssetNames::uploadStem`)
  */
 export interface ImageUse {
   fit: ImageFit;
   entry?: string;
-  page?: { page: number; facing?: boolean };
+  surface?: { scene: string; surface: string };
 }
 
-/** The query of an upload for its use: `?fit=target&entry=p118-1`, `?fit=page&page=118&facing=1` ("" for none) */
+/** The query of an upload for its use: `?fit=target&entry=p118-1`, `?fit=reference&scene=s118-119&surface=surface` ("" for none) */
 export function imageUseQuery(use: ImageFit | ImageUse | undefined): string {
   if (!use) return "";
-  const { fit, entry, page } = typeof use === "string" ? { fit: use, entry: undefined, page: undefined } : use;
+  const { fit, entry, surface } = typeof use === "string" ? { fit: use, entry: undefined, surface: undefined } : use;
   const params = new URLSearchParams();
   if (fit !== "default") params.set("fit", fit);
   if (entry && (fit === "target" || fit === "entryImage")) params.set("entry", entry);
-  if (page && fit === "page") {
-    params.set("page", String(page.page));
-    if (page.facing) params.set("facing", "1");
+  if (surface && fit === "reference") {
+    params.set("scene", surface.scene);
+    params.set("surface", surface.surface);
   }
   const query = params.toString();
   return query ? `?${query}` : "";

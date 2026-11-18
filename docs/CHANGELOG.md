@@ -9,7 +9,31 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 
 ## Unreleased
 
+### Added
+
+- **The migration of a stored book to schema 3.0** (#319 part B): `POST /editor/books/{id}/migrate-3 { apply? }` – the
+  plan first, then one transaction, every row a change of the log; idempotent (MCP `migrate_3`, two steps). Per scene
+  one surface per printed double page (the 2.x halves merged, a cover one page wide, placed in a row), the label it
+  showed (its own, a cover's or the matter's title, else its pages), the front and back matter into their groups;
+  entries keep their scene and lose their page; a target's `print` becomes its `place` (a right page's `x` grows by the
+  left page's width); the page images and the 2.x surfaces' references of a double page's halves are put together into
+  ONE reference image (GD, a new Library file `<scene>_<surface>.webp`), a single one is the reference as it is. The plan
+  lists per scene the surfaces before and after, the targets moved, the references combined and what cannot be mapped,
+  with the reason (docs/server.md "The migration to schema 3.0"). Until migrated, a 2.x book's editing routes answer
+  409 `migrate-first`.
+
 ### Changed
+
+- **The server and the MCP server speak content schema 3.0** (#319 part B, `agents/SCENES.md` "Editor API 3.0"): the
+  import takes 3.x configurations only, the draft and every publish are 3.0 (`scenes`, `initialScene`, entries with
+  `scene` / `surface`, targets with `place`). The tree is `{ book, scenes, groups }`, the scenes overview `SceneData` +
+  `position`, surfaces with their reference, entry and target counts; `POST …/scenes` takes the presets `double`,
+  `single`, `wall` (surfaces without a place lie in a row); `PUT …/scenes/{id}` `{ label, group, surfaces, passes }`
+  clears the entries and targets on surfaces that go (`cleared { entries, targets }`); entries take `{ scene, surface }`,
+  targets `place`; the removal's impact names the scene (`initial-scene`). The book summary has `initialScene` and
+  `scenes`; the change log's kind is `scene`; the Library places files by scene (`place { scene, order, more }`) and
+  names a reference image `<scene>_<surface>` (`?fit=reference&scene=&surface=`). MCP: `get_scene`, `add_scene`,
+  `put_scene`, `delete_scene`, entries with `scene`, `put_target { place }`; docs/server.md, docs/mcp.md.
 
 - **Content schema 3.0 – one clean model of scenes, nothing of 2.x kept** (#319 part A, `agents/SCENES.md`
   "Schema 3.0"; a MAJOR: no reader of 2.x was shipped, `OLDEST_READABLE_SCHEMA_MAJOR` is 3, 2.x content is refused).
@@ -34,8 +58,14 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 
 - From the content schema: `page`, `firstPage`, `lastPage`, a spread's `title`, `format`, `matter` and `layout`, a
   surface's `side`, a target's `print`, the configuration's `tutorial` and the constants `SPREAD_FORMATS`, `MATTERS`,
-  `SURFACE_SIDES`, `SCENE_LAYOUTS`, `PRINT_SURFACES`, `STEP_ACTIONS`. The editor, the server and the MCP server still
-  read them – parts B and C of #319.
+  `SURFACE_SIDES`, `SCENE_LAYOUTS`, `PRINT_SURFACES`, `STEP_ACTIONS`. The editor still reads them – part C of #319.
+- From the editor API (#319 part B, no compat – nothing was shipped): every `…/spreads` route, `GET …/pages`,
+  `PUT …/page-images`, `POST …/matter`, `POST …/scenes/migrate`, `POST …/scenes/references/migrate`, the presets
+  `cover`, `back`, `foldout`, the pages older apps read (`Scenes::ranges`, an entry's `page`), derived spread titles,
+  the compat onboarding, `initialSpreadId`, `unassigned`, `pagesBack` / `moved`, the upload use `?fit=page`
+  (`Pages.php`, `shared/api/page-names.ts`, `shared/api/spread-titles.ts`); the `page_images` table is read only by the
+  migration. MCP: `get_spread`, `add_spread`, `put_spread`, `delete_spread`, `list_pages`, `set_page_images`,
+  `add_matter`, `migrate_scenes`, `migrate_surface_references`.
 
 ## 1.116.0 – 2026-11-18
 

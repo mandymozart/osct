@@ -1,7 +1,6 @@
 // The content model an agent may write, from the shared content contract (`shared/`): node types, placement, filters,
 // components (built in, and what a book's plugins register), post-processing, the looks an entity appears with, the
-// environment, printed placement,
-// spread formats, entry categories – and the contract's own guard run over one entity before it is sent, so a wrong
+// environment, scenes and surfaces (content schema 3.0), a target's place, entry categories – and the contract's own guard run over one entity before it is sent, so a wrong
 // body never reaches the API.
 import { assertGameConfiguration, GameConfigurationError, MAX_NODE_DEPTH } from "../../shared/guards/game-config";
 import {
@@ -34,16 +33,12 @@ import {
   PLACEMENT_PARAMS,
   PLUGIN_API_VERSION,
   PLUGIN_ID_PATTERN,
-  PRINT_SURFACES,
   SOURCES_OF_TRUTH,
-  SPREAD_FORMATS,
-  MATTERS,
-  SCENE_LAYOUTS,
-  SURFACE_SIDES,
+  SURFACE_PLACE_KEYS,
   type PluginData,
 } from "../../shared/types/game-config";
 import { DEFAULT_ENVIRONMENT, ENVIRONMENT_WORLDS, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS } from "../../shared/types/environment";
-import { SCENE_PRESETS } from "../../shared/api/editor";
+import { SCENE_PAGE_MM, SCENE_PRESETS, SCENE_SURFACES_MAX, SCENE_WALL_MM, SURFACE_REFERENCE_FITS } from "../../shared/api/editor";
 import { ENTRY_CATEGORIES } from "../../shared/types/entry";
 import type { SourceTypes } from "../../shared/api/rules";
 import { IMAGE_MAX_PIXELS, IMAGE_MAX_SIDE, IMAGE_WEBP_QUALITY } from "../../shared/api/images";
@@ -175,8 +170,8 @@ export function checkEntity(entity: unknown, path = "entity", book?: BookModel):
   const probe = {
     version: { version: "0.0.0", timestamp: "probe", schema: CONTENT_SCHEMA_VERSION },
     book: { id: "probe", title: "probe", author: "probe" },
-    initialSpreadId: "probe",
-    spreads: [{ id: "probe", title: "probe", firstPage: 1, lastPage: 2 }],
+    initialScene: "probe",
+    scenes: [{ id: "probe", label: "probe", surfaces: [{ id: "surface", widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
     entries: [],
     entities: { entity },
     ...(declared.length ? { plugins: declared } : {}),
@@ -305,7 +300,7 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     },
     placement: {
       description:
-        "entity.params: position [x, y, z] in target widths (x → right, y → top of the page, z → out of the page), rotation [x, y, z] in degrees (Euler XYZ), scale as one number or [x, y, z]. Missing values take the type's defaults.",
+        "entity.params: position [x, y, z] in target widths (x → right, y → the top of the target image, z → out of the surface), rotation [x, y, z] in degrees (Euler XYZ), scale as one number or [x, y, z]. Missing values take the type's defaults.",
       params: PLACEMENT_PARAMS,
       defaults: PLACEMENT_DEFAULTS,
     },
@@ -316,15 +311,11 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     },
     credits: {
       description:
-        "Picture credits (content schema 2.33, #292): no field of an entry or a node. A file's credit line (one free text line – \"Book Golem by TER-JAN / DeviantArt\") is set in the Library with set_asset_credits and listed by list_assets; the book's configuration carries the lines of the files it uses (credits: { <file URL>: <line> }), and the reader lists them per spread on its image credits page (Info → here).",
-    },
-    pageImages: {
-      description:
-        "Page images (#251): no content – an editor-only override of the print layout. One Library image per book page (the covers, the front and back matter's internal pages, the numbered pages, and the unnumbered half next to a single page – `facing`) that the editor's stage and spread cards show instead of the layout's sheet for that page; the reader never shows them and the draft does not carry them. list_pages lists every page in book order with its label (Cover, F1…, next to 1, 12, B1…, Back cover) and its image; set_page_images sets, replaces, moves, renames and removes them in one call – by page, label or a file name (P012…, start-1… / end-1… in print order), uploading local files on the way.",
+        "Picture credits (content schema 2.33, #292): no field of an entry or a node. A file's credit line (one free text line – \"Book Golem by TER-JAN / DeviantArt\") is set in the Library with set_asset_credits and listed by list_assets; the book's configuration carries the lines of the files it uses (credits: { <file URL>: <line> }), and the reader lists them per scene on its image credits page (Info → here).",
     },
     images: {
       description:
-        `The image rule (#298): every picture takes the same way into the book. An uploaded jpg / png / webp is stored as WebP (quality ${IMAGE_WEBP_QUALITY}; lossless when it has transparency – an icon, a cut-out), turned upright by its EXIF orientation, its metadata dropped, never scaled up, its longest side at most ${IMAGE_MAX_SIDE.page} px for a page image and an entry's colour picture, ${IMAGE_MAX_SIDE.target} px for a target's printed image and ${IMAGE_MAX_SIDE.default} px for every other Library picture; a picture above ${IMAGE_MAX_PIXELS / 1_000_000} MP is refused (413 image-too-large). The upload does not know the use: upload_asset takes fit: "target" for a target's printed image (set_page_images uploads as page images by itself). The stored file is named <name>.webp. TIFF and PDF are no Library files – convert them locally first (Pillow / PyMuPDF), then upload.`,
+        `The image rule (#298): every picture takes the same way into the book. An uploaded jpg / png / webp is stored as WebP (quality ${IMAGE_WEBP_QUALITY}; lossless when it has transparency – an icon, a cut-out), turned upright by its EXIF orientation, its metadata dropped, never scaled up, its longest side at most ${IMAGE_MAX_SIDE.reference} px for a surface's reference image and an entry's colour picture, ${IMAGE_MAX_SIDE.target} px for a target's printed image and ${IMAGE_MAX_SIDE.default} px for every other Library picture; a picture above ${IMAGE_MAX_PIXELS / 1_000_000} MP is refused (413 image-too-large). The upload does not know the use: upload_asset takes fit: "target" for a target's printed image and fit: "reference" (with scene and surface) for a surface's reference image. The stored file is named <name>.webp. TIFF and PDF are no Library files – convert them locally first (Pillow / PyMuPDF), then upload.`,
     },
     components: {
       description: "entity.components: [{ type, …params }] – the built-in types, and the components and material layers a plugin registers (used the same way).",
@@ -332,7 +323,7 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
       typePattern: COMPONENT_TYPE_PATTERN.source,
       moments: {
         description:
-          "An entity's own look for a moment (content schema 2.30): the built-in components reveal (the first find of a target), found (every later find) and lost (the page is lost) on a node of the entity – any node – { type: reveal, look: printLift, duration: 900 }. " +
+          "An entity's own look for a moment (content schema 2.30): the built-in components reveal (the first find of a target), found (every later find) and lost (the target is lost) on a node of the entity – any node – { type: reveal, look: printLift, duration: 900 }. " +
           "look = a look's type – a built-in one (appearance.builtIn) or one a plugin of the book registers (api.registerAppearance, appearance.plugins) – and \"\" or no look = the book's; the other keys are the look's parameters (appearance.builtIn[look].params), only the values that differ from its defaults. " +
           "Changing the look means writing the component anew with its parameters. They win over the book's appearance: the root node's moment, else its found (for reveal and lost), else the book's moment, the book's found, the default. A node with a look of its own animates its subtree apart from the rest, with that look (a child's moment: its own, else its found, else it is part of its parent's); the root plays the book's look where it names none.",
         types: MOMENTS,
@@ -344,7 +335,7 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
           "on = the node's own event or any other camelCase name, an event of the stage's bus (a scene event a plugin or a behaviour emits, or a core event). " +
           "when = { variable: value, … } (all equal) or { any: { variable: value, … } }; a value is text, a number, true / false, null (= not set), or { not: value }. " +
           "do = one action or a list, run in order: play: <clip> (\"\" = the node's own clip – its animation component's, else the first) with optional node: <name>; " +
-          "pause / stop / show / hide: <node name> (\"\" = the behaviour's own node; a node of its subtree by its name); set: { variable: value } with optional scope (spread by default, null deletes); " +
+          "pause / stop / show / hide: <node name> (\"\" = the behaviour's own node; a node of its subtree by its name); set: { variable: value } with optional scope (spread – the scene – by default, null deletes); " +
           "emit: <event> (a scene event, never a core event). A string runs a verb on the own node: play, pause, stop, show, hide. " +
           "On one event every rule's condition is read first, then the matching rules run in their order. Variables are read like a plugin's api.vars.get (the innermost scope that has it).",
         nodeEvents: BEHAVIOUR_NODE_EVENTS,
@@ -379,7 +370,7 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     },
     passes: {
       description:
-        "Post-processing over the whole rendered AR image: [{ type, enabled?, …params }], run in order. The book's passes (put_book_passes) are the master every spread shows; a spread's own (put_spread passes) replace them for that spread, [] turns them off there, null gives the spread the book's again. " +
+        "Post-processing over the whole rendered AR image: [{ type, enabled?, …params }], run in order. The book's passes (put_book_passes) are the master every scene shows; a scene's own (put_scene passes) replace them for that scene, [] turns them off there, null gives the scene the book's again. " +
         "enabled: false (content schema 2.22) switches one pass off – it keeps its place and values, the chain skips it, it does not count towards the phone budget; leave enabled out for a pass that runs. A 2.21 reader ignores it and runs the pass. " +
         "The built-in types, and (content schema 2.21) a pass a plugin of the book registers (api.registerPass) – written the same way, its parameters checked against the recorded spec. A pass no compiled plugin provides is refused by the publish (409 unknown-passes); a 2.20 reader refuses a book that names one. Up to three passes and one bloom per list fit the phone budget.",
       builtIn: PASSES,
@@ -387,7 +378,7 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     },
     appearance: {
       description:
-        "How an AR entity appears and disappears (content schema 2.29, put_book_appearance): book.appearance { reveal?, found?, lost? }, each a look { type, …params } like a pass – reveal = the first find of a target (the entry is unlocked with it), found = every later find, lost = the page is lost (its look plays rewound, in the look's outDuration). " +
+        "How an AR entity appears and disappears (content schema 2.29, put_book_appearance): book.appearance { reveal?, found?, lost? }, each a look { type, …params } like a pass – reveal = the first find of a target (the entry is unlocked with it), found = every later find, lost = the target is lost (its look plays rewound, in the look's outDuration). " +
         `A moment without a look takes found's, and without that ${DEFAULT_APPEARANCE_TYPE}; a book without appearance plays ${DEFAULT_APPEARANCE_TYPE} everywhere. ` +
         "The built-in looks share one set of parameters and differ in their defaults (builtIn: each look's params with its defaults); write only the values that differ. A look a plugin of the book registers (api.registerAppearance, plugin API 1.8) is named the same way, its parameters checked against the recorded spec; the publish refuses a look no compiled plugin provides (409 unknown-appearances). An app before 2.29 ignores the field and plays its own animation.",
       moments: MOMENTS,
@@ -405,15 +396,16 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
     },
     target: {
       description:
-        "TargetData: { id, imageSrc, entity?: EntityData | { ref }, print?, enabled? }. imageSrc = the printed image (an uploaded image asset's url). enabled: false (content schema 2.26) switches the target off – the reader leaves it and its entry out until it is switched on, the editor keeps both; leave it out for a target in the book.",
-      print: {
-        description: "Where the target is printed, in mm from the surface's top left corner: { surface, x, y, width, height?, page?, surfaceId? } – the editor's stage lays it there. surfaceId (content schema 2.36): the scene's surface by id (a fold-out's middle, a wall) – it wins over the side in surface, which older apps read.",
-        surfaces: PRINT_SURFACES,
+        "TargetData: { id, imageSrc, entity?: EntityData | { ref }, place?, enabled? }. imageSrc = the printed image (an uploaded image asset's url). enabled: false switches the target off – the reader leaves it and its entry out until it is switched on, the editor keeps both; leave it out for a target in the book.",
+      place: {
+        description:
+          "Where the target lies (TargetPlace, content schema 3.0): { surface?, x, y, width, height? } – its box in mm from the top left corner of a surface of its entry's scene; surface = the surface's id, required when the scene has several. The editor's stage lays the target there; the reader does not need it. put_target place, add_entry target.place; null removes it.",
+        example: { surface: "surface", x: 40, y: 60, width: 80 },
       },
     },
     entry: {
       description:
-        "An entry is top level: { id, category, title, page, scene?, surface?, body, author?, image?, caption?, media?, tags, target? } – page decides the spread unless scene is set (content schema 2.35, #307: scene = a spread id and wins over page; surface = the id of one of that scene's surfaces, whose printed label the reader shows in place of the page number). The page stays required and in the scene's range – older apps place the entry by it; the draft writes scene on every entry from the spread it is on, and add_entry / update_entry still place an entry by its page. add_entry makes one, with its target or without (read only in the list); get_entries reads every field; update_entry changes them (image: a Library picture, caption: the line under it in plain text – schema 2.34, an older app shows the picture without it –, media: a link's http(s) URL).",
+        "An entry is top level: { id, category, title, scene, surface?, body, author?, image?, caption?, media?, tags, target? } – scene = the id of its scene (required: where the reader finds it), surface = one of that scene's surfaces (only when the scene has several). add_entry makes one, with its target or without (read only in the list); get_entries reads every field; update_entry changes them (scene moves it, surface null takes it off a surface; image: a Library picture, caption: the line under it in plain text, media: a link's http(s) URL).",
       categories: ENTRY_CATEGORIES,
     },
     entryText: {
@@ -423,23 +415,29 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
       example: "Hello {name: **{name}**|stranger}.\n\n{hasKey: The door opens.|The door is *locked*.} See [the map](https://example.org/map).",
     },
     book: {
-      description: "BookData: { id, title, author, publisher?, passes?, environment?, sourceOfTruth? }. update_book changes title, author and publisher – the reader's splash and home page show them – and sourceOfTruth: print (print first, the default: the spreads come from the printed book's layout) or digital (digital first: the editor is the truth). Scenes are added, moved and removed in both (#307).",
+      description: "BookData: { id, title, author, publisher?, passes?, environment?, sourceOfTruth? }. update_book changes title, author and publisher – the reader's splash and home page show them – and sourceOfTruth: print (print first, the default: the printed book is the truth, its scenes come from an import of the layout) or digital (digital first: the editor is the truth). Scenes are added, moved and removed in both.",
       sourcesOfTruth: SOURCES_OF_TRUTH,
     },
     onboarding: {
       description: "The onboarding (the splash and the steps before the scan) is the reader app's own UI, translated with the app – no book content and no tool edits it. The splash shows the book's title, author and publisher (update_book).",
     },
-    spread: {
+    scene: {
       description:
-        "SpreadData: { id, title, firstPage, lastPage, format?, matter?, passes? }. matter (front | back, content schema 2.32) marks a double page without printed numbers – front matter between the cover and page 1 (internal pages counting down to −1), back matter between the last printed page and the back cover; a print-first book gets them from its layout through an import, or from add_matter (the missing front and back matter, the last printed page's spread and the back cover moved after them – a print-first book too, plan first, then apply). add_spread adds a double page, the front cover or the back cover; delete_spread removes one with everything on it (two steps: the impact, then the confirmation); put_spread changes title, format and passes. " +
-        "Scenes (content schema 2.35, #307 – a spread is a scene, the type also named SceneData): optional surfaces: [{ id, side (left | middle | right | front | back | wall), widthMm, heightMm, label? }] – its physical areas, label written exactly as printed (\"41\", \"ii\", \"Cover\"), free text, never arithmetic; layout (fixed | free – side by side as printed, or each surface on its own anchor; none = fixed); group (the id of one of the book's groups: [{ id, label }] at the configuration's root); label (what the reader's switcher and credits show for the scene, else its surfaces' labels, else its pages or title). An older app ignores all of it. " +
-        "The order is the scenes' position – nothing renumbers (#307 phase 2): list_scenes reads them, add_scene adds one anywhere from a preset (" + SCENE_PRESETS.join(", ") + "), move_scenes moves one or several (or into / out of a group), put_scene edits surfaces, label, layout and group, delete_scene removes one; group_scenes / rename_group / ungroup handle groups; migrate_scenes gives a book's spreads their surfaces, labels and groups from their pages. An entry names its scene and surface (add_entry / update_entry scene, surface). " +
-        "firstPage / lastPage stay for apps before schema 2.35: the API writes a scene's stored range while the order allows, else one derived from the order, and every entry's page inside its scene's – those apps then show those numbers as pages.",
+        "Content schema 3.0: the configuration holds scenes (in order – their position is the experience's order, nothing numbers them), initialScene (the scene the reader starts on – it cannot be removed) and groups ([{ id, label }]). " +
+        "SceneData: { id, label, group?, surfaces, passes? } – id stable and invisible (links /scene/<id>, progress, entries name it); label = what the reader's switcher and lists show (186–187, Cover, Studio wall), free text; group = the id of one of the book's groups (one stop of the reader's bottom switcher); passes = the scene's own post-processing. " +
+        "SurfaceData: { id, label?, widthMm, heightMm, place } – one physical area of the scene: a double page is one surface (twice the page's width), a cover one, a wall or a poster one; surfaces are free areas next to each other – no left / right, no front / back; label = what is printed on it, free text. " +
+        "place: { x, y, z, rx, ry, rz } – the surface's centre in the scene's one coordinate system: mm, the origin on the table at the middle of the scene's first row of surfaces (a double page: its spine), +x right, +y up, +z towards the reader; rx, ry, rz in degrees (Euler XYZ). Unrotated a surface lies flat, face up, its top edge away from the reader – a page on the table; a wall ahead stands up: rx 90. " +
+        "Tools: list_scenes reads them (with each surface's editor-only reference image), get_scene one with its entries, add_scene adds one anywhere from a preset, put_scene changes label, group, surfaces (the whole list – a surface without a place is laid in a row) and passes, move_scenes moves one or several (or into / out of a group), delete_scene removes one with everything on it (two steps); group_scenes / rename_group / ungroup handle groups; set_surface_reference sets a surface's reference image (never content). A book still of schema 2.x answers 409 migrate-first until migrate_3 (plan first, then apply with the person's yes).",
       presets: SCENE_PRESETS,
-      formats: SPREAD_FORMATS,
-      matters: MATTERS,
-      surfaceSides: SURFACE_SIDES,
-      layouts: SCENE_LAYOUTS,
+      presetSizes: {
+        double: { widthMm: SCENE_PAGE_MM.width * 2, heightMm: SCENE_PAGE_MM.height },
+        single: { widthMm: SCENE_PAGE_MM.width, heightMm: SCENE_PAGE_MM.height },
+        wall: { widthMm: SCENE_WALL_MM.width, heightMm: SCENE_WALL_MM.height, rx: 90 },
+      },
+      placeKeys: SURFACE_PLACE_KEYS,
+      surfacesMax: SCENE_SURFACES_MAX,
+      referenceFits: SURFACE_REFERENCE_FITS,
+      example: { id: "s186-187", label: "186–187", surfaces: [{ id: "surface", label: "186–187", widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] },
     },
     plugin: {
       description:

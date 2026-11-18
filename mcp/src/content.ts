@@ -1,9 +1,10 @@
 // The editor's content tools over the API (`/api/editor/*`, docs/server.md "Editor data", "Assets"): the book's tree
-// and spreads, entities and targets, entries, the spreads themselves, the book's passes, appearance and environment, assets, the
-// draft, publishing to the instance's own environment, the logs. Every write is checked against the shared content
-// contract first and answers with the editor's link, where the person checks the draft on the stage. Production stays
-// with the person – the tool refuses it. Re-importing a book and removing a spread or an entry take the API's two steps:
-// the comparison or the impact, which the person sees, then the import or the removal with its confirmation.
+// and scenes (content schema 3.0), entities and targets, entries, the scenes themselves and their groups, the book's
+// passes, appearance and environment, assets, the draft, publishing to the instance's own environment, the logs, the
+// migration of a 2.x book to 3.0. Every write is checked against the shared content contract first and answers with the
+// editor's link, where the person checks the draft on the stage. Production stays with the person – the tool refuses it.
+// Re-importing a book and removing a scene or an entry take the API's two steps: the comparison or the impact, which the
+// person sees, then the import or the removal with its confirmation; plans (a move, a group, the migration) the same way.
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/server";
@@ -13,7 +14,7 @@ import { checkAppearance, checkEntity, checkPasses, describeContentModel, usesPl
 import { fail, guard, text, type Result } from "./result.ts";
 import { editorHref, type AppLinks } from "./services.ts";
 import type { PluginData } from "../../shared/types/game-config";
-import { APPEARANCE_TYPES, MOMENTS, PASS_TYPES, PRINT_SURFACES, SCENE_LAYOUTS, SOURCES_OF_TRUTH, SPREAD_FORMATS, SURFACE_SIDES } from "../../shared/types/game-config";
+import { APPEARANCE_TYPES, MOMENTS, PASS_TYPES, SOURCES_OF_TRUTH } from "../../shared/types/game-config";
 import { EntryCategory } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
 import { exprMessage, renderEntryText } from "../../shared/text/entry-text";
@@ -40,11 +41,7 @@ import type {
   ImportComparison,
   ImportPreview,
   ImportResult,
-  MatterResult,
-  PageAddress,
-  PageImageChange,
-  PageImagesSaved,
-  PageList,
+  Migration3Result,
   PluginSource,
   PluginSummary,
   PublishedVersion,
@@ -54,20 +51,15 @@ import type {
   SceneAdded,
   SceneList,
   SceneSaved,
-  ScenesMigration,
   ScenesMoved,
   RevertResult,
   SurfaceReferenceSaved,
-  SurfaceReferencesMigration,
   SharedEntities,
-  SpreadAdded,
-  SpreadSaved,
   TargetSaved,
   Ungrouped,
 } from "../../shared/api/editor";
 import { confirmationStep } from "../../shared/api/errors";
-import { CREDITS_BATCH_MAX, CREDITS_MAX, MATTER_MAX, PAGE_IMAGES_BATCH_MAX, SCENE_PAGE_MM, SCENE_PRESETS, SCENE_SURFACES_MAX, SURFACE_REFERENCE_FITS } from "../../shared/api/editor";
-import { pageOfName } from "../../shared/api/page-names";
+import { CREDITS_BATCH_MAX, CREDITS_MAX, SCENE_PAGE_MM, SCENE_PRESETS, SCENE_SURFACES_MAX, SCENE_WALL_MM, SURFACE_REFERENCE_FITS } from "../../shared/api/editor";
 import { IMAGE_FITS, IMAGE_MAX_SIDE, IMAGE_WEBP_QUALITY, imageUseQuery, type ImageFit } from "../../shared/api/images";
 import {
   ASSET_KINDS,
@@ -81,9 +73,6 @@ import {
 } from "../../shared/api/rules";
 
 type Json = Record<string, unknown>;
-
-/** An item of set_page_images that names no page of the book */
-class PageNotFound extends Error {}
 
 /**
  * An entry's body as the reader would render it: a construct that does not parse (a brace not closed, a list, a
@@ -128,7 +117,7 @@ export function importStep(error: unknown): Json | null {
  * nothing was removed – the impact to show the person and the confirmation to send back with their yes. Other errors:
  * null.
  */
-export function deleteStep(error: unknown, tool: "delete_spread" | "delete_scene" | "delete_entry"): Json | null {
+export function deleteStep(error: unknown, tool: "delete_scene" | "delete_entry"): Json | null {
   const step = error instanceof ApiError ? confirmationStep<RemovalImpact>(error, "removal") : null;
   if (!step) return null;
   return {
@@ -143,17 +132,16 @@ export function deleteStep(error: unknown, tool: "delete_spread" | "delete_scene
 const ID = z.string().regex(ID_PATTERN, "letters, digits, _ and -, at most 64");
 const BOOK = ID.describe("the book's id (list_books)");
 const entitySchema = z.record(z.string(), z.unknown()).describe("EntityData – the node tree (describe_content_model)");
-const printSchema = z
+const targetPlaceSchema = z
   .object({
-    surface: z.enum(PRINT_SURFACES),
+    surface: ID.optional().describe("the surface of the entry's scene it lies on, by id (list_scenes) – required when the scene has several"),
     x: z.number().describe("mm from the surface's left edge"),
     y: z.number().describe("mm from the surface's top edge"),
     width: z.number().positive().describe("the printed width in mm"),
-    height: z.number().positive().optional(),
-    page: z.number().int().optional(),
-    surfaceId: ID.optional().describe("content schema 2.36 (#314): the scene's surface it is printed on, by id (list_scenes) – wins over the side in `surface`, which older apps read"),
+    height: z.number().positive().optional().describe("the printed height in mm (default: from the image's proportions)"),
   })
-  .describe("where the target is printed (PrintPlacement)");
+  .strict()
+  .describe("where the target lies (TargetPlace): its box in mm from the top left corner of a surface of its entry's scene");
 
 const read = { readOnlyHint: true, openWorldHint: false };
 const write = { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false };
@@ -219,8 +207,8 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     const configuration = await api.call<Json & { plugins?: PluginData[] }>("GET", `/editor/books/${encodeURIComponent(book)}/draft/${manifest.build}/game.config.json`);
     return { manifest, configuration };
   };
-  /** the spread an entry's page belongs to – for the link of a target write */
-  const spreadOf = (t: BookTree, targetId: string) => t.spreads.find(s => s.entries.some(e => e.target?.id === targetId))?.id ?? null;
+  /** the scene a target's entry lies on – for the link of a target write */
+  const sceneOf = (t: BookTree, targetId: string) => t.scenes.find(s => s.entries.some(e => e.target?.id === targetId))?.id ?? null;
   /** the book's plugins: the declared ones with what they recorded (the draft), the Code tab's sources with the types read from them */
   const bookModel = async (book: string): Promise<BookModel> => {
     const [{ configuration }, { plugins }] = await Promise.all([draft(book), api.call<{ plugins: PluginSummary[] }>("GET", `/editor/books/${encodeURIComponent(book)}/plugins`)]);
@@ -233,10 +221,10 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     return { declared: configuration.plugins ?? [], sources };
   };
   /**
-   * A removal (spread or entry) in the API's two steps: without `confirm` the impact and a confirmation (nothing
+   * A removal (scene or entry) in the API's two steps: without `confirm` the impact and a confirmation (nothing
    * removed); with it the removal – `deleteFiles` only with `confirm`
    */
-  const removeStep = async (tool: "delete_spread" | "delete_scene" | "delete_entry", book: string, path: string, confirm?: string, deleteFiles?: boolean): Promise<Result> => {
+  const removeStep = async (tool: "delete_scene" | "delete_entry", book: string, path: string, confirm?: string, deleteFiles?: boolean): Promise<Result> => {
     if (deleteFiles && !confirm) return fail({ error: { code: "mcp", message: "deleteFiles goes with confirm – first show the person the impact" } });
     try {
       const result = await api.call<RemovalResult>("DELETE", path, confirm ? { confirm, ...(deleteFiles ? { deleteFiles: true } : {}) } : undefined);
@@ -252,7 +240,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
 
   server.registerTool(
     "list_books",
-    { description: "The instance's books: id, title, author, number of spreads, content schema, last publish, `live` (the environments serving it – empty: draft only) – and the editor's link of each; `environments` = what each environment serves.", inputSchema: z.object({}), annotations: read },
+    { description: "The instance's books: id, title, author, the scene it opens on (initialScene), number of scenes, content schema (a 2.x book answers 409 migrate-first on its editing routes until migrate_3), last publish, `live` (the environments serving it – empty: draft only) – and the editor's link of each; `environments` = what each environment serves.", inputSchema: z.object({}), annotations: read },
     guard(async () => {
       const { books, environments } = await api.call<BookList>("GET", "/editor/books");
       return text({ books: books.map(b => ({ ...b, open: editorHref(links, b.id) })), environments });
@@ -275,7 +263,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "import_book",
     {
       description:
-        "Replaces a book's content rows from a game configuration (the content build's game.config.json): `url` fetches it (e.g. the reader's dev server http://localhost:5174/src/game.config.json), or pass `configuration`; `source: \"cdn\"` imports the instance CDN's current version. `assetsBase` = where its /assets/content/… paths resolve. The change and publish logs stay; edits made since are replaced. **Two steps when the book exists**: the first call imports nothing and answers `comparison` – the incoming build (id, date, app and schema version) against what the draft is based on and its edits since that import – and a short-lived `confirmation`. Show the comparison to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. A new book is imported at once. To tell the person first which book and build would come in (the CDN's book id among it), call preview_import.",
+        "Replaces a book's content rows from a game configuration (the content build's game.config.json, content schema 3.x – another is refused, 400 invalid-configuration): `url` fetches it (e.g. the reader's dev server http://localhost:5174/src/game.config.json), or pass `configuration`; `source: \"cdn\"` imports the instance CDN's current version. `assetsBase` = where its /assets/content/… paths resolve. The change and publish logs stay; edits made since are replaced. **Two steps when the book exists**: the first call imports nothing and answers `comparison` – the incoming build (id, date, app and schema version) against what the draft is based on and its edits since that import – and a short-lived `confirmation`. Show the comparison to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. A new book is imported at once. To tell the person first which book and build would come in (the CDN's book id among it), call preview_import.",
       inputSchema: z.object({
         book: ID.describe("the configuration's own book.id (preview_import's incoming.book) – another id is refused (400 invalid-configuration)"),
         url: z.string().url().optional().describe("a game.config.json to fetch"),
@@ -304,7 +292,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "preview_import",
     {
       description:
-        "What an import would bring in, before anything is imported – read-only, takes import_book's sources: `source: \"cdn\"` (the instance CDN's current version), `url` (a game.config.json to fetch) or `configuration`. Answers the content base and its latest.json (build, when it became current), `incoming` (the one book's id and title, the build, its date, app and schema version), `counts` (spreads, entries, targets, shared entities) and `existing` – the draft of that id the import would replace (what it is based on, its edits since, where it is live), null for a new book. Tell the person which book and build comes in and, when `existing`, that its draft is replaced and its edits lost; then import_book with `book` = incoming.book and the same source.",
+        "What an import would bring in, before anything is imported – read-only, takes import_book's sources: `source: \"cdn\"` (the instance CDN's current version), `url` (a game.config.json to fetch) or `configuration`. Answers the content base and its latest.json (build, when it became current), `incoming` (the one book's id and title, the build, its date, app and schema version), `counts` (scenes, entries, targets, shared entities) and `existing` – the draft of that id the import would replace (what it is based on, its edits since, where it is live), null for a new book. Tell the person which book and build comes in and, when `existing`, that its draft is replaced and its edits lost; then import_book with `book` = incoming.book and the same source.",
       inputSchema: z.object({
         url: z.string().url().optional().describe("a game.config.json to fetch"),
         configuration: z.record(z.string(), z.unknown()).optional().describe("the game configuration itself"),
@@ -330,30 +318,31 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
   server.registerTool(
     "get_book",
     {
-      description: "A book's tree: the book, its spreads (id, title, pages, format) with their entries (id, title, category, page) and each entry's target (id, imageSrc, print, entity inline or { ref }), plus the entries whose page is in no spread. Shared entities: get_entity.",
+      description:
+        "A book's tree (content schema 3.0): the book, its scenes in order (id, label, group, surfaces with their size and place, passes) each with its entries (id, title, category, scene, surface) and each entry's target (id, imageSrc, place, entity inline or { ref }), and the groups. Shared entities: get_entity; one scene with every entity resolved: get_scene.",
       inputSchema: z.object({ book: BOOK }),
       annotations: read,
     },
     guard(async ({ book }) => {
       const t = await tree(book);
-      const targets = t.spreads.reduce((n, s) => n + s.entries.filter(e => e.target).length, 0);
-      return text({ ...t, counts: { spreads: t.spreads.length, entries: t.spreads.reduce((n, s) => n + s.entries.length, 0) + t.unassigned.length, targets }, open: editorHref(links, book) });
+      const entries = t.scenes.reduce((n, s) => n + s.entries.length, 0);
+      const targets = t.scenes.reduce((n, s) => n + s.entries.filter(e => e.target).length, 0);
+      return text({ ...t, counts: { scenes: t.scenes.length, entries, targets }, open: editorHref(links, book) });
     }),
   );
 
   server.registerTool(
-    "get_spread",
+    "get_scene",
     {
       description:
-        "One spread with its entries and targets, every target's entity resolved: an inline entity as it is, a shared one as the entity under `entity` with its `ref` next to it (put_entity changes the shared entity for every target using it; put_target with `entity` gives the target its own). Pick the spread by `spread` (its id) or by a `page` it holds.",
-      inputSchema: z.object({ book: BOOK, spread: ID.optional().describe("the spread's id"), page: z.number().int().optional().describe("a page of the spread") }),
+        "One scene (its label, group, surfaces with size and place, passes) with its entries and targets, every target's entity resolved: an inline entity as it is, a shared one as the entity under `entity` with its `ref` next to it (put_entity changes the shared entity for every target using it; put_target with `entity` gives the target its own). Surface reference images: list_scenes.",
+      inputSchema: z.object({ book: BOOK, scene: ID.describe("the scene's id (get_book, list_scenes)") }),
       annotations: read,
     },
-    guard(async ({ book, spread, page }) => {
-      if (!spread && page === undefined) return fail({ error: { code: "mcp", message: "give spread or page" } });
+    guard(async ({ book, scene }) => {
       const [t, shared] = await Promise.all([tree(book), entities(book)]);
-      const found = spread ? t.spreads.find(s => s.id === spread) : t.spreads.find(s => s.firstPage <= page! && page! <= s.lastPage);
-      if (!found) return fail({ error: { code: "not-found", message: spread ? `No spread "${spread}" in ${book}.` : `No spread holds page ${page} in ${book}.`, spreads: t.spreads.map(s => ({ id: s.id, pages: [s.firstPage, s.lastPage] })) } });
+      const found = t.scenes.find(s => s.id === scene);
+      if (!found) return fail({ error: { code: "not-found", message: `No scene "${scene}" in ${book}.`, scenes: t.scenes.map(s => ({ id: s.id, label: s.label })) } });
       const { entries, ...rest } = found;
       const resolved = entries.map(entry => {
         if (!entry.target) return { ...entry, target: null };
@@ -361,7 +350,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         if (entity && "ref" in entity) return { ...entry, target: { ...target, ref: entity.ref, entity: shared.entities[entity.ref] ?? null } };
         return { ...entry, target: { ...target, entity: entity ?? null } };
       });
-      return text({ spread: rest, entries: resolved, open: editorHref(links, book, found.id) });
+      return text({ scene: rest, entries: resolved, open: editorHref(links, book, found.id) });
     }),
   );
 
@@ -378,7 +367,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
   server.registerTool(
     "get_draft",
     {
-      description: "The book's draft as the content version the engine loads: `manifest` (build, hash), `configuration` (the whole game configuration, assembled from the rows now) or `files` (its files.json). Large – prefer get_spread for one spread.",
+      description: "The book's draft as the content version the engine loads: `manifest` (build, hash), `configuration` (the whole game configuration, content schema 3.0, assembled from the rows now) or `files` (its files.json). Large – prefer get_scene for one scene.",
       inputSchema: z.object({ book: BOOK, part: z.enum(["manifest", "configuration", "files"]).default("configuration") }),
       annotations: read,
     },
@@ -395,7 +384,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "describe_content_model",
     {
       description:
-        "What you may write: node types (and node names), placement (units, defaults), filters, components with their parameters, post-processing passes, the environment, printed placement, entry categories, spread formats – from the shared content contract. With `book`: also the compiled plugins its configuration declares with the components, layers, node types and passes they recorded (their parameters), and the Code tab's sources with the types read from them.",
+        "What you may write: node types (and node names), placement (units, defaults), filters, components with their parameters, post-processing passes, the environment, scenes and surfaces (with their place), entries (scene, surface), a target's place, entry categories, scene presets – from the shared content contract. With `book`: also the compiled plugins its configuration declares with the components, layers, node types and passes they recorded (their parameters), and the Code tab's sources with the types read from them.",
       inputSchema: z.object({ book: BOOK.optional() }),
       annotations: read,
     },
@@ -424,30 +413,30 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_target",
     {
       description:
-        "Changes a target: `entity` = its own AR content (EntityData; null removes it), `ref` = a shared entity instead, `imageSrc` = the printed image (an uploaded image asset's url – upload it with upload_asset fit: \"target\", at most 1200 px), `print` = where it is printed (null removes it), `enabled` = in the reader's book (false switches it off: the reader leaves the target and its entry out, the editor keeps both – content schema 2.26). Send what changes. Checked against the contract; a change is recorded.",
+        "Changes a target: `entity` = its own AR content (EntityData; null removes it), `ref` = a shared entity instead, `imageSrc` = the printed image (an uploaded image asset's url – upload it with upload_asset fit: \"target\", at most 1200 px), `place` = where it lies: { surface?, x, y, width, height? } in mm from the top left corner of a surface of its entry's scene (surface by id – required when the scene has several; null removes the place), `enabled` = in the reader's book (false switches it off: the reader leaves the target and its entry out, the editor keeps both – content schema 2.26). Send what changes. Checked against the contract; a change is recorded.",
       inputSchema: z.object({
         book: BOOK,
-        target: ID.describe("the target's id (get_spread)"),
+        target: ID.describe("the target's id (get_scene)"),
         entity: entitySchema.nullable().optional(),
         ref: ID.optional().describe("a shared entity's ref"),
         imageSrc: z.string().min(1).optional(),
-        print: printSchema.nullable().optional(),
+        place: targetPlaceSchema.nullable().optional(),
         enabled: z.boolean().optional().describe("false = switched off: not in the reader's book; true = in the book again"),
       }),
       annotations: write,
     },
-    guard(async ({ book, target, entity, ref, imageSrc, print, enabled }) => {
+    guard(async ({ book, target, entity, ref, imageSrc, place, enabled }) => {
       const body: Json = {};
       if (ref !== undefined) body.ref = ref;
       else if (entity !== undefined) body.entity = entity;
       if (imageSrc !== undefined) body.imageSrc = imageSrc;
-      if (print !== undefined) body.print = print;
+      if (place !== undefined) body.place = place;
       if (enabled !== undefined) body.enabled = enabled;
-      if (Object.keys(body).length === 0) return fail({ error: { code: "mcp", message: "send entity, ref, imageSrc, print or enabled" } });
+      if (Object.keys(body).length === 0) return fail({ error: { code: "mcp", message: "send entity, ref, imageSrc, place or enabled" } });
       const { refused, warnings } = entity ? await checkWrite(entity, "entity", () => bookModel(book)) : { refused: null, warnings: {} };
       if (refused) return refused;
       const [result, t] = await Promise.all([api.call<TargetSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/targets/${encodeURIComponent(target)}`, body), tree(book)]);
-      return text({ ...result, ...warnings, open: editorHref(links, book, spreadOf(t, target)) });
+      return text({ ...result, ...warnings, open: editorHref(links, book, sceneOf(t, target)) });
     }),
   );
 
@@ -455,13 +444,12 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "add_entry",
     {
       description:
-        "Makes a new entry on a scene: `scene` (a scene id – list_scenes) and optionally `surface` (one of its surfaces) – or, for older callers, `page` (the scene whose pages list_scenes shows there, else the surface labelled with it). Then: title, category (default glossary – the reader lists it as \"Marginalia\"), body (Markdown with the book's variables – describe_content_model entryText), caption (the line under the entry's picture, plain text), and its target – `imageSrc` (the printed image: an uploaded image asset's url), `print` (where it is printed, in mm), `entity` (its AR content as a node tree, or { ref }) – or no target: an entry read only in the list (a glossary term, a text). The id comes from title and page (e.g. p30-shadows) unless given; 409 duplicate-id. The reader tracks a target after a publish.",
+        "Makes a new entry on a scene: `scene` (a scene id – list_scenes, get_book) and `surface` (one of its surfaces – needed when the scene has several). Then: title, category (default glossary – the reader lists it as \"Marginalia\"), body (Markdown with the book's variables – describe_content_model entryText), caption (the line under the entry's picture, plain text), and its target – `imageSrc` (the printed image: an uploaded image asset's url), `place` (where it lies on a surface of the scene, in mm), `entity` (its AR content as a node tree, or { ref }) – or no target: an entry read only in the list (a glossary term, a text). The id comes from the title unless given; 409 duplicate-id. The reader tracks a target after a publish.",
       inputSchema: z.object({
         book: BOOK,
         title: z.string().min(1),
-        scene: ID.optional().describe("the entry's scene (list_scenes)"),
-        surface: ID.optional().describe("one of the scene's surfaces"),
-        page: z.number().int().optional().describe("without scene: the page that finds the scene (older callers); with scene: the page apps before schema 2.35 read, kept when inside the scene"),
+        scene: ID.describe("the entry's scene (list_scenes)"),
+        surface: ID.optional().describe("one of the scene's surfaces – needed when it has several"),
         category: z.enum(EntryCategory).optional(),
         body: z.string().optional(),
         caption: z.string().max(TEXT_MAX_LENGTH).optional().describe("the line under the entry's picture (\"Image: … by …\"), plain text"),
@@ -469,7 +457,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         target: z.object({
           id: ID.optional().describe("default: the entry's id"),
           imageSrc: z.string().min(1),
-          print: printSchema.optional(),
+          place: targetPlaceSchema.optional(),
           entity: z.union([z.object({ ref: ID }), entitySchema]).optional(),
           enabled: z.boolean().optional().describe("false = switched off: the reader leaves the target and its entry out"),
         }).optional().describe("none: an entry read only in the list"),
@@ -477,8 +465,6 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     guard(async ({ book, target, ...entry }) => {
-      if (entry.scene === undefined && entry.page === undefined) return fail({ error: { code: "mcp", message: "give scene (and surface) or page" } });
-      if (entry.surface !== undefined && entry.scene === undefined) return fail({ error: { code: "mcp", message: "surface goes with scene" } });
       if (entry.body !== undefined) {
         const refused = checkEntryText(entry.body);
         if (refused) return refused;
@@ -488,7 +474,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       const { refused, warnings } = inline ? await checkWrite(entity, "target.entity", () => bookModel(book)) : { refused: null, warnings: {} };
       if (refused) return refused;
       const result = await api.call<EntryAdded>("POST", `/editor/books/${encodeURIComponent(book)}/entries`, { ...entry, ...(target ? { target } : {}) });
-      return text({ ...result, ...warnings, open: editorHref(links, book, result.spreadId) });
+      return text({ ...result, ...warnings, open: editorHref(links, book, result.scene) });
     }),
   );
 
@@ -498,7 +484,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "get_entries",
     {
       description:
-        "Every entry of the book with its fields as written – title, category, page, body (Markdown with the book's variables), author, image, caption (the line under the picture), media (a link's URL), tags – its spread (null: its page is in none) and its target's id and image (null: read in the list only). Optionally only one category, or the entries whose title, body or tags hold a word.",
+        "Every entry of the book in the book's order with its fields as written – title, category, scene, surface, body (Markdown with the book's variables), author, image, caption (the line under the picture), media (a link's URL), tags – and its target's id and image (null: read in the list only). Optionally only one category, or the entries whose title, body or tags hold a word.",
       inputSchema: z.object({
         book: BOOK,
         category: z.enum(EntryCategory).optional(),
@@ -518,15 +504,14 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "update_entry",
     {
       description:
-        "Changes an entry's fields – send only what changes: title, category, scene (moves it to that scene – list_scenes; null: on no scene), surface (one of its scene's surfaces; null: none), page (older callers: a page alone finds the scene list_scenes shows there and moves the entry to it; none has it: on no scene), body (Markdown: paragraphs at blank lines, *emphasis*, **strong**, [links](https://…); the book's variables in braces – {hasKey}, {hasKey: …|…} – describe_content_model entryText), author, tags (the whole list), image (a picture of the book's Library: an uploaded image's url or a file of the import), caption (the line under the picture, plain text – \"Image: … by …\"; not the Library's credit line, set_asset_credits), media (a link's http(s) URL); null removes author, image, caption or media. A body whose braces do not parse is refused before it is sent. The change is recorded; the person checks it in the editor.",
+        "Changes an entry's fields – send only what changes: title, category, scene (moves it to that scene – list_scenes), surface (one of its scene's surfaces; null: none – a scene with several surfaces needs one), body (Markdown: paragraphs at blank lines, *emphasis*, **strong**, [links](https://…); the book's variables in braces – {hasKey}, {hasKey: …|…} – describe_content_model entryText), author, tags (the whole list), image (a picture of the book's Library: an uploaded image's url or a file of the import), caption (the line under the picture, plain text – \"Image: … by …\"; not the Library's credit line, set_asset_credits), media (a link's http(s) URL); null removes author, image, caption or media. A body whose braces do not parse is refused before it is sent. The change is recorded; the person checks it in the editor.",
       inputSchema: z.object({
         book: BOOK,
         entry: ID.describe("the entry's id (get_entries, get_book)"),
         title: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
         category: z.enum(EntryCategory).optional(),
-        scene: ID.nullable().optional().describe("the scene to move it to; null: on no scene"),
+        scene: ID.optional().describe("the scene to move it to (list_scenes)"),
         surface: ID.nullable().optional().describe("one of its scene's surfaces; null: none"),
-        page: z.number().int().optional(),
         body: z.string().max(BODY_MAX_LENGTH).optional(),
         author: z.string().max(TEXT_MAX_LENGTH).nullable().optional(),
         tags: z.array(z.string().max(ENTRY_TAGS.length)).max(ENTRY_TAGS.max).optional(),
@@ -544,7 +529,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         if (refused) return refused;
       }
       const result = await api.call<EntrySaved>("PUT", `/editor/books/${encodeURIComponent(book)}/entries/${encodeURIComponent(entry)}`, changes);
-      return text({ ...result, ...textWarnings(changes.body), open: result.spreadId ? editorHref(links, book, result.spreadId) : editorHref(links, book) });
+      return text({ ...result, ...textWarnings(changes.body), open: editorHref(links, book, result.scene) });
     }),
   );
 
@@ -552,13 +537,13 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "update_book",
     {
       description:
-        "Changes the book's title, author or publisher – the reader's splash, home page and onboarding show them (the onboarding itself is the app's, not the book's) – or its source of truth: `sourceOfTruth` print (print first: the spreads come from the printed book's layout) or digital (digital first: the editor is the truth) – change it only with the person's yes. Scenes are added, moved and removed in both (#307). Send what changes; publisher null (or \"\") removes it. The change is recorded.",
+        "Changes the book's title, author or publisher – the reader's splash, home page and onboarding show them (the onboarding itself is the app's, not the book's) – or its source of truth: `sourceOfTruth` print (print first: the printed book is the truth, its scenes come from an import of the layout) or digital (digital first: the editor is the truth) – change it only with the person's yes. Scenes are added, moved and removed in both. Send what changes; publisher null (or \"\") removes it. The change is recorded.",
       inputSchema: z.object({
         book: BOOK,
         title: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
         author: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
         publisher: z.string().max(TEXT_MAX_LENGTH).nullable().optional(),
-        sourceOfTruth: z.enum(SOURCES_OF_TRUTH).optional().describe("print = print first (spreads from the layout), digital = digital first (spreads made here)"),
+        sourceOfTruth: z.enum(SOURCES_OF_TRUTH).optional().describe("print = print first (scenes from the layout), digital = digital first (scenes made here)"),
       }),
       annotations: write,
     },
@@ -585,90 +570,14 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     guard(async ({ book, entry, confirm, deleteFiles }) => removeStep("delete_entry", book, `/editor/books/${encodeURIComponent(book)}/entries/${encodeURIComponent(entry)}`, confirm, deleteFiles)),
   );
 
-  // ── writing: the spreads, the book's passes and environment ──
-
-  server.registerTool(
-    "add_spread",
-    {
-      description:
-        "Adds a spread – the older form of add_scene (a scene is a spread), for print-first and digital-first books alike: `format: \"spread\"` = a double page after the spread `after` (default: the last one before the back cover); `id` (default spread-<n>) and `title` optional. `format: \"cover\"` = the front cover (first), `\"back\"` = the back cover (last); 409 duplicate-id when the book has one. Nothing renumbers (`moved` is zero): `pages` lists the scenes whose pages apps before schema 2.35 read change with it. add_scene takes more layouts (single, fold-out, wall) and any place.",
-      inputSchema: z.object({
-        book: BOOK,
-        format: z.enum(SPREAD_FORMATS).describe("spread = a double page, cover = the front cover, back = the back cover"),
-        after: ID.optional().describe("a double page only: the spread it follows (get_book)"),
-        id: ID.optional().describe("a double page only: its id (default: the first free spread-<n>)"),
-        title: z.string().min(1).optional(),
-      }),
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-    },
-    guard(async ({ book, format, after, id, title }) => {
-      if (format !== "spread" && (after !== undefined || id !== undefined)) {
-        return fail({ error: { code: "mcp", message: "after and id are for a double page – the covers have their places and ids (cover, back)" } });
-      }
-      const body: Json = { format, ...(after ? { after } : {}), ...(id ? { id } : {}), ...(title ? { title } : {}) };
-      const result = await api.call<SpreadAdded>("POST", `/editor/books/${encodeURIComponent(book)}/spreads`, body);
-      return text({ ...result, open: editorHref(links, book, result.spread.id) });
-    }),
-  );
-
-  server.registerTool(
-    "put_spread",
-    {
-      description:
-        "Changes a spread: `title`, `format` (spread | cover | back – a cover is page 0, so a spread with other pages cannot become one: add_spread makes covers), `passes` = the spread's own post-processing that replaces the book's for this spread ([{ type, enabled?, …parameters }] – enabled: false switches one pass off and keeps its values –, the built-in types and the passes of the book's plugins – describe_content_model { book } passes; [] turns post-processing off here, null gives the spread the book's passes again). Send what changes; checked against the contract; a change is recorded.",
-      inputSchema: z.object({
-        book: BOOK,
-        spread: ID.describe("the spread's id (get_book)"),
-        title: z.string().min(1).optional(),
-        format: z.enum(SPREAD_FORMATS).optional(),
-        passes: passesSchema.nullable().optional(),
-      }),
-      annotations: write,
-    },
-    guard(async ({ book, spread, title, format, passes }) => {
-      const body: Json = {};
-      let warnings: { warnings?: string[] } = {};
-      if (title !== undefined) body.title = title;
-      if (format !== undefined) body.format = format;
-      if (passes !== undefined) {
-        if (passes !== null) {
-          const check = await checkPassWrite(passes, "passes", () => bookModel(book));
-          if (check.refused) return check.refused;
-          warnings = check.warnings;
-        }
-        body.passes = passes;
-      }
-      if (Object.keys(body).length === 0) return fail({ error: { code: "mcp", message: "send title, format or passes" } });
-      const result = await api.call<SpreadSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/spreads/${encodeURIComponent(spread)}`, body);
-      return text({ ...result, ...warnings, open: editorHref(links, book, spread) });
-    }),
-  );
-
-  server.registerTool(
-    "delete_spread",
-    {
-      description:
-        "Removes a spread (a scene – delete_scene is the same) of a print-first or digital-first book with everything on it – its entries, their targets, the entities used only there and, only if asked, the Library files used only there – in **two steps**: the first call removes nothing and answers `impact` (the spread, the entries, targets and entities that go, the shared entities that are kept with their other targets, the Library files used only here and used elsewhere) and a short-lived `confirmation`. Show the impact to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. `deleteFiles: true` also deletes the files used only here – only when the person asked for it (off by default; files used elsewhere are never deleted). Nothing renumbers (`pages`: the scenes whose pages apps before schema 2.35 read change). 409 initial-spread for the spread the book opens on. Every removed row is in the change log, naming this AI connection.",
-      inputSchema: z.object({
-        book: BOOK,
-        spread: ID.describe("the spread's id (get_book)"),
-        confirm: z.string().optional().describe("the second step: the confirmation id of the impact the person agreed to"),
-        deleteFiles: z.boolean().optional().describe("with confirm: also delete the Library files used only here – only when the person asked for it"),
-      }),
-      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
-    },
-    guard(async ({ book, spread, confirm, deleteFiles }) => removeStep("delete_spread", book, `/editor/books/${encodeURIComponent(book)}/spreads/${encodeURIComponent(spread)}`, confirm, deleteFiles)),
-  );
-
-  // ── writing: scenes, groups, the migration (#307 – a scene is a spread; its order is its position, nothing renumbers) ──
+  // ── writing: scenes, groups (#307, content schema 3.0 – a scene's order is its position, its surfaces are placed) ──
 
   const surfaceSchema = z
     .object({
-      id: ID.describe("unique within the scene – an entry names it (surface)"),
-      side: z.string().regex(/^[a-z][a-z0-9-]*$/).describe(`its side: ${SURFACE_SIDES.join(", ")} (or a later lower-case word)`),
-      widthMm: z.number().positive().optional().describe(`default: a page's ${SCENE_PAGE_MM.width} mm (a wall's 2000)`),
-      heightMm: z.number().positive().optional().describe(`default: a page's ${SCENE_PAGE_MM.height} mm (a wall's 2000)`),
-      label: z.string().max(TEXT_MAX_LENGTH).optional().describe("written exactly as printed (41, ii, Cover) – free text, never arithmetic; none: nothing printed"),
+      id: ID.describe("unique within the scene – an entry and a target's place name it"),
+      label: z.string().max(TEXT_MAX_LENGTH).optional().describe("what is printed on it (186–187, Cover) – free text, never arithmetic"),
+      widthMm: z.number().positive().describe(`its width in mm (a double page ${SCENE_PAGE_MM.width * 2}, a page ${SCENE_PAGE_MM.width}, a wall ${SCENE_WALL_MM.width})`),
+      heightMm: z.number().positive().describe(`its height in mm (a page ${SCENE_PAGE_MM.height}, a wall ${SCENE_WALL_MM.height})`),
       place: z
         .object({
           x: z.number(),
@@ -679,14 +588,13 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
           rz: z.number().optional(),
         })
         .strict()
-        .nullable()
         .optional()
         .describe(
-          "content schema 2.36 (#314): where the surface lies in the scene's coordinate system – x, y, z in mm, rx, ry, rz in degrees; origin on the table at the middle of the first row (a double page: the spine), +x right, +y up, +z towards the reader; unrotated it lies flat face up, a wall ahead is rx 90. Used in a free scene; a fixed one derives its places",
+          "where the surface lies in the scene's coordinate system – its centre x, y, z in mm, rx, ry, rz in degrees (Euler XYZ, default 0); origin on the table at the middle of the first row (a double page: its spine), +x right, +y up, +z towards the reader; unrotated it lies flat face up, its top edge away from the reader – a wall ahead stands up: rx 90. Left out: the server lays every surface without one in a row",
         ),
     })
     .strict();
-  const surfacesSchema = z.array(surfaceSchema).max(SCENE_SURFACES_MAX);
+  const surfacesSchema = z.array(surfaceSchema).min(1).max(SCENE_SURFACES_MAX);
   const placeSchema = {
     after: ID.optional().describe("after this scene (list_scenes)"),
     before: ID.optional().describe("before this scene"),
@@ -699,7 +607,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "list_scenes",
     {
       description:
-        "The book's scenes in order (a scene is a spread: one step of the experience) – id, position, title, label, format, matter, layout, group, surfaces (id, side, size in mm, label as printed), firstPage / lastPage (the pages apps before schema 2.35 read: the stored range while the order allows, else derived from the order – `derived`), the stored range, how many entries and targets lie on it – and the groups with their scenes.",
+        "The book's scenes in order (a scene is one step of the experience – a double page, a cover, a wall, a room): id, position, label, group, passes, its surfaces (id, label, widthMm, heightMm, place in the scene, `reference` – the editor-only reference image, null: none), how many entries and targets lie on it – and the groups with their scenes.",
       inputSchema: z.object({ book: BOOK }),
       annotations: read,
     },
@@ -712,16 +620,14 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
   server.registerTool(
     "add_scene",
     {
-      description: `Adds a scene anywhere in the order, to a print-first or a digital-first book alike: \`preset\` (default double) – ${SCENE_PRESETS.join(", ")}: single = one page, double = left and right, cover = the front cover, back = the back cover, foldout = three pages side by side, wall = one wall – gives its surfaces unless \`surfaces\` names them. Place it with after / before (a scene id) or position (an index); none = a cover first, everything else before the back cover. Nothing renumbers: \`pages\` lists the scenes whose pages apps before schema 2.35 read change with it (derived from the order). Optional: id (default scene-<n>), title, label, group, layout. The change is recorded.`,
+      description: `Adds a scene anywhere in the order, to a print-first or a digital-first book alike: \`preset\` (default double) – ${SCENE_PRESETS.join(", ")}: double = one surface ${SCENE_PAGE_MM.width * 2} × ${SCENE_PAGE_MM.height} mm (a double page), single = one page ${SCENE_PAGE_MM.width} × ${SCENE_PAGE_MM.height} mm (a cover is a single scene first in the order), wall = ${SCENE_WALL_MM.width} × ${SCENE_WALL_MM.height} mm standing ahead (rx 90) – gives its surfaces unless \`surfaces\` names them (surfaces without a place are laid in a row). Place it with after / before (a scene id) or position (an index); none = last. Optional: id (made by the server unless given), label (what the reader's switcher shows – 186–187, Studio wall), group. The change is recorded.`,
       inputSchema: z.object({
         book: BOOK,
         preset: z.enum(SCENE_PRESETS).optional(),
         ...placeSchema,
         id: ID.optional(),
-        title: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
-        label: z.string().max(TEXT_MAX_LENGTH).optional().describe("what the reader shows for the scene – free text (Pages 40–41)"),
+        label: z.string().min(1).max(TEXT_MAX_LENGTH).optional().describe("what the reader shows for the scene – free text"),
         group: ID.optional().describe("a group of the book (list_scenes)"),
-        layout: z.enum(SCENE_LAYOUTS).optional().describe("fixed = side by side / front and back, as printed together (default); free = each surface on its own anchor"),
         surfaces: surfacesSchema.optional().describe("instead of the preset's"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
@@ -738,7 +644,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "move_scenes",
     {
       description:
-        "Moves one or several scenes as a block (in their present order) – after / before a scene or to a position (an index among the scenes that stay) – or into a group (`group`: after its last scene unless a place is given) or out of their group (`group: null`: they stay in place, unless they sit inside it – then right after it). **Two steps**: without `apply` nothing is written – the plan answers the new `order`, the scenes that `moved`, `groups` changes and `pages` (the scenes whose pages apps before schema 2.35 read change). Show it to the person; with their yes call again with the same arguments and `apply: true`. Nothing renumbers; every change is recorded.",
+        "Moves one or several scenes as a block (in their present order) – after / before a scene or to a position (an index among the scenes that stay) – or into a group (`group`: after its last scene unless a place is given) or out of their group (`group: null`: they stay in place, unless they sit inside it – then right after it). **Two steps**: without `apply` nothing is written – the plan answers the new `order`, the scenes that `moved` and the `groups` changes. Show it to the person; with their yes call again with the same arguments and `apply: true`. Every change is recorded.",
       inputSchema: z.object({
         book: BOOK,
         scenes: z.array(ID).min(1).describe("the scenes to move (list_scenes)"),
@@ -755,7 +661,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         return fail({ error: { code: "mcp", message: "say where to: after, before, position or group" } });
       }
       const result = await api.call<ScenesMoved>("POST", `/editor/books/${encodeURIComponent(book)}/scenes/move`, body);
-      return text({ ...result, ...(result.applied ? {} : { next: "Nothing was written. Show the person the new order and the page changes; only with their yes call move_scenes again with the same arguments and apply: true." }), open: editorHref(links, book) });
+      return text({ ...result, ...(result.applied ? {} : { next: "Nothing was written. Show the person the new order and the group changes; only with their yes call move_scenes again with the same arguments and apply: true." }), open: editorHref(links, book) });
     }),
   );
 
@@ -763,23 +669,20 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_scene",
     {
       description:
-        "Changes a scene: `surfaces` (the whole list – add, remove, resize, label, place: { id, side, widthMm?, heightMm?, label?, place? }; [] or null removes them; a surface that goes takes its reference image), `label` (free text; \"\" or null removes it), `layout` (fixed | free; null removes it), `group` (a group of the book; null takes it out – the scene stays in place), `title`, `format`, `passes` (as put_spread). Send what changes. A surface that entries lie on goes only with `apply: true` – the first call answers 409 surfaces-in-use naming them; with apply they stay on the scene without a surface (`cleared`). A change is recorded.",
+        "Changes a scene: `label` (free text – what the reader's switcher shows), `group` (a group of the book; null takes it out – the scene stays in place), `surfaces` (the whole list, at least one – add, remove, resize, label, place: { id, label?, widthMm, heightMm, place? }; a surface without a place is laid in a row; a surface that goes takes its reference image), `passes` = the scene's own post-processing that replaces the book's here ([{ type, enabled?, …parameters }] – the built-in types and the passes of the book's plugins, describe_content_model { book } passes; [] turns post-processing off here, null gives the scene the book's passes again). Send what changes; checked against the contract. Surfaces that entries or targets lie on go only with `apply: true` – the first call answers 409 surfaces-in-use naming them (details.entries, details.targets): show the person; with their yes call again with `apply: true` – the entries stay on the scene without a surface, the targets lose their place (`cleared`). A change is recorded.",
       inputSchema: z.object({
         book: BOOK,
         scene: ID.describe("the scene's id (list_scenes)"),
-        surfaces: surfacesSchema.nullable().optional(),
-        label: z.string().max(TEXT_MAX_LENGTH).nullable().optional(),
-        layout: z.enum(SCENE_LAYOUTS).nullable().optional(),
+        label: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
         group: ID.nullable().optional(),
-        title: z.string().max(TEXT_MAX_LENGTH).optional(),
-        format: z.enum(SPREAD_FORMATS).optional(),
+        surfaces: surfacesSchema.optional(),
         passes: passesSchema.nullable().optional(),
-        apply: z.boolean().optional().describe("let surfaces go that entries lie on (they keep the scene, without a surface)"),
+        apply: z.boolean().optional().describe("let surfaces go that entries or targets lie on – only after the person's yes"),
       }),
       annotations: write,
     },
     guard(async ({ book, scene, ...body }) => {
-      if (Object.keys(body).filter(key => key !== "apply").length === 0) return fail({ error: { code: "mcp", message: "send surfaces, label, layout, group, title, format or passes" } });
+      if (Object.keys(body).filter(key => key !== "apply").length === 0) return fail({ error: { code: "mcp", message: "send label, group, surfaces or passes" } });
       let warnings: { warnings?: string[] } = {};
       if (body.passes) {
         const check = await checkPassWrite(body.passes, "passes", () => bookModel(book));
@@ -795,7 +698,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "delete_scene",
     {
       description:
-        "Removes a scene with everything on it – the same as delete_spread (a scene is a spread), in **two steps**: the first call answers the `impact` (its entries, targets, entities, Library files, and `pages` – the scenes whose pages apps before schema 2.35 read change) and a `confirmation`; only with the person's yes call again with `confirm: <confirmation.id>` (and `deleteFiles: true` only if they asked). Nothing renumbers. 409 initial-spread for the scene the book opens on.",
+        "Removes a scene of a print-first or digital-first book with everything on it – its entries, their targets, the entities used only there and, only if asked, the Library files used only there – in **two steps**: the first call removes nothing and answers `impact` (the scene, the entries, targets and entities that go, the shared entities that are kept with their other targets, the Library files used only here and used elsewhere) and a short-lived `confirmation`. Show the impact to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. `deleteFiles: true` also deletes the files used only here – only when the person asked for it (off by default; files used elsewhere are never deleted). 409 initial-scene for the scene the book opens on. Every removed row is in the change log, naming this AI connection.",
       inputSchema: z.object({
         book: BOOK,
         scene: ID.describe("the scene's id (list_scenes)"),
@@ -811,7 +714,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "group_scenes",
     {
       description:
-        "Makes a group of the picked scenes – a label over several scenes (Front matter, a chapter, a room): one stop of the reader's bottom switcher. The scenes come together where the first of them is (in their present order; a scene of another group leaves it). **Two steps**: without `apply` the plan (the group's id and label, the new order, what moves, the page changes for apps before schema 2.35); with the person's yes the same call with `apply: true`. The id: `id`, else made from the label. Rename with rename_group, ungroup with ungroup.",
+        "Makes a group of the picked scenes – a label over several scenes (Front matter, a chapter, a room): one stop of the reader's bottom switcher. The scenes come together where the first of them is (in their present order; a scene of another group leaves it). **Two steps**: without `apply` the plan (the group's id and label, the new order, what moves); with the person's yes the same call with `apply: true`. The id: `id`, else made from the label. Rename with rename_group, ungroup with ungroup.",
       inputSchema: z.object({
         book: BOOK,
         label: z.string().min(1).max(TEXT_MAX_LENGTH),
@@ -849,31 +752,13 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     }),
   );
 
-  server.registerTool(
-    "migrate_scenes",
-    {
-      description:
-        "Makes a book's spreads scenes (agents/SCENES.md \"Migration\"): every scene without surfaces gets them from its pages – a double page left and right, a single page its side and the unnumbered half next to it, a cover its front or back –, labelled with the printed page numbers (covers, front and back matter and unnumbered halves: no label); the front and back matter go into the groups Front matter / Back matter; every entry gets the surface its page lies on. Order, pages, entries' scenes and page images stay. **Two steps**: without `apply` the plan – counts, what each scene gets, the groups, the entries placed and the ones it cannot place (`entries.unplaced`, with the reason). Show it to the person; with their yes call again with `apply: true`. Idempotent: a migrated book answers upToDate.",
-      inputSchema: z.object({ book: BOOK, apply: z.boolean().optional() }),
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    },
-    guard(async ({ book, apply }) => {
-      const result = await api.call<ScenesMigration>("POST", `/editor/books/${encodeURIComponent(book)}/scenes/migrate`, apply ? { apply: true } : undefined);
-      return text({
-        ...result,
-        ...(result.applied || result.plan.upToDate ? {} : { next: "Nothing was written. Show the person the counts, the groups and the entries it cannot place; only with their yes call migrate_scenes again with apply: true." }),
-        open: editorHref(links, book),
-      });
-    }),
-  );
-
   // ── Surface reference images (#314): editor-only – the stage shows them on the surfaces, the content never carries them ──
 
   server.registerTool(
     "set_surface_reference",
     {
       description:
-        "Sets, replaces or removes a surface's reference image – the picture the editor's stage shows on that surface (a scanned page, a photo of the wall). Editor-only: never in the content, readers never see it. `url`: an image of the book's Library (list_assets – upload_asset first) or an imported file's /assets/content/… path; null removes it. `fit`: cover (default – cut to cover the surface), contain (fit inside) or stretch; a replace keeps the fit it had. `name` defaults to the Library's. fit / name without url change the present one. list_scenes shows each surface's `reference`. A change is recorded (revertable).",
+        "Sets, replaces or removes a surface's reference image – the picture the editor's stage shows on that surface (a scanned double page, a photo of the wall). Editor-only: never in the content, readers never see it. `url`: an image of the book's Library (list_assets – upload_asset first, best with fit: \"reference\", scene and surface) or an imported file's /assets/content/… path; null removes it. `fit`: cover (default – cut to cover the surface), contain (fit inside) or stretch; a replace keeps the fit it had. `name` defaults to the Library's. fit / name without url change the present one. list_scenes shows each surface's `reference`. A change is recorded (revertable).",
       inputSchema: z.object({
         book: BOOK,
         scene: ID.describe("the scene's id (list_scenes)"),
@@ -895,29 +780,35 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     }),
   );
 
+  // ── The migration of a 2.x book to content schema 3.0 (#319): the plan, then with the person's yes `apply: true` ──
+
   server.registerTool(
-    "migrate_surface_references",
+    "migrate_3",
     {
       description:
-        "Turns the book's page images (set_page_images, #251) into surface reference images: each page image goes to its scene's surface – the one labelled with its page number, else the scene's one surface on its side. Run migrate_scenes first (scenes without surfaces cannot take one). **Two steps**: without `apply` the plan – `references` (page → scene / surface), `already` (the surface has that image), `unmapped` (with the reason: a page the book lost, no surface on that side, the surface has another reference – kept –, two page images for one surface), `counts`. Show it to the person; with their yes call again with `apply: true`. Idempotent; the page images stay.",
-      inputSchema: z.object({ book: BOOK, apply: z.boolean().optional().describe("the second step: write the plan the person agreed to") }),
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+        "Makes a book of content schema 2.x a 3.0 book (#319) – until then its editing routes answer 409 migrate-first. Each scene's surfaces become one per printed double page (two pages → one surface of their joint width, placed in a row; a cover stays one), targets on a right page move by the left page's width onto the joint surface, entries keep their scene, the scene's label comes from its label or title, the front and back matter become groups, and the page images and old references become one reference image per new surface (pieces put together side by side – `combined` – or kept `as-is`). **Two steps – never apply without the person's yes**: the first call (no `apply`) writes nothing and answers the `plan`: counts, each scene before and after, the targets that move, the references, the groups, `unmapped` (with the reason) and `imageTool` (null: this server cannot put images together). Show the plan to the person and ask; only with their explicit yes call again with `apply: true` – the plan is made again and written in one transaction. A 3.0 book answers upToDate.",
+      inputSchema: z.object({ book: BOOK, apply: z.boolean().optional().describe("the second step: write the plan – only after the person agreed to it") }),
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
     guard(async ({ book, apply }) => {
-      const result = await api.call<SurfaceReferencesMigration>("POST", `/editor/books/${encodeURIComponent(book)}/scenes/references/migrate`, apply ? { apply: true } : undefined);
+      const result = await api.call<Migration3Result>("POST", `/editor/books/${encodeURIComponent(book)}/migrate-3`, apply ? { apply: true } : {});
       return text({
         ...result,
-        ...(result.applied || result.plan.upToDate ? {} : { next: "Nothing was written. Show the person what maps where and what stays unmapped; only with their yes call migrate_surface_references again with apply: true." }),
+        ...(result.applied || result.plan.upToDate
+          ? {}
+          : { next: "Nothing was written. Show the person the plan – the counts, each scene's surfaces before and after, the targets that move, the references (as-is / combined), the groups and everything unmapped with its reason – and ask. Only with their yes call migrate_3 again with apply: true." }),
         open: editorHref(links, book),
       });
     }),
   );
 
+  // ── writing: the book's passes, appearance and environment ──
+
   server.registerTool(
     "put_book_passes",
     {
       description:
-        "Sets the book's post-processing – the master chain every spread without its own passes shows: [{ type, enabled?, …parameters }] run in order over the rendered image (built-in types bloom, vignette, grade, and the passes the book's plugins register – describe_content_model { book } passes); enabled: false switches one pass off, keeping its place and values; [] = none; null removes it. A spread's own passes (put_spread) still replace it there. Checked against the contract; a change is recorded.",
+        "Sets the book's post-processing – the master chain every scene without its own passes shows: [{ type, enabled?, …parameters }] run in order over the rendered image (built-in types bloom, vignette, grade, and the passes the book's plugins register – describe_content_model { book } passes); enabled: false switches one pass off, keeping its place and values; [] = none; null removes it. A scene's own passes (put_scene) still replace it there. Checked against the contract; a change is recorded.",
       inputSchema: z.object({ book: BOOK, passes: passesSchema.nullable() }),
       annotations: write,
     },
@@ -933,7 +824,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_book_appearance",
     {
       description:
-        `How the book's AR entities appear and disappear – a look per moment: { reveal?, found?, lost? }, each { type, …parameters } like a pass. reveal = the first find of a target, found = every later find, lost = the page is lost (played rewound in the look's outDuration). A moment left out takes found's look, then the default; null (or {}) removes the field – the default look plays everywhere. The whole appearance is replaced: send every moment that keeps a look. Types: the built-in ${APPEARANCE_TYPES.join(", ")} and the looks the book's plugins register (describe_content_model { book } appearance, with every parameter's range and default). Checked against the contract; a change is recorded.`,
+        `How the book's AR entities appear and disappear – a look per moment: { reveal?, found?, lost? }, each { type, …parameters } like a pass. reveal = the first find of a target, found = every later find, lost = the target is lost (played rewound in the look's outDuration). A moment left out takes found's look, then the default; null (or {}) removes the field – the default look plays everywhere. The whole appearance is replaced: send every moment that keeps a look. Types: the built-in ${APPEARANCE_TYPES.join(", ")} and the looks the book's plugins register (describe_content_model { book } appearance, with every parameter's range and default). Checked against the contract; a change is recorded.`,
       inputSchema: z.object({ book: BOOK, appearance: appearanceSchema.nullable() }),
       annotations: write,
     },
@@ -998,21 +889,22 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       description:
         "Uploads a file from this computer into the book's library: models (glb, gltf), videos (mp4, webm, mov), images (jpg, png, webp), sounds (mp3, m4a, ogg, wav), at most 64 MB, and shaders (glsl, frag, vert, wgsl – UTF-8 text, at most 256 KB; a plugin loads one by its url with api.loadText) and a video's subtitles (vtt – WebVTT text, at most 256 KB; named <video name>.<language>.vtt, e.g. speak.en.vtt for speak.mp4, it belongs to every video of that name in the book and shows as its subtitle line – no node names it). Answers the asset with its `url` – put it into a node's assets[].src or a target's imageSrc – and the file's width / height (images, videos) and durationMs (videos), null when the file does not tell. The same bytes twice are one asset, named as the last upload names it. A script (.ts, .js) is no asset: upload_plugin. " +
         `**Images go under the image rule** (#298): the API stores a jpg / png / webp as WebP (quality ${IMAGE_WEBP_QUALITY}, lossless when it has transparency), upright by its EXIF orientation, metadata dropped, its longest side at most ${IMAGE_MAX_SIDE.default} px – never scaled up – and named <name>.webp (\`converted\` says so; an instance without GD stores it as it came). Pass \`fit: "target"\` for a target's printed image (at most ${IMAGE_MAX_SIDE.target} px). TIFF and PDF are no Library files: convert them locally first. ` +
-        "**Named by its use** (#298) when you say it: `entry` with fit target / entryImage → <entry>_target.webp / <entry>_image.webp, `page` (+ `facing`) with fit page → page-118.webp, page-cover.webp, page-front-1-left.webp (400 invalid-use for no page of the book).",
+        "**Named by its use** (#298) when you say it: `entry` with fit target / entryImage → <entry>_target.webp / <entry>_image.webp, `scene` + `surface` with fit reference (a surface's reference image, set it with set_surface_reference) → <scene>_<surface>.webp (400 invalid-use for no surface of the book).",
       inputSchema: z.object({
         book: BOOK,
         file: z.string().describe("a local file path"),
         name: z.string().optional().describe("the file name to store (default: the path's base name; a converted image ends in .webp)"),
-        fit: z.enum(IMAGE_FITS as [string, ...string[]]).optional().describe(`an image's use: target (${IMAGE_MAX_SIDE.target} px), page, entryImage, default (${IMAGE_MAX_SIDE.default} px)`),
+        fit: z.enum(IMAGE_FITS as [string, ...string[]]).optional().describe(`an image's use: target (${IMAGE_MAX_SIDE.target} px), reference (a surface's reference image, ${IMAGE_MAX_SIDE.reference} px), entryImage, default (${IMAGE_MAX_SIDE.default} px)`),
         entry: ID.optional().describe("with fit target / entryImage: the entry whose image it is – names the file <entry>_target / <entry>_image"),
-        page: z.number().int().optional().describe("with fit page: the page whose image it is – names the file page-<n> (page-cover …)"),
-        facing: z.boolean().optional().describe("with page: the unnumbered half next to that single page"),
+        scene: ID.optional().describe("with fit reference and surface: the scene whose surface the image is for – names the file <scene>_<surface>"),
+        surface: ID.optional().describe("with fit reference and scene: the surface (list_scenes)"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    guard(async ({ book, file, name, fit, entry, page, facing }) => {
+    guard(async ({ book, file, name, fit, entry, scene, surface }) => {
+      if ((scene === undefined) !== (surface === undefined)) return fail({ error: { code: "mcp", message: "scene and surface go together (with fit: reference)" } });
       const bytes = new Uint8Array(await readFile(file));
-      const query = imageUseQuery(fit ? { fit: fit as ImageFit, entry, page: page === undefined ? undefined : { page, facing } } : undefined);
+      const query = imageUseQuery(fit ? { fit: fit as ImageFit, entry, surface: scene && surface ? { scene, surface } : undefined } : undefined);
       const result = await api.upload<AssetUploaded>("POST", `/editor/books/${encodeURIComponent(book)}/assets${query}`, bytes, name ?? basename(file));
       return text({ ...result, size: bytes.byteLength });
     }),
@@ -1036,7 +928,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "plan_asset_names",
     {
       description:
-        "Step 1 of naming the Library's files by their use (#298) – read-only: the names every used file would take, by its first use in page order: an entry's printed image p118-1_target.webp, its colour picture p118-1_image.webp, another file of the entry or its own entity p118-1_<asset id>.glb, a page image page-118.webp / page-cover.webp / page-back-cover.webp / page-1-facing.webp / page-front-1-left.webp, a shared entity's file <entity>_<asset id>.ext, the environment's environment_world / environment_sky. A file used in several places takes the first (`more` counts the rest); unused files and files only a plugin's source names keep their names; two files that would take one name get -2, -3. `renames` = only the files whose name changes: { url, imported, from, to, use: { kind, ref, spread, page }, more }. The name only – every URL stays, so no use breaks; an imported file (read-only) gets a listed name. Show the list to the person, then apply_asset_names.",
+        "Step 1 of naming the Library's files by their use (#298) – read-only: the names every used file would take, by its first use in the scenes' order: an entry's printed image p118-1_target.webp, its colour picture p118-1_image.webp, another file of the entry or its own entity p118-1_<asset id>.glb, a surface's reference image <scene>_<surface>.webp, a shared entity's file <entity>_<asset id>.ext, the environment's environment_world / environment_sky. A file used in several places takes the first (`more` counts the rest); unused files and files only a plugin's source names keep their names; two files that would take one name get -2, -3. `renames` = only the files whose name changes: { url, imported, from, to, use: { kind, ref, scene }, more }. The name only – every URL stays, so no use breaks; an imported file (read-only) gets a listed name. Show the list to the person, then apply_asset_names.",
       inputSchema: z.object({ book: BOOK }),
       annotations: read,
     },
@@ -1059,109 +951,10 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
 
   server.registerTool(
     "delete_asset",
-    { description: "Deletes an uploaded file (every version). Refused while the file is used – a target, entry, entity, spread, page image, the book (its environment or another setting) or a plugin source names it, the same uses list_assets counts (409 asset-in-use with the usages) unless `force` – a forced delete takes those page images too.", inputSchema: z.object({ book: BOOK, asset: z.string().uuid().describe("the asset's id (list_assets)"), force: z.boolean().optional() }), annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false } },
+    { description: "Deletes an uploaded file (every version). Refused while the file is used – a target, entry, entity, scene, a surface's reference image, the book (its environment or another setting) or a plugin source names it, the same uses list_assets counts (409 asset-in-use with the usages) unless `force`.", inputSchema: z.object({ book: BOOK, asset: z.string().uuid().describe("the asset's id (list_assets)"), force: z.boolean().optional() }), annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false } },
     guard(async ({ book, asset, force }) => {
       await api.call<void>("DELETE", `/editor/books/${encodeURIComponent(book)}/assets/${encodeURIComponent(asset)}${force ? "?force=1" : ""}`);
       return text({ deleted: asset });
-    }),
-  );
-
-  // ── pages and page images (#251) ──
-
-  server.registerTool(
-    "list_pages",
-    {
-      description:
-        "Every page of the book in book order (`pages`: page, facing, spread, side, kind, label) and its page images (`pageImages`: page, facing, url, name, updatedBy, updatedAt). `page` is the internal page: the cover 0, the front matter negative (counting down to −1), the numbered pages, the back matter after the last printed page, the back cover after it (#296). `facing: true` is the unnumbered half of a single page's sheet (the half next to page 1, the one next to the last printed page). Labels: `Cover`, `F1`…, `next to 1`, `12`, `B1`…, `Back cover`. A page image is a Library image the editor's stage and spread cards show instead of the print layout's sheet for that page – never content, the reader does not show it.",
-      inputSchema: z.object({ book: BOOK }),
-      annotations: read,
-    },
-    guard(async ({ book }) => text(await api.call<PageList>("GET", `/editor/books/${encodeURIComponent(book)}/pages`))),
-  );
-
-  const PAGE_REF = {
-    page: z.number().int().optional().describe("the internal page (list_pages)"),
-    facing: z.boolean().optional().describe("the unnumbered half next to a single page (default false)"),
-    label: z.string().optional().describe("the page by its label instead: Cover, F1, next to 1, 12, B1, Back cover"),
-  };
-  server.registerTool(
-    "set_page_images",
-    {
-      description:
-        `Sets, replaces, moves, renames and removes the book's page images in one call – all or nothing (at most ${PAGE_IMAGES_BATCH_MAX} items). Each item names its page by \`page\` (+ \`facing\`), by \`label\`, or – with \`upload\` or \`match\` – by a file name: P012…, p12, 012, page-12 (a numbered page), P001-facing (the half next to page 1), cover / back-cover, F1… / B1… (front / back matter), start-1… (every page before page 1 from the cover on: the cover, the front matter, the half next to page 1) and end-1… (every page after the last printed page: the half next to it, the back matter, the back cover) – the print PDFs' order. Then one action: \`upload\` (a local image file – uploaded into the Library, then set), \`url\` (a Library image's url, list_assets; null removes the page image – the page shows the layout again), \`from\` (moves another page's image here; moves read the images as they were, so two items can swap), or \`name\` alone (renames). \`name\` defaults to the file's name. Page images are no content: nothing to publish, no change in the book's log; the stage shows them at once. Add the front and back matter spreads first (add_matter) when the book has none.`,
-      inputSchema: z.object({
-        book: BOOK,
-        items: z.array(z.object({
-          ...PAGE_REF,
-          match: z.string().optional().describe("the page by a file name (see above)"),
-          upload: z.string().optional().describe("a local image file (jpg, png, webp) to upload and set; its name gives the page when no page, label or match is given"),
-          url: z.string().min(1).nullable().optional(),
-          from: z.object(PAGE_REF).optional(),
-          name: z.string().min(1).max(255).optional(),
-        })).min(1).max(PAGE_IMAGES_BATCH_MAX),
-      }),
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    },
-    guard(async ({ book, items }) => {
-      const { pages } = await api.call<PageList>("GET", `/editor/books/${encodeURIComponent(book)}/pages`);
-      const find = (ref: { page?: number; facing?: boolean; label?: string }, name: string | undefined, where: string): PageAddress => {
-        if (ref.page !== undefined) return { page: ref.page, facing: ref.facing ?? false };
-        const found = ref.label !== undefined
-          ? pages.find(p => p.label.toLowerCase() === ref.label!.trim().toLowerCase())
-          : name !== undefined ? pageOfName(name, pages) : undefined;
-        if (!found) throw new PageNotFound(`${where}: ${ref.label !== undefined ? `no page labelled "${ref.label}"` : name !== undefined ? `"${name}" names no page of the book` : "name a page: page, label, match or upload"}`);
-        return { page: found.page, facing: found.facing };
-      };
-      let changes: PageImageChange[];
-      try {
-        changes = items.map((item, i) => {
-          const fileName = item.upload !== undefined ? basename(item.upload) : undefined;
-          const at = find(item, item.match ?? fileName, `items[${i}]`);
-          if (item.from) return { ...at, from: find(item.from, undefined, `items[${i}].from`), ...(item.name ? { name: item.name } : {}) };
-          if (item.upload !== undefined) return { ...at, url: "", name: item.name ?? fileName };
-          if (item.url !== undefined) return { ...at, url: item.url, ...(item.name ? { name: item.name } : {}) };
-          if (item.name) return { ...at, name: item.name };
-          throw new PageNotFound(`items[${i}]: send upload, url, from or name`);
-        }) as PageImageChange[];
-      } catch (e) {
-        if (e instanceof PageNotFound) return fail({ error: { code: "invalid-page-image", message: e.message }, hint: "list_pages has every page with its label." });
-        throw e;
-      }
-      // Uploads only once every page is known – a wrong name uploads nothing
-      const uploaded: string[] = [];
-      for (const [i, item] of items.entries()) {
-        if (item.upload === undefined) continue;
-        const bytes = new Uint8Array(await readFile(item.upload));
-        // A page image under the image rule (#298): WebP, at most 2048 px
-        // … named by its page (page-118.webp, page-cover.webp – #298 phase 3)
-        const at = changes[i] as PageAddress;
-        const query = imageUseQuery({ fit: "page", page: { page: at.page, facing: at.facing } });
-        const { asset } = await api.upload<AssetUploaded>("POST", `/editor/books/${encodeURIComponent(book)}/assets${query}`, bytes, basename(item.upload));
-        (changes[i] as { url: string }).url = asset.url;
-        uploaded.push(asset.url);
-      }
-      const result = await api.call<PageImagesSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/page-images`, { items: changes });
-      return text({ ...result, uploaded: uploaded.length, open: editorHref(links, book) });
-    }),
-  );
-
-  server.registerTool(
-    "add_matter",
-    {
-      description:
-        `Makes the book's spreads whole against its print format (#296), in two steps like an import: without \`apply\` it answers the plan only – show it to the person – then call again with \`apply: true\`. The plan: the front matter spreads front-1… (two pages each, internal pages counting down to −1), the back matter spreads back-1… (after the last printed page), a single-page spread for the last printed page when none holds it (e.g. s256, when the back cover sat on page 256), and the back cover moved after the back matter (its entries on a printed page go to that page's spread). \`front\` / \`back\` = the matter sheets of the print format (0–${MATTER_MAX}, default 2), \`lastPage\` = the last printed page (default: the last page of a numbered spread; at most one more). Spreads that are there already are kept; works on a print-first book too (the spreads are the printed book's, only missing). 409 matter-conflict when a spread that is no matter holds a page the plan needs. Then set the new pages' images with set_page_images.`,
-      inputSchema: z.object({
-        book: BOOK,
-        front: z.number().int().min(0).max(MATTER_MAX).optional(),
-        back: z.number().int().min(0).max(MATTER_MAX).optional(),
-        lastPage: z.number().int().optional(),
-        apply: z.boolean().optional().describe("write the plan – only after the person saw it"),
-      }),
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    },
-    guard(async ({ book, ...body }) => {
-      const result = await api.call<MatterResult>("POST", `/editor/books/${encodeURIComponent(book)}/matter`, body);
-      return text({ ...result, open: editorHref(links, book), ...(body.apply ? {} : { hint: "Nothing written yet: show the plan to the person, then call again with apply: true." }) });
     }),
   );
 
@@ -1171,7 +964,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "publish",
     {
       description:
-        "Writes the draft as a content version into the content store of this instance's own environment – an instance publishes there and nowhere else (a local development API: `local`, the staging API: `staging`; any other env → 403 other-environment). `env` may be left out: the instance's own. The answer's `store` says where it went: `cdn` (the CDN has priority where one is connected) or `server` (this API's own store, with `warning`: no edge caching – tell the person). **production is refused** – publishing to readers is the person's Publish button in the editor. Signed in with an AI connection's token (osct_…) the API refuses every environment (403 not-for-ai): then the person publishes in the editor. 409 unknown-components, unknown-node-types or unknown-materials when a node uses a component, a node type or a material no compiled plugin provides, unknown-passes when the book's or a spread's post-processing names a pass no compiled plugin provides (the Code tab's sources reach readers through the content build only). Each environment serves one book: 409 other-book (with `current`, the book it serves) when it serves another – replacing it is the person's decision in the editor, never this tool's. The other refusals: 400 invalid-env, invalid-note, invalid-replace; 404 not-found (no such book); 502 content-store-failed and 500 content-store-unconfigured (the store could not be read or written – nothing went live). Every refusal comes with a hint.",
+        "Writes the draft as a content version into the content store of this instance's own environment – an instance publishes there and nowhere else (a local development API: `local`, the staging API: `staging`; any other env → 403 other-environment). `env` may be left out: the instance's own. The answer's `store` says where it went: `cdn` (the CDN has priority where one is connected) or `server` (this API's own store, with `warning`: no edge caching – tell the person). **production is refused** – publishing to readers is the person's Publish button in the editor. Signed in with an AI connection's token (osct_…) the API refuses every environment (403 not-for-ai): then the person publishes in the editor. 409 unknown-components, unknown-node-types or unknown-materials when a node uses a component, a node type or a material no compiled plugin provides, unknown-passes when the book's or a scene's post-processing names a pass no compiled plugin provides (the Code tab's sources reach readers through the content build only). Each environment serves one book: 409 other-book (with `current`, the book it serves) when it serves another – replacing it is the person's decision in the editor, never this tool's. The other refusals: 400 invalid-env, invalid-note, invalid-replace; 404 not-found (no such book); 502 content-store-failed and 500 content-store-unconfigured (the store could not be read or written – nothing went live). Every refusal comes with a hint.",
       inputSchema: z.object({ book: BOOK, env: z.string().regex(ENV_NAME).optional().describe("the instance's own environment (default)"), note: z.string().optional() }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
@@ -1198,11 +991,11 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
 
   server.registerTool(
     "list_changes",
-    { description: "The change log, newest first: id, kind (entity | target | entry | spread | order | groups | environment | passes | appearance | book | plugin | asset), ref, before, after, user, when; `set` / `reverts` for a revert's changes, `notRevertable` = why revert_change cannot take it back (null: it can). `limit` default 50, at most 500.", inputSchema: z.object({ book: BOOK, limit: z.number().int().min(1).max(500).optional() }), annotations: read },
+    { description: "The change log, newest first: id, kind (entity | target | entry | scene | order | groups | environment | passes | appearance | book | plugin | asset), ref, before, after, user, when; `set` / `reverts` for a revert's changes, `notRevertable` = why revert_change cannot take it back (null: it can). `limit` default 50, at most 500.", inputSchema: z.object({ book: BOOK, limit: z.number().int().min(1).max(500).optional() }), annotations: read },
     guard(async ({ book, limit }) => text(await api.call<{ changes: Change[] }>("GET", `/editor/books/${encodeURIComponent(book)}/changes${limit ? `?limit=${limit}` : ""}`))),
   );
 
-  // ── Reverts (#312): two steps, as migrate_scenes – the plan, then with the person's yes `apply: true` ──
+  // ── Reverts (#312): two steps, as migrate_3 – the plan, then with the person's yes `apply: true` ──
   const REVERT_NEXT = "Nothing was written. Show the person what changes (plan.changes: revert / conflict / not-revertable), the later edits of the same things (plan.later) and other people's changes (plan.others); only with their yes call again with apply: true.";
   const reverted = (book: string, result: RevertResult) => text({
     ...result,

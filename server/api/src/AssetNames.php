@@ -8,15 +8,14 @@ declare(strict_types=1);
  * - an entry's target image `p118-1_target.webp`, its colour picture `p118-1_image.webp`, another file of the entry or
  *   of its own entity `p118-1_<asset id or field>.ext` – an **upload** keeps its own name after the place:
  *   `fight_2_remesh_4096.jpg` → `p010-3_fight-2-remesh-4096.jpg` (Tilman, 2026-11-17: "keep their own part");
- * - a page image (#251) `page-118.webp`, `page-cover.webp`, `page-back-cover.webp`, `page-1-facing.webp`,
- *   `page-front-1-left.webp` / `page-back-2-right.webp` (front and back matter by sheet and side);
+ * - a surface's reference image (#314) `<scene>_<surface>.webp` (`s118-119_surface.webp`);
  * - a shared entity's file `<entity ref>_<asset id>.ext` (an upload: `<entity ref>_<its own name>.ext`); the book's environment `environment_world.glb`,
  *   `environment_sky.webp`;
- * - a file used in several places takes its first use in page order (the rest are "+N more"); a file only a plugin's
- *   source names, and an unused file, keep their names. Two files that would take the same name are told apart by
- *   `-2`, `-3` in page order.
+ * - a file used in several places takes its first use in the scenes' order (the rest are "+N more"); a file only a
+ *   plugin's source names, and an unused file, keep their names. Two files that would take the same name are told apart
+ *   by `-2`, `-3` in that order.
  *
- * The Library groups files by the spread of their first use (`place`); uses without a page (the environment, plugins,
+ * The Library groups files by the scene of their first use (`place`); uses without a scene (the environment, plugins,
  * a shared entity no target shows) are book-wide. An uploaded file's name is its `assets` row's; an imported file
  * (#244: no row, read-only) is listed under a name kept in `asset_names` by URL (as `asset_credits`), else its own.
  * Names are no content: no change in the book's log, no publish needed.
@@ -25,23 +24,23 @@ final class AssetNames
 {
     /** The longest file name */
     public const NAME_MAX = 255;
-    /** The order of a use without a page: after every page */
+    /** The order of a use without a scene: after every scene */
     private const BOOK_WIDE = PHP_INT_MAX;
     /** A field's part of a name: `imageSrc` is the target image, `image` the entry's colour picture */
     private const PARTS = ['imageSrc' => 'target', 'image' => 'image', 'worldSrc' => 'world', 'skySrc' => 'sky'];
-    /** The kinds of use that give a file its name (#298 phase 3) – a spread's, a book setting's or the layout's use counts, but names nothing */
-    private const NAMING = ['target', 'entry', 'entity', 'page', 'environment', 'plugin'];
+    /** The kinds of use that give a file its name (#298 phase 3) – a scene's, a book setting's or the layout's use counts, but names nothing */
+    private const NAMING = ['target', 'entry', 'entity', 'reference', 'environment', 'plugin'];
     /** A use's kind in the order of a file's uses (`rank`) */
-    private const KIND_ORDER = ['target' => 0, 'entry' => 1, 'entity' => 2, 'spread' => 3, 'page' => 4, 'reference' => 5, 'environment' => 6, 'book' => 7, 'plugin' => 8, 'layout' => 9];
+    private const KIND_ORDER = ['target' => 0, 'entry' => 1, 'entity' => 2, 'scene' => 3, 'reference' => 4, 'environment' => 5, 'book' => 6, 'plugin' => 7, 'layout' => 8];
     /** The print layout's folder in the content (editor/src/lib/stage/stage-layout.ts `LAYOUT_PATH`) and the file that lists its sheets */
     public const LAYOUT_PATH = '/assets/content/layout/';
     public const LAYOUT_FILE = self::LAYOUT_PATH . 'layout.json';
 
     /**
      * POST /editor/books/{id}/assets/names { apply? } → { plan: { renames, files, used, unused }, applied }: the names
-     * every file of the Library takes by its use, in two steps like the matter (`Pages::addMatter`). Without `apply: true`
+     * every file of the Library takes by its use, in two steps. Without `apply: true`
      * nothing is written – `renames` lists each file whose name changes: { id, url, imported, from, to, use: { kind, ref,
-     * spread, page }, more } (`more` = its further uses). With it the plan is made again and written in one transaction.
+     * scene }, more } (`more` = its further uses). With it the plan is made again and written in one transaction.
      */
     public static function plan(string $bookId): never
     {
@@ -66,14 +65,14 @@ final class AssetNames
         $files = Assets::libraryFiles($bookId);
         $uses = self::usesOf($bookId);
         $used = array_values(array_filter($files, static fn(array $f) => isset($uses[$f['url']])));
-        // Only the uses that name (NAMING): a file only a spread, a book setting or the layout uses keeps its name
+        // Only the uses that name (NAMING): a file only a scene, a book setting or the layout uses keeps its name
         $naming = [];
         foreach ($used as $file) {
             $list = array_values(array_filter($uses[$file['url']], static fn(array $use) => in_array($use['kind'], self::NAMING, true)));
             if ($list) $naming[$file['url']] = $list;
         }
         $named = array_values(array_filter($used, static fn(array $f) => isset($naming[$f['url']])));
-        // The first use in page order names first: a name two files would take goes to the earlier one
+        // The first use in the scenes' order names first: a name two files would take goes to the earlier one
         usort($named, static fn(array $a, array $b) => self::rank($naming[$a['url']][0]) <=> self::rank($naming[$b['url']][0]) ?: strcmp($a['url'], $b['url']));
         $taken = [];
         $renames = [];
@@ -90,7 +89,7 @@ final class AssetNames
             $taken[strtolower($name)] = true;
             if ($name === $file['name']) continue;
             $renames[] = ['id' => $file['id'], 'url' => $file['url'], 'imported' => $file['imported'], 'from' => $file['name'], 'to' => $name,
-                'use' => ['kind' => $first['kind'], 'ref' => $first['ref'], 'spread' => $first['spread'], 'page' => $first['page']], 'more' => count($uses[$file['url']]) - 1];
+                'use' => ['kind' => $first['kind'], 'ref' => $first['ref'], 'scene' => $first['scene']], 'more' => count($uses[$file['url']]) - 1];
         }
         return ['renames' => $renames, 'files' => count($files), 'used' => count($used), 'unused' => count($files) - count($used)];
     }
@@ -127,16 +126,16 @@ final class AssetNames
     }
 
     /**
-     * Where a file is placed in the Library: the spread of its first use (null: book-wide), its page, the order (page
-     * order, book-wide last) and how many uses follow – null for an unused file
+     * Where a file is placed in the Library: the scene of its first use (null: book-wide), the order (the scene's
+     * position, book-wide −1) and how many uses follow – null for an unused file
      * @param list<array<string, mixed>> $uses a file's uses (`usesOf`)
-     * @return ?array{spread: ?string, page: ?int, order: int, more: int}
+     * @return ?array{scene: ?string, order: int, more: int}
      */
     public static function place(array $uses): ?array
     {
         if (!$uses) return null;
         $first = $uses[0];
-        return ['spread' => $first['spread'], 'page' => $first['page'], 'order' => $first['order'] === self::BOOK_WIDE ? -1 : $first['order'], 'more' => count($uses) - 1];
+        return ['scene' => $first['scene'], 'order' => $first['order'] === self::BOOK_WIDE ? -1 : $first['order'], 'more' => count($uses) - 1];
     }
 
     // ── Uses ─────────────────────────────────────────────────────────────────────────────────────
@@ -144,12 +143,11 @@ final class AssetNames
     /**
      * **The** list of every use of every Library file (#298: the one source of truth – the Library's count and place,
      * the delete check `Assets::usagesOf`, `Removal` and the names plan all read it; docs/server.md "What counts as a
-     * use"), in page order, by the file's Library URL: { kind, ref, spread, page, order, stem, prefix }. The kinds:
+     * use"), in the scenes' order, by the file's Library URL: { kind, ref, scene, order, stem, prefix }. The kinds:
      * - `target` (its printed image `imageSrc`, its own inline entity), `entry`, `entity` (a shared one) – the rows' JSON;
-     * - `spread` – a spread's own data (its environment, passes, appearance …), on the spread's first page;
-     * - `page` – a page image (#251) over its page;
-     * - `reference` – a surface's reference image (#314, ref `<scene>/<surface>`) on its scene's first page – counted,
-     *   relinked and deleted with the file like a page image, but it gives the file no name (the page images' stay);
+     * - `scene` – a scene's own data (its passes …), on the scene;
+     * - `reference` – a surface's reference image (#314, ref `<scene>/<surface>`) on its scene – counted, relinked and
+     *   deleted with the file; it names the file `<scene>_<surface>`;
      * - `environment` – the book's environment (its world model, its sky); `book` – any other setting of the book
      *   (appearance, passes with a texture or a model …); both book-wide;
      * - `plugin` – a plugin source naming the file's URL as text (a shader it loads), book-wide;
@@ -157,7 +155,7 @@ final class AssetNames
      *   read them through `layout/layout.json`, never through a row – used whenever the book's files hold that layout.json.
      * A row's JSON uses a file when one of its strings is the file's URL (or, for an imported file, its content path
      * `/assets/content/…`); a plugin source when its text contains it. Every table is read once – a book has ~2,000 files.
-     * `stem` is the name the use gives (without extension), null when it gives none (a plugin source, a spread, a book
+     * `stem` is the name the use gives (without extension), null when it gives none (a plugin source, a scene, a book
      * setting, the layout).
      * @return array<string, list<array<string, mixed>>>
      */
@@ -165,84 +163,73 @@ final class AssetNames
     {
         [$keys, $layout] = self::fileKeys($bookId);
         if (!$keys) return [];
-        $pages = [];
-        $spreads = [];
-        foreach (Pages::pagesOf($bookId) as $i => $page) {
-            $pages[Pages::key($page['page'], $page['facing'])] ??= ['order' => $i, 'page' => $page];
-            $spreads[$page['spread']] ??= ['page' => $page['page'], 'order' => $i];
-        }
+        // A scene's place in the order: its position
+        $scenes = [];
+        foreach (Scenes::rows($bookId) as $i => $row) $scenes[(string) $row['id']] = $i;
         $uses = [];
-        $add = static function (string $value, string $kind, string $ref, ?string $spread, ?int $page, int $order, ?string $stem, ?string $prefix = null) use (&$uses, $keys): void {
+        $add = static function (string $value, string $kind, string $ref, ?string $scene, int $order, ?string $stem, ?string $prefix = null) use (&$uses, $keys): void {
             $url = $keys[$value] ?? null;
             if ($url === null) return;
             foreach ($uses[$url] ?? [] as $use) if ($use['kind'] === $kind && $use['ref'] === $ref) return;
-            $uses[$url][] = ['kind' => $kind, 'ref' => $ref, 'spread' => $spread, 'page' => $page, 'order' => $order, 'stem' => $stem === null ? null : self::clean($stem), 'prefix' => $prefix];
+            $uses[$url][] = ['kind' => $kind, 'ref' => $ref, 'scene' => $scene, 'order' => $order, 'stem' => $stem === null ? null : self::clean($stem), 'prefix' => $prefix];
         };
-        $orderOf = static fn(?int $page, ?string $spread): int => $spread !== null && $page !== null && isset($pages[(string) $page]) ? $pages[(string) $page]['order'] : self::BOOK_WIDE;
+        $at = static fn(?string $scene): array => $scene !== null && isset($scenes[$scene]) ? ['scene' => $scene, 'order' => $scenes[$scene]] : ['scene' => null, 'order' => self::BOOK_WIDE];
 
-        // Entries: their page; the colour picture `_image`, other files by field
+        // Entries: on their scene; the colour picture `_image`, other files by field
         $entries = [];
-        foreach (Db::run('SELECT id, spread_id, page, data_json FROM entries WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+        foreach (Db::run('SELECT id, spread_id, data_json FROM entries WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
             $id = (string) $row['id'];
-            $spread = $row['spread_id'] === null ? null : (string) $row['spread_id'];
-            $entries[$id] = ['spread' => $spread, 'page' => (int) $row['page'], 'order' => $orderOf((int) $row['page'], $spread)];
-            $at = $entries[$id];
-            self::walk(Editor::decode($row['data_json']), null, null, static function (string $value, ?string $part, bool $src = false) use ($add, $id, $at) {
-                $add($value, 'entry', $id, $at['spread'], $at['page'], $at['order'], "{$id}_" . ($part ?? 'file'), $src ? $id : null);
+            $entries[$id] = $at($row['spread_id'] === null ? null : (string) $row['spread_id']);
+            $place = $entries[$id];
+            self::walk(Editor::decode($row['data_json']), null, null, static function (string $value, ?string $part, bool $src = false) use ($add, $id, $place) {
+                $add($value, 'entry', $id, $place['scene'], $place['order'], "{$id}_" . ($part ?? 'file'), $src ? $id : null);
             });
         }
-        // Targets: on their entry's page; the printed image `_target`, the files of its own entity by asset id
+        // Targets: on their entry's scene; the printed image `_target`, the files of its own entity by asset id
         $shared = [];
         foreach (Db::run('SELECT id, entry_id, image_src, entity_ref, data_json FROM targets WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
             $entry = (string) $row['entry_id'];
-            $at = $entries[$entry] ?? ['spread' => null, 'page' => null, 'order' => self::BOOK_WIDE];
+            $place = $entries[$entry] ?? ['scene' => null, 'order' => self::BOOK_WIDE];
             $ref = (string) $row['id'];
-            if (is_string($row['image_src']) && $row['image_src'] !== '') $add($row['image_src'], 'target', $ref, $at['spread'], $at['page'], $at['order'], "{$entry}_target");
-            self::walk(Editor::decode($row['data_json']), null, null, static function (string $value, ?string $part, bool $src = false) use ($add, $entry, $ref, $at) {
-                $add($value, 'target', $ref, $at['spread'], $at['page'], $at['order'], "{$entry}_" . ($part ?? 'file'), $src ? $entry : null);
+            if (is_string($row['image_src']) && $row['image_src'] !== '') $add($row['image_src'], 'target', $ref, $place['scene'], $place['order'], "{$entry}_target");
+            self::walk(Editor::decode($row['data_json']), null, null, static function (string $value, ?string $part, bool $src = false) use ($add, $entry, $ref, $place) {
+                $add($value, 'target', $ref, $place['scene'], $place['order'], "{$entry}_" . ($part ?? 'file'), $src ? $entry : null);
             });
             // A shared entity sits where its first target is
             $shares = $row['entity_ref'] === null ? null : (string) $row['entity_ref'];
-            if ($shares !== null && (!isset($shared[$shares]) || $shared[$shares]['order'] > $at['order'])) $shared[$shares] = $at;
+            if ($shares !== null && (!isset($shared[$shares]) || $shared[$shares]['order'] > $place['order'])) $shared[$shares] = $place;
         }
         foreach (Db::run('SELECT ref, data_json FROM entities WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
             $ref = (string) $row['ref'];
-            $at = $shared[$ref] ?? ['spread' => null, 'page' => null, 'order' => self::BOOK_WIDE];
-            self::walk(Editor::decode($row['data_json']), null, null, static function (string $value, ?string $part, bool $src = false) use ($add, $ref, $at) {
-                $add($value, 'entity', $ref, $at['spread'], $at['page'], $at['order'], "{$ref}_" . ($part ?? 'file'), $src ? $ref : null);
+            $place = $shared[$ref] ?? ['scene' => null, 'order' => self::BOOK_WIDE];
+            self::walk(Editor::decode($row['data_json']), null, null, static function (string $value, ?string $part, bool $src = false) use ($add, $ref, $place) {
+                $add($value, 'entity', $ref, $place['scene'], $place['order'], "{$ref}_" . ($part ?? 'file'), $src ? $ref : null);
             });
         }
-        // Spreads' own files (their environment, passes, appearance …): on the spread's first page, no name of their own
+        // Scenes' own files (their passes …): on the scene, no name of their own
         $surfaces = [];
         foreach (Db::run('SELECT id, data_json FROM spreads WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
             $id = (string) $row['id'];
-            $at = $spreads[$id] ?? null;
+            $place = $at($id);
             $data = Editor::decode($row['data_json']);
             $surfaces[$id] = $data instanceof stdClass ? Scenes::surfaceIds($data) : [];
-            self::walk($data, null, null, static function (string $value) use ($add, $id, $at) {
-                $add($value, 'spread', $id, $at === null ? null : $id, $at['page'] ?? null, $at['order'] ?? self::BOOK_WIDE, null);
+            self::walk($data, null, null, static function (string $value) use ($add, $id, $place) {
+                $add($value, 'scene', $id, $place['scene'], $place['order'], null);
             });
         }
-        // Surface reference images (#314): on their scene's first page, no name of their own – only those whose surface is there
+        // Surface reference images (#314): on their scene, named `<scene>_<surface>` – only those whose surface is there
         foreach (SurfaceReferences::byScene($bookId) as $scene => $references) {
-            $at = $spreads[$scene] ?? null;
+            $place = $at((string) $scene);
             foreach ($references as $surface => $reference) {
                 if (!in_array((string) $surface, $surfaces[$scene] ?? [], true)) continue;
-                $add($reference['url'], 'reference', SurfaceReferences::ref((string) $scene, (string) $surface), $at === null ? null : (string) $scene, $at['page'] ?? null, $at['order'] ?? self::BOOK_WIDE, null);
+                $add($reference['url'], 'reference', SurfaceReferences::ref((string) $scene, (string) $surface), $place['scene'], $place['order'], "{$scene}_{$surface}");
             }
-        }
-        // Page images: their page's label
-        foreach (Db::run('SELECT page, facing, url FROM page_images WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
-            $key = Pages::key((int) $row['page'], (bool) (int) $row['facing']);
-            $page = $pages[$key] ?? null;
-            $add((string) $row['url'], 'page', $key, $page['page']['spread'] ?? null, (int) $row['page'], $page['order'] ?? self::BOOK_WIDE,
-                $page !== null ? self::pageStem($page['page']) : 'page-' . $key);
         }
         // The book's environment (its world model, its sky): book-wide
         $book = Editor::decode(Db::value('SELECT book_json FROM books WHERE id = :id', ['id' => $bookId]));
         if ($book instanceof stdClass && ($book->environment ?? null) instanceof stdClass) {
             self::walk($book->environment, null, null, static function (string $value, ?string $part) use ($add, $bookId) {
-                $add($value, 'environment', $bookId, null, null, self::BOOK_WIDE, 'environment_' . ($part ?? 'file'));
+                $add($value, 'environment', $bookId, null, self::BOOK_WIDE, 'environment_' . ($part ?? 'file'));
             });
         }
         // The book's other settings (appearance, passes with a texture or a model parameter …): book-wide, no name of their own
@@ -250,18 +237,18 @@ final class AssetNames
             foreach (get_object_vars($book) as $key => $value) {
                 if ($key === 'environment') continue;
                 self::walk($value, (string) $key, $book, static function (string $value) use ($add, $bookId) {
-                    $add($value, 'book', $bookId, null, null, self::BOOK_WIDE, null);
+                    $add($value, 'book', $bookId, null, self::BOOK_WIDE, null);
                 });
             }
         }
         // Plugin sources name a file by its URL as text: book-wide, no name of their own
         foreach (Db::run('SELECT id, source FROM plugins WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
             foreach ($keys as $value => $url) {
-                if (str_contains((string) $row['source'], (string) $value)) $add((string) $value, 'plugin', (string) $row['id'], null, null, self::BOOK_WIDE, null);
+                if (str_contains((string) $row['source'], (string) $value)) $add((string) $value, 'plugin', (string) $row['id'], null, self::BOOK_WIDE, null);
             }
         }
         // The print layout's files: read by the stage through layout.json – book-wide, no name of their own
-        foreach ($layout as $value) $add($value, 'layout', 'layout.json', null, null, self::BOOK_WIDE, null);
+        foreach ($layout as $value) $add($value, 'layout', 'layout.json', null, self::BOOK_WIDE, null);
         foreach ($uses as $url => $list) {
             usort($list, static fn(array $a, array $b) => self::rank($a) <=> self::rank($b));
             $uses[$url] = $list;
@@ -269,7 +256,7 @@ final class AssetNames
         return $uses;
     }
 
-    /** A use's place in the order: its page, then its kind (KIND_ORDER), then its ref */
+    /** A use's place in the order: its scene, then its kind (KIND_ORDER), then its ref */
     private static function rank(array $use): array
     {
         return [$use['order'], self::KIND_ORDER[$use['kind']] ?? 9, $use['ref']];
@@ -326,25 +313,9 @@ final class AssetNames
     // ── Names ────────────────────────────────────────────────────────────────────────────────────
 
     /**
-     * The name a page gives its image (a page of `Pages::pagesOf`): `page-118`, `page-1-facing`, `page-cover`,
-     * `page-back-cover`, `page-front-1-left` (front matter sheet 1, its left page), `page-back-2-right`
-     * @param array{page: int, facing: bool, side: string, kind: string, label: string} $page
-     */
-    public static function pageStem(array $page): string
-    {
-        return match ($page['kind']) {
-            'cover' => 'page-cover',
-            'back' => 'page-back-cover',
-            'front-matter', 'back-matter' => sprintf('page-%s-%d-%s', substr($page['kind'], 0, -7), (int) ceil(((int) substr($page['label'], 1)) / 2), $page['side']),
-            'facing' => "page-{$page['page']}-facing",
-            default => "page-{$page['page']}",
-        };
-    }
-
-    /**
-     * The name an upload takes when its use is known (`POST …/assets?fit=…&entry=…` or `&page=…[&facing=1]`): a target
-     * image `<entry>_target`, an entry's picture `<entry>_image`, a page image its page's (`pageStem`) – null when the
-     * request names no use (the upload keeps its name). 400 `invalid-use` for a page that is no page of the book.
+     * The name an upload takes when its use is known (`POST …/assets?fit=…&entry=…` or `&scene=…&surface=…`): a target
+     * image `<entry>_target`, an entry's picture `<entry>_image`, a reference image `<scene>_<surface>` – null when the
+     * request names no use (the upload keeps its name). 400 `invalid-use` for a surface that is no surface of the book.
      */
     public static function uploadStem(string $bookId, string $fit): ?string
     {
@@ -352,14 +323,13 @@ final class AssetNames
         if (is_string($entry) && $entry !== '' && in_array($fit, ['target', 'entryImage'], true)) {
             return Editor::id($entry, 'entry') . ($fit === 'target' ? '_target' : '_image');
         }
-        $page = $_GET['page'] ?? null;
-        if ($fit === 'page' && is_string($page) && $page !== '') {
-            if (!preg_match('/^-?\d+$/', $page)) throw new ApiError(400, 'invalid-use', 'page must be a whole number.');
-            $facing = ($_GET['facing'] ?? '') === '1';
-            foreach (Pages::pagesOf($bookId) as $p) {
-                if ($p['page'] === (int) $page && $p['facing'] === $facing) return self::pageStem($p);
-            }
-            throw new ApiError(400, 'invalid-use', ($facing ? "The half next to page $page" : "Page $page") . ' is no page of the book.');
+        $scene = $_GET['scene'] ?? null;
+        $surface = $_GET['surface'] ?? null;
+        if ($fit === 'reference' && is_string($scene) && $scene !== '' && is_string($surface) && $surface !== '') {
+            $scene = Editor::id($scene, 'scene');
+            $surface = Editor::id($surface, 'surface');
+            if (!SurfaceReferences::surfaceExists($bookId, $scene, $surface)) throw new ApiError(400, 'invalid-use', "The scene \"$scene\" has no surface \"$surface\".");
+            return "{$scene}_{$surface}";
         }
         return null;
     }
