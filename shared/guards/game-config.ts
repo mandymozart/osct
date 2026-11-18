@@ -265,6 +265,14 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
         if (typeof size !== "number" || !Number.isFinite(size) || size <= 0) fail(`${fPath}.${key}`, "expected a size in mm (> 0)");
       });
       str(surface, "label", fPath, true);
+      // Where it lies in the scene (schema 2.36, #314): finite numbers, the rotations optional
+      if (surface.place !== undefined) {
+        const place = obj(surface.place, `${fPath}.place`);
+        if (place) (["x", "y", "z", "rx", "ry", "rz"] as const).forEach(key => {
+          const value = place[key];
+          if ((value !== undefined || ["x", "y", "z"].includes(key)) && (typeof value !== "number" || !Number.isFinite(value))) fail(`${fPath}.place.${key}`, "expected a number");
+        });
+      }
       if (typeof surface.id === "string") {
         if (surfaceIds.has(surface.id)) fail(`${fPath}.id`, `duplicate surface id "${surface.id}"`);
         surfaceIds.add(surface.id);
@@ -345,6 +353,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
         });
         if (print.height !== undefined && (typeof print.height !== "number" || !Number.isFinite(print.height))) fail(`${tPath}.print.height`, "expected a number (mm)");
         if (print.page !== undefined && (typeof print.page !== "number" || !Number.isInteger(print.page))) fail(`${tPath}.print.page`, "expected a page number");
+        if (print.surfaceId !== undefined && (typeof print.surfaceId !== "string" || print.surfaceId === "")) fail(`${tPath}.print.surfaceId`, "expected a surface id");
       }
     }
     if (target.enabled !== undefined && typeof target.enabled !== "boolean") fail(`${tPath}.enabled`, "expected true or false");

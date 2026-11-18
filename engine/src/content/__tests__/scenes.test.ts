@@ -160,6 +160,28 @@ describe("the guard (schema 2.35)", () => {
     ]);
   });
 
+  it("a surface's place takes numbers; a print's surfaceId is a surface id (schema 2.36, #314)", () => {
+    const placed = book({
+      spreads: [{ id: "s1", title: "1", firstPage: 1, lastPage: 2, layout: "free", surfaces: [
+        { id: "page", side: "right", widthMm: 210, heightMm: 297, place: { x: 105, y: 0, z: 0 } },
+        { id: "wall", side: "wall", widthMm: 2000, heightMm: 1500, place: { x: 0, y: 750, z: -600, rx: 90 } },
+        { id: "bad", side: "wall", widthMm: 1, heightMm: 1, place: { x: "1", y: 0, rx: Infinity } },
+      ] }],
+      entries: [
+        { id: "t", category: "glossary", title: "T", page: 1, scene: "s1", body: "", tags: [],
+          target: { id: "t", imageSrc: "/assets/content/entries/t/target.jpg", print: { surface: "right", surfaceId: "wall", x: 1, y: 1, width: 10 } } },
+        { id: "u", category: "glossary", title: "U", page: 1, scene: "s1", body: "", tags: [],
+          target: { id: "u", imageSrc: "/assets/content/entries/u/target.jpg", print: { surface: "right", surfaceId: "", x: 1, y: 1, width: 10 } } },
+      ],
+    });
+    expect(problems(placed)).toEqual([
+      "spreads[0].surfaces[2].place.x: expected a number",
+      "spreads[0].surfaces[2].place.z: expected a number",
+      "spreads[0].surfaces[2].place.rx: expected a number",
+      "entries[1].target.print.surfaceId: expected a surface id",
+    ]);
+  });
+
   it("a side a later MINOR adds passes", () => {
     const config = book({ spreads: [{ id: "s1", title: "1", firstPage: 1, lastPage: 2, surfaces: [{ id: "c", side: "ceiling", widthMm: 1, heightMm: 1 }] }], entries: [] });
     expect(problems(config)).toEqual([]);

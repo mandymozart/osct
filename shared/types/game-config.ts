@@ -109,11 +109,13 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *   areas, each with a size in mm and a `label` as printed), `layout`, `group` and `label`, the configuration's optional
  *   `groups`, and an entry's optional `scene` and `surface` – **an entry's `scene` decides its spread, not its `page`**;
  *   writers keep writing `page` inside the scene's range (an older app ignores the new fields and places the entry by
- *   its page, as before).
+ *   its page, as before), and since 2.36 a surface's optional `place` (#314: where it lies in the scene's coordinate
+ *   system – a wall, a room's surfaces) and a target's optional `print.surfaceId` (the surface it is printed on, by id –
+ *   it wins over `print.surface`'s side); an older app ignores both (the reader does not use either yet).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "2.35";
+export const CONTENT_SCHEMA_VERSION = "2.36";
 /** The oldest content schema MAJOR this contract still reads as it is (nothing it had was renamed or removed) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 1;
 
@@ -195,17 +197,37 @@ export type SurfaceSide = (typeof SURFACE_SIDES)[number];
 export const SURFACE_SIDE_PATTERN = /^[a-z][a-z0-9-]*$/;
 
 /**
+ * Where a surface lies in its scene (schema 2.36, #314) – the **scene's coordinate system**, one for the whole scene, not
+ * per surface: millimetres, the origin on the table at the middle of the scene's first row of surfaces (a double page:
+ * its spine), +x to the right, +y up, +z towards the reader (three.js' axes). `x`, `y`, `z` are the surface's centre;
+ * unrotated (`rx`, `ry`, `rz` 0, degrees, applied in that order) a surface lies flat, face up, its top edge away from the
+ * reader (−z) – a page on the table. A wall ahead stands up: `rx` 90, its face towards the reader. A `fixed` scene
+ * derives its surfaces' places (side by side in a row, flat) and ignores `place`; a `free` one places each surface by
+ * it, a surface without one as in a fixed row.
+ */
+export interface SurfacePlace {
+  x: number;
+  y: number;
+  z: number;
+  rx?: number;
+  ry?: number;
+  rz?: number;
+}
+
+/**
  * One physical area of a scene (schema 2.35, #307): a left or right page, a cover, a wall. Its `label` is written exactly
  * as printed (`41`, `ii`, `Cover`) – free text, never arithmetic; none = nothing printed.
  */
 export interface SurfaceData {
-  /** Unique within its scene; an entry names it (`EntryData.surface`) */
+  /** Unique within its scene; an entry names it (`EntryData.surface`), a target's print too (`PrintPlacement.surfaceId`) */
   id: string;
   side: SurfaceSide | (string & {});
   widthMm: number;
   heightMm: number;
   /** Optional: the label as printed – the reader shows it where it showed the page number */
   label?: string;
+  /** Optional (schema 2.36, #314): where it lies in the scene (`SurfacePlace`) – used in a `free` scene */
+  place?: SurfacePlace;
 }
 
 /**
@@ -313,7 +335,10 @@ export type PrintSurface = (typeof PRINT_SURFACES)[number];
  */
 export interface PrintPlacement {
   page?: number;
+  /** The side it is printed on – kept for apps before 2.36; a surface's id (`surfaceId`) wins over it */
   surface: PrintSurface;
+  /** Optional (schema 2.36, #314): the scene's surface it is printed on, by id (`SurfaceData.id`) – a fold-out's middle, a wall */
+  surfaceId?: string;
   x: number;
   y: number;
   width: number;

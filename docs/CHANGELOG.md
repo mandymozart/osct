@@ -7,6 +7,16 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.112.0 – 2026-11-18
+
+### Added
+
+- **Content schema 2.36 – surfaces placed in the scene** (#314): a surface's optional `place` (`x`, `y`, `z` in mm,
+  `rx`, `ry`, `rz` in degrees) in the scene's coordinate system – one for the whole scene, its origin on the table at
+  the middle of the first row, +x right, +y up, +z towards the reader; used by `free` scenes (a wall, a room) – and a
+  target's optional `print.surfaceId` (the surface it is printed on, by id). Older apps ignore both; the reader does not
+  use them yet. The editor's surface mode and the stage's drawing of surfaces follow.
+
 ## 1.111.0 – 2026-11-18
 
 ### Added

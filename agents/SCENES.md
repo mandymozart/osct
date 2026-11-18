@@ -149,6 +149,30 @@ the arrow keys scroll the strip sideways; resizing the panel scales the cards (n
 5. **Groups as loading windows**; free layouts with world tracking after #299.
 6. **MAJOR**: drop the page fields when no older app needs them.
 
+## Surfaces: create, edit, place (#314, decided 2026-11-18)
+
+Tilman chose a **Surface mode** and **everything now** – walls and free layouts included, which brings in the scene
+coordinate system of #316 (part 2; the per-surface grid of #316 part 1 stays open).
+
+- **Contract 2.36 (done, 1.112.0):** `SurfaceData.place` (`SurfacePlace`: `x`, `y`, `z` mm, `rx`, `ry`, `rz` degrees) in
+  the **scene's coordinate system** – one for the whole scene: origin on the table at the middle of the first row of
+  surfaces (a double page: the spine), +x right, +y up, +z towards the reader; unrotated a surface lies flat face up, its
+  top edge away from the reader; a wall ahead is `rx` 90. `fixed` scenes derive their places (a row, flat) and ignore
+  `place`; `free` scenes use it. `PrintPlacement.surfaceId` names a target's surface by id (wins over the side words in
+  `print.surface`, which older guards insist on).
+- **Server (worker):** reference images per surface – editor-only, never in the content: a `surface_references` table
+  (book, scene, surface → url, name, fit), in the scenes overview as `surfaces[].reference`, set / replace / remove by
+  `PUT …/scenes/{id}/surfaces/{surface}/reference`, change-logged and revertable (#312); the page images (#251) migrate
+  to references (plan → apply, by page → scene / surface, `page_images` kept); `checkSurfaces` takes `place`; asset usage
+  and renames (#298) count references; MCP `set_surface_reference` and the migration tool.
+- **Stage (worker):** the mock stage draws a scene **from its surfaces**: a fixed row of any length (a fold-out's three),
+  covers, each at its own size; free scenes each surface at its `place` (a wall stands); each surface shows its reference
+  image (else the layout sheet as today, else paper); the scene's axes at the origin and a scene grid; targets lie on
+  their surface (`surfaceId`, else the side); picks, the placement ghost and snapping work per surface.
+- **Surface mode (after both):** a Surface tool in the toolbar – the stage outlines the surfaces, a click selects one;
+  the Inspector shows it (label, side, size, place and a gizmo in a free scene, reference image, remove); the Tree has a
+  Surfaces level with + surface (page / wall / custom); the scene section adds, removes and reorders.
+
 ## Open questions (Tilman)
 - [x] The word in the UI and the API: **"scene" everywhere** (Tilman, 2026-11-17) – UI, API, MCP, links `/scene/<id>`, code
   and content types (`SceneData`); "spread" survives only as an alias for old links and content, and RULES #2's term
