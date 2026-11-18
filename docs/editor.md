@@ -204,107 +204,37 @@ Connecting an AI agent is a first step of working here, so it sits on the books 
 > last open in this browser, else the first; the Scenes panel under the stage has the scenes, their order and groups. An
 > experience without scenes offers its first one. The editor says **Experiences** where it said Books.
 
-`/editor/<book>/`: the book's title and author, then its **scenes** (#237, #307), or – with the **Scenes | Pages** switch
-under the title – its [pages](#pages) (`?view=pages`, #251; phase 3b of #307 turns page images into surface references
-and removes the switch). The book's texts and settings
-are the Inspector's (the top bar's book crumb in a spread, [Inspector: the book](#inspector-the-book)), its entries are
-found with the [book search](#the-book-search) and edited in their spread; the environment is its tab in the workspace.
-An old link with `?view=entries` or `?view=onboarding` shows the spreads. **Publish** with its target and where the book
-is live is in the top bar ([above](#publish-the-instances-own-environment)).
+`/editor/<book>/` opens the scene last open in this browser, else the first (`osct-editor-last-scene:<book>`). The
+book's texts and settings are the Inspector's ([Inspector: the book](#inspector-the-book)), its entries are found with the
+[book search](#the-book-search) and edited in their scene; the environment is its tab in the workspace. **Publish** with
+its target and where the book is live is in the top bar ([above](#publish-the-instances-own-environment)).
 
-### Scenes
+### Scenes (schema 3.0, #319)
 
-The book is an ordered list of **scenes** (#307, `agents/SCENES.md`); the book page shows them with the same cards as
-the [Scenes panel](#the-scenes-panel) under the stage (`SceneCards.svelte`, the model `scene-strip.ts`, the data and
-actions `scenes.svelte.ts`) – here in rows that wrap, each **group** a headed section (its label, scene count and target
-count, a warning above the loading window). A card is the scene's picture – the layout's sheet (from the book's layout
-below its assets base – the Inspector's *assets* names it) with the targets' prints and page images over it, or, without
-one, its surfaces drawn side by side with their labels – its name (the scene's label, its own title, else its pages) and
-its target count. Above the cards: the counts, **+ Scene…**, **Group** (Ctrl+G) and **Ungroup** (Ctrl+Shift+G).
+An experience is an ordered list of **scenes** (`agents/SCENES.md` "Schema 3.0") – no page numbers anywhere: a scene has
+its `label` (what the reader's switcher and lists show – `186–187`, `Cover`, `Studio wall`; empty: its id), an optional
+group and its **surfaces**, each with its size and its `place` in the scene's coordinate system. **A double page is one
+surface** (twice the page's width); a cover is a single scene first in the order; a wall is a surface standing ahead.
+The [Scenes panel](#the-scenes-panel) under the stage shows them as cards (`SceneCards.svelte`, the model
+`scene-strip.ts`, the data and actions `scenes.svelte.ts`): a card is the scene's **surfaces side by side**, each with its
+reference image (#314, fitted as it says) and the prints of the targets lying on it (`surface-preview.ts`,
+`SurfacesPreview.svelte`), with the scene's label and its target count.
 
-- **Open, pick, drag** as in the Scenes panel: a click opens the scene's stage, Shift+click picks a range, Ctrl+click
-  one more; the picked cards – or a group's head – are dragged to a new place, a gold line shows where they land, over a
-  group's scene they join the group. The drop is written at once (`POST …/scenes/move`) – nothing renumbers.
-- **Print first and digital first alike** (#307 phase 2 lifted #238's restriction): every book adds and removes scenes.
-- **+ Scene…** and the dashed **+** tile at the end add a scene from a **layout preset** – single page, double page,
-  front cover (goes first), back cover (goes last), fold-out (three pages), wall (`POST …/scenes`, `SCENE_PRESETS`).
-- **A card's menu** (#196): the card carries no buttons – the picture is the content; a **right click**, a **long
-  press** (a finger held still for half a second; moving is a drag or a scroll and cancels it) or the **menu key /
-  Shift+F10** on a focused card opens *Open*, *Add a scene after…* (the presets, placed right after it) and *Remove*. It
-  is the editor's one context menu (`ContextMenu.svelte`, `context-menu.ts`, `menu-trigger.ts`): the first item has the
-  focus, ↑ ↓ wrap, Home / End, a first letter jumps, Enter or Space chooses, Esc, Tab or a click beside it close it, and
-  the focus goes back to the card. A disabled item stays with its reason under its word.
-- **Remove** takes out a scene **with everything on it** (#198), after the person saw what goes: the API's first step
-  answers the impact (nothing is removed), shown above the cards (`RemovalConfirm.svelte`, words from `removal.ts`) –
-  its entries, targets, entities, the shared entities kept, *Library files are kept*, and, when files are used only
-  there, the option **Also delete the n files used only here** (off at first). *Remove …* sends the confirmation, *Keep*
-  or Esc keeps it – no browser dialog; a book changed meanwhile shows the fresh impact to confirm again. The scene the
-  book opens on (`initialSpreadId`) cannot go – the reason is shown under the disabled item. Nothing renumbers.
-- **The workspace** still has the older creation step for a spread (`NewSpreadForm.svelte`: a double page, the cover, the
-  back cover; from **+** after the last spread's › and the tree's spread row menu, for a digital-first book).
-- **Page images** (#251, [below](#pages)) lie over a card's sheet where its pages have one: a double page's halves, a
-  cover's whole card, a single page's card. A single left-hand page (the last printed one) shows the left half of its
-  sheet – the half with the page.
-- **A single printed page with its facing half** (#251) – page 1, the last printed page – is a **double page card**
-  when the unnumbered half next to it exists: a page image of its own (*next to 1*, key `1f`) or the other half of the
-  layout's double sheet. The half lies on its side of the gutter – page 1's on the left (it fills the first row's empty
-  cell), the last page's on the right – and the card is a double page's size; the printed half shows as before, the
-  facing half carries no targets (prints keep their page). A one-page layout sheet lies on the printed half, beside the
-  facing page image. Without the half the card stays the single page; the covers stay single pages
-  (`facingHalfOf` in `stage/stage-layout.ts`, `gridCells`' `facingOf`, `cardPicture` in `sheet-preview.ts`). The stage
-  shows such a spread as the open book anyway: the double sheet, the facing page image on its half, a one-page sheet on
-  the printed half (`onePageSheetSide`).
-
-### Spread titles
-
-A spread shows a **title of its own**, or – when it has none – **the title its pages give** (#298 phase 3,
-`shared/api/spread-titles.ts`): `Pages 118–119`, `Page 256`, `Cover`, `Back cover`, `Front matter 1`, `Back matter 2`
-(matter by its place among the spreads of its matter). A stored title that only repeats the pages – the import's
-`118–119`, `1`, `256`, an older `Cover` or `New spread` – counts as none, so inserting or removing pages never leaves a
-stale title; a title of its own (`The Golem`) is kept. The editor (tree, Inspector, breadcrumb, cards, search), the
-reader's page scroller (where it shows titles: the covers and the matter) and the MCP read the same title – the API
-derives it where it serves spreads, the content it assembles included ([server](server.md) "Spreads made in the editor").
-The tree and the cards leave out the pages next to a derived title (it says them already). Ids never change with a title.
-
-### Pages
-
-The **Pages** view (`lib/PagesView.svelte`, its logic in `pages-view.ts`, the names in `shared/api/page-names.ts`) lists
-every page of the book in book order – the cover, the front matter (`F1` … – internal pages, #296), the **unnumbered half
-next to page 1**, 1 … N, the unnumbered half next to the last printed page, the back matter (`B1` …), the back cover –
-as the API derives them from the spreads (`GET …/pages`). Each page shows the picture the stage shows for it: its
-**page image** when it has one (framed darker), else the layout's half of its sheet (*layout*), else nothing (*empty*).
-
-A **page image** is one image of the book's Library per page that **wins over the print layout's sheet for that page** –
-on the stage (that half of the sheet, a cover the whole, scaled to the page in mm; the other half keeps the layout's
-sheet, and its sharp-on-demand image stays the layout's) and on the spread cards. It is the editor's only: the reader
-never shows it, the draft and a publish do not carry it, and a re-import of the book keeps it – fixing one page after an
-import needs no content source, build, sync or re-import. The delivery tooling stays the way to bring a whole book.
-
-Per page: **Upload…** / **Replace…** (a file from the computer – it goes into the Library), **Library…** (a select of the
-Library's images), and with an image **Move…** (to another page – that page's image is replaced, the Library keeps it),
-**Rename…** and **Remove** (back to the layout). A Library file a page image shows counts as a use (it is not deleted
-without *Delete anyway*, which takes the page image too), and a replaced file's new version is shown at once.
-
-**Upload many…** (or drop pictures on the view): every JPEG, PNG or WebP is matched to a page **by its name** and listed
-with the proposed page – a select to change it or *skip* it, a note where the name names no page, a warning where two
-files go to one page or a file replaces a page's image. **Apply** uploads them and sets the page images in one batch;
-nothing is uploaded or set before. Case does not matter, the extension is ignored:
-
-| Name | Page |
-|---|---|
-| `P012…`, `p12`, `pp-012`, `page-12`, `page12`, `012`, `12` (anything after a non-digit is ignored: `P012_Print.jpg`) | the numbered page 12 |
-| `P001-facing`, `page-256-facing` | the unnumbered half next to page 1 / 256 |
-| `cover`, `front-cover`, `cover-front` · `back`, `back-cover`, `cover-back` | the covers |
-| `F1` … `F4`, `B1` … `B4` | the front / back matter's pages by their labels (F1 the first after the cover) |
-| `start-1` … `start-6`, `end-1` … `end-6` | in print order, as the print PDFs come (`START BOOK.pdf`, `END BOOK.pdf`): every page before page 1 from the cover on (cover, F1–F4, the half next to page 1), and every page after the last printed page to the back cover (the half next to it, B1–B4, the back cover) |
-
-Above the list, the **print format**: the front and back matter sheets and the last printed page – read from the book's
-layout (its `front-matter` / `back-matter` sheets and its highest page), typed otherwise – and *Check*. When the book's
-spreads miss pages of that format (`POST …/matter`, checked by itself with a layout), the view lists what is missing –
-the front matter spreads `front-1` …, the back matter `back-1` …, a spread for the last printed page when none holds it,
-the back cover moving after the back matter, entries that change spread – and **Add the missing pages** adds them. This
-works on a print-first book too: a deliberate exception to #238 – the spreads are the printed book's, only missing
-(staging's book had no matter and its back cover on page 256). Then the new pages take their images like any other.
+- **Open, pick, drag** in the Scenes panel: a click opens the scene's stage, Shift+click picks a range, Ctrl+click one
+  more; the picked cards – or a group's band – are dragged to a new place, over a group's scene they join the group. The
+  drop is written at once (`POST …/scenes/move`) – nothing renumbers, the order is the scenes' only order.
+- **+ Scene…** and the dashed **+** tile add a scene from a **preset** (`POST …/scenes`, `SCENE_PRESETS`): **double page**
+  (one surface of 2 × the page's width), **single page**, **wall** (2000 × 1500 mm standing ahead, `rx` 90). The
+  workspace's creation step for a digital-first book (`NewSceneForm.svelte`: preset, label, after which scene) opens from
+  **+** in the Inspector's head at the last scene and from the tree's scene row menu (*Add a scene after*).
+- **Removing a scene** (`deleteScene`, `DELETE …/scenes/{id}`) takes the two steps of a removal (#198,
+  `RemovalConfirm.svelte`, words in `removal.ts` – *Removes scene “4–5” with …*); the scene the book opens on
+  (`initialScene`) cannot go.
+- **Gone with schema 3.0** (no backward compatibility – Tilman, 2026-11-18): the page images and the Pages view (#251 –
+  a surface's reference image is the editor's picture of it), the matter spreads (#296), the titles pages gave (#298's
+  spread titles), the spread grid and the layout sheets as the cards' and the stage's pictures, the formats and the
+  fixed / free layouts. The book's layout (`content/layout/`) is no longer read by the editor: its sheets become surface
+  references (the server's migration, part B of #319).
 
 ### Texts: entries and the book
 
@@ -591,27 +521,17 @@ in a sandboxed frame ([The stage frame](#the-stage-frame-plugins-in-a-sandbox-23
   (`editor/static/models/desk-eiermann.glb`, 256 triangles, the frame and both tops as meshes of their own, built by
   `editor/tools/desk-eiermann.py` in Blender – `editor/static/models/README.md`), loaded once, the top not chosen hidden,
   with the origin at the tops' surface, so the book lies on it.
-- **The open book** as an object – two blocks of paper on a white hardcover board (2 mm) that overhangs the pages by
-  3 mm, the block's thickness an approximation from the number of spreads (0.15 mm a sheet, half on each side, 3–40 mm) –
-  and the current spread's printed images. A spread of the format `cover` or `back` shows the **closed book** instead –
-  the printed cover board on top (the layout's `cover-front` / `cover-back` sheet as its texture), the whole block of
-  paper under it, centred on the origin, one page wide – and its targets lie on the surface `front` or `back`.
+- **The scene's surfaces** (#319): each a plain board (1.5 mm) at its `place` – a double page flat on the table, a wall
+  standing – its face paper, with its **reference image** fitted onto it (else paper). No book around them: no fold, no
+  cover board, no block of paper, no layout sheet. The desk's top lies under the boards (the scene's y = 0).
 - **Layers**: every plane lies a hair (0.5 mm) under the one above it: the entities sit at the target's own plane (z = 0,
-  as the tracker reports it), the printed image one layer below, the sheet's image below that, so nothing flickers.
+  as the tracker reports it), the printed image one layer below, the reference image below that, the board's face below
+  that, so nothing flickers.
 
-The printed images:
-
-- with the **book's layout** (`content/layout/`, imported from the designed PDFs – [content guide](content.md),
-  "Importing the book layout"): the spread's sheet as laid out is the page's texture, and every target lies exactly
-  where it is printed, in its printed size, on its own page (left or right). Leafing with ‹ › shows the next sheet.
-  The covers are in the layout too (`cover-front`, `cover-back`) for works that place targets there;
-- without the layout but with the **trigger protocol** (`/trigger-protocol.json`, `npm run protocol`): blank pages
-  in the book's page format (230 × 320 mm, a constant), each image in its printed size in the region its `position`
-  names (`top left` …) on the right page, several in one region stacked;
-- without either (the fixture): the images in a row across the middle of the right page, 60 mm wide.
-
-The stage's **sheet image is sharpened on demand**: the layout carries a second, much sharper image per sheet
-(`imageSharp`, `sheets/<sheet>@sharp.jpg`); the stage fetches it once, when the camera comes within 50 cm of the page.
+The printed images: a target with a `place` lies exactly there, in its printed size, on its surface (`place.surface`,
+else the scene's first – a scene of one surface names none). Without places, with the **trigger protocol**
+(`/trigger-protocol.json`): each image in its printed size in the region its `position` names on the scene's first
+surface; without either (the fixture): the images in a row across the middle of the first surface, 60 mm wide.
 
 ### The mock tracker and the simulated game
 
@@ -691,75 +611,77 @@ grid and the camera stay; a desk stored before, `desk: "eiermann"` or `"schoepfe
 environment the row names its world (*the environment's (world café)*), the HDRI picker waits below it for a book
 without one, and the group's tooltip ends *· the environment's sky*.
 
-### Surfaces on the stage (#314)
+### Surfaces on the stage (#314, #319)
 
-The mock stage draws the open scene **from its surfaces** (`stage/surfaces.ts`, `agents/SCENES.md` "Surfaces"). The
-scene's coordinate system (schema 2.36, `SurfacePlace`): mm, the origin on the table at the middle of the first row,
-+x right, +y up, +z towards the reader; the stage frame is the same origin with y away from the reader and z up (a
-scene point (x, y, z) is the stage's (x, −z, y)). A **fixed** scene (or none) lays its surfaces side by side, flat,
-each at its own size, the row centred on the origin – a double page the open book, a fold-out three pages (a fold over
-each seam), a cover the closed book. A **free** scene puts each surface at its `place` (`rx`, `ry`, `rz` degrees,
-three.js Euler `XYZ`; unturned flat, face up, top edge away from the reader; a wall `rx` 90), the surfaces without a
-place in a row of their own around the origin; each is a thin board, the desk stays. The layout sheet goes whole over a
-book's row (its pages, a cover); a fold-out's or a free scene's surfaces each take their part of it (a double sheet's
-halves on the left and the right page), the rest stays paper. Content without surfaces keeps the book: the sides
-`left` / `right` (or `front` / `back`) are the surface ids, one page format each.
+The mock stage draws the open scene **from its surfaces** (`stage/surfaces.ts`, `agents/SCENES.md` "Schema 3.0"). The
+scene's coordinate system (`SurfacePlace`): mm, the origin on the table at the middle of the first row (a double page's
+spine), +x right, +y up, +z towards the reader; the stage frame is the same origin with y away from the reader and z up
+(a scene point (x, y, z) is the stage's (x, −z, y)). Every surface lies at its `place` (`rx`, `ry`, `rz` degrees, three.js
+Euler `XYZ`; unturned flat, face up, top edge away from the reader; a wall `rx` 90) – there is no fixed row and no side
+any more. **Arrange in a row** (`arrangeInRow` in `surface-edit.ts`; the Inspector's scene section, its selected surface
+and the Tree's scene row and surface menus) writes a row: every surface flat on the table, side by side in the list's
+order, touching, the row centred on the origin – off while the surfaces lie so already.
 
 Each surface shows its **reference image** (the frame's `surfaceReferences` input, by scene id and surface id:
-`{ url, fit }` with `cover`, `contain` or `stretch` – `fitImage`; the page passes it with `Stage.setSurfaceReferences`
-once the scenes overview carries `surfaces[].reference`), else its page image (#251), else the layout sheet over the
-row (fixed scenes), else paper. A target lies on `print.surfaceId`, else on the surface with its side, else on the
-scene's right page / cover face / last surface. `pageHit` finds the nearest surface a ray meets inside its edges (else
-the one whose edge is nearest, so a drag past an edge stays on it); the ghost, its handles and the snapping work on
-it, and a placement made on a scene's own surface writes `surfaceId` plus a side older apps know (`printSideOf`: the
-surface's side when it is `left` / `right` / `front` / `back`, else the right page or the cover's face). With the grid
-on, the table shows a faint **scene grid** (every five grid steps, at least 50 mm) and, with the axis switch, the
-**scene's axes** at its origin (x red, y green, z blue, 100 mm). The page grid and the 2D snapping count on the surfaces
-lying flat on the table, each at its size; a print on a wall or a turned surface snaps in that surface's own plane, to
-its edges and the prints on it (no guides; the per-surface grid is #316).
+`{ url, fit }` with `cover`, `contain` or `stretch` – `fitImage`), else paper. `pageHit` finds the nearest surface a ray
+meets inside its edges (else the one whose edge is nearest, so a drag past an edge stays on it); the ghost, its handles
+and the snapping work on it, and a placement writes the surface's id into `place.surface` only while the scene has
+several surfaces (`placeOnChoice`). The 2D snapping counts on the surfaces lying flat on the table, each at its size; a
+print on a wall or a turned surface snaps in that surface's own plane, to its edges and the prints on it (no guides).
 
 For the Surface mode: `Stage.setSurfaceMarks(outlined, highlighted)` outlines surfaces by id (grey; the highlighted one
 white with a black line just inside, monochrome – RULES #38), the `surfacePick` event names the surface a tap hit (mm
 from its top left corner, or null; `Stage.onSurfacePick`), and the layout snapshot lists the open scene's surfaces
-(`Stage.surfaces()`: id, side, size, `own`, `flat`).
+(`Stage.surfaces()`: id, size, `flat`).
 
 **The Surface mode** (#314): the toolbar's tool group has a **Surface** tool (S, after Q / W / E / R). With it the
-stage outlines the open scene's own surfaces, the one under the mouse a lighter grey; a click selects a surface – no
-target, no node (the frame sends no `pick` in this mode) – and Esc deselects (the spread again). A surface selected in
-the Tree or the Inspector stays highlighted in the other tools too. In a **free** scene the selected surface carries its
-own gizmo (`stage/surface-gizmo.ts`): `TransformControls` on a stand-in in the scene's coordinate system (a root turned
-+90° about x into the stage frame, so position and Euler XYZ are the content's `place`), move or rotate as the
-Inspector's *gizmo* row says, snapped to 10 mm / 15° while snapping is on. The stand-in and its white outline move at
+stage outlines the open scene's surfaces, the one under the mouse a lighter grey; a click selects a surface – no target,
+no node (the frame sends no `pick` in this mode) – and Esc deselects (the scene again). A surface selected in the Tree or
+the Inspector stays highlighted in the other tools too. The selected surface carries its own gizmo
+(`stage/surface-gizmo.ts`): `TransformControls` on a stand-in in the scene's coordinate system (a root turned +90° about x
+into the stage frame, so position and Euler XYZ are the content's `place`), move or rotate as the Inspector's *gizmo* row
+says, snapped to the **floor grid's spacing** and 15° while snapping is on. The stand-in and its white outline move at
 once; when the drag ends the frame sends `surfacePlace` and the page saves the place with the scene's list (one autosave
-subject per scene) – the board follows once the draft has it (the stand-in holds the dragged place meanwhile). A change
-of the scenes (`scenes.version`) loads the draft and lays the open scene out again (`Stage.relayout` sends the newest
-draft first).
+subject per scene) – the board follows once the draft has it. A change of the scenes (`scenes.version`) loads the draft
+and lays the open scene out again (`Stage.relayout` sends the newest draft first).
 
-### Grid, origin and snapping
+### Grids, origin and snapping
 
-The toolbar's *grid & snap* group sets a **grid** (on / off, spacing in mm; its lines run through the origin, which is
-red), its *view* group the **origin** (`stage/origin.ts`): one of the nine points of an alignment square – a corner or an
-edge's centre of the base format (per page), or the centre (the book's centre, the spine's middle, on the open book; the
-page's centre on a cover). The x / y rows of a target's placement and of a new target are shown and entered from that
-origin (x to the right, y downwards, so values left of or above it are negative); what is saved stays mm from the
-page's top left corner. With the grid, a thin green **vertical axis** (#190) rises 150 mm out of the page from each zero
-of the origin (one at the book's centre, one per page for a corner) – the height's line next to the red x / y lines;
-*grid & snap* switches it on and off.
+The toolbar's *grid & snap* group (`GridSnapMenu.svelte`, the settings in `stage/preview.ts`, drawn by `MockStage.setGrid`)
+has three grids (#316, #319):
+
+- **The surface grid** – the targets' grid on each surface (on / off, its spacing in mm; its lines run through the
+  origin, which is red). A surface may have **its own spacing** (#316 part 1: the Inspector's surface, *grid*), kept in
+  this browser per experience and surface (`surface-grids.svelte.ts`, `osct-editor-surface-grids:<book>` →
+  `<scene>/<surface>`) – not in the content; the open scene's spacings reach the stage with the preview
+  (`surfaceGrids`). It is drawn on every surface in its own plane, a wall's on the wall; a print dragged on a surface
+  steps by that surface's spacing.
+- **The floor grid** – the scene's transparent net on the table (the scene's y = 0) through the origin, every *floor*
+  mm (50 by default), every tenth line stronger, 1.5 m around the origin (a very fine spacing steps up to at most 400
+  lines), under the boards. It is the **snap grid of the surfaces' places**: the surface gizmo steps by its spacing. On
+  by default.
+- **The vertical grid** – for wall setups: the same net standing at the scene's z = *Z* mm (−500 by default; + towards
+  the reader, a wall ahead is at a negative z), from the table 2.5 m up, the floor grid's spacing. Off by default.
+
+The *view* group sets the **origin** (`stage/origin.ts`): one of the nine points of an alignment square – a corner or an
+edge's centre of the surface a position lies on, or the centre (the scene's origin, a double page's spine; a standing
+surface's middle). The x / y rows of a target's placement and of a new target are shown and entered from that origin
+(x to the right, y downwards, so values left of or above it are negative); what is saved stays mm from the surface's top
+left corner. With the axis switch, a thin green **vertical axis** (#190) rises 150 mm out of the surface from each zero,
+and the **scene's axes** show at its origin (x red, y up green, z towards the reader blue, 100 mm).
 
 **Snapping** (#190, `stage/snap.ts` – the math, pure and tested –, `stage/snap-scene.ts` – the scene's side) works
-for the gizmo and the placement handles; everything is counted in the stage's frame in mm (origin in the middle of
-the book, x right, y up the page, z out of it):
+for the gizmo and the placement handles; everything is counted in the stage's frame in mm (the scene's origin, x right,
+y away from the reader, z up):
 
 - **Move** (the gizmo's move, a print dragged by its placement handles) snaps per axis: the moving thing's anchors –
   its pivot and its box's edges and centre (a print: its edges and centre) – go to the nearest line within 8 screen
-  pixels (turned into mm by the camera's distance): an **axis** (the origin's zero lines, the page plane for the
-  height), another **object** (its box's edges and centre, its pivot; a node's own parents count with their pivots
-  only, its children not at all) or an **outline** (the other printed targets' edges and centres, the pages' edges and
-  the spine). With no line near, the pivot (a print: its top left corner) rounds to the **grid** – every grid step from
-  the origin's zero of the page it lies on – when the grid is a snap target, else to the **move step**. Only the axes a
-  handle may change snap (the X arrow only x; a plane its two; the centre handle the page's x and y; a node turned
-  away from the page's axes keeps its turned handles unsnapped). The lines it snapped to are drawn as magenta
-  **guides** across the spread while the drag lasts.
+  pixels (turned into mm by the camera's distance): an **axis** (the origin's zero lines, the surface for the height),
+  another **object** (its box's edges and centre, its pivot; a node's own parents count with their pivots only, its
+  children not at all) or an **outline** (the other printed targets' edges and centres, the surfaces' edges). With no
+  line near, the pivot (a print: its top left corner) rounds to the **grid** – every step of its surface's grid from the
+  origin's zero – when the grid is a snap target, else to the **move step**. Only the axes a handle may change snap. The
+  lines it snapped to are drawn as magenta **guides** while the drag lasts.
 - **Rotate** snaps the angle turned since the drag started to whole steps of the rotate step (15° by default), about
   the drag's own axis; **scale** snaps each factor to whole steps of the scale step (0.1), never below one step.
 - **On / off**: the toolbar's switch (stored per browser, off at first); holding **Shift or Ctrl** while dragging turns
@@ -976,41 +898,40 @@ label), its **targets** against the loading window with a meter (warning colour 
 label), and **the scenes in the group** with their targets, each a link that opens it, and **Ungroup** (the group goes,
 its scenes stay in place).
 
-### Inspector: a surface (#314)
+### Inspector: a surface (#314, #319)
 
-A surface selected (the Surface tool's click, the Tree's Surfaces level, a side in the scene's surfaces – the
-selection's `surface` level, scene and surface id) shows `SurfaceView.svelte`: the crumb *scene › surface*; its
-**label** as printed, its **side** (`SURFACE_SIDES`, a later MINOR's word kept), its **size** (W × H mm) and its place
-in the scene's order (↑ ↓); *place* – in a free scene **position** (x y z mm) and **rotation** (x y z °, Euler XYZ) and
-the *gizmo* row (move / rotate, for the Surface tool's gizmo), *back into the row* drops the place; in a fixed scene a
-line and *make free*; the **reference image** (editor-only, never in the content – Library… with the Library as a
-picker, Upload…, the fit cover / contain / stretch, remove; `PUT …/scenes/{id}/surfaces/{surface}/reference` through
-`scenes.putReference`, which reads the references again – `scenes.references`, the stage's source too); *remove
+A surface selected (the Surface tool's click, the Tree's Surfaces level, an id in the scene's surfaces – the selection's
+`surface` level, scene and surface id) shows `SurfaceView.svelte`: the crumb *scene › surface*; its **label** as printed,
+its **size** (W × H mm) and its place in the scene's order (↑ ↓); *place* – **position** (x y z mm) and **rotation**
+(x y z °, Euler XYZ), the *gizmo* row (move / rotate, for the Surface tool's gizmo) and *arrange the scene in a row*;
+*grid* – the surface's **own grid spacing** for the targets on it (#316 part 1: kept in this browser per experience and
+surface, *reset* takes the toolbar's again); the **reference image** (editor-only, never in the content – Library… with
+the Library as a picker, Upload…, the fit cover / contain / stretch, remove; `PUT …/scenes/{id}/surfaces/{surface}/reference`
+through `scenes.putReference`, which reads the references again – `scenes.references`, the stage's source too); *remove
 surface* with the same confirmation as the list. Every field saves itself with the scene's whole list. The History
 calls a reference's change *Reference image · scene · surface* (*image replaced*, a fit changed, removed) and files it
 under its scene; the Library's usage line says *reference image of scene · surface*.
 
-The placement rows of a target and the new-target form offer the scene's **own surfaces** by id (a fold-out's middle, a
-wall – their label and side) instead of only the sides, and write `surfaceId` with a side older apps read
-(`surfaceChoices`; content without surfaces keeps left / right or the cover's face).
+The placement rows of a target and the new-target form offer the scene's surfaces by id (their label, else their id)
+while the scene has several, and write `place.surface` then (`surfaceChoices`, `placeOnChoice`); a scene of one surface
+names none. An entry's form and the new-entry form offer the scene (a select of the experience's scenes – another one
+moves the entry) and, in a scene of several surfaces, its surface (`EntryData.surface`, none = the scene as a whole).
 
-### Inspector: the spread
+### Inspector: the scene
 
-With the spread selected the Inspector shows `SpreadView.svelte` (#227, #229 – the Stage tab's sections, moved there):
+With the scene selected the Inspector shows `SpreadView.svelte` (#227, #229 – the Stage tab's sections, moved there):
 
-- *scene* and *surfaces* (#307 phase 3a, `SceneSection.svelte`) – above the spread's own: the scene's **label** (what the
-  reader's switcher and lists show; empty: its pages), its **layout** (fixed / free), its **group** (or its own stop) and
-  its targets of 10; then the **surfaces** (#314, `SurfaceList.svelte`): each with its **label** as printed, its side
-  (a click selects the surface – the Inspector below), its size; ↑ ↓ reorder, ✕ removes after a confirmation that names
-  the targets and entries lying on it (they keep their side and fall back to it; its reference image goes too), *+ surface*
-  adds a **page** (the book's page size – the left page, the right, then a fold-out's middle), a **wall** (2000 × 1500 mm,
-  standing ahead behind the pages, `rx` 90 – a fixed scene becomes free) or a **custom** one (300 × 300 mm) and selects
-  it. Each field saves itself (`PUT …/scenes/{id}` – the whole list). The Tree's Surfaces level and the selected surface
-  run the same edits (`surface-actions.ts`, rules in `surface-edit.ts`).
-- *spread* – open on a first visit: title, pages, the format (the one control, saved to the draft), the
-  post-processing in effect (the whole book's passes or the spread's own, and which) and the book's environment, or
-  none – the stage's HDRI – with *edit* to the Environment tab. Closed: *spread · The door · spread*.
-- *post-processing*, *appearance* and *vars and events* – closed on a first visit (#193), below.
+- *scene* and *surfaces* (#307 phase 3a, `SceneSection.svelte`): the scene's **label** (what the reader's switcher and
+  lists show; empty: its id), its **group** (or *self*), its targets of 10 and **arrange in a row**; then the
+  **surfaces** (#314, `SurfaceList.svelte`): each with its **label** as printed, its id (a click selects the surface –
+  the Inspector above), its size; ↑ ↓ reorder, ✕ removes after a confirmation that names the targets and entries lying
+  on it (they fall back to the scene's first surface; its reference image goes too), *+ surface* adds a **double** page
+  (460 × 320 mm, one surface) or a **single** page (230 × 320 mm) flat right beside the others, a **wall** (2000 × 1500 mm,
+  standing ahead behind the flat surfaces, `rx` 90) or a **custom** one (300 × 300 mm) and selects it. Each field saves
+  itself (`PUT …/scenes/{id}` – the whole list, places included). The Tree's Surfaces level and the selected surface run
+  the same edits (`surface-actions.ts`, rules in `surface-edit.ts`).
+- *post-processing* (the scene's own, `PUT …/scenes/{id}` with `passes`), *appearance* and *vars and events* – closed on
+  a first visit (#193), below.
 
 #### Post-processing
 
@@ -1158,23 +1079,22 @@ anything the browser cannot decode or encode as WebP – then the API's conversi
 "The image rule at upload"). The converted file is a WebP within the size, so the API stores it unchanged. Either way the
 Library's notice line says what became of the file: *Photo.jpg (6.2 MB) is stored as Photo.webp – 2048×1536, 412 kB*.
 
-**Grouped by spread** (#298 phase 3): the media – cards and list alike – come in groups: a header per spread in book
-order (its [title](#spread-titles) and how many files), each file under the spread of its **first use** in page order,
-then **Not in a spread** (the book-wide uses: the environment's world and sky, a plugin's source, a shared entity no
-target shows, an entry on no spread), then **Unused**. A file used in more places says **+N more**. The search, the
+**Grouped by scene** (#298 phase 3, #319): the media – cards and list alike – come in groups: a header per scene in the
+scenes' order (its label and how many files), each file under the scene of its **first use**, then **Not in a scene**
+(the book-wide uses: the environment's world and sky, a plugin's source, a shared entity no target shows), then
+**Unused** (`groupByScene` in `library-place.ts`). A file used in more places says **+N more**. The search, the
 filters and *Credits…* work as before, on the files the groups show.
 
 **Name by use…** (#298 phase 3, next to the view) names the files by where they are used: an entry's printed image
 `p118-1_target.webp`, its colour picture `p118-1_image.webp`, another file of the entry or its own entity
-`p118-1_<asset id>.glb` (a model's texture maps add their size), a page image `page-118.webp`, `page-cover.webp`,
-`page-back-cover.webp`, `page-1-facing.webp`, `page-front-1-left.webp`, a shared entity's file `<entity>_<asset id>.ext`,
+`p118-1_<asset id>.glb` (a model's texture maps add their size), a surface's reference image `<scene>_<surface>.webp`, a shared entity's file `<entity>_<asset id>.ext`,
 the environment's `environment_world.glb` / `environment_sky.webp`. An uploaded model or texture keeps its own name after
 the place (`fight_2_remesh_4096.jpg` → `p010-3_fight-2-remesh-4096.jpg`). A file used in several places takes its first use;
 unused files and files only a plugin's source names keep their names; two files that would take one name get `-2`,
 `-3`. The first click shows the plan (*from → to*, the first twelve), **Rename N** applies it, *cancel* leaves it. The
 **name only** changes – every URL and every use stays. An imported file (read-only) gets a listed name and shows it
 instead of its place. New uploads whose use is known are named so at once: an entry's picture and a target's printed
-image by their entry, a page image (one or many in the Pages view) by its page ([server](server.md) "Files named by
+image by their entry, a surface's reference image by its scene and surface ([server](server.md) "Files named by
 use").
 
 **Code files** (#186): the book's **scripts** and **shaders** in a list of their own under the media (the filter
