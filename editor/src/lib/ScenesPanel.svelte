@@ -208,7 +208,6 @@
   .info { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; font-size: var(--text-small); }
   .err { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .grow { flex: 1; }
-  .head .pill { font-size: var(--text-small); padding: 0 .45rem; }
   .steps { display: inline-flex; flex: none; }
   .strip { flex: 1; min-height: 0; }
   .loading { padding: .5rem .75rem; margin: 0; }

@@ -151,7 +151,7 @@
   };
 </script>
 
-<Section id={bookLevel ? "book.passes" : "stage.passes"} label={bookLevel ? `post-processing · the experience${edit.book.length ? "" : " · none"}` : passesHeading(edit).replace("the whole book", "the experience's").replace("only this spread", "this scene")} open={false}
+<Section id={bookLevel ? "book.passes" : "stage.passes"} label={bookLevel ? `post-processing${edit.book.length ? "" : " · none"}` : passesHeading(edit).replace("the whole book", "the experience's").replace("only this spread", "this scene")} open={false}
   help="The passes over the rendered image, in order – the look-around world and its sky included: the built-in ones and the passes of the book's plugins. The head names the level: the whole book – the book's passes, the master every spread without its own shows – or only this spread – an override of its own. Changes show live on the stage (rendered shading) and reach the draft by themselves.">
 {#if bookLevel}
 <div class="level" data-help-name="Level" data-help="The experience's passes: every scene without passes of its own shows them. A scene's own passes are set in its Inspector (Scene).">

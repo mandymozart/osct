@@ -130,8 +130,8 @@ describe("the words", () => {
   });
 
   it("the head says the level, and default while the book names no look; the picker's empty choice", () => {
-    expect(appearanceHeading({})).toBe("appearance · the experience · default");
-    expect(appearanceHeading({ lost: { type: "fade" } })).toBe("appearance · the experience");
+    expect(appearanceHeading({})).toBe("appearance · default");
+    expect(appearanceHeading({ lost: { type: "fade" } })).toBe("appearance");
     expect(inheritLabel("reveal")).toBe("as found");
     expect(inheritLabel("found")).toBe("default (inflateDissolve)");
   });
