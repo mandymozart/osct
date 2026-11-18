@@ -2,7 +2,7 @@
 // node types, components, formats, patterns, the plugin-type scanner. PHP reads its constants here (the classes
 // loaded as the API loads them) and every copy is compared with shared/ – a difference fails. Skipped with a message
 // when php is not on the path; CI has it.
-import { CREDITS_BATCH_MAX, CREDITS_MAX, SCENE_PAGE_MM, SCENE_PRESETS, SCENE_SURFACES_MAX } from "../../shared/api/editor";
+import { CREDITS_BATCH_MAX, CREDITS_MAX, SCENE_PAGE_MM, SCENE_PRESETS, SCENE_SURFACES_MAX, SURFACE_REFERENCE_FITS } from "../../shared/api/editor";
 import { IMAGE_MAX_PIXELS, IMAGE_MAX_SIDE, IMAGE_WEBP_QUALITY } from "../../shared/api/images";
 import { hasOwnSpreadTitle, spreadTitles } from "../../shared/api/spread-titles";
 import { spawnSync } from "node:child_process";
@@ -99,7 +99,7 @@ function readPhp(): Record<string, unknown> {
       'PRINT_SURFACES' => Editor::PRINT_SURFACES,
       'FORMATS' => Books::FORMATS,
       'MATTERS' => Books::MATTERS,
-      'SCENES' => ['presets' => Scenes::PRESETS, 'layouts' => Scenes::LAYOUTS, 'side' => Scenes::SIDE_PATTERN, 'pageMm' => Scenes::PAGE_MM, 'surfacesMax' => Scenes::SURFACES_MAX],
+      'SCENES' => ['presets' => Scenes::PRESETS, 'layouts' => Scenes::LAYOUTS, 'side' => Scenes::SIDE_PATTERN, 'pageMm' => Scenes::PAGE_MM, 'surfacesMax' => Scenes::SURFACES_MAX, 'referenceFits' => SurfaceReferences::FITS],
       'PASS_TYPES' => Books::PASS_TYPES,
       'MOMENTS' => Books::MOMENTS,
       'APPEARANCE_TYPES' => Books::APPEARANCE_TYPES,
@@ -171,8 +171,9 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(php.SKY_IMAGE_EXTENSIONS).toEqual([...SKY_IMAGE_EXTENSIONS]);
   });
 
-  it("scenes (#307, Scenes): the presets, the layouts, a surface's side, a page's size, the most surfaces", () => {
-    const scenes = php.SCENES as { presets: string[]; layouts: string[]; side: string; pageMm: unknown; surfacesMax: number };
+  it("scenes (#307, Scenes): the presets, the layouts, a surface's side, a page's size, the most surfaces, a reference's fits (#314)", () => {
+    const scenes = php.SCENES as { presets: string[]; layouts: string[]; side: string; pageMm: unknown; surfacesMax: number; referenceFits: string[] };
+    expect(scenes.referenceFits).toEqual([...SURFACE_REFERENCE_FITS]);
     expect(scenes.presets).toEqual([...SCENE_PRESETS]);
     expect(scenes.layouts).toEqual([...SCENE_LAYOUTS]);
     expect(scenes.side).toBe(`/${SURFACE_SIDE_PATTERN.source}/`);

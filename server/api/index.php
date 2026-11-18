@@ -52,6 +52,8 @@ declare(strict_types=1);
  *   POST   /editor/books/{id}/scenes/move       { scenes, after? | before? | position?, group?, apply? } → the plan, written with apply
  *   POST   /editor/books/{id}/scenes/migrate    { apply? } → surfaces, labels and groups from the pages: the plan, written with apply
  *   PUT    /editor/books/{id}/scenes/{id}       = PUT …/spreads/{id}: { title?, format?, passes?, surfaces?, layout?, label?, group?, apply? }
+ *   PUT    /editor/books/{id}/scenes/{id}/surfaces/{sid}/reference  { url | null, fit?, name? } → the surface's reference image (#314)
+ *   POST   /editor/books/{id}/scenes/references/migrate  { apply? } → the page images become surface references: the plan, written with apply
  *   DELETE /editor/books/{id}/scenes/{id}       = DELETE …/spreads/{id}: the two steps of a removal
  *   POST   /editor/books/{id}/groups            { label, scenes, id?, apply? } → a group of the picked scenes: the plan, written with apply
  *   PUT    /editor/books/{id}/groups/{gid}      { label } → renamed · DELETE …/groups/{gid} → ungrouped (the scenes stay in place)
@@ -98,7 +100,7 @@ declare(strict_types=1);
  * (ApiTokens). docs/server.md "Sessions, cookies and CSRF".
  */
 
-foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Confirmation', 'Removal', 'Books', 'BookTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Pages', 'Scenes', 'AssetNames', 'Reverts'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Confirmation', 'Removal', 'Books', 'BookTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Pages', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -189,6 +191,8 @@ try {
         (bool) preg_match("#^POST /editor/books/($id)/scenes$#", $route, $match) => Scenes::add($match[1]),
         (bool) preg_match("#^POST /editor/books/($id)/scenes/move$#", $route, $match) => Scenes::move($match[1]),
         (bool) preg_match("#^POST /editor/books/($id)/scenes/migrate$#", $route, $match) => Scenes::migrate($match[1]),
+        (bool) preg_match("#^POST /editor/books/($id)/scenes/references/migrate$#", $route, $match) => SurfaceReferences::migrate($match[1]),
+        (bool) preg_match("#^PUT /editor/books/($id)/scenes/($id)/surfaces/($id)/reference$#", $route, $match) => SurfaceReferences::put($match[1], $match[2], $match[3]),
         (bool) preg_match("#^PUT /editor/books/($id)/scenes/($id)$#", $route, $match) => Books::putSpread($match[1], $match[2]),
         (bool) preg_match("#^DELETE /editor/books/($id)/scenes/($id)$#", $route, $match) => Books::deleteSpread($match[1], $match[2]),
         (bool) preg_match("#^POST /editor/books/($id)/groups$#", $route, $match) => Scenes::addGroup($match[1]),

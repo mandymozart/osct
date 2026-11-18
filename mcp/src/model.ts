@@ -407,7 +407,7 @@ export function describeContentModel(book?: BookModel): Record<string, unknown> 
       description:
         "TargetData: { id, imageSrc, entity?: EntityData | { ref }, print?, enabled? }. imageSrc = the printed image (an uploaded image asset's url). enabled: false (content schema 2.26) switches the target off – the reader leaves it and its entry out until it is switched on, the editor keeps both; leave it out for a target in the book.",
       print: {
-        description: "Where the target is printed, in mm from the surface's top left corner: { surface, x, y, width, height?, page? } – the editor's stage lays it there.",
+        description: "Where the target is printed, in mm from the surface's top left corner: { surface, x, y, width, height?, page?, surfaceId? } – the editor's stage lays it there. surfaceId (content schema 2.36): the scene's surface by id (a fold-out's middle, a wall) – it wins over the side in surface, which older apps read.",
         surfaces: PRINT_SURFACES,
       },
     },

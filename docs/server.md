@@ -497,14 +497,16 @@ path `/assets/content/…`; a plugin source when its text **contains** it. The k
 | `entity` | the shared entity's ref | a file of the shared entity |
 | `spread` | the spread's id | a spread's own data – its environment, passes or appearance naming a file (placed on the spread's first page) |
 | `page` | the page key (`12`, `1f`) | a page image (#251) |
+| `reference` | `<scene>/<surface>` | a surface's reference image (#314) – only while its scene has that surface; placed on the scene's first page |
 | `environment` | the book | the book's environment: its world model or sky |
 | `book` | the book | any other setting of the book – appearance, passes with a texture or model parameter … |
 | `plugin` | the source's id | a plugin source naming the URL as text (a shader it loads) |
 | `layout` | `layout.json` | a file of the print layout's folder (`layout/sheets/*.jpg`, `*@sharp.jpg`): the editor's stage and cards read them through `layout/layout.json`, never through a row – each file below `/assets/content/layout/` counts as used whenever the book's files (`files.json`) hold `layout/layout.json` (it is not read: the sheets it lists are the folder's) |
 
-A file's uses come in page order (per page: target, entry, entity, spread, page image), the book-wide ones last
+A file's uses come in page order (per page: target, entry, entity, spread, page image, reference), the book-wide ones last
 (environment, book, plugin, layout). Only `target`, `entry`, `entity`, `page`, `environment` and `plugin` give a name
-("Files named by use"); a file only a spread, a book setting or the layout uses counts as used and keeps its name.
+("Files named by use"); a file only a spread, a book setting, a reference image or the layout uses counts as used and
+keeps its name. A replaced file's references follow its new version (a change each); a forced delete takes them.
 An imported file is read-only (no delete); its count tells the Library it is in use.
 
 ### Files named by use
@@ -715,15 +717,17 @@ layout sheets (matched by page) follow the derived numbers of a scene moved out 
 
 | Endpoint | Body | Answer |
 |---|---|---|
-| `GET /editor/books/{id}/scenes` | | `{ scenes: [{ id, position, title, label, format, matter, layout, group, surfaces, firstPage, lastPage, stored: { firstPage, lastPage }, derived, entries, targets }], groups: [{ id, label, scenes }] }` – in order; `firstPage` / `lastPage` the range older apps read, `derived` = not the stored one; `entries` / `targets` how many lie on it |
+| `GET /editor/books/{id}/scenes` | | `{ scenes: [{ id, position, title, label, format, matter, layout, group, surfaces, firstPage, lastPage, stored: { firstPage, lastPage }, derived, entries, targets }], groups: [{ id, label, scenes }] }` – in order; `firstPage` / `lastPage` the range older apps read, `derived` = not the stored one; `entries` / `targets` how many lie on it; every surface with its `reference` `{ url, name, fit }` or `null` ([below](#surface-reference-images)) |
 | `POST /editor/books/{id}/scenes` | `{ preset?, after? \| before? \| position?, id?, title?, label?, group?, layout?, surfaces? }` | 201 `{ scene, position, pages }` – a scene anywhere: `preset` (default `double`) `single` (one page, right), `double` (left, right), `cover` (front), `back` (back), `foldout` (left, middle, right), `wall` (one wall, 2000 × 2000 mm) gives its surfaces (a page 230 × 320 mm) unless `surfaces` names them; `cover` / `back` also its `format`. Placed after / before a scene or at `position` (0 = first); none = a cover first, the rest before the back cover. Stored with pages after every other scene's (the front cover on 0 while no scene holds it); `pages` = `[{ scene, from, to }]`, the scenes whose range older apps read changes. `id` defaults to `scene-<n>`. 400 `invalid-scene`, `unknown-scene`, `unknown-group`; 409 `duplicate-id` |
 | `POST /editor/books/{id}/scenes/move` | `{ scenes: [ids], after? \| before? \| position?, group?, apply? }` | `{ plan: { order, moved, groups, pages }, applied }` – one or several scenes as a block (in their order): after / before a scene, to `position` (among the scenes that stay), into `group` (after its last scene unless placed) or out of their group (`group: null` – in place, unless inside the group: then right after it). Without `apply: true` nothing is written; with it the order (a change `order`, before / after the ids) and the scenes' groups (a change `spread` each), in one transaction. 400 `invalid-move`, `unknown-scene`, `unknown-group` |
-| `PUT /editor/books/{id}/scenes/{sid}` = `PUT /editor/books/{id}/spreads/{sid}` | `{ title?, format?, passes?, surfaces?, layout?, label?, group?, apply? }` | `{ spread, scene, cleared }` – title (`""` or `null`: none of its own – the pages' again), format (`cover` / `back` only for a one-page scene), the scene's own post-processing (`null` removes it so the book's apply, `[]` turns them off there), `surfaces` (the whole list `[{ id, side, widthMm?, heightMm?, label? }]` – sizes default to a page's, a wall's for side `wall`; `[]` / `null` removes them; at most 32), `layout` (`fixed` / `free` / `null`), `label` (free text, `""` / `null` removes it), `group` (a group of the book / `null`; the scene stays in place). A surface entries lie on goes only with `apply: true`: else 409 `surfaces-in-use` with `entries` – with it they keep the scene without a surface (`cleared`, a change each). 400 `invalid-spread`, `invalid-scene`, `unknown-group`; 404 |
+| `PUT /editor/books/{id}/scenes/{sid}` = `PUT /editor/books/{id}/spreads/{sid}` | `{ title?, format?, passes?, surfaces?, layout?, label?, group?, apply? }` | `{ spread, scene, cleared }` – title (`""` or `null`: none of its own – the pages' again), format (`cover` / `back` only for a one-page scene), the scene's own post-processing (`null` removes it so the book's apply, `[]` turns them off there), `surfaces` (the whole list `[{ id, side, widthMm?, heightMm?, label?, place? }]` – sizes default to a page's, a wall's for side `wall`; `place` (schema 2.36, #314) `{ x, y, z, rx?, ry?, rz? }` in mm and degrees in the scene's coordinate system, finite, no other field – `null` leaves it out; `[]` / `null` removes them; at most 32; a surface that goes takes its reference image, a change each), `layout` (`fixed` / `free` / `null`), `label` (free text, `""` / `null` removes it), `group` (a group of the book / `null`; the scene stays in place). A surface entries lie on goes only with `apply: true`: else 409 `surfaces-in-use` with `entries` – with it they keep the scene without a surface (`cleared`, a change each). 400 `invalid-spread`, `invalid-scene`, `unknown-group`; 404 |
 | `DELETE /editor/books/{id}/scenes/{sid}` = `DELETE /editor/books/{id}/spreads/{sid}` | `{ confirm?, deleteFiles? }` | the scene with everything on it, in two steps ([below](#removing-a-spread-or-an-entry)): 409 `confirm-delete` with `impact` (its `pages` – the ranges older apps read that change) and `confirmation`, then with `confirm` 200 `{ deleted, moved, pages }` – nothing renumbers (`moved` and `pagesBack` are 0), its page images stay. 409 `initial-spread` for the scene the book opens on (it never goes); 404 |
 | `POST /editor/books/{id}/groups` | `{ label, scenes: [ids], id?, apply? }` | `{ plan: { group, order, moved, groups, pages }, applied }` – a group of the picked scenes: they come together where the first of them is (a scene of another group leaves it). `id` defaults to the label as a slug (`chapter-one`), else `group-<n>`. Without `apply: true` nothing is written; with it the groups (a change `groups`), the order and the scenes. 400 `invalid-group`, `unknown-scene`; 409 `duplicate-id` |
 | `PUT /editor/books/{id}/groups/{gid}` | `{ label }` | `{ group }` – renamed (a change `groups`). 400 `invalid-group`; 404 |
 | `DELETE /editor/books/{id}/groups/{gid}` | | `{ ungrouped, scenes }` – ungroup: the group goes, its scenes stay in place and in order, without a group. 404 |
 | `POST /editor/books/{id}/scenes/migrate` | `{ apply? }` (or no body) | `{ plan: { upToDate, counts, scenes, groups, entries: { placed, unplaced }, pageImages }, applied }` – [the migration](#the-migration-of-a-book) |
+| `PUT /editor/books/{id}/scenes/{sid}/surfaces/{surfaceId}/reference` | `{ url?: string \| null, fit?, name? }` | `{ scene, surface, reference, changed }` – [a surface's reference image](#surface-reference-images) |
+| `POST /editor/books/{id}/scenes/references/migrate` | `{ apply? }` (or no body) | `{ plan: { upToDate, counts, references, already, unmapped }, applied }` – [the page images become references](#surface-reference-images) |
 | `POST /editor/books/{id}/spreads` | `{ format: "spread", after?, id?, title? }` | 201 `{ spread, moved, pages }` – the older form of `POST …/scenes`: a double page after the spread `after` (default: before the back cover, else last). `id` defaults to `spread-<n>`; without `title` it shows its pages' (`Pages 12–13`, below). `moved` is always zero. 400 `unknown-spread`, `invalid-spread` (after the back cover, an unknown format), `invalid-id`; 409 `duplicate-id` |
 | `POST /editor/books/{id}/spreads` | `{ format: "cover" \| "back", title? }` | 201 `{ spread, moved, pages }` – the front cover (first; page 0 while free) or the back cover (last). 400 `invalid-spread` with an `after`; 409 `duplicate-id` when the book has one |
 | `PUT /editor/books/{id}/environment` | `{ environment: { world, onionSky, worldSrc?, skySrc? } \| null }` | `{ environment }` – the book's world and onion sky (`book.environment`, content schema 2.8; the world model and the sky image as references 2.10); `null` removes it – the default applies. A change `environment` in the log. 400 `invalid-environment`; 404 |
@@ -750,7 +754,7 @@ changes to a scene without it. The draft drops a `surface` its scene does not ha
 - every entry on a scene whose surface is missing gets the surface its page lies on; `entries.unplaced` lists those it
   cannot place (on no scene, or a page that is no surface of their scene – they keep their scene without a surface);
 - order, pages, entries' scenes and **page images** (#251) stay as they are – `pageImages.count` says how many; phase 3
-  turns them into surface reference images.
+  turns them into surface reference images (`POST …/scenes/references/migrate`, below).
 
 `counts` = `{ scenes, scenesWithSurfaces, surfaces, groups, entriesPlaced, entriesUnplaced }`, `scenes` what each scene
 gets, `groups` the new groups with their scenes. **Idempotent**: a migrated book answers `upToDate: true` and writes
@@ -768,6 +772,47 @@ removed page (the renumbering moves pages, never titles) and would have to run o
 import of the layout; deriving at read keeps the stored rows as the import wrote them, never breaks the reader (the
 assembled title is never empty) and needs no migration. A title of its own (`The Golem`) is kept as it is. Ids never
 change.
+
+#### Surface reference images
+
+A surface's **reference image** (#314, `SurfaceReferences.php`, `agents/SCENES.md` "Surfaces: create, edit, place") is
+one image of the book's Library the editor's stage shows on that surface – a scanned page, a photo of a wall. It is
+**editor-only**: no content – the draft, its publish and the reader never carry it. Kept in `surface_references`
+(`book_id`, `scene_id`, `surface_id` – the key –, `url`, `name`, `fit`, `updated_by`, `updated_at`; both schema files,
+created by the migration like every table). `fit` = how it fills the surface: `cover` (default, cut to cover it),
+`contain` (fits inside), `stretch`.
+
+- **Read** in the scenes overview (`GET …/scenes`): each surface's `reference` `{ url, name, fit }`, `null` without one.
+- **Set, replace, remove**: `PUT …/scenes/{sid}/surfaces/{surfaceId}/reference` – `{ url }` (an image of the book's
+  Library by its URL, or an imported one by its content path `/assets/content/…`) sets or replaces it (`name` defaults
+  to the Library's, a replace keeps its `fit` unless one is sent), `{ url: null }` removes it, `{ fit }` / `{ name }`
+  alone change the present one (404 without one). The same values again answer `changed: false` and record nothing.
+  400 `invalid-reference` (no Library image, an unknown fit, an empty name, nothing sent); 404 for a scene or surface the
+  book does not have.
+- **Change log**: every set, replace and remove is a change (kind `reference`, ref `<scene>/<surface>`, `before` /
+  `after` the reference or `null`) and **revertable both ways** ([below](#reverting-saved-changes)) – a set reverts to
+  none, a removal brings it back – while the scene still has the surface (else a conflict).
+- **Goes with its surface**: a surface removed from its scene (`PUT …/scenes/{sid} { surfaces }`) and a deleted scene
+  take their references (a change each). A reference whose surface goes otherwise (a re-import, a reverted surfaces
+  list) stays in the table and is shown and counted nowhere – the surface coming back brings it back.
+- **A use of its file** (kind `reference`, [above](#what-counts-as-a-use)): the Library counts it, the delete check
+  refuses the file while it is one, a replace relinks it (a change), a forced delete removes it (a change). It gives
+  the file no name – the page images' names stay.
+
+**The page images migrate to references**: `POST …/scenes/references/migrate` (MCP `migrate_surface_references`), two
+steps – the plan, then `{ apply: true }`, one transaction, a change per reference (fit `cover`). Each page image's page
+(`Pages::pagesOf`: its scene and side) maps to the scene's surface **labelled with its page number** (a numbered page),
+else to the scene's **one surface on its side** (a cover's `front`, the unnumbered half next to a single page, the
+matter's left / right). The plan: `references` (`{ page, facing, label, url, name, scene, surface }` – what becomes a
+reference), `already` (the surface has that image already), `unmapped` (each with a `reason`: no page of the book any
+more; its scene has no surfaces yet – run the scene migration first; no surface on its side; the surface has another
+reference – kept, never overwritten –; another page image goes to the same surface), `counts` `{ pageImages,
+references, already, unmapped }`. **Idempotent**: a migrated book answers `upToDate: true`. The `page_images` rows stay
+(the stage reads them until the stage worker moves to references).
+
+A target's print may name its surface by id – `print.surfaceId` (schema 2.36): `PUT …/targets/{tid} { print }` and
+`POST …/entries { target: { print } }` keep it (an id, `null` / `""` leave it out), an import keeps it as the
+configuration has it.
 
 ### Pages and page images
 
@@ -857,7 +902,8 @@ not-revertable`, and `notRevertable` in `GET …/changes`): a creation (`before`
 (`after` null), an entry moved to another page or surface (its scene is `entries.spread_id`, not in the log), a scene
 whose pages changed, a new order whose scenes changed, a plugin source (the Code tab) and a deleted file. Scene moves are
 in the log (`order`, the ids before and after) and revert. Picture credits, Library file names and page images are no
-draft content and not in the log (they are not revertable). Changes of one request get strictly increasing times, so
+draft content and not in the log (they are not revertable); a surface's reference image (#314) is no content either but
+is in the log and reverts both ways – set, replaced, removed – while its scene has the surface. Changes of one request get strictly increasing times, so
 their order stays readable. 404 `not-found` for a change not in the book's log; 400 `invalid-revert`, `too-many`.
 
 ## Logs

@@ -621,6 +621,8 @@ final class Books
                 self::change($bookId, $user, 'entry', (string) $e['row']['id'], $e['row']['data_json'], $entryJson);
                 $cleared[] = (string) $e['row']['id'];
             }
+            // A surface that goes takes its reference image (#314)
+            SurfaceReferences::drop($bookId, $spreadId, $edit['removed'], $user);
             self::touch($bookId);
             self::change($bookId, $user, 'spread', $spreadId, $row['data_json'], $json);
             return [$spread, $cleared];
@@ -831,6 +833,8 @@ final class Books
             $deleted = $removal->remove($user, $deleteFiles);
             Db::run('DELETE FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $spreadId]);
             self::change($bookId, $user, 'spread', $spreadId, $row['data_json'], 'null');
+            // Its surfaces' reference images go with it (#314)
+            SurfaceReferences::dropScene($bookId, $spreadId, $user);
             Db::run('UPDATE spreads SET position = position - 1 WHERE book_id = :book AND position > :position', ['book' => $bookId, 'position' => (int) $row['position']]);
             self::touch($bookId);
             return $deleted;

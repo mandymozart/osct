@@ -37,10 +37,14 @@ import type {
   RemovalResult,
   RevertResult,
   SceneAdded,
+  SceneList,
   ScenePreset,
   SceneSaved,
   ScenesMoved,
   SpreadAdded,
+  SurfaceReferenceRequest,
+  SurfaceReferenceSaved,
+  SurfaceReferencesMigration,
   SpreadSaved,
   TargetSaved,
   Ungrouped,
@@ -82,6 +86,14 @@ export type {
   RemovalFile,
   RemovalImpact,
   RemovalResult,
+  SceneList,
+  SceneSummary,
+  SurfaceReference,
+  SurfaceReferenceFit,
+  SurfaceReferenceRequest,
+  SurfaceReferenceSaved,
+  SurfaceReferencesMigration,
+  SurfaceSummary,
   TreeEntry,
   TreeSpread,
   Usage,
@@ -613,6 +625,24 @@ export const moveScenes = (bookId: string, body: { scenes: string[]; group?: str
 /** A scene's surfaces (the whole list), layout, label or group; `apply` lets surfaces go that entries lie on */
 export const putScene = (bookId: string, sceneId: string, body: { surfaces?: SurfaceData[] | null; layout?: SceneLayout | null; label?: string | null; group?: string | null; apply?: boolean }) =>
   api<SceneSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/scenes/${encodeURIComponent(sceneId)}`, body);
+
+/** The book's scenes in order and the groups – every surface with its reference image (#314) */
+export const listScenes = (bookId: string) => api<SceneList>("GET", `/editor/books/${encodeURIComponent(bookId)}/scenes`);
+
+/**
+ * A surface's reference image (#314, editor-only – never in the content): `{ url }` sets or replaces it (a Library image's
+ * URL), `{ url: null }` removes it, `{ fit }` / `{ name }` alone change the present one. A change in the book's log.
+ */
+export const putSurfaceReference = (bookId: string, sceneId: string, surfaceId: string, body: SurfaceReferenceRequest) =>
+  api<SurfaceReferenceSaved>(
+    "PUT",
+    `/editor/books/${encodeURIComponent(bookId)}/scenes/${encodeURIComponent(sceneId)}/surfaces/${encodeURIComponent(surfaceId)}/reference`,
+    body,
+  );
+
+/** The page images (#251) become surface references: without `apply` the plan only, with it written (idempotent) */
+export const migrateSurfaceReferences = (bookId: string, apply = false) =>
+  api<SurfaceReferencesMigration>("POST", `/editor/books/${encodeURIComponent(bookId)}/scenes/references/migrate`, apply ? { apply: true } : {});
 
 /** A group of the picked scenes (they come together where the first of them is) */
 export const addGroup = (bookId: string, body: { label: string; scenes: string[]; id?: string; apply?: boolean }) =>
