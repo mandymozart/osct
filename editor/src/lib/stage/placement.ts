@@ -1,16 +1,13 @@
-import type { PrintSurface } from "@shared/types/game-config";
-import { findSurface, onOtherSurface, pageFrames, toStage, type SurfaceFrame, type V3 } from "./surfaces";
+import { DEFAULT_FRAME, findSurface, onOtherSurface, toStage, type SurfaceFrame, type V3 } from "./surfaces";
 
 /**
- * The placement math of a target's printed image on the stage (three-free). A place is stored as the content has it:
- * the surface (`left` / `right` page, the cover's `front` / `back`) and the box in mm from that surface's top left
- * corner. The stage's frame has its origin in the middle of the open book (the spine) or of the closed book, x to the
- * right, y towards the top of the page. The printed image is as wide as the place says and as high as the image's own
- * aspect makes it – the stage, the mock tracker's anchor (the image's centre, as the engine reports it) and the
- * placement handles all count from here, so the print, its outline, its entity and the inspector cannot drift apart.
+ * The placement math of a target's printed image on the stage (three-free). A place is stored as the content has it
+ * (`TargetPlace`): the surface (its id) and the box in mm from that surface's top left corner. The stage's frame has its
+ * origin at the scene's origin (`surfaces.ts`), x to the right, y away from the reader. The printed image is as wide as
+ * the place says and as high as the image's own aspect makes it – the stage, the mock tracker's anchor (the image's
+ * centre, as the engine reports it) and the placement handles all count from here, so the print, its outline, its entity
+ * and the inspector cannot drift apart.
  */
-
-export type { PrintSurface };
 
 /** A printed image's place: its surface and its box (mm from the surface's top left corner) */
 export interface PrintBox {
@@ -22,37 +19,24 @@ export interface PrintBox {
   height?: number;
 }
 
-/** One page of the book (mm) */
-export interface PageSize {
-  width: number;
-  height: number;
-}
-
 /** A print's height per width while its image has not loaded and the place stores none */
 export const DEFAULT_ASPECT = 0.75;
 /** The narrowest print the handles make (mm) */
 export const MIN_PRINT_WIDTH = 10;
 
-/**
- * Where the surfaces lie: the scene's surfaces in the stage frame (`surfaces.ts`, #314), or one page's size – the book
- * of content without surfaces (the open book's pages, the covers centred). On the stage a place's `surface` is the
- * scene's surface by id (`print.surfaceId`, else the surface with the print's side; without surfaces the sides are the ids).
- */
-export type Surfaces = PageSize | readonly SurfaceFrame[];
+/** Where the surfaces lie: the open scene's surfaces in the stage frame (`surfaces.ts`); a place's `surface` is one's id */
+export type Surfaces = readonly SurfaceFrame[];
 
-/** The surfaces as frames: a page size stands for the four sides of content without surfaces */
-export const framesOf = (surfaces: Surfaces): readonly SurfaceFrame[] => (Array.isArray(surfaces) ? surfaces : pageFrames(surfaces as PageSize));
+/** The surfaces as frames: none (no scene open) stands for the stand-in double page */
+export const framesOf = (surfaces: Surfaces): readonly SurfaceFrame[] => (surfaces.length ? surfaces : [DEFAULT_FRAME]);
 
-/** A surface's frame by its id (or side), else the first surface – a print always lies somewhere */
-export const frameFor = (surfaces: Surfaces, surface: string): SurfaceFrame => {
+/** A surface's frame by its id, else the scene's first surface – a print always lies somewhere */
+export const frameFor = (surfaces: Surfaces, surface: string | undefined): SurfaceFrame => {
   const frames = framesOf(surfaces);
-  return findSurface(frames, surface, surface) ?? frames[0];
+  return findSurface(frames, surface) ?? frames[0];
 };
 
-/**
- * Where a surface's left edge lies in the stage's frame (mm): the open book has its spine at x = 0 – the left page
- * to the left, the right page to the right; the closed book (a cover) is centred on the origin
- */
+/** Where a surface's left edge lies in the stage's frame (mm) */
 export const surfaceLeft = (surface: string, page: Surfaces): number => frameFor(page, surface).origin[0];
 
 const tidy = (value: number): number => (Math.abs(value) < 1e-9 ? 0 : Math.round(value * 1e6) / 1e6);
@@ -102,7 +86,7 @@ export const grabOffset = (place: PrintBox, hit: PageHit, surfaces: Surfaces): {
 };
 
 /** The same place `width` mm wide: a stored height scales with it, so the box keeps the image's proportions */
-export const withWidth = <P extends PrintBox>(place: P, width: number): P =>
+export const withWidth = <P extends { width: number; height?: number }>(place: P, width: number): P =>
   place.height && place.width > 0 ? { ...place, width, height: Math.round(place.height * (width / place.width) * 100) / 100 } : { ...place, width };
 
 /**

@@ -1,7 +1,6 @@
 import type { PluginRegistrySnapshot } from "@engine/scene/plugins";
 import type { ArStatus, EntityData } from "@engine/types";
-import type { PrintPlacement, SurfacePlace } from "@shared/types/game-config";
-import { PRINT_SURFACES } from "@shared/types/game-config";
+import type { SurfacePlace, TargetPlace } from "@shared/types/game-config";
 import { isObject } from "@shared/guards/primitives";
 import { STAGE_TOOLS, TOOL_KEYS, type GizmoPlacement, type StageTool } from "./gizmo";
 import { PICK_KINDS, type PickKind, type StagePick } from "./pick";
@@ -73,24 +72,18 @@ export interface StageState {
   tool: StageTool;
 }
 
-/** Where the stage lays the spread's targets out: the page format (mm) and per target its layout place and its place */
+/** Where the stage lays the open scene's targets out: per target its place (its own, else the stage's fallback) */
 export interface LayoutSnapshot {
-  pageFormat: { width: number; height: number };
-  places: Record<string, { printed: PrintPlacement | null; place: PrintPlacement | null }>;
-  /**
-   * The open scene's surfaces as the stage lays them (#314): the scene's own (`own`), else the format's pages; `flat`
-   * = on the table plane (a wall or a turned surface is not). Absent from an older frame.
-   */
-  surfaces?: SurfaceSnapshot[];
+  places: Record<string, { place: TargetPlace | null }>;
+  /** The open scene's surfaces as the stage lays them (#314); `flat` = on the table plane (a wall or a turned surface is not) */
+  surfaces: SurfaceSnapshot[];
 }
 
 /** One surface of the open scene as the stage has it (#314) */
 export interface SurfaceSnapshot {
   id: string;
-  side: string;
   widthMm: number;
   heightMm: number;
-  own: boolean;
   flat: boolean;
 }
 
@@ -139,7 +132,7 @@ export interface FrameEvents {
   /** The gizmo moved the selected node: the page writes the placement into its override */
   placement: { targetId: string; path: number[]; placement: GizmoPlacement };
   /** The handles moved the placement: the side, and the scene's surface by id when it has its own (#314) */
-  ghostChange: { surface: PrintPlacement["surface"]; surfaceId?: string; x: number; y: number; width: number; height?: number };
+  ghostChange: TargetPlace;
   /** A tap on the stage: the surface it hit (#314), sent with every tap after `pick` */
   surfacePick: SurfacePick;
   /** A drag of the surface gizmo ended (#314, a free scene's surface): its new place in the scene (mm, degrees) */
@@ -160,7 +153,7 @@ export const NO_ANSWER = "the stage did not answer";
 
 /** The methods the frame answers (`frame-host.svelte.ts`) */
 export const FRAME_METHODS = [
-  "init", "content", "open", "refresh", "relayout", "pageImages", "surfaceReferences", "surfaceMarks", "surfaceGizmo", "override", "overridePasses", "overrideAppearance", "playMoment", "selectNode", "selectTarget", "setPickFilter", "setTool",
+  "init", "content", "open", "refresh", "relayout", "surfaceReferences", "surfaceMarks", "surfaceGizmo", "override", "overridePasses", "overrideAppearance", "playMoment", "selectNode", "selectTarget", "setPickFilter", "setTool",
   "setSnapModifier", "showEnvironment", "setLookUp", "ghost", "preview", "replayUnlock", "resetNarrative", "setLive", "clearEvents", "setVar", "tap",
   "sampleColor", "timeline", "runPlugin",
 ] as const;
@@ -184,13 +177,12 @@ export const LOG_MAX = 2000;
 const isPick = (value: unknown): value is StagePick =>
   isObject(value) && isId(value.targetId) && isPath(value.path) && (value.printed === undefined || typeof value.printed === "boolean");
 
-const isPlacement = (value: unknown): value is PrintPlacement =>
-  isObject(value) && (PRINT_SURFACES as readonly unknown[]).includes(value.surface) && isFiniteNumber(value.x) && isFiniteNumber(value.y) && isFiniteNumber(value.width)
-  && (value.height === undefined || isFiniteNumber(value.height)) && (value.surfaceId === undefined || isId(value.surfaceId));
+const isPlacement = (value: unknown): value is TargetPlace =>
+  isObject(value) && (value.surface === undefined || isId(value.surface)) && isFiniteNumber(value.x) && isFiniteNumber(value.y) && isFiniteNumber(value.width)
+  && (value.height === undefined || isFiniteNumber(value.height));
 
 const isSurface = (value: unknown): value is SurfaceSnapshot =>
-  isObject(value) && isId(value.id) && isString(value.side) && value.side.length <= 40 && isFiniteNumber(value.widthMm) && isFiniteNumber(value.heightMm)
-  && typeof value.own === "boolean" && typeof value.flat === "boolean";
+  isObject(value) && isId(value.id) && isFiniteNumber(value.widthMm) && isFiniteNumber(value.heightMm) && typeof value.flat === "boolean";
 
 /**
  * The keys a frame may forward to the page: Shift and Control (snapping turned around), ← → (the spreads), the tools'
@@ -223,9 +215,9 @@ const CHECKS: { [N in FrameEventName]: (data: unknown) => boolean } = {
   events: data => Array.isArray(data) && data.every(e => isObject(e) && isString(e.event) && isString(e.detail) && isFiniteNumber(e.at)),
   registry: data => isObject(data) && isObject(data.plugins) && Object.values(data.plugins).every(isObject) && isObject(data.failures)
     && Object.values(data.failures).every(isString),
-  layout: data => isObject(data) && isObject(data.pageFormat) && isFiniteNumber(data.pageFormat.width) && isFiniteNumber(data.pageFormat.height)
-    && isObject(data.places) && Object.values(data.places).every(p => isObject(p) && (p.printed === null || isPlacement(p.printed)) && (p.place === null || isPlacement(p.place)))
-    && (data.surfaces === undefined || (Array.isArray(data.surfaces) && data.surfaces.length <= 64 && data.surfaces.every(isSurface))),
+  layout: data => isObject(data)
+    && isObject(data.places) && Object.values(data.places).every(p => isObject(p) && (p.place === null || isPlacement(p.place)))
+    && Array.isArray(data.surfaces) && data.surfaces.length <= 64 && data.surfaces.every(isSurface),
   surfacePick: data => data === null || (isObject(data) && isId(data.surfaceId) && isFiniteNumber(data.x) && isFiniteNumber(data.y)),
   surfacePlace: data => isObject(data) && isId(data.surfaceId) && isObject(data.place)
     && ["x", "y", "z", "rx", "ry", "rz"].every(key => isFiniteNumber((data.place as Record<string, unknown>)[key])),
@@ -259,19 +251,6 @@ export const readFrameReply = (message: unknown): FrameReply | null =>
     : null;
 
 /** A message from the page as a request the frame answers, null for anything else */
-/**
- * The page images the page sends (`pageImages`, #251: page key → image URL) as the frame takes them: keys like `12`,
- * `-3`, `1f`, http(s) URLs only – anything else is left out
- */
-export const pageImageMap = (value: unknown): Record<string, string> => {
-  const result: Record<string, string> = {};
-  if (!isObject(value)) return result;
-  for (const [key, url] of Object.entries(value)) {
-    if (/^-?\d{1,6}f?$/.test(key) && isString(url) && /^https?:\/\//.test(url) && url.length <= 2048) result[key] = url;
-  }
-  return result;
-};
-
 /**
  * The surfaces' reference images the page sends (`surfaceReferences`, #314: scene id → surface id → `{ url, fit }`) as
  * the frame takes them: ids of up to 200 characters, http(s) URLs only, a fit of `REFERENCE_FITS` (else `cover`) –

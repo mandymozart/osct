@@ -4,10 +4,12 @@
   import { addEntry, errorText } from "#lib/api.js";
   import Segmented from "#lib/components/Segmented.svelte";
   import { CATEGORY_LABELS } from "#lib/new-target.js";
+  import { surfaceChoices } from "#lib/surface-edit.js";
+  import { sceneLabel } from "@engine/content/scenes";
 
   /**
-   * A new entry without a printed image on the spread (the tree's "+ entry", #237): read in the reader's list only, like
-   * a glossary term – its title, category and access page (one of the spread's pages). The API makes it
+   * A new entry without a printed image on the open scene (the tree's "+ entry", #237): read in the reader's list only,
+   * like a glossary term – its title, category and, in a scene of several surfaces, its surface. The API makes it
    * (`POST …/entries` without `target`); the caller reloads the content and selects it, so its form opens in the
    * Inspector. A target can follow on the stage.
    */
@@ -18,12 +20,11 @@
     oncancel: () => void;
   } = $props();
 
-  const pages = $derived(Array.from({ length: spread.lastPage - spread.firstPage + 1 }, (_, i) => spread.firstPage + i));
-  const format = $derived(spread.format ?? "spread");
-  const pageLabel = (p: number) => (format === "cover" ? "cover" : format === "back" ? "back cover" : spread.matter ? `${spread.matter} matter, ${p === spread.firstPage ? "left" : "right"}` : String(p));
+  /** The scene's surfaces an entry may name – only while it has several (`EntryData.surface`) */
+  const surfaces = $derived(surfaceChoices(spread.surfaces));
   let title = $state("");
-  // svelte-ignore state_referenced_locally
-  let page = $state(spread.firstPage);
+  /** The surface the entry lies on ("" = none: the scene as a whole) */
+  let surface = $state("");
   let category = $state<EntryCategory>(EntryCategory.Glossary);
   let busy = $state(false);
   let error = $state<string | null>(null);
@@ -32,7 +33,7 @@
     busy = true;
     error = null;
     try {
-      const { entry } = await addEntry(bookId, { title: title.trim(), page, category });
+      const { entry } = await addEntry(bookId, { title: title.trim(), scene: spread.id, ...(surface && surfaces.length > 1 ? { surface } : {}), category });
       await oncreated(entry.id);
     } catch (e) {
       error = errorText(e, { code: true });
@@ -43,7 +44,7 @@
 </script>
 
 <form class="form" onsubmit={e => { e.preventDefault(); void create(); }}>
-  <div class="section"><span class="section-label">new entry on {spread.title}</span>
+  <div class="section"><span class="section-label">new entry on {sceneLabel(spread)}</span>
     <button type="button" class="text-link" onclick={oncancel}>cancel</button></div>
   <div class="row"><span class="label">title</span>
     <!-- svelte-ignore a11y_autofocus -->
@@ -51,10 +52,10 @@
   <div class="row" data-help-name="Entry category" data-help="Where the entry is listed in the reader's consultation menu: Marginalia (the glossary), Texts, Links – or behind the Videos button.">
     <span class="label">listed in</span>
     <span class="controls"><Segmented options={ENTRY_CATEGORIES} value={category} labels={CATEGORY_LABELS} label="New entry's category" onchange={c => (category = c)} /></span></div>
-  {#if pages.length > 1}
-    <div class="row" data-help-name="Access page" data-help="The page the entry belongs to – it decides the spread, and the reader's list names it.">
-      <span class="label">page</span>
-      <span class="controls"><Segmented options={pages.map(String)} value={String(page)} labels={Object.fromEntries(pages.map(p => [String(p), pageLabel(p)]))} onchange={p => (page = Number(p))} /></span></div>
+  {#if surfaces.length > 1}
+    <div class="row" data-help-name="Surface" data-help="The surface of the scene the entry lies on – the reader's list names its label, else the scene's. None: the scene as a whole.">
+      <span class="label">surface</span>
+      <span class="controls"><Segmented options={["", ...surfaces.map(c => c.value)]} value={surface} labels={{ "": "none", ...Object.fromEntries(surfaces.map(c => [c.value, c.label])) }} label="New entry's surface" onchange={s => (surface = s)} /></span></div>
   {/if}
   <div class="actions">
     <span class="grow"></span>

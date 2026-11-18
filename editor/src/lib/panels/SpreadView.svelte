@@ -13,9 +13,9 @@
   import SceneSection from "./SceneSection.svelte";
 
   /**
-   * The **spread** in the Inspector (#229 – the Stage tab's until then): what the Inspector shows while the spread is
+   * The **scene** in the Inspector (#229 – the Stage tab's until then): what the Inspector shows while the scene is
    * selected – the tree's top row, a click on the stage that picks nothing, a fresh workspace. Collapsible sections
-   * (open state kept per section): the **scene** (`SceneSection`: label, layout, group, surface labels), the scene's own
+   * (open state kept per section): the **scene** (`SceneSection`: label, group, surfaces, arrange in a row), the scene's own
    * **post-processing** (an override of the experience's, #307 3c – the experience's passes and appearance are behind the
    * experience settings ⚙, `BookPanel`; the old "spread" section is gone: a double page is two surfaces), and the **narrative** of the book's plugins: a tap button per target (the
    * reader's tap without aiming), the variables with scope and type, editable and deletable, a form to set one by hand
@@ -49,7 +49,7 @@
   };
 </script>
 
-<SceneSection {bookId} {spreadId} page={stage?.pageFormat()} />
+<SceneSection {bookId} {spreadId} />
 
 <!-- The scene's own post-processing, a child of its parameters; the experience's passes and appearance are behind the
      experience settings ⚙ (BookPanel) – #307 3c, Tilman -->

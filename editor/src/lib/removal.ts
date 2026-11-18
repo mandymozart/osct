@@ -31,24 +31,15 @@ const takes = (impact: RemovalImpact, withEntries: boolean): string =>
     impact.counts.entities ? count(impact.counts.entities, "entity", "entities") : "",
   ].filter(Boolean).join(", ");
 
-/** What is removed: "spread 4–5", "the cover", "the back cover", "entry “Castle” (page 3)" */
-export const removedName = (impact: RemovalImpact): string => {
-  if (impact.kind === "entry") return `entry “${impact.entry.title}” (page ${impact.entry.page})`;
-  const spread = impact.spread;
-  if (spread.format === "cover") return "the cover";
-  if (spread.format === "back") return "the back cover";
-  return spread.firstPage === spread.lastPage ? `page ${spread.firstPage}` : `spread ${spread.firstPage}–${spread.lastPage}`;
-};
+/** What is removed: "scene “4–5”", "entry “Castle”" */
+export const removedName = (impact: RemovalImpact): string =>
+  impact.kind === "entry" ? `entry “${impact.entry.title}”` : `scene “${impact.scene.label || impact.scene.id}”`;
 
-/** The confirmation's first line: "Removes spread 4–5 with 3 entries, 3 targets, 2 entities." */
+/** The confirmation's first line: "Removes scene “4–5” with 3 entries, 3 targets, 2 entities." */
 export const removalHeadline = (impact: RemovalImpact): string => {
-  const what = takes(impact, impact.kind === "spread");
+  const what = takes(impact, impact.kind === "scene");
   return `Removes ${removedName(impact)}${what ? ` with ${what}` : ""}.`;
 };
-
-/** What happens to the later pages, or null: "The pages after it are numbered back by 2." */
-export const pagesLine = (impact: RemovalImpact): string | null =>
-  impact.pagesBack > 0 ? `The pages after it are numbered back by ${impact.pagesBack}.` : null;
 
 /** The shared entities that stay because other targets use them, or null: "Kept: entity castle (also on castle-target)." */
 export const keptEntitiesLine = (impact: RemovalImpact): string | null => {

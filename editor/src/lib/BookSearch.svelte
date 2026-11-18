@@ -9,8 +9,8 @@
   import Icon, { type IconName } from "#lib/components/Icon.svelte";
 
   /**
-   * The top bar's search through the open book (#237, `book-search.ts`): entries, spreads, targets and named nodes,
-   * grouped by kind with their spread and page. A pick goes to that spread and selects the item – an entry's form, a
+   * The top bar's search through the open book (#237, `book-search.ts`): entries, scenes, targets and named nodes,
+   * grouped by kind with their scene. A pick goes to that scene and selects the item – an entry's form, a
    * target, a node – and the Inspector shows it (`selection.show`, or `requestOn` + the route for another spread). Keys:
    * `/` or Ctrl+K focuses it, ↑ ↓ walk the hits, Enter picks, Esc closes. On a phone it is an icon that opens the field
    * over the top bar. The draft is read on the first focus where no spread has loaded it yet (the book page).
@@ -28,7 +28,7 @@
   const spreads = $derived(content.bookId === bookId ? content.spreads : []);
   const groups = $derived(open ? searchBook(spreads, query) : []);
   const hits = $derived(flatHits(groups));
-  const ICON: Record<SearchKind, IconName> = { entry: "entry", spread: "book", target: "target", node: "node" };
+  const ICON: Record<SearchKind, IconName> = { entry: "entry", scene: "book", target: "target", node: "node" };
   const LISTBOX = "book-search-results";
   const optionId = (hit: SearchHit) => `book-search-${hit.key.replace(/[^A-Za-z0-9_-]/g, "_")}`;
 
@@ -55,7 +55,7 @@
   const pick = (hit: SearchHit) => {
     close();
     input?.blur();
-    if (page.params.spread === hit.spreadId) selection.show(hit.select);
+    if (page.params.scene === hit.spreadId) selection.show(hit.select);
     else {
       selection.requestOn(hit.spreadId, hit.select);
       void goto(resolve(`${bookId}/${hit.spreadId}/`));
@@ -96,7 +96,7 @@
   const onWindowPointer = (event: PointerEvent) => {
     if (open && box && !box.contains(event.target as Node)) close();
   };
-  const HELP = "Finds entries (title and text), spreads (title or a page number), targets and named nodes in the whole book – accents and case do not matter. ↑ ↓ choose, Enter goes there and selects it, Esc closes. / or Ctrl+K focuses it.";
+  const HELP = "Finds entries (title and text), scenes (their label), targets and named nodes in the whole book – accents and case do not matter. ↑ ↓ choose, Enter goes there and selects it, Esc closes. / or Ctrl+K focuses it.";
 </script>
 
 <svelte:window onkeydown={onWindowKey} onpointerdown={onWindowPointer} />

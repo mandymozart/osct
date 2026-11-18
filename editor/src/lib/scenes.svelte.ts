@@ -1,5 +1,5 @@
-import { addGroup, addScene, deleteGroup, getBook, listScenes, moveScenes, putGroup, putScene, putSurfaceReference, type BookTree, type ScenePlace, type TreeSpread } from "./api";
-import type { GroupData, SceneLayout, SurfaceData } from "@shared/types/game-config";
+import { addGroup, addScene, deleteGroup, getBook, listScenes, moveScenes, putGroup, putScene, putSurfaceReference, type BookTree, type ScenePlace, type TreeScene } from "./api";
+import type { GroupData, PassData, SurfaceData } from "@shared/types/game-config";
 import type { ScenePreset, SurfaceReference, SurfaceReferenceRequest } from "@shared/api/editor";
 import { groupedOf, newGroupLabel, ungroupPlan, type MoveRequest } from "./scene-strip";
 
@@ -7,7 +7,7 @@ import { groupedOf, newGroupLabel, ungroupPlan, type MoveRequest } from "./scene
  * The book's scenes and groups for the Scenes panel, the book page's scene cards and the Inspector's scene and group
  * (#307 phase 3a): the book's tree (`GET /editor/books/{id}` – the scenes in order with their entries, the groups) read
  * once per book, and the actions on it – add a scene from a preset, move scenes (a drop), group and ungroup, a scene's
- * label / layout / group / surfaces, a group's label. Every action reads the tree again; `version` goes up with each, so
+ * label / group / surfaces / passes, a group's label. Every action reads the tree again; `version` goes up with each, so
  * a page that shows the draft (the stage, its ‹ ›) can follow. The logic of the strip is `scene-strip.ts`.
  */
 class Scenes {
@@ -19,15 +19,15 @@ class Scenes {
   /** The picked scenes (in order) and the Shift range's anchor – shared by the strip and its toolbar */
   picks = $state<{ picked: string[]; anchor: string | null }>({ picked: [], anchor: null });
 
-  get list(): TreeSpread[] {
-    return this.tree?.spreads ?? [];
+  get list(): TreeScene[] {
+    return this.tree?.scenes ?? [];
   }
 
   get groups(): GroupData[] {
     return this.tree?.groups ?? [];
   }
 
-  scene(id: string): TreeSpread | undefined {
+  scene(id: string): TreeScene | undefined {
     return this.list.find(scene => scene.id === id);
   }
 
@@ -43,13 +43,13 @@ class Scenes {
       this.picks = { picked: [], anchor: null };
     }
     this.bookId = bookId;
-    void this.loadReferences().catch(() => { /* the stage keeps the page images and sheets */ });
+    void this.loadReferences().catch(() => { /* the stage keeps the references it has */ });
     try {
       const tree = await getBook(bookId, { fresh });
       if (this.bookId === bookId) {
         this.tree = tree;
         this.error = null;
-        const ids = new Set(tree.spreads.map(s => s.id));
+        const ids = new Set(tree.scenes.map(s => s.id));
         this.picks = { picked: this.picks.picked.filter(id => ids.has(id)), anchor: this.picks.anchor && ids.has(this.picks.anchor) ? this.picks.anchor : null };
       }
     } catch (e) {
@@ -112,10 +112,10 @@ class Scenes {
   }
 
   /**
-   * A scene's label, layout, group or surfaces (the whole list); `apply` lets a surface go that entries lie on (they keep
-   * their side, #314)
+   * A scene's label, group, surfaces (the whole list, places included) or passes; `apply` lets a surface go that entries
+   * lie on (they fall back to the scene's first surface)
    */
-  async putScene(sceneId: string, body: { label?: string | null; layout?: SceneLayout | null; group?: string | null; surfaces?: SurfaceData[]; apply?: boolean }): Promise<void> {
+  async putScene(sceneId: string, body: { label?: string; group?: string | null; surfaces?: SurfaceData[]; passes?: PassData[] | null; apply?: boolean }): Promise<void> {
     await putScene(this.id, sceneId, body);
     await this.changed();
   }

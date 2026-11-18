@@ -1,39 +1,35 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { getBook, type BookSummary } from "#lib/api.js";
-  import { coverSheetOf, fetchBookLayout, pageOf, printBoxes, sheetUrl, type PrintBox } from "#lib/sheet-preview.js";
-  import type { StageLayout } from "#lib/stage/stage-layout.js";
-  import SheetPreview from "#lib/components/SheetPreview.svelte";
+  import { getBook, listScenes, type BookSummary } from "#lib/api.js";
+  import { previewParts, type PreviewPart } from "#lib/surface-preview.js";
+  import SurfacesPreview from "#lib/components/SurfacesPreview.svelte";
 
   /**
-   * A book's front cover as a picture (#153): the layout's `cover-front` sheet with the cover spread's prints over it;
-   * a typographic cover (the title and the author in the book's gold, on the cover's halftone) when the book has no
-   * layout. Loaded when the card is shown, the layout and the book's tree side by side.
+   * A book's front cover as a picture (#153, #319): the first scene's first surface (a cover is a single scene first in
+   * the order) with its reference image and the prints of its targets; a typographic cover (the title and the author on
+   * the cover's halftone) while it has no picture. Loaded when the card is shown.
    */
   let { book }: { book: BookSummary } = $props();
 
-  let layout = $state<StageLayout | null>(null);
-  let prints = $state<PrintBox[]>([]);
+  let picture = $state<{ parts: PreviewPart[]; ratio: number } | null>(null);
   let loaded = $state(false);
+  /** A page's ratio while nothing is loaded */
+  const PAGE_RATIO = 230 / 320;
 
   onMount(() => {
-    void Promise.all([
-      fetchBookLayout(book.assetsBase).then(value => (layout = value)),
-      getBook(book.id)
-        .then(tree => tree.spreads.find(spread => spread.format === "cover")?.entries.flatMap(entry => (entry.target ? [entry.target] : [])) ?? [])
-        .catch(() => []),
-    ]).then(([, targets]) => {
-      prints = printBoxes(targets, 1, pageOf(layout), book.assetsBase);
+    void Promise.all([getBook(book.id).catch(() => null), listScenes(book.id).catch(() => null)]).then(([tree, list]) => {
+      const scene = tree?.scenes[0];
+      const surface = scene?.surfaces[0];
+      const reference = list?.scenes.find(s => s.id === scene?.id)?.surfaces.find(s => s.id === surface?.id)?.reference;
+      const targets = scene?.entries.flatMap(entry => (entry.target ? [entry.target] : [])) ?? [];
+      picture = surface ? previewParts([surface], reference ? { [surface.id]: reference } : {}, targets, book.assetsBase) : null;
       loaded = true;
     });
   });
-
-  const page = $derived(pageOf(layout));
-  const sheet = $derived(coverSheetOf(layout));
 </script>
 
 <span class="cover" class:loaded>
-  <SheetPreview ratio={page.width / page.height} image={sheet ? sheetUrl(book.assetsBase, sheet) : null} {prints}>
+  <SurfacesPreview parts={picture?.parts ?? []} ratio={picture?.ratio ?? PAGE_RATIO}>
     {#snippet fallback()}
       {#if loaded}
         <span class="type">
@@ -42,7 +38,7 @@
         </span>
       {/if}
     {/snippet}
-  </SheetPreview>
+  </SurfacesPreview>
 </span>
 
 <style>

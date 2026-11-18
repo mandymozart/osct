@@ -1,25 +1,24 @@
 <script lang="ts">
   import Icon from "#lib/components/Icon.svelte";
-  import SheetPreview from "#lib/components/SheetPreview.svelte";
+  import SurfacesPreview from "#lib/components/SurfacesPreview.svelte";
   import { menuTrigger } from "#lib/menu-trigger.js";
   import type { Point } from "#lib/context-menu.js";
   import { scenes } from "#lib/scenes.svelte.js";
   import {
     bandDrop, dropAtEnd, dropMark, dropOver, gridSpan, pickModeOf, pickScenes, planDrop, runCounts, sceneName, stepScene, stripKey, stripRuns,
-    surfaceParts, targetsOf, type Drop, type MoveRequest,
+    targetsOf, type Drop, type MoveRequest,
   } from "#lib/scene-strip.js";
-  import { captionOf, gridCells, type GridCell } from "#lib/spread-grid.js";
-  import { cardPicture, pageOf, printBoxes } from "#lib/sheet-preview.js";
-  import { facingHalfOf, sheetForSpread, type StageLayout } from "#lib/stage/stage-layout.js";
-  import type { TreeSpread } from "#lib/api.js";
+  import { previewParts } from "#lib/surface-preview.js";
+  import { PAGE_MM } from "#lib/surface-edit.js";
+  import type { TreeScene } from "#lib/api.js";
   import { GROUP_WINDOW_TARGETS } from "@shared/api/editor";
 
   /**
    * The scenes of the book as cards (#307 phase 3a): the Scenes panel's **strip** (`layout="strip"`, one row that
    * scrolls sideways, the default) or its **grid** (#315: page-wide `columns` that wrap and scroll down, a card spanning
-   * its pages, `cardHeight` from the panel's width – `gridColumns`; a group a band over its own rows). Each card is the scene's
-   * picture – the layout's sheet or the page images with the targets' prints (`sheet-preview.ts`, as the spread cards
-   * had), else its surfaces drawn side by side – with its name (label, own title or pages) and its target count; the
+   * its width in pages, `cardHeight` from the panel's width – `gridColumns`; a group a band over its own rows). Each card is
+   * the scene's surfaces side by side, each with its reference image and the targets' prints (`surface-preview.ts`) – with
+   * its name (its label) and its target count; the
    * open scene is framed in the text colour, the picked ones grey (the editor is monochrome). A group is a **band** over its scenes: its label, scene and target
    * count, a warning above the loading window (`GROUP_WINDOW_TARGETS`, #300). A click opens a scene (Shift picks a range,
    * Ctrl one more); a click on a band selects the group; cards – the picked ones together – and a whole band are dragged
@@ -28,7 +27,7 @@
    * the data and the actions `scenes.svelte.ts`; the page owns what a drop, a group and a card's menu do.
    */
   let {
-    layout = "strip", current = null, selectedGroup = null, zoom = 1, columns = 1, cardHeight = 0, sheetLayout = null, pageImages = {}, assetsBase = "",
+    layout = "strip", current = null, selectedGroup = null, zoom = 1, columns = 1, cardHeight = 0, assetsBase = "",
     onopen, onselectgroup, onmove, ongroup, onungroup, onmenu, onadd,
   }: {
     layout?: "strip" | "grid";
@@ -40,8 +39,6 @@
     /** The grid: its columns and its cards' height (px) */
     columns?: number;
     cardHeight?: number;
-    sheetLayout?: StageLayout | null;
-    pageImages?: Readonly<Record<string, string>>;
     assetsBase?: string;
     onopen: (sceneId: string) => void;
     onselectgroup?: (groupId: string) => void;
@@ -49,7 +46,7 @@
     ongroup?: () => void;
     onungroup?: () => void;
     /** A card's menu (a right click, a long press, the menu key) – none: the cards have no menu */
-    onmenu?: (scene: TreeSpread, at: Point, card: HTMLElement) => void;
+    onmenu?: (scene: TreeScene, at: Point, card: HTMLElement) => void;
     /** The add tile at the end – none: no tile */
     onadd?: (at: Point) => void;
   } = $props();
@@ -57,15 +54,8 @@
   const list = $derived(scenes.list);
   const order = $derived(list.map(scene => scene.id));
   const runs = $derived(stripRuns(list, scenes.groups));
-  const pageMm = $derived(pageOf(sheetLayout));
-  const pageRatio = $derived(pageMm.width / pageMm.height);
-  /** Each scene's place as the book page's grid saw it: a single page's side and its facing half (#251) */
-  const cells = $derived.by(() => {
-    const facingOf = (spread: TreeSpread) => facingHalfOf(spread, sheetForSpread(sheetLayout, spread), pageMm, pageImages);
-    const byId = new Map<string, Extract<GridCell<TreeSpread>, { spacer: false }>>();
-    for (const cell of gridCells(list, facingOf)) if (!cell.spacer) byId.set(cell.spread.id, cell);
-    return byId;
-  });
+  /** A page's ratio: a grid column is one page wide */
+  const pageRatio = PAGE_MM.width / PAGE_MM.height;
   const picked = $derived(new Set(scenes.picks.picked));
 
   /** The card the arrows move from: the last one picked or clicked, else the open scene */
@@ -160,7 +150,7 @@
   };
 
   // ── clicks and keys ──
-  const clickCard = (scene: TreeSpread, event: MouseEvent) => {
+  const clickCard = (scene: TreeScene, event: MouseEvent) => {
     const mode = pickModeOf(event);
     scenes.picks = pickScenes(order, scenes.picks, scene.id, mode);
     cursor = scene.id;
@@ -196,37 +186,24 @@
     if (id && layout === "strip") queueMicrotask(() => cards[id]?.scrollIntoView({ block: "nearest", inline: "nearest" }));
   });
 
-  const ratioOf = (scene: TreeSpread, hasPicture: boolean, span: number): number => {
-    const parts = hasPicture ? null : surfaceParts(scene.surfaces);
-    return parts ? parts.ratio : span * pageRatio;
-  };
+  /** The targets of a scene as the picture reads them */
+  const targetsIn = (scene: TreeScene) => scene.entries.flatMap(e => (e.target?.imageSrc ? [e.target] : []));
 </script>
 
-{#snippet card(scene: TreeSpread, index: number)}
-  {@const cell = cells.get(scene.id) ?? { span: 1 as const, side: null, facing: null }}
-  {@const picture = cardPicture(scene, cell, sheetForSpread(sheetLayout, scene), sheetLayout, pageImages, assetsBase)}
-  {@const hasPicture = !!picture.image || Object.values(picture.pages).some(Boolean)}
-  {@const parts = hasPicture ? null : surfaceParts(scene.surfaces)}
-  {@const ratio = ratioOf(scene, hasPicture, cell.span)}
+{#snippet card(scene: TreeScene, index: number)}
+  {@const picture = previewParts(scene.surfaces, scenes.references[scene.id], targetsIn(scene), assetsBase)}
+  {@const ratio = picture?.ratio ?? pageRatio}
   {@const targets = targetsOf(scene)}
-  {@const caption = captionOf(scene)}
   <div class="slot" style:grid-column={layout === "grid" ? `span ${gridSpan(ratio, pageRatio, columns)}` : undefined} class:drop-before={mark?.index === index && mark.side === "before"} class:drop-after={mark?.index === index && mark.side === "after"}>
     <button type="button" class="card" data-scene-index={index} class:current={scene.id === current} class:picked={picked.has(scene.id)}
       class:dragged={drag?.ids.includes(scene.id)} aria-pressed={picked.has(scene.id)} aria-current={scene.id === current ? "page" : undefined}
-      title={[sceneName(scene), caption].filter(Boolean).join(" · ")} bind:this={cards[scene.id]} draggable="false"
+      title={sceneName(scene)} bind:this={cards[scene.id]} draggable="false"
       data-help-name="Scene {sceneName(scene)}"
       data-help="A scene: a click opens it, Shift+click picks a range, Ctrl+click one more. Drag it – the picked scenes together – along the cards to move it; over a group's scene it joins the group. ← → move the pick, Enter opens.{onmenu ? ' Its menu (right click, long press, the menu key) adds a scene after it or removes it.' : ''}"
       style:width={layout === "grid" ? undefined : `calc(${ratio} * var(--card-height))`} onpointerdown={e => pressCard(e, scene.id)} onclick={e => clickCard(scene, e)}
       {@attach onmenu ? menuTrigger({ open: at => onmenu(scene, at, cards[scene.id]) }) : undefined}>
       <span class="th">
-        {#if parts}
-          <span class="parts">
-            {#each parts.parts as part (part.id)}<i style:flex-grow={part.share}><span>{part.label}</span></i>{/each}
-          </span>
-        {:else}
-          <SheetPreview {ratio} image={picture.image} single={picture.single} half={picture.half} pages={picture.pages}
-            prints={printBoxes(scene.entries.flatMap(e => (e.target?.imageSrc ? [e.target] : [])), cell.span, pageMm, assetsBase)} />
-        {/if}
+        {#if picture}<SurfacesPreview parts={picture.parts} ratio={picture.ratio} labels />{/if}
       </span>
       <span class="n"><b>{sceneName(scene)}</b><span class="count" aria-label="{targets} targets"><Icon name="target" size="1em" stroke={2} />{targets}</span></span>
     </button>
@@ -256,7 +233,7 @@
   {/each}
   {#if onadd}
     <button type="button" class="add" aria-label="Add a scene" title="Add a scene" onclick={e => onadd({ x: e.clientX, y: e.clientY })}
-      data-help-name="Add a scene" data-help="Adds a scene at the end: a single or double page, a cover, a fold-out or a wall."><Icon name="plus" /></button>
+      data-help-name="Add a scene" data-help="Adds a scene at the end: a double page, a single page (a cover) or a wall."><Icon name="plus" /></button>
   {/if}
 </div>
 {#if drag}
@@ -290,13 +267,9 @@
   .card { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: .12rem; cursor: pointer; font-size: var(--text-small); color: var(--muted); touch-action: pan-x; }
   .grid .card { touch-action: pan-y; }
   .th { display: block; width: 100%; height: var(--card-height); border: 1px solid var(--line); background: #fff; overflow: hidden; }
-  .th :global(.sheet) { height: 100%; }
+  .th :global(.scene) { height: 100%; }
   /* A picture is never dragged by the browser: that would cancel the pointer drag */
   .card :global(img) { -webkit-user-drag: none; pointer-events: none; }
-  .parts { display: flex; height: 100%; }
-  .parts i { display: flex; align-items: flex-end; justify-content: center; min-width: 0; border-right: 1px solid #ddd; font-style: normal; font-size: .55rem; color: #777; }
-  .parts i:last-child { border-right: 0; }
-  .parts i span { padding-bottom: .1rem; }
   .card.current .th { outline: 2px solid var(--accent); outline-offset: 1px; }
   .card.picked .th { outline: 2px solid var(--pick); outline-offset: 1px; }
   .card.current.picked .th { outline-color: var(--accent); box-shadow: 0 0 0 4px var(--pick); }

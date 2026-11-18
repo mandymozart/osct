@@ -1,15 +1,13 @@
 import { Matrix4, type Object3D, type PerspectiveCamera, Quaternion, type Raycaster, Vector3 } from "three";
-import type { SpreadFormat, Target } from "@engine/types";
-import type { PrintSurface } from "@shared/types/game-config";
-import { getSpread, getSpreads } from "@engine/content/game-config";
+import type { Target } from "@engine/types";
+import { getSpread } from "@engine/content/game-config";
 import { EMPTY_ENGINE_STATE, publishEngineState } from "@engine/utils/tracker-debug";
 import { fetchTriggerInfos, type TriggerInfos } from "@engine/utils/trigger-protocol";
-import { DEFAULT_PAGE_MM, fetchStageLayout, type LayoutSheet, onePageSheetSide, pageImagesOfSpread, printedPlaceOf, sheetForSpread, sheetImageUrl, sheetSharpImageUrl, type SheetPageImages, type StageLayout } from "./stage-layout";
 import { getPreview, type PreviewOrbit, type PreviewState, type PreviewView, subscribePreview, updatePreview } from "./preview";
 import type { IImageTracker, ImageTrackerOptions, TrackedSpread } from "@engine/scene/tracker-types";
 import { onAppUi } from "@engine/scene/ui";
 import { type LivePlacement, type PrintBox, printCentre, printedHeight, surfaceAxes, surfaceLeft, type Surfaces, withLivePlacement } from "./placement";
-import { defaultSurfaceOf, findSurface, sceneSurfaces, surfaceFrame, type SceneSurface, type SurfaceFrame, type SurfaceReference, type SurfaceReferences } from "./surfaces";
+import { DEFAULT_SURFACE, findSurface, sceneSurfaces, surfaceFrame, type SceneSurface, type SurfaceFrame, type SurfaceReference, type SurfaceReferences } from "./surfaces";
 
 export { surfaceLeft };
 
@@ -18,22 +16,10 @@ export const PREVIEW_FOV = 60;
 const NEAR = 0.01;
 const FAR = 100;
 
-/**
- * The surface a target lies on, by id: the scene's own surface (#314), or for content without surfaces one of the
- * sides – the pages of the open book, the closed book's front / back cover
- */
-export type StageSurface = PrintSurface | (string & {});
+/** The surface a target lies on: its id (`TargetPlace.surface`, else the scene's first surface) */
+export type StageSurface = string;
 
-/** The surface a target falls back to on a spread: the right page of the open book, the cover's own face */
-export const defaultSurface = (format: SpreadFormat | undefined): StageSurface =>
-  format === "cover" ? "front" : format === "back" ? "back" : "right";
-
-export interface PageFormat {
-  width: number;
-  height: number;
-}
-
-/** A target on the stage: its printed image, on which surface (left / right page) and where (mm from its top left corner) */
+/** A target on the stage: its printed image, on which surface (its id) and where (mm from its top left corner) */
 export interface StageTarget {
   id: string;
   imageSrc: string;
@@ -44,32 +30,10 @@ export interface StageTarget {
   height: number;
 }
 
-/** The sheet of the book under the targets, as laid out: its rendered image and size */
-export interface StageSheet {
-  image: string;
-  /** A much sharper image of the sheet, fetched once the camera is close (absent: the base image only) */
-  imageSharp?: string;
-  widthMm: number;
-  heightMm: number;
-  /** Page images (#251) over its halves, one page in size each, shown as uploaded – absent: the sheet's image only */
-  pages?: SheetPageImages;
-  /** A one-page sheet of a single printed page on its half of the open book (#251) – absent: centred on the spine */
-  side?: "left" | "right";
-}
-
-/** The book as an object: how many spreads it has (the stage's block thickness follows), and what the spread is */
+/** The open scene as the stage draws it: its surfaces where they lie (`surfaces.ts`) and their reference images */
 export interface StageBook {
-  spreads: number;
-  /** A double page (`book`), the front cover or the back cover: the stage draws the open or the closed book */
-  format: SpreadFormat;
-  /**
-   * The scene's surfaces where they lie (#314, `surfaces.ts`) – absent: the format's pages, one page format each (the
-   * book as it always was)
-   */
-  surfaces?: readonly SceneSurface[];
-  /** The scene is `free`: each surface its own board at its place, no book around them */
-  free?: boolean;
-  /** Reference images by surface id (#314): shown on their surface instead of the page image and the layout sheet */
+  surfaces: readonly SceneSurface[];
+  /** Reference images by surface id (#314): shown on their surface, else paper */
   references?: Readonly<Record<string, SurfaceReference>>;
 }
 
@@ -84,7 +48,8 @@ export const VIEW_PRESETS: Record<PreviewView, Orbit> = {
 };
 
 const MIN_DISTANCE = 80;
-const MAX_DISTANCE = 1500;
+/** Far enough to see a wall of a few metres whole */
+const MAX_DISTANCE = 4000;
 const MAX_TILT = 85;
 /** The looked-at point may be panned this far from the spread's own (mm) */
 const MAX_PAN = 600;
@@ -104,38 +69,57 @@ const DEFAULT_PRINT_MM = 60;
 const PAGE_MARGIN_MM = 20;
 const ROW_GAP_MM = 25;
 
-const gridOf = (state: PreviewState) => ({ on: state.grid, mm: state.gridMm, origin: state.origin, axis: state.axis });
+/** The stage's grids from the preview (`StageGrids`): the surfaces' own grid, the floor grid and the vertical grid */
+export const gridOf = (state: PreviewState): StageGrids => ({
+  on: state.grid, mm: state.gridMm, origin: state.origin, axis: state.axis, surfaces: state.surfaceGrids,
+  floor: state.floorGrid, floorMm: state.floorMm, wall: state.wallGrid, wallZ: state.wallZ,
+});
+
+/** What the stage draws of the grids (#316, #319): see `PreviewSettings` */
+export interface StageGrids {
+  /** The surfaces' own grid (the targets'): on / off, its spacing (mm), its origin, its vertical axis */
+  on: boolean;
+  mm: number;
+  origin: PreviewState["origin"];
+  axis: boolean;
+  /** A surface's own spacing by its id (the open scene's – #316 part 1), else `mm` */
+  surfaces: Readonly<Record<string, number>>;
+  /** The scene's floor grid on y = 0 and its spacing (mm) – the snap grid of surface places */
+  floor: boolean;
+  floorMm: number;
+  /** The vertical grid: a plane at the scene's z = `wallZ` (mm), the floor grid's spacing */
+  wall: boolean;
+  wallZ: number;
+}
+
+/** A sameness check of two grids (the stage draws them again only on a change) */
+const sameGrids = (a: StageGrids, b: StageGrids): boolean => JSON.stringify(a) === JSON.stringify(b);
 
 const degrees = (value: number) => (value * Math.PI) / 180;
 
 /**
- * Where the current spread's targets lie on the stage. With the book's layout (from the designed PDFs) every target
- * lies exactly where it is printed. Else, with printed-image details (the trigger protocol), each target gets its
- * printed size and position: exact `x` / `y` when given, else the region named by `position` ("top left" …) on the
- * right page, several in one region stacked downwards. Without details the targets lie in a row across the middle
- * of the right page. "The right page" is a cover's own surface (`front` / `back`) on a cover.
+ * Where the open scene's targets lie on the stage. A target's own `place` (schema 3.0) puts it on its surface (by id,
+ * else the scene's first). Else, with printed-image details (the trigger protocol), each target gets its printed size
+ * and position on the scene's first surface: exact `x` / `y` when given, else the region named by `position` ("top
+ * left" …), several in one region stacked downwards. Without details the targets lie in a row across its middle.
  */
 export const layoutTargets = (
-  targets: readonly Target[], infos: TriggerInfos = {}, page: PageFormat = DEFAULT_PAGE_MM, layout: StageLayout | null = null, format: SpreadFormat | undefined = undefined,
-  surfaces: ReadonlyArray<{ id: string; side: string }> | null = null,
+  targets: readonly Target[], infos: TriggerInfos = {}, surfaces: ReadonlyArray<{ id: string; widthMm: number; heightMm: number }> = [],
 ): StageTarget[] => {
   const withImage = targets.filter(target => target.imageSrc);
-  // The scene's surfaces (#314): a print lies on its `surfaceId`, else on the surface with its side; the fallback is the
-  // scene's right page (or cover face, or last surface). Without surfaces the sides are the surfaces.
-  const fallback = surfaces ? (defaultSurfaceOf(surfaces, format)?.id ?? defaultSurface(format)) : defaultSurface(format);
-  const surfaceFor = (surfaceId: string | undefined, side: string): string =>
-    surfaces ? (findSurface(surfaces, surfaceId, side)?.id ?? fallback) : side;
-  // A target's own `print` (made in the editor) or the book's layout: every target has a printed place
+  const first = surfaces[0] ?? DEFAULT_SURFACE;
+  const page = { width: first.widthMm, height: first.heightMm };
+  const fallback = first.id;
   const placed = (target: Target): StageTarget | null => {
-    const own = target.print;
-    if (own) return { id: target.id, imageSrc: target.imageSrc, surface: surfaceFor(own.surfaceId, own.surface), x: own.x, y: own.y, width: own.width, height: own.height ?? own.width * 0.75 };
-    const printed = layout?.targets[target.id];
-    return printed ? { id: target.id, imageSrc: target.imageSrc, surface: surfaceFor(undefined, printed.surface), x: printed.x, y: printed.y, width: printed.width, height: printed.height } : null;
+    const own = target.place;
+    if (!own) return null;
+    const surface = findSurface(surfaces, own.surface)?.id ?? fallback;
+    return { id: target.id, imageSrc: target.imageSrc, surface, x: own.x, y: own.y, width: own.width, height: own.height ?? own.width * 0.75 };
   };
   const placedTargets = withImage.map(placed);
   if (withImage.length && placedTargets.every(target => target !== null)) return placedTargets as StageTarget[];
   if (placedTargets.some(target => target !== null)) {
-    // A mix: the placed ones where they are, the rest in a row across the right page's lower half
+    // A mix: the placed ones where they are, the rest in a row across the first surface's lower half
     const rest = withImage.filter((_, i) => placedTargets[i] === null);
     const width = Math.min(60, (page.width - 20) / Math.max(1, rest.length) - 10);
     return withImage.map((target, i) => placedTargets[i] ?? {
@@ -162,7 +146,7 @@ export const layoutTargets = (
       return { id: target.id, imageSrc: target.imageSrc, surface: fallback, x, y: rowTop + stacked * (height + 10), width, height };
     });
   }
-  // A row across the middle of the right page, shrunk to fit when there are many
+  // A row across the middle of the first surface, shrunk to fit when there are many
   const count = withImage.length;
   const fit = Math.min(DEFAULT_PRINT_MM, (page.width - 2 * PAGE_MARGIN_MM - (count - 1) * ROW_GAP_MM) / Math.max(1, count));
   const width = Math.max(10, fit);
@@ -180,17 +164,17 @@ export const layoutTargets = (
 };
 
 /**
- * The stage's frame: metres, origin in the centre of the double page (the spine), x to the right, y towards the
- * top of the page, z out of the page. A target's centre in that frame – the centre of its printed image, whose height
+ * The stage's frame: metres, origin at the scene's origin (a double page's spine), x to the right, y away from the
+ * reader, z up. A target's centre in that frame – the centre of its printed image, whose height
  * follows the image's aspect once the stage knows it (`placement.ts`), as the engine anchors at the image's centre.
  */
-export const targetCentre = (target: StageTarget, page: Surfaces = DEFAULT_PAGE_MM, aspect?: number | null): Vector3 => {
+export const targetCentre = (target: StageTarget, page: Surfaces = [], aspect?: number | null): Vector3 => {
   const centre = printCentre(target, page, aspect);
   return new Vector3(centre.x / 1000, centre.y / 1000, centre.z / 1000);
 };
 
 /** How a target's image lies in the stage's frame: as its surface (flat on the table = no turn; a wall stands, #314) */
-export const targetTurn = (target: StageTarget, surfaces: Surfaces = DEFAULT_PAGE_MM, out = new Quaternion()): Quaternion => {
+export const targetTurn = (target: StageTarget, surfaces: Surfaces = [], out = new Quaternion()): Quaternion => {
   const axes = surfaceAxes(surfaces, target.surface);
   return out.setFromRotationMatrix(new Matrix4().makeBasis(new Vector3(...axes.x), new Vector3(...axes.y), new Vector3(...axes.z)));
 };
@@ -228,8 +212,8 @@ const LOOK_UP = new Matrix4();
 
 /** What the stage draws – set by the tracker, which owns the layout and the camera */
 export interface StageView {
-  /** The spread's targets on the page format, over the sheet's image when the book's layout has one */
-  setLayout(targets: readonly StageTarget[], page: PageFormat, sheet: StageSheet | null, book: StageBook): void;
+  /** The open scene: its surfaces at their places (each a board with its reference image, else paper) and the targets on them */
+  setLayout(targets: readonly StageTarget[], book: StageBook): void;
   /** The targets hidden in the tree (the eye, #250): their printed images are not drawn either */
   setHiddenPrints?(hidden: ReadonlySet<string>): void;
   /** The sky and the light: an HDRI (shown while the shading is rendered) */
@@ -247,14 +231,12 @@ export interface StageView {
   printedAspect?(targetId: string): number | undefined;
   /** The printed images on the page, each with `userData.targetId` (picking a target by its print) */
   printedPlanes?(): Object3D[];
-  /** The grid over the page: spacing in mm, counted from the origin, and its vertical axis */
-  setGrid?(grid: { on: boolean; mm: number; origin: PreviewState["origin"]; axis: boolean }): void;
+  /** The grids: the surfaces' own (spacing per surface, counted from the origin, its vertical axis), the floor grid, the vertical grid */
+  setGrid?(grid: StageGrids): void;
   /** The lines a drag snapped to (mm of the stage frame), drawn while it lasts; empty = none */
   setGuides?(guides: ReadonlyArray<{ axis: 0 | 1 | 2; at: number }>): void;
-  /** The stage's frame (metres, origin in the middle of the book, z out of the page) */
+  /** The stage's frame (metres, origin at the scene's origin, z up) */
   frame?(): Object3D;
-  /** The camera's distance from the page (mm), every frame: close up the sheet's sharper image is fetched */
-  setDetail?(distanceMm: number): void;
   /** The viewport's shading: the sky and the HDRI's light show only while rendered */
   setShading?(mode: PreviewState["shading"]): void;
   /** The ghost's image and corner (the placement handles) */
@@ -272,7 +254,7 @@ export interface StageView {
 }
 
 /**
- * The editor's tracker: no camera, no engine. The current spread's targets lie on a simulated page (the mock stage);
+ * The editor's tracker: no camera, no engine. The open scene's targets lie on its surfaces (the mock stage);
  * every frame each target not switched off is reported found with the pose of its printed image relative to a
  * camera that the author moves (drag = orbit, wheel / pinch = distance, double tap = the reader's view, presets in
  * the preview panel). `ArScene` sees matrices arriving and stopping, as with the engine – reveal, unlock and outro
@@ -296,8 +278,6 @@ export class MockTracker implements IImageTracker {
   /** Targets reported found right now */
   private found = new Set<string>();
   private infos: TriggerInfos = {};
-  private layout: StageLayout | null = null;
-  private sheet: LayoutSheet | null = null;
   private stage: StageView | null = null;
   private camera: PerspectiveCamera | null = null;
   private orbit: Orbit = { ...VIEW_PRESETS.reader };
@@ -319,11 +299,6 @@ export class MockTracker implements IImageTracker {
     return this.stage?.printedPlanes?.() ?? [];
   }
 
-  /** Where the book's layout prints a target (null without a layout or a place for it) */
-  printedPlace(targetId: string) {
-    return printedPlaceOf(this.layout, targetId);
-  }
-
   ghostParts(): { image: Object3D | null; corner: Object3D | null } {
     return this.stage?.ghostParts?.() ?? { image: null, corner: null };
   }
@@ -339,7 +314,7 @@ export class MockTracker implements IImageTracker {
     this.stage?.setGhost?.(ghost, options);
   }
 
-  /** Where a target lies on the stage as the content places it (its own print, the layout, the protocol or the row) */
+  /** Where a target lies on the stage as the content places it (its own place, the protocol or the row) */
   placeOf(targetId: string): StageTarget | null {
     return this.laidOut.find(target => target.id === targetId) ?? null;
   }
@@ -390,7 +365,6 @@ export class MockTracker implements IImageTracker {
     private options: ImageTrackerOptions,
     private loadInfos: () => Promise<TriggerInfos> = fetchTriggerInfos,
     private now: () => number = () => performance.now(),
-    private loadLayout: () => Promise<StageLayout | null> = fetchStageLayout,
   ) {}
 
   get hasCamera(): boolean {
@@ -414,7 +388,7 @@ export class MockTracker implements IImageTracker {
   attachStage(stage: StageView): void {
     this.stage?.dispose();
     this.stage = stage;
-    if (this.targets.length) stage.setLayout(this.targets, this.pageFormat(), this.stageSheet(), this.stageBook());
+    if (this.spreadId) stage.setLayout(this.targets, this.stageBook());
     stage.setShading?.(this.preview.shading);
     stage.setHdri(this.preview.hdri);
     stage.setTop?.(this.preview.top);
@@ -423,24 +397,12 @@ export class MockTracker implements IImageTracker {
     stage.setSurfaceMarks?.(this.marks.outlined, this.marks.highlighted);
   }
 
-  /** The page format: the book's layout, else this book's constant */
-  pageFormat(): PageFormat {
-    return this.layout?.page ?? DEFAULT_PAGE_MM;
-  }
-
   private stageBook(): StageBook {
-    const spread = this.spreadId ? getSpread(this.spreadId) : undefined;
     const references = this.spreadId ? this.references[this.spreadId] : undefined;
-    return {
-      spreads: Math.max(1, getSpreads().filter(s => !s.format || s.format === "spread").length),
-      format: spread?.format ?? "spread",
-      surfaces: this.surfaces,
-      free: !!spread?.surfaces?.length && spread.layout === "free",
-      ...(references ? { references } : {}),
-    };
+    return { surfaces: this.surfaces, ...(references ? { references } : {}) };
   }
 
-  /** The open scene's surfaces where they lie (#314): its own, else the format's pages */
+  /** The open scene's surfaces where they lie (#314, `place`) */
   private surfaces: SceneSurface[] = [];
   /** …and in the stage frame (the placement math, the anchors, the hits) */
   private frames: SurfaceFrame[] = [];
@@ -455,9 +417,9 @@ export class MockTracker implements IImageTracker {
     return this.surfaces;
   }
 
-  /** Where the surfaces lie for the placement math: the scene's frames, else the page format */
+  /** Where the surfaces lie for the placement math: the scene's frames (none: the stand-in double page) */
   private placeSurfaces(): Surfaces {
-    return this.frames.length ? this.frames : this.pageFormat();
+    return this.frames;
   }
 
   /** The reference images (#314) by scene id and surface id, set by the page; the open scene's lie on its surfaces */
@@ -475,30 +437,9 @@ export class MockTracker implements IImageTracker {
   }
   private marks: { outlined: string[]; highlighted: string | null } = { outlined: [], highlighted: null };
 
-  /** The book's page images by page key (#251): set by the page (`setPageImages`), laid over the current spread's sheet */
-  private pageImages: Record<string, string> = {};
-
-  setPageImages(images: Record<string, string>): void {
-    this.pageImages = { ...images };
-    this.relayout();
-  }
-
-  /** The layout's sheet with the spread's page images over it; without a layout sheet a blank one of the book's size carries them */
-  private stageSheet(): StageSheet | null {
-    const sheet = this.sheet;
-    const spread = this.spreadId ? getSpread(this.spreadId) : undefined;
-    const pages = pageImagesOfSpread(spread, this.pageImages);
-    const withPages = Object.keys(pages).length ? { pages } : {};
-    if (sheet) return { image: sheetImageUrl(sheet), imageSharp: sheetSharpImageUrl(sheet), widthMm: sheet.widthMm, heightMm: sheet.heightMm, ...withPages, ...onePageSheetSide(spread, sheet, this.pageFormat()) };
-    if (!withPages.pages) return null;
-    const page = this.pageFormat();
-    const closed = spread?.format === "cover" || spread?.format === "back";
-    return { image: "", widthMm: closed ? page.width : 2 * page.width, heightMm: page.height, pages };
-  }
-
   async startCamera(): Promise<void> {
     if (this.started) return;
-    [this.infos, this.layout] = await Promise.all([this.loadInfos(), this.loadLayout()]);
+    this.infos = await this.loadInfos();
     this.started = true;
     this.startedAt = this.now();
     this.applyPreview(getPreview(), true);
@@ -517,18 +458,17 @@ export class MockTracker implements IImageTracker {
   }
 
   /**
-   * Lay the current spread out again from the content as it is now – its format (open book or closed cover), its
-   * sheet – without loading its targets anew: the engine does not reload a spread that is already tracked.
+   * Lay the open scene out again from the content as it is now – its surfaces where they lie – without loading its
+   * targets anew: the engine does not reload a scene that is already tracked.
    */
   relayout(): void {
     if (!this.spreadId) return;
     const spread = getSpread(this.spreadId);
-    this.sheet = sheetForSpread(this.layout, spread);
-    this.surfaces = sceneSurfaces(spread, this.pageFormat());
+    this.surfaces = sceneSurfaces(spread);
     this.frames = this.surfaces.map(surfaceFrame);
-    this.laidOut = layoutTargets(this.tracked, this.infos, this.pageFormat(), this.layout, spread?.format, this.frames);
+    this.laidOut = layoutTargets(this.tracked, this.infos, this.frames);
     this.targets = withLivePlacement(this.laidOut, this.livePlacement);
-    this.stage?.setLayout(this.targets, this.pageFormat(), this.stageSheet(), this.stageBook());
+    this.stage?.setLayout(this.targets, this.stageBook());
     this.stage?.setSurfaceMarks?.(this.marks.outlined, this.marks.highlighted);
     this.publishState();
   }
@@ -631,13 +571,12 @@ export class MockTracker implements IImageTracker {
       this.options.onUpdate(target.id, matrix);
     }
     this.stage?.setHiddenPrints?.(hidden);
-    this.stage?.setDetail?.(this.orbit.distance);
     this.stage?.update(this.cameraInverse);
   }
 
   /**
-   * The point the camera looks at: the spread's root (the spine's middle on an open book, the cover's middle) plus the
-   * author's pan. Never a target's centre: a spread change or targets arriving would move the camera (#105)
+   * The point the camera looks at: the scene's origin (a double page's spine) plus the author's pan. Never a target's
+   * centre: a scene change or targets arriving would move the camera (#105)
    */
   private focus(): Vector3 {
     const pan = this.orbit.pan;
@@ -665,9 +604,7 @@ export class MockTracker implements IImageTracker {
     if (initial || state.shading !== previous.shading) this.stage?.setShading?.(state.shading);
     if (initial || state.hdri !== previous.hdri) this.stage?.setHdri(state.hdri);
     if (initial || state.top !== previous.top) this.stage?.setTop?.(state.top);
-    if (initial || state.grid !== previous.grid || state.gridMm !== previous.gridMm || state.origin !== previous.origin || state.axis !== previous.axis) {
-      this.stage?.setGrid?.(gridOf(state));
-    }
+    if (initial || !sameGrids(gridOf(state), gridOf(previous))) this.stage?.setGrid?.(gridOf(state));
     if (state.hidden !== previous.hidden) this.publishState();
   }
 

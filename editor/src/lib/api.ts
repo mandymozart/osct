@@ -1,6 +1,6 @@
 import type { BookAppearance, EntityData, EntityRefData, GameConfiguration, PassData } from "@engine/types";
 import type { EnvironmentData } from "@shared/types/environment";
-import type { AssetType, PrintPlacement, SceneLayout, SourceOfTruth, SpreadFormat, SurfaceData } from "@shared/types/game-config";
+import type { AssetType, SourceOfTruth, SurfaceData, TargetPlace } from "@shared/types/game-config";
 import type {
   Asset,
   Change,
@@ -26,10 +26,6 @@ import type {
   GroupSaved,
   ImportPreview,
   ImportResult,
-  MatterResult,
-  PageImageChange,
-  PageImagesSaved,
-  PageList,
   PluginSource,
   PluginSummary,
   PluginUsages,
@@ -41,11 +37,8 @@ import type {
   ScenePreset,
   SceneSaved,
   ScenesMoved,
-  SpreadAdded,
   SurfaceReferenceRequest,
   SurfaceReferenceSaved,
-  SurfaceReferencesMigration,
-  SpreadSaved,
   TargetSaved,
   Ungrouped,
 } from "@shared/api/editor";
@@ -54,7 +47,7 @@ import { imageUseQuery, type ImageFit, type ImageUse } from "@shared/api/images"
 import { readStored, writeStored } from "#lib/storage.js";
 import type { PublishedPlugin } from "#lib/publish-plugins.js";
 
-export type { PrintPlacement };
+export type { TargetPlace };
 // The editor API's answers, typed once for the editor and the MCP server (shared/api/editor.ts)
 export type {
   Asset,
@@ -74,12 +67,7 @@ export type {
   ImportedBuild,
   ImportPreview,
   LiveIn,
-  MatterResult,
-  MovedRows,
   OtherBook,
-  BookPage,
-  PageImage,
-  PageImageChange,
   PluginSource,
   PluginSummary,
   PublishResult,
@@ -92,10 +80,9 @@ export type {
   SurfaceReferenceFit,
   SurfaceReferenceRequest,
   SurfaceReferenceSaved,
-  SurfaceReferencesMigration,
   SurfaceSummary,
   TreeEntry,
-  TreeSpread,
+  TreeScene,
   Usage,
 } from "@shared/api/editor";
 
@@ -534,35 +521,25 @@ export const setAssetCredits = (bookId: string, items: { url: string; credits: s
 export const deleteAsset = (bookId: string, assetId: string, force = false) =>
   api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/assets/${encodeURIComponent(assetId)}${force ? "?force=1" : ""}`);
 
-// ── Pages and page images (#251, docs/server.md "Pages and page images") ─────────────────────────
-
-/** Every page of the book in order and its page images */
-export const getPages = (bookId: string) => api<PageList>("GET", `/editor/books/${encodeURIComponent(bookId)}/pages`);
-
-/** Sets, replaces, moves, renames and removes page images in one batch – all or nothing */
-export const putPageImages = (bookId: string, items: PageImageChange[]) =>
-  api<PageImagesSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/page-images`, { items });
-
-/** The spreads the book misses against its print format: the plan, written with `apply` */
-export const addMatter = (bookId: string, body: { front?: number; back?: number; lastPage?: number; apply?: boolean }) =>
-  api<MatterResult>("POST", `/editor/books/${encodeURIComponent(bookId)}/matter`, body);
-
 // ── Targets and entries made in the editor ───────────────────────────────────────────────────────
 
-/** The target's printed image and / or where it is printed */
-export const putTarget = (bookId: string, targetId: string, body: { imageSrc?: string; print?: PrintPlacement | null; enabled?: boolean }) =>
+/** The target's printed image and / or where it lies on its scene's surface (`place`) */
+export const putTarget = (bookId: string, targetId: string, body: { imageSrc?: string; place?: TargetPlace | null; enabled?: boolean }) =>
   api<TargetSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/targets/${encodeURIComponent(targetId)}`, body);
 
-/** A new entry – with its target, or without one: an entry read only in the list (the Entries page, #223) */
-export const addEntry = (bookId: string, body: { id?: string; title: string; page: number; category?: string; body?: string; target?: { id?: string; imageSrc: string; print?: PrintPlacement; entity?: EntityData | EntityRefData } }) =>
+/**
+ * A new entry on a scene (`surface` only when the scene has several) – with its target, or without one: an entry read
+ * only in the list (the Entries page, #223)
+ */
+export const addEntry = (bookId: string, body: { id?: string; title: string; scene: string; surface?: string; category?: string; body?: string; target?: { id?: string; imageSrc: string; place?: TargetPlace; entity?: EntityData | EntityRefData } }) =>
   api<EntryAdded>("POST", `/editor/books/${encodeURIComponent(bookId)}/entries`, body);
 
 // ── The book's texts (#223, docs/server.md "Texts") ──────────────────────────────────────────────
 
-/** Every entry with its fields as the content holds them (an image's path unresolved), its spread and its target */
+/** Every entry with its fields as the content holds them (an image's path unresolved), its scene and its target */
 export const getEntries = (bookId: string) => api<EntryList>("GET", `/editor/books/${encodeURIComponent(bookId)}/entries`);
 
-/** An entry's fields – only those sent change; `null` removes author, image or media. A new page can move it to another spread */
+/** An entry's fields – only those sent change; `null` removes author, image or media. `scene` (and `surface`) moves it */
 export const putEntry = (bookId: string, entryId: string, changes: Record<string, unknown>) =>
   api<EntrySaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/entries/${encodeURIComponent(entryId)}`, changes);
 
@@ -587,7 +564,7 @@ export const revertTo = (bookId: string, after: string, apply = false) =>
 export const putEnvironment = (bookId: string, environment: EnvironmentData | null) =>
   api<EnvironmentSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/environment`, { environment });
 
-/** The book's post-processing – the master of every spread without a list of its own; `null` removes it */
+/** The book's post-processing – the master of every scene without a list of its own; `null` removes it */
 export const putBookPasses = (bookId: string, passes: PassData[] | null) =>
   api<BookPassesSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/passes`, { passes });
 
@@ -595,24 +572,13 @@ export const putBookPasses = (bookId: string, passes: PassData[] | null) =>
 export const putBookAppearance = (bookId: string, appearance: BookAppearance | null) =>
   api<BookAppearanceSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/appearance`, { appearance });
 
-/** `passes`: the spread's post-processing; `null` removes the list (the book's applies), `[]` turns it off */
-export const putSpread = (bookId: string, spreadId: string, body: { title?: string; format?: SpreadFormat; passes?: PassData[] | null }) =>
-  api<SpreadSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/spreads/${encodeURIComponent(spreadId)}`, body);
-
-/**
- * A double page (`format: "spread"`, after the spread `after` – default: the last one before the back cover; the later
- * pages are numbered on by two) or a cover (`cover` / `back`)
- */
-export const addSpread = (bookId: string, body: { format: Exclude<SpreadFormat, "spread">; title?: string } | { format: "spread"; after?: string; id?: string; title?: string }) =>
-  api<SpreadAdded>("POST", `/editor/books/${encodeURIComponent(bookId)}/spreads`, body);
-
 // ── Scenes (#307, docs/server.md "Scenes"): the Scenes panel and the book page ──────────────────────
 
 /** Where a scene goes: after or before a scene, or at a position (0 = first) */
 export type ScenePlace = { after: string } | { before: string } | { position: number };
 
-/** A scene from a layout preset, placed anywhere (none: a cover first, the rest before the back cover) */
-export const addScene = (bookId: string, body: { preset: ScenePreset; title?: string; label?: string; group?: string } & Partial<ScenePlace>) =>
+/** A scene from a preset (double / single / wall), placed anywhere (none: after the last) */
+export const addScene = (bookId: string, body: { preset: ScenePreset; label?: string; group?: string } & Partial<ScenePlace>) =>
   api<SceneAdded>("POST", `/editor/books/${encodeURIComponent(bookId)}/scenes`, body);
 
 /**
@@ -622,8 +588,11 @@ export const addScene = (bookId: string, body: { preset: ScenePreset; title?: st
 export const moveScenes = (bookId: string, body: { scenes: string[]; group?: string | null; apply?: boolean } & Partial<ScenePlace>) =>
   api<ScenesMoved>("POST", `/editor/books/${encodeURIComponent(bookId)}/scenes/move`, body);
 
-/** A scene's surfaces (the whole list), layout, label or group; `apply` lets surfaces go that entries lie on */
-export const putScene = (bookId: string, sceneId: string, body: { surfaces?: SurfaceData[] | null; layout?: SceneLayout | null; label?: string | null; group?: string | null; apply?: boolean }) =>
+/**
+ * A scene's label, group, surfaces (the whole list, places included) or post-processing (`passes`: `null` removes the list
+ * – the book's applies –, `[]` turns it off); `apply` lets surfaces go that entries lie on
+ */
+export const putScene = (bookId: string, sceneId: string, body: { surfaces?: SurfaceData[]; label?: string; group?: string | null; passes?: PassData[] | null; apply?: boolean }) =>
   api<SceneSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/scenes/${encodeURIComponent(sceneId)}`, body);
 
 /** The book's scenes in order and the groups – every surface with its reference image (#314) */
@@ -640,10 +609,6 @@ export const putSurfaceReference = (bookId: string, sceneId: string, surfaceId: 
     body,
   );
 
-/** The page images (#251) become surface references: without `apply` the plan only, with it written (idempotent) */
-export const migrateSurfaceReferences = (bookId: string, apply = false) =>
-  api<SurfaceReferencesMigration>("POST", `/editor/books/${encodeURIComponent(bookId)}/scenes/references/migrate`, apply ? { apply: true } : {});
-
 /** A group of the picked scenes (they come together where the first of them is) */
 export const addGroup = (bookId: string, body: { label: string; scenes: string[]; id?: string; apply?: boolean }) =>
   api<GroupPlanned>("POST", `/editor/books/${encodeURIComponent(bookId)}/groups`, body);
@@ -657,12 +622,12 @@ export const deleteGroup = (bookId: string, groupId: string) =>
   api<Ungrouped>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/groups/${encodeURIComponent(groupId)}`);
 
 /**
- * Removes a spread with everything on it, in two steps: without `confirm` the API answers 409 `confirm-delete` with
+ * Removes a scene with everything on it, in two steps: without `confirm` the API answers 409 `confirm-delete` with
  * `details.impact` (a `RemovalImpact`) and `details.confirmation` (`removalStep` reads them); the same call with
- * `confirm` (and `deleteFiles` when the person chose it) removes exactly that. 409 `initial-spread` for the opening spread.
+ * `confirm` (and `deleteFiles` when the person chose it) removes exactly that. 409 for the scene the book opens on.
  */
-export const deleteSpread = (bookId: string, spreadId: string, confirm?: string, deleteFiles = false) =>
-  api<RemovalResult>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/spreads/${encodeURIComponent(spreadId)}`, removalBody(confirm, deleteFiles));
+export const deleteScene = (bookId: string, sceneId: string, confirm?: string, deleteFiles = false) =>
+  api<RemovalResult>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/scenes/${encodeURIComponent(sceneId)}`, removalBody(confirm, deleteFiles));
 
 /** Removes an entry with its target, its entity and (with `deleteFiles`) the files used only there – the same two steps */
 export const deleteEntry = (bookId: string, entryId: string, confirm?: string, deleteFiles = false) =>

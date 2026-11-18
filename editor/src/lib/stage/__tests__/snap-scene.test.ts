@@ -29,7 +29,7 @@ const scene = (patch: Partial<PreviewSettings> = {}) => {
   let modifier = false;
   const source: SnapSource = {
     frame: () => frame,
-    stageFrame: () => ({ page: { width: 230, height: 320 }, format: "spread" }),
+    stageFrame: () => ({ surfaces: [{ id: "left", left: -230, top: 160, width: 230, height: 320 }, { id: "right", left: 0, top: 160, width: 230, height: 320 }] }),
     settings: () => settings,
     modifier: () => modifier,
     objects: () => [{ targetId: "a", object: moving }, { targetId: "b", object: other }],

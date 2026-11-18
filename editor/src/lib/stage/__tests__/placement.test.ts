@@ -1,14 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_ASPECT, draggedPlace, grabOffset, MIN_PRINT_WIDTH, printCentre, printedHeight, surfaceLeft, withLivePlacement, withWidth } from "../placement";
+import { sceneFrames } from "../surfaces";
+import { arrangeInRow, FLAT } from "#lib/surface-edit.js";
 
-const page = { width: 230, height: 320 };
+/** Two pages side by side (a scene of two surfaces, `left` and `right`, arranged in a row) and a cover alone (`front`) */
+const pageOf = (id: string) => ({ id, widthMm: 230, heightMm: 320, place: FLAT });
+const page = sceneFrames({ surfaces: arrangeInRow([pageOf("left"), pageOf("right")]) });
+const cover = sceneFrames({ surfaces: [pageOf("front")] });
 
 describe("placement: the printed box", () => {
-  it("lays the surfaces side by side: the left page left of the spine, a cover centred", () => {
+  it("finds a surface's left edge; an unknown surface is the scene's first", () => {
     expect(surfaceLeft("left", page)).toBe(-230);
     expect(surfaceLeft("right", page)).toBe(0);
-    expect(surfaceLeft("front", page)).toBe(-115);
-    expect(surfaceLeft("back", page)).toBe(-115);
+    expect(surfaceLeft("front", cover)).toBe(-115);
+    expect(surfaceLeft("gone", page)).toBe(-230);
   });
 
   it("is as high as the image's aspect makes it, else the stored height, else the default aspect", () => {
@@ -27,7 +32,7 @@ describe("placement: the printed box", () => {
     // Before the image is known the default aspect stands in (the anchor's old 0.75 box)
     expect(printCentre({ surface: "right", x: 70, y: 100, width: 80 }, page)).toEqual({ x: 110, y: 160 - 130, z: 0 });
     expect(printCentre({ surface: "left", x: 60, y: 100, width: 80, height: 40 }, page)).toEqual({ x: -230 + 100, y: 160 - 120, z: 0 });
-    expect(printCentre({ surface: "front", x: 65, y: 110, width: 100 }, page, 1)).toEqual({ x: -115 + 115, y: 160 - 160, z: 0 });
+    expect(printCentre({ surface: "front", x: 65, y: 110, width: 100 }, cover, 1)).toEqual({ x: -115 + 115, y: 160 - 160, z: 0 });
   });
 });
 

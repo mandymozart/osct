@@ -13,18 +13,21 @@
   import { sceneName } from "#lib/scene-strip.js";
   import { pickAccept, type LibraryPick } from "#lib/library-pick.js";
   import { sameSurfaces, surfaceName, updateSurface, type SurfacePatch } from "#lib/surface-edit.js";
-  import { moveSceneSurface, removeSceneSurface, surfaceRemovalWarning } from "#lib/surface-actions.js";
+  import { arrangeSceneInRow, canArrangeInRow, moveSceneSurface, removeSceneSurface, surfaceRemovalWarning } from "#lib/surface-actions.js";
   import { surfaceMode } from "#lib/surface-mode.svelte.js";
+  import { surfaceGrids } from "#lib/surface-grids.svelte.js";
+  import { clampGrid, getPreview, subscribePreview } from "#lib/stage/preview.js";
   import { SURFACE_GIZMO_MODES } from "#lib/stage/surface-gizmo.js";
   import { REFERENCE_FITS } from "#lib/stage/surfaces.js";
-  import { SURFACE_SIDES, type SurfaceData, type SurfacePlace } from "@shared/types/game-config";
+  import type { SurfaceData, SurfacePlace } from "@shared/types/game-config";
   import type { SurfaceReferenceFit } from "@shared/api/editor";
   import LibraryPanel from "./LibraryPanel.svelte";
 
   /**
    * The selected **surface** in the Inspector (#314 – the Surface mode's tap, the Tree's Surfaces level, a side in the
-   * scene's surfaces): its label as printed, its side, its size (w × h mm), in a free scene its place in the scene (x y z
-   * mm, rx ry rz ° – Euler XYZ, `SurfacePlace`; on the stage the Surface tool's gizmo moves or turns it), its **reference
+   * scene's surfaces): its label as printed, its size (w × h mm), its place in the scene (x y z mm, rx ry rz ° – Euler
+   * XYZ, `SurfacePlace`; on the stage the Surface tool's gizmo moves or turns it; *arrange in a row* lays the scene's
+   * surfaces side by side), its **reference
    * image** (editor-only – Library… / Upload…, the fit, remove; `PUT …/surfaces/{id}/reference`), ↑ ↓ in the scene's
    * order and *remove surface* after a confirmation that names what lies on it. Every field saves itself (RULES #37):
    * the surface's fields with the scene's whole list (`PUT …/scenes/{id}`), one autosave subject per scene.
@@ -32,9 +35,8 @@
   let { bookId, sceneId, surfaceId }: { bookId: string; sceneId: string; surfaceId: string } = $props();
 
   const scene = $derived(scenes.scene(sceneId));
-  const surface = $derived(scene?.surfaces?.find(s => s.id === surfaceId));
-  const index = $derived(scene?.surfaces?.findIndex(s => s.id === surfaceId) ?? -1);
-  const free = $derived(scene?.layout === "free");
+  const surface = $derived(scene?.surfaces.find(s => s.id === surfaceId));
+  const index = $derived(scene?.surfaces.findIndex(s => s.id === surfaceId) ?? -1);
   const reference = $derived(scenes.reference(sceneId, surfaceId));
 
   /** What was typed / scrubbed, per surface – a save's answer never writes over it (RULES #37) */
@@ -64,7 +66,6 @@
   };
   const place = $derived<Required<SurfacePlace>>({ x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, ...(draft?.place ?? {}) });
   const editPlace = (key: keyof SurfacePlace, value: number) => edit({ place: { ...place, [key]: value } });
-  const sides = $derived<string[]>(draft && !(SURFACE_SIDES as readonly string[]).includes(draft.side) ? [...SURFACE_SIDES, draft.side] : [...SURFACE_SIDES]);
 
   let error = $state<string | null>(null);
   let busy = $state(false);
@@ -101,6 +102,11 @@
     stretch: "Stretch: fills the surface as it is",
   };
 
+  // The surface's own grid (#316 part 1): its spacing, else the toolbar's
+  let toolbarGrid = $state(getPreview().gridMm);
+  $effect(() => subscribePreview(state => (toolbarGrid = state.gridMm)));
+  const ownGrid = $derived(surfaceGrids.of(sceneId, surfaceId));
+
   let removing = $state(false);
   const warning = $derived(removing ? surfaceRemovalWarning(sceneId, surfaceId) : "");
 </script>
@@ -119,33 +125,27 @@
   </div>
 
   <Section id="surface.fields" label="surface" summary={`${Math.round(draft.widthMm)} × ${Math.round(draft.heightMm)} mm`}
-    help="The selected surface of the scene: its label as printed, its side, its size, and in a free scene its place. Every field saves itself.">
-    <div class="row" class:changed={(draft.label ?? "") !== (surface.label ?? "")} data-help="The surface's label, written exactly as printed (41, ii, Cover) – none when nothing is printed. The reader shows it where it showed the page number.">
+    help="The selected surface of the scene: its label as printed, its size and its place. Every field saves itself.">
+    <div class="row" class:changed={(draft.label ?? "") !== (surface.label ?? "")} data-help="The surface's label, written exactly as printed (40–41, Cover) – none when nothing is printed. The reader shows an entry's surface label, else its scene's.">
       <span class="label">label</span>
       <input class="field" aria-label="Surface label" placeholder="no label" value={draft.label ?? ""} oninput={e => edit({ label: e.currentTarget.value })} /></div>
-    <div class="row" data-help="Which side the surface is known by: a page of a double page (left, right, a fold-out's middle), a cover's front or back, a wall. A target printed on it without the surface's id falls back to this side.">
-      <span class="label">side</span>
-      <select class="field" aria-label="Surface side" value={draft.side} onchange={e => edit({ side: e.currentTarget.value })}>
-        {#each sides as side (side)}<option value={side}>{side}</option>{/each}
-      </select></div>
     <div class="row" data-help="The surface's size in millimetres: its width and its height as printed or built.">
       <span class="label">size</span>
       <span class="controls xyz">
         <ScrubNumber value={draft.widthMm} min={1} step={1} unit="mm" prefix="W" label="Surface width" strict onchange={v => edit({ widthMm: v })} />
         <ScrubNumber value={draft.heightMm} min={1} step={1} unit="mm" prefix="H" label="Surface height" strict onchange={v => edit({ heightMm: v })} />
       </span></div>
-    <div class="row" data-help="The surface's place in the scene's order: the reader and the fixed row count it.">
+    <div class="row" data-help="The surface's place in the scene's order: *arrange in a row* lays them side by side in it.">
       <span class="label">order</span>
       <span class="controls">
-        <span class="small muted">{index + 1} of {scene.surfaces?.length ?? 0}</span>
+        <span class="small muted">{index + 1} of {scene.surfaces.length}</span>
         <button type="button" class="icon-button" disabled={busy || index <= 0} onclick={() => void run(() => moveSceneSurface(sceneId, surfaceId, -1))} title="One place earlier" aria-label="Move up"><Icon name="up" /></button>
-        <button type="button" class="icon-button" disabled={busy || index >= (scene.surfaces?.length ?? 0) - 1} onclick={() => void run(() => moveSceneSurface(sceneId, surfaceId, 1))} title="One place later" aria-label="Move down"><Icon name="down" /></button>
+        <button type="button" class="icon-button" disabled={busy || index >= scene.surfaces.length - 1} onclick={() => void run(() => moveSceneSurface(sceneId, surfaceId, 1))} title="One place later" aria-label="Move down"><Icon name="down" /></button>
       </span></div>
   </Section>
 
-  <Section id="surface.place" label="place" summary={free ? (draft.place ? "placed" : "in the row") : "fixed row"}
-    help="Where the surface lies in the scene's coordinate system: mm from the origin (the middle of the first row, on the table; +x right, +y up, +z towards the reader) and its turn in degrees (Euler XYZ – a wall ahead is rx 90). Only a free scene places its surfaces; a fixed one lays them side by side.">
-    {#if free}
+  <Section id="surface.place" label="place" summary={place.rx || place.ry || place.rz ? "turned" : place.y ? "raised" : "flat"}
+    help="Where the surface lies in the scene's coordinate system: mm from the origin (the middle of the first row, on the table; +x right, +y up, +z towards the reader) and its turn in degrees (Euler XYZ – a wall ahead is rx 90). The floor grid is the snap grid of the gizmo.">
       <div class="row" data-help="The surface's centre in mm: x to the right, y up from the table, z towards the reader.">
         <span class="label">position</span>
         <span class="controls xyz">
@@ -160,19 +160,27 @@
             <ScrubNumber value={place[key]} step={1} unit="°" prefix={key.slice(1).toUpperCase()} label="Surface rotation {key.slice(1)}" onchange={v => editPlace(key, v)} />
           {/each}
         </span></div>
-      <div class="row" data-help="What the Surface tool's gizmo on the stage does with the selected surface: move it or turn it. Shift or Ctrl turns snapping around (10 mm, 15°).">
+      <div class="row" data-help="What the Surface tool's gizmo on the stage does with the selected surface: move it or turn it. While snapping is on it steps by the floor grid's spacing and 15°; Shift or Ctrl turns snapping around.">
         <span class="label">gizmo</span>
         <span class="controls">
           <Segmented options={SURFACE_GIZMO_MODES} value={surfaceMode.gizmo} label="Surface gizmo" labels={{ translate: "move", rotate: "rotate" }} onchange={mode => (surfaceMode.gizmo = mode)} />
           <span class="small muted">with the Surface tool (S)</span>
         </span></div>
-      {#if draft.place}
-        <div class="row"><span class="label"></span><button type="button" class="text-link" onclick={() => edit({ place: null })} title="Back to its place in the row of the surfaces without a place">back into the row</button></div>
-      {/if}
-    {:else}
-      <p class="small muted">A fixed scene lays its surfaces side by side as printed together. Make it free to place each surface – a wall standing ahead, a page beside the book.
-        <button type="button" class="pill framed" disabled={busy} onclick={() => void run(() => scenes.putScene(sceneId, { layout: "free" }))}>make free</button></p>
-    {/if}
+      <div class="row" data-help="Arrange in a row: every surface of the scene flat on the table, side by side in their order, touching, the row centred on the origin – written to their places.">
+        <span class="label"></span>
+        <button type="button" class="text-link" disabled={busy || !canArrangeInRow(sceneId)} onclick={() => void run(() => arrangeSceneInRow(sceneId))}
+          title="The scene's surfaces side by side, flat, touching, the row centred on the origin">arrange the scene in a row</button></div>
+  </Section>
+
+  <Section id="surface.grid" label="grid" summary={ownGrid !== null ? `${ownGrid} mm` : `${toolbarGrid} mm · the toolbar's`}
+    help="The surface's own grid for the targets on it (#316): the stage draws it on the surface while the grid is on, and a print dragged on it steps by it. Kept in this browser per experience and surface, not in the content; reset takes the toolbar's spacing again.">
+    <div class="row" data-help="The spacing of this surface's grid in mm – a wall's poster grid, a page's type area. Empty: the toolbar's grid spacing.">
+      <span class="label">spacing</span>
+      <span class="controls">
+        <span class="w"><ScrubNumber value={ownGrid ?? toolbarGrid} min={1} max={500} step={1} fallback={10} strict unit="mm" label="Surface grid spacing"
+          onchange={v => surfaceGrids.set(sceneId, surfaceId, clampGrid(v))} /></span>
+        {#if ownGrid !== null}<button type="button" class="text-link" onclick={() => surfaceGrids.set(sceneId, surfaceId, null)} title="Back to the toolbar's grid spacing">reset</button>{/if}
+      </span></div>
   </Section>
 
   <Section id="surface.reference" label="reference image" summary={reference ? reference.fit : "none"}
@@ -216,4 +224,6 @@
   .confirm { margin: .125rem 0; }
   .confirm .pill { margin-left: .25rem; }
   .remove { margin-top: .25rem; }
+  .w { width: 6rem; display: inline-flex; }
+  .w :global(.scrub) { width: 100%; }
 </style>

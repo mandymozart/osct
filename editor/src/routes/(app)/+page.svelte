@@ -7,7 +7,7 @@
   import BookCover from "#lib/BookCover.svelte";
   import InfoView from "#lib/components/InfoView.svelte";
   import AiConnections from "#lib/AiConnections.svelte";
-  import { DEFAULT_PAGE_MM } from "#lib/stage/stage-layout.js";
+  import { PAGE_MM } from "#lib/surface-edit.js";
 
   /**
    * The editor's start (#153): the books of this instance as their covers on the left, the import of a new one on the
@@ -35,7 +35,7 @@
 </script>
 
 <div class="split">
-  <main class="shelf" style:--cover-ratio="{DEFAULT_PAGE_MM.width} / {DEFAULT_PAGE_MM.height}">
+  <main class="shelf" style:--cover-ratio="{PAGE_MM.width} / {PAGE_MM.height}">
     <h1>Experiences</h1>
     {#if error}<p class="danger">{error}</p>{/if}
     {#if books === null && !error}

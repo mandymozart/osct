@@ -1,5 +1,4 @@
 import type { Asset } from "./api";
-import { spreadTitles, type TitledSpread } from "@shared/api/spread-titles";
 import { readStored, writeStored } from "#lib/storage.js";
 
 /** Where the content's files live below the assets base (`ContentVersion::CONTENT_PREFIX`) */
@@ -7,12 +6,12 @@ const CONTENT_PREFIX = "/assets/content/";
 
 /**
  * Where a library file belongs. The import names its files after their role (`image.jpg`, `target.jpg`, `video.mp4`)
- * in a folder per entry or spread (`/assets/content/entries/p015-1/target.jpg`), so the name alone tells nothing:
+ * in a folder per entry or scene (`/assets/content/entries/p015-1/target.jpg`), so the name alone tells nothing:
  * `place` is the folder below the collection (`p015-1`), `label` the place and the role (`p015-1 · target`).
  * An upload (or a file outside the content) has no place; its label is its name.
  */
 export interface AssetPlace {
-  /** `entries`, `spreads`, `plugins` … – null without a place */
+  /** `entries`, `scenes`, `plugins` … – null without a place */
   collection: string | null;
   place: string | null;
   /** The file's role, its name without the extension (`target`, `video`) – null without a place */
@@ -41,7 +40,7 @@ export const assetLabel = (asset: Pick<Asset, "name" | "url" | "imported"> & { n
 /** "+2 more" when the file is used in more places than its first (#298) – "" otherwise */
 export const moreUses = (asset: Pick<Asset, "place">): string => (asset.place && asset.place.more > 0 ? `+${asset.place.more} more` : "");
 
-/** A group of the Library (#298 phase 3): a spread's files, then the book-wide ones, then the unused ones */
+/** A group of the Library (#298 phase 3): a scene's files, then the book-wide ones, then the unused ones */
 export interface LibraryGroup {
   key: string;
   label: string;
@@ -49,29 +48,29 @@ export interface LibraryGroup {
 }
 
 /**
- * The files grouped by where they are used first (`Asset.place`): a group per spread in book order (headed by its
- * title), then "Not in a spread" (the environment, a plugin, a shared entity no target shows, an entry on no spread),
- * then "Unused" – a group only when it holds a file. Within a group by page order, then name.
+ * The files grouped by where they are used first (`Asset.place`): a group per scene in the scenes' order (headed by its
+ * label), then "Not in a scene" (the environment, a plugin, a shared entity no target shows), then "Unused" – a group
+ * only when it holds a file. Within a group by the order of use, then name.
  */
-export function groupBySpread(assets: readonly Asset[], spreads: readonly TitledSpread[]): LibraryGroup[] {
-  const titles = spreadTitles(spreads);
+export function groupByScene(assets: readonly Asset[], scenes: readonly { id: string; label: string }[]): LibraryGroup[] {
+  const titles = new Map(scenes.map(scene => [scene.id, scene.label || scene.id]));
   const bySpread = new Map<string, Asset[]>();
   const bookWide: Asset[] = [];
   const unused: Asset[] = [];
   for (const asset of assets) {
     const place = asset.place;
     if (!place) unused.push(asset);
-    else if (place.spread && titles.has(place.spread)) bySpread.set(place.spread, [...(bySpread.get(place.spread) ?? []), asset]);
+    else if (place.scene && titles.has(place.scene)) bySpread.set(place.scene, [...(bySpread.get(place.scene) ?? []), asset]);
     else bookWide.push(asset);
   }
   const sorted = (list: Asset[]) =>
     [...list].sort((a, b) => (a.place?.order ?? -1) - (b.place?.order ?? -1) || assetLabel(a).localeCompare(assetLabel(b)));
   const groups: LibraryGroup[] = [];
-  for (const spread of spreads) {
-    const list = bySpread.get(spread.id);
-    if (list) groups.push({ key: `spread:${spread.id}`, label: titles.get(spread.id) ?? spread.id, assets: sorted(list) });
+  for (const scene of scenes) {
+    const list = bySpread.get(scene.id);
+    if (list) groups.push({ key: `scene:${scene.id}`, label: titles.get(scene.id) ?? scene.id, assets: sorted(list) });
   }
-  if (bookWide.length) groups.push({ key: "book", label: "Not in a spread", assets: sorted(bookWide) });
+  if (bookWide.length) groups.push({ key: "book", label: "Not in a scene", assets: sorted(bookWide) });
   if (unused.length) groups.push({ key: "unused", label: "Unused", assets: [...unused].sort((a, b) => assetLabel(a).localeCompare(assetLabel(b))) });
   return groups;
 }

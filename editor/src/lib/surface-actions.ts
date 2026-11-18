@@ -1,6 +1,6 @@
 import { scenes } from "./scenes.svelte";
 import { selection } from "./selection.svelte";
-import { addSurface, moveSurface, onSurface, pageSizeOf, removalWarning, removeSurface, type SurfacePreset } from "./surface-edit";
+import { addSurface, arrangeInRow, inRow, moveSurface, onSurface, removalWarning, removeSurface, type SurfacePreset } from "./surface-edit";
 
 /**
  * The surface edits as the Tree's Surfaces level, the Inspector's surfaces and the selected surface run them (#314) –
@@ -9,11 +9,11 @@ import { addSurface, moveSurface, onSurface, pageSizeOf, removalWarning, removeS
  */
 
 /** Add a preset's surface to a scene and select it; its id (null: the scene is not loaded) */
-export const addSceneSurface = async (sceneId: string, preset: SurfacePreset, page: { width: number; height: number }): Promise<string | null> => {
+export const addSceneSurface = async (sceneId: string, preset: SurfacePreset): Promise<string | null> => {
   const scene = scenes.scene(sceneId);
   if (!scene) return null;
-  const { surfaces, added, layout } = addSurface(preset, scene.surfaces ?? [], { page: pageSizeOf(scene.surfaces, page), layout: scene.layout });
-  await scenes.putScene(sceneId, { surfaces, ...(layout ? { layout } : {}) });
+  const { surfaces, added } = addSurface(preset, scene.surfaces);
+  await scenes.putScene(sceneId, { surfaces });
   selection.selectSurface(sceneId, added.id);
   return added.id;
 };
@@ -25,15 +25,30 @@ export const moveSceneSurface = async (sceneId: string, surfaceId: string, direc
   if (next.some((s, i) => s.id !== surfaces[i]?.id)) await scenes.putScene(sceneId, { surfaces: next });
 };
 
+/**
+ * **Arrange in a row** (#319): the scene's surfaces side by side in their order, flat, touching, the row centred on the
+ * origin – written to their places; nothing written when they lie so already
+ */
+export const arrangeSceneInRow = async (sceneId: string): Promise<void> => {
+  const surfaces = scenes.scene(sceneId)?.surfaces ?? [];
+  if (surfaces.length && !inRow(surfaces)) await scenes.putScene(sceneId, { surfaces: arrangeInRow(surfaces) });
+};
+
+/** Whether *arrange in a row* would change the scene (the command is off otherwise) */
+export const canArrangeInRow = (sceneId: string): boolean => {
+  const surfaces = scenes.scene(sceneId)?.surfaces ?? [];
+  return surfaces.length > 0 && !inRow(surfaces);
+};
+
 /** What lies on a surface, as its removal's confirmation says it ("" = nothing) */
 export const surfaceRemovalWarning = (sceneId: string, surfaceId: string): string => {
   const scene = scenes.scene(sceneId);
   const surface = scene?.surfaces?.find(s => s.id === surfaceId);
   if (!scene || !surface) return "";
-  return removalWarning(onSurface(scene.entries.map(e => ({ id: e.id, title: e.title, surface: e.surface, target: e.target ? { id: e.target.id, print: e.target.print } : null })), surface, scene.surfaces ?? []));
+  return removalWarning(onSurface(scene.entries.map(e => ({ id: e.id, title: e.title, surface: e.surface, target: e.target ? { id: e.target.id, place: e.target.place } : null })), surface, scene.surfaces));
 };
 
-/** Remove a surface (the confirmation was shown); what lay on it keeps its side. A selected surface leaves the selection. */
+/** Remove a surface (the confirmation was shown); what lay on it falls back to the first surface. A selected surface leaves the selection. */
 export const removeSceneSurface = async (sceneId: string, surfaceId: string): Promise<void> => {
   const surfaces = scenes.scene(sceneId)?.surfaces ?? [];
   await scenes.putScene(sceneId, { surfaces: removeSurface(surfaces, surfaceId), apply: true });

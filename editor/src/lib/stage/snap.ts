@@ -1,6 +1,6 @@
 /**
- * The stage's snapping math (three-free). Everything is counted in the **stage frame** in mm: the origin in the middle
- * of the open book (the spine) or of the closed book, x to the right, y towards the top of the page, z out of the page
+ * The stage's snapping math (three-free). Everything is counted in the **stage frame** in mm: the origin at the scene's
+ * origin (a double page's spine), x to the right, y away from the reader, z up
  * (`placement.ts`). The scene's side – turning a node's position into this frame and back, collecting the other
  * objects' boxes – is `snap-scene.ts`.
  *
@@ -151,8 +151,8 @@ export const snapMove = (input: MoveSnap): { point: Vec3; guides: SnapGuide[] } 
 // ── The stage's lines ──
 
 /**
- * The spread on the stage: one page's size and the format (two pages open, or the closed book), and the scene's flat
- * surfaces when it has its own (#314). `local`: the frame is one wall's or turned surface's own plane (its top left
+ * The scene on the stage: its surfaces lying flat on the table (#314). `local`: the frame is one wall's or turned
+ * surface's own plane (its top left
  * corner at 0, y up – `surfaces.ts` `ownRect`), where a print on it snaps to that surface's edges and prints only.
  */
 export type StageFrame = OriginFrame & { local?: boolean };

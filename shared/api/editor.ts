@@ -10,27 +10,6 @@ import type { EnvironmentData } from "../types/environment";
 import type { BookData, EntityData, EntryData, GroupData, PassData, SceneData, SurfaceData, TargetData } from "../types/game-config";
 import type { AssetKind, SourceTypes } from "./rules";
 
-/*
- * The API's scene shape until #319 part B: the server still stores and sends the 2.x spread fields the content
- * schema 3.0 removed (`title`, `firstPage`, `lastPage`, `format`, `layout`, a surface's `side`). Part B moves the server
- * to `SceneData` and removes these three types.
- */
-/** What a spread is in the server's data (2.x): a double page, the front or the back cover – part B removes it */
-export type SpreadFormat = "spread" | "cover" | "back";
-/** How a scene's surfaces relate in the server's data (2.x) – part B removes it */
-export type SceneLayout = "fixed" | "free";
-/** A scene as the server sends it until part B (2.x fields) */
-export type SpreadData = Omit<SceneData, "label" | "surfaces"> & {
-  title: string;
-  firstPage: number;
-  lastPage: number;
-  format?: SpreadFormat;
-  matter?: "front" | "back";
-  layout?: SceneLayout;
-  label?: string;
-  surfaces?: SurfaceData[];
-};
-
 // ── Books ──────────────────────────────────────────────────────────────────────────────────────────
 
 /** Where a book is live: an environment serving its build `build` since `since` */
@@ -50,8 +29,8 @@ export interface BookSummary {
   author: string;
   /** The configuration's `book` as imported and edited since: its environment, its passes, its appearance */
   book: BookData;
-  /** The spread the book opens on – it cannot be removed */
-  initialSpreadId: string;
+  /** The scene the book opens on (`initialScene`) – it cannot be removed */
+  initialScene: string;
   /** The content schema `MAJOR.MINOR` of the import */
   schema: string;
   /** Where the content's `/assets/content/…` paths resolve (the layout, the cover); "" = the draft's origin */
@@ -60,7 +39,8 @@ export interface BookSummary {
   libraryBase: string;
   /** `version.hash` of the imported configuration, null when it had none */
   importedHash: string | null;
-  spreads: number;
+  /** How many scenes it has */
+  scenes: number;
   createdAt: string;
   updatedAt: string;
   lastPublish: { env: string; build: string; at: string } | null;
@@ -79,27 +59,22 @@ export interface TreeEntry {
   id: string;
   category: string;
   title: string;
-  /** The page older apps read: inside its scene's range (#307 – `Scenes::pageOf`) */
-  page: number;
-  /** The surface of its scene it lies on (#307), when it has one */
+  /** Its scene (`EntryData.scene`) */
+  scene: string;
+  /** The surface of its scene it lies on – only when the scene has several */
   surface?: string;
   /** Its target (the entity inline or `{ ref }`), null when it has none */
   target: TargetData | null;
 }
 
-/**
- * A spread (a scene, #307) in the tree: the spread as the content holds it – `firstPage` / `lastPage` the range older apps
- * read (`Scenes::ranges`) – with the entries on it
- */
-export type TreeSpread = SpreadData & { entries: TreeEntry[] };
+/** A scene in the tree (schema 3.0): the content's `SceneData` with the entries on it, in the book's order */
+export type TreeScene = SceneData & { entries: TreeEntry[] };
 
-/** `GET /editor/books/{id}`: the book, its scenes in order with their entries, the entries on no scene, the groups */
+/** `GET /editor/books/{id}`: the book, its scenes in order with their entries, the groups */
 export interface BookTree {
   book: BookSummary;
-  spreads: TreeSpread[];
-  unassigned: TreeEntry[];
-  /** The book's groups (#307) – an API before scenes sends none */
-  groups?: GroupData[];
+  scenes: TreeScene[];
+  groups: GroupData[];
 }
 
 /** `GET /editor/books/{id}/draft/latest.json`: the draft's manifest – its build now (what a publish would write) */
@@ -247,7 +222,7 @@ export interface IncomingBuild {
 
 /** The rows a configuration holds */
 export interface ImportCounts {
-  spreads: number;
+  scenes: number;
   entries: number;
   targets: number;
   entities: number;
@@ -295,7 +270,7 @@ export interface Confirmation {
   expiresAt: string;
 }
 
-// ── Rows: entities, targets, entries, spreads, the book's passes, appearance and environment ─────────────
+// ── Rows: entities, targets, entries, scenes, the book's passes, appearance and environment ─────────────
 
 /** `GET /editor/books/{id}/entities`: the shared entities by ref */
 export interface SharedEntities {
@@ -313,31 +288,26 @@ export interface TargetSaved {
   target: TargetData;
 }
 
-/**
- * `POST /editor/books/{id}/entries` → 201: the new entry with its target (none when it was made without one), and the
- * spread its page belongs to (null: none)
- */
+/** `POST /editor/books/{id}/entries` → 201: the new entry on its scene, with its target (none when it was made without one) */
 export interface EntryAdded {
-  entry: { id: string; category: string; title: string; page: number; body: string; tags: string[]; surface?: string; target?: TargetData };
-  spreadId: string | null;
+  entry: { id: string; category: string; title: string; scene: string; surface?: string; body: string; tags: string[]; target?: TargetData };
 }
 
 /** An entry as the content holds it, without its target (`BookTexts`): every field as written – an image's path or URL unresolved */
 export type EntryFields = Omit<EntryData, "target">;
 
-/** One entry of `GET /editor/books/{id}/entries`: its fields, its spread (null: its page is in none) and its target's id and image */
-export type EditorEntry = EntryFields & { spreadId: string | null; target: { id: string; imageSrc: string } | null };
+/** One entry of `GET /editor/books/{id}/entries`: its fields (its `scene` among them) and its target's id and image */
+export type EditorEntry = EntryFields & { target: { id: string; imageSrc: string } | null };
 
 /** `GET /editor/books/{id}/entries`: every entry in the book's order */
 export interface EntryList {
   entries: EditorEntry[];
 }
 
-/** `PUT /editor/books/{id}/entries/{entryId}`: the entry after the change, its spread now and before */
+/** `PUT /editor/books/{id}/entries/{entryId}`: the entry after the change (its `scene` now) and the scene it was on before */
 export interface EntrySaved {
   entry: EntryFields;
-  spreadId: string | null;
-  previousSpreadId: string | null;
+  previousScene: string;
 }
 
 /** `PUT /editor/books/{id}`: the book's `book` after the change (title, author, publisher and the rest it holds) */
@@ -345,30 +315,13 @@ export interface BookSaved {
   book: BookData;
 }
 
-/** `PUT /editor/books/{id}/spreads/{spreadId}`: the spread after the change */
-export interface SpreadSaved {
-  spread: SpreadData;
-}
-
-/** The rows a new or removed double page renumbered (the later spreads, the entries on their pages, the printed pages) */
-export interface MovedRows {
-  spreads: number;
-  entries: number;
-  targets: number;
-}
-
-/** `POST /editor/books/{id}/spreads` → 201 – `moved` is zero since scenes (#307): nothing renumbers */
-export interface SpreadAdded {
-  spread: SpreadData;
-  moved: MovedRows;
-  /** The scenes whose page range older apps read changes (#307) – an API before scenes sends none */
-  pages?: ScenePageChange[];
-}
-
 // ── Scenes (#307, docs/server.md "Scenes") ───────────────────────────────────────────────────────────
 
-/** The layout presets a new scene starts from (`Scenes::PRESETS`) */
-export const SCENE_PRESETS = ["single", "double", "cover", "back", "foldout", "wall"] as const;
+/**
+ * The presets a new scene starts from (`Scenes::PRESETS`, schema 3.0): `double` – one surface twice the page's width,
+ * `single` – one page, `wall` – 2000 × 1500 mm standing ahead (`rx` 90). A cover is a single scene first in the order.
+ */
+export const SCENE_PRESETS = ["double", "single", "wall"] as const;
 export type ScenePreset = (typeof SCENE_PRESETS)[number];
 /** A page's size when a request names none (`Scenes::PAGE_MM`) */
 export const SCENE_PAGE_MM = { width: 230, height: 320 } as const;
@@ -380,13 +333,6 @@ export const SCENE_SURFACES_MAX = 32;
  * TODO(#300): replace with the window measured on the phone.
  */
 export const GROUP_WINDOW_TARGETS = 20;
-
-/** A scene whose page range – what apps before schema 2.35 read – changes: [first, last] before and after */
-export interface ScenePageChange {
-  scene: string;
-  from: [number, number];
-  to: [number, number];
-}
 
 /** How a surface's reference image fills it (#314, server `SurfaceReferences::FITS`): cut to cover, fit inside, stretched */
 export const SURFACE_REFERENCE_FITS = ["cover", "contain", "stretch"] as const;
@@ -423,55 +369,12 @@ export interface SurfaceReferenceSaved {
   changed: boolean;
 }
 
-/** A page image (#251) and the surface it maps to in the references migration */
-export interface SurfaceReferenceMapping {
-  page: number;
-  facing: boolean;
-  /** The page's label (`12`, `Cover`, `next to 1`), null for a page the book no longer has */
-  label: string | null;
-  url: string;
-  name: string;
-  scene: string | null;
-  surface?: string;
-}
-
-/** `POST /editor/books/{id}/scenes/references/migrate { apply? }`: the page images become surface references */
-export interface SurfaceReferencesMigration {
-  plan: {
-    upToDate: boolean;
-    counts: { pageImages: number; references: number; already: number; unmapped: number };
-    /** What becomes a reference (with `apply`: what was written) */
-    references: (SurfaceReferenceMapping & { scene: string; surface: string })[];
-    /** The surface has that image already */
-    already: (SurfaceReferenceMapping & { scene: string; surface: string })[];
-    /** Left as it is, with the reason */
-    unmapped: (SurfaceReferenceMapping & { reason: string })[];
-  };
-  applied: boolean;
-}
-
-/** A scene of `GET /editor/books/{id}/scenes` */
-export interface SceneSummary {
-  id: string;
+/** A scene of `GET /editor/books/{id}/scenes`: the content's scene, its place in the order, its surfaces with their reference images */
+export type SceneSummary = Omit<SceneData, "surfaces"> & {
   position: number;
-  title: string;
-  label: string | null;
-  format: SpreadFormat;
-  matter: "front" | "back" | null;
-  layout: SceneLayout | null;
-  group: string | null;
   /** Its surfaces, each with its reference image (#314) */
   surfaces: SurfaceSummary[];
-  /** The range older apps read (`Scenes::ranges`) */
-  firstPage: number;
-  lastPage: number;
-  /** The range the scene is stored with (its printed pages, or after every other for a scene made here) */
-  stored: { firstPage: number; lastPage: number };
-  /** Whether `firstPage` / `lastPage` are derived from the order (not the stored range) */
-  derived: boolean;
-  entries: number;
-  targets: number;
-}
+};
 
 /** `GET /editor/books/{id}/scenes`: the scenes in order and the groups with their scenes */
 export interface SceneList {
@@ -479,26 +382,23 @@ export interface SceneList {
   groups: (GroupData & { scenes: string[] })[];
 }
 
-/** `POST /editor/books/{id}/scenes` → 201: the scene as the tree shows it, its place, the page changes for older apps */
+/** `POST /editor/books/{id}/scenes` → 201: the new scene and its place in the order */
 export interface SceneAdded {
-  scene: SpreadData;
+  scene: SceneData;
   position: number;
-  pages: ScenePageChange[];
 }
 
-/** `PUT /editor/books/{id}/scenes/{sceneId}` (= `PUT …/spreads/{id}`): the scene, and the entries whose surface went (`apply`) */
+/** `PUT /editor/books/{id}/scenes/{sceneId}`: the scene, and the entries whose surface went (`apply`) */
 export interface SceneSaved {
-  spread: SpreadData;
-  scene: SpreadData;
+  scene: SceneData;
   cleared: string[];
 }
 
-/** A new order (a move, a group): every id in order, the picked scenes that move, group changes, page changes */
+/** A new order (a move, a group): every id in order, the picked scenes that move, group changes */
 export interface SceneOrderPlan {
   order: string[];
   moved: string[];
   groups: { scene: string; from: string | null; to: string | null }[];
-  pages: ScenePageChange[];
 }
 
 /** `POST /editor/books/{id}/scenes/move`: the plan, and whether it was written (`apply: true`) */
@@ -524,22 +424,6 @@ export interface Ungrouped {
   scenes: string[];
 }
 
-/** `POST /editor/books/{id}/scenes/migrate`: what makes a book's spreads scenes, and whether it was written */
-export interface ScenesMigration {
-  plan: {
-    upToDate: boolean;
-    counts: { scenes: number; scenesWithSurfaces: number; surfaces: number; groups: number; entriesPlaced: number; entriesUnplaced: number };
-    scenes: { scene: string; surfaces?: SurfaceData[]; group?: string }[];
-    groups: (GroupData & { scenes: string[]; new: boolean })[];
-    entries: {
-      placed: { entry: string; scene: string; surface: string }[];
-      unplaced: { id: string; title: string; page: number; scene: string | null; reason: string }[];
-    };
-    pageImages: { count: number; note: string };
-  };
-  applied: boolean;
-}
-
 /** `PUT /editor/books/{id}/passes`: the book's post-processing, null when removed */
 export interface BookPassesSaved {
   passes: PassData[] | null;
@@ -555,7 +439,7 @@ export interface EnvironmentSaved {
   environment: EnvironmentData | null;
 }
 
-// ── Removing a spread or an entry ─────────────────────────────────────────────────────────────────
+// ── Removing a scene or an entry ─────────────────────────────────────────────────────────────────
 
 /** A Library file a removal touches: used only by the removed rows, or (`usedBy`) elsewhere too */
 export interface RemovalFile {
@@ -570,9 +454,7 @@ export interface RemovalFile {
 /** What every removal takes (`Removal::impact`) */
 interface RemovalTakes {
   book: string;
-  /** By how many pages the later pages move back (0: a cover, an entry, or nothing after it) */
-  pagesBack: number;
-  entries: { id: string; title: string; page: number; category: string }[];
+  entries: { id: string; title: string; scene: string; category: string }[];
   targets: { id: string; entry: string; imageSrc: string }[];
   /** The entities that go: a shared one with its `ref`, a target's own with `ref: null` */
   entities: { ref: string | null; type: string | null; shared: boolean; targets: string[] }[];
@@ -582,19 +464,16 @@ interface RemovalTakes {
   counts: { entries: number; targets: number; entities: number; keptEntities: number; filesOnlyHere: number; filesElsewhere: number };
 }
 
-/** `details.impact` of a 409 confirm-delete (docs/server.md "Removing a spread or an entry") */
+/** `details.impact` of a 409 confirm-delete (docs/server.md "Removing a scene or an entry") */
 export type RemovalImpact = RemovalTakes &
   (
-    | { kind: "spread"; spread: { id: string; title: string; firstPage: number; lastPage: number; format: string }; pages?: ScenePageChange[] }
-    | { kind: "entry"; entry: { id: string; title: string; page: number; category: string; spread: string | null } }
+    | { kind: "scene"; scene: { id: string; label: string } }
+    | { kind: "entry"; entry: { id: string; title: string; category: string; scene: string } }
   );
 
-/** What a confirmed removal took (`files` only with `deleteFiles`) and the rows that moved */
+/** What a confirmed removal took (`files` only with `deleteFiles`) */
 export interface RemovalResult {
-  deleted: { spread: string | null; entries: string[]; targets: string[]; entities: string[]; files: string[] };
-  moved: MovedRows;
-  /** A scene's removal: the scenes whose page range older apps read changes (#307) */
-  pages?: ScenePageChange[];
+  deleted: { scene: string | null; entries: string[]; targets: string[]; entities: string[]; files: string[] };
 }
 
 // ── Assets ───────────────────────────────────────────────────────────────────────────────────────────
@@ -624,9 +503,9 @@ export interface Asset {
    */
   credits: string | null;
   /**
-   * Where the file is used first (#298 phase 3, `AssetNames`) – the Library groups by it: the spread of its first use in
-   * page order (null: book-wide – the environment, a plugin, a shared entity no target shows), its page, the page order
-   * (−1 book-wide) and how many uses follow ("+N more"); null for an unused file
+   * Where the file is used first (#298 phase 3, `AssetNames`) – the Library groups by it: the scene of its first use in
+   * the scenes' order (null: book-wide – the environment, a plugin, a shared entity no target shows), that order (−1
+   * book-wide) and how many uses follow ("+N more"); null for an unused file
    */
   place?: LibraryPlace | null;
   /** An imported file listed under a name given by its use (`asset_names`), not its own */
@@ -637,8 +516,7 @@ export interface Asset {
 
 /** A file's first use (`Asset.place`) */
 export interface LibraryPlace {
-  spread: string | null;
-  page: number | null;
+  scene: string | null;
   order: number;
   more: number;
 }
@@ -666,7 +544,7 @@ export interface AssetRename {
   imported: boolean;
   from: string;
   to: string;
-  use: { kind: string; ref: string; spread: string | null; page: number | null };
+  use: { kind: string; ref: string; scene: string | null };
   more: number;
 }
 
@@ -746,86 +624,4 @@ export interface PluginSource {
 export interface PluginUsages {
   usages: Usage[];
   registers: SourceTypes;
-}
-
-// ── Pages and page images (#251) ─────────────────────────────────────────────────────────────────────
-
-/** Where a page lies: left / right on a double sheet, front / back for a cover */
-export type PageSide = "left" | "right" | "front" | "back";
-/** What a page is: a cover, front or back matter (internal pages, #296), a numbered page, the unnumbered half next to a single page */
-export type PageKind = "cover" | "back" | "front-matter" | "back-matter" | "page" | "facing";
-
-/**
- * A page of the book (`GET /editor/books/{id}/pages`, in book order): its internal `page` and `facing` (the unnumbered
- * half of a single page's sheet), its spread and side, and its label (`Cover`, `F1`, `12`, `next to 1`, `B1`, `Back cover`)
- */
-export interface BookPage {
-  page: number;
-  facing: boolean;
-  spread: string;
-  side: PageSide;
-  kind: PageKind;
-  label: string;
-}
-
-/** A page image: a Library image that overrides the print layout's sheet for its page in the editor – never content */
-export interface PageImage {
-  page: number;
-  facing: boolean;
-  url: string;
-  name: string;
-  /** The e-mail address of who set it last, null when the account is gone */
-  updatedBy: string | null;
-  updatedAt: string;
-}
-
-/** `GET /editor/books/{id}/pages` */
-export interface PageList {
-  pages: BookPage[];
-  pageImages: PageImage[];
-}
-
-/** A page's address in a page images change */
-export interface PageAddress {
-  page: number;
-  facing?: boolean;
-}
-
-/**
- * One item of `PUT /editor/books/{id}/page-images`: set or replace (`url`), remove (`url: null`), move here from
- * another page (`from`), rename (`name` alone)
- */
-export type PageImageChange = PageAddress & ({ url: string | null; name?: string } | { from: PageAddress; name?: string } | { name: string });
-
-/** The answer: the book's page images now, and how many pages changed */
-export interface PageImagesSaved {
-  pageImages: PageImage[];
-  saved: number;
-}
-
-/** The most items one page images request takes (`Pages::BATCH_MAX`) */
-export const PAGE_IMAGES_BATCH_MAX = 500;
-/** The most front or back matter sheets `POST …/matter` makes (`Pages::MATTER_MAX`) */
-export const MATTER_MAX = 8;
-
-/** A spread `POST /editor/books/{id}/matter` makes */
-export interface MatterSpread {
-  id: string;
-  title: string;
-  firstPage: number;
-  lastPage: number;
-  matter?: "front" | "back";
-}
-
-/** `POST /editor/books/{id}/matter`: what makes the book whole against its print format, and whether it was written */
-export interface MatterResult {
-  plan: {
-    front: number;
-    back: number;
-    lastPage: number;
-    create: MatterSpread[];
-    moveBackCover: { spread: string; from: number; to: number } | null;
-    entries: { id: string; spread: string; page: number }[];
-  };
-  applied: boolean;
 }
