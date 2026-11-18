@@ -11,6 +11,10 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 
 ### Added
 
+- **Remove a scene** (#319): *remove scene…* in the Inspector's scene section and *Remove scene…* in a scene card's menu
+  (right click / long press) – first the Inspector shows what goes with its warnings (entries, targets, AR content, what
+  other scenes still use, the files only it uses), nothing is removed before the confirmation; the opening scene cannot
+  be removed. The open scene gives way to its neighbour.
 - **The editor's grids** (#316, #319 part C): the scene's **floor grid** – a transparent net on the table (y = 0) through
   the origin, every tenth line stronger, on by default, its spacing the snap step of the surface gizmo – and an optional
   **vertical grid** (a plane at a chosen z, for wall setups), both in the toolbar's *grid & snap*; a surface's **own
