@@ -4,8 +4,7 @@
  * The reader's Graphics switches (Info → Settings) still apply on top: the content says what is drawn, the reader can
  * turn either off. A book without `environment` keeps today's look (`DEFAULT_ENVIRONMENT`).
  *
- * **The world is no longer drawn (#310, 1.107.0):** `world` and `worldSrc` stay valid content but are ignored – only the
- * sky (`skySrc`, the onion sky) shows. Before: the world and the sky could be **assets** (2.10): `worldSrc` named a glTF model (the scenery around the reader, in
+ * The world and the sky can be **assets** (2.10): `worldSrc` names a glTF model (the scenery around the reader, in
  * place of the built-in world's), `skySrc` an equirectangular image (the sky, in place of the built-in world's). Each
  * holds a content path (`/assets/content/…`, the content build writes it from a path below the content folder) or an
  * absolute URL (an uploaded asset of the editor's library). Without them the built-in `world` is drawn whole.
