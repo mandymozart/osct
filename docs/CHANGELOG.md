@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 1.100.0 – 2026-11-18
+## 1.101.0 – 2026-11-18
 
 ### Added
 - Editor: the **Scenes panel** (#307 phase 3a) – a filmstrip at the bottom of the workspace's stage column: every scene
