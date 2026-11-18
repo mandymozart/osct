@@ -803,7 +803,7 @@
   {#if !narrow}
     <div class="scenes-row">
       <ScenesPanel {bookId} bookTitle={scenes.tree?.book.title ?? ""} current={spreadId} selectedGroup={selection.group} {sheetLayout}
-        pageImages={pageImages.bookId === bookId ? pageImages.byKey : {}} assetsBase={content.assetsBase ?? ""} onopen={id => void openScene(id)} onselectgroup={selectGroup} />
+        pageImages={pageImages.bookId === bookId ? pageImages.byKey : {}} assetsBase={content.assetsBase ?? ""} onopen={id => void openScene(id)} onselectgroup={selectGroup} onstep={step} />
     </div>
   {/if}
 
@@ -824,8 +824,7 @@
       {#if !narrow}
         <!-- Back to the spreads is the top bar's book crumb (no × here – #250, #274); a phone has ‹ › on the stage: its head is
              the tabs alone (#171) -->
-        <button type="button" class="icon-button" onclick={() => step(-1)} title="Previous spread (←)" aria-label="Previous spread"><Icon name="previous" /></button>
-        <button type="button" class="icon-button" onclick={() => step(1)} title="Next spread (→)" aria-label="Next spread"><Icon name="next" /></button>
+        <!-- ‹ › live in the Scenes panel's head (#307, Tilman 2026-11-18) -->
         {#if canAddSpread && atLastSpread}
           <button type="button" class="icon-button" onclick={() => openNewSpread(spreadId)} title="Add a spread after the last one" aria-label="Add a spread"
             data-help-name="Add a spread" data-help="Opens the creation step for a new spread – a double page after this one, or a cover the book does not have yet."><Icon name="plus" /></button>
