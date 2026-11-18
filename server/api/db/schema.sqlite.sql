@@ -277,3 +277,7 @@ CREATE TABLE IF NOT EXISTS asset_names (
 
 -- Scenes (#307 phase 2): the book's groups (schema.mysql.sql has the notes)
 ALTER TABLE books ADD COLUMN groups_json TEXT NOT NULL DEFAULT '[]';
+
+-- Reverts (#312, schema.mysql.sql has the notes)
+ALTER TABLE changes ADD COLUMN change_set TEXT NULL DEFAULT NULL;
+ALTER TABLE changes ADD COLUMN reverts TEXT NULL DEFAULT NULL;

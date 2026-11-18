@@ -2458,6 +2458,66 @@ try {
     [$status] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => null], $editor);
     check($status === 200, 'environment removed again');
 
+    echo "editor: reverting saved changes – one, a set, back to a point (#312)\n";
+    [, $data] = call($api, 'GET', '/editor/books/osct/entities', null, $editor);
+    $ref = array_key_first($data['entities']);
+    $original = $data['entities'][$ref];
+    $edit = $original;
+    $edit['params'] = ['scale' => 3];
+    call($api, 'PUT', "/editor/books/osct/entities/$ref", $edit, $editor);
+    $edit['params'] = ['scale' => 4];
+    call($api, 'PUT', "/editor/books/osct/entities/$ref", $edit, $editor);
+    [, $log] = call($api, 'GET', '/editor/books/osct/changes?limit=2', null, $editor);
+    [$second, $first] = $log['changes'];
+    check($first['ref'] === $ref && $second['ref'] === $ref && $first['notRevertable'] === null && $first['set'] === null && $first['reverts'] === null, 'the log says a change can be reverted');
+    [$status, $data] = call($api, 'POST', "/editor/books/osct/changes/{$first['id']}/revert", null, $editor);
+    [, $entities] = call($api, 'GET', '/editor/books/osct/entities', null, $editor);
+    check($status === 200 && $data['applied'] === false && $data['plan']['counts']['revert'] === 2 && $data['plan']['later'] === 1 && $data['plan']['changes'][0]['id'] === $second['id']
+        && $data['plan']['changes'][0]['later'] === true && $entities['entities'][$ref]['params'] === ['scale' => 4], 'the plan: the change and the later one of the same entity, nothing written');
+    [$status, $data] = call($api, 'POST', "/editor/books/osct/changes/{$first['id']}/revert", ['apply' => true], $editor);
+    [, $entities] = call($api, 'GET', '/editor/books/osct/entities', null, $editor);
+    check($status === 200 && $data['applied'] === true && count($data['written']) === 2 && $entities['entities'][$ref] == $original, 'applied: the entity is as before the first change');
+    [, $log] = call($api, 'GET', '/editor/books/osct/changes?limit=2', null, $editor);
+    check($log['changes'][0]['set'] === $data['set'] && $log['changes'][1]['set'] === $data['set'] && in_array($log['changes'][0]['reverts'], [$first['id'], $second['id']], true), 'the reverts are new changes of one set, each naming the change it took back');
+    // The revert reverted: the editor's redo
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/changes/revert', ['ids' => $data['written'], 'apply' => true], $editor);
+    [, $entities] = call($api, 'GET', '/editor/books/osct/entities', null, $editor);
+    check($status === 200 && $data['applied'] === true && $entities['entities'][$ref]['params'] === ['scale' => 4], 'a revert can be reverted');
+    // A change outside the log: a conflict, listed and never overwritten
+    $pdo = connect('test');
+    $outside = $edit;
+    $outside['params'] = ['scale' => 9];
+    $pdo->prepare('UPDATE entities SET data_json = ? WHERE book_id = ? AND ref = ?')->execute([json_encode($outside), 'osct', $ref]);
+    $pdo = null;
+    [, $log] = call($api, 'GET', '/editor/books/osct/changes?limit=1', null, $editor);
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/changes/revert', ['ids' => [$log['changes'][0]['id']], 'apply' => true], $editor);
+    [, $entities] = call($api, 'GET', '/editor/books/osct/entities', null, $editor);
+    check($status === 200 && $data['applied'] === false && $data['plan']['counts']['conflict'] === 1 && $data['plan']['changes'][0]['status'] === 'conflict'
+        && $entities['entities'][$ref]['params'] === ['scale' => 9], 'a conflict is listed, nothing overwritten');
+    call($api, 'PUT', "/editor/books/osct/entities/$ref", $original, $editor);
+    // Back to a point: the book's fields – the passes stay, the title after the point goes back
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    $title = $tree['book']['title'];
+    call($api, 'PUT', '/editor/books/osct/passes', ['passes' => []], $editor);
+    [, $log] = call($api, 'GET', '/editor/books/osct/changes?limit=1', null, $editor);
+    $point = $log['changes'][0];
+    call($api, 'PUT', '/editor/books/osct', ['title' => 'A title for a while'], $editor);
+    [$otherStatus] = call($api, 'PUT', "/editor/books/osct/entities/$ref", $edit, $other['session']);
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/changes/revert-to', ['after' => $point['id']], $editor);
+    check($otherStatus === 200 && $status === 200 && $data['applied'] === false && $data['plan']['counts']['revert'] === 2 && $data['plan']['others'] === ['listed@example.com'],
+        'revert-to plans every change after the point, naming other people');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/changes/revert-to', ['after' => $point['id'], 'apply' => true], $editor);
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    check($status === 200 && $data['applied'] === true && $tree['book']['title'] === $title && $tree['book']['book']['passes'] === [], 'back to the point: the title as it was, the passes of the point stay');
+    [$status, $data] = call($api, 'POST', "/editor/books/osct/changes/{$point['id']}/revert", ['apply' => true], $editor);
+    [, $tree] = call($api, 'GET', '/editor/books/osct', null, $editor);
+    check($status === 200 && $data['applied'] === true && !isset($tree['book']['book']['passes']), 'the book\'s passes reverted alone');
+    [$status, $data] = call($api, 'POST', '/editor/books/osct/changes/revert-to', ['after' => '00000000-0000-0000-0000-000000000000'], $editor);
+    check($status === 404, 'an unknown change → 404');
+    [, $log] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
+    $removal = array_values(array_filter($log['changes'], fn($c) => $c['after'] === null));
+    check(!$removal || is_string($removal[0]['notRevertable']), 'a removal is not revertable');
+
     echo "editor: publish to bunny (test double)\n";
     $storagePort = freePort();
     $bunnyDir = "$tmp/bunny";

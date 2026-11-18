@@ -341,3 +341,7 @@ CREATE TABLE IF NOT EXISTS `asset_names` (
 -- Scenes (#307 phase 2): the book's groups – a label over several scenes (`GroupData[]`, the content's root `groups`);
 -- a scene (a `spreads` row) names its group in its data_json (`group`), with its surfaces, layout and label
 ALTER TABLE `books` ADD COLUMN `groups_json` TEXT NOT NULL DEFAULT '[]';
+
+-- Reverts (#312): a revert is a new change; the changes one revert writes share a set, each names the change it takes back
+ALTER TABLE `changes` ADD COLUMN `change_set` CHAR(36) NULL DEFAULT NULL;
+ALTER TABLE `changes` ADD COLUMN `reverts` CHAR(36) NULL DEFAULT NULL;
