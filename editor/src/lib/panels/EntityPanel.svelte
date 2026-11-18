@@ -308,6 +308,8 @@
   const frame = $derived({ page: stage?.pageFormat() ?? DEFAULT_PAGE_MM, format: stage?.format() ?? "spread" });
   const shown = $derived(toOrigin(origin, frame, print.surface, print.x, print.y));
   const setShown = (x: number, y: number) => editPrint({ ...print, ...fromOrigin(origin, frame, print.surface, x, y) });
+  /** A side chosen by hand names the surface: the surface's id (#314, which wins over the side) goes */
+  const withoutSurfaceId = ({ surfaceId: _, ...rest }: PrintPlacement): PrintPlacement => rest;
   /** The shown place is where the book's layout prints the target (until it is moved), not one set in the editor */
   let placeFromLayout = $state(false);
   /** The surfaces this spread has: the pages of the open book, or the cover's face */
@@ -346,14 +348,15 @@
   $effect(() => {
     const t = target;
     const open = printOpen;
-    const where = { surface: print.surface, x: print.x, y: print.y, width: print.width };
+    const where = { surface: print.surface, ...(print.surfaceId ? { surfaceId: print.surfaceId } : {}), x: print.x, y: print.y, width: print.width };
     stage?.ghost(open && t ? { targetId: t.id, imageSrc: t.imageSrc, ...where, ...(print.height !== undefined ? { height: print.height } : {}) } : null);
   });
   $effect(() => () => stage?.ghost(null));
   // The handles on the stage move the ghost: the placement rows follow
   $effect(() => {
     if (!stage || !printOpen) return;
-    stage.onGhostChange = place => editPrint({ ...print, ...place });
+    // A move onto another surface without an id of its own (content without surfaces) drops the old id
+    stage.onGhostChange = place => editPrint({ ...withoutSurfaceId(print), ...place });
     return () => { if (stage) stage.onGhostChange = null; };
   });
   /** The target's printed image becomes a library file (picked) or a new upload */
@@ -636,7 +639,7 @@
       onlibrary={pickTargetImage} onupload={f => { const id = target?.id; if (id) void setTargetImage(id, f); }} /></div>
   {#if printOpen}
     <div class="row"><span class="label">surface</span>
-      <span class="controls"><Segmented options={surfaces} value={print.surface} onchange={s => editPrint({ ...print, surface: s })} /></span></div>
+      <span class="controls"><Segmented options={surfaces} value={print.surface} onchange={s => editPrint({ ...withoutSurfaceId(print), surface: s })} /></span></div>
     <div class="row"><span class="label">x · y</span>
       <span class="fields">
         <ScrubNumber value={shown.x} step={1} fallback={0} prefix="X" unit="mm" label="printed x" oninput={v => setShown(v, shown.y)} />

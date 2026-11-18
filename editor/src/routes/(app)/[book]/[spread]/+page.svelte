@@ -25,7 +25,8 @@
   import NewSpreadForm from "#lib/NewSpreadForm.svelte";
   import { bookSource } from "#lib/book-source.svelte.js";
   import { entries } from "#lib/entries.svelte.js";
-  import { deleteEntry, errorText, isMediaAsset, putTarget, type Asset, type MediaKind } from "#lib/api.js";
+  import { deleteEntry, errorText, isMediaAsset, listScenes, putTarget, type Asset, type MediaKind } from "#lib/api.js";
+  import type { SurfaceReferences } from "#lib/stage/surfaces.js";
   import { removalStep, type RemovalStep } from "#lib/removal.js";
   import RemovalConfirm from "#lib/components/RemovalConfirm.svelte";
   import { library } from "#lib/library.svelte.js";
@@ -281,6 +282,28 @@
   $effect(() => {
     const images = pageImages.bookId === bookId ? pageImages.byKey : {};
     stage?.setPageImages(images);
+  });
+  // ── surface reference images (#314): the scenes list has each surface's; read again whenever the scenes change, and
+  // handed to the stage, which shows them before the page images and the layout sheet ──
+  let surfaceReferences = $state<SurfaceReferences>({});
+  $effect(() => {
+    const id = bookId;
+    void scenes.version;
+    let live = true;
+    void listScenes(id).then(list => {
+      if (!live) return;
+      const refs: SurfaceReferences = {};
+      for (const scene of list.scenes) {
+        for (const surface of scene.surfaces) {
+          if (surface.reference) (refs[scene.id] ??= {})[surface.id] = { url: surface.reference.url, fit: surface.reference.fit };
+        }
+      }
+      surfaceReferences = refs;
+    }).catch(() => { /* the stage keeps the page images and sheets */ });
+    return () => { live = false; };
+  });
+  $effect(() => {
+    stage?.setSurfaceReferences($state.snapshot(surfaceReferences));
   });
 
   // ── the Scenes panel (#307): the strip's pictures are the book page's (the layout's sheets, the page images); a change

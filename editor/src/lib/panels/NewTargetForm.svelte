@@ -43,6 +43,8 @@
   const surfaces = $derived<readonly PrintSurface[]>(closed ? [format === "cover" ? "front" : "back"] : ["left", "right"]);
   const pageLabel = (p: number) => (format === "cover" ? "cover" : format === "back" ? "back cover" : spread.matter ? `${spread.matter} matter, ${p === spread.firstPage ? "left" : "right"}` : String(p));
   let surface = $state<PrintSurface>("right");
+  /** The scene's surface by id (#314): set when the handles put the ghost on one of the scene's own surfaces */
+  let surfaceId = $state<string | undefined>(undefined);
   let x = $state(40);
   let y = $state(60);
   // The x / y rows are read and entered from the stage's origin (the toolbar's view group); x / y keep the content's frame
@@ -103,19 +105,20 @@
   // The first page of a double page is the left one
   $effect(() => {
     surface = closed ? surfaces[0] : pages.length > 1 && page === spread.firstPage ? "left" : "right";
+    surfaceId = undefined;
   });
 
   // The stage shows where the target would lie while the form is open
   $effect(() => {
     const url = imageUrl;
-    const where = { surface, x, y, width };
+    const where = { surface, ...(surfaceId ? { surfaceId } : {}), x, y, width };
     stage?.ghost(url ? { imageSrc: url, ...where } : null);
   });
   $effect(() => () => stage?.ghost(null));
   // The handles on the stage move the ghost: the fields follow
   $effect(() => {
     if (!stage) return;
-    stage.onGhostChange = place => { surface = place.surface; x = place.x; y = place.y; width = place.width; };
+    stage.onGhostChange = place => { surface = place.surface; surfaceId = place.surfaceId; x = place.x; y = place.y; width = place.width; };
     return () => { if (stage) stage.onGhostChange = null; };
   });
 
@@ -136,7 +139,7 @@
       const entity = entityData();
       const { entry } = await addEntry(bookId, {
         title: title.trim(), page, category,
-        target: { imageSrc: imageUrl, print: { page, surface, x, y, width }, ...(entity ? { entity } : {}) },
+        target: { imageSrc: imageUrl, print: { page, surface, ...(surfaceId ? { surfaceId } : {}), x, y, width }, ...(entity ? { entity } : {}) },
       });
       await oncreated(entry.target?.id ?? entry.id);
     } catch (e) {
@@ -187,7 +190,7 @@
   <!-- The explanation is the section's help, not its title (RULES #32 – #170) -->
   <div class="section" data-help-name="Printed on the page" data-help="Where the image is printed: the surface, x / y in mm from the origin set in the toolbar's view group, and the printed width."><span class="section-label">printed on the page</span></div>
   <div class="row"><span class="label">surface</span>
-    <span class="controls"><Segmented options={surfaces} value={surface} onchange={s => (surface = s)} /></span></div>
+    <span class="controls"><Segmented options={surfaces} value={surface} onchange={s => { surface = s; surfaceId = undefined; }} /></span></div>
   <div class="row"><span class="label">x · y</span>
     <span class="fields">
       <ScrubNumber value={shown.x} step={1} fallback={0} prefix="X" unit="mm" label="x from the origin" oninput={v => setShown(v, shown.y)} />

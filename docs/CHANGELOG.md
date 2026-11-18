@@ -7,6 +7,25 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.114.0 – 2026-11-18
+
+### Added
+- Editor stage (#314): the mock stage draws the open scene from its surfaces – a fixed row of any length, each surface
+  at its own size (a fold-out's three pages with a fold over each seam), the covers as before; a free scene puts each
+  surface at its place in the scene's coordinate system (a wall stands, `rx` 90). Content without surfaces keeps the
+  book exactly. Each surface shows its reference image (a new stage input, `surfaceReferences`: scene → surface →
+  url + fit cover / contain / stretch), else the page image, else the layout sheet, else paper.
+- The scene's coordinate system on the stage: with the grid, a faint grid on the table and (with the axis switch) the
+  scene's axes at the origin – x red, y green, z blue. The page grid and the snapping count on the surfaces lying on
+  the table, each at its size; a print on a wall snaps to the wall's edges and prints.
+- Targets lie on their surface: `print.surfaceId` wins, else the side. Picks, the placement ghost and its handles work
+  per surface (walls and a fold-out's middle page included); a placement made on a scene's own surface writes
+  `surfaceId` and a side older apps know.
+- For the coming Surface mode: the stage outlines / highlights surfaces by id (`surfaceMarks`), reports the surface a
+  tap hit (`surfacePick` event) and lists the open scene's surfaces in its layout snapshot.
+- The workspace hands each surface's reference image (the scenes list's `surfaces[].reference`, 1.113.0) to the stage,
+  read again whenever the scenes change (#314).
+
 ## 1.113.0 – 2026-11-18
 
 ### Added

@@ -3,9 +3,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   Box3, type Color, CustomBlending, DirectionalLight, type Group, type LineSegments, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, NormalBlending, OneFactor,
-  OneMinusDstAlphaFactor, Scene, type SphereGeometry, Texture, Vector3,
+  OneMinusDstAlphaFactor, Raycaster, Scene, type SphereGeometry, Texture, Vector3,
 } from "three";
 import { MockStage } from "../mock-stage";
+import { sceneSurfaces } from "../surfaces";
 
 const page = { width: 230, height: 320 };
 const book = { spreads: 10, format: "spread" as const };
@@ -376,6 +377,45 @@ describe("mock stage: the page image, the fold and the eye (#250)", () => {
     expect(folds(stage)).toHaveLength(1);
     stage.setLayout([], page, sheet, { ...book, format: "cover" });
     expect(folds(stage)).toHaveLength(0);
+  });
+
+  it("draws a fold-out's three pages with a fold over each seam (#314)", () => {
+    const gradient = { addColorStop: () => {} };
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
+      { createLinearGradient: () => gradient, fillRect: () => {}, fillStyle: "" } as never);
+    const { stage } = loadingStage();
+    const surfaces = sceneSurfaces({ surfaces: ["l", "m", "r"].map(id => ({ id, side: id, widthMm: 230, heightMm: 320 })) }, page);
+    stage.setLayout([], page, null, { ...book, surfaces });
+    expect(folds(stage)).toHaveLength(2);
+    expect(bookOf(stage).children.filter(c => c.userData.surfaceId).map(c => [c.userData.surfaceId, Math.round(c.position.x * 1000)])).toEqual([["l", -230], ["m", 0], ["r", 230]]);
+  });
+
+  it("stands a free scene's wall up, lays its prints and the reference image on it, and finds it under a ray (#314)", () => {
+    const { stage, requested } = newStage();
+    const surfaces = sceneSurfaces({ layout: "free", surfaces: [
+      { id: "p", side: "right", widthMm: 200, heightMm: 300 },
+      { id: "w", side: "wall", widthMm: 400, heightMm: 300, place: { x: 0, y: 150, z: -400, rx: 90 } },
+    ] }, page);
+    const target = { id: "a", imageSrc: "/a.jpg", surface: "w", x: 180, y: 130, width: 40, height: 40 };
+    stage.setLayout([target], page, null, { ...book, surfaces, free: true, references: { w: { url: "https://cdn.test/w.jpg", fit: "stretch" } } });
+    const [print] = stage.printedPlanes();
+    // On the wall, 400 mm away from the reader, its middle 150 mm up – facing the reader
+    expect(print.position.y).toBeCloseTo(0.4, 2);
+    expect(new Vector3(0, 0, 1).applyQuaternion(print.quaternion).y).toBeCloseTo(-1, 6);
+    expect(bookOf(stage).children.some(c => c.userData.reference === "w")).toBe(true);
+    expect(requested).toContain("https://cdn.test/w.jpg");
+    const raycaster = new Raycaster(new Vector3(0, -1, 0.15), new Vector3(0, 1, 0));
+    expect(stage.pageHit(raycaster)).toEqual({ surface: "w", x: 200, y: 150 });
+  });
+
+  it("outlines the surfaces and highlights one by id (#314, the Surface mode)", () => {
+    const { stage } = newStage();
+    stage.setLayout([], page, null, book);
+    const marks = () => (stage as unknown as { marksGroup: Group }).marksGroup.children as LineSegments[];
+    stage.setSurfaceMarks(["left", "right", "nope"], "right");
+    expect(marks().map(m => m.geometry.getAttribute("position").count)).toEqual([8, 8]);
+    stage.setSurfaceMarks([], null);
+    expect(marks()).toHaveLength(0);
   });
 
   it("leaves out the printed images of the targets hidden in the tree", () => {

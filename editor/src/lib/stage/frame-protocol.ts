@@ -7,6 +7,7 @@ import { STAGE_TOOLS, TOOL_KEYS, type GizmoPlacement, type StageTool } from "./g
 import { PICK_KINDS, type PickKind, type StagePick } from "./pick";
 import { SHADING_MODES, type ShadingMode } from "./preview";
 import type { StageEvent } from "./event-log";
+import { REFERENCE_FITS, type ReferenceFit, type SurfaceReference, type SurfaceReferences } from "./surfaces";
 
 /**
  * The stage frame's message protocol (#234, docs/editor.md "The stage frame"). The editor's stage – the engine's
@@ -76,7 +77,25 @@ export interface StageState {
 export interface LayoutSnapshot {
   pageFormat: { width: number; height: number };
   places: Record<string, { printed: PrintPlacement | null; place: PrintPlacement | null }>;
+  /**
+   * The open scene's surfaces as the stage lays them (#314): the scene's own (`own`), else the format's pages; `flat`
+   * = on the table plane (a wall or a turned surface is not). Absent from an older frame.
+   */
+  surfaces?: SurfaceSnapshot[];
 }
+
+/** One surface of the open scene as the stage has it (#314) */
+export interface SurfaceSnapshot {
+  id: string;
+  side: string;
+  widthMm: number;
+  heightMm: number;
+  own: boolean;
+  flat: boolean;
+}
+
+/** A tap on the stage hit this surface (#314: the Surface mode), mm from its top left corner – null: none */
+export type SurfacePick = { surfaceId: string; x: number; y: number } | null;
 
 /** A model node's timeline as the frame sees it: its clips and where it is */
 export interface TimelineSnapshot {
@@ -119,7 +138,10 @@ export interface FrameEvents {
   contextMenu: { hit: StagePick | null; x: number; y: number };
   /** The gizmo moved the selected node: the page writes the placement into its override */
   placement: { targetId: string; path: number[]; placement: GizmoPlacement };
-  ghostChange: { surface: PrintPlacement["surface"]; x: number; y: number; width: number; height?: number };
+  /** The handles moved the placement: the side, and the scene's surface by id when it has its own (#314) */
+  ghostChange: { surface: PrintPlacement["surface"]; surfaceId?: string; x: number; y: number; width: number; height?: number };
+  /** A tap on the stage: the surface it hit (#314), sent with every tap after `pick` */
+  surfacePick: SurfacePick;
   /** The frame changed the preview (an orbit, a hidden target): the page stores it */
   preview: PreviewSync;
   key: KeyForward;
@@ -136,7 +158,7 @@ export const NO_ANSWER = "the stage did not answer";
 
 /** The methods the frame answers (`frame-host.svelte.ts`) */
 export const FRAME_METHODS = [
-  "init", "content", "open", "refresh", "relayout", "pageImages", "override", "overridePasses", "overrideAppearance", "playMoment", "selectNode", "selectTarget", "setPickFilter", "setTool",
+  "init", "content", "open", "refresh", "relayout", "pageImages", "surfaceReferences", "surfaceMarks", "override", "overridePasses", "overrideAppearance", "playMoment", "selectNode", "selectTarget", "setPickFilter", "setTool",
   "setSnapModifier", "showEnvironment", "setLookUp", "ghost", "preview", "replayUnlock", "resetNarrative", "setLive", "clearEvents", "setVar", "tap",
   "sampleColor", "timeline", "runPlugin",
 ] as const;
@@ -162,7 +184,11 @@ const isPick = (value: unknown): value is StagePick =>
 
 const isPlacement = (value: unknown): value is PrintPlacement =>
   isObject(value) && (PRINT_SURFACES as readonly unknown[]).includes(value.surface) && isFiniteNumber(value.x) && isFiniteNumber(value.y) && isFiniteNumber(value.width)
-  && (value.height === undefined || isFiniteNumber(value.height));
+  && (value.height === undefined || isFiniteNumber(value.height)) && (value.surfaceId === undefined || isId(value.surfaceId));
+
+const isSurface = (value: unknown): value is SurfaceSnapshot =>
+  isObject(value) && isId(value.id) && isString(value.side) && value.side.length <= 40 && isFiniteNumber(value.widthMm) && isFiniteNumber(value.heightMm)
+  && typeof value.own === "boolean" && typeof value.flat === "boolean";
 
 /**
  * The keys a frame may forward to the page: Shift and Control (snapping turned around), ← → (the spreads), the tools'
@@ -196,7 +222,9 @@ const CHECKS: { [N in FrameEventName]: (data: unknown) => boolean } = {
   registry: data => isObject(data) && isObject(data.plugins) && Object.values(data.plugins).every(isObject) && isObject(data.failures)
     && Object.values(data.failures).every(isString),
   layout: data => isObject(data) && isObject(data.pageFormat) && isFiniteNumber(data.pageFormat.width) && isFiniteNumber(data.pageFormat.height)
-    && isObject(data.places) && Object.values(data.places).every(p => isObject(p) && (p.printed === null || isPlacement(p.printed)) && (p.place === null || isPlacement(p.place))),
+    && isObject(data.places) && Object.values(data.places).every(p => isObject(p) && (p.printed === null || isPlacement(p.printed)) && (p.place === null || isPlacement(p.place)))
+    && (data.surfaces === undefined || (Array.isArray(data.surfaces) && data.surfaces.length <= 64 && data.surfaces.every(isSurface))),
+  surfacePick: data => data === null || (isObject(data) && isId(data.surfaceId) && isFiniteNumber(data.x) && isFiniteNumber(data.y)),
   timelines: data => isObject(data) && Object.values(data).every(t => isObject(t) && Array.isArray(t.clips)
     && t.clips.every(c => isObject(c) && isString(c.name) && isFiniteNumber(c.duration))
     && isObject(t.state) && isString(t.state.clip) && isFiniteNumber(t.state.time) && typeof t.state.playing === "boolean" && isFiniteNumber(t.state.duration)),
@@ -239,6 +267,32 @@ export const pageImageMap = (value: unknown): Record<string, string> => {
   }
   return result;
 };
+
+/**
+ * The surfaces' reference images the page sends (`surfaceReferences`, #314: scene id → surface id → `{ url, fit }`) as
+ * the frame takes them: ids of up to 200 characters, http(s) URLs only, a fit of `REFERENCE_FITS` (else `cover`) –
+ * anything else is left out
+ */
+export const surfaceReferenceMap = (value: unknown): SurfaceReferences => {
+  const result: SurfaceReferences = {};
+  if (!isObject(value)) return result;
+  for (const [sceneId, surfaces] of Object.entries(value).slice(0, 2000)) {
+    if (!isId(sceneId) || !isObject(surfaces)) continue;
+    const scene: Record<string, SurfaceReference> = {};
+    for (const [surfaceId, reference] of Object.entries(surfaces).slice(0, 64)) {
+      if (!isId(surfaceId) || !isObject(reference) || !isString(reference.url) || !/^https?:\/\//.test(reference.url) || reference.url.length > 2048) continue;
+      scene[surfaceId] = { url: reference.url, fit: (REFERENCE_FITS as readonly unknown[]).includes(reference.fit) ? (reference.fit as ReferenceFit) : "cover" };
+    }
+    if (Object.keys(scene).length) result[sceneId] = scene;
+  }
+  return result;
+};
+
+/** The surfaces the page marks on the stage (`surfaceMarks`, #314): outlined ids and the highlighted one, as the frame takes them */
+export const surfaceMarks = (outlined: unknown, highlighted: unknown): { outlined: string[]; highlighted: string | null } => ({
+  outlined: Array.isArray(outlined) ? outlined.filter(isId).slice(0, 64) : [],
+  highlighted: isId(highlighted) ? highlighted : null,
+});
 
 export const readFrameRequest = (message: unknown): FrameRequest | null =>
   isObject(message) && message.osct === MESSAGE_TAG && message.kind === "request" && Number.isInteger(message.id)

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   contentBasesNamed, libraryFoldersNamed, libraryFoldersOf, eventMessage, FORWARDED_KEYS, FRAME_SANDBOX, frameCsp, FrameRequests, isForwardedKey, type KeyForward, MESSAGE_TAG, readFrameEvent, readFrameReply,
-  readFrameRequest,
+  readFrameRequest, surfaceMarks, surfaceReferenceMap,
 } from "../frame-protocol";
 import { MAX_HIDDEN_NODES, previewSync } from "../preview";
 
@@ -207,5 +207,36 @@ describe("frameCsp: plugin code reaches the content, never the API", () => {
 
   it("leaves out what it cannot read", () => {
     expect(directive(csp(["javascript:alert(1)", "not a url ::"]), "connect-src")).not.toContain("javascript:");
+  });
+});
+
+describe("the scene's surfaces across the frame (#314)", () => {
+  it("reads a placement on a surface by id, the layout's surfaces and the surface a tap hit", () => {
+    expect(readFrameEvent(event("ghostChange", { surface: "right", surfaceId: "p41", x: 1, y: 2, width: 30 }))?.data).toMatchObject({ surfaceId: "p41" });
+    expect(readFrameEvent(event("ghostChange", { surface: "right", surfaceId: "", x: 1, y: 2, width: 30 }))).toBeNull();
+    const surfaces = [{ id: "w", side: "wall", widthMm: 400, heightMm: 300, own: true, flat: false }];
+    expect(readFrameEvent(event("layout", { pageFormat: { width: 230, height: 320 }, places: {}, surfaces }))?.name).toBe("layout");
+    expect(readFrameEvent(event("layout", { pageFormat: { width: 230, height: 320 }, places: {} }))?.name).toBe("layout");
+    expect(readFrameEvent(event("layout", { pageFormat: { width: 230, height: 320 }, places: {}, surfaces: [{ id: "w" }] }))).toBeNull();
+    expect(readFrameEvent(event("surfacePick", { surfaceId: "w", x: 10, y: 20 }))?.data).toEqual({ surfaceId: "w", x: 10, y: 20 });
+    expect(readFrameEvent(event("surfacePick", null))?.name).toBe("surfacePick");
+    expect(readFrameEvent(event("surfacePick", { surfaceId: "w", x: "10", y: 20 }))).toBeNull();
+  });
+
+  it("takes reference images by scene and surface: http(s) URLs only, a known fit (else cover)", () => {
+    expect(surfaceReferenceMap({
+      s1: { left: { url: "https://cdn.test/a.jpg", fit: "contain" }, right: { url: "https://cdn.test/b.jpg", fit: "zoom" }, bad: { url: "javascript:alert(1)" } },
+      s2: { x: { url: "data:image/png;base64,AA" } },
+      "": { y: { url: "https://cdn.test/c.jpg" } },
+      s3: "nope",
+    })).toEqual({ s1: { left: { url: "https://cdn.test/a.jpg", fit: "contain" }, right: { url: "https://cdn.test/b.jpg", fit: "cover" } } });
+    expect(surfaceReferenceMap(null)).toEqual({});
+  });
+
+  it("takes the surfaces to mark as ids only", () => {
+    expect(surfaceMarks(["a", "", 3, "b"], "a")).toEqual({ outlined: ["a", "b"], highlighted: "a" });
+    expect(surfaceMarks("a", 5)).toEqual({ outlined: [], highlighted: null });
+    expect(readFrameRequest({ osct: MESSAGE_TAG, kind: "request", id: 1, method: "surfaceMarks", args: [[], null] })?.method).toBe("surfaceMarks");
+    expect(readFrameRequest({ osct: MESSAGE_TAG, kind: "request", id: 2, method: "surfaceReferences", args: [{}] })?.method).toBe("surfaceReferences");
   });
 });

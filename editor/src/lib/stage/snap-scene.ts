@@ -1,5 +1,6 @@
 import { Box3, type Camera, Matrix4, type Mesh, type Object3D, type PerspectiveCamera, Quaternion, Vector3 } from "three";
 import type { PrintBox } from "./placement";
+import { frameRects } from "./origin";
 import type { PreviewSettings } from "./preview";
 import { pickable } from "./pick";
 import {
@@ -18,8 +19,11 @@ import {
 export interface SnapSource {
   /** The stage's frame: metres, origin in the middle of the book, z out of the page (null before the stage is built) */
   frame(): Object3D | null;
-  /** The spread's page size and format */
-  stageFrame(): StageFrame;
+  /**
+   * The spread's page size and format, and its flat surfaces (#314); with `surface`, the frame a print on that surface
+   * snaps in – the table's for a flat surface, the surface's own plane (`local`) for a wall or a turned one
+   */
+  stageFrame(surface?: string): StageFrame;
   settings(): PreviewSettings;
   /** Shift or Ctrl is held: snapping turned around */
   modifier(): boolean;
@@ -152,10 +156,12 @@ export class SceneSnapper {
       this.source.guides([]);
       return place;
     }
+    const frame = this.source.stageFrame(place.surface);
     const result = snapPlace(place, height, kind, {
-      frame: this.source.stageFrame(), lines: this.lines({ targetId }), threshold: this.threshold(null), settings,
+      frame, lines: this.lines({ targetId, frame }), threshold: this.threshold(null), settings,
     });
-    this.showGuides(result.guides);
+    // The guides are drawn on the table: a print snapped in a wall's own plane shows none
+    this.showGuides(frame.local ? [] : result.guides);
     return result.place;
   }
 
@@ -184,19 +190,23 @@ export class SceneSnapper {
    * objects' boxes and pivots. A moving node leaves out itself and what hangs below it, and of its parents the boxes
    * (they hold it) – their pivots stay; a dragged print leaves out its own outline and its target's entity.
    */
-  private lines(skip: { moving?: Object3D; targetId?: string | null }): PerAxis<SnapLine[]> {
+  private lines(skip: { moving?: Object3D; targetId?: string | null; frame?: StageFrame }): PerAxis<SnapLine[]> {
     const settings = this.source.settings();
     const frame = this.source.frame();
-    const stage = this.source.stageFrame();
+    const stage = skip.frame ?? this.source.stageFrame();
     const sources: PerAxis<readonly SnapLine[]>[] = [];
-    if (settings.snapTo.includes("axes")) sources.push(axisLines(settings.origin, stage));
+    // A wall's own plane has its edges and its prints only: the axes and the objects count on the table
+    if (settings.snapTo.includes("axes") && !stage.local) sources.push(axisLines(settings.origin, stage));
     if (settings.snapTo.includes("outlines")) {
       sources.push(pageLines(stage));
+      const onFrame = new Set(frameRects(stage).map(rect => rect.id));
       for (const print of this.source.prints()) {
-        if (print.id !== skip.targetId) sources.push(boxLines(printStageBox(print.place, print.height, stage), "outlines"));
+        if (print.id !== skip.targetId && (onFrame.has(print.place.surface) || !stage.surfaces?.length)) {
+          sources.push(boxLines(printStageBox(print.place, print.height, stage), "outlines"));
+        }
       }
     }
-    if (settings.snapTo.includes("objects") && frame) {
+    if (settings.snapTo.includes("objects") && frame && !stage.local) {
       const inverse = frame.matrixWorld.clone().invert();
       for (const { targetId, object } of this.source.objects()) {
         if (skip.targetId && targetId === skip.targetId) continue;
