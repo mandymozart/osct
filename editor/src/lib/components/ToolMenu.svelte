@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick, type Snippet } from "svelte";
   import Icon, { type IconName } from "./Icon.svelte";
-  import { closesOnResize, menuStep, openFocus } from "#lib/tool-groups.js";
+  import { closesOnResize, menuPlace, menuStep, openFocus } from "#lib/tool-groups.js";
 
   /**
    * A stage toolbar group that is one button opening a small panel of settings attached to it (#190's *grid & snap*,
@@ -46,9 +46,8 @@
     await tick();
     if (menu) {
       const m = menu.getBoundingClientRect();
-      const left = Math.max(4, Math.min(r.left, window.innerWidth - m.width - 4));
-      const top = r.bottom + 2 + m.height > window.innerHeight - 4 ? Math.max(4, r.top - 2 - m.height) : r.bottom + 2;
-      at = { left, top };
+      // Below the button in a row, beside it in a column (#315)
+      at = menuPlace(r, m, { width: window.innerWidth, height: window.innerHeight }, !!trigger.closest('[aria-orientation="vertical"]'));
     }
     if (openFocus(byKeyboard) === "first") focusables()[0]?.focus();
     else menu?.focus({ preventScroll: true });

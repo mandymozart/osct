@@ -7,6 +7,15 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.115.0 – 2026-11-18
+
+### Fixed
+
+- **The toolbar as a column** (#315): every group stacks – undo / redo / history and Live were still side by side, so the
+  column was three buttons wide and its buttons off centre; now it is one button wide, centred. A group's menu opens
+  beside its button in a column (right of it, left where the screen ends) instead of below it over the next buttons
+  (`menuPlace`).
+
 ## 1.114.0 – 2026-11-18
 
 ### Added
