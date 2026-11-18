@@ -13,7 +13,7 @@ describe("history: undo steps (#312)", () => {
     const log = [change("c3", 20), change("c2", 15), change("c1", 10), change("e", 2, { kind: "entry", ref: "racoon" })];
     expect(newestStep(log)).toEqual(["c3", "c2", "c1"]);
     // Rows of one save: different things, a moment apart
-    expect(newestStep([change("s", 30, { kind: "spread", ref: "s1" }), change("o", 30, { kind: "order", ref: "b" }), change("x", 5)])).toEqual(["s", "o"]);
+    expect(newestStep([change("s", 30, { kind: "scene", ref: "s1" }), change("o", 30, { kind: "order", ref: "b" }), change("x", 5)])).toEqual(["s", "o"]);
     // A revert's set holds together however far apart
     expect(newestStep([change("r2", 40, { set: "S" }), change("r1", 20, { set: "S", ref: "other" }), change("x", 10, { ref: "else" })])).toEqual(["r2", "r1"]);
     expect(newestStep([])).toEqual([]);
@@ -48,11 +48,13 @@ describe("history: words", () => {
 
   it("the filters and the scenes of changes from the tree", () => {
     const tree = {
-      book: {} as never, unassigned: [], groups: [],
-      spreads: [{ id: "s1", title: "One", firstPage: 1, lastPage: 2, entries: [{ id: "racoon", category: "c", title: "Racoon", page: 1, target: { id: "t1", imageSrc: "", entity: { ref: "castle" } } }] }],
+      book: {} as never, groups: [],
+      scenes: [{ id: "s1", label: "One", surfaces: [], entries: [{ id: "racoon", category: "c", title: "Racoon", scene: "s1", target: { id: "t1", imageSrc: "", entity: { ref: "castle" } } }] }],
     } as never;
     const { names, scenesOf } = treeNames(tree);
     expect(names.target?.("t1")).toBe("Racoon");
+    expect(names.scene?.("s1")).toBe("One");
+    expect(scenesOf({ kind: "scene", ref: "s1" })).toEqual(["s1"]);
     expect(scenesOf({ kind: "entity", ref: "castle" })).toEqual(["s1"]);
     const log = [change("a", 1), change("b", 2, { kind: "book", ref: "b", user: "you@x.test" })];
     expect(filterChanges(log, { scene: "s1", kind: null, person: null }, scenesOf).map(c => c.id)).toEqual(["a"]);

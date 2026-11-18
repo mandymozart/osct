@@ -87,7 +87,7 @@ describe("the Surface tool and its gizmo", () => {
     root.updateMatrixWorld(true);
     expect(placeOfObject(proxy)).toEqual(place);
     // Its centre in the stage frame (m) is the surface frame's centre (mm)
-    const [surface] = sceneSurfaces({ layout: "free", surfaces: [{ id: "wall", side: "wall", widthMm: 2000, heightMm: 1500, place }] }, { width: 230, height: 320 });
+    const [surface] = sceneSurfaces({ surfaces: [{ id: "wall", widthMm: 2000, heightMm: 1500, place }] });
     const frame = surfaceFrame(surface);
     const centre = frame.origin.map((o, k) => o + frame.right[k] * 1000 + frame.down[k] * 750);
     const world = proxy.getWorldPosition(new Vector3()).multiplyScalar(1000);

@@ -6,7 +6,7 @@
   import { getBook } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import { isAdminPath, session } from "#lib/session.svelte.js";
-  import { captionOf, formatLabelOf, pagesOf } from "#lib/spread-grid.js";
+  import { sceneLabel } from "@engine/content/scenes";
   import PublishButton from "#lib/PublishButton.svelte";
   import BookSearch from "#lib/BookSearch.svelte";
   import SaveStatus from "#lib/SaveStatus.svelte";
@@ -18,7 +18,7 @@
   import { openFloats } from "#lib/components/floats.svelte.js";
 
   /**
-   * The editor's one top bar (every page, drawn by the layout): the breadcrumb `Books › book › spread` at the left, the
+   * The editor's one top bar (every page, drawn by the layout): the breadcrumb `Books › book › scene` at the left, the
    * book's search while a book is open (#237, `BookSearch`), where the draft stands (#259, `SaveStatus`: edits save
    * themselves), Publish (with its environment), then the account menu ☰ at the right: the e-mail, Admin and Sign out
    * (Tilman, 2026-11-18). In a workspace with floating panels (#308) the **panels menu** before it: each panel that
@@ -29,7 +29,7 @@
    * opens their list: the stage shows the book without them.
    */
   const bookId = $derived(page.params.book ?? null);
-  const spreadId = $derived(page.params.spread ?? null);
+  const spreadId = $derived(page.params.scene ?? null);
   const isAdminRoute = $derived(isAdminPath(page.url.pathname));
 
   /** Book titles by id, read once per book */
@@ -42,8 +42,8 @@
   });
 
   const spread = $derived(spreadId && content.bookId === bookId ? content.spread(spreadId) : undefined);
-  /** The spread's full name, never cut: `p. 12–13 · title`, a cover by its title (else its format) */
-  const spreadLabel = $derived(!spread ? spreadId : formatLabelOf(spread) ? spread.title || formatLabelOf(spread) : `p. ${captionOf(spread) || pagesOf(spread)}`);
+  /** The scene's full name, never cut: its label (its id when it has none) */
+  const spreadLabel = $derived(!spread ? spreadId : sceneLabel(spread));
 
   /** The book's settings button in a workspace: the Inspector shows the book */
   const selectBook = () => selection.show({ target: null, node: [], onTarget: true, book: true });
@@ -92,7 +92,7 @@
     {#if bookId}
       <span class="sep" aria-hidden="true">›</span>
       <a href={resolve(`${bookId}/`)} class="crumb" aria-current={spreadId ? undefined : "page"}
-        title={spreadId ? "Back to all spreads" : undefined}>{titles[bookId] ?? bookId}</a>
+        title={spreadId ? "Back to the book" : undefined}>{titles[bookId] ?? bookId}</a>
       {#if spreadId}
         <button type="button" class="icon-button book-settings" class:on={selection.book} aria-pressed={selection.book} onclick={selectBook}
           aria-label="Book settings" title="The book's title, author, publisher and settings in the Inspector"><Icon name="settings" stroke={2} /></button>

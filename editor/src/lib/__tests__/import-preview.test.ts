@@ -22,7 +22,7 @@ const preview = (over: Partial<ImportPreview> = {}): ImportPreview => ({
   contentBase: "https://cdn.example/demo",
   manifest: { url: "https://cdn.example/demo/latest.json", build: "7457f0c10df1", activatedAt: "2026-10-30T06:59:06.687Z" },
   incoming: existing().incoming,
-  counts: { spreads: 6, entries: 13, targets: 8, entities: 2 },
+  counts: { scenes: 6, entries: 13, targets: 8, entities: 2 },
   existing: null,
   ...over,
 });
@@ -49,13 +49,13 @@ describe("the import's preview", () => {
     expect(rows[1].value).toBe("7457f0c10df1");
     expect(rows[2].value).toContain("current since");
     expect(rows[5].value).toBe("The Demo Book · demo");
-    expect(rows[6].value).toBe("6 spreads · 13 entries · 8 targets · 2 shared entities");
+    expect(rows[6].value).toBe("6 scenes · 13 entries · 8 targets · 2 shared entities");
     expect(previewRows(preview({ manifest: null }), null, null).map(r => r.label)).not.toContain("Assets at");
     expect(previewRows(preview({ manifest: null }), null, null)[2].value).not.toContain("current since");
   });
 
   it("counts in the singular and leaves out shared entities when there are none", () => {
-    expect(contentsLine({ spreads: 1, entries: 1, targets: 0, entities: 0 })).toBe("1 spread · 1 entry · 0 targets");
+    expect(contentsLine({ scenes: 1, entries: 1, targets: 0, entities: 0 })).toBe("1 scene · 1 entry · 0 targets");
   });
 
   it("a new book: nothing is replaced", () => {

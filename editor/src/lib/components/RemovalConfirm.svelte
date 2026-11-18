@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import Toggle from "./Toggle.svelte";
-  import { deleteFilesLabel, elsewhereLine, filesLine, keptEntitiesLine, onlyHereNames, pagesLine, removalHeadline, removeLabel, type RemovalStep } from "#lib/removal.js";
+  import { deleteFilesLabel, elsewhereLine, filesLine, keptEntitiesLine, onlyHereNames, removalHeadline, removeLabel, type RemovalStep } from "#lib/removal.js";
 
   /**
    * The in-page confirmation of a removal with everything on it (#198): what the API's impact says goes – the
@@ -30,7 +30,6 @@
 <section class="removal small" role="group" aria-label={removalHeadline(impact)} onkeydown={e => { if (e.key === "Escape") oncancel(); }}>
   {#if step.changed}<p class="danger" role="alert">The book changed since – this is what the removal takes now.</p>{/if}
   <p class="headline" role="alert">{removalHeadline(impact)}</p>
-  {#if pagesLine(impact)}<p class="muted">{pagesLine(impact)}</p>{/if}
   {#if keptEntitiesLine(impact)}<p class="muted">{keptEntitiesLine(impact)}</p>{/if}
   <p>{filesLine(impact, deleteFiles)}</p>
   {#if optionLabel}

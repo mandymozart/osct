@@ -4,12 +4,12 @@ import type { SceneInspection } from "@engine/types";
 import type { SurfacePlace } from "@shared/types/game-config";
 
 /**
- * The gizmo of a free scene's selected surface (#314, the Surface mode): three.js `TransformControls` on a stand-in for
+ * The gizmo of the scene's selected surface (#314, the Surface mode): three.js `TransformControls` on a stand-in for
  * the surface – an object in the **scene's coordinate system** (`SurfacePlace`: mm, +y up, +z towards the reader, Euler
  * XYZ), which a root turned +90° about x puts into the stage frame (x right, y away from the reader, z up – the mock
  * stage's group). A drag moves or turns the stand-in and its outline at once; when it ends, the new place goes to the
- * page (`ondone`), which saves it – the board follows once the draft has it. Move (translate) or rotate, snapped to
- * 10 mm and 15° while snapping is on. The tracker ignores the pointer while an axis is hovered or dragged (`busy`), and
+ * page (`ondone`), which saves it – the board follows once the draft has it. Move (translate) or rotate, snapped to the
+ * floor grid's spacing (#319) and 15° while snapping is on. The tracker ignores the pointer while an axis is hovered or dragged (`busy`), and
  * the click that ends a drag is no tap (`recentlyDragged`).
  */
 
@@ -25,7 +25,6 @@ export interface SurfaceGizmoTarget {
 }
 
 const DRAG_CLICK_MS = 300;
-const MOVE_SNAP_M = 0.01;
 const TURN_SNAP_DEGREES = 15;
 const OUTLINE_COLOR = 0xffffff;
 
@@ -77,6 +76,8 @@ export class SurfaceGizmo {
     private ondone: (surfaceId: string, place: Required<SurfacePlace>) => void,
     /** Snapping is on now (the toolbar's grid & snap, Shift or Ctrl turning it around) */
     private snapping: () => boolean = () => false,
+    /** The step a move snaps to (mm): the floor grid's spacing */
+    private step: () => number = () => 10,
   ) {
     this.proxy.name = "editor-surface-proxy";
     const geometry = new BufferGeometry();
@@ -97,7 +98,7 @@ export class SurfaceGizmo {
       this.dragging = !!event.value;
       if (this.dragging) {
         const snap = this.snapping();
-        this.controls.setTranslationSnap(snap ? MOVE_SNAP_M : null);
+        this.controls.setTranslationSnap(snap ? Math.max(1, this.step()) / 1000 : null);
         this.controls.setRotationSnap(snap ? MathUtils.degToRad(TURN_SNAP_DEGREES) : null);
         return;
       }

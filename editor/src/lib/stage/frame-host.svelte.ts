@@ -8,7 +8,7 @@ import type { EnvironmentData } from "@shared/types/environment";
 import type { BookAppearance, Moment } from "@shared/types/appearance";
 import {
   type ContentSnapshot, contentBasesNamed, libraryFoldersOf, eventMessage, type FrameEventName, type FrameEvents, type FrameInit, frameCsp, isForwardedKey, type KeyForward, type LayoutSnapshot,
-  LOG_MAX, pageImageMap, readFrameRequest, surfaceGizmoRequest, surfaceMarks, surfaceReferenceMap, REMOVED_WIRE, type TimelineSnapshot,
+  LOG_MAX, readFrameRequest, surfaceGizmoRequest, surfaceMarks, surfaceReferenceMap, REMOVED_WIRE, type TimelineSnapshot,
 } from "./frame-protocol";
 import { STAGE_TOOLS, type StageTool } from "./gizmo";
 import type { PickFilter } from "./pick";
@@ -114,9 +114,9 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     const s = core;
     const spread = s?.spreadId;
     const places: LayoutSnapshot["places"] = {};
-    if (s && spread) getTargets(spread).forEach(target => { places[target.id] = { printed: s.printedPlace(target.id), place: s.placeOf(target.id) }; });
-    const surfaces = (s?.surfaceFrames() ?? []).map(f => ({ id: f.id, side: f.side, widthMm: f.widthMm, heightMm: f.heightMm, own: f.own, flat: f.flat }));
-    return { pageFormat: s?.pageFormat() ?? { width: 0, height: 0 }, places, surfaces };
+    if (s && spread) getTargets(spread).forEach(target => { places[target.id] = { place: s.placeOf(target.id) }; });
+    const surfaces = (s?.surfaceFrames() ?? []).map(f => ({ id: f.id, widthMm: f.widthMm, heightMm: f.heightMm, flat: f.flat }));
+    return { places, surfaces };
   };
 
   const timelines = (): Record<string, TimelineSnapshot> => {
@@ -181,7 +181,6 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     open: (spreadId: string) => stage().open(spreadId),
     refresh: () => stage().refresh(),
     relayout: () => stage().relayout(),
-    pageImages: (images: unknown) => stage().setPageImages(pageImageMap(images)),
     surfaceReferences: (references: unknown) => stage().setSurfaceReferences(surfaceReferenceMap(references)),
     surfaceMarks: (outlined: unknown, highlighted: unknown) => {
       const marks = surfaceMarks(outlined, highlighted);

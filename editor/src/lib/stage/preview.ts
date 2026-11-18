@@ -6,8 +6,11 @@
  *   scene exists rebuilds it). Not stored: the route decides.
  * - The settings the stage toolbar changes, stored on this device (`osct-preview`): the view preset or a free orbit,
  *   the shading, the sky (an HDRI), the desk's top, the hand-shake amount and the origin (the *view* group, #229), the
- *   grid and its vertical axis, and the snapping (the *grid & snap* group: on / off, what it snaps to, the precision
- *   per gizmo mode – `snap.ts`).
+ *   grids – the surfaces' own grid with its vertical axis, the scene's floor grid and the optional vertical grid
+ *   (#316, #319) – and the snapping (the *grid & snap* group: on / off, what it snaps to, the precision per gizmo mode –
+ *   `snap.ts`).
+ * - `surfaceGrids`: the open scene's surfaces' own grid spacing (#316 part 1) by surface id – kept per book and surface
+ *   in this browser by the page (`surface-grids.svelte.ts`), handed to the stage here. Not stored with the settings.
  * - `hidden`: targets hidden in the scene by the tree's eye – the mock reports them as lost (outro), on again as found
  *   (reveal), and the stage leaves out their printed images (#250). Not stored.
  * - `hiddenNodes`: nodes of an entity hidden on the stage by the tree's eye (#311 – to look into a complex tree), by
@@ -15,7 +18,7 @@
  *   changes – never the content. Not stored: forgotten when the editor page closes.
  */
 
-import { isOriginId, originLabel, type OriginFrame, type OriginId } from "./origin";
+import { isOriginId, originLabel, type OriginId } from "./origin";
 import { clampSnap, SNAP_TARGETS, type SnapTarget } from "./snap";
 import { readStoredJson, writeStoredJson } from "#lib/storage.js";
 import { isTextureSize, TEXTURE_SIZES } from "@shared/types/textures";
@@ -75,11 +78,11 @@ export const storedTop = (stored: { top?: unknown; desk?: unknown }): TopId =>
  */
 export const viewSummary = (
   settings: Pick<PreviewSettings, "top" | "wobble" | "origin" | "hdri">,
-  { format = "spread", environment = false }: { format?: OriginFrame["format"]; environment?: boolean } = {},
+  { environment = false }: { environment?: boolean } = {},
 ): string => [
   DESK_NAME,
   TOPS.find(t => t.id === settings.top)?.name ?? settings.top,
-  `origin ${originLabel(settings.origin, format)}`,
+  `origin ${originLabel(settings.origin)}`,
   settings.wobble > 0 ? `shake ${Math.round(settings.wobble * 100) / 100}` : "no shake",
   environment ? "the environment's sky" : `sky ${HDRIS.find(h => h.id === settings.hdri)?.name ?? settings.hdri}`,
 ].join(" · ");
@@ -117,12 +120,24 @@ export interface PreviewSettings {
   textureQuality: TextureQuality;
   /** 0 = still, 1 = a hand holding a phone */
   wobble: number;
-  /** A grid over the page (the stage), its spacing in mm, and the origin it and the positions are counted from */
+  /**
+   * The surfaces' own grid (the targets' – #316 part 1): on / off, its spacing in mm (a surface may have its own:
+   * `surfaceGrids`), and the origin it and the targets' positions are counted from
+   */
   grid: boolean;
   gridMm: number;
   origin: OriginId;
-  /** The vertical axis: a line for the height through the origin, shown with the grid */
+  /** The vertical axis: a line for the height through the origin, shown with the grid; the scene's axes too */
   axis: boolean;
+  /**
+   * The scene's **floor grid** (#319): a transparent net on the table (y = 0), every `floorMm` – the snap grid of the
+   * surfaces' places and the surface gizmo
+   */
+  floorGrid: boolean;
+  floorMm: number;
+  /** The optional **vertical grid** for wall setups: a plane at the scene's z = `wallZ` mm, the floor grid's spacing */
+  wallGrid: boolean;
+  wallZ: number;
   /** The gizmo and the placement handles snap (Shift or Ctrl held turns it around for a drag) */
   snap: boolean;
   /** What a move snaps to */
@@ -138,6 +153,8 @@ export interface PreviewState extends PreviewSettings {
   hidden: readonly string[];
   /** Nodes hidden on the stage only, as `nodeKey` writes them ("target:0.2", the root "target:") */
   hiddenNodes: readonly string[];
+  /** The open scene's surfaces' own grid spacing (mm) by surface id; a surface not named takes `gridMm` (#316 part 1) */
+  surfaceGrids: Readonly<Record<string, number>>;
 }
 
 /** A node of a target's entity as the hidden nodes name it: the target id, a colon, the path ("key:0.2"; the root "key:") */
@@ -171,11 +188,34 @@ const STORAGE_KEY = "osct-preview";
 
 const DEFAULTS: PreviewSettings = {
   view: "reader", shading: "rendered", orbit: null, hdri: "wooden_studio_17", top: DEFAULT_TOP, textureQuality: "auto", wobble: 0, grid: false, gridMm: 10, origin: "top-left",
-  axis: true, snap: false, snapTo: [...SNAP_TARGETS], snapMove: 1, snapRotate: 15, snapScale: 0.1,
+  axis: true, floorGrid: true, floorMm: 50, wallGrid: false, wallZ: -500, snap: false, snapTo: [...SNAP_TARGETS], snapMove: 1, snapRotate: 15, snapScale: 0.1,
 };
 
 /** The grid's spacing stays between 1 mm and the page's size */
 export const clampGrid = (mm: number): number => Math.min(500, Math.max(1, mm));
+
+/** The floor grid's spacing: 1 mm to 1 m */
+export const clampFloorGrid = (mm: number): number => Math.min(1000, Math.max(1, mm));
+
+/** The vertical grid's z: within 10 m of the origin */
+export const clampWallZ = (mm: number): number => Math.min(10000, Math.max(-10000, mm));
+
+/** The most surfaces with a grid of their own the stage takes at once */
+const MAX_SURFACE_GRIDS = 64;
+
+/** Surface grids from a sent value: surface ids (as the frame protocol's) with a spacing each, clamped */
+export const parseSurfaceGrids = (value: unknown): Record<string, number> => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([id, mm]) => /^[^\s]{1,200}$/.test(id) && typeof mm === "number" && Number.isFinite(mm))
+    .slice(0, MAX_SURFACE_GRIDS)
+    .map(([id, mm]) => [id, clampGrid(mm as number)] as const);
+  return Object.fromEntries(entries);
+};
+
+/** The spacing of a surface's own grid: its own, else the grid's */
+export const surfaceGridOf = (state: Pick<PreviewState, "gridMm" | "surfaceGrids">, surfaceId: string | undefined): number =>
+  (surfaceId !== undefined ? state.surfaceGrids[surfaceId] : undefined) ?? state.gridMm;
 
 const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 
@@ -195,6 +235,10 @@ export const parseSettings = (parsed: unknown): PreviewSettings => {
     gridMm: typeof stored.gridMm === "number" && Number.isFinite(stored.gridMm) ? clampGrid(stored.gridMm) : DEFAULTS.gridMm,
     origin: isOriginId(stored.origin) ? stored.origin : DEFAULTS.origin,
     axis: typeof stored.axis === "boolean" ? stored.axis : DEFAULTS.axis,
+    floorGrid: typeof stored.floorGrid === "boolean" ? stored.floorGrid : DEFAULTS.floorGrid,
+    floorMm: finite(stored.floorMm) ? clampFloorGrid(stored.floorMm) : DEFAULTS.floorMm,
+    wallGrid: stored.wallGrid === true,
+    wallZ: finite(stored.wallZ) ? clampWallZ(stored.wallZ) : DEFAULTS.wallZ,
     snap: stored.snap === true,
     snapTo: Array.isArray(stored.snapTo) ? SNAP_TARGETS.filter(target => (stored.snapTo as unknown[]).includes(target)) : [...DEFAULTS.snapTo],
     snapMove: finite(stored.snapMove) ? clampSnap("move", stored.snapMove) : DEFAULTS.snapMove,
@@ -217,7 +261,7 @@ const writeSettings = (settings: PreviewSettings): void => {
   writeStoredJson(STORAGE_KEY, settings);
 };
 
-let state: PreviewState = { ...readSettings(), active: false, hidden: [], hiddenNodes: [] };
+let state: PreviewState = { ...readSettings(), active: false, hidden: [], hiddenNodes: [], surfaceGrids: {} };
 const listeners = new Set<(state: PreviewState) => void>();
 
 const publish = (): void => {
@@ -229,7 +273,7 @@ export const getPreview = (): PreviewState => state;
 /** The editor page is open (true) or left (false) */
 export const setPreviewActive = (active: boolean): void => {
   if (state.active === active) return;
-  state = { ...state, active, hidden: active ? state.hidden : [], hiddenNodes: active ? state.hiddenNodes : [] };
+  state = { ...state, active, hidden: active ? state.hidden : [], hiddenNodes: active ? state.hiddenNodes : [], surfaceGrids: active ? state.surfaceGrids : {} };
   publish();
 };
 
@@ -238,7 +282,7 @@ export const updatePreview = (patch: Partial<Omit<PreviewState, "active">>): voi
   const next: PreviewState = { ...state, ...patch };
   if (patch.view !== undefined && patch.orbit === undefined) next.orbit = null;
   state = next;
-  const { active: _active, hidden: _hidden, hiddenNodes: _hiddenNodes, ...settings } = state;
+  const { active: _active, hidden: _hidden, hiddenNodes: _hiddenNodes, surfaceGrids: _surfaceGrids, ...settings } = state;
   writeSettings(settings);
   publish();
 };
@@ -259,15 +303,17 @@ export const setNodeHidden = (targetId: string, path: readonly number[], hidden:
 };
 
 /**
- * The preview as the page and the stage frame keep it in step (#234): the settings, the hidden targets and nodes, checked
+ * The preview as the page and the stage frame keep it in step (#234): the settings, the hidden targets and nodes, the
+ * surfaces' own grids, checked
  * and in one order – the same preview gives the same text on both sides. `active` is each side's own.
  */
 export const previewSync = (value: unknown = state): string => {
-  const { hidden, hiddenNodes } = (value ?? {}) as { hidden?: unknown; hiddenNodes?: unknown };
+  const { hidden, hiddenNodes, surfaceGrids } = (value ?? {}) as { hidden?: unknown; hiddenNodes?: unknown; surfaceGrids?: unknown };
   return JSON.stringify({
     ...parseSettings(value),
     hidden: Array.isArray(hidden) ? hidden.filter((id): id is string => typeof id === "string") : [],
     hiddenNodes: parseHiddenNodes(hiddenNodes),
+    surfaceGrids: parseSurfaceGrids(surfaceGrids),
   });
 };
 

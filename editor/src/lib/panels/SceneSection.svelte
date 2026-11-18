@@ -1,25 +1,23 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import Section from "#lib/components/Section.svelte";
-  import Segmented from "#lib/components/Segmented.svelte";
   import { autosave } from "#lib/autosave.svelte.js";
   import { scenes } from "#lib/scenes.svelte.js";
   import { sceneName, targetsOf } from "#lib/scene-strip.js";
   import { errorText } from "#lib/api.js";
   import { selection } from "#lib/selection.svelte.js";
   import Icon from "#lib/components/Icon.svelte";
-  import { DEFAULT_PAGE_MM } from "#lib/stage/stage-layout.js";
-  import { SCENE_LAYOUTS, type SceneLayout } from "@shared/types/game-config";
+  import { arrangeSceneInRow, canArrangeInRow } from "#lib/surface-actions.js";
   import SurfaceList from "./SurfaceList.svelte";
 
   /**
-   * The open **scene** in the Inspector (#307 phase 3a), above the spread's own sections: its label (what the reader's
-   * switcher and lists show), its layout (fixed – printed together – or free), its group, its targets, and its
-   * **surfaces** (#314, `SurfaceList`): each with its label as printed (editable), side and size; add a page, a wall or a
-   * custom one, reorder, remove; a click on one selects it – the Inspector shows its size, place and reference image (the
-   * same edits as the Tree's Surfaces level and the Surface mode). Every field saves itself (`PUT …/scenes/{id}`, RULES #37).
+   * The open **scene** in the Inspector (#307 phase 3a, #319), above its own sections: its label (what the reader's
+   * switcher and lists show), its group, its targets, *arrange in a row*, and its **surfaces** (#314, `SurfaceList`):
+   * each with its label as printed (editable) and size; add a double or single page, a wall or a custom one, reorder,
+   * remove; a click on one selects it – the Inspector shows its size, place and reference image (the same edits as the
+   * Tree's Surfaces level and the Surface mode). Every field saves itself (`PUT …/scenes/{id}`, RULES #37).
    */
-  let { bookId, spreadId, page = DEFAULT_PAGE_MM }: { bookId: string; spreadId: string; page?: { width: number; height: number } } = $props();
+  let { bookId, spreadId }: { bookId: string; spreadId: string } = $props();
 
   $effect(() => {
     const id = bookId;
@@ -38,10 +36,11 @@
   });
 
   let error = $state<string | null>(null);
-  const put = async (body: Parameters<typeof scenes.putScene>[1]) => {
+  const put = async (body: Parameters<typeof scenes.putScene>[1] | (() => Promise<void>)) => {
     error = null;
     try {
-      await scenes.putScene(spreadId, body);
+      if (typeof body === "function") await body();
+      else await scenes.putScene(spreadId, body);
     } catch (e) {
       error = errorText(e);
     }
@@ -50,25 +49,17 @@
     label = value;
     const id = spreadId;
     autosave.queue(`scene:${bookId}:${id}:label`, async () => {
-      if ((scenes.scene(id)?.label ?? "") !== value.trim()) await scenes.putScene(id, { label: value.trim() || null });
+      if ((scenes.scene(id)?.label ?? "") !== value.trim()) await scenes.putScene(id, { label: value.trim() });
     });
-  };
-  const LAYOUT_TITLES: Record<SceneLayout, string> = {
-    fixed: "Fixed: the surfaces side by side as printed together – a double page, a fold-out",
-    free: "Free: each surface on its own anchor – a page and a wall, a room",
   };
 </script>
 
 {#if scene}
   <Section id="stage.scene" label="scene" summary={sceneName(scene)}
-    help="The open scene: its label, layout and group, and its surfaces – the physical areas it has (pages, a cover, a wall), each with its size and its label as printed. Every field saves itself.">
-    <div class="row" data-help="What the reader's switcher and lists show for the scene – free text, never counted on (Pages 40–41, Studio wall). Empty: its pages.">
+    help="The open scene: its label and group, and its surfaces – the physical areas it has (a double page, a cover, a wall), each with its size, its label as printed and its place. Every field saves itself.">
+    <div class="row" data-help="What the reader's switcher and lists show for the scene – free text, never counted on (40–41, Cover, Studio wall). Empty: its id.">
       <span class="label">label</span>
-      <input class="field" aria-label="Scene label" placeholder={sceneName({ ...scene, label: undefined })} value={label} oninput={e => editLabel(e.currentTarget.value)} /></div>
-    <div class="row" data-help="How the surfaces relate: fixed – printed together, side by side; free – each on its own anchor.">
-      <span class="label">layout</span>
-      <Segmented options={SCENE_LAYOUTS} value={scene.layout ?? "fixed"} label="Scene layout" titles={LAYOUT_TITLES}
-        onchange={layout => void put({ layout: layout === "fixed" ? null : layout })} /></div>
+      <input class="field" aria-label="Scene label" placeholder={scene.id} value={label} oninput={e => editLabel(e.currentTarget.value)} /></div>
     <div class="row" data-help="The group the scene belongs to – one stop of the reader's switcher, one loading window. Self: the scene is a stop of its own; the link icon shows the group.">
       <span class="label">group</span>
       <select class="field" aria-label="Scene group" value={scene.group ?? ""} onchange={e => void put({ group: e.currentTarget.value || null })}>
@@ -80,12 +71,16 @@
     <div class="row" data-help="The targets on this scene – the engine tracks at most 10 per scene (4 at the same moment).">
       <span class="label">targets</span>
       <span class="value">{targetsOf(scene)} of 10</span></div>
+    <div class="row" data-help="Arrange in a row: the scene's surfaces flat on the table, side by side in their order, touching, the row centred on the origin – written to their places. Off while they lie so already.">
+      <span class="label">surfaces</span>
+      <button type="button" class="pill framed" disabled={!canArrangeInRow(spreadId)} onclick={() => void put(() => arrangeSceneInRow(spreadId))}
+        title="The surfaces side by side, flat, touching, the row centred on the origin">arrange in a row</button></div>
     {#if error}<p class="small danger">{error}</p>{/if}
   </Section>
 
-  <Section id="stage.surfaces" label="surfaces" summary={String(scene.surfaces?.length ?? 0)}
-    help="The scene's physical areas in order – a left and a right page, a fold-out's third, a cover, a wall – with their label as printed, side and size. Add, reorder, remove; a click on a side selects the surface (its size, place and reference image). The Surface tool (S) picks them on the stage.">
-    <SurfaceList {bookId} sceneId={spreadId} {page} />
+  <Section id="stage.surfaces" label="surfaces" summary={String(scene.surfaces.length)}
+    help="The scene's physical areas in order – a double page, a cover, a wall – with their label as printed and size. Add, reorder, remove; a click on an id selects the surface (its size, place and reference image). The Surface tool (S) picks them on the stage.">
+    <SurfaceList {bookId} sceneId={spreadId} />
   </Section>
 {/if}
 

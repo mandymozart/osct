@@ -63,14 +63,14 @@ export const undoKey = (event: Pick<KeyboardEvent, "key" | "ctrlKey" | "metaKey"
 // ── words ──────────────────────────────────────────────────────────────────────────────────────────
 
 const KIND_WORDS: Record<string, string> = {
-  entity: "Entity", target: "Target", entry: "Entry", spread: "Scene", order: "Scene order", groups: "Groups",
+  entity: "Entity", target: "Target", entry: "Entry", scene: "Scene", order: "Scene order", groups: "Groups",
   environment: "Environment", passes: "Post-processing", appearance: "Appearance", book: "Experience", plugin: "Plugin", asset: "File",
   reference: "Reference image",
 };
 /** A kind in words (the History's filter and its rows) */
 export const kindWord = (kind: string): string => KIND_WORDS[kind] ?? kind;
 
-/** The names the page knows: a scene's title, an entry's title, a target's entry */
+/** The names the page knows: a scene's label, an entry's title, a target's entry */
 export interface Names {
   scene?: (id: string) => string | undefined;
   entry?: (id: string) => string | undefined;
@@ -80,7 +80,7 @@ export interface Names {
 /** What a change touched, in words: its kind and the name of its thing ("Entry Racoon", "Scene 12–13") */
 export const changeTitle = (c: Pick<Change, "kind" | "ref">, names: Names = {}): string => {
   const word = kindWord(c.kind);
-  const name = c.kind === "spread" ? names.scene?.(c.ref) : c.kind === "entry" ? names.entry?.(c.ref) : c.kind === "target" ? names.target?.(c.ref) : undefined;
+  const name = c.kind === "scene" ? names.scene?.(c.ref) : c.kind === "entry" ? names.entry?.(c.ref) : c.kind === "target" ? names.target?.(c.ref) : undefined;
   if (["order", "groups", "environment", "passes", "appearance", "book"].includes(c.kind)) return word;
   // A surface's reference image (#314): its ref is `scene/surface` – "Reference image Pages 2–3 · left"
   if (c.kind === "reference") {
@@ -158,16 +158,16 @@ export type ScenesOf = (c: Pick<Change, "kind" | "ref">) => readonly string[];
 
 /** The names and the scenes of changes from the book's tree (`GET /editor/books/{id}`, `scenes.tree`) */
 export const treeNames = (tree: BookTree | null): { names: Names; scenesOf: ScenesOf } => {
-  const entries = tree ? [...tree.spreads.flatMap(s => s.entries.map(e => ({ ...e, scene: s.id as string | null }))), ...tree.unassigned.map(e => ({ ...e, scene: null as string | null }))] : [];
+  const entries = tree ? tree.scenes.flatMap(s => s.entries.map(e => ({ ...e, scene: s.id as string | null }))) : [];
   const scenesWhere = (match: (e: (typeof entries)[number]) => boolean): string[] => [...new Set(entries.filter(e => e.scene && match(e)).map(e => e.scene!))];
   return {
     names: {
-      scene: id => { const s = tree?.spreads.find(x => x.id === id); return s ? s.title || s.label || s.id : undefined; },
+      scene: id => { const s = tree?.scenes.find(x => x.id === id); return s ? s.label || s.id : undefined; },
       entry: id => entries.find(e => e.id === id)?.title,
       target: id => entries.find(e => e.target?.id === id)?.title,
     },
     scenesOf: c => {
-      if (c.kind === "spread") return [c.ref];
+      if (c.kind === "scene") return [c.ref];
       if (c.kind === "reference") return [referenceRef(c.ref).scene];
       if (c.kind === "entry") return scenesWhere(e => e.id === c.ref);
       if (c.kind === "target") return scenesWhere(e => e.target?.id === c.ref);

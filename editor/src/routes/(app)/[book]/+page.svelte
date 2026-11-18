@@ -25,7 +25,7 @@
     empty = false;
     error = null;
     getBook(id).then(tree => {
-      const ids = tree.spreads.map(spread => spread.id);
+      const ids = tree.scenes.map(scene => scene.id);
       if (!ids.length) {
         empty = true;
         return;

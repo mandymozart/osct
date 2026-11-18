@@ -1,14 +1,13 @@
 import { SvelteMap } from "svelte/reactivity";
 import { resolve } from "$app/paths";
-import type { PrintSurface, SurfacePlace } from "@shared/types/game-config";
+import type { SurfacePlace, TargetPlace } from "@shared/types/game-config";
 import type { EnvironmentData } from "@shared/types/environment";
 import type { BookAppearance, Moment } from "@shared/types/appearance";
-import { getSpread, getTarget } from "@engine/content/game-config";
+import { getTarget } from "@engine/content/game-config";
 import { mirrorPluginRegistry } from "@engine/scene/plugins";
 import type { VarScope, VarValue } from "@engine/scene";
-import type { ArStatus, EntityData, NodeTimeline, PassData, SpreadFormat } from "@engine/types";
+import type { ArStatus, EntityData, NodeTimeline, PassData } from "@engine/types";
 import { nodeAt, removeNode, withNode } from "#lib/values.js";
-import type { PrintPlacement } from "#lib/api.js";
 import { content } from "#lib/content.svelte.js";
 import { plugins } from "#lib/plugins.svelte.js";
 import { help } from "#lib/help.svelte.js";
@@ -22,7 +21,6 @@ import type { PickFilter, PickKind, StagePick } from "./pick";
 import { applyPreviewSync, getPreview, previewSync, subscribePreview, type ShadingMode } from "./preview";
 import type { StageEvent } from "./event-log";
 import type { GhostPlace } from "./stage-core.svelte";
-import { DEFAULT_PAGE_MM } from "./stage-layout";
 
 export type { StageEvent } from "./event-log";
 export type { PickFilter, PickKind, StagePick } from "./pick";
@@ -61,7 +59,7 @@ export class Stage {
   /** A right click on the stage: what lies there (null = the page or the table) and where (the page's client px) */
   onContextMenu: ((hit: StagePick | null, clientX: number, clientY: number) => void) | null = null;
   /** The form or the panel editing a placement listens: a handle moved it */
-  onGhostChange: ((place: { surface: PrintSurface; surfaceId?: string; x: number; y: number; width: number; height?: number }) => void) | null = null;
+  onGhostChange: ((place: TargetPlace) => void) | null = null;
   /** A tap on the stage hit a surface of the open scene (#314: the Surface mode selects by it), mm from its top left corner – or none */
   onSurfacePick: ((hit: SurfacePick) => void) | null = null;
   /** A drag of the surface gizmo ended (#314): the surface's new place in its scene – the page saves it */
@@ -91,7 +89,7 @@ export class Stage {
 
   private frame: HTMLIFrameElement;
   private requests: FrameRequests;
-  private layout = $state.raw<LayoutSnapshot>({ pageFormat: DEFAULT_PAGE_MM, places: {} });
+  private layout = $state.raw<LayoutSnapshot>({ places: {}, surfaces: [] });
   private timelines: Record<string, TimelineSnapshot> = {};
   private timelineProxies = new Map<string, { clips: string; timeline: NodeTimeline }>();
   /** What a frame that loads (again) is given: the content sent last, and the state the page set */
@@ -340,8 +338,7 @@ export class Stage {
     this.spreadId = spreadId;
     this.found = [];
     await this.syncContent();
-    // Ahead of the spread, in the same order: the frame lays the page images over its sheet, the references on its surfaces
-    void this.send("pageImages", [this.pageImages]);
+    // Ahead of the scene, in the same order: the frame lays the references on its surfaces
     void this.send("surfaceReferences", [this.surfaceReferences]);
     void this.send("surfaceMarks", [this.marks.outlined, this.marks.highlighted]);
     await this.requests.request("open", [spreadId]);
@@ -353,21 +350,12 @@ export class Stage {
     await this.requests.request("refresh");
   }
 
-  /** The current spread's format changed in the draft: the book takes its new shape on the stage at once */
+  /** The open scene's surfaces changed in the draft: the stage lays them out again at once */
   relayout(): void {
     // The frame lays out from its draft: the newest goes first (a scene's surfaces changed, #314)
     void this.syncContent()
       .catch(e => console.warn(`[stage] content: ${e instanceof Error ? e.message : e}`))
       .then(() => this.send("relayout"));
-  }
-
-  /** The book's page images by page key (#251), sent again with every spread opened (a new frame starts without them) */
-  private pageImages: Record<string, string> = {};
-
-  /** The page images changed (the Pages view, a load): the stage lays them over the sheet at once */
-  setPageImages(images: Record<string, string>): void {
-    this.pageImages = { ...images };
-    void this.send("pageImages", [this.pageImages]);
   }
 
   /**
@@ -398,9 +386,9 @@ export class Stage {
     void this.send("surfaceGizmo", [surfaceId, mode]);
   }
 
-  /** The open scene's surfaces as the stage lays them (#314): their ids, sides, sizes; `own` = the scene's, `flat` = on the table */
+  /** The open scene's surfaces as the stage lays them (#314): their ids and sizes; `flat` = on the table */
   surfaces(): SurfaceSnapshot[] {
-    return this.layout.surfaces ?? [];
+    return this.layout.surfaces;
   }
 
   /** Show a target's entity with other values than the content's (live edit), `null` = the content's again; resolves once the frame built it */
@@ -548,13 +536,8 @@ export class Stage {
     return this.requests.request<string | null>("sampleColor", [x, y]).catch(() => null);
   }
 
-  /** Where a target is printed in the book's layout, null when the layout has no place for it */
-  printedPlace(targetId: string): PrintPlacement | null {
-    return this.layout.places[targetId]?.printed ?? null;
-  }
-
-  /** Where a target lies on the stage as the content places it (its own print, else the layout's, else the stage's fallback) */
-  placeOf(targetId: string): PrintPlacement | null {
+  /** Where a target lies on the stage as the content places it (its own place, else the stage's fallback) */
+  placeOf(targetId: string): TargetPlace | null {
     return this.layout.places[targetId]?.place ?? null;
   }
 
@@ -564,16 +547,6 @@ export class Stage {
     void this.send("ghost", [target ? $state.snapshot(target) : null]);
   }
 
-  /** The base format (one page, mm) the positions and the grid are counted in */
-  pageFormat(): { width: number; height: number } {
-    const format = this.layout.pageFormat;
-    return format.width > 0 && format.height > 0 ? format : DEFAULT_PAGE_MM;
-  }
-
-  /** The current spread's format (the form and the panel offer the right surfaces) */
-  format(): SpreadFormat {
-    return (this.spreadId ? getSpread(this.spreadId)?.format : undefined) ?? "spread";
-  }
 
   /** Every shown target is locked again, hidden, and found anew: the unlock animation plays */
   replayUnlock(targetIds?: readonly string[]): void {

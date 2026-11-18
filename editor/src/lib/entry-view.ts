@@ -15,5 +15,5 @@ export const entryLink = (media: string | undefined): string | null => {
 };
 
 /** The entry row's help in the tree: what a tap does, with or without a target */
-export const entryRowHelp = (entry: { category: string; page: number }, hasTarget: boolean): string =>
-  `${entry.category} · p. ${entry.page} – a tap selects the entry: the Inspector shows its form${hasTarget ? ", the stage outlines its target" : " (it has no target)"}`;
+export const entryRowHelp = (entry: { category: string }, hasTarget: boolean): string =>
+  `${entry.category} – a tap selects the entry: the Inspector shows its form${hasTarget ? ", the stage outlines its target" : " (it has no target)"}`;

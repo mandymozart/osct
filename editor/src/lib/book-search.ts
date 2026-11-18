@@ -1,41 +1,38 @@
 import type { EntityData } from "@shared/types/game-config";
 import type { SelectionState } from "./selection";
-import { captionOf, formatLabelOf, pagesOf } from "./spread-grid";
+import { sceneLabel } from "@engine/content/scenes";
 
 /**
- * The header's search through the whole book (#237): entries (title and text), spreads (title, pages – a page number
- * finds its spread), targets (id, the entry's title) and named nodes – accents and case ignored, every word of the
- * query found. Hits are grouped by kind, ranked within a group (the label starting with the query, then a word of it,
- * then anywhere in the label, then only in the text) and kept in book order at the same rank; each names its spread
- * and page and what a pick selects. Pure: `BookSearch.svelte` reads the draft's spreads and draws it.
+ * The header's search through the whole book (#237): entries (title and text), scenes (their label – `186` finds the
+ * scene labelled `186–187`, as text), targets (id, the entry's title) and named nodes – accents and case ignored, every
+ * word of the query found. Hits are grouped by kind, ranked within a group (the label starting with the query, then a
+ * word of it, then anywhere in the label, then only in the text) and kept in the scenes' order at the same rank; each
+ * names its scene and what a pick selects. Pure: `BookSearch.svelte` reads the draft's scenes and draws it.
  */
 
-/** A spread as the search reads it – the engine's `Spread` fits */
+/** A scene as the search reads it – the engine's `Spread` (a scene) fits */
 export interface SearchSpread {
   id: string;
-  title: string;
-  firstPage: number;
-  lastPage: number;
-  format?: string;
-  entries: readonly { id: string; title: string; body?: string; page: number; target?: { id: string; imageSrc?: string } }[];
+  label: string;
+  entries: readonly { id: string; title: string; body?: string; target?: { id: string; imageSrc?: string } }[];
   targets: readonly { id: string; entryId: string; imageSrc?: string; entity?: EntityData }[];
 }
 
-export const SEARCH_KINDS = ["entry", "spread", "target", "node"] as const;
+export const SEARCH_KINDS = ["entry", "scene", "target", "node"] as const;
 export type SearchKind = (typeof SEARCH_KINDS)[number];
-export const SEARCH_KIND_LABELS: Record<SearchKind, string> = { entry: "Entries", spread: "Spreads", target: "Targets", node: "Nodes" };
+export const SEARCH_KIND_LABELS: Record<SearchKind, string> = { entry: "Entries", scene: "Scenes", target: "Targets", node: "Nodes" };
 
 export interface SearchHit {
   kind: SearchKind;
   /** Unique among the hits */
   key: string;
   label: string;
-  /** Where it is: the spread's caption, with the page for an entry */
+  /** Where it is: the scene's label */
   where: string;
   /** For a hit in an entry's text: the words around it */
   excerpt?: string;
   spreadId: string;
-  /** What a pick selects on that spread */
+  /** What a pick selects on that scene */
   select: SelectionState;
   /** 0 = the best */
   rank: number;
@@ -74,12 +71,8 @@ export const excerptOf = (text: string, words: readonly string[], room = 32): st
   return `${start > 0 ? "…" : ""}${line.slice(start, end)}${end < line.length ? "…" : ""}`;
 };
 
-/** A spread's caption for a hit: `p. 12–13 · title`, a cover by its format (and title) */
-export const spreadWhere = (spread: SearchSpread): string => {
-  const format = formatLabelOf(spread);
-  const caption = captionOf(spread);
-  return format ? [format, caption].filter(Boolean).join(" · ") : `p. ${caption || pagesOf(spread)}`;
-};
+/** A scene's name for a hit: its label (its id when it has none) */
+export const spreadWhere = (spread: Pick<SearchSpread, "id" | "label">): string => sceneLabel(spread);
 
 /** Every named node of a tree with its path (`[]` = the root) */
 const namedNodes = (node: EntityData, path: number[] = []): { name: string; path: number[] }[] => [
@@ -92,14 +85,12 @@ export const searchBook = (spreads: readonly SearchSpread[], query: string, limi
   const words = queryWords(query);
   if (!words.length) return [];
   const hits: SearchHit[] = [];
-  const page = /^\d+$/.test(query.trim()) ? Number(query.trim()) : null;
   for (const spread of spreads) {
     const where = spreadWhere(spread);
-    // The spread: its title, its pages, its format – a page number finds the spread it is on
-    const onPage = page !== null && page >= spread.firstPage && page <= spread.lastPage;
-    const spreadRank = onPage ? 0 : labelRank(`${spread.title} ${pagesOf(spread)} ${formatLabelOf(spread)}`, words);
-    if (spreadRank !== null) {
-      hits.push({ kind: "spread", key: `spread:${spread.id}`, label: spread.title || where, where, spreadId: spread.id, rank: spreadRank,
+    // The scene: its label (and its id)
+    const sceneRank = labelRank(`${where} ${spread.id}`, words);
+    if (sceneRank !== null) {
+      hits.push({ kind: "scene", key: `scene:${spread.id}`, label: where, where, spreadId: spread.id, rank: sceneRank,
         select: { target: null, node: [], onTarget: true, spread: true } });
     }
     for (const entry of spread.entries) {
@@ -108,7 +99,7 @@ export const searchBook = (spreads: readonly SearchSpread[], query: string, limi
       const body = entry.body ?? "";
       const inBody = titleRank === null && words.every(word => folded(`${entry.title} ${body}`).includes(word)) && words.some(word => folded(body).includes(word));
       if (titleRank === null && !inBody) continue;
-      hits.push({ kind: "entry", key: `entry:${entry.id}`, label: entry.title, where: `${where} · p. ${entry.page}`, spreadId: spread.id,
+      hits.push({ kind: "entry", key: `entry:${entry.id}`, label: entry.title, where, spreadId: spread.id,
         rank: titleRank ?? 3, ...(inBody ? { excerpt: excerptOf(body, words) } : {}),
         select: { target, node: [], onTarget: true, entry: entry.id } });
     }

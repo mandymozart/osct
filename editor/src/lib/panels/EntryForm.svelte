@@ -9,16 +9,18 @@
   import { draftOf, draftProblems, entryChanges, imageUrl, type EntryDraft } from "#lib/entry-edit.js";
   import { entryLink } from "#lib/entry-view.js";
   import { entries } from "#lib/entries.svelte.js";
+  import { scenes } from "#lib/scenes.svelte.js";
+  import { sceneName } from "#lib/scene-strip.js";
+  import { surfaceChoices } from "#lib/surface-edit.js";
   import { library } from "#lib/library.svelte.js";
   import { pickAccept, type LibraryPick } from "#lib/library-pick.js";
   import { trackUnsaved } from "#lib/unsaved.js";
   import FileField from "#lib/components/FileField.svelte";
-  import ScrubNumber from "#lib/components/ScrubNumber.svelte";
   import Segmented from "#lib/components/Segmented.svelte";
 
   /**
    * An entry's form (#223), in the Inspector's place of the entry the tree selects and on the Entries page: the title,
-   * category and access page, the author and tags, the text with its live preview, the picture from the Library and its
+   * category, its scene (and surface, in a scene of several), the author and tags, the text with its live preview, the picture from the Library and its
    * caption (#289), a link's URL and the target. The preview is the reader's renderer (`renderEntryText`: Markdown with the book's
    * variables) – on the stage with the variables' current values, elsewhere with none set; the variables the text reads
    * are listed with their values, what does not parse below. Edits reach the draft by themselves a moment after the
@@ -35,7 +37,7 @@
     vars?: ReadonlyArray<{ scope: string; name: string; value: unknown }> | null;
     /** Open the Library as a picker for the picture (the host shows it in this place) */
     onpick?: (pick: Omit<LibraryPick, "oncancel">) => void;
-    /** After a save: the draft changed (reload it; a new page may have moved the entry to another spread) – `changes`: the fields written */
+    /** After a save: the draft changed (reload it; a new scene may have moved the entry) – `changes`: the fields written */
     onsaved?: (saved: EntrySaved, changes: Record<string, unknown>) => void | Promise<void>;
     onselecttarget?: (targetId: string) => void;
   } = $props();
@@ -96,8 +98,8 @@
       const fields = stored ? entryChanges(stored, typed) : {};
       if (!Object.keys(fields).length) return;
       const saved = await putEntry(book, id, fields);
-      entries.saved(saved.entry, saved.spreadId);
-      if (saved.spreadId !== saved.previousSpreadId) notice = `Now on ${saved.spreadId ?? "no spread"}`;
+      entries.saved(saved.entry);
+      if (saved.entry.scene !== saved.previousScene) notice = `Now on ${sceneNameOf(saved.entry.scene)}`;
       await done?.(saved, fields);
     });
   };
@@ -117,6 +119,17 @@
     }
   };
   const shown = (value: unknown): string => (typeof value === "string" ? `"${value}"` : String(value));
+  // The scenes the entry may be on (the book's tree) and the surfaces of the chosen one
+  $effect(() => {
+    if (scenes.bookId !== bookId) void scenes.load(bookId);
+  });
+  const sceneNameOf = (id: string): string => {
+    const scene = scenes.scene(id);
+    return scene ? sceneName(scene) : id;
+  };
+  const surfaceOptions = $derived(surfaceChoices(scenes.scene(draft.scene)?.surfaces));
+  /** Another scene: the surface goes (it named one of the scene it left) */
+  const moveTo = (scene: string) => edit({ scene, surface: "" });
   const scopeOf = (name: string): string | undefined => {
     const order = ["spread", "stage", "session", "book"];
     return (vars ?? []).filter(v => v.name === name).sort((a, b) => order.indexOf(a.scope) - order.indexOf(b.scope))[0]?.scope;
@@ -125,15 +138,23 @@
 
 <div class="section" data-help-name="Entry" data-help="The entry as the reader reads it in the list: its fields, its text, its picture and link, and its target. Edits show in the preview at once and reach the draft by themselves, a moment after the last change.">
   <span class="section-label">entry · {entry.title}</span>
-  <span class="small muted">{entry.spreadId ? `on ${entry.spreadId}` : "on no spread"}</span>
+  <span class="small muted">on {sceneNameOf(entry.scene)}</span>
 </div>
 <div class="row" class:changed={"title" in changes}><span class="label">title</span>
   <input class="field" value={draft.title} aria-label="Title" oninput={e => edit({ title: e.currentTarget.value })} data-help="The entry's name – the list and the entry's head show it." /></div>
 <div class="row" class:changed={"category" in changes}><span class="label">category</span>
   <span class="controls"><Segmented options={ENTRY_CATEGORIES} value={draft.category as (typeof ENTRY_CATEGORIES)[number]} labels={CATEGORY_LABELS} label="Category" onchange={category => edit({ category })} /></span></div>
-<div class="row" class:changed={"page" in changes} data-help-name="Access page" data-help="The printed page the entry belongs to – it decides the spread. A page on another spread moves the entry there; a page no spread has leaves it on none.">
-  <span class="label">access page</span>
-  <span class="w"><ScrubNumber value={draft.page} min={0} step={1} prefix="p." label="access page" oninput={page => edit({ page: Math.round(page) })} /></span></div>
+<div class="row" class:changed={"scene" in changes} data-help-name="Scene" data-help="The scene the entry belongs to – where the reader finds it; the list names the scene's label. Another scene moves the entry there.">
+  <span class="label">scene</span>
+  <select class="field" aria-label="Scene" value={draft.scene} onchange={e => moveTo(e.currentTarget.value)}>
+    {#if !scenes.scene(draft.scene)}<option value={draft.scene}>{draft.scene}</option>{/if}
+    {#each scenes.list as scene (scene.id)}<option value={scene.id}>{sceneName(scene)}</option>{/each}
+  </select></div>
+{#if surfaceOptions.length > 1}
+  <div class="row" class:changed={"surface" in changes} data-help-name="Surface" data-help="The surface of the scene the entry lies on – the reader's list names its label, else the scene's. None: the scene as a whole.">
+    <span class="label">surface</span>
+    <span class="controls"><Segmented options={["", ...surfaceOptions.map(c => c.value)]} value={draft.surface} labels={{ "": "none", ...Object.fromEntries(surfaceOptions.map(c => [c.value, c.label])) }} label="Surface" onchange={surface => edit({ surface })} /></span></div>
+{/if}
 <div class="row" class:changed={"author" in changes}><span class="label">author</span>
   <input class="field" value={draft.author} aria-label="Author" placeholder="none" oninput={e => edit({ author: e.currentTarget.value })} data-help="Who wrote the text – the reader shows it for texts." /></div>
 <div class="row" class:changed={"tags" in changes}><span class="label">tags</span>
@@ -189,8 +210,6 @@
   .row.top { align-items: start; }
   .row.top > .label { line-height: var(--control-height); }
   .row > .field { width: 100%; min-width: 0; }
-  .w { width: 7rem; display: inline-flex; }
-  .w :global(.scrub) { width: 100%; }
   .value { min-width: 0; overflow-wrap: anywhere; }
   textarea.body { height: auto; min-height: 8rem; padding: .375rem .5rem; resize: vertical; line-height: 1.4; }
   .preview { min-width: 0; padding: .375rem 0; overflow-wrap: anywhere; }

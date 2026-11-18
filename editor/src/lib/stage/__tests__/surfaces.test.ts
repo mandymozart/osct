@@ -1,74 +1,56 @@
 import { describe, expect, it } from "vitest";
-import type { Target } from "@engine/types";
-import {
-  defaultSurfaceOf, fitImage, hitSurfaces, legacySurfaces, ownRect, pageFrames, printSideOf, rowCentres, sceneFrames, sceneSurfaces, surfaceFrame,
-  surfaceRects, toStage, toSurface, type V3,
-} from "../surfaces";
-import { draggedPlace, grabOffset, printCentre, surfaceAxes } from "../placement";
+import type { SurfaceData, Target } from "@engine/types";
+import { DEFAULT_FRAME, fitImage, hitSurfaces, ownRect, sceneFrames, sceneSurfaces, surfaceRects, toStage, toSurface, type V3 } from "../surfaces";
+import { draggedPlace, frameFor, grabOffset, printCentre, surfaceAxes } from "../placement";
 import { layoutTargets } from "../mock-tracker";
-import { frameBox, gridAreas, originPoint } from "../origin";
+import { flatFrame, frameBox, gridAreas, originPoint } from "../origin";
 import { pageLines, printStageBox, snapPlace } from "../snap";
+import { arrangeInRow } from "#lib/surface-edit.js";
 
-/** The scene's surfaces on the stage (#314): where each lies, and a surface's mm and the stage's */
+/** The scene's surfaces on the stage (#314, #319 – schema 3.0: every surface at its place, no side) */
 
-const page = { width: 230, height: 320 };
 const close = (actual: readonly number[], expected: readonly number[]) => actual.forEach((v, i) => expect(v).toBeCloseTo(expected[i], 6));
 const down: V3 = [0, 0, -1];
+const FLAT = { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 };
+const surface = (id: string, widthMm: number, heightMm: number, place: Partial<SurfaceData["place"]> = {}): SurfaceData =>
+  ({ id, widthMm, heightMm, place: { ...FLAT, ...place } });
+const wallPlace = { x: 0, y: 150, z: -400, rx: 90 };
 
-describe("surfaces: the fixed row", () => {
-  it("keeps the book of content without surfaces: the open book's two pages around the spine, a cover centred", () => {
-    expect(legacySurfaces("spread", page).map(s => s.id)).toEqual(["left", "right"]);
-    expect(legacySurfaces("cover", page).map(s => s.side)).toEqual(["front"]);
-    const [left, right] = sceneFrames({ format: "spread" }, page);
-    close(left.origin, [-230, 160, 0]);
-    close(right.origin, [0, 160, 0]);
-    expect(left.flat && right.flat).toBe(true);
-    expect(left.own).toBe(false);
-    close(sceneFrames({ format: "back" }, page)[0].origin, [-115, 160, 0]);
+describe("surfaces: at their places", () => {
+  it("a double page at the origin: one surface, its middle (the spine) at the scene's origin", () => {
+    const [spread] = sceneFrames({ surfaces: [surface("surface", 460, 320)] });
+    close(spread.origin, [-230, 160, 0]);
+    expect(spread.flat).toBe(true);
+    expect(surfaceRects([spread])).toEqual([{ id: "surface", left: -230, top: 160, width: 460, height: 320 }]);
   });
 
-  it("lays a scene's own surfaces side by side, each at its own size, the row centred on the origin", () => {
-    expect(rowCentres([100, 200, 100])).toEqual([-150, 0, 150]);
-    const foldOut = { surfaces: [
-      { id: "a", side: "left", widthMm: 230, heightMm: 320 },
-      { id: "b", side: "middle", widthMm: 220, heightMm: 300 },
-      { id: "c", side: "right", widthMm: 230, heightMm: 320 },
-    ] };
-    const [a, b, c] = sceneFrames(foldOut, page);
+  it("a row arranged side by side, each at its own size, centred on the origin", () => {
+    const row = arrangeInRow([surface("a", 230, 320), surface("b", 220, 300), surface("c", 230, 320)]);
+    const [a, b, c] = sceneFrames({ surfaces: row });
     close(a.origin, [-340, 160, 0]);
-    // The middle page, lower: centred on the row's axis
+    // The middle one, lower: centred on the row's axis
     close(b.origin, [-110, 150, 0]);
     close(c.origin, [110, 160, 0]);
-    expect([a.own, b.flat]).toEqual([true, true]);
     expect(surfaceRects([a, b, c]).map(r => [r.id, r.left, r.top])).toEqual([["a", -340, 160], ["b", -110, 150], ["c", 110, 160]]);
   });
 
-  it("ignores the places of a fixed scene, and a free layout without surfaces of its own", () => {
-    const surfaces = [{ id: "w", side: "wall", widthMm: 400, heightMm: 300, place: { x: 0, y: 150, z: -200, rx: 90 } }];
-    expect(sceneSurfaces({ surfaces, layout: "fixed" }, page)[0].place).toEqual({ x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 });
-    expect(sceneSurfaces({ layout: "free", format: "spread" }, page).map(s => s.place.x)).toEqual([-115, 115]);
-    // A surface of no size is no surface: the format's pages stand in
-    expect(sceneSurfaces({ surfaces: [{ id: "x", side: "left", widthMm: 0, heightMm: 10 }] }, page).map(s => s.id)).toEqual(["left", "right"]);
+  it("a place's broken numbers count 0; a surface of no size is no surface", () => {
+    expect(sceneSurfaces({ surfaces: [{ id: "x", widthMm: 10, heightMm: 10, place: { ...FLAT, x: Number.NaN, z: 5 } }] })[0].place).toEqual({ ...FLAT, z: 5 });
+    expect(sceneSurfaces({ surfaces: [surface("x", 0, 10)] })).toEqual([]);
+    expect(sceneSurfaces(undefined)).toEqual([]);
+  });
+
+  it("no scene open: the stand-in double page", () => {
+    expect(frameFor([], "anything")).toBe(DEFAULT_FRAME);
+    close(DEFAULT_FRAME.origin, [-230, 160, 0]);
   });
 });
 
-describe("surfaces: the free layout", () => {
-  const scene = { layout: "free" as const, surfaces: [
-    { id: "page", side: "right", widthMm: 200, heightMm: 300 },
-    { id: "wall", side: "wall", widthMm: 400, heightMm: 300, place: { x: 0, y: 150, z: -400, rx: 90 } },
-    { id: "turned", side: "right", widthMm: 100, heightMm: 100, place: { x: 300, y: 0, z: 0, ry: 90 } },
-  ] };
-
-  it("places each surface at its place; one without a place keeps its place in the row", () => {
-    const [own, wall, turned] = sceneSurfaces(scene, page);
-    // The row of the surfaces without a place: the page alone, centred on the origin
-    expect(own.place).toEqual({ x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 });
-    expect(wall.place).toEqual({ x: 0, y: 150, z: -400, rx: 90, ry: 0, rz: 0 });
-    expect(turned.place.ry).toBe(90);
-  });
+describe("surfaces: standing and turned", () => {
+  const scene = { surfaces: [surface("page", 200, 300), surface("wall", 400, 300, wallPlace), surface("turned", 100, 100, { x: 300, ry: 90 })] };
 
   it("stands a wall (rx 90) up, its face towards the reader, its top edge up", () => {
-    const wall = sceneFrames(scene, page)[1];
+    const wall = sceneFrames(scene)[1];
     expect(wall.flat).toBe(false);
     // The stage frame: x right, y away from the reader, z up – the wall's face looks towards the reader (−y)
     close(wall.normal, [0, -1, 0]);
@@ -80,46 +62,42 @@ describe("surfaces: the free layout", () => {
   });
 
   it("turns a surface about the vertical (ry): no longer square to the table's axes, not flat for the 2D grid", () => {
-    const turned = sceneFrames(scene, page)[2];
+    const turned = sceneFrames(scene)[2];
     close(turned.normal, [0, 0, 1]);
     close(turned.right, [0, 1, 0]);
     expect(turned.flat).toBe(false);
   });
+
+  it("a raised surface (y above the table) is not on the table's grid", () => {
+    expect(sceneFrames({ surfaces: [surface("shelf", 100, 100, { y: 40 })] })[0].flat).toBe(false);
+  });
 });
 
 describe("surfaces: a hit on the stage in a surface's millimetres", () => {
-  it("finds the page under a ray from above, in mm from its top left corner", () => {
-    const frames = sceneFrames({ format: "spread" }, page);
-    expect(hitSurfaces(frames, [-30, 100, 500], down)).toEqual({ surface: "left", x: 200, y: 60 });
-    expect(hitSurfaces(frames, [10, -100, 500], down)).toEqual({ surface: "right", x: 10, y: 260 });
-    // Beyond the edge: the nearest page (a drag past the outer edge stays on it)
-    expect(hitSurfaces(frames, [260, 0, 500], down)).toEqual({ surface: "right", x: 260, y: 160 });
+  it("finds the surface under a ray from above, in mm from its top left corner", () => {
+    const frames = sceneFrames({ surfaces: arrangeInRow([surface("l", 230, 320), surface("r", 230, 320)]) });
+    expect(hitSurfaces(frames, [-30, 100, 500], down)).toEqual({ surface: "l", x: 200, y: 60 });
+    expect(hitSurfaces(frames, [10, -100, 500], down)).toEqual({ surface: "r", x: 10, y: 260 });
+    // Beyond the edge: the nearest surface (a drag past the outer edge stays on it)
+    expect(hitSurfaces(frames, [260, 0, 500], down)).toEqual({ surface: "r", x: 260, y: 160 });
     // Away from the table: nothing
     expect(hitSurfaces(frames, [0, 0, 500], [0, 0, 1])).toBeNull();
   });
 
-  it("finds the middle page of a fold-out and a wall in front of the table", () => {
-    const frames = sceneFrames({ layout: "free", surfaces: [
-      { id: "l", side: "left", widthMm: 230, heightMm: 320 },
-      { id: "m", side: "middle", widthMm: 230, heightMm: 320 },
-      { id: "w", side: "wall", widthMm: 400, heightMm: 300, place: { x: 0, y: 150, z: -400, rx: 90 } },
-    ] }, page);
-    expect(hitSurfaces(frames, [50, 0, 500], down)?.surface).toBe("m");
+  it("finds a wall in front of the table", () => {
+    const frames = sceneFrames({ surfaces: [surface("p", 460, 320), surface("w", 400, 300, wallPlace)] });
     // From the reader's side, level, towards the wall: 100 mm up the wall, 50 right of its middle
     expect(hitSurfaces(frames, [50, -1000, 100], [0, 1, 0])).toEqual({ surface: "w", x: 250, y: 200 });
   });
 
   it("reads a stage point back on its surface", () => {
-    const wall = sceneFrames({ layout: "free", surfaces: [{ id: "w", side: "wall", widthMm: 400, heightMm: 300, place: { x: 0, y: 150, z: -400, rx: 90 } }] }, page)[0];
+    const wall = sceneFrames({ surfaces: [surface("w", 400, 300, wallPlace)] })[0];
     expect(toSurface(wall, toStage(wall, 12, 34))).toEqual({ x: 12, y: 34 });
   });
 });
 
 describe("surfaces: prints on them", () => {
-  const frames = sceneFrames({ layout: "free", surfaces: [
-    { id: "p", side: "right", widthMm: 200, heightMm: 300 },
-    { id: "w", side: "wall", widthMm: 400, heightMm: 300, place: { x: 0, y: 150, z: -400, rx: 90 } },
-  ] }, page);
+  const frames = sceneFrames({ surfaces: [surface("p", 200, 300), surface("w", 400, 300, wallPlace)] });
 
   it("centres a print on a wall in the wall's plane, turned with it", () => {
     expect(printCentre({ surface: "w", x: 100, y: 50, width: 40, height: 20 }, frames)).toEqual({ x: -80, y: 400, z: 240 });
@@ -135,49 +113,46 @@ describe("surfaces: prints on them", () => {
     expect(draggedPlace(place, { kind: "move", ...grab }, { surface: "p", x: 30, y: 40 }, frames)).toEqual({ ...place, surface: "p", x: 20, y: 30 });
   });
 
-  it("lays targets on their surface: the surfaceId wins, else the side, else the scene's fallback", () => {
-    const target = (id: string, print?: Target["print"]): Target => ({ id, imageSrc: `/${id}.jpg`, ...(print ? { print } : {}) }) as Target;
+  it("lays targets on their surface: the place's surface, else the scene's first", () => {
+    const target = (id: string, place?: Target["place"]): Target => ({ id, imageSrc: `/${id}.jpg`, ...(place ? { place } : {}) }) as Target;
     const laid = layoutTargets([
-      target("a", { surface: "right", surfaceId: "w", x: 1, y: 2, width: 30 }),
-      target("b", { surface: "right", x: 1, y: 2, width: 30 }),
-      target("c", { surface: "left", surfaceId: "gone", x: 1, y: 2, width: 30 }),
-    ], {}, page, null, "spread", frames);
+      target("a", { surface: "w", x: 1, y: 2, width: 30 }),
+      target("b", { x: 1, y: 2, width: 30 }),
+      target("c", { surface: "gone", x: 1, y: 2, width: 30 }),
+    ], {}, frames);
     expect(laid.map(t => t.surface)).toEqual(["w", "p", "p"]);
-    expect(defaultSurfaceOf(frames, "spread")?.id).toBe("p");
-    // Without surfaces the sides are the surfaces, as before
-    expect(layoutTargets([target("d", { surface: "left", x: 0, y: 0, width: 10 })]).map(t => t.surface)).toEqual(["left"]);
-  });
-
-  it("writes the side apps before 2.36 know next to the surface's id", () => {
-    expect(printSideOf("left", "spread")).toBe("left");
-    expect(printSideOf("middle", "spread")).toBe("right");
-    expect(printSideOf("wall", "cover")).toBe("front");
+    expect(laid[1]).toMatchObject({ x: 1, y: 2, width: 30, height: 22.5 });
+    // No place: a row across the first surface's middle
+    const row = layoutTargets([target("d"), target("e")], {}, frames);
+    expect(row.map(t => [t.surface, t.y])).toEqual([["p", 127.5], ["p", 127.5]]);
   });
 });
 
 describe("surfaces: grid and snapping count on the table", () => {
-  const rects = surfaceRects(sceneFrames({ surfaces: [
-    { id: "a", side: "left", widthMm: 200, heightMm: 300 },
-    { id: "b", side: "middle", widthMm: 200, heightMm: 300 },
-    { id: "c", side: "right", widthMm: 200, heightMm: 300 },
-  ] }, page));
-  const frame = { page, format: "spread" as const, surfaces: rects };
+  const surfaces = arrangeInRow([surface("a", 200, 300), surface("b", 200, 300), surface("c", 200, 300)]);
+  const frame = { surfaces: surfaceRects(sceneFrames({ surfaces })) };
 
-  it("grids each surface from its own corner, or the whole row from the scene's origin", () => {
+  it("the frame from the content alone (the page side) is the stage's", () => {
+    expect(flatFrame(surfaces)).toEqual(frame);
+    // A standing or raised surface is not on the table
+    expect(flatFrame([...surfaces, surface("w", 400, 300, wallPlace)]).surfaces).toHaveLength(3);
+  });
+
+  it("grids each surface from its own corner, or from the scene's origin – one area per surface (its own spacing, #316)", () => {
     expect(frameBox(frame)).toEqual({ left: -300, top: 150, width: 600, height: 300 });
-    expect(gridAreas("top-left", frame).map(a => [a.left, a.zeroX])).toEqual([[0, 0], [200, 200], [400, 400]]);
-    expect(gridAreas("centre", frame)).toEqual([{ left: 0, top: 0, width: 600, height: 300, zeroX: 300, zeroY: 150 }]);
+    expect(gridAreas("top-left", frame).map(a => [a.surface, a.left, a.zeroX])).toEqual([["a", 0, 0], ["b", 200, 200], ["c", 400, 400]]);
+    expect(gridAreas("centre", frame).map(a => [a.surface, a.left, a.zeroX, a.zeroY])).toEqual([["a", 0, 300, 150], ["b", 200, 300, 150], ["c", 400, 300, 150]]);
     expect(originPoint("centre", frame, "b")).toEqual({ x: 100, y: 150 });
   });
 
-  it("snaps to every surface's edges, and a print's box on the middle page", () => {
+  it("snaps to every surface's edges, and a print's box on the middle surface", () => {
     expect(pageLines(frame)[0].map(l => l.at)).toEqual([-300, -100, 100, 300]);
     expect(printStageBox({ surface: "b", x: 10, y: 20, width: 50 }, 40, frame)).toEqual({ min: [-90, 90, 0], max: [-40, 130, 0] });
   });
 
   it("snaps a print on a wall in the wall's own plane: its edges", () => {
-    const wall = ownRect({ id: "w", side: "wall", widthMm: 400, heightMm: 300 });
-    const local = { page, format: "spread" as const, surfaces: [wall], local: true };
+    const wall = ownRect({ id: "w", widthMm: 400, heightMm: 300 });
+    const local = { surfaces: [wall], local: true };
     const lines = pageLines(local);
     const { place } = snapPlace({ surface: "w", x: 2, y: 3, width: 50 }, 40, "move", {
       frame: local, lines, threshold: 5, settings: { snapTo: ["outlines"], gridMm: 10, snapMove: 1, origin: "top-left" },
@@ -195,12 +170,5 @@ describe("surfaces: reference images fitted", () => {
     expect(cover.offset[0]).toBeCloseTo(1 / 3, 6);
     expect(fitImage("contain", 0.5, 200, 300)).toEqual({ width: 200, height: 100, repeat: [1, 1], offset: [0, 0] });
     expect(fitImage("contain", 3, 200, 300).width).toBeCloseTo(100, 6);
-  });
-});
-
-describe("surfaces: a page size stands for the book without surfaces", () => {
-  it("has all four sides, each where the open or the closed book has it", () => {
-    expect(pageFrames(page).map(f => [f.id, f.origin[0]])).toEqual([["left", -230], ["right", 0], ["front", -115], ["back", -115]]);
-    expect(surfaceFrame(sceneSurfaces({ format: "cover" }, page)[0]).flat).toBe(true);
   });
 });

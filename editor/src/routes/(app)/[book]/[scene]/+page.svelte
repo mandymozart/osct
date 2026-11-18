@@ -22,7 +22,9 @@
   import { environmentEdit, stageEnvironment } from "#lib/environment.svelte.js";
   import NewTargetForm from "#lib/panels/NewTargetForm.svelte";
   import NewEntryForm from "#lib/panels/NewEntryForm.svelte";
-  import NewSpreadForm from "#lib/NewSpreadForm.svelte";
+  import NewSceneForm from "#lib/NewSceneForm.svelte";
+  import { sceneLabel } from "@engine/content/scenes";
+  import { surfaceGrids } from "#lib/surface-grids.svelte.js";
   import { bookSource } from "#lib/book-source.svelte.js";
   import { entries } from "#lib/entries.svelte.js";
   import { deleteEntry, errorText, isMediaAsset, putTarget, type Asset, type MediaKind } from "#lib/api.js";
@@ -34,7 +36,6 @@
   import { removalStep, type RemovalStep } from "#lib/removal.js";
   import RemovalConfirm from "#lib/components/RemovalConfirm.svelte";
   import { library } from "#lib/library.svelte.js";
-  import { pageImages } from "#lib/page-images.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { nodeAt } from "#lib/values.js";
   import { queueTreeSaves } from "#lib/tree-autosave.js";
@@ -47,8 +48,6 @@
   import { readStored, writeStored } from "#lib/storage.js";
   import ScenesPanel from "#lib/ScenesPanel.svelte";
   import { scenes } from "#lib/scenes.svelte.js";
-  import { fetchBookLayout } from "#lib/sheet-preview.js";
-  import type { StageLayout } from "#lib/stage/stage-layout.js";
   import FloatingPanel from "#lib/components/FloatingPanel.svelte";
   import { Floats, openFloats } from "#lib/components/floats.svelte.js";
   import { at, type PanelSpec } from "#lib/components/floats.js";
@@ -59,8 +58,8 @@
 
   /**
    * The workspace. On a desktop and an iPad (#308) the **stage** (the engine over the mock stage) is the whole window
-   * and the panels float over it (`FloatingPanel`, `SCENE_PANELS`): the **Tree** of the spread (a 3D tool's outliner),
-   * the **Inspector** (essential) with its tabs Inspector (whatever is selected – the spread while nothing else is,
+   * and the panels float over it (`FloatingPanel`, `SCENE_PANELS`): the **Tree** of the scene (a 3D tool's outliner),
+   * the **Inspector** (essential) with its tabs Inspector (whatever is selected – the scene while nothing else is,
    * #229), Environment, Library and Code (`panel-tabs.ts`), the **Scenes** filmstrip (#307, `ScenesPanel.svelte`: a
    * card opens its scene, a band selects its group, a drag reorders; the draft follows `scenes.version`), **Info** and
    * the stage's **Tools** (inline). Each moves by its head, resizes by its edges, folds to its head and – unless
@@ -69,11 +68,11 @@
    * bottom with the tree as a tab, ‹ › over the stage – is gone (#317). `?tab=environment` opens a tab.
    */
   const bookId = $derived(page.params.book!);
-  const spreadId = $derived(page.params.spread!);
+  const spreadId = $derived(page.params.scene!);
   const TAB_KEY = "osct-editor-tab";
   /** The Inspector's tab row: the words, or the icons in an Inspector too narrow for them */
   const TAB_BUTTONS: { tab: Tab; label: string; icon: IconName; title?: string }[] = [
-    { tab: "inspector", label: "Inspector", icon: "inspector", title: "Whatever is selected: the spread, an entry, a target, its entity or a node" },
+    { tab: "inspector", label: "Inspector", icon: "inspector", title: "Whatever is selected: the scene, a surface, an entry, a target, its entity or a node" },
     { tab: "environment", label: "Environment", icon: "globe", title: "The sky around the reader and the onion sky, previewed on the stage" },
     { tab: "library", label: "Library", icon: "folder" },
     { tab: "code", label: "Code", icon: "code" },
@@ -120,7 +119,7 @@
    * asks for – the Tree and the Inspector (they scroll) grow to the full height beside the Scenes strip.
    */
   const SCENE_PANELS: PanelSpec[] = [
-    { id: "tree", name: "Tree", icon: "tree", about: "The spread's entries, their targets and the entities' nodes: a click selects, a drag moves a node.",
+    { id: "tree", name: "Tree", icon: "tree", about: "The scene's surfaces, entries, their targets and the entities' nodes: a click selects, a drag moves a node.",
       place: at("top-left", 0, 0), size: { w: 16.5, h: "fill" }, min: { w: 12, h: 8 } },
     { id: "inspector", name: "Inspector", icon: "inspector", about: "Whatever is selected, and the tabs Environment, Library and Code. It folds but never closes.",
       place: at("top-right", 0, 0), size: { w: 25, h: "fill" }, min: { w: 16, h: 10 }, essential: true },
@@ -171,9 +170,9 @@
 
   // ── targets and entries: the forms, removal, a changed image or placement ──
   let addingTarget = $state(false);
-  /** The tree's "+ entry" (#237): an entry without a printed image on this spread */
+  /** The tree's "+ entry" (#237): an entry without a printed image on this scene */
   let addingEntry = $state(false);
-  /** The creation step of a new spread (#238 – a digital-first book): the double page follows `after` */
+  /** The creation step of a new scene (#238 – a digital-first book): it follows `after` */
   let addingSpread = $state<{ after: string | null } | null>(null);
   const openNewSpread = (after: string | null) => {
     addingTarget = false;
@@ -185,12 +184,12 @@
     await reloadContent();
     void goto(resolve(`${bookId}/${newId}/`));
   };
-  // Whether spreads are added here (#238): the book's source of truth, read once per book (the book's Inspector changes it)
+  // Whether scenes are added here (#238): the book's source of truth, read once per book (the book's Inspector changes it)
   $effect(() => {
     const id = bookId;
     if (bookSource.bookId !== id) void bookSource.load(id);
   });
-  /** + after the last spread's › (#238) */
+  /** + after the last scene (#238) */
   const atLastSpread = $derived(content.spreads.at(-1)?.id === spreadId);
   const canAddSpread = $derived(bookSource.bookId === bookId && bookSource.digital);
   let entityPanel = $state<{ useAsset: (kind: MediaKind, src: string, assetId: string) => void }>();
@@ -279,16 +278,8 @@
   $effect(() => {
     if (shown !== "environment") environmentEdit.picking = null;
   });
-  // ── page images (#251): the book's own images of single pages lie over the layout's sheet on the stage ──
-  $effect(() => {
-    if (pageImages.bookId !== bookId) void pageImages.load(bookId);
-  });
-  $effect(() => {
-    const images = pageImages.bookId === bookId ? pageImages.byKey : {};
-    stage?.setPageImages(images);
-  });
   // ── surface reference images (#314): the scenes list has each surface's (`scenes.references`, read again whenever the
-  // scenes change), handed to the stage, which shows them before the page images and the layout sheet ──
+  // scenes change), handed to the stage, which lays them on the surfaces ──
   const surfaceReferences = $derived.by<SurfaceReferences>(() => {
     const refs: SurfaceReferences = {};
     if (scenes.bookId !== bookId) return refs;
@@ -301,8 +292,11 @@
     stage?.setSurfaceReferences($state.snapshot(surfaceReferences));
   });
 
+  // ── the surfaces' own grids (#316 part 1): the open scene's spacings, kept in this browser, go to the stage ──
+  $effect(() => surfaceGrids.enter(bookId, spreadId));
+
   // ── the Surface mode (#314): the Surface tool outlines the open scene's surfaces, a tap selects one (no target, no
-  // node), Esc deselects; the selected one is highlighted – in a free scene with its gizmo, whose drag saves its place ──
+  // node), Esc deselects; the selected one is highlighted with its gizmo, whose drag saves its place ──
   const surfaceMode = $derived(stage?.tool === "surface");
   const selectedSurface = $derived(selection.surface && selection.surface.scene === spreadId ? selection.surface.id : null);
 
@@ -324,16 +318,8 @@
     });
   };
 
-  // ── the Scenes panel (#307): the strip's pictures are the book page's (the layout's sheets, the page images); a change
-  // of the order, a group or a new scene reaches the draft, so ‹ › and the stage follow ──
-  let sheetLayout = $state<StageLayout | null>(null);
-  $effect(() => {
-    const base = content.bookId === bookId ? content.assetsBase : null;
-    if (base === null) return;
-    let live = true;
-    void fetchBookLayout(base).then(layout => { if (live) sheetLayout = layout; });
-    return () => { live = false; };
-  });
+  // ── the Scenes panel (#307): the cards are the scenes' surfaces with their reference images; a change of the order,
+  // a group or a new scene reaches the draft, so ‹ › and the stage follow ──
   let scenesSeen = untrack(() => scenes.version);
   $effect(() => {
     const version = scenes.version;
@@ -439,8 +425,7 @@
           if (hit) selectHit(hit);
           stageMenu = { hit, x, y };
         };
-        // The Surface mode (#314): a tap selects the scene's own surface there; on none (or a page of content without
-        // surfaces) the spread
+        // The Surface mode (#314): a tap selects the scene's surface there; on none the scene
         stage.onSurfacePick = hit => {
           if (stage?.tool !== "surface") return;
           stageMenu = null;
@@ -524,7 +509,7 @@
   const toolKey = (tool: StageTool) => Object.entries(TOOL_KEYS).find(([, t]) => t === tool)?.[0].toUpperCase();
   const toolLabel = (tool: StageTool) =>
     tool === "select" ? `Select (${toolKey(tool)}) – a click picks what the filters allow, no gizmo`
-      : tool === "surface" ? `Surface (${toolKey(tool)}) – the scene's surfaces outlined, a click selects one, Esc deselects; a free scene's surface moves with its gizmo`
+      : tool === "surface" ? `Surface (${toolKey(tool)}) – the scene's surfaces outlined, a click selects one, Esc deselects; the selected one moves with its gizmo`
         : `${TOOL_NAMES[tool]} (${toolKey(tool)}) – Shift or Ctrl turns snapping around`;
   const TOOL_OPTIONS: ToolGroupOption[] = STAGE_TOOLS.map(tool => ({ value: tool, name: TOOL_NAMES[tool], key: toolKey(tool), icon: TOOL_ICONS[tool], label: toolLabel(tool) }));
   /** The select filters, in this order (Tilman, #308): each says what a click may pick; none on = anything */
@@ -584,7 +569,7 @@
     openTab("inspector");
     requestAnimationFrame(() => document.querySelector<HTMLButtonElement>("button.placement-toggle")?.click());
   };
-  const NAVIGATION_HELP = "Drag = orbit · Shift-drag, the middle button or two fingers = pan · wheel / pinch = distance · double tap = the reader's view · ← → = the spreads. A click picks what lies there, right click opens its menu.";
+  const NAVIGATION_HELP = "Drag = orbit · Shift-drag, the middle button or two fingers = pan · wheel / pinch = distance · double tap = the reader's view · ← → = the scenes. A click picks what lies there, right click opens its menu.";
 
   const spread = $derived(content.spread(spreadId));
 
@@ -636,7 +621,7 @@
     if (event.key === "ArrowRight") step(1);
     const tool = TOOL_KEYS[event.key.toLowerCase()];
     if (tool && !event.ctrlKey && !event.metaKey && !event.altKey) stage?.setTool(tool);
-    // Esc deselects a selected surface (#314, the Surface mode): the spread is selected again
+    // Esc deselects a selected surface (#314, the Surface mode): the scene is selected again
     if (event.key === "Escape" && selection.surface && !picking) selection.clear();
     // Delete removes the selected node (the tree does the same when it has the focus and stops the event)
     if ((event.key === "Delete" || event.key === "Backspace") && removeSelectedNode()) event.preventDefault();
@@ -692,7 +677,7 @@
       <ToolGroup label="Render quality" options={shadingOptions} value={stage.shading} stroke={1.75}
         onchoose={mode => updatePreview({ shading: mode as ShadingMode })} />
       <GridSnapMenu />
-      <ViewMenu bind:this={viewMenu} format={spread?.format ?? "spread"} />
+      <ViewMenu bind:this={viewMenu} />
       <!-- #269: the stage runs the book live (Unreal's Realtime) – Live off holds the entities' clock for placing; Restart is a new game -->
       <span class="tool-group live" role="group" aria-label="Live">
         <button type="button" class="icon-button" class:on={stage.live} aria-pressed={stage.live} onclick={() => stage?.setLive(!stage.live)}
@@ -700,7 +685,7 @@
           data-help-name="Live" data-help="On: the stage plays the book as a reader sees it – components, clips, the book's code move by themselves. Off: their clock holds, so the scene stands still while you place things; what is found still appears. The code is loaded either way.">
           <Icon name={stage.live ? "pause" : "play"} /></button>
         <button type="button" class="icon-button" onclick={() => stage?.resetNarrative()} aria-label="Restart" title="Restart: a new game – nothing found, no variables; every reveal plays again"
-          data-help-name="Restart" data-help="A new game on the stage: nothing found, every variable cleared, the timeline empty – the spread's targets are found anew and play their reveal, as a reader meets the page the first time.">
+          data-help-name="Restart" data-help="A new game on the stage: nothing found, every variable cleared, the timeline empty – the scene's targets are found anew and play their reveal, as a reader meets the scene the first time.">
           <Icon name="replay" /></button>
       </span>
     </div>
@@ -734,7 +719,7 @@
   {:else if addingTarget && spread}
     <div class="body"><NewTargetForm {bookId} {spread} {stage} oncreated={targetCreated} oncancel={() => (addingTarget = false)} /></div>
   {:else if addingSpread}
-    <div class="body"><NewSpreadForm {bookId} spreads={content.spreads} after={addingSpread.after} oncreated={spreadCreated} oncancel={() => (addingSpread = null)} /></div>
+    <div class="body"><NewSceneForm {bookId} scenes={content.spreads} after={addingSpread.after} oncreated={spreadCreated} oncancel={() => (addingSpread = null)} /></div>
   {:else if addingEntry && spread}
     <div class="body"><NewEntryForm {bookId} {spread} oncreated={entryCreated} oncancel={() => (addingEntry = false)} /></div>
   {:else if shown === "tree"}
@@ -760,13 +745,13 @@
         <ContextMenu at={stageMenu} label="Target" head="{hit.targetId}{hit.path.length ? ` › ${hit.path.join(' › ')}` : ''}" onclose={() => (stageMenu = null)} items={[
           { label: hasTree ? "Add node…" : "Add AR content…", select: menuAddNode },
           ...(hasTree ? [{ label: hit.path.length ? "Remove node" : "Remove entity", select: menuRemoveNode }] : []),
-          { label: "Placement on the page…", select: menuPlacement },
+          { label: "Placement on the surface…", select: menuPlacement },
           { label: "Replay the first find", select: () => stage?.replayUnlock() },
           { label: "Library…", select: () => chooseTab("library") },
           { label: "Remove target", danger: true, select: () => { const t = content.spread(spreadId)?.targets.find(x => x.id === hit.targetId); if (t) void removeEntry(t.entryId, t.id); } },
         ]} />
       {:else if stageMenu}
-        <ContextMenu at={stageMenu} label="Stage" head={spread?.title ?? spreadId} onclose={() => (stageMenu = null)} items={[
+        <ContextMenu at={stageMenu} label="Stage" head={spread ? sceneLabel(spread) : spreadId} onclose={() => (stageMenu = null)} items={[
           { label: "+ target…", select: () => (addingTarget = true) },
           { label: "Replay the first find", select: () => stage?.replayUnlock() },
           { label: "View settings…", select: () => viewMenu?.open() },
@@ -800,18 +785,18 @@
     </FloatingPanel>
     <FloatingPanel {floats} id="inspector">
       {#snippet head()}
-        <!-- Back to the spreads is the top bar's book crumb; ‹ › live in the Scenes panel's head (#307) -->
+        <!-- Back to the book is the top bar's book crumb; ‹ › live in the Scenes panel's head (#307) -->
         <span class="float-tabs" role="group" aria-label="Inspector tabs">{@render tabButtons()}</span>
         {#if canAddSpread && atLastSpread}
-          <button type="button" class="icon-button" onclick={() => openNewSpread(spreadId)} title="Add a spread after the last one" aria-label="Add a spread"
-            data-help-name="Add a spread" data-help="Opens the creation step for a new spread – a double page after this one, or a cover the book does not have yet."><Icon name="plus" /></button>
+          <button type="button" class="icon-button" onclick={() => openNewSpread(spreadId)} title="Add a scene after the last one" aria-label="Add a scene"
+            data-help-name="Add a scene" data-help="Opens the creation step for a new scene after this one – a double page, a single page or a wall."><Icon name="plus" /></button>
         {/if}
       {/snippet}
       <div class="float-body inspector">{@render panelBody()}</div>
     </FloatingPanel>
     <FloatingPanel {floats} id="scenes">
-      <ScenesPanel {bookId} bookTitle={scenes.tree?.book.title ?? ""} current={spreadId} selectedGroup={selection.group} {sheetLayout} floating
-        pageImages={pageImages.bookId === bookId ? pageImages.byKey : {}} assetsBase={content.assetsBase ?? ""} onopen={id => void openScene(id)} onselectgroup={selectGroup} onstep={step} />
+      <ScenesPanel {bookId} bookTitle={scenes.tree?.book.title ?? ""} current={spreadId} selectedGroup={selection.group} floating
+        assetsBase={content.assetsBase ?? ""} onopen={id => void openScene(id)} onselectgroup={selectGroup} onstep={step} />
     </FloatingPanel>
     <FloatingPanel {floats} id="info">
       <InfoView floating />

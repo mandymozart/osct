@@ -30,7 +30,7 @@
   const shown = $derived(filterChanges(history.changes, filter, known.scenesOf));
   const me = $derived(session.user?.email ?? null);
   const byId = $derived(new Map(history.changes.map(c => [c.id, c])));
-  const sceneChoices = $derived(tree?.spreads ?? []);
+  const sceneChoices = $derived(tree?.scenes ?? []);
 </script>
 
 <div class="history">
@@ -38,7 +38,7 @@
     <select aria-label="Scene" title="Only the changes of this scene (its entries, targets and entities)" bind:value={filter.scene}>
       <option value={null}>All scenes</option>
       {#if current}<option value={current}>This scene</option>{/if}
-      {#each sceneChoices as s (s.id)}<option value={s.id}>{s.title || s.label || s.id}</option>{/each}
+      {#each sceneChoices as s (s.id)}<option value={s.id}>{s.label || s.id}</option>{/each}
     </select>
     <select aria-label="Kind" bind:value={filter.kind}>
       <option value={null}>All kinds</option>

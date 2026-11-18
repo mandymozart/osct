@@ -42,7 +42,7 @@ describe("readFrameEvent: the page acts only on well-formed events", () => {
     expect(readFrameEvent(event("placement", { targetId: "door", path: [-1], placement: { position: [0, 0, 0], rotation: [0, 0, 0], scale: 1 } }))).toBeNull();
     expect(readFrameEvent(event("state", { status: "flying" }))).toBeNull();
     expect(readFrameEvent(event("log", { level: "info", text: "x".repeat(5000) }))).toBeNull();
-    expect(readFrameEvent(event("ghostChange", { surface: "ceiling", x: 0, y: 0, width: 10 }))).toBeNull();
+    expect(readFrameEvent(event("ghostChange", { surface: "", x: 0, y: 0, width: 10 }))).toBeNull();
     expect(readFrameEvent(event("preview", { shading: "rendered" }))).toBeNull();
   });
 
@@ -215,12 +215,15 @@ describe("frameCsp: plugin code reaches the content, never the API", () => {
 
 describe("the scene's surfaces across the frame (#314)", () => {
   it("reads a placement on a surface by id, the layout's surfaces and the surface a tap hit", () => {
-    expect(readFrameEvent(event("ghostChange", { surface: "right", surfaceId: "p41", x: 1, y: 2, width: 30 }))?.data).toMatchObject({ surfaceId: "p41" });
-    expect(readFrameEvent(event("ghostChange", { surface: "right", surfaceId: "", x: 1, y: 2, width: 30 }))).toBeNull();
-    const surfaces = [{ id: "w", side: "wall", widthMm: 400, heightMm: 300, own: true, flat: false }];
-    expect(readFrameEvent(event("layout", { pageFormat: { width: 230, height: 320 }, places: {}, surfaces }))?.name).toBe("layout");
-    expect(readFrameEvent(event("layout", { pageFormat: { width: 230, height: 320 }, places: {} }))?.name).toBe("layout");
-    expect(readFrameEvent(event("layout", { pageFormat: { width: 230, height: 320 }, places: {}, surfaces: [{ id: "w" }] }))).toBeNull();
+    expect(readFrameEvent(event("ghostChange", { surface: "p41", x: 1, y: 2, width: 30 }))?.data).toMatchObject({ surface: "p41" });
+    expect(readFrameEvent(event("ghostChange", { x: 1, y: 2, width: 30 }))?.data).toEqual({ x: 1, y: 2, width: 30 });
+    expect(readFrameEvent(event("ghostChange", { surface: 4, x: 1, y: 2, width: 30 }))).toBeNull();
+    const surfaces = [{ id: "w", widthMm: 400, heightMm: 300, flat: false }];
+    const place = { surface: "w", x: 1, y: 2, width: 30 };
+    expect(readFrameEvent(event("layout", { places: { t: { place } }, surfaces }))?.name).toBe("layout");
+    expect(readFrameEvent(event("layout", { places: { t: { place: null } }, surfaces: [] }))?.name).toBe("layout");
+    expect(readFrameEvent(event("layout", { places: {} }))).toBeNull();
+    expect(readFrameEvent(event("layout", { places: {}, surfaces: [{ id: "w" }] }))).toBeNull();
     expect(readFrameEvent(event("surfacePick", { surfaceId: "w", x: 10, y: 20 }))?.data).toEqual({ surfaceId: "w", x: 10, y: 20 });
     expect(readFrameEvent(event("surfacePick", null))?.name).toBe("surfacePick");
     expect(readFrameEvent(event("surfacePick", { surfaceId: "w", x: "10", y: 20 }))).toBeNull();

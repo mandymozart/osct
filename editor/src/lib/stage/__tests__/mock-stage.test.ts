@@ -7,9 +7,16 @@ import {
 } from "three";
 import { MockStage } from "../mock-stage";
 import { sceneSurfaces } from "../surfaces";
+import type { StageGrids } from "../mock-tracker";
+import { arrangeInRow, FLAT } from "#lib/surface-edit.js";
 
-const page = { width: 230, height: 320 };
-const book = { spreads: 10, format: "spread" as const };
+/** The open scene: two pages side by side, `left` and `right`, the scene's origin between them (#319: plain boards at their places) */
+const pageOf = (id: string) => ({ id, widthMm: 230, heightMm: 320, place: FLAT });
+const book = { surfaces: sceneSurfaces({ surfaces: arrangeInRow([pageOf("left"), pageOf("right")]) }) };
+/** The grids with the surfaces' grid as asked; the floor grid on, the vertical grid off (the defaults) */
+const grids = (patch: Partial<StageGrids>): StageGrids => ({
+  on: false, mm: 10, origin: "top-left", axis: false, surfaces: {}, floor: true, floorMm: 50, wall: false, wallZ: -500, ...patch,
+});
 
 const newStage = () => {
   vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -26,40 +33,67 @@ const gridOf = (stage: MockStage) => (stage as unknown as { gridGroup: { childre
 describe("mock stage: the grid", () => {
   it("draws nothing while off, and lines (plus the zero lines) while on", () => {
     const { stage } = newStage();
-    stage.setLayout([], page, null, book);
+    stage.setLayout([], book);
     expect(gridOf(stage)).toHaveLength(0);
-    stage.setGrid({ on: true, mm: 10, origin: "top-left", axis: false });
+    stage.setGrid(grids({ on: true, mm: 10, origin: "top-left", axis: false }));
     const [lines, zeros] = gridOf(stage);
     // per page 23 vertical (x = 10 … 230) + 32 horizontal lines, two points each; the zero lines are separate
     expect(lines.geometry.getAttribute("position").count).toBe(2 * 2 * (23 + 32));
     expect(zeros.geometry.getAttribute("position").count).toBe(2 * 2 * 2);
     expect(gridOf(stage)).toHaveLength(2);
-    stage.setGrid({ on: false, mm: 10, origin: "top-left", axis: true });
+    stage.setGrid(grids({ on: false, mm: 10, origin: "top-left", axis: true }));
     expect(gridOf(stage)).toHaveLength(0);
   });
 
-  it("counts both pages as one grid from the book's centre", () => {
+  it("counts every surface from the scene's origin for the centre: its zero lines meet at the spine", () => {
     const { stage } = newStage();
-    stage.setLayout([], page, null, book);
-    stage.setGrid({ on: true, mm: 10, origin: "centre", axis: false });
+    stage.setLayout([], book);
+    stage.setGrid(grids({ on: true, mm: 10, origin: "centre", axis: false }));
     const [, zeros] = gridOf(stage);
-    expect(zeros.geometry.getAttribute("position").count).toBe(2 * 2);
+    // per surface its zero line across (y = 160) and the one at the spine (the left page's right edge, the right's left)
+    const position = zeros.geometry.getAttribute("position");
+    expect(position.count).toBe(2 * 2 * 2);
+    expect([position.getX(0), position.getX(1), position.getX(4), position.getX(5)].map(v => +v.toFixed(3))).toEqual([0, 0, 0, 0]);
+  });
+
+  it("gives a surface its own spacing (#316 part 1)", () => {
+    const { stage } = newStage();
+    stage.setLayout([], book);
+    stage.setGrid(grids({ on: true, mm: 10, origin: "top-left", surfaces: { right: 115 } }));
+    const [lines] = gridOf(stage);
+    // the left page every 10 mm (23 + 32), the right page every 115 mm (x = 115, 230; y = 115, 230)
+    expect(lines.geometry.getAttribute("position").count).toBe(2 * (23 + 32) + 2 * (2 + 2));
+  });
+
+  it("draws the grid on a standing wall in the wall's own plane", () => {
+    const { stage } = newStage();
+    const surfaces = sceneSurfaces({ surfaces: [{ id: "w", widthMm: 400, heightMm: 300, place: { ...FLAT, y: 150, z: -400, rx: 90 } }] });
+    stage.setLayout([], { surfaces });
+    stage.setGrid(grids({ on: true, mm: 100, origin: "top-left" }));
+    const [lines, zeros] = gridOf(stage);
+    // x = 100 … 400, y = 100 … 300; every point 400 mm away from the reader (stage y, a hair over the prints), between the floor and 300 mm up
+    expect(lines.geometry.getAttribute("position").count).toBe(2 * (4 + 3));
+    const position = zeros.geometry.getAttribute("position");
+    for (let i = 0; i < position.count; i++) {
+      expect(position.getY(i)).toBeCloseTo(0.4 + 0.00025, 6);
+      expect(position.getZ(i)).toBeGreaterThanOrEqual(-1e-9);
+    }
   });
 
   it("raises the vertical axis from each zero, out of the page, only with the grid (#190)", () => {
     const { stage } = newStage();
-    stage.setLayout([], page, null, book);
-    stage.setGrid({ on: false, mm: 10, origin: "centre", axis: true });
+    stage.setLayout([], book);
+    stage.setGrid(grids({ on: false, mm: 10, origin: "centre", axis: true }));
     expect(gridOf(stage)).toHaveLength(0);
-    stage.setGrid({ on: true, mm: 10, origin: "centre", axis: true });
+    stage.setGrid(grids({ on: true, mm: 10, origin: "centre", axis: true }));
     const [, , vertical] = gridOf(stage);
     const position = vertical.geometry.getAttribute("position");
-    // one line from the book's centre (the spine's middle) up along z
-    expect(position.count).toBe(2);
-    expect([position.getX(0), position.getY(0), position.getX(1), position.getY(1)]).toEqual([0, 0, 0, 0]);
+    // from the scene's centre (the spine's middle) up along z – once per surface, both at the spine
+    expect(position.count).toBe(4);
+    expect([position.getX(0), position.getY(0), position.getX(1), position.getY(1)].map(v => +v.toFixed(6))).toEqual([0, 0, 0, 0]);
     expect(position.getZ(1)).toBeCloseTo(0.15);
     // a corner origin: one per page, at each page's top left corner
-    stage.setGrid({ on: true, mm: 10, origin: "top-left", axis: true });
+    stage.setGrid(grids({ on: true, mm: 10, origin: "top-left", axis: true }));
     const corners = gridOf(stage)[2].geometry.getAttribute("position");
     expect(corners.count).toBe(4);
     expect([corners.getX(0), corners.getY(0)].map(v => +v.toFixed(3))).toEqual([-0.23, 0.16]);
@@ -72,7 +106,7 @@ describe("mock stage: the snap guides (#190)", () => {
 
   it("draws a line across the spread per guide, through everything, and clears them", () => {
     const { stage } = newStage();
-    stage.setLayout([], page, null, book);
+    stage.setLayout([], book);
     stage.setGuides([{ axis: 0, at: 0 }, { axis: 1, at: 160 }, { axis: 2, at: 0 }]);
     const [lines] = guidesOf(stage);
     const position = lines.geometry.getAttribute("position");
@@ -86,31 +120,63 @@ describe("mock stage: the snap guides (#190)", () => {
   });
 });
 
-describe("mock stage: the sharper sheet image", () => {
-  const sheet = { image: "/s.jpg", imageSharp: "/s@sharp.jpg", widthMm: 460, heightMm: 320 };
+describe("mock stage: the scene's floor grid and vertical grid (#319)", () => {
+  const sceneGridOf = (stage: MockStage) => (stage as unknown as { sceneGridGroup: { children: LineSegments[] } }).sceneGridGroup.children;
+  const tableTop = (stage: MockStage) => (stage as unknown as { tableTop: number }).tableTop;
 
-  it("is fetched only once the base image is there and the camera is close, and only once", () => {
-    const { stage, requested } = newStage();
-    stage.setLayout([], page, sheet, book);
-    expect(requested).toEqual(["/s.jpg"]);
-    stage.setDetail(300);
-    expect(requested).toEqual(["/s.jpg"]);
-    const paper = (stage as unknown as { sheetPaper: { material: { map: unknown } } }).sheetPaper;
-    paper.material.map = {};
-    stage.setDetail(900);
-    expect(requested).toEqual(["/s.jpg"]);
-    stage.setDetail(300);
-    stage.setDetail(200);
-    expect(requested).toEqual(["/s.jpg", "/s@sharp.jpg"]);
+  it("lays the floor grid on the table every floorMm through the origin, every tenth line stronger; off draws none", () => {
+    const { stage } = newStage();
+    stage.setLayout([], book);
+    stage.setGrid(grids({ floorMm: 50 }));
+    const [minor, major] = sceneGridOf(stage);
+    // ±1500 mm every 50: 61 lines each way, 7 of them (−1500, −1000 … 1500) strong
+    expect(major.geometry.getAttribute("position").count).toBe(2 * 2 * 7);
+    expect(minor.geometry.getAttribute("position").count).toBe(2 * 2 * (61 - 7));
+    const z = minor.geometry.getAttribute("position").getZ(0);
+    expect(z).toBeGreaterThan(tableTop(stage));
+    expect(z).toBeLessThan(0);
+    expect((minor.material as { transparent: boolean }).transparent).toBe(true);
+    stage.setGrid(grids({ floor: false }));
+    expect(sceneGridOf(stage)).toHaveLength(0);
+  });
+
+  it("steps a very fine floor grid up so it stays light", () => {
+    const { stage } = newStage();
+    stage.setGrid(grids({ floorMm: 1 }));
+    const count = sceneGridOf(stage).reduce((sum, lines) => sum + lines.geometry.getAttribute("position").count, 0);
+    expect(count).toBeLessThanOrEqual(2 * 2 * 401);
+  });
+
+  it("stands the vertical grid at the scene's z: stage y = −z, from the table up", () => {
+    const { stage } = newStage();
+    stage.setGrid(grids({ floor: false, wall: true, wallZ: -800, floorMm: 500 }));
+    const lines = sceneGridOf(stage);
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) {
+      const position = line.geometry.getAttribute("position");
+      for (let i = 0; i < position.count; i++) expect(position.getY(i)).toBeCloseTo(0.8, 6);
+    }
+  });
+
+  it("draws the scene's axes with a grid and the axis", () => {
+    const { stage } = newStage();
+    stage.setGrid(grids({ floor: false, axis: true }));
+    expect(sceneGridOf(stage)).toHaveLength(0);
+    stage.setGrid(grids({ axis: true }));
+    // the floor's two nets and the three axes
+    expect(sceneGridOf(stage)).toHaveLength(5);
   });
 });
 
 describe("mock stage: the viewport's shading (#137)", () => {
-  it("puts the book and the desk in wireframe and solid, and gives their materials back", async () => {
-    const { Mesh: MeshClass } = await import("three");
+  /** The left page's reference image: a plane on its board */
+  const referenced = { ...book, references: { left: { url: "https://cdn.test/l.jpg", fit: "stretch" as const } } };
+  const referenceOf = (stage: MockStage) => (stage as unknown as { book: Group }).book.children.find(c => c.userData.reference === "left") as Mesh;
+
+  it("puts the surfaces and the desk in wireframe and solid, and gives their materials back", () => {
     const { stage } = newStage();
-    stage.setLayout([], page, { image: "/s.jpg", widthMm: 460, heightMm: 320 }, book);
-    const paper = (stage as unknown as { sheetPaper: InstanceType<typeof MeshClass> }).sheetPaper;
+    stage.setLayout([], referenced);
+    const paper = referenceOf(stage);
     const own = paper.material;
     stage.setShading("solid");
     expect(paper.material).not.toBe(own);
@@ -123,11 +189,11 @@ describe("mock stage: the viewport's shading (#137)", () => {
   it("builds a new layout in the current shading", () => {
     const { stage } = newStage();
     stage.setShading("solid");
-    stage.setLayout([], page, { image: "/s.jpg", widthMm: 460, heightMm: 320 }, book);
-    const paper = (stage as unknown as { sheetPaper: { material: { color: { getHex(): number } } } }).sheetPaper;
-    expect(paper.material.color.getHex()).toBe(0xb4b4b4);
+    stage.setLayout([], referenced);
+    const paper = () => referenceOf(stage).material as MeshBasicMaterial;
+    expect(paper().color.getHex()).toBe(0xb4b4b4);
     stage.setShading("textured");
-    expect(paper.material.color.getHex()).not.toBe(0xb4b4b4);
+    expect(paper().color.getHex()).not.toBe(0xb4b4b4);
   });
 });
 
@@ -145,7 +211,7 @@ describe("mock stage: the printed images and the placement (#191)", () => {
   it("scales one plane to the print: the image's aspect and a move resize it, and an outline on it follows", async () => {
     const { outline } = await import("../shading");
     const { stage, answer } = printStage();
-    stage.setLayout([portrait], page, null, book);
+    stage.setLayout([portrait], book);
     const [plane] = stage.printedPlanes();
     expect(plane.scale.x).toBeCloseTo(0.08, 6);
     expect(plane.scale.y).toBeCloseTo(0.06, 6); // the stored box until the image is known
@@ -167,7 +233,7 @@ describe("mock stage: the printed images and the placement (#191)", () => {
 
   it("keeps a print moved before its image arrived where it was moved", () => {
     const { stage, answer } = printStage();
-    stage.setLayout([portrait], page, null, book);
+    stage.setLayout([portrait], book);
     stage.movePrint({ ...portrait, x: 10 });
     answer("/a.jpg", 100, 100);
     const [plane] = stage.printedPlanes();
@@ -177,7 +243,7 @@ describe("mock stage: the printed images and the placement (#191)", () => {
 
   it("draws a new target's ghost, but only the handles of a target that moves itself", () => {
     const { stage } = newStage();
-    stage.setLayout([portrait], page, null, book);
+    stage.setLayout([portrait], book);
     stage.setGhost({ ...portrait, id: "ghost" });
     const drawn = stage.ghostParts();
     expect((drawn.image as unknown as { material: { visible: boolean } }).material.visible).toBe(true);
@@ -347,57 +413,29 @@ describe("mock stage: the environment replaces the HDRI (#185)", () => {
   });
 });
 
-describe("mock stage: the page image, the fold and the eye (#250)", () => {
-  const sheet = { image: "/s.jpg", widthMm: 460, heightMm: 320 };
-  /** A stage whose loader hands every texture over at once */
-  const loadingStage = () => {
-    const made = newStage();
-    (made.stage as unknown as { loader: unknown }).loader = { setCrossOrigin: () => {}, load: (_url: string, onLoad: (t: Texture) => void) => onLoad(new Texture()) } as never;
-    return made;
-  };
+describe("mock stage: the surfaces as boards, the eye (#250, #319)", () => {
   const bookOf = (stage: MockStage) => (stage as unknown as { book: Group }).book;
-  const folds = (stage: MockStage) =>
-    bookOf(stage).children.filter(child => ((child as Mesh).material as MeshBasicMaterial | undefined)?.transparent === true && !!((child as Mesh).material as MeshBasicMaterial).map);
 
-  it("draws the page image untinted: its white is the prints' white", () => {
-    const { stage } = loadingStage();
-    stage.setLayout([], page, sheet, book);
-    const paper = (stage as unknown as { sheetPaper: Mesh }).sheetPaper;
-    expect((paper.material as MeshBasicMaterial).map).toBeTruthy();
-    expect((paper.material as MeshBasicMaterial).color.getHex()).toBe(0xffffff);
+  it("draws each surface as a plain board at its place – no fold, no cover", () => {
+    const { stage } = newStage();
+    const surfaces = sceneSurfaces({ surfaces: arrangeInRow(["l", "m", "r"].map(pageOf)) });
+    stage.setLayout([], { surfaces });
+    const boards = bookOf(stage).children.filter(c => c.userData.surfaceId);
+    expect(boards.map(c => [c.userData.surfaceId, Math.round(c.position.x * 1000)])).toEqual([["l", -230], ["m", 0], ["r", 230]]);
+    // Nothing but the boards (no reference image here): no fold, no spine, no cover board, no shadow
+    expect(bookOf(stage).children).toHaveLength(3);
+    // The table lies under the boards
+    expect((stage as unknown as { tableTop: number }).tableTop).toBeLessThan(boards[0].position.z);
   });
 
-  it("lays a fold over the spine of an open book, none on a closed one", () => {
-    // happy-dom draws no canvas: a context that takes the gradient is enough
-    const gradient = { addColorStop: () => {} };
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
-      { createLinearGradient: () => gradient, fillRect: () => {}, fillStyle: "" } as never);
-    const { stage } = loadingStage();
-    stage.setLayout([], page, sheet, book);
-    expect(folds(stage)).toHaveLength(1);
-    stage.setLayout([], page, sheet, { ...book, format: "cover" });
-    expect(folds(stage)).toHaveLength(0);
-  });
-
-  it("draws a fold-out's three pages with a fold over each seam (#314)", () => {
-    const gradient = { addColorStop: () => {} };
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
-      { createLinearGradient: () => gradient, fillRect: () => {}, fillStyle: "" } as never);
-    const { stage } = loadingStage();
-    const surfaces = sceneSurfaces({ surfaces: ["l", "m", "r"].map(id => ({ id, side: id, widthMm: 230, heightMm: 320 })) }, page);
-    stage.setLayout([], page, null, { ...book, surfaces });
-    expect(folds(stage)).toHaveLength(2);
-    expect(bookOf(stage).children.filter(c => c.userData.surfaceId).map(c => [c.userData.surfaceId, Math.round(c.position.x * 1000)])).toEqual([["l", -230], ["m", 0], ["r", 230]]);
-  });
-
-  it("stands a free scene's wall up, lays its prints and the reference image on it, and finds it under a ray (#314)", () => {
+  it("stands a wall up, lays its prints and the reference image on it, and finds it under a ray (#314)", () => {
     const { stage, requested } = newStage();
-    const surfaces = sceneSurfaces({ layout: "free", surfaces: [
-      { id: "p", side: "right", widthMm: 200, heightMm: 300 },
-      { id: "w", side: "wall", widthMm: 400, heightMm: 300, place: { x: 0, y: 150, z: -400, rx: 90 } },
-    ] }, page);
+    const surfaces = sceneSurfaces({ surfaces: [
+      { id: "p", widthMm: 200, heightMm: 300, place: FLAT },
+      { id: "w", widthMm: 400, heightMm: 300, place: { ...FLAT, y: 150, z: -400, rx: 90 } },
+    ] });
     const target = { id: "a", imageSrc: "/a.jpg", surface: "w", x: 180, y: 130, width: 40, height: 40 };
-    stage.setLayout([target], page, null, { ...book, surfaces, free: true, references: { w: { url: "https://cdn.test/w.jpg", fit: "stretch" } } });
+    stage.setLayout([target], { surfaces, references: { w: { url: "https://cdn.test/w.jpg", fit: "stretch" } } });
     const [print] = stage.printedPlanes();
     // On the wall, 400 mm away from the reader, its middle 150 mm up – facing the reader
     expect(print.position.y).toBeCloseTo(0.4, 2);
@@ -410,7 +448,7 @@ describe("mock stage: the page image, the fold and the eye (#250)", () => {
 
   it("outlines the surfaces and highlights one by id (#314, the Surface mode)", () => {
     const { stage } = newStage();
-    stage.setLayout([], page, null, book);
+    stage.setLayout([], book);
     const marks = () => (stage as unknown as { marksGroup: Group }).marksGroup.children as LineSegments[];
     stage.setSurfaceMarks(["left", "right", "nope"], "right");
     // The left one grey (4 edges); the highlighted right one two loops white, two loops black (monochrome, RULES #38)
@@ -425,7 +463,7 @@ describe("mock stage: the page image, the fold and the eye (#250)", () => {
   it("leaves out the printed images of the targets hidden in the tree", () => {
     const { stage } = newStage();
     const target = (id: string) => ({ id, imageSrc: `/${id}.jpg`, surface: "right", x: 20, y: 20, width: 40, height: 30 });
-    stage.setLayout([target("a"), target("b")], page, null, book);
+    stage.setLayout([target("a"), target("b")], book);
     stage.setHiddenPrints(new Set(["a"]));
     expect(stage.printedPlanes().map(p => [p.userData.targetId, p.visible])).toEqual([["a", false], ["b", true]]);
     stage.setHiddenPrints(new Set());

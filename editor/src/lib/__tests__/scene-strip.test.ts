@@ -5,7 +5,7 @@ import {
 } from "../scene-strip";
 
 const scene = (id: string, group?: string, targets = 0, extra: Partial<StripScene> = {}): StripScene => ({
-  id, title: "", firstPage: 2, lastPage: 3, ...(group ? { group } : {}),
+  id, label: "", surfaces: [], ...(group ? { group } : {}),
   entries: Array.from({ length: targets + 1 }, (_, i) => (i < targets ? { target: { id: `${id}-${i}` } } : { target: null })),
   ...extra,
 });
@@ -32,12 +32,10 @@ describe("the strip's runs and counts", () => {
     expect(runCounts(scenes.slice(2, 5), 30)).toEqual({ scenes: 3, targets: 23, over: false });
     expect(runCounts([])).toEqual({ scenes: 0, targets: 0, over: false });
   });
-  it("names a scene by its label, its own title or its pages", () => {
+  it("names a scene by its label, else its id – nothing counted from pages", () => {
     expect(sceneName(scene("a", undefined, 0, { label: " Studio wall " }))).toBe("Studio wall");
-    expect(sceneName(scene("a", undefined, 0, { title: "Pages 2–3" }))).toBe("2–3");
-    expect(sceneName(scene("a", undefined, 0, { title: "Janus" }))).toBe("Janus");
-    expect(sceneName(scene("a", undefined, 0, { title: "Front matter 1", matter: "front" }))).toBe("Front matter 1");
-    expect(sceneName(scene("a", undefined, 0, { format: "cover", firstPage: 0, lastPage: 0 }))).toBe("cover");
+    expect(sceneName(scene("a", undefined, 0, { label: "2–3" }))).toBe("2–3");
+    expect(sceneName(scene("cover", undefined, 0, { label: " " }))).toBe("cover");
     expect(sceneSpan(["22–23", "24–25", "26–27"])).toBe("22–23 … 26–27");
     expect(sceneSpan([])).toBe("none");
   });
