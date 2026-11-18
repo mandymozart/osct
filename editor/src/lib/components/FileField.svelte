@@ -46,5 +46,6 @@
 <style>
   .file-field { flex: 1; flex-wrap: wrap; }
   .thumb { flex: none; width: 2.5rem; height: 1.875rem; object-fit: contain; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface-head); }
-  .name { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* The name keeps room to be read ("none", a file name): the buttons wrap to the next line before it shrinks to "n…" */
+  .name { flex: 1 1 5rem; min-width: 3rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

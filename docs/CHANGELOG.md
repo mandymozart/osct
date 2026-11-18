@@ -7,6 +7,12 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.105.1 – 2026-11-18
+
+### Fixed
+- **Environment tab**: world and sky are each a block with a line between them, and a file field's name keeps room
+  ("none" instead of "n…") – the sky's picture no longer reads as the world's (#310).
+
 ## 1.105.0 – 2026-11-18
 
 ### Changed
