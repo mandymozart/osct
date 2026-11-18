@@ -173,6 +173,39 @@ coordinate system of #316 (part 2; the per-surface grid of #316 part 1 stays ope
   the Inspector shows it (label, side, size, place and a gizmo in a free scene, reference image, remove); the Tree has a
   Surfaces level with + surface (page / wall / custom); the scene section adds, removes and reorders.
 
+## Evaluation 2026-11-18: one clean model for the first release (Tokyo, February 2027)
+
+Tilman, 2026-11-18: *"Ältere Reader-Apps sind irrelevant … keine Rückwärtskompatibilität … den Reader einfach anpassen"*;
+the files (cut halves, names) do not matter. Surfaces are free areas that sit next to each other; `left` / `right` make
+no sense. The scene has one coordinate system with a floor grid (a transparent net, as in the SCUTOONS editor) for
+snapping, optionally a vertical one (a single wall, a poster).
+
+**Proposal – content schema 3.0 (MAJOR, a clean cut):**
+- **Scene** (`scenes`, not `spreads`): `id`, `label`, `group?`, `surfaces[]`, its entries; `initialScene`. Gone:
+  `title` as page range, `firstPage`, `lastPage`, `format` (spread / cover / back), `matter`, `layout`.
+- **Surface**: `id`, `label?` (as printed – `41`, `Cover`, `Studio wall`), `widthMm`, `heightMm`, **`place`
+  (always)** in the scene's coordinate system. Gone: `side`. "Fixed / free" stops being data: the editor's *Arrange in a
+  row* lays surfaces side by side (flat, touching, the row centred on the origin) and is just a command; a fold on the
+  stage is drawn where two surfaces touch edge to edge.
+- **Entry**: `scene` and `surface?` (required scene). Gone: `page`.
+- **Target print** → `place: { surface, x, y, width, height? }` – the surface by id. Gone: `print.surface` sides, `page`.
+- **Reference images** (editor-only): **layers of the scene**, each an image with a place and size in the scene's
+  coordinates (on the floor plane or a vertical plane), *fit to a surface* or *fit across several surfaces* – so one
+  double scan covers a double page without cutting, and halves still work; replaces the per-surface reference of 1.113.
+- **Two surfaces per double page stay the rule for the book** (recommended): the index and the entries name printed
+  pages (41, not 40–41) – each page its label. A scene that is one picture (a poster, a wall) is one surface.
+- **Grids**: the scene's **floor grid** (y = 0, transparent net, the snap grid for places on the table) and an optional
+  **vertical grid** (a plane at a chosen z – a wall exhibition); a surface's own grid (#316 part 1) for prints on it.
+- **Reader**: the switcher, the entries list, links and progress by scene and surface label; `/scene/<id>`; no page
+  arithmetic anywhere. Reading progress and links of earlier test builds are dropped.
+- **Migration**: one server step (plan → apply) turns staging's osct and the demo into 3.0: surfaces get places from
+  their current row, `side` / `format` / `matter` / `layout` / pages go, entries keep scene + surface, prints map side →
+  surface id, page images become reference layers fitted to their surface.
+
+**Work** (sequential where marked): (1) contract 3.0 + guards + fixtures + the content build; (2) server + migration +
+MCP (after 1); (3) reader (after 1, beside 2); (4) editor + stage: no side / layout, Arrange in a row, reference layers,
+floor / vertical grid (after 1, beside 2–3). About four workers, roughly a week of evenings with reviews.
+
 ## Open questions (Tilman)
 - [x] The word in the UI and the API: **"scene" everywhere** (Tilman, 2026-11-17) – UI, API, MCP, links `/scene/<id>`, code
   and content types (`SceneData`); "spread" survives only as an alias for old links and content, and RULES #2's term
