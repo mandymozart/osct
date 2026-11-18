@@ -18,7 +18,8 @@
   import type { Point } from "#lib/context-menu.js";
   import SceneCards from "#lib/SceneCards.svelte";
   import { scenes } from "#lib/scenes.svelte.js";
-  import { groupedOf, stripKey, type MoveRequest } from "#lib/scene-strip.js";
+  import { gridColumns, groupedOf, stripKey, type MoveRequest } from "#lib/scene-strip.js";
+  import { pageOf } from "#lib/sheet-preview.js";
   import { errorText, type ScenePlace } from "#lib/api.js";
   import { readStoredJson, writeStoredJson } from "#lib/storage.js";
   import type { StageLayout } from "#lib/stage/stage-layout.js";
@@ -32,7 +33,9 @@
    * and zoom are remembered in this browser. A drop is written at once (`POST …/scenes/move`, the drop is the
    * confirmation); the workspace follows `scenes.version` (the draft's order for ‹ ›). In a floating panel
    * (`floating`, #308) the panel's head folds it and its edges resize it: no ▾ and no sash here, the strip fills the panel
-   * and its cards scale with the panel's height.
+   * and its cards scale with the panel's height. **Filmstrip or grid** (#315, the head's switch, remembered here): the
+   * strip one row whose cards scale with the panel's height; the grid columns that wrap, as many as its width holds
+   * (`gridColumns`: one when narrow, each column 88–168 px), its cards scaling with the width, scrolled down.
    */
   let { bookId, bookTitle = "", current, selectedGroup = null, sheetLayout = null, pageImages = {}, assetsBase = "", floating = false, onopen, onselectgroup, onstep }: {
     bookId: string;
@@ -56,10 +59,27 @@
   const HEIGHT_MIN = 130;
   /** The cards scale with the panel's height (no zoom buttons – #307 3c): the default height is scale 1 */
   const CARD_HEIGHT_PX = 57.6;
-  const stored = readStoredJson(KEY) as { open?: boolean; height?: number } | null;
+  const stored = readStoredJson(KEY) as { open?: boolean; height?: number; layout?: string } | null;
   let open = $state(stored?.open ?? true);
   let height = $state(typeof stored?.height === "number" ? stored.height : HEIGHT_DEFAULT);
-  const save = () => writeStoredJson(KEY, { open, height });
+  /** Filmstrip (the default) or grid (#315) */
+  let layout = $state<"strip" | "grid">(stored?.layout === "grid" ? "grid" : "strip");
+  const save = () => writeStoredJson(KEY, { open, height, layout });
+  const setLayout = (next: "strip" | "grid") => {
+    layout = next;
+    save();
+  };
+  /** The grid's columns from the strip's width: its padding (.6rem each side) and the cards' gap (.75rem) */
+  let stripWidth = $state(0);
+  let stripHeight = $state(0);
+  const grid = $derived.by(() => {
+    const rem = typeof document === "undefined" ? 16 : parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const page = pageOf(sheetLayout);
+    // Less a scrollbar's room, so the columns never make it scroll sideways
+    // A whole row shows in a short panel: its height less the padding, a card's caption and a group's band
+    const rowRoom = stripHeight ? stripHeight - 1.05 * rem - 1.3 * rem - 1.4 * rem : Infinity;
+    return gridColumns(stripWidth - 1.2 * rem - 12, page.width / page.height, 0.75 * rem, rowRoom);
+  });
   const count = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
   const maxHeight = () => Math.max(HEIGHT_MIN, Math.round(window.innerHeight * 0.5));
   /** In a floating panel: its height, measured */
@@ -175,6 +195,12 @@
     <button type="button" class="icon-button" bind:this={addButton} disabled={busy}
       onclick={() => { const r = addButton!.getBoundingClientRect(); openAdd({ x: r.left, y: r.bottom }, { after: current }); }}
       data-help-name="+ Scene…" data-help="Adds a scene after the open one, from a layout: a single or double page, a fold-out, a wall – a front cover goes first, a back cover last. Nothing else renumbers." title="Add a scene" aria-label="Add a scene"><Icon name="file-plus" /></button>
+    <span class="layouts" role="group" aria-label="Layout">
+      <button type="button" class="icon-button" class:on={layout === "strip"} aria-pressed={layout === "strip"} onclick={() => setLayout("strip")}
+        title="Filmstrip" aria-label="Filmstrip" data-help-name="Filmstrip" data-help="The scenes in one row that scrolls sideways; the cards grow with the panel's height. Remembered in this browser."><Icon name="film" /></button>
+      <button type="button" class="icon-button" class:on={layout === "grid"} aria-pressed={layout === "grid"} onclick={() => setLayout("grid")}
+        title="Grid" aria-label="Grid" data-help-name="Grid" data-help="The scenes in columns that wrap and scroll down – one column when the panel is narrow, more as it widens; the cards grow with its width, a double page spans two. Remembered in this browser."><Icon name="grid" /></button>
+    </span>
     {#if ungroupMode}
       <button type="button" class="icon-button" disabled={busy || !canUngroup} onclick={ungroup} title="Ungroup (Ctrl+Shift+G)" aria-label="Ungroup"
         data-help-name="Ungroup" data-help="The picked scenes leave their group, in place (Ctrl+Shift+G) – with a group selected and no grouped scene picked, the group itself goes; its scenes stay where they are."><Icon name="folder-minus" /></button>
@@ -190,9 +216,9 @@
     {/if}
   </div>
   {#if open || floating}
-    <div class="strip">
+    <div class="strip" bind:clientWidth={stripWidth} bind:clientHeight={stripHeight}>
       {#if scenes.tree}
-        <SceneCards layout="strip" {current} {selectedGroup} {zoom} {sheetLayout} {pageImages} {assetsBase} {onopen} {onselectgroup}
+        <SceneCards {layout} {current} {selectedGroup} {zoom} columns={grid.columns} cardHeight={grid.cardHeight} {sheetLayout} {pageImages} {assetsBase} {onopen} {onselectgroup}
           onmove={move} ongroup={group} onungroup={ungroup} onadd={at => openAdd(at)} />
       {:else}
         <p class="muted small loading">{scenes.error ? errorText(scenes.error) : "Loading the scenes…"}</p>
@@ -218,7 +244,9 @@
   .info { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; font-size: var(--text-small); }
   .err { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .grow { flex: 1; }
-  .steps { display: inline-flex; flex: none; }
+  .steps, .layouts { display: inline-flex; flex: none; }
+  .layouts { margin-right: .25rem; }
+  .layouts .on { color: var(--accent); }
   .strip { flex: 1; min-height: 0; }
   .loading { padding: .5rem .75rem; margin: 0; }
 </style>

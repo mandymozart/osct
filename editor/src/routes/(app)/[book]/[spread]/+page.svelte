@@ -587,7 +587,7 @@
   ] satisfies (ToolGroupOption & { value: ShadingMode })[];
   /** With the book's environment, *rendered* shows its world instead of the HDRI (#185) – the button's label says so */
   const shadingOptions = $derived<ToolGroupOption[]>(stageEnvironment.current
-    ? SHADING_OPTIONS.map(option => (option.value === "rendered" ? { ...option, label: "Rendered – the environment's world as sky, the reader's light" } : option))
+    ? SHADING_OPTIONS.map(option => (option.value === "rendered" ? { ...option, label: "Rendered – the environment's sky, the reader's light" } : option))
     : SHADING_OPTIONS);
   /** The groups' shapes in the toolbar's order (render quality, grid & snap and view are one button each) */
   const TOOL_SHAPES: GroupShape[] = [{ options: TOOL_OPTIONS.length }, { options: FILTER_OPTIONS.length }, { options: 1 }, { options: 1 }, { options: 1 }];
@@ -655,7 +655,8 @@
     // The toolbar's max-width: on a phone the stage's less 1rem and ‹ › (2 buttons and their margins); on a desktop the
     // Tools panel's – the width it was resized to, else the room between the Tree and the Inspector
     const room = (narrow ? width - rem - 2 * button - (3 * rem) / 8 : floatingRoom(rem)) - ROOM_SLACK;
-    const next = expandedGroups(TOOL_SHAPES, room, metrics);
+    // A column (#315): every group one button and its menu – side by side its options would make it wide
+    const next = !narrow && floats.vertical("tools") ? TOOL_SHAPES.map(() => false) : expandedGroups(TOOL_SHAPES, room, metrics);
     if (next.some((e, i) => e !== expanded[i])) expanded = next;
     stepsUp = narrow && !!height && stepsOnTop(height, bar.offsetHeight, button, rem / 2);
   });
@@ -725,7 +726,8 @@
   {#if stage}
     <!-- The tool in hand and the select filters, render quality, then grid & snap and view, one button and its panel each;
          always one row (#180, #190, #229, #308) -->
-    <div class="tools" class:inline role="toolbar" data-app-ui aria-label="Stage tools" bind:this={tools}>
+    <div class="tools" class:inline class:vertical={inline && floats.vertical("tools")} role="toolbar" aria-orientation={inline && floats.vertical("tools") ? "vertical" : "horizontal"}
+      data-app-ui aria-label="Stage tools" bind:this={tools}>
       <ToolGroup label="Tool" options={TOOL_OPTIONS} value={stage.tool} expanded={expanded[0]}
         onchoose={tool => stage?.setTool(tool as StageTool)} />
       <span class="tool-group filters" data-help-name="Select filters" data-help={FILTER_HELP}>
@@ -910,6 +912,10 @@
   .float-tabs .tab.on { background: var(--surface); }
   .float-tabs .tab.icon-tab { padding: 0; width: var(--control-height); justify-content: center; }
   .tools.inline { position: static; width: max-content; max-width: none; padding: 0; border: 0; background: none; flex-wrap: nowrap; }
+  /* A column (#315): the groups below each other, a rule above each instead of beside it */
+  .tools.vertical { flex-direction: column; width: auto; }
+  .tools.vertical .live, .tools.vertical .filters { flex-direction: column; }
+  .tools.vertical :global(.tool-group + .tool-group) { margin: .125rem 0 0; padding: .25rem 0 0; border-left: 0; border-top: 1px solid var(--line); }
   .tree-body { padding: .25rem .375rem .75rem; }
   .stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
   /* The stage frame (#234) under the toolbar and the notices; a panel or sheet drag over it stays the page's */

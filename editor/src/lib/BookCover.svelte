@@ -52,8 +52,8 @@
   .type { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; align-items: center;
     padding: 9cqw 8cqw 10cqw; text-align: center;
     background: radial-gradient(circle, #ececec 0.5px, transparent 0.8px) 0 0 / 1cqw 1cqw, #fff; }
-  .gold { background: linear-gradient(90deg, #f5e7c8 0%, #f5e7c8 3.8%, #7f6032 31.5%, #d2ae5a 57%, #f3cc94 73.6%, #f3cc94 100%);
-    -webkit-background-clip: text; background-clip: text; color: transparent; line-height: 1.1; }
+  /* Monochrome: the brand's gold is the reader's, not the editor's (Tilman, 2026-11-18) */
+  .gold { color: #1e1e1e; line-height: 1.1; }
   .title { font-size: 9cqw; }
   .author { font-size: 6cqw; }
 </style>

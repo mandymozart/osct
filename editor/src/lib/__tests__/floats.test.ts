@@ -45,6 +45,18 @@ describe("the floating panels: the default layout", () => {
     expect(views.tools.rect.w).toBe(300 + 36 + 28 + 8);
   });
 
+  it("a toolbar never folds – a fold stored by an older editor is ignored (#315)", () => {
+    const folded = lay({ tools: { corner: "top-left", dx: 264, dy: 0, collapsed: true } });
+    expect(folded.tools.collapsed).toBe(false);
+    expect(folded.tools.rect.w).toBe(300 + 36 + 28 + 8);
+  });
+
+  it("a vertical toolbar is a column: as wide as its content, its grip and button along it (#315)", () => {
+    const column = lay({ tools: { corner: "top-left", dx: 264, dy: 0, vertical: true } }, { measured: { tools: { w: 28, h: 300 } } });
+    expect(column.tools.rect.w).toBe(28 + 36 - 28 + 2);
+    expect(column.tools.rect.h).toBe(300 + 36 + 28 + 8);
+  });
+
   it("lets no two panels come closer than the gap", () => {
     const rects = Object.values(views).map(v => v.rect);
     rects.forEach((a, i) => rects.slice(i + 1).forEach(b => expect(crowd(a, b, 8)).toBe(false)));

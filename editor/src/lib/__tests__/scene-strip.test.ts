@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  bandDrop, dropAtEnd, dropMark, dropOver, groupedOf, newGroupLabel, pickModeOf, pickScenes, planDrop, runCounts, sceneName, sceneSpan,
+  bandDrop, dropAtEnd, dropMark, dropOver, GRID_COLUMN_FLOOR, GRID_COLUMN_MAX, GRID_COLUMN_MIN, gridColumns, gridSpan, groupedOf, newGroupLabel, pickModeOf, pickScenes, planDrop, runCounts, sceneName, sceneSpan,
   stepScene, stripKey, stripRuns, surfaceParts, targetsOf, ungroupPlan, type StripScene,
 } from "../scene-strip";
 
@@ -155,5 +155,45 @@ describe("groups and surfaces", () => {
     expect(parts?.parts.map(p => [p.id, p.share, p.label])).toEqual([["l", 0.5, "40"], ["r", 0.5, ""]]);
     expect(parts?.ratio).toBeCloseTo(460 / 320);
     expect(surfaceParts([])).toBeNull();
+  });
+});
+
+// The Scenes panel's grid (#315): page-wide columns that wrap, sized by the panel's width
+describe("scene strip: the grid's columns", () => {
+  const A4 = 210 / 297;
+
+  it("a narrow panel is one column, never narrower than the panel", () => {
+    expect(gridColumns(120, A4, 12).columns).toBe(1);
+    expect(gridColumns(60, A4, 12)).toMatchObject({ columns: 1, column: 60 });
+  });
+
+  it("adds columns as the panel widens, each between the least and the most width", () => {
+    for (const width of [200, 360, 640, 1000, 1600]) {
+      const { columns, column } = gridColumns(width, A4, 12);
+      expect(column).toBeGreaterThanOrEqual(GRID_COLUMN_MIN);
+      expect(column).toBeLessThanOrEqual(GRID_COLUMN_MAX);
+      expect(columns * column + (columns - 1) * 12).toBeCloseTo(width);
+    }
+    expect(gridColumns(1000, A4, 12).columns).toBeGreaterThan(gridColumns(360, A4, 12).columns);
+  });
+
+  it("the card's height follows the column and the page's ratio", () => {
+    const { column, cardHeight } = gridColumns(640, A4, 12);
+    expect(cardHeight).toBeCloseTo(column / A4);
+  });
+
+  it("a short panel narrows the columns so a whole row shows", () => {
+    const tall = gridColumns(800, A4, 12);
+    const short = gridColumns(800, A4, 12, 100);
+    expect(short.cardHeight).toBeLessThanOrEqual(100 + 0.01 * 100);
+    expect(short.columns).toBeGreaterThan(tall.columns);
+    expect(gridColumns(800, A4, 12, 10).column).toBeGreaterThanOrEqual(GRID_COLUMN_FLOOR - 0.01);
+  });
+
+  it("a card spans its pages: a double page two columns, never more than there are", () => {
+    expect(gridSpan(A4, A4, 4)).toBe(1);
+    expect(gridSpan(2 * A4, A4, 4)).toBe(2);
+    expect(gridSpan(3 * A4, A4, 2)).toBe(2);
+    expect(gridSpan(2 * A4, A4, 1)).toBe(1);
   });
 });

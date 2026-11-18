@@ -243,3 +243,32 @@ export const surfaceParts = (surfaces: readonly Pick<SurfaceData, "id" | "widthM
   const height = Math.max(...surfaces.map(s => Math.max(1, s.heightMm)));
   return { parts: surfaces.map(s => ({ id: s.id, share: Math.max(1, s.widthMm) / width, label: s.label ?? "" })), ratio: width / height };
 };
+
+/** The grid's column: never narrower than this (px) – a card stays readable – and, while there is room for more, never wider */
+export const GRID_COLUMN_MIN = 88;
+export const GRID_COLUMN_MAX = 168;
+
+/**
+ * The Scenes panel as a **grid** (#315): page-wide columns that wrap, as many as the panel's width holds – the fewest
+ * that keep a column at most `GRID_COLUMN_MAX`, but never so many that one is narrower than `GRID_COLUMN_MIN`, and at
+ * least one (a narrow panel is one column). A card spans as many columns as it has pages (a double page two, a fold-out
+ * three); its height follows the column's width and the page's ratio, so the cards scale with the panel by themselves.
+ * A short panel (`maxCardHeight`) narrows the columns – down to `GRID_COLUMN_FLOOR` – so a whole row still shows.
+ */
+export const GRID_COLUMN_FLOOR = 48;
+export const gridColumns = (width: number, pageRatio: number, gap: number, maxCardHeight = Infinity): { columns: number; column: number; cardHeight: number } => {
+  const room = Math.max(0, width);
+  const ratio = pageRatio > 0 ? pageRatio : 1;
+  const widest = Math.max(GRID_COLUMN_FLOOR, Math.min(GRID_COLUMN_MAX, maxCardHeight * ratio));
+  // Held down by the height, the columns may go as narrow as the floor: the fewest that keep the cards short enough
+  const narrowest = widest < GRID_COLUMN_MIN ? GRID_COLUMN_FLOOR : GRID_COLUMN_MIN;
+  const fewest = Math.ceil((room + gap) / (widest + gap));
+  const most = Math.floor((room + gap) / (narrowest + gap));
+  const columns = Math.max(1, Math.min(fewest, most));
+  const column = Math.max(1, (room - (columns - 1) * gap) / columns);
+  return { columns, column, cardHeight: column / ratio };
+};
+
+/** How many grid columns a card of `ratio` spans: its pages, at least one, at most the columns there are */
+export const gridSpan = (ratio: number, pageRatio: number, columns: number): number =>
+  Math.max(1, Math.min(columns, Math.round(ratio / (pageRatio > 0 ? pageRatio : 1))));

@@ -7,6 +7,24 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.108.0 – 2026-11-18
+
+### Added
+
+- **The Scenes panel as a grid** (#315): beside the filmstrip (the default), a grid – page-wide columns that wrap and
+  scroll down, a double page spanning two, a fold-out three. As many columns as the panel's width holds (one when
+  narrow, each 88–168 px), fewer and narrower when the panel is short so a whole row shows; the cards scale by
+  themselves. The head's film / grid buttons switch it, remembered in this browser.
+- **The toolbar as a column** (#315): its button turns it between one row and one column (remembered in this browser);
+  as a column every group is one button and its menu.
+
+### Changed
+
+- **The toolbar no longer folds** (#315): its fold button is gone (a fold stored earlier is ignored).
+- **The editor is monochrome** (#315, RULES #38): no gold – the open scene, the groups' bands and the toggles that are on
+  in the text's colour, a pick in grey; only an error has a colour (a group above its loading window too). The
+  experience card's fallback title is plain text.
+
 ## 1.107.0 – 2026-11-18
 
 ### Removed

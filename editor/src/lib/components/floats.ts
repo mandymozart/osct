@@ -14,7 +14,8 @@
  *
  * A panel folds to its head (the pill: grip, icon, name); a panel that is not **essential** also closes, and comes back
  * from the list of the closable ones (the top bar's panels menu). An **inline** panel is a toolbar: its grip and icon
- * lead its one row, folded it is its icon alone. A move or a resize holds the panel at the pointer over the others; let
+ * lead its one row – or, **vertical** (its place says so, #315), its one column – and it never folds (Tilman,
+ * 2026-11-18: folding a toolbar makes little sense; a fold stored by an older editor is ignored). A move or a resize holds the panel at the pointer over the others; let
  * go, it **snaps** to a wall or another panel's edge near it and, if it lands on another one, goes to the nearest free
  * place.
  */
@@ -43,6 +44,8 @@ export interface Place {
   closed?: boolean;
   /** The open size the person resized it to (none: the spec's) */
   size?: Size;
+  /** An inline panel (a toolbar) as one column instead of one row (#315) */
+  vertical?: boolean;
 }
 
 /** A dimension a spec asks for: rem, all the room there is, or what the content measured */
@@ -192,13 +195,21 @@ export const placeOf = (r: Rect, area: Rect): Pick<Place, "corner" | "dx" | "dy"
 export const pillSize = (spec: PanelSpec, m: Metrics): Size =>
   spec.inline ? { w: m.head, h: m.head } : { w: 2 * m.head + spec.name.length * m.char + m.button * (spec.essential ? 1 : 2), h: m.head };
 
-/** A panel's chrome around its content: an inline toolbar has its grip and buttons in its row, the others a head above */
-export const chromeOf = (spec: PanelSpec, m: Metrics): Size =>
-  spec.inline ? { w: m.head + m.button * (spec.essential ? 1 : 2) + m.gap, h: m.head - m.button + 2 } : { w: 2, h: m.head + 2 };
+/**
+ * A panel's chrome around its content: an inline toolbar has its grip and its button (the orientation) in its row – or,
+ * vertical, in its column –, the others a head above
+ */
+export const chromeOf = (spec: PanelSpec, m: Metrics, vertical = false): Size => {
+  if (!spec.inline) return { w: 2, h: m.head + 2 };
+  const along = m.head + m.button * (spec.essential ? 1 : 2) + m.gap;
+  const across = m.head - m.button + 2;
+  return vertical ? { w: across, h: along } : { w: along, h: across };
+};
 
 /** The open size a panel asks for (px; Infinity = all the room there is) and its least */
 export const wantOf = (spec: PanelSpec, place: Place, m: Metrics, content: Size | undefined, ask?: PanelSpec["size"]): { want: Size; min: Size } => {
-  const chrome = chromeOf(spec, m);
+  const vertical = !!(spec.inline && place.vertical);
+  const chrome = chromeOf(spec, m, vertical);
   const dim = (d: Dimension, measured: number | undefined, extra: number) =>
     d === "fill" ? Infinity : d === "content" ? (measured ?? 0) + extra : d * m.rem;
   const asked = ask ?? spec.size;
@@ -207,8 +218,10 @@ export const wantOf = (spec: PanelSpec, place: Place, m: Metrics, content: Size 
     w: place.size ? place.size.w : dim(asked.w, content?.w, chrome.w),
     h: place.size && asked.h !== "content" ? place.size.h : dim(asked.h, content?.h, chrome.h),
   };
-  // A toolbar is as tall as its row; narrower, its groups fold into their menus
-  const least = spec.inline ? { w: spec.min.w * m.rem, h: want.h } : { w: spec.min.w * m.rem, h: spec.min.h * m.rem };
+  // A toolbar is as tall as its row (vertical: as wide as its column); shorter along it, its groups fold into their menus
+  const least = spec.inline
+    ? vertical ? { w: want.w, h: spec.min.w * m.rem } : { w: spec.min.w * m.rem, h: want.h }
+    : { w: spec.min.w * m.rem, h: spec.min.h * m.rem };
   return { want, min: { w: Math.min(least.w, want.w), h: Math.min(least.h, want.h) } };
 };
 
@@ -237,7 +250,7 @@ export const layout = ({ specs, places, shown, area, m, measured = {}, asks = {}
     .filter(s => shown.has(s.id) && !places[s.id]?.closed && s.id !== held?.id)
     .map(spec => {
       const place = places[spec.id] ?? defaultPlace(spec, m);
-      const collapsed = !!place.collapsed;
+      const collapsed = !!place.collapsed && !spec.inline;
       let { want, min } = collapsed ? { want: pillSize(spec, m), min: pillSize(spec, m) } : wantOf(spec, place, m, measured[spec.id], asks[spec.id]);
       want = { w: Math.min(want.w, area.w), h: Math.min(want.h, area.h) };
       min = { w: Math.min(min.w, want.w), h: Math.min(min.h, want.h) };
@@ -274,7 +287,7 @@ export const layout = ({ specs, places, shown, area, m, measured = {}, asks = {}
     grown.push(rect);
     views[p.spec.id] = { rect, collapsed: p.collapsed };
   });
-  if (held && shown.has(held.id)) views[held.id] = { rect: held.rect, collapsed: !!places[held.id]?.collapsed };
+  if (held && shown.has(held.id)) views[held.id] = { rect: held.rect, collapsed: !!places[held.id]?.collapsed && !specs.find(s => s.id === held.id)?.inline };
   return views;
 };
 
@@ -364,6 +377,7 @@ export const isPlace = (value: unknown): value is Place => {
   const size = p.size as Record<string, unknown> | undefined;
   return (CORNERS as readonly unknown[]).includes(p.corner) && finite(p.dx) && finite(p.dy)
     && (p.collapsed === undefined || typeof p.collapsed === "boolean") && (p.closed === undefined || typeof p.closed === "boolean")
+    && (p.vertical === undefined || typeof p.vertical === "boolean")
     && (size === undefined || (typeof size === "object" && size !== null && finite(size.w) && finite(size.h)));
 };
 
