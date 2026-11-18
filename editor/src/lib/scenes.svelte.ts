@@ -1,6 +1,6 @@
-import { addGroup, addScene, deleteGroup, getBook, moveScenes, putGroup, putScene, type BookTree, type ScenePlace, type TreeSpread } from "./api";
+import { addGroup, addScene, deleteGroup, getBook, listScenes, moveScenes, putGroup, putScene, putSurfaceReference, type BookTree, type ScenePlace, type TreeSpread } from "./api";
 import type { GroupData, SceneLayout, SurfaceData } from "@shared/types/game-config";
-import type { ScenePreset } from "@shared/api/editor";
+import type { ScenePreset, SurfaceReference, SurfaceReferenceRequest } from "@shared/api/editor";
 import { groupedOf, newGroupLabel, ungroupPlan, type MoveRequest } from "./scene-strip";
 
 /**
@@ -39,9 +39,11 @@ class Scenes {
   async load(bookId: string, fresh = false): Promise<void> {
     if (this.bookId !== bookId) {
       this.tree = null;
+      this.references = {};
       this.picks = { picked: [], anchor: null };
     }
     this.bookId = bookId;
+    void this.loadReferences().catch(() => { /* the stage keeps the page images and sheets */ });
     try {
       const tree = await getBook(bookId, { fresh });
       if (this.bookId === bookId) {
@@ -109,10 +111,45 @@ class Scenes {
     await this.changed();
   }
 
-  /** A scene's label, layout, group or surfaces (the whole list) */
-  async putScene(sceneId: string, body: { label?: string | null; layout?: SceneLayout | null; group?: string | null; surfaces?: SurfaceData[] }): Promise<void> {
+  /**
+   * A scene's label, layout, group or surfaces (the whole list); `apply` lets a surface go that entries lie on (they keep
+   * their side, #314)
+   */
+  async putScene(sceneId: string, body: { label?: string | null; layout?: SceneLayout | null; group?: string | null; surfaces?: SurfaceData[]; apply?: boolean }): Promise<void> {
     await putScene(this.id, sceneId, body);
     await this.changed();
+  }
+
+  /**
+   * The surfaces' reference images (#314, editor-only) by scene id and surface id, from the scenes overview
+   * (`GET …/scenes`) – read with every change here (`version`), so the stage and the Inspector follow
+   */
+  references = $state<Record<string, Record<string, SurfaceReference>>>({});
+  private referencesRun = 0;
+
+  /** Read the reference images again (the stage shows them, the Inspector's surface names them) */
+  async loadReferences(): Promise<void> {
+    const bookId = this.bookId;
+    if (!bookId) return;
+    const run = ++this.referencesRun;
+    const list = await listScenes(bookId);
+    if (run !== this.referencesRun || this.bookId !== bookId) return;
+    const refs: Record<string, Record<string, SurfaceReference>> = {};
+    for (const scene of list.scenes) {
+      for (const surface of scene.surfaces) if (surface.reference) (refs[scene.id] ??= {})[surface.id] = surface.reference;
+    }
+    this.references = refs;
+  }
+
+  reference(sceneId: string, surfaceId: string): SurfaceReference | null {
+    return this.references[sceneId]?.[surfaceId] ?? null;
+  }
+
+  /** Set, replace (`url`), change (`fit`, `name`) or remove (`url: null`) a surface's reference image (#314) */
+  async putReference(sceneId: string, surfaceId: string, body: SurfaceReferenceRequest): Promise<void> {
+    await putSurfaceReference(this.id, sceneId, surfaceId, body);
+    await this.loadReferences();
+    this.version += 1;
   }
 }
 

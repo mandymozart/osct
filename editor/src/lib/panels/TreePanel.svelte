@@ -17,6 +17,11 @@
   import ContextMenu, { type MenuItem } from "#lib/components/ContextMenu.svelte";
   import { menuTrigger } from "#lib/menu-trigger.js";
   import { isMenuKey, type Point } from "#lib/context-menu.js";
+  import { scenes } from "#lib/scenes.svelte.js";
+  import { errorText } from "#lib/api.js";
+  import { DEFAULT_PAGE_MM } from "#lib/stage/stage-layout.js";
+  import { SURFACE_PRESETS, surfaceName, type SurfacePreset } from "#lib/surface-edit.js";
+  import { addSceneSurface, moveSceneSurface } from "#lib/surface-actions.js";
 
   /**
    * The spread as a tree in the style of Blender's outliner: a chevron column, a type icon before every name, guide
@@ -126,8 +131,44 @@
   const indent = () => { const s = selectedNode(); return !!s && edit(s.target, tree => indentNode(tree, s.path)); };
   const outdent = () => { const s = selectedNode(); return !!s && edit(s.target, tree => outdentNode(tree, s.path)); };
 
+  // ── the Surfaces level (#314): the scene's surfaces under the spread row – a tap selects one (the Inspector shows it,
+  // the stage highlights it), + adds a page / wall / custom one, Alt ↑ ↓ or the menu reorder ──
+  const sceneSurfaces = $derived(scenes.scene(spreadId)?.surfaces ?? []);
+  const surfacesOpen = $derived(!folded["surfaces"]);
+  let surfaceError = $state<string | null>(null);
+  const runSurface = async (action: () => Promise<unknown>) => {
+    surfaceError = null;
+    try {
+      await action();
+    } catch (e) {
+      surfaceError = errorText(e);
+    }
+  };
+  const addSurfaceRow = (preset: SurfacePreset) =>
+    runSurface(async () => {
+      fold("surfaces", false);
+      if (await addSceneSurface(spreadId, preset, stage?.pageFormat() ?? DEFAULT_PAGE_MM)) onselect?.("surface");
+    });
+  /** The selected surface of this scene, while one is */
+  const selectedSurface = () => (selection.surface?.scene === spreadId ? selection.surface.id : null);
+  const shiftSurface = (direction: -1 | 1): boolean => {
+    const id = selectedSurface();
+    if (!id) return false;
+    void runSurface(() => moveSceneSurface(spreadId, id, direction));
+    return true;
+  };
+  const PRESET_HELP: Record<SurfacePreset, string> = {
+    page: "A page of the book's size – the left page, the right, then a fold-out's middle.",
+    wall: "A wall, 2000 × 1500 mm, standing ahead behind the pages – the scene becomes free, each surface on its own place.",
+    custom: "A surface of 300 × 300 mm – set its side and size in the Inspector.",
+  };
+  const surfaceMenu = (surfaceId: string) => menuTrigger({
+    open: at => { selection.selectSurface(spreadId, surfaceId); menu = { at, kind: "surface", surfaceId }; },
+    pressing: pressed(`surface:${surfaceId}`),
+  });
+
   // ── a row's context menu (a right click, a long press, the menu key): remove, and the hierarchy's moves ──
-  type Menu = { at: Point; kind: "spread" } | { at: Point; kind: "entry"; entry: Entry } | { at: Point; kind: "node" | "target"; target: Target; path: number[] };
+  type Menu = { at: Point; kind: "spread" } | { at: Point; kind: "surfaces" } | { at: Point; kind: "surface"; surfaceId: string } | { at: Point; kind: "entry"; entry: Entry } | { at: Point; kind: "node" | "target"; target: Target; path: number[] };
   let menu = $state<Menu | null>(null);
   /** The row a finger is held on: its light cue until the menu opens */
   let pressing = $state<string | null>(null);
@@ -154,6 +195,20 @@
   const NODE_EYE_HELP = "Shows or hides this node with its children on the stage only – to look into a complex tree. The content does not change: readers see the node as always. Forgotten when you leave the editor.";
   const REMOVE_ENTRY_HELP ="Removes the entry with its target, its entity and – only if you choose it – the Library files used only there. It shows what goes and asks first.";
   const menuItems = (m: Menu): MenuItem[] => {
+    if (m.kind === "surfaces") {
+      return SURFACE_PRESETS.map(preset => ({ label: `+ ${preset}`, icon: "plus", select: () => void addSurfaceRow(preset), help: PRESET_HELP[preset] }));
+    }
+    if (m.kind === "surface") {
+      const at = sceneSurfaces.findIndex(s => s.id === m.surfaceId);
+      return [
+        { label: "Move up", icon: "up", keys: "Alt ↑", disabled: at <= 0 && "It is the scene's first surface.", select: () => void runSurface(() => moveSceneSurface(spreadId, m.surfaceId, -1)),
+          help: "Moves the surface one place earlier in the scene." },
+        { label: "Move down", icon: "down", keys: "Alt ↓", disabled: at >= sceneSurfaces.length - 1 && "It is the scene's last surface.", select: () => void runSurface(() => moveSceneSurface(spreadId, m.surfaceId, 1)),
+          help: "Moves the surface one place later in the scene." },
+        { label: "Edit in the Inspector", icon: "surface", select: () => onselect?.("surface"),
+          help: "Shows the surface in the Inspector: its label, side, size, place, reference image – and remove surface." },
+      ];
+    }
     if (m.kind === "spread") {
       return spread ? [{ label: "Add a double page after", icon: "plus", disabled: followBlockedBy(spread), select: () => onaddspread?.(spread.id),
         help: "Opens the creation step for a double page right after this spread. The pages after it are numbered on by two, their entries move with them." }] : [];
@@ -191,6 +246,8 @@
   /** What the menu is for: the entry's title, the target's id, or the node's name */
   const menuHead = (m: Menu): string => {
     if (m.kind === "spread") return spread?.title ?? spreadId;
+    if (m.kind === "surfaces") return "+ surface";
+    if (m.kind === "surface") { const s = sceneSurfaces.find(x => x.id === m.surfaceId); return s ? surfaceName(s) : m.surfaceId; }
     if (m.kind === "entry") return m.entry.title;
     if (m.kind === "target") return m.target.id;
     const tree = treeOf(m.target);
@@ -210,6 +267,10 @@
     }
     const rect = button.getBoundingClientRect();
     const at = { x: rect.left + Math.min(16, rect.width / 2), y: rect.top + rect.height / 2 };
+    if (row.kind === "surface") {
+      menu = { at, kind: "surface", surfaceId: row.surfaceId };
+      return;
+    }
     if (row.kind === "entry") {
       const entry = spread?.entries.find(e => e.id === row.entryId);
       if (entry) openEntryMenu(at, entry);
@@ -237,6 +298,7 @@
         const tree = target ? treeOf(target) : undefined;
         return tree ? visiblePaths(tree, path => !folded[nodeKey(targetId, path)]) : [];
       },
+      surfaces: { sceneId: spreadId, ids: surfacesOpen ? sceneSurfaces.map(s => s.id) : [] },
     }),
   );
   const currentRow = () => rows.findIndex(isOn);
@@ -247,6 +309,7 @@
   const foldOf = (row: TreeRow | undefined): { key?: string; children: boolean } => {
     if (!row) return { children: false };
     if (row.kind === "spread") return { children: !!spread?.entries.length };
+    if (row.kind === "surface") return { children: false };
     if (row.kind === "entry") return { key: row.entryId, children: !!row.targetId && selectable.some(t => t.id === row.targetId) };
     const target = selectable.find(t => t.id === row.targetId);
     const tree = target ? treeOf(target) : undefined;
@@ -267,11 +330,11 @@
     const open = !!key && !folded[key];
     switch (event.key) {
       case "ArrowDown":
-        if (event.altKey) { if (!shift(1)) return; break; }
+        if (event.altKey) { if (!shift(1) && !shiftSurface(1)) return; break; }
         selectRow(stepRow(rows, index, 1));
         break;
       case "ArrowUp":
-        if (event.altKey) { if (!shift(-1)) return; break; }
+        if (event.altKey) { if (!shift(-1) && !shiftSurface(-1)) return; break; }
         selectRow(stepRow(rows, index, -1));
         break;
       case "ArrowLeft":
@@ -432,6 +495,39 @@
       </button>
       <span class="eye"></span>
     </div>
+    <!-- The Surfaces level (#314): the scene's surfaces, + adds one -->
+    <div class="node depth-1 surfaces-head" class:pressing={pressing === "surfaces"} role="treeitem" aria-expanded={sceneSurfaces.length ? surfacesOpen : undefined} aria-selected={false} aria-level={2}>
+      {@render guides(1)}
+      {#if sceneSurfaces.length}
+        <button type="button" class="chevron" onclick={() => fold("surfaces")} title={surfacesOpen ? "Fold" : "Unfold"} aria-label={surfacesOpen ? "Fold the surfaces" : "Unfold the surfaces"}><Icon name={surfacesOpen ? "down" : "next"} size="1em" /></button>
+      {:else}
+        <span class="chevron"></span>
+      {/if}
+      <span class="type"><Icon name="layers" size="1em" stroke={2} /></span>
+      <button type="button" class="pick" onclick={() => fold("surfaces")} title="The scene's surfaces – its pages, a cover, a wall; a tap on one selects it">
+        <span class="name">Surfaces</span><span class="small muted">{sceneSurfaces.length}</span>
+      </button>
+      <button type="button" class="eye add-surface" aria-haspopup="menu" title="+ surface: a page, a wall or a custom one" aria-label="Add a surface"
+        data-help-name="+ surface" data-help="Adds a surface to the scene: a page of the book's size, a wall standing ahead (the scene becomes free), or a custom one – selected at once, the Inspector shows its fields."
+        onclick={e => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); menu = { at: { x: r.left, y: r.bottom }, kind: "surfaces" }; }}><Icon name="plus" size="1em" stroke={2} /></button>
+    </div>
+    {#if surfacesOpen}
+      {#each sceneSurfaces as surface (surface.id)}
+        {@const row = { kind: "surface", sceneId: spreadId, surfaceId: surface.id } as const}
+        {@const on = isOn(row)}
+        <div class="node depth-2" class:on class:pressing={pressing === `surface:${surface.id}`} role="treeitem" aria-selected={on} aria-level={3}>
+          {@render guides(2)}
+          <span class="chevron"></span>
+          <span class="type"><Icon name="surface" size="1em" stroke={2} /></span>
+          <button type="button" class="pick" onclick={() => pick(row)} aria-haspopup="menu" {@attach surfaceMenu(surface.id)}
+            title="{surface.side}, {Math.round(surface.widthMm)} × {Math.round(surface.heightMm)} mm – a tap selects it: the Inspector shows its fields, the stage highlights it">
+            <span class="name">{surfaceName(surface)}</span>
+          </button>
+          <span class="eye"></span>
+        </div>
+      {/each}
+    {/if}
+    {#if surfaceError}<p class="small danger">{surfaceError}</p>{/if}
     {#each spread.entries as entry (entry.id)}
       {@const target = entry.target}
       {@const open = !folded[entry.id]}
@@ -496,7 +592,7 @@
 {/if}
 
 {#if menu}
-  <ContextMenu at={menu.at} label={menu.kind === "spread" ? "Spread" : menu.kind === "entry" ? "Entry" : menu.kind === "target" ? `Target ${menu.target.id}` : "Node"} head={menuHead(menu)} items={menuItems(menu)}
+  <ContextMenu at={menu.at} label={menu.kind === "spread" ? "Spread" : menu.kind === "surfaces" ? "Add a surface" : menu.kind === "surface" ? "Surface" : menu.kind === "entry" ? "Entry" : menu.kind === "target" ? `Target ${menu.target.id}` : "Node"} head={menuHead(menu)} items={menuItems(menu)}
     returnFocus={treeElement} onclose={() => (menu = null)} />
 {/if}
 

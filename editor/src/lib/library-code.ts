@@ -95,8 +95,12 @@ export const matchesCodeSearch = (file: Pick<CodeFile, "name" | "kind">, query: 
   return words.every(word => text.includes(word));
 };
 
+/** A use in words: its kind and ref – a surface's reference image (#314) as "reference image of scene · surface" */
+export const usageWord = (usage: Usage): string =>
+  usage.kind === "reference" ? `reference image of ${usage.ref.replace("/", " · ")}` : `${usage.kind} ${usage.ref}`;
+
 /** Where a file is used, for a line: `entity castle, target racoon` – the kinds as the API names them */
-export const usageText = (usages: readonly Usage[]): string => usages.map(usage => `${usage.kind} ${usage.ref}`).join(", ");
+export const usageText = (usages: readonly Usage[]): string => usages.map(usageWord).join(", ");
 
 /** A problem the API would answer for this file anyway (a type or the size), said before the upload – null when it may go */
 export const codeUploadProblem = (file: Pick<File, "name" | "size">): string | null => {

@@ -1,4 +1,4 @@
-import { parentSelection, selectionLevel, settledSelection, type SelectionLevel, type SelectionState } from "./selection";
+import { parentSelection, selectionLevel, settledSelection, type SelectionLevel, type SelectionState, type SurfaceRef } from "./selection";
 
 /**
  * The workspace's one selection (#162): a target, its entity or a node – or the spread or an entry from the tree's
@@ -21,6 +21,8 @@ class Selection implements SelectionState {
   book = $state(false);
   /** A group is selected (#307 – a band of the Scenes panel): the Inspector shows the group */
   group = $state<string | null>(null);
+  /** A surface of a scene is selected (#314): the Inspector shows it, the stage highlights it */
+  surface = $state<SurfaceRef | null>(null);
   /** Goes up whenever something asks the workspace to show the selection in the Inspector (the search, the book's ⚙) */
   reveal = $state(0);
   /** A selection asked for on a spread whose workspace is not open yet */
@@ -56,6 +58,11 @@ class Selection implements SelectionState {
     this.set({ target: null, node: [], onTarget: true, group });
   }
 
+  /** A surface of a scene (#314): its fields in the Inspector, highlighted on the stage */
+  selectSurface(scene: string, id: string): void {
+    this.set({ target: null, node: [], onTarget: true, surface: { scene, id } });
+  }
+
   /** Select `state` now and ask the workspace to show it in the Inspector */
   show(state: SelectionState): void {
     this.set(state);
@@ -85,6 +92,7 @@ class Selection implements SelectionState {
     this.entry = settled.entry ?? null;
     this.book = settled.book ?? false;
     this.group = settled.group ?? null;
+    this.surface = settled.surface ?? null;
   }
 
   /** A click on the stage that picks nothing: the spread is selected (the tree, the stage and the Inspector follow) */
@@ -100,7 +108,7 @@ class Selection implements SelectionState {
 
   /** The selection as a plain value */
   snapshot(): SelectionState {
-    return { target: this.target, node: this.node, onTarget: this.onTarget, spread: this.spread, entry: this.entry, ...(this.book ? { book: true } : {}), ...(this.group ? { group: this.group } : {}) };
+    return { target: this.target, node: this.node, onTarget: this.onTarget, spread: this.spread, entry: this.entry, ...(this.book ? { book: true } : {}), ...(this.group ? { group: this.group } : {}), ...(this.surface ? { surface: { ...this.surface } } : {}) };
   }
 
   level(hasTree: boolean): SelectionLevel {

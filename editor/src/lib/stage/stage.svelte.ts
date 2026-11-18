@@ -1,6 +1,6 @@
 import { SvelteMap } from "svelte/reactivity";
 import { resolve } from "$app/paths";
-import type { PrintSurface } from "@shared/types/game-config";
+import type { PrintSurface, SurfacePlace } from "@shared/types/game-config";
 import type { EnvironmentData } from "@shared/types/environment";
 import type { BookAppearance, Moment } from "@shared/types/appearance";
 import { getSpread, getTarget } from "@engine/content/game-config";
@@ -64,6 +64,8 @@ export class Stage {
   onGhostChange: ((place: { surface: PrintSurface; surfaceId?: string; x: number; y: number; width: number; height?: number }) => void) | null = null;
   /** A tap on the stage hit a surface of the open scene (#314: the Surface mode selects by it), mm from its top left corner – or none */
   onSurfacePick: ((hit: SurfacePick) => void) | null = null;
+  /** A drag of the surface gizmo ended (#314): the surface's new place in its scene – the page saves it */
+  onSurfacePlace: ((surfaceId: string, place: Required<SurfacePlace>) => void) | null = null;
   /** What a click may pick – the select tool's filters: entities, targets, models, nodes; none on = anything */
   pickFilter = $state<PickKind[]>([]);
   /** The viewport's shading (stored with the preview settings) */
@@ -216,6 +218,10 @@ export class Stage {
       case "surfacePick":
         this.onSurfacePick?.(message.data);
         break;
+      case "surfacePlace":
+        // Only the surface the page put the gizmo on: any other is no drag of the person's
+        if (message.data.surfaceId === this.surfaceGizmo.surfaceId) this.onSurfacePlace?.(message.data.surfaceId, message.data.place);
+        break;
       case "preview":
         this.lastPreview = message.data;
         applyPreviewSync(message.data);
@@ -269,6 +275,8 @@ export class Stage {
     if (this.lookUp) void this.send("setLookUp", [this.lookUp]);
     void this.send("setPickFilter", [this.pickFilter]);
     void this.send("setTool", [this.tool]);
+    void this.send("surfaceMarks", [this.marks.outlined, this.marks.highlighted]);
+    void this.send("surfaceGizmo", [this.surfaceGizmo.surfaceId, this.surfaceGizmo.mode]);
     void this.send("selectNode", this.selected.node);
     void this.send("selectTarget", [this.selected.target]);
     if (this.ghostPlace) void this.send("ghost", [this.ghostPlace]);
@@ -376,6 +384,15 @@ export class Stage {
   setSurfaceMarks(outlined: readonly string[], highlighted: string | null): void {
     this.marks = { outlined: [...outlined], highlighted };
     void this.send("surfaceMarks", [this.marks.outlined, highlighted]);
+  }
+
+  /** The surface gizmo asked for (#314): shown in the Surface mode on that surface of a free scene */
+  private surfaceGizmo: { surfaceId: string | null; mode: "translate" | "rotate" } = { surfaceId: null, mode: "translate" };
+
+  setSurfaceGizmo(surfaceId: string | null, mode: "translate" | "rotate" = "translate"): void {
+    if (this.surfaceGizmo.surfaceId === surfaceId && this.surfaceGizmo.mode === mode) return;
+    this.surfaceGizmo = { surfaceId, mode };
+    void this.send("surfaceGizmo", [surfaceId, mode]);
   }
 
   /** The open scene's surfaces as the stage lays them (#314): their ids, sides, sizes; `own` = the scene's, `flat` = on the table */
