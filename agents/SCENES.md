@@ -149,7 +149,7 @@ the arrow keys scroll the strip sideways; resizing the panel scales the cards (n
 5. **Groups as loading windows**; free layouts with world tracking after #299.
 6. **MAJOR**: drop the page fields when no older app needs them.
 
-## Surfaces: create, edit, place (#314, decided 2026-11-18)
+## Surfaces: create, edit, place (#314, decided 2026-11-18 – built 1.112.0–1.116.0)
 
 Tilman chose a **Surface mode** and **everything now** – walls and free layouts included, which brings in the scene
 coordinate system of #316 (part 2; the per-surface grid of #316 part 1 stays open).
@@ -160,12 +160,12 @@ coordinate system of #316 (part 2; the per-surface grid of #316 part 1 stays ope
   top edge away from the reader; a wall ahead is `rx` 90. `fixed` scenes derive their places (a row, flat) and ignore
   `place`; `free` scenes use it. `PrintPlacement.surfaceId` names a target's surface by id (wins over the side words in
   `print.surface`, which older guards insist on).
-- **Server (worker):** reference images per surface – editor-only, never in the content: a `surface_references` table
+- **Server (done, 1.113.0):** reference images per surface – editor-only, never in the content: a `surface_references` table
   (book, scene, surface → url, name, fit), in the scenes overview as `surfaces[].reference`, set / replace / remove by
   `PUT …/scenes/{id}/surfaces/{surface}/reference`, change-logged and revertable (#312); the page images (#251) migrate
   to references (plan → apply, by page → scene / surface, `page_images` kept); `checkSurfaces` takes `place`; asset usage
   and renames (#298) count references; MCP `set_surface_reference` and the migration tool.
-- **Stage (worker):** the mock stage draws a scene **from its surfaces**: a fixed row of any length (a fold-out's three),
+- **Stage (done, 1.114.0):** the mock stage draws a scene **from its surfaces**: a fixed row of any length (a fold-out's three),
   covers, each at its own size; free scenes each surface at its `place` (a wall stands); each surface shows its reference
   image (else the layout sheet as today, else paper); the scene's axes at the origin and a scene grid; targets lie on
   their surface (`surfaceId`, else the side); picks, the placement ghost and snapping work per surface.
@@ -181,3 +181,8 @@ coordinate system of #316 (part 2; the per-surface grid of #316 part 1 stays ope
 - [x] Thumbnails: **the reference image; without one, generated** from the placed targets and content (Tilman, 2026-11-17).
 - [x] Groups: **what the reader's bottom switcher (today's spread switcher) steps through** – one stop per group, and its
   loading window (Tilman, 2026-11-17). Flows (`STRATEGY.md`: a goto from scene to scene) link scenes, not groups.
+
+Open after #314 (2026-11-18): the page images → references migration on staging waits for Tilman's yes (plan: 12 of 12
+mapped); no drag reorder of surfaces in the Tree (Alt ↑↓, menu); a reference by content path does not show on the stage
+(the frame takes http(s) only); the surface gizmo moves a stand-in, the board follows after the save; references give
+their files no name by use (#298) yet.
