@@ -1,4 +1,5 @@
 import type { SurfaceData, SurfacePlace, TargetPlace } from "@shared/types/game-config";
+import { SCENE_PAGE_MM, SCENE_WALL_MM } from "@shared/api/editor";
 
 /**
  * Editing a scene's surfaces (#314, #319 – `agents/SCENES.md` "Schema 3.0"): the pure rules behind the Surface mode, the
@@ -12,10 +13,10 @@ import type { SurfaceData, SurfacePlace, TargetPlace } from "@shared/types/game-
 export const SURFACE_PRESETS = ["double", "single", "wall", "custom"] as const;
 export type SurfacePreset = (typeof SURFACE_PRESETS)[number];
 
-/** One page of the book as added (mm): a double page is two of them side by side, one surface */
-export const PAGE_MM = { width: 230, height: 320 } as const;
-/** A wall as added (mm): wide and tall enough for a poster wall; it stands behind the row, facing the reader */
-export const WALL_MM = { width: 2000, height: 1500 } as const;
+/** One page of the book as added (mm, the API's `SCENE_PAGE_MM`): a double page is two of them side by side, one surface */
+export const PAGE_MM = SCENE_PAGE_MM;
+/** A wall as added (mm, the API's `SCENE_WALL_MM`): it stands behind the row, facing the reader */
+export const WALL_MM = SCENE_WALL_MM;
 /** A custom surface as added (mm) – the Inspector sets its size */
 export const CUSTOM_MM = { width: 300, height: 300 } as const;
 /** How far behind the row's far edge a new wall stands (mm) */

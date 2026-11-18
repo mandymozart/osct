@@ -53,7 +53,7 @@ describe("the Library grouped by scene (#298 phase 3)", () => {
     expect(imageUseQuery("target")).toBe("?fit=target");
     expect(imageUseQuery({ fit: "target", entry: "p118-1" })).toBe("?fit=target&entry=p118-1");
     expect(imageUseQuery({ fit: "entryImage", entry: "p118-1" })).toBe("?fit=entryImage&entry=p118-1");
-    expect(imageUseQuery({ fit: "page", page: { page: 1, facing: true } })).toBe("?fit=page&page=1&facing=1");
+    expect(imageUseQuery({ fit: "reference", surface: { scene: "s118-119", surface: "surface" } })).toBe("?fit=reference&scene=s118-119&surface=surface");
     expect(imageUseQuery({ fit: "default", entry: "x" })).toBe("");
   });
 });

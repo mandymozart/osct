@@ -11,6 +11,15 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 
 ### Added
 
+- **The editor's grids** (#316, #319 part C): the scene's **floor grid** – a transparent net on the table (y = 0) through
+  the origin, every tenth line stronger, on by default, its spacing the snap step of the surface gizmo – and an optional
+  **vertical grid** (a plane at a chosen z, for wall setups), both in the toolbar's *grid & snap*; a surface's **own
+  grid spacing** for the targets on it (the Inspector's surface, *grid* – kept in this browser per experience and surface,
+  `osct-editor-surface-grids:<book>`), drawn on every surface in its own plane, a wall's on the wall.
+- **Arrange in a row** (#319 part C): the scene's surfaces flat on the table, side by side in their order, touching, the
+  row centred on the origin – written to their places (the Inspector's scene section and selected surface, the Tree's
+  scene row and surface menus).
+
 - **The migration of a stored book to schema 3.0** (#319 part B): `POST /editor/books/{id}/migrate-3 { apply? }` – the
   plan first, then one transaction, every row a change of the log; idempotent (MCP `migrate_3`, two steps). Per scene
   one surface per printed double page (the 2.x halves merged, a cover one page wide, placed in a row), the label it
@@ -23,6 +32,19 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   409 `migrate-first`.
 
 ### Changed
+
+- **The editor on content schema 3.0 and the editor API 3.0** (#319 part C): no page numbers, sides, formats, matter or
+  layouts anywhere. The Tree, the Scenes panel's cards (a scene's surfaces side by side, each with its reference image
+  and the prints on it), the Inspector's scene (label, group, surfaces, arrange in a row) and surface (label, size, place
+  and gizmo in every scene, grid, reference image), the new-scene step (presets double / single / wall, label, after),
+  the new-target and new-entry forms and an entry's form (its scene and, in a scene of several surfaces, its surface –
+  `place.surface` / `surface` only then), the placement rows, the search (scenes by label), the History (kind `scene`),
+  the Library (grouped by scene; a reference upload named `<scene>_<surface>`), removal (*Removes scene “4–5” …*), the
+  import preview (scenes), the books' covers (the first scene's first surface with its reference) and the route
+  `/editor/<book>/<scene>/`.
+- **The stage draws a scene as plain boards** at their `place` (a wall stands) with their reference images, else paper;
+  targets lie on `place.surface`, else on the scene's first surface; the surface gizmo works in every scene and snaps to
+  the floor grid's spacing; the origin's centre is the scene's origin. The view reaches 4 m (walls).
 
 - **The server and the MCP server speak content schema 3.0** (#319 part B, `agents/SCENES.md` "Editor API 3.0"): the
   import takes 3.x configurations only, the draft and every publish are 3.0 (`scenes`, `initialScene`, entries with
@@ -55,6 +77,12 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   rules part B's server migration follows).
 
 ### Removed
+
+- From the editor (#319 part C, no backward compatibility): the page images UI and code (`page-images.svelte.ts`), the
+  layout sheets on the stage and the cards (`stage-layout.ts`, `sheet-preview.ts`, `SheetPreview.svelte`, the sharper
+  sheet image), the spread grid and page names (`spread-grid.ts`, `spread-view.ts`, `spread-edit.ts`), the open and the
+  closed book on the stage (cover board, block of paper, fold), a scene's layout (fixed / free, *make free*, *back into
+  the row*), a surface's side, `NewSpreadForm` (now `NewSceneForm`).
 
 - From the content schema: `page`, `firstPage`, `lastPage`, a spread's `title`, `format`, `matter` and `layout`, a
   surface's `side`, a target's `print`, the configuration's `tutorial` and the constants `SPREAD_FORMATS`, `MATTERS`,

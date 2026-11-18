@@ -92,7 +92,8 @@
     if (library.bookId !== bookId) void library.load(bookId);
   });
   const upload = (file: File) => run(async () => {
-    const asset = await library.upload(bookId, file);
+    // Named by its scene and surface (`<scene>_<surface>.webp`), scaled for a reference (#298, #319)
+    const asset = await library.upload(bookId, file, { fit: "reference", surface: { scene: sceneId, surface: surfaceId } });
     if (asset.kind !== "image") throw new Error(`${asset.name} is no image – it stays in the Library`);
     await scenes.putReference(sceneId, surfaceId, { url: asset.url, name: asset.name });
   });
