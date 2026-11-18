@@ -31,122 +31,12 @@ const SKY_KEY = /* glsl */ `
   }
 `;
 
-/**
- * The built-in world (`cafe`) for a view direction in the world's own frame (y up, front −z = towards the book, reader
- * at the origin, floor at y = −1.6): `cafeSky(dir)` – an alien sky – and `cafeScenery(dir, sky)` – an open-air café
- * over it, from simple shapes (ray against sphere / disc / box) – no assets.
- */
-const CAFE_WORLD = /* glsl */ `
-  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-
-  const vec3 LIGHT = vec3(-0.37, 0.74, 0.56);
-
-  void orb(vec3 dir, vec3 centre, float radius, vec3 tint, inout vec3 colour, inout float nearest, inout vec3 glow) {
-    float b = dot(dir, centre);
-    float h = b * b - dot(centre, centre) + radius * radius;
-    if (b > 0.0) glow += tint * exp(-max(length(centre - dir * b) - radius, 0.0) * 9.0) * 0.35;
-    if (h < 0.0) return;
-    float t = b - sqrt(h);
-    if (t <= 0.0 || t >= nearest) return;
-    nearest = t;
-    vec3 n = normalize(dir * t - centre);
-    float rim = pow(1.0 - max(dot(n, -dir), 0.0), 2.0);
-    colour = tint * (0.45 + 0.55 * max(dot(n, LIGHT), 0.0)) + rim * vec3(1.0, 0.9, 1.0) * 0.6;
-  }
-
-  void table(vec3 dir, vec3 centre, float radius, vec3 tint, inout vec3 colour, inout float nearest) {
-    if (abs(dir.y) < 1e-4) return;
-    float t = centre.y / dir.y;
-    if (t <= 0.0 || t >= nearest) return;
-    float d = length(dir.xz * t - centre.xz);
-    if (d > radius) return;
-    nearest = t;
-    colour = mix(tint * 0.35, tint * 1.4, smoothstep(radius * 0.82, radius, d));
-  }
-
-  void cube(vec3 dir, vec3 centre, float size, float turn, vec3 tint, inout vec3 colour, inout float nearest) {
-    float c = cos(turn);
-    float s = sin(turn);
-    mat3 spin = mat3(c, 0.0, -s, 0.0, 1.0, 0.0, s, 0.0, c) * mat3(1.0, 0.0, 0.0, 0.0, c, s, 0.0, -s, c);
-    vec3 origin = transpose(spin) * -centre;
-    vec3 ray = transpose(spin) * dir;
-    vec3 t1 = (-vec3(size) - origin) / ray;
-    vec3 t2 = (vec3(size) - origin) / ray;
-    vec3 tMin = min(t1, t2);
-    vec3 tMax = max(t1, t2);
-    float tNear = max(max(tMin.x, tMin.y), tMin.z);
-    float tFar = min(min(tMax.x, tMax.y), tMax.z);
-    if (tNear > tFar || tNear <= 0.0 || tNear >= nearest) return;
-    nearest = tNear;
-    vec3 hit = origin + ray * tNear;
-    vec3 local = abs(hit) / size;
-    vec3 n = step(max(local.yzx, local.zxy), local) * sign(hit);
-    float edge = smoothstep(0.9, 0.98, max(max(min(local.x, local.y), min(local.y, local.z)), min(local.x, local.z)));
-    colour = tint * (0.4 + 0.6 * max(dot(spin * n, LIGHT), 0.0)) + edge * vec3(0.6, 1.0, 0.95);
-  }
-
-  vec3 cafeSky(vec3 dir) {
-    float h = dir.y;
-    // Sky: gradient, round twinkling stars, a moon, a ringed planet
-    vec3 colour = mix(vec3(0.95, 0.45, 0.4), vec3(0.35, 0.08, 0.45), smoothstep(0.0, 0.3, h));
-    colour = mix(colour, vec3(0.08, 0.02, 0.2), smoothstep(0.3, 0.9, h));
-    vec2 grid = vec2(atan(dir.x, dir.z), h) * 160.0;
-    vec2 cell = floor(grid);
-    float star = step(0.994, hash(cell)) * (1.0 - smoothstep(0.1, 0.3, length(fract(grid) - 0.5)));
-    colour += star * smoothstep(0.15, 0.5, h) * (0.6 + 0.4 * sin(uTime * 3.0 + hash(cell) * 50.0));
-    float moon = smoothstep(0.075, 0.07, acos(clamp(dot(dir, normalize(vec3(0.45, 0.5, -0.75))), -1.0, 1.0)));
-    colour = mix(colour, vec3(0.8, 0.95, 1.0), moon);
-
-    float nearest = 1e9;
-    vec3 glow = vec3(0.0);
-    vec3 planet = normalize(vec3(-0.7, 0.55, 0.45)) * 80.0;
-    orb(dir, planet, 9.0, vec3(0.55, 0.35, 0.95), colour, nearest, glow);
-    vec3 ringNormal = normalize(vec3(0.25, 1.0, 0.15));
-    float tRing = dot(planet, ringNormal) / dot(dir, ringNormal);
-    if (tRing > 0.0 && tRing < nearest) {
-      float r = length(dir * tRing - planet);
-      float band = smoothstep(12.0, 12.5, r) * (1.0 - smoothstep(17.5, 18.0, r)) * (0.55 + 0.45 * sin(r * 5.0));
-      colour = mix(colour, vec3(0.95, 0.85, 0.7), band * 0.85);
-    }
-    return colour;
-  }
-
-  vec3 cafeScenery(vec3 dir, vec3 colour) {
-    float h = dir.y;
-    float nearest = 1e9;
-    vec3 glow = vec3(0.0);
-
-    // Floor: a glowing grid fading into the haze
-    if (h < -0.001) {
-      float t = -1.6 / h;
-      vec2 tile = abs(fract(dir.xz * t * 1.2) - 0.5);
-      float line = smoothstep(0.44, 0.5, max(tile.x, tile.y));
-      vec3 floorColour = vec3(0.06, 0.02, 0.1) + line * mix(vec3(0.2, 0.9, 0.8), vec3(0.9, 0.3, 1.0), 0.5 + 0.5 * sin(t - uTime)) * 0.7;
-      colour = mix(vec3(0.3, 0.1, 0.3), floorColour, 1.0 - smoothstep(6.0, 30.0, t));
-      nearest = t;
-    }
-
-    // Tables around the reader (none in front: the book is there), orbs and cubes here and there
-    table(dir, vec3(-2.4, -0.8, -0.8), 0.5, vec3(1.0, 0.3, 0.65), colour, nearest);
-    table(dir, vec3(2.6, -0.7, -0.4), 0.45, vec3(0.3, 0.85, 1.0), colour, nearest);
-    table(dir, vec3(-1.6, -0.75, 2.4), 0.5, vec3(0.7, 0.45, 1.0), colour, nearest);
-    table(dir, vec3(2.0, -0.8, 2.2), 0.5, vec3(1.0, 0.7, 0.3), colour, nearest);
-    float bob = sin(uTime * 0.8);
-    orb(dir, vec3(-2.2, 0.4 + 0.12 * bob, -2.8), 0.22, vec3(1.0, 0.75, 0.35), colour, nearest, glow);
-    orb(dir, vec3(2.5, 0.9 - 0.1 * bob, -2.0), 0.16, vec3(1.0, 0.4, 0.8), colour, nearest, glow);
-    orb(dir, vec3(-3.0, 1.3 + 0.08 * bob, 1.5), 0.3, vec3(0.4, 1.0, 0.9), colour, nearest, glow);
-    orb(dir, vec3(1.8, 0.2 - 0.1 * bob, 2.6), 0.18, vec3(0.8, 0.6, 1.0), colour, nearest, glow);
-    orb(dir, vec3(0.4, 1.8 + 0.15 * bob, -3.5), 0.26, vec3(0.5, 0.95, 1.0), colour, nearest, glow);
-    cube(dir, vec3(3.2, 0.3, 0.3), 0.3, uTime * 0.4, vec3(0.9, 0.25, 0.6), colour, nearest);
-    cube(dir, vec3(-3.4, 0.6, -0.4), 0.24, -uTime * 0.5 + 1.0, vec3(0.3, 0.6, 1.0), colour, nearest);
-    return colour + glow;
-  }
-`;
 
 /**
- * The book's world: the sky is the sky image where the environment names one (equirectangular,
- * its centre towards the book, its top edge straight up), else the café's; over it the world model's cube (baked once
- * from the reader's eye, transparent where the model has nothing) where there is one, else the café's scenery.
+ * The experience's world (no built-in world since the café went – Tilman, 2026-11-18): the sky image where the
+ * environment names one (equirectangular, its centre towards the book, its top edge straight up), over it the world
+ * model's cube (baked once from the reader's eye, transparent where the model has nothing). The alpha says where there is
+ * anything: without a sky image or a world model nothing is drawn around the book.
  */
 const WORLD = /* glsl */ `
   const float PI = 3.141592653589793;
@@ -156,11 +46,13 @@ const WORLD = /* glsl */ `
     return texture2D(tSky, uv).rgb;
   }
 
-  vec3 worldColour(vec3 dir) {
-    vec3 sky = uSkyImage > 0.5 ? skyImage(dir) : cafeSky(dir);
-    if (uWorldModel < 0.5) return cafeScenery(dir, sky);
-    vec4 world = textureCube(tWorld, dir);
-    return mix(sky, world.rgb / max(world.a, 1e-4), world.a);
+  vec4 worldColour(vec3 dir) {
+    vec4 colour = uSkyImage > 0.5 ? vec4(skyImage(dir), 1.0) : vec4(0.0);
+    if (uWorldModel > 0.5) {
+      vec4 world = textureCube(tWorld, dir);
+      colour = vec4(mix(colour.rgb, world.rgb / max(world.a, 1e-4), world.a), max(colour.a, world.a));
+    }
+    return colour;
   }
 `;
 
@@ -190,7 +82,13 @@ const COMPOSITE = /* glsl */ `
     }
     float yc = cos(uYaw);
     float ys = sin(uYaw);
-    gl_FragColor = vec4(worldColour(vec3(yc * ray.x - ys * ray.z, ray.y, ys * ray.x + yc * ray.z)), 1.0);
+    vec4 found = worldColour(vec3(yc * ray.x - ys * ray.z, ray.y, ys * ray.x + yc * ray.z));
+    alpha *= found.a;
+    if (alpha < 0.002) {
+      gl_FragColor = vec4(0.0);
+      return;
+    }
+    gl_FragColor = vec4(found.rgb, 1.0);
     #include <colorspace_fragment>
     gl_FragColor = vec4(gl_FragColor.rgb * alpha, alpha);
   }
@@ -247,7 +145,6 @@ export const lookAroundMaterial = (): ShaderMaterial => new ShaderMaterial({
     uniform float uWorldModel;
     varying vec2 vUv;
     ${SKY_KEY}
-    ${CAFE_WORLD}
     ${WORLD}
     ${COMPOSITE}
   `,

@@ -97,7 +97,7 @@ class EnvironmentEdit {
     else this.useDefault();
   }
 
-  /** Remove the book's environment: the default applies (the café with the onion sky) */
+  /** Remove the book's environment: the default applies (nothing around the book) */
   useDefault(): void {
     this.edit({ ...DEFAULT_ENVIRONMENT }, null);
   }

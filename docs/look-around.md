@@ -1,5 +1,9 @@
 # Look-around: scene around the book + onion sky
 
+> **Since 1.104.0 there is no built-in world (#310, Tilman 2026-11-18):** the café and its alien sky are gone. Only an
+> experience's own world model (`worldSrc`) and sky image (`skySrc`) are drawn; without them nothing is drawn around
+> the book. `world: "cafe"` stays the content's token for the built-in slot. What follows about the café is history.
+
 Two optional effects in scan mode, **off by default** – readers turn them on in Info → Settings (Graphics):
 
 - **Scene around the book** – once a page is found, a world surrounds the reader. It is placed where the book was
