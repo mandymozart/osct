@@ -7,6 +7,11 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.103.2 – 2026-11-18
+
+### Changed
+- The Scenes panel's "+ Scene…" is a file-plus icon (#307, Tilman).
+
 ## 1.103.1 – 2026-11-18
 
 ### Changed

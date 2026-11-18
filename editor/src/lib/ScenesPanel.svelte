@@ -163,9 +163,9 @@
     </span>
     {#if error}<span class="small danger err" role="alert">{error}</span>{/if}
     <span class="grow"></span>
-    <button type="button" class="pill" bind:this={addButton} disabled={busy}
+    <button type="button" class="icon-button" bind:this={addButton} disabled={busy}
       onclick={() => { const r = addButton!.getBoundingClientRect(); openAdd({ x: r.left, y: r.bottom }, { after: current }); }}
-      data-help-name="+ Scene…" data-help="Adds a scene after the open one, from a layout: a single or double page, a fold-out, a wall – a front cover goes first, a back cover last. Nothing else renumbers.">+ Scene…</button>
+      data-help-name="+ Scene…" data-help="Adds a scene after the open one, from a layout: a single or double page, a fold-out, a wall – a front cover goes first, a back cover last. Nothing else renumbers." title="Add a scene" aria-label="Add a scene"><Icon name="file-plus" /></button>
     {#if ungroupMode}
       <button type="button" class="icon-button" disabled={busy || !canUngroup} onclick={ungroup} title="Ungroup (Ctrl+Shift+G)" aria-label="Ungroup"
         data-help-name="Ungroup" data-help="The picked scenes leave their group, in place (Ctrl+Shift+G) – with a group selected and no grouped scene picked, the group itself goes; its scenes stay where they are."><Icon name="folder-minus" /></button>
