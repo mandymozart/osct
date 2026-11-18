@@ -72,7 +72,7 @@
 
 {#snippet slotRow(slot: EnvironmentSlot)}
   {@const src = edit.edited[SOURCE[slot]]}
-  <div class="row" class:changed={(src ?? null) !== (edit.saved?.[SOURCE[slot]] ?? null)}
+  <div class="row slot" class:changed={(src ?? null) !== (edit.saved?.[SOURCE[slot]] ?? null)}
     data-help={slot === "world"
       ? "The scenery around the reader: a glTF model (its origin the floor under the reader, −z towards the book), or none. Library… picks one, Upload adds one, remove leaves none."
       : "The sky: an equirectangular image (2:1, its centre towards the book), or none. Library… picks one, Upload adds one, remove leaves none."}>
@@ -127,4 +127,7 @@
   .w :global(.scrub) { width: 100%; }
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; border-top: 1px solid var(--line); padding-top: .5rem; }
   .grow { flex: 1; }
+  /* World and sky each a block of their own: its label at the top, a line between them – the sky's picture can't be read as the world's */
+  .slot { align-items: flex-start; padding: .25rem 0; border-bottom: 1px solid var(--line); }
+  .slot > .label { padding-top: .35rem; }
 </style>
