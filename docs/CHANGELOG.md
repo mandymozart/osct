@@ -7,6 +7,21 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **Floating panels in the scene workspace** (#308, after the SCUTOONS deck editor): on a desktop and an iPad the stage
+  is the whole window and the Tree, the Inspector (with its tabs), the Scenes filmstrip, Info and the stage's Tools float
+  over it – each moves by its head (snapping to walls and other panels, never on another), resizes by its edges, folds to
+  its head and, unless essential (Inspector, Tools), closes. The top bar's panels menu brings closed panels back and
+  resets the layout; the layout is remembered per workspace in this browser. The phone keeps its sheet.
+- **The select tool** (Q, a plain pointer – no gizmo until move / rotate / scale is chosen) and the **select filters**
+  entities, targets, models, nodes: toggles saying what a click may pick, none on = anything (#308).
+
+### Changed
+- The stage toolbar's pick modes became the select filters; **render quality** (wire / solid / textured / rendered) is
+  one button with its menu instead of four buttons (#308).
+
 ## 1.105.1 – 2026-11-18
 
 ### Fixed

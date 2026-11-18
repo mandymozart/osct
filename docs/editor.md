@@ -340,15 +340,18 @@ translated with the app (#236, `docs/content.md` "Onboarding screens").
 
 ## The workspace
 
-`/editor/<book>/<spread>/`: the **tree** at the left, the stage, and one panel at the right on a desktop; on a phone the
-stage fills the screen and the panel is a sheet at the bottom whose head is the tab row (closed = the row only) with the
-tree as its first tab. The tabs (#229, `lib/panel-tabs.ts`): **Inspector** (what is selected), **Environment**,
+`/editor/<book>/<spread>/`: on a desktop and an iPad the **stage** is the whole window and the panels **float** over
+it ([Floating panels](#floating-panels), #308) – the **Tree**, the **Inspector** with its tabs, the **Scenes** filmstrip,
+**Info** and the stage's **Tools**. On a phone (the editor is for desktop and iPad – Tilman, 2026-11-18; the phone keeps
+what it had) the stage fills the screen and the panel is a sheet at the bottom whose head is the tab row (closed = the
+row only) with the tree as its first tab. The Inspector's tabs (#229, `lib/panel-tabs.ts`): **Inspector** (what is selected), **Environment**,
 **Library**, **Code** – no Stage tab: the spread is the Inspector's, the preview settings are the stage toolbar's; a tab
 stored before (`stage`, `entity`) opens the Inspector, as does a first visit.
 
-The bar: (‹ › moved to the Scenes panel's head at its right end – #307, 1.101.1; ← → still step) through the spreads (back to the spreads is the top bar's book crumb – #250) – on the last spread of a digital-first book a **+**
-after › opens the creation step of a new spread (#238; on a phone beside › at the stage's corner) –, the tabs – as words, or as icons in a panel too
-narrow for them (under 24rem, 28rem with a finger), so the head stays one line (#172). On a phone the head is the five
+The Inspector's head: its grip and icon (the handle), the tabs – as words, or as icons in a panel too narrow for them
+(under 24rem, 28rem with a finger), so the head stays one line (#172) – and, on the last spread of a digital-first book,
+a **+** that opens the creation step of a new spread (#238; on a phone beside › at the stage's corner). ‹ › live in the
+Scenes panel's head (#307; ← → still step); back to the spreads is the top bar's book crumb (#250). On a phone the head is the five
 tab icons alone, sharing its width (#171): ‹ › sit at the stage's lower corners, and the top bar's book crumb selects
 the book, whose Inspector leads back to the spreads (*All spreads*). On a stage too short for them below the toolbar (the sheet almost full) they move to its top
 right, beside the toolbar (#177) – which is one row and always leaves them that room, so every tool stays reachable at
@@ -357,6 +360,44 @@ every sheet height without scrolling (#180).
 When the draft cannot be loaded (the API is down, the book is not there) the stage area says why with **Retry** instead
 of *Building the stage…*; an action that fails (a removal, a target image, the reload after a change) shows its error
 over the stage until dismissed (#208).
+
+### Floating panels
+
+On a desktop and an iPad (#308, after the SCUTOONS deck editor's floats – `deck/kit/src/editor/floats.rs`) every panel
+of the workspace floats over the stage: `components/FloatingPanel.svelte` draws one (built once, RULES #32), its
+placement is pure in `components/floats.ts` (tested in `lib/__tests__/floats.test.ts`) and one workspace's set is a
+`Floats` (`components/floats.svelte.ts`). Each panel is declared once in the workspace's spec list (`SCENE_PANELS` in
+the page): id, name, icon, what it is for (its head's help in the Info view), its default place by a **corner and an
+offset**, its size (rem, `fill` – all the room the others leave – or `content`, the toolbar), its least size, folded or
+closed by default, **essential** (it folds but never closes) and **inline** (a toolbar).
+
+| Panel | Default place | |
+|---|---|---|
+| Tree | top left, the full height | |
+| Inspector | right, the full height (36rem wide while the Code tab shows, until it is resized) | essential |
+| Scenes | bottom, between the Tree and the Inspector | |
+| Info | bottom left, folded | |
+| Tools | top left over the stage, beside the Tree | inline, essential |
+
+- **Move** by the head (its grip, icon and name; ← ↑ → ↓ on the focused handle, Shift for larger steps): the panel
+  follows the pointer over the others; let go, its edges **snap** to a wall, to the gap beside another panel or in line
+  with another panel's edge (12 px), and a panel let go on another one goes to the nearest free place – none ever
+  overlaps another, every panel keeps a gap of .5rem.
+- **Resize** by its edges and corners (wider grips with a finger); let go, an edge stops before the next panel. A
+  double-click on an edge gives the panel back its own size.
+- **Fold** to its head (the chevron) – the pill: grip, icon, name; the inline toolbar folds to its icon, which a click
+  opens again. **Close** (×, not on essential panels); the top bar's **panels menu** lists the panels that close – ✓
+  shown, a click closes or brings one back – and **Reset layout**.
+- **The order of growth**: each panel first gets its least size where its place is, then grows from its corner towards
+  the size it asks for; an earlier panel leaves a later one the room that one asks for, a `fill` panel takes what is
+  left. So the Tree and the Inspector stand the full height beside the Scenes strip, and an Info opened at the bottom
+  left takes its room from the Tree.
+- **The place is kept by the nearest corner** (the distances to its walls), so a panel comes back where it was after the
+  window changes size; the panel touched last lies in front. Where every panel lies, folded or closed and the size it was
+  resized to is remembered **per workspace in this browser** (`osct-editor-panels`, `lib/storage.ts`); Reset layout
+  removes that workspace's layout.
+- The Scenes panel and the Info view in a float have no fold and no sash of their own – the float's head folds them,
+  its edges resize them; the Scenes cards scale with the panel's height.
 
 ### The Scenes panel
 
@@ -435,15 +476,11 @@ Keys: **/** (outside a field) or **Ctrl+K** focuses it, ↑ ↓ walk the hits (t
 none is chosen), Esc empties the field, then closes it. On a phone the bar shows a search icon; a tap lays the field
 over the whole top bar with a × to close it, the hits below at the screen's width.
 
-### Column edges and the phone's sheet
+### The phone's sheet
 
-- **Column edges** – the tree's right edge and the panel's left edge are dragged to resize the columns (#144; the panel
-  16rem to 70% of the window – 25rem by default, so its tab row fits one line (#170) –, the tree 10rem to 40%, the stage
-  keeps at least 16rem, so a 768 px tablet in portrait still shows a stage with the tree open – the panel's rows of
-  position, rotation and scale then put their label above the X / Y / Z fields (`@container panel`, #172); a focused
-  edge also moves with ← →; with a finger (`pointer: coarse`) the edge's hit area is wider). The stage's view follows
-  live. The widths are kept on the device (`editor/src/lib/widths.svelte.ts`); the Code tab has its own, wider width; a
-  double-click on an edge restores the default.
+- The columns and their dragged edges (#144) became the [floating panels](#floating-panels) (#308): the Tree and the
+  Inspector are resized by their own edges; the Inspector's rows of position, rotation and scale still put their label
+  above the X / Y / Z fields in a narrow panel (`@container panel`, #172).
 - **Sheet height (phone)** – the panel is a sheet at the bottom; its head (a grip and the tab row) is dragged up or down
   to any height, from the tab row alone to 85% of the screen, and snaps when let go to closed, a third, half or almost
   full (a flick carries it on); a movement under 8 px is a tap, so a tab still opens or closes it (#155). The height is
@@ -512,7 +549,8 @@ folded or childless row steps up a level: node → parent → entity → target 
 
 ### The Info view
 
-At the bottom of the tree column (on the book page at the bottom left), after Ableton's Info View: the name and
+A floating panel of the workspace, folded at the bottom left to start with,
+after Ableton's Info View: the name and
 description of the control under the pointer or in focus; collapsible, the state kept on the device. The panels carry
 no explanatory text of their own – it is the controls' help (`editor/src/lib/help.svelte.ts`): an element with
 `data-help="…"` (named by `data-help-name`, else its `aria-label` or its row's label), or its `title`; the innermost one
@@ -581,18 +619,22 @@ drive and show the narrative ([Vars and events](#vars-and-events)).
 
 ### The stage toolbar
 
-At the stage's top left (#180, `components/ToolGroup.svelte`, `lib/tool-groups.ts`), icons only (its menus add the
-names), every button's label its tooltip:
+The **Tools** panel (#180, #308 – an inline [floating panel](#floating-panels) at the stage's top left: it moves,
+folds to its icon and resizes like the others; on a phone over the stage's top left; `components/ToolGroup.svelte`,
+`lib/tool-groups.ts`), icons only (its menus add the names), every button's label its tooltip:
 
-- **transform** (move / rotate / scale – the [gizmo](#the-gizmo); **W / E / R** switch it), **pick** (entities / nodes
-  / targets – [Picking](#picking-hover-and-the-stages-menu)) and **shading** (wire / solid / textured / rendered, as
-  four spheres – [Outlines, shading and lights](#outlines-shading-and-lights)). Each group is one button showing its
-  active option's icon (a small corner mark says it opens more); a tap opens its options in a menu attached to it –
-  icon, name and shortcut, each with its name as tooltip and label – and a choice closes it. Where the toolbar has room
-  the groups stay **expanded**, their options side by side: decided by the toolbar's own room (the stage's width, on a
-  phone less ‹ ›), never by the device – from the first group on, each expands while the toolbar still fits one row. A
-  1280 px desktop shows all three expanded, a narrow stage (a tablet in portrait) collapses the last, a 360 px phone all
-  three. The menu is a WAI-ARIA menu: ↑ ↓ (← →), Home / End, Enter or Space choose, Esc closes and returns the focus to
+- **the tool** – **select** (a plain pointer, **Q**: a click picks what the filters allow, the selection is outlined, no
+  gizmo; the tool a workspace starts with) or the [gizmo](#the-gizmo)'s **move / rotate / scale** (**W / E / R**) –,
+  the **select filters** – **entities, targets, models, nodes**, in this order, each a toggle saying what a click may
+  pick, for every tool; with none on a click picks anything ([Picking](#picking-hover-and-the-stages-menu)); the
+  collapsed group's menu has checkbox items and stays open while they are switched – and **render quality** (wire /
+  solid / textured / rendered – [Outlines, shading and lights](#outlines-shading-and-lights)), always one button with
+  its menu. Each group is one button showing its active option's icon (a small corner mark says it opens more); a tap
+  opens its options in a menu attached to it – icon, name and shortcut, each with its name as tooltip and label – and a
+  choice closes it. Where the toolbar has room the tool and the filters stay **expanded**, their options side by side:
+  decided by the toolbar's own room (on a desktop the room between the Tree and the Inspector, or the width the Tools
+  panel was resized to; on a phone the stage's width less ‹ ›), never by the device – from the first group on, each
+  expands while the toolbar still fits one row. The menu is a WAI-ARIA menu: ↑ ↓ (← →), Home / End, Enter or Space choose, Esc closes and returns the focus to
   the button, ↓ on the button opens it; a tap outside closes it and picks nothing on the stage. With a finger its items
   are the touch height (44 px).
 - **grid & snap** (#190, `components/GridSnapMenu.svelte`) – always one button, the grid's icon with a dot in its corner
@@ -670,7 +712,7 @@ the book, x right, y up the page, z out of it):
 ### The gizmo
 
 Three.js `TransformControls` on the selected node (the tree's or the stage's selection): **move / rotate / scale** by
-the toolbar or **W / E / R**, handles in the node's own space, so a drag changes the node's placement **relative to its
+the toolbar or **W / E / R** (the **select** tool, **Q**, hides the handles and keeps the selection's outline – #308), handles in the node's own space, so a drag changes the node's placement **relative to its
 parent** – the Inspector's rows follow live, the drag is [saved by itself](#autosave) once it ends. It snaps as *grid & snap* says ([above](#grid-origin-and-snapping)).
 A click that ends a drag selects nothing. The tracker lets the gizmo's gestures through (`MockTracker.ignorePointer`);
 the engine opens the running scene to such tools with `IArScene.inspect()` (scene, camera, canvas, frame hook, a node's
@@ -678,10 +720,14 @@ object by its path, the tap's hit test) – the reader never calls it.
 
 ### Picking, hover and the stage's menu
 
-A click on the stage selects what lies under the pointer by the **pick mode** in the toolbar (Blender's select mode,
-#192), strictly: *entity* (a parcel – only an entity, its root), *node* (a point on the graph – only the node under the
-pointer, as deep as the tree goes) or *target* (the crosshair – only a printed image, through an entity standing on it).
-A click where nothing of the mode's kind lies **selects the spread** (#229) – the tree, the stage and the Inspector
+A click on the stage selects what lies under the pointer by the **select filters** in the toolbar (#308; before them
+Blender's strict select modes, #192), in this order: *entities* (a parcel – an entity, its root, from any of its nodes),
+*targets* (the crosshair – a printed image, through an entity standing on it), *models* (the model node a hit belongs
+to – itself or the nearest model above it) and *nodes* (a point on the graph – the node under the pointer, as deep as
+the tree goes). Each is a toggle; **with none on a click picks anything** – the nearest hit at its finest (the node, or
+the print). With several on, the nearest hit any of them takes is picked, at the finest level that is on (nodes before
+models before entities). The filters hold for every tool – select, move, rotate, scale. A click where nothing the
+filters take lies **selects the spread** (#229) – the tree, the stage and the Inspector
 alike: no outline, no gizmo, the spread's sections in the Inspector; a workspace opens so too (no target stands in any
 more). Particles and lines count only where they are drawn (8 px around the pointer), the editor's own outlines and a
 light's rays never; a light is picked by its bulb. The pure filter is `editor/src/lib/stage/pick.ts`.
@@ -689,7 +735,7 @@ light's rays never; a light is picked by its bulb. The pure filter is `editor/sr
 **Hover** (a mouse on a device that hovers): what a click would pick wears a light grey outline (a particle cloud its
 bounds) and the pointer cursor; with a finger there is no hover – a tap selects at once and shows the orange outline.
 
-A **right click** on the stage opens the menu for what lies there – the mode's pick, else the printed image under the
+A **right click** on the stage opens the menu for what lies there – the filters' pick, else the printed image under the
 pointer: on a target *Add node… / Add AR content…*, *Remove node / entity*, *Placement on the page…*, *Library…*,
 *Remove target*; on the page or the table *+ target…*, *Replay the first find* and *View settings…* (the toolbar's
 *view* group). It is the editor's one context menu (`ContextMenu.svelte` – the keys as on the book page's cards); while
@@ -1184,7 +1230,7 @@ design tokens):
 | The demo's key model | `editor/tools/key-model.mjs` | the demo book's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | The API layer | `editor/src/lib/api.ts`, `storage.ts`; `shared/api/` | every call through one `request` (the session cookie and the CSRF token on writes – #207, a 401 that ends the session, the API's errors as `ApiError` with their details); the answers typed once with the MCP server (`shared/api/editor.ts`); `getBook` reads a book's tree once for the stage, the environment and the top bar and reads it again after any write to the book (`fresh` for the book page); `errorText` the one error line; the two-step confirmations through `confirmationStep` (`shared/api/errors.ts`); the settings in localStorage through `storage.ts` (`osct-…` keys, blocked storage tolerated) |
-| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SpreadView` and `EntryForm`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Toggle`, `Section`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry's form in `EntryForm.svelte` (its logic in `entry-edit.ts`, its words outside the form in `entry-view.ts`), the spread section's in `spread-view.ts` (#227) |
+| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SpreadView` and `EntryForm`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Toggle`, `Section`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the floating panels `FloatingPanel` with `floats.ts` (placement, pure) and `floats.svelte.ts` (a workspace's set, the panels menu) (#308); the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry's form in `EntryForm.svelte` (its logic in `entry-edit.ts`, its words outside the form in `entry-view.ts`), the spread section's in `spread-view.ts` (#227) |
 | The book's texts and search | `editor/src/lib/BookSearch.svelte`, `book-search.ts`, `BookTexts.svelte`, `book-texts.ts`, `panels/BookPanel.svelte`, `panels/NewEntryForm.svelte`, `entries.svelte.ts` | [Texts](#texts-entries-and-the-book), [The book search](#the-book-search), [Inspector: the book](#inspector-the-book) |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts`, `stage/plugin-run.ts` | the stored sources, Run (transpile with sucrase in the page; import and `installPlugin` in the stage frame, rebuild), the plugins' log |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Euler, MathUtils, Object3D, Quaternion, Vector3 } from "three";
-import { GIZMO_KEYS, placementOf, snappedRotation } from "../gizmo";
+import { GIZMO_KEYS, placementOf, snappedRotation, STAGE_TOOLS, TOOL_KEYS } from "../gizmo";
 import { snapAngle } from "../snap";
 
 describe("the gizmo's placement", () => {
@@ -20,6 +20,11 @@ describe("the gizmo's placement", () => {
 
   it("W / E / R are the modes", () => {
     expect(GIZMO_KEYS).toEqual({ w: "translate", e: "rotate", r: "scale" });
+  });
+
+  it("Q is the select tool – a pointer without the gizmo – before the modes (#308)", () => {
+    expect(STAGE_TOOLS).toEqual(["select", "translate", "rotate", "scale"]);
+    expect(TOOL_KEYS).toEqual({ q: "select", w: "translate", e: "rotate", r: "scale" });
   });
 });
 

@@ -15,12 +15,15 @@
   import ContextMenu, { type MenuItem } from "#lib/components/ContextMenu.svelte";
   import { goto } from "$app/navigation";
   import type { Point } from "#lib/context-menu.js";
+  import { openFloats } from "#lib/components/floats.svelte.js";
 
   /**
    * The editor's one top bar (every page, drawn by the layout): the breadcrumb `Books › book › spread` at the left, the
    * book's search while a book is open (#237, `BookSearch`), where the draft stands (#259, `SaveStatus`: edits save
    * themselves), Publish (with its environment), then the account menu ☰ at the right: the e-mail, Admin and Sign out
-   * (Tilman, 2026-11-18). The book's crumb always leads to the book page – the spreads overview (#274); in a spread's
+   * (Tilman, 2026-11-18). In a workspace with floating panels (#308) the **panels menu** before it: each panel that
+   * closes, shown (✓) or closed – a click flips it –, and **Reset layout** (every panel back to its default place and
+   * size). The book's crumb always leads to the book page – the spreads overview (#274); in a spread's
    * workspace the ⚙ after it selects the book (#237): the Inspector shows its texts and settings. When the open
    * book's draft has features this editor's engine does not know (a newer content build – RULES #10), a small warning
    * opens their list: the stage shows the book without them.
@@ -58,6 +61,24 @@
     ...(session.isAdmin && !isAdminRoute ? [{ label: "Admin", icon: "settings" as const, help: "The instance's users and AI connections.", select: () => void goto(resolve("admin/")) }] : []),
     { label: "Sign out", icon: "open" as const, help: "Ends this session in this browser.", select: () => session.signOut() },
   ]);
+  /** The panels menu: the workspace's floating panels, under its button */
+  let panelsAt = $state<Point | null>(null);
+  let panelsButton = $state<HTMLButtonElement | null>(null);
+  const openPanels = () => {
+    const box = panelsButton?.getBoundingClientRect();
+    panelsAt = box ? { x: box.right, y: box.bottom + 4 } : { x: window.innerWidth, y: 40 };
+  };
+  const panelItems = $derived.by<MenuItem[]>(() => {
+    const floats = openFloats.current;
+    if (!floats) return [];
+    return [
+      ...floats.closable().map(p => ({
+        label: p.name, icon: (p.open ? "check" : "eye-off") as "check" | "eye-off", help: p.open ? `Closes the ${p.name} panel.` : `Brings the ${p.name} panel back.`,
+        select: () => floats.flip(p.id),
+      })),
+      { label: "Reset layout", icon: "reset" as const, help: "Every panel back to its default place and size, open or folded as it starts – the layout this browser remembered for this workspace goes.", select: () => floats.reset() },
+    ];
+  });
   const SKIPPED_HELP = "This book was built with a newer content schema than this editor knows. The stage skips what it does not know – update the editor (a newer release) to see and edit everything.";
 </script>
 
@@ -92,6 +113,11 @@
   {#if bookId}
     {#key bookId}<BookSearch {bookId} /><SaveStatus /><PublishButton {bookId} />{/key}
   {/if}
+  {#if openFloats.current}
+    <button type="button" class="icon-button panels" bind:this={panelsButton} onclick={openPanels} aria-haspopup="menu" aria-expanded={panelsAt !== null}
+      title="Panels" aria-label="Panels menu" data-help-name="Panels" data-help="The workspace's floating panels: show or close each one, and Reset layout – every panel back to its default place. Inspector and Tools only fold."><Icon name="panels" /></button>
+    {#if panelsAt}<ContextMenu at={panelsAt} items={panelItems} label="Panels" head="Panels" returnFocus={panelsButton} onclose={() => (panelsAt = null)} />{/if}
+  {/if}
   <button type="button" class="icon-button account" bind:this={menuButton} onclick={openMenu} aria-haspopup="menu" aria-expanded={menuAt !== null}
     title={session.user?.email ?? "Account"} aria-label="Account menu" data-help-name="Account" data-help="Your account: Admin (for admins) and Sign out."><Icon name="menu" /></button>
   {#if menuAt}<ContextMenu at={menuAt} items={menuItems} label="Account" head={session.user?.email ?? undefined} returnFocus={menuButton} onclose={() => (menuAt = null)} />{/if}
@@ -112,7 +138,7 @@
   /* Short of room, Books gives way first: the book's crumb is the way back to the spreads */
   .crumbs > .crumb:first-child { flex-shrink: 4; }
   .crumbs > .crumb:nth-child(3) { min-width: 3rem; }
-  .book-settings, .account { flex: none; }
+  .book-settings, .account, .panels { flex: none; }
   .sep { flex: none; color: var(--muted); }
   .crumb.spread { flex: none; }
   .skipped { position: relative; flex: none; }

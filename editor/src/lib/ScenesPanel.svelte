@@ -30,9 +30,11 @@
    * and counts, **+ Scene…** (a layout preset, after the open scene), **Group** (Ctrl+G) and **Ungroup** (Ctrl+Shift+G)
    * for the picked scenes (one toggle: group / ungroup). The sash above it is dragged to resize it (double-click: the default). Open, height
    * and zoom are remembered in this browser. A drop is written at once (`POST …/scenes/move`, the drop is the
-   * confirmation); the workspace follows `scenes.version` (the draft's order for ‹ ›).
+   * confirmation); the workspace follows `scenes.version` (the draft's order for ‹ ›). In a floating panel
+   * (`floating`, #308) the panel's head folds it and its edges resize it: no ▾ and no sash here, the strip fills the panel
+   * and its cards scale with the panel's height.
    */
-  let { bookId, bookTitle = "", current, selectedGroup = null, sheetLayout = null, pageImages = {}, assetsBase = "", onopen, onselectgroup, onstep }: {
+  let { bookId, bookTitle = "", current, selectedGroup = null, sheetLayout = null, pageImages = {}, assetsBase = "", floating = false, onopen, onselectgroup, onstep }: {
     bookId: string;
     bookTitle?: string;
     current: string;
@@ -40,6 +42,8 @@
     sheetLayout?: StageLayout | null;
     pageImages?: Readonly<Record<string, string>>;
     assetsBase?: string;
+    /** Inside a floating panel: its size is the panel's */
+    floating?: boolean;
     onopen: (sceneId: string) => void;
     onselectgroup: (groupId: string) => void;
     /** ‹ › the previous / next scene (moved here from the Inspector's head – Tilman, 2026-11-18) */
@@ -58,7 +62,9 @@
   const save = () => writeStoredJson(KEY, { open, height });
   const count = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
   const maxHeight = () => Math.max(HEIGHT_MIN, Math.round(window.innerHeight * 0.5));
-  const shownHeight = $derived(Math.min(Math.max(height, HEIGHT_MIN), maxHeight()));
+  /** In a floating panel: its height, measured */
+  let floatingHeight = $state(0);
+  const shownHeight = $derived(floating ? Math.max(floatingHeight, 1) : Math.min(Math.max(height, HEIGHT_MIN), maxHeight()));
   const zoom = $derived(Math.max(0.6, (shownHeight - (HEIGHT_DEFAULT - CARD_HEIGHT_PX)) / CARD_HEIGHT_PX));
 
   $effect(() => {
@@ -145,8 +151,9 @@
 
 <svelte:window onkeydown={windowKey} />
 
-<section class="scenes" class:closed={!open} style:height={open ? `${shownHeight}px` : undefined} aria-label="Scenes" data-app-ui>
-  {#if open}
+<section class="scenes" class:closed={!open && !floating} class:floating style:height={open && !floating ? `${shownHeight}px` : undefined} aria-label="Scenes" data-app-ui
+  bind:clientHeight={floatingHeight}>
+  {#if open && !floating}
     <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
     <div class="sash" class:on={!!sizing} role="separator" aria-orientation="horizontal" aria-label="Scenes panel height" tabindex="0"
       aria-valuenow={shownHeight} aria-valuemin={HEIGHT_MIN} data-help-name="Scenes panel height"
@@ -155,9 +162,11 @@
       ondblclick={() => { height = HEIGHT_DEFAULT; save(); }} onkeydown={sashKey}></div>
   {/if}
   <div class="head">
-    <button type="button" class="icon-button" onclick={toggle} aria-expanded={open} aria-label={open ? "Collapse the Scenes panel" : "Open the Scenes panel"}
-      title={open ? "Collapse the Scenes panel" : "Open the Scenes panel"}><Icon name={open ? "down" : "up"} /></button>
-    <span class="section-label">Scenes</span>
+    {#if !floating}
+      <button type="button" class="icon-button" onclick={toggle} aria-expanded={open} aria-label={open ? "Collapse the Scenes panel" : "Open the Scenes panel"}
+        title={open ? "Collapse the Scenes panel" : "Open the Scenes panel"}><Icon name={open ? "down" : "up"} /></button>
+      <span class="section-label">Scenes</span>
+    {/if}
     <span class="muted info">
       · {[bookTitle, count(scenes.list.length, "scene"), count(scenes.groups.length, "group"), scenes.picks.picked.length ? `${scenes.picks.picked.length} picked` : ""].filter(Boolean).join(" · ")}
     </span>
@@ -180,7 +189,7 @@
       </span>
     {/if}
   </div>
-  {#if open}
+  {#if open || floating}
     <div class="strip">
       {#if scenes.tree}
         <SceneCards layout="strip" {current} {selectedGroup} {zoom} {sheetLayout} {pageImages} {assetsBase} {onopen} {onselectgroup}
@@ -204,6 +213,7 @@
   @media (hover: hover) { .sash:hover::after { opacity: 1; } }
   .head { flex: none; display: flex; align-items: center; gap: .25rem; padding: .25rem .375rem; background: var(--surface-head); border-bottom: 1px solid var(--line); min-width: 0; }
   .closed .head { border-bottom: 0; }
+  .scenes.floating { flex: 1; border-top: 0; background: none; }
   .section-label { text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-size: var(--text-small); }
   .info { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; font-size: var(--text-small); }
   .err { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }

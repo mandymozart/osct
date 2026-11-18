@@ -12,7 +12,7 @@ import { getBook, getSpread, getTarget, getTargets } from "@engine/content/game-
 import { type BookAppearance, type Moment, momentDuration } from "@shared/types/appearance";
 import { SceneState, type ArStatus, type EntityData, type NodeTimeline, type PassData, type SpreadFormat } from "@engine/types";
 import { deviceStorage } from "#lib/storage.js";
-import { Gizmo, type GizmoMode, type GizmoPlacement, type GizmoSelection } from "./gizmo";
+import { Gizmo, type GizmoPlacement, type GizmoSelection, type StageTool } from "./gizmo";
 import { LightHelpers } from "./light-helper";
 import { applyShading, HOVER_COLOR, outline, SELECTION_COLOR, type Outline } from "./shading";
 import { getPreview, setPreviewActive, setTargetHidden, subscribePreview, type ShadingMode } from "./preview";
@@ -22,7 +22,7 @@ import { MockTracker } from "./mock-tracker";
 import { StageProgress } from "./progress";
 import { describePayload, logEvent, type StageEvent } from "./event-log";
 import { REMOVED_ENTITY } from "./frame-protocol";
-import { nearPointer, nodeOf, pickable, pickByMode, pickForMenu, samePick, type PickMode, type StageHit, type StagePick } from "./pick";
+import { modelOf, nearPointer, nodeOf, PICK_KINDS, pickable, pickByFilter, pickForMenu, samePick, type PickFilter, type PickKind, type StageHit, type StagePick } from "./pick";
 import { DEFAULT_ASPECT, draggedPlace, grabOffset, printedHeight, type PlacementDrag } from "./placement";
 import { DEFAULT_PAGE_MM } from "./stage-layout";
 import { SceneSnapper } from "./snap-scene";
@@ -75,8 +75,8 @@ export class StageCore {
   onContextMenu: ((hit: StagePick | null, clientX: number, clientY: number) => void) | null = null;
   /** A gizmo drag moved the selected node: the page writes the placement into its override and sends it back */
   onPlacement: ((selection: GizmoSelection, placement: GizmoPlacement) => void) | null = null;
-  /** What a click picks (Blender's select mode, strict – `pick.ts`): an entity (its root), the node under the pointer, or a printed target */
-  pickMode = $state<PickMode>("entity");
+  /** What a click may pick – the select tool's filters (`pick.ts`): entities, targets, models, nodes; none on = anything */
+  pickFilter = $state<PickKind[]>([]);
   /** The viewport's shading (stored with the preview settings) */
   shading = $state<ShadingMode>(getPreview().shading);
 
@@ -95,9 +95,8 @@ export class StageCore {
   /** The helpers of the spread's light nodes (Blender-style, the editor's only) */
   private lightHelpers: LightHelpers | null = null;
   private selection: GizmoSelection | null = null;
-  private wantedMode: GizmoMode = "translate";
-  /** The gizmo's mode (reactive: the toolbar shows it) */
-  gizmoMode = $state<GizmoMode>("translate");
+  /** The tool in hand (reactive: the toolbar shows it): select – no gizmo – or a gizmo mode */
+  tool = $state<StageTool>("select");
   /** The simulated reader's progress: the first finds and the plugins' book variables */
   private progress = new StageProgress();
   /** The plugins' variables with their scopes (reactive: the Inspector lists them) */
@@ -202,7 +201,7 @@ export class StageCore {
     const onContext = (event: MouseEvent) => {
       if (onAppUi(event) || !container.contains(event.target as Node)) return;
       event.preventDefault();
-      this.onContextMenu?.(pickForMenu(this.pickMode, this.hits(event.clientX, event.clientY)), event.clientX, event.clientY);
+      this.onContextMenu?.(pickForMenu(this.pickFilter, this.hits(event.clientX, event.clientY)), event.clientX, event.clientY);
     };
     container.addEventListener("click", onClick);
     container.addEventListener("contextmenu", onContext);
@@ -245,14 +244,16 @@ export class StageCore {
     this.raycaster.setFromCamera(point, inspection.camera);
     const found: Array<{ distance: number; hit: StageHit }> = [];
     // The entities' nodes: every placement group by its object, for the climb from a hit mesh
-    const byObject = new Map<Object3D, { targetId: string; path: number[] }>();
+    const byObject = new Map<Object3D, { targetId: string; path: number[]; model: number[] | null }>();
     const roots: Object3D[] = [];
     for (const target of getTargets(spread)) {
       const tree = this.treeOf(target.id);
       if (!tree) continue;
-      for (const { path } of entityNodes(tree)) {
+      const nodes = entityNodes(tree);
+      const models = new Set(nodes.filter(({ node }) => node.type === "model").map(({ path }) => path.join(".")));
+      for (const { path } of nodes) {
         const object = inspection.nodeObject(target.id, path);
-        if (object) byObject.set(object, { targetId: target.id, path });
+        if (object) byObject.set(object, { targetId: target.id, path, model: modelOf(path, at => models.has(at.join("."))) });
         if (object && !path.length) roots.push(object);
       }
     }
@@ -285,13 +286,13 @@ export class StageCore {
     return nearPointer({ x: clientX, y: clientY }, { x: rect.left + ((drawn.x + 1) / 2) * rect.width, y: rect.top + ((1 - drawn.y) / 2) * rect.height });
   }
 
-  /** What a click on a point of the stage (client px) picks by the pick mode, null when nothing of its kind lies there */
+  /** What a click on a point of the stage (client px) picks by the filters, null when nothing they take lies there */
   pick(clientX: number, clientY: number): StagePick | null {
-    return pickByMode(this.pickMode, this.hits(clientX, clientY));
+    return pickByFilter(this.pickFilter, this.hits(clientX, clientY));
   }
 
-  setPickMode(mode: PickMode): void {
-    this.pickMode = mode;
+  setPickFilter(filter: PickFilter): void {
+    this.pickFilter = PICK_KINDS.filter(kind => filter.includes(kind));
     this.hover(null);
   }
 
@@ -454,7 +455,7 @@ export class StageCore {
     const inspection = this.scene.inspect();
     if (!inspection) return;
     this.gizmo = new Gizmo(inspection, (selection, placement) => this.onPlacement?.(selection, placement), this.snapper);
-    this.gizmo.mode = this.wantedMode;
+    this.applyTool();
     this.gizmo.select(this.visibleSelection());
     this.lightHelpers = new LightHelpers(inspection, () => {
       const spread = this.spreadId;
@@ -506,10 +507,16 @@ export class StageCore {
     this.targetOutline = plane ? { plane, outline: outline(plane, SELECTION_COLOR) } : null;
   }
 
-  setGizmoMode(mode: GizmoMode): void {
-    this.wantedMode = mode;
-    this.gizmoMode = mode;
-    if (this.gizmo) this.gizmo.mode = mode;
+  /** The tool in hand: select hides the gizmo's handles (the selection stays outlined), a mode shows them */
+  setTool(tool: StageTool): void {
+    this.tool = tool;
+    this.applyTool();
+  }
+
+  private applyTool(): void {
+    if (!this.gizmo) return;
+    if (this.tool !== "select") this.gizmo.mode = this.tool;
+    this.gizmo.handles = this.tool !== "select";
   }
 
   /** Shift or Ctrl held (true) or let go: snapping is turned around while it is held */

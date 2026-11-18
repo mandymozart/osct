@@ -10,8 +10,8 @@ import {
   type ContentSnapshot, contentBasesNamed, libraryFoldersOf, eventMessage, type FrameEventName, type FrameEvents, type FrameInit, frameCsp, isForwardedKey, type KeyForward, type LayoutSnapshot,
   LOG_MAX, pageImageMap, readFrameRequest, REMOVED_WIRE, type TimelineSnapshot,
 } from "./frame-protocol";
-import type { GizmoMode } from "./gizmo";
-import type { PickMode } from "./pick";
+import { STAGE_TOOLS, type StageTool } from "./gizmo";
+import type { PickFilter } from "./pick";
 import { runPluginCode } from "./plugin-run";
 import { applyPreviewSync, previewSync, subscribePreview } from "./preview";
 import { type GhostPlace, StageCore } from "./stage-core.svelte";
@@ -155,7 +155,7 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     cleanups.push($effect.root(() => {
       $effect(() => {
         post("state", {
-          status: s.status, error: s.error, spreadId: s.spreadId, found: [...s.found], subtitle: s.subtitle, pickMode: s.pickMode, shading: s.shading, world: s.world, gizmoMode: s.gizmoMode,
+          status: s.status, error: s.error, spreadId: s.spreadId, found: [...s.found], subtitle: s.subtitle, pickFilter: [...s.pickFilter], shading: s.shading, world: s.world, tool: s.tool,
         });
         // The declared plugins registered while the spread loaded
         if (s.status === "running") untrack(sync);
@@ -185,8 +185,8 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     playMoment: (moment: Moment) => stage().playMoment(moment),
     selectNode: (targetId: string | null, path: number[]) => stage().selectNode(targetId, path),
     selectTarget: (targetId: string | null) => stage().selectTarget(targetId),
-    setPickMode: (mode: PickMode) => stage().setPickMode(mode),
-    setGizmoMode: (mode: GizmoMode) => stage().setGizmoMode(mode),
+    setPickFilter: (filter: PickFilter) => stage().setPickFilter(Array.isArray(filter) ? filter : []),
+    setTool: (tool: StageTool) => stage().setTool(STAGE_TOOLS.includes(tool) ? tool : "select"),
     setSnapModifier: (held: boolean) => stage().setSnapModifier(held),
     showEnvironment: (environment: EnvironmentData | null, previewing: boolean) => stage().showEnvironment(environment, previewing),
     setLookUp: (degrees: number) => stage().setLookUp(degrees),
