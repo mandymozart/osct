@@ -148,6 +148,49 @@ export interface Change {
   user: string | null;
   token: string | null;
   createdAt: string;
+  /** The change set a revert wrote (#312): the changes of one revert share it; null for any other save */
+  set?: string | null;
+  /** The change this one took back (a revert), else null */
+  reverts?: string | null;
+  /** Why the change cannot be reverted (a creation, a removal, a moved entry, a plugin source …); null when it can */
+  notRevertable?: string | null;
+}
+
+/** One change of a revert's plan (#312): what happens to it */
+export interface RevertItem {
+  id: string;
+  kind: string;
+  ref: string;
+  user: string | null;
+  token: string | null;
+  createdAt: string;
+  /** A later change of the same thing, reverted with the chosen ones (its edit would be lost otherwise) */
+  later: boolean;
+  /** Made by someone else */
+  other: boolean;
+  /** `revert` – its before is written back; `conflict` – its thing no longer holds what it wrote (left as it is); `not-revertable` */
+  status: "revert" | "conflict" | "not-revertable";
+  reason?: string;
+}
+
+/**
+ * `POST /editor/books/{id}/changes/{cid}/revert`, `…/changes/revert { ids }`, `…/changes/revert-to { after }` – without
+ * `apply: true` the plan (nothing written), with it the plan written: `written` the new changes' ids, `set` their set
+ */
+export interface RevertResult {
+  plan: {
+    changes: RevertItem[];
+    /** The change ids asked for (the rest are later changes of the same things) */
+    chosen: string[];
+    counts: { revert: number; conflict: number; notRevertable: number };
+    /** How many later changes of the same things are reverted with them */
+    later: number;
+    /** The e-mail addresses of other people whose changes are reverted or in the way */
+    others: string[];
+  };
+  applied: boolean;
+  set: string | null;
+  written: string[];
 }
 
 // ── Import ───────────────────────────────────────────────────────────────────────────────────────────

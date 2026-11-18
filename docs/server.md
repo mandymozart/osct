@@ -87,7 +87,7 @@ without a token, 403 `forbidden` for a reader. `{id}` is the book, ids and refs 
 | `GET /editor/books/{id}/draft/latest.json` · `…/draft/{build}/game.config.json` · `…/draft/{build}/files.json` | | the draft as a content version, assembled from the rows on every call (`Cache-Control: no-store`); the engine's loader reads it like the CDN, its `fetchFn` sending the session cookie. The build in the path is not checked against the current draft – an edit between the two requests is no error |
 | `POST /editor/books/{id}/publish` | `{ env, note?, replace?, plugins? }` – `plugins` = the Code tab's saved sources as the editor transpiled them, `[{ id, code, api, registered? }]` (#78: each id a saved source of the book, else 400 `invalid-plugins`; written into the version as `assets/content/plugins/<id>/plugin-<hash>.js` and declared; `registered` kept only when it names the types the source registers) | `{ env, store, build, hash, publishedAt, replaced }` – writes the assembled version to the content store of `env`, which must be this instance's own environment (`ENV`; another one: **403 `other-environment`** with `env`, the own one): `<env>/<build>/game.config.json` and `files.json` (unless that build is there already – a version folder is never overwritten), then `versions.json` (the previous current version retired), then `latest.json` (both name the book); a row in the publish log. An environment serves one book: when it serves another (or one that cannot be told) the publish needs `replace: true`, else 409 `other-book` with `current` `{ env, book, title, build, since }`; `replaced` `{ book, build }` names the book replaced, null when none; `store` = where it went (`cdn` or `server`). 400 `invalid-env` (no environment name), `invalid-replace`; 502 `content-store-failed` |
 | `GET /editor/books/{id}/versions` | | `{ versions: [{ id, env, build, hash, publishedBy, publishedAt, note }] }` – the publish log, newest first |
-| `GET /editor/books/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target) – and `entry`, `spread`, `environment`, `passes`, `book`, `plugin`, `asset` (a Library file a removal deleted); a removed row has `after: null`; `token` = the name of the AI connection a save came through, null for the editor; `limit` default 50, at most 500 |
+| `GET /editor/books/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt, set, reverts, notRevertable }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target) – and `entry`, `spread`, `order`, `groups`, `environment`, `passes`, `appearance`, `book`, `plugin`, `asset` (a Library file a removal deleted); a removed row has `after: null`; `token` = the name of the AI connection a save came through, null for the editor; `set` / `reverts` for a revert's changes and `notRevertable` – [Reverting saved changes](#reverting-saved-changes); `limit` default 50, at most 500 |
 | `GET /content/{env}/{path}` | | the **local** content store, public like the CDN: `latest.json`, `versions.json` (`no-cache`) and `<build>/game.config.json` / `files.json` (immutable) – nothing else, no other path |
 
 Signed-in calls from a browser send the session cookie and, with every write, its CSRF token; other clients send
@@ -831,6 +831,34 @@ person, only this way; the change log names it). `Removal.php` works out what go
    change: anything that changed in the book answers 409 `confirmation-void` with a fresh impact and id.
 
 400 `invalid-delete` when `deleteFiles` is not true or false.
+
+### Reverting saved changes
+
+The change log (`changes`, one row per saved draft change with `kind`, `ref`, `before_json`, `after_json`, the user and
+the time) is also the way back (#312, `Reverts.php`). A revert writes a change's `before` again as a **new** change – nothing is
+erased, and a revert can be reverted. The changes one revert writes share a change set (`changes.change_set`, `set` in
+`GET …/changes`), each names the change it took back (`changes.reverts`, `reverts`). Two steps, as the matter: without
+`apply: true` the plan, nothing written; with it the plan is made again and written in one transaction. A revert
+changes the draft only – readers see it with the next publish.
+
+| Endpoint | Body | Answer |
+|---|---|---|
+| `POST /editor/books/{id}/changes/{cid}/revert` | `{ apply? }` | one change, with every **later change of the same thing** – the same entity, target, entry or scene row; for the book's JSON (`environment`, `passes`, `appearance`, `book`) the same fields – reverted first (their edits would be lost otherwise) |
+| `POST /editor/books/{id}/changes/revert` | `{ ids, apply? }` (1–2000) | these changes, later ones of the same things too – the editor's undo and redo |
+| `POST /editor/books/{id}/changes/revert-to` | `{ after, apply? }` | every change saved after `after`, by anyone, newest first – back to the state right after it. 400 `nothing-to-revert` |
+
+Each answers `{ plan: { changes, chosen, counts: { revert, conflict, notRevertable }, later, others }, applied, set,
+written }`: `changes` newest first, each `{ id, kind, ref, user, token, createdAt, later, other, status, reason? }`;
+`others` the e-mail addresses of other people among them; `written` the new changes' ids. The changes are walked newest
+first: one whose thing still holds what it wrote (`after`, compared with the keys sorted; the book's JSON only in the
+fields it changed) gets its `before` back (`status: revert`); one whose thing holds something else is a **conflict** –
+listed, never overwritten, and the older changes of that thing are skipped as well. **Not revertable** (`status:
+not-revertable`, and `notRevertable` in `GET …/changes`): a creation (`before` null – remove it instead), a removal
+(`after` null), an entry moved to another page or surface (its scene is `entries.spread_id`, not in the log), a scene
+whose pages changed, a new order whose scenes changed, a plugin source (the Code tab) and a deleted file. Scene moves are
+in the log (`order`, the ids before and after) and revert. Picture credits, Library file names and page images are no
+draft content and not in the log (they are not revertable). Changes of one request get strictly increasing times, so
+their order stays readable. 404 `not-found` for a change not in the book's log; 400 `invalid-revert`, `too-many`.
 
 ## Logs
 

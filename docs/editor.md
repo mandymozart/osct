@@ -448,10 +448,30 @@ Code tab keeps **Save** (Ctrl+S): half-typed code does not belong in the draft. 
   it shows the draft's own data: a target's placement, an entry's title or page, an entity several targets share.
 - **Undo edits** (in each panel's foot) takes its subject back to how the draft had it
   before its first edit since the page was opened (`baselines.ts`) – the way back from a slipped drag or a removed
-  node. It is saved like any edit. Step-by-step undo is not built.
+  node. It is saved like any edit. Step-by-step undo is the toolbar's (next section).
 - **In the code**: a panel queues its save with every edit (`autosave.queue(key, save)`); a target's tree is saved by
   the workspace, not by a panel – every live tree of the stage (`stage.overrides`) is an edit the draft does not hold
   yet (`tree-autosave.ts`). A new kind of edit queues its own save the same way; it never adds a Save button.
+
+### Undo, redo and the History (#312)
+
+Every save is a row of the change log (docs/server.md "Reverting saved changes"), and the way back goes through it:
+
+- **↶ ↷** in the stage toolbar (a group of its own, `UndoRedo.svelte`) and **Ctrl+Z**, **Ctrl+Shift+Z** / **Ctrl+Y**
+  (not while a text field, a select or the code editor has the focus – they keep their own undo). Undo takes back the
+  newest **step** of the person's own saved changes since the page opened: one save's rows, an autosaved burst of one
+  thing (saves of it less than 8 s apart) or a revert's change set (`history.ts` `newestStep`). What waits to be saved
+  is saved first. The server writes their `before` again as new changes; redo reverts that revert, until something new
+  is edited. A plain undo runs at once; with a conflict, a change that cannot be reverted, later edits of the same
+  thing or other people's changes it asks first.
+- **The History panel** (the clock in the toolbar or the panels menu; closed at first): the experience's saved changes,
+  newest first – when, who (you, an e-mail's name, an AI connection), what (the kind and its scene, entry or target)
+  and before → after. Filters: scene (a scene's own changes, its entries', targets' and entities'), kind, person. A
+  click on a row opens *Revert* (the change and the later edits of the same thing) and *Jump back to here* (every
+  change after it, by anyone, as one change set); a change the log cannot take back says why.
+- **The prompt** (`RevertPrompt.svelte`) lists what goes back, names later edits that will be lost and other people's
+  changes, and the conflicts that stay. A revert reloads the draft, the stage and the panels. It changes the draft
+  only – readers see it with the next publish.
 
 ### The book search
 

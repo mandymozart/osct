@@ -1332,7 +1332,9 @@ final class Books
 
     /**
      * GET /editor/books/{id}/changes?limit= (default 50, at most 500) → { changes: [{ id, kind, ref, before, after, user, token,
-     * createdAt }] } newest first; `token` = the AI connection's name for a save made through one, else null
+     * createdAt, set, reverts, notRevertable }] } newest first; `token` = the AI connection's name for a save made through
+     * one, else null; `set` = the change set a revert wrote (#312), `reverts` = the change it took back, `notRevertable` =
+     * why the change cannot be reverted, null when it can (Reverts)
      */
     public static function changes(string $bookId): never
     {
@@ -1340,10 +1342,11 @@ final class Books
         self::book($bookId);
         $limit = min(500, max(1, (int) ($_GET['limit'] ?? 50)));
         $changes = [];
-        $rows = Db::run("SELECT c.*, u.email FROM changes c LEFT JOIN users u ON u.id = c.user_id WHERE c.book_id = :book ORDER BY c.created_at DESC, c.id LIMIT $limit", ['book' => $bookId])->fetchAll();
+        $rows = Db::run("SELECT c.*, u.email FROM changes c LEFT JOIN users u ON u.id = c.user_id WHERE c.book_id = :book ORDER BY c.created_at DESC, c.id DESC LIMIT $limit", ['book' => $bookId])->fetchAll();
         foreach ($rows as $row) {
             $changes[] = ['id' => $row['id'], 'kind' => $row['kind'], 'ref' => $row['ref'], 'before' => Editor::decode($row['before_json']), 'after' => Editor::decode($row['after_json']),
-                'user' => $row['email'], 'token' => $row['token_name'] ?? null, 'createdAt' => Editor::iso((int) $row['created_at'])];
+                'user' => $row['email'], 'token' => $row['token_name'] ?? null, 'createdAt' => Editor::iso((int) $row['created_at']),
+                'set' => $row['change_set'] ?? null, 'reverts' => $row['reverts'] ?? null, 'notRevertable' => Reverts::notRevertable($row)];
         }
         Http::json(200, ['changes' => $changes]);
     }
@@ -1379,9 +1382,10 @@ final class Books
         self::touch($bookId);
     }
 
-    public static function recordChange(string $bookId, array $user, string $kind, string $ref, ?string $before, string $after): void
+    /** One row of the change log (`change`); `$set` and `$reverts` for a revert (#312, Reverts) – returns the row's id */
+    public static function recordChange(string $bookId, array $user, string $kind, string $ref, ?string $before, string $after, ?string $set = null, ?string $reverts = null): string
     {
-        self::change($bookId, $user, $kind, $ref, $before, $after);
+        return self::change($bookId, $user, $kind, $ref, $before, $after, $set, $reverts);
     }
 
     /**
@@ -1607,10 +1611,16 @@ final class Books
      * tells which AI made it
      * @param array<string, mixed> $user
      */
-    private static function change(string $bookId, array $user, string $kind, string $ref, ?string $before, string $after): void
+    private static function change(string $bookId, array $user, string $kind, string $ref, ?string $before, string $after, ?string $set = null, ?string $reverts = null): string
     {
-        Db::run('INSERT INTO changes (id, book_id, user_id, token_name, kind, ref, before_json, after_json, created_at) VALUES (:id, :book, :user, :token, :kind, :ref, :before, :after, :at)',
-            ['id' => Db::uuid(), 'book' => $bookId, 'user' => $user['id'], 'token' => Auth::token()['name'] ?? null, 'kind' => $kind, 'ref' => $ref,
-             'before' => $before, 'after' => $after, 'at' => Editor::nowMs()]);
+        $id = Db::uuid();
+        // Strictly later than the request's previous change: the order of one save's changes stays readable (a revert
+        // walks them newest first, #312)
+        static $last = 0;
+        $last = max(Editor::nowMs(), $last + 1);
+        Db::run('INSERT INTO changes (id, book_id, user_id, token_name, kind, ref, before_json, after_json, created_at, change_set, reverts) VALUES (:id, :book, :user, :token, :kind, :ref, :before, :after, :at, :set, :reverts)',
+            ['id' => $id, 'book' => $bookId, 'user' => $user['id'], 'token' => Auth::token()['name'] ?? null, 'kind' => $kind, 'ref' => $ref,
+             'before' => $before, 'after' => $after, 'at' => $last, 'set' => $set, 'reverts' => $reverts]);
+        return $id;
     }
 }

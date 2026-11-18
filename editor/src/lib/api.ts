@@ -3,6 +3,7 @@ import type { EnvironmentData } from "@shared/types/environment";
 import type { AssetType, PrintPlacement, SceneLayout, SourceOfTruth, SpreadFormat, SurfaceData } from "@shared/types/game-config";
 import type {
   Asset,
+  Change,
   AssetCreditsSaved,
   AssetNamesPlan,
   AssetList,
@@ -34,6 +35,7 @@ import type {
   PluginUsages,
   PublishResult,
   RemovalResult,
+  RevertResult,
   SceneAdded,
   ScenePreset,
   SceneSaved,
@@ -555,6 +557,19 @@ export const putEntry = (bookId: string, entryId: string, changes: Record<string
 /** The book's title, author and publisher (`publisher: null` removes it), and its source of truth (#238) */
 export const putBookTexts = (bookId: string, changes: { title?: string; author?: string; publisher?: string | null; sourceOfTruth?: SourceOfTruth }) =>
   api<BookSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}`, changes);
+
+// ── The change log and its reverts (#312, docs/server.md "Reverting saved changes") ──────────────────
+
+/** The book's saved changes, newest first (at most 500) */
+export const getChanges = (bookId: string, limit = 500) => api<{ changes: Change[] }>("GET", `/editor/books/${encodeURIComponent(bookId)}/changes?limit=${limit}`);
+
+/** What reverting `ids` does (`apply` false: nothing written), or – with `apply` – does it: later changes of the same things too */
+export const revertChanges = (bookId: string, ids: string[], apply = false) =>
+  api<RevertResult>("POST", `/editor/books/${encodeURIComponent(bookId)}/changes/revert`, { ids, ...(apply ? { apply: true } : {}) });
+
+/** Every change after `after` reverted, newest first – the plan, or with `apply` written */
+export const revertTo = (bookId: string, after: string, apply = false) =>
+  api<RevertResult>("POST", `/editor/books/${encodeURIComponent(bookId)}/changes/revert-to`, { after, ...(apply ? { apply: true } : {}) });
 
 /** The book's world and onion sky; `null` removes them – the default applies */
 export const putEnvironment = (bookId: string, environment: EnvironmentData | null) =>

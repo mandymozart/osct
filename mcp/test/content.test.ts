@@ -96,6 +96,10 @@ function editorApi(seen: Seen, { sources = true } = {}) {
   if (method === "POST" && path === "/editor/books/osct/groups") return { json: { plan: { group: { id: "chapter", label: (seen.body as any).label }, order: ["s1", "s2"], moved: [], groups: [], pages: [] }, applied: !!(seen.body as any).apply } };
   if (method === "PUT" && path === "/editor/books/osct/groups/chapter") return { json: { group: { id: "chapter", label: (seen.body as any).label } } };
   if (method === "DELETE" && path === "/editor/books/osct/groups/chapter") return { json: { ungrouped: "chapter", scenes: ["s1", "s2"] } };
+  if (method === "POST" && /^\/editor\/books\/osct\/changes\/(revert|revert-to|[^/]+\/revert)$/.test(path)) {
+    const apply = !!(seen.body as any)?.apply;
+    return { json: { plan: { changes: [{ id: "c1", kind: "entity", ref: "castle", status: "revert", later: false, other: false }], chosen: ["c1"], counts: { revert: 1, conflict: 0, notRevertable: 0 }, later: 0, others: [] }, applied: apply, set: apply ? "s1" : null, written: apply ? ["c2"] : [] } };
+  }
   if (method === "POST" && path === "/editor/books/osct/scenes/migrate") return { json: { plan: { upToDate: false, counts: {}, scenes: [], groups: [], entries: { placed: [], unplaced: [] }, pageImages: { count: 0, note: "" } }, applied: !!(seen.body as any)?.apply } };
   if (method === "PUT" && path === "/editor/books/osct/spreads/s2") return { json: { spread: { id: "s2", title: "Two", firstPage: 3, lastPage: 4, ...(seen.body as object) } } };
   if (method === "DELETE" && path === "/editor/books/osct/spreads/s1") return { status: 409, json: { error: { code: "initial-spread", message: "The book opens on this spread." } } };
@@ -171,6 +175,7 @@ describe("the content tools", () => {
         "list_books", "list_changes", "list_versions", "publish", "put_book_appearance", "put_book_passes", "put_entity", "put_environment", "put_spread", "put_target", "upload_asset",
         "get_entries", "update_entry", "update_book", "set_asset_credits", "list_pages", "set_page_images", "add_matter", "plan_asset_names", "apply_asset_names",
         "list_scenes", "add_scene", "move_scenes", "put_scene", "delete_scene", "group_scenes", "rename_group", "ungroup", "migrate_scenes",
+        "revert_change", "revert_to",
       ].sort(),
     );
     for (const [name, tool] of rec.tools) {
@@ -728,6 +733,21 @@ describe("the content tools", () => {
     expect((await rec.call("list_versions", { book: "osct" })).data.versions[0].env).toBe("local");
     expect((await rec.call("list_changes", { book: "osct", limit: 5 })).data.limit).toBe("/editor/books/osct/changes?limit=5");
     expect((await rec.call("list_changes", { book: "osct" })).data.limit).toBe("/editor/books/osct/changes");
+  });
+
+  it("revert_change and revert_to: the plan first, written only with apply (#312)", async () => {
+    const plan = await rec.call("revert_change", { book: "osct", change: "c1" });
+    expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/editor/books/osct/changes/c1/revert", body: {} });
+    expect(plan.data.applied).toBe(false);
+    expect(plan.data.next).toMatch(/apply: true/);
+    const done = await rec.call("revert_change", { book: "osct", change: "c1", apply: true });
+    expect(seen.at(-1)?.body).toEqual({ apply: true });
+    expect(done.data.written).toEqual(["c2"]);
+    expect(done.data.next).toBeUndefined();
+    await rec.call("revert_to", { book: "osct", after: "c0" });
+    expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/editor/books/osct/changes/revert-to", body: { after: "c0" } });
+    await rec.call("revert_to", { book: "osct", after: "c0", apply: true });
+    expect(seen.at(-1)?.body).toEqual({ after: "c0", apply: true });
   });
 
   it("import_book: a configuration, the cdn, or neither", async () => {

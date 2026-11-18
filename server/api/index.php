@@ -73,6 +73,10 @@ declare(strict_types=1);
  *                                               Code tab's sources as the editor transpiled them [{ id, code, api, registered? }]
  *   GET    /editor/books/{id}/versions          the publish log
  *   GET    /editor/books/{id}/changes?limit=    the change log, newest first
+ *   POST   /editor/books/{id}/changes/{cid}/revert { apply? } → one change taken back with the later changes of the same thing:
+ *                                               the plan, written with apply as new changes (#312, Reverts)
+ *   POST   /editor/books/{id}/changes/revert    { ids, apply? } → these changes taken back (the editor's undo and redo)
+ *   POST   /editor/books/{id}/changes/revert-to { after, apply? } → every change after `after` taken back, newest first
  *   GET    /editor/books/{id}/assets[?kind=]    the uploaded files (docs/server.md "Assets"), with their number of uses
  *   POST   /editor/books/{id}/assets            the file as the body, X-File-Name → 201 { asset } (200 when these bytes exist)
  *   PUT    /editor/books/{id}/assets/credits    { items: [{ url, credits }] } → the files' picture credits (#277)
@@ -94,7 +98,7 @@ declare(strict_types=1);
  * (ApiTokens). docs/server.md "Sessions, cookies and CSRF".
  */
 
-foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Confirmation', 'Removal', 'Books', 'BookTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Pages', 'Scenes', 'AssetNames'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Confirmation', 'Removal', 'Books', 'BookTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Pages', 'Scenes', 'AssetNames', 'Reverts'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -199,6 +203,9 @@ try {
         (bool) preg_match("#^POST /editor/books/($id)/publish$#", $route, $match) => Books::publish($match[1], Editor::body()),
         (bool) preg_match("#^GET /editor/books/($id)/versions$#", $route, $match) => Books::versions($match[1]),
         (bool) preg_match("#^GET /editor/books/($id)/changes$#", $route, $match) => Books::changes($match[1]),
+        (bool) preg_match("#^POST /editor/books/($id)/changes/revert$#", $route, $match) => Reverts::many($match[1]),
+        (bool) preg_match("#^POST /editor/books/($id)/changes/revert-to$#", $route, $match) => Reverts::to($match[1]),
+        (bool) preg_match("#^POST /editor/books/($id)/changes/($uuid)/revert$#", $route, $match) => Reverts::one($match[1], $match[2]),
         (bool) preg_match("#^GET /editor/books/($id)/assets$#", $route, $match) => Assets::list($match[1]),
         (bool) preg_match("#^POST /editor/books/($id)/assets$#", $route, $match) => Assets::upload($match[1]),
         (bool) preg_match("#^PUT /editor/books/($id)/assets/credits$#", $route, $match) => Assets::setCredits($match[1]),

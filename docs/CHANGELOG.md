@@ -7,6 +7,25 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.111.0 – 2026-11-18
+
+### Added
+
+- **Undo, redo and a History of saved changes** (#312): the stage toolbar has ↶ ↷ (Ctrl+Z, Ctrl+Shift+Z / Ctrl+Y –
+  not in a text field or the code editor) over the person's own saved changes of this session, newest first – one step
+  is a save, an autosaved burst of one thing or a revert's set – and a clock that opens the new **History** panel
+  (floating, closed at first): every saved change of the experience with when, who, what and before → after, filtered by
+  scene, kind and person; *Revert* writes a change's before back as a new change, *Jump back to here* reverts every
+  later change, newest first, as one change set. Both always ask first (`RevertPrompt`): what goes back, later edits of
+  the same things that go with it, other people's changes, conflicts that stay. A plain undo of one's own edit runs at
+  once. The draft only – never a publish.
+- **The API reverts changes** (#312, docs/server.md "Reverting saved changes"): `POST …/changes/{cid}/revert`,
+  `…/changes/revert { ids }` and `…/changes/revert-to { after }` – the plan, then `apply: true`; a revert is a new change
+  (`changes.change_set`, `changes.reverts`, two additive columns); a thing that no longer holds what a change wrote is a
+  conflict, listed and never overwritten; creations, removals, moved entries, plugin sources and deleted files are not
+  revertable (`notRevertable` in `GET …/changes`). Scene moves are in the log (`order`) and revert.
+- **MCP:** `revert_change` and `revert_to`, two steps each (#312).
+
 ## 1.110.0 – 2026-11-18
 
 ### Removed

@@ -56,6 +56,7 @@ import type {
   SceneSaved,
   ScenesMigration,
   ScenesMoved,
+  RevertResult,
   SharedEntities,
   SpreadAdded,
   SpreadSaved,
@@ -1133,7 +1134,37 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
 
   server.registerTool(
     "list_changes",
-    { description: "The change log, newest first: kind (entity | target | entry | plugin), ref, before, after, user, when. `limit` default 50, at most 500.", inputSchema: z.object({ book: BOOK, limit: z.number().int().min(1).max(500).optional() }), annotations: read },
+    { description: "The change log, newest first: id, kind (entity | target | entry | spread | order | groups | environment | passes | appearance | book | plugin | asset), ref, before, after, user, when; `set` / `reverts` for a revert's changes, `notRevertable` = why revert_change cannot take it back (null: it can). `limit` default 50, at most 500.", inputSchema: z.object({ book: BOOK, limit: z.number().int().min(1).max(500).optional() }), annotations: read },
     guard(async ({ book, limit }) => text(await api.call<{ changes: Change[] }>("GET", `/editor/books/${encodeURIComponent(book)}/changes${limit ? `?limit=${limit}` : ""}`))),
+  );
+
+  // ── Reverts (#312): two steps, as migrate_scenes – the plan, then with the person's yes `apply: true` ──
+  const REVERT_NEXT = "Nothing was written. Show the person what changes (plan.changes: revert / conflict / not-revertable), the later edits of the same things (plan.later) and other people's changes (plan.others); only with their yes call again with apply: true.";
+  const reverted = (book: string, result: RevertResult) => text({
+    ...result,
+    ...(result.applied ? {} : { next: result.plan.counts.revert ? REVERT_NEXT : "Nothing can be reverted: every change is a conflict or not revertable." }),
+    open: editorHref(links, book),
+  });
+  server.registerTool(
+    "revert_change",
+    {
+      description:
+        "Takes one saved change back (list_changes' id): its `before` is written again as a NEW change, so nothing is erased and the revert can itself be reverted. Later changes of the same thing (the same entity, target, entry, scene; the same fields of the book) would be lost, so they are reverted with it, newest first (plan.later). A thing that no longer holds what a change wrote is a conflict – listed, never overwritten. Creations, removals, moved entries, plugin sources and deleted files are not revertable. **Two steps**: without `apply` the plan; show it to the person, with their yes call again with `apply: true`. The draft only – readers see it with the next publish.",
+      inputSchema: z.object({ book: BOOK, change: z.string().min(1).describe("The change's id (list_changes)"), apply: z.boolean().optional() }),
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+    },
+    guard(async ({ book, change, apply }) =>
+      reverted(book, await api.call<RevertResult>("POST", `/editor/books/${encodeURIComponent(book)}/changes/${encodeURIComponent(change)}/revert`, apply ? { apply: true } : {}))),
+  );
+  server.registerTool(
+    "revert_to",
+    {
+      description:
+        "Goes back to the state right after one saved change (list_changes' id): every change saved after it – by anyone – is reverted, newest first, as one new change set. Conflicts are listed and left alone, kinds the log cannot take back are listed as not revertable. **Two steps**: without `apply` the plan (the changes, plan.others = other people whose changes go); show it to the person, with their yes call again with `apply: true`. The draft only – never a publish.",
+      inputSchema: z.object({ book: BOOK, after: z.string().min(1).describe("The change to go back to (list_changes' id) – it stays, everything after it is reverted"), apply: z.boolean().optional() }),
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+    },
+    guard(async ({ book, after, apply }) =>
+      reverted(book, await api.call<RevertResult>("POST", `/editor/books/${encodeURIComponent(book)}/changes/revert-to`, { after, ...(apply ? { apply: true } : {}) }))),
   );
 }
