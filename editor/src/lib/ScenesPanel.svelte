@@ -32,7 +32,7 @@
    * and zoom are remembered in this browser. A drop is written at once (`POST …/scenes/move`, the drop is the
    * confirmation); the workspace follows `scenes.version` (the draft's order for ‹ ›).
    */
-  let { bookId, bookTitle = "", current, selectedGroup = null, sheetLayout = null, pageImages = {}, assetsBase = "", onopen, onselectgroup }: {
+  let { bookId, bookTitle = "", current, selectedGroup = null, sheetLayout = null, pageImages = {}, assetsBase = "", onopen, onselectgroup, onstep }: {
     bookId: string;
     bookTitle?: string;
     current: string;
@@ -42,6 +42,8 @@
     assetsBase?: string;
     onopen: (sceneId: string) => void;
     onselectgroup: (groupId: string) => void;
+    /** ‹ › the previous / next scene (moved here from the Inspector's head – Tilman, 2026-11-18) */
+    onstep?: (direction: 1 | -1) => void;
   } = $props();
 
   const KEY = "osct-editor-scenes";
@@ -173,6 +175,12 @@
       <button type="button" class="icon-button" onclick={() => setZoom(-1)} disabled={zoom === ZOOMS[0]} aria-label="Smaller cards" title="Smaller cards">−</button>
       <button type="button" class="icon-button" onclick={() => setZoom(1)} disabled={zoom === ZOOMS[ZOOMS.length - 1]} aria-label="Larger cards" title="Larger cards">+</button>
     </span>
+    {#if onstep}
+      <span class="steps" role="group" aria-label="Scenes">
+        <button type="button" class="icon-button" onclick={() => onstep(-1)} title="Previous scene (←)" aria-label="Previous scene"><Icon name="previous" /></button>
+        <button type="button" class="icon-button" onclick={() => onstep(1)} title="Next scene (→)" aria-label="Next scene"><Icon name="next" /></button>
+      </span>
+    {/if}
   </div>
   {#if open}
     <div class="strip">
@@ -204,6 +212,7 @@
   .grow { flex: 1; }
   .head .pill { font-size: var(--text-small); padding: 0 .45rem; }
   kbd { font: inherit; color: var(--muted); margin-left: .25rem; }
+  .steps { display: inline-flex; flex: none; }
   .zoom { display: inline-flex; gap: 1px; }
   .strip { flex: 1; min-height: 0; }
   .loading { padding: .5rem .75rem; margin: 0; }

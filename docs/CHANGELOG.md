@@ -7,6 +7,12 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 1.101.1 – 2026-11-18
+
+### Changed
+- ‹ › (previous / next scene) moved from the Inspector's head to the right end of the Scenes panel's head, beside the
+  zoom (#307, Tilman). ← → still step through the scenes; on a phone they stay at the stage's corners.
+
 ## 1.101.0 – 2026-11-18
 
 ### Added
