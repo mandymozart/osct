@@ -7,6 +7,15 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 3.3.1 – 2026-11-19
+
+### Fixed
+
+- The pages (the app's and the editor's `index.html`) are asked for again on every load (`Cache-Control: no-cache`,
+  `client/public/.htaccess`): after a deploy a cached one still named the older build's chunks – the editor ran a build
+  behind until a hard reload.
+- Admin, *A new code*: its fields lie under each other again (a page-wide `.fields` grid squeezed them into one row).
+
 ## 3.3.0 – 2026-11-19
 
 ### Added

@@ -190,7 +190,7 @@
     <h2>A new code</h2>
     <p class="muted small">Give each printed code or link its own source – a short code of a–z, 0–9 and dashes (a flyer <code>fl1</code>, a poster <code>po1</code>) –, choose where it leads, and print the QR code. It shows up here with its first arrival.</p>
     <div class="maker">
-      <div class="fields">
+      <div class="code-fields">
         <label class="row"><span class="muted small">source</span>
           <input class="field code-field" type="text" bind:value={code} placeholder="fl1" maxlength="32" autocomplete="off" spellcheck="false" /></label>
         <label class="row"><span class="muted small">leads to</span>
@@ -234,7 +234,7 @@
   .days rect { fill: currentColor; }
   .days line { stroke: var(--line); stroke-width: .5; vector-effect: non-scaling-stroke; }
   .maker { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 1rem 1.5rem; }
-  .fields { display: grid; gap: .5rem; flex: 1 1 20rem; min-width: 0; }
+  .code-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: .5rem; flex: 1 1 20rem; min-width: 0; }
   .make .row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
   .make label.row > span { width: 4.5rem; }
   .make select.field { flex: 1; min-width: 0; max-width: 28rem; }

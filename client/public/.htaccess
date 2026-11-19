@@ -31,6 +31,15 @@
   </If>
 </IfModule>
 
+# The pages themselves (the app's and the editor's index.html, also when a route is rewritten to them) are asked for
+# again on every load: a cached one names the hashed chunks of an older build, and the editor ran a build behind after a
+# deploy (3.3.0 on staging). The chunks keep their own long cache – their names change with every build
+<IfModule mod_headers.c>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>
+
 # The MCP server as one file (#272, docs/mcp.md): /mcp/osct-mcp.mjs is a download, always the deployed version
 AddType text/javascript .mjs
 <IfModule mod_headers.c>
