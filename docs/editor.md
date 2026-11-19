@@ -306,8 +306,14 @@ closed by default, **essential** (it folds but never closes) and **inline** (a t
   follows the pointer over the others; let go, its edges **snap** to a wall, to the gap beside another panel or in line
   with another panel's edge (12 px), and a panel let go on another one goes to the nearest free place – none ever
   overlaps another, every panel keeps a gap of .5rem.
-- **Resize** by its edges and corners (wider grips with a finger); let go, an edge stops before the next panel. A
-  double-click on an edge gives the panel back its own size.
+- **Resize** by its edges and corners (wider grips with a finger). The resize **makes room** (#329, `evade` in
+  `floats.ts`): the panels in its way move on, away from the moving edge (one pushes the next), and at the wall they
+  shrink – the one nearest the wall first – down to their least size; the resized panel stops where they can give no
+  more. Panels not in the way stay. Let go, that arrangement is the stored layout (a panel that shrank keeps its new
+  size). A double-click on an edge gives the panel back its own size.
+- **Fast**: a drag is laid out once per animation frame (the pointer events between coalesce); during a resize only the
+  pushed panels' boxes change (`left`/`top`/`width`/`height` – their content is not drawn again) and nothing is stored
+  until the pointer is let go.
 - **Fold** to its head (the chevron) – the pill: grip, icon, name; the inline toolbar folds to its icon, which a click
   opens again. **Close** (×, not on essential panels); the top bar's **panels menu** lists the panels that close – ✓
   shown, a click closes or brings one back – and **Reset layout**.

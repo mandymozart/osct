@@ -15,9 +15,10 @@
  * A panel folds to its head (the pill: grip, icon, name); a panel that is not **essential** also closes, and comes back
  * from the list of the closable ones (the top bar's panels menu). An **inline** panel is a toolbar: its grip and icon
  * lead its one row – or, **vertical** (its place says so, #315), its one column – and it never folds (Tilman,
- * 2026-11-18: folding a toolbar makes little sense; a fold stored by an older editor is ignored). A move or a resize holds the panel at the pointer over the others; let
+ * 2026-11-18: folding a toolbar makes little sense; a fold stored by an older editor is ignored). A move holds the panel at the pointer over the others; let
  * go, it **snaps** to a wall or another panel's edge near it and, if it lands on another one, goes to the nearest free
- * place.
+ * place. A **resize makes room** (`evade`, #329): the panels in its way move on and, at the wall, shrink to their least
+ * size; the resized panel stops where they can give no more.
  */
 
 export type Corner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
@@ -364,6 +365,85 @@ export const settleSize = (r: Rect, edge: Edge, others: readonly Rect[], min: Si
     y = far - h;
   }
   return { x, y, w, h };
+};
+
+/** A panel a resize may push or shrink: where it lies and its least size */
+export interface Neighbour {
+  id: string;
+  rect: Rect;
+  min: Size;
+}
+
+const swapAxes = (r: Rect): Rect => ({ x: r.y, y: r.x, w: r.h, h: r.w });
+
+/**
+ * One axis of `evade`, turned so the edge moves right: the panels ahead of the edge where the resize started (`start`)
+ * keep the gap to the held panel and to each other – a panel in the way moves right, one at the wall shrinks, down to
+ * its least width (the ones nearest the wall first); the edge stops where they can give no more
+ */
+const pushRight = (start: Rect, target: Rect, others: readonly Neighbour[], area: Rect, gap: number): { held: Rect; rects: Rect[] } => {
+  const beside = (a: Rect, b: Rect) => a.y < bottom(b) + gap - EPS && b.y < bottom(a) + gap - EPS;
+  const ahead = others.map((o, i) => ({ ...o, i })).filter(o => o.rect.x >= right(start) - EPS).sort((a, b) => a.rect.x - b.rect.x);
+  // From the wall back: how far right each may end, every panel ahead of it at its least size against the wall
+  const maxRight: number[] = [];
+  const maxLeft: number[] = [];
+  for (let k = ahead.length - 1; k >= 0; k--) {
+    const p = ahead[k].rect;
+    let limit = right(area);
+    for (let j = k + 1; j < ahead.length; j++) {
+      if (ahead[j].rect.x >= right(p) - EPS && beside(p, ahead[j].rect)) limit = Math.min(limit, maxLeft[j] - gap);
+    }
+    maxRight[k] = Math.max(limit, right(p));
+    maxLeft[k] = maxRight[k] - Math.min(ahead[k].min.w, p.w);
+  }
+  // The edge: where the pointer has it, but no further than the panels in its way can give
+  let edge = right(target);
+  if (edge > right(start)) {
+    const most = ahead.reduce((l, o, k) => (beside(target, o.rect) ? Math.min(l, maxLeft[k] - gap) : l), right(area));
+    edge = Math.max(right(start), Math.min(edge, most));
+  }
+  const held = { ...target, w: edge - target.x };
+  // Nearest first: each moves to keep the gap to what pushes it, and ends no further right than it may
+  const rects = others.map(o => o.rect);
+  const ends: number[] = [];
+  ahead.forEach((o, k) => {
+    let left = o.rect.x;
+    if (beside(held, o.rect)) left = Math.max(left, edge + gap);
+    for (let j = 0; j < k; j++) {
+      if (right(ahead[j].rect) <= o.rect.x + EPS && beside(ahead[j].rect, o.rect)) left = Math.max(left, ends[j] + gap);
+    }
+    const end = Math.min(left + o.rect.w, maxRight[k]);
+    ends[k] = end;
+    if (left !== o.rect.x || end !== right(o.rect)) rects[o.i] = { ...o.rect, x: left, w: end - left };
+  });
+  return { held, rects };
+};
+
+/**
+ * A resize that makes room (#329): while a panel's edge (`edge`) moves from `start` to `rect`, the panels it would come
+ * near move out of its way – away from the moving edge, a chain of them pushed along – and at the wall they shrink, down to
+ * their least size; the resized panel stops growing where they can give no more. Panels not in the way stay. The
+ * horizontal edge first, then the vertical one (corner grips). Returns every panel's rectangle, the resized one's at `id`.
+ * Pure and O(n²) in the panels: run once per animation frame, from the rectangles where the resize started.
+ */
+export const evade = (panels: readonly Neighbour[], id: string, rect: Rect, edge: Edge, area: Rect, gap: number): Record<string, Rect> => {
+  const start = panels.find(p => p.id === id)?.rect ?? rect;
+  let others = panels.filter(p => p.id !== id);
+  let held = rect;
+  // One axis in a frame where its edge moves right: turned (vertical) and mirrored (the left or top edge) there and back
+  const axis = (horizontal: boolean, back: boolean, from: Rect, to: Rect) => {
+    const a = horizontal ? area : swapAxes(area);
+    const mirror = (r: Rect): Rect => (back ? { ...r, x: 2 * a.x + a.w - r.x - r.w } : r);
+    const into = (r: Rect) => mirror(horizontal ? r : swapAxes(r));
+    const out = (r: Rect) => { const m = mirror(r); return horizontal ? m : swapAxes(m); };
+    const turned = others.map(o => ({ ...o, rect: into(o.rect), min: horizontal ? o.min : { w: o.min.h, h: o.min.w } }));
+    const done = pushRight(into(from), into(to), turned, a, gap);
+    others = others.map((o, i) => ({ ...o, rect: done.rects[i] === turned[i].rect ? o.rect : out(done.rects[i]) }));
+    held = out(done.held);
+  };
+  if (edge.x) axis(true, edge.x === -1, start, rect);
+  if (edge.y) axis(false, edge.y === -1, { ...held, y: start.y, h: start.h }, held);
+  return Object.fromEntries([...others.map(o => [o.id, o.rect] as const), [id, held] as const]);
 };
 
 /** The front-to-back order with `id` brought to the front (the panel last touched lies over the others) */
