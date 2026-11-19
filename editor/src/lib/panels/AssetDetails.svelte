@@ -38,7 +38,8 @@
   );
   const added = $derived.by(() => {
     const at = Date.parse(asset.createdAt);
-    return Number.isFinite(at) ? new Date(at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
+    // An imported file has no date of its own (its createdAt is the epoch): none is shown
+    return Number.isFinite(at) && at > 0 ? new Date(at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
   });
 </script>
 

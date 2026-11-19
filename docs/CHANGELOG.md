@@ -7,6 +7,12 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 3.4.1 – 2026-11-19
+
+### Fixed
+
+- Library: an imported file's details no longer say *Jan 1, 1970* – it has no date of its own (#330).
+
 ## 3.4.0 – 2026-11-19
 
 ### Changed
