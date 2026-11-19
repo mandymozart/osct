@@ -7,6 +7,7 @@
   import { errorText } from "#lib/api.js";
   import { selection } from "#lib/selection.svelte.js";
   import Icon from "#lib/components/Icon.svelte";
+  import { sceneRemoval } from "#lib/scene-removal.svelte.js";
   import { arrangeSceneInRow, canArrangeInRow } from "#lib/surface-actions.js";
   import SurfaceList from "./SurfaceList.svelte";
 
@@ -75,6 +76,9 @@
       <span class="label">surfaces</span>
       <button type="button" class="pill framed" disabled={!canArrangeInRow(spreadId)} onclick={() => void put(() => arrangeSceneInRow(spreadId))}
         title="The surfaces side by side, flat, touching, the row centred on the origin">arrange in a row</button></div>
+    <div class="row" data-help="Removes the scene with its entries, their targets and AR content – first the Inspector shows what goes (and what other scenes still use), with the files only it uses; nothing is removed before you confirm. The opening scene cannot be removed.">
+      <span class="label"></span>
+      <button type="button" class="text-link danger" onclick={() => sceneRemoval.ask(spreadId)}>remove scene…</button></div>
     {#if error}<p class="small danger">{error}</p>{/if}
   </Section>
 
