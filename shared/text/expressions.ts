@@ -1,7 +1,7 @@
 /**
- * Variables in a book's texts (content schema 2.23): the inline syntax of ink (inkle), copied from SCUTOONS' expression
+ * Variables in an experience's texts (content schema 2.23): the inline syntax of ink (inkle), copied from SCUTOONS' expression
  * engine (`scutoons/shared/content/src/expr/parse.ts` and `evaluate.ts`, agents/EXPRESSIONS.md there) – the parser, the
- * operator table and the evaluation rules are SCUTOONS', trimmed to what a book has: its behaviour variables (#88), no
+ * operator table and the evaluation rules are SCUTOONS', trimmed to what an experience has: its behaviour variables (#88), no
  * reader namespaces, no functions, no visit counts. A text is literal runs and `{…}` constructs:
  *
  *   {hasKey}                       print a variable's value (a bare camelCase name – the innermost scope that has it)
@@ -13,7 +13,7 @@
  * `+ - * / % mod`, parentheses – ink's precedence. Values work the ink way: `+` with a text joins texts, `==` with a text
  * compares texts, booleans print as true / false, whole numbers plain. A variable that is not set prints as nothing, is
  * false, equals only another unset one and makes arithmetic unset – readers never see raw code; the editor lists the
- * problem. SCUTOONS' lists (`{a|b}`, `{&…}`, `{~…}`, `{!…}`) and functions (`clock(t)`) are not part of a book's text: they
+ * problem. SCUTOONS' lists (`{a|b}`, `{&…}`, `{~…}`, `{!…}`) and functions (`clock(t)`) are not part of an experience's text: they
  * parse, render nothing and come back as problems.
  *
  * Escapes: `\{`, `\}` and `\|` are the characters themselves; every other backslash stays for the Markdown that follows
@@ -35,9 +35,9 @@ export type Expr =
   | (Span & { type: "num"; value: number })
   | (Span & { type: "str"; value: string })
   | (Span & { type: "bool"; value: boolean })
-  /** A name: `hasKey` – a dotted one (`map.total`) parses but no book variable has one */
+  /** A name: `hasKey` – a dotted one (`map.total`) parses but no variable of the experience has one */
   | (Span & { type: "name"; path: string[] })
-  /** A function call: parses, but a book's text has no functions (`unknown-function`) */
+  /** A function call: parses, but an experience's text has no functions (`unknown-function`) */
   | (Span & { type: "call"; name: string; args: Expr[] })
   | (Span & { type: "unary"; op: "-" | "!"; arg: Expr })
   | (Span & { type: "binary"; op: BinaryOp; left: Expr; right: Expr });
@@ -342,7 +342,7 @@ export function parseText(input: string): ParsedText {
       return bad(s);
     }
     i = skipWs(text, s + 1);
-    // SCUTOONS' list marks (cycle, shuffle, once-only, stopping): no list in a book's text
+    // SCUTOONS' list marks (cycle, shuffle, once-only, stopping): no list in an experience's text
     if ("!&~$".includes(text[i] ?? "x")) {
       i = skipToClose(s + 1);
       problem("unsupported-list", s, i);
@@ -387,7 +387,7 @@ export function parseText(input: string): ParsedText {
       i = q + 1;
       return { type: "print", expr: attempt.expr, start: s, end: i };
     }
-    // Two or more `|`-separated parts are a SCUTOONS sequence – no list in a book's text
+    // Two or more `|`-separated parts are a SCUTOONS sequence – no list in an experience's text
     const before = { problems: problems.length, constructs };
     i = p;
     const r = parts(depth);
@@ -615,8 +615,8 @@ const MESSAGES: Record<string, string> = {
   "too-many-constructs": "more than {0} variables in one text",
   "text-too-long": "the text is longer than {0} characters: its variables are not filled in",
   "conditional-too-many": "a condition has one else part: {condition: then|else}",
-  "unsupported-list": "lists ({a|b}) are no part of a book's text",
-  "unknown-function": "{0}() – a book's text has no functions",
+  "unsupported-list": "lists ({a|b}) are no part of an experience's text",
+  "unknown-function": "{0}() – an experience's text has no functions",
   "missing-value": "{0} is not set – it shows as nothing",
   "not-a-number": "{0} needs numbers",
   "compare-text": "{0} compares numbers, not texts",

@@ -16,7 +16,8 @@ afterAll(() => {
   tempDirs.splice(0).forEach(dir => fs.rmSync(dir, { recursive: true, force: true }));
 });
 
-export const BOOK = 'id: test\ntitle: Test Book\nauthor: Someone\n';
+/** experience.yaml (schema 4.0) of a printed book */
+export const EXPERIENCE = 'id: test\ntitle: Test Experience\nbook:\n  author: Someone\n';
 /** scene.yaml (schema 3.0): a label, an order and one surface – a double page, 460 × 320 mm */
 export const scene = (label: string, order = 0) =>
   `label: "${label}"\norder: ${order}\nsurfaces:\n  - id: surface\n    widthMm: 460\n    heightMm: 320\n`;
@@ -39,9 +40,9 @@ export function makeContent(files: Record<string, string | Buffer>): { root: str
 export async function loadBuild(dirs: { content: string }) {
   vi.stubEnv('OSCT_CONTENT_DIR', dirs.content);
   vi.resetModules();
-  const [errors, book, scenes, entities, entries, targets, hash, plugins] = await Promise.all([
+  const [errors, experience, scenes, entities, entries, targets, hash, plugins] = await Promise.all([
     import('../src/lib/errors'),
-    import('../src/build/book'),
+    import('../src/build/experience'),
     import('../src/build/scenes'),
     import('../src/build/entities'),
     import('../src/build/entries'),
@@ -50,14 +51,14 @@ export async function loadBuild(dirs: { content: string }) {
     import('../src/build/plugins'),
   ]);
   const { recordedRegistrations } = await import('../../shared/types/plugins');
-  /** book → scenes → entities → entries → target limit, like the content build; `plugins` = what buildPlugins declared */
+  /** experience → scenes → entities → entries → target limit, like the content build; `plugins` = what buildPlugins declared */
   const buildAll = (plugins: readonly { registered?: unknown }[] = []) => {
     const passes = recordedRegistrations(plugins).passes;
-    const b = book.buildBook(passes);
+    const e = experience.buildExperience(passes);
     const s = scenes.buildScenes(passes);
     const builds = entries.buildEntries(s, entities.buildEntities());
     targets.checkTargetsPerScene(s, builds);
-    return { book: b, scenes: s, entries: builds.map(x => x.entry) };
+    return { experience: e, scenes: s, entries: builds.map(x => x.entry) };
   };
-  return { errors: errors.buildErrors, warnings: errors.buildWarnings, buildAll, book, scenes, entities, entries, targets, hash, plugins };
+  return { errors: errors.buildErrors, warnings: errors.buildWarnings, buildAll, experience, scenes, entities, entries, targets, hash, plugins };
 }

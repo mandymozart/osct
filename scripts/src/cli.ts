@@ -62,7 +62,7 @@ const USAGE = `osct – content command line
                                                delete old versions that are provably out of use
                                                (defaults: --min-age ${DEFAULT_PURGE.minAgeDays} --keep ${DEFAULT_PURGE.keep})
 
-<env>: staging | production, demo for the demo book (fixtures/demo). Storage access: BUNNY_STORAGE_ZONE, BUNNY_STORAGE_ZONE_ENDPOINT,
+<env>: staging | production, demo for the demo (fixtures/demo). Storage access: BUNNY_STORAGE_ZONE, BUNNY_STORAGE_ZONE_ENDPOINT,
 BUNNY_STORAGE_PASSWORD, CONTENT_BASE_URL (environment variables or scripts/.env). docs/content-cdn.md`;
 
 const required = (name: string): string => {
@@ -74,7 +74,7 @@ const required = (name: string): string => {
 const environment = (cli: CliArgs): string => {
   const env = cli.option('env') ?? process.env.OSCT_CONTENT_ENV;
   if (!env || !ENV_NAME.test(env)) {
-    throw new Error(`Name the environment: --env staging | production, or ${DEMO_ENV} for the demo book – lower-case letters, digits and -, a letter first, at most 32`);
+    throw new Error(`Name the environment: --env staging | production, or ${DEMO_ENV} for the demo – lower-case letters, digits and -, a letter first, at most 32`);
   }
   return env;
 };
@@ -150,7 +150,7 @@ async function main(): Promise<void> {
         throw new Error('This build is the test fixture (fixtures/content) – build the content source first (OSCT_CONTENT_DIR)');
       }
       if (isDemoBuild(build) && env !== DEMO_ENV) {
-        throw new Error(`This build is the demo book (fixtures/demo) – it goes to --env ${DEMO_ENV} only, never where the book's current version is`);
+        throw new Error(`This build is the demo (fixtures/demo) – it goes to --env ${DEMO_ENV} only, never where the experience's current version is`);
       }
       const client = storage();
       const plan = await planSync(client, env, build, flag('force'));

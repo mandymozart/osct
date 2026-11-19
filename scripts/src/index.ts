@@ -4,15 +4,16 @@
  * The app makes the image targets from the target images itself (8th Wall engine).
  *
  * Source layout (folder name = id):
- *   content/book.yaml
+ *   content/experience.yaml            id, title, book? { author, publisher? }, passes?, environment?, appearance?
  *   content/scenes/<id>/scene.yaml     label, order, surfaces [{ id, label?, widthMm, heightMm, place? }], passes?
  *   content/entries/<id>/entry.yaml    category, title, scene, surface?, body, …, target? { image, id?, entity?, place? }
  *   content/entities/<id>/entity.yaml  type, assets[{ id?, src }], params   (referenced as entity: { ref })
- *   content/plugins/<id>/index.ts      the book's own code (build/plugins.ts): type-checked, bundled, declared
+ *   content/plugins/<id>/index.ts      the experience's own code (build/plugins.ts): type-checked, bundled, declared
  *
  * Content schema 3.0 (#319): scenes, not pages – a scene's place is its order; an entry names its scene.
+ * Content schema 4.0 (#320): the experience is the top level (experience.yaml); the printed book is its optional `book`.
  *
- * Folders: build/ one file per part of the configuration (book, scenes, entities, entries, targets;
+ * Folders: build/ one file per part of the configuration (experience, scenes, entities, entries, targets;
  * game-config.ts puts them together), lib/ helpers (reading content, files, hash, schema,
  * media optimisation).
  */
@@ -31,15 +32,15 @@ console.log('📁 Project root:', projectRoot);
 console.log('📁 Content directory:', CONTENT_DIR);
 console.log('📄 Output file:', OUTPUT_FILE);
 
-// The book content is not in this repository: no silent fallback to anything else
-if (!fs.existsSync(path.join(CONTENT_DIR, 'book.yaml'))) {
-  console.error(`❌ No content in ${CONTENT_DIR} (no book.yaml).
+// The content is not in this repository: no silent fallback to anything else
+if (!fs.existsSync(path.join(CONTENT_DIR, 'experience.yaml'))) {
+  console.error(`❌ No content in ${CONTENT_DIR} (no experience.yaml).
    Set OSCT_CONTENT_DIR (environment or scripts/.env) to the content source,
    or OSCT_CONTENT_DIR=fixtures/content for the test fixture (docs/content-cdn.md).`);
   process.exit(1);
 }
 if (fs.existsSync(path.join(CONTENT_DIR, FIXTURE_MARKER))) console.log('🧪 This is the test fixture – never synced to the CDN');
-if (fs.existsSync(path.join(CONTENT_DIR, DEMO_MARKER))) console.log(`🎲 This is the demo book – synced to the environment ${DEMO_ENV} only`);
+if (fs.existsSync(path.join(CONTENT_DIR, DEMO_MARKER))) console.log(`🎲 This is the demo – synced to the environment ${DEMO_ENV} only`);
 
 async function generateConfigFile(): Promise<void> {
   try {

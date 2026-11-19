@@ -8,7 +8,7 @@
 # (the "Online" file), `video` = AR video on the target (re-encoded on import). Titles and bodies are
 # placeholders until the texts arrive; the importer never overwrites an existing entry.yaml.
 
-book: osct
+experience: osct
 
 # Delivered but not placed in the book (no page known): links/OSCT_Ref_Evangelion_02.jpg, links/OSCT_Ref_Vonnegut_02.jpg
 

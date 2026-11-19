@@ -197,7 +197,7 @@ const isAddress = (src: string): boolean => /^[a-z]+:\/\//i.test(src) || src.sta
 
 /**
  * The parameters of a spec in `values` that name a file. A `texture` (schema 2.17): a file next to the node (`sand.jpg`)
- * becomes its content path (an image or a video); a procedural texture must be one a plugin of the book registers, its
+ * becomes its content path (an image or a video); a procedural texture must be one a plugin of the experience registers, its
  * own parameters checked. A `model` (schema 2.27): a file next to the node (`sheet.glb`) becomes its content path (a
  * `.glb` or `.gltf`). A URL or a `/assets/content/…` path stays as it is; every other value is returned as it is.
  */
@@ -231,7 +231,7 @@ export function resolveFileParams(
       resolved[name] = file(source.src);
     } else if (source.kind === 'procedural') {
       const spec = textureSpec(source.type);
-      if (!spec) buildErrors.push(`${label}.${name}: "${source.type}" is no texture a plugin of the book registers (nor a file – a file has its extension)`);
+      if (!spec) buildErrors.push(`${label}.${name}: "${source.type}" is no texture a plugin of the experience registers (nor a file – a file has its extension)`);
       else paramProblems(spec.params, source.params, `${label}.${name}`, source.type).forEach(problem => buildErrors.push(problem));
     }
   }

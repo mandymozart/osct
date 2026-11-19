@@ -1,11 +1,11 @@
 import path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BOOK, entry, loadBuild, makeContent, scene } from './helpers';
+import { EXPERIENCE, entry, loadBuild, makeContent, scene } from './helpers';
 
 afterEach(() => vi.unstubAllEnvs());
 
 const valid = () => ({
-  'book.yaml': BOOK,
+  'experience.yaml': EXPERIENCE,
   'scenes/a/scene.yaml': scene('1–2'),
   'entries/second/entry.yaml': entry('a', 'y.jpg').replace('title: Entry a', 'title: Second'),
   'entries/second/y.jpg': 'image y',
@@ -16,9 +16,9 @@ const valid = () => ({
 describe('content build', () => {
   it('builds valid content without errors', async () => {
     const build = await loadBuild(makeContent(valid()));
-    const { book, scenes, entries } = build.buildAll();
+    const { experience, scenes, entries } = build.buildAll();
     expect(build.errors).toEqual([]);
-    expect(book.title).toBe('Test Book');
+    expect(experience).toEqual({ id: 'test', title: 'Test Experience', book: { author: 'Someone' } });
     expect(scenes).toEqual([{ id: 'a', label: '1–2', surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }]);
     expect(entries.find(e => e.id === 'first')).toMatchObject({ scene: 'a', title: 'First' });
     expect(entries.find(e => e.id === 'first')).not.toHaveProperty('page');
@@ -53,7 +53,7 @@ describe('content build', () => {
   describe('environment assets', () => {
     const withEnvironment = (environment: string, files: Record<string, string> = {}) => ({
       ...valid(),
-      'book.yaml': `${BOOK}environment:
+      'experience.yaml': `${EXPERIENCE}environment:
 ${environment}`,
       ...files,
     });
@@ -63,16 +63,16 @@ ${environment}`,
         '  world: cafe\n  onionSky: true\n  worldSrc: environment/world.glb\n  skySrc: /assets/content/environment/sky.jpg\n',
         { 'environment/world.glb': 'glb', 'environment/sky.jpg': 'jpg' },
       )));
-      const { book } = build.buildAll();
+      const { experience } = build.buildAll();
       expect(build.errors).toEqual([]);
-      expect(book.environment).toEqual({ world: 'cafe', onionSky: true, worldSrc: '/assets/content/environment/world.glb', skySrc: '/assets/content/environment/sky.jpg' });
+      expect(experience.environment).toEqual({ world: 'cafe', onionSky: true, worldSrc: '/assets/content/environment/world.glb', skySrc: '/assets/content/environment/sky.jpg' });
     });
 
     it('keeps an absolute URL (an uploaded asset)', async () => {
       const build = await loadBuild(makeContent(withEnvironment('  world: cafe\n  onionSky: false\n  skySrc: https://cdn.example.com/assets/b/a/v1.webp\n')));
-      const { book } = build.buildAll();
+      const { experience } = build.buildAll();
       expect(build.errors).toEqual([]);
-      expect(book.environment?.skySrc).toBe('https://cdn.example.com/assets/b/a/v1.webp');
+      expect(experience.environment?.skySrc).toBe('https://cdn.example.com/assets/b/a/v1.webp');
     });
 
     it('reports a missing file, a wrong type and a path out of the folder', async () => {
@@ -83,10 +83,10 @@ ${environment}`,
       vi.spyOn(console, 'log').mockImplementation(() => {});
       build.buildAll();
       vi.restoreAllMocks();
-      expect(build.errors).toEqual(['book.yaml: environment.skySrc: file "../sky.jpg" not found in the content folder']);
+      expect(build.errors).toEqual(['experience.yaml: environment.skySrc: file "../sky.jpg" not found in the content folder']);
       const typed = await loadBuild(makeContent(withEnvironment('  world: cafe\n  onionSky: true\n  worldSrc: environment/sky.jpg\n', { 'environment/sky.jpg': 'jpg' })));
       typed.buildAll();
-      expect(typed.errors).toEqual(['book.yaml: environment.worldSrc must be a glTF model (.glb, .gltf).']);
+      expect(typed.errors).toEqual(['experience.yaml: environment.worldSrc must be a glTF model (.glb, .gltf).']);
     });
   });
 
@@ -172,7 +172,7 @@ ${environment}`,
 
     it('a list beyond the phone budget is a warning (#86)', async () => {
       const build = await loadBuild(makeContent({
-        'book.yaml': BOOK,
+        'experience.yaml': EXPERIENCE,
         'scenes/a/scene.yaml': scene('1–2') + 'passes:\n  - type: bloom\n  - type: bloom\n  - type: vignette\n  - type: grade\n',
       }));
       build.buildAll();
@@ -180,15 +180,15 @@ ${environment}`,
       expect(build.warnings).toEqual(['scenes/a: 4 passes (the phone budget is 3) and 2 blooms (one fits) – every pass is a full-screen render on the phone']);
     });
 
-    it('passes of a scene and the book are checked against their specs', async () => {
+    it('passes of a scene and the experience are checked against their specs', async () => {
       const { content } = makeContent({
-        'book.yaml': BOOK + 'passes:\n  - type: vignette\n    strength: 0.3\n',
+        'experience.yaml': EXPERIENCE + 'passes:\n  - type: vignette\n    strength: 0.3\n',
         'scenes/a/scene.yaml': scene('1–2') + 'passes:\n  - type: bloom\n    strength: 0.8\n',
         'scenes/b/scene.yaml': scene('3–4', 1) + 'passes:\n  - type: glow\n  - type: bloom\n    radius: 7\n',
       });
       const build = await loadBuild({ content });
-      const { book, scenes } = build.buildAll();
-      expect(book.passes).toEqual([{ type: 'vignette', strength: 0.3 }]);
+      const { experience, scenes } = build.buildAll();
+      expect(experience.passes).toEqual([{ type: 'vignette', strength: 0.3 }]);
       expect(scenes.find(s => s.id === 'a')?.passes).toEqual([{ type: 'bloom', strength: 0.8 }]);
       expect(build.errors).toEqual([
         'scenes/b: passes[0].type: "glow" is not one of bloom, vignette, grade',
@@ -198,37 +198,54 @@ ${environment}`,
 
     it('a pass that is off is kept with its values and not counted in the phone budget (#233)', async () => {
       const build = await loadBuild(makeContent({
-        'book.yaml': BOOK + 'passes:\n  - type: bloom\n    enabled: false\n    strength: 0.35\n  - type: bloom\n  - type: vignette\n  - type: grade\n',
+        'experience.yaml': EXPERIENCE + 'passes:\n  - type: bloom\n    enabled: false\n    strength: 0.35\n  - type: bloom\n  - type: vignette\n  - type: grade\n',
         'scenes/a/scene.yaml': scene('1–2') + 'passes:\n  - type: vignette\n    enabled: off\n',
       }));
-      const { book } = build.buildAll();
-      expect(book.passes?.[0]).toEqual({ type: 'bloom', enabled: false, strength: 0.35 });
+      const { experience } = build.buildAll();
+      expect(experience.passes?.[0]).toEqual({ type: 'bloom', enabled: false, strength: 0.35 });
       expect(build.warnings).toEqual([]);
       expect(build.errors).toEqual(['scenes/a: passes[0].enabled: expected true or false, got "off"']);
     });
 
-    it('the book\'s source of truth: print or digital, passed on; another value is an error (#238)', async () => {
-      const digital = await loadBuild(makeContent({ ...valid(), 'book.yaml': `${BOOK}sourceOfTruth: digital\n` }));
-      expect(digital.buildAll().book.sourceOfTruth).toBe('digital');
-      expect(digital.errors).toEqual([]);
-      const none = await loadBuild(makeContent(valid()));
-      expect(none.buildAll().book.sourceOfTruth).toBeUndefined();
-      expect(await errorsFor({ ...valid(), 'book.yaml': `${BOOK}sourceOfTruth: paper\n` })).toEqual([expect.stringContaining("sourceOfTruth")]);
+    it('the printed book: author and publisher under book:, passed on; a book needs its author (#320)', async () => {
+      const printed = await loadBuild(makeContent({ ...valid(), 'experience.yaml': `${EXPERIENCE}  publisher: P\n` }));
+      expect(printed.buildAll().experience.book).toEqual({ author: 'Someone', publisher: 'P' });
+      expect(printed.errors).toEqual([]);
+      expect(await errorsFor({ ...valid(), 'experience.yaml': 'id: test\ntitle: T\nbook:\n  publisher: P\n' })).toEqual([expect.stringContaining('author')]);
     });
 
-    it('a missing book.yaml', async () => {
-      const { 'book.yaml': _, ...files } = valid();
-      expect(await errorsFor(files)).toContainEqual('book.yaml is missing');
+    it('sourceOfTruth is gone: on the top level or under book: an error (#320)', async () => {
+      expect(await errorsFor({ ...valid(), 'experience.yaml': 'id: test\ntitle: T\nsourceOfTruth: digital\n' })).toContainEqual(expect.stringContaining('sourceOfTruth is gone'));
+      expect(await errorsFor({ ...valid(), 'experience.yaml': `${EXPERIENCE}  sourceOfTruth: print\n` })).toContainEqual(expect.stringContaining('book.sourceOfTruth is gone'));
+    });
+
+    it('an experience without a printed book (#320)', async () => {
+      const build = await loadBuild(makeContent({ ...valid(), 'experience.yaml': 'id: wall\ntitle: A Wall\n' }));
+      expect(build.buildAll().experience).toEqual({ id: 'wall', title: 'A Wall' });
+      expect(build.errors).toEqual([]);
+    });
+
+    it('print data on the top level is an error – it belongs under book: (#320)', async () => {
+      expect(await errorsFor({ ...valid(), 'experience.yaml': 'id: test\ntitle: T\nauthor: A\npublisher: P\n' })).toEqual(expect.arrayContaining([
+        'experience.yaml: author belongs to the printed book – write it under book:',
+        'experience.yaml: publisher belongs to the printed book – write it under book:',
+      ]));
+    });
+
+    it('a missing experience.yaml; a book.yaml asks for the conversion', async () => {
+      const { 'experience.yaml': _, ...files } = valid();
+      expect(await errorsFor(files)).toContainEqual('experience.yaml is missing');
+      expect(await errorsFor({ ...files, 'book.yaml': 'id: test\ntitle: T\nauthor: A\n' })).toContainEqual(expect.stringContaining('npm run convert:4'));
     });
   });
 
   describe('input hash', () => {
     it('ignores Windows line endings in text files, not content changes', async () => {
-      const unix = await loadBuild(makeContent({ ...valid(), 'book.yaml': BOOK }));
+      const unix = await loadBuild(makeContent({ ...valid(), 'experience.yaml': EXPERIENCE }));
       const hashUnix = unix.hash.hashBuildInputs();
-      const windows = await loadBuild(makeContent({ ...valid(), 'book.yaml': BOOK.replace(/\n/g, '\r\n') }));
+      const windows = await loadBuild(makeContent({ ...valid(), 'experience.yaml': EXPERIENCE.replace(/\n/g, '\r\n') }));
       expect(windows.hash.hashBuildInputs()).toBe(hashUnix);
-      const changed = await loadBuild(makeContent({ ...valid(), 'book.yaml': BOOK.replace('Test', 'Other') }));
+      const changed = await loadBuild(makeContent({ ...valid(), 'experience.yaml': EXPERIENCE.replace('Test', 'Other') }));
       expect(changed.hash.hashBuildInputs()).not.toBe(hashUnix);
     });
   });
@@ -247,15 +264,17 @@ describe('the test fixture', () => {
   });
 });
 
-describe('the demo book', () => {
+describe('the demo', () => {
   it('builds without errors: every node type, the covers, a shared entity, fourteen plugins (three with a node type, one with a material and a texture, two with a pass, one that takes a model file, two with looks)', { timeout: 60000 }, async () => {
     const build = await loadBuild({ content: path.resolve(__dirname, '../../fixtures/demo') });
     vi.spyOn(console, 'log').mockImplementation(() => {});
     const plugins = await build.plugins.buildPlugins();
-    const { book, scenes, entries } = build.buildAll(plugins.map(p => p.data));
+    const { experience, scenes, entries } = build.buildAll(plugins.map(p => p.data));
     vi.restoreAllMocks();
     expect(build.errors).toEqual([]);
-    expect(book.id).toBe('demo');
+    expect(experience.id).toBe('demo');
+    // The example of an experience that is not a book (#320): no print data
+    expect(experience.book).toBeUndefined();
     expect(plugins.map(p => p.data.id)).toEqual(['aquarium', 'fluid', 'grain', 'lifts', 'narrative', 'paper', 'pulse', 'reveal', 'scanlines', 'scenes', 'sparkle', 'spin', 'tally', 'tint']);
     // A plugin's pass (#216): the grain plugin's film grain on The twins, checked against its recorded spec
     expect(Object.keys(plugins.find(p => p.data.id === 'grain')!.data.registered!.passes ?? {})).toEqual(['filmGrain']);
@@ -287,13 +306,13 @@ describe('the demo book', () => {
     // The behaviour (#88): the key takes itself on a tap, the door's rules decide when the narrative plugin opens it
     const componentsOf = (id: string) => (entries.find(e => e.id === id)?.target?.entity as { components?: Array<{ type: string; rules?: unknown[] }> } | undefined)?.components ?? [];
     expect(componentsOf('key').find(c => c.type === 'behaviour')?.rules).toEqual([
-      { on: 'tap', do: [{ play: 'rattle' }, { set: { hasKey: true }, scope: 'book' }, { emit: 'keyRattled' }] },
+      { on: 'tap', do: [{ play: 'rattle' }, { set: { hasKey: true }, scope: 'experience' }, { emit: 'keyRattled' }] },
     ]);
     expect(componentsOf('door').map(c => c.type)).toEqual(['door', 'behaviour']);
     // The paper (#263): a component whose parameter is a model file – recorded as such, the file next to the node as its content path
     expect(plugins.find(p => p.data.id === 'paper')!.data.registered!.components?.paper.params.sheet).toMatchObject({ kind: 'model', default: '' });
     expect(componentsOf('screen').find(c => c.type === 'paper')).toEqual({ type: 'paper', sheet: '/assets/content/entries/screen/sheet.glb' });
-    // The reveal (#267): the engine's inflate-and-dissolve look as code – a plugin's look, recorded with its parameters for the book's appearance
+    // The reveal (#267): the engine's inflate-and-dissolve look as code – a plugin's look, recorded with its parameters for the experience's appearance
     const reveal = plugins.find(p => p.data.id === 'reveal')!.data.registered!.appearances ?? {};
     expect(Object.keys(reveal)).toEqual(['revealCode']);
     expect(Object.keys(plugins.find(p => p.data.id === 'lifts')!.data.registered!.appearances ?? {})).toEqual(['fadeCode', 'printLiftCode']);

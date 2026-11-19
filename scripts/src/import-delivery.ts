@@ -4,7 +4,7 @@
  * (`npm run import -- <delivery folder> import/<name>.yaml`).
  *
  * Mapping file:
- *   book: osct
+ *   experience: osct
  *   entries:
  *     <entry id>:
  *       category: glossary | video | text | link      title, page   (entry fields; author, body, caption, media optional)
@@ -12,7 +12,7 @@
  *       image: <file>       the entry image – becomes image.jpg (JPEG, ≤ MAX_ENTRY_IMAGE_SIZE px)
  *       video: <file>       AR video on the target – becomes video.mp4 (ffmpeg: H.264, ≤ 1280 px, ~2 Mbit/s)
  *       printed: { width, height, position }   mm and position on the page – for the trigger protocol only
- *       enabled: false      the target is switched off (#249): in the content, not in the reader's book
+ *       enabled: false      the target is switched off (#249): in the content, not in the reader's experience
  *       tags: [<tag>, …]    the entry's tags (e.g. `artwork`, to find a kind of target again)
  *       note: <text>        anything the editors should know – written as a comment into entry.yaml
  * Paths are relative to the delivery folder.
@@ -65,7 +65,7 @@ export interface MappedEntry {
 }
 
 export interface Mapping {
-  book?: string;
+  experience?: string;
   entries: Record<string, MappedEntry>;
 }
 
@@ -122,7 +122,7 @@ export function readMapping(file: string, problems: string[] = []): Mapping {
     const entry = readMappedEntry(id, value, problems);
     if (entry) entries[id] = entry;
   }
-  return { ...(typeof data.book === 'string' ? { book: data.book } : {}), entries };
+  return { ...(typeof data.experience === 'string' ? { experience: data.experience } : {}), entries };
 }
 
 /** The pair of facing pages a page belongs to: 1 | 2–3 | 4–5 | … | last (alone when even) */

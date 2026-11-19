@@ -10,8 +10,8 @@
  * `<build>` = the first 12 hex digits of the content build checksum (`ConfigurationVersion.hash`): the same content
  * is the same folder, whatever app version built it.
  *
- * An environment serves one book – the last one published there; `book` names it. A manifest without `book` was
- * written before it existed: its version's `game.config.json` (`book.id`) tells.
+ * An environment serves one experience – the last one published there; `experience` names it. A manifest without
+ * `experience` was written before it existed: its version's `game.config.json` (`experience.id`) tells.
  */
 
 import { isObject } from "../guards/primitives";
@@ -27,8 +27,8 @@ export interface ContentManifest {
   version: string;
   /** When this version became current (ISO 8601) */
   activatedAt: string;
-  /** The book this version is of (`ExperienceData.id`) */
-  book?: string;
+  /** The experience this version is of (`ExperienceData.id`) */
+  experience?: string;
 }
 
 /** Entry of versions.json */
@@ -42,8 +42,8 @@ export interface ContentVersion {
   activatedAt: string;
   /** When another version replaced it; null while it is current */
   retiredAt: string | null;
-  /** The book this version is of (`ExperienceData.id`) */
-  book?: string;
+  /** The experience this version is of (`ExperienceData.id`) */
+  experience?: string;
 }
 
 /** files.json of a version: by app path (`/assets/content/…`) */
@@ -61,7 +61,7 @@ export const isContentManifest = (value: unknown): value is ContentManifest =>
   typeof value.schema === "string" &&
   typeof value.version === "string" &&
   typeof value.activatedAt === "string" &&
-  (value.book === undefined || typeof value.book === "string");
+  (value.experience === undefined || typeof value.experience === "string");
 
 export const isContentVersions = (value: unknown): value is ContentVersion[] =>
   Array.isArray(value) &&

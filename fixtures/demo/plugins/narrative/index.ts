@@ -1,7 +1,7 @@
 import type { PluginApi } from "osct-plugin-api";
 
 /**
- * The book's logic across its pages where a rule without code is not enough – two components that talk through the
+ * The experience's logic across its pages where a rule without code is not enough – two components that talk through the
  * plugin API's events and variables, next to the `behaviour` rules of the content (the key takes itself on a tap, the
  * door's rules decide when it opens):
  *

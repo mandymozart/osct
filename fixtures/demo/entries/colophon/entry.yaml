@@ -1,9 +1,9 @@
-# The back cover's colophon: the book's title as text, a chest, and the tally of the whole book – "complete" when
+# The back cover's colophon: the experience's title as text, a chest, and the tally of the whole experience – "complete" when
 # every page was found.
 category: glossary
 title: The colophon
 scene: back
-body: "The back cover: `{{book.title}}` as a text node, a chest, and the `tally` of the whole book – it says complete when every page was found."
+body: "The back cover: `{{experience.title}}` as a text node, a chest, and the `tally` of the whole experience – it says complete when every page was found."
 tags: [narrative, progress]
 target:
   image: target.jpg
@@ -15,7 +15,7 @@ target:
     type: group
     children:
       - type: text
-        text: "{{book.title}}"
+        text: "{{experience.title}}"
         color: "#f3cc94"
         params:
           position: [0, 0.4, 0.01]
@@ -27,6 +27,6 @@ target:
           position: [0, 0.05, 0]
     components:
       - type: tally
-        of: book
-        label: of the book found
+        of: experience
+        label: of the experience found
         color: "#f3cc94"

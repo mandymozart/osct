@@ -1,8 +1,8 @@
 import type { PluginApi } from "osct-plugin-api";
 
 /**
- * A post-processing pass of the book's own (#216, content schema 2.21): **film grain** over the rendered picture. A
- * scene or the book names it in its `passes` like a built-in pass – `- type: filmGrain` with its parameters, in its
+ * A post-processing pass of the experience's own (#216, content schema 2.21): **film grain** over the rendered picture. A
+ * scene or the experience names it in its `passes` like a built-in pass – `- type: filmGrain` with its parameters, in its
  * place in the chain (the demo's *The twins* carries it) – and the editor's post-processing section offers it under
  * *add pass · grain* with the rows below.
  *

@@ -145,7 +145,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
         // the plugin registers it when it loads
       } else if (refuseUnknownNodes) {
         const plugins = [...recorded.nodeTypes.keys()];
-        fail(`${path}.type`, `"${e.type}" is not a node type – neither built in (${ENTITY_TYPES.join(", ")}) nor registered by a plugin of the book${plugins.length ? ` (${plugins.join(", ")})` : ""}`);
+        fail(`${path}.type`, `"${e.type}" is not a node type – neither built in (${ENTITY_TYPES.join(", ")}) nor registered by a plugin of the experience${plugins.length ? ` (${plugins.join(", ")})` : ""}`);
       } else {
         console.warn(`[game-config] ${path}.type: "${e.type}" is not a node type this app knows (${ENTITY_TYPES.join(", ")}) – it renders nothing, its children stay`);
       }
@@ -195,13 +195,25 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     if (!parseContentSchema(version.schema)) fail("version.schema", 'expected "MAJOR.MINOR", e.g. "1.0"');
   }
 
-  const book = obj(root.book, "book");
-  if (book) {
-    ["id", "title", "author"].forEach(key => str(book, key, "book"));
-    str(book, "publisher", "book", true);
-    if (book.passes !== undefined) passProblems(book.passes, "book.passes", passOptions).forEach(problem => problems.push(problem));
-    if (book.environment !== undefined) environmentProblems(book.environment, "book.environment", false).forEach(problem => problems.push(problem));
-    if (book.appearance !== undefined) appearanceProblems(book.appearance, "book.appearance", appearanceOptions).forEach(problem => problems.push(problem));
+  const experience = obj(root.experience, "experience");
+  if (experience) {
+    ["id", "title"].forEach(key => str(experience, key, "experience"));
+    // The print data lives in `book` (schema 4.0) – on the top level it is an error; the source of truth is gone
+    ["author", "publisher"].forEach(key => {
+      if (experience[key] !== undefined) fail(`experience.${key}`, "belongs to the printed book (experience.book)");
+    });
+    if (experience.sourceOfTruth !== undefined) fail("experience.sourceOfTruth", "is gone – every experience adds and removes its scenes");
+    if (experience.book !== undefined) {
+      const book = obj(experience.book, "experience.book");
+      if (book) {
+        str(book, "author", "experience.book");
+        str(book, "publisher", "experience.book", true);
+        if (book.sourceOfTruth !== undefined) fail("experience.book.sourceOfTruth", "is gone – every experience adds and removes its scenes");
+      }
+    }
+    if (experience.passes !== undefined) passProblems(experience.passes, "experience.passes", passOptions).forEach(problem => problems.push(problem));
+    if (experience.environment !== undefined) environmentProblems(experience.environment, "experience.environment", false).forEach(problem => problems.push(problem));
+    if (experience.appearance !== undefined) appearanceProblems(experience.appearance, "experience.appearance", appearanceOptions).forEach(problem => problems.push(problem));
   }
 
   str(root, "initialScene", "config");

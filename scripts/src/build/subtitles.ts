@@ -7,7 +7,7 @@ import { buildErrors, buildWarnings } from '../lib/errors';
 import { listFiles } from '../lib/files';
 
 /**
- * The book's subtitles: every `<video name>.<language>.vtt` next to a video of the content is that video's subtitle
+ * The experience's subtitles: every `<video name>.<language>.vtt` next to a video of the content is that video's subtitle
  * file in that language (`shared/types/subtitles.ts`) – the configuration lists them per video, nobody writes the
  * pairing down. A subtitle file that is no WebVTT is an error; one whose name fits no video beside it is reported and
  * left out.

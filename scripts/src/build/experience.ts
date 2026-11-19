@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { CONTENT_DIR } from '../config';
-import type { ExperienceData } from '../../../shared/types/game-config';
+import type { BookData, ExperienceData } from '../../../shared/types/game-config';
 import { passBudgetWarning, passProblems, type PassData, type PassSpec } from '../../../shared/types/passes';
 import { appearanceProblems, type AppearanceSpec, type ExperienceAppearance } from '../../../shared/types/appearance';
 import { environmentProblems, type EnvironmentData } from '../../../shared/types/environment';
@@ -31,7 +31,7 @@ export function resolveEnvironment(environment: unknown, contentDir = CONTENT_DI
 }
 
 /**
- * A `passes` list of the book or a scene, checked against the specs: the built-in passes and – schema 2.21 – the
+ * A `passes` list of the experience or a scene, checked against the specs: the built-in passes and – schema 2.21 – the
  * plugins' passes the build recorded (`pluginPasses`, type → spec); a list beyond the phone budget is a warning
  */
 export function checkedPasses(passes: unknown, label: string, pluginPasses: ReadonlyMap<string, PassSpec> = new Map()): PassData[] {
@@ -43,7 +43,7 @@ export function checkedPasses(passes: unknown, label: string, pluginPasses: Read
 }
 
 /**
- * The book's `appearance` (schema 2.29): a look per moment, checked against the built-in looks and the looks the
+ * The experience's `appearance` (schema 2.29): a look per moment, checked against the built-in looks and the looks the
  * plugins recorded (`pluginAppearances`, type → spec)
  */
 export function checkedAppearance(appearance: unknown, label: string, pluginAppearances: ReadonlyMap<string, AppearanceSpec> = new Map()): ExperienceAppearance {
@@ -51,22 +51,41 @@ export function checkedAppearance(appearance: unknown, label: string, pluginAppe
   return contractPart<ExperienceAppearance>(appearance, problems, label);
 }
 
-export function buildBook(pluginPasses: ReadonlyMap<string, PassSpec> = new Map(), pluginAppearances: ReadonlyMap<string, AppearanceSpec> = new Map()): ExperienceData {
-  const file = path.join(CONTENT_DIR, 'book.yaml');
+/** The print data that lives in `book:` – on the top level of experience.yaml it is an error */
+const PRINT_FIELDS = ['author', 'publisher'] as const;
+const GONE = 'sourceOfTruth is gone – every experience adds and removes its scenes (`npm run convert:4` drops it)';
+
+/**
+ * The experience (content/experience.yaml): id, title, passes, environment, appearance – and the printed book it
+ * accompanies (`book:`, optional: author, publisher)
+ */
+export function buildExperience(pluginPasses: ReadonlyMap<string, PassSpec> = new Map(), pluginAppearances: ReadonlyMap<string, AppearanceSpec> = new Map()): ExperienceData {
+  const label = 'experience.yaml';
+  const file = path.join(CONTENT_DIR, label);
   if (!fs.existsSync(file)) {
-    buildErrors.push('book.yaml is missing');
-    return { id: '', title: '', author: '' };
+    buildErrors.push(fs.existsSync(path.join(CONTENT_DIR, 'book.yaml'))
+      ? 'experience.yaml is missing – this content is older than schema 4.0 (book.yaml): convert it with `npm run convert:4`'
+      : 'experience.yaml is missing');
+    return { id: '', title: '' };
   }
-  const book = validate(readYaml(file), 'book', 'book.yaml');
-  if (!book) return { id: '', title: '', author: '' };
-  const { passes, environment, appearance, ...fields } = book;
-  const result: ExperienceData = { ...fields, id: book.id, title: book.title, author: book.author };
-  if (passes !== undefined) result.passes = checkedPasses(passes, 'book.yaml', pluginPasses);
-  if (appearance !== undefined) result.appearance = checkedAppearance(appearance, 'book.yaml', pluginAppearances);
+  const experience = validate(readYaml(file), 'experience', label);
+  if (!experience) return { id: '', title: '' };
+  const { passes, environment, appearance, book, ...fields } = experience;
+  PRINT_FIELDS.filter(key => fields[key] !== undefined)
+    .forEach(key => buildErrors.push(`${label}: ${key} belongs to the printed book – write it under book:`));
+  if (fields.sourceOfTruth !== undefined) buildErrors.push(`${label}: ${GONE}`);
+  const result: ExperienceData = { ...fields, id: experience.id, title: experience.title };
+  if (book !== undefined) {
+    const printed = validate(book, 'book', `${label} book`);
+    if (printed?.sourceOfTruth !== undefined) buildErrors.push(`${label}: book.${GONE}`);
+    else if (printed) result.book = printed as BookData;
+  }
+  if (passes !== undefined) result.passes = checkedPasses(passes, label, pluginPasses);
+  if (appearance !== undefined) result.appearance = checkedAppearance(appearance, label, pluginAppearances);
   if (environment !== undefined) {
     const resolved = resolveEnvironment(environment);
     const problems = resolved.problems.length ? resolved.problems : environmentProblems(resolved.environment);
-    result.environment = contractPart<EnvironmentData>(resolved.environment, problems, 'book.yaml');
+    result.environment = contractPart<EnvironmentData>(resolved.environment, problems, label);
   }
   return result;
 }

@@ -20,7 +20,7 @@ import type { PluginApi } from '../../../engine/src/scene/plugins';
 import { type Feedback, feedbackProblems, type FeedbackOptions, shadertoyFragment } from '../../../engine/src/scene/feedback-spec';
 
 /**
- * The book's own code (content schema 2.4, docs/plugins.md "Shipping it: the content build"): every folder
+ * The experience's own code (content schema 2.4, docs/plugins.md "Shipping it: the content build"): every folder
  * `content/plugins/<id>/` with an `index.ts` is a plugin. The build
  *   1. type-checks it against the plugin API (`engine/src/scene/plugins.ts`, imported as `osct-plugin-api`) –
  *      every error with its file and line, like any other content error;
@@ -30,7 +30,7 @@ import { type Feedback, feedbackProblems, type FeedbackOptions, shadertoyFragmen
  *      registry, so the nodes that use them are checked like the built-in `animation`; the node types it registers
  *      join the node type registry, so nodes of that type pass (their parameters and file checked); its materials and
  *      procedural textures (API 1.4) join theirs, so a node's `material` and a `texture` parameter are checked; its
- *      passes are recorded, so the book's and the scenes' `passes` may name them (schema 2.21, `build/book.ts`).
+ *      passes are recorded, so the experience's and the scenes' `passes` may name them (schema 2.21, `build/experience.ts`).
  *      A feedback buffer (API 1.6, `api.feedback`) is no registration: the recording run checks its options and hands
  *      out a dummy handle (a texture that never changes), so a plugin that makes one in `register` records like any;
  *   4. declares it in `game.config.json`: `plugins: [{ id, src, api, registered }]` – `registered` (schema 2.14) the
@@ -203,7 +203,7 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
       buildErrors.push(`plugins/${id}: ${ENTRY} exports no register(api) function`);
       return record;
     }
-    // The engine's own API type: a method the engine adds or changes fails here first, not in a book's build
+    // The engine's own API type: a method the engine adds or changes fails here first, not in an experience's build
     const recording: PluginApi = {
       version: PLUGIN_API_VERSION,
       three: THREE,
@@ -216,7 +216,7 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
         take(type, spec);
         if (types.includes(type)) layerTypes.add(type);
       },
-      // A pass: its spec and factory checked and recorded – the book and a scene name it in `passes` (schema 2.21,
+      // A pass: its spec and factory checked and recorded – the experience and a scene name it in `passes` (schema 2.21,
       // checked against the recorded spec); a built-in pass's name or one another plugin took is an error
       registerPass: (type: string, spec: ComponentSpec, factory: unknown) => {
         const problems = componentSpecProblems(type, spec).filter(problem => !problem.endsWith('is a built-in component'));
@@ -232,7 +232,7 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
         types.push(type);
         registered.passes[type] = plain({ description: spec.description, params: spec.params });
       },
-      // A look (API 1.8): its spec and factory checked and recorded – the book names it in `appearance` (schema 2.29,
+      // A look (API 1.8): its spec and factory checked and recorded – the experience names it in `appearance` (schema 2.29,
       // checked against the recorded spec); a built-in look's name or one another plugin took is an error
       registerAppearance: (type: string, spec: ComponentSpec, factory: unknown) => {
         const problems = componentSpecProblems(type, spec).filter(problem => !problem.endsWith('is a built-in component'));

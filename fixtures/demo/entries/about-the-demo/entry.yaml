@@ -2,5 +2,5 @@
 category: glossary
 title: About the demo
 scene: the-key
-body: "The demo book is a sandbox: every node type, placement, filter and component, twelve plugins, a narrative across its pages. Nothing in it is content of a real book – the models and videos are the test fixture's small stand-ins."
+body: "The demo is a sandbox: every node type, placement, filter and component, twelve plugins, a narrative across its pages. Nothing in it is content of a real book – the models and videos are the test fixture's small stand-ins."
 image: about.jpg

@@ -1,5 +1,5 @@
 /**
- * An entry's body as the reader shows it (content schema 2.23): a small Markdown with the book's variables – one
+ * An entry's body as the reader shows it (content schema 2.23): a small Markdown with the experience's variables – one
  * renderer for the reader's entry view and the editor's preview, so the author sees what the reader will.
  *
  * - **Variables** first (`./expressions.ts`, the syntax of SCUTOONS' message boxes): `{hasKey}`, `{tries > 2: …|…}`. A
@@ -179,10 +179,10 @@ export function renderEntryText(body: string, { variables = () => undefined, new
 
 /**
  * The lookup over a snapshot of the variables in their scopes (the plugin runtime's `allVars()`): a name reads the
- * innermost scope that has it – scene, stage, session, book – like a plugin's `api.vars.get(name)`
+ * innermost scope that has it – scene, stage, session, experience – like a plugin's `api.vars.get(name)`
  */
 export function variablesOf(snapshot: ReadonlyArray<{ scope: string; name: string; value: unknown }>): VariableLookup {
-  const order = ["scene", "stage", "session", "book"];
+  const order = ["scene", "stage", "session", "experience"];
   const byName = new Map<string, { rank: number; value: unknown }>();
   for (const v of snapshot) {
     const rank = order.indexOf(v.scope) < 0 ? order.length : order.indexOf(v.scope);

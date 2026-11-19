@@ -1,11 +1,11 @@
 # The key: a model that spins; a tap takes it – the `behaviour` component (rules without code, #88) plays the model's
-# clip `rattle`, sets the book variable hasKey (the door on page 3 reads it) and emits the scene event keyRattled. The
+# clip `rattle`, sets the experience variable hasKey (the door on page 3 reads it) and emits the scene event keyRattled. The
 # `animation` component says how the clip plays (once, never by itself – the behaviour starts it). The model is made by
 # editor/tools/key-model.mjs (`node editor/tools/key-model.mjs` writes key.glb).
 category: glossary
 title: The key
 scene: the-key
-body: "Tap the key to take it: its `behaviour` rule plays the clip `rattle`, sets `hasKey` in the book scope – persisted with your progress – and sends the scene event `keyRattled` to the stage. The door on page 3 opens only with it. No code: the rule is made in the editor's Entity panel."
+body: "Tap the key to take it: its `behaviour` rule plays the clip `rattle`, sets `hasKey` in the experience scope – persisted with your progress – and sends the scene event `keyRattled` to the stage. The door on page 3 opens only with it. No code: the rule is made in the editor's Entity panel."
 tags: [narrative, key]
 target:
   image: target.jpg
@@ -31,5 +31,5 @@ target:
             do:
               - play: rattle
               - set: { hasKey: true }
-                scope: book
+                scope: experience
               - emit: keyRattled
