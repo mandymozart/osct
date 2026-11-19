@@ -7,6 +7,14 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 2.0.3 – 2026-11-19
+
+### Fixed
+
+- **A missing build file is a 404** (`client/public/.htaccess`): a hashed chunk under `_app/` or `assets/` that is not
+  there (mid-deploy, or from an older build) was answered with the app's `index.html` – served as HTML, the module failed
+  and the editor stayed black, and the browser kept the wrong answer after the deploy.
+
 ## 2.0.2 – 2026-11-19
 
 ### Fixed
