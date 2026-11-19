@@ -1,9 +1,7 @@
 {
   "signedOutDescription": "Sauvegarde ta progression et reçois des nouvelles dans ta boîte mail. Déjà inscrit·e ? Saisis la même adresse e-mail pour te connecter sur cet appareil.",
   "optionsLabel": "Nouvelles",
-  "experienceUpdates": "Recevoir des nouvelles de {{title}}",
-  "artistUpdates": "Recevoir des nouvelles de {{author}}",
-  "publisherUpdates": "Recevoir des nouvelles de Building Fictions",
+  "buildingfictions": "Recevoir des nouvelles de Building Fictions",
   "emailPlaceholder": "Ton adresse e-mail",
   "send": "Recevoir un lien",
   "pendingDescription": "On a envoyé un e-mail à {{email}}. Ouvre le lien qu'il contient ou saisis le code ici :",

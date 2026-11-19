@@ -2,7 +2,8 @@
   /**
    * Feather icons (MIT, feathericons.com) as inline SVG – stroke 2.5, square caps, `currentColor`, sized by the font.
    * Only where a word makes no sense (RULES #32): step, replay, photo, close, the linked scale – and the tree, where
-   * type icons and the eye are the convention of every outliner (Blender, Unity, Figma).
+   * type icons and the eye are the convention of every outliner (Blender, Unity, Figma) – and a Library tile's hover
+   * actions (Use, Replace, ⋯), whose words got cut on small tiles (Tilman, 2026-11-19).
    */
   export const ICONS = {
     /** The account menu at the top bar's right (Admin, the e-mail, Sign out – Tilman 2026-11-18) */
@@ -27,6 +28,7 @@
     code: '<polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline>',
     previous: '<polyline points="15 18 9 12 15 6"></polyline>',
     next: '<polyline points="9 18 15 12 9 6"></polyline>',
+    replace: '<polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path>',
     replay: '<polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>',
     /** Undo, redo and the History of saved changes (Feather corner-up-left / -right and clock – the toolbar, #312) */
     undo: '<polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path>',

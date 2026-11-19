@@ -350,15 +350,15 @@ try {
     echo "request\n";
     [$status, $data] = call($api, 'POST', '/auth/request', ['email' => 'nope']);
     check($status === 400 && $data['error']['code'] === 'invalid-email', 'invalid email → 400');
-    [$status, $data] = call($api, 'POST', '/auth/request', ['email' => 'a@b.example', 'options' => ['experienceUpdates' => 'yes']]);
+    [$status, $data] = call($api, 'POST', '/auth/request', ['email' => 'a@b.example', 'options' => ['buildingfictions' => 'yes']]);
     check($status === 400 && $data['error']['code'] === 'invalid-options', 'non-boolean option → 400');
-    [$status, $data] = call($api, 'POST', '/auth/request', ['email' => ' Reader@Example.com ', 'language' => 'de', 'options' => ['experienceUpdates' => true]]);
+    [$status, $data] = call($api, 'POST', '/auth/request', ['email' => ' Reader@Example.com ', 'language' => 'de', 'options' => ['buildingfictions' => true]]);
     check($status === 202 && is_string($data['requestId']), 'request → 202 with a request id');
     $requestId = $data['requestId'];
     $mail = lastMail($mailLog);
     check($mail['code'] !== null && $mail['token'] !== null, 'mail contains the code and the link');
     check(str_contains($mail['text'], 'https://app.example') === false && str_contains($mail['text'], 'http://localhost:5173/about?login='), 'link points to the calling allowed origin');
-    check(str_contains($mail['text'], 'Neuigkeiten zu') && !str_contains($mail['text'], 'Neuigkeiten von Building'), 'German mail lists the chosen options only');
+    check(str_contains($mail['text'], 'Neuigkeiten von Building Fictions'), 'the German mail names the chosen option (#325: Building Fictions)');
 
     echo "verify by code\n";
     [$status, $data] = call($api, 'POST', '/auth/verify', ['requestId' => $requestId, 'code' => '000000' === $mail['code'] ? '111111' : '000000']);
@@ -366,17 +366,17 @@ try {
     [$status, $data] = call($api, 'POST', '/auth/verify', ['requestId' => $requestId, 'code' => substr($mail['code'], 0, 3) . ' ' . substr($mail['code'], 3)]);
     check($status === 200 && $data['created'] === true, 'right code (with a space) → session, new user');
     check($data['user']['email'] === 'reader@example.com', 'email stored lowercase and trimmed');
-    check($data['user']['options'] === ['experienceUpdates' => true, 'artistUpdates' => false, 'publisherUpdates' => false], 'options from the form, missing ones off (opt-in)');
+    check($data['user']['options'] === ['buildingfictions' => true], 'the option from the form (#325: one, Building Fictions)');
     $session = $data['session'];
     [$status, $data] = call($api, 'POST', '/auth/verify', ['token' => $mail['token']]);
     check($status === 410 && $data['error']['code'] === 'already-used', 'link of a used request → 410');
 
     echo "verify by link (existing user keeps its options)\n";
-    call($api, 'POST', '/auth/request', ['email' => 'reader@example.com', 'options' => ['publisherUpdates' => true]]);
+    call($api, 'POST', '/auth/request', ['email' => 'reader@example.com', 'options' => ['buildingfictions' => false]]);
     $mail = lastMail($mailLog);
     check(!str_contains($mail['text'], 'signed up for'), 'mail for an existing user lists no options');
     [$status, $data] = call($api, 'POST', '/auth/verify', ['token' => $mail['token']]);
-    check($status === 200 && $data['created'] === false && $data['user']['options']['publisherUpdates'] === false, 'link → session, options unchanged');
+    check($status === 200 && $data['created'] === false && $data['user']['options']['buildingfictions'] === true, 'link → session, options unchanged');
     $secondSession = $data['session'];
 
     echo "code attempts\n";
@@ -411,8 +411,8 @@ try {
     check($status === 401, 'unknown token → 401');
     [$status, $data] = call($api, 'GET', '/user', null, $session);
     check($status === 200 && $data['user']['language'] === 'de', 'user with language');
-    [$status, $data] = call($api, 'PATCH', '/user', ['options' => ['experienceUpdates' => false], 'language' => 'fr'], $session);
-    check($status === 200 && $data['user']['options']['experienceUpdates'] === false && $data['user']['language'] === 'fr', 'options and language changed');
+    [$status, $data] = call($api, 'PATCH', '/user', ['options' => ['buildingfictions' => false], 'language' => 'fr'], $session);
+    check($status === 200 && $data['user']['options']['buildingfictions'] === false && $data['user']['language'] === 'fr', 'options and language changed');
 
     echo "password\n";
     [, $data] = call($api, 'GET', '/user', null, $session);
@@ -520,7 +520,7 @@ try {
     [$status, $data] = $withSecret('GET', '/admin/users?q=AUTHOR');
     check($status === 200 && count($data['users']) === 1 && $data['users'][0]['email'] === 'author@example.com' && $data['total'] === 1, 'with the secret: search by e-mail (case-insensitive, a part)');
     $authorId = $data['users'][0]['id'];
-    check($data['users'][0]['options']['experienceUpdates'] === false && $data['users'][0]['language'] === 'en' && is_string($data['users'][0]['lastSeenAt']), 'a user comes with options, language and last seen');
+    check($data['users'][0]['options']['buildingfictions'] === false && $data['users'][0]['language'] === 'en' && is_string($data['users'][0]['lastSeenAt']), 'a user comes with options, language and last seen');
     // Arrivals by source (#324): counts only, from anyone; the admin reads them
     [$status] = call($api, 'POST', '/arrivals', ['source' => 'bk1', 'device' => 'phone', 'first' => true]);
     check($status === 204, 'POST /arrivals counts an arrival (204, no session)');
@@ -540,7 +540,7 @@ try {
     [, $data] = $withSecret('GET', '/admin/roles');
     check(array_column($data['roles'], 'name') === ['reader', 'editor', 'admin'], 'GET /admin/roles: reader, editor, admin with fixed ids');
     // An address in ADMINS (config) is an admin from its first sign-in – the instance's first admin without the secret
-    call($api, 'POST', '/auth/request', ['email' => 'chief@example.com', 'options' => ['publisherUpdates' => true]]);
+    call($api, 'POST', '/auth/request', ['email' => 'chief@example.com', 'options' => ['buildingfictions' => true]]);
     [, $data] = call($api, 'POST', '/auth/verify', ['token' => lastMail($mailLog)['token']]);
     $chief = $data['session'];
     check($data['user']['roles'] === ['reader', 'admin'] && $data['user']['role'] === 'reader', 'an address listed in ADMINS signs in as an admin (not an editor)');
@@ -597,10 +597,10 @@ try {
     $csv = (string) file_get_contents("$api/admin/users.csv?newsletter=1", false, $csvContext);
     $lines = array_values(array_filter(explode("\n", trim($csv))));
     check(in_array('Content-Type: text/csv; charset=utf-8', $http_response_header, true) && (bool) preg_grep('/^Content-Disposition: attachment; filename="newsletter-/', $http_response_header), 'GET /admin/users.csv answers a CSV download');
-    check($lines[0] === 'email,language,experienceUpdates,artistUpdates,publisherUpdates,createdAt', 'the CSV header names the options');
-    check(count($lines) === 2 && str_starts_with($lines[1], 'chief@example.com,en,no,no,yes,'), 'newsletter=1: only the users with an option on (the reader turned theirs off; chief: publisher updates)');
-    $csv = (string) file_get_contents("$api/admin/users.csv?option=publisherUpdates", false, $csvContext);
-    check(count(array_filter(explode("\n", trim($csv)))) === 2 && str_contains($csv, 'chief@example.com'), 'option=publisherUpdates narrows to that option');
+    check($lines[0] === 'email,language,buildingfictions,createdAt', 'the CSV header names the options');
+    check(count($lines) === 2 && str_starts_with($lines[1], 'chief@example.com,en,yes,'), 'newsletter=1: only the users with the option on (the reader turned theirs off)');
+    $csv = (string) file_get_contents("$api/admin/users.csv?option=buildingfictions", false, $csvContext);
+    check(count(array_filter(explode("\n", trim($csv)))) === 2 && str_contains($csv, 'chief@example.com'), 'option=buildingfictions narrows to that option');
     $csv = (string) file_get_contents("$api/admin/users.csv", false, $csvContext);
     check(count(array_filter(explode("\n", trim($csv)))) === 7, 'without a filter: every user');
     [$status] = call($api, 'GET', '/admin/users.csv', null, $editor);
@@ -2342,7 +2342,7 @@ try {
         ['DELETE', "/user/tokens/{$made['apiToken']['id']}", null], ['PUT', '/user/password', ['password' => 'from the robot']], ['DELETE', '/user', null],
         ['GET', '/admin/users', null], ['GET', '/admin/roles', null], ['POST', '/admin/editors', ['email' => 'robot@example.com']],
         // Consent (the update options) and the language are the person's own (#203, RULES #33)
-        ['PATCH', '/user', ['options' => ['experienceUpdates' => true, 'publisherUpdates' => true], 'language' => 'nl']], ['PATCH', '/user', ['language' => 'nl']],
+        ['PATCH', '/user', ['options' => ['buildingfictions' => true], 'language' => 'nl']], ['PATCH', '/user', ['language' => 'nl']],
     ];
     [, $data] = call($api, 'GET', '/user', null, $editor);
     $account = $data['user'];
@@ -2353,10 +2353,10 @@ try {
     [$status, $data] = call($api, 'GET', '/user', null, $editor);
     check($status === 200 && $data['user']['hasPassword'] === false, 'the account is still there, its password unchanged');
     check($data['user']['options'] === $account['options'] && $data['user']['language'] === $account['language'], '#203: the update options and the language unchanged');
-    $flipped = !$account['options']['artistUpdates'];
-    [$status, $data] = call($api, 'PATCH', '/user', ['options' => ['artistUpdates' => $flipped]], $editor);
-    check($status === 200 && $data['user']['options']['artistUpdates'] === $flipped, '#203: the person\'s own session still changes them');
-    call($api, 'PATCH', '/user', ['options' => ['artistUpdates' => !$flipped]], $editor);
+    $flipped = !$account['options']['buildingfictions'];
+    [$status, $data] = call($api, 'PATCH', '/user', ['options' => ['buildingfictions' => $flipped]], $editor);
+    check($status === 200 && $data['user']['options']['buildingfictions'] === $flipped, '#203: the person\'s own session still changes them');
+    call($api, 'PATCH', '/user', ['options' => ['buildingfictions' => !$flipped]], $editor);
 
     // Renew, revoke, expire – the person's own sign-in; another editor's token is as unknown as none
     [$status] = call($api, 'POST', "/user/tokens/{$made['apiToken']['id']}/renew", null, $otherEditor);
@@ -2656,7 +2656,7 @@ try {
     foreach ($tables as $table) {
         foreach (['book_id', 'book_json', 'book_updates'] as $column) if (hasColumn($v3Db, $table, $column)) $left[] = "$table.$column";
     }
-    check($left === [] && !hasColumn($v3Db, 'experiences', 'author') && hasColumn($v3Db, 'users', 'experience_updates') && hasColumn($v3Db, 'login_requests', 'experience_updates'),
+    check($left === [] && !hasColumn($v3Db, 'experiences', 'author') && hasColumn($v3Db, 'users', 'buildingfictions_updates') && !hasColumn($v3Db, 'users', 'experience_updates') && hasColumn($v3Db, 'login_requests', 'buildingfictions_updates') && !hasColumn($v3Db, 'login_requests', 'artist_updates'),
         'no book_id, book_json or book_updates left, no author column' . ($left ? ' – ' . implode(', ', $left) : ''));
     $count = static fn(string $table) => count($first[$table]);
     check($count('scenes') === 1 && $count('entries') === 1 && $count('targets') === 1 && $count('entities') === 1 && $count('experience_versions') === 1 && $count('changes') === 3
@@ -2694,7 +2694,7 @@ try {
     $v3Db->exec("INSERT INTO user_roles (user_id, role_id, granted_at) VALUES ('u3', 2, '2026-01-01 00:00:00')");
     $v3Db = null;
     [$status, $data] = call($v3Api, 'GET', '/user', null, $v3Session);
-    check($status === 200 && $data['user']['options']['experienceUpdates'] === true, 'a reader\'s book_updates choice is their experienceUpdates');
+    check($status === 200 && $data['user']['options'] === ['buildingfictions' => true], 'a reader\'s book_updates choice is their buildingfictions option (#325)');
     [$status, $data] = call($v3Api, 'GET', '/editor/experiences/osct', null, $v3Session);
     check($status === 200 && $data['experience']['experience']['book']['author'] === 'Kévin Bray' && count($data['scenes']) === 1 && $data['scenes'][0]['entries'][0]['id'] === 'e1',
         'the migrated experience opens in the editor');

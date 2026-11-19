@@ -25,7 +25,7 @@ export default interface Resources {
     "settings": "Settings"
   },
   "account": {
-    "artistUpdates": "Receive updates from {{author}}",
+    "buildingfictions": "Receive updates from Building Fictions",
     "cancel": "Cancel",
     "changePassword": "Change password",
     "codeLabel": "Code from the email",
@@ -57,7 +57,6 @@ export default interface Resources {
       "unauthorized": "You're signed out. Sign in again.",
       "wrong-current-password": "The current password isn't right."
     },
-    "experienceUpdates": "Receive updates on {{title}}",
     "linkMode": "Sign in with link",
     "newPasswordPlaceholder": "New password (at least 8 characters)",
     "optionsLabel": "Updates",
@@ -69,7 +68,6 @@ export default interface Resources {
     "passwordPlaceholder": "Password",
     "passwordSaved": "Your password is saved.",
     "pendingDescription": "We sent an email to {{email}}. Open the link in it, or enter the code here:",
-    "publisherUpdates": "Receive updates from Building Fictions",
     "savePassword": "Save password",
     "send": "Send sign-in link",
     "sendAgain": "Send again",

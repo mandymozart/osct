@@ -1,9 +1,7 @@
 {
   "signedOutDescription": "Save your progress and receive updates in your inbox. Already registered? Enter the same email to sign in on this device.",
   "optionsLabel": "Updates",
-  "experienceUpdates": "Receive updates on {{title}}",
-  "artistUpdates": "Receive updates from {{author}}",
-  "publisherUpdates": "Receive updates from Building Fictions",
+  "buildingfictions": "Receive updates from Building Fictions",
   "emailPlaceholder": "Your email address",
   "send": "Send sign-in link",
   "pendingDescription": "We sent an email to {{email}}. Open the link in it, or enter the code here:",

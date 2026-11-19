@@ -36,13 +36,14 @@ describe("settings sections", () => {
       const section = mount("settings-account");
       expect(section.shadowRoot!.textContent).toContain("Already registered? Enter the same email");
       expect(section.shadowRoot!.querySelector("form + .switches")).not.toBeNull();
-      expect(switchInput(section, "experienceUpdates").checked || switchInput(section, "publisherUpdates").checked).toBe(false);
-      switchInput(section, "experienceUpdates").click();
+      expect(section.shadowRoot!.querySelectorAll("gold-switch[data-option]")).toHaveLength(1);
+      expect(switchInput(section, "buildingfictions").checked).toBe(false);
+      switchInput(section, "buildingfictions").click();
       const input = section.shadowRoot!.querySelector<HTMLInputElement>("input[name=email]")!;
       input.value = "reader@example.com";
       input.dispatchEvent(new Event("input", { bubbles: true }));
       section.shadowRoot!.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-      expect(request).toHaveBeenCalledWith("reader@example.com", { experienceUpdates: true, artistUpdates: false, publisherUpdates: false });
+      expect(request).toHaveBeenCalledWith("reader@example.com", { buildingfictions: true });
     });
 
     it("pending: asks for the code from the email", () => {
@@ -60,14 +61,14 @@ describe("settings sections", () => {
     it("signed in: the address, the options as switches, sign out, delete after a confirmation", () => {
       vi.spyOn(users, "getSnapshot").mockReturnValue(snapshot({
         status: "signed-in", sync: "synced",
-        user: { email: "reader@example.com", language: "en", createdAt: "", options: { experienceUpdates: false, artistUpdates: false, publisherUpdates: true }, hasPassword: false },
+        user: { email: "reader@example.com", language: "en", createdAt: "", options: { buildingfictions: true }, hasPassword: false },
       }));
       const setOption = vi.spyOn(users, "setOption").mockResolvedValue();
       const remove = vi.spyOn(users, "deleteUser").mockResolvedValue(true);
       const section = mount("settings-account");
       expect(section.shadowRoot!.textContent).toContain("Your progress is saved in your account.");
-      switchInput(section, "experienceUpdates").click();
-      expect(setOption).toHaveBeenCalledWith("experienceUpdates", true);
+      switchInput(section, "buildingfictions").click();
+      expect(setOption).toHaveBeenCalledWith("buildingfictions", false);
       vi.spyOn(window, "confirm").mockReturnValueOnce(false);
       click(section, "[data-action=delete]");
       expect(remove).not.toHaveBeenCalled();
@@ -96,7 +97,7 @@ describe("settings sections", () => {
     it("signed in: sets a password in a form a password manager can save (email as hidden username)", () => {
       vi.spyOn(users, "getSnapshot").mockReturnValue(snapshot({
         status: "signed-in", sync: "synced",
-        user: { email: "reader@example.com", language: "en", createdAt: "", options: { experienceUpdates: false, artistUpdates: false, publisherUpdates: false }, hasPassword: false },
+        user: { email: "reader@example.com", language: "en", createdAt: "", options: { buildingfictions: false }, hasPassword: false },
       }));
       vi.spyOn(users, "passwordNeedsCurrent").mockReturnValue(false);
       const setPassword = vi.spyOn(users, "setPassword").mockResolvedValue(true);
@@ -116,7 +117,7 @@ describe("settings sections", () => {
     it("signed in with a password: change asks for the current one; it cannot be removed", () => {
       vi.spyOn(users, "getSnapshot").mockReturnValue(snapshot({
         status: "signed-in", sync: "synced",
-        user: { email: "reader@example.com", language: "en", createdAt: "", options: { experienceUpdates: false, artistUpdates: false, publisherUpdates: false }, hasPassword: true },
+        user: { email: "reader@example.com", language: "en", createdAt: "", options: { buildingfictions: false }, hasPassword: true },
       }));
       vi.spyOn(users, "passwordNeedsCurrent").mockReturnValue(true);
       const section = mount("settings-account");
@@ -237,7 +238,7 @@ describe("settings sections", () => {
   it("history (reset): says it reaches the account when signed in", () => {
     vi.spyOn(UserService.getInstance(), "getSnapshot").mockReturnValue({
       status: "signed-in", pending: null, sync: "synced", busy: false, notice: null,
-      user: { email: "a@b.c", language: "en", createdAt: "", options: { experienceUpdates: true, artistUpdates: false, publisherUpdates: true }, hasPassword: false },
+      user: { email: "a@b.c", language: "en", createdAt: "", options: { buildingfictions: true }, hasPassword: false },
     });
     expect(mount("settings-history").shadowRoot!.textContent).toContain("on this device and in your account");
   });

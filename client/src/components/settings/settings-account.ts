@@ -3,10 +3,9 @@ import { t } from "i18next";
 import { UserService } from "@/services";
 import type { UserData, UserNotice, UserOption, UserOptions, UserSnapshot } from "@/types";
 import { escapeHtml } from "@/utils";
-import { getExperience } from "@/utils/game-config";
 import { SettingsSection } from "./settings-section";
 
-const OPTIONS: UserOption[] = ["experienceUpdates", "artistUpdates", "publisherUpdates"];
+const OPTIONS: UserOption[] = ["buildingfictions"];
 
 const NOTICES = {
   "confirmed": "account:confirmed",
@@ -41,7 +40,7 @@ export class SettingsAccount extends SettingsSection {
   /** Signed in: the set / change password form is open */
   private editingPassword = false;
   /** Update options chosen in the sign-up form; sent with the login request */
-  private choices: UserOptions = { experienceUpdates: false, artistUpdates: false, publisherUpdates: false };
+  private choices: UserOptions = { buildingfictions: false };
 
   connectedCallback() {
     // Removed rather than hidden: an empty section would still draw its separator rule
@@ -199,9 +198,7 @@ export class SettingsAccount extends SettingsSection {
   /** One `<gold-switch>` per update option; `mode` decides whether a change is a sign-up choice or a saved user option */
   private toggle(option: UserOption, on: boolean, mode: "choose" | "change", busy: boolean): string {
     const labels: Record<UserOption, string> = {
-      experienceUpdates: t("account:experienceUpdates", { title: getExperience().title, interpolation: { escapeValue: false } }),
-      artistUpdates: t("account:artistUpdates", { author: getExperience().book?.author ?? "", interpolation: { escapeValue: false } }),
-      publisherUpdates: t("account:publisherUpdates"),
+      buildingfictions: t("account:buildingfictions"),
     };
     return `<gold-switch label="${escapeHtml(labels[option])}" data-option="${option}" data-mode="${mode}"${on ? " checked" : ""}${busy ? " disabled" : ""}></gold-switch>`;
   }

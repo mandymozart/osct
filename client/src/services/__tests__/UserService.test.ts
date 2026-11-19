@@ -12,7 +12,7 @@ const [entryA, entryB, entryC] = getEntries().map(e => e.id);
 class FakeApi extends ApiService {
   user: UserData = {
     email: "reader@example.com", language: "en", createdAt: "2026-09-27T00:00:00+00:00",
-    options: { experienceUpdates: true, artistUpdates: false, publisherUpdates: true }, hasPassword: false,
+    options: { buildingfictions: true }, hasPassword: false,
   };
   /** The user's password (null = none) and whether this device just signed in by email (no current password needed) */
   password: string | null = null;
@@ -123,8 +123,8 @@ describe("UserService", () => {
     const users = service();
     await users.start(game);
 
-    expect(await users.requestLogin(" reader@example.com ", { experienceUpdates: true, artistUpdates: false, publisherUpdates: false })).toBe(true);
-    expect(api.calls[0].body).toEqual({ email: "reader@example.com", options: { experienceUpdates: true, artistUpdates: false, publisherUpdates: false }, language: "en" });
+    expect(await users.requestLogin(" reader@example.com ", { buildingfictions: true })).toBe(true);
+    expect(api.calls[0].body).toEqual({ email: "reader@example.com", options: { buildingfictions: true }, language: "en" });
     expect(users.getSnapshot()).toMatchObject({ status: "pending", pending: { requestId: "r1", email: "reader@example.com" } });
 
     expect(await users.confirmCode("000000")).toBe(false);
@@ -214,9 +214,9 @@ describe("UserService", () => {
     signedInStorage();
     const users = service();
     await users.start(game);
-    await users.setOption("experienceUpdates", false);
-    expect(users.getSnapshot().user!.options).toEqual({ experienceUpdates: false, artistUpdates: false, publisherUpdates: true });
-    expect(JSON.parse(localStorage.getItem("osct-user")!).user.options.experienceUpdates).toBe(false);
+    await users.setOption("buildingfictions", false);
+    expect(users.getSnapshot().user!.options).toEqual({ buildingfictions: false });
+    expect(JSON.parse(localStorage.getItem("osct-user")!).user.options.buildingfictions).toBe(false);
   });
 
   it("a reset of the book reaches the account", async () => {
@@ -271,7 +271,7 @@ describe("UserService", () => {
   it("sets a password after an email sign-in without the current one", async () => {
     const users = service();
     await users.start(game);
-    await users.requestLogin("reader@example.com", { experienceUpdates: false, artistUpdates: false, publisherUpdates: false });
+    await users.requestLogin("reader@example.com", { buildingfictions: false });
     await users.confirmCode("123456");
     expect(users.passwordNeedsCurrent()).toBe(false);
 
@@ -299,7 +299,7 @@ describe("UserService", () => {
       const csrf = vi.spyOn(api, "setCsrfToken");
       const users = service();
       await users.start(game);
-      await users.requestLogin("reader@example.com", { experienceUpdates: false, artistUpdates: false, publisherUpdates: false });
+      await users.requestLogin("reader@example.com", { buildingfictions: false });
       expect(await users.confirmCode("123456")).toBe(true);
       expect(api.calls.find(c => c.path === "/auth/verify")!.body).toEqual({ requestId: "r1", code: "123456", session: "cookie" });
       expect(csrf).toHaveBeenCalledWith("csrf-1");
@@ -374,7 +374,7 @@ describe("UserService", () => {
       const users = service();
       expect(users.getSnapshot()).toMatchObject({
         status: "signed-in",
-        user: { email: "reader@example.com", language: "en", hasPassword: false, options: { experienceUpdates: false, artistUpdates: false, publisherUpdates: false } },
+        user: { email: "reader@example.com", language: "en", hasPassword: false, options: { buildingfictions: false } },
       });
       expect(users.passwordNeedsCurrent()).toBe(false);
     });
@@ -422,10 +422,10 @@ describe("UserService", () => {
     it("passes the waiting time of a refused request on, ignores one that is not a number", async () => {
       const users = service();
       vi.spyOn(api, "request").mockRejectedValueOnce(new ApiError(429, "too-many-requests", { error: { code: "too-many-requests", retryAfter: 60 } }));
-      await users.requestLogin("reader@example.com", { experienceUpdates: false, artistUpdates: false, publisherUpdates: false });
+      await users.requestLogin("reader@example.com", { buildingfictions: false });
       expect(users.getSnapshot().notice).toEqual({ error: "too-many-requests", retryAfter: 60 });
       vi.spyOn(api, "request").mockRejectedValueOnce(new ApiError(429, "too-many-requests", { error: { retryAfter: "60" } }));
-      await users.requestLogin("reader@example.com", { experienceUpdates: false, artistUpdates: false, publisherUpdates: false });
+      await users.requestLogin("reader@example.com", { buildingfictions: false });
       expect(users.getSnapshot().notice).toEqual({ error: "too-many-requests" });
     });
   });

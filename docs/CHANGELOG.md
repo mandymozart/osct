@@ -7,6 +7,18 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 3.5.0 – 2026-11-19
+
+### Changed
+
+- **Accounts: one update option – news from Building Fictions** (#325): sign-up and Info → Account show one switch
+  instead of three (experience, artist, publisher); the API key is `buildingfictions` (`POST /auth/request`,
+  `PATCH /user`, `GET /user`), the column `buildingfictions_updates`. The deploy migrates every account: on wherever
+  any of the three was on. The sign-in mail, the admin's *updates* column and the Newsletter CSV
+  (`email, language, buildingfictions, createdAt`; `option=buildingfictions`) follow.
+- **Editor Library: a tile's hover actions are icons** – Use, Replace and ⋯ with a native tooltip; the words got cut
+  on small tiles.
+
 ## 3.4.1 – 2026-11-19
 
 ### Fixed

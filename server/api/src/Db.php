@@ -52,6 +52,7 @@ final class Db
         $file = __DIR__ . '/../db/' . (self::isSqlite() ? 'schema.sqlite.sql' : 'schema.mysql.sql');
         $sql = preg_replace('/^\s*--.*$/m', '', (string) file_get_contents($file));
         $statements = array_filter(array_map('trim', preg_split('/;\s*(\n|$)/', (string) $sql)));
+        self::mergeUpdateOptions();
         foreach ($statements as $statement) {
             if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+RENAME\s+TO\s+`?(\w+)`?/i', $statement, $match)
                 && (!self::hasTable($match[1]) || self::hasTable($match[2]))) continue;
@@ -67,6 +68,23 @@ final class Db
         // The JSON half of a schema change, which SQL cannot write for both dialects (#320)
         Migration4::run();
         return count($statements);
+    }
+
+    /**
+     * One update option (#325): before the schema renames `publisher_updates` and drops the other two, a person who
+     * chose any of the three old options keeps getting updates – from Building Fictions. Skipped once the old columns
+     * are gone (and on a new database).
+     */
+    private static function mergeUpdateOptions(): void
+    {
+        foreach (['users', 'login_requests'] as $table) {
+            if (!self::hasTable($table) || !self::hasColumn($table, 'publisher_updates')) continue;
+            $others = array_filter(['book_updates', 'experience_updates', 'artist_updates'],
+                static fn(string $column) => self::hasColumn($table, $column));
+            if (!$others) continue;
+            $any = implode(' = 1 OR ', $others) . ' = 1';
+            self::pdo()->exec("UPDATE $table SET publisher_updates = 1 WHERE publisher_updates = 0 AND ($any)");
+        }
     }
 
     public static function hasTable(string $table): bool

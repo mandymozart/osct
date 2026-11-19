@@ -4,7 +4,7 @@ import { adoptDesignStyles } from "@/styles";
  * Settings-style on/off row: label text on the left, switch on the far right; the whole row is the label.
  * Wraps a native checkbox (`role="switch"`) styled by the `.switch` design primitive.
  *
- *   <gold-switch label="Updates" checked data-option="experienceUpdates"></gold-switch>
+ *   <gold-switch label="Updates" checked data-option="buildingfictions"></gold-switch>
  *
  * Attributes: `label`, `checked`, `disabled`. A change by the reader sets `checked` and fires `change`
  * (bubbles) on the element – read `element.checked`. A tap plays the tap feedback like a button;

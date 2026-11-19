@@ -1088,7 +1088,7 @@ background (a video plays muted while hovered), the type's icon else –, the ki
 with the target glyph, *surface*, *3D* …), the **use count** in the top right (a dashed *0*: unused), a video's duration
 at the bottom right; under it the name (one line – an imported file under its own name says its place, `p015-1 ·
 target`) and one line: the pixels, the size, a version above 1, *+N more* uses. No buttons on the tile: hovered or
-focused it shows **Use · Replace · ⋯**; **⋯** and a right click (or the menu key) open every action. A click selects the
+focused it shows **Use · Replace · ⋯** as icons (the native tooltip names each); **⋯** and a right click (or the menu key) open every action. A click selects the
 file, a **double click** (or Enter) uses it. The **list** shows name, place, kind, size and uses per row; a click
 selects, a double click uses.
 

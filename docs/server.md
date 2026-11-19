@@ -56,7 +56,7 @@ server/db-dumps/                 the dumps it keeps (not committed)
 
 | | | |
 |---|---|---|
-| `POST /auth/request` | `{ email, language?, options? }` | 202 `{ requestId, expiresAt }` – sends the email |
+| `POST /auth/request` | `{ email, language?, options? }` | 202 `{ requestId, expiresAt }` – sends the email; `options` = `{ buildingfictions: bool }`, the one update option (news from Building Fictions, #325; opt-in, off when missing) |
 | `POST /auth/verify` | `{ token }` or `{ requestId, code }`, `session?` | `{ session, user, created }` – with `"session": "cookie"` (a browser) `{ csrfToken, user, created }` and the session cookie instead ([Sessions](#sessions-cookies-and-csrf)) |
 | `POST /auth/password` | `{ email, password, session? }` | `{ session, user, created: false }` – a browser the same as above; 401 `invalid-credentials` (also for unknown addresses and users without a password) |
 | `POST /auth/logout` | | 204 – this device only; a cookie session needs its CSRF token like any write, and the cookie is cleared |
@@ -246,7 +246,7 @@ secret or a session without the role → 403 `forbidden`. `POST /admin/migrate` 
 |---|---|---|
 | `GET /admin/roles` | | `{ roles: [{ id, name, description }] }` |
 | `GET /admin/users?q=&role=&newsletter=1&limit=` | | `{ users: [{ …user, id, grants: [{ role, grantedAt, grantedBy, grantedByEmail }], lastSeenAt }], total }` – newest first, 50 (at most 200); `q` = a part of the e-mail address, `role` = only users with that role, `newsletter=1` = only users with an update option on. `user` is the shape of `GET /user` (email, language, options, hasPassword, roles, createdAt) |
-| `GET /admin/users.csv?newsletter=1&option=` | | the same users as CSV (`email, language, experienceUpdates, artistUpdates, publisherUpdates, createdAt`), `Content-Disposition: attachment` – the newsletter list for the mailing tool; `option=experienceUpdates` narrows to one option |
+| `GET /admin/users.csv?newsletter=1&option=` | | the same users as CSV (`email, language, buildingfictions, createdAt`), `Content-Disposition: attachment` – the newsletter list for the mailing tool; `option=buildingfictions` narrows to that option |
 | `PUT /admin/users/{id}/roles/{role}` | | `{ changed, user }` – grants the role (`changed: false` when the user had it); 404 `not-found` / `unknown-role`, 400 `invalid-role` for `reader` |
 | `DELETE /admin/users/{id}/roles/{role}` | | `{ changed, user }` – revokes it; 409 `last-admin` when the last admin would go |
 | `POST /admin/editors` | `{ email }` | `{ user, created, changed }` – gives the user the role `editor`, creating the user (confirmed, `en`, no options) when the address is new |
@@ -761,6 +761,11 @@ scenes and in the change log's before / after (so a revert never writes the old 
 sources are not rewritten – the reader reads an old record and writes the new one; `server/deploy/migrate.php` names
 each plugin source that still says `"book"`, for its author to re-save with `"experience"`. Routes: `/editor/books/…` →
 `/editor/experiences/…`, no alias; errors `invalid-experience`, `other-experience`; `print-first` is gone.
+
+**One update option (#325)**, in place on the next deploy: `Db::mergeUpdateOptions` turns `publisher_updates` on
+wherever any of the three old options was on (`book_updates` / `experience_updates`, `artist_updates`), then the schema
+renames `publisher_updates` → `buildingfictions_updates` in `users` and `login_requests` and drops the other two. The API
+key is `buildingfictions` (news from Building Fictions); a second run finds no old column and changes nothing.
 
 #### Surface reference images
 

@@ -30,13 +30,20 @@ ALTER TABLE experiences RENAME COLUMN book_json TO experience_json;
 ALTER TABLE users RENAME COLUMN book_updates TO experience_updates;
 ALTER TABLE login_requests RENAME COLUMN book_updates TO experience_updates;
 
+-- One update option (#325): news from Building Fictions. Db::migrate first turns it on wherever any of the three old
+-- options was on (Db::mergeUpdateOptions), then the publisher's column takes the new name and the other two go
+ALTER TABLE users RENAME COLUMN publisher_updates TO buildingfictions_updates;
+ALTER TABLE login_requests RENAME COLUMN publisher_updates TO buildingfictions_updates;
+ALTER TABLE users DROP COLUMN experience_updates;
+ALTER TABLE users DROP COLUMN artist_updates;
+ALTER TABLE login_requests DROP COLUMN experience_updates;
+ALTER TABLE login_requests DROP COLUMN artist_updates;
+
 CREATE TABLE IF NOT EXISTS users (
   id TEXT NOT NULL PRIMARY KEY,
   email TEXT NOT NULL UNIQUE,
   language TEXT NOT NULL DEFAULT 'en',
-  experience_updates INTEGER NOT NULL DEFAULT 0,
-  artist_updates INTEGER NOT NULL DEFAULT 0,
-  publisher_updates INTEGER NOT NULL DEFAULT 0,
+  buildingfictions_updates INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   confirmed_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -48,9 +55,7 @@ CREATE TABLE IF NOT EXISTS login_requests (
   token_hash TEXT NOT NULL UNIQUE,
   code_hash TEXT NOT NULL,
   language TEXT NOT NULL DEFAULT 'en',
-  experience_updates INTEGER NOT NULL DEFAULT 0,
-  artist_updates INTEGER NOT NULL DEFAULT 0,
-  publisher_updates INTEGER NOT NULL DEFAULT 0,
+  buildingfictions_updates INTEGER NOT NULL DEFAULT 0,
   ip_hash TEXT NOT NULL,
   attempts INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,

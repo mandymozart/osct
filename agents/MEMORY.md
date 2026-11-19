@@ -4,6 +4,14 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-19 – One update option: Building Fictions (#325)
+- Tilman: *"we reduced the updates on person can receive … just subscribe to one type of update and that is send by
+  building fictions"*, then *"just put send updates from one source, not 3 choices. and the type is buildingfictions."*
+- The accounts have one option, key `buildingfictions` (column `buildingfictions_updates`); experience / artist /
+  publisher updates are gone. Migration: on where any of the three was on (`Db::mergeUpdateOptions`, then rename and
+  drop in the schema files). No compatibility (before Tokyo): an older reader's stored options read as off until
+  `GET /user` refreshes them.
+
 ## 2026-11-19 – Arrivals by source and the landing redesign (#324)
 - The book's QR code (last page, final print PDF) reads `https://osct.buildingfictions.com/?s=bk1`: **`s` = the source**.
   The app counts every `?s=` arrival (`ArrivalService`, `POST /api/arrivals`) and takes `s` out of the address; the

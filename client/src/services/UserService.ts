@@ -78,8 +78,7 @@ const isString = (value: unknown): value is string => typeof value === "string";
 const isTime = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 
 const isUserOptions = (value: unknown): value is UserOptions =>
-  isObject(value) && typeof value.experienceUpdates === "boolean" && typeof value.artistUpdates === "boolean" &&
-  typeof value.publisherUpdates === "boolean";
+  isObject(value) && typeof value.buildingfictions === "boolean";
 
 const isUserData = (value: unknown): value is UserData =>
   isObject(value) && isString(value.email) && isString(value.language) && isUserOptions(value.options) &&
@@ -111,9 +110,7 @@ const storedUser = (value: unknown): UserData | null => {
     email: value.email,
     language: isString(value.language) ? value.language : "en",
     options: {
-      experienceUpdates: options.experienceUpdates === true,
-      artistUpdates: options.artistUpdates === true,
-      publisherUpdates: options.publisherUpdates === true,
+      buildingfictions: options.buildingfictions === true,
     },
     hasPassword: value.hasPassword === true,
     createdAt: isString(value.createdAt) ? value.createdAt : "",

@@ -24,8 +24,11 @@ final class Auth
     /** The session row of a request that signed in by cookie (its CSRF token is answered by GET /user) */
     private static ?array $cookieSession = null;
 
-    /** The sign-up options (the progress is always kept – it can be reset in the app) */
-    public const OPTIONS = ['experienceUpdates' => 'experience_updates', 'artistUpdates' => 'artist_updates', 'publisherUpdates' => 'publisher_updates'];
+    /**
+     * The sign-up options: one, news from Building Fictions (#325; the progress is always kept – it can be reset in
+     * the app). The key the API and the reader use => its column
+     */
+    public const OPTIONS = ['buildingfictions' => 'buildingfictions_updates'];
 
     /**
      * The hourly limit on emails per address / per IP: seconds until the next request is allowed, 0 = allowed now.
@@ -66,11 +69,10 @@ final class Auth
         $code = sprintf('%06d', random_int(0, 999999));
         $ttl = Config::int('LOGIN_TTL_MINUTES') * 60;
         Db::run(
-            'INSERT INTO login_requests (id, email, token_hash, code_hash, language, experience_updates, artist_updates, publisher_updates, ip_hash, created_at, expires_at)
-             VALUES (:id, :email, :token, :code, :language, :bu, :au, :pu, :ip, :created, :expires)',
+            'INSERT INTO login_requests (id, email, token_hash, code_hash, language, buildingfictions_updates, ip_hash, created_at, expires_at)
+             VALUES (:id, :email, :token, :code, :language, :bf, :ip, :created, :expires)',
             ['id' => $id, 'email' => $email, 'token' => hash('sha256', $token), 'code' => self::codeHash($id, $code),
-             'language' => $language, 'bu' => (int) $options['experienceUpdates'],
-             'au' => (int) $options['artistUpdates'], 'pu' => (int) $options['publisherUpdates'], 'ip' => $ipHash, 'created' => Db::now(), 'expires' => Db::now($ttl)]
+             'language' => $language, 'bf' => (int) $options['buildingfictions'], 'ip' => $ipHash, 'created' => Db::now(), 'expires' => Db::now($ttl)]
         );
 
         $isNew = Db::value('SELECT id FROM users WHERE email = :email', ['email' => $email]) === null;
@@ -130,10 +132,10 @@ final class Auth
                 $id = Db::uuid();
                 $now = Db::now();
                 Db::run(
-                    'INSERT INTO users (id, email, language, experience_updates, artist_updates, publisher_updates, created_at, confirmed_at, updated_at)
-                     VALUES (:id, :email, :language, :bu, :au, :pu, :now, :now2, :now3)',
+                    'INSERT INTO users (id, email, language, buildingfictions_updates, created_at, confirmed_at, updated_at)
+                     VALUES (:id, :email, :language, :bf, :now, :now2, :now3)',
                     ['id' => $id, 'email' => $request['email'], 'language' => $request['language'],
-                     'bu' => $request['experience_updates'], 'au' => $request['artist_updates'], 'pu' => $request['publisher_updates'], 'now' => $now, 'now2' => $now, 'now3' => $now]
+                     'bf' => $request['buildingfictions_updates'], 'now' => $now, 'now2' => $now, 'now3' => $now]
                 );
                 Roles::grant($id, Roles::READER, 'signup');
                 $user = Db::one('SELECT * FROM users WHERE id = :id', ['id' => $id]);

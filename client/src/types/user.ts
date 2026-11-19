@@ -9,12 +9,8 @@
  * account (restored on other devices) and can be reset.
  */
 export interface UserOptions {
-  /** Updates on the publication (Onion Skin & Crocodile Tears) */
-  experienceUpdates: boolean;
-  /** Updates from the artist (the book's author) */
-  artistUpdates: boolean;
-  /** Updates from the publisher */
-  publisherUpdates: boolean;
+  /** News from Building Fictions, the publisher – the one update option (#325) */
+  buildingfictions: boolean;
 }
 
 export type UserOption = keyof UserOptions;

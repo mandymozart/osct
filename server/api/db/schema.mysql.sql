@@ -32,14 +32,21 @@ ALTER TABLE `experiences` RENAME COLUMN `book_json` TO `experience_json`;
 ALTER TABLE `users` RENAME COLUMN `book_updates` TO `experience_updates`;
 ALTER TABLE `login_requests` RENAME COLUMN `book_updates` TO `experience_updates`;
 
+-- One update option (#325): news from Building Fictions. Db::migrate first turns it on wherever any of the three old
+-- options was on (Db::mergeUpdateOptions), then the publisher's column takes the new name and the other two go
+ALTER TABLE `users` RENAME COLUMN `publisher_updates` TO `buildingfictions_updates`;
+ALTER TABLE `login_requests` RENAME COLUMN `publisher_updates` TO `buildingfictions_updates`;
+ALTER TABLE `users` DROP COLUMN `experience_updates`;
+ALTER TABLE `users` DROP COLUMN `artist_updates`;
+ALTER TABLE `login_requests` DROP COLUMN `experience_updates`;
+ALTER TABLE `login_requests` DROP COLUMN `artist_updates`;
+
 CREATE TABLE IF NOT EXISTS `users` (
   `id` CHAR(36) NOT NULL,
   `email` VARCHAR(254) NOT NULL,
   `language` VARCHAR(8) NOT NULL DEFAULT 'en',
-  -- The update options (opt-in, off by default); the progress is always kept (can be reset)
-  `experience_updates` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'news about Onion Skin & Crocodile Tears',
-  `artist_updates` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'news from Kévin Bray',
-  `publisher_updates` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'news from Building Fictions',
+  -- The one update option (opt-in, off by default, #325); the progress is always kept (can be reset)
+  `buildingfictions_updates` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'news from Building Fictions',
   `created_at` DATETIME NOT NULL,
   -- Double opt-in: when the email address was confirmed (link or code)
   `confirmed_at` DATETIME NOT NULL,
@@ -55,9 +62,7 @@ CREATE TABLE IF NOT EXISTS `login_requests` (
   `token_hash` CHAR(64) NOT NULL,
   `code_hash` CHAR(64) NOT NULL,
   `language` VARCHAR(8) NOT NULL DEFAULT 'en',
-  `experience_updates` TINYINT(1) NOT NULL DEFAULT 0,
-  `artist_updates` TINYINT(1) NOT NULL DEFAULT 0,
-  `publisher_updates` TINYINT(1) NOT NULL DEFAULT 0,
+  `buildingfictions_updates` TINYINT(1) NOT NULL DEFAULT 0,
   `ip_hash` CHAR(64) NOT NULL,
   `attempts` INT NOT NULL DEFAULT 0,
   `created_at` DATETIME NOT NULL,

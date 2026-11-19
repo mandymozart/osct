@@ -16,12 +16,8 @@
   type Filter = UserFilter;
   const FILTERS: readonly Filter[] = ["all", "editor", "admin", "newsletter"];
   const FILTER_LABELS: Record<Filter, string> = { all: "All", editor: "Editors", admin: "Admins", newsletter: "Newsletter" };
-  /** The option keys of the account (Auth::OPTIONS) with a short label each */
-  const OPTIONS: { key: string; label: string }[] = [
-    { key: "experienceUpdates", label: "experience" },
-    { key: "artistUpdates", label: "artist" },
-    { key: "publisherUpdates", label: "publisher" },
-  ];
+  /** The option keys of the account (Auth::OPTIONS) with a short label each – one since #325 */
+  const OPTIONS: { key: string; label: string }[] = [{ key: "buildingfictions", label: "Building Fictions" }];
 
   let roles = $state<Role[]>([]);
   let users = $state<AdminUser[] | null>(null);
@@ -166,7 +162,7 @@
           <th>e-mail</th>
           <th>roles</th>
           <th>language</th>
-          <th title="Update options the user opted into: news about the experience, the artist, the publisher">options</th>
+          <th title="Whether the user opted into news from Building Fictions">updates</th>
           <th>signed up</th>
           <th>last seen</th>
         </tr>
@@ -187,9 +183,9 @@
               </span>
             </td>
             <td data-label="language">{user.language}</td>
-            <td class="options" data-label="options">
+            <td class="options" data-label="updates">
               <!-- Plain text, not controls: the options the user opted into, read-only (#99) -->
-              <span>{#each OPTIONS.filter(option => user.options[option.key]) as option, i (option.key)}{i ? ", " : ""}<span title={`${option.label} updates: yes`}>{option.label}</span>{:else}<span class="muted" title="No update options">–</span>{/each}</span>
+              <span>{#each OPTIONS.filter(option => user.options[option.key]) as option, i (option.key)}{i ? ", " : ""}<span title={`${option.label} updates: yes`}>{option.label}</span>{:else}<span class="muted" title="No updates">–</span>{/each}</span>
             </td>
             <td class="muted" data-label="signed up" title={when(user.createdAt)}>{new Date(user.createdAt).toLocaleDateString()}</td>
             <td class="muted" data-label="last seen" title={when(user.lastSeenAt)}>{user.lastSeenAt ? new Date(user.lastSeenAt).toLocaleDateString() : "–"}</td>

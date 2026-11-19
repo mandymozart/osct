@@ -1,9 +1,7 @@
 {
   "signedOutDescription": "Sla je voortgang op en ontvang updates in je inbox. Al geregistreerd? Vul hetzelfde e-mailadres in om op dit apparaat in te loggen.",
   "optionsLabel": "Updates",
-  "experienceUpdates": "Updates ontvangen over {{title}}",
-  "artistUpdates": "Updates ontvangen van {{author}}",
-  "publisherUpdates": "Updates ontvangen van Building Fictions",
+  "buildingfictions": "Updates ontvangen van Building Fictions",
   "emailPlaceholder": "Je e-mailadres",
   "send": "Inloglink sturen",
   "pendingDescription": "We hebben een e-mail gestuurd naar {{email}}. Open de link erin, of vul hier de code in:",

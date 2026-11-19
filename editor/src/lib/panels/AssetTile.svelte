@@ -9,7 +9,7 @@
    * the tile's light background, a video plays while hovered), its kind in the top left corner (a target image with the
    * target glyph), the number of uses in the top right (a dashed 0: unused), a video's duration at the bottom right; under
    * it the name on one line and one meta line. No buttons on the tile: hovered (or focused) it shows the quick actions
-   * **Use** (or **Pick** while picking) · **Replace** · **⋯** (every action – the context menu, as a right click). A click
+   * **Use** (or **Pick** while picking) · **Replace** · **⋯** as icons with a native tooltip (every action – the context menu, as a right click). A click
    * selects (`onselect`, with Shift / Ctrl for the browser's several), a double click or Enter uses (`onactivate`).
    */
   let { asset, label, kind, target = false, meta, selected = false, marked = false, useLabel = "Use", useBlocked = null, replaceable = false,
@@ -59,9 +59,10 @@
     <span class="uses" class:unused={asset.usages === 0} title={asset.usages === 0 ? "Unused – no scene, entry, environment or plugin uses it" : `${asset.usages} use${asset.usages === 1 ? "" : "s"}`}>{asset.usages}</span>
     {#if asset.durationMs}<span class="duration">{formatDuration(asset.durationMs)}</span>{/if}
     <div class="quick">
-      <button type="button" class="q" disabled={!!useBlocked} title={useBlocked ?? undefined} onclick={onactivate}>{useLabel}</button>
-      {#if replaceable && onreplace}<button type="button" class="q" onclick={onreplace}>Replace</button>{/if}
-      <button type="button" class="q more" aria-label="More actions for {label}" title="Every action"
+      <!-- Icons with a native tooltip: the words got cut on small tiles -->
+      <button type="button" class="q" disabled={!!useBlocked} aria-label="{useLabel} {label}" title={useBlocked ?? useLabel} onclick={onactivate}><Icon name="check" /></button>
+      {#if replaceable && onreplace}<button type="button" class="q" aria-label="Replace {label}" title="Replace – a new version, every use relinked" onclick={onreplace}><Icon name="replace" /></button>{/if}
+      <button type="button" class="q more" aria-label="More actions for {label}" title="More actions"
         onclick={e => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); onmore({ x: r.left, y: r.bottom + 2 }); }}><Icon name="more" /></button>
     </div>
   </div>
@@ -86,9 +87,8 @@
   .tile:focus-within .quick { display: flex; }
   @media (hover: hover) { .tile:hover .duration { display: none; } }
   .tile:focus-within .duration { display: none; }
-  .q { flex: 1; min-width: 0; height: 1.5rem; padding: 0 .25rem; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: var(--text-small);
-    display: inline-flex; align-items: center; justify-content: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
-  .q.more { flex: 0 0 1.5rem; padding: 0; }
+  .q { flex: 0 0 1.5rem; width: 1.5rem; height: 1.5rem; padding: 0; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: var(--text-small);
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
   .q:disabled { opacity: .55; cursor: not-allowed; }
   @media (hover: hover) { .q:not(:disabled):hover { background: var(--hover-background); } }
   .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

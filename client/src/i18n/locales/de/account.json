@@ -1,9 +1,7 @@
 {
   "signedOutDescription": "Speichere deinen Fortschritt und bekomme Neuigkeiten in dein Postfach. Schon registriert? Gib dieselbe E-Mail-Adresse ein, um dich auf diesem Gerät anzumelden.",
   "optionsLabel": "Neuigkeiten",
-  "experienceUpdates": "Neuigkeiten zu {{title}} erhalten",
-  "artistUpdates": "Neuigkeiten von {{author}} erhalten",
-  "publisherUpdates": "Neuigkeiten von Building Fictions erhalten",
+  "buildingfictions": "Neuigkeiten von Building Fictions erhalten",
   "emailPlaceholder": "Deine E-Mail-Adresse",
   "send": "Anmeldelink senden",
   "pendingDescription": "Wir haben dir eine E-Mail an {{email}} geschickt. Öffne den Link darin oder gib hier den Code ein:",
