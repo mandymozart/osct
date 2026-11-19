@@ -1,6 +1,16 @@
 # Refactor #320 – book becomes experience (plan, step 1)
 
 Status: **plan, for Tilman's answers** (2026-11-19). No code changes until the questions at the end are answered.
+
+Progress (answers in #320: all accepted; plugin API 3.0; 2026-11-19 change: `sourceOfTruth` is dropped, not moved):
+- [x] A – contract, engine, reader, content build (`feature/320-experience-a`): `BookData` → `ExperienceData` (own
+  commit); schema 4.0 with `experience.book { author, publisher? }`, no `sourceOfTruth`; key `experience` in the
+  configuration and in `latest.json` / `versions.json`; scope `experience`, `{{experience.title}}`, plugin API 3.0,
+  `plugin-api.d.ts` regenerated; progress `experienceId` (format-3 reader ready, no bump); reader i18n keys
+  `loadingExperience`, `experienceUpdates`; `SurfaceAnchor`; `<reader-app>`; `experience.yaml`, `buildExperience`,
+  `convert-content-4.ts` + test; fixture and demo converted (the demo without `book`). Temporary: the type alias
+  `BookAppearance` in `shared/types/appearance.ts` (TODO #320) until B1 and C rename it.
+- [ ] B1 – server and DB · [ ] B2 – MCP · [ ] C – editor · [ ] D – content and staging
 Base: local `develop` at c35dc963 (2.0.3, content schema 3.0). Branch `feature/320-experience-plan`.
 **It plans against the state after #319** (`agents/REFACTOR-319.md`, branch `feature/319-internal-names`, all its
 recommendations approved): the code says `scene` (no more `spread`), the table `spreads` is `scenes`, `entries.scene_id`,

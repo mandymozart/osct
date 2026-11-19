@@ -1,7 +1,7 @@
-# Writing a plugin: the book's own code
+# Writing a plugin: the experience's own code
 
 A plugin adds something to the engine that the content alone cannot say: a shader on a video, code that moves a
-node, a reaction to a tap. It is a small TypeScript file in the book's content folder, and the editor's **Code**
+node, a reaction to a tap. It is a small TypeScript file in the experience's content folder, and the editor's **Code**
 tab is where you try it. This is the guide and the reference of the plugin API; how the content names what a plugin
 registers is in [content](content.md), the editor's tab in [editor](editor.md) "Code", the decision in
 `agents/research/2026-10-29-code-in-the-editor.md`.
@@ -16,7 +16,7 @@ export const register = (api: PluginApi): void => {
 };
 ```
 
-`register` runs once when the plugin loads. Twelve things you can do with `api` – and, for a book's logic across
+`register` runs once when the plugin loads. Twelve things you can do with `api` – and, for an experience's logic across
 nodes and pages, four more ("Across nodes and pages" below):
 
 - **`api.registerLayer(type, spec, { glsl })`** – a **material layer**: a few lines of GLSL that run on every
@@ -29,7 +29,7 @@ nodes and pages, four more ("Across nodes and pages" below):
 - **`api.registerMaterial(type, spec, build)`** (API 1.4) – a whole **material**: you build a three.js material (a
   `ShaderMaterial` with your GLSL, a `MeshStandardMaterial` with a texture), and any node with meshes carries it as
   `material: { type, params }` – it replaces the node's own; its layers still add on top ("An aquarium" below). Every
-  material is a plugin's: the build and the guard refuse one no plugin of the book registers.
+  material is a plugin's: the build and the guard refuse one no plugin of the experience registers.
 - **`api.registerTexture(type, spec, draw)`** (API 1.4) – a **procedural texture**: a canvas or a data texture your code
   draws, animated or not, that every `texture` parameter can take.
 - **`api.three`** – the app's three.js, for whatever a component builds or changes. Never `import "three"` yourself:
@@ -42,9 +42,9 @@ nodes and pages, four more ("Across nodes and pages" below):
   every frame into a render target of its own, its last frame as input – a fluid on the GPU ("A feedback buffer" below).
 - **`api.shadertoy(source)`** (API 1.6) – a Shadertoy pass (`mainImage`) as a feedback buffer's fragment.
 - **`api.registerPass(type, spec, factory)`** – a **post-processing pass** over the rendered picture: a scene or the
-  book names it in `passes` like a built-in pass (content schema 2.21, "A pass: film grain" below).
+  experience names it in `passes` like a built-in pass (content schema 2.21, "A pass: film grain" below).
 - **`api.registerAppearance(type, spec, factory)`** (API 1.8) – a **look**: how an entity appears and disappears, in
-  code. The book names it for a moment – `reveal`, `found`, `lost` – in a built-in look's place (content schema 2.29,
+  code. The experience names it for a moment – `reveal`, `found`, `lost` – in a built-in look's place (content schema 2.29,
   "A look" below).
 - **`api.log(…)`** – to the console, prefixed with the plugin's id; in the editor also the Code tab's log.
 
@@ -121,7 +121,7 @@ in place, `false` to have the node built anew). A component on a `group` node ma
 ## A node type: sparkle (API 1.2)
 
 A node type is what a `model` or a `video` is to the engine – a builder that makes the node's own object – written
-by the book. You build the object; the engine puts it into the node's placement group, so the author places it,
+by the experience. You build the object; the engine puts it into the node's placement group, so the author places it,
 scales it, gives it children, components and layers like any node. `fixtures/demo/plugins/sparkle/index.ts`,
 shortened:
 
@@ -166,8 +166,8 @@ loaded (a model's `scene` and `animations`, a video's `element` and `texture`, a
 shared by every node that uses the same file: clone what you change (`asset.scene.clone()`) and never dispose it. It
 returns `{ object, …hooks }` – the hooks a component has (`update`, `onFound`, `onLost`, `onUnlocked`, `onTap`,
 `onPause`, `dispose`), and `tune(params)` for the editor's live edit. A `build` that throws or returns no object is
-logged; the node then renders nothing and keeps its children. In the editor, **+ node** lists the book's node types
-under *plugins* once the plugins are loaded (or Run) – at once for a compiled plugin whose specs the build recorded; the content build refuses a type no plugin of the book
+logged; the node then renders nothing and keeps its children. In the editor, **+ node** lists the experience's node types
+under *plugins* once the plugins are loaded (or Run) – at once for a compiled plugin whose specs the build recorded; the content build refuses a type no plugin of the experience
 registers, and a node's parameters or file that do not fit its spec.
 
 ## Where a plugin can go
@@ -186,7 +186,7 @@ rows and the content build records, and every one is used in the content by its 
 
 ## An aquarium, step by step (API 1.4)
 
-The demo book's page 2 has a glass tank with water, fish and light dancing on its sandy floor
+The demo's page 2 has a glass tank with water, fish and light dancing on its sandy floor
 (`fixtures/demo/plugins/aquarium/index.ts`, the entry `entries/aquarium/`). It uses the three new places at once.
 
 **1 · A procedural texture: the caustics.** A texture your code draws – here once, a tileable pattern of bright lines
@@ -284,7 +284,7 @@ cells: some 4 600 triangles on top, as many on the box's bottom; 2 500 in all wi
 stage (desktop, 1280 × 800) the found aquarium adds about 0.2 ms of main-thread work per frame (1.2 ms against 1.0 ms
 with its target lost) and the stage stays at 60 fps.
 
-**4 · Make it code.** Any node can become a node type of the book's own – Unreal's *Create Blueprint class from a
+**4 · Make it code.** Any node can become a node type of the experience's own – Unreal's *Create Blueprint class from a
 component*. Select a node, Inspector, **make it code** (in the node's head): the editor writes a Code tab plugin whose
 `registerNodeType` reproduces the node – its type's builder as a readable starting point (a model's copied scene and
 clips, an image's or video's plane, a text's canvas, a light, a group; a plugin type's own `build`), its values as the
@@ -426,7 +426,7 @@ Library – they become plugin sources, the ones the Code tab lists ([editor](ed
 
 ## A file from the Library: a model parameter (API 1.7)
 
-A plugin reaches the book's files in three ways, and none of them is a path written into its code:
+A plugin reaches the experience's files in three ways, and none of them is a path written into its code:
 
 | the file | how the author names it | what your code gets |
 |---|---|---|
@@ -535,7 +535,7 @@ goes in nearly unchanged:
 5. `iMouse` and Shadertoy's other inputs are not there: declare a uniform of your own (`uniform vec4 stir;`), pass it in
    `uniforms` and set it from your hooks.
 
-**The ink painting** (`fixtures/demo/plugins/fluid`, page 6 of the demo book, #225) is exactly that: Shadertoy
+**The ink painting** (`fixtures/demo/plugins/fluid`, page 6 of the demo, #225) is exactly that: Shadertoy
 [XlsBDf](https://www.shadertoy.com/view/XlsBDf) by trapcode (CC BY-NC-SA 3.0; its simplex noise from
 [XsX3zB](https://www.shadertoy.com/view/XsX3zB)) – a 2D fluid whose Buffer A advects velocity, density and ink from its
 own last frame while a pen moved by noise stirs it, and whose Image colours the velocity's direction by the ink. The node
@@ -559,8 +559,8 @@ the helper itself in `engine/src/scene/__tests__/feedback.test.ts`.
 
 A pass runs over the whole rendered picture, after the scene and before it lies over the camera picture, in the order
 the `passes` list names – the built-in bloom, vignette and grade and yours alike. `api.registerPass` puts it into the
-engine's pass registry (`engine/src/scene/post/registry.ts`) with the plugin as its owner; it leaves with the plugin. `fixtures/demo/plugins/grain` (the demo
-book's *The twins*, #216):
+engine's pass registry (`engine/src/scene/post/registry.ts`) with the plugin as its owner; it leaves with the plugin. `fixtures/demo/plugins/grain` (the
+demo's *The twins*, #216):
 
 ```ts
 api.registerPass("filmGrain", {
@@ -599,13 +599,13 @@ passes:
 - **A feedback buffer** (`api.feedback`, API 1.6) made in the factory belongs to the pass: it steps while the pass runs
   (not while the editor's stage shows the scene without passes) and goes with it – trails, a smear that remembers.
 - **When it fails**: a factory that throws, or returns no pass, is logged and skipped – the other passes run; a `render`
-  that throws is logged and the pass is switched off for the rest of the scene. A type no plugin of the book registers
+  that throws is logged and the pass is switched off for the rest of the scene. A type no plugin of the experience registers
   is refused by the content build (and its parameters checked against the spec, like a built-in pass's), and by the
-  publish (409 `unknown-passes`); a reader older than content schema 2.21 refuses a book that names one.
+  publish (409 `unknown-passes`); a reader older than content schema 2.21 refuses an experience that names one.
 - **The phone**: every pass is at least one full-screen render, yours counted like the built-in ones – up to three passes
   and one bloom per list; the build and the editor's section warn beyond (#86).
 - **In the editor** the scene's *post-processing* section offers your pass under *add pass · <plugin>* – a compiled
-  plugin's as soon as the book is open (the build recorded it), a plugin you **Run** in the Code tab at once – shows its
+  plugin's as soon as the experience is open (the build recorded it), a plugin you **Run** in the Code tab at once – shows its
   rows from the spec (labels, help, ranges, a `texture` row with the Library's pictures), moves it up and down, removes
   it, and previews it on the stage under *rendered*.
 - **A second example**: `fixtures/demo/plugins/scanlines` – `scanLines`, dark lines across the picture like an old screen
@@ -614,14 +614,14 @@ passes:
 
 ## A look: how an entity appears (API 1.8)
 
-A look is named by the book (`appearance`) and, since content schema 2.30, by an entity itself: the built-in components
+A look is named by the experience (`appearance`) and, since content schema 2.30, by an entity itself: the built-in components
 `reveal`, `found` and `lost` on a node take the look's type – a plugin's too – and its parameters
 ([content](content.md), "An entity's own looks"). A plugin's look needs nothing more for that: the picker of the
 component offers it next to the built-in ones, with the rows of its spec.
 
-The engine has looks of its own – `inflateDissolve`, `printLift`, `fade`, each a set of values the book can change
-([content](content.md), "How entities appear"). When values are not enough, a plugin brings a look as code. The demo
-book's `plugins/reveal` is the built-in `inflateDissolve` itself written as a look – the shape, the noise dissolve with
+The engine has looks of its own – `inflateDissolve`, `printLift`, `fade`, each a set of values the experience can change
+([content](content.md), "How entities appear"). When values are not enough, a plugin brings a look as code. The
+demo's `plugins/reveal` is the built-in `inflateDissolve` itself written as a look – the shape, the noise dissolve with
 its glowing edge, the sparks, with the built-in look's parameters under the same names – a copy to start from: pick
 `revealCode` for a moment and it plays the same animation, now yours to change. A smaller one:
 
@@ -645,7 +645,7 @@ api.registerAppearance("softFade", {
 });
 ```
 
-and the book names it where it should play, in `book.yaml`:
+and the experience names it where it should play, in `experience.yaml`:
 
 ```yaml
 appearance:
@@ -666,7 +666,7 @@ appearance:
 - A look that throws does not break the scene: one that fails to start leaves the moment to the default look, one that
   fails later ends there with the entity as it is.
 - The content build records the look's spec (`registered.appearances`), so the build and the reader's guard check the
-  book's `appearance` against it like a built-in look's parameters.
+  experience's `appearance` against it like a built-in look's parameters.
 
 ### Code that comes and goes with its entity (1.73.0)
 
@@ -691,14 +691,14 @@ const shown = (node: Object3D | null): number => {
 // in update: material.opacity = strength * shown(placed);
 ```
 
-An engine before 1.73.0 writes nothing, which reads as all of it. The demo book's and OSCT's `contact-shadow` plugin
+An engine before 1.73.0 writes nothing, which reads as all of it. The demo's and OSCT's `contact-shadow` plugin
 fades this way.
 
 ## Across nodes and pages: events, variables, the progress (API 1.1)
 
 A component knows its own node. A **narrative** needs more: a key found on one page opens a door on another, a lamp
 lights when the door opened, a text counts the pages found. Four parts of `api` carry that (the concept behind them:
-`agents/research/2026-10-28-entity-components.md`, the decision `2026-10-30-demo-book.md`; the demo book
+`agents/research/2026-10-28-entity-components.md`, the decision `2026-10-30-demo-book.md`; the demo
 `fixtures/demo/` uses every one):
 
 - **`api.events`** – one bus for the stage. *Core events* belong to the engine, you only listen: `targetFound`,
@@ -708,12 +708,12 @@ lights when the door opened, a text counts the pages found. Four parts of `api` 
   `api.events.on("doorOpened", payload => …)`. `on` returns the unsubscribe; when a plugin is replaced (Run) or
   unloaded, its listeners go with it.
 - **`api.vars`** – variables in **scopes**: `scene` (while the scene is the current one – cleared when it changes),
-  `stage` (while the scene exists), `session` (this app start), `book` (persisted with the reader's progress). `set(name,
+  `stage` (while the scene exists), `session` (this app start), `experience` (persisted with the reader's progress). `set(name,
   value, scope)` with `scene` as the default scope, `get(name, scope?)` – without a scope the innermost definition
-  wins (scene → stage → session → book) – `on(name, (value, previous, scope) => …)` and `all(scope)`. Values are
+  wins (scene → stage → session → experience) – `on(name, (value, previous, scope) => …)` and `all(scope)`. Values are
   strings, numbers or booleans; `null` deletes.
 - **`api.progress`** – read-only, from the app: `unlocked(targetId)`, `consulted(entryId)`, `completion(sceneId?)`
-  (0–1, the whole book without an id), `counts(sceneId?)` → `{ unlocked, targets }`. On the editor's stage the
+  (0–1, the whole experience without an id), `counts(sceneId?)` → `{ unlocked, targets }`. On the editor's stage the
   progress is the stage's own (what was found since the workspace opened); the reader passes its history
   (`ArSceneOptions.progress`).
 - **`api.scene`** – `current` (the current scene: id, label, group, surfaces, passes, targets – content schema 3.0, #319: no title, pages or format) and `get(id)`.
@@ -722,13 +722,13 @@ And two more things in a component: the context's **`children`** – the placeme
 content order, so a component on a `group` can show, hide or move them – and the hook **`onUnlocked`**, the first
 find of the target (`onFound` is every find).
 
-A key remembered in the book, as a component (the demo's key does the same without code – its `behaviour`, below):
+A key remembered in the experience, as a component (the demo's key does the same without code – its `behaviour`, below):
 
 ```ts
 export const register = (api: PluginApi): void => {
-  // The key: its first find is remembered in the book (it survives the session)
+  // The key: its first find is remembered in the experience (it survives the session)
   api.registerComponent("key", { description: "Finding this node gives the reader the key.", params: {} }, () => ({
-    onUnlocked: () => api.vars.set("hasKey", true, "book"),
+    onUnlocked: () => api.vars.set("hasKey", true, "experience"),
   }));
 };
 ```
@@ -763,7 +763,7 @@ export const register = (api: PluginApi): void => {
 };
 ```
 
-Try it in the editor: tap the key (its rule sets `hasKey` – the Inspector's *vars and events* lists it while the scene is selected, book
+Try it in the editor: tap the key (its rule sets `hasKey` – the Inspector's *vars and events* lists it while the scene is selected, experience
 scope, a boolean), walk to the door's scene with › – the door's rules emit `openDoor`, the door opens, the timeline
 shows `openDoor` and `doorOpened` with the time since the scene opened; the tree's eye switches a target off and on (lost, found again). **reset** starts a new game.
 To test a branch without playing up to it, change a variable in the panel or **set** one (name, scope, type, value):
@@ -791,7 +791,7 @@ marks every rule that ran with a `behaviour` line – it is the log's own (your 
 ## Trying it: the Code tab
 
 Open a scene in the editor, **Code**, **+** for a new plugin (it starts with the two examples above) or pick one
-of the book's. The editor is Monaco with the plugin API's types: completion as you type (Ctrl+Space for the list;
+of the experience's. The editor is Monaco with the plugin API's types: completion as you type (Ctrl+Space for the list;
 `api.` and `api.three.` know every member), type errors underlined as the content build would report them, a hover
 shows a member's documentation. **Run** (Ctrl+Enter) shows it on the stage at once – a layer tints the video, a
 component appears under *add component* in the Inspector, a pass under *add pass* in the scene's post-processing. A Run's errors show under the editor and on their line.
@@ -835,13 +835,13 @@ own with no session ([editor](editor.md) "The stage frame", #234). For a plugin 
 above – the stage, the registries, `api.three`, the events, the variables, the progress, `api.loadText`, the feedback
 buffers and the passes all work as before. What a plugin **cannot** do there, by design:
 
-- **act as the person who has the book open** – a request to the API carries no session (`fetch("/api/user",
+- **act as the person who has the experience open** – a request to the API carries no session (`fetch("/api/user",
   { credentials: "include" })` is refused before it leaves: the frame's policy allows no path of the API but its public
   content route, and there the browser withholds the cookie);
 - **read the session or the editor's storage** – `document.cookie`, `localStorage` and `sessionStorage` throw;
 - **reach the editor's page** – `parent.document` belongs to another origin; the page acts only on the stage's own
   messages, and none of them saves or publishes;
-- **load from other origins** – files come from the book's content and the Library (`api.loadText`, a texture
+- **load from other origins** – files come from the experience's content and the Library (`api.loadText`, a texture
   parameter, a model's file); `fetch` to another host, an `import()` from a CDN, a worker, an `<iframe>`, a form or a
   popup are blocked;
 - **show a dialog** – `alert`, `confirm` and `prompt` do nothing in the sandbox; log with `api.log`, which the Code tab
@@ -853,7 +853,7 @@ The reader runs the published plugins in its own page – the same API, without 
 
 A plugin reaches readers one of two ways.
 
-**From the Code tab, with the editor's Publish** (#78): the publish carries every saved source of the book, transpiled
+**From the Code tab, with the editor's Publish** (#78): the publish carries every saved source of the experience, transpiled
 in the browser exactly as **Run** transpiles it. The API writes each into the published version as
 `/assets/content/plugins/<id>/plugin-<hash of its code>.js` – so other code is another version – and declares it in the
 configuration (a compiled plugin of the same id gives way); the reader loads it from the CDN with the AR scene like a
@@ -867,7 +867,7 @@ line. Only saved sources go – the Code tab's unsaved edits do not. Whether the
 of ours can run Node is #266.
 
 **From the content source, with the content build**: the content build – the same one
-that builds the book from its source – type-checks every plugin, bundles it, runs it once to learn what it
+that builds the experience from its source – type-checks every plugin, bundles it, runs it once to learn what it
 registers (so the nodes that use it are checked), and declares it in the configuration together with what it
 registered: the specs of its components, layers, node types and passes (`registered`, content schema 2.14), and its
 materials and textures (2.17) – `plugins: [{ id, src, api, registered }]`, `src` the compiled module
@@ -889,9 +889,9 @@ characters), keep it small
 – the build warns above 256 KB, and everything a plugin registers runs on the reader's phone. A listener you subscribe in a component: unsubscribe it in
 `dispose` (a listener subscribed in `register` lives as long as the plugin). Never emit a core event – the engine does.
 
-## The demo book: everything at once
+## The demo: everything at once
 
-`fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and fourteen plugins that
+`fixtures/demo/` is a sandbox experience (without a printed book) that uses every node type, placement, filter and component, and fourteen plugins that
 together use every part of the API – a narrative across its scenes (the key and the door with their `behaviour` rules,
 the door's opening and the lamp as plugin code, a tally of the pages found, a tap that switches a scene, a sparkle of its
 own node type), the aquarium with its material, texture and WebGPU fluid, the ink painting on two feedback buffers, a

@@ -7,6 +7,26 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+
+- **The experience is the top level – content schema 4.0, plugin API 3.0** (#320, `agents/REFACTOR-EXPERIENCE.md`,
+  part A: contract, engine, reader, content build). The configuration's `experience` (was `book`: `id`, `title`,
+  `passes`, `environment`, `appearance`); the printed book is its optional `book` (`author`, `publisher` – they were on
+  the top level). An experience without `book` is not a book – the demo is now one ("The Demo"). The behaviour and plugin
+  variable scope `experience` (was `book`), text nodes' `{{experience.title}}`, `latest.json` / `versions.json` name the
+  `experience`. The content source's `experience.yaml` (was `book.yaml`); `npm run convert:4` in scripts/ converts a
+  3.x source once. The reader's progress record says `experienceId` (format 3 from app 3.0.0 – a stored record keeps its
+  progress, without a notice), the account option `experienceUpdates`; the splash, onboarding, about and landing read
+  the author and the publisher from the printed book and leave them out without one. Inside: `<reader-app>` (was
+  `<book-game>`), the look-around's `SurfaceAnchor`, `ExperienceDownload`. Reader wording unchanged.
+
+### Removed
+
+- **The source of truth** (`sourceOfTruth`, print first / digital first, #238): every experience adds and removes its
+  scenes. Content with the field is refused by the build and the guard; `convert:4` drops it.
+
 ## 2.1.0 – 2026-11-19
 
 ### Changed

@@ -228,7 +228,7 @@ declare const BEHAVIOUR_SCOPES: readonly [
 	"scene",
 	"stage",
 	"session",
-	"book"
+	"experience"
 ];
 type BehaviourScope = (typeof BEHAVIOUR_SCOPES)[number];
 type BehaviourValue = string | number | boolean;
@@ -277,7 +277,7 @@ interface SceneData {
 	group?: string;
 	/** Its physical areas, in order – at least one */
 	surfaces: SurfaceData[];
-	/** Optional (schema 2.5): the post-processing passes over this scene's rendered image, in order; replaces the book's (`[]` = none) */
+	/** Optional (schema 2.5): the post-processing passes over this scene's rendered image, in order; replaces the experience's (`[]` = none) */
 	passes?: PassData[];
 }
 interface AssetData {
@@ -314,7 +314,7 @@ interface EntityData {
 	material?: MaterialData;
 	/** Child nodes, placed relative to this one */
 	children?: EntityData[];
-	/** `text` nodes: the line shown; `{{entry.title}}` and `{{book.title}}` are replaced */
+	/** `text` nodes: the line shown; `{{entry.title}}` and `{{experience.title}}` are replaced */
 	text?: string;
 	/** `text` nodes: the colour, `#rrggbb` (default white) */
 	color?: string;
@@ -340,7 +340,7 @@ interface TargetData {
 	place?: TargetPlace;
 	/**
 	 * Optional (schema 2.26): `false` = switched off (#249) – the target keeps its values and its entry in the content, the
-	 * reader leaves both out (no image target, no entry in the list, not counted); none or `true` = in the book
+	 * reader leaves both out (no image target, no entry in the list, not counted); none or `true` = in the experience
 	 */
 	enabled?: boolean;
 }
@@ -353,8 +353,8 @@ interface EntryData {
 	/** Optional: the id of one of its scene's `surfaces` the entry lies on – only when the scene has several */
 	surface?: string;
 	/**
-	 * The text (schema 2.23: Markdown – paragraphs, *emphasis*, **strong**, [links](https://…) – with the book's variables
-	 * in braces, `{hasKey}`; `../text/entry-text.ts` renders it). Plain text reads as before.
+	 * The text (schema 2.23: Markdown – paragraphs, *emphasis*, **strong**, [links](https://…) – with the experience's
+	 * variables in braces, `{hasKey}`; `../text/entry-text.ts` renders it). Plain text reads as before.
 	 */
 	body: string;
 	author?: string;
@@ -397,14 +397,14 @@ type LoadedAsset = {
 };
 /**
  * The plugin runtime behind `api.events`, `api.vars`, `api.progress` and `api.scene`
- * (docs/plugins.md "Across nodes and pages"): what lets a book's code reach across nodes and pages.
+ * (docs/plugins.md "Across nodes and pages"): what lets an experience's code reach across nodes and pages.
  *
- * - **Events** have two owners (the concept's rule): *core events* describe the book and are emitted by the scene
+ * - **Events** have two owners (the concept's rule): *core events* describe the experience and are emitted by the scene
  *   only (`CORE_EVENTS` – a plugin that emits one gets an error); *scene events* are the content's own, any other
  *   name, emitted and heard by plugins freely. One flat bus: every plugin on the stage hears every event.
  * - **Variables** live in a scope: `scene` while the scene is the current one, `stage` while the scene exists,
- *   `session` per app start, `book` persisted with the reader's progress (through the app's `ProgressReader`;
- *   in memory without one). A read without a scope looks outward – scene, stage, session, book – and the innermost
+ *   `session` per app start, `experience` persisted with the reader's progress (through the app's `ProgressReader`;
+ *   in memory without one). A read without a scope looks outward – scene, stage, session, experience – and the innermost
  *   definition wins. Every write emits the core event `varChanged`.
  * - **Progress** is read-only for plugins and comes from the app (`ArSceneOptions.progress`): unlocked targets,
  *   consulted entries, completion – never the app's store itself.
@@ -464,7 +464,7 @@ export interface PluginEvents {
 }
 /** `api.vars` */
 export interface PluginVars {
-	/** The value in `scope`, or without one the innermost definition (scene → stage → session → book) */
+	/** The value in `scope`, or without one the innermost definition (scene → stage → session → experience) */
 	get(name: string, scope?: VarScope): VarValue | undefined;
 	/** Set (or delete with `null`) a variable in a scope – `scene` by default */
 	set(name: string, value: VarValue | null, scope?: VarScope): void;
@@ -477,7 +477,7 @@ export interface PluginVars {
 export interface PluginProgress {
 	unlocked(targetId: string): boolean;
 	consulted(entryId: string): boolean;
-	/** Unlocked targets of a scene (the whole book without an id) as 0–1; a scene without targets counts as complete */
+	/** Unlocked targets of a scene (the whole experience without an id) as 0–1; a scene without targets counts as complete */
 	completion(sceneId?: string): number;
 	counts(sceneId?: string): {
 		unlocked: number;
@@ -695,7 +695,7 @@ export interface Feedback {
 	dispose(): void;
 }
 /**
- * The plugin API (version `PLUGIN_API_VERSION`, docs/plugins.md): a book's own code
+ * The plugin API (version `PLUGIN_API_VERSION`, docs/plugins.md): an experience's own code
  * extends the engine without touching it. A plugin module exports `register(api)` and calls the registries –
  *
  *   api.registerComponent("spin", SPEC, ({ object, params }) => ({ update: delta => { object.rotation.y += … } }))
@@ -716,10 +716,10 @@ export interface Feedback {
  * any); a **material** (`materials.ts`) replaces the material of a node's meshes (`material: { type, params }`);
  * a **procedural texture** (`textures.ts`) is drawn by code and taken by any spec's `texture` parameter. Components
  * and layers are used in the content as `components: [{ type, … }]`, a node type as `type`. A **look** (`appearances.ts`)
- * is how an entity appears and disappears: the book names it for a moment (`appearance: { reveal, found, lost }`).
+ * is how an entity appears and disappears: the experience names it for a moment (`appearance: { reveal, found, lost }`).
  * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`): `api.events` (core events of the
- * scene, scene events of the content), `api.vars` (variables in the scopes scene / stage / session / book),
- * `api.progress` (what the reader unlocked – from the app) and `api.scene` (the current scene). A file of the book's
+ * scene, scene events of the content), `api.vars` (variables in the scopes scene / stage / session / experience),
+ * `api.progress` (what the reader unlocked – from the app) and `api.scene` (the current scene). A file of the experience's
  * Library – a shader (`.glsl`, `.frag`, `.vert`, `.wgsl`) – comes in as text through `api.loadText(url)` (#186), a
  * model the author picked in a `model` parameter through `api.loadModel(url)` (#263).
  * A **feedback buffer** (`feedback.ts`) is a fragment shader the engine runs once per frame into a render target
@@ -846,26 +846,26 @@ export interface PluginApi {
 	 * A look of the plugin's own: how an entity appears and disappears. The factory runs once per animation with the
 	 * entity, its anchor, the resolved parameters and the moment (`AppearanceContext`) and returns
 	 * `{ duration, update(visible), dispose? }` – `visible` runs from 0 to 1 on `reveal` and `found`, from 1 to 0 on
-	 * `lost`. The book names it by its type in `appearance: { reveal, found, lost }`, in a built-in look's place.
+	 * `lost`. The experience names it by its type in `appearance: { reveal, found, lost }`, in a built-in look's place.
 	 */
 	registerAppearance(type: string, spec: AppearanceSpec, factory: AppearanceFactory): void;
 	/** Core events of the scene (read-only) and scene events of the content */
 	readonly events: PluginEvents;
-	/** Variables in the scopes scene, stage, session and book */
+	/** Variables in the scopes scene, stage, session and experience */
 	readonly vars: PluginVars;
 	/** The reader's progress: unlocked, consulted, completion (read-only) */
 	readonly progress: PluginProgress;
 	/** The current scene */
 	readonly scene: PluginScene;
 	/**
-	 * A text file: a shader of the book's Library by its URL (the Library shows it; a replace gives a new URL and
+	 * A text file: a shader of the experience's Library by its URL (the Library shows it; a replace gives a new URL and
 	 * rewrites it in the sources that name it), or a content path (`/assets/content/…`). One request per URL however often
 	 * it is asked for; rejects on an HTTP error. A layer's GLSL is a string at register time – load files where a build
 	 * runs: a material's `build`, a pass's factory, a node type's `build` (set the shader when it arrives, `needsUpdate`).
 	 */
 	loadText(url: string): Promise<string>;
 	/**
-	 * A model file (`.glb`, `.gltf`): a model of the book's Library by its URL, or a content path (`/assets/content/…`) –
+	 * A model file (`.glb`, `.gltf`): a model of the experience's Library by its URL, or a content path (`/assets/content/…`) –
 	 * the value of a `model` parameter, which the author picks in the editor. One request per URL however often it is
 	 * asked for; rejects on an HTTP error or a file that is no model. The model is shared by everyone who loads the same
 	 * file: clone what you change (`model.scene.clone()`, a geometry's `clone()`), never dispose it. It loads after the
