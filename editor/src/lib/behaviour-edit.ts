@@ -93,14 +93,14 @@ const allRules = (trees: readonly EntityData[]): BehaviourRule[] =>
   allNodes(trees).flatMap(node => (node.components ?? []).filter(c => c.type === BEHAVIOUR_TYPE).flatMap(c => behaviourRules(c)));
 
 /** The variables the book uses: its behaviours' (read and written) and the ones live on the stage (a plugin's too), sorted */
-export const bookVariables = (trees: readonly EntityData[], live: readonly string[] = []): string[] =>
+export const experienceVariables = (trees: readonly EntityData[], live: readonly string[] = []): string[] =>
   [...new Set([...behaviourVariables(allRules(trees)), ...live])].sort();
 
 /**
  * The events a rule may hear besides the node's own: the scene events the book's behaviours hear and emit, the ones seen
  * on the stage's timeline (a plugin's too), then the engine's core events
  */
-export const bookEvents = (trees: readonly EntityData[], seen: readonly string[] = []): string[] => {
+export const experienceEvents = (trees: readonly EntityData[], seen: readonly string[] = []): string[] => {
   const core = BEHAVIOUR_CORE_EVENTS as readonly string[];
   const scene = [...new Set([...behaviourEvents(allRules(trees)), ...seen])].filter(event => !core.includes(event) && event !== BEHAVIOUR_TYPE).sort();
   return [...scene, ...core];

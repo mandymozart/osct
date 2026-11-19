@@ -2,7 +2,7 @@ import { SvelteMap } from "svelte/reactivity";
 import { resolve } from "$app/paths";
 import type { SurfacePlace, TargetPlace } from "@shared/types/game-config";
 import type { EnvironmentData } from "@shared/types/environment";
-import type { BookAppearance, Moment } from "@shared/types/appearance";
+import type { ExperienceAppearance, Moment } from "@shared/types/appearance";
 import { getTarget } from "@engine/content/game-config";
 import { mirrorPluginRegistry } from "@engine/scene/plugins";
 import type { VarScope, VarValue } from "@engine/scene";
@@ -97,7 +97,7 @@ export class Stage {
   private passes: PassData[] | null | undefined = undefined;
   private environment: { environment: EnvironmentData | null; previewing: boolean } | null = null;
   /** The looks the appearance panel holds (#265), sent again to a new frame */
-  private appearance: { appearance: BookAppearance | null } | null = null;
+  private appearance: { appearance: ExperienceAppearance | null } | null = null;
   private lookUp = 0;
   private selected: { node: [string | null, number[]]; target: string | null } = { node: [null, []], target: null };
   private ghostPlace: GhostPlace | null = null;
@@ -420,7 +420,7 @@ export class Stage {
    * Play these looks instead of the draft's (live edit, #265): the book's `appearance` as the panel holds it – `null` =
    * the book names none, the default look plays everywhere
    */
-  overrideAppearance(appearance: BookAppearance | null): void {
+  overrideAppearance(appearance: ExperienceAppearance | null): void {
     this.appearance = { appearance };
     void this.send("overrideAppearance", [this.appearance]);
   }

@@ -6,7 +6,7 @@ import {
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { BACKDROP_LAYER } from "@engine/scene/view";
-import type { StageBook, StageGrids, StageSurface, StageTarget, StageView } from "./mock-tracker";
+import type { StageScene, StageGrids, StageSurface, StageTarget, StageView } from "./mock-tracker";
 import { frameFor, placeHeight } from "./placement";
 import { frameBox, gridLines, ORIGIN_SPOTS, originPoint, type OriginFrame } from "./origin";
 import { DEFAULT_FRAME, fitImage, hitSurfaces, surfaceFrame, surfaceRects, toStage, type SurfaceFrame, type SurfaceReference, type V3 } from "./surfaces";
@@ -354,7 +354,7 @@ export class MockStage implements StageView {
    * – with its reference image (`book.references`) fitted onto it; the targets' prints on their surfaces. No book, no
    * fold, no cover: a scene is its surfaces.
    */
-  setLayout(targets: readonly StageTarget[], book: StageBook): void {
+  setLayout(targets: readonly StageTarget[], book: StageScene): void {
     const run = ++this.layoutRun;
     this.clear(this.book);
     this.clear(this.pages);

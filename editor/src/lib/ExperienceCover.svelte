@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { getBook, listScenes, type BookSummary } from "#lib/api.js";
+  import { getExperience, listScenes, type ExperienceSummary } from "#lib/api.js";
   import { previewParts, type PreviewPart } from "#lib/surface-preview.js";
   import SurfacesPreview from "#lib/components/SurfacesPreview.svelte";
 
@@ -9,7 +9,7 @@
    * the order) with its reference image and the prints of its targets; a typographic cover (the title and the author on
    * the cover's halftone) while it has no picture. Loaded when the card is shown.
    */
-  let { book }: { book: BookSummary } = $props();
+  let { experience }: { experience: ExperienceSummary } = $props();
 
   let picture = $state<{ parts: PreviewPart[]; ratio: number } | null>(null);
   let loaded = $state(false);
@@ -17,12 +17,12 @@
   const PAGE_RATIO = 230 / 320;
 
   onMount(() => {
-    void Promise.all([getBook(book.id).catch(() => null), listScenes(book.id).catch(() => null)]).then(([tree, list]) => {
+    void Promise.all([getExperience(experience.id).catch(() => null), listScenes(experience.id).catch(() => null)]).then(([tree, list]) => {
       const scene = tree?.scenes[0];
       const surface = scene?.surfaces[0];
       const reference = list?.scenes.find(s => s.id === scene?.id)?.surfaces.find(s => s.id === surface?.id)?.reference;
       const targets = scene?.entries.flatMap(entry => (entry.target ? [entry.target] : [])) ?? [];
-      picture = surface ? previewParts([surface], reference ? { [surface.id]: reference } : {}, targets, book.assetsBase) : null;
+      picture = surface ? previewParts([surface], reference ? { [surface.id]: reference } : {}, targets, experience.assetsBase) : null;
       loaded = true;
     });
   });
@@ -33,8 +33,8 @@
     {#snippet fallback()}
       {#if loaded}
         <span class="type">
-          <span class="gold title">{book.title}</span>
-          <span class="gold author">{book.author}</span>
+          <span class="gold title">{experience.title}</span>
+          {#if experience.experience.book}<span class="gold author">{experience.experience.book.author}</span>{/if}
         </span>
       {/if}
     {/snippet}

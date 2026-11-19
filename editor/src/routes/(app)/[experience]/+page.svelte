@@ -2,7 +2,7 @@
   import { resolve } from "$app/paths";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { errorText, getBook } from "#lib/api.js";
+  import { errorText, getExperience } from "#lib/api.js";
   import { readStoredJson } from "#lib/storage.js";
   import ContextMenu, { type MenuItem } from "#lib/components/ContextMenu.svelte";
   import type { Point } from "#lib/context-menu.js";
@@ -15,16 +15,16 @@
    * Scenes panel under the stage has the scenes, their order and groups): the scene last open in this browser, else the
    * first. An experience without scenes offers its first one here.
    */
-  const bookId = $derived(page.params.book ?? "");
+  const experienceId = $derived(page.params.experience ?? "");
   let error = $state<string | null>(null);
   let empty = $state(false);
 
   $effect(() => {
-    const id = bookId;
+    const id = experienceId;
     if (!id) return;
     empty = false;
     error = null;
-    getBook(id).then(tree => {
+    getExperience(id).then(tree => {
       const ids = tree.scenes.map(scene => scene.id);
       if (!ids.length) {
         empty = true;
@@ -42,9 +42,9 @@
     label: PRESET_LABELS[preset],
     select: () => void (async () => {
       try {
-        await scenes.load(bookId, true);
+        await scenes.load(experienceId, true);
         const created = await scenes.add(preset);
-        void goto(resolve(`${bookId}/${created}/`), { replaceState: true });
+        void goto(resolve(`${experienceId}/${created}/`), { replaceState: true });
       } catch (e) {
         error = errorText(e);
       }

@@ -25,9 +25,9 @@
 
   const save = async (text: string) => {
     error = null;
-    if (text.trim() !== (asset.credits ?? "") && library.bookId) {
+    if (text.trim() !== (asset.credits ?? "") && library.experienceId) {
       try {
-        await library.setCredits(library.bookId, asset.url, text);
+        await library.setCredits(library.experienceId, asset.url, text);
       } catch (e) {
         error = library.error ?? String(e);
       }

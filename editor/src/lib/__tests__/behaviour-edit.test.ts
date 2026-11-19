@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BehaviourRule, EntityData } from "@engine/types";
 import {
-  behaviourIssues, bookEvents, bookVariables, formatValue, newAction, newRule, newTest, parseValue, pathOfName, rulesOf, subtreeNames,
+  behaviourIssues, experienceEvents, experienceVariables, formatValue, newAction, newRule, newTest, parseValue, pathOfName, rulesOf, subtreeNames,
   treeBehaviourIssues, withAction, withRules, withTest,
 } from "../behaviour-edit";
 import { contentEntity } from "../values";
@@ -82,8 +82,8 @@ describe("the rule editor's logic (#88)", () => {
 
   it("offers the book's variables and events: its behaviours', the stage's, then the core events", () => {
     const key: EntityData = { type: "model", assets: [], components: [{ type: "behaviour", rules: [{ on: "tap", do: [{ set: { hasKey: true }, scope: "book" }, { emit: "keyRattled" }] }] }] };
-    expect(bookVariables([key, door], ["doorOpen", "hasKey"])).toEqual(["doorOpen", "hasKey"]);
-    const events = bookEvents([key, door], ["doorOpened", "behaviour", "targetFound"]);
+    expect(experienceVariables([key, door], ["doorOpen", "hasKey"])).toEqual(["doorOpen", "hasKey"]);
+    const events = experienceEvents([key, door], ["doorOpened", "behaviour", "targetFound"]);
     expect(events.slice(0, 3)).toEqual(["doorOpened", "keyRattled", "openDoor"]);
     expect(events).toContain("varChanged");
     expect(events).not.toContain("behaviour");

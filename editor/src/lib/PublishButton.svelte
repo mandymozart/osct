@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
   import {
-    ApiError, errorText, getDraftManifest, listBooks, listEnvironments, publishBook,
-    type BookSummary, type EnvironmentServing, type EnvironmentsInfo, type OtherBook, type PublishResult,
+    ApiError, errorText, getDraftManifest, listExperiences, listEnvironments, publishExperience,
+    type ExperienceSummary, type EnvironmentServing, type EnvironmentsInfo, type OtherExperience, type PublishResult,
   } from "#lib/api.js";
   import { pluginRegistrySnapshot } from "@engine/scene/plugins";
   import { liveLabels, liveShort } from "#lib/live.js";
@@ -13,16 +13,16 @@
   import Icon from "#lib/components/Icon.svelte";
 
   /**
-   * Publish: the draft becomes a content version of this instance's own environment (`POST /editor/books/{id}/publish`)
+   * Publish: the draft becomes a content version of this instance's own environment (`POST /editor/experiences/{id}/publish`)
    * – an instance publishes there and nowhere else (#183). Next to the button: where the book is live and, where this
    * server is the target, that no CDN is connected. The button is an icon (#274); its title names the target with its
    * backend (`staging · CDN`, `local · this server`), as does the step. The button opens a step in the page that names the book, the build, the target and what it replaces –
    * publishing over another book is said there and sends `replace`. The publish carries the Code tab's saved sources,
    * transpiled here (#78): a source that does not compile stops it with its line.
    */
-  let { bookId }: { bookId: string } = $props();
+  let { experienceId }: { experienceId: string } = $props();
   let info = $state<EnvironmentsInfo | null>(null);
-  let books = $state<BookSummary[]>([]);
+  let experiences = $state<ExperienceSummary[]>([]);
   let environments = $state<EnvironmentServing[]>([]);
   let step = $state<PublishStep | null>(null);
   let busy = $state(false);
@@ -31,13 +31,13 @@
   let stepElement = $state<HTMLElement | null>(null);
 
   const target = $derived(targetOf(info));
-  const self = $derived(books.find(b => b.id === bookId));
-  const titleOf = (id: string | null | undefined): string | null => (id ? (books.find(b => b.id === id)?.title ?? id) : null);
+  const self = $derived(experiences.find(x => x.id === experienceId));
+  const titleOf = (id: string | null | undefined): string | null => (id ? (experiences.find(x => x.id === id)?.title ?? id) : null);
 
   const refresh = async () => {
     try {
-      const [data, envs] = await Promise.all([listBooks(), listEnvironments()]);
-      books = data.books;
+      const [data, envs] = await Promise.all([listExperiences(), listEnvironments()]);
+      experiences = data.experiences;
       environments = data.environments;
       info = envs;
     } catch {
@@ -47,19 +47,19 @@
   onMount(() => void refresh());
 
   /** Opens the step: the book, its build now, the target and what it replaces there */
-  const open = async (current?: OtherBook) => {
+  const open = async (current?: OtherExperience) => {
     if (!target) return;
     error = null;
     result = null;
     let build: string | null = null;
     try {
-      build = (await getDraftManifest(bookId)).build;
+      build = (await getDraftManifest(experienceId)).build;
     } catch {
       // the step still names the book and the target
     }
-    const serving = current ? { env: current.env, book: current.book, build: current.build, since: current.since } : environments.find(e => e.env === target.env);
-    if (plugins.bookId !== bookId) await plugins.load(bookId);
-    step = publishStep(bookId, self?.title ?? bookId, build, target, serving, titleOf, plugins.stored.length);
+    const serving = current ? { env: current.env, experience: current.experience, build: current.build, since: current.since } : environments.find(e => e.env === target.env);
+    if (plugins.experienceId !== experienceId) await plugins.load(experienceId);
+    step = publishStep(experienceId, self?.title ?? experienceId, build, target, serving, titleOf, plugins.stored.length);
     await tick();
     stepElement?.querySelector<HTMLButtonElement>("button.primary")?.focus();
   };
@@ -71,20 +71,20 @@
     error = null;
     try {
       // The saved sources (not the Code tab's unsaved edits), with the specs of their stage runs
-      if (plugins.bookId !== bookId) await plugins.load(bookId);
-      const sources = await Promise.all(plugins.stored.map(async p => ({ id: p.id, source: await plugins.source(bookId, p.id) })));
+      if (plugins.experienceId !== experienceId) await plugins.load(experienceId);
+      const sources = await Promise.all(plugins.stored.map(async p => ({ id: p.id, source: await plugins.source(experienceId, p.id) })));
       const carried = await carriedPlugins(sources, transpilePlugin, pluginRegistrySnapshot());
       if ("error" in carried) {
         error = carried.error;
         return;
       }
-      result = await publishBook(bookId, target.env, { ...(replacing ? { replace: true } : {}), ...(carried.plugins.length ? { plugins: carried.plugins } : {}) });
+      result = await publishExperience(experienceId, target.env, { ...(replacing ? { replace: true } : {}), ...(carried.plugins.length ? { plugins: carried.plugins } : {}) });
       step = null;
     } catch (e) {
       // The environment changed since the list was read: the step again, with what the API says it serves now
-      if (e instanceof ApiError && e.code === "other-book" && !replacing) {
+      if (e instanceof ApiError && e.code === "other-experience" && !replacing) {
         await refresh();
-        await open(e.details.current as OtherBook | undefined);
+        await open(e.details.current as OtherExperience | undefined);
       } else {
         error = errorText(e, { code: true });
       }
@@ -104,7 +104,7 @@
   {/if}
   <button type="button" class="icon-button publish-button" onclick={() => open()} disabled={busy || !target || !!step} aria-label={busy ? "Publishing…" : "Publish"}
     title={busy ? "Publishing…" : target ? `Publish the draft to ${targetLabel(target)} – a step in the page names the book and the build first.` : "Publish the draft"}><Icon name="publish" stroke={2} /></button>
-  {#if result}<span class="small muted done">published {result.build}{result.replaced ? ` – replaced ${titleOf(result.replaced.book) ?? "another book"}` : ""}</span>{/if}
+  {#if result}<span class="small muted done">published {result.build}{result.replaced ? ` – replaced ${titleOf(result.replaced.experience) ?? "another experience"}` : ""}</span>{/if}
   {#if error && !step}<span class="small danger">{error}</span>{/if}
   {#if step}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->

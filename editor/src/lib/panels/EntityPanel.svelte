@@ -44,10 +44,10 @@
   import EntryForm from "./EntryForm.svelte";
   import { entries } from "#lib/entries.svelte.js";
   import SceneView from "./SceneView.svelte";
-  import BookPanel from "./BookPanel.svelte";
+  import ExperiencePanel from "./ExperiencePanel.svelte";
   import GroupView from "./GroupView.svelte";
   import SurfaceView from "./SurfaceView.svelte";
-  import { bookEvents, bookVariables, pathOfName, rulesOf, subtreeNames, treeBehaviourIssues, withRules } from "#lib/behaviour-edit.js";
+  import { experienceEvents, experienceVariables, pathOfName, rulesOf, subtreeNames, treeBehaviourIssues, withRules } from "#lib/behaviour-edit.js";
 
   /**
    * The selected **node** of a target's entity (the entity is a tree; the tree panel or a tap
@@ -68,12 +68,12 @@
    *
    * The panel is the workspace's **Inspector** (#229): it shows whatever is selected (#162) – a selected target its
    * target fields, its entity or a node that node's rows, the breadcrumb in the head stepping up; a selected **entry**
-   * (#227) the entry (`EntryView`); the **book** (the top bar's ⚙, #237) its texts and settings (`BookPanel`); the
+   * (#227) the entry (`EntryView`); the **book** (the top bar's ⚙, #237) its texts and settings (`ExperiencePanel`); the
    * **scene** – selected in the tree, or nothing else selected – its sections (`SceneView`: the scene,
    * post-processing, vars and events).
    */
-  let { stage, bookId, sceneId, selected, node = $bindable([]), pickColour, ontargetchanged, oncode, onenvironment }: {
-    stage: Stage | null; bookId: string; sceneId: string; selected: string | null; node: number[];
+  let { stage, experienceId, sceneId, selected, node = $bindable([]), pickColour, ontargetchanged, oncode, onenvironment }: {
+    stage: Stage | null; experienceId: string; sceneId: string; selected: string | null; node: number[];
     /** The scene's environment row: the workspace opens the Environment tab */
     onenvironment?: () => void;
     /** Show the Code tab (a made plugin's error is there) */
@@ -85,10 +85,10 @@
   } = $props();
 
   $effect(() => {
-    if (library.bookId !== bookId) void library.load(bookId);
+    if (library.experienceId !== experienceId) void library.load(experienceId);
   });
   $effect(() => {
-    if (entries.bookId !== bookId) void entries.load(bookId);
+    if (entries.experienceId !== experienceId) void entries.load(experienceId);
   });
 
   const targets = $derived((content.scene(sceneId)?.targets ?? []).filter(target => target.imageSrc));
@@ -104,7 +104,7 @@
    * its title (`{{entry.title}}`) and the scene it is on; a text typed further restarts nothing there
    */
   const entrySaved = async (_saved: unknown, changes: Record<string, unknown>) => {
-    await content.load(bookId);
+    await content.load(experienceId);
     if ("title" in changes || "scene" in changes || "surface" in changes) await stage?.refresh();
   };
 
@@ -176,7 +176,7 @@
     const owner = nodeTypeOwner(type);
     if (!owner) return undefined;
     try {
-      return { plugin: owner, source: await plugins.sourceOf(bookId, owner) };
+      return { plugin: owner, source: await plugins.sourceOf(experienceId, owner) };
     } catch (e) {
       throw new MakeCodeError(`Make it code copies the whole plugin ${owner}, and its source could not be read – ${errorText(e)}`);
     }
@@ -189,10 +189,10 @@
     error = null;
     codeError = false;
     try {
-      if (plugins.bookId !== bookId) await plugins.load(bookId);
+      if (plugins.experienceId !== experienceId) await plugins.load(experienceId);
       const taken = { plugins: [...plugins.stored.map(p => p.id), ...plugins.declared().map(p => p.id)] };
       const made: MadeCode = kind === "node" ? nodeTypeCode(n, taken, await ownerSource(n.type)) : materialCode(n, taken);
-      await plugins.save(bookId, made.plugin, made.source);
+      await plugins.save(experienceId, made.plugin, made.source);
       // The Run switches the node once the made code builds it on the stage; until then it shows as it was
       plugins.pending = { plugin: made.plugin, type: made.type, targetId: t.id, path: [...node], from: n.type, node: made.node };
       if (!(await plugins.run(made.plugin, made.source, stage))) {
@@ -212,7 +212,7 @@
   const ref = $derived(target ? getEntityRef(target.id) : undefined);
   const source = $derived(ref ? `shared: ${ref} (${getTargetsUsingEntity(ref).length}×)` : target ? `entry: ${target.entryId}` : "");
   /** The target's tree is not as the draft had it before its first edit in this page: *Undo edits* goes back there */
-  const canUndo = $derived(!!target && differsFromBaseline(treeKey(bookId, target.id), treeContent(entity)));
+  const canUndo = $derived(!!target && differsFromBaseline(treeKey(experienceId, target.id), treeContent(entity)));
 
   const changed = (row: ValueRow) => !!current && (!draftNode || !sameValue(getValue(current, row), getValue(draftNode, row)));
   const anyChanged = (ids: ValueRow[]) => ids.some(changed);
@@ -223,9 +223,9 @@
   /** What is wrong with the tree's behaviours (an empty name, an event not chosen yet): shown, and the save waits until it is complete */
   const behaviourProblems = $derived(entity ? treeBehaviourIssues(entity) : []);
   /** Every tree of the book (the draft's, this one as edited): the variables and events its behaviours use */
-  const bookTrees = $derived([...content.scenes.flatMap(s => s.targets).filter(t => t.id !== target?.id).flatMap(t => (t.entity ? [t.entity] : [])), ...(entity ? [entity] : [])]);
-  const ruleVariables = $derived(bookVariables(bookTrees, (stage?.vars ?? []).map(v => v.name)));
-  const ruleEvents = $derived(bookEvents(bookTrees, (stage?.events ?? []).map(e => e.event)));
+  const experienceTrees = $derived([...content.scenes.flatMap(s => s.targets).filter(t => t.id !== target?.id).flatMap(t => (t.entity ? [t.entity] : [])), ...(entity ? [entity] : [])]);
+  const ruleVariables = $derived(experienceVariables(experienceTrees, (stage?.vars ?? []).map(v => v.name)));
+  const ruleEvents = $derived(experienceEvents(experienceTrees, (stage?.events ?? []).map(e => e.event)));
   /** The clips of the models under the selected node by node name ("" = the node itself), read from the stage as the models load */
   let behaviourClips = $state<Record<string, string[]>>({});
   $effect(() => {
@@ -262,7 +262,7 @@
   /** Undo edits: the tree as the draft had it before its first edit in this page – live at once, saved like any edit */
   const revert = () => {
     if (!target || !stage) return;
-    const before = baselineOf<EntityData>(treeKey(bookId, target.id));
+    const before = baselineOf<EntityData>(treeKey(experienceId, target.id));
     if (before === undefined) return;
     void stage.override(target.id, before ?? Stage.REMOVED);
     node = [];
@@ -368,8 +368,8 @@
     try {
       // A new printed image is named by its entry (`p118-1_target.webp`, #298)
       const entryId = target?.id === targetId ? target.entryId : undefined;
-      const url = typeof src === "string" ? src : (await library.upload(bookId, src, { fit: "target", entry: entryId })).url;
-      await putTarget(bookId, targetId, { imageSrc: url });
+      const url = typeof src === "string" ? src : (await library.upload(experienceId, src, { fit: "target", entry: entryId })).url;
+      await putTarget(experienceId, targetId, { imageSrc: url });
       await ontargetchanged?.();
     } catch (e) {
       targetError = errorText(e);
@@ -385,7 +385,7 @@
     print = next;
     const t = target;
     if (!t) return;
-    const book = bookId;
+    const book = experienceId;
     const id = t.id;
     const edit = ++placementEdits;
     placementPending = id;
@@ -396,12 +396,12 @@
     });
   };
   /** The target in the book or switched off (#249): the reader leaves a switched-off target and its entry out */
-  const setInBook = async (on: boolean) => {
+  const setInExperience = async (on: boolean) => {
     if (!target) return;
     targetBusy = true;
     targetError = null;
     try {
-      await putTarget(bookId, target.id, { enabled: on });
+      await putTarget(experienceId, target.id, { enabled: on });
       await ontargetchanged?.();
     } catch (e) {
       targetError = errorText(e);
@@ -413,7 +413,7 @@
   const uploadForNode = async (file: File) => {
     if (!current || !target) return;
     try {
-      const asset = await library.upload(bookId, file);
+      const asset = await library.upload(experienceId, file);
       if (isMediaAsset(asset)) useAsset(asset.kind, asset.url, asset.id);
     } catch {
       // library.error says
@@ -443,7 +443,7 @@
     const assets: Asset[] = [];
     for (const file of files) {
       try {
-        assets.push(await library.upload(bookId, file));
+        assets.push(await library.upload(experienceId, file));
       } catch {
         // library.error says
       }
@@ -586,28 +586,28 @@
   {/if}
 {/snippet}
 
-{#if selection.book}
-  <BookPanel {bookId} {stage} {sceneId} />
+{#if selection.experience}
+  <ExperiencePanel {experienceId} {stage} {sceneId} />
 {:else if selection.group}
   <!-- A band of the Scenes panel (#307): the group -->
-  <GroupView {bookId} groupId={selection.group} />
+  <GroupView {experienceId} groupId={selection.group} />
 {:else if selection.surface}
   <!-- A surface of a scene (#314): the Surface mode's tap, the Tree's Surfaces level -->
-  <SurfaceView {bookId} sceneId={selection.surface.scene} surfaceId={selection.surface.id} />
+  <SurfaceView {experienceId} sceneId={selection.surface.scene} surfaceId={selection.surface.id} />
 {:else if entry}
   <!-- The form stays while the Library picks its picture: its edits are its own -->
-  {#if picking}<LibraryPanel {bookId} pick={picking} />{/if}
+  {#if picking}<LibraryPanel {experienceId} pick={picking} />{/if}
   <div class="entry-form" hidden={!!picking}>
-    <EntryForm {bookId} {entry} assetsBase={content.assetsBase} vars={stage?.vars ?? []} onpick={pickFor} onsaved={entrySaved}
+    <EntryForm {experienceId} {entry} assetsBase={content.assetsBase} vars={stage?.vars ?? []} onpick={pickFor} onsaved={entrySaved}
       onselecttarget={id => selection.selectTarget(id)} />
   </div>
 {:else if selection.entry}
   <p class="small muted">{entries.error ?? "Loading the entry…"}</p>
 {:else if picking}
-  <LibraryPanel {bookId} pick={picking} />
+  <LibraryPanel {experienceId} pick={picking} />
 {:else if !target}
   <!-- The scene: selected, or nothing else is (a target id this scene does not have shows it too) -->
-  <SceneView {stage} {bookId} {sceneId} {onenvironment} />
+  <SceneView {stage} {experienceId} {sceneId} {onenvironment} />
 {:else}
   <div class="head">
     <!-- The breadcrumb (#162): target › entity › group › node – a crumb selects that level; ▾ after the target picks another -->
@@ -634,7 +634,7 @@
   {#if atTarget}
   <div class="section"><span class="section-label">target · {target.id}</span>
     <span class="controls">
-      <Toggle on={isTargetEnabled(target)} label="In the book" disabled={targetBusy} onchange={setInBook}
+      <Toggle on={isTargetEnabled(target)} label="In the book" disabled={targetBusy} onchange={setInExperience}
         help="On: readers find this target and read its entry. Off: the reader leaves both out until it is switched on again – the editor keeps everything and works on it as before." />
       <button type="button" class="text-link placement-toggle" class:on={placementOpen} onclick={togglePlacement}>{placementOpen ? "hide placement" : "placement"}</button>
     </span></div>

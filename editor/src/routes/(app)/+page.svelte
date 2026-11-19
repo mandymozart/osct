@@ -2,27 +2,27 @@
   import { onMount } from "svelte";
   import { resolve } from "$app/paths";
   import { goto } from "$app/navigation";
-  import { errorText, listBooks, type BookSummary, type EnvironmentServing } from "#lib/api.js";
+  import { errorText, listExperiences, type ExperienceSummary, type EnvironmentServing } from "#lib/api.js";
   import ImportForm from "#lib/ImportForm.svelte";
-  import BookCover from "#lib/BookCover.svelte";
+  import ExperienceCover from "#lib/ExperienceCover.svelte";
   import InfoView from "#lib/components/InfoView.svelte";
   import AiConnections from "#lib/AiConnections.svelte";
   import { PAGE_MM } from "#lib/surface-edit.js";
 
   /**
-   * The editor's start (#153): the books of this instance as their covers on the left, the import of a new one on the
-   * right. A book says only where it is live – each environment serves one book, the last one published there. Under
-   * the books the AI connections with the guide to connect an AI agent (#142, #194) – connecting one is a first step of
+   * The editor's start (#153): the experiences of this instance as their covers on the left, the import of a new one on
+   * the right. An experience says only where it is live – each environment serves one experience, the last one published
+   * there. Under the experiences the AI connections with the guide to connect an AI agent (#142, #194) – connecting one is a first step of
    * working here.
    */
-  let books = $state<BookSummary[] | null>(null);
+  let experiences = $state<ExperienceSummary[] | null>(null);
   let environments = $state<EnvironmentServing[]>([]);
   let error = $state<string | null>(null);
 
   const load = async () => {
     try {
-      const data = await listBooks();
-      books = data.books;
+      const data = await listExperiences();
+      experiences = data.experiences;
       environments = data.environments;
       error = null;
     } catch (e) {
@@ -31,30 +31,30 @@
   };
   onMount(() => void load());
 
-  const strays = $derived(environments.filter(e => "error" in e || (e.book && !books?.some(b => b.id === e.book))));
+  const strays = $derived(environments.filter(e => "error" in e || (e.experience && !experiences?.some(x => x.id === e.experience))));
 </script>
 
 <div class="split">
   <main class="shelf" style:--cover-ratio="{PAGE_MM.width} / {PAGE_MM.height}">
     <h1>Experiences</h1>
     {#if error}<p class="danger">{error}</p>{/if}
-    {#if books === null && !error}
+    {#if experiences === null && !error}
       <ul class="covers" aria-busy="true">
         {#each [0, 1] as i (i)}<li class="skeleton"><span class="cover-box"></span><span class="line"></span><span class="line short"></span></li>{/each}
       </ul>
-    {:else if books?.length === 0}
+    {:else if experiences?.length === 0}
       <p class="muted empty">No experience yet. Import one with <b>Import an experience</b>: the CDN, a URL or a file.
-        <a class="text-link" href="/docs/tutorials/#bringing-in">How to bring a book in</a></p>
-    {:else if books}
+        <a class="text-link" href="/docs/tutorials/#bringing-in">How to bring an experience in</a></p>
+    {:else if experiences}
       <ul class="covers">
-        {#each books as book (book.id)}
+        {#each experiences as experience (experience.id)}
           <li>
-            <a href={resolve(`${book.id}/`)} class="book">
-              <span class="cover-box"><BookCover {book} /></span>
-              <span class="title">{book.title}</span>
-              <span class="author muted">{book.author}</span>
+            <a href={resolve(`${experience.id}/`)} class="experience">
+              <span class="cover-box"><ExperienceCover {experience} /></span>
+              <span class="title">{experience.title}</span>
+              {#if experience.experience.book}<span class="author muted">{experience.experience.book.author}</span>{/if}
               <span class="live" data-help-name="Live" data-help="Where the experience is live: each environment (local, staging, production) serves one experience – the last one published there. Draft = no environment serves it.">
-                {#each book.live ?? [] as l (l.env)}<span class="badge on" title={l.build ? `build ${l.build}` : undefined}>{l.env}</span>{:else}<span class="badge">draft</span>{/each}
+                {#each experience.live ?? [] as l (l.env)}<span class="badge on" title={l.build ? `build ${l.build}` : undefined}>{l.env}</span>{:else}<span class="badge">draft</span>{/each}
               </span>
             </a>
           </li>
@@ -63,7 +63,7 @@
     {/if}
     {#each strays as e (e.env)}
       <p class="small muted" title="An environment whose experience is not among the experiences here, or whose content store cannot be read">
-        {e.env}: {"error" in e ? "the content store cannot be read" : `serves ${e.book}, a book not imported here`}
+        {e.env}: {"error" in e ? "the content store cannot be read" : `serves ${e.experience}, an experience not imported here`}
       </p>
     {/each}
     <AiConnections />
@@ -95,16 +95,16 @@
   .empty a { white-space: nowrap; }
   .covers { list-style: none; margin: 0 0 1.5rem; padding: 0; display: grid; gap: 2.25rem 1.75rem; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); }
   @media (max-width: 47.9rem) { .covers { gap: 1.5rem 1rem; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); } }
-  .book { display: grid; gap: .1875rem; text-decoration: none; }
+  .experience { display: grid; gap: .1875rem; text-decoration: none; }
   .cover-box { display: block; aspect-ratio: var(--cover-ratio); margin-bottom: .5rem; border-radius: 2px; overflow: hidden; background: var(--surface-head);
     box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgb(0 0 0 / .06), 0 8px 20px -8px rgb(0 0 0 / .18); transition: transform .2s, box-shadow .2s; }
-  .book:focus-visible .cover-box { transform: translateY(-3px);
+  .experience:focus-visible .cover-box { transform: translateY(-3px);
     box-shadow: 0 0 0 1px var(--text), 0 2px 4px rgb(0 0 0 / .08), 0 16px 28px -10px rgb(0 0 0 / .28); }
   @media (hover: hover) {
-    .book:hover .cover-box { transform: translateY(-3px);
+    .experience:hover .cover-box { transform: translateY(-3px);
       box-shadow: 0 0 0 1px var(--text), 0 2px 4px rgb(0 0 0 / .08), 0 16px 28px -10px rgb(0 0 0 / .28); }
   }
-  .book:focus-visible { outline: none; }
+  .experience:focus-visible { outline: none; }
   .title { font-size: .875rem; font-weight: 600; line-height: 1.25; }
   .author { font-size: var(--text-size); }
   .live { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .25rem; }

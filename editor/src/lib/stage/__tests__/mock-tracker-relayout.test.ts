@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SurfaceData, Target } from "@engine/types";
 import { setPreviewActive } from "../preview";
-import type { StageBook, StageTarget } from "../mock-tracker";
+import type { StageScene, StageTarget } from "../mock-tracker";
 
 // The draft's scene: its surfaces change under the tracker as the Inspector saves them (#319: arrange in a row, a wall)
 const FLAT = { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 };
@@ -16,7 +16,7 @@ const { MockTracker } = await import("../mock-tracker");
 const target = (id: string, place?: Target["place"]): Target => ({ id, entryId: id, sceneId: "s", imageSrc: `/${id}.jpg`, ...(place ? { place } : {}) });
 
 describe("MockTracker.relayout: changed surfaces reach the stage at once", () => {
-  let layouts: Array<{ targets: readonly StageTarget[]; book: StageBook }>;
+  let layouts: Array<{ targets: readonly StageTarget[]; book: StageScene }>;
   let tracker: InstanceType<typeof MockTracker>;
 
   beforeEach(() => {

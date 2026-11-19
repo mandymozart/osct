@@ -39,7 +39,7 @@ export interface StageLook {
  * The book's environment as the stage takes it: the edited values when the book has one (`saved`) or the author has
  * started one (edited away from the default) – else null, the book has none and the HDRI stays.
  */
-export const bookEnvironment = (saved: EnvironmentData | undefined, edited: EnvironmentData, dirty: boolean): EnvironmentData | null =>
+export const experienceEnvironment = (saved: EnvironmentData | undefined, edited: EnvironmentData, dirty: boolean): EnvironmentData | null =>
   saved || dirty ? edited : null;
 
 /**

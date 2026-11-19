@@ -3,8 +3,8 @@ import type { ImportComparison } from "../api";
 import { comparisonRows, confirmLabel, editLabel, editsLine, importedLine, liveLine } from "../import-compare";
 
 const comparison = (over: Partial<ImportComparison["draft"]> = {}, same = false): ImportComparison => ({
-  book: { id: "osct", title: "Test Book" },
-  incoming: { book: "osct", title: "Test Book", build: "cdcdcdcdcdcd", hash: "cd".repeat(32), date: "2026-10-30T08:00:00.000Z", appVersion: "1.42.0", schema: "2.17", source: "cdn", from: "https://cdn.example/staging/cdcdcdcdcdcd" },
+  experience: { id: "osct", title: "Test Book" },
+  incoming: { experience: "osct", title: "Test Book", build: "cdcdcdcdcdcd", hash: "cd".repeat(32), date: "2026-10-30T08:00:00.000Z", appVersion: "1.42.0", schema: "2.17", source: "cdn", from: "https://cdn.example/staging/cdcdcdcdcdcd" },
   draft: {
     basedOn: { build: "abababababab", hash: "ab".repeat(32), date: "2026-10-01T08:00:00.000Z", appVersion: "1.30.0", schema: "2.17", source: "configuration", from: null, importedAt: "2026-10-02T09:00:00.000Z", importedBy: "author@example.com" },
     build: "0123456789ab",

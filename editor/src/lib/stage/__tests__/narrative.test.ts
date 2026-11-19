@@ -7,8 +7,8 @@ describe("the Inspector's variables: types and typed text", () => {
     expect(varType(true)).toBe("boolean");
     expect(varType(0)).toBe("number");
     expect(varType("")).toBe("string");
-    expect(withTypes([{ scope: "book", name: "hasKey", value: true }, { scope: "scene", name: "count", value: 2 }])).toEqual([
-      { scope: "book", name: "hasKey", value: true, type: "boolean" },
+    expect(withTypes([{ scope: "experience", name: "hasKey", value: true }, { scope: "scene", name: "count", value: 2 }])).toEqual([
+      { scope: "experience", name: "hasKey", value: true, type: "boolean" },
       { scope: "scene", name: "count", value: 2, type: "number" },
     ]);
   });

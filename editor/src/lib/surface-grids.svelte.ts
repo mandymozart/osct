@@ -8,11 +8,11 @@ import { clampGrid, updatePreview } from "./stage/preview";
  * mm). The open scene's spacings go to the stage with the preview (`surfaceGrids`, `stage/preview.ts`).
  */
 
-const keyOf = (bookId: string): StorageKey => `osct-editor-surface-grids:${bookId}`;
+const keyOf = (experienceId: string): StorageKey => `osct-editor-surface-grids:${experienceId}`;
 
 /** The stored spacings of a book, by `<scene>/<surface>`; anything that is no spacing is left out */
-export const readSurfaceGrids = (bookId: string): Record<string, number> => {
-  const stored = readStoredJson(keyOf(bookId));
+export const readSurfaceGrids = (experienceId: string): Record<string, number> => {
+  const stored = readStoredJson(keyOf(experienceId));
   if (!stored || typeof stored !== "object" || Array.isArray(stored)) return {};
   return Object.fromEntries(
     Object.entries(stored as Record<string, unknown>)
@@ -33,15 +33,15 @@ export const withSurfaceGrid = (all: Readonly<Record<string, number>>, sceneId: 
 
 /** The open book's surface grids: read once per book, written on a change, the open scene's handed to the stage */
 class SurfaceGrids {
-  bookId = $state<string | null>(null);
+  experienceId = $state<string | null>(null);
   sceneId = $state<string | null>(null);
   all = $state<Record<string, number>>({});
 
   /** The open book and scene: the stage gets that scene's spacings */
-  enter(bookId: string, sceneId: string): void {
-    if (this.bookId !== bookId) {
-      this.bookId = bookId;
-      this.all = readSurfaceGrids(bookId);
+  enter(experienceId: string, sceneId: string): void {
+    if (this.experienceId !== experienceId) {
+      this.experienceId = experienceId;
+      this.all = readSurfaceGrids(experienceId);
     }
     this.sceneId = sceneId;
     this.publish();
@@ -54,9 +54,9 @@ class SurfaceGrids {
 
   /** Set (or with `null` drop) a surface's own spacing */
   set(sceneId: string, surfaceId: string, mm: number | null): void {
-    if (!this.bookId) return;
+    if (!this.experienceId) return;
     this.all = withSurfaceGrid(this.all, sceneId, surfaceId, mm);
-    writeStoredJson(keyOf(this.bookId), this.all);
+    writeStoredJson(keyOf(this.experienceId), this.all);
     this.publish();
   }
 

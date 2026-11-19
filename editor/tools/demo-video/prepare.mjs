@@ -72,7 +72,7 @@ if (args.content) {
   // Over a book that exists the API answers with the version comparison first (409 confirm-import): this script's
   // purpose is to replace the local draft, so it prints the comparison and sends the confirmation back
   const body = { configuration, files, assetsBase: base };
-  const path = `/editor/books/${book}/import`;
+  const path = `/editor/experiences/${book}/import`;
   const first = await fetch(api + path, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
   const answer = await first.json();
   if (first.status === 409 && answer.error?.code === "confirm-import") {

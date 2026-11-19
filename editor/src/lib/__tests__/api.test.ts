@@ -5,7 +5,7 @@ import {
   authFetch,
   downloadUsersCsv,
   errorText,
-  getBook,
+  getExperience,
   getSession,
   logout,
   me,
@@ -52,9 +52,9 @@ describe("api() – the cookie session (#207)", () => {
 
   it("a write goes with the cookie (same origin) and the CSRF token, the JSON body – never an Authorization header", async () => {
     fetchMock.mockResolvedValueOnce(answer(200, { ok: true }));
-    await expect(api("POST", "/editor/books/osct/scenes", { id: "s1" })).resolves.toEqual({ ok: true });
+    await expect(api("POST", "/editor/experiences/osct/scenes", { id: "s1" })).resolves.toEqual({ ok: true });
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe("/api/editor/books/osct/scenes");
+    expect(url).toBe("/api/editor/experiences/osct/scenes");
     expect(init?.credentials).toBe("same-origin");
     expect(headersOf(init).get("X-CSRF-Token")).toBe("csrf-1");
     expect(headersOf(init).has("Authorization")).toBe(false);
@@ -64,7 +64,7 @@ describe("api() – the cookie session (#207)", () => {
 
   it("a read goes with the cookie, without the CSRF token", async () => {
     fetchMock.mockResolvedValueOnce(answer(200, { books: [] }));
-    await api("GET", "/editor/books");
+    await api("GET", "/editor/experiences");
     const [, init] = fetchMock.mock.calls[0];
     expect(init?.credentials).toBe("same-origin");
     expect(headersOf(init).has("X-CSRF-Token")).toBe(false);
@@ -73,7 +73,7 @@ describe("api() – the cookie session (#207)", () => {
 
   it("PUT, PATCH and DELETE carry the CSRF token too; signed out, nothing does", async () => {
     fetchMock.mockImplementation(async () => answer(200, {}));
-    await api("PUT", "/editor/books/osct/passes", { passes: null });
+    await api("PUT", "/editor/experiences/osct/passes", { passes: null });
     await api("PATCH", "/user", { language: "en" });
     await api("DELETE", "/user/tokens/x");
     setSession(null);
@@ -85,7 +85,7 @@ describe("api() – the cookie session (#207)", () => {
     fetchMock.mockImplementation(async () => answer(201, { asset: { id: "a1" } }));
     await uploadAsset("osct", new File(["x"], "dot.png", { type: "image/png" }));
     await replaceAsset("osct", "a1", new File(["y"], "dot.png", { type: "image/png" }));
-    await authFetch("/api/editor/books/osct/draft/latest.json");
+    await authFetch("/api/editor/experiences/osct/draft/latest.json");
     const [[, upload], [, replace], [, draft]] = fetchMock.mock.calls;
     expect([upload?.credentials, replace?.credentials, draft?.credentials]).toEqual(["same-origin", "same-origin", "same-origin"]);
     expect(headersOf(upload).get("X-CSRF-Token")).toBe("csrf-1");
@@ -97,7 +97,7 @@ describe("api() – the cookie session (#207)", () => {
     await replaceAsset("osct", "a1", new File(["y"], "target.jpg", { type: "image/jpeg" }), "target");
     await uploadAsset("osct", new File(["x"], "sky.jpg", { type: "image/jpeg" }), "default");
     expect(fetchMock.mock.calls.slice(3).map(([url]) => String(url).replace(/^.*\/api/, ""))).toEqual([
-      "/editor/books/osct/assets?fit=target", "/editor/books/osct/assets/a1/file?fit=target", "/editor/books/osct/assets",
+      "/editor/experiences/osct/assets?fit=target", "/editor/experiences/osct/assets/a1/file?fit=target", "/editor/experiences/osct/assets",
     ]);
   });
 
@@ -126,9 +126,9 @@ describe("api() – the cookie session (#207)", () => {
       .mockResolvedValueOnce(answer(200, { ref: "x", entity: {} }));
     await expect(putEntity("osct", "x", { type: "group", assets: [] })).resolves.toEqual({ ref: "x", entity: {} });
     expect(fetchMock.mock.calls.map(([url, init]) => [url, init?.method ?? "GET", headersOf(init).get("X-CSRF-Token")])).toEqual([
-      ["/api/editor/books/osct/entities/x", "PUT", "csrf-1"],
+      ["/api/editor/experiences/osct/entities/x", "PUT", "csrf-1"],
       ["/api/user", "GET", null],
-      ["/api/editor/books/osct/entities/x", "PUT", "csrf-new"],
+      ["/api/editor/experiences/osct/entities/x", "PUT", "csrf-new"],
     ]);
     expect(getSession()?.csrfToken).toBe("csrf-new");
     expect(ended).not.toHaveBeenCalled();
@@ -156,12 +156,12 @@ describe("api() – the cookie session (#207)", () => {
 
   it("answers undefined for a 204", async () => {
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
-    await expect(api("DELETE", "/editor/books/osct/assets/x")).resolves.toBeUndefined();
+    await expect(api("DELETE", "/editor/experiences/osct/assets/x")).resolves.toBeUndefined();
   });
 
   it("throws the server's error as ApiError with its code and details", async () => {
     fetchMock.mockResolvedValueOnce(answer(409, { error: { code: "other-book", message: "Another book is live.", current: { book: "demo" } } }));
-    const error = await api("POST", "/editor/books/osct/publish").catch(e => e);
+    const error = await api("POST", "/editor/experiences/osct/publish").catch(e => e);
     expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({ status: 409, code: "other-book", message: "Another book is live.", details: { current: { book: "demo" } } });
     expect(ended).not.toHaveBeenCalled();
@@ -170,26 +170,26 @@ describe("api() – the cookie session (#207)", () => {
 
   it("an answer that is no JSON still becomes an ApiError", async () => {
     fetchMock.mockResolvedValueOnce(new Response("<html>", { status: 502, statusText: "Bad Gateway" }));
-    await expect(api("GET", "/editor/books")).rejects.toMatchObject({ status: 502, code: "unknown", message: "502 Bad Gateway" });
+    await expect(api("GET", "/editor/experiences")).rejects.toMatchObject({ status: 502, code: "unknown", message: "502 Bad Gateway" });
   });
 
   it("a 401 while signed in ends the session: it is forgotten and the session hears it", async () => {
     fetchMock.mockResolvedValueOnce(unauthorized());
-    await expect(api("GET", "/editor/books/osct")).rejects.toMatchObject({ status: 401 });
+    await expect(api("GET", "/editor/experiences/osct")).rejects.toMatchObject({ status: 401 });
     expect(getSession()).toBeNull();
     expect(ended).toHaveBeenCalledTimes(1);
   });
 
   it("several 401s at once end it once", async () => {
     fetchMock.mockResolvedValue(unauthorized());
-    await Promise.allSettled([api("GET", "/editor/books"), api("GET", "/editor/books/osct")]);
+    await Promise.allSettled([api("GET", "/editor/experiences"), api("GET", "/editor/experiences/osct")]);
     expect(ended).toHaveBeenCalledTimes(1);
   });
 
   it("a 401 signed out is only 'not signed in'", async () => {
     setSession(null);
     fetchMock.mockResolvedValueOnce(unauthorized());
-    await expect(api("GET", "/editor/books")).rejects.toMatchObject({ status: 401 });
+    await expect(api("GET", "/editor/experiences")).rejects.toMatchObject({ status: 401 });
     expect(ended).not.toHaveBeenCalled();
   });
 
@@ -199,7 +199,7 @@ describe("api() – the cookie session (#207)", () => {
       setSession(next);
       return unauthorized();
     });
-    await expect(api("GET", "/editor/books")).rejects.toMatchObject({ status: 401 });
+    await expect(api("GET", "/editor/experiences")).rejects.toMatchObject({ status: 401 });
     expect(getSession()).toEqual(next);
     expect(ended).not.toHaveBeenCalled();
   });
@@ -235,9 +235,9 @@ describe("api() – the cookie session (#207)", () => {
   });
 });
 
-describe("getBook – the book's tree, read once", () => {
+describe("getExperience – the book's tree, read once", () => {
   const fetchMock = vi.fn<typeof fetch>();
-  const tree = (title: string) => ({ book: { id: "osct", title }, scenes: [], unassigned: [] });
+  const tree = (title: string) => ({ experience: { id: "osct", title }, scenes: [], unassigned: [] });
   const reads = () => fetchMock.mock.calls.filter(([, init]) => (init?.method ?? "GET") === "GET").length;
 
   beforeEach(() => {
@@ -253,40 +253,40 @@ describe("getBook – the book's tree, read once", () => {
 
   it("the stage, the environment and the top bar share one read", async () => {
     fetchMock.mockImplementation(async () => answer(200, tree("One")));
-    const [a, b, c] = await Promise.all([getBook("osct"), getBook("osct"), getBook("osct")]);
+    const [a, b, c] = await Promise.all([getExperience("osct"), getExperience("osct"), getExperience("osct")]);
     expect(reads()).toBe(1);
     expect(a).toBe(b);
     expect(b).toBe(c);
-    await getBook("osct");
+    await getExperience("osct");
     expect(reads()).toBe(1);
   });
 
   it("a write to the book drops it – the next read asks the API, answered or refused", async () => {
     fetchMock.mockImplementation(async (_url, init) => (init?.method === "PUT" ? answer(200, { ref: "x", entity: {} }) : answer(200, tree("One"))));
-    await getBook("osct");
+    await getExperience("osct");
     await putEntity("osct", "x", { type: "group", assets: [] });
-    await getBook("osct");
+    await getExperience("osct");
     expect(reads()).toBe(2);
     fetchMock.mockImplementation(async (_url, init) => (init?.method === "PUT" ? answer(400, { error: { code: "invalid-entity", message: "No." } }) : answer(200, tree("Two"))));
     await expect(putEntity("osct", "x", { type: "group", assets: [] })).rejects.toBeInstanceOf(ApiError);
-    expect((await getBook("osct")).book.title).toBe("Two");
+    expect((await getExperience("osct")).experience.title).toBe("Two");
     expect(reads()).toBe(3);
   });
 
   it("a write to another book, a failed read, fresh and a new session", async () => {
     fetchMock.mockImplementation(async (_url, init) => (init?.method === "PUT" ? answer(200, {}) : answer(200, tree("One"))));
-    await getBook("osct");
+    await getExperience("osct");
     await putEntity("demo", "x", { type: "group", assets: [] });
-    await getBook("osct");
+    await getExperience("osct");
     expect(reads()).toBe(1);
-    await getBook("osct", { fresh: true });
+    await getExperience("osct", { fresh: true });
     expect(reads()).toBe(2);
     setSession({ csrfToken: "csrf-2", email: "editor@example.test" });
-    await getBook("osct");
+    await getExperience("osct");
     expect(reads()).toBe(3);
     fetchMock.mockImplementationOnce(async () => answer(502, null));
-    await expect(getBook("demo")).rejects.toMatchObject({ status: 502 });
-    await getBook("demo");
+    await expect(getExperience("demo")).rejects.toMatchObject({ status: 502 });
+    await getExperience("demo");
     expect(reads()).toBe(5);
   });
 });

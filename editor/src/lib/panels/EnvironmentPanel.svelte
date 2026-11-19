@@ -22,7 +22,7 @@
    * Book-level only; the reader's Graphics switches (Info → Settings) still apply on top. Two collapsible sections: the
    * environment open on the first visit, the stage's *preview* (look up) closed, its head naming the angle.
    */
-  let { stage, bookId }: { stage: Stage | null; bookId: string } = $props();
+  let { stage, experienceId }: { stage: Stage | null; experienceId: string } = $props();
 
   const edit = environmentEdit;
   const BUILT_IN: Record<EnvironmentSlot, string> = { sky: "none" };
@@ -39,8 +39,8 @@
   });
 
   $effect(() => {
-    void edit.load(bookId);
-    if (library.bookId !== bookId) void library.load(bookId);
+    void edit.load(experienceId);
+    if (library.experienceId !== experienceId) void library.load(experienceId);
   });
   $effect(() => stage?.setLookUp(lookUp));
 
@@ -50,7 +50,7 @@
   const upload = async (slot: EnvironmentSlot, file: File) => {
     notice = null;
     try {
-      const asset = await library.upload(bookId, file);
+      const asset = await library.upload(experienceId, file);
       if (!fitsSlot(asset, slot)) {
         notice = `${asset.name} is no jpg, png or webp image – it stays in the Library`;
         return;
@@ -63,7 +63,7 @@
 </script>
 
 {#if pick}
-<LibraryPanel {bookId} {pick} />
+<LibraryPanel {experienceId} {pick} />
 {:else}
 {#snippet whose()}
   <span class="small muted">{edit.saved ? "this book's · the stage's sky" : "the default"}</span>

@@ -55,13 +55,13 @@ export interface LibraryGroup {
 export function groupByScene(assets: readonly Asset[], scenes: readonly { id: string; label: string }[]): LibraryGroup[] {
   const titles = new Map(scenes.map(scene => [scene.id, scene.label || scene.id]));
   const byScene = new Map<string, Asset[]>();
-  const bookWide: Asset[] = [];
+  const experienceWide: Asset[] = [];
   const unused: Asset[] = [];
   for (const asset of assets) {
     const place = asset.place;
     if (!place) unused.push(asset);
     else if (place.scene && titles.has(place.scene)) byScene.set(place.scene, [...(byScene.get(place.scene) ?? []), asset]);
-    else bookWide.push(asset);
+    else experienceWide.push(asset);
   }
   const sorted = (list: Asset[]) =>
     [...list].sort((a, b) => (a.place?.order ?? -1) - (b.place?.order ?? -1) || assetLabel(a).localeCompare(assetLabel(b)));
@@ -70,7 +70,7 @@ export function groupByScene(assets: readonly Asset[], scenes: readonly { id: st
     const list = byScene.get(scene.id);
     if (list) groups.push({ key: `scene:${scene.id}`, label: titles.get(scene.id) ?? scene.id, assets: sorted(list) });
   }
-  if (bookWide.length) groups.push({ key: "book", label: "Not in a scene", assets: sorted(bookWide) });
+  if (experienceWide.length) groups.push({ key: "experience", label: "Not in a scene", assets: sorted(experienceWide) });
   if (unused.length) groups.push({ key: "unused", label: "Unused", assets: [...unused].sort((a, b) => assetLabel(a).localeCompare(assetLabel(b))) });
   return groups;
 }

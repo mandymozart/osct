@@ -5,17 +5,17 @@
   import { page } from "$app/state";
   import { content } from "#lib/content.svelte.js";
   import { selection } from "#lib/selection.svelte.js";
-  import { flatHits, searchBook, stepHit, type SearchHit, type SearchKind } from "#lib/book-search.js";
+  import { flatHits, searchExperience, stepHit, type SearchHit, type SearchKind } from "#lib/experience-search.js";
   import Icon, { type IconName } from "#lib/components/Icon.svelte";
 
   /**
-   * The top bar's search through the open book (#237, `book-search.ts`): entries, scenes, targets and named nodes,
+   * The top bar's search through the open book (#237, `experience-search.ts`): entries, scenes, targets and named nodes,
    * grouped by kind with their scene. A pick goes to that scene and selects the item – an entry's form, a
    * target, a node – and the Inspector shows it (`selection.show`, or `requestOn` + the route for another scene). Keys:
    * `/` or Ctrl+K focuses it, ↑ ↓ walk the hits, Enter picks, Esc closes. On a phone it is an icon that opens the field
    * over the top bar. The draft is read on the first focus where no scene has loaded it yet (the book page).
    */
-  let { bookId }: { bookId: string } = $props();
+  let { experienceId }: { experienceId: string } = $props();
 
   let query = $state("");
   let open = $state(false);
@@ -25,12 +25,12 @@
   let input = $state<HTMLInputElement>();
   let box = $state<HTMLDivElement>();
 
-  const scenes = $derived(content.bookId === bookId ? content.scenes : []);
-  const groups = $derived(open ? searchBook(scenes, query) : []);
+  const scenes = $derived(content.experienceId === experienceId ? content.scenes : []);
+  const groups = $derived(open ? searchExperience(scenes, query) : []);
   const hits = $derived(flatHits(groups));
   const ICON: Record<SearchKind, IconName> = { entry: "entry", scene: "book", target: "target", node: "node" };
-  const LISTBOX = "book-search-results";
-  const optionId = (hit: SearchHit) => `book-search-${hit.key.replace(/[^A-Za-z0-9_-]/g, "_")}`;
+  const LISTBOX = "experience-search-results";
+  const optionId = (hit: SearchHit) => `experience-search-${hit.key.replace(/[^A-Za-z0-9_-]/g, "_")}`;
 
   $effect(() => {
     void query;
@@ -39,7 +39,7 @@
 
   /** The draft, where no workspace has loaded it yet */
   const ensureDraft = () => {
-    if (content.bookId !== bookId && !content.loading) void content.load(bookId);
+    if (content.experienceId !== experienceId && !content.loading) void content.load(experienceId);
   };
   const focusField = async () => {
     expanded = true;
@@ -58,7 +58,7 @@
     if (page.params.scene === hit.sceneId) selection.show(hit.select);
     else {
       selection.requestOn(hit.sceneId, hit.select);
-      void goto(resolve(`${bookId}/${hit.sceneId}/`));
+      void goto(resolve(`${experienceId}/${hit.sceneId}/`));
     }
   };
   const onKey = (event: KeyboardEvent) => {
@@ -115,7 +115,7 @@
   </div>
   {#if open && query.trim()}
     <div class="results" id={LISTBOX} role="listbox" aria-label="Search results">
-      {#if content.bookId !== bookId}
+      {#if content.experienceId !== experienceId}
         <p class="small muted note">{content.loading ? "Reading the book…" : "The book is not loaded."}</p>
       {:else if !groups.length}
         <p class="small muted note">Nothing found for “{query.trim()}”.</p>

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { EditorEntry } from "@shared/api/editor";
 import { EntryCategory } from "@shared/types/entry";
 import { draftOf, draftProblems, entryChanges, imageUrl, isDirty, tagsOf } from "../entry-edit";
-import { bookChanges, bookDraftOf, bookProblems } from "../book-texts";
+import { experienceChanges, experienceDraftOf, experienceProblems, type ExperienceDraft } from "../experience-texts";
 
 const { Glossary } = EntryCategory;
 const entry = (fields: Partial<EditorEntry> & Pick<EditorEntry, "id" | "title">): EditorEntry => ({
@@ -44,19 +44,30 @@ describe("the entry form", () => {
     expect(draftProblems({ ...draftOf(racoon), tags: Array.from({ length: 33 }, (_, i) => `t${i}`).join(",") })).toEqual(["More than 32 tags."]);
   });
 
-  it("shows a picture of the content below the book's assets, an uploaded one as it is", () => {
+  it("shows a picture of the content below the experience's assets, an uploaded one as it is", () => {
     expect(imageUrl("/assets/content/a.jpg", "https://cdn.example/staging/abc/")).toBe("https://cdn.example/staging/abc/assets/content/a.jpg");
     expect(imageUrl("/assets/content/a.jpg", "")).toBe("/assets/content/a.jpg");
     expect(imageUrl("https://cdn.example/assets/x.jpg", "https://other.example")).toBe("https://cdn.example/assets/x.jpg");
   });
 });
 
-describe("the book's texts", () => {
-  const book = { title: "Onion Skin", author: "Kévin Bray", publisher: "Building Fictions" };
+describe("the experience's texts", () => {
+  const experience = { title: "Onion Skin", book: { author: "Kévin Bray", publisher: "Building Fictions" } };
+  const draft = (over: Partial<ExperienceDraft> = {}): ExperienceDraft => ({ ...experienceDraftOf(experience), ...over });
 
-  it("the book: only what changed, an emptied publisher removed, title and author needed", () => {
-    expect(bookChanges(book, bookDraftOf(book))).toEqual({});
-    expect(bookChanges(book, { title: " Onion Skin & Crocodile Tears ", author: "Kévin Bray", publisher: "" })).toEqual({ title: "Onion Skin & Crocodile Tears", publisher: null });
-    expect(bookProblems({ title: "", author: " ", publisher: "" })).toEqual(["The title is empty.", "The author is empty."]);
+  it("a printed book: only what changed, an emptied publisher removed, title and author needed", () => {
+    expect(experienceChanges(experience, experienceDraftOf(experience))).toEqual({});
+    expect(experienceChanges(experience, draft({ title: " Onion Skin & Crocodile Tears ", publisher: "" })))
+      .toEqual({ title: "Onion Skin & Crocodile Tears", book: { publisher: null } });
+    expect(experienceProblems({ title: "", book: true, author: " ", publisher: "" })).toEqual(["The title is empty.", "The printed book's author is empty."]);
+  });
+
+  it("no printed book: no author needed; switched on, the book goes whole; switched off, nothing about it is sent", () => {
+    const wall = { title: "The Wall" };
+    expect(experienceDraftOf(wall)).toEqual({ title: "The Wall", book: false, author: "", publisher: "" });
+    expect(experienceProblems(experienceDraftOf(wall))).toEqual([]);
+    expect(experienceChanges(wall, { title: "The Wall", book: true, author: " Ann ", publisher: "" })).toEqual({ book: { author: "Ann" } });
+    expect(experienceChanges(wall, { title: "The Wall", book: true, author: "Ann", publisher: "Ink" })).toEqual({ book: { author: "Ann", publisher: "Ink" } });
+    expect(experienceChanges(experience, draft({ book: false, author: "" }))).toEqual({});
   });
 });

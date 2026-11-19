@@ -8,8 +8,8 @@ import { onAppUi } from "@engine/scene/ui";
 import { allVars, ArScene, observeEvents, resetVars, runtimeApi, type VarScope, type VarValue } from "@engine/scene";
 import { BACKDROP_LAYER } from "@engine/scene/view";
 import { setDeviceStorage } from "@engine/utils/device-storage";
-import { getBook, getTarget, getTargets } from "@engine/content/game-config";
-import { type BookAppearance, type Moment, momentDuration } from "@shared/types/appearance";
+import { getExperience, getTarget, getTargets } from "@engine/content/game-config";
+import { type ExperienceAppearance, type Moment, momentDuration } from "@shared/types/appearance";
 import { ArState, type ArStatus, type EntityData, type NodeTimeline, type PassData } from "@engine/types";
 import { deviceStorage } from "#lib/storage.js";
 import { Gizmo, isGizmoTool, type GizmoPlacement, type GizmoSelection, type StageTool } from "./gizmo";
@@ -128,7 +128,7 @@ export class StageCore {
   private overrides = new Map<string, EntityData>();
   private replayTimer = 0;
   /** The looks the panel holds (#265), played instead of the draft's; null = the draft's */
-  private appearanceOverride: { appearance: BookAppearance | null } | null = null;
+  private appearanceOverride: { appearance: ExperienceAppearance | null } | null = null;
   private cleanups: Array<() => void> = [];
   /** Shift or Ctrl is held: snapping is turned around for the drag */
   private snapModifier = false;
@@ -450,7 +450,7 @@ export class StageCore {
   }
 
   /** Play these looks instead of the draft's (live edit, #265) – `{ appearance: null }` = none; `null` = the draft's again */
-  overrideAppearance(override: { appearance: BookAppearance | null } | null): void {
+  overrideAppearance(override: { appearance: ExperienceAppearance | null } | null): void {
     this.appearanceOverride = override;
     this.arScene.overrideAppearance(override);
   }
@@ -823,7 +823,7 @@ export class StageCore {
    */
   playMoment(moment: Moment): void {
     if (moment === "reveal") return this.replayUnlock();
-    const book = this.appearanceOverride ? { appearance: this.appearanceOverride.appearance ?? undefined } : getBook();
+    const book = this.appearanceOverride ? { appearance: this.appearanceOverride.appearance ?? undefined } : getExperience();
     this.hideFor(this.shownTargets(), moment === "lost" ? (momentDuration(book, "lost") ?? REPLAY_GAP_MS) + REPLAY_GAP_MS : REPLAY_GAP_MS);
   }
 

@@ -28,8 +28,8 @@
    * writes over it; an entry with a problem (an empty title) waits until it is solved. *Undo edits* goes back to the
    * entry as the draft had it before its first edit in this page.
    */
-  let { bookId, entry, assetsBase = null, vars = null, onpick, onsaved, onselecttarget }: {
-    bookId: string;
+  let { experienceId, entry, assetsBase = null, vars = null, onpick, onsaved, onselecttarget }: {
+    experienceId: string;
     entry: EditorEntry;
     /** Where the content's paths resolve (the picture's preview) */
     assetsBase?: string | null;
@@ -69,7 +69,7 @@
   // Typed, not in the draft yet (a problem keeps it back): a reload would lose it
   onMount(() => trackUnsaved(() => dirty));
   /** The entry as a subject of the autosaver and of *Undo edits* */
-  const key = $derived(`entry:${bookId}:${entry?.id}`);
+  const key = $derived(`entry:${experienceId}:${entry?.id}`);
   const canUndo = $derived(differsFromBaseline(key, draft));
 
   const lookup = $derived(variablesOf(vars ?? []));
@@ -81,7 +81,7 @@
 
   /** An edit: in the preview at once, in the draft a moment after the last one – unless a problem keeps it back */
   const edit = (patch: Partial<EntryDraft>) => {
-    const book = bookId;
+    const book = experienceId;
     const id = entry.id;
     const subject = key;
     const typed: EntryDraft = { ...draft, ...patch };
@@ -113,7 +113,7 @@
   const upload = async (file: File) => {
     try {
       // Named by the entry (`p118-1_image.webp`, #298)
-      edit({ image: (await library.upload(bookId, file, { fit: "entryImage", entry: entry.id })).url });
+      edit({ image: (await library.upload(experienceId, file, { fit: "entryImage", entry: entry.id })).url });
     } catch {
       // library.error says
     }
@@ -121,7 +121,7 @@
   const shown = (value: unknown): string => (typeof value === "string" ? `"${value}"` : String(value));
   // The scenes the entry may be on (the book's tree) and the surfaces of the chosen one
   $effect(() => {
-    if (scenes.bookId !== bookId) void scenes.load(bookId);
+    if (scenes.experienceId !== experienceId) void scenes.load(experienceId);
   });
   const sceneNameOf = (id: string): string => {
     const scene = scenes.scene(id);
@@ -131,7 +131,7 @@
   /** Another scene: the surface goes (it named one of the scene it left) */
   const moveTo = (scene: string) => edit({ scene, surface: "" });
   const scopeOf = (name: string): string | undefined => {
-    const order = ["scene", "stage", "session", "book"];
+    const order = ["scene", "stage", "session", "experience"];
     return (vars ?? []).filter(v => v.name === name).sort((a, b) => order.indexOf(a.scope) - order.indexOf(b.scope))[0]?.scope;
   };
 </script>

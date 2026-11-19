@@ -33,7 +33,7 @@ describe("readFrameEvent: the page acts only on well-formed events", () => {
   it("ignores other messages, unknown events and every wrong shape", () => {
     expect(readFrameEvent("hello")).toBeNull();
     expect(readFrameEvent({ kind: "event", name: "ready", data: null })).toBeNull();
-    expect(readFrameEvent(event("save", { bookId: "demo" }))).toBeNull();
+    expect(readFrameEvent(event("save", { experienceId: "demo" }))).toBeNull();
     expect(readFrameEvent(event("toString", null))).toBeNull();
     expect(readFrameEvent(event("__proto__", null))).toBeNull();
     expect(readFrameEvent(event("pick", { targetId: "key", path: "0" }))).toBeNull();
@@ -130,7 +130,7 @@ describe("frameCsp: plugin code reaches the content, never the API", () => {
   it("reaches into the API only through its public content route", () => {
     const sources = (policy: string) => ["connect-src", "script-src", "img-src", "media-src"].flatMap(name => directive(policy, name));
     // Content served with the app at the site's root, a draft under the API, the API's own content route
-    const policy = csp([ORIGIN, `${ORIGIN}/api/editor/books/demo/draft/abc`, `${ORIGIN}/api/content/local/x`]);
+    const policy = csp([ORIGIN, `${ORIGIN}/api/editor/experiences/demo/draft/abc`, `${ORIGIN}/api/content/local/x`]);
     for (const source of sources(policy)) {
       const reachesApi = source.startsWith(`${ORIGIN}/api/`) && !source.startsWith(`${ORIGIN}/api/content/`);
       expect(reachesApi, source).toBe(false);
@@ -186,7 +186,7 @@ describe("frameCsp: plugin code reaches the content, never the API", () => {
 
   it("admits the book's own Library folder before the draft names a file of it (#258)", () => {
     const id = "72df7022-276d-4aaf-bb70-52a6631a7ad7";
-    const draft = { baseUrl: "/api/editor/books/osct/draft", assetsBase: "https://cdn.example/staging/abc" };
+    const draft = { baseUrl: "/api/editor/experiences/osct/draft", assetsBase: "https://cdn.example/staging/abc" };
     // A draft that names no upload yet: the file just uploaded and picked for a node still loads
     const fresh = { ...draft, libraryBase: "https://cdn.example/assets/osct", responses: { "/latest.json": "{}", "/missing.json": null } };
     expect(libraryFoldersOf(fresh)).toEqual(["https://cdn.example/assets/osct/"]);

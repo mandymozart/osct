@@ -1,24 +1,24 @@
 import { errorText, getEntries, type EditorEntry, type EntryFields } from "./api";
 
 /**
- * The book's entries as the content holds them (#223, `GET /editor/books/{id}/entries`): every field as written – an
+ * The book's entries as the content holds them (#223, `GET /editor/experiences/{id}/entries`): every field as written – an
  * image's path unresolved, which the draft the engine reads resolves – with each entry's scene and target. The entry
  * form edits from here and puts a save back (`saved`). One book at a time.
  */
 class Entries {
-  bookId = $state<string | null>(null);
+  experienceId = $state<string | null>(null);
   list = $state<EditorEntry[]>([]);
   loading = $state(false);
   error = $state<string | null>(null);
 
   /** Read the book's entries (again) */
-  async load(bookId: string): Promise<void> {
+  async load(experienceId: string): Promise<void> {
     this.loading = true;
     this.error = null;
     try {
-      const { entries } = await getEntries(bookId);
+      const { entries } = await getEntries(experienceId);
       this.list = entries;
-      this.bookId = bookId;
+      this.experienceId = experienceId;
     } catch (e) {
       this.error = errorText(e);
     } finally {

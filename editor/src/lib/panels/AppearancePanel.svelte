@@ -2,8 +2,8 @@
   import { untrack } from "svelte";
   import { autosave } from "#lib/autosave.svelte.js";
   import { baselineOf, differsFromBaseline, noteBaseline } from "#lib/baselines.js";
-  import { MOMENTS, type BookAppearance, type Moment, type PassData } from "@engine/types";
-  import { putBookAppearance } from "#lib/api.js";
+  import { MOMENTS, type ExperienceAppearance, type Moment, type PassData } from "@engine/types";
+  import { putExperienceAppearance } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import {
@@ -31,20 +31,20 @@
    * the draft by itself a moment later (`PUT …/appearance`, #259). *Undo edits* takes it back to how the draft had it
    * before the first edit in this page. The model is `PassesPanel.svelte`; the logic `appearance-edit.ts`.
    */
-  let { stage, bookId }: { stage: Stage | null; bookId: string } = $props();
+  let { stage, experienceId }: { stage: Stage | null; experienceId: string } = $props();
 
   /** The draft's looks (a copy) – what a changed row is compared with */
-  const saved = $derived<BookAppearance>(draftAppearance(content.bookAppearance));
+  const saved = $derived<ExperienceAppearance>(draftAppearance(content.experienceAppearance));
 
-  let edit = $state<BookAppearance>({});
+  let edit = $state<ExperienceAppearance>({});
   /** The draft looks the panel started from (by identity: a reload makes new ones) */
-  let seen = $state<{ id: string; appearance: BookAppearance | null; draft: BookAppearance } | null>(null);
+  let seen = $state<{ id: string; appearance: ExperienceAppearance | null; draft: ExperienceAppearance } | null>(null);
 
   /** The book's looks as a subject of the autosaver and of *Undo edits* */
-  const key = $derived(`appearance:${bookId}`);
+  const key = $derived(`appearance:${experienceId}`);
   const canUndo = $derived(differsFromBaseline(key, edit));
   /** What the picker offers: built in, then each plugin's (a Code tab Run adds its looks at once) */
-  const choices = $derived.by(() => { void plugins.version; void content.bookAppearance; return liveLookChoices(); });
+  const choices = $derived.by(() => { void plugins.version; void content.experienceAppearance; return liveLookChoices(); });
   const builtIns = $derived(choices.filter(choice => !choice.plugin));
   /** Why a look the draft names is not offered: the code loading, a source failed, or nobody registers it (#269) */
   const missing = $derived(plugins.missingNote());
@@ -75,8 +75,8 @@
 
   // The draft arriving or reloading: start from the draft – unless this book has unsaved edits
   $effect(() => {
-    const id = bookId;
-    const appearance = content.bookAppearance;
+    const id = experienceId;
+    const appearance = content.experienceAppearance;
     const previous = seen;
     if (previous && previous.id === id && previous.appearance === appearance) return;
     const switching = !previous || previous.id !== id;
@@ -90,16 +90,16 @@
   });
 
   /** An edit: on the stage at once, in the draft a moment after the last one */
-  const apply = (next: BookAppearance) => {
+  const apply = (next: ExperienceAppearance) => {
     edit = next;
-    const looks = appearanceToSave($state.snapshot(next) as BookAppearance);
+    const looks = appearanceToSave($state.snapshot(next) as ExperienceAppearance);
     stage?.overrideAppearance(looks);
-    const book = bookId;
+    const book = experienceId;
     noteBaseline(key, saved);
     autosave.queue(key, async () => {
       // Compared with the draft as it is when the save runs (an earlier save may have changed it)
-      if (sameAppearance(looks, content.bookAppearance)) return;
-      await putBookAppearance(book, looks);
+      if (sameAppearance(looks, content.experienceAppearance)) return;
+      await putExperienceAppearance(book, looks);
       // The draft holds the looks; the stage plays them already (its override), so nothing is built again
       await content.load(book);
     });
@@ -108,7 +108,7 @@
   const set = (moment: Moment, row: ValueRow, value: number | string) => apply(setLookValue(edit, moment, row, value));
   /** Undo edits: the looks as the draft had them before the first edit in this page – saved like any edit */
   const revert = () => {
-    const before = baselineOf<BookAppearance>(key);
+    const before = baselineOf<ExperienceAppearance>(key);
     if (before !== undefined) apply(draftAppearance(before));
   };
   /** A row's value as the draft has it – the default when the draft's look is another one */

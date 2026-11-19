@@ -1,6 +1,6 @@
-import { getBook as getConfigBook, getConfigVersion, getPlugins, getSkippedFeatures, getScenes, loadGameConfiguration, type SkippedFeature } from "@engine/content/game-config";
-import type { BookAppearance, ErrorInfo, PassData, Scene } from "@engine/types";
-import { authFetch, draftBaseUrl, getBook } from "./api";
+import { getExperience as getConfigExperience, getConfigVersion, getPlugins, getSkippedFeatures, getScenes, loadGameConfiguration, type SkippedFeature } from "@engine/content/game-config";
+import type { ExperienceAppearance, ErrorInfo, PassData, Scene } from "@engine/types";
+import { authFetch, draftBaseUrl, getExperience } from "./api";
 import { adoptRecordedSpecs } from "#lib/plugins/recorded.js";
 import { plugins } from "./plugins.svelte";
 import type { ContentSnapshot } from "#lib/stage/frame-protocol.js";
@@ -13,12 +13,12 @@ import type { ContentSnapshot } from "#lib/stage/frame-protocol.js";
  * never asks the API itself.
  */
 class Content {
-  bookId = $state<string | null>(null);
+  experienceId = $state<string | null>(null);
   scenes = $state<Scene[]>([]);
   /** The book's post-processing (`book.passes`, the master of every scene without its own); null = the book has none */
-  bookPasses = $state<PassData[] | null>(null);
+  experiencePasses = $state<PassData[] | null>(null);
   /** How the book's entities appear (`book.appearance`, #265): a look per moment; null = the book names none */
-  bookAppearance = $state<BookAppearance | null>(null);
+  experienceAppearance = $state<ExperienceAppearance | null>(null);
   hash = $state<string | null>(null);
   error = $state<ErrorInfo | null>(null);
   /** What the draft has that this editor's engine does not know (a book from a newer content build – RULES #10): skipped on the stage */
@@ -33,17 +33,17 @@ class Content {
   snapshot = $state.raw<ContentSnapshot | null>(null);
 
   /** Load (or reload after a save) the book's draft; resolves with the startup error, if any */
-  async load(bookId: string): Promise<ErrorInfo | null> {
+  async load(experienceId: string): Promise<ErrorInfo | null> {
     this.loading = true;
     try {
-      if (this.bookId !== bookId || this.assetsBase === null) {
-        const { book } = await getBook(bookId);
-        this.assetsBase = book.assetsBase;
-        this.libraryBase = book.libraryBase || null;
+      if (this.experienceId !== experienceId || this.assetsBase === null) {
+        const { experience } = await getExperience(experienceId);
+        this.assetsBase = experience.assetsBase;
+        this.libraryBase = experience.libraryBase || null;
       }
       // The stage is the sandbox: a node may use a component the Code tab's plugins register at Run; targets switched off
       // stay with their entries – the editor works on them, only the reader leaves them out (#249)
-      const baseUrl = draftBaseUrl(bookId);
+      const baseUrl = draftBaseUrl(experienceId);
       const responses: Record<string, string | null> = {};
       const recording: typeof fetch = async (input, init) => {
         const response = await authFetch(input, init);
@@ -53,11 +53,11 @@ class Content {
       };
       const error = await loadGameConfiguration({ baseUrl, fetch: recording, assetsBase: this.assetsBase || undefined, unknownComponentTypes: "allow", keepSwitchedOffTargets: true });
       this.snapshot = error ? null : { baseUrl, assetsBase: this.assetsBase || null, libraryBase: this.libraryBase, responses };
-      this.bookId = bookId;
+      this.experienceId = experienceId;
       this.error = error;
       this.scenes = error ? [] : getScenes();
-      this.bookPasses = error ? null : getConfigBook().passes ?? null;
-      this.bookAppearance = error ? null : getConfigBook().appearance ?? null;
+      this.experiencePasses = error ? null : getConfigExperience().passes ?? null;
+      this.experienceAppearance = error ? null : getConfigExperience().appearance ?? null;
       this.hash = error ? null : getConfigVersion().hash ?? null;
       this.skipped = error ? [] : getSkippedFeatures();
       // What the declared plugins recorded: the Inspector's rows before they load or run

@@ -1,4 +1,5 @@
-import type { BookTree, Change, RevertResult } from "@shared/api/editor";
+import type { Change, RevertResult } from "@shared/api/editor";
+import type { ExperienceTree } from "./api";
 
 /**
  * The editor's **history** (#312), the pure part: the steps undo and redo walk, how a saved change reads in words, the
@@ -64,7 +65,7 @@ export const undoKey = (event: Pick<KeyboardEvent, "key" | "ctrlKey" | "metaKey"
 
 const KIND_WORDS: Record<string, string> = {
   entity: "Entity", target: "Target", entry: "Entry", scene: "Scene", order: "Scene order", groups: "Groups",
-  environment: "Environment", passes: "Post-processing", appearance: "Appearance", book: "Experience", plugin: "Plugin", asset: "File",
+  environment: "Environment", passes: "Post-processing", appearance: "Appearance", experience: "Experience", plugin: "Plugin", asset: "File",
   reference: "Reference image",
 };
 /** A kind in words (the History's filter and its rows) */
@@ -81,7 +82,7 @@ export interface Names {
 export const changeTitle = (c: Pick<Change, "kind" | "ref">, names: Names = {}): string => {
   const word = kindWord(c.kind);
   const name = c.kind === "scene" ? names.scene?.(c.ref) : c.kind === "entry" ? names.entry?.(c.ref) : c.kind === "target" ? names.target?.(c.ref) : undefined;
-  if (["order", "groups", "environment", "passes", "appearance", "book"].includes(c.kind)) return word;
+  if (["order", "groups", "environment", "passes", "appearance", "experience"].includes(c.kind)) return word;
   // A surface's reference image (#314): its ref is `scene/surface` – "Reference image Pages 2–3 · left"
   if (c.kind === "reference") {
     const { scene, surface } = referenceRef(c.ref);
@@ -156,8 +157,8 @@ export interface HistoryFilter {
 /** The scenes a change belongs to: a scene's own, an entry's or a target's scene, a shared entity's scenes; none for the book */
 export type ScenesOf = (c: Pick<Change, "kind" | "ref">) => readonly string[];
 
-/** The names and the scenes of changes from the book's tree (`GET /editor/books/{id}`, `scenes.tree`) */
-export const treeNames = (tree: BookTree | null): { names: Names; scenesOf: ScenesOf } => {
+/** The names and the scenes of changes from the book's tree (`GET /editor/experiences/{id}`, `scenes.tree`) */
+export const treeNames = (tree: ExperienceTree | null): { names: Names; scenesOf: ScenesOf } => {
   const entries = tree ? tree.scenes.flatMap(s => s.entries.map(e => ({ ...e, scene: s.id as string | null }))) : [];
   const scenesWhere = (match: (e: (typeof entries)[number]) => boolean): string[] => [...new Set(entries.filter(e => e.scene && match(e)).map(e => e.scene!))];
   return {

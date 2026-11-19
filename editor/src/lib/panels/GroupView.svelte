@@ -17,7 +17,7 @@
    * at once or by order. The window is shown, not stored: the content has no field for it yet (`GroupData` = id and
    * label). Ungroup takes the group away; its scenes stay in place.
    */
-  let { bookId, groupId }: { bookId: string; groupId: string } = $props();
+  let { experienceId, groupId }: { experienceId: string; groupId: string } = $props();
 
   const group = $derived(scenes.group(groupId));
   const members = $derived(groupScenes(scenes.list, groupId));
@@ -36,7 +36,7 @@
   const edit = (value: string) => {
     label = value;
     const id = groupId;
-    const subject = `group:${bookId}:${id}`;
+    const subject = `group:${experienceId}:${id}`;
     if (!value.trim()) return autosave.hold(subject, "A group needs a label.");
     autosave.queue(subject, async () => {
       if (scenes.group(id)?.label !== value.trim()) await scenes.renameGroup(id, value.trim());
@@ -90,7 +90,7 @@
     help="The group's scenes in order with their targets – a click opens one.">
     {#each members as scene (scene.id)}
       <div class="row">
-        <button type="button" class="text-link label scene" onclick={() => void goto(resolve(`${bookId}/${scene.id}/`))}>{sceneName(scene)}</button>
+        <button type="button" class="text-link label scene" onclick={() => void goto(resolve(`${experienceId}/${scene.id}/`))}>{sceneName(scene)}</button>
         <span class="value">{targetsOf(scene)} targets</span></div>
     {/each}
     <div class="row">

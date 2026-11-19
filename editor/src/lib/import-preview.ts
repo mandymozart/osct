@@ -72,10 +72,10 @@ export const readConfiguration = async (url: string, fetcher: typeof fetch = fet
 /** `fb4c562…` – the build as the button and the rows name it */
 export const shortBuild = (build: string | null | undefined): string | null => (build ? `${build.slice(0, 7)}…` : null);
 
-/** The import button: `Import 1 book: The Demo Book (build fb4c562…)` */
+/** The import button: `Import 1 experience: The Demo (build fb4c562…)` */
 export const importLabel = (p: ImportPreview): string => {
   const build = shortBuild(p.incoming.build);
-  return `Import 1 book: ${p.incoming.title}${build ? ` (build ${build})` : ""}`;
+  return `Import 1 experience: ${p.incoming.title}${build ? ` (build ${build})` : ""}`;
 };
 
 /** `1 entry`, `3 entries` */
@@ -100,7 +100,7 @@ export interface PreviewRow {
 
 /**
  * What comes in, row by row: where from (the content base, else the configuration's URL or file), the build and when
- * it was built (and made current on the CDN), the app and schema version, the book and what it holds, the assets base
+ * it was built (and made current on the CDN), the app and schema version, the experience and what it holds, the assets base
  */
 export const previewRows = (p: ImportPreview, from: string | null, assetsAt: string | null): PreviewRow[] => {
   const activated = date(p.manifest?.activatedAt);
@@ -110,19 +110,19 @@ export const previewRows = (p: ImportPreview, from: string | null, assetsAt: str
     { label: "Built", value: [date(p.incoming.date) ?? "–", activated ? `current since ${activated}` : null].filter(Boolean).join(" · ") },
     { label: "App version", value: p.incoming.appVersion ?? "–" },
     { label: "Schema", value: p.incoming.schema ?? "–" },
-    { label: "Book", value: `${p.incoming.title} · ${p.incoming.book}` },
+    { label: "Experience", value: `${p.incoming.title} · ${p.incoming.experience}` },
     { label: "Holds", value: contentsLine(p.counts) },
   ];
   if (assetsAt) rows.push({ label: "Assets at", value: assetsAt });
   return rows;
 };
 
-/** A draft of that id is here: the import replaces it – null for a new book */
+/** A draft of that id is here: the import replaces it – null for a new experience */
 export const replaceLine = (p: ImportPreview): string | null => {
   const c = p.existing;
   if (!c) return null;
   const same = c.same ? " based on this build" : "";
-  return `A draft of “${c.book.title}” (${c.book.id})${same} is already here – importing replaces it.`;
+  return `A draft of “${c.experience.title}” (${c.experience.id})${same} is already here – importing replaces it.`;
 };
 
 /** What of that draft is lost: its edits since its import – unpublished, unless the draft as it is now is live */

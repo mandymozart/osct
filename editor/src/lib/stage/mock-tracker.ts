@@ -31,7 +31,7 @@ export interface StageTarget {
 }
 
 /** The open scene as the stage draws it: its surfaces where they lie (`surfaces.ts`) and their reference images */
-export interface StageBook {
+export interface StageScene {
   surfaces: readonly SceneSurface[];
   /** Reference images by surface id (#314): shown on their surface, else paper */
   references?: Readonly<Record<string, SurfaceReference>>;
@@ -213,7 +213,7 @@ const LOOK_UP = new Matrix4();
 /** What the stage draws – set by the tracker, which owns the layout and the camera */
 export interface StageView {
   /** The open scene: its surfaces at their places (each a board with its reference image, else paper) and the targets on them */
-  setLayout(targets: readonly StageTarget[], book: StageBook): void;
+  setLayout(targets: readonly StageTarget[], book: StageScene): void;
   /** The targets hidden in the tree (the eye, #250): their printed images are not drawn either */
   setHiddenPrints?(hidden: ReadonlySet<string>): void;
   /** The sky and the light: an HDRI (shown while the shading is rendered) */
@@ -388,7 +388,7 @@ export class MockTracker implements IImageTracker {
   attachStage(stage: StageView): void {
     this.stage?.dispose();
     this.stage = stage;
-    if (this.sceneId) stage.setLayout(this.targets, this.stageBook());
+    if (this.sceneId) stage.setLayout(this.targets, this.stageScene());
     stage.setShading?.(this.preview.shading);
     stage.setHdri(this.preview.hdri);
     stage.setTop?.(this.preview.top);
@@ -397,7 +397,7 @@ export class MockTracker implements IImageTracker {
     stage.setSurfaceMarks?.(this.marks.outlined, this.marks.highlighted);
   }
 
-  private stageBook(): StageBook {
+  private stageScene(): StageScene {
     const references = this.sceneId ? this.references[this.sceneId] : undefined;
     return { surfaces: this.surfaces, ...(references ? { references } : {}) };
   }
@@ -468,7 +468,7 @@ export class MockTracker implements IImageTracker {
     this.frames = this.surfaces.map(surfaceFrame);
     this.laidOut = layoutTargets(this.tracked, this.infos, this.frames);
     this.targets = withLivePlacement(this.laidOut, this.livePlacement);
-    this.stage?.setLayout(this.targets, this.stageBook());
+    this.stage?.setLayout(this.targets, this.stageScene());
     this.stage?.setSurfaceMarks?.(this.marks.outlined, this.marks.highlighted);
     this.publishState();
   }

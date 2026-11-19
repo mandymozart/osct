@@ -9,7 +9,7 @@ import type { CompileResult } from "#lib/plugins/compile.js";
  * readers load it from the CDN like a compiled plugin.
  */
 
-/** One carried plugin (`POST /editor/books/{id}/publish` → `plugins[]`) */
+/** One carried plugin (`POST /editor/experiences/{id}/publish` → `plugins[]`) */
 export interface PublishedPlugin {
   id: string;
   /** The module: the transpiled source, `export const register` */

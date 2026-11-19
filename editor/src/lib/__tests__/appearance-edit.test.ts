@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { APPEARANCES, type AppearanceSpec, type BookAppearance } from "@engine/types";
+import { APPEARANCES, type AppearanceSpec, type ExperienceAppearance } from "@engine/types";
 import {
   appearanceHeading, appearanceToSave, draftAppearance, inheritLabel, lookSource, momentSummary, ownLook, playedLook, playedType, sameAppearance,
   setLook, setLookValue,
@@ -9,11 +9,11 @@ import { lookRows, passValue } from "../values";
 /** The appearance panel (#265): a look per moment, a moment without one plays found's, then the default */
 
 const builtInSpec = (type: string): AppearanceSpec | undefined => (APPEARANCES as Record<string, AppearanceSpec>)[type];
-const rowsOf = (book: BookAppearance, moment: "reveal" | "found" | "lost") => (book[moment] ? lookRows(book[moment]!, moment, builtInSpec) : []);
+const rowsOf = (book: ExperienceAppearance, moment: "reveal" | "found" | "lost") => (book[moment] ? lookRows(book[moment]!, moment, builtInSpec) : []);
 
 describe("the book's looks by moment", () => {
   it("a moment plays its own look, else found's, else the default", () => {
-    const book: BookAppearance = { found: { type: "printLift" } };
+    const book: ExperienceAppearance = { found: { type: "printLift" } };
     expect(lookSource(book, "found")).toBe("own");
     expect(lookSource(book, "reveal")).toBe("found");
     expect(playedType(book, "reveal")).toBe("printLift");
@@ -24,7 +24,7 @@ describe("the book's looks by moment", () => {
   });
 
   it("the copy keeps the moments' order and never shares a look with the content", () => {
-    const content: BookAppearance = { lost: { type: "fade" }, reveal: { type: "printLift", duration: 900 } };
+    const content: ExperienceAppearance = { lost: { type: "fade" }, reveal: { type: "printLift", duration: 900 } };
     const draft = draftAppearance(content);
     expect(Object.keys(draft)).toEqual(["reveal", "lost"]);
     expect(draft.reveal).not.toBe(content.reveal);
@@ -41,7 +41,7 @@ describe("the book's looks by moment", () => {
 
 describe("picking a look and changing its values", () => {
   it("another type starts at its defaults, the same type keeps its values, none removes the moment", () => {
-    const book: BookAppearance = { found: { type: "printLift", duration: 900 } };
+    const book: ExperienceAppearance = { found: { type: "printLift", duration: 900 } };
     expect(setLook(book, "found", "printLift")).toEqual(book);
     expect(setLook(book, "found", "fade")).toEqual({ found: { type: "fade" } });
     expect(setLook(book, "reveal", "fade")).toEqual({ reveal: { type: "fade" }, found: { type: "printLift", duration: 900 } });
@@ -51,7 +51,7 @@ describe("picking a look and changing its values", () => {
   });
 
   it("the rows come from the look's spec, ids appearance.{moment}.{name}, read like a pass's", () => {
-    const book: BookAppearance = { lost: { type: "fade", outDuration: 250 } };
+    const book: ExperienceAppearance = { lost: { type: "fade", outDuration: 250 } };
     const rows = rowsOf(book, "lost");
     expect(rows.map(row => row.id)).toContain("appearance.lost.outDuration");
     const out = rows.find(row => row.id === "appearance.lost.outDuration")!;
@@ -63,7 +63,7 @@ describe("picking a look and changing its values", () => {
   });
 
   it("a value set is kept, a value equal to the look's default is dropped", () => {
-    const book: BookAppearance = { found: { type: "fade" } };
+    const book: ExperienceAppearance = { found: { type: "fade" } };
     const duration = rowsOf(book, "found").find(row => row.id === "appearance.found.duration")!;
     const longer = setLookValue(book, "found", duration, 900);
     expect(longer).toEqual({ found: { type: "fade", duration: 900 } });
@@ -76,7 +76,7 @@ describe("picking a look and changing its values", () => {
 });
 
 describe("the parameters of the look that plays (#267)", () => {
-  const rowOf = (book: BookAppearance, moment: "reveal" | "found" | "lost", id: string) => {
+  const rowOf = (book: ExperienceAppearance, moment: "reveal" | "found" | "lost", id: string) => {
     const row = lookRows(playedLook(book, moment), moment, builtInSpec).find(r => r.id === `appearance.${moment}.${id}`);
     if (!row) throw new Error(`no row ${id}`);
     return row;
@@ -85,7 +85,7 @@ describe("the parameters of the look that plays (#267)", () => {
   it("a moment plays its own look, else found's, else the default – with its values", () => {
     expect(playedLook({}, "found")).toEqual({ type: "inflateDissolve" });
     expect(playedLook({}, "reveal")).toEqual({ type: "inflateDissolve" });
-    const book: BookAppearance = { found: { type: "printLift", duration: 900 }, lost: { type: "fade" } };
+    const book: ExperienceAppearance = { found: { type: "printLift", duration: 900 }, lost: { type: "fade" } };
     expect(playedLook(book, "reveal")).toEqual({ type: "printLift", duration: 900 });
     expect(playedLook(book, "lost")).toEqual({ type: "fade" });
     // found never inherits
@@ -97,12 +97,12 @@ describe("the parameters of the look that plays (#267)", () => {
     expect(rows.map(r => r.label).slice(0, 2)).toEqual(["appear", "disappear"]);
     expect(rows.length).toBeGreaterThan(20);
     expect(passValue(playedLook({}, "found") as never, rowOf({}, "found", "duration"))).toBe(3470);
-    const book: BookAppearance = { found: { type: "printLift", duration: 900 } };
+    const book: ExperienceAppearance = { found: { type: "printLift", duration: 900 } };
     expect(passValue(playedLook(book, "reveal") as never, rowOf(book, "reveal", "duration"))).toBe(900);
   });
 
   it("the first change to an inherited moment makes it its own: a copy of the look that played, with the change", () => {
-    const book: BookAppearance = { found: { type: "printLift", duration: 900 } };
+    const book: ExperienceAppearance = { found: { type: "printLift", duration: 900 } };
     const next = setLookValue(book, "reveal", rowOf(book, "reveal", "outDuration"), 250);
     expect(next.reveal).toEqual({ type: "printLift", duration: 900, outDuration: 250 });
     expect(next.found).toEqual({ type: "printLift", duration: 900 }); // found stays as it was
@@ -110,7 +110,7 @@ describe("the parameters of the look that plays (#267)", () => {
     // found inheriting the default
     expect(setLookValue({}, "found", rowOf({}, "found", "duration"), 1200)).toEqual({ found: { type: "inflateDissolve", duration: 1200 } });
     // a moment with a look of its own changes it in place
-    const own: BookAppearance = { lost: { type: "fade", outDuration: 300 } };
+    const own: ExperienceAppearance = { lost: { type: "fade", outDuration: 300 } };
     expect(setLookValue(own, "lost", rowOf(own, "lost", "outDuration"), 500).lost).toEqual({ type: "fade", outDuration: 500 });
     expect(ownLook(own, "lost")).toBe(own);
   });
@@ -122,7 +122,7 @@ describe("the parameters of the look that plays (#267)", () => {
 
 describe("the words", () => {
   it("a closed moment names its look and its values set, or where its look comes from", () => {
-    const book: BookAppearance = { found: { type: "printLift", duration: 900 } };
+    const book: ExperienceAppearance = { found: { type: "printLift", duration: 900 } };
     expect(momentSummary(book, "found", rowsOf(book, "found"))).toBe("printLift · appear 900 ms");
     expect(momentSummary({ found: { type: "fade" } }, "found", rowsOf({ found: { type: "fade" } }, "found"))).toBe("fade");
     expect(momentSummary(book, "reveal", [])).toBe("as found · printLift");

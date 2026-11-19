@@ -26,8 +26,8 @@ export interface SelectionState {
   scene?: boolean;
   /** An entry is selected (its id, #227); `target` is its target or null for an entry without one */
   entry?: string | null;
-  /** The book is selected (the top bar's ⚙, #237): no scene, target, node or entry */
-  book?: boolean;
+  /** The experience is selected (the top bar's ⚙, #237): no scene, target, node or entry */
+  experience?: boolean;
   /** A group is selected (its id – a band of the Scenes panel, #307): the Inspector shows the group, nothing on the stage */
   group?: string | null;
   /**
@@ -48,7 +48,7 @@ export interface SurfaceRef {
  * tree highlights its row and the Inspector shows it; the scene selected names no target, node or entry
  */
 export const settledSelection = (selection: SelectionState): SelectionState => {
-  if (selection.book) return { target: null, node: [], onTarget: true, scene: false, entry: null, book: true };
+  if (selection.experience) return { target: null, node: [], onTarget: true, scene: false, entry: null, experience: true };
   if (selection.group) return { target: null, node: [], onTarget: true, scene: false, entry: null, group: selection.group };
   if (selection.surface) return { target: null, node: [], onTarget: true, scene: false, entry: null, surface: { scene: selection.surface.scene, id: selection.surface.id } };
   if (selection.scene || (!selection.target && !selection.entry)) return { target: null, node: [], onTarget: true, scene: true, entry: null };
@@ -65,7 +65,7 @@ export const selectionLevel = (selection: SelectionState, hasTree: boolean): Sel
 /** One level up: a node → its parent, the entity → its target, a surface → the scene; the target (an entry, the scene) stays */
 export const parentSelection = (selection: SelectionState): SelectionState => {
   if (selection.surface) return { target: null, node: [], onTarget: true, scene: true };
-  if (selection.book || selection.group || selection.scene || selection.entry || !selection.target || selection.onTarget) return { ...selection, node: [] };
+  if (selection.experience || selection.group || selection.scene || selection.entry || !selection.target || selection.onTarget) return { ...selection, node: [] };
   if (!selection.node.length) return { target: selection.target, node: [], onTarget: true };
   return { target: selection.target, node: selection.node.slice(0, -1), onTarget: false };
 };

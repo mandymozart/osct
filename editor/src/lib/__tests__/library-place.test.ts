@@ -14,7 +14,7 @@ describe("the Library grouped by scene (#298 phase 3)", () => {
     { id: "s120-121", label: "" },
   ];
 
-  it("a header per scene in the scenes' order (its label, else its id), then the book-wide files, then the unused ones", () => {
+  it("a header per scene in the scenes' order (its label, else its id), then the experience-wide files, then the unused ones", () => {
     const groups = groupByScene([
       asset("unused.webp", null),
       asset("p120-1_target.webp", { scene: "s120-121", order: 5, more: 0 }),

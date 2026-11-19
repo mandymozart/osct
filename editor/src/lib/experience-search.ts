@@ -7,7 +7,7 @@ import { sceneLabel } from "@engine/content/scenes";
  * scene labelled `186–187`, as text), targets (id, the entry's title) and named nodes – accents and case ignored, every
  * word of the query found. Hits are grouped by kind, ranked within a group (the label starting with the query, then a
  * word of it, then anywhere in the label, then only in the text) and kept in the scenes' order at the same rank; each
- * names its scene and what a pick selects. Pure: `BookSearch.svelte` reads the draft's scenes and draws it.
+ * names its scene and what a pick selects. Pure: `ExperienceSearch.svelte` reads the draft's scenes and draws it.
  */
 
 /** A scene as the search reads it – the engine's `Scene` (a scene) fits */
@@ -78,7 +78,7 @@ const namedNodes = (node: EntityData, path: number[] = []): { name: string; path
 ];
 
 /** The hits of the query in the book, grouped by kind in `SEARCH_KINDS` order (empty groups left out); at most `limit` per group */
-export const searchBook = (scenes: readonly SearchScene[], query: string, limit = 6): SearchGroup[] => {
+export const searchExperience = (scenes: readonly SearchScene[], query: string, limit = 6): SearchGroup[] => {
   const words = queryWords(query);
   if (!words.length) return [];
   const hits: SearchHit[] = [];

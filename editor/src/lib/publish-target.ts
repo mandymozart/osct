@@ -32,13 +32,13 @@ export interface PublishStep {
 }
 
 /**
- * The step for publishing `title` (book `bookId`, its draft now at `build`) to `target`, which serves `serving`
+ * The step for publishing `title` (book `experienceId`, its draft now at `build`) to `target`, which serves `serving`
  * (undefined: nothing; `book` null: a book the editor cannot tell); `titleOf` names a book by its id. `plugins` = the
  * Code tab's saved sources the publish carries (#78): their code is part of the version, so the build published is
  * another than the draft's – the step says so instead of naming the draft's.
  */
 export const publishStep = (
-  bookId: string,
+  experienceId: string,
   title: string,
   build: string | null,
   target: EnvironmentInfo,
@@ -48,8 +48,8 @@ export const publishStep = (
 ): PublishStep => {
   const where = targetLabel(target);
   const live = serving && !("error" in serving) ? serving : undefined;
-  const other = !!live && live.book !== bookId;
-  const otherTitle = other && live.book ? (titleOf(live.book) ?? live.book) : null;
+  const other = !!live && live.experience !== experienceId;
+  const otherTitle = other && live.experience ? (titleOf(live.experience) ?? live.experience) : null;
   const replaces = !live
     ? serving
       ? `What ${target.env} serves now cannot be read.`

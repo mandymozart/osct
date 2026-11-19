@@ -26,7 +26,7 @@ describe("the publish target", () => {
 
 describe("the step before a publish", () => {
   it("names the book, the build and the target, and what it replaces there", () => {
-    const step = publishStep("osct", "Test Book", "1a2b3c4d5e6f", staging, { env: "staging", book: "osct", build: "aaaaaaaaaaaa", since: null }, titleOf);
+    const step = publishStep("osct", "Test Book", "1a2b3c4d5e6f", staging, { env: "staging", experience: "osct", build: "aaaaaaaaaaaa", since: null }, titleOf);
     expect(step.title).toBe("Publish “Test Book” to staging · CDN");
     expect(step.build).toBe("Build 1a2b3c4d5e6f – the draft now.");
     expect(step.replaces).toBe("Replaces build aaaaaaaaaaaa of “Test Book” on staging.");
@@ -34,7 +34,7 @@ describe("the step before a publish", () => {
   });
 
   it("with the Code tab's plugins, no draft build: their code makes the published one (#78)", () => {
-    const serving = { env: "staging", book: "osct", build: "1a2b3c4d5e6f", since: null };
+    const serving = { env: "staging", experience: "osct", build: "1a2b3c4d5e6f", since: null };
     const one = publishStep("osct", "Test Book", "1a2b3c4d5e6f", staging, serving, titleOf, 1);
     expect(one.build).toBe("The draft now, with the Code tab's plugin – transpiled, not type-checked; the build gets its name when it is published.");
     expect(one.replaces).toBe("Replaces build 1a2b3c4d5e6f of “Test Book” on staging.");
@@ -43,15 +43,15 @@ describe("the step before a publish", () => {
 
   it("an environment that serves nothing yet, or this very build", () => {
     expect(publishStep("osct", "Test Book", "1a2b3c4d5e6f", staging, undefined, titleOf).replaces).toBe("Nothing is published on staging yet.");
-    expect(publishStep("osct", "Test Book", "1a2b3c4d5e6f", staging, { env: "staging", book: "osct", build: "1a2b3c4d5e6f", since: null }, titleOf).replaces).toContain("serves this build already");
+    expect(publishStep("osct", "Test Book", "1a2b3c4d5e6f", staging, { env: "staging", experience: "osct", build: "1a2b3c4d5e6f", since: null }, titleOf).replaces).toContain("serves this build already");
     expect(publishStep("osct", "Test Book", null, staging, { env: "staging", error: "content-store-failed" }, titleOf).replaces).toContain("cannot be read");
   });
 
   it("over another book: says so, asks to replace it and sends replace", () => {
-    const step = publishStep("osct", "Test Book", "1a2b3c4d5e6f", staging, { env: "staging", book: "demo", build: "bbbbbbbbbbbb", since: null }, titleOf);
+    const step = publishStep("osct", "Test Book", "1a2b3c4d5e6f", staging, { env: "staging", experience: "demo", build: "bbbbbbbbbbbb", since: null }, titleOf);
     expect(step.replaces).toContain("Staging serves “Demo”. Publish “Test Book” instead?");
     expect(step).toMatchObject({ replace: true, action: "Replace on staging" });
-    expect(publishStep("osct", "Test Book", null, staging, { env: "staging", book: null, build: null, since: null }, titleOf).replaces).toContain("a book the editor cannot tell");
+    expect(publishStep("osct", "Test Book", null, staging, { env: "staging", experience: null, build: null, since: null }, titleOf).replaces).toContain("a book the editor cannot tell");
   });
 
   it("production: every reader gets it", () => {

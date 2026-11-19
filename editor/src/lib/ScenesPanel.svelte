@@ -34,9 +34,9 @@
    * strip one row whose cards scale with the panel's height; the grid columns that wrap, as many as its width holds
    * (`gridColumns`: one when narrow, each column 88–168 px), its cards scaling with the width, scrolled down.
    */
-  let { bookId, bookTitle = "", current, selectedGroup = null, assetsBase = "", floating = false, onopen, onselectgroup, onstep }: {
-    bookId: string;
-    bookTitle?: string;
+  let { experienceId, experienceTitle = "", current, selectedGroup = null, assetsBase = "", floating = false, onopen, onselectgroup, onstep }: {
+    experienceId: string;
+    experienceTitle?: string;
     current: string;
     selectedGroup?: string | null;
     assetsBase?: string;
@@ -83,8 +83,8 @@
   const zoom = $derived(Math.max(0.6, (shownHeight - (HEIGHT_DEFAULT - CARD_HEIGHT_PX)) / CARD_HEIGHT_PX));
 
   $effect(() => {
-    const id = bookId;
-    if (scenes.bookId !== id) void scenes.load(id, true);
+    const id = experienceId;
+    if (scenes.experienceId !== id) void scenes.load(id, true);
   });
 
   let error = $state<string | null>(null);
@@ -190,7 +190,7 @@
       <span class="section-label">Scenes</span>
     {/if}
     <span class="muted info">
-      · {[bookTitle, count(scenes.list.length, "scene"), count(scenes.groups.length, "group"), scenes.picks.picked.length ? `${scenes.picks.picked.length} picked` : ""].filter(Boolean).join(" · ")}
+      · {[experienceTitle, count(scenes.list.length, "scene"), count(scenes.groups.length, "group"), scenes.picks.picked.length ? `${scenes.picks.picked.length} picked` : ""].filter(Boolean).join(" · ")}
     </span>
     {#if error}<span class="small danger err" role="alert">{error}</span>{/if}
     <span class="grow"></span>

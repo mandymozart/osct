@@ -15,7 +15,7 @@
    * ↑ ↓ reorder, ✕ removes after a confirmation that names what lies on it; *+ double / single / wall / custom* adds one.
    * The edits are `surface-actions.ts`, shared with the Tree's Surfaces level and the selected surface.
    */
-  let { bookId, sceneId }: { bookId: string; sceneId: string } = $props();
+  let { experienceId, sceneId }: { experienceId: string; sceneId: string } = $props();
 
   const scene = $derived(scenes.scene(sceneId));
   const surfaces = $derived(scene?.surfaces ?? []);
@@ -32,7 +32,7 @@
   const editLabel = (surfaceId: string, value: string) => {
     labels = { ...labels, [surfaceId]: value };
     const id = sceneId;
-    autosave.queue(`scene:${bookId}:${id}:surfaces`, async () => {
+    autosave.queue(`scene:${experienceId}:${id}:surfaces`, async () => {
       const now = scenes.scene(id)?.surfaces ?? [];
       const next = updateSurface(now, surfaceId, { label: value });
       if (!sameSurfaces(next, now)) await scenes.putScene(id, { surfaces: next });

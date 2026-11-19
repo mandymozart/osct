@@ -3,8 +3,8 @@ import { ApiError, type ImportComparison, type ImportPreview } from "../api";
 import { contentBaseOf, contentsLine, importLabel, lossLine, previewRows, readContentBase, replaceLine, shortBuild, SourceError, sourceErrorLine } from "../import-preview";
 
 const existing = (over: Partial<ImportComparison["draft"]> = {}, same = false): ImportComparison => ({
-  book: { id: "demo", title: "The Demo Book" },
-  incoming: { book: "demo", title: "The Demo Book", build: "7457f0c10df1", hash: "7457f0c10df1".padEnd(64, "0"), date: "2026-10-30T06:58:51.396Z", appVersion: "1.41.0", schema: "2.17", source: "cdn", from: "https://cdn.example/demo/7457f0c10df1" },
+  experience: { id: "demo", title: "The Demo Book" },
+  incoming: { experience: "demo", title: "The Demo Book", build: "7457f0c10df1", hash: "7457f0c10df1".padEnd(64, "0"), date: "2026-10-30T06:58:51.396Z", appVersion: "1.41.0", schema: "2.17", source: "cdn", from: "https://cdn.example/demo/7457f0c10df1" },
   draft: {
     basedOn: { build: "abababababab", hash: "ab".repeat(32), date: "2026-10-01T08:00:00.000Z", appVersion: "1.30.0", schema: "2.17", source: "cdn", from: null, importedAt: "2026-10-02T09:00:00.000Z", importedBy: "author@example.com" },
     build: "0123456789ab",
@@ -36,15 +36,15 @@ const fetcher = (files: Record<string, unknown>): typeof fetch =>
 
 // Before anything is imported, the form says what comes in: one book, which build, from where (#182)
 describe("the import's preview", () => {
-  it("the button names the one book and its build", () => {
-    expect(importLabel(preview())).toBe("Import 1 book: The Demo Book (build 7457f0c…)");
-    expect(importLabel(preview({ incoming: { ...existing().incoming, build: null } }))).toBe("Import 1 book: The Demo Book");
+  it("the button names the one experience and its build", () => {
+    expect(importLabel(preview())).toBe("Import 1 experience: The Demo Book (build 7457f0c…)");
+    expect(importLabel(preview({ incoming: { ...existing().incoming, build: null } }))).toBe("Import 1 experience: The Demo Book");
     expect(shortBuild("fb4c5621abcd")).toBe("fb4c562…");
   });
 
-  it("lists where it comes from, the build, versions, the book and what it holds", () => {
+  it("lists where it comes from, the build, versions, the experience and what it holds", () => {
     const rows = previewRows(preview(), "https://cdn.example/demo", "https://cdn.example/demo/7457f0c10df1");
-    expect(rows.map(r => r.label)).toEqual(["From", "Build", "Built", "App version", "Schema", "Book", "Holds", "Assets at"]);
+    expect(rows.map(r => r.label)).toEqual(["From", "Build", "Built", "App version", "Schema", "Experience", "Holds", "Assets at"]);
     expect(rows[0].value).toBe("https://cdn.example/demo");
     expect(rows[1].value).toBe("7457f0c10df1");
     expect(rows[2].value).toContain("current since");

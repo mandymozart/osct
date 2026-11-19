@@ -104,7 +104,7 @@ const SCENES = {
         await sleep(700);
         await page.moveTo(200, 250, 300);
         await sleep(500);
-        await press(page, "a.book");
+        await press(page, "a.experience");
         await sleep(1800);
         const card = await page.center("a.scene", "The key");
         await page.moveTo(card.x, card.y - 40, 300);
@@ -222,7 +222,7 @@ const SCENES = {
       settle: 1500,
       async act(page) {
         await sleep(600);
-        await press(page, "a.book");
+        await press(page, "a.experience");
         await sleep(1600);
         await gesture(page, 300, 560, 300, 330, 900);
         await sleep(500);

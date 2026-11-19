@@ -26,7 +26,7 @@
    * The stored sources load onto the stage by themselves whenever it starts and run again on Save (#269,
    * `plugins.autoLoad`); the line under the picker says what of the open plugin runs there (`plugins.status`).
    */
-  let { bookId, stage }: { bookId: string; stage: Stage | null } = $props();
+  let { experienceId, stage }: { experienceId: string; stage: Stage | null } = $props();
 
   const PLUGIN_ID = /^[a-z][a-z0-9-]{0,39}$/;
 
@@ -43,7 +43,7 @@
   let codeError = $state<string | null>(null);
 
   $effect(() => {
-    if (plugins.bookId !== bookId) void plugins.load(bookId);
+    if (plugins.experienceId !== experienceId) void plugins.load(experienceId);
   });
 
   // The plugins the content declares (compiled by the build) follow the content; the stored ones the API
@@ -61,7 +61,7 @@
 
   // A plugin deleted while the tab was closed (the Library's Delete) is no longer open
   $effect(() => {
-    if (buffer.open && plugins.bookId === bookId && !plugins.loading && !shown.some(p => p.id === buffer.open)) untrack(() => buffer.reset());
+    if (buffer.open && plugins.experienceId === experienceId && !plugins.loading && !shown.some(p => p.id === buffer.open)) untrack(() => buffer.reset());
   });
 
   // The Library's *Open in Code*: that plugin, once the list knows it
@@ -90,7 +90,7 @@
     loadingSource = true;
     try {
       const stored = storedIds.includes(id);
-      const text = stored ? await plugins.source(bookId, id) : await plugins.declaredSource(declared.find(d => d.id === id)!.src);
+      const text = stored ? await plugins.source(experienceId, id) : await plugins.declaredSource(declared.find(d => d.id === id)!.src);
       buffer.source = text;
       buffer.saved = stored ? text : "";
       buffer.loaded = text;
@@ -126,7 +126,7 @@
     notice = null;
     try {
       const text = buffer.source;
-      await plugins.save(bookId, id, text);
+      await plugins.save(experienceId, id, text);
       buffer.saved = text;
       buffer.loaded = text;
       buffer.open = id;
@@ -153,7 +153,7 @@
     const id = buffer.open;
     if (!id || !current?.stored) return;
     try {
-      await plugins.remove(bookId, id, force);
+      await plugins.remove(experienceId, id, force);
       confirmingDelete = false;
       inUse = null;
       notice = `${id} deleted`;

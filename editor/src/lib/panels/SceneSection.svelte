@@ -18,11 +18,11 @@
    * remove; a click on one selects it – the Inspector shows its size, place and reference image (the same edits as the
    * Tree's Surfaces level and the Surface mode). Every field saves itself (`PUT …/scenes/{id}`, RULES #37).
    */
-  let { bookId, sceneId }: { bookId: string; sceneId: string } = $props();
+  let { experienceId, sceneId }: { experienceId: string; sceneId: string } = $props();
 
   $effect(() => {
-    const id = bookId;
-    if (scenes.bookId !== id) void scenes.load(id);
+    const id = experienceId;
+    if (scenes.experienceId !== id) void scenes.load(id);
   });
 
   const scene = $derived(scenes.scene(sceneId));
@@ -49,7 +49,7 @@
   const editLabel = (value: string) => {
     label = value;
     const id = sceneId;
-    autosave.queue(`scene:${bookId}:${id}:label`, async () => {
+    autosave.queue(`scene:${experienceId}:${id}:label`, async () => {
       if ((scenes.scene(id)?.label ?? "") !== value.trim()) await scenes.putScene(id, { label: value.trim() });
     });
   };
@@ -84,7 +84,7 @@
 
   <Section id="stage.surfaces" label="surfaces" summary={String(scene.surfaces.length)}
     help="The scene's physical areas in order – a double page, a cover, a wall – with their label as printed and size. Add, reorder, remove; a click on an id selects the surface (its size, place and reference image). The Surface tool (S) picks them on the stage.">
-    <SurfaceList {bookId} sceneId={sceneId} />
+    <SurfaceList {experienceId} sceneId={sceneId} />
   </Section>
 {/if}
 

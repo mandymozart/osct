@@ -5,7 +5,7 @@ import { ENTRY_CATEGORIES } from "@shared/types/entry";
 /**
  * Editing an entry (#223): the form's fields as text, what a save sends (the fields that changed, `PUT …/entries/{id}`)
  * and what keeps it back. The form (`EntryForm.svelte`) draws it; the book's entries are found with the top bar's
- * search (`book-search.ts`, #237).
+ * search (`experience-search.ts`, #237).
  *
  * Every text field is one value today; a language variant (#224) becomes a second draft of the same shape per language,
  * so the form gains a switch without being reshaped.

@@ -3,12 +3,12 @@
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import { describeSkipped } from "@engine/content/game-config";
-  import { getBook } from "#lib/api.js";
+  import { getExperience } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import { isAdminPath, session } from "#lib/session.svelte.js";
   import { sceneLabel } from "@engine/content/scenes";
   import PublishButton from "#lib/PublishButton.svelte";
-  import BookSearch from "#lib/BookSearch.svelte";
+  import ExperienceSearch from "#lib/ExperienceSearch.svelte";
   import SaveStatus from "#lib/SaveStatus.svelte";
   import { selection } from "#lib/selection.svelte.js";
   import Icon from "#lib/components/Icon.svelte";
@@ -19,7 +19,7 @@
 
   /**
    * The editor's one top bar (every page, drawn by the layout): the breadcrumb `Books › book › scene` at the left, the
-   * book's search while a book is open (#237, `BookSearch`), where the draft stands (#259, `SaveStatus`: edits save
+   * book's search while a book is open (#237, `ExperienceSearch`), where the draft stands (#259, `SaveStatus`: edits save
    * themselves), Publish (with its environment), then the account menu ☰ at the right: the e-mail, Admin and Sign out
    * (Tilman, 2026-11-18). In a workspace with floating panels (#308) the **panels menu** before it: each panel that
    * closes, shown (✓) or closed – a click flips it –, and **Reset layout** (every panel back to its default place and
@@ -28,28 +28,28 @@
    * book's draft has features this editor's engine does not know (a newer content build – RULES #10), a small warning
    * opens their list: the stage shows the book without them.
    */
-  const bookId = $derived(page.params.book ?? null);
+  const experienceId = $derived(page.params.experience ?? null);
   const sceneId = $derived(page.params.scene ?? null);
   const isAdminRoute = $derived(isAdminPath(page.url.pathname));
 
   /** Book titles by id, read once per book */
   const titles = $state<Record<string, string>>({});
   $effect(() => {
-    const id = bookId;
+    const id = experienceId;
     if (!id || untrack(() => id in titles)) return;
     titles[id] = id;
-    getBook(id).then(tree => (titles[id] = tree.book.title || id), () => {});
+    getExperience(id).then(tree => (titles[id] = tree.experience.title || id), () => {});
   });
 
-  const scene = $derived(sceneId && content.bookId === bookId ? content.scene(sceneId) : undefined);
+  const scene = $derived(sceneId && content.experienceId === experienceId ? content.scene(sceneId) : undefined);
   /** The scene's full name, never cut: its label (its id when it has none) */
   const sceneCrumb = $derived(!scene ? sceneId : sceneLabel(scene));
 
   /** The book's settings button in a workspace: the Inspector shows the book */
-  const selectBook = () => selection.show({ target: null, node: [], onTarget: true, book: true });
+  const selectExperience = () => selection.show({ target: null, node: [], onTarget: true, experience: true });
 
   /** The open book's features the stage skips */
-  const skipped = $derived(bookId && content.bookId === bookId ? content.skipped : []);
+  const skipped = $derived(experienceId && content.experienceId === experienceId ? content.skipped : []);
   /** The account menu: opened under its button, at the right edge */
   let menuAt = $state<Point | null>(null);
   let menuButton = $state<HTMLButtonElement | null>(null);
@@ -85,17 +85,17 @@
 <header class="top" data-app-ui>
   <nav class="crumbs" aria-label="Breadcrumb">
     {#if session.isEditor}
-      <a href={resolve("/(app)")} class="crumb" aria-current={!bookId && !isAdminRoute ? "page" : undefined}>Experiences</a>
+      <a href={resolve("/(app)")} class="crumb" aria-current={!experienceId && !isAdminRoute ? "page" : undefined}>Experiences</a>
     {:else}
       <span class="crumb">OSCT</span>
     {/if}
-    {#if bookId}
+    {#if experienceId}
       <span class="sep" aria-hidden="true">›</span>
-      <a href={resolve(`${bookId}/`)} class="crumb" aria-current={sceneId ? undefined : "page"}
-        title={sceneId ? "Back to the book" : undefined}>{titles[bookId] ?? bookId}</a>
+      <a href={resolve(`${experienceId}/`)} class="crumb" aria-current={sceneId ? undefined : "page"}
+        title={sceneId ? "Back to the experience" : undefined}>{titles[experienceId] ?? experienceId}</a>
       {#if sceneId}
-        <button type="button" class="icon-button book-settings" class:on={selection.book} aria-pressed={selection.book} onclick={selectBook}
-          aria-label="Book settings" title="The book's title, author, publisher and settings in the Inspector"><Icon name="settings" stroke={2} /></button>
+        <button type="button" class="icon-button experience-settings" class:on={selection.experience} aria-pressed={selection.experience} onclick={selectExperience}
+          aria-label="Experience settings" title="The experience's title, printed book and settings in the Inspector"><Icon name="settings" stroke={2} /></button>
         <span class="sep" aria-hidden="true">›</span>
         <span class="crumb current scene" aria-current="page" title={sceneCrumb}>{sceneCrumb}</span>
       {/if}
@@ -110,8 +110,8 @@
       <ul class="small" aria-label="Skipped on the stage">{#each skipped as feature (`${feature.path} ${feature.kind}`)}<li>{describeSkipped(feature)}</li>{/each}</ul>
     </details>
   {/if}
-  {#if bookId}
-    {#key bookId}<BookSearch {bookId} /><SaveStatus /><PublishButton {bookId} />{/key}
+  {#if experienceId}
+    {#key experienceId}<ExperienceSearch {experienceId} /><SaveStatus /><PublishButton {experienceId} />{/key}
   {/if}
   {#if openFloats.current}
     <button type="button" class="icon-button panels" bind:this={panelsButton} onclick={openPanels} aria-haspopup="menu" aria-expanded={panelsAt !== null}
@@ -138,7 +138,7 @@
   /* Short of room, Books gives way first: the book's crumb is the way back to the scenes */
   .crumbs > .crumb:first-child { flex-shrink: 4; }
   .crumbs > .crumb:nth-child(3) { min-width: 3rem; }
-  .book-settings, .account, .panels { flex: none; }
+  .experience-settings, .account, .panels { flex: none; }
   .sep { flex: none; color: var(--muted); }
   .crumb.scene { flex: none; }
   .skipped { position: relative; flex: none; }
