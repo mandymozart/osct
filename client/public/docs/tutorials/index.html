@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>OSCT tutorials</title>
-  <meta name="description" content="How the book's content moves between the content folder, the CDN and the editor, how a book is brought into the editor, a walk through the demo book, and the editor's tools – with screenshots.">
+  <meta name="description" content="How the experience's content moves between the content folder, the CDN and the editor, how an experience is brought into the editor, a walk through the demo experience, and the editor's tools – with screenshots.">
   <meta name="robots" content="noindex">
   <link rel="icon" href="/favicon.ico">
   <style>
@@ -95,18 +95,18 @@
 <main>
   <p class="kicker">OSCT tutorials</p>
   <h1><span class="gold">The content and the editor</span></h1>
-  <p>Four chapters. The first explains where the book's content lives and how it moves. The second brings an existing book into the editor and shows how to see what is on the CDN. The third walks through the demo book and shows what the editor can do. The fourth is a tour of the editor's tools, on a desktop, a phone and a tablet.</p>
+  <p>Four chapters. The first explains where the experience's content lives and how it moves. The second brings an existing experience into the editor and shows how to see what is on the CDN. The third walks through the demo experience and shows what the editor can do. The fourth is a tour of the editor's tools, on a desktop, a phone and a tablet.</p>
 
   <nav class="toc" aria-label="Contents">
     <ol>
       <li><a href="#content-workflow">Content workflow</a>
         <ol>
-          <li><a href="#bringing-a-book">Bringing a book onto an instance</a></li>
+          <li><a href="#bringing-an-experience">Bringing an experience onto an instance</a></li>
           <li><a href="#things-to-know">Things to know</a></li>
           <li><a href="#where-things-are">Where things are</a></li>
         </ol>
       </li>
-      <li><a href="#bringing-in">Bringing a book in</a>
+      <li><a href="#bringing-in">Bringing an experience in</a>
         <ol>
           <li><a href="#import-empty">An empty instance</a></li>
           <li><a href="#import-sources">Three ways in: the CDN, a URL, a file</a></li>
@@ -115,7 +115,7 @@
           <li><a href="#missing-media">When the media is missing</a></li>
         </ol>
       </li>
-      <li><a href="#demo">The demo book</a>
+      <li><a href="#demo">The demo experience</a>
         <ol>
           <li><a href="#demo-getting-it-in">Getting it in</a></li>
           <li><a href="#demo-scenes">A walk through the scenes</a></li>
@@ -137,7 +137,7 @@
           <li><a href="#tools-library">The Library as the picker</a></li>
           <li><a href="#tools-new-target">A new target</a></li>
           <li><a href="#tools-scenes">Adding and removing scenes</a></li>
-          <li><a href="#tools-post">Post-processing: the book's and a scene's own</a></li>
+          <li><a href="#tools-post">Post-processing: the experience's and a scene's own</a></li>
           <li><a href="#tools-stage-vars">Tap, variables and the timeline</a></li>
           <li><a href="#tools-code">Code everywhere: a node type, a material, a texture</a></li>
           <li><a href="#tools-zero-plane">The page is the zero plane</a></li>
@@ -151,14 +151,14 @@
           <li><a href="#texts-entry">An entry's form</a></li>
           <li><a href="#texts-markdown">Markdown and variables</a></li>
           <li><a href="#texts-entries">Finding and adding entries</a></li>
-          <li><a href="#texts-book">The book</a></li>
+          <li><a href="#texts-experience">The experience</a></li>
         </ol>
       </li>
     </ol>
   </nav>
 
   <h2 class="chapter" id="content-workflow"><span class="gold">1 · Content workflow</span></h2>
-  <p>The book's content lives in three places. Knowing which one you are looking at explains every button in the editor: <b>sync</b>, <b>import</b>, <b>save</b> and <b>publish</b> each move content from one place to the next.</p>
+  <p>The experience's content lives in three places. Knowing which one you are looking at explains every button in the editor: <b>sync</b>, <b>import</b>, <b>save</b> and <b>publish</b> each move content from one place to the next.</p>
 
   <figure>
     <svg viewBox="0 0 760 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="diagram-title">
@@ -189,7 +189,7 @@
         <!-- 3 the editor's database -->
         <rect x="550" y="110" width="190" height="90" rx="8" fill="#141414" stroke="#2a2a2a"></rect>
         <text x="645" y="140" text-anchor="middle" font-size="14" font-weight="500">Editor database</text>
-        <text x="645" y="160" text-anchor="middle" fill="#8b8d8c" font-size="12">the book as a draft</text>
+        <text x="645" y="160" text-anchor="middle" fill="#8b8d8c" font-size="12">the experience as a draft</text>
         <text x="645" y="178" text-anchor="middle" fill="#8b8d8c" font-size="12">placements · nodes · uploads</text>
         <text x="645" y="96" text-anchor="middle" fill="#8b8d8c" font-size="11" letter-spacing="1.2">3 · THE DRAFT</text>
 
@@ -228,18 +228,18 @@
   </figure>
 
   <div class="places">
-    <div class="place"><b>1 · Content folder</b><span>The source: <code>book.yaml</code>, scenes, entries with their images and videos, and the <code>layout/</code> rendered from the designed PDFs. It is not in the app's repository and the editor never writes into it.</span></div>
+    <div class="place"><b>1 · Content folder</b><span>The source: <code>experience.yaml</code>, scenes, entries with their images and videos, and the <code>layout/</code> rendered from the designed PDFs. It is not in the app's repository and the editor never writes into it.</span></div>
     <div class="place"><b>2 · CDN</b><span>Versions of the built content on bunny.net, one folder per build. <code>latest.json</code> names the one the reader loads. A version comes from a sync or from a publish.</span></div>
-    <div class="place"><b>3 · Editor database</b><span>The draft of a book on this instance: imported from a version, then edited – placements, AR nodes, uploads. Save writes here. Publish turns the draft into a new version.</span></div>
+    <div class="place"><b>3 · Editor database</b><span>The draft of an experience on this instance: imported from a version, then edited – placements, AR nodes, uploads. Save writes here. Publish turns the draft into a new version.</span></div>
   </div>
 
-  <h3 class="sec" id="bringing-a-book">Bringing a book onto an instance</h3>
+  <h3 class="sec" id="bringing-an-experience">Bringing an experience onto an instance</h3>
   <p>Staging and production each have their own CDN folder and their own editor database. The first four steps happen once on the machine that holds the content folder; from step five on, everything happens in the browser.</p>
 
   <ol class="steps">
     <li>
       <h3>Render the layout from the PDFs <span class="who">once · content machine</span></h3>
-      <p>The editor's stage shows the book as designed when the folder carries <code>layout/</code>: every sheet as an image and every printed target's place in millimetres. Run it again only when the PDFs change.</p>
+      <p>The editor's stage shows the experience as designed when the folder carries <code>layout/</code>: every sheet as an image and every printed target's place in millimetres. Run it again only when the PDFs change.</p>
       <pre><code>cd scripts
 npm run layout -- --triggers "C:/path/All_Triggers.pdf" --preview "C:/path/OSCT_preview.pdf" --content ../content</code></pre>
     </li>
@@ -261,8 +261,8 @@ npm run osct -- content sync --env staging</code></pre>
       <p>The app loads the new version on its next start. Nothing else changes yet: the editor still has no book.</p>
     </li>
     <li>
-      <h3>Import the book <span class="who">editor</span></h3>
-      <p>Open the editor, sign in, <b>Import a book…</b>, source <b>the CDN</b>: the form shows the book and the build it found, and the button names them – <b>Import 1 book: …</b>. The current version becomes the draft: its scenes, entries and targets as rows in the database, every file still served from the CDN. With a layout on the CDN the scene cards show their sheets. The other ways in – a URL or a file – are in <a href="#bringing-in">Bringing a book in</a>.</p>
+      <h3>Import the experience <span class="who">editor</span></h3>
+      <p>Open the editor, sign in, <b>Import an experience</b>, source <b>the CDN</b>: the form shows the experience and the build it found, and the button names them – <b>Import 1 experience: …</b>. The current version becomes the draft: its scenes, entries and targets as rows in the database, every file still served from the CDN. With a layout on the CDN the scene cards show their sheets. The other ways in – a URL or a file – are in <a href="#bringing-in">Bringing an experience in</a>.</p>
     </li>
     <li>
       <h3>Edit and save <span class="who">editor</span></h3>
@@ -270,16 +270,16 @@ npm run osct -- content sync --env staging</code></pre>
     </li>
     <li>
       <h3>Publish <span class="who">editor</span></h3>
-      <p><b>Publish</b> makes a new content version from the draft and switches <code>latest.json</code> – in the instance's own environment, and only there: the staging editor publishes to staging, the production editor to production. Next to the button the editor names it with its backend, <code>staging · CDN</code> or <code>… · this server</code> (no CDN connected – then the server stores and serves the content itself; back it up). A step in the page names the book and the build before anything is written. The reader picks it up on its next start. Every publish is kept as a version; the versions list shows who published what, and an older version can be made current again.</p>
+      <p><b>Publish</b> makes a new content version from the draft and switches <code>latest.json</code> – in the instance's own environment, and only there: the staging editor publishes to staging, the production editor to production. Next to the button the editor names it with its backend, <code>staging · CDN</code> or <code>… · this server</code> (no CDN connected – then the server stores and serves the content itself; back it up). A step in the page names the experience and the build before anything is written. The reader picks it up on its next start. Every publish is kept as a version; the versions list shows who published what, and an older version can be made current again.</p>
     </li>
   </ol>
 
   <h3 class="sec" id="things-to-know">Things to know</h3>
   <div class="note">
-    <p><b>Import replaces the draft.</b> Importing again swaps the book's rows for the version imported – edits that were not published are gone (the change log stays). So the editor compares first: the build coming in against the build the draft is based on (date, app and schema version), and the edits made since. Only <b>Replace the draft</b> imports. Publish first, or cancel.</p>
+    <p><b>Import replaces the draft.</b> Importing again swaps the experience's rows for the version imported – edits that were not published are gone (the change log stays). So the editor compares first: the build coming in against the build the draft is based on (date, app and schema version), and the edits made since. Only <b>Replace the draft</b> imports. Publish first, or cancel.</p>
   </div>
   <div class="note">
-    <p><b>Sync and publish both make versions.</b> A sync from the folder after editor work puts a version <em>without</em> the editor's changes on the CDN. Once the editor is where the book is edited, sync from the folder only when the YAML changed, and import again afterwards – placements saved in the draft survive that import only if they were carried back into the YAML first.</p>
+    <p><b>Sync and publish both make versions.</b> A sync from the folder after editor work puts a version <em>without</em> the editor's changes on the CDN. Once the editor is where the experience is edited, sync from the folder only when the YAML changed, and import again afterwards – placements saved in the draft survive that import only if they were carried back into the YAML first.</p>
   </div>
   <div class="note">
     <p><b>Nothing is deleted by itself.</b> Old versions stay on the storage until <code>osct content purge</code> removes the ones provably out of use. A publish never touches the folder.</p>
@@ -294,37 +294,37 @@ npm run osct -- content sync --env staging</code></pre>
   </table>
   <p class="muted">The reference for every detail: the repository's <code>docs/content.md</code> (writing content, the layout import), <code>docs/content-cdn.md</code> (versions, the osct CLI), <code>docs/editor.md</code> (the editor).</p>
 
-  <h2 class="chapter" id="bringing-in"><span class="gold">2 · Bringing a book in</span></h2>
-  <p>A book gets into an instance's editor by an <b>import</b>. The import reads a <b>game configuration</b> – <code>game.config.json</code>, what the content build makes from the content folder – and turns it into the book's draft: scenes, entries, targets and AR nodes as rows in the database. One file is enough. The images, videos and models are not in it: they stay where they are, and the draft points at them.</p>
+  <h2 class="chapter" id="bringing-in"><span class="gold">2 · Bringing an experience in</span></h2>
+  <p>An experience gets into an instance's editor by an <b>import</b>. The import reads a <b>game configuration</b> – <code>game.config.json</code>, what the content build makes from the content folder – and turns it into the experience's draft: scenes, entries, targets and AR nodes as rows in the database. One file is enough. The images, videos and models are not in it: they stay where they are, and the draft points at them.</p>
 
   <h3 class="sec" id="import-empty">An empty instance</h3>
-  <p>A new instance has no book. The Books page says so, names the three ways in and links to this chapter. The form <b>Import a book</b> sits beside the list (under it on a phone). Under the books, <b>Connect an AI agent</b> gives you one prompt to paste into Claude, Codex, OpenCode, Cursor or any other MCP client – a fresh token in it – and the agent sets itself up; <b>Existing connections</b> lists the tokens to renew or revoke. The agent then saves drafts as you, and publishing stays your button.</p>
+  <p>A new instance has no book. The Experiences page says so, names the three ways in and links to this chapter. The form <b>Import an experience</b> sits beside the list (under it on a phone). Under the experiences, <b>Connect an AI agent</b> gives you one prompt to paste into Claude, Codex, OpenCode, Cursor or any other MCP client – a fresh token in it – and the agent sets itself up; <b>Existing connections</b> lists the tokens to renew or revoke. The agent then saves drafts as you, and publishing stays your button.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/import/01-empty.webp" width="1280" height="800" loading="lazy" alt="The editor's Books page with no book: the text No book yet, import one with Import a book – the CDN, a URL or a file, and the link How to bring a book in; on the right the Import a book form with the source the CDN selected and the Import button; the Info view names the CDN source.">
-    <figcaption>No book yet. On an instance the form starts on <b>the CDN</b>, and its fields are empty.</figcaption>
+    <img src="/docs/tutorials/import/01-empty.webp" width="1280" height="800" loading="lazy" alt="The editor's Experiences page with no experience: the text No experience yet, import one with Import an experience – the CDN, a URL or a file, and the link How to bring an experience in; on the right the Import an experience form with the source the CDN selected and the Import button; the Info view names the CDN source.">
+    <figcaption>No experience yet. On an instance the form starts on <b>the CDN</b>, and its fields are empty.</figcaption>
   </figure>
   <p>Since 1.26.7 the form fills in addresses only on a developer's machine: on <code>localhost</code> it suggests the reader's dev server (<code>http://localhost:5174/src/game.config.json</code>, assets at <code>http://localhost:5174</code>). On staging or production nothing is filled in, and <b>the CDN</b> is selected – the instance's own published content is the usual way in.</p>
 
   <h3 class="sec" id="import-sources">Three ways in: the CDN, a URL, a file</h3>
   <dl class="sources">
     <dt>The CDN – the instance's published content</dt>
-    <dd>The server reads its own content address (<code>OSCT_CONTENT_BASE_URL</code>; on staging <code>https://buildingfictions.b-cdn.net/staging</code>): <code>latest.json</code> names the current version, and the server fetches that version's <code>game.config.json</code> and <code>files.json</code>. Before anything is imported the form shows what it found: the content base, the current build (its id, when it was built and became current, the app and schema version) and the <b>one book</b> in it – title, id, scenes, entries, targets. The button names it: <b>Import 1 book: The Demo Book (build 7457f0c…)</b>. The id is the configuration's <code>book.id</code> and names the book in this database, so an id that is already there replaces that book's draft – the form says so before you import. The assets base is set to the version's folder, and the version's files show in the Library.</dd>
+    <dd>The server reads its own content address (<code>OSCT_CONTENT_BASE_URL</code>; on staging <code>https://buildingfictions.b-cdn.net/staging</code>): <code>latest.json</code> names the current version, and the server fetches that version's <code>game.config.json</code> and <code>files.json</code>. Before anything is imported the form shows what it found: the content base, the current build (its id, when it was built and became current, the app and schema version) and the <b>one experience</b> in it – title, id, scenes, entries, targets. The button names it: <b>Import 1 experience: The Demo (build 7457f0c…)</b>. The id is the configuration's <code>experience.id</code> and names the experience in this database, so an id that is already there replaces that experience's draft – the form says so before you import. The assets base is set to the version's folder, and the version's files show in the Library.</dd>
     <dt>URL – a game configuration, or a content folder</dt>
     <dd>Either the address of a <code>game.config.json</code> – then fill in <b>assets at</b> yourself – or a <b>content base</b>: a folder with a <code>latest.json</code>, such as <code>https://buildingfictions.b-cdn.net/demo</code>. For a content base the form reads <code>latest.json</code>, takes <code>&lt;build&gt;/game.config.json</code> and fills in <b>assets at</b> with the version's folder. The browser fetches the file, so the address must allow it (the CDN does). Once you stop typing, the form shows the same preview as for the CDN.</dd>
     <dt>File – a game configuration from this computer</dt>
     <dd>A <code>game.config.json</code> on disk – a local build (<code>client/src/game.config.json</code> after <code>npm run content</code>) or one saved from the CDN. The file has no address of its own, so <b>assets at</b> must name where its media are.</dd>
   </dl>
-  <p>Every way in takes the book id from the configuration's <code>book.id</code>, and every way in replaces the draft of a book with the same id – see <a href="#things-to-know">Things to know</a>. When such a draft is here, the preview says it first: <em>A draft of “The Demo Book” (demo) is already here – importing replaces it.</em>, how many of its edits since its import are lost, and where it is live. The button then opens the version comparison, and only <b>Replace the draft</b> there imports. When the source can't be read – the CDN offline, no <code>latest.json</code>, or one that names no build – the form shows the error with the address and <b>Try again</b>.</p>
+  <p>Every way in takes the experience id from the configuration's <code>experience.id</code>, and every way in replaces the draft of an experience with the same id – see <a href="#things-to-know">Things to know</a>. When such a draft is here, the preview says it first: <em>A draft of “The Demo” (demo) is already here – importing replaces it.</em>, how many of its edits since its import are lost, and where it is live. The button then opens the version comparison, and only <b>Replace the draft</b> there imports. When the source can't be read – the CDN offline, no <code>latest.json</code>, or one that names no build – the form shows the error with the address and <b>Try again</b>.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/import/03-cdn.webp" width="1280" height="800" loading="lazy" alt="The Import a book form with the source the CDN: a table of what comes in – from https://buildingfictions.b-cdn.net/demo, build 7457f0c10df1, when it was built and became current, app version 1.41.0, schema 2.17, the book The Demo Book · demo, 6 scenes and 13 entries, assets at the version's folder – and the button Import 1 book: The Demo Book (build 7457f0c…); the Info view explains what comes in.">
-    <figcaption><b>The CDN</b>: no fields. The form reads the content base and shows the one book and the build before anything is imported; the button names them.</figcaption>
+    <img src="/docs/tutorials/import/03-cdn.webp" width="1280" height="800" loading="lazy" alt="The Import an experience form with the source the CDN: a table of what comes in – from https://buildingfictions.b-cdn.net/demo, build 7457f0c10df1, when it was built and became current, app version 1.41.0, schema 2.17, the experience The Demo · demo, 6 scenes and 13 entries, assets at the version's folder – and the button Import 1 experience: The Demo (build 7457f0c…); the Info view explains what comes in.">
+    <figcaption><b>The CDN</b>: no fields. The form reads the content base and shows the one experience and the build before anything is imported; the button names them.</figcaption>
   </figure>
   <figure class="shot">
-    <img src="/docs/tutorials/import/02-url.webp" width="1280" height="800" loading="lazy" alt="The Import a book form with the source URL: the URL https://buildingfictions.b-cdn.net/staging/b6b0ebaabcfd/game.config.json and assets at https://buildingfictions.b-cdn.net/staging/b6b0ebaabcfd; the Info view explains assets at.">
+    <img src="/docs/tutorials/import/02-url.webp" width="1280" height="800" loading="lazy" alt="The Import an experience form with the source URL: the URL https://buildingfictions.b-cdn.net/staging/b6b0ebaabcfd/game.config.json and assets at https://buildingfictions.b-cdn.net/staging/b6b0ebaabcfd; the Info view explains assets at.">
     <figcaption><b>URL</b> with one version's <code>game.config.json</code> on staging, and <b>assets at</b> that version's folder.</figcaption>
   </figure>
   <figure class="shot">
-    <img src="/docs/tutorials/import/04-file.webp" width="1280" height="800" loading="lazy" alt="The Import a book form with the source file: a file chooser with no file chosen, and assets at https://buildingfictions.b-cdn.net/staging/b6b0ebaabcfd.">
+    <img src="/docs/tutorials/import/04-file.webp" width="1280" height="800" loading="lazy" alt="The Import an experience form with the source file: a file chooser with no file chosen, and assets at https://buildingfictions.b-cdn.net/staging/b6b0ebaabcfd.">
     <figcaption><b>File</b>: choose the <code>game.config.json</code>, and say where its media are.</figcaption>
   </figure>
 
@@ -335,7 +335,7 @@ npm run osct -- content sync --env staging</code></pre>
     <tr><td>a version on the CDN<br><code>https://buildingfictions.b-cdn.net/demo/7a5254b5a4f6</code></td><td><code>https://buildingfictions.b-cdn.net/demo/7a5254b5a4f6/assets/content/entries/key/key.glb</code></td></tr>
     <tr><td>the reader's dev server<br><code>http://localhost:5174</code></td><td><code>http://localhost:5174/assets/content/entries/key/key.glb</code></td></tr>
   </table>
-  <p>Nothing is copied. The draft and every publish point at that address, so the media must stay reachable there. A version folder on the CDN never changes and is kept while it is current or recent (<code>osct content purge</code> removes only versions provably out of use), which makes it a safe assets base. The book page names it in its first line: <em>6 scenes · assets at …</em>. Files uploaded in the editor are different: they live in the Library and are named by their own full address.</p>
+  <p>Nothing is copied. The draft and every publish point at that address, so the media must stay reachable there. A version folder on the CDN never changes and is kept while it is current or recent (<code>osct content purge</code> removes only versions provably out of use), which makes it a safe assets base. The experience page names it in its first line: <em>6 scenes · assets at …</em>. Files uploaded in the editor are different: they live in the Library and are named by their own full address.</p>
 
   <h3 class="sec" id="cdn-contents">What is on the CDN</h3>
   <p>Each environment has its own folder on the CDN – <code>staging</code>, <code>production</code>, <code>demo</code> – and every content version is a folder of its own inside it. Everything under <code>https://buildingfictions.b-cdn.net/</code> can be opened in a browser:</p>
@@ -352,9 +352,9 @@ npm run osct -- content sync --env staging</code></pre>
   "schema": "2.15",
   "version": "1.35.0",
   "activatedAt": "2026-10-30T01:32:57.404Z",
-  "book": "demo"
+  "experience": "demo"
 }</code></pre>
-  <p><code>build</code> is the version's folder (the first twelve digits of the content checksum <code>hash</code>), <code>schema</code> the content schema it was built for, <code>version</code> the app version that built it (information only), <code>book</code> the book the environment serves. <b><code>versions.json</code></b> lists every version with <code>uploadedAt</code>, <code>activatedAt</code> and <code>retiredAt</code> – the current one has <code>retiredAt: null</code>. <b><code>&lt;build&gt;/game.config.json</code></b> shows what is in a version: the book's title, its scenes and entries.</p>
+  <p><code>build</code> is the version's folder (the first twelve digits of the content checksum <code>hash</code>), <code>schema</code> the content schema it was built for, <code>version</code> the app version that built it (information only), <code>experience</code> the experience the environment serves. <b><code>versions.json</code></b> lists every version with <code>uploadedAt</code>, <code>activatedAt</code> and <code>retiredAt</code> – the current one has <code>retiredAt: null</code>. <b><code>&lt;build&gt;/game.config.json</code></b> shows what is in a version: the experience's title, its scenes and entries.</p>
   <p>To check an environment: open <code>latest.json</code>, find its <code>build</code> as the last entry of <code>versions.json</code>, and open <code>&lt;build&gt;/game.config.json</code>. With the storage key, the osct CLI shows the same in one line per version, and what the CDN serves:</p>
   <pre><code>cd scripts
 npm run osct -- content status --env staging</code></pre>
@@ -365,14 +365,14 @@ npm run osct -- content status --env staging</code></pre>
   <h3 class="sec" id="missing-media">When the media is missing</h3>
   <p>The draft imported, but the stage shows the pages without their entities, the scene cards are text instead of sheets, and the Library's previews stay grey. The configuration arrived; its files did not. The assets base is wrong, or the version it names is gone.</p>
   <ol>
-    <li>Open the book page and read <em>assets at</em> in its first line.</li>
-    <li>Put a path from the configuration behind it and open it in the browser, for example <code>&lt;assets base&gt;/assets/content/book.yaml</code> or an entry's image. A 404 means the files are not there.</li>
+    <li>Open the experience page and read <em>assets at</em> in its first line.</li>
+    <li>Put a path from the configuration behind it and open it in the browser, for example <code>&lt;assets base&gt;/assets/content/experience.yaml</code> or an entry's image. A 404 means the files are not there.</li>
     <li>Find the right folder – usually the version's folder on the CDN, <code>…/&lt;env&gt;/&lt;build&gt;</code> – and import again with that <b>assets at</b>, or by the content base URL, which fills it in itself.</li>
   </ol>
   <p>Importing again replaces the draft. When it already holds work that was not published, publish first (see <a href="#things-to-know">Things to know</a>).</p>
 
-  <h2 class="chapter" id="demo"><span class="gold">3 · The demo book</span></h2>
-  <p>The demo book is a sandbox, not the book. It uses every node type, every placement, a filter and every component the content model has. Seven plugins use every part of the plugin API, a node type of their own among them. And its scenes tell a small story: a key found on one page opens a door on another, a lamp lights when the door opened, a tally counts the pages found, a tap switches a scene.</p>
+  <h2 class="chapter" id="demo"><span class="gold">3 · The demo experience</span></h2>
+  <p>The demo experience is a sandbox, not the book. It uses every node type, every placement, a filter and every component the content model has. Seven plugins use every part of the plugin API, a node type of their own among them. And its scenes tell a small story: a key found on one page opens a door on another, a lamp lights when the door opened, a tally counts the pages found, a tap switches a scene.</p>
   <p>Most files are the test fixture's small stand-ins – the "door" is a stack of boxes. The demo shows mechanics, not art. The key is a small brass key of its own with one animation clip.</p>
 
   <h3 class="sec" id="demo-getting-it-in">Getting it in</h3>
@@ -380,31 +380,31 @@ npm run osct -- content status --env staging</code></pre>
   <ol class="steps">
     <li>
       <h3>Import it into the editor <span class="who">editor</span></h3>
-      <p><b>Import a book…</b>, source <b>URL</b>, and the base URL <code>https://buildingfictions.b-cdn.net/demo</code>. That is enough: the form reads <code>latest.json</code> and fills in <em>assets at</em> itself. <b>Import</b>, and <em>The Demo Book</em> appears next to the other books.</p>
+      <p><b>Import an experience</b>, source <b>URL</b>, and the base URL <code>https://buildingfictions.b-cdn.net/demo</code>. That is enough: the form reads <code>latest.json</code> and fills in <em>assets at</em> itself. <b>Import</b>, and <em>The Demo</em> appears next to the other books.</p>
     </li>
     <li>
       <h3>Read it on a phone <span class="who">phone</span></h3>
-      <p>The staging reader takes a content address: <code>https://osct.porschuetz.de/?content=https://buildingfictions.b-cdn.net/demo</code>. It keeps it for the tab. The progress is kept apart from the book's. Production ignores the parameter.</p>
+      <p>The staging reader takes a content address: <code>https://osct.porschuetz.de/?content=https://buildingfictions.b-cdn.net/demo</code>. It keeps it for the tab. The progress is kept apart from the experience's. Production ignores the parameter.</p>
     </li>
     <li>
       <h3>Publish the demo only on purpose <span class="who">editor</span></h3>
-      <p>One environment holds one book. A publish of the demo in the staging editor would replace the real book on staging, so the publish step names both books first. Read the demo on a phone with its content address instead (above), or publish it on a local editor, whose environment is <code>local</code>.</p>
+      <p>One environment holds one book. A publish of the demo in the staging editor would replace the real book on staging, so the publish step names both experiences first. Read the demo on a phone with its content address instead (above), or publish it on a local editor, whose environment is <code>local</code>.</p>
     </li>
   </ol>
 
   <figure class="shot">
-    <img src="/docs/tutorials/demo/01-books.webp" width="1280" height="800" loading="lazy" alt="The editor's Books page: the demo book's cover on the left, marked draft; on the right the Import a book form with the source URL, the URL https://buildingfictions.b-cdn.net/demo and an empty assets at field; the Info view explains the URL field.">
-    <figcaption>The Books page with the demo's content base typed in. <b>assets at</b> stays empty: the form fills it in from <code>latest.json</code>. The demo's cover is a real sheet from its layout.</figcaption>
+    <img src="/docs/tutorials/demo/01-experiences.webp" width="1280" height="800" loading="lazy" alt="The editor's Experiences page: the demo experience's cover on the left, marked draft; on the right the Import an experience form with the source URL, the URL https://buildingfictions.b-cdn.net/demo and an empty assets at field; the Info view explains the URL field.">
+    <figcaption>The Experiences page with the demo's content base typed in. <b>assets at</b> stays empty: the form fills it in from <code>latest.json</code>. The demo's cover is a real sheet from its layout.</figcaption>
   </figure>
 
   <figure class="shot">
-    <img src="/docs/tutorials/demo/02-scenes.webp" width="1280" height="800" loading="lazy" alt="The demo book's page in the editor: six cards – cover, 1–2 The key, 3–4 The door, 5–6 The switch, 7–8 The twins and the back cover – each showing its rendered sheet and counts of entries, targets and entities.">
-    <figcaption>The book page: six scenes with their rendered sheets. The numbers under each card count entries, targets and entities. The first line names the assets base and has <b>+ double page</b>; the second names the environment.</figcaption>
+    <img src="/docs/tutorials/demo/02-scenes.webp" width="1280" height="800" loading="lazy" alt="The demo experience's page in the editor: six cards – cover, 1–2 The key, 3–4 The door, 5–6 The switch, 7–8 The twins and the back cover – each showing its rendered sheet and counts of entries, targets and entities.">
+    <figcaption>The experience page: six scenes with their rendered sheets. The numbers under each card count entries, targets and entities. The first line names the assets base and has <b>+ double page</b>; the second names the environment.</figcaption>
   </figure>
 
   <h3 class="sec" id="demo-scenes">A walk through the scenes</h3>
   <p>Open a scene and the editor shows three things side by side: the <b>tree</b> on the left (pages, targets, nodes), the <b>stage</b> in the middle (the book on a desk, as the phone will see it) and the <b>panel</b> on the right (Inspector, Environment, Library, Code). The <b>Inspector</b> shows whatever is selected – the scene itself while nothing else is; the stage's toolbar holds how the stage looks.</p>
-  <p>The <b>Library</b> holds the files uploaded for a book – models, videos, images, audio – to use on any page. The demo's Library starts empty: its files come with the content. Upload one there, or with <em>Upload…</em> next to a node's file, and it is ready for every scene. Code files go there too: a shader (<code>.glsl</code>, <code>.frag</code>, <code>.vert</code>, <code>.wgsl</code>) that a plugin loads by its address, and a script (<code>.ts</code>, <code>.js</code>) that becomes one of the book's plugins. The filter <b>code</b> lists them with a read-only preview; <b>Open in Code</b> takes a script to the Code tab.</p>
+  <p>The <b>Library</b> holds the files uploaded for an experience – models, videos, images, audio – to use on any page. The demo's Library starts empty: its files come with the content. Upload one there, or with <em>Upload…</em> next to a node's file, and it is ready for every scene. Code files go there too: a shader (<code>.glsl</code>, <code>.frag</code>, <code>.vert</code>, <code>.wgsl</code>) that a plugin loads by its address, and a script (<code>.ts</code>, <code>.js</code>) that becomes one of the experience's plugins. The filter <b>code</b> lists them with a read-only preview; <b>Open in Code</b> takes a script to the Code tab.</p>
 
   <table>
     <tr><th>Scene</th><th>Targets</th><th>What it shows</th></tr>
@@ -413,17 +413,17 @@ npm run osct -- content status --env staging</code></pre>
     <tr><td>3–4 · The door</td><td>door, lamp</td><td><code>behaviour</code> rules and the <code>door</code> plugin open it with the key; <code>lamp</code> stays dark until the door opened</td></tr>
     <tr><td>5–6 · The switch</td><td>stage, screen</td><td><code>scenes</code>: a tap shows the next child; an upright video that spins slowly</td></tr>
     <tr><td>7–8 · The twins</td><td>twin-a, twin-b</td><td>one shared entity, <code>beacon</code>, used by two targets; its <code>sparkle</code> is a node type a plugin registers</td></tr>
-    <tr><td>Back cover</td><td>colophon</td><td><code>{{book.title}}</code> as text and the whole book's <code>tally</code></td></tr>
+    <tr><td>Back cover</td><td>colophon</td><td><code>{{experience.title}}</code> as text and the whole experience's <code>tally</code></td></tr>
   </table>
 
   <h4>Cover</h4>
-  <p>The cover is a scene of the format <em>cover</em>: the stage shows the closed book. The <em>seal</em> is an image. Its two layers come from plugins: <code>tint</code> colours it towards the book's gold, <code>pulse</code> makes it breathe.</p>
+  <p>The cover is a scene of the format <em>cover</em>: the stage shows the closed book. The <em>seal</em> is an image. Its two layers come from plugins: <code>tint</code> colours it towards the experience's gold, <code>pulse</code> makes it breathe.</p>
 
   <h4>1–2 · The key</h4>
-  <p>The <em>key</em> is a model with three components. <code>spin</code> turns it around its own axis. <code>animation</code> says how the model's clip <code>rattle</code> plays: once, and never by itself. The <code>behaviour</code> holds one rule, made without code: <em>on tap</em> it plays <code>rattle</code>, sets the book variable <code>hasKey</code> – kept with the reader's progress – and sends the event <code>keyRattled</code>. To tap it without aiming, select the scene – its row at the top of the tree – and use <b>tap</b> in the Inspector's <b>vars and events</b>.</p>
+  <p>The <em>key</em> is a model with three components. <code>spin</code> turns it around its own axis. <code>animation</code> says how the model's clip <code>rattle</code> plays: once, and never by itself. The <code>behaviour</code> holds one rule, made without code: <em>on tap</em> it plays <code>rattle</code>, sets the experience variable <code>hasKey</code> – kept with the reader's progress – and sends the event <code>keyRattled</code>. To tap it without aiming, select the scene – its row at the top of the tree – and use <b>tap</b> in the Inspector's <b>vars and events</b>.</p>
   <p>The <em>tally</em> is a group with a text. Its <code>tally</code> component draws "n of N pages found" and updates it on every new find, on any scene.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/demo/03-key-entity.webp" width="1280" height="800" loading="lazy" alt="The key scene in the editor, close to the left page: the brass key stands upright on its printed image, selected; the Inspector's breadcrumb reads key › model, then its components – spin with speed 40 °/s and axis y, animation with the model's timeline, the clip rattle and plays on never, and behaviour with rule 1: tap pressed, + condition, do play rattle on this node, then set hasKey true in the book scope, then emit keyRattled, + action and + rule.">
+    <img src="/docs/tutorials/demo/03-key-entity.webp" width="1280" height="800" loading="lazy" alt="The key scene in the editor, close to the left page: the brass key stands upright on its printed image, selected; the Inspector's breadcrumb reads key › model, then its components – spin with speed 40 °/s and axis y, animation with the model's timeline, the clip rattle and plays on never, and behaviour with rule 1: tap pressed, + condition, do play rattle on this node, then set hasKey true in the experience scope, then emit keyRattled, + action and + rule.">
     <figcaption>The key selected. Every component is a block in the Inspector: <code>spin</code> with its speed and axis, <code>animation</code> with the model's timeline and the clip <em>rattle</em>, and <code>behaviour</code> with its rule – <em>tap</em>, then <em>play rattle</em>, <em>set hasKey</em>, <em>emit keyRattled</em>. Pointing at a row shows its help in the Info view.</figcaption>
   </figure>
 
@@ -446,19 +446,19 @@ npm run osct -- content status --env staging</code></pre>
   </figure>
 
   <h4>Back cover</h4>
-  <p>The <em>colophon</em> is a group with the text <code>{{book.title}}</code>, filled in from the book, and a <code>tally</code> of the whole book. It says "complete" when every page was found.</p>
+  <p>The <em>colophon</em> is a group with the text <code>{{experience.title}}</code>, filled in from the experience, and a <code>tally</code> of the whole experience. It says "complete" when every page was found.</p>
 
   <h3 class="sec" id="demo-story">The story across the pages</h3>
   <p>The editor can play the story without a phone. Try it:</p>
   <ol>
     <li>Open <b>1–2 · The key</b>. The Inspector shows the scene; open <b>vars and events</b> and press <b>reset</b>: a new game.</li>
-    <li>Press <b>tap</b> → <b>The key</b>. The key rattles and <code>hasKey</code> appears as a <em>book</em> variable; the timeline shows the rule that ran.</li>
+    <li>Press <b>tap</b> → <b>The key</b>. The key rattles and <code>hasKey</code> appears as an <em>experience</em> variable; the timeline shows the rule that ran.</li>
     <li>Press <kbd>›</kbd> to go to <b>3–4 · The door</b>. The door lifts, <code>doorOpen</code> is set and the lamp lights.</li>
   </ol>
-  <p>The tree's eye switches a target off and on (lost, found again). Variables have scopes: <em>scene</em> lives while the scene is shown, <em>stage</em> while the scene exists, <em>book</em> is kept with the reader's progress. That is why <code>hasKey</code> survives the walk from page 1 to page 3.</p>
+  <p>The tree's eye switches a target off and on (lost, found again). Variables have scopes: <em>scene</em> lives while the scene is shown, <em>stage</em> while the scene exists, <em>experience</em> is kept with the reader's progress. That is why <code>hasKey</code> survives the walk from page 1 to page 3.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/demo/05-door-open.webp" width="1280" height="800" loading="lazy" alt="The door scene after the walk from the key: the door model lifted on the left page, the lamp video showing on the right page; the tree's scene row selected and the Inspector showing the scene, its sections scene and post-processing closed, vars and events open with a tap button for The door and The lamp, the variables tries (stage · number), doorOpen (stage · boolean) and hasKey (book · boolean), both true, the set row and the timeline: at 0.05 s targetFound and targetUnlocked for the lamp and the door, doorOpened by key and varChanged doorOpen, at 0.00 s sceneChanged from the key to the door, the key scene's events below.">
-    <figcaption>After the key: the door is open, the lamp video shows. The scene's <em>vars and events</em> in the Inspector lists <code>doorOpen</code> (stage) and <code>hasKey</code> (book), both <em>true</em>, and the timeline, newest first. Its clock starts at <code>sceneChanged</code>, when the door's scene opened; the key scene's events follow below.</figcaption>
+    <img src="/docs/tutorials/demo/05-door-open.webp" width="1280" height="800" loading="lazy" alt="The door scene after the walk from the key: the door model lifted on the left page, the lamp video showing on the right page; the tree's scene row selected and the Inspector showing the scene, its sections scene and post-processing closed, vars and events open with a tap button for The door and The lamp, the variables tries (stage · number), doorOpen (stage · boolean) and hasKey (experience · boolean), both true, the set row and the timeline: at 0.05 s targetFound and targetUnlocked for the lamp and the door, doorOpened by key and varChanged doorOpen, at 0.00 s sceneChanged from the key to the door, the key scene's events below.">
+    <figcaption>After the key: the door is open, the lamp video shows. The scene's <em>vars and events</em> in the Inspector lists <code>doorOpen</code> (stage) and <code>hasKey</code> (experience), both <em>true</em>, and the timeline, newest first. Its clock starts at <code>sceneChanged</code>, when the door's scene opened; the key scene's events follow below.</figcaption>
   </figure>
 
   <h3 class="sec" id="demo-behaviour">Rules without code: behaviour</h3>
@@ -470,12 +470,12 @@ npm run osct -- content status --env staging</code></pre>
   </ul>
   <p>Every change runs on the stage at once – select the scene, press <b>tap</b> in its <b>vars and events</b> and watch. The timeline marks each rule that ran with a <em>behaviour</em> line: which rule, on which event, and what it did. A rule that is not finished yet – an empty name, no event – is listed in red and <b>Save</b> waits. A rule decides; what it cannot do, like moving the door over time, is plugin code that hears the rule's event.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/demo/12-behaviour.webp" width="1280" height="800" loading="lazy" alt="The key scene after a tap, the key turned in its rattle: the Stage panel's vars and events with the tap buttons The key, The aquarium and The tally, hasKey true as a book boolean, and the timeline newest first – at 3.04 s targetTapped key, keyRattled, varChanged hasKey book true, and behaviour with target key, rule 1, on tap, do play rattle · set hasKey = true (book) · emit keyRattled; below them the finds at 0.91 s.">
+    <img src="/docs/tutorials/demo/12-behaviour.webp" width="1280" height="800" loading="lazy" alt="The key scene after a tap, the key turned in its rattle: the Stage panel's vars and events with the tap buttons The key, The aquarium and The tally, hasKey true as an experience boolean, and the timeline newest first – at 3.04 s targetTapped key, keyRattled, varChanged hasKey experience true, and behaviour with target key, rule 1, on tap, do play rattle · set hasKey = true (experience) · emit keyRattled; below them the finds at 0.91 s.">
     <figcaption>The key tapped from the scene's vars and events. Read the timeline from the bottom up: the <em>behaviour</em> line of the key's rule, then what it did – <code>varChanged</code> for <code>hasKey</code> and the event <code>keyRattled</code> – and on top <code>targetTapped</code>, which the stage reports once the tap's work is done.</figcaption>
   </figure>
 
   <h3 class="sec" id="demo-component">How a component works</h3>
-  <p>A component is a few lines of TypeScript in a plugin. The <b>Code</b> tab shows the book's plugins in a real code editor, with completion and type errors. Pick <em>narrative</em>: it holds <code>door</code> and <code>lamp</code>.</p>
+  <p>A component is a few lines of TypeScript in a plugin. The <b>Code</b> tab shows the experience's plugins in a real code editor, with completion and type errors. Pick <em>narrative</em>: it holds <code>door</code> and <code>lamp</code>.</p>
   <pre><code>api.registerComponent("door", {
   description: "Opens the door (the first child) when it hears openDoor for its target: …",
   nodeTypes: ["group"],
@@ -490,7 +490,7 @@ npm run osct -- content status --env staging</code></pre>
     <figcaption>The Code tab with the <em>narrative</em> plugin. Line 14 starts the <code>door</code> component. <b>Run</b> and <b>Save</b> are at the bottom right.</figcaption>
   </figure>
   <div class="note">
-    <p><b>Run</b> tries the code on the stage at once: the plugin is replaced in place and the scene is built again. <b>Save</b> keeps the source with the book. <b>Neither reaches readers.</b> A plugin gets to the phone through the content build.</p>
+    <p><b>Run</b> tries the code on the stage at once: the plugin is replaced in place and the scene is built again. <b>Save</b> keeps the source with the experience. <b>Neither reaches readers.</b> A plugin gets to the phone through the content build.</p>
   </div>
 
   <h3 class="sec" id="demo-pitfalls">Pitfalls</h3>
@@ -502,12 +502,12 @@ npm run osct -- content status --env staging</code></pre>
   </figure>
 
   <h3 class="sec" id="demo-post">Post-processing</h3>
-  <p>The scene's <b>post-processing</b> in the Inspector adds passes over the picture: <b>+ bloom</b>, <b>+ vignette</b>, <b>+ grade</b>. Each pass is a section of its own: closed, its head shows its values in one line (<em>bloom · strength 0.35</em>); open, it has its rows, and changes show live. The <b>on</b> / <b>off</b> switch in its head turns a pass off without removing it – its values stay for later, and the stage and the reader skip it. The stage shows the passes only in the <em>rendered</em> shading. The grade has a <b>reach</b> row: <em>AR layer</em> grades only the AR content, <em>whole picture</em> grades the desk too, as the reader grades the camera picture. The passes belong to the book, and a scene can have its own – see <a href="#tools-post">Post-processing: the book's and a scene's own</a>.</p>
+  <p>The scene's <b>post-processing</b> in the Inspector adds passes over the picture: <b>+ bloom</b>, <b>+ vignette</b>, <b>+ grade</b>. Each pass is a section of its own: closed, its head shows its values in one line (<em>bloom · strength 0.35</em>); open, it has its rows, and changes show live. The <b>on</b> / <b>off</b> switch in its head turns a pass off without removing it – its values stay for later, and the stage and the reader skip it. The stage shows the passes only in the <em>rendered</em> shading. The grade has a <b>reach</b> row: <em>AR layer</em> grades only the AR content, <em>whole picture</em> grades the desk too, as the reader grades the camera picture. The passes belong to the experience, and a scene can have its own – see <a href="#tools-post">Post-processing: the experience's and a scene's own</a>.</p>
 
   <h3 class="sec" id="demo-environment">Environment and sky</h3>
-  <p>The <b>Environment</b> tab sets the world around the book: <b>world</b> (the built-in café or a glTF model), <b>sky</b> (the world's own or an image) and <b>onion sky</b> on or off. The onion sky needs a camera picture, so only the reader shows it. <b>look up</b> lifts the camera from the book towards the horizon, to see the world as a reader will. The twins' figure above shows it.</p>
-  <p>Once the book has an environment, its world is the stage's sky in every tab while the stage is <em>rendered</em>, and the stage is lit as the reader lights it – you see the world the reader will see. Around the book, where the reader sees the camera picture, the stage shows the studio picture. A book without one shows a studio picture (an HDRI) as sky and light.</p>
-  <p>How the stage looks is the toolbar's <b>view</b> group – the gear at its end, after <em>grid &amp; snap</em> – stored on your device only: the hand <b>shake</b>, the <b>origin</b> every x / y counts from, the <b>top</b> of the desk under the book and the studio <b>sky</b> (the HDRI). Its tooltip names them all. The desk is always Egon Eiermann's steel frame; <b>top</b> switches between its screen-printed <em>plywood</em> and blue-grey <em>linoleum</em> on oak plywood. Only the top changes – the book, the targets and the camera stay where they are. With an environment the sky row names it – <em>the environment's (world café)</em> – and the HDRI waits below for a book without one.</p>
+  <p>The <b>Environment</b> tab sets the world around the book: <b>world</b> (the built-in café or a glTF model), <b>sky</b> (the world's own or an image) and <b>onion sky</b> on or off. The onion sky needs a camera picture, so only the reader shows it. <b>look up</b> lifts the camera from the experience towards the horizon, to see the world as a reader will. The twins' figure above shows it.</p>
+  <p>Once the experience has an environment, its world is the stage's sky in every tab while the stage is <em>rendered</em>, and the stage is lit as the reader lights it – you see the world the reader will see. Around the experience, where the reader sees the camera picture, the stage shows the studio picture. An experience without one shows a studio picture (an HDRI) as sky and light.</p>
+  <p>How the stage looks is the toolbar's <b>view</b> group – the gear at its end, after <em>grid &amp; snap</em> – stored on your device only: the hand <b>shake</b>, the <b>origin</b> every x / y counts from, the <b>top</b> of the desk under the experience and the studio <b>sky</b> (the HDRI). Its tooltip names them all. The desk is always Egon Eiermann's steel frame; <b>top</b> switches between its screen-printed <em>plywood</em> and blue-grey <em>linoleum</em> on oak plywood. Only the top changes – the experience, the targets and the camera stay where they are. With an environment the sky row names it – <em>the environment's (world café)</em> – and the HDRI waits below for an experience without one.</p>
   <figure class="shot">
     <img src="/docs/tutorials/demo/13-desk-top.webp" width="1280" height="800" loading="lazy" alt="The key scene on the linoleum top, seen from low beside the desk: the open book on blue-grey linoleum, the board's oak plies along its front edge and Eiermann's steel tube frame below; the toolbar's view group is open under its gear with shake 0, origin top left, top with plywood and linoleum – linoleum pressed – and sky Wooden Studio 17; the Inspector shows the scene.">
     <figcaption>The toolbar's <b>view</b> group: <em>linoleum</em> on the Eiermann frame. Closed, its button's tooltip reads <em>View: Eiermann · linoleum · origin top left · no shake · sky Wooden Studio 17</em>.</figcaption>
@@ -543,7 +543,7 @@ npm run osct -- content status --env staging</code></pre>
   <p class="muted">The reference for every detail: the repository's <code>fixtures/demo/</code> (the demo itself), <code>docs/plugins.md</code> (writing a plugin) and <code>docs/editor.md</code> (the editor).</p>
 
   <h2 class="chapter" id="tools"><span class="gold">4 · The editor's tools</span></h2>
-  <p>The tools that came with versions 1.27 to 1.36, each shown on the demo book. None of these shots was saved: every change in them was taken back with <b>Back to the draft</b>. Nothing reaches the draft until you press <b>Save</b>, and nothing reaches readers until you <b>Publish</b>.</p>
+  <p>The tools that came with versions 1.27 to 1.36, each shown on the demo experience. None of these shots was saved: every change in them was taken back with <b>Back to the draft</b>. Nothing reaches the draft until you press <b>Save</b>, and nothing reaches readers until you <b>Publish</b>.</p>
 
   <h3 class="sec" id="tools-selection">One selection: tree, stage and inspector</h3>
   <p>There is one selection, and it lives at a level: a <b>target</b> (the printed image), its <b>entity</b> (the root of its AR content) or a <b>node</b> inside it. Select in any of the three places and the other two follow:</p>
@@ -557,10 +557,10 @@ npm run osct -- content status --env staging</code></pre>
     <img src="/docs/tutorials/tools/01-selection.webp" width="1280" height="800" loading="lazy" alt="The door scene with the door's model selected: in the tree the model row is dark grey with a bar at its start; on the stage the boxes are outlined in orange with the move gizmo; the Inspector's breadcrumb reads door ▾ › group › model, followed by node · model with its name, + node, add as, placement and file; the Info view says group – select the entity.">
     <figcaption>The door's model selected in the tree. The stage outlines it, the breadcrumb reads <em>door › group › model</em>. Pointing at <em>group</em> in the breadcrumb: the Info view says a click selects the entity.</figcaption>
   </figure>
-  <p>Every row of the tree selects something, and a tap anywhere on the row always shows it: the row turns grey and the <b>Inspector</b> follows. The <b>scene</b> row – the book icon at the top – selects the scene: the Inspector shows its <em>scene</em> section – the title, the pages, the format, the post-processing in effect and the book's environment – then <em>post-processing</em> and <em>vars and events</em>; nothing stays selected on the stage, no outline, no gizmo. The scene is also what the Inspector shows when nothing else is selected: when the workspace opens, and after a click on the stage that picks nothing. An <b>entry</b> row selects the entry, also one without a target such as <em>About the demo</em>: the Inspector shows its form – title, category, access page, author and tags, the text with its preview, the picture, a link's URL – and its target with <em>select the target</em> (<a href="#texts">5 · Editing texts</a>). An entry with a target has that target outlined on the stage. The Info view says for every row what its tap does.</p>
+  <p>Every row of the tree selects something, and a tap anywhere on the row always shows it: the row turns grey and the <b>Inspector</b> follows. The <b>scene</b> row – the book icon at the top – selects the scene: the Inspector shows its <em>scene</em> section – the title, the pages, the format, the post-processing in effect and the experience's environment – then <em>post-processing</em> and <em>vars and events</em>; nothing stays selected on the stage, no outline, no gizmo. The scene is also what the Inspector shows when nothing else is selected: when the workspace opens, and after a click on the stage that picks nothing. An <b>entry</b> row selects the entry, also one without a target such as <em>About the demo</em>: the Inspector shows its form – title, category, access page, author and tags, the text with its preview, the picture, a link's URL – and its target with <em>select the target</em> (<a href="#texts">5 · Editing texts</a>). An entry with a target has that target outlined on the stage. The Info view says for every row what its tap does.</p>
   <p><kbd>Delete</kbd> on an entry row removes nothing at once: it shows what goes with the entry and asks first, as <em>Remove entry</em> in the row's menu does.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/tools/01-selection-entry.webp" width="1280" height="800" loading="lazy" alt="The key scene with the entry The key selected in the tree: its row is grey with a bar at its start; on the stage the key's printed image on the left page; the Inspector shows the form entry · The key – title The key, category glossary pressed, access page p. 1, author none, tags key, door (marked changed), the text in Markdown with two variables in braces (marked changed), its preview – The key in bold opens what the book keeps shut – hello, Kévin in italics, then You carry it already. – with visitor = Kévin (book) · hasKey = true (book) below, picture none with Library… and Upload…, link none, target key with select the target, and Back to the draft and Save.">
+    <img src="/docs/tutorials/tools/01-selection-entry.webp" width="1280" height="800" loading="lazy" alt="The key scene with the entry The key selected in the tree: its row is grey with a bar at its start; on the stage the key's printed image on the left page; the Inspector shows the form entry · The key – title The key, category glossary pressed, access page p. 1, author none, tags key, door (marked changed), the text in Markdown with two variables in braces (marked changed), its preview – The key in bold opens what the experience keeps shut – hello, Kévin in italics, then You carry it already. – with visitor = Kévin (experience) · hasKey = true (experience) below, picture none with Library… and Upload…, link none, target key with select the target, and Back to the draft and Save.">
     <figcaption>The entry <em>The key</em> selected in the tree: the Inspector shows its form, the preview fills in the stage's variables.</figcaption>
   </figure>
 
@@ -570,17 +570,17 @@ npm run osct -- content status --env staging</code></pre>
     <img src="/docs/tutorials/tools/02-drag.webp" width="1280" height="800" loading="lazy" alt="The door's model row being dragged in the tree: the row is dimmed, and a black line under the hint row Find the key shows where it would land, as a sibling after the hint; the Info view explains the tree's drag and keys.">
     <figcaption>The model dragged below the hint: the line says it would land after it, still inside the group. Let go elsewhere and nothing moves.</figcaption>
   </figure>
-  <p><b>+ node</b> in the Inspector adds a node of a type – group, model, video, image, text, light, and the book's own node types – and <b>add as</b> says where: <em>next to it</em> (the same parent, right after the selected node; the default for a model, video or image) or <em>inside it</em> (its last child). Next to the root, both go into a new group. Every node has a <b>name</b>: the tree shows it, with the type as the icon.</p>
+  <p><b>+ node</b> in the Inspector adds a node of a type – group, model, video, image, text, light, and the experience's own node types – and <b>add as</b> says where: <em>next to it</em> (the same parent, right after the selected node; the default for a model, video or image) or <em>inside it</em> (its last child). Next to the root, both go into a new group. Every node has a <b>name</b>: the tree shows it, with the type as the icon.</p>
   <figure class="shot">
     <img src="/docs/tutorials/tools/03-add-as.webp" width="1280" height="800" loading="lazy" alt="The Inspector of the door's model: the name row, + node with the type text chosen and the add button, and add as with next to it pressed and inside it under the pointer; the Info view explains add as.">
     <figcaption>A text about to be added next to the model. The Info view explains <b>add as</b>.</figcaption>
   </figure>
 
   <h3 class="sec" id="tools-library">The Library as the picker</h3>
-  <p>Every file field – a target's printed image, a node's file, a new node's file, the new target's files, the environment's world and sky – has <b>Library…</b> next to <b>Upload…</b>. <b>Library…</b> opens the Library in place of the panel: its filter starts at the kind being picked, a click on a card takes that file for this one field and returns, an upload that fits is taken at once, and <b>cancel</b> or <kbd>Esc</kbd> returns without one. The panel underneath keeps its values. The <b>target image</b> filter lists the pictures printed in the book, apart from the other images.</p>
+  <p>Every file field – a target's printed image, a node's file, a new node's file, the new target's files, the environment's world and sky – has <b>Library…</b> next to <b>Upload…</b>. <b>Library…</b> opens the Library in place of the panel: its filter starts at the kind being picked, a click on a card takes that file for this one field and returns, an upload that fits is taken at once, and <b>cancel</b> or <kbd>Esc</kbd> returns without one. The panel underneath keeps its values. The <b>target image</b> filter lists the pictures printed in the experience, apart from the other images.</p>
   <figure class="shot">
     <img src="/docs/tutorials/tools/04-library-picker.webp" width="1280" height="800" loading="lazy" alt="The Library opened as the picker for the printed image of the door: the head reads Library · the printed image of door with cancel; the kind filter target image is pressed; cards show the target images colophon · target, door · target (marked Chosen), key · target and lamp · target with their size and uses, each with Pick; on the stage the door's printed image is outlined.">
-    <figcaption>The picker for the door's printed image, filtered to target images. The door's own is marked <em>Chosen</em>; a click on another card would replace it. (The demo here was imported by URL, whose Library is empty; this shot lists the files the same book brings in when it is imported from the CDN.)</figcaption>
+    <figcaption>The picker for the door's printed image, filtered to target images. The door's own is marked <em>Chosen</em>; a click on another card would replace it. (The demo here was imported by URL, whose Library is empty; this shot lists the files the same experience brings in when it is imported from the CDN.)</figcaption>
   </figure>
 
   <h3 class="sec" id="tools-new-target">A new target</h3>
@@ -591,45 +591,45 @@ npm run osct -- content status --env staging</code></pre>
   </figure>
 
   <h3 class="sec" id="tools-scenes">Adding and removing scenes</h3>
-  <p>The book page has <b>+ double page</b> in its first line: a new, empty double page after the last one, before the back cover. Every card has a menu – a right click, a long press or the menu key – with <b>Open</b>, <b>Add a double page after</b> and <b>Remove</b>. A new double page takes the two pages after the scene before it, and every later page is numbered on by two – the later scenes, their entries and their targets' printed pages move with them.</p>
-  <p><b>Remove</b> takes the scene out with everything on it, and asks first. The card shows what goes – <em>Removes scene 5–6 with 3 entries, 2 targets, 2 entities.</em> –, that the pages after it are numbered back, which shared entities stay because other targets use them, and that the Library files are kept; an option, off at first, also deletes the files used only there. Nothing is removed until you press <b>Remove scene 5–6</b> in that confirmation; <b>Keep</b> leaves everything as it was. The scene the book opens on cannot be removed: its <b>Remove</b> is disabled, and the Info view says why.</p>
+  <p>The experience page has <b>+ double page</b> in its first line: a new, empty double page after the last one, before the back cover. Every card has a menu – a right click, a long press or the menu key – with <b>Open</b>, <b>Add a double page after</b> and <b>Remove</b>. A new double page takes the two pages after the scene before it, and every later page is numbered on by two – the later scenes, their entries and their targets' printed pages move with them.</p>
+  <p><b>Remove</b> takes the scene out with everything on it, and asks first. The card shows what goes – <em>Removes scene 5–6 with 3 entries, 2 targets, 2 entities.</em> –, that the pages after it are numbered back, which shared entities stay because other targets use them, and that the Library files are kept; an option, off at first, also deletes the files used only there. Nothing is removed until you press <b>Remove scene 5–6</b> in that confirmation; <b>Keep</b> leaves everything as it was. The scene the experience opens on cannot be removed: its <b>Remove</b> is disabled, and the Info view says why.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/tools/06-scenes.webp" width="1280" height="800" loading="lazy" alt="The demo book's page: under the card 5–6 · The switch the confirmation reads Removes scene 5–6 with 3 entries, 2 targets, 2 entities., The pages after it are numbered back by 2., Library files are kept., with the buttons Remove scene 5–6 and Keep; the first line reads OSCT · 6 scenes · assets at … · + double page.">
+    <img src="/docs/tutorials/tools/06-scenes.webp" width="1280" height="800" loading="lazy" alt="The demo experience's page: under the card 5–6 · The switch the confirmation reads Removes scene 5–6 with 3 entries, 2 targets, 2 entities., The pages after it are numbered back by 2., Library files are kept., with the buttons Remove scene 5–6 and Keep; the first line reads OSCT · 6 scenes · assets at … · + double page.">
     <figcaption><b>Remove</b> from the menu of <em>5–6 · The switch</em>: the card says what would go. Nothing is removed until <b>Remove scene 5–6</b>; this shot ended with <b>Keep</b>.</figcaption>
   </figure>
 
-  <h3 class="sec" id="tools-post">Post-processing: the book's and a scene's own</h3>
-  <p>The passes in the scene's <b>post-processing</b> (the Inspector, the scene selected) belong to the <b>book</b>: edited once, every scene without a list of its own shows them. The section's head names the level in words: <b>post-processing · the whole book</b> while the scene on the stage uses the book's list, <b>post-processing · only this scene</b> while it has its own. It starts closed, and its head still says the level.</p>
-  <p>The line under the head says what editing changes. With the book's list it counts the scenes: <em>changes all 5 scenes that use the book's</em>. <b>own for this scene</b> at its end gives this scene an override that starts as a copy of the book's; the line then reads <em>overrides the book's for this scene</em>, and <b>back to the book's</b> drops the override again. <b>Save</b> says what it saves: <em>Save for the whole book</em>, <em>Save for this scene</em>, or <em>Save for the book and this scene</em> when both lists changed.</p>
+  <h3 class="sec" id="tools-post">Post-processing: the experience's and a scene's own</h3>
+  <p>The passes in the scene's <b>post-processing</b> (the Inspector, the scene selected) belong to the <b>experience</b>: edited once, every scene without a list of its own shows them. The section's head names the level in words: <b>post-processing · the whole experience</b> while the scene on the stage uses the experience's list, <b>post-processing · only this scene</b> while it has its own. It starts closed, and its head still says the level.</p>
+  <p>The line under the head says what editing changes. With the experience's list it counts the scenes: <em>changes all 5 scenes that use the experience's</em>. <b>own for this scene</b> at its end gives this scene an override that starts as a copy of the experience's; the line then reads <em>overrides the experience's for this scene</em>, and <b>back to the experience's</b> drops the override again. <b>Save</b> says what it saves: <em>Save for the whole experience</em>, <em>Save for this scene</em>, or <em>Save for the experience and this scene</em> when both lists changed.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/tools/07-post-book.webp" width="1280" height="800" loading="lazy" alt="The key scene in the rendered shading; the tree's scene row selected and the Inspector showing the scene: its scene section closed, post-processing · the whole book open with the line changes all 5 scenes that use the book's and own for this scene at its end; a vignette, closed, its head reading vignette · strength 0.6 with its switch off, dimmed, then the arrows and remove; a bloom, open, its switch on, with strength 0.35, radius 0.4 and threshold 0.97 (strength and threshold marked as changed); add pass, then Back to the draft and Save for the whole book; vars and events closed below.">
-    <figcaption>The book's list on the key: a vignette switched off – closed, its values in its head – and a bloom just added. Five scenes use the book's, so the change reaches all five. <b>Save for the whole book</b> says so too.</figcaption>
+    <img src="/docs/tutorials/tools/07-post-experience.webp" width="1280" height="800" loading="lazy" alt="The key scene in the rendered shading; the tree's scene row selected and the Inspector showing the scene: its scene section closed, post-processing · the whole experience open with the line changes all 5 scenes that use the experience's and own for this scene at its end; a vignette, closed, its head reading vignette · strength 0.6 with its switch off, dimmed, then the arrows and remove; a bloom, open, its switch on, with strength 0.35, radius 0.4 and threshold 0.97 (strength and threshold marked as changed); add pass, then Back to the draft and Save for the whole experience; vars and events closed below.">
+    <figcaption>The experience's list on the key: a vignette switched off – closed, its values in its head – and a bloom just added. Five scenes use the experience's, so the change reaches all five. <b>Save for the whole experience</b> says so too.</figcaption>
   </figure>
   <figure class="shot">
-    <img src="/docs/tutorials/tools/08-post-own.webp" width="1280" height="800" loading="lazy" alt="The door scene with its own passes: the head reads post-processing · only this scene, the line overrides the book's for this scene with back to the book's at its end, and the list holds a grade, open, its switch on, with reach AR layer, exposure 0.2 EV (marked as changed), contrast 1, saturation 1 and tint #ffffff, then add pass, Back to the draft and Save for this scene.">
-    <figcaption>The door has a list of its own, a grade: it overrides the book's here alone. <b>back to the book's</b> drops it.</figcaption>
+    <img src="/docs/tutorials/tools/08-post-own.webp" width="1280" height="800" loading="lazy" alt="The door scene with its own passes: the head reads post-processing · only this scene, the line overrides the experience's for this scene with back to the experience's at its end, and the list holds a grade, open, its switch on, with reach AR layer, exposure 0.2 EV (marked as changed), contrast 1, saturation 1 and tint #ffffff, then add pass, Back to the draft and Save for this scene.">
+    <figcaption>The door has a list of its own, a grade: it overrides the experience's here alone. <b>back to the experience's</b> drops it.</figcaption>
   </figure>
-  <p>The book's plugins can bring passes of their own. <b>add pass</b> offers them in a row per plugin, under its name: the demo's <b>grain</b> plugin has <b>+ filmGrain</b>, which the twins already use, and a plugin you <b>Run</b> in the Code tab shows up at once. A plugin's pass has its own rows – here strength, size, speed, reach and a <em>pattern</em> picture from the Library – and the arrows move any pass earlier or later in the chain.</p>
+  <p>The experience's plugins can bring passes of their own. <b>add pass</b> offers them in a row per plugin, under its name: the demo's <b>grain</b> plugin has <b>+ filmGrain</b>, which the twins already use, and a plugin you <b>Run</b> in the Code tab shows up at once. A plugin's pass has its own rows – here strength, size, speed, reach and a <em>pattern</em> picture from the Library – and the arrows move any pass earlier or later in the chain.</p>
   <figure class="shot">
     <img src="/docs/tutorials/tools/21-post-plugin.webp" width="1256" height="708" loading="lazy" alt="The twins scene in the rendered shading, grainy and striped with dark lines; the Inspector's post-processing · only this scene holds scanLines of the plugin scanlines (lines 240, darkness 0.35), moved before filmGrain of the plugin grain (strength 0.14, size 1.5 px, speed 24 fps, reach all, pattern none), each with arrows up and down and remove; below, add pass with + bloom, + vignette, + grade. The Info view explains the pattern row.">
     <figcaption>The demo's film grain and a scan-line pass just run in the Code tab, moved in front of it. Both are plugins; their rows come from their specs.</figcaption>
   </figure>
 
   <h3 class="sec" id="tools-stage-vars">Tap, variables and the timeline</h3>
-  <p>The scene's <b>vars and events</b> in the Inspector plays a book's story by hand, without a phone. It is closed until you open it by its head.</p>
+  <p>The scene's <b>vars and events</b> in the Inspector plays an experience's story by hand, without a phone. It is closed until you open it by its head.</p>
   <ul>
     <li><b>tap</b> has a button for each printed target of the scene. It taps the target's AR content as a reader's tap would, without aiming at it: the entity's <code>onTap</code>, the <code>animation</code> component's <em>plays on: tap</em> and the event <code>targetTapped</code>. A target that is not found, or has no AR content, is greyed out.</li>
-    <li><b>vars</b> lists the plugins' and the rules' variables, each with its scope and type and a control for its value – <em>false / true</em>, a number or a text – and <b>×</b> to delete it. <b>set</b> adds one: a camelCase name, the scope (scene, stage, session or book), the type and the value. Both write through the plugin API, so the plugins and rules react as if one of them had set it: set <code>hasKey</code> to <em>true</em> on the door's scene, switch the door off and on with the tree's eye, and it opens without a visit to page 1. <b>reset</b> starts a new game.</li>
+    <li><b>vars</b> lists the plugins' and the rules' variables, each with its scope and type and a control for its value – <em>false / true</em>, a number or a text – and <b>×</b> to delete it. <b>set</b> adds one: a camelCase name, the scope (scene, stage, session or experience), the type and the value. Both write through the plugin API, so the plugins and rules react as if one of them had set it: set <code>hasKey</code> to <em>true</em> on the door's scene, switch the door off and on with the tree's eye, and it opens without a visit to page 1. <b>reset</b> starts a new game.</li>
     <li><b>events</b> is the timeline, newest first: the time since the scene opened, the event and its payload. The last 100 are kept; <b>clear</b> empties it.</li>
   </ul>
   <p>Nothing here is saved to the draft: the variables live while the scene's workspace is open, as a reader's progress lives on the phone.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/tools/13-stage-vars.webp" width="1280" height="800" loading="lazy" alt="The key scene with the scene selected and the Inspector's vars and events open, the scene and post-processing sections closed above it: the tap row with The key, just tapped, and The tally; vars with tries (stage · number, 2), set by hand, and hasKey (book · boolean, true), each with a cross; the set row with an empty name, the scope stage, number pressed and the value 2; events 12 with clear, then the timeline: 19.41 s targetTapped key and keyRattled, earlier taps, the varChanged of tries, the finds and the key's varChanged hasKey.">
+    <img src="/docs/tutorials/tools/13-stage-vars.webp" width="1280" height="800" loading="lazy" alt="The key scene with the scene selected and the Inspector's vars and events open, the scene and post-processing sections closed above it: the tap row with The key, just tapped, and The tally; vars with tries (stage · number, 2), set by hand, and hasKey (experience · boolean, true), each with a cross; the set row with an empty name, the scope stage, number pressed and the value 2; events 12 with clear, then the timeline: 19.41 s targetTapped key and keyRattled, earlier taps, the varChanged of tries, the finds and the key's varChanged hasKey.">
     <figcaption><em>The key</em> tapped from the panel: <code>targetTapped</code> and <code>keyRattled</code> top the timeline (since the key's rule took over, a <em>behaviour</em> line sits between them – <a href="#demo-behaviour">Rules without code</a>). <code>tries</code> was set by hand as a <em>stage</em> number.</figcaption>
   </figure>
 
   <h3 class="sec" id="tools-code">Code everywhere: a node type, a material, a texture</h3>
-  <p>A book's plugins can go where the big engines let code in. A <b>component</b> says what a node does, a <b>node type</b> what it is, a <b>material</b> how it looks – the whole material, or a <b>layer</b> of GLSL over its own –, a <b>procedural texture</b> what it shows, a <b>pass</b> what happens to the whole picture. Every one has a spec, so the Inspector shows its rows without any panel code.</p>
+  <p>An experience's plugins can go where the big engines let code in. A <b>component</b> says what a node does, a <b>node type</b> what it is, a <b>material</b> how it looks – the whole material, or a <b>layer</b> of GLSL over its own –, a <b>procedural texture</b> what it shows, a <b>pass</b> what happens to the whole picture. Every one has a spec, so the Inspector shows its rows without any panel code.</p>
   <p>The demo's <em>Aquarium</em> on page 2 uses three at once: the node type <code>aquarium</code> builds the glass tank and its fish, the material <code>water</code> is a shader with waves on its surface and a tint that deepens with the angle, the floor's light is the procedural texture <code>caustics</code>. Select <em>Tank</em> in the tree: under <b>node type · aquarium</b> are the tank's rows – the <em>floor light</em> is a texture row, a list of <em>none</em>, the plugins' procedural textures and the Library's pictures and videos – and under <b>material · water</b> the water's rows, with <em>remove</em>. A node without a plugin material shows <b>material</b> <em>its own</em>, a list of the materials that fit it.</p>
   <p>The tank is also a small shader study: a plastic toy fish dips into the water and rises again, and a tap pushes it in once. Where it cuts the surface it pushes the water aside, rings run outward, bounce off the glass and settle, and the light on the floor gathers under them – the surface is simulated on a grid of cells, and the water shader and the floor read it. Its rows are at the end of the tank's: <em>dipping toy</em> (fish, ball or none), <em>loop period</em>, <em>dip depth</em>, <em>simulation</em> (off: the water's old static waves), <em>grid</em> (32, 64 or 96 cells – finer rings, more work), <em>damping</em> and <em>splash</em>.</p>
   <figure class="shot">
@@ -646,7 +646,7 @@ npm run osct -- content status --env staging</code></pre>
     <img src="/docs/tutorials/tools/20-ink-painting.webp" width="1280" height="800" loading="lazy" alt="The switch scene seen over its right page: a dark wooden frame stands upright on the ink painting's printed target, its canvas black with flowing bands of colour – orange, green, blue, magenta – where the velocity's direction gives the hue; it is selected with its gizmo. The tree shows The ink painting › Ink painting › Painting selected; the Inspector shows node type · inkPainting with resolution 256 pressed and 512, pen speed 1 ×, ink dissipation 4 × with its reset arrow, and material its own.">
     <figcaption>The ink painting: a plugin's node type showing two feedback buffers – the fluid and its picture – stepped by the engine every frame.</figcaption>
   </figure>
-  <p><b>make it code</b>, in the head of any node, turns the node into a node type of the book's own – Unreal's <em>Create Blueprint class from a component</em>. The editor writes a plugin into the Code tab whose <code>registerNodeType</code> reproduces the node: its type's builder as a readable starting point (here a model: a copy of its scene, its clips playing), its values as the spec's parameters. It saves the plugin, runs it and switches the node to the new type, where it was. From then on it is your code: change the build, <b>Run</b>, <b>Save</b>. <b>make code</b> beside the material row does the same for the node's look, as a <code>registerMaterial</code>. The draft changes only when you press <b>Save</b> in the Inspector.</p>
+  <p><b>make it code</b>, in the head of any node, turns the node into a node type of the experience's own – Unreal's <em>Create Blueprint class from a component</em>. The editor writes a plugin into the Code tab whose <code>registerNodeType</code> reproduces the node: its type's builder as a readable starting point (here a model: a copy of its scene, its clips playing), its values as the spec's parameters. It saves the plugin, runs it and switches the node to the new type, where it was. From then on it is your code: change the build, <b>Run</b>, <b>Save</b>. <b>make code</b> beside the material row does the same for the node's look, as a <code>registerMaterial</code>. The draft changes only when you press <b>Save</b> in the Inspector.</p>
   <figure class="shot">
     <img src="/docs/tutorials/tools/15-make-it-code-before.webp" width="1280" height="800" loading="lazy" alt="The key scene with the brass key's model selected: the Inspector's head reads entity · model with make it code and remove entity; below, placement, the file key.glb, material its own with make code, and the components spin, key and animation with the model's timeline.">
     <figcaption>Before: the key is a <em>model</em>; <b>make it code</b> sits in the node's head.</figcaption>
@@ -678,7 +678,7 @@ npm run osct -- content status --env staging</code></pre>
 
   <h3 class="sec" id="tools-phone">The editor on a phone</h3>
   <p>With a finger every control is 44 px high (2.75rem), the tree's rows, chevrons and eyes too. The panel is a sheet at the bottom whose head is five tab icons sharing the width – tree, Inspector, Environment, Library, Code. Tap the open tab to close the sheet down to its head; tap another to open it. <b>Drag the head</b> to any height, from the tab row alone to almost the whole screen; let go and it snaps to closed, a third, half or almost full, and a flick carries it on. While it is dragged, the stage keeps its size and the sheet slides over it. A double tap on the grip restores half.</p>
-  <p><kbd>‹</kbd> and <kbd>›</kbd> sit at the stage's lower corners and walk through the scenes. The book's name in the top bar leads back to the scenes. The toolbar is one row of four buttons, each opening its menu: gizmo, pick, shading, grid &amp; snap.</p>
+  <p><kbd>‹</kbd> and <kbd>›</kbd> sit at the stage's lower corners and walk through the scenes. The experience's name in the top bar leads back to the scenes. The toolbar is one row of four buttons, each opening its menu: gizmo, pick, shading, grid &amp; snap.</p>
   <div class="phones">
     <figure class="shot">
       <img src="/docs/tutorials/tools/10-phone-closed.webp" width="780" height="1688" loading="lazy" alt="The editor on a phone with the sheet closed: the door scene fills the screen, the toolbar in two rows at the top, ‹ and › at the stage's lower corners, and at the bottom only the grip and the six tab icons.">
@@ -703,11 +703,11 @@ npm run osct -- content status --env staging</code></pre>
   </div>
 
   <h2 class="chapter" id="texts"><span class="gold">5 · Editing texts</span></h2>
-  <p>The reading side of the book – the entries' texts and the book's title, author and publisher – is edited in the editor too. As everywhere, nothing reaches the draft until <b>Save</b>, <b>Back to the draft</b> drops the edits, and nothing reaches readers until you <b>Publish</b>. A reload asks first while a form holds edits.</p>
+  <p>The reading side of the experience – the entries' texts and the experience's title, author and publisher – is edited in the editor too. As everywhere, nothing reaches the draft until <b>Save</b>, <b>Back to the draft</b> drops the edits, and nothing reaches readers until you <b>Publish</b>. A reload asks first while a form holds edits.</p>
 
   <h3 class="sec" id="texts-entry">An entry's form</h3>
   <p>Select an entry in the tree: the Inspector shows its form, in the order the reader reads it – <b>title</b>, <b>category</b>, <b>access page</b>, <b>author</b> and <b>tags</b> (words separated by commas), the <b>text</b> with its <b>preview</b>, the <b>picture</b> from the Library, a link's <b>URL</b> and the <b>target</b>. A changed row is marked with a dot. The access page decides the scene: a page on another scene moves the entry there when you save.</p>
-  <p>The preview is the reader's own renderer. On the stage it fills in the variables with their current values – set them in the scene's <em>vars and events</em>, or let the book's behaviours and plugins set them by playing. Below the preview the variables the text reads are listed with their values and scopes; a brace that does not parse is named in red.</p>
+  <p>The preview is the reader's own renderer. On the stage it fills in the variables with their current values – set them in the scene's <em>vars and events</em>, or let the experience's behaviours and plugins set them by playing. Below the preview the variables the text reads are listed with their values and scopes; a brace that does not parse is named in red.</p>
   <figure class="shot">
     <img src="/docs/tutorials/tools/24-entry-phone.webp" width="360" height="760" loading="lazy" alt="The entry form on a phone: title The key, category glossary, access page 1, author none, tags key, door, the text in Markdown marked as changed, its preview with The key in bold and hello, friend, then Find it on the next page as a link; visitor not set · hasKey not set – no stage here; picture none with Library… and Upload…, link none, target key, Back to the draft and Save.">
     <figcaption>The same form on a phone: here every variable is unset, so the fallbacks show.</figcaption>
@@ -715,9 +715,9 @@ npm run osct -- content status --env staging</code></pre>
 
   <h3 class="sec" id="texts-markdown">Markdown and variables</h3>
   <p>A text is a small Markdown: a blank line starts a paragraph (a single line break stays one), <code>*emphasis*</code>, <code>**strong**</code> and <code>[a link](https://…)</code>. Nothing else is markup – HTML shows as text.</p>
-  <p>The book's variables go in braces, the way SCUTOONS' message boxes write them:</p>
+  <p>The experience's variables go in braces, the way SCUTOONS' message boxes write them:</p>
   <ul>
-    <li><code>{hasKey}</code> prints the variable's value – the innermost scope that has it: scene, stage, session, book.</li>
+    <li><code>{hasKey}</code> prints the variable's value – the innermost scope that has it: scene, stage, session, experience.</li>
     <li><code>{hasKey: The door opens.|It is locked.}</code> chooses a text; <code>{tries &gt; 2: Try the window.}</code> shows one only when the condition holds.</li>
     <li>A variable that is not set shows as nothing, so <code>{visitor: {visitor}|friend}</code> is a fallback.</li>
     <li><code>\{</code> writes a brace.</li>
@@ -728,8 +728,8 @@ npm run osct -- content status --env staging</code></pre>
   <p>The search in the top bar finds things in the whole book: entries by their title or text, scenes by their title or a page number, targets and named nodes – accents and case do not matter. The hits are grouped by kind, each with its scene and page. Choose one with ↑ ↓ and Enter, or a click: the editor goes to that scene and selects it, an entry with its form in the Inspector. <b>/</b> or <b>Ctrl+K</b> puts the cursor in the search; on a phone the search is the magnifier in the top bar.</p>
   <p><b>+ entry</b> in the tree, next to <b>+ target</b>, makes an entry without a printed image on the scene – a glossary term only read in the list: its title, category and page, then its form opens.</p>
 
-  <h3 class="sec" id="texts-book">The book</h3>
-  <p>A tap on the book's name in the top bar selects the book: the Inspector shows its title, author and publisher – the reader's splash, home page and onboarding show them – and <em>All scenes</em> leads back to the book's page, which shows the scenes alone. The onboarding itself – the steps a reader goes through on the first start – is part of the app, translated with it; it is not edited in the editor.</p>
+  <h3 class="sec" id="texts-experience">The experience</h3>
+  <p>The ⚙ after the experience's name in the top bar selects the experience: the Inspector shows its title and its <b>printed book</b> – the reader's splash, home page and onboarding show them. The printed book has a switch in its head: on, the experience accompanies a printed book and the section holds its author and publisher; off, it is no book – a wall, a room, an exhibition – and the reader shows neither. Switching a saved book off asks first, because it removes author and publisher from the draft. Every experience adds and removes scenes. The onboarding itself – the steps a reader goes through on the first start – is part of the app, translated with it; it is not edited in the editor.</p>
 
   <p class="muted">The reference for every detail: the repository's <code>docs/editor.md</code> (the editor, its keys and rules) and <code>docs/server.md</code> (the API behind it).</p>
 

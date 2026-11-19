@@ -21,11 +21,22 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   progress, without a notice), the account option `experienceUpdates`; the splash, onboarding, about and landing read
   the author and the publisher from the printed book and leave them out without one. Inside: `<reader-app>` (was
   `<book-game>`), the look-around's `SurfaceAnchor`, `ExperienceDownload`. Reader wording unchanged.
+- **The editor speaks experience** (#320 part C). The experience settings (⚙ after its crumb) hold its **texts** (the
+  title) and a **Printed book** section with a switch: on, the book's author and publisher; off, the experience is no
+  book – switching a saved book off asks first and removes author and publisher (`book: null`), *Undo edits* brings them
+  back. The editor calls `/editor/experiences/…` (was `/editor/books/…`); the Experiences page and the covers show the
+  author only for an experience with a printed book; the import button reads *Import 1 experience: …*. Inside: the route
+  `[experience]` (URLs unchanged), `ExperiencePanel`, `ExperienceTexts`, `ExperienceSearch`, `ExperienceCover`,
+  `StageScene`, the Inspector's section ids `experience.texts`, `experience.book`, `experience.passes` (those sections
+  open at their default once), the change log's kind `experience`. The tutorials' images `01-experiences.webp`,
+  `07-post-experience.webp`.
 
 ### Removed
 
 - **The source of truth** (`sourceOfTruth`, print first / digital first, #238): every experience adds and removes its
   scenes. Content with the field is refused by the build and the guard; `convert:4` drops it.
+  The editor's source-of-truth control goes with it: scenes are added (the + tile, + after the last scene, the tree's
+  scene menu) and removed in every experience.
 
 ## 2.1.0 – 2026-11-19
 
