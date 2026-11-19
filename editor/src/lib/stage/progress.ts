@@ -1,8 +1,8 @@
 import type { ProgressReader, VarValue } from "@engine/scene";
 
 /**
- * The editor's simulation of a reader's progress for the plugins' book API (`api.progress`, the `book` scope of
- * `api.vars`): which targets were found for the first time on this stage, and the book variables the plugins set.
+ * The editor's simulation of a reader's progress for the plugins' experience API (`api.progress`, the `experience` scope of
+ * `api.vars`): which targets were found for the first time on this stage, and the experience variables the plugins set.
  * It lives as long as the workspace is open – nothing of the reader's stored progress is involved (RULES #32); the
  * editor has no entry view, so nothing is ever consulted.
  */
@@ -38,7 +38,7 @@ export class StageProgress {
     for (const id of targetIds) this.unlocked.delete(id);
   }
 
-  /** A new game: nothing found, no book variable */
+  /** A new game: nothing found, no experience variable */
   reset(): void {
     this.unlocked.clear();
     this.variables.clear();

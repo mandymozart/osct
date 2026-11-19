@@ -5,7 +5,7 @@ import { TRIGGER_INFO_URL } from "@engine/utils/trigger-protocol";
 import type { VarScope, VarValue } from "@engine/scene";
 import type { EntityData, PassData } from "@engine/types";
 import type { EnvironmentData } from "@shared/types/environment";
-import type { BookAppearance, Moment } from "@shared/types/appearance";
+import type { ExperienceAppearance, Moment } from "@shared/types/appearance";
 import {
   type ContentSnapshot, contentBasesNamed, libraryFoldersOf, eventMessage, type FrameEventName, type FrameEvents, type FrameInit, frameCsp, isForwardedKey, type KeyForward, type LayoutSnapshot,
   LOG_MAX, readFrameRequest, surfaceGizmoRequest, surfaceMarks, surfaceReferenceMap, REMOVED_WIRE, type TimelineSnapshot,
@@ -19,7 +19,7 @@ import { type GhostPlace, StageCore } from "./stage-core.svelte";
 /**
  * The stage frame's side (#234, docs/editor.md "The stage frame"): the document at `/editor/stage-frame/`, loaded by the
  * page into an iframe sandboxed without `allow-same-origin`, runs the stage (`StageCore`) – and with it every plugin of
- * the book and the Code tab's Run – and answers the page's requests (`frame-protocol.ts`). Its origin is opaque: no
+ * the experience and the Code tab's Run – and answers the page's requests (`frame-protocol.ts`). Its origin is opaque: no
  * cookie, no storage of the editor's, no access to the page. Before the draft and its plugins load, the document takes a
  * Content Security Policy that lets it reach the content's files and nothing of the API (`frameCsp`). It accepts requests
  * only from its parent at the editor's origin and posts its events only there.
@@ -192,7 +192,7 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     },
     override: (targetId: string, entity: EntityData | typeof REMOVED_WIRE | null) => stage().override(targetId, entity === REMOVED_WIRE ? StageCore.REMOVED : entity),
     overridePasses: (passes: PassData[] | null) => stage().overridePasses(passes),
-    overrideAppearance: (override: { appearance: BookAppearance | null } | null) => stage().overrideAppearance(override),
+    overrideAppearance: (override: { appearance: ExperienceAppearance | null } | null) => stage().overrideAppearance(override),
     playMoment: (moment: Moment) => stage().playMoment(moment),
     selectNode: (targetId: string | null, path: number[]) => stage().selectNode(targetId, path),
     selectTarget: (targetId: string | null) => stage().selectTarget(targetId),

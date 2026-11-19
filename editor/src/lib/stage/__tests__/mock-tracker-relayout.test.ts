@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SurfaceData, Target } from "@engine/types";
 import { setPreviewActive } from "../preview";
-import type { StageBook, StageTarget } from "../mock-tracker";
+import type { StageScene, StageTarget } from "../mock-tracker";
 
 // The draft's scene: its surfaces change under the tracker as the Inspector saves them (#319: arrange in a row, a wall)
 const FLAT = { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 };
@@ -16,7 +16,7 @@ const { MockTracker } = await import("../mock-tracker");
 const target = (id: string, place?: Target["place"]): Target => ({ id, entryId: id, sceneId: "s", imageSrc: `/${id}.jpg`, ...(place ? { place } : {}) });
 
 describe("MockTracker.relayout: changed surfaces reach the stage at once", () => {
-  let layouts: Array<{ targets: readonly StageTarget[]; book: StageBook }>;
+  let layouts: Array<{ targets: readonly StageTarget[]; scene: StageScene }>;
   let tracker: InstanceType<typeof MockTracker>;
 
   beforeEach(() => {
@@ -28,7 +28,7 @@ describe("MockTracker.relayout: changed surfaces reach the stage at once", () =>
     layouts = [];
     tracker = new MockTracker(document.createElement("div"), { onUpdate: () => {} } as never, async () => ({}), () => 0);
     tracker.attachStage({
-      setLayout(targets, book) { layouts.push({ targets, book }); },
+      setLayout(targets, scene) { layouts.push({ targets, scene }); },
       setHdri() {},
       update() {},
       dispose() {},
@@ -43,13 +43,13 @@ describe("MockTracker.relayout: changed surfaces reach the stage at once", () =>
   it("lays the scene out again from its new surfaces, without loading the targets again", async () => {
     await tracker.startCamera();
     await tracker.loadTargets({ sceneId: "s", targets: [target("a", { surface: "wall", x: 10, y: 20, width: 50 })] });
-    expect(layouts.at(-1)!.book.surfaces.map(s => s.id)).toEqual(["surface"]);
+    expect(layouts.at(-1)!.scene.surfaces.map(s => s.id)).toEqual(["surface"]);
     // The surface it names is not there: the scene's first
     expect(layouts.at(-1)!.targets[0].surface).toBe("surface");
 
     draft.surfaces = [...draft.surfaces, { id: "wall", widthMm: 2000, heightMm: 1500, place: { ...FLAT, y: 750, z: -260, rx: 90 } }];
     tracker.relayout();
-    expect(layouts.at(-1)!.book.surfaces.map(s => [s.id, s.place.rx])).toEqual([["surface", 0], ["wall", 90]]);
+    expect(layouts.at(-1)!.scene.surfaces.map(s => [s.id, s.place.rx])).toEqual([["surface", 0], ["wall", 90]]);
     expect(layouts.at(-1)!.targets.map(t => [t.id, t.surface, t.x])).toEqual([["a", "wall", 10]]);
     expect(tracker.surfaceFrames().map(f => [f.id, f.flat])).toEqual([["surface", true], ["wall", false]]);
   });

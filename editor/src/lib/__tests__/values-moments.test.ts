@@ -7,7 +7,7 @@ import { componentRows, componentTypesFor, contentEntity, getValue, setValue, va
 const entity = (components: EntityData["components"]): EntityData => ({ type: "group", assets: [], components });
 
 describe("the rows of a moment's component", () => {
-  it("a component without a look has the look row alone – it plays the book's", () => {
+  it("a component without a look has the look row alone – it plays the experience's", () => {
     const rows = componentRows({ type: "reveal" }, 0);
     expect(rows.map(row => row.id)).toEqual(["components.0.look"]);
     expect(rows[0]).toMatchObject({ kind: "choice", default: "" });

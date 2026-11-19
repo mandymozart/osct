@@ -6,7 +6,7 @@
 
   /**
    * A `behaviour` component's rules as rows (#88) – no JSON: per rule the event it hears (the
-   * node's own as pressed pills, a named event typed with the book's events offered), its condition (a row per test:
+   * node's own as pressed pills, a named event typed with the experience's events offered), its condition (a row per test:
    * variable, equals or not, value; `and` / `or` between them) and its actions (a row per action: the verb and what it
    * takes – a clip of the node's model, a node of the subtree by name, a variable with value and scope, an event). Every
    * change goes out as the whole list (`onchange`); the panel writes it into the node.
@@ -17,7 +17,7 @@
     names: string[];
     /** The clips of the model a node name stands for (empty = the behaviour's own node) */
     clipsOf: (node: string) => string[];
-    /** The variables the book uses, for the name fields */
+    /** The variables the experience uses, for the name fields */
     variables: string[];
     /** The bus events a rule may hear or emit */
     events: string[];

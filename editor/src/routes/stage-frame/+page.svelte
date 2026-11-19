@@ -5,7 +5,7 @@
 
   /**
    * The stage frame's document (#234, docs/editor.md "The stage frame"): the workspace loads it into an iframe sandboxed
-   * without `allow-same-origin`, and the stage – the engine with the book's plugins and the Code tab's Run – runs here, in
+   * without `allow-same-origin`, and the stage – the engine with the experience's plugins and the Code tab's Run – runs here, in
    * an opaque origin without the session. Outside the editor's `(app)` routes: no sign-in gate, no API, no top bar.
    */
   let container = $state<HTMLDivElement>();

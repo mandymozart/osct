@@ -1,6 +1,6 @@
-import type { BookAppearance, EntityData, EntityRefData, GameConfiguration, PassData } from "@engine/types";
+import type { ExperienceAppearance, EntityData, EntityRefData, GameConfiguration, PassData } from "@engine/types";
 import type { EnvironmentData } from "@shared/types/environment";
-import type { AssetType, SourceOfTruth, SurfaceData, TargetPlace } from "@shared/types/game-config";
+import type { AssetType, ExperienceData, SurfaceData, TargetPlace } from "@shared/types/game-config";
 import type {
   Asset,
   Change,
@@ -10,11 +10,6 @@ import type {
   AssetReplaced,
   AssetUploaded,
   AssetUsages,
-  BookList,
-  BookAppearanceSaved,
-  BookPassesSaved,
-  BookSaved,
-  BookTree,
   DraftManifest,
   EntitySaved,
   EntryAdded,
@@ -24,12 +19,9 @@ import type {
   EnvironmentsInfo,
   GroupPlanned,
   GroupSaved,
-  ImportPreview,
-  ImportResult,
   PluginSource,
   PluginSummary,
   PluginUsages,
-  PublishResult,
   RemovalResult,
   RevertResult,
   SceneAdded,
@@ -53,25 +45,17 @@ export type {
   AssetNamesPlan,
   AssetRename,
   LibraryPlace,
-  BookSummary,
-  BookTree,
   Confirmation,
   EditorEntry,
   EntryFields,
   EntrySaved,
   EnvironmentInfo,
-  EnvironmentServing,
   EnvironmentsInfo,
-  ImportComparison,
   ImportedBuild,
-  ImportPreview,
   LiveIn,
-  OtherBook,
   PluginSource,
   PluginSummary,
-  PublishResult,
   RemovalFile,
-  RemovalImpact,
   RemovalResult,
   SceneList,
   SceneSummary,
@@ -85,6 +69,32 @@ export type {
   Usage,
 } from "@shared/api/editor";
 
+// ── TODO #320 B1: the names and shapes shared/api/editor.ts takes in B1 (agents/REFACTOR-EXPERIENCE.md §2) ──────
+// B1 renames them there; until both branches meet they are spelled here from the old ones. The integration merge
+// deletes this block and imports them from "@shared/api/editor" like the rest.
+import type {
+  BookSummary as B1Summary, BookTree as B1Tree, BookPassesSaved as B1PassesSaved, BookAppearanceSaved as B1AppearanceSaved,
+  OtherBook as B1Other, EnvironmentServing as B1Serving, PublishResult as B1Published, IncomingBuild as B1Incoming,
+  ImportComparison as B1Comparison, ImportPreview as B1Preview, ImportResult as B1Imported, RemovalImpact as B1Impact,
+} from "@shared/api/editor";
+/** `book` (the experience's id or summary) named `experience` – each member of a union */
+type B1Named<T, V> = T extends unknown ? Omit<T, "book"> & { experience: V } : never;
+export type ExperienceSummary = Omit<B1Summary, "author" | "book"> & { experience: ExperienceData };
+export type ExperienceTree = B1Named<B1Tree, ExperienceSummary>;
+export type ExperienceList = { experiences: ExperienceSummary[]; environments: EnvironmentServing[] };
+export type ExperienceSaved = { experience: ExperienceData };
+export type ExperiencePassesSaved = B1PassesSaved;
+export type ExperienceAppearanceSaved = B1AppearanceSaved;
+export type OtherExperience = B1Named<B1Other, string | null>;
+export type EnvironmentServing = B1Named<Extract<B1Serving, { book: unknown }>, string | null> | Exclude<B1Serving, { book: unknown }>;
+export type PublishResult = Omit<B1Published, "replaced"> & { replaced: { experience: string | null; build: string | null } | null };
+type IncomingBuild = B1Named<B1Incoming, string>;
+export type ImportComparison = Omit<B1Named<B1Comparison, { id: string; title: string }>, "incoming"> & { incoming: IncomingBuild };
+export type ImportPreview = Omit<B1Preview, "incoming" | "existing"> & { incoming: IncomingBuild; existing: ImportComparison | null };
+type ImportResult = B1Named<B1Imported, ExperienceSummary>;
+export type RemovalImpact = B1Named<B1Impact, string>;
+// ── end TODO #320 B1 ──────────────────────────────────────────────────────────────────────────────────────────
+
 /**
  * The instance's API (server/api, docs/server.md): the accounts endpoints the sign-in uses and the editor's own
  * `/editor/*`. `VITE_API_URL` names it (default `/api`, next to the app on the same origin – the dev server proxies it
@@ -92,14 +102,14 @@ export type {
  * script on the page can read it, and nothing about it is in `localStorage`. What the editor holds is the session's
  * CSRF token, in memory only, sent with every write. `authFetch` is the `fetch` the engine's content loader uses for
  * the draft – the cookie goes with it. Every call goes through `request`: the cookie and the CSRF token, the end of a
- * session on a 401, a stale CSRF token renewed once, the API's errors as `ApiError`, and the book's tree read again
- * after a write to the book.
+ * session on a 401, a stale CSRF token renewed once, the API's errors as `ApiError`, and the experience's tree read again
+ * after a write to the experience.
  */
 
 export const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? "/api").replace(/\/+$/, "");
 
 export class ApiError extends Error {
-  /** `details` = the rest of the server's error object (e.g. `current` of a 409 other-book) */
+  /** `details` = the rest of the server's error object (e.g. `current` of a 409 other-experience) */
   constructor(public readonly status: number, public readonly code: string, message: string, public readonly details: Record<string, unknown> = {}) {
     super(message);
   }
@@ -112,11 +122,11 @@ export const errorText = (error: unknown, { code = false }: { code?: boolean } =
 };
 
 /**
- * The books' trees as read since the last write to each (the workspace's stage, environment and top bar share one
- * read): `getBook` answers from here, every write to a book (`POST` / `PUT` / `DELETE /editor/books/{id}/…`) drops the
- * book's – the next read asks the API again –, as does a failed read and a new session
+ * The experiences' trees as read since the last write to each (the workspace's stage, environment and top bar share one
+ * read): `getExperience` answers from here, every write to an experience (`POST` / `PUT` / `DELETE /editor/experiences/{id}/…`) drops the
+ * experience's – the next read asks the API again –, as does a failed read and a new session
  */
-const trees = new Map<string, Promise<BookTree>>();
+const trees = new Map<string, Promise<ExperienceTree>>();
 
 /**
  * The signed-in session as the editor knows it – never the session token, which only the cookie holds: the CSRF token
@@ -203,9 +213,9 @@ const errorOf = async (response: Response): Promise<ApiError> => {
   return new ApiError(response.status, code, message, details);
 };
 
-/** The book a path of the editor API is about, or null */
-const bookOfPath = (path: string): string | null => {
-  const match = /^\/editor\/books\/([^/?]+)/.exec(path);
+/** The experience a path of the editor API is about, or null */
+const experienceOfPath = (path: string): string | null => {
+  const match = /^\/editor\/experiences\/([^/?]+)/.exec(path);
   return match ? decodeURIComponent(match[1]) : null;
 };
 
@@ -219,7 +229,7 @@ const isCsrfRefusal = async (response: Response): Promise<boolean> => {
 /**
  * One call to the API: the cookie and, on a write, the CSRF token; a 403 `csrf` renews the token and sends the write
  * once more; a 401 that ends the session (unless `unauthorizedIsAnswer`), an error answer as `ApiError`; after a write
- * to a book (answered or not) its tree is read again
+ * to an experience (answered or not) its tree is read again
  */
 const request = async (method: string, path: string, init: RequestInit, { unauthorizedIsAnswer = false } = {}): Promise<Response> => {
   const sent = current;
@@ -232,8 +242,8 @@ const request = async (method: string, path: string, init: RequestInit, { unauth
     if (!response.ok) throw await errorOf(response);
     return response;
   } finally {
-    const book = method === "GET" ? null : bookOfPath(path);
-    if (book !== null) trees.delete(book);
+    const experience = method === "GET" ? null : experienceOfPath(path);
+    if (experience !== null) trees.delete(experience);
   }
 };
 
@@ -390,19 +400,19 @@ export const downloadUsersCsv = async (newsletter: boolean): Promise<void> => {
 
 // ── Editor ──────────────────────────────────────────────────────────────────────────────────────
 
-export const listBooks = () => api<BookList>("GET", "/editor/books");
+export const listExperiences = () => api<ExperienceList>("GET", "/editor/experiences");
 
 /**
- * The book's tree, read once and shared until a write to the book (`trees`); `fresh` asks the API in any case – a page
- * that shows the whole tree when it opens (the book page) sees what others changed meanwhile
+ * The experience's tree, read once and shared until a write to the experience (`trees`); `fresh` asks the API in any case – a page
+ * that shows the whole tree when it opens (the experience page) sees what others changed meanwhile
  */
-export const getBook = (bookId: string, { fresh = false }: { fresh?: boolean } = {}): Promise<BookTree> => {
-  const cached = fresh ? undefined : trees.get(bookId);
+export const getExperience = (experienceId: string, { fresh = false }: { fresh?: boolean } = {}): Promise<ExperienceTree> => {
+  const cached = fresh ? undefined : trees.get(experienceId);
   if (cached) return cached;
-  const read = api<BookTree>("GET", `/editor/books/${encodeURIComponent(bookId)}`);
-  trees.set(bookId, read);
+  const read = api<ExperienceTree>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}`);
+  trees.set(experienceId, read);
   read.catch(() => {
-    if (trees.get(bookId) === read) trees.delete(bookId);
+    if (trees.get(experienceId) === read) trees.delete(experienceId);
   });
   return read;
 };
@@ -415,33 +425,33 @@ export type ImportBody = ImportSource & { confirm?: string };
 export const previewImport = (body: ImportSource) => api<ImportPreview>("POST", "/editor/import/preview", body);
 
 /**
- * Imports into the book. Over a book that exists the API answers 409 `confirm-import` (or `confirmation-void`) with
+ * Imports into the experience. Over an experience that exists the API answers 409 `confirm-import` (or `confirmation-void`) with
  * `details.comparison` (an `ImportComparison`) and `details.confirmation` – `confirmationStep(error, "import")` reads
  * them; the same call with `confirm` then imports.
  */
-export const importBook = (bookId: string, body: ImportBody) => api<ImportResult>("POST", `/editor/books/${encodeURIComponent(bookId)}/import`, body);
+export const importExperience = (experienceId: string, body: ImportBody) => api<ImportResult>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/import`, body);
 
 /** This instance's environments (`GET /editor/environments`): the one it publishes to, each one's backend */
 export const listEnvironments = () => api<EnvironmentsInfo>("GET", "/editor/environments");
 
 /** The draft's manifest: its build now (what a publish would write) */
-export const getDraftManifest = (bookId: string) => api<DraftManifest>("GET", `/editor/books/${encodeURIComponent(bookId)}/draft/latest.json`);
+export const getDraftManifest = (experienceId: string) => api<DraftManifest>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/draft/latest.json`);
 
-export const putEntity = (bookId: string, ref: string, entity: EntityData) =>
-  api<EntitySaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/entities/${encodeURIComponent(ref)}`, entity);
+export const putEntity = (experienceId: string, ref: string, entity: EntityData) =>
+  api<EntitySaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/entities/${encodeURIComponent(ref)}`, entity);
 
-export const putTargetEntity = (bookId: string, targetId: string, entity: EntityData | EntityRefData | null) =>
-  api<TargetSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/targets/${encodeURIComponent(targetId)}`, { entity });
+export const putTargetEntity = (experienceId: string, targetId: string, entity: EntityData | EntityRefData | null) =>
+  api<TargetSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/targets/${encodeURIComponent(targetId)}`, { entity });
 
 /**
- * `replace` = publish although the environment serves another book (else 409 other-book); `plugins` = the Code tab's
+ * `replace` = publish although the environment serves another experience (else 409 other-experience); `plugins` = the Code tab's
  * saved sources as the browser transpiled them (`publish-plugins.ts`, #78) – the API puts them into the version
  */
-export const publishBook = (bookId: string, env: string, options: { note?: string; replace?: boolean; plugins?: PublishedPlugin[] } = {}) =>
-  api<PublishResult>("POST", `/editor/books/${encodeURIComponent(bookId)}/publish`, { env, ...options });
+export const publishExperience = (experienceId: string, env: string, options: { note?: string; replace?: boolean; plugins?: PublishedPlugin[] } = {}) =>
+  api<PublishResult>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/publish`, { env, ...options });
 
 /** The draft as a content version – the engine's `loadGameConfiguration({ baseUrl, fetch: authFetch })` reads it */
-export const draftBaseUrl = (bookId: string): string => `${API_URL}/editor/books/${encodeURIComponent(bookId)}/draft`;
+export const draftBaseUrl = (experienceId: string): string => `${API_URL}/editor/experiences/${encodeURIComponent(experienceId)}/draft`;
 
 // ── Assets (docs/server.md "Assets") ─────────────────────────────────────────────────────────────
 
@@ -449,8 +459,8 @@ export const draftBaseUrl = (bookId: string): string => `${API_URL}/editor/books
 export type MediaKind = AssetType;
 export const isMediaAsset = (asset: Asset): asset is Asset & { kind: MediaKind } => asset.kind !== "shader" && asset.kind !== "subtitles";
 
-export const listAssets = (bookId: string, kind?: string) =>
-  api<AssetList>("GET", `/editor/books/${encodeURIComponent(bookId)}/assets${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`);
+export const listAssets = (experienceId: string, kind?: string) =>
+  api<AssetList>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/assets${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`);
 
 /** A code file's name: the browser's type for it says nothing true – Windows calls a `.ts` an MPEG stream */
 const CODE_FILE = /\.(ts|js|glsl|frag|vert|wgsl)$/i;
@@ -469,162 +479,165 @@ const sendFile = async <T>(method: string, path: string, file: File): Promise<T>
 export const fitQuery = (use: ImageFit | ImageUse | undefined): string => imageUseQuery(use);
 
 /** The uploaded asset, and whether the image rule converted it (a picture stored as WebP) */
-export const uploadAsset = (bookId: string, file: File, use?: ImageFit | ImageUse): Promise<AssetUploaded> =>
-  sendFile<AssetUploaded>("POST", `/editor/books/${encodeURIComponent(bookId)}/assets${fitQuery(use)}`, file);
+export const uploadAsset = (experienceId: string, file: File, use?: ImageFit | ImageUse): Promise<AssetUploaded> =>
+  sendFile<AssetUploaded>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/assets${fitQuery(use)}`, file);
 
-export const replaceAsset = (bookId: string, assetId: string, file: File, use?: ImageFit | ImageUse) =>
-  sendFile<AssetReplaced>("PUT", `/editor/books/${encodeURIComponent(bookId)}/assets/${encodeURIComponent(assetId)}/file${fitQuery(use)}`, file);
+export const replaceAsset = (experienceId: string, assetId: string, file: File, use?: ImageFit | ImageUse) =>
+  sendFile<AssetReplaced>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/assets/${encodeURIComponent(assetId)}/file${fitQuery(use)}`, file);
 
 /** The Library's files named by their use (#298 phase 3): the plan, or – `apply` – the plan written */
-export const planAssetNames = (bookId: string, apply = false) =>
-  api<AssetNamesPlan>("POST", `/editor/books/${encodeURIComponent(bookId)}/assets/names`, { apply });
+export const planAssetNames = (experienceId: string, apply = false) =>
+  api<AssetNamesPlan>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/assets/names`, { apply });
 
-export const assetUsages = (bookId: string, assetId: string) =>
-  api<AssetUsages>("GET", `/editor/books/${encodeURIComponent(bookId)}/assets/${encodeURIComponent(assetId)}/usages`);
+export const assetUsages = (experienceId: string, assetId: string) =>
+  api<AssetUsages>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/assets/${encodeURIComponent(assetId)}/usages`);
 
 /** Files' credits lines by URL (#277); empty or null removes one */
-export const setAssetCredits = (bookId: string, items: { url: string; credits: string | null }[]) =>
-  api<AssetCreditsSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/assets/credits`, { items });
+export const setAssetCredits = (experienceId: string, items: { url: string; credits: string | null }[]) =>
+  api<AssetCreditsSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/assets/credits`, { items });
 
-export const deleteAsset = (bookId: string, assetId: string, force = false) =>
-  api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/assets/${encodeURIComponent(assetId)}${force ? "?force=1" : ""}`);
+export const deleteAsset = (experienceId: string, assetId: string, force = false) =>
+  api<void>("DELETE", `/editor/experiences/${encodeURIComponent(experienceId)}/assets/${encodeURIComponent(assetId)}${force ? "?force=1" : ""}`);
 
 // ── Targets and entries made in the editor ───────────────────────────────────────────────────────
 
 /** The target's printed image and / or where it lies on its scene's surface (`place`) */
-export const putTarget = (bookId: string, targetId: string, body: { imageSrc?: string; place?: TargetPlace | null; enabled?: boolean }) =>
-  api<TargetSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/targets/${encodeURIComponent(targetId)}`, body);
+export const putTarget = (experienceId: string, targetId: string, body: { imageSrc?: string; place?: TargetPlace | null; enabled?: boolean }) =>
+  api<TargetSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/targets/${encodeURIComponent(targetId)}`, body);
 
 /**
  * A new entry on a scene (`surface` only when the scene has several) – with its target, or without one: an entry read
  * only in the list (the Entries page, #223)
  */
-export const addEntry = (bookId: string, body: { id?: string; title: string; scene: string; surface?: string; category?: string; body?: string; target?: { id?: string; imageSrc: string; place?: TargetPlace; entity?: EntityData | EntityRefData } }) =>
-  api<EntryAdded>("POST", `/editor/books/${encodeURIComponent(bookId)}/entries`, body);
+export const addEntry = (experienceId: string, body: { id?: string; title: string; scene: string; surface?: string; category?: string; body?: string; target?: { id?: string; imageSrc: string; place?: TargetPlace; entity?: EntityData | EntityRefData } }) =>
+  api<EntryAdded>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/entries`, body);
 
-// ── The book's texts (#223, docs/server.md "Texts") ──────────────────────────────────────────────
+// ── The experience's texts (#223, docs/server.md "Texts") ──────────────────────────────────────────────
 
 /** Every entry with its fields as the content holds them (an image's path unresolved), its scene and its target */
-export const getEntries = (bookId: string) => api<EntryList>("GET", `/editor/books/${encodeURIComponent(bookId)}/entries`);
+export const getEntries = (experienceId: string) => api<EntryList>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/entries`);
 
 /** An entry's fields – only those sent change; `null` removes author, image or media. `scene` (and `surface`) moves it */
-export const putEntry = (bookId: string, entryId: string, changes: Record<string, unknown>) =>
-  api<EntrySaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/entries/${encodeURIComponent(entryId)}`, changes);
+export const putEntry = (experienceId: string, entryId: string, changes: Record<string, unknown>) =>
+  api<EntrySaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/entries/${encodeURIComponent(entryId)}`, changes);
 
-/** The book's title, author and publisher (`publisher: null` removes it), and its source of truth (#238) */
-export const putBookTexts = (bookId: string, changes: { title?: string; author?: string; publisher?: string | null; sourceOfTruth?: SourceOfTruth }) =>
-  api<BookSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}`, changes);
+/**
+ * The experience's title and its printed book (#320): `book` sets the book's author and publisher (`publisher: null`
+ * removes it; a new book needs its author), `book: null` removes the printed book – the experience is no book then
+ */
+export const putExperience = (experienceId: string, changes: { title?: string; book?: { author?: string; publisher?: string | null } | null }) =>
+  api<ExperienceSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}`, changes);
 
 // ── The change log and its reverts (#312, docs/server.md "Reverting saved changes") ──────────────────
 
-/** The book's saved changes, newest first (at most 500) */
-export const getChanges = (bookId: string, limit = 500) => api<{ changes: Change[] }>("GET", `/editor/books/${encodeURIComponent(bookId)}/changes?limit=${limit}`);
+/** The experience's saved changes, newest first (at most 500) */
+export const getChanges = (experienceId: string, limit = 500) => api<{ changes: Change[] }>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/changes?limit=${limit}`);
 
 /** What reverting `ids` does (`apply` false: nothing written), or – with `apply` – does it: later changes of the same things too */
-export const revertChanges = (bookId: string, ids: string[], apply = false) =>
-  api<RevertResult>("POST", `/editor/books/${encodeURIComponent(bookId)}/changes/revert`, { ids, ...(apply ? { apply: true } : {}) });
+export const revertChanges = (experienceId: string, ids: string[], apply = false) =>
+  api<RevertResult>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/changes/revert`, { ids, ...(apply ? { apply: true } : {}) });
 
 /** Every change after `after` reverted, newest first – the plan, or with `apply` written */
-export const revertTo = (bookId: string, after: string, apply = false) =>
-  api<RevertResult>("POST", `/editor/books/${encodeURIComponent(bookId)}/changes/revert-to`, { after, ...(apply ? { apply: true } : {}) });
+export const revertTo = (experienceId: string, after: string, apply = false) =>
+  api<RevertResult>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/changes/revert-to`, { after, ...(apply ? { apply: true } : {}) });
 
-/** The book's world and onion sky; `null` removes them – the default applies */
-export const putEnvironment = (bookId: string, environment: EnvironmentData | null) =>
-  api<EnvironmentSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/environment`, { environment });
+/** The experience's world and onion sky; `null` removes them – the default applies */
+export const putEnvironment = (experienceId: string, environment: EnvironmentData | null) =>
+  api<EnvironmentSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/environment`, { environment });
 
-/** The book's post-processing – the master of every scene without a list of its own; `null` removes it */
-export const putBookPasses = (bookId: string, passes: PassData[] | null) =>
-  api<BookPassesSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/passes`, { passes });
+/** The experience's post-processing – the master of every scene without a list of its own; `null` removes it */
+export const putExperiencePasses = (experienceId: string, passes: PassData[] | null) =>
+  api<ExperiencePassesSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/passes`, { passes });
 
-/** How the book's entities appear: a look per moment (#265); `null` removes it – the default look plays everywhere */
-export const putBookAppearance = (bookId: string, appearance: BookAppearance | null) =>
-  api<BookAppearanceSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/appearance`, { appearance });
+/** How the experience's entities appear: a look per moment (#265); `null` removes it – the default look plays everywhere */
+export const putExperienceAppearance = (experienceId: string, appearance: ExperienceAppearance | null) =>
+  api<ExperienceAppearanceSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/appearance`, { appearance });
 
-// ── Scenes (#307, docs/server.md "Scenes"): the Scenes panel and the book page ──────────────────────
+// ── Scenes (#307, docs/server.md "Scenes"): the Scenes panel and the experience page ──────────────────────
 
 /** Where a scene goes: after or before a scene, or at a position (0 = first) */
 export type ScenePlace = { after: string } | { before: string } | { position: number };
 
 /** A scene from a preset (double / single / wall), placed anywhere (none: after the last) */
-export const addScene = (bookId: string, body: { preset: ScenePreset; label?: string; group?: string } & Partial<ScenePlace>) =>
-  api<SceneAdded>("POST", `/editor/books/${encodeURIComponent(bookId)}/scenes`, body);
+export const addScene = (experienceId: string, body: { preset: ScenePreset; label?: string; group?: string } & Partial<ScenePlace>) =>
+  api<SceneAdded>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/scenes`, body);
 
 /**
  * Moves scenes as a block (in their order) – placed after / before a scene or at a position; `group` puts them into a
  * group (`null`: out of theirs), left out they keep it. `apply: true` writes; without it the answer is the plan only.
  */
-export const moveScenes = (bookId: string, body: { scenes: string[]; group?: string | null; apply?: boolean } & Partial<ScenePlace>) =>
-  api<ScenesMoved>("POST", `/editor/books/${encodeURIComponent(bookId)}/scenes/move`, body);
+export const moveScenes = (experienceId: string, body: { scenes: string[]; group?: string | null; apply?: boolean } & Partial<ScenePlace>) =>
+  api<ScenesMoved>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/scenes/move`, body);
 
 /**
  * A scene's label, group, surfaces (the whole list, places included) or post-processing (`passes`: `null` removes the list
- * – the book's applies –, `[]` turns it off); `apply` lets surfaces go that entries lie on
+ * – the experience's applies –, `[]` turns it off); `apply` lets surfaces go that entries lie on
  */
-export const putScene = (bookId: string, sceneId: string, body: { surfaces?: SurfaceData[]; label?: string; group?: string | null; passes?: PassData[] | null; apply?: boolean }) =>
-  api<SceneSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/scenes/${encodeURIComponent(sceneId)}`, body);
+export const putScene = (experienceId: string, sceneId: string, body: { surfaces?: SurfaceData[]; label?: string; group?: string | null; passes?: PassData[] | null; apply?: boolean }) =>
+  api<SceneSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/scenes/${encodeURIComponent(sceneId)}`, body);
 
-/** The book's scenes in order and the groups – every surface with its reference image (#314) */
-export const listScenes = (bookId: string) => api<SceneList>("GET", `/editor/books/${encodeURIComponent(bookId)}/scenes`);
+/** The experience's scenes in order and the groups – every surface with its reference image (#314) */
+export const listScenes = (experienceId: string) => api<SceneList>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/scenes`);
 
 /**
  * A surface's reference image (#314, editor-only – never in the content): `{ url }` sets or replaces it (a Library image's
- * URL), `{ url: null }` removes it, `{ fit }` / `{ name }` alone change the present one. A change in the book's log.
+ * URL), `{ url: null }` removes it, `{ fit }` / `{ name }` alone change the present one. A change in the experience's log.
  */
-export const putSurfaceReference = (bookId: string, sceneId: string, surfaceId: string, body: SurfaceReferenceRequest) =>
+export const putSurfaceReference = (experienceId: string, sceneId: string, surfaceId: string, body: SurfaceReferenceRequest) =>
   api<SurfaceReferenceSaved>(
     "PUT",
-    `/editor/books/${encodeURIComponent(bookId)}/scenes/${encodeURIComponent(sceneId)}/surfaces/${encodeURIComponent(surfaceId)}/reference`,
+    `/editor/experiences/${encodeURIComponent(experienceId)}/scenes/${encodeURIComponent(sceneId)}/surfaces/${encodeURIComponent(surfaceId)}/reference`,
     body,
   );
 
 /** A group of the picked scenes (they come together where the first of them is) */
-export const addGroup = (bookId: string, body: { label: string; scenes: string[]; id?: string; apply?: boolean }) =>
-  api<GroupPlanned>("POST", `/editor/books/${encodeURIComponent(bookId)}/groups`, body);
+export const addGroup = (experienceId: string, body: { label: string; scenes: string[]; id?: string; apply?: boolean }) =>
+  api<GroupPlanned>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/groups`, body);
 
 /** A group's label */
-export const putGroup = (bookId: string, groupId: string, label: string) =>
-  api<GroupSaved>("PUT", `/editor/books/${encodeURIComponent(bookId)}/groups/${encodeURIComponent(groupId)}`, { label });
+export const putGroup = (experienceId: string, groupId: string, label: string) =>
+  api<GroupSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/groups/${encodeURIComponent(groupId)}`, { label });
 
 /** Ungroup: the group goes, its scenes stay in place and in order */
-export const deleteGroup = (bookId: string, groupId: string) =>
-  api<Ungrouped>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/groups/${encodeURIComponent(groupId)}`);
+export const deleteGroup = (experienceId: string, groupId: string) =>
+  api<Ungrouped>("DELETE", `/editor/experiences/${encodeURIComponent(experienceId)}/groups/${encodeURIComponent(groupId)}`);
 
 /**
  * Removes a scene with everything on it, in two steps: without `confirm` the API answers 409 `confirm-delete` with
  * `details.impact` (a `RemovalImpact`) and `details.confirmation` (`removalStep` reads them); the same call with
- * `confirm` (and `deleteFiles` when the person chose it) removes exactly that. 409 for the scene the book opens on.
+ * `confirm` (and `deleteFiles` when the person chose it) removes exactly that. 409 for the scene the experience opens on.
  */
-export const deleteScene = (bookId: string, sceneId: string, confirm?: string, deleteFiles = false) =>
-  api<RemovalResult>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/scenes/${encodeURIComponent(sceneId)}`, removalBody(confirm, deleteFiles));
+export const deleteScene = (experienceId: string, sceneId: string, confirm?: string, deleteFiles = false) =>
+  api<RemovalResult>("DELETE", `/editor/experiences/${encodeURIComponent(experienceId)}/scenes/${encodeURIComponent(sceneId)}`, removalBody(confirm, deleteFiles));
 
 /** Removes an entry with its target, its entity and (with `deleteFiles`) the files used only there – the same two steps */
-export const deleteEntry = (bookId: string, entryId: string, confirm?: string, deleteFiles = false) =>
-  api<RemovalResult>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/entries/${encodeURIComponent(entryId)}`, removalBody(confirm, deleteFiles));
+export const deleteEntry = (experienceId: string, entryId: string, confirm?: string, deleteFiles = false) =>
+  api<RemovalResult>("DELETE", `/editor/experiences/${encodeURIComponent(experienceId)}/entries/${encodeURIComponent(entryId)}`, removalBody(confirm, deleteFiles));
 
 const removalBody = (confirm: string | undefined, deleteFiles: boolean) => (confirm ? { confirm, ...(deleteFiles ? { deleteFiles: true } : {}) } : undefined);
 
 // ── Plugin sources (docs/server.md "Plugin sources") – the Code tab ─────────────────────────────
 
-export const listPlugins = (bookId: string) => api<{ plugins: PluginSummary[] }>("GET", `/editor/books/${encodeURIComponent(bookId)}/plugins`);
+export const listPlugins = (experienceId: string) => api<{ plugins: PluginSummary[] }>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/plugins`);
 
-export const getPlugin = (bookId: string, pluginId: string) =>
-  api<{ plugin: PluginSource }>("GET", `/editor/books/${encodeURIComponent(bookId)}/plugins/${encodeURIComponent(pluginId)}`);
+export const getPlugin = (experienceId: string, pluginId: string) =>
+  api<{ plugin: PluginSource }>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/plugins/${encodeURIComponent(pluginId)}`);
 
-export const putPlugin = (bookId: string, pluginId: string, source: string) =>
-  api<{ plugin: PluginSource }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/plugins/${encodeURIComponent(pluginId)}`, { source });
+export const putPlugin = (experienceId: string, pluginId: string, source: string) =>
+  api<{ plugin: PluginSource }>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/plugins/${encodeURIComponent(pluginId)}`, { source });
 
 /** Refused while the draft uses a type it registers (409 plugin-in-use with the usages) unless forced */
-export const deletePlugin = (bookId: string, pluginId: string, force = false) =>
-  api<void>("DELETE", `/editor/books/${encodeURIComponent(bookId)}/plugins/${encodeURIComponent(pluginId)}${force ? "?force=1" : ""}`);
+export const deletePlugin = (experienceId: string, pluginId: string, force = false) =>
+  api<void>("DELETE", `/editor/experiences/${encodeURIComponent(experienceId)}/plugins/${encodeURIComponent(pluginId)}${force ? "?force=1" : ""}`);
 
 /** A script file becomes a new plugin source, its id from the file's name (409 plugin-exists when taken) */
-export const uploadPlugin = async (bookId: string, file: File): Promise<PluginSource> =>
-  (await sendFile<{ plugin: PluginSource }>("POST", `/editor/books/${encodeURIComponent(bookId)}/plugins`, file)).plugin;
+export const uploadPlugin = async (experienceId: string, file: File): Promise<PluginSource> =>
+  (await sendFile<{ plugin: PluginSource }>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/plugins`, file)).plugin;
 
 /** A script file replaces a plugin's source */
-export const replacePluginFile = async (bookId: string, pluginId: string, file: File): Promise<PluginSource> =>
-  (await sendFile<{ plugin: PluginSource }>("PUT", `/editor/books/${encodeURIComponent(bookId)}/plugins/${encodeURIComponent(pluginId)}/file`, file)).plugin;
+export const replacePluginFile = async (experienceId: string, pluginId: string, file: File): Promise<PluginSource> =>
+  (await sendFile<{ plugin: PluginSource }>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/plugins/${encodeURIComponent(pluginId)}/file`, file)).plugin;
 
 /** Where the draft uses what a plugin registers, and what that is (read from its source) */
-export const pluginUsages = (bookId: string, pluginId: string) =>
-  api<PluginUsages>("GET", `/editor/books/${encodeURIComponent(bookId)}/plugins/${encodeURIComponent(pluginId)}/usages`);
+export const pluginUsages = (experienceId: string, pluginId: string) =>
+  api<PluginUsages>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/plugins/${encodeURIComponent(pluginId)}/usages`);

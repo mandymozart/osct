@@ -179,7 +179,7 @@ export const boxLines = (box: StageBox, kind: SnapKind): PerAxis<SnapLine[]> =>
 export const pointLines = (point: Vec3, kind: SnapKind): PerAxis<SnapLine[]> =>
   [0, 1, 2].map(k => [{ at: tidy(point[k]), kind }]) as PerAxis<SnapLine[]>;
 
-/** The axes: the origin's zero lines (one per page for a corner origin, one for the book's centre) and the page plane */
+/** The axes: the origin's zero lines (one per page for a corner origin, one for the scene's centre) and the page plane */
 export const axisLines = (origin: OriginId, frame: StageFrame): PerAxis<SnapLine[]> => {
   const x: SnapLine[] = [];
   const y: SnapLine[] = [];
@@ -216,7 +216,7 @@ export const joinLines = (...sources: PerAxis<readonly SnapLine[]>[]): PerAxis<S
 
 /**
  * The steps at a point (stage mm): every `step` mm from the origin's zero of the grid area the point lies in (the page
- * under it for a corner origin, the book for its centre) along x and y, from the page plane along z
+ * under it for a corner origin, the scene for its centre) along x and y, from the page plane along z
  */
 export const incrementsAt = (x: number, origin: OriginId, frame: StageFrame, step: number): PerAxis<Increment> => {
   const areas = gridAreas(origin, frame).map(area => ({

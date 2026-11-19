@@ -17,7 +17,7 @@
   import CreditsField from "#lib/components/CreditsField.svelte";
 
   /**
-   * The book's library: the files uploaded in the editor and, after them, the files of the content import (`files.json`,
+   * The experience's library: the files uploaded in the editor and, after them, the files of the content import (`files.json`,
    * read-only – docs/server.md "Assets"). A grid of cards – a preview (`AssetThumb`: images, a video's poster that
    * plays) – with where the file belongs (`p015-1 · target`, `assetPlace`), kind, size, dimensions, a video's duration and the number of
    * uses, or a plain list of the same (a click on a row opens its actions; the view is remembered per browser); filter
@@ -28,16 +28,16 @@
    * relinked) and **Delete** (refused while used – *Delete anyway* forces it). Opened as a **picker** (`pick`, a file
    * field's *Library…* – #164): the filter starts at the kind being picked, a click on a fitting file picks it for that
    * one field and returns, an upload that fits is picked at once; *cancel* or Esc returns without one.
-   * The media are **grouped by scene** (#298 phase 3): a header per scene in book order – the scene of each file's
-   * first use –, then "Not in a scene" (book-wide uses), then "Unused"; a file used in more places says "+N more".
+   * The media are **grouped by scene** (#298 phase 3): a header per scene in experience order – the scene of each file's
+   * first use –, then "Not in a scene" (experience-wide uses), then "Unused"; a file used in more places says "+N more".
    * **Name by use…** proposes the names the files take by their use (`p118-1_target.webp`, `page-118.webp`) and applies
    * them on a second click – the name only, every URL stays.
-   * **Code files** (#186) – scripts (the book's plugin sources) and shaders – are a list of their own under the media
+   * **Code files** (#186) – scripts (the experience's plugin sources) and shaders – are a list of their own under the media
    * (`CodeFiles`, the filter *code* shows it alone): an uploaded or dropped `.ts` / `.js` becomes a plugin source named
    * after the file, a `.glsl` / `.frag` / `.vert` / `.wgsl` a shader asset.
    */
-  let { bookId, pick = null, nodeType = null, targetId = null, onuse, onusetarget, onchanged, onopencode }: {
-    bookId: string;
+  let { experienceId, pick = null, nodeType = null, targetId = null, onuse, onusetarget, onchanged, onopencode }: {
+    experienceId: string;
     /** Opened as a picker for one field */
     pick?: LibraryPick | null;
     /** The selected node's type (its file kind) – null without a node */
@@ -77,7 +77,7 @@
   };
 
   $effect(() => {
-    if (library.bookId !== bookId) void library.load(bookId);
+    if (library.experienceId !== experienceId) void library.load(experienceId);
   });
 
   const targetImages = $derived(targetImagesOf(content.scenes));
@@ -93,7 +93,7 @@
     naming = true;
     library.error = null;
     try {
-      namesPlan = (await planAssetNames(bookId)).plan.renames;
+      namesPlan = (await planAssetNames(experienceId)).plan.renames;
     } catch (e) {
       library.error = errorText(e);
     } finally {
@@ -103,10 +103,10 @@
   const applyNames = async () => {
     naming = true;
     try {
-      const { plan } = await planAssetNames(bookId, true);
+      const { plan } = await planAssetNames(experienceId, true);
       notice = `${plan.renames.length} file${plan.renames.length === 1 ? "" : "s"} renamed by use – every URL stays`;
       namesPlan = null;
-      await library.load(bookId);
+      await library.load(experienceId);
     } catch (e) {
       library.error = errorText(e);
     } finally {
@@ -135,9 +135,9 @@
   const uploadScript = async (file: File) => {
     scriptUploads = [...scriptUploads, file.name];
     try {
-      const plugin = await plugins.upload(bookId, file);
+      const plugin = await plugins.upload(experienceId, file);
       notice = `${file.name} is the plugin ${plugin.id} – open it in the Code tab from the code list`;
-      void plugins.load(bookId);
+      void plugins.load(experienceId);
     } catch (e) {
       library.error = e instanceof ApiError && e.code === "plugin-exists"
         ? `${file.name}: the plugin ${pluginIdFrom(file.name)} exists – Replace… it in the code list`
@@ -162,7 +162,7 @@
       }
       try {
         const names = new Map(library.assets.map(a => [a.id, a.name]));
-        const asset = await library.upload(bookId, file, pick ? pickFit(pick.subject) : undefined);
+        const asset = await library.upload(experienceId, file, pick ? pickFit(pick.subject) : undefined);
         // Picking: the first upload that fits is the pick
         if (pick) {
           if (pickFits(pick.subject, asset)) return choose(asset);
@@ -200,7 +200,7 @@
     replacing = null;
     if (!asset) return;
     try {
-      const next = await library.replace(bookId, asset.id, file);
+      const next = await library.replace(experienceId, asset.id, file);
       const conversion = library.converted?.assetId === next.id ? library.converted : null;
       notice = `${next.name} is version ${next.version}; ${next.usages} use${next.usages === 1 ? "" : "s"} relinked${conversion ? ` · ${convertedNotice(next, conversion)}` : ""}`;
       await onchanged?.();
@@ -210,7 +210,7 @@
   };
   const remove = async (asset: Asset, force: boolean) => {
     try {
-      await library.remove(bookId, asset.id, force);
+      await library.remove(experienceId, asset.id, force);
       confirming = null;
       notice = `${asset.name} deleted`;
     } catch (e) {
@@ -355,7 +355,7 @@
     {/each}
   {/if}
   {#if !pick && (filter === "all" || filter === "code")}
-    <CodeFiles {bookId} {search} all={filter === "all"} {onopencode} />
+    <CodeFiles {experienceId} {search} all={filter === "all"} {onopencode} />
   {/if}
 </div>
 

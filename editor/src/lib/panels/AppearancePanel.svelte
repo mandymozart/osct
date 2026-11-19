@@ -2,8 +2,8 @@
   import { untrack } from "svelte";
   import { autosave } from "#lib/autosave.svelte.js";
   import { baselineOf, differsFromBaseline, noteBaseline } from "#lib/baselines.js";
-  import { MOMENTS, type BookAppearance, type Moment, type PassData } from "@engine/types";
-  import { putBookAppearance } from "#lib/api.js";
+  import { MOMENTS, type ExperienceAppearance, type Moment, type PassData } from "@engine/types";
+  import { putExperienceAppearance } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import {
@@ -21,30 +21,30 @@
   import Toggle from "#lib/components/Toggle.svelte";
 
   /**
-   * How the book's entities **appear** (#265, `book.appearance`): a look per moment – the first find (`reveal`), every
+   * How the experience's entities **appear** (#265, `experience.appearance`): a look per moment – the first find (`reveal`), every
    * later find (`found`), the lost page (`lost`) –, each a collapsible section with a look picker (the built-in looks and
-   * the looks of the book's plugins: recorded, loaded on the stage or run in the Code tab, `plugins.version`) and the
+   * the looks of the experience's plugins: recorded, loaded on the stage or run in the Code tab, `plugins.version`) and the
    * rows of the look it plays from its spec. A moment without a look of its own plays `found`'s, then the default – its
    * rows show that look's values, and the first change makes the moment its own (a copy of the look that played, with the
-   * change); closed, its head names the look and its values set. Book-level: every scene shares it. A change plays on the stage at once – the
+   * change); closed, its head names the look and its values set. Experience-level: every scene shares it. A change plays on the stage at once – the
    * stage's next animations take the panel's looks, and each moment's *play* shows it on the shown targets – and reaches
    * the draft by itself a moment later (`PUT …/appearance`, #259). *Undo edits* takes it back to how the draft had it
    * before the first edit in this page. The model is `PassesPanel.svelte`; the logic `appearance-edit.ts`.
    */
-  let { stage, bookId }: { stage: Stage | null; bookId: string } = $props();
+  let { stage, experienceId }: { stage: Stage | null; experienceId: string } = $props();
 
   /** The draft's looks (a copy) – what a changed row is compared with */
-  const saved = $derived<BookAppearance>(draftAppearance(content.bookAppearance));
+  const saved = $derived<ExperienceAppearance>(draftAppearance(content.experienceAppearance));
 
-  let edit = $state<BookAppearance>({});
+  let edit = $state<ExperienceAppearance>({});
   /** The draft looks the panel started from (by identity: a reload makes new ones) */
-  let seen = $state<{ id: string; appearance: BookAppearance | null; draft: BookAppearance } | null>(null);
+  let seen = $state<{ id: string; appearance: ExperienceAppearance | null; draft: ExperienceAppearance } | null>(null);
 
-  /** The book's looks as a subject of the autosaver and of *Undo edits* */
-  const key = $derived(`appearance:${bookId}`);
+  /** The experience's looks as a subject of the autosaver and of *Undo edits* */
+  const key = $derived(`appearance:${experienceId}`);
   const canUndo = $derived(differsFromBaseline(key, edit));
   /** What the picker offers: built in, then each plugin's (a Code tab Run adds its looks at once) */
-  const choices = $derived.by(() => { void plugins.version; void content.bookAppearance; return liveLookChoices(); });
+  const choices = $derived.by(() => { void plugins.version; void content.experienceAppearance; return liveLookChoices(); });
   const builtIns = $derived(choices.filter(choice => !choice.plugin));
   /** Why a look the draft names is not offered: the code loading, a source failed, or nobody registers it (#269) */
   const missing = $derived(plugins.missingNote());
@@ -73,10 +73,10 @@
     lost: "The page is lost: the entity disappears – its look plays rewound, in the look's disappear time.",
   };
 
-  // The draft arriving or reloading: start from the draft – unless this book has unsaved edits
+  // The draft arriving or reloading: start from the draft – unless this experience has unsaved edits
   $effect(() => {
-    const id = bookId;
-    const appearance = content.bookAppearance;
+    const id = experienceId;
+    const appearance = content.experienceAppearance;
     const previous = seen;
     if (previous && previous.id === id && previous.appearance === appearance) return;
     const switching = !previous || previous.id !== id;
@@ -90,25 +90,25 @@
   });
 
   /** An edit: on the stage at once, in the draft a moment after the last one */
-  const apply = (next: BookAppearance) => {
+  const apply = (next: ExperienceAppearance) => {
     edit = next;
-    const looks = appearanceToSave($state.snapshot(next) as BookAppearance);
+    const looks = appearanceToSave($state.snapshot(next) as ExperienceAppearance);
     stage?.overrideAppearance(looks);
-    const book = bookId;
+    const experience = experienceId;
     noteBaseline(key, saved);
     autosave.queue(key, async () => {
       // Compared with the draft as it is when the save runs (an earlier save may have changed it)
-      if (sameAppearance(looks, content.bookAppearance)) return;
-      await putBookAppearance(book, looks);
+      if (sameAppearance(looks, content.experienceAppearance)) return;
+      await putExperienceAppearance(experience, looks);
       // The draft holds the looks; the stage plays them already (its override), so nothing is built again
-      await content.load(book);
+      await content.load(experience);
     });
   };
   const choose = (moment: Moment, type: string) => apply(setLook(edit, moment, type || null));
   const set = (moment: Moment, row: ValueRow, value: number | string) => apply(setLookValue(edit, moment, row, value));
   /** Undo edits: the looks as the draft had them before the first edit in this page – saved like any edit */
   const revert = () => {
-    const before = baselineOf<BookAppearance>(key);
+    const before = baselineOf<ExperienceAppearance>(key);
     if (before !== undefined) apply(draftAppearance(before));
   };
   /** A row's value as the draft has it – the default when the draft's look is another one */
@@ -119,7 +119,7 @@
 </script>
 
 <Section id="stage.appearance" label={appearanceHeading(edit)} open={false}
-  help="How the book's AR entities appear and disappear: a look for the first find (reveal), every later find (found) and the lost page (lost) – a built-in look with its values, or a look of the book's plugins. It is the experience's: every scene plays it. A change plays on the stage at once – play in a moment's head shows it – and reaches the draft by itself.">
+  help="How the experience's AR entities appear and disappear: a look for the first find (reveal), every later find (found) and the lost page (lost) – a built-in look with its values, or a look of the experience's plugins. It is the experience's: every scene plays it. A change plays on the stage at once – play in a moment's head shows it – and reaches the draft by itself.">
 {#each moments as { moment, look, played, rows, source, summary, plugin, description, known } (moment)}
   <Section id="stage.appearance.{moment}" label={moment} {summary} open={false} nested
     help={`${MOMENT_HELP[moment]} ${look ? (description ? (plugin ? `${description} – a look of the plugin ${plugin}.` : description) : `A plugin's look that is not registered on the stage (${missing}) – the Code tab says why, or pick another.`) : source === "found" ? "It has no look of its own: it plays found's." : "It has no look of its own: it plays the default look."}`}>
@@ -171,7 +171,7 @@
 {#if canUndo}
   <div class="actions">
     <button type="button" class="text-link" onclick={revert} data-help-name="Undo edits"
-      data-help="Edits reach the draft by themselves, a moment after the last change. Undo edits takes the book's appearance back to how the draft had it before its first edit since this page was opened.">Undo edits</button>
+      data-help="Edits reach the draft by themselves, a moment after the last change. Undo edits takes the experience's appearance back to how the draft had it before its first edit since this page was opened.">Undo edits</button>
   </div>
 {/if}
 </Section>

@@ -3,12 +3,12 @@
   import { autosave } from "#lib/autosave.svelte.js";
   import { baselineOf, differsFromBaseline, noteBaseline } from "#lib/baselines.js";
   import { isPassEnabled, passBudgetWarning, type PassData } from "@engine/types";
-  import { putBookPasses, putScene } from "#lib/api.js";
+  import { putExperiencePasses, putScene } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import {
-    backToBooks, draftPasses, editInEffect, effectivePasses, movePass, ownPasses, passesHeading, passesSource, passSummary, pendingSaves,
-    setPassEnabled, scenesOnBook, type PassesDraft, type PassesSource,
+    backToExperience, draftPasses, editInEffect, effectivePasses, movePass, ownPasses, passesHeading, passesSource, passSummary, pendingSaves,
+    setPassEnabled, scenesOnExperience, type PassesDraft, type PassesSource,
   } from "#lib/passes-edit.js";
   import { sections } from "#lib/sections.svelte.js";
   import { livePassGroups, passPluginOf, passSpecOf } from "#lib/plugin-passes.js";
@@ -25,53 +25,53 @@
 
   /**
    * The **post-processing**: the passes over the rendered image in order – the built-in bloom,
-   * vignette and grade, and (#216) the passes of the book's plugins, each with its rows from its spec. The
-   * book's passes are the master every scene shows; a scene uses them until it has its **own** (an override, starting
-   * as a copy of the book's; an empty list turns them off there), *back to the book's* drops the override again. The list
-   * shown is the one in effect – while the scene uses the book's, editing it edits the book's (every scene without its
-   * own). The level is unmistakable (#181): the head names it ("post-processing · the whole book" / "· only this scene"),
-   * the line under it says what editing changes (all N scenes that use the book's, or this scene's override) with the
+   * vignette and grade, and (#216) the passes of the experience's plugins, each with its rows from its spec. The
+   * experience's passes are the master every scene shows; a scene uses them until it has its **own** (an override, starting
+   * as a copy of the experience's; an empty list turns them off there), *back to the experience's* drops the override again. The list
+   * shown is the one in effect – while the scene uses the experience's, editing it edits the experience's (every scene without its
+   * own). The level is unmistakable (#181): the head names it ("post-processing · the whole experience" / "· only this scene"),
+   * the line under it says what editing changes (all N scenes that use the experience's, or this scene's override) with the
    * switch to the other. Each pass is a collapsible section of its own (#233): closed, its
    * head names the type and its values set ("bloom · strength 0.35"); the head's toggle switches it on and off without
    * opening it (off keeps its place and values, the chain skips it), and it moves up and down in the list or goes. A
    * pass added opens. *add pass* offers the
    * built-in passes and each plugin's under its id – the declared plugins' (recorded, or loaded on the stage) and a plugin
    * run in the Code tab at once (`plugins.version`). A list beyond the phone budget says so (#86). Changes show live on
-   * the stage (under *rendered*) and reach the draft by themselves a moment later (#259) – what changed: the book's list
+   * the stage (under *rendered*) and reach the draft by themselves a moment later (#259) – what changed: the experience's list
    * (`PUT …/passes`) and / or the scene's (`PUT …/scenes/{id}`); the stage keeps showing them, nothing is built again.
    * *Undo edits* takes both lists back to how the draft had them before the first edit in this page. A collapsible section of the Inspector's scene view,
    * closed on the first visit; the passes' descriptions are their help in the Info view.
    */
-  let { stage, bookId, sceneId, level = "scene" }: {
-    stage: Stage | null; bookId: string; sceneId: string;
-    /** "book": the experience's passes (behind the experience settings, #307 3c) – only the book's list, every scene
+  let { stage, experienceId, sceneId, level = "scene" }: {
+    stage: Stage | null; experienceId: string; sceneId: string;
+    /** "experience": the experience's passes (behind the experience settings, #307 3c) – only the experience's list, every scene
      *  without its own shows it; "scene": the open scene's – its own override, or a link to make one */
-    level?: "book" | "scene";
+    level?: "experience" | "scene";
   } = $props();
-  const bookLevel = $derived(level === "book");
-  /** Edit the list this panel is about: the book's at the book level, else the one in effect */
+  const experienceLevel = $derived(level === "experience");
+  /** Edit the list this panel is about: the experience's at the experience level, else the one in effect */
   const editList = (draft: PassesDraft, fn: (list: PassData[]) => PassData[]): PassesDraft =>
-    bookLevel ? { ...draft, book: fn(draft.book) } : editInEffect(draft, fn);
+    experienceLevel ? { ...draft, experience: fn(draft.experience) } : editInEffect(draft, fn);
 
   const scene = $derived(content.scene(sceneId));
-  /** The draft's lists: the book's (the master) and the scene's own (null = the book's apply) */
-  const saved = $derived<PassesDraft>(draftPasses(content.bookPasses, scene?.passes));
+  /** The draft's lists: the experience's (the master) and the scene's own (null = the experience's apply) */
+  const saved = $derived<PassesDraft>(draftPasses(content.experiencePasses, scene?.passes));
 
-  let edit = $state<PassesDraft>({ book: [], own: null });
+  let edit = $state<PassesDraft>({ experience: [], own: null });
   /** The draft lists the panel started from (by identity: a reload makes new ones) */
-  let seen = $state<{ id: string; book: PassData[] | null; own: PassData[] | undefined; draft: PassesDraft } | null>(null);
+  let seen = $state<{ id: string; experience: PassData[] | null; own: PassData[] | undefined; draft: PassesDraft } | null>(null);
 
-  const shown = $derived<PassData[]>(bookLevel ? edit.book : effectivePasses(edit));
+  const shown = $derived<PassData[]>(experienceLevel ? edit.experience : effectivePasses(edit));
   const source = $derived<PassesSource>(passesSource(edit));
   /** The lists as a subject of the autosaver and of *Undo edits* */
-  const key = $derived(`passes:${bookId}:${sceneId}`);
+  const key = $derived(`passes:${experienceId}:${sceneId}`);
   const canUndo = $derived(differsFromBaseline(key, edit));
-  /** The scenes editing the book's list changes: every one without a list of its own, this one as it stands now */
-  const onBooks = $derived(scenesOnBook(content.scenes, sceneId, edit.own));
+  /** The scenes editing the experience's list changes: every one without a list of its own, this one as it stands now */
+  const onExperience = $derived(scenesOnExperience(content.scenes, sceneId, edit.own));
   /** The list in effect as the draft holds it – what a changed row is compared with */
-  const savedShown = $derived<PassData[]>(bookLevel || source === "book" ? saved.book : saved.own ?? saved.book);
+  const savedShown = $derived<PassData[]>(experienceLevel || source === "experience" ? saved.experience : saved.own ?? saved.experience);
   /** What *add pass* offers, grouped: built in, then each plugin's (a Code tab Run adds its passes at once) */
-  const groups = $derived.by(() => { void plugins.version; void content.bookPasses; return livePassGroups(); });
+  const groups = $derived.by(() => { void plugins.version; void content.experiencePasses; return livePassGroups(); });
   /** Per pass shown: its rows, the plugin it belongs to and its description (the registry follows a Run) */
   const passes = $derived.by(() => {
     void plugins.version;
@@ -88,16 +88,16 @@
   // A scene switch, the draft arriving or reloading: start from the draft – unless the same scene has unsaved edits
   $effect(() => {
     const id = sceneId;
-    const book = content.bookPasses;
+    const experience = content.experiencePasses;
     const own = scene?.passes;
     const previous = seen;
-    if (previous && previous.id === id && previous.book === book && previous.own === own) return;
+    if (previous && previous.id === id && previous.experience === experience && previous.own === own) return;
     const switching = !previous || previous.id !== id;
     // Edited = the panel's lists differ from the draft they started from (not from the one arriving now)
     const edited = !!previous && JSON.stringify(untrack(() => edit)) !== JSON.stringify(previous.draft);
-    seen = { id, book, own, draft: draftPasses(book, own) };
+    seen = { id, experience, own, draft: draftPasses(experience, own) };
     if (!switching && edited) return;
-    edit = draftPasses(book, own);
+    edit = draftPasses(experience, own);
     // A live preview belongs to the scene it was made on
     if (previous && switching) untrack(() => stage)?.overridePasses(null);
   });
@@ -105,19 +105,19 @@
   /** An edit: live on the stage at once, in the draft a moment after the last one */
   const apply = (next: PassesDraft) => {
     edit = next;
-    stage?.overridePasses($state.snapshot(bookLevel && next.own !== null ? next.own : effectivePasses(next)) as PassData[]);
-    const book = bookId;
+    stage?.overridePasses($state.snapshot(experienceLevel && next.own !== null ? next.own : effectivePasses(next)) as PassData[]);
+    const experience = experienceId;
     const id = sceneId;
     const lists = $state.snapshot(next) as PassesDraft;
     noteBaseline(key, saved);
     autosave.queue(key, async () => {
       // What differs from the draft as it is when the save runs (an earlier save may have changed it)
-      const todo = pendingSaves(lists, draftPasses(content.bookPasses, content.scene(id)?.passes));
+      const todo = pendingSaves(lists, draftPasses(content.experiencePasses, content.scene(id)?.passes));
       if (!Object.keys(todo).length) return;
-      if ("book" in todo) await putBookPasses(book, todo.book ?? null);
-      if ("scene" in todo) await putScene(book, id, { passes: todo.scene ?? null });
+      if ("experience" in todo) await putExperiencePasses(experience, todo.experience ?? null);
+      if ("scene" in todo) await putScene(experience, id, { passes: todo.scene ?? null });
       // The draft holds the lists; the stage shows them already (its live passes), so nothing is built again
-      await content.load(book);
+      await content.load(experience);
     });
   };
   const set = (index: number, row: ValueRow, value: number | string) =>
@@ -142,7 +142,7 @@
   };
   const switchPass = (index: number, on: boolean) => apply(editList(edit, list => setPassEnabled(list, index, on)));
   const choose = (next: PassesSource) => {
-    if (next !== source) apply(next === "scene" ? ownPasses(edit) : backToBooks(edit));
+    if (next !== source) apply(next === "scene" ? ownPasses(edit) : backToExperience(edit));
   };
   /** Undo edits: both lists as the draft had them before the first edit in this page – saved like any edit */
   const revert = () => {
@@ -151,22 +151,22 @@
   };
 </script>
 
-<Section id={bookLevel ? "book.passes" : "stage.passes"} label={bookLevel ? `post-processing${edit.book.length ? "" : " · none"}` : passesHeading(edit).replace("the whole book", "the experience's").replace("only this scene", "this scene")} open={false}
-  help="The passes over the rendered image, in order – the look-around world and its sky included: the built-in ones and the passes of the book's plugins. The head names the level: the whole book – the book's passes, the master every scene without its own shows – or only this scene – an override of its own. Changes show live on the stage (rendered shading) and reach the draft by themselves.">
-{#if bookLevel}
+<Section id={experienceLevel ? "experience.passes" : "stage.passes"} label={experienceLevel ? `post-processing${edit.experience.length ? "" : " · none"}` : passesHeading(edit).replace("the whole experience", "the experience's").replace("only this scene", "this scene")} open={false}
+  help="The passes over the rendered image, in order – the look-around world and its sky included: the built-in ones and the passes of the experience's plugins. The head names the level: the whole experience – the experience's passes, the master every scene without its own shows – or only this scene – an override of its own. Changes show live on the stage (rendered shading) and reach the draft by themselves.">
+{#if experienceLevel}
 <div class="level" data-help-name="Level" data-help="The experience's passes: every scene without passes of its own shows them. A scene's own passes are set in its Inspector (Scene).">
-  <span class="small">{onBooks === 1 ? "used by 1 scene" : `used by ${onBooks} scenes`} without their own</span>
+  <span class="small">{onExperience === 1 ? "used by 1 scene" : `used by ${onExperience} scenes`} without their own</span>
 </div>
 {:else}
-<div class="level" data-help-name="Level" data-help={source === "book"
+<div class="level" data-help-name="Level" data-help={source === "experience"
   ? "This scene shows the experience's passes (set behind the experience settings ⚙). Own for this scene gives it an override of its own, starting as a copy."
   : "This scene's own passes: they override the experience's here alone; removing every pass turns post-processing off here. Back to the experience's drops the override."}>
-  <span class="small">{source === "book" ? "the experience's passes" : "this scene's own passes"}</span>
+  <span class="small">{source === "experience" ? "the experience's passes" : "this scene's own passes"}</span>
   <span class="grow"></span>
-  {#if source === "book"}
+  {#if source === "experience"}
     <button type="button" class="text-link" title="Own passes for this scene, starting as a copy of the experience's" onclick={() => choose("scene")}>own for this scene</button>
   {:else}
-    <button type="button" class="text-link" title="Drop this scene's override: it shows the experience's passes again" onclick={() => choose("book")}>back to the experience's</button>
+    <button type="button" class="text-link" title="Drop this scene's override: it shows the experience's passes again" onclick={() => choose("experience")}>back to the experience's</button>
   {/if}
 </div>
 {/if}
@@ -174,7 +174,7 @@
   {@const on = isPassEnabled(pass)}
   <Section id={passSection(i)} label={pass.type} {summary} open={false} nested enabled={on} onenabled={next => switchPass(i, next)}
     enabledLabel="{pass.type} on or off"
-    help={`${description ? (plugin ? `${description} – a pass of the plugin ${plugin}.` : description) : "A plugin's pass that no plugin of the book registers here – Run its plugin in the Code tab, or remove it."} On or off in its head: off keeps the pass and its values in the list, the chain skips it.`}>
+    help={`${description ? (plugin ? `${description} – a pass of the plugin ${plugin}.` : description) : "A plugin's pass that no plugin of the experience registers here – Run its plugin in the Code tab, or remove it."} On or off in its head: off keeps the pass and its values in the list, the chain skips it.`}>
     {#snippet aside()}
       {#if plugin}<span class="small muted plugin" title="A pass of the plugin {plugin}">{plugin}</span>{/if}
       <button type="button" class="icon-button" aria-label="Move {pass.type} up" title="Earlier in the chain" disabled={i === 0} onclick={() => move(i, -1)}><Icon name="up" /></button>
@@ -210,8 +210,8 @@
 {/if}
 {#each groups as group, g (group.label)}
   <div class="row" data-help={group.plugin
-    ? `Adds a pass of the plugin ${group.plugin} at the end of the list in effect: the book's while the scene uses them, else the scene's own.`
-    : "Adds a pass at the end of the list in effect: the book's while the scene uses them, else the scene's own."}>
+    ? `Adds a pass of the plugin ${group.plugin} at the end of the list in effect: the experience's while the scene uses them, else the scene's own.`
+    : "Adds a pass at the end of the list in effect: the experience's while the scene uses them, else the scene's own."}>
     <span class="label">{g === 0 ? "add pass" : ""}{#if group.plugin}<span class="muted">{g === 0 ? " · " : ""}{group.label}</span>{/if}</span>
     <span class="controls">
       {#each group.choices as choice (choice.type)}
@@ -222,7 +222,7 @@
 {#if canUndo}
   <div class="actions">
     <button type="button" class="text-link" onclick={revert} data-help-name="Undo edits"
-      data-help="Edits reach the draft by themselves, a moment after the last change. Undo edits takes the post-processing – the book's passes and this scene's own – back to how the draft had it before its first edit since this page was opened.">Undo edits</button>
+      data-help="Edits reach the draft by themselves, a moment after the last change. Undo edits takes the post-processing – the experience's passes and this scene's own – back to how the draft had it before its first edit since this page was opened.">Undo edits</button>
   </div>
 {/if}
 </Section>

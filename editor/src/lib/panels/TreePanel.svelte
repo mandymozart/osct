@@ -37,7 +37,7 @@
    * a level), Alt + ↑ ↓ move the node among its siblings, Tab / Shift + Tab indent / outdent, Enter opens the row's
    * panel, Delete removes the node – on an entry row it asks first (#198's confirmation). An entry, target or node
    * row's menu (`ContextMenu`: a right click, a long press, or the menu key for the selected row) has the same moves
-   * and the removal; the scene row has one too – *Arrange in a row* (#319) and, in a digital-first book, *Add a scene after*
+   * and the removal; the scene row has one too – *Arrange in a row* (#319) and *Add a scene after*
    * (#238). Changes are live on the stage
    * (`stage.editTree`) and saved by themselves (#259). Folding is per entry and per node and not stored. ● after a name: its tree is
    * not in the draft yet (a save waits, or something keeps it back – the top bar says what).
@@ -50,7 +50,7 @@
     onaddtarget?: () => void;
     /** "+ entry" (an entry without a printed image, #237): the workspace opens the form */
     onaddentry?: () => void;
-    /** The scene row's menu *Add a scene after* (#238 – given only for a digital-first book): the workspace opens the creation step */
+    /** The scene row's menu *Add a scene after* (#238 – every experience adds scenes, #320): the workspace opens the creation step */
     onaddscene?: (after: string) => void;
     /** "Remove target" / "Remove entry", Delete on an entry row: the entry with everything on it, after the confirmation the workspace shows (#198) */
     onremoveentry?: (entryId: string, targetId: string | null) => Promise<void>;
@@ -183,12 +183,12 @@
   const rowMenu = (target: Target, path: number[], kind: "node" | "target") =>
     menuTrigger({ open: at => openMenu(at, target, path, kind), pressing: pressed(kind === "target" ? target.id : nodeKey(target, path)) });
   const entryMenu = (entry: Entry) => menuTrigger({ open: at => openEntryMenu(at, entry), pressing: pressed(`entry:${entry.id}`) });
-  /** The scene row's menu: *arrange in a row*, and *add a scene after* where scenes are added here (a digital-first book) */
+  /** The scene row's menu: *arrange in a row*, and *add a scene after* (every experience adds scenes, #320) */
   const sceneMenu = () => (element: HTMLElement) =>
     menuTrigger({ open: at => { pick({ kind: "scene" }); menu = { at, kind: "scene" }; }, pressing: pressed("scene") })(element);
   /** Remove an entry with everything on it: the workspace shows the API's impact and asks first (#198) */
   const removeEntry = (entry: Entry) => void onremoveentry?.(entry.id, entry.target?.id ?? null);
-  const EYE_HELP = "Shows or hides this target in the scene – its printed image and its AR content. Hidden, the stage reports the target lost (a behaviour's lost and found run when you hide and show it). Only the stage changes: whether readers find it is the Inspector's In the book switch.";
+  const EYE_HELP = "Shows or hides this target in the scene – its printed image and its AR content. Hidden, the stage reports the target lost (a behaviour's lost and found run when you hide and show it). Only the stage changes: whether readers find it is the Inspector's In the experience switch.";
   const NODE_EYE_HELP = "Shows or hides this node with its children on the stage only – to look into a complex tree. The content does not change: readers see the node as always. Forgotten when you leave the editor.";
   const REMOVE_ENTRY_HELP ="Removes the entry with its target, its entity and – only if you choose it – the Library files used only there. It shows what goes and asks first.";
   const menuItems = (m: Menu): MenuItem[] => {
@@ -430,7 +430,7 @@
   };
   /**
    * A click on a row beside its name – its type icon, an empty chevron or eye cell, its guides – selects the row as a
-   * click on the name does (#229: the scene row's book icon took no click; a tree selects by its whole row)
+   * click on the name does (#229: the scene row's experience icon took no click; a tree selects by its whole row)
    */
   const rowClick = (event: MouseEvent) => {
     const target = event.target as Element;
@@ -548,7 +548,7 @@
         <button type="button" class="pick" class:muted={!!target && !shown} onclick={() => pick(entryRow(entry))} aria-haspopup="menu" {@attach entryMenu(entry)}
           title={entryRowHelp(entry, !!target?.imageSrc)}>
           <span class="name">{entry.title}</span>
-          {#if target && !isTargetEnabled(target)}<span class="off muted" title="Switched off: not in the reader's book (the Inspector's In the book switch)" aria-label="Switched off"><Icon name="slash" size="1em" stroke={2} /></span>{/if}
+          {#if target && !isTargetEnabled(target)}<span class="off muted" title="Switched off: not in the reader's experience (the Inspector's In the experience switch)" aria-label="Switched off"><Icon name="slash" size="1em" stroke={2} /></span>{/if}
         </button>
         {#if target}
           <button type="button" class="eye" aria-pressed={shown} title={shown ? "Visible in the scene – click to hide" : "Hidden in the scene – click to show"}

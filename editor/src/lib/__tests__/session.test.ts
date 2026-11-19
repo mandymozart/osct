@@ -85,7 +85,7 @@ describe("session – the browser's cookie (#207)", () => {
     session.user = USER;
     session.status = "in";
     fetchMock.mockResolvedValueOnce(unauthorized());
-    await expect(api("GET", "/editor/books/osct")).rejects.toMatchObject({ status: 401 });
+    await expect(api("GET", "/editor/experiences/osct")).rejects.toMatchObject({ status: 401 });
     expect(session.status).toBe("out");
     expect(session.user).toBeNull();
     expect(session.notice).toBe(SESSION_ENDED);

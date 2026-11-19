@@ -1,7 +1,7 @@
 # Editor: the authors' tool at /editor
 
 The editor is a SvelteKit app of its own (`editor/`, served at `/editor` next to the reader) for the people who make
-the book's content: it runs the **engine** – the same AR scene the reader renders – over a **simulated page** instead
+the experience's content: it runs the **engine** – the same AR scene the reader renders – over a **simulated page** instead
 of a camera picture, so an entity (model, video, image, chroma key) can be placed and tuned at the desk, on the desktop
 or on a phone, saved to the instance's database and published as a content version. The reader carries nothing of it
 (RULES #32); the three parts are described in `agents/research/2026-10-29-editor-architecture.md`.
@@ -13,7 +13,7 @@ editor/   the editor: the engine with the mock tracker and its stage, the panels
 server/   the instance's API: /api/editor/* (docs/server.md "Editor data")
 ```
 
-The pages: **Books** (`/editor/` – the books, import, AI connections), a **book** (`/editor/<book>/` – its scenes and publishing) and the **workspace** of a scene (`/editor/<book>/<scene>/` – the tree, the stage
+The pages: **Experiences** (`/editor/` – the experiences, import, AI connections), a **experience** (`/editor/<experience>/` – its scenes and publishing) and the **workspace** of a scene (`/editor/<experience>/<scene>/` – the tree, the stage
 and the panels). The admin page is [admin](admin.md).
 
 ## Who may use it
@@ -46,12 +46,12 @@ in ends it (`editor/src/lib/api.ts`, `session.svelte.ts`). The route stays, so s
 page. The sign-in calls themselves (a wrong code or password), the sign-out and the startup check answer 401 without
 that note.
 
-## Try it (the demo book, or the fixture's studio scenes)
+## Try it (the demo experience, or the fixture's studio scenes)
 
-The **demo book** (`fixtures/demo/`, `DEMO.md`): six scenes that use every node type, placement, filter and
+The **demo experience** (`fixtures/demo/`, `DEMO.md`): six scenes that use every node type, placement, filter and
 component, fourteen plugins, and a narrative across its pages – the key on page 1 opens the door on page 3, the lamp
 lights when the door opened, a tally counts the pages found, a tap switches a scene ([plugins](plugins.md) "The demo
-book", the note `agents/research/2026-10-30-demo-book.md`). The fixture's **studio scenes**
+experience", the note `agents/research/2026-10-30-demo-book.md`). The fixture's **studio scenes**
 (`fixtures/content/FIXTURE.md`, pages 28–31) are the smaller scene of every entity type, placement and filter. Locally,
 with SQLite and the local content store:
 
@@ -65,17 +65,17 @@ with SQLite and the local content store:
    `http://127.0.0.1:8080/api/admin/editors`.
 4. The editor: `cd editor && npm install && npm run dev` → http://localhost:5175/editor/ (its `/api` is proxied to
    the dev API). Sign in: the code is in the mail log.
-5. **Import a book…** → *URL* `http://localhost:5174/src/game.config.json` (the reader's dev server serves its bundled
-   configuration), *assets at* `http://localhost:5174` → Import. The book appears with its scenes.
+5. **Import an experience…** → *URL* `http://localhost:5174/src/game.config.json` (the reader's dev server serves its bundled
+   configuration), *assets at* `http://localhost:5174` → Import. The experience appears with its scenes.
 6. Open *The key*: the stage shows the scene's targets with their entities, the key is found and unlocked – the
    **Inspector** shows the scene (selected when the workspace opens), and its *vars and events* has the timeline of
    the finds. *tap* → *The key* takes it: its **behaviour** rule (#88, select the key to see it in the Inspector) plays
-   the model's clip `rattle`, sets `hasKey` (book, boolean, true) and emits `keyRattled` – in the timeline (newest
+   the model's clip `rattle`, sets `hasKey` (experience, boolean, true) and emits `keyRattled` – in the timeline (newest
    first) the rule's `behaviour` line sits under the events it caused. Walk with › to *The door*: its rules hide the
    hint and emit `openDoor`, the `door` plugin lifts and turns the door, `stage · doorOpen = true`, the lamp on the right
    page shows. Switch a target off and on with the tree's eye (lost, found again), *Replay the first find* in the
    stage's right-click menu plays it again, *reset* in the scene's *vars and events* starts a new game – on *The door*
-   the hint shows then; *set* `hasKey` (book, true), switch the door off and on, and it opens without a visit to the
+   the hint shows then; *set* `hasKey` (experience, true), switch the door off and on, and it opens without a visit to the
    key's page. Open *The switch* and click the entity on the stage: the next scene shows; its *post-processing* holds
    *scanLines* switched off – the toggle in the pass's head turns the lines on. The **Code** tab lists the fourteen
    plugins (compiled by the content build, their sources next to them): change one, **Run**, and the stage shows it.
@@ -87,50 +87,50 @@ with SQLite and the local content store:
 
 The one-page version of this flow for editors, with the diagram, ships with the app at `/docs/tutorials/`
 (`client/public/docs/tutorials/index.html` – a static page, served by the site's `.htaccess` like any file). Its other
-chapters bring a book in (the CDN, a URL or a file, the assets base, what is on the CDN – #95), walk through the demo
-book (#148) and tour the editor's tools, with screenshots of the editor (`client/public/docs/tutorials/import/`,
+chapters bring an experience in (the CDN, a URL or a file, the assets base, what is on the CDN – #95), walk through the demo
+experience (#148) and tour the editor's tools, with screenshots of the editor (`client/public/docs/tutorials/import/`,
 `demo/`, `tools/`).
 
 On staging the same flow runs against the CDN: `CONTENT_STORE=bunny` with the storage zone's credentials in the
-`staging` GitHub environment ([deploy](deploy.md)); *Import a book… → the CDN* takes the current version, publishing
+`staging` GitHub environment ([deploy](deploy.md)); *Import an experience… → the CDN* takes the current version, publishing
 (to `staging · CDN`) writes a new one, and the staging reader sees it on its next start.
 
-**The demo book on staging**: the workflow *Demo book* (`.github/workflows/demo.yml`, by hand or on a push to
+**The demo experience on staging**: the workflow *Demo experience* (`.github/workflows/demo.yml`, by hand or on a push to
 `develop` that touches the demo) builds `fixtures/demo` and syncs it to the environment **`demo`** of the storage zone
-– `https://buildingfictions.b-cdn.net/demo/`. In the staging editor: *Import a book… → URL* with that base URL (the
+– `https://buildingfictions.b-cdn.net/demo/`. In the staging editor: *Import an experience… → URL* with that base URL (the
 form takes the current version and its folder as *assets at*), then open its scenes. Publishing it there makes it *the*
-book of staging (the store is per environment, not per book – "One book per environment" below), so the editor's
+experience of staging (the store is per environment, not per experience – "One experience per environment" below), so the editor's
 publish step says so first. On a phone, the staging reader opens it with
 `https://osct.porschuetz.de/?content=https://buildingfictions.b-cdn.net/demo` ([content on the CDN](content-cdn.md)).
 
-## Books, import and publish
+## Experiences, import and publish
 
-### The Books page
+### The Experiences page
 
-`/editor/`: the instance's books – under each, where it is live (below) – and *Import a book…*: the CDN's current
+`/editor/`: the instance's experiences – under each, where it is live (below) – and *Import an experience…*: the CDN's current
 version, a `game.config.json` by URL or file, or a **content base URL** – a CDN folder with `latest.json`, e.g. `…/demo` –
 whose current version is taken; *assets at* = where its `/assets/content/…` paths resolve (for a content base the
-version's folder) – every draft and publish points there, no media is copied. Under the books: **AI connections** and
+version's folder) – every draft and publish points there, no media is copied. Under the experiences: **AI connections** and
 the MCP guide ([below](#ai-connections)).
 
 ### Import: what comes in
 
 Before the comparison, the form shows what an import would bring in (#182, `POST /api/editor/import/preview` –
 [server](server.md#import-preview)): *From* (the content base), the build with when it was built and became current on
-the CDN, the app and content schema version, the **one book** in it (title · id) and what it holds (scenes, entries,
-targets, shared entities), and where its media resolve (*Assets at*). The button says it: *Import 1 book: The Demo Book
+the CDN, the app and content schema version, the **one experience** in it (title · id) and what it holds (scenes, entries,
+targets, shared entities), and where its media resolve (*Assets at*). The button says it: *Import 1 experience: The Demo
 (build 7457f0c…)*. *The CDN* reads it at once (the server knows the content base), a URL once typing pauses (the browser
 reads the content base's `latest.json` or the `game.config.json`, the server checks it), a file when it is chosen; the
-import then sends exactly what was previewed. The book's id is the configuration's `book.id` – no id field and no
+import then sends exactly what was previewed. The experience's id is the configuration's `experience.id` – no id field and no
 browser prompt (a configuration without one is refused by the import anyway). When a draft with that id is here, the
-form says so first – *A draft of “The Demo Book” (demo) is already here – importing replaces it.*, how many of its
+form says so first – *A draft of “The Demo Experience” (demo) is already here – importing replaces it.*, how many of its
 edits since its import are lost (unpublished, unless the draft as it is now is live) and where it is live; the
 comparison below follows on the button. A source that cannot be read – the CDN offline, no `latest.json`, one that
 names no build – shows the error with the URL and *Try again*.
 
 ### Import: the version comparison
 
-Importing replaces a book's draft, so over a book that exists the form shows a **comparison** first and imports only
+Importing replaces an experience's draft, so over an experience that exists the form shows a **comparison** first and imports only
 when the person confirms there (#183): the incoming build against the build the draft is based on – its id, when it was
 built, the app and the content schema version that built it (differences in bold) –, who imported the draft's base and
 when, the draft's **edits since that import** (their number, the newest five from the change log – who, what, when; an
@@ -143,38 +143,38 @@ form shows the new comparison and says so. Importing from any environment stays 
 
 An instance publishes to **its own environment only** (#183): a developer's machine to `local`, staging to `staging`,
 production to `production` – the CDN keeps a root folder per environment, and staging is for testing. There is no
-choice of environment: next to **Publish** (the book page's bar) the target is named with its backend – `staging · CDN`
+choice of environment: next to **Publish** (the experience page's bar) the target is named with its backend – `staging · CDN`
 (a connected CDN has priority) or `local · this server` / `staging · this server` (the directory store of an instance
-without a CDN, [server, "One environment per instance"](server.md#one-environment-per-instance)) – and where the book
+without a CDN, [server, "One environment per instance"](server.md#one-environment-per-instance)) – and where the experience
 is live (*live on staging, production* or *draft only*). Wherever this server is the target, a short *No CDN connected*
 stands next to it (its help in the Info view has the whole line). **Publish** opens a step in the page – no browser
-dialog – that names the book, its build now, the target and what it replaces there (*Replaces build … of “Test Book” on
-staging*, or another book, below), says on production that every reader gets it, and where this server is the target:
+dialog – that names the experience, its build now, the target and what it replaces there (*Replaces build … of “Test Experience” on
+staging*, or another experience, below), says on production that every reader gets it, and where this server is the target:
 *No CDN connected – the published content is stored and served by this server only. Readers load from here without
 edge caching; heavy media goes through this server. Back up the content store.* Its button publishes; *Cancel* or
 Escape closes it. Another environment is published from its own editor (the API refuses it, 403 `other-environment`).
 
-### One book per environment
+### One experience per environment
 
 Each environment's content store (`<env>/latest.json`, `<env>/<build>/` – [content on the CDN](content-cdn.md)) serves
-exactly one book: the last one published there. Until the store has a folder per book (#87) the editor makes that
+exactly one experience: the last one published there. Until the store has a folder per experience (#87) the editor makes that
 visible and safe (#143):
 
-- **Where a book is live.** The Books overview shows under each book *live on staging · build … · since …* (one line per
-  environment that serves it) or *draft only*; next to Publish the book page shows the same in short. An environment
-  serving a book that is not imported here, or whose store cannot be read, gets a line under the list.
-- **Publishing over another book asks.** The publish step names both when the environment serves another book
+- **Where an experience is live.** The Experiences overview shows under each experience *live on staging · build … · since …* (one line per
+  environment that serves it) or *draft only*; next to Publish the experience page shows the same in short. An environment
+  serving an experience that is not imported here, or whose store cannot be read, gets a line under the list.
+- **Publishing over another experience asks.** The publish step names both when the environment serves another experience
   (*Staging serves “Onion Skin & Crocodile Tears”. Publish “Demo” instead? …*); production says it more strictly (every
-  reader of the app gets the other book). Only its *Replace on staging* sends `replace: true` – the API refuses the
-  publish without it (409 `other-book`; when that happens because the environment changed meanwhile, the step opens
+  reader of the app gets the other experience). Only its *Replace on staging* sends `replace: true` – the API refuses the
+  publish without it (409 `other-experience`; when that happens because the environment changed meanwhile, the step opens
   again with what it serves now).
-- **Switching back** is publishing the real book again (with the same question): when its draft is unchanged, its last
+- **Switching back** is publishing the real experience again (with the same question): when its draft is unchanged, its last
   version is still on the store and only `latest.json` moves back – nothing is uploaded again.
-- The MCP server never replaces a book: its publish gets the 409 and leaves the decision to a person in the editor.
+- The MCP server never replaces an experience: its publish gets the 409 and leaves the decision to a person in the editor.
 
 ## AI connections
 
-Connecting an AI agent is a first step of working here, so it sits on the books page under the covers (#142, #194,
+Connecting an AI agent is a first step of working here, so it sits on the experiences page under the covers (#142, #194,
 #273, `lib/AiConnections.svelte`, `lib/mcp-setup.ts`) as two tabs:
 
 - **Connect an AI agent** – one line on what an agent does here (works as you, saves drafts, never publishes), then three
@@ -196,16 +196,16 @@ Connecting an AI agent is a first step of working here, so it sits on the books 
   and **Revoke** (asks first; it stops at once). Every call is the person's own session – the API refuses them to a
   token ([server, "AI connections"](server.md#ai-connections)).
 
-## The book page
+## The experience page
 
-> **Since 1.105.0 (Tilman, 2026-11-18):** the book page and its Pages view are gone. An experience's address opens the scene
+> **Since 1.105.0 (Tilman, 2026-11-18):** the experience page and its Pages view are gone. An experience's address opens the scene
 > last open in this browser, else the first; the Scenes panel under the stage has the scenes, their order and groups. An
 > experience without scenes offers its first one. The editor says **Experiences** where it said Books.
 
-`/editor/<book>/` opens the scene last open in this browser, else the first (`osct-editor-last-scene:<book>`). The
-book's texts and settings are the Inspector's ([Inspector: the book](#inspector-the-book)), its entries are found with the
-[book search](#the-book-search) and edited in their scene; the environment is its tab in the workspace. **Publish** with
-its target and where the book is live is in the top bar ([above](#publish-the-instances-own-environment)).
+`/editor/<experience>/` opens the scene last open in this browser, else the first (`osct-editor-last-scene:<experience>`). The
+experience's texts and settings are the Inspector's ([Inspector: the experience](#inspector-the-experience)), its entries are found with the
+[experience search](#the-experience-search) and edited in their scene; the environment is its tab in the workspace. **Publish** with
+its target and where the experience is live is in the top bar ([above](#publish-the-instances-own-environment)).
 
 ### Scenes (schema 3.0, #319)
 
@@ -223,10 +223,10 @@ reference image (#314, fitted as it says) and the prints of the targets lying on
   drop is written at once (`POST …/scenes/move`) – nothing renumbers, the order is the scenes' only order.
 - **+ Scene…** and the dashed **+** tile add a scene from a **preset** (`POST …/scenes`, `SCENE_PRESETS`): **double page**
   (one surface of 2 × the page's width), **single page**, **wall** (2000 × 1500 mm standing ahead, `rx` 90). The
-  workspace's creation step for a digital-first book (`NewSceneForm.svelte`: preset, label, after which scene) opens from
+  workspace's creation step (`NewSceneForm.svelte`: preset, label, after which scene) opens from
   **+** in the Inspector's head at the last scene and from the tree's scene row menu (*Add a scene after*).
 - **Removing a scene** (`deleteScene`, `DELETE …/scenes/{id}`) takes the two steps of a removal (#198,
-  `RemovalConfirm.svelte`, words in `removal.ts` – *Removes scene “4–5” with …*); the scene the book opens on
+  `RemovalConfirm.svelte`, words in `removal.ts` – *Removes scene “4–5” with …*); the scene the experience opens on
   (`initialScene`) cannot go.
 - **Gone with schema 3.0** (no backward compatibility – Tilman, 2026-11-18): the page images and the Pages view (#251 –
   a surface's reference image is the editor's picture of it), the matter scenes (#296), the titles pages gave (#298's
@@ -234,9 +234,9 @@ reference image (#314, fitted as it says) and the prints of the targets lying on
   fixed / free layouts. The book's layout (`content/layout/`) is no longer read by the editor: its sheets become surface
   references (the server's migration, part B of #319).
 
-### Texts: entries and the book
+### Texts: entries and the experience
 
-The reading side of the book (#223): the API's routes are `docs/server.md` "Texts", what a body means is
+The reading side of the experience (#223): the API's routes are `docs/server.md` "Texts", what a body means is
 `docs/content.md` "The text: Markdown and variables". The onboarding is no part of it: it is the reader's own UI,
 translated with the app (#236, `docs/content.md` "Onboarding screens").
 
@@ -247,7 +247,7 @@ translated with the app (#236, `docs/content.md` "Onboarding screens").
   in the Inspector's place – the form stays mounted underneath, its edits kept –, *Upload…* uploads; *remove the
   picture*), a link's URL (*open* only over http(s)) and the target with *select the target*. The fields come from
   `GET …/entries` as the content holds them (`entries.svelte.ts` – an imported picture's path unresolved, shown below the
-  book's assets base); the form [saves itself](#autosave): only the fields that changed (`PUT …/entries/{id}`, an
+  experience's assets base); the form [saves itself](#autosave): only the fields that changed (`PUT …/entries/{id}`, an
   emptied author, picture or link removes it), the draft is read again, and the stage is built again only for what it
   shows of an entry – a changed title (its `{{entry.title}}` text nodes) or page. The form keeps what was typed: a
   save's answer never writes over it. *Undo edits* takes the entry back. What keeps the save back is listed under the
@@ -260,15 +260,15 @@ translated with the app (#236, `docs/content.md` "Onboarding screens").
 - **+ entry** in the tree (beside *+ target*, #237) makes an entry without a printed image on the scene – read in the
   reader's list only, like a glossary term: title, category and access page (one of the scene's pages, `NewEntryForm`,
   `POST …/entries` without `target`); its form opens in the Inspector. On the stage the variables have their values; an
-  entry found with the [book search](#the-book-search) opens the same way.
-- **The book's texts** (`BookTexts.svelte`) – in the Inspector while the book is selected (the top bar's book crumb,
-  [Inspector: the book](#inspector-the-book)): title, author, publisher; saved by themselves → `PUT /editor/books/{id}`.
+  entry found with the [experience search](#the-experience-search) opens the same way.
+- **The experience's texts** (`ExperienceTexts.svelte`) – in the Inspector while the experience is selected (the top bar's experience crumb,
+  [Inspector: the experience](#inspector-the-experience)): title, author, publisher; saved by themselves → `PUT /editor/experiences/{id}`.
 - Every text field is one value today; a language variant (#224) becomes a draft of the same shape per language, so a
   language switch can be added to these forms without reshaping them.
 
 ## The workspace
 
-`/editor/<book>/<scene>/`: on a desktop and an iPad the **stage** is the whole window and the panels **float** over
+`/editor/<experience>/<scene>/`: on a desktop and an iPad the **stage** is the whole window and the panels **float** over
 it ([Floating panels](#floating-panels), #308) – the **Tree**, the **Inspector** with its tabs, the **Scenes** filmstrip,
 **Info** and the stage's **Tools**. The editor is for desktop and iPad only (Tilman, 2026-11-18): the phone's layout –
 a sheet at the bottom with the tree as a tab, ‹ › over the stage – is gone (#317). The Inspector's tabs (#229, `lib/panel-tabs.ts`): **Inspector** (what is selected), **Environment**,
@@ -276,11 +276,11 @@ a sheet at the bottom with the tree as a tab, ‹ › over the stage – is gone
 stored before (`stage`, `entity`) opens the Inspector, as does a first visit.
 
 The Inspector's head: its grip and icon (the handle), the tabs – as words, or as icons in a panel too narrow for them
-(under 24rem, 28rem with a finger), so the head stays one line (#172) – and, on the last scene of a digital-first book,
+(under 24rem, 28rem with a finger), so the head stays one line (#172) – and, on the last scene,
 a **+** that opens the creation step of a new scene (#238). ‹ › live in the Scenes panel's head (#307; ← → still
-step); back to the scenes is the top bar's book crumb (#250).
+step); back to the scenes is the top bar's experience crumb (#250).
 
-When the draft cannot be loaded (the API is down, the book is not there) the stage area says why with **Retry** instead
+When the draft cannot be loaded (the API is down, the experience is not there) the stage area says why with **Retry** instead
 of *Building the stage…*; an action that fails (a removal, a target image, the reload after a change) shows its error
 over the stage until dismissed (#208).
 
@@ -328,13 +328,13 @@ Under the stage, on a desktop, the stage column ends in the **Scenes panel** (#3
 design `agents/design/scenes-filmstrip.html`): the experience's scenes as a **filmstrip** – the row of stops the reader's
 bottom switcher shows. The tree keeps the left column and the Inspector the right.
 
-- **The head**: ▾ collapses the panel to its head (▴ opens it), the book's name, how many scenes and groups and how many
+- **The head**: ▾ collapses the panel to its head (▴ opens it), the experience's name, how many scenes and groups and how many
   are picked; **+ Scene…** adds a scene from a layout preset after the open one (a front cover goes first, a back cover
   last) and opens it; one **group toggle** – a folder icon groups the picked scenes (Ctrl+G), folder-minus ungroups (Ctrl+Shift+G); ‹ › the
   previous / next scene. The mouse wheel scrolls the strip sideways (up/down, no Shift), as the arrow keys do. The **sash** above it
   is dragged (or ↑ ↓ when focused) to make the panel taller – the cards scale with it, down to a minimum height; a double-click restores the default. Open and height
   are remembered in this browser (`osct-editor-scenes`).
-- **The cards** (`SceneCards.svelte`, the same as the book page's): the scene's picture, its name and target count; the
+- **The cards** (`SceneCards.svelte`, the same as the experience page's): the scene's picture, its name and target count; the
   **open scene is framed gold**, the **picked** ones blue. A **click** opens a scene (and picks it alone), **Shift+click**
   picks the range from the last one, **Ctrl+click** adds or removes one. With the focus on a card ← → move the pick
   (Shift: extend it), **Enter** opens. The **+** at the strip's end adds a scene at the end.
@@ -359,7 +359,7 @@ bottom switcher shows. The tree keeps the left column and the Inspector the righ
 
 Every edit shows live on the stage and **reaches the draft by itself** (#259) – the Inspector's entity (its rows, a
 file picked or uploaded for a node, the tree's moves and removals, a gizmo drag), a target's placement, the
-post-processing, the environment, an entry's form, the book's texts. There is no Save button in the Inspector. Only the
+post-processing, the environment, an entry's form, the experience's texts. There is no Save button in the Inspector. Only the
 Code tab keeps **Save** (Ctrl+S): half-typed code does not belong in the draft. Readers get nothing before Publish.
 
 - **When**: a subject (a target's tree, a scene's passes, an entry, …) is saved once it was left alone for 0.8 s – a
@@ -401,15 +401,15 @@ Every save is a row of the change log (docs/server.md "Reverting saved changes")
   changes, and the conflicts that stay. A revert reloads the draft, the stage and the panels. It changes the draft
   only – readers see it with the next publish.
 
-### The book search
+### The experience search
 
-The top bar's search (#237, `BookSearch.svelte`, the logic in `book-search.ts`) finds in the whole book while a book is
-open – on the book page too, where it reads the draft on the first focus: **entries** (title and text), **scenes**
+The top bar's search (#237, `ExperienceSearch.svelte`, the logic in `experience-search.ts`) finds in the whole experience while an experience is
+open – on the experience page too, where it reads the draft on the first focus: **entries** (title and text), **scenes**
 (title, format, or a page number – its scene), **targets** (id, or the entry's title) and **named nodes** (a node's
 `name`). Accents and case do not matter, every word must be found. The hits drop down grouped by kind (at most six each,
 *· n more*), each with its scene and page (an entry's text hit with the words around it), ranked: a label that starts
 with the query, then one with a word that does, then one that holds it, then a hit only in the text; equal ranks keep
-the book's order.
+the experience's order.
 
 A pick goes to that scene and selects the item there – an entry (its form in the Inspector; with a printed target the
 stage outlines it, without one the form opens all the same), a scene, a target or a node – and opens the Inspector
@@ -426,7 +426,7 @@ over the whole top bar with a × to close it, the hits below at the screen's wid
 
 ### The tree
 
-The scene in the style of Blender's outliner: a chevron column, a type icon before every name (book, entry, target,
+The scene in the style of Blender's outliner: a chevron column, a type icon before every name (experience, entry, target,
 group / model / video / image / text / light), guide lines per depth, zebra rows, and the **eye** in a column at the
 right (shown = found; off = reported lost → outro, on found again → reveal). Rows: the scene, its entries in page order,
 each entry's target ("in view" while the camera sees it) and the target's entity as its **node tree** – the root node (●
@@ -451,9 +451,8 @@ reorder.
   **menu key / Shift+F10** on the tree for its selected row, each item with its icon: on a target row **Remove target** –
   the entry with its target, its entity and (only with the option) the Library files used only there go, after the same
   confirmation as a scene's, shown in the panel; on an entry row *Select the target* (with a printed target) and
-  **Remove entry**, the same removal and confirmation – an entry without a target too; on the scene row of a
-  digital-first book *Add a double page after* (the creation step in the panel, #238 – a print-first book's scene row
-  has no menu); on a
+  **Remove entry**, the same removal and confirmation – an entry without a target too; on the scene row *Add a scene
+  after* (the creation step in the panel, #238 – every experience adds scenes since #320); on a
   node row *Move up / down*, *Into the node above*, *Out of its parent* and *Remove node* / *Remove entity*, each with
   its key at the right (not with a finger; a move that cannot be made is disabled with its reason).
 - **Delete** (or Backspace) removes the selected node – its children with it, the root leaves the target without AR
@@ -470,7 +469,7 @@ reorder.
 ### Selection
 
 One selection for the tree, the stage and the Inspector (#162, `editor/src/lib/selection.svelte.ts`, the rules in
-`selection.ts`, the tree's rows in `tree-rows.ts`): the **book** (the top bar's book crumb, #237 – nothing on the stage,
+`selection.ts`, the tree's rows in `tree-rows.ts`): the **experience** (the top bar's experience crumb, #237 – nothing on the stage,
 no row in the tree), the **scene** (no target, no node), an **entry** (its own
 selection, with or without a target), a **target** (a tap on its row, a pick of its printed image), its **entity** (the
 root node) or a **node**; selecting in one selects in the others (#227). **Nothing else selected is the scene** (#229,
@@ -502,12 +501,12 @@ The **mock stage** (`editor/src/lib/stage/mock-stage.ts`) draws the scene at the
 entities; the **mock tracker** reports its targets as found, and the editor simulates the game around the scene. It runs
 in a sandboxed frame ([The stage frame](#the-stage-frame-plugins-in-a-sandbox-234)).
 
-### The desk, the book and the printed images
+### The desk, the scene and the printed images
 
 - **The sky and light** – one of six studio HDRIs from Poly Haven (`editor/static/hdri/`, CC0; Wooden Studio 17 by
   default, the [view settings](#camera-and-view-settings)' *sky*), shown while the shading is rendered: the
   equirectangular image on a sphere around the stage and as `scene.environment`, turned with the stage every frame so
-  the room stays put while the camera orbits. **A book with an environment replaces it** ([Environment](#environment), #185).
+  the room stays put while the camera orbits. **An experience with an environment replaces it** ([Environment](#environment), #185).
 - **The desk** – the tool is for designers, who should feel at home: a steel tube frame after Egon Eiermann's table
   frame (1953), 72 cm high, with one of two tops of the same 1.8 × 0.8 m and the same surface height (the view settings'
   *top*, #226): **plywood**, the default – a screen-printed plywood board (18 mm; Poly Haven's plywood texture tinted to
@@ -518,7 +517,7 @@ in a sandboxed frame ([The stage frame](#the-stage-frame-plugins-in-a-sandbox-23
   linoleum and the oak are drawn in code too (`linoleum.ts`, `oak.ts`). One low-poly model of our own
   (`editor/static/models/desk-eiermann.glb`, 256 triangles, the frame and both tops as meshes of their own, built by
   `editor/tools/desk-eiermann.py` in Blender – `editor/static/models/README.md`), loaded once, the top not chosen hidden,
-  with the origin at the tops' surface, so the book lies on it.
+  with the origin at the tops' surface, so the scene lies on it.
 - **The scene's surfaces** (#319): each a plain board (1.5 mm) at its `place` – a double page flat on the table, a wall
   standing – its face paper, with its **reference image** fitted onto it (else paper). No book around them: no fold, no
   cover board, no block of paper, no layout sheet. The desk's top lies under the boards (the scene's y = 0).
@@ -541,8 +540,8 @@ moving the view moves the stage and the anchors together, which is why entity an
 
 The editor simulates the game around the scene (`stage/stage-core.svelte.ts`): which scene is open, which targets the
 "camera" sees (the tree's eyes), which were found for the first time (the unlock animation plays once per target,
-*Replay the first find* in the stage's right-click menu plays it again), and the reader's progress for the book's
-plugins (`stage/progress.ts` – the engine's `api.progress` and the `book` scope of its variables, alive while the
+*Replay the first find* in the stage's right-click menu plays it again), and the reader's progress for the experience's
+plugins (`stage/progress.ts` – the engine's `api.progress` and the `experience` scope of its variables, alive while the
 workspace is open). Nothing of the reader's store, progress or routes is involved. The scene's *vars and events*
 drive and show the narrative ([Vars and events](#vars-and-events)).
 
@@ -576,9 +575,9 @@ resizes like the others, a row or – its button, #315 – a column, and never f
   the gear: *shake*, *origin*, *top* and *sky* ([Camera and view settings](#camera-and-view-settings)). Its tooltip names
   them all (`viewSummary`: *Eiermann · plywood · origin top left · no shake · sky Wooden Studio 17*); the stage menu's
   *View settings…* opens it.
-- **live** and **restart** (#269) – the stage plays the book live, as a reader sees it, all the time: there is no play
+- **live** and **restart** (#269) – the stage plays the experience live, as a reader sees it, all the time: there is no play
   mode to enter (the SCUTOONS deck editor's way, and Unreal's *Realtime* viewport). **Live** (pause / play icon) holds
-  the entities' clock while it is off (`ArScene.holdClock`): components, clips, materials, textures and the book's code
+  the entities' clock while it is off (`ArScene.holdClock`): components, clips, materials, textures and the experience's code
   get no time, so the scene stands still for placing – what is found still appears (the moments' looks play on), and the
   code loads either way. Videos and sounds stop where they are and a page found meanwhile does not start its video
   (`engine/src/scene/media.ts`, #275); the plugins' GPU feedback buffers (the ink painting) keep their last frame. Live
@@ -603,10 +602,10 @@ and found chips doubled these and are gone.
 
 The toolbar's **view** group – how the editor shows the scene, stored on the device: **shake**: 0 = still, 1 = a hand
 holding a phone. **origin**: the 3 × 3 alignment square ([below](#grid-origin-and-snapping)). **top**: the Eiermann
-desk's top, *plywood* (the default) or *linoleum* (#226; switching it changes only the top – the book, the targets, the
+desk's top, *plywood* (the default) or *linoleum* (#226; switching it changes only the top – the experience, the targets, the
 grid and the camera stay; a desk stored before, `desk: "eiermann"` or `"schoepfer"`, becomes *plywood* or *linoleum*).
-**sky**: one of six Poly Haven studios (the HDRI – sky and light while the shading is rendered); with the book's
-environment the row names its world (*the environment's (world café)*), the HDRI picker waits below it for a book
+**sky**: one of six Poly Haven studios (the HDRI – sky and light while the shading is rendered); with the experience's
+environment the row names its world (*the environment's (world café)*), the HDRI picker waits below it for an experience
 without one, and the group's tooltip ends *· the environment's sky*.
 
 ### Surfaces on the stage (#314, #319)
@@ -650,7 +649,7 @@ has three grids (#316, #319):
 
 - **The surface grid** – the targets' grid on each surface (on / off, its spacing in mm; its lines run through the
   origin, which is red). A surface may have **its own spacing** (#316 part 1: the Inspector's surface, *grid*), kept in
-  this browser per experience and surface (`surface-grids.svelte.ts`, `osct-editor-surface-grids:<book>` →
+  this browser per experience and surface (`surface-grids.svelte.ts`, `osct-editor-surface-grids:<experience>` →
   `<scene>/<surface>`) – not in the content; the open scene's spacings reach the stage with the preview
   (`surfaceGrids`). It is drawn on every surface in its own plane, a wall's on the wall; a print dragged on a surface
   steps by that surface's spacing.
@@ -714,7 +713,7 @@ bounds) and the pointer cursor; with a finger there is no hover – a tap select
 A **right click** on the stage opens the menu for what lies there – the filters' pick, else the printed image under the
 pointer: on a target *Add node… / Add AR content…*, *Remove node / entity*, *Placement on the page…*, *Library…*,
 *Remove target*; on the page or the table *+ target…*, *Replay the first find* and *View settings…* (the toolbar's
-*view* group). It is the editor's one context menu (`ContextMenu.svelte` – the keys as on the book page's cards); while
+*view* group). It is the editor's one context menu (`ContextMenu.svelte` – the keys as on the experience page's cards); while
 it is open no key reaches the stage's shortcuts.
 
 **A target's placement on the page**: while it is edited (the Inspector's rows) **the target itself lies at the edited
@@ -731,7 +730,7 @@ The selected node wears Blender's orange **outline** (the edges of its meshes, d
 object's own space – a video plane outlines as a plane), a selected target the same orange around its printed image (it
 follows the image as loaded and a move), and what a click would pick a light grey one. The toolbar's **shading**, after
 Blender's: *wire* (the entities as lines), *solid* (one grey under the scene's lights), *textured* (the content's
-materials, no sky) and *rendered* (the HDRI's sky and light, the default – or the book's environment as the sky, its
+materials, no sky) and *rendered* (the HDRI's sky and light, the default – or the experience's environment as the sky, its
 tooltip then says so); stored on the device. The post-processing passes show under *rendered* only. The stage and the
 gizmo keep their own look.
 
@@ -744,7 +743,7 @@ lights; a light node keeps the author's intensity in every shading.
 
 ### The stage frame: plugins in a sandbox (#234)
 
-A book's plugins are code any editor of the book can write, and the stage runs it – the draft's plugins and the Code
+An experience's plugins are code any editor of the experience can write, and the stage runs it – the draft's plugins and the Code
 tab's **Run**. So the stage does not run in the editor's page: it runs in an **iframe sandboxed with `allow-scripts`
 only** – no `allow-same-origin` – at the editor's own route `/editor/stage-frame/` (`editor/src/routes/stage-frame/`,
 outside the `(app)` routes with their sign-in gate). Its origin is **opaque**: plugin code there has no cookie and no
@@ -775,13 +774,13 @@ the page.
   (`FORWARDED_KEYS`: Shift, Ctrl, ← →, W E R, Delete, Escape – Delete removes the node the page selected, which is
   saved like every edit). Publish stays the person's click in the page.
 - **The frame's policy**: before the draft and its plugins load, the frame takes a Content Security Policy
-  (`frameCsp`, as a `<meta>` – it names the book's content bases, which only the draft knows, so no static header can
+  (`frameCsp`, as a `<meta>` – it names the experience's content bases, which only the draft knows, so no static header can
   say it): its own scripts and the editor's static files under `/editor/`, the Library's files under
-  `/api/content/`, the book's content under `<content base>/assets/content/`, the trigger protocol at the site's root,
+  `/api/content/`, the experience's content under `<content base>/assets/content/`, the trigger protocol at the site's root,
   `blob:` (the Code tab's module) and `data:` – every source with its path, never `'self'`, so no request reaches the
-  rest of the API. On a CDN instance the uploads lie in no content base: the frame admits **the book's own Library
-  folder** (`…/assets/<book>/`, the book's `libraryBase` – a file uploaded and picked for a node shows at once, before
-  any saved row names it, #258) and the folders of other books' uploads the draft names, for files and requests, never
+  rest of the API. On a CDN instance the uploads lie in no content base: the frame admits **the experience's own Library
+  folder** (`…/assets/<experience>/`, the experience's `libraryBase` – a file uploaded and picked for a node shows at once, before
+  any saved row names it, #258) and the folders of other experiences' uploads the draft names, for files and requests, never
   for scripts; other content builds the draft still names only for images and media. Nothing may be framed, posted or
   opened; no worker. A draft whose files move to another base gets a new frame (a policy cannot widen).
 - **Serving it**: the opaque frame loads the editor's module scripts and static files with `Origin: null`, so they are
@@ -792,7 +791,7 @@ the page.
   main-thread time per frame as in the page (≈ 1.25 ms on *The switch*, ≈ 1.5 ms on *The key*).
 - **What it does not do**: plugin code can still send what it sees – the draft, which its author can read anyway –
   away by navigating its own frame, and it can post stage events (a placement, a pick, a forwarded key): with them it
-  can move the node the person has selected, or the target whose placement is open, in this book's draft – visible on
+  can move the node the person has selected, or the target whose placement is open, in this experience's draft – visible on
   the stage, taken back with *Undo edits* – and nothing more; it cannot publish, write anything else or read anything
   of the session. In the editor a plugin
   reaches only the content and the Library (`api.loadText`), no other origin. **The reader runs plugins in its own
@@ -810,7 +809,7 @@ in `app.css`). Every row is the panel's label / control grid (`.row` in `app.css
 `panels/EntityPanel.svelte` (the *Entity* tab until #229) opens at the selected level (#162): its head is the
 **breadcrumb** *target › entity › group › node* (a crumb selects that level, ▾ after the target picks another target of
 the scene). A selected scene shows [its sections](#inspector-the-scene), a selected entry
-[its form](#texts-entries-and-the-book).
+[its form](#texts-entries-and-the-experience).
 
 **A target**: its printed image (thumbnail and name; **Replace image…** uploads another) and, behind *placement*, where
 it is printed – surface, x / y and width in mm (`print`, content schema 2.1; an edit is saved by itself; until one a
@@ -820,7 +819,7 @@ target made in the editor lies where its form put it, an imported one where the 
 **An entity or a node**: its **name** (empty = the tree shows the type), its **file** (the file field: **Library…** – the
 Library as the picker, with the filter set – or **Upload…**), then:
 
-- **+ node** – type: group, model, video, image, text or light, and under *plugins* the node types the book's plugins
+- **+ node** – type: group, model, video, image, text or light, and under *plugins* the node types the experience's plugins
   registered once they are loaded or Run; for model / video / image, or a plugin type with a `src`, a file chosen in the
   Library as the picker. It is the root of a target without AR content, else placed by **add as**: *next to it* (the same
   parent, right after the selected node – the default for a model, video or image) or *inside it* (its last child). A
@@ -832,7 +831,7 @@ Library as the picker, with the filter set – or **Upload…**), then:
 - **The rows**: every placement value (relative to the parent node), a text node's text and colour, a light node's
   **light** rows (kind as a segmented group, colour, intensity, distance and decay for a point or spot, cone angle and
   soft edge for a spot), a plugin node type's parameters (*node type · sparkle*, from its spec), for a node with meshes
-  its **material** (#188: *its own*, or a material the book's plugins register – then *material · water* with its rows
+  its **material** (#188: *its own*, or a material the experience's plugins register – then *material · water* with its rows
   and *remove*; **make code** beside it turns the node's own look into a `registerMaterial` in the Code tab), a `texture`
   parameter as a list of *none*, the plugins' procedural textures and the Library's pictures and videos
   (`TextureField.svelte`), a `model` parameter as a list of *none* and the Library's models (`ModelField.svelte`, #263 –
@@ -841,7 +840,7 @@ Library as the picker, with the filter set – or **Upload…**), then:
   second*); the Info view names it with the content's name too (*speed · degreesPerSecond*). Position, rotation and scale
   have X, Y, Z side by side as in Blender (the *uniform* switch under the scale row links the axes: on = one
   `scale` field, as Blender's lock); every on / off is the `Toggle` switch (a track with a knob, #241, #243); choices are a segmented group; colours a swatch + hex whose swatch opens the
-  editor's **colour popover** (after Scutoons': a palette of the usual keys and the book's gold, this browser's recent
+  editor's **colour popover** (after Scutoons': a palette of the usual keys and the experience's gold, this browser's recent
   colours, a saturation / brightness area with a hue slider, the hex, and the eyedropper that **picks from the stage** –
   the colour under the pointer in a chip, a tap takes it, Esc cancels; the sampled pixel is the rendered one, lit and
   tone-mapped). A reset arrow shows while a value differs from the type's default, ● on rows that differ from the draft.
@@ -850,7 +849,7 @@ Library as the picker, with the filter set – or **Upload…**), then:
   the reader plays (`playOn` found / tap / never, `stopOn`, loop, speed). **+ behaviour** (any node, #88 –
   [content](content.md) "Behaviour") adds the rule editor (`BehaviourRules.svelte`, its logic in `behaviour-edit.ts`)
   instead of rows: per rule its event as pressed pills (*found*, *lost*, *tap*, *unlocked*, or *event* with a name field
-  offering the book's scene events and the core events), **+ condition** (a row per test: the variable – the book's
+  offering the experience's scene events and the core events), **+ condition** (a row per test: the variable – the experience's
   variables offered: its behaviours' and the ones live on the stage –, *=* or *≠*, the value typed as `true`, `false`, a
   number or a text, empty = not set; *and* / *or* between them, *all* / *any* from two on) and **+ action…** (a row per
   action, in order: the verb and what it takes – *play* a clip of the node's model, the clips read from the model on the
@@ -876,15 +875,19 @@ material (empty: every material). Choosing another model file drops the sets –
 view menu has *textures*: auto, or one size, to see the stage as readers on that quality see it
 (`lib/model-textures.ts`, `components/ModelTextures.svelte`, the preview setting `textureQuality`).
 
-### Inspector: the book
+### Inspector: the experience
 
-A plain click on the book's crumb in the top bar selects the book (#237, `panels/BookPanel.svelte`; Ctrl- or ⌘-click
-still opens the book page): its head *book* with **All scenes** (the book page), the book's texts – title, author,
-publisher (`BookTexts.svelte`, a section open at first; saved by themselves → `PUT /editor/books/{id}`, *Undo edits*) –,
-its **source of truth** (#238, a section: *print first* / *digital first*, saved when chosen – `book-source.svelte.ts`;
-the explanation is its help: print first, the printed book is the truth and scenes come from the layout's import;
-digital first, the editor is the truth and adds and removes scenes) and where its content files are read from
-(*assets*, the import's base; empty: the draft's origin). The crumb stays underlined while the book is selected. A tap in
+A plain click on the experience's crumb in the top bar selects the experience (#237, `panels/ExperiencePanel.svelte`; Ctrl- or ⌘-click
+still opens the experience page): its head *experience*, the experience's texts (`ExperienceTexts.svelte`, saved by
+themselves → `PUT /editor/experiences/{id}`, *Undo edits*) – **texts** (its title, a section open at first) and
+**printed book** (#320, decision 8 – a section with a switch in its head): on, the experience accompanies a printed book
+and the section holds its **author** and **publisher** (`{ book: { author, publisher } }`; a book switched on waits for
+its author before it is saved); off, it is no book – a wall, a room, an exhibition – and the reader shows no author or
+publisher. Switching a saved book off takes a second step in the section (*Remove the printed book* / *Keep it*): it
+sends `{ book: null }`, which removes author and publisher from the draft; *Undo edits* brings them back. Then the
+experience's post-processing and appearance (in a scene's workspace) and where its content files are read from
+(*assets*, the import's base; empty: the draft's origin). There is no source of truth any more (#320, #322): every
+experience adds and removes scenes. The crumb stays underlined while the experience is selected. A tap in
 the tree or on the stage selects something else again.
 
 ### Inspector: a group
@@ -934,14 +937,14 @@ With the scene selected the Inspector shows `SceneView.svelte` (#227, #229 – t
 #### Post-processing
 
 The scene's *post-processing* section (content schema 2.5, [content guide](content.md) "Post-processing",
-`PassesPanel.svelte`). **The book's passes are the master**: edited once, every scene without a list of its own shows
-them. The section's header names the level in words (#181): **post-processing · the whole book** while the scene on
-the stage uses the book's list (the default; editing it changes it for every such scene), **post-processing · only
-this scene** while it has its own – an override for this scene alone, starting as a copy of the book's (removing
-every pass turns post-processing off there: *· off*; a book without passes reads *· none*). The line under the header
-says what editing changes – *changes all N scenes that use the book's* (N counted from the draft's scenes without a
-list of their own, this one as the panel holds it) with **own for this scene**, or *overrides the book's for this
-scene* with **back to the book's**, which drops the override.
+`PassesPanel.svelte`). **The experience's passes are the master**: edited once, every scene without a list of its own shows
+them. The section's header names the level in words (#181): **post-processing · the whole experience** while the scene on
+the stage uses the experience's list (the default; editing it changes it for every such scene), **post-processing · only
+this scene** while it has its own – an override for this scene alone, starting as a copy of the experience's (removing
+every pass turns post-processing off there: *· off*; an experience without passes reads *· none*). The line under the header
+says what editing changes – *changes all N scenes that use the experience's* (N counted from the draft's scenes without a
+list of their own, this one as the panel holds it) with **own for this scene**, or *overrides the experience's for this
+scene* with **back to the experience's**, which drops the override.
 
 - **Each pass is a collapsible section of its own** (#233, agents/DESIGN.md §9): closed, its head names the type and the
   values set away from the default (*bloom · strength 0.35*, at most two – else its first parameter); its head's **on /
@@ -950,26 +953,26 @@ scene* with **back to the book's**, which drops the override.
   off*), next to the arrows and *remove*. A pass added opens; open, it has a row per parameter from the pass's spec. The
   arrows move a pass earlier or later in the chain, *remove* drops one, changes show live on the stage.
 - **add pass** offers **+ bloom / + vignette / + grade** and, in a row per plugin under its id, **the passes of the
-  book's plugins** (content schema 2.21, #216 – a compiled plugin's from its recorded spec as soon as the book is open, a
+  experience's plugins** (content schema 2.21, #216 – a compiled plugin's from its recorded spec as soon as the experience is open, a
   plugin **Run** in the Code tab at once, no reload). A plugin's pass shows its type with its plugin's id next to the
   arrows (*filmGrain* … *grain*) and its spec's rows – labels, help, ranges, on / off, a `texture` row with the Library's
   pictures and the plugins' procedural textures.
 - A list beyond the phone budget (three passes, one bloom – #86) says so under the passes
   (`editor/src/lib/plugin-passes.ts`).
-- An edit is [saved by itself](#autosave) – what changed: the book's list (`PUT /editor/books/{id}/passes`, an empty
-  one removes it) and / or the scene's (`PUT …/scenes/{id} { passes }`, `null` = back to the book's); the level line
+- An edit is [saved by itself](#autosave) – what changed: the experience's list (`PUT /editor/experiences/{id}/passes`, an empty
+  one removes it) and / or the scene's (`PUT …/scenes/{id} { passes }`, `null` = back to the experience's); the level line
   says which it is before the edit is made. *Undo edits* takes both lists back (`editor/src/lib/passes-edit.ts`).
-- **On the stage** the passes show under **rendered** only (like the HDRI's sky): the mock stage's table, book, printed
+- **On the stage** the passes show under **rendered** only (like the HDRI's sky): the mock stage's table, boards, printed
   images and sky lie on the engine's **backdrop layer** and stand in for the camera picture: bloom and vignette run over
   them as they run over the camera picture in the reader; the grade's **reach** row (*AR layer / whole picture*) keeps it
   on the AR layer (it gets the layer's coverage as a mask) or grades the desk too, as the reader grades the camera
-  picture. The **environment** (the look-around world and its sky – the stage's sky once the book has one, and while the
+  picture. The **environment** (the look-around world and its sky – the stage's sky once the experience has one, and while the
   Environment tab is open) goes through the same passes, as it does in the reader.
 
 #### Appearance
 
-How the book's AR entities appear and disappear (#265, content schema 2.29, [content guide](content.md) "How entities
-appear", `AppearancePanel.svelte`): **appearance · the whole book** – every scene plays it (*· default* while the book
+How the experience's AR entities appear and disappear (#265, content schema 2.29, [content guide](content.md) "How entities
+appear", `AppearancePanel.svelte`): **appearance · the whole experience** – every scene plays it (*· default* while the experience
 names no look). A collapsible section per moment, each closed on a first visit:
 
 - **reveal** – the first find of a target (the entry is unlocked with it), **found** – every later find, **lost** – the
@@ -977,7 +980,7 @@ names no look). A collapsible section per moment, each closed on a first visit:
   two values set away from the default (*found · printLift · appear 900 ms*), or where its look comes from (*reveal · as
   found · printLift*, *lost · default · inflateDissolve*).
 - **look** picks the moment's look: the built-in **inflateDissolve**, **printLift** and **fade**, then the looks of the
-  book's plugins under each plugin's id (a compiled plugin's from its recorded spec as soon as the book is open, a plugin
+  experience's plugins under each plugin's id (a compiled plugin's from its recorded spec as soon as the experience is open, a plugin
   **Run** in the Code tab at once). The first choice gives the moment no look of its own: **as found** for reveal and
   lost (they play found's), **default (inflateDissolve)** for found. Another look starts at its own defaults. The rows
   below are those of the look the moment **plays** – its own, else found's, else the default – at its values, so the
@@ -987,30 +990,30 @@ names no look). A collapsible section per moment, each closed on a first visit:
 - **play** in a moment's head plays its look on the stage's shown targets: reveal replays the first find (as the
   stage menu's *Replay the first find*), found loses and finds them again, lost loses them and finds them again once the
   look has played out. A change plays at once – the stage's next animations take the panel's looks (`overrideAppearance`).
-- An edit is [saved by itself](#autosave) (`PUT /editor/books/{id}/appearance`, the whole appearance; a book whose
+- An edit is [saved by itself](#autosave) (`PUT /editor/experiences/{id}/appearance`, the whole appearance; an experience whose
   moments all play another's look saves `null`). *Undo edits* takes it back (`editor/src/lib/appearance-edit.ts`, the
   looks offered `plugin-appearances.ts`).
 - **A node's own looks** (#268, content schema 2.30): select a node of the entity in the tree – the root or any child – and *add
   component* → **reveal**, **found** or **lost**. The component has a **look**
-  row – *as the book*, the built-in looks, the looks of the book's plugins – and, under it, the rows of the look it
-  names, the same as in the book's appearance above; another look starts with its own defaults. On the root it wins over the
-  book's look for the entity (its `found` also stands in for a moment it has no look of its own for, before the book's);
+  row – *as the experience*, the built-in looks, the looks of the experience's plugins – and, under it, the rows of the look it
+  names, the same as in the experience's appearance above; another look starts with its own defaults. On the root it wins over the
+  experience's look for the entity (its `found` also stands in for a moment it has no look of its own for, before the experience's);
   on a child node that node's subtree animates with it, apart from the rest.
   The stage plays it at once; the rows are written like any component's (`components.N.look`, `components.N.duration`),
   so `put_entity`, the YAML and the Code tab set the same values.
 
 #### Vars and events
 
-The scene's last section: the narrative of a book like the demo ([plugins](plugins.md) "Across nodes and pages"),
+The scene's last section: the narrative of an experience like the demo ([plugins](plugins.md) "Across nodes and pages"),
 driven from the tree's eyes and from here (#88; `stage/event-log.ts`, `stage/narrative.ts`):
 
 - **tap** – a button per printed target of the scene (its entry's title): the reader's tap without aiming at the
   entity – the entity's `onTap` (a plugin component's, the `animation` component's `playOn: tap`, a `behaviour`'s tap
   rules) and the event `targetTapped`, through the engine's own tap path (`SceneInspection.tap`). Only a found target
   with AR content takes a tap; the others are greyed out.
-- **vars** – the plugins' variables, a row each: the name, its scope and type (`book · boolean`), and the value as the
+- **vars** – the plugins' variables, a row each: the name, its scope and type (`experience · boolean`), and the value as the
   type's control – *false / true*, a ScrubNumber (committed when you let go or press Enter), a text field – and × to
-  delete it. **set** below sets one by hand: a name, the scope (scene, stage, session, book – the plugin API's four),
+  delete it. **set** below sets one by hand: a name, the scope (scene, stage, session, experience – the plugin API's four),
   the type and the value. Both write through the plugin API (`api.vars.set` with the panel as the plugin), so the
   plugins hear `varChanged` as from a plugin and a branch can be tested without playing up to it; the API's refusal (a
   name that is not camelCase) shows next to *reset*. **reset** starts a new game (every variable cleared, nothing
@@ -1019,38 +1022,38 @@ driven from the tree's eyes and from here (#88; `stage/event-log.ts`, `stage/nar
   again), the event (found, lost, unlocked, tapped, sceneChanged, varChanged, arState once per change, the plugins'
   own) and its payload; the last 100 are kept. A **behaviour** line is a rule of a `behaviour` component that ran
   (#88): the target, the node's name, the rule's number, its event and what it did (`play rattle · set hasKey = true
-  (book) · emit keyRattled`) – the log's own line, not an event of the stage (plugins never hear it); the events its
+  (experience) · emit keyRattled`) – the log's own line, not an event of the stage (plugins never hear it); the events its
   actions caused follow above it. **clear** empties it.
 
 ### Environment
 
-The book's world around the reader and its sky (content schema 2.8 / 2.10, [content guide](content.md) "Environment",
+The experience's world around the reader and its sky (content schema 2.8 / 2.10, [content guide](content.md) "Environment",
 [look-around](look-around.md); `EnvironmentPanel.svelte`). Two collapsible sections: *environment* (world, sky, onion
 sky – open on a first visit) and *preview* (look up – closed, its header naming the angle).
 
 While the tab is open the stage shows the **engine's own look-around pass** with the values being edited – the world
-anchored to the book, the window around it and the clear floor – under the desk and the book (the studio's HDRI steps
+anchored to the experience, the window around it and the clear floor – under the desk and the experience (the studio's HDRI steps
 aside, sky and light), turned by the view as a phone's gyroscope would turn it (`MockTracker.worldOrientation`,
 `ArScene.previewEnvironment` – an editor-only method, not part of `IArScene`). **look up** raises the camera from the
-book towards the horizon and the sky (the targets stay found, as the reader's world stays for 45 s). Rows: **world** –
+experience towards the horizon and the sky (the targets stay found, as the reader's world stays for 45 s). Rows: **world** –
 the built-in *café*, or a glTF model; **sky** – *the world's*, or an equirectangular image; each with *Library…* (the
 Library as the picker), *Upload* (into the Library and taken at once) and *remove* (back to the built-in part); **onion
 sky** on / off (it needs a camera picture, so only the reader shows it). Changes show at once and are [saved by themselves](#autosave)
-(`PUT /editor/books/{id}/environment`); *Undo edits* takes the environment back, *Use the default* removes it.
+(`PUT /editor/experiences/{id}/environment`); *Undo edits* takes the environment back, *Use the default* removes it.
 
-**The environment replaces the HDRI sky box** (#185): once the book has an environment – the draft's, or edits that
+**The environment replaces the HDRI sky box** (#185): once the experience has an environment – the draft's, or edits that
 start one – the stage shows its world as the sky in every tab while the shading is rendered (the same pass, *look up*
 stays the tab's), so the author sees the world the reader will see, not a studio behind it. The HDRI then no longer
 lights: the reader lights the AR content with the engine's own ambient and sun (and the content's light nodes) – its
 world is a pass under the scene and lights nothing –, so the stage does too. Where the reader shows its camera picture
-– the window around the book, the open roof – the world's pass leaves the frame transparent; the stage fills it with the
+– the window around the experience, the open roof – the world's pass leaves the frame transparent; the stage fills it with the
 HDRI, drawn behind the world (destination-alpha blending, `behindWorld` in `mock-stage.ts`) as a background only – the
-camera picture's stand-in, like the desk. A book without one keeps the HDRI as sky and light. The decision is one pure
-function, `editor/src/lib/stage/sky.ts` (`bookEnvironment`, `showsWorld`, `stageLook` – which sky, which light).
+camera picture's stand-in, like the desk. An experience without one keeps the HDRI as sky and light. The decision is one pure
+function, `editor/src/lib/stage/sky.ts` (`experienceEnvironment`, `showsWorld`, `stageLook` – which sky, which light).
 
 ### Library
 
-The book's uploaded files and the files of the import ([server](server.md) "Assets"; `LibraryPanel.svelte`): a grid of
+The experience's uploaded files and the files of the import ([server](server.md) "Assets"; `LibraryPanel.svelte`): a grid of
 cards (a preview with an animated skeleton until it has loaded – images, a video's first frame that plays muted while
 hovered or after a click on ▷ –, the type's icon else; where the file belongs – the import names every file
 `image.jpg`, `target.jpg`, `video.mp4` in a folder per entry, so a card reads `p015-1 · target` –, kind, size,
@@ -1079,7 +1082,7 @@ Library's notice line says what became of the file: *Photo.jpg (6.2 MB) is store
 
 **Grouped by scene** (#298 phase 3, #319): the media – cards and list alike – come in groups: a header per scene in the
 scenes' order (its label and how many files), each file under the scene of its **first use**, then **Not in a scene**
-(the book-wide uses: the environment's world and sky, a plugin's source, a shared entity no target shows), then
+(the experience-wide uses: the environment's world and sky, a plugin's source, a shared entity no target shows), then
 **Unused** (`groupByScene` in `library-place.ts`). A file used in more places says **+N more**. The search, the
 filters and *Credits…* work as before, on the files the groups show.
 
@@ -1095,7 +1098,7 @@ instead of its place. New uploads whose use is known are named so at once: an en
 image by their entry, a surface's reference image by its scene and surface ([server](server.md) "Files named by
 use").
 
-**Code files** (#186): the book's **scripts** and **shaders** in a list of their own under the media (the filter
+**Code files** (#186): the experience's **scripts** and **shaders** in a list of their own under the media (the filter
 **code** shows it alone; `CodeFiles.svelte`, `library-code.ts`) – name, kind (*script* / *shader*), size, uses. A script
 **is** a plugin source of the Code tab (the same rows, no second copy – its uses are the draft's rows that name a type it
 registers; one with unsaved edits in the Code tab reads *name.ts\**, as the Code tab marks it – #232); a shader is an
@@ -1123,8 +1126,8 @@ Esc returns without one; the panel underneath keeps its values. Selecting anothe
 
 ### Code
 
-The book's own code ([the decision](../agents/research/2026-10-29-code-in-the-editor.md), `panels/CodePanel.svelte`;
-writing a plugin: [plugins](plugins.md)): the plugins stored for the book and the ones the content declares (compiled by
+The experience's own code ([the decision](../agents/research/2026-10-29-code-in-the-editor.md), `panels/CodePanel.svelte`;
+writing a plugin: [plugins](plugins.md)): the plugins stored for the experience and the ones the content declares (compiled by
 the content build – opening one reads its `index.ts` next to the compiled module; Save keeps a copy). The picker names
 each by its name alone, the one with unsaved edits with an asterisk (*aquarium\**, #232: unchanged needs no mark, and
 whether readers have the stored sources is the top bar's *draft only* / *live on …*); the open source is kept while
@@ -1140,13 +1143,13 @@ another tab shows (`plugins.code`), so a tab switch loses no edit.
   else the saved one, transpiled and installed one after the other, then the scene built once – as soon as the frame
   answers, so a scene that does not build keeps no code from loading. A source stored under the id of a plugin the
   content declares wins over its compiled module (`keepPlugin`: the engine does not install that module over it).
-  **Save** runs the saved text too. So the looks, components and node types of the book's code are known to the pickers and the
+  **Save** runs the saved text too. So the looks, components and node types of the experience's code are known to the pickers and the
   Inspector without a Run, on every visit. A line under the picker says what of the open plugin runs on the stage:
   *the saved version*, *edits not saved* (a Run), *failed* with the error – what ran before stays registered – or *not
   loaded*; another stored source that is not on the stage is named below it. A picker whose value no plugin registers
-  says why instead of *unknown*: *loading the book's code…*, *not loaded – reveal failed*, or *unknown – no plugin
+  says why instead of *unknown*: *loading the experience's code…*, *not loaded – reveal failed*, or *unknown – no plugin
   registers it*. **The way out of a hang**: a source the frame does not answer for within 10 s stops the auto-load
-  (the rest wait), and its mark stays in this browser (`osct-code-autoload:<book>`), so the next open skips it and
+  (the rest wait), and its mark stays in this browser (`osct-code-autoload:<experience>`), so the next open skips it and
   says so – fix it, then Run it by hand.
 - **Run** tries the open text, saved or not: it transpiles the TypeScript in the browser (sucrase, types erased – no type check, that is the build's half);
   the stage frame imports the module and installs it in the stage's registry under the plugin's id (a second Run
@@ -1157,7 +1160,7 @@ another tab shows (`plugins.code`), so a tab switch loses no edit.
   exception in `register`); the previous registration stays. The **log** under the editor has the plugins' lines from
   the stage, newest last: their `api.log` and their errors there (a build that failed, an error nothing caught); every
   Run starts it anew.
-- **Save** stores the source (`/api/editor/books/{id}/plugins/{pid}`, a change recorded), **Delete** removes it –
+- **Save** stores the source (`/api/editor/experiences/{id}/plugins/{pid}`, a change recorded), **Delete** removes it –
   refused while the draft uses a type it registers (*used by entity castle – Delete anyway*). The Library lists the
   stored sources as its scripts and opens one here (**Open in Code**); a script file uploaded there is a source here.
 - **A Run reaches no reader; Publish does**: the publish carries every saved source, transpiled in the browser as a
@@ -1224,15 +1227,15 @@ design tokens):
 | The engine | `engine/src/` | `content/` (loader, accessors, `contentUrl`), `scene/` (`ArScene`, entities, trackers), `types/`, `utils/`; compiled by the app that imports it (`@engine/*`) |
 | The reader's scene | `client/src/components/ar-bridges/ar/index.ts` | `createReaderScene()`: the engine with the 8th Wall tracker (`engine/src/scene/xr8-tracker.ts`), where its files are served, the dev flag and the reader's graphics options ([tracking](tracking.md) "What the app gives the engine") |
 | The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the page's side of the stage frame, #234), `frame-host.svelte.ts` and `frame-protocol.ts` (the frame's side and the messages, the frame's policy), `plugin-run.ts` (Run's half in the frame), `stage-core.svelte.ts` (the stage in the frame: the simulation, owns the gizmo; gives the engine the dev flag and the device storage like the reader), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts` (+ `plywood.ts`, `linoleum.ts`, `oak.ts`, the desk tops' drawn looks), `preview.ts` (view, orbit, pan, sky, the desk's top, shake, origin, grid and snap, hidden targets; `viewSummary`), `stage-layout.ts`, `progress.ts` (the simulated progress), `event-log.ts` and `narrative.ts` (the scene's timeline, variables and tap buttons in the Inspector) |
-| The demo's key model | `editor/tools/key-model.mjs` | the demo book's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
+| The demo's key model | `editor/tools/key-model.mjs` | the demo experience's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
-| The API layer | `editor/src/lib/api.ts`, `storage.ts`; `shared/api/` | every call through one `request` (the session cookie and the CSRF token on writes – #207, a 401 that ends the session, the API's errors as `ApiError` with their details); the answers typed once with the MCP server (`shared/api/editor.ts`); `getBook` reads a book's tree once for the stage, the environment and the top bar and reads it again after any write to the book (`fresh` for the book page); `errorText` the one error line; the two-step confirmations through `confirmationStep` (`shared/api/errors.ts`); the settings in localStorage through `storage.ts` (`osct-…` keys, blocked storage tolerated) |
+| The API layer | `editor/src/lib/api.ts`, `storage.ts`; `shared/api/` | every call through one `request` (the session cookie and the CSRF token on writes – #207, a 401 that ends the session, the API's errors as `ApiError` with their details); the answers typed once with the MCP server (`shared/api/editor.ts`); `getExperience` reads an experience's tree once for the stage, the environment and the top bar and reads it again after any write to the experience (`fresh` for the experience page); `errorText` the one error line; the two-step confirmations through `confirmationStep` (`shared/api/errors.ts`); the settings in localStorage through `storage.ts` (`osct-…` keys, blocked storage tolerated) |
 | Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SceneView` and `EntryForm`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Toggle`, `Section`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the floating panels `FloatingPanel` with `floats.ts` (placement, pure) and `floats.svelte.ts` (a workspace's set, the panels menu) (#308); the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry's form in `EntryForm.svelte` (its logic in `entry-edit.ts`, its words outside the form in `entry-view.ts`), the scene section's in `scene-view.ts` (#227) |
-| The book's texts and search | `editor/src/lib/BookSearch.svelte`, `book-search.ts`, `BookTexts.svelte`, `book-texts.ts`, `panels/BookPanel.svelte`, `panels/NewEntryForm.svelte`, `entries.svelte.ts` | [Texts](#texts-entries-and-the-book), [The book search](#the-book-search), [Inspector: the book](#inspector-the-book) |
+| The experience's texts and search | `editor/src/lib/ExperienceSearch.svelte`, `experience-search.ts`, `ExperienceTexts.svelte`, `experience-texts.ts`, `panels/ExperiencePanel.svelte`, `panels/NewEntryForm.svelte`, `entries.svelte.ts` | [Texts](#texts-entries-and-the-experience), [The experience search](#the-experience-search), [Inspector: the experience](#inspector-the-experience) |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts`, `stage/plugin-run.ts` | the stored sources, Run (transpile with sucrase in the page; import and `installPlugin` in the stage frame, rebuild), the plugins' log |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |
-| Routes | `editor/src/routes/` | `(app)/` – the editor behind its sign-in gate (`+layout.svelte`): `+page` (sign-in, books, import), `[book]/`, `[book]/[scene]/`, `admin/`; `stage-frame/` – the stage frame's document, outside the gate |
-| The API | `server/api/src/Books.php`, `ContentVersion.php`, `ContentStore.php`, `Editor.php`, `Plugins.php`, `BookTexts.php` | [server](server.md) "Editor data", "Plugin sources", "Texts" |
+| Routes | `editor/src/routes/` | `(app)/` – the editor behind its sign-in gate (`+layout.svelte`): `+page` (sign-in, experiences, import), `[experience]/`, `[experience]/[scene]/`, `admin/`; `stage-frame/` – the stage frame's document, outside the gate |
+| The API | `server/api/src/Experiences.php`, `ContentVersion.php`, `ContentStore.php`, `Editor.php`, `Plugins.php`, `ExperienceTexts.php` | [server](server.md) "Editor data", "Plugin sources", "Texts" |
 | Book layout import | `scripts/layout/extract-layout.py` | sheets and printed geometry from the designed PDFs |
 
 Stack (#157): **SvelteKit 3** with adapter-static 4 (a single-page app, `index.html` the fallback, base path
@@ -1251,10 +1254,10 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
 ## Limits of this step
 
 - Entities as node trees, files from the library (uploaded in the editor) or the content, targets with their printed
-  image and placement, the entries' texts and the book's. Renditions and transcoding stay with the
+  image and placement, the entries' texts and the experience's. Renditions and transcoding stay with the
   content build. A target made in the editor tracks in the reader after a publish: the 8th Wall engine makes its
   image-target data from the printed image at runtime (`engine/src/scene/xr8.ts`), nothing has to be compiled. Events
-  between nodes and pages are the plugin API's (`api.events`, since 1.1) and the `behaviour` component's; the book's own
+  between nodes and pages are the plugin API's (`api.events`, since 1.1) and the `behaviour` component's; the experience's own
   code is the Code tab.
 - One page format and the `book` layout template; the templates of the concept (`sheet`, `cover`, `sleeve`, `wall`)
   come with the content (issues #60, #61).
@@ -1269,7 +1272,7 @@ included). CI builds and checks the editor (`checks.yml`, job *Editor*); the ima
   switch, a `scene` variable does not), the reader's UI around the scene.
 - The pass registry (`engine/src/scene/post/`) is what `api.registerPass` calls: `registerPass` with the plugin as
   owner, and `unregisterPassesOf` on uninstall. The content names the built-in passes and, since schema 2.21, a pass
-  a plugin of the book recorded (#216); a pass of a Code tab source goes with the publish, which carries the source
+  a plugin of the experience recorded (#216); a pass of a Code tab source goes with the publish, which carries the source
   (#78). *Make it code* for a built-in
   pass is not built.
 - The bunny store against the real zone and MariaDB against the new tables are

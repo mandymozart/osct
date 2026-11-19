@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { readSurfaceGrids, sceneSurfaceGrids, surfaceGrids, withSurfaceGrid } from "../surface-grids.svelte";
 import { getPreview } from "../stage/preview";
 
-/** #316 part 1: a surface's own grid spacing, kept in this browser per book and surface, the open scene's handed to the stage */
+/** #316 part 1: a surface's own grid spacing, kept in this browser per experience and surface, the open scene's handed to the stage */
 
 describe("a surface's own grid", () => {
   beforeEach(() => localStorage.clear());
 
-  it("reads a book's spacings, leaving out what is no spacing, clamped", () => {
+  it("reads an experience's spacings, leaving out what is no spacing, clamped", () => {
     localStorage.setItem("osct-editor-surface-grids:demo", JSON.stringify({ "s1/wall": 25, "s1/page": 9000, nope: 5, "s2/x": "5" }));
     expect(readSurfaceGrids("demo")).toEqual({ "s1/wall": 25, "s1/page": 500 });
     expect(readSurfaceGrids("other")).toEqual({});
@@ -20,7 +20,7 @@ describe("a surface's own grid", () => {
     expect(withSurfaceGrid(all, "s1", "wall", null)).toEqual({ "s2/wall": 10 });
   });
 
-  it("the open scene's spacings reach the stage's preview; a change is stored per book", () => {
+  it("the open scene's spacings reach the stage's preview; a change is stored per experience", () => {
     surfaceGrids.enter("demo", "s1");
     surfaceGrids.set("s1", "wall", 40);
     surfaceGrids.set("s2", "page", 12);

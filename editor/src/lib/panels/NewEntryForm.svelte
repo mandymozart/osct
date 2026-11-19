@@ -13,8 +13,8 @@
    * (`POST …/entries` without `target`); the caller reloads the content and selects it, so its form opens in the
    * Inspector. A target can follow on the stage.
    */
-  let { bookId, scene, oncreated, oncancel }: {
-    bookId: string;
+  let { experienceId, scene, oncreated, oncancel }: {
+    experienceId: string;
     scene: Scene;
     oncreated: (entryId: string) => Promise<void>;
     oncancel: () => void;
@@ -33,7 +33,7 @@
     busy = true;
     error = null;
     try {
-      const { entry } = await addEntry(bookId, { title: title.trim(), scene: scene.id, ...(surface && surfaces.length > 1 ? { surface } : {}), category });
+      const { entry } = await addEntry(experienceId, { title: title.trim(), scene: scene.id, ...(surface && surfaces.length > 1 ? { surface } : {}), category });
       await oncreated(entry.id);
     } catch (e) {
       error = errorText(e, { code: true });

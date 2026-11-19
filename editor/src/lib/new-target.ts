@@ -17,6 +17,6 @@ export const CATEGORY_LABELS: Record<EntryCategory, string> = {
 /**
  * The entry category a new target starts with, following what appears on the page (#165): a video makes an entry of
  * the Videos; anything else a glossary term. Text (a literary text with its author) and Link (a web page) say what the
- * entry is in the book, not what appears, so they stay the author's choice.
+ * entry is in the experience, not what appears, so they stay the author's choice.
  */
 export const categoryFor = (appears: EntityType | ""): EntryCategory => (appears === "video" ? EntryCategory.Video : EntryCategory.Glossary);

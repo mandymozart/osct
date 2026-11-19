@@ -77,7 +77,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("the demo book's sheet (editor/tools/paper-sheet.mjs)", () => {
+describe("the demo experience's sheet (editor/tools/paper-sheet.mjs)", () => {
   it("is the file the script writes – regenerate it with `node editor/tools/paper-sheet.mjs`", () => {
     const file = readFileSync(resolve(process.cwd(), "..", SHEET_MODEL_PATH));
     expect(Buffer.from(file).equals(Buffer.from(buildSheetGlb()))).toBe(true);

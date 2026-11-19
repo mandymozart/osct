@@ -27,7 +27,7 @@ const NOTICE_MS = 3500;
  * *Jump back to here* always ask. Every write bumps `revision`: the page reloads the draft and its panels.
  */
 class History {
-  bookId = $state<string | null>(null);
+  experienceId = $state<string | null>(null);
   changes = $state.raw<Change[]>([]);
   loading = $state(false);
   error = $state<string | null>(null);
@@ -50,10 +50,10 @@ class History {
     return this.redoStack.length > 0;
   }
 
-  /** A book opened: its log, and undo starts afresh (only this session's own changes) */
-  enter(bookId: string): void {
-    if (this.bookId === bookId) return;
-    this.bookId = bookId;
+  /** An experience opened: its log, and undo starts afresh (only this session's own changes) */
+  enter(experienceId: string): void {
+    if (this.experienceId === experienceId) return;
+    this.experienceId = experienceId;
     this.changes = [];
     this.redoStack = [];
     this.consumed.clear();
@@ -62,12 +62,12 @@ class History {
   }
 
   async load(): Promise<Change[]> {
-    const bookId = this.bookId;
-    if (!bookId) return [];
+    const experienceId = this.experienceId;
+    if (!experienceId) return [];
     this.loading = true;
     try {
-      const { changes } = await getChanges(bookId);
-      if (this.bookId === bookId) {
+      const { changes } = await getChanges(experienceId);
+      if (this.experienceId === experienceId) {
         this.changes = changes;
         this.error = null;
       }
@@ -95,16 +95,16 @@ class History {
   }
 
   async undo(): Promise<void> {
-    const bookId = this.bookId;
+    const experienceId = this.experienceId;
     const me = session.user?.email;
-    if (!bookId || !me || this.busy || this.pending) return;
+    if (!experienceId || !me || this.busy || this.pending) return;
     this.busy = true;
     try {
       if (!(await this.settled())) return;
       const own = undoable(await this.load(), me, this.since, this.consumed);
       const ids = newestStep(own);
       if (!ids.length) return this.say("Nothing to undo – only your own changes since the page opened.");
-      const result = await revertChanges(bookId, ids);
+      const result = await revertChanges(experienceId, ids);
       const done = (written: RevertResult) => {
         for (const id of [...ids, ...written.written]) this.consumed.add(id);
         if (written.written.length) this.redoStack = [...this.redoStack, { ids: written.written, at: Date.now() }];
@@ -114,7 +114,7 @@ class History {
         for (const id of ids) this.consumed.add(id);
         return this.say(`Cannot undo: ${result.plan.changes.find(c => c.reason)?.reason ?? "nothing to revert"}`);
       }
-      const apply = () => revertChanges(bookId, ids, true);
+      const apply = () => revertChanges(experienceId, ids, true);
       if (needsPrompt(result)) this.pending = { title: "Undo", result, apply, done };
       else await this.write({ title: "Undo", result, apply, done });
     } catch (e) {
@@ -125,10 +125,10 @@ class History {
   }
 
   async redo(): Promise<void> {
-    const bookId = this.bookId;
+    const experienceId = this.experienceId;
     const me = session.user?.email;
     const entry = this.redoStack.at(-1);
-    if (!bookId || !me || !entry || this.busy || this.pending) return;
+    if (!experienceId || !me || !entry || this.busy || this.pending) return;
     this.busy = true;
     try {
       if (!(await this.settled())) return;
@@ -138,12 +138,12 @@ class History {
         this.redoStack = [];
         return this.say("Nothing to redo – you edited since.");
       }
-      const result = await revertChanges(bookId, entry.ids);
+      const result = await revertChanges(experienceId, entry.ids);
       const done = () => {
         for (const id of entry.ids) this.consumed.add(id);
         this.redoStack = this.redoStack.filter(e => e !== entry);
       };
-      const apply = () => revertChanges(bookId, entry.ids, true);
+      const apply = () => revertChanges(experienceId, entry.ids, true);
       if (needsPrompt(result) || !result.plan.counts.revert) this.pending = { title: "Redo", result, apply, done };
       else await this.write({ title: "Redo", result, apply, done });
     } catch (e) {
@@ -155,16 +155,16 @@ class History {
 
   /** The History's *Revert this change*: the plan, always asked */
   async askRevert(change: Change): Promise<void> {
-    const bookId = this.bookId;
-    if (!bookId || this.busy) return;
-    await this.ask("Revert this change", () => revertChanges(bookId, [change.id]), () => revertChanges(bookId, [change.id], true));
+    const experienceId = this.experienceId;
+    if (!experienceId || this.busy) return;
+    await this.ask("Revert this change", () => revertChanges(experienceId, [change.id]), () => revertChanges(experienceId, [change.id], true));
   }
 
   /** The History's *Jump back to here*: every change after this one reverted, always asked */
   async askJump(change: Change): Promise<void> {
-    const bookId = this.bookId;
-    if (!bookId || this.busy) return;
-    await this.ask("Jump back to here", () => revertTo(bookId, change.id), () => revertTo(bookId, change.id, true));
+    const experienceId = this.experienceId;
+    if (!experienceId || this.busy) return;
+    await this.ask("Jump back to here", () => revertTo(experienceId, change.id), () => revertTo(experienceId, change.id, true));
   }
 
   private async ask(title: string, plan: () => Promise<RevertResult>, apply: () => Promise<RevertResult>): Promise<void> {

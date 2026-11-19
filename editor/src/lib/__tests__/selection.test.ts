@@ -116,16 +116,16 @@ describe("settledSelection (#229)", () => {
   });
 });
 
-describe("the book and a selection asked for on another scene (#237)", () => {
-  it("the book (the top bar's ⚙) selects the book: no scene, target, node or entry; one level up keeps it", () => {
+describe("the experience and a selection asked for on another scene (#237)", () => {
+  it("the experience (the top bar's ⚙) selects the experience: no scene, target, node or entry; one level up keeps it", () => {
     selection.selectNode("p015-1", [1]);
-    selection.selectBook();
-    expect(selection.snapshot()).toEqual({ target: null, node: [], onTarget: true, scene: false, entry: null, book: true });
+    selection.selectExperience();
+    expect(selection.snapshot()).toEqual({ target: null, node: [], onTarget: true, scene: false, entry: null, experience: true });
     selection.up();
-    expect(selection.book).toBe(true);
+    expect(selection.experience).toBe(true);
     selection.selectScene();
-    expect([selection.book, selection.scene]).toEqual([false, true]);
-    expect(settledSelection({ target: "a", node: [1], onTarget: false, book: true })).toEqual({ target: null, node: [], onTarget: true, scene: false, entry: null, book: true });
+    expect([selection.experience, selection.scene]).toEqual([false, true]);
+    expect(settledSelection({ target: "a", node: [1], onTarget: false, experience: true })).toEqual({ target: null, node: [], onTarget: true, scene: false, entry: null, experience: true });
   });
 
   it("a group (a band of the Scenes panel, #307) is selected alone; one level up keeps it, another scene resets it", () => {

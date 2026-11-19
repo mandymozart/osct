@@ -31,7 +31,7 @@ export interface StageTarget {
 }
 
 /** The open scene as the stage draws it: its surfaces where they lie (`surfaces.ts`) and their reference images */
-export interface StageBook {
+export interface StageScene {
   surfaces: readonly SceneSurface[];
   /** Reference images by surface id (#314): shown on their surface, else paper */
   references?: Readonly<Record<string, SurfaceReference>>;
@@ -206,19 +206,19 @@ export const wobbled = (orbit: Orbit, wobble: number, t: number): { orbit: Orbit
   };
 };
 
-/** The stage's frame (z up, the reader on −y) turned into a world with y up and the book ahead on −z: −90° about x */
+/** The stage's frame (z up, the reader on −y) turned into a world with y up and the scene ahead on −z: −90° about x */
 const STAGE_TO_WORLD = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2);
 const LOOK_UP = new Matrix4();
 
 /** What the stage draws – set by the tracker, which owns the layout and the camera */
 export interface StageView {
   /** The open scene: its surfaces at their places (each a board with its reference image, else paper) and the targets on them */
-  setLayout(targets: readonly StageTarget[], book: StageBook): void;
+  setLayout(targets: readonly StageTarget[], scene: StageScene): void;
   /** The targets hidden in the tree (the eye, #250): their printed images are not drawn either */
   setHiddenPrints?(hidden: ReadonlySet<string>): void;
   /** The sky and the light: an HDRI (shown while the shading is rendered) */
   setHdri(hdri: PreviewState["hdri"]): void;
-  /** The desk's top under the book (the frame stays) */
+  /** The desk's top under the scene (the frame stays) */
   setTop?(top: PreviewState["top"]): void;
   /**
    * A translucent image where a target is about to be printed (the new-target form, the placement rows); null = none.
@@ -356,7 +356,7 @@ export class MockTracker implements IImageTracker {
   private lastPinch = 0;
   private cameraWorld = new Matrix4();
   private cameraInverse = new Matrix4();
-  /** Degrees the camera looks up from where the orbit points it (the environment's preview: the world above the book) */
+  /** Degrees the camera looks up from where the orbit points it (the environment's preview: the world above the scene) */
   private lookUp = 0;
   private pose = new Matrix4();
 
@@ -388,7 +388,7 @@ export class MockTracker implements IImageTracker {
   attachStage(stage: StageView): void {
     this.stage?.dispose();
     this.stage = stage;
-    if (this.sceneId) stage.setLayout(this.targets, this.stageBook());
+    if (this.sceneId) stage.setLayout(this.targets, this.stageScene());
     stage.setShading?.(this.preview.shading);
     stage.setHdri(this.preview.hdri);
     stage.setTop?.(this.preview.top);
@@ -397,7 +397,7 @@ export class MockTracker implements IImageTracker {
     stage.setSurfaceMarks?.(this.marks.outlined, this.marks.highlighted);
   }
 
-  private stageBook(): StageBook {
+  private stageScene(): StageScene {
     const references = this.sceneId ? this.references[this.sceneId] : undefined;
     return { surfaces: this.surfaces, ...(references ? { references } : {}) };
   }
@@ -468,7 +468,7 @@ export class MockTracker implements IImageTracker {
     this.frames = this.surfaces.map(surfaceFrame);
     this.laidOut = layoutTargets(this.tracked, this.infos, this.frames);
     this.targets = withLivePlacement(this.laidOut, this.livePlacement);
-    this.stage?.setLayout(this.targets, this.stageBook());
+    this.stage?.setLayout(this.targets, this.stageScene());
     this.stage?.setSurfaceMarks?.(this.marks.outlined, this.marks.highlighted);
     this.publishState();
   }
@@ -520,7 +520,7 @@ export class MockTracker implements IImageTracker {
     publishEngineState(EMPTY_ENGINE_STATE);
   }
 
-  /** Look up from the orbit's direction by this many degrees (0 = at the book); the targets stay found */
+  /** Look up from the orbit's direction by this many degrees (0 = at the scene); the targets stay found */
   setLookUp(degrees: number): void {
     this.lookUp = Math.min(90, Math.max(-30, degrees));
   }

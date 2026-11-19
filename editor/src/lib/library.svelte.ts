@@ -19,12 +19,12 @@ export interface Conversion {
 export const ACCEPT = [acceptOf(ASSET_KINDS), ...CODE_EXTENSIONS.script].join(",");
 
 /**
- * The book's library: the files uploaded in the editor (the API's assets – docs/server.md "Assets"), loaded per book,
+ * The experience's library: the files uploaded in the editor (the API's assets – docs/server.md "Assets"), loaded per experience,
  * kept in step after an upload, a replace or a delete. Nodes and targets name an asset by its URL; `byUrl` finds the
  * asset behind a node's file.
  */
 class Library {
-  bookId = $state<string | null>(null);
+  experienceId = $state<string | null>(null);
   assets = $state<Asset[]>([]);
   loading = $state(false);
   error = $state<string | null>(null);
@@ -33,12 +33,12 @@ class Library {
   /** The last upload or replace, when the image rule converted it (null otherwise) – the Library says what became of it */
   converted = $state<Conversion | null>(null);
 
-  async load(bookId: string): Promise<void> {
+  async load(experienceId: string): Promise<void> {
     this.loading = true;
     this.error = null;
     try {
-      this.assets = (await listAssets(bookId)).assets;
-      this.bookId = bookId;
+      this.assets = (await listAssets(experienceId)).assets;
+      this.experienceId = experienceId;
     } catch (e) {
       this.error = errorText(e);
     } finally {
@@ -68,12 +68,12 @@ class Library {
    * is known (`target`: cut to 1200 px – the image rule, #298). A picture becomes WebP in the browser first
    * (browser-webp.ts); the API converts what still comes unconverted.
    */
-  async upload(bookId: string, file: File, fit?: ImageFit | ImageUse): Promise<Asset> {
+  async upload(experienceId: string, file: File, fit?: ImageFit | ImageUse): Promise<Asset> {
     this.uploading = [...this.uploading, file.name];
     this.error = null;
     try {
       const sent = await toWebp(file, fitOf(fit));
-      const { asset, converted } = await uploadAsset(bookId, sent.file, fit);
+      const { asset, converted } = await uploadAsset(experienceId, sent.file, fit);
       this.converted = converted || sent.converted ?{ assetId: asset.id, name: file.name, size: file.size } : null;
       this.assets = [asset, ...this.assets.filter(a => a.id !== asset.id)];
       return asset;
@@ -85,13 +85,13 @@ class Library {
     }
   }
 
-  /** A new version of an asset; every use in the book now names it (the draft changed: reload the content) */
-  async replace(bookId: string, assetId: string, file: File, fit?: ImageFit | ImageUse): Promise<Asset> {
+  /** A new version of an asset; every use in the experience now names it (the draft changed: reload the content) */
+  async replace(experienceId: string, assetId: string, file: File, fit?: ImageFit | ImageUse): Promise<Asset> {
     this.uploading = [...this.uploading, file.name];
     this.error = null;
     try {
       const sent = await toWebp(file, fitOf(fit));
-      const { asset, converted } = await replaceAsset(bookId, assetId, sent.file, fit);
+      const { asset, converted } = await replaceAsset(experienceId, assetId, sent.file, fit);
       this.converted = converted || sent.converted ?{ assetId: asset.id, name: file.name, size: file.size } : null;
       this.assets = this.assets.map(a => (a.id === asset.id ? asset : a));
       return asset;
@@ -104,17 +104,17 @@ class Library {
   }
 
   /** Remove an asset; refused while used unless forced (the API answers 409 asset-in-use with the usages) */
-  async remove(bookId: string, assetId: string, force = false): Promise<void> {
+  async remove(experienceId: string, assetId: string, force = false): Promise<void> {
     this.error = null;
-    await deleteAsset(bookId, assetId, force);
+    await deleteAsset(experienceId, assetId, force);
     this.assets = this.assets.filter(a => a.id !== assetId);
   }
 
   /** A file's credits line (#277): every asset of that URL shows the saved line */
-  async setCredits(bookId: string, url: string, credits: string): Promise<void> {
+  async setCredits(experienceId: string, url: string, credits: string): Promise<void> {
     this.error = null;
     try {
-      const saved = (await setAssetCredits(bookId, [{ url, credits }])).credits[url] ?? null;
+      const saved = (await setAssetCredits(experienceId, [{ url, credits }])).credits[url] ?? null;
       this.assets = this.assets.map(a => (a.url === url ? { ...a, credits: saved } : a));
     } catch (e) {
       this.error = errorText(e);
@@ -124,9 +124,9 @@ class Library {
 
   /** The number of uses changed (a save): read the list again without a loading state */
   async refresh(): Promise<void> {
-    if (!this.bookId) return;
+    if (!this.experienceId) return;
     try {
-      this.assets = (await listAssets(this.bookId)).assets;
+      this.assets = (await listAssets(this.experienceId)).assets;
     } catch {
       // the next load tells
     }

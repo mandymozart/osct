@@ -1,5 +1,5 @@
 /**
- * The demo book's sheet of paper (`fixtures/demo/entries/screen/sheet.glb`): a slightly bent plane the `paper` component
+ * The demo experience's sheet of paper (`fixtures/demo/entries/screen/sheet.glb`): a slightly bent plane the `paper` component
  * (`fixtures/demo/plugins/paper`) shows the screen's video on. Written as glTF 2.0 binary directly – no Blender, no
  * dependencies – so the file is the same on every machine and a test can rebuild it.
  *
@@ -126,7 +126,7 @@ export const buildSheetGlb = ({ flat = false } = {}) => {
   return new Uint8Array(Buffer.concat([header, chunkHead(jsonChunk.length, 0x4e4f534a), jsonChunk, chunkHead(binChunk.length, 0x004e4942), binChunk]));
 };
 
-/** Where the demo book keeps the sheet, from the repository's root */
+/** Where the demo experience keeps the sheet, from the repository's root */
 export const SHEET_MODEL_PATH = "fixtures/demo/entries/screen/sheet.glb";
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

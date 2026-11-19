@@ -24,8 +24,8 @@
    * API makes entry and target (`POST …/entries`); the caller reloads the content and selects the new target. The
    * reader tracks it after a publish: the 8th Wall engine makes the image-target data from the image at runtime.
    */
-  let { bookId, scene, stage = null, oncreated, oncancel }: {
-    bookId: string;
+  let { experienceId, scene, stage = null, oncreated, oncancel }: {
+    experienceId: string;
     scene: Scene;
     /** The stage shows the placement live (a translucent image where the target would be printed) */
     stage?: Stage | null;
@@ -84,7 +84,7 @@
   const uploadForEntity = async (file: File) => {
     error = null;
     try {
-      const asset = await library.upload(bookId, file);
+      const asset = await library.upload(experienceId, file);
       if (entityType && nodeAssetKinds(entityType)?.includes(asset.kind)) entityFile = asset.url;
       else error = `${asset.name} is a ${asset.kind}, not for a ${entityType || "node"}`;
     } catch (e) {
@@ -101,7 +101,7 @@
   };
 
   $effect(() => {
-    if (library.bookId !== bookId) void library.load(bookId);
+    if (library.experienceId !== experienceId) void library.load(experienceId);
   });
 
   // The stage shows where the target would lie while the form is open
@@ -121,7 +121,7 @@
   const upload = async (file: File) => {
     error = null;
     try {
-      const asset: Asset = await library.upload(bookId, file, "target");
+      const asset: Asset = await library.upload(experienceId, file, "target");
       imageUrl = asset.url;
     } catch (e) {
       error = errorText(e);
@@ -133,7 +133,7 @@
     error = null;
     try {
       const entity = entityData();
-      const { entry } = await addEntry(bookId, {
+      const { entry } = await addEntry(experienceId, {
         title: title.trim(), scene: scene.id, ...(surface ? { surface } : {}), category,
         target: { imageSrc: imageUrl, place: { ...(surface ? { surface } : {}), x, y, width }, ...(entity ? { entity } : {}) },
       });
@@ -147,7 +147,7 @@
 </script>
 
 {#if picking}
-  <LibraryPanel {bookId} pick={picking} />
+  <LibraryPanel {experienceId} pick={picking} />
 {:else}
 <div class="form">
   <div class="section"><span class="section-label">new target on {sceneLabel(scene)}</span>

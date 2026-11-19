@@ -13,7 +13,7 @@ import { count } from "./import-preview";
 export interface RemovalStep {
   impact: RemovalImpact;
   confirmation: Confirmation;
-  /** The book changed since the impact the person saw (409 confirmation-void): this is the fresh one */
+  /** The experience changed since the impact the person saw (409 confirmation-void): this is the fresh one */
   changed: boolean;
 }
 

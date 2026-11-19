@@ -7,7 +7,7 @@
   /**
    * A collapsible section of a panel: a header (chevron, label, optional `aside` at the right) that opens and closes
    * its rows. The open state is kept per `id` (`sections`); `open` is the first-visit default until the author toggles
-   * it. While closed, `summary` follows the label ("post-processing · the whole book"), so closed hides nothing that
+   * it. While closed, `summary` follows the label ("post-processing · the whole experience"), so closed hides nothing that
    * matters. `help` is the section's description for the Info view. `data-section` carries the id, so a link from
    * elsewhere can scroll the section into view.
    * A group of settings that is switched as a whole (#233, agents/DESIGN.md "Sections and toggles") passes `enabled`

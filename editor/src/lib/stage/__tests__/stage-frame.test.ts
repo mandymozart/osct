@@ -11,7 +11,7 @@ import { Stage } from "../stage.svelte";
  * page sends it the draft and every edit and acts on what it reports – only on well-formed events from that frame.
  */
 
-const SNAPSHOT = { baseUrl: "/api/editor/books/demo/draft", assetsBase: "https://cdn.example/demo", responses: { "/api/editor/books/demo/draft/latest.json": "{}" } };
+const SNAPSHOT = { baseUrl: "/api/editor/experiences/demo/draft", assetsBase: "https://cdn.example/demo", responses: { "/api/editor/experiences/demo/draft/latest.json": "{}" } };
 const DOOR: EntityData = { type: "group", assets: [], children: [{ type: "model", name: "door", assets: [], params: { position: [0, 0, 0] } }] };
 
 type Sent = { osct: string; kind: string; id: number; method: string; args: unknown[] };
@@ -129,7 +129,7 @@ describe("the stage frame from the page's side", () => {
     const before = JSON.stringify(stage.overrideOf("door"));
     emit("placement", { targetId: "door", path: [0], placement: { position: "far away" } });
     post({ osct: MESSAGE_TAG, kind: "event", name: "placement", data: { targetId: "door", path: [0], placement: { position: [9, 9, 9], rotation: [0, 0, 0], scale: 1 } } }, window);
-    emit("save", { bookId: "demo" });
+    emit("save", { experienceId: "demo" });
     expect(JSON.stringify(stage.overrideOf("door"))).toBe(before);
   });
 

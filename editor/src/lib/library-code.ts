@@ -1,7 +1,7 @@
 import type { Asset, PluginSummary, Usage } from "./api";
 
 /**
- * The Library's code files (#186): **scripts** are the book's plugin sources (the Code tab's list – the API's
+ * The Library's code files (#186): **scripts** are the experience's plugin sources (the Code tab's list – the API's
  * `plugins`, no second copy), **shaders** are assets of the kind `shader` (a plugin loads one by its URL with
  * `api.loadText`). One list of both: name, kind, size and uses, a read-only preview in the language of the file.
  */
