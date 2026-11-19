@@ -17,8 +17,10 @@ outcome in the line (or move it into a dated decision block).
   level is added in the Inspector, the Library only shows the node.
 - Order: 1 stacks + frames + ◧ (3.6.0) · 2 browser levels for images/maps · 3 schema `levels` for image/video/audio +
   the reader by quality · 4 channels, clip files, scripts.
-- [ ] Open: Tilman answered "neine" to *video in the browser enough, or the server for video/audio?* – meaning to confirm
-  before step 3.
+- [x] Where levels are computed (Tilman, same night): *"primaer im browser. aber video im browser rendern klingt dumm.
+  das soll lieber vorher gemacht werden. oder wenn der production server live geht koennen wir das auch dort machen"* –
+  images and maps (and light audio) in the browser; **video levels are made beforehand** (all levels uploaded), later
+  possibly on the production server once it runs; never video encoding in the browser.
 
 ## 2026-11-19 – One update option: Building Fictions (#325)
 - Tilman: *"we reduced the updates on person can receive … just subscribe to one type of update and that is send by
