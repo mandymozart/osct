@@ -97,7 +97,7 @@ export class DebugOverlay extends HTMLElement {
       return;
     }
     if (control?.dataset.action === "reset-progress") {
-      if (confirm("Reset the progress of this book?")) this.game.history.reset();
+      if (confirm("Reset the progress of this experience?")) this.game.history.reset();
       return;
     }
     if (control?.dataset.action === "copy-progress") {
@@ -299,7 +299,7 @@ export class DebugOverlay extends HTMLElement {
 
     return `
       <div class="section">
-        <div>Book: ${escapeHtml(progress.bookId)} · format ${progress.format}</div>
+        <div>Experience: ${escapeHtml(progress.experienceId)} · format ${progress.format}</div>
         <div>App versions: ${escapeHtml(progress.appVersions.join(" → ") || "–")}</div>
         <div>Last scene: ${escapeHtml(progress.lastScene ?? "–")} · last category: ${escapeHtml(progress.lastCategory ?? "–")}</div>
         <div>Missing from content: ${missingIds.size
@@ -325,7 +325,7 @@ export class DebugOverlay extends HTMLElement {
       Object.entries(record).sort((a, b) => a[1] - b[1]).map(([id, time]) => `${new Date(time).toISOString()} ${id}`);
     const targets = getEntries().filter(e => e.target).length;
     return [
-      `OSCT progress · book ${progress.bookId} · app ${__VITE_APP_VERSION__} · content ${(getConfigVersion().hash ?? "").slice(0, 12)}`,
+      `OSCT progress · experience ${progress.experienceId} · app ${__VITE_APP_VERSION__} · content ${(getConfigVersion().hash ?? "").slice(0, 12)}`,
       `${new Date().toISOString()} · ${navigator.userAgent}`,
       `Unlocked targets (${Object.keys(progress.unlocked).length} / ${targets}):`,
       ...rows(progress.unlocked),
@@ -415,7 +415,7 @@ export class DebugOverlay extends HTMLElement {
       ...(engine.current ? [`<span class="loaded">◉ ${escapeHtml(engine.current.sceneId)} (${engine.current.targets})</span>`] : []),
       ...engine.held.map(scene => `${escapeHtml(scene.sceneId)} (${scene.targets})`),
     ];
-    // A grown window lists the whole book: show the nearest few and the count
+    // A grown window lists the whole experience: show the nearest few and the count
     const listed = scenes.length > 12 ? [...scenes.slice(0, 12), `+${scenes.length - 12} more`] : scenes;
     const extracting = engine.extractingSince !== null
       ? ` · <span class="loading">extracting ${Math.round((performance.now() - engine.extractingSince) / 1000)} s</span>`
@@ -437,10 +437,10 @@ export class DebugOverlay extends HTMLElement {
     return `<span class="${engine.extractingSince !== null ? "loading" : "loaded"}">E${engine.ready}/${engine.targets}</span>`;
   }
 
-  /** ±n scenes, or the whole book (all targets loaded) */
+  /** ±n scenes, or the whole experience (all targets loaded) */
   private preparedLabel(): string {
     const label = (setting: ReturnType<typeof getStoredWindowSetting>) =>
-      setting === "grow" ? "grow (whole book in idle time)" : setting === Infinity ? "all" : `±${setting}`;
+      setting === "grow" ? "grow (whole experience in idle time)" : setting === Infinity ? "all" : `±${setting}`;
     const override = getWindowOverride();
     const stored = label(getStoredWindowSetting());
     return override === null ? stored : `${label(override)} while trial is open (then ${stored})`;

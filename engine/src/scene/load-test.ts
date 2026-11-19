@@ -20,7 +20,7 @@ const FIRST_FIND_TIMEOUT_MS = 30000;
 const sleep = (ms: number) => new Promise<void>(resolve => window.setTimeout(resolve, ms));
 const nextFrame = () => new Promise<number>(resolve => window.requestAnimationFrame(resolve));
 
-/** Steps of target budgets, capped at what the book has, without repeats */
+/** Steps of target budgets, capped at what the experience has, without repeats */
 export const loadTestSteps = (extras: readonly number[], available: number): number[] =>
   [...new Set(extras.map(extra => Math.min(extra, available)))].sort((a, b) => a - b);
 

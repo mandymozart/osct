@@ -41,7 +41,7 @@ import {
 import { collectFeedbacks, createFeedback, disposePluginFeedbacks, type Feedback, type FeedbackOptions, type OwnedFeedbacks, shadertoyFragment } from "./feedback";
 
 /**
- * The plugin API (version `PLUGIN_API_VERSION`, docs/plugins.md): a book's own code
+ * The plugin API (version `PLUGIN_API_VERSION`, docs/plugins.md): an experience's own code
  * extends the engine without touching it. A plugin module exports `register(api)` and calls the registries –
  *
  *   api.registerComponent("spin", SPEC, ({ object, params }) => ({ update: delta => { object.rotation.y += … } }))
@@ -62,10 +62,10 @@ import { collectFeedbacks, createFeedback, disposePluginFeedbacks, type Feedback
  * any); a **material** (`materials.ts`) replaces the material of a node's meshes (`material: { type, params }`);
  * a **procedural texture** (`textures.ts`) is drawn by code and taken by any spec's `texture` parameter. Components
  * and layers are used in the content as `components: [{ type, … }]`, a node type as `type`. A **look** (`appearances.ts`)
- * is how an entity appears and disappears: the book names it for a moment (`appearance: { reveal, found, lost }`).
+ * is how an entity appears and disappears: the experience names it for a moment (`appearance: { reveal, found, lost }`).
  * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`): `api.events` (core events of the
- * scene, scene events of the content), `api.vars` (variables in the scopes scene / stage / session / book),
- * `api.progress` (what the reader unlocked – from the app) and `api.scene` (the current scene). A file of the book's
+ * scene, scene events of the content), `api.vars` (variables in the scopes scene / stage / session / experience),
+ * `api.progress` (what the reader unlocked – from the app) and `api.scene` (the current scene). A file of the experience's
  * Library – a shader (`.glsl`, `.frag`, `.vert`, `.wgsl`) – comes in as text through `api.loadText(url)` (#186), a
  * model the author picked in a `model` parameter through `api.loadModel(url)` (#263).
  * A **feedback buffer** (`feedback.ts`) is a fragment shader the engine runs once per frame into a render target
@@ -200,26 +200,26 @@ export interface PluginApi {
    * A look of the plugin's own: how an entity appears and disappears. The factory runs once per animation with the
    * entity, its anchor, the resolved parameters and the moment (`AppearanceContext`) and returns
    * `{ duration, update(visible), dispose? }` – `visible` runs from 0 to 1 on `reveal` and `found`, from 1 to 0 on
-   * `lost`. The book names it by its type in `appearance: { reveal, found, lost }`, in a built-in look's place.
+   * `lost`. The experience names it by its type in `appearance: { reveal, found, lost }`, in a built-in look's place.
    */
   registerAppearance(type: string, spec: AppearanceSpec, factory: AppearanceFactory): void;
   /** Core events of the scene (read-only) and scene events of the content */
   readonly events: PluginEvents;
-  /** Variables in the scopes scene, stage, session and book */
+  /** Variables in the scopes scene, stage, session and experience */
   readonly vars: PluginVars;
   /** The reader's progress: unlocked, consulted, completion (read-only) */
   readonly progress: PluginProgress;
   /** The current scene */
   readonly scene: PluginScene;
   /**
-   * A text file: a shader of the book's Library by its URL (the Library shows it; a replace gives a new URL and
+   * A text file: a shader of the experience's Library by its URL (the Library shows it; a replace gives a new URL and
    * rewrites it in the sources that name it), or a content path (`/assets/content/…`). One request per URL however often
    * it is asked for; rejects on an HTTP error. A layer's GLSL is a string at register time – load files where a build
    * runs: a material's `build`, a pass's factory, a node type's `build` (set the shader when it arrives, `needsUpdate`).
    */
   loadText(url: string): Promise<string>;
   /**
-   * A model file (`.glb`, `.gltf`): a model of the book's Library by its URL, or a content path (`/assets/content/…`) –
+   * A model file (`.glb`, `.gltf`): a model of the experience's Library by its URL, or a content path (`/assets/content/…`) –
    * the value of a `model` parameter, which the author picks in the editor. One request per URL however often it is
    * asked for; rejects on an HTTP error or a file that is no model. The model is shared by everyone who loads the same
    * file: clone what you change (`model.scene.clone()`, a geometry's `clone()`), never dispose it. It loads after the

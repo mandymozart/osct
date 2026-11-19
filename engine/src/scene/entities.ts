@@ -10,13 +10,13 @@ import type { LoadedAsset } from "./assets";
 import { applyComponents, buildPluginNode, nodeTypeRegistration, unknownComponentTypes } from "./plugins";
 import { applyMaterial } from "./materials";
 import { applyBehaviour, behaviourOf } from "./behaviour";
-import { getBook, getEntry } from "../content/game-config";
+import { getExperience, getEntry } from "../content/game-config";
 import { pauseMedia, playMedia, soundRestored } from "./media";
 
 /**
  * Entity registry: one builder per node type creates the three.js object for a node and may return hooks for
  * found / lost / pause and a per-frame update. New types: `registerEntity("type", builder)` – no logic
- * in the content; a book's own types come from its plugins (`registerNodeType`, `plugins.ts` – the same contract: an
+ * in the content; an experience's own types come from its plugins (`registerNodeType`, `plugins.ts` – the same contract: an
  * object and its hooks). `buildEntity` builds the entity's **node tree**: every node's object goes
  * into a group placed by the node's `params` (position / rotation / scale – shared/types/placement.ts; axes: x
  * right, y up the page, z out of the page, 1 unit = target width, origin in its centre) relative to its parent, the
@@ -415,13 +415,13 @@ registerEntity("light", ({ entity }) => {
   };
 });
 
-/** Text: one line on a plane of width 1, drawn on a canvas (system serif) – `{{entry.title}}` is the entry's title */
+/** Text: one line on a plane of width 1, drawn on a canvas (system serif) – `{{entry.title}}` is the entry's title, `{{experience.title}}` the experience's */
 const TEXT_CANVAS_WIDTH = 1024;
 const TEXT_FONT_PX = 112;
 registerEntity("text", ({ target, entity }) => {
   const text = (entity.text ?? "")
     .replace(/\{\{\s*entry\.title\s*\}\}/g, getEntry(target.entryId)?.title ?? "")
-    .replace(/\{\{\s*book\.title\s*\}\}/g, getBook().title)
+    .replace(/\{\{\s*experience\.title\s*\}\}/g, getExperience().title)
     .trim() || " ";
   const color = entity.color && /^#[0-9a-f]{6}$/i.test(entity.color) ? entity.color : "#ffffff";
   const canvas = document.createElement("canvas");

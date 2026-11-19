@@ -1,7 +1,7 @@
 /**
  * Graphics options of the scan view (Info page → Settings), stored per device in localStorage:
  * - `onionSky`: looking up, the sky in the camera picture is replaced by the world's sky.
- * - `surroundings`: a world surrounds the reader while scanning, anchored to the book.
+ * - `surroundings`: a world surrounds the reader while scanning, anchored to the found surfaces.
  * Both cost GPU time every frame; turning them off helps slower phones. Changes apply at once (`subscribe`).
  * - `textureQuality`: how large the maps of models with a texture set are loaded (#260) – `auto` goes by the device
  *   and its connection, a size (512 to 4096 px) is the reader's own choice; larger maps take longer to load and more

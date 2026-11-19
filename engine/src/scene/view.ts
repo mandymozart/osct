@@ -59,7 +59,7 @@ const bloomOverlayMaterial = () => new ShaderMaterial({
 });
 
 /**
- * The layer of objects that stand in for the camera picture (the editor's stage: table, book, printed images, sky).
+ * The layer of objects that stand in for the camera picture (the editor's stage: table, surfaces, printed images, sky).
  * With passes, the image the passes shade holds them: bloom and vignette reach them as they reach the camera picture
  * in the reader, the grade stays on the AR layer (its mask). Without passes they render with everything else.
  */
@@ -201,7 +201,7 @@ export class ArView {
   }
 
   /**
-   * The passes over the rendered scene (`passes` of the scene or the book), in order; an empty list frees the chain
+   * The passes over the rendered scene (`passes` of the scene or the experience), in order; an empty list frees the chain
    * and the scene renders straight to the canvas again – as does a list whose passes are all off (#233)
    */
   setPasses(passes: readonly PassData[]): void {
@@ -231,7 +231,7 @@ export class ArView {
 
   /**
    * The underlay (the look-around world and sky) and the scene – through the content's passes while a scene or the
-   * book names them, the underlay then inside the chain – plus the bloom over it while an animation wants it
+   * experience names them, the underlay then inside the chain – plus the bloom over it while an animation wants it
    */
   private draw(): void {
     const bloom = this.bloomStrength > 0 ? this.ensureBloom() : null;

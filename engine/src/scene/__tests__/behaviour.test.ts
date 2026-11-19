@@ -39,7 +39,7 @@ afterEach(() => {
 describe("behaviour: conditions", () => {
   it("passes without a condition, with every test equal (all) or one (any); not turns a test round; null is a variable not set", () => {
     const v = vars();
-    v.set("hasKey", true, "book");
+    v.set("hasKey", true, "experience");
     v.set("tries", 2, "stage");
     expect(passes(null, v)).toBe(true);
     expect(passes({ match: "all", tests: [{ name: "hasKey", value: true, not: false }, { name: "tries", value: 2, not: false }] }, v)).toBe(true);
@@ -52,7 +52,7 @@ describe("behaviour: conditions", () => {
 
   it("reads the innermost scope that has the variable, like api.vars.get", () => {
     const v = vars();
-    v.set("mood", "calm", "book");
+    v.set("mood", "calm", "experience");
     v.set("mood", "angry", "scene");
     expect(passes({ match: "all", tests: [{ name: "mood", value: "angry", not: false }] }, v)).toBe(true);
   });
@@ -61,7 +61,7 @@ describe("behaviour: conditions", () => {
 describe("behaviour: events and actions", () => {
   it("a tap plays a clip, sets a variable in its scope and emits a scene event to the bus", () => {
     const { timeline, calls } = fakeTimeline();
-    const node = group({ components: [behaviour([{ on: "tap", do: [{ play: "rattle" }, { set: { hasKey: true }, scope: "book" }, { emit: "keyRattled" }] }])] });
+    const node = group({ components: [behaviour([{ on: "tap", do: [{ play: "rattle" }, { set: { hasKey: true }, scope: "experience" }, { emit: "keyRattled" }] }])] });
     const heard: unknown[] = [];
     let plugin: PluginApi | null = null;
     installPlugin("listener", { register: api => { plugin = api; api.events.on("keyRattled", payload => heard.push(payload)); } });
@@ -70,7 +70,7 @@ describe("behaviour: events and actions", () => {
 
     instance.onTap();
     expect(calls).toEqual(["play rattle"]);
-    expect(plugin!.vars.get("hasKey", "book")).toBe(true);
+    expect(plugin!.vars.get("hasKey", "experience")).toBe(true);
     expect(heard).toEqual([{ targetId: "key" }]);
     // found has no rule: nothing happens
     instance.onFound();
@@ -113,7 +113,7 @@ describe("behaviour: events and actions", () => {
     instance.onFound();
     expect(hint.visible).toBe(true);
     expect(opened).toEqual([]);
-    vars().set("hasKey", true, "book");
+    vars().set("hasKey", true, "experience");
     instance.onFound();
     expect(hint.visible).toBe(false);
     expect(opened).toEqual([{ targetId: "door" }]);
@@ -178,13 +178,13 @@ describe("behaviour: events and actions", () => {
   });
 
   it("tells the editor's log which rule fired and what it did – not the bus", () => {
-    const node = group({ name: "key", components: [behaviour([{ on: "tap", do: [{ play: "rattle" }, { set: { hasKey: true }, scope: "book" }] }])] });
+    const node = group({ name: "key", components: [behaviour([{ on: "tap", do: [{ play: "rattle" }, { set: { hasKey: true }, scope: "experience" }] }])] });
     const log: Array<[string, unknown]> = [];
     cleanups.push(observeEvents((event, payload) => log.push([event, payload])));
     const instance = applyBehaviour({ node, target: target("key"), nodes: { "": new Group() }, timelines: { "": fakeTimeline().timeline } })!;
     cleanups.push(instance.dispose);
     instance.onTap();
-    expect(log[0]).toEqual(["behaviour", { targetId: "key", node: "key", rule: 1, on: "tap", do: "play rattle · set hasKey = true (book)" }]);
+    expect(log[0]).toEqual(["behaviour", { targetId: "key", node: "key", rule: 1, on: "tap", do: "play rattle · set hasKey = true (experience)" }]);
     expect(log[1][0]).toBe("varChanged");
   });
 

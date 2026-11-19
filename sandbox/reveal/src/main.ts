@@ -171,7 +171,7 @@ let sections: Controls[] = [];
 let sectionsFor: "engine" | "reveal" | "" = "";
 let replayTimer = 0;
 
-/** The values to hand back: a sandbox concept's, or – for the engine – the look as a book's content names it */
+/** The values to hand back: a sandbox concept's, or – for the engine – the look as an experience's content names it */
 const showValues = () => {
   const { look, ...params } = state.engine;
   values.value = JSON.stringify(isEngine() ? { concept: state.concept, look: { type: look, ...params } } : { concept: state.concept, params: conceptValues() }, null, 2);

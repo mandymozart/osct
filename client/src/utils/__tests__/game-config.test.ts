@@ -3,7 +3,7 @@ import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   getAssets,
-  getBook,
+  getExperience,
   getConfigVersion,
   getEntries,
   getInitialSceneId,
@@ -35,7 +35,7 @@ describe("game configuration", () => {
 
   it("carries the content build checksum and the book", () => {
     expect(getConfigVersion().hash).toMatch(/^[0-9a-f]{64}$/);
-    expect(getBook().id).toBe("osct");
+    expect(getExperience().id).toBe("osct");
   });
 
   it("has an existing initial scene", () => {

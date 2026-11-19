@@ -14,7 +14,7 @@ const SOFT_FADE: AppearanceSpec = { description: "Fades.", params: { duration: {
 
 const config = (root: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
   version: { version: "1.71.0", timestamp: "2026-11-15T00:00:00.000Z", schema: CONTENT_SCHEMA_VERSION },
-  book: { id: "b", title: "B", author: "A" },
+  experience: { id: "b", title: "B", book: { author: "A" } },
   initialScene: "s1",
   scenes: [{ id: "s1", label: "1–2", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
   entries: [{ id: "e1", category: "video", title: "E", scene: "s1", body: "", tags: [], target: {
@@ -51,7 +51,7 @@ describe("the components reveal, found and lost (schema 2.30)", () => {
     expect(problems([{ type: "reveal" }, { type: "found", look: "" }, { type: "lost", look: "fade", outDuration: 250 }])).toEqual([]);
     expect(problems([{ type: "reveal", look: "printLift", duration: 900, tint: 0.5 }])).toEqual([]);
     expect(problems([{ type: "reveal", look: "swirl" }])).toEqual(['components[0].look: "swirl" is not one of inflateDissolve, printLift, fade']);
-    expect(problems([{ type: "found", look: 3 }])).toEqual(['components[0].look: expected a look (inflateDissolve, printLift, fade) or "" for the book\'s, got 3']);
+    expect(problems([{ type: "found", look: 3 }])).toEqual(['components[0].look: expected a look (inflateDissolve, printLift, fade) or "" for the experience\'s, got 3']);
     expect(problems([{ type: "found", look: "fade", duration: 5 }])).toEqual(["components[0].duration: expected a number from 50 to 10000, got 5"]);
     expect(problems([{ type: "found", look: "fade", spinning: 1 }])).toEqual([expect.stringContaining("components[0].spinning: unknown parameter of fade")]);
     // Parameters without a look belong to nothing
@@ -84,18 +84,18 @@ describe("the components reveal, found and lost (schema 2.30)", () => {
   });
 });
 
-describe("an entity's look wins over the book's", () => {
+describe("an entity's look wins over the experience's", () => {
   const book = { appearance: { reveal: { type: "fade" }, found: { type: "printLift" } } };
 
-  it("the moment's own component, else the entity's found, else the book's moment, found, the default", () => {
+  it("the moment's own component, else the entity's found, else the experience's moment, found, the default", () => {
     const entity = { components: [{ type: "found", look: "fade", duration: 900 }] };
-    // found on the entity: it plays for every moment the entity has no look for – before the book's reveal
+    // found on the entity: it plays for every moment the entity has no look for – before the experience's reveal
     expect(entityMomentAppearance(entity, book, "found")).toEqual({ type: "fade", duration: 900 });
     expect(entityMomentAppearance(entity, book, "reveal")).toEqual({ type: "fade", duration: 900 });
     expect(entityMomentAppearance(entity, book, "lost")).toEqual({ type: "fade", duration: 900 });
     const own = { components: [{ type: "reveal", look: "inflateDissolve", spin: 0.25 }, { type: "found", look: "" }] };
     expect(entityMomentAppearance(own, book, "reveal")).toEqual({ type: "inflateDissolve", spin: 0.25 });
-    // an empty look is the book's
+    // an empty look is the experience's
     expect(entityMomentAppearance(own, book, "found")).toEqual({ type: "printLift" });
     expect(entityMomentAppearance(own, book, "lost")).toEqual({ type: "printLift" });
     expect(entityMomentAppearance(undefined, book, "reveal")).toEqual({ type: "fade" });
@@ -116,7 +116,7 @@ describe("a newer MINOR's content", () => {
     const [major, minor] = CONTENT_SCHEMA_VERSION.split(".").map(Number);
     const raw = () => ({
       version: { version: "9.0.0", timestamp: "2027-01-01T00:00:00.000Z", hash: "abc", schema: `${major}.${minor + 1}` },
-      book: { id: "b", title: "B", author: "A" },
+      experience: { id: "b", title: "B", book: { author: "A" } },
       plugins: [],
       entities: { e: { type: "group", assets: [], components: [
         { type: "reveal", look: "hologram", duration: 400 }, { type: "found", look: "fade", later: 1, fade: 0.5 }, { type: "lost", look: "" },

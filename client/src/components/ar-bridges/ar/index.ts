@@ -19,7 +19,7 @@ const XR8_BASE = `${import.meta.env.BASE_URL}assets/xr8/`;
 /** Fetch the tracking engine's files into the HTTP cache (idle time) */
 export const prefetchXr8 = (): Promise<void> => prefetchEngine(XR8_BASE);
 
-/** What the book's plugins may know of the reader's progress (`api.progress`, the `book` scope): through the history, never the store */
+/** What the experience's plugins may know of the reader's progress (`api.progress`, the `experience` scope): through the history, never the store */
 export const readerProgress = (): ProgressReader => {
   const history = GameStoreService.getInstance().history;
   return {

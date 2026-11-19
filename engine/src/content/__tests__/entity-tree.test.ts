@@ -19,8 +19,8 @@ const tree: EntityData = {
 };
 
 const config = (entity: unknown) => ({
-  version: { version: "1.0.0", timestamp: "2026-01-01T00:00:00.000Z", schema: "3.0" },
-  book: { id: "b", title: "B", author: "A" },
+  version: { version: "1.0.0", timestamp: "2026-01-01T00:00:00.000Z", schema: "4.0" },
+  experience: { id: "b", title: "B", book: { author: "A" } },
   initialScene: "s1",
   scenes: [{ id: "s1", label: "1–2", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
   entries: [{ id: "e1", category: "glossary", title: "E", scene: "s1", body: "", tags: [], target: { id: "e1", imageSrc: "/assets/content/entries/e1/t.jpg", entity } }],

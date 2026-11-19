@@ -2,9 +2,9 @@
 export type StepAction = "next" | "camera" | "scan";
 
 /**
- * One onboarding step – the reader's own UI (`utils/onboarding.ts`), not book content. Without `button` the step
+ * One onboarding step – the reader's own UI (`utils/onboarding.ts`), not content. Without `button` the step
  * advances by itself after `advance` ms (or on a tap). `description` may use `*emphasis*` and blank lines for
- * paragraphs; `{{title}}`, `{{author}}` and `{{publisher}}` are filled from the book.
+ * paragraphs; `{{title}}`, `{{author}}` and `{{publisher}}` are filled from the experience (author and publisher from its printed book).
  */
 export interface Step {
   id: string;

@@ -276,7 +276,7 @@ export const ENGINE_SECTIONS: SpecSection[] = [
         ...LIFT_LOOKS.map(name => [name, `${name} (plugin: the built-in as code)`] as const),
         [DEMO_LOOK, `${DEMO_LOOK} (a plugin's)`] as const,
       ],
-      help: "The type a book names in its appearance: a built-in look (choosing one takes its values), or a plugin's – its code plays and only the two durations apply",
+      help: "The type an experience names in its appearance: a built-in look (choosing one takes its values), or a plugin's – its code plays and only the two durations apply",
     }],
   },
   ...REVEAL_SECTIONS

@@ -62,7 +62,7 @@ export interface KnownFeatures {
   passes: readonly string[];
   /** The fields of a pass that are no parameter: `type`, and `enabled` (#233) – an older app knows only `type` */
   passFields: readonly string[];
-  /** Built-in looks an entity appears with (`book.appearance`) */
+  /** Built-in looks an entity appears with (`experience.appearance`) */
   appearances: readonly string[];
   /** Video filter types */
   filters: readonly string[];
@@ -182,7 +182,7 @@ export const skipUnknownFeatures = (
 
   /**
    * An entity's own look (`reveal`, `found`, `lost` components – schema 2.30): its parameters are its look's. A look this app
-   * does not know is skipped with its parameters – the component then names none and the book's look plays; a known look
+   * does not know is skipped with its parameters – the component then names none and the experience's look plays; a known look
    * loses the parameters it does not have
    */
   const momentComponent = (item: Record<string, unknown>, path: string) => {
@@ -307,7 +307,7 @@ export const skipUnknownFeatures = (
     typedList(list, path, "pass", t => (known.passes.includes(t) ? (PASSES as unknown as Record<string, Spec>)[t] : undefined) ?? recorded.passes.get(t), allowUnknown,
       known.passFields);
 
-  /** The book's looks by moment: an unknown moment or look is dropped (the moment then plays `found`'s or the default) */
+  /** The experience's looks by moment: an unknown moment or look is dropped (the moment then plays `found`'s or the default) */
   const appearance = (value: unknown, path: string) => {
     if (!isObject(value)) return;
     for (const [moment, look] of Object.entries(value)) {
@@ -327,8 +327,8 @@ export const skipUnknownFeatures = (
     }
   };
 
-  if (isObject(config.book)) passes(config.book.passes, "book.passes");
-  if (isObject(config.book)) appearance(config.book.appearance, "book.appearance");
+  if (isObject(config.experience)) passes(config.experience.passes, "experience.passes");
+  if (isObject(config.experience)) appearance(config.experience.appearance, "experience.appearance");
   if (Array.isArray(config.scenes)) config.scenes.forEach((scene, i) => isObject(scene) && passes(scene.passes, `scenes[${i}].passes`));
   if (isObject(config.entities)) Object.entries(config.entities).forEach(([id, entity]) => node(entity, `entities.${id}`));
   if (Array.isArray(config.entries)) {

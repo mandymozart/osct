@@ -12,7 +12,7 @@ game.router.navigate("/entries", { key: "category", value: "video" });
 game.state.mode; // "idle" | "scan" | "consultation"
 ```
 
-In the browser console the instance is available as `window.BOOKGAME` (for debugging).
+In the browser console the instance is available as `window.READER` (for debugging).
 
 ## Structure
 

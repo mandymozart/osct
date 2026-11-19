@@ -8,8 +8,8 @@ import {
 } from "@shared/guards/game-config";
 
 const valid = () => ({
-  version: { version: "1.0.0", timestamp: "2026-09-24T00:00:00.000Z", hash: "abc", schema: "3.0" },
-  book: { id: "osct", title: "Onion Skin & Crocodile Tears", author: "Kévin Bray" },
+  version: { version: "1.0.0", timestamp: "2026-09-24T00:00:00.000Z", hash: "abc", schema: "4.0" },
+  experience: { id: "osct", title: "Onion Skin & Crocodile Tears", book: { author: "Kévin Bray" } },
   initialScene: "scene1",
   scenes: [{ id: "scene1", label: "The Beginning", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
   entities: {

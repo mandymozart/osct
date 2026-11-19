@@ -95,19 +95,19 @@ describe("PreloaderService", () => {
 
   describe("whole-book download", () => {
     it("reports the book's size before, then downloads every content file once with progress", async () => {
-      const before = await preloader.getBookDownload();
+      const before = await preloader.getExperienceDownload();
       expect(before.state).toBe("idle");
       expect(before.total).toBeGreaterThan(0); // sizes from the build
       expect(before.loaded).toBe(0);
 
       const states: string[] = [];
       let lastLoaded = 0;
-      preloader.onBookDownload(d => {
+      preloader.onExperienceDownload(d => {
         states.push(d.state);
         expect(d.loaded).toBeGreaterThanOrEqual(lastLoaded); // never goes back
         lastLoaded = d.loaded;
       });
-      const [first, second] = await Promise.all([preloader.downloadBook(), preloader.downloadBook()]); // one run
+      const [first, second] = await Promise.all([preloader.downloadExperience(), preloader.downloadExperience()]); // one run
       expect(first).toEqual(second);
       expect(first).toMatchObject({ state: "done", loaded: before.total, total: before.total, failed: 0 });
       expect(states[0]).toBe("running");
@@ -116,7 +116,7 @@ describe("PreloaderService", () => {
       const urls = fetchedUrls();
       expect(new Set(urls).size).toBe(urls.length);
       for (const scene of scenes) for (const src of targetsOf(scene.id)) expect(urls).toContain(src);
-      expect((await preloader.getBookDownload()).state).toBe("done");
+      expect((await preloader.getExperienceDownload()).state).toBe("done");
     });
 
     it("skips what is on the device already and reports failed files", async () => {
@@ -124,12 +124,12 @@ describe("PreloaderService", () => {
       const already = fetchedUrls().length;
       fetchMock.mockResolvedValueOnce(new Response(null, { status: 500 }));
 
-      const result = await preloader.downloadBook();
+      const result = await preloader.downloadExperience();
       expect(result).toMatchObject({ state: "failed", failed: 1 });
       expect(result.loaded).toBeLessThan(result.total);
       expect(fetchedUrls().slice(already)).not.toContain(targetsOf(scenes[0].id)[0]);
 
-      expect((await preloader.downloadBook()).state).toBe("done"); // try again: the rest
+      expect((await preloader.downloadExperience()).state).toBe("done"); // try again: the rest
     });
   });
 });

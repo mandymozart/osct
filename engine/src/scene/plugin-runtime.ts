@@ -3,14 +3,14 @@ import { getScene } from "../content/game-config";
 
 /**
  * The plugin runtime behind `api.events`, `api.vars`, `api.progress` and `api.scene`
- * (docs/plugins.md "Across nodes and pages"): what lets a book's code reach across nodes and pages.
+ * (docs/plugins.md "Across nodes and pages"): what lets an experience's code reach across nodes and pages.
  *
- * - **Events** have two owners (the concept's rule): *core events* describe the book and are emitted by the scene
+ * - **Events** have two owners (the concept's rule): *core events* describe the experience and are emitted by the scene
  *   only (`CORE_EVENTS` – a plugin that emits one gets an error); *scene events* are the content's own, any other
  *   name, emitted and heard by plugins freely. One flat bus: every plugin on the stage hears every event.
  * - **Variables** live in a scope: `scene` while the scene is the current one, `stage` while the scene exists,
- *   `session` per app start, `book` persisted with the reader's progress (through the app's `ProgressReader`;
- *   in memory without one). A read without a scope looks outward – scene, stage, session, book – and the innermost
+ *   `session` per app start, `experience` persisted with the reader's progress (through the app's `ProgressReader`;
+ *   in memory without one). A read without a scope looks outward – scene, stage, session, experience – and the innermost
  *   definition wins. Every write emits the core event `varChanged`.
  * - **Progress** is read-only for plugins and comes from the app (`ArSceneOptions.progress`): unlocked targets,
  *   consulted entries, completion – never the app's store itself.
@@ -60,12 +60,12 @@ export type EventListener<P = unknown> = (payload: P) => void;
 /**
  * What the app knows about the reader's progress (RULES #32: the engine never reads the app's store – the reader
  * passes an adapter over its history, the editor its simulation). Every method is optional: without one, nothing is
- * unlocked or consulted, and `book` variables live in memory.
+ * unlocked or consulted, and `experience` variables live in memory.
  */
 export interface ProgressReader {
   unlocked?(targetId: string): boolean;
   consulted?(entryId: string): boolean;
-  /** The persisted `book` variables */
+  /** The persisted `experience` variables */
   variables?: {
     get(name: string): VarValue | undefined;
     set(name: string, value: VarValue | null): void;
@@ -84,7 +84,7 @@ export interface PluginEvents {
 
 /** `api.vars` */
 export interface PluginVars {
-  /** The value in `scope`, or without one the innermost definition (scene → stage → session → book) */
+  /** The value in `scope`, or without one the innermost definition (scene → stage → session → experience) */
   get(name: string, scope?: VarScope): VarValue | undefined;
   /** Set (or delete with `null`) a variable in a scope – `scene` by default */
   set(name: string, value: VarValue | null, scope?: VarScope): void;
@@ -98,7 +98,7 @@ export interface PluginVars {
 export interface PluginProgress {
   unlocked(targetId: string): boolean;
   consulted(entryId: string): boolean;
-  /** Unlocked targets of a scene (the whole book without an id) as 0–1; a scene without targets counts as complete */
+  /** Unlocked targets of a scene (the whole experience without an id) as 0–1; a scene without targets counts as complete */
   completion(sceneId?: string): number;
   counts(sceneId?: string): { unlocked: number; targets: number };
 }
@@ -126,9 +126,9 @@ export const nextRun = (): number => ++runs;
 const listeners = new Set<Listener>();
 /** The editor's log: hears every delivery without being a plugin */
 const observers = new Set<(event: string, payload: unknown) => void>();
-const scopes: Record<Exclude<VarScope, "book">, Map<string, VarValue>> = { scene: new Map(), stage: new Map(), session: new Map() };
-/** The `book` scope without an app that persists it */
-const bookInMemory = new Map<string, VarValue>();
+const scopes: Record<Exclude<VarScope, "experience">, Map<string, VarValue>> = { scene: new Map(), stage: new Map(), session: new Map() };
+/** The `experience` scope without an app that persists it */
+const experienceInMemory = new Map<string, VarValue>();
 let progress: ProgressReader = {};
 let currentSceneId: string | null = null;
 let scenesAccessor: (id: string) => Scene | undefined = getScene;
@@ -148,17 +148,17 @@ const deliver = (event: string, payload: unknown): void => {
   });
 };
 
-const bookVars = () => progress.variables;
+const experienceVars = () => progress.variables;
 
 const readVar = (name: string, scope: VarScope): VarValue | undefined =>
-  scope === "book" ? (bookVars() ? bookVars()!.get(name) : bookInMemory.get(name)) : scopes[scope].get(name);
+  scope === "experience" ? (experienceVars() ? experienceVars()!.get(name) : experienceInMemory.get(name)) : scopes[scope].get(name);
 
 const writeVar = (name: string, value: VarValue | null, scope: VarScope): void => {
   const previous = readVar(name, scope);
-  if (scope === "book") {
-    if (bookVars()) bookVars()!.set(name, value);
-    else if (value === null) bookInMemory.delete(name);
-    else bookInMemory.set(name, value);
+  if (scope === "experience") {
+    if (experienceVars()) experienceVars()!.set(name, value);
+    else if (value === null) experienceInMemory.delete(name);
+    else experienceInMemory.set(name, value);
   } else if (value === null) {
     scopes[scope].delete(name);
   } else {
@@ -205,7 +205,7 @@ export const runtimeApi = (plugin: string, run = nextRun()): { events: PluginEve
         const change = payload as CoreEvents["varChanged"];
         if (change.name === name) listener(change.value, change.previous, change.scope);
       }),
-      all: scope => scope === "book" ? (bookVars() ? bookVars()!.all() : Object.fromEntries(bookInMemory)) : Object.fromEntries(scopes[scope]),
+      all: scope => scope === "experience" ? (experienceVars() ? experienceVars()!.all() : Object.fromEntries(experienceInMemory)) : Object.fromEntries(scopes[scope]),
     },
     progress: {
       unlocked: targetId => progress.unlocked?.(targetId) ?? false,
@@ -235,7 +235,7 @@ let allScenes: () => Scene[] = () => [];
 
 // ── The scene's side ───────────────────────────────────────────────────────────────────────────
 
-/** The app's progress for `api.progress` and the `book` scope (the scene sets it from its options) */
+/** The app's progress for `api.progress` and the `experience` scope (the scene sets it from its options) */
 export const setProgressReader = (reader: ProgressReader | undefined): void => {
   progress = reader ?? {};
 };
@@ -274,14 +274,14 @@ export const dropPluginListeners = (plugin: string, runs: { keepRun?: number; on
 /** Every variable of every scope (the editor's panel, a reset) */
 export const resetVars = (): void => {
   (Object.keys(scopes) as Array<keyof typeof scopes>).forEach(scope => scopes[scope].clear());
-  bookInMemory.clear();
-  bookVars() && Object.keys(bookVars()!.all()).forEach(name => bookVars()!.set(name, null));
+  experienceInMemory.clear();
+  experienceVars() && Object.keys(experienceVars()!.all()).forEach(name => experienceVars()!.set(name, null));
 };
 
 /** A snapshot of every variable with its scope, innermost first (the editor's panel) */
 export const allVars = (): Array<{ scope: VarScope; name: string; value: VarValue }> =>
   VAR_SCOPES.flatMap(scope => {
-    const values = scope === "book" ? (bookVars() ? bookVars()!.all() : Object.fromEntries(bookInMemory)) : Object.fromEntries(scopes[scope]);
+    const values = scope === "experience" ? (experienceVars() ? experienceVars()!.all() : Object.fromEntries(experienceInMemory)) : Object.fromEntries(scopes[scope]);
     return Object.entries(values).map(([name, value]) => ({ scope, name, value }));
   });
 

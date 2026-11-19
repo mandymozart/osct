@@ -6,12 +6,12 @@ import { textureSizeFor } from "@shared/types/textures";
 import { GraphicsService } from "./GraphicsService";
 
 const DEFAULT_TIMEOUT = 30000;
-/** Whole-book download: timeout per file (large videos on slow connections) and parallel downloads */
-const BOOK_TIMEOUT = 5 * 60000;
-const BOOK_PARALLEL = 3;
+/** Whole-experience download: timeout per file (large videos on slow connections) and parallel downloads */
+const DOWNLOAD_TIMEOUT = 5 * 60000;
+const DOWNLOAD_PARALLEL = 3;
 
-/** Whole-book download state (Info page) in bytes; `total` comes from the file sizes recorded at build time */
-export interface BookDownload {
+/** Whole-experience download state (Info page) in bytes; `total` comes from the file sizes recorded at build time */
+export interface ExperienceDownload {
   state: "idle" | "running" | "done" | "failed";
   loaded: number;
   total: number;
@@ -47,8 +47,8 @@ const getSceneContent = (sceneId: string): LoadOptions[] => {
   return [...assets.filter(o => !isVideo(o)), ...subtitles, ...images, ...assets.filter(isVideo)];
 };
 
-/** Every content file of the book – all scenes' target images, entity assets and entry images – each once */
-const getBookContent = (): LoadOptions[] => {
+/** Every content file of the experience – all scenes' target images, entity assets and entry images – each once */
+const getExperienceContent = (): LoadOptions[] => {
   const seen = new Set<string>();
   return getScenes()
     .flatMap(s => [...getTargetImages(s.id), ...getSceneContent(s.id)])
@@ -71,15 +71,15 @@ const loadContentSizes = async (): Promise<Record<string, number>> => {
  * discarded, so the later request by the tracker / three.js for the same URL is served from the cache.
  * Never touches the AR scene. One request per URL; failed ones may be retried.
  * In production the service worker stores what these fetches load (its content cache), which is also how
- * `downloadBook()` puts the whole book on the device.
+ * `downloadExperience()` puts the whole experience on the device.
  */
 export class PreloaderService {
   private static instance: PreloaderService | null = null;
   private loads = new Map<string, Promise<LoadResult>>();
   private done = new Set<string>();
-  private book: BookDownload = { state: "idle", loaded: 0, total: 0, failed: 0 };
-  private bookRun: Promise<BookDownload> | null = null;
-  private bookListeners = new Set<(download: BookDownload) => void>();
+  private download: ExperienceDownload = { state: "idle", loaded: 0, total: 0, failed: 0 };
+  private downloadRun: Promise<ExperienceDownload> | null = null;
+  private downloadListeners = new Set<(download: ExperienceDownload) => void>();
   private windowRun = 0;
 
   static getInstance(): PreloaderService {
@@ -114,8 +114,8 @@ export class PreloaderService {
   }
 
   /**
-   * Content of the scenes adjacent to `sceneId` in book order (the ones the scene menu reaches next).
-   * Limited to neighbours: the book has many scenes and their media add up.
+   * Content of the scenes adjacent to `sceneId` in experience order (the ones the scene menu reaches next).
+   * Limited to neighbours: the experience has many scenes and their media add up.
    * Target images first (needed to start AR), then entity assets and entry images.
    */
   async preloadNeighbours(sceneId: string, range = 1): Promise<LoadResult[]> {
@@ -143,38 +143,38 @@ export class PreloaderService {
   }
 
   /**
-   * Total book size and how much of it is already on this device (service worker cache, or loaded in
+   * Total size of the experience and how much of it is already on this device (service worker cache, or loaded in
    * this session). State is `done` when everything is stored.
    */
-  async getBookDownload(): Promise<BookDownload> {
-    if (this.book.state === "running") return { ...this.book };
-    const [files, sizes] = [getBookContent(), await loadContentSizes()];
+  async getExperienceDownload(): Promise<ExperienceDownload> {
+    if (this.download.state === "running") return { ...this.download };
+    const [files, sizes] = [getExperienceContent(), await loadContentSizes()];
     const stored = await Promise.all(files.map(f => this.isStored(f.src)));
     const total = files.reduce((sum, f) => sum + (sizes[f.src] ?? 0), 0);
     const loaded = files.reduce((sum, f, i) => sum + (stored[i] ? sizes[f.src] ?? 0 : 0), 0);
-    const state = stored.every(Boolean) ? "done" : this.book.state === "failed" ? "failed" : "idle";
-    this.book = { ...this.book, state, loaded, total };
-    return { ...this.book };
+    const state = stored.every(Boolean) ? "done" : this.download.state === "failed" ? "failed" : "idle";
+    this.download = { ...this.download, state, loaded, total };
+    return { ...this.download };
   }
 
   /**
-   * Downloads the whole book (Info page): every content file not yet on the device, a few in parallel, with
+   * Downloads the whole experience (Info page): every content file not yet on the device, a few in parallel, with
    * progress in bytes. Only one run at a time; it continues after the Info page closes. Requests persistent
    * storage so the browser does not evict it when space runs low.
    */
-  downloadBook(): Promise<BookDownload> {
-    if (!this.bookRun) this.bookRun = this.runBookDownload().finally(() => { this.bookRun = null; });
-    return this.bookRun;
+  downloadExperience(): Promise<ExperienceDownload> {
+    if (!this.downloadRun) this.downloadRun = this.runExperienceDownload().finally(() => { this.downloadRun = null; });
+    return this.downloadRun;
   }
 
-  /** Progress of the whole-book download; returns the unsubscribe function */
-  onBookDownload(listener: (download: BookDownload) => void): () => void {
-    this.bookListeners.add(listener);
-    return () => { this.bookListeners.delete(listener); };
+  /** Progress of the whole-experience download; returns the unsubscribe function */
+  onExperienceDownload(listener: (download: ExperienceDownload) => void): () => void {
+    this.downloadListeners.add(listener);
+    return () => { this.downloadListeners.delete(listener); };
   }
 
-  private async runBookDownload(): Promise<BookDownload> {
-    const [files, sizes] = [getBookContent(), await loadContentSizes()];
+  private async runExperienceDownload(): Promise<ExperienceDownload> {
+    const [files, sizes] = [getExperienceContent(), await loadContentSizes()];
     const size = (src: string) => sizes[src] ?? 0;
     const total = files.reduce((sum, f) => sum + size(f.src), 0);
     void navigator.storage?.persist?.().catch(() => false);
@@ -183,16 +183,16 @@ export class PreloaderService {
     const queue = files.filter((_, i) => !stored[i]);
     let loaded = files.reduce((sum, f, i) => sum + (stored[i] ? size(f.src) : 0), 0);
     let failed = 0;
-    const report = (state: BookDownload["state"]) => {
-      this.book = { state, loaded: Math.min(loaded, total), total, failed };
-      this.bookListeners.forEach(listener => listener({ ...this.book }));
+    const report = (state: ExperienceDownload["state"]) => {
+      this.download = { state, loaded: Math.min(loaded, total), total, failed };
+      this.downloadListeners.forEach(listener => listener({ ...this.download }));
     };
     report("running");
 
     const worker = async () => {
       for (let file = queue.shift(); file; file = queue.shift()) {
         let received = 0;
-        const result = await this.preload({ ...file, timeout: BOOK_TIMEOUT }, bytes => {
+        const result = await this.preload({ ...file, timeout: DOWNLOAD_TIMEOUT }, bytes => {
           received += bytes;
           loaded += bytes;
           report("running");
@@ -203,9 +203,9 @@ export class PreloaderService {
         report("running");
       }
     };
-    await Promise.all(Array.from({ length: BOOK_PARALLEL }, worker));
+    await Promise.all(Array.from({ length: DOWNLOAD_PARALLEL }, worker));
     report(failed ? "failed" : "done");
-    return { ...this.book };
+    return { ...this.download };
   }
 
   /** Stored on this device: in the service worker cache (production) or loaded in this session (HTTP cache) */

@@ -28,7 +28,7 @@ export interface TrackerContext {
   /** The scene's container element (the camera picture goes behind it; pointer input comes from it) */
   container: HTMLElement;
   options: ImageTrackerOptions;
-  /** The three.js scene – a simulated tracker may add its stage (the table and the book) to it */
+  /** The three.js scene – a simulated tracker may add its stage (the table and the surfaces) to it */
   scene: Scene;
 }
 

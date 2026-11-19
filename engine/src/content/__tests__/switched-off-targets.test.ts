@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { assertGameConfiguration } from "@shared/guards/game-config";
-import { CONTENT_SCHEMA_VERSION, isEntryInBook, isTargetEnabled } from "@shared/types/game-config";
+import { CONTENT_SCHEMA_VERSION, isEntryInExperience, isTargetEnabled } from "@shared/types/game-config";
 import { getEntries, getEntry, getScene, getTarget, getTargets, loadGameConfiguration } from "../game-config";
 
 /**
- * A target switched off (`enabled: false`, #249) is not in the reader's book – neither the image target nor its entry –
+ * A target switched off (`enabled: false`, #249) is not in the reader's experience – neither the image target nor its entry –
  * but stays in the content with its values; the editor loads it to work on it (`keepSwitchedOffTargets`).
  */
 
 const book = (enabled?: unknown) => ({
   version: { version: "1.64.0", timestamp: "2026-11-05T00:00:00.000Z", hash: "abc123", schema: CONTENT_SCHEMA_VERSION },
-  book: { id: "b", title: "B", author: "A" },
+  experience: { id: "b", title: "B", book: { author: "A" } },
   initialScene: "s1",
   scenes: [{ id: "s1", label: "1–2", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
   entries: [
@@ -40,7 +40,7 @@ describe("switched-off targets", () => {
     expect(getTarget("off")).toMatchObject({ id: "off", enabled: false, entryId: "off" });
   });
 
-  it("on is the default: none and true are in the book", async () => {
+  it("on is the default: none and true are in the experience", async () => {
     for (const enabled of [undefined, true]) {
       expect(await loadGameConfiguration({ bundled: async () => book(enabled) })).toBeNull();
       expect(getTargets("s1").map(t => t.id)).toEqual(["on", "off"]);
@@ -52,11 +52,11 @@ describe("switched-off targets", () => {
     expect(() => assertGameConfiguration(book("off"))).toThrow(/entries\[1\]\.target\.enabled/);
   });
 
-  it("the helpers: only `enabled: false` switches off; an entry without a target is in the book", () => {
+  it("the helpers: only `enabled: false` switches off; an entry without a target is in the experience", () => {
     expect(isTargetEnabled({})).toBe(true);
     expect(isTargetEnabled({ enabled: true })).toBe(true);
     expect(isTargetEnabled({ enabled: false })).toBe(false);
-    expect(isEntryInBook({})).toBe(true);
-    expect(isEntryInBook({ target: { id: "t", imageSrc: "x", enabled: false } })).toBe(false);
+    expect(isEntryInExperience({})).toBe(true);
+    expect(isEntryInExperience({ target: { id: "t", imageSrc: "x", enabled: false } })).toBe(false);
   });
 });

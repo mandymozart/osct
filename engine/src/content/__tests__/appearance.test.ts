@@ -8,7 +8,7 @@ import { currentFeatures, skipUnknownFeatures } from "../forward-compatible";
 
 const SOFT_FADE = { description: "Fades.", params: { duration: { kind: "number", default: 300, min: 50, max: 5000, step: 10, description: "ms" } } } as const;
 
-describe("the book's appearance: a look per moment (content schema 2.29)", () => {
+describe("the experience's appearance: a look per moment (content schema 2.29)", () => {
   it("has three moments and the built-in looks, each with the same parameters and its own defaults", () => {
     expect(MOMENTS).toEqual(["reveal", "found", "lost"]);
     expect(APPEARANCE_TYPES).toEqual(["inflateDissolve", "printLift", "fade"]);
@@ -45,7 +45,7 @@ describe("the book's appearance: a look per moment (content schema 2.29)", () =>
     expect(appearanceProblems({ lost: { type: "softFade", duration: 400 } }, "appearance", options)).toEqual([]);
     expect(appearanceProblems({ lost: { type: "softFade", duration: 9000 } }, "appearance", options)).toEqual(["appearance.lost.duration: expected a number from 50 to 5000, got 9000"]);
     expect(appearanceProblems({ lost: { type: "swirl" } }, "appearance", options))
-      .toEqual(['appearance.lost.type: "swirl" is not one of inflateDissolve, printLift, fade or a look of the book\'s plugins (softFade)']);
+      .toEqual(['appearance.lost.type: "swirl" is not one of inflateDissolve, printLift, fade or a look of the experience\'s plugins (softFade)']);
     expect(appearanceProblems({ lost: { type: "swirl" } }, "appearance", { unknownTypes: "allow" })).toEqual([]);
     // A plugin may not take a built-in look's name
     expect(pluginProblems([{ id: "fx", src: "/p.js", api: "1.8", registered: { appearances: { fade: SOFT_FADE } } }]))
@@ -68,13 +68,13 @@ describe("the book's appearance: a look per moment (content schema 2.29)", () =>
     const [major, minor] = CONTENT_SCHEMA_VERSION.split(".").map(Number);
     const raw = {
       version: { version: "9.0.0", timestamp: "2027-01-01T00:00:00.000Z", hash: "abc", schema: `${major}.${minor + 1}` },
-      book: { id: "b", title: "B", author: "A", appearance: { reveal: { type: "hologram" }, found: { type: "fade", later: 1 }, hover: { type: "fade" } } },
+      experience: { id: "b", title: "B", book: { author: "A" }, appearance: { reveal: { type: "hologram" }, found: { type: "fade", later: 1 }, hover: { type: "fade" } } },
       plugins: [],
     };
     const { config, skipped } = skipUnknownFeatures(raw, currentFeatures());
-    expect((config as typeof raw).book.appearance).toEqual({ found: { type: "fade" } });
+    expect((config as typeof raw).experience.appearance).toEqual({ found: { type: "fade" } });
     expect(skipped.map(({ path, kind }) => `${path}: ${kind}`).sort()).toEqual([
-      "book.appearance.found.later: parameter", "book.appearance.hover: field", "book.appearance.reveal: look",
+      "experience.appearance.found.later: parameter", "experience.appearance.hover: field", "experience.appearance.reveal: look",
     ]);
   });
 });

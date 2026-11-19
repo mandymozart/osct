@@ -1,7 +1,7 @@
 import { Matrix4, PerspectiveCamera, Quaternion, Vector3, type WebGLRenderer } from "three";
 import { describe, expect, it, vi } from "vitest";
 import { deviceQuaternion } from "../look-around/orientation";
-import { BookAnchor, lerpAngle, windowRadii, yawTowards } from "../look-around/book-anchor";
+import { SurfaceAnchor, lerpAngle, windowRadii, yawTowards } from "../look-around/surface-anchor";
 import { LookAround } from "../look-around/look-around";
 
 const forward = (alpha: number, beta: number, gamma: number, screen = 0) =>
@@ -54,12 +54,12 @@ describe("windowRadii", () => {
   });
 });
 
-describe("BookAnchor", () => {
+describe("SurfaceAnchor", () => {
   const pageAt = (x: number, y: number, z: number, width = 0.2) =>
     new Matrix4().compose(new Vector3(x, y, z), new Quaternion(), new Vector3(width, width, width));
 
-  it("places the book in the world from the anchor and the phone's orientation, the world's front facing it", () => {
-    const anchor = new BookAnchor();
+  it("places the found surfaces in the world from the anchor and the phone's orientation, the world's front facing it", () => {
+    const anchor = new SurfaceAnchor();
     // Phone upright, turned left by 90° (looks to −x); the page straight ahead of the camera
     anchor.see([pageAt(0, 0, -1)], deviceQuaternion(90, 90, 0, 0), 16, 18);
     close(anchor.direction!, new Vector3(-1, 0, 0));
@@ -68,7 +68,7 @@ describe("BookAnchor", () => {
   });
 
   it("moves smoothly on later finds, counts the time unseen and can forget", () => {
-    const anchor = new BookAnchor();
+    const anchor = new SurfaceAnchor();
     const upright = deviceQuaternion(0, 90, 0, 0);
     anchor.see([pageAt(0, 0, -1)], upright, 16, 18);
     anchor.see([pageAt(1, 0, 0)], upright, 16, 18);

@@ -17,7 +17,7 @@ const qualityLabel = (quality: TextureQuality): string => ({
 })[quality]();
 
 /**
- * Graphics section: one `<gold-switch>` each for the onion sky and the scene around the book, and the texture
+ * Graphics section: one `<gold-switch>` each for the onion sky and the scene around the surfaces, and the texture
  * quality of the models (#260) – the current choice and a toggle that lists the choices, like the language.
  * `GraphicsService` stores the choice on this device; the scan view follows at once.
  */

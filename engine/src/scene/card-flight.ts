@@ -225,7 +225,7 @@ export const impactAt = (ms: number): { push: number; shake: [number, number] } 
   };
 };
 
-/** The card's back until the book has one of its own: dark, a gold frame and a gold diamond (DESIGN.md's golds) */
+/** The card's back until the experience has one of its own: dark, a gold frame and a gold diamond (DESIGN.md's golds) */
 const defaultBack = (): Texture => {
   const canvas = document.createElement("canvas");
   canvas.width = 256;

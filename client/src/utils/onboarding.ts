@@ -1,16 +1,17 @@
 import { t } from "i18next";
 import type { ExperienceData, Step } from "@/types";
-import { SPLASH_STEP } from "./static-splash-html";
+import { SPLASH_STEP, splashFields } from "./static-splash-html";
 
 /**
- * The onboarding – the reader's own UI, the same for every book (#236): the splash (the book's title, author and
- * publisher), what the app does, what its entries are called (marginalia, #281), the camera permission, then scan mode. Order, illustrations, actions and timing are
+ * The onboarding – the reader's own UI, the same for every experience (#236): the splash (the experience's title, its
+ * printed book's author and publisher), what the app does, what its entries are called (marginalia, #281), the camera permission, then scan mode. Order, illustrations, actions and timing are
  * here; the texts are the `tutorial` namespace's (every language), their `{{title}}`, `{{author}}` and `{{publisher}}`
- * filled from the book. The content's `tutorial` (written for older apps) is never read.
+ * filled from the experience (`splashFields` – "" without a printed book). The content's `tutorial` (written for older
+ * apps) is never read.
  */
 
-/** The book fields the steps show */
-export type OnboardingBook = Pick<ExperienceData, "title" | "author" | "publisher">;
+/** What the steps show of the experience: its title and its printed book */
+export type OnboardingExperience = Pick<ExperienceData, "title" | "book">;
 
 /**
  * The drawings of the steps (`<gold-illustration>`, files in public/). The camera step has none since the design
@@ -21,9 +22,9 @@ export const ONBOARDING_ILLUSTRATIONS = {
 } as const;
 
 /** The steps in their order, translated now (the language is fixed while the app runs – a change reloads it) */
-export const onboardingSteps = (book: OnboardingBook): Step[] => {
+export const onboardingSteps = (experience: OnboardingExperience): Step[] => {
   // The component escapes the filled text itself (and turns *emphasis* into markup)
-  const values = { title: book.title, author: book.author, publisher: book.publisher ?? "", interpolation: { escapeValue: false } };
+  const values = { ...splashFields(experience), interpolation: { escapeValue: false } };
   return [
     { ...SPLASH_STEP },
     { id: "intro", index: 1, description: t("tutorial:intro.text", values), illustration: ONBOARDING_ILLUSTRATIONS.intro, button: t("tutorial:intro.button") },

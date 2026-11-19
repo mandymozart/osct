@@ -97,27 +97,27 @@ describe("api.vars", () => {
   it("sets in the scene scope by default, reads outward with the innermost definition winning", () => {
     const api = apiOf("fx");
     api.vars.set("doorOpen", true);
-    api.vars.set("hasKey", true, "book");
+    api.vars.set("hasKey", true, "experience");
     api.vars.set("hasKey", false, "stage");
     expect(api.vars.get("doorOpen")).toBe(true);
     expect(api.vars.get("doorOpen", "scene")).toBe(true);
-    expect(api.vars.get("doorOpen", "book")).toBeUndefined();
+    expect(api.vars.get("doorOpen", "experience")).toBeUndefined();
     expect(api.vars.get("hasKey")).toBe(false);
-    expect(api.vars.get("hasKey", "book")).toBe(true);
+    expect(api.vars.get("hasKey", "experience")).toBe(true);
     expect(api.vars.all("stage")).toEqual({ hasKey: false });
     expect(allVars()).toEqual([
       { scope: "scene", name: "doorOpen", value: true },
       { scope: "stage", name: "hasKey", value: false },
-      { scope: "book", name: "hasKey", value: true },
+      { scope: "experience", name: "hasKey", value: true },
     ]);
   });
 
-  it("the scene scope ends with the scene, the stage scope with the scene, session and book stay", () => {
+  it("the scene scope ends with the scene, the stage scope with the scene, session and experience stay", () => {
     const api = apiOf("fx");
     api.vars.set("s", 1, "scene");
     api.vars.set("st", 2, "stage");
     api.vars.set("se", 3, "session");
-    api.vars.set("b", 4, "book");
+    api.vars.set("b", 4, "experience");
     sceneChanged("b");
     expect(api.vars.get("s")).toBeUndefined();
     expect(api.vars.get("st")).toBe(2);
@@ -133,17 +133,17 @@ describe("api.vars", () => {
     const named: unknown[] = [];
     api.events.on("varChanged", change => changes.push(change));
     api.vars.on("hasKey", (value, previous, scope) => named.push([value, previous, scope]));
-    api.vars.set("hasKey", true, "book");
-    api.vars.set("hasKey", true, "book");
+    api.vars.set("hasKey", true, "experience");
+    api.vars.set("hasKey", true, "experience");
     api.vars.set("other", 1);
-    api.vars.set("hasKey", null, "book");
+    api.vars.set("hasKey", null, "experience");
     expect(changes).toEqual([
-      { name: "hasKey", scope: "book", value: true, previous: undefined },
+      { name: "hasKey", scope: "experience", value: true, previous: undefined },
       { name: "other", scope: "scene", value: 1, previous: undefined },
-      { name: "hasKey", scope: "book", value: undefined, previous: true },
+      { name: "hasKey", scope: "experience", value: undefined, previous: true },
     ]);
-    expect(named).toEqual([[true, undefined, "book"], [undefined, true, "book"]]);
-    expect(api.vars.all("book")).toEqual({});
+    expect(named).toEqual([[true, undefined, "experience"], [undefined, true, "experience"]]);
+    expect(api.vars.all("experience")).toEqual({});
   });
 
   it("refuses a bad name, scope or value", () => {
@@ -154,7 +154,7 @@ describe("api.vars", () => {
     expect(() => api.events.on("ping", "nope" as never)).toThrow(/needs a listener/);
   });
 
-  it("the book scope goes through the app's progress when it offers variables", () => {
+  it("the experience scope goes through the app's progress when it offers variables", () => {
     const stored = new Map<string, VarValue>([["hasKey", true]]);
     const reader: ProgressReader = {
       variables: {
@@ -166,16 +166,16 @@ describe("api.vars", () => {
     setProgressReader(reader);
     const api = apiOf("fx");
     expect(api.vars.get("hasKey")).toBe(true);
-    api.vars.set("chapter", 2, "book");
+    api.vars.set("chapter", 2, "experience");
     expect(stored.get("chapter")).toBe(2);
-    expect(api.vars.all("book")).toEqual({ hasKey: true, chapter: 2 });
+    expect(api.vars.all("experience")).toEqual({ hasKey: true, chapter: 2 });
     resetVars();
     expect(stored.size).toBe(0);
   });
 });
 
 describe("api.progress and api.scene", () => {
-  it("reads the app's progress: unlocked, consulted, counts and completion per scene or for the book", () => {
+  it("reads the app's progress: unlocked, consulted, counts and completion per scene or for the experience", () => {
     setProgressReader({ unlocked: id => id === "key", consulted: id => id === "key" });
     const api = apiOf("fx");
     expect(api.progress.unlocked("key")).toBe(true);

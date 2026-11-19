@@ -79,7 +79,7 @@ export class InstallService {
   }
 
   /**
-   * Whether files cached by the service worker persist here (relevant for the whole-book download).
+   * Whether files cached by the service worker persist here (relevant for the whole-experience download).
    * Requires a service worker (always true under `npm run dev`, for testing). On iOS only the home-screen
    * app qualifies: Safari tabs have separate storage and clear it after 7 days without use.
    */

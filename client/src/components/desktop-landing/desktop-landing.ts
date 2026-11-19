@@ -4,7 +4,7 @@ import { MEDIA_QUERY } from "@/constants";
 import { adoptDesignStyles } from "@/styles";
 import { escapeHtml, hideStaticSplash } from "@/utils";
 import { bookCoverUrl } from "@/utils/book-cover";
-import { getBook } from "@/utils/game-config";
+import { getExperience } from "@/utils/game-config";
 import "@/components/settings";
 import { isDesktopVisitor, landingSkipped, readDeviceSignals, skipLanding } from "./desktop-visitor";
 import { LANDING_CONFIG, type LandingConfig, type ShopItem } from "./landing-config";
@@ -86,8 +86,9 @@ export class DesktopLanding extends HTMLElement {
 
   private render() {
     if (!this.shadowRoot) return;
-    const book = getBook();
-    const params = { title: book.title, author: book.author };   // t() escapes them
+    const experience = getExperience();
+    const author = experience.book?.author ?? "";
+    const params = { title: experience.title, author };   // t() escapes them
     const address = escapeHtml(location.host);
     const { previewImage, previewVideo, shop } = this.config;
     const preview = previewVideo
@@ -149,8 +150,8 @@ export class DesktopLanding extends HTMLElement {
       </style>
       <main class="landing design" aria-label="${t("landing:label")}">
         <section class="intro">
-          <h1 class="gold shimmer">${escapeHtml(book.title)}</h1>
-          <p class="author muted">${escapeHtml(book.author)}</p>
+          <h1 class="gold shimmer">${escapeHtml(experience.title)}</h1>
+          ${author ? `<p class="author muted">${escapeHtml(author)}</p>` : ""}
           <p>${t("landing:intro", params)}</p>
 
           <h2 class="section-title">${t("landing:getApp")}</h2>

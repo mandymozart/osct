@@ -1,7 +1,7 @@
 {
   "signedOutDescription": "Sauvegarde ta progression et reçois des nouvelles dans ta boîte mail. Déjà inscrit·e ? Saisis la même adresse e-mail pour te connecter sur cet appareil.",
   "optionsLabel": "Nouvelles",
-  "bookUpdates": "Recevoir des nouvelles de {{title}}",
+  "experienceUpdates": "Recevoir des nouvelles de {{title}}",
   "artistUpdates": "Recevoir des nouvelles de {{author}}",
   "publisherUpdates": "Recevoir des nouvelles de Building Fictions",
   "emailPlaceholder": "Ton adresse e-mail",

@@ -10,7 +10,7 @@
  */
 export interface UserOptions {
   /** Updates on the publication (Onion Skin & Crocodile Tears) */
-  bookUpdates: boolean;
+  experienceUpdates: boolean;
   /** Updates from the artist (the book's author) */
   artistUpdates: boolean;
   /** Updates from the publisher */

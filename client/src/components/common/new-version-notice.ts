@@ -6,7 +6,7 @@ import { getConfigVersion, getSkippedFeatures } from "@/utils/game-config";
 import { t } from "i18next";
 import { type NoticeMessage, noticeMessage } from "./new-version";
 
-/** Where the reader's device keeps the book version whose newer-features hint it has shown */
+/** Where the reader's device keeps the experience version whose newer-features hint it has shown */
 export const NEWER_CONTENT_SEEN_KEY = "osct-newer-content-seen";
 
 /**
@@ -16,8 +16,8 @@ export const NEWER_CONTENT_SEEN_KEY = "osct-newer-content-seen";
  * leaves the scan. It never reloads by itself. *Later* hides it until a code file fails to load again or another
  * version takes over. In the scan view (AR failed) it sits above the scene menu.
  *
- * When the book uses features this app version does not know (`getSkippedFeatures()`, RULES #10) it first says so,
- * once per book version: shown once, the version is remembered on the device, and the cross closes the hint for the
+ * When the experience uses features this app version does not know (`getSkippedFeatures()`, RULES #10) it first says so,
+ * once per experience version: shown once, the version is remembered on the device, and the cross closes the hint for the
  * session. *Reload* stays while a new version is ready too.
  */
 export class NewVersionNotice extends HTMLElement {
@@ -25,7 +25,7 @@ export class NewVersionNotice extends HTMLElement {
   private updates = UpdateService.getInstance();
   private cleanups: Array<() => void> = [];
   private dismissed = false;
-  /** The book has skipped features and its hint is still to show (not seen on this device, not closed) */
+  /** The experience has skipped features and its hint is still to show (not seen on this device, not closed) */
   private newerContent = false;
   private message: NoticeMessage | null = null;
 
@@ -37,7 +37,7 @@ export class NewVersionNotice extends HTMLElement {
   }
 
   connectedCallback() {
-    this.newerContent = getSkippedFeatures().length > 0 && readSeen() !== bookVersion();
+    this.newerContent = getSkippedFeatures().length > 0 && readSeen() !== experienceVersion();
     this.render();
     this.shadowRoot?.addEventListener("click", this.handleClick);
     this.cleanups.push(
@@ -72,8 +72,8 @@ export class NewVersionNotice extends HTMLElement {
     const message = noticeMessage({
       outdated: this.updates.isOutdated, dismissed: this.dismissed, newerContent: this.newerContent, page, arStatus: this.game.state.arStatus,
     });
-    // Shown once per book version: the device remembers it the first time the hint shows
-    if (message === "newer-content" && this.message !== "newer-content") writeSeen(bookVersion());
+    // Shown once per experience version: the device remembers it the first time the hint shows
+    if (message === "newer-content" && this.message !== "newer-content") writeSeen(experienceVersion());
     this.message = message;
     this.toggleAttribute("shown", !!message);
     this.toggleAttribute("scan", page === Pages.SCENE);
@@ -133,8 +133,8 @@ export class NewVersionNotice extends HTMLElement {
   }
 }
 
-/** The loaded book's version: its build checksum, else its schema */
-const bookVersion = (): string => {
+/** The loaded experience's version: its build checksum, else its schema */
+const experienceVersion = (): string => {
   const version = getConfigVersion();
   return version.hash || version.schema;
 };

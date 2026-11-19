@@ -48,7 +48,7 @@ describe("trigger trial", () => {
     const scenes = getScenes();
     const [a, b, c] = scenes.flatMap(s => s.targets);
     const rows = trialRows(scenes, { [a.id]: 1700000000000, [b.id]: 1700000060000 }, { [c.id]: { source: "P9|x.jpg", width: 30, height: 20, note: "check" } });
-    const report = trialReport(rows, { bookTitle: "Test Book", appVersion: "1.6.2", contentHash: "abcdef1234567890", device, date: new Date("2026-10-27T12:00:00Z") });
+    const report = trialReport(rows, { experienceTitle: "Test Book", appVersion: "1.6.2", contentHash: "abcdef1234567890", device, date: new Date("2026-10-27T12:00:00Z") });
     expect(report).toContain("# Trigger test – Test Book");
     expect(report).toContain("- Date: 2026-10-27 12:00 (UTC)");
     expect(report).toContain("- App 1.6.2 · content abcdef123456\n- Device: iPhone 12 mini (tester) · screen-size guess:");

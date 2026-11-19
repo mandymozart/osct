@@ -33,7 +33,7 @@
   position: fixed;
   top: 50%;
   left: 50%;
-  z-index: 10;                       /* above the camera / scene, below the app (book-game) */
+  z-index: 10;                       /* above the camera / scene, below the app (reader-app) */
   width: min(62vw, 18rem);
   aspect-ratio: 1;
   margin: calc(min(62vw, 18rem) / -2) 0 0 calc(min(62vw, 18rem) / -2);

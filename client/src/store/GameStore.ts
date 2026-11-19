@@ -14,7 +14,7 @@ import {
   LoadingState
 } from "@/types";
 import { uniqueId, createProgressRecord } from "@/utils";
-import { getBook } from "@/utils/game-config";
+import { getExperience } from "@/utils/game-config";
 import { BaseStore } from "./BaseStore";
 import { CameraManager } from "./managers/CameraManager";
 import { SceneManager } from "./managers/SceneManager";
@@ -29,7 +29,7 @@ const initialState: GameState = {
   currentError: null,
   trackedTargets: [],
   currentScene: null,
-  progress: createProgressRecord(getBook().id), // replaced by the stored record in HistoryManager.load()
+  progress: createProgressRecord(getExperience().id), // replaced by the stored record in HistoryManager.load()
   loading: LoadingState.LOADING,
   arStatus: "idle",
   cameraPermission: CameraPermissionStatus.UNKNOWN

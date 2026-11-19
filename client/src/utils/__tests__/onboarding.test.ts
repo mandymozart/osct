@@ -4,16 +4,16 @@ import { LANGUAGES } from "@/i18n";
 import { ONBOARDING_ILLUSTRATIONS, onboardingSteps } from "../onboarding";
 import { SPLASH_STEP } from "../static-splash-html";
 
-const book = { title: "Onion Skin & Crocodile Tears", author: "Kévin Bray", publisher: "Building Fictions" };
+const experience = { title: "Onion Skin & Crocodile Tears", book: { author: "Kévin Bray", publisher: "Building Fictions" } };
 
-/** The onboarding is the app's (#236): its steps in code, its texts in the translations, the book's fields filled in */
+/** The onboarding is the app's (#236): its steps in code, its texts in the translations, the experience's fields filled in */
 describe("onboarding", () => {
   afterEach(async () => {
     await i18next.changeLanguage("en");
   });
 
   it("the splash, what the app does, marginalia, the camera, then scan mode – in order", () => {
-    const steps = onboardingSteps(book);
+    const steps = onboardingSteps(experience);
     expect(steps.map(s => s.id)).toEqual(["splash", "intro", "marginalia", "camera", "done"]);
     expect(steps.map(s => s.index)).toEqual([0, 1, 2, 3, 4]);
     expect(steps[0]).toEqual(SPLASH_STEP);
@@ -26,9 +26,9 @@ describe("onboarding", () => {
     expect(steps.slice(1).some(s => s.fadeIn || s.fadeAfter)).toBe(false);
   });
 
-  it("English: the book's title filled in, unescaped (the component escapes)", async () => {
+  it("English: the experience's title filled in, unescaped (the component escapes)", async () => {
     await i18next.changeLanguage("en");
-    const [, intro, marginalia, camera, done] = onboardingSteps(book);
+    const [, intro, marginalia, camera, done] = onboardingSteps(experience);
     expect(intro.description).toBe("This application allows you to reveal entries (videos, texts and key references) hidden in the printed publication *Onion Skin & Crocodile Tears*.");
     expect(intro.button).toBe("Continue");
     expect(marginalia).toMatchObject({ description: "In the context of this publication, these entries are called ‘marginalia’.", button: "Continue" });
@@ -38,17 +38,17 @@ describe("onboarding", () => {
 
   it("German, informal", async () => {
     await i18next.changeLanguage("de");
-    const [, intro, , camera] = onboardingSteps(book);
+    const [, intro, , camera] = onboardingSteps(experience);
     expect(intro.description).toContain("entdeckst du");
     expect(intro.description).toContain("*Onion Skin & Crocodile Tears*");
     expect(camera.button).toBe("Zugriff erlauben");
   });
 
   it("every language has every text", async () => {
-    const english = onboardingSteps(book);
+    const english = onboardingSteps(experience);
     for (const language of LANGUAGES) {
       await i18next.changeLanguage(language);
-      const steps = onboardingSteps(book);
+      const steps = onboardingSteps(experience);
       for (const key of ["intro.text", "intro.button", "marginalia.text", "marginalia.button", "camera.text", "camera.button", "done.title", "done.button"]) {
         expect(i18next.exists(`tutorial:${key}`, { lng: language, fallbackLng: false }), `${language}: tutorial:${key}`).toBe(true);
       }

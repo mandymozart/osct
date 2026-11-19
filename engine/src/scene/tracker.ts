@@ -23,7 +23,7 @@ const CAMERA_SHADER = "precision lowp float;\nvarying vec2 texUv;\nuniform sampl
 const TARGETS_LOAD_TIMEOUT_MS = 15000;
 /** A neighbouring scene's target seen this long (and none of the current scene's) switches the scene */
 const SCENE_SEEN_MS = 400;
-/** `whenSettled()` gives up after this long (a window of the whole book on a slow phone) */
+/** `whenSettled()` gives up after this long (a window of the whole experience on a slow phone) */
 const SETTLE_TIMEOUT_MS = 180000;
 /**
  * Grow mode: targets added per batch. Each new target costs ~0.35 s of main-thread work (preparing ~0.16 s,

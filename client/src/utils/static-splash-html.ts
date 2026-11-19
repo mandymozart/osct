@@ -26,7 +26,7 @@ export interface SplashStepSource {
 export const ONBOARDING_ICON_SRC = "/assets/ui/onboarding/icon.png";
 
 /**
- * The onboarding's first step, the splash (design p. 5–7, #281): the icon and the book's title at once, then the
+ * The onboarding's first step, the splash (design p. 5–7, #281): the icon and the experience's title at once, then the
  * author and the publisher fade in together (after 1 s, over 1 s); it advances by itself (or on a tap). The app's
  * onboarding starts with it (`utils/onboarding.ts`).
  */
@@ -41,8 +41,21 @@ export const SPLASH_STEP: SplashStepSource = {
   advance: 3800,
 };
 
+/** The texts the onboarding fills in: `{{title}}`, `{{author}}`, `{{publisher}}` */
+export type SplashFields = Record<"title" | "author" | "publisher", string>;
+
+/**
+ * The fields of an experience: its title; the author and the publisher of its printed book – "" without one (an
+ * experience that is not a book)
+ */
+export const splashFields = (experience: { title?: string; book?: { author?: string; publisher?: string } } | null | undefined): SplashFields => ({
+  title: experience?.title ?? "",
+  author: experience?.book?.author ?? "",
+  publisher: experience?.book?.publisher ?? "",
+});
+
 export interface StaticSplashSource {
-  book: Record<string, string | undefined>;
+  fields: Partial<SplashFields>;
   /** The step to show (the splash); none – a plain loader */
   step?: SplashStepSource;
   /** The icon in row 1 (`ONBOARDING_ICON_SRC`); decorative, the title follows */
@@ -57,11 +70,11 @@ const DEFAULT_ADVANCE_MS = 2000;
 const escapeHtml = (text: string): string =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-const fill = (text: string, book: StaticSplashSource["book"]): string =>
-  text.replace(/\{\{(title|author|publisher)\}\}/g, (_, field: string) => book[field] ?? "").trim();
+const fill = (text: string, fields: StaticSplashSource["fields"]): string =>
+  text.replace(/\{\{(title|author|publisher)\}\}/g, (_, field: keyof SplashFields) => fields[field] ?? "").trim();
 
-const inline = (text: string, book: StaticSplashSource["book"]): string =>
-  escapeHtml(fill(text, book)).replace(/\*([^*]+)\*/g, "<em>$1</em>");
+const inline = (text: string, fields: StaticSplashSource["fields"]): string =>
+  escapeHtml(fill(text, fields)).replace(/\*([^*]+)\*/g, "<em>$1</em>");
 
 const paragraphs = (text: string): string[] => text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
 
@@ -71,7 +84,7 @@ const paragraphs = (text: string): string[] => text.split(/\n\s*\n/).map(p => p.
  * the parts sit on the same vertical grid (icon row 1, row 2 empty, title and text from row 3, footer from row 5);
  * the title shimmers. `data-step` / `data-advance` tell the app which step it showed and for how long.
  */
-export const renderStaticSplash = ({ book, step, iconSrc, loadingLabel }: StaticSplashSource): string => {
+export const renderStaticSplash = ({ fields, step, iconSrc, loadingLabel }: StaticSplashSource): string => {
   const stamp = `<script>window.__osctSplashAt = performance.now();</script>`;
   if (!step) {
     return `<div id="static-splash" role="status" aria-label="${escapeHtml(loadingLabel)}"><div class="gold-spinner"></div></div>${stamp}`;
@@ -81,19 +94,19 @@ export const renderStaticSplash = ({ book, step, iconSrc, loadingLabel }: Static
     const classes = [fades ? "fade" : "", className].filter(Boolean).join(" ");
     return `${classes ? `class="${classes}"` : ""}${fades ? ` style="animation-delay: ${step.fadeAfter ?? 0}ms"` : ""}`;
   };
-  const title = step.title && fill(step.title, book);
-  const text = step.description && fill(step.description, book);
-  const footer = step.footer && fill(step.footer, book);
+  const title = step.title && fill(step.title, fields);
+  const text = step.description && fill(step.description, fields);
+  const footer = step.footer && fill(step.footer, fields);
   return [
     `<div id="static-splash" role="status" aria-label="${escapeHtml(loadingLabel)}"`,
     ` data-step="${step.index}" data-advance="${step.advance ?? DEFAULT_ADVANCE_MS}"${fades ? ` style="--fade-duration: ${step.fadeIn}ms"` : ""}>`,
     `<div class="content"><div class="row icon-row">`,
     `<img src="${escapeHtml(iconSrc)}" alt="" data-icon>`,
     `</div><div class="row"></div><div class="head">`,
-    step.title && title ? `<h1><span class="gold shimmer">${inline(step.title, book)}</span></h1>` : "",
-    step.description && text ? `<div ${fade()}>${paragraphs(step.description).map(p => `<p class="gold">${inline(p, book)}</p>`).join("")}</div>` : "",
+    step.title && title ? `<h1><span class="gold shimmer">${inline(step.title, fields)}</span></h1>` : "",
+    step.description && text ? `<div ${fade()}>${paragraphs(step.description).map(p => `<p class="gold">${inline(p, fields)}</p>`).join("")}</div>` : "",
     `</div>`,
-    step.footer && footer ? `<div ${fade("footer")}><span class="gold">${inline(step.footer, book)}</span></div>` : "",
+    step.footer && footer ? `<div ${fade("footer")}><span class="gold">${inline(step.footer, fields)}</span></div>` : "",
     `</div></div>${stamp}`,
   ].join("");
 };

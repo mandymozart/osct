@@ -168,7 +168,7 @@ body {
   background-color: var(--app-background);
 }
 
-book-game {
+reader-app {
   z-index: 1000;
 }
 

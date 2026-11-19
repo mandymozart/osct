@@ -6,11 +6,11 @@ import { engineLook, type EngineParams } from "./params";
 import type { Runner } from "./reveal";
 
 /**
- * The engine's own animation in the sandbox: the real `celebrate`, handed the look the panel holds as a book's content
+ * The engine's own animation in the sandbox: the real `celebrate`, handed the look the panel holds as an experience's content
  * names it – `{ type, ...values }` (`shared/types/appearance.ts`). What plays here is what the reader plays.
  */
 
-/** The engine's default look – what a book without `appearance` plays */
+/** The engine's default look – what an experience without `appearance` plays */
 export const ENGINE_DEFAULTS: EngineParams = engineLook(DEFAULT_APPEARANCE_TYPE);
 
 /** One 30 fps frame: the engine advances at most this much per update */
@@ -40,7 +40,7 @@ export const startEngine = (anchor: Object3D, entity: Object3D, params: EnginePa
     },
     duration: msOf,
     play(phase, tau) {
-      // A find plays the look forwards (the first find, the reveal, plays what a book names for it – here the same)
+      // A find plays the look forwards (the first find, the reveal, plays what an experience names for it – here the same)
       const wanted: Moment = phase === "in" ? "found" : "lost";
       const ms = msOf(phase);
       const target = Math.min(1, Math.max(0, tau)) * ms;

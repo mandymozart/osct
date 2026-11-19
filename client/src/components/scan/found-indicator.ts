@@ -1,6 +1,6 @@
 import { GameStoreService } from "@/services";
 import { CARD_FLIGHT_EVENT, type CardFlightDetail, ENTITY_UNLOCK_MS, GameMode, type IGame, momentDuration, type Target, TARGET_UNLOCKED_EVENT } from "@/types";
-import { getBook, getEntry, getTarget } from "@/utils/game-config";
+import { getExperience, getEntry, getTarget } from "@/utils/game-config";
 import { adoptDesignStyles } from "@/styles";
 import { t } from "i18next";
 
@@ -27,7 +27,7 @@ export const getIndicatorTarget = (trackedTargetIds: readonly string[]): Target 
  * area takes no taps (CARD_FLIGHT_EVENT) and the bridge opens the entry when the card lands.
  * On unlock (the first find of a target, TARGET_UNLOCKED_EVENT from `<ar-bridge>`) it shows the gold shimmering
  * "New marginalia unlocked" (the sound comes from the TargetManager); for targets with an AR entity for as long as the
- * entity's reveal takes: the duration of the look the book names for it (ENTITY_UNLOCK_MS where only a plugin's code
+ * entity's reveal takes: the duration of the look the experience names for it (ENTITY_UNLOCK_MS where only a plugin's code
  * knows it).
  * Lives in the scan page, so it is hidden in consultation mode.
  */
@@ -165,7 +165,7 @@ export class FoundIndicator extends HTMLElement {
       this.removeAttribute("unlocking");
       this.shadowRoot?.querySelector(".label")?.setAttribute("aria-hidden", "true");
       this.unlockTimer = window.setTimeout(() => this.update(), LABEL_FADE_MS);
-    }, (target.entity ? momentDuration(getBook(), "reveal", target.entity) ?? ENTITY_UNLOCK_MS : LABEL_MS) - LABEL_FADE_MS);
+    }, (target.entity ? momentDuration(getExperience(), "reveal", target.entity) ?? ENTITY_UNLOCK_MS : LABEL_MS) - LABEL_FADE_MS);
   }
 
   /** Open the entry in consultation mode (the route sets the mode; the entry view marks it consulted) */

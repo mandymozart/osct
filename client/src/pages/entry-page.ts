@@ -9,8 +9,8 @@ import { t } from "i18next";
 
 /**
  * Entry view: "Entries" (back to the list) and `<entry-detail>`, aligned with the entries list like Info.
- * Opening an entry marks it consulted. Its text reads the book's variables as they are when it opens: every scope of the
- * scene once the scene has run, else the book scope from the reader's progress.
+ * Opening an entry marks it consulted. Its text reads the experience's variables as they are when it opens: every scope of the
+ * scene once the scene has run, else the experience scope from the reader's progress.
  */
 export class EntryPage extends ConsultationPage {
   /** Entry currently shown – progress changes must not re-render it (media would restart) */
@@ -55,8 +55,8 @@ export class EntryPage extends ConsultationPage {
   }
 
   private variables(): VariableLookup {
-    const book = Object.entries(this.game.history.getVariables()).map(([name, value]) => ({ scope: "book", name, value }));
-    return variablesOf(sceneVariables() ?? book);
+    const stored = Object.entries(this.game.history.getVariables()).map(([name, value]) => ({ scope: "experience", name, value }));
+    return variablesOf(sceneVariables() ?? stored);
   }
 }
 

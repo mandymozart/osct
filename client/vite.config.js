@@ -4,7 +4,7 @@ import { defaultAllowedOrigins, defineConfig, loadEnv } from 'vite';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import { VitePWA } from 'vite-plugin-pwa';
 import { networkInterfaces } from 'os';
-import { ONBOARDING_ICON_SRC, renderStaticSplash, SPLASH_STEP } from './src/utils/static-splash-html.ts';
+import { ONBOARDING_ICON_SRC, renderStaticSplash, SPLASH_STEP, splashFields } from './src/utils/static-splash-html.ts';
 import { fontBaseUrl, renderFontFaces } from './src/utils/font-face-html.ts';
 
 // One version for app and content build (RULES.md #10). Read from package.json because
@@ -19,9 +19,9 @@ const MISSING_CONTENT = 'client/src/game.config.json is missing – build the co
 const readLocalGameConfig = () => (existsSync(GAME_CONFIG_FILE) ? JSON.parse(readFileSync(GAME_CONFIG_FILE, 'utf8')) : null);
 
 /**
- * Book data for the app shell (home-screen name, static splash). A CDN build takes it from the environment's
+ * Experience data for the app shell (home-screen name, static splash). A CDN build takes it from the environment's
  * current content version on the CDN – it only shapes the first frame, the app renders the loaded content after that – and
- * falls back to a local content build, then to no book data. Without the CDN the local build is required.
+ * falls back to a local content build, then to no experience data. Without the CDN the local build is required.
  */
 async function readShellConfig(contentBaseUrl) {
   if (!contentBaseUrl) {
@@ -38,7 +38,7 @@ async function readShellConfig(contentBaseUrl) {
     const { build } = await get(`${contentBaseUrl}/latest.json?t=${Date.now()}`);
     return await get(`${contentBaseUrl}/${build}/game.config.json`);
   } catch (error) {
-    console.warn(`[osct] content on ${contentBaseUrl} not readable (${error.message}) – app shell from the local content build or without book data`);
+    console.warn(`[osct] content on ${contentBaseUrl} not readable (${error.message}) – app shell from the local content build or without experience data`);
   }
   return readLocalGameConfig() ?? {};
 }
@@ -64,14 +64,14 @@ function gameConfigModule(contentBaseUrl) {
 
 /**
  * PWA: web app manifest + service worker (sw/service-worker.ts, precache list injected here).
- * Home-screen name: `book.title` from the game configuration (also the iOS title in index.html); black
+ * Home-screen name: `experience.title` from the game configuration (also the iOS title in index.html); black
  * background like the app.
  * Icons (public/assets/icons/, placeholders until the final app icon): "any" icons transparent (Chrome's app
  * list / install dialog), the maskable one on black (Android crops it to the launcher shape and fills the
  * rest), apple-touch-icon opaque (iOS requires it).
  */
 function pwa(shellConfig) {
-  const title = shellConfig.book?.title ?? 'Onion Skin & Crocodile Tears';
+  const title = shellConfig.experience?.title ?? 'Onion Skin & Crocodile Tears';
   const appTitle = {
     name: 'osct-app-title',
     transformIndexHtml: (html) => html.replace('%OSCT_APP_TITLE%', title.replace(/&/g, '&amp;')),
@@ -138,7 +138,7 @@ function getLocalIP() {
   return candidates[0]?.address ?? 'localhost';
 }
 /**
- * Static splash: the onboarding's first step (the app's splash) as plain HTML in index.html, with the book's fields
+ * Static splash: the onboarding's first step (the app's splash) as plain HTML in index.html, with the experience's fields
  * from the game configuration, so it paints before any script runs. The loading label is English; the app
  * translates it once it runs.
  */
@@ -149,10 +149,10 @@ function staticSplash(config) {
     transformIndexHtml(html) {
       const common = read('src/i18n/locales/en/common.json');
       return html.replace('<!--osct:static-splash-->', renderStaticSplash({
-        book: config.book ?? {},
+        fields: splashFields(config.experience),
         step: SPLASH_STEP,
         iconSrc: ONBOARDING_ICON_SRC,
-        loadingLabel: common.loadingBook,
+        loadingLabel: common.loadingExperience,
       }));
     },
   };
@@ -172,7 +172,7 @@ function designFont(baseUrl) {
 
 /**
  * Content file sizes (`virtual:osct-content-sizes`): every file under public/assets/content, by URL. Lets the
- * whole-book download (PreloaderService) show the total size up front and progress in bytes. Empty in a CDN
+ * whole-experience download (PreloaderService) show the total size up front and progress in bytes. Empty in a CDN
  * build (the sizes come with the content: files.json).
  */
 function contentSizes(contentBaseUrl) {

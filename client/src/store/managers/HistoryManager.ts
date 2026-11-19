@@ -9,13 +9,13 @@ import type {
   ProgressRecord,
   ProgressVariable,
 } from '@/types';
-import { getBook, getEntry, getScene, getTarget, getTargets } from '@/utils/game-config';
+import { getExperience, getEntry, getScene, getTarget, getTargets } from '@/utils/game-config';
 import { type ProgressReadStatus, createProgressRecord, mergeProgress, readProgress } from '@/utils';
 import { t } from "i18next";
 
 /**
- * Reader progress for the current book: unlocked targets, consulted entries, last scene /
- * category, onboarding – one record per book, keyed by stable content ids.
+ * Reader progress for the current experience: unlocked targets, consulted entries, last scene /
+ * category, onboarding – one record per experience, keyed by stable content ids.
  * Loaded at startup; every change is saved immediately through the storage adapter.
  */
 export class HistoryManager implements IHistoryManager {
@@ -47,8 +47,8 @@ export class HistoryManager implements IHistoryManager {
    * current one. Appends the app version to the record's version history when it changed.
    */
   public load(): void {
-    const bookId = getBook().id;
-    const { record, status } = readProgress(this.storage.load(bookId), bookId);
+    const experienceId = getExperience().id;
+    const { record, status } = readProgress(this.storage.load(experienceId), experienceId);
     if (status === 'unreadable') {
       console.warn('[HistoryManager] Stored progress could not be read, starting fresh.');
     }
@@ -84,11 +84,11 @@ export class HistoryManager implements IHistoryManager {
 
   /**
    * Take over a record from outside (account sync): merge into or replace the local one.
-   * Rejects empty, unreadable and other-book records.
+   * Rejects empty, unreadable and other-experience records.
    */
   public applyStoredRecord(raw: unknown, mode: 'merge' | 'replace'): boolean {
-    const { record, status } = readProgress(raw, this.progress.bookId);
-    if (status === 'new' || status === 'unreadable' || record.bookId !== this.progress.bookId) return false;
+    const { record, status } = readProgress(raw, this.progress.experienceId);
+    if (status === 'new' || status === 'unreadable' || record.experienceId !== this.progress.experienceId) return false;
     const next = mode === 'merge' ? mergeProgress(this.progress, record) : record;
     this.game.update(draft => { draft.progress = next; });
     this.storage.save(this.progress);
@@ -149,7 +149,7 @@ export class HistoryManager implements IHistoryManager {
     return this.progress.variables[name];
   }
 
-  /** The plugins' `book` scope: a scalar per name, saved like every other change; `null` deletes */
+  /** The plugins' `experience` scope: a scalar per name, saved like every other change; `null` deletes */
   public setVariable(name: string, value: ProgressVariable | null): void {
     if (this.progress.variables[name] === (value ?? undefined)) return;
     this.change(draft => {
@@ -184,12 +184,12 @@ export class HistoryManager implements IHistoryManager {
   }
 
   /**
-   * Reset the whole progress of this book (keeps the app version history)
+   * Reset the whole progress of this experience (keeps the app version history)
    */
   public reset(): void {
-    const { bookId, appVersions } = this.progress;
+    const { experienceId, appVersions } = this.progress;
     this.game.update(draft => {
-      draft.progress = { ...createProgressRecord(bookId), appVersions: [...appVersions] };
+      draft.progress = { ...createProgressRecord(experienceId), appVersions: [...appVersions] };
     });
     this.storage.save(this.progress);
   }

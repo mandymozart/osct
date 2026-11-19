@@ -1,5 +1,5 @@
 import { ConsultationPage } from "./consultation-page";
-import { getBook } from "@/utils/game-config";
+import { getExperience } from "@/utils/game-config";
 import { t } from "i18next";
 import "@/components/settings";
 
@@ -8,7 +8,7 @@ import "@/components/settings";
  * Sections, in the design's order: info text with the link to the image credits (#292) · install as app · Account
  * (sign-in, progress explanation and reset, update options) · Settings (sound & vibration, language, then graphics and
  * the download, which the design leaves out – kept, RULES #1) · colophon, its lines as in the design (p. 61; no logo,
- * #297). The texts are placeholders until they move into the content (`book.yaml`). The image tracking library is credited in the project README, not here; its MIT
+ * #297). The texts are placeholders until they move into the content (`experience.yaml`). The image tracking library is credited in the project README, not here; its MIT
  * LICENSE is served next to the engine (`assets/xr8/LICENSE`).
  */
 export class AboutPage extends ConsultationPage {
@@ -22,8 +22,8 @@ export class AboutPage extends ConsultationPage {
   }
 
   get template(): string {
-    const book = getBook();
-    const params = { title: book.title, author: book.author };
+    const experience = getExperience();
+    const params = { title: experience.title, author: experience.book?.author ?? "" };
     const here = `<a href="/credits" data-action="credits">${t("about:here")}</a>`;
     return /* html */ `
       <div class="content">

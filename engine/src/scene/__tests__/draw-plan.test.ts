@@ -9,12 +9,12 @@ import "../post/index";
 describe("the passes a scene shows", () => {
   const book = { passes: [{ type: "vignette" }] };
 
-  it("the book's passes are the master for every scene without a list of its own", () => {
+  it("the experience's passes are the master for every scene without a list of its own", () => {
     expect(passesFor({}, book)).toEqual([{ type: "vignette" }]);
     expect(passesFor(undefined, book)).toEqual([{ type: "vignette" }]);
   });
 
-  it("a scene's own list overrides the book's, an empty one turns them off there", () => {
+  it("a scene's own list overrides the experience's, an empty one turns them off there", () => {
     expect(passesFor({ passes: [{ type: "bloom" }] }, book)).toEqual([{ type: "bloom" }]);
     expect(passesFor({ passes: [] }, book)).toEqual([]);
   });

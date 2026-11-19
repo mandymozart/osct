@@ -3,7 +3,7 @@ import {
   type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type TextureQuality, type PassData, type SceneInspection, ArState, type Target,
 } from "../types/index";
 import { type AppearanceData, type ExperienceAppearance, entityMomentAppearance, type Moment, nodeMomentLook } from "@shared/types/appearance";
-import { entityAssets, getAssets, getBook, getPasses, getPlugins, getScene, getScenes, getTargets } from "../content/game-config";
+import { entityAssets, getAssets, getExperience, getPasses, getPlugins, getScene, getScenes, getTargets } from "../content/game-config";
 import { type EnvironmentData, environmentOf } from "@shared/types/environment";
 import { focusAtTap } from "../utils/camera-request";
 import { Emitter } from "../utils/emitter";
@@ -44,7 +44,7 @@ export interface ArSceneOptions {
   createTracker: (context: TrackerContext) => IImageTracker;
   graphics?: GraphicsSource;
   /**
-   * The reader's progress for the plugins (`api.progress`, the `book` scope of `api.vars`): the reader passes an
+   * The reader's progress for the plugins (`api.progress`, the `experience` scope of `api.vars`): the reader passes an
    * adapter over its history, the editor its simulation – never a store (RULES #32). Without it nothing is unlocked.
    */
   progress?: ProgressReader;
@@ -57,7 +57,7 @@ export interface ArSceneOptions {
 }
 
 /**
- * The editor's preview of the book's environment (`ArScene.previewEnvironment`): the values being edited, and the
+ * The editor's preview of the experience's environment (`ArScene.previewEnvironment`): the values being edited, and the
  * camera's orientation in the world (y up) that turns the world instead of the gyroscope
  */
 export interface EnvironmentPreview {
@@ -91,7 +91,7 @@ export class ArScene implements IArScene {
   private stale = false;
 
   private view: ArView | null = null;
-  /** The world around the reader + its sky (3DoF, anchored to the book) (off per the reader's graphics options) */
+  /** The world around the reader + its sky (3DoF, anchored to the found surfaces) (off per the reader's graphics options) */
   private lookAround: LookAround | null = null;
   private environmentPreview: EnvironmentPreview | null = null;
   private tracker: IImageTracker | null = null;
@@ -122,7 +122,7 @@ export class ArScene implements IArScene {
   private overrides = new Map<string, EntityData>();
   /** The passes shown instead of the content's (the editor's live edit), until restored */
   private passOverride: PassData[] | null = null;
-  /** The book's looks played instead of the content's (the editor's live edit – `appearance: null` = none), until restored */
+  /** The experience's looks played instead of the content's (the editor's live edit – `appearance: null` = none), until restored */
   private appearanceOverride: { appearance: ExperienceAppearance | null } | null = null;
   private postProcessing = true;
   /** The editor's viewport shading, once it set one (the reader never does) */
@@ -169,8 +169,8 @@ export class ArScene implements IArScene {
 
   /**
    * The editor's environment preview (not part of `IArScene` – the reader never previews): the look-around world drawn
-   * with these values instead of the book's, whatever the graphics switches say, turned by the preview's orientation;
-   * `null` ends it (the book's environment and the switches again)
+   * with these values instead of the experience's, whatever the graphics switches say, turned by the preview's orientation;
+   * `null` ends it (the experience's environment and the switches again)
    */
   previewEnvironment(preview: EnvironmentPreview | null): void {
     this.environmentPreview = preview;
@@ -178,9 +178,9 @@ export class ArScene implements IArScene {
     this.lookAround?.setEnvironment(this.environment());
   }
 
-  /** The environment the look-around draws: the editor's preview, else the book's */
+  /** The environment the look-around draws: the editor's preview, else the experience's */
   private environment(): EnvironmentData {
-    return this.environmentPreview?.environment ?? environmentOf(getBook());
+    return this.environmentPreview?.environment ?? environmentOf(getExperience());
   }
 
   /** The first find's animation, the reveal (called by the bridge right after `targetFound`; replaces the found one) */
@@ -279,8 +279,8 @@ export class ArScene implements IArScene {
   }
 
   /**
-   * The editor's live edit of the book's looks (not part of `IArScene`): the next animations play these instead of the
-   * content's – `{ appearance: null }` = the book names none (the default look everywhere); `null` = the content's again.
+   * The editor's live edit of the experience's looks (not part of `IArScene`): the next animations play these instead of the
+   * content's – `{ appearance: null }` = the experience names none (the default look everywhere); `null` = the content's again.
    * A running animation plays on.
    */
   /**
@@ -302,11 +302,11 @@ export class ArScene implements IArScene {
 
   /**
    * The look a moment plays on a target's entity: its own (the components `reveal`, `found`, `lost` of its root node, as
-   * overridden by the editor), else the book's – the editor's override, else the content's (`entityMomentAppearance`)
+   * overridden by the editor), else the experience's – the editor's override, else the content's (`entityMomentAppearance`)
    */
   private momentLook(kind: Moment, target: Target): AppearanceData {
     const override = this.appearanceOverride;
-    return entityMomentAppearance(this.entityOf(target), override ? { appearance: override.appearance ?? undefined } : getBook(), kind);
+    return entityMomentAppearance(this.entityOf(target), override ? { appearance: override.appearance ?? undefined } : getExperience(), kind);
   }
 
   /**
@@ -336,7 +336,7 @@ export class ArScene implements IArScene {
     this.tracker?.gradeCamera?.(this.postProcessing ? cameraGradeShader(cameraGrades(passes)) : null);
   }
 
-  /** The passes a scene shows: the editor's override or the content's (the scene's own, else the book's) */
+  /** The passes a scene shows: the editor's override or the content's (the scene's own, else the experience's) */
   private passesOf(sceneId: string): readonly PassData[] {
     return this.passOverride ?? getPasses(sceneId);
   }
@@ -378,7 +378,7 @@ export class ArScene implements IArScene {
     this.animations.get(id)?.finish();
     this.animations.delete(id);
     if (!anchor.entity || !this.view) return;
-    // The root plays the entity's look for the moment (its own, else the book's) over the whole tree but the nodes that name
+    // The root plays the entity's look for the moment (its own, else the experience's) over the whole tree but the nodes that name
     // a look of their own: each of those animates its subtree with it – a built-in one or a plugin's
     const data = this.entityOf(anchor.target);
     const own: Array<{ object: Object3D; look: AppearanceData }> = [];
@@ -525,7 +525,7 @@ export class ArScene implements IArScene {
     this.started = false;
     this.running = false;
 
-    // 2. Swap the content (assets both scenes use stay loaded); the book's plugins load with the first scene
+    // 2. Swap the content (assets both scenes use stay loaded); the experience's plugins load with the first scene
     this.removeContent();
     const assets = getAssets(sceneId);
     this.assets.release(new Set(assets.map(a => a.id)));

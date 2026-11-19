@@ -49,10 +49,10 @@ describe("post-processing passes (content schema 2.5)", () => {
     })).toEqual(["passes[0].amount: expected a number from 0 to 1, got 2"]);
   });
 
-  it("the guard checks the book's and a scene's passes", () => {
+  it("the guard checks the experience's and a scene's passes", () => {
     const config = (passes: unknown, bookPasses?: unknown) => ({
       version: { version: "1.0.0", timestamp: "2026-10-29", schema: CONTENT_SCHEMA_VERSION },
-      book: { id: "b", title: "B", author: "A", ...(bookPasses !== undefined ? { passes: bookPasses } : {}) },
+      experience: { id: "b", title: "B", book: { author: "A" }, ...(bookPasses !== undefined ? { passes: bookPasses } : {}) },
       initialScene: "s",
       scenes: [{ id: "s", label: "S", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }], ...(passes !== undefined ? { passes } : {}) }],
       entries: [],
@@ -60,7 +60,7 @@ describe("post-processing passes (content schema 2.5)", () => {
     });
     expect(() => assertGameConfiguration(config([{ type: "bloom" }], [{ type: "vignette", strength: 0.3 }]))).not.toThrow();
     expect(() => assertGameConfiguration(config([{ type: "glow" }]))).toThrow(/scenes\[0\]\.passes\[0\]\.type/);
-    expect(() => assertGameConfiguration(config(undefined, [{ type: "grade", contrast: 5 }]))).toThrow(/book\.passes\[0\]\.contrast/);
+    expect(() => assertGameConfiguration(config(undefined, [{ type: "grade", contrast: 5 }]))).toThrow(/experience.passes\[0\]\.contrast/);
     expect(() => assertGameConfiguration(config([{ type: "grade", reach: "all", later: true }]))).not.toThrow();
     expect(() => assertGameConfiguration(config([{ type: "bloom", enabled: false }], [{ type: "vignette", enabled: true }]))).not.toThrow();
     expect(() => assertGameConfiguration(config([{ type: "bloom", enabled: "off" }]))).toThrow(/scenes\[0\]\.passes\[0\]\.enabled/);
