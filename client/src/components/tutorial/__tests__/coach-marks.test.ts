@@ -27,7 +27,7 @@ describe("coach marks' hole (#282)", () => {
   });
 
   it("reveals the page scroller first, then the icon", () => {
-    expect(COACH_MARKS.map(mark => mark.target.at(-1))).toEqual(["spread-menu", "mark-the-page"]);
+    expect(COACH_MARKS.map(mark => mark.target.at(-1))).toEqual(["scene-switcher", "mark-the-page"]);
   });
 });
 

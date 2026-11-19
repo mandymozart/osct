@@ -101,8 +101,8 @@ export const LOG_LINES = 50;
 /**
  * The Code tab's plugins (docs/plugins.md "Trying it: the Code tab"): the sources stored for the book (the
  * API's `plugins`), the plugins the content declares (compiled by the content build, loaded by the engine with the
- * spread), and **Run** – transpile in the browser, then import and install in the stage's registry under the plugin's
- * id, in the stage frame (the page runs no plugin code, #234), build the spread again. `version` counts the runs and the
+ * scene), and **Run** – transpile in the browser, then import and install in the stage's registry under the plugin's
+ * id, in the stage frame (the page runs no plugin code, #234), build the scene again. `version` counts the runs and the
  * registry's changes the frame reports: the Inspector's rows follow the registry (mirrored from the frame) through it.
  * `logs` are the plugins' lines from the stage (`api.log`, their errors), newest last, for the Code tab.
  * The Library lists the same sources as its scripts (#186): it uploads a script file as a new source, replaces one
@@ -200,7 +200,7 @@ class Plugins {
   /**
    * The Code tab's code is part of the live stage (#269): a frame that starts (the editor opens, the frame loads again)
    * gets every stored source – the text last run here if there is one, else the saved one – transpiled, imported and
-   * installed as a Run would, one after the other, then the spread built once. A source that fails keeps what ran
+   * installed as a Run would, one after the other, then the scene built once. A source that fails keeps what ran
    * before and says why (`status`); one that does not answer in `AUTO_LOAD_TIMEOUT_MS` counts as hanging the stage,
    * and a page that froze on it (the mark stays in the browser) skips it the next time it opens. The Code tab's log
    * and the Run's error stay the Run's.
@@ -327,7 +327,7 @@ class Plugins {
 
   /**
    * Run a plugin's source on the stage: transpile here, then import and install it in the stage frame (replacing the
-   * plugin's previous registrations), build the spread again so its effect shows. Returns true when it ran; the error
+   * plugin's previous registrations), build the scene again so its effect shows. Returns true when it ran; the error
    * is in `runError` otherwise. The log starts anew with every Run.
    */
   async run(id: string, source: string, stage: RunStage | null): Promise<boolean> {
@@ -342,7 +342,7 @@ class Plugins {
         return false;
       }
       if (!stage) {
-        this.runError = { plugin: id, message: "The stage is not running – open a spread to run the code", line: null };
+        this.runError = { plugin: id, message: "The stage is not running – open a scene to run the code", line: null };
         return false;
       }
       const ran = await stage.runPlugin(id, result.code);
@@ -355,7 +355,7 @@ class Plugins {
       if (this.stored.some(p => p.id === id)) this.status.set(id, this.stateOf(id, source));
       this.lastRun = { plugin: id, types: ran.types };
       this.version += 1;
-      // The spread is built again from the new registrations: a node whose type failed before builds anew
+      // The scene is built again from the new registrations: a node whose type failed before builds anew
       await stage.refresh();
       return (await this.switchPending(id, stage)) && this.builtOnStage(id);
     } catch (e) {

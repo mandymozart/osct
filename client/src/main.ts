@@ -88,7 +88,7 @@ export class BookGame extends HTMLElement {
     <pages-router>
       <about-page></about-page>
       <credits-page></credits-page>
-      <spread-page></spread-page>
+      <scene-page></scene-page>
       <splash-page></splash-page>
       <entries-page></entries-page>
       <entry-page></entry-page>

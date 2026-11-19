@@ -21,7 +21,7 @@ const COACH_TEXTS: Record<CoachMark["id"], () => { text: string; button: string 
 
 /** The two steps over the first scan (design p. 15–16): the page scroller at the bottom, then the icon at the top */
 export const COACH_MARKS: readonly CoachMark[] = [
-  { id: "scroller", target: ["spread-page", "spread-menu"], shape: "pill" },
+  { id: "scroller", target: ["scene-page", "scene-switcher"], shape: "pill" },
   { id: "icon", target: ["game-header", "mark-the-page"], shape: "ellipse" },
 ];
 
@@ -64,7 +64,7 @@ const findThroughShadows = (root: ParentNode, path: readonly string[]): HTMLElem
  *
  * An overlay only: it changes neither the mode nor the route (RULES #2) and never touches the AR scene (RULES #4); the
  * camera picture keeps running under the veil. It covers the scan view and its header and takes the taps, so nothing
- * underneath activates a spread while it shows. Shown in scan mode on the spread page only – it hides on every other
+ * underneath activates a scene while it shows. Shown in scan mode on the scene page only – it hides on every other
  * route and comes back on the next scan until it was finished. The hole follows its element on every frame while it
  * shows (page transitions, rotation, the text size). No motion with reduced motion.
  */
@@ -104,10 +104,10 @@ export class CoachMarks extends HTMLElement {
     this.stopFollowing();
   }
 
-  /** Whether the coach marks show now: scan mode on the spread page, not yet seen */
+  /** Whether the coach marks show now: scan mode on the scene page, not yet seen */
   get active(): boolean {
     const state = this.game.state;
-    return state.mode === GameMode.SCAN && state.currentRoute?.page === Pages.SPREAD && !state.progress.coached;
+    return state.mode === GameMode.SCAN && state.currentRoute?.page === Pages.SCENE && !state.progress.coached;
   }
 
   private update() {

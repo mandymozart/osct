@@ -30,7 +30,7 @@ import { type Feedback, feedbackProblems, type FeedbackOptions, shadertoyFragmen
  *      registry, so the nodes that use them are checked like the built-in `animation`; the node types it registers
  *      join the node type registry, so nodes of that type pass (their parameters and file checked); its materials and
  *      procedural textures (API 1.4) join theirs, so a node's `material` and a `texture` parameter are checked; its
- *      passes are recorded, so the book's and the spreads' `passes` may name them (schema 2.21, `build/book.ts`).
+ *      passes are recorded, so the book's and the scenes' `passes` may name them (schema 2.21, `build/book.ts`).
  *      A feedback buffer (API 1.6, `api.feedback`) is no registration: the recording run checks its options and hands
  *      out a dummy handle (a texture that never changes), so a plugin that makes one in `register` records like any;
  *   4. declares it in `game.config.json`: `plugins: [{ id, src, api, registered }]` – `registered` (schema 2.14) the
@@ -216,7 +216,7 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
         take(type, spec);
         if (types.includes(type)) layerTypes.add(type);
       },
-      // A pass: its spec and factory checked and recorded – the book and a spread name it in `passes` (schema 2.21,
+      // A pass: its spec and factory checked and recorded – the book and a scene name it in `passes` (schema 2.21,
       // checked against the recorded spec); a built-in pass's name or one another plugin took is an error
       registerPass: (type: string, spec: ComponentSpec, factory: unknown) => {
         const problems = componentSpecProblems(type, spec).filter(problem => !problem.endsWith('is a built-in component'));
@@ -295,11 +295,11 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
         types.push(type);
         registered.textures[type] = plain(spec);
       },
-      // The runtime (events, variables, progress, the spread) belongs to a running scene: here nothing happens
+      // The runtime (events, variables, progress, the scene) belongs to a running scene: here nothing happens
       events: { on: () => () => undefined, emit: () => undefined },
       vars: { get: () => undefined, set: () => undefined, on: () => () => undefined, all: () => ({}) },
       progress: { unlocked: () => false, consulted: () => false, completion: () => 0, counts: () => ({ unlocked: 0, targets: 0 }) },
-      spread: { current: null, get: () => undefined },
+      scene: { current: null, get: () => undefined },
       // A file is loaded where a build runs (a material, a pass, a node type) – never while recording
       loadText: () => Promise.resolve(''),
       loadModel: () => new Promise<never>(() => undefined),

@@ -31,7 +31,7 @@ export function resolveEnvironment(environment: unknown, contentDir = CONTENT_DI
 }
 
 /**
- * A `passes` list of the book or a spread, checked against the specs: the built-in passes and – schema 2.21 – the
+ * A `passes` list of the book or a scene, checked against the specs: the built-in passes and – schema 2.21 – the
  * plugins' passes the build recorded (`pluginPasses`, type → spec); a list beyond the phone budget is a warning
  */
 export function checkedPasses(passes: unknown, label: string, pluginPasses: ReadonlyMap<string, PassSpec> = new Map()): PassData[] {

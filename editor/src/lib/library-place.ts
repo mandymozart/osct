@@ -54,20 +54,20 @@ export interface LibraryGroup {
  */
 export function groupByScene(assets: readonly Asset[], scenes: readonly { id: string; label: string }[]): LibraryGroup[] {
   const titles = new Map(scenes.map(scene => [scene.id, scene.label || scene.id]));
-  const bySpread = new Map<string, Asset[]>();
+  const byScene = new Map<string, Asset[]>();
   const bookWide: Asset[] = [];
   const unused: Asset[] = [];
   for (const asset of assets) {
     const place = asset.place;
     if (!place) unused.push(asset);
-    else if (place.scene && titles.has(place.scene)) bySpread.set(place.scene, [...(bySpread.get(place.scene) ?? []), asset]);
+    else if (place.scene && titles.has(place.scene)) byScene.set(place.scene, [...(byScene.get(place.scene) ?? []), asset]);
     else bookWide.push(asset);
   }
   const sorted = (list: Asset[]) =>
     [...list].sort((a, b) => (a.place?.order ?? -1) - (b.place?.order ?? -1) || assetLabel(a).localeCompare(assetLabel(b)));
   const groups: LibraryGroup[] = [];
   for (const scene of scenes) {
-    const list = bySpread.get(scene.id);
+    const list = byScene.get(scene.id);
     if (list) groups.push({ key: `scene:${scene.id}`, label: titles.get(scene.id) ?? scene.id, assets: sorted(list) });
   }
   if (bookWide.length) groups.push({ key: "book", label: "Not in a scene", assets: sorted(bookWide) });

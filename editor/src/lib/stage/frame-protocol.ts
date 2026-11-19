@@ -62,7 +62,7 @@ export interface FrameInit {
 export interface StageState {
   status: ArStatus;
   error: string | null;
-  spreadId: string | null;
+  sceneId: string | null;
   found: string[];
   /** The subtitle line of the video that plays (the scene's `subtitle`), null when there is none */
   subtitle: string | null;
@@ -185,7 +185,7 @@ const isSurface = (value: unknown): value is SurfaceSnapshot =>
   isObject(value) && isId(value.id) && isFiniteNumber(value.widthMm) && isFiniteNumber(value.heightMm) && typeof value.flat === "boolean";
 
 /**
- * The keys a frame may forward to the page: Shift and Control (snapping turned around), ← → (the spreads), the tools'
+ * The keys a frame may forward to the page: Shift and Control (snapping turned around), ← → (the scenes), the tools'
  * keys, Delete / Backspace (the node the page selected, removed like every edit of it), Escape. Nothing else
  * reaches the page's shortcuts.
  */
@@ -207,7 +207,7 @@ const CHECKS: { [N in FrameEventName]: (data: unknown) => boolean } = {
   ready: data => data === null,
   hover: data => data === null,
   state: data => isObject(data) && AR_STATUSES.includes(data.status as ArStatus) && (data.error === null || isString(data.error))
-    && (data.spreadId === null || isId(data.spreadId)) && Array.isArray(data.found) && data.found.every(isId)
+    && (data.sceneId === null || isId(data.sceneId)) && Array.isArray(data.found) && data.found.every(isId)
     && (data.subtitle === null || isString(data.subtitle))
     && Array.isArray(data.pickFilter) && data.pickFilter.every(kind => PICK_KINDS.includes(kind as PickKind))
     && SHADING_MODES.includes(data.shading as ShadingMode) && typeof data.world === "boolean" && STAGE_TOOLS.includes(data.tool as StageTool),

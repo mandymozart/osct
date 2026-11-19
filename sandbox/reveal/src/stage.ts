@@ -142,7 +142,7 @@ export class Stage {
     this.unload();
     this.assetId = id;
     this.entityData = { type: "model", assets: [{ id, assetType: "glb", src }], params: this.paramsOf(placement) };
-    const target = { id: "sandbox", entryId: "sandbox", spreadId: "sandbox", imageSrc: "", entity: this.entityData } as Target;
+    const target = { id: "sandbox", entryId: "sandbox", sceneId: "sandbox", imageSrc: "", entity: this.entityData } as Target;
     this.instance = buildEntity(target, asset => this.assets.get(asset));
     if (!this.instance) throw new Error("The engine built no entity from this file");
     this.anchor.add(this.instance.object);
@@ -229,9 +229,9 @@ export class Stage {
         this.scene.tilt = Math.round(Math.min(85, Math.max(0, this.scene.tilt - dy * 0.3)));
       } else if (this.pointers.size === 2) {
         const [a, b] = [...this.pointers.values()];
-        const spread = Math.hypot(a.x - b.x, a.y - b.y);
-        if (this.pinch) this.zoom(this.pinch / spread);
-        this.pinch = spread;
+        const scene = Math.hypot(a.x - b.x, a.y - b.y);
+        if (this.pinch) this.zoom(this.pinch / scene);
+        this.pinch = scene;
       }
       this.onOrbit();
     });

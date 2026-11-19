@@ -21,7 +21,7 @@
   import { nextMenuIndex, placeMenu, typeaheadIndex, type Point } from "#lib/context-menu.js";
 
   /**
-   * The editor's context menu (the stage's right click; a spread card's or a tree row's right click / long press / menu
+   * The editor's context menu (the stage's right click; a scene card's or a tree row's right click / long press / menu
    * key): a WAI-ARIA menu at a point of the viewport, kept on the screen. The first item takes the focus; arrows, Home /
    * End and the first letter move it, Enter or Space chooses, Esc, Tab, a click beside it or a scroll close it, and the
    * focus goes back to `returnFocus` (by default what had it before). Choosing an item closes the menu first, then runs

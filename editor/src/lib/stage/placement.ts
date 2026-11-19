@@ -10,7 +10,7 @@ import { DEFAULT_FRAME, findSurface, onOtherSurface, toStage, type SurfaceFrame,
  */
 
 /** A printed image's place: its surface and its box (mm from the surface's top left corner) */
-export interface PrintBox {
+export interface PlaceBox {
   surface: string;
   x: number;
   y: number;
@@ -22,7 +22,7 @@ export interface PrintBox {
 /** A print's height per width while its image has not loaded and the place stores none */
 export const DEFAULT_ASPECT = 0.75;
 /** The narrowest print the handles make (mm) */
-export const MIN_PRINT_WIDTH = 10;
+export const MIN_PLACE_WIDTH = 10;
 
 /** Where the surfaces lie: the open scene's surfaces in the stage frame (`surfaces.ts`); a place's `surface` is one's id */
 export type Surfaces = readonly SurfaceFrame[];
@@ -48,28 +48,28 @@ export const surfaceAxes = (surfaces: Surfaces, surface: string): { x: V3; y: V3
 };
 
 /** The printed height (mm): the image's aspect once known, else the stored height, else the default aspect */
-export const printedHeight = (box: Pick<PrintBox, "width" | "height">, aspect?: number | null): number =>
+export const placeHeight = (box: Pick<PlaceBox, "width" | "height">, aspect?: number | null): number =>
   aspect && aspect > 0 ? box.width * aspect : box.height && box.height > 0 ? box.height : box.width * DEFAULT_ASPECT;
 
 /**
  * The print's centre in the stage's frame (mm; on the table x right, y up the page, z up) – where its plane lies and
  * where the tracker anchors its entity. On a wall or a turned surface it lies in that surface's plane.
  */
-export const printCentre = (box: PrintBox, surfaces: Surfaces, aspect?: number | null): { x: number; y: number; z: number } => {
-  const height = printedHeight(box, aspect);
+export const placeCentre = (box: PlaceBox, surfaces: Surfaces, aspect?: number | null): { x: number; y: number; z: number } => {
+  const height = placeHeight(box, aspect);
   const [x, y, z] = toStage(frameFor(surfaces, box.surface), box.x + box.width / 2, box.y + height / 2);
   return { x: tidy(x), y: tidy(y), z: tidy(z) };
 };
 
 /** A point on a surface: the surface it lies on (its id) and mm from that surface's top left corner */
-export interface PageHit {
+export interface SurfaceHit {
   surface: string;
   x: number;
   y: number;
 }
 
 /** A point on a surface read on another surface (mm from its top left corner): the same point of the stage */
-const onSurface = (hit: PageHit, surface: string, surfaces: Surfaces): { x: number; y: number } =>
+const onSurface = (hit: SurfaceHit, surface: string, surfaces: Surfaces): { x: number; y: number } =>
   onOtherSurface(frameFor(surfaces, hit.surface), frameFor(surfaces, surface), hit.x, hit.y);
 
 /** A drag of a print's handle: the image (move) or its bottom right corner (width), with the grab point inside the image */
@@ -80,7 +80,7 @@ export interface PlacementDrag {
 }
 
 /** The grab point inside the image (mm), so the image does not jump to the pointer when a drag starts */
-export const grabOffset = (place: PrintBox, hit: PageHit, surfaces: Surfaces): { grabX: number; grabY: number } => {
+export const grabOffset = (place: PlaceBox, hit: SurfaceHit, surfaces: Surfaces): { grabX: number; grabY: number } => {
   const at = onSurface(hit, place.surface, surfaces);
   return { grabX: tidy(at.x - place.x), grabY: tidy(at.y - place.y) };
 };
@@ -92,21 +92,21 @@ export const withWidth = <P extends { width: number; height?: number }>(place: P
 /**
  * Where a drag puts the print (whole mm): a move keeps the grab point under the pointer and takes the surface the
  * pointer is over (across the spine it changes the page); the corner sets the width from the image's left edge, on
- * the image's own surface, never under `MIN_PRINT_WIDTH`
+ * the image's own surface, never under `MIN_PLACE_WIDTH`
  */
-export const draggedPlace = <P extends PrintBox>(place: P, drag: PlacementDrag, hit: PageHit, surfaces: Surfaces): P => {
+export const draggedPlace = <P extends PlaceBox>(place: P, drag: PlacementDrag, hit: SurfaceHit, surfaces: Surfaces): P => {
   if (drag.kind === "move") {
     // The grab offset is a distance on the surface: it holds on whichever surface the pointer is over
     return { ...place, surface: hit.surface, x: Math.round(hit.x - drag.grabX), y: Math.round(hit.y - drag.grabY) };
   }
-  const width = Math.max(MIN_PRINT_WIDTH, Math.round(onSurface(hit, place.surface, surfaces).x - place.x));
+  const width = Math.max(MIN_PLACE_WIDTH, Math.round(onSurface(hit, place.surface, surfaces).x - place.x));
   return withWidth(place, width);
 };
 
 /** A place shown instead of the content's while it is edited: the target's id and where it lies now */
 export interface LivePlacement {
   id: string;
-  place: PrintBox;
+  place: PlaceBox;
 }
 
 /**

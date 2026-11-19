@@ -6,10 +6,10 @@ import { nodeLabel } from "./tree";
  * The editor's one selection (#162), shared by the tree, the stage and the Inspector: a **target** (its printed
  * image – the Inspector shows its target fields, the stage outlines the print), its **entity** (the root node) or
  * a **node** below it (the Inspector at that node, the gizmo on it). A target without AR content can only be
- * selected as the target. The tree's top rows select too (#227): the **spread** (the Inspector shows it, no target
+ * selected as the target. The tree's top rows select too (#227): the **scene** (the Inspector shows it, no target
  * or node on the stage) and an **entry** (the Inspector shows the entry; with a target, `target` is it, so the stage
  * outlines its print as for a selected target). The top bar's ⚙ after the book's crumb selects the **book** (#237: the Inspector shows
- * its texts and settings, nothing on the stage). Nothing selected is the spread (#229, `settledSelection`). The pure
+ * its texts and settings, nothing on the stage). Nothing selected is the scene (#229, `settledSelection`). The pure
  * rules – the level, one level up, the breadcrumb – live here, the tree's rows in `tree-rows.ts`; the shared state is
  * `selection.svelte.ts`.
  */
@@ -22,11 +22,11 @@ export interface SelectionState {
   node: number[];
   /** The target itself is selected, not a node of its entity */
   onTarget: boolean;
-  /** The spread itself is selected (the tree's top row, #227; nothing else selected, #229): no target, no node */
-  spread?: boolean;
+  /** The scene itself is selected (the tree's top row, #227; nothing else selected, #229): no target, no node */
+  scene?: boolean;
   /** An entry is selected (its id, #227); `target` is its target or null for an entry without one */
   entry?: string | null;
-  /** The book is selected (the top bar's ⚙, #237): no spread, target, node or entry */
+  /** The book is selected (the top bar's ⚙, #237): no scene, target, node or entry */
   book?: boolean;
   /** A group is selected (its id – a band of the Scenes panel, #307): the Inspector shows the group, nothing on the stage */
   group?: string | null;
@@ -44,15 +44,15 @@ export interface SurfaceRef {
 }
 
 /**
- * A selection as the workspace keeps it (#229): the spread when nothing else is selected – no target, no entry – so the
- * tree highlights its row and the Inspector shows it; the spread selected names no target, node or entry
+ * A selection as the workspace keeps it (#229): the scene when nothing else is selected – no target, no entry – so the
+ * tree highlights its row and the Inspector shows it; the scene selected names no target, node or entry
  */
 export const settledSelection = (selection: SelectionState): SelectionState => {
-  if (selection.book) return { target: null, node: [], onTarget: true, spread: false, entry: null, book: true };
-  if (selection.group) return { target: null, node: [], onTarget: true, spread: false, entry: null, group: selection.group };
-  if (selection.surface) return { target: null, node: [], onTarget: true, spread: false, entry: null, surface: { scene: selection.surface.scene, id: selection.surface.id } };
-  if (selection.spread || (!selection.target && !selection.entry)) return { target: null, node: [], onTarget: true, spread: true, entry: null };
-  return { ...selection, spread: false, entry: selection.entry ?? null };
+  if (selection.book) return { target: null, node: [], onTarget: true, scene: false, entry: null, book: true };
+  if (selection.group) return { target: null, node: [], onTarget: true, scene: false, entry: null, group: selection.group };
+  if (selection.surface) return { target: null, node: [], onTarget: true, scene: false, entry: null, surface: { scene: selection.surface.scene, id: selection.surface.id } };
+  if (selection.scene || (!selection.target && !selection.entry)) return { target: null, node: [], onTarget: true, scene: true, entry: null };
+  return { ...selection, scene: false, entry: selection.entry ?? null };
 };
 
 /** The level of a selection: a target without a tree is always selected as the target */
@@ -62,10 +62,10 @@ export const selectionLevel = (selection: SelectionState, hasTree: boolean): Sel
   return selection.node.length ? "node" : "entity";
 };
 
-/** One level up: a node → its parent, the entity → its target, a surface → the spread; the target (an entry, the spread) stays */
+/** One level up: a node → its parent, the entity → its target, a surface → the scene; the target (an entry, the scene) stays */
 export const parentSelection = (selection: SelectionState): SelectionState => {
-  if (selection.surface) return { target: null, node: [], onTarget: true, spread: true };
-  if (selection.book || selection.group || selection.spread || selection.entry || !selection.target || selection.onTarget) return { ...selection, node: [] };
+  if (selection.surface) return { target: null, node: [], onTarget: true, scene: true };
+  if (selection.book || selection.group || selection.scene || selection.entry || !selection.target || selection.onTarget) return { ...selection, node: [] };
   if (!selection.node.length) return { target: selection.target, node: [], onTarget: true };
   return { target: selection.target, node: selection.node.slice(0, -1), onTarget: false };
 };

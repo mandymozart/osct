@@ -49,7 +49,7 @@ describe("post-processing passes (content schema 2.5)", () => {
     })).toEqual(["passes[0].amount: expected a number from 0 to 1, got 2"]);
   });
 
-  it("the guard checks the book's and a spread's passes", () => {
+  it("the guard checks the book's and a scene's passes", () => {
     const config = (passes: unknown, bookPasses?: unknown) => ({
       version: { version: "1.0.0", timestamp: "2026-10-29", schema: CONTENT_SCHEMA_VERSION },
       book: { id: "b", title: "B", author: "A", ...(bookPasses !== undefined ? { passes: bookPasses } : {}) },

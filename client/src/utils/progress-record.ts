@@ -58,6 +58,9 @@ const readFormat1 = (raw: Record<string, unknown>, bookId: string): ProgressReco
 /** One reader per storage format, each returns the current shape */
 export const PROGRESS_READERS: Record<number, (raw: Record<string, unknown>, bookId: string) => ProgressRecord> = {
   1: readFormat1,
+  // Format 2 (app 2.x, content schema 3.0): the same shape – read by the same reader, a format-1 record's
+  // `lastSpreadId` dropped there
+  2: readFormat1,
 };
 
 /** Same JSON value (key order ignored) */
@@ -105,7 +108,7 @@ const union = (a: Record<string, number>, b: Record<string, number>): Record<str
 
 /**
  * Merges two records of the same book (account sync): union of unlocked and consulted ids with the
- * earliest time, onboarded (and coached) if either was; this device's last spread / category and variables win, the other's fill
+ * earliest time, onboarded (and coached) if either was; this device's last scene / category and variables win, the other's fill
  * gaps.
  */
 export const mergeProgress = (local: ProgressRecord, other: ProgressRecord): ProgressRecord => ({

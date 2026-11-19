@@ -14,7 +14,7 @@ export const NEWER_CONTENT_SEEN_KEY = "osct-newer-content-seen";
  * version took over, or a code file could not be loaded (`UpdateService`) – with *Reload* and a cross (*Later*). It
  * shows only at a calm moment (`new-version.ts`): hidden while the camera or AR runs, it comes back once the reader
  * leaves the scan. It never reloads by itself. *Later* hides it until a code file fails to load again or another
- * version takes over. In the scan view (AR failed) it sits above the spread menu.
+ * version takes over. In the scan view (AR failed) it sits above the scene menu.
  *
  * When the book uses features this app version does not know (`getSkippedFeatures()`, RULES #10) it first says so,
  * once per book version: shown once, the version is remembered on the device, and the cross closes the hint for the
@@ -76,7 +76,7 @@ export class NewVersionNotice extends HTMLElement {
     if (message === "newer-content" && this.message !== "newer-content") writeSeen(bookVersion());
     this.message = message;
     this.toggleAttribute("shown", !!message);
-    this.toggleAttribute("scan", page === Pages.SPREAD);
+    this.toggleAttribute("scan", page === Pages.SCENE);
     const root = this.shadowRoot;
     root?.querySelector(".notice")?.toggleAttribute("hidden", !message);
     const text = root?.querySelector(".text");

@@ -107,5 +107,5 @@ export const pickFit = (subject: PickSubject): ImageFit | undefined =>
 export const pickAccept = (subject: PickSubject): string => acceptOf(pickKinds(subject));
 
 /** The printed images the draft's targets use */
-export const targetImagesOf = (spreads: readonly { targets: readonly { imageSrc?: string }[] }[]): Set<string> =>
-  new Set(spreads.flatMap(spread => spread.targets.map(target => target.imageSrc ?? "")).filter(Boolean));
+export const targetImagesOf = (scenes: readonly { targets: readonly { imageSrc?: string }[] }[]): Set<string> =>
+  new Set(scenes.flatMap(scene => scene.targets.map(target => target.imageSrc ?? "")).filter(Boolean));

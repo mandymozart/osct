@@ -40,7 +40,7 @@ export type RouteParam = {
 export enum Pages {
   SPLASH = "splash",
   TUTORIAL = "tutorial",
-  SPREAD = "spread",
+  SCENE = "scene",
   ABOUT = "about",
   /** Image credits, from Info (#292) */
   CREDITS = "credits",

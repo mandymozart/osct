@@ -10,7 +10,7 @@ import { BACKDROP_LAYER } from "@engine/scene/view";
 import { setDeviceStorage } from "@engine/utils/device-storage";
 import { getBook, getTarget, getTargets } from "@engine/content/game-config";
 import { type BookAppearance, type Moment, momentDuration } from "@shared/types/appearance";
-import { SceneState, type ArStatus, type EntityData, type NodeTimeline, type PassData } from "@engine/types";
+import { ArState, type ArStatus, type EntityData, type NodeTimeline, type PassData } from "@engine/types";
 import { deviceStorage } from "#lib/storage.js";
 import { Gizmo, isGizmoTool, type GizmoPlacement, type GizmoSelection, type StageTool } from "./gizmo";
 import { SurfaceGizmo, type SurfaceGizmoMode } from "./surface-gizmo";
@@ -25,7 +25,7 @@ import { StageProgress } from "./progress";
 import { describePayload, logEvent, type StageEvent } from "./event-log";
 import { REMOVED_ENTITY } from "./frame-protocol";
 import { modelOf, nearPointer, nodeOf, PICK_KINDS, pickable, pickByFilter, pickForMenu, samePick, type PickFilter, type PickKind, type StageHit, type StagePick } from "./pick";
-import { DEFAULT_ASPECT, draggedPlace, grabOffset, printedHeight, type PlacementDrag, type Surfaces } from "./placement";
+import { DEFAULT_ASPECT, draggedPlace, grabOffset, placeHeight, type PlacementDrag, type Surfaces } from "./placement";
 import { SceneSnapper } from "./snap-scene";
 import type { StageFrame } from "./snap";
 import { findSurface, ownRect, surfaceRects, type SurfaceFrame, type SurfaceReferences } from "./surfaces";
@@ -47,11 +47,11 @@ const DRAGGED_PLACE_MS = 6000;
 /**
  * The editor's stage as it runs in the stage frame (#234, `frame-host.svelte.ts` – the sandbox the book's plugins run
  * in; the page talks to it through `stage.svelte.ts`): the engine's `ArScene` with the mock tracker and the mock stage
- * instead of a camera, and the editor's simulation of the game around it – which spread is open, which targets the
+ * instead of a camera, and the editor's simulation of the game around it – which scene is open, which targets the
  * "camera" sees, which were found for the first time (the unlock animation plays once per target, *replay* plays it
  * again), and the reader's progress for the book's plugins (`StageProgress`: unlocked targets, book variables – the
  * engine's `api.progress`). The reader's store does none of this here: the editor owns its state. For the Inspector it
- * keeps the plugins' variables and the stage's event timeline (`vars`, `events` – each event timed from the spread's
+ * keeps the plugins' variables and the stage's event timeline (`vars`, `events` – each event timed from the scene's
  * opening), and lets the author act like the book's code or a reader would: set a variable through the plugin API
  * (`setVar`), tap a found target without aiming at it (`tap`). The live overrides are the page's: it sends each one
  * (`override`), and a gizmo drag only reports the placement (`onPlacement`) for the page to write.
@@ -79,7 +79,7 @@ export class StageCore {
 
   status = $state<ArStatus>("idle");
   error = $state<string | null>(null);
-  spreadId = $state<string | null>(null);
+  sceneId = $state<string | null>(null);
   /** Targets the tracker reports found right now */
   found = $state<string[]>([]);
   /** The subtitle line of the video that plays, null when there is none */
@@ -97,7 +97,7 @@ export class StageCore {
   /** The viewport's shading (stored with the preview settings) */
   shading = $state<ShadingMode>(getPreview().shading);
 
-  private scene: ArScene;
+  private arScene: ArScene;
   private tracker: MockTracker | null = null;
   private mockStage: MockStage | null = null;
   /** The book's environment on the stage (its draft's or the values being edited), null = the book has none */
@@ -109,7 +109,7 @@ export class StageCore {
   private lookUp = 0;
   private orientation = new Quaternion();
   private gizmo: Gizmo | null = null;
-  /** The helpers of the spread's light nodes (Blender-style, the editor's only) */
+  /** The helpers of the scene's light nodes (Blender-style, the editor's only) */
   private lightHelpers: LightHelpers | null = null;
   private selection: GizmoSelection | null = null;
   /** The tool in hand (reactive: the toolbar shows it): select – no gizmo – or a gizmo mode */
@@ -120,8 +120,8 @@ export class StageCore {
   vars = $state<Array<{ scope: VarScope; name: string; value: VarValue }>>([]);
   /** The stage's event timeline, newest first */
   events = $state<StageEvent[]>([]);
-  /** When the spread on the stage opened (or the game was reset): the timeline counts from here */
-  private spreadOpenedAt = performance.now();
+  /** When the scene on the stage opened (or the game was reset): the timeline counts from here */
+  private sceneOpenedAt = performance.now();
   /** The plugin API's variables, as the Inspector writes them – the same checks and `varChanged` as a plugin's `set` */
   private panelVars = runtimeApi("stage").vars;
   /** Entities shown with other values than the draft's, by target id (the page's overrides, as it sent them) */
@@ -140,9 +140,9 @@ export class StageCore {
     surfaceGrid: surface => surfaceGridOf(getPreview(), surface),
     modifier: () => this.snapModifier,
     objects: () => this.nodeObjects(),
-    prints: () => this.tracker?.printedBoxes() ?? [],
+    prints: () => this.tracker?.placedBoxes() ?? [],
     view: () => {
-      const inspection = this.scene.inspect();
+      const inspection = this.arScene.inspect();
       return inspection ? { camera: inspection.camera, height: this.container.clientHeight } : null;
     },
     guides: guides => this.tracker?.setGuides(guides),
@@ -151,7 +151,7 @@ export class StageCore {
   constructor(container: HTMLElement) {
     setPreviewActive(true);
     setDeviceStorage(deviceStorage);
-    const scene = new ArScene(container, {
+    const arScene = new ArScene(container, {
       // No surroundings on the stage; models with a texture set show the map size the view menu asks for (#260)
       graphics: {
         getSettings: () => ({ onionSky: false, surroundings: false, textureQuality: getPreview().textureQuality }),
@@ -171,9 +171,9 @@ export class StageCore {
       progress: this.progress.reader(),
       debug: import.meta.env.DEV,
     });
-    this.scene = scene;
+    this.arScene = arScene;
     this.cleanups.push(
-      scene.on("status", (status, error) => {
+      arScene.on("status", (status, error) => {
         this.status = status;
         this.error = status === "error" ? error?.message ?? "unknown" : null;
         if (status === "running") {
@@ -189,24 +189,24 @@ export class StageCore {
           this.applyEnvironment();
         }
       }),
-      scene.on("targetFound", id => {
+      arScene.on("targetFound", id => {
         if (!this.found.includes(id)) this.found = [...this.found, id];
         this.shade();
         // The first find unlocks: the entity's unlock animation plays (replaces the reveal)
-        if (this.progress.unlock(id)) scene.celebrate(id);
+        if (this.progress.unlock(id)) arScene.celebrate(id);
       }),
-      scene.on("targetLost", id => {
+      arScene.on("targetLost", id => {
         this.found = this.found.filter(found => found !== id);
       }),
-      scene.on("subtitle", text => {
+      arScene.on("subtitle", text => {
         this.subtitle = text;
       }),
       // The plugins' events and variables for the panel
       observeEvents((event, payload) => {
         const now = performance.now();
-        if (event === "spreadChanged") this.spreadOpenedAt = now;
-        this.events = logEvent(this.events, { event, detail: describePayload(payload), at: now - this.spreadOpenedAt });
-        if (event === "varChanged" || event === "spreadChanged") this.vars = allVars();
+        if (event === "sceneChanged") this.sceneOpenedAt = now;
+        this.events = logEvent(this.events, { event, detail: describePayload(payload), at: now - this.sceneOpenedAt });
+        if (event === "varChanged" || event === "sceneChanged") this.vars = allVars();
       }),
     );
     // Picking is the editor's own: a click (not the one that ends a gizmo drag; the tracker swallows an orbit's)
@@ -257,9 +257,9 @@ export class StageCore {
    * node it belongs to; hidden targets and the editor's own lines do not count) and the printed images
    */
   private hits(clientX: number, clientY: number): StageHit[] {
-    const inspection = this.scene.inspect();
-    const spread = this.spreadId;
-    if (!inspection || !spread) return [];
+    const inspection = this.arScene.inspect();
+    const scene = this.sceneId;
+    if (!inspection || !scene) return [];
     const rect = this.container.getBoundingClientRect();
     const point = new Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(point, inspection.camera);
@@ -267,7 +267,7 @@ export class StageCore {
     // The entities' nodes: every placement group by its object, for the climb from a hit mesh
     const byObject = new Map<Object3D, { targetId: string; path: number[]; model: number[] | null }>();
     const roots: Object3D[] = [];
-    for (const target of getTargets(spread)) {
+    for (const target of getTargets(scene)) {
       const tree = this.treeOf(target.id);
       if (!tree) continue;
       const nodes = entityNodes(tree);
@@ -284,7 +284,7 @@ export class StageCore {
       if (node) found.push({ distance: hit.distance, hit: { kind: "node", ...node } });
     }
     // The printed images: the targets themselves
-    for (const hit of this.raycaster.intersectObjects(this.tracker?.printedPlanes() ?? [], false)) {
+    for (const hit of this.raycaster.intersectObjects(this.tracker?.targetPlanes() ?? [], false)) {
       const targetId = hit.object.userData.targetId as string | undefined;
       if (targetId && pickable(hit.object)) found.push({ distance: hit.distance, hit: { kind: "print", targetId } });
     }
@@ -346,7 +346,7 @@ export class StageCore {
         this.hover(null);
         const surface = this.surfaceAt(at.x, at.y)?.surfaceId ?? null;
         this.mockStage?.setSurfaceHover(surface);
-        const canvas = this.scene.inspect()?.domElement;
+        const canvas = this.arScene.inspect()?.domElement;
         if (canvas) canvas.style.cursor = surface ? "pointer" : "";
         return;
       }
@@ -366,7 +366,7 @@ export class StageCore {
     if (!again && samePick(pick, this.hovered?.pick ?? null)) return;
     this.hovered?.outline?.remove();
     this.hovered = null;
-    const canvas = this.scene.inspect()?.domElement;
+    const canvas = this.arScene.inspect()?.domElement;
     if (canvas) canvas.style.cursor = pick ? "pointer" : "";
     if (!pick) return;
     const object = this.isSelected(pick) ? null : this.pickedObject(pick);
@@ -375,8 +375,8 @@ export class StageCore {
 
   /** The object a pick stands for: the printed image, or the node's placement group */
   private pickedObject(pick: StagePick): Object3D | null {
-    if (pick.printed) return this.tracker?.printedPlanes().find(plane => plane.userData.targetId === pick.targetId) ?? null;
-    return this.scene.inspect()?.nodeObject(pick.targetId, pick.path) ?? null;
+    if (pick.printed) return this.tracker?.targetPlanes().find(plane => plane.userData.targetId === pick.targetId) ?? null;
+    return this.arScene.inspect()?.nodeObject(pick.targetId, pick.path) ?? null;
   }
 
   /** The pick is the current selection (outlined in the selection's colour) */
@@ -408,10 +408,10 @@ export class StageCore {
     this.mockStage?.setWorld(world);
     this.tracker?.setLookUp(world && this.previewing ? this.lookUp : 0);
     if (!world || !environment) {
-      if (was) this.scene.previewEnvironment(null);
+      if (was) this.arScene.previewEnvironment(null);
       return;
     }
-    this.scene.previewEnvironment({ environment, orientation: () => this.tracker?.worldOrientation(this.orientation) ?? this.orientation });
+    this.arScene.previewEnvironment({ environment, orientation: () => this.tracker?.worldOrientation(this.orientation) ?? this.orientation });
   }
 
   /** How far the previewing camera looks up from the book (degrees) – the world's sky and horizon come into view */
@@ -420,12 +420,12 @@ export class StageCore {
     if (this.world && this.previewing) this.tracker?.setLookUp(degrees);
   }
 
-  /** Show a spread on the stage (the scene runs as soon as it is asked to) */
-  async open(spreadId: string): Promise<void> {
-    this.spreadId = spreadId;
+  /** Show a scene on the stage (the scene runs as soon as it is asked to) */
+  async open(sceneId: string): Promise<void> {
+    this.sceneId = sceneId;
     this.found = [];
-    await this.scene.load(spreadId);
-    await this.scene.setState(SceneState.RUNNING);
+    await this.arScene.load(sceneId);
+    await this.arScene.setState(ArState.RUNNING);
     this.shade();
   }
 
@@ -438,34 +438,34 @@ export class StageCore {
   override(targetId: string, entity: EntityData | null): void {
     if (entity) this.overrides.set(targetId, entity);
     else this.overrides.delete(targetId);
-    this.scene.overrideEntity(targetId, entity);
+    this.arScene.overrideEntity(targetId, entity);
     this.shade();
     this.gizmo?.select(this.visibleSelection());
     if (this.lightHelpers) this.lightHelpers.selection = this.visibleSelection();
   }
 
-  /** Show the spread with these post-processing passes instead of the draft's (live edit), `null` = the draft's again */
+  /** Show the scene with these post-processing passes instead of the draft's (live edit), `null` = the draft's again */
   overridePasses(passes: PassData[] | null): void {
-    this.scene.overridePasses(passes);
+    this.arScene.overridePasses(passes);
   }
 
   /** Play these looks instead of the draft's (live edit, #265) – `{ appearance: null }` = none; `null` = the draft's again */
   overrideAppearance(override: { appearance: BookAppearance | null } | null): void {
     this.appearanceOverride = override;
-    this.scene.overrideAppearance(override);
+    this.arScene.overrideAppearance(override);
   }
 
-  /** The viewport's shading on every entity of the spread (the engine builds fresh meshes: applied again after) */
+  /** The viewport's shading on every entity of the scene (the engine builds fresh meshes: applied again after) */
   private shade(): void {
     // The code on the stage reads it too: a plugin's effect of the rendered picture stays out of the working views
-    this.scene.setShading(this.shading);
-    const inspection = this.scene.inspect();
-    const spread = this.spreadId;
-    if (!inspection || !spread) return;
-    const roots = getTargets(spread).map(target => inspection.nodeObject(target.id, [])).filter((o): o is NonNullable<typeof o> => !!o);
+    this.arScene.setShading(this.shading);
+    const inspection = this.arScene.inspect();
+    const scene = this.sceneId;
+    if (!inspection || !scene) return;
+    const roots = getTargets(scene).map(target => inspection.nodeObject(target.id, [])).filter((o): o is NonNullable<typeof o> => !!o);
     applyShading(roots, this.shading);
-    // The spread's post-processing belongs to rendered only, like the HDRI's sky
-    this.scene.setPostProcessing(this.shading === "rendered");
+    // The scene's post-processing belongs to rendered only, like the HDRI's sky
+    this.arScene.setPostProcessing(this.shading === "rendered");
     this.gizmo?.refreshOutline();
   }
 
@@ -478,15 +478,15 @@ export class StageCore {
 
   private ensureGizmo(): void {
     if (this.gizmo) return;
-    const inspection = this.scene.inspect();
+    const inspection = this.arScene.inspect();
     if (!inspection) return;
     this.gizmo = new Gizmo(inspection, (selection, placement) => this.onPlacement?.(selection, placement), this.snapper);
     this.applyTool();
     this.gizmo.select(this.visibleSelection());
     this.lightHelpers = new LightHelpers(inspection, () => {
-      const spread = this.spreadId;
-      if (!spread) return [];
-      return getTargets(spread).flatMap(target => {
+      const scene = this.sceneId;
+      if (!scene) return [];
+      return getTargets(scene).flatMap(target => {
         const tree = this.treeOf(target.id);
         return tree ? [{ targetId: target.id, tree }] : [];
       });
@@ -506,7 +506,7 @@ export class StageCore {
   private nodeHiding = new NodeHiding();
 
   private hideNodes(): void {
-    const inspection = this.scene.inspect();
+    const inspection = this.arScene.inspect();
     const hidden = getPreview().hiddenNodes;
     if (!inspection || (!hidden.length && !this.nodeHiding.size)) return;
     const objects: Object3D[] = [];
@@ -520,7 +520,7 @@ export class StageCore {
 
   /** A model node's timeline (the animation component), null for other nodes */
   timeline(targetId: string, path: number[]): NodeTimeline | null {
-    return this.scene.inspect()?.nodeTimeline(targetId, path) ?? null;
+    return this.arScene.inspect()?.nodeTimeline(targetId, path) ?? null;
   }
 
   /** The gizmo and the light helpers follow the selection (null = none) */
@@ -549,7 +549,7 @@ export class StageCore {
   /** Outline the selected target's print – again when the layout built it anew */
   private syncTargetOutline(): void {
     const id = this.outlinedTarget;
-    const plane = id ? (this.tracker?.printedPlanes().find(p => p.userData.targetId === id) ?? null) : null;
+    const plane = id ? (this.tracker?.targetPlanes().find(p => p.userData.targetId === id) ?? null) : null;
     if (plane === (this.targetOutline?.plane ?? null)) return;
     this.targetOutline?.outline.remove();
     this.targetOutline = plane ? { plane, outline: outline(plane, SELECTION_COLOR) } : null;
@@ -593,7 +593,7 @@ export class StageCore {
       return;
     }
     if (!this.surfaceGizmo) {
-      const inspection = this.scene.inspect();
+      const inspection = this.arScene.inspect();
       if (!inspection || !this.mockStage) return;
       const parent = new Group();
       this.mockStage.addHelper(parent);
@@ -616,12 +616,12 @@ export class StageCore {
     this.snapModifier = held;
   }
 
-  /** Every node object of the spread's entities (shown or not), with its target – what a move may snap to */
+  /** Every node object of the scene's entities (shown or not), with its target – what a move may snap to */
   private nodeObjects(): Array<{ targetId: string; object: Object3D }> {
-    const inspection = this.scene.inspect();
-    const spread = this.spreadId;
-    if (!inspection || !spread) return [];
-    return getTargets(spread).flatMap(target => {
+    const inspection = this.arScene.inspect();
+    const scene = this.sceneId;
+    if (!inspection || !scene) return [];
+    return getTargets(scene).flatMap(target => {
       const tree = this.treeOf(target.id);
       if (!tree) return [];
       return entityNodes(tree).flatMap(({ path }) => {
@@ -640,7 +640,7 @@ export class StageCore {
 
   /** The colour under a point of the stage (CSS px from the container's top left), `#rrggbb` or null */
   sampleColor(x: number, y: number): string | null {
-    return this.scene.sampleColor(x, y);
+    return this.arScene.sampleColor(x, y);
   }
 
   /** The ghost shown (the placement being edited) and who follows its handles */
@@ -699,7 +699,7 @@ export class StageCore {
 
   /** Which surface lies under a point of the stage (client px) and where on it (mm from its top left corner); null = none */
   surfaceAt(clientX: number, clientY: number): { surfaceId: string; x: number; y: number } | null {
-    const hit = this.pageAt(clientX, clientY);
+    const hit = this.hitOnSurface(clientX, clientY);
     if (!hit) return null;
     const frame = this.surfaceFrames().find(f => f.id === hit.surface);
     // Only a hit inside the surface counts as one (the hits beyond its edge are for dragging)
@@ -734,7 +734,7 @@ export class StageCore {
 
   /** The ghost's handle under the pointer: "move" over the image, "width" over its corner, null elsewhere */
   private ghostHandleAt(clientX: number, clientY: number): "move" | "width" | null {
-    const inspection = this.scene.inspect();
+    const inspection = this.arScene.inspect();
     const parts = this.tracker?.ghostParts();
     if (!inspection || !parts || !this.ghostPlace) return null;
     const rect = this.container.getBoundingClientRect();
@@ -755,7 +755,7 @@ export class StageCore {
     if (event.button !== 0 || !place) return;
     const kind = this.ghostHandleAt(event.clientX, event.clientY);
     if (!kind) return;
-    const hit = this.pageAt(event.clientX, event.clientY);
+    const hit = this.hitOnSurface(event.clientX, event.clientY);
     if (!hit) return;
     // The grab point inside the image (mm), so the image does not jump to the pointer
     this.ghostDrag = { kind, ...grabOffset(place, hit, this.placeSurfaces()) };
@@ -772,11 +772,11 @@ export class StageCore {
       this.container.style.cursor = kind === "width" ? "nwse-resize" : kind === "move" ? "grab" : "";
       return;
     }
-    const hit = this.pageAt(event.clientX, event.clientY);
+    const hit = this.hitOnSurface(event.clientX, event.clientY);
     if (!hit) return;
     const dragged = draggedPlace(place, this.ghostDrag, hit, this.placeSurfaces());
     const id = place.targetId ?? null;
-    const height = printedHeight(dragged, id ? this.tracker?.printedAspect(id) : undefined);
+    const height = placeHeight(dragged, id ? this.tracker?.printedAspect(id) : undefined);
     const snapped = this.snapper.place(id, dragged, height, this.ghostDrag.kind, event.shiftKey || event.ctrlKey);
     // Back to the content's words: the surface's id while the scene has several
     const { surface: _stage, ...rest } = snapped;
@@ -797,16 +797,16 @@ export class StageCore {
   };
 
   /** Where a point of the screen meets the scene's surfaces (the surface's id, mm from its top left corner) */
-  private pageAt(clientX: number, clientY: number): { surface: string; x: number; y: number } | null {
-    const inspection = this.scene.inspect();
+  private hitOnSurface(clientX: number, clientY: number): { surface: string; x: number; y: number } | null {
+    const inspection = this.arScene.inspect();
     if (!inspection) return null;
     const rect = this.container.getBoundingClientRect();
     this.raycaster.setFromCamera(new Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1), inspection.camera);
-    return this.tracker?.pageHit(this.raycaster) ?? null;
+    return this.tracker?.surfaceHit(this.raycaster) ?? null;
   }
-  /** The draft changed (a save): the spread is built again from it; overrides stay until cleared */
+  /** The draft changed (a save): the scene is built again from it; overrides stay until cleared */
   async refresh(): Promise<void> {
-    await this.scene.refresh();
+    await this.arScene.refresh();
     this.shade();
   }
 
@@ -827,11 +827,11 @@ export class StageCore {
     this.hideFor(this.shownTargets(), moment === "lost" ? (momentDuration(book, "lost") ?? REPLAY_GAP_MS) + REPLAY_GAP_MS : REPLAY_GAP_MS);
   }
 
-  /** The spread's targets with an image that are not hidden (or those of `targetIds`) */
+  /** The scene's targets with an image that are not hidden (or those of `targetIds`) */
   private shownTargets(targetIds?: readonly string[]): string[] {
     const hidden = new Set(getPreview().hidden);
-    const spread = this.spreadId;
-    return (targetIds ?? (spread ? getTargets(spread).filter(t => t.imageSrc).map(t => t.id) : [])).filter(id => !hidden.has(id));
+    const scene = this.sceneId;
+    return (targetIds ?? (scene ? getTargets(scene).filter(t => t.imageSrc).map(t => t.id) : [])).filter(id => !hidden.has(id));
   }
 
   /** Hide the targets (they are lost), and show them again after `ms` (found anew) */
@@ -841,10 +841,10 @@ export class StageCore {
     this.replayTimer = window.setTimeout(() => ids.forEach(id => setTargetHidden(id, false)), ms);
   }
 
-  /** A new game: every variable of every scope cleared, nothing unlocked, the timeline empty and counting from now, the spread's targets found anew */
+  /** A new game: every variable of every scope cleared, nothing unlocked, the timeline empty and counting from now, the scene's targets found anew */
   /** The Live switch (#269): off holds the entities' clock (`ArScene.holdClock`) – the scene stands still for placing */
   setLive(live: boolean): void {
-    this.scene.holdClock(!live);
+    this.arScene.holdClock(!live);
   }
 
   resetNarrative(): void {
@@ -852,7 +852,7 @@ export class StageCore {
     this.progress.reset();
     this.vars = allVars();
     this.events = [];
-    this.spreadOpenedAt = performance.now();
+    this.sceneOpenedAt = performance.now();
     this.replayUnlock();
   }
 
@@ -869,7 +869,7 @@ export class StageCore {
 
   /** Tap a found target's entity without aiming at it – the reader's tap (`onTap`, `targetTapped`); false when nothing was tapped */
   tap(targetId: string): boolean {
-    return this.scene.inspect()?.tap(targetId) ?? false;
+    return this.arScene.inspect()?.tap(targetId) ?? false;
   }
 
   /** Empty the timeline (variables and progress stay) */
@@ -889,7 +889,7 @@ export class StageCore {
     this.lightHelpers = null;
     this.cleanups.forEach(cleanup => cleanup());
     this.cleanups = [];
-    await this.scene.dispose();
+    await this.arScene.dispose();
     setPreviewActive(false);
   }
 }

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { GameStoreService } from "@/services";
 import { EntryCategory, Pages } from "@/types";
-import { getEntries, getSpread } from "@/utils/game-config";
+import { getEntries, getScene } from "@/utils/game-config";
 import { placeLabel } from "../entries-model";
 import ".."; // registers the elements (the named import below is type-only)
 import type { EntriesFilterElement, EntriesList, EntryDetail } from "..";
@@ -80,7 +80,7 @@ describe("entries list", () => {
     expect(root.querySelector(".head")?.textContent).toContain("Name");
     expect(root.querySelectorAll("button.row")).toHaveLength(1);
     expect(root.querySelectorAll(".row.locked")).toHaveLength(glossary().length - 1);
-    expect(root.querySelector(`button[data-entry="${first.id}"] .page`)?.textContent).toBe(placeLabel(first, getSpread(first.spreadId)));
+    expect(root.querySelector(`button[data-entry="${first.id}"] .page`)?.textContent).toBe(placeLabel(first, getScene(first.sceneId)));
 
     root.querySelector<HTMLElement>(".row.locked")!.click();
     expect(game.state.currentRoute?.page).not.toBe(Pages.ENTRY);

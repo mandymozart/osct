@@ -42,7 +42,7 @@ describe("behaviour: the content's grammar", () => {
       "components[0].rules[3].when.a: expected a value (text, number, true / false, null = not set) or { not: value }, got [1]",
       "components[0].rules[3].do[0].set: expected { variable: value, … }",
       'components[0].rules[3].do[1].set.x: expected a text, a number, true / false or null (deletes), got {"y":1}',
-      'components[0].rules[3].do[1].scope: expected one of spread, stage, session, book, got "world"',
+      'components[0].rules[3].do[1].scope: expected one of scene, stage, session, book, got "world"',
       "components[0].rules[3].do[2].emit: targetFound is the engine's own event – a rule hears it, never emits it",
       "components[0].rules[3].do[3].emit: tap is the engine's own event – a rule hears it, never emits it",
       "components[0].rules[3].do[4]: an action has one of play, pause, stop, show, hide, set, emit, got show and hide",
@@ -63,10 +63,10 @@ describe("behaviour: the content's grammar", () => {
     expect(rules[2].when).toEqual({ match: "any", tests: [{ name: "hasKey", value: true, not: false }, { name: "tries", value: 3, not: true }] });
     expect(rules[3].do).toEqual([
       { action: "show", node: "" }, { action: "stop", node: "" }, { action: "pause", node: "door" }, { action: "play", clip: "", node: "door" },
-      { action: "set", name: "tries", value: null, scope: "spread" },
+      { action: "set", name: "tries", value: null, scope: "scene" },
     ]);
     expect(behaviourRules({ rules: [{ on: "tap", do: { set: { a: 1, b: "x" } } }] })[0].do)
-      .toEqual([{ action: "set", name: "a", value: 1, scope: "spread" }, { action: "set", name: "b", value: "x", scope: "spread" }]);
+      .toEqual([{ action: "set", name: "a", value: 1, scope: "scene" }, { action: "set", name: "b", value: "x", scope: "scene" }]);
     expect(behaviourRules(undefined)).toEqual([]);
   });
 

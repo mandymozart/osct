@@ -247,7 +247,7 @@ describe("the Shadertoy adapter", () => {
 
 describe("api.feedback and api.shadertoy", () => {
   const PAINTING: NodeTypeSpec = { description: "A painting.", params: {} };
-  const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", spreadId: "s", imageSrc: "/t.jpg", entity });
+  const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", sceneId: "s", imageSrc: "/t.jpg", entity });
 
   it("a node type's buffers belong to its node: they step while it is in view and go when it is disposed", () => {
     const { renderer, draws } = stubRenderer();

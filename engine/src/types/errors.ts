@@ -21,7 +21,7 @@ export enum ErrorCode {
   AR_START_FAILED = "ar-start-failed",
   /** The camera started but sends no picture */
   CAMERA_NOT_RESPONDING = "camera-not-responding",
-  /** Anything else the scene could not do (building a spread) */
+  /** Anything else the scene could not do (building a scene) */
   AR_FAILED = "ar-failed",
 }
 

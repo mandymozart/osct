@@ -5,13 +5,13 @@ import { EntryCategory } from "@/types";
 import { bookCoverUrl } from "@/utils/book-cover";
 import { LazyArScene } from "./lazy-ar-scene";
 import { reportArError } from "@engine/utils/camera-debug";
-import { getPreparedWindow } from "@engine/utils/prepared-spreads";
-import { getSceneState } from "./utils/scene-state";
+import { getPreparedWindow } from "@engine/utils/prepared-scenes";
+import { getArState } from "./utils/ar-state";
 
 /** Lost this long after coming back to the scan, a target's card may fly again at its next find */
 const REFLY_AFTER_RETURN_MS = 1500;
 
-/** Delay after startup before the AR chunk and the current spread are preloaded in idle time */
+/** Delay after startup before the AR chunk and the current scene are preloaded in idle time */
 const WARM_UP_DELAY_MS = 1500;
 
 /** The scanning indicator (index.html, styles/gold-spinner.css) shown or hidden */
@@ -21,9 +21,9 @@ const showScanning = (scanning: boolean): void => {
 
 /**
  * <ar-bridge>: the only link between the game store and the AR scene.
- *   store → AR: `currentSpread` → `load()`, mode + route → `setState()` (policy in scene-state.ts).
+ *   store → AR: `currentScene` → `load()`, mode + route → `setState()` (policy in ar-state.ts).
  *   AR → store: found / lost → `game.targets`, status → `arStatus` + loading page, ready → content preload of the
- *   spreads kept ready next to the current one (the same window the tracker holds, `prepared-spreads.ts`).
+ *   scenes kept ready next to the current one (the same window the tracker holds, `prepared-scenes.ts`).
  * A target's first find (unlock) plays the entity's unlock animation and dispatches TARGET_UNLOCKED_EVENT;
  * tapping an entity opens its entry (a video's tap pauses / plays it instead, #290); a glossary picture tapped for the first time flies its card first
  * (CARD_FLIGHT_EVENT). The scene's `scanning` shows the reader's scanning indicator (`#osct-scanning`,
@@ -34,7 +34,7 @@ const showScanning = (scanning: boolean): void => {
  */
 export class ArBridge extends HTMLElement {
   private game: Readonly<IGame>;
-  private scene: IArScene | null = null;
+  private arScene: IArScene | null = null;
   private cleanups: Array<() => void> = [];
   /** The target whose card flies now (one at a time) */
   private flying: string | null = null;
@@ -52,45 +52,45 @@ export class ArBridge extends HTMLElement {
   }
 
   connectedCallback() {
-    const container = document.getElementById("scene-container") ?? this.createContainer();
+    const container = document.getElementById("ar-container") ?? this.createContainer();
     let lazy: LazyArScene | null = null;
-    if (ArBridge.sceneFactory) this.scene = ArBridge.sceneFactory(container);
-    else this.scene = lazy = new LazyArScene(container);
-    const scene = this.scene;
+    if (ArBridge.sceneFactory) this.arScene = ArBridge.sceneFactory(container);
+    else this.arScene = lazy = new LazyArScene(container);
+    const arScene = this.arScene;
     const game = this.game;
 
     this.cleanups.push(
-      scene.on("status", (status, error) => this.handleStatus(status, error)),
-      scene.on("targetFound", id => this.handleFound(id)),
-      scene.on("targetLost", id => this.handleLost(id)),
-      scene.on("targetTapped", (id, used) => this.handleTap(id, used)),
-      scene.on("scanning", scanning => showScanning(scanning)),
-      scene.on("subtitle", text => SubtitleService.getInstance().show(text)),
-      // The reader turned to a neighbouring spread (8th Wall): switch like the spread menu does
-      scene.on("spreadSeen", id => {
-        if (this.game.state.mode === GameMode.SCAN && id !== this.game.state.currentSpread) this.game.spreads.switchSpread(id);
+      arScene.on("status", (status, error) => this.handleStatus(status, error)),
+      arScene.on("targetFound", id => this.handleFound(id)),
+      arScene.on("targetLost", id => this.handleLost(id)),
+      arScene.on("targetTapped", (id, used) => this.handleTap(id, used)),
+      arScene.on("scanning", scanning => showScanning(scanning)),
+      arScene.on("subtitle", text => SubtitleService.getInstance().show(text)),
+      // The reader turned to a neighbouring scene (8th Wall): switch like the scene menu does
+      arScene.on("sceneSeen", id => {
+        if (this.game.state.mode === GameMode.SCAN && id !== this.game.state.currentScene) this.game.scenes.switchScene(id);
       }),
-      // The spread is tracked (or its window changed): fetch the window's target images + content into the cache
-      scene.on("ready", spreadId => void PreloaderService.getInstance().preloadSpreads(getPreparedWindow(spreadId).map(spread => spread.id))),
-      game.subscribeToProperty("currentSpread", id => {
-        if (id) void scene.load(id);
+      // The scene is tracked (or its window changed): fetch the window's target images + content into the cache
+      arScene.on("ready", sceneId => void PreloaderService.getInstance().preloadScenes(getPreparedWindow(sceneId).map(scene => scene.id))),
+      game.subscribeToProperty("currentScene", id => {
+        if (id) void arScene.load(id);
       }),
       game.subscribeToProperty("mode", mode => {
         if (mode === GameMode.SCAN) this.scanSince = Date.now();
-        this.applySceneState();
+        this.applyArState();
       }),
-      game.subscribeToProperty("currentRoute", () => this.applySceneState()),
+      game.subscribeToProperty("currentRoute", () => this.applyArState()),
     );
 
-    const spread = game.state.currentSpread;
-    if (spread) void scene.load(spread);
-    this.applySceneState();
+    const scene = game.state.currentScene;
+    if (scene) void arScene.load(scene);
+    this.applyArState();
     if (lazy) this.scheduleWarmUp(lazy);
   }
 
   /**
    * Once the loading screen is gone, in idle time: load the AR chunk, fetch the engine's files and the current
-   * spread's target images and content into the browser cache, so the first scan only has to start the camera.
+   * scene's target images and content into the browser cache, so the first scan only has to start the camera.
    */
   private scheduleWarmUp(lazy: LazyArScene) {
     const idle = (run: () => void) =>
@@ -102,8 +102,8 @@ export class ArBridge extends HTMLElement {
         void lazy.warmUp().then(loaded => {
           if (!loaded) UpdateService.getInstance().reportStaleCode();
         });
-        const spread = this.game.state.currentSpread;
-        if (spread) void PreloaderService.getInstance().preloadSpread(spread);
+        const scene = this.game.state.currentScene;
+        if (scene) void PreloaderService.getInstance().preloadScene(scene);
       }), WARM_UP_DELAY_MS);
       this.cleanups.push(() => window.clearTimeout(timer));
     };
@@ -122,8 +122,8 @@ export class ArBridge extends HTMLElement {
     this.cleanups = [];
     showScanning(false);
     SubtitleService.getInstance().show(null);
-    void this.scene?.dispose();
-    this.scene = null;
+    void this.arScene?.dispose();
+    this.arScene = null;
   }
 
   /** Records the find in the store; the first find (unlock) also animates the entity and notifies the found indicator */
@@ -131,7 +131,7 @@ export class ArBridge extends HTMLElement {
     const wasUnlocked = this.game.history.isUnlocked(targetId);
     this.game.targets.addTarget(targetId);
     if (!wasUnlocked && this.game.history.isUnlocked(targetId)) {
-      if (getTarget(targetId)?.entity) this.scene?.celebrate(targetId);
+      if (getTarget(targetId)?.entity) this.arScene?.celebrate(targetId);
       document.dispatchEvent(new CustomEvent(TARGET_UNLOCKED_EVENT, { detail: { targetId } }));
     }
     this.flyCard(targetId);
@@ -154,8 +154,8 @@ export class ArBridge extends HTMLElement {
    * page still in view does not open the entry again. Reduced motion: the entry opens at once.
    */
   private flyCard(targetId: string) {
-    const scene = this.scene;
-    if (!scene || this.game.state.mode !== GameMode.SCAN || this.flying || this.flown.has(targetId)) return;
+    const arScene = this.arScene;
+    if (!arScene || this.game.state.mode !== GameMode.SCAN || this.flying || this.flown.has(targetId)) return;
     const target = getTarget(targetId);
     const entry = target ? getEntry(target.entryId) : undefined;
     if (!target || !entry || target.entity || entry.category !== EntryCategory.Glossary || !target.imageSrc) return;
@@ -169,7 +169,7 @@ export class ArBridge extends HTMLElement {
     this.flying = targetId;
     announce(true);
     void bookCoverUrl()
-      .then(back => scene.flyCard(targetId, { front, reveal, back: back ?? undefined }))
+      .then(back => arScene.flyCard(targetId, { front, reveal, back: back ?? undefined }))
       .catch(() => false)
       .then(landed => {
         this.flying = null;
@@ -190,15 +190,15 @@ export class ArBridge extends HTMLElement {
     if (target) this.game.router.navigate("/entry", { key: "entryId", value: target.entryId });
   }
 
-  private applySceneState() {
-    void this.scene?.setState(getSceneState(this.game.state.mode, this.game.state.currentRoute));
+  private applyArState() {
+    void this.arScene?.setState(getArState(this.game.state.mode, this.game.state.currentRoute));
   }
 
   private handleStatus(status: ArStatus, error?: ArError) {
     reportArError(status === "error" ? error?.message ?? "unknown" : null);
     this.game.setArStatus(status);
-    // The 3D layer shows while AR runs (main.css: body.scene-active #scene)
-    document.body.classList.toggle("scene-active", status === "running");
+    // The 3D layer shows while AR runs (main.css: body.ar-active #scene)
+    document.body.classList.toggle("ar-active", status === "running");
 
     // Loading page while the scene is built or the camera starts
     if (status === "loading" || status === "starting") this.game.startLoading();
@@ -222,7 +222,7 @@ export class ArBridge extends HTMLElement {
 
   private createContainer(): HTMLElement {
     const container = document.createElement("div");
-    container.id = "scene-container";
+    container.id = "ar-container";
     document.body.prepend(container);
     return container;
   }

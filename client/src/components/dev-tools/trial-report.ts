@@ -1,4 +1,4 @@
-import type { Spread } from "@/types";
+import type { Scene } from "@/types";
 import { entryPlaceLabel, sceneLabel } from "@engine/content/scenes";
 import type { TrialDevice } from "./trial-device";
 
@@ -22,9 +22,9 @@ export interface TrialRow {
   category: string;
   /** Where the entry is: its surface's or its scene's label (schema 3.0) */
   place: string;
-  spreadId: string;
+  sceneId: string;
   /** The scene's label */
-  spreadTitle: string;
+  sceneTitle: string;
   imageSrc: string;
   unlockedAt?: number;
   result: TrialResult;
@@ -44,19 +44,19 @@ export interface TrialMeta {
 
 export const trialResult = (unlockedAt: number | undefined): TrialResult => (unlockedAt ? "found" : "untested");
 
-/** One row per target, in spread and entry order */
-export function trialRows(spreads: Spread[], unlocked: Record<string, number>, infos: TriggerInfos = {}): TrialRow[] {
-  return spreads.flatMap(spread =>
-    spread.targets.map(target => {
-      const entry = spread.entries.find(e => e.id === target.entryId);
+/** One row per target, in scene and entry order */
+export function trialRows(scenes: Scene[], unlocked: Record<string, number>, infos: TriggerInfos = {}): TrialRow[] {
+  return scenes.flatMap(scene =>
+    scene.targets.map(target => {
+      const entry = scene.entries.find(e => e.id === target.entryId);
       return {
         targetId: target.id,
         entryId: target.entryId,
         title: entry?.title ?? target.entryId,
         category: entry?.category ?? "",
-        place: entry ? entryPlaceLabel(entry, spread) : sceneLabel(spread),
-        spreadId: spread.id,
-        spreadTitle: sceneLabel(spread),
+        place: entry ? entryPlaceLabel(entry, scene) : sceneLabel(scene),
+        sceneId: scene.id,
+        sceneTitle: sceneLabel(scene),
         imageSrc: target.imageSrc,
         unlockedAt: unlocked[target.id],
         result: trialResult(unlocked[target.id]),

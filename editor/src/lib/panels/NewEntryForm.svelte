@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Spread } from "@engine/types";
+  import type { Scene } from "@engine/types";
   import { ENTRY_CATEGORIES, EntryCategory } from "@shared/types/entry";
   import { addEntry, errorText } from "#lib/api.js";
   import Segmented from "#lib/components/Segmented.svelte";
@@ -13,15 +13,15 @@
    * (`POST …/entries` without `target`); the caller reloads the content and selects it, so its form opens in the
    * Inspector. A target can follow on the stage.
    */
-  let { bookId, spread, oncreated, oncancel }: {
+  let { bookId, scene, oncreated, oncancel }: {
     bookId: string;
-    spread: Spread;
+    scene: Scene;
     oncreated: (entryId: string) => Promise<void>;
     oncancel: () => void;
   } = $props();
 
   /** The scene's surfaces an entry may name – only while it has several (`EntryData.surface`) */
-  const surfaces = $derived(surfaceChoices(spread.surfaces));
+  const surfaces = $derived(surfaceChoices(scene.surfaces));
   let title = $state("");
   /** The surface the entry lies on ("" = none: the scene as a whole) */
   let surface = $state("");
@@ -33,7 +33,7 @@
     busy = true;
     error = null;
     try {
-      const { entry } = await addEntry(bookId, { title: title.trim(), scene: spread.id, ...(surface && surfaces.length > 1 ? { surface } : {}), category });
+      const { entry } = await addEntry(bookId, { title: title.trim(), scene: scene.id, ...(surface && surfaces.length > 1 ? { surface } : {}), category });
       await oncreated(entry.id);
     } catch (e) {
       error = errorText(e, { code: true });
@@ -44,7 +44,7 @@
 </script>
 
 <form class="form" onsubmit={e => { e.preventDefault(); void create(); }}>
-  <div class="section"><span class="section-label">new entry on {sceneLabel(spread)}</span>
+  <div class="section"><span class="section-label">new entry on {sceneLabel(scene)}</span>
     <button type="button" class="text-link" onclick={oncancel}>cancel</button></div>
   <div class="row"><span class="label">title</span>
     <!-- svelte-ignore a11y_autofocus -->

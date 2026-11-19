@@ -3,7 +3,7 @@ import { SubtitleService } from "@/services";
 /**
  * The subtitle line of the scan view: what a video of the found page says, in the reader's language – the text
  * `SubtitleService` holds (the AR scene's cue while subtitles are on). Empty and invisible between cues. Lives in the
- * scan page above the spread menu; taps pass through it.
+ * scan page above the scene menu; taps pass through it.
  */
 export class SubtitleLine extends HTMLElement {
   private unsubscribe: (() => void) | null = null;

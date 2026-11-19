@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type ArSceneEvents, type ArStatus, CameraPermissionStatus, CARD_FLIGHT_EVENT, type CardFlightDetail, EntryCategory, ErrorCode, type IArScene, LoadingState, SceneState, TARGET_UNLOCKED_EVENT } from "@/types";
+import { type ArSceneEvents, type ArStatus, CameraPermissionStatus, CARD_FLIGHT_EVENT, type CardFlightDetail, EntryCategory, ErrorCode, type IArScene, LoadingState, ArState, TARGET_UNLOCKED_EVENT } from "@/types";
 import { GameStoreService, PreloaderService, SubtitleService, UpdateService } from "@/services";
-import { getEntry, getSpreads, getTargets } from "@/utils/game-config";
+import { getEntry, getScenes, getTargets } from "@/utils/game-config";
 import { getArError } from "@engine/utils/camera-debug";
-import { getPreparedWindow } from "@engine/utils/prepared-spreads";
+import { getPreparedWindow } from "@engine/utils/prepared-scenes";
 import { targetWithVideo } from "@/test/content-fixtures";
 
 const { ArBridge } = await import("../ar-bridge");
@@ -11,14 +11,14 @@ const { ArBridge } = await import("../ar-bridge");
 /** Records calls, lets the test emit scene events */
 class FakeArScene implements IArScene {
   status: ArStatus = "idle";
-  spreadId: string | null = null;
+  sceneId: string | null = null;
   loads: string[] = [];
-  states: SceneState[] = [];
+  states: ArState[] = [];
   disposed = false;
   private listeners = new Map<keyof ArSceneEvents, Array<(...args: any[]) => void>>();
 
-  async load(spreadId: string) { this.loads.push(spreadId); this.spreadId = spreadId; }
-  async setState(state: SceneState) { this.states.push(state); }
+  async load(sceneId: string) { this.loads.push(sceneId); this.sceneId = sceneId; }
+  async setState(state: ArState) { this.states.push(state); }
   celebrated: string[] = [];
   async dispose() { this.disposed = true; }
   celebrate(targetId: string) { this.celebrated.push(targetId); }
@@ -45,9 +45,9 @@ class FakeArScene implements IArScene {
 
 describe("<ar-bridge>", () => {
   const game = GameStoreService.getInstance();
-  // A spread with AR content (the tests celebrate an entity) and any other spread to switch to
-  const spread1 = getSpreads().find(s => s.id === targetWithVideo().target.spreadId)!;
-  const spread2 = getSpreads().find(s => s.id !== spread1.id)!;
+  // A scene with AR content (the tests celebrate an entity) and any other scene to switch to
+  const scene1 = getScenes().find(s => s.id === targetWithVideo().target.sceneId)!;
+  const scene2 = getScenes().find(s => s.id !== scene1.id)!;
   let scene: FakeArScene;
   let bridge: HTMLElement;
 
@@ -55,7 +55,7 @@ describe("<ar-bridge>", () => {
     localStorage.clear();
     game.history.reset();
     game.router.navigate("/");
-    game.spreads.switchSpread(spread1.id);
+    game.scenes.switchScene(scene1.id);
     scene = new FakeArScene();
     ArBridge.sceneFactory = () => scene;
     bridge = document.createElement("ar-bridge");
@@ -65,31 +65,31 @@ describe("<ar-bridge>", () => {
   afterEach(() => {
     bridge.remove();
     ArBridge.sceneFactory = null;
-    document.body.classList.remove("scene-active");
+    document.body.classList.remove("ar-active");
     vi.restoreAllMocks();
   });
 
-  it("loads the current spread and follows spread switches", () => {
-    expect(scene.loads).toEqual([spread1.id]);
-    game.spreads.switchSpread(spread2.id);
-    expect(scene.loads).toEqual([spread1.id, spread2.id]);
+  it("loads the current scene and follows scene switches", () => {
+    expect(scene.loads).toEqual([scene1.id]);
+    game.scenes.switchScene(scene2.id);
+    expect(scene.loads).toEqual([scene1.id, scene2.id]);
   });
 
   it("runs the camera only in scan mode (paused in consultation and overlays, stopped at home)", () => {
-    expect(scene.lastState).toBe(SceneState.STOPPED);
+    expect(scene.lastState).toBe(ArState.STOPPED);
     game.router.navigate("/scene");
-    expect(scene.lastState).toBe(SceneState.RUNNING);
+    expect(scene.lastState).toBe(ArState.RUNNING);
     game.router.navigate("/entries");
-    expect(scene.lastState).toBe(SceneState.PAUSED);
+    expect(scene.lastState).toBe(ArState.PAUSED);
     game.router.navigate("/scene");
     game.router.navigate("/not-found");
-    expect(scene.lastState).toBe(SceneState.PAUSED);
+    expect(scene.lastState).toBe(ArState.PAUSED);
     game.router.navigate("/tutorial", { key: "step", value: "0" });
-    expect(scene.lastState).toBe(SceneState.STOPPED);
+    expect(scene.lastState).toBe(ArState.STOPPED);
   });
 
   it("maps found / lost targets to the store (and unlocks them)", () => {
-    const target = getTargets(spread1.id)[0];
+    const target = getTargets(scene1.id)[0];
     scene.emit("targetFound", target.id);
     expect(game.state.trackedTargets).toEqual([target.id]);
     expect(game.history.isUnlocked(target.id)).toBe(true);
@@ -98,7 +98,7 @@ describe("<ar-bridge>", () => {
   });
 
   it("the first find unlocks: discovery animation (entity) and the unlock event – only once", () => {
-    const [withEntity] = getTargets(spread1.id).filter(t => t.entity);
+    const [withEntity] = getTargets(scene1.id).filter(t => t.entity);
     const unlocked: string[] = [];
     const listener = (e: Event) => unlocked.push((e as CustomEvent<{ targetId: string }>).detail.targetId);
     document.addEventListener(TARGET_UNLOCKED_EVENT, listener);
@@ -116,7 +116,7 @@ describe("<ar-bridge>", () => {
   });
 
   it("flies a glossary card as soon as its target is found in scan mode, opens the entry when it landed (#285)", async () => {
-    const glossary = getSpreads().flatMap(s => getTargets(s.id))
+    const glossary = getScenes().flatMap(s => getTargets(s.id))
       .find(t => !t.entity && getEntry(t.entryId)?.category === EntryCategory.Glossary)!;
     const flights: boolean[] = [];
     const listener = (e: Event) => flights.push((e as CustomEvent<CardFlightDetail>).detail.flying);
@@ -150,7 +150,7 @@ describe("<ar-bridge>", () => {
 
   it("no card for a target with an AR entity or another category", async () => {
     game.router.navigate("/scene");
-    const others = getSpreads().flatMap(s => getTargets(s.id))
+    const others = getScenes().flatMap(s => getTargets(s.id))
       .filter(t => t.entity || getEntry(t.entryId)?.category !== EntryCategory.Glossary).slice(0, 3);
     others.forEach(t => scene.emit("targetFound", t.id));
     await new Promise(resolve => setTimeout(resolve, 10));
@@ -158,7 +158,7 @@ describe("<ar-bridge>", () => {
   });
 
   it("a tapped entity opens its entry in scan mode (= consulted), not elsewhere", () => {
-    const target = getTargets(spread1.id).find(t => t.entity)!;
+    const target = getTargets(scene1.id).find(t => t.entity)!;
     game.router.navigate("/about");
     scene.emit("targetTapped", target.id, false);
     expect(game.state.currentRoute?.page).toBe("about");
@@ -170,10 +170,10 @@ describe("<ar-bridge>", () => {
   });
 
   it("a tap the entity used itself (a video paused or played, #290) opens nothing", () => {
-    const target = getTargets(spread1.id).find(t => t.entity)!;
+    const target = getTargets(scene1.id).find(t => t.entity)!;
     game.router.navigate("/scene");
     scene.emit("targetTapped", target.id, true);
-    expect(game.state.currentRoute?.page).toBe("spread");
+    expect(game.state.currentRoute?.page).toBe("scene");
   });
 
   it("reports the AR status, shows loading while building / starting, marks the running scene", () => {
@@ -184,10 +184,10 @@ describe("<ar-bridge>", () => {
     scene.emit("status", "running");
     expect(game.state.arStatus).toBe("running");
     expect(game.state.loading).toBe(LoadingState.LOADED);
-    expect(document.body.classList.contains("scene-active")).toBe(true);
+    expect(document.body.classList.contains("ar-active")).toBe(true);
 
     scene.emit("status", "paused");
-    expect(document.body.classList.contains("scene-active")).toBe(false);
+    expect(document.body.classList.contains("ar-active")).toBe(false);
   });
 
   it("refreshes the camera permission when AR fails", () => {
@@ -225,10 +225,10 @@ describe("<ar-bridge>", () => {
     expect(check).toHaveBeenCalled();
   });
 
-  it("preloads the content of the window the tracker holds once a spread is ready", () => {
-    const preload = vi.spyOn(PreloaderService.getInstance(), "preloadSpreads").mockResolvedValue([]);
-    scene.emit("ready", spread1.id);
-    expect(preload).toHaveBeenCalledWith(getPreparedWindow(spread1.id).map(spread => spread.id));
+  it("preloads the content of the window the tracker holds once a scene is ready", () => {
+    const preload = vi.spyOn(PreloaderService.getInstance(), "preloadScenes").mockResolvedValue([]);
+    scene.emit("ready", scene1.id);
+    expect(preload).toHaveBeenCalledWith(getPreparedWindow(scene1.id).map(scene => scene.id));
   });
 
   it("shows the scanning indicator while the scene scans, and hides it when removed", () => {
@@ -261,7 +261,7 @@ describe("<ar-bridge>", () => {
   it("disposes the scene and stops listening when removed", () => {
     bridge.remove();
     expect(scene.disposed).toBe(true);
-    game.spreads.switchSpread(spread2.id);
-    expect(scene.loads).toEqual([spread1.id]);
+    game.scenes.switchScene(scene2.id);
+    expect(scene.loads).toEqual([scene1.id]);
   });
 });

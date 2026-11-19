@@ -6,7 +6,7 @@ import { bookChanges, bookDraftOf, bookProblems } from "../book-texts";
 
 const { Glossary } = EntryCategory;
 const entry = (fields: Partial<EditorEntry> & Pick<EditorEntry, "id" | "title">): EditorEntry => ({
-  category: Glossary, scene: "spread-1", body: "", tags: [], target: null, ...fields,
+  category: Glossary, scene: "scene-1", body: "", tags: [], target: null, ...fields,
 });
 
 /** #223: the entry's form – what it edits, what a save sends, what keeps Save off */
@@ -15,14 +15,14 @@ describe("the entry form", () => {
 
   it("starts from the entry and sends nothing while nothing changed", () => {
     const draft = draftOf(racoon);
-    expect(draft).toEqual({ title: "Racoon", category: "glossary", scene: "spread-1", surface: "", author: "Kévin", tags: "animal", body: "A beast.", image: "/assets/content/entries/racoon/img.jpg", caption: "", media: "" });
+    expect(draft).toEqual({ title: "Racoon", category: "glossary", scene: "scene-1", surface: "", author: "Kévin", tags: "animal", body: "A beast.", image: "/assets/content/entries/racoon/img.jpg", caption: "", media: "" });
     expect(entryChanges(racoon, draft)).toEqual({});
     expect(isDirty(racoon, { ...draft, tags: " animal, ", title: "Racoon " })).toBe(false);
   });
 
   it("sends only the fields that changed; an emptied optional field is removed", () => {
-    const draft = { ...draftOf(racoon), body: "A **beast**.", author: " ", tags: "animal, mask, animal", scene: "spread-2", surface: "wall", media: " https://example.org " };
-    expect(entryChanges(racoon, draft)).toEqual({ body: "A **beast**.", author: null, tags: ["animal", "mask"], scene: "spread-2", surface: "wall", media: "https://example.org" });
+    const draft = { ...draftOf(racoon), body: "A **beast**.", author: " ", tags: "animal, mask, animal", scene: "scene-2", surface: "wall", media: " https://example.org " };
+    expect(entryChanges(racoon, draft)).toEqual({ body: "A **beast**.", author: null, tags: ["animal", "mask"], scene: "scene-2", surface: "wall", media: "https://example.org" });
     // A surface emptied goes (the scene as a whole)
     expect(entryChanges({ ...racoon, surface: "wall" }, draftOf(racoon))).toEqual({ surface: null });
     expect(entryChanges(racoon, { ...draftOf(racoon), image: "" })).toEqual({ image: null });

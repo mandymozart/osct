@@ -31,7 +31,7 @@ import {
 } from "../types/index";
 import { contentUrl } from "../content/game-config";
 import { type LoadedAsset, loadGltf } from "./assets";
-import { dropPluginListeners, nextRun, type PluginEvents, type PluginProgress, type PluginSpread, type PluginVars, runtimeApi } from "./plugin-runtime";
+import { dropPluginListeners, nextRun, type PluginEvents, type PluginProgress, type PluginScene, type PluginVars, runtimeApi } from "./plugin-runtime";
 import { type PassFactory, passRegistration, registeredPassTypes, registerPass, unregisterPassesOf } from "./post/registry";
 import { deleteMaterialRegistration, type MaterialBuild, materialRegistration, setMaterialRegistration } from "./materials";
 import { deleteTextureRegistration, resolveTextures, sameTextures, setTextureRegistration, type TextureDraw, textureRegistration } from "./textures";
@@ -64,8 +64,8 @@ import { collectFeedbacks, createFeedback, disposePluginFeedbacks, type Feedback
  * and layers are used in the content as `components: [{ type, … }]`, a node type as `type`. A **look** (`appearances.ts`)
  * is how an entity appears and disappears: the book names it for a moment (`appearance: { reveal, found, lost }`).
  * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`): `api.events` (core events of the
- * scene, scene events of the content), `api.vars` (variables in the scopes spread / stage / session / book),
- * `api.progress` (what the reader unlocked – from the app) and `api.spread` (the current spread). A file of the book's
+ * scene, scene events of the content), `api.vars` (variables in the scopes scene / stage / session / book),
+ * `api.progress` (what the reader unlocked – from the app) and `api.scene` (the current scene). A file of the book's
  * Library – a shader (`.glsl`, `.frag`, `.vert`, `.wgsl`) – comes in as text through `api.loadText(url)` (#186), a
  * model the author picked in a `model` parameter through `api.loadModel(url)` (#263).
  * A **feedback buffer** (`feedback.ts`) is a fragment shader the engine runs once per frame into a render target
@@ -205,12 +205,12 @@ export interface PluginApi {
   registerAppearance(type: string, spec: AppearanceSpec, factory: AppearanceFactory): void;
   /** Core events of the scene (read-only) and scene events of the content */
   readonly events: PluginEvents;
-  /** Variables in the scopes spread, stage, session and book */
+  /** Variables in the scopes scene, stage, session and book */
   readonly vars: PluginVars;
   /** The reader's progress: unlocked, consulted, completion (read-only) */
   readonly progress: PluginProgress;
-  /** The current spread */
-  readonly spread: PluginSpread;
+  /** The current scene */
+  readonly scene: PluginScene;
   /**
    * A text file: a shader of the book's Library by its URL (the Library shows it; a replace gives a new URL and
    * rewrites it in the sources that name it), or a content path (`/assets/content/…`). One request per URL however often
@@ -274,7 +274,7 @@ const installedNodeTypes = new Map<string, string[]>();
 /** Plugins installed, by id → the materials and the procedural textures they registered */
 const installedMaterials = new Map<string, string[]>();
 const installedTextures = new Map<string, string[]>();
-/** The compiled modules loaded, by URL (a spread switch never loads a plugin twice) */
+/** The compiled modules loaded, by URL (a scene switch never loads a plugin twice) */
 const loaded = new Map<string, Promise<void>>();
 /** Plugins whose code the editor installed itself (a Run, the saved sources' auto-load, #269): the content's module of the same id is not loaded over them */
 const keptPlugins = new Set<string>();

@@ -2,7 +2,7 @@ import { GameStoreService } from "@/services";
 import { type Entry, EntryCategory, type IGame, type ListCategory } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { escapeHtml } from "@/utils";
-import { getEntryPlaceLabel, getSpreads } from "@/utils/game-config";
+import { getEntryPlaceLabel, getScenes } from "@/utils/game-config";
 import { DEFAULT_CATEGORY, entryLabel, entryLabelHtml, groupEntries, sceneOrderOf } from "./entries-model";
 import { t } from "i18next";
 
@@ -129,7 +129,7 @@ export class EntriesList extends HTMLElement {
 
   private listHtml(): string {
     const hint = this.isVideos ? `<p class="hint">${t("entries:videosHint")}</p>` : "";
-    const groups = groupEntries(this.entries, this.category, sceneOrderOf(getSpreads()));
+    const groups = groupEntries(this.entries, this.category, sceneOrderOf(getScenes()));
     if (groups.length === 0) return `${hint}<p class="empty">${t("entries:empty")}</p>`;
     const nameHeader = this.category === EntryCategory.Text ? t("entries:title") : t("entries:name");
     // One gradient spans the whole list, so names run from pale to gold top to bottom; the Videos are white (#288)

@@ -121,7 +121,7 @@ export class Gizmo {
       this.snapDrag(this.attached);
       this.onchange(this.selection, placementOf(this.attached));
     });
-    // A rebuilt node (the scene built the spread again) is attached and outlined again
+    // A rebuilt node (the scene built the scene again) is attached and outlined again
     this.offFrame = inspection.onFrame(() => {
       if (this.selection && this.attached && !this.attached.parent) this.sync();
     });

@@ -28,7 +28,7 @@
    * entity as its **node tree** (the root node and its children, as deep as the content nests
    * them), each node by its name or its type. It reads and writes the workspace's one selection
    * (`selection.svelte.ts`, #162; the rows' rules in `tree-rows.ts`): every row is selectable (#227) and the Inspector
-   * shows what a tap selects (#229) – on the spread row the spread (no target or node on the stage), on an entry row
+   * shows what a tap selects (#229) – on the scene row the scene (no target or node on the stage), on an entry row
    * the entry (the stage outlines its target), on a target row the target, on a node row the node. A tap anywhere on
    * a row selects it – its name, its icon or an empty cell; the chevron and the eye keep their own. The selected row is
    * highlighted over its whole width, the hovered one lighter, the rows above a selected node marked.
@@ -42,8 +42,8 @@
    * (`stage.editTree`) and saved by themselves (#259). Folding is per entry and per node and not stored. ● after a name: its tree is
    * not in the draft yet (a save waits, or something keeps it back – the top bar says what).
    */
-  let { stage, spreadId, onselect, onaddtarget, onaddentry, onaddspread, onremoveentry }: {
-    stage: Stage | null; spreadId: string;
+  let { stage, sceneId, onselect, onaddtarget, onaddentry, onaddscene, onremoveentry }: {
+    stage: Stage | null; sceneId: string;
     /** A row was chosen (a tap, Enter): the workspace shows the Inspector */
     onselect?: (kind: TreeRow["kind"]) => void;
     /** "+ target": the workspace opens the form */
@@ -51,12 +51,12 @@
     /** "+ entry" (an entry without a printed image, #237): the workspace opens the form */
     onaddentry?: () => void;
     /** The scene row's menu *Add a scene after* (#238 – given only for a digital-first book): the workspace opens the creation step */
-    onaddspread?: (after: string) => void;
+    onaddscene?: (after: string) => void;
     /** "Remove target" / "Remove entry", Delete on an entry row: the entry with everything on it, after the confirmation the workspace shows (#198) */
     onremoveentry?: (entryId: string, targetId: string | null) => Promise<void>;
   } = $props();
 
-  const spread = $derived(content.spread(spreadId));
+  const scene = $derived(content.scene(sceneId));
   let preview = $state<PreviewState>(getPreview());
   onMount(() => subscribePreview(state => (preview = state)));
 
@@ -65,7 +65,7 @@
   const nodeKey = (target: Target | string, path: number[]) => `${typeof target === "string" ? target : target.id}:${path.join(".")}`;
 
   /** The targets that can be selected (with an image), in tree order */
-  const selectable = $derived((spread?.entries ?? []).map(entry => entry.target).filter((t): t is Target => !!t?.imageSrc));
+  const selectable = $derived((scene?.entries ?? []).map(entry => entry.target).filter((t): t is Target => !!t?.imageSrc));
 
   /** The entity shown for a target: the stage's override (a live edit, or removed) or the draft's */
   const treeOf = (target: Target): EntityData | undefined => {
@@ -85,12 +85,12 @@
     return !!target && !!treeOf(target);
   };
   const isOn = (row: TreeRow) => isRowOn(row, selection, hasTree);
-  const spreadOn = $derived(isOn({ kind: "spread" }));
+  const sceneOn = $derived(isOn({ kind: "scene" }));
   const isTargetOn = (target: Target) => isOn({ kind: "target", targetId: target.id });
   const isNodeOn = (target: Target, path: number[]) => isOn({ kind: "node", targetId: target.id, path });
   /** A row above the selected node (its target, its parents): marked lighter, so the level is clear */
   const isWithinOn = (target: Target, path: number[] | null) =>
-    !selection.spread && !selection.entry && selection.target === target.id && !selection.onTarget
+    !selection.scene && !selection.entry && selection.target === target.id && !selection.onTarget
     && (path === null || (path.length < selection.node.length && isWithin(selection.node, path)));
 
   const NODE_ICONS: Record<string, IconName> = { group: "layers", model: "model", video: "video", image: "image", text: "type", light: "light" };
@@ -120,16 +120,16 @@
   };
   /** The selected node and its target, while a node (not the target) is selected */
   const selectedNode = (): { target: Target; path: number[] } | null => {
-    const target = selection.target && !selection.entry && !selection.spread ? selectable.find(t => t.id === selection.target) : undefined;
+    const target = selection.target && !selection.entry && !selection.scene ? selectable.find(t => t.id === selection.target) : undefined;
     return target && !selection.onTarget && treeOf(target) ? { target, path: selection.node } : null;
   };
   const shift = (direction: -1 | 1) => { const s = selectedNode(); return !!s && edit(s.target, tree => shiftNode(tree, s.path, direction)); };
   const indent = () => { const s = selectedNode(); return !!s && edit(s.target, tree => indentNode(tree, s.path)); };
   const outdent = () => { const s = selectedNode(); return !!s && edit(s.target, tree => outdentNode(tree, s.path)); };
 
-  // ── the Surfaces level (#314): the scene's surfaces under the spread row – a tap selects one (the Inspector shows it,
+  // ── the Surfaces level (#314): the scene's surfaces under the scene row – a tap selects one (the Inspector shows it,
   // the stage highlights it), + adds a page / wall / custom one, Alt ↑ ↓ or the menu reorder ──
-  const sceneSurfaces = $derived(scenes.scene(spreadId)?.surfaces ?? []);
+  const sceneSurfaces = $derived(scenes.scene(sceneId)?.surfaces ?? []);
   const surfacesOpen = $derived(!folded["surfaces"]);
   let surfaceError = $state<string | null>(null);
   const runSurface = async (action: () => Promise<unknown>) => {
@@ -143,14 +143,14 @@
   const addSurfaceRow = (preset: SurfacePreset) =>
     runSurface(async () => {
       fold("surfaces", false);
-      if (await addSceneSurface(spreadId, preset)) onselect?.("surface");
+      if (await addSceneSurface(sceneId, preset)) onselect?.("surface");
     });
   /** The selected surface of this scene, while one is */
-  const selectedSurface = () => (selection.surface?.scene === spreadId ? selection.surface.id : null);
+  const selectedSurface = () => (selection.surface?.scene === sceneId ? selection.surface.id : null);
   const shiftSurface = (direction: -1 | 1): boolean => {
     const id = selectedSurface();
     if (!id) return false;
-    void runSurface(() => moveSceneSurface(spreadId, id, direction));
+    void runSurface(() => moveSceneSurface(sceneId, id, direction));
     return true;
   };
   const PRESET_HELP: Record<SurfacePreset, string> = {
@@ -160,12 +160,12 @@
     custom: "A surface of 300 × 300 mm – set its size in the Inspector.",
   };
   const surfaceMenu = (surfaceId: string) => menuTrigger({
-    open: at => { selection.selectSurface(spreadId, surfaceId); menu = { at, kind: "surface", surfaceId }; },
+    open: at => { selection.selectSurface(sceneId, surfaceId); menu = { at, kind: "surface", surfaceId }; },
     pressing: pressed(`surface:${surfaceId}`),
   });
 
   // ── a row's context menu (a right click, a long press, the menu key): remove, and the hierarchy's moves ──
-  type Menu = { at: Point; kind: "spread" } | { at: Point; kind: "surfaces" } | { at: Point; kind: "surface"; surfaceId: string } | { at: Point; kind: "entry"; entry: Entry } | { at: Point; kind: "node" | "target"; target: Target; path: number[] };
+  type Menu = { at: Point; kind: "scene" } | { at: Point; kind: "surfaces" } | { at: Point; kind: "surface"; surfaceId: string } | { at: Point; kind: "entry"; entry: Entry } | { at: Point; kind: "node" | "target"; target: Target; path: number[] };
   let menu = $state<Menu | null>(null);
   /** The row a finger is held on: its light cue until the menu opens */
   let pressing = $state<string | null>(null);
@@ -184,8 +184,8 @@
     menuTrigger({ open: at => openMenu(at, target, path, kind), pressing: pressed(kind === "target" ? target.id : nodeKey(target, path)) });
   const entryMenu = (entry: Entry) => menuTrigger({ open: at => openEntryMenu(at, entry), pressing: pressed(`entry:${entry.id}`) });
   /** The scene row's menu: *arrange in a row*, and *add a scene after* where scenes are added here (a digital-first book) */
-  const spreadMenu = () => (element: HTMLElement) =>
-    menuTrigger({ open: at => { pick({ kind: "spread" }); menu = { at, kind: "spread" }; }, pressing: pressed("spread") })(element);
+  const sceneMenu = () => (element: HTMLElement) =>
+    menuTrigger({ open: at => { pick({ kind: "scene" }); menu = { at, kind: "scene" }; }, pressing: pressed("scene") })(element);
   /** Remove an entry with everything on it: the workspace shows the API's impact and asks first (#198) */
   const removeEntry = (entry: Entry) => void onremoveentry?.(entry.id, entry.target?.id ?? null);
   const EYE_HELP = "Shows or hides this target in the scene – its printed image and its AR content. Hidden, the stage reports the target lost (a behaviour's lost and found run when you hide and show it). Only the stage changes: whether readers find it is the Inspector's In the book switch.";
@@ -198,22 +198,22 @@
     if (m.kind === "surface") {
       const at = sceneSurfaces.findIndex(s => s.id === m.surfaceId);
       return [
-        { label: "Move up", icon: "up", keys: "Alt ↑", disabled: at <= 0 && "It is the scene's first surface.", select: () => void runSurface(() => moveSceneSurface(spreadId, m.surfaceId, -1)),
+        { label: "Move up", icon: "up", keys: "Alt ↑", disabled: at <= 0 && "It is the scene's first surface.", select: () => void runSurface(() => moveSceneSurface(sceneId, m.surfaceId, -1)),
           help: "Moves the surface one place earlier in the scene." },
-        { label: "Move down", icon: "down", keys: "Alt ↓", disabled: at >= sceneSurfaces.length - 1 && "It is the scene's last surface.", select: () => void runSurface(() => moveSceneSurface(spreadId, m.surfaceId, 1)),
+        { label: "Move down", icon: "down", keys: "Alt ↓", disabled: at >= sceneSurfaces.length - 1 && "It is the scene's last surface.", select: () => void runSurface(() => moveSceneSurface(sceneId, m.surfaceId, 1)),
           help: "Moves the surface one place later in the scene." },
         { label: "Edit in the Inspector", icon: "surface", select: () => onselect?.("surface"),
           help: "Shows the surface in the Inspector: its label, size, place, reference image – and remove surface." },
-        { label: "Arrange the scene in a row", icon: "surface", disabled: !canArrangeInRow(spreadId) && "The surfaces lie in a row already.", select: () => void runSurface(() => arrangeSceneInRow(spreadId)),
+        { label: "Arrange the scene in a row", icon: "surface", disabled: !canArrangeInRow(sceneId) && "The surfaces lie in a row already.", select: () => void runSurface(() => arrangeSceneInRow(sceneId)),
           help: "Lays the scene's surfaces flat on the table, side by side in their order, touching, the row centred on the origin – written to their places." },
       ];
     }
-    if (m.kind === "spread") {
-      if (!spread) return [];
-      const arrange: MenuItem = { label: "Arrange in a row", icon: "surface", disabled: !canArrangeInRow(spreadId) && "The surfaces lie in a row already.",
-        select: () => void runSurface(() => arrangeSceneInRow(spreadId)),
+    if (m.kind === "scene") {
+      if (!scene) return [];
+      const arrange: MenuItem = { label: "Arrange in a row", icon: "surface", disabled: !canArrangeInRow(sceneId) && "The surfaces lie in a row already.",
+        select: () => void runSurface(() => arrangeSceneInRow(sceneId)),
         help: "Lays the scene's surfaces flat on the table, side by side in their order, touching, the row centred on the origin – written to their places." };
-      const add: MenuItem[] = onaddspread ? [{ label: "Add a scene after", icon: "plus", select: () => onaddspread?.(spread.id),
+      const add: MenuItem[] = onaddscene ? [{ label: "Add a scene after", icon: "plus", select: () => onaddscene?.(scene.id),
         help: "Opens the creation step for a new scene right after this one: a double page, a single page or a wall." }] : [];
       return [arrange, ...add];
     }
@@ -249,7 +249,7 @@
   };
   /** What the menu is for: the entry's title, the target's id, or the node's name */
   const menuHead = (m: Menu): string => {
-    if (m.kind === "spread") return spread ? sceneLabel(spread) : spreadId;
+    if (m.kind === "scene") return scene ? sceneLabel(scene) : sceneId;
     if (m.kind === "surfaces") return "+ surface";
     if (m.kind === "surface") { const s = sceneSurfaces.find(x => x.id === m.surfaceId); return s ? surfaceName(s) : m.surfaceId; }
     if (m.kind === "entry") return m.entry.title;
@@ -258,14 +258,14 @@
     const node = tree ? nodeAt(tree, m.path) : undefined;
     return node ? rowName(node, m.target, m.path) : m.target.id;
   };
-  /** The menu key on the tree: the selected row's menu, at its name (the spread row has none) */
+  /** The menu key on the tree: the selected row's menu, at its name (the scene row has none) */
   const openKeyMenu = () => {
     const row = rows[currentRow()];
     const button = treeElement?.querySelector<HTMLElement>(".node.on .pick");
     if (!row || !button) return;
-    if (row.kind === "spread") {
+    if (row.kind === "scene") {
       const rect = button.getBoundingClientRect();
-      menu = { at: { x: rect.left + Math.min(16, rect.width / 2), y: rect.top + rect.height / 2 }, kind: "spread" };
+      menu = { at: { x: rect.left + Math.min(16, rect.width / 2), y: rect.top + rect.height / 2 }, kind: "scene" };
       return;
     }
     const rect = button.getBoundingClientRect();
@@ -275,7 +275,7 @@
       return;
     }
     if (row.kind === "entry") {
-      const entry = spread?.entries.find(e => e.id === row.entryId);
+      const entry = scene?.entries.find(e => e.id === row.entryId);
       if (entry) openEntryMenu(at, entry);
       return;
     }
@@ -290,18 +290,18 @@
     if (s.path.length) selection.selectNode(s.target.id, next);
     else selection.selectTarget(s.target.id);
   };
-  const entryOf = (targetId: string): Entry | undefined => spread?.entries.find(entry => entry.target?.id === targetId);
+  const entryOf = (targetId: string): Entry | undefined => scene?.entries.find(entry => entry.target?.id === targetId);
 
-  // ── the keys: the rows as they are shown, in order – the spread, the entries, their targets and nodes (#227) ──
+  // ── the keys: the rows as they are shown, in order – the scene, the entries, their targets and nodes (#227) ──
   const rows = $derived.by<TreeRow[]>(() =>
-    treeRows(spread?.entries ?? [], {
+    treeRows(scene?.entries ?? [], {
       isOpen: entryId => !folded[entryId],
       nodes: targetId => {
         const target = selectable.find(t => t.id === targetId);
         const tree = target ? treeOf(target) : undefined;
         return tree ? visiblePaths(tree, path => !folded[nodeKey(targetId, path)]) : [];
       },
-      surfaces: { sceneId: spreadId, ids: surfacesOpen ? sceneSurfaces.map(s => s.id) : [] },
+      surfaces: { sceneId: sceneId, ids: surfacesOpen ? sceneSurfaces.map(s => s.id) : [] },
     }),
   );
   const currentRow = () => rows.findIndex(isOn);
@@ -311,7 +311,7 @@
   /** A row's fold key and whether rows hang below it: an entry folds its target, a node its children */
   const foldOf = (row: TreeRow | undefined): { key?: string; children: boolean } => {
     if (!row) return { children: false };
-    if (row.kind === "spread") return { children: !!spread?.entries.length };
+    if (row.kind === "scene") return { children: !!scene?.entries.length };
     if (row.kind === "surface") return { children: false };
     if (row.kind === "entry") return { key: row.entryId, children: !!row.targetId && selectable.some(t => t.id === row.targetId) };
     const target = selectable.find(t => t.id === row.targetId);
@@ -357,7 +357,7 @@
       case "Enter": case " ": if (row) onselect?.(row.kind); break;
       case "Delete": case "Backspace": {
         // An entry goes only after the confirmation (#198); a node at once (live on the stage, saved by itself)
-        const entry = row?.kind === "entry" ? spread?.entries.find(e => e.id === row.entryId) : undefined;
+        const entry = row?.kind === "entry" ? scene?.entries.find(e => e.id === row.entryId) : undefined;
         if (entry) removeEntry(entry);
         else removeSelected();
         break;
@@ -430,7 +430,7 @@
   };
   /**
    * A click on a row beside its name – its type icon, an empty chevron or eye cell, its guides – selects the row as a
-   * click on the name does (#229: the spread row's book icon took no click; a tree selects by its whole row)
+   * click on the name does (#229: the scene row's book icon took no click; a tree selects by its whole row)
    */
   const rowClick = (event: MouseEvent) => {
     const target = event.target as Element;
@@ -480,20 +480,20 @@
   {/if}
 {/snippet}
 
-{#if !spread}
-  <p class="muted small">No spread.</p>
+{#if !scene}
+  <p class="muted small">No scene.</p>
 {:else}
   <!-- The tree takes the keys and the drags of its rows (a focusable tree is a control) -->
   <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
   <div class="tree" class:dragging={!!drag?.active} role="tree" aria-label="Scene tree" tabindex="0" onkeydown={onKey} bind:this={treeElement}
     onpointerdown={dragDown} onpointermove={dragMove} onpointerup={dragUp} onpointercancel={dragUp} onlostpointercapture={dragUp} onclickcapture={dragClick} onclick={rowClick}
     data-help-name="Tree" data-help="A tap anywhere on a row selects the scene, a surface, an entry, a target, its entity or a node: the row is highlighted and the Inspector shows it; an entry with a target and a target are outlined on the stage, a node carries the gizmo, the scene clears both. Drag a node onto a row to make it that node's child, between two rows to make it a sibling there (with a finger, drag its icon). Keys: ↑ ↓ walk the rows, ← → fold or step a level up and down, Alt + ↑ ↓ move a node, Tab / Shift + Tab indent / outdent, Enter opens the row's panel, Delete removes a node – on an entry it shows what goes and asks first. A row's menu – a right click, a long press, or the menu key – has the moves and the removal.">
-    <div class="node" class:on={spreadOn} class:pressing={pressing === "spread"} role="treeitem" aria-expanded="true" aria-selected={spreadOn} aria-level={1}>
+    <div class="node" class:on={sceneOn} class:pressing={pressing === "scene"} role="treeitem" aria-expanded="true" aria-selected={sceneOn} aria-level={1}>
       <span class="chevron"></span>
       <span class="type"><Icon name="book" size="1em" stroke={2} /></span>
-      <button type="button" class="pick" onclick={() => pick({ kind: "spread" })} aria-haspopup="menu" {@attach spreadMenu()}
+      <button type="button" class="pick" onclick={() => pick({ kind: "scene" })} aria-haspopup="menu" {@attach sceneMenu()}
         title="The scene – a tap selects it: the Inspector shows its label, group, surfaces, post-processing, vars and events; its menu arranges the surfaces in a row">
-        <span class="name">{sceneLabel(spread)}</span>
+        <span class="name">{sceneLabel(scene)}</span>
       </button>
       <span class="eye"></span>
     </div>
@@ -515,7 +515,7 @@
     </div>
     {#if surfacesOpen}
       {#each sceneSurfaces as surface (surface.id)}
-        {@const row = { kind: "surface", sceneId: spreadId, surfaceId: surface.id } as const}
+        {@const row = { kind: "surface", sceneId: sceneId, surfaceId: surface.id } as const}
         {@const on = isOn(row)}
         <div class="node depth-2" class:on class:pressing={pressing === `surface:${surface.id}`} role="treeitem" aria-selected={on} aria-level={3}>
           {@render guides(2)}
@@ -530,7 +530,7 @@
       {/each}
     {/if}
     {#if surfaceError}<p class="small danger">{surfaceError}</p>{/if}
-    {#each spread.entries as entry (entry.id)}
+    {#each scene.entries as entry (entry.id)}
       {@const target = entry.target}
       {@const open = !folded[entry.id]}
       {@const shown = !!target && !preview.hidden.includes(target.id)}
@@ -582,11 +582,11 @@
         <span class="chevron"></span>
         <span class="type"><Icon name="plus" size="1em" /></span>
         {#if onaddtarget}
-          <button type="button" class="pick add" onclick={onaddtarget} title="A tap opens the form for a new entry with a printed image on this spread"><span class="name">+ target</span></button>
+          <button type="button" class="pick add" onclick={onaddtarget} title="A tap opens the form for a new entry with a printed image on this scene"><span class="name">+ target</span></button>
         {/if}
         {#if onaddentry}
           <button type="button" class="pick add" onclick={onaddentry} data-help-name="+ entry"
-            title="A tap opens the form for a new entry without a printed image on this spread – read in the reader's list only, like a glossary term"><span class="name">+ entry</span></button>
+            title="A tap opens the form for a new entry without a printed image on this scene – read in the reader's list only, like a glossary term"><span class="name">+ entry</span></button>
         {/if}
       </div>
     {/if}
@@ -594,7 +594,7 @@
 {/if}
 
 {#if menu}
-  <ContextMenu at={menu.at} label={menu.kind === "spread" ? "Spread" : menu.kind === "surfaces" ? "Add a surface" : menu.kind === "surface" ? "Surface" : menu.kind === "entry" ? "Entry" : menu.kind === "target" ? `Target ${menu.target.id}` : "Node"} head={menuHead(menu)} items={menuItems(menu)}
+  <ContextMenu at={menu.at} label={menu.kind === "scene" ? "Scene" : menu.kind === "surfaces" ? "Add a surface" : menu.kind === "surface" ? "Surface" : menu.kind === "entry" ? "Entry" : menu.kind === "target" ? `Target ${menu.target.id}` : "Node"} head={menuHead(menu)} items={menuItems(menu)}
     returnFocus={treeElement} onclose={() => (menu = null)} />
 {/if}
 

@@ -4,9 +4,9 @@ import type { EntityData, Target } from "../../types/index";
 import { ArScene } from "../ar-scene";
 
 const image: EntityData = { type: "image", assets: [{ id: "picture", assetType: "image", src: "/picture.jpg" }] };
-const target: Target = { id: "page", entryId: "page", spreadId: "s", imageSrc: "/page.jpg", entity: image };
+const target: Target = { id: "page", entryId: "page", sceneId: "s", imageSrc: "/page.jpg", entity: image };
 
-/** A scene with one anchor for `target` – built like a spread switch does, without renderer or camera */
+/** A scene with one anchor for `target` – built like a scene switch does, without renderer or camera */
 const sceneWithAnchor = () => {
   const scene = new ArScene(document.createElement("div"), { createTracker: () => { throw new Error("no tracker in this test"); } });
   const internals = scene as unknown as {
@@ -14,7 +14,7 @@ const sceneWithAnchor = () => {
     content: unknown;
   };
   const anchor = internals.buildAnchor(target);
-  internals.content = { spreadId: "s", targets: [target], anchors: [anchor] };
+  internals.content = { sceneId: "s", targets: [target], anchors: [anchor] };
   return { scene, anchor };
 };
 
@@ -33,7 +33,7 @@ describe("ArScene.overrideEntity (the editor's live edit)", () => {
     expect(placed.scale.toArray()).toEqual([1, 1, 1]);
   });
 
-  it("keeps the override for a rebuilt anchor (spread switched away and back)", () => {
+  it("keeps the override for a rebuilt anchor (scene switched away and back)", () => {
     const { scene } = sceneWithAnchor();
     scene.overrideEntity("page", { ...image, params: { scale: 3 } });
     const rebuilt = (scene as unknown as { buildAnchor(t: Target): { entity: { object: Group } } }).buildAnchor(target);

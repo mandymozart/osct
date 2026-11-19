@@ -104,7 +104,7 @@ describe("mock stage: the grid", () => {
 describe("mock stage: the snap guides (#190)", () => {
   const guidesOf = (stage: MockStage) => (stage as unknown as { guideGroup: { children: LineSegments[] } }).guideGroup.children;
 
-  it("draws a line across the spread per guide, through everything, and clears them", () => {
+  it("draws a line across the scene per guide, through everything, and clears them", () => {
     const { stage } = newStage();
     stage.setLayout([], book);
     stage.setGuides([{ axis: 0, at: 0 }, { axis: 1, at: 160 }, { axis: 2, at: 0 }]);
@@ -212,7 +212,7 @@ describe("mock stage: the printed images and the placement (#191)", () => {
     const { outline } = await import("../shading");
     const { stage, answer } = printStage();
     stage.setLayout([portrait], book);
-    const [plane] = stage.printedPlanes();
+    const [plane] = stage.targetPlanes();
     expect(plane.scale.x).toBeCloseTo(0.08, 6);
     expect(plane.scale.y).toBeCloseTo(0.06, 6); // the stored box until the image is known
     const lines = outline(plane, 0xffa028);
@@ -222,7 +222,7 @@ describe("mock stage: the printed images and the placement (#191)", () => {
     expect(plane.position.y).toBeCloseTo((160 - 100 - 58) / 1000, 6);
     expect(stage.printedAspect("a")).toBeCloseTo(1.45, 6);
     stage.movePrint({ ...portrait, surface: "left", width: 40 });
-    expect(stage.printedPlanes()[0]).toBe(plane);
+    expect(stage.targetPlanes()[0]).toBe(plane);
     expect(plane.scale.x).toBeCloseTo(0.04, 6);
     expect(plane.scale.y).toBeCloseTo(0.058, 6);
     expect(plane.position.x).toBeCloseTo((-230 + 70 + 20) / 1000, 6);
@@ -236,7 +236,7 @@ describe("mock stage: the printed images and the placement (#191)", () => {
     stage.setLayout([portrait], book);
     stage.movePrint({ ...portrait, x: 10 });
     answer("/a.jpg", 100, 100);
-    const [plane] = stage.printedPlanes();
+    const [plane] = stage.targetPlanes();
     expect(plane.position.x).toBeCloseTo((10 + 40) / 1000, 6);
     expect(plane.scale.y).toBeCloseTo(0.08, 6);
   });
@@ -436,14 +436,14 @@ describe("mock stage: the surfaces as boards, the eye (#250, #319)", () => {
     ] });
     const target = { id: "a", imageSrc: "/a.jpg", surface: "w", x: 180, y: 130, width: 40, height: 40 };
     stage.setLayout([target], { surfaces, references: { w: { url: "https://cdn.test/w.jpg", fit: "stretch" } } });
-    const [print] = stage.printedPlanes();
+    const [print] = stage.targetPlanes();
     // On the wall, 400 mm away from the reader, its middle 150 mm up – facing the reader
     expect(print.position.y).toBeCloseTo(0.4, 2);
     expect(new Vector3(0, 0, 1).applyQuaternion(print.quaternion).y).toBeCloseTo(-1, 6);
     expect(bookOf(stage).children.some(c => c.userData.reference === "w")).toBe(true);
     expect(requested).toContain("https://cdn.test/w.jpg");
     const raycaster = new Raycaster(new Vector3(0, -1, 0.15), new Vector3(0, 1, 0));
-    expect(stage.pageHit(raycaster)).toEqual({ surface: "w", x: 200, y: 150 });
+    expect(stage.surfaceHit(raycaster)).toEqual({ surface: "w", x: 200, y: 150 });
   });
 
   it("outlines the surfaces and highlights one by id (#314, the Surface mode)", () => {
@@ -465,8 +465,8 @@ describe("mock stage: the surfaces as boards, the eye (#250, #319)", () => {
     const target = (id: string) => ({ id, imageSrc: `/${id}.jpg`, surface: "right", x: 20, y: 20, width: 40, height: 30 });
     stage.setLayout([target("a"), target("b")], book);
     stage.setHiddenPrints(new Set(["a"]));
-    expect(stage.printedPlanes().map(p => [p.userData.targetId, p.visible])).toEqual([["a", false], ["b", true]]);
+    expect(stage.targetPlanes().map(p => [p.userData.targetId, p.visible])).toEqual([["a", false], ["b", true]]);
     stage.setHiddenPrints(new Set());
-    expect(stage.printedPlanes().every(p => p.visible)).toBe(true);
+    expect(stage.targetPlanes().every(p => p.visible)).toBe(true);
   });
 });

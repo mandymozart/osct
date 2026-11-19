@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Target } from "../../types/index";
-import type { TrackedSpread } from "../tracker-types";
+import type { TrackedScene } from "../tracker-types";
 import type { XrPipelineModule } from "../xr8";
 
 /**
@@ -59,84 +59,84 @@ const image = (event: "imagefound" | "imageupdated" | "imagelost", name: string)
     ?.find(listener => listener.event === `reality.${event}`)
     ?.process({ detail: { name, position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: 1, scaledWidth: 1, scaledHeight: 1 } }));
 
-const spread = (id: string): TrackedSpread => ({
-  spreadId: id,
+const scene = (id: string): TrackedScene => ({
+  sceneId: id,
   targets: [0, 1].map(n => ({ id: `${id}-${n}`, imageSrc: `${id}-${n}.jpg` }) as unknown as Target),
 });
 
-describe("ImageTracker spread switches", () => {
+describe("ImageTracker scene switches", () => {
   it("keeps the neighbours' targets loaded, so switching to one extracts nothing", async () => {
     const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} }, "/assets/xr8/");
     await tracker.startCamera();
 
-    await tracker.loadTargets(spread("s2"));
+    await tracker.loadTargets(scene("s2"));
     expect(engine.extracted).toEqual(["s2-0.jpg", "s2-1.jpg"]);
 
-    tracker.prepareTargets([spread("s1"), spread("s3")]);
+    tracker.prepareTargets([scene("s1"), scene("s3")]);
     await vi.waitFor(() => expect(engine.extracted).toHaveLength(6));
 
     // To a neighbour: already extracted – loadTargets returns without waiting for the engine
     engine.extracted = [];
     tracker.stopTracking();
-    await tracker.loadTargets(spread("s3"));
+    await tracker.loadTargets(scene("s3"));
     expect(engine.extracted).toEqual([]);
     expect(tracker.tracking).toBe(true);
 
     // Its neighbours: s2 is kept, s1 unloaded, only s4 is new
-    tracker.prepareTargets([spread("s2"), spread("s4")]);
+    tracker.prepareTargets([scene("s2"), scene("s4")]);
     await vi.waitFor(() => expect(engine.extracted).toEqual(["s4-0.jpg", "s4-1.jpg"]));
     expect([...engine.loaded].sort()).toEqual(["s2-0.jpg", "s2-1.jpg", "s3-0.jpg", "s3-1.jpg", "s4-0.jpg", "s4-1.jpg"]);
 
     tracker.stop();
   });
 
-  it("reports a neighbouring spread held in view while nothing of the current spread is", async () => {
+  it("reports a neighbouring scene held in view while nothing of the current scene is", async () => {
     const now = vi.spyOn(performance, "now").mockReturnValue(0);
-    const onSpreadSeen = vi.fn();
-    const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {}, onSpreadSeen }, "/assets/xr8/");
+    const onSceneSeen = vi.fn();
+    const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {}, onSceneSeen }, "/assets/xr8/");
     await tracker.startCamera();
-    await tracker.loadTargets(spread("s2"));
-    tracker.prepareTargets([spread("s1"), spread("s3")]);
+    await tracker.loadTargets(scene("s2"));
+    tracker.prepareTargets([scene("s1"), scene("s3")]);
     await vi.waitFor(() => expect(engine.loaded.has("s3-0.jpg")).toBe(true));
 
     // A glimpse is not enough
     image("imagefound", "s3-0.jpg");
     now.mockReturnValue(200);
     image("imageupdated", "s3-0.jpg");
-    expect(onSpreadSeen).not.toHaveBeenCalled();
+    expect(onSceneSeen).not.toHaveBeenCalled();
 
     // While a current target is found, the neighbour is ignored
     image("imagefound", "s2-1.jpg");
     now.mockReturnValue(600);
     image("imageupdated", "s3-0.jpg");
-    expect(onSpreadSeen).not.toHaveBeenCalled();
+    expect(onSceneSeen).not.toHaveBeenCalled();
 
     // The current page left the view: the neighbour held for 400 ms is reported …
     image("imagelost", "s2-1.jpg");
     now.mockReturnValue(700);
     image("imageupdated", "s3-0.jpg");
     image("imageupdated", "s3-0.jpg");
-    expect(onSpreadSeen).toHaveBeenCalledTimes(1);
-    expect(onSpreadSeen).toHaveBeenCalledWith("s3");
+    expect(onSceneSeen).toHaveBeenCalledTimes(1);
+    expect(onSceneSeen).toHaveBeenCalledWith("s3");
     // … and again after another 400 ms if the app did not switch
     now.mockReturnValue(1000);
     image("imageupdated", "s3-0.jpg");
-    expect(onSpreadSeen).toHaveBeenCalledTimes(1);
+    expect(onSceneSeen).toHaveBeenCalledTimes(1);
     now.mockReturnValue(1100);
     image("imageupdated", "s3-0.jpg");
-    expect(onSpreadSeen).toHaveBeenCalledTimes(2);
+    expect(onSceneSeen).toHaveBeenCalledTimes(2);
 
     tracker.stop();
     now.mockRestore();
   });
 
-  it("reports every target the engine sees, of any held spread, and the last automatic switch (debug view)", async () => {
+  it("reports every target the engine sees, of any held scene, and the last automatic switch (debug view)", async () => {
     engine.loaded = new Set(); engine.extracted = [];
     const now = vi.spyOn(performance, "now").mockReturnValue(0);
-    const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {}, onSpreadSeen: () => {} }, "/assets/xr8/");
+    const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {}, onSceneSeen: () => {} }, "/assets/xr8/");
     await tracker.startCamera();
-    await tracker.loadTargets(spread("s2"));
-    tracker.prepareTargets([spread("s3")]);
+    await tracker.loadTargets(scene("s2"));
+    tracker.prepareTargets([scene("s3")]);
     await vi.waitFor(() => expect(engine.loaded.has("s3-1.jpg")).toBe(true));
 
     image("imagefound", "s2-0.jpg");
@@ -148,7 +148,7 @@ describe("ImageTracker spread switches", () => {
 
     now.mockReturnValue(500);
     image("imageupdated", "s3-1.jpg");
-    expect(getEngineState().lastSwitch).toMatchObject({ spreadId: "s3", targetId: "s3-1" });
+    expect(getEngineState().lastSwitch).toMatchObject({ sceneId: "s3", targetId: "s3-1" });
     tracker.stop();
     expect(getEngineState().seen).toEqual([]);
     now.mockRestore();
@@ -158,32 +158,32 @@ describe("ImageTracker spread switches", () => {
     const reset = () => { engine.loaded = new Set(); engine.extracted = []; };
     const all = (ids: string[]) => ids.flatMap(id => [`${id}-0.jpg`, `${id}-1.jpg`]);
 
-    it("adds the spreads nearest first, one batch after the other, and drops nothing", async () => {
+    it("adds the scenes nearest first, one batch after the other, and drops nothing", async () => {
       reset();
       const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} }, "/assets/xr8/");
       await tracker.startCamera();
-      await tracker.loadTargets(spread("s2"));
-      tracker.growTargets([spread("s3"), spread("s1"), spread("s4"), spread("s0")]);
+      await tracker.loadTargets(scene("s2"));
+      tracker.growTargets([scene("s3"), scene("s1"), scene("s4"), scene("s0")]);
       await vi.waitFor(() => expect(engine.extracted).toHaveLength(10), { timeout: 5000 });
-      // Two targets per spread, at most three per batch: one spread per configure, in the given order
+      // Two targets per scene, at most three per batch: one scene per configure, in the given order
       expect(engine.extracted).toEqual(all(["s2", "s3", "s1", "s4", "s0"]));
       expect(engine.loaded.size).toBe(10);
-      expect(tracker.heldSpreads).toBe(5);
+      expect(tracker.heldScenes).toBe(5);
       tracker.stop();
     });
 
-    it("keeps growing across a spread switch, in the new order, without unloading", async () => {
+    it("keeps growing across a scene switch, in the new order, without unloading", async () => {
       reset();
       const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} }, "/assets/xr8/");
       await tracker.startCamera();
-      await tracker.loadTargets(spread("s2"));
-      tracker.growTargets([spread("s3"), spread("s1"), spread("s4"), spread("s0")]);
+      await tracker.loadTargets(scene("s2"));
+      tracker.growTargets([scene("s3"), scene("s1"), scene("s4"), scene("s0")]);
       await vi.waitFor(() => expect(engine.loaded.has("s3-1.jpg")).toBe(true), { timeout: 5000 });
 
       // The reader turned to s4: it is tracked at once, the rest grows from there
       tracker.stopTracking();
-      await tracker.loadTargets(spread("s4"));
-      tracker.growTargets([spread("s5"), spread("s3"), spread("s6"), spread("s2"), spread("s1"), spread("s0")]);
+      await tracker.loadTargets(scene("s4"));
+      tracker.growTargets([scene("s5"), scene("s3"), scene("s6"), scene("s2"), scene("s1"), scene("s0")]);
       await vi.waitFor(() => expect(engine.loaded.size).toBe(14), { timeout: 8000 });
       expect(engine.extracted.slice(0, 6)).toEqual(all(["s2", "s3", "s4"]));
       expect(engine.extracted.indexOf("s5-0.jpg")).toBeLessThan(engine.extracted.indexOf("s6-0.jpg"));
@@ -195,9 +195,9 @@ describe("ImageTracker spread switches", () => {
       reset();
       const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} }, "/assets/xr8/");
       await tracker.startCamera();
-      await tracker.loadTargets(spread("s2"));
-      tracker.growTargets([spread("s3"), spread("s1"), spread("s4")]);
-      tracker.prepareTargets([spread("s1")]);
+      await tracker.loadTargets(scene("s2"));
+      tracker.growTargets([scene("s3"), scene("s1"), scene("s4")]);
+      tracker.prepareTargets([scene("s1")]);
       await vi.waitFor(() => expect([...engine.loaded].sort()).toEqual(all(["s1", "s2"])), { timeout: 5000 });
       await new Promise(resolve => setTimeout(resolve, 600));
       expect([...engine.loaded].sort()).toEqual(all(["s1", "s2"]));

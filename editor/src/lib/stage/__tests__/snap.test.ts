@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  axisLines, boxLines, chosenLines, clampSnap, freeAxes, incrementsAt, joinLines, moveIncrements, pageLines, pointLines, printStageBox, snapActive,
-  snapAngle, snapAxis, snapMove, snapPlace, snapScale, snapStep, spreadToStage, thresholdMm, toggleSnapTarget, type SnapLine, type SnapSettings,
+  axisLines, boxLines, chosenLines, clampSnap, freeAxes, incrementsAt, joinLines, moveIncrements, surfaceLines, pointLines, placeStageBox, snapActive,
+  snapAngle, snapAxis, snapMove, snapPlace, snapScale, snapStep, frameToStage, thresholdMm, toggleSnapTarget, type SnapLine, type SnapSettings,
 } from "../snap";
 
 import { flatFrame } from "../origin";
@@ -120,32 +120,32 @@ describe("snap: the stage's lines", () => {
   });
 
   it("has the pages' edges, the spine too, as outlines", () => {
-    expect(pageLines(book)[0].map(l => l.at)).toEqual([-230, 0, 230]);
-    expect(pageLines(book)[1].map(l => l.at)).toEqual([160, -160]);
-    expect(pageLines(cover)[0].map(l => l.at)).toEqual([-115, 115]);
+    expect(surfaceLines(book)[0].map(l => l.at)).toEqual([-230, 0, 230]);
+    expect(surfaceLines(book)[1].map(l => l.at)).toEqual([160, -160]);
+    expect(surfaceLines(cover)[0].map(l => l.at)).toEqual([-115, 115]);
   });
 
   it("puts a printed target's box on the stage and gives its edges and centre", () => {
-    const box = printStageBox({ surface: "right", x: 20, y: 30, width: 60 }, 40, book);
+    const box = placeStageBox({ surface: "right", x: 20, y: 30, width: 60 }, 40, book);
     expect(box).toEqual({ min: [20, 90, 0], max: [80, 130, 0] });
     expect(boxLines(box, "outlines")[0].map(l => l.at)).toEqual([20, 50, 80]);
-    expect(printStageBox({ surface: "left", x: 0, y: 0, width: 230 }, 320, book)).toEqual({ min: [-230, -160, 0], max: [0, 160, 0] });
+    expect(placeStageBox({ surface: "left", x: 0, y: 0, width: 230 }, 320, book)).toEqual({ min: [-230, -160, 0], max: [0, 160, 0] });
   });
 
   it("keeps only the chosen targets' lines", () => {
-    const lines = joinLines(axisLines("centre", book), pointLines([10, 20, 30], "objects"), pageLines(book));
+    const lines = joinLines(axisLines("centre", book), pointLines([10, 20, 30], "objects"), surfaceLines(book));
     expect(chosenLines(lines, ["objects"])).toEqual([[{ at: 10, kind: "objects" }], [{ at: 20, kind: "objects" }], [{ at: 30, kind: "objects" }]]);
     expect(chosenLines(lines, ["axes", "outlines"])[0].map(l => l.kind)).toEqual(["axes", "outlines", "outlines", "outlines"]);
   });
 
-  it("reads the spread's frame from its top left corner", () => {
-    expect(spreadToStage(book, 0, 0)).toEqual({ x: -230, y: 160 });
-    expect(spreadToStage(cover, 115, 160)).toEqual({ x: 0, y: 0 });
+  it("reads the scene's frame from its top left corner", () => {
+    expect(frameToStage(book, 0, 0)).toEqual({ x: -230, y: 160 });
+    expect(frameToStage(cover, 115, 160)).toEqual({ x: 0, y: 0 });
   });
 });
 
 describe("snap: a move of the gizmo", () => {
-  const lines = joinLines(axisLines("centre", book), pageLines(book));
+  const lines = joinLines(axisLines("centre", book), surfaceLines(book));
 
   it("snaps only the axes the handle may change, and names its guides", () => {
     const result = snapMove({
@@ -173,7 +173,7 @@ describe("snap: a move of the gizmo", () => {
 });
 
 describe("snap: a print dragged by its handles", () => {
-  const input = (patch: Partial<SnapSettings> = {}) => ({ frame: book, lines: joinLines(axisLines("top-left", book), pageLines(book)), threshold: 4, settings: settings(patch) });
+  const input = (patch: Partial<SnapSettings> = {}) => ({ frame: book, lines: joinLines(axisLines("top-left", book), surfaceLines(book)), threshold: 4, settings: settings(patch) });
 
   it("puts its edge on a page edge in reach", () => {
     // 60 × 40 on the right page, its right edge 2 mm from the page's outer edge (230)

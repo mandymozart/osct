@@ -1,15 +1,15 @@
 /**
  * The stage's event timeline as the Inspector lists it (three-free): the newest first, at most `EVENT_LOG_SIZE`,
- * each event with the time since the spread opened, its name and its payload.
- * A **state** event (`sceneState`) reports what the scene is, not that something happened – it is logged once per
- * change: the same state again (the scene re-asked to run on every spread open or refresh) adds nothing.
+ * each event with the time since the scene opened, its name and its payload.
+ * A **state** event (`arState`) reports what the scene is, not that something happened – it is logged once per
+ * change: the same state again (the scene re-asked to run on every scene open or refresh) adds nothing.
  */
 
 export interface StageEvent {
   event: string;
   /** The payload as one line (`targetId: "key" · …`), empty without one */
   detail: string;
-  /** Milliseconds since the spread on the stage opened */
+  /** Milliseconds since the scene on the stage opened */
   at: number;
 }
 
@@ -17,7 +17,7 @@ export interface StageEvent {
 export const EVENT_LOG_SIZE = 100;
 
 /** Events that carry a state: logged only when it differs from the last one of their kind */
-const STATE_EVENTS = new Set(["sceneState"]);
+const STATE_EVENTS = new Set(["arState"]);
 
 /** The log with `entry` added – or the same log when it repeats the current value of a state event */
 export const logEvent = (log: readonly StageEvent[], entry: StageEvent, size = EVENT_LOG_SIZE): StageEvent[] => {
@@ -34,7 +34,7 @@ export const describePayload = (payload: unknown): string => {
   return String(payload);
 };
 
-/** The time since the spread opened as the timeline shows it: `4.25 s` under a minute, `1:05.3` after */
+/** The time since the scene opened as the timeline shows it: `4.25 s` under a minute, `1:05.3` after */
 export const formatElapsed = (ms: number): string => {
   const hundredths = Math.round(Math.max(0, ms) / 10);
   if (hundredths < 6000) return `${(hundredths / 100).toFixed(2)} s`;

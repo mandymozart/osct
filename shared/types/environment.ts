@@ -1,6 +1,6 @@
 /**
  * The book's environment (content schema 2.8, asset references 2.10): the world around the reader while scanning and
- * the onion sky (`engine/src/scene/look-around`, docs/look-around.md). Book-level only – no per-spread overrides yet.
+ * the onion sky (`engine/src/scene/look-around`, docs/look-around.md). Book-level only – no per-scene overrides yet.
  * The reader's Graphics switches (Info → Settings) still apply on top: the content says what is drawn, the reader can
  * turn either off. A book without `environment` keeps today's look (`DEFAULT_ENVIRONMENT`).
  *

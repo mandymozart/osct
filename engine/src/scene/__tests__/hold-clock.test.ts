@@ -30,7 +30,7 @@ afterEach(() => {
 });
 
 describe("ArScene.holdClock: the editor's Live switch off (#275)", () => {
-  it("stops the spread's playing videos where they are and lets them go on", async () => {
+  it("stops the scene's playing videos where they are and lets them go on", async () => {
     const playing = videoElement(true);
     const waiting = videoElement(false);
     const scene = sceneWithMedia([playing, waiting]);
@@ -46,7 +46,7 @@ describe("ArScene.holdClock: the editor's Live switch off (#275)", () => {
   it("a video node found while held starts when the hold ends – not if its page went away meanwhile", async () => {
     const element = videoElement();
     const video: EntityData = { type: "video", assets: [{ id: "clip", assetType: "video", src: "/clip.mp4" }] };
-    const target: Target = { id: "page", entryId: "page", spreadId: "s", imageSrc: "/page.jpg", entity: video };
+    const target: Target = { id: "page", entryId: "page", sceneId: "s", imageSrc: "/page.jpg", entity: video };
     const loaded = { assetType: "video", element, texture: null } as unknown as LoadedAsset;
     const entity = buildEntity(target, () => loaded)!;
     const scene = sceneWithMedia([]);

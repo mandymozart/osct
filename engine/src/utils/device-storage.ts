@@ -1,6 +1,6 @@
 /**
  * Where the engine keeps its switches for this device (the debug overlay's camera lens, resolution and zoom request,
- * the spreads kept ready): the app passes its storage once at startup (`setDeviceStorage`) – the engine never reads the
+ * the scenes kept ready): the app passes its storage once at startup (`setDeviceStorage`) – the engine never reads the
  * browser's storage itself (RULES #32). Without one the switches hold while the page lives. Keys are the engine's
  * (`camera-lens`); the app chooses where and under which names they land.
  */

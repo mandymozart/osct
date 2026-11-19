@@ -72,7 +72,7 @@ describe("RouterManager", () => {
     game.router.navigate("/scene");
 
     expect(listener).toHaveBeenCalledTimes(1);
-    expect(listener.mock.calls[0][0]).toMatchObject({ mode: GameMode.SCAN, currentRoute: { page: Pages.SPREAD } });
+    expect(listener.mock.calls[0][0]).toMatchObject({ mode: GameMode.SCAN, currentRoute: { page: Pages.SCENE } });
   });
 
   it("shows the not-found overlay for unknown slugs and keeps the mode", () => {
@@ -109,7 +109,7 @@ describe("RouterManager", () => {
 
     game.router.close();
 
-    expect(game.state.currentRoute?.page).toBe(Pages.SPREAD);
+    expect(game.state.currentRoute?.page).toBe(Pages.SCENE);
     expect(game.state.mode).toBe(GameMode.SCAN);
     expect(game.state.currentError).toBeNull();
     expect(listener).toHaveBeenCalledTimes(1);

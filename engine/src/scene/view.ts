@@ -120,7 +120,7 @@ export class ArView {
   /** Bloom strength (0 = off – no post-processing cost); set every frame by the scene's animations */
   bloomStrength = 0;
   underlay: Underlay | null = null;
-  /** The content's post-processing over the rendered scene – built only while a spread names passes */
+  /** The content's post-processing over the rendered scene – built only while a scene names passes */
   private post: PostChain | null = null;
   private postProcessing = true;
   /** Follows the container's size */
@@ -201,7 +201,7 @@ export class ArView {
   }
 
   /**
-   * The passes over the rendered scene (`passes` of the spread or the book), in order; an empty list frees the chain
+   * The passes over the rendered scene (`passes` of the scene or the book), in order; an empty list frees the chain
    * and the scene renders straight to the canvas again – as does a list whose passes are all off (#233)
    */
   setPasses(passes: readonly PassData[]): void {
@@ -230,7 +230,7 @@ export class ArView {
   }
 
   /**
-   * The underlay (the look-around world and sky) and the scene – through the content's passes while a spread or the
+   * The underlay (the look-around world and sky) and the scene – through the content's passes while a scene or the
    * book names them, the underlay then inside the chain – plus the bloom over it while an animation wants it
    */
   private draw(): void {

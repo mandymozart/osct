@@ -11,9 +11,9 @@
   /**
    * The top bar's search through the open book (#237, `book-search.ts`): entries, scenes, targets and named nodes,
    * grouped by kind with their scene. A pick goes to that scene and selects the item – an entry's form, a
-   * target, a node – and the Inspector shows it (`selection.show`, or `requestOn` + the route for another spread). Keys:
+   * target, a node – and the Inspector shows it (`selection.show`, or `requestOn` + the route for another scene). Keys:
    * `/` or Ctrl+K focuses it, ↑ ↓ walk the hits, Enter picks, Esc closes. On a phone it is an icon that opens the field
-   * over the top bar. The draft is read on the first focus where no spread has loaded it yet (the book page).
+   * over the top bar. The draft is read on the first focus where no scene has loaded it yet (the book page).
    */
   let { bookId }: { bookId: string } = $props();
 
@@ -25,8 +25,8 @@
   let input = $state<HTMLInputElement>();
   let box = $state<HTMLDivElement>();
 
-  const spreads = $derived(content.bookId === bookId ? content.spreads : []);
-  const groups = $derived(open ? searchBook(spreads, query) : []);
+  const scenes = $derived(content.bookId === bookId ? content.scenes : []);
+  const groups = $derived(open ? searchBook(scenes, query) : []);
   const hits = $derived(flatHits(groups));
   const ICON: Record<SearchKind, IconName> = { entry: "entry", scene: "book", target: "target", node: "node" };
   const LISTBOX = "book-search-results";
@@ -55,10 +55,10 @@
   const pick = (hit: SearchHit) => {
     close();
     input?.blur();
-    if (page.params.scene === hit.spreadId) selection.show(hit.select);
+    if (page.params.scene === hit.sceneId) selection.show(hit.select);
     else {
-      selection.requestOn(hit.spreadId, hit.select);
-      void goto(resolve(`${bookId}/${hit.spreadId}/`));
+      selection.requestOn(hit.sceneId, hit.select);
+      void goto(resolve(`${bookId}/${hit.sceneId}/`));
     }
   };
   const onKey = (event: KeyboardEvent) => {

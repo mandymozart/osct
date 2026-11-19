@@ -7,7 +7,7 @@ import { buildEntity } from "../entities";
 const model = (params?: Record<string, unknown>): Target => ({
   id: "racoon",
   entryId: "racoon",
-  spreadId: "s",
+  sceneId: "s",
   imageSrc: "/racoon.jpg",
   entity: { type: "model", assets: [{ id: "racoon-media", assetType: "glb", src: "/racoon.glb" }], params },
 });

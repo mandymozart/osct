@@ -3,7 +3,7 @@ import type { VarScope, VarValue } from "@engine/scene";
 
 /**
  * The Inspector's narrative controls, three-free: a variable's type, which control edits it and how (a manual `set`
- * to test a branch – the write itself goes through the plugin API, `Stage.setVar`), and the spread's targets as the
+ * to test a branch – the write itself goes through the plugin API, `Stage.setVar`), and the scene's targets as the
  * tap buttons list them.
  */
 
@@ -44,7 +44,7 @@ export interface TapTarget {
   tappable: boolean;
 }
 
-/** The spread's targets with a printed image, in page order, as the tap row lists them */
+/** The scene's targets with a printed image, in page order, as the tap row lists them */
 export const tapTargets = (
   entries: ReadonlyArray<{ title: string; target?: Target }>,
   found: readonly string[],

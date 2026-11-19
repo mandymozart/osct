@@ -1,8 +1,8 @@
 /**
  * Post-processing passes (content schema 2.5): effects over the whole rendered AR image – a bloom, a vignette, a colour
- * grade, a shader of the book's own. A spread names them as `passes: [{ type, ...parameters }]`, run in order on
+ * grade, a shader of the book's own. A scene names them as `passes: [{ type, ...parameters }]`, run in order on
  * the image the scene rendered, before it lies over the camera picture; the book's `passes` are the default for
- * every spread without a list of its own (an empty list turns them off). Like the components, every built-in type
+ * every scene without a list of its own (an empty list turns them off). Like the components, every built-in type
  * is defined once here – its parameters with kind, default, range and a description – so the editor's rows, the
  * content build, the config guard and the engine read one definition. A plugin's pass (`registerPass`) brings its
  * own spec: since 2.21 a `passes` entry may name it where a declared plugin recorded it (`registered.passes`, schema

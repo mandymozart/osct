@@ -1,5 +1,5 @@
-import { getSpreads, getTargets } from "../content/game-config";
-import { setTargetBudget } from "../utils/prepared-spreads";
+import { getScenes, getTargets } from "../content/game-config";
+import { setTargetBudget } from "../utils/prepared-scenes";
 import type { LoadTestControl, LoadTestOptions, LoadTestProgress, LoadTestResult } from "../utils/tracker-debug";
 import type { ImageTracker } from "./tracker";
 
@@ -48,8 +48,8 @@ class Brightness {
 class Stopped extends Error {}
 
 /**
- * Incremental load test of the whole app (debug, `<load-test-panel>`): the window of spreads kept ready next to the
- * current one gets a growing **target budget** – 0, 5, 10, 20, 40, 80, all other targets, nearest spreads first.
+ * Incremental load test of the whole app (debug, `<load-test-panel>`): the window of scenes kept ready next to the
+ * current one gets a growing **target budget** – 0, 5, 10, 20, 40, 80, all other targets, nearest scenes first.
  * The app runs as usual meanwhile: the tracker holds the window, the preloader fetches its content, pages switch by
  * themselves or by hand. Per step it measures preparing and extracting the window's new targets, engine and page
  * frame rate, stutter, how steadily the scanned page stays found, and – when the tester covers and uncovers the
@@ -61,15 +61,15 @@ export const runLoadTest = (
   onProgress: (progress: LoadTestProgress) => void,
 ): LoadTestControl => {
   let stopped = false;
-  const startSpread = tracker.currentSpreadId;
-  const spreadTargets = () => (tracker.currentSpreadId ? getTargets(tracker.currentSpreadId).length : 0);
-  const steps = loadTestSteps(options.extras, Math.max(0, getSpreads().reduce((n, s) => n + s.targets.length, 0) - spreadTargets()));
+  const startScene = tracker.currentSceneId;
+  const sceneTargets = () => (tracker.currentSceneId ? getTargets(tracker.currentSceneId).length : 0);
+  const steps = loadTestSteps(options.extras, Math.max(0, getScenes().reduce((n, s) => n + s.targets.length, 0) - sceneTargets()));
   const results: LoadTestResult[] = [];
   let progress: LoadTestProgress = {
-    phase: "idle", message: "", step: 0, steps: steps.length, spreadId: startSpread, spreadTargets: spreadTargets(), results,
+    phase: "idle", message: "", step: 0, steps: steps.length, sceneId: startScene, sceneTargets: sceneTargets(), results,
   };
   const report = (change: Partial<LoadTestProgress>) => {
-    progress = { ...progress, ...change, spreadId: tracker.currentSpreadId, spreadTargets: spreadTargets(), results: [...results] };
+    progress = { ...progress, ...change, sceneId: tracker.currentSceneId, sceneTargets: sceneTargets(), results: [...results] };
     onProgress(progress);
   };
   const check = () => {
@@ -122,7 +122,7 @@ export const runLoadTest = (
     };
   };
 
-  /** Cover → uncover → time until a target of the current spread is found again (null: not found in time) */
+  /** Cover → uncover → time until a target of the current scene is found again (null: not found in time) */
   const measureFind = async (step: number, cover: number, base: number): Promise<number | null | "skipped"> => {
     const video = tracker.cameraVideo;
     if (!video) return "skipped";
@@ -138,7 +138,7 @@ export const runLoadTest = (
   };
 
   const run = async () => {
-    if (!tracker.currentSpreadId) throw new Error("no spread is tracked – start scanning first");
+    if (!tracker.currentSceneId) throw new Error("no scene is tracked – start scanning first");
     report({ phase: "settle", message: "Hold the phone on a trigger of this page until it is found" });
     await waitFor(() => tracker.foundCount > 0, FIRST_FIND_TIMEOUT_MS);
     for (let i = 0; i < steps.length; i++) {
@@ -164,9 +164,9 @@ export const runLoadTest = (
       const memory = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory;
       results.push({
         extra,
-        spreadId: tracker.currentSpreadId ?? "–",
+        sceneId: tracker.currentSceneId ?? "–",
         loaded: tracker.heldTargets,
-        spreads: tracker.heldSpreads,
+        scenes: tracker.heldScenes,
         prepareMs,
         extractMs,
         engineFps: steady.engineFps,

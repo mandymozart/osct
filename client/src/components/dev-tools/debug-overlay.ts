@@ -1,15 +1,15 @@
 import type { IGame, Target } from "@/types";
 import { waitForDOMReady } from "@/utils";
-import { getConfigVersion, getEntries, getEntry, getSpread, getTargets } from "@/utils/game-config";
+import { getConfigVersion, getEntries, getEntry, getScene, getTargets } from "@/utils/game-config";
 import { GameStoreService } from "@/services";
 import {
-  cyclePreparedSpreadRange, getArError, getEngineState, getStoredWindowSetting, getWindowOverride, subscribeCamera,
+  cyclePreparedSceneRange, getArError, getEngineState, getStoredWindowSetting, getWindowOverride, subscribeCamera,
   subscribeEngineState,
 } from "@/components/ar-bridges";
 import { debugSwitch, SWITCH_CSS } from "./debug-sheet";
 import { isRowGridShown, restoreRowGrid, showRowGrid } from "./row-grid";
 
-type DebugTab = "spread" | "progress";
+type DebugTab = "scene" | "progress";
 /** The bottom panels the overlay opens (`<name>-panel`), at most one at a time */
 const PANELS = ["camera", "trial", "load-test"];
 
@@ -19,9 +19,9 @@ const escapeHtml = (text: string) =>
 const formatTime = (time: number) => new Date(time).toLocaleString();
 
 /**
- * Development overlay: a one-line status summary – AR status dot, T<targets on the spread>, E<ready>/<held> in the
+ * Development overlay: a one-line status summary – AR status dot, T<targets on the scene>, E<ready>/<held> in the
  * engine; the rest is in the expanded view (the line stays one line)
- * that expands on tap into spread, target and progress details, and opens the
+ * that expands on tap into scene, target and progress details, and opens the
  * camera test panel (`<camera-panel>`), the trigger trial panel (`<trial-panel>`) or the engine load test (`<load-test-panel>`).
  * Sets `--debug-offset` so app chrome moves below the collapsed line.
  */
@@ -29,8 +29,8 @@ export class DebugOverlay extends HTMLElement {
   private shadow: ShadowRoot;
   private subscriptionCleanups: Array<() => void> = [];
   private expanded: boolean = false;
-  private tab: DebugTab = "spread";
-  /** The spread's QR code (opens the app on a phone) – hidden until asked for, it fills a phone screen */
+  private tab: DebugTab = "scene";
+  /** The scene's QR code (opens the app on a phone) – hidden until asked for, it fills a phone screen */
   private showQr = false;
   private game: Readonly<IGame>;
   // One reference for add and remove – `bind` would make a new function each time and nothing would be removed
@@ -69,7 +69,7 @@ export class DebugOverlay extends HTMLElement {
 
   private setupListeners() {
     this.subscriptionCleanups.push(
-      this.game.subscribeToProperty('currentSpread', () => this.updateContent()),
+      this.game.subscribeToProperty('currentScene', () => this.updateContent()),
       this.game.subscribeToProperty('cameraPermission', () => this.updateContent()),
       this.game.subscribeToProperty('progress', () => this.updateContent()),
       this.game.subscribeToProperty('arStatus', () => this.updateContent()),
@@ -130,8 +130,8 @@ export class DebugOverlay extends HTMLElement {
       return;
     }
     if (control?.dataset.action === "cycle-prepared") {
-      // Spreads kept loaded around the current one – applies at once (the scene re-prepares its window)
-      cyclePreparedSpreadRange();
+      // Scenes kept loaded around the current one – applies at once (the scene re-prepares its window)
+      cyclePreparedSceneRange();
       this.updateContent();
       return;
     }
@@ -222,8 +222,8 @@ export class DebugOverlay extends HTMLElement {
   private updateContent() {
     const contentEl = this.shadow.getElementById("content");
     if (!contentEl) return;
-    const { currentSpread } = this.game.state;
-    let html = `<div class="tabs">${(["spread", "progress"] as DebugTab[])
+    const { currentScene } = this.game.state;
+    let html = `<div class="tabs">${(["scene", "progress"] as DebugTab[])
       .map(tab => `<button data-tab="${tab}" class="${tab === this.tab ? "active" : ""}">${tab}</button>`)
       .join("")}${PANELS.map(panel => `<button data-action="${panel}">${panel === "load-test" ? "load" : panel}</button>`).join("")}<button class="collapse" data-action="collapse" aria-label="Close">×</button></div>`;
 
@@ -235,29 +235,29 @@ export class DebugOverlay extends HTMLElement {
     // Scene status
     html += `<div class="section">
       <div>AR: ${this.arStatusLabel()}</div>
-      <div>Spreads held: ${this.preparedLabel()}
+      <div>Scenes held: ${this.preparedLabel()}
         <button data-action="cycle-prepared">Change</button></div>
       <div>Layout: ${debugSwitch("Grid", isRowGridShown(), "toggle-grid", "Vertical grid: the six rows of the splash and onboarding")}</div>
       ${this.renderEngine()}
     </div>`;
 
-    if (currentSpread) {
-      html += this.renderSpreadInfo(currentSpread);
+    if (currentScene) {
+      html += this.renderSceneInfo(currentScene);
     } else {
-      html += `<div class="section">No spread loaded</div>`;
+      html += `<div class="section">No scene loaded</div>`;
     }
     
     if(!this.expanded){
       html = `<div class="section section--summary">
-      ${currentSpread ? this.generateSpreadSummary(currentSpread) : 'No spread'}
+      ${currentScene ? this.generateSceneSummary(currentScene) : 'No scene'}
       </div>`;
     }
     
     contentEl.innerHTML = html;
   }
 
-  private generateSpreadSummary(id: string): string {
-    const spread = getSpread(id);
+  private generateSceneSummary(id: string): string {
+    const scene = getScene(id);
     
     const getStatusDot = (isLoaded: boolean, isError?: boolean) => {
       if (isError) return '<span class="error">◉</span>';
@@ -271,7 +271,7 @@ export class DebugOverlay extends HTMLElement {
     const sceneStatus = getStatusDot(arStatus === "running", arStatus === "error");
 
     return `
-      <div>${sceneStatus} T${getTargets(spread?.id || '').length} ${this.engineSummary()}</div>
+      <div>${sceneStatus} T${getTargets(scene?.id || '').length} ${this.engineSummary()}</div>
     `;
   }
 
@@ -353,25 +353,25 @@ export class DebugOverlay extends HTMLElement {
     setTimeout(() => (button.textContent = "Copy"), 1500);
   }
 
-  private renderSpreadInfo(spreadId: string): string {
-    const spread = getSpread(spreadId);
-    if (!spread) {
-      return `<div class="section">Unknown spread: ${spreadId}</div>`;
+  private renderSceneInfo(sceneId: string): string {
+    const scene = getScene(sceneId);
+    if (!scene) {
+      return `<div class="section">Unknown scene: ${sceneId}</div>`;
     }
 
     let html = `
       <div class="section">
-        <div>Spread: ${spread.id || "unknown"}
-          ${debugSwitch("QR", this.showQr, "toggle-qr", "QR code of this spread")}</div>
+        <div>Scene: ${scene.id || "unknown"}
+          ${debugSwitch("QR", this.showQr, "toggle-qr", "QR code of this scene")}</div>
         ${this.showQr ? "<qr-generator></qr-generator>" : ""}
       </div>
     `;
 
-    if (spread.targets && spread.targets.length > 0) {
+    if (scene.targets && scene.targets.length > 0) {
       html += `<div class="section section--targets">`;
-      html += `<div>Targets (${spread.targets.length}):</div><div class="target-list">`;
+      html += `<div>Targets (${scene.targets.length}):</div><div class="target-list">`;
 
-      spread.targets.forEach((target, i) => {
+      scene.targets.forEach((target, i) => {
         html += this.renderTargetInfo(target, i);
       });
 
@@ -405,29 +405,29 @@ export class DebugOverlay extends HTMLElement {
   }
 
   /**
-   * What the engine holds right now: the current spread (◉) and the spreads next to it with their target
-   * counts, how many targets are extracted (can be found), and spreads still being prepared
+   * What the engine holds right now: the current scene (◉) and the scenes next to it with their target
+   * counts, how many targets are extracted (can be found), and scenes still being prepared
    */
   private renderEngine(): string {
     const engine = getEngineState();
     if (!engine.current && !engine.held.length) return `<div>Engine: <span class="small">no targets (camera off)</span></div>`;
-    const spreads = [
-      ...(engine.current ? [`<span class="loaded">◉ ${escapeHtml(engine.current.spreadId)} (${engine.current.targets})</span>`] : []),
-      ...engine.held.map(spread => `${escapeHtml(spread.spreadId)} (${spread.targets})`),
+    const scenes = [
+      ...(engine.current ? [`<span class="loaded">◉ ${escapeHtml(engine.current.sceneId)} (${engine.current.targets})</span>`] : []),
+      ...engine.held.map(scene => `${escapeHtml(scene.sceneId)} (${scene.targets})`),
     ];
     // A grown window lists the whole book: show the nearest few and the count
-    const listed = spreads.length > 12 ? [...spreads.slice(0, 12), `+${spreads.length - 12} more`] : spreads;
+    const listed = scenes.length > 12 ? [...scenes.slice(0, 12), `+${scenes.length - 12} more`] : scenes;
     const extracting = engine.extractingSince !== null
       ? ` · <span class="loading">extracting ${Math.round((performance.now() - engine.extractingSince) / 1000)} s</span>`
       : "";
     const growing = engine.growing === null ? ""
-      : engine.growing > 0 ? ` · <span class="loading">growing, ${engine.growing} spreads to add</span>`
+      : engine.growing > 0 ? ` · <span class="loading">growing, ${engine.growing} scenes to add</span>`
       : extracting ? "" : ' · <span class="loaded">grown</span>';
-    return `<div>Engine: ${engine.ready}/${engine.targets} targets ready in ${spreads.length} spreads${extracting}${growing}${engine.budget !== null ? ` · <span class="loading">load test: ${engine.budget === Infinity ? "all" : engine.budget} targets</span>` : ""}</div>
+    return `<div>Engine: ${engine.ready}/${engine.targets} targets ready in ${scenes.length} scenes${extracting}${growing}${engine.budget !== null ? ` · <span class="loading">load test: ${engine.budget === Infinity ? "all" : engine.budget} targets</span>` : ""}</div>
       <div class="small">${listed.join(" · ")}</div>
       ${engine.preparing.length ? `<div class="small">preparing: ${engine.preparing.map(escapeHtml).join(" · ")}</div>` : ""}
       <div>Engine sees: ${engine.seen.length ? engine.seen.map(escapeHtml).join(" · ") : '<span class="small">nothing</span>'}</div>
-      ${engine.lastSwitch ? `<div class="small">Last auto switch: ${escapeHtml(engine.lastSwitch.spreadId)} via ${escapeHtml(engine.lastSwitch.targetId)}, ${Math.round((Date.now() - engine.lastSwitch.at) / 1000)} s ago</div>` : ""}`;
+      ${engine.lastSwitch ? `<div class="small">Last auto switch: ${escapeHtml(engine.lastSwitch.sceneId)} via ${escapeHtml(engine.lastSwitch.targetId)}, ${Math.round((Date.now() - engine.lastSwitch.at) / 1000)} s ago</div>` : ""}`;
   }
 
   /** E<ready>/<held>: targets the engine can find / holds (orange while it extracts) */
@@ -437,7 +437,7 @@ export class DebugOverlay extends HTMLElement {
     return `<span class="${engine.extractingSince !== null ? "loading" : "loaded"}">E${engine.ready}/${engine.targets}</span>`;
   }
 
-  /** ±n spreads, or the whole book (all targets loaded) */
+  /** ±n scenes, or the whole book (all targets loaded) */
   private preparedLabel(): string {
     const label = (setting: ReturnType<typeof getStoredWindowSetting>) =>
       setting === "grow" ? "grow (whole book in idle time)" : setting === Infinity ? "all" : `±${setting}`;

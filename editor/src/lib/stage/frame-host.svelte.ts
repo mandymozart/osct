@@ -25,7 +25,7 @@ import { type GhostPlace, StageCore } from "./stage-core.svelte";
  * only from its parent at the editor's origin and posts its events only there.
  *
  * Events it sends: the stage's state, the plugins' variables and the timeline, the plugin registry as data (the page
- * mirrors it), the layout of the spread's targets, the model nodes' timelines, picks and the context menu, the gizmo's
+ * mirrors it), the layout of the scene's targets, the model nodes' timelines, picks and the context menu, the gizmo's
  * placements, the placement handles' moves, preview changes, the page's keys while the frame has the focus, and the
  * plugins' log lines for the Code tab.
  */
@@ -112,19 +112,19 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
 
   const layout = (): LayoutSnapshot => {
     const s = core;
-    const spread = s?.spreadId;
+    const scene = s?.sceneId;
     const places: LayoutSnapshot["places"] = {};
-    if (s && spread) getTargets(spread).forEach(target => { places[target.id] = { place: s.placeOf(target.id) }; });
+    if (s && scene) getTargets(scene).forEach(target => { places[target.id] = { place: s.placeOf(target.id) }; });
     const surfaces = (s?.surfaceFrames() ?? []).map(f => ({ id: f.id, widthMm: f.widthMm, heightMm: f.heightMm, flat: f.flat }));
     return { places, surfaces };
   };
 
   const timelines = (): Record<string, TimelineSnapshot> => {
     const s = core;
-    const spread = s?.spreadId;
+    const scene = s?.sceneId;
     const result: Record<string, TimelineSnapshot> = {};
-    if (!s || !spread || s.status !== "running") return result;
-    getTargets(spread).forEach(target => {
+    if (!s || !scene || s.status !== "running") return result;
+    getTargets(scene).forEach(target => {
       const tree = s.treeOf(target.id);
       if (!tree) return;
       entityNodes(tree).forEach(({ path }) => {
@@ -158,9 +158,9 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     cleanups.push($effect.root(() => {
       $effect(() => {
         post("state", {
-          status: s.status, error: s.error, spreadId: s.spreadId, found: [...s.found], subtitle: s.subtitle, pickFilter: [...s.pickFilter], shading: s.shading, world: s.world, tool: s.tool,
+          status: s.status, error: s.error, sceneId: s.sceneId, found: [...s.found], subtitle: s.subtitle, pickFilter: [...s.pickFilter], shading: s.shading, world: s.world, tool: s.tool,
         });
-        // The declared plugins registered while the spread loaded
+        // The declared plugins registered while the scene loaded
         if (s.status === "running") untrack(sync);
       });
       $effect(() => post("vars", $state.snapshot(s.vars) as FrameEvents["vars"]));
@@ -178,7 +178,7 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
   const methods: Record<string, (...args: never[]) => unknown> = {
     init: (init: FrameInit) => start(init),
     content: (content: ContentSnapshot) => loadContent(content),
-    open: (spreadId: string) => stage().open(spreadId),
+    open: (sceneId: string) => stage().open(sceneId),
     refresh: () => stage().refresh(),
     relayout: () => stage().relayout(),
     surfaceReferences: (references: unknown) => stage().setSurfaceReferences(surfaceReferenceMap(references)),

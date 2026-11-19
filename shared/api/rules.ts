@@ -6,7 +6,7 @@
  */
 import { ASSET_TYPES } from "../types/game-config";
 
-/** An id or reference in the editor API's paths and bodies – books, spreads, entries, targets, entities (`Editor::ID`) */
+/** An id or reference in the editor API's paths and bodies – books, scenes, entries, targets, entities (`Editor::ID`) */
 export const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
 /**

@@ -22,7 +22,7 @@ const isTransient = (error: unknown): boolean => !(error instanceof ApiError) ||
 
 /**
  * The editor's autosave (#259): every edit reaches the draft by itself. A panel queues a save for its **subject**
- * (a key: a target's tree, a spread's passes, an entry, …) with each edit; the save starts once the subject was left
+ * (a key: a target's tree, a scene's passes, an entry, …) with each edit; the save starts once the subject was left
  * alone for a moment, and a newer save of the same subject replaces the one still waiting. Saves run one after another,
  * in the order they became due, so the draft never gets them out of order. A save carries what it writes: it runs after
  * the panel that queued it is gone.

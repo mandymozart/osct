@@ -49,7 +49,7 @@ beforeEach(() => window.localStorage.clear());
 afterEach(() => vi.restoreAllMocks());
 
 describe("the saved sources load by themselves when the stage starts", () => {
-  it("every stored source runs, the spread is built once, the broken one says why", async () => {
+  it("every stored source runs, the scene is built once, the broken one says why", async () => {
     const stage = new FakeStage();
     const version = plugins.version;
     await plugins.autoLoad(nextBook(), stage);

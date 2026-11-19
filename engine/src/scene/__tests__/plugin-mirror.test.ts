@@ -24,7 +24,7 @@ const WATER: MaterialSpec = { description: "Water.", params: { deep: { kind: "co
 const CAUSTICS: TextureSpec = { description: "Light.", params: { cells: { kind: "number", default: 3, min: 1, max: 8, description: "Cells." } } };
 const HALO: PassSpec = { description: "A halo.", params: { strength: { kind: "number", default: 0.5, min: 0, max: 1, description: "How strong." } } };
 
-const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", spreadId: "s", imageSrc: "/t.jpg", entity });
+const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", sceneId: "s", imageSrc: "/t.jpg", entity });
 
 /** A plugin that registers one of every kind – its code counts the calls */
 const SOFT_FADE = { description: "Fades in and out.", params: {} };

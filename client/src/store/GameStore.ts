@@ -6,7 +6,7 @@ import {
   type GameState,
   type GameVersion,
   type ICameraManager,
-  type ISpreadManager,
+  type ISceneManager,
   type IGame,
   type IHistoryManager,
   type IRouterManager,
@@ -17,7 +17,7 @@ import { uniqueId, createProgressRecord } from "@/utils";
 import { getBook } from "@/utils/game-config";
 import { BaseStore } from "./BaseStore";
 import { CameraManager } from "./managers/CameraManager";
-import { SpreadManager } from "./managers/SpreadManager";
+import { SceneManager } from "./managers/SceneManager";
 import { HistoryManager } from "./managers/HistoryManager";
 import { RouterManager } from "./managers/router/RouterManager";
 import { TargetManager } from "./managers/TargetManager";
@@ -28,7 +28,7 @@ const initialState: GameState = {
   currentRoute: null,
   currentError: null,
   trackedTargets: [],
-  currentSpread: null,
+  currentScene: null,
   progress: createProgressRecord(getBook().id), // replaced by the stored record in HistoryManager.load()
   loading: LoadingState.LOADING,
   arStatus: "idle",
@@ -36,14 +36,14 @@ const initialState: GameState = {
 }
 
 /**
- * Central app store (`GameState`): mode, route, error, tracked targets, spreads, reader progress
+ * Central app store (`GameState`): mode, route, error, tracked targets, scenes, reader progress
  * and loading / AR / camera status. Domain logic lives in the managers. Construction order
- * matters: spreads must exist before history, which restores the last spread.
+ * matters: scenes must exist before history, which restores the last scene.
  */
 class Game extends BaseStore<GameState> implements IGame {
   public version: GameVersion = { version: __VITE_APP_VERSION__, timestamp: __VITE_BUILD_DATE__ } as GameVersion;
 
-  public spreads: ISpreadManager;
+  public scenes: ISceneManager;
   public targets: ITargetManager;
   public history: IHistoryManager;
   public router: IRouterManager;
@@ -56,7 +56,7 @@ class Game extends BaseStore<GameState> implements IGame {
     super(initialState);
 
     this.camera = new CameraManager(this);
-    this.spreads = new SpreadManager(this);
+    this.scenes = new SceneManager(this);
     this.history = new HistoryManager(this);
     this.targets = new TargetManager(this);
     this.router = new RouterManager(this);

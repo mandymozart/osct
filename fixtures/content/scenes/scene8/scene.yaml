@@ -1,0 +1,7 @@
+# Demo scene from OSCT_KevinBray_06.pdf, PDF page 5 (load test of the trackers, 2026-09-28)
+label: "14–15"
+order: 7
+surfaces:
+  - id: surface
+    widthMm: 460
+    heightMm: 320

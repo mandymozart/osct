@@ -20,8 +20,8 @@ export function qrBaseUrl(serverUrl: string, page: Pick<Location, "origin" | "pr
 }
 
 /**
- * Development tool: renders the scan link of the current spread as a QR code (or a link to an unknown
- * spread, to test error handling) and offers it as an SVG download.
+ * Development tool: renders the scan link of the current scene as a QR code (or a link to an unknown
+ * scene, to test error handling) and offers it as an SVG download.
  */
 export class QRGenerator extends HTMLElement {
   private shadow: ShadowRoot;
@@ -42,9 +42,9 @@ export class QRGenerator extends HTMLElement {
     this.render();
     this.setupListeners();
 
-    this.subscriptionCleanup = this.game.subscribeToProperty('currentSpread', (newSpreadId) => {
-      if (newSpreadId) {
-        this.generateQR(newSpreadId);
+    this.subscriptionCleanup = this.game.subscribeToProperty('currentScene', (newSceneId) => {
+      if (newSceneId) {
+        this.generateQR(newSceneId);
       }
     });
   }
@@ -119,8 +119,8 @@ export class QRGenerator extends HTMLElement {
       </style>
       
       <select id="qr-type-selector">
-        <option value="valid">Spread link</option>
-        <option value="unknown-spread">Link to an unknown spread</option>
+        <option value="valid">Scene link</option>
+        <option value="unknown-scene">Link to an unknown scene</option>
       </select>
 
       <div id="qr-output"></div>
@@ -143,8 +143,8 @@ export class QRGenerator extends HTMLElement {
       });
     }
 
-    if (this.game.state.currentSpread) {
-      this.generateQR(this.game.state.currentSpread);
+    if (this.game.state.currentScene) {
+      this.generateQR(this.game.state.currentScene);
     }
   }
 
@@ -161,20 +161,20 @@ export class QRGenerator extends HTMLElement {
       selector.addEventListener("mousedown", (e) => e.stopPropagation());
       selector.addEventListener("change", (e) => {
         e.stopPropagation();
-        const currentSpread = this.game.state.currentSpread;
-        if (!currentSpread) return;
-        this.generateQR(currentSpread, selector.value);
+        const currentScene = this.game.state.currentScene;
+        if (!currentScene) return;
+        this.generateQR(currentScene, selector.value);
       });
     }
   }
 
-  private generateQR(spreadId: string, testType: string = "valid") {
+  private generateQR(sceneId: string, testType: string = "valid") {
     if (!this.qrInstance) return;
 
     const baseUrl = qrBaseUrl(__VITE_SERVER_URL__, location);
     // Same link format as services/LinkService.ts: /scene/<id>?osct=<app version>
     const appVersion = this.game.version.version;
-    const id = testType === "unknown-spread" ? "no-such-spread" : spreadId;
+    const id = testType === "unknown-scene" ? "no-such-scene" : sceneId;
     const url = `${baseUrl}/scene/${encodeURIComponent(id)}?${VERSION_PARAM}=${appVersion}`;
 
     this.qrInstance.clear();
@@ -184,8 +184,8 @@ export class QRGenerator extends HTMLElement {
   }
 
   private downloadSVG() {
-    const currentSpread = this.game.state.currentSpread;
-    if (!currentSpread) return;
+    const currentScene = this.game.state.currentScene;
+    if (!currentScene) return;
     
     const svg = this.shadow.querySelector("svg");
     if (!svg) return;
@@ -196,7 +196,7 @@ export class QRGenerator extends HTMLElement {
 
     const link = document.createElement("a");
     link.href = url;
-    link.download = `osct-qr-c-${currentSpread}.svg`;
+    link.download = `osct-qr-c-${currentScene}.svg`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

@@ -1,5 +1,5 @@
-import { getBook as getConfigBook, getConfigVersion, getPlugins, getSkippedFeatures, getSpreads, loadGameConfiguration, type SkippedFeature } from "@engine/content/game-config";
-import type { BookAppearance, ErrorInfo, PassData, Spread } from "@engine/types";
+import { getBook as getConfigBook, getConfigVersion, getPlugins, getSkippedFeatures, getScenes, loadGameConfiguration, type SkippedFeature } from "@engine/content/game-config";
+import type { BookAppearance, ErrorInfo, PassData, Scene } from "@engine/types";
 import { authFetch, draftBaseUrl, getBook } from "./api";
 import { adoptRecordedSpecs } from "#lib/plugins/recorded.js";
 import { plugins } from "./plugins.svelte";
@@ -14,8 +14,8 @@ import type { ContentSnapshot } from "#lib/stage/frame-protocol.js";
  */
 class Content {
   bookId = $state<string | null>(null);
-  spreads = $state<Spread[]>([]);
-  /** The book's post-processing (`book.passes`, the master of every spread without its own); null = the book has none */
+  scenes = $state<Scene[]>([]);
+  /** The book's post-processing (`book.passes`, the master of every scene without its own); null = the book has none */
   bookPasses = $state<PassData[] | null>(null);
   /** How the book's entities appear (`book.appearance`, #265): a look per moment; null = the book names none */
   bookAppearance = $state<BookAppearance | null>(null);
@@ -55,7 +55,7 @@ class Content {
       this.snapshot = error ? null : { baseUrl, assetsBase: this.assetsBase || null, libraryBase: this.libraryBase, responses };
       this.bookId = bookId;
       this.error = error;
-      this.spreads = error ? [] : getSpreads();
+      this.scenes = error ? [] : getScenes();
       this.bookPasses = error ? null : getConfigBook().passes ?? null;
       this.bookAppearance = error ? null : getConfigBook().appearance ?? null;
       this.hash = error ? null : getConfigVersion().hash ?? null;
@@ -69,14 +69,14 @@ class Content {
     }
   }
 
-  spread(id: string): Spread | undefined {
-    return this.spreads.find(spread => spread.id === id);
+  scene(id: string): Scene | undefined {
+    return this.scenes.find(scene => scene.id === id);
   }
 
-  neighbour(id: string, direction: 1 | -1): Spread | undefined {
-    const index = this.spreads.findIndex(spread => spread.id === id);
-    if (index < 0 || !this.spreads.length) return undefined;
-    return this.spreads[(index + direction + this.spreads.length) % this.spreads.length];
+  neighbour(id: string, direction: 1 | -1): Scene | undefined {
+    const index = this.scenes.findIndex(scene => scene.id === id);
+    if (index < 0 || !this.scenes.length) return undefined;
+    return this.scenes[(index + direction + this.scenes.length) % this.scenes.length];
   }
 }
 

@@ -220,7 +220,7 @@ varying float vLife;
 ${NOISE_GLSL}${EASING_GLSL}${PATTERN_GLSL}${DEFORM_GLSL}
 void main() {
   vec3 a = (uRvToAnchor * vec4(position, 1.0)).xyz;
-  // Born when the mask's front passes its point – without a mask, spread over the shape's time
+  // Born when the mask's front passes its point – without a mask, scene over the shape's time
   float born = fract(aRandom * 7.13);
   if (uRvMask >= 0 && uRvMask < 4) {
     born = rvPattern(uRvMask, position, a, uRvMaskNoise);

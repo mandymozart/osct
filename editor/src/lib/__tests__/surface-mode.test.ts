@@ -13,39 +13,39 @@ import { STAGE_TOOLS, TOOL_KEYS, isGizmoTool } from "../stage/gizmo";
 /** #314: the Surface mode – a surface selected, the Tree's Surfaces level, the History's words, the surface gizmo's frame */
 
 describe("a surface selected", () => {
-  it("names no target, node or entry, is not the spread, and goes up to the spread", () => {
+  it("names no target, node or entry, is not the scene, and goes up to the scene", () => {
     const settled = settledSelection({ target: "p015-1", node: [1], onTarget: false, surface: { scene: "s040-041", id: "wall" } });
-    expect(settled).toEqual({ target: null, node: [], onTarget: true, spread: false, entry: null, surface: { scene: "s040-041", id: "wall" } });
-    expect(parentSelection(settled)).toEqual({ target: null, node: [], onTarget: true, spread: true });
+    expect(settled).toEqual({ target: null, node: [], onTarget: true, scene: false, entry: null, surface: { scene: "s040-041", id: "wall" } });
+    expect(parentSelection(settled)).toEqual({ target: null, node: [], onTarget: true, scene: true });
   });
 
   it("the shared selection keeps it; anything else selected drops it", () => {
     selection.selectSurface("s040-041", "left");
     expect(selection.surface).toEqual({ scene: "s040-041", id: "left" });
-    expect(selection.spread).toBe(false);
+    expect(selection.scene).toBe(false);
     expect(selection.snapshot().surface).toEqual({ scene: "s040-041", id: "left" });
     selection.selectTarget("p015-1");
     expect(selection.surface).toBeNull();
     selection.selectSurface("s040-041", "left");
     selection.clear();
     expect(selection.surface).toBeNull();
-    expect(selection.spread).toBe(true);
+    expect(selection.scene).toBe(true);
   });
 });
 
 describe("the Tree's Surfaces level", () => {
   const rows = treeRows([{ id: "e1", target: null }], { isOpen: () => true, nodes: () => [], surfaces: { sceneId: "s1", ids: ["left", "wall"] } });
 
-  it("the scene's surfaces follow the spread row, before the entries", () => {
-    expect(rows.map(r => r.kind)).toEqual(["spread", "surface", "surface", "entry"]);
+  it("the scene's surfaces follow the scene row, before the entries", () => {
+    expect(rows.map(r => r.kind)).toEqual(["scene", "surface", "surface", "entry"]);
   });
 
-  it("a tap selects the surface: its row is on, no other; ← goes to the spread", () => {
+  it("a tap selects the surface: its row is on, no other; ← goes to the scene", () => {
     const state = rowSelection(rows[2]);
     expect(state.surface).toEqual({ scene: "s1", id: "wall" });
     expect(rows.map(row => isRowOn(row, state, () => false))).toEqual([false, false, true, false]);
     expect(selectedItem(state, false)).toBe("surface");
-    expect(parentRow(rows, 2)).toEqual({ kind: "spread" });
+    expect(parentRow(rows, 2)).toEqual({ kind: "scene" });
   });
 });
 

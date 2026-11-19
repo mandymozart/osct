@@ -10,7 +10,7 @@ const chromaKey = (params: Record<string, string | number> = {}): FilterData[] =
 const target = (filters?: FilterData[]): Target => ({
   id: "clip",
   entryId: "clip",
-  spreadId: "s",
+  sceneId: "s",
   imageSrc: "/clip.jpg",
   entity: { type: "video", assets: [{ id: "clip-video", assetType: "video", src: "/clip.mp4" }], filters },
 });

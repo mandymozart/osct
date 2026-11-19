@@ -5,8 +5,8 @@ import { ArScene } from "../ar-scene";
 import { observeEvents } from "../plugin-runtime";
 
 const image: EntityData = { type: "image", assets: [{ id: "picture", assetType: "image", src: "/picture.jpg" }] };
-const target: Target = { id: "page", entryId: "page", spreadId: "s", imageSrc: "/page.jpg", entity: image };
-const bare: Target = { id: "bare", entryId: "bare", spreadId: "s", imageSrc: "/bare.jpg" };
+const target: Target = { id: "page", entryId: "page", sceneId: "s", imageSrc: "/page.jpg", entity: image };
+const bare: Target = { id: "bare", entryId: "bare", sceneId: "s", imageSrc: "/bare.jpg" };
 
 interface Internals {
   buildAnchor(t: Target): { group: Group; entity: { object: Group; onTap?: () => boolean | void } | null };
@@ -16,12 +16,12 @@ interface Internals {
   found: Set<string>;
 }
 
-/** A running scene with the anchors of `targets` – built like a spread switch does, without renderer or camera */
+/** A running scene with the anchors of `targets` – built like a scene switch does, without renderer or camera */
 const runningScene = (...targets: Target[]) => {
   const scene = new ArScene(document.createElement("div"), { createTracker: () => { throw new Error("no tracker in this test"); } });
   const internals = scene as unknown as Internals;
   const anchors = targets.map(t => internals.buildAnchor(t));
-  internals.content = { spreadId: "s", targets, anchors };
+  internals.content = { sceneId: "s", targets, anchors };
   internals.running = true;
   return { scene, internals, anchors };
 };

@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   backToBooks, draftPasses, editInEffect, effectivePasses, levelLine, ownPasses, passesHeading, passesSource, passSummary, pendingSaves,
-  setPassEnabled, spreadsOnBooks,
+  setPassEnabled, scenesOnBook,
 } from "../passes-edit";
 import type { PassData } from "@engine/types";
 import { passRows } from "../values";
 
 const BOOK = [{ type: "grade", reach: "all", exposure: 0.5 }, { type: "vignette" }];
 
-// The post-processing panel: the book's passes are the master, a spread's own list overrides them
-describe("the book's passes and a spread's override", () => {
-  it("a spread without a list of its own uses the book's", () => {
+// The post-processing panel: the book's passes are the master, a scene's own list overrides them
+describe("the book's passes and a scene's override", () => {
+  it("a scene without a list of its own uses the book's", () => {
     const draft = draftPasses(BOOK, undefined);
     expect(passesSource(draft)).toBe("book");
     expect(effectivePasses(draft)).toEqual(BOOK);
@@ -24,16 +24,16 @@ describe("the book's passes and a spread's override", () => {
     expect(draft.book[0]).not.toBe(BOOK[0]);
   });
 
-  it("own passes for this spread start as a copy of the book's", () => {
+  it("own passes for this scene start as a copy of the book's", () => {
     const own = ownPasses(draftPasses(BOOK, undefined));
-    expect(passesSource(own)).toBe("spread");
+    expect(passesSource(own)).toBe("scene");
     expect(own.own).toEqual(BOOK);
     expect(own.own![0]).not.toBe(own.book[0]);
-    expect(passesHeading(own)).toBe("post-processing · only this spread");
-    expect(passesHeading({ ...own, own: [] })).toBe("post-processing · only this spread · off");
+    expect(passesHeading(own)).toBe("post-processing · only this scene");
+    expect(passesHeading({ ...own, own: [] })).toBe("post-processing · only this scene · off");
   });
 
-  it("editing changes the list in effect: the book's while the spread uses them, else the spread's own", () => {
+  it("editing changes the list in effect: the book's while the scene uses them, else the scene's own", () => {
     const usesBook = editInEffect(draftPasses(BOOK, undefined), list => [...list, { type: "bloom" }]);
     expect(usesBook.book.map(p => p.type)).toEqual(["grade", "vignette", "bloom"]);
     expect(usesBook.own).toBeNull();
@@ -51,37 +51,37 @@ describe("the book's passes and a spread's override", () => {
   it("Save writes only what changed", () => {
     const saved = draftPasses(BOOK, undefined);
     expect(pendingSaves(saved, saved)).toEqual({});
-    expect(pendingSaves(ownPasses(saved), saved)).toEqual({ spread: BOOK });
+    expect(pendingSaves(ownPasses(saved), saved)).toEqual({ scene: BOOK });
     const bookEdited = editInEffect(saved, list => [...list, { type: "bloom" }]);
     expect(pendingSaves(bookEdited, saved)).toEqual({ book: [...BOOK, { type: "bloom" }] });
-    // An empty book list removes the field; the spread back to the book's sends null
+    // An empty book list removes the field; the scene back to the book's sends null
     expect(pendingSaves(editInEffect(saved, () => []), saved)).toEqual({ book: null });
     const withOwn = draftPasses(BOOK, [{ type: "bloom" }]);
-    expect(pendingSaves(backToBooks(withOwn), withOwn)).toEqual({ spread: null });
-    // An empty list of its own is kept: post-processing off for this spread
-    expect(pendingSaves(editInEffect(withOwn, () => []), withOwn)).toEqual({ spread: [] });
+    expect(pendingSaves(backToBooks(withOwn), withOwn)).toEqual({ scene: null });
+    // An empty list of its own is kept: post-processing off for this scene
+    expect(pendingSaves(editInEffect(withOwn, () => []), withOwn)).toEqual({ scene: [] });
   });
 });
 
 // The level at a glance (#181): what editing changes, and what Save saves
 describe("the level in words", () => {
-  const SPREADS = [{ id: "a" }, { id: "b", passes: [{ type: "bloom" }] }, { id: "c", passes: null }, { id: "d", passes: [] }];
+  const SCENES = [{ id: "a" }, { id: "b", passes: [{ type: "bloom" }] }, { id: "c", passes: null }, { id: "d", passes: [] }];
 
-  it("counts the spreads that use the book's – an empty list of its own is an override too", () => {
-    expect(spreadsOnBooks(SPREADS, "a", null)).toBe(2);
-    expect(spreadsOnBooks([], "a", null)).toBe(0);
+  it("counts the scenes that use the book's – an empty list of its own is an override too", () => {
+    expect(scenesOnBook(SCENES, "a", null)).toBe(2);
+    expect(scenesOnBook([], "a", null)).toBe(0);
   });
 
-  it("counts the spread on the stage as the panel holds it, saved or not", () => {
-    expect(spreadsOnBooks(SPREADS, "a", [])).toBe(1);
-    expect(spreadsOnBooks(SPREADS, "b", null)).toBe(3);
+  it("counts the scene on the stage as the panel holds it, saved or not", () => {
+    expect(scenesOnBook(SCENES, "a", [])).toBe(1);
+    expect(scenesOnBook(SCENES, "b", null)).toBe(3);
   });
 
   it("says what editing the list changes", () => {
     const book = draftPasses(BOOK, undefined);
-    expect(levelLine(book, 4)).toBe("changes all 4 spreads that use the book's");
-    expect(levelLine(book, 1)).toBe("changes the 1 spread that uses the book's");
-    expect(levelLine(ownPasses(book), 4)).toBe("overrides the book's for this spread");
+    expect(levelLine(book, 4)).toBe("changes all 4 scenes that use the book's");
+    expect(levelLine(book, 1)).toBe("changes the 1 scene that uses the book's");
+    expect(levelLine(ownPasses(book), 4)).toBe("overrides the book's for this scene");
   });
 });
 
@@ -96,7 +96,7 @@ describe("a pass on and off, and its closed head", () => {
     expect(setPassEnabled(list, 1, true)).toEqual(list);
   });
 
-  it("switching a pass of the book's list changes the book's, a spread's own the spread's – Save writes it", () => {
+  it("switching a pass of the book's list changes the book's, a scene's own the scene's – Save writes it", () => {
     const draft = draftPasses(BOOK, undefined);
     const next = editInEffect(draft, list => setPassEnabled(list, 1, false));
     expect(next.book[1]).toEqual({ type: "vignette", enabled: false });

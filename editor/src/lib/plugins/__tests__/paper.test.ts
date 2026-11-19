@@ -40,7 +40,7 @@ const paperOn = (sheet: string | undefined) => {
   const mesh = new Mesh<BufferGeometry>(plane, new MeshBasicMaterial());
   mesh.scale.set(1, 0.5625, 1);
   const node: EntityData = { type: "video", assets: [], components: [{ type: "paper", ...(sheet === undefined ? {} : { sheet }) }] };
-  const target: Target = { id: "t", entryId: "t", spreadId: "s", imageSrc: "/t.jpg", entity: node };
+  const target: Target = { id: "t", entryId: "t", sceneId: "s", imageSrc: "/t.jpg", entity: node };
   const applied = applyComponents({ node, object: mesh, placed: mesh, children: [], target });
   const tune = (next: string) => applied.tune({ ...node, components: [{ type: "paper", sheet: next }] });
   return { mesh, plane, applied, tune };

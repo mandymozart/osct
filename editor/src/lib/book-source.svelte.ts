@@ -2,9 +2,9 @@ import { sourceOfTruthOf, type SourceOfTruth } from "@shared/types/game-config";
 import { getBook, putBookTexts } from "./api";
 
 /**
- * The open book's source of truth (#238, `book.sourceOfTruth`): print first – the spreads are the printed book's, from
- * an import of its layout – or digital first – spreads are added and removed in the editor. The book's Inspector sets
- * it (`PUT /editor/books/{id}`); the workspace, the tree and the book page show the spread controls only while it is
+ * The open book's source of truth (#238, `book.sourceOfTruth`): print first – the scenes are the printed book's, from
+ * an import of its layout – or digital first – scenes are added and removed in the editor. The book's Inspector sets
+ * it (`PUT /editor/books/{id}`); the workspace, the tree and the book page show the scene controls only while it is
  * digital. One book at a time.
  */
 class BookSource {

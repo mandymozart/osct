@@ -4,9 +4,9 @@ import type { Target } from "../types/index";
 /** A camera that sends no picture within this time is reported as not responding */
 export const CAMERA_START_TIMEOUT_MS = 10000;
 
-/** What the tracker needs to track a spread: its targets (the engine's image targets are made from their images) */
-export interface TrackedSpread {
-  spreadId: string;
+/** What the tracker needs to track a scene: its targets (the engine's image targets are made from their images) */
+export interface TrackedScene {
+  sceneId: string;
   targets: readonly Target[];
 }
 
@@ -17,10 +17,10 @@ export interface ImageTrackerOptions {
    */
   onUpdate: (targetId: string, matrix: Matrix4 | null) => void;
   /**
-   * A target of a prepared spread (`prepareTargets()`) is seen steadily while none of the current spread's is –
+   * A target of a prepared scene (`prepareTargets()`) is seen steadily while none of the current scene's is –
    * the reader has turned the page
    */
-  onSpreadSeen?: (spreadId: string) => void;
+  onSceneSeen?: (sceneId: string) => void;
 }
 
 /** What the scene hands the app's tracker factory (`ArSceneOptions.createTracker`) */
@@ -33,7 +33,7 @@ export interface TrackerContext {
 }
 
 /**
- * Camera + image tracking, without a renderer (`ArScene` renders). The camera stream survives a spread
+ * Camera + image tracking, without a renderer (`ArScene` renders). The camera stream survives a scene
  * switch: `loadTargets()` replaces only the tracked targets. Implementations: `ImageTracker` (8th Wall engine,
  * `xr8-tracker.ts`) in the reader, the editor's mock tracker over its stage.
  */
@@ -46,19 +46,19 @@ export interface IImageTracker {
   readonly cameraVideo: HTMLVideoElement | null;
   /** Request the back camera; throws when it is unavailable or sends no picture */
   startCamera(): Promise<void>;
-  /** Track the targets of a spread on the running camera (replaces the previous targets) */
-  loadTargets(spread: TrackedSpread): Promise<void>;
+  /** Track the targets of a scene on the running camera (replaces the previous targets) */
+  loadTargets(scene: TrackedScene): Promise<void>;
   /**
-   * Spreads the reader may switch to next (the neighbours): the tracker may get their targets ready ahead, so
-   * `loadTargets()` for one of them starts at once. Called after the current spread is tracked.
+   * Scenes the reader may switch to next (the neighbours): the tracker may get their targets ready ahead, so
+   * `loadTargets()` for one of them starts at once. Called after the current scene is tracked.
    */
-  prepareTargets(spreads: readonly TrackedSpread[]): void;
+  prepareTargets(scenes: readonly TrackedScene[]): void;
   /**
-   * Grow mode: add these spreads' targets to what the tracker holds, in this order (nearest first), a few at a time
+   * Grow mode: add these scenes' targets to what the tracker holds, in this order (nearest first), a few at a time
    * in idle time, each batch after the previous one is ready – nothing already held is dropped. A newer call
-   * replaces the order (the reader switched spreads); `prepareTargets()` ends the growth.
+   * replaces the order (the reader switched scenes); `prepareTargets()` ends the growth.
    */
-  growTargets(spreads: readonly TrackedSpread[]): void;
+  growTargets(scenes: readonly TrackedScene[]): void;
   /** Tracking and the camera picture pause, the stream stays */
   pause(): void;
   resume(): void;

@@ -21,7 +21,7 @@ const videoElement = ({ refuse = false } = {}) => {
 
 const videoEntity = (element: HTMLVideoElement, children: EntityData[] = []) => {
   const video: EntityData = { type: "video", assets: [{ id: "clip", assetType: "video", src: "/clip.mp4" }], children };
-  const target: Target = { id: "page", entryId: "page", spreadId: "s", imageSrc: "/page.jpg", entity: video };
+  const target: Target = { id: "page", entryId: "page", sceneId: "s", imageSrc: "/page.jpg", entity: video };
   const loaded = { assetType: "video", element, texture: null } as unknown as LoadedAsset;
   return buildEntity(target, () => loaded)!;
 };
@@ -85,7 +85,7 @@ describe("a video node and the reader's tap (#290)", () => {
 
   it("a node without a video under it does not use the tap", () => {
     const image: EntityData = { type: "image", assets: [{ id: "picture", assetType: "image", src: "/picture.jpg" }] };
-    const target: Target = { id: "page", entryId: "page", spreadId: "s", imageSrc: "/page.jpg", entity: image };
+    const target: Target = { id: "page", entryId: "page", sceneId: "s", imageSrc: "/page.jpg", entity: image };
     const entity = buildEntity(target, () => undefined);
     expect(entity?.onTap?.() ?? false).toBe(false);
   });

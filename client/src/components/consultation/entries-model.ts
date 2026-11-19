@@ -1,4 +1,4 @@
-import { ALL_CATEGORY, type Entry, EntryCategory, type ListCategory, type Spread } from "@/types";
+import { ALL_CATEGORY, type Entry, EntryCategory, type ListCategory, type Scene } from "@/types";
 import { entryPlaceLabel } from "@engine/content/scenes";
 import { isEntryCategory } from "@shared/guards/game-config";
 import { escapeHtml } from "@/utils/strings";
@@ -26,7 +26,7 @@ export const categoryLabel = (category: ListCategory): string => t(`entries:cate
  */
 export const placeLabel = (
   entry: Pick<Entry, "surface">,
-  scene: Pick<Spread, "id" | "label" | "surfaces"> | undefined,
+  scene: Pick<Scene, "id" | "label" | "surfaces"> | undefined,
 ): string => entryPlaceLabel(entry, scene);
 
 export const DEFAULT_CATEGORY = EntryCategory.Glossary;
@@ -66,11 +66,11 @@ export const sortEntries = <T extends Pick<Entry, "title">>(entries: readonly T[
 export type SceneOrder = ReadonlyMap<string, number>;
 
 /** The scene order of a list of scenes: their positions by id */
-export const sceneOrderOf = (scenes: readonly Pick<Spread, "id">[]): SceneOrder => new Map(scenes.map((scene, i) => [scene.id, i]));
+export const sceneOrderOf = (scenes: readonly Pick<Scene, "id">[]): SceneOrder => new Map(scenes.map((scene, i) => [scene.id, i]));
 
 /** By scene order, then by title (the All view, #287); an entry of an unknown scene comes last */
-export const sortBySceneOrder = <T extends Pick<Entry, "title" | "spreadId">>(entries: readonly T[], order: SceneOrder): T[] => {
-  const position = (entry: T) => order.get(entry.spreadId) ?? Number.MAX_SAFE_INTEGER;
+export const sortBySceneOrder = <T extends Pick<Entry, "title" | "sceneId">>(entries: readonly T[], order: SceneOrder): T[] => {
+  const position = (entry: T) => order.get(entry.sceneId) ?? Number.MAX_SAFE_INTEGER;
   return [...entries].sort((a, b) => position(a) - position(b) || collator.compare(a.title, b.title));
 };
 
@@ -84,7 +84,7 @@ export interface EntryGroup<T> {
  * Sorted entries. The glossary is grouped by first letter; entries not starting with a letter
  * (e.g. "4th wall") come first without a header. Other categories form one ungrouped list; All is sorted by scene order.
  */
-export const groupEntries = <T extends Pick<Entry, "title" | "category" | "spreadId">>(
+export const groupEntries = <T extends Pick<Entry, "title" | "category" | "sceneId">>(
   entries: readonly T[],
   category: ListCategory,
   sceneOrder: SceneOrder = new Map(),

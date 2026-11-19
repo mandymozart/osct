@@ -245,9 +245,9 @@ export const GRID_COLUMN_MAX = 168;
  * A short panel (`maxCardHeight`) narrows the columns – down to `GRID_COLUMN_FLOOR` – so a whole row still shows.
  */
 export const GRID_COLUMN_FLOOR = 48;
-export const gridColumns = (width: number, pageRatio: number, gap: number, maxCardHeight = Infinity): { columns: number; column: number; cardHeight: number } => {
+export const gridColumns = (width: number, cardRatio: number, gap: number, maxCardHeight = Infinity): { columns: number; column: number; cardHeight: number } => {
   const room = Math.max(0, width);
-  const ratio = pageRatio > 0 ? pageRatio : 1;
+  const ratio = cardRatio > 0 ? cardRatio : 1;
   const widest = Math.max(GRID_COLUMN_FLOOR, Math.min(GRID_COLUMN_MAX, maxCardHeight * ratio));
   // Held down by the height, the columns may go as narrow as the floor: the fewest that keep the cards short enough
   const narrowest = widest < GRID_COLUMN_MIN ? GRID_COLUMN_FLOOR : GRID_COLUMN_MIN;
@@ -259,5 +259,5 @@ export const gridColumns = (width: number, pageRatio: number, gap: number, maxCa
 };
 
 /** How many grid columns a card of `ratio` spans: its width in pages, at least one, at most the columns there are */
-export const gridSpan = (ratio: number, pageRatio: number, columns: number): number =>
-  Math.max(1, Math.min(columns, Math.round(ratio / (pageRatio > 0 ? pageRatio : 1))));
+export const gridSpan = (ratio: number, cardRatio: number, columns: number): number =>
+  Math.max(1, Math.min(columns, Math.round(ratio / (cardRatio > 0 ? cardRatio : 1))));

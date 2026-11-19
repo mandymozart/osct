@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi, type Mock } from "vitest";
 import { PreloaderService } from "@/services/PreloaderService";
-import { getAssets, getSpread, getSpreads, getTargets } from "@/utils/game-config";
+import { getAssets, getScene, getScenes, getTargets } from "@/utils/game-config";
 import { compressedUrl } from "@/utils/compressed"; // .glb
 import { targetWithVideo } from "@/test/content-fixtures";
 
 describe("PreloaderService", () => {
-  const spreads = getSpreads();
+  const scenes = getScenes();
   let preloader: PreloaderService;
   let fetchMock: Mock<(url: string, init?: RequestInit) => Promise<Response>>;
 
@@ -20,11 +20,11 @@ describe("PreloaderService", () => {
   });
 
   const fetchedUrls = () => fetchMock.mock.calls.map(([url]) => url);
-  /** A spread's target images – what the tracker needs to start (the preloader fetches them first) */
-  const targetsOf = (spreadId: string) => getTargets(spreadId).map(t => t.imageSrc);
+  /** A scene's target images – what the tracker needs to start (the preloader fetches them first) */
+  const targetsOf = (sceneId: string) => getTargets(sceneId).map(t => t.imageSrc);
 
   it("fetches a file once, even when asked twice", async () => {
-    const src = targetsOf(spreads[0].id)[0];
+    const src = targetsOf(scenes[0].id)[0];
     await Promise.all([preloader.preload({ src, type: "image" }), preloader.preload({ src, type: "image" })]);
     await preloader.preload({ src, type: "image" });
 
@@ -32,58 +32,58 @@ describe("PreloaderService", () => {
     expect(preloader.isPreloaded(src)).toBe(true);
   });
 
-  const contentOf = (spreadId: string) =>
+  const contentOf = (sceneId: string) =>
     // models: their gzip copy – the same URL the AR scene loads (utils/compressed.ts)
-    [...getAssets(spreadId).map(a => compressedUrl(a.src)), ...getSpread(spreadId)!.entries.map(e => e.image)]
+    [...getAssets(sceneId).map(a => compressedUrl(a.src)), ...getScene(sceneId)!.entries.map(e => e.image)]
       .filter((src): src is string => !!src && !/^https?:\/\//.test(src));
 
-  it("preloads the neighbouring spreads (target images first, then their content), never the active one", async () => {
-    await preloader.preloadNeighbours(spreads[1].id);
+  it("preloads the neighbouring scenes (target images first, then their content), never the active one", async () => {
+    await preloader.preloadNeighbours(scenes[1].id);
     const urls = fetchedUrls();
-    const targets = [...targetsOf(spreads[0].id), ...targetsOf(spreads[2].id)];
+    const targets = [...targetsOf(scenes[0].id), ...targetsOf(scenes[2].id)];
 
     expect(urls.slice(0, targets.length)).toEqual(targets);
-    expect(new Set(urls)).toEqual(new Set([...targets, ...contentOf(spreads[0].id), ...contentOf(spreads[2].id)]));
-    expect(urls).not.toContain(targetsOf(spreads[1].id)[0]);
+    expect(new Set(urls)).toEqual(new Set([...targets, ...contentOf(scenes[0].id), ...contentOf(scenes[2].id)]));
+    expect(urls).not.toContain(targetsOf(scenes[1].id)[0]);
     expect(urls.filter(url => /^https?:\/\//.test(url))).toEqual([]);
   });
 
-  it("preloads a spread's videos after its other content", async () => {
+  it("preloads a scene's videos after its other content", async () => {
     const { target, restore } = targetWithVideo();
     onTestFinished(restore);
-    const spread = spreads.find(s => s.id === target.spreadId)!;
-    const neighbour = spreads[spreads.indexOf(spread) - 1] ?? spreads[spreads.indexOf(spread) + 1];
+    const scene = scenes.find(s => s.id === target.sceneId)!;
+    const neighbour = scenes[scenes.indexOf(scene) - 1] ?? scenes[scenes.indexOf(scene) + 1];
     await preloader.preloadNeighbours(neighbour.id);
 
-    const videos = new Set(getAssets(spread.id).filter(a => a.assetType === "video").map(a => a.src));
-    const own = fetchedUrls().filter(url => contentOf(spread.id).includes(url));
+    const videos = new Set(getAssets(scene.id).filter(a => a.assetType === "video").map(a => a.src));
+    const own = fetchedUrls().filter(url => contentOf(scene.id).includes(url));
     const firstVideo = own.findIndex(url => videos.has(url));
     expect(firstVideo).toBeGreaterThan(-1);
     expect(own.slice(firstVideo).every(url => videos.has(url))).toBe(true);
   });
 
-  it("preloads a window: all its target images first, then the content spread by spread in the given order", async () => {
-    const withContent = spreads.filter(s => contentOf(s.id).length && targetsOf(s.id).length).slice(0, 2);
+  it("preloads a window: all its target images first, then the content scene by scene in the given order", async () => {
+    const withContent = scenes.filter(s => contentOf(s.id).length && targetsOf(s.id).length).slice(0, 2);
     const window = [withContent[1].id, withContent[0].id];
-    await preloader.preloadSpreads(window);
+    await preloader.preloadScenes(window);
     const urls = fetchedUrls();
     const targets = window.flatMap(targetsOf);
     expect(urls.slice(0, targets.length)).toEqual(targets);
     const firstOf = (id: string) => urls.findIndex(url => contentOf(id).includes(url) && !targets.includes(url));
     expect(firstOf(window[0])).toBeLessThan(firstOf(window[1]));
-    expect(await new PreloaderService().preloadSpreads(["unknown"])).toEqual([]);
+    expect(await new PreloaderService().preloadScenes(["unknown"])).toEqual([]);
   });
 
-  it("handles the first spread and unknown spreads", async () => {
-    await preloader.preloadNeighbours(spreads[0].id);
-    expect(fetchedUrls()[0]).toBe(targetsOf(spreads[1].id)[0]);
-    expect(fetchedUrls()).not.toContain(targetsOf(spreads[2].id)[0]);
+  it("handles the first scene and unknown scenes", async () => {
+    await preloader.preloadNeighbours(scenes[0].id);
+    expect(fetchedUrls()[0]).toBe(targetsOf(scenes[1].id)[0]);
+    expect(fetchedUrls()).not.toContain(targetsOf(scenes[2].id)[0]);
     expect(await preloader.preloadNeighbours("unknown")).toEqual([]);
   });
 
   it("reports a failed request and allows a retry", async () => {
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 404, statusText: "Not Found" }));
-    const src = targetsOf(spreads[0].id)[0];
+    const src = targetsOf(scenes[0].id)[0];
 
     const first = await preloader.preload({ src, type: "image" });
     expect(first.success).toBe(false);
@@ -115,19 +115,19 @@ describe("PreloaderService", () => {
 
       const urls = fetchedUrls();
       expect(new Set(urls).size).toBe(urls.length);
-      for (const spread of spreads) for (const src of targetsOf(spread.id)) expect(urls).toContain(src);
+      for (const scene of scenes) for (const src of targetsOf(scene.id)) expect(urls).toContain(src);
       expect((await preloader.getBookDownload()).state).toBe("done");
     });
 
     it("skips what is on the device already and reports failed files", async () => {
-      await preloader.preloadSpread(spreads[0].id);
+      await preloader.preloadScene(scenes[0].id);
       const already = fetchedUrls().length;
       fetchMock.mockResolvedValueOnce(new Response(null, { status: 500 }));
 
       const result = await preloader.downloadBook();
       expect(result).toMatchObject({ state: "failed", failed: 1 });
       expect(result.loaded).toBeLessThan(result.total);
-      expect(fetchedUrls().slice(already)).not.toContain(targetsOf(spreads[0].id)[0]);
+      expect(fetchedUrls().slice(already)).not.toContain(targetsOf(scenes[0].id)[0]);
 
       expect((await preloader.downloadBook()).state).toBe("done"); // try again: the rest
     });

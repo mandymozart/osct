@@ -19,14 +19,14 @@ describe("helpOf: the help of the control under the pointer", () => {
 
   it("names a row's help by the row's label, a control by its aria label", () => {
     const $ = html(`<div class="row" data-help="Hand shake"><span class="label">shake</span><input id="i" /></div>
-      <button id="c" aria-label="Close" data-help="Back to the spreads"></button>`);
+      <button id="c" aria-label="Close" data-help="Back to the scenes"></button>`);
     expect(helpOf($("#i"))).toEqual({ name: "shake", text: "Hand shake" });
-    expect(helpOf($("#c"))).toEqual({ name: "Close", text: "Back to the spreads" });
+    expect(helpOf($("#c"))).toEqual({ name: "Close", text: "Back to the scenes" });
   });
 
   it("falls back to a title; data-help wins over the title on the same element", () => {
-    const $ = html(`<button id="a" title="Previous spread (←)">‹</button><button id="b" title="tooltip" data-help="help">b</button>`);
-    expect(helpOf($("#a"))).toEqual({ name: "‹", text: "Previous spread (←)" });
+    const $ = html(`<button id="a" title="Previous scene (←)">‹</button><button id="b" title="tooltip" data-help="help">b</button>`);
+    expect(helpOf($("#a"))).toEqual({ name: "‹", text: "Previous scene (←)" });
     expect(helpOf($("#b"))?.text).toBe("help");
   });
 

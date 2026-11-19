@@ -21,7 +21,7 @@
  * (`{ any: { hasKey: true, tries: 3 } }`); `{ not: value }` turns a test round and `null` stands for a variable that is
  * not set. A variable is read like a plugin's `api.vars.get(name)` – the innermost scope that has it.
  * **Actions**: `play: <clip>` (empty = the node's own clip – its `animation` component's, else the first), `pause` and
- * `stop` a clip, `show` and `hide` a node, `set: { name: value }` with an optional `scope` (spread by default; `null`
+ * `stop` a clip, `show` and `hide` a node, `set: { name: value }` with an optional `scope` (scene by default; `null`
  * deletes), `emit: <event>` (a scene event – never a core event). The node of `play` (its `node`), of `pause`, `stop`,
  * `show` and `hide` (their value) is the behaviour's own node when empty, else the node of that `name` in its subtree.
  * A shorthand string runs a verb on the own node: `play`, `pause`, `stop`, `show`, `hide`.
@@ -48,11 +48,11 @@ export type BehaviourVerb = (typeof BEHAVIOUR_ACTIONS)[number];
 export const BEHAVIOUR_NODE_ACTIONS = ["play", "pause", "stop", "show", "hide"] as const;
 
 /** The variable scopes – the engine's runtime uses them as its own (`engine/src/scene/plugin-runtime.ts` `VAR_SCOPES`) */
-export const BEHAVIOUR_SCOPES = ["spread", "stage", "session", "book"] as const;
+export const BEHAVIOUR_SCOPES = ["scene", "stage", "session", "book"] as const;
 export type BehaviourScope = (typeof BEHAVIOUR_SCOPES)[number];
 
 /** The engine's core events: heard by a rule, never emitted (the runtime's `CORE_EVENTS` are these) */
-export const BEHAVIOUR_CORE_EVENTS = ["targetFound", "targetLost", "targetUnlocked", "targetTapped", "spreadChanged", "sceneState", "varChanged"] as const;
+export const BEHAVIOUR_CORE_EVENTS = ["targetFound", "targetLost", "targetUnlocked", "targetTapped", "sceneChanged", "arState", "varChanged"] as const;
 
 /** A variable's or an event's name: camelCase letters and digits (the runtime's `EVENT_NAME_PATTERN` is this one) */
 export const BEHAVIOUR_NAME_PATTERN = CAMEL_CASE_NAME;
@@ -226,7 +226,7 @@ const readAction = (raw: unknown): BehaviourAction[] => {
     if (verb in raw) return [{ action: verb, node: text(raw[verb]) }];
   }
   if ("set" in raw && isObject(raw.set)) {
-    const scope = (BEHAVIOUR_SCOPES as readonly string[]).includes(raw.scope as string) ? (raw.scope as BehaviourScope) : "spread";
+    const scope = (BEHAVIOUR_SCOPES as readonly string[]).includes(raw.scope as string) ? (raw.scope as BehaviourScope) : "scene";
     return Object.entries(raw.set).flatMap(([name, value]): BehaviourAction[] =>
       value === null || isScalar(value) ? [{ action: "set", name, value, scope }] : []);
   }
@@ -260,7 +260,7 @@ const writeAction = (action: BehaviourAction): unknown => {
     case "pause": case "stop": case "show": case "hide":
       return action.node ? { [action.action]: action.node } : action.action;
     case "set":
-      return { set: { [action.name]: action.value }, ...(action.scope !== "spread" ? { scope: action.scope } : {}) };
+      return { set: { [action.name]: action.value }, ...(action.scope !== "scene" ? { scope: action.scope } : {}) };
     case "emit":
       return { emit: action.event };
   }
@@ -286,7 +286,7 @@ export const describeActions = (actions: readonly BehaviourAction[]): string =>
     switch (action.action) {
       case "play": return `play ${action.clip || "its clip"}${action.node ? ` on ${action.node}` : ""}`;
       case "pause": case "stop": case "show": case "hide": return `${action.action}${action.node ? ` ${action.node}` : ""}`;
-      case "set": return `set ${action.name} = ${action.value === null ? "unset" : JSON.stringify(action.value)}${action.scope !== "spread" ? ` (${action.scope})` : ""}`;
+      case "set": return `set ${action.name} = ${action.value === null ? "unset" : JSON.stringify(action.value)}${action.scope !== "scene" ? ` (${action.scope})` : ""}`;
       case "emit": return `emit ${action.event}`;
     }
   }).join(" · ");

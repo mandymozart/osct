@@ -1,5 +1,5 @@
 import type { LoadOptions, LoadResult } from "@/types";
-import { contentUrl, getAssets, getContentSizes, getNeighbourSpreads, getSpread, getSpreads, getSubtitleFiles, getTargets, isContentUrl } from "@/utils/game-config";
+import { contentUrl, getAssets, getContentSizes, getNeighbourScenes, getScene, getScenes, getSubtitleFiles, getTargets, isContentUrl } from "@/utils/game-config";
 import { compressedUrl } from "@/utils/compressed";
 import { deviceHints, wantedTextureSize } from "@engine/scene/model-textures";
 import { textureSizeFor } from "@shared/types/textures";
@@ -20,38 +20,38 @@ export interface BookDownload {
 }
 
 
-/** A spread's target images: the tracker makes the engine's image targets from them (needed to start AR) */
-const getTargetImages = (spreadId: string): LoadOptions[] =>
-  getTargets(spreadId).map(t => t.imageSrc).filter(isContentUrl).map(src => ({ src, type: "image" }));
+/** A scene's target images: the tracker makes the engine's image targets from them (needed to start AR) */
+const getTargetImages = (sceneId: string): LoadOptions[] =>
+  getTargets(sceneId).map(t => t.imageSrc).filter(isContentUrl).map(src => ({ src, type: "image" }));
 
 /**
- * Files a spread uses besides its target images: entity assets (AR models, images, audio, videos), the subtitle files
+ * Files a scene uses besides its target images: entity assets (AR models, images, audio, videos), the subtitle files
  * of its videos (every language – they are small) and entry images (consultation). Videos come last since they are the
  * largest. A model with a texture set (#260) brings its
  * map at the size the reader's texture quality asks for – the one size the AR scene loads, not the whole set.
  */
-const getSpreadContent = (spreadId: string): LoadOptions[] => {
+const getSceneContent = (sceneId: string): LoadOptions[] => {
   const wanted = wantedTextureSize(GraphicsService.getInstance().getSettings().textureQuality, deviceHints());
-  const assets: LoadOptions[] = getAssets(spreadId)
+  const assets: LoadOptions[] = getAssets(sceneId)
     .filter(a => isContentUrl(a.src))
     .flatMap(a => [
       { src: compressedUrl(a.src), type: a.assetType }, // the same URL the AR scene loads
       ...(a.textures ?? []).map(set => textureSizeFor(set, wanted)?.src).filter(isContentUrl).map(src => ({ src, type: "image" as const })),
     ]);
-  const images: LoadOptions[] = (getSpread(spreadId)?.entries ?? [])
+  const images: LoadOptions[] = (getScene(sceneId)?.entries ?? [])
     .map(e => e.image)
     .filter(isContentUrl)
     .map(src => ({ src, type: "image" }));
-  const subtitles: LoadOptions[] = getSubtitleFiles(spreadId).filter(isContentUrl).map(src => ({ src, type: "subtitles" }));
+  const subtitles: LoadOptions[] = getSubtitleFiles(sceneId).filter(isContentUrl).map(src => ({ src, type: "subtitles" }));
   const isVideo = (o: LoadOptions) => o.type === "video";
   return [...assets.filter(o => !isVideo(o)), ...subtitles, ...images, ...assets.filter(isVideo)];
 };
 
-/** Every content file of the book – all spreads' target images, entity assets and entry images – each once */
+/** Every content file of the book – all scenes' target images, entity assets and entry images – each once */
 const getBookContent = (): LoadOptions[] => {
   const seen = new Set<string>();
-  return getSpreads()
-    .flatMap(s => [...getTargetImages(s.id), ...getSpreadContent(s.id)])
+  return getScenes()
+    .flatMap(s => [...getTargetImages(s.id), ...getSceneContent(s.id)])
     .filter(o => !seen.has(o.src) && !!seen.add(o.src));
 };
 
@@ -105,39 +105,39 @@ export class PreloaderService {
     return this.done.has(src);
   }
 
-  /** One spread: its target images first (needed to start AR), then entity assets and entry images */
-  async preloadSpread(spreadId: string): Promise<LoadResult[]> {
-    if (!getSpread(spreadId)) return [];
-    const targets = await Promise.all(getTargetImages(spreadId).map(options => this.preload(options)));
-    const content = await Promise.all(getSpreadContent(spreadId).map(options => this.preload(options)));
+  /** One scene: its target images first (needed to start AR), then entity assets and entry images */
+  async preloadScene(sceneId: string): Promise<LoadResult[]> {
+    if (!getScene(sceneId)) return [];
+    const targets = await Promise.all(getTargetImages(sceneId).map(options => this.preload(options)));
+    const content = await Promise.all(getSceneContent(sceneId).map(options => this.preload(options)));
     return [...targets, ...content];
   }
 
   /**
-   * Content of the spreads adjacent to `spreadId` in book order (the ones the spread menu reaches next).
-   * Limited to neighbours: the book has many spreads and their media add up.
+   * Content of the scenes adjacent to `sceneId` in book order (the ones the scene menu reaches next).
+   * Limited to neighbours: the book has many scenes and their media add up.
    * Target images first (needed to start AR), then entity assets and entry images.
    */
-  async preloadNeighbours(spreadId: string, range = 1): Promise<LoadResult[]> {
-    const neighbours = getNeighbourSpreads(spreadId, range);
+  async preloadNeighbours(sceneId: string, range = 1): Promise<LoadResult[]> {
+    const neighbours = getNeighbourScenes(sceneId, range);
     const targets = await Promise.all(neighbours.flatMap(s => getTargetImages(s.id)).map(options => this.preload(options)));
-    const content = await Promise.all(neighbours.flatMap(s => getSpreadContent(s.id)).map(options => this.preload(options)));
+    const content = await Promise.all(neighbours.flatMap(s => getSceneContent(s.id)).map(options => this.preload(options)));
     return [...targets, ...content];
   }
 
   /**
-   * Content of the spreads kept ready next to the current one (the tracker's window, nearest first): their target
-   * images first (the tracker needs them), then each spread's assets and entry images, one spread at a time – the
+   * Content of the scenes kept ready next to the current one (the tracker's window, nearest first): their target
+   * images first (the tracker needs them), then each scene's assets and entry images, one scene at a time – the
    * nearest are ready first and a large window does not start every download at once. A newer call (the window
-   * moved) stops the older one between spreads; what it fetched stays cached.
+   * moved) stops the older one between scenes; what it fetched stays cached.
    */
-  async preloadSpreads(spreadIds: readonly string[]): Promise<LoadResult[]> {
+  async preloadScenes(sceneIds: readonly string[]): Promise<LoadResult[]> {
     const run = ++this.windowRun;
-    const ids = spreadIds.filter(id => getSpread(id));
+    const ids = sceneIds.filter(id => getScene(id));
     const results = await Promise.all(ids.flatMap(id => getTargetImages(id)).map(options => this.preload(options)));
     for (const id of ids) {
       if (run !== this.windowRun) break;
-      results.push(...await Promise.all(getSpreadContent(id).map(options => this.preload(options))));
+      results.push(...await Promise.all(getSceneContent(id).map(options => this.preload(options))));
     }
     return results;
   }

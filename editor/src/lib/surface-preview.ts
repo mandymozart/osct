@@ -17,7 +17,7 @@ export const assetUrl = (assetsBase: string | null | undefined, src: string): st
 };
 
 /** A print over a surface's picture: percent of the surface's width / height; the height follows the image, as on the stage */
-export interface PrintBox {
+export interface PlaceBox {
   id: string;
   src: string;
   left: number;
@@ -41,16 +41,16 @@ export interface PreviewPart {
   height: number;
   label: string;
   reference: { url: string; fit: SurfaceReference["fit"] } | null;
-  prints: PrintBox[];
+  prints: PlaceBox[];
 }
 
 /** The prints of the targets lying on `surface` (`surfaceOfPlace`), in percent of the surface; targets without a place are left out */
-export const printBoxes = (
+export const placeBoxes = (
   targets: readonly PreviewTarget[],
   surface: Pick<SurfaceData, "id" | "widthMm" | "heightMm">,
   surfaces: readonly Pick<SurfaceData, "id">[],
   assetsBase?: string | null,
-): PrintBox[] =>
+): PlaceBox[] =>
   targets.flatMap(target => {
     const place = target.place;
     if (!place || !target.imageSrc || !(place.width > 0) || surfaceOfPlace(place, surfaces)?.id !== surface.id) return [];
@@ -87,7 +87,7 @@ export const previewParts = (
         height: s.heightMm / tallest,
         label: s.label ?? "",
         reference: reference ? { url: assetUrl(assetsBase, reference.url), fit: reference.fit } : null,
-        prints: printBoxes(targets, s, usable, assetsBase),
+        prints: placeBoxes(targets, s, usable, assetsBase),
       };
     }),
   };

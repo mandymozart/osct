@@ -55,7 +55,7 @@ the panel's two durations. Every other concept is a starting point of the sandbo
 | Print lifts off | A pale print on the paper lifts off and takes its colours |
 | Inflate + dissolve | Flat and small on the page, it rises, grows and turns half around under the noise dissolve with a gold edge and sparks – the engine's default look (#262) |
 | Rising line | A glowing line climbs from the page |
-| From the centre | Spreads from the middle of the page |
+| From the centre | Scenes from the middle of the page |
 | Dissolve | The shipped reveal's look with every value open |
 | Dither fade | A fade without transparency |
 | Fade | Fades in, fades out |

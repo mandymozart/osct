@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { type ArError, type ArStatus, ErrorCode, SceneState } from "@/types";
+import { type ArError, type ArStatus, ErrorCode, ArState } from "@/types";
 
 // The AR chunk cannot be loaded: a deploy removed it under the open page (or the reader is offline)
 vi.mock("../ar", () => {
@@ -17,11 +17,11 @@ describe("LazyArScene without its AR chunk", () => {
     const lazy = new LazyArScene(document.createElement("div"));
     const statuses: Array<[ArStatus, ArError | undefined]> = [];
     lazy.on("status", (status, error) => statuses.push([status, error]));
-    await lazy.setState(SceneState.RUNNING);
+    await lazy.setState(ArState.RUNNING);
     expect(statuses.map(([status]) => status)).toEqual(["loading", "error"]);
     expect(statuses[1][1]?.code).toBe(ErrorCode.AR_LOAD_FAILED);
 
-    await lazy.setState(SceneState.RUNNING);
+    await lazy.setState(ArState.RUNNING);
     expect(statuses.map(([status]) => status)).toEqual(["loading", "error", "loading", "error"]);
   });
 });

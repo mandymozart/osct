@@ -83,9 +83,9 @@ describe("requests and replies", () => {
     expect(sent.map(r => r.method)).toEqual(["init", "open"]);
     expect(requests.waiting("open")).toBe(false);
     requests.settle({ osct: MESSAGE_TAG, kind: "reply", id: sent[0].id, ok: true, value: null });
-    requests.settle({ osct: MESSAGE_TAG, kind: "reply", id: sent[1].id, ok: false, error: "no such spread" });
+    requests.settle({ osct: MESSAGE_TAG, kind: "reply", id: sent[1].id, ok: false, error: "no such scene" });
     await expect(init).resolves.toBeNull();
-    await expect(open).rejects.toThrow("no such spread");
+    await expect(open).rejects.toThrow("no such scene");
     expect(requests.size).toBe(0);
   });
 

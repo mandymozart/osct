@@ -43,7 +43,7 @@
   import BehaviourRules from "./BehaviourRules.svelte";
   import EntryForm from "./EntryForm.svelte";
   import { entries } from "#lib/entries.svelte.js";
-  import SpreadView from "./SpreadView.svelte";
+  import SceneView from "./SceneView.svelte";
   import BookPanel from "./BookPanel.svelte";
   import GroupView from "./GroupView.svelte";
   import SurfaceView from "./SurfaceView.svelte";
@@ -69,12 +69,12 @@
    * The panel is the workspace's **Inspector** (#229): it shows whatever is selected (#162) – a selected target its
    * target fields, its entity or a node that node's rows, the breadcrumb in the head stepping up; a selected **entry**
    * (#227) the entry (`EntryView`); the **book** (the top bar's ⚙, #237) its texts and settings (`BookPanel`); the
-   * **spread** – selected in the tree, or nothing else selected – its sections (`SpreadView`: the spread,
+   * **scene** – selected in the tree, or nothing else selected – its sections (`SceneView`: the scene,
    * post-processing, vars and events).
    */
-  let { stage, bookId, spreadId, selected, node = $bindable([]), pickColour, ontargetchanged, oncode, onenvironment }: {
-    stage: Stage | null; bookId: string; spreadId: string; selected: string | null; node: number[];
-    /** The spread's environment row: the workspace opens the Environment tab */
+  let { stage, bookId, sceneId, selected, node = $bindable([]), pickColour, ontargetchanged, oncode, onenvironment }: {
+    stage: Stage | null; bookId: string; sceneId: string; selected: string | null; node: number[];
+    /** The scene's environment row: the workspace opens the Environment tab */
     onenvironment?: () => void;
     /** Show the Code tab (a made plugin's error is there) */
     oncode?: () => void;
@@ -91,12 +91,12 @@
     if (entries.bookId !== bookId) void entries.load(bookId);
   });
 
-  const targets = $derived((content.spread(spreadId)?.targets ?? []).filter(target => target.imageSrc));
-  /** The selected target; none while the spread is selected – nothing stands in for a selection (#229) */
-  const target = $derived<Target | undefined>(selection.spread ? undefined : targets.find(t => t.id === selected));
+  const targets = $derived((content.scene(sceneId)?.targets ?? []).filter(target => target.imageSrc));
+  /** The selected target; none while the scene is selected – nothing stands in for a selection (#229) */
+  const target = $derived<Target | undefined>(selection.scene ? undefined : targets.find(t => t.id === selected));
   /**
    * The entry selected in the tree (#227), as the content holds it: its form instead of its target (#223) – it stays
-   * when a save moved it to another spread
+   * when a save moved it to another scene
    */
   const entry = $derived(entries.byId(selection.entry));
   /**
@@ -223,7 +223,7 @@
   /** What is wrong with the tree's behaviours (an empty name, an event not chosen yet): shown, and the save waits until it is complete */
   const behaviourProblems = $derived(entity ? treeBehaviourIssues(entity) : []);
   /** Every tree of the book (the draft's, this one as edited): the variables and events its behaviours use */
-  const bookTrees = $derived([...content.spreads.flatMap(s => s.targets).filter(t => t.id !== target?.id).flatMap(t => (t.entity ? [t.entity] : [])), ...(entity ? [entity] : [])]);
+  const bookTrees = $derived([...content.scenes.flatMap(s => s.targets).filter(t => t.id !== target?.id).flatMap(t => (t.entity ? [t.entity] : [])), ...(entity ? [entity] : [])]);
   const ruleVariables = $derived(bookVariables(bookTrees, (stage?.vars ?? []).map(v => v.name)));
   const ruleEvents = $derived(bookEvents(bookTrees, (stage?.events ?? []).map(e => e.event)));
   /** The clips of the models under the selected node by node name ("" = the node itself), read from the stage as the models load */
@@ -300,14 +300,14 @@
   };
 
   // ── the target: its printed image and placement ──
-  let printOpen = $state(false);
+  let placementOpen = $state(false);
   let targetBusy = $state(false);
   let targetError = $state<string | null>(null);
   let print = $state<TargetPlace>({ x: 40, y: 60, width: 80 });
   // The x / y rows are read and entered from the stage's origin (the toolbar's view group); `print` keeps the content's frame
   let origin = $state(getPreview().origin);
   $effect(() => subscribePreview(state => (origin = state.origin)));
-  const sceneSurfaces = $derived(scenes.scene(spreadId)?.surfaces);
+  const sceneSurfaces = $derived(scenes.scene(sceneId)?.surfaces);
   const frame = $derived(flatFrame(sceneSurfaces));
   /** The surfaces a print may lie on: the scene's, by id; a choice writes the id while the scene has several */
   const surfaceOptions = $derived(surfaceChoices(sceneSurfaces));
@@ -332,31 +332,31 @@
     print = box;
   };
   /** The target whose edited placement is on its way to the draft, and which edit of it is the newest */
-  let printPending: string | null = null;
-  let printEdits = 0;
+  let placementPending: string | null = null;
+  let placementEdits = 0;
   // The placement follows the target: its own place; else the stage's fallback while the placement is open. An edit on
   // its way to the draft is not taken back by the draft as it still is
   $effect(() => {
     const t = target;
-    if (t && printPending === t.id) return;
+    if (t && placementPending === t.id) return;
     if (t?.place) print = { ...t.place };
-    else if (t && untrack(() => printOpen)) placeFromBookLayout(t);
+    else if (t && untrack(() => placementOpen)) placeFromBookLayout(t);
   });
   const togglePlacement = () => {
-    if (!printOpen && target && !target.place) placeFromBookLayout(target);
-    printOpen = !printOpen;
+    if (!placementOpen && target && !target.place) placeFromBookLayout(target);
+    placementOpen = !placementOpen;
   };
   // While the placement rows are open the target lies at the edited place on the stage (its print and its entity), with handles
   $effect(() => {
     const t = target;
-    const open = printOpen;
+    const open = placementOpen;
     const where = { ...(print.surface ? { surface: print.surface } : {}), x: print.x, y: print.y, width: print.width };
     stage?.ghost(open && t ? { targetId: t.id, imageSrc: t.imageSrc, ...where, ...(print.height !== undefined ? { height: print.height } : {}) } : null);
   });
   $effect(() => () => stage?.ghost(null));
   // The handles on the stage move the ghost: the placement rows follow
   $effect(() => {
-    if (!stage || !printOpen) return;
+    if (!stage || !placementOpen) return;
     // A move onto another surface names it (while the scene has several); the stored height follows the width
     stage.onGhostChange = place => editPrint({ ...(print.height !== undefined ? { height: print.height } : {}), ...place });
     return () => { if (stage) stage.onGhostChange = null; };
@@ -387,11 +387,11 @@
     if (!t) return;
     const book = bookId;
     const id = t.id;
-    const edit = ++printEdits;
-    printPending = id;
+    const edit = ++placementEdits;
+    placementPending = id;
     autosave.queue(`print:${book}:${id}`, async () => {
       await putTarget(book, id, { place: next });
-      if (printEdits === edit) printPending = null;
+      if (placementEdits === edit) placementPending = null;
       await ontargetchanged?.();
     });
   };
@@ -587,7 +587,7 @@
 {/snippet}
 
 {#if selection.book}
-  <BookPanel {bookId} {stage} {spreadId} />
+  <BookPanel {bookId} {stage} {sceneId} />
 {:else if selection.group}
   <!-- A band of the Scenes panel (#307): the group -->
   <GroupView {bookId} groupId={selection.group} />
@@ -606,8 +606,8 @@
 {:else if picking}
   <LibraryPanel {bookId} pick={picking} />
 {:else if !target}
-  <!-- The spread: selected, or nothing else is (a target id this spread does not have shows it too) -->
-  <SpreadView {stage} {bookId} {spreadId} {onenvironment} />
+  <!-- The scene: selected, or nothing else is (a target id this scene does not have shows it too) -->
+  <SceneView {stage} {bookId} {sceneId} {onenvironment} />
 {:else}
   <div class="head">
     <!-- The breadcrumb (#162): target › entity › group › node – a crumb selects that level; ▾ after the target picks another -->
@@ -620,7 +620,7 @@
           <button type="button" class="crumb" onclick={() => selection.set(crumb.selection)} title="Select the {crumb.level}">{crumb.label}</button>
         {/if}
         {#if !i}
-          <select class="crumb-switch" aria-label="Target" title="Another target on this spread" value={target.id} onchange={e => selection.selectTarget((e.currentTarget as HTMLSelectElement).value)}>
+          <select class="crumb-switch" aria-label="Target" title="Another target on this scene" value={target.id} onchange={e => selection.selectTarget((e.currentTarget as HTMLSelectElement).value)}>
             {#each targets as t (t.id)}
               <option value={t.id}>{stage?.found.includes(t.id) ? "◉ " : ""}{t.id}{t.entity ? ` · ${t.entity.type}` : " · no AR"}{stage?.overrideOf(t.id) ? " *" : ""}</option>
             {/each}
@@ -636,12 +636,12 @@
     <span class="controls">
       <Toggle on={isTargetEnabled(target)} label="In the book" disabled={targetBusy} onchange={setInBook}
         help="On: readers find this target and read its entry. Off: the reader leaves both out until it is switched on again – the editor keeps everything and works on it as before." />
-      <button type="button" class="text-link placement-toggle" class:on={printOpen} onclick={togglePlacement}>{printOpen ? "hide placement" : "placement"}</button>
+      <button type="button" class="text-link placement-toggle" class:on={placementOpen} onclick={togglePlacement}>{placementOpen ? "hide placement" : "placement"}</button>
     </span></div>
   <div class="row"><span class="label">image</span>
     <FileField src={target.imageSrc} picture accept={pickAccept({ for: "target-image" })} label="the printed image of {target.id}"
       onlibrary={pickTargetImage} onupload={f => { const id = target?.id; if (id) void setTargetImage(id, f); }} /></div>
-  {#if printOpen}
+  {#if placementOpen}
     {#if surfaceOptions.length > 1}
       <div class="row"><span class="label">surface</span>
         <span class="controls"><Segmented options={surfaceOptions.map(c => c.value)} labels={surfaceLabels} value={on ?? ""} label="Surface" onchange={chooseSurface} /></span></div>

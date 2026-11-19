@@ -21,7 +21,7 @@ describe("the notice's message", () => {
     expect(state(true, true)).toBe("newer-content");
     expect(state(false, true)).toBe("update");
     expect(state(false, false)).toBeNull();
-    expect(state(true, true, Pages.SPREAD, "running")).toBeNull();
+    expect(state(true, true, Pages.SCENE, "running")).toBeNull();
     expect(state(true, false, Pages.TUTORIAL, "idle")).toBeNull();
   });
 });

@@ -7,7 +7,7 @@ import {
   PARAM_KINDS,
   skipUnknownFeatures,
 } from "../forward-compatible";
-import { describeSkipped, getConfigurationError, getEntries, getPasses, getSkippedFeatures, getSpreads, loadGameConfiguration } from "../game-config";
+import { describeSkipped, getConfigurationError, getEntries, getPasses, getSkippedFeatures, getScenes, loadGameConfiguration } from "../game-config";
 import { ErrorCode } from "../../types/index";
 
 /**
@@ -154,13 +154,13 @@ describe("forward compatibility: a newer MINOR read by an older app", () => {
     expect((config as typeof raw).entities.fx.components).toEqual([{ type: "paper", tone: "#eeeeee" }]);
   });
 
-  it("loads in the app: the spread shows the passes it knows, the list is kept for the reader's hint", async () => {
+  it("loads in the app: the scene shows the passes it knows, the list is kept for the reader's hint", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {});
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const error = await loadGameConfiguration({ bundled: async () => book2_21(), knownFeatures: APP_2_19 });
     expect(error).toBeNull();
     expect(getConfigurationError()).toBeNull();
-    expect(getSpreads().map(spread => spread.id)).toEqual(["s1"]);
+    expect(getScenes().map(scene => scene.id)).toEqual(["s1"]);
     expect(getPasses("s1")).toEqual([{ type: "bloom", strength: 0.5 }]);
     expect(getEntries()[0].target?.entity?.components).toHaveLength(1);
     expect(getSkippedFeatures()).toHaveLength(5);
@@ -235,7 +235,7 @@ describe("forward compatibility: a newer MINOR read by an older app", () => {
     const error = await loadGameConfiguration({ bundled: async () => newer });
     expect(error).toMatchObject({ code: ErrorCode.NOT_SUPPORTED, type: "critical" });
     expect(error?.details?.[0]).toMatch(/update the app/);
-    expect(getSpreads()).toEqual([]);
+    expect(getScenes()).toEqual([]);
     // An older app refuses a MAJOR above its own the same way
     expect(await loadGameConfiguration({ bundled: async () => book2_21("4.0"), knownFeatures: APP_2_19 })).toMatchObject({ code: ErrorCode.NOT_SUPPORTED });
   });

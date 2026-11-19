@@ -13,7 +13,7 @@ import { ONBOARDING_ICON_SRC } from "@/utils/static-splash-html";
  * driven by the store (`cameraPermission`). Shown while camera access is being requested or is unavailable;
  * explains how to re-enable it per browser. Uses the onboarding look: during onboarding on its vertical grid (the
  * icon in row 1, the text from row 3, the buttons from row 5 – DESIGN.md §3a, design p. 13); in scan mode the
- * message alone between the header and the spread menu. No camera illustration since the design review (#281).
+ * message alone between the header and the scene menu. No camera illustration since the design review (#281).
  */
 export class CameraPermissionPage extends Page {
   protected game: Readonly<IGame>;
@@ -58,7 +58,7 @@ export class CameraPermissionPage extends Page {
 
   setupListeners(): void {
     // Onboarding (idle mode): the overlay covers the page and offers to continue without the camera;
-    // in scan mode it stays behind the header and the spread menu
+    // in scan mode it stays behind the header and the scene menu
     this.cleanupModeListener = this.game.subscribeToProperty("mode", mode => {
       this.setOnboarding(mode === GameMode.IDLE);
       if (this.hasAttribute("active")) this.render();
@@ -227,7 +227,7 @@ export class CameraPermissionPage extends Page {
 
   /**
    * Onboarding: above the page (otherwise "Grant access" would seem to do nothing); scan mode: behind the
-   * header and the spread menu. Set inline because a toggled :host([attribute]) rule is not re-evaluated reliably.
+   * header and the scene menu. Set inline because a toggled :host([attribute]) rule is not re-evaluated reliably.
    */
   private setOnboarding(onboarding: boolean) {
     this.toggleAttribute("onboarding", onboarding);

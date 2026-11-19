@@ -108,12 +108,12 @@ describe('delivery import', () => {
   });
 
   it('pairs facing pages: 1 alone, then 2–3, 4–5 …, the last even page alone', async () => {
-    const { spreadPages } = await import('../src/import-delivery');
-    expect(spreadPages(1, 256)).toEqual([1, 1]);
-    expect(spreadPages(2, 256)).toEqual([2, 3]);
-    expect(spreadPages(3, 256)).toEqual([2, 3]);
-    expect(spreadPages(255, 256)).toEqual([254, 255]);
-    expect(spreadPages(256, 256)).toEqual([256, 256]);
+    const { scenePages } = await import('../src/import-delivery');
+    expect(scenePages(1, 256)).toEqual([1, 1]);
+    expect(scenePages(2, 256)).toEqual([2, 3]);
+    expect(scenePages(3, 256)).toEqual([2, 3]);
+    expect(scenePages(255, 256)).toEqual([254, 255]);
+    expect(scenePages(256, 256)).toEqual([256, 256]);
   });
 
   it('the print layout gives the cover, the front and back matter and the back cover their scenes (#296)', async () => {

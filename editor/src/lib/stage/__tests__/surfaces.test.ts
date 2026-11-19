@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { SurfaceData, Target } from "@engine/types";
 import { DEFAULT_FRAME, fitImage, hitSurfaces, ownRect, sceneFrames, sceneSurfaces, surfaceRects, toStage, toSurface, type V3 } from "../surfaces";
-import { draggedPlace, frameFor, grabOffset, printCentre, surfaceAxes } from "../placement";
+import { draggedPlace, frameFor, grabOffset, placeCentre, surfaceAxes } from "../placement";
 import { layoutTargets } from "../mock-tracker";
 import { flatFrame, frameBox, gridAreas, originPoint } from "../origin";
-import { pageLines, printStageBox, snapPlace } from "../snap";
+import { surfaceLines, placeStageBox, snapPlace } from "../snap";
 import { arrangeInRow } from "#lib/surface-edit.js";
 
 /** The scene's surfaces on the stage (#314, #319 – schema 3.0: every surface at its place, no side) */
@@ -18,10 +18,10 @@ const wallPlace = { x: 0, y: 150, z: -400, rx: 90 };
 
 describe("surfaces: at their places", () => {
   it("a double page at the origin: one surface, its middle (the spine) at the scene's origin", () => {
-    const [spread] = sceneFrames({ surfaces: [surface("surface", 460, 320)] });
-    close(spread.origin, [-230, 160, 0]);
-    expect(spread.flat).toBe(true);
-    expect(surfaceRects([spread])).toEqual([{ id: "surface", left: -230, top: 160, width: 460, height: 320 }]);
+    const [scene] = sceneFrames({ surfaces: [surface("surface", 460, 320)] });
+    close(scene.origin, [-230, 160, 0]);
+    expect(scene.flat).toBe(true);
+    expect(surfaceRects([scene])).toEqual([{ id: "surface", left: -230, top: 160, width: 460, height: 320 }]);
   });
 
   it("a row arranged side by side, each at its own size, centred on the origin", () => {
@@ -100,7 +100,7 @@ describe("surfaces: prints on them", () => {
   const frames = sceneFrames({ surfaces: [surface("p", 200, 300), surface("w", 400, 300, wallPlace)] });
 
   it("centres a print on a wall in the wall's plane, turned with it", () => {
-    expect(printCentre({ surface: "w", x: 100, y: 50, width: 40, height: 20 }, frames)).toEqual({ x: -80, y: 400, z: 240 });
+    expect(placeCentre({ surface: "w", x: 100, y: 50, width: 40, height: 20 }, frames)).toEqual({ x: -80, y: 400, z: 240 });
     const axes = surfaceAxes(frames, "w");
     close(axes.z, [0, -1, 0]);
     close(axes.y, [0, 0, 1]);
@@ -146,14 +146,14 @@ describe("surfaces: grid and snapping count on the table", () => {
   });
 
   it("snaps to every surface's edges, and a print's box on the middle surface", () => {
-    expect(pageLines(frame)[0].map(l => l.at)).toEqual([-300, -100, 100, 300]);
-    expect(printStageBox({ surface: "b", x: 10, y: 20, width: 50 }, 40, frame)).toEqual({ min: [-90, 90, 0], max: [-40, 130, 0] });
+    expect(surfaceLines(frame)[0].map(l => l.at)).toEqual([-300, -100, 100, 300]);
+    expect(placeStageBox({ surface: "b", x: 10, y: 20, width: 50 }, 40, frame)).toEqual({ min: [-90, 90, 0], max: [-40, 130, 0] });
   });
 
   it("snaps a print on a wall in the wall's own plane: its edges", () => {
     const wall = ownRect({ id: "w", widthMm: 400, heightMm: 300 });
     const local = { surfaces: [wall], local: true };
-    const lines = pageLines(local);
+    const lines = surfaceLines(local);
     const { place } = snapPlace({ surface: "w", x: 2, y: 3, width: 50 }, 40, "move", {
       frame: local, lines, threshold: 5, settings: { snapTo: ["outlines"], gridMm: 10, snapMove: 1, origin: "top-left" },
     });

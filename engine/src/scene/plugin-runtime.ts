@@ -1,20 +1,20 @@
-import { BEHAVIOUR_CORE_EVENTS, BEHAVIOUR_NAME_PATTERN, BEHAVIOUR_SCOPES, type BehaviourScope, type BehaviourValue, type Spread } from "../types/index";
-import { getSpread } from "../content/game-config";
+import { BEHAVIOUR_CORE_EVENTS, BEHAVIOUR_NAME_PATTERN, BEHAVIOUR_SCOPES, type BehaviourScope, type BehaviourValue, type Scene } from "../types/index";
+import { getScene } from "../content/game-config";
 
 /**
- * The plugin runtime behind `api.events`, `api.vars`, `api.progress` and `api.spread`
+ * The plugin runtime behind `api.events`, `api.vars`, `api.progress` and `api.scene`
  * (docs/plugins.md "Across nodes and pages"): what lets a book's code reach across nodes and pages.
  *
  * - **Events** have two owners (the concept's rule): *core events* describe the book and are emitted by the scene
  *   only (`CORE_EVENTS` – a plugin that emits one gets an error); *scene events* are the content's own, any other
  *   name, emitted and heard by plugins freely. One flat bus: every plugin on the stage hears every event.
- * - **Variables** live in a scope: `spread` while the spread is the current one, `stage` while the scene exists,
+ * - **Variables** live in a scope: `scene` while the scene is the current one, `stage` while the scene exists,
  *   `session` per app start, `book` persisted with the reader's progress (through the app's `ProgressReader`;
- *   in memory without one). A read without a scope looks outward – spread, stage, session, book – and the innermost
+ *   in memory without one). A read without a scope looks outward – scene, stage, session, book – and the innermost
  *   definition wins. Every write emits the core event `varChanged`.
  * - **Progress** is read-only for plugins and comes from the app (`ArSceneOptions.progress`): unlocked targets,
  *   consulted entries, completion – never the app's store itself.
- * - **The spread** is the engine's own content model of the current spread.
+ * - **The scene** is the engine's own content model of the current scene.
  *
  * Listeners are kept per plugin id so that uninstalling a plugin (the editor's Run) removes them.
  *
@@ -28,8 +28,8 @@ export type VarValue = BehaviourValue;
 export const VAR_SCOPES = BEHAVIOUR_SCOPES;
 export type VarScope = BehaviourScope;
 
-export const SCENE_STATES = ["running", "paused", "stopped"] as const;
-export type SceneStateName = (typeof SCENE_STATES)[number];
+export const AR_STATES = ["running", "paused", "stopped"] as const;
+export type ArStateName = (typeof AR_STATES)[number];
 
 /** The core events: the scene emits them, plugins subscribe */
 export interface CoreEvents {
@@ -38,8 +38,8 @@ export interface CoreEvents {
   /** The first find of a target (the app's progress tells the scene through `celebrate`) */
   targetUnlocked: { targetId: string };
   targetTapped: { targetId: string };
-  spreadChanged: { spreadId: string; previous: string | null };
-  sceneState: { state: SceneStateName };
+  sceneChanged: { sceneId: string; previous: string | null };
+  arState: { state: ArStateName };
   varChanged: { name: string; scope: VarScope; value: VarValue | undefined; previous: VarValue | undefined };
 }
 
@@ -84,9 +84,9 @@ export interface PluginEvents {
 
 /** `api.vars` */
 export interface PluginVars {
-  /** The value in `scope`, or without one the innermost definition (spread → stage → session → book) */
+  /** The value in `scope`, or without one the innermost definition (scene → stage → session → book) */
   get(name: string, scope?: VarScope): VarValue | undefined;
-  /** Set (or delete with `null`) a variable in a scope – `spread` by default */
+  /** Set (or delete with `null`) a variable in a scope – `scene` by default */
   set(name: string, value: VarValue | null, scope?: VarScope): void;
   /** Hear every change of a variable (in any scope) */
   on(name: string, listener: (value: VarValue | undefined, previous: VarValue | undefined, scope: VarScope) => void): () => void;
@@ -98,16 +98,16 @@ export interface PluginVars {
 export interface PluginProgress {
   unlocked(targetId: string): boolean;
   consulted(entryId: string): boolean;
-  /** Unlocked targets of a spread (the whole book without an id) as 0–1; a spread without targets counts as complete */
-  completion(spreadId?: string): number;
-  counts(spreadId?: string): { unlocked: number; targets: number };
+  /** Unlocked targets of a scene (the whole book without an id) as 0–1; a scene without targets counts as complete */
+  completion(sceneId?: string): number;
+  counts(sceneId?: string): { unlocked: number; targets: number };
 }
 
-/** `api.spread` */
-export interface PluginSpread {
-  /** The current spread as the engine knows it, null before the first spread */
-  readonly current: Spread | null;
-  get(spreadId: string): Spread | undefined;
+/** `api.scene` */
+export interface PluginScene {
+  /** The current scene as the engine knows it, null before the first scene */
+  readonly current: Scene | null;
+  get(sceneId: string): Scene | undefined;
 }
 
 export class PluginRuntimeError extends Error {
@@ -126,12 +126,12 @@ export const nextRun = (): number => ++runs;
 const listeners = new Set<Listener>();
 /** The editor's log: hears every delivery without being a plugin */
 const observers = new Set<(event: string, payload: unknown) => void>();
-const scopes: Record<Exclude<VarScope, "book">, Map<string, VarValue>> = { spread: new Map(), stage: new Map(), session: new Map() };
+const scopes: Record<Exclude<VarScope, "book">, Map<string, VarValue>> = { scene: new Map(), stage: new Map(), session: new Map() };
 /** The `book` scope without an app that persists it */
 const bookInMemory = new Map<string, VarValue>();
 let progress: ProgressReader = {};
-let currentSpreadId: string | null = null;
-let spreadsAccessor: (id: string) => Spread | undefined = getSpread;
+let currentSceneId: string | null = null;
+let scenesAccessor: (id: string) => Scene | undefined = getScene;
 
 const isVarValue = (value: unknown): value is VarValue =>
   typeof value === "string" || typeof value === "boolean" || (typeof value === "number" && Number.isFinite(value));
@@ -168,8 +168,8 @@ const writeVar = (name: string, value: VarValue | null, scope: VarScope): void =
   if (previous !== next) deliver("varChanged", { name, scope, value: next, previous } satisfies CoreEvents["varChanged"]);
 };
 
-/** The `events`, `vars`, `progress` and `spread` parts of a plugin's API, with its listeners kept under its id */
-export const runtimeApi = (plugin: string, run = nextRun()): { events: PluginEvents; vars: PluginVars; progress: PluginProgress; spread: PluginSpread } => {
+/** The `events`, `vars`, `progress` and `scene` parts of a plugin's API, with its listeners kept under its id */
+export const runtimeApi = (plugin: string, run = nextRun()): { events: PluginEvents; vars: PluginVars; progress: PluginProgress; scene: PluginScene } => {
   const on = (event: string, listener: EventListener): (() => void) => {
     if (typeof listener !== "function") throw new PluginRuntimeError(`${plugin}: events.on("${event}") needs a listener function`);
     if (!isCoreEvent(event) && !EVENT_NAME_PATTERN.test(event)) throw new PluginRuntimeError(`${plugin}: "${event}" is not an event name (camelCase letters and digits)`);
@@ -195,7 +195,7 @@ export const runtimeApi = (plugin: string, run = nextRun()): { events: PluginEve
         }
         return undefined;
       },
-      set: (name, value, scope = "spread") => {
+      set: (name, value, scope = "scene") => {
         if (!EVENT_NAME_PATTERN.test(name)) throw new PluginRuntimeError(`${plugin}: "${name}" is not a variable name (camelCase letters and digits)`);
         if (!VAR_SCOPES.includes(scope)) throw new PluginRuntimeError(`${plugin}: the scope of ${name} must be ${VAR_SCOPES.join(", ")}`);
         if (value !== null && !isVarValue(value)) throw new PluginRuntimeError(`${plugin}: ${name} takes a string, a number or a boolean (null deletes)`);
@@ -210,28 +210,28 @@ export const runtimeApi = (plugin: string, run = nextRun()): { events: PluginEve
     progress: {
       unlocked: targetId => progress.unlocked?.(targetId) ?? false,
       consulted: entryId => progress.consulted?.(entryId) ?? false,
-      counts: spreadId => progressCounts(spreadId),
-      completion: spreadId => {
-        const { unlocked, targets } = progressCounts(spreadId);
+      counts: sceneId => progressCounts(sceneId),
+      completion: sceneId => {
+        const { unlocked, targets } = progressCounts(sceneId);
         return targets === 0 ? 1 : unlocked / targets;
       },
     },
-    spread: {
+    scene: {
       get current() {
-        return currentSpreadId ? spreadsAccessor(currentSpreadId) ?? null : null;
+        return currentSceneId ? scenesAccessor(currentSceneId) ?? null : null;
       },
-      get: id => spreadsAccessor(id),
+      get: id => scenesAccessor(id),
     },
   };
 };
 
-const progressCounts = (spreadId?: string): { unlocked: number; targets: number } => {
-  const spreads = spreadId ? [spreadsAccessor(spreadId)].filter((s): s is Spread => !!s) : allSpreads();
-  const targets = spreads.flatMap(s => s.targets);
+const progressCounts = (sceneId?: string): { unlocked: number; targets: number } => {
+  const scenes = sceneId ? [scenesAccessor(sceneId)].filter((s): s is Scene => !!s) : allScenes();
+  const targets = scenes.flatMap(s => s.targets);
   return { unlocked: targets.filter(t => progress.unlocked?.(t.id) ?? false).length, targets: targets.length };
 };
 
-let allSpreads: () => Spread[] = () => [];
+let allScenes: () => Scene[] = () => [];
 
 // ── The scene's side ───────────────────────────────────────────────────────────────────────────
 
@@ -240,27 +240,27 @@ export const setProgressReader = (reader: ProgressReader | undefined): void => {
   progress = reader ?? {};
 };
 
-/** Where spreads come from (the engine's content accessors; tests pass their own) */
-export const setSpreadSource = (get: (id: string) => Spread | undefined, all: () => Spread[]): void => {
-  spreadsAccessor = get;
-  allSpreads = all;
+/** Where scenes come from (the engine's content accessors; tests pass their own) */
+export const setSceneSource = (get: (id: string) => Scene | undefined, all: () => Scene[]): void => {
+  scenesAccessor = get;
+  allScenes = all;
 };
 
 /** The scene emits a core event */
 export const emitCoreEvent = <E extends keyof CoreEvents>(event: E, payload: CoreEvents[E]): void => deliver(event, payload);
 
-/** The spread changed: its scope ends, the new one is current */
-export const spreadChanged = (spreadId: string): void => {
-  const previous = currentSpreadId;
-  currentSpreadId = spreadId;
-  scopes.spread.clear();
-  deliver("spreadChanged", { spreadId, previous } satisfies CoreEvents["spreadChanged"]);
+/** The scene changed: its scope ends, the new one is current */
+export const sceneChanged = (sceneId: string): void => {
+  const previous = currentSceneId;
+  currentSceneId = sceneId;
+  scopes.scene.clear();
+  deliver("sceneChanged", { sceneId, previous } satisfies CoreEvents["sceneChanged"]);
 };
 
-/** The scene was torn down: the stage and spread scopes end */
+/** The scene was torn down: the stage and scene scopes end */
 export const stageEnded = (): void => {
-  currentSpreadId = null;
-  scopes.spread.clear();
+  currentSceneId = null;
+  scopes.scene.clear();
   scopes.stage.clear();
 };
 

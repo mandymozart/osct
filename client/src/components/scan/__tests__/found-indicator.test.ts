@@ -4,9 +4,9 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/utils/game-config", async importOriginal => {
   const actual = await importOriginal<typeof import("@/utils/game-config")>();
   const targets: Record<string, object> = {
-    plain: { id: "plain", entryId: "plain", spreadId: "s", index: 0 },
-    "plain-2": { id: "plain-2", entryId: "plain-2", spreadId: "s", index: 1 },
-    video: { id: "video", entryId: "video", spreadId: "s", index: 2, entity: { type: "video", assets: [] } },
+    plain: { id: "plain", entryId: "plain", sceneId: "s", index: 0 },
+    "plain-2": { id: "plain-2", entryId: "plain-2", sceneId: "s", index: 1 },
+    video: { id: "video", entryId: "video", sceneId: "s", index: 2, entity: { type: "video", assets: [] } },
   };
   return { ...actual, getTarget: (id: string) => targets[id] };
 });

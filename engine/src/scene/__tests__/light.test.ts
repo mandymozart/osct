@@ -4,7 +4,7 @@ import { type EntityData, resolveLight, type Target } from "../../types/index";
 import { celebrate } from "../celebration";
 import { buildEntity, LIGHT_AIM } from "../entities";
 
-const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", spreadId: "s", imageSrc: "/t.jpg", entity });
+const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", sceneId: "s", imageSrc: "/t.jpg", entity });
 const lightOf = (object: Object3D): Light => {
   let found: Light | null = null;
   object.traverse(o => { if ((o as Light).isLight) found ??= o as Light; });

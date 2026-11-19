@@ -1,10 +1,10 @@
 import { Box3, type Camera, Matrix4, type Mesh, type Object3D, type PerspectiveCamera, Quaternion, Vector3 } from "three";
-import type { PrintBox } from "./placement";
+import type { PlaceBox } from "./placement";
 import { frameRects } from "./origin";
 import type { PreviewSettings } from "./preview";
 import { pickable } from "./pick";
 import {
-  axisLines, boxLines, chosenLines, freeAxes, joinLines, moveIncrements, pageLines, pointLines, printStageBox, SNAP_PX, snapActive, snapAngle,
+  axisLines, boxLines, chosenLines, freeAxes, joinLines, moveIncrements, surfaceLines, pointLines, placeStageBox, SNAP_PX, snapActive, snapAngle,
   snapMove, snapPlace, snapScale, thresholdMm, type PerAxis, type SnapGuide, type SnapLine, type StageBox, type StageFrame, type Vec3,
 } from "./snap";
 
@@ -29,10 +29,10 @@ export interface SnapSource {
   surfaceGrid?(surface: string): number;
   /** Shift or Ctrl is held: snapping turned around */
   modifier(): boolean;
-  /** The entities' node objects of the spread, with their target */
+  /** The entities' node objects of the scene, with their target */
   objects(): Array<{ targetId: string; object: Object3D }>;
   /** The printed targets where they lie, with their printed height (mm) */
-  prints(): Array<{ id: string; place: PrintBox; height: number }>;
+  prints(): Array<{ id: string; place: PlaceBox; height: number }>;
   /** The camera and the stage's height in CSS px (the threshold is a few pixels) */
   view(): { camera: Camera; height: number } | null;
   /** Draw the lines something snapped to (empty = none) */
@@ -152,7 +152,7 @@ export class SceneSnapper {
    * A print dragged by its placement handles (`draggedPlace`'s result): snapped when snapping is on (`modifier`: the
    * pointer's own Shift / Ctrl), with its guides; the print's own entity and outline are no lines for it
    */
-  place<P extends PrintBox>(targetId: string | null, place: P, height: number, kind: "move" | "width", modifier: boolean): P {
+  place<P extends PlaceBox>(targetId: string | null, place: P, height: number, kind: "move" | "width", modifier: boolean): P {
     const all = this.source.settings();
     if (!snapActive(all.snap, this.source.modifier() || modifier)) {
       this.source.guides([]);
@@ -202,11 +202,11 @@ export class SceneSnapper {
     // A wall's own plane has its edges and its prints only: the axes and the objects count on the table
     if (settings.snapTo.includes("axes") && !stage.local) sources.push(axisLines(settings.origin, stage));
     if (settings.snapTo.includes("outlines")) {
-      sources.push(pageLines(stage));
+      sources.push(surfaceLines(stage));
       const onFrame = new Set(frameRects(stage).map(rect => rect.id));
       for (const print of this.source.prints()) {
         if (print.id !== skip.targetId && (onFrame.has(print.place.surface) || !stage.surfaces?.length)) {
-          sources.push(boxLines(printStageBox(print.place, print.height, stage), "outlines"));
+          sources.push(boxLines(placeStageBox(print.place, print.height, stage), "outlines"));
         }
       }
     }

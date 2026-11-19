@@ -2,7 +2,7 @@ import { SvelteMap } from "svelte/reactivity";
 
 /**
  * What *Undo edits* goes back to (#259): edits reach the draft by themselves, so the draft is no place to go back to –
- * each subject (a target's tree, a spread's passes, an entry, …) keeps how the draft had it when its first edit was
+ * each subject (a target's tree, a scene's passes, an entry, …) keeps how the draft had it when its first edit was
  * made in this page, until the page is left. Kept as text, so nothing edited later reaches into it. Reactive: a panel
  * reads `differsFromBaseline` in a `$derived`.
  */
