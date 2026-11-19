@@ -115,7 +115,7 @@ Nothing else is markup: no headings, lists, images, code or HTML – HTML shows 
 
 **Variables** use the syntax of SCUTOONS' message boxes – ink's inline syntax, its parser copied into
 `shared/text/expressions.ts`: a bare camelCase name is one of the book's variables, which behaviours set
-(`set: { hasKey: true }`) and plugins keep (`api.vars`), read from the innermost scope that has it – spread, stage,
+(`set: { hasKey: true }`) and plugins keep (`api.vars`), read from the innermost scope that has it – scene, stage,
 session, book – like `api.vars.get(name)`. Conditions take numbers, `"texts"`, `true` / `false`, `and` `or` `not`,
 `==` `!=` `<` `<=` `>` `>=`, `+` `-` `*` `/` `mod` and parentheses. A variable that is **not set shows as nothing** (and
 is false in a condition) – the fallback is a condition with an else part, as above. SCUTOONS' lists (`{a|b}`,
@@ -228,7 +228,7 @@ when its lowest point is more than 0.005 target widths away from the page – wi
 model meant to float keeps the warning; nothing is refused. Videos and images standing upright are not checked (the
 build does not know a video's height): half the plane's height (the video's height ÷ width × the scale) is its z.
 
-**Tuning placement and filters:** the [editor](editor.md) (`/editor`) shows the spread on a simulated page and has a
+**Tuning placement and filters:** the [editor](editor.md) (`/editor`) shows the scene on a simulated page and has a
 field for every placement value and every filter parameter – the names are three.js's (`position.x`, `rotation.y`,
 `scale`; rotation in degrees). Changes show on the stage at once; **Save** writes them to the instance's database and
 **Publish** makes a content version of the draft. The content source is imported into the editor, not written
@@ -308,11 +308,11 @@ target:
 | Part | Values | What it does |
 |---|---|---|
 | `on` | `found`, `lost`, `tap`, `unlocked`, or an event's name | The node's own events – its page found, lost, the AR content tapped, the page's first find – or any other camelCase name: an event of the stage, a scene event a plugin or another behaviour emits (`doorOpened`) or a core event (`targetFound`, `varChanged`, …) |
-| `when` | `{ hasKey: true, tries: 3 }` · `{ any: { … } }` | Optional. Every variable named must equal its value; under `any:` one of them is enough. `{ not: value }` turns a test round, `null` means *not set*. A variable is read from the innermost scope that has it (spread, stage, session, book) |
+| `when` | `{ hasKey: true, tries: 3 }` · `{ any: { … } }` | Optional. Every variable named must equal its value; under `any:` one of them is enough. `{ not: value }` turns a test round, `null` means *not set*. A variable is read from the innermost scope that has it (scene, stage, session, book) |
 | `play` | a clip's name, `""` | Plays a clip of a model – `""` its own clip (the `animation` component's, else the first). `node: <name>` plays another model of the subtree. The `animation` component still says how (loop, speed) |
 | `pause`, `stop` | a node's name, `""` | Pauses the clip, or stops it at its start – `""` the behaviour's own node |
 | `show`, `hide` | a node's name, `""` | Shows or hides a node of the subtree by its `name` – `""` the behaviour's own node |
-| `set` | `{ name: value }`, `scope` | Sets variables (`null` deletes one) in `scope`: `spread` (the default), `stage`, `session` or `book` |
+| `set` | `{ name: value }`, `scope` | Sets variables (`null` deletes one) in `scope`: `scene` (the default), `stage`, `session` or `book` |
 | `emit` | an event's name | Sends a scene event to the stage (`{ targetId, node }` as its payload); never a core event or a node event |
 
 `do` takes one action or a list; a plain word runs a verb on the own node: `do: play`, `do: hide`. Nodes are named with
@@ -337,7 +337,7 @@ cut (logged). An action that cannot run – a node or a clip that is not there �
             do: [{ hide: hint }, { emit: openDoor }]
 ```
 
-The editor's Inspector edits the rules without YAML ([editor](editor.md)), and the spread's *vars and events* there shows
+The editor's Inspector edits the rules without YAML ([editor](editor.md)), and the scene's *vars and events* there shows
 each rule that ran. What a rule cannot do – move a node over time, draw text, count the progress – is a plugin's job;
 the demo's `door` plugin hears the rule's `openDoor` and lifts the door ([plugins](plugins.md) "Behaviour and plugins").
 Variables are not declared yet: a rule names them, a missing one is *not set* (`null`).
@@ -369,10 +369,10 @@ wall a scene whose surface stands (`place: { …, rx: 90 }`). No formats, no int
 these scenes from its layout: the delivery import writes a scene for every sheet of `layout/layout.json` that has none
 (`cover`, `front-1` …, the numbered ones, `back-1` …, `back`).
 
-**Source of truth** (content schema 2.25, #238): `book.yaml` may say where the book's spreads come from –
-`sourceOfTruth: print` (print first, the default: the printed book is the truth, its spreads, pages and printed
+**Source of truth** (content schema 2.25, #238): `book.yaml` may say where the book's scenes come from –
+`sourceOfTruth: print` (print first, the default: the printed book is the truth, its scenes, pages and printed
 placements come from the layout and an import) or `sourceOfTruth: digital` (digital first: the book is made in the
-editor, which adds and removes its spreads – the demo book is). The editor's import keeps the content's value and sets
+editor, which adds and removes its scenes – the demo book is). The editor's import keeps the content's value and sets
 `print` when there is none; an editor changes it in the book's Inspector. The reader does not read it.
 
 **Environment** (content schema 2.8): `book.yaml` may set `environment: { world: cafe, onionSky: true }` – the world
@@ -386,14 +386,14 @@ up). In `book.yaml` they are paths below the content folder (`environment/sky.jp
 sky, the model the café's scenery; the café stays the fallback while they load or when one fails. The editor edits
 all of it on the stage, in the workspace's **Environment** tab (`PUT /editor/books/{id}/environment`).
 
-**Post-processing** (content schema 2.5): a spread may carry `passes: [{ type, ...parameters }]` – effects over the
+**Post-processing** (content schema 2.5): a scene may carry `passes: [{ type, ...parameters }]` – effects over the
 whole rendered AR image, run in order before it lies over the camera picture. The book (`book.yaml`) may carry
-`passes` too – **the master**: they apply to every spread without a list of its own; a spread's `passes` override
-them (`passes: []` on a spread turns them off there). The editor edits both in the Inspector's *post-processing*
-section while the spread is selected ([editor](editor.md)): the book's with `PUT /editor/books/{id}/passes`, a spread's own with
-`PUT …/spreads/{sid} { passes }`. Every built-in type is defined once in `shared/types/passes.ts` with its parameters,
+`passes` too – **the master**: they apply to every scene without a list of its own; a scene's `passes` override
+them (`passes: []` on a scene turns them off there). The editor edits both in the Inspector's *post-processing*
+section while the scene is selected ([editor](editor.md)): the book's with `PUT /editor/books/{id}/passes`, a scene's own with
+`PUT …/scenes/{sid} { passes }`. Every built-in type is defined once in `shared/types/passes.ts` with its parameters,
 so the editor's Inspector, the build and the guard read one definition; missing parameters take the defaults. A
-spread without passes costs nothing – the scene renders straight to the canvas as before, the look-around world too.
+scene without passes costs nothing – the scene renders straight to the canvas as before, the look-around world too.
 A list may also name **a pass of the book's plugins** (schema 2.21, below). **The phone budget** (#86): every pass is a
 full-screen render, the bloom several – up to three passes and one bloom per list; the build warns beyond (a plugin's
 pass counts like a built-in one), the editor's section says so too. The S22 measurement behind the number is still open.
@@ -447,7 +447,7 @@ passes:
 ```
 
 **A plugin's pass in `passes`** (content schema 2.21, #216): a pass of the book's own is a plugin's (`api.registerPass`,
-[plugins](plugins.md) "A pass: film grain"). The book and a spread name it like a built-in one –
+[plugins](plugins.md) "A pass: film grain"). The book and a scene name it like a built-in one –
 `- type: filmGrain` with its parameters. The content build records every pass a plugin registers (`registered.passes`)
 and checks the list against those specs (a type no plugin of the book registers, a value out of range or an unknown
 parameter is an error, as with a built-in pass; a plugin may not take a built-in pass's name, nor two plugins the same
@@ -458,7 +458,7 @@ off – the rest of the chain runs. Its `texture` parameters arrive as textures,
 (`api.feedback`) steps while the pass runs. The editor's API accepts a pass the declared plugins recorded (any
 camelCase name while the book has Code tab sources); **the publish refuses a pass no compiled plugin provides** (409
 `unknown-passes`). **A 2.20 app refuses a book that names one** (its guard knows no plugin pass): such a book needs a
-2.21 app. The demo book's spread *The twins* carries one (`fixtures/demo/plugins/grain`).
+2.21 app. The demo book's scene *The twins* carries one (`fixtures/demo/plugins/grain`).
 
 ```yaml
 # content/scenes/the-twins/scene.yaml
@@ -619,7 +619,7 @@ in target widths) and `bloom`. Starts and ends are shares of the duration (0–1
 reveal sandbox (`sandbox/reveal`, "As shipped"): its **Values** show the look as it is written here.
 
 A look of the book's own code – a plugin's, `api.registerAppearance` – is named the same way, by its type with its
-own parameters ([plugins](plugins.md), "A look"). In the editor a spread's Inspector sets it in its *appearance*
+own parameters ([plugins](plugins.md), "A look"). In the editor a scene's Inspector sets it in its *appearance*
 section ([editor](editor.md) "Appearance"), an AI connection with `put_book_appearance` ([MCP](mcp.md)); both save
 the draft's `book.appearance` (`PUT /editor/books/{id}/appearance`). A fade keeps the entity's materials see-through while it runs: a
 model shows through itself a little.
@@ -684,16 +684,16 @@ surface ids are unique within their scene, group ids within the book; a scene's 
 scene of several surfaces must name its surface.
 
 **From 2.x** (`npm run convert:3` in `scripts/`, `scripts/src/convert-content-3.ts` – used for the test fixture and the
-demo): `spreads/<id>/spread.yaml` becomes `scenes/<id>/scene.yaml` (same id and order; the label is what the reader
+demo): `scenes/<id>/scene.yaml` becomes `scenes/<id>/scene.yaml` (same id and order; the label is what the reader
 showed – its label, a cover's or matter's title, else its pages `2–3`; one surface twice the page's width, one page wide
 for a cover or a single page); an entry's `page` becomes its `scene`, a target's `print` its `place` (on the right page
 of a double page `x` moves by the left page's width).
 
 ## Recognition
 
-Nothing to prepare: the app makes the recognition data from the target images itself when a spread is
+Nothing to prepare: the app makes the recognition data from the target images itself when a scene is
 opened (8th Wall engine). A new or replaced target image works as soon as the content is built. The
-spreads next to the open one are kept ready too, so turning a page switches the spread at once.
+scenes next to the open one are kept ready too, so turning a page switches the scene at once.
 
 ## Onboarding screens
 
@@ -794,8 +794,8 @@ The pictures in the book's margins are found images; their credit lines (*Book G
 **per file in the editor's Library** (#277 – one free text line, `docs/server.md` "Credits"), not in an entry. When the
 editor's API assembles the book (draft and publish) the configuration gets the lines of the files it uses anywhere – a
 target image, an entry's picture, an entity's file – as `credits: { "<file path or URL>": "<line>" }` (content schema
-2.33, #292); a credited file the book does not use is left out. The reader lists them per spread (*Pages 2–3*, by page,
-each line once per spread; a spread without printed numbers by its title) on its **Image credits** page, reached from
+2.33, #292); a credited file the book does not use is left out. The reader lists them per scene (*Pages 2–3*, by page,
+each line once per scene; a scene without printed numbers by its title) on its **Image credits** page, reached from
 Info ("…in the margins of the book *here*"). A book built from YAML has no credits – they live on the instance.
 
 ### A model's map by texture quality
@@ -857,7 +857,7 @@ message when something is wrong, e.g.:
 ```
 entries/old-castle: file "images-022.jpg" not found in content/entries/old-castle/
 entries/ancient-tree: Field 'category' in entry must be one of: glossary, video, text, link
-scenes/spread1 has 11 targets, max is 10.
+scenes/scene1 has 11 targets, max is 10.
 ```
 
 Then look at the result in the app – see the quick start in the [README](../README.md).
@@ -882,7 +882,7 @@ know, and lists what it skipped (`getSkippedFeatures()`, `engine/src/content/for
   against a newer plugin API MINOR (what it uses of that MINOR does not work – a node type whose build calls it renders
   nothing).
 - **Still refused**: a broken shape (a list that is not a list, an action with two verbs), a wrong type for a known
-  field, a new value of a required field (a category, an asset type, a step action, a spread format) – these are a
+  field, a new value of a required field (a category, an asset type, a step action, a scene format) – these are a
   MAJOR's changes – and a newer MAJOR.
 
 The reader then shows a quiet hint at a calm moment, once per book version: *This book uses features this app version
@@ -902,11 +902,11 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 2.0 | 1.10.0 | released | the entity as a tree of nodes | refused (a new MAJOR: the node tree) |
 | 2.1 | 1.10.0 | released | print placement of targets (`print`) | – |
 | 2.2 | 1.10.0 | released | components (animation) | – |
-| 2.3 | 1.10.0 | released | spread formats (cover, back) and the plugins list | – |
+| 2.3 | 1.10.0 | released | scene formats (cover, back) and the plugins list | – |
 | 2.4 | 1.11.0 | released | plugins – the book's own code, compiled by the content build (plugin API 1.0) | – |
 | 2.5 | 1.12.0 | released | post-processing passes | – |
 | 2.6 | 1.13.0 | released | light nodes: point, spot and directional lights as a node type | a 2.5 app refuses a light node |
-| 2.7 | 1.15.0 | released | plugin API 1.1 (events, variables, progress, the spread – the version a declared plugin carries) | – |
+| 2.7 | 1.15.0 | released | plugin API 1.1 (events, variables, progress, the scene – the version a declared plugin carries) | – |
 | 2.8 | 1.17.0 | released | the book's environment: the world and the onion sky | – |
 | 2.9 | 1.20.7 | in develop | the grade's `reach` (`ar` / `all`); the guard ignores a pass parameter it does not know | a 2.8 app refuses the grade's `reach` |
 | 2.10 | 1.21.0 | in develop | the environment's world model and sky image as asset references (`worldSrc`, `skySrc`) | – |
@@ -920,21 +920,21 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 2.18 | 1.49.0 | in develop | nothing new in the content – plugin API 1.5: `api.loadText`, a text file (a Library shader) by its URL (#186) | – |
 | 2.19 | 1.50.0 | in develop | the built-in component `behaviour`: rules on events with conditions on variables and actions, no code (#88) | a 2.18 app refuses a node that carries a behaviour |
 | 2.20 | 1.53.0 | in develop | nothing new in the content – plugin API 1.6: `api.feedback`, a GPU feedback buffer the engine steps every frame, and `api.shadertoy`, a Shadertoy pass as its fragment (#225) | a 2.19 app's engine has no `api.feedback`: a node type whose build calls it renders nothing |
-| 2.21 | 1.54.0 | in develop | a `passes` entry may name a pass a plugin of the book registers (`registerPass`), its parameters checked against the recorded spec (#216) | a 2.20 app refuses a book whose book or spread passes name a plugin's pass |
+| 2.21 | 1.54.0 | in develop | a `passes` entry may name a pass a plugin of the book registers (`registerPass`), its parameters checked against the recorded spec (#216) | a 2.20 app refuses a book whose book or scene passes name a plugin's pass |
 | 2.22 | 1.57.0 | in develop | a pass's optional `enabled` – `false` switches it off: it keeps its place and values, the chain skips it (#233) | skipped: a 1.55.0 app drops the unknown field with the update hint, an older one ignores it – either way it runs, and so shows, a pass that is off |
 | 2.23 | 1.59.0 | in develop | no new field – an entry's `body` is Markdown (paragraphs, `*emphasis*`, `**strong**`, `[links](https://…)`) with the book's variables in braces (`{hasKey}`, `{hasKey: …\|…}`, #223); plain text reads as before | the body as written: the stars, brackets and braces show as they are (`**strong**` stays `**strong**`, `{hasKey}` stays `{hasKey}`) – nothing breaks, nothing is skipped |
 | 2.24 | 1.60.0 | in develop | nothing new in the content – `shared/` tidied: one `isObject`, one camelCase name pattern, unused `isComponentType` and `PlacementData` removed (#214) | nothing changes |
-| 2.25 | 1.61.0 | in develop | the configuration's `tutorial` is optional: the reader's onboarding is its own (steps in code, texts in its translations, #236); the build and a publish still write the app's English steps for older apps (`shared/compat/tutorial.ts`) until the next MAJOR – and the book's optional `sourceOfTruth` (`print` \| `digital`, #238: whether the editor adds and removes spreads) | nothing changes: it finds the `tutorial` it requires and shows those steps (in English, the book's fields filled in); `sourceOfTruth` is ignored (the guard reads no unknown field of the book) |
+| 2.25 | 1.61.0 | in develop | the configuration's `tutorial` is optional: the reader's onboarding is its own (steps in code, texts in its translations, #236); the build and a publish still write the app's English steps for older apps (`shared/compat/tutorial.ts`) until the next MAJOR – and the book's optional `sourceOfTruth` (`print` \| `digital`, #238: whether the editor adds and removes scenes) | nothing changes: it finds the `tutorial` it requires and shows those steps (in English, the book's fields filled in); `sourceOfTruth` is ignored (the guard reads no unknown field of the book) |
 | 2.26 | 1.64.0 | in develop | a target's optional `enabled` – `false` switches it off: the reader leaves the target and its entry out, the content and the editor keep both (#249) | ignored: a 2.25 app shows a switched-off target and its entry (the guard reads no unknown field of a target) |
 | 2.27 | 1.66.0 | in develop | a model file's optional `textures` – its colour map in several sizes (512, 1024, 2048, 4096 px), one set for the whole model or one per material: the file carries the smallest map, the app loads the size the reader's texture quality asks for (#260) | ignored: a 2.26 app shows the model with the map in its file (it reads `src` and no unknown field of an asset) |
 | 2.28 | 1.67.0 | in develop | the parameter kind `model` in a spec (a component's, a node type's, a material's, a pass's): a model file – a Library model's URL or a content path, a `.glb` / `.gltf` next to the node in the YAML – which the plugin's code loads with `api.loadModel` (plugin API 1.7, #263) | skipped: an app since 1.55.0 drops the parameter and its value with the update hint and runs the rest of the component; an older one refuses the recorded spec |
 | 2.29 | 1.68.0 | in develop | the book's optional `appearance`: the look an entity appears with on `reveal` (the first find), `found` (every later find) and `lost` – a built-in look (`inflateDissolve`, `printLift`, `fade`) with its values, or one a plugin of the book registers (`registerAppearance`, plugin API 1.8), recorded in `registered.appearances` (#264) | ignored: an older app reads no `appearance` and plays its own animation at every moment; a plugin that registers a look calls a method an older engine does not have and is not loaded there |
 | 2.30 | 1.71.0 | in develop | the built-in components `reveal`, `found` and `lost` on a node: its own look for a moment – `{ type: reveal, look, …the look's parameters }` – in place of the book's `appearance` (#268) | skipped: a 2.29 app drops the components with the update hint (an unknown component) and plays the book's look |
 | 2.31 | 1.77.0 | in develop | the configuration's optional `subtitles`: the WebVTT files of a video, one per language – `[{ media, tracks: { en: …, fr: … } }]`, read from the files' names (`<video name>.<language>.vtt`) by the content build and the editor's API (#257) | ignored: an older app reads no `subtitles` and plays the video without a subtitle line |
-| 2.32 | 1.80.0 | in develop | a spread's optional `matter` (`front` \| `back`): a double page without printed numbers before page 1 or after the last printed page, its pages internal (front matter below 0, #296) | ignored: an older app shows the spread like any other – in the page scroller with its internal numbers |
+| 2.32 | 1.80.0 | in develop | a scene's optional `matter` (`front` \| `back`): a double page without printed numbers before page 1 or after the last printed page, its pages internal (front matter below 0, #296) | ignored: an older app shows the scene like any other – in the page scroller with its internal numbers |
 | 2.33 | 1.82.0 | in develop | the configuration's optional `credits` (file → credit line, #292): the picture credits of the files the book uses, from the editor's Library | ignored: an older app has no image credits page |
 | 2.34 | 1.88.0 | in develop | an entry's optional `caption` (#289): the line under the entry's picture, written in the editor's entry form, `update_entry` / `add_entry` or the entry's YAML | ignored: an older app shows the picture without the line (the guard reads no unknown field of an entry) |
-| 2.35 | 1.98.0 | in develop | scenes (#307 phase 1, [Scenes](#scenes-surfaces-labels-and-groups)): a spread's optional `surfaces` (`id`, `side`, `widthMm`, `heightMm`, `label` as printed), `layout` (`fixed` \| `free`), `group` and `label`; the configuration's optional `groups` (`id`, `label`); an entry's optional `scene` (a spread id – **it decides the entry's spread, not `page`**) and `surface`. The content build and the editor's draft write `scene` on every entry; `page` stays required and is still written | ignored: an older app reads none of the fields (its guard reads no unknown field of a spread, an entry or the configuration) and places every entry by its `page`, which writers keep inside the scene's pages; it shows page numbers where a 2.35 app shows surface labels |
+| 2.35 | 1.98.0 | in develop | scenes (#307 phase 1, [Scenes](#scenes-surfaces-labels-and-groups)): a scene's optional `surfaces` (`id`, `side`, `widthMm`, `heightMm`, `label` as printed), `layout` (`fixed` \| `free`), `group` and `label`; the configuration's optional `groups` (`id`, `label`); an entry's optional `scene` (a scene id – **it decides the entry's scene, not `page`**) and `surface`. The content build and the editor's draft write `scene` on every entry; `page` stays required and is still written | ignored: an older app reads none of the fields (its guard reads no unknown field of a scene, an entry or the configuration) and places every entry by its `page`, which writers keep inside the scene's pages; it shows page numbers where a 2.35 app shows surface labels |
 | 2.36 | 1.112.0 | in develop | surfaces placed in the scene (#314): a surface's optional `place` (`x`, `y`, `z` in mm, `rx`, `ry`, `rz` in degrees – the scene's coordinate system: origin on the table at the middle of the first row, +x right, +y up, +z towards the reader; used by `free` scenes) and a target's optional `print.surfaceId` (the surface it is printed on, by id – wins over `print.surface`) | ignored: an older app reads neither field (its guard skips unknown fields of a surface and a print placement); the reader does not use them yet |
 | 3.0 | next | in develop | **one clean model of scenes – nothing of 2.x kept** (#319, `agents/SCENES.md` "Schema 3.0"): the configuration's `scenes` (was `spreads`) and `initialScene` (was `initialSpreadId`); a scene is `id`, `label`, `group?`, `surfaces` (at least one: `id`, `label?`, `widthMm`, `heightMm`, `place` – all six numbers required), `passes?`; an entry names its `scene` (required) and a `surface` when the scene has several; a target's `place` (`surface?`, `x`, `y`, `width`, `height?`, mm on the surface) replaces `print`. Removed: `page`, `firstPage`, `lastPage`, a spread's `title`, `format`, `matter` and `layout`, a surface's `side`, `print`, the configuration's `tutorial` | refused: no 2.x reader was shipped – every app since reads 3.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 3), and a 2.x app refuses 3.0 content |
 
@@ -1029,7 +1029,7 @@ npm run layout -- --triggers "C:/path/All_Triggers.pdf" --preview "C:/path/OSCT_
 
 `scripts/layout/extract-layout.py` (Python 3 with PyMuPDF – an external tool like ffmpeg) renders every sheet
 to `<content>/layout/sheets/*.jpg` (1200 px wide) and, next to each, a much sharper `<sheet>@sharp.jpg` (`--sharp-width`, 4096 px for a double page, 0 = none; the editor fetches it only when the camera is close to the page) and writes `<content>/layout/layout.json`: the page format in mm,
-the sheets (kind `spread`, `cover-front`, `cover-back`, front and back matter; their book pages read from the page
+the sheets (kind `scene`, `cover-front`, `cover-back`, front and back matter; their book pages read from the page
 numbers printed at the foot), and per target its page, surface (`left` / `right`), `x`, `y`, `width`, `height` in
 mm from the page's top left corner. Trigger images are matched to the targets of their page (the entry's `page`)
 by the aspect ratio of the target image, then by reading order; pages where the counts differ are listed. The content build copies `layout/` with the rest of

@@ -18,7 +18,7 @@ mcp/
   src/api.ts           the API over HTTP: JSON calls, uploads, errors as the API's { code, message } (shared/api/errors.ts)
   src/services.ts      roles → services (editor), GET /user, the editor app's links
   src/user.ts          the server for one user: whoami, the sign-in pair, the editor's tools when the role is there
-  src/content.ts       books, scenes and groups, entities, targets, entries, assets, draft, publish, the logs, migrate_3
+  src/content.ts       books, scenes and groups, entities, targets, entries, assets, draft, publish, the logs
   src/code.ts          the Code tab's plugin sources
   src/model.ts         the content model from shared/, the guard over one entity, what a book's plugins register
   src/prompts.ts       the server's instructions and the prompts (editor, add-target)
@@ -130,7 +130,7 @@ against the local dev API:
   "env": { "OSCT_API_URL": "${OSCT_API_URL:-http://127.0.0.1:8080/api}", "OSCT_EDITOR_TOKEN": "${OSCT_EDITOR_TOKEN:-}" } } } }
 ```
 
-Start the API (`cd client && npm run dev:api`, [editor, "Try it"](editor.md#try-it-the-demo-book-or-the-fixtures-studio-spreads))
+Start the API (`cd client && npm run dev:api`, [editor, "Try it"](editor.md#try-it-the-demo-book-or-the-fixtures-studio-scenes))
 and ask `whoami`. Against staging for one session: `OSCT_API_URL=https://osct.porschuetz.de/api
 OSCT_EDITOR_TOKEN=osct_… claude`; for good, the `osct-staging` server above.
 
@@ -162,7 +162,6 @@ Every result is JSON. Writes answer with `open`, the editor's link to check the 
 | `delete_scene { book, scene, confirm?, deleteFiles? }` | the scene with everything on it – entries, targets, the entities used only there – in the same two steps as `delete_entry` (the impact names the scene and the shared entities kept); 409 `initial-scene` for the scene the book opens on |
 | `group_scenes { book, label, scenes, id?, apply? }` · `rename_group { book, group, label }` · `ungroup { book, group }` | groups – a label over several scenes, one stop of the reader's switcher: `group_scenes` brings the picked scenes together where the first is (plan, then `apply: true`); `ungroup` keeps the scenes in place and in order |
 | `set_surface_reference { book, scene, surface, url?, fit?, name? }` | a surface's reference image (#314, [server](server.md#surface-reference-images)) – what the editor's stage shows on the surface, never content: `url` an image of the Library (or an imported `/assets/content/…` path) sets or replaces it, `null` removes it; `fit` `cover` (default) · `contain` · `stretch`; `fit` / `name` alone change the present one. `list_scenes` shows each surface's `reference`. A change in the log, revertable |
-| `migrate_3 { book, apply? }` | a book of content schema 2.x becomes 3.0 (#319) – until then its editing routes answer 409 `migrate-first`. **Two steps, the second only after the person's yes**: the first call writes nothing and answers the `plan` (`counts`; each scene before – its pages, format, matter, surfaces – and after – its surfaces placed, each with the old surfaces or pages it is made of –; the targets that move onto a joint surface; the reference images kept `as-is` or `combined` from page-image halves; the groups the front and back matter become; `unmapped` with the reason; `imageTool`, null when the server cannot put images together) and `next`; the agent shows it and asks, and only with the person's yes calls again with `apply: true` – the plan is made again and written in one transaction. A 3.0 book answers `upToDate` |
 | `put_book_passes { book, passes \| null }` | the book's post-processing – the master chain every scene without its own shows |
 | `put_book_appearance { book, appearance \| null }` | how the book's entities appear (#265): a look `{ type, …parameters }` for `reveal` (the first find), `found` (every later find) and `lost` (the target is lost) – the whole appearance is replaced; `null` removes it, the default look plays everywhere |
 | `put_environment { book, environment: { world, onionSky, worldSrc?, skySrc? } \| null }` | the world around the reader and the onion sky |
@@ -199,7 +198,7 @@ schema; `describe_content_model { book }` lists them (`appearance.plugins`, `app
 
 No 2.x tool is left (content schema 3.0, #319 – nothing of 2.x was shipped): no spreads (`get_spread`, `add_spread`,
 `put_spread`, `delete_spread`), no pages or page images (`list_pages`, `set_page_images`), no matter (`add_matter`), no
-`migrate_scenes` / `migrate_surface_references` (`migrate_3` does both), no `page`, `print`, `side`, `format`, `layout`
+`migrate_scenes` / `migrate_surface_references`, no `migrate_3` (every book is migrated), no `page`, `print`, `side`, `format`, `layout`
 or `title` of a scene anywhere. Scene links are `…/editor/<book>/<scene>/`.
 
 ## An example session

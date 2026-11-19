@@ -20,7 +20,7 @@ The built-in world is an alien café drawn in the shader; a book can bring its o
 The sky image replaces the café's sky, the model the café's scenery; while they load, or when one fails (logged), the
 café's part is drawn. The reader's switches apply on top (`effectiveGraphics` in `look-around.ts`): either can turn a
 part off, the content cannot turn on what the reader has off – and the files are only fetched once a switch is on. A
-book without an `environment` keeps today's look. Not yet in the content: per-spread overrides, tuning values. The
+book without an `environment` keeps today's look. Not yet in the content: per-scene overrides, tuning values. The
 editor edits it on the stage, in the workspace's Environment tab ([editor](editor.md)), which previews this very pass.
 **On the editor's stage the environment replaces the HDRI sky box** (#185): once the book has one, the stage shows this
 pass as its sky while rendered, in every tab, and lights the content as the reader does – the engine's ambient and sun,
@@ -57,7 +57,7 @@ the stage as sky and light.
 | `environment-assets.ts` | The book's sky image and world model: loaded when something is drawn, the model baked into a cube (`bakeWorld`), a newer environment wins |
 
 Wiring: `ArScene` creates it and hands it to `ArView` as the `underlay` (drawn before the scene while `active`):
-straight onto the screen while no passes run (no cost), into the post chain's buffer under the scene while the spread
+straight onto the screen while no passes run (no cost), into the post chain's buffer under the scene while the scene
 or the book names passes – so bloom, vignette and a grade with `reach: all` shade the world and its sky too, a grade
 with `reach: ar` stays on the AR layer (`drawPlan`, `engine/src/scene/view.ts`; [content guide](content.md)
 "Post-processing"). `ImageTracker.cameraVideo` is the engine's camera video. Options: `services/GraphicsService.ts`, section

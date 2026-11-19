@@ -4,6 +4,19 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-19 – The code speaks scenes (#319 refactor, Tilman's ten answers to agents/REFACTOR-319.md)
+- Bare *scene* = the content's scene; the rendered AR scene is always `Ar…` (`ArScene`, `ArState`, event `arState`).
+- Plugin API 2.0 with no alias (`api.scene`, `sceneChanged`, scope `scene`); behaviour rules amended inside schema 3.0
+  (relocked, no new version). Staging's stored plugins (compiled against 1.x) load again only after a re-save in the Code tab.
+- `book` stays the code / API / DB word; "Experiences" only in the editor's UI. The reader's copy "Scroll to spread…"
+  stays (Tilman).
+- DB renamed in place (`spreads` → `scenes`, `title` → `label`, `spread_id` → `scene_id`, `initial_spread_id` →
+  `initial_scene`) by idempotent `ALTER TABLE … RENAME …` at the top of the schema files. **Not dropped (RULES #25 –
+  never a table)**: `page_images` stays, unread; an old database keeps its index `entries_spread` (on `scene_id`), the
+  FK name `spreads_book_fk` – cosmetic. Needs the migrate-3 run on staging first (Tilman: done before this lands).
+- `convert-content-3.ts` stays until Tilman converted the real content folder, then it goes.
+- [ ] Remove `POST /auth/cookie` (#207) – the editor no longer calls it; the API test still covers it.
+
 ## 2026-11-18 – Content schema 3.0, part A: contract, reader, build, fixtures (#319)
 - `CONTENT_SCHEMA_VERSION` 3.0, `OLDEST_READABLE_SCHEMA_MAJOR` 3 (Tilman: no backward compatibility – no reader shipped
   before Tokyo, Feb 2027). Nothing of the 2.x page model is left in `shared/types` / `shared/guards`; the compat onboarding
@@ -18,8 +31,7 @@ outcome in the line (or move it into a dated decision block).
 - Surface id in converted and imported sources: `surface` (one per scene). Source `place` is optional: the build lays the
   surfaces in a row (touching, flat, centred on the origin); the configuration always carries all six numbers.
 - The i18n word for the page column is *Place* (de *Ort*, fr *Lieu*, nl *Plek*); the switcher's aria label *Scene …*.
-- Open: [ ] rename the app's own `Spread`/`spreadId`/`SpreadManager`/`spread-menu` to scene names (pure refactor, ~440
-  sites); [ ] `scripts/layout/render-layout.py` (the demo's stand-in sheets) still reads the 2.x source – the stage's
+- Open: [x] rename the app's own `Spread`/`spreadId`/`SpreadManager`/`spread-menu` to scene names (done 2026-11-19, see above); [ ] `scripts/layout/render-layout.py` (the demo's stand-in sheets) still reads the 2.x source – the stage's
   sheets become surface references in part C; [ ] the build writes no `groups` yet (no source format for them).
 
 ## 2026-11-18 – Floating panels in the scene workspace, the select tool and its filters (#308)

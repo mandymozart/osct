@@ -1,14 +1,14 @@
 # Managers
 
 Each manager owns one part of the game state and is reached through the store
-(`game.spreads`, `game.targets`, …). Managers are created by `GameStore` and get the store
+(`game.scenes`, `game.targets`, …). Managers are created by `GameStore` and get the store
 injected in the constructor. Interfaces: `client/src/types/`.
 
 | Manager | Store | State / responsibility |
 |---|---|---|
-| `SpreadManager` | `game.spreads` | `currentSpread` – switching the active spread (two pages and their targets; the menu, a link, or a found page of a neighbouring spread) |
+| `SceneManager` | `game.scenes` | `currentScene` – switching the active scene (two pages and their targets; the menu, a link, or a found page of a neighbouring scene) |
 | `TargetManager` | `game.targets` | `trackedTargets` – targets found / lost by the AR scene; unlocks via the history |
-| `HistoryManager` | `game.history` | `progress` – unlocked targets, consulted entries, last spread (the active spread at the next start) / category, onboarding; tells once at startup when stored progress was converted or reset |
+| `HistoryManager` | `game.history` | `progress` – unlocked targets, consulted entries, last scene (the active scene at the next start) / category, onboarding; tells once at startup when stored progress was converted or reset |
 | `RouterManager` | `game.router` | `currentRoute`, `mode` – navigation, see [Pages](pages.md) |
 | `CameraManager` | `game.camera` | `cameraPermission` – asking for and tracking camera access |
 
@@ -22,5 +22,5 @@ reader is told.
 ## Services used by managers
 
 - `GameStoreService` – the store singleton
-- `PreloaderService` – warms the browser cache with the neighbouring spreads' target images and content
+- `PreloaderService` – warms the browser cache with the neighbouring scenes' target images and content
 - `ProgressStorage` – reads and writes the progress record

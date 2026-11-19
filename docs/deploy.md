@@ -202,7 +202,7 @@ open on a phone) never makes. So the reader asks itself (#231, `client/src/servi
   the four languages (`update` namespace). Shown only at a calm moment (`components/common/new-version.ts`): the start
   and the consultation pages (entries, entry, Info) and the overlays – never while the camera or AR loads, starts or
   runs, and not during the onboarding. In the scan view only once AR has failed: a missing AR chunk shows the notice
-  above the spread menu instead of a dead camera view. Hidden mid-scan, it comes back when the reader leaves the scan.
+  above the scene menu instead of a dead camera view. Hidden mid-scan, it comes back when the reader leaves the scan.
   It **never reloads by itself**; *Later* hides it until a code file fails again or another version takes over.
 
 To see it locally: two builds of the reader served one after the other from the same origin (`127.0.0.1` counts as

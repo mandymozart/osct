@@ -41,7 +41,7 @@ nodes and pages, four more ("Across nodes and pages" below):
 - **`api.feedback({ width, height, fragment, … })`** (API 1.6) – a **feedback buffer**: a fragment shader the engine runs
   every frame into a render target of its own, its last frame as input – a fluid on the GPU ("A feedback buffer" below).
 - **`api.shadertoy(source)`** (API 1.6) – a Shadertoy pass (`mainImage`) as a feedback buffer's fragment.
-- **`api.registerPass(type, spec, factory)`** – a **post-processing pass** over the rendered picture: a spread or the
+- **`api.registerPass(type, spec, factory)`** – a **post-processing pass** over the rendered picture: a scene or the
   book names it in `passes` like a built-in pass (content schema 2.21, "A pass: film grain" below).
 - **`api.registerAppearance(type, spec, factory)`** (API 1.8) – a **look**: how an entity appears and disappears, in
   code. The book names it for a moment – `reveal`, `found`, `lost` – in a built-in look's place (content schema 2.29,
@@ -513,7 +513,7 @@ material.uniforms.picture = fluid.uniform; // follows every frame – or read fl
   A simulation whose values are negative, above 1 or change in tiny steps needs `float` (or at least `half`).
 - **Pause and ownership.** A buffer made while a node builds – in a node type's or a material's `build`, a component's
   `apply` – belongs to that node: it steps only while the node and every parent are visible in the scene (a lost
-  target's page is hidden, another spread's nodes are gone, a hidden page has no frames) and is disposed with the node.
+  target's page is hidden, another scene's nodes are gone, a hidden page has no frames) and is disposed with the node.
   One made in `register` belongs to the plugin and goes when the plugin does. `paused` stops one by hand, `reset()`
   starts it again at frame 0, `dispose()` frees it at once.
 - **The content build** runs your `register` with a recording API: there `api.feedback` checks the options and hands
@@ -583,7 +583,7 @@ api.registerPass("filmGrain", {
 ```
 
 ```yaml
-# content/spreads/the-twins/spread.yaml
+# content/scenes/the-twins/scene.yaml
 passes:
   - type: filmGrain
     amount: 0.14
@@ -599,12 +599,12 @@ passes:
 - **A feedback buffer** (`api.feedback`, API 1.6) made in the factory belongs to the pass: it steps while the pass runs
   (not while the editor's stage shows the scene without passes) and goes with it – trails, a smear that remembers.
 - **When it fails**: a factory that throws, or returns no pass, is logged and skipped – the other passes run; a `render`
-  that throws is logged and the pass is switched off for the rest of the spread. A type no plugin of the book registers
+  that throws is logged and the pass is switched off for the rest of the scene. A type no plugin of the book registers
   is refused by the content build (and its parameters checked against the spec, like a built-in pass's), and by the
   publish (409 `unknown-passes`); a reader older than content schema 2.21 refuses a book that names one.
 - **The phone**: every pass is at least one full-screen render, yours counted like the built-in ones – up to three passes
   and one bloom per list; the build and the editor's section warn beyond (#86).
-- **In the editor** the spread's *post-processing* section offers your pass under *add pass · <plugin>* – a compiled
+- **In the editor** the scene's *post-processing* section offers your pass under *add pass · <plugin>* – a compiled
   plugin's as soon as the book is open (the build recorded it), a plugin you **Run** in the Code tab at once – shows its
   rows from the spec (labels, help, ranges, a `texture` row with the Library's pictures), moves it up and down, removes
   it, and previews it on the stage under *rendered*.
@@ -702,21 +702,21 @@ lights when the door opened, a text counts the pages found. Four parts of `api` 
 `fixtures/demo/` uses every one):
 
 - **`api.events`** – one bus for the stage. *Core events* belong to the engine, you only listen: `targetFound`,
-  `targetLost`, `targetUnlocked` (the first find – progress is the app's), `targetTapped`, `spreadChanged`,
-  `sceneState` (running / paused / stopped), `varChanged`. *Scene events* are yours: `api.events.emit("doorOpened",
+  `targetLost`, `targetUnlocked` (the first find – progress is the app's), `targetTapped`, `sceneChanged`,
+  `arState` (running / paused / stopped), `varChanged`. *Scene events* are yours: `api.events.emit("doorOpened",
   { by: "key" })` – any camelCase name that is not a core event – and every plugin hears it with
   `api.events.on("doorOpened", payload => …)`. `on` returns the unsubscribe; when a plugin is replaced (Run) or
   unloaded, its listeners go with it.
-- **`api.vars`** – variables in **scopes**: `spread` (while the spread is the current one – cleared when it changes),
+- **`api.vars`** – variables in **scopes**: `scene` (while the scene is the current one – cleared when it changes),
   `stage` (while the scene exists), `session` (this app start), `book` (persisted with the reader's progress). `set(name,
-  value, scope)` with `spread` as the default scope, `get(name, scope?)` – without a scope the innermost definition
-  wins (spread → stage → session → book) – `on(name, (value, previous, scope) => …)` and `all(scope)`. Values are
+  value, scope)` with `scene` as the default scope, `get(name, scope?)` – without a scope the innermost definition
+  wins (scene → stage → session → book) – `on(name, (value, previous, scope) => …)` and `all(scope)`. Values are
   strings, numbers or booleans; `null` deletes.
-- **`api.progress`** – read-only, from the app: `unlocked(targetId)`, `consulted(entryId)`, `completion(spreadId?)`
-  (0–1, the whole book without an id), `counts(spreadId?)` → `{ unlocked, targets }`. On the editor's stage the
+- **`api.progress`** – read-only, from the app: `unlocked(targetId)`, `consulted(entryId)`, `completion(sceneId?)`
+  (0–1, the whole book without an id), `counts(sceneId?)` → `{ unlocked, targets }`. On the editor's stage the
   progress is the stage's own (what was found since the workspace opened); the reader passes its history
   (`ArSceneOptions.progress`).
-- **`api.spread`** – `current` (the current scene: id, label, group, surfaces, passes, targets – content schema 3.0, #319: no title, pages or format) and `get(id)`.
+- **`api.scene`** – `current` (the current scene: id, label, group, surfaces, passes, targets – content schema 3.0, #319: no title, pages or format) and `get(id)`.
 
 And two more things in a component: the context's **`children`** – the placement groups of the node's children, in
 content order, so a component on a `group` can show, hide or move them – and the hook **`onUnlocked`**, the first
@@ -763,9 +763,9 @@ export const register = (api: PluginApi): void => {
 };
 ```
 
-Try it in the editor: tap the key (its rule sets `hasKey` – the Inspector's *vars and events* lists it while the spread is selected, book
-scope, a boolean), walk to the door's spread with › – the door's rules emit `openDoor`, the door opens, the timeline
-shows `openDoor` and `doorOpened` with the time since the spread opened; the tree's eye switches a target off and on (lost, found again). **reset** starts a new game.
+Try it in the editor: tap the key (its rule sets `hasKey` – the Inspector's *vars and events* lists it while the scene is selected, book
+scope, a boolean), walk to the door's scene with › – the door's rules emit `openDoor`, the door opens, the timeline
+shows `openDoor` and `doorOpened` with the time since the scene opened; the tree's eye switches a target off and on (lost, found again). **reset** starts a new game.
 To test a branch without playing up to it, change a variable in the panel or **set** one (name, scope, type, value):
 it is written through `api.vars.set`, so your `api.vars.on` listeners and `varChanged` fire as for a plugin's write.
 **tap** taps a found target as a reader would – your component's `onTap` and `targetTapped` – without aiming at it
@@ -790,11 +790,11 @@ marks every rule that ran with a `behaviour` line – it is the log's own (your 
 
 ## Trying it: the Code tab
 
-Open a spread in the editor, **Code**, **+** for a new plugin (it starts with the two examples above) or pick one
+Open a scene in the editor, **Code**, **+** for a new plugin (it starts with the two examples above) or pick one
 of the book's. The editor is Monaco with the plugin API's types: completion as you type (Ctrl+Space for the list;
 `api.` and `api.three.` know every member), type errors underlined as the content build would report them, a hover
 shows a member's documentation. **Run** (Ctrl+Enter) shows it on the stage at once – a layer tints the video, a
-component appears under *add component* in the Inspector, a pass under *add pass* in the spread's post-processing. A Run's errors show under the editor and on their line.
+component appears under *add component* in the Inspector, a pass under *add pass* in the scene's post-processing. A Run's errors show under the editor and on their line.
 **Save** (Ctrl+S) keeps the source in the editor's database and runs it. The saved sources load onto the stage by
 themselves whenever it starts (#269) – a Run is only for trying edits before you save them; a source that fails keeps
 what ran before, and the line under the picker says why. The list names every plugin by its
@@ -892,11 +892,11 @@ characters), keep it small
 ## The demo book: everything at once
 
 `fixtures/demo/` is a sandbox book that uses every node type, placement, filter and component, and fourteen plugins that
-together use every part of the API – a narrative across its spreads (the key and the door with their `behaviour` rules,
+together use every part of the API – a narrative across its scenes (the key and the door with their `behaviour` rules,
 the door's opening and the lamp as plugin code, a tally of the pages found, a tap that switches a scene, a sparkle of its
 own node type), the aquarium with its material, texture and WebGPU fluid, the ink painting on two feedback buffers, a
 video on a bent sheet of paper picked as a model file (`plugins/paper`), and a
 film grain pass over *The twins* (`plugins/grain`) and a scan-line pass on *The switch*, switched off to be found
 (`plugins/scanlines`), and the built-in looks written as plugins' looks (`plugins/reveal`: the dissolve; `plugins/lifts`: `printLiftCode` and `fadeCode`). Build it with
-`OSCT_CONTENT_DIR=fixtures/demo`, import it into the editor ([editor](editor.md) "Try it"); the plugins are the examples to copy from. What it shows per spread, and what the
+`OSCT_CONTENT_DIR=fixtures/demo`, import it into the editor ([editor](editor.md) "Try it"); the plugins are the examples to copy from. What it shows per scene, and what the
 model still lacks: `agents/research/2026-10-30-demo-book.md`.

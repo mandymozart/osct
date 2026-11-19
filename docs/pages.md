@@ -12,7 +12,7 @@ game.router.navigate("/entry", { key: "entryId", value: "metafiction" });
 |---|---|---|---|
 | `/` | `<splash-page>` | idle | start for returning readers: the splash (the onboarding steps before the first button), then scan mode |
 | `/tutorial` (`step`) | `<tutorial-page>` | idle | the onboarding steps – the app's own (`utils/onboarding.ts`, texts in the `tutorial` namespace) |
-| `/spread` (`spreadId`) | `<spread-page>` | scan | scan mode: found indicator, spread menu |
+| `/scene` (`sceneId`) | `<scene-page>` | scan | scan mode: found indicator, scene menu |
 | `/entries` (`category`) | `<entries-page>` | consultation | entries list by category |
 | `/entry` (`entryId`) | `<entry-page>` | consultation | one entry: meta table, text, media |
 | `/about` | `<about-page>` | consultation | Info: about text, settings (account, sound and vibration, graphics, language, home screen, download, reset book), colophon |
@@ -27,7 +27,7 @@ browser's back button goes back through the views:
 | URL | Opens |
 |---|---|
 | `/` | the start (onboarding on a first visit, else the splash → scan mode) |
-| `/spread/<spreadId>` | scan mode on that spread |
+| `/scene/<sceneId>` | scan mode on that scene |
 | `/entries/<category>` (or `/entries/category/<category>`) | the entries list |
 | `/entry/<entryId>` | one entry |
 | `/tutorial/<step>` | an onboarding step |
@@ -35,25 +35,25 @@ browser's back button goes back through the views:
 
 Every link carries `?osct=<version>` (the app version it was made with). Opening a link only routes:
 
-- unknown route, spread, entry, category or step → not-found page with "Go to start";
+- unknown route, scene, entry, category or step → not-found page with "Go to start";
 - the version in a link is informative only – links of any version just route; nothing from before 1.1.0 is supported
   (no old `?code=` links);
-- a link to an entry the reader hasn't found yet opens scan mode on that entry's spread (no shortcut past
+- a link to an entry the reader hasn't found yet opens scan mode on that entry's scene (no shortcut past
   the game); entries already consulted open directly;
 - a link skips the onboarding (it still comes on the next plain visit).
 
 There is no resume prompt: the app opens the requested view (a link, or the view that was open on reload),
-and a plain start opens scan mode on the last spread. Stored progress of another format: a reader for it
+and a plain start opens scan mode on the last scene. Stored progress of another format: a reader for it
 exists → converted, with a notice that parts may be missing; none exists → progress reset, with a notice.
 
-Printed QR codes: `https://osct.buildingfictions.com/spread/<spreadId>?osct=<version>` – the dev QR
-generator in the debug overlay makes them for the current spread. The server has to answer every path
+Printed QR codes: `https://osct.buildingfictions.com/scene/<sceneId>?osct=<version>` – the dev QR
+generator in the debug overlay makes them for the current scene. The server has to answer every path
 with `index.html`: `client/public/.htaccess` does that (Apache – the Docker image, [deploy](deploy.md)); Vite does
 it in dev and preview.
 
 Two overlays have no route – they sit outside `<pages-router>` and follow the store:
 
-- `<loading-page>` – startup and spread switch (`game.startLoading()` / `game.finishLoading()`)
+- `<loading-page>` – startup and scene switch (`game.startLoading()` / `game.finishLoading()`)
 - `<camera-permission-page>` – shown while the camera is being asked for or was denied (`cameraPermission`)
 
 Base classes: `page.ts` (full page), `page-minimal.ts` (transparent, over the camera),

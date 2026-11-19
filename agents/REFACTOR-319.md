@@ -1,6 +1,7 @@
 # Refactor #319 – the code speaks scenes (plan, step 1)
 
-Status: **plan, for Tilman's answers** (2026-11-18). No code is changed until the questions at the end are answered.
+Status: **done** (2026-11-19) – Tilman took all ten recommendations; deviations: the reader's copy stays (Q5),
+`convert-content-3` stays (Q10), and `page_images` / the old index are not dropped (RULES #25: never a table).
 Base: local `develop` at 24cd2918 (2.0.0, content schema 3.0). Branch `feature/319-internal-names`.
 
 Content schema 3.0 made the **contract** scenes + surfaces (`agents/SCENES.md` "Schema 3.0", "Editor API 3.0"); the

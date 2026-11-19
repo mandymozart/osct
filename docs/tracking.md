@@ -1,33 +1,33 @@
-# Image tracking: spreads, preloading, the trigger trial, load test
+# Image tracking: scenes, preloading, the trigger trial, load test
 
 How the 8th Wall engine (`@8thwall/engine`, `engine/src/scene/tracker.ts` + `xr8.ts`, used by the reader) gets the
-targets it can find, how a spread switch works, and how to measure how many targets a phone can hold. Without a camera
+targets it can find, how a scene switch works, and how to measure how many targets a phone can hold. Without a camera
 and engine – the editor's stage with the mock tracker – see [Editor](editor.md).
 
 ## The flow today
 
-1. **Current spread** – `ArScene.changeSpread()` swaps anchors, entities and assets (it waits for the new spread's
-   models and videos), then `ImageTracker.loadTargets()` makes the spread's targets the ones reported to the app.
-2. **Window** – once the spread is tracked, `ArScene` gives the tracker the other spreads, nearest first
-   (`prepared-spreads.ts` – the engine extracts in the order its queue gets them). **Fixed** (±2 by default since 1.73.1; ±0 / ±1 / all in the debug overlay, or the load test's
-   target budget): `prepareTargets()` holds exactly that window – counted in spreads **with targets**: a spread without
-   any (all switched off, or none yet) is skipped and does not use up the range, so a page beyond it stays in reach – and **slides** with the current spread – spreads that fall
+1. **Current scene** – `ArScene.changeScene()` swaps anchors, entities and assets (it waits for the new scene's
+   models and videos), then `ImageTracker.loadTargets()` makes the scene's targets the ones reported to the app.
+2. **Window** – once the scene is tracked, `ArScene` gives the tracker the other scenes, nearest first
+   (`prepared-scenes.ts` – the engine extracts in the order its queue gets them). **Fixed** (±2 by default since 1.73.1; ±0 / ±1 / all in the debug overlay, or the load test's
+   target budget): `prepareTargets()` holds exactly that window – counted in scenes **with targets**: a scene without
+   any (all switched off, or none yet) is skipped and does not use up the range, so a page beyond it stays in reach – and **slides** with the current scene – scenes that fall
    out of it are unloaded (their files stay in the browser cache). **Grow** (debug overlay; the default from 1.7.0
    to 1.8.1, see issue #38): `growTargets()` adds them in idle time, three targets per batch, each batch after the
    previous one is extracted, until the whole book is held; a switch only re-orders what is still to add, nothing is
    dropped. The bridge preloads the content of the ±n window
-   (±1 in grow mode; `PreloaderService.preloadSpreads()`: target images, then one spread at a time).
+   (±1 in grow mode; `PreloaderService.preloadScenes()`: target images, then one scene at a time).
 3. **Preparing** (the app, main thread) – each target image becomes a grey 480×640 frame (`makeImageTarget()`,
    `xr8.ts`): decode, draw, greyscale, JPEG. S22: 150–260 ms per image, cached per session.
 4. **Extracting** (the engine, main thread) – `XrController.configure()` unloads what is not listed, keeps what it
    has and extracts the new targets one per animation frame. Every configure **cancels and restarts** the queue of
    targets not yet extracted. `reality.imagescanning` fires when the queue is empty. S22: 0.6–0.75 s for 4 targets,
    ~3 s for 39.
-5. **Automatic switch** – a target of a held (not current) spread seen for 400 ms while none of the current
-   spread's is found → `spreadSeen` → `switchSpread()` (scan mode only). Only held spreads can switch by themselves;
-   any other page needs the spread menu.
+5. **Automatic switch** – a target of a held (not current) scene seen for 400 ms while none of the current
+   scene's is found → `sceneSeen` → `switchScene()` (scan mode only). Only held scenes can switch by themselves;
+   any other page needs the scene menu.
 
-Measured on a Samsung S22: switch to a held spread 0–5 ms, to a spread not held ~0.6 s, first spread
+Measured on a Samsung S22: switch to a held scene 0–5 ms, to a scene not held ~0.6 s, first scene
 ~1.15 s. With all 39 demo targets held, far jumps switched by themselves and nothing felt slower – not measured
 side by side.
 
@@ -35,12 +35,12 @@ side by side.
 
 | | |
 |---|---|
-| Spreads | 87 |
+| Scenes | 87 |
 | Targets | 131 |
-| Spreads with 0 / 1 / 2 / 3 / 4 targets | 3 / 43 / 36 / 4 / 1 |
+| Scenes with 0 / 1 / 2 / 3 / 4 targets | 3 / 43 / 36 / 4 / 1 |
 
-With mostly one or two targets per spread, ±1 holds about 3 spreads and 4–5 targets: only the next and the previous
-spread can be found without the menu. ±2 (the default) holds about 5 spreads and 7–8 targets. "All" holds 131 targets, which
+With mostly one or two targets per scene, ±1 holds about 3 scenes and 4–5 targets: only the next and the previous
+scene can be found without the menu. ±2 (the default) holds about 5 scenes and 7–8 targets. "All" holds 131 targets, which
 costs about 131 × (prepare + extract) on the main thread at the start – tens of seconds of busy main thread on a
 phone, while the reader is already scanning.
 
@@ -53,7 +53,7 @@ The engine knows no build, page or storage of the app (RULES #32): the app passe
 | Where the 8th Wall engine's files are served | `new ImageTracker(container, options, xr8Base)`, `prefetchXr8(xr8Base)` (`xr8.ts`) | `${BASE_URL}assets/xr8/` (`components/ar-bridges/ar/index.ts`) | – (mock tracker) |
 | Debug handles on `window` | `ArSceneOptions.debug` (the look-around's `osctLookAroundDebug`) | `import.meta.env.DEV` | `import.meta.env.DEV` |
 | The scanning indicator | the scene's `scanning` event: true while tracking runs and no target is found | `<ar-bridge>` toggles `.hidden` on `#osct-scanning` (and hides it when it is removed) | – (no indicator) |
-| The switches stored on this device: lens, resolution, ask zoom, spreads kept ready | `setDeviceStorage()` (`engine/src/utils/device-storage.ts`; keys `camera-lens`, `camera-resolution`, `camera-ask-zoom`, `ar-prepared-spreads`); without one they hold while the page lives | `LocalDeviceStorage` (`services/DeviceStorage.ts`): localStorage as `osct-<key>`, set first thing in `main.ts` | `deviceStorage` (`lib/storage.ts`): the same `osct-<key>` on the same origin, set by the stage |
+| The switches stored on this device: lens, resolution, ask zoom, scenes kept ready | `setDeviceStorage()` (`engine/src/utils/device-storage.ts`; keys `camera-lens`, `camera-resolution`, `camera-ask-zoom`, `ar-prepared-scenes`); without one they hold while the page lives | `LocalDeviceStorage` (`services/DeviceStorage.ts`): localStorage as `osct-<key>`, set first thing in `main.ts` | `deviceStorage` (`lib/storage.ts`): the same `osct-<key>` on the same origin, set by the stage |
 | Why AR failed | the `status` event's `ArError`: `{ code, message }` | below | the stage shows the message |
 
 **AR errors** are codes (`ErrorCode`, `engine/src/types/errors.ts`), never matched in a message: the tracker and the
@@ -64,34 +64,34 @@ scene throw `ArSceneError` with its code, and anything else that breaks a start 
 | `camera-not-responding` | the camera started but sends no picture within 10 s | the camera overlay's *not responding* (reload / restart the browser), cleared once AR runs again |
 | `ar-start-failed` | the camera is denied or unavailable, the tracking engine could not be loaded | checks the camera permission again – the overlay shows denied / unavailable |
 | `ar-load-failed` | the AR chunk (three.js and the scene) could not be loaded – offline, or a deploy removed it under the open page | the same, and online the new-version notice offers a reload ([Deploy](deploy.md) "Open readers after a deploy"); the next scan tries the chunk again |
-| `ar-failed` | anything else the scene could not do (building a spread) | the same |
+| `ar-failed` | anything else the scene could not do (building a scene) | the same |
 
 The message goes to the console and to the debug overlay ("AR: error", the camera panel).
 
 ## Seeing what the engine holds
 
-Debug overlay, expanded, under *Spreads loaded ahead*:
+Debug overlay, expanded, under *Scenes loaded ahead*:
 
 ```
-Engine: 5/5 targets ready in 3 spreads
+Engine: 5/5 targets ready in 3 scenes
 ◉ s010-011 (2) · s012-013 (2) · s008-009 (1)
 preparing: s014-015
 ```
 
-◉ is the current spread. "extracting n s" (orange) while the engine works through new targets. The collapsed line
+◉ is the current scene. "extracting n s" (orange) while the engine works through new targets. The collapsed line
 shows `E<ready>/<held>`.
 
 ### A page is not found although its targets are held
 
 The expanded overlay (tap the line) shows under *Engine sees* every target the engine finds right now, of any held
-spread, and under *Last auto switch* the spread it switched to by itself, the target that caused it and how long ago
-(since 1.9.5 the collapsed line is one line only: the status dot, `T<targets on the spread>`, `E<ready>/<held>`).
+scene, and under *Last auto switch* the scene it switched to by itself, the target that caused it and how long ago
+(since 1.9.5 the collapsed line is one line only: the status dot, `T<targets on the scene>`, `E<ready>/<held>`).
 With the phone on the page that is not found:
 
-- **Ids of other spreads appear, or a recent auto switch** – the engine finds *other* triggers in view (neighbours on a printout sheet) and may switch
-  the spread away. Cover the neighbouring images: if the page is found now, the crowd is the cause, not the count.
+- **Ids of other scenes appear, or a recent auto switch** – the engine finds *other* triggers in view (neighbours on a printout sheet) and may switch
+  the scene away. Cover the neighbouring images: if the page is found now, the crowd is the cause, not the count.
 - **Engine sees nothing**, neighbours covered – the engine finds nothing. Tap *Change* until ±0 (applies at once, the
-  engine then holds only this spread): found now → too many held targets dilute the engine's matching for this
+  engine then holds only this scene): found now → too many held targets dilute the engine's matching for this
   image. Tap *Change* back to *grow* afterwards (it re-grows in idle time).
 - Empty even at ±0 → the target image itself (crop, contrast, size) – the trial's "not found" list.
 
@@ -129,8 +129,8 @@ Safari 15 reports no focus, focus distance or zoom for the camera at all. A SIMD
 
 **Debug camera panel** (overlay → *camera*, `dev-tools/camera-panel.ts`; the readout in
 `engine/src/utils/camera-debug.ts`): lens label, resolution and frame rate, focus mode (bold) / distance / range, zoom
-and range, and the current spread's targets (yellow in view, ✓ found since the panel opened). While open the tracker
-holds the current spread only, as in the trial. Why AR could not start shows here and after "AR: error" in the
+and range, and the current scene's targets (yellow in view, ✓ found since the panel opened). While open the tracker
+holds the current scene only, as in the trial. Why AR could not start shows here and after "AR: error" in the
 overlay. Switches:
 
 - **AF** – continuous focus (lit while it is in use). **◎** – the next tap on the camera picture focuses there once
@@ -140,7 +140,7 @@ overlay. Switches:
   1280 × 960 / 1920 × 1440 (`ideal`, so a camera without that size still opens), **ask zoom** (`zoom: true` – Chrome
   then asks for the pan-tilt-zoom permission).
 - **Retest list**: a link `/?retest=p009-1,p013-1,…` (or `osct-camera-retest` in local storage) shows one chip per
-  target – tap to go to its spread, ✓ once found.
+  target – tap to go to its scene, ✓ once found.
 
 The trial panel keeps its camera row (AF, ◎, zoom step); its `md` report records the camera.
 
@@ -150,10 +150,10 @@ The checklist for a test with the printed book (or the trigger printout) is in t
 (dev server and staging; *trial* again or × closes it). A strip flush with the bottom of the screen shows every
 target as a thumbnail in a fixed order – the order of the printout, with its running number (the same numbers as the
 tester printouts of trial 2; targets not on the printout are dimmed, "not printed"). Nothing moves: a found one gets
-a green frame and a ✓, the one in view a yellow frame, the current spread's a white frame, and the strip scrolls smoothly to
-the current spread when it changes. While the trial is open the engine holds the current spread and its neighbours
-(±1, no growing window), so scanning the next image on the sheet switches the spread by itself; closing restores
-the window setting. Tap a thumbnail to go to its spread, ‹ › step through the spreads, drag the strip's top bar to
+a green frame and a ✓, the one in view a yellow frame, the current scene's a white frame, and the strip scrolls smoothly to
+the current scene when it changes. While the trial is open the engine holds the current scene and its neighbours
+(±1, no growing window), so scanning the next image on the sheet switches the scene by itself; closing restores
+the window setting. Tap a thumbnail to go to its scene, ‹ › step through the scenes, drag the strip's top bar to
 make it taller or lower. A camera line under the bar shows the lens, resolution, focus and zoom the trial runs with –
 feedback only, the trial uses the app's camera defaults; the md report records it (the test switches are in the
 debug overlay's camera panel, "Camera" above). The bar counts the targets not found yet. "Found" comes from the progress, so reset the progress
@@ -214,9 +214,9 @@ it, then without file names and sizes.
 Debug overlay → **load** (dev server or staging, camera running, scan mode).
 
 1. Hold the phone over a page of the printout that has a trigger; wait until it is found.
-2. **Start**. Per step the window next to the scanned spread gets a target budget: 0, 5, 10, 20, 40, 80, then all
-   other targets, nearest spreads first (next before previous). The whole app runs as usual: the window's content is
-   preloaded, pages switch by themselves or by hand, and the window follows the scanned spread.
+2. **Start**. Per step the window next to the scanned scene gets a target budget: 0, 5, 10, 20, 40, 80, then all
+   other targets, nearest scenes first (next before previous). The whole app runs as usual: the window's content is
+   preloaded, pages switch by themselves or by hand, and the window follows the scanned scene.
 3. Per step: the window's new targets are prepared and extracted (timed), the engine settles 1 s, then measures
    (*hold*, 4 / 6 / 10 s) – keep the phone still on a page for comparable numbers.
 4. With *covers* 2 or 3 the panel then asks to cover the lens with a hand and uncover it again; it times uncover →
@@ -226,8 +226,8 @@ Debug overlay → **load** (dev server or staging, camera running, scan mode).
 
 | Column | Meaning |
 |---|---|
-| Targets held, Spreads | what the engine held at the end of the step (scanned spread + window) |
-| Scanned | the spread being scanned at the end of the step |
+| Targets held, Scenes | what the engine held at the end of the step (scanned scene + window) |
+| Scanned | the scene being scanned at the end of the step |
 | Prepare s / Extract s | app making the new image targets / engine extracting them (new targets of that step only) |
 | Engine fps | camera frames the engine processed per second |
 | Page fps, Stutter frames | page frames per second, frames over 50 ms |
@@ -247,4 +247,4 @@ small target as well as a large one.
 - **Preloading in steps** – targets first, then their content, then higher resolutions (the quality levels): open in
   #13.
 - The smaller options – one configure per switch, image targets made by the content build, larger tracked groups than a
-  spread, a switch that does not wait for the new spread's videos – are open items in `agents/PLAN.md` (phase 13).
+  scene, a switch that does not wait for the new scene's videos – are open items in `agents/PLAN.md` (phase 13).
