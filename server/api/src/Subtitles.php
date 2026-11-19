@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * The subtitle files of a book's videos (shared/types/subtitles.ts `SubtitleData`), read from the files' names: a
+ * The subtitle files of an experience's videos (shared/types/subtitles.ts `SubtitleData`), read from the files' names: a
  * WebVTT file `<video name>.<language>.vtt` belongs to the video of that name – nobody fills the pairing in.
  *
  * Two places hold files: the imported build (`files.json`: content paths – a subtitle file lies in its video's folder,
@@ -22,7 +22,7 @@ final class Subtitles
      * @param string $base the assets base content paths resolve below ('' = none)
      * @return list<stdClass> { media, tracks: { language: file } } by media, the languages in order
      */
-    public static function of(string $bookId, stdClass $files, string $base): array
+    public static function of(string $experienceId, stdClass $files, string $base): array
     {
         /** @var array<string, array{name: string, folder: ?string}> $videos by the file as the nodes name it */
         $videos = [];
@@ -40,8 +40,8 @@ final class Subtitles
             $slash = strrpos($path, '/');
             $add($slash === false ? $path : substr($path, $slash + 1), $base . $path, $slash === false ? '' : substr($path, 0, $slash + 1));
         }
-        $rows = Db::run('SELECT name, url FROM assets WHERE book_id = :book AND status = :status AND kind IN (:video, :subtitles) ORDER BY created_at',
-            ['book' => $bookId, 'status' => 'active', 'video' => 'video', 'subtitles' => self::KIND])->fetchAll();
+        $rows = Db::run('SELECT name, url FROM assets WHERE experience_id = :experience AND status = :status AND kind IN (:video, :subtitles) ORDER BY created_at',
+            ['experience' => $experienceId, 'status' => 'active', 'video' => 'video', 'subtitles' => self::KIND])->fetchAll();
         foreach ($rows as $row) $add((string) $row['name'], (string) $row['url'], null);
 
         $result = [];

@@ -2,15 +2,15 @@
 declare(strict_types=1);
 
 /**
- * The editor's assets (docs/server.md "Assets"): the files a book's nodes and targets use beyond the content build's
- * own – uploaded by an editor, kept in the content store under `assets/<book>/<asset>/v<n>.<ext>` (the local folder
+ * The editor's assets (docs/server.md "Assets"): the files an experience's nodes and targets use beyond the content build's
+ * own – uploaded by an editor, kept in the content store under `assets/<experience>/<asset>/v<n>.<ext>` (the local folder
  * served at GET /content/assets/…, or the CDN's zone), registered in `assets` with one row per upload in
  * `asset_versions`. After Scutoons' asset layer (scutoons/agents/ASSETS.md), sized for OSCT:
  *
  * - a node's `src` and a target's `imageSrc` hold the asset's **absolute URL** (the publish leaves absolute URLs as
  *   they are; the engine loads them like the CDN's), so content, draft and every publish point at the same file;
  * - **replace** uploads a new version at a new path (`v2.ext` – a CDN never has to be purged) and relinks every use
- *   in the book's rows to it, recording the changes;
+ *   in the experience's rows to it, recording the changes;
  * - **delete** is refused while the asset is used (409 `asset-in-use`, the usages listed) unless `?force=1`;
  * - the same bytes uploaded twice are one asset (sha256);
  * - an image's width and height and a video's width, height and duration are read from the file on upload and replace
@@ -51,20 +51,20 @@ final class Assets
     /** The store's pseudo environment the assets live in */
     public const STORE_ENV = 'assets';
 
-    /** GET /editor/books/{id}/assets[?kind=] → { assets: [...] } with the number of uses each */
-    public static function list(string $bookId): never
+    /** GET /editor/experiences/{id}/assets[?kind=] → { assets: [...] } with the number of uses each */
+    public static function list(string $experienceId): never
     {
         Editor::user();
-        Books::exists($bookId);
+        Experiences::exists($experienceId);
         $kind = $_GET['kind'] ?? null;
-        $rows = Db::run('SELECT * FROM assets WHERE book_id = :book AND status = :status' . (is_string($kind) && $kind !== '' ? ' AND kind = :kind' : '') . ' ORDER BY updated_at DESC',
-            ['book' => $bookId, 'status' => 'active'] + (is_string($kind) && $kind !== '' ? ['kind' => $kind] : []))->fetchAll();
+        $rows = Db::run('SELECT * FROM assets WHERE experience_id = :experience AND status = :status' . (is_string($kind) && $kind !== '' ? ' AND kind = :kind' : '') . ' ORDER BY updated_at DESC',
+            ['experience' => $experienceId, 'status' => 'active'] + (is_string($kind) && $kind !== '' ? ['kind' => $kind] : []))->fetchAll();
         // Every use of every file, read once (#298, `AssetNames::usesOf` – the one source the delete check and the names share)
-        $uses = AssetNames::usesOf($bookId);
+        $uses = AssetNames::usesOf($experienceId);
         $assets = array_map(fn(array $row) => self::summary($row, count($uses[(string) $row['url']] ?? [])), $rows);
-        $assets = array_merge($assets, self::imported($bookId, is_string($kind) && $kind !== '' ? $kind : null, $uses));
-        $credits = self::creditsOf($bookId);
-        // Where each file is used first – the Library groups by it (#298): its scene (null: book-wide), order, more uses
+        $assets = array_merge($assets, self::imported($experienceId, is_string($kind) && $kind !== '' ? $kind : null, $uses));
+        $credits = self::creditsOf($experienceId);
+        // Where each file is used first – the Library groups by it (#298): its scene (null: experience-wide), order, more uses
         foreach ($assets as $i => $asset) {
             $assets[$i]['credits'] = $credits[$asset['url']] ?? null;
             $assets[$i]['place'] = AssetNames::place($uses[$asset['url']] ?? []);
@@ -86,59 +86,59 @@ final class Assets
     public const CREDITS_BATCH_MAX = 500;
 
     /**
-     * PUT /editor/books/{id}/assets/credits { items: [{ url, credits }] } → { saved, credits: { <url>: line|null } } (#277):
-     * the picture credits of the book's files – one free text line per file, as the book prints them
+     * PUT /editor/experiences/{id}/assets/credits { items: [{ url, credits }] } → { saved, credits: { <url>: line|null } } (#277):
+     * the picture credits of the experience's files – one free text line per file, as the book prints them
      * ("Book Golem by TER-JAN / DeviantArt"). Kept per file URL, so the imported files (no asset row, read-only) carry them
      * as the uploaded ones do; a replace keeps the line on the old URL (a new version may be another picture). `credits`
      * empty or null removes the line. Every url must be a file the Library lists (400 `invalid-credits` otherwise,
-     * nothing saved). Credits are no content: no change in the book's log, no publish needed.
+     * nothing saved). Credits are no content: no change in the experience's log, no publish needed.
      */
-    public static function setCredits(string $bookId): never
+    public static function setCredits(string $experienceId): never
     {
         $user = Editor::user();
-        Books::exists($bookId);
+        Experiences::exists($experienceId);
         $items = Editor::body()->items ?? null;
         if (!is_array($items) || $items === [] || count($items) > self::CREDITS_BATCH_MAX) {
             throw new ApiError(400, 'invalid-credits', 'items must be a list of 1–' . self::CREDITS_BATCH_MAX . ' { url, credits }.');
         }
-        $known = array_flip(self::fileUrls($bookId));
+        $known = array_flip(self::fileUrls($experienceId));
         $lines = [];
         foreach ($items as $i => $item) {
             $url = is_object($item) ? ($item->url ?? null) : null;
             $credits = is_object($item) ? ($item->credits ?? null) : null;
-            if (!is_string($url) || !isset($known[$url])) throw new ApiError(400, 'invalid-credits', "items[$i].url is no file of the book's Library.");
+            if (!is_string($url) || !isset($known[$url])) throw new ApiError(400, 'invalid-credits', "items[$i].url is no file of the experience's Library.");
             if ($credits !== null && !is_string($credits)) throw new ApiError(400, 'invalid-credits', "items[$i].credits must be text or null.");
             $credits = $credits === null ? '' : trim((string) preg_replace('/\s+/u', ' ', $credits));
             if (mb_strlen($credits) > self::CREDITS_MAX) throw new ApiError(400, 'invalid-credits', "items[$i].credits is longer than " . self::CREDITS_MAX . ' characters.');
             $lines[$url] = $credits === '' ? null : $credits;
         }
         $now = Editor::nowMs();
-        Db::transaction(static function () use ($bookId, $lines, $user, $now) {
+        Db::transaction(static function () use ($experienceId, $lines, $user, $now) {
             foreach ($lines as $url => $credits) {
-                Db::run('DELETE FROM asset_credits WHERE book_id = :book AND url = :url', ['book' => $bookId, 'url' => (string) $url]);
+                Db::run('DELETE FROM asset_credits WHERE experience_id = :experience AND url = :url', ['experience' => $experienceId, 'url' => (string) $url]);
                 if ($credits !== null) {
-                    Db::run('INSERT INTO asset_credits (book_id, url, credits, updated_by, updated_at) VALUES (:book, :url, :credits, :by, :at)',
-                        ['book' => $bookId, 'url' => (string) $url, 'credits' => $credits, 'by' => $user['id'], 'at' => $now]);
+                    Db::run('INSERT INTO asset_credits (experience_id, url, credits, updated_by, updated_at) VALUES (:experience, :url, :credits, :by, :at)',
+                        ['experience' => $experienceId, 'url' => (string) $url, 'credits' => $credits, 'by' => $user['id'], 'at' => $now]);
                 }
             }
         });
         Http::json(200, ['saved' => count($lines), 'credits' => $lines]);
     }
 
-    /** @return array<string, string> the book's credits lines by file URL */
-    public static function creditsOf(string $bookId): array
+    /** @return array<string, string> the experience's credits lines by file URL */
+    public static function creditsOf(string $experienceId): array
     {
         $result = [];
-        foreach (Db::run('SELECT url, credits FROM asset_credits WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+        foreach (Db::run('SELECT url, credits FROM asset_credits WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll() as $row) {
             $result[(string) $row['url']] = (string) $row['credits'];
         }
         return $result;
     }
 
     /** @return list<string> the URLs the Library lists: the uploaded files and the import's */
-    private static function fileUrls(string $bookId): array
+    private static function fileUrls(string $experienceId): array
     {
-        return array_column(self::libraryFiles($bookId), 'url');
+        return array_column(self::libraryFiles($experienceId), 'url');
     }
 
     /**
@@ -146,13 +146,13 @@ final class Assets
      * from `asset_names` when it has one, #298)
      * @return list<array{id: string, url: string, name: string, imported: bool}>
      */
-    public static function libraryFiles(string $bookId): array
+    public static function libraryFiles(string $experienceId): array
     {
         $files = [];
-        foreach (Db::run('SELECT id, url, name FROM assets WHERE book_id = :book AND status = :status ORDER BY created_at, id', ['book' => $bookId, 'status' => 'active'])->fetchAll() as $row) {
+        foreach (Db::run('SELECT id, url, name FROM assets WHERE experience_id = :experience AND status = :status ORDER BY created_at, id', ['experience' => $experienceId, 'status' => 'active'])->fetchAll() as $row) {
             $files[] = ['id' => (string) $row['id'], 'url' => (string) $row['url'], 'name' => (string) $row['name'], 'imported' => false];
         }
-        foreach (self::imported($bookId, null) as $file) {
+        foreach (self::imported($experienceId, null) as $file) {
             $files[] = ['id' => (string) $file['id'], 'url' => (string) $file['url'], 'name' => (string) $file['name'], 'imported' => true];
         }
         return $files;
@@ -162,34 +162,34 @@ final class Assets
      * The images the Library lists (uploaded and imported), each URL with its name – what a page image may show (#251)
      * @return array<string, string>
      */
-    public static function imageNames(string $bookId): array
+    public static function imageNames(string $experienceId): array
     {
         $names = [];
-        foreach (Db::run('SELECT url, name FROM assets WHERE book_id = :book AND kind = :kind AND status = :status', ['book' => $bookId, 'kind' => 'image', 'status' => 'active'])->fetchAll() as $row) {
+        foreach (Db::run('SELECT url, name FROM assets WHERE experience_id = :experience AND kind = :kind AND status = :status', ['experience' => $experienceId, 'kind' => 'image', 'status' => 'active'])->fetchAll() as $row) {
             $names[(string) $row['url']] = (string) $row['name'];
         }
-        foreach (self::imported($bookId, 'image') as $file) $names[(string) $file['url']] ??= (string) $file['name'];
+        foreach (self::imported($experienceId, 'image') as $file) $names[(string) $file['url']] ??= (string) $file['name'];
         return $names;
     }
 
     /**
-     * The files of the book's import (its `files.json`, keys below the assets base like the content): images, videos,
+     * The files of the experience's import (its `files.json`, keys below the assets base like the content): images, videos,
      * models and sounds the stage uses although nobody uploaded them. Read-only – their ids are no uuids, so replace, usages and
      * delete answer 404; replacing one is the content build's business (`imported: true`, id `import-<hash of the url>`, version 1, no dimensions).
      * `usages` counts the file's uses in `$uses` (`AssetNames::usesOf`, by Library URL) – 0 without them.
      * @param ?array<string, list<array<string, mixed>>> $uses
      * @return array<int, array<string, mixed>>
      */
-    private static function imported(string $bookId, ?string $kind, ?array $uses = null): array
+    private static function imported(string $experienceId, ?string $kind, ?array $uses = null): array
     {
-        $book = Db::one('SELECT files_json, assets_base, updated_at, created_at FROM books WHERE id = :id', ['id' => $bookId]);
-        $files = Editor::decode($book['files_json'] ?? null);
+        $experience = Db::one('SELECT files_json, assets_base, updated_at, created_at FROM experiences WHERE id = :id', ['id' => $experienceId]);
+        $files = Editor::decode($experience['files_json'] ?? null);
         if (!$files instanceof stdClass) return [];
-        $base = rtrim((string) $book['assets_base'], '/');
-        $at = Editor::iso((int) $book['updated_at']);
+        $base = rtrim((string) $experience['assets_base'], '/');
+        $at = Editor::iso((int) $experience['updated_at']);
         $result = [];
         // A name given by use (#298, `AssetNames`) replaces the file's own in the list – the URL stays the import's
-        $names = AssetNames::importedNames($bookId);
+        $names = AssetNames::importedNames($experienceId);
         // the list shows the URL below the assets base, the rows name the content path (`/assets/content/…`) – `usesOf` knows both (#121)
         $paths = array_keys(get_object_vars($files));
         $urls = $base !== '' ? array_keys(get_object_vars(ContentVersion::rewriteFiles($files, $base))) : $paths;
@@ -210,55 +210,55 @@ final class Assets
     }
 
     /**
-     * A picture of the book's Library (an entry's image): the URL of an uploaded image, or a file of the import – its
+     * A picture of the experience's Library (an entry's image): the URL of an uploaded image, or a file of the import – its
      * content path (`/assets/content/…`) or its URL below the assets base, as the Library lists it
      */
-    public static function isBookImage(string $bookId, string $url): bool
+    public static function isExperienceImage(string $experienceId, string $url): bool
     {
-        $uploaded = Db::value('SELECT id FROM assets WHERE book_id = :book AND url = :url AND kind = :kind AND status = :status',
-            ['book' => $bookId, 'url' => $url, 'kind' => 'image', 'status' => 'active']);
+        $uploaded = Db::value('SELECT id FROM assets WHERE experience_id = :experience AND url = :url AND kind = :kind AND status = :status',
+            ['experience' => $experienceId, 'url' => $url, 'kind' => 'image', 'status' => 'active']);
         if ($uploaded !== null) return true;
-        foreach (self::imported($bookId, 'image') as $file) {
+        foreach (self::imported($experienceId, 'image') as $file) {
             if ($file['url'] === $url) return true;
         }
-        $book = Db::one('SELECT files_json FROM books WHERE id = :id', ['id' => $bookId]);
-        $files = Editor::decode($book['files_json'] ?? null);
+        $experience = Db::one('SELECT files_json FROM experiences WHERE id = :id', ['id' => $experienceId]);
+        $files = Editor::decode($experience['files_json'] ?? null);
         $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?: $url, PATHINFO_EXTENSION));
         return $files instanceof stdClass && property_exists($files, $url) && (self::KINDS[$extension] ?? null) === 'image';
     }
 
     /**
      * Stores bytes the server made itself (the 3.0 migration's combined reference images, #319) as a Library file of the
-     * book, as an upload stores them: the same bytes are the asset they already are. Inside the caller's transaction for
+     * experience, as an upload stores them: the same bytes are the asset they already are. Inside the caller's transaction for
      * the rows; the file is written first. Returns the asset's URL.
      * @param array<string, mixed> $user
      */
-    public static function storeMade(string $bookId, string $name, string $extension, string $data, array $user): string
+    public static function storeMade(string $experienceId, string $name, string $extension, string $data, array $user): string
     {
         $sha = hash('sha256', $data);
-        $same = Db::one('SELECT url FROM assets WHERE book_id = :book AND sha256 = :sha AND status = :status', ['book' => $bookId, 'sha' => $sha, 'status' => 'active']);
+        $same = Db::one('SELECT url FROM assets WHERE experience_id = :experience AND sha256 = :sha AND status = :status', ['experience' => $experienceId, 'sha' => $sha, 'status' => 'active']);
         if ($same) return (string) $same['url'];
         $id = Db::uuid();
-        $path = self::path($bookId, $id, 1, $extension);
+        $path = self::path($experienceId, $id, 1, $extension);
         $store = ContentStore::for(self::STORE_ENV);
         $url = self::url($store, $path);
         [$width, $height] = self::dimensions($data, $extension);
         $now = Editor::nowMs();
         $row = [
-            'id' => $id, 'book_id' => $bookId, 'name' => $name, 'kind' => self::KINDS[$extension], 'mime' => self::MIMES[$extension],
+            'id' => $id, 'experience_id' => $experienceId, 'name' => $name, 'kind' => self::KINDS[$extension], 'mime' => self::MIMES[$extension],
             'size' => strlen($data), 'sha256' => $sha, 'width' => $width, 'height' => $height, 'duration_ms' => null, 'version' => 1,
             'path' => $path, 'url' => $url, 'status' => 'active', 'created_by' => $user['id'], 'created_at' => $now, 'updated_at' => $now,
         ];
         $store->put($path, $data, self::MIMES[$extension]);
-        Db::run('INSERT INTO assets (id, book_id, name, kind, mime, size, sha256, width, height, duration_ms, version, path, url, status, created_by, created_at, updated_at)
-                 VALUES (:id, :book_id, :name, :kind, :mime, :size, :sha256, :width, :height, :duration_ms, :version, :path, :url, :status, :created_by, :created_at, :updated_at)', $row);
+        Db::run('INSERT INTO assets (id, experience_id, name, kind, mime, size, sha256, width, height, duration_ms, version, path, url, status, created_by, created_at, updated_at)
+                 VALUES (:id, :experience_id, :name, :kind, :mime, :size, :sha256, :width, :height, :duration_ms, :version, :path, :url, :status, :created_by, :created_at, :updated_at)', $row);
         Db::run('INSERT INTO asset_versions (id, asset_id, version, path, url, size, sha256, mime, created_by, created_at) VALUES (:id, :asset, 1, :path, :url, :size, :sha, :mime, :by, :at)',
             ['id' => Db::uuid(), 'asset' => $id, 'path' => $path, 'url' => $url, 'size' => $row['size'], 'sha' => $sha, 'mime' => $row['mime'], 'by' => $user['id'], 'at' => $now]);
         return $url;
     }
 
     /**
-     * POST /editor/books/{id}/assets[?fit=<use>] – the file as the raw body, `X-File-Name: <name.ext>` → 201 { asset, converted },
+     * POST /editor/experiences/{id}/assets[?fit=<use>] – the file as the raw body, `X-File-Name: <name.ext>` → 201 { asset, converted },
      * or 200 with the asset that already holds these bytes, named as this upload names it. A picture (jpg, png, webp) is
      * stored under the image rule (#298, `Images`): WebP, its longest side at most `IMAGE_MAX_SIDE[fit]` (`target` 1200,
      * else 2048), named `<name>.webp`; `converted` says whether that happened (false: no GD on this instance, a file GD
@@ -268,33 +268,33 @@ final class Assets
      * shader TEXT_MAX_BYTES), 413 `image-too-large` (above IMAGE_MAX_PIXELS). A known use names the file (#298 phase 3,
      * `AssetNames`): `&entry=<id>` with `fit=target` / `entryImage` → `<id>_target.webp` / `<id>_image.webp`,
      * `&scene=<id>&surface=<id>` with `fit=reference` → `<scene>_<surface>.webp` (a reference image, #314; 400 `invalid-use`
-     * for no surface of the book).
+     * for no surface of the experience).
      */
-    public static function upload(string $bookId): never
+    public static function upload(string $experienceId): never
     {
         $user = Editor::user();
-        Books::exists($bookId);
+        Experiences::exists($experienceId);
         [$name, $extension, $data, $converted] = self::image(...self::file());
-        $name = self::useName($bookId, $name, $extension);
+        $name = self::useName($experienceId, $name, $extension);
         $sha = hash('sha256', $data);
-        $same = Db::one('SELECT * FROM assets WHERE book_id = :book AND sha256 = :sha AND status = :status', ['book' => $bookId, 'sha' => $sha, 'status' => 'active']);
+        $same = Db::one('SELECT * FROM assets WHERE experience_id = :experience AND sha256 = :sha AND status = :status', ['experience' => $experienceId, 'sha' => $sha, 'status' => 'active']);
         if ($same) {
             // The file keeps its place and its uses; it is listed under the name it was uploaded with last
             if ($same['name'] !== $name) {
                 $same = ['name' => $name, 'updated_at' => Editor::nowMs()] + $same;
                 Db::run('UPDATE assets SET name = :name, updated_at = :now WHERE id = :id', ['name' => $name, 'now' => $same['updated_at'], 'id' => $same['id']]);
             }
-            Http::json(200, ['asset' => self::summary($same, count(self::usagesOf($bookId, $same))), 'converted' => $converted]);
+            Http::json(200, ['asset' => self::summary($same, count(self::usagesOf($experienceId, $same))), 'converted' => $converted]);
         }
         $id = Db::uuid();
-        $path = self::path($bookId, $id, 1, $extension);
+        $path = self::path($experienceId, $id, 1, $extension);
         $store = ContentStore::for(self::STORE_ENV);
         // The URL before the file: a refusal there (no APP_URL) leaves nothing behind
         $url = self::url($store, $path);
         [$width, $height, $duration] = self::dimensions($data, $extension);
         $now = Editor::nowMs();
         $row = [
-            'id' => $id, 'book_id' => $bookId, 'name' => $name, 'kind' => self::KINDS[$extension], 'mime' => self::MIMES[$extension],
+            'id' => $id, 'experience_id' => $experienceId, 'name' => $name, 'kind' => self::KINDS[$extension], 'mime' => self::MIMES[$extension],
             'size' => strlen($data), 'sha256' => $sha, 'width' => $width, 'height' => $height, 'duration_ms' => $duration, 'version' => 1,
             'path' => $path, 'url' => $url, 'status' => 'active', 'created_by' => $user['id'], 'created_at' => $now, 'updated_at' => $now,
         ];
@@ -302,8 +302,8 @@ final class Assets
         $store->put($path, $data, self::MIMES[$extension]);
         try {
             Db::transaction(function () use ($row, $user, $now) {
-                Db::run('INSERT INTO assets (id, book_id, name, kind, mime, size, sha256, width, height, duration_ms, version, path, url, status, created_by, created_at, updated_at)
-                         VALUES (:id, :book_id, :name, :kind, :mime, :size, :sha256, :width, :height, :duration_ms, :version, :path, :url, :status, :created_by, :created_at, :updated_at)', $row);
+                Db::run('INSERT INTO assets (id, experience_id, name, kind, mime, size, sha256, width, height, duration_ms, version, path, url, status, created_by, created_at, updated_at)
+                         VALUES (:id, :experience_id, :name, :kind, :mime, :size, :sha256, :width, :height, :duration_ms, :version, :path, :url, :status, :created_by, :created_at, :updated_at)', $row);
                 Db::run('INSERT INTO asset_versions (id, asset_id, version, path, url, size, sha256, mime, created_by, created_at) VALUES (:id, :asset, 1, :path, :url, :size, :sha, :mime, :by, :at)',
                     ['id' => Db::uuid(), 'asset' => $row['id'], 'path' => $row['path'], 'url' => $row['url'], 'size' => $row['size'], 'sha' => $row['sha256'], 'mime' => $row['mime'], 'by' => $user['id'], 'at' => $now]);
             });
@@ -315,30 +315,30 @@ final class Assets
     }
 
     /**
-     * PUT /editor/books/{id}/assets/{assetId}/file[?fit=<use>] – the new file as the raw body (`X-File-Name` optional, the
-     * kind must stay) → { asset, relinked, converted }: a new version at a new path; every use in the book's rows now names
+     * PUT /editor/experiences/{id}/assets/{assetId}/file[?fit=<use>] – the new file as the raw body (`X-File-Name` optional, the
+     * kind must stay) → { asset, relinked, converted }: a new version at a new path; every use in the experience's rows now names
      * it. A picture goes under the image rule as an upload does.
      */
-    public static function replace(string $bookId, string $assetId): never
+    public static function replace(string $experienceId, string $assetId): never
     {
         $user = Editor::user();
-        $asset = self::row($bookId, $assetId);
+        $asset = self::row($experienceId, $assetId);
         [$name, $extension, $data] = self::file($asset['name']);
         if (self::KINDS[$extension] !== $asset['kind']) {
             throw new ApiError(400, 'invalid-file', "A {$asset['kind']} asset can only be replaced by a {$asset['kind']} file.");
         }
         [$name, $extension, $data, $converted] = self::image($name, $extension, $data);
-        $name = self::useName($bookId, $name, $extension);
+        $name = self::useName($experienceId, $name, $extension);
         $store = ContentStore::for(self::STORE_ENV);
         [$width, $height, $duration] = self::dimensions($data, $extension);
         $now = Editor::nowMs();
         // The asset's row locked from reading its version to the new version's rows: a parallel replace waits and takes the
         // next number instead of writing the same path. The file goes first; rows that cannot be written take it with them
         // – inside the transaction, while no other replace can have written that path.
-        [$url, $relinked] = Db::transaction(function () use ($bookId, $assetId, $name, $extension, $data, $width, $height, $duration, $now, $user, $store) {
-            $current = self::row($bookId, $assetId, true);
+        [$url, $relinked] = Db::transaction(function () use ($experienceId, $assetId, $name, $extension, $data, $width, $height, $duration, $now, $user, $store) {
+            $current = self::row($experienceId, $assetId, true);
             $version = (int) $current['version'] + 1;
-            $path = self::path($bookId, $assetId, $version, $extension);
+            $path = self::path($experienceId, $assetId, $version, $extension);
             $url = self::url($store, $path);
             $store->put($path, $data, self::MIMES[$extension]);
             try {
@@ -347,46 +347,46 @@ final class Assets
                      'version' => $version, 'path' => $path, 'url' => $url, 'now' => $now, 'id' => $assetId]);
                 Db::run('INSERT INTO asset_versions (id, asset_id, version, path, url, size, sha256, mime, created_by, created_at) VALUES (:id, :asset, :version, :path, :url, :size, :sha, :mime, :by, :at)',
                     ['id' => Db::uuid(), 'asset' => $assetId, 'version' => $version, 'path' => $path, 'url' => $url, 'size' => strlen($data), 'sha' => hash('sha256', $data), 'mime' => self::MIMES[$extension], 'by' => $user['id'], 'at' => $now]);
-                return [$url, self::relink($bookId, $current['url'], $url, $user)];
+                return [$url, self::relink($experienceId, $current['url'], $url, $user)];
             } catch (Throwable $error) {
                 self::deleteFile($store, $path);
                 throw $error;
             }
         });
-        Http::json(200, ['asset' => self::summary(self::row($bookId, $assetId), count(self::usagesOf($bookId, ['url' => $url, 'id' => $assetId]))), 'relinked' => $relinked, 'converted' => $converted]);
+        Http::json(200, ['asset' => self::summary(self::row($experienceId, $assetId), count(self::usagesOf($experienceId, ['url' => $url, 'id' => $assetId]))), 'relinked' => $relinked, 'converted' => $converted]);
     }
 
-    /** GET /editor/books/{id}/assets/{assetId}/usages → { usages: [{ kind, ref }], asset } (the asset as the list has it) */
-    public static function usages(string $bookId, string $assetId): never
+    /** GET /editor/experiences/{id}/assets/{assetId}/usages → { usages: [{ kind, ref }], asset } (the asset as the list has it) */
+    public static function usages(string $experienceId, string $assetId): never
     {
         Editor::user();
-        $asset = self::row($bookId, $assetId);
-        $usages = self::usagesOf($bookId, $asset);
+        $asset = self::row($experienceId, $assetId);
+        $usages = self::usagesOf($experienceId, $asset);
         Http::json(200, ['usages' => $usages, 'asset' => self::summary($asset, count($usages))]);
     }
 
     /**
-     * DELETE /editor/books/{id}/assets/{assetId}[?force=1] → 204; 409 `asset-in-use` with the usages unless forced. The rows
-     * go in one transaction with a change in the book's log (kind `asset`, `before` = the asset with its versions – as a
+     * DELETE /editor/experiences/{id}/assets/{assetId}[?force=1] → 204; 409 `asset-in-use` with the usages unless forced. The rows
+     * go in one transaction with a change in the experience's log (kind `asset`, `before` = the asset with its versions – as a
      * removal records the files it takes), so a forced delete that leaves rows naming a missing file is in the history;
      * the stored files of every version go after the commit (a store cannot roll back).
      */
-    public static function delete(string $bookId, string $assetId): never
+    public static function delete(string $experienceId, string $assetId): never
     {
         $user = Editor::user();
-        $asset = self::row($bookId, $assetId);
-        $usages = self::usagesOf($bookId, $asset);
+        $asset = self::row($experienceId, $assetId);
+        $usages = self::usagesOf($experienceId, $asset);
         if ($usages && ($_GET['force'] ?? '') !== '1') {
             throw new ApiError(409, 'asset-in-use', 'The asset is used – remove the uses first, or force the delete.', ['usages' => $usages]);
         }
-        $paths = Db::transaction(static function () use ($bookId, $assetId, $user): array {
-            $asset = self::row($bookId, $assetId, true);
+        $paths = Db::transaction(static function () use ($experienceId, $assetId, $user): array {
+            $asset = self::row($experienceId, $assetId, true);
             $versions = Db::run('SELECT version, path, url FROM asset_versions WHERE asset_id = :id ORDER BY version', ['id' => $assetId])->fetchAll();
             Db::run('DELETE FROM asset_versions WHERE asset_id = :id', ['id' => $assetId]);
             Db::run('DELETE FROM assets WHERE id = :id', ['id' => $assetId]);
             // A forced delete takes the surface reference images that showed it (#314) – a change each
-            SurfaceReferences::dropUrl($bookId, (string) $asset['url'], $user);
-            Books::recordChange($bookId, $user, 'asset', $assetId, Editor::encode(self::before($asset, $versions)), 'null');
+            SurfaceReferences::dropUrl($experienceId, (string) $asset['url'], $user);
+            Experiences::recordChange($experienceId, $user, 'asset', $assetId, Editor::encode(self::before($asset, $versions)), 'null');
             return array_column($versions, 'path');
         });
         Removal::deleteStoredFiles($paths);
@@ -445,10 +445,10 @@ final class Assets
      * The name an upload is listed under when the request names its use (#298 phase 3, `AssetNames::uploadStem`:
      * `?fit=target&entry=p118-1` → `p118-1_target.webp`, `?fit=reference&scene=s118&surface=surface` → `s118_surface.webp`), else `$name`
      */
-    private static function useName(string $bookId, string $name, string $extension): string
+    private static function useName(string $experienceId, string $name, string $extension): string
     {
         $fit = $_GET['fit'] ?? 'default';
-        $stem = is_string($fit) ? AssetNames::uploadStem($bookId, $fit) : null;
+        $stem = is_string($fit) ? AssetNames::uploadStem($experienceId, $fit) : null;
         return $stem === null ? $name : "$stem.$extension";
     }
 
@@ -500,9 +500,9 @@ final class Assets
         if (str_contains($data, "\0") || !preg_match('//u', $data)) throw new ApiError(400, 'invalid-file', "\"$name\" is no text file (UTF-8 without binary bytes).");
     }
 
-    private static function path(string $bookId, string $assetId, int $version, string $extension): string
+    private static function path(string $experienceId, string $assetId, int $version, string $extension): string
     {
-        return "$bookId/$assetId/v$version.$extension";
+        return "$experienceId/$assetId/v$version.$extension";
     }
 
     /** The public URL of a stored file: the CDN's base for the zone, the API's own content route for the local folder */
@@ -515,13 +515,13 @@ final class Assets
     }
 
     /**
-     * The public folder of a book's uploads (`…/assets/<book>/`, every file of the Library lies below it) – "" where this
+     * The public folder of an experience's uploads (`…/assets/<experience>/`, every file of the Library lies below it) – "" where this
      * instance has no public URL for stored files
      */
-    public static function folderUrl(string $bookId): string
+    public static function folderUrl(string $experienceId): string
     {
         try {
-            return self::url(ContentStore::for(self::STORE_ENV), "$bookId/");
+            return self::url(ContentStore::for(self::STORE_ENV), "$experienceId/");
         } catch (ApiError) {
             return '';
         }
@@ -551,10 +551,10 @@ final class Assets
      * The asset's row, else 404. `$lock` (inside a transaction that changes it) locks it – `Db::forUpdate()`.
      * @return array<string, mixed>
      */
-    private static function row(string $bookId, string $assetId, bool $lock = false): array
+    private static function row(string $experienceId, string $assetId, bool $lock = false): array
     {
-        $row = Db::one('SELECT * FROM assets WHERE book_id = :book AND id = :id AND status = :status' . ($lock ? Db::forUpdate() : ''),
-            ['book' => $bookId, 'id' => $assetId, 'status' => 'active']);
+        $row = Db::one('SELECT * FROM assets WHERE experience_id = :experience AND id = :id AND status = :status' . ($lock ? Db::forUpdate() : ''),
+            ['experience' => $experienceId, 'id' => $assetId, 'status' => 'active']);
         if (!$row) throw new ApiError(404, 'not-found', 'No such asset.');
         return $row;
     }
@@ -570,27 +570,27 @@ final class Assets
     }
 
     /**
-     * Where the asset's current URL is used in the book: { kind, ref } per use, in page order – what `AssetNames::usesOf`
+     * Where the asset's current URL is used in the experience: { kind, ref } per use, in page order – what `AssetNames::usesOf`
      * finds (#298: the one source of truth the Library's count, the delete check, the names and the Library's place share;
      * docs/server.md "What counts as a use"). `$uses` = that function's result when the caller has it already.
      * @param array<string, mixed> $asset
      * @param ?array<string, list<array<string, mixed>>> $uses
      * @return list<array{kind: string, ref: string}>
      */
-    public static function usagesOf(string $bookId, array $asset, ?array $uses = null): array
+    public static function usagesOf(string $experienceId, array $asset, ?array $uses = null): array
     {
-        $uses ??= AssetNames::usesOf($bookId);
+        $uses ??= AssetNames::usesOf($experienceId);
         return array_map(static fn(array $use) => ['kind' => (string) $use['kind'], 'ref' => (string) $use['ref']], $uses[(string) $asset['url']] ?? []);
     }
 
     /** Every row naming `$from` now names `$to` (a change per row); returns how many rows changed */
-    private static function relink(string $bookId, string $from, string $to, array $user): int
+    private static function relink(string $experienceId, string $from, string $to, array $user): int
     {
         $count = 0;
         $swap = static fn(string $json): string => str_replace(Editor::encode($from), Editor::encode($to), $json);
-        // The book's environment (its world model or sky): only that field of the book's JSON, nothing else of the book
-        $book = Db::one('SELECT book_json FROM books WHERE id = :id' . Db::forUpdate(), ['id' => $bookId]);
-        $decoded = Editor::decode($book['book_json'] ?? null);
+        // The experience's environment (its world model or sky): only that field of the experience's JSON, nothing else of the experience
+        $experience = Db::one('SELECT experience_json FROM experiences WHERE id = :id' . Db::forUpdate(), ['id' => $experienceId]);
+        $decoded = Editor::decode($experience['experience_json'] ?? null);
         if ($decoded instanceof stdClass && ($decoded->environment ?? null) instanceof stdClass) {
             $changed = false;
             foreach (['worldSrc', 'skySrc'] as $key) {
@@ -600,46 +600,46 @@ final class Assets
             }
             if ($changed) {
                 $json = Editor::encode($decoded);
-                Db::run('UPDATE books SET book_json = :book WHERE id = :id', ['book' => $json, 'id' => $bookId]);
-                Books::recordChange($bookId, $user, 'environment', $bookId, $book['book_json'], $json);
+                Db::run('UPDATE experiences SET experience_json = :experience WHERE id = :id', ['experience' => $json, 'id' => $experienceId]);
+                Experiences::recordChange($experienceId, $user, 'environment', $experienceId, $experience['experience_json'], $json);
                 $count++;
             }
         }
-        foreach (Db::run('SELECT id, image_src, data_json FROM targets WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+        foreach (Db::run('SELECT id, image_src, data_json FROM targets WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll() as $row) {
             $json = $swap($row['data_json']);
             $image = $row['image_src'] === $from ? $to : $row['image_src'];
             if ($json === $row['data_json'] && $image === $row['image_src']) continue;
-            Db::run('UPDATE targets SET image_src = :image, data_json = :data WHERE book_id = :book AND id = :id', ['image' => $image, 'data' => $json, 'book' => $bookId, 'id' => $row['id']]);
-            Books::recordChange($bookId, $user, 'target', $row['id'], $row['data_json'], $json);
+            Db::run('UPDATE targets SET image_src = :image, data_json = :data WHERE experience_id = :experience AND id = :id', ['image' => $image, 'data' => $json, 'experience' => $experienceId, 'id' => $row['id']]);
+            Experiences::recordChange($experienceId, $user, 'target', $row['id'], $row['data_json'], $json);
             $count++;
         }
-        foreach (Db::run('SELECT ref, data_json FROM entities WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+        foreach (Db::run('SELECT ref, data_json FROM entities WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll() as $row) {
             $json = $swap($row['data_json']);
             if ($json === $row['data_json']) continue;
-            Db::run('UPDATE entities SET data_json = :data WHERE book_id = :book AND ref = :ref', ['data' => $json, 'book' => $bookId, 'ref' => $row['ref']]);
-            Books::recordChange($bookId, $user, 'entity', $row['ref'], $row['data_json'], $json);
+            Db::run('UPDATE entities SET data_json = :data WHERE experience_id = :experience AND ref = :ref', ['data' => $json, 'experience' => $experienceId, 'ref' => $row['ref']]);
+            Experiences::recordChange($experienceId, $user, 'entity', $row['ref'], $row['data_json'], $json);
             $count++;
         }
-        foreach (Db::run('SELECT id, data_json FROM entries WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+        foreach (Db::run('SELECT id, data_json FROM entries WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll() as $row) {
             $json = $swap($row['data_json']);
             if ($json === $row['data_json']) continue;
-            Db::run('UPDATE entries SET data_json = :data WHERE book_id = :book AND id = :id', ['data' => $json, 'book' => $bookId, 'id' => $row['id']]);
-            Books::recordChange($bookId, $user, 'entry', $row['id'], $row['data_json'], $json);
+            Db::run('UPDATE entries SET data_json = :data WHERE experience_id = :experience AND id = :id', ['data' => $json, 'experience' => $experienceId, 'id' => $row['id']]);
+            Experiences::recordChange($experienceId, $user, 'entry', $row['id'], $row['data_json'], $json);
             $count++;
         }
         // Plugin sources name the URL as plain text (no JSON escaping): a shader's new version reaches the code that loads it
         $now = Editor::nowMs();
-        foreach (Db::run('SELECT id, source FROM plugins WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+        foreach (Db::run('SELECT id, source FROM plugins WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll() as $row) {
             $source = str_replace($from, $to, (string) $row['source']);
             if ($source === $row['source']) continue;
-            Db::run('UPDATE plugins SET source = :source, updated_by = :by, updated_at = :now WHERE book_id = :book AND id = :id',
-                ['source' => $source, 'by' => $user['id'], 'now' => $now, 'book' => $bookId, 'id' => $row['id']]);
-            Books::recordChange($bookId, $user, 'plugin', $row['id'], Editor::encode($row['source']), Editor::encode($source));
+            Db::run('UPDATE plugins SET source = :source, updated_by = :by, updated_at = :now WHERE experience_id = :experience AND id = :id',
+                ['source' => $source, 'by' => $user['id'], 'now' => $now, 'experience' => $experienceId, 'id' => $row['id']]);
+            Experiences::recordChange($experienceId, $user, 'plugin', $row['id'], Editor::encode($row['source']), Editor::encode($source));
             $count++;
         }
-        if ($count) Books::touchBook($bookId);
+        if ($count) Experiences::touchExperience($experienceId);
         // Surface reference images (#314) follow with a change each (revertable)
-        return $count + SurfaceReferences::relink($bookId, $from, $to, $user);
+        return $count + SurfaceReferences::relink($experienceId, $from, $to, $user);
     }
 
     /** @param array<string, mixed> $row */

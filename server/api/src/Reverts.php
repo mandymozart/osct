@@ -3,14 +3,14 @@
 declare(strict_types=1);
 
 /**
- * Reverting saved changes (#312): a change of the log (`changes`, Books::change) is taken back by writing its `before`
+ * Reverting saved changes (#312): a change of the log (`changes`, Experiences::change) is taken back by writing its `before`
  * again – as a **new** change, so nothing is erased and a revert can itself be reverted. Two steps, as the matter and the
  * scene migration: without `apply: true` the plan (nothing written), with it the plan made again and written in one
  * transaction. Every change written by one call shares a change set (`changes.change_set`) and names the change it takes
  * back (`changes.reverts`).
  *
  * - `POST …/changes/{cid}/revert` – one change, with every later change of the **same thing** (the same row; for the
- *   book's own JSON the same fields): those later edits would be lost, so they are reverted first and listed (`later`).
+ *   experience's own JSON the same fields): those later edits would be lost, so they are reverted first and listed (`later`).
  * - `POST …/changes/revert { ids }` – the given changes (the editor's undo / redo step), later ones of the same things too.
  * - `POST …/changes/revert-to { after }` – every change after the given one, newest first: back to the state right after it.
  *
@@ -25,38 +25,38 @@ declare(strict_types=1);
  */
 final class Reverts
 {
-    /** The book's own JSON (`books.book_json`): a change of one of these kinds compares and restores only the fields it changed */
-    private const BOOK_KINDS = ['environment', 'passes', 'appearance', 'book'];
+    /** The experience's own JSON (`experiences.experience_json`): a change of one of these kinds compares and restores only the fields it changed */
+    private const EXPERIENCE_KINDS = ['environment', 'passes', 'appearance', 'experience'];
     /** Kinds of rows the log can restore */
     private const ROW_KINDS = ['entity', 'target', 'entry', 'scene'];
     /** At most this many changes in one revert */
     public const MAX = 2000;
 
-    /** POST /editor/books/{id}/changes/{cid}/revert { apply? } → { plan, applied, set, written } */
-    public static function one(string $bookId, string $changeId): never
+    /** POST /editor/experiences/{id}/changes/{cid}/revert { apply? } → { plan, applied, set, written } */
+    public static function one(string $experienceId, string $changeId): never
     {
-        self::respond($bookId, static fn(): array => [self::row($bookId, $changeId)]);
+        self::respond($experienceId, static fn(): array => [self::row($experienceId, $changeId)]);
     }
 
-    /** POST /editor/books/{id}/changes/revert { ids, apply? } → { plan, applied, set, written } */
-    public static function many(string $bookId): never
+    /** POST /editor/experiences/{id}/changes/revert { ids, apply? } → { plan, applied, set, written } */
+    public static function many(string $experienceId): never
     {
         $body = Editor::body();
         $ids = $body->ids ?? null;
         if (!is_array($ids) || !$ids || count($ids) > self::MAX || array_filter($ids, static fn($id) => !is_string($id))) {
             throw new ApiError(400, 'invalid-revert', 'Send { ids: [change ids] } (at most ' . self::MAX . ').');
         }
-        self::respond($bookId, static fn(): array => array_map(static fn(string $id) => self::row($bookId, $id), array_values(array_unique($ids))), $body);
+        self::respond($experienceId, static fn(): array => array_map(static fn(string $id) => self::row($experienceId, $id), array_values(array_unique($ids))), $body);
     }
 
-    /** POST /editor/books/{id}/changes/revert-to { after, apply? } → { plan, applied, set, written }: every change after `after` */
-    public static function to(string $bookId): never
+    /** POST /editor/experiences/{id}/changes/revert-to { after, apply? } → { plan, applied, set, written }: every change after `after` */
+    public static function to(string $experienceId): never
     {
         $body = Editor::body();
         if (!is_string($body->after ?? null)) throw new ApiError(400, 'invalid-revert', 'Send { after: change id } – every change after it is reverted.');
-        self::respond($bookId, static function () use ($bookId, $body): array {
-            $point = self::row($bookId, $body->after);
-            $rows = self::rowsAfter($bookId, (int) $point['created_at']);
+        self::respond($experienceId, static function () use ($experienceId, $body): array {
+            $point = self::row($experienceId, $body->after);
+            $rows = self::rowsAfter($experienceId, (int) $point['created_at']);
             if (!$rows) throw new ApiError(400, 'nothing-to-revert', 'No change was saved after this one.');
             return $rows;
         }, $body);
@@ -94,7 +94,7 @@ final class Reverts
             return $a === $b ? null : 'The scenes changed with this order – move them instead.';
         }
         if ($kind === 'groups') return is_array($before) && is_array($after) ? null : 'Not revertable.';
-        if (in_array($kind, self::BOOK_KINDS, true)) return $before instanceof stdClass && $after instanceof stdClass ? null : 'Not revertable.';
+        if (in_array($kind, self::EXPERIENCE_KINDS, true)) return $before instanceof stdClass && $after instanceof stdClass ? null : 'Not revertable.';
         if (!in_array($kind, self::ROW_KINDS, true)) return 'Not revertable.';
         if (!$before instanceof stdClass || !$after instanceof stdClass) return 'Not revertable.';
         // Saved before the content schema 3.0 (#319): its rows held pages, a target's print – nothing to write back now
@@ -114,17 +114,17 @@ final class Reverts
      * thing, newest first
      * @param callable(): list<array<string, mixed>> $pick
      */
-    private static function respond(string $bookId, callable $pick, ?stdClass $body = null): never
+    private static function respond(string $experienceId, callable $pick, ?stdClass $body = null): never
     {
         $user = Editor::user();
-        Books::exists($bookId);
+        Experiences::exists($experienceId);
         $body ??= trim((string) file_get_contents('php://input')) === '' ? new stdClass() : Editor::body();
         $apply = ($body->apply ?? false) === true;
-        $run = static function () use ($bookId, $pick, $apply, $user): array {
+        $run = static function () use ($experienceId, $pick, $apply, $user): array {
             $chosen = $pick();
-            $rows = self::withLater($bookId, $chosen);
+            $rows = self::withLater($experienceId, $chosen);
             if (count($rows) > self::MAX) throw new ApiError(400, 'too-many', 'More than ' . self::MAX . ' changes – go back in smaller steps.');
-            return self::plan($bookId, $rows, array_map(static fn(array $r) => (string) $r['id'], $chosen), $user, $apply);
+            return self::plan($experienceId, $rows, array_map(static fn(array $r) => (string) $r['id'], $chosen), $user, $apply);
         };
         $result = $apply ? Db::transaction($run) : $run();
         Http::json(200, $result);
@@ -135,13 +135,13 @@ final class Reverts
      * @param list<array<string, mixed>> $chosen
      * @return list<array<string, mixed>>
      */
-    private static function withLater(string $bookId, array $chosen): array
+    private static function withLater(string $experienceId, array $chosen): array
     {
         if (!$chosen) return [];
         $oldest = min(array_map(static fn(array $r) => (int) $r['created_at'], $chosen));
         $byId = [];
         foreach ($chosen as $row) $byId[(string) $row['id']] = $row;
-        $later = self::rowsAfter($bookId, $oldest - 1);
+        $later = self::rowsAfter($experienceId, $oldest - 1);
         foreach ($later as $row) {
             if (isset($byId[(string) $row['id']])) continue;
             foreach ($chosen as $c) {
@@ -157,20 +157,20 @@ final class Reverts
     }
 
     /**
-     * Two changes of the same thing: the same row – for the book's JSON, fields both changed
+     * Two changes of the same thing: the same row – for the experience's JSON, fields both changed
      * @param array<string, mixed> $a
      * @param array<string, mixed> $b
      */
     private static function sameThing(array $a, array $b): bool
     {
-        $bookA = in_array($a['kind'], self::BOOK_KINDS, true);
-        $bookB = in_array($b['kind'], self::BOOK_KINDS, true);
-        if ($bookA || $bookB) return $bookA && $bookB && (bool) array_intersect(self::fields($a), self::fields($b));
+        $experienceA = in_array($a['kind'], self::EXPERIENCE_KINDS, true);
+        $experienceB = in_array($b['kind'], self::EXPERIENCE_KINDS, true);
+        if ($experienceA || $experienceB) return $experienceA && $experienceB && (bool) array_intersect(self::fields($a), self::fields($b));
         return $a['kind'] === $b['kind'] && $a['ref'] === $b['ref'];
     }
 
     /**
-     * The fields of the book's JSON a book-level change changed
+     * The fields of the experience's JSON an experience-level change changed
      * @param array<string, mixed> $row
      * @return list<string>
      */
@@ -196,7 +196,7 @@ final class Reverts
      * @param array<string, mixed> $user
      * @return array<string, mixed>
      */
-    private static function plan(string $bookId, array $rows, array $chosen, array $user, bool $apply): array
+    private static function plan(string $experienceId, array $rows, array $chosen, array $user, bool $apply): array
     {
         $set = $apply ? Db::uuid() : null;
         $state = [];
@@ -217,19 +217,19 @@ final class Reverts
                 $counts['notRevertable']++;
                 continue;
             }
-            $key = in_array($row['kind'], self::BOOK_KINDS, true) ? 'book' : $row['kind'] . ':' . $row['ref'];
-            $fields = $key === 'book' ? self::fields($row) : [];
-            $blockedFields = $key === 'book' ? array_intersect($fields, $blocked['book'] ?? []) : [];
-            if ($key === 'book' ? (bool) $blockedFields : isset($blocked[$key])) {
+            $key = in_array($row['kind'], self::EXPERIENCE_KINDS, true) ? 'experience' : $row['kind'] . ':' . $row['ref'];
+            $fields = $key === 'experience' ? self::fields($row) : [];
+            $blockedFields = $key === 'experience' ? array_intersect($fields, $blocked['experience'] ?? []) : [];
+            if ($key === 'experience' ? (bool) $blockedFields : isset($blocked[$key])) {
                 $items[] = $item + ['status' => 'conflict', 'reason' => 'A newer change of the same thing could not be reverted.'];
                 $counts['conflict']++;
-                if ($key === 'book') $blocked['book'] = array_values(array_unique([...$blocked['book'], ...$fields]));
+                if ($key === 'experience') $blocked['experience'] = array_values(array_unique([...$blocked['experience'], ...$fields]));
                 continue;
             }
-            $current = array_key_exists($key, $state) ? $state[$key] : self::read($bookId, $key);
+            $current = array_key_exists($key, $state) ? $state[$key] : self::read($experienceId, $key);
             $after = Editor::decode($row['after_json']);
             $before = Editor::decode($row['before_json']);
-            if ($row['kind'] === SurfaceReferences::KIND && $before !== null && !SurfaceReferences::surfaceExists($bookId, ...SurfaceReferences::split((string) $row['ref']))) {
+            if ($row['kind'] === SurfaceReferences::KIND && $before !== null && !SurfaceReferences::surfaceExists($experienceId, ...SurfaceReferences::split((string) $row['ref']))) {
                 $items[] = $item + ['status' => 'conflict', 'reason' => 'Its scene has no such surface any more.'];
                 $counts['conflict']++;
                 $blocked[$key] = true;
@@ -238,17 +238,17 @@ final class Reverts
             if (!self::holds($current, $after, $fields, $key)) {
                 $items[] = $item + ['status' => 'conflict', 'reason' => $current === null ? 'It is gone from the draft.' : 'It was changed since, outside this log – it is left as it is.'];
                 $counts['conflict']++;
-                if ($key === 'book') $blocked['book'] = array_values(array_unique([...($blocked['book'] ?? []), ...$fields]));
+                if ($key === 'experience') $blocked['experience'] = array_values(array_unique([...($blocked['experience'] ?? []), ...$fields]));
                 else $blocked[$key] = true;
                 continue;
             }
-            $next = $key === 'book' ? self::withFields($current, $before, $fields) : $before;
+            $next = $key === 'experience' ? self::withFields($current, $before, $fields) : $before;
             $state[$key] = $next;
-            if ($apply) $written[] = self::write($bookId, $key, (string) $row['kind'], (string) $row['ref'], $current, $next, $user, (string) $set, (string) $row['id']);
+            if ($apply) $written[] = self::write($experienceId, $key, (string) $row['kind'], (string) $row['ref'], $current, $next, $user, (string) $set, (string) $row['id']);
             $items[] = $item + ['status' => 'revert'];
             $counts['revert']++;
         }
-        if ($apply && $written) Books::touchBook($bookId);
+        if ($apply && $written) Experiences::touchExperience($experienceId);
         return [
             'plan' => ['changes' => $items, 'chosen' => $chosen, 'counts' => $counts, 'later' => $later, 'others' => array_keys($others)],
             'applied' => $apply && (bool) $written,
@@ -257,23 +257,23 @@ final class Reverts
         ];
     }
 
-    /** Whether the thing's current value is what the change wrote (the book: only the fields it changed) */
+    /** Whether the thing's current value is what the change wrote (the experience: only the fields it changed) */
     private static function holds(mixed $current, mixed $after, array $fields, string $key): bool
     {
         // A reference image (#314) may be none (null) before and after
         if (str_starts_with($key, SurfaceReferences::KIND . ':')) return self::canon($current) === self::canon($after);
         if ($current === null) return false;
-        if ($key !== 'book') return self::canon($current) === self::canon($after);
+        if ($key !== 'experience') return self::canon($current) === self::canon($after);
         foreach ($fields as $field) {
             if (self::canon($current->{$field} ?? null) !== self::canon($after->{$field} ?? null)) return false;
         }
         return true;
     }
 
-    /** The book's JSON with `$fields` as `$from` has them (a field `$from` has not is removed) */
-    private static function withFields(stdClass $book, stdClass $from, array $fields): stdClass
+    /** The experience's JSON with `$fields` as `$from` has them (a field `$from` has not is removed) */
+    private static function withFields(stdClass $experience, stdClass $from, array $fields): stdClass
     {
-        $next = clone $book;
+        $next = clone $experience;
         foreach ($fields as $field) {
             if (property_exists($from, $field)) $next->{$field} = $from->{$field};
             else unset($next->{$field});
@@ -282,23 +282,23 @@ final class Reverts
     }
 
     /** The thing's value now, as the log stores it (null: the row is gone) */
-    private static function read(string $bookId, string $key): mixed
+    private static function read(string $experienceId, string $key): mixed
     {
-        $params = ['book' => $bookId];
-        if ($key === 'book') return Editor::decode((string) Books::bookRow($bookId, true)['book_json']);
-        if ($key === 'groups:' . $bookId) return Editor::decode((string) (Books::bookRow($bookId, true)['groups_json'] ?? '[]'));
-        if ($key === 'order:' . $bookId) return array_map(static fn(array $row) => (string) $row['id'], Scenes::context($bookId, true)['rows']);
+        $params = ['experience' => $experienceId];
+        if ($key === 'experience') return Editor::decode((string) Experiences::experienceRow($experienceId, true)['experience_json']);
+        if ($key === 'groups:' . $experienceId) return Editor::decode((string) (Experiences::experienceRow($experienceId, true)['groups_json'] ?? '[]'));
+        if ($key === 'order:' . $experienceId) return array_map(static fn(array $row) => (string) $row['id'], Scenes::context($experienceId, true)['rows']);
         [$kind, $ref] = explode(':', $key, 2);
         if ($kind === SurfaceReferences::KIND) {
             [$scene, $surface] = SurfaceReferences::split($ref);
-            $reference = SurfaceReferences::one($bookId, $scene, $surface, true);
+            $reference = SurfaceReferences::one($experienceId, $scene, $surface, true);
             return $reference === null ? null : (object) $reference;
         }
         $sql = match ($kind) {
-            'entity' => 'SELECT data_json FROM entities WHERE book_id = :book AND ref = :id',
-            'target' => 'SELECT data_json FROM targets WHERE book_id = :book AND id = :id',
-            'entry' => 'SELECT data_json FROM entries WHERE book_id = :book AND id = :id',
-            'scene' => 'SELECT data_json FROM scenes WHERE book_id = :book AND id = :id',
+            'entity' => 'SELECT data_json FROM entities WHERE experience_id = :experience AND ref = :id',
+            'target' => 'SELECT data_json FROM targets WHERE experience_id = :experience AND id = :id',
+            'entry' => 'SELECT data_json FROM entries WHERE experience_id = :experience AND id = :id',
+            'scene' => 'SELECT data_json FROM scenes WHERE experience_id = :experience AND id = :id',
             default => null,
         };
         if ($sql === null) return null;
@@ -310,55 +310,55 @@ final class Reverts
      * Write the thing's restored value and record it as a new change of the set; returns the new change's id
      * @param array<string, mixed> $user
      */
-    private static function write(string $bookId, string $key, string $kind, string $ref, mixed $current, mixed $next, array $user, string $set, string $reverts): string
+    private static function write(string $experienceId, string $key, string $kind, string $ref, mixed $current, mixed $next, array $user, string $set, string $reverts): string
     {
         $json = Editor::encode($next);
         $before = Editor::encode($current);
-        $params = ['book' => $bookId];
-        if ($key === 'book') {
-            Db::run('UPDATE books SET title = :title, author = :author, book_json = :data WHERE id = :book',
-                $params + ['title' => (string) ($next->title ?? ''), 'author' => (string) ($next->author ?? ''), 'data' => $json]);
+        $params = ['experience' => $experienceId];
+        if ($key === 'experience') {
+            Db::run('UPDATE experiences SET title = :title, experience_json = :data WHERE id = :experience',
+                $params + ['title' => (string) ($next->title ?? ''), 'data' => $json]);
         } elseif ($kind === 'groups') {
-            Db::run('UPDATE books SET groups_json = :data WHERE id = :book', $params + ['data' => $json]);
+            Db::run('UPDATE experiences SET groups_json = :data WHERE id = :experience', $params + ['data' => $json]);
         } elseif ($kind === 'order') {
-            Scenes::writePositions($bookId, Scenes::context($bookId)['rows'], $next);
+            Scenes::writePositions($experienceId, Scenes::context($experienceId)['rows'], $next);
         } elseif ($kind === 'entity') {
-            Db::run('UPDATE entities SET type = :type, data_json = :data WHERE book_id = :book AND ref = :id', $params + ['type' => (string) ($next->type ?? ''), 'data' => $json, 'id' => $ref]);
+            Db::run('UPDATE entities SET type = :type, data_json = :data WHERE experience_id = :experience AND ref = :id', $params + ['type' => (string) ($next->type ?? ''), 'data' => $json, 'id' => $ref]);
         } elseif ($kind === 'target') {
             $entity = $next->entity ?? null;
             $entityRef = $entity instanceof stdClass && is_string($entity->ref ?? null) && !isset($entity->type) ? $entity->ref : null;
-            Db::run('UPDATE targets SET entity_ref = :ref, image_src = :image, data_json = :data WHERE book_id = :book AND id = :id',
+            Db::run('UPDATE targets SET entity_ref = :ref, image_src = :image, data_json = :data WHERE experience_id = :experience AND id = :id',
                 $params + ['ref' => $entityRef, 'image' => (string) ($next->imageSrc ?? ''), 'data' => $json, 'id' => $ref]);
         } elseif ($kind === 'entry') {
-            Db::run('UPDATE entries SET category = :category, title = :title, data_json = :data WHERE book_id = :book AND id = :id',
+            Db::run('UPDATE entries SET category = :category, title = :title, data_json = :data WHERE experience_id = :experience AND id = :id',
                 $params + ['category' => (string) ($next->category ?? ''), 'title' => (string) ($next->title ?? ''), 'data' => $json, 'id' => $ref]);
         } elseif ($kind === 'scene') {
-            Db::run('UPDATE scenes SET label = :label, data_json = :data WHERE book_id = :book AND id = :id', $params + ['label' => (string) ($next->label ?? ''), 'data' => $json, 'id' => $ref]);
+            Db::run('UPDATE scenes SET label = :label, data_json = :data WHERE experience_id = :experience AND id = :id', $params + ['label' => (string) ($next->label ?? ''), 'data' => $json, 'id' => $ref]);
         } elseif ($kind === SurfaceReferences::KIND) {
             [$scene, $surface] = SurfaceReferences::split($ref);
             $reference = $next instanceof stdClass ? ['url' => (string) $next->url, 'name' => (string) ($next->name ?? ''), 'fit' => (string) ($next->fit ?? SurfaceReferences::FIT_DEFAULT)] : null;
-            SurfaceReferences::write($bookId, $scene, $surface, $reference, $user['id']);
+            SurfaceReferences::write($experienceId, $scene, $surface, $reference, $user['id']);
         }
-        return Books::recordChange($bookId, $user, $kind, $ref, $before, $json, $set, $reverts);
+        return Experiences::recordChange($experienceId, $user, $kind, $ref, $before, $json, $set, $reverts);
     }
 
     // ── the log's rows ──────────────────────────────────────────────────────────────────────────
 
-    /** @return array<string, mixed> one change of the book, else 404 */
-    private static function row(string $bookId, mixed $changeId): array
+    /** @return array<string, mixed> one change of the experience, else 404 */
+    private static function row(string $experienceId, mixed $changeId): array
     {
         if (!is_string($changeId)) throw new ApiError(400, 'invalid-revert', 'A change id is a string.');
-        $row = Db::one('SELECT c.*, u.email FROM changes c LEFT JOIN users u ON u.id = c.user_id WHERE c.book_id = :book AND c.id = :id', ['book' => $bookId, 'id' => $changeId]);
-        if (!$row) throw new ApiError(404, 'not-found', "No change \"$changeId\" in this book's log.");
+        $row = Db::one('SELECT c.*, u.email FROM changes c LEFT JOIN users u ON u.id = c.user_id WHERE c.experience_id = :experience AND c.id = :id', ['experience' => $experienceId, 'id' => $changeId]);
+        if (!$row) throw new ApiError(404, 'not-found', "No change \"$changeId\" in this experience's log.");
         return $row;
     }
 
-    /** @return list<array<string, mixed>> the book's changes saved after `$at` (ms), newest first */
-    private static function rowsAfter(string $bookId, int $at): array
+    /** @return list<array<string, mixed>> the experience's changes saved after `$at` (ms), newest first */
+    private static function rowsAfter(string $experienceId, int $at): array
     {
         $limit = self::MAX + 1;
-        return Db::run("SELECT c.*, u.email FROM changes c LEFT JOIN users u ON u.id = c.user_id WHERE c.book_id = :book AND c.created_at > :at ORDER BY c.created_at DESC, c.id DESC LIMIT $limit",
-            ['book' => $bookId, 'at' => $at])->fetchAll();
+        return Db::run("SELECT c.*, u.email FROM changes c LEFT JOIN users u ON u.id = c.user_id WHERE c.experience_id = :experience AND c.created_at > :at ORDER BY c.created_at DESC, c.id DESC LIMIT $limit",
+            ['experience' => $experienceId, 'at' => $at])->fetchAll();
     }
 
     /** A value as one comparable string: objects' keys sorted (the log and the row may order them differently) */

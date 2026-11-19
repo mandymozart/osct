@@ -4,9 +4,9 @@ declare(strict_types=1);
 /**
  * The second step of a request that replaces or removes content (docs/server.md "Confirmations"): the first call
  * writes nothing and answers 409 with what would happen and a confirmation id; the same call again with
- * `confirm: <id>` does it. One path for people and AI connections – the import over a book that exists
- * (`Books::import`) and the removal of a scene or an entry with everything on it (`Books::deleteScene`,
- * `Books::deleteEntry`).
+ * `confirm: <id>` does it. One path for people and AI connections – the import over an experience that exists
+ * (`Experiences::import`) and the removal of a scene or an entry with everything on it (`Experiences::deleteScene`,
+ * `Experiences::deleteEntry`).
  *
  * An id is `<expires>.<hmac>`: stateless, signed with SECRET over the purpose (what and where), the person, the AI
  * connection (none for a session) and a digest of the state the first answer described. It lasts SECONDS. Anything

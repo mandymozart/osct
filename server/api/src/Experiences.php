@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * The editor's books: a game configuration (content schema 3.0) imported into rows (books, scenes – the `scenes` table –,
+ * The editor's experiences: a game configuration (content schema 3.0) imported into rows (experiences, scenes – the `scenes` table –,
  * entries, targets, entities), read
  * as a tree, edited entity by entity, published as a content version, with a change log and a publish log.
  * Every row keeps the imported object in its data_json column and the assembly (ContentVersion) gives the
@@ -10,26 +10,26 @@ declare(strict_types=1);
  * second copy of the truth. An entry's data_json holds the entry without its target, the target row holds the
  * target with its entity (inline, or `{ ref }` to a shared one); positions keep the imported order.
  */
-final class Books
+final class Experiences
 {
     /** What each environment serves (ContentStore::live), read once per request; false = its store cannot be read */
     private static ?array $live = null;
 
     /**
-     * GET /editor/books → { books: [{ id, title, author, book, initialScene, scenes, updatedAt, lastPublish, live, … }],
-     * environments: [{ env, book, build, since } | { env, error }] } – only the environments that serve something
+     * GET /editor/experiences → { experiences: [{ id, title, author, experience, initialScene, scenes, updatedAt, lastPublish, live, … }],
+     * environments: [{ env, experience, build, since } | { env, error }] } – only the environments that serve something
      */
     public static function list(): never
     {
         Editor::user();
-        $books = [];
-        foreach (Db::run('SELECT * FROM books ORDER BY title, id')->fetchAll() as $row) $books[] = self::summary($row);
+        $experiences = [];
+        foreach (Db::run('SELECT * FROM experiences ORDER BY title, id')->fetchAll() as $row) $experiences[] = self::summary($row);
         $environments = [];
         foreach (self::liveEnvironments() as $env => $live) {
             if ($live === false) $environments[] = ['env' => $env, 'error' => 'content-store-failed'];
             elseif ($live !== null) $environments[] = ['env' => $env] + $live;
         }
-        Http::json(200, ['books' => $books, 'environments' => $environments]);
+        Http::json(200, ['experiences' => $experiences, 'environments' => $environments]);
     }
 
     /**
@@ -43,7 +43,7 @@ final class Books
         Http::json(200, ['env' => Config::env(), 'environments' => ContentStore::describe()]);
     }
 
-    /** @return array<string, array{book: ?string, build: ?string, since: ?string}|null|false> */
+    /** @return array<string, array{experience: ?string, build: ?string, since: ?string}|null|false> */
     private static function liveEnvironments(): array
     {
         if (self::$live === null) {
@@ -60,70 +60,70 @@ final class Books
     }
 
     /**
-     * POST /editor/books/{id}/import { configuration, files?, assetsBase?, confirm? } | { source: "cdn", confirm? }
-     * → { book, counts, draft, imported }
-     * The configuration's `book.id` must be `{id}` (400 invalid-configuration naming both, `bookIdOf`).
-     * Replaces the book's content rows in one transaction (the logs stay). `assetsBase` is where the configuration's
+     * POST /editor/experiences/{id}/import { configuration, files?, assetsBase?, confirm? } | { source: "cdn", confirm? }
+     * → { experience, counts, draft, imported }
+     * The configuration's `experience.id` must be `{id}` (400 invalid-configuration naming both, `experienceIdOf`).
+     * Replaces the experience's content rows in one transaction (the logs stay). `assetsBase` is where the configuration's
      * `/assets/content/…` paths resolve; `source: "cdn"` imports the current version of CONTENT_BASE_URL.
-     * A book that exists is overwritten only in two steps: without `confirm` the answer is 409 confirm-import with the
+     * An experience that exists is overwritten only in two steps: without `confirm` the answer is 409 confirm-import with the
      * `comparison` (what comes in against what the draft is based on and its edits since) and a `confirmation`
      * { id, expiresAt }; the same import again with `confirm: <id>` replaces the draft. The id is bound to the person (and
      * the AI connection), the incoming content and the draft as it was compared, and lasts Confirmation::SECONDS – any
-     * change meanwhile voids it (409 confirmation-void, with a new comparison). A new book is imported at once.
+     * change meanwhile voids it (409 confirmation-void, with a new comparison). A new experience is imported at once.
      */
-    public static function import(string $bookId): never
+    public static function import(string $experienceId): never
     {
         $user = Editor::user();
         $body = Editor::body();
         [$configuration, $files, $assetsBase, $source] = self::source($body);
-        $parts = self::parse($configuration, Plugins::hasSources($bookId));
-        self::bookIdOf($configuration, $bookId);
+        $parts = self::parse($configuration, Plugins::hasSources($experienceId));
+        self::experienceIdOf($configuration, $experienceId);
         $incoming = self::incoming($configuration, $parts, $files, $assetsBase, $source);
-        $existing = Db::one('SELECT * FROM books WHERE id = :id', ['id' => $bookId]);
-        if ($existing !== null) self::confirmImport($bookId, $existing, $incoming, $user, $body->confirm ?? null);
+        $existing = Db::one('SELECT * FROM experiences WHERE id = :id', ['id' => $experienceId]);
+        if ($existing !== null) self::confirmImport($experienceId, $existing, $incoming, $user, $body->confirm ?? null);
         $now = Db::now();
         $imported = Editor::encode(['build' => $incoming['build'], 'hash' => $incoming['hash'], 'date' => $incoming['date'], 'appVersion' => $incoming['appVersion'],
             'schema' => $incoming['schema'], 'source' => $source, 'from' => $incoming['from'], 'at' => Editor::nowMs(), 'by' => $user['email'] ?? null]);
 
-        Db::transaction(function () use ($bookId, $parts, $files, $assetsBase, $now, $imported) {
+        Db::transaction(function () use ($experienceId, $parts, $files, $assetsBase, $now, $imported) {
             foreach (['targets', 'entries', 'scenes', 'entities'] as $table) {
-                Db::run("DELETE FROM $table WHERE book_id = :book", ['book' => $bookId]);
+                Db::run("DELETE FROM $table WHERE experience_id = :experience", ['experience' => $experienceId]);
             }
-            $book = $parts['book'];
+            $experience = $parts['experience'];
             $params = [
-                'id' => $bookId, 'title' => $book->title, 'author' => $book->author, 'book' => Editor::encode($book),
+                'id' => $experienceId, 'title' => $experience->title, 'experience' => Editor::encode($experience),
                 'initial' => $parts['initialScene'], 'base' => $assetsBase,
                 'files' => Editor::encode($files), 'schema' => $parts['schema'], 'hash' => $parts['hash'], 'now' => $now,
                 'plugins' => Editor::encode($parts['plugins']), 'imported' => $imported, 'groups' => Editor::encode(array_values($parts['groups'])),
             ];
-            if (Db::value('SELECT id FROM books WHERE id = :id', ['id' => $bookId]) !== null) {
-                Db::run('UPDATE books SET title = :title, author = :author, book_json = :book, initial_scene = :initial,
+            if (Db::value('SELECT id FROM experiences WHERE id = :id', ['id' => $experienceId]) !== null) {
+                Db::run('UPDATE experiences SET title = :title, experience_json = :experience, initial_scene = :initial,
                          assets_base = :base, files_json = :files, content_schema = :schema, imported_hash = :hash, plugins_json = :plugins, imported_json = :imported, groups_json = :groups, updated_at = :now WHERE id = :id', $params);
             } else {
-                Db::run('INSERT INTO books (id, title, author, book_json, initial_scene, assets_base, files_json, content_schema, imported_hash, plugins_json, imported_json, groups_json, created_at, updated_at)
-                         VALUES (:id, :title, :author, :book, :initial, :base, :files, :schema, :hash, :plugins, :imported, :groups, :created, :now)', $params + ['created' => $now]);
+                Db::run('INSERT INTO experiences (id, title, experience_json, initial_scene, assets_base, files_json, content_schema, imported_hash, plugins_json, imported_json, groups_json, created_at, updated_at)
+                         VALUES (:id, :title, :experience, :initial, :base, :files, :schema, :hash, :plugins, :imported, :groups, :created, :now)', $params + ['created' => $now]);
             }
             foreach ($parts['scenes'] as $s) {
-                Db::run('INSERT INTO scenes (book_id, id, position, label, data_json) VALUES (:book, :id, :position, :label, :data)',
-                    ['book' => $bookId, 'id' => $s['id'], 'position' => $s['position'], 'label' => $s['data']->label, 'data' => Editor::encode($s['data'])]);
+                Db::run('INSERT INTO scenes (experience_id, id, position, label, data_json) VALUES (:experience, :id, :position, :label, :data)',
+                    ['experience' => $experienceId, 'id' => $s['id'], 'position' => $s['position'], 'label' => $s['data']->label, 'data' => Editor::encode($s['data'])]);
             }
             foreach ($parts['entities'] as $e) {
-                Db::run('INSERT INTO entities (book_id, ref, position, type, data_json) VALUES (:book, :ref, :position, :type, :data)',
-                    ['book' => $bookId, 'ref' => $e['ref'], 'position' => $e['position'], 'type' => $e['type'], 'data' => Editor::encode($e['data'])]);
+                Db::run('INSERT INTO entities (experience_id, ref, position, type, data_json) VALUES (:experience, :ref, :position, :type, :data)',
+                    ['experience' => $experienceId, 'ref' => $e['ref'], 'position' => $e['position'], 'type' => $e['type'], 'data' => Editor::encode($e['data'])]);
             }
             foreach ($parts['entries'] as $e) {
-                Db::run('INSERT INTO entries (book_id, id, scene_id, position, category, title, data_json) VALUES (:book, :id, :scene, :position, :category, :title, :data)',
-                    ['book' => $bookId, 'id' => $e['id'], 'scene' => $e['scene'], 'position' => $e['position'], 'category' => $e['category'], 'title' => $e['title'], 'data' => Editor::encode($e['data'])]);
+                Db::run('INSERT INTO entries (experience_id, id, scene_id, position, category, title, data_json) VALUES (:experience, :id, :scene, :position, :category, :title, :data)',
+                    ['experience' => $experienceId, 'id' => $e['id'], 'scene' => $e['scene'], 'position' => $e['position'], 'category' => $e['category'], 'title' => $e['title'], 'data' => Editor::encode($e['data'])]);
             }
             foreach ($parts['targets'] as $t) {
-                Db::run('INSERT INTO targets (book_id, id, entry_id, image_src, entity_ref, data_json) VALUES (:book, :id, :entry, :image, :ref, :data)',
-                    ['book' => $bookId, 'id' => $t['id'], 'entry' => $t['entry'], 'image' => $t['image'], 'ref' => $t['ref'], 'data' => Editor::encode($t['data'])]);
+                Db::run('INSERT INTO targets (experience_id, id, entry_id, image_src, entity_ref, data_json) VALUES (:experience, :id, :entry, :image, :ref, :data)',
+                    ['experience' => $experienceId, 'id' => $t['id'], 'entry' => $t['entry'], 'image' => $t['image'], 'ref' => $t['ref'], 'data' => Editor::encode($t['data'])]);
             }
         });
 
-        $draft = ContentVersion::assemble($bookId);
+        $draft = ContentVersion::assemble($experienceId);
         Http::json(200, [
-            'book' => self::summary(self::book($bookId)),
+            'experience' => self::summary(self::experience($experienceId)),
             'counts' => ['scenes' => count($parts['scenes']), 'entries' => count($parts['entries']), 'targets' => count($parts['targets']), 'entities' => count($parts['entities'])],
             'draft' => ['build' => $draft['build'], 'hash' => $draft['hash']],
             'imported' => self::basedOn(Editor::decode($imported)),
@@ -138,17 +138,17 @@ final class Books
      * CONTENT_BASE_URL (`contentBase`; `manifest` = its latest.json { url, build, activatedAt }) – 502
      * content-fetch-failed with the `url` that failed. `incoming` as in the import's comparison, `counts` the scenes,
      * entries, targets and entities it holds; `existing` = the comparison the import would answer (the draft of that id
-     * it replaces, its edits since its import, where it is live), null when the book is new.
+     * it replaces, its edits since its import, where it is live), null when the experience is new.
      */
     public static function preview(): never
     {
         Editor::user();
         [$configuration, $files, $assetsBase, $source, $manifest] = self::source(Editor::body());
-        $bookId = self::bookIdOf($configuration);
-        $parts = self::parse($configuration, Plugins::hasSources($bookId));
+        $experienceId = self::experienceIdOf($configuration);
+        $parts = self::parse($configuration, Plugins::hasSources($experienceId));
         $incoming = self::incoming($configuration, $parts, $files, $assetsBase, $source);
-        $existing = Db::one('SELECT * FROM books WHERE id = :id', ['id' => $bookId]);
-        $comparison = $existing !== null ? self::comparison($bookId, $existing, $incoming, self::editsSince($bookId, $existing)) : null;
+        $existing = Db::one('SELECT * FROM experiences WHERE id = :id', ['id' => $experienceId]);
+        $comparison = $existing !== null ? self::comparison($experienceId, $existing, $incoming, self::editsSince($experienceId, $existing)) : null;
         unset($incoming['digest']);
         Http::json(200, [
             'source' => $source,
@@ -161,17 +161,17 @@ final class Books
     }
 
     /**
-     * The book a configuration is of: its `book.id` (400 invalid-id unless it is an id). The import stores the rows under
-     * the path's id and keeps the configuration's `book` as it is, so the two must agree – else a publish would name one
-     * book in latest.json and another in game.config.json: 400 invalid-configuration naming both. The preview has no
+     * The experience a configuration is of: its `experience.id` (400 invalid-id unless it is an id). The import stores the rows under
+     * the path's id and keeps the configuration's `experience` as it is, so the two must agree – else a publish would name one
+     * experience in latest.json and another in game.config.json: 400 invalid-configuration naming both. The preview has no
      * path id; it answers for the configuration's own id, the one the import is then called with.
      */
-    private static function bookIdOf(stdClass $configuration, ?string $pathId = null): string
+    private static function experienceIdOf(stdClass $configuration, ?string $pathId = null): string
     {
-        $book = $configuration->book ?? null;
-        $id = Editor::id($book instanceof stdClass ? ($book->id ?? null) : null, 'book.id');
+        $experience = $configuration->experience ?? null;
+        $id = Editor::id($experience instanceof stdClass ? ($experience->id ?? null) : null, 'experience.id');
         if ($pathId !== null && $id !== $pathId) {
-            throw new ApiError(400, 'invalid-configuration', "The configuration is of book \"$id\", not \"$pathId\" – import it as $id, or change its book.id.");
+            throw new ApiError(400, 'invalid-configuration', "The configuration is of experience \"$id\", not \"$pathId\" – import it as $id, or change its experience.id.");
         }
         return $id;
     }
@@ -213,17 +213,17 @@ final class Books
     }
 
     /**
-     * What an import brings in: the book, the build (content checksum, first 12 digits), its date, the app and the
+     * What an import brings in: the experience, the build (content checksum, first 12 digits), its date, the app and the
      * schema version that built it, where it comes from, and a digest of everything the import would write
-     * @return array{book: string, title: string, build: ?string, hash: ?string, date: ?string, appVersion: ?string, schema: string, source: string, from: ?string, digest: string}
+     * @return array{experience: string, title: string, build: ?string, hash: ?string, date: ?string, appVersion: ?string, schema: string, source: string, from: ?string, digest: string}
      */
     private static function incoming(stdClass $configuration, array $parts, stdClass $files, string $assetsBase, string $source): array
     {
         $version = $configuration->version;
         $hash = is_string($parts['hash']) && $parts['hash'] !== '' ? $parts['hash'] : null;
         return [
-            'book' => $parts['book']->id,
-            'title' => $parts['book']->title,
+            'experience' => $parts['experience']->id,
+            'title' => $parts['experience']->title,
             'build' => $hash !== null ? substr($hash, 0, 12) : null,
             'hash' => $hash,
             'date' => is_string($version->timestamp ?? null) ? $version->timestamp : null,
@@ -242,31 +242,31 @@ final class Books
      * @param array<string, mixed> $row
      * @param array<string, mixed> $user
      */
-    private static function confirmImport(string $bookId, array $row, array $incoming, array $user, mixed $confirm): void
+    private static function confirmImport(string $experienceId, array $row, array $incoming, array $user, mixed $confirm): void
     {
-        $edits = self::editsSince($bookId, $row);
+        $edits = self::editsSince($experienceId, $row);
         // What the comparison showed: the draft's import, its last change and the rows' state, and what comes in
         $state = Confirmation::digest([$incoming['digest'], $row['imported_json'] ?? null, $row['imported_hash'], $row['updated_at'], $edits['count'], $edits['last']]);
-        Confirmation::require("import|$bookId", $user, $state, $confirm,
+        Confirmation::require("import|$experienceId", $user, $state, $confirm,
             ['confirm-import', 'Importing replaces the draft of ' . $row['title'] . ' – compare the versions, then import again with confirm: <confirmation id>.'],
             'The confirmation is expired, someone else\'s, or the draft or the incoming content changed since – compare again and confirm with the new id.',
-            fn() => ['comparison' => self::comparison($bookId, $row, $incoming, $edits)]);
+            fn() => ['comparison' => self::comparison($experienceId, $row, $incoming, $edits)]);
     }
 
     /**
-     * The import's comparison: the book, what comes in, and the draft – the build it is based on, its edits since that
+     * The import's comparison: the experience, what comes in, and the draft – the build it is based on, its edits since that
      * import (the change log), its build now and where that is live
      * @param array<string, mixed> $row
      * @param array{count: int, last: ?string, since: ?int, recent: list<array<string, mixed>>} $edits
      * @return array<string, mixed>
      */
-    private static function comparison(string $bookId, array $row, array $incoming, array $edits): array
+    private static function comparison(string $experienceId, array $row, array $incoming, array $edits): array
     {
         // A 2.x draft is no configuration of today's schema: its build is unknown until it is migrated (#319)
-        $draft = Editor::isCurrentSchema((string) $row['content_schema']) ? ContentVersion::assemble($bookId) : ['build' => null];
+        $draft = Editor::isCurrentSchema((string) $row['content_schema']) ? ContentVersion::assemble($experienceId) : ['build' => null];
         $live = [];
         foreach (self::liveEnvironments() as $env => $serving) {
-            if (is_array($serving) && $serving['book'] === $bookId) $live[] = ['env' => $env, 'build' => $serving['build'], 'current' => $serving['build'] === $draft['build']];
+            if (is_array($serving) && $serving['experience'] === $experienceId) $live[] = ['env' => $env, 'build' => $serving['build'], 'current' => $serving['build'] === $draft['build']];
         }
         $basedOn = self::basedOn(Editor::decode($row['imported_json'] ?? null));
         if ($basedOn === null && is_string($row['imported_hash']) && $row['imported_hash'] !== '') {
@@ -274,7 +274,7 @@ final class Books
         }
         unset($incoming['digest']);
         return [
-            'book' => ['id' => $bookId, 'title' => $row['title']],
+            'experience' => ['id' => $experienceId, 'title' => $row['title']],
             'incoming' => $incoming,
             'draft' => [
                 'basedOn' => $basedOn,
@@ -289,28 +289,28 @@ final class Books
     }
 
     /**
-     * The draft's edits since its import: the change log after `imported_json.at` (all of it for a book imported before
+     * The draft's edits since its import: the change log after `imported_json.at` (all of it for an experience imported before
      * that was recorded), the newest ten in short
      * @param array<string, mixed> $row
      * @return array{count: int, last: ?string, since: ?int, recent: list<array<string, mixed>>}
      */
-    private static function editsSince(string $bookId, array $row): array
+    private static function editsSince(string $experienceId, array $row): array
     {
         $imported = Editor::decode($row['imported_json'] ?? null);
         $since = is_object($imported) && is_int($imported->at ?? null) ? $imported->at : null;
-        $params = ['book' => $bookId, 'since' => $since ?? 0];
-        $count = (int) Db::value('SELECT COUNT(*) FROM changes WHERE book_id = :book AND created_at > :since', $params);
+        $params = ['experience' => $experienceId, 'since' => $since ?? 0];
+        $count = (int) Db::value('SELECT COUNT(*) FROM changes WHERE experience_id = :experience AND created_at > :since', $params);
         $recent = [];
         foreach (Db::run('SELECT c.id, c.kind, c.ref, c.created_at, c.token_name, u.email FROM changes c LEFT JOIN users u ON u.id = c.user_id
-                          WHERE c.book_id = :book AND c.created_at > :since ORDER BY c.created_at DESC, c.id LIMIT 10', $params)->fetchAll() as $change) {
+                          WHERE c.experience_id = :experience AND c.created_at > :since ORDER BY c.created_at DESC, c.id LIMIT 10', $params)->fetchAll() as $change) {
             $recent[] = ['kind' => $change['kind'], 'ref' => $change['ref'], 'user' => $change['email'], 'token' => $change['token_name'], 'at' => Editor::iso((int) $change['created_at'])];
         }
-        $last = $count ? Db::value('SELECT id FROM changes WHERE book_id = :book AND created_at > :since ORDER BY created_at DESC, id LIMIT 1', $params) : null;
+        $last = $count ? Db::value('SELECT id FROM changes WHERE experience_id = :experience AND created_at > :since ORDER BY created_at DESC, id LIMIT 1', $params) : null;
         return ['count' => $count, 'last' => is_string($last) ? $last : null, 'since' => $since, 'recent' => $recent];
     }
 
     /**
-     * What an import recorded (books.imported_json) as the API shows it, null when nothing was recorded
+     * What an import recorded (experiences.imported_json) as the API shows it, null when nothing was recorded
      * @return array{build: ?string, hash: ?string, date: ?string, appVersion: ?string, schema: ?string, source: ?string, from: ?string, importedAt: ?string, importedBy: ?string}|null
      */
     private static function basedOn(mixed $imported): ?array
@@ -325,23 +325,23 @@ final class Books
     }
 
     /**
-     * GET /editor/books/{id} → { book, scenes: [{ …SceneData, entries: [{ id, category, title, scene, surface?, target }] }],
+     * GET /editor/experiences/{id} → { experience, scenes: [{ …SceneData, entries: [{ id, category, title, scene, surface?, target }] }],
      * groups }: the scenes in order, each with its entries; `target` = the entry's TargetData (id, imageSrc, place, entity
      * inline or `{ ref }`) or null
      */
-    public static function tree(string $bookId): never
+    public static function tree(string $experienceId): never
     {
         Editor::user();
-        $book = self::book($bookId);
-        $params = ['book' => $bookId];
+        $experience = self::experience($experienceId);
+        $params = ['experience' => $experienceId];
         $targets = [];
-        foreach (Db::run('SELECT entry_id, data_json FROM targets WHERE book_id = :book', $params)->fetchAll() as $row) {
+        foreach (Db::run('SELECT entry_id, data_json FROM targets WHERE experience_id = :experience', $params)->fetchAll() as $row) {
             $targets[$row['entry_id']] = Editor::decode($row['data_json']);
         }
-        $context = Scenes::context($bookId);
-        $groups = Scenes::groups($book);
+        $context = Scenes::context($experienceId);
+        $groups = Scenes::groups($experience);
         $byScene = [];
-        foreach (Db::run('SELECT * FROM entries WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
+        foreach (Db::run('SELECT * FROM entries WHERE experience_id = :experience ORDER BY position', $params)->fetchAll() as $row) {
             $scene = (string) $row['scene_id'];
             if (!isset($context['data'][$scene])) continue;
             $data = Editor::decode($row['data_json']);
@@ -352,73 +352,73 @@ final class Books
         }
         $scenes = Scenes::shown($context, array_map(static fn($g) => (string) $g->id, $groups));
         foreach ($scenes as $scene) $scene->entries = $byScene[$scene->id] ?? [];
-        Http::json(200, ['book' => self::summary($book), 'scenes' => $scenes, 'groups' => $groups]);
+        Http::json(200, ['experience' => self::summary($experience), 'scenes' => $scenes, 'groups' => $groups]);
     }
 
-    /** GET /editor/books/{id}/entities → { entities: { ref: EntityData } } */
-    public static function entities(string $bookId): never
+    /** GET /editor/experiences/{id}/entities → { entities: { ref: EntityData } } */
+    public static function entities(string $experienceId): never
     {
         Editor::user();
-        self::book($bookId);
+        self::experience($experienceId);
         $entities = new stdClass();
-        foreach (Db::run('SELECT ref, data_json FROM entities WHERE book_id = :book ORDER BY position', ['book' => $bookId])->fetchAll() as $row) {
+        foreach (Db::run('SELECT ref, data_json FROM entities WHERE experience_id = :experience ORDER BY position', ['experience' => $experienceId])->fetchAll() as $row) {
             $entities->{$row['ref']} = Editor::decode($row['data_json']);
         }
         Http::json(200, ['entities' => $entities]);
     }
 
-    /** PUT /editor/books/{id}/entities/{ref} (body: EntityData) → { ref, entity }: saves a shared entity (new or changed), records a change */
-    public static function putEntity(string $bookId, string $ref): never
+    /** PUT /editor/experiences/{id}/entities/{ref} (body: EntityData) → { ref, entity }: saves a shared entity (new or changed), records a change */
+    public static function putEntity(string $experienceId, string $ref): never
     {
         $user = Editor::user();
-        self::book($bookId);
-        $entity = Editor::entity(Editor::body(), 'entity', 0, Editor::pluginNodeTypes($bookId), Editor::pluginMaterials($bookId));
+        self::experience($experienceId);
+        $entity = Editor::entity(Editor::body(), 'entity', 0, Editor::pluginNodeTypes($experienceId), Editor::pluginMaterials($experienceId));
         $json = Editor::encode($entity);
-        Db::transaction(function () use ($bookId, $ref, $entity, $json, $user) {
-            $params = ['book' => $bookId, 'ref' => $ref];
-            $current = Db::one('SELECT data_json FROM entities WHERE book_id = :book AND ref = :ref' . Db::forUpdate(), $params);
+        Db::transaction(function () use ($experienceId, $ref, $entity, $json, $user) {
+            $params = ['experience' => $experienceId, 'ref' => $ref];
+            $current = Db::one('SELECT data_json FROM entities WHERE experience_id = :experience AND ref = :ref' . Db::forUpdate(), $params);
             if ($current) {
-                Db::run('UPDATE entities SET type = :type, data_json = :data WHERE book_id = :book AND ref = :ref', $params + ['type' => $entity->type, 'data' => $json]);
+                Db::run('UPDATE entities SET type = :type, data_json = :data WHERE experience_id = :experience AND ref = :ref', $params + ['type' => $entity->type, 'data' => $json]);
             } else {
-                $position = (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM entities WHERE book_id = :book', ['book' => $bookId]);
-                Db::run('INSERT INTO entities (book_id, ref, position, type, data_json) VALUES (:book, :ref, :position, :type, :data)', $params + ['position' => $position, 'type' => $entity->type, 'data' => $json]);
+                $position = (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM entities WHERE experience_id = :experience', ['experience' => $experienceId]);
+                Db::run('INSERT INTO entities (experience_id, ref, position, type, data_json) VALUES (:experience, :ref, :position, :type, :data)', $params + ['position' => $position, 'type' => $entity->type, 'data' => $json]);
             }
-            self::touch($bookId);
-            self::change($bookId, $user, 'entity', $ref, $current['data_json'] ?? null, $json);
+            self::touch($experienceId);
+            self::change($experienceId, $user, 'entity', $ref, $current['data_json'] ?? null, $json);
         });
         Http::json(200, ['ref' => $ref, 'entity' => $entity]);
     }
 
     /**
-     * PUT /editor/books/{id}/targets/{targetId} { entity } | { ref } | { imageSrc } | { place } | { enabled } → { target }:
+     * PUT /editor/experiences/{id}/targets/{targetId} { entity } | { ref } | { imageSrc } | { place } | { enabled } → { target }:
      * the target's entity – inline (`entity`, null removes it) or a shared one (`ref`) –, its printed image and where it is
      * printed (`place` { surface?, x, y, width, height? } on a surface of its entry's scene, null removes it),
-     * and whether it is in the book (`enabled`, #249); records a change with the whole target before and after.
+     * and whether it is in the experience (`enabled`, #249); records a change with the whole target before and after.
      */
-    public static function putTarget(string $bookId, string $targetId): never
+    public static function putTarget(string $experienceId, string $targetId): never
     {
         $user = Editor::user();
-        self::book($bookId);
+        self::experience($experienceId);
         $body = Editor::body();
         // Read, change and write back in one transaction, the row locked: two saves of the same target never lose one's change
-        $target = Db::transaction(static function () use ($bookId, $targetId, $body, $user) {
-            $params = ['book' => $bookId, 'id' => $targetId];
-            $row = Db::one('SELECT data_json, entity_ref, entry_id FROM targets WHERE book_id = :book AND id = :id' . Db::forUpdate(), $params);
+        $target = Db::transaction(static function () use ($experienceId, $targetId, $body, $user) {
+            $params = ['experience' => $experienceId, 'id' => $targetId];
+            $row = Db::one('SELECT data_json, entity_ref, entry_id FROM targets WHERE experience_id = :experience AND id = :id' . Db::forUpdate(), $params);
             if (!$row) throw new ApiError(404, 'not-found', 'No such target.');
             $target = Editor::decode($row['data_json']);
             $ref = $row['entity_ref'];
             $touched = false;
             if (property_exists($body, 'ref')) {
                 $ref = Editor::id($body->ref, 'ref');
-                if (Db::value('SELECT ref FROM entities WHERE book_id = :book AND ref = :ref', ['book' => $bookId, 'ref' => $ref]) === null) {
-                    throw new ApiError(400, 'unknown-entity', "No entity \"$ref\" in this book.");
+                if (Db::value('SELECT ref FROM entities WHERE experience_id = :experience AND ref = :ref', ['experience' => $experienceId, 'ref' => $ref]) === null) {
+                    throw new ApiError(400, 'unknown-entity', "No entity \"$ref\" in this experience.");
                 }
                 $target->entity = (object) ['ref' => $ref];
                 $touched = true;
             } elseif (property_exists($body, 'entity')) {
                 $ref = null;
                 if ($body->entity === null) unset($target->entity);
-                else $target->entity = Editor::entity($body->entity, 'entity', 0, Editor::pluginNodeTypes($bookId), Editor::pluginMaterials($bookId));
+                else $target->entity = Editor::entity($body->entity, 'entity', 0, Editor::pluginNodeTypes($experienceId), Editor::pluginMaterials($experienceId));
                 $touched = true;
             }
             // The printed image and where it is printed (docs/server.md "Targets")
@@ -429,48 +429,48 @@ final class Books
             }
             if (property_exists($body, 'place')) {
                 if ($body->place === null) unset($target->place);
-                else $target->place = self::targetPlace($bookId, (string) $row['entry_id'], $body->place);
+                else $target->place = self::targetPlace($experienceId, (string) $row['entry_id'], $body->place);
                 $touched = true;
             }
-            // In the book or switched off (#249): only `false` is stored, on is the default
+            // In the experience or switched off (#249): only `false` is stored, on is the default
             if (property_exists($body, 'enabled')) {
                 $target = self::withEnabled($target, $body->enabled, 'enabled');
                 $touched = true;
             }
             if (!$touched) throw new ApiError(400, 'invalid-target', 'Send { entity } or { ref }, { imageSrc }, { place } or { enabled }.');
             $json = Editor::encode($target);
-            Db::run('UPDATE targets SET entity_ref = :ref, image_src = :image, data_json = :data WHERE book_id = :book AND id = :id', $params + ['ref' => $ref, 'image' => $target->imageSrc, 'data' => $json]);
-            self::touch($bookId);
-            self::change($bookId, $user, 'target', $targetId, $row['data_json'], $json);
+            Db::run('UPDATE targets SET entity_ref = :ref, image_src = :image, data_json = :data WHERE experience_id = :experience AND id = :id', $params + ['ref' => $ref, 'image' => $target->imageSrc, 'data' => $json]);
+            self::touch($experienceId);
+            self::change($experienceId, $user, 'target', $targetId, $row['data_json'], $json);
             return $target;
         });
         Http::json(200, ['target' => $target]);
     }
 
     /**
-     * POST /editor/books/{id}/entries { id?, category, title, scene, surface?, body?, caption?, target?: { id?, imageSrc,
+     * POST /editor/experiences/{id}/entries { id?, category, title, scene, surface?, body?, caption?, target?: { id?, imageSrc,
      * place?, entity?, enabled? } } → 201 { entry, scene }: a new entry on the scene `scene` (and its surface `surface`),
      * with its target (made in the editor – docs/server.md "Targets") or without one – an entry read only in the list (a
      * glossary term, a text). 400 `invalid-entry`, `unknown-scene`; 409 `duplicate-id`.
      */
-    public static function addEntry(string $bookId): never
+    public static function addEntry(string $experienceId): never
     {
         $user = Editor::user();
-        self::book($bookId);
+        self::experience($experienceId);
         $body = Editor::body();
         $title = $body->title ?? null;
         $category = $body->category ?? 'glossary';
         if (!is_string($title) || trim($title) === '') throw new ApiError(400, 'invalid-entry', 'title must be a non-empty string.');
         if (!property_exists($body, 'scene') || $body->scene === null) throw new ApiError(400, 'invalid-entry', 'scene is needed: the id of the scene the entry lies on.');
-        $context = Scenes::context($bookId);
+        $context = Scenes::context($experienceId);
         [$sceneId, $surface] = self::sceneOf($context, $body->scene, $body->surface ?? null);
         if (!is_string($category) || !in_array($category, Editor::ENTRY_CATEGORIES, true)) throw new ApiError(400, 'invalid-entry', 'category must be one of ' . implode(', ', Editor::ENTRY_CATEGORIES) . '.');
         $caption = $body->caption ?? null;
-        if ($caption !== null && (!is_string($caption) || mb_strlen(trim($caption)) > BookTexts::TEXT_MAX_LENGTH)) {
-            throw new ApiError(400, 'invalid-entry', 'caption must be a string of at most ' . BookTexts::TEXT_MAX_LENGTH . ' characters.');
+        if ($caption !== null && (!is_string($caption) || mb_strlen(trim($caption)) > ExperienceTexts::TEXT_MAX_LENGTH)) {
+            throw new ApiError(400, 'invalid-entry', 'caption must be a string of at most ' . ExperienceTexts::TEXT_MAX_LENGTH . ' characters.');
         }
         $id = Editor::id($body->id ?? self::slug($title, (string) $sceneId), 'id');
-        if (Db::one('SELECT id FROM entries WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $id])) throw new ApiError(409, 'duplicate-id', "An entry \"$id\" exists.");
+        if (Db::one('SELECT id FROM entries WHERE experience_id = :experience AND id = :id', ['experience' => $experienceId, 'id' => $id])) throw new ApiError(409, 'duplicate-id', "An entry \"$id\" exists.");
         $targetIn = $body->target ?? null;
         $target = null;
         $targetId = null;
@@ -478,7 +478,7 @@ final class Books
         if ($targetIn !== null) {
             if (!$targetIn instanceof stdClass || !is_string($targetIn->imageSrc ?? null) || $targetIn->imageSrc === '') throw new ApiError(400, 'invalid-entry', 'target.imageSrc is needed.');
             $targetId = Editor::id($targetIn->id ?? $id, 'target.id');
-            if (Db::one('SELECT id FROM targets WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $targetId])) throw new ApiError(409, 'duplicate-id', "A target \"$targetId\" exists.");
+            if (Db::one('SELECT id FROM targets WHERE experience_id = :experience AND id = :id', ['experience' => $experienceId, 'id' => $targetId])) throw new ApiError(409, 'duplicate-id', "A target \"$targetId\" exists.");
             $target = (object) ['id' => $targetId, 'imageSrc' => $targetIn->imageSrc];
             if (isset($targetIn->place)) $target->place = self::placeOn($context['data'][$sceneId], $targetIn->place, 'target.place', 'invalid-entry');
             if (property_exists($targetIn, 'enabled')) $target = self::withEnabled($target, $targetIn->enabled, 'target.enabled', 'invalid-entry');
@@ -486,10 +486,10 @@ final class Books
         if ($target !== null && isset($targetIn->entity)) {
             if ($targetIn->entity instanceof stdClass && property_exists($targetIn->entity, 'ref')) {
                 $ref = Editor::id($targetIn->entity->ref, 'target.entity.ref');
-                if (Db::value('SELECT ref FROM entities WHERE book_id = :book AND ref = :ref', ['book' => $bookId, 'ref' => $ref]) === null) throw new ApiError(400, 'unknown-entity', "No entity \"$ref\" in this book.");
+                if (Db::value('SELECT ref FROM entities WHERE experience_id = :experience AND ref = :ref', ['experience' => $experienceId, 'ref' => $ref]) === null) throw new ApiError(400, 'unknown-entity', "No entity \"$ref\" in this experience.");
                 $target->entity = (object) ['ref' => $ref];
             } else {
-                $target->entity = Editor::entity($targetIn->entity, 'target.entity', 0, Editor::pluginNodeTypes($bookId), Editor::pluginMaterials($bookId));
+                $target->entity = Editor::entity($targetIn->entity, 'target.entity', 0, Editor::pluginNodeTypes($experienceId), Editor::pluginMaterials($experienceId));
             }
         }
         $entry = (object) ['id' => $id, 'category' => $category, 'title' => trim($title)];
@@ -498,19 +498,19 @@ final class Books
         $entry->tags = [];
         // The line under the picture (#289): optional, left out when empty
         if (is_string($caption) && trim($caption) !== '') $entry->caption = trim($caption);
-        $position = (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM entries WHERE book_id = :book', ['book' => $bookId]);
+        $position = (int) Db::value('SELECT COALESCE(MAX(position), -1) + 1 FROM entries WHERE experience_id = :experience', ['experience' => $experienceId]);
         $entryJson = Editor::encode($entry);
         $targetJson = $target === null ? null : Editor::encode($target);
-        Db::transaction(function () use ($bookId, $id, $sceneId, $position, $category, $entry, $entryJson, $targetId, $target, $ref, $targetJson, $user) {
-            Db::run('INSERT INTO entries (book_id, id, scene_id, position, category, title, data_json) VALUES (:book, :id, :scene, :position, :category, :title, :data)',
-                ['book' => $bookId, 'id' => $id, 'scene' => $sceneId, 'position' => $position, 'category' => $category, 'title' => $entry->title, 'data' => $entryJson]);
+        Db::transaction(function () use ($experienceId, $id, $sceneId, $position, $category, $entry, $entryJson, $targetId, $target, $ref, $targetJson, $user) {
+            Db::run('INSERT INTO entries (experience_id, id, scene_id, position, category, title, data_json) VALUES (:experience, :id, :scene, :position, :category, :title, :data)',
+                ['experience' => $experienceId, 'id' => $id, 'scene' => $sceneId, 'position' => $position, 'category' => $category, 'title' => $entry->title, 'data' => $entryJson]);
             if ($target !== null) {
-                Db::run('INSERT INTO targets (book_id, id, entry_id, image_src, entity_ref, data_json) VALUES (:book, :id, :entry, :image, :ref, :data)',
-                    ['book' => $bookId, 'id' => $targetId, 'entry' => $id, 'image' => $target->imageSrc, 'ref' => $ref, 'data' => $targetJson]);
+                Db::run('INSERT INTO targets (experience_id, id, entry_id, image_src, entity_ref, data_json) VALUES (:experience, :id, :entry, :image, :ref, :data)',
+                    ['experience' => $experienceId, 'id' => $targetId, 'entry' => $id, 'image' => $target->imageSrc, 'ref' => $ref, 'data' => $targetJson]);
             }
-            self::touch($bookId);
-            self::change($bookId, $user, 'entry', $id, null, $entryJson);
-            if ($target !== null) self::change($bookId, $user, 'target', $targetId, null, $targetJson);
+            self::touch($experienceId);
+            self::change($experienceId, $user, 'entry', $id, null, $entryJson);
+            if ($target !== null) self::change($experienceId, $user, 'target', $targetId, null, $targetJson);
         });
         $shown = ContentVersion::withScene($entry, (string) $sceneId);
         if ($target !== null) $shown->target = $target;
@@ -520,10 +520,10 @@ final class Books
     /**
      * A target's `place` on its entry's scene (PUT …/targets/{id})
      */
-    private static function targetPlace(string $bookId, string $entryId, mixed $value): stdClass
+    private static function targetPlace(string $experienceId, string $entryId, mixed $value): stdClass
     {
-        $sceneId = Db::value('SELECT scene_id FROM entries WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $entryId]);
-        $row = is_string($sceneId) ? Db::one('SELECT data_json FROM scenes WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $sceneId]) : null;
+        $sceneId = Db::value('SELECT scene_id FROM entries WHERE experience_id = :experience AND id = :id', ['experience' => $experienceId, 'id' => $entryId]);
+        $row = is_string($sceneId) ? Db::one('SELECT data_json FROM scenes WHERE experience_id = :experience AND id = :id', ['experience' => $experienceId, 'id' => $sceneId]) : null;
         $scene = $row ? Editor::decode($row['data_json']) : null;
         return self::placeOn($scene instanceof stdClass ? $scene : new stdClass(), $value, 'place', 'invalid-target');
     }
@@ -560,7 +560,7 @@ final class Books
     }
 
     /**
-     * An entry's scene and surface as a request names them: `scene` a scene of the book (else 400 unknown-scene),
+     * An entry's scene and surface as a request names them: `scene` a scene of the experience (else 400 unknown-scene),
      * `surface` one of its surfaces (else 400 invalid-entry) or null
      * @param array{data: array<string, stdClass>} $context
      * @return array{0: ?string, 1: ?string}
@@ -568,7 +568,7 @@ final class Books
     public static function sceneOf(array $context, mixed $scene, mixed $surface): array
     {
         $scene = Editor::id($scene, 'scene');
-        if (!isset($context['data'][$scene])) throw new ApiError(400, 'unknown-scene', "No scene \"$scene\" in this book.");
+        if (!isset($context['data'][$scene])) throw new ApiError(400, 'unknown-scene', "No scene \"$scene\" in this experience.");
         if ($surface === null) return [$scene, null];
         $surface = Editor::id($surface, 'surface');
         if (!in_array($surface, Scenes::surfaceIds($context['data'][$scene]), true)) {
@@ -578,15 +578,15 @@ final class Books
     }
 
     /**
-     * PUT /editor/books/{id}/environment { environment: { world, onionSky, worldSrc?, skySrc? } | null } → 200
+     * PUT /editor/experiences/{id}/environment { environment: { world, onionSky, worldSrc?, skySrc? } | null } → 200
      * { environment }: the world around the reader and the onion sky (the world model and the sky
-     * image as asset references, shared/types/environment.ts). `null` removes it – the default applies. Book-level
+     * image as asset references, shared/types/environment.ts). `null` removes it – the default applies. Experience-level
      * only; the reader's Graphics switches still apply on top.
      */
-    public static function putEnvironment(string $bookId): never
+    public static function putEnvironment(string $experienceId): never
     {
         $user = Editor::user();
-        self::book($bookId);
+        self::experience($experienceId);
         $body = Editor::body();
         if (!property_exists($body, 'environment')) throw new ApiError(400, 'invalid-environment', 'Send { environment: { world, onionSky, worldSrc?, skySrc? } } or { environment: null }.');
         $environment = null;
@@ -599,74 +599,74 @@ final class Books
             }
             $environment = (object) $environment;
         }
-        // The book's JSON read, changed and written back in one transaction, the row locked: a parallel save of the
-        // book's passes (or a relink) is never lost
-        Db::transaction(static function () use ($bookId, $environment, $user) {
-            $row = self::book($bookId, true);
-            $book = Editor::decode($row['book_json']);
-            if ($environment === null) unset($book->environment);
-            else $book->environment = $environment;
-            $json = Editor::encode($book);
-            Db::run('UPDATE books SET book_json = :book WHERE id = :id', ['book' => $json, 'id' => $bookId]);
-            self::touch($bookId);
-            self::change($bookId, $user, 'environment', $bookId, $row['book_json'], $json);
+        // The experience's JSON read, changed and written back in one transaction, the row locked: a parallel save of the
+        // experience's passes (or a relink) is never lost
+        Db::transaction(static function () use ($experienceId, $environment, $user) {
+            $row = self::experience($experienceId, true);
+            $experience = Editor::decode($row['experience_json']);
+            if ($environment === null) unset($experience->environment);
+            else $experience->environment = $environment;
+            $json = Editor::encode($experience);
+            Db::run('UPDATE experiences SET experience_json = :experience WHERE id = :id', ['experience' => $json, 'id' => $experienceId]);
+            self::touch($experienceId);
+            self::change($experienceId, $user, 'environment', $experienceId, $row['experience_json'], $json);
         });
         Http::json(200, ['environment' => $environment]);
     }
 
     /**
-     * PUT /editor/books/{id}/passes { passes: [{ type, …parameters }] | null } → 200 { passes }: the book's post-processing
-     * (`book.passes`) – the master every scene without a list of its own shows (a scene's
+     * PUT /editor/experiences/{id}/passes { passes: [{ type, …parameters }] | null } → 200 { passes }: the experience's post-processing
+     * (`experience.passes`) – the master every scene without a list of its own shows (a scene's
      * `passes` override it, `PUT …/scenes/{sid}`). `null` removes it; the shape is checked as for a scene's – a
      * plugin's pass included.
      */
-    public static function putPasses(string $bookId): never
+    public static function putPasses(string $experienceId): never
     {
         $user = Editor::user();
-        self::book($bookId);
+        self::experience($experienceId);
         $body = Editor::body();
         if (!property_exists($body, 'passes')) throw new ApiError(400, 'invalid-passes', 'Send { passes: [{ type, …parameters }] } or { passes: null }.');
-        $passes = $body->passes === null ? null : self::passes($body->passes, 'invalid-passes', self::pluginPasses($bookId));
-        // As putEnvironment: the book's JSON read, changed and written back in one transaction, the row locked
-        Db::transaction(static function () use ($bookId, $passes, $user) {
-            $row = self::book($bookId, true);
-            $book = Editor::decode($row['book_json']);
-            if ($passes === null) unset($book->passes);
-            else $book->passes = $passes;
-            $json = Editor::encode($book);
-            Db::run('UPDATE books SET book_json = :book WHERE id = :id', ['book' => $json, 'id' => $bookId]);
-            self::touch($bookId);
-            self::change($bookId, $user, 'passes', $bookId, $row['book_json'], $json);
+        $passes = $body->passes === null ? null : self::passes($body->passes, 'invalid-passes', self::pluginPasses($experienceId));
+        // As putEnvironment: the experience's JSON read, changed and written back in one transaction, the row locked
+        Db::transaction(static function () use ($experienceId, $passes, $user) {
+            $row = self::experience($experienceId, true);
+            $experience = Editor::decode($row['experience_json']);
+            if ($passes === null) unset($experience->passes);
+            else $experience->passes = $passes;
+            $json = Editor::encode($experience);
+            Db::run('UPDATE experiences SET experience_json = :experience WHERE id = :id', ['experience' => $json, 'id' => $experienceId]);
+            self::touch($experienceId);
+            self::change($experienceId, $user, 'passes', $experienceId, $row['experience_json'], $json);
         });
         Http::json(200, ['passes' => $passes]);
     }
 
     /**
-     * PUT /editor/books/{id}/appearance { appearance: { reveal?, found?, lost? } | null } → 200 { appearance }: how the
-     * book's entities appear and disappear (`book.appearance`, shared/types/appearance.ts) – a look `{ type, …parameters }`
+     * PUT /editor/experiences/{id}/appearance { appearance: { reveal?, found?, lost? } | null } → 200 { appearance }: how the
+     * experience's entities appear and disappear (`experience.appearance`, shared/types/appearance.ts) – a look `{ type, …parameters }`
      * for the first find (`reveal`), every later find (`found`) and the lost page (`lost`), each a built-in look or one
-     * the book's plugins register (`appearances`). A moment left out takes `found`'s look, then the default; `null` – or
+     * the experience's plugins register (`appearances`). A moment left out takes `found`'s look, then the default; `null` – or
      * no moment at all – removes the field, so the default look plays everywhere.
      */
-    public static function putAppearance(string $bookId): never
+    public static function putAppearance(string $experienceId): never
     {
         $user = Editor::user();
-        self::book($bookId);
+        self::experience($experienceId);
         $body = Editor::body();
         if (!property_exists($body, 'appearance')) {
             throw new ApiError(400, 'invalid-appearance', 'Send { appearance: { reveal?, found?, lost? } }, each { type, …parameters }, or { appearance: null }.');
         }
-        $appearance = $body->appearance === null ? null : self::appearance($body->appearance, Editor::pluginTypesOfBook($bookId, 'appearances'));
-        // As putPasses: the book's JSON read, changed and written back in one transaction, the row locked
-        Db::transaction(static function () use ($bookId, $appearance, $user) {
-            $row = self::book($bookId, true);
-            $book = Editor::decode($row['book_json']);
-            if ($appearance === null) unset($book->appearance);
-            else $book->appearance = $appearance;
-            $json = Editor::encode($book);
-            Db::run('UPDATE books SET book_json = :book WHERE id = :id', ['book' => $json, 'id' => $bookId]);
-            self::touch($bookId);
-            self::change($bookId, $user, 'appearance', $bookId, $row['book_json'], $json);
+        $appearance = $body->appearance === null ? null : self::appearance($body->appearance, Editor::pluginTypesOfExperience($experienceId, 'appearances'));
+        // As putPasses: the experience's JSON read, changed and written back in one transaction, the row locked
+        Db::transaction(static function () use ($experienceId, $appearance, $user) {
+            $row = self::experience($experienceId, true);
+            $experience = Editor::decode($row['experience_json']);
+            if ($appearance === null) unset($experience->appearance);
+            else $experience->appearance = $appearance;
+            $json = Editor::encode($experience);
+            Db::run('UPDATE experiences SET experience_json = :experience WHERE id = :id', ['experience' => $json, 'id' => $experienceId]);
+            self::touch($experienceId);
+            self::change($experienceId, $user, 'appearance', $experienceId, $row['experience_json'], $json);
         });
         Http::json(200, ['appearance' => $appearance]);
     }
@@ -698,54 +698,44 @@ final class Books
     }
 
     /**
-     * DELETE /editor/books/{id}/scenes/{sceneId} { confirm?, deleteFiles? }: the scene with everything on it, in two steps
+     * DELETE /editor/experiences/{id}/scenes/{sceneId} { confirm?, deleteFiles? }: the scene with everything on it, in two steps
      * (`Confirmation`, docs/server.md "Removing a scene or an entry"):
      * 1. without `confirm` nothing is written: 409 `confirm-delete` with the `impact` (the scene, and what `Removal` takes:
      *    entries, targets, entities, kept shared entities, Library files used only here and elsewhere) and a `confirmation`;
      * 2. with `confirm` exactly that goes, in one transaction → 200 { deleted }: entries, targets, the entities used only
      *    there, the scene and its surfaces' reference images. `deleteFiles: true` also removes the Library files used only
      *    here (off by default; a file used elsewhere never goes). A confirmation that does not fit any more (anything in
-     *    the book changed, another person or token, expired) → 409 `confirmation-void` with a fresh impact.
-     * 409 `initial-scene` for the scene the book opens on (it never goes); 404.
+     *    the experience changed, another person or token, expired) → 409 `confirmation-void` with a fresh impact.
+     * 409 `initial-scene` for the scene the experience opens on (it never goes); 404.
      */
-    public static function deleteScene(string $bookId, string $sceneId): never
+    public static function deleteScene(string $experienceId, string $sceneId): never
     {
         $user = Editor::user();
-        $book = self::book($bookId);
+        $experience = self::experience($experienceId);
         [$confirm, $deleteFiles] = self::deleteOptions();
-        $row = Db::one('SELECT * FROM scenes WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $sceneId]);
+        $row = Db::one('SELECT * FROM scenes WHERE experience_id = :experience AND id = :id', ['experience' => $experienceId, 'id' => $sceneId]);
         if (!$row) throw new ApiError(404, 'not-found', 'No such scene.');
-        if ($book['initial_scene'] === $sceneId) throw new ApiError(409, 'initial-scene', 'The book opens on this scene.');
-        $entries = Db::run('SELECT * FROM entries WHERE book_id = :book AND scene_id = :scene ORDER BY position, id', ['book' => $bookId, 'scene' => $sceneId])->fetchAll();
-        $removal = new Removal($bookId, $entries);
-        $impact = ['book' => $bookId, 'kind' => 'scene', 'scene' => ['id' => $sceneId, 'label' => (string) (Editor::decode($row['data_json'])->label ?? $row['label'])]] + $removal->impact();
-        Confirmation::require("delete-scene|$bookId|$sceneId", $user, $removal->state([$row]), $confirm,
+        if ($experience['initial_scene'] === $sceneId) throw new ApiError(409, 'initial-scene', 'The experience opens on this scene.');
+        $entries = Db::run('SELECT * FROM entries WHERE experience_id = :experience AND scene_id = :scene ORDER BY position, id', ['experience' => $experienceId, 'scene' => $sceneId])->fetchAll();
+        $removal = new Removal($experienceId, $entries);
+        $impact = ['experience' => $experienceId, 'kind' => 'scene', 'scene' => ['id' => $sceneId, 'label' => (string) (Editor::decode($row['data_json'])->label ?? $row['label'])]] + $removal->impact();
+        Confirmation::require("delete-scene|$experienceId|$sceneId", $user, $removal->state([$row]), $confirm,
             ['confirm-delete', 'Removing the scene takes ' . self::impactLine($impact) . ' – show this to the person, then remove again with confirm: <confirmation id>.'],
-            'The confirmation is expired, someone else\'s, or the book changed since – here is what the removal takes now; confirm with the new id.',
+            'The confirmation is expired, someone else\'s, or the experience changed since – here is what the removal takes now; confirm with the new id.',
             fn() => ['impact' => $impact]);
-        $deleted = Db::transaction(function () use ($bookId, $sceneId, $row, $user, $removal, $deleteFiles) {
+        $deleted = Db::transaction(function () use ($experienceId, $sceneId, $row, $user, $removal, $deleteFiles) {
             $deleted = $removal->remove($user, $deleteFiles);
-            Db::run('DELETE FROM scenes WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $sceneId]);
-            self::change($bookId, $user, Scenes::KIND, $sceneId, $row['data_json'], 'null');
+            Db::run('DELETE FROM scenes WHERE experience_id = :experience AND id = :id', ['experience' => $experienceId, 'id' => $sceneId]);
+            self::change($experienceId, $user, Scenes::KIND, $sceneId, $row['data_json'], 'null');
             // Its surfaces' reference images go with it (#314)
-            SurfaceReferences::dropScene($bookId, $sceneId, $user);
-            Db::run('UPDATE scenes SET position = position - 1 WHERE book_id = :book AND position > :position', ['book' => $bookId, 'position' => (int) $row['position']]);
-            self::touch($bookId);
+            SurfaceReferences::dropScene($experienceId, $sceneId, $user);
+            Db::run('UPDATE scenes SET position = position - 1 WHERE experience_id = :experience AND position > :position', ['experience' => $experienceId, 'position' => (int) $row['position']]);
+            self::touch($experienceId);
             return $deleted;
         });
         Removal::deleteStoredFiles($deleted['paths']);
         unset($deleted['paths']);
         Http::json(200, ['deleted' => ['scene' => $sceneId] + $deleted]);
-    }
-
-    /**
-     * The book's source of truth (`book.sourceOfTruth`): `digital` only when it says so, else `print`. Both add, move and
-     * remove scenes alike; it tells where the book's scenes and targets' places come from.
-     * @param array<string, mixed> $book the book row
-     */
-    public static function sourceOfTruth(array $book): string
-    {
-        return (Editor::decode($book['book_json'])->sourceOfTruth ?? null) === 'digital' ? 'digital' : 'print';
     }
 
     /**
@@ -790,27 +780,27 @@ final class Books
     public const SKY_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
 
     /**
-     * The plugin pass types a save of this book accepts: the passes its declared plugins recorded (a list),
+     * The plugin pass types a save of this experience accepts: the passes its declared plugins recorded (a list),
      * any camelCase name while a plugin is unknown until it runs (`true` – a Code tab source, a plugin of an older build),
      * none without plugins (`false`) – as `Editor::pluginNodeTypes`
      * @return bool|list<string>
      */
-    private static function pluginPasses(string $bookId): bool|array
+    private static function pluginPasses(string $experienceId): bool|array
     {
-        return Editor::pluginTypesOfBook($bookId, 'passes');
+        return Editor::pluginTypesOfExperience($experienceId, 'passes');
     }
 
     /**
-     * A scene's `passes` list as the content holds it (`passes`, with the book's plugin passes) – PUT …/scenes/{id}
+     * A scene's `passes` list as the content holds it (`passes`, with the experience's plugin passes) – PUT …/scenes/{id}
      * @return list<stdClass>
      */
-    public static function checkPasses(string $bookId, mixed $value, string $code): array
+    public static function checkPasses(string $experienceId, mixed $value, string $code): array
     {
-        return self::passes($value, $code, self::pluginPasses($bookId));
+        return self::passes($value, $code, self::pluginPasses($experienceId));
     }
 
     /**
-     * A `passes` list as the content holds it: every pass an object with a built-in `type` – or one of the book's
+     * A `passes` list as the content holds it: every pass an object with a built-in `type` – or one of the experience's
      * plugins (`$pluginPasses`: a list = the recorded ones, `true` = any camelCase name, `false` = none) –, an optional
      * `enabled` true / false and scalar parameters (the engine and the guard check the parameters against the specs; the
      * API keeps the shape)
@@ -829,10 +819,10 @@ final class Books
                 : $pluginPasses && preg_match('/^' . self::PLUGIN_PASS_TYPE . '$/', $type) === 1;
             if (!in_array($type, self::PASS_TYPES, true) && !$plugin) {
                 $plugins = match (true) {
-                    is_array($pluginPasses) && $pluginPasses !== [] => ' or a pass a plugin of the book registers (' . implode(', ', $pluginPasses) . ').',
-                    is_array($pluginPasses) => ' – the book\'s plugins register no pass.',
+                    is_array($pluginPasses) && $pluginPasses !== [] => ' or a pass a plugin of the experience registers (' . implode(', ', $pluginPasses) . ').',
+                    is_array($pluginPasses) => ' – the experience\'s plugins register no pass.',
                     $pluginPasses => ' or a plugin\'s pass (camelCase letters and digits).',
-                    default => ' – a plugin\'s pass needs a plugin in the book.',
+                    default => ' – a plugin\'s pass needs a plugin in the experience.',
                 };
                 throw new ApiError(400, $code, "passes[$i].type must be one of " . implode(', ', self::PASS_TYPES) . $plugins);
             }
@@ -847,10 +837,10 @@ final class Books
     }
 
     /**
-     * A book's `appearance` as the content holds it: an object of moments (MOMENTS), each a look – an object with a
-     * built-in `type` or one of the book's plugins (`$pluginLooks`: a list = the recorded ones, `true` = any camelCase
+     * An experience's `appearance` as the content holds it: an object of moments (MOMENTS), each a look – an object with a
+     * built-in `type` or one of the experience's plugins (`$pluginLooks`: a list = the recorded ones, `true` = any camelCase
      * name, `false` = none) and scalar parameters (the engine and the guard check the parameters against the specs; the
-     * API keeps the shape). Null when it names no moment: the book holds no `appearance` then.
+     * API keeps the shape). Null when it names no moment: the experience holds no `appearance` then.
      * @param bool|list<string> $pluginLooks
      */
     private static function appearance(mixed $value, bool|array $pluginLooks = false): ?stdClass
@@ -867,10 +857,10 @@ final class Books
                 : $pluginLooks && preg_match('/^' . self::PLUGIN_PASS_TYPE . '$/', $type) === 1;
             if (!in_array($type, self::APPEARANCE_TYPES, true) && !$plugin) {
                 $plugins = match (true) {
-                    is_array($pluginLooks) && $pluginLooks !== [] => ' or a look a plugin of the book registers (' . implode(', ', $pluginLooks) . ').',
-                    is_array($pluginLooks) => ' – the book\'s plugins register no look.',
+                    is_array($pluginLooks) && $pluginLooks !== [] => ' or a look a plugin of the experience registers (' . implode(', ', $pluginLooks) . ').',
+                    is_array($pluginLooks) => ' – the experience\'s plugins register no look.',
                     $pluginLooks => ' or a plugin\'s look (camelCase letters and digits).',
-                    default => ' – a plugin\'s look needs a plugin in the book.',
+                    default => ' – a plugin\'s look needs a plugin in the experience.',
                 };
                 throw new ApiError(400, $code, "appearance.$moment.type must be one of " . implode(', ', self::APPEARANCE_TYPES) . $plugins);
             }
@@ -883,28 +873,28 @@ final class Books
     }
 
     /**
-     * DELETE /editor/books/{id}/entries/{entryId} { confirm?, deleteFiles? } – the entry with its target, the entity used
+     * DELETE /editor/experiences/{id}/entries/{entryId} { confirm?, deleteFiles? } – the entry with its target, the entity used
      * only there and (with `deleteFiles: true`) the Library files used only there, in the same two steps as a scene:
      * 409 `confirm-delete` with the `impact` and a `confirmation`, then with `confirm` → 200 { deleted }; 409
      * `confirmation-void` with a fresh impact; 404.
      */
-    public static function deleteEntry(string $bookId, string $entryId): never
+    public static function deleteEntry(string $experienceId, string $entryId): never
     {
         $user = Editor::user();
-        self::book($bookId);
+        self::experience($experienceId);
         [$confirm, $deleteFiles] = self::deleteOptions();
-        $entry = Db::one('SELECT * FROM entries WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $entryId]);
+        $entry = Db::one('SELECT * FROM entries WHERE experience_id = :experience AND id = :id', ['experience' => $experienceId, 'id' => $entryId]);
         if (!$entry) throw new ApiError(404, 'not-found', 'No such entry.');
-        $removal = new Removal($bookId, [$entry]);
-        $impact = ['book' => $bookId, 'kind' => 'entry',
+        $removal = new Removal($experienceId, [$entry]);
+        $impact = ['experience' => $experienceId, 'kind' => 'entry',
             'entry' => ['id' => $entryId, 'title' => $entry['title'], 'category' => $entry['category'], 'scene' => $entry['scene_id']]] + $removal->impact();
-        Confirmation::require("delete-entry|$bookId|$entryId", $user, $removal->state(), $confirm,
+        Confirmation::require("delete-entry|$experienceId|$entryId", $user, $removal->state(), $confirm,
             ['confirm-delete', 'Removing the entry takes ' . self::impactLine($impact) . ' – show this to the person, then remove again with confirm: <confirmation id>.'],
-            'The confirmation is expired, someone else\'s, or the book changed since – here is what the removal takes now; confirm with the new id.',
+            'The confirmation is expired, someone else\'s, or the experience changed since – here is what the removal takes now; confirm with the new id.',
             fn() => ['impact' => $impact]);
-        $deleted = Db::transaction(function () use ($bookId, $user, $removal, $deleteFiles) {
+        $deleted = Db::transaction(function () use ($experienceId, $user, $removal, $deleteFiles) {
             $deleted = $removal->remove($user, $deleteFiles);
-            self::touch($bookId);
+            self::touch($experienceId);
             return $deleted;
         });
         Removal::deleteStoredFiles($deleted['paths']);
@@ -920,28 +910,28 @@ final class Books
     }
 
     /**
-     * POST /editor/books/{id}/publish { env, note?, replace? } → { env, store, build, hash, publishedAt, replaced }: the
+     * POST /editor/experiences/{id}/publish { env, note?, replace? } → { env, store, build, hash, publishedAt, replaced }: the
      * assembled version into the content store – the version folder (unless that build is there already: a folder is
      * never overwritten), then versions.json, then latest.json (the switch) – and a row in the publish log.
      * `env` must be this instance's own environment (ENV): another one answers 403 other-environment with `env`, the
      * own one. `store` = where it went: `cdn` or `server` (the directory store).
-     * An environment serves one book: when it serves another one (or one that cannot be told) the publish needs
-     * `replace: true`, else 409 other-book with `current` { env, book, title, build, since }. `replaced` names the
-     * book replaced there, null when there was none.
+     * An environment serves one experience: when it serves another one (or one that cannot be told) the publish needs
+     * `replace: true`, else 409 other-experience with `current` { env, experience, title, build, since }. `replaced` names the
+     * experience replaced there, null when there was none.
      *
-     * `plugins` (#78) = the book's Code tab sources as the editor transpiled them, `[{ id, code, api, registered? }]`: every
-     * id a saved source of the book, `code` the module (JavaScript, `export const register`), `api` the plugin API it was
+     * `plugins` (#78) = the experience's Code tab sources as the editor transpiled them, `[{ id, code, api, registered? }]`: every
+     * id a saved source of the experience, `code` the module (JavaScript, `export const register`), `api` the plugin API it was
      * written against, `registered` the specs a stage run recorded (optional – without them the reader learns the types when
      * the plugin loads). Each goes into the version as `assets/content/plugins/<id>/plugin-<hash of the code>.js` and is
      * declared in its configuration (a compiled plugin of the same id gives way); the types the publish checks are read from
      * the saved source. The server compiles nothing: the code is the browser's transpile, not type-checked (#266).
      */
-    public static function publish(string $bookId, stdClass $body): never
+    public static function publish(string $experienceId, stdClass $body): never
     {
         $user = Editor::user();
         // Readers are reached only by a person: no environment takes a publish from an AI connection
         Auth::refuseToken('Publishing');
-        self::book($bookId);
+        self::experience($experienceId);
         $env = $body->env ?? null;
         $own = Config::env();
         if (!is_string($env) || !preg_match(ContentStore::ENV_NAME, $env)) {
@@ -958,16 +948,16 @@ final class Books
 
         $store = ContentStore::for($env);
         $live = $store->live();
-        $replaced = $live !== null && $live['book'] !== $bookId ? $live : null;
+        $replaced = $live !== null && $live['experience'] !== $experienceId ? $live : null;
         if ($replaced !== null && !$replace) {
-            $title = $replaced['book'] !== null ? Db::value('SELECT title FROM books WHERE id = :id', ['id' => $replaced['book']]) : null;
-            $name = $title ?: ($replaced['book'] ?? 'a book that cannot be told');
-            throw new ApiError(409, 'other-book', "$env serves $name – publishing this book replaces it there; send replace: true to do so.",
-                ['current' => ['env' => $env, 'book' => $replaced['book'], 'title' => $title ?: null, 'build' => $replaced['build'], 'since' => $replaced['since']]]);
+            $title = $replaced['experience'] !== null ? Db::value('SELECT title FROM experiences WHERE id = :id', ['id' => $replaced['experience']]) : null;
+            $name = $title ?: ($replaced['experience'] ?? 'an experience that cannot be told');
+            throw new ApiError(409, 'other-experience', "$env serves $name – publishing this experience replaces it there; send replace: true to do so.",
+                ['current' => ['env' => $env, 'experience' => $replaced['experience'], 'title' => $title ?: null, 'build' => $replaced['build'], 'since' => $replaced['since']]]);
         }
 
-        $injected = self::injectedPlugins($bookId, $body->plugins ?? null);
-        $version = ContentVersion::assemble($bookId);
+        $injected = self::injectedPlugins($experienceId, $body->plugins ?? null);
+        $version = ContentVersion::assemble($experienceId);
         if ($injected) $version = ContentVersion::withPlugins($version, array_map(static fn(array $plugin): stdClass => $plugin['declaration'], $injected));
         // A component type no plugin can register would make the reader refuse the whole content: a plugin of the Code tab
         // reaches readers only when the publish carries it (`plugins`). What the compiled plugins register is known when
@@ -1001,12 +991,12 @@ final class Books
         // And for a plugin's pass: the reader's guard refuses a pass type no declared plugin recorded
         $unknownPasses = $recorded === null ? [] : array_values(array_diff(self::pluginPassTypes($version['configuration']), $recorded['passes']));
         if ($unknownPasses) {
-            throw new ApiError(409, 'unknown-passes', 'The book\'s or a scene\'s post-processing names passes no compiled plugin provides: ' . implode(', ', $unknownPasses) . '. A plugin of the Code tab reaches readers only when the publish carries it (the editor\'s Publish sends the saved sources, #78).', ['passes' => $unknownPasses]);
+            throw new ApiError(409, 'unknown-passes', 'The experience\'s or a scene\'s post-processing names passes no compiled plugin provides: ' . implode(', ', $unknownPasses) . '. A plugin of the Code tab reaches readers only when the publish carries it (the editor\'s Publish sends the saved sources, #78).', ['passes' => $unknownPasses]);
         }
         // And for a plugin's look: the reader's guard refuses a look no declared plugin recorded
         $unknownLooks = $recorded === null ? [] : array_values(array_diff(self::pluginAppearanceTypes($version['configuration']), $recorded['appearances']));
         if ($unknownLooks) {
-            throw new ApiError(409, 'unknown-appearances', 'The book\'s appearance or an entity\'s own looks name looks no compiled plugin provides: ' . implode(', ', $unknownLooks) . '. A plugin of the Code tab reaches readers only when the publish carries it (the editor\'s Publish sends the saved sources, #78).', ['appearances' => $unknownLooks]);
+            throw new ApiError(409, 'unknown-appearances', 'The experience\'s appearance or an entity\'s own looks name looks no compiled plugin provides: ' . implode(', ', $unknownLooks) . '. A plugin of the Code tab reaches readers only when the publish carries it (the editor\'s Publish sends the saved sources, #78).', ['appearances' => $unknownLooks]);
         }
         $root = $version['build'];
         $uploaded = $store->exists("$root/game.config.json");
@@ -1021,13 +1011,13 @@ final class Books
         $current = $store->get('versions.json');
         $versions = $current === null ? [] : json_decode($current, true);
         if (!is_array($versions)) throw new ApiError(502, 'content-store-failed', "$env/versions.json is not readable – fix it before publishing.");
-        $store->put('versions.json', Editor::encode(ContentStore::activate($versions, $version, $now, !$uploaded, $bookId), true));
-        $store->put('latest.json', Editor::encode(ContentVersion::manifest($version, $now, $bookId), true));
+        $store->put('versions.json', Editor::encode(ContentStore::activate($versions, $version, $now, !$uploaded, $experienceId), true));
+        $store->put('latest.json', Editor::encode(ContentVersion::manifest($version, $now, $experienceId), true));
 
-        Db::run('INSERT INTO book_versions (id, book_id, env, build, hash, published_by, published_at, note) VALUES (:id, :book, :env, :build, :hash, :by, :at, :note)',
-            ['id' => Db::uuid(), 'book' => $bookId, 'env' => $env, 'build' => $version['build'], 'hash' => $version['hash'], 'by' => $user['id'], 'at' => Editor::nowMs(), 'note' => $note]);
+        Db::run('INSERT INTO experience_versions (id, experience_id, env, build, hash, published_by, published_at, note) VALUES (:id, :experience, :env, :build, :hash, :by, :at, :note)',
+            ['id' => Db::uuid(), 'experience' => $experienceId, 'env' => $env, 'build' => $version['build'], 'hash' => $version['hash'], 'by' => $user['id'], 'at' => Editor::nowMs(), 'note' => $note]);
         Http::json(200, ['env' => $env, 'store' => $store->isLocal() ? 'server' : 'cdn', 'build' => $version['build'], 'hash' => $version['hash'], 'publishedAt' => $now,
-            'replaced' => $replaced !== null ? ['book' => $replaced['book'], 'build' => $replaced['build']] : null]);
+            'replaced' => $replaced !== null ? ['experience' => $replaced['experience'], 'build' => $replaced['build']] : null]);
     }
 
     /**
@@ -1035,12 +1025,12 @@ final class Books
      * types the saved source registers, `Plugins::registers`) }. Null or absent = none.
      * @return array<string, array{declaration: stdClass, code: string, registers: array<string, array<int, string>>}>
      */
-    private static function injectedPlugins(string $bookId, mixed $raw): array
+    private static function injectedPlugins(string $experienceId, mixed $raw): array
     {
         if ($raw === null) return [];
         if (!is_array($raw)) throw new ApiError(400, 'invalid-plugins', 'plugins must be a list of { id, code, api, registered? }.');
         $sources = [];
-        foreach (Db::run('SELECT id, source FROM plugins WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) $sources[$row['id']] = (string) $row['source'];
+        foreach (Db::run('SELECT id, source FROM plugins WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll() as $row) $sources[$row['id']] = (string) $row['source'];
         $injected = [];
         foreach ($raw as $i => $plugin) {
             $at = "plugins[$i]";
@@ -1048,7 +1038,7 @@ final class Books
             $id = $plugin->id ?? null;
             if (!is_string($id) || !preg_match('/^' . Plugins::ID . '$/', $id)) throw new ApiError(400, 'invalid-plugins', "$at.id must be a plugin id (letters, digits, -).");
             if (isset($injected[$id])) throw new ApiError(400, 'invalid-plugins', "$at.id: \"$id\" is there twice.");
-            if (!isset($sources[$id])) throw new ApiError(400, 'invalid-plugins', "$at.id: the book has no saved source \"$id\" – save it in the Code tab first.");
+            if (!isset($sources[$id])) throw new ApiError(400, 'invalid-plugins', "$at.id: the experience has no saved source \"$id\" – save it in the Code tab first.");
             $code = $plugin->code ?? null;
             if (!is_string($code) || trim($code) === '') throw new ApiError(400, 'invalid-plugins', "$at.code must be the transpiled module.");
             if (strlen($code) > 2 * Plugins::MAX_SOURCE_BYTES) throw new ApiError(413, 'plugin-too-large', "$at.code is larger than " . (2 * Plugins::MAX_SOURCE_BYTES / 1024) . ' KB.');
@@ -1117,13 +1107,13 @@ final class Books
     }
 
     /**
-     * The pass types of the book's and the scenes' `passes` that are not built in (PASS_TYPES) – a plugin's, sorted
+     * The pass types of the experience's and the scenes' `passes` that are not built in (PASS_TYPES) – a plugin's, sorted
      * @return list<string>
      */
     public static function pluginPassTypes(stdClass $configuration): array
     {
         $types = [];
-        $lists = [$configuration->book->passes ?? []];
+        $lists = [$configuration->experience->passes ?? []];
         foreach ((array) ($configuration->scenes ?? []) as $scene) $lists[] = $scene instanceof stdClass ? ($scene->passes ?? []) : [];
         foreach ($lists as $list) {
             foreach ((array) $list as $pass) {
@@ -1137,14 +1127,14 @@ final class Books
     }
 
     /**
-     * The looks of the book's `appearance` and of the entities' own moments (the components reveal, found and lost) that are
+     * The looks of the experience's `appearance` and of the entities' own moments (the components reveal, found and lost) that are
      * not built in (APPEARANCE_TYPES) – a plugin's, sorted
      * @return list<string>
      */
     public static function pluginAppearanceTypes(stdClass $configuration): array
     {
         $types = [];
-        $appearance = $configuration->book->appearance ?? null;
+        $appearance = $configuration->experience->appearance ?? null;
         foreach ($appearance instanceof stdClass ? get_object_vars($appearance) : [] as $look) {
             $type = $look instanceof stdClass ? ($look->type ?? null) : null;
             if (is_string($type) && !in_array($type, self::APPEARANCE_TYPES, true)) $types[$type] = true;
@@ -1207,13 +1197,13 @@ final class Books
         return $list;
     }
 
-    /** GET /editor/books/{id}/versions → { versions: [{ id, env, build, hash, publishedBy, publishedAt, note }] } newest first */
-    public static function versions(string $bookId): never
+    /** GET /editor/experiences/{id}/versions → { versions: [{ id, env, build, hash, publishedBy, publishedAt, note }] } newest first */
+    public static function versions(string $experienceId): never
     {
         Editor::user();
-        self::book($bookId, false, true);
+        self::experience($experienceId, false, true);
         $versions = [];
-        $rows = Db::run('SELECT v.*, u.email FROM book_versions v LEFT JOIN users u ON u.id = v.published_by WHERE v.book_id = :book ORDER BY v.published_at DESC, v.id', ['book' => $bookId])->fetchAll();
+        $rows = Db::run('SELECT v.*, u.email FROM experience_versions v LEFT JOIN users u ON u.id = v.published_by WHERE v.experience_id = :experience ORDER BY v.published_at DESC, v.id', ['experience' => $experienceId])->fetchAll();
         foreach ($rows as $row) {
             $versions[] = ['id' => $row['id'], 'env' => $row['env'], 'build' => $row['build'], 'hash' => $row['hash'], 'publishedBy' => $row['email'],
                 'publishedAt' => Editor::iso((int) $row['published_at']), 'note' => $row['note']];
@@ -1222,18 +1212,18 @@ final class Books
     }
 
     /**
-     * GET /editor/books/{id}/changes?limit= (default 50, at most 500) → { changes: [{ id, kind, ref, before, after, user, token,
+     * GET /editor/experiences/{id}/changes?limit= (default 50, at most 500) → { changes: [{ id, kind, ref, before, after, user, token,
      * createdAt, set, reverts, notRevertable }] } newest first; `token` = the AI connection's name for a save made through
      * one, else null; `set` = the change set a revert wrote (#312), `reverts` = the change it took back, `notRevertable` =
      * why the change cannot be reverted, null when it can (Reverts)
      */
-    public static function changes(string $bookId): never
+    public static function changes(string $experienceId): never
     {
         Editor::user();
-        self::book($bookId, false, true);
+        self::experience($experienceId, false, true);
         $limit = min(500, max(1, (int) ($_GET['limit'] ?? 50)));
         $changes = [];
-        $rows = Db::run("SELECT c.*, u.email FROM changes c LEFT JOIN users u ON u.id = c.user_id WHERE c.book_id = :book ORDER BY c.created_at DESC, c.id DESC LIMIT $limit", ['book' => $bookId])->fetchAll();
+        $rows = Db::run("SELECT c.*, u.email FROM changes c LEFT JOIN users u ON u.id = c.user_id WHERE c.experience_id = :experience ORDER BY c.created_at DESC, c.id DESC LIMIT $limit", ['experience' => $experienceId])->fetchAll();
         foreach ($rows as $row) {
             $changes[] = ['id' => $row['id'], 'kind' => $row['kind'], 'ref' => $row['ref'], 'before' => Editor::decode($row['before_json']), 'after' => Editor::decode($row['after_json']),
                 'user' => $row['email'], 'token' => $row['token_name'] ?? null, 'createdAt' => Editor::iso((int) $row['created_at']),
@@ -1243,69 +1233,68 @@ final class Books
     }
 
     /**
-     * The book row, else 404. `$lock` (inside a transaction that writes the row back) locks it – `Db::forUpdate()`.
+     * The experience row, else 404. `$lock` (inside a transaction that writes the row back) locks it – `Db::forUpdate()`.
      * @return array<string, mixed>
      */
-    private static function book(string $bookId, bool $lock = false, bool $anySchema = false): array
+    private static function experience(string $experienceId, bool $lock = false, bool $anySchema = false): array
     {
-        $row = Db::one('SELECT * FROM books WHERE id = :id' . ($lock ? Db::forUpdate() : ''), ['id' => $bookId]);
-        if (!$row) throw new ApiError(404, 'not-found', 'No such book – import a configuration first.');
-        // A book of content schema 2.x is not read or written (every stored book was migrated to 3.0, #319)
+        $row = Db::one('SELECT * FROM experiences WHERE id = :id' . ($lock ? Db::forUpdate() : ''), ['id' => $experienceId]);
+        if (!$row) throw new ApiError(404, 'not-found', 'No such experience – import a configuration first.');
+        // An experience of an older content schema MAJOR is not read or written (Db::migrate turns every 3.x one into 4.0, #320)
         if (!$anySchema && !Editor::isCurrentSchema((string) $row['content_schema'])) {
-            throw new ApiError(409, 'old-schema', "The book is of content schema {$row['content_schema']} – the editor reads " . Editor::CONTENT_SCHEMA . ': import a 3.x configuration of it.', ['schema' => $row['content_schema']]);
+            throw new ApiError(409, 'old-schema', "The experience is of content schema {$row['content_schema']} – the editor reads " . Editor::CONTENT_SCHEMA . ': import a ' . Editor::CONTENT_SCHEMA_MAJOR . '.x configuration of it.', ['schema' => $row['content_schema']]);
         }
         return $row;
     }
 
-    /** 404 unless the book exists (Assets) */
-    public static function exists(string $bookId): void
+    /** 404 unless the experience exists (Assets) */
+    public static function exists(string $experienceId): void
     {
-        self::book($bookId);
+        self::experience($experienceId);
     }
 
     /**
-     * The book row, else 404 – locked with `$lock` inside a transaction that writes it back (BookTexts)
+     * The experience row, else 404 – locked with `$lock` inside a transaction that writes it back (ExperienceTexts)
      * @return array<string, mixed>
      */
-    public static function bookRow(string $bookId, bool $lock = false, bool $anySchema = false): array
+    public static function experienceRow(string $experienceId, bool $lock = false, bool $anySchema = false): array
     {
-        return self::book($bookId, $lock, $anySchema);
+        return self::experience($experienceId, $lock, $anySchema);
     }
 
-    public static function touchBook(string $bookId): void
+    public static function touchExperience(string $experienceId): void
     {
-        self::touch($bookId);
+        self::touch($experienceId);
     }
 
     /** One row of the change log (`change`); `$set` and `$reverts` for a revert (#312, Reverts) – returns the row's id */
-    public static function recordChange(string $bookId, array $user, string $kind, string $ref, ?string $before, string $after, ?string $set = null, ?string $reverts = null): string
+    public static function recordChange(string $experienceId, array $user, string $kind, string $ref, ?string $before, string $after, ?string $set = null, ?string $reverts = null): string
     {
-        return self::change($bookId, $user, $kind, $ref, $before, $after, $set, $reverts);
+        return self::change($experienceId, $user, $kind, $ref, $before, $after, $set, $reverts);
     }
 
     /**
-     * A book for the list and the tree; `live` = the environments serving it [{ env, build, since }], empty = draft only
+     * An experience for the list and the tree; `live` = the environments serving it [{ env, build, since }], empty = draft only
      * @param array<string, mixed> $row
      * @return array<string, mixed>
      */
     private static function summary(array $row): array
     {
-        $last = Db::one('SELECT env, build, published_at FROM book_versions WHERE book_id = :book ORDER BY published_at DESC, id LIMIT 1', ['book' => $row['id']]);
+        $last = Db::one('SELECT env, build, published_at FROM experience_versions WHERE experience_id = :experience ORDER BY published_at DESC, id LIMIT 1', ['experience' => $row['id']]);
         $live = [];
         foreach (self::liveEnvironments() as $env => $serving) {
-            if (is_array($serving) && $serving['book'] === $row['id']) $live[] = ['env' => $env, 'build' => $serving['build'], 'since' => $serving['since']];
+            if (is_array($serving) && $serving['experience'] === $row['id']) $live[] = ['env' => $env, 'build' => $serving['build'], 'since' => $serving['since']];
         }
         return [
             'id' => $row['id'],
             'title' => $row['title'],
-            'author' => $row['author'],
-            'book' => Editor::decode($row['book_json']),
+            'experience' => Editor::decode($row['experience_json']),
             'initialScene' => $row['initial_scene'],
             'schema' => $row['content_schema'],
             'assetsBase' => $row['assets_base'],
             'libraryBase' => Assets::folderUrl((string) $row['id']),
             'importedHash' => $row['imported_hash'],
-            'scenes' => (int) Db::value('SELECT COUNT(*) FROM scenes WHERE book_id = :book', ['book' => $row['id']]),
+            'scenes' => (int) Db::value('SELECT COUNT(*) FROM scenes WHERE experience_id = :experience', ['experience' => $row['id']]),
             'createdAt' => Editor::isoOf($row['created_at']),
             'updatedAt' => Editor::isoOf($row['updated_at']),
             'lastPublish' => $last ? ['env' => $last['env'], 'build' => $last['build'], 'at' => Editor::iso((int) $last['published_at'])] : null,
@@ -1314,34 +1303,39 @@ final class Books
     }
 
     /**
-     * Checks what the rows need of a configuration (content schema 3.x – a 2.x configuration is refused: convert its source
-     * with `npm run convert:3` in scripts/) and splits it into rows-to-be;
+     * Checks what the rows need of a configuration (content schema 4.x – an older one is refused: convert its source with
+     * `npm run convert:3` and `convert:4` in scripts/) and splits it into rows-to-be;
      * every other field stays inside the objects (data_json). Every entry names a scene of the configuration, its surface
-     * and its target's place one of that scene's surfaces. The book's `sourceOfTruth` is the configuration's, else `print`
-     * (an imported book is print first, #238). `$pluginSources`: the book has Code tab sources (any node type named like a
+     * and its target's place one of that scene's surfaces. The experience needs an id and a title; its printed book
+     * (`book`, optional) an author and maybe a publisher – no print data on the top level (#320). `$pluginSources`: the experience has Code tab sources (any node type named like a
      * plugin's may pass – Editor::entity).
-     * @return array{book: stdClass, schema: string, hash: ?string, initialScene: string, plugins: array, groups: array, scenes: array, entities: array, entries: array, targets: array}
+     * @return array{experience: stdClass, schema: string, hash: ?string, initialScene: string, plugins: array, groups: array, scenes: array, entities: array, entries: array, targets: array}
      */
     private static function parse(stdClass $c, bool $pluginSources = false): array
     {
         $fail = static fn(string $message) => throw new ApiError(400, 'invalid-configuration', $message);
         $version = $c->version ?? null;
         if (!$version instanceof stdClass || !is_string($version->schema ?? null) || !preg_match('/^\d+\.\d+$/', $version->schema)) $fail('version.schema must be "MAJOR.MINOR".');
-        if (!Editor::isCurrentSchema($version->schema)) $fail("The configuration is of content schema {$version->schema} – the editor reads " . Editor::CONTENT_SCHEMA_MAJOR . '.x (convert the source with npm run convert:3 in scripts/).');
-        $book = $c->book ?? null;
-        if (!$book instanceof stdClass || !is_string($book->id ?? null) || !is_string($book->title ?? null) || !is_string($book->author ?? null)) $fail('book needs id, title and author.');
-        if (isset($book->environment)) {
-            $problems = self::environmentProblems($book->environment);
+        if (!Editor::isCurrentSchema($version->schema)) $fail("The configuration is of content schema {$version->schema} – the editor reads " . Editor::CONTENT_SCHEMA_MAJOR . '.x (convert the source with npm run convert:3 and convert:4 in scripts/).');
+        $experience = $c->experience ?? null;
+        if (!$experience instanceof stdClass || !is_string($experience->id ?? null) || !is_string($experience->title ?? null)) $fail('experience needs id and title.');
+        foreach (['author', 'publisher', 'sourceOfTruth'] as $key) {
+            if (property_exists($experience, $key)) $fail("experience.$key is not a field of schema 4 – the printed book's author and publisher are in experience.book, sourceOfTruth is gone.");
+        }
+        if (property_exists($experience, 'book')) {
+            $book = $experience->book;
+            if (!$book instanceof stdClass || !is_string($book->author ?? null)) $fail('experience.book needs an author.');
+            if (property_exists($book, 'publisher') && !is_string($book->publisher)) $fail('experience.book.publisher must be a string.');
+        }
+        if (isset($experience->environment)) {
+            $problems = self::environmentProblems($experience->environment);
             if ($problems) $fail($problems[0]);
         }
-        // An imported book is print first unless its content says otherwise (#238)
-        if (!isset($book->sourceOfTruth)) $book->sourceOfTruth = 'print';
-        elseif (!in_array($book->sourceOfTruth, Editor::SOURCES_OF_TRUTH, true)) $fail('book.sourceOfTruth must be one of ' . implode(', ', Editor::SOURCES_OF_TRUTH) . '.');
         if (!is_string($c->initialScene ?? null)) $fail('initialScene must be a string.');
         if (!is_array($c->scenes ?? null) || !is_array($c->entries ?? null)) $fail('scenes and entries must be arrays.');
         $entitiesIn = $c->entities ?? new stdClass();
         if (!$entitiesIn instanceof stdClass) $fail('entities must be an object.');
-        // The book's compiled plugins: kept as declared – the content build is their one writer
+        // The experience's compiled plugins: kept as declared – the content build is their one writer
         $plugins = $c->plugins ?? [];
         if (!is_array($plugins)) $fail('plugins must be an array.');
         foreach ($plugins as $i => $plugin) {
@@ -1360,7 +1354,7 @@ final class Books
         $pluginTypes = Editor::nodeTypesOf($plugins, $pluginSources);
         $pluginMaterials = Editor::typesOf($plugins, $pluginSources, 'materials');
 
-        // The groups scenes name (schema 2.35, #307): kept in books.groups_json, written back at the root by the draft
+        // The groups scenes name (schema 2.35, #307): kept in experiences.groups_json, written back at the root by the draft
         $groups = $c->groups ?? [];
         if (!is_array($groups)) $fail('groups must be an array.');
         $groupIds = [];
@@ -1421,7 +1415,7 @@ final class Books
             $targets[$targetId] = ['id' => $targetId, 'entry' => $id, 'image' => $target->imageSrc, 'ref' => self::entityRef($target->entity ?? null, $entities, "entries[$i].target.entity", $pluginTypes, $pluginMaterials), 'data' => $target];
         }
         return [
-            'book' => $book, 'schema' => $version->schema, 'hash' => is_string($version->hash ?? null) ? $version->hash : null,
+            'experience' => $experience, 'schema' => $version->schema, 'hash' => is_string($version->hash ?? null) ? $version->hash : null,
             'initialScene' => $c->initialScene, 'plugins' => $plugins, 'groups' => $groups,
             'scenes' => array_values($scenes), 'entities' => array_values($entities), 'entries' => array_values($entries), 'targets' => array_values($targets),
         ];
@@ -1495,9 +1489,9 @@ final class Books
         }
     }
 
-    private static function touch(string $bookId): void
+    private static function touch(string $experienceId): void
     {
-        Db::run('UPDATE books SET updated_at = :now WHERE id = :id', ['now' => Db::now(), 'id' => $bookId]);
+        Db::run('UPDATE experiences SET updated_at = :now WHERE id = :id', ['now' => Db::now(), 'id' => $experienceId]);
     }
 
     /**
@@ -1505,15 +1499,15 @@ final class Books
      * tells which AI made it
      * @param array<string, mixed> $user
      */
-    private static function change(string $bookId, array $user, string $kind, string $ref, ?string $before, string $after, ?string $set = null, ?string $reverts = null): string
+    private static function change(string $experienceId, array $user, string $kind, string $ref, ?string $before, string $after, ?string $set = null, ?string $reverts = null): string
     {
         $id = Db::uuid();
         // Strictly later than the request's previous change: the order of one save's changes stays readable (a revert
         // walks them newest first, #312)
         static $last = 0;
         $last = max(Editor::nowMs(), $last + 1);
-        Db::run('INSERT INTO changes (id, book_id, user_id, token_name, kind, ref, before_json, after_json, created_at, change_set, reverts) VALUES (:id, :book, :user, :token, :kind, :ref, :before, :after, :at, :set, :reverts)',
-            ['id' => $id, 'book' => $bookId, 'user' => $user['id'], 'token' => Auth::token()['name'] ?? null, 'kind' => $kind, 'ref' => $ref,
+        Db::run('INSERT INTO changes (id, experience_id, user_id, token_name, kind, ref, before_json, after_json, created_at, change_set, reverts) VALUES (:id, :experience, :user, :token, :kind, :ref, :before, :after, :at, :set, :reverts)',
+            ['id' => $id, 'experience' => $experienceId, 'user' => $user['id'], 'token' => Auth::token()['name'] ?? null, 'kind' => $kind, 'ref' => $ref,
              'before' => $before, 'after' => $after, 'at' => $last, 'set' => $set, 'reverts' => $reverts]);
         return $id;
     }
