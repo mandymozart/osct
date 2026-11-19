@@ -28,6 +28,8 @@ export interface StageTarget {
   y: number;
   width: number;
   height: number;
+  /** Switched off (`enabled: false`, #249): not in the reader's experience – the target marks draw it orange, dashed (#323) */
+  off?: boolean;
 }
 
 /** The open scene as the stage draws it: its surfaces where they lie (`surfaces.ts`) and their reference images */
@@ -248,6 +250,8 @@ export interface StageView {
    * selection's – ids of the open scene's surfaces; unknown ids are left out
    */
   setSurfaceMarks?(outlined: readonly string[], highlighted: string | null): void;
+  /** The target marks (#323): every target's place framed with its id, green / orange for on / switched off */
+  setTargetMarks?(on: boolean): void;
   /** Every frame: the stage's frame relative to the camera (the camera stays at the origin) */
   update(cameraInverse: Matrix4): void;
   dispose(): void;
@@ -466,7 +470,9 @@ export class MockTracker implements IImageTracker {
     const scene = getScene(this.sceneId);
     this.surfaces = sceneSurfaces(scene);
     this.frames = this.surfaces.map(surfaceFrame);
-    this.laidOut = layoutTargets(this.tracked, this.infos, this.frames);
+    // The editor loads the switched-off targets too (`keepSwitchedOffTargets`): the target marks tell them apart (#323)
+    const off = new Set(this.tracked.filter(target => target.enabled === false).map(target => target.id));
+    this.laidOut = layoutTargets(this.tracked, this.infos, this.frames).map(target => (off.has(target.id) ? { ...target, off: true } : target));
     this.targets = withLivePlacement(this.laidOut, this.livePlacement);
     this.stage?.setLayout(this.targets, this.stageScene());
     this.stage?.setSurfaceMarks?.(this.marks.outlined, this.marks.highlighted);
@@ -605,6 +611,7 @@ export class MockTracker implements IImageTracker {
     if (initial || state.hdri !== previous.hdri) this.stage?.setHdri(state.hdri);
     if (initial || state.top !== previous.top) this.stage?.setTop?.(state.top);
     if (initial || !sameGrids(gridOf(state), gridOf(previous))) this.stage?.setGrid?.(gridOf(state));
+    if (initial || state.targetMarks !== previous.targetMarks) this.stage?.setTargetMarks?.(state.targetMarks);
     if (state.hidden !== previous.hidden) this.publishState();
   }
 

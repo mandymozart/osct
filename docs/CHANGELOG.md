@@ -7,6 +7,14 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 3.1.0 – 2026-11-19
+
+### Added
+
+- **Target marks** (#323): a stage helper in the toolbar's *grid & snap* – every target's printed place framed on its
+  surface with its id, green and solid for a target in the experience, orange and dashed for a switched-off one
+  (docs/editor.md). Off by default, remembered per browser.
+
 ## 3.0.1 – 2026-11-19
 
 ### Added

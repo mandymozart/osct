@@ -5,7 +5,7 @@ import {
   Box3, type Color, CustomBlending, DirectionalLight, type Group, type LineSegments, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, NormalBlending, OneFactor,
   OneMinusDstAlphaFactor, Raycaster, Scene, type SphereGeometry, Texture, Vector3,
 } from "three";
-import { MockStage } from "../mock-stage";
+import { dashes, MockStage } from "../mock-stage";
 import { sceneSurfaces } from "../surfaces";
 import type { StageGrids } from "../mock-tracker";
 import { arrangeInRow, FLAT } from "#lib/surface-edit.js";
@@ -468,5 +468,38 @@ describe("mock stage: the surfaces as boards, the eye (#250, #319)", () => {
     expect(stage.targetPlanes().map(p => [p.userData.targetId, p.visible])).toEqual([["a", false], ["b", true]]);
     stage.setHiddenPrints(new Set());
     expect(stage.targetPlanes().every(p => p.visible)).toBe(true);
+  });
+});
+
+describe("mock stage: the target marks (#323)", () => {
+  const target = (id: string, off?: boolean) => ({ id, imageSrc: `/${id}.jpg`, surface: "right", x: 20, y: 20, width: 40, height: 30, ...(off ? { off } : {}) });
+  const lines = (stage: MockStage) => (stage as unknown as { targetMarksGroup: Group }).targetMarksGroup.children.filter(c => (c as LineSegments).isLineSegments) as LineSegments[];
+  const colours = (stage: MockStage) => lines(stage).map(l => ((l.material as unknown as { color: Color }).color.getHex()));
+
+  it("cuts a line into dashes of 3 mm with 2 mm gaps, the last one short", () => {
+    expect(dashes(0, 0, 12, 0)).toEqual([[0, 0, 3, 0], [5, 0, 8, 0], [10, 0, 12, 0]]);
+    expect(dashes(0, 0, 0, 0)).toEqual([]);
+  });
+
+  it("draws nothing while off; on, a solid green frame for a target in the experience and a dashed orange one for a switched-off one", () => {
+    const { stage } = newStage();
+    stage.setLayout([target("on"), target("off", true)], twoPages);
+    expect(lines(stage)).toHaveLength(0);
+    stage.setTargetMarks(true);
+    // 4 edges solid (8 points); 40 + 30 + 40 + 30 mm in dashes of 5 mm: 8 + 6 + 8 + 6 dashes (56 points)
+    expect(lines(stage).map(l => l.geometry.getAttribute("position").count)).toEqual([8, 56]);
+    expect(colours(stage)).toEqual([0x2fbf4f, 0xff8a1f]);
+    stage.setTargetMarks(false);
+    expect(lines(stage)).toHaveLength(0);
+  });
+
+  it("follows a print that moves", async () => {
+    const { stage } = newStage();
+    stage.setLayout([target("on")], twoPages);
+    stage.setTargetMarks(true);
+    const before = Array.from(lines(stage)[0].geometry.getAttribute("position").array);
+    stage.movePrint({ ...target("on"), x: 60 });
+    await Promise.resolve();
+    expect(Array.from(lines(stage)[0].geometry.getAttribute("position").array)).not.toEqual(before);
   });
 });

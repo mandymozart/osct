@@ -31,7 +31,7 @@ describe("editor preview settings", () => {
     const stored = JSON.parse(localStorage.getItem("osct-preview")!);
     expect(stored).toEqual({
       view: "top", shading: "rendered", orbit: null, hdri: "wooden_studio_07", top: "plywood", textureQuality: "auto", wobble: 0.4, grid: false, gridMm: 10, origin: "top-left",
-      axis: true, floorGrid: true, floorMm: 50, wallGrid: false, wallZ: -500, snap: false, snapTo: ["grid", "axes", "objects", "outlines"], snapMove: 1, snapRotate: 15, snapScale: 0.1,
+      axis: true, floorGrid: true, floorMm: 50, wallGrid: false, wallZ: -500, targetMarks: false, snap: false, snapTo: ["grid", "axes", "objects", "outlines"], snapMove: 1, snapRotate: 15, snapScale: 0.1,
     });
     expect(getPreview().hidden).toEqual(["a"]);
   });
@@ -102,15 +102,15 @@ describe("editor preview settings", () => {
   });
 
   it("keeps the floor grid and the vertical grid (#319), clamped; a broken stored one is the default", async () => {
-    updatePreview({ floorGrid: false, floorMm: 25, wallGrid: true, wallZ: -800 });
+    updatePreview({ floorGrid: false, floorMm: 25, wallGrid: true, wallZ: -800, targetMarks: true });
     vi.resetModules();
     const fresh = await import("../preview");
-    expect(fresh.getPreview()).toMatchObject({ floorGrid: false, floorMm: 25, wallGrid: true, wallZ: -800 });
+    expect(fresh.getPreview()).toMatchObject({ floorGrid: false, floorMm: 25, wallGrid: true, wallZ: -800, targetMarks: true });
     expect([fresh.clampFloorGrid(0), fresh.clampFloorGrid(5000), fresh.clampWallZ(-99999)]).toEqual([1, 1000, -10000]);
-    localStorage.setItem("osct-preview", JSON.stringify({ floorGrid: "yes", floorMm: "x", wallGrid: 1, wallZ: null }));
+    localStorage.setItem("osct-preview", JSON.stringify({ floorGrid: "yes", floorMm: "x", wallGrid: 1, wallZ: null, targetMarks: "on" }));
     vi.resetModules();
     const broken = await import("../preview");
-    expect(broken.getPreview()).toMatchObject({ floorGrid: true, floorMm: 50, wallGrid: false, wallZ: -500 });
+    expect(broken.getPreview()).toMatchObject({ floorGrid: true, floorMm: 50, wallGrid: false, wallZ: -500, targetMarks: false });
   });
 
   it("hands the open scene's surface grids (#316) to the stage, never stores them", () => {

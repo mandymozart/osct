@@ -659,6 +659,11 @@ has three grids (#316, #319):
   by default.
 - **The vertical grid** – for wall setups: the same net standing at the scene's z = *Z* mm (−500 by default; + towards
   the reader, a wall ahead is at a negative z), from the table 2.5 m up, the floor grid's spacing. Off by default.
+- **The target marks** (#323) – a helper for checking the places against the print: every target's printed place framed
+  on its surface with its id on a label at the frame's top left, **green and solid** for a target in the experience,
+  **orange and dashed** for a switched-off one (colour and line both; an explicit exception to the monochrome editor,
+  as the #321 contact sheets). Drawn through everything, they follow a print that moves. Off by default, remembered per
+  browser.
 
 The *view* group sets the **origin** (`stage/origin.ts`): one of the nine points of an alignment square – a corner or an
 edge's centre of the surface a position lies on, or the centre (the scene's origin, a double page's spine; a standing

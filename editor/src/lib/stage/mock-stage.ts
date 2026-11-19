@@ -1,6 +1,6 @@
 import {
   AddEquation, CustomBlending, NormalBlending, OneFactor, OneMinusDstAlphaFactor,
-  BoxGeometry, EquirectangularReflectionMapping, Group, Light, LineBasicMaterial, LineSegments, BufferGeometry, Float32BufferAttribute, type Material, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D,
+  BoxGeometry, CanvasTexture, EquirectangularReflectionMapping, Group, Light, LineBasicMaterial, LineSegments, BufferGeometry, Float32BufferAttribute, type Material, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D,
   PlaneGeometry, type Raycaster, RepeatWrapping, type Scene, SphereGeometry, SRGBColorSpace, type Texture, TextureLoader, UVMapping, Vector3,
 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -116,6 +116,60 @@ const SURFACE_OUTLINE_COLOR = 0x8c8c8c;
 const SURFACE_HOVER_COLOR = 0xc8c8c8;
 const SURFACE_HIGHLIGHT_COLOR = 0xffffff;
 const SURFACE_HIGHLIGHT_INNER_COLOR = 0x111111;
+/**
+ * The target marks (#323, after the #321 contact sheets): a frame around each target's printed place and its id on a
+ * label at the frame's top left – green and solid for a target in the experience, orange and dashed for a switched-off
+ * one (colour and line both, so it reads without the colour too). An explicit exception to the monochrome editor
+ * (RULES #38), as the contact sheets – Tilman, 2026-11-19: "Green and orange and dashed"
+ */
+const TARGET_ON_COLOR = 0x2fbf4f;
+const TARGET_OFF_COLOR = 0xff8a1f;
+const TARGET_ON_CSS = "#2fbf4f";
+const TARGET_OFF_CSS = "#ff8a1f";
+/** A dash and its gap along a switched-off target's frame (mm) */
+const DASH_MM = 3;
+const GAP_MM = 2;
+/** The label's height on the surface (mm) */
+const LABEL_MM = 5;
+
+/** A line from (ax, ay) to (bx, by) as dashes: [x1, y1, x2, y2] each */
+export const dashes = (ax: number, ay: number, bx: number, by: number, dash = DASH_MM, gap = GAP_MM): number[][] => {
+  const length = Math.hypot(bx - ax, by - ay);
+  if (!(length > 0)) return [];
+  const out: number[][] = [];
+  for (let at = 0; at < length; at += dash + gap) {
+    const end = Math.min(length, at + dash);
+    out.push([ax + ((bx - ax) * at) / length, ay + ((by - ay) * at) / length, ax + ((bx - ax) * end) / length, ay + ((by - ay) * end) / length]);
+  }
+  return out;
+};
+
+/** A target mark's label: its id, dark on the mark's colour; null where there is no 2D canvas (the tests) */
+const labelTexture = (text: string, color: string): CanvasTexture | null => {
+  if (typeof document === "undefined") return null;
+  const canvas = document.createElement("canvas");
+  let context: CanvasRenderingContext2D | null = null;
+  try {
+    context = canvas.getContext("2d");
+  } catch {
+    return null;
+  }
+  if (!context) return null;
+  const font = "600 40px system-ui, sans-serif";
+  context.font = font;
+  canvas.width = Math.ceil(context.measureText(text).width) + 24;
+  canvas.height = 56;
+  context.font = font;
+  context.fillStyle = color;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "#111111";
+  context.textBaseline = "middle";
+  context.fillText(text, 12, canvas.height / 2 + 2);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = 4;
+  return texture;
+};
 
 /** Lays a plane (its face +z) on a surface: centred at (x, y) mm of the surface, `lift` m off its face, turned with it */
 const layOnSurface = (object: Object3D, frame: SurfaceFrame, x: number, y: number, lift: number): void => {
@@ -211,6 +265,12 @@ export class MockStage implements StageView {
   /** The surfaces outlined or highlighted (the Surface mode) */
   private marksGroup = new Group();
   private marks: { outlined: string[]; highlighted: string | null } = { outlined: [], highlighted: null };
+  /** The target marks (#323): each target's place framed with its id, switched on in the grid menu */
+  private targetMarksGroup = new Group();
+  private targetMarks = false;
+  private targetMarksQueued = false;
+  /** The marks' labels by target id and state, made once per layout */
+  private labelTextures = new Map<string, CanvasTexture>();
   /** Where the table's top lies (m, the stage frame's z): the scene's y = 0, under the flat boards */
   private tableTop = FACE - BOARD_THICKNESS;
   private ghostGroup = new Group();
@@ -268,7 +328,8 @@ export class MockStage implements StageView {
     this.guideGroup.name = "mock-guides";
     this.sceneGridGroup.name = "mock-scene-grid";
     this.marksGroup.name = "mock-surface-marks";
-    this.group.add(this.table, this.boards, this.pages, this.gridGroup, this.sceneGridGroup, this.marksGroup, this.guideGroup, this.ghostGroup);
+    this.targetMarksGroup.name = "mock-target-marks";
+    this.group.add(this.table, this.boards, this.pages, this.gridGroup, this.sceneGridGroup, this.marksGroup, this.targetMarksGroup, this.guideGroup, this.ghostGroup);
     scene.add(this.group);
     this.loadDesk();
   }
@@ -360,6 +421,8 @@ export class MockStage implements StageView {
     this.clear(this.pages);
     this.textures.forEach(texture => texture.dispose());
     this.textures = [];
+    this.labelTextures.forEach(texture => texture.dispose());
+    this.labelTextures.clear();
 
     this.frames = scene.surfaces.length ? scene.surfaces.map(surfaceFrame) : [DEFAULT_FRAME];
     const edge = new MeshStandardMaterial({ color: PAPER_EDGE_COLOR, roughness: 1 });
@@ -397,7 +460,82 @@ export class MockStage implements StageView {
     });
     this.drawGrid();
     this.drawMarks();
+    this.drawTargetMarks();
     this.toBackdropLayer();
+  }
+
+  /** The target marks on or off (#323): every target's place framed with its id */
+  setTargetMarks(on: boolean): void {
+    if (this.targetMarks === on) return;
+    this.targetMarks = on;
+    this.drawTargetMarks();
+    this.toBackdropLayer();
+  }
+
+  /** The marks follow a print that moved or learned its height (its image loaded) – once for all that changed together */
+  private queueTargetMarks(): void {
+    if (!this.targetMarks || this.targetMarksQueued) return;
+    this.targetMarksQueued = true;
+    queueMicrotask(() => {
+      this.targetMarksQueued = false;
+      if (this.disposed) return;
+      this.drawTargetMarks();
+      this.toBackdropLayer();
+    });
+  }
+
+  /**
+   * Frames each target's print where it lies – the print's own box, its height from the image once loaded – green and
+   * solid, or orange and dashed when switched off, through everything like the surfaces' outlines; its id on a label
+   * just above the frame's top left
+   */
+  private drawTargetMarks(): void {
+    this.targetMarksGroup.children.forEach(child => {
+      if (child instanceof Mesh) {
+        child.geometry.dispose();
+        (child.material as Material).dispose();
+      }
+    });
+    clearLines(this.targetMarksGroup);
+    if (!this.targetMarks) return;
+    const solid: number[] = [];
+    const dashed: number[] = [];
+    const at = (frame: SurfaceFrame, x: number, y: number) => toStage(frame, x, y, 0).map(v => v / 1000);
+    for (const plane of this.targetPlanes()) {
+      const target = plane.userData.place as StageTarget | undefined;
+      if (!target) continue;
+      const frame = frameFor(this.frames, target.surface);
+      const height = placeHeight(target, this.aspects.get(target.imageSrc));
+      const { x, y, width } = target;
+      const corners = [[x, y], [x + width, y], [x + width, y + height], [x, y + height]];
+      corners.forEach(([ax, ay], i) => {
+        const [bx, by] = corners[(i + 1) % 4];
+        const pieces = target.off ? dashes(ax, ay, bx, by) : [[ax, ay, bx, by]];
+        pieces.forEach(([x1, y1, x2, y2]) => (target.off ? dashed : solid).push(...at(frame, x1, y1), ...at(frame, x2, y2)));
+      });
+      const label = this.markLabel(target, frame);
+      if (label) this.targetMarksGroup.add(label);
+    }
+    addLines(this.targetMarksGroup, solid, TARGET_ON_COLOR, 1, true);
+    addLines(this.targetMarksGroup, dashed, TARGET_OFF_COLOR, 1, true);
+  }
+
+  /** A target mark's label: its id, LABEL_MM high, its bottom left on the frame's top left corner */
+  private markLabel(target: StageTarget, frame: SurfaceFrame): Mesh | null {
+    const key = `${target.id}|${target.off ? "off" : "on"}`;
+    let texture = this.labelTextures.get(key) ?? null;
+    if (!texture) {
+      texture = labelTexture(target.id, target.off ? TARGET_OFF_CSS : TARGET_ON_CSS);
+      if (!texture) return null;
+      this.labelTextures.set(key, texture);
+    }
+    const image = texture.image as { width: number; height: number };
+    const width = (LABEL_MM * image.width) / image.height;
+    const label = new Mesh(new PlaneGeometry(width / 1000, LABEL_MM / 1000), new MeshBasicMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false }));
+    label.renderOrder = 2;
+    label.userData.targetMark = target.id;
+    layOnSurface(label, frame, target.x + width / 2, target.y - LABEL_MM / 2, 0);
+    return label;
   }
 
   /**
@@ -496,6 +634,7 @@ export class MockStage implements StageView {
     plane.scale.set(target.width / 1000, height / 1000, 1);
     // On its surface (#314): flat on the table as before, standing on a wall
     layOnSurface(plane, frameFor(this.frames, target.surface), target.x + target.width / 2, target.y + height / 2, -LAYER);
+    this.queueTargetMarks();
   }
 
   /** A target's print moves (the placement being edited): the same plane, so its texture and outline stay */
@@ -813,6 +952,10 @@ export class MockStage implements StageView {
     clearLines(this.sceneGridGroup);
     clearLines(this.guideGroup);
     clearLines(this.marksGroup);
+    this.targetMarks = false;
+    this.drawTargetMarks();
+    this.labelTextures.forEach(texture => texture.dispose());
+    this.labelTextures.clear();
     this.ghostTextures.forEach(texture => texture.dispose());
     this.ghostTextures.clear();
     this.clear(this.table);

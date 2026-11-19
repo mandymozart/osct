@@ -131,6 +131,11 @@ export interface PreviewSettings {
   /** The optional **vertical grid** for wall setups: a plane at the scene's z = `wallZ` mm, the floor grid's spacing */
   wallGrid: boolean;
   wallZ: number;
+  /**
+   * The **target marks** (#323): every target's place framed on its surface with its id – green and solid for a target
+   * in the experience, orange and dashed for a switched-off one. A helper, off by default
+   */
+  targetMarks: boolean;
   /** The gizmo and the placement handles snap (Shift or Ctrl held turns it around for a drag) */
   snap: boolean;
   /** What a move snaps to */
@@ -181,7 +186,7 @@ const STORAGE_KEY = "osct-preview";
 
 const DEFAULTS: PreviewSettings = {
   view: "reader", shading: "rendered", orbit: null, hdri: "wooden_studio_17", top: DEFAULT_TOP, textureQuality: "auto", wobble: 0, grid: false, gridMm: 10, origin: "top-left",
-  axis: true, floorGrid: true, floorMm: 50, wallGrid: false, wallZ: -500, snap: false, snapTo: [...SNAP_TARGETS], snapMove: 1, snapRotate: 15, snapScale: 0.1,
+  axis: true, floorGrid: true, floorMm: 50, wallGrid: false, wallZ: -500, targetMarks: false, snap: false, snapTo: [...SNAP_TARGETS], snapMove: 1, snapRotate: 15, snapScale: 0.1,
 };
 
 /** The grid's spacing stays between 1 mm and the page's size */
@@ -232,6 +237,7 @@ export const parseSettings = (parsed: unknown): PreviewSettings => {
     floorMm: finite(stored.floorMm) ? clampFloorGrid(stored.floorMm) : DEFAULTS.floorMm,
     wallGrid: stored.wallGrid === true,
     wallZ: finite(stored.wallZ) ? clampWallZ(stored.wallZ) : DEFAULTS.wallZ,
+    targetMarks: stored.targetMarks === true,
     snap: stored.snap === true,
     snapTo: Array.isArray(stored.snapTo) ? SNAP_TARGETS.filter(target => (stored.snapTo as unknown[]).includes(target)) : [...DEFAULTS.snapTo],
     snapMove: finite(stored.snapMove) ? clampSnap("move", stored.snapMove) : DEFAULTS.snapMove,

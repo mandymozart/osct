@@ -54,6 +54,10 @@
       <span class="w"><ScrubNumber value={preview.wallZ} min={-10000} max={10000} step={10} fallback={-500} strict unit="mm" prefix="Z" label="Vertical grid z" oninput={wallZ => updatePreview({ wallZ: clampWallZ(wallZ) })} /></span>
     </span>
   </div>
+  <div class="row rule" data-help="Target marks: every target's printed place framed on its surface with its id – green and solid for a target in the experience, orange and dashed for a switched-off one. A helper for checking the places against the print.">
+    <span class="label">target marks</span>
+    <span class="controls"><Toggle on={preview.targetMarks} label="Target marks" onchange={targetMarks => updatePreview({ targetMarks })} /></span>
+  </div>
   <div class="row rule" data-help="Snapping for the gizmo (move, rotate, scale) and the placement handles. Holding Shift or Ctrl while dragging turns it around for that drag; with a finger this switch is the way.">
     <span class="label">snap</span>
     <span class="controls"><Toggle on={preview.snap} label="Snap" onchange={snap => updatePreview({ snap })} /></span>
