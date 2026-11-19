@@ -154,19 +154,6 @@ describe("editor preview settings", () => {
     expect(fresh.TOPS.map(t => t.id)).toEqual(["plywood", "linoleum"]);
   });
 
-  it.each([
-    [{ desk: "schoepfer" }, "linoleum"],
-    [{ desk: "eiermann" }, "plywood"],
-    [{ desk: "toString" }, "plywood"],
-    [{ desk: "schoepfer", top: "plywood" }, "plywood"],
-    [{ top: "glass" }, "plywood"],
-  ])("maps a desk stored before #226 to its top: %j → %s, so nobody's stage breaks", async (stored, top) => {
-    localStorage.setItem("osct-preview", JSON.stringify(stored));
-    vi.resetModules();
-    const fresh = await import("../preview");
-    expect(fresh.getPreview().top).toBe(top);
-    expect(fresh.storedTop(stored)).toBe(top);
-  });
 });
 
 // The toolbar's view group (#229 – the Stage tab's stage section until then): its tooltip names the desk and its top

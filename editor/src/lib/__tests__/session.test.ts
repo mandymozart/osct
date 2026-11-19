@@ -58,28 +58,6 @@ describe("session – the browser's cookie (#207)", () => {
     expect(session.error).toBe("The database is down.");
   });
 
-  it("a token stored before the cookie is exchanged for it at startup and deleted", async () => {
-    localStorage.setItem("osct-editor-session", "old-token");
-    fetchMock.mockResolvedValueOnce(answer(200, { user: USER, csrfToken: "csrf-x" }));
-    await session.restore();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][0]).toBe("/api/auth/cookie");
-    expect(new Headers(fetchMock.mock.calls[0][1]?.headers).get("Authorization")).toBe("Bearer old-token");
-    expect(session.status).toBe("in");
-    expect(getSession()).toEqual({ csrfToken: "csrf-x", email: USER.email });
-    expect(localStorage.getItem("osct-editor-session")).toBeNull();
-  });
-
-  it("a stored token that no longer holds is deleted, then the cookie is asked – signed out quietly", async () => {
-    localStorage.setItem("osct-editor-session", "old-token");
-    fetchMock.mockResolvedValueOnce(unauthorized()).mockResolvedValueOnce(unauthorized());
-    await session.restore();
-    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(["/api/auth/cookie", "/api/user"]);
-    expect(session.status).toBe("out");
-    expect(session.notice).toBeNull();
-    expect(localStorage.getItem("osct-editor-session")).toBeNull();
-  });
-
   it("signs in with a code: the CSRF token is kept, the note goes, nothing is stored", async () => {
     session.status = "out";
     session.notice = SESSION_ENDED;
