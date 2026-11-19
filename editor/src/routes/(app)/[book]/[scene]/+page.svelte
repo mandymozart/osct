@@ -190,6 +190,12 @@
     const id = bookId;
     if (bookSource.bookId !== id) void bookSource.load(id);
   });
+  // The book's scenes, read once per book here – not only by the Scenes panel: the stage's reference images (#314) and
+  // the scene removal come from them, with the panel closed too
+  $effect(() => {
+    const id = bookId;
+    if (untrack(() => scenes.bookId) !== id) void scenes.load(id);
+  });
   /** + after the last scene (#238) */
   const atLastSpread = $derived(content.spreads.at(-1)?.id === spreadId);
   const canAddSpread = $derived(bookSource.bookId === bookId && bookSource.digital);

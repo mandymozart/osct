@@ -7,6 +7,13 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 2.0.2 – 2026-11-19
+
+### Fixed
+
+- **Reference images on the stage with the Scenes panel closed** (#314, #319): the scene workspace reads the book's scenes
+  itself – only the Scenes panel did, so a scene opened from a fresh page showed its surfaces without their reference images.
+
 ## 2.0.1 – 2026-11-19
 
 ### Fixed
