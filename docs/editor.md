@@ -1092,6 +1092,18 @@ focused it shows **Use · Replace · ⋯** as icons (the native tooltip names ea
 file, a **double click** (or Enter) uses it. The **list** shows name, place, kind, size and uses per row; a click
 selects, a double click uses.
 
+**Stacks and frames** (#331): what the draft links stands together. A model's **map in several sizes** (its node's
+*textures*, 512 … 4096 px) is one tile – the largest level, two sheets offset behind it and a badge with the levels
+(`▤ 3`; dashed `▤ 2/3` while a level below the largest is missing). Hovered, **▤** opens the levels in a row under it:
+each level a tile of its own (⇄ replaces only that file – a new version, every link stays), a missing level a dashed
+slot, the next size up a dotted *optional* one; a click on a slot shows the model node, whose *textures* in the
+Inspector add the level. The details of a level list the whole stack (size, pixels, weight; show, replace, download).
+A model's mesh and its map stacks stand in a **frame** (its name, parts, files, weight; a click folds it), a video and
+its subtitles too (by language – `speak.en.vtt` belongs to `speak.mp4`). A model file shows what it carries inside, dotted
+– `◧ map`, `◧ 2 clips` – read from the start of the file. **The Library makes no link** (Tilman, 2026-11-19): files no
+node names stay single tiles; levels and parts are linked where the content is edited. The browser's **levels:
+stacked / single** shows every file alone; the list shows every file.
+
 **Groups**: *This scene* is one framed group (*open scene*); in *All* the open scene's files are pinned on top in that
 frame, then **Unused**, then a group per other scene in the scenes' order (each file under the scene of its **first
 use**, `groupByScene` in `library-place.ts`) and **Not in a scene** (the experience-wide uses: the environment's world

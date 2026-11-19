@@ -21,6 +21,7 @@
     readLibrarySort, readTileSize, saveLibrarySort, saveTileSize, sceneCounts, scopeCounts, startScope, startsFolded, surfaceImagesOf, tileKind, tileMeta, usageJump, useWord,
     type LibraryGrouping, type LibraryScope, type LibrarySort, type LibrarySpecial, type ShownGroup,
   } from "#lib/library-scope.js";
+  import { filesSize, frameFiles, isOptionalLevel, levelCount, libraryItems, librarySets, stackRange, type LibraryFrame, type LibraryStack, type StackLevel } from "#lib/library-sets.js";
   import Icon from "#lib/components/Icon.svelte";
   import Segmented from "#lib/components/Segmented.svelte";
   import ToolMenu from "#lib/components/ToolMenu.svelte";
@@ -45,6 +46,12 @@
    * where it is used – a click there shows that target, entry or surface –, the credits and every action: *Use for the
    * selection*, *Set as target image*, *Replace…*, *Download*, *Delete* – refused while used, then *Delete anyway*); a
    * double click uses it; hovered a tile offers *Use · Replace · ⋯* (⋯ and a right click: the context menu).
+   *
+   * **Stacks and frames** (#331, `library-sets.ts`): the levels of one picture – a model's map at 512 … 4096 px, a video's
+   * subtitles by language – are one tile with the levels behind it; ▤ opens them in a row under it, each level a tile of
+   * its own (replaced alone – every link stays), a missing one a slot that shows the model node, where the Inspector's
+   * *textures* add it. A model's mesh and its maps, a video and its subtitles stand in a frame. Only what the draft links:
+   * **the Library makes no link** (Tilman, 2026-11-19). The browser's *levels: stacked / single* shows every file alone.
    *
    * **The browser** (⤢): the same library as a large window over the stage (Esc closes): places on the left with their
    * counts (the scopes, *Recently added*, *Missing credits*, the kinds, every scene, the origin), the grid in the middle
@@ -92,6 +99,12 @@
   let view = $state<LibraryView>(readLibraryView());
   let grouping = $state<LibraryGrouping>("scene");
   let expanded = $state(false);
+  /** The stacks shown as one tile (#331) – the browser can show every level alone */
+  let stacked = $state(true);
+  /** The stacks whose levels are open, by key */
+  let openStacks = $state<string[]>([]);
+  /** The frames folded to their head, by key */
+  let foldedFrames = $state<string[]>([]);
   let folds = $state<Record<string, boolean>>({});
 
   let fileInput = $state<HTMLInputElement>();
@@ -129,6 +142,23 @@
   });
 
   const targetImages = $derived(targetImagesOf(content.scenes));
+  /** What belongs together: the levels of a map, a model's parts, a video's subtitles (#331) */
+  const sets = $derived(librarySets(library.assets, content.scenes));
+  const toggleIn = (list: string[], key: string) => (list.includes(key) ? list.filter(k => k !== key) : [...list, key]);
+  const levelsBadge = (stack: LibraryStack) => {
+    const count = levelCount(stack);
+    const what = stack.kind === "map" ? "levels" : "languages";
+    return {
+      text: count.there === count.of ? String(count.there) : `${count.there}/${count.of}`,
+      gap: count.there < count.of,
+      title: `${count.there} ${what}: ${stackRange(stack)}${count.there < count.of ? " – a level is missing" : ""}`,
+    };
+  };
+  /** A missing level: the model node it is added on (the Inspector's textures) – the Library makes no link */
+  const showNode = (stack: LibraryStack): (() => void) | null => (stack.node ? jumpTo({ kind: "target", ref: stack.node.targetId }) : null);
+  const slotTitle = (stack: LibraryStack, level: StackLevel) =>
+    isOptionalLevel(stack, level) ? `${level.label} – optional, a larger level` : `${level.label} is missing`;
+  const stackSize = (stack: LibraryStack) => formatSize(filesSize(stack.levels.flatMap(level => (level.asset ? [level.asset] : []))));
   const surfaceImages = $derived(surfaceImagesOf(scenes.references));
   /** The draft's uses of the files by scene */
   const index = $derived(libraryIndex(content.scenes, scenes.references));
@@ -508,18 +538,91 @@
 {/snippet}
 
 {#snippet details(asset: Asset, wide: boolean, onclose: (() => void) | undefined)}
+  {@const stack = sets.stackOf.get(asset.id)}
   <AssetDetails {asset} label={assetLabel(asset)} kind={isTargetImage(asset, targetImages) ? "target image" : tileKind(asset, targetImages, surfaceImages)}
     uses={useItems} {wide} {onclose}>
     {#snippet actions()}{@render detailActions(asset)}{/snippet}
+    {#snippet extra()}{#if stack}{@render levelsBlock(stack, asset)}{/if}{/snippet}
   </AssetDetails>
 {/snippet}
 
-{#snippet tile(asset: Asset)}
-  <AssetTile {asset} label={assetLabel(asset)} kind={tileKind(asset, targetImages, surfaceImages)} target={isTargetImage(asset, targetImages)}
-    meta={tileMeta(asset, fresh.includes(asset.id))} selected={isSelected(asset)} marked={(!!pick && pick.current === asset.url) || fresh.includes(asset.id)}
+{#snippet tile(asset: Asset, as: { label?: string; meta?: string; stack?: LibraryStack; level?: string } = {})}
+  <AssetTile {asset} label={as.label ?? assetLabel(asset)} kind={tileKind(asset, targetImages, surfaceImages)} target={isTargetImage(asset, targetImages)}
+    levels={as.stack ? levelsBadge(as.stack) : null} level={as.level ?? null} open={!!as.stack && openStacks.includes(as.stack.key)}
+    onlevels={as.stack ? () => (openStacks = toggleIn(openStacks, as.stack!.key)) : undefined}
+    meta={as.meta ?? tileMeta(asset, fresh.includes(asset.id))} selected={isSelected(asset)} marked={(!!pick && pick.current === asset.url) || fresh.includes(asset.id)}
     useLabel={pick ? (pick.current === asset.url ? "Chosen" : "Pick") : "Use"} useBlocked={useBlocked(asset)} replaceable={!pick && !asset.imported}
     onselect={keys => select(asset, keys)} onactivate={() => activate(asset)} onreplace={() => startReplace(asset)}
     onmore={at => (menu = { at, asset })} />
+{/snippet}
+
+{#snippet stackTile(stack: LibraryStack)}
+  {@render tile(stack.face, { label: stack.label, stack, meta: `${stackRange(stack)} · ${stackSize(stack)}` })}
+  {#if openStacks.includes(stack.key)}
+    <li class="tray" aria-label="The levels of {stack.label}">
+      <div class="tray-head small"><b>{stack.label}</b> <span class="muted">· {stack.kind === "map" ? "levels – each replaced alone, every link stays" : "subtitles by language"}</span>
+        <span class="grow"></span><button type="button" class="text-link" onclick={() => (openStacks = toggleIn(openStacks, stack.key))}>close</button></div>
+      <ul class="tiles" style:--tile="{Math.max(TILE_SIZE.min, tileSize - 1)}rem">
+        {#each stack.levels as level (level.label)}
+          {#if level.asset}{@render tile(level.asset, { level: level.label })}
+          {:else}
+            {@const jump = showNode(stack)}
+            <li class="slot" class:optional={isOptionalLevel(stack, level)}>
+              <button type="button" class="slot-pic" disabled={!jump} title="{slotTitle(stack, level)} – added in the Inspector's textures of the model node" onclick={() => jump?.()}>
+                <span>{level.label}</span><span class="small">{isOptionalLevel(stack, level) ? "optional" : "missing"}</span></button>
+              <div class="small muted">show the node</div>
+            </li>
+          {/if}
+        {/each}
+      </ul>
+    </li>
+  {/if}
+{/snippet}
+
+{#snippet frameTile(frame: LibraryFrame)}
+  {@const files = frameFiles(frame)}
+  {@const folded = foldedFrames.includes(frame.key)}
+  <li class="frame" aria-label="{frame.kind} {frame.label}">
+    <button type="button" class="frame-head small" aria-expanded={!folded} onclick={() => (foldedFrames = toggleIn(foldedFrames, frame.key))}>
+      <Icon name={folded ? "next" : "down"} size=".9em" /><b>{frame.label}</b>
+      <span class="muted">{frame.kind} · {frame.stacks.length + (frame.main ? 1 : 0)} parts · {files.length} files · {formatSize(filesSize(files))}</span></button>
+    {#if !folded}
+      <ul class="tiles">
+        {#if frame.main}{@render tile(frame.main)}{/if}
+        {#each frame.stacks as stack (stack.key)}{@render stackTile(stack)}{/each}
+      </ul>
+    {/if}
+  </li>
+{/snippet}
+
+{#snippet levelsBlock(stack: LibraryStack, asset: Asset)}
+  {@const frame = sets.frameOf.get(asset.id)}
+  <div class="levels-block small">
+    <div class="muted">{stack.kind === "map" ? `${levelCount(stack).there} levels of the map` : "subtitles"} <b>{stack.label}</b>{#if frame} · {frame.kind} {frame.label}{/if}</div>
+    <table>
+      <tbody>
+        {#each [...stack.levels].reverse() as level (level.label)}
+          <tr class:on={level.asset?.id === asset.id} class:miss={!level.asset}>
+            <td>{level.label}</td>
+            {#if level.asset}
+              {@const file = level.asset}
+              <td class="muted">{file.width && file.height ? `${file.width}×${file.height}` : ""}</td>
+              <td class="muted num">{formatSize(file.size)}</td>
+              <td class="acts">
+                <button type="button" class="icon-button" aria-label="Show {level.label}" title="Show this level" onclick={() => select(file, { shift: false, toggle: false })}><Icon name="eye" /></button>
+                {#if !file.imported && !pick}<button type="button" class="icon-button" aria-label="Replace {level.label}" title="Replace this level – a new version, every link stays" onclick={() => startReplace(file)}><Icon name="replace" /></button>{/if}
+                <button type="button" class="icon-button" aria-label="Download {level.label}" title="Download" onclick={() => void download(file)}><Icon name="download" /></button>
+              </td>
+            {:else}
+              {@const jump = showNode(stack)}
+              <td class="muted" colspan="2">{isOptionalLevel(stack, level) ? "optional" : "missing"}</td>
+              <td class="acts">{#if jump}<button type="button" class="text-link" title="The model node – its textures in the Inspector add a level" onclick={jump}>node</button>{/if}</td>
+            {/if}
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  </div>
 {/snippet}
 
 {#snippet list(assets: Asset[])}
@@ -563,7 +666,11 @@
             {@render list(group.assets)}
           {:else}
             <ul class="tiles" role="listbox" aria-label={group.label} aria-multiselectable={expanded} style:--tile="{tileSize}rem">
-              {#each group.assets as asset (asset.id)}{@render tile(asset)}{/each}
+              {#each libraryItems(group.assets, sets, stacked) as item (item.key)}
+                {#if item.type === "file"}{@render tile(item.asset)}
+                {:else if item.type === "stack"}{@render stackTile(item.stack)}
+                {:else}{@render frameTile(item.frame)}{/if}
+              {/each}
             </ul>
           {/if}
         {/if}
@@ -611,6 +718,11 @@
   </select>
   <input class="tile-size" type="range" min={TILE_SIZE.min} max={TILE_SIZE.max} step={TILE_SIZE.step} value={tileSize} aria-label="Tile size" title="Tile size"
     disabled={view === "list"} oninput={e => setTileSize(Number((e.currentTarget as HTMLInputElement).value))} />
+  {#if expanded}
+    <button type="button" class="pill framed" class:on={!stacked} aria-pressed={!stacked} disabled={view === "list"}
+      title={stacked ? "Levels stacked: one tile per map, its levels behind it – show every file alone" : "Every level alone – stack them again"}
+      onclick={() => (stacked = !stacked)}>levels: {stacked ? "stacked" : "single"}</button>
+  {/if}
   <span class="views" role="group" aria-label="View">
     <button type="button" class="icon-button" class:on={view === "cards"} aria-pressed={view === "cards"} title="Tiles" aria-label="Tiles" onclick={() => setView("cards")}><Icon name="grid" /></button>
     <button type="button" class="icon-button" class:on={view === "list"} aria-pressed={view === "list"} title="List" aria-label="List" onclick={() => setView("list")}><Icon name="list" /></button>
@@ -794,6 +906,26 @@
   .group.pinned .group-head { border-bottom: none; }
   .group-label { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tag { padding: 0 .3rem; background: var(--text); color: var(--surface); font-size: .625rem; text-transform: uppercase; letter-spacing: .06em; }
+  /* #331: a frame around a thing's parts, the open levels of a stack, a missing level */
+  .frame, .tray { grid-column: 1 / -1; list-style: none; min-width: 0; }
+  .frame { border: 1px solid var(--line); border-left: 3px solid var(--text); padding: 0 .375rem .5rem; }
+  .frame-head { all: unset; box-sizing: border-box; display: flex; align-items: baseline; gap: .375rem; width: 100%; min-height: var(--control-height); cursor: pointer; }
+  .frame-head:focus-visible { outline: 1px solid var(--text); }
+  .frame-head .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tray { border: 1px solid var(--line); border-top: 2px solid var(--text); padding: .25rem .375rem .5rem; background: var(--surface-head); }
+  .tray-head { display: flex; align-items: baseline; gap: .25rem; min-width: 0; }
+  .tray-head .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .slot { display: flex; flex-direction: column; gap: .125rem; min-width: 0; }
+  .slot-pic { aspect-ratio: 1; border: 1px dashed var(--muted); background: none; color: var(--muted); font: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .125rem; cursor: pointer; }
+  .slot-pic:disabled { cursor: default; }
+  .slot.optional .slot-pic { border-style: dotted; opacity: .7; }
+  @media (hover: hover) { .slot-pic:not(:disabled):hover { color: var(--text); border-color: var(--text); } }
+  .levels-block table { width: 100%; border-collapse: collapse; margin-top: .25rem; }
+  .levels-block td { padding: .125rem .25rem; border-top: 1px solid var(--line); white-space: nowrap; }
+  .levels-block td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .levels-block td.acts { text-align: right; }
+  .levels-block tr.on td:first-child { font-weight: 600; }
+  .levels-block tr.miss td:first-child { color: var(--muted); }
   .tiles { list-style: none; margin: .375rem 0 0; padding: 0; display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(min(var(--tile, 7rem), 100%), 1fr)); }
   .more-scopes { display: flex; gap: .75rem; margin: .5rem 0 0; }
   .drawer { position: sticky; bottom: 0; z-index: 2; margin-top: .5rem; padding: .5rem 0; max-height: 55vh; overflow: auto; border-top: 1px solid var(--muted); background: var(--surface); }

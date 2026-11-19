@@ -13,7 +13,7 @@
    * where it comes from and when, **used in** (each use a link to where it is – `uses[i].jump`, else plain words), the
    * credits line (✎ edits it: `CreditsField`) and the actions the panel passes (`actions`).
    */
-  let { asset, label, kind, uses, wide = false, actions, onclose }: {
+  let { asset, label, kind, uses, wide = false, actions, extra, onclose }: {
     asset: Asset;
     label: string;
     /** The file's kind in words (`target image`, `surface`, `video`) */
@@ -23,6 +23,8 @@
     /** The drawer: the preview beside the facts */
     wide?: boolean;
     actions: Snippet;
+    /** Under the facts: a stack's levels (#331) */
+    extra?: Snippet;
     onclose?: () => void;
   } = $props();
 
@@ -71,6 +73,7 @@
           <button type="button" class="text-link" title="The picture credits – one line, as the book prints them" onclick={() => (crediting = true)}>Credits…</button>{/if}
       </dd>
     </dl>
+    {#if extra}{@render extra()}{/if}
     <div class="actions">{@render actions()}</div>
   </div>
 </section>

@@ -4,6 +4,22 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-19 – Library: quality levels as stacks, parts as frames (#331)
+- Tilman: *"manche assets sind nur qualitaets stufen einer … gruppiert (vielleicht so leicht gestackt) … einzeln
+  ersetzbar"*; concept and drafts first (DRAFT-331, DRAFT-331b sent in the chat).
+- Two axes: **levels** (one file in several qualities: map 512–4096 now; image 1x/2x/3x, video 480p–1080p, audio
+  kbps later, #13) = a **stack**; **parts** (mesh, maps per material × channel, clips, scripts; video + poster +
+  subtitles) = a **frame**. `◧` = carried inside a file (glb images / clips), only shown.
+- Tilman: the **browser** computes missing levels from one file, after choosing the option; images, videos and audio
+  alike; think ahead for normals, animations, scripts.
+- Tilman: *"die library soll nicht die links machen, nur anzeigen"* – stacks and frames only from what the content
+  links (a node's `textures`, a video's subtitles by the contract's name rule); no grouping by name prefix; a missing
+  level is added in the Inspector, the Library only shows the node.
+- Order: 1 stacks + frames + ◧ (3.6.0) · 2 browser levels for images/maps · 3 schema `levels` for image/video/audio +
+  the reader by quality · 4 channels, clip files, scripts.
+- [ ] Open: Tilman answered "neine" to *video in the browser enough, or the server for video/audio?* – meaning to confirm
+  before step 3.
+
 ## 2026-11-19 – One update option: Building Fictions (#325)
 - Tilman: *"we reduced the updates on person can receive … just subscribe to one type of update and that is send by
   building fictions"*, then *"just put send updates from one source, not 3 choices. and the type is buildingfictions."*

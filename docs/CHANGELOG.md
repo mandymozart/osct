@@ -7,6 +7,16 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 3.6.0 – 2026-11-19
+
+### Added
+
+- **Editor Library: stacks and frames** (#331, step 1): a model's map in several sizes is one tile with its levels
+  behind it (`▤ 3`, dashed while one is missing); ▤ opens the levels, each replaced alone (every link stays); a missing
+  level shows the model node, where the Inspector's *textures* add it. A model's mesh and its maps, a video and its
+  subtitles stand in a frame. A model file shows what it carries inside (`◧ map`, `◧ 2 clips`, read from the file's
+  start). The Library only shows what the draft links – it makes none. The browser can show every level alone.
+
 ## 3.5.1 – 2026-11-19
 
 ### Fixed
