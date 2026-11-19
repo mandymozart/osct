@@ -45,7 +45,7 @@ describe("<new-version-notice>", () => {
     expect(shown()).toBe(true);
   });
 
-  it("in the scan view once AR failed (the AR chunk did not load): shown above the spread menu", () => {
+  it("in the scan view once AR failed (the AR chunk did not load): shown above the scene menu", () => {
     game.router.navigate("/scene");
     game.setArStatus("error");
     expect(shown()).toBe(true);

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { setDeviceStorage } from "@engine/utils/device-storage";
 import { getAskZoom, getCameraResolution, getLensChoice, setLensChoice } from "@engine/utils/camera-request";
-import { cyclePreparedSpreadRange, getStoredWindowSetting } from "@engine/utils/prepared-spreads";
+import { cyclePreparedSceneRange, getStoredWindowSetting } from "@engine/utils/prepared-scenes";
 import { LocalDeviceStorage } from "../DeviceStorage";
 
 describe("LocalDeviceStorage", () => {
@@ -14,7 +14,7 @@ describe("LocalDeviceStorage", () => {
     localStorage.setItem("osct-camera-lens", "browser");
     localStorage.setItem("osct-camera-resolution", "1920x1440");
     localStorage.setItem("osct-camera-ask-zoom", "true");
-    localStorage.setItem("osct-ar-prepared-spreads", "grow");
+    localStorage.setItem("osct-ar-prepared-scenes", "grow");
     setDeviceStorage(new LocalDeviceStorage());
 
     expect(getLensChoice()).toBe("browser");
@@ -24,7 +24,7 @@ describe("LocalDeviceStorage", () => {
 
     setLensChoice("main");
     expect(localStorage.getItem("osct-camera-lens")).toBeNull();
-    cyclePreparedSpreadRange();
-    expect(localStorage.getItem("osct-ar-prepared-spreads")).toBe("0");
+    cyclePreparedSceneRange();
+    expect(localStorage.getItem("osct-ar-prepared-scenes")).toBe("0");
   });
 });

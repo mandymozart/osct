@@ -22,7 +22,7 @@ export const treeContent = (tree: EntityData | null | undefined): EntityData | n
 /**
  * Write a target's live tree to the draft: the shared entity when the target refers to one, else the target's own; a
  * removed root leaves the target without an entity. The draft is read again and the stage takes the tree over as the
- * draft's without building anything – it shows it already. Only a shared entity builds the spread again: its other
+ * draft's without building anything – it shows it already. Only a shared entity builds the scene again: its other
  * targets show it from the draft.
  */
 const saveTree = async (stage: TreeStage, bookId: string, targetId: string, tree: EntityData): Promise<void> => {

@@ -9,12 +9,12 @@ import type {
   ProgressRecord,
   ProgressVariable,
 } from '@/types';
-import { getBook, getEntry, getSpread, getTarget, getTargets } from '@/utils/game-config';
+import { getBook, getEntry, getScene, getTarget, getTargets } from '@/utils/game-config';
 import { type ProgressReadStatus, createProgressRecord, mergeProgress, readProgress } from '@/utils';
 import { t } from "i18next";
 
 /**
- * Reader progress for the current book: unlocked targets, consulted entries, last spread /
+ * Reader progress for the current book: unlocked targets, consulted entries, last scene /
  * category, onboarding – one record per book, keyed by stable content ids.
  * Loaded at startup; every change is saved immediately through the storage adapter.
  */
@@ -28,12 +28,12 @@ export class HistoryManager implements IHistoryManager {
     this.game = game;
     this.storage = storage;
     this.load();
-    // Resume where the reader left off: the last spread becomes active (a deep link overrides it)
+    // Resume where the reader left off: the last scene becomes active (a deep link overrides it)
     const last = this.progress.lastScene;
-    if (last && getSpread(last) && last !== this.game.state.currentSpread) this.game.spreads.switchSpread(last);
-    this.game.subscribeToProperty('currentSpread', (spreadId) => {
-      if (spreadId && spreadId !== this.progress.lastScene) {
-        this.change(draft => { draft.lastScene = spreadId; });
+    if (last && getScene(last) && last !== this.game.state.currentScene) this.game.scenes.switchScene(last);
+    this.game.subscribeToProperty('currentScene', (sceneId) => {
+      if (sceneId && sceneId !== this.progress.lastScene) {
+        this.change(draft => { draft.lastScene = sceneId; });
       }
     });
   }
@@ -95,13 +95,13 @@ export class HistoryManager implements IHistoryManager {
     return true;
   }
 
-  /** Also records the target's spread as the last spread: the initial spread never triggers a `currentSpread` change */
+  /** Also records the target's scene as the last scene: the initial scene never triggers a `currentScene` change */
   public unlockTarget(targetId: string): void {
     if (this.isUnlocked(targetId)) return;
-    const spreadId = getTarget(targetId)?.spreadId;
+    const sceneId = getTarget(targetId)?.sceneId;
     this.change(draft => {
       draft.unlocked[targetId] = Date.now();
-      if (spreadId) draft.lastScene = spreadId;
+      if (sceneId) draft.lastScene = sceneId;
     });
   }
 
@@ -109,8 +109,8 @@ export class HistoryManager implements IHistoryManager {
     return targetId in this.progress.unlocked;
   }
 
-  public getUnlockedTargets(spreadId: string): string[] {
-    return getTargets(spreadId).filter(t => this.isUnlocked(t.id)).map(t => t.id);
+  public getUnlockedTargets(sceneId: string): string[] {
+    return getTargets(sceneId).filter(t => this.isUnlocked(t.id)).map(t => t.id);
   }
 
   public consultEntry(entryId: string): void {
@@ -171,16 +171,16 @@ export class HistoryManager implements IHistoryManager {
     };
   }
 
-  /** Percentage of unlocked targets in a spread; a spread without targets counts as complete */
-  public getSpreadCompletionPercentage(spreadId: string): number {
-    if (!getSpread(spreadId)) return 0;
-    const totalTargets = getTargets(spreadId).length;
+  /** Percentage of unlocked targets in a scene; a scene without targets counts as complete */
+  public getSceneCompletionPercentage(sceneId: string): number {
+    if (!getScene(sceneId)) return 0;
+    const totalTargets = getTargets(sceneId).length;
     if (totalTargets === 0) return 100;
-    return Math.round((this.getUnlockedTargets(spreadId).length / totalTargets) * 100);
+    return Math.round((this.getUnlockedTargets(sceneId).length / totalTargets) * 100);
   }
 
-  public isSpreadComplete(spreadId: string): boolean {
-    return this.getSpreadCompletionPercentage(spreadId) === 100;
+  public isSceneComplete(sceneId: string): boolean {
+    return this.getSceneCompletionPercentage(sceneId) === 100;
   }
 
   /**

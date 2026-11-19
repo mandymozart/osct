@@ -26,7 +26,7 @@
    * the looks of the book's plugins: recorded, loaded on the stage or run in the Code tab, `plugins.version`) and the
    * rows of the look it plays from its spec. A moment without a look of its own plays `found`'s, then the default – its
    * rows show that look's values, and the first change makes the moment its own (a copy of the look that played, with the
-   * change); closed, its head names the look and its values set. Book-level: every spread shares it. A change plays on the stage at once – the
+   * change); closed, its head names the look and its values set. Book-level: every scene shares it. A change plays on the stage at once – the
    * stage's next animations take the panel's looks, and each moment's *play* shows it on the shown targets – and reaches
    * the draft by itself a moment later (`PUT …/appearance`, #259). *Undo edits* takes it back to how the draft had it
    * before the first edit in this page. The model is `PassesPanel.svelte`; the logic `appearance-edit.ts`.

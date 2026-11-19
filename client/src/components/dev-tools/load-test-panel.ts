@@ -24,7 +24,7 @@ const running = () => !!progress && !["idle", "done", "stopped", "error"].includ
 
 /**
  * Debug load test panel (bottom sheet, opened from the debug overlay): runs the engine load test
- * (`ar/load-test.ts`) on the spread being scanned and shows its steps; Download .md / Copy give the report
+ * (`ar/load-test.ts`) on the scene being scanned and shows its steps; Download .md / Copy give the report
  * (`load-test-report.ts`). The phone stays on a page of the printed book; the panel tells the tester when to
  * cover and uncover the lens (covers 0 = no tester action, then without re-find times).
  */
@@ -64,8 +64,8 @@ export class LoadTestPanel extends HTMLElement {
       contentHash: getConfigVersion().hash ?? "",
       device: navigator.userAgent,
       date: startedAt,
-      spreadId: progress.spreadId ?? "–",
-      spreadTargets: progress.spreadTargets,
+      sceneId: progress.sceneId ?? "–",
+      sceneTargets: progress.sceneTargets,
       options,
     });
   }
@@ -104,7 +104,7 @@ export class LoadTestPanel extends HTMLElement {
         .actions { margin-top: .5rem; }
       </style>
       <div class="bar">
-        <span>load test · <span class="small">${escapeHtml(p?.spreadId ?? engine.current?.spreadId ?? "no spread")} · engine ${engine.ready}/${engine.targets} targets${engine.extractingSince !== null ? " · extracting" : ""}${p && busy ? ` · step ${p.step}/${p.steps}` : ""}</span></span>
+        <span>load test · <span class="small">${escapeHtml(p?.sceneId ?? engine.current?.sceneId ?? "no scene")} · engine ${engine.ready}/${engine.targets} targets${engine.extractingSince !== null ? " · extracting" : ""}${p && busy ? ` · step ${p.step}/${p.steps}` : ""}</span></span>
         <span>
           <button data-action="covers" ${busy ? "disabled" : ""}>covers ${options.covers}</button>
           <button data-action="steady" ${busy ? "disabled" : ""}>hold ${options.steadyMs / 1000} s</button>
@@ -125,7 +125,7 @@ export class LoadTestPanel extends HTMLElement {
           <button data-action="copy" ${p?.results.length ? "" : "disabled"}>Copy</button>
         </span>
       </div>
-      <div class="small">Steps: the window next to the scanned page grows to 0, 5, 10, 20, 40, 80, all other targets (nearest spreads first); their content is preloaded too. Use the app as usual – pages switch.</div>
+      <div class="small">Steps: the window next to the scanned page grows to 0, 5, 10, 20, 40, 80, all other targets (nearest scenes first); their content is preloaded too. Use the app as usual – pages switch.</div>
       </div>
     `;
   }

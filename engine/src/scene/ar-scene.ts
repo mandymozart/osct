@@ -1,13 +1,13 @@
 import { Box3, Group, type Matrix4, type Object3D, type Quaternion, SRGBColorSpace, type Texture, TextureLoader, Vector3 } from "three";
 import {
-  type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type TextureQuality, type PassData, type SceneInspection, SceneState, type Target,
+  type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type TextureQuality, type PassData, type SceneInspection, ArState, type Target,
 } from "../types/index";
 import { type AppearanceData, type BookAppearance, entityMomentAppearance, type Moment, nodeMomentLook } from "@shared/types/appearance";
-import { entityAssets, getAssets, getBook, getPasses, getPlugins, getSpread, getSpreads, getTargets } from "../content/game-config";
+import { entityAssets, getAssets, getBook, getPasses, getPlugins, getScene, getScenes, getTargets } from "../content/game-config";
 import { type EnvironmentData, environmentOf } from "@shared/types/environment";
 import { focusAtTap } from "../utils/camera-request";
 import { Emitter } from "../utils/emitter";
-import { getPreparedWindow, isGrowingWindow, spreadsByDistance, subscribePreparedWindow } from "../utils/prepared-spreads";
+import { getPreparedWindow, isGrowingWindow, scenesByDistance, subscribePreparedWindow } from "../utils/prepared-scenes";
 import { AssetStore } from "./assets";
 import { deviceHints, wantedTextureSize } from "./model-textures";
 import { type AnimationKind, celebrate, type Celebration, together } from "./celebration";
@@ -15,7 +15,7 @@ import { CARD_HOLD_MS, CardFlight } from "./card-flight";
 import { buildEntity, type EntityInstance, placeEntity } from "./entities";
 import { loadPlugins } from "./plugins";
 import { cameraGrades, cameraGradeShader } from "./post/grade";
-import { emitCoreEvent, type ProgressReader, setProgressReader, setSpreadSource, spreadChanged, stageEnded } from "./plugin-runtime";
+import { emitCoreEvent, type ProgressReader, setProgressReader, setSceneSource, sceneChanged, stageEnded } from "./plugin-runtime";
 import type { IImageTracker, ImageTrackerOptions, TrackerContext } from "./tracker-types";
 import { LookAround } from "./look-around";
 import { Subtitles } from "./subtitles";
@@ -32,8 +32,8 @@ interface Anchor {
   entity: (EntityInstance & { type: string }) | null;
 }
 
-interface SpreadContent {
-  spreadId: string;
+interface SceneContent {
+  sceneId: string;
   targets: Target[];
   anchors: Anchor[];
 }
@@ -71,13 +71,13 @@ const TAP_MARGIN_PX = 24;
 /**
  * The AR scene: plain three.js + image tracking (the app's tracker, `ArSceneOptions.createTracker` – the 8th Wall
  * engine in the reader), **one** renderer and camera stream for the session.
- * Built lazily – nothing (no WebGL context, no assets, no camera) until AR first runs (RUNNING). A spread switch keeps the renderer and the camera stream and only
- *   1. stops reporting the old spread's targets (the engine keeps them loaded while they are neighbours),
- *   2. swaps the anchors, entities and assets (assets both spreads use stay),
- *   3. starts tracking the new spread's targets on the running camera.
+ * Built lazily – nothing (no WebGL context, no assets, no camera) until AR first runs (RUNNING). A scene switch keeps the renderer and the camera stream and only
+ *   1. stops reporting the old scene's targets (the engine keeps them loaded while they are neighbours),
+ *   2. swaps the anchors, entities and assets (assets both scenes use stay),
+ *   3. starts tracking the new scene's targets on the running camera.
  *
- * Every call only records the requested spread / state and queues one reconcile step; each step reads the
- * newest request, so fast switching never races and outdated spreads are skipped.
+ * Every call only records the requested scene / state and queues one reconcile step; each step reads the
+ * newest request, so fast switching never races and outdated scenes are skipped.
  *
  * The editor runs the same scene over a simulated tracker and its stage (`continuous` tracker): nothing in the
  * scene changes – what the author sees is what the reader's engine renders.
@@ -85,9 +85,9 @@ const TAP_MARGIN_PX = 24;
 export class ArScene implements IArScene {
   private emitter = new Emitter<ArSceneEvents>();
   private queue: Promise<void> = Promise.resolve();
-  private wantedSpread: string | null = null;
-  private wantedState: SceneState = SceneState.STOPPED;
-  /** The current spread's content is stale (the editor saved): the next step builds it again */
+  private wantedScene: string | null = null;
+  private wantedState: ArState = ArState.STOPPED;
+  /** The current scene's content is stale (the editor saved): the next step builds it again */
   private stale = false;
 
   private view: ArView | null = null;
@@ -101,7 +101,7 @@ export class ArScene implements IArScene {
   /** The line of the playing video's subtitle file, told to the app when it changes (`subtitle`) */
   private subtitles = new Subtitles(() => this.options.subtitleLanguage?.() ?? "en", text => this.emitter.emit("subtitle", text));
   private graphicsCleanup: (() => void) | null = null;
-  private content: SpreadContent | null = null;
+  private content: SceneContent | null = null;
   private found = new Set<string>();
   /** Tracking runs for `content` (camera on, its targets loaded) */
   private started = false;
@@ -133,7 +133,7 @@ export class ArScene implements IArScene {
 
   constructor(private container: HTMLElement, private options: ArSceneOptions) {
     setProgressReader(options.progress);
-    setSpreadSource(getSpread, getSpreads);
+    setSceneSource(getScene, getScenes);
     setMediaSound(options.sound);
     this.textureQuality = options.graphics?.getSettings().textureQuality;
   }
@@ -142,20 +142,20 @@ export class ArScene implements IArScene {
     return this._status;
   }
 
-  get spreadId(): string | null {
-    return this.content?.spreadId ?? null;
+  get sceneId(): string | null {
+    return this.content?.sceneId ?? null;
   }
 
   on<E extends keyof ArSceneEvents>(event: E, listener: ArSceneEvents[E]): () => void {
     return this.emitter.on(event, listener);
   }
 
-  load(spreadId: string): Promise<void> {
-    this.wantedSpread = spreadId;
+  load(sceneId: string): Promise<void> {
+    this.wantedScene = sceneId;
     return this.reconcile();
   }
 
-  setState(state: SceneState): Promise<void> {
+  setState(state: ArState): Promise<void> {
     if (state !== this.wantedState) this.startFailed = false;
     this.wantedState = state;
     return this.reconcile();
@@ -263,7 +263,7 @@ export class ArScene implements IArScene {
     const anchor = this.content?.anchors.find(a => a.target.id === targetId);
     if (!anchor) return;
     this.rebuildOverride(anchor, targetId);
-    // A file the spread's content does not have (the editor's library, a new node): the entity shows at once as far
+    // A file the scene's content does not have (the editor's library, a new node): the entity shows at once as far
     // as it can (a placeholder for a model), the file loads, then the entity is built again with it
     const missing = entityAssets(entity ?? undefined).filter(asset => !this.assets.knows(asset.id));
     if (missing.length) {
@@ -275,7 +275,7 @@ export class ArScene implements IArScene {
 
   overridePasses(passes: PassData[] | null): void {
     this.passOverride = passes;
-    if (this.content) this.applyPasses(this.content.spreadId);
+    if (this.content) this.applyPasses(this.content.sceneId);
   }
 
   /**
@@ -323,22 +323,22 @@ export class ArScene implements IArScene {
   setPostProcessing(enabled: boolean): void {
     this.postProcessing = enabled;
     this.view?.setPostProcessing(enabled);
-    if (this.content) this.applyPasses(this.content.spreadId);
+    if (this.content) this.applyPasses(this.content.sceneId);
   }
 
   /**
-   * A spread's passes to the view, and a grade that reaches the whole picture to the camera picture too (it lies in
+   * A scene's passes to the view, and a grade that reaches the whole picture to the camera picture too (it lies in
    * the engine's own canvas under the view's – the tracker draws it with the grade)
    */
-  private applyPasses(spreadId: string): void {
-    const passes = this.passesOf(spreadId);
+  private applyPasses(sceneId: string): void {
+    const passes = this.passesOf(sceneId);
     this.view?.setPasses(passes);
     this.tracker?.gradeCamera?.(this.postProcessing ? cameraGradeShader(cameraGrades(passes)) : null);
   }
 
-  /** The passes a spread shows: the editor's override or the content's (the spread's own, else the book's) */
-  private passesOf(spreadId: string): readonly PassData[] {
-    return this.passOverride ?? getPasses(spreadId);
+  /** The passes a scene shows: the editor's override or the content's (the scene's own, else the book's) */
+  private passesOf(sceneId: string): readonly PassData[] {
+    return this.passOverride ?? getPasses(sceneId);
   }
 
   /** The anchor shows its entity as overridden: tuned in place when it can (unless `force`), built anew otherwise */
@@ -398,8 +398,8 @@ export class ArScene implements IArScene {
   }
 
   dispose(): Promise<void> {
-    this.wantedSpread = null;
-    this.wantedState = SceneState.STOPPED;
+    this.wantedScene = null;
+    this.wantedState = ArState.STOPPED;
     return this.reconcile();
   }
 
@@ -426,34 +426,34 @@ export class ArScene implements IArScene {
   }
 
   private async step(): Promise<void> {
-    if (!this.wantedSpread) return this.teardown();
+    if (!this.wantedScene) return this.teardown();
     // Lazy: the first RUNNING builds the renderer; until then only the request is kept
-    if (!this.view && this.wantedState !== SceneState.RUNNING) {
+    if (!this.view && this.wantedState !== ArState.RUNNING) {
       this.setStatus("idle");
       return;
     }
-    if (this.wantedSpread !== this.spreadId || this.stale) {
+    if (this.wantedScene !== this.sceneId || this.stale) {
       this.stale = false;
-      await this.changeSpread(this.wantedSpread);
+      await this.changeScene(this.wantedScene);
       this.startFailed = false;
     }
     switch (this.wantedState) {
-      case SceneState.RUNNING:
+      case ArState.RUNNING:
         return this.run();
-      case SceneState.PAUSED:
+      case ArState.PAUSED:
         return this.pause();
-      case SceneState.STOPPED:
+      case ArState.STOPPED:
         return this.stop();
     }
   }
 
-  // ── Spreads ─────────────────────────────────────────────────────────────────────────────────
+  // ── Scenes ─────────────────────────────────────────────────────────────────────────────────
 
   /** Renderer + tracker – steps run one at a time, no race */
   private readonly trackerOptions: ImageTrackerOptions = {
     onUpdate: (id, matrix) => this.onTrackingUpdate(id, matrix),
-    onSpreadSeen: spreadId => {
-      if (spreadId !== this.content?.spreadId) this.emitter.emit("spreadSeen", spreadId);
+    onSceneSeen: sceneId => {
+      if (sceneId !== this.content?.sceneId) this.emitter.emit("sceneSeen", sceneId);
     },
   };
 
@@ -503,7 +503,7 @@ export class ArScene implements IArScene {
       this.windowCleanup = subscribePreparedWindow(() => {
         if (!this.started || !this.content) return;
         this.prepareWindow();
-        this.emitter.emit("ready", this.content.spreadId);
+        this.emitter.emit("ready", this.content.sceneId);
       });
     }
     // Created with the view: missing only when creating it failed – never a second view
@@ -511,9 +511,9 @@ export class ArScene implements IArScene {
     return { view: this.view, tracker: this.tracker };
   }
 
-  /** Bring the scene to `spreadId`: tracking stops, content is swapped, tracking restarts if it ran */
-  private async changeSpread(spreadId: string): Promise<void> {
-    if (!getSpread(spreadId)) throw new Error(`Unknown spread ${spreadId}`);
+  /** Bring the scene to `sceneId`: tracking stops, content is swapped, tracking restarts if it ran */
+  private async changeScene(sceneId: string): Promise<void> {
+    if (!getScene(sceneId)) throw new Error(`Unknown scene ${sceneId}`);
     const { view, tracker } = await this.ensureView();
     const cameraOn = tracker.hasCamera;
     this.setStatus(cameraOn ? "starting" : "loading");
@@ -525,22 +525,22 @@ export class ArScene implements IArScene {
     this.started = false;
     this.running = false;
 
-    // 2. Swap the content (assets both spreads use stay loaded); the book's plugins load with the first spread
+    // 2. Swap the content (assets both scenes use stay loaded); the book's plugins load with the first scene
     this.removeContent();
-    const assets = getAssets(spreadId);
+    const assets = getAssets(sceneId);
     this.assets.release(new Set(assets.map(a => a.id)));
     await Promise.all([this.assets.load(assets), loadPlugins(getPlugins())]);
-    const targets = getTargets(spreadId);
-    // The spread scope of the plugins' variables ends before the new spread's entities are built
-    spreadChanged(spreadId);
+    const targets = getTargets(sceneId);
+    // The scene scope of the plugins' variables ends before the new scene's entities are built
+    sceneChanged(sceneId);
     const anchors = targets.map(target => this.buildAnchor(target));
     anchors.forEach(anchor => view.scene.add(anchor.group));
-    this.content = { spreadId, targets, anchors };
-    // The spread's passes (the previous spread's are disposed; none = the scene renders straight to the canvas)
-    this.applyPasses(spreadId);
+    this.content = { sceneId, targets, anchors };
+    // The scene's passes (the previous scene's are disposed; none = the scene renders straight to the canvas)
+    this.applyPasses(sceneId);
 
     // 3. Tracking restarts in run() (camera kept); paused / stopped it waits for the next start
-    if (this.wantedState !== SceneState.RUNNING) this.setStatus("ready");
+    if (this.wantedState !== ArState.RUNNING) this.setStatus("ready");
   }
 
   private buildAnchor(target: Target): Anchor {
@@ -711,10 +711,10 @@ export class ArScene implements IArScene {
 
   // ── Start / pause / stop ────────────────────────────────────────────────────────────────────
 
-  /** Camera (if off) + tracking of the current spread's targets */
+  /** Camera (if off) + tracking of the current scene's targets */
   private async startTracking(): Promise<void> {
     const { view, tracker, content } = this;
-    if (!view || !tracker || !content) throw new ArSceneError(ErrorCode.AR_START_FAILED, "AR could not start: no spread loaded");
+    if (!view || !tracker || !content) throw new ArSceneError(ErrorCode.AR_START_FAILED, "AR could not start: no scene loaded");
     try {
       await tracker.startCamera();
       await tracker.loadTargets(content);
@@ -728,20 +728,20 @@ export class ArScene implements IArScene {
     }
     view.resize(); // field of view from the engine's projection
     this.started = true;
-    // The spreads around this one: their targets get ready ahead (instant switch, found pages switch by themselves)
+    // The scenes around this one: their targets get ready ahead (instant switch, found pages switch by themselves)
     this.prepareWindow();
-    this.emitter.emit("ready", content.spreadId);
+    this.emitter.emit("ready", content.sceneId);
   }
 
   /**
-   * The tracker holds the spreads next to the current one (`prepared-spreads.ts`, nearest first): in grow mode it
-   * adds every other spread in idle time, nearest first; otherwise it holds the fixed ±n window (or the load test's).
+   * The tracker holds the scenes next to the current one (`prepared-scenes.ts`, nearest first): in grow mode it
+   * adds every other scene in idle time, nearest first; otherwise it holds the fixed ±n window (or the load test's).
    */
   private prepareWindow(): void {
     if (!this.tracker || !this.content) return;
-    const tracked = (spreads: ReturnType<typeof spreadsByDistance>) => spreads.map(spread => ({ spreadId: spread.id, targets: getTargets(spread.id) }));
-    if (isGrowingWindow()) this.tracker.growTargets(tracked(spreadsByDistance(this.content.spreadId)));
-    else this.tracker.prepareTargets(tracked(getPreparedWindow(this.content.spreadId)));
+    const tracked = (scenes: ReturnType<typeof scenesByDistance>) => scenes.map(scene => ({ sceneId: scene.id, targets: getTargets(scene.id) }));
+    if (isGrowingWindow()) this.tracker.growTargets(tracked(scenesByDistance(this.content.sceneId)));
+    else this.tracker.prepareTargets(tracked(getPreparedWindow(this.content.sceneId)));
   }
 
   private async run(): Promise<void> {
@@ -750,7 +750,7 @@ export class ArScene implements IArScene {
       this.setStatus("starting");
       await this.startTracking();
       // A newer request arrived while starting: the next queued step applies it
-      if (this.wantedState !== SceneState.RUNNING || this.wantedSpread !== this.spreadId) return;
+      if (this.wantedState !== ArState.RUNNING || this.wantedScene !== this.sceneId) return;
     } else if (!this.running) {
       // Tracking starts afresh: targets are found again (all were lost at the pause)
       this.tracker?.resume();
@@ -760,7 +760,7 @@ export class ArScene implements IArScene {
     this.view?.start();
     this.setScanning(this.found.size === 0);
     this.setStatus("running");
-    emitCoreEvent("sceneState", { state: "running" });
+    emitCoreEvent("arState", { state: "running" });
   }
 
   private pause(): void {
@@ -777,7 +777,7 @@ export class ArScene implements IArScene {
     this.loseAll();
     this.setScanning(false);
     this.setStatus(this.started ? "paused" : "ready");
-    emitCoreEvent("sceneState", { state: "paused" });
+    emitCoreEvent("arState", { state: "paused" });
   }
 
   private stop(): void {
@@ -790,7 +790,7 @@ export class ArScene implements IArScene {
     this.running = false;
     this.setScanning(false);
     this.setStatus("ready");
-    emitCoreEvent("sceneState", { state: "stopped" });
+    emitCoreEvent("arState", { state: "stopped" });
   }
 
   private pauseEntities(): void {

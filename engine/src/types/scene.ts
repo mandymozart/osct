@@ -8,7 +8,7 @@ import type { ArError } from "./errors";
  * STOPPED: camera released · PAUSED: tracking + video paused, camera stream kept (instant resume,
  * last frame frozen behind the UI) · RUNNING: camera, tracking and rendering.
  */
-export enum SceneState {
+export enum ArState {
   STOPPED = 0,
   PAUSED = 1,
   RUNNING = 2,
@@ -16,7 +16,7 @@ export enum SceneState {
 
 /**
  * What the AR scene is doing, reported to the app.
- * idle: no scene · loading: building the spread's scene · ready: scene loaded, camera off ·
+ * idle: no scene · loading: building the scene's scene · ready: scene loaded, camera off ·
  * starting: camera requested, targets loading · running: tracking · paused: tracking + camera video
  * paused (stream kept) · error: camera or AR failed (an `ArError` – its code and message – comes with it).
  */
@@ -38,10 +38,10 @@ export type ArSceneEvents = {
    * or got its sound (#290) – so the app does not act on it too
    */
   targetTapped: (targetId: string, used: boolean) => void;
-  /** The spread's targets are loaded and tracking began */
-  ready: (spreadId: string) => void;
-  /** A neighbouring spread's page is in view instead of the current spread (the reader turned the page) */
-  spreadSeen: (spreadId: string) => void;
+  /** The scene's targets are loaded and tracking began */
+  ready: (sceneId: string) => void;
+  /** A neighbouring scene's page is in view instead of the current scene (the reader turned the page) */
+  sceneSeen: (sceneId: string) => void;
   /** Tracking runs and no target is found (true), or a target is found or tracking stopped (false) – the app's scanning indicator */
   scanning: (scanning: boolean) => void;
   /** The subtitle line of the video that plays – its cue at the video's time, null when there is none; the app draws it */
@@ -51,7 +51,7 @@ export type ArSceneEvents = {
 /**
  * The only code that touches three.js and the tracking engine (`ArScene`; the reader loads it lazily via its
  * `LazyArScene`). No store access – the app connects it to its state (the reader's `<ar-bridge>`). Calls are queued and the latest request wins
- * (switching spreads while loading builds only the newest spread).
+ * (switching scenes while loading builds only the newest scene).
  */
 /** A model node's animation as the editor's timeline sees it (the `animation` component plays it) */
 export interface NodeTimeline {
@@ -70,7 +70,7 @@ export interface SceneInspection {
   domElement: HTMLElement;
   /** Every rendered frame */
   onFrame(listener: (delta: number) => void): () => void;
-  /** The placement group of a node of a target's entity (`[]` = the root), null when the spread has no such node */
+  /** The placement group of a node of a target's entity (`[]` = the root), null when the scene has no such node */
   nodeObject(targetId: string, path: number[]): Object3D | null;
   /** The found entity under a point of the screen (client px), as a tap would report it */
   hitTest(clientX: number, clientY: number): string | null;
@@ -82,11 +82,11 @@ export interface SceneInspection {
 
 export interface IArScene {
   readonly status: ArStatus;
-  readonly spreadId: string | null;
-  /** Build the scene for a spread (camera stays as wanted by `setState`) */
-  load(spreadId: string): Promise<void>;
+  readonly sceneId: string | null;
+  /** Build the scene for a scene (camera stays as wanted by `setState`) */
+  load(sceneId: string): Promise<void>;
   /** RUNNING = camera + tracking, PAUSED = frozen frame, stream kept, STOPPED = camera released */
-  setState(state: SceneState): Promise<void>;
+  setState(state: ArState): Promise<void>;
   /** Play the discovery animation on a found target's entity (first find = unlock) */
   celebrate(targetId: string): void;
   /**
@@ -96,7 +96,7 @@ export interface IArScene {
    * is nothing to fly from (target not found, scene not running, picture not loaded) or the flight was cut short.
    */
   flyCard(targetId: string, card: { front: string; reveal?: string; back?: string }): Promise<boolean>;
-  /** The content changed under the current spread (the editor saved): build the spread again from it */
+  /** The content changed under the current scene (the editor saved): build the scene again from it */
   refresh(): Promise<void>;
   /** The colour under a point of the scene's canvas (CSS px from its top left) as `#rrggbb`, null while nothing renders */
   sampleColor(x: number, y: number): string | null;
@@ -104,10 +104,10 @@ export interface IArScene {
   inspect(): SceneInspection | null;
   /**
    * Show a target's entity with these values instead of the content's (the editor's live edit) – kept across
-   * spread switches until `null` restores the content
+   * scene switches until `null` restores the content
    */
   overrideEntity(targetId: string, entity: EntityData | null): void;
-  /** Show the current spread with these post-processing passes instead of the content's (the editor's live edit); `null` restores the content's */
+  /** Show the current scene with these post-processing passes instead of the content's (the editor's live edit); `null` restores the content's */
   overridePasses(passes: PassData[] | null): void;
   /** Post-processing on (the default) or off – the editor's viewport shows passes under *rendered* only; nothing is rendered twice while off */
   setPostProcessing(enabled: boolean): void;

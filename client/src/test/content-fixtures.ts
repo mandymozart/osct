@@ -1,5 +1,5 @@
 import type { Target } from "@/types";
-import { getSpreads, getTargets } from "@/utils/game-config";
+import { getScenes, getTargets } from "@/utils/game-config";
 
 /**
  * A target with an AR video, for tests of app behaviour (unlock animation, taps on entities, video preload order).
@@ -8,7 +8,7 @@ import { getSpreads, getTargets } from "@/utils/game-config";
  * game configuration only (vitest isolates modules per file); `restore()` takes it away again.
  */
 export const targetWithVideo = (): { target: Target; restore: () => void } => {
-  const targets = getSpreads().flatMap(spread => getTargets(spread.id));
+  const targets = getScenes().flatMap(scene => getTargets(scene.id));
   const existing = targets.find(target => target.entity?.assets.some(asset => asset.assetType === "video"));
   if (existing) return { target: existing, restore: () => {} };
   const target = targets[0];

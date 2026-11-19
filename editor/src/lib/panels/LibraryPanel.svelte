@@ -28,8 +28,8 @@
    * relinked) and **Delete** (refused while used – *Delete anyway* forces it). Opened as a **picker** (`pick`, a file
    * field's *Library…* – #164): the filter starts at the kind being picked, a click on a fitting file picks it for that
    * one field and returns, an upload that fits is picked at once; *cancel* or Esc returns without one.
-   * The media are **grouped by spread** (#298 phase 3): a header per spread in book order – the spread of each file's
-   * first use –, then "Not in a spread" (book-wide uses), then "Unused"; a file used in more places says "+N more".
+   * The media are **grouped by scene** (#298 phase 3): a header per scene in book order – the scene of each file's
+   * first use –, then "Not in a scene" (book-wide uses), then "Unused"; a file used in more places says "+N more".
    * **Name by use…** proposes the names the files take by their use (`p118-1_target.webp`, `page-118.webp`) and applies
    * them on a second click – the name only, every URL stays.
    * **Code files** (#186) – scripts (the book's plugin sources) and shaders – are a list of their own under the media
@@ -80,11 +80,11 @@
     if (library.bookId !== bookId) void library.load(bookId);
   });
 
-  const targetImages = $derived(targetImagesOf(content.spreads));
+  const targetImages = $derived(targetImagesOf(content.scenes));
   /** The media shown (the shaders are in the code list) */
   const shown = $derived(library.assets.filter(asset => asset.kind !== "shader" && matchesFilter(asset, filter, targetImages) && matchesOrigin(asset, origin) && matchesSearch(asset, search)));
   /** The media grouped by the scene of their first use (#298) */
-  const groups = $derived(groupByScene(shown, content.spreads));
+  const groups = $derived(groupByScene(shown, content.scenes));
 
   /** Name by use (#298): the plan shown, then applied – null while none is open */
   let namesPlan = $state<AssetRename[] | null>(null);

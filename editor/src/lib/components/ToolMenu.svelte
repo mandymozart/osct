@@ -83,7 +83,7 @@
     // A number field keeps its own keys (↑ ↓ step it, ← → move the caret), a select its choice
     const tag = (event.target as HTMLElement).tagName;
     if (tag === "INPUT" || tag === "SELECT") {
-      event.stopPropagation(); // not the spreads' ← →
+      event.stopPropagation(); // not the scenes' ← →
       return;
     }
     const all = focusables().filter(el => el.tagName === "BUTTON");
@@ -91,7 +91,7 @@
     const key = event.key === "ArrowLeft" || event.key === "ArrowRight" ? null : event.key;
     // the panel itself focused (opened by a tap): the first arrow goes to the first button
     const next = key ? (index < 0 && all.length ? 0 : menuStep(key, index, all.length)) : null;
-    event.stopPropagation(); // not the spreads' ← →
+    event.stopPropagation(); // not the scenes' ← →
     if (next === null) return;
     event.preventDefault();
     all[next]?.focus();

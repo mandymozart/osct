@@ -3,20 +3,20 @@ import { createGameStore } from "@/store/GameStore";
 import { PROGRESS_FORMAT, PROGRESS_READERS, readProgress } from "@/utils";
 import { LocalProgressStorage } from "@/services/ProgressStorage";
 import { ALL_CATEGORY, ENTRY_CATEGORIES, EntryCategory, type IGame, type Pages, type ProgressRecord } from "@/types";
-import { getBook, getEntries, getSpreads, getTargets } from "@/utils/game-config";
+import { getBook, getEntries, getScenes, getTargets } from "@/utils/game-config";
 
 const bookId = getBook().id;
 const PROGRESS_KEY = LocalProgressStorage.key(bookId);
 
 const stored = (): ProgressRecord => JSON.parse(localStorage.getItem(PROGRESS_KEY)!);
 
-/** A spread with at least two targets: the tests need two ids on the same spread, whatever the content */
-const spreadWithTargets = () => getSpreads().find(s => getTargets(s.id).length >= 2) ?? getSpreads()[0];
+/** A scene with at least two targets: the tests need two ids on the same scene, whatever the content */
+const sceneWithTargets = () => getScenes().find(s => getTargets(s.id).length >= 2) ?? getScenes()[0];
 
 describe("HistoryManager (progress)", () => {
   let game: IGame;
-  const spreadId = spreadWithTargets().id;
-  const targets = getTargets(spreadId);
+  const sceneId = sceneWithTargets().id;
+  const targets = getTargets(sceneId);
   const entryId = getEntries()[0].id;
 
   beforeEach(() => {
@@ -63,9 +63,9 @@ describe("HistoryManager (progress)", () => {
     expect(stored().consulted).toHaveProperty(entryId);
   });
 
-  it("records the last spread and category", () => {
-    const other = getSpreads()[1].id;
-    game.spreads.switchSpread(other);
+  it("records the last scene and category", () => {
+    const other = getScenes()[1].id;
+    game.scenes.switchScene(other);
     game.history.setLastCategory(EntryCategory.Text);
     expect(stored()).toMatchObject({ lastScene: other, lastCategory: "text" });
     game.history.setLastCategory(ALL_CATEGORY);
@@ -82,11 +82,11 @@ describe("HistoryManager (progress)", () => {
     expect(game.history.getConsultedCount(entries[0].category)).toBe(entries.slice(0, 3).filter(e => e.category === entries[0].category).length);
   });
 
-  it("computes completion per spread from unlocked targets", () => {
-    expect(game.history.getSpreadCompletionPercentage(spreadId)).toBe(0);
+  it("computes completion per scene from unlocked targets", () => {
+    expect(game.history.getSceneCompletionPercentage(sceneId)).toBe(0);
     targets.forEach(t => game.history.unlockTarget(t.id));
-    expect(game.history.getUnlockedTargets(spreadId)).toEqual(targets.map(t => t.id));
-    expect(game.history.isSpreadComplete(spreadId)).toBe(true);
+    expect(game.history.getUnlockedTargets(sceneId)).toEqual(targets.map(t => t.id));
+    expect(game.history.isSceneComplete(sceneId)).toBe(true);
   });
 
   it("keeps ids that are no longer in the content", () => {
@@ -97,7 +97,7 @@ describe("HistoryManager (progress)", () => {
     game = createGameStore();
     expect(game.state.progress.unlocked).toEqual({ "removed-target": 1 });
     expect(game.state.progress.consulted).toEqual({ "removed-entry": 2 });
-    expect(game.history.getUnlockedTargets(spreadId)).toEqual([]);
+    expect(game.history.getUnlockedTargets(sceneId)).toEqual([]);
     expect(game.history.getMissingIds()).toEqual({ targets: ["removed-target"], entries: ["removed-entry"] });
     expect(game.history.getConsultedCount()).toBe(0); // the counter only counts content entries
   });
@@ -130,11 +130,11 @@ describe("HistoryManager (progress)", () => {
     expect(stored().appVersions).toEqual([__VITE_APP_VERSION__]);
   });
 
-  it("starts on the last spread (keep going, no resume prompt)", () => {
-    const other = getSpreads()[1].id;
-    game.spreads.switchSpread(other);
+  it("starts on the last scene (keep going, no resume prompt)", () => {
+    const other = getScenes()[1].id;
+    game.scenes.switchScene(other);
     game = createGameStore();
-    expect(game.state.currentSpread).toBe(other);
+    expect(game.state.currentScene).toBe(other);
   });
 
   it("says nothing at startup when the progress was read as it is (no resume prompt)", () => {
@@ -164,7 +164,7 @@ describe("HistoryManager (progress)", () => {
       PROGRESS_READERS[oldFormat] = (raw, id) => ({
         ...readProgress({ format: PROGRESS_FORMAT }, id).record,
         unlocked: raw.found as Record<string, number>,
-        lastScene: spreadId,
+        lastScene: sceneId,
         appVersions: ["0.9.0"],
       });
       try {
@@ -189,13 +189,13 @@ describe("HistoryManager (progress)", () => {
 
 describe("TargetManager", () => {
   let game: IGame;
-  const spreadId = spreadWithTargets().id;
-  const target = getTargets(spreadId)[1];
+  const sceneId = sceneWithTargets().id;
+  const target = getTargets(sceneId)[1];
 
   beforeEach(() => {
     localStorage.clear();
     game = createGameStore();
-    game.spreads.switchSpread(spreadId);
+    game.scenes.switchScene(sceneId);
   });
 
   it("tracks a found target by id once and unlocks it", () => {

@@ -70,84 +70,84 @@ describe("the shared selection", () => {
     expect(selection.level(true)).toBe("none");
   });
 
-  // #229: the spread selected clears the target and the node (no outline, no gizmo – the page's effect reads the level)
-  it("selecting the spread after a node clears the target, the node and the entry", () => {
+  // #229: the scene selected clears the target and the node (no outline, no gizmo – the page's effect reads the level)
+  it("selecting the scene after a node clears the target, the node and the entry", () => {
     selection.selectNode("p015-1", [1, 0]);
     expect(selection.level(true)).toBe("node");
-    selection.selectSpread();
-    expect(selection.snapshot()).toEqual({ target: null, node: [], onTarget: true, spread: true, entry: null });
+    selection.selectScene();
+    expect(selection.snapshot()).toEqual({ target: null, node: [], onTarget: true, scene: true, entry: null });
     expect(selection.level(true)).toBe("none");
     selection.selectEntry("key", "p015-1");
-    selection.selectSpread();
-    expect(selection.snapshot()).toEqual({ target: null, node: [], onTarget: true, spread: true, entry: null });
+    selection.selectScene();
+    expect(selection.snapshot()).toEqual({ target: null, node: [], onTarget: true, scene: true, entry: null });
   });
 
-  it("a fresh workspace, a click on the stage that picks nothing and another spread select the spread", () => {
+  it("a fresh workspace, a click on the stage that picks nothing and another scene select the scene", () => {
     selection.selectNode("p015-1", [0]);
     selection.reset();
-    expect(selection.spread).toBe(true);
+    expect(selection.scene).toBe(true);
     selection.selectTarget("p015-1");
     selection.clear();
-    expect([selection.spread, selection.target, selection.level(true)]).toEqual([true, null, "none"]);
+    expect([selection.scene, selection.target, selection.level(true)]).toEqual([true, null, "none"]);
   });
 
-  it("a selection of nothing is the spread's; a target or an entry is not", () => {
+  it("a selection of nothing is the scene's; a target or an entry is not", () => {
     selection.set({ target: null, node: [], onTarget: true });
-    expect(selection.spread).toBe(true);
+    expect(selection.scene).toBe(true);
     selection.selectTarget(null);
-    expect(selection.spread).toBe(true);
+    expect(selection.scene).toBe(true);
     selection.selectTarget("p015-2");
-    expect(selection.spread).toBe(false);
+    expect(selection.scene).toBe(false);
     selection.selectEntry("about", null);
-    expect([selection.spread, selection.entry]).toEqual([false, "about"]);
+    expect([selection.scene, selection.entry]).toEqual([false, "about"]);
     selection.reset();
   });
 });
 
 describe("settledSelection (#229)", () => {
-  it("makes nothing selected the spread and drops what the spread does not name", () => {
-    expect(settledSelection({ target: null, node: [], onTarget: true })).toEqual({ target: null, node: [], onTarget: true, spread: true, entry: null });
-    expect(settledSelection({ target: "a", node: [2], onTarget: false, spread: true })).toEqual({ target: null, node: [], onTarget: true, spread: true, entry: null });
+  it("makes nothing selected the scene and drops what the scene does not name", () => {
+    expect(settledSelection({ target: null, node: [], onTarget: true })).toEqual({ target: null, node: [], onTarget: true, scene: true, entry: null });
+    expect(settledSelection({ target: "a", node: [2], onTarget: false, scene: true })).toEqual({ target: null, node: [], onTarget: true, scene: true, entry: null });
   });
 
-  it("keeps a target, a node or an entry as they are, the spread off", () => {
-    expect(settledSelection({ target: "a", node: [2], onTarget: false })).toEqual({ target: "a", node: [2], onTarget: false, spread: false, entry: null });
-    expect(settledSelection({ target: null, node: [], onTarget: true, entry: "about" })).toEqual({ target: null, node: [], onTarget: true, spread: false, entry: "about" });
+  it("keeps a target, a node or an entry as they are, the scene off", () => {
+    expect(settledSelection({ target: "a", node: [2], onTarget: false })).toEqual({ target: "a", node: [2], onTarget: false, scene: false, entry: null });
+    expect(settledSelection({ target: null, node: [], onTarget: true, entry: "about" })).toEqual({ target: null, node: [], onTarget: true, scene: false, entry: "about" });
   });
 });
 
-describe("the book and a selection asked for on another spread (#237)", () => {
-  it("the book (the top bar's ⚙) selects the book: no spread, target, node or entry; one level up keeps it", () => {
+describe("the book and a selection asked for on another scene (#237)", () => {
+  it("the book (the top bar's ⚙) selects the book: no scene, target, node or entry; one level up keeps it", () => {
     selection.selectNode("p015-1", [1]);
     selection.selectBook();
-    expect(selection.snapshot()).toEqual({ target: null, node: [], onTarget: true, spread: false, entry: null, book: true });
+    expect(selection.snapshot()).toEqual({ target: null, node: [], onTarget: true, scene: false, entry: null, book: true });
     selection.up();
     expect(selection.book).toBe(true);
-    selection.selectSpread();
-    expect([selection.book, selection.spread]).toEqual([false, true]);
-    expect(settledSelection({ target: "a", node: [1], onTarget: false, book: true })).toEqual({ target: null, node: [], onTarget: true, spread: false, entry: null, book: true });
+    selection.selectScene();
+    expect([selection.book, selection.scene]).toEqual([false, true]);
+    expect(settledSelection({ target: "a", node: [1], onTarget: false, book: true })).toEqual({ target: null, node: [], onTarget: true, scene: false, entry: null, book: true });
   });
 
-  it("a group (a band of the Scenes panel, #307) is selected alone; one level up keeps it, another spread resets it", () => {
+  it("a group (a band of the Scenes panel, #307) is selected alone; one level up keeps it, another scene resets it", () => {
     selection.selectTarget("p015-1");
     selection.selectGroup("front-matter");
-    expect(selection.snapshot()).toEqual({ target: null, node: [], onTarget: true, spread: false, entry: null, group: "front-matter" });
+    expect(selection.snapshot()).toEqual({ target: null, node: [], onTarget: true, scene: false, entry: null, group: "front-matter" });
     selection.up();
     expect(selection.group).toBe("front-matter");
     selection.enter("s002-003");
-    expect([selection.group, selection.spread]).toEqual([null, true]);
+    expect([selection.group, selection.scene]).toEqual([null, true]);
   });
 
-  it("a search pick on another spread is taken when that spread opens, and shown in the Inspector", () => {
+  it("a search pick on another scene is taken when that scene opens, and shown in the Inspector", () => {
     const before = selection.reveal;
     selection.requestOn("s2", { target: "t2", node: [0], onTarget: false });
     selection.enter("s1");
-    expect(selection.spread).toBe(true);
+    expect(selection.scene).toBe(true);
     selection.requestOn("s2", { target: null, node: [], onTarget: true, entry: "e2" });
     selection.enter("s2");
-    expect([selection.entry, selection.spread, selection.reveal]).toEqual(["e2", false, before + 1]);
+    expect([selection.entry, selection.scene, selection.reveal]).toEqual(["e2", false, before + 1]);
     selection.enter("s2");
-    expect(selection.spread).toBe(true);
+    expect(selection.scene).toBe(true);
     selection.show({ target: "t1", node: [], onTarget: true });
     expect([selection.target, selection.reveal]).toEqual(["t1", before + 2]);
     selection.reset();

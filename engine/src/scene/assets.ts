@@ -6,8 +6,8 @@ import { loadCompressed } from "../content/compressed";
 import { applyTextureSets, cancelTextureSets } from "./model-textures";
 
 /**
- * The AR scene's assets by id. Loaded once per id, kept while a spread uses them (a spread switch keeps
- * the assets both spreads use), disposed (GPU memory) when released. Requests hit the browser cache the
+ * The AR scene's assets by id. Loaded once per id, kept while a scene uses them (a scene switch keeps
+ * the assets both scenes use), disposed (GPU memory) when released. Requests hit the browser cache the
  * PreloaderService filled.
  */
 
@@ -46,7 +46,7 @@ const mediaContainer = (): HTMLElement => {
 };
 
 /**
- * Where each video stopped when its asset was released (a spread switch, the scene disposed), by file: loaded again –
+ * Where each video stopped when its asset was released (a scene switch, the scene disposed), by file: loaded again –
  * the reader came back to its page – it goes on from there, not from the start (#290). Kept for the page's life.
  */
 const positions = new Map<string, number>();
@@ -201,7 +201,7 @@ export class AssetStore {
     return this.entries.get(id)?.loaded ?? undefined;
   }
 
-  /** The store was asked for this asset (loaded, loading or failed) – a file of the spread's content */
+  /** The store was asked for this asset (loaded, loading or failed) – a file of the scene's content */
   knows(id: string): boolean {
     return this.entries.has(id);
   }

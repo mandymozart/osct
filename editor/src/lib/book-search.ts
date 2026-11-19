@@ -10,8 +10,8 @@ import { sceneLabel } from "@engine/content/scenes";
  * names its scene and what a pick selects. Pure: `BookSearch.svelte` reads the draft's scenes and draws it.
  */
 
-/** A scene as the search reads it – the engine's `Spread` (a scene) fits */
-export interface SearchSpread {
+/** A scene as the search reads it – the engine's `Scene` (a scene) fits */
+export interface SearchScene {
   id: string;
   label: string;
   entries: readonly { id: string; title: string; body?: string; target?: { id: string; imageSrc?: string } }[];
@@ -31,7 +31,7 @@ export interface SearchHit {
   where: string;
   /** For a hit in an entry's text: the words around it */
   excerpt?: string;
-  spreadId: string;
+  sceneId: string;
   /** What a pick selects on that scene */
   select: SelectionState;
   /** 0 = the best */
@@ -71,9 +71,6 @@ export const excerptOf = (text: string, words: readonly string[], room = 32): st
   return `${start > 0 ? "…" : ""}${line.slice(start, end)}${end < line.length ? "…" : ""}`;
 };
 
-/** A scene's name for a hit: its label (its id when it has none) */
-export const spreadWhere = (spread: Pick<SearchSpread, "id" | "label">): string => sceneLabel(spread);
-
 /** Every named node of a tree with its path (`[]` = the root) */
 const namedNodes = (node: EntityData, path: number[] = []): { name: string; path: number[] }[] => [
   ...(node.name?.trim() ? [{ name: node.name.trim(), path }] : []),
@@ -81,41 +78,41 @@ const namedNodes = (node: EntityData, path: number[] = []): { name: string; path
 ];
 
 /** The hits of the query in the book, grouped by kind in `SEARCH_KINDS` order (empty groups left out); at most `limit` per group */
-export const searchBook = (spreads: readonly SearchSpread[], query: string, limit = 6): SearchGroup[] => {
+export const searchBook = (scenes: readonly SearchScene[], query: string, limit = 6): SearchGroup[] => {
   const words = queryWords(query);
   if (!words.length) return [];
   const hits: SearchHit[] = [];
-  for (const spread of spreads) {
-    const where = spreadWhere(spread);
+  for (const scene of scenes) {
+    const where = sceneLabel(scene);
     // The scene: its label (and its id)
-    const sceneRank = labelRank(`${where} ${spread.id}`, words);
+    const sceneRank = labelRank(`${where} ${scene.id}`, words);
     if (sceneRank !== null) {
-      hits.push({ kind: "scene", key: `scene:${spread.id}`, label: where, where, spreadId: spread.id, rank: sceneRank,
-        select: { target: null, node: [], onTarget: true, spread: true } });
+      hits.push({ kind: "scene", key: `scene:${scene.id}`, label: where, where, sceneId: scene.id, rank: sceneRank,
+        select: { target: null, node: [], onTarget: true, scene: true } });
     }
-    for (const entry of spread.entries) {
+    for (const entry of scene.entries) {
       const target = entry.target?.imageSrc ? entry.target.id : null;
       const titleRank = labelRank(entry.title, words);
       const body = entry.body ?? "";
       const inBody = titleRank === null && words.every(word => folded(`${entry.title} ${body}`).includes(word)) && words.some(word => folded(body).includes(word));
       if (titleRank === null && !inBody) continue;
-      hits.push({ kind: "entry", key: `entry:${entry.id}`, label: entry.title, where, spreadId: spread.id,
+      hits.push({ kind: "entry", key: `entry:${entry.id}`, label: entry.title, where, sceneId: scene.id,
         rank: titleRank ?? 3, ...(inBody ? { excerpt: excerptOf(body, words) } : {}),
         select: { target, node: [], onTarget: true, entry: entry.id } });
     }
-    for (const target of spread.targets) {
+    for (const target of scene.targets) {
       if (!target.imageSrc) continue;
-      const entry = spread.entries.find(e => e.id === target.entryId);
+      const entry = scene.entries.find(e => e.id === target.entryId);
       const rank = labelRank(target.id, words) ?? (entry && labelRank(entry.title, words) !== null ? 3 : null);
       if (rank !== null) {
-        hits.push({ kind: "target", key: `target:${target.id}`, label: target.id, where: `${where}${entry ? ` · ${entry.title}` : ""}`, spreadId: spread.id, rank,
+        hits.push({ kind: "target", key: `target:${target.id}`, label: target.id, where: `${where}${entry ? ` · ${entry.title}` : ""}`, sceneId: scene.id, rank,
           select: { target: target.id, node: [], onTarget: true } });
       }
       if (!target.entity) continue;
       for (const node of namedNodes(target.entity)) {
         const nodeRank = labelRank(node.name, words);
         if (nodeRank === null) continue;
-        hits.push({ kind: "node", key: `node:${target.id}:${node.path.join(".")}`, label: node.name, where: `${where} · ${target.id}`, spreadId: spread.id,
+        hits.push({ kind: "node", key: `node:${target.id}:${node.path.join(".")}`, label: node.name, where: `${where} · ${target.id}`, sceneId: scene.id,
           rank: nodeRank, select: { target: target.id, node: node.path, onTarget: false } });
       }
     }

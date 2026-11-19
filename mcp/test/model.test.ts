@@ -165,7 +165,6 @@ describe("describeContentModel – the contract as an agent reads it", () => {
     expect(model.entity.name).toMatch(/editor's tree shows/);
     expect(model.spread).toBeUndefined();
     expect(model.scene.description).toMatch(/add_scene/);
-    expect(model.scene.description).toMatch(/migrate_3/);
   });
 
   it("adds a book's declared plugins with what they recorded, and the Code tab sources", () => {

@@ -219,7 +219,7 @@ attribute float aRandom;
 varying float vLife;
 ${NOISE_GLSL}
 void main() {
-  // Born when the dissolve's front passes its point on the surface – without a dissolve, spread over the shape's
+  // Born when the dissolve's front passes its point on the surface – without a dissolve, scene over the shape's
   // time –, flies off, fades
   float born = uByNoise > 0.5 ? 0.5 - 0.5 * dsNoise(position * uFreq) * uAmp : fract(aRandom * 7.13);
   float life = (uSparkProgress - born) / (0.25 + 0.2 * aRandom);
@@ -308,7 +308,7 @@ export interface Celebration {
   update(delta: number): boolean;
   /** Bloom strength wanted right now (the view adds the bloom while any animation wants it) */
   readonly bloom: number;
-  /** End now: originals back, sparks removed (e.g. the spread changes, the target is found again) */
+  /** End now: originals back, sparks removed (e.g. the scene changes, the target is found again) */
   finish(): void;
 }
 

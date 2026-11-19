@@ -86,12 +86,12 @@ describe("plugins in the configuration", () => {
     describe("a plugin's pass in passes (schema 2.21, #216)", () => {
       const SCAN = { description: "Scan lines.", params: { lines: { kind: "number", default: 200, min: 10, max: 800, description: "How many." } } };
       const scanning = { ...recorded, registered: { ...recorded.registered, passes: { scanLines: SCAN } } };
-      const withPasses = (plugins: unknown[], spread: unknown[], book?: unknown[]) => {
+      const withPasses = (plugins: unknown[], scene: unknown[], book?: unknown[]) => {
         const c = at2_14({ plugins });
-        return { ...c, version: { ...c.version, schema: "3.21" }, book: { ...c.book, ...(book ? { passes: book } : {}) }, scenes: [{ ...c.scenes[0], passes: spread }] };
+        return { ...c, version: { ...c.version, schema: "3.21" }, book: { ...c.book, ...(book ? { passes: book } : {}) }, scenes: [{ ...c.scenes[0], passes: scene }] };
       };
 
-      it("checks its parameters against the recorded spec, on a spread and on the book", () => {
+      it("checks its parameters against the recorded spec, on a scene and on the book", () => {
         expect(problemsOf(withPasses([scanning], [{ type: "vignette" }, { type: "scanLines", lines: 400 }], [{ type: "scanLines" }]))).toEqual([]);
         expect(problemsOf(withPasses([scanning], [{ type: "scanLines", lines: 2 }], [{ type: "scanLines", lines: 900 }]))).toEqual([
           "book.passes[0].lines: expected a number from 10 to 800, got 900",
@@ -131,9 +131,9 @@ describe("plugins in the configuration", () => {
   });
 
   it("the plugin API is compatible within a MAJOR", () => {
-    expect(pluginApiCompatible("1.0")).toBe(true);
-    expect(pluginApiCompatible("1.4")).toBe(true);
-    expect(pluginApiCompatible("2.0")).toBe(false);
+    expect(pluginApiCompatible("2.0")).toBe(true);
+    expect(pluginApiCompatible("2.3")).toBe(true);
+    expect(pluginApiCompatible("1.8")).toBe(false);
   });
 
   it("a model parameter takes a file's address or none, and a string as its default (#263)", () => {

@@ -193,7 +193,7 @@ final class Plugins
     private static function draftTexts(string $bookId): array
     {
         $texts = [['kind' => 'book', 'ref' => $bookId, 'text' => (string) Db::value('SELECT book_json FROM books WHERE id = :id', ['id' => $bookId])]];
-        foreach (['scene' => 'spreads', 'target' => 'targets', 'entry' => 'entries'] as $kind => $table) {
+        foreach (['scene' => 'scenes', 'target' => 'targets', 'entry' => 'entries'] as $kind => $table) {
             foreach (Db::run("SELECT id, data_json FROM $table WHERE book_id = :book ORDER BY id", ['book' => $bookId])->fetchAll() as $row) {
                 $texts[] = ['kind' => $kind, 'ref' => (string) $row['id'], 'text' => (string) $row['data_json']];
             }

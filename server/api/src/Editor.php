@@ -8,7 +8,7 @@ declare(strict_types=1);
  */
 final class Editor
 {
-    /** Ids and references in paths and bodies (books, spreads, entries, targets, entities – shared/api/rules.ts `ID_PATTERN`) */
+    /** Ids and references in paths and bodies (books, scenes, entries, targets, entities – shared/api/rules.ts `ID_PATTERN`) */
     public const ID = '[A-Za-z0-9_-]{1,64}';
 
     // The constants below copy rules of the content contract (shared/); mcp/test/php-rules.test.ts fails on a difference
@@ -25,10 +25,16 @@ final class Editor
     public const ENTRY_CATEGORIES = ['glossary', 'video', 'text', 'link'];
     /**
      * The content schema the editor reads and the draft writes (shared/types/game-config.ts `CONTENT_SCHEMA_VERSION`): a
-     * book of an older MAJOR is migrated first (`Migration3`, #319)
+     * book of an older MAJOR is refused (every stored book was migrated to 3.0, #319)
      */
     public const CONTENT_SCHEMA = '3.0';
     public const CONTENT_SCHEMA_MAJOR = 3;
+
+    /** Whether a content schema `MAJOR.MINOR` is the editor's (`CONTENT_SCHEMA_MAJOR`) */
+    public static function isCurrentSchema(string $schema): bool
+    {
+        return (int) explode('.', $schema)[0] === self::CONTENT_SCHEMA_MAJOR;
+    }
     /** A book's source of truth (shared/types/game-config.ts `SOURCES_OF_TRUTH`, #238): print first or digital first */
     public const SOURCES_OF_TRUTH = ['print', 'digital'];
     /** How deep an entity's node tree may nest (shared/guards: MAX_NODE_DEPTH) */

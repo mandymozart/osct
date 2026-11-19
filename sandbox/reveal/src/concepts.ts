@@ -63,7 +63,7 @@ export const CONCEPTS: Concept[] = [
   {
     id: "radial",
     name: "From the centre",
-    about: "Spreads from the middle of the page outwards, like ink.",
+    about: "Scenes from the middle of the page outwards, like ink.",
     params: { mask: "radial", maskNoise: 0.35, maskEase: "out", edgeStart: 0.05, edgeEnd: 0.01, duration: 900, outDuration: 600 },
   },
   {

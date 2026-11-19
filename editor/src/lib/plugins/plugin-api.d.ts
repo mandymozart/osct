@@ -225,7 +225,7 @@ interface MaterialData {
 	params?: Record<string, unknown>;
 }
 declare const BEHAVIOUR_SCOPES: readonly [
-	"spread",
+	"scene",
 	"stage",
 	"session",
 	"book"
@@ -367,14 +367,14 @@ interface EntryData {
 }
 interface Target extends Omit<TargetData, "entity"> {
 	entryId: string;
-	spreadId: string;
+	sceneId: string;
 	entity?: EntityData;
 }
 interface Entry extends Omit<EntryData, "target"> {
-	spreadId: string;
+	sceneId: string;
 	target?: Target;
 }
-interface Spread extends SceneData {
+interface Scene extends SceneData {
 	/** Every entry of the scene, with or without target */
 	entries: Entry[];
 	/** In entry order */
@@ -396,19 +396,19 @@ type LoadedAsset = {
 	element: HTMLAudioElement;
 };
 /**
- * The plugin runtime behind `api.events`, `api.vars`, `api.progress` and `api.spread`
+ * The plugin runtime behind `api.events`, `api.vars`, `api.progress` and `api.scene`
  * (docs/plugins.md "Across nodes and pages"): what lets a book's code reach across nodes and pages.
  *
  * - **Events** have two owners (the concept's rule): *core events* describe the book and are emitted by the scene
  *   only (`CORE_EVENTS` – a plugin that emits one gets an error); *scene events* are the content's own, any other
  *   name, emitted and heard by plugins freely. One flat bus: every plugin on the stage hears every event.
- * - **Variables** live in a scope: `spread` while the spread is the current one, `stage` while the scene exists,
+ * - **Variables** live in a scope: `scene` while the scene is the current one, `stage` while the scene exists,
  *   `session` per app start, `book` persisted with the reader's progress (through the app's `ProgressReader`;
- *   in memory without one). A read without a scope looks outward – spread, stage, session, book – and the innermost
+ *   in memory without one). A read without a scope looks outward – scene, stage, session, book – and the innermost
  *   definition wins. Every write emits the core event `varChanged`.
  * - **Progress** is read-only for plugins and comes from the app (`ArSceneOptions.progress`): unlocked targets,
  *   consulted entries, completion – never the app's store itself.
- * - **The spread** is the engine's own content model of the current spread.
+ * - **The scene** is the engine's own content model of the current scene.
  *
  * Listeners are kept per plugin id so that uninstalling a plugin (the editor's Run) removes them.
  *
@@ -418,12 +418,12 @@ type LoadedAsset = {
 /** A variable's value: a JSON scalar; `null` on a write deletes the variable */
 export type VarValue = BehaviourValue;
 export type VarScope = BehaviourScope;
-declare const SCENE_STATES: readonly [
+declare const AR_STATES: readonly [
 	"running",
 	"paused",
 	"stopped"
 ];
-export type SceneStateName = (typeof SCENE_STATES)[number];
+export type ArStateName = (typeof AR_STATES)[number];
 /** The core events: the scene emits them, plugins subscribe */
 export interface CoreEvents {
 	targetFound: {
@@ -439,12 +439,12 @@ export interface CoreEvents {
 	targetTapped: {
 		targetId: string;
 	};
-	spreadChanged: {
-		spreadId: string;
+	sceneChanged: {
+		sceneId: string;
 		previous: string | null;
 	};
-	sceneState: {
-		state: SceneStateName;
+	arState: {
+		state: ArStateName;
 	};
 	varChanged: {
 		name: string;
@@ -464,9 +464,9 @@ export interface PluginEvents {
 }
 /** `api.vars` */
 export interface PluginVars {
-	/** The value in `scope`, or without one the innermost definition (spread → stage → session → book) */
+	/** The value in `scope`, or without one the innermost definition (scene → stage → session → book) */
 	get(name: string, scope?: VarScope): VarValue | undefined;
-	/** Set (or delete with `null`) a variable in a scope – `spread` by default */
+	/** Set (or delete with `null`) a variable in a scope – `scene` by default */
 	set(name: string, value: VarValue | null, scope?: VarScope): void;
 	/** Hear every change of a variable (in any scope) */
 	on(name: string, listener: (value: VarValue | undefined, previous: VarValue | undefined, scope: VarScope) => void): () => void;
@@ -477,18 +477,18 @@ export interface PluginVars {
 export interface PluginProgress {
 	unlocked(targetId: string): boolean;
 	consulted(entryId: string): boolean;
-	/** Unlocked targets of a spread (the whole book without an id) as 0–1; a spread without targets counts as complete */
-	completion(spreadId?: string): number;
-	counts(spreadId?: string): {
+	/** Unlocked targets of a scene (the whole book without an id) as 0–1; a scene without targets counts as complete */
+	completion(sceneId?: string): number;
+	counts(sceneId?: string): {
 		unlocked: number;
 		targets: number;
 	};
 }
-/** `api.spread` */
-export interface PluginSpread {
-	/** The current spread as the engine knows it, null before the first spread */
-	readonly current: Spread | null;
-	get(spreadId: string): Spread | undefined;
+/** `api.scene` */
+export interface PluginScene {
+	/** The current scene as the engine knows it, null before the first scene */
+	readonly current: Scene | null;
+	get(sceneId: string): Scene | undefined;
 }
 /**
  * The pass registry: every post-processing type the engine can run – the built-in ones (`./bloom`, `./vignette`,
@@ -718,8 +718,8 @@ export interface Feedback {
  * and layers are used in the content as `components: [{ type, … }]`, a node type as `type`. A **look** (`appearances.ts`)
  * is how an entity appears and disappears: the book names it for a moment (`appearance: { reveal, found, lost }`).
  * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`): `api.events` (core events of the
- * scene, scene events of the content), `api.vars` (variables in the scopes spread / stage / session / book),
- * `api.progress` (what the reader unlocked – from the app) and `api.spread` (the current spread). A file of the book's
+ * scene, scene events of the content), `api.vars` (variables in the scopes scene / stage / session / book),
+ * `api.progress` (what the reader unlocked – from the app) and `api.scene` (the current scene). A file of the book's
  * Library – a shader (`.glsl`, `.frag`, `.vert`, `.wgsl`) – comes in as text through `api.loadText(url)` (#186), a
  * model the author picked in a `model` parameter through `api.loadModel(url)` (#263).
  * A **feedback buffer** (`feedback.ts`) is a fragment shader the engine runs once per frame into a render target
@@ -851,12 +851,12 @@ export interface PluginApi {
 	registerAppearance(type: string, spec: AppearanceSpec, factory: AppearanceFactory): void;
 	/** Core events of the scene (read-only) and scene events of the content */
 	readonly events: PluginEvents;
-	/** Variables in the scopes spread, stage, session and book */
+	/** Variables in the scopes scene, stage, session and book */
 	readonly vars: PluginVars;
 	/** The reader's progress: unlocked, consulted, completion (read-only) */
 	readonly progress: PluginProgress;
-	/** The current spread */
-	readonly spread: PluginSpread;
+	/** The current scene */
+	readonly scene: PluginScene;
 	/**
 	 * A text file: a shader of the book's Library by its URL (the Library shows it; a replace gives a new URL and
 	 * rewrites it in the sources that name it), or a content path (`/assets/content/…`). One request per URL however often

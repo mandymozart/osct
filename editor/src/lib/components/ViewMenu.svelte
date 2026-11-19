@@ -11,7 +11,7 @@
 
   /**
    * The stage toolbar's **view** group (#229 – the Stage tab's *stage* section until then), next to *grid & snap*: one
-   * button (`ToolMenu`, the gear) opening a panel with how the editor shows the spread – the hand shake, the origin
+   * button (`ToolMenu`, the gear) opening a panel with how the editor shows the scene – the hand shake, the origin
    * every x / y is counted from (a 3 × 3 alignment square), the desk's top and the sky (the studio HDRI; with the book's
    * environment its world is the sky and the HDRI waits for a book without one, #185). Stored in this browser, not in
    * the content (`stage/preview.ts`); the button's tooltip is `viewSummary`. `open()` opens it from the stage's menu.

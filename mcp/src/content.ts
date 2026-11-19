@@ -41,7 +41,6 @@ import type {
   ImportComparison,
   ImportPreview,
   ImportResult,
-  Migration3Result,
   PluginSource,
   PluginSummary,
   PublishedVersion,
@@ -240,7 +239,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
 
   server.registerTool(
     "list_books",
-    { description: "The instance's books: id, title, author, the scene it opens on (initialScene), number of scenes, content schema (a 2.x book answers 409 migrate-first on its editing routes until migrate_3), last publish, `live` (the environments serving it – empty: draft only) – and the editor's link of each; `environments` = what each environment serves.", inputSchema: z.object({}), annotations: read },
+    { description: "The instance's books: id, title, author, the scene it opens on (initialScene), number of scenes, content schema, last publish, `live` (the environments serving it – empty: draft only) – and the editor's link of each; `environments` = what each environment serves.", inputSchema: z.object({}), annotations: read },
     guard(async () => {
       const { books, environments } = await api.call<BookList>("GET", "/editor/books");
       return text({ books: books.map(b => ({ ...b, open: editorHref(links, b.id) })), environments });
@@ -780,28 +779,6 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     }),
   );
 
-  // ── The migration of a 2.x book to content schema 3.0 (#319): the plan, then with the person's yes `apply: true` ──
-
-  server.registerTool(
-    "migrate_3",
-    {
-      description:
-        "Makes a book of content schema 2.x a 3.0 book (#319) – until then its editing routes answer 409 migrate-first. Each scene's surfaces become one per printed double page (two pages → one surface of their joint width, placed in a row; a cover stays one), targets on a right page move by the left page's width onto the joint surface, entries keep their scene, the scene's label comes from its label or title, the front and back matter become groups, and the page images and old references become one reference image per new surface (pieces put together side by side – `combined` – or kept `as-is`). **Two steps – never apply without the person's yes**: the first call (no `apply`) writes nothing and answers the `plan`: counts, each scene before and after, the targets that move, the references, the groups, `unmapped` (with the reason) and `imageTool` (null: this server cannot put images together). Show the plan to the person and ask; only with their explicit yes call again with `apply: true` – the plan is made again and written in one transaction. A 3.0 book answers upToDate.",
-      inputSchema: z.object({ book: BOOK, apply: z.boolean().optional().describe("the second step: write the plan – only after the person agreed to it") }),
-      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
-    },
-    guard(async ({ book, apply }) => {
-      const result = await api.call<Migration3Result>("POST", `/editor/books/${encodeURIComponent(book)}/migrate-3`, apply ? { apply: true } : {});
-      return text({
-        ...result,
-        ...(result.applied || result.plan.upToDate
-          ? {}
-          : { next: "Nothing was written. Show the person the plan – the counts, each scene's surfaces before and after, the targets that move, the references (as-is / combined), the groups and everything unmapped with its reason – and ask. Only with their yes call migrate_3 again with apply: true." }),
-        open: editorHref(links, book),
-      });
-    }),
-  );
-
   // ── writing: the book's passes, appearance and environment ──
 
   server.registerTool(
@@ -995,7 +972,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     guard(async ({ book, limit }) => text(await api.call<{ changes: Change[] }>("GET", `/editor/books/${encodeURIComponent(book)}/changes${limit ? `?limit=${limit}` : ""}`))),
   );
 
-  // ── Reverts (#312): two steps, as migrate_3 – the plan, then with the person's yes `apply: true` ──
+  // ── Reverts (#312): two steps – the plan, then with the person's yes `apply: true` ──
   const REVERT_NEXT = "Nothing was written. Show the person what changes (plan.changes: revert / conflict / not-revertable), the later edits of the same things (plan.later) and other people's changes (plan.others); only with their yes call again with apply: true.";
   const reverted = (book: string, result: RevertResult) => text({
     ...result,

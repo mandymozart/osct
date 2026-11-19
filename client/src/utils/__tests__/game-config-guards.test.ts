@@ -10,24 +10,24 @@ import {
 const valid = () => ({
   version: { version: "1.0.0", timestamp: "2026-09-24T00:00:00.000Z", hash: "abc", schema: "3.0" },
   book: { id: "osct", title: "Onion Skin & Crocodile Tears", author: "Kévin Bray" },
-  initialScene: "spread1",
-  scenes: [{ id: "spread1", label: "The Beginning", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
+  initialScene: "scene1",
+  scenes: [{ id: "scene1", label: "The Beginning", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
   entities: {
     castle: { type: "model", assets: [{ id: "castle", assetType: "glb", src: "/castle.glb" }] },
   },
   entries: [
     {
-      id: "racoon", category: "glossary", title: "Racoon", scene: "spread1", body: "…", tags: [],
+      id: "racoon", category: "glossary", title: "Racoon", scene: "scene1", body: "…", tags: [],
       target: { id: "racoon", imageSrc: "/r.jpg", entity: { ref: "castle" } },
     },
     {
-      id: "video", category: "video", title: "Video", scene: "spread1", body: "", tags: ["demo"],
+      id: "video", category: "video", title: "Video", scene: "scene1", body: "", tags: ["demo"],
       target: {
         id: "video", imageSrc: "/v.jpg",
         entity: { type: "video", assets: [{ id: "video", assetType: "video", src: "/v.mp4" }] },
       },
     },
-    { id: "essay", category: "text", title: "Essay", scene: "spread1", body: "…", author: "A. Author", tags: [] },
+    { id: "essay", category: "text", title: "Essay", scene: "scene1", body: "…", author: "A. Author", tags: [] },
   ],
 });
 
@@ -98,14 +98,14 @@ describe("game configuration guards", () => {
     config.entries[0].target.entity = { ref: "missing" };
     config.entries[2].id = "racoon";
     config.entries[1].target.id = "racoon";
-    config.initialScene = "spread9";
-    config.entries[2].scene = "spread7";
+    config.initialScene = "scene9";
+    config.entries[2].scene = "scene7";
 
     expect(problemsOf(config)).toEqual([
-      'config.initialScene: unknown scene "spread9"',
+      'config.initialScene: unknown scene "scene9"',
       'entries[0].target.entity.ref: unknown entity "missing"',
       'entries[1].target.id: duplicate target id "racoon"',
-      'entries[2].scene: unknown scene "spread7"',
+      'entries[2].scene: unknown scene "scene7"',
       'entries[2].id: duplicate entry id "racoon"',
     ]);
   });

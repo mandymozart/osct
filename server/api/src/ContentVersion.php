@@ -44,8 +44,8 @@ final class ContentVersion
         $surfaces = [];
         foreach ($scenes as $scene) $surfaces[(string) $scene->id] = Scenes::surfaceIds($scene);
         $entries = [];
-        foreach (Db::run('SELECT id, spread_id, data_json FROM entries WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
-            $scene = (string) $row['spread_id'];
+        foreach (Db::run('SELECT id, scene_id, data_json FROM entries WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
+            $scene = (string) $row['scene_id'];
             if (!isset($surfaces[$scene])) continue;
             $entry = self::withScene(Editor::decode($row['data_json']), $scene);
             // A surface that is not on its scene is left out (the guard would refuse it)
@@ -70,7 +70,7 @@ final class ContentVersion
         $configuration = [
             'version' => (object) ['version' => Version::APP, 'schema' => $schema],
             'book' => Editor::decode($book['book_json']),
-            'initialScene' => $book['initial_spread_id'],
+            'initialScene' => $book['initial_scene'],
             'scenes' => $scenes,
         ];
         // The groups scenes name – only when the book has any

@@ -2,7 +2,7 @@ import type { PluginApi } from "osct-plugin-api";
 
 /**
  * A component on a group that shows one of its children at a time: a tap on the entity shows the next. The scene
- * shown is the spread variable `scene` (it ends with the spread), every switch emits `sceneChanged`. Shows the
+ * shown is the scene variable `scene` (it ends with the scene), every switch emits `stepChanged`. Shows the
  * context's `children` and the `onTap` hook.
  */
 export const register = (api: PluginApi): void => {
@@ -17,7 +17,7 @@ export const register = (api: PluginApi): void => {
     let index = clamp(params.start);
     const show = () => {
       children.forEach((child, i) => (child.visible = i === index));
-      api.vars.set("scene", index, "spread");
+      api.vars.set("scene", index, "scene");
     };
     show();
     return {
@@ -25,7 +25,7 @@ export const register = (api: PluginApi): void => {
         if (!children.length) return;
         index = (index + 1) % children.length;
         show();
-        api.events.emit("sceneChanged", { index });
+        api.events.emit("stepChanged", { index });
       },
       tune: next => {
         index = clamp(next.start);

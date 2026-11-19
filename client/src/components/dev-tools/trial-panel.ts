@@ -3,7 +3,7 @@ import { GameStoreService } from "@/services";
 import {
   cameraLine, fetchTriggerInfos, getCameraInfo, setWindowOverride, subscribeCamera, type CameraInfo,
 } from "@/components/ar-bridges";
-import { getBook, getConfigVersion, getSpreads, sceneLabel } from "@/utils/game-config";
+import { getBook, getConfigVersion, getScenes, sceneLabel } from "@/utils/game-config";
 import { countResults, trialReport, trialRows, type TrialRow, type TriggerInfos } from "./trial-report";
 import {
   devicePrefill, osLine, pickList, readScreen, readUaHints, screenLine, type DevicePrefill, type ScreenSize, type UaHints,
@@ -13,8 +13,8 @@ import { BottomSheet, SHEET_CSS } from "./debug-sheet";
 const escapeHtml = (text: string) =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-/** While the trial is open the tracker holds the current spread and its neighbours (±1): scanning the next image on
- * the sheet switches the spread by itself */
+/** While the trial is open the tracker holds the current scene and its neighbours (±1): scanning the next image on
+ * the sheet switches the scene by itself */
 export const TRIAL_WINDOW = 1;
 
 /** Where the strip remembers the tester's phone model and initials on this device */
@@ -68,11 +68,11 @@ export const numberedRows = (rows: TrialRow[]): Array<TrialRow & { number: numbe
  * Debug trial panel (a strip on the bottom edge, styled like the debug bar at the top turned upside down; opened
  * and closed with *trial* in the debug overlay): the trigger checklist of a test with the printed book. Shows every target in a fixed order – the order of
  * the printout, with its running number – so nothing moves: found ones get a green frame and a ✓, the one in view a
- * yellow frame, the current spread's a white frame, and the strip scrolls smoothly to the current spread when it
+ * yellow frame, the current scene's a white frame, and the strip scrolls smoothly to the current scene when it
  * changes.
- * Tap a tile to go to its spread; ‹ › step through the spreads. Drag the top bar to make the strip taller or lower.
+ * Tap a tile to go to its scene; ‹ › step through the scenes. Drag the top bar to make the strip taller or lower.
  * The bar shows how many targets are not found yet; **md** downloads the report for the designers (trial-report.ts).
- * While the panel is open the tracker holds the current spread and its neighbours (`TRIAL_WINDOW`, no grow);
+ * While the panel is open the tracker holds the current scene and its neighbours (`TRIAL_WINDOW`, no grow);
  * closing restores the setting. A camera line under the bar shows the lens, resolution, focus and zoom the trial
  * runs with (camera-debug.ts) – feedback only, the trial uses the app's camera defaults; the md report records it.
  * A device row asks for the phone model (required for **md**, prefilled from the browser's model code or narrowed by
@@ -86,7 +86,7 @@ export class TrialPanel extends HTMLElement {
   private infos: TriggerInfos = {};
   private signature = "";
   private sheet: BottomSheet;
-  /** The spread the strip last scrolled to – it scrolls again only when the current spread changes */
+  /** The scene the strip last scrolled to – it scrolls again only when the current scene changes */
   private scrolledTo: string | null = null;
   /** Where the strip is scrolling to (smoothly) – kept across re-renders until reached or the reader scrolls */
   private scrollTarget: number | null = null;
@@ -114,7 +114,7 @@ export class TrialPanel extends HTMLElement {
     setWindowOverride(TRIAL_WINDOW);
     this.cleanups.push(() => setWindowOverride(null));
     this.cleanups.push(
-      this.game.subscribeToProperty("currentSpread", () => this.render()),
+      this.game.subscribeToProperty("currentScene", () => this.render()),
       this.game.subscribeToProperty("progress", () => this.render()),
       this.game.subscribeToProperty("trackedTargets", () => this.render()),
       subscribeCamera(camera => this.renderCamera(camera)),
@@ -162,7 +162,7 @@ export class TrialPanel extends HTMLElement {
   }
 
   rows(): TrialRow[] {
-    return trialRows(getSpreads(), this.game.state.progress.unlocked, this.infos);
+    return trialRows(getScenes(), this.game.state.progress.unlocked, this.infos);
   }
 
   report(): string {
@@ -191,7 +191,7 @@ export class TrialPanel extends HTMLElement {
 
   private draw() {
     const rows = this.rows();
-    const current = this.game.state.currentSpread;
+    const current = this.game.state.currentScene;
     const tracked = this.game.state.trackedTargets;
     const shown = numberedRows(rows);
     const signature = [current, tracked.join(","), shown.map(row => `${row.targetId}${row.result[0]}`).join(",")].join("|");
@@ -202,13 +202,13 @@ export class TrialPanel extends HTMLElement {
     const grid = this.shadow.querySelector(".grid");
     const scrollTop = grid?.scrollTop ?? 0;
     const left = countResults(rows).untested;
-    const spread = getSpreads().find(s => s.id === current);
+    const scene = getScenes().find(s => s.id === current);
     const tile = (row: TrialRow & { number: number | null }) => {
-      const own = row.spreadId === current;
+      const own = row.sceneId === current;
       const found = row.result === "found";
       const page = `${row.place}·${row.targetId.split("-").pop()}`;
       const classes = ["tile", own ? "own" : "", found ? "found" : "", tracked.includes(row.targetId) ? "seen" : "", row.number === null ? "absent" : ""];
-      return `<button class="${classes.join(" ").trim()}" data-spread="${escapeHtml(row.spreadId)}"
+      return `<button class="${classes.join(" ").trim()}" data-scene="${escapeHtml(row.sceneId)}"
         title="${escapeHtml(`${row.number ?? "not printed"} · ${row.targetId} · ${row.title}`)}">
         <img src="${escapeHtml(row.imageSrc)}" alt="" loading="lazy" decoding="async">${row.number !== null ? `<b class="num">${row.number}</b>` : ""}${found ? `<b class="check" aria-label="found">✓</b>` : ""}<span>${escapeHtml(row.number === null ? `${page} not printed` : page)}</span>
       </button>`;
@@ -217,9 +217,9 @@ export class TrialPanel extends HTMLElement {
     const bar = this.shadow.querySelector(".bar");
     if (bar) {
       bar.innerHTML = `
-        <button data-action="previous" aria-label="Previous spread">‹</button>
-        <button data-action="next" aria-label="Next spread">›</button>
-        <span class="left">${escapeHtml(spread ? sceneLabel(spread) : "–")} · <b>${left}</b> not found</span>
+        <button data-action="previous" aria-label="Previous scene">‹</button>
+        <button data-action="next" aria-label="Next scene">›</button>
+        <span class="left">${escapeHtml(scene ? sceneLabel(scene) : "–")} · <b>${left}</b> not found</span>
         <button data-action="download">md</button>
         <button class="close" data-action="close" aria-label="Close">×</button>`;
     }
@@ -230,7 +230,7 @@ export class TrialPanel extends HTMLElement {
     fresh.innerHTML = shown.map(tile).join("");
     grid?.replaceWith(fresh);
     fresh.scrollTop = scrollTop;
-    // A new current spread: bring its row into view (the tiles never move, the view follows the reader)
+    // A new current scene: bring its row into view (the tiles never move, the view follows the reader)
     const ownTile = fresh.querySelector<HTMLElement>(".tile.own");
     if (ownTile && current !== this.scrolledTo) {
       this.scrolledTo = current;
@@ -327,8 +327,8 @@ export class TrialPanel extends HTMLElement {
   }
 
   /**
-   * Scrolls smoothly to the current spread's row, so the reader sees the strip move. A re-render replaces the grid
-   * mid-scroll (a find changes the spread and the tracked targets at once): the new grid continues from where the old
+   * Scrolls smoothly to the current scene's row, so the reader sees the strip move. A re-render replaces the grid
+   * mid-scroll (a find changes the scene and the tracked targets at once): the new grid continues from where the old
    * one was. Touching or wheeling the strip hands the scrolling back to the reader.
    */
   private scrollToTarget(grid: HTMLElement) {
@@ -362,17 +362,17 @@ export class TrialPanel extends HTMLElement {
   }
 
   private step(direction: 1 | -1) {
-    const spreads = getSpreads();
-    const index = spreads.findIndex(spread => spread.id === this.game.state.currentSpread);
-    const next = spreads[(index + direction + spreads.length) % spreads.length];
-    if (next) this.game.spreads.switchSpread(next.id);
+    const scenes = getScenes();
+    const index = scenes.findIndex(scene => scene.id === this.game.state.currentScene);
+    const next = scenes[(index + direction + scenes.length) % scenes.length];
+    if (next) this.game.scenes.switchScene(next.id);
   }
 
   private onClick = (event: Event) => {
     const button = (event.target as HTMLElement).closest<HTMLElement>("button");
     if (!button) return;
-    if (button.dataset.spread) {
-      if (button.dataset.spread !== this.game.state.currentSpread) this.game.spreads.switchSpread(button.dataset.spread);
+    if (button.dataset.scene) {
+      if (button.dataset.scene !== this.game.state.currentScene) this.game.scenes.switchScene(button.dataset.scene);
       return;
     }
     switch (button.dataset.action) {

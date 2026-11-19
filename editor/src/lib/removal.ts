@@ -3,7 +3,7 @@ import type { Confirmation, RemovalImpact } from "./api";
 import { count } from "./import-preview";
 
 /**
- * Removing a spread or an entry with everything on it (#198, docs/server.md "Removing a spread or an entry"): the API
+ * Removing a scene or an entry with everything on it (#198, docs/server.md "Removing a scene or an entry"): the API
  * answers the first DELETE with the impact and a confirmation id, the person confirms in the page (never a browser
  * dialog), the same DELETE with the id removes exactly that. These are the confirmation's words and its step;
  * RemovalConfirm draws them.

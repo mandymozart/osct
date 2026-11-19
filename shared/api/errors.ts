@@ -1,7 +1,7 @@
 /**
  * The API's errors as its callers read them (server/api/src/Http.php): every error answers
  * `{ error: { code, message, …details } }` with one HTTP status per code, and the two-step writes – an import over a
- * book that exists, the removal of a spread or an entry – answer their first step as a 409 that carries what the step
+ * book that exists, the removal of a scene or an entry – answer their first step as a 409 that carries what the step
  * shows the person and a confirmation to send back.
  */
 import type { Confirmation } from "./editor";

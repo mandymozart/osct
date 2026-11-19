@@ -63,7 +63,7 @@
   /* Glass buttons: alpha must stay non-zero, otherwise backdrop-filter does not blur */
   --glass-background: rgba(255, 255, 255, 0.001);
   --glass-blur: blur(0.625rem);
-  /* The subtitle line over the camera picture: its backdrop, and how far above the screen's bottom edge it sits (clear of the spread menu) */
+  /* The subtitle line over the camera picture: its backdrop, and how far above the screen's bottom edge it sits (clear of the scene menu) */
   --subtitle-background: rgba(0, 0, 0, 0.62);
   /* The coach marks' veil over the first scan, around the hole that shows the scroller or the icon (#282, design p. 15–16) */
   --coach-veil: rgba(0, 0, 0, 0.8);
@@ -73,7 +73,7 @@
   --shadow-bronze: 0 0.15rem 1.2rem rgba(149, 113, 73, 0.55);
   --shadow-grey: 0 0.2rem 1.4rem rgba(139, 141, 140, 0.45);
   --shadow-glow-soft: 0 0 0.5rem rgba(255, 255, 255, 0.25);
-  /* The page scroller's active spread (#284, design p. 17-22): a transparent glass pill with a gold glow (no fill, #297;
+  /* The page scroller's active scene (#284, design p. 17-22): a transparent glass pill with a gold glow (no fill, #297;
      measured: glow #c7a144 about 6.5 pt round the 31 x 15 pt body) */
   --shadow-gold: 0 0 0.75rem 0.15rem rgba(199, 161, 68, 0.85);
 
@@ -176,28 +176,28 @@ img {
   display: inline-block;
 }
 
-#scene-container {
+#ar-container {
   position: fixed;
   width: 100vw;
   height: 100vh;
 }
 /* ar/tracker.ts sizes and positions the camera video */
-#scene-container video {
+#ar-container video {
   position: absolute;
 }
 
-/* <ar-bridge> sets body.scene-active while AR runs */
+/* <ar-bridge> sets body.ar-active while AR runs */
 #scene {
   opacity: 0;
   transition: opacity .2s linear;
 }
-body.scene-active #scene {
+body.ar-active #scene {
   opacity: 1;
 }
 video {
   opacity: 1;
   transition: opacity .2s linear;
 }
-.scene-active video {
+.ar-active video {
   opacity: 1;
 }

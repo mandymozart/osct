@@ -14,8 +14,8 @@ describe("the new-version notice's decision", () => {
   });
 
   it("never mid-scan: the scan view only once AR has failed", () => {
-    for (const status of ALL_STATUSES.filter(status => status !== "error")) expect(isCalmMoment(Pages.SPREAD, status)).toBe(false);
-    expect(isCalmMoment(Pages.SPREAD, "error")).toBe(true);
+    for (const status of ALL_STATUSES.filter(status => status !== "error")) expect(isCalmMoment(Pages.SCENE, status)).toBe(false);
+    expect(isCalmMoment(Pages.SCENE, "error")).toBe(true);
   });
 
   it("calm: the start, the consultation pages (entries list, entry, Info) and the overlays, with the scene paused or stopped", () => {
@@ -34,6 +34,6 @@ describe("the new-version notice's decision", () => {
     expect(showNewVersionNotice({ outdated: true, dismissed: false, ...calm })).toBe(true);
     expect(showNewVersionNotice({ outdated: false, dismissed: false, ...calm })).toBe(false);
     expect(showNewVersionNotice({ outdated: true, dismissed: true, ...calm })).toBe(false);
-    expect(showNewVersionNotice({ outdated: true, dismissed: false, page: Pages.SPREAD, arStatus: "running" })).toBe(false);
+    expect(showNewVersionNotice({ outdated: true, dismissed: false, page: Pages.SCENE, arStatus: "running" })).toBe(false);
   });
 });

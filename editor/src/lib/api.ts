@@ -44,7 +44,6 @@ import type {
 } from "@shared/api/editor";
 import { apiErrorFields } from "@shared/api/errors";
 import { imageUseQuery, type ImageFit, type ImageUse } from "@shared/api/images";
-import { readStored, writeStored } from "#lib/storage.js";
 import type { PublishedPlugin } from "#lib/publish-plugins.js";
 
 export type { TargetPlace };
@@ -98,12 +97,6 @@ export type {
  */
 
 export const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? "/api").replace(/\/+$/, "");
-
-/**
- * Where the editor kept the session token before the cookie (#207). TEMPORARY: read once at startup, exchanged for the
- * cookie (`exchangeStoredToken`) and removed – drop with the exchange endpoint (MEMORY open item).
- */
-const LEGACY_TOKEN_KEY = "osct-editor-session";
 
 export class ApiError extends Error {
   /** `details` = the rest of the server's error object (e.g. `current` of a 409 other-book) */
@@ -297,31 +290,6 @@ export const signInWithPassword = (email: string, password: string) =>
 export const me = () => api<{ user: User; csrfToken?: string }>("GET", "/user", undefined, signIn);
 
 export const logout = () => api<void>("POST", "/auth/logout", undefined, signIn);
-
-/**
- * TEMPORARY (#207 – remove with `POST /auth/cookie`, MEMORY open item): a session token the editor kept in
- * `localStorage` before the cookie is sent once to the exchange endpoint, which sets the cookie; the stored token is
- * removed once the API took it or refused it (401 / 403). Null when nothing was stored or the token no longer holds
- * (sign in as usual); a network failure or a server error keeps it for the next start.
- */
-export const exchangeStoredToken = async (): Promise<SignedIn | null> => {
-  const token = readStored(LEGACY_TOKEN_KEY);
-  if (token === null) return null;
-  if (token === "") {
-    writeStored(LEGACY_TOKEN_KEY, null);
-    return null;
-  }
-  let response: Response;
-  try {
-    response = await fetch(`${API_URL}/auth/cookie`, { method: "POST", credentials: "same-origin", headers: { Authorization: `Bearer ${token}` } });
-  } catch {
-    return null;
-  }
-  if (response.ok || response.status === 401 || response.status === 403) writeStored(LEGACY_TOKEN_KEY, null);
-  if (!response.ok) return null;
-  const body = (await response.json().catch(() => null)) as Partial<SignedIn> | null;
-  return body && typeof body.csrfToken === "string" && body.user ? { csrfToken: body.csrfToken, user: body.user } : null;
-};
 
 // ── AI connections (docs/server.md "AI connections"): personal access tokens for the MCP server ──
 

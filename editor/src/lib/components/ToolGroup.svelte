@@ -110,7 +110,7 @@
     const next = menuStep(event.key, index < 0 ? activeIndex(options, value) : index, options.length);
     if (next === null) return;
     event.preventDefault();
-    event.stopPropagation(); // not the spreads' ← →
+    event.stopPropagation(); // not the scenes' ← →
     focusItem(next);
   };
 </script>

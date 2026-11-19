@@ -179,10 +179,10 @@ export function renderEntryText(body: string, { variables = () => undefined, new
 
 /**
  * The lookup over a snapshot of the variables in their scopes (the plugin runtime's `allVars()`): a name reads the
- * innermost scope that has it – spread, stage, session, book – like a plugin's `api.vars.get(name)`
+ * innermost scope that has it – scene, stage, session, book – like a plugin's `api.vars.get(name)`
  */
 export function variablesOf(snapshot: ReadonlyArray<{ scope: string; name: string; value: unknown }>): VariableLookup {
-  const order = ["spread", "stage", "session", "book"];
+  const order = ["scene", "stage", "session", "book"];
   const byName = new Map<string, { rank: number; value: unknown }>();
   for (const v of snapshot) {
     const rank = order.indexOf(v.scope) < 0 ? order.length : order.indexOf(v.scope);

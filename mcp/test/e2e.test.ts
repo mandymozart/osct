@@ -151,7 +151,7 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect(verified.ok, JSON.stringify(verified.data)).toBe(true);
     expect(verified.data.user).toEqual({ email: "editor@example.test", roles: ["reader", "editor"] });
     expect(await names()).toEqual(
-      expect.arrayContaining(["list_books", "preview_import", "import_book", "get_book", "get_scene", "get_entity", "put_entity", "put_target", "add_entry", "delete_entry", "list_scenes", "add_scene", "put_scene", "move_scenes", "delete_scene", "migrate_3", "put_book_passes", "put_book_appearance", "put_environment", "list_assets", "upload_asset", "delete_asset", "list_plugins", "get_plugin", "put_plugin", "delete_plugin", "get_draft", "publish", "list_versions", "list_changes", "describe_content_model"]),
+      expect.arrayContaining(["list_books", "preview_import", "import_book", "get_book", "get_scene", "get_entity", "put_entity", "put_target", "add_entry", "delete_entry", "list_scenes", "add_scene", "put_scene", "move_scenes", "delete_scene", "put_book_passes", "put_book_appearance", "put_environment", "list_assets", "upload_asset", "delete_asset", "list_plugins", "get_plugin", "put_plugin", "delete_plugin", "get_draft", "publish", "list_versions", "list_changes", "describe_content_model"]),
     );
     expect((await names()).filter(name => /spread|page|matter/.test(name))).toEqual([]);
     expect((await client.listPrompts()).prompts.map(p => p.name).sort()).toEqual(["add-target", "editor"]);
@@ -384,7 +384,6 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect((await call("put_environment", { book: "osct", environment: null })).data.environment).toBeNull();
     expect((await call("put_book_passes", { book: "osct", passes: null })).data.passes).toBeNull();
     // A 3.0 book needs no migration
-    expect((await call("migrate_3", { book: "osct" })).data).toMatchObject({ applied: false, plan: { upToDate: true } });
     await readerReads();
   });
 

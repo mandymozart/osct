@@ -1,5 +1,5 @@
 import { resolve } from "$app/paths";
-import { ApiError, errorText, exchangeStoredToken, logout, me, onSessionEnd, requestCode, setSession, signInWithPassword, verifyCode, type SignedIn, type User } from "./api";
+import { ApiError, errorText, logout, me, onSessionEnd, requestCode, setSession, signInWithPassword, verifyCode, type SignedIn, type User } from "./api";
 
 /** The sign-in form's note after the session ended under the page */
 export const SESSION_ENDED = "Your session ended – sign in again.";
@@ -41,15 +41,13 @@ class Session {
   }
 
   /**
-   * The browser's session (its cookie), checked once at startup – a token stored by an editor from before the cookie
-   * is exchanged for it first (`exchangeStoredToken`, temporary) – or again (`again`: reload the user, e.g. after their
+   * The browser's session (its cookie), checked once at startup – or again (`again`: reload the user, e.g. after their
    * own roles changed). Signed out, the API answers 401: the sign-in form, without a note.
    */
   async restore(again = false): Promise<void> {
     if (this.status !== "unknown" && !again) return;
     try {
-      const exchanged = again ? null : await exchangeStoredToken();
-      const { user, csrfToken } = exchanged ?? (await me());
+      const { user, csrfToken } = await me();
       setSession({ csrfToken: csrfToken ?? "", email: user.email });
       this.user = user;
       this.status = "in";

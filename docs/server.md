@@ -80,7 +80,7 @@ without a token, 403 `forbidden` for a reader. `{id}` is the book, ids and refs 
 | `GET /editor/environments` | | `{ env, environments: [{ env, store, publish, url, warning }] }` – this instance's environment (`ENV`, the only one it publishes to) first, then `staging` and `production` (`local` only where `ENV` is local); `store` = `cdn` (the storage zone) or `server` (the directory store this API serves); `publish` true for the own one only; `url` = where readers load it; `warning` = the line the editor shows wherever the directory store is the publish target, else null – [One environment per instance](#one-environment-per-instance) |
 | `POST /editor/import/preview` | `{ configuration, files?, assetsBase? }` or `{ source: "cdn" }` (the import's body) | `{ source, contentBase, manifest, incoming, counts, existing }` – what that import would bring in, **nothing imported** ([Import preview](#import-preview)). The import's access (AI connections too); 400 as the import (`invalid-configuration`, `invalid-entity`, `unknown-entity`, `invalid-id` – also for a configuration without `book.id` or with one that is no id, `no-content-base`); it answers for the configuration's own `book.id`, the id the import is then called with; 413 `body-too-large`; 502 `content-fetch-failed` with the failing `url` |
 | `POST /editor/books/{id}/import` | `{ configuration, files?, assetsBase?, confirm? }` or `{ source: "cdn", confirm? }` | `{ book, counts, draft: { build, hash }, imported }` – replaces the book's rows from a game configuration (one transaction; the logs stay). `files` = its `files.json` – without it `<assetsBase>/files.json` is fetched (optional: a base without one, the reader's dev server, leaves no imported files in the Library; #244), `assetsBase` = where its `/assets/content/…` paths resolve (the CDN's `<base>/<build>`); `source: "cdn"` fetches the current version of `CONTENT_BASE_URL`; `imported` = what the draft is now based on. **Over a book that exists, two steps** ([Import with a version comparison](#import-with-a-version-comparison)): without `confirm` 409 `confirm-import` with `comparison` and `confirmation` `{ id, expiresAt }`, nothing written; with `confirm` the import; a confirmation that is expired, someone else's or outdated 409 `confirmation-void` (a new comparison with it). The configuration's `book.id` must be `{id}` (the rows go under `{id}`, the configuration keeps its `book`, and a publish names both): another id is 400 `invalid-configuration` naming both (#204). 400 `invalid-configuration`, `invalid-entity`, `unknown-entity`, `invalid-id`, `no-content-base`; 413 `body-too-large` (`EDITOR_MAX_BYTES`); 502 `content-fetch-failed` (with the failing `url`) |
-| `GET /editor/books/{id}` | | `{ book, scenes: [{ …SceneData, entries: [{ id, category, title, scene, surface?, target }] }], groups }` – the tree ([Scenes](#scenes)); `target` = the entry's TargetData (id, imageSrc, place, entity inline or `{ ref }`) or null. A book of content schema 2.x answers 409 `migrate-first` until it is migrated |
+| `GET /editor/books/{id}` | | `{ book, scenes: [{ …SceneData, entries: [{ id, category, title, scene, surface?, target }] }], groups }` – the tree ([Scenes](#scenes)); `target` = the entry's TargetData (id, imageSrc, place, entity inline or `{ ref }`) or null. A book of content schema 2.x answers 409 `old-schema` |
 | `GET /editor/books/{id}/entities` | | `{ entities: { ref: EntityData } }` – the shared entities |
 | `PUT /editor/books/{id}/entities/{ref}` | `EntityData` | `{ ref, entity }` – saves (or adds) a shared entity; records a change. 400 `invalid-entity`: no object, `type` not one of the contract's entity types (nor a plugin's, in a book with plugins – "Plugin sources"), no `assets` list |
 | `PUT /editor/books/{id}/targets/{targetId}` | `{ entity }` or `{ ref }` | `{ target }` – the target's entity: inline (`entity`, null removes it) or a shared one (`ref`, 400 `unknown-entity` when there is none); records a change. 404 for an unknown target |
@@ -331,14 +331,14 @@ sends, field by field; change both together. The PHP's copies of `shared/` rules
 `Plugins`, `Assets` constants) are pinned by `mcp/test/php-rules.test.ts` ([mcp](mcp.md#tests)).
 
 **Tables** (both schema files, additive – the one exception is a removed feature's column, removed by name: the
-onboarding's `books.tutorial_json`, #236): `books` (the book row: `BookData` as `book_json`, the initial scene, the imported `files.json`, the content schema, the imported hash, `assets_base`), `spreads`, `entries`,
+onboarding's `books.tutorial_json`, #236): `books` (the book row: `BookData` as `book_json`, the initial scene, the imported `files.json`, the content schema, the imported hash, `assets_base`), `scenes`, `entries`,
 `targets`, `entities` (keys `(book_id, id)` / `(book_id, ref)`, deleted with the book), `book_versions` (the publish
 log), `changes` (the change log) and `plugins` (the Code tab's sources, below). Every content row keeps the object exactly as it was imported in its
 `data_json` column – unknown fields included – and `position` keeps the imported order; the typed columns (title,
-category, image, entity ref, …) only index the rows for the tree and the queries (the page columns of `spreads` and
+category, image, entity ref, …) only index the rows for the tree and the queries (the page columns of `scenes` and
 `entries` are not used since the content schema 3.0 – 0). An entry's `data_json` is the entry without its target and
 its scene; the target row holds the target with its entity, inline or `{ ref }`. An entry's scene is
-`entries.spread_id` – every entry has one ([Scenes](#scenes)).
+`entries.scene_id` – every entry has one ([Scenes](#scenes)).
 
 **Import → draft → publish.** `POST …/import` replaces the book's rows from a game configuration in one transaction
 (the editor offers the running reader's `game.config.json`, or `{ "source": "cdn" }` takes the CDN's current version);
@@ -347,8 +347,8 @@ the change and publish logs stay. The **draft** is assembled from the rows on ev
 `initialScene`, `scenes`, `groups` (when there are any), `entries` with their targets, `entities` – content schema 3.0,
 the same keys in the same order as the content build writes them, so import → draft reproduces the configuration
 unchanged (the API test checks it). An import takes a configuration of content schema 3.x only (`Editor::CONTENT_SCHEMA`;
-2.x → 400 `invalid-configuration`: convert its source with `npm run convert:3`, or migrate a stored book –
-[The migration to schema 3.0](#the-migration-to-schema-30)). The hash is the sha256 of that JSON without `timestamp` and `hash`; the build name is its first 12 hex digits,
+2.x → 400 `invalid-configuration`: convert its source with `npm run convert:3`; every stored book was migrated to 3.0
+on staging, #319 – a 2.x book left in a database answers 409 `old-schema`). The hash is the sha256 of that JSON without `timestamp` and `hash`; the build name is its first 12 hex digits,
 so the same rows are the same version. With an `assets_base`, every `/assets/content/…` under `src`, `imageSrc` and
 `image`, and every key of `files.json`, becomes a URL below it: a published version points at the
 imported build's media on the CDN and copies nothing. `PUT …/entities/{ref}` and `PUT …/targets/{id}` change one
@@ -685,12 +685,12 @@ The limits are `shared/api/rules.ts`' too (`TEXT_MAX_LENGTH`, `BODY_MAX_LENGTH`,
 ### Scenes
 
 A book is an **ordered list of scenes** (content schema 3.0, #319 – `agents/SCENES.md` "Schema 3.0", `Scenes.php`). A
-scene is a `spreads` row: its **order is `spreads.position`** and nothing else, its `data_json` the content's `SceneData`
+scene is a `scenes` row: its **order is `scenes.position`** and nothing else, its `data_json` the content's `SceneData`
 `{ id, label, group?, surfaces, passes? }` (`title` holds a copy of the label; the page columns are not used – 0), the
 book's groups `books.groups_json` (the content's root `groups`). A surface is `{ id, label?, widthMm, heightMm, place }`
 – a double page is ONE surface twice the page's width (460 × 320 mm), a cover one page, a wall 2000 × 1500 mm standing
 (`rx` 90); `place` `{ x, y, z, rx, ry, rz }` in mm and degrees in the scene's coordinate system. An entry's scene is
-`entries.spread_id`, its surface the entry's `surface`; a target's `place` names its surface. **Nothing renumbers** –
+`entries.scene_id`, its surface the entry's `surface`; a target's `place` names its surface. **Nothing renumbers** –
 there are no pages. Scenes are added, moved and removed in **print-first and digital-first books alike**; an import
 keeps the configuration's `sourceOfTruth` and writes `print` when it has none (a value other than `print` / `digital`
 is a 400 `invalid-configuration`); `PUT /editor/books/{id}` `{ sourceOfTruth }` changes it, recorded as a `book` change.
@@ -713,7 +713,6 @@ build's `rowPlaces`).
 | `PUT /editor/books/{id}/groups/{gid}` | `{ label }` | `{ group }` – renamed (a change `groups`). 400 `invalid-group`; 404 |
 | `DELETE /editor/books/{id}/groups/{gid}` | | `{ ungrouped, scenes }` – ungroup: the group goes, its scenes stay in place and in order, without a group. 404 |
 | `PUT /editor/books/{id}/scenes/{sid}/surfaces/{surfaceId}/reference` | `{ url?: string \| null, fit?, name? }` | `{ scene, surface, reference, changed }` – [a surface's reference image](#surface-reference-images) |
-| `POST /editor/books/{id}/migrate-3` | `{ apply? }` (or no body) | `{ plan, applied }` – [the migration to schema 3.0](#the-migration-to-schema-30) |
 | `PUT /editor/books/{id}/environment` | `{ environment: { world, onionSky, worldSrc?, skySrc? } \| null }` | `{ environment }` – the book's world and onion sky (`book.environment`, content schema 2.8; the world model and the sky image as references 2.10); `null` removes it – the default applies. A change `environment` in the log. 400 `invalid-environment`; 404 |
 | `PUT /editor/books/{id}/passes` | `{ passes: [{ type, …parameters }] \| null }` | `{ passes }` – the book's post-processing (`book.passes`), the master every scene without a list of its own shows; `null` removes it. Checked as a scene's list (a built-in `type` or a plugin's pass, scalar parameters); a change `passes` in the log. 400 `invalid-passes`; 404 |
 | `PUT /editor/books/{id}/appearance` | `{ appearance: { reveal?, found?, lost? } \| null }` | `{ appearance }` – how the book's entities appear (`book.appearance`, content schema 2.29, #265): a look `{ type, …parameters }` per moment (`Books::MOMENTS`), a built-in `type` or a plugin's look, scalar parameters (their ranges are the guard's). The whole appearance is replaced; `null`, or one without a moment, removes the field – the default look plays everywhere. A change `appearance` in the log. 400 `invalid-appearance`; 404 |
@@ -723,45 +722,14 @@ Gone with 3.0 (404): `…/spreads` (every route), `…/pages`, `…/page-images`
 the book has any), every entry with its `scene` right after its `title` (and its `surface`), every target with its
 `place` – it leaves out a `surface` or a `place` its scene does not have, so the guard never refuses it.
 
-#### The migration to schema 3.0
+#### The migration to schema 3.0 (done)
 
-A book stored before 3.0 (`books.content_schema` 2.x – staging's osct and the demo) is migrated once:
-`POST /editor/books/{id}/migrate-3` (`Migration3.php`, MCP `migrate_3`), two steps – without `apply: true` the plan,
-nothing written; with it the plan made again and written in **one transaction**, every row a change of the log (kinds
-`scene`, `entry`, `target`, `reference`, `groups`, and one `migration` `{ schema }` before / after). Until then the
-book's editing routes answer **409 `migrate-first`** (`details.schema`); the book list, the versions, the change log, an
-import and the migration itself still answer. **Idempotent**: a 3.0 book answers `upToDate: true` and writes nothing.
-The rules are `scripts/src/convert-content-3.ts`' (which converted the fixtures):
-
-- **Surfaces**: one per printed double page. A scene with 2.x surfaces merges each run `left` [`middle` …] `right` into one
-  joint surface (widths added, labels `4–5`; id `surface` when it is the scene's only one, else `<left>-<right>`); every
-  other surface (a cover's front, a wall) stays one. A scene without surfaces gets one `surface`: twice the page's width
-  for a double page, one page for a cover, the back cover or a single page. Placed in a row; a free scene's surfaces keep
-  their places (a joint one between its halves).
-- **Label**: its own label, else what the reader showed – the title of a cover, the back cover and the front and back
-  matter (`Cover`, `Front matter 1`), else its pages (`186–187`, `1`). The front and back matter join the groups
-  `front-matter` *Front matter* / `back-matter` *Back matter* (made when missing) unless they are in a group. `title`,
-  `firstPage`, `lastPage`, `format`, `matter`, `layout` go; every other field (`passes` …) stays.
-- **Entries** keep their scene and lose their `page`; a 2.x surface becomes its joint surface (none when the scene has
-  one). An entry on no scene goes to the scene the book opens on (listed under `unmapped`).
-- **Targets**: `print` → `place` on the joint surface; a target on the right page moves right by the left page's width
-  (its `x`); `print.page` and the side go. A print no surface holds keeps no place (`unmapped`).
-- **Reference images**: the page images (#251, `page_images`) and the 2.x surfaces' references (#314) of a joint surface's
-  halves are **put together side by side into one image** – a canvas of the surface's proportions, as high as the highest
-  half (at most `IMAGE_MAX_SIDE.reference`), each half over its part, the rest white – stored as a new Library file
-  `<scene>_<surface>.webp` (GD with WebP, as every upload, #298) and set as the surface's reference (fit `cover`). One
-  image that covers a surface (a cover's page) is its reference as it is. A 2.x reference wins over a page image of the
-  same half (the page image is listed). Without GD the apply answers 409 `no-image-tool` and writes nothing. The
-  `page_images` table is read nowhere else any more; its rows stay.
-
-The plan: `upToDate`, `schema` `{ from, to }`, `counts` `{ scenes, surfacesBefore, surfacesAfter, entries, targetsMoved,
-referencesAsIs, referencesCombined, unmapped }`, per scene `scenes[]` `{ scene, label, before: { title, firstPage,
-lastPage, format, matter, surfaces: [{ id, side, label, widthMm, heightMm }] }, after: [SurfaceData + from (the 2.x
-surfaces or pages it is made of)], group?, entries, targets: [{ target, entry, from: { surface, x }, to: { surface, x } }],
-references: [{ surface, result: as-is | combined, pieces: [{ source: page-image | reference, label, url, name, offsetMm,
-widthMm }], url? (with apply) }] }`, `groups` (the new ones with their scenes), `unmapped` `[{ kind: entry | target |
-page-image | reference, ref, scene, reason }]`, `imageTool` (`gd` or null). The types: `shared/api/editor.ts`
-`Migration3Result`.
+Every stored book (staging's osct and the demo) was migrated once with `POST …/migrate-3` (2.0.0, #319); the
+route, `Migration3.php` and the MCP tool `migrate_3` are gone since (the rules it followed are
+`scripts/src/convert-content-3.ts`'). Its change rows (kind `migration`) and the 2.x rows before it stay in the log,
+readable, not revertable. The database names followed (`spreads` → `scenes`, `entries.spread_id` → `scene_id`,
+`books.initial_spread_id` → `initial_scene`, the scene's `title` → `label`; the page columns dropped; the unread table
+`page_images` stays – RULES #25) by the idempotent renames at the top of the schema files (`Db::migrate`).
 
 #### Surface reference images
 
@@ -838,7 +806,7 @@ first: one whose thing still holds what it wrote (`after`, compared with the key
 fields it changed) gets its `before` back (`status: revert`); one whose thing holds something else is a **conflict** –
 listed, never overwritten, and the older changes of that thing are skipped as well. **Not revertable** (`status:
 not-revertable`, and `notRevertable` in `GET …/changes`): a creation (`before` null – remove it instead), a removal
-(`after` null), an entry moved to another surface (its scene is `entries.spread_id`, not in the log), a new order whose
+(`after` null), an entry moved to another surface (its scene is `entries.scene_id`, not in the log), a new order whose
 scenes changed, a plugin source (the Code tab), a deleted file, a change saved before the content schema 3.0 (its rows
 held pages or a print) and the migration itself (`migration`). Scene moves are
 in the log (`order`, the ids before and after) and revert. Picture credits and Library file names are no

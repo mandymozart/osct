@@ -1,6 +1,6 @@
 category: video
 title: Edge
-scene: spread3
+scene: scene3
 body: A demonstration of a video with an image billboard.
 target:
   image: images-060.jpg

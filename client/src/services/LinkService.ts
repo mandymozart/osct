@@ -1,6 +1,6 @@
 import { router } from "@/router";
 import { ALL_CATEGORY, type GameState, type IGame, type PageRoute, Pages } from "@/types";
-import { getBook, getEntry, getSpread } from "@/utils/game-config";
+import { getBook, getEntry, getScene } from "@/utils/game-config";
 import { onboardingSteps } from "@/utils";
 import { isEntryCategory } from "@shared/guards/game-config";
 
@@ -8,7 +8,7 @@ import { isEntryCategory } from "@shared/guards/game-config";
  * Deep links: the app state as a plain URL.
  *
  *   /                          start (onboarding on a first visit, else the splash → scan mode)
- *   /scene/<sceneId>           scan mode on that scene (#319: was /spread/<id> – no longer read)
+ *   /scene/<sceneId>           scan mode on that scene (#319: was /scene/<id> – no longer read)
  *   /entries/<category>        entries list (also /entries/category/<category>; `all` = All, #286)
  *   /entry/<entryId>           one entry
  *   /tutorial/<step>           onboarding step
@@ -23,7 +23,7 @@ import { isEntryCategory } from "@shared/guards/game-config";
  * supported (RULES.md #10).
  *
  * While the app runs, the URL follows the state (`LinkService.startSync`): a new view pushes a history entry, a
- * spread switch or tutorial step replaces it, and the browser's back button goes back through the views.
+ * scene switch or tutorial step replaces it, and the browser's back button goes back through the views.
  * Overlays (error, not-found) keep the URL. The server must answer every path with `index.html`
  * (`public/.htaccess` and `server/docker/apache.conf`; Vite does it in dev and preview).
  */
@@ -53,15 +53,15 @@ export const parseLink = (pathname: string, search: string): Link | null => {
   return { slug: pathname, version }; // too many segments: not found
 };
 
-/** Path of a route (+ the active spread for scan mode) – what the address bar shows */
-export const pathForRoute = (route: PageRoute | null, currentSpread: string | null): string | null => {
+/** Path of a route (+ the active scene for scan mode) – what the address bar shows */
+export const pathForRoute = (route: PageRoute | null, currentScene: string | null): string | null => {
   if (!route) return null;
   const segment = (value: string | number | undefined) => (value === undefined ? "" : `/${encodeURIComponent(String(value))}`);
   switch (route.page) {
     case Pages.SPLASH:
       return "/";
-    case Pages.SPREAD:
-      return `/scene${segment(currentSpread ?? undefined)}`;
+    case Pages.SCENE:
+      return `/scene${segment(currentScene ?? undefined)}`;
     case Pages.ERROR:
     case Pages.NOT_FOUND:
       return null; // overlays keep the URL
@@ -71,8 +71,8 @@ export const pathForRoute = (route: PageRoute | null, currentSpread: string | nu
 };
 
 /** Full link (path + version) for the current state */
-export const linkForState = (state: Pick<GameState, "currentRoute" | "currentSpread">, version: string): string | null => {
-  const path = pathForRoute(state.currentRoute, state.currentSpread);
+export const linkForState = (state: Pick<GameState, "currentRoute" | "currentScene">, version: string): string | null => {
+  const path = pathForRoute(state.currentRoute, state.currentScene);
   return path === null ? null : `${path}?${VERSION_PARAM}=${encodeURIComponent(version)}`;
 };
 
@@ -96,8 +96,8 @@ export const resolveLink = (game: IGame, link: Link): boolean => {
       return true;
     case "/scene":
       if (value !== undefined) {
-        if (!getSpread(value)) return notFound();
-        game.spreads.switchSpread(value);
+        if (!getScene(value)) return notFound();
+        game.scenes.switchScene(value);
       }
       game.router.navigate(slug);
       return true;
@@ -109,8 +109,8 @@ export const resolveLink = (game: IGame, link: Link): boolean => {
       const entry = value === undefined ? undefined : getEntry(value);
       if (!entry) return notFound();
       if (!game.history.isConsulted(entry.id)) {
-        // Not yet consulted by the reader: no shortcut past the game – open scan mode on the entry's spread instead
-        game.spreads.switchSpread(entry.spreadId);
+        // Not yet consulted by the reader: no shortcut past the game – open scan mode on the entry's scene instead
+        game.scenes.switchScene(entry.sceneId);
         game.router.navigate("/scene");
         return true;
       }
@@ -168,7 +168,7 @@ export class LinkService {
       const link = linkForState(game.state, game.version.version);
       if (!link || !currentRoute) return;
       const param = currentRoute.param === undefined ? undefined : String(currentRoute.param.value);
-      // A new view (or another entry) pushes a history entry; spread / step changes replace it, and so does
+      // A new view (or another entry) pushes a history entry; scene / step changes replace it, and so does
       // leaving the splash (it only plays on entry – back must not replay it)
       const push = lastPage !== null && lastPage !== Pages.SPLASH &&
         (currentRoute.page !== lastPage || (currentRoute.page === Pages.ENTRY && param !== lastParam));
@@ -187,7 +187,7 @@ export class LinkService {
 
     const cleanups = [
       game.subscribeToProperty("currentRoute", write),
-      game.subscribeToProperty("currentSpread", write),
+      game.subscribeToProperty("currentScene", write),
     ];
     window.addEventListener("popstate", onPopState);
     write();

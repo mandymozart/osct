@@ -40,7 +40,9 @@ final class Db
     /**
      * Creates the missing tables and columns – safe to run again: the schema files use CREATE TABLE IF NOT EXISTS,
      * an `ALTER TABLE … ADD COLUMN` is skipped when the column exists and an `ALTER TABLE … DROP COLUMN` (a removed
-     * feature's column, RULES #25) when it does not.
+     * feature's column, RULES #25) when it does not; a rename (`ALTER TABLE a RENAME TO b`, `ALTER TABLE t RENAME COLUMN
+     * a TO b`, #319) is skipped when the old name is gone – so a new database, which the CREATE TABLEs make with the new
+     * names, and one renamed already pass it.
      * @return int statements in the schema
      */
     public static function migrate(): int
@@ -49,6 +51,10 @@ final class Db
         $sql = preg_replace('/^\s*--.*$/m', '', (string) file_get_contents($file));
         $statements = array_filter(array_map('trim', preg_split('/;\s*(\n|$)/', (string) $sql)));
         foreach ($statements as $statement) {
+            if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+RENAME\s+TO\s+`?(\w+)`?/i', $statement, $match)
+                && (!self::hasTable($match[1]) || self::hasTable($match[2]))) continue;
+            if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+RENAME\s+COLUMN\s+`?(\w+)`?\s+TO\s+`?(\w+)`?/i', $statement, $match)
+                && (!self::hasTable($match[1]) || !self::hasColumn($match[1], $match[2]))) continue;
             if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+ADD\s+COLUMN\s+`?(\w+)`?/i', $statement, $match)
                 && self::hasColumn($match[1], $match[2])) continue;
             // A removed feature's column (RULES #25): removed once, skipped while it is gone
@@ -57,6 +63,13 @@ final class Db
             self::pdo()->exec($statement);
         }
         return count($statements);
+    }
+
+    public static function hasTable(string $table): bool
+    {
+        return (bool) (self::isSqlite()
+            ? self::value("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = :name", ['name' => $table])
+            : self::value('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = :name', ['name' => $table]));
     }
 
     public static function hasColumn(string $table, string $column): bool

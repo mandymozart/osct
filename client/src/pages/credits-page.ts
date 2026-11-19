@@ -29,8 +29,8 @@ export class CreditsPage extends ConsultationPage {
       <div class="content">
         <h2 class="section-title">${t("about:imageCredits")}</h2>
         ${groups.length
-          ? groups.map(({ spread, lines }) => `
-              <h3 class="section-title">${escapeHtml(sceneLabel(spread))}</h3>
+          ? groups.map(({ scene, lines }) => `
+              <h3 class="section-title">${escapeHtml(sceneLabel(scene))}</h3>
               <ul class="credits">${lines.map(line => `<li>${escapeHtml(line)}</li>`).join("")}</ul>`).join("")
           : `<p class="muted">${t("about:noCredits")}</p>`}
       </div>

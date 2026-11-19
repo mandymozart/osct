@@ -5,7 +5,7 @@ import {
   applyContinuousFocus, armTapToFocus, CAMERA_RESOLUTIONS, getArError, getAskZoom, getCameraResolution, setCameraResolution, getCameraInfo, getLensChoice, setAskZoom, setLensChoice, setWindowOverride,
   setZoom, subscribeCamera, zoomSteps, type CameraInfo,
 } from "@/components/ar-bridges";
-import { getSpreads, getTarget, getTargets, sceneLabel } from "@/utils/game-config";
+import { getScenes, getTarget, getTargets, sceneLabel } from "@/utils/game-config";
 
 /** Target ids to retest, comma-separated (set by hand, e.g. the misses of an earlier trial) – this device */
 const RETEST_KEY = "osct-camera-retest";
@@ -34,12 +34,12 @@ const escapeHtml = (text: string) =>
 /**
  * Debug camera panel (a bottom sheet, debug-sheet.ts, opened and closed with *camera* in the debug overlay): the camera test
  * with the printed book. Shows what the browser reports for the engine's camera (lens, resolution, focus mode /
- * distance / range, zoom – camera-debug.ts) and the current spread's targets: yellow while in view, ✓ once found
- * since the panel opened. ‹ › step through the spreads. A retest list (`osct-camera-retest` in local storage, or a link with `?retest=`: target
- * ids, e.g. the misses of an earlier trial) shows one chip per target – tap to go to its spread, ✓ once found. Test switches: **AF** continuous focus, **◎** tap the
+ * distance / range, zoom – camera-debug.ts) and the current scene's targets: yellow while in view, ✓ once found
+ * since the panel opened. ‹ › step through the scenes. A retest list (`osct-camera-retest` in local storage, or a link with `?retest=`: target
+ * ids, e.g. the misses of an earlier trial) shows one chip per target – tap to go to its scene, ✓ once found. Test switches: **AF** continuous focus, **◎** tap the
  * picture to focus there, the zoom steps; **lens** (main back lens or the browser's choice), **res** (the camera size)
  * and **ask zoom** apply
- * on the next camera start (reload). While the panel is open the tracker holds the current spread only, as in the
+ * on the next camera start (reload). While the panel is open the tracker holds the current scene only, as in the
  * trial.
  */
 export class CameraPanel extends HTMLElement {
@@ -61,7 +61,7 @@ export class CameraPanel extends HTMLElement {
     setWindowOverride(0);
     this.cleanups.push(() => setWindowOverride(null));
     this.cleanups.push(
-      this.game.subscribeToProperty("currentSpread", () => this.renderTargets()),
+      this.game.subscribeToProperty("currentScene", () => this.renderTargets()),
       this.game.subscribeToProperty("trackedTargets", tracked => {
         tracked.forEach(target => this.found.add(target));
         this.renderTargets();
@@ -85,7 +85,7 @@ export class CameraPanel extends HTMLElement {
         ${SWITCH_CSS}
         .body { display: flex; flex-direction: column; gap: .25rem; padding: .25rem; }
         .row { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; }
-        .spread { margin-right: auto; color: #fff; white-space: nowrap; }
+        .scene { margin-right: auto; color: #fff; white-space: nowrap; }
         .target { border: .0625rem solid #555; border-radius: .25rem; padding: 0 .25rem; color: #ccc; }
         .target.found { border-color: #0f0; color: #0f0; }
         .target.seen { border-color: #ff0; background: #ff0; color: #000; }
@@ -95,9 +95,9 @@ export class CameraPanel extends HTMLElement {
         .action { color: #ff0; overflow-wrap: anywhere; }
       </style>
       <div class="bar">
-        <button data-action="previous" aria-label="Previous spread">‹</button>
-        <button data-action="next" aria-label="Next spread">›</button>
-        <span class="spread"></span>
+        <button data-action="previous" aria-label="Previous scene">‹</button>
+        <button data-action="next" aria-label="Next scene">›</button>
+        <span class="scene"></span>
         <button class="close" data-action="close" aria-label="Close">×</button>
       </div>
       <div class="body">
@@ -111,10 +111,10 @@ export class CameraPanel extends HTMLElement {
   }
 
   private renderTargets() {
-    const current = this.game.state.currentSpread;
-    const spread = getSpreads().find(s => s.id === current);
-    const label = this.shadow.querySelector(".spread");
-    if (label) label.textContent = spread ? sceneLabel(spread) : "–";
+    const current = this.game.state.currentScene;
+    const scene = getScenes().find(s => s.id === current);
+    const label = this.shadow.querySelector(".scene");
+    if (label) label.textContent = scene ? sceneLabel(scene) : "–";
     const row = this.shadow.querySelector(".targets");
     if (!row) return;
     const tracked = this.game.state.trackedTargets;
@@ -171,10 +171,10 @@ export class CameraPanel extends HTMLElement {
   }
 
   private step(direction: 1 | -1) {
-    const spreads = getSpreads();
-    const index = spreads.findIndex(spread => spread.id === this.game.state.currentSpread);
-    const next = spreads[(index + direction + spreads.length) % spreads.length];
-    if (next) this.game.spreads.switchSpread(next.id);
+    const scenes = getScenes();
+    const index = scenes.findIndex(scene => scene.id === this.game.state.currentScene);
+    const next = scenes[(index + direction + scenes.length) % scenes.length];
+    if (next) this.game.scenes.switchScene(next.id);
   }
 
   private restart(question: string) {
@@ -185,8 +185,8 @@ export class CameraPanel extends HTMLElement {
   private onClick = (event: Event) => {
     const button = (event.target as HTMLElement).closest<HTMLElement>("button");
     if (button?.dataset.target) {
-      const spreadId = getTarget(button.dataset.target)?.spreadId;
-      if (spreadId && spreadId !== this.game.state.currentSpread) this.game.spreads.switchSpread(spreadId);
+      const sceneId = getTarget(button.dataset.target)?.sceneId;
+      if (sceneId && sceneId !== this.game.state.currentScene) this.game.scenes.switchScene(sceneId);
       return;
     }
     switch (button?.dataset.action) {

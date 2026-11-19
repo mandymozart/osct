@@ -33,7 +33,7 @@ describe("progress record", () => {
     const realReader = PROGRESS_READERS[oldFormat];
     PROGRESS_READERS[oldFormat] = PROGRESS_READERS[PROGRESS_FORMAT];
     try {
-      const stored = { format: oldFormat, bookId, appVersions: ["1.2.2"], unlocked: { a: 1 }, consulted: {}, lastScene: "spread2", lastCategory: null, onboarded: true };
+      const stored = { format: oldFormat, bookId, appVersions: ["1.2.2"], unlocked: { a: 1 }, consulted: {}, lastScene: "scene2", lastCategory: null, onboarded: true };
       expect(readProgress(stored, bookId)).toMatchObject({ status: "current", record: { ...stored, format: PROGRESS_FORMAT } });
       // A field the reader only adds as a default is no change
       const { onboarded: _, ...withoutFlag } = stored;
@@ -87,7 +87,7 @@ describe("mergeProgress (account sync)", () => {
       .toEqual({ hasKey: true, chapter: 3 });
   });
 
-  it("this device's last spread and category win, the other's fill in; onboarded and coached if either was", () => {
+  it("this device's last scene and category win, the other's fill in; onboarded and coached if either was", () => {
     expect(mergeProgress(record({ lastScene: "s1" }), record({ lastScene: "s2", lastCategory: ENTRY_CATEGORIES[0], onboarded: true, coached: true })))
       .toMatchObject({ lastScene: "s1", lastCategory: ENTRY_CATEGORIES[0], onboarded: true, coached: true });
   });

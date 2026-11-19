@@ -164,7 +164,7 @@ describe("the stage frame from the page's side", () => {
     expect(plugins.logs).toEqual([{ level: "info", text: "[plugin fx] hello" }]);
   });
 
-  it("gives a frame that loads again everything the page set: the draft, the overrides, the selection, the spread", async () => {
+  it("gives a frame that loads again everything the page set: the draft, the overrides, the selection, the scene", async () => {
     const { stage, sent, emit, reply, ready } = make();
     await ready();
     void stage.open("the-door").catch(() => undefined);

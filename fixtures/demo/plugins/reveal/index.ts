@@ -7,7 +7,7 @@ import type { PluginApi } from "osct-plugin-api";
  * and every later one, `found`) and from 1 to 0 when the page is lost (`lost`) – so one function covers the three
  * moments, and the animation goes out the way it came in.
  *
- * Pick it as `revealCode` for a moment in the editor (Spread view → appearance → look), set it in the book's `appearance`
+ * Pick it as `revealCode` for a moment in the editor (Scene view → appearance → look), set it in the book's `appearance`
  * (`reveal: { type: revealCode, spin: 0.25 }`) or with the MCP's `put_book_appearance`. Its parameters are the rows the
  * spec below declares; the values of the built-in look, the same names – so a look tuned in the reveal sandbox
  * (`sandbox/reveal`) goes in here as it is.

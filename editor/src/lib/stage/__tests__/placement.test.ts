@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_ASPECT, draggedPlace, grabOffset, MIN_PRINT_WIDTH, printCentre, printedHeight, surfaceLeft, withLivePlacement, withWidth } from "../placement";
+import { DEFAULT_ASPECT, draggedPlace, grabOffset, MIN_PLACE_WIDTH, placeCentre, placeHeight, surfaceLeft, withLivePlacement, withWidth } from "../placement";
 import { sceneFrames } from "../surfaces";
 import { arrangeInRow, FLAT } from "#lib/surface-edit.js";
 
@@ -17,22 +17,22 @@ describe("placement: the printed box", () => {
   });
 
   it("is as high as the image's aspect makes it, else the stored height, else the default aspect", () => {
-    expect(printedHeight({ width: 80 }, 1.45)).toBeCloseTo(116, 6);
-    expect(printedHeight({ width: 80, height: 50 }, 1.45)).toBeCloseTo(116, 6);
-    expect(printedHeight({ width: 80, height: 50 })).toBe(50);
-    expect(printedHeight({ width: 80 })).toBe(80 * DEFAULT_ASPECT);
-    expect(printedHeight({ width: 80 }, 0)).toBe(80 * DEFAULT_ASPECT);
+    expect(placeHeight({ width: 80 }, 1.45)).toBeCloseTo(116, 6);
+    expect(placeHeight({ width: 80, height: 50 }, 1.45)).toBeCloseTo(116, 6);
+    expect(placeHeight({ width: 80, height: 50 })).toBe(50);
+    expect(placeHeight({ width: 80 })).toBe(80 * DEFAULT_ASPECT);
+    expect(placeHeight({ width: 80 }, 0)).toBe(80 * DEFAULT_ASPECT);
   });
 
   it("centres a print in the stage's frame (mm from the spine, y up) – where its plane and its entity's anchor lie", () => {
     // A portrait image 80 mm wide on the right page at (70, 100): 116 mm high, its centre 158 mm below the top
-    const portrait = printCentre({ surface: "right", x: 70, y: 100, width: 80 }, page, 1.45);
+    const portrait = placeCentre({ surface: "right", x: 70, y: 100, width: 80 }, page, 1.45);
     expect(portrait.x).toBe(110);
     expect(portrait.y).toBeCloseTo(160 - 158, 6);
     // Before the image is known the default aspect stands in (the anchor's old 0.75 box)
-    expect(printCentre({ surface: "right", x: 70, y: 100, width: 80 }, page)).toEqual({ x: 110, y: 160 - 130, z: 0 });
-    expect(printCentre({ surface: "left", x: 60, y: 100, width: 80, height: 40 }, page)).toEqual({ x: -230 + 100, y: 160 - 120, z: 0 });
-    expect(printCentre({ surface: "front", x: 65, y: 110, width: 100 }, cover, 1)).toEqual({ x: -115 + 115, y: 160 - 160, z: 0 });
+    expect(placeCentre({ surface: "right", x: 70, y: 100, width: 80 }, page)).toEqual({ x: 110, y: 160 - 130, z: 0 });
+    expect(placeCentre({ surface: "left", x: 60, y: 100, width: 80, height: 40 }, page)).toEqual({ x: -230 + 100, y: 160 - 120, z: 0 });
+    expect(placeCentre({ surface: "front", x: 65, y: 110, width: 100 }, cover, 1)).toEqual({ x: -115 + 115, y: 160 - 160, z: 0 });
   });
 });
 
@@ -64,7 +64,7 @@ describe("placement: the handles", () => {
     // Over the other page: counted on the image's page (the left page's 30 mm = the right page's -200 mm)
     const left = { surface: "left" as const, x: 150, y: 100, width: 60 };
     expect(draggedPlace(left, corner, { surface: "right", x: 20, y: 0 }, page).width).toBe(100);
-    expect(draggedPlace(place, corner, { surface: "right", x: 60, y: 0 }, page).width).toBe(MIN_PRINT_WIDTH);
+    expect(draggedPlace(place, corner, { surface: "right", x: 60, y: 0 }, page).width).toBe(MIN_PLACE_WIDTH);
   });
 
   it("scales a stored height with the width, so the box keeps its proportions", () => {

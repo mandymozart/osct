@@ -5,16 +5,16 @@ import { PostChain } from "../post/chain";
 import { drawPlan } from "../view";
 import "../post/index";
 
-// Which passes a spread shows, how a frame is drawn with them, and the look-around world inside the chain
-describe("the passes a spread shows", () => {
+// Which passes a scene shows, how a frame is drawn with them, and the look-around world inside the chain
+describe("the passes a scene shows", () => {
   const book = { passes: [{ type: "vignette" }] };
 
-  it("the book's passes are the master for every spread without a list of its own", () => {
+  it("the book's passes are the master for every scene without a list of its own", () => {
     expect(passesFor({}, book)).toEqual([{ type: "vignette" }]);
     expect(passesFor(undefined, book)).toEqual([{ type: "vignette" }]);
   });
 
-  it("a spread's own list overrides the book's, an empty one turns them off there", () => {
+  it("a scene's own list overrides the book's, an empty one turns them off there", () => {
     expect(passesFor({ passes: [{ type: "bloom" }] }, book)).toEqual([{ type: "bloom" }]);
     expect(passesFor({ passes: [] }, book)).toEqual([]);
   });

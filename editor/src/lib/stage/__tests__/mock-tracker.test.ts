@@ -13,7 +13,7 @@ const SURFACES = vi.hoisted(() => [
   { id: "left", widthMm: 230, heightMm: 320, place: { x: -115, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } },
   { id: "right", widthMm: 230, heightMm: 320, place: { x: 115, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } },
 ]);
-vi.mock("@engine/content/game-config", () => ({ getSpread: (id: string) => ({ id, label: id, surfaces: SURFACES, entries: [], targets: [] }) }));
+vi.mock("@engine/content/game-config", () => ({ getScene: (id: string) => ({ id, label: id, surfaces: SURFACES, entries: [], targets: [] }) }));
 const pages = sceneFrames({ surfaces: SURFACES });
 
 const {
@@ -23,11 +23,11 @@ type StageTarget = import("../mock-tracker").StageTarget;
 type StageView = import("../mock-tracker").StageView;
 type MockTracker = InstanceType<typeof MockTracker>;
 
-const target = (id: string): Target => ({ id, entryId: id, spreadId: "s", imageSrc: `/${id}.jpg` });
+const target = (id: string): Target => ({ id, entryId: id, sceneId: "s", imageSrc: `/${id}.jpg` });
 
 /** A target printed with its centre on the scene's origin (the spine's middle): the camera's distance to it is the orbit's */
-const atRoot = (id: string, spreadId = "s"): Target =>
-  ({ ...target(id), spreadId, place: { surface: "right", x: -20, y: PAGE_MM.height / 2 - 20, width: 40, height: 40 } }) as Target;
+const atRoot = (id: string, sceneId = "s"): Target =>
+  ({ ...target(id), sceneId, place: { surface: "right", x: -20, y: PAGE_MM.height / 2 - 20, width: 40, height: 40 } }) as Target;
 
 /** The anchor's scale (1 unit = the printed width, in metres) and its position in camera space */
 const decompose = (matrix: Matrix4) => {
@@ -165,29 +165,29 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
     vi.unstubAllGlobals();
   });
 
-  it("starts without asking for a camera and reports the spread's targets found, 1 unit = the printed width", async () => {
+  it("starts without asking for a camera and reports the scene's targets found, 1 unit = the printed width", async () => {
     expect(tracker.hasCamera).toBe(false);
     await tracker.startCamera();
     expect(tracker.hasCamera).toBe(true);
-    await tracker.loadTargets({ spreadId: "s", targets: [target("a"), target("b")] });
+    await tracker.loadTargets({ sceneId: "s", targets: [target("a"), target("b")] });
     expect(tracker.tracking).toBe(true);
     tracker.tick(now);
     expect(updates.map(([id]) => id)).toEqual(["a", "b"]);
     const { position, scale } = decompose(updates[0][1]!);
     expect(scale.x).toBeCloseTo(0.05, 6); // 50 mm
     expect(position.z).toBeLessThan(0); // in front of the camera
-    expect(getEngineState().current).toEqual({ spreadId: "s", targets: 2 });
+    expect(getEngineState().current).toEqual({ sceneId: "s", targets: 2 });
     expect(getEngineState().seen).toEqual(["a", "b"]);
   });
 
-  it("keeps the camera on the spread's root when the spread and its targets change (#105)", async () => {
+  it("keeps the camera on the scene's root when the scene and its targets change (#105)", async () => {
     await tracker.startCamera();
-    await tracker.loadTargets({ spreadId: "s", targets: [atRoot("a")] });
+    await tracker.loadTargets({ sceneId: "s", targets: [atRoot("a")] });
     tracker.tick(now);
     const before = updates.filter(([id]) => id === "a").at(-1)![1]!.clone();
     expect(decompose(before).position.length()).toBeCloseTo(0.35, 3); // the root at the reader's distance
-    const elsewhere: Target = { ...target("z"), spreadId: "t", place: { surface: "left", x: 10, y: 10, width: 40 } } as Target;
-    await tracker.loadTargets({ spreadId: "t", targets: [elsewhere, atRoot("a", "t")] });
+    const elsewhere: Target = { ...target("z"), sceneId: "t", place: { surface: "left", x: 10, y: 10, width: 40 } } as Target;
+    await tracker.loadTargets({ sceneId: "t", targets: [elsewhere, atRoot("a", "t")] });
     tracker.tick(now);
     const after = updates.filter(([id]) => id === "a").at(-1)![1]!;
     expect(after.equals(before)).toBe(true); // the first target moved, the camera did not
@@ -195,7 +195,7 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
 
   it("reports a hidden target lost once and found again when shown", async () => {
     await tracker.startCamera();
-    await tracker.loadTargets({ spreadId: "s", targets: [target("a")] });
+    await tracker.loadTargets({ sceneId: "s", targets: [target("a")] });
     tracker.tick(now);
     setTargetHidden("a", true);
     tracker.tick(now + 16);
@@ -208,7 +208,7 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
 
   it("stops reporting while paused and after stopTracking / stop", async () => {
     await tracker.startCamera();
-    await tracker.loadTargets({ spreadId: "s", targets: [target("a")] });
+    await tracker.loadTargets({ sceneId: "s", targets: [target("a")] });
     tracker.pause();
     tracker.tick(now);
     expect(updates).toHaveLength(0);
@@ -226,7 +226,7 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
 
   it("follows the preview's view preset and a free orbit", async () => {
     await tracker.startCamera();
-    await tracker.loadTargets({ spreadId: "s", targets: [atRoot("a")] });
+    await tracker.loadTargets({ sceneId: "s", targets: [atRoot("a")] });
     tracker.tick(now);
     const reader = decompose(updates[0][1]!).position.length();
     updatePreview({ view: "far" });
@@ -251,7 +251,7 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
   // The environment's preview: the engine's look-around world is turned by this, as by a phone's gyroscope
   it("reports the camera's orientation in a world with y up, and looks up from the book on request", async () => {
     await tracker.startCamera();
-    await tracker.loadTargets({ spreadId: "s", targets: [target("a")] });
+    await tracker.loadTargets({ sceneId: "s", targets: [target("a")] });
     updatePreview({ orbit: { distance: 350, tilt: 90, yaw: 0 } });
     tracker.tick(now);
     // The reader's eye level, at the book: the view is level, ahead (−z), the book on the stage's +y
@@ -273,7 +273,7 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
     tracker.attachStage(view);
     await tracker.startCamera();
     expect(view.hdris).toContain("ferndale_studio_04");
-    await tracker.loadTargets({ spreadId: "s", targets: [target("a")] });
+    await tracker.loadTargets({ sceneId: "s", targets: [target("a")] });
     expect(view.layouts).toBe(1);
     tracker.tick(now);
     expect(view.frames).toBe(1);
@@ -305,7 +305,7 @@ describe("MockTracker input (#131: the panels are no stage)", () => {
     // The editor's layout: the stage between the side panels, its toolbar inside it
     document.body.innerHTML = `
       <header class="top" data-app-ui><span class="crumb">book</span></header>
-      <aside class="tree" data-app-ui><div class="spread-row">spread</div></aside>
+      <aside class="tree" data-app-ui><div class="scene-row">scene</div></aside>
       <div class="stage"><canvas></canvas><div class="tools" role="toolbar" data-app-ui><span class="gap"></span></div></div>
       <aside class="panel" data-app-ui><div class="body"><span class="field">value</span></div></aside>`;
     container = document.querySelector(".stage")!;
@@ -332,9 +332,9 @@ describe("MockTracker input (#131: the panels are no stage)", () => {
     expect(tracker.currentOrbit.yaw).not.toBe(yaw);
   });
 
-  it("ignores drags and the wheel in the top bar, the panels, the spread list and the toolbar", () => {
+  it("ignores drags and the wheel in the top bar, the panels, the scene list and the toolbar", () => {
     const orbit = { ...tracker.currentOrbit };
-    for (const target of [document.querySelector(".crumb")!, field, document.querySelector(".spread-row")!, toolbarGap]) {
+    for (const target of [document.querySelector(".crumb")!, field, document.querySelector(".scene-row")!, toolbarGap]) {
       pointer("pointerdown", target, 100);
       pointer("pointermove", canvas, 200);
       pointer("pointerup", canvas, 200);
@@ -377,7 +377,7 @@ describe("MockTracker: the placement being edited is the target itself (#191)", 
     });
     await tracker.startCamera();
     const placed = { ...target("a"), place: { surface: "right", x: 70, y: 100, width: 80 } } as Target;
-    await tracker.loadTargets({ spreadId: "s", targets: [placed, target("b")] });
+    await tracker.loadTargets({ sceneId: "s", targets: [placed, target("b")] });
   });
 
   afterEach(() => {

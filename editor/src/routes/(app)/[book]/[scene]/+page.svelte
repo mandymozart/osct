@@ -69,7 +69,7 @@
    * bottom with the tree as a tab, ‹ › over the stage – is gone (#317). `?tab=environment` opens a tab.
    */
   const bookId = $derived(page.params.book!);
-  const spreadId = $derived(page.params.scene!);
+  const sceneId = $derived(page.params.scene!);
   const TAB_KEY = "osct-editor-tab";
   /** The Inspector's tab row: the words, or the icons in an Inspector too narrow for them */
   const TAB_BUTTONS: { tab: Tab; label: string; icon: IconName; title?: string }[] = [
@@ -87,10 +87,10 @@
   let tab = $state<Tab | null>(firstTab);
   /** A finger: every control is the touch height (app.css), so the tab row needs more room for its words */
   let coarse = $state(window.matchMedia(COARSE).matches);
-  // The one selection of the tree, the stage and the Inspector – a target, its entity or a node (#162), the spread to start
-  // with (#229) or what the header search asked for on this spread (#237); `reveal` counts the asks to show it
+  // The one selection of the tree, the stage and the Inspector – a target, its entity or a node (#162), the scene to start
+  // with (#229) or what the header search asked for on this scene (#237); `reveal` counts the asks to show it
   let revealSeen = untrack(() => selection.reveal);
-  untrack(() => selection.enter(spreadId));
+  untrack(() => selection.enter(sceneId));
   /** The draft or the stage could not be loaded: the stage area shows it with a retry instead of "Building the stage…" */
   let loadError = $state<string | null>(null);
   /** An action on the page failed (a removal, a target image, a reload after a change): shown over the stage until dismissed */
@@ -109,7 +109,7 @@
   };
   /** The tab the Inspector shows: always one (the tree is a panel of its own – a stored "tree" is the Inspector) */
   const shown = $derived<Tab>(tab === "tree" || tab === null ? "inspector" : tab);
-  /** Something was selected (a row of the tree, a pick on the stage): the Inspector shows it – the spread too (#229) */
+  /** Something was selected (a row of the tree, a pick on the stage): the Inspector shows it – the scene too (#229) */
   const select = () => openTab("inspector");
   /** A tab of the Inspector panel chosen: it shows that tab */
   const chooseTab = (next: Tab) => openTab(next);
@@ -161,7 +161,7 @@
   });
   /** A form or a removal step opens in the Inspector: a folded Inspector opens for it */
   $effect(() => {
-    if ((removal || addingTarget || addingEntry || addingSpread)) untrack(() => { if (floats.collapsed("inspector")) floats.setCollapsed("inspector", false); });
+    if ((removal || addingTarget || addingEntry || addingScene)) untrack(() => { if (floats.collapsed("inspector")) floats.setCollapsed("inspector", false); });
   });
 
   let workspace = $state<HTMLDivElement>();
@@ -174,14 +174,14 @@
   /** The tree's "+ entry" (#237): an entry without a printed image on this scene */
   let addingEntry = $state(false);
   /** The creation step of a new scene (#238 – a digital-first book): it follows `after` */
-  let addingSpread = $state<{ after: string | null } | null>(null);
-  const openNewSpread = (after: string | null) => {
+  let addingScene = $state<{ after: string | null } | null>(null);
+  const openNewScene = (after: string | null) => {
     addingTarget = false;
     addingEntry = false;
-    addingSpread = { after };
+    addingScene = { after };
   };
-  const spreadCreated = async (newId: string) => {
-    addingSpread = null;
+  const sceneCreated = async (newId: string) => {
+    addingScene = null;
     await reloadContent();
     void goto(resolve(`${bookId}/${newId}/`));
   };
@@ -197,10 +197,10 @@
     if (untrack(() => scenes.bookId) !== id) void scenes.load(id);
   });
   /** + after the last scene (#238) */
-  const atLastSpread = $derived(content.spreads.at(-1)?.id === spreadId);
-  const canAddSpread = $derived(bookSource.bookId === bookId && bookSource.digital);
+  const atLastScene = $derived(content.scenes.at(-1)?.id === sceneId);
+  const canAddScene = $derived(bookSource.bookId === bookId && bookSource.digital);
   let entityPanel = $state<{ useAsset: (kind: MediaKind, src: string, assetId: string) => void }>();
-  /** The content changed under the stage (a target's image or placement, a relink): reload it and build the spread again */
+  /** The content changed under the stage (a target's image or placement, a relink): reload it and build the scene again */
   const reloadContent = async () => {
     try {
       await content.load(bookId);
@@ -266,7 +266,7 @@
       if (!step) return failed(e);
       addingTarget = false;
       addingEntry = false;
-      addingSpread = null;
+      addingScene = null;
       removal = { kind: "scene", sceneId, step };
     }
   };
@@ -281,7 +281,7 @@
   /** A scene removed: the open one gives way to its neighbour first, then the scenes and the draft are read again */
   const sceneRemoved = async (sceneId: string) => {
     removal = null;
-    if (sceneId === spreadId) {
+    if (sceneId === sceneId) {
       const next = content.neighbour(sceneId, 1) ?? content.neighbour(sceneId, -1);
       if (next) await goto(resolve(`${bookId}/${next.id}/`), { replace: true });
     }
@@ -344,28 +344,28 @@
   });
 
   // ── the surfaces' own grids (#316 part 1): the open scene's spacings, kept in this browser, go to the stage ──
-  $effect(() => surfaceGrids.enter(bookId, spreadId));
+  $effect(() => surfaceGrids.enter(bookId, sceneId));
 
   // ── the Surface mode (#314): the Surface tool outlines the open scene's surfaces, a tap selects one (no target, no
   // node), Esc deselects; the selected one is highlighted with its gizmo, whose drag saves its place ──
   const surfaceMode = $derived(stage?.tool === "surface");
-  const selectedSurface = $derived(selection.surface && selection.surface.scene === spreadId ? selection.surface.id : null);
+  const selectedSurface = $derived(selection.surface && selection.surface.scene === sceneId ? selection.surface.id : null);
 
   $effect(() => {
     const s = stage;
     if (!s) return;
-    const own = (scenes.scene(spreadId)?.surfaces ?? []).map(surface => surface.id);
+    const own = (scenes.scene(sceneId)?.surfaces ?? []).map(surface => surface.id);
     // Outside the Surface mode a surface selected in the Tree or the Inspector is still highlighted
     s.setSurfaceMarks(surfaceMode ? own : [], selectedSurface);
     s.setSurfaceGizmo(surfaceMode ? selectedSurface : null, surfaceTool.gizmo);
   });
   const placeSurface = (surfaceId: string, place: Required<SurfacePlace>) => {
-    const sceneId = spreadId;
+    const id = sceneId;
     const book = bookId;
-    autosave.queue(`scene:${book}:${sceneId}:surfaces`, async () => {
-      const surfaces = scenes.scene(sceneId)?.surfaces ?? [];
+    autosave.queue(`scene:${book}:${id}:surfaces`, async () => {
+      const surfaces = scenes.scene(id)?.surfaces ?? [];
       const next = updateSurface(surfaces, surfaceId, { place });
-      if (!sameSurfaces(next, surfaces)) await scenes.putScene(sceneId, { surfaces: next });
+      if (!sameSurfaces(next, surfaces)) await scenes.putScene(id, { surfaces: next });
     });
   };
 
@@ -381,11 +381,11 @@
   });
   /** A card opens its scene; a scene just made is in the draft first */
   // The experience's address opens the scene last open here (the overview page is gone – Tilman, 2026-11-18)
-  $effect(() => writeStoredJson(`osct-editor-last-scene:${bookId}`, spreadId));
+  $effect(() => writeStoredJson(`osct-editor-last-scene:${bookId}`, sceneId));
   const openScene = async (id: string) => {
-    if (id === spreadId) return;
+    if (id === sceneId) return;
     try {
-      if (!content.spread(id)) await content.load(bookId);
+      if (!content.scene(id)) await content.load(bookId);
     } catch (e) {
       return failed(e);
     }
@@ -480,12 +480,12 @@
         stage.onSurfacePick = hit => {
           if (stage?.tool !== "surface") return;
           stageMenu = null;
-          const own = hit && scenes.scene(spreadId)?.surfaces?.some(surface => surface.id === hit.surfaceId);
+          const own = hit && scenes.scene(sceneId)?.surfaces?.some(surface => surface.id === hit.surfaceId);
           if (!hit || !own) {
             selection.clear();
             return;
           }
-          selection.selectSurface(spreadId, hit.surfaceId);
+          selection.selectSurface(sceneId, hit.surfaceId);
           select();
         };
         stage.onSurfacePlace = placeSurface;
@@ -493,7 +493,7 @@
         const started = stage;
         started.onStarted = () => void plugins.autoLoad(bookId, started);
       }
-      await stage.open(spreadId);
+      await stage.open(sceneId);
     } catch (e) {
       loadError = errorText(e);
     }
@@ -513,15 +513,15 @@
     };
   });
 
-  // The route's spread changed (‹ › or the URL): the stage follows
+  // The route's scene changed (‹ › or the URL): the stage follows
   $effect(() => {
-    const id = spreadId;
-    if (stage && stage.spreadId !== id) stage.open(id).catch(failed);
+    const id = sceneId;
+    if (stage && stage.sceneId !== id) stage.open(id).catch(failed);
   });
-  // …and the selection: another spread starts with itself selected (#229), not with a target it does not have
-  let selectedOn = untrack(() => spreadId);
+  // …and the selection: another scene starts with itself selected (#229), not with a target it does not have
+  let selectedOn = untrack(() => sceneId);
   $effect(() => {
-    const id = spreadId;
+    const id = sceneId;
     if (id === selectedOn) return;
     selectedOn = id;
     selection.enter(id);
@@ -534,7 +534,7 @@
     untrack(() => {
       addingTarget = false;
       addingEntry = false;
-      addingSpread = null;
+      addingScene = null;
       openTab("inspector");
     });
   });
@@ -622,7 +622,7 @@
   };
   const NAVIGATION_HELP = "Drag = orbit · Shift-drag, the middle button or two fingers = pan · wheel / pinch = distance · double tap = the reader's view · ← → = the scenes. A click picks what lies there, right click opens its menu.";
 
-  const spread = $derived(content.spread(spreadId));
+  const scene = $derived(content.scene(sceneId));
 
   // ── the toolbar's room (#180): the groups stay expanded as far as the Tools panel's room allows, so the toolbar is
   // always one row (as a column, #315, every group is one button) ──
@@ -660,7 +660,7 @@
   };
 
   const step = (direction: 1 | -1) => {
-    const next = content.neighbour(spreadId, direction);
+    const next = content.neighbour(sceneId, direction);
     if (next) void goto(resolve(`${bookId}/${next.id}/`), { replace: true });
   };
   /** Shift or Ctrl held turns snapping around while dragging (#190) */
@@ -754,9 +754,9 @@
 {/snippet}
 
 {#snippet treeBody()}
-  <TreePanel {stage} {spreadId} onselect={select} onaddtarget={() => { addingEntry = false; addingTarget = true; }}
-    onaddentry={() => { addingTarget = false; addingSpread = null; addingEntry = true; }}
-    onaddspread={canAddSpread ? openNewSpread : undefined} onremoveentry={removeEntry} />
+  <TreePanel {stage} {sceneId} onselect={select} onaddtarget={() => { addingEntry = false; addingTarget = true; }}
+    onaddentry={() => { addingTarget = false; addingScene = null; addingEntry = true; }}
+    onaddscene={canAddScene ? openNewScene : undefined} onremoveentry={removeEntry} />
 {/snippet}
 
 {#snippet panelBody()}
@@ -767,16 +767,16 @@
 {#snippet panelTabs()}
   {#if removal}
     <div class="body removal"><RemovalConfirm step={removal.step} busy={removalBusy} error={removalError} onconfirm={deleteFiles => void confirmRemoval(deleteFiles)} oncancel={() => (removal = null)} /></div>
-  {:else if addingTarget && spread}
-    <div class="body"><NewTargetForm {bookId} {spread} {stage} oncreated={targetCreated} oncancel={() => (addingTarget = false)} /></div>
-  {:else if addingSpread}
-    <div class="body"><NewSceneForm {bookId} scenes={content.spreads} after={addingSpread.after} oncreated={spreadCreated} oncancel={() => (addingSpread = null)} /></div>
-  {:else if addingEntry && spread}
-    <div class="body"><NewEntryForm {bookId} {spread} oncreated={entryCreated} oncancel={() => (addingEntry = false)} /></div>
+  {:else if addingTarget && scene}
+    <div class="body"><NewTargetForm {bookId} {scene} {stage} oncreated={targetCreated} oncancel={() => (addingTarget = false)} /></div>
+  {:else if addingScene}
+    <div class="body"><NewSceneForm {bookId} scenes={content.scenes} after={addingScene.after} oncreated={sceneCreated} oncancel={() => (addingScene = null)} /></div>
+  {:else if addingEntry && scene}
+    <div class="body"><NewEntryForm {bookId} {scene} oncreated={entryCreated} oncancel={() => (addingEntry = false)} /></div>
   {:else if shown === "tree"}
     <div class="body">{@render treeBody()}</div>
   {:else if shown === "inspector"}
-    <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {spreadId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} onenvironment={() => openTab("environment")} /></div>
+    <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {sceneId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} onenvironment={() => openTab("environment")} /></div>
   {:else if shown === "environment"}
     <div class="body"><EnvironmentPanel {stage} {bookId} /></div>
   {:else if shown === "library"}
@@ -799,10 +799,10 @@
           { label: "Placement on the surface…", select: menuPlacement },
           { label: "Replay the first find", select: () => stage?.replayUnlock() },
           { label: "Library…", select: () => chooseTab("library") },
-          { label: "Remove target", danger: true, select: () => { const t = content.spread(spreadId)?.targets.find(x => x.id === hit.targetId); if (t) void removeEntry(t.entryId, t.id); } },
+          { label: "Remove target", danger: true, select: () => { const t = content.scene(sceneId)?.targets.find(x => x.id === hit.targetId); if (t) void removeEntry(t.entryId, t.id); } },
         ]} />
       {:else if stageMenu}
-        <ContextMenu at={stageMenu} label="Stage" head={spread ? sceneLabel(spread) : spreadId} onclose={() => (stageMenu = null)} items={[
+        <ContextMenu at={stageMenu} label="Stage" head={scene ? sceneLabel(scene) : sceneId} onclose={() => (stageMenu = null)} items={[
           { label: "+ target…", select: () => (addingTarget = true) },
           { label: "Replay the first find", select: () => stage?.replayUnlock() },
           { label: "View settings…", select: () => viewMenu?.open() },
@@ -838,22 +838,22 @@
       {#snippet head()}
         <!-- Back to the book is the top bar's book crumb; ‹ › live in the Scenes panel's head (#307) -->
         <span class="float-tabs" role="group" aria-label="Inspector tabs">{@render tabButtons()}</span>
-        {#if canAddSpread && atLastSpread}
-          <button type="button" class="icon-button" onclick={() => openNewSpread(spreadId)} title="Add a scene after the last one" aria-label="Add a scene"
+        {#if canAddScene && atLastScene}
+          <button type="button" class="icon-button" onclick={() => openNewScene(sceneId)} title="Add a scene after the last one" aria-label="Add a scene"
             data-help-name="Add a scene" data-help="Opens the creation step for a new scene after this one – a double page, a single page or a wall."><Icon name="plus" /></button>
         {/if}
       {/snippet}
       <div class="float-body inspector">{@render panelBody()}</div>
     </FloatingPanel>
     <FloatingPanel {floats} id="scenes">
-      <ScenesPanel {bookId} bookTitle={scenes.tree?.book.title ?? ""} current={spreadId} selectedGroup={selection.group} floating
+      <ScenesPanel {bookId} bookTitle={scenes.tree?.book.title ?? ""} current={sceneId} selectedGroup={selection.group} floating
         assetsBase={content.assetsBase ?? ""} onopen={id => void openScene(id)} onselectgroup={selectGroup} onstep={step} />
     </FloatingPanel>
     <FloatingPanel {floats} id="info">
       <InfoView floating />
     </FloatingPanel>
     <FloatingPanel {floats} id="history">
-      <HistoryPanel current={spreadId} />
+      <HistoryPanel current={sceneId} />
     </FloatingPanel>
     {#if stage && stage.status === "running"}
       <FloatingPanel {floats} id="tools" label="Stage tools">{@render toolbar()}</FloatingPanel>

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FEEDBACK_STORAGE_KEY, FeedbackService } from "../FeedbackService";
 import { GameStoreService } from "../GameStoreService";
-import { getSpreads } from "@/utils/game-config";
+import { getScenes } from "@/utils/game-config";
 
 const vibrate = vi.fn(() => true);
 const service = () => FeedbackService.getInstance();
@@ -60,7 +60,7 @@ describe("FeedbackService", () => {
   it("finding a target: the unlock the first time, 'found' afterwards", () => {
     const game = GameStoreService.getInstance();
     game.history.reset();
-    const target = getSpreads().flatMap(spread => spread.targets)[0];
+    const target = getScenes().flatMap(scene => scene.targets)[0];
     const play = vi.spyOn(service(), "play");
 
     game.targets.addTarget(target.id);

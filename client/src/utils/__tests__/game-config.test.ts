@@ -6,9 +6,9 @@ import {
   getBook,
   getConfigVersion,
   getEntries,
-  getInitialSpreadId,
-  getSpread,
-  getSpreads,
+  getInitialSceneId,
+  getScene,
+  getScenes,
   getTarget,
 } from "@/utils/game-config";
 
@@ -30,7 +30,7 @@ const listSourceFiles = (dir: string): string[] =>
   });
 
 describe("game configuration", () => {
-  const spreads = getSpreads();
+  const scenes = getScenes();
   const entries = getEntries();
 
   it("carries the content build checksum and the book", () => {
@@ -38,19 +38,19 @@ describe("game configuration", () => {
     expect(getBook().id).toBe("osct");
   });
 
-  it("has an existing initial spread", () => {
-    expect(getSpread(getInitialSpreadId())).toBeDefined();
+  it("has an existing initial scene", () => {
+    expect(getScene(getInitialSceneId())).toBeDefined();
   });
 
-  it.each(spreads.map(s => [s.id, s] as const))(
+  it.each(scenes.map(s => [s.id, s] as const))(
     "%s stays within the target limit (RULES.md #3: 10)",
-    (_id, spread) => {
-      expect(spread.targets.length).toBeLessThanOrEqual(10);
+    (_id, scene) => {
+      expect(scene.targets.length).toBeLessThanOrEqual(10);
     },
   );
 
   it("gives every target its own id (the tracker and the scene key targets by it)", () => {
-    const ids = spreads.flatMap(s => s.targets.map(t => t.id));
+    const ids = scenes.flatMap(s => s.targets.map(t => t.id));
     expect(new Set(ids).size).toBe(ids.length);
   });
 
@@ -73,20 +73,20 @@ describe("game configuration", () => {
 
     it("belong to the scene they name (schema 3.0) – no page anywhere", () => {
       for (const entry of entries) {
-        const spread = getSpread(entry.spreadId)!;
-        expect(entry.spreadId, entry.id).toBe(entry.scene);
-        expect(spread.entries).toContain(entry);
+        const scene = getScene(entry.sceneId)!;
+        expect(entry.sceneId, entry.id).toBe(entry.scene);
+        expect(scene.entries).toContain(entry);
         expect(entry).not.toHaveProperty("page");
       }
     });
 
     // Taxonomy (RULES.md #7): a target belongs to exactly one entry (nested, 1:1)
-    it("own their target, which points back to entry and spread", () => {
+    it("own their target, which points back to entry and scene", () => {
       for (const entry of entries.filter(e => e.target)) {
         const target = getTarget(entry.target!.id)!;
         expect(target.entryId).toBe(entry.id);
-        expect(target.spreadId).toBe(entry.spreadId);
-        expect(getSpread(entry.spreadId)!.targets).toContain(target);
+        expect(target.sceneId).toBe(entry.sceneId);
+        expect(getScene(entry.sceneId)!.targets).toContain(target);
       }
     });
 

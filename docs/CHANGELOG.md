@@ -7,6 +7,36 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+
+- **The code speaks scenes** (#319, `agents/REFACTOR-319.md`): the 2.x page / spread names inside the engine, the reader,
+  the editor, the server, the MCP server, the scripts and the fixtures follow the 3.0 contract – `Scene` (was `Spread`),
+  `sceneId`, `getScenes` / `getScene`, `SceneManager`, `<scene-page>`, `<scene-switcher>`, `selection.scene`, the tree's
+  `scene` row, `SceneView.svelte`, `prepared-scenes.ts`, the stage's `PlaceBox` / `surfaceHit` (was `PrintBox` / `pageHit`);
+  the rendered AR scene's state is `ArState` (was `SceneState`), the body class `ar-active`. The fixture's scenes are
+  `scene1` … `scene14`. The reader's words are unchanged.
+- **Plugin API 2.0** (no alias – a plugin built against 1.x is not loaded until it is built again; docs/plugins.md):
+  `api.scene` (was `api.spread`), the core event `sceneChanged { sceneId, previous }` (was `spreadChanged`), the variable
+  scope `scene` (was `spread`), a target's and an entry's `sceneId`, `progress.completion(sceneId?)` / `counts(sceneId?)`,
+  the AR scene's state event `arState` (was `sceneState`). The demo's `scenes` plugin emits `stepChanged`.
+- **Content schema 3.0, amended in place** (not shipped): a behaviour rule's `set` scope `scene` (was `spread`) and the
+  core events `sceneChanged` / `arState` in `on`.
+- **The database speaks scenes**: `spreads` → `scenes` (its `title` → `label`), `entries.spread_id` → `scene_id`,
+  `books.initial_spread_id` → `initial_scene` – renamed in place by the schema files (`Db::migrate` skips a rename whose
+  old name is gone); the 2.x page columns (`first_page`, `last_page`, `entries.page`) dropped; the change log's kind
+  `spread` → `scene`; stored behaviour rules rewritten to `scene` / `sceneChanged`.
+
+### Removed
+
+- The migration to schema 3.0 (`POST …/migrate-3`, `Migration3.php`, MCP `migrate_3`, its shared types) – every stored
+  book is migrated; its change rows stay readable, not revertable. A 2.x book left in a database answers 409 `old-schema`.
+- The editor's exchange of a session token stored before the cookie (`osct-editor-session`, #207 – the API's
+  `POST /auth/cookie` stays) and the desk names stored before #226; the reader's old `osct-ar-prepared-spreads` value is
+  no longer read.
+- Dead helpers the 3.0 cut left: `formatPages`, `spreadWhere` (both `sceneLabel`), `getSurfaces`.
+
 ## 2.0.3 – 2026-11-19
 
 ### Fixed

@@ -8,7 +8,7 @@
    * entries, targets and entities, the later pages that move back, the shared entities kept – and the Library files:
    * kept, unless the person turns on the option to delete the files used only here (off at first); files used
    * elsewhere are listed as kept. Confirm sends the confirmation id back (the page does that in `onconfirm`); Keep or
-   * Esc cancels. Used by the book page's spread menu and the spread's tree for an entry – never a browser dialog.
+   * Esc cancels. Used by the book page's scene menu and the scene's tree for an entry – never a browser dialog.
    */
   let { step, busy = false, error = null, onconfirm, oncancel }: {
     step: RemovalStep;

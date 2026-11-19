@@ -2,7 +2,7 @@ import type { PluginApi } from "osct-plugin-api";
 
 /**
  * A component on a group that writes a line of text from the reader's progress – "3 of 9 pages found" – and
- * rewrites it on every first find, on any spread. Shows `api.progress`, a component that builds its own three.js
+ * rewrites it on every first find, on any scene. Shows `api.progress`, a component that builds its own three.js
  * objects with `api.three` (a canvas texture on a plane under the group), and `api.events` for the core events.
  */
 const CANVAS_WIDTH = 1024;
@@ -10,10 +10,10 @@ const CANVAS_HEIGHT = 160;
 
 export const register = (api: PluginApi): void => {
   api.registerComponent("tally", {
-    description: "Writes how many pages were found – of this spread or of the whole book – and keeps it current.",
+    description: "Writes how many pages were found – of this scene or of the whole book – and keeps it current.",
     nodeTypes: ["group"],
     params: {
-      of: { kind: "choice", options: ["book", "spread"], default: "book", description: "Count the whole book's pages, or this spread's." },
+      of: { kind: "choice", options: ["book", "scene"], default: "book", description: "Count the whole book's pages, or this scene's." },
       label: { kind: "string", default: "pages found", description: "The words after the numbers." },
       color: { kind: "color", default: "#ffffff", description: "The text's colour." },
     },
@@ -33,7 +33,7 @@ export const register = (api: PluginApi): void => {
 
     const draw = () => {
       if (!context) return;
-      const { unlocked, targets } = api.progress.counts(settings.of === "spread" ? target.spreadId : undefined);
+      const { unlocked, targets } = api.progress.counts(settings.of === "scene" ? target.sceneId : undefined);
       const label = String(settings.label);
       const text = targets > 0 && unlocked >= targets ? `${targets} ${label} – complete` : `${unlocked} of ${targets} ${label}`;
       context.clearRect(0, 0, canvas.width, canvas.height);
@@ -45,7 +45,7 @@ export const register = (api: PluginApi): void => {
       texture.needsUpdate = true;
     };
     draw();
-    const stop = [api.events.on("targetUnlocked", draw), api.events.on("spreadChanged", draw)];
+    const stop = [api.events.on("targetUnlocked", draw), api.events.on("sceneChanged", draw)];
 
     return {
       onUnlocked: draw,

@@ -5,7 +5,6 @@ import {
   authFetch,
   downloadUsersCsv,
   errorText,
-  exchangeStoredToken,
   getBook,
   getSession,
   logout,
@@ -53,9 +52,9 @@ describe("api() – the cookie session (#207)", () => {
 
   it("a write goes with the cookie (same origin) and the CSRF token, the JSON body – never an Authorization header", async () => {
     fetchMock.mockResolvedValueOnce(answer(200, { ok: true }));
-    await expect(api("POST", "/editor/books/osct/spreads", { id: "s1" })).resolves.toEqual({ ok: true });
+    await expect(api("POST", "/editor/books/osct/scenes", { id: "s1" })).resolves.toEqual({ ok: true });
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe("/api/editor/books/osct/spreads");
+    expect(url).toBe("/api/editor/books/osct/scenes");
     expect(init?.credentials).toBe("same-origin");
     expect(headersOf(init).get("X-CSRF-Token")).toBe("csrf-1");
     expect(headersOf(init).has("Authorization")).toBe(false);
@@ -236,52 +235,9 @@ describe("api() – the cookie session (#207)", () => {
   });
 });
 
-describe("exchangeStoredToken – a token stored before the cookie (#207, temporary)", () => {
-  const fetchMock = vi.fn<typeof fetch>();
-
-  beforeEach(() => vi.stubGlobal("fetch", fetchMock));
-
-  afterEach(() => {
-    fetchMock.mockReset();
-    localStorage.clear();
-    vi.unstubAllGlobals();
-  });
-
-  it("nothing stored: asks nothing", async () => {
-    await expect(exchangeStoredToken()).resolves.toBeNull();
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("sends the stored token once as Bearer to POST /auth/cookie, then deletes it", async () => {
-    localStorage.setItem("osct-editor-session", "old-token");
-    fetchMock.mockResolvedValueOnce(answer(200, { csrfToken: "csrf-x", user: USER }));
-    await expect(exchangeStoredToken()).resolves.toEqual({ csrfToken: "csrf-x", user: USER });
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe("/api/auth/cookie");
-    expect(init?.method).toBe("POST");
-    expect(init?.credentials).toBe("same-origin");
-    expect(headersOf(init).get("Authorization")).toBe("Bearer old-token");
-    expect(localStorage.getItem("osct-editor-session")).toBeNull();
-  });
-
-  it("a token that no longer holds is deleted: sign in as usual", async () => {
-    localStorage.setItem("osct-editor-session", "old-token");
-    fetchMock.mockResolvedValueOnce(unauthorized());
-    await expect(exchangeStoredToken()).resolves.toBeNull();
-    expect(localStorage.getItem("osct-editor-session")).toBeNull();
-  });
-
-  it("the API out of reach keeps it for the next start", async () => {
-    localStorage.setItem("osct-editor-session", "old-token");
-    fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
-    await expect(exchangeStoredToken()).resolves.toBeNull();
-    expect(localStorage.getItem("osct-editor-session")).toBe("old-token");
-  });
-});
-
 describe("getBook – the book's tree, read once", () => {
   const fetchMock = vi.fn<typeof fetch>();
-  const tree = (title: string) => ({ book: { id: "osct", title }, spreads: [], unassigned: [] });
+  const tree = (title: string) => ({ book: { id: "osct", title }, scenes: [], unassigned: [] });
   const reads = () => fetchMock.mock.calls.filter(([, init]) => (init?.method ?? "GET") === "GET").length;
 
   beforeEach(() => {

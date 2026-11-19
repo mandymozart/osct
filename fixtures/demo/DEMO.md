@@ -3,12 +3,12 @@
 `fixtures/demo/` is the **demo book** (`demo`): every node type, placement, filter and component the content model has,
 fourteen plugins that use every part of the plugin API (node types of their own among them, `sparkle`, `aquarium` and `inkPainting`, and two
 post-processing passes, `filmGrain` and `scanLines`), and a
-narrative across its spreads – a key tapped on one page opens a door on another, a lamp lights when the door opened, a tally counts the pages found, a tap switches a scene.
+narrative across its scenes – a key tapped on one page opens a door on another, a lamp lights when the door opened, a tally counts the pages found, a tap switches a scene.
 
 **The behaviour** (#88): the key and the door carry `behaviour` rules – no code. The key's rule (*on tap*) plays the
 model's clip `rattle`, sets `hasKey` in the book scope and emits `keyRattled`; the door's rules show its `hint` child
 when the page is found and, found with `hasKey`, hide it and emit `openDoor` – which the `door` component of
-`plugins/narrative` hears to lift and turn the door (what a rule cannot do). The Inspector edits the rules, the spread's
+`plugins/narrative` hears to lift and turn the door (what a rule cannot do). The Inspector edits the rules, the scene's
 timeline in it marks each rule that ran.
 
 **The aquarium** (page 2, *The key*'s right page, above the tally – #188): the entry `aquarium` with a target of its own
@@ -65,16 +65,16 @@ passes of a Shadertoy shader pasted in nearly unchanged through `api.shadertoy` 
 tap stirs the ink where it lands. The Inspector shows *node type · inkPainting* with *resolution* (256, 512), *pen speed*
 and *ink dissipation*.
 
-**The film grain** (pages 7–8, *The twins* – #216): the spread's `passes` name `filmGrain`, a post-processing pass of the
+**The film grain** (pages 7–8, *The twins* – #216): the scene's `passes` name `filmGrain`, a post-processing pass of the
 book's own (`plugins/grain`, `registerPass`): every pixel a little lighter or darker, changing 24 times a second, over the
-whole picture – the camera picture included (`reach: all`). In the editor the spread's *post-processing* section shows it
+whole picture – the camera picture included (`reach: all`). In the editor the scene's *post-processing* section shows it
 as *filmGrain* of the plugin *grain* with its rows (strength, size, speed, reach, pattern – a Library picture instead of
 the noise), and
-offers it under *add pass · grain* on every other spread. *The twins* carries no other effect, so the grain is all there is.
+offers it under *add pass · grain* on every other scene. *The twins* carries no other effect, so the grain is all there is.
 
-**The scan lines** (pages 5–6, *The switch* – #216, #233): the spread's `passes` name `scanLines`, a second pass of the
+**The scan lines** (pages 5–6, *The switch* – #216, #233): the scene's `passes` name `scanLines`, a second pass of the
 book's own (`plugins/scanlines`, `registerPass`): dark horizontal lines across the picture like an old screen, scrolling
-slowly down. It is there **switched off** (`enabled: false`), to be discovered: the spread's *post-processing* section
+slowly down. It is there **switched off** (`enabled: false`), to be discovered: the scene's *post-processing* section
 shows *scanLines* of the plugin *scanlines*, closed, with its toggle off and its rows inside (line spacing – set to 4 px –,
 strength, scroll speed, reach: `all` over the camera picture too, `ar` the AR layer alone); the toggle in its head
 switches the lines on, on the stage at once, without opening the section. Off, the stage and the reader skip it and the
@@ -97,10 +97,10 @@ docs/plugins.md and `agents/research/2026-10-30-demo-book.md`. Most assets are t
 animation clip, `rattle`, which its behaviour plays on a tap (the `animation` component says how: once) – written by `editor/tools/key-model.mjs`
 (`node editor/tools/key-model.mjs` regenerates `entries/key/key.glb`; an editor test checks the file is the script's).
 
-In the editor, the Inspector's *vars and events* (the spread selected) drives the narrative by hand: **tap** taps a found target without
+In the editor, the Inspector's *vars and events* (the scene selected) drives the narrative by hand: **tap** taps a found target without
 aiming at it (the key rattles and is taken, the switch changes its scene), the variables are editable and **set** adds
 one through the plugin API (`hasKey` true in the book scope, then the door's page switched off and on, opens the door
-without the key's page), and the timeline lists every event with the time since the spread opened.
+without the key's page), and the timeline lists every event with the time since the scene opened.
 
 Next to it, `fixtures/content/` stays the **test fixture** – the tests and CI build that one. The demo is free to
 change with every idea.

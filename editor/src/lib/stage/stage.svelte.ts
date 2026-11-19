@@ -41,7 +41,7 @@ export type { GhostPlace } from "./stage-core.svelte";
  * ends it. What the frame sends is checked (`readFrameEvent`); the one thing of it that reaches the draft that way is
  * a placement – three vectors of numbers – of the node the page itself selected, the node the gizmo sits on. A
  * frame that loads again (a reload, another content base) is given everything again: the draft, the preview, the
- * overrides, the selection, the spread.
+ * overrides, the selection, the scene.
  */
 export class Stage {
   /** The override that stands for "the entity is removed" (the root went): the stage shows nothing, the Inspector shows no node, the draft gets no entity */
@@ -49,7 +49,7 @@ export class Stage {
 
   status = $state<ArStatus>("idle");
   error = $state<string | null>(null);
-  spreadId = $state<string | null>(null);
+  sceneId = $state<string | null>(null);
   /** Targets the tracker reports found right now */
   found = $state<string[]>([]);
   /** The subtitle line of the video that plays on the stage (English, or the first language its video has) */
@@ -82,7 +82,7 @@ export class Stage {
   live = $state(true);
   /**
    * A frame has started (answered `init`): the Code tab's saved sources load now (#269, `plugins.autoLoad`) – before or
-   * while the first spread builds, so a spread that does not build keeps no code from loading. Called again for every
+   * while the first scene builds, so a scene that does not build keeps no code from loading. Called again for every
    * new frame (its registry starts empty).
    */
   onStarted: (() => void) | null = null;
@@ -240,7 +240,7 @@ export class Stage {
   /**
    * The frame is ready: the draft (the newest the content loaded) and the preview go first; then what waited for it.
    * A frame that loads again (a reload, a new frame for another content base) is also given everything the page set:
-   * the overrides, the passes, the environment, the modes, the selection, the ghost and the spread.
+   * the overrides, the passes, the environment, the modes, the selection, the ghost and the scene.
    */
   private async initialise(): Promise<void> {
     const snapshot = content.snapshot ?? this.sentContent;
@@ -260,7 +260,7 @@ export class Stage {
     this.sentContent = snapshot;
     const opening = this.requests.waiting("open");
     this.requests.open();
-    // The frame's registry is there now (empty in a new frame): the book's code loads, whether a spread builds or not
+    // The frame's registry is there now (empty in a new frame): the book's code loads, whether a scene builds or not
     this.markStarted();
     if (!this.initialisedBefore) {
       this.initialisedBefore = true;
@@ -279,7 +279,7 @@ export class Stage {
     void this.send("selectTarget", [this.selected.target]);
     if (this.ghostPlace) void this.send("ghost", [this.ghostPlace]);
     if (!this.live) void this.send("setLive", [false]);
-    if (this.spreadId && !opening) await this.send("open", [this.spreadId]);
+    if (this.sceneId && !opening) await this.send("open", [this.sceneId]);
   }
 
   /** The frame is up: the first time for this frame, `onStarted` */
@@ -333,18 +333,18 @@ export class Stage {
 
   // ── the stage's API for the workspace ──
 
-  /** Show a spread on the stage (the scene runs as soon as it is asked to) */
-  async open(spreadId: string): Promise<void> {
-    this.spreadId = spreadId;
+  /** Show a scene on the stage (the scene runs as soon as it is asked to) */
+  async open(sceneId: string): Promise<void> {
+    this.sceneId = sceneId;
     this.found = [];
     await this.syncContent();
     // Ahead of the scene, in the same order: the frame lays the references on its surfaces
     void this.send("surfaceReferences", [this.surfaceReferences]);
     void this.send("surfaceMarks", [this.marks.outlined, this.marks.highlighted]);
-    await this.requests.request("open", [spreadId]);
+    await this.requests.request("open", [sceneId]);
   }
 
-  /** The draft changed (a save): the spread is built again from it; overrides stay until cleared */
+  /** The draft changed (a save): the scene is built again from it; overrides stay until cleared */
   async refresh(): Promise<void> {
     await this.syncContent();
     await this.requests.request("refresh");
@@ -405,12 +405,12 @@ export class Stage {
    */
   async adopt(targetId: string, saved: EntityData): Promise<void> {
     // A frame that is not up yet takes the newest draft when it starts; one that fails here keeps showing the tree
-    // and gets the draft with the next spread – the save itself is done either way
+    // and gets the draft with the next scene – the save itself is done either way
     if (this.initialised) await this.syncContent().catch(e => console.warn(`[stage] content: ${e instanceof Error ? e.message : e}`));
     if (this.overrides.get(targetId) === saved) this.overrides.delete(targetId);
   }
 
-  /** Show the spread with these post-processing passes instead of the draft's (live edit), `null` = the draft's again */
+  /** Show the scene with these post-processing passes instead of the draft's (live edit), `null` = the draft's again */
   overridePasses(passes: PassData[] | null): void {
     this.passes = passes;
     void this.send("overridePasses", [passes]);
@@ -553,7 +553,7 @@ export class Stage {
     void this.send("replayUnlock", targetIds ? [[...targetIds]] : []);
   }
 
-  /** A new game: every variable cleared, nothing unlocked, the timeline empty, the spread's targets found anew */
+  /** A new game: every variable cleared, nothing unlocked, the timeline empty, the scene's targets found anew */
   resetNarrative(): void {
     void this.send("resetNarrative");
   }

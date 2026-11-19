@@ -7,7 +7,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { BACKDROP_LAYER } from "@engine/scene/view";
 import type { StageBook, StageGrids, StageSurface, StageTarget, StageView } from "./mock-tracker";
-import { frameFor, printedHeight } from "./placement";
+import { frameFor, placeHeight } from "./placement";
 import { frameBox, gridLines, ORIGIN_SPOTS, originPoint, type OriginFrame } from "./origin";
 import { DEFAULT_FRAME, fitImage, hitSurfaces, surfaceFrame, surfaceRects, toStage, type SurfaceFrame, type SurfaceReference, type V3 } from "./surfaces";
 import { linoleumTexture } from "./linoleum";
@@ -41,8 +41,8 @@ const OAK_ROUGHNESS = 0.65;
  * trade's 18 mm birch plywood. Each board's edge is one stack (the model's UVs)
  */
 const DESK_EDGE_PLIES = 13;
-const PAGE_COLOR = 0xf3efe6;
-const PAGE_EDGE_COLOR = 0xe6e1d6;
+const PAPER_COLOR = 0xf3efe6;
+const PAPER_EDGE_COLOR = 0xe6e1d6;
 /**
  * The desk (#226): the Eiermann frame, 72 cm high, with two tops of the same 1.8 × 0.8 m and the same surface height,
  * one model with a mesh per top (`TOP_NODES`) – loaded once, the top not chosen hidden, so a switch moves nothing
@@ -87,7 +87,7 @@ const GRID_ZERO_COLOR = 0xe5484d;
 /** The vertical axis: the height's line through the origin, in the 3D tools' colour for the up axis, this tall (mm) */
 const GRID_AXIS_COLOR = 0x30a46c;
 const GRID_AXIS_MM = 150;
-/** A snap guide: the line a drag snapped to, across the spread and this far beyond it (mm) */
+/** A snap guide: the line a drag snapped to, across the scene and this far beyond it (mm) */
 const GUIDE_COLOR = 0xd23cf0;
 const GUIDE_OVERHANG_MM = 20;
 
@@ -362,8 +362,8 @@ export class MockStage implements StageView {
     this.textures = [];
 
     this.frames = book.surfaces.length ? book.surfaces.map(surfaceFrame) : [DEFAULT_FRAME];
-    const edge = new MeshStandardMaterial({ color: PAGE_EDGE_COLOR, roughness: 1 });
-    const face = new MeshStandardMaterial({ color: PAGE_COLOR, roughness: 1 });
+    const edge = new MeshStandardMaterial({ color: PAPER_EDGE_COLOR, roughness: 1 });
+    const face = new MeshStandardMaterial({ color: PAPER_COLOR, roughness: 1 });
     this.frames.forEach(frame => {
       const board = new Mesh(new BoxGeometry(frame.widthMm / 1000, frame.heightMm / 1000, BOARD_THICKNESS), [edge, edge, edge, edge, face, edge]);
       layOnSurface(board, frame, frame.widthMm / 2, frame.heightMm / 2, FACE - BOARD_THICKNESS / 2);
@@ -408,7 +408,7 @@ export class MockStage implements StageView {
     for (const frame of this.frames) {
       const reference = references[frame.id];
       if (!reference) continue;
-      const plane = new Mesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({ color: PAGE_COLOR }));
+      const plane = new Mesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({ color: PAPER_COLOR }));
       plane.scale.set(frame.widthMm / 1000, frame.heightMm / 1000, 1);
       layOnSurface(plane, frame, frame.widthMm / 2, frame.heightMm / 2, -2 * LAYER);
       plane.userData.reference = frame.id;
@@ -483,7 +483,7 @@ export class MockStage implements StageView {
   }
   /** The targets hidden in the tree (the eye): their printed images go with their AR content, so the scene shows neither */
   setHiddenPrints(hidden: ReadonlySet<string>): void {
-    this.printedPlanes().forEach(plane => {
+    this.targetPlanes().forEach(plane => {
       plane.visible = !hidden.has(plane.userData.targetId as string);
     });
   }
@@ -492,7 +492,7 @@ export class MockStage implements StageView {
   private placePrint(plane: Mesh, target: StageTarget): void {
     plane.userData.place = target;
     const aspect = this.aspects.get(target.imageSrc);
-    const height = printedHeight(target, aspect);
+    const height = placeHeight(target, aspect);
     plane.scale.set(target.width / 1000, height / 1000, 1);
     // On its surface (#314): flat on the table as before, standing on a wall
     layOnSurface(plane, frameFor(this.frames, target.surface), target.x + target.width / 2, target.y + height / 2, -LAYER);
@@ -500,13 +500,13 @@ export class MockStage implements StageView {
 
   /** A target's print moves (the placement being edited): the same plane, so its texture and outline stay */
   movePrint(target: StageTarget): void {
-    const plane = this.printedPlanes().find(p => p.userData.targetId === target.id);
+    const plane = this.targetPlanes().find(p => p.userData.targetId === target.id);
     if (plane) this.placePrint(plane, target);
   }
 
   /** A printed image's height per width, once its image has loaded */
   printedAspect(targetId: string): number | undefined {
-    const place = this.printedPlanes().find(p => p.userData.targetId === targetId)?.userData.place as StageTarget | undefined;
+    const place = this.targetPlanes().find(p => p.userData.targetId === targetId)?.userData.place as StageTarget | undefined;
     return place ? this.aspects.get(place.imageSrc) : undefined;
   }
 
@@ -625,7 +625,7 @@ export class MockStage implements StageView {
   }
 
   /**
-   * Everything of the stage stands in for the camera picture: on the engine's backdrop layer the spread's
+   * Everything of the stage stands in for the camera picture: on the engine's backdrop layer the scene's
    * post-processing passes shade it as the camera picture (bloom, vignette; the grade stays on the AR layer)
    */
   private toBackdropLayer(): void {
@@ -674,7 +674,7 @@ export class MockStage implements StageView {
    * left corner – the nearest surface hit inside its edges, else the one whose edge is nearest (a drag beyond a page's
    * edge stays on it; on the open book the spine decides, as before)
    */
-  pageHit(raycaster: Raycaster): { surface: StageSurface; x: number; y: number } | null {
+  surfaceHit(raycaster: Raycaster): { surface: StageSurface; x: number; y: number } | null {
     this.group.updateMatrixWorld(true);
     const inverse = this.group.matrixWorld.clone().invert();
     const origin = raycaster.ray.origin.clone().applyMatrix4(inverse).multiplyScalar(1000);
@@ -683,7 +683,7 @@ export class MockStage implements StageView {
   }
 
   /** The printed images on the page (each knows its `userData.targetId`) – for picking a target by its print */
-  printedPlanes(): Mesh[] {
+  targetPlanes(): Mesh[] {
     return this.pages.children.filter((child): child is Mesh => child instanceof Mesh);
   }
 
@@ -704,7 +704,7 @@ export class MockStage implements StageView {
     corner.name = "ghost-corner";
     const place = () => {
       const aspect = this.aspects.get(ghost.imageSrc);
-      const height = printedHeight(ghost, aspect);
+      const height = placeHeight(ghost, aspect);
       const surface = frameFor(this.frames, ghost.surface);
       plane.scale.set(ghost.width / 1000, height / 1000, 1);
       layOnSurface(plane, surface, ghost.x + ghost.width / 2, ghost.y + height / 2, -LAYER / 2);

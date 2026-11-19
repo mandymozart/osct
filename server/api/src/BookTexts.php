@@ -39,8 +39,8 @@ final class BookTexts
             $targets[$row['entry_id']] = ['id' => $row['id'], 'imageSrc' => $row['image_src']];
         }
         $entries = [];
-        foreach (Db::run('SELECT id, spread_id, data_json FROM entries WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
-            $entry = ContentVersion::withScene(Editor::decode($row['data_json']), (string) $row['spread_id']);
+        foreach (Db::run('SELECT id, scene_id, data_json FROM entries WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
+            $entry = ContentVersion::withScene(Editor::decode($row['data_json']), (string) $row['scene_id']);
             $entry->target = $targets[$row['id']] ?? null;
             $entries[] = $entry;
         }
@@ -94,7 +94,7 @@ final class BookTexts
                 }
                 $entry->category = $body->category;
             }
-            $sceneId = (string) $row['spread_id'];
+            $sceneId = (string) $row['scene_id'];
             // The entry's scene and surface: `scene` moves it, `surface` (null: none) places it on one of its scene's surfaces
             $hasScene = property_exists($body, 'scene');
             $hasSurface = property_exists($body, 'surface');
@@ -111,11 +111,11 @@ final class BookTexts
             }
             unset($entry->page, $entry->scene);
             $json = Editor::encode($entry);
-            Db::run('UPDATE entries SET spread_id = :scene, category = :category, title = :title, data_json = :data WHERE book_id = :book AND id = :id',
+            Db::run('UPDATE entries SET scene_id = :scene, category = :category, title = :title, data_json = :data WHERE book_id = :book AND id = :id',
                 $params + ['scene' => $sceneId, 'category' => $entry->category, 'title' => $entry->title, 'data' => $json]);
             Books::touchBook($bookId);
             Books::recordChange($bookId, $user, 'entry', $entryId, $row['data_json'], $json);
-            return [$entry, $sceneId, (string) $row['spread_id']];
+            return [$entry, $sceneId, (string) $row['scene_id']];
         });
         Http::json(200, ['entry' => ContentVersion::withScene($entry, $sceneId), 'scene' => $sceneId, 'previousScene' => $previous]);
     }
@@ -123,7 +123,7 @@ final class BookTexts
     /**
      * PUT /editor/books/{id} { title?, author?, publisher?, sourceOfTruth? } → 200 { book }: the book's texts – the
      * splash, the home page and the onboarding show them – and its source of truth (`print` | `digital`, #238: whether
-     * spreads are added and removed in the editor). `publisher: null` (or "") removes it. 400 `invalid-book`.
+     * scenes are added and removed in the editor). `publisher: null` (or "") removes it. 400 `invalid-book`.
      */
     public static function putBook(string $bookId): never
     {

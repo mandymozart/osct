@@ -19,10 +19,10 @@ In the browser console the instance is available as `window.BOOKGAME` (for debug
 ```
 GameStore (extends BaseStore<GameState>)
 ├── state
-├── spreads    SpreadManager    active spread (its targets are tracked), switching
-├── targets    TargetManager    found / lost targets of the active spread
+├── scenes    SceneManager    active scene (its targets are tracked), switching
+├── targets    TargetManager    found / lost targets of the active scene
 ├── history    HistoryManager   reading progress per book: unlocked, consulted,
-│                               last spread / category, onboarding; stored on the device
+│                               last scene / category, onboarding; stored on the device
 ├── router     RouterManager    pages, routes and the game mode (idle / scan / consultation)
 ├── camera     CameraManager    camera permission
 ├── startLoading() / finishLoading()
@@ -34,9 +34,9 @@ What each manager owns: [Managers](managers.md).
 
 ## Game configuration
 
-The store does not load `game.config.json` itself: content (book, spreads, targets, entries)
-is read through `client/src/utils/game-config.ts` (`getBook()`, `getSpreads()`,
-`getTargets(spreadId)`, `getEntries()`, `getEntry(id)`, …), the only module that imports the file.
+The store does not load `game.config.json` itself: content (book, scenes, targets, entries)
+is read through `client/src/utils/game-config.ts` (`getBook()`, `getScenes()`,
+`getTargets(sceneId)`, `getEntries()`, `getEntry(id)`, …), the only module that imports the file.
 Its shape is defined in `shared/types/game-config.ts` – see [Content build](content.md#content-build).
 
 ## In a component

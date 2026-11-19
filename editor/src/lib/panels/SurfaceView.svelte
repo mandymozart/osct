@@ -119,7 +119,7 @@
 {:else}
   <div class="head">
     <nav class="crumbs" aria-label="Selected level">
-      <button type="button" class="crumb" onclick={() => selection.selectSpread()} title="Select the scene">{sceneName(scene)}</button>
+      <button type="button" class="crumb" onclick={() => selection.selectScene()} title="Select the scene">{sceneName(scene)}</button>
       <span class="crumb-sep" aria-hidden="true">›</span>
       <span class="crumb current"><Icon name="surface" size="1em" /> {surfaceName(surface)}</span>
     </nav>

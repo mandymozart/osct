@@ -93,7 +93,7 @@ describe("entry text: variables (SCUTOONS' syntax)", () => {
   });
 
   it("reads the innermost scope, like api.vars.get", () => {
-    const lookup = variablesOf([{ scope: "book", name: "door", value: "closed" }, { scope: "spread", name: "door", value: "open" }, { scope: "session", name: "visits", value: 2 }]);
+    const lookup = variablesOf([{ scope: "book", name: "door", value: "closed" }, { scope: "scene", name: "door", value: "open" }, { scope: "session", name: "visits", value: 2 }]);
     expect(lookup("door")).toBe("open");
     expect(lookup("visits")).toBe(2);
     expect(lookup("nothing")).toBeUndefined();

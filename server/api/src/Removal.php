@@ -100,7 +100,7 @@ final class Removal
         $file = static fn(array $f) => ['id' => $f['asset']['id'], 'name' => $f['asset']['name'], 'kind' => $f['asset']['kind'], 'size' => (int) $f['asset']['size'], 'url' => $f['asset']['url']]
             + ($f['usedBy'] ? ['usedBy' => $f['usedBy']] : []);
         return [
-            'entries' => array_map(static fn(array $e) => ['id' => $e['id'], 'title' => $e['title'], 'scene' => $e['spread_id'], 'category' => $e['category']], $this->entries),
+            'entries' => array_map(static fn(array $e) => ['id' => $e['id'], 'title' => $e['title'], 'scene' => $e['scene_id'], 'category' => $e['category']], $this->entries),
             'targets' => array_map(static fn(array $t) => ['id' => $t['id'], 'entry' => $t['entry_id'], 'imageSrc' => $t['image_src']], $this->targets),
             'entities' => $entities,
             'keptEntities' => $kept,

@@ -22,7 +22,7 @@ Kévin's way to turn a heavy model into an even quad mesh with the same shape (K
 5. Wrap method **Project**, and switch **Negative** on (Positive is on already), so each vertex is projected along its
    normal in both directions until it lands on the original surface.
 
-The subdivided, shrinkwrapped levels **regain the original's quality** on clean, evenly spread quads. They are not what
+The subdivided, shrinkwrapped levels **regain the original's quality** on clean, evenly scene quads. They are not what
 the reader gets: they are the source for the **normals** – baked from the high levels onto the 500-quad base, which is
 what the reader draws (Tilman, 2026-11-14: *"its regaining the quality – if use this for the normals"*). Two outputs:
 

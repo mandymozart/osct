@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { categoryLabel, entriesOf, entryLabel, entryLabelHtml, groupEntries, isCategory, isListCategory, linkEmbed, MARGINALIA_MENU, sceneOrderOf, sortEntries } from "../entries-model";
 import { ALL_CATEGORY, EntryCategory } from "@/types";
 
-const entry = (title: string, category: EntryCategory = EntryCategory.Glossary, author?: string, spreadId = "s1") => ({ title, category, author, spreadId });
+const entry = (title: string, category: EntryCategory = EntryCategory.Glossary, author?: string, sceneId = "s1") => ({ title, category, author, sceneId });
 
 describe("entries model", () => {
   it("knows the four categories", () => {

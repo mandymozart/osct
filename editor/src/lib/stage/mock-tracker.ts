@@ -1,12 +1,12 @@
 import { Matrix4, type Object3D, type PerspectiveCamera, Quaternion, type Raycaster, Vector3 } from "three";
 import type { Target } from "@engine/types";
-import { getSpread } from "@engine/content/game-config";
+import { getScene } from "@engine/content/game-config";
 import { EMPTY_ENGINE_STATE, publishEngineState } from "@engine/utils/tracker-debug";
 import { fetchTriggerInfos, type TriggerInfos } from "@engine/utils/trigger-protocol";
 import { getPreview, type PreviewOrbit, type PreviewState, type PreviewView, subscribePreview, updatePreview } from "./preview";
-import type { IImageTracker, ImageTrackerOptions, TrackedSpread } from "@engine/scene/tracker-types";
+import type { IImageTracker, ImageTrackerOptions, TrackedScene } from "@engine/scene/tracker-types";
 import { onAppUi } from "@engine/scene/ui";
-import { type LivePlacement, type PrintBox, printCentre, printedHeight, surfaceAxes, surfaceLeft, type Surfaces, withLivePlacement } from "./placement";
+import { type LivePlacement, type PlaceBox, placeCentre, placeHeight, surfaceAxes, surfaceLeft, type Surfaces, withLivePlacement } from "./placement";
 import { DEFAULT_SURFACE, findSurface, sceneSurfaces, surfaceFrame, type SceneSurface, type SurfaceFrame, type SurfaceReference, type SurfaceReferences } from "./surfaces";
 
 export { surfaceLeft };
@@ -51,7 +51,7 @@ const MIN_DISTANCE = 80;
 /** Far enough to see a wall of a few metres whole */
 const MAX_DISTANCE = 4000;
 const MAX_TILT = 85;
-/** The looked-at point may be panned this far from the spread's own (mm) */
+/** The looked-at point may be panned this far from the scene's own (mm) */
 const MAX_PAN = 600;
 /** A pointer that moved this far is a drag (orbit), not a tap */
 const DRAG_PX = 8;
@@ -65,8 +65,8 @@ const STORE_DELAY_MS = 300;
 const WOBBLE_MM = 2;
 const WOBBLE_DEGREES = 0.5;
 
-const DEFAULT_PRINT_MM = 60;
-const PAGE_MARGIN_MM = 20;
+const DEFAULT_PLACE_MM = 60;
+const SURFACE_MARGIN_MM = 20;
 const ROW_GAP_MM = 25;
 
 /** The stage's grids from the preview (`StageGrids`): the surfaces' own grid, the floor grid and the vertical grid */
@@ -141,14 +141,14 @@ export const layoutTargets = (
       const row = words.includes("top") ? 0 : words.includes("bottom") ? 2 : 1;
       const stacked = used.get(words) ?? 0;
       used.set(words, stacked + 1);
-      const x = column === 0 ? PAGE_MARGIN_MM : column === 2 ? page.width - PAGE_MARGIN_MM - width : (page.width - width) / 2;
-      const rowTop = row === 0 ? PAGE_MARGIN_MM : row === 2 ? page.height - PAGE_MARGIN_MM - height : (page.height - height) / 2;
+      const x = column === 0 ? SURFACE_MARGIN_MM : column === 2 ? page.width - SURFACE_MARGIN_MM - width : (page.width - width) / 2;
+      const rowTop = row === 0 ? SURFACE_MARGIN_MM : row === 2 ? page.height - SURFACE_MARGIN_MM - height : (page.height - height) / 2;
       return { id: target.id, imageSrc: target.imageSrc, surface: fallback, x, y: rowTop + stacked * (height + 10), width, height };
     });
   }
   // A row across the middle of the first surface, shrunk to fit when there are many
   const count = withImage.length;
-  const fit = Math.min(DEFAULT_PRINT_MM, (page.width - 2 * PAGE_MARGIN_MM - (count - 1) * ROW_GAP_MM) / Math.max(1, count));
+  const fit = Math.min(DEFAULT_PLACE_MM, (page.width - 2 * SURFACE_MARGIN_MM - (count - 1) * ROW_GAP_MM) / Math.max(1, count));
   const width = Math.max(10, fit);
   const total = count * width + (count - 1) * ROW_GAP_MM;
   const left = (page.width - total) / 2;
@@ -169,7 +169,7 @@ export const layoutTargets = (
  * follows the image's aspect once the stage knows it (`placement.ts`), as the engine anchors at the image's centre.
  */
 export const targetCentre = (target: StageTarget, page: Surfaces = [], aspect?: number | null): Vector3 => {
-  const centre = printCentre(target, page, aspect);
+  const centre = placeCentre(target, page, aspect);
   return new Vector3(centre.x / 1000, centre.y / 1000, centre.z / 1000);
 };
 
@@ -230,7 +230,7 @@ export interface StageView {
   /** A printed image's height per width, once its image has loaded (undefined before) */
   printedAspect?(targetId: string): number | undefined;
   /** The printed images on the page, each with `userData.targetId` (picking a target by its print) */
-  printedPlanes?(): Object3D[];
+  targetPlanes?(): Object3D[];
   /** The grids: the surfaces' own (spacing per surface, counted from the origin, its vertical axis), the floor grid, the vertical grid */
   setGrid?(grid: StageGrids): void;
   /** The lines a drag snapped to (mm of the stage frame), drawn while it lasts; empty = none */
@@ -242,7 +242,7 @@ export interface StageView {
   /** The ghost's image and corner (the placement handles) */
   ghostParts?(): { image: Object3D | null; corner: Object3D | null };
   /** Where a ray meets the scene's surfaces, in mm from the surface's top left corner, and on which surface (its id) */
-  pageHit?(raycaster: Raycaster): { surface: StageSurface; x: number; y: number } | null;
+  surfaceHit?(raycaster: Raycaster): { surface: StageSurface; x: number; y: number } | null;
   /**
    * The surfaces marked on the stage (#314, for the Surface mode): `outlined` wear a thin outline, `highlighted` the
    * selection's – ids of the open scene's surfaces; unknown ids are left out
@@ -271,10 +271,10 @@ export class MockTracker implements IImageTracker {
   private laidOut: StageTarget[] = [];
   /** The placement being edited: that target lies there, print and entity, until it is saved or dropped */
   private livePlacement: LivePlacement | null = null;
-  /** The current spread's targets as the engine handed them over (laid out again by `relayout`) */
+  /** The current scene's targets as the engine handed them over (laid out again by `relayout`) */
   private tracked: readonly Target[] = [];
-  private spreadId: string | null = null;
-  private held: TrackedSpread[] = [];
+  private sceneId: string | null = null;
+  private held: TrackedScene[] = [];
   /** Targets reported found right now */
   private found = new Set<string>();
   private infos: TriggerInfos = {};
@@ -295,16 +295,16 @@ export class MockTracker implements IImageTracker {
   private ghostOptions: { handlesOnly?: boolean } = {};
 
   /** The stage's printed images (for picking) */
-  printedPlanes(): Object3D[] {
-    return this.stage?.printedPlanes?.() ?? [];
+  targetPlanes(): Object3D[] {
+    return this.stage?.targetPlanes?.() ?? [];
   }
 
   ghostParts(): { image: Object3D | null; corner: Object3D | null } {
     return this.stage?.ghostParts?.() ?? { image: null, corner: null };
   }
 
-  pageHit(raycaster: Raycaster): { surface: StageSurface; x: number; y: number } | null {
-    return this.stage?.pageHit?.(raycaster) ?? null;
+  surfaceHit(raycaster: Raycaster): { surface: StageSurface; x: number; y: number } | null {
+    return this.stage?.surfaceHit?.(raycaster) ?? null;
   }
 
   /** Show where a target would be printed (the form's placement); `handlesOnly` while the target itself follows it */
@@ -325,8 +325,8 @@ export class MockTracker implements IImageTracker {
   }
 
   /** Every printed target where it lies now (a placement being edited included), with its printed height (mm) */
-  printedBoxes(): Array<{ id: string; place: StageTarget; height: number }> {
-    return this.targets.map(target => ({ id: target.id, place: target, height: printedHeight(target, this.printedAspect(target.id)) }));
+  placedBoxes(): Array<{ id: string; place: StageTarget; height: number }> {
+    return this.targets.map(target => ({ id: target.id, place: target, height: placeHeight(target, this.printedAspect(target.id)) }));
   }
 
   /** The stage's frame (null before the stage is attached) */
@@ -343,7 +343,7 @@ export class MockTracker implements IImageTracker {
    * The placement being edited moves the target itself – its print on the page and the anchor its entity follows –
    * instead of showing a second image (`null` = back to the content's place). The content changes only on a save.
    */
-  placeTarget(targetId: string | null, place: PrintBox | null): void {
+  placeTarget(targetId: string | null, place: PlaceBox | null): void {
     const before = this.livePlacement?.id ?? null;
     this.livePlacement = targetId && place ? { id: targetId, place: { ...place } } : null;
     this.targets = withLivePlacement(this.laidOut, this.livePlacement);
@@ -388,7 +388,7 @@ export class MockTracker implements IImageTracker {
   attachStage(stage: StageView): void {
     this.stage?.dispose();
     this.stage = stage;
-    if (this.spreadId) stage.setLayout(this.targets, this.stageBook());
+    if (this.sceneId) stage.setLayout(this.targets, this.stageBook());
     stage.setShading?.(this.preview.shading);
     stage.setHdri(this.preview.hdri);
     stage.setTop?.(this.preview.top);
@@ -398,7 +398,7 @@ export class MockTracker implements IImageTracker {
   }
 
   private stageBook(): StageBook {
-    const references = this.spreadId ? this.references[this.spreadId] : undefined;
+    const references = this.sceneId ? this.references[this.sceneId] : undefined;
     return { surfaces: this.surfaces, ...(references ? { references } : {}) };
   }
 
@@ -449,10 +449,10 @@ export class MockTracker implements IImageTracker {
     this.publishState();
   }
 
-  async loadTargets({ spreadId, targets }: TrackedSpread): Promise<void> {
+  async loadTargets({ sceneId, targets }: TrackedScene): Promise<void> {
     if (!this.started) throw new Error("loadTargets() needs the camera");
     this.stopTracking();
-    this.spreadId = spreadId;
+    this.sceneId = sceneId;
     this.tracked = targets;
     this.relayout();
   }
@@ -462,9 +462,9 @@ export class MockTracker implements IImageTracker {
    * targets anew: the engine does not reload a scene that is already tracked.
    */
   relayout(): void {
-    if (!this.spreadId) return;
-    const spread = getSpread(this.spreadId);
-    this.surfaces = sceneSurfaces(spread);
+    if (!this.sceneId) return;
+    const scene = getScene(this.sceneId);
+    this.surfaces = sceneSurfaces(scene);
     this.frames = this.surfaces.map(surfaceFrame);
     this.laidOut = layoutTargets(this.tracked, this.infos, this.frames);
     this.targets = withLivePlacement(this.laidOut, this.livePlacement);
@@ -473,13 +473,13 @@ export class MockTracker implements IImageTracker {
     this.publishState();
   }
 
-  prepareTargets(spreads: readonly TrackedSpread[]): void {
-    this.held = [...spreads];
+  prepareTargets(scenes: readonly TrackedScene[]): void {
+    this.held = [...scenes];
     this.publishState();
   }
 
-  growTargets(spreads: readonly TrackedSpread[]): void {
-    this.held = [...spreads];
+  growTargets(scenes: readonly TrackedScene[]): void {
+    this.held = [...scenes];
     this.publishState();
   }
 
@@ -502,7 +502,7 @@ export class MockTracker implements IImageTracker {
     this.found.clear();
     this.targets = [];
     this.laidOut = [];
-    this.spreadId = null;
+    this.sceneId = null;
   }
 
   stop(): void {
@@ -731,16 +731,16 @@ export class MockTracker implements IImageTracker {
     this.zoom(1 + Math.sign(event.deltaY) * WHEEL_STEP);
   };
 
-  /** The debug overlay's engine view: the spread "held" with all its targets ready, found = reported */
+  /** The debug overlay's engine view: the scene "held" with all its targets ready, found = reported */
   private publishState(): void {
     if (!this.started) return;
-    const heldSpreads = this.held.filter(spread => spread.spreadId !== this.spreadId);
+    const heldScenes = this.held.filter(scene => scene.sceneId !== this.sceneId);
     publishEngineState({
-      current: this.spreadId ? { spreadId: this.spreadId, targets: this.targets.length } : null,
-      held: heldSpreads.map(spread => ({ spreadId: spread.spreadId, targets: spread.targets.length })),
+      current: this.sceneId ? { sceneId: this.sceneId, targets: this.targets.length } : null,
+      held: heldScenes.map(scene => ({ sceneId: scene.sceneId, targets: scene.targets.length })),
       preparing: [],
-      targets: this.targets.length + heldSpreads.reduce((n, spread) => n + spread.targets.length, 0),
-      ready: this.targets.length + heldSpreads.reduce((n, spread) => n + spread.targets.length, 0),
+      targets: this.targets.length + heldScenes.reduce((n, scene) => n + scene.targets.length, 0),
+      ready: this.targets.length + heldScenes.reduce((n, scene) => n + scene.targets.length, 0),
       extractingSince: null,
       budget: null,
       growing: null,

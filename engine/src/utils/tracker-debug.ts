@@ -4,18 +4,18 @@
  * app depends on it.
  */
 
-/** A spread whose targets the engine holds */
-export interface EngineSpread {
-  spreadId: string;
+/** A scene whose targets the engine holds */
+export interface EngineScene {
+  sceneId: string;
   targets: number;
 }
 
 export interface EngineState {
-  /** The spread being tracked (its finds go to the app) */
-  current: EngineSpread | null;
-  /** Spreads held next to it (the window, nearest first) */
-  held: EngineSpread[];
-  /** Spreads whose target images are being turned into image targets (not in the engine yet) */
+  /** The scene being tracked (its finds go to the app) */
+  current: EngineScene | null;
+  /** Scenes held next to it (the window, nearest first) */
+  held: EngineScene[];
+  /** Scenes whose target images are being turned into image targets (not in the engine yet) */
   preparing: string[];
   /** Targets in the engine, and how many of them are extracted (can be found) */
   targets: number;
@@ -24,12 +24,12 @@ export interface EngineState {
   extractingSince: number | null;
   /** Target budget of the window while the load test runs, null = the ±n setting */
   budget: number | null;
-  /** Grow mode: spreads still to add (0 = done adding, the last batch may still extract), null = not growing */
+  /** Grow mode: scenes still to add (0 = done adding, the last batch may still extract), null = not growing */
   growing: number | null;
-  /** Target ids the engine reports as found right now – of any loaded spread, not only the current one */
+  /** Target ids the engine reports as found right now – of any loaded scene, not only the current one */
   seen: string[];
-  /** The last automatic spread switch: to which spread, the target that caused it, when (Date.now()) */
-  lastSwitch: { spreadId: string; targetId: string; at: number } | null;
+  /** The last automatic scene switch: to which scene, the target that caused it, when (Date.now()) */
+  lastSwitch: { sceneId: string; targetId: string; at: number } | null;
 }
 
 export const EMPTY_ENGINE_STATE: EngineState = {
@@ -53,14 +53,14 @@ export const subscribeEngineState = (listener: (state: EngineState) => void): ((
 
 // ── Load test ───────────────────────────────────────────────────────────────────────────────────
 
-/** One step of the load test: the window holds the nearest spreads up to `extra` targets next to the current spread */
+/** One step of the load test: the window holds the nearest scenes up to `extra` targets next to the current scene */
 export interface LoadTestResult {
   extra: number;
-  /** The spread being scanned when the step was measured */
-  spreadId: string;
-  /** Targets in the engine (current spread + extra) and the spreads they belong to */
+  /** The scene being scanned when the step was measured */
+  sceneId: string;
+  /** Targets in the engine (current scene + extra) and the scenes they belong to */
   loaded: number;
-  spreads: number;
+  scenes: number;
   /** Turning the window's new target images into image targets (the app's part, main thread) */
   prepareMs: number;
   /** The engine extracting the new targets' features (one per frame, main thread) */
@@ -70,11 +70,11 @@ export interface LoadTestResult {
   pageFps: number;
   /** Page frames that took longer than 50 ms (visible stutter) */
   longFrames: number;
-  /** Share of engine frames with a target of the current spread found (0–1) – 1 while held on a page */
+  /** Share of engine frames with a target of the current scene found (0–1) – 1 while held on a page */
   foundShare: number;
-  /** Times a found target of the current spread was lost (flicker, or the page left the view) */
+  /** Times a found target of the current scene was lost (flicker, or the page left the view) */
   lost: number;
-  /** Time from uncovering the lens to the current spread's target found again, per cover */
+  /** Time from uncovering the lens to the current scene's target found again, per cover */
   findMs: number[];
   /** Covers after which the target was not found within the time limit */
   misses: number;
@@ -91,14 +91,14 @@ export interface LoadTestProgress {
   /** Step running (1-based) and the number of steps */
   step: number;
   steps: number;
-  spreadId: string | null;
-  /** Targets of the current spread (they are what is measured) */
-  spreadTargets: number;
+  sceneId: string | null;
+  /** Targets of the current scene (they are what is measured) */
+  sceneTargets: number;
   results: LoadTestResult[];
 }
 
 export interface LoadTestOptions {
-  /** Target budget of the window per step (nearest spreads first); values above what the book has are capped */
+  /** Target budget of the window per step (nearest scenes first); values above what the book has are capped */
   extras: number[];
   /** How long each step measures with the phone held on the page */
   steadyMs: number;

@@ -30,7 +30,7 @@ const AR_BUSY: ReadonlySet<ArStatus> = new Set<ArStatus>(["loading", "starting",
 /** Nothing runs the reader would be interrupted in: no camera, no AR, no onboarding */
 export const isCalmMoment = (page: Pages | null, arStatus: ArStatus): boolean => {
   if (!page || AR_BUSY.has(arStatus)) return false;
-  if (page === Pages.SPREAD) return arStatus === "error";
+  if (page === Pages.SCENE) return arStatus === "error";
   return page !== Pages.TUTORIAL;
 };
 

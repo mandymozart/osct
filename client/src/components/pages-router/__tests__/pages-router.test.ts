@@ -8,7 +8,7 @@ const game = GameStoreService.getInstance();
 const store = game as unknown as BaseStore<GameState>;
 const routeListeners = () => store.propertyListeners.get("currentRoute")?.length ?? 0;
 
-const PAGES = ["splash-page", "spread-page", "entries-page", "entry-page", "about-page", "error-page"];
+const PAGES = ["splash-page", "scene-page", "entries-page", "entry-page", "about-page", "error-page"];
 
 /** A router with plain stand-ins for the pages (the router only sets attributes on them) */
 const mount = () => {

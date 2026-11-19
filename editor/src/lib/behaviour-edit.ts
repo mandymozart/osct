@@ -40,7 +40,7 @@ export const newAction = (verb: BehaviourVerb, previous?: BehaviourAction, varia
   switch (verb) {
     case "play": return { action: "play", clip: "", node };
     case "pause": case "stop": case "show": case "hide": return { action: verb, node };
-    case "set": return { action: "set", name: previous?.action === "set" ? previous.name : variables[0] ?? "", value: true, scope: "spread" };
+    case "set": return { action: "set", name: previous?.action === "set" ? previous.name : variables[0] ?? "", value: true, scope: "scene" };
     case "emit": return { action: "emit", event: "" };
   }
 };

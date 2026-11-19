@@ -4,7 +4,7 @@ import type { TrialRow } from "../trial-report";
 
 const row = (targetId: string, printed: boolean | undefined): TrialRow => ({
   targetId, entryId: targetId, title: targetId, category: "glossary", place: String(Number(targetId.slice(1, 4))),
-  spreadId: "s", spreadTitle: "s", imageSrc: "", result: "untested",
+  sceneId: "s", sceneTitle: "s", imageSrc: "", result: "untested",
   ...(printed === undefined ? {} : { info: printed ? { width: 30, height: 20 } : { note: "not on the test printout" } }),
 });
 
@@ -20,7 +20,7 @@ describe("trial strip", () => {
     expect(numberedRows([row("p010-1", undefined), row("p002-1", undefined)]).map(r => r.number)).toEqual([1, 2]);
   });
 
-  it("holds the neighbouring spreads while the trial is open", () => {
+  it("holds the neighbouring scenes while the trial is open", () => {
     expect(TRIAL_WINDOW).toBe(1);
   });
 });

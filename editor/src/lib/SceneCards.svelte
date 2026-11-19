@@ -55,7 +55,7 @@
   const order = $derived(list.map(scene => scene.id));
   const runs = $derived(stripRuns(list, scenes.groups));
   /** A page's ratio: a grid column is one page wide */
-  const pageRatio = PAGE_MM.width / PAGE_MM.height;
+  const cardRatio = PAGE_MM.width / PAGE_MM.height;
   const picked = $derived(new Set(scenes.picks.picked));
 
   /** The card the arrows move from: the last one picked or clicked, else the open scene */
@@ -192,9 +192,9 @@
 
 {#snippet card(scene: TreeScene, index: number)}
   {@const picture = previewParts(scene.surfaces, scenes.references[scene.id], targetsIn(scene), assetsBase)}
-  {@const ratio = picture?.ratio ?? pageRatio}
+  {@const ratio = picture?.ratio ?? cardRatio}
   {@const targets = targetsOf(scene)}
-  <div class="slot" style:grid-column={layout === "grid" ? `span ${gridSpan(ratio, pageRatio, columns)}` : undefined} class:drop-before={mark?.index === index && mark.side === "before"} class:drop-after={mark?.index === index && mark.side === "after"}>
+  <div class="slot" style:grid-column={layout === "grid" ? `span ${gridSpan(ratio, cardRatio, columns)}` : undefined} class:drop-before={mark?.index === index && mark.side === "before"} class:drop-after={mark?.index === index && mark.side === "after"}>
     <button type="button" class="card" data-scene-index={index} class:current={scene.id === current} class:picked={picked.has(scene.id)}
       class:dragged={drag?.ids.includes(scene.id)} aria-pressed={picked.has(scene.id)} aria-current={scene.id === current ? "page" : undefined}
       title={sceneName(scene)} bind:this={cards[scene.id]} draggable="false"

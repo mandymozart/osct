@@ -2,7 +2,7 @@ import { errorText, getEntries, type EditorEntry, type EntryFields } from "./api
 
 /**
  * The book's entries as the content holds them (#223, `GET /editor/books/{id}/entries`): every field as written – an
- * image's path unresolved, which the draft the engine reads resolves – with each entry's spread and target. The entry
+ * image's path unresolved, which the draft the engine reads resolves – with each entry's scene and target. The entry
  * form edits from here and puts a save back (`saved`). One book at a time.
  */
 class Entries {

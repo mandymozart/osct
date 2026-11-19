@@ -23,7 +23,7 @@ interface Waves {
   volume(): number;
 }
 
-const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", spreadId: "s", imageSrc: "/t.jpg", entity });
+const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", sceneId: "s", imageSrc: "/t.jpg", entity });
 
 const build = (params: Record<string, unknown>): { built: EntityInstance; waves: Waves } => {
   const built = buildEntity(target({ type: "aquarium", assets: [], params: { fish: 0, ...params } }), () => undefined)!;
@@ -50,7 +50,7 @@ describe("the aquarium's heightfield (#202)", () => {
     expect([deep.cols, deep.rows]).toEqual([16, 32]);
   });
 
-  it("a pushed cell spreads to its neighbours, and the ring decays", () => {
+  it("a pushed cell scenes to its neighbours, and the ring decays", () => {
     const { waves } = build({ body: "none" });
     const { cols, rows, height } = waves;
     const middle = Math.floor(rows / 2) * cols + Math.floor(cols / 2);

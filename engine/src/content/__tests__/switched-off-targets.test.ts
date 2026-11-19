@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { assertGameConfiguration } from "@shared/guards/game-config";
 import { CONTENT_SCHEMA_VERSION, isEntryInBook, isTargetEnabled } from "@shared/types/game-config";
-import { getEntries, getEntry, getSpread, getTarget, getTargets, loadGameConfiguration } from "../game-config";
+import { getEntries, getEntry, getScene, getTarget, getTargets, loadGameConfiguration } from "../game-config";
 
 /**
  * A target switched off (`enabled: false`, #249) is not in the reader's book – neither the image target nor its entry –
@@ -31,7 +31,7 @@ describe("switched-off targets", () => {
     expect(getTargets("s1").map(t => t.id)).toEqual(["on"]);
     expect(getTarget("off")).toBeUndefined();
     expect(getEntry("off")).toBeUndefined();
-    expect(getSpread("s1")?.entries.map(e => e.id)).toEqual(["on", "text"]);
+    expect(getScene("s1")?.entries.map(e => e.id)).toEqual(["on", "text"]);
   });
 
   it("the editor keeps it, with its entry", async () => {

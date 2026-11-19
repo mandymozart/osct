@@ -9,7 +9,7 @@
  * app passes the base URL, the bundled copy and the texts of the startup errors.
  * On load it checks that this app can read the content (content schema MAJOR – RULES #10), drops what content of a
  * newer MINOR has that this app does not know (`./forward-compatible.ts` – the list stays for `getSkippedFeatures()`),
- * checks the JSON against the contract (`assertGameConfiguration`), maps `*Data` to the app model (`Spread`, `Entry`,
+ * checks the JSON against the contract (`assertGameConfiguration`), maps `*Data` to the app model (`Scene`, `Entry`,
  * `Target`) and builds in-memory indexes. Content file paths (`/assets/content/…`) become URLs of the loaded version, so the
  * rest of the app never knows where the content comes from.
  */
@@ -27,14 +27,13 @@ import {
   type EntityRefData,
   type Entry,
   type GroupData,
-  type SurfaceData,
   ErrorCode,
   type ErrorInfo,
   type GameConfiguration,
   isEntryInBook,
   type PassData,
   type PluginData,
-  type Spread,
+  type Scene,
   type Target,
 } from "../types/index";
 
@@ -252,8 +251,8 @@ let contentBase = '';
 /** files.json of the loaded content (empty for content served with the app) */
 let contentFiles: ContentFiles = {};
 let entries: Entry[] = [];
-let spreads: Spread[] = [];
-let spreadById = new Map<string, Spread>();
+let scenes: Scene[] = [];
+let sceneById = new Map<string, Scene>();
 let entryById = new Map<string, Entry>();
 let targetById = new Map<string, Target>();
 
@@ -316,28 +315,28 @@ const apply = (raw: GameConfiguration, base: string, files: ContentFiles, keepSw
   const inBook = keepSwitchedOff ? config.entries : config.entries.filter(isEntryInBook);
   entries = inBook.map(entry => {
     const { target, ...data } = entry;
-    const spreadId = entry.scene;
+    const sceneId = entry.scene;
     return {
       ...data,
-      spreadId,
+      sceneId,
       ...(target
-        ? { target: { ...target, entity: resolveEntity(target.entity), entryId: data.id, spreadId } }
+        ? { target: { ...target, entity: resolveEntity(target.entity), entryId: data.id, sceneId } }
         : {}),
     };
   });
 
-  spreads = config.scenes.map(data => {
-    const spreadEntries = entries.filter(e => e.spreadId === data.id);
+  scenes = config.scenes.map(data => {
+    const sceneEntries = entries.filter(e => e.sceneId === data.id);
     return {
       ...data,
-      entries: spreadEntries,
-      targets: spreadEntries.flatMap(e => (e.target ? [e.target] : [])),
+      entries: sceneEntries,
+      targets: sceneEntries.flatMap(e => (e.target ? [e.target] : [])),
     };
   });
 
-  spreadById = new Map(spreads.map(s => [s.id, s]));
+  sceneById = new Map(scenes.map(s => [s.id, s]));
   entryById = new Map(entries.map(e => [e.id, e]));
-  targetById = new Map(spreads.flatMap(s => s.targets.map(t => [t.id, t] as const)));
+  targetById = new Map(scenes.flatMap(s => s.targets.map(t => [t.id, t] as const)));
 };
 
 /** Version of the game configuration (content build): version, timestamp, hash, schema */
@@ -346,29 +345,29 @@ export const getConfigVersion = (): ConfigurationVersion => config.version;
 export const getBook = (): BookData => config.book;
 
 /**
- * The passes a spread shows: its own list (an override – `[]` turns the book's off there), else the book's (the master
- * for every spread), else none. Pure, for the tests.
+ * The passes a scene shows: its own list (an override – `[]` turns the book's off there), else the book's (the master
+ * for every scene), else none. Pure, for the tests.
  */
-export const passesFor = (spread: { passes?: PassData[] } | undefined, book: { passes?: PassData[] }): PassData[] =>
-  spread?.passes ?? book.passes ?? [];
+export const passesFor = (scene: { passes?: PassData[] } | undefined, book: { passes?: PassData[] }): PassData[] =>
+  scene?.passes ?? book.passes ?? [];
 
-/** The post-processing passes over a spread's rendered image: the spread's own list, else the book's, else none */
-export const getPasses = (spreadId: string): PassData[] => passesFor(spreadById.get(spreadId), config.book);
+/** The post-processing passes over a scene's rendered image: the scene's own list, else the book's, else none */
+export const getPasses = (sceneId: string): PassData[] => passesFor(sceneById.get(sceneId), config.book);
 
 
-export const getInitialSpreadId = (): string => config.initialScene;
+export const getInitialSceneId = (): string => config.initialScene;
 
-export const getSpreads = (): Spread[] => [...spreads];
+export const getScenes = (): Scene[] => [...scenes];
 
-export const getSpread = (id: string): Spread | undefined => spreadById.get(id);
+export const getScene = (id: string): Scene | undefined => sceneById.get(id);
 
 /**
- * The spreads next to `spreadId` in book order (the ones the spread menu reaches next) – what is preloaded
+ * The scenes next to `sceneId` in book order (the ones the scene menu reaches next) – what is preloaded
  * ahead of a switch (target images + content, and the tracker's image targets)
  */
-export const getNeighbourSpreads = (spreadId: string, range = 1): Spread[] => {
-  const index = spreads.findIndex(s => s.id === spreadId);
-  return index === -1 ? [] : spreads.filter((_, i) => i !== index && Math.abs(i - index) <= range);
+export const getNeighbourScenes = (sceneId: string, range = 1): Scene[] => {
+  const index = scenes.findIndex(s => s.id === sceneId);
+  return index === -1 ? [] : scenes.filter((_, i) => i !== index && Math.abs(i - index) <= range);
 };
 
 export { entryPlaceLabel, sceneLabel, surfaceOf } from './scenes';
@@ -376,19 +375,16 @@ export { entryPlaceLabel, sceneLabel, surfaceOf } from './scenes';
 /** The groups scenes name – a label over several scenes */
 export const getGroups = (): GroupData[] => [...(config.groups ?? [])];
 
-/** A scene's surfaces, in order */
-export const getSurfaces = (spreadId: string): SurfaceData[] => [...(spreadById.get(spreadId)?.surfaces ?? [])];
-
 /** The place an entry is on as the reader finds it: its surface's label, else its scene's (`./scenes.ts`) */
-export const getEntryPlaceLabel = (entry: Pick<Entry, 'surface' | 'spreadId'>): string =>
-  entryPlaceLabel(entry, spreadById.get(entry.spreadId));
+export const getEntryPlaceLabel = (entry: Pick<Entry, 'surface' | 'sceneId'>): string =>
+  entryPlaceLabel(entry, sceneById.get(entry.sceneId));
 
 export const getEntries = (): Entry[] => [...entries];
 
 export const getEntry = (id: string): Entry | undefined => entryById.get(id);
 
-/** Targets of a spread in entry order */
-export const getTargets = (spreadId: string): Target[] => spreadById.get(spreadId)?.targets ?? [];
+/** Targets of a scene in entry order */
+export const getTargets = (sceneId: string): Target[] => sceneById.get(sceneId)?.targets ?? [];
 
 export const getTarget = (id: string): Target | undefined => targetById.get(id);
 
@@ -400,9 +396,9 @@ export const entityAssets = (entity: EntityData | undefined): AssetData[] =>
 export const entityNodes = (entity: EntityData, path: number[] = []): Array<{ node: EntityData; path: number[] }> =>
   [{ node: entity, path }, ...(entity.children ?? []).flatMap((child, i) => entityNodes(child, [...path, i]))];
 
-/** Assets of all entities (optionally of one spread), deduplicated by id */
-export const getAssets = (spreadId?: string): AssetData[] => {
-  const targets = spreadId ? getTargets(spreadId) : [...targetById.values()];
+/** Assets of all entities (optionally of one scene), deduplicated by id */
+export const getAssets = (sceneId?: string): AssetData[] => {
+  const targets = sceneId ? getTargets(sceneId) : [...targetById.values()];
   const assets = new Map<string, AssetData>();
   targets.forEach(t => entityAssets(t.entity).forEach(a => assets.set(a.id, a)));
   return [...assets.values()];
@@ -421,37 +417,37 @@ export const getSubtitleTrack = (media: string, language: string): string | unde
   return track === undefined ? undefined : contentUrl(track);
 };
 
-/** Every subtitle file of the book's videos (optionally of one spread's), as URLs of the loaded version – for preloading */
-export const getSubtitleFiles = (spreadId?: string): string[] => {
-  const media = spreadId === undefined ? null : new Set(getAssets(spreadId).map(asset => asset.src));
+/** Every subtitle file of the book's videos (optionally of one scene's), as URLs of the loaded version – for preloading */
+export const getSubtitleFiles = (sceneId?: string): string[] => {
+  const media = sceneId === undefined ? null : new Set(getAssets(sceneId).map(asset => asset.src));
   return (config.subtitles ?? [])
     .filter(s => !media || media.has(contentUrl(s.media)))
     .flatMap(s => Object.values(s.tracks).map(contentUrl));
 };
 
-/** A spread's credit lines (#292): the spread and the lines of the files its entries use, in entry order, each once */
-export interface SpreadCredits {
-  spread: Spread;
+/** A scene's credit lines (#292): the scene and the lines of the files its entries use, in entry order, each once */
+export interface SceneCredits {
+  scene: Scene;
   lines: string[];
 }
 
 /**
- * The book's credit lines per spread (the configuration's `credits`, schema 2.33): a spread lists the line of every file
+ * The book's credit lines per scene (the configuration's `credits`, schema 2.33): a scene lists the line of every file
  * its entries in the book name anywhere (in entry order) – the target image, the entry's picture, the entity's files (a shared entity's
- * too). Spreads without a line are left out; a line a spread repeats is listed once.
+ * too). Scenes without a line are left out; a line a scene repeats is listed once.
  */
-export const getCredits = (): SpreadCredits[] => {
+export const getCredits = (): SceneCredits[] => {
   const credited = Object.entries(config.credits ?? {}).map(([file, line]) => [contentUrl(file), line] as const);
   if (!credited.length) return [];
-  return spreads.flatMap(spread => {
+  return scenes.flatMap(scene => {
     const lines: string[] = [];
-    for (const entry of spread.entries) {
+    for (const entry of scene.entries) {
       const text = JSON.stringify(entry);
       for (const [url, line] of credited) {
         if (!lines.includes(line) && text.includes(JSON.stringify(url))) lines.push(line);
       }
     }
-    return lines.length ? [{ spread, lines }] : [];
+    return lines.length ? [{ scene, lines }] : [];
   });
 };
 

@@ -111,11 +111,6 @@ function editorApi(seen: Seen, { sources = true } = {}) {
     const body = seen.body as { url?: string | null; fit?: string };
     return { json: { scene: "s2", surface: "left", reference: body.url === null ? null : { url: body.url ?? "/a.png", name: "a.png", fit: body.fit ?? "cover" }, changed: true } };
   }
-  if (method === "POST" && path === "/editor/books/osct/migrate-3") {
-    const apply = !!(seen.body as any)?.apply;
-    return { json: { plan: { upToDate: false, schema: { from: "2.36", to: "3.0" }, counts: { scenes: 2, surfacesBefore: 4, surfacesAfter: 2, entries: 3, targetsMoved: 1, referencesAsIs: 0, referencesCombined: 1, unmapped: 0 }, scenes: [], groups: [], unmapped: [], imageTool: "gd" }, applied: apply, sent: seen.body } };
-  }
-  if (method === "POST" && path === "/editor/books/demo/migrate-3") return { json: { plan: { upToDate: true, schema: { from: "3.0", to: "3.0" }, counts: {}, scenes: [], groups: [], unmapped: [], imageTool: null }, applied: false } };
   if (method === "DELETE" && path === "/editor/books/osct/scenes/s1") return { status: 409, json: { error: { code: "initial-scene", message: "The book opens on this scene." } } };
   if (method === "PUT" && path === "/editor/books/osct/passes") return { json: { passes: (seen.body as any).passes } };
   if (method === "PUT" && path === "/editor/books/osct/appearance") return { json: { appearance: (seen.body as any).appearance } };
@@ -170,7 +165,7 @@ describe("the content tools", () => {
         "list_books", "list_changes", "list_versions", "publish", "put_book_appearance", "put_book_passes", "put_entity", "put_environment", "put_target", "upload_asset",
         "get_entries", "update_entry", "update_book", "set_asset_credits", "plan_asset_names", "apply_asset_names",
         "list_scenes", "add_scene", "move_scenes", "put_scene", "delete_scene", "group_scenes", "rename_group", "ungroup",
-        "set_surface_reference", "migrate_3",
+        "set_surface_reference",
         "revert_change", "revert_to",
       ].sort(),
     );
@@ -435,24 +430,8 @@ describe("the content tools", () => {
     expect(cleared.data.cleared).toEqual({ entries: ["castle"], targets: ["castle-target"] });
   });
 
-  it("migrate_3 (#319): the plan first, nothing written; apply only with the person's yes", async () => {
-    const description = String(rec.tools.get("migrate_3")!.config.description);
-    expect(description).toMatch(/Two steps/);
-    expect(description).toMatch(/only with their explicit yes call again with `apply: true`/);
-    const plan = await rec.call("migrate_3", { book: "osct" });
-    expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/editor/books/osct/migrate-3", body: {} });
-    expect(plan.data).toMatchObject({ applied: false, plan: { schema: { from: "2.36", to: "3.0" }, counts: { surfacesAfter: 2 } }, open: "http://localhost:5175/editor/osct/" });
-    expect(plan.data.next).toMatch(/Show the person the plan.*Only with their yes call migrate_3 again with apply: true/);
-    const applied = await rec.call("migrate_3", { book: "osct", apply: true });
-    expect(seen.at(-1)!.body).toEqual({ apply: true });
-    expect(applied.data.applied).toBe(true);
-    expect(applied.data.next).toBeUndefined();
-    expect((await rec.call("migrate_3", { book: "demo" })).data.next).toBeUndefined();
-    expect(hintFor(new ApiError(409, "migrate-first", "Migrate first"))).toMatch(/migrate_3.*apply: true/);
-  });
-
   it("the 2.x tools are gone: no spreads, pages, page images, matter or old migrations", () => {
-    expect([...rec.tools.keys()].filter(name => /spread|page|matter|migrate_scenes|migrate_surface/.test(name))).toEqual([]);
+    expect([...rec.tools.keys()].filter(name => /spread|page|matter|migrate/.test(name))).toEqual([]);
   });
 
   it("describe_content_model explains an entry's Markdown and variables, the book and that the onboarding is the app's (#223, #236)", async () => {

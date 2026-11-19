@@ -46,7 +46,7 @@ export interface IProgressStorage {
   save(record: ProgressRecord): void;
 }
 
-/** Owns the reader's progress: unlocked targets, consulted entries, last spread / category, onboarding. */
+/** Owns the reader's progress: unlocked targets, consulted entries, last scene / category, onboarding. */
 export interface IHistoryManager {
   /** Load the progress record from storage, converting older formats. Runs at startup. */
   load(): void;
@@ -64,8 +64,8 @@ export interface IHistoryManager {
   /** Stage 1: a target was found in scan mode */
   unlockTarget(targetId: string): void;
   isUnlocked(targetId: string): boolean;
-  /** Unlocked target ids of a spread (only targets in the content) */
-  getUnlockedTargets(spreadId: string): string[];
+  /** Unlocked target ids of a scene (only targets in the content) */
+  getUnlockedTargets(sceneId: string): string[];
 
   /** Stage 2: an entry was opened */
   consultEntry(entryId: string): void;
@@ -91,10 +91,10 @@ export interface IHistoryManager {
   /** Stored ids that are no longer in the content (kept in storage, shown in the debug overlay) */
   getMissingIds(): { targets: string[]; entries: string[] };
 
-  /** Percentage of unlocked targets in a spread */
-  getSpreadCompletionPercentage(spreadId: string): number;
+  /** Percentage of unlocked targets in a scene */
+  getSceneCompletionPercentage(sceneId: string): number;
 
-  isSpreadComplete(spreadId: string): boolean;
+  isSceneComplete(sceneId: string): boolean;
 
   /** Reset all progress for this book */
   reset(): void;

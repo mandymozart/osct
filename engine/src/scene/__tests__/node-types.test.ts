@@ -20,7 +20,7 @@ const SPARKLE: NodeTypeSpec = {
 const POSTER: NodeTypeSpec = { description: "A picture.", src: "image", params: {} };
 const SPIN: ComponentSpec = { description: "Spins.", params: {} };
 
-const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", spreadId: "s", imageSrc: "/t.jpg", entity });
+const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", sceneId: "s", imageSrc: "/t.jpg", entity });
 const noAssets = () => undefined;
 
 afterEach(() => {

@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Group } from "three";
-import type { ComponentSpec, EntityData, Spread, Target } from "../../types/index";
+import type { ComponentSpec, EntityData, Scene, Target } from "../../types/index";
 import { buildEntity } from "../entities";
 import { installedPlugins, installPlugin, type PluginApi, uninstallPlugin } from "../plugins";
 import {
   allVars, CORE_EVENTS, emitCoreEvent, observeEvents, PluginRuntimeError, type ProgressReader, resetVars, type runtimeApi, setProgressReader,
-  setSpreadSource, spreadChanged, stageEnded, type VarValue,
+  setSceneSource, sceneChanged, stageEnded, type VarValue,
 } from "../plugin-runtime";
 
-/** Events, variables in scopes, the reader's progress and the current spread – what crosses nodes and pages */
+/** Events, variables in scopes, the reader's progress and the current scene – what crosses nodes and pages */
 
-const target = (id: string, entity?: EntityData): Target => ({ id, entryId: id, spreadId: "a", imageSrc: `/${id}.jpg`, entity });
-const SPREADS: Spread[] = [
+const target = (id: string, entity?: EntityData): Target => ({ id, entryId: id, sceneId: "a", imageSrc: `/${id}.jpg`, entity });
+const SCENES: Scene[] = [
   { id: "a", label: "A", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }], entries: [], targets: [target("key"), target("tally")] },
   { id: "b", label: "B", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }], entries: [], targets: [target("door")] },
 ];
@@ -24,7 +24,7 @@ const apiOf = (id: string): PluginApi => {
 };
 
 beforeEach(() => {
-  setSpreadSource(id => SPREADS.find(s => s.id === id), () => SPREADS);
+  setSceneSource(id => SCENES.find(s => s.id === id), () => SCENES);
   setProgressReader(undefined);
 });
 
@@ -45,7 +45,7 @@ describe("api.events", () => {
     expect(heard).toEqual([{ by: "key" }]);
     expect(() => a.events.emit("targetFound", { targetId: "x" })).toThrow(PluginRuntimeError);
     expect(() => a.events.emit("Door Opened")).toThrow(/not an event name/);
-    expect(CORE_EVENTS).toContain("spreadChanged");
+    expect(CORE_EVENTS).toContain("sceneChanged");
   });
 
   it("hears the core events the scene emits, typed by name", () => {
@@ -86,39 +86,39 @@ describe("api.events", () => {
     const seen: string[] = [];
     const stop = observeEvents(event => seen.push(event));
     apiOf("fx").events.emit("ping");
-    emitCoreEvent("sceneState", { state: "running" });
+    emitCoreEvent("arState", { state: "running" });
     stop();
-    emitCoreEvent("sceneState", { state: "paused" });
-    expect(seen).toEqual(["ping", "sceneState"]);
+    emitCoreEvent("arState", { state: "paused" });
+    expect(seen).toEqual(["ping", "arState"]);
   });
 });
 
 describe("api.vars", () => {
-  it("sets in the spread scope by default, reads outward with the innermost definition winning", () => {
+  it("sets in the scene scope by default, reads outward with the innermost definition winning", () => {
     const api = apiOf("fx");
     api.vars.set("doorOpen", true);
     api.vars.set("hasKey", true, "book");
     api.vars.set("hasKey", false, "stage");
     expect(api.vars.get("doorOpen")).toBe(true);
-    expect(api.vars.get("doorOpen", "spread")).toBe(true);
+    expect(api.vars.get("doorOpen", "scene")).toBe(true);
     expect(api.vars.get("doorOpen", "book")).toBeUndefined();
     expect(api.vars.get("hasKey")).toBe(false);
     expect(api.vars.get("hasKey", "book")).toBe(true);
     expect(api.vars.all("stage")).toEqual({ hasKey: false });
     expect(allVars()).toEqual([
-      { scope: "spread", name: "doorOpen", value: true },
+      { scope: "scene", name: "doorOpen", value: true },
       { scope: "stage", name: "hasKey", value: false },
       { scope: "book", name: "hasKey", value: true },
     ]);
   });
 
-  it("the spread scope ends with the spread, the stage scope with the scene, session and book stay", () => {
+  it("the scene scope ends with the scene, the stage scope with the scene, session and book stay", () => {
     const api = apiOf("fx");
-    api.vars.set("s", 1, "spread");
+    api.vars.set("s", 1, "scene");
     api.vars.set("st", 2, "stage");
     api.vars.set("se", 3, "session");
     api.vars.set("b", 4, "book");
-    spreadChanged("b");
+    sceneChanged("b");
     expect(api.vars.get("s")).toBeUndefined();
     expect(api.vars.get("st")).toBe(2);
     stageEnded();
@@ -139,7 +139,7 @@ describe("api.vars", () => {
     api.vars.set("hasKey", null, "book");
     expect(changes).toEqual([
       { name: "hasKey", scope: "book", value: true, previous: undefined },
-      { name: "other", scope: "spread", value: 1, previous: undefined },
+      { name: "other", scope: "scene", value: 1, previous: undefined },
       { name: "hasKey", scope: "book", value: undefined, previous: true },
     ]);
     expect(named).toEqual([[true, undefined, "book"], [undefined, true, "book"]]);
@@ -174,8 +174,8 @@ describe("api.vars", () => {
   });
 });
 
-describe("api.progress and api.spread", () => {
-  it("reads the app's progress: unlocked, consulted, counts and completion per spread or for the book", () => {
+describe("api.progress and api.scene", () => {
+  it("reads the app's progress: unlocked, consulted, counts and completion per scene or for the book", () => {
     setProgressReader({ unlocked: id => id === "key", consulted: id => id === "key" });
     const api = apiOf("fx");
     expect(api.progress.unlocked("key")).toBe(true);
@@ -194,19 +194,19 @@ describe("api.progress and api.spread", () => {
     expect(api.progress.completion()).toBe(0);
   });
 
-  it("knows the current spread after the scene changed it", () => {
+  it("knows the current scene after the scene changed it", () => {
     const api = apiOf("fx");
-    expect(api.spread.current).toBeNull();
+    expect(api.scene.current).toBeNull();
     const seen: unknown[] = [];
-    api.events.on("spreadChanged", change => seen.push(change));
-    spreadChanged("a");
-    expect(api.spread.current?.id).toBe("a");
-    expect(api.spread.current?.targets.map(t => t.id)).toEqual(["key", "tally"]);
-    spreadChanged("b");
-    expect(seen).toEqual([{ spreadId: "a", previous: null }, { spreadId: "b", previous: "a" }]);
-    expect(api.spread.get("a")?.label).toBe("A");
+    api.events.on("sceneChanged", change => seen.push(change));
+    sceneChanged("a");
+    expect(api.scene.current?.id).toBe("a");
+    expect(api.scene.current?.targets.map(t => t.id)).toEqual(["key", "tally"]);
+    sceneChanged("b");
+    expect(seen).toEqual([{ sceneId: "a", previous: null }, { sceneId: "b", previous: "a" }]);
+    expect(api.scene.get("a")?.label).toBe("A");
     stageEnded();
-    expect(api.spread.current).toBeNull();
+    expect(api.scene.current).toBeNull();
   });
 });
 

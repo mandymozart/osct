@@ -18,14 +18,14 @@
    * remove; a click on one selects it – the Inspector shows its size, place and reference image (the same edits as the
    * Tree's Surfaces level and the Surface mode). Every field saves itself (`PUT …/scenes/{id}`, RULES #37).
    */
-  let { bookId, spreadId }: { bookId: string; spreadId: string } = $props();
+  let { bookId, sceneId }: { bookId: string; sceneId: string } = $props();
 
   $effect(() => {
     const id = bookId;
     if (scenes.bookId !== id) void scenes.load(id);
   });
 
-  const scene = $derived(scenes.scene(spreadId));
+  const scene = $derived(scenes.scene(sceneId));
   /** What was typed, per scene – a save's answer never writes over it */
   let label = $state("");
   let shownFor: string | null = null;
@@ -41,14 +41,14 @@
     error = null;
     try {
       if (typeof body === "function") await body();
-      else await scenes.putScene(spreadId, body);
+      else await scenes.putScene(sceneId, body);
     } catch (e) {
       error = errorText(e);
     }
   };
   const editLabel = (value: string) => {
     label = value;
-    const id = spreadId;
+    const id = sceneId;
     autosave.queue(`scene:${bookId}:${id}:label`, async () => {
       if ((scenes.scene(id)?.label ?? "") !== value.trim()) await scenes.putScene(id, { label: value.trim() });
     });
@@ -74,17 +74,17 @@
       <span class="value">{targetsOf(scene)} of 10</span></div>
     <div class="row" data-help="Arrange in a row: the scene's surfaces flat on the table, side by side in their order, touching, the row centred on the origin – written to their places. Off while they lie so already.">
       <span class="label">surfaces</span>
-      <button type="button" class="pill framed" disabled={!canArrangeInRow(spreadId)} onclick={() => void put(() => arrangeSceneInRow(spreadId))}
+      <button type="button" class="pill framed" disabled={!canArrangeInRow(sceneId)} onclick={() => void put(() => arrangeSceneInRow(sceneId))}
         title="The surfaces side by side, flat, touching, the row centred on the origin">arrange in a row</button></div>
     <div class="row" data-help="Removes the scene with its entries, their targets and AR content – first the Inspector shows what goes (and what other scenes still use), with the files only it uses; nothing is removed before you confirm. The opening scene cannot be removed.">
       <span class="label"></span>
-      <button type="button" class="text-link danger" onclick={() => sceneRemoval.ask(spreadId)}>remove scene…</button></div>
+      <button type="button" class="text-link danger" onclick={() => sceneRemoval.ask(sceneId)}>remove scene…</button></div>
     {#if error}<p class="small danger">{error}</p>{/if}
   </Section>
 
   <Section id="stage.surfaces" label="surfaces" summary={String(scene.surfaces.length)}
     help="The scene's physical areas in order – a double page, a cover, a wall – with their label as printed and size. Add, reorder, remove; a click on an id selects the surface (its size, place and reference image). The Surface tool (S) picks them on the stage.">
-    <SurfaceList {bookId} sceneId={spreadId} />
+    <SurfaceList {bookId} sceneId={sceneId} />
   </Section>
 {/if}
 

@@ -16,7 +16,7 @@ export const getSplashSteps = (steps: readonly Step[] = onboardingSteps(getBook(
 
 /**
  * Start page (`/`) for returning readers: the splash plays – each step for its `advance` time, a tap
- * skips ahead – then scan mode opens on the last spread. A first visit gets the whole onboarding instead
+ * skips ahead – then scan mode opens on the last scene. A first visit gets the whole onboarding instead
  * (`/tutorial`, see main.ts); the tutorial stays reachable from Info → Settings.
  */
 export class SplashPage extends Page {

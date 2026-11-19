@@ -39,7 +39,7 @@ describe("splash", () => {
         expect(game.state.currentRoute?.page).toBe(Pages.SPLASH);
         vi.advanceTimersByTime(step.advance ?? 2000);
       });
-      expect(game.state.currentRoute?.page).toBe(Pages.SPREAD);
+      expect(game.state.currentRoute?.page).toBe(Pages.SCENE);
     });
 
     it("starts its time only after the app has loaded (the loading screen would hide it)", () => {
@@ -54,13 +54,13 @@ describe("splash", () => {
       vi.advanceTimersByTime((steps[0].advance ?? 2000) - 1);
       expect(shownStep(page)).toBe(String(steps[0].index));
       steps.forEach(step => vi.advanceTimersByTime(step.advance ?? 2000));
-      expect(game.state.currentRoute?.page).toBe(Pages.SPREAD);
+      expect(game.state.currentRoute?.page).toBe(Pages.SCENE);
     });
 
     it("skips ahead on a tap", () => {
       const page = mount();
       getSplashSteps().forEach(() => (page.shadowRoot!.querySelector(".content") as HTMLElement).click());
-      expect(game.state.currentRoute?.page).toBe(Pages.SPREAD);
+      expect(game.state.currentRoute?.page).toBe(Pages.SCENE);
     });
   });
 });

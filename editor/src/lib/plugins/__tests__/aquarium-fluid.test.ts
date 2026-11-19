@@ -39,7 +39,7 @@ interface Splash {
   camera(cameraInverse: Matrix4, projection: Matrix4, tankWorld: Matrix4): SplashCamera;
 }
 
-const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", spreadId: "s", imageSrc: "/t.jpg", entity });
+const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", sceneId: "s", imageSrc: "/t.jpg", entity });
 
 const build = (params: Record<string, unknown> = {}): { built: EntityInstance; splash: Splash } => {
   const built = buildEntity(target({ type: "aquarium", assets: [], params: { fish: 0, ...params } }), () => undefined)!;

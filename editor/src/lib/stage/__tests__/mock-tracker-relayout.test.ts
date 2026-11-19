@@ -7,13 +7,13 @@ import type { StageBook, StageTarget } from "../mock-tracker";
 const FLAT = { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 };
 const draft = vi.hoisted(() => ({ surfaces: [] as SurfaceData[] }));
 vi.mock("@engine/content/game-config", () => ({
-  getSpread: (id: string) => ({ id, label: id, surfaces: draft.surfaces, entries: [], targets: [] }),
-  getSpreads: () => [{ id: "s", label: "s", surfaces: draft.surfaces }],
+  getScene: (id: string) => ({ id, label: id, surfaces: draft.surfaces, entries: [], targets: [] }),
+  getScenes: () => [{ id: "s", label: "s", surfaces: draft.surfaces }],
 }));
 
 const { MockTracker } = await import("../mock-tracker");
 
-const target = (id: string, place?: Target["place"]): Target => ({ id, entryId: id, spreadId: "s", imageSrc: `/${id}.jpg`, ...(place ? { place } : {}) });
+const target = (id: string, place?: Target["place"]): Target => ({ id, entryId: id, sceneId: "s", imageSrc: `/${id}.jpg`, ...(place ? { place } : {}) });
 
 describe("MockTracker.relayout: changed surfaces reach the stage at once", () => {
   let layouts: Array<{ targets: readonly StageTarget[]; book: StageBook }>;
@@ -42,7 +42,7 @@ describe("MockTracker.relayout: changed surfaces reach the stage at once", () =>
 
   it("lays the scene out again from its new surfaces, without loading the targets again", async () => {
     await tracker.startCamera();
-    await tracker.loadTargets({ spreadId: "s", targets: [target("a", { surface: "wall", x: 10, y: 20, width: 50 })] });
+    await tracker.loadTargets({ sceneId: "s", targets: [target("a", { surface: "wall", x: 10, y: 20, width: 50 })] });
     expect(layouts.at(-1)!.book.surfaces.map(s => s.id)).toEqual(["surface"]);
     // The surface it names is not there: the scene's first
     expect(layouts.at(-1)!.targets[0].surface).toBe("surface");
@@ -56,7 +56,7 @@ describe("MockTracker.relayout: changed surfaces reach the stage at once", () =>
 
   it("does nothing once tracking stopped", async () => {
     await tracker.startCamera();
-    await tracker.loadTargets({ spreadId: "s", targets: [target("a")] });
+    await tracker.loadTargets({ sceneId: "s", targets: [target("a")] });
     tracker.stopTracking();
     const count = layouts.length;
     tracker.relayout();

@@ -7,10 +7,9 @@ import {
   getEntry,
   getEntryPlaceLabel,
   getGroups,
-  getInitialSpreadId,
-  getSpread,
-  getSpreads,
-  getSurfaces,
+  getInitialSceneId,
+  getScene,
+  getScenes,
   getTarget,
   getTargets,
   loadGameConfiguration,
@@ -50,21 +49,20 @@ const book = (extra: { scenes?: object[]; entries?: object[]; groups?: object[] 
 describe("scenes (schema 3.0)", () => {
   it("an entry belongs to the scene it names; the scenes keep their order", async () => {
     expect(await loadGameConfiguration({ bundled: async () => book() })).toBeNull();
-    expect(getSpreads().map(s => s.id)).toEqual(["cover", "s2", "s1"]);
-    expect(getInitialSpreadId()).toBe("cover");
-    expect(getEntry("moved")?.spreadId).toBe("s2");
-    expect(getTarget("moved")?.spreadId).toBe("s2");
+    expect(getScenes().map(s => s.id)).toEqual(["cover", "s2", "s1"]);
+    expect(getInitialSceneId()).toBe("cover");
+    expect(getEntry("moved")?.sceneId).toBe("s2");
+    expect(getTarget("moved")?.sceneId).toBe("s2");
     expect(getTargets("s2").map(t => t.id)).toEqual(["moved"]);
-    expect(getEntries().map(e => [e.id, e.spreadId])).toEqual([["seal", "cover"], ["moved", "s2"], ["plain", "s1"]]);
+    expect(getEntries().map(e => [e.id, e.sceneId])).toEqual([["seal", "cover"], ["moved", "s2"], ["plain", "s1"]]);
     expect(getTarget("moved")?.place).toEqual({ surface: "r", x: 10, y: 20, width: 30 });
   });
 
   it("reads groups and a scene's placed surfaces", async () => {
     expect(await loadGameConfiguration({ bundled: async () => book() })).toBeNull();
     expect(getGroups()).toEqual([{ id: "front", label: "Front matter" }]);
-    expect(getSpread("s2")?.group).toBe("front");
-    expect(getSurfaces("s2").map(s => [s.id, s.label, s.place.x])).toEqual([["l", "ii", -115], ["r", "iii", 115]]);
-    expect(getSurfaces("nope")).toEqual([]);
+    expect(getScene("s2")?.group).toBe("front");
+    expect(getScene("s2")?.surfaces.map(s => [s.id, s.label, s.place.x])).toEqual([["l", "ii", -115], ["r", "iii", 115]]);
   });
 
   it("an entry's place label: its surface's label, else its scene's", async () => {

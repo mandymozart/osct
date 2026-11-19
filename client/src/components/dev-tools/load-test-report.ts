@@ -6,8 +6,8 @@ export interface LoadTestMeta {
   contentHash: string;
   device: string;
   date: Date;
-  spreadId: string;
-  spreadTargets: number;
+  sceneId: string;
+  sceneTargets: number;
   options: Pick<LoadTestOptions, "steadyMs" | "covers">;
 }
 
@@ -21,8 +21,8 @@ export const findLabel = (result: Pick<LoadTestResult, "findMs">): string =>
 /** One results row as table cells (the panel and the report use the same values) */
 export const loadTestCells = (result: LoadTestResult): string[] => [
   `${result.loaded} (+${result.extra})`,
-  String(result.spreads),
-  result.spreadId,
+  String(result.scenes),
+  result.sceneId,
   seconds(result.prepareMs),
   seconds(result.extractMs),
   fixed(result.engineFps, 1),
@@ -36,7 +36,7 @@ export const loadTestCells = (result: LoadTestResult): string[] => [
 ];
 
 export const LOAD_TEST_COLUMNS = [
-  "Targets held", "Spreads", "Scanned", "Prepare s", "Extract s", "Engine fps", "Page fps", "Stutter frames",
+  "Targets held", "Scenes", "Scanned", "Prepare s", "Extract s", "Engine fps", "Page fps", "Stutter frames",
   "Found", "Lost", "Re-find ms (median / max)", "Misses", "Heap MB",
 ];
 
@@ -49,15 +49,15 @@ export const loadTestReport = (results: readonly LoadTestResult[], meta: LoadTes
     `- Date: ${date} (UTC)`,
     `- App ${meta.appVersion} · content ${meta.contentHash.slice(0, 12)}`,
     `- Device: ${meta.device}`,
-    `- Started on ${meta.spreadId} · ${seconds(meta.options.steadyMs)} s measured per step · ${meta.options.covers} lens covers per step`,
+    `- Started on ${meta.sceneId} · ${seconds(meta.options.steadyMs)} s measured per step · ${meta.options.covers} lens covers per step`,
     "",
     `| ${LOAD_TEST_COLUMNS.join(" | ")} |`,
     `|${LOAD_TEST_COLUMNS.map(() => "---").join("|")}|`,
     ...results.map(result => `| ${loadTestCells(result).join(" | ")} |`),
     "",
-    "Per step the window next to the scanned spread gets a target budget (+extra, nearest spreads first); the",
+    "Per step the window next to the scanned scene gets a target budget (+extra, nearest scenes first); the",
     "tracker holds it and the preloader fetches its content while the app runs as usual (pages switch).",
-    "- Targets held / Spreads: what the engine held at the end of the step; Scanned: the spread being scanned.",
+    "- Targets held / Scenes: what the engine held at the end of the step; Scanned: the scene being scanned.",
     "- Prepare: the app turning the window's new target images into image targets; Extract: the engine extracting",
     "  their features (both on the main thread).",
     "- Engine fps: camera frames the engine processed; Page fps / Stutter: page frames, and frames over 50 ms.",

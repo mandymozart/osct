@@ -60,15 +60,8 @@ export type TopId = (typeof TOPS)[number]["id"];
 export const isTopId = (value: unknown): value is TopId => TOPS.some(t => t.id === value);
 const DEFAULT_TOP: TopId = "plywood";
 
-/**
- * The top from stored settings: `top`, or the desk stored before #226 (`desk`) – the Eiermann desk is its plywood
- * top, Schöpfer's desk (gone) the linoleum top, so nobody's stage breaks; anything else the default
- */
-const LEGACY_DESKS: Readonly<Record<string, TopId>> = { eiermann: "plywood", schoepfer: "linoleum" };
-export const storedTop = (stored: { top?: unknown; desk?: unknown }): TopId =>
-  isTopId(stored.top) ? stored.top
-    : typeof stored.desk === "string" && Object.hasOwn(LEGACY_DESKS, stored.desk) ? LEGACY_DESKS[stored.desk]
-      : DEFAULT_TOP;
+/** The top from stored settings: `top`, else the default */
+export const storedTop = (stored: { top?: unknown }): TopId => (isTopId(stored.top) ? stored.top : DEFAULT_TOP);
 
 /**
  * The stage toolbar's *view* group in a few words (#229 – the Stage tab's closed *stage* head until then): the desk and
@@ -92,7 +85,7 @@ export interface PreviewOrbit {
   distance: number;
   tilt: number;
   yaw: number;
-  /** The looked-at point moved from the spread's own: mm in the page plane (a pan) */
+  /** The looked-at point moved from the scene's own: mm in the page plane (a pan) */
   pan?: { x: number; y: number };
 }
 
@@ -222,7 +215,7 @@ const finite = (value: unknown): value is number => typeof value === "number" &&
 /** Settings from a stored (or sent) value, each one checked – a missing or wrong one is the default */
 export const parseSettings = (parsed: unknown): PreviewSettings => {
   if (!parsed || typeof parsed !== "object") return { ...DEFAULTS, snapTo: [...DEFAULTS.snapTo] };
-  const stored = parsed as Partial<PreviewSettings> & { desk?: unknown };
+  const stored = parsed as Partial<PreviewSettings>;
   return {
     view: PREVIEW_VIEWS.includes(stored.view as PreviewView) ? (stored.view as PreviewView) : DEFAULTS.view,
     shading: isShadingMode(stored.shading) ? stored.shading : DEFAULTS.shading,

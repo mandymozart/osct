@@ -12,7 +12,7 @@ export const register = (api: PluginApi): void => {
     src: "none",
     params: {
       count: { kind: "number", default: 80, min: 1, max: 500, step: 1, description: "How many points." },
-      radius: { kind: "number", default: 0.3, min: 0.01, max: 2, unit: "target widths", description: "How far they spread from the node." },
+      radius: { kind: "number", default: 0.3, min: 0.01, max: 2, unit: "target widths", description: "How far they scene from the node." },
       color: { kind: "color", default: "#f3cc94", description: "Their colour." },
       size: { kind: "number", default: 0.02, min: 0.001, max: 0.2, step: 0.001, description: "A point's size (target widths)." },
       speed: { kind: "number", default: 1, min: 0, max: 5, step: 0.1, unit: "×", description: "How fast they twinkle." },
@@ -20,7 +20,7 @@ export const register = (api: PluginApi): void => {
   }, ({ params }) => {
     const count = Math.round(Number(params.count));
     const radius = Number(params.radius);
-    // Points in a ball (a deterministic spread, so the editor's rebuild keeps them where they were)
+    // Points in a ball (a deterministic scene, so the editor's rebuild keeps them where they were)
     const positions = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
       const t = (i + 0.5) / count;

@@ -12,7 +12,7 @@ import { transpilePlugin } from "../compile";
 
 /** Make it code (#188): a node, or its look, becomes a Code tab plugin – the source runs and reproduces the node */
 
-const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", spreadId: "s", imageSrc: "/t.jpg", entity });
+const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", sceneId: "s", imageSrc: "/t.jpg", entity });
 
 /** A source as the Code tab runs it: transpiled, the module evaluated, its register installed */
 const run = async (id: string, source: string): Promise<void> => {

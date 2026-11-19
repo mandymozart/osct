@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { EntityData, EntityType, EntryCategory, Spread } from "@engine/types";
+  import type { EntityData, EntityType, EntryCategory, Scene } from "@engine/types";
   import { addEntry, errorText, isMediaAsset, type Asset } from "#lib/api.js";
   import { library } from "#lib/library.svelte.js";
   import { nodeAssetKinds, pickAccept, type LibraryPick } from "#lib/library-pick.js";
@@ -24,9 +24,9 @@
    * API makes entry and target (`POST …/entries`); the caller reloads the content and selects the new target. The
    * reader tracks it after a publish: the 8th Wall engine makes the image-target data from the image at runtime.
    */
-  let { bookId, spread, stage = null, oncreated, oncancel }: {
+  let { bookId, scene, stage = null, oncreated, oncancel }: {
     bookId: string;
-    spread: Spread;
+    scene: Scene;
     /** The stage shows the placement live (a translucent image where the target would be printed) */
     stage?: Stage | null;
     oncreated: (targetId: string) => Promise<void>;
@@ -36,7 +36,7 @@
   let title = $state("");
   let imageUrl = $state("");
   /** The surfaces the print may lie on: the scene's, by id */
-  const surfaceOptions = $derived(surfaceChoices(spread.surfaces));
+  const surfaceOptions = $derived(surfaceChoices(scene.surfaces));
   const surfaceLabels = $derived(Object.fromEntries(surfaceOptions.map(c => [c.value, c.label])));
   /** The surface it lies on, by id (`TargetPlace.surface`) – none: the scene's first */
   let surface = $state<string | undefined>(undefined);
@@ -51,7 +51,7 @@
   // The x / y rows are read and entered from the stage's origin (the toolbar's view group); x / y keep the content's frame
   let origin = $state(getPreview().origin);
   $effect(() => subscribePreview(state => (origin = state.origin)));
-  const frame = $derived(flatFrame(spread.surfaces));
+  const frame = $derived(flatFrame(scene.surfaces));
   const shown = $derived(toOrigin(origin, frame, on, x, y));
   const setShown = (nx: number, ny: number) => ({ x, y } = fromOrigin(origin, frame, on, nx, ny));
   let width = $state(80);
@@ -134,7 +134,7 @@
     try {
       const entity = entityData();
       const { entry } = await addEntry(bookId, {
-        title: title.trim(), scene: spread.id, ...(surface ? { surface } : {}), category,
+        title: title.trim(), scene: scene.id, ...(surface ? { surface } : {}), category,
         target: { imageSrc: imageUrl, place: { ...(surface ? { surface } : {}), x, y, width }, ...(entity ? { entity } : {}) },
       });
       await oncreated(entry.target?.id ?? entry.id);
@@ -150,7 +150,7 @@
   <LibraryPanel {bookId} pick={picking} />
 {:else}
 <div class="form">
-  <div class="section"><span class="section-label">new target on {sceneLabel(spread)}</span>
+  <div class="section"><span class="section-label">new target on {sceneLabel(scene)}</span>
     <button type="button" class="text-link" onclick={oncancel}>cancel</button></div>
   <div class="row"><span class="label">title</span>
     <input class="field" bind:value={title} placeholder="what the entry is about" aria-label="Title" /></div>

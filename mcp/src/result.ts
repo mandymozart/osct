@@ -63,7 +63,6 @@ export function hintFor(error: ApiError): string {
   if (error.code === "unknown-entity") return "No shared entity with that ref – list them with get_book or save one with put_entity.";
   if (error.code === "initial-scene") return "The book opens on this scene – it cannot be removed.";
   if (error.code === "surfaces-in-use") return "Entries or targets lie on surfaces that would go (entries, targets): show the person – only with their yes call put_scene again with the same arguments and apply: true (the entries stay on the scene without a surface, the targets lose their place).";
-  if (error.code === "migrate-first") return "The book is still content schema 2.x: migrate it first – migrate_3 answers the plan; show it to the person and only with their yes call migrate_3 again with apply: true.";
   if (error.code === "print-first") return "The book is print first: its scenes come from the printed book's layout (an import), not from here. Whether to make it digital first – so scenes are added and removed in the editor – is the person's decision: update_book sourceOfTruth: \"digital\" with their yes, or they switch it in the book's Inspector.";
   if (error.code === "not-found") return "Nothing with that id here – list_books, get_book and list_assets name what exists.";
   return "";

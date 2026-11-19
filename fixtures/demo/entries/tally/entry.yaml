@@ -4,7 +4,7 @@ category: text
 title: The tally
 scene: the-key
 author: The engine
-body: "A text the book writes itself: the `tally` component builds a canvas text with `api.three` and fills it from `api.progress.counts()` – it changes with every page you find, on any spread."
+body: "A text the book writes itself: the `tally` component builds a canvas text with `api.three` and fills it from `api.progress.counts()` – it changes with every page you find, on any scene."
 tags: [narrative, progress]
 target:
   image: target.jpg

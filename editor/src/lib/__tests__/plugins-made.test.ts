@@ -44,7 +44,7 @@ class FakeStage {
   }
   private build(id: string): void {
     const entity = this.treeOf(id);
-    const target: Target = { id, entryId: id, spreadId: "s", imageSrc: "/t.jpg", entity };
+    const target: Target = { id, entryId: id, sceneId: "s", imageSrc: "/t.jpg", entity };
     this.built.set(id, entity ? buildEntity(target, () => undefined) : null);
   }
   /** The meshes shown for a target */

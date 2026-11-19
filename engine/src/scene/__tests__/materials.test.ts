@@ -18,7 +18,7 @@ const WATER: MaterialSpec = {
 };
 const CAUSTICS: TextureSpec = { description: "Light.", params: { cells: { kind: "number", default: 3, min: 1, max: 8, description: "Cells." } } };
 
-const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", spreadId: "s", imageSrc: "/t.jpg", entity });
+const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", sceneId: "s", imageSrc: "/t.jpg", entity });
 const noAssets = () => undefined;
 const image = (material?: EntityData["material"], extra: Partial<EntityData> = {}): EntityData => ({ type: "image", assets: [], ...(material ? { material } : {}), ...extra });
 const meshOf = (entity: ReturnType<typeof buildEntity>): Mesh => {

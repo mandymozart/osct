@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createGameStore } from "@/store/GameStore";
 import { CameraPermissionStatus, ErrorCode, GameMode, LoadingState } from "@/types";
-import { getBook, getInitialSpreadId } from "@/utils/game-config";
+import { getBook, getInitialSceneId } from "@/utils/game-config";
 
 describe("GameStore", () => {
   beforeEach(() => {
@@ -11,14 +11,14 @@ describe("GameStore", () => {
   });
   afterEach(() => { vi.restoreAllMocks(); });
 
-  it("starts idle and loading, on the initial spread, with this book's progress", () => {
+  it("starts idle and loading, on the initial scene, with this book's progress", () => {
     const game = createGameStore();
     expect(game.state).toMatchObject({
       mode: GameMode.IDLE,
       currentRoute: null,
       currentError: null,
       trackedTargets: [],
-      currentSpread: getInitialSpreadId(),
+      currentScene: getInitialSceneId(),
       loading: LoadingState.LOADING,
       arStatus: "idle",
       cameraPermission: CameraPermissionStatus.UNKNOWN,
@@ -33,7 +33,7 @@ describe("GameStore", () => {
 
   it("has every manager", () => {
     const game = createGameStore();
-    for (const manager of [game.spreads, game.targets, game.history, game.router, game.camera]) expect(manager).toBeDefined();
+    for (const manager of [game.scenes, game.targets, game.history, game.router, game.camera]) expect(manager).toBeDefined();
   });
 
   it("each store has its own state", () => {

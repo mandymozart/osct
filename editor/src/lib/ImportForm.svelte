@@ -9,7 +9,7 @@
   /**
    * Import a game configuration into the database (`POST /editor/books/{id}/import`): the instance's published
    * content (the server fetches its CDN), or a `game.config.json` by URL or file – the reader's dev server serves its
-   * bundled one at `/src/game.config.json`, so the fixture's studio spreads are one import away. A URL that names no
+   * bundled one at `/src/game.config.json`, so the fixture's studio scenes are one import away. A URL that names no
    * file is a **content base** (a CDN folder with `latest.json`, like `…/demo`): the form takes the current version's
    * configuration and its folder as the assets base. `assetsBase` is where the configuration's `/assets/content/…`
    * paths resolve: the draft and every publish point there. The books page shows it open beside the books (#153);

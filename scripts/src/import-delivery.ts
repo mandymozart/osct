@@ -126,7 +126,7 @@ export function readMapping(file: string, problems: string[] = []): Mapping {
 }
 
 /** The pair of facing pages a page belongs to: 1 | 2–3 | 4–5 | … | last (alone when even) */
-export const spreadPages = (page: number, lastPage: number): [number, number] => {
+export const scenePages = (page: number, lastPage: number): [number, number] => {
   if (page <= 1) return [1, 1];
   const first = page - (page % 2);
   return [first, Math.min(first + 1, lastPage)];
@@ -306,7 +306,7 @@ export function importDelivery(deliveryDir: string, mappingFile: string): Import
   // The delivery's pages → scenes, once: a sheet of the layout that holds the page, else the pair of facing pages
   const layout = readLayout();
   const sceneOfPage = (page: number): ImportScene =>
-    layout.scenes.find(scene => page >= scene.pages[0] && page <= scene.pages[1]) ?? pagesScene(spreadPages(page, lastPage));
+    layout.scenes.find(scene => page >= scene.pages[0] && page <= scene.pages[1]) ?? pagesScene(scenePages(page, lastPage));
   const scenes = new Map<string, ImportScene>();
 
   for (const id of ids) {

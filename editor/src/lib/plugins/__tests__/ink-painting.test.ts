@@ -15,7 +15,7 @@ import { transpilePlugin } from "../compile";
 
 const FLUID = readFileSync(resolve(process.cwd(), "../fixtures/demo/plugins/fluid/index.ts"), "utf8");
 
-const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", spreadId: "s", imageSrc: "/t.jpg", entity });
+const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", sceneId: "s", imageSrc: "/t.jpg", entity });
 const node = (params: Record<string, unknown> = {}): EntityData => ({ type: "inkPainting", assets: [], params });
 
 interface Draw { target: WebGLRenderTarget | null; material: ShaderMaterial }

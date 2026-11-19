@@ -1,4 +1,4 @@
-import { type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type IArScene, type PassData, type SceneInspection, SceneState } from "@/types";
+import { type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type IArScene, type PassData, type SceneInspection, ArState } from "@/types";
 import { Emitter } from "@engine/utils/emitter";
 
 type ArModule = typeof import("./ar");
@@ -8,13 +8,13 @@ let arModule: Promise<ArModule> | null = null;
 let loadedModule: ArModule | null = null;
 
 /** Every scene event, forwarded from the real scene (a record over the event type: a new event can't be left out) */
-const SCENE_EVENTS = Object.keys({
+const AR_EVENTS = Object.keys({
   status: true,
   targetFound: true,
   targetLost: true,
   targetTapped: true,
   ready: true,
-  spreadSeen: true,
+  sceneSeen: true,
   scanning: true,
   subtitle: true,
 } satisfies Record<keyof ArSceneEvents, true>) as Array<keyof ArSceneEvents>;
@@ -35,22 +35,22 @@ export const loadArModule = (): Promise<ArModule> => {
 };
 
 /**
- * The book's variables in every scope the scene's runtime keeps – spread, stage, session and book (`allVars()`, the
+ * The book's variables in every scope the scene's runtime keeps – scene, stage, session and book (`allVars()`, the
  * book scope read from the reader's progress) – for the entry texts (`{hasKey}`); null while the AR chunk has not loaded
  */
 export const sceneVariables = (): ReturnType<ArModule["allVars"]> | null => loadedModule?.allVars() ?? null;
 
 /**
- * The bridge's `IArScene`: records the requested spread and state and hands them to the real `ArScene`
+ * The bridge's `IArScene`: records the requested scene and state and hands them to the real `ArScene`
  * once its chunk is loaded – on the first RUNNING request, or earlier via `warmUp()`. Until then it
  * reports `idle`, and `loading` while the chunk loads for a start.
  */
 export class LazyArScene implements IArScene {
   private emitter = new Emitter<ArSceneEvents>();
-  private scene: IArScene | null = null;
+  private arScene: IArScene | null = null;
   private creating: Promise<IArScene> | null = null;
-  private wantedSpread: string | null = null;
-  private wantedState: SceneState = SceneState.STOPPED;
+  private wantedScene: string | null = null;
+  private wantedState: ArState = ArState.STOPPED;
   private disposed = false;
 
   private lastStatus: ArStatus = "idle";
@@ -60,11 +60,11 @@ export class LazyArScene implements IArScene {
   }
 
   get status(): ArStatus {
-    return this.scene?.status ?? this.lastStatus;
+    return this.arScene?.status ?? this.lastStatus;
   }
 
-  get spreadId(): string | null {
-    return this.scene?.spreadId ?? null;
+  get sceneId(): string | null {
+    return this.arScene?.sceneId ?? null;
   }
 
   on<E extends keyof ArSceneEvents>(event: E, listener: ArSceneEvents[E]): () => void {
@@ -88,21 +88,21 @@ export class LazyArScene implements IArScene {
     );
   }
 
-  async load(spreadId: string): Promise<void> {
-    this.wantedSpread = spreadId;
-    if (this.scene) return this.scene.load(spreadId);
+  async load(sceneId: string): Promise<void> {
+    this.wantedScene = sceneId;
+    if (this.arScene) return this.arScene.load(sceneId);
   }
 
-  async setState(state: SceneState): Promise<void> {
+  async setState(state: ArState): Promise<void> {
     this.wantedState = state;
-    if (this.scene) return this.scene.setState(state);
-    if (state !== SceneState.RUNNING) return;
+    if (this.arScene) return this.arScene.setState(state);
+    if (state !== ArState.RUNNING) return;
     try {
-      const scene = await this.create();
+      const arScene = await this.create();
       if (this.disposed) return;
       // Apply the latest requests – they may have changed while the chunk loaded
-      if (this.wantedSpread) void scene.load(this.wantedSpread);
-      await scene.setState(this.wantedState);
+      if (this.wantedScene) void arScene.load(this.wantedScene);
+      await arScene.setState(this.wantedState);
     } catch (error) {
       console.error("[ArScene] AR could not be loaded:", error);
       this.emitter.emit("status", "error", { code: ErrorCode.AR_LOAD_FAILED, message: error instanceof Error ? error.message : String(error) });
@@ -110,54 +110,54 @@ export class LazyArScene implements IArScene {
   }
 
   celebrate(targetId: string): void {
-    this.scene?.celebrate(targetId);
+    this.arScene?.celebrate(targetId);
   }
 
   flyCard(targetId: string, card: { front: string; reveal?: string; back?: string }): Promise<boolean> {
-    return this.scene?.flyCard(targetId, card) ?? Promise.resolve(false);
+    return this.arScene?.flyCard(targetId, card) ?? Promise.resolve(false);
   }
 
   async refresh(): Promise<void> {
-    await this.scene?.refresh();
+    await this.arScene?.refresh();
   }
 
   overrideEntity(targetId: string, entity: EntityData | null): void {
-    this.scene?.overrideEntity(targetId, entity);
+    this.arScene?.overrideEntity(targetId, entity);
   }
 
   overridePasses(passes: PassData[] | null): void {
-    this.scene?.overridePasses(passes);
+    this.arScene?.overridePasses(passes);
   }
 
   setPostProcessing(enabled: boolean): void {
-    this.scene?.setPostProcessing(enabled);
+    this.arScene?.setPostProcessing(enabled);
   }
 
   sampleColor(x: number, y: number): string | null {
-    return this.scene?.sampleColor(x, y) ?? null;
+    return this.arScene?.sampleColor(x, y) ?? null;
   }
 
   inspect(): SceneInspection | null {
-    return this.scene?.inspect() ?? null;
+    return this.arScene?.inspect() ?? null;
   }
 
   async dispose(): Promise<void> {
     this.disposed = true;
-    await this.scene?.dispose();
+    await this.arScene?.dispose();
   }
 
   private create(): Promise<IArScene> {
     if (!this.creating) {
       this.emitter.emit("status", "loading");
       this.creating = loadArModule().then(({ createReaderScene }) => {
-        const scene = createReaderScene(this.container);
+        const arScene = createReaderScene(this.container);
         // Forward the real scene's events
-        SCENE_EVENTS.forEach(event =>
-          scene.on(event, ((...args: unknown[]) =>
+        AR_EVENTS.forEach(event =>
+          arScene.on(event, ((...args: unknown[]) =>
             (this.emitter.emit as (e: string, ...a: unknown[]) => void)(event, ...args)) as never),
         );
-        this.scene = scene;
-        return scene;
+        this.arScene = arScene;
+        return arScene;
       });
       this.creating.catch(() => (this.creating = null));
     }

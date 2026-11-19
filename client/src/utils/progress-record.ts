@@ -109,7 +109,7 @@ const union = (a: Record<string, number>, b: Record<string, number>): Record<str
 
 /**
  * Merges two records of the same book (account sync): union of unlocked and consulted ids with the
- * earliest time, onboarded (and coached) if either was; this device's last spread / category and variables win, the other's fill
+ * earliest time, onboarded (and coached) if either was; this device's last scene / category and variables win, the other's fill
  * gaps.
  */
 export const mergeProgress = (local: ProgressRecord, other: ProgressRecord): ProgressRecord => ({

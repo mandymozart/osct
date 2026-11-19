@@ -79,7 +79,7 @@ describe("where a library file belongs", () => {
   });
 
   it("keeps the folders between the place and the file, and decodes them", () => {
-    expect(assetPlace(file("/assets/content/spreads/s%2001/media/cover.png")).label).toBe("s 01/media · cover");
+    expect(assetPlace(file("/assets/content/scenes/s%2001/media/cover.png")).label).toBe("s 01/media · cover");
   });
 
   it("an upload has no place: its label is its name", () => {

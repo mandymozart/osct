@@ -3,6 +3,13 @@
 -- Changes after the first deploy are additive statements at the end of this file: `ALTER TABLE … ADD COLUMN`
 -- runs only while the column is missing (Db::migrate), so the file can run on every deploy.
 
+-- Schema 3.0 names (#319): the 2.x tables and columns renamed in place – run before the CREATE TABLEs below, each skipped
+-- when its old name is gone (a new database creates the new names; Db::migrate)
+ALTER TABLE `spreads` RENAME TO `scenes`;
+ALTER TABLE `scenes` RENAME COLUMN `title` TO `label`;
+ALTER TABLE `entries` RENAME COLUMN `spread_id` TO `scene_id`;
+ALTER TABLE `books` RENAME COLUMN `initial_spread_id` TO `initial_scene`;
+
 CREATE TABLE IF NOT EXISTS `users` (
   `id` CHAR(36) NOT NULL,
   `email` VARCHAR(254) NOT NULL,
@@ -91,7 +98,7 @@ CREATE TABLE IF NOT EXISTS `books` (
   `title` VARCHAR(255) NOT NULL,
   `author` VARCHAR(255) NOT NULL,
   `book_json` TEXT NOT NULL COMMENT 'BookData',
-  `initial_spread_id` VARCHAR(64) NOT NULL,
+  `initial_scene` VARCHAR(64) NOT NULL,
   `assets_base` VARCHAR(1024) NOT NULL DEFAULT '' COMMENT 'where /assets/content/… resolves; empty = as imported',
   `files_json` MEDIUMTEXT NOT NULL COMMENT 'files.json of the imported version',
   `content_schema` VARCHAR(16) NOT NULL COMMENT 'content schema MAJOR.MINOR of the import',
@@ -101,30 +108,27 @@ CREATE TABLE IF NOT EXISTS `books` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `spreads` (
+CREATE TABLE IF NOT EXISTS `scenes` (
   `book_id` VARCHAR(64) NOT NULL,
   `id` VARCHAR(64) NOT NULL,
   `position` INT NOT NULL,
-  `title` VARCHAR(255) NOT NULL,
-  `first_page` INT NOT NULL,
-  `last_page` INT NOT NULL,
-  `data_json` TEXT NOT NULL COMMENT 'SpreadData',
+  `label` VARCHAR(255) NOT NULL,
+  `data_json` TEXT NOT NULL COMMENT 'SceneData',
   PRIMARY KEY (`book_id`, `id`),
-  CONSTRAINT `spreads_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+  CONSTRAINT `scenes_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- spread_id NULL: the entry's page is in no spread (kept and exported all the same)
+-- scene_id NULL: the entry's page is in no scene (kept and exported all the same)
 CREATE TABLE IF NOT EXISTS `entries` (
   `book_id` VARCHAR(64) NOT NULL,
   `id` VARCHAR(64) NOT NULL,
-  `spread_id` VARCHAR(64) NULL DEFAULT NULL,
+  `scene_id` VARCHAR(64) NULL DEFAULT NULL,
   `position` INT NOT NULL,
   `category` VARCHAR(32) NOT NULL,
   `title` VARCHAR(255) NOT NULL,
-  `page` INT NOT NULL,
   `data_json` MEDIUMTEXT NOT NULL COMMENT 'EntryData without its target',
   PRIMARY KEY (`book_id`, `id`),
-  KEY `entries_spread` (`book_id`, `spread_id`),
+  KEY `entries_scene` (`book_id`, `scene_id`),
   CONSTRAINT `entries_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -310,22 +314,6 @@ CREATE TABLE IF NOT EXISTS `asset_credits` (
   CONSTRAINT `asset_credits_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Page images (#251, Pages::putImages): one image of the book's Library per book page, an editor-only override of the
--- print layout's sheet for that page on the stage and the spread cards – the reader never shows it, no content. `page` is
--- the internal page (negative for the front matter, the cover 0, the back cover after the back matter); `facing` = 1 is
--- the unnumbered half of a single page's sheet (the half next to page 1, the one next to the last printed page)
-CREATE TABLE IF NOT EXISTS `page_images` (
-  `book_id` VARCHAR(64) NOT NULL,
-  `page` INT NOT NULL,
-  `facing` TINYINT NOT NULL DEFAULT 0,
-  `url` VARCHAR(512) NOT NULL,
-  `name` VARCHAR(255) NOT NULL,
-  `updated_by` CHAR(36) NULL DEFAULT NULL,
-  `updated_at` BIGINT NOT NULL,
-  PRIMARY KEY (`book_id`, `page`, `facing`),
-  CONSTRAINT `page_images_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- Library file names by use (#298 phase 3, AssetNames): an imported file (no `assets` row, read-only – #244) is listed
 -- under the name its use gives, kept by URL like its credits; the URL and the file never change
 CREATE TABLE IF NOT EXISTS `asset_names` (
@@ -339,7 +327,7 @@ CREATE TABLE IF NOT EXISTS `asset_names` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Scenes (#307 phase 2): the book's groups – a label over several scenes (`GroupData[]`, the content's root `groups`);
--- a scene (a `spreads` row) names its group in its data_json (`group`), with its surfaces, layout and label
+-- a scene (a `scenes` row) names its group in its data_json (`group`), with its surfaces, layout and label
 ALTER TABLE `books` ADD COLUMN `groups_json` TEXT NOT NULL DEFAULT '[]';
 
 -- Reverts (#312): a revert is a new change; the changes one revert writes share a set, each names the change it takes back
@@ -361,3 +349,14 @@ CREATE TABLE IF NOT EXISTS `surface_references` (
   PRIMARY KEY (`book_id`, `scene_id`, `surface_id`),
   CONSTRAINT `surface_references_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Schema 3.0 cleanup (#319, every book is migrated to 3.0): the 2.x page model's columns (RULES #25: the table
+-- `page_images` stays, unread; an old database keeps its index `entries_spread` on the renamed column), the change
+-- log's old kind and the behaviour rules' scene scope and event
+ALTER TABLE `scenes` DROP COLUMN `first_page`;
+ALTER TABLE `scenes` DROP COLUMN `last_page`;
+ALTER TABLE `entries` DROP COLUMN `page`;
+UPDATE `changes` SET `kind` = 'scene' WHERE `kind` = 'spread';
+UPDATE `entities` SET `data_json` = REPLACE(REPLACE(`data_json`, '"scope":"spread"', '"scope":"scene"'), '"spreadChanged"', '"sceneChanged"') WHERE `data_json` LIKE '%spread%';
+UPDATE `targets` SET `data_json` = REPLACE(REPLACE(`data_json`, '"scope":"spread"', '"scope":"scene"'), '"spreadChanged"', '"sceneChanged"') WHERE `data_json` LIKE '%spread%';
+UPDATE `scenes` SET `data_json` = REPLACE(REPLACE(`data_json`, '"scope":"spread"', '"scope":"scene"'), '"spreadChanged"', '"sceneChanged"') WHERE `data_json` LIKE '%spread%';

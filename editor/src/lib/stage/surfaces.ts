@@ -48,7 +48,7 @@ export interface SurfaceRect {
   height: number;
 }
 
-/** The scene as the stage reads it: its surfaces (a `SceneData` / `Spread`) */
+/** The scene as the stage reads it: its surfaces (a `SceneData` / `Scene`) */
 export interface SceneShape {
   surfaces?: readonly SurfaceData[];
 }

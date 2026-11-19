@@ -15,7 +15,7 @@
  */
 
 import { frameBox, frameRects, gridAreas, rectOf, type OriginFrame, type OriginId } from "./origin";
-import { MIN_PRINT_WIDTH, withWidth, type PrintBox } from "./placement";
+import { MIN_PLACE_WIDTH, withWidth, type PlaceBox } from "./placement";
 
 export const SNAP_TARGETS = ["grid", "axes", "objects", "outlines"] as const;
 export type SnapTarget = (typeof SNAP_TARGETS)[number];
@@ -157,8 +157,8 @@ export const snapMove = (input: MoveSnap): { point: Vec3; guides: SnapGuide[] } 
  */
 export type StageFrame = OriginFrame & { local?: boolean };
 
-/** A point of the spread's frame (mm from its top left corner, y down) in the stage frame */
-export const spreadToStage = (frame: StageFrame, x: number, y: number): { x: number; y: number } => {
+/** A point of the scene's frame (mm from its top left corner, y down) in the stage frame */
+export const frameToStage = (frame: StageFrame, x: number, y: number): { x: number; y: number } => {
   const box = frameBox(frame);
   return { x: tidy(box.left + x), y: tidy(box.top - y) };
 };
@@ -184,7 +184,7 @@ export const axisLines = (origin: OriginId, frame: StageFrame): PerAxis<SnapLine
   const x: SnapLine[] = [];
   const y: SnapLine[] = [];
   for (const area of gridAreas(origin, frame)) {
-    const zero = spreadToStage(frame, area.zeroX, area.zeroY);
+    const zero = frameToStage(frame, area.zeroX, area.zeroY);
     if (!x.some(line => line.at === zero.x)) x.push({ at: zero.x, kind: "axes" });
     if (!y.some(line => line.at === zero.y)) y.push({ at: zero.y, kind: "axes" });
   }
@@ -192,7 +192,7 @@ export const axisLines = (origin: OriginId, frame: StageFrame): PerAxis<SnapLine
 };
 
 /** The pages' outlines: their edges (the spine too) and the page plane */
-export const pageLines = (frame: StageFrame): PerAxis<SnapLine[]> => {
+export const surfaceLines = (frame: StageFrame): PerAxis<SnapLine[]> => {
   const unique = (values: number[]) => [...new Set(values.map(tidy))];
   const rects = frameRects(frame);
   return [
@@ -203,7 +203,7 @@ export const pageLines = (frame: StageFrame): PerAxis<SnapLine[]> => {
 };
 
 /** A printed target's box in the stage frame (flat on the page), from its place and its printed height */
-export const printStageBox = (box: PrintBox, height: number, frame: StageFrame): StageBox => {
+export const placeStageBox = (box: PlaceBox, height: number, frame: StageFrame): StageBox => {
   const rect = rectFor(frame, box.surface);
   const left = rect.left + box.x;
   const top = rect.top - box.y;
@@ -220,9 +220,9 @@ export const joinLines = (...sources: PerAxis<readonly SnapLine[]>[]): PerAxis<S
  */
 export const incrementsAt = (x: number, origin: OriginId, frame: StageFrame, step: number): PerAxis<Increment> => {
   const areas = gridAreas(origin, frame).map(area => ({
-    left: spreadToStage(frame, area.left, 0).x,
-    right: spreadToStage(frame, area.left + area.width, 0).x,
-    zero: spreadToStage(frame, area.zeroX, area.zeroY),
+    left: frameToStage(frame, area.left, 0).x,
+    right: frameToStage(frame, area.left + area.width, 0).x,
+    zero: frameToStage(frame, area.zeroX, area.zeroY),
   }));
   const distance = (area: (typeof areas)[number]) => (x < area.left ? area.left - x : x > area.right ? x - area.right : 0);
   const area = areas.reduce((best, next) => (distance(next) < distance(best) ? next : best), areas[0]);
@@ -258,14 +258,14 @@ export const chosenLines = (lines: PerAxis<readonly SnapLine[]>, snapTo: readonl
  * top edge, centre or bottom edge to the lines (other prints, the page's edges, the axes, objects) – else its top left
  * corner to the steps; the **corner** (the width) snaps the right edge. `height` is the printed height (mm).
  */
-export const snapPlace = <P extends PrintBox>(
+export const snapPlace = <P extends PlaceBox>(
   place: P,
   height: number,
   kind: "move" | "width",
   input: { frame: StageFrame; lines: PerAxis<readonly SnapLine[]>; threshold: number; settings: SnapSettings },
 ): { place: P; guides: SnapGuide[] } => {
   const { frame, lines, threshold, settings } = input;
-  const box = printStageBox(place, height, frame);
+  const box = placeStageBox(place, height, frame);
   const left = box.min[0];
   const top = box.max[1];
   const steps = moveIncrements(left, settings, frame);
@@ -273,7 +273,7 @@ export const snapPlace = <P extends PrintBox>(
   if (kind === "width") {
     const right = snapAxis(box.max[0], [], lines[0], threshold, steps[0]);
     if (right.line) guides.push({ axis: 0, line: right.line });
-    return { place: withWidth(place, Math.max(MIN_PRINT_WIDTH, tidy(right.value - left))), guides };
+    return { place: withWidth(place, Math.max(MIN_PLACE_WIDTH, tidy(right.value - left))), guides };
   }
   const x = snapAxis(left, [place.width / 2, place.width], lines[0], threshold, steps[0]);
   const y = snapAxis(top, [-height / 2, -height], lines[1], threshold, steps[1]);

@@ -25,7 +25,7 @@ export * from "./feedback-spec";
  *   – float → half → 8 bits (`byte`, values clamped to 0…1) – with one warning. `type` on the handle says which it got.
  * - **Pause and ownership**: a buffer created while a node builds (a node type's `build`, a component's `apply`, a
  *   material's `build`) belongs to that node: it steps only while the node's object and every parent are visible in the
- *   scene (a lost target's anchor is hidden, another spread's nodes are gone) and is disposed with the node. One made
+ *   scene (a lost target's anchor is hidden, another scene's nodes are gone) and is disposed with the node. One made
  *   elsewhere (in `register`, later in a hook) belongs to the plugin and goes when the plugin is uninstalled. One made in
  *   a post-processing pass's factory belongs to the pass: it steps while the pass runs in a chain
  *   that renders with its passes and goes when the chain drops or rebuilds the pass (`post/chain.ts`). A hidden

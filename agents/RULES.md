@@ -20,22 +20,23 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
 1. **Ask before removing any feature, page, component or manager.** We are restructuring,
    not deleting. Agreed removals so far: QR scanning; MindAR; A-Frame; the reader's tune panel and in-reader editor
    (rule 32).
-2. Naming: page group = **spread** (not chapter), opened entry = **consulted** (not visited).
+2. Naming: a step of the experience = **scene** (not spread, not page – #319), scenes under one label = **group**,
+   opened entry = **consulted** (not visited); the rendered AR scene is always `Ar…` (`ArScene`, `ArState`).
    Use these terms in code, content and UI.
    Modes: `IDLE`, `SCAN`, `CONSULTATION` (UI context). "About" and "Info" are the same page (`about`).
    Set the mode only through routes (`RouterManager.navigate`), never with `draft.mode = …` in components.
-   The scene state is derived from mode + route (`components/ar-bridges/utils/scene-state.ts`), never set directly;
+   The scene state is derived from mode + route (`components/ar-bridges/utils/ar-state.ts`), never set directly;
    overlay routes (no mode) pause the scene.
-3. Max **10 image targets per spread** – the engine tracks 4 at the same moment. One constant
-   (`MAX_TARGETS_PER_SPREAD`, scripts/src/config.ts); the content build enforces it.
+3. Max **10 image targets per scene** – the engine tracks 4 at the same moment. One constant
+   (`MAX_TARGETS_PER_SCENE`, scripts/src/config.ts); the content build enforces it.
 4. Preloading target images and content = browser cache only (`PreloaderService`; in production the
    service worker stores what it fetches in its content cache – `client/sw/service-worker.ts`). The
    whole-book download (Info) goes through the same `preload()` – no second download path. Never modify the AR
-   scene before a spread is actually activated. No second scene / WebGL context – except the engine's own
+   scene before a scene is actually activated. No second scene / WebGL context – except the engine's own
    camera canvas under the three.js canvas. (The look-around world is one full-screen pass of the same renderer
    under the AR scene, `engine/src/scene/look-around/` – no scene of its own; a book's world model is rendered once into
    a cube when it loads, `look-around/environment-assets.ts`, never per frame.) The tracker keeps the neighbouring
-   spreads' image targets loaded (`prepareTargets()`, ±2 spreads with targets by default – `engine/src/utils/prepared-spreads.ts`);
+   scenes' image targets loaded (`prepareTargets()`, ±2 scenes with targets by default – `engine/src/utils/prepared-scenes.ts`);
    that is the engine's state, not the scene's. The AR code (three.js, the 8th Wall engine) is only imported
    lazily (`ar-bridges/lazy-ar-scene.ts`) – nothing on the startup path may import `ar-bridges/ar/` statically;
    the scene is built on the first scan (RUNNING).
@@ -72,12 +73,12 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     2026-10-31, #220: "a MINOR must not break. But exactly the features that are not supported then won't work – that's
     okay, it can be shown with warnings. The app has to be updated if people want to see them."):
     - **MAJOR = an older app cannot load the book, because the shape changed**: a new required field, a renamed or
-      removed field, a changed type, a new value of a required field's enum (asset type, category, step action, spread
+      removed field, a changed type, a new value of a required field's enum (asset type, category, step action, scene
       format). The app refuses content of a newer MAJOR at startup – before its guard reads it – and reads every older
       MAJOR down to `OLDEST_READABLE_SCHEMA_MAJOR` as it is (raise it when a MAJOR removes or renames something).
     - **MINOR = an older app still loads the book.** What it does not know of a kind it knows – a component, a filter,
       a pass, a material, a behaviour action, a field of a behaviour, a parameter of a known spec, a parameter kind of a
-      plugin's recorded spec – is **skipped with a warning**, never a refusal of the node, the spread or the book; a node
+      plugin's recorded spec – is **skipped with a warning**, never a refusal of the node, the scene or the book; a node
       type nobody registered renders nothing and keeps its children. The engine drops it from the configuration it reads
       (`engine/src/content/forward-compatible.ts`, before the guard) and lists it (`getSkippedFeatures()`): the reader
       shows a quiet update hint once per book version (`<new-version-notice>`), the editor a warning in its top bar. A
@@ -111,17 +112,17 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     `engine/src/types/scene.ts`); in the reader only `components/ar-bridges/ar/` imports it (the editor's stage,
     `editor/src/lib/stage/`, uses three.js for its own desk, gizmo and helpers – RULES #32). `<ar-bridge>` is the
     reader's only glue to the store. `ArScene` keeps **one** renderer (`scene/view.ts`) and one camera stream and swaps a
-    spread's targets, assets and entities in place.
+    scene's targets, assets and entities in place.
     Tracking: `scene/tracker.ts` + `scene/xr8.ts` (engine loader, image targets, anchor math – re-check the anchor
-    convention and the engine's `imageTargetData` diffing on an engine upgrade). A spread switch changes only
-    which targets are reported; a neighbour's page held in view switches the spread (`spreadSeen`). Assets:
+    convention and the engine's `imageTargetData` diffing on an engine upgrade). A scene switch changes only
+    which targets are reported; a neighbour's page held in view switches the scene (`sceneSeen`). Assets:
     `scene/assets.ts` (loaded per id, disposed when released – free GPU memory). Entity registry
     `scene/entities.ts` (add entity types with `registerEntity`, a book's own with `registerNodeType`, its materials and
     textures with `registerMaterial` / `registerTexture` – `materials.ts`, `textures.ts`; no logic in
     content; entities dispose what they create). Camera only in scan mode.
-13. Type naming: the per-entity game-configuration (JSON) types are `*Data` (`SpreadData`, `EntityData`, …,
+13. Type naming: the per-entity game-configuration (JSON) types are `*Data` (`SceneData`, `EntityData`, …,
     defined once in top-level `shared/types/`, used by the client and `scripts/`); the two root documents keep
-    their names (`GameConfiguration`, `ContentManifest`). App-internal objects have plain names (`Spread`,
+    their names (`GameConfiguration`, `ContentManifest`). App-internal objects have plain names (`Scene`,
     `Target`, `Entry`, `Step`), services and controllers `I*` interfaces, runtime state `*State`. No second copy
     of a type in another package.
 14. In the reader only `client/src/utils/game-config.ts` imports the bundled `game.config.json` and hands it to the
@@ -154,11 +155,11 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
       compatibility; compressed files); `scene/` – the AR scene and everything three.js / 8th Wall (entities, plugins and
       their runtime, behaviour, materials, textures, trackers, `post/` passes, `look-around/`); `types/` – the contract
       re-exported from `shared/` and the engine's own types (scene, errors, graphics); `utils/` – helpers without three.js
-      the apps' dev tools use too (device storage, camera requests, prepared spreads, trigger protocol). Files are
+      the apps' dev tools use too (device storage, camera requests, prepared scenes, trigger protocol). Files are
       kebab-case, named after their topic, not their class (`assets.ts` → `AssetStore`, `view.ts` → `ArView`,
       `tracker.ts` → `ImageTracker`); classes PascalCase, the interfaces of swappable parts `I*` (`IArScene`,
       `IImageTracker`), errors `*Error`. Tests in `__tests__/` next to the code.
-    - **`editor/`** (SvelteKit): `src/routes/` the pages (`[book]/`, `[book]/[spread]/`, `admin/`); `src/lib/` the app's
+    - **`editor/`** (SvelteKit): `src/routes/` the pages (`[book]/`, `[book]/[scene]/`, `admin/`); `src/lib/` the app's
       parts – Svelte components PascalCase, one per file (`TopBar.svelte`, `PublishButton.svelte`); `lib/components/`
       the shared controls built once (RULES #32: `Icon`, `ScrubNumber`, `Section`, `Segmented`, …); `lib/panels/` the
       sheet's tabs and their views (`EntityPanel`, `TreePanel`, `CodePanel`, …); `lib/stage/` the stage around the engine
@@ -180,7 +181,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     - Buttons have **no fill and never a border, only a drop shadow** (Tilman, #297) – the primary too. Their body is
       the glass: `--glass-background` (alpha 0.001, never 0 – else no backdrop blur; transparent in look) +
       `--glass-blur`. The shadow: the **gold glow marks the active item** (`--shadow-bronze`: the selected list's pill,
-      Videos while shown, the current option; the scroller's active spread `--shadow-gold`), every other pill and the
+      Videos while shown, the current option; the scroller's active scene `--shadow-gold`), every other pill and the
       "i" the **grey shadow** (`--shadow-grey`); onboarding buttons the white glow (`--shadow-glow`, secondary
       `--shadow-glow-soft`).
     - Animated gold art: `<gold-illustration src="…svg">` (files stay in `public/`).
@@ -372,7 +373,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     **no editor trace**: no editor route or chunk, no preview flag, no mock tracker, no tune panel ("es geht im
     Debug-Overlay nicht um Einstellungen" – the overlay debugs, it never edits). **The editor** (`editor/`, a SvelteKit
     app at `/editor`, same image) uses the same engine with the mock tracker and the mock stage in process, simulates
-    the game (spread, found targets, replay) in its own state, and owns the stage, the panels, saving (`/api/editor/*`)
+    the game (scene, found targets, replay) in its own state, and owns the stage, the panels, saving (`/api/editor/*`)
     and publishing. Never a second renderer or scene model: what the author sees is the engine the reader runs,
     built from the same commit. The editor never imports the reader; the reader never imports the editor.
     **The MCP server** (`mcp/`, #75, docs/mcp.md) is a client of the editor's API like the editor app – over HTTP with the
@@ -446,7 +447,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     again – over a new content build, or after a merge with one – every `<base>/assets/content/<path>` goes back to
     `/assets/content/<path>` where the new build has that file; an absolute URL to an older build stays only for a file
     the new build no longer has (the stage frame admits such builds for images and media, #252). After the import, open
-    one of the book's spreads in the editor and check that its targets' images show before handing it over.
+    one of the book's scenes in the editor and check that its targets' images show before handing it over.
 
 37. **Edits save themselves** (Tilman, 2026-11-14, #259: "autosave – it is confusing to save after adding uploads for
     example"): the editor has no Save button for an edit of the content. An edit shows at once and queues its save with

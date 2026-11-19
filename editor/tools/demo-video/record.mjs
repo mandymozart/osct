@@ -106,7 +106,7 @@ const SCENES = {
         await sleep(500);
         await press(page, "a.book");
         await sleep(1800);
-        const card = await page.center("a.spread", "The key");
+        const card = await page.center("a.scene", "The key");
         await page.moveTo(card.x, card.y - 40, 300);
         await sleep(300);
         await page.click(card.x, card.y - 40, { button: "right" });
@@ -226,7 +226,7 @@ const SCENES = {
         await sleep(1600);
         await gesture(page, 300, 560, 300, 330, 900);
         await sleep(500);
-        const card = await page.center("a.spread", "The key");
+        const card = await page.center("a.scene", "The key");
         await page.longPress(card.x, card.y - 20, 800);
         await sleep(900);
         await press(page, "[role=menuitem]", "Open");

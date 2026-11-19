@@ -16,7 +16,7 @@ declare(strict_types=1);
  *   left alone and shown nowhere – the surface coming back brings it back.
  * - A use of its Library file (`AssetNames::usesOf`, kind `reference`): counted, relinked when the file is replaced,
  *   removed with a forced delete of the file; it names the file `<scene>_<surface>` (#298).
- * - The page images (#251) became references with the migration to the content schema 3.0 (`Migration3`, #319).
+ * - The page images (#251) became references with the migration to the content schema 3.0 (#319, migrated on staging).
  */
 final class SurfaceReferences
 {
@@ -77,7 +77,7 @@ final class SurfaceReferences
     /** Whether the scene still has the surface */
     public static function surfaceExists(string $bookId, string $sceneId, string $surfaceId): bool
     {
-        $row = Db::one('SELECT data_json FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $sceneId]);
+        $row = Db::one('SELECT data_json FROM scenes WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $sceneId]);
         if (!$row) return false;
         $data = Editor::decode($row['data_json']);
         return $data instanceof stdClass && in_array($surfaceId, Scenes::surfaceIds($data), true);
@@ -110,7 +110,7 @@ final class SurfaceReferences
         $libraryName = null;
         if ($hasUrl && $body->url !== null) [$url, $libraryName] = self::image($bookId, $body->url);
         [$reference, $changed] = Db::transaction(static function () use ($bookId, $sceneId, $surfaceId, $hasUrl, $url, $fit, $name, $libraryName, $user) {
-            $row = Db::one('SELECT data_json FROM spreads WHERE book_id = :book AND id = :id' . Db::forUpdate(), ['book' => $bookId, 'id' => $sceneId]);
+            $row = Db::one('SELECT data_json FROM scenes WHERE book_id = :book AND id = :id' . Db::forUpdate(), ['book' => $bookId, 'id' => $sceneId]);
             if (!$row) throw new ApiError(404, 'not-found', 'No such scene.');
             $data = Editor::decode($row['data_json']);
             if (!$data instanceof stdClass || !in_array($surfaceId, Scenes::surfaceIds($data), true)) throw new ApiError(404, 'not-found', "The scene has no surface \"$surfaceId\".");

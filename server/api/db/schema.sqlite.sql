@@ -1,6 +1,13 @@
 -- Local development / tests only (DB_SQLITE_PATH): the same tables as schema.mysql.sql.
 -- Created automatically when the SQLite file is new.
 
+-- Schema 3.0 names (#319): the 2.x tables and columns renamed in place – run before the CREATE TABLEs below, each skipped
+-- when its old name is gone (a new database creates the new names; Db::migrate)
+ALTER TABLE spreads RENAME TO scenes;
+ALTER TABLE scenes RENAME COLUMN title TO label;
+ALTER TABLE entries RENAME COLUMN spread_id TO scene_id;
+ALTER TABLE books RENAME COLUMN initial_spread_id TO initial_scene;
+
 CREATE TABLE IF NOT EXISTS users (
   id TEXT NOT NULL PRIMARY KEY,
   email TEXT NOT NULL UNIQUE,
@@ -67,7 +74,7 @@ CREATE TABLE IF NOT EXISTS books (
   title TEXT NOT NULL,
   author TEXT NOT NULL,
   book_json TEXT NOT NULL,
-  initial_spread_id TEXT NOT NULL,
+  initial_scene TEXT NOT NULL,
   assets_base TEXT NOT NULL DEFAULT '',
   files_json TEXT NOT NULL,
   content_schema TEXT NOT NULL,
@@ -76,13 +83,11 @@ CREATE TABLE IF NOT EXISTS books (
   updated_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS spreads (
+CREATE TABLE IF NOT EXISTS scenes (
   book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
   id TEXT NOT NULL,
   position INTEGER NOT NULL,
-  title TEXT NOT NULL,
-  first_page INTEGER NOT NULL,
-  last_page INTEGER NOT NULL,
+  label TEXT NOT NULL,
   data_json TEXT NOT NULL,
   PRIMARY KEY (book_id, id)
 );
@@ -90,15 +95,14 @@ CREATE TABLE IF NOT EXISTS spreads (
 CREATE TABLE IF NOT EXISTS entries (
   book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
   id TEXT NOT NULL,
-  spread_id TEXT NULL DEFAULT NULL,
+  scene_id TEXT NULL DEFAULT NULL,
   position INTEGER NOT NULL,
   category TEXT NOT NULL,
   title TEXT NOT NULL,
-  page INTEGER NOT NULL,
   data_json TEXT NOT NULL,
   PRIMARY KEY (book_id, id)
 );
-CREATE INDEX IF NOT EXISTS entries_spread ON entries (book_id, spread_id);
+CREATE INDEX IF NOT EXISTS entries_scene ON entries (book_id, scene_id);
 
 CREATE TABLE IF NOT EXISTS targets (
   book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
@@ -253,18 +257,6 @@ CREATE TABLE IF NOT EXISTS asset_credits (
   PRIMARY KEY (book_id, url)
 );
 
--- Page images per book page (schema.mysql.sql has the notes)
-CREATE TABLE IF NOT EXISTS page_images (
-  book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
-  page INTEGER NOT NULL,
-  facing INTEGER NOT NULL DEFAULT 0,
-  url TEXT NOT NULL,
-  name TEXT NOT NULL,
-  updated_by TEXT NULL DEFAULT NULL,
-  updated_at INTEGER NOT NULL,
-  PRIMARY KEY (book_id, page, facing)
-);
-
 -- Library file names by use for imported files (schema.mysql.sql has the notes)
 CREATE TABLE IF NOT EXISTS asset_names (
   book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
@@ -294,3 +286,14 @@ CREATE TABLE IF NOT EXISTS surface_references (
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (book_id, scene_id, surface_id)
 );
+
+-- Schema 3.0 cleanup (#319, every book is migrated to 3.0): the 2.x page model's columns (RULES #25: the table
+-- `page_images` stays, unread; an old database keeps its index `entries_spread` on the renamed column), the change
+-- log's old kind and the behaviour rules' scene scope and event
+ALTER TABLE scenes DROP COLUMN first_page;
+ALTER TABLE scenes DROP COLUMN last_page;
+ALTER TABLE entries DROP COLUMN page;
+UPDATE changes SET kind = 'scene' WHERE kind = 'spread';
+UPDATE entities SET data_json = REPLACE(REPLACE(data_json, '"scope":"spread"', '"scope":"scene"'), '"spreadChanged"', '"sceneChanged"') WHERE data_json LIKE '%spread%';
+UPDATE targets SET data_json = REPLACE(REPLACE(data_json, '"scope":"spread"', '"scope":"scene"'), '"spreadChanged"', '"sceneChanged"') WHERE data_json LIKE '%spread%';
+UPDATE scenes SET data_json = REPLACE(REPLACE(data_json, '"scope":"spread"', '"scope":"scene"'), '"spreadChanged"', '"sceneChanged"') WHERE data_json LIKE '%spread%';

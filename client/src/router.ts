@@ -5,7 +5,7 @@
  * belongs to; `navigate()` sets route and mode in one update.
  * Routes without a mode (error, not-found) are overlays and keep the current mode.
  * URLs: services/LinkService.ts (/<slug>/<param value>?osct=<version>). `/scene` has no route param at
- * runtime (the active spread is `state.currentSpread`); `spreadId` names it in links.
+ * runtime (the active scene is `state.currentScene`); `sceneId` names it in links.
  */
 
 import { GameMode, type PageRouterConfiguration, Pages } from "./types";
@@ -19,10 +19,10 @@ export const router: PageRouterConfiguration = {
       mode: GameMode.IDLE,
     },
     {
-      page: Pages.SPREAD,
+      page: Pages.SCENE,
       slug: "/scene",
       mode: GameMode.SCAN,
-      param: "spreadId"
+      param: "sceneId"
     },
     {
       page: Pages.ABOUT,

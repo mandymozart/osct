@@ -1,7 +1,7 @@
 import type { DeviceStorage } from "@engine/utils/device-storage";
 
 /**
- * The engine's switches for this device (the debug overlay's camera lens, resolution, zoom request and spreads kept
+ * The engine's switches for this device (the debug overlay's camera lens, resolution, zoom request and scenes kept
  * ready – `@engine/utils/device-storage`) in localStorage, each as `osct-<key>`. `main.ts` hands it to the engine at
  * startup, before anything reads a switch. Blocked storage throws; the engine then keeps the default.
  */

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { describePayload, formatElapsed, logEvent, type StageEvent } from "../event-log";
 
-const state = (detail: string, at = 0): StageEvent => ({ event: "sceneState", detail, at });
+const state = (detail: string, at = 0): StageEvent => ({ event: "arState", detail, at });
 
 describe("logEvent: the Inspector's event timeline", () => {
   it("puts the newest first and keeps at most the log's size", () => {
@@ -17,10 +17,10 @@ describe("logEvent: the Inspector's event timeline", () => {
     log = logEvent(log, state('state: "running"', 50));
     log = logEvent(log, { event: "targetFound", detail: 'targetId: "a"', at: 60 });
     log = logEvent(log, state('state: "running"', 70));
-    expect(log.filter(e => e.event === "sceneState")).toHaveLength(1);
+    expect(log.filter(e => e.event === "arState")).toHaveLength(1);
     log = logEvent(log, state('state: "paused"'));
     log = logEvent(log, state('state: "running"'));
-    expect(log.filter(e => e.event === "sceneState").map(e => e.detail)).toEqual(['state: "running"', 'state: "paused"', 'state: "running"']);
+    expect(log.filter(e => e.event === "arState").map(e => e.detail)).toEqual(['state: "running"', 'state: "paused"', 'state: "running"']);
   });
 
   it("keeps repeated ordinary events – each find is news", () => {
@@ -42,7 +42,7 @@ describe("describePayload: an event's payload as one line", () => {
   });
 });
 
-describe("formatElapsed: the time since the spread opened", () => {
+describe("formatElapsed: the time since the scene opened", () => {
   it("shows seconds with hundredths under a minute", () => {
     expect(formatElapsed(0)).toBe("0.00 s");
     expect(formatElapsed(4250)).toBe("4.25 s");

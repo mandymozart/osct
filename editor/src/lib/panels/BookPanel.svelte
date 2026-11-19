@@ -15,11 +15,11 @@
    * `bookSource`), the experience's post-processing and appearance (#307 3c – every scene without its own shows them) and
    * where its content files live.
    */
-  let { bookId, stage = null, spreadId = null }: {
+  let { bookId, stage = null, sceneId = null }: {
     bookId: string;
     /** In a scene's workspace: the stage the experience's looks preview on (#307 3c) */
     stage?: Stage | null;
-    spreadId?: string | null;
+    sceneId?: string | null;
   } = $props();
 
   let tree = $state<BookTree | null>(null);
@@ -50,7 +50,7 @@
     }
   };
   const SOURCE_LABELS: Record<SourceOfTruth, string> = { print: "print first", digital: "digital first" };
-  const SOURCE_HELP = "Where the book's spreads come from. Print first: the printed book is the truth – its spreads, pages and printed placements come from an import of the layout, so the editor adds and removes no spreads. Digital first: the editor is the truth – spreads are added (the add tile on the book page, + after the last spread, the tree's spread menu) and removed here. An imported book starts print first.";
+  const SOURCE_HELP = "Where the book's scenes come from. Print first: the printed book is the truth – its scenes, pages and printed placements come from an import of the layout, so the editor adds and removes no scenes. Digital first: the editor is the truth – scenes are added (the add tile on the book page, + after the last scene, the tree's scene menu) and removed here. An imported book starts print first.";
 </script>
 
 <div class="head">
@@ -66,18 +66,18 @@
   {/key}
   <Section id="book.source" label="source of truth" summary={SOURCE_LABELS[bookSource.value]} help={SOURCE_HELP}>
     <div class="row" data-help-name="Source of truth" data-help={SOURCE_HELP}>
-      <span class="label">spreads</span>
+      <span class="label">scenes</span>
       <span class="controls"><Segmented options={SOURCES_OF_TRUTH} value={bookSource.bookId === bookId ? bookSource.value : null} labels={SOURCE_LABELS}
-        titles={{ print: "The printed book is the truth: spreads come from the layout's import", digital: "The editor is the truth: spreads are added and removed here" }}
+        titles={{ print: "The printed book is the truth: scenes come from the layout's import", digital: "The editor is the truth: scenes are added and removed here" }}
         label="Source of truth" onchange={v => void setSource(v)} /></span></div>
     <div class="row"><span class="label"></span>
-      <span class="small muted">{bookSource.digital ? "made in the editor – spreads are added and removed here" : "from the printed layout – spreads come with an import"}</span></div>
+      <span class="small muted">{bookSource.digital ? "made in the editor – scenes are added and removed here" : "from the printed layout – scenes come with an import"}</span></div>
     {#if sourceBusy}<p class="small muted">Saving…</p>{/if}
     {#if sourceError}<p class="small danger">{sourceError}</p>{/if}
   </Section>
-  {#if spreadId}
+  {#if sceneId}
     <!-- The experience's looks (#307 3c, Tilman): its post-processing and how entities appear – every scene without its own -->
-    <PassesPanel {stage} {bookId} {spreadId} level="book" />
+    <PassesPanel {stage} {bookId} {sceneId} level="book" />
     <AppearancePanel {stage} {bookId} />
   {/if}
   <div class="row" data-help-name="Assets" data-help="Where the book's content files (the layout, the imported pictures, models and videos) are read from – set by the import; empty: the draft's own origin.">

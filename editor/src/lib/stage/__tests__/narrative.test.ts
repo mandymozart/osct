@@ -7,9 +7,9 @@ describe("the Inspector's variables: types and typed text", () => {
     expect(varType(true)).toBe("boolean");
     expect(varType(0)).toBe("number");
     expect(varType("")).toBe("string");
-    expect(withTypes([{ scope: "book", name: "hasKey", value: true }, { scope: "spread", name: "count", value: 2 }])).toEqual([
+    expect(withTypes([{ scope: "book", name: "hasKey", value: true }, { scope: "scene", name: "count", value: 2 }])).toEqual([
       { scope: "book", name: "hasKey", value: true, type: "boolean" },
-      { scope: "spread", name: "count", value: 2, type: "number" },
+      { scope: "scene", name: "count", value: 2, type: "number" },
     ]);
   });
 
@@ -33,7 +33,7 @@ describe("the Inspector's variables: types and typed text", () => {
 });
 
 describe("tapTargets: the tap buttons", () => {
-  const target = (id: string, extra: Partial<Target> = {}): Target => ({ id, entryId: id, spreadId: "s", imageSrc: `/${id}.jpg`, ...extra });
+  const target = (id: string, extra: Partial<Target> = {}): Target => ({ id, entryId: id, sceneId: "s", imageSrc: `/${id}.jpg`, ...extra });
   const entries = [
     { title: "The key", target: target("key") },
     { title: "A note without target" },

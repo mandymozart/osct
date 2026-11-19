@@ -8,7 +8,7 @@ import { CORE_EVENTS, EVENT_NAME_PATTERN, observeEvents, resetVars, runtimeApi, 
 
 /** The built-in behaviour component: rules on the node's events and the bus, conditions on variables, actions */
 
-const target = (id: string, entity?: EntityData): Target => ({ id, entryId: id, spreadId: "a", imageSrc: `/${id}.jpg`, entity });
+const target = (id: string, entity?: EntityData): Target => ({ id, entryId: id, sceneId: "a", imageSrc: `/${id}.jpg`, entity });
 const group = (extra: Partial<EntityData> = {}): EntityData => ({ type: "group", assets: [], ...extra });
 const behaviour = (rules: unknown[]) => ({ type: "behaviour", rules });
 
@@ -53,7 +53,7 @@ describe("behaviour: conditions", () => {
   it("reads the innermost scope that has the variable, like api.vars.get", () => {
     const v = vars();
     v.set("mood", "calm", "book");
-    v.set("mood", "angry", "spread");
+    v.set("mood", "angry", "scene");
     expect(passes({ match: "all", tests: [{ name: "mood", value: "angry", not: false }] }, v)).toBe(true);
   });
 });
@@ -142,7 +142,7 @@ describe("behaviour: events and actions", () => {
     runtimeApi("narrative").events.emit("doorOpened", { by: "key" });
     expect(vars().get("lampOn", "stage")).toBe(true);
     instance.onUnlocked();
-    expect(vars().get("firstFind", "spread")).toBe(true);
+    expect(vars().get("firstFind", "scene")).toBe(true);
     // disposed: the bus no longer reaches it
     instance.dispose();
     resetVars();

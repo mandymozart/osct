@@ -91,7 +91,7 @@ const describeError = (error: unknown): string => (error instanceof Error ? `${e
 /**
  * The post-processing chain over the view's one renderer: the scene is rendered into a buffer, the passes of the
  * content run over it in order (`passes: [{ type, … }]`, from the pass registry), and the result lies on the canvas
- * as the scene would. Built only while a spread names passes; `set([])` frees everything – a spread without passes
+ * as the scene would. Built only while a scene names passes; `set([])` frees everything – a scene without passes
  * renders straight to the canvas as before (no cost). `enabled` off keeps the passes but renders without them (the
  * editor's viewport outside *rendered*). A pass the content switched off (`enabled: false`, #233) is not built: the
  * chain runs the others as if it were not in the list.

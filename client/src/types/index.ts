@@ -1,6 +1,6 @@
 export * from "./user"
 export * from "./camera"
-export * from "./spreads"
+export * from "./scenes"
 export * from "./common"
 export * from "./entries"
 export * from "./errors"

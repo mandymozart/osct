@@ -13,7 +13,7 @@ import {
   getContentBaseUrl,
   getContentSizes,
   getEntries,
-  getSpreads,
+  getScenes,
   getTargets,
   isContentUrl,
   loadGameConfiguration,
@@ -57,7 +57,7 @@ describe("loading the game configuration from a content base URL", () => {
   });
 
   it("follows latest.json to the version folder and turns content paths into its URLs", async () => {
-    const imagePath = getSpreads().flatMap(s => getTargets(s.id))[0].imageSrc as string;
+    const imagePath = getScenes().flatMap(s => getTargets(s.id))[0].imageSrc as string;
     const fetch = cdn({
       [`${BASE}/latest.json`]: manifest,
       [`${VERSION}/game.config.json`]: bundled,
@@ -67,9 +67,9 @@ describe("loading the game configuration from a content base URL", () => {
     expect(getConfigurationError()).toBeNull();
     expect(getContentBaseUrl()).toBe(VERSION);
 
-    const spreads = getSpreads();
-    expect(spreads.length).toBe(bundled.scenes.length);
-    const imageSrc = spreads.flatMap(s => getTargets(s.id))[0].imageSrc;
+    const scenes = getScenes();
+    expect(scenes.length).toBe(bundled.scenes.length);
+    const imageSrc = scenes.flatMap(s => getTargets(s.id))[0].imageSrc;
     expect(imageSrc).toBe(`${VERSION}${imagePath}`);
     expect(getAssets().every(a => a.src.startsWith(`${VERSION}/assets/content/`))).toBe(true);
     expect(getEntries().flatMap(e => (e.image ? [e.image] : [])).every(src => src.startsWith(`${VERSION}/assets/content/`))).toBe(true);
@@ -107,7 +107,7 @@ describe("loading the game configuration from a content base URL", () => {
     await loadGameConfiguration({ baseUrl: "" });
     expect(getContentBaseUrl()).toBe("");
     expect(getContentSizes()).toBeNull();
-    const imageSrc = getSpreads().flatMap(s => getTargets(s.id))[0].imageSrc;
+    const imageSrc = getScenes().flatMap(s => getTargets(s.id))[0].imageSrc;
     expect(imageSrc).toMatch(/^\/assets\/content\//);
     expect(isContentUrl(imageSrc)).toBe(true);
     expect(contentUrl(imageSrc)).toBe(imageSrc);
@@ -118,7 +118,7 @@ describe("loading the game configuration from a content base URL", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const missing = await loadGameConfiguration({ baseUrl: BASE, fetch: cdn({}) });
     expect(missing).toMatchObject({ code: ErrorCode.NETWORK_ERROR, type: "critical" });
-    expect(getSpreads()).toEqual([]);
+    expect(getScenes()).toEqual([]);
 
     const bogus = await loadGameConfiguration({ baseUrl: BASE, fetch: cdn({ [`${BASE}/latest.json`]: { build: "../x" } }) });
     expect(bogus).toMatchObject({ code: ErrorCode.NETWORK_ERROR, type: "critical" });
@@ -171,14 +171,14 @@ describe("content compatibility", () => {
     });
     expect(newer).toMatchObject({ code: ErrorCode.NOT_SUPPORTED, type: "critical" });
     expect(newer?.msg).not.toBe("");
-    expect(getSpreads()).toEqual([]);
+    expect(getScenes()).toEqual([]);
 
     const minor = await loadGameConfiguration({
       baseUrl: BASE,
       fetch: cdn({ [`${BASE}/latest.json`]: manifest, [`${VERSION}/game.config.json`]: withSchema(schema(app.major, app.minor + 1)) }),
     });
     expect(minor).toBeNull();
-    expect(getSpreads().length).toBe(bundled.scenes.length);
+    expect(getScenes().length).toBe(bundled.scenes.length);
     vi.restoreAllMocks();
     await loadGameConfiguration();
   });

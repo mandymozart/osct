@@ -47,15 +47,15 @@ describe("the rule editor's logic (#88)", () => {
     expect(rule.when).toBeNull();
     rule = withAction(rule, 0, newAction("play"));
     rule = withAction(rule, 1, newAction("set", undefined, ["hasKey"]));
-    expect(rule.do).toEqual([{ action: "play", clip: "", node: "" }, { action: "set", name: "hasKey", value: true, scope: "spread" }]);
+    expect(rule.do).toEqual([{ action: "play", clip: "", node: "" }, { action: "set", name: "hasKey", value: true, scope: "scene" }]);
     rule = withAction(rule, 0, undefined);
-    expect(rule.do).toEqual([{ action: "set", name: "hasKey", value: true, scope: "spread" }]);
+    expect(rule.do).toEqual([{ action: "set", name: "hasKey", value: true, scope: "scene" }]);
   });
 
   it("a verb changed keeps what both verbs take: the node, a set's variable", () => {
     expect(newAction("hide", { action: "play", clip: "rattle", node: "leaf" })).toEqual({ action: "hide", node: "leaf" });
     expect(newAction("play", { action: "show", node: "hint" })).toEqual({ action: "play", clip: "", node: "hint" });
-    expect(newAction("set", { action: "set", name: "doorOpen", value: false, scope: "stage" })).toEqual({ action: "set", name: "doorOpen", value: true, scope: "spread" });
+    expect(newAction("set", { action: "set", name: "doorOpen", value: false, scope: "stage" })).toEqual({ action: "set", name: "doorOpen", value: true, scope: "scene" });
     expect(newAction("emit", { action: "show", node: "hint" })).toEqual({ action: "emit", event: "" });
   });
 
