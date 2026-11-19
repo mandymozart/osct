@@ -21,7 +21,6 @@ import {
   NODE_TYPE_PATTERN,
   PASS_TYPES,
   PLUGIN_ID_PATTERN,
-  SOURCES_OF_TRUTH,
   CONTENT_SCHEMA_VERSION,
   OLDEST_READABLE_SCHEMA_MAJOR,
 } from "../../shared/types/game-config";
@@ -74,7 +73,6 @@ function readPhp(): Record<string, unknown> {
       'TEXTS' => ['text' => BookTexts::TEXT_MAX_LENGTH, 'body' => BookTexts::BODY_MAX_LENGTH, 'tags' => BookTexts::TAGS_MAX, 'tag' => BookTexts::TAG_MAX_LENGTH],
       'links' => array_map(static fn(string $url): bool => BookTexts::isLinkUrl($url), $input['links']),
       'MAX_NODE_DEPTH' => Editor::MAX_NODE_DEPTH,
-      'SOURCES_OF_TRUTH' => Editor::SOURCES_OF_TRUTH,
       'SCENES' => ['presets' => Scenes::PRESETS, 'pageMm' => Scenes::PAGE_MM, 'wallMm' => Scenes::WALL_MM, 'surfacesMax' => Scenes::SURFACES_MAX, 'referenceFits' => SurfaceReferences::FITS],
       'PASS_TYPES' => Books::PASS_TYPES,
       'MOMENTS' => Books::MOMENTS,
@@ -109,10 +107,9 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(php.COMPONENT_TYPES).toEqual([...COMPONENT_TYPES]);
     expect(php.ENTRY_CATEGORIES).toEqual([...ENTRY_CATEGORIES]);
     expect(php.MAX_NODE_DEPTH).toBe(MAX_NODE_DEPTH);
-    expect(php.SOURCES_OF_TRUTH).toEqual([...SOURCES_OF_TRUTH]);
   });
 
-  it("the book's texts: the limits and which links an entry may point to (BookTexts)", () => {
+  it("the experience's texts: the limits and which links an entry may point to (BookTexts)", () => {
     expect(php.TEXTS).toEqual({ text: TEXT_MAX_LENGTH, body: BODY_MAX_LENGTH, tags: ENTRY_TAGS.max, tag: ENTRY_TAGS.length });
     expect(php.links).toEqual(LINKS.map(isLinkUrl));
     expect(LINKS.map(isLinkUrl)).toEqual([true, true, true, false, false, false, false, false, false, false]);
@@ -134,7 +131,7 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(whole(php.ENV)).toBe(ENV_NAME.source);
   });
 
-  it("passes (the built-in list), the appearance's moments and looks, and the environment (Books)", () => {
+  it("passes (the built-in list), the appearance's moments and looks, and the environment (Experiences)", () => {
     expect(php.PASS_TYPES).toEqual([...PASS_TYPES]);
     expect(php.MOMENTS).toEqual([...MOMENTS]);
     expect(php.APPEARANCE_TYPES).toEqual([...APPEARANCE_TYPES]);

@@ -16,7 +16,7 @@ const USERS: Record<string, { email: string; roles: string[] }> = {
   "tok-editor": { email: "editor@example.com", roles: ["reader", "editor"] },
   "tok-reader": { email: "reader@example.com", roles: ["reader"] },
 };
-/** an AI connection's token, made on the editor's books page – GET /user names it */
+/** an AI connection's token, made on the editor's experiences page – GET /user names it */
 const OSCT_TOKEN = "osct_abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG";
 const AI_TOKEN = { id: "t1", name: "Claude on my laptop", prefix: "osct_abcd…", createdAt: "2026-10-30T10:00:00+00:00", lastUsedAt: "2026-10-30T10:05:00+00:00", expiresAt: "2027-04-30T10:00:00+00:00", expired: false };
 
@@ -27,7 +27,7 @@ function accountsApi(seen: Seen) {
   if (token === OSCT_TOKEN) {
     if (path === "/user") return { json: { user: { ...USERS["tok-editor"], language: "en" }, token: AI_TOKEN } };
     if (path === "/editor/environments") return { json: { env: "local", environments: [{ env: "local", store: "server", publish: true, url: null, warning: null }] } };
-    if (method === "POST" && path === "/editor/books/osct/publish") return { status: 403, json: { error: { code: "not-for-ai", message: "Publishing is not for an AI connection." } } };
+    if (method === "POST" && path === "/editor/experiences/osct/publish") return { status: 403, json: { error: { code: "not-for-ai", message: "Publishing is not for an AI connection." } } };
   }
   if (path === "/user") return token && USERS[token] ? { json: { user: { ...USERS[token], language: "en" } } } : { status: 401, json: { error: { code: "unauthorized", message: "Sign in." } } };
   if (method === "POST" && path === "/auth/request") return { status: 202, json: { requestId: "req-1", expiresAt: "later" } };
@@ -36,7 +36,7 @@ function accountsApi(seen: Seen) {
     if (code !== "123456") return { status: 400, json: { error: { code: "invalid-code", message: "Wrong code." } } };
     return { json: { session: "tok-editor", user: USERS["tok-editor"], created: false } };
   }
-  if (path === "/editor/books") return { json: { books: [] } };
+  if (path === "/editor/experiences") return { json: { experiences: [] } };
   return undefined;
 }
 
@@ -85,7 +85,7 @@ describe("the user's server", () => {
     const wrong = await rec.call("sign_in_verify", { requestId: "req-1", code: "000000" });
     expect(wrong.ok).toBe(false);
     expect(wrong.data.error.code).toBe("invalid-code");
-    expect(rec.tools.has("list_books")).toBe(false);
+    expect(rec.tools.has("list_experiences")).toBe(false);
 
     const verified = await rec.call("sign_in_verify", { requestId: "req-1", code: "123 456" });
     expect(verified.ok).toBe(true);
@@ -93,14 +93,14 @@ describe("the user's server", () => {
     expect(verified.data.user.email).toBe("editor@example.com");
     expect(verified.data.opened).toContain("listed now");
     expect(rec.listChanged).toBe(1);
-    expect(rec.tools.has("list_books")).toBe(true);
+    expect(rec.tools.has("list_experiences")).toBe(true);
     expect(rec.tools.has("put_plugin")).toBe(true);
     expect(rec.prompts.has("editor")).toBe(true);
     expect(rec.resources.has("content-model")).toBe(true);
 
     // the token is kept for the process: the editor's calls carry it
-    const books = await rec.call("list_books");
-    expect(books.ok).toBe(true);
+    const experiences = await rec.call("list_experiences");
+    expect(experiences.ok).toBe(true);
     expect(fake.seen.at(-1)!.headers.Authorization).toBe("Bearer tok-editor");
     const again = await rec.call("whoami");
     expect(again.data.user.roles).toContain("editor");
@@ -127,7 +127,7 @@ describe("the user's server", () => {
     const forbidden = fakeFetch(() => ({ status: 403, json: { error: { code: "forbidden", message: "Not allowed.", role: "editor" } } }));
     const r2 = recorder();
     registerContentTools(r2.server, forbidden.api("tok-reader"), { editor: CONFIG.editor });
-    const result = await r2.call("list_books");
+    const result = await r2.call("list_experiences");
     expect(result.data.error.hint).toContain("admin grants it");
   });
 });
@@ -140,7 +140,7 @@ describe("signed in with an AI connection's token (#142)", () => {
     const user = await fetchUser(api);
     expect(user).toEqual({ email: "editor@example.com", roles: ["reader", "editor"], language: "en", token: { name: "Claude on my laptop", prefix: "osct_abcd…", expiresAt: AI_TOKEN.expiresAt, lastUsedAt: AI_TOKEN.lastUsedAt } });
     createUserServer({ ...CONFIG, token: OSCT_TOKEN, tokenSource: "env" }, api, user);
-    expect(current.tools.has("list_books")).toBe(true);
+    expect(current.tools.has("list_experiences")).toBe(true);
     // the mail sign-in stays for people without a token
     expect(current.tools.has("sign_in_request")).toBe(true);
     const who = await current.call("whoami");
@@ -164,19 +164,19 @@ describe("signed in with an AI connection's token (#142)", () => {
     const fake = fakeFetch(accountsApi);
     const api = fake.api(OSCT_TOKEN);
     createUserServer({ ...CONFIG, token: OSCT_TOKEN, tokenSource: "env" }, api, await fetchUser(api));
-    const result = await current.call("publish", { book: "osct", env: "local" });
+    const result = await current.call("publish", { experience: "osct", env: "local" });
     expect(result.ok).toBe(false);
     expect(result.data.error).toMatchObject({ status: 403, code: "not-for-ai" });
     expect(result.data.error.hint).toContain("the person does it in the editor");
   });
 
-  it("an expired token: whoami's error says to renew it on the books page", async () => {
+  it("an expired token: whoami's error says to renew it on the experiences page", async () => {
     current = recorder();
     const fake = fakeFetch(accountsApi);
     createUserServer({ ...CONFIG, token: "osct_expired", tokenSource: "env" }, fake.api("osct_expired"), null);
     const who = await current.call("whoami");
     expect(who.ok).toBe(false);
     expect(who.data.error.code).toBe("token-expired");
-    expect(who.data.error.hint).toContain("renews it on the editor's books page");
+    expect(who.data.error.hint).toContain("renews it on the editor's experiences page");
   });
 });
