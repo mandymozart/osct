@@ -21,11 +21,19 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   progress, without a notice), the account option `experienceUpdates`; the splash, onboarding, about and landing read
   the author and the publisher from the printed book and leave them out without one. Inside: `<reader-app>` (was
   `<book-game>`), the look-around's `SurfaceAnchor`, `ExperienceDownload`. Reader wording unchanged.
+- **The MCP server says experience** (#320, part B2, docs/mcp.md): `list_books`, `get_book`, `update_book`,
+  `import_book`, `put_book_passes`, `put_book_appearance` are `list_experiences`, `get_experience`, `update_experience`,
+  `import_experience`, `put_experience_passes`, `put_experience_appearance`; every tool's `book` parameter is
+  `experience`, the routes `/editor/experiences/…`, the error `other-experience`, the change kind `experience`.
+  `update_experience { experience, title?, book? }` takes the printed book as `{ author?, publisher? }`, `book: null`
+  removes it. `describe_content_model` describes `experience` (with `book`) and the behaviour scope `experience`. MCP
+  clients see the new names after the server restarts.
 
 ### Removed
 
 - **The source of truth** (`sourceOfTruth`, print first / digital first, #238): every experience adds and removes its
-  scenes. Content with the field is refused by the build and the guard; `convert:4` drops it.
+  scenes. Content with the field is refused by the build and the guard; `convert:4` drops it. The MCP server's
+  `update_experience` takes no `sourceOfTruth`, and its `print-first` hint is gone.
 
 ## 2.1.0 – 2026-11-19
 

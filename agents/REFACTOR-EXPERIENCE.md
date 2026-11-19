@@ -10,7 +10,13 @@ Progress (answers in #320: all accepted; plugin API 3.0; 2026-11-19 change: `sou
   `loadingExperience`, `experienceUpdates`; `SurfaceAnchor`; `<reader-app>`; `experience.yaml`, `buildExperience`,
   `convert-content-4.ts` + test; fixture and demo converted (the demo without `book`). Temporary: the type alias
   `BookAppearance` in `shared/types/appearance.ts` (TODO #320) until B1 and C rename it.
-- [ ] B1 – server and DB · [ ] B2 – MCP · [ ] C – editor · [ ] D – content and staging
+- [ ] B1 – server and DB · [ ] C – editor · [ ] D – content and staging
+- [x] B2 – MCP (`feature/320-experience-b2`): tools `list_experiences`, `get_experience`, `update_experience`,
+  `import_experience`, `put_experience_passes`, `put_experience_appearance` (no alias), param `experience` on every tool,
+  `ExperienceModel`, `update_experience { experience, title?, book?: { author?, publisher? } | null }`, `sourceOfTruth` and
+  the `print-first` hint gone, behaviour scope `experience`, docs/mcp.md. Temporary: `mcp/src/experience-api.ts` (TODO #320
+  B1) – the integration merge deletes it, imports those names from `shared/api/editor` and renames `BookTexts` / `Books::`
+  to `ExperienceTexts` / `Experiences::` in `mcp/test/php-rules.test.ts`.
 Base: local `develop` at c35dc963 (2.0.3, content schema 3.0). Branch `feature/320-experience-plan`.
 **It plans against the state after #319** (`agents/REFACTOR-319.md`, branch `feature/319-internal-names`, all its
 recommendations approved): the code says `scene` (no more `spread`), the table `spreads` is `scenes`, `entries.scene_id`,
