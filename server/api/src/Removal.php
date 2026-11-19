@@ -26,10 +26,10 @@ final class Removal
     private array $elsewhere = [];
 
     /** @param list<array<string, mixed>> $entries the entry rows that go */
-    public function __construct(private readonly string $bookId, private readonly array $entries)
+    public function __construct(private readonly string $experienceId, private readonly array $entries)
     {
         foreach ($entries as $entry) {
-            foreach (Db::run('SELECT * FROM targets WHERE book_id = :book AND entry_id = :entry ORDER BY id', ['book' => $bookId, 'entry' => $entry['id']])->fetchAll() as $target) {
+            foreach (Db::run('SELECT * FROM targets WHERE experience_id = :experience AND entry_id = :entry ORDER BY id', ['experience' => $experienceId, 'entry' => $entry['id']])->fetchAll() as $target) {
                 $this->targets[] = $target;
             }
         }
@@ -37,9 +37,9 @@ final class Removal
         foreach ($this->targets as $target) {
             $ref = $target['entity_ref'];
             if (!is_string($ref) || $ref === '' || isset($this->entities[$ref]) || isset($this->kept[$ref])) continue;
-            $row = Db::one('SELECT * FROM entities WHERE book_id = :book AND ref = :ref', ['book' => $bookId, 'ref' => $ref]);
+            $row = Db::one('SELECT * FROM entities WHERE experience_id = :experience AND ref = :ref', ['experience' => $experienceId, 'ref' => $ref]);
             if (!$row) continue;
-            $users = array_column(Db::run('SELECT id FROM targets WHERE book_id = :book AND entity_ref = :ref ORDER BY id', ['book' => $bookId, 'ref' => $ref])->fetchAll(), 'id');
+            $users = array_column(Db::run('SELECT id FROM targets WHERE experience_id = :experience AND entity_ref = :ref ORDER BY id', ['experience' => $experienceId, 'ref' => $ref])->fetchAll(), 'id');
             $here = array_values(array_intersect($users, $targetIds));
             $others = array_values(array_diff($users, $targetIds));
             if ($others) $this->kept[$ref] = ['row' => $row, 'targets' => $here, 'usedBy' => $others];
@@ -60,7 +60,7 @@ final class Removal
             'target' => array_column($this->targets, 'id'),
             'entity' => array_keys($this->entities),
         ];
-        $assets = Db::run('SELECT * FROM assets WHERE book_id = :book AND status = :status ORDER BY name, id', ['book' => $this->bookId, 'status' => 'active'])->fetchAll();
+        $assets = Db::run('SELECT * FROM assets WHERE experience_id = :experience AND status = :status ORDER BY name, id', ['experience' => $this->experienceId, 'status' => 'active'])->fetchAll();
         $uses = null;
         foreach ($assets as $asset) {
             $named = false;
@@ -69,8 +69,8 @@ final class Removal
             }
             if (!$named) continue;
             // Every use of every file, read once (#298, `AssetNames::usesOf`)
-            $uses ??= AssetNames::usesOf($this->bookId);
-            $usedBy = array_values(array_filter(Assets::usagesOf($this->bookId, $asset, $uses),
+            $uses ??= AssetNames::usesOf($this->experienceId);
+            $usedBy = array_values(array_filter(Assets::usagesOf($this->experienceId, $asset, $uses),
                 static fn(array $usage) => !in_array($usage['ref'], $removed[$usage['kind']] ?? [], true)));
             if ($usedBy) $this->elsewhere[] = ['asset' => $asset, 'usedBy' => $usedBy];
             else $this->onlyHere[] = ['asset' => $asset, 'usedBy' => []];
@@ -114,13 +114,13 @@ final class Removal
 
     /**
      * What a confirmation of this removal is bound to: every row that goes as it is now, the kept entities' users, the
-     * files and their uses, and the book's last change – anything that changes in the book voids the id
+     * files and their uses, and the experience's last change – anything that changes in the experience voids the id
      * @param list<mixed> $more the caller's own rows (the scene)
      */
     public function state(array $more = []): string
     {
-        $log = Db::one('SELECT COUNT(*) AS n, MAX(created_at) AS latest FROM changes WHERE book_id = :book', ['book' => $this->bookId]);
-        $updated = Db::value('SELECT updated_at FROM books WHERE id = :id', ['id' => $this->bookId]);
+        $log = Db::one('SELECT COUNT(*) AS n, MAX(created_at) AS latest FROM changes WHERE experience_id = :experience', ['experience' => $this->experienceId]);
+        $updated = Db::value('SELECT updated_at FROM experiences WHERE id = :id', ['id' => $this->experienceId]);
         return Confirmation::digest([
             $more,
             array_map(static fn(array $e) => [$e['id'], $e['data_json']], $this->entries),
@@ -141,18 +141,18 @@ final class Removal
      */
     public function remove(array $user, bool $deleteFiles): array
     {
-        $book = $this->bookId;
+        $experience = $this->experienceId;
         foreach ($this->targets as $target) {
-            Db::run('DELETE FROM targets WHERE book_id = :book AND id = :id', ['book' => $book, 'id' => $target['id']]);
-            Books::recordChange($book, $user, 'target', $target['id'], $target['data_json'], 'null');
+            Db::run('DELETE FROM targets WHERE experience_id = :experience AND id = :id', ['experience' => $experience, 'id' => $target['id']]);
+            Experiences::recordChange($experience, $user, 'target', $target['id'], $target['data_json'], 'null');
         }
         foreach ($this->entities as $ref => $entity) {
-            Db::run('DELETE FROM entities WHERE book_id = :book AND ref = :ref', ['book' => $book, 'ref' => (string) $ref]);
-            Books::recordChange($book, $user, 'entity', (string) $ref, $entity['row']['data_json'], 'null');
+            Db::run('DELETE FROM entities WHERE experience_id = :experience AND ref = :ref', ['experience' => $experience, 'ref' => (string) $ref]);
+            Experiences::recordChange($experience, $user, 'entity', (string) $ref, $entity['row']['data_json'], 'null');
         }
         foreach ($this->entries as $entry) {
-            Db::run('DELETE FROM entries WHERE book_id = :book AND id = :id', ['book' => $book, 'id' => $entry['id']]);
-            Books::recordChange($book, $user, 'entry', $entry['id'], $entry['data_json'], 'null');
+            Db::run('DELETE FROM entries WHERE experience_id = :experience AND id = :id', ['experience' => $experience, 'id' => $entry['id']]);
+            Experiences::recordChange($experience, $user, 'entry', $entry['id'], $entry['data_json'], 'null');
         }
         $files = [];
         $paths = [];
@@ -163,7 +163,7 @@ final class Removal
                 array_push($paths, ...array_column($versions, 'path'));
                 Db::run('DELETE FROM asset_versions WHERE asset_id = :id', ['id' => $asset['id']]);
                 Db::run('DELETE FROM assets WHERE id = :id', ['id' => $asset['id']]);
-                Books::recordChange($book, $user, 'asset', $asset['id'], Editor::encode(Assets::before($asset, $versions)), 'null');
+                Experiences::recordChange($experience, $user, 'asset', $asset['id'], Editor::encode(Assets::before($asset, $versions)), 'null');
                 $files[] = $asset['id'];
             }
         }

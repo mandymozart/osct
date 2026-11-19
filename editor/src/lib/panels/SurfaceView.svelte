@@ -32,7 +32,7 @@
    * order and *remove surface* after a confirmation that names what lies on it. Every field saves itself (RULES #37):
    * the surface's fields with the scene's whole list (`PUT …/scenes/{id}`), one autosave subject per scene.
    */
-  let { bookId, sceneId, surfaceId }: { bookId: string; sceneId: string; surfaceId: string } = $props();
+  let { experienceId, sceneId, surfaceId }: { experienceId: string; sceneId: string; surfaceId: string } = $props();
 
   const scene = $derived(scenes.scene(sceneId));
   const surface = $derived(scene?.surfaces.find(s => s.id === surfaceId));
@@ -58,7 +58,7 @@
     draft = updateSurface([draft], draft.id, patch)[0];
     const sceneKey = sceneId;
     const id = surfaceId;
-    autosave.queue(`scene:${bookId}:${sceneKey}:surfaces`, async () => {
+    autosave.queue(`scene:${experienceId}:${sceneKey}:surfaces`, async () => {
       const now = scenes.scene(sceneKey)?.surfaces ?? [];
       const next = updateSurface(now, id, patch);
       if (!sameSurfaces(next, now)) await scenes.putScene(sceneKey, { surfaces: next });
@@ -89,11 +89,11 @@
         oncancel: () => (picking = false) }
     : null);
   $effect(() => {
-    if (library.bookId !== bookId) void library.load(bookId);
+    if (library.experienceId !== experienceId) void library.load(experienceId);
   });
   const upload = (file: File) => run(async () => {
     // Named by its scene and surface (`<scene>_<surface>.webp`), scaled for a reference (#298, #319)
-    const asset = await library.upload(bookId, file, { fit: "reference", surface: { scene: sceneId, surface: surfaceId } });
+    const asset = await library.upload(experienceId, file, { fit: "reference", surface: { scene: sceneId, surface: surfaceId } });
     if (asset.kind !== "image") throw new Error(`${asset.name} is no image – it stays in the Library`);
     await scenes.putReference(sceneId, surfaceId, { url: asset.url, name: asset.name });
   });
@@ -113,7 +113,7 @@
 </script>
 
 {#if pick}
-  <LibraryPanel {bookId} {pick} />
+  <LibraryPanel {experienceId} {pick} />
 {:else if !scene || !surface || !draft}
   <p class="small muted">{scenes.tree ? "This surface is gone." : "Loading the surface…"}</p>
 {:else}
@@ -186,7 +186,7 @@
 
   <Section id="surface.reference" label="reference image" summary={reference ? reference.fit : "none"}
     help="A picture the editor's stage lays on the surface – a page's scan, a photo of the wall – to place targets against. Editor-only: never in the reader's content. Library… picks one, Upload adds one, the fit says how it fills the surface, remove takes it away.">
-    <div class="row" data-help="The reference image: Library… picks one of the book's images, Upload… adds one. Shown on the stage on this surface.">
+    <div class="row" data-help="The reference image: Library… picks one of the experience's images, Upload… adds one. Shown on the stage on this surface.">
       <span class="label">image</span>
       <FileField src={reference?.url} picture empty="none" accept={pickAccept({ for: "surface-reference" })} label="the surface's reference image"
         onlibrary={() => (picking = true)} onupload={f => void upload(f)} /></div>

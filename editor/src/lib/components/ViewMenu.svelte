@@ -12,14 +12,14 @@
   /**
    * The stage toolbar's **view** group (#229 – the Stage tab's *stage* section until then), next to *grid & snap*: one
    * button (`ToolMenu`, the gear) opening a panel with how the editor shows the scene – the hand shake, the origin
-   * every x / y is counted from (a 3 × 3 alignment square), the desk's top and the sky (the studio HDRI; with the book's
-   * environment its world is the sky and the HDRI waits for a book without one, #185). Stored in this browser, not in
+   * every x / y is counted from (a 3 × 3 alignment square), the desk's top and the sky (the studio HDRI; with the experience's
+   * environment its world is the sky and the HDRI waits for an experience without one, #185). Stored in this browser, not in
    * the content (`stage/preview.ts`); the button's tooltip is `viewSummary`. `open()` opens it from the stage's menu.
    */
   let preview = $state<PreviewState>(getPreview());
   onMount(() => subscribePreview(state => (preview = state)));
 
-  /** The book's environment replaces the HDRI as the sky (#185): the picker says so and stays for books without one */
+  /** The experience's environment replaces the HDRI as the sky (#185): the picker says so and stays for experiences without one */
   const environment = $derived(stageEnvironment.current);
   const summary = $derived(viewSummary(preview, { environment: !!environment }));
 
@@ -48,7 +48,7 @@
     </span>
   </div>
 
-  <div class="row rule" data-help="The top of the desk the book lies on (Eiermann's steel frame): its screen-printed plywood, or blue-grey linoleum on oak plywood. Only the top changes – the book, the targets and the camera stay where they are.">
+  <div class="row rule" data-help="The top of the desk the scene lies on (Eiermann's steel frame): its screen-printed plywood, or blue-grey linoleum on oak plywood. Only the top changes – the book, the targets and the camera stay where they are.">
     <span class="label">top</span>
     <span class="controls">
       <Segmented options={TOPS.map(t => t.id)} value={preview.top} label="Desk top" onchange={top => updatePreview({ top })} />
@@ -56,14 +56,14 @@
   </div>
 
   {#if environment}
-    <div class="row" data-help="The sky: the book's environment (the Environment tab) – while rendered its world replaces the HDRI, and the scene's own lights light the stage, as in the reader.">
+    <div class="row" data-help="The sky: the experience's environment (the Environment tab) – while rendered its world replaces the HDRI, and the scene's own lights light the stage, as in the reader.">
       <span class="label">sky</span>
       <span class="controls"><span class="small sky">{environmentSkyLabel(environment, url => library.byUrl(url)?.name)}</span></span>
     </div>
   {/if}
   <div class="row" data-help={environment
-    ? "The studio HDRI – overridden by the book's environment, used again for a book without one (Environment tab → Use the default)."
-    : "The sky and its light: a studio HDRI, shown while the shading is rendered. A book's environment replaces it (the Environment tab)."}>
+    ? "The studio HDRI – overridden by the experience's environment, used again for an experience without one (Environment tab → Use the default)."
+    : "The sky and its light: a studio HDRI, shown while the shading is rendered. An experience's environment replaces it (the Environment tab)."}>
     <span class="label">{environment ? "HDRI" : "sky"}</span>
     <span class="controls">
       <select class="field" class:overridden={!!environment} aria-label="HDRI" value={preview.hdri} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isHdriId(id)) updatePreview({ hdri: id }); }}>

@@ -7,6 +7,58 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+
+- **The experience is the top level – content schema 4.0, plugin API 3.0** (#320, `agents/REFACTOR-EXPERIENCE.md`,
+  part A: contract, engine, reader, content build). The configuration's `experience` (was `book`: `id`, `title`,
+  `passes`, `environment`, `appearance`); the printed book is its optional `book` (`author`, `publisher` – they were on
+  the top level). An experience without `book` is not a book – the demo is now one ("The Demo"). The behaviour and plugin
+  variable scope `experience` (was `book`), text nodes' `{{experience.title}}`, `latest.json` / `versions.json` name the
+  `experience`. The content source's `experience.yaml` (was `book.yaml`); `npm run convert:4` in scripts/ converts a
+  3.x source once. The reader's progress record says `experienceId` (format 3 from app 3.0.0 – a stored record keeps its
+  progress, without a notice), the account option `experienceUpdates`; the splash, onboarding, about and landing read
+  the author and the publisher from the printed book and leave them out without one. Inside: `<reader-app>` (was
+  `<book-game>`), the look-around's `SurfaceAnchor`, `ExperienceDownload`. Reader wording unchanged.
+- **The server and the database speak experience** (#320 part B1): the editor API's routes `/editor/experiences/…` (was
+  `/editor/books/…`, no alias), `PUT /editor/experiences/{id} { title?, book?: { author?, publisher? } | null }` (the
+  printed book removed with `null`), the list's and tree's `experience` (no top-level `author`), errors
+  `invalid-experience` / `other-experience`, change and usage kind `experience`, `/progress/{experienceId}`, the account
+  option `experienceUpdates` (the admin CSV too). The tables `experiences` and `experience_versions`, the columns
+  `experience_id`, `experience_json` and `experience_updates`, the `author` column gone – renamed in place on the next
+  deploy, with a data step (`Migration4`) that moves the print data into `book`, drops `sourceOfTruth` and rewrites the
+  scope and `{{experience.title}}` in the stored rows and the change log (docs/server.md). `shared/api`:
+  `ExperienceSummary`, `ExperienceList`, `ExperienceTree`, `ExperienceSaved`, `ExperienceUpdate`,
+  `ExperiencePassesSaved`, `ExperienceAppearanceSaved`, `OtherExperience`.
+- **The editor speaks experience** (#320 part C). The experience settings (⚙ after its crumb) hold its **texts** (the
+  title) and a **Printed book** section with a switch: on, the book's author and publisher; off, the experience is no
+  book – switching a saved book off asks first and removes author and publisher (`book: null`), *Undo edits* brings them
+  back. The editor calls `/editor/experiences/…` (was `/editor/books/…`); the Experiences page and the covers show the
+  author only for an experience with a printed book; the import button reads *Import 1 experience: …*. Inside: the route
+  `[experience]` (URLs unchanged), `ExperiencePanel`, `ExperienceTexts`, `ExperienceSearch`, `ExperienceCover`,
+  `StageScene`, the Inspector's section ids `experience.texts`, `experience.book`, `experience.passes` (those sections
+  open at their default once), the change log's kind `experience`. The tutorials' images `01-experiences.webp`,
+  `07-post-experience.webp`.
+- **The MCP server says experience** (#320, part B2, docs/mcp.md): `list_books`, `get_book`, `update_book`,
+  `import_book`, `put_book_passes`, `put_book_appearance` are `list_experiences`, `get_experience`, `update_experience`,
+  `import_experience`, `put_experience_passes`, `put_experience_appearance`; every tool's `book` parameter is
+  `experience`, the routes `/editor/experiences/…`, the error `other-experience`, the change kind `experience`.
+  `update_experience { experience, title?, book? }` takes the printed book as `{ author?, publisher? }`, `book: null`
+  removes it. `describe_content_model` describes `experience` (with `book`) and the behaviour scope `experience`. MCP
+  clients see the new names after the server restarts.
+
+### Removed
+
+- **The source of truth** (`sourceOfTruth`, print first / digital first, #238): every experience adds and removes its
+  scenes. Content with the field is refused by the build, the guard and the editor API's import; `convert:4` drops it,
+  the database migration too. The error `print-first` is gone.
+  scenes. Content with the field is refused by the build and the guard; `convert:4` drops it.
+  The editor's source-of-truth control goes with it: scenes are added (the + tile, + after the last scene, the tree's
+  scene menu) and removed in every experience.
+  scenes. Content with the field is refused by the build and the guard; `convert:4` drops it. The MCP server's
+  `update_experience` takes no `sourceOfTruth`, and its `print-first` hint is gone.
+
 ## 2.1.0 – 2026-11-19
 
 ### Changed

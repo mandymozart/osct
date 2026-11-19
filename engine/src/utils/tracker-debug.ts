@@ -98,7 +98,7 @@ export interface LoadTestProgress {
 }
 
 export interface LoadTestOptions {
-  /** Target budget of the window per step (nearest scenes first); values above what the book has are capped */
+  /** Target budget of the window per step (nearest scenes first); values above what the experience has are capped */
   extras: number[];
   /** How long each step measures with the phone held on the page */
   steadyMs: number;

@@ -144,7 +144,7 @@ export function register(api: PluginApi): void {
     expect(buildEntity(target(made.node), () => undefined)).not.toBeNull();
   });
 
-  it("finds a free name next to the book's plugins and types", () => {
+  it("finds a free name next to the experience's plugins and types", () => {
     expect(nodeTypeCode({ type: "model", assets: [] }, { plugins: ["my-model-code"] }).type).toBe("myModelCode2");
     expect(nodeTypeCode({ type: "model", assets: [] }, { plugins: [], types: ["myModelCode", "myModelCode2"] }).plugin).toBe("my-model-code3");
   });

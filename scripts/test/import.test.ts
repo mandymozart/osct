@@ -3,7 +3,7 @@ import path from 'path';
 import jpeg from 'jpeg-js';
 import { PNG } from 'pngjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { loadBuild, BOOK, tempDir } from './helpers';
+import { loadBuild, EXPERIENCE, tempDir } from './helpers';
 
 /** A delivery folder with a JPEG, a PNG with transparency and a mapping file */
 function makeDelivery() {
@@ -18,7 +18,7 @@ function makeDelivery() {
   fs.writeFileSync(path.join(delivery, 'shot.png'), PNG.sync.write(png));
   const mapping = path.join(root, 'mapping.yaml');
   fs.writeFileSync(mapping, [
-    'book: test',
+    'experience: test',
     'entries:',
     '  p008-1:',
     '    category: glossary',
@@ -42,7 +42,7 @@ function makeDelivery() {
   ].join('\n'));
   const content = path.join(root, 'content');
   fs.mkdirSync(content, { recursive: true });
-  fs.writeFileSync(path.join(content, 'book.yaml'), BOOK);
+  fs.writeFileSync(path.join(content, 'experience.yaml'), EXPERIENCE);
   return { root, delivery, mapping, content };
 }
 
@@ -145,7 +145,7 @@ describe('delivery import', () => {
     const root = tempDir('osct-mapping-');
     const file = path.join(root, 'mapping.yaml');
     fs.writeFileSync(file, [
-      'book: test',
+      'experience: test',
       'entries:',
       '  p002-1: { category: glossary, title: Two, page: 2, note: 7, printed: { width: 30, height: 20, position: top left, x: 5 } }',
       '  p003-1: { category: glossary, title: 2026, page: 3 }',
@@ -157,7 +157,7 @@ describe('delivery import', () => {
     const { readMapping } = await import('../src/import-delivery');
     const problems: string[] = [];
     const mapping = readMapping(file, problems);
-    expect(mapping.book).toBe('test');
+    expect(mapping.experience).toBe('test');
     expect(Object.keys(mapping.entries)).toEqual(['p002-1', 'p006-1']);
     // Unknown fields of `printed` pass on to the trigger protocol (e.g. the exact position)
     expect(mapping.entries['p002-1']).toEqual({ category: 'glossary', title: 'Two', page: 2, printed: { width: 30, height: 20, position: 'top left', x: 5 } });
@@ -170,7 +170,7 @@ describe('delivery import', () => {
       'p006-1.printed: expected { width, height, position } (mm and the place on the page)',
     ]);
 
-    fs.writeFileSync(file, 'book: test\n');
+    fs.writeFileSync(file, 'experience: test\n');
     expect(() => readMapping(file)).toThrow(`${file}: expected a mapping with "entries"`);
   });
 

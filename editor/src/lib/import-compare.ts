@@ -2,7 +2,7 @@ import type { ImportComparison, ImportedBuild } from "./api";
 import { date } from "./import-preview";
 
 /**
- * The import's version comparison (#183): before an import overwrites a book's draft, the page shows what comes in
+ * The import's version comparison (#183): before an import overwrites an experience's draft, the page shows what comes in
  * against what the draft is based on and its edits since that import – the person confirms there, never in a browser
  * dialog. These are the comparison's words; ImportForm draws them.
  */

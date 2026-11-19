@@ -1,5 +1,5 @@
 import { LoadingState, type Step } from "@/types";
-import { getBook } from "@/utils/game-config";
+import { getExperience } from "@/utils/game-config";
 import { onboardingSteps } from "@/utils";
 import { Page } from "./page";
 import { goToScan, goToStep } from "@/components/tutorial";
@@ -15,7 +15,7 @@ export class TutorialPage extends Page {
     return ["active", "step"];
   }
 
-  private steps: Step[] = onboardingSteps(getBook());
+  private steps: Step[] = onboardingSteps(getExperience());
   private stepIndex = 0;
   private advanceTimer: number | undefined;
   private waitForLoad: (() => void) | null = null;

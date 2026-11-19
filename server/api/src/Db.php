@@ -42,7 +42,9 @@ final class Db
      * an `ALTER TABLE … ADD COLUMN` is skipped when the column exists and an `ALTER TABLE … DROP COLUMN` (a removed
      * feature's column, RULES #25) when it does not; a rename (`ALTER TABLE a RENAME TO b`, `ALTER TABLE t RENAME COLUMN
      * a TO b`, #319) is skipped when the old name is gone – so a new database, which the CREATE TABLEs make with the new
-     * names, and one renamed already pass it.
+     * names, and one renamed already pass it. Each form is also skipped when its table is missing: on MariaDB a column
+     * check of a missing table throws (`SHOW COLUMNS`). After the statements, the data step (`Migration4`, #320)
+     * rewrites the JSON the renames left in the old shape – again only what still has it.
      * @return int statements in the schema
      */
     public static function migrate(): int
@@ -56,12 +58,14 @@ final class Db
             if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+RENAME\s+COLUMN\s+`?(\w+)`?\s+TO\s+`?(\w+)`?/i', $statement, $match)
                 && (!self::hasTable($match[1]) || !self::hasColumn($match[1], $match[2]))) continue;
             if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+ADD\s+COLUMN\s+`?(\w+)`?/i', $statement, $match)
-                && self::hasColumn($match[1], $match[2])) continue;
+                && (!self::hasTable($match[1]) || self::hasColumn($match[1], $match[2]))) continue;
             // A removed feature's column (RULES #25): removed once, skipped while it is gone
             if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+DROP\s+COLUMN\s+`?(\w+)`?/i', $statement, $match)
-                && !self::hasColumn($match[1], $match[2])) continue;
+                && (!self::hasTable($match[1]) || !self::hasColumn($match[1], $match[2]))) continue;
             self::pdo()->exec($statement);
         }
+        // The JSON half of a schema change, which SQL cannot write for both dialects (#320)
+        Migration4::run();
         return count($statements);
     }
 

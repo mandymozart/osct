@@ -8,7 +8,7 @@
    * entries, targets and entities, the later pages that move back, the shared entities kept – and the Library files:
    * kept, unless the person turns on the option to delete the files used only here (off at first); files used
    * elsewhere are listed as kept. Confirm sends the confirmation id back (the page does that in `onconfirm`); Keep or
-   * Esc cancels. Used by the book page's scene menu and the scene's tree for an entry – never a browser dialog.
+   * Esc cancels. Used by the experience page's scene menu and the scene's tree for an entry – never a browser dialog.
    */
   let { step, busy = false, error = null, onconfirm, oncancel }: {
     step: RemovalStep;
@@ -28,7 +28,7 @@
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <section class="removal small" role="group" aria-label={removalHeadline(impact)} onkeydown={e => { if (e.key === "Escape") oncancel(); }}>
-  {#if step.changed}<p class="danger" role="alert">The book changed since – this is what the removal takes now.</p>{/if}
+  {#if step.changed}<p class="danger" role="alert">The experience changed since – this is what the removal takes now.</p>{/if}
   <p class="headline" role="alert">{removalHeadline(impact)}</p>
   {#if keptEntitiesLine(impact)}<p class="muted">{keptEntitiesLine(impact)}</p>{/if}
   <p>{filesLine(impact, deleteFiles)}</p>

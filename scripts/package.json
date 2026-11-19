@@ -20,6 +20,7 @@
     "import": "npm run build && node dist/import-delivery.js",
     "protocol": "npm run build && node dist/protocol.js",
     "convert:3": "npm run build && node dist/convert-content-3.js",
+    "convert:4": "npm run build && node dist/convert-content-4.js",
     "layout": "python layout/extract-layout.py",
     "prepare-delivery": "python layout/prepare-delivery.py",
     "test": "vitest run"

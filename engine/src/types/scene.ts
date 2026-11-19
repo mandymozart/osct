@@ -24,7 +24,7 @@ export type ArStatus = "idle" | "loading" | "ready" | "starting" | "running" | "
 
 /**
  * Duration of the default look's reveal (the first find – shared/types/appearance.ts): how long the reader's found
- * indicator stays up where the book's look for the reveal is a plugin's, whose duration only its code knows.
+ * indicator stays up where the experience's look for the reveal is a plugin's, whose duration only its code knows.
  * Defined here so an app does not import the lazily loaded scene for it.
  */
 export const ENTITY_UNLOCK_MS = 3470;

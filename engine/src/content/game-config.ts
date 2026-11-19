@@ -21,7 +21,7 @@ import { entryPlaceLabel } from './scenes';
 import { type ContentFiles, type ContentManifest, isContentFiles, isContentManifest } from '@shared/types/content-manifest';
 import {
   type AssetData,
-  type BookData,
+  type ExperienceData,
   type ConfigurationVersion,
   type EntityData,
   type EntityRefData,
@@ -30,7 +30,7 @@ import {
   ErrorCode,
   type ErrorInfo,
   type GameConfiguration,
-  isEntryInBook,
+  isEntryInExperience,
   type PassData,
   type PluginData,
   type Scene,
@@ -40,7 +40,7 @@ import {
 /** Used until the configuration is loaded, and when it is invalid, so the app can show the error */
 const EMPTY_CONFIGURATION: GameConfiguration = {
   version: { version: '0.0.0', timestamp: '', schema: CONTENT_SCHEMA_VERSION },
-  book: { id: '', title: '', author: '' },
+  experience: { id: '', title: '' },
   initialScene: '',
   scenes: [],
   entries: [],
@@ -126,7 +126,7 @@ const fetchWithTimeout = async (fetchFn: typeof fetch, url: string, init: Reques
  * The current content version on the CDN. latest.json is the only file that changes: revalidated by the browser
  * and asked for with a value that changes once a minute (`?t=`, for edges that vary their cache by query string).
  * The version folder never changes – its files are cached like any immutable file. files.json (sizes for the
- * whole-book download) is optional.
+ * whole-experience download) is optional.
  */
 const fetchFromContentBase = async (
   baseUrl: string,
@@ -168,7 +168,7 @@ export interface LoadOptions {
   knownFeatures?: KnownFeatures;
   /**
    * The editor: targets switched off (`enabled: false`, #249) stay, with their entries, so they can be worked on. The
-   * reader (default) leaves them and their entries out – they are not in its book.
+   * reader (default) leaves them and their entries out – they are not in its experience.
    */
   keepSwitchedOffTargets?: boolean;
 }
@@ -311,9 +311,9 @@ const apply = (raw: GameConfiguration, base: string, files: ContentFiles, keepSw
     entity && isEntityRef(entity) ? config.entities[entity.ref] : entity;
 
 
-  // A switched-off target and its entry are not in the reader's book: no image target, no list entry, not counted
-  const inBook = keepSwitchedOff ? config.entries : config.entries.filter(isEntryInBook);
-  entries = inBook.map(entry => {
+  // A switched-off target and its entry are not in the reader's experience: no image target, no list entry, not counted
+  const inExperience = keepSwitchedOff ? config.entries : config.entries.filter(isEntryInExperience);
+  entries = inExperience.map(entry => {
     const { target, ...data } = entry;
     const sceneId = entry.scene;
     return {
@@ -342,17 +342,17 @@ const apply = (raw: GameConfiguration, base: string, files: ContentFiles, keepSw
 /** Version of the game configuration (content build): version, timestamp, hash, schema */
 export const getConfigVersion = (): ConfigurationVersion => config.version;
 
-export const getBook = (): BookData => config.book;
+export const getExperience = (): ExperienceData => config.experience;
 
 /**
- * The passes a scene shows: its own list (an override – `[]` turns the book's off there), else the book's (the master
+ * The passes a scene shows: its own list (an override – `[]` turns the experience's off there), else the experience's (the master
  * for every scene), else none. Pure, for the tests.
  */
-export const passesFor = (scene: { passes?: PassData[] } | undefined, book: { passes?: PassData[] }): PassData[] =>
-  scene?.passes ?? book.passes ?? [];
+export const passesFor = (scene: { passes?: PassData[] } | undefined, experience: { passes?: PassData[] }): PassData[] =>
+  scene?.passes ?? experience.passes ?? [];
 
-/** The post-processing passes over a scene's rendered image: the scene's own list, else the book's, else none */
-export const getPasses = (sceneId: string): PassData[] => passesFor(sceneById.get(sceneId), config.book);
+/** The post-processing passes over a scene's rendered image: the scene's own list, else the experience's, else none */
+export const getPasses = (sceneId: string): PassData[] => passesFor(sceneById.get(sceneId), config.experience);
 
 
 export const getInitialSceneId = (): string => config.initialScene;
@@ -362,7 +362,7 @@ export const getScenes = (): Scene[] => [...scenes];
 export const getScene = (id: string): Scene | undefined => sceneById.get(id);
 
 /**
- * The scenes next to `sceneId` in book order (the ones the scene menu reaches next) – what is preloaded
+ * The scenes next to `sceneId` in experience order (the ones the scene menu reaches next) – what is preloaded
  * ahead of a switch (target images + content, and the tracker's image targets)
  */
 export const getNeighbourScenes = (sceneId: string, range = 1): Scene[] => {
@@ -417,7 +417,7 @@ export const getSubtitleTrack = (media: string, language: string): string | unde
   return track === undefined ? undefined : contentUrl(track);
 };
 
-/** Every subtitle file of the book's videos (optionally of one scene's), as URLs of the loaded version – for preloading */
+/** Every subtitle file of the experience's videos (optionally of one scene's), as URLs of the loaded version – for preloading */
 export const getSubtitleFiles = (sceneId?: string): string[] => {
   const media = sceneId === undefined ? null : new Set(getAssets(sceneId).map(asset => asset.src));
   return (config.subtitles ?? [])
@@ -432,8 +432,8 @@ export interface SceneCredits {
 }
 
 /**
- * The book's credit lines per scene (the configuration's `credits`, schema 2.33): a scene lists the line of every file
- * its entries in the book name anywhere (in entry order) – the target image, the entry's picture, the entity's files (a shared entity's
+ * The experience's credit lines per scene (the configuration's `credits`, schema 2.33): a scene lists the line of every file
+ * its entries in the experience name anywhere (in entry order) – the target image, the entry's picture, the entity's files (a shared entity's
  * too). Scenes without a line are left out; a line a scene repeats is listed once.
  */
 export const getCredits = (): SceneCredits[] => {

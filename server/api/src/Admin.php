@@ -63,7 +63,7 @@ final class Admin
     }
 
     /**
-     * GET /admin/users.csv?newsletter=1&option=bookUpdates → the users as CSV (email, language, the update options,
+     * GET /admin/users.csv?newsletter=1&option=experienceUpdates → the users as CSV (email, language, the update options,
      * createdAt) for the mailing tool: `newsletter=1` keeps the users with any option on, `option=` with that one.
      */
     public static function usersCsv(): never

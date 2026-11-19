@@ -6,7 +6,7 @@
  * Primitives:
  *   .design         design font, tracking, size and line height
  *   .gold           gold gradient text (per element, left to right; DESIGN.md §5)
- *   .shimmer        modifier for .gold: a slow light band sweeps through the gold (#280) – the book title, "New
+ *   .shimmer        modifier for .gold: a slow light band sweeps through the gold (#280) – the experience's title, "New
  *                   marginalia unlocked"; not for body text. Off with reduced motion
  *   .muted          muted grey text
  *   .button         onboarding button: glass body (transparent), white glow, gold label (<span class="gold">)

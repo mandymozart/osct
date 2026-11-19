@@ -2,19 +2,19 @@ import { type Matrix4, PerspectiveCamera, type Quaternion, type ShaderMaterial, 
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
 import { DEFAULT_ENVIRONMENT, type EnvironmentData } from "@shared/types/environment";
 import { type GraphicsSettings, type GraphicsSource, NO_GRAPHICS } from "../../types/index";
-import { BookAnchor, yawTowards } from "./book-anchor";
+import { SurfaceAnchor, yawTowards } from "./surface-anchor";
 import { EnvironmentAssets, type EnvironmentLoaders } from "./environment-assets";
 import { DeviceOrientation } from "./orientation";
 import { lookAroundMaterial } from "./shader";
 import { SkySample } from "./sky-sample";
 
 const DEG = Math.PI / 180;
-/** Seconds the world takes to fade out (book forgotten, option turned off) */
+/** Seconds the world takes to fade out (surfaces forgotten, option turned off) */
 const FADE_OUT = 3;
 
 /**
- * What is drawn: the book's environment says which world and whether the onion sky, the reader's
- * Graphics switches apply on top – either can turn a part off, neither turns on what the book leaves out. There is no
+ * What is drawn: the experience's environment says which world and whether the onion sky, the reader's
+ * Graphics switches apply on top – either can turn a part off, neither turns on what the experience leaves out. There is no
  * built-in world any more (the café went, Tilman 2026-11-18): only the experience's own world model and sky image are
  * drawn – without them nothing (the shader's alpha); `world: "cafe"` stays the content's token for "the built-in slot".
  * Pure, for the tests.
@@ -26,15 +26,15 @@ export const effectiveGraphics = (reader: GraphicsSettings, environment: Environ
 
 /** Tuning – the running instance's copy is `window.osctLookAround` (try values on the phone over USB debugging) */
 export interface LookAroundSettings {
-  /** How much the world covers the camera picture outside the book's window (1 = fully) */
+  /** How much the world covers the camera picture outside the surfaces' window (1 = fully) */
   worldOpacity: number;
   /** How strongly sky-like camera pixels turn into the world's sky when looking up */
   skyStrength: number;
-  /** Seconds without a page before the world fades away (the gyroscope drifts; the book anchors the world) */
+  /** Seconds without a page before the world fades away (the gyroscope drifts; the surfaces anchor the world) */
   forgetAfter: number;
   /** Seconds the world takes to appear */
   fadeIn: number;
-  /** The window around the book: degrees around the tracked page, and the soft edge */
+  /** The window around the surfaces: degrees around the tracked page, and the soft edge */
   windowMargin: number;
   windowSoftness: number;
   /** Looking down, the world is fully clear this many degrees below the horizon, fully there `floorSoftness` above */
@@ -64,15 +64,15 @@ export const DEFAULT_LOOK_AROUND: LookAroundSettings = {
 
 /**
  * The scan view's surroundings, drawn under the AR scene (`ArView.underlay`) in one full-screen pass (`shader.ts`):
- * - **Scene around the book**: a world around the reader, anchored to the book (`BookAnchor`) and turned by the
- *   gyroscope (`DeviceOrientation`, 3DoF – walking does not move through it). The book and the table stay visible.
+ * - **Scene around the surfaces**: a world around the reader, anchored to the found surfaces (`SurfaceAnchor`) and turned by the
+ *   gyroscope (`DeviceOrientation`, 3DoF – walking does not move through it). The surfaces and the table stay visible.
  * - **Onion sky**: looking up, sky-like parts of the camera picture (`SkySample`) show the world's sky.
  * Both are reader options (the app's `GraphicsSource` – the reader's `GraphicsService`, Info page); with both off
  * nothing is drawn and the gyroscope is not read. See docs/look-around.md.
  */
 export class LookAround {
   readonly settings: LookAroundSettings = { ...DEFAULT_LOOK_AROUND };
-  /** The reader's switches, and what is drawn of them (`effectiveGraphics`, the book's environment applied) */
+  /** The reader's switches, and what is drawn of them (`effectiveGraphics`, the experience's environment applied) */
   private reader: GraphicsSettings;
   private options: GraphicsSettings;
   private preview: LookAroundPreview | null = null;
@@ -80,7 +80,7 @@ export class LookAround {
   private assets: EnvironmentAssets;
   private unsubscribe: () => void;
   private orientation = new DeviceOrientation();
-  private book = new BookAnchor();
+  private anchor = new SurfaceAnchor();
   private sky: SkySample;
   /** The view's projection and the phone's orientation – nothing is rendered with it */
   private camera = new PerspectiveCamera();
@@ -118,7 +118,7 @@ export class LookAround {
     });
   }
 
-  /** The book's environment changed (the editor saved, or edits it live): what is drawn and its assets follow */
+  /** The experience's environment changed (the editor saved, or edits it live): what is drawn and its assets follow */
   setEnvironment(environment: EnvironmentData): void {
     this.environment = environment;
     this.options = this.drawn();
@@ -146,32 +146,32 @@ export class LookAround {
     this.exposeForTuning();
   }
 
-  /** Scan paused or stopped: the world goes at once; the book's direction is kept for a quick return */
+  /** Scan paused or stopped: the world goes at once; the surfaces' direction is kept for a quick return */
   pause(): void {
     this.running = false;
     this.presence = 0;
     this.orientation.stop();
   }
 
-  /** Every frame: the found pages' anchors (relative to the camera) place the book; `delta` in seconds */
+  /** Every frame: the found pages' anchors (relative to the camera) place the surfaces; `delta` in seconds */
   update(delta: number, viewCamera: PerspectiveCamera, anchors: readonly Matrix4[]): void {
     if (!this.running) return;
     if (!this.anyOption()) {
-      // Both turned off while scanning: the world fades out as when the book is forgotten, nothing else is read
+      // Both turned off while scanning: the world fades out as when the surfaces are forgotten, nothing else is read
       this.presence = Math.max(0, this.presence - delta / FADE_OUT);
       this.skyInView = false;
       return;
     }
     this.time += delta;
     const orientation = this.preview?.orientation() ?? this.orientation.quaternion;
-    if (anchors.length) this.book.see(anchors, orientation, this.settings.windowMargin, this.settings.windowSoftness);
-    else this.book.unseen(delta);
+    if (anchors.length) this.anchor.see(anchors, orientation, this.settings.windowMargin, this.settings.windowSoftness);
+    else this.anchor.unseen(delta);
 
-    const known = this.book.direction !== null && this.book.sinceSeen < this.settings.forgetAfter;
+    const known = this.anchor.direction !== null && this.anchor.sinceSeen < this.settings.forgetAfter;
     const wanted = known && this.options.surroundings ? 1 : 0;
     const step = delta / (wanted > this.presence ? Math.max(0.05, this.settings.fadeIn) : FADE_OUT);
     this.presence = wanted > this.presence ? Math.min(wanted, this.presence + step) : Math.max(wanted, this.presence - step);
-    if (!known && this.presence === 0) this.book.forget();
+    if (!known && this.presence === 0) this.anchor.forget();
 
     this.camera.fov = viewCamera.fov;
     this.camera.aspect = viewCamera.aspect;
@@ -189,17 +189,17 @@ export class LookAround {
     const camera = this.options.onionSky && this.skyInView ? this.sky.update(size.x / size.y) : null;
     const u = this.material.uniforms;
     u.uTime.value = this.time;
-    u.uYaw.value = this.book.yaw;
+    u.uYaw.value = this.anchor.yaw;
     u.tCamera.value = camera;
     u.uCover.value.copy(this.sky.cover);
     u.uTexel.value.copy(this.sky.texel);
     u.uSky.value = camera ? this.settings.skyStrength : 0;
     u.uInverseProjection.value.copy(this.camera.projectionMatrixInverse);
     u.uRotation.value.setFromMatrix4(this.camera.matrixWorld);
-    if (this.book.direction) u.uBook.value.copy(this.book.direction);
-    u.uWindow.value.set(this.book.window.inner * DEG, this.book.window.outer * DEG);
+    if (this.anchor.direction) u.uAnchor.value.copy(this.anchor.direction);
+    u.uWindow.value.set(this.anchor.window.inner * DEG, this.anchor.window.outer * DEG);
     u.uFloor.value.set(-this.settings.floorClear * DEG, (this.settings.floorSoftness - this.settings.floorClear) * DEG);
-    u.uPresence.value = this.book.direction ? this.presence : 0;
+    u.uPresence.value = this.anchor.direction ? this.presence : 0;
     u.uOpacity.value = this.settings.worldOpacity;
     this.quad.render(this.renderer);
   }
@@ -217,7 +217,7 @@ export class LookAround {
     return this.options.onionSky || this.options.surroundings;
   }
 
-  /** The reader's switches on the book's environment – in the editor's preview the world whatever they say */
+  /** The reader's switches on the experience's environment – in the editor's preview the world whatever they say */
   private drawn(): GraphicsSettings {
     return this.preview ? { onionSky: false, surroundings: true } : effectiveGraphics(this.reader, this.environment);
   }
@@ -241,16 +241,16 @@ export class LookAround {
     u.uWorldModel.value = this.assets.world ? 1 : 0;
   }
 
-  /** `window.osctLookAround` = the settings; with `debugTools` also `osctLookAroundDebug` (desktop: fake book / tilt) */
+  /** `window.osctLookAround` = the settings; with `debugTools` also `osctLookAroundDebug` (desktop: fake surfaces / tilt) */
   private exposeForTuning(): void {
     const handle = window as unknown as { osctLookAround?: LookAroundSettings; osctLookAroundDebug?: object };
     handle.osctLookAround = this.settings;
     if (!this.debugTools) return;
     handle.osctLookAroundDebug = {
-      seeBook: (x = 0, y = -0.6, z = -1) => {
-        this.book.direction = new Vector3(x, y, z).normalize();
-        this.book.yaw = yawTowards(this.book.direction);
-        this.book.sinceSeen = 0;
+      seeAnchor: (x = 0, y = -0.6, z = -1) => {
+        this.anchor.direction = new Vector3(x, y, z).normalize();
+        this.anchor.yaw = yawTowards(this.anchor.direction);
+        this.anchor.sinceSeen = 0;
       },
       look: (alpha = 0, beta = 90, gamma = 0) => this.orientation.set(alpha, beta, gamma),
     };

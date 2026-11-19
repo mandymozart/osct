@@ -1,6 +1,6 @@
 import { Box3, Vector3 } from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BOOK, entry, loadBuild, makeContent, scene } from './helpers';
+import { EXPERIENCE, entry, loadBuild, makeContent, scene } from './helpers';
 import { assertGameConfiguration } from '../../shared/guards/game-config';
 import { gltfBounds, readGltfJson, zeroPlaneFindings } from '../src/build/zero-plane';
 import type { EntityData } from '../../shared/types/game-config';
@@ -26,7 +26,7 @@ export const register = (api: PluginApi): void => {
 const model = (material: string) => entry('a', 'x.jpg', `  entity:\n    type: model\n    src: m.glb\n${material}`);
 
 const content = (material: string, plugin = WATER) => ({
-  'book.yaml': BOOK,
+  'experience.yaml': EXPERIENCE,
   'scenes/a/scene.yaml': scene('1–2'),
   'entries/first/entry.yaml': model(material),
   'entries/first/x.jpg': 'image x',
@@ -61,12 +61,12 @@ describe('a plugin\'s materials and textures (#188)', () => {
   }, 30000);
 
   it('refuses a material no plugin registers, a wrong value, a texture nobody registers, a texture that is no picture', async () => {
-    expect((await build('    material:\n      type: lava\n')).errors).toEqual([expect.stringMatching(/material\.type: "lava" is not a material of the book's plugins \(water\)/)]);
+    expect((await build('    material:\n      type: lava\n')).errors).toEqual([expect.stringMatching(/material\.type: "lava" is not a material of the experience's plugins \(water\)/)]);
     expect((await build('    material:\n      type: water\n      params:\n        deep: blue\n        glow: 1\n')).errors).toEqual([
       expect.stringMatching(/material\.params\.deep: expected a color/),
       expect.stringMatching(/material\.params\.glow: unknown parameter of water/),
     ]);
-    expect((await build('    material:\n      type: water\n      params:\n        ripples: sparkles\n')).errors).toEqual([expect.stringMatching(/material\.ripples: "sparkles" is no texture a plugin of the book registers/)]);
+    expect((await build('    material:\n      type: water\n      params:\n        ripples: sparkles\n')).errors).toEqual([expect.stringMatching(/material\.ripples: "sparkles" is no texture a plugin of the experience registers/)]);
     expect((await build('    material:\n      type: water\n      params:\n        ripples:\n          type: caustics\n          cells: 99\n')).errors).toEqual([expect.stringMatching(/ripples\.cells: expected a number from 1 to 8/)]);
     expect((await build('    material:\n      type: water\n      params:\n        ripples: m.glb\n')).errors).toEqual([expect.stringMatching(/a texture is an image or a video, not "m\.glb"/)]);
   }, 60000);
@@ -99,7 +99,7 @@ describe('a plugin\'s materials and textures (#188)', () => {
   it('the shared guard checks a node\'s material against the recorded specs, and refuses one without plugins', () => {
     const config = (material: unknown, plugins?: unknown) => ({
       version: { version: '0.0.0', timestamp: 't', schema: '2.17' },
-      book: { id: 'b', title: 'B', author: 'A' },
+      experience: { id: 'b', title: 'B', book: { author: 'A' } },
       initialScene: 's',
       scenes: [{ id: 's', label: 'S', surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
       entries: [],
@@ -110,7 +110,7 @@ describe('a plugin\'s materials and textures (#188)', () => {
     expect(() => assertGameConfiguration(config({ type: 'water', params: { deep: '#123456' } }, recorded))).not.toThrow();
     expect(() => assertGameConfiguration(config({ type: 'water', params: { deep: 3 } }, recorded))).toThrow(/entities\.tank\.material\.params\.deep: expected a color/);
     expect(() => assertGameConfiguration(config({ type: 'lava' }, recorded))).toThrow(/"lava" is not a material/);
-    expect(() => assertGameConfiguration(config({ type: 'water' }))).toThrow(/the book's plugins register none/);
+    expect(() => assertGameConfiguration(config({ type: 'water' }))).toThrow(/the experience's plugins register none/);
   });
 });
 

@@ -1,5 +1,5 @@
 /**
- * Plugins: the book's own code as content (content schema 2.4, agents/research/2026-10-29-code-in-the-editor.md).
+ * Plugins: the experience's own code as content (content schema 2.4, agents/research/2026-10-29-code-in-the-editor.md).
  * A plugin is a folder `plugins/<id>/` of the content source with an `index.ts` that exports `register(api)`; the
  * content build type-checks and bundles it into `plugins/<id>/plugin.js` of the build output and declares it here.
  * The engine loads every declared plugin before it builds the first scene and hands it the plugin API
@@ -19,6 +19,8 @@
  * (was `api.spread`), the core event `sceneChanged { sceneId, previous }` (was `spreadChanged`), the variable scope `scene`
  * (was `spread`), a target's and an entry's `sceneId` (was `spreadId`), `progress.completion(sceneId?)` / `counts(sceneId?)`,
  * the AR scene's state event `arState` (was `sceneState`) – a plugin built against 1.x is not loaded until it is built again.
+ * **3.0** (#320, no alias): the variable scope `experience` (was `book`) in `api.vars.get/set/all`, behaviour rules' `scope`
+ * and `varChanged` – a plugin built against 2.x is not loaded until it is built again.
  *
  * What a plugin registers is recorded by the content build (content schema 2.14, #90): it runs every plugin once with a
  * recording API and writes the specs into the plugin's `registered` – so the guard, the editor's API, the MCP server and
@@ -34,7 +36,7 @@ import { isBuiltInPassType, type PassSpec } from "./passes";
 import { materialSpecProblems, textureSpecProblems, type MaterialSpec, type TextureSpec } from "./materials";
 import { isObject } from "../guards/primitives";
 
-export const PLUGIN_API_VERSION = "2.0";
+export const PLUGIN_API_VERSION = "3.0";
 
 /** What a plugin registered, as the content build recorded it (schema 2.14); a missing kind = none of it */
 export interface PluginRegistrations {

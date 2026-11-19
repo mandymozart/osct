@@ -27,7 +27,7 @@ const twoPages = [surface("l", 230, { label: "ii", place: place(-115) }), surfac
 
 const book = (extra: { scenes?: object[]; entries?: object[]; groups?: object[] } = {}) => ({
   version: { version: "1.120.0", timestamp: "2026-11-18T00:00:00.000Z", hash: "abc123", schema: CONTENT_SCHEMA_VERSION },
-  book: { id: "b", title: "B", author: "A" },
+  experience: { id: "b", title: "B", book: { author: "A" } },
   initialScene: "cover",
   scenes: extra.scenes ?? [
     { id: "cover", label: "Cover", surfaces: [surface("surface", 230)] },

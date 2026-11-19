@@ -2,7 +2,7 @@
 
 A slim copy of the placeholder content (every entity type, chroma key and alpha video, all scenes) with small
 images, short low-resolution videos and one stand-in model. CI and the tests build it
-(`OSCT_CONTENT_DIR=fixtures/content`). The book content is not in this repository (docs/content-cdn.md).
+(`OSCT_CONTENT_DIR=fixtures/content`). The real content is not in this repository (docs/content-cdn.md).
 
 Content schema 3.0 (#319): `scenes/<id>/scene.yaml`, entries name their scene. Two **studio scenes** are the showcase for the editor and the tests – everything the content model has today on
 two double pages: `studio-a` (pages 28–29: models rotated, scaled and lifted off the page – *Studio: tall tree* with
@@ -16,7 +16,7 @@ the editor: `/editor/studio-a`, `/editor/studio-b`. A third studio – events an
 written as the acceptance scenario for content schema 2.0 (`agents/research/2026-10-28-entity-components.md`,
 "Studio C").
 
-The fixture has one **plugin**, `plugins/tint/index.ts` – the template for a book's own code (docs/content.md
+The fixture has one **plugin**, `plugins/tint/index.ts` – the template for an experience's own code (docs/content.md
 "Plugins"): a material layer the content build type-checks and bundles, used by *Studio: standing video* as
 `components: [{ type: tint, … }]`.
 

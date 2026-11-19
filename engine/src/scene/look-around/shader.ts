@@ -34,9 +34,9 @@ const SKY_KEY = /* glsl */ `
 
 /**
  * The experience's world (no built-in world since the café went – Tilman, 2026-11-18): the sky image where the
- * environment names one (equirectangular, its centre towards the book, its top edge straight up), over it the world
+ * environment names one (equirectangular, its centre towards the surfaces, its top edge straight up), over it the world
  * model's cube (baked once from the reader's eye, transparent where the model has nothing). The alpha says where there is
- * anything: without a sky image or a world model nothing is drawn around the book.
+ * anything: without a sky image or a world model nothing is drawn around the surfaces.
  */
 const WORLD = /* glsl */ `
   const float PI = 3.141592653589793;
@@ -58,7 +58,7 @@ const WORLD = /* glsl */ `
 
 /**
  * Per pixel: the view ray in the world (from the inverse projection and the phone's orientation), then
- * - world alpha = presence × opacity, cleared in the book's window, below `uFloor` (table and book stay real) and
+ * - world alpha = presence × opacity, cleared in the surfaces' window, below `uFloor` (table and surfaces stay real) and
  *   above ~20–45° (open roof);
  * - sky alpha = the sky test above the horizon.
  * Output is premultiplied (the canvas lies over the camera canvas); pixels with neither stay transparent at once.
@@ -69,7 +69,7 @@ const COMPOSITE = /* glsl */ `
     vec3 ray = normalize(uRotation * (point.xyz / point.w));
     float elevation = asin(clamp(ray.y, -1.0, 1.0));
 
-    float outside = smoothstep(uWindow.x, uWindow.y, acos(clamp(dot(ray, uBook), -1.0, 1.0)));
+    float outside = smoothstep(uWindow.x, uWindow.y, acos(clamp(dot(ray, uAnchor), -1.0, 1.0)));
     float roof = 1.0 - smoothstep(0.35, 0.8, elevation);
     float floorClear = smoothstep(uFloor.x, uFloor.y, elevation);
     float world = uPresence * uOpacity * outside * roof * floorClear;
@@ -107,7 +107,7 @@ export const lookAroundMaterial = (): ShaderMaterial => new ShaderMaterial({
     uTexel: { value: new Vector2(0.01, 0.01) },
     uInverseProjection: { value: new Matrix4() },
     uRotation: { value: new Matrix3() },
-    uBook: { value: new Vector3(0, -1, 0) },
+    uAnchor: { value: new Vector3(0, -1, 0) },
     uWindow: { value: new Vector2(0.3, 0.6) },
     uFloor: { value: new Vector2(-0.7, -0.44) },
     uPresence: { value: 0 },
@@ -133,7 +133,7 @@ export const lookAroundMaterial = (): ShaderMaterial => new ShaderMaterial({
     uniform vec2 uTexel;
     uniform mat4 uInverseProjection;
     uniform mat3 uRotation;
-    uniform vec3 uBook;
+    uniform vec3 uAnchor;
     uniform vec2 uWindow;
     uniform vec2 uFloor;
     uniform float uPresence;

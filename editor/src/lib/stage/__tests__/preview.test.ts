@@ -171,7 +171,7 @@ describe("the view group's summary", () => {
     expect(viewSummary({ ...view, origin: "centre" })).toContain("origin scene centre");
   });
 
-  it("says the book's environment is the sky, not the HDRI (#185)", () => {
+  it("says the experience's environment is the sky, not the HDRI (#185)", () => {
     expect(viewSummary(view, { environment: true })).toBe("Eiermann · plywood · origin top left · no shake · the environment's sky");
   });
 

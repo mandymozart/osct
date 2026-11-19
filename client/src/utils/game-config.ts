@@ -3,7 +3,7 @@
  * (engine/src/content/game-config.ts); the reader adds what differs per app: the content base URL of the build
  * (`VITE_CONTENT_BASE_URL`, docs/content-cdn.md), the bundled copy (`virtual:osct-game-config` – dev server, tests)
  * and the translated startup errors. A debug build (the dev server, staging) also takes a content base URL from the
- * address – `?content=<base url>` – and keeps it for the tab, so another book (the demo) opens in the same reader.
+ * address – `?content=<base url>` – and keeps it for the tab, so another experience (the demo) opens in the same reader.
  */
 import { t } from "i18next";
 import { loadGameConfiguration as load, type LoadOptions } from "@engine/content/game-config";
@@ -15,7 +15,7 @@ export const CONTENT_OVERRIDE_KEY = "osct-content-base";
 
 /**
  * The content base URL named by `?content=<url>` on a debug build, kept in the tab's session storage so routes and
- * reloads keep the book; `?content=` (empty) forgets it. Production builds ignore the parameter. Null = none.
+ * reloads keep the experience; `?content=` (empty) forgets it. Production builds ignore the parameter. Null = none.
  */
 export const contentBaseOverride = (
   search = typeof location === "undefined" ? "" : location.search,

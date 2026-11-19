@@ -164,7 +164,7 @@ describe("appear / disappear animation", () => {
   });
 
   it("reveal and found play a look forwards, lost plays it rewound in its own time", () => {
-    expect(DEFAULT.duration).toBe(ENTITY_UNLOCK_MS); // the found indicator's label stays as long without a book's look
+    expect(DEFAULT.duration).toBe(ENTITY_UNLOCK_MS); // the found indicator's label stays as long without an experience's look
     const { anchor, placement } = entity();
     const lost = celebrate(anchor, placement, "lost");
     expect(lost.kind).toBe("lost");

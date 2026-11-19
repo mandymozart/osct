@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { convertEntryYaml, convertSceneYaml, sceneLabelOf } from '../src/convert-content-3';
-import { BOOK, loadBuild, makeContent } from './helpers';
+import { EXPERIENCE, loadBuild, makeContent } from './helpers';
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -39,7 +39,7 @@ describe('content 2.x → 3.0', () => {
 
   it('a converted source builds', async () => {
     const { content } = makeContent({
-      'book.yaml': BOOK,
+      'experience.yaml': EXPERIENCE,
       'spreads/a/spread.yaml': 'title: A\norder: 0\nfirstPage: 1\nlastPage: 2\n',
       'entries/e/entry.yaml': 'category: glossary\ntitle: E\npage: 2\ntarget:\n  image: t.jpg\n  print:\n    surface: right\n    x: 5\n    y: 6\n    width: 7\n',
       'entries/e/t.jpg': 'jpg',

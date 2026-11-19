@@ -25,7 +25,7 @@ afterEach(() => vi.restoreAllMocks());
 
 // The environment's assets: the sky image only – the world is gone (#310)
 describe("EnvironmentAssets", () => {
-  it("loads nothing for a book without a sky", async () => {
+  it("loads nothing for an experience without a sky", async () => {
     const { assets, pending, changes } = fakes();
     await assets.set(BASE);
     expect(pending.size).toBe(0);

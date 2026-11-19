@@ -6,7 +6,7 @@
   import { plugins } from "#lib/plugins.svelte.js";
 
   /**
-   * A `texture` parameter's value (#188): none, a procedural texture of the book's plugins (registered or recorded – it
+   * A `texture` parameter's value (#188): none, a procedural texture of the experience's plugins (registered or recorded – it
    * follows a Code tab Run), or a Library picture or video by its URL (the content's own pictures too). A value the lists
    * do not hold (a file since removed) stays selectable under its file name. Used by every spec row of that kind – a
    * component's, a material's, a node type's (the Inspector) and a plugin pass's (post-processing, #216).

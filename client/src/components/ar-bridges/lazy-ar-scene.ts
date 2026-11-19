@@ -35,8 +35,8 @@ export const loadArModule = (): Promise<ArModule> => {
 };
 
 /**
- * The book's variables in every scope the scene's runtime keeps – scene, stage, session and book (`allVars()`, the
- * book scope read from the reader's progress) – for the entry texts (`{hasKey}`); null while the AR chunk has not loaded
+ * The experience's variables in every scope the scene's runtime keeps – scene, stage, session and experience (`allVars()`, the
+ * experience scope read from the reader's progress) – for the entry texts (`{hasKey}`); null while the AR chunk has not loaded
  */
 export const sceneVariables = (): ReturnType<ArModule["allVars"]> | null => loadedModule?.allVars() ?? null;
 

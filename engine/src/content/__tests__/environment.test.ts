@@ -3,9 +3,9 @@ import { DEFAULT_ENVIRONMENT, environmentOf, environmentProblems, referenceExten
 import { assertGameConfiguration } from "@shared/guards/game-config";
 import { effectiveGraphics } from "../../scene/look-around/look-around";
 
-// The book's environment: the content says what is drawn, the reader's switches apply on top
-describe("book environment (content schema 2.8)", () => {
-  it("a book without one keeps today's look", () => {
+// The experience's environment: the content says what is drawn, the reader's switches apply on top
+describe("experience environment (content schema 2.8)", () => {
+  it("an experience without one keeps today's look", () => {
     expect(environmentOf({})).toEqual(DEFAULT_ENVIRONMENT);
     expect(environmentOf(undefined)).toEqual({ world: "cafe", onionSky: true });
   });
@@ -20,7 +20,7 @@ describe("book environment (content schema 2.8)", () => {
     expect(environmentProblems([])).toEqual(["environment must be an object { world, onionSky }."]);
   });
 
-  it("the reader's switches apply on top of the book's environment", () => {
+  it("the reader's switches apply on top of the experience's environment", () => {
     const reader = { onionSky: true, surroundings: true };
     expect(effectiveGraphics(reader, { world: "cafe", onionSky: true })).toEqual({ onionSky: true, surroundings: true });
     expect(effectiveGraphics(reader, { world: "cafe", onionSky: false })).toEqual({ onionSky: false, surroundings: true });
@@ -50,17 +50,17 @@ describe("environment assets (content schema 2.10)", () => {
 
   it("the build and the API refuse unknown fields, the reader's guard lets them pass", () => {
     expect(environmentProblems({ ...base, tint: 1 })).toEqual(["environment.tint is not a field of the environment."]);
-    expect(environmentProblems({ ...base, tint: 1 }, "book.environment", false)).toEqual([]);
+    expect(environmentProblems({ ...base, tint: 1 }, "experience.environment", false)).toEqual([]);
     const config = (environment: unknown) => ({
-      version: { version: "1.21.0", timestamp: "t", schema: "3.10" },
-      book: { id: "b", title: "B", author: "A", environment },
+      version: { version: "1.21.0", timestamp: "t", schema: "4.10" },
+      experience: { id: "b", title: "B", book: { author: "A" }, environment },
       initialScene: "s",
       scenes: [{ id: "s", label: "S", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
       entries: [],
       entities: {},
     });
     expect(() => assertGameConfiguration(config({ ...base, tint: 1, worldSrc: "/assets/content/w.glb" }))).not.toThrow();
-    expect(() => assertGameConfiguration(config({ ...base, worldSrc: "w.glb" }))).toThrow(/book\.environment\.worldSrc/);
+    expect(() => assertGameConfiguration(config({ ...base, worldSrc: "w.glb" }))).toThrow(/experience.environment\.worldSrc/);
   });
 
   it("reads a reference's extension without query or fragment", () => {

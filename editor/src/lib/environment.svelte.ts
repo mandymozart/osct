@@ -1,8 +1,8 @@
 import { DEFAULT_ENVIRONMENT, environmentOf, referenceExtension, SKY_IMAGE_EXTENSIONS, type EnvironmentData } from "@shared/types/environment";
-import { errorText, getBook, putEnvironment, type Asset } from "./api";
+import { errorText, getExperience, putEnvironment, type Asset } from "./api";
 import { autosave } from "./autosave.svelte";
 import { baselineOf, differsFromBaseline, noteBaseline } from "./baselines";
-import { bookEnvironment } from "#lib/stage/sky.js";
+import { experienceEnvironment } from "#lib/stage/sky.js";
 
 /** The environment's file: the sky image. The world model is gone (#310) – a content's `worldSrc` is kept, never set here */
 export type EnvironmentSlot = "sky";
@@ -23,27 +23,27 @@ export const withSlot = (environment: EnvironmentData, slot: EnvironmentSlot, ur
 export const sameEnvironment = (a: EnvironmentData, b: EnvironmentData): boolean =>
   a.world === b.world && a.onionSky === b.onionSky && (a.worldSrc ?? null) === (b.worldSrc ?? null) && (a.skySrc ?? null) === (b.skySrc ?? null);
 
-/** An environment in one written form (`null`: the book has none), so two that say the same compare as the same text */
+/** An environment in one written form (`null`: the experience has none), so two that say the same compare as the same text */
 const written = (environment: EnvironmentData | null | undefined): Required<EnvironmentData> | null =>
   environment ? { world: environment.world, onionSky: environment.onionSky, worldSrc: environment.worldSrc ?? "", skySrc: environment.skySrc ?? "" } : null;
 
 /**
- * The book's environment as the workspace edits it: the draft's (`saved`, undefined = the
- * book has none, the default applies), the values being edited (`edited` – the stage previews them live) and the slot
+ * The experience's environment as the workspace edits it: the draft's (`saved`, undefined = the
+ * experience has none, the default applies), the values being edited (`edited` – the stage previews them live) and the slot
  * the Library is choosing a file for (`picking` – the Environment tab shows the Library as its picker meanwhile). Kept
  * across the workspace's tabs. Every edit reaches the draft by itself a moment later (#259,
- * `PUT /editor/books/{id}/environment`); *Undo edits* goes back to the environment the draft had before the first edit
+ * `PUT /editor/experiences/{id}/environment`); *Undo edits* goes back to the environment the draft had before the first edit
  * in this page.
  */
 class EnvironmentEdit {
-  bookId = $state<string | null>(null);
+  experienceId = $state<string | null>(null);
   saved = $state<EnvironmentData | undefined>(undefined);
   edited = $state<EnvironmentData>({ ...DEFAULT_ENVIRONMENT });
   picking = $state<EnvironmentSlot | null>(null);
   /** The draft's environment could not be read */
   error = $state<string | null>(null);
   /** The draft holds an edit now: the workspace reads the draft again (this store knows neither the content nor the Library) */
-  onsaved: ((bookId: string) => Promise<void>) | null = null;
+  onsaved: ((experienceId: string) => Promise<void>) | null = null;
 
   /** The edited values are not in the draft yet */
   get dirty(): boolean {
@@ -52,7 +52,7 @@ class EnvironmentEdit {
 
   /** The environment as a subject of the autosaver and of *Undo edits* */
   private get key(): string {
-    return `environment:${this.bookId}`;
+    return `environment:${this.experienceId}`;
   }
 
   /** The environment is not as the draft had it before its first edit in this page */
@@ -60,21 +60,21 @@ class EnvironmentEdit {
     return differsFromBaseline(this.key, written(this.saved || this.dirty ? this.edited : null));
   }
 
-  /** Read the draft's environment (a book switch, or after a save); edits in progress for the same book stay. A failed
+  /** Read the draft's environment (an experience switch, or after a save); edits in progress for the same experience stay. A failed
    * read is `error` (the Environment tab shows it) – it never rejects, so the workspace's effect may fire and forget */
-  async load(bookId: string, force = false): Promise<void> {
-    if (this.bookId === bookId && !force) return;
-    let book: Awaited<ReturnType<typeof getBook>>["book"];
+  async load(experienceId: string, force = false): Promise<void> {
+    if (this.experienceId === experienceId && !force) return;
+    let experience: Awaited<ReturnType<typeof getExperience>>["experience"];
     try {
-      ({ book } = await getBook(bookId));
+      ({ experience } = await getExperience(experienceId));
     } catch (e) {
       this.error = errorText(e);
       return;
     }
     this.error = null;
-    const keep = this.bookId === bookId && this.dirty && !force;
-    this.bookId = bookId;
-    this.saved = book.book?.environment;
+    const keep = this.experienceId === experienceId && this.dirty && !force;
+    this.experienceId = experienceId;
+    this.saved = experience.experience.environment;
     if (!keep) this.edited = { ...environmentOf({ environment: this.saved }) };
   }
 
@@ -95,30 +95,30 @@ class EnvironmentEdit {
     else this.useDefault();
   }
 
-  /** Remove the book's environment: the default applies (nothing around the book) */
+  /** Remove the experience's environment: the default applies (nothing around the experience) */
   useDefault(): void {
     this.edit({ ...DEFAULT_ENVIRONMENT }, null);
   }
 
   /**
    * An edit: previewed at once, written to the draft a moment after the last one (`write`: the values, or `null` – the
-   * book keeps none)
+   * experience keeps none)
    */
   private edit(next: EnvironmentData, write: EnvironmentData | null = next): void {
-    const bookId = this.bookId;
-    if (!bookId) return;
+    const experienceId = this.experienceId;
+    if (!experienceId) return;
     noteBaseline(this.key, written(this.saved ? environmentOf({ environment: this.saved }) : null));
     this.edited = next;
     autosave.queue(this.key, async () => {
-      const { environment: stored } = await putEnvironment(bookId, write);
-      if (this.bookId === bookId) {
+      const { environment: stored } = await putEnvironment(experienceId, write);
+      if (this.experienceId === experienceId) {
         // Values edited again meanwhile stay: their own save follows
         const untouched = sameEnvironment(this.edited, next);
         this.saved = stored ?? undefined;
         if (untouched) this.edited = { ...environmentOf({ environment: this.saved }) };
       }
       // The draft carries it now; the stage shows the same values already
-      await this.onsaved?.(bookId);
+      await this.onsaved?.(experienceId);
     });
   }
 }
@@ -126,12 +126,12 @@ class EnvironmentEdit {
 export const environmentEdit = new EnvironmentEdit();
 
 /**
- * The book's environment as the stage shows it in place of the HDRI (#185, `stage/sky.ts`): the edited values once the
- * book has one or the author has started one, null while it has none (the reader's default world is not drawn then –
+ * The experience's environment as the stage shows it in place of the HDRI (#185, `stage/sky.ts`): the edited values once the
+ * experience has one or the author has started one, null while it has none (the reader's default world is not drawn then –
  * the HDRI stays). Reactive: the toolbar, the Inspector and the stage follow it.
  */
 export const stageEnvironment = {
   get current(): EnvironmentData | null {
-    return environmentEdit.bookId ? bookEnvironment(environmentEdit.saved, environmentEdit.edited, environmentEdit.dirty) : null;
+    return environmentEdit.experienceId ? experienceEnvironment(environmentEdit.saved, environmentEdit.edited, environmentEdit.dirty) : null;
   },
 };

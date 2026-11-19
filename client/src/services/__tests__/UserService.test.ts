@@ -3,16 +3,16 @@ import { UserService, LOGIN_PARAM } from "../UserService";
 import { ApiError, type ApiRequest, ApiService } from "../ApiService";
 import { createGameStore } from "@/store/GameStore";
 import type { UserData, IGame, ProgressRecord } from "@/types";
-import { getBook, getEntries } from "@/utils/game-config";
+import { getExperience, getEntries } from "@/utils/game-config";
 
-const bookId = getBook().id;
+const experienceId = getExperience().id;
 const [entryA, entryB, entryC] = getEntries().map(e => e.id);
 
 /** In-memory stand-in for the PHP API (server/api) – the behaviour the client relies on */
 class FakeApi extends ApiService {
   user: UserData = {
     email: "reader@example.com", language: "en", createdAt: "2026-09-27T00:00:00+00:00",
-    options: { bookUpdates: true, artistUpdates: false, publisherUpdates: true }, hasPassword: false,
+    options: { experienceUpdates: true, artistUpdates: false, publisherUpdates: true }, hasPassword: false,
   };
   /** The user's password (null = none) and whether this device just signed in by email (no current password needed) */
   password: string | null = null;
@@ -70,8 +70,8 @@ class FakeApi extends ApiService {
       this.cookie = null;
       return null;
     }
-    if (route === `GET /progress/${bookId}`) return structuredClone(this.progress);
-    if (route === `PUT /progress/${bookId}`) {
+    if (route === `GET /progress/${experienceId}`) return structuredClone(this.progress);
+    if (route === `PUT /progress/${experienceId}`) {
       if (body.baseUpdatedAt !== this.progress.updatedAt) throw new ApiError(409, "conflict", structuredClone(this.progress));
       this.progress = { record: structuredClone(body.record), updatedAt: (this.progress.updatedAt ?? 0) + 1 };
       return { updatedAt: this.progress.updatedAt };
@@ -92,7 +92,7 @@ class FakeApi extends ApiService {
 }
 
 const remoteRecord = (consulted: Record<string, number>): ProgressRecord => ({
-  format: 1, bookId, appVersions: ["1.0.0"], unlocked: {}, consulted, lastScene: null, lastCategory: null, onboarded: true, coached: true, variables: {},
+  format: 1, experienceId, appVersions: ["1.0.0"], unlocked: {}, consulted, lastScene: null, lastCategory: null, onboarded: true, coached: true, variables: {},
 });
 
 // happy-dom's history API doesn't move window.location (see LinkService.test.ts)
@@ -123,8 +123,8 @@ describe("UserService", () => {
     const users = service();
     await users.start(game);
 
-    expect(await users.requestLogin(" reader@example.com ", { bookUpdates: true, artistUpdates: false, publisherUpdates: false })).toBe(true);
-    expect(api.calls[0].body).toEqual({ email: "reader@example.com", options: { bookUpdates: true, artistUpdates: false, publisherUpdates: false }, language: "en" });
+    expect(await users.requestLogin(" reader@example.com ", { experienceUpdates: true, artistUpdates: false, publisherUpdates: false })).toBe(true);
+    expect(api.calls[0].body).toEqual({ email: "reader@example.com", options: { experienceUpdates: true, artistUpdates: false, publisherUpdates: false }, language: "en" });
     expect(users.getSnapshot()).toMatchObject({ status: "pending", pending: { requestId: "r1", email: "reader@example.com" } });
 
     expect(await users.confirmCode("000000")).toBe(false);
@@ -180,7 +180,7 @@ describe("UserService", () => {
     signedInStorage();
     game.history.consultEntry(entryA); // e.g. before a reset on the other device
     // (no service listened yet: the change counts as synced)
-    localStorage.setItem(`osct-user-sync:${bookId}`, JSON.stringify({ email: "reader@example.com", updatedAt: 3, dirty: false }));
+    localStorage.setItem(`osct-user-sync:${experienceId}`, JSON.stringify({ email: "reader@example.com", updatedAt: 3, dirty: false }));
     api.progress = { record: remoteRecord({ [entryB]: 1 }), updatedAt: 9 };
     await service().start(game);
     expect(game.history.isConsulted(entryA)).toBe(false);
@@ -214,9 +214,9 @@ describe("UserService", () => {
     signedInStorage();
     const users = service();
     await users.start(game);
-    await users.setOption("bookUpdates", false);
-    expect(users.getSnapshot().user!.options).toEqual({ bookUpdates: false, artistUpdates: false, publisherUpdates: true });
-    expect(JSON.parse(localStorage.getItem("osct-user")!).user.options.bookUpdates).toBe(false);
+    await users.setOption("experienceUpdates", false);
+    expect(users.getSnapshot().user!.options).toEqual({ experienceUpdates: false, artistUpdates: false, publisherUpdates: true });
+    expect(JSON.parse(localStorage.getItem("osct-user")!).user.options.experienceUpdates).toBe(false);
   });
 
   it("a reset of the book reaches the account", async () => {
@@ -271,7 +271,7 @@ describe("UserService", () => {
   it("sets a password after an email sign-in without the current one", async () => {
     const users = service();
     await users.start(game);
-    await users.requestLogin("reader@example.com", { bookUpdates: false, artistUpdates: false, publisherUpdates: false });
+    await users.requestLogin("reader@example.com", { experienceUpdates: false, artistUpdates: false, publisherUpdates: false });
     await users.confirmCode("123456");
     expect(users.passwordNeedsCurrent()).toBe(false);
 
@@ -299,7 +299,7 @@ describe("UserService", () => {
       const csrf = vi.spyOn(api, "setCsrfToken");
       const users = service();
       await users.start(game);
-      await users.requestLogin("reader@example.com", { bookUpdates: false, artistUpdates: false, publisherUpdates: false });
+      await users.requestLogin("reader@example.com", { experienceUpdates: false, artistUpdates: false, publisherUpdates: false });
       expect(await users.confirmCode("123456")).toBe(true);
       expect(api.calls.find(c => c.path === "/auth/verify")!.body).toEqual({ requestId: "r1", code: "123456", session: "cookie" });
       expect(csrf).toHaveBeenCalledWith("csrf-1");
@@ -336,7 +336,7 @@ describe("UserService", () => {
       expect(api.cookie).toBe("cookie-session");
       expect(JSON.parse(localStorage.getItem("osct-user")!)).toEqual({ user: api.user, method: "password", signedInAt: 5 });
       expect(users.getSnapshot()).toMatchObject({ status: "signed-in", sync: "synced" });
-      expect(api.calls.some(c => c.path === `/progress/${bookId}`)).toBe(true);
+      expect(api.calls.some(c => c.path === `/progress/${experienceId}`)).toBe(true);
     });
 
     it("a stored token the API no longer knows signs out: sign in as usual", async () => {
@@ -374,7 +374,7 @@ describe("UserService", () => {
       const users = service();
       expect(users.getSnapshot()).toMatchObject({
         status: "signed-in",
-        user: { email: "reader@example.com", language: "en", hasPassword: false, options: { bookUpdates: false, artistUpdates: false, publisherUpdates: false } },
+        user: { email: "reader@example.com", language: "en", hasPassword: false, options: { experienceUpdates: false, artistUpdates: false, publisherUpdates: false } },
       });
       expect(users.passwordNeedsCurrent()).toBe(false);
     });
@@ -386,7 +386,7 @@ describe("UserService", () => {
 
     it("a stored sync state of the wrong shape starts over (sends this device's progress)", async () => {
       signedInStorage();
-      localStorage.setItem(`osct-user-sync:${bookId}`, JSON.stringify({ email: "reader@example.com", updatedAt: "3", dirty: "no" }));
+      localStorage.setItem(`osct-user-sync:${experienceId}`, JSON.stringify({ email: "reader@example.com", updatedAt: "3", dirty: "no" }));
       api.progress = { record: remoteRecord({ [entryB]: 1 }), updatedAt: 9 };
       game.history.consultEntry(entryA);
       await service().start(game);
@@ -422,10 +422,10 @@ describe("UserService", () => {
     it("passes the waiting time of a refused request on, ignores one that is not a number", async () => {
       const users = service();
       vi.spyOn(api, "request").mockRejectedValueOnce(new ApiError(429, "too-many-requests", { error: { code: "too-many-requests", retryAfter: 60 } }));
-      await users.requestLogin("reader@example.com", { bookUpdates: false, artistUpdates: false, publisherUpdates: false });
+      await users.requestLogin("reader@example.com", { experienceUpdates: false, artistUpdates: false, publisherUpdates: false });
       expect(users.getSnapshot().notice).toEqual({ error: "too-many-requests", retryAfter: 60 });
       vi.spyOn(api, "request").mockRejectedValueOnce(new ApiError(429, "too-many-requests", { error: { retryAfter: "60" } }));
-      await users.requestLogin("reader@example.com", { bookUpdates: false, artistUpdates: false, publisherUpdates: false });
+      await users.requestLogin("reader@example.com", { experienceUpdates: false, artistUpdates: false, publisherUpdates: false });
       expect(users.getSnapshot().notice).toEqual({ error: "too-many-requests" });
     });
   });

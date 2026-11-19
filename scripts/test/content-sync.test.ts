@@ -86,17 +86,17 @@ describe('content versions', () => {
     expect(entry.activatedAt).toBe('2026-12-31T00:00:00.000Z');
   });
 
-  it('records which book a version is of', () => {
-    const after = activate([], { ...build, book: 'osct' }, '2026-12-31T00:00:00.000Z', true);
-    expect(after[0].book).toBe('osct');
-    expect(activate([], build, '2026-12-31T00:00:00.000Z', true)[0]).not.toHaveProperty('book');
+  it('records which experience a version is of', () => {
+    const after = activate([], { ...build, experience: 'osct' }, '2026-12-31T00:00:00.000Z', true);
+    expect(after[0].experience).toBe('osct');
+    expect(activate([], build, '2026-12-31T00:00:00.000Z', true)[0]).not.toHaveProperty('experience');
   });
 
-  it('reads manifests with and without the book', () => {
+  it('reads manifests with and without the experience', () => {
     const manifest = { build: CURRENT, hash: CURRENT, schema: '2.11', version: '1.22.0', activatedAt: daysAgo(1) };
     expect(isContentManifest(manifest)).toBe(true);
-    expect(isContentManifest({ ...manifest, book: 'demo' })).toBe(true);
-    expect(isContentManifest({ ...manifest, book: 7 })).toBe(false);
+    expect(isContentManifest({ ...manifest, experience: 'demo' })).toBe(true);
+    expect(isContentManifest({ ...manifest, experience: 7 })).toBe(false);
   });
 
   it('spots videos a build without the git-ignored videos would drop', () => {
@@ -195,10 +195,10 @@ describe('purge', () => {
   });
 });
 
-// The book content is not in the repository; CI and the tests build the fixture, which must never reach the CDN
+// The content is not in the repository; CI and the tests build the fixture, which must never reach the CDN
 describe('test fixture', () => {
   it('is a content folder that marks itself', () => {
-    expect(fs.existsSync(path.join(FIXTURE_DIR, 'book.yaml'))).toBe(true);
+    expect(fs.existsSync(path.join(FIXTURE_DIR, 'experience.yaml'))).toBe(true);
     expect(fs.existsSync(path.join(FIXTURE_DIR, FIXTURE_MARKER))).toBe(true);
   });
 
@@ -210,10 +210,10 @@ describe('test fixture', () => {
   });
 });
 
-// The demo book is a content folder of its own next to the fixture; its build goes to the environment `demo` only
-describe('demo book', () => {
+// The demo is a content folder of its own next to the fixture; its build goes to the environment `demo` only
+describe('demo', () => {
   it('is a content folder that marks itself, apart from the fixture', () => {
-    expect(fs.existsSync(path.join(DEMO_DIR, 'book.yaml'))).toBe(true);
+    expect(fs.existsSync(path.join(DEMO_DIR, 'experience.yaml'))).toBe(true);
     expect(fs.existsSync(path.join(DEMO_DIR, DEMO_MARKER))).toBe(true);
     expect(fs.existsSync(path.join(DEMO_DIR, FIXTURE_MARKER))).toBe(false);
   });

@@ -3,7 +3,7 @@ import {
   DEFAULT_LOAD_TEST, getEngineState, getLoadTest, type LoadTestControl, type LoadTestOptions, type LoadTestProgress,
   subscribeEngineState, subscribeLoadTest,
 } from "@engine/utils/tracker-debug";
-import { getBook, getConfigVersion } from "@/utils/game-config";
+import { getExperience, getConfigVersion } from "@/utils/game-config";
 import { LOAD_TEST_COLUMNS, loadTestCells, loadTestReport } from "./load-test-report";
 
 const escapeHtml = (text: string) =>
@@ -59,7 +59,7 @@ export class LoadTestPanel extends HTMLElement {
   report(): string {
     if (!progress) return "";
     return loadTestReport(progress.results, {
-      bookTitle: getBook().title,
+      experienceTitle: getExperience().title,
       appVersion: __VITE_APP_VERSION__,
       contentHash: getConfigVersion().hash ?? "",
       device: navigator.userAgent,

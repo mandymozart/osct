@@ -32,7 +32,7 @@ import { type AppearanceRegistration, appearanceRegistration } from "./appearanc
 /**
  * Appear / disappear animations of an AR entity, at three moments: `reveal` (the first find of a target), `found`
  * (every later find) and `lost` (the page is lost – the entity goes, then the anchor hides). What plays is the **look**
- * the content names for the moment (`book.appearance`, `shared/types/appearance.ts`): a plugin's own
+ * the content names for the moment (`experience.appearance`, `shared/types/appearance.ts`): a plugin's own
  * (`./appearances`), or a built-in one, played here from its values in three parts, each with its own share of the time –
  *
  *   - **shape**: the entity starts flat on the page and / or small and turned, and rises to its height and size. A

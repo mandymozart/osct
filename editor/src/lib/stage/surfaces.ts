@@ -56,7 +56,7 @@ export interface SceneShape {
 const ZERO_PLACE: Required<SurfacePlace> = { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 };
 const EPS = 1e-6;
 
-/** The stand-in while no scene is open: one double page of this book's size, flat at the origin */
+/** The stand-in while no scene is open: one double page of the printed book's size, flat at the origin */
 export const DEFAULT_SURFACE: SceneSurface = { id: "surface", widthMm: 460, heightMm: 320, place: { ...ZERO_PLACE } };
 
 const usable = (surface: SurfaceData): boolean => surface.widthMm > 0 && surface.heightMm > 0 && !!surface.id;

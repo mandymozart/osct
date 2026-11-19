@@ -3,7 +3,7 @@ import { assertGameConfiguration } from "@shared/guards/game-config";
 import { CONTENT_SCHEMA_VERSION } from "@shared/types/game-config";
 import { getCredits, loadGameConfiguration } from "../game-config";
 
-/** The book's credit lines (#292, schema 2.33), listed per scene on the reader's image credits page */
+/** The experience's credit lines (#292, schema 2.33), listed per scene on the reader's image credits page */
 
 const golem = "Book Golem by TER-JAN / DeviantArt";
 const carr = "Lindsey Carr, An Issue of Control, 2013. Available via DogStreets";
@@ -11,7 +11,7 @@ const kelly = "Gene Kelly dancing, 1944. Gjon Mili The LIFE Picture Collection/S
 
 const book = (credits?: unknown) => ({
   version: { version: "1.82.0", timestamp: "2026-11-16T00:00:00.000Z", hash: "abc123", schema: CONTENT_SCHEMA_VERSION },
-  book: { id: "b", title: "B", author: "A" },
+  experience: { id: "b", title: "B", book: { author: "A" } },
   initialScene: "s1",
   scenes: [
     { id: "s1", label: "2–3", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] },
@@ -25,7 +25,7 @@ const book = (credits?: unknown) => ({
       id: "dance", category: "glossary", title: "Dance", scene: "s2", body: "", tags: [],
       target: { id: "dance", imageSrc: "/assets/content/entries/dance/target.jpg", entity: { ref: "film" } },
     },
-    // The same picture again on the next scene, and a switched-off target: not in the reader's book
+    // The same picture again on the next scene, and a switched-off target: not in the reader's experience
     { id: "golem2", category: "glossary", title: "Golem again", scene: "s2", body: "", tags: [], target: { id: "golem2", imageSrc: "/assets/content/entries/golem/target.jpg" } },
     { id: "off", category: "glossary", title: "Off", scene: "s3", body: "", tags: [], target: { id: "off", imageSrc: "/assets/content/entries/off/target.jpg", enabled: false } },
   ],

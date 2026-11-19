@@ -3,14 +3,14 @@ import { register as registerLifts } from "../../../fixtures/demo/plugins/lifts/
 import { register as registerReveal } from "../../../fixtures/demo/plugins/reveal/index";
 
 /**
- * A plugin's look, as a book's plugin would register it (docs/plugins.md "A look"): installed through the engine's
+ * A plugin's look, as an experience's plugin would register it (docs/plugins.md "A look"): installed through the engine's
  * plugin API so "As shipped" can play a look that is code – in a built-in look's place.
  */
 export const DEMO_LOOK = "softFade";
-/** The demo book's `reveal` plugin: the built-in look as code, with the built-in look's parameters */
+/** The demo's `reveal` plugin: the built-in look as code, with the built-in look's parameters */
 export const REVEAL_CODE_LOOK = "revealCode";
 installPlugin("reveal", { register: registerReveal });
-/** The demo book's `lifts` plugin: printLiftCode and fadeCode (their own parameters; the sandbox passes the durations) */
+/** The demo's `lifts` plugin: printLiftCode and fadeCode (their own parameters; the sandbox passes the durations) */
 export const LIFT_LOOKS = ["printLiftCode", "fadeCode"] as const;
 installPlugin("lifts", { register: registerLifts });
 

@@ -1,7 +1,7 @@
 import { type LoadTestOptions, type LoadTestResult, median } from "@engine/utils/tracker-debug";
 
 export interface LoadTestMeta {
-  bookTitle: string;
+  experienceTitle: string;
   appVersion: string;
   contentHash: string;
   device: string;
@@ -44,7 +44,7 @@ export const LOAD_TEST_COLUMNS = [
 export const loadTestReport = (results: readonly LoadTestResult[], meta: LoadTestMeta): string => {
   const date = meta.date.toISOString().slice(0, 16).replace("T", " ");
   const lines = [
-    `# Engine load test – ${meta.bookTitle}`,
+    `# Engine load test – ${meta.experienceTitle}`,
     "",
     `- Date: ${date} (UTC)`,
     `- App ${meta.appVersion} · content ${meta.contentHash.slice(0, 12)}`,

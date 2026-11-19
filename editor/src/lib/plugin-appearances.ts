@@ -4,7 +4,7 @@ import { APPEARANCE_TYPES, APPEARANCES, type AppearanceSpec, type PluginData } f
 
 /**
  * The looks the appearance panel offers and the specs its rows come from (#265): the built-in looks of the contract
- * (`shared/types/appearance.ts`) and the looks of the book's plugins – the ones in the engine's look registry (a declared
+ * (`shared/types/appearance.ts`) and the looks of the experience's plugins – the ones in the engine's look registry (a declared
  * plugin loaded on the stage, a plugin run in the Code tab: mirrored into the page, so its look is offered at once) and
  * the ones the declared plugins recorded before they loaded. Pure functions over those two sources for the tests;
  * `liveLookChoices`, `lookSpecOf` and `lookPluginOf` read them from the engine (the caller depends on `plugins.version`

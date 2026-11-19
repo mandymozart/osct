@@ -2,17 +2,17 @@
 declare(strict_types=1);
 
 /**
- * A book's rows as a content version – the shape the content build writes (shared/types/game-config.ts
+ * An experience's rows as a content version – the shape the content build writes (shared/types/game-config.ts
  * `GameConfiguration`; latest.json and files.json as in shared/types/content-manifest.ts). The draft endpoints
  * serve it straight from the rows and a publish writes it to the content store: one assembly, so what the editor
  * previews is what readers get.
  *
- * Content schema 3.0 (#319): `scenes` in order, `initialScene`, `groups` when the book has any, every entry with its
+ * Content schema 3.0 (#319): `scenes` in order, `initialScene`, `groups` when the experience has any, every entry with its
  * `scene` (and `surface`), every target with its `place`. `version` = { version: this server's app version, timestamp:
- * now, hash, schema: the book's schema }; `plugins` (the compiled
- * plugins the import declared) follows it when the book has any, as the build writes it, and `subtitles` (the subtitle
- * files of the book's videos, read from the files' names – `Subtitles`) and `credits` (the Library's credit lines of the
- * files the book uses, #292) when there are any. The hash is the sha256 of the
+ * now, hash, schema: the experience's schema }; `plugins` (the compiled
+ * plugins the import declared) follows it when the experience has any, as the build writes it, and `subtitles` (the subtitle
+ * files of the experience's videos, read from the files' names – `Subtitles`) and `credits` (the Library's credit lines of the
+ * files the experience uses, #292) when there are any. The hash is the sha256 of the
  * configuration JSON without timestamp and hash – the same rows give the same hash, and the build name is its first 12
  * hex digits. With an assets base every content path (`/assets/content/…` under src, imageSrc, image, and the keys of
  * files.json) becomes a URL below it: a published version points at the imported build's media, no file is copied.
@@ -24,27 +24,27 @@ final class ContentVersion
     private const CONTENT_PREFIX = '/assets/content/';
 
     /**
-     * The book's current draft.
+     * The experience's current draft.
      * @return array{configuration: stdClass, files: stdClass, hash: string, build: string, schema: string}
      */
-    public static function assemble(string $bookId): array
+    public static function assemble(string $experienceId): array
     {
-        $book = Db::one('SELECT * FROM books WHERE id = :id', ['id' => $bookId]);
-        if (!$book) throw new ApiError(404, 'not-found', 'No such book.');
-        $params = ['book' => $bookId];
+        $experience = Db::one('SELECT * FROM experiences WHERE id = :id', ['id' => $experienceId]);
+        if (!$experience) throw new ApiError(404, 'not-found', 'No such experience.');
+        $params = ['experience' => $experienceId];
 
         $targets = [];
-        foreach (Db::run('SELECT entry_id, data_json FROM targets WHERE book_id = :book', $params)->fetchAll() as $row) {
+        foreach (Db::run('SELECT entry_id, data_json FROM targets WHERE experience_id = :experience', $params)->fetchAll() as $row) {
             $targets[$row['entry_id']] = Editor::decode($row['data_json']);
         }
         // The scenes in order (#307) as the content holds them
-        $context = Scenes::context($bookId);
-        $groups = Scenes::groups($book);
+        $context = Scenes::context($experienceId);
+        $groups = Scenes::groups($experience);
         $scenes = Scenes::shown($context, array_map(static fn($g) => (string) $g->id, $groups));
         $surfaces = [];
         foreach ($scenes as $scene) $surfaces[(string) $scene->id] = Scenes::surfaceIds($scene);
         $entries = [];
-        foreach (Db::run('SELECT id, scene_id, data_json FROM entries WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
+        foreach (Db::run('SELECT id, scene_id, data_json FROM entries WHERE experience_id = :experience ORDER BY position', $params)->fetchAll() as $row) {
             $scene = (string) $row['scene_id'];
             if (!isset($surfaces[$scene])) continue;
             $entry = self::withScene(Editor::decode($row['data_json']), $scene);
@@ -62,38 +62,38 @@ final class ContentVersion
             $entries[] = $entry;
         }
         $entities = new stdClass();
-        foreach (Db::run('SELECT ref, data_json FROM entities WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
+        foreach (Db::run('SELECT ref, data_json FROM entities WHERE experience_id = :experience ORDER BY position', $params)->fetchAll() as $row) {
             $entities->{$row['ref']} = Editor::decode($row['data_json']);
         }
 
-        $schema = (string) $book['content_schema'];
+        $schema = (string) $experience['content_schema'];
         $configuration = [
             'version' => (object) ['version' => Version::APP, 'schema' => $schema],
-            'book' => Editor::decode($book['book_json']),
-            'initialScene' => $book['initial_scene'],
+            'experience' => Editor::decode($experience['experience_json']),
+            'initialScene' => $experience['initial_scene'],
             'scenes' => $scenes,
         ];
-        // The groups scenes name – only when the book has any
+        // The groups scenes name – only when the experience has any
         if ($groups) $configuration['groups'] = array_map(static fn(stdClass $g) => (object) ['id' => $g->id, 'label' => (string) ($g->label ?? '')], $groups);
         $configuration = (object) ($configuration + [
             'entries' => $entries,
             'entities' => $entities,
         ]);
-        $plugins = Editor::decode($book['plugins_json'] ?? '[]');
+        $plugins = Editor::decode($experience['plugins_json'] ?? '[]');
         if (is_array($plugins) && $plugins) $configuration->plugins = $plugins;
-        $files = Editor::decode($book['files_json']);
+        $files = Editor::decode($experience['files_json']);
         if (!$files instanceof stdClass) $files = new stdClass();
 
-        $base = rtrim((string) $book['assets_base'], '/');
-        // The subtitle files of the book's videos, paired by their names (`Subtitles`) – already below the assets base
-        $subtitles = Subtitles::of($bookId, $files, $base);
+        $base = rtrim((string) $experience['assets_base'], '/');
+        // The subtitle files of the experience's videos, paired by their names (`Subtitles`) – already below the assets base
+        $subtitles = Subtitles::of($experienceId, $files, $base);
         if ($base !== '') {
             self::rewrite($configuration, $base);
             $files = self::rewriteFiles($files, $base);
         }
         if ($subtitles) $configuration->subtitles = $subtitles;
-        // The credit lines of the files the book uses (#292) – the Library keys them by the URL the configuration names
-        $credits = self::credits(Assets::creditsOf($bookId), $configuration);
+        // The credit lines of the files the experience uses (#292) – the Library keys them by the URL the configuration names
+        $credits = self::credits(Assets::creditsOf($experienceId), $configuration);
         if ($credits) $configuration->credits = (object) $credits;
 
         $hash = hash('sha256', Editor::encode($configuration));
@@ -125,7 +125,7 @@ final class ContentVersion
 
     /**
      * The credit lines (#292, file URL → line) of the files the configuration names anywhere – a file of the Library
-     * the book does not use is left out; sorted by URL, so the same rows give the same hash
+     * the experience does not use is left out; sorted by URL, so the same rows give the same hash
      * @param array<string, string> $credits
      * @return array<string, string>
      */
@@ -144,7 +144,7 @@ final class ContentVersion
     }
 
     /**
-     * The version with plugins of the Code tab declared (#78, `Books::publish`): each replaces a declared plugin of the same
+     * The version with plugins of the Code tab declared (#78, `Experiences::publish`): each replaces a declared plugin of the same
      * id, the others follow in their order. Their `src` is a content path the version's own folder holds – not rewritten
      * below the assets base. The hash and the build follow the new configuration, so other code is another version.
      * @param array{configuration: stdClass, files: stdClass, hash: string, build: string, schema: string} $version
@@ -173,35 +173,35 @@ final class ContentVersion
         return [...$version, 'configuration' => $configuration, 'hash' => $hash, 'build' => substr($hash, 0, 12)];
     }
 
-    /** GET /editor/books/{id}/draft/latest.json → the draft's ContentManifest (no-store: it changes with every edit) */
-    public static function draftManifest(string $bookId): never
+    /** GET /editor/experiences/{id}/draft/latest.json → the draft's ContentManifest (no-store: it changes with every edit) */
+    public static function draftManifest(string $experienceId): never
     {
         Editor::user();
-        Books::exists($bookId);
-        $version = self::assemble($bookId);
-        Http::json(200, self::manifest($version, Editor::iso(), $bookId));
+        Experiences::exists($experienceId);
+        $version = self::assemble($experienceId);
+        Http::json(200, self::manifest($version, Editor::iso(), $experienceId));
     }
 
     /**
-     * GET /editor/books/{id}/draft/{build}/game.config.json | files.json – always the current draft: the build in the
+     * GET /editor/experiences/{id}/draft/{build}/game.config.json | files.json – always the current draft: the build in the
      * path is the one latest.json named a moment ago, an edit in between is no reason to fail the loader.
      */
-    public static function draftFile(string $bookId, string $file): never
+    public static function draftFile(string $experienceId, string $file): never
     {
         Editor::user();
-        Books::exists($bookId);
-        $version = self::assemble($bookId);
+        Experiences::exists($experienceId);
+        $version = self::assemble($experienceId);
         Http::json(200, $file === 'files' ? $version['files'] : $version['configuration']);
     }
 
     /**
-     * latest.json of a version of the book (content-manifest.ts `ContentManifest`)
+     * latest.json of a version of the experience (content-manifest.ts `ContentManifest`)
      * @param array{hash: string, build: string, schema: string} $version
      * @return array<string, string>
      */
-    public static function manifest(array $version, string $activatedAt, string $bookId): array
+    public static function manifest(array $version, string $activatedAt, string $experienceId): array
     {
-        return ['build' => $version['build'], 'hash' => $version['hash'], 'schema' => $version['schema'], 'version' => Version::APP, 'activatedAt' => $activatedAt, 'book' => $bookId];
+        return ['build' => $version['build'], 'hash' => $version['hash'], 'schema' => $version['schema'], 'version' => Version::APP, 'activatedAt' => $activatedAt, 'experience' => $experienceId];
     }
 
     /** Content paths under PATH_KEYS become URLs below `$base`, everywhere in the configuration */

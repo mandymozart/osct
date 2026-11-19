@@ -3,11 +3,11 @@ import type { SelectionState } from "./selection";
 import { sceneLabel } from "@engine/content/scenes";
 
 /**
- * The header's search through the whole book (#237): entries (title and text), scenes (their label – `186` finds the
+ * The header's search through the whole experience (#237): entries (title and text), scenes (their label – `186` finds the
  * scene labelled `186–187`, as text), targets (id, the entry's title) and named nodes – accents and case ignored, every
  * word of the query found. Hits are grouped by kind, ranked within a group (the label starting with the query, then a
  * word of it, then anywhere in the label, then only in the text) and kept in the scenes' order at the same rank; each
- * names its scene and what a pick selects. Pure: `BookSearch.svelte` reads the draft's scenes and draws it.
+ * names its scene and what a pick selects. Pure: `ExperienceSearch.svelte` reads the draft's scenes and draws it.
  */
 
 /** A scene as the search reads it – the engine's `Scene` (a scene) fits */
@@ -77,8 +77,8 @@ const namedNodes = (node: EntityData, path: number[] = []): { name: string; path
   ...(node.children ?? []).flatMap((child, i) => namedNodes(child, [...path, i])),
 ];
 
-/** The hits of the query in the book, grouped by kind in `SEARCH_KINDS` order (empty groups left out); at most `limit` per group */
-export const searchBook = (scenes: readonly SearchScene[], query: string, limit = 6): SearchGroup[] => {
+/** The hits of the query in the experience, grouped by kind in `SEARCH_KINDS` order (empty groups left out); at most `limit` per group */
+export const searchExperience = (scenes: readonly SearchScene[], query: string, limit = 6): SearchGroup[] => {
   const words = queryWords(query);
   if (!words.length) return [];
   const hits: SearchHit[] = [];
@@ -120,7 +120,7 @@ export const searchBook = (scenes: readonly SearchScene[], query: string, limit 
   return SEARCH_KINDS.flatMap(kind => {
     const ofKind = hits.filter(hit => hit.kind === kind);
     if (!ofKind.length) return [];
-    // A stable sort: the same rank stays in book order
+    // A stable sort: the same rank stays in experience order
     const ranked = ofKind.map((hit, i) => ({ hit, i })).sort((a, b) => a.hit.rank - b.hit.rank || a.i - b.i).map(({ hit }) => hit);
     return [{ kind, label: SEARCH_KIND_LABELS[kind], hits: ranked.slice(0, limit), more: Math.max(0, ranked.length - limit) }];
   });

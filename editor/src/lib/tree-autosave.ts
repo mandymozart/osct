@@ -11,7 +11,7 @@ import type { Stage } from "#lib/stage/stage.svelte.js";
 import { contentTree } from "./values";
 
 /** A target's tree as a subject of the autosaver and of *Undo edits* */
-export const treeKey = (bookId: string, targetId: string): string => `tree:${bookId}:${targetId}`;
+export const treeKey = (experienceId: string, targetId: string): string => `tree:${experienceId}:${targetId}`;
 
 /** What of the stage the saves need: its live trees, and the two ways the draft's change reaches it */
 export type TreeStage = Pick<Stage, "overrides" | "adopt" | "refresh">;
@@ -25,12 +25,12 @@ export const treeContent = (tree: EntityData | null | undefined): EntityData | n
  * draft's without building anything – it shows it already. Only a shared entity builds the scene again: its other
  * targets show it from the draft.
  */
-const saveTree = async (stage: TreeStage, bookId: string, targetId: string, tree: EntityData): Promise<void> => {
+const saveTree = async (stage: TreeStage, experienceId: string, targetId: string, tree: EntityData): Promise<void> => {
   const ref = getEntityRef(targetId);
-  if (tree === REMOVED_ENTITY) await putTargetEntity(bookId, targetId, null);
-  else if (ref) await putEntity(bookId, ref, contentTree(tree));
-  else await putTargetEntity(bookId, targetId, contentTree(tree));
-  await content.load(bookId);
+  if (tree === REMOVED_ENTITY) await putTargetEntity(experienceId, targetId, null);
+  else if (ref) await putEntity(experienceId, ref, contentTree(tree));
+  else await putTargetEntity(experienceId, targetId, contentTree(tree));
+  await content.load(experienceId);
   if (ref && tree !== REMOVED_ENTITY && getTargetsUsingEntity(ref).length > 1) await stage.refresh();
   await stage.adopt(targetId, tree);
   // A file the tree uses now, or no longer: the Library counts its uses
@@ -44,19 +44,19 @@ const saveTree = async (stage: TreeStage, bookId: string, targetId: string, tree
  * a target queues its save, replacing the one still waiting; a tree whose behaviour rules are incomplete is held until
  * they are; an override that went (saved, or taken back) has nothing left to save.
  */
-export const queueTreeSaves = (stage: TreeStage, bookId: string, queued: Map<string, EntityData>, saver: Autosave = autosave): void => {
+export const queueTreeSaves = (stage: TreeStage, experienceId: string, queued: Map<string, EntityData>, saver: Autosave = autosave): void => {
   for (const [targetId, tree] of stage.overrides) {
     if (queued.get(targetId) === tree) continue;
     queued.set(targetId, tree);
-    const key = treeKey(bookId, targetId);
+    const key = treeKey(experienceId, targetId);
     noteBaseline(key, treeContent(getTarget(targetId)?.entity));
     const [issue] = tree === REMOVED_ENTITY ? [] : treeBehaviourIssues(tree);
     if (issue) saver.hold(key, issue);
-    else saver.queue(key, () => saveTree(stage, bookId, targetId, tree));
+    else saver.queue(key, () => saveTree(stage, experienceId, targetId, tree));
   }
   for (const targetId of [...queued.keys()]) {
     if (stage.overrides.has(targetId)) continue;
     queued.delete(targetId);
-    saver.drop(treeKey(bookId, targetId));
+    saver.drop(treeKey(experienceId, targetId));
   }
 };

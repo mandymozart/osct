@@ -2,16 +2,16 @@ import type { EntryCategory } from "./game-config";
 import type { ListCategory } from "./entries";
 
 /**
- * What one reader discovered in one book, keyed by stable content ids and stored per `book.id` via
+ * What one reader discovered in one experience, keyed by stable content ids and stored per `experience.id` via
  * `IProgressStorage`. Ids no longer in the content are kept (listed as missing in the debug overlay).
  */
-/** A book variable's value (the plugins' `book` scope): a JSON scalar */
+/** An experience variable's value (the plugins' `experience` scope): a JSON scalar */
 export type ProgressVariable = string | number | boolean;
 
 export interface ProgressRecord {
   /** Storage format = app MAJOR that wrote the record; an older format is read and converted */
   format: number;
-  bookId: string;
+  experienceId: string;
   /** App versions that wrote this record, oldest first */
   appVersions: string[];
   /** Stage 1: target found in scan mode (target id → time) */
@@ -28,7 +28,7 @@ export interface ProgressRecord {
   /** The coach marks over the first scan (page scroller, icon – #282) were seen; reset when the onboarding ends
    *  again (replayed from Info). Additive within format 1: an older app drops it, a record without it shows them */
   coached: boolean;
-  /** The book's variables set by its plugins (the `book` scope of the plugin API) – additive within format 1 */
+  /** The experience's variables set by its plugins (the `experience` scope of the plugin API) – additive within format 1 */
   variables: Record<string, ProgressVariable>;
 }
 
@@ -42,7 +42,7 @@ export interface HistoryManagerState {
  */
 export interface IProgressStorage {
   /** Raw stored record: null = nothing stored, undefined = unreadable */
-  load(bookId: string): unknown;
+  load(experienceId: string): unknown;
   save(record: ProgressRecord): void;
 }
 
@@ -82,9 +82,9 @@ export interface IHistoryManager {
   /** The reader saw the scan view's coach marks (`true`), or should see them on the next scan (`false`, #282) */
   setCoached(coached: boolean): void;
 
-  /** A book variable of the plugins' `book` scope (persisted with the progress) */
+  /** An experience variable of the plugins' `experience` scope (persisted with the progress) */
   getVariable(name: string): ProgressVariable | undefined;
-  /** Set a book variable; `null` deletes it */
+  /** Set an experience variable; `null` deletes it */
   setVariable(name: string, value: ProgressVariable | null): void;
   getVariables(): Record<string, ProgressVariable>;
 
@@ -96,6 +96,6 @@ export interface IHistoryManager {
 
   isSceneComplete(sceneId: string): boolean;
 
-  /** Reset all progress for this book */
+  /** Reset all progress for this experience */
   reset(): void;
 }

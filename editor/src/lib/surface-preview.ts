@@ -4,13 +4,13 @@ import type { SurfaceReference } from "@shared/api/editor";
 import { surfaceOfPlace } from "./surface-edit";
 
 /**
- * Pictures of a scene outside the stage (#153, #319): the books page's covers and the Scenes panel's cards. A scene is
+ * Pictures of a scene outside the stage (#153, #319): the experiences page's covers and the Scenes panel's cards. A scene is
  * drawn as its surfaces side by side (their order, each at its own size), each with its reference image (#314, fitted
  * as it says) and the prints of the targets lying on it (`TargetPlace`, the same the stage reads – a print moved in the
  * editor shows at once). A surface without a reference is paper.
  */
 
-/** A content path (`/assets/content/…`) under the book's assets base; any other URL as it is */
+/** A content path (`/assets/content/…`) under the experience's assets base; any other URL as it is */
 export const assetUrl = (assetsBase: string | null | undefined, src: string): string => {
   const root = (assetsBase ?? "").replace(/\/+$/, "");
   return root && src.startsWith(CONTENT_PATH) ? `${root}${src}` : src;

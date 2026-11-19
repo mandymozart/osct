@@ -3,7 +3,7 @@ import type { SceneData, SurfaceData, SurfacePlace } from '../../../shared/types
 import type { PassSpec } from '../../../shared/types/passes';
 import { buildErrors } from '../lib/errors';
 import { readSection, validate } from '../lib/content';
-import { checkedPasses } from './book';
+import { checkedPasses } from './experience';
 
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 
@@ -55,7 +55,7 @@ function buildSurfaces(raw: unknown[], label: string): SurfaceData[] {
   });
 }
 
-/** The scenes in order; `pluginPasses` = the passes the book's plugins recorded (schema 2.21), which a scene may name */
+/** The scenes in order; `pluginPasses` = the passes the experience's plugins recorded (schema 2.21), which a scene may name */
 export function buildScenes(pluginPasses: ReadonlyMap<string, PassSpec> = new Map()): SceneData[] {
   return readSection('scenes', 'scene.yaml')
     .map(({ id, data }): { order: number; scene: SceneData } | null => {

@@ -9,7 +9,7 @@
   import { readStored, writeStored } from "#lib/storage.js";
 
   /**
-   * AI connections on the books page (#142, #273, docs/editor.md "AI connections"), two tabs:
+   * AI connections on the experiences page (#142, #273, docs/editor.md "AI connections"), two tabs:
    * - **Connect an AI agent** – pick the agent, copy one prompt into it. The prompt (`agentPrompt`) has the agent download
    *   this instance's server file, add its client's entry and call `whoami`; a token made for it is filled in. With no
    *   token yet, one is made at once (named after the agent and the machine); else one click makes it and copies the

@@ -3,13 +3,13 @@ declare(strict_types=1);
 
 /**
  * A surface's reference image (#314, agents/SCENES.md "Surfaces: create, edit, place", docs/server.md "Surface reference
- * images"): one image of the book's Library per surface of a scene – what the editor's stage shows on that surface (a
+ * images"): one image of the experience's Library per surface of a scene – what the editor's stage shows on that surface (a
  * scanned page, a photo of the wall). **Editor-only**: no content – the draft, its publish and the reader never carry
- * it. Kept in `surface_references` by book, scene and surface, with how it fills the surface (`fit`).
+ * it. Kept in `surface_references` by experience, scene and surface, with how it fills the surface (`fit`).
  *
  * - The scenes overview (`GET …/scenes`) shows it as `surfaces[].reference` { url, name, fit } (null: none).
  * - `PUT …/scenes/{id}/surfaces/{surfaceId}/reference { url | null, fit?, name? }` sets, replaces or removes it.
- * - Every set, replace and remove is a change of the book's log (kind `reference`, ref `<scene>/<surface>`, before /
+ * - Every set, replace and remove is a change of the experience's log (kind `reference`, ref `<scene>/<surface>`, before /
  *   after { url, name, fit } or null) – revertable both ways (#312, `Reverts`).
  * - A surface removed from its scene (`PUT …/scenes/{id} { surfaces }`) and a deleted scene take their references
  *   with them (a change each). A reference whose surface is gone otherwise (a re-import, a reverted surfaces list) is
@@ -31,23 +31,23 @@ final class SurfaceReferences
     // ── Reading ──────────────────────────────────────────────────────────────────────────────────
 
     /**
-     * The book's references by scene and surface: [scene][surface] → { url, name, fit }
+     * The experience's references by scene and surface: [scene][surface] → { url, name, fit }
      * @return array<string, array<string, array{url: string, name: string, fit: string}>>
      */
-    public static function byScene(string $bookId): array
+    public static function byScene(string $experienceId): array
     {
         $refs = [];
-        foreach (Db::run('SELECT scene_id, surface_id, url, name, fit FROM surface_references WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+        foreach (Db::run('SELECT scene_id, surface_id, url, name, fit FROM surface_references WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll() as $row) {
             $refs[(string) $row['scene_id']][(string) $row['surface_id']] = self::shape($row);
         }
         return $refs;
     }
 
     /** @return array{url: string, name: string, fit: string}|null one surface's reference */
-    public static function one(string $bookId, string $sceneId, string $surfaceId, bool $lock = false): ?array
+    public static function one(string $experienceId, string $sceneId, string $surfaceId, bool $lock = false): ?array
     {
-        $row = Db::one('SELECT url, name, fit FROM surface_references WHERE book_id = :book AND scene_id = :scene AND surface_id = :surface' . ($lock ? Db::forUpdate() : ''),
-            ['book' => $bookId, 'scene' => $sceneId, 'surface' => $surfaceId]);
+        $row = Db::one('SELECT url, name, fit FROM surface_references WHERE experience_id = :experience AND scene_id = :scene AND surface_id = :surface' . ($lock ? Db::forUpdate() : ''),
+            ['experience' => $experienceId, 'scene' => $sceneId, 'surface' => $surfaceId]);
         return $row ? self::shape($row) : null;
     }
 
@@ -75,9 +75,9 @@ final class SurfaceReferences
     }
 
     /** Whether the scene still has the surface */
-    public static function surfaceExists(string $bookId, string $sceneId, string $surfaceId): bool
+    public static function surfaceExists(string $experienceId, string $sceneId, string $surfaceId): bool
     {
-        $row = Db::one('SELECT data_json FROM scenes WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $sceneId]);
+        $row = Db::one('SELECT data_json FROM scenes WHERE experience_id = :experience AND id = :id', ['experience' => $experienceId, 'id' => $sceneId]);
         if (!$row) return false;
         $data = Editor::decode($row['data_json']);
         return $data instanceof stdClass && in_array($surfaceId, Scenes::surfaceIds($data), true);
@@ -86,17 +86,17 @@ final class SurfaceReferences
     // ── PUT …/scenes/{id}/surfaces/{surfaceId}/reference ─────────────────────────────────────────
 
     /**
-     * PUT /editor/books/{id}/scenes/{sceneId}/surfaces/{surfaceId}/reference { url?: string | null, fit?, name? }
+     * PUT /editor/experiences/{id}/scenes/{sceneId}/surfaces/{surfaceId}/reference { url?: string | null, fit?, name? }
      * → { scene, surface, reference: { url, name, fit } | null, changed }: `url` sets or replaces the surface's reference
-     * image (an image of the book's Library – its URL, or an imported file's content path `/assets/content/…`), null
+     * image (an image of the experience's Library – its URL, or an imported file's content path `/assets/content/…`), null
      * removes it; `fit` (cover | contain | stretch – default cover, a replace keeps the one it had) and `name` (default
      * the Library's name) without `url` change the present reference. A change is recorded (kind `reference`). 400
      * `invalid-reference`; 404 no such scene or surface, or nothing to change the fit or name of.
      */
-    public static function put(string $bookId, string $sceneId, string $surfaceId): never
+    public static function put(string $experienceId, string $sceneId, string $surfaceId): never
     {
         $user = Editor::user();
-        Books::exists($bookId);
+        Experiences::exists($experienceId);
         $body = Editor::body();
         $hasUrl = property_exists($body, 'url');
         $fit = null;
@@ -108,13 +108,13 @@ final class SurfaceReferences
         if (!$hasUrl && $fit === null && $name === null) throw new ApiError(400, 'invalid-reference', 'Send { url } (null removes it), { fit } or { name }.');
         $url = null;
         $libraryName = null;
-        if ($hasUrl && $body->url !== null) [$url, $libraryName] = self::image($bookId, $body->url);
-        [$reference, $changed] = Db::transaction(static function () use ($bookId, $sceneId, $surfaceId, $hasUrl, $url, $fit, $name, $libraryName, $user) {
-            $row = Db::one('SELECT data_json FROM scenes WHERE book_id = :book AND id = :id' . Db::forUpdate(), ['book' => $bookId, 'id' => $sceneId]);
+        if ($hasUrl && $body->url !== null) [$url, $libraryName] = self::image($experienceId, $body->url);
+        [$reference, $changed] = Db::transaction(static function () use ($experienceId, $sceneId, $surfaceId, $hasUrl, $url, $fit, $name, $libraryName, $user) {
+            $row = Db::one('SELECT data_json FROM scenes WHERE experience_id = :experience AND id = :id' . Db::forUpdate(), ['experience' => $experienceId, 'id' => $sceneId]);
             if (!$row) throw new ApiError(404, 'not-found', 'No such scene.');
             $data = Editor::decode($row['data_json']);
             if (!$data instanceof stdClass || !in_array($surfaceId, Scenes::surfaceIds($data), true)) throw new ApiError(404, 'not-found', "The scene has no surface \"$surfaceId\".");
-            $before = self::one($bookId, $sceneId, $surfaceId, true);
+            $before = self::one($experienceId, $sceneId, $surfaceId, true);
             if ($hasUrl && $url === null) $after = null;
             elseif ($hasUrl) $after = ['url' => $url, 'name' => $name ?? self::fit((string) $libraryName), 'fit' => $fit ?? ($before['fit'] ?? self::FIT_DEFAULT)];
             else {
@@ -122,28 +122,28 @@ final class SurfaceReferences
                 $after = ['url' => $before['url'], 'name' => $name ?? $before['name'], 'fit' => $fit ?? $before['fit']];
             }
             if ($before === $after) return [$after, false];
-            self::write($bookId, $sceneId, $surfaceId, $after, $user['id']);
-            Books::recordChange($bookId, $user, self::KIND, self::ref($sceneId, $surfaceId), Editor::encode($before), Editor::encode($after));
+            self::write($experienceId, $sceneId, $surfaceId, $after, $user['id']);
+            Experiences::recordChange($experienceId, $user, self::KIND, self::ref($sceneId, $surfaceId), Editor::encode($before), Editor::encode($after));
             return [$after, true];
         });
         Http::json(200, ['scene' => $sceneId, 'surface' => $surfaceId, 'reference' => $reference, 'changed' => $changed]);
     }
 
     /**
-     * A reference's URL and the Library's name for it: an image of the book's Library by its URL, or an imported one by
+     * A reference's URL and the Library's name for it: an image of the experience's Library by its URL, or an imported one by
      * its content path (`/assets/content/…` – what the rows hold below the assets base), else 400
      * @return array{0: string, 1: string}
      */
-    public static function image(string $bookId, mixed $url): array
+    public static function image(string $experienceId, mixed $url): array
     {
-        if (!is_string($url) || trim($url) === '') throw new ApiError(400, 'invalid-reference', 'url must be the URL of an image of the book\'s Library (or null to remove it).');
-        $images = Assets::imageNames($bookId);
+        if (!is_string($url) || trim($url) === '') throw new ApiError(400, 'invalid-reference', 'url must be the URL of an image of the experience\'s Library (or null to remove it).');
+        $images = Assets::imageNames($experienceId);
         if (array_key_exists($url, $images)) return [$url, $images[$url]];
         if (str_starts_with($url, '/assets/content/')) {
-            $base = rtrim((string) Db::value('SELECT assets_base FROM books WHERE id = :id', ['id' => $bookId]), '/');
+            $base = rtrim((string) Db::value('SELECT assets_base FROM experiences WHERE id = :id', ['id' => $experienceId]), '/');
             if ($base !== '' && array_key_exists($base . $url, $images)) return [$url, $images[$base . $url]];
         }
-        throw new ApiError(400, 'invalid-reference', 'url is no image of the book\'s Library.');
+        throw new ApiError(400, 'invalid-reference', 'url is no image of the experience\'s Library.');
     }
 
     private static function name(mixed $value): string
@@ -165,12 +165,12 @@ final class SurfaceReferences
      * Writes a surface's reference (null removes it) – inside the caller's transaction, no change recorded
      * @param array{url: string, name: string, fit: string}|null $reference
      */
-    public static function write(string $bookId, string $sceneId, string $surfaceId, ?array $reference, ?string $by): void
+    public static function write(string $experienceId, string $sceneId, string $surfaceId, ?array $reference, ?string $by): void
     {
-        $key = ['book' => $bookId, 'scene' => $sceneId, 'surface' => $surfaceId];
-        Db::run('DELETE FROM surface_references WHERE book_id = :book AND scene_id = :scene AND surface_id = :surface', $key);
+        $key = ['experience' => $experienceId, 'scene' => $sceneId, 'surface' => $surfaceId];
+        Db::run('DELETE FROM surface_references WHERE experience_id = :experience AND scene_id = :scene AND surface_id = :surface', $key);
         if ($reference === null) return;
-        Db::run('INSERT INTO surface_references (book_id, scene_id, surface_id, url, name, fit, updated_by, updated_at) VALUES (:book, :scene, :surface, :url, :name, :fit, :by, :at)',
+        Db::run('INSERT INTO surface_references (experience_id, scene_id, surface_id, url, name, fit, updated_by, updated_at) VALUES (:experience, :scene, :surface, :url, :name, :fit, :by, :at)',
             $key + ['url' => $reference['url'], 'name' => $reference['name'], 'fit' => $reference['fit'], 'by' => $by, 'at' => Editor::nowMs()]);
     }
 
@@ -181,15 +181,15 @@ final class SurfaceReferences
      * @param list<string> $surfaceIds
      * @param array<string, mixed> $user
      */
-    public static function drop(string $bookId, string $sceneId, array $surfaceIds, array $user): int
+    public static function drop(string $experienceId, string $sceneId, array $surfaceIds, array $user): int
     {
         if (!$surfaceIds) return 0;
         $count = 0;
-        foreach (Db::run('SELECT surface_id, url, name, fit FROM surface_references WHERE book_id = :book AND scene_id = :scene', ['book' => $bookId, 'scene' => $sceneId])->fetchAll() as $row) {
+        foreach (Db::run('SELECT surface_id, url, name, fit FROM surface_references WHERE experience_id = :experience AND scene_id = :scene', ['experience' => $experienceId, 'scene' => $sceneId])->fetchAll() as $row) {
             $surface = (string) $row['surface_id'];
             if (!in_array($surface, $surfaceIds, true)) continue;
-            self::write($bookId, $sceneId, $surface, null, null);
-            Books::recordChange($bookId, $user, self::KIND, self::ref($sceneId, $surface), Editor::encode(self::shape($row)), 'null');
+            self::write($experienceId, $sceneId, $surface, null, null);
+            Experiences::recordChange($experienceId, $user, self::KIND, self::ref($sceneId, $surface), Editor::encode(self::shape($row)), 'null');
             $count++;
         }
         return $count;
@@ -199,25 +199,25 @@ final class SurfaceReferences
      * A deleted scene takes all its references (a change each) – inside the caller's transaction
      * @param array<string, mixed> $user
      */
-    public static function dropScene(string $bookId, string $sceneId, array $user): int
+    public static function dropScene(string $experienceId, string $sceneId, array $user): int
     {
         $surfaces = array_map(static fn(array $row) => (string) $row['surface_id'],
-            Db::run('SELECT surface_id FROM surface_references WHERE book_id = :book AND scene_id = :scene', ['book' => $bookId, 'scene' => $sceneId])->fetchAll());
-        return self::drop($bookId, $sceneId, $surfaces, $user);
+            Db::run('SELECT surface_id FROM surface_references WHERE experience_id = :experience AND scene_id = :scene', ['experience' => $experienceId, 'scene' => $sceneId])->fetchAll());
+        return self::drop($experienceId, $sceneId, $surfaces, $user);
     }
 
     /**
      * A Library file's URL changed (a replace): its references follow, a change each – inside the caller's transaction
      * @param array<string, mixed> $user
      */
-    public static function relink(string $bookId, string $from, string $to, array $user): int
+    public static function relink(string $experienceId, string $from, string $to, array $user): int
     {
         $count = 0;
-        foreach (Db::run('SELECT scene_id, surface_id, url, name, fit FROM surface_references WHERE book_id = :book AND url = :url', ['book' => $bookId, 'url' => $from])->fetchAll() as $row) {
+        foreach (Db::run('SELECT scene_id, surface_id, url, name, fit FROM surface_references WHERE experience_id = :experience AND url = :url', ['experience' => $experienceId, 'url' => $from])->fetchAll() as $row) {
             $before = self::shape($row);
             $after = ['url' => $to] + $before;
-            self::write($bookId, (string) $row['scene_id'], (string) $row['surface_id'], $after, $user['id']);
-            Books::recordChange($bookId, $user, self::KIND, self::ref((string) $row['scene_id'], (string) $row['surface_id']), Editor::encode($before), Editor::encode($after));
+            self::write($experienceId, (string) $row['scene_id'], (string) $row['surface_id'], $after, $user['id']);
+            Experiences::recordChange($experienceId, $user, self::KIND, self::ref((string) $row['scene_id'], (string) $row['surface_id']), Editor::encode($before), Editor::encode($after));
             $count++;
         }
         return $count;
@@ -227,12 +227,12 @@ final class SurfaceReferences
      * A forced delete of a Library file takes the references that showed it (a change each) – inside the caller's transaction
      * @param array<string, mixed> $user
      */
-    public static function dropUrl(string $bookId, string $url, array $user): int
+    public static function dropUrl(string $experienceId, string $url, array $user): int
     {
         $count = 0;
-        foreach (Db::run('SELECT scene_id, surface_id, url, name, fit FROM surface_references WHERE book_id = :book AND url = :url', ['book' => $bookId, 'url' => $url])->fetchAll() as $row) {
-            self::write($bookId, (string) $row['scene_id'], (string) $row['surface_id'], null, null);
-            Books::recordChange($bookId, $user, self::KIND, self::ref((string) $row['scene_id'], (string) $row['surface_id']), Editor::encode(self::shape($row)), 'null');
+        foreach (Db::run('SELECT scene_id, surface_id, url, name, fit FROM surface_references WHERE experience_id = :experience AND url = :url', ['experience' => $experienceId, 'url' => $url])->fetchAll() as $row) {
+            self::write($experienceId, (string) $row['scene_id'], (string) $row['surface_id'], null, null);
+            Experiences::recordChange($experienceId, $user, self::KIND, self::ref((string) $row['scene_id'], (string) $row['surface_id']), Editor::encode(self::shape($row)), 'null');
             $count++;
         }
         return $count;

@@ -12,7 +12,7 @@ game.router.navigate("/entries", { key: "category", value: "video" });
 game.state.mode; // "idle" | "scan" | "consultation"
 ```
 
-In the browser console the instance is available as `window.BOOKGAME` (for debugging).
+In the browser console the instance is available as `window.READER` (for debugging).
 
 ## Structure
 
@@ -21,7 +21,7 @@ GameStore (extends BaseStore<GameState>)
 ├── state
 ├── scenes    SceneManager    active scene (its targets are tracked), switching
 ├── targets    TargetManager    found / lost targets of the active scene
-├── history    HistoryManager   reading progress per book: unlocked, consulted,
+├── history    HistoryManager   reading progress per experience: unlocked, consulted,
 │                               last scene / category, onboarding; stored on the device
 ├── router     RouterManager    pages, routes and the game mode (idle / scan / consultation)
 ├── camera     CameraManager    camera permission
@@ -34,8 +34,8 @@ What each manager owns: [Managers](managers.md).
 
 ## Game configuration
 
-The store does not load `game.config.json` itself: content (book, scenes, targets, entries)
-is read through `client/src/utils/game-config.ts` (`getBook()`, `getScenes()`,
+The store does not load `game.config.json` itself: content (experience, scenes, targets, entries)
+is read through `client/src/utils/game-config.ts` (`getExperience()`, `getScenes()`,
 `getTargets(sceneId)`, `getEntries()`, `getEntry(id)`, …), the only module that imports the file.
 Its shape is defined in `shared/types/game-config.ts` – see [Content build](content.md#content-build).
 

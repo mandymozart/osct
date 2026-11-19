@@ -7,7 +7,7 @@ describe("behaviour: the content's grammar", () => {
   const key = {
     type: "behaviour",
     rules: [
-      { on: "tap", do: [{ play: "rattle" }, { set: { hasKey: true }, scope: "book" }, { emit: "keyRattled" }] },
+      { on: "tap", do: [{ play: "rattle" }, { set: { hasKey: true }, scope: "experience" }, { emit: "keyRattled" }] },
       { on: "found", when: { hasKey: true }, do: "play" },
       { on: "found", when: { any: { hasKey: true, tries: { not: 3 } } }, do: { hide: "hint" } },
       { on: "doorOpened", when: { doorOpen: null }, do: [{ show: "" }, "stop", { pause: "door" }, { play: "", node: "door" }, { set: { tries: null } }] },
@@ -42,7 +42,7 @@ describe("behaviour: the content's grammar", () => {
       "components[0].rules[3].when.a: expected a value (text, number, true / false, null = not set) or { not: value }, got [1]",
       "components[0].rules[3].do[0].set: expected { variable: value, … }",
       'components[0].rules[3].do[1].set.x: expected a text, a number, true / false or null (deletes), got {"y":1}',
-      'components[0].rules[3].do[1].scope: expected one of scene, stage, session, book, got "world"',
+      'components[0].rules[3].do[1].scope: expected one of scene, stage, session, experience, got "world"',
       "components[0].rules[3].do[2].emit: targetFound is the engine's own event – a rule hears it, never emits it",
       "components[0].rules[3].do[3].emit: tap is the engine's own event – a rule hears it, never emits it",
       "components[0].rules[3].do[4]: an action has one of play, pause, stop, show, hide, set, emit, got show and hide",
@@ -56,7 +56,7 @@ describe("behaviour: the content's grammar", () => {
     const rules = behaviourRules(key);
     expect(rules[0]).toEqual({ on: "tap", when: null, do: [
       { action: "play", clip: "rattle", node: "" },
-      { action: "set", name: "hasKey", value: true, scope: "book" },
+      { action: "set", name: "hasKey", value: true, scope: "experience" },
       { action: "emit", event: "keyRattled" },
     ] });
     expect(rules[1]).toEqual({ on: "found", when: { match: "all", tests: [{ name: "hasKey", value: true, not: false }] }, do: [{ action: "play", clip: "", node: "" }] });
@@ -86,7 +86,7 @@ describe("behaviour: the content's grammar", () => {
     const rules = behaviourRules(key);
     expect(behaviourVariables(rules)).toEqual(["doorOpen", "hasKey", "tries"]);
     expect(behaviourEvents(rules)).toEqual(["doorOpened", "keyRattled"]);
-    expect(describeActions(rules[0].do)).toBe("play rattle · set hasKey = true (book) · emit keyRattled");
+    expect(describeActions(rules[0].do)).toBe("play rattle · set hasKey = true (experience) · emit keyRattled");
     expect(describeActions(rules[3].do)).toBe("show · stop · pause door · play its clip on door · set tries = unset");
   });
 });

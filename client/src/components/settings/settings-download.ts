@@ -1,6 +1,6 @@
 import { goldButton } from "@/components/buttons";
 import i18next, { t } from "i18next";
-import { type BookDownload, InstallService, PreloaderService } from "@/services";
+import { type ExperienceDownload, InstallService, PreloaderService } from "@/services";
 import { SettingsSection } from "./settings-section";
 
 /**
@@ -11,7 +11,7 @@ import { SettingsSection } from "./settings-section";
  */
 export class SettingsDownload extends SettingsSection {
   private preloader = PreloaderService.getInstance();
-  private download: BookDownload | null = null;
+  private download: ExperienceDownload | null = null;
   private unsubscribe?: () => void;
 
   connectedCallback() {
@@ -20,8 +20,8 @@ export class SettingsDownload extends SettingsSection {
       return;
     }
     super.connectedCallback();
-    this.unsubscribe = this.preloader.onBookDownload(download => this.update(download));
-    void this.preloader.getBookDownload().then(download => {
+    this.unsubscribe = this.preloader.onExperienceDownload(download => this.update(download));
+    void this.preloader.getExperienceDownload().then(download => {
       this.download = download;
       this.render();
     });
@@ -60,11 +60,11 @@ export class SettingsDownload extends SettingsSection {
   }
 
   protected onAction(action: string): void {
-    if (action === "download") void this.preloader.downloadBook();
+    if (action === "download") void this.preloader.downloadExperience();
   }
 
   /** Progress updates patch the bar and amount in place; a full render happens only on a state change */
-  private update(download: BookDownload): void {
+  private update(download: ExperienceDownload): void {
     const stateChanged = download.state !== this.download?.state;
     this.download = download;
     const bar = this.shadowRoot?.querySelector<HTMLElement>(".bar");
@@ -80,10 +80,10 @@ export class SettingsDownload extends SettingsSection {
   }
 }
 
-const percent = ({ loaded, total }: BookDownload): number => (total ? Math.round((loaded / total) * 100) : 100);
+const percent = ({ loaded, total }: ExperienceDownload): number => (total ? Math.round((loaded / total) * 100) : 100);
 
 /** Localized "x MB of y MB" text: downloaded (while running) or stored on the device */
-const amount = (download: BookDownload): string =>
+const amount = (download: ExperienceDownload): string =>
   t(download.state === "running" ? "settings:downloadProgress" : "settings:downloadStored",
     { loaded: megabytes(download.loaded), total: megabytes(download.total) });
 

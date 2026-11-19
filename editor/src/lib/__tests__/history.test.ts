@@ -39,7 +39,7 @@ describe("history: undo steps (#312)", () => {
 describe("history: words", () => {
   it("a change's title, before → after, the differences", () => {
     expect(changeTitle({ kind: "entry", ref: "racoon" }, { entry: () => "Racoon" })).toBe("Entry Racoon");
-    expect(changeTitle({ kind: "passes", ref: "book" })).toBe("Post-processing");
+    expect(changeTitle({ kind: "passes", ref: "experience" })).toBe("Post-processing");
     expect(changeSummary({ kind: "entity", before: null, after: {} })).toBe("created");
     expect(changeSummary({ kind: "entity", before: {}, after: null })).toBe("removed");
     expect(changeSummary({ kind: "entry", before: { title: "A", page: 1 }, after: { title: "B", page: 1 } })).toBe('title: "A" → "B"');
@@ -48,7 +48,7 @@ describe("history: words", () => {
 
   it("the filters and the scenes of changes from the tree", () => {
     const tree = {
-      book: {} as never, groups: [],
+      experience: {} as never, groups: [],
       scenes: [{ id: "s1", label: "One", surfaces: [], entries: [{ id: "racoon", category: "c", title: "Racoon", scene: "s1", target: { id: "t1", imageSrc: "", entity: { ref: "castle" } } }] }],
     } as never;
     const { names, scenesOf } = treeNames(tree);
@@ -56,7 +56,7 @@ describe("history: words", () => {
     expect(names.scene?.("s1")).toBe("One");
     expect(scenesOf({ kind: "scene", ref: "s1" })).toEqual(["s1"]);
     expect(scenesOf({ kind: "entity", ref: "castle" })).toEqual(["s1"]);
-    const log = [change("a", 1), change("b", 2, { kind: "book", ref: "b", user: "you@x.test" })];
+    const log = [change("a", 1), change("b", 2, { kind: "experience", ref: "b", user: "you@x.test" })];
     expect(filterChanges(log, { scene: "s1", kind: null, person: null }, scenesOf).map(c => c.id)).toEqual(["a"]);
     expect(filterChanges(log, { scene: null, kind: null, person: "you@x.test" }, scenesOf).map(c => c.id)).toEqual(["b"]);
   });

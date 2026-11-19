@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createGameStore } from "@/store/GameStore";
 import { CameraPermissionStatus, ErrorCode, GameMode, LoadingState } from "@/types";
-import { getBook, getInitialSceneId } from "@/utils/game-config";
+import { getExperience, getInitialSceneId } from "@/utils/game-config";
 
 describe("GameStore", () => {
   beforeEach(() => {
@@ -23,7 +23,7 @@ describe("GameStore", () => {
       arStatus: "idle",
       cameraPermission: CameraPermissionStatus.UNKNOWN,
     });
-    expect(game.state.progress.bookId).toBe(getBook().id);
+    expect(game.state.progress.experienceId).toBe(getExperience().id);
     expect(game.state.progress.appVersions.at(-1)).toBe(__VITE_APP_VERSION__);
   });
 

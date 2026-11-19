@@ -9,7 +9,7 @@
  *           do:
  *             - play: rattle
  *             - set: { hasKey: true }
- *               scope: book
+ *               scope: experience
  *             - emit: keyRattled
  *         - on: found
  *           when: { hasKey: true }
@@ -48,7 +48,7 @@ export type BehaviourVerb = (typeof BEHAVIOUR_ACTIONS)[number];
 export const BEHAVIOUR_NODE_ACTIONS = ["play", "pause", "stop", "show", "hide"] as const;
 
 /** The variable scopes – the engine's runtime uses them as its own (`engine/src/scene/plugin-runtime.ts` `VAR_SCOPES`) */
-export const BEHAVIOUR_SCOPES = ["scene", "stage", "session", "book"] as const;
+export const BEHAVIOUR_SCOPES = ["scene", "stage", "session", "experience"] as const;
 export type BehaviourScope = (typeof BEHAVIOUR_SCOPES)[number];
 
 /** The engine's core events: heard by a rule, never emitted (the runtime's `CORE_EVENTS` are these) */
@@ -280,7 +280,7 @@ export const behaviourEvents = (rules: readonly BehaviourRule[]): string[] =>
     ...rule.do.flatMap(action => (action.action === "emit" ? [action.event] : [])),
   ]))].sort();
 
-/** A rule's actions in words for a log line: `play rattle · set hasKey = true (book) · emit keyRattled` */
+/** A rule's actions in words for a log line: `play rattle · set hasKey = true (experience) · emit keyRattled` */
 export const describeActions = (actions: readonly BehaviourAction[]): string =>
   actions.map(action => {
     switch (action.action) {

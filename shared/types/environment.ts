@@ -1,8 +1,8 @@
 /**
- * The book's environment (content schema 2.8, asset references 2.10): the world around the reader while scanning and
- * the onion sky (`engine/src/scene/look-around`, docs/look-around.md). Book-level only – no per-scene overrides yet.
+ * The experience's environment (content schema 2.8, asset references 2.10): the world around the reader while scanning and
+ * the onion sky (`engine/src/scene/look-around`, docs/look-around.md). Experience-level only – no per-scene overrides yet.
  * The reader's Graphics switches (Info → Settings) still apply on top: the content says what is drawn, the reader can
- * turn either off. A book without `environment` keeps today's look (`DEFAULT_ENVIRONMENT`).
+ * turn either off. An experience without `environment` keeps today's look (`DEFAULT_ENVIRONMENT`).
  *
  * The world and the sky can be **assets** (2.10): `worldSrc` names a glTF model (the scenery around the reader, in
  * place of the built-in world's), `skySrc` an equirectangular image (the sky, in place of the built-in world's). Each
@@ -26,10 +26,10 @@ export interface EnvironmentData {
   onionSky: boolean;
   /**
    * Optional (2.10): the scenery around the reader, a glTF model – its origin is the floor under the reader, its +y up,
-   * its −z towards the book; the reader's eye is `WORLD_EYE_HEIGHT` above the origin. Seen from that point only (3DoF).
+   * its −z towards the scene; the reader's eye is `WORLD_EYE_HEIGHT` above the origin. Seen from that point only (3DoF).
    */
   worldSrc?: string;
-  /** Optional (2.10): the sky, an equirectangular image (2:1, its top edge straight up, its centre towards the book) */
+  /** Optional (2.10): the sky, an equirectangular image (2:1, its top edge straight up, its centre towards the scene) */
   skySrc?: string;
 }
 
@@ -41,9 +41,9 @@ export const WORLD_EYE_HEIGHT = 1.6;
 /** The fields of an environment; older apps' guards (2.8) refuse others, this one lets unknown fields pass */
 const FIELDS = ["world", "onionSky", "worldSrc", "skySrc"] as const;
 
-/** The book's environment, the default when it has none */
-export const environmentOf = (book: { environment?: EnvironmentData } | null | undefined): EnvironmentData =>
-  book?.environment ?? DEFAULT_ENVIRONMENT;
+/** The experience's environment, the default when it has none */
+export const environmentOf = (experience: { environment?: EnvironmentData } | null | undefined): EnvironmentData =>
+  experience?.environment ?? DEFAULT_ENVIRONMENT;
 
 /** The extension of a reference's path (lower case, without query or fragment), "" when it has none */
 export const referenceExtension = (reference: string): string => {

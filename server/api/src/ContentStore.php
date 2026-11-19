@@ -9,7 +9,7 @@ declare(strict_types=1);
  * and bunny.net's Storage API – the zone the osct CLI syncs to, with the same paths and headers, so the reader
  * cannot tell who published. A connected CDN has priority: with CONTENT_STORE `bunny` every environment goes there
  * except `local`, which always stays in the directory (a developer's machine).
- * An environment serves one book, the last one published there: latest.json names it (`book`).
+ * An environment serves one experience, the last one published there: latest.json names it (`experience`).
  * An instance publishes to its own environment only (ENV, `Config::env()`); `local` exists only where ENV is local.
  */
 final class ContentStore
@@ -34,7 +34,7 @@ final class ContentStore
     private const SERVED = '#^(latest\.json|versions\.json|[0-9a-f]{12}/(game\.config|files)\.json)$#';
     /** A Code tab plugin a publish put into a version (#78): JavaScript, loaded cross-origin by the reader */
     private const SERVED_PLUGIN = '#^[0-9a-f]{12}/assets/content/plugins/[a-z][a-z0-9-]{0,39}/plugin-[0-9a-f]{12}\.js$#';
-    /** The assets' files (Assets.php): `<book>/<asset>/v<n>.<ext>` under the `assets` environment – any book id (`Editor::ID`) */
+    /** The assets' files (Assets.php): `<experience>/<asset>/v<n>.<ext>` under the `assets` environment – any experience id (`Editor::ID`) */
     private const SERVED_ASSET = '#^' . Editor::ID . '/[0-9a-f-]{36}/v\d+\.([a-z0-9]{2,5})$#';
 
     private function __construct(private readonly string $kind, private readonly string $env)
@@ -139,10 +139,10 @@ final class ContentStore
     }
 
     /**
-     * The book this environment serves, after latest.json: null when nothing is published here; `book` null when it
-     * cannot be told (an unreadable manifest, a version without its configuration). A manifest without `book` was
-     * written before it existed – the book of its version's game.config.json (`book.id`) tells.
-     * @return array{book: ?string, build: ?string, since: ?string}|null
+     * The experience this environment serves, after latest.json: null when nothing is published here; `experience` null when it
+     * cannot be told (an unreadable manifest, a version without its configuration). A manifest without `experience` was
+     * written before it existed – the experience of its version's game.config.json (`experience.id`) tells.
+     * @return array{experience: ?string, build: ?string, since: ?string}|null
      */
     public function live(): ?array
     {
@@ -150,14 +150,14 @@ final class ContentStore
         if ($raw === null) return null;
         $manifest = json_decode($raw, true);
         $build = is_array($manifest) && is_string($manifest['build'] ?? null) && preg_match(self::BUILD, $manifest['build']) ? $manifest['build'] : null;
-        if ($build === null) return ['book' => null, 'build' => null, 'since' => null];
-        $book = is_string($manifest['book'] ?? null) ? $manifest['book'] : null;
-        if ($book === null) {
+        if ($build === null) return ['experience' => null, 'build' => null, 'since' => null];
+        $experience = is_string($manifest['experience'] ?? null) ? $manifest['experience'] : null;
+        if ($experience === null) {
             $configuration = json_decode((string) $this->get("$build/game.config.json"), true);
-            $id = is_array($configuration) && is_array($configuration['book'] ?? null) ? ($configuration['book']['id'] ?? null) : null;
-            $book = is_string($id) ? $id : null;
+            $id = is_array($configuration) && is_array($configuration['experience'] ?? null) ? ($configuration['experience']['id'] ?? null) : null;
+            $experience = is_string($id) ? $id : null;
         }
-        return ['book' => $book, 'build' => $build, 'since' => is_string($manifest['activatedAt'] ?? null) ? $manifest['activatedAt'] : null];
+        return ['experience' => $experience, 'build' => $build, 'since' => is_string($manifest['activatedAt'] ?? null) ? $manifest['activatedAt'] : null];
     }
 
     /**
@@ -190,12 +190,12 @@ final class ContentStore
      * versions.json after `version` (build, hash, schema) became current at `now`: the previous current version is
      * retired, this build's entry is appended or updated – the osct CLI's bookkeeping (content-sync.ts `activate`),
      * so `osct content purge` reads what the editor publishes.
-     * The entry records the book (`book`).
+     * The entry records the experience (`experience`).
      * @param array<int, mixed> $versions
      * @param array{build: string, hash: string, schema: string} $version
      * @return array<int, array<string, mixed>>
      */
-    public static function activate(array $versions, array $version, string $now, bool $uploadedNow, string $bookId): array
+    public static function activate(array $versions, array $version, string $now, bool $uploadedNow, string $experienceId): array
     {
         $existing = null;
         $result = [];
@@ -216,7 +216,7 @@ final class ContentStore
             'uploadedAt' => $uploadedNow || !$existing ? $now : $existing['uploadedAt'],
             'activatedAt' => $existing && ($existing['retiredAt'] ?? null) === null ? $existing['activatedAt'] : $now,
             'retiredAt' => null,
-            'book' => $bookId,
+            'experience' => $experienceId,
         ];
         usort($result, fn(array $a, array $b) => strcmp((string) ($a['activatedAt'] ?? ''), (string) ($b['activatedAt'] ?? '')));
         return $result;

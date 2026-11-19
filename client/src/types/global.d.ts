@@ -4,7 +4,7 @@ import { IQRCodeStatic } from './qr/qrcode';
 // Globals: the game store (debugging / console access) and the vendored QRCode library
 declare global {
   interface Window {
-    BOOKGAME: IGame;
+    READER: IGame;
     QRCode: IQRCodeStatic;
   }
 }

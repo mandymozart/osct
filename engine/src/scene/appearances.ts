@@ -4,7 +4,7 @@ import { type AppearanceSpec, type Moment, registerAppearanceSpec, unregisterApp
 
 /**
  * The looks of a plugin's own: how an entity appears and disappears, in code. The content names a look by its type
- * for a moment (`book.appearance: { reveal, found, lost }`, `shared/types/appearance.ts`) – a built-in one, which the
+ * for a moment (`experience.appearance: { reveal, found, lost }`, `shared/types/appearance.ts`) – a built-in one, which the
  * engine's own animation plays from its values (`./celebration`), or one registered here through the plugin API's
  * `registerAppearance` with the plugin as the owner; it then plays in the built-in one's place.
  *
@@ -70,7 +70,7 @@ export const registerAppearance = (type: string, spec: AppearanceSpec, factory: 
   const existing = registry.get(type);
   if (existing && existing.owner !== owner) throw new Error(`The look "${type}" is registered by ${existing.owner}`);
   registry.set(type, { owner, spec, factory });
-  // The checks of a book's and an entity's looks read the spec from the contract's registry
+  // The checks of an experience's and an entity's looks read the spec from the contract's registry
   registerAppearanceSpec(type, spec);
 };
 

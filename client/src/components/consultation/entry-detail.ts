@@ -12,12 +12,12 @@ import { t } from "i18next";
  * long text; video: a note to scan the access page + a preview player; link: the embedded player across the screen's
  * full width (the page's gutter, `--content-gutter`, is bled) or the embedded page, + "open in a new tab".
  * The body is set in Medium (`--text-size`).
- * The body is the content's Markdown with the book's variables (`renderEntryText`, the editor's preview renders the same):
+ * The body is the content's Markdown with the experience's variables (`renderEntryText`, the editor's preview renders the same):
  * the page sets `variables` (their values when the entry opens), then `entry`; `null` empties it and stops media.
  */
 export class EntryDetail extends HTMLElement {
   private _entry: Entry | null = null;
-  /** The book's variables for the body's `{…}` – none: every variable is unset */
+  /** The experience's variables for the body's `{…}` – none: every variable is unset */
   variables: VariableLookup = () => undefined;
 
   constructor() {

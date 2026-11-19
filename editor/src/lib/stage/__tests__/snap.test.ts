@@ -9,7 +9,7 @@ import { arrangeInRow, FLAT } from "#lib/surface-edit.js";
 
 /** Two pages in a row (`left`, `right`, the scene's origin between them) and a cover alone (`front`, centred) */
 const pageOf = (id: string) => ({ id, widthMm: 230, heightMm: 320, place: FLAT });
-const book = flatFrame(arrangeInRow([pageOf("left"), pageOf("right")]));
+const twoPages = flatFrame(arrangeInRow([pageOf("left"), pageOf("right")]));
 const cover = flatFrame([pageOf("front")]);
 const settings = (patch: Partial<SnapSettings> = {}): SnapSettings => ({ snapTo: ["grid", "axes", "objects", "outlines"], gridMm: 10, snapMove: 1, origin: "top-left", ...patch });
 
@@ -46,17 +46,17 @@ describe("snap: the grid", () => {
 
   it("counts the steps from the origin's zero of the page under the point", () => {
     // top left corners: the left page's at x = −230, the right page's at the spine; y from the page's top
-    expect(incrementsAt(-100, "top-left", book, 10)).toEqual([{ zero: -230, step: 10 }, { zero: 160, step: 10 }, { zero: 0, step: 10 }]);
-    expect(incrementsAt(50, "top-left", book, 10)[0]).toEqual({ zero: 0, step: 10 });
-    // beyond the book: the nearest page's
-    expect(incrementsAt(400, "top-right", book, 5)[0]).toEqual({ zero: 230, step: 5 });
-    // the book's centre: one zero for both pages
-    expect(incrementsAt(-100, "centre", book, 10)[0]).toEqual({ zero: 0, step: 10 });
+    expect(incrementsAt(-100, "top-left", twoPages, 10)).toEqual([{ zero: -230, step: 10 }, { zero: 160, step: 10 }, { zero: 0, step: 10 }]);
+    expect(incrementsAt(50, "top-left", twoPages, 10)[0]).toEqual({ zero: 0, step: 10 });
+    // beyond the pages: the nearest page's
+    expect(incrementsAt(400, "top-right", twoPages, 5)[0]).toEqual({ zero: 230, step: 5 });
+    // the two pages' centre: one zero for both pages
+    expect(incrementsAt(-100, "centre", twoPages, 10)[0]).toEqual({ zero: 0, step: 10 });
   });
 
   it("steps by the grid while the grid is a snap target, else by the move step", () => {
-    expect(moveIncrements(10, settings(), book)[0].step).toBe(10);
-    expect(moveIncrements(10, settings({ snapTo: ["axes"], snapMove: 2.5 }), book)[0].step).toBe(2.5);
+    expect(moveIncrements(10, settings(), twoPages)[0].step).toBe(10);
+    expect(moveIncrements(10, settings({ snapTo: ["axes"], snapMove: 2.5 }), twoPages)[0].step).toBe(2.5);
   });
 });
 
@@ -112,40 +112,40 @@ describe("snap: the nearest line within the threshold", () => {
 
 describe("snap: the stage's lines", () => {
   it("has the origin's zero lines and the page plane as axes", () => {
-    const [x, y, z] = axisLines("top-left", book);
+    const [x, y, z] = axisLines("top-left", twoPages);
     expect(x.map(l => l.at)).toEqual([-230, 0]);
     expect(y.map(l => l.at)).toEqual([160]);
     expect(z).toEqual([{ at: 0, kind: "axes" }]);
-    expect(axisLines("centre", book)[0].map(l => l.at)).toEqual([0]);
+    expect(axisLines("centre", twoPages)[0].map(l => l.at)).toEqual([0]);
   });
 
   it("has the pages' edges, the spine too, as outlines", () => {
-    expect(surfaceLines(book)[0].map(l => l.at)).toEqual([-230, 0, 230]);
-    expect(surfaceLines(book)[1].map(l => l.at)).toEqual([160, -160]);
+    expect(surfaceLines(twoPages)[0].map(l => l.at)).toEqual([-230, 0, 230]);
+    expect(surfaceLines(twoPages)[1].map(l => l.at)).toEqual([160, -160]);
     expect(surfaceLines(cover)[0].map(l => l.at)).toEqual([-115, 115]);
   });
 
   it("puts a printed target's box on the stage and gives its edges and centre", () => {
-    const box = placeStageBox({ surface: "right", x: 20, y: 30, width: 60 }, 40, book);
+    const box = placeStageBox({ surface: "right", x: 20, y: 30, width: 60 }, 40, twoPages);
     expect(box).toEqual({ min: [20, 90, 0], max: [80, 130, 0] });
     expect(boxLines(box, "outlines")[0].map(l => l.at)).toEqual([20, 50, 80]);
-    expect(placeStageBox({ surface: "left", x: 0, y: 0, width: 230 }, 320, book)).toEqual({ min: [-230, -160, 0], max: [0, 160, 0] });
+    expect(placeStageBox({ surface: "left", x: 0, y: 0, width: 230 }, 320, twoPages)).toEqual({ min: [-230, -160, 0], max: [0, 160, 0] });
   });
 
   it("keeps only the chosen targets' lines", () => {
-    const lines = joinLines(axisLines("centre", book), pointLines([10, 20, 30], "objects"), surfaceLines(book));
+    const lines = joinLines(axisLines("centre", twoPages), pointLines([10, 20, 30], "objects"), surfaceLines(twoPages));
     expect(chosenLines(lines, ["objects"])).toEqual([[{ at: 10, kind: "objects" }], [{ at: 20, kind: "objects" }], [{ at: 30, kind: "objects" }]]);
     expect(chosenLines(lines, ["axes", "outlines"])[0].map(l => l.kind)).toEqual(["axes", "outlines", "outlines", "outlines"]);
   });
 
   it("reads the scene's frame from its top left corner", () => {
-    expect(frameToStage(book, 0, 0)).toEqual({ x: -230, y: 160 });
+    expect(frameToStage(twoPages, 0, 0)).toEqual({ x: -230, y: 160 });
     expect(frameToStage(cover, 115, 160)).toEqual({ x: 0, y: 0 });
   });
 });
 
 describe("snap: a move of the gizmo", () => {
-  const lines = joinLines(axisLines("centre", book), surfaceLines(book));
+  const lines = joinLines(axisLines("centre", twoPages), surfaceLines(twoPages));
 
   it("snaps only the axes the handle may change, and names its guides", () => {
     const result = snapMove({
@@ -173,7 +173,7 @@ describe("snap: a move of the gizmo", () => {
 });
 
 describe("snap: a print dragged by its handles", () => {
-  const input = (patch: Partial<SnapSettings> = {}) => ({ frame: book, lines: joinLines(axisLines("top-left", book), surfaceLines(book)), threshold: 4, settings: settings(patch) });
+  const input = (patch: Partial<SnapSettings> = {}) => ({ frame: twoPages, lines: joinLines(axisLines("top-left", twoPages), surfaceLines(twoPages)), threshold: 4, settings: settings(patch) });
 
   it("puts its edge on a page edge in reach", () => {
     // 60 × 40 on the right page, its right edge 2 mm from the page's outer edge (230)

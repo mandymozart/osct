@@ -4,7 +4,6 @@
  * Folder names are the ids; nested objects (entry.target, entity assets) are checked in the build.
  */
 import { ENTRY_CATEGORIES } from "../../../shared/types/entry";
-import { SOURCES_OF_TRUTH } from "../../../shared/types/game-config";
 
 /** `List`: an array of texts, or the texts in one comma-separated string */
 export type FieldType = "String" | "Number" | "Array" | "List" | "Boolean" | "Object";
@@ -23,17 +22,23 @@ interface Schema {
 }
 
 export const schemas = {
-  // content/book.yaml
-  book: {
+  // content/experience.yaml (schema 4.0)
+  experience: {
     fields: {
       id: { type: "String", required: true },
       title: { type: "String", required: true },
-      author: { type: "String", required: true },
-      publisher: { type: "String", required: false },
+      book: { type: "Object", required: false }, // the printed book it accompanies: { author, publisher? } – none: not a book
       passes: { type: "Array", required: false }, // post-processing of every scene without its own: [{ type, ...parameters }], see shared/types/passes.ts
       environment: { type: "Object", required: false }, // the world around the reader and the onion sky: { world, onionSky, worldSrc?, skySrc? }, see shared/types/environment.ts
       appearance: { type: "Object", required: false }, // the look an entity appears with: { reveal?, found?, lost? }, each { type, ...parameters }, see shared/types/appearance.ts
-      sourceOfTruth: { type: "String", required: false, enum: SOURCES_OF_TRUTH }, // print (default: scenes from the layout) | digital (scenes made in the editor)
+    },
+  },
+
+  // experience.yaml's `book`: the printed book (print data only)
+  book: {
+    fields: {
+      author: { type: "String", required: true },
+      publisher: { type: "String", required: false },
     },
   },
 

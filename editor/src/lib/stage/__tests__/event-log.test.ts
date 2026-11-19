@@ -32,7 +32,7 @@ describe("logEvent: the Inspector's event timeline", () => {
 describe("describePayload: an event's payload as one line", () => {
   it("lists an object's fields as JSON values, a deleted variable's value as a dash", () => {
     expect(describePayload({ targetId: "key" })).toBe('targetId: "key"');
-    expect(describePayload({ name: "hasKey", scope: "book", value: undefined, previous: true })).toBe('name: "hasKey" · scope: "book" · value: – · previous: true');
+    expect(describePayload({ name: "hasKey", scope: "experience", value: undefined, previous: true })).toBe('name: "hasKey" · scope: "experience" · value: – · previous: true');
   });
 
   it("is empty without a payload and plain text for a scalar", () => {

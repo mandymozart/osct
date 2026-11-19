@@ -122,7 +122,7 @@ export const materialProblems = (raw: unknown, path: string, nodeType?: string, 
   if (!spec) {
     if (options.unknownTypes === "allow") return problems;
     const known = [...new Set([...materialTypes(), ...(options.specs?.keys() ?? [])])];
-    return [...problems, `${path}.type: "${type}" is not a material ${known.length ? `of the book's plugins (${known.join(", ")})` : "– the book's plugins register none"}`];
+    return [...problems, `${path}.type: "${type}" is not a material ${known.length ? `of the experience's plugins (${known.join(", ")})` : "– the experience's plugins register none"}`];
   }
   if (nodeType && spec.nodeTypes && !spec.nodeTypes.includes(nodeType)) problems.push(`${path}: ${type} applies to ${spec.nodeTypes.join(", ")} nodes, not to a ${nodeType}`);
   if (isObject(params)) {

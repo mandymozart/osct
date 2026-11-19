@@ -16,9 +16,9 @@ export interface ProgressReadResult {
   status: ProgressReadStatus;
 }
 
-export const createProgressRecord = (bookId: string): ProgressRecord => ({
+export const createProgressRecord = (experienceId: string): ProgressRecord => ({
   format: PROGRESS_FORMAT,
-  bookId,
+  experienceId,
   appVersions: [],
   unlocked: {},
   consulted: {},
@@ -39,11 +39,12 @@ const isString = (v: unknown): v is string => typeof v === "string";
 const isVariable = (v: unknown): v is ProgressVariable => isString(v) || isNumber(v) || typeof v === "boolean";
 
 /**
- * Formats 1 and 2 (app 2.0.0, content schema 3.0, #319): the record as defined in `types/history.ts`; malformed and
- * unknown fields are dropped. Format 2 has format 1's shape – only `lastSpreadId` became `lastScene`, read as dropped.
+ * Formats 1 to 3: the record as defined in `types/history.ts`; malformed and unknown fields are dropped. Format 2 (app
+ * 2.0.0, #319) has format 1's shape – only `lastSpreadId` became `lastScene`, read as dropped; format 3 (app 3.0.0,
+ * #320) – only `bookId` became `experienceId`: the id comes from the caller, so an older record's `bookId` is not read.
  */
-const readRecord = (raw: Record<string, unknown>, bookId: string): ProgressRecord => ({
-  ...createProgressRecord(bookId),
+const readRecord = (raw: Record<string, unknown>, experienceId: string): ProgressRecord => ({
+  ...createProgressRecord(experienceId),
   appVersions: Array.isArray(raw.appVersions) ? raw.appVersions.filter(isString) : [],
   unlocked: pick(raw.unlocked, isNumber),
   consulted: pick(raw.consulted, isNumber),
@@ -54,15 +55,19 @@ const readRecord = (raw: Record<string, unknown>, bookId: string): ProgressRecor
   onboarded: raw.onboarded === true,
   // Additive field within format 1 (#282): records without it show the scan view's coach marks once
   coached: raw.coached === true,
-  // Additive field within format 1: the plugins' book variables, scalars only
+  // Additive field within format 1: the plugins' experience variables, scalars only
   variables: pick(raw.variables, isVariable),
 });
 
 /** One reader per storage format, each returns the current shape */
-export const PROGRESS_READERS: Record<number, (raw: Record<string, unknown>, bookId: string) => ProgressRecord> = {
+export const PROGRESS_READERS: Record<number, (raw: Record<string, unknown>, experienceId: string) => ProgressRecord> = {
   1: readRecord,
   2: readRecord,
+  3: readRecord,
 };
+
+/** Fields an older format named differently: the old name → the current one (its value kept as it was) */
+const RENAMED_FIELDS: Record<string, keyof ProgressRecord> = { bookId: "experienceId" };
 
 /** Same JSON value (key order ignored) */
 const sameValue = (a: unknown, b: unknown): boolean => {
@@ -81,7 +86,7 @@ const sameValue = (a: unknown, b: unknown): boolean => {
  */
 const keptAsItWas = (raw: Record<string, unknown>, record: ProgressRecord): boolean => {
   const fields: Record<string, unknown> = { ...record };
-  return Object.entries(raw).every(([key, value]) => key === "format" || sameValue(value, fields[key]));
+  return Object.entries(raw).every(([key, value]) => key === "format" || sameValue(value, fields[RENAMED_FIELDS[key] ?? key]));
 };
 
 /**
@@ -89,11 +94,12 @@ const keptAsItWas = (raw: Record<string, unknown>, record: ProgressRecord): bool
  * format (including one written by a newer app) is unreadable. An older format is "converted" only when
  * reading it changed something (`keptAsItWas`).
  */
-export const readProgress = (raw: unknown, bookId: string): ProgressReadResult => {
-  if (raw === null) return { record: createProgressRecord(bookId), status: "new" };
-  const reader = isObject(raw) && isNumber(raw.format) ? PROGRESS_READERS[raw.format] : undefined;
-  if (!isObject(raw) || !reader) return { record: createProgressRecord(bookId), status: "unreadable" };
-  const record = reader(raw, bookId);
+export const readProgress = (raw: unknown, experienceId: string): ProgressReadResult => {
+  if (raw === null) return { record: createProgressRecord(experienceId), status: "new" };
+  // A record of a newer app is unreadable, even when a reader for its format is ready for the next MAJOR
+  const reader = isObject(raw) && isNumber(raw.format) && raw.format <= PROGRESS_FORMAT ? PROGRESS_READERS[raw.format] : undefined;
+  if (!isObject(raw) || !reader) return { record: createProgressRecord(experienceId), status: "unreadable" };
+  const record = reader(raw, experienceId);
   return {
     record,
     status: raw.format === PROGRESS_FORMAT || keptAsItWas(raw, record) ? "current" : "converted",
@@ -108,7 +114,7 @@ const union = (a: Record<string, number>, b: Record<string, number>): Record<str
 };
 
 /**
- * Merges two records of the same book (account sync): union of unlocked and consulted ids with the
+ * Merges two records of the same experience (account sync): union of unlocked and consulted ids with the
  * earliest time, onboarded (and coached) if either was; this device's last scene / category and variables win, the other's fill
  * gaps.
  */

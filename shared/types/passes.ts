@@ -1,7 +1,7 @@
 /**
  * Post-processing passes (content schema 2.5): effects over the whole rendered AR image – a bloom, a vignette, a colour
- * grade, a shader of the book's own. A scene names them as `passes: [{ type, ...parameters }]`, run in order on
- * the image the scene rendered, before it lies over the camera picture; the book's `passes` are the default for
+ * grade, a shader of the experience's own. A scene names them as `passes: [{ type, ...parameters }]`, run in order on
+ * the image the scene rendered, before it lies over the camera picture; the experience's `passes` are the default for
  * every scene without a list of its own (an empty list turns them off). Like the components, every built-in type
  * is defined once here – its parameters with kind, default, range and a description – so the editor's rows, the
  * content build, the config guard and the engine read one definition. A plugin's pass (`registerPass`) brings its
@@ -122,7 +122,7 @@ export const passProblems = (raw: unknown, path: string, options: PassCheckOptio
     if (enabled !== undefined && typeof enabled !== "boolean") problems.push(`${at}.enabled: expected true or false, got ${JSON.stringify(enabled)}`);
     const spec = passSpec(type, options);
     if (!spec) {
-      const plugins = options.pluginTypes?.length ? ` or a pass of the book's plugins (${options.pluginTypes.join(", ")})` : "";
+      const plugins = options.pluginTypes?.length ? ` or a pass of the experience's plugins (${options.pluginTypes.join(", ")})` : "";
       if (options.unknownTypes !== "allow") problems.push(`${at}.type: "${type}" is not one of ${PASS_TYPES.join(", ")}${plugins}`);
       return;
     }

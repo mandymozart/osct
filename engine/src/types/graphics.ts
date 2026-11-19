@@ -10,7 +10,7 @@ export type TextureQuality = "auto" | TextureSize;
 export interface GraphicsSettings {
   /** Looking up, sky-like parts of the camera picture show the world's sky */
   onionSky: boolean;
-  /** The world around the reader, anchored to the book */
+  /** The world around the reader, anchored to the found surfaces */
   surroundings: boolean;
   /** Optional: how large the maps of models with a texture set are loaded (none = `auto`) */
   textureQuality?: TextureQuality;

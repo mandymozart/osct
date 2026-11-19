@@ -151,8 +151,9 @@ describe("content compatibility", () => {
   it("refuses another MAJOR: newer content asks for an app update", () => {
     expect(check(schema(app.major + 1, 0))).toMatchObject({ code: ErrorCode.NOT_SUPPORTED, type: "critical" });
     expect(check(schema(app.major + 1, 0))?.details?.[0]).toMatch(/update the app/);
-    // Schema 3.0 (#319) removed the 2.x page model and no 2.x reader was shipped: content older than MAJOR 3 is refused
-    expect(OLDEST_READABLE_SCHEMA_MAJOR).toBe(3);
+    // Schema 4.0 (#320) made the experience the top level and no 3.x reader was shipped: content older than MAJOR 4 is refused
+    expect(OLDEST_READABLE_SCHEMA_MAJOR).toBe(4);
+    expect(check(schema(3, 0))?.details?.[0]).toMatch(/newer build/);
     expect(check(schema(2, 36))?.details?.[0]).toMatch(/newer build/);
     expect(check(schema(1, 9))?.details?.[0]).toMatch(/newer build/);
   });

@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_ENVIRONMENT, type EnvironmentData } from "@shared/types/environment";
-import { bookEnvironment, environmentSkyLabel, showsWorld, stageLook } from "../sky";
+import { experienceEnvironment, environmentSkyLabel, showsWorld, stageLook } from "../sky";
 import { SHADING_MODES } from "../preview";
 
 const forest: EnvironmentData = { world: "cafe", onionSky: false, worldSrc: "https://cdn.test/lib/forest.glb", skySrc: "/assets/content/sky/dusk%20blue.jpg" };
 
-describe("sky: the book's environment for the stage", () => {
-  it("a book without one keeps the HDRI, until the author starts one", () => {
-    expect(bookEnvironment(undefined, DEFAULT_ENVIRONMENT, false)).toBeNull();
-    expect(bookEnvironment(undefined, forest, true)).toBe(forest);
+describe("sky: the experience's environment for the stage", () => {
+  it("an experience without one keeps the HDRI, until the author starts one", () => {
+    expect(experienceEnvironment(undefined, DEFAULT_ENVIRONMENT, false)).toBeNull();
+    expect(experienceEnvironment(undefined, forest, true)).toBe(forest);
   });
 
-  it("a book with one shows the edited values (unsaved edits included)", () => {
-    expect(bookEnvironment(DEFAULT_ENVIRONMENT, DEFAULT_ENVIRONMENT, false)).toBe(DEFAULT_ENVIRONMENT);
-    expect(bookEnvironment(DEFAULT_ENVIRONMENT, forest, true)).toBe(forest);
+  it("an experience with one shows the edited values (unsaved edits included)", () => {
+    expect(experienceEnvironment(DEFAULT_ENVIRONMENT, DEFAULT_ENVIRONMENT, false)).toBe(DEFAULT_ENVIRONMENT);
+    expect(experienceEnvironment(DEFAULT_ENVIRONMENT, forest, true)).toBe(forest);
   });
 });
 

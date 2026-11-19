@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createGameStore } from "@/store/GameStore";
 import { LocalProgressStorage } from "@/services/ProgressStorage";
-import { getBook, getInitialSceneId, getScenes } from "@/utils/game-config";
+import { getExperience, getInitialSceneId, getScenes } from "@/utils/game-config";
 
 const [first, second] = getScenes().map(scene => scene.id);
 
@@ -41,7 +41,7 @@ describe("SceneManager", () => {
     const target = getInitialSceneId() === second ? first : second;
     game.scenes.switchScene(target);
     expect(game.state.progress.lastScene).toBe(target);
-    const stored = JSON.parse(localStorage.getItem(LocalProgressStorage.key(getBook().id)) ?? "null");
+    const stored = JSON.parse(localStorage.getItem(LocalProgressStorage.key(getExperience().id)) ?? "null");
     expect(stored.lastScene).toBe(target);
   });
 

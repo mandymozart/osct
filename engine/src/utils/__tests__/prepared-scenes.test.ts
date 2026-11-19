@@ -27,7 +27,7 @@ describe("scenes kept loaded", () => {
     expect(stored.get("ar-prepared-scenes")).toBe("2");
   });
 
-  it("grows towards the whole book when grow is chosen (content for the neighbours)", () => {
+  it("grows towards the whole experience when grow is chosen (content for the neighbours)", () => {
     stored.set("ar-prepared-scenes", "grow");
     expect(getPreparedWindowSetting()).toBe("grow");
     expect(getPreparedSceneRange()).toBe(1);

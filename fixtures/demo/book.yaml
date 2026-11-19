@@ -1,7 +1,0 @@
-# The demo book (#80): a sandbox that uses everything the editor and the engine can do – not a book that exists.
-id: demo
-title: The Demo Book
-author: OSCT
-publisher: Building Fictions
-# Made in the editor, not from a printed layout: scenes are added and removed there (#238)
-sourceOfTruth: digital

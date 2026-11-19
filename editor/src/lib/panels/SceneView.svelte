@@ -17,7 +17,7 @@
    * selected – the tree's top row, a click on the stage that picks nothing, a fresh workspace. Collapsible sections
    * (open state kept per section): the **scene** (`SceneSection`: label, group, surfaces, arrange in a row), the scene's own
    * **post-processing** (an override of the experience's, #307 3c – the experience's passes and appearance are behind the
-   * experience settings ⚙, `BookPanel`; the old "scene" section is gone: a double page is two surfaces), and the **narrative** of the book's plugins: a tap button per target (the
+   * experience settings ⚙, `ExperiencePanel`; the old "scene" section is gone: a double page is two surfaces), and the **narrative** of the experience's plugins: a tap button per target (the
    * reader's tap without aiming), the variables with scope and type, editable and deletable, a form to set one by hand
    * (both written through the plugin API), *reset* for a new game, and the stage's event timeline (time since the
    * scene opened, event, payload) with *clear*. How the stage shows the scene – shake, origin, the desk's top, the
@@ -25,8 +25,8 @@
    * the stage itself; found / lost per target is the tree's eye, the first find is replayed from the stage's menu.
    * Explanations are the controls' help in the Info view.
    */
-  let { stage, bookId, sceneId, onenvironment }: {
-    stage: Stage | null; bookId: string; sceneId: string;
+  let { stage, experienceId, sceneId, onenvironment }: {
+    stage: Stage | null; experienceId: string; sceneId: string;
     /** The environment row's link: the workspace opens the Environment tab */
     onenvironment?: () => void;
   } = $props();
@@ -49,11 +49,11 @@
   };
 </script>
 
-<SceneSection {bookId} {sceneId} />
+<SceneSection {experienceId} {sceneId} />
 
 <!-- The scene's own post-processing, a child of its parameters; the experience's passes and appearance are behind the
-     experience settings ⚙ (BookPanel) – #307 3c, Tilman -->
-<PassesPanel {stage} {bookId} {sceneId} level="scene" />
+     experience settings ⚙ (ExperiencePanel) – #307 3c, Tilman -->
+<PassesPanel {stage} {experienceId} {sceneId} level="scene" />
 
 {#snippet valueControl(type: VarType, value: VarValue, label: string, commit: (value: VarValue) => void)}
   {#if type === "boolean"}
@@ -65,7 +65,7 @@
   {/if}
 {/snippet}
 
-<Section id="stage.narrative" label="vars and events" open={false} help="The narrative of the book's plugins on the stage: tap a target, set their variables by hand, read the stage's timeline.">
+<Section id="stage.narrative" label="vars and events" open={false} help="The narrative of the experience's plugins on the stage: tap a target, set their variables by hand, read the stage's timeline.">
   <div class="row top" data-help="Taps a target's AR content without aiming at it, as a reader's tap would: the entity's onTap (a plugin component's, the animation's playOn: tap, a behaviour's tap rules) and the event targetTapped. Only a found target with AR content takes a tap.">
     <span class="label">tap</span>
     <span class="controls">

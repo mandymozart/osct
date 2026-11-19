@@ -16,13 +16,13 @@ if (!process.env.VITEST && existsSync(envFile)) process.loadEnvFile(envFile);
 export const FIXTURE_DIR = resolve(projectRoot, 'fixtures/content');
 /** Marks the fixture; the build copies it into the output, `osct content sync` refuses a build with it */
 export const FIXTURE_MARKER = 'FIXTURE.md';
-/** The demo book (fixtures/demo, docs/plugins.md "The demo book"): a sandbox next to the fixture */
+/** The demo (fixtures/demo, docs/plugins.md "The demo"): a sandbox next to the fixture */
 export const DEMO_DIR = resolve(projectRoot, 'fixtures/demo');
-/** Marks the demo; a build with it goes to the environment DEMO_ENV only – never where the book's current version is */
+/** Marks the demo; a build with it goes to the environment DEMO_ENV only – never where the experience's current version is */
 export const DEMO_MARKER = 'DEMO.md';
 export const DEMO_ENV = 'demo';
 
-// The content source. The book content is not in this repository: OSCT_CONTENT_DIR names its folder (absolute, or
+// The content source. The content is not in this repository: OSCT_CONTENT_DIR names its folder (absolute, or
 // relative to the repository root – `fixtures/content` for the fixture). Default: a local `content/` folder.
 export const CONTENT_DIR = resolve(projectRoot, process.env.OSCT_CONTENT_DIR || 'content');
 export const OUTPUT_FILE = resolve(projectRoot, 'client/src/game.config.json');

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { liveLabels, liveShort, replaceQuestion } from "../live";
 
-// Each environment serves one book: where a book is live, and the question before a publish replaces another book
-describe("live book", () => {
-  it("a book no environment serves is draft only", () => {
+// Each environment serves one experience: where an experience is live, and the question before a publish replaces another experience
+describe("live experience", () => {
+  it("an experience no environment serves is draft only", () => {
     expect(liveLabels([])).toEqual(["draft only"]);
     expect(liveLabels(undefined)).toEqual(["draft only"]);
     expect(liveShort([])).toBe("draft only");
@@ -19,12 +19,12 @@ describe("live book", () => {
     expect(liveShort([{ env: "staging", build: null, since: null }, { env: "production", build: null, since: null }])).toBe("live on staging, production");
   });
 
-  it("asks naming both books, production more strictly", () => {
+  it("asks naming both experiences, production more strictly", () => {
     const staging = replaceQuestion("staging", "Demo", "Onion Skin & Crocodile Tears");
     expect(staging).toContain("Staging serves “Onion Skin & Crocodile Tears”. Publish “Demo” instead?");
     const production = replaceQuestion("production", "Demo", "Onion Skin & Crocodile Tears");
     expect(production).toContain("every reader");
     expect(production).toContain("Replace “Onion Skin & Crocodile Tears” with “Demo” on production?");
-    expect(replaceQuestion("local", "Demo", null)).toContain("a book the editor cannot tell");
+    expect(replaceQuestion("local", "Demo", null)).toContain("an experience the editor cannot tell");
   });
 });

@@ -1,6 +1,6 @@
 // The OSCT MCP server for one user: their roles pick the service – the editor's tools for the role `editor` – and only
 // that service's tools, prompts and rules are listed. The API stays the only authority: every call carries the user's
-// token. With `OSCT_EDITOR_TOKEN` – an AI connection's token `osct_…` made on the editor's books page, or a session
+// token. With `OSCT_EDITOR_TOKEN` – an AI connection's token `osct_…` made on the editor's experiences page, or a session
 // token – the mail sign-in is skipped and whoami names the token. Without a token the server starts with `whoami` and
 // the sign-in pair; a sign-in with the editor role then opens the tools (the client is told the list changed).
 import { McpServer } from "@modelcontextprotocol/server";
@@ -68,9 +68,9 @@ export function createUserServer(config: Config, api: OsctApi, user: User | null
         editor: links.editor,
         ...(user
           ? services?.editor
-            ? { confirm: "Saves change the book's draft. Give the person the link from each result: they check it on the stage and publish to readers in the editor." }
+            ? { confirm: "Saves change the experience's draft. Give the person the link from each result: they check it on the stage and publish to readers in the editor." }
             : { hint: "No editor role – an admin grants it on the admin page (/editor/admin); this server lists the editor's tools once the role is there." }
-          : { hint: "Not signed in: start the server with OSCT_EDITOR_TOKEN set to a token made on the editor's books page (AI connections) – or sign_in_request { email } (the code arrives by mail), then sign_in_verify { requestId, code }." }),
+          : { hint: "Not signed in: start the server with OSCT_EDITOR_TOKEN set to a token made on the editor's experiences page (AI connections) – or sign_in_request { email } (the code arrives by mail), then sign_in_verify { requestId, code }." }),
       });
     },
   );
@@ -78,7 +78,7 @@ export function createUserServer(config: Config, api: OsctApi, user: User | null
   server.registerTool(
     "sign_in_request",
     {
-      description: "Starts a sign-in by e-mail, for people without a token: the API mails a 6-digit code to the address (locally with MAIL_TRANSPORT=log it lands in the mail log). Ask the person for the code, then sign_in_verify. Not needed when OSCT_EDITOR_TOKEN is set (a token made on the editor's books page, AI connections).",
+      description: "Starts a sign-in by e-mail, for people without a token: the API mails a 6-digit code to the address (locally with MAIL_TRANSPORT=log it lands in the mail log). Ask the person for the code, then sign_in_verify. Not needed when OSCT_EDITOR_TOKEN is set (a token made on the editor's experiences page, AI connections).",
       inputSchema: z.object({ email: z.string().email() }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },

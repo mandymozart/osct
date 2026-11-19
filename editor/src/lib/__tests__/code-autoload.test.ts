@@ -16,8 +16,8 @@ const SOURCES: Record<string, string> = {
 vi.mock("../api", async original => ({
   ...(await original<typeof import("../api")>()),
   listPlugins: async () => ({ plugins: Object.keys(SOURCES).sort().map(id => ({ id, size: 1, usages: 0, updatedAt: "", updatedBy: null })) }),
-  getPlugin: async (_book: string, id: string) => ({ plugin: { id, source: SOURCES[id], size: 1, updatedAt: "", updatedBy: null } }),
-  putPlugin: async (_book: string, id: string, source: string) => ({ plugin: { id, source, size: 1, updatedAt: "", updatedBy: null } }),
+  getPlugin: async (_experience: string, id: string) => ({ plugin: { id, source: SOURCES[id], size: 1, updatedAt: "", updatedBy: null } }),
+  putPlugin: async (_experience: string, id: string, source: string) => ({ plugin: { id, source, size: 1, updatedAt: "", updatedBy: null } }),
 }));
 
 const { plugins, AUTO_LOAD_TIMEOUT_MS } = await import("../plugins.svelte");
@@ -41,9 +41,9 @@ class FakeStage {
   async override(): Promise<void> {}
 }
 
-let book = 0;
-/** Every test a book of its own: the store starts clean for it */
-const nextBook = () => `book-${++book}`;
+let experiences = 0;
+/** Every test an experience of its own: the store starts clean for it */
+const nextExperience = () => `experience-${++experiences}`;
 
 beforeEach(() => window.localStorage.clear());
 afterEach(() => vi.restoreAllMocks());
@@ -52,7 +52,7 @@ describe("the saved sources load by themselves when the stage starts", () => {
   it("every stored source runs, the scene is built once, the broken one says why", async () => {
     const stage = new FakeStage();
     const version = plugins.version;
-    await plugins.autoLoad(nextBook(), stage);
+    await plugins.autoLoad(nextExperience(), stage);
     // The broken one never reaches the frame: it does not transpile
     expect(stage.runs).toEqual(["lifts", "reveal"]);
     expect(stage.refreshes).toBe(1);
@@ -66,13 +66,13 @@ describe("the saved sources load by themselves when the stage starts", () => {
 
   it("a run the frame refuses is the source's failure", async () => {
     const stage = new FakeStage(id => (id === "reveal" ? { ok: false, error: "register failed – boom" } : { ok: true, types: [] }));
-    await plugins.autoLoad(nextBook(), stage);
+    await plugins.autoLoad(nextExperience(), stage);
     expect(plugins.status.get("reveal")).toEqual({ state: "failed", error: "register failed – boom" });
     expect(plugins.status.get("lifts")).toEqual({ state: "saved" });
   });
 
   it("a source the stage does not answer for is skipped at the next open, once", async () => {
-    const id = nextBook();
+    const id = nextExperience();
     await plugins.autoLoad(id, new FakeStage(p => (p === "lifts" ? "hang" : { ok: true, types: [] })));
     expect(plugins.status.get("lifts")).toEqual({ state: "failed", error: `the stage did not answer within ${AUTO_LOAD_TIMEOUT_MS / 1000} s` });
     expect(window.localStorage.getItem(`osct-code-autoload:${id}`)).toBe("lifts");
@@ -91,7 +91,7 @@ describe("the saved sources load by themselves when the stage starts", () => {
   });
 
   it("a page that froze in the middle of a run (the mark left behind) skips that source", async () => {
-    const id = nextBook();
+    const id = nextExperience();
     window.localStorage.setItem(`osct-code-autoload:${id}`, "reveal");
     const stage = new FakeStage();
     await plugins.autoLoad(id, stage);
@@ -102,7 +102,7 @@ describe("the saved sources load by themselves when the stage starts", () => {
 
 describe("a Run and a Save keep the status", () => {
   it("unsaved edits run as edits; the saved text runs as saved; a new frame gets what ran here", async () => {
-    const id = nextBook();
+    const id = nextExperience();
     const stage = new FakeStage();
     await plugins.autoLoad(id, stage);
     const edited = SOURCES.reveal.replace("'reveal'", "'reveal, edited'");
@@ -126,7 +126,7 @@ describe("a Run and a Save keep the status", () => {
   });
 
   it("a Run that fails marks the source failed (what ran before stays registered)", async () => {
-    const id = nextBook();
+    const id = nextExperience();
     const stage = new FakeStage();
     await plugins.autoLoad(id, stage);
     expect(await plugins.run("lifts", "export const register = api => {", stage)).toBe(false);
@@ -139,8 +139,8 @@ describe("a Run and a Save keep the status", () => {
 describe("why a type is missing", () => {
   it("loading, failed or nobody's", async () => {
     const stage = new FakeStage();
-    const loading = plugins.autoLoad(nextBook(), stage);
-    expect(plugins.missingNote()).toBe("loading the book's code…");
+    const loading = plugins.autoLoad(nextExperience(), stage);
+    expect(plugins.missingNote()).toBe("loading the experience's code…");
     await loading;
     plugins.status.clear();
     expect(plugins.missingNote()).toBe("unknown – no plugin registers it");

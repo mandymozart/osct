@@ -1,7 +1,7 @@
 {
   "signedOutDescription": "Sla je voortgang op en ontvang updates in je inbox. Al geregistreerd? Vul hetzelfde e-mailadres in om op dit apparaat in te loggen.",
   "optionsLabel": "Updates",
-  "bookUpdates": "Updates ontvangen over {{title}}",
+  "experienceUpdates": "Updates ontvangen over {{title}}",
   "artistUpdates": "Updates ontvangen van {{author}}",
   "publisherUpdates": "Updates ontvangen van Building Fictions",
   "emailPlaceholder": "Je e-mailadres",

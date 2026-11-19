@@ -25,7 +25,6 @@
   import NewSceneForm from "#lib/NewSceneForm.svelte";
   import { sceneLabel } from "@engine/content/scenes";
   import { surfaceGrids } from "#lib/surface-grids.svelte.js";
-  import { bookSource } from "#lib/book-source.svelte.js";
   import { entries } from "#lib/entries.svelte.js";
   import { deleteEntry, deleteScene, errorText, isMediaAsset, putTarget, type Asset, type MediaKind } from "#lib/api.js";
   import type { SurfaceReferences } from "#lib/stage/surfaces.js";
@@ -68,7 +67,7 @@
    * in this browser. The editor is desktop and iPad only (Tilman, 2026-11-18): the phone's layout – a sheet at the
    * bottom with the tree as a tab, ‹ › over the stage – is gone (#317). `?tab=environment` opens a tab.
    */
-  const bookId = $derived(page.params.book!);
+  const experienceId = $derived(page.params.experience!);
   const sceneId = $derived(page.params.scene!);
   const TAB_KEY = "osct-editor-tab";
   /** The Inspector's tab row: the words, or the icons in an Inspector too narrow for them */
@@ -173,7 +172,7 @@
   let addingTarget = $state(false);
   /** The tree's "+ entry" (#237): an entry without a printed image on this scene */
   let addingEntry = $state(false);
-  /** The creation step of a new scene (#238 – a digital-first book): it follows `after` */
+  /** The creation step of a new scene (#238 – every experience adds scenes, #320): it follows `after` */
   let addingScene = $state<{ after: string | null } | null>(null);
   const openNewScene = (after: string | null) => {
     addingTarget = false;
@@ -183,31 +182,25 @@
   const sceneCreated = async (newId: string) => {
     addingScene = null;
     await reloadContent();
-    void goto(resolve(`${bookId}/${newId}/`));
+    void goto(resolve(`${experienceId}/${newId}/`));
   };
-  // Whether scenes are added here (#238): the book's source of truth, read once per book (the book's Inspector changes it)
-  $effect(() => {
-    const id = bookId;
-    if (bookSource.bookId !== id) void bookSource.load(id);
-  });
-  // The book's scenes, read once per book here – not only by the Scenes panel: the stage's reference images (#314) and
+  // The experience's scenes, read once per experience here – not only by the Scenes panel: the stage's reference images (#314) and
   // the scene removal come from them, with the panel closed too
   $effect(() => {
-    const id = bookId;
-    if (untrack(() => scenes.bookId) !== id) void scenes.load(id);
+    const id = experienceId;
+    if (untrack(() => scenes.experienceId) !== id) void scenes.load(id);
   });
   /** + after the last scene (#238) */
   const atLastScene = $derived(content.scenes.at(-1)?.id === sceneId);
-  const canAddScene = $derived(bookSource.bookId === bookId && bookSource.digital);
   let entityPanel = $state<{ useAsset: (kind: MediaKind, src: string, assetId: string) => void }>();
   /** The content changed under the stage (a target's image or placement, a relink): reload it and build the scene again */
   const reloadContent = async () => {
     try {
-      await content.load(bookId);
+      await content.load(experienceId);
       await stage?.refresh();
       void library.refresh();
       // The Scenes panel's counts (targets per scene)
-      void scenes.load(bookId);
+      void scenes.load(experienceId);
     } catch (e) {
       failed(e);
     }
@@ -221,7 +214,7 @@
   const entryCreated = async (entryId: string) => {
     addingEntry = false;
     await reloadContent();
-    await entries.load(bookId);
+    await entries.load(experienceId);
     selection.selectEntry(entryId, null);
     openTab("inspector");
   };
@@ -248,7 +241,7 @@
   const removeEntry = async (entryId: string, targetId: string | null) => {
     removalError = null;
     try {
-      await deleteEntry(bookId, entryId);
+      await deleteEntry(experienceId, entryId);
     } catch (e) {
       const step = removalStep(e);
       if (!step) return failed(e);
@@ -260,7 +253,7 @@
   const removeScene = async (sceneId: string) => {
     removalError = null;
     try {
-      await deleteScene(bookId, sceneId);
+      await deleteScene(experienceId, sceneId);
     } catch (e) {
       const step = removalStep(e);
       if (!step) return failed(e);
@@ -283,9 +276,9 @@
     removal = null;
     if (sceneId === sceneId) {
       const next = content.neighbour(sceneId, 1) ?? content.neighbour(sceneId, -1);
-      if (next) await goto(resolve(`${bookId}/${next.id}/`), { replace: true });
+      if (next) await goto(resolve(`${experienceId}/${next.id}/`), { replace: true });
     }
-    await scenes.load(bookId, true);
+    await scenes.load(experienceId, true);
     await reloadContent();
   };
   /** The second step: the same removal with the confirmation id; a void id brings the fresh impact */
@@ -296,10 +289,10 @@
     removalError = null;
     try {
       if (asked.kind === "scene") {
-        await deleteScene(bookId, asked.sceneId, asked.step.confirmation.id, deleteFiles);
+        await deleteScene(experienceId, asked.sceneId, asked.step.confirmation.id, deleteFiles);
         await sceneRemoved(asked.sceneId);
       } else {
-        await deleteEntry(bookId, asked.entryId, asked.step.confirmation.id, deleteFiles);
+        await deleteEntry(experienceId, asked.entryId, asked.step.confirmation.id, deleteFiles);
         await removed(asked.targetId, asked.entryId);
       }
     } catch (e) {
@@ -310,10 +303,10 @@
       removalBusy = false;
     }
   };
-  // ── the environment (#185): the book's replaces the HDRI as the stage's sky (rendered); previewed while its tab is open
+  // ── the environment (#185): the experience's replaces the HDRI as the stage's sky (rendered); previewed while its tab is open
   // (its Library picker included) – in every shading, the default's world too ──
   $effect(() => {
-    void environmentEdit.load(bookId);
+    void environmentEdit.load(experienceId);
   });
   // An environment edit reached the draft: the content follows (nothing is built again – the stage shows the values
   // already), the Library counts the files' uses
@@ -333,7 +326,7 @@
   // scenes change), handed to the stage, which lays them on the surfaces ──
   const surfaceReferences = $derived.by<SurfaceReferences>(() => {
     const refs: SurfaceReferences = {};
-    if (scenes.bookId !== bookId) return refs;
+    if (scenes.experienceId !== experienceId) return refs;
     for (const [sceneId, surfaces] of Object.entries(scenes.references)) {
       for (const [surfaceId, reference] of Object.entries(surfaces)) (refs[sceneId] ??= {})[surfaceId] = { url: reference.url, fit: reference.fit };
     }
@@ -344,7 +337,7 @@
   });
 
   // ── the surfaces' own grids (#316 part 1): the open scene's spacings, kept in this browser, go to the stage ──
-  $effect(() => surfaceGrids.enter(bookId, sceneId));
+  $effect(() => surfaceGrids.enter(experienceId, sceneId));
 
   // ── the Surface mode (#314): the Surface tool outlines the open scene's surfaces, a tap selects one (no target, no
   // node), Esc deselects; the selected one is highlighted with its gizmo, whose drag saves its place ──
@@ -361,8 +354,8 @@
   });
   const placeSurface = (surfaceId: string, place: Required<SurfacePlace>) => {
     const id = sceneId;
-    const book = bookId;
-    autosave.queue(`scene:${book}:${id}:surfaces`, async () => {
+    const experience = experienceId;
+    autosave.queue(`scene:${experience}:${id}:surfaces`, async () => {
       const surfaces = scenes.scene(id)?.surfaces ?? [];
       const next = updateSurface(surfaces, surfaceId, { place });
       if (!sameSurfaces(next, surfaces)) await scenes.putScene(id, { surfaces: next });
@@ -377,19 +370,19 @@
     if (version === scenesSeen) return;
     scenesSeen = version;
     // The open scene's surfaces may have changed (#314): the stage lays the scene out again from the new draft
-    untrack(() => void content.load(bookId).then(() => stage?.relayout()).catch(failed));
+    untrack(() => void content.load(experienceId).then(() => stage?.relayout()).catch(failed));
   });
   /** A card opens its scene; a scene just made is in the draft first */
   // The experience's address opens the scene last open here (the overview page is gone – Tilman, 2026-11-18)
-  $effect(() => writeStoredJson(`osct-editor-last-scene:${bookId}`, sceneId));
+  $effect(() => writeStoredJson(`osct-editor-last-scene:${experienceId}`, sceneId));
   const openScene = async (id: string) => {
     if (id === sceneId) return;
     try {
-      if (!content.scene(id)) await content.load(bookId);
+      if (!content.scene(id)) await content.load(experienceId);
     } catch (e) {
       return failed(e);
     }
-    void goto(resolve(`${bookId}/${id}/`));
+    void goto(resolve(`${experienceId}/${id}/`));
   };
   const selectGroup = (id: string) => {
     selection.selectGroup(id);
@@ -398,14 +391,14 @@
 
   // ── undo, redo and the History (#312): the experience's saved changes; a revert written reloads the draft, the stage
   // and the panels (their forms start again from the draft) ──
-  $effect(() => history.enter(bookId));
+  $effect(() => history.enter(experienceId));
   let revisionSeen = untrack(() => history.revision);
   $effect(() => {
     const revision = history.revision;
     if (revision === revisionSeen) return;
     revisionSeen = revision;
     untrack(() => {
-      void Promise.all([reloadContent(), entries.load(bookId), environmentEdit.load(bookId, true), bookSource.load(bookId), scenes.load(bookId, true)])
+      void Promise.all([reloadContent(), entries.load(experienceId), environmentEdit.load(experienceId, true), scenes.load(experienceId, true)])
         .finally(() => (panelsRevision = revision));
     });
   });
@@ -417,13 +410,13 @@
   let queuedTrees: { stage: Stage; trees: Map<string, EntityData> } | null = null;
   $effect(() => {
     const s = stage;
-    const book = bookId;
+    const experience = experienceId;
     if (!s) return;
     // Every change of the live trees runs this again
     void [...s.overrides];
     untrack(() => {
       if (queuedTrees?.stage !== s) queuedTrees = { stage: s, trees: new Map() };
-      queueTreeSaves(s, book, queuedTrees.trees);
+      queueTreeSaves(s, experience, queuedTrees.trees);
     });
   });
 
@@ -436,7 +429,7 @@
   const useAsTargetImage = async (asset: Asset) => {
     if (!selection.target) return;
     try {
-      await putTarget(bookId, selection.target, { imageSrc: asset.url });
+      await putTarget(experienceId, selection.target, { imageSrc: asset.url });
     } catch (e) {
       return failed(e);
     }
@@ -452,8 +445,8 @@
   const start = async () => {
     loadError = null;
     try {
-      if (content.bookId !== bookId) {
-        const error = await content.load(bookId);
+      if (content.experienceId !== experienceId) {
+        const error = await content.load(experienceId);
         if (error) {
           loadError = `${error.msg}${error.details?.[0] ? ` – ${error.details[0]}` : ""}`;
           return;
@@ -491,7 +484,7 @@
         stage.onSurfacePlace = placeSurface;
         // The Code tab's saved sources run on every frame that starts (#269): their looks and components are known at once
         const started = stage;
-        started.onStarted = () => void plugins.autoLoad(bookId, started);
+        started.onStarted = () => void plugins.autoLoad(experienceId, started);
       }
       await stage.open(sceneId);
     } catch (e) {
@@ -526,7 +519,7 @@
     selectedOn = id;
     selection.enter(id);
   });
-  // The search or the book's ⚙ asked to show the selection: the Inspector opens
+  // The search or the experience's ⚙ asked to show the selection: the Inspector opens
   $effect(() => {
     const asked = selection.reveal;
     if (asked === revealSeen) return;
@@ -578,7 +571,7 @@
     { value: "textured", name: "Textured", icon: "shade-textured", label: "Textured – the content's materials, no sky" },
     { value: "rendered", name: "Rendered", icon: "shade-rendered", label: "Rendered – the HDRI's sky and light" },
   ] satisfies (ToolGroupOption & { value: ShadingMode })[];
-  /** With the book's environment, *rendered* shows its world instead of the HDRI (#185) – the button's label says so */
+  /** With the experience's environment, *rendered* shows its world instead of the HDRI (#185) – the button's label says so */
   const shadingOptions = $derived<ToolGroupOption[]>(stageEnvironment.current
     ? SHADING_OPTIONS.map(option => (option.value === "rendered" ? { ...option, label: "Rendered – the environment's sky, the reader's light" } : option))
     : SHADING_OPTIONS);
@@ -661,7 +654,7 @@
 
   const step = (direction: 1 | -1) => {
     const next = content.neighbour(sceneId, direction);
-    if (next) void goto(resolve(`${bookId}/${next.id}/`), { replace: true });
+    if (next) void goto(resolve(`${experienceId}/${next.id}/`), { replace: true });
   };
   /** Shift or Ctrl held turns snapping around while dragging (#190) */
   const snapKey = (event: KeyboardEvent) => stage?.setSnapModifier(event.shiftKey || event.ctrlKey);
@@ -729,11 +722,11 @@
         onchoose={mode => updatePreview({ shading: mode as ShadingMode })} />
       <GridSnapMenu />
       <ViewMenu bind:this={viewMenu} />
-      <!-- #269: the stage runs the book live (Unreal's Realtime) – Live off holds the entities' clock for placing; Restart is a new game -->
+      <!-- #269: the stage runs the experience live (Unreal's Realtime) – Live off holds the entities' clock for placing; Restart is a new game -->
       <span class="tool-group live" role="group" aria-label="Live">
         <button type="button" class="icon-button" class:on={stage.live} aria-pressed={stage.live} onclick={() => stage?.setLive(!stage.live)}
           aria-label={stage.live ? "Live: on" : "Live: off"} title={stage.live ? "Live: the scene moves by itself – click to hold it still for placing" : "Held: the scene stands still – click to let it move again"}
-          data-help-name="Live" data-help="On: the stage plays the book as a reader sees it – components, clips, the book's code move by themselves. Off: their clock holds, so the scene stands still while you place things; what is found still appears. The code is loaded either way.">
+          data-help-name="Live" data-help="On: the stage plays the experience as a reader sees it – components, clips, the experience's code move by themselves. Off: their clock holds, so the scene stands still while you place things; what is found still appears. The code is loaded either way.">
           <Icon name={stage.live ? "pause" : "play"} /></button>
         <button type="button" class="icon-button" onclick={() => stage?.resetNarrative()} aria-label="Restart" title="Restart: a new game – nothing found, no variables; every reveal plays again"
           data-help-name="Restart" data-help="A new game on the stage: nothing found, every variable cleared, the timeline empty – the scene's targets are found anew and play their reveal, as a reader meets the scene the first time.">
@@ -756,7 +749,7 @@
 {#snippet treeBody()}
   <TreePanel {stage} {sceneId} onselect={select} onaddtarget={() => { addingEntry = false; addingTarget = true; }}
     onaddentry={() => { addingTarget = false; addingScene = null; addingEntry = true; }}
-    onaddscene={canAddScene ? openNewScene : undefined} onremoveentry={removeEntry} />
+    onaddscene={openNewScene} onremoveentry={removeEntry} />
 {/snippet}
 
 {#snippet panelBody()}
@@ -768,21 +761,21 @@
   {#if removal}
     <div class="body removal"><RemovalConfirm step={removal.step} busy={removalBusy} error={removalError} onconfirm={deleteFiles => void confirmRemoval(deleteFiles)} oncancel={() => (removal = null)} /></div>
   {:else if addingTarget && scene}
-    <div class="body"><NewTargetForm {bookId} {scene} {stage} oncreated={targetCreated} oncancel={() => (addingTarget = false)} /></div>
+    <div class="body"><NewTargetForm {experienceId} {scene} {stage} oncreated={targetCreated} oncancel={() => (addingTarget = false)} /></div>
   {:else if addingScene}
-    <div class="body"><NewSceneForm {bookId} scenes={content.scenes} after={addingScene.after} oncreated={sceneCreated} oncancel={() => (addingScene = null)} /></div>
+    <div class="body"><NewSceneForm {experienceId} scenes={content.scenes} after={addingScene.after} oncreated={sceneCreated} oncancel={() => (addingScene = null)} /></div>
   {:else if addingEntry && scene}
-    <div class="body"><NewEntryForm {bookId} {scene} oncreated={entryCreated} oncancel={() => (addingEntry = false)} /></div>
+    <div class="body"><NewEntryForm {experienceId} {scene} oncreated={entryCreated} oncancel={() => (addingEntry = false)} /></div>
   {:else if shown === "tree"}
     <div class="body">{@render treeBody()}</div>
   {:else if shown === "inspector"}
-    <div class="body"><EntityPanel bind:this={entityPanel} {stage} {bookId} {sceneId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} onenvironment={() => openTab("environment")} /></div>
+    <div class="body"><EntityPanel bind:this={entityPanel} {stage} {experienceId} {sceneId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} onenvironment={() => openTab("environment")} /></div>
   {:else if shown === "environment"}
-    <div class="body"><EnvironmentPanel {stage} {bookId} /></div>
+    <div class="body"><EnvironmentPanel {stage} {experienceId} /></div>
   {:else if shown === "library"}
-    <div class="body"><LibraryPanel {bookId} nodeType={selectedNodeType} targetId={selection.target} onuse={useAsset} onusetarget={useAsTargetImage} onchanged={reloadContent} onopencode={() => openTab("code")} /></div>
+    <div class="body"><LibraryPanel {experienceId} nodeType={selectedNodeType} targetId={selection.target} onuse={useAsset} onusetarget={useAsTargetImage} onchanged={reloadContent} onopencode={() => openTab("code")} /></div>
   {:else if shown === "code"}
-    <div class="body code"><CodePanel {bookId} {stage} /></div>
+    <div class="body code"><CodePanel {experienceId} {stage} /></div>
   {/if}
 {/snippet}
 
@@ -836,9 +829,9 @@
     </FloatingPanel>
     <FloatingPanel {floats} id="inspector">
       {#snippet head()}
-        <!-- Back to the book is the top bar's book crumb; ‹ › live in the Scenes panel's head (#307) -->
+        <!-- Back to the experience is the top bar's experience crumb; ‹ › live in the Scenes panel's head (#307) -->
         <span class="float-tabs" role="group" aria-label="Inspector tabs">{@render tabButtons()}</span>
-        {#if canAddScene && atLastScene}
+        {#if atLastScene}
           <button type="button" class="icon-button" onclick={() => openNewScene(sceneId)} title="Add a scene after the last one" aria-label="Add a scene"
             data-help-name="Add a scene" data-help="Opens the creation step for a new scene after this one – a double page, a single page or a wall."><Icon name="plus" /></button>
         {/if}
@@ -846,7 +839,7 @@
       <div class="float-body inspector">{@render panelBody()}</div>
     </FloatingPanel>
     <FloatingPanel {floats} id="scenes">
-      <ScenesPanel {bookId} bookTitle={scenes.tree?.book.title ?? ""} current={sceneId} selectedGroup={selection.group} floating
+      <ScenesPanel {experienceId} experienceTitle={scenes.tree?.experience.title ?? ""} current={sceneId} selectedGroup={selection.group} floating
         assetsBase={content.assetsBase ?? ""} onopen={id => void openScene(id)} onselectgroup={selectGroup} onstep={step} />
     </FloatingPanel>
     <FloatingPanel {floats} id="info">

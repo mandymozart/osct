@@ -6,7 +6,7 @@ import {
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { BACKDROP_LAYER } from "@engine/scene/view";
-import type { StageBook, StageGrids, StageSurface, StageTarget, StageView } from "./mock-tracker";
+import type { StageScene, StageGrids, StageSurface, StageTarget, StageView } from "./mock-tracker";
 import { frameFor, placeHeight } from "./placement";
 import { frameBox, gridLines, ORIGIN_SPOTS, originPoint, type OriginFrame } from "./origin";
 import { DEFAULT_FRAME, fitImage, hitSurfaces, surfaceFrame, surfaceRects, toStage, type SurfaceFrame, type SurfaceReference, type V3 } from "./surfaces";
@@ -166,7 +166,7 @@ interface DeskTextures {
  * with its reference image, else paper), the targets' printed images where they lie (or in a row), the grids, all in
  * the same three.js scene as the entities, moved as one group by the tracker's camera
  * (the three.js camera stays at the origin, as in AR). The sky and the light (`sky.ts`, #185): the chosen HDRI while the
- * shading is rendered, the scene's own lights otherwise – and while the book's environment is drawn under the stage,
+ * shading is rendered, the scene's own lights otherwise – and while the experience's environment is drawn under the stage,
  * its world as the sky and the scene's own lights, as in the reader. The desk keeps its own materials under every viewport shading
  * (`shading.ts` applies to the entities), like the gizmo and the outlines.
  */
@@ -194,7 +194,7 @@ export class MockStage implements StageView {
   /** The tops whose look their materials show (each put on once, when the top is first chosen) */
   private looks = new Set<TopId>();
   private disposed = false;
-  private book = new Group();
+  private boards = new Group();
   private pages = new Group();
   private textures: Texture[] = [];
   private loader = new TextureLoader();
@@ -227,7 +227,7 @@ export class MockStage implements StageView {
   private sky: Mesh<SphereGeometry, MeshBasicMaterial> | null = null;
   private shading: ShadingMode = "rendered";
   private hdri: HdriId | null = null;
-  /** The book's environment is drawn under the stage (the engine's look-around world): it replaces the HDRI (#185) */
+  /** The experience's environment is drawn under the stage (the engine's look-around world): it replaces the HDRI (#185) */
   private world = false;
 
   /** The environment's world is drawn under the stage (true) or not: the HDRI steps aside – sky and light – while it is */
@@ -242,7 +242,7 @@ export class MockStage implements StageView {
     return stageLook({ shading: this.shading, hdri: this.hdri, world: this.world });
   }
 
-  /** The viewport's shading: the sky and the HDRI's light belong to "rendered" only; wireframe and solid reach the book and the desk too (#137) */
+  /** The viewport's shading: the sky and the HDRI's light belong to "rendered" only; wireframe and solid reach the boards and the desk too (#137) */
   setShading(mode: ShadingMode): void {
     if (this.shading === mode) return;
     this.shading = mode;
@@ -250,9 +250,9 @@ export class MockStage implements StageView {
     this.shadeStage();
   }
 
-  /** The current shading on the desk, the book and the pages – not the ghost, the grid or the sky */
+  /** The current shading on the desk, the boards and the pages – not the ghost, the grid or the sky */
   private shadeStage(): void {
-    applyShading([this.table, this.book, this.pages], this.shading);
+    applyShading([this.table, this.boards, this.pages], this.shading);
   }
   /** The scene's own lights at their intensity before the HDRI dimmed them */
   private dimmed = new Map<Light, number>();
@@ -268,7 +268,7 @@ export class MockStage implements StageView {
     this.guideGroup.name = "mock-guides";
     this.sceneGridGroup.name = "mock-scene-grid";
     this.marksGroup.name = "mock-surface-marks";
-    this.group.add(this.table, this.book, this.pages, this.gridGroup, this.sceneGridGroup, this.marksGroup, this.guideGroup, this.ghostGroup);
+    this.group.add(this.table, this.boards, this.pages, this.gridGroup, this.sceneGridGroup, this.marksGroup, this.guideGroup, this.ghostGroup);
     scene.add(this.group);
     this.loadDesk();
   }
@@ -351,26 +351,26 @@ export class MockStage implements StageView {
 
   /**
    * The open scene on the stage (#319: plain boards): each surface a board at its place – its face paper, a wall stands
-   * – with its reference image (`book.references`) fitted onto it; the targets' prints on their surfaces. No book, no
+   * – with its reference image (`scene.references`) fitted onto it; the targets' prints on their surfaces. No book, no
    * fold, no cover: a scene is its surfaces.
    */
-  setLayout(targets: readonly StageTarget[], book: StageBook): void {
+  setLayout(targets: readonly StageTarget[], scene: StageScene): void {
     const run = ++this.layoutRun;
-    this.clear(this.book);
+    this.clear(this.boards);
     this.clear(this.pages);
     this.textures.forEach(texture => texture.dispose());
     this.textures = [];
 
-    this.frames = book.surfaces.length ? book.surfaces.map(surfaceFrame) : [DEFAULT_FRAME];
+    this.frames = scene.surfaces.length ? scene.surfaces.map(surfaceFrame) : [DEFAULT_FRAME];
     const edge = new MeshStandardMaterial({ color: PAPER_EDGE_COLOR, roughness: 1 });
     const face = new MeshStandardMaterial({ color: PAPER_COLOR, roughness: 1 });
     this.frames.forEach(frame => {
       const board = new Mesh(new BoxGeometry(frame.widthMm / 1000, frame.heightMm / 1000, BOARD_THICKNESS), [edge, edge, edge, edge, face, edge]);
       layOnSurface(board, frame, frame.widthMm / 2, frame.heightMm / 2, FACE - BOARD_THICKNESS / 2);
       board.userData.surfaceId = frame.id;
-      this.book.add(board);
+      this.boards.add(board);
     });
-    this.layReferences(book.references ?? {}, run);
+    this.layReferences(scene.references ?? {}, run);
 
     targets.forEach(target => {
       // A unit plane scaled to the print: a move or the image's own aspect only rescales it, so whatever hangs on it
@@ -412,7 +412,7 @@ export class MockStage implements StageView {
       plane.scale.set(frame.widthMm / 1000, frame.heightMm / 1000, 1);
       layOnSurface(plane, frame, frame.widthMm / 2, frame.heightMm / 2, -2 * LAYER);
       plane.userData.reference = frame.id;
-      this.book.add(plane);
+      this.boards.add(plane);
       this.loader.setCrossOrigin("anonymous");
       this.loader.load(reference.url, texture => {
         if (run !== this.layoutRun) {
@@ -806,7 +806,7 @@ export class MockStage implements StageView {
   dispose(): void {
     this.disposed = true;
     this.layoutRun++;
-    this.clear(this.book);
+    this.clear(this.boards);
     this.clear(this.pages);
     this.clear(this.ghostGroup);
     clearLines(this.gridGroup);

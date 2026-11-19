@@ -40,19 +40,19 @@ export type SourceStatus =
 /** How long the auto-load waits for one source before it counts as hanging the stage */
 export const AUTO_LOAD_TIMEOUT_MS = 10_000;
 
-/** The source whose auto-load has not answered yet, per book: a page that froze on it skips it at the next open */
-const hungKey = (bookId: string) => `osct-code-autoload:${bookId}`;
-const readHung = (bookId: string): string | null => {
+/** The source whose auto-load has not answered yet, per experience: a page that froze on it skips it at the next open */
+const hungKey = (experienceId: string) => `osct-code-autoload:${experienceId}`;
+const readHung = (experienceId: string): string | null => {
   try {
-    return window.localStorage.getItem(hungKey(bookId));
+    return window.localStorage.getItem(hungKey(experienceId));
   } catch {
     return null;
   }
 };
-const writeHung = (bookId: string, id: string | null): void => {
+const writeHung = (experienceId: string, id: string | null): void => {
   try {
-    if (id) window.localStorage.setItem(hungKey(bookId), id);
-    else window.localStorage.removeItem(hungKey(bookId));
+    if (id) window.localStorage.setItem(hungKey(experienceId), id);
+    else window.localStorage.removeItem(hungKey(experienceId));
   } catch {
     // no storage: the way out of a hang is only the timeout
   }
@@ -95,11 +95,11 @@ export class CodeBuffer {
   }
 }
 
-/** How many lines of the book's code the Code tab keeps */
+/** How many lines of the experience's code the Code tab keeps */
 export const LOG_LINES = 50;
 
 /**
- * The Code tab's plugins (docs/plugins.md "Trying it: the Code tab"): the sources stored for the book (the
+ * The Code tab's plugins (docs/plugins.md "Trying it: the Code tab"): the sources stored for the experience (the
  * API's `plugins`), the plugins the content declares (compiled by the content build, loaded by the engine with the
  * scene), and **Run** – transpile in the browser, then import and install in the stage's registry under the plugin's
  * id, in the stage frame (the page runs no plugin code, #234), build the scene again. `version` counts the runs and the
@@ -111,8 +111,8 @@ export const LOG_LINES = 50;
  * node made code (`pending`) once its type builds – until then the node keeps its old type on the stage.
  */
 class Plugins {
-  bookId = $state<string | null>(null);
-  /** The sources stored for the book */
+  experienceId = $state<string | null>(null);
+  /** The sources stored for the experience */
   stored = $state<PluginSummary[]>([]);
   loading = $state(false);
   error = $state<string | null>(null);
@@ -145,19 +145,19 @@ class Plugins {
     this.logs = [...this.logs.slice(-(LOG_LINES - 1)), line];
   }
 
-  async load(bookId: string): Promise<void> {
+  async load(experienceId: string): Promise<void> {
     this.loading = true;
     this.error = null;
     try {
-      this.stored = (await listPlugins(bookId)).plugins;
-      if (this.bookId !== bookId) {
+      this.stored = (await listPlugins(experienceId)).plugins;
+      if (this.experienceId !== experienceId) {
         this.ran.clear();
         this.status.clear();
         this.storedText.clear();
         this.pending = null;
         this.code.reset();
       }
-      this.bookId = bookId;
+      this.experienceId = experienceId;
     } catch (e) {
       this.error = errorText(e);
     } finally {
@@ -170,8 +170,8 @@ class Plugins {
     return getPlugins().map(plugin => ({ id: plugin.id, src: plugin.src }));
   }
 
-  async source(bookId: string, id: string): Promise<string> {
-    const text = (await getPlugin(bookId, id)).plugin.source;
+  async source(experienceId: string, id: string): Promise<string> {
+    const text = (await getPlugin(experienceId, id)).plugin.source;
     this.storedText.set(id, text);
     return text;
   }
@@ -182,11 +182,11 @@ class Plugins {
   }
 
   /**
-   * Why a type the draft names (a look, a component) is not registered (#269), for a picker: the book's code is still
+   * Why a type the draft names (a look, a component) is not registered (#269), for a picker: the experience's code is still
    * loading, a source failed (it may be the one registering it), or nothing registers it
    */
   missingNote(): string {
-    if (this.autoLoading || [...this.status.values()].some(s => s.state === "loading")) return "loading the book's code…";
+    if (this.autoLoading || [...this.status.values()].some(s => s.state === "loading")) return "loading the experience's code…";
     const failed = this.failed();
     if (failed.length) return `not loaded – ${failed.map(f => f.id).join(", ")} failed`;
     return "unknown – no plugin registers it";
@@ -205,13 +205,13 @@ class Plugins {
    * and a page that froze on it (the mark stays in the browser) skips it the next time it opens. The Code tab's log
    * and the Run's error stay the Run's.
    */
-  async autoLoad(bookId: string, stage: RunStage): Promise<void> {
+  async autoLoad(experienceId: string, stage: RunStage): Promise<void> {
     if (this.autoLoading) return;
     this.autoLoading = true;
     try {
-      if (this.bookId !== bookId) await this.load(bookId);
-      if (this.bookId !== bookId) return;
-      const hung = readHung(bookId);
+      if (this.experienceId !== experienceId) await this.load(experienceId);
+      if (this.experienceId !== experienceId) return;
+      const hung = readHung(experienceId);
       let loaded = 0;
       /** The source the stage stopped answering at: the rest wait (the frame is likely still in it) */
       let stuck: string | null = null;
@@ -221,23 +221,23 @@ class Plugins {
           continue;
         }
         if (id === hung) {
-          writeHung(bookId, null);
+          writeHung(experienceId, null);
           this.status.set(id, { state: "skipped", error: "it hung the stage when it loaded last time – fix it, then Run it" });
           continue;
         }
         this.status.set(id, { state: "loading" });
         try {
-          const source = this.ran.get(id) ?? (await this.source(bookId, id));
+          const source = this.ran.get(id) ?? (await this.source(experienceId, id));
           const result = await transpilePlugin(source, id);
           if ("error" in result) {
             this.status.set(id, { state: "failed", error: `${result.error.line !== null ? `line ${result.error.line}: ` : ""}${result.error.message}` });
             continue;
           }
-          writeHung(bookId, id);
+          writeHung(experienceId, id);
           const ran = await stage.runPlugin(id, result.code, AUTO_LOAD_TIMEOUT_MS);
           // A stage that did not answer may still be stuck in it: the mark stays, the next open skips it
           if (!ran.ok && ran.error.startsWith(NO_ANSWER)) stuck = id;
-          else writeHung(bookId, null);
+          else writeHung(experienceId, null);
           if (!ran.ok) {
             this.status.set(id, { state: "failed", error: ran.error });
             continue;
@@ -273,20 +273,20 @@ class Plugins {
   }
 
   /** The source of a plugin as it runs on the stage: the source last run here, else the stored one, else the declared one's */
-  async sourceOf(bookId: string, id: string): Promise<string> {
+  async sourceOf(experienceId: string, id: string): Promise<string> {
     const ran = this.ran.get(id);
     if (ran !== undefined) return ran;
-    if (this.bookId !== bookId) await this.load(bookId);
-    if (this.stored.some(p => p.id === id)) return this.source(bookId, id);
+    if (this.experienceId !== experienceId) await this.load(experienceId);
+    if (this.stored.some(p => p.id === id)) return this.source(experienceId, id);
     const declared = this.declared().find(p => p.id === id);
     if (declared) return this.declaredSource(declared.src);
-    throw new Error(`the plugin ${id} has no source in this book`);
+    throw new Error(`the plugin ${id} has no source in this experience`);
   }
 
-  async save(bookId: string, id: string, source: string): Promise<PluginSummary> {
+  async save(experienceId: string, id: string, source: string): Promise<PluginSummary> {
     this.error = null;
     try {
-      const { plugin } = await putPlugin(bookId, id, source);
+      const { plugin } = await putPlugin(experienceId, id, source);
       this.storedText.set(id, source);
       return this.keep(plugin);
     } catch (e) {
@@ -296,19 +296,19 @@ class Plugins {
   }
 
   /** A script file as a new source, its id from the file's name (409 plugin-exists when that id is taken) */
-  async upload(bookId: string, file: File): Promise<PluginSummary> {
-    return this.keep(await uploadPlugin(bookId, file));
+  async upload(experienceId: string, file: File): Promise<PluginSummary> {
+    return this.keep(await uploadPlugin(experienceId, file));
   }
 
   /** A script file replaces the source of `id` */
-  async replaceFile(bookId: string, id: string, file: File): Promise<PluginSummary> {
-    return this.keep(await replacePluginFile(bookId, id, file));
+  async replaceFile(experienceId: string, id: string, file: File): Promise<PluginSummary> {
+    return this.keep(await replacePluginFile(experienceId, id, file));
   }
 
   /** Remove a source; refused while the draft uses what it registers (409 plugin-in-use with the usages) unless forced */
-  async remove(bookId: string, id: string, force = false): Promise<void> {
+  async remove(experienceId: string, id: string, force = false): Promise<void> {
     this.error = null;
-    await deletePlugin(bookId, id, force);
+    await deletePlugin(experienceId, id, force);
     this.stored = this.stored.filter(p => p.id !== id);
     this.status.delete(id);
     this.storedText.delete(id);

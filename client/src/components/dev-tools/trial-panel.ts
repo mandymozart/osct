@@ -3,7 +3,7 @@ import { GameStoreService } from "@/services";
 import {
   cameraLine, fetchTriggerInfos, getCameraInfo, setWindowOverride, subscribeCamera, type CameraInfo,
 } from "@/components/ar-bridges";
-import { getBook, getConfigVersion, getScenes, sceneLabel } from "@/utils/game-config";
+import { getExperience, getConfigVersion, getScenes, sceneLabel } from "@/utils/game-config";
 import { countResults, trialReport, trialRows, type TrialRow, type TriggerInfos } from "./trial-report";
 import {
   devicePrefill, osLine, pickList, readScreen, readUaHints, screenLine, type DevicePrefill, type ScreenSize, type UaHints,
@@ -39,7 +39,7 @@ const writeStored = (key: string, value: string) => {
 };
 
 /** Book order of the printout (page, then the target's number on the page): `p038-2` → [38, 2] */
-const bookOrder = (targetId: string): [number, number] => {
+const printOrder = (targetId: string): [number, number] => {
   const match = targetId.match(/^p(\d+)-(\d+)$/);
   return match ? [Number(match[1]), Number(match[2])] : [Number.MAX_SAFE_INTEGER, 0];
 };
@@ -57,8 +57,8 @@ export const numberedRows = (rows: TrialRow[]): Array<TrialRow & { number: numbe
   let next = 1;
   return [...rows]
     .sort((a, b) => {
-      const [pageA, nA] = bookOrder(a.targetId);
-      const [pageB, nB] = bookOrder(b.targetId);
+      const [pageA, nA] = printOrder(a.targetId);
+      const [pageB, nB] = printOrder(b.targetId);
       return pageA - pageB || nA - nB;
     })
     .map(row => ({ ...row, number: !known || isPrinted(row) ? next++ : null }));
@@ -167,7 +167,7 @@ export class TrialPanel extends HTMLElement {
 
   report(): string {
     return trialReport(this.rows(), {
-      bookTitle: getBook().title,
+      experienceTitle: getExperience().title,
       appVersion: __VITE_APP_VERSION__,
       contentHash: getConfigVersion().hash ?? "",
       device: {

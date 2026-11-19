@@ -17,7 +17,7 @@
   const FILTER_LABELS: Record<Filter, string> = { all: "All", editor: "Editors", admin: "Admins", newsletter: "Newsletter" };
   /** The option keys of the account (Auth::OPTIONS) with a short label each */
   const OPTIONS: { key: string; label: string }[] = [
-    { key: "bookUpdates", label: "book" },
+    { key: "experienceUpdates", label: "experience" },
     { key: "artistUpdates", label: "artist" },
     { key: "publisherUpdates", label: "publisher" },
   ];
@@ -162,7 +162,7 @@
           <th>e-mail</th>
           <th>roles</th>
           <th>language</th>
-          <th title="Update options the user opted into: news about the book, the artist, the publisher">options</th>
+          <th title="Update options the user opted into: news about the experience, the artist, the publisher">options</th>
           <th>signed up</th>
           <th>last seen</th>
         </tr>

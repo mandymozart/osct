@@ -47,8 +47,8 @@ export interface ContentBuild {
   hash: string;
   schema: string;
   version: string;
-  /** The book the build is of (`book.id` of its configuration) */
-  book?: string;
+  /** The experience the build is of (`experience.id` of its configuration) */
+  experience?: string;
   config: Buffer;
   files: LocalFile[];
 }
@@ -56,7 +56,7 @@ export interface ContentBuild {
 /** A build of the test fixture (fixtures/content) – its marker file is part of the build output */
 export const isFixtureBuild = (build: Pick<ContentBuild, 'files'>): boolean => build.files.some(f => f.file === FIXTURE_MARKER);
 
-/** A build of the demo book (fixtures/demo) – synced to its own environment only */
+/** A build of the demo (fixtures/demo) – synced to its own environment only */
 export const isDemoBuild = (build: Pick<ContentBuild, 'files'>): boolean => build.files.some(f => f.file === DEMO_MARKER);
 
 /** The local content build (`osct content build`) */
@@ -73,7 +73,7 @@ export function readContentBuild(): ContentBuild {
     if (!(error instanceof GameConfigurationError)) throw error;
     throw new Error(`${OUTPUT_FILE} is not a valid game configuration – rebuild the content\n  - ${error.problems.join('\n  - ')}`);
   }
-  const { version, book } = raw;
+  const { version, experience } = raw;
   if (!version.hash) throw new Error(`${OUTPUT_FILE} has no version.hash – rebuild the content`);
   if (!parseContentSchema(version.schema)) throw new Error(`${OUTPUT_FILE} has no content schema (MAJOR.MINOR) – rebuild the content`);
   const files = listFiles(CLIENT_PUBLIC_ASSETS_DIR).map(file => {
@@ -82,7 +82,7 @@ export function readContentBuild(): ContentBuild {
   });
   return {
     build: contentBuildName(version.hash), hash: version.hash, schema: version.schema, version: version.version,
-    book: book.id, config, files,
+    experience: experience.id, config, files,
   };
 }
 
@@ -222,7 +222,7 @@ export function activate(versions: ContentVersion[], build: ContentBuild, now: s
     uploadedAt: uploadedNow || !existing ? now : existing.uploadedAt,
     activatedAt: existing && existing.retiredAt === null ? existing.activatedAt : now,
     retiredAt: null,
-    ...(build.book ? { book: build.book } : {}),
+    ...(build.experience ? { experience: build.experience } : {}),
   };
   return [...others, entry].sort((a, b) => a.activatedAt.localeCompare(b.activatedAt));
 }
@@ -264,7 +264,7 @@ export async function runSync(storage: StorageClient, plan: SyncPlan): Promise<v
   }
   const manifest: ContentManifest = {
     build: build.build, hash: build.hash, schema: build.schema, version: build.version, activatedAt: now,
-    ...(build.book ? { book: build.book } : {}),
+    ...(build.experience ? { experience: build.experience } : {}),
   };
   await storage.put(`${env}/latest.json`, JSON.stringify(manifest, null, 2), 'application/json');
   console.log(`✅ ${env}/latest.json → ${build.build}`);

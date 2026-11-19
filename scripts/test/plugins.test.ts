@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BOOK, entry, loadBuild, makeContent, scene } from './helpers';
+import { EXPERIENCE, entry, loadBuild, makeContent, scene } from './helpers';
 import { PLUGIN_API_VERSION } from '../../shared/types/plugins';
 
 afterEach(() => vi.unstubAllEnvs());
@@ -19,7 +19,7 @@ export const register = (api: PluginApi): void => {
 const video = (components: string) => entry('a', 'x.jpg', `  entity:\n    type: video\n    src: v.mp4\n${components}`);
 
 const content = (plugin: string, components = '    components:\n      - type: tint\n        opacity: 0.5\n') => ({
-  'book.yaml': BOOK,
+  'experience.yaml': EXPERIENCE,
   'scenes/a/scene.yaml': scene('1–2'),
   'entries/first/entry.yaml': video(components),
   'entries/first/x.jpg': 'image x',
@@ -27,7 +27,7 @@ const content = (plugin: string, components = '    components:\n      - type: ti
   'plugins/tint/index.ts': plugin,
 });
 
-describe('plugins (the book\'s own code)', () => {
+describe('plugins (the experience\'s own code)', () => {
   it('type-checks, bundles and records a plugin; the nodes that use its layer pass; the bundle lands in the output', async () => {
     const dirs = makeContent(content(TINT));
     const build = await loadBuild(dirs);
@@ -137,7 +137,7 @@ export const register = (api: PluginApi): void => {
 `;
 
 const nodeContent = (entity: string, plugin = NODES) => ({
-  'book.yaml': BOOK,
+  'experience.yaml': EXPERIENCE,
   'scenes/a/scene.yaml': scene('1–2'),
   'entries/first/entry.yaml': entry('a', 'x.jpg', `  entity:\n${entity}`),
   'entries/first/x.jpg': 'image x',
@@ -188,7 +188,7 @@ describe('a plugin\'s node types', () => {
     ['sparkle', 'poster'].forEach(unregisterNodeTypeSpec);
     const configuration = (entity: Record<string, unknown>) => ({
       version: { version: '0', timestamp: 't', schema: '2.14' },
-      book: { id: 'b', title: 'B', author: 'A' },
+      experience: { id: 'b', title: 'B', book: { author: 'A' } },
       initialScene: 'a',
       scenes: [{ id: 'a', label: 'A', surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
       entries: [],
@@ -197,24 +197,24 @@ describe('a plugin\'s node types', () => {
     });
     expect(() => assertGameConfiguration(configuration({ type: 'sparkle', params: { count: 10 } }))).not.toThrow();
     expect(() => assertGameConfiguration(configuration({ type: 'sparkle', params: { count: 9999 } }))).toThrow(/entities\.e\.params\.count: expected a number from 1 to 500/);
-    expect(() => assertGameConfiguration(configuration({ type: 'sparkel' }))).toThrow(/"sparkel" is not a node type – neither built in .* nor registered by a plugin of the book \(sparkle, poster\)/);
+    expect(() => assertGameConfiguration(configuration({ type: 'sparkel' }))).toThrow(/"sparkel" is not a node type – neither built in .* nor registered by a plugin of the experience \(sparkle, poster\)/);
   }, 30000);
 
-  it('a scene and the book name a plugin\'s pass (schema 2.21, #216): its parameters checked against the recorded spec', async () => {
+  it('a scene and the experience name a plugin\'s pass (schema 2.21, #216): its parameters checked against the recorded spec', async () => {
     const withPass = NODES.replace('};\n', '  api.registerPass("scanLines", { description: "Scan lines.", params: { lines: { kind: "number", default: 200, min: 10, max: 800, description: "How many." } } }, () => ({}) as never);\n};\n');
-    const files = (scenePasses: string, bookPasses = '') => ({
+    const files = (scenePasses: string, experiencePasses = '') => ({
       ...nodeContent('    type: group\n', withPass),
-      'book.yaml': BOOK + bookPasses,
+      'experience.yaml': EXPERIENCE + experiencePasses,
       'scenes/a/scene.yaml': scene('1–2') + scenePasses,
     });
     const build = await loadBuild(makeContent(files('passes:\n  - type: vignette\n  - type: scanLines\n    lines: 400\n', 'passes:\n  - type: scanLines\n')));
     vi.spyOn(console, 'log').mockImplementation(() => {});
     const plugins = await build.plugins.buildPlugins();
-    const { book, scenes } = build.buildAll(plugins.map(p => p.data));
+    const { experience, scenes } = build.buildAll(plugins.map(p => p.data));
     vi.restoreAllMocks();
     expect(build.errors).toEqual([]);
     expect(scenes[0].passes).toEqual([{ type: 'vignette' }, { type: 'scanLines', lines: 400 }]);
-    expect(book.passes).toEqual([{ type: 'scanLines' }]);
+    expect(experience.passes).toEqual([{ type: 'scanLines' }]);
 
     const wrong = await loadBuild(makeContent(files('passes:\n  - type: scanLines\n    lines: 2\n  - type: scanLine\n')));
     vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -223,7 +223,7 @@ describe('a plugin\'s node types', () => {
     vi.restoreAllMocks();
     expect(wrong.errors).toEqual([
       'scenes/a: passes[0].lines: expected a number from 10 to 800, got 2',
-      'scenes/a: passes[1].type: "scanLine" is not one of bloom, vignette, grade or a pass of the book\'s plugins (scanLines)',
+      'scenes/a: passes[1].type: "scanLine" is not one of bloom, vignette, grade or a pass of the experience\'s plugins (scanLines)',
     ]);
   }, 60000);
 
@@ -312,7 +312,7 @@ describe('a plugin\'s feedback buffers (API 1.6)', () => {
     build.buildAll();
     vi.restoreAllMocks();
     expect(build.errors).toEqual([]);
-    expect(plugins[0].data).toMatchObject({ api: '2.0', registered: { nodeTypes: { painting: { description: 'A painting.', params: {} } } } });
+    expect(plugins[0].data).toMatchObject({ api: '3.0', registered: { nodeTypes: { painting: { description: 'A painting.', params: {} } } } });
     // Nothing of the buffer is recorded: it is no registration
     expect(Object.keys(plugins[0].data.registered ?? {})).toEqual(['components', 'nodeTypes', 'passes']);
 

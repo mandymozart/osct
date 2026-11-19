@@ -17,7 +17,7 @@ describe("engine load test report", () => {
 
   it("writes the header and one row per step", () => {
     const report = loadTestReport([result({}), result({ extra: 5, loaded: 7, scenes: 4 })], {
-      bookTitle: "Test Book", appVersion: "1.6.1", contentHash: "abcdef1234567890", device: "Phone",
+      experienceTitle: "Test Book", appVersion: "1.6.1", contentHash: "abcdef1234567890", device: "Phone",
       date: new Date("2026-10-27T12:00:00Z"), sceneId: "s010-011", sceneTargets: 2, options: { steadyMs: 6000, covers: 2 },
     });
     expect(report).toContain("# Engine load test – Test Book");

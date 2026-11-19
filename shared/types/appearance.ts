@@ -1,7 +1,7 @@
 /**
- * How an entity appears and disappears (content schema 2.29): the book names a **look** for each of three moments –
+ * How an entity appears and disappears (content schema 2.29): the experience names a **look** for each of three moments –
  *
- *   book:
+ *   experience:
  *     appearance:
  *       reveal: { type: inflateDissolve }           # the first find of a target (the entry is unlocked with it)
  *       found:  { type: printLift, duration: 900 }  # every later find
@@ -11,11 +11,11 @@
  * default, range, description) so the editor's rows, the content build, the config guard and the engine read one
  * definition – or a plugin's own (`registerAppearance`), where a declared plugin recorded it (`registered.appearances`).
  * A moment without a look takes `found`'s, and without that the default; `lost` plays its look rewound, in the look's
- * `outDuration`. A book without `appearance` plays the default look at every moment.
+ * `outDuration`. An experience without `appearance` plays the default look at every moment.
  *
  * An entity may carry its own (schema 2.30): the components `reveal`, `found` and `lost` on a node, each
- * `{ type: reveal, look: printLift, duration: 900 }` – `look` is the look's type (empty = the book's), the other keys its
- * parameters. They win over the book's: a node's moment plays its own look, else its `found`'s, else (the root) the book's
+ * `{ type: reveal, look: printLift, duration: 900 }` – `look` is the look's type (empty = the experience's), the other keys its
+ * parameters. They win over the experience's: a node's moment plays its own look, else its `found`'s, else (the root) the experience's
  * (`entityMomentAppearance`). Any node may carry them: a node with a look of its own animates its subtree with it, apart
  * from the rest of the entity.
  *
@@ -48,8 +48,8 @@ export interface AppearanceData {
   [param: string]: unknown;
 }
 
-/** The book's looks, by moment */
-export type BookAppearance = Partial<Record<Moment, AppearanceData>>;
+/** The experience's looks, by moment */
+export type ExperienceAppearance = Partial<Record<Moment, AppearanceData>>;
 
 /** The values of a built-in look, as the engine reads them */
 export interface Appearance {
@@ -153,7 +153,7 @@ export type BuiltInAppearanceType = keyof typeof APPEARANCES;
 export const APPEARANCE_TYPES = Object.keys(APPEARANCES) as BuiltInAppearanceType[];
 export const isBuiltInAppearanceType = (value: unknown): value is BuiltInAppearanceType => typeof value === "string" && value in APPEARANCES;
 
-/** The look a book without `appearance` plays at every moment */
+/** The look an experience without `appearance` plays at every moment */
 export const DEFAULT_APPEARANCE_TYPE: BuiltInAppearanceType = "inflateDissolve";
 
 export interface AppearanceCheckOptions {
@@ -185,7 +185,7 @@ export const unregisterAppearanceSpec = (type: string): void => {
 export const appearanceSpec = (type: string, options: AppearanceCheckOptions = {}): AppearanceSpec | undefined =>
   isBuiltInAppearanceType(type) ? APPEARANCES[type] : options.spec?.(type) ?? registered.get(type);
 
-/** Problems of a book's `appearance` (the content build, the guard, the API) */
+/** Problems of an experience's `appearance` (the content build, the guard, the API) */
 export const appearanceProblems = (raw: unknown, path: string, options: AppearanceCheckOptions = {}): string[] => {
   if (!isObject(raw)) return [`${path}: expected { ${MOMENTS.join("?, ")}? }, each { type, ...parameters }`];
   const problems: string[] = [];
@@ -206,7 +206,7 @@ export const appearanceProblems = (raw: unknown, path: string, options: Appearan
     }
     const spec = appearanceSpec(type, options);
     if (!spec) {
-      const plugins = options.pluginTypes?.length ? ` or a look of the book's plugins (${options.pluginTypes.join(", ")})` : "";
+      const plugins = options.pluginTypes?.length ? ` or a look of the experience's plugins (${options.pluginTypes.join(", ")})` : "";
       if (options.unknownTypes !== "allow") problems.push(`${at}.type: "${type}" is not one of ${APPEARANCE_TYPES.join(", ")}${plugins}`);
       continue;
     }
@@ -226,13 +226,13 @@ export const resolveAppearance = (spec: AppearanceSpec, data: AppearanceData): R
 };
 
 /** The look a moment plays: its own, else `found`'s, else the default */
-export const momentAppearance = (book: { appearance?: BookAppearance } | null | undefined, moment: Moment): AppearanceData =>
-  book?.appearance?.[moment] ?? book?.appearance?.found ?? { type: DEFAULT_APPEARANCE_TYPE };
+export const momentAppearance = (experience: { appearance?: ExperienceAppearance } | null | undefined, moment: Moment): AppearanceData =>
+  experience?.appearance?.[moment] ?? experience?.appearance?.found ?? { type: DEFAULT_APPEARANCE_TYPE };
 
 /**
  * Problems of the parameters of a moment's component (`reveal`, `found`, `lost` – schema 2.30), `params` being the
- * component's keys but `type`: `look` names the look ("" = the book's), the rest are its parameters, checked against its spec
- * like a book's look
+ * component's keys but `type`: `look` names the look ("" = the experience's), the rest are its parameters, checked against its spec
+ * like an experience's look
  */
 export const momentComponentProblems = (params: Record<string, unknown>, at: string, options: AppearanceCheckOptions = {}): string[] => {
   const { look, ...values } = params;
@@ -240,18 +240,18 @@ export const momentComponentProblems = (params: Record<string, unknown>, at: str
     const names = Object.keys(values);
     return names.length ? [`${at}.look: name a look – ${names.join(", ")} are its parameters (${APPEARANCE_TYPES.join(", ")}${options.pluginTypes?.length ? `, ${options.pluginTypes.join(", ")}` : ""})`] : [];
   }
-  if (typeof look !== "string") return [`${at}.look: expected a look (${APPEARANCE_TYPES.join(", ")}) or "" for the book's, got ${JSON.stringify(look)}`];
+  if (typeof look !== "string") return [`${at}.look: expected a look (${APPEARANCE_TYPES.join(", ")}) or "" for the experience's, got ${JSON.stringify(look)}`];
   const spec = appearanceSpec(look, options);
   if (!spec) {
     if (options.unknownTypes === "allow") return [];
-    const plugins = options.pluginTypes?.length ? ` or a look of the book's plugins (${options.pluginTypes.join(", ")})` : "";
+    const plugins = options.pluginTypes?.length ? ` or a look of the experience's plugins (${options.pluginTypes.join(", ")})` : "";
     return [`${at}.look: "${look}" is not one of ${APPEARANCE_TYPES.join(", ")}${plugins}`];
   }
   const known = options.unknown === "ignore" ? Object.fromEntries(Object.entries(values).filter(([name]) => name in spec.params)) : values;
   return paramProblems(spec.params, known, at, look);
 };
 
-/** The look a moment's component names: `{ type: look, ...parameters }`; none when it names none (the book's look plays) */
+/** The look a moment's component names: `{ type: look, ...parameters }`; none when it names none (the experience's look plays) */
 export const momentComponentLook = (entity: { components?: readonly ComponentData[] } | null | undefined, moment: Moment): AppearanceData | undefined => {
   const component = entity?.components?.find(c => c.type === moment);
   if (!component || typeof component.look !== "string" || !component.look) return undefined;
@@ -267,26 +267,26 @@ export const nodeMomentLook = (node: { components?: readonly ComponentData[] } |
   momentComponentLook(node, moment) ?? (moment !== "found" ? momentComponentLook(node, "found") : undefined);
 
 /**
- * The look an entity's root node plays at a moment: its own look (`nodeMomentLook`), else the book's (`momentAppearance`:
- * the book's moment, its `found`, the default). A child node with a look of its own animates apart, with that one
+ * The look an entity's root node plays at a moment: its own look (`nodeMomentLook`), else the experience's (`momentAppearance`:
+ * the experience's moment, its `found`, the default). A child node with a look of its own animates apart, with that one
  */
 export const entityMomentAppearance = (
   entity: { components?: readonly ComponentData[] } | null | undefined,
-  book: { appearance?: BookAppearance } | null | undefined,
+  experience: { appearance?: ExperienceAppearance } | null | undefined,
   moment: Moment,
 ): AppearanceData =>
-  nodeMomentLook(entity, moment) ?? momentAppearance(book, moment);
+  nodeMomentLook(entity, moment) ?? momentAppearance(experience, moment);
 
 /**
  * How long a moment's built-in look takes, in ms (`lost`: its `outDuration`); undefined for a plugin's look, whose
  * duration only its code knows. With `entity`, the look it plays (`entityMomentAppearance`)
  */
 export const momentDuration = (
-  book: { appearance?: BookAppearance } | null | undefined,
+  experience: { appearance?: ExperienceAppearance } | null | undefined,
   moment: Moment,
   entity?: { components?: readonly ComponentData[] } | null,
 ): number | undefined => {
-  const data = entityMomentAppearance(entity, book, moment);
+  const data = entityMomentAppearance(entity, experience, moment);
   if (!isBuiltInAppearanceType(data.type)) return undefined;
   const value = resolveAppearance(APPEARANCES[data.type], data)[moment === "lost" ? "outDuration" : "duration"];
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;

@@ -3,10 +3,10 @@ import { createGameStore } from "@/store/GameStore";
 import { PROGRESS_FORMAT, PROGRESS_READERS, readProgress } from "@/utils";
 import { LocalProgressStorage } from "@/services/ProgressStorage";
 import { ALL_CATEGORY, ENTRY_CATEGORIES, EntryCategory, type IGame, type Pages, type ProgressRecord } from "@/types";
-import { getBook, getEntries, getScenes, getTargets } from "@/utils/game-config";
+import { getExperience, getEntries, getScenes, getTargets } from "@/utils/game-config";
 
-const bookId = getBook().id;
-const PROGRESS_KEY = LocalProgressStorage.key(bookId);
+const experienceId = getExperience().id;
+const PROGRESS_KEY = LocalProgressStorage.key(experienceId);
 
 const stored = (): ProgressRecord => JSON.parse(localStorage.getItem(PROGRESS_KEY)!);
 
@@ -27,7 +27,7 @@ describe("HistoryManager (progress)", () => {
   it("starts with an empty record of the current format and app version", () => {
     expect(game.state.progress).toMatchObject({
       format: PROGRESS_FORMAT,
-      bookId,
+      experienceId,
       appVersions: [__VITE_APP_VERSION__],
       unlocked: {},
       consulted: {},
@@ -91,7 +91,7 @@ describe("HistoryManager (progress)", () => {
 
   it("keeps ids that are no longer in the content", () => {
     localStorage.setItem(PROGRESS_KEY, JSON.stringify({
-      format: PROGRESS_FORMAT, bookId, appVersions: [__VITE_APP_VERSION__],
+      format: PROGRESS_FORMAT, experienceId, appVersions: [__VITE_APP_VERSION__],
       unlocked: { "removed-target": 1 }, consulted: { "removed-entry": 2 },
     }));
     game = createGameStore();

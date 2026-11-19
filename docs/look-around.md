@@ -1,39 +1,39 @@
-# Look-around: scene around the book + onion sky
+# Look-around: scene around the surfaces + onion sky
 
 > **Since 1.107.0 there is no world at all (#310, Tilman 2026-11-18):** 1.104.0 removed the built-in café, 1.107.0 the
 > world model too. Only an experience's sky image (`skySrc`) and the onion sky are drawn; without a sky nothing is drawn
-> around the book. `world` and `worldSrc` stay valid content but are ignored; the Environment tab has no world row.
+> around the surfaces. `world` and `worldSrc` stay valid content but are ignored; the Environment tab has no world row.
 > What follows about the café and world models is history.
 
 Two optional effects in scan mode, **off by default** – readers turn them on in Info → Settings (Graphics):
 
-- **Scene around the book** – once a page is found, a world surrounds the reader. It is placed where the book was
-  seen and turns with the phone (gyroscope). The book and the table stay visible; the world is open above.
+- **Scene around the surfaces** – once a page is found, a world surrounds the reader. It is placed where the surfaces were
+  seen and turns with the phone (gyroscope). The surfaces and the table stay visible; the world is open above.
 - **Onion sky** – looking up, sky-like parts of the camera picture show the world's sky; buildings, trees and people
   stay real.
 
-The built-in world is an alien café drawn in the shader; a book can bring its own world and sky as files.
+The built-in world is an alien café drawn in the shader; an experience can bring its own world and sky as files.
 
-**The book's environment** (content schema 2.8, `environment` in `book.yaml`, `shared/types/environment.ts`): `world`
+**The experience's environment** (content schema 2.8, `environment` in `experience.yaml`, `shared/types/environment.ts`): `world`
 (`cafe` – the only built-in one) and `onionSky` (on/off); since 2.10 `worldSrc` (a glTF model – the scenery) and
 `skySrc` (an equirectangular image – the sky), see the [content guide](content.md) "Environment" for their conventions.
 The sky image replaces the café's sky, the model the café's scenery; while they load, or when one fails (logged), the
 café's part is drawn. The reader's switches apply on top (`effectiveGraphics` in `look-around.ts`): either can turn a
 part off, the content cannot turn on what the reader has off – and the files are only fetched once a switch is on. A
-book without an `environment` keeps today's look. Not yet in the content: per-scene overrides, tuning values. The
+experience without an `environment` keeps today's look. Not yet in the content: per-scene overrides, tuning values. The
 editor edits it on the stage, in the workspace's Environment tab ([editor](editor.md)), which previews this very pass.
-**On the editor's stage the environment replaces the HDRI sky box** (#185): once the book has one, the stage shows this
+**On the editor's stage the environment replaces the HDRI sky box** (#185): once the experience has one, the stage shows this
 pass as its sky while rendered, in every tab, and lights the content as the reader does – the engine's ambient and sun,
 no HDRI light (the pass lights nothing in the reader either). The window the pass leaves for the camera picture shows
-the studio HDRI there, behind the world, as the camera picture's stand-in. A book without one shows the studio HDRI on
+the studio HDRI there, behind the world, as the camera picture's stand-in. An experience without one shows the studio HDRI on
 the stage as sky and light.
 
 ## How it works
 
 - **Rotation only (3DoF).** The 8th Wall engine the app uses (MIT) tracks images, not the room. The phone's
   gyroscope tells which way the camera points; walking does not move through the world.
-- **The book anchors the world.** While a page is tracked, its direction in the world sets the world's front and a
-  soft window around the book. Every new find corrects the gyroscope's drift. 45 s without a page and the world fades.
+- **The found surfaces anchor the world.** While a page is tracked, its direction in the world sets the world's front and a
+  soft window around the surfaces. Every new find corrects the gyroscope's drift. 45 s without a page and the world fades.
 - **One full-screen pass** under the AR scene: per pixel the view direction is computed, the world's colour is
   looked up for it, and an alpha decides how much of the camera picture it covers (window, floor, open roof, sky).
   No 3D scene per frame: the sky image is sampled by direction, and a world model is rendered **once** when it loads
@@ -50,27 +50,27 @@ the stage as sky and light.
 | File | |
 |---|---|
 | `look-around.ts` | `LookAround` – options, fade, per-frame update, drawing; tuning values `DEFAULT_LOOK_AROUND` |
-| `book-anchor.ts` | Where the book is in the world, the world's turn, the window size |
+| `surface-anchor.ts` | Where the found surfaces are in the world, the world's turn, the window size |
 | `orientation.ts` | Gyroscope → camera orientation; iOS motion permission on the first tap |
 | `sky-sample.ts` | Small copy of the camera picture for the sky test |
 | `shader.ts` | The pass: `SKY_KEY`, `CAFE_WORLD` (`cafeSky`, `cafeScenery`), `WORLD` (`worldColour(dir)`: the sky image or the café's sky, the model's cube or the café's scenery), `COMPOSITE` |
-| `environment-assets.ts` | The book's sky image and world model: loaded when something is drawn, the model baked into a cube (`bakeWorld`), a newer environment wins |
+| `environment-assets.ts` | The experience's sky image and world model: loaded when something is drawn, the model baked into a cube (`bakeWorld`), a newer environment wins |
 
 Wiring: `ArScene` creates it and hands it to `ArView` as the `underlay` (drawn before the scene while `active`):
 straight onto the screen while no passes run (no cost), into the post chain's buffer under the scene while the scene
-or the book names passes – so bloom, vignette and a grade with `reach: all` shade the world and its sky too, a grade
+or the experience names passes – so bloom, vignette and a grade with `reach: all` shade the world and its sky too, a grade
 with `reach: ar` stays on the AR layer (`drawPlan`, `engine/src/scene/view.ts`; [content guide](content.md)
 "Post-processing"). `ImageTracker.cameraVideo` is the engine's camera video. Options: `services/GraphicsService.ts`, section
 `components/settings/settings-graphics.ts`.
 
-**The world's frame:** `dir` in `worldColour(dir)` is y up, −z towards the book, the reader at the origin. A sky
+**The world's frame:** `dir` in `worldColour(dir)` is y up, −z towards the scene, the reader at the origin. A sky
 image's centre lies on −z, its top edge straight up; a world model's origin is the floor under the reader.
 
 ## Trying it
 
 - On the phone: turn both on in Info → Settings. Tuning without a rebuild over USB debugging:
   `window.osctLookAround` (e.g. `worldOpacity`, `skyStrength`, `forgetAfter`, `windowMargin`, `floorClear`).
-- Desktop (dev build – the app passes `ArSceneOptions.debug` –, no gyroscope or book): `osctLookAroundDebug.seeBook()` places a book ahead and below,
+- Desktop (dev build – the app passes `ArSceneOptions.debug` –, no gyroscope or surfaces): `osctLookAroundDebug.seeAnchor()` places the surfaces ahead and below,
   `osctLookAroundDebug.look(alpha, beta, gamma)` tilts the view (degrees, as the phone reports them).
 
 ## Limits

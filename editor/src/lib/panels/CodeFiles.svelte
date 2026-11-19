@@ -7,7 +7,7 @@
   import CodePreview from "./CodePreview.svelte";
 
   /**
-   * The Library's code files (#186): the book's **scripts** (its plugin sources – the Code tab's list) and **shaders**
+   * The Library's code files (#186): the experience's **scripts** (its plugin sources – the Code tab's list) and **shaders**
    * (assets of the kind `shader`, loaded by a plugin with `api.loadText(url)`), one list – name, kind, size, uses. A click
    * on a row opens it: where it is used, a read-only preview (`CodePreview`) and its actions – **Open in Code** (a
    * script), **Copy URL** (a shader: what a plugin loads), **Download**, **Replace…** (a file of the same kind: a script's
@@ -15,8 +15,8 @@
    * *Delete anyway* forces it). Imported shaders (the content import's files) are read-only. A script with unsaved edits in
    * the Code tab shows its name with an asterisk, as there (#232).
    */
-  let { bookId, search = "", all = false, onopencode }: {
-    bookId: string;
+  let { experienceId, search = "", all = false, onopencode }: {
+    experienceId: string;
     search?: string;
     /** Shown under the media of the *all* filter: a head of its own, nothing when there is no code file */
     all?: boolean;
@@ -25,7 +25,7 @@
   } = $props();
 
   // Every time the Library opens: the uses follow the draft's rows
-  $effect(() => { void plugins.load(bookId); });
+  $effect(() => { void plugins.load(experienceId); });
 
   const files = $derived(codeFiles(plugins.stored, library.assets, plugins.code.unsavedId).filter(file => matchesCodeSearch(file, search)));
   let opened = $state<string | null>(null);
@@ -58,13 +58,13 @@
     error = null;
     try {
       if (file.plugin) {
-        const [source, used] = await Promise.all([plugins.source(bookId, file.plugin), pluginUsages(bookId, file.plugin)]);
+        const [source, used] = await Promise.all([plugins.source(experienceId, file.plugin), pluginUsages(experienceId, file.plugin)]);
         if (opened !== file.key) return;
         text = source;
         usages = used.usages;
         registers = Object.values(used.registers).flat();
       } else if (file.asset) {
-        const [response, used] = await Promise.all([fetch(file.asset.url), file.asset.imported ? null : assetUsages(bookId, file.asset.id)]);
+        const [response, used] = await Promise.all([fetch(file.asset.url), file.asset.imported ? null : assetUsages(experienceId, file.asset.id)]);
         if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
         const body = await response.text();
         if (opened !== file.key) return;
@@ -108,10 +108,10 @@
     if (error) return;
     try {
       if (file.plugin) {
-        await plugins.replaceFile(bookId, file.plugin, chosen);
+        await plugins.replaceFile(experienceId, file.plugin, chosen);
         notice = `${file.plugin} has the source of ${chosen.name}`;
       } else if (file.asset) {
-        const next = await library.replace(bookId, file.asset.id, chosen);
+        const next = await library.replace(experienceId, file.asset.id, chosen);
         notice = `${next.name} is version ${next.version}; ${next.usages} use${next.usages === 1 ? "" : "s"} relinked`;
       }
       const again = files.find(f => f.key === file.key);
@@ -125,8 +125,8 @@
     notice = null;
     error = null;
     try {
-      if (file.plugin) await plugins.remove(bookId, file.plugin, force);
-      else if (file.asset) await library.remove(bookId, file.asset.id, force);
+      if (file.plugin) await plugins.remove(experienceId, file.plugin, force);
+      else if (file.asset) await library.remove(experienceId, file.asset.id, force);
       notice = `${file.name} deleted`;
       opened = null;
       confirming = false;

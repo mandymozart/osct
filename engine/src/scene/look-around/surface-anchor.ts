@@ -12,7 +12,7 @@ export const lerpAngle = (from: number, to: number, amount: number): number => {
 };
 
 /**
- * The book's window in degrees: the page's angular radius (its width `size` seen from `distance`, the page being
+ * The surfaces' window in degrees: the page's angular radius (its width `size` seen from `distance`, the page being
  * a bit larger than one target) plus a margin; the soft edge ends `softness` degrees further out.
  */
 export const windowRadii = (size: number, distance: number, margin: number, softness: number): { inner: number; outer: number } => {
@@ -21,22 +21,22 @@ export const windowRadii = (size: number, distance: number, margin: number, soft
   return { inner, outer: inner + softness };
 };
 
-/** Smoothing per update while the book is seen (tracking jitter must not shake the world) */
+/** Smoothing per update while the surfaces are seen (tracking jitter must not shake the world) */
 const DIRECTION_SMOOTHING = 0.2;
 const YAW_SMOOTHING = 0.05;
 const WINDOW_SMOOTHING = 0.2;
 
 /**
- * Where the book is in the world, from the found pages' anchors (relative to the camera) and the phone's orientation:
- * its direction (the window around it), the world's turn (its front faces the book) and how long ago it was seen.
+ * Where the found surfaces are in the world, from the found pages' anchors (relative to the camera) and the phone's orientation:
+ * its direction (the window around it), the world's turn (its front faces the surfaces) and how long ago it was seen.
  * The first find places it at once; later finds move it smoothly, which also corrects the gyroscope's drift.
  */
-export class BookAnchor {
-  /** The book's direction in the world while known */
+export class SurfaceAnchor {
+  /** The surfaces' direction in the world while known */
   direction: Vector3 | null = null;
-  /** The world's turn about y: its front (−z) faces the book */
+  /** The world's turn about y: its front (−z) faces the surfaces */
   yaw = 0;
-  /** The window around the book, in degrees (inner = clear, outer = end of the soft edge) */
+  /** The window around the surfaces, in degrees (inner = clear, outer = end of the soft edge) */
   readonly window = { inner: 20, outer: 36 };
   /** Seconds since a page was last seen */
   sinceSeen = Infinity;

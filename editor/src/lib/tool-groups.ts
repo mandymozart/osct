@@ -5,7 +5,7 @@
  * device) a group stays expanded – its options side by side.
  *
  * This module is the pure part: the active option, the menu's arrow keys and which groups fit expanded. The page
- * (`routes/[book]/[scene]/+page.svelte`) holds the groups' options and `components/ToolGroup.svelte` draws one.
+ * (`routes/[experience]/[scene]/+page.svelte`) holds the groups' options and `components/ToolGroup.svelte` draws one.
  */
 
 export interface ToolOption<V extends string = string> {

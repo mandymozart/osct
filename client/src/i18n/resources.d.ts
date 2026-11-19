@@ -26,7 +26,7 @@ export default interface Resources {
   },
   "account": {
     "artistUpdates": "Receive updates from {{author}}",
-    "bookUpdates": "Receive updates on {{title}}",
+    "experienceUpdates": "Receive updates on {{title}}",
     "cancel": "Cancel",
     "changePassword": "Change password",
     "codeLabel": "Code from the email",
@@ -103,7 +103,7 @@ export default interface Resources {
     "dismiss": "Dismiss",
     "goToStart": "Go to start",
     "loading": "Loading",
-    "loadingBook": "Loading book",
+    "loadingExperience": "Loading book",
     "markAlt": "Mark the Page"
   },
   "entries": {

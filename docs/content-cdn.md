@@ -14,16 +14,16 @@ One storage zone (`osct`, replicated to Frankfurt, Singapore and New York), one 
 osct/<env>/latest.json                  the current version – overwritten by every switch
 osct/<env>/versions.json                every version on the storage and when it was current (for purge) – written before latest.json
 osct/<env>/<build>/game.config.json     the game configuration of that version
-osct/<env>/<build>/files.json           size and checksum of every content file (whole-book download)
+osct/<env>/<build>/files.json           size and checksum of every content file (whole-experience download)
 osct/<env>/<build>/assets/content/…     the content files, same paths as in the app's public folder
 ```
 
-`<env>` is `staging` or `production` – or `demo`, the demo book's own (`fixtures/demo`, never the book's). **An environment serves one book** – the last one published or synced there:
-`latest.json` and each `versions.json` entry name it (`book`, the configuration's `book.id`; content schema 2.11). A
-manifest without `book` is older – its version's `game.config.json` tells the book. Publishing another book to an
-environment replaces the book for its readers: the editor asks first and the API refuses it without `replace: true`
-([editor](editor.md) "One book per environment"). `osct content sync` writes the book too, and does not ask – it syncs
-the content source it is given. A store per book is #87. `<build>` is the first 12 hex digits of the content build checksum: the same
+`<env>` is `staging` or `production` – or `demo`, the demo's own (`fixtures/demo`, never the real experience's). **An environment serves one experience** – the last one published or synced there:
+`latest.json` and each `versions.json` entry name it (`experience`, the configuration's `experience.id`; content schema 2.11, the key `experience` since 4.0). A
+manifest without `experience` is older – its version's `game.config.json` tells the experience. Publishing another experience to an
+environment replaces the experience for its readers: the editor asks first and the API refuses it without `replace: true`
+([editor](editor.md) "One book per environment"). `osct content sync` writes the experience too, and does not ask – it syncs
+the content source it is given. A store per experience is #87. `<build>` is the first 12 hex digits of the content build checksum: the same
 content is the same folder, whatever app version built it. A content file on the CDN never changes, so no edge
 cache, browser cache or service worker can serve a stale copy of it – only `latest.json` and `versions.json` change.
 
@@ -62,7 +62,7 @@ npm run osct -- content purge --env staging --dry-run  # which old versions woul
 ```
 
 - **build** reads the content source `OSCT_CONTENT_DIR` (absolute, or relative to the repository; default: a
-  local `content/` folder). It stops when there is no `book.yaml` – there is no fallback to the fixture.
+  local `content/` folder). It stops when there is no `experience.yaml` – there is no fallback to the fixture.
 - **status** lists the versions on the storage and checks that `latest.json` and `versions.json` agree there:
   `versions.json` lists the build `latest.json` names, as its only current entry (`retiredAt` null). When they
   disagree it names the problem and exits with 1. With `CONTENT_BASE_URL` it also reads both files through the CDN,
@@ -101,7 +101,7 @@ The CLI reads them from the environment or from `scripts/.env` (untracked; also 
 client/). **sync** runs where the content source is – by hand on that machine; where it is triggered in the long
 run (a content repository's workflow?) is open. The workflow "Content" (`.github/workflows/content.yml`, Actions →
 Content → Run workflow: environment, status / purge, dry run on by default) takes the variables and the secret from
-the GitHub environment; it has no sync, because a checkout of this repository has no content. The one sync on a push is the demo book's
+the GitHub environment; it has no sync, because a checkout of this repository has no content. The one sync on a push is the demo's
 (`.github/workflows/demo.yml`: a push to `develop` that touches the demo or what builds it, to the environment `demo`).
 
 ## Loading in the app
@@ -109,7 +109,7 @@ the GitHub environment; it has no sync, because a checkout of this repository ha
 The app build gets the environment's CDN URL as `VITE_CONTENT_BASE_URL` (the GitHub environment variable
 `CONTENT_BASE_URL`, e.g. `https://buildingfictions.b-cdn.net/staging`). Such a build reads no content: `prebuild`
 skips the content build (`client/content-prebuild.mjs`), the bundled configuration module is empty, `dist/` has no
-`assets/content/`, and only the splash and the home-screen name take the book data from the CDN's current version
+`assets/content/`, and only the splash and the home-screen name take the experience data from the CDN's current version
 at build time (fallback: a local content build, then none).
 
 At startup, before anything else (`main.ts` → `utils/game-config.ts` `loadGameConfiguration()`):
@@ -195,8 +195,8 @@ To run the app against the staging CDN locally, put `VITE_CONTENT_BASE_URL=https
 into `client/.env.local` and start `npm run dev`. The console line `[game-config] Content … from …` names the content
 version and where it came from.
 
-**Another book in a debug build** (the dev server, staging): `?content=<base url>` on the address opens the content
+**Another experience in a debug build** (the dev server, staging): `?content=<base url>` on the address opens the content
 of that base (`latest.json` and its version folders) instead of the build's – `https://osct.porschuetz.de/?content=https://buildingfictions.b-cdn.net/demo`
-shows the demo book ([plugins](plugins.md) "The demo book") in the staging reader. The tab keeps it
+shows the demo ([plugins](plugins.md) "The demo") in the staging reader. The tab keeps it
 (`sessionStorage`) across routes and reloads; `?content=` (empty) goes back to the build's content. Progress is kept
-per book id, so the demo's does not touch the book's. Production builds ignore the parameter.
+per experience id, so the demo's does not touch the real one's. Production builds ignore the parameter.

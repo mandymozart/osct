@@ -62,12 +62,12 @@ class MemoryStorage extends StorageClient {
 }
 
 /** A build without media files (nothing to read from client/public): only files.json and the configuration go up */
-const build = (name: string, book = 'test'): ContentBuild => ({
+const build = (name: string, experience = 'test'): ContentBuild => ({
   build: name,
   hash: name.padEnd(64, '0'),
   schema: '2.11',
   version: '1.26.7',
-  book,
+  experience,
   config: Buffer.from(`{"build":"${name}"}`),
   files: [],
 });
@@ -94,7 +94,7 @@ describe('content sync and purge against a storage zone', () => {
     await runSync(storage, plan);
 
     expect(storage.puts).toEqual([`staging/${A}/files.json`, `staging/${A}/game.config.json`, 'staging/versions.json', 'staging/latest.json']);
-    expect(storage.json('staging/latest.json')).toMatchObject({ build: A, schema: '2.11', version: '1.26.7', book: 'test' } satisfies Partial<ContentManifest>);
+    expect(storage.json('staging/latest.json')).toMatchObject({ build: A, schema: '2.11', version: '1.26.7', experience: 'test' } satisfies Partial<ContentManifest>);
     const versions = storage.json('staging/versions.json') as ContentVersion[];
     expect(versions).toHaveLength(1);
     expect(versions[0]).toMatchObject({ build: A, retiredAt: null });

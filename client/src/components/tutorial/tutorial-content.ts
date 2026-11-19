@@ -1,24 +1,22 @@
-import { getBook } from "@/utils/game-config";
+import { getExperience } from "@/utils/game-config";
 import type { ITutorialContent } from "@/types";
 import { escapeHtml, onboardingSteps, paragraphs } from "@/utils";
-import { ONBOARDING_ICON_SRC, SPLASH_STEP } from "@/utils/static-splash-html";
+import { ONBOARDING_ICON_SRC, SPLASH_STEP, type SplashFields, splashFields } from "@/utils/static-splash-html";
 import "@/components/common";
 import { adoptDesignStyles } from "@/styles";
 
 /**
- * Replaces `{{title}}`, `{{author}}` and `{{publisher}}` in step texts with the book's values (the splash's parts).
- * Unknown placeholders are left unchanged.
+ * Replaces `{{title}}`, `{{author}}` and `{{publisher}}` in step texts with the experience's values (the splash's
+ * parts – the author and the publisher are its printed book's, "" without one). Unknown placeholders are left unchanged.
  */
-type BookField = "title" | "author" | "publisher";
+export const fillExperienceFields = (text: string, fields: Partial<SplashFields> = splashFields(getExperience())): string =>
+  text.replace(/\{\{(title|author|publisher)\}\}/g, (_, field: keyof SplashFields) => fields[field] ?? "").trim();
 
-export const fillBookFields = (text: string, book: Partial<Record<BookField, string>> = getBook()): string =>
-  text.replace(/\{\{(title|author|publisher)\}\}/g, (_, field: BookField) => book[field] ?? "").trim();
-
-/** Fills book fields, escapes, then turns `*emphasis*` into <em> */
-const inline = (text: string): string => escapeHtml(fillBookFields(text)).replace(/\*([^*]+)\*/g, "<em>$1</em>");
+/** Fills the experience's fields, escapes, then turns `*emphasis*` into <em> */
+const inline = (text: string): string => escapeHtml(fillExperienceFields(text)).replace(/\*([^*]+)\*/g, "<em>$1</em>");
 
 /**
- * An onboarding step (`utils/onboarding.ts` – the app's own steps, not the book's): the icon, optional illustration,
+ * An onboarding step (`utils/onboarding.ts` – the app's own steps, not the experience's): the icon, optional illustration,
  * title, text and footer, plus an `actions` slot for the step button.
  *
  * No fade between the onboarding steps: a tap on the button shows the next one at once (design p. 8–14, #281). Only a
@@ -28,7 +26,7 @@ const inline = (text: string): string => escapeHtml(fillBookFields(text)).replac
  * Laid out on the vertical grid (`--grid-row`, six rows – DESIGN.md §3a, #295): the icon in row 1 (its centre at
  * `--onboarding-icon-centre` of the row), the illustration in row 2, title and text from the top of row 3, the button
  * (or the footer) from the top of row 5. A text longer than rows 3–4 pushes the button down. The host starts at the
- * top of the page area (the page pads the safe area). The splash's book title shimmers (#280).
+ * top of the page area (the page pads the safe area). The splash's title shimmers (#280).
  */
 export class TutorialContent extends HTMLElement implements ITutorialContent {
   private _currentStep = 0;
@@ -63,7 +61,7 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
 
   private render() {
     if (!this.shadowRoot) return;
-    const step = onboardingSteps(getBook()).find(s => s.index === this._currentStep);
+    const step = onboardingSteps(getExperience()).find(s => s.index === this._currentStep);
     if (!step) return;
 
     // Only the splash fades: its text and footer together, after the title has shown alone
@@ -72,7 +70,7 @@ export class TutorialContent extends HTMLElement implements ITutorialContent {
     const fades = duration > 0;
     /** Class and style of a part that fades in on the splash */
     const parts = (classes: string) => `class="${classes}${fades ? " fade" : ""}"${fades ? ` style="animation-delay: ${delay}ms"` : ""}`;
-    const footer = step.footer && fillBookFields(step.footer) ? step.footer : undefined;
+    const footer = step.footer && fillExperienceFields(step.footer) ? step.footer : undefined;
     this.style.setProperty("--fade-duration", `${duration}ms`);
     this.style.setProperty("--actions-delay", `${fades ? delay : 0}ms`);
     this.shadowRoot.innerHTML = /* html */ `

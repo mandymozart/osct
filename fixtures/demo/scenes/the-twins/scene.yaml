@@ -5,7 +5,7 @@ surfaces:
   - id: surface
     widthMm: 460
     heightMm: 320
-# A post-processing pass of the book's own (#216): the grain plugin's film grain over the whole picture
+# A post-processing pass of the experience's own (#216): the grain plugin's film grain over the whole picture
 passes:
   - type: filmGrain
     amount: 0.14

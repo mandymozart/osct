@@ -10,10 +10,10 @@ const CANVAS_HEIGHT = 160;
 
 export const register = (api: PluginApi): void => {
   api.registerComponent("tally", {
-    description: "Writes how many pages were found – of this scene or of the whole book – and keeps it current.",
+    description: "Writes how many pages were found – of this scene or of the whole experience – and keeps it current.",
     nodeTypes: ["group"],
     params: {
-      of: { kind: "choice", options: ["book", "scene"], default: "book", description: "Count the whole book's pages, or this scene's." },
+      of: { kind: "choice", options: ["experience", "scene"], default: "experience", description: "Count the whole experience's pages, or this scene's." },
       label: { kind: "string", default: "pages found", description: "The words after the numbers." },
       color: { kind: "color", default: "#ffffff", description: "The text's colour." },
     },

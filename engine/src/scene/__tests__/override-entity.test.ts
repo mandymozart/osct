@@ -51,24 +51,24 @@ describe("ArScene.overrideEntity (the editor's live edit)", () => {
   });
 });
 
-describe("ArScene.overrideAppearance (the editor's live edit of the book's looks, #265)", () => {
+describe("ArScene.overrideAppearance (the editor's live edit of the experience's looks, #265)", () => {
   const lookOf = (scene: ArScene, moment: "reveal" | "found" | "lost", on: Target = target) =>
     (scene as unknown as { momentLook(m: string, t: Target): { type: string } }).momentLook(moment, on);
 
-  it("plays the editor's looks instead of the book's until restored; a moment without one takes found's", () => {
+  it("plays the editor's looks instead of the experience's until restored; a moment without one takes found's", () => {
     const { scene } = sceneWithAnchor();
     scene.overrideAppearance({ appearance: { found: { type: "printLift" }, lost: { type: "fade" } } });
     expect(lookOf(scene, "reveal").type).toBe("printLift");
     expect(lookOf(scene, "lost").type).toBe("fade");
-    // None named: the default everywhere, whatever the book says
+    // None named: the default everywhere, whatever the experience says
     scene.overrideAppearance({ appearance: null });
     expect(lookOf(scene, "found").type).toBe("inflateDissolve");
-    // Restored: the book's (this test's content has no book – the default)
+    // Restored: the experience's (this test's content names no look – the default)
     scene.overrideAppearance(null);
     expect(lookOf(scene, "lost").type).toBe("inflateDissolve");
   });
 
-  it("an entity's own looks (its root node's components) win over the book's and the editor's override (#268)", () => {
+  it("an entity's own looks (its root node's components) win over the experience's and the editor's override (#268)", () => {
     const { scene } = sceneWithAnchor();
     scene.overrideAppearance({ appearance: { found: { type: "printLift" }, reveal: { type: "fade" } } });
     const own: Target = { ...target, entity: { ...image, components: [{ type: "reveal", look: "inflateDissolve" }, { type: "lost", look: "fade" }] } };

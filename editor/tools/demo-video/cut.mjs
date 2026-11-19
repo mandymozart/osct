@@ -28,7 +28,7 @@ const maxrate = args.maxrate ?? "3.6M";
 /** The cut: scene, from, to (seconds from the scene's first frame) */
 const PLAN = {
   desktop: [
-    { scene: "books", from: 0, to: 5.25 },
+    { scene: "experiences", from: 0, to: 5.25 },
     { scene: "orbit", from: 0.3, to: 3.6 },
     { scene: "select-drag", from: 0.2, to: 3.6 },
     { scene: "aquarium", from: 0.4, to: 3.7 },
@@ -38,7 +38,7 @@ const PLAN = {
     { scene: "code", from: 0.9, to: 5.9 },
   ],
   phone: [
-    { scene: "books", from: 0, to: 5.6 },
+    { scene: "experiences", from: 0, to: 5.6 },
     { scene: "orbit", from: 0.3, to: 3.6 },
     { scene: "sheet-toolbar", from: 0.3, to: 5.1 },
     { scene: "select-drag", from: 0.2, to: 3.6 },

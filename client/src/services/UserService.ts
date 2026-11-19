@@ -18,7 +18,7 @@ export const LOGIN_PARAM = "login";
 
 const SESSION_KEY = "osct-user";
 const PENDING_KEY = "osct-user-pending";
-const syncKey = (bookId: string) => `osct-user-sync:${bookId}`;
+const syncKey = (experienceId: string) => `osct-user-sync:${experienceId}`;
 
 /**
  * How long after an email sign-in the password can be changed without the current one – the server's
@@ -78,7 +78,7 @@ const isString = (value: unknown): value is string => typeof value === "string";
 const isTime = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 
 const isUserOptions = (value: unknown): value is UserOptions =>
-  isObject(value) && typeof value.bookUpdates === "boolean" && typeof value.artistUpdates === "boolean" &&
+  isObject(value) && typeof value.experienceUpdates === "boolean" && typeof value.artistUpdates === "boolean" &&
   typeof value.publisherUpdates === "boolean";
 
 const isUserData = (value: unknown): value is UserData =>
@@ -111,7 +111,7 @@ const storedUser = (value: unknown): UserData | null => {
     email: value.email,
     language: isString(value.language) ? value.language : "en",
     options: {
-      bookUpdates: options.bookUpdates === true,
+      experienceUpdates: options.experienceUpdates === true,
       artistUpdates: options.artistUpdates === true,
       publisherUpdates: options.publisherUpdates === true,
     },
@@ -338,7 +338,7 @@ export class UserService implements IUserService {
     const state = link ? this.freshSyncState() : this.syncState();
     this.update({ sync: "syncing" });
     try {
-      const remote = await this.api.requestAs(isProgressResponse, "GET", `/progress/${encodeURIComponent(game.state.progress.bookId)}`);
+      const remote = await this.api.requestAs(isProgressResponse, "GET", `/progress/${encodeURIComponent(game.state.progress.experienceId)}`);
       if (remote.record !== null && remote.updatedAt !== state.updatedAt) {
         const mode = link || state.dirty ? "merge" : "replace";
         const applied = this.apply(remote.record, mode);
@@ -395,7 +395,7 @@ export class UserService implements IUserService {
       const state = this.syncState();
       this.update({ sync: "syncing" });
       try {
-        const result = await this.api.requestAs(isSavedResponse, "PUT", `/progress/${encodeURIComponent(record.bookId)}`, {
+        const result = await this.api.requestAs(isSavedResponse, "PUT", `/progress/${encodeURIComponent(record.experienceId)}`, {
           body: { record: game.state.progress, baseUpdatedAt: state.updatedAt },
         });
         this.setSyncState({ ...state, updatedAt: result.updatedAt, dirty: this.changedDuringPush });
@@ -529,14 +529,14 @@ export class UserService implements IUserService {
   }
 
   private syncState(): SyncState {
-    const bookId = this.game?.state.progress.bookId ?? "";
-    const stored = read(syncKey(bookId), readSyncState);
+    const experienceId = this.game?.state.progress.experienceId ?? "";
+    const stored = read(syncKey(experienceId), readSyncState);
     return stored && stored.email === this.stored?.user.email ? stored : this.freshSyncState();
   }
 
   private setSyncState(state: SyncState | null): void {
-    const bookId = this.game?.state.progress.bookId;
-    if (bookId) write(syncKey(bookId), state);
+    const experienceId = this.game?.state.progress.experienceId;
+    if (experienceId) write(syncKey(experienceId), state);
   }
 
   private setSession(stored: StoredSession | null): void {

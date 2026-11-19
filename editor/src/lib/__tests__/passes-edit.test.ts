@@ -1,63 +1,63 @@
 import { describe, expect, it } from "vitest";
 import {
-  backToBooks, draftPasses, editInEffect, effectivePasses, levelLine, ownPasses, passesHeading, passesSource, passSummary, pendingSaves,
-  setPassEnabled, scenesOnBook,
+  backToExperience, draftPasses, editInEffect, effectivePasses, levelLine, ownPasses, passesHeading, passesSource, passSummary, pendingSaves,
+  setPassEnabled, scenesOnExperience,
 } from "../passes-edit";
 import type { PassData } from "@engine/types";
 import { passRows } from "../values";
 
-const BOOK = [{ type: "grade", reach: "all", exposure: 0.5 }, { type: "vignette" }];
+const EXPERIENCE = [{ type: "grade", reach: "all", exposure: 0.5 }, { type: "vignette" }];
 
-// The post-processing panel: the book's passes are the master, a scene's own list overrides them
-describe("the book's passes and a scene's override", () => {
-  it("a scene without a list of its own uses the book's", () => {
-    const draft = draftPasses(BOOK, undefined);
-    expect(passesSource(draft)).toBe("book");
-    expect(effectivePasses(draft)).toEqual(BOOK);
-    expect(passesHeading(draft)).toBe("post-processing · the whole book");
-    expect(passesHeading(draftPasses(null, undefined))).toBe("post-processing · the whole book · none");
+// The post-processing panel: the experience's passes are the master, a scene's own list overrides them
+describe("the experience's passes and a scene's override", () => {
+  it("a scene without a list of its own uses the experience's", () => {
+    const draft = draftPasses(EXPERIENCE, undefined);
+    expect(passesSource(draft)).toBe("experience");
+    expect(effectivePasses(draft)).toEqual(EXPERIENCE);
+    expect(passesHeading(draft)).toBe("post-processing · the whole experience");
+    expect(passesHeading(draftPasses(null, undefined))).toBe("post-processing · the whole experience · none");
   });
 
   it("starts from copies – the loaded content is never edited", () => {
-    const draft = draftPasses(BOOK, undefined);
-    expect(draft.book).not.toBe(BOOK);
-    expect(draft.book[0]).not.toBe(BOOK[0]);
+    const draft = draftPasses(EXPERIENCE, undefined);
+    expect(draft.experience).not.toBe(EXPERIENCE);
+    expect(draft.experience[0]).not.toBe(EXPERIENCE[0]);
   });
 
-  it("own passes for this scene start as a copy of the book's", () => {
-    const own = ownPasses(draftPasses(BOOK, undefined));
+  it("own passes for this scene start as a copy of the experience's", () => {
+    const own = ownPasses(draftPasses(EXPERIENCE, undefined));
     expect(passesSource(own)).toBe("scene");
-    expect(own.own).toEqual(BOOK);
-    expect(own.own![0]).not.toBe(own.book[0]);
+    expect(own.own).toEqual(EXPERIENCE);
+    expect(own.own![0]).not.toBe(own.experience[0]);
     expect(passesHeading(own)).toBe("post-processing · only this scene");
     expect(passesHeading({ ...own, own: [] })).toBe("post-processing · only this scene · off");
   });
 
-  it("editing changes the list in effect: the book's while the scene uses them, else the scene's own", () => {
-    const usesBook = editInEffect(draftPasses(BOOK, undefined), list => [...list, { type: "bloom" }]);
-    expect(usesBook.book.map(p => p.type)).toEqual(["grade", "vignette", "bloom"]);
-    expect(usesBook.own).toBeNull();
-    const own = editInEffect(ownPasses(draftPasses(BOOK, undefined)), list => list.slice(1));
+  it("editing changes the list in effect: the experience's while the scene uses them, else the scene's own", () => {
+    const usesExperience = editInEffect(draftPasses(EXPERIENCE, undefined), list => [...list, { type: "bloom" }]);
+    expect(usesExperience.experience.map(p => p.type)).toEqual(["grade", "vignette", "bloom"]);
+    expect(usesExperience.own).toBeNull();
+    const own = editInEffect(ownPasses(draftPasses(EXPERIENCE, undefined)), list => list.slice(1));
     expect(own.own!.map(p => p.type)).toEqual(["vignette"]);
-    expect(own.book).toEqual(BOOK);
+    expect(own.experience).toEqual(EXPERIENCE);
   });
 
-  it("back to the book's drops the override", () => {
-    const back = backToBooks(draftPasses(BOOK, [{ type: "bloom" }]));
+  it("back to the experience's drops the override", () => {
+    const back = backToExperience(draftPasses(EXPERIENCE, [{ type: "bloom" }]));
     expect(back.own).toBeNull();
-    expect(effectivePasses(back)).toEqual(BOOK);
+    expect(effectivePasses(back)).toEqual(EXPERIENCE);
   });
 
   it("Save writes only what changed", () => {
-    const saved = draftPasses(BOOK, undefined);
+    const saved = draftPasses(EXPERIENCE, undefined);
     expect(pendingSaves(saved, saved)).toEqual({});
-    expect(pendingSaves(ownPasses(saved), saved)).toEqual({ scene: BOOK });
-    const bookEdited = editInEffect(saved, list => [...list, { type: "bloom" }]);
-    expect(pendingSaves(bookEdited, saved)).toEqual({ book: [...BOOK, { type: "bloom" }] });
-    // An empty book list removes the field; the scene back to the book's sends null
-    expect(pendingSaves(editInEffect(saved, () => []), saved)).toEqual({ book: null });
-    const withOwn = draftPasses(BOOK, [{ type: "bloom" }]);
-    expect(pendingSaves(backToBooks(withOwn), withOwn)).toEqual({ scene: null });
+    expect(pendingSaves(ownPasses(saved), saved)).toEqual({ scene: EXPERIENCE });
+    const experienceEdited = editInEffect(saved, list => [...list, { type: "bloom" }]);
+    expect(pendingSaves(experienceEdited, saved)).toEqual({ experience: [...EXPERIENCE, { type: "bloom" }] });
+    // An empty experience list removes the field; the scene back to the experience's sends null
+    expect(pendingSaves(editInEffect(saved, () => []), saved)).toEqual({ experience: null });
+    const withOwn = draftPasses(EXPERIENCE, [{ type: "bloom" }]);
+    expect(pendingSaves(backToExperience(withOwn), withOwn)).toEqual({ scene: null });
     // An empty list of its own is kept: post-processing off for this scene
     expect(pendingSaves(editInEffect(withOwn, () => []), withOwn)).toEqual({ scene: [] });
   });
@@ -67,21 +67,21 @@ describe("the book's passes and a scene's override", () => {
 describe("the level in words", () => {
   const SCENES = [{ id: "a" }, { id: "b", passes: [{ type: "bloom" }] }, { id: "c", passes: null }, { id: "d", passes: [] }];
 
-  it("counts the scenes that use the book's – an empty list of its own is an override too", () => {
-    expect(scenesOnBook(SCENES, "a", null)).toBe(2);
-    expect(scenesOnBook([], "a", null)).toBe(0);
+  it("counts the scenes that use the experience's – an empty list of its own is an override too", () => {
+    expect(scenesOnExperience(SCENES, "a", null)).toBe(2);
+    expect(scenesOnExperience([], "a", null)).toBe(0);
   });
 
   it("counts the scene on the stage as the panel holds it, saved or not", () => {
-    expect(scenesOnBook(SCENES, "a", [])).toBe(1);
-    expect(scenesOnBook(SCENES, "b", null)).toBe(3);
+    expect(scenesOnExperience(SCENES, "a", [])).toBe(1);
+    expect(scenesOnExperience(SCENES, "b", null)).toBe(3);
   });
 
   it("says what editing the list changes", () => {
-    const book = draftPasses(BOOK, undefined);
-    expect(levelLine(book, 4)).toBe("changes all 4 scenes that use the book's");
-    expect(levelLine(book, 1)).toBe("changes the 1 scene that uses the book's");
-    expect(levelLine(ownPasses(book), 4)).toBe("overrides the book's for this scene");
+    const experience = draftPasses(EXPERIENCE, undefined);
+    expect(levelLine(experience, 4)).toBe("changes all 4 scenes that use the experience's");
+    expect(levelLine(experience, 1)).toBe("changes the 1 scene that uses the experience's");
+    expect(levelLine(ownPasses(experience), 4)).toBe("overrides the experience's for this scene");
   });
 });
 
@@ -96,17 +96,17 @@ describe("a pass on and off, and its closed head", () => {
     expect(setPassEnabled(list, 1, true)).toEqual(list);
   });
 
-  it("switching a pass of the book's list changes the book's, a scene's own the scene's – Save writes it", () => {
-    const draft = draftPasses(BOOK, undefined);
+  it("switching a pass of the experience's list changes the experience's, a scene's own the scene's – Save writes it", () => {
+    const draft = draftPasses(EXPERIENCE, undefined);
     const next = editInEffect(draft, list => setPassEnabled(list, 1, false));
-    expect(next.book[1]).toEqual({ type: "vignette", enabled: false });
-    expect(pendingSaves(next, draft)).toEqual({ book: [BOOK[0], { type: "vignette", enabled: false }] });
+    expect(next.experience[1]).toEqual({ type: "vignette", enabled: false });
+    expect(pendingSaves(next, draft)).toEqual({ experience: [EXPERIENCE[0], { type: "vignette", enabled: false }] });
     expect(editInEffect(ownPasses(draft), list => setPassEnabled(list, 0, false)).own![0].enabled).toBe(false);
   });
 
   it("the level's head says when every pass is off", () => {
-    expect(passesHeading(draftPasses([{ type: "bloom", enabled: false }], undefined))).toBe("post-processing · the whole book · all off");
-    expect(passesHeading(draftPasses([{ type: "bloom", enabled: false }, { type: "grade" }], undefined))).toBe("post-processing · the whole book");
+    expect(passesHeading(draftPasses([{ type: "bloom", enabled: false }], undefined))).toBe("post-processing · the whole experience · all off");
+    expect(passesHeading(draftPasses([{ type: "bloom", enabled: false }, { type: "grade" }], undefined))).toBe("post-processing · the whole experience");
   });
 
   it("a closed pass names the values set, at most two – else its first parameter", () => {

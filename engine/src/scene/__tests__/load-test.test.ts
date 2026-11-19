@@ -56,7 +56,7 @@ describe("window of scenes kept ready", () => {
 });
 
 describe("engine load test", () => {
-  it("caps the steps at what the book has and drops repeats", () => {
+  it("caps the steps at what the experience has and drops repeats", () => {
     expect(loadTestSteps([0, 5, 10, 20, 40, 80, Infinity], 30)).toEqual([0, 5, 10, 20, 30]);
     expect(loadTestSteps([0, 5, Infinity], 3)).toEqual([0, 3]);
   });

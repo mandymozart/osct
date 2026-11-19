@@ -13,8 +13,8 @@ import { readSwitch, writeSwitch } from "./device-storage";
  *   count – one without (all its targets switched off, or none yet) is skipped, it has nothing to recognise, so a
  *   page beyond it is still in reach.
  * - **grow**: the current scene first, then the nearest scenes are added in idle time, a few targets at a time,
- *   until the whole book is held (`IImageTracker.growTargets()`). Nothing is dropped on a switch. Content is
- *   preloaded for ±1. Not the default: with the whole book held, pages of a printout were no longer found.
+ *   until the whole experience is held (`IImageTracker.growTargets()`). Nothing is dropped on a switch. Content is
+ *   preloaded for ±1. Not the default: with the whole experience held, pages of a printout were no longer found.
  * The engine load test sets a **target budget** instead (the nearest scenes until their targets reach it) while
  * it runs; the window follows every change at once.
  * The trigger trial overrides the setting with ±1 while its panel is open (`setWindowOverride()`, not stored), so the
@@ -25,7 +25,7 @@ export type PreparedWindowSetting = "grow" | number;
 export const PREPARED_WINDOW_SETTINGS: readonly PreparedWindowSetting[] = ["grow", 0, 1, 2, Infinity];
 const RANGE_KEY = "ar-prepared-scenes";
 const DEFAULT_WINDOW: PreparedWindowSetting = 2;
-/** Content preload in grow mode: the neighbours (their media add up – the whole book stays a separate step) */
+/** Content preload in grow mode: the neighbours (their media add up – the whole experience stays a separate step) */
 const GROW_CONTENT_RANGE = 1;
 
 let windowOverride: PreparedWindowSetting | null = null;
@@ -77,7 +77,7 @@ export const setTargetBudget = (budget: number | null): void => {
   windowListeners.forEach(listener => listener());
 };
 
-/** The tracker grows its window towards the whole book (grow setting, no load test budget) */
+/** The tracker grows its window towards the whole experience (grow setting, no load test budget) */
 export const isGrowingWindow = (): boolean => targetBudget === null && getPreparedWindowSetting() === "grow";
 
 /** Called when the window changes outside a scene switch (setting changed, the load test's budget) */

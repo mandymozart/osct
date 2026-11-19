@@ -33,9 +33,9 @@ values as the content would carry them; **Engine default** is `rotation: [90, 0,
 
 ## Concepts
 
-**As shipped** plays the engine's code with a look as a book names it (`shared/types/appearance.ts`): *Look* picks a
+**As shipped** plays the engine's code with a look as an experience names it (`shared/types/appearance.ts`): *Look* picks a
 built-in one – `inflateDissolve` (the default), `printLift`, `fade` – and takes its values, the controls change them,
-and **Values** shows the look as it goes into a book's `appearance`. *Look* also offers `softFade`, a plugin's look
+and **Values** shows the look as it goes into an experience's `appearance`. *Look* also offers `softFade`, a plugin's look
 (`src/demo-plugin.ts`, registered through the engine's plugin API): its code plays in the built-in look's place, with
 the panel's two durations. Every other concept is a starting point of the sandbox's own animation
 (`src/reveal.ts`) – one shader injection with three parts, each with its own share of the time and easing:
@@ -88,5 +88,5 @@ the panel's two durations. Every other concept is a starting point of the sandbo
 A built-in look names and measures its values as the sandbox does, so a concept's values are a look's parameters as
 they are – for the parts the engine has: the shape (height, scale, spin; from its base along the page normal, no
 stagger), the `noise` mask with edge and glow, tint, fade, sparks, bloom. `inflateDissolve`, `printLift` and `fade`
-came this way (#262); a book sets a look per moment in its `appearance` (#264, docs/content.md). A concept that needs more (another pattern, a stagger, an overshoot) is a follow-up issue: that
+came this way (#262); an experience sets a look per moment in its `appearance` (#264, docs/content.md). A concept that needs more (another pattern, a stagger, an overshoot) is a follow-up issue: that
 part of `src/reveal.ts` moves into `engine/src/scene/celebration.ts`, with tests there.

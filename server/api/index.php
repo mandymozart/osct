@@ -18,8 +18,8 @@ declare(strict_types=1);
  *   GET    /user/tokens              the AI connections' tokens (docs/server.md "AI connections"; a session only, never a token)
  *   POST   /user/tokens              { name } → 201 { token, apiToken } – the token once (editors and admins, for themselves)
  *   POST   /user/tokens/{id}/renew   expires 182 days from now · DELETE /user/tokens/{id} revoke it
- *   GET    /progress/{bookId}        stored progress record
- *   PUT    /progress/{bookId}        store the progress record
+ *   GET    /progress/{experienceId}  stored progress record
+ *   PUT    /progress/{experienceId}  store the progress record
  *   POST   /admin/migrate            create missing tables (header X-Admin-Secret: SECRET) – after a deploy
  *
  *   The admin API (docs/server.md "Admin API"; a signed-in user with role admin, or the header X-Admin-Secret: SECRET):
@@ -30,58 +30,58 @@ declare(strict_types=1);
  *   POST   /admin/editors                       { email } → make the user an editor, creating it if new
  *
  *   The editor (docs/server.md "Editor data"; a signed-in user with role editor, else 403):
- *   GET    /editor/books                        the books: id, title, author, initialScene, scenes, updatedAt, lastPublish
+ *   GET    /editor/experiences                  the experiences: id, title, experience, initialScene, scenes, updatedAt, lastPublish
  *   GET    /editor/environments                 the environments: which one this instance publishes to, CDN or this server
- *   POST   /editor/import/preview               the import's body → what it would bring in (book, build, counts) and the
+ *   POST   /editor/import/preview               the import's body → what it would bring in (experience, build, counts) and the
  *                                               draft of that id it would replace – read-only, nothing imported
- *   POST   /editor/books/{id}/import            { configuration, files?, assetsBase? } or { source: "cdn" }, then again with
- *                                               { confirm } → replace the book's rows (409 confirm-import: the comparison)
- *   GET    /editor/books/{id}                   the tree: book, scenes with their entries, each entry's target, the groups
- *   GET    /editor/books/{id}/entities          the shared entities { ref: EntityData }
- *   PUT    /editor/books/{id}/entities/{ref}    body EntityData → saves it, records a change
- *   PUT    /editor/books/{id}/targets/{id}      { entity } | { ref } | { imageSrc } | { place } | { enabled } → the target, records a change
- *   POST   /editor/books/{id}/entries           { title, scene, surface?, category?, target?: { imageSrc, place?, entity? } } → 201 a new
+ *   POST   /editor/experiences/{id}/import      { configuration, files?, assetsBase? } or { source: "cdn" }, then again with
+ *                                               { confirm } → replace the experience's rows (409 confirm-import: the comparison)
+ *   GET    /editor/experiences/{id}             the tree: experience, scenes with their entries, each entry's target, the groups
+ *   GET    /editor/experiences/{id}/entities    the shared entities { ref: EntityData }
+ *   PUT    /editor/experiences/{id}/entities/{ref}    body EntityData → saves it, records a change
+ *   PUT    /editor/experiences/{id}/targets/{id}      { entity } | { ref } | { imageSrc } | { place } | { enabled } → the target, records a change
+ *   POST   /editor/experiences/{id}/entries     { title, scene, surface?, category?, target?: { imageSrc, place?, entity? } } → 201 a new
  *                                               entry, with its target or without
- *   PUT    /editor/books/{id}/entries/{id}      { title?, body?, author?, image?, media?, tags?, category?, scene?, surface? } → an entry's
- *                                               fields; a scene moves it · GET /editor/books/{id}/entries: every entry with its fields as written
- *   PUT    /editor/books/{id}                   { title?, author?, publisher?, sourceOfTruth? } → the book's texts and its source of truth
+ *   PUT    /editor/experiences/{id}/entries/{id}      { title?, body?, author?, image?, media?, tags?, category?, scene?, surface? } → an entry's
+ *                                               fields; a scene moves it · GET /editor/experiences/{id}/entries: every entry with its fields as written
+ *   PUT    /editor/experiences/{id}             { title?, book?: { author?, publisher? } | null } → the title and the printed book
  *   Scenes (content schema 3.0, docs/server.md "Scenes" – its order is its position, nothing renumbers):
- *   GET    /editor/books/{id}/scenes            the scenes in order (label, group, surfaces with their reference images, counts) and the groups
- *   POST   /editor/books/{id}/scenes            { preset?, after? | before? | position?, id?, label?, group?, surfaces? } → 201 a
+ *   GET    /editor/experiences/{id}/scenes      the scenes in order (label, group, surfaces with their reference images, counts) and the groups
+ *   POST   /editor/experiences/{id}/scenes      { preset?, after? | before? | position?, id?, label?, group?, surfaces? } → 201 a
  *                                               scene anywhere (double, single, wall)
- *   POST   /editor/books/{id}/scenes/move       { scenes, after? | before? | position?, group?, apply? } → the plan, written with apply
- *   PUT    /editor/books/{id}/scenes/{id}       { label?, group?, surfaces?, passes?, apply? } → the scene's fields
- *   PUT    /editor/books/{id}/scenes/{id}/surfaces/{sid}/reference  { url | null, fit?, name? } → the surface's reference image (#314)
- *   DELETE /editor/books/{id}/scenes/{id}       { confirm?, deleteFiles? } the scene with everything on it, in two steps: 409 confirm-delete
+ *   POST   /editor/experiences/{id}/scenes/move { scenes, after? | before? | position?, group?, apply? } → the plan, written with apply
+ *   PUT    /editor/experiences/{id}/scenes/{id} { label?, group?, surfaces?, passes?, apply? } → the scene's fields
+ *   PUT    /editor/experiences/{id}/scenes/{id}/surfaces/{sid}/reference  { url | null, fit?, name? } → the surface's reference image (#314)
+ *   DELETE /editor/experiences/{id}/scenes/{id} { confirm?, deleteFiles? } the scene with everything on it, in two steps: 409 confirm-delete
  *                                               (the impact, a confirmation id), then again with { confirm } → removed (409
  *                                               confirmation-void, initial-scene)
- *   POST   /editor/books/{id}/groups            { label, scenes, id?, apply? } → a group of the picked scenes: the plan, written with apply
- *   PUT    /editor/books/{id}/groups/{gid}      { label } → renamed · DELETE …/groups/{gid} → ungrouped (the scenes stay in place)
- *   PUT    /editor/books/{id}/environment       { environment: { world, onionSky } | null } → the book's world and onion sky
- *   PUT    /editor/books/{id}/passes            { passes: [{ type, … }] | null } → the book's post-processing (every scene without its own)
- *   PUT    /editor/books/{id}/appearance        { appearance: { reveal?, found?, lost? } | null } → how the book's entities appear: a look
+ *   POST   /editor/experiences/{id}/groups      { label, scenes, id?, apply? } → a group of the picked scenes: the plan, written with apply
+ *   PUT    /editor/experiences/{id}/groups/{gid}      { label } → renamed · DELETE …/groups/{gid} → ungrouped (the scenes stay in place)
+ *   PUT    /editor/experiences/{id}/environment { environment: { world, onionSky } | null } → the experience's world and onion sky
+ *   PUT    /editor/experiences/{id}/passes      { passes: [{ type, … }] | null } → the experience's post-processing (every scene without its own)
+ *   PUT    /editor/experiences/{id}/appearance  { appearance: { reveal?, found?, lost? } | null } → how the experience's entities appear: a look
  *                                               { type, … } for the first find, every later find and the lost page
- *   DELETE /editor/books/{id}/entries/{id}      { confirm?, deleteFiles? } the entry with its target and entity, the same two steps
- *   GET    /editor/books/{id}/draft/latest.json · …/draft/{build}/game.config.json · …/draft/{build}/files.json
+ *   DELETE /editor/experiences/{id}/entries/{id}      { confirm?, deleteFiles? } the entry with its target and entity, the same two steps
+ *   GET    /editor/experiences/{id}/draft/latest.json · …/draft/{build}/game.config.json · …/draft/{build}/files.json
  *                                               the draft as a content version (the engine's loader reads it like the CDN)
- *   POST   /editor/books/{id}/publish           { env, note?, replace?, plugins? } → writes the version to the content store (env =
+ *   POST   /editor/experiences/{id}/publish     { env, note?, replace?, plugins? } → writes the version to the content store (env =
  *                                               this instance's own environment, else 403 other-environment); `plugins` = the
  *                                               Code tab's sources as the editor transpiled them [{ id, code, api, registered? }]
- *   GET    /editor/books/{id}/versions          the publish log
- *   GET    /editor/books/{id}/changes?limit=    the change log, newest first
- *   POST   /editor/books/{id}/changes/{cid}/revert { apply? } → one change taken back with the later changes of the same thing:
+ *   GET    /editor/experiences/{id}/versions    the publish log
+ *   GET    /editor/experiences/{id}/changes?limit=    the change log, newest first
+ *   POST   /editor/experiences/{id}/changes/{cid}/revert { apply? } → one change taken back with the later changes of the same thing:
  *                                               the plan, written with apply as new changes (#312, Reverts)
- *   POST   /editor/books/{id}/changes/revert    { ids, apply? } → these changes taken back (the editor's undo and redo)
- *   POST   /editor/books/{id}/changes/revert-to { after, apply? } → every change after `after` taken back, newest first
- *   GET    /editor/books/{id}/assets[?kind=]    the uploaded files (docs/server.md "Assets"), with their number of uses
- *   POST   /editor/books/{id}/assets            the file as the body, X-File-Name → 201 { asset } (200 when these bytes exist)
- *   PUT    /editor/books/{id}/assets/credits    { items: [{ url, credits }] } → the files' picture credits (#277)
- *   POST   /editor/books/{id}/assets/names      { apply? } → the files' names by their use (#298): the plan, then applied
- *   PUT    /editor/books/{id}/assets/{aid}/file the new file as the body → a new version, every use relinked
- *   GET    /editor/books/{id}/assets/{aid}/usages · DELETE /editor/books/{id}/assets/{aid}[?force=1]
- *   GET    /editor/books/{id}/plugins · GET | PUT { source } | DELETE[?force=1] /editor/books/{id}/plugins/{pid}
- *   POST   /editor/books/{id}/plugins[?id=]     a script file as the body, X-File-Name → 201 { plugin } (the Library, #186)
- *   PUT    /editor/books/{id}/plugins/{pid}/file a script file as the body → { plugin } · GET …/plugins/{pid}/usages
+ *   POST   /editor/experiences/{id}/changes/revert    { ids, apply? } → these changes taken back (the editor's undo and redo)
+ *   POST   /editor/experiences/{id}/changes/revert-to { after, apply? } → every change after `after` taken back, newest first
+ *   GET    /editor/experiences/{id}/assets[?kind=]    the uploaded files (docs/server.md "Assets"), with their number of uses
+ *   POST   /editor/experiences/{id}/assets      the file as the body, X-File-Name → 201 { asset } (200 when these bytes exist)
+ *   PUT    /editor/experiences/{id}/assets/credits    { items: [{ url, credits }] } → the files' picture credits (#277)
+ *   POST   /editor/experiences/{id}/assets/names      { apply? } → the files' names by their use (#298): the plan, then applied
+ *   PUT    /editor/experiences/{id}/assets/{aid}/file the new file as the body → a new version, every use relinked
+ *   GET    /editor/experiences/{id}/assets/{aid}/usages · DELETE /editor/experiences/{id}/assets/{aid}[?force=1]
+ *   GET    /editor/experiences/{id}/plugins · GET | PUT { source } | DELETE[?force=1] /editor/experiences/{id}/plugins/{pid}
+ *   POST   /editor/experiences/{id}/plugins[?id=]     a script file as the body, X-File-Name → 201 { plugin } (the Library, #186)
+ *   PUT    /editor/experiences/{id}/plugins/{pid}/file a script file as the body → { plugin } · GET …/plugins/{pid}/usages
  *                                               the Code tab's plugin sources (docs/server.md "Plugin sources")
  *   GET    /content/{env}/{path}                the local content store (json files, and the assets' files; public)
  *
@@ -90,7 +90,7 @@ declare(strict_types=1);
  * (ApiTokens). docs/server.md "Sessions, cookies and CSRF".
  */
 
-foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Confirmation', 'Removal', 'Books', 'BookTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -118,7 +118,7 @@ $GLOBALS['osctApiBase'] = $base !== '' ? $base : '/api';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 // Uuids in paths: users, AI connections' tokens, assets
 $uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
-// Ids in the editor's paths (books, scenes, entries, entities, targets, plugins)
+// Ids in the editor's paths (experiences, scenes, entries, entities, targets, plugins)
 $id = Editor::ID;
 
 /** POST /admin/migrate needs the SECRET in X-Admin-Secret, else 403 (the other admin endpoints: Admin::actor()) */
@@ -162,53 +162,53 @@ try {
         (bool) preg_match("#^DELETE /user/tokens/($uuid)$#", $route, $match) => ApiTokens::revoke($match[1]),
         (bool) preg_match('#^(GET|PUT) /progress/([A-Za-z0-9_-]{1,64})$#', $route, $match) =>
             $match[1] === 'GET' ? Progress::get($match[2]) : Progress::put($match[2], Http::body()),
-        $route === 'GET /editor/books' => Books::list(),
-        $route === 'GET /editor/environments' => Books::environments(),
-        $route === 'POST /editor/import/preview' => Books::preview(),
-        (bool) preg_match("#^POST /editor/books/($id)/import$#", $route, $match) => Books::import($match[1]),
-        (bool) preg_match("#^GET /editor/books/($id)$#", $route, $match) => Books::tree($match[1]),
-        (bool) preg_match("#^GET /editor/books/($id)/entities$#", $route, $match) => Books::entities($match[1]),
-        (bool) preg_match("#^PUT /editor/books/($id)/entities/($id)$#", $route, $match) => Books::putEntity($match[1], $match[2]),
-        (bool) preg_match("#^PUT /editor/books/($id)/targets/($id)$#", $route, $match) => Books::putTarget($match[1], $match[2]),
-        (bool) preg_match("#^POST /editor/books/($id)/entries$#", $route, $match) => Books::addEntry($match[1]),
-        (bool) preg_match("#^GET /editor/books/($id)/entries$#", $route, $match) => BookTexts::entries($match[1]),
-        (bool) preg_match("#^PUT /editor/books/($id)/entries/($id)$#", $route, $match) => BookTexts::putEntry($match[1], $match[2]),
-        (bool) preg_match("#^PUT /editor/books/($id)$#", $route, $match) => BookTexts::putBook($match[1]),
-        (bool) preg_match("#^GET /editor/books/($id)/scenes$#", $route, $match) => Scenes::list($match[1]),
-        (bool) preg_match("#^POST /editor/books/($id)/scenes$#", $route, $match) => Scenes::add($match[1]),
-        (bool) preg_match("#^POST /editor/books/($id)/scenes/move$#", $route, $match) => Scenes::move($match[1]),
-        (bool) preg_match("#^PUT /editor/books/($id)/scenes/($id)/surfaces/($id)/reference$#", $route, $match) => SurfaceReferences::put($match[1], $match[2], $match[3]),
-        (bool) preg_match("#^PUT /editor/books/($id)/scenes/($id)$#", $route, $match) => Scenes::put($match[1], $match[2]),
-        (bool) preg_match("#^DELETE /editor/books/($id)/scenes/($id)$#", $route, $match) => Books::deleteScene($match[1], $match[2]),
-        (bool) preg_match("#^POST /editor/books/($id)/groups$#", $route, $match) => Scenes::addGroup($match[1]),
-        (bool) preg_match("#^PUT /editor/books/($id)/groups/($id)$#", $route, $match) => Scenes::putGroup($match[1], $match[2]),
-        (bool) preg_match("#^DELETE /editor/books/($id)/groups/($id)$#", $route, $match) => Scenes::deleteGroup($match[1], $match[2]),
-        (bool) preg_match("#^PUT /editor/books/($id)/environment$#", $route, $match) => Books::putEnvironment($match[1]),
-        (bool) preg_match("#^PUT /editor/books/($id)/passes$#", $route, $match) => Books::putPasses($match[1]),
-        (bool) preg_match("#^PUT /editor/books/($id)/appearance$#", $route, $match) => Books::putAppearance($match[1]),
-        (bool) preg_match("#^DELETE /editor/books/($id)/entries/($id)$#", $route, $match) => Books::deleteEntry($match[1], $match[2]),
-        (bool) preg_match("#^GET /editor/books/($id)/draft/latest\\.json$#", $route, $match) => ContentVersion::draftManifest($match[1]),
-        (bool) preg_match("#^GET /editor/books/($id)/draft/[0-9a-f]{12}/(game\\.config|files)\\.json$#", $route, $match) => ContentVersion::draftFile($match[1], $match[2]),
-        (bool) preg_match("#^POST /editor/books/($id)/publish$#", $route, $match) => Books::publish($match[1], Editor::body()),
-        (bool) preg_match("#^GET /editor/books/($id)/versions$#", $route, $match) => Books::versions($match[1]),
-        (bool) preg_match("#^GET /editor/books/($id)/changes$#", $route, $match) => Books::changes($match[1]),
-        (bool) preg_match("#^POST /editor/books/($id)/changes/revert$#", $route, $match) => Reverts::many($match[1]),
-        (bool) preg_match("#^POST /editor/books/($id)/changes/revert-to$#", $route, $match) => Reverts::to($match[1]),
-        (bool) preg_match("#^POST /editor/books/($id)/changes/($uuid)/revert$#", $route, $match) => Reverts::one($match[1], $match[2]),
-        (bool) preg_match("#^GET /editor/books/($id)/assets$#", $route, $match) => Assets::list($match[1]),
-        (bool) preg_match("#^POST /editor/books/($id)/assets$#", $route, $match) => Assets::upload($match[1]),
-        (bool) preg_match("#^PUT /editor/books/($id)/assets/credits$#", $route, $match) => Assets::setCredits($match[1]),
-        (bool) preg_match("#^POST /editor/books/($id)/assets/names$#", $route, $match) => AssetNames::plan($match[1]),
-        (bool) preg_match("#^PUT /editor/books/($id)/assets/($uuid)/file$#", $route, $match) => Assets::replace($match[1], $match[2]),
-        (bool) preg_match("#^GET /editor/books/($id)/assets/($uuid)/usages$#", $route, $match) => Assets::usages($match[1], $match[2]),
-        (bool) preg_match("#^DELETE /editor/books/($id)/assets/($uuid)$#", $route, $match) => Assets::delete($match[1], $match[2]),
-        (bool) preg_match("#^GET /editor/books/($id)/plugins$#", $route, $match) => Plugins::list($match[1]),
-        (bool) preg_match("#^POST /editor/books/($id)/plugins$#", $route, $match) => Plugins::upload($match[1]),
-        (bool) preg_match("#^PUT /editor/books/($id)/plugins/($id)/file$#", $route, $match) => Plugins::replaceFile($match[1], $match[2]),
-        (bool) preg_match("#^GET /editor/books/($id)/plugins/($id)/usages$#", $route, $match) => Plugins::usages($match[1], $match[2]),
-        (bool) preg_match("#^GET /editor/books/($id)/plugins/($id)$#", $route, $match) => Plugins::get($match[1], $match[2]),
-        (bool) preg_match("#^PUT /editor/books/($id)/plugins/($id)$#", $route, $match) => Plugins::put($match[1], $match[2]),
-        (bool) preg_match("#^DELETE /editor/books/($id)/plugins/($id)$#", $route, $match) => Plugins::delete($match[1], $match[2]),
+        $route === 'GET /editor/experiences' => Experiences::list(),
+        $route === 'GET /editor/environments' => Experiences::environments(),
+        $route === 'POST /editor/import/preview' => Experiences::preview(),
+        (bool) preg_match("#^POST /editor/experiences/($id)/import$#", $route, $match) => Experiences::import($match[1]),
+        (bool) preg_match("#^GET /editor/experiences/($id)$#", $route, $match) => Experiences::tree($match[1]),
+        (bool) preg_match("#^GET /editor/experiences/($id)/entities$#", $route, $match) => Experiences::entities($match[1]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/entities/($id)$#", $route, $match) => Experiences::putEntity($match[1], $match[2]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/targets/($id)$#", $route, $match) => Experiences::putTarget($match[1], $match[2]),
+        (bool) preg_match("#^POST /editor/experiences/($id)/entries$#", $route, $match) => Experiences::addEntry($match[1]),
+        (bool) preg_match("#^GET /editor/experiences/($id)/entries$#", $route, $match) => ExperienceTexts::entries($match[1]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/entries/($id)$#", $route, $match) => ExperienceTexts::putEntry($match[1], $match[2]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)$#", $route, $match) => ExperienceTexts::putExperience($match[1]),
+        (bool) preg_match("#^GET /editor/experiences/($id)/scenes$#", $route, $match) => Scenes::list($match[1]),
+        (bool) preg_match("#^POST /editor/experiences/($id)/scenes$#", $route, $match) => Scenes::add($match[1]),
+        (bool) preg_match("#^POST /editor/experiences/($id)/scenes/move$#", $route, $match) => Scenes::move($match[1]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/scenes/($id)/surfaces/($id)/reference$#", $route, $match) => SurfaceReferences::put($match[1], $match[2], $match[3]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/scenes/($id)$#", $route, $match) => Scenes::put($match[1], $match[2]),
+        (bool) preg_match("#^DELETE /editor/experiences/($id)/scenes/($id)$#", $route, $match) => Experiences::deleteScene($match[1], $match[2]),
+        (bool) preg_match("#^POST /editor/experiences/($id)/groups$#", $route, $match) => Scenes::addGroup($match[1]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/groups/($id)$#", $route, $match) => Scenes::putGroup($match[1], $match[2]),
+        (bool) preg_match("#^DELETE /editor/experiences/($id)/groups/($id)$#", $route, $match) => Scenes::deleteGroup($match[1], $match[2]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/environment$#", $route, $match) => Experiences::putEnvironment($match[1]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/passes$#", $route, $match) => Experiences::putPasses($match[1]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/appearance$#", $route, $match) => Experiences::putAppearance($match[1]),
+        (bool) preg_match("#^DELETE /editor/experiences/($id)/entries/($id)$#", $route, $match) => Experiences::deleteEntry($match[1], $match[2]),
+        (bool) preg_match("#^GET /editor/experiences/($id)/draft/latest\\.json$#", $route, $match) => ContentVersion::draftManifest($match[1]),
+        (bool) preg_match("#^GET /editor/experiences/($id)/draft/[0-9a-f]{12}/(game\\.config|files)\\.json$#", $route, $match) => ContentVersion::draftFile($match[1], $match[2]),
+        (bool) preg_match("#^POST /editor/experiences/($id)/publish$#", $route, $match) => Experiences::publish($match[1], Editor::body()),
+        (bool) preg_match("#^GET /editor/experiences/($id)/versions$#", $route, $match) => Experiences::versions($match[1]),
+        (bool) preg_match("#^GET /editor/experiences/($id)/changes$#", $route, $match) => Experiences::changes($match[1]),
+        (bool) preg_match("#^POST /editor/experiences/($id)/changes/revert$#", $route, $match) => Reverts::many($match[1]),
+        (bool) preg_match("#^POST /editor/experiences/($id)/changes/revert-to$#", $route, $match) => Reverts::to($match[1]),
+        (bool) preg_match("#^POST /editor/experiences/($id)/changes/($uuid)/revert$#", $route, $match) => Reverts::one($match[1], $match[2]),
+        (bool) preg_match("#^GET /editor/experiences/($id)/assets$#", $route, $match) => Assets::list($match[1]),
+        (bool) preg_match("#^POST /editor/experiences/($id)/assets$#", $route, $match) => Assets::upload($match[1]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/assets/credits$#", $route, $match) => Assets::setCredits($match[1]),
+        (bool) preg_match("#^POST /editor/experiences/($id)/assets/names$#", $route, $match) => AssetNames::plan($match[1]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/assets/($uuid)/file$#", $route, $match) => Assets::replace($match[1], $match[2]),
+        (bool) preg_match("#^GET /editor/experiences/($id)/assets/($uuid)/usages$#", $route, $match) => Assets::usages($match[1], $match[2]),
+        (bool) preg_match("#^DELETE /editor/experiences/($id)/assets/($uuid)$#", $route, $match) => Assets::delete($match[1], $match[2]),
+        (bool) preg_match("#^GET /editor/experiences/($id)/plugins$#", $route, $match) => Plugins::list($match[1]),
+        (bool) preg_match("#^POST /editor/experiences/($id)/plugins$#", $route, $match) => Plugins::upload($match[1]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/plugins/($id)/file$#", $route, $match) => Plugins::replaceFile($match[1], $match[2]),
+        (bool) preg_match("#^GET /editor/experiences/($id)/plugins/($id)/usages$#", $route, $match) => Plugins::usages($match[1], $match[2]),
+        (bool) preg_match("#^GET /editor/experiences/($id)/plugins/($id)$#", $route, $match) => Plugins::get($match[1], $match[2]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/plugins/($id)$#", $route, $match) => Plugins::put($match[1], $match[2]),
+        (bool) preg_match("#^DELETE /editor/experiences/($id)/plugins/($id)$#", $route, $match) => Plugins::delete($match[1], $match[2]),
         // The local content store, public like the CDN (an environment name, ContentStore::ENV)
         (bool) preg_match('#^GET /content/(' . ContentStore::ENV . ')/(.+)$#', $route, $match) => ContentStore::serve($match[1], $match[2]),
         default => throw new ApiError(404, 'not-found', 'Unknown endpoint.'),

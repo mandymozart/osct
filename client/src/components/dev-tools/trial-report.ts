@@ -32,7 +32,7 @@ export interface TrialRow {
 }
 
 export interface TrialMeta {
-  bookTitle: string;
+  experienceTitle: string;
   appVersion: string;
   contentHash: string;
   /** The phone as the tester named it, with what the browser reports (trial-device.ts) */
@@ -94,7 +94,7 @@ export function trialReport(rows: TrialRow[], meta: TrialMeta): string {
   const found = rows.filter(r => r.result === "found");
   const date = meta.date.toISOString().slice(0, 16).replace("T", " ");
   return [
-    `# Trigger test – ${meta.bookTitle}`,
+    `# Trigger test – ${meta.experienceTitle}`,
     "",
     `- Date: ${date} (UTC)`,
     `- App ${meta.appVersion} · content ${meta.contentHash.slice(0, 12)}`,

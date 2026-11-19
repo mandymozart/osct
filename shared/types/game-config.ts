@@ -10,7 +10,7 @@
 import type { EntryCategory } from "./entry";
 import type { FilterData } from "./filters";
 import type { ComponentData } from "./components";
-import type { BookAppearance } from "./appearance";
+import type { ExperienceAppearance } from "./appearance";
 import type { EnvironmentData } from "./environment";
 import type { LightData } from "./lights";
 import type { TextureSetData } from "./textures";
@@ -63,12 +63,18 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * (and a `surface` when the scene has several); a target's `place` lies on a surface (was `print`). Gone: page numbers
  * everywhere (`page`, `firstPage`, `lastPage`, `print.page`), a spread's `title`, `format`, `matter` and `layout`, a
  * surface's `side`, and the configuration's `tutorial` (the onboarding of 2.24 apps).
+ *
+ * **4.0** (#320, `agents/REFACTOR-EXPERIENCE.md`): the experience is the top-level object – the configuration's
+ * `experience` (was `book`); the printed book is optional data on it, `experience.book` (`BookData`: `author`,
+ * `publisher` – these were on the top level). `sourceOfTruth` is gone: every experience adds and removes its scenes. Behaviour scope and plugin variable scope `experience`
+ * (was `book`), text nodes' `{{experience.title}}` (was `{{book.title}}`); `latest.json` / `versions.json` name the
+ * `experience` (was `book`).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "3.0";
-/** The oldest content schema MAJOR this contract reads – 3: no 2.x content is read (no reader of it was shipped) */
-export const OLDEST_READABLE_SCHEMA_MAJOR = 3;
+export const CONTENT_SCHEMA_VERSION = "4.0";
+/** The oldest content schema MAJOR this contract reads – 4: no 3.x content is read (no reader of it was shipped) */
+export const OLDEST_READABLE_SCHEMA_MAJOR = 4;
 
 export interface ContentSchema {
   major: number;
@@ -90,33 +96,29 @@ export interface ConfigurationVersion {
   schema: string;
 }
 
-export interface BookData {
-  id: string; // e.g. "osct" – identifies the book (storage keys)
+/**
+ * The experience: the top-level object of the content – a book's companion, a wall, a room, an exhibition. Schema 4.0
+ * (#320): was `book`; the print data moved into the optional `book`.
+ */
+export interface ExperienceData {
+  id: string; // e.g. "osct" – identifies the experience (storage keys, progress, the Library folder, the editor's URL)
   title: string;
-  author: string;
-  /** Shown on the home page above "Start" (optional) */
-  publisher?: string;
   /** Optional (schema 2.5): the post-processing passes of every scene without a list of its own (`./passes.ts`) */
   passes?: PassData[];
   /** Optional (schema 2.8; world and sky assets 2.9): the world around the reader and the onion sky (`./environment.ts`); none = the default */
   environment?: EnvironmentData;
   /** Optional (schema 2.29): the look an entity appears with on reveal, found and lost (`./appearance.ts`); none = the default look */
-  appearance?: BookAppearance;
-  /**
-   * Optional (schema 2.25): the book's source of truth (#238) – `print` (print first: the printed book is the truth, its
-   * scenes, surfaces and printed places come from an import of the layout) or `digital` (digital first: the editor is
-   * the truth, scenes are added and removed there). None = print (`sourceOfTruthOf`). The reader does not read it.
-   */
-  sourceOfTruth?: SourceOfTruth;
+  appearance?: ExperienceAppearance;
+  /** Optional (schema 4.0): the printed book this experience accompanies – none: not a book (a wall, a room, an exhibition) */
+  book?: BookData;
 }
 
-/** Where a book's scenes come from (`BookData.sourceOfTruth`, #238) */
-export const SOURCES_OF_TRUTH = ["print", "digital"] as const;
-export type SourceOfTruth = (typeof SOURCES_OF_TRUTH)[number];
-
-/** A book's source of truth: `digital` only when it says so – none (or a value this contract does not know) is print */
-export const sourceOfTruthOf = (book: Pick<BookData, "sourceOfTruth"> | null | undefined): SourceOfTruth =>
-  book?.sourceOfTruth === "digital" ? "digital" : "print";
+/** The printed book an experience accompanies (schema 4.0, #320): print data only */
+export interface BookData {
+  author: string;
+  /** Shown on the home page above "Start" (optional) */
+  publisher?: string;
+}
 
 /**
  * Where a surface lies in its scene (schema 3.0) – the **scene's coordinate system**, one for the whole scene, not per
@@ -171,7 +173,7 @@ export interface SceneData {
   group?: string;
   /** Its physical areas, in order – at least one */
   surfaces: SurfaceData[];
-  /** Optional (schema 2.5): the post-processing passes over this scene's rendered image, in order; replaces the book's (`[]` = none) */
+  /** Optional (schema 2.5): the post-processing passes over this scene's rendered image, in order; replaces the experience's (`[]` = none) */
   passes?: PassData[];
 }
 
@@ -215,7 +217,7 @@ export interface EntityData {
   material?: MaterialData;
   /** Child nodes, placed relative to this one */
   children?: EntityData[];
-  /** `text` nodes: the line shown; `{{entry.title}}` and `{{book.title}}` are replaced */
+  /** `text` nodes: the line shown; `{{entry.title}}` and `{{experience.title}}` are replaced */
   text?: string;
   /** `text` nodes: the colour, `#rrggbb` (default white) */
   color?: string;
@@ -249,16 +251,16 @@ export interface TargetData {
   place?: TargetPlace;
   /**
    * Optional (schema 2.26): `false` = switched off (#249) – the target keeps its values and its entry in the content, the
-   * reader leaves both out (no image target, no entry in the list, not counted); none or `true` = in the book
+   * reader leaves both out (no image target, no entry in the list, not counted); none or `true` = in the experience
    */
   enabled?: boolean;
 }
 
-/** The target is in the book: anything but `enabled: false` */
+/** The target is in the experience: anything but `enabled: false` */
 export const isTargetEnabled = (target: Pick<TargetData, "enabled">): boolean => target.enabled !== false;
 
-/** The entry is in the reader's book: no target, or a target that is switched on */
-export const isEntryInBook = (entry: Pick<EntryData, "target">): boolean => !entry.target || isTargetEnabled(entry.target);
+/** The entry is in the reader's experience: no target, or a target that is switched on */
+export const isEntryInExperience = (entry: Pick<EntryData, "target">): boolean => !entry.target || isTargetEnabled(entry.target);
 
 export interface EntryData {
   id: string;
@@ -269,8 +271,8 @@ export interface EntryData {
   /** Optional: the id of one of its scene's `surfaces` the entry lies on – only when the scene has several */
   surface?: string;
   /**
-   * The text (schema 2.23: Markdown – paragraphs, *emphasis*, **strong**, [links](https://…) – with the book's variables
-   * in braces, `{hasKey}`; `../text/entry-text.ts` renders it). Plain text reads as before.
+   * The text (schema 2.23: Markdown – paragraphs, *emphasis*, **strong**, [links](https://…) – with the experience's
+   * variables in braces, `{hasKey}`; `../text/entry-text.ts` renders it). Plain text reads as before.
    */
   body: string;
   author?: string; // texts
@@ -284,24 +286,24 @@ export interface EntryData {
 
 export interface GameConfiguration {
   version: ConfigurationVersion;
-  book: BookData;
+  experience: ExperienceData;
   /** The scene the reader starts on (`SceneData.id`) */
   initialScene: string;
   /** The experience: its scenes in order */
   scenes: readonly SceneData[];
   entries: readonly EntryData[];
   entities: Readonly<Record<string, EntityData>>; // shared entities, referenced by `EntityRefData`
-  /** The book's own code (schema 2.4, optional): compiled plugins the engine loads before the first scene */
+  /** The experience's own code (schema 2.4, optional): compiled plugins the engine loads before the first scene */
   plugins?: readonly PluginData[];
   /**
-   * Optional (schema 2.31, #257): the subtitle files of the book's videos, per language (`./subtitles.ts`) – read from the
+   * Optional (schema 2.31, #257): the subtitle files of the experience's videos, per language (`./subtitles.ts`) – read from the
    * files' names by the content build and the editor's API, never filled in by hand
    */
   subtitles?: readonly SubtitleData[];
   /**
-   * Optional (schema 2.33, #292): the credit line of each file the book uses that has one (`"Book Golem by TER-JAN /
+   * Optional (schema 2.33, #292): the credit line of each file the experience uses that has one (`"Book Golem by TER-JAN /
    * DeviantArt"`), keyed by the file's path or URL exactly as the configuration names it – written in the editor's
-   * Library, filled in by the editor's API when it assembles the book, never by hand. The reader lists them per scene
+   * Library, filled in by the editor's API when it assembles the experience, never by hand. The reader lists them per scene
    * on its image credits page
    */
   credits?: Readonly<Record<string, string>>;

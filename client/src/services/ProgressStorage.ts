@@ -1,17 +1,17 @@
 import type { IProgressStorage, ProgressRecord } from "@/types";
 
 /**
- * Progress storage adapter backed by localStorage, one key per book. Another store (DB/API) can replace
+ * Progress storage adapter backed by localStorage, one key per experience. Another store (DB/API) can replace
  * it with the same record shape (`IProgressStorage`).
  */
 export class LocalProgressStorage implements IProgressStorage {
-  static key(bookId: string): string {
-    return `osct-progress:${bookId}`;
+  static key(experienceId: string): string {
+    return `osct-progress:${experienceId}`;
   }
 
-  load(bookId: string): unknown {
+  load(experienceId: string): unknown {
     try {
-      const text = localStorage.getItem(LocalProgressStorage.key(bookId));
+      const text = localStorage.getItem(LocalProgressStorage.key(experienceId));
       return text === null ? null : JSON.parse(text);
     } catch (error) {
       console.warn("[ProgressStorage] Failed to load progress:", error);
@@ -21,7 +21,7 @@ export class LocalProgressStorage implements IProgressStorage {
 
   save(record: ProgressRecord): void {
     try {
-      localStorage.setItem(LocalProgressStorage.key(record.bookId), JSON.stringify(record));
+      localStorage.setItem(LocalProgressStorage.key(record.experienceId), JSON.stringify(record));
     } catch (error) {
       console.warn("[ProgressStorage] Failed to save progress:", error);
     }

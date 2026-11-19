@@ -14,7 +14,7 @@
   import { GROUP_WINDOW_TARGETS } from "@shared/api/editor";
 
   /**
-   * The scenes of the book as cards (#307 phase 3a): the Scenes panel's **strip** (`layout="strip"`, one row that
+   * The scenes of the experience as cards (#307 phase 3a): the Scenes panel's **strip** (`layout="strip"`, one row that
    * scrolls sideways, the default) or its **grid** (#315: page-wide `columns` that wrap and scroll down, a card spanning
    * its width in pages, `cardHeight` from the panel's width – `gridColumns`; a group a band over its own rows). Each card is
    * the scene's surfaces side by side, each with its reference image and the targets' prints (`surface-preview.ts`) – with

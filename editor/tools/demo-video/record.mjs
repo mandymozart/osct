@@ -3,7 +3,7 @@
 // the desktop, touch on the phone, eased moves) plays it. Frames land in <out>/<format>/<scene>/ with frames.json.
 //
 //   node record.mjs --format desktop|phone --out <dir> --token-file <path> [--editor http://127.0.0.1:5187/editor]
-//                   [--port 9341] [--scenes books,orbit,…] [--no-warm]
+//                   [--port 9341] [--scenes experiences,orbit,…] [--no-warm]
 //
 // The token file holds an editor session of a local API (prepare.mjs writes it); it is put into the page's storage
 // and never printed. Recording-only CSS hides the account's address in the top bar.
@@ -28,11 +28,11 @@ const token = readFileSync(args["token-file"], "utf8").trim();
 // The two formats: 1440 × 810 CSS px at 4/3 = 1920 × 1080; 390 × 693 at 1080/390 = 1080 × 1920 (a phone, 9:16)
 const VIEW = phone ? { width: 390, height: 693, scale: 1080 / 390 } : { width: 1440, height: 810, scale: 4 / 3 };
 
-// Recording only: the account's address in the top bar, the AI connections (tokens) on the books page
+// Recording only: the account's address in the top bar, the AI connections (tokens) on the experiences page
 // and Android's blue tap highlight (a flash over every tapped link in the emulated phone, which a recording shows as a glitch)
 const CSS = ".top .email { display: none !important; } section.ai { display: none !important; } * { -webkit-tap-highlight-color: transparent !important; }";
 
-const BOOK = "demo";
+const EXPERIENCE = "demo";
 
 /** A stored view of the stage (`osct-preview`): where the camera is, the sky, the desk */
 const preview = (orbit) => ({ view: "reader", shading: "rendered", orbit, hdri: "wooden_studio_17", desk: "eiermann", wobble: 0, grid: false, gridMm: 10, origin: "top-left" });
@@ -97,14 +97,14 @@ const scrubField = (page, label) => page.center(`[role=group][aria-label="${labe
 const SCENES = {
   desktop: [
     {
-      name: "books",
+      name: "experiences",
       url: "/",
       settle: 1500,
       async act(page) {
         await sleep(700);
         await page.moveTo(200, 250, 300);
         await sleep(500);
-        await press(page, "a.book");
+        await press(page, "a.experience");
         await sleep(1800);
         const card = await page.center("a.scene", "The key");
         await page.moveTo(card.x, card.y - 40, 300);
@@ -217,12 +217,12 @@ const SCENES = {
   ],
   phone: [
     {
-      name: "books",
+      name: "experiences",
       url: "/",
       settle: 1500,
       async act(page) {
         await sleep(600);
-        await press(page, "a.book");
+        await press(page, "a.experience");
         await sleep(1600);
         await gesture(page, 300, 560, 300, 330, 900);
         await sleep(500);
@@ -381,7 +381,7 @@ try {
 
   if (args["no-warm"] !== "true") {
     // Fill the browser's cache (sheets, models, skies from the CDN), so no scene shows a loading state
-    for (const url of ["/", `/${BOOK}/`, `/${BOOK}/the-key/`, `/${BOOK}/the-switch/`]) {
+    for (const url of ["/", `/${EXPERIENCE}/`, `/${EXPERIENCE}/the-key/`, `/${EXPERIENCE}/the-switch/`]) {
       await page.goto(editor + url, url.split("/").length > 3 ? 8000 : 3000);
     }
   }

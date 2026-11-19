@@ -5,7 +5,7 @@ import { parentSelection, selectionLevel, settledSelection, type SelectionLevel,
  * top rows (#227) – read and written by the tree, the stage (picking, the gizmo, the outline) and the Inspector:
  * selecting in one selects in the others. Nothing else selected is the scene (#229): a fresh workspace, a click on
  * the stage that picks nothing and the tree's top row all select it – its row highlighted, no outline, no gizmo, the
- * Inspector showing it. The top bar's ⚙ after the book's crumb selects the book (#237). The rules are `selection.ts`; the workspace
+ * Inspector showing it. The top bar's ⚙ after the experience's crumb selects the experience (#237). The rules are `selection.ts`; the workspace
  * page calls `enter` when it opens and on another scene: the selection asked for there (`requestOn` – the header search
  * picks on another scene, #237), else the scene. `reveal` counts the asks to show the selection in the Inspector.
  */
@@ -17,13 +17,13 @@ class Selection implements SelectionState {
   scene = $state(true);
   /** The selected entry's id: the Inspector shows the entry; `target` is its target (or null) */
   entry = $state<string | null>(null);
-  /** The book is selected (#237): the Inspector shows its texts and settings */
-  book = $state(false);
+  /** The experience is selected (#237): the Inspector shows its texts and settings */
+  experience = $state(false);
   /** A group is selected (#307 – a band of the Scenes panel): the Inspector shows the group */
   group = $state<string | null>(null);
   /** A surface of a scene is selected (#314): the Inspector shows it, the stage highlights it */
   surface = $state<SurfaceRef | null>(null);
-  /** Goes up whenever something asks the workspace to show the selection in the Inspector (the search, the book's ⚙) */
+  /** Goes up whenever something asks the workspace to show the selection in the Inspector (the search, the experience's ⚙) */
   reveal = $state(0);
   /** A selection asked for on a scene whose workspace is not open yet */
   private pending: { sceneId: string; state: SelectionState } | null = null;
@@ -48,9 +48,9 @@ class Selection implements SelectionState {
     this.set({ target, node: [], onTarget: true, entry });
   }
 
-  /** The book: its texts and settings in the Inspector, nothing on the stage */
-  selectBook(): void {
-    this.set({ target: null, node: [], onTarget: true, book: true });
+  /** The experience: its texts and settings in the Inspector, nothing on the stage */
+  selectExperience(): void {
+    this.set({ target: null, node: [], onTarget: true, experience: true });
   }
 
   /** A group of scenes: its label, its scenes and targets in the Inspector, nothing on the stage */
@@ -90,7 +90,7 @@ class Selection implements SelectionState {
     this.onTarget = settled.onTarget;
     this.scene = settled.scene ?? false;
     this.entry = settled.entry ?? null;
-    this.book = settled.book ?? false;
+    this.experience = settled.experience ?? false;
     this.group = settled.group ?? null;
     this.surface = settled.surface ?? null;
   }
@@ -108,7 +108,7 @@ class Selection implements SelectionState {
 
   /** The selection as a plain value */
   snapshot(): SelectionState {
-    return { target: this.target, node: this.node, onTarget: this.onTarget, scene: this.scene, entry: this.entry, ...(this.book ? { book: true } : {}), ...(this.group ? { group: this.group } : {}), ...(this.surface ? { surface: { ...this.surface } } : {}) };
+    return { target: this.target, node: this.node, onTarget: this.onTarget, scene: this.scene, entry: this.entry, ...(this.experience ? { experience: true } : {}), ...(this.group ? { group: this.group } : {}), ...(this.surface ? { surface: { ...this.surface } } : {}) };
   }
 
   level(hasTree: boolean): SelectionLevel {

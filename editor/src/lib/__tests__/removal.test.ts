@@ -9,7 +9,7 @@ const file = (name: string, usedBy?: RemovalFile["usedBy"]): RemovalFile => ({ i
 /** The impact of the scene “4–5”: 3 entries, 3 targets, 2 entities; castle kept; two files only here, one elsewhere */
 type SceneImpact = Extract<RemovalImpact, { kind: "scene" }>;
 const sceneImpact = (over: Partial<SceneImpact> = {}): SceneImpact => ({
-  book: "osct",
+  experience: "osct",
   kind: "scene",
   scene: { id: "s4", label: "4–5" },
   entries: [{ id: "a", title: "A", scene: "s4", category: "video" }, { id: "b", title: "B", scene: "s4", category: "video" }, { id: "c", title: "C", scene: "s4", category: "video" }],
@@ -22,7 +22,7 @@ const sceneImpact = (over: Partial<SceneImpact> = {}): SceneImpact => ({
 });
 
 const entryImpact = (): RemovalImpact => ({
-  book: "osct",
+  experience: "osct",
   kind: "entry",
   entry: { id: "castle", title: "Castle", category: "video", scene: "s2" },
   entries: [{ id: "castle", title: "Castle", scene: "s2", category: "video" }],
@@ -40,7 +40,7 @@ describe("removing with everything on it – the confirmation's words (#198)", (
     const impact = sceneImpact();
     expect(removalStep(new ApiError(409, "confirm-delete", "Removing takes …", { impact, confirmation }))).toEqual({ impact, confirmation, changed: false });
     expect(removalStep(new ApiError(409, "confirmation-void", "void", { impact, confirmation }))).toEqual({ impact, confirmation, changed: true });
-    expect(removalStep(new ApiError(409, "initial-scene", "The book opens on this scene."))).toBeNull();
+    expect(removalStep(new ApiError(409, "initial-scene", "The experience opens on this scene."))).toBeNull();
     expect(removalStep(new ApiError(409, "confirm-delete", "no details"))).toBeNull();
     expect(removalStep(new Error("network"))).toBeNull();
   });

@@ -12,7 +12,7 @@ import { arrangeInRow, FLAT } from "#lib/surface-edit.js";
 
 /** The open scene: two pages side by side, `left` and `right`, the scene's origin between them (#319: plain boards at their places) */
 const pageOf = (id: string) => ({ id, widthMm: 230, heightMm: 320, place: FLAT });
-const book = { surfaces: sceneSurfaces({ surfaces: arrangeInRow([pageOf("left"), pageOf("right")]) }) };
+const twoPages = { surfaces: sceneSurfaces({ surfaces: arrangeInRow([pageOf("left"), pageOf("right")]) }) };
 /** The grids with the surfaces' grid as asked; the floor grid on, the vertical grid off (the defaults) */
 const grids = (patch: Partial<StageGrids>): StageGrids => ({
   on: false, mm: 10, origin: "top-left", axis: false, surfaces: {}, floor: true, floorMm: 50, wall: false, wallZ: -500, ...patch,
@@ -33,7 +33,7 @@ const gridOf = (stage: MockStage) => (stage as unknown as { gridGroup: { childre
 describe("mock stage: the grid", () => {
   it("draws nothing while off, and lines (plus the zero lines) while on", () => {
     const { stage } = newStage();
-    stage.setLayout([], book);
+    stage.setLayout([], twoPages);
     expect(gridOf(stage)).toHaveLength(0);
     stage.setGrid(grids({ on: true, mm: 10, origin: "top-left", axis: false }));
     const [lines, zeros] = gridOf(stage);
@@ -47,7 +47,7 @@ describe("mock stage: the grid", () => {
 
   it("counts every surface from the scene's origin for the centre: its zero lines meet at the spine", () => {
     const { stage } = newStage();
-    stage.setLayout([], book);
+    stage.setLayout([], twoPages);
     stage.setGrid(grids({ on: true, mm: 10, origin: "centre", axis: false }));
     const [, zeros] = gridOf(stage);
     // per surface its zero line across (y = 160) and the one at the spine (the left page's right edge, the right's left)
@@ -58,7 +58,7 @@ describe("mock stage: the grid", () => {
 
   it("gives a surface its own spacing (#316 part 1)", () => {
     const { stage } = newStage();
-    stage.setLayout([], book);
+    stage.setLayout([], twoPages);
     stage.setGrid(grids({ on: true, mm: 10, origin: "top-left", surfaces: { right: 115 } }));
     const [lines] = gridOf(stage);
     // the left page every 10 mm (23 + 32), the right page every 115 mm (x = 115, 230; y = 115, 230)
@@ -82,7 +82,7 @@ describe("mock stage: the grid", () => {
 
   it("raises the vertical axis from each zero, out of the page, only with the grid (#190)", () => {
     const { stage } = newStage();
-    stage.setLayout([], book);
+    stage.setLayout([], twoPages);
     stage.setGrid(grids({ on: false, mm: 10, origin: "centre", axis: true }));
     expect(gridOf(stage)).toHaveLength(0);
     stage.setGrid(grids({ on: true, mm: 10, origin: "centre", axis: true }));
@@ -106,7 +106,7 @@ describe("mock stage: the snap guides (#190)", () => {
 
   it("draws a line across the scene per guide, through everything, and clears them", () => {
     const { stage } = newStage();
-    stage.setLayout([], book);
+    stage.setLayout([], twoPages);
     stage.setGuides([{ axis: 0, at: 0 }, { axis: 1, at: 160 }, { axis: 2, at: 0 }]);
     const [lines] = guidesOf(stage);
     const position = lines.geometry.getAttribute("position");
@@ -126,7 +126,7 @@ describe("mock stage: the scene's floor grid and vertical grid (#319)", () => {
 
   it("lays the floor grid on the table every floorMm through the origin, every tenth line stronger; off draws none", () => {
     const { stage } = newStage();
-    stage.setLayout([], book);
+    stage.setLayout([], twoPages);
     stage.setGrid(grids({ floorMm: 50 }));
     const [minor, major] = sceneGridOf(stage);
     // ±1500 mm every 50: 61 lines each way, 7 of them (−1500, −1000 … 1500) strong
@@ -170,8 +170,8 @@ describe("mock stage: the scene's floor grid and vertical grid (#319)", () => {
 
 describe("mock stage: the viewport's shading (#137)", () => {
   /** The left page's reference image: a plane on its board */
-  const referenced = { ...book, references: { left: { url: "https://cdn.test/l.jpg", fit: "stretch" as const } } };
-  const referenceOf = (stage: MockStage) => (stage as unknown as { book: Group }).book.children.find(c => c.userData.reference === "left") as Mesh;
+  const referenced = { ...twoPages, references: { left: { url: "https://cdn.test/l.jpg", fit: "stretch" as const } } };
+  const referenceOf = (stage: MockStage) => (stage as unknown as { boards: Group }).boards.children.find(c => c.userData.reference === "left") as Mesh;
 
   it("puts the surfaces and the desk in wireframe and solid, and gives their materials back", () => {
     const { stage } = newStage();
@@ -211,7 +211,7 @@ describe("mock stage: the printed images and the placement (#191)", () => {
   it("scales one plane to the print: the image's aspect and a move resize it, and an outline on it follows", async () => {
     const { outline } = await import("../shading");
     const { stage, answer } = printStage();
-    stage.setLayout([portrait], book);
+    stage.setLayout([portrait], twoPages);
     const [plane] = stage.targetPlanes();
     expect(plane.scale.x).toBeCloseTo(0.08, 6);
     expect(plane.scale.y).toBeCloseTo(0.06, 6); // the stored box until the image is known
@@ -233,7 +233,7 @@ describe("mock stage: the printed images and the placement (#191)", () => {
 
   it("keeps a print moved before its image arrived where it was moved", () => {
     const { stage, answer } = printStage();
-    stage.setLayout([portrait], book);
+    stage.setLayout([portrait], twoPages);
     stage.movePrint({ ...portrait, x: 10 });
     answer("/a.jpg", 100, 100);
     const [plane] = stage.targetPlanes();
@@ -243,7 +243,7 @@ describe("mock stage: the printed images and the placement (#191)", () => {
 
   it("draws a new target's ghost, but only the handles of a target that moves itself", () => {
     const { stage } = newStage();
-    stage.setLayout([portrait], book);
+    stage.setLayout([portrait], twoPages);
     stage.setGhost({ ...portrait, id: "ghost" });
     const drawn = stage.ghostParts();
     expect((drawn.image as unknown as { material: { visible: boolean } }).material.visible).toBe(true);
@@ -414,16 +414,16 @@ describe("mock stage: the environment replaces the HDRI (#185)", () => {
 });
 
 describe("mock stage: the surfaces as boards, the eye (#250, #319)", () => {
-  const bookOf = (stage: MockStage) => (stage as unknown as { book: Group }).book;
+  const boardsOf = (stage: MockStage) => (stage as unknown as { boards: Group }).boards;
 
   it("draws each surface as a plain board at its place – no fold, no cover", () => {
     const { stage } = newStage();
     const surfaces = sceneSurfaces({ surfaces: arrangeInRow(["l", "m", "r"].map(pageOf)) });
     stage.setLayout([], { surfaces });
-    const boards = bookOf(stage).children.filter(c => c.userData.surfaceId);
+    const boards = boardsOf(stage).children.filter(c => c.userData.surfaceId);
     expect(boards.map(c => [c.userData.surfaceId, Math.round(c.position.x * 1000)])).toEqual([["l", -230], ["m", 0], ["r", 230]]);
     // Nothing but the boards (no reference image here): no fold, no spine, no cover board, no shadow
-    expect(bookOf(stage).children).toHaveLength(3);
+    expect(boardsOf(stage).children).toHaveLength(3);
     // The table lies under the boards
     expect((stage as unknown as { tableTop: number }).tableTop).toBeLessThan(boards[0].position.z);
   });
@@ -440,7 +440,7 @@ describe("mock stage: the surfaces as boards, the eye (#250, #319)", () => {
     // On the wall, 400 mm away from the reader, its middle 150 mm up – facing the reader
     expect(print.position.y).toBeCloseTo(0.4, 2);
     expect(new Vector3(0, 0, 1).applyQuaternion(print.quaternion).y).toBeCloseTo(-1, 6);
-    expect(bookOf(stage).children.some(c => c.userData.reference === "w")).toBe(true);
+    expect(boardsOf(stage).children.some(c => c.userData.reference === "w")).toBe(true);
     expect(requested).toContain("https://cdn.test/w.jpg");
     const raycaster = new Raycaster(new Vector3(0, -1, 0.15), new Vector3(0, 1, 0));
     expect(stage.surfaceHit(raycaster)).toEqual({ surface: "w", x: 200, y: 150 });
@@ -448,7 +448,7 @@ describe("mock stage: the surfaces as boards, the eye (#250, #319)", () => {
 
   it("outlines the surfaces and highlights one by id (#314, the Surface mode)", () => {
     const { stage } = newStage();
-    stage.setLayout([], book);
+    stage.setLayout([], twoPages);
     const marks = () => (stage as unknown as { marksGroup: Group }).marksGroup.children as LineSegments[];
     stage.setSurfaceMarks(["left", "right", "nope"], "right");
     // The left one grey (4 edges); the highlighted right one two loops white, two loops black (monochrome, RULES #38)
@@ -463,7 +463,7 @@ describe("mock stage: the surfaces as boards, the eye (#250, #319)", () => {
   it("leaves out the printed images of the targets hidden in the tree", () => {
     const { stage } = newStage();
     const target = (id: string) => ({ id, imageSrc: `/${id}.jpg`, surface: "right", x: 20, y: 20, width: 40, height: 30 });
-    stage.setLayout([target("a"), target("b")], book);
+    stage.setLayout([target("a"), target("b")], twoPages);
     stage.setHiddenPrints(new Set(["a"]));
     expect(stage.targetPlanes().map(p => [p.userData.targetId, p.visible])).toEqual([["a", false], ["b", true]]);
     stage.setHiddenPrints(new Set());

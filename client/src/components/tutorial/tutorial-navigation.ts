@@ -1,5 +1,5 @@
 import { GameStoreService } from "@/services";
-import { getBook } from "@/utils/game-config";
+import { getExperience } from "@/utils/game-config";
 import { onboardingSteps } from "@/utils";
 import type { IGame, ITutorialNavigation, Step } from "@/types";
 import { adoptDesignStyles } from "@/styles";
@@ -44,7 +44,7 @@ export class TutorialNavigation extends HTMLElement implements ITutorialNavigati
   }
 
   private get step(): Step | undefined {
-    return onboardingSteps(getBook()).find(s => s.index === this.currentStep);
+    return onboardingSteps(getExperience()).find(s => s.index === this.currentStep);
   }
 
   private render() {
@@ -86,7 +86,7 @@ export class TutorialNavigation extends HTMLElement implements ITutorialNavigati
 
 /** Navigates to the given onboarding step, or to scan mode after the last one */
 export const goToStep = (game: Readonly<IGame>, index: number) => {
-  if (index >= onboardingSteps(getBook()).length) goToScan(game);
+  if (index >= onboardingSteps(getExperience()).length) goToScan(game);
   else game.router.navigate("/tutorial", { key: "step", value: index.toString() });
 };
 

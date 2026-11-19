@@ -14,7 +14,7 @@ and engine – the editor's stage with the mock tracker – see [Editor](editor.
    any (all switched off, or none yet) is skipped and does not use up the range, so a page beyond it stays in reach – and **slides** with the current scene – scenes that fall
    out of it are unloaded (their files stay in the browser cache). **Grow** (debug overlay; the default from 1.7.0
    to 1.8.1, see issue #38): `growTargets()` adds them in idle time, three targets per batch, each batch after the
-   previous one is extracted, until the whole book is held; a switch only re-orders what is still to add, nothing is
+   previous one is extracted, until the whole experience is held; a switch only re-orders what is still to add, nothing is
    dropped. The bridge preloads the content of the ±n window
    (±1 in grow mode; `PreloaderService.preloadScenes()`: target images, then one scene at a time).
 3. **Preparing** (the app, main thread) – each target image becomes a grey 480×640 frame (`makeImageTarget()`,
@@ -242,7 +242,7 @@ small target as well as a large one.
 
 ## Open decisions
 
-- **How many targets the engine holds** – keep ±2 (the interim default until the content is complete), grow to the whole book, or a sliding target budget from the load
+- **How many targets the engine holds** – keep ±2 (the interim default until the content is complete), grow to the whole experience, or a sliding target budget from the load
   test: open in #38.
 - **Preloading in steps** – targets first, then their content, then higher resolutions (the quality levels): open in
   #13.

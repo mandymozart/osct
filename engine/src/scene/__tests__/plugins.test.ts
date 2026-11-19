@@ -7,7 +7,7 @@ import { PostChain } from "../post/chain";
 import { passRegistration, registeredPassTypes } from "../post/registry";
 import "../post/index";
 
-/** The plugin API: components and material layers a book's own code registers, kept per plugin */
+/** The plugin API: components and material layers an experience's own code registers, kept per plugin */
 
 const SPIN: ComponentSpec = {
   description: "Turns the node around its y axis.",
@@ -230,7 +230,7 @@ describe("loadPlugins", () => {
       if (url.includes("broken")) throw new Error("404");
       return { register: (api: PluginApi) => api.registerComponent("spin", SPIN, () => ({})) };
     };
-    const plugins = [{ id: "fx", src: "/p/fx/plugin.js", api: "2.0" }, { id: "broken", src: "/p/broken/plugin.js", api: "2.0" }, { id: "old", src: "/p/old/plugin.js", api: "1.8" }];
+    const plugins = [{ id: "fx", src: "/p/fx/plugin.js", api: "3.0" }, { id: "broken", src: "/p/broken/plugin.js", api: "3.0" }, { id: "old", src: "/p/old/plugin.js", api: "1.8" }];
     await loadPlugins(plugins, importer);
     await loadPlugins(plugins, importer);
     expect(imported).toEqual(["/p/fx/plugin.js", "/p/broken/plugin.js", "/p/broken/plugin.js"]);

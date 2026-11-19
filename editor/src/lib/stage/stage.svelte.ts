@@ -2,7 +2,7 @@ import { SvelteMap } from "svelte/reactivity";
 import { resolve } from "$app/paths";
 import type { SurfacePlace, TargetPlace } from "@shared/types/game-config";
 import type { EnvironmentData } from "@shared/types/environment";
-import type { BookAppearance, Moment } from "@shared/types/appearance";
+import type { ExperienceAppearance, Moment } from "@shared/types/appearance";
 import { getTarget } from "@engine/content/game-config";
 import { mirrorPluginRegistry } from "@engine/scene/plugins";
 import type { VarScope, VarValue } from "@engine/scene";
@@ -28,7 +28,7 @@ export type { GhostPlace } from "./stage-core.svelte";
 
 /**
  * The editor's stage as the workspace sees it (#234, docs/editor.md "The stage frame"). The stage itself – the engine's
- * `ArScene` over the mock stage, and with it **every plugin of the book and the Code tab's Run** – runs in an iframe
+ * `ArScene` over the mock stage, and with it **every plugin of the experience and the Code tab's Run** – runs in an iframe
  * sandboxed without `allow-same-origin` (`stage-core.svelte.ts` in `frame-host.svelte.ts`): an opaque origin, so plugin
  * code has no session cookie, no CSRF token, no storage of the editor's and no way into this page. This class is the
  * page's side: it puts the frame into the stage's container, sends it the draft (as text – the frame never asks the
@@ -97,7 +97,7 @@ export class Stage {
   private passes: PassData[] | null | undefined = undefined;
   private environment: { environment: EnvironmentData | null; previewing: boolean } | null = null;
   /** The looks the appearance panel holds (#265), sent again to a new frame */
-  private appearance: { appearance: BookAppearance | null } | null = null;
+  private appearance: { appearance: ExperienceAppearance | null } | null = null;
   private lookUp = 0;
   private selected: { node: [string | null, number[]]; target: string | null } = { node: [null, []], target: null };
   private ghostPlace: GhostPlace | null = null;
@@ -260,7 +260,7 @@ export class Stage {
     this.sentContent = snapshot;
     const opening = this.requests.waiting("open");
     this.requests.open();
-    // The frame's registry is there now (empty in a new frame): the book's code loads, whether a scene builds or not
+    // The frame's registry is there now (empty in a new frame): the experience's code loads, whether a scene builds or not
     this.markStarted();
     if (!this.initialisedBefore) {
       this.initialisedBefore = true;
@@ -417,10 +417,10 @@ export class Stage {
   }
 
   /**
-   * Play these looks instead of the draft's (live edit, #265): the book's `appearance` as the panel holds it – `null` =
-   * the book names none, the default look plays everywhere
+   * Play these looks instead of the draft's (live edit, #265): the experience's `appearance` as the panel holds it – `null` =
+   * the experience names none, the default look plays everywhere
    */
-  overrideAppearance(appearance: BookAppearance | null): void {
+  overrideAppearance(appearance: ExperienceAppearance | null): void {
     this.appearance = { appearance };
     void this.send("overrideAppearance", [this.appearance]);
   }
@@ -465,13 +465,13 @@ export class Stage {
     return path.slice(0, -1);
   }
 
-  /** The book's environment on the stage (it replaces the HDRI sky box); `previewing` while the Environment tab is open */
+  /** The experience's environment on the stage (it replaces the HDRI sky box); `previewing` while the Environment tab is open */
   showEnvironment(environment: EnvironmentData | null, previewing = false): void {
     this.environment = { environment, previewing };
     void this.send("showEnvironment", [environment, previewing]);
   }
 
-  /** How far the previewing camera looks up from the book (degrees) */
+  /** How far the previewing camera looks up from the experience (degrees) */
   setLookUp(degrees: number): void {
     this.lookUp = degrees;
     void this.send("setLookUp", [degrees]);

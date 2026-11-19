@@ -2,7 +2,7 @@ import { assertGameConfiguration, GameConfigurationError } from '../../../shared
 import { CONTENT_SCHEMA_VERSION, type GameConfiguration, type PluginData, recordedRegistrations } from '../../../shared/types/game-config';
 import { buildErrors } from '../lib/errors';
 import { copyContentToPublic } from '../lib/files';
-import { buildBook } from './book';
+import { buildExperience } from './experience';
 import { buildEntities } from './entities';
 import { warnLayerStacks } from './plugins';
 import { warnZeroPlane } from './zero-plane';
@@ -15,11 +15,11 @@ import { buildSubtitles } from './subtitles';
  * Build the final config object; `plugins` = the compiled plugins (build/plugins.ts), declared when there are any
  */
 export function buildConfig(versionStr: string, inputHash: string, plugins: PluginData[] = []): GameConfiguration {
-  // The passes the plugins recorded (schema 2.21): the book and a scene may name them
+  // The passes the plugins recorded (schema 2.21): the experience and a scene may name them
   const recorded = recordedRegistrations(plugins);
   const pluginPasses = recorded.passes;
-  // The looks they recorded (schema 2.29): the book may name them in `appearance`
-  const book = buildBook(pluginPasses, recorded.appearances);
+  // The looks they recorded (schema 2.29): the experience may name them in `appearance`
+  const experience = buildExperience(pluginPasses, recorded.appearances);
   const scenes = buildScenes(pluginPasses);
   const entities = buildEntities();
   const builds = buildEntries(scenes, entities);
@@ -52,7 +52,7 @@ export function buildConfig(versionStr: string, inputHash: string, plugins: Plug
       hash: inputHash,
       schema: CONTENT_SCHEMA_VERSION,
     },
-    book,
+    experience,
     initialScene: scenes[0]?.id ?? '',
     scenes,
     entries,

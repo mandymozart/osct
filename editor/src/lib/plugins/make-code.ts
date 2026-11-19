@@ -15,7 +15,7 @@ import { nodeTypeRegistration } from "@engine/scene/plugins";
 
 /**
  * **Make it code** (#188 – Unreal's *Create Blueprint class from component*): a node of any type becomes a node type of
- * the book's own. The result is a Code tab plugin whose `registerNodeType` reproduces the node – its type's builder as a
+ * the experience's own. The result is a Code tab plugin whose `registerNodeType` reproduces the node – its type's builder as a
  * readable starting point (a model's clone and clips, an image's or video's plane, a text's canvas, a light, a group),
  * its values as the spec's parameters with the node's values as their defaults – and the node switched to that type,
  * placed where it was. A **plugin's node type** is copied with its plugin's whole source: a build closes over what
@@ -55,7 +55,7 @@ export interface MadeCode {
   node: EntityData;
 }
 
-/** Ids and types already taken (the book's plugin ids, every node type and material known) */
+/** Ids and types already taken (the experience's plugin ids, every node type and material known) */
 export interface Taken {
   plugins: readonly string[];
   types?: readonly string[];
@@ -105,7 +105,7 @@ const header = (what: string, from: string, options: { types?: readonly string[]
 
 /**
  * Made with "${what}" from ${from}.
- * From here on it is the book's own code: change the build, add parameters (rows in the Inspector), Run, Save.
+ * From here on it is the experience's own code: change the build, add parameters (rows in the Inspector), Run, Save.
  */
 export const register = (api: PluginApi): void => {
 ${options.three === false ? "" : "  const { three } = api;\n"}`;
@@ -323,7 +323,7 @@ ${copied.body.replace(/\s*$/, "\n")}`;
 };
 
 /**
- * The node as a node type of the book's own: the plugin's source and the node switched to the new type. `taken` names the
+ * The node as a node type of the experience's own: the plugin's source and the node switched to the new type. `taken` names the
  * plugin ids in use (the Code tab's and the declared ones) – the type and id are made free. A plugin's node type needs
  * `owner`, the source of the plugin that registered it (a `MakeCodeError` without it, or when its register is not found).
  */
@@ -376,7 +376,7 @@ export const nodeTypeCode = (node: EntityData, taken: Taken, owner?: PluginSourc
 export const takesMaterial = (type: string): boolean => type !== "group" && type !== "light";
 
 /**
- * The look of the node as a material of the book's own: a plane's picture as a `ShaderMaterial` (colour, opacity, another
+ * The look of the node as a material of the experience's own: a plane's picture as a `ShaderMaterial` (colour, opacity, another
  * picture), a model's or a plugin node's as a `MeshStandardMaterial`; the node carries it as its `material`.
  */
 export const materialCode = (node: EntityData, taken: Taken): MadeCode => {

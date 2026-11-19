@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /**
  * Personal access tokens for AI connections (docs/server.md "AI connections"), after SCUTOONS' `api_tokens`: an editor
- * or admin makes one on the editor's books page and hands it to an MCP client (`OSCT_EDITOR_TOKEN`). A request with
+ * or admin makes one on the editor's experiences page and hands it to an MCP client (`OSCT_EDITOR_TOKEN`). A request with
  * `Authorization: Bearer osct_…` is that user with their current roles – every role check decides as for a session.
  *
  * - Stored as a SHA-256 hash, like sessions; the token itself is answered once, when it is made. The prefix `osct_`
@@ -44,10 +44,10 @@ final class ApiTokens
         $row = Db::one('SELECT * FROM api_tokens WHERE token_hash = :hash', ['hash' => hash('sha256', $token)]);
         if (!$row) throw new ApiError(401, 'unauthorized', 'Unknown token.');
         if ($row['revoked_at'] !== null) {
-            throw new ApiError(401, 'token-revoked', 'This token was revoked – make a new one on the editor\'s books page (AI connections).');
+            throw new ApiError(401, 'token-revoked', 'This token was revoked – make a new one on the editor\'s experiences page (AI connections).');
         }
         if ($row['expires_at'] !== null && $row['expires_at'] < Db::now()) {
-            throw new ApiError(401, 'token-expired', 'This token has expired – renew it on the editor\'s books page (AI connections).');
+            throw new ApiError(401, 'token-expired', 'This token has expired – renew it on the editor\'s experiences page (AI connections).');
         }
         $user = Db::one('SELECT * FROM users WHERE id = :id', ['id' => $row['user_id']]);
         if (!$user) throw new ApiError(401, 'unauthorized', 'Unknown token.');

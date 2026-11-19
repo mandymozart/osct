@@ -14,7 +14,7 @@ injected in the constructor. Interfaces: `client/src/types/`.
 
 ## Progress storage
 
-`HistoryManager` keeps one progress record per book on the device (`services/ProgressStorage.ts`,
+`HistoryManager` keeps one progress record per experience on the device (`services/ProgressStorage.ts`,
 localStorage). Records are read through `utils/progress-record.ts`: the storage format is the app's
 MAJOR version, with one reader per format. Unknown, newer or corrupt records are reset and the
 reader is told.

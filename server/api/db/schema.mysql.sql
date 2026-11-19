@@ -10,12 +10,34 @@ ALTER TABLE `scenes` RENAME COLUMN `title` TO `label`;
 ALTER TABLE `entries` RENAME COLUMN `spread_id` TO `scene_id`;
 ALTER TABLE `books` RENAME COLUMN `initial_spread_id` TO `initial_scene`;
 
+-- Schema 4.0 names (#320): the book becomes the experience – renamed in place like #319's, before the CREATE TABLEs,
+-- each skipped when its old name (or its table) is gone. The printed book's data moves into the experience's JSON
+-- (Db::migrate's data step, Migration4) and the `author` column goes at the end of this file
+ALTER TABLE `books` RENAME TO `experiences`;
+ALTER TABLE `book_versions` RENAME TO `experience_versions`;
+ALTER TABLE `scenes` RENAME COLUMN `book_id` TO `experience_id`;
+ALTER TABLE `entries` RENAME COLUMN `book_id` TO `experience_id`;
+ALTER TABLE `targets` RENAME COLUMN `book_id` TO `experience_id`;
+ALTER TABLE `entities` RENAME COLUMN `book_id` TO `experience_id`;
+ALTER TABLE `experience_versions` RENAME COLUMN `book_id` TO `experience_id`;
+ALTER TABLE `changes` RENAME COLUMN `book_id` TO `experience_id`;
+ALTER TABLE `assets` RENAME COLUMN `book_id` TO `experience_id`;
+ALTER TABLE `plugins` RENAME COLUMN `book_id` TO `experience_id`;
+ALTER TABLE `asset_credits` RENAME COLUMN `book_id` TO `experience_id`;
+ALTER TABLE `asset_names` RENAME COLUMN `book_id` TO `experience_id`;
+ALTER TABLE `surface_references` RENAME COLUMN `book_id` TO `experience_id`;
+ALTER TABLE `progress` RENAME COLUMN `book_id` TO `experience_id`;
+ALTER TABLE `page_images` RENAME COLUMN `book_id` TO `experience_id`;
+ALTER TABLE `experiences` RENAME COLUMN `book_json` TO `experience_json`;
+ALTER TABLE `users` RENAME COLUMN `book_updates` TO `experience_updates`;
+ALTER TABLE `login_requests` RENAME COLUMN `book_updates` TO `experience_updates`;
+
 CREATE TABLE IF NOT EXISTS `users` (
   `id` CHAR(36) NOT NULL,
   `email` VARCHAR(254) NOT NULL,
   `language` VARCHAR(8) NOT NULL DEFAULT 'en',
   -- The update options (opt-in, off by default); the progress is always kept (can be reset)
-  `book_updates` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'news about Onion Skin & Crocodile Tears',
+  `experience_updates` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'news about Onion Skin & Crocodile Tears',
   `artist_updates` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'news from Kévin Bray',
   `publisher_updates` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'news from Building Fictions',
   `created_at` DATETIME NOT NULL,
@@ -33,7 +55,7 @@ CREATE TABLE IF NOT EXISTS `login_requests` (
   `token_hash` CHAR(64) NOT NULL,
   `code_hash` CHAR(64) NOT NULL,
   `language` VARCHAR(8) NOT NULL DEFAULT 'en',
-  `book_updates` TINYINT(1) NOT NULL DEFAULT 0,
+  `experience_updates` TINYINT(1) NOT NULL DEFAULT 0,
   `artist_updates` TINYINT(1) NOT NULL DEFAULT 0,
   `publisher_updates` TINYINT(1) NOT NULL DEFAULT 0,
   `ip_hash` CHAR(64) NOT NULL,
@@ -60,13 +82,13 @@ CREATE TABLE IF NOT EXISTS `sessions` (
   CONSTRAINT `sessions_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- The reader's progress record per book (client: types/history.ts ProgressRecord, as JSON)
+-- The reader's progress record per experience (client: types/history.ts ProgressRecord, as JSON)
 CREATE TABLE IF NOT EXISTS `progress` (
   `user_id` CHAR(36) NOT NULL,
-  `book_id` VARCHAR(64) NOT NULL,
+  `experience_id` VARCHAR(64) NOT NULL,
   `record` MEDIUMTEXT NOT NULL,
   `updated_at` BIGINT NOT NULL COMMENT 'milliseconds since 1970 (UTC), compared by the app',
-  PRIMARY KEY (`user_id`, `book_id`),
+  PRIMARY KEY (`user_id`, `experience_id`),
   CONSTRAINT `progress_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -93,11 +115,10 @@ ALTER TABLE `users` ADD COLUMN `role` VARCHAR(16) NOT NULL DEFAULT 'reader';
 -- The editor's data (docs/server.md "Editor data"): a game configuration imported into rows. Every row keeps the
 -- imported object as JSON (data_json); the typed columns index it. Times in *_at BIGINT columns are milliseconds
 -- since 1970 (UTC), as in progress.updated_at.
-CREATE TABLE IF NOT EXISTS `books` (
+CREATE TABLE IF NOT EXISTS `experiences` (
   `id` VARCHAR(64) NOT NULL,
   `title` VARCHAR(255) NOT NULL,
-  `author` VARCHAR(255) NOT NULL,
-  `book_json` TEXT NOT NULL COMMENT 'BookData',
+  `experience_json` TEXT NOT NULL COMMENT 'ExperienceData',
   `initial_scene` VARCHAR(64) NOT NULL,
   `assets_base` VARCHAR(1024) NOT NULL DEFAULT '' COMMENT 'where /assets/content/… resolves; empty = as imported',
   `files_json` MEDIUMTEXT NOT NULL COMMENT 'files.json of the imported version',
@@ -109,56 +130,56 @@ CREATE TABLE IF NOT EXISTS `books` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `scenes` (
-  `book_id` VARCHAR(64) NOT NULL,
+  `experience_id` VARCHAR(64) NOT NULL,
   `id` VARCHAR(64) NOT NULL,
   `position` INT NOT NULL,
   `label` VARCHAR(255) NOT NULL,
   `data_json` TEXT NOT NULL COMMENT 'SceneData',
-  PRIMARY KEY (`book_id`, `id`),
-  CONSTRAINT `scenes_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+  PRIMARY KEY (`experience_id`, `id`),
+  CONSTRAINT `scenes_experience_fk` FOREIGN KEY (`experience_id`) REFERENCES `experiences` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- scene_id NULL: the entry's page is in no scene (kept and exported all the same)
 CREATE TABLE IF NOT EXISTS `entries` (
-  `book_id` VARCHAR(64) NOT NULL,
+  `experience_id` VARCHAR(64) NOT NULL,
   `id` VARCHAR(64) NOT NULL,
   `scene_id` VARCHAR(64) NULL DEFAULT NULL,
   `position` INT NOT NULL,
   `category` VARCHAR(32) NOT NULL,
   `title` VARCHAR(255) NOT NULL,
   `data_json` MEDIUMTEXT NOT NULL COMMENT 'EntryData without its target',
-  PRIMARY KEY (`book_id`, `id`),
-  KEY `entries_scene` (`book_id`, `scene_id`),
-  CONSTRAINT `entries_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+  PRIMARY KEY (`experience_id`, `id`),
+  KEY `entries_scene` (`experience_id`, `scene_id`),
+  CONSTRAINT `entries_experience_fk` FOREIGN KEY (`experience_id`) REFERENCES `experiences` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- entity_ref: the shared entity it points at; NULL = an inline entity (in data_json) or none
 CREATE TABLE IF NOT EXISTS `targets` (
-  `book_id` VARCHAR(64) NOT NULL,
+  `experience_id` VARCHAR(64) NOT NULL,
   `id` VARCHAR(64) NOT NULL,
   `entry_id` VARCHAR(64) NOT NULL,
   `image_src` VARCHAR(1024) NOT NULL,
   `entity_ref` VARCHAR(64) NULL DEFAULT NULL,
   `data_json` MEDIUMTEXT NOT NULL COMMENT 'TargetData',
-  PRIMARY KEY (`book_id`, `id`),
-  KEY `targets_entry` (`book_id`, `entry_id`),
-  CONSTRAINT `targets_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+  PRIMARY KEY (`experience_id`, `id`),
+  KEY `targets_entry` (`experience_id`, `entry_id`),
+  CONSTRAINT `targets_experience_fk` FOREIGN KEY (`experience_id`) REFERENCES `experiences` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `entities` (
-  `book_id` VARCHAR(64) NOT NULL,
+  `experience_id` VARCHAR(64) NOT NULL,
   `ref` VARCHAR(64) NOT NULL,
   `position` INT NOT NULL,
   `type` VARCHAR(32) NOT NULL,
   `data_json` MEDIUMTEXT NOT NULL COMMENT 'EntityData',
-  PRIMARY KEY (`book_id`, `ref`),
-  CONSTRAINT `entities_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+  PRIMARY KEY (`experience_id`, `ref`),
+  CONSTRAINT `entities_experience_fk` FOREIGN KEY (`experience_id`) REFERENCES `experiences` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- The publish log: one row per POST /editor/books/{id}/publish
-CREATE TABLE IF NOT EXISTS `book_versions` (
+-- The publish log: one row per POST /editor/experiences/{id}/publish
+CREATE TABLE IF NOT EXISTS `experience_versions` (
   `id` CHAR(36) NOT NULL,
-  `book_id` VARCHAR(64) NOT NULL,
+  `experience_id` VARCHAR(64) NOT NULL,
   `env` VARCHAR(32) NOT NULL,
   `build` CHAR(12) NOT NULL,
   `hash` CHAR(64) NOT NULL,
@@ -166,14 +187,14 @@ CREATE TABLE IF NOT EXISTS `book_versions` (
   `published_at` BIGINT NOT NULL,
   `note` TEXT NULL,
   PRIMARY KEY (`id`),
-  KEY `book_versions_book` (`book_id`, `published_at`),
-  CONSTRAINT `book_versions_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+  KEY `experience_versions_experience` (`experience_id`, `published_at`),
+  CONSTRAINT `experience_versions_experience_fk` FOREIGN KEY (`experience_id`) REFERENCES `experiences` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- The change log: before and after of every edited entity (kind `entity`, ref) or target (kind `target`, ref = target id)
 CREATE TABLE IF NOT EXISTS `changes` (
   `id` CHAR(36) NOT NULL,
-  `book_id` VARCHAR(64) NOT NULL,
+  `experience_id` VARCHAR(64) NOT NULL,
   `user_id` CHAR(36) NULL DEFAULT NULL,
   `kind` VARCHAR(16) NOT NULL,
   `ref` VARCHAR(64) NOT NULL,
@@ -181,14 +202,14 @@ CREATE TABLE IF NOT EXISTS `changes` (
   `after_json` MEDIUMTEXT NULL,
   `created_at` BIGINT NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `changes_book` (`book_id`, `created_at`),
-  CONSTRAINT `changes_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+  KEY `changes_experience` (`experience_id`, `created_at`),
+  CONSTRAINT `changes_experience_fk` FOREIGN KEY (`experience_id`) REFERENCES `experiences` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- The editor's assets (Assets.php): uploaded files, one row per upload in asset_versions
 CREATE TABLE IF NOT EXISTS assets (
   id CHAR(36) NOT NULL PRIMARY KEY,
-  book_id VARCHAR(64) NOT NULL,
+  experience_id VARCHAR(64) NOT NULL,
   name VARCHAR(255) NOT NULL,          -- the file name as uploaded
   kind VARCHAR(16) NOT NULL,           -- glb | gltf | video | image | audio (the contract's asset types), shader (#186)
   mime VARCHAR(64) NOT NULL,
@@ -197,14 +218,14 @@ CREATE TABLE IF NOT EXISTS assets (
   width INT NULL DEFAULT NULL,         -- images and videos (duration_ms: videos – added at the end of the file)
   height INT NULL DEFAULT NULL,
   version INT NOT NULL DEFAULT 1,      -- the current version
-  path VARCHAR(255) NOT NULL,          -- in the store: <book>/<asset>/v<n>.<ext>
+  path VARCHAR(255) NOT NULL,          -- in the store: <experience>/<asset>/v<n>.<ext>
   url VARCHAR(512) NOT NULL,           -- the public URL the content names
   status VARCHAR(16) NOT NULL DEFAULT 'active',
   created_by CHAR(36) NULL DEFAULT NULL,
   created_at BIGINT NOT NULL,          -- ms since 1970 (UTC)
   updated_at BIGINT NOT NULL,
-  INDEX assets_book (book_id, status, updated_at),
-  CONSTRAINT assets_book_fk FOREIGN KEY (book_id) REFERENCES books (id) ON DELETE CASCADE
+  INDEX assets_experience (experience_id, status, updated_at),
+  CONSTRAINT assets_experience_fk FOREIGN KEY (experience_id) REFERENCES experiences (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS asset_versions (
@@ -256,20 +277,20 @@ INSERT IGNORE INTO `user_roles` (`user_id`, `role_id`, `granted_at`, `granted_by
 INSERT IGNORE INTO `user_roles` (`user_id`, `role_id`, `granted_at`, `granted_by`)
   SELECT `id`, 2, UTC_TIMESTAMP(), 'migration' FROM `users` WHERE `role` = 'editor';
 
--- The editor's plugin sources (Plugins.php): the Code tab's TypeScript per plugin id; the compiled plugins a book
--- declares come with the import (books.plugins_json)
+-- The editor's plugin sources (Plugins.php): the Code tab's TypeScript per plugin id; the compiled plugins an experience
+-- declares come with the import (experiences.plugins_json)
 CREATE TABLE IF NOT EXISTS plugins (
-  book_id VARCHAR(64) NOT NULL,
+  experience_id VARCHAR(64) NOT NULL,
   id VARCHAR(64) NOT NULL,
   source MEDIUMTEXT NOT NULL,
   created_by CHAR(36) NULL DEFAULT NULL,
   updated_by CHAR(36) NULL DEFAULT NULL,
   created_at BIGINT NOT NULL,          -- ms since 1970 (UTC)
   updated_at BIGINT NOT NULL,
-  PRIMARY KEY (book_id, id),
-  CONSTRAINT plugins_book_fk FOREIGN KEY (book_id) REFERENCES books (id) ON DELETE CASCADE
+  PRIMARY KEY (experience_id, id),
+  CONSTRAINT plugins_experience_fk FOREIGN KEY (experience_id) REFERENCES experiences (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-ALTER TABLE `books` ADD COLUMN `plugins_json` TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE `experiences` ADD COLUMN `plugins_json` TEXT NOT NULL DEFAULT '[]';
 
 -- A video's duration as its file states it (Assets.php, VideoInfo.php); width / height hold its picture's size
 ALTER TABLE `assets` ADD COLUMN `duration_ms` BIGINT NULL DEFAULT NULL;
@@ -294,51 +315,51 @@ CREATE TABLE IF NOT EXISTS `api_tokens` (
 -- A save made through an AI connection names its token in the change log
 ALTER TABLE `changes` ADD COLUMN `token_name` VARCHAR(80) NULL DEFAULT NULL;
 
--- What the draft is based on (Books::import): the imported build, its date, the app and schema version that built it,
+-- What the draft is based on (Experiences::import): the imported build, its date, the app and schema version that built it,
 -- where it came from, when and by whom – the import's version comparison reads it, and the change log after `at`
-ALTER TABLE `books` ADD COLUMN `imported_json` TEXT NULL DEFAULT NULL;
+ALTER TABLE `experiences` ADD COLUMN `imported_json` TEXT NULL DEFAULT NULL;
 
--- The onboarding belongs to the reader (#236): the steps an import kept in `books` go. A column of a removed feature is
+-- The onboarding belongs to the reader (#236): the steps an import kept in `experiences` go. A column of a removed feature is
 -- removed by name and only that (RULES #25); the migration skips it once the column is gone
-ALTER TABLE `books` DROP COLUMN `tutorial_json`;
+ALTER TABLE `experiences` DROP COLUMN `tutorial_json`;
 
--- Picture credits (#277, Assets::setCredits): one free text line per file of a book's Library, by its URL – the imported
+-- Picture credits (#277, Assets::setCredits): one free text line per file of an experience's Library, by its URL – the imported
 -- files have no `assets` row, so the line is kept by URL for both
 CREATE TABLE IF NOT EXISTS `asset_credits` (
-  `book_id` VARCHAR(64) NOT NULL,
+  `experience_id` VARCHAR(64) NOT NULL,
   `url` VARCHAR(512) NOT NULL,
   `credits` TEXT NOT NULL,
   `updated_by` CHAR(36) NULL DEFAULT NULL,
   `updated_at` BIGINT NOT NULL,
-  PRIMARY KEY (`book_id`, `url`),
-  CONSTRAINT `asset_credits_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+  PRIMARY KEY (`experience_id`, `url`),
+  CONSTRAINT `asset_credits_experience_fk` FOREIGN KEY (`experience_id`) REFERENCES `experiences` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Library file names by use (#298 phase 3, AssetNames): an imported file (no `assets` row, read-only – #244) is listed
 -- under the name its use gives, kept by URL like its credits; the URL and the file never change
 CREATE TABLE IF NOT EXISTS `asset_names` (
-  `book_id` VARCHAR(64) NOT NULL,
+  `experience_id` VARCHAR(64) NOT NULL,
   `url` VARCHAR(512) NOT NULL,
   `name` VARCHAR(255) NOT NULL,
   `updated_by` CHAR(36) NULL DEFAULT NULL,
   `updated_at` BIGINT NOT NULL,
-  PRIMARY KEY (`book_id`, `url`),
-  CONSTRAINT `asset_names_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+  PRIMARY KEY (`experience_id`, `url`),
+  CONSTRAINT `asset_names_experience_fk` FOREIGN KEY (`experience_id`) REFERENCES `experiences` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Scenes (#307 phase 2): the book's groups – a label over several scenes (`GroupData[]`, the content's root `groups`);
+-- Scenes (#307 phase 2): the experience's groups – a label over several scenes (`GroupData[]`, the content's root `groups`);
 -- a scene (a `scenes` row) names its group in its data_json (`group`), with its surfaces, layout and label
-ALTER TABLE `books` ADD COLUMN `groups_json` TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE `experiences` ADD COLUMN `groups_json` TEXT NOT NULL DEFAULT '[]';
 
 -- Reverts (#312): a revert is a new change; the changes one revert writes share a set, each names the change it takes back
 ALTER TABLE `changes` ADD COLUMN `change_set` CHAR(36) NULL DEFAULT NULL;
 ALTER TABLE `changes` ADD COLUMN `reverts` CHAR(36) NULL DEFAULT NULL;
 
--- Surface reference images (#314, SurfaceReferences): one image of the book's Library per surface of a scene, what the
+-- Surface reference images (#314, SurfaceReferences): one image of the experience's Library per surface of a scene, what the
 -- editor's stage shows on it – editor-only, no content (the draft, its publish and the reader never carry it). `fit`:
 -- cover | contain | stretch. Keyed by the scene's and the surface's ids; a removed surface or scene takes its row
 CREATE TABLE IF NOT EXISTS `surface_references` (
-  `book_id` VARCHAR(64) NOT NULL,
+  `experience_id` VARCHAR(64) NOT NULL,
   `scene_id` VARCHAR(64) NOT NULL,
   `surface_id` VARCHAR(64) NOT NULL,
   `url` VARCHAR(512) NOT NULL,
@@ -346,11 +367,11 @@ CREATE TABLE IF NOT EXISTS `surface_references` (
   `fit` VARCHAR(16) NOT NULL DEFAULT 'cover',
   `updated_by` CHAR(36) NULL DEFAULT NULL,
   `updated_at` BIGINT NOT NULL,
-  PRIMARY KEY (`book_id`, `scene_id`, `surface_id`),
-  CONSTRAINT `surface_references_book_fk` FOREIGN KEY (`book_id`) REFERENCES `books` (`id`) ON DELETE CASCADE
+  PRIMARY KEY (`experience_id`, `scene_id`, `surface_id`),
+  CONSTRAINT `surface_references_experience_fk` FOREIGN KEY (`experience_id`) REFERENCES `experiences` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Schema 3.0 cleanup (#319, every book is migrated to 3.0): the 2.x page model's columns (RULES #25: the table
+-- Schema 3.0 cleanup (#319, every experience is migrated to 3.0): the 2.x page model's columns (RULES #25: the table
 -- `page_images` stays, unread; an old database keeps its index `entries_spread` on the renamed column), the change
 -- log's old kind and the behaviour rules' scene scope and event
 ALTER TABLE `scenes` DROP COLUMN `first_page`;
@@ -360,3 +381,9 @@ UPDATE `changes` SET `kind` = 'scene' WHERE `kind` = 'spread';
 UPDATE `entities` SET `data_json` = REPLACE(REPLACE(`data_json`, '"scope":"spread"', '"scope":"scene"'), '"spreadChanged"', '"sceneChanged"') WHERE `data_json` LIKE '%spread%';
 UPDATE `targets` SET `data_json` = REPLACE(REPLACE(`data_json`, '"scope":"spread"', '"scope":"scene"'), '"spreadChanged"', '"sceneChanged"') WHERE `data_json` LIKE '%spread%';
 UPDATE `scenes` SET `data_json` = REPLACE(REPLACE(`data_json`, '"scope":"spread"', '"scope":"scene"'), '"spreadChanged"', '"sceneChanged"') WHERE `data_json` LIKE '%spread%';
+
+-- Schema 4.0 cleanup (#320): the change log's old kind, and the `author` column – the author lives in
+-- experience_json.book now (Migration4 moves it there from the JSON, which always held it; RULES #25: a removed
+-- column by name)
+UPDATE `changes` SET `kind` = 'experience' WHERE `kind` = 'book';
+ALTER TABLE `experiences` DROP COLUMN `author`;

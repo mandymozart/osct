@@ -116,10 +116,10 @@ export interface ComponentSpec {
   params: Record<string, ComponentParamSpec>;
 }
 
-/** The `look` of a moment's component: the look's type, or "" for the book's – what the other parameters belong to */
+/** The `look` of a moment's component: the look's type, or "" for the experience's – what the other parameters belong to */
 const MOMENT_LOOK = {
   kind: "string", default: "", label: "look",
-  description: "The look this entity appears with – a built-in one (inflateDissolve, printLift, fade) or a plugin's – in place of the book's. Empty = the book's. The look's own parameters follow.",
+  description: "The look this entity appears with – a built-in one (inflateDissolve, printLift, fade) or a plugin's – in place of the experience's. Empty = the experience's. The look's own parameters follow.",
 } as const;
 
 export const COMPONENTS = {
@@ -146,20 +146,20 @@ export const COMPONENTS = {
    * (no rows), their grammar is `./behaviour.ts`
    */
   /**
-   * The entity's own look for a moment (schema 2.30, `./appearance.ts`), in place of the book's `appearance` – on the
+   * The entity's own look for a moment (schema 2.30, `./appearance.ts`), in place of the experience's `appearance` – on the
    * any node – a node with a look of its own animates its subtree with it. Not made of parameters of its own: after `look` come the look's parameters (a built-in look's or
    * a plugin's), checked against its spec.
    */
   reveal: {
-    description: "How this entity appears the first time its target is found (the entry is unlocked with it): a look – built in or a plugin's – with its parameters, in place of the book's. On any node: its subtree animates with it.",
+    description: "How this entity appears the first time its target is found (the entry is unlocked with it): a look – built in or a plugin's – with its parameters, in place of the experience's. On any node: its subtree animates with it.",
     params: { look: MOMENT_LOOK },
   },
   found: {
-    description: "How this entity appears every time its target is found after the first (and the first too, while it has no reveal): a look with its parameters, in place of the book's. On any node: its subtree animates with it.",
+    description: "How this entity appears every time its target is found after the first (and the first too, while it has no reveal): a look with its parameters, in place of the experience's. On any node: its subtree animates with it.",
     params: { look: MOMENT_LOOK },
   },
   lost: {
-    description: "How this entity disappears when its target is lost: a look with its parameters – it plays rewound, in the look's disappear time – in place of the book's. On any node: its subtree animates with it.",
+    description: "How this entity disappears when its target is lost: a look with its parameters – it plays rewound, in the look's disappear time – in place of the experience's. On any node: its subtree animates with it.",
     params: { look: MOMENT_LOOK },
   },
   behaviour: {

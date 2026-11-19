@@ -22,7 +22,7 @@ export const DEFAULT_ENVIRONMENT_LOADERS: EnvironmentLoaders = {
 
 /**
  * The environment's assets for the look-around pass: the sky image. **The world is gone** (Tilman, 2026-11-18 – first the
- * built-in café, then the world model too, #310): a content's `worldSrc` is ignored, nothing is drawn around the book but
+ * built-in café, then the world model too, #310): a content's `worldSrc` is ignored, nothing is drawn around the surfaces but
  * the sky. `set()` loads a changed sky and frees the one no longer named; a newer `set()` wins over a load still running.
  * While the sky loads – or when it fails (logged) – nothing is drawn.
  */

@@ -8,7 +8,7 @@ export interface User {
   email: string;
   roles: string[];
   language: string;
-  /** the AI connection's token the server signed in with (made on the editor's books page), null for a session */
+  /** the AI connection's token the server signed in with (made on the editor's experiences page), null for a session */
   token: TokenInfo | null;
 }
 
@@ -21,7 +21,7 @@ export interface TokenInfo {
 }
 
 export interface Services {
-  /** the role `editor`: books, drafts, assets, plugin sources */
+  /** the role `editor`: experiences, drafts, assets, plugin sources */
   editor: boolean;
   /** the role `admin` – no tools here (the admin page is small and a person's); shown in whoami */
   admin: boolean;
@@ -50,9 +50,9 @@ export interface AppLinks {
 
 export const appLinks = (config: Config): AppLinks => ({ editor: config.editor });
 
-/** The editor's page of a book, a scene of it, or the books list */
-export function editorHref(links: AppLinks, book?: string, scene?: string | null): string {
-  if (!book) return `${links.editor}/`;
-  if (!scene) return `${links.editor}/${encodeURIComponent(book)}/`;
-  return `${links.editor}/${encodeURIComponent(book)}/${encodeURIComponent(scene)}/`;
+/** The editor's page of an experience, a scene of it, or the experiences list */
+export function editorHref(links: AppLinks, experience?: string, scene?: string | null): string {
+  if (!experience) return `${links.editor}/`;
+  if (!scene) return `${links.editor}/${encodeURIComponent(experience)}/`;
+  return `${links.editor}/${encodeURIComponent(experience)}/${encodeURIComponent(scene)}/`;
 }

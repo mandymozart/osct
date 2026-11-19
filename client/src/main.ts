@@ -12,7 +12,7 @@ import type {
   IGame,
 } from "@/types";
 import { hideStaticSplash, onboardingSteps, staticSplashStep, releaseStaticSplash, waitForDOMReady } from "@/utils";
-import { getBook, getConfigurationError, loadGameConfiguration } from "@/utils/game-config";
+import { getExperience, getConfigurationError, loadGameConfiguration } from "@/utils/game-config";
 import i18next, { t } from "i18next";
 import { DEFAULT_LANGUAGE } from "@/i18n";
 import { setDeviceStorage } from "@engine/utils/device-storage";
@@ -23,7 +23,7 @@ setDeviceStorage(new LocalDeviceStorage());
 // Page language (screen readers, hyphenation); translate the static splash's texts (index.html ships English)
 document.documentElement.lang = i18next.resolvedLanguage ?? DEFAULT_LANGUAGE;
 const staticSplash = document.getElementById("static-splash");
-staticSplash?.setAttribute("aria-label", t("common:loadingBook"));
+staticSplash?.setAttribute("aria-label", t("common:loadingExperience"));
 staticSplash?.querySelector("img")?.setAttribute("alt", t("common:markAlt"));
 
 // Must run early: the browser fires its install prompt once, shortly after load (see InstallService)
@@ -39,10 +39,10 @@ const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
 if (isIOS || isSafari) {
   document.documentElement.classList.add('ios-device');
-  console.log('[BookGame] iOS/Safari detected, applying compatibility fixes');
+  console.log('[ReaderApp] iOS/Safari detected, applying compatibility fixes');
 }
 
-export class BookGame extends HTMLElement {
+export class ReaderApp extends HTMLElement {
   private game: Readonly<IGame>;
   private errorPage: IErrorPage | null = null;
 
@@ -148,7 +148,7 @@ export class BookGame extends HTMLElement {
       </div>
     `;
     void hideStaticSplash();
-    console.error(`[BookGame] Not started: ${error.code}`);
+    console.error(`[ReaderApp] Not started: ${error.code}`);
   }
 
   private initializeComponents() {
@@ -159,7 +159,7 @@ export class BookGame extends HTMLElement {
   private async setupGameState() {
     try {
       await waitForDOMReady();
-      window.BOOKGAME = this.game;
+      window.READER = this.game;
       // A visitor on a computer first gets the desktop landing page (#293); the app starts once they open it here
       await this.shadowRoot?.querySelector<DesktopLanding>("desktop-landing")?.whenDone();
       // A requested view (link or reload) opens directly, without a resume prompt.
@@ -185,7 +185,7 @@ export class BookGame extends HTMLElement {
       // PWA: installable, offline app shell and seen content (production builds only); new versions under the open page
       ServiceWorkerService.register();
       console.log(
-        `[BookGame] Initialized version ${this.game.version.version} / ${this.game.version.timestamp}) ID: ${this.game.state.id}`
+        `[ReaderApp] Initialized version ${this.game.version.version} / ${this.game.version.timestamp}) ID: ${this.game.state.id}`
       );
     } catch (error) {
       this.handleError(error);
@@ -194,7 +194,7 @@ export class BookGame extends HTMLElement {
 
   /** Onboarding step to start with: the one after the static splash's step, else the first */
   private firstOnboardingStep(): number {
-    const steps = [...onboardingSteps(getBook())].sort((a, b) => a.index - b.index);
+    const steps = [...onboardingSteps(getExperience())].sort((a, b) => a.index - b.index);
     const shown = staticSplashStep();
     if (shown === undefined) return steps[0]?.index ?? 0;
     return steps.find(step => step.index > shown)?.index ?? shown;
@@ -216,4 +216,4 @@ export class BookGame extends HTMLElement {
 
 // The game configuration is loaded first (content CDN or the bundled copy); the static splash shows meanwhile.
 // The element is defined afterwards, so nothing reads the configuration before it is there.
-void loadGameConfiguration().then(() => customElements.define("book-game", BookGame));
+void loadGameConfiguration().then(() => customElements.define("reader-app", ReaderApp));

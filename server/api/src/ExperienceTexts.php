@@ -2,17 +2,17 @@
 declare(strict_types=1);
 
 /**
- * The reading side of a book in the editor (docs/server.md "Texts"): an entry's fields – its title, its text (Markdown
- * with the book's variables, shared/text/entry-text.ts), author, image, link, tags, category, its scene and surface –, and the
- * book's title, author and publisher. Every write reads the row, changes it and writes it
- * back in one transaction with the row locked (`Db::forUpdate()`), touches the book and records a change with the row
- * before and after. An AI connection's token may write here like the person – these are the book's texts, not the
- * account; publishing stays the person's (`Books::publish`).
+ * The reading side of an experience in the editor (docs/server.md "Texts"): an entry's fields – its title, its text (Markdown
+ * with the experience's variables, shared/text/entry-text.ts), author, image, link, tags, category, its scene and surface –, and the
+ * experience's title and its printed book's author and publisher. Every write reads the row, changes it and writes it
+ * back in one transaction with the row locked (`Db::forUpdate()`), touches the experience and records a change with the row
+ * before and after. An AI connection's token may write here like the person – these are the experience's texts, not the
+ * account; publishing stays the person's (`Experiences::publish`).
  *
  * The checks are the content build's (scripts/src/lib/schema.ts): the categories, a title and a scene, a link that is
- * http(s) – and an image from the book's Library (an uploaded image or a file of the import).
+ * http(s) – and an image from the experience's Library (an uploaded image or a file of the import).
  */
-final class BookTexts
+final class ExperienceTexts
 {
     /** The fields of an entry a PUT may change */
     private const ENTRY_FIELDS = ['title', 'body', 'author', 'image', 'caption', 'media', 'tags', 'category', 'scene', 'surface'];
@@ -25,21 +25,21 @@ final class BookTexts
     public const BODY_MAX_LENGTH = 100000;
 
     /**
-     * GET /editor/books/{id}/entries → { entries: [EntryData without its target (its `scene` and `surface` among the
-     * fields), target: { id, imageSrc } | null] } in the book's order: every field as the content holds it (an image's path
+     * GET /editor/experiences/{id}/entries → { entries: [EntryData without its target (its `scene` and `surface` among the
+     * fields), target: { id, imageSrc } | null] } in the experience's order: every field as the content holds it (an image's path
      * or URL as written, not resolved)
      */
-    public static function entries(string $bookId): never
+    public static function entries(string $experienceId): never
     {
         Editor::user();
-        Books::exists($bookId);
-        $params = ['book' => $bookId];
+        Experiences::exists($experienceId);
+        $params = ['experience' => $experienceId];
         $targets = [];
-        foreach (Db::run('SELECT id, entry_id, image_src FROM targets WHERE book_id = :book', $params)->fetchAll() as $row) {
+        foreach (Db::run('SELECT id, entry_id, image_src FROM targets WHERE experience_id = :experience', $params)->fetchAll() as $row) {
             $targets[$row['entry_id']] = ['id' => $row['id'], 'imageSrc' => $row['image_src']];
         }
         $entries = [];
-        foreach (Db::run('SELECT id, scene_id, data_json FROM entries WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
+        foreach (Db::run('SELECT id, scene_id, data_json FROM entries WHERE experience_id = :experience ORDER BY position', $params)->fetchAll() as $row) {
             $entry = ContentVersion::withScene(Editor::decode($row['data_json']), (string) $row['scene_id']);
             $entry->target = $targets[$row['id']] ?? null;
             $entries[] = $entry;
@@ -48,23 +48,23 @@ final class BookTexts
     }
 
     /**
-     * PUT /editor/books/{id}/entries/{eid} { title?, body?, author?, image?, caption?, media?, tags?, category?, scene?,
+     * PUT /editor/experiences/{id}/entries/{eid} { title?, body?, author?, image?, caption?, media?, tags?, category?, scene?,
      * surface? } → 200 { entry, scene, previousScene }: the fields sent change, `null` removes an optional one (author,
      * image, caption – the line under the picture, plain text, #289 –, media, surface). `scene` moves the entry to that
      * scene (its surface goes unless the new scene has one of that id or `surface` names one). 400 `invalid-entry`,
      * `unknown-scene`, 404.
      */
-    public static function putEntry(string $bookId, string $entryId): never
+    public static function putEntry(string $experienceId, string $entryId): never
     {
         $user = Editor::user();
-        Books::exists($bookId);
+        Experiences::exists($experienceId);
         $body = Editor::body();
         $unknown = array_diff(array_keys(get_object_vars($body)), self::ENTRY_FIELDS);
         if ($unknown) throw new ApiError(400, 'invalid-entry', 'Unknown field ' . implode(', ', $unknown) . ' – send ' . implode(', ', self::ENTRY_FIELDS) . '.');
         if (!get_object_vars($body)) throw new ApiError(400, 'invalid-entry', 'Send at least one of ' . implode(', ', self::ENTRY_FIELDS) . '.');
-        [$entry, $sceneId, $previous] = Db::transaction(static function () use ($bookId, $entryId, $body, $user) {
-            $params = ['book' => $bookId, 'id' => $entryId];
-            $row = Db::one('SELECT * FROM entries WHERE book_id = :book AND id = :id' . Db::forUpdate(), $params);
+        [$entry, $sceneId, $previous] = Db::transaction(static function () use ($experienceId, $entryId, $body, $user) {
+            $params = ['experience' => $experienceId, 'id' => $entryId];
+            $row = Db::one('SELECT * FROM entries WHERE experience_id = :experience AND id = :id' . Db::forUpdate(), $params);
             if (!$row) throw new ApiError(404, 'not-found', 'No such entry.');
             $entry = Editor::decode($row['data_json']);
             if (property_exists($body, 'title')) $entry->title = self::text($body->title, 'title', true);
@@ -76,8 +76,8 @@ final class BookTexts
             if (property_exists($body, 'author')) self::optional($entry, 'author', $body->author === null ? null : self::text($body->author, 'author', false));
             if (property_exists($body, 'image')) {
                 $image = $body->image === null ? null : self::text($body->image, 'image', false);
-                if ($image !== null && $image !== ($entry->image ?? null) && !Assets::isBookImage($bookId, $image)) {
-                    throw new ApiError(400, 'invalid-entry', 'image must be a picture of the book\'s Library – upload it first.');
+                if ($image !== null && $image !== ($entry->image ?? null) && !Assets::isExperienceImage($experienceId, $image)) {
+                    throw new ApiError(400, 'invalid-entry', 'image must be a picture of the experience\'s Library – upload it first.');
                 }
                 self::optional($entry, 'image', $image);
             }
@@ -98,63 +98,84 @@ final class BookTexts
             // The entry's scene and surface: `scene` moves it, `surface` (null: none) places it on one of its scene's surfaces
             $hasScene = property_exists($body, 'scene');
             $hasSurface = property_exists($body, 'surface');
-            if ($hasScene && $body->scene === null) throw new ApiError(400, 'invalid-entry', 'scene must be a scene of the book – an entry always has one.');
+            if ($hasScene && $body->scene === null) throw new ApiError(400, 'invalid-entry', 'scene must be a scene of the experience – an entry always has one.');
             if ($hasScene || $hasSurface) {
-                $context = Scenes::context($bookId);
+                $context = Scenes::context($experienceId);
                 $scene = $hasScene ? $body->scene : $sceneId;
                 $surface = $hasSurface ? $body->surface : ($entry->surface ?? null);
                 // A surface kept from before goes when the new scene has no such surface
                 if (!$hasSurface && is_string($surface) && !in_array($surface, Scenes::surfaceIds($context['data'][(string) $scene] ?? new stdClass()), true)) $surface = null;
-                [$sceneId, $surface] = Books::sceneOf($context, $scene, $surface);
+                [$sceneId, $surface] = Experiences::sceneOf($context, $scene, $surface);
                 if ($surface === null) unset($entry->surface);
                 else $entry->surface = $surface;
             }
             unset($entry->page, $entry->scene);
             $json = Editor::encode($entry);
-            Db::run('UPDATE entries SET scene_id = :scene, category = :category, title = :title, data_json = :data WHERE book_id = :book AND id = :id',
+            Db::run('UPDATE entries SET scene_id = :scene, category = :category, title = :title, data_json = :data WHERE experience_id = :experience AND id = :id',
                 $params + ['scene' => $sceneId, 'category' => $entry->category, 'title' => $entry->title, 'data' => $json]);
-            Books::touchBook($bookId);
-            Books::recordChange($bookId, $user, 'entry', $entryId, $row['data_json'], $json);
+            Experiences::touchExperience($experienceId);
+            Experiences::recordChange($experienceId, $user, 'entry', $entryId, $row['data_json'], $json);
             return [$entry, $sceneId, (string) $row['scene_id']];
         });
         Http::json(200, ['entry' => ContentVersion::withScene($entry, $sceneId), 'scene' => $sceneId, 'previousScene' => $previous]);
     }
 
     /**
-     * PUT /editor/books/{id} { title?, author?, publisher?, sourceOfTruth? } → 200 { book }: the book's texts – the
-     * splash, the home page and the onboarding show them – and its source of truth (`print` | `digital`, #238: whether
-     * scenes are added and removed in the editor). `publisher: null` (or "") removes it. 400 `invalid-book`.
+     * PUT /editor/experiences/{id} { title?, book?: { author?, publisher? } | null } → 200 { experience }: the experience's
+     * title – the splash, the home page and the onboarding show it – and the printed book it accompanies (#320): `book`
+     * changes the fields sent (`publisher: null` or "" removes it), `book: null` removes the printed book, a new one needs
+     * its `author`. 400 `invalid-experience`.
      */
-    public static function putBook(string $bookId): never
+    public static function putExperience(string $experienceId): never
     {
         $user = Editor::user();
-        Books::exists($bookId);
+        Experiences::exists($experienceId);
         $body = Editor::body();
-        $fields = ['title', 'author', 'publisher', 'sourceOfTruth'];
-        $unknown = array_diff(array_keys(get_object_vars($body)), $fields);
-        if ($unknown) throw new ApiError(400, 'invalid-book', 'Unknown field ' . implode(', ', $unknown) . ' – send title, author, publisher or sourceOfTruth.');
-        if (!get_object_vars($body)) throw new ApiError(400, 'invalid-book', 'Send title, author, publisher or sourceOfTruth.');
-        if (property_exists($body, 'sourceOfTruth') && !in_array($body->sourceOfTruth, Editor::SOURCES_OF_TRUTH, true)) {
-            throw new ApiError(400, 'invalid-book', 'sourceOfTruth must be one of ' . implode(', ', Editor::SOURCES_OF_TRUTH) . '.');
+        $unknown = array_diff(array_keys(get_object_vars($body)), ['title', 'book']);
+        if ($unknown) throw new ApiError(400, 'invalid-experience', 'Unknown field ' . implode(', ', $unknown) . ' – send title or book.');
+        if (!get_object_vars($body)) throw new ApiError(400, 'invalid-experience', 'Send title or book.');
+        $bookBody = $body->book ?? null;
+        if (property_exists($body, 'book') && $bookBody !== null) {
+            if (!$bookBody instanceof stdClass) throw new ApiError(400, 'invalid-experience', 'book must be an object { author?, publisher? } or null.');
+            $unknown = array_diff(array_keys(get_object_vars($bookBody)), ['author', 'publisher']);
+            if ($unknown) throw new ApiError(400, 'invalid-experience', 'Unknown field book.' . implode(', book.', $unknown) . ' – send book.author or book.publisher.');
         }
-        $book = Db::transaction(static function () use ($bookId, $body, $user) {
-            $row = Books::bookRow($bookId, true);
-            $book = Editor::decode($row['book_json']);
-            foreach (['title', 'author'] as $key) {
-                if (property_exists($body, $key)) $book->{$key} = self::text($body->{$key}, $key, true, 'invalid-book');
-            }
-            if (property_exists($body, 'publisher')) {
-                $publisher = $body->publisher === null ? null : self::text($body->publisher, 'publisher', false, 'invalid-book');
-                self::optional($book, 'publisher', $publisher === '' ? null : $publisher);
-            }
-            if (property_exists($body, 'sourceOfTruth')) $book->sourceOfTruth = $body->sourceOfTruth;
-            $json = Editor::encode($book);
-            Db::run('UPDATE books SET title = :title, author = :author, book_json = :data WHERE id = :id', ['title' => $book->title, 'author' => $book->author, 'data' => $json, 'id' => $bookId]);
-            Books::touchBook($bookId);
-            Books::recordChange($bookId, $user, 'book', $bookId, $row['book_json'], $json);
-            return $book;
+        $experience = Db::transaction(static function () use ($experienceId, $body, $bookBody, $user) {
+            $row = Experiences::experienceRow($experienceId, true);
+            $experience = Editor::decode($row['experience_json']);
+            if (property_exists($body, 'title')) $experience->title = self::text($body->title, 'title', true, 'invalid-experience');
+            if (property_exists($body, 'book')) $experience = self::withBook($experience, $bookBody);
+            $json = Editor::encode($experience);
+            Db::run('UPDATE experiences SET title = :title, experience_json = :data WHERE id = :id', ['title' => $experience->title, 'data' => $json, 'id' => $experienceId]);
+            Experiences::touchExperience($experienceId);
+            Experiences::recordChange($experienceId, $user, 'experience', $experienceId, $row['experience_json'], $json);
+            return $experience;
         });
-        Http::json(200, ['book' => $book]);
+        Http::json(200, ['experience' => $experience]);
+    }
+
+    /** The experience with its printed book changed by $book (null: removed), the book placed after the title */
+    private static function withBook(stdClass $experience, ?stdClass $book): stdClass
+    {
+        $current = isset($experience->book) && $experience->book instanceof stdClass ? clone $experience->book : null;
+        if ($book !== null) {
+            $next = $current ?? new stdClass();
+            if (property_exists($book, 'author')) $next->author = self::text($book->author, 'book.author', true, 'invalid-experience');
+            if (property_exists($book, 'publisher')) {
+                self::optional($next, 'publisher', $book->publisher === null ? null : self::text($book->publisher, 'book.publisher', false, 'invalid-experience'));
+            }
+            if (!is_string($next->author ?? null)) throw new ApiError(400, 'invalid-experience', 'A new printed book needs book.author.');
+            // author first, as experience.yaml has it
+            $book = (object) (['author' => $next->author] + get_object_vars($next));
+        }
+        $out = new stdClass();
+        foreach (get_object_vars($experience) as $key => $value) {
+            if ($key === 'book') continue;
+            $out->$key = $value;
+            if ($key === 'title' && $book !== null) $out->book = $book;
+        }
+        if ($book !== null && !isset($out->book)) $out->book = $book;
+        return $out;
     }
 
     /** A link an entry may point to: http(s) with a host (shared/api/rules.ts `isLinkUrl`) */
