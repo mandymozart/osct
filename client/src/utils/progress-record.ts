@@ -38,8 +38,11 @@ const isNumber = (v: unknown): v is number => typeof v === "number" && Number.is
 const isString = (v: unknown): v is string => typeof v === "string";
 const isVariable = (v: unknown): v is ProgressVariable => isString(v) || isNumber(v) || typeof v === "boolean";
 
-/** Format 1: the record as defined in `types/history.ts`; malformed and unknown fields are dropped. */
-const readFormat1 = (raw: Record<string, unknown>, bookId: string): ProgressRecord => ({
+/**
+ * Formats 1 and 2 (app 2.0.0, content schema 3.0, #319): the record as defined in `types/history.ts`; malformed and
+ * unknown fields are dropped. Format 2 has format 1's shape – only `lastSpreadId` became `lastScene`, read as dropped.
+ */
+const readRecord = (raw: Record<string, unknown>, bookId: string): ProgressRecord => ({
   ...createProgressRecord(bookId),
   appVersions: Array.isArray(raw.appVersions) ? raw.appVersions.filter(isString) : [],
   unlocked: pick(raw.unlocked, isNumber),
@@ -57,7 +60,8 @@ const readFormat1 = (raw: Record<string, unknown>, bookId: string): ProgressReco
 
 /** One reader per storage format, each returns the current shape */
 export const PROGRESS_READERS: Record<number, (raw: Record<string, unknown>, bookId: string) => ProgressRecord> = {
-  1: readFormat1,
+  1: readRecord,
+  2: readRecord,
 };
 
 /** Same JSON value (key order ignored) */

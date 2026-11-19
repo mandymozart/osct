@@ -7,6 +7,13 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 2.0.1 – 2026-11-19
+
+### Fixed
+
+- **The reader's progress record at app 2.0** (#319): the storage format follows the app MAJOR, and 2.0.0 had no reader for
+  format 2 – a stored progress was reset at every start. Formats 1 and 2 share one reader (`lastSpreadId` is dropped).
+
 ## 2.0.0 – 2026-11-18
 
 ### Added
