@@ -10,7 +10,7 @@
 import type { EntryCategory } from "./entry";
 import type { FilterData } from "./filters";
 import type { ComponentData } from "./components";
-import type { BookAppearance } from "./appearance";
+import type { ExperienceAppearance } from "./appearance";
 import type { EnvironmentData } from "./environment";
 import type { LightData } from "./lights";
 import type { TextureSetData } from "./textures";
@@ -90,7 +90,7 @@ export interface ConfigurationVersion {
   schema: string;
 }
 
-export interface BookData {
+export interface ExperienceData {
   id: string; // e.g. "osct" – identifies the book (storage keys)
   title: string;
   author: string;
@@ -101,7 +101,7 @@ export interface BookData {
   /** Optional (schema 2.8; world and sky assets 2.9): the world around the reader and the onion sky (`./environment.ts`); none = the default */
   environment?: EnvironmentData;
   /** Optional (schema 2.29): the look an entity appears with on reveal, found and lost (`./appearance.ts`); none = the default look */
-  appearance?: BookAppearance;
+  appearance?: ExperienceAppearance;
   /**
    * Optional (schema 2.25): the book's source of truth (#238) – `print` (print first: the printed book is the truth, its
    * scenes, surfaces and printed places come from an import of the layout) or `digital` (digital first: the editor is
@@ -110,12 +110,12 @@ export interface BookData {
   sourceOfTruth?: SourceOfTruth;
 }
 
-/** Where a book's scenes come from (`BookData.sourceOfTruth`, #238) */
+/** Where a book's scenes come from (`ExperienceData.sourceOfTruth`, #238) */
 export const SOURCES_OF_TRUTH = ["print", "digital"] as const;
 export type SourceOfTruth = (typeof SOURCES_OF_TRUTH)[number];
 
 /** A book's source of truth: `digital` only when it says so – none (or a value this contract does not know) is print */
-export const sourceOfTruthOf = (book: Pick<BookData, "sourceOfTruth"> | null | undefined): SourceOfTruth =>
+export const sourceOfTruthOf = (book: Pick<ExperienceData, "sourceOfTruth"> | null | undefined): SourceOfTruth =>
   book?.sourceOfTruth === "digital" ? "digital" : "print";
 
 /**
@@ -284,7 +284,7 @@ export interface EntryData {
 
 export interface GameConfiguration {
   version: ConfigurationVersion;
-  book: BookData;
+  book: ExperienceData;
   /** The scene the reader starts on (`SceneData.id`) */
   initialScene: string;
   /** The experience: its scenes in order */

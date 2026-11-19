@@ -1,5 +1,5 @@
 import { t } from "i18next";
-import type { BookData, Step } from "@/types";
+import type { ExperienceData, Step } from "@/types";
 import { SPLASH_STEP } from "./static-splash-html";
 
 /**
@@ -10,7 +10,7 @@ import { SPLASH_STEP } from "./static-splash-html";
  */
 
 /** The book fields the steps show */
-export type OnboardingBook = Pick<BookData, "title" | "author" | "publisher">;
+export type OnboardingBook = Pick<ExperienceData, "title" | "author" | "publisher">;
 
 /**
  * The drawings of the steps (`<gold-illustration>`, files in public/). The camera step has none since the design

@@ -49,7 +49,7 @@ export interface AppearanceData {
 }
 
 /** The book's looks, by moment */
-export type BookAppearance = Partial<Record<Moment, AppearanceData>>;
+export type ExperienceAppearance = Partial<Record<Moment, AppearanceData>>;
 
 /** The values of a built-in look, as the engine reads them */
 export interface Appearance {
@@ -226,7 +226,7 @@ export const resolveAppearance = (spec: AppearanceSpec, data: AppearanceData): R
 };
 
 /** The look a moment plays: its own, else `found`'s, else the default */
-export const momentAppearance = (book: { appearance?: BookAppearance } | null | undefined, moment: Moment): AppearanceData =>
+export const momentAppearance = (book: { appearance?: ExperienceAppearance } | null | undefined, moment: Moment): AppearanceData =>
   book?.appearance?.[moment] ?? book?.appearance?.found ?? { type: DEFAULT_APPEARANCE_TYPE };
 
 /**
@@ -272,7 +272,7 @@ export const nodeMomentLook = (node: { components?: readonly ComponentData[] } |
  */
 export const entityMomentAppearance = (
   entity: { components?: readonly ComponentData[] } | null | undefined,
-  book: { appearance?: BookAppearance } | null | undefined,
+  book: { appearance?: ExperienceAppearance } | null | undefined,
   moment: Moment,
 ): AppearanceData =>
   nodeMomentLook(entity, moment) ?? momentAppearance(book, moment);
@@ -282,7 +282,7 @@ export const entityMomentAppearance = (
  * duration only its code knows. With `entity`, the look it plays (`entityMomentAppearance`)
  */
 export const momentDuration = (
-  book: { appearance?: BookAppearance } | null | undefined,
+  book: { appearance?: ExperienceAppearance } | null | undefined,
   moment: Moment,
   entity?: { components?: readonly ComponentData[] } | null,
 ): number | undefined => {

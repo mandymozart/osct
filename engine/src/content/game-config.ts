@@ -21,7 +21,7 @@ import { entryPlaceLabel } from './scenes';
 import { type ContentFiles, type ContentManifest, isContentFiles, isContentManifest } from '@shared/types/content-manifest';
 import {
   type AssetData,
-  type BookData,
+  type ExperienceData,
   type ConfigurationVersion,
   type EntityData,
   type EntityRefData,
@@ -342,7 +342,7 @@ const apply = (raw: GameConfiguration, base: string, files: ContentFiles, keepSw
 /** Version of the game configuration (content build): version, timestamp, hash, schema */
 export const getConfigVersion = (): ConfigurationVersion => config.version;
 
-export const getBook = (): BookData => config.book;
+export const getBook = (): ExperienceData => config.book;
 
 /**
  * The passes a scene shows: its own list (an override – `[]` turns the book's off there), else the book's (the master

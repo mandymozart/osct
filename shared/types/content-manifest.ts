@@ -27,7 +27,7 @@ export interface ContentManifest {
   version: string;
   /** When this version became current (ISO 8601) */
   activatedAt: string;
-  /** The book this version is of (`BookData.id`) */
+  /** The book this version is of (`ExperienceData.id`) */
   book?: string;
 }
 
@@ -42,7 +42,7 @@ export interface ContentVersion {
   activatedAt: string;
   /** When another version replaced it; null while it is current */
   retiredAt: string | null;
-  /** The book this version is of (`BookData.id`) */
+  /** The book this version is of (`ExperienceData.id`) */
   book?: string;
 }
 

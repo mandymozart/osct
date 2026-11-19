@@ -1,9 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import { CONTENT_DIR } from '../config';
-import type { BookData } from '../../../shared/types/game-config';
+import type { ExperienceData } from '../../../shared/types/game-config';
 import { passBudgetWarning, passProblems, type PassData, type PassSpec } from '../../../shared/types/passes';
-import { appearanceProblems, type AppearanceSpec, type BookAppearance } from '../../../shared/types/appearance';
+import { appearanceProblems, type AppearanceSpec, type ExperienceAppearance } from '../../../shared/types/appearance';
 import { environmentProblems, type EnvironmentData } from '../../../shared/types/environment';
 import { buildErrors, buildWarnings } from '../lib/errors';
 import { contractPart, readYaml, validate } from '../lib/content';
@@ -46,12 +46,12 @@ export function checkedPasses(passes: unknown, label: string, pluginPasses: Read
  * The book's `appearance` (schema 2.29): a look per moment, checked against the built-in looks and the looks the
  * plugins recorded (`pluginAppearances`, type → spec)
  */
-export function checkedAppearance(appearance: unknown, label: string, pluginAppearances: ReadonlyMap<string, AppearanceSpec> = new Map()): BookAppearance {
+export function checkedAppearance(appearance: unknown, label: string, pluginAppearances: ReadonlyMap<string, AppearanceSpec> = new Map()): ExperienceAppearance {
   const problems = appearanceProblems(appearance, 'appearance', { spec: type => pluginAppearances.get(type), pluginTypes: [...pluginAppearances.keys()] });
-  return contractPart<BookAppearance>(appearance, problems, label);
+  return contractPart<ExperienceAppearance>(appearance, problems, label);
 }
 
-export function buildBook(pluginPasses: ReadonlyMap<string, PassSpec> = new Map(), pluginAppearances: ReadonlyMap<string, AppearanceSpec> = new Map()): BookData {
+export function buildBook(pluginPasses: ReadonlyMap<string, PassSpec> = new Map(), pluginAppearances: ReadonlyMap<string, AppearanceSpec> = new Map()): ExperienceData {
   const file = path.join(CONTENT_DIR, 'book.yaml');
   if (!fs.existsSync(file)) {
     buildErrors.push('book.yaml is missing');
@@ -60,7 +60,7 @@ export function buildBook(pluginPasses: ReadonlyMap<string, PassSpec> = new Map(
   const book = validate(readYaml(file), 'book', 'book.yaml');
   if (!book) return { id: '', title: '', author: '' };
   const { passes, environment, appearance, ...fields } = book;
-  const result: BookData = { ...fields, id: book.id, title: book.title, author: book.author };
+  const result: ExperienceData = { ...fields, id: book.id, title: book.title, author: book.author };
   if (passes !== undefined) result.passes = checkedPasses(passes, 'book.yaml', pluginPasses);
   if (appearance !== undefined) result.appearance = checkedAppearance(appearance, 'book.yaml', pluginAppearances);
   if (environment !== undefined) {

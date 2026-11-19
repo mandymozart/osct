@@ -2,7 +2,7 @@ import { Box3, Group, type Matrix4, type Object3D, type Quaternion, SRGBColorSpa
 import {
   type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type TextureQuality, type PassData, type SceneInspection, ArState, type Target,
 } from "../types/index";
-import { type AppearanceData, type BookAppearance, entityMomentAppearance, type Moment, nodeMomentLook } from "@shared/types/appearance";
+import { type AppearanceData, type ExperienceAppearance, entityMomentAppearance, type Moment, nodeMomentLook } from "@shared/types/appearance";
 import { entityAssets, getAssets, getBook, getPasses, getPlugins, getScene, getScenes, getTargets } from "../content/game-config";
 import { type EnvironmentData, environmentOf } from "@shared/types/environment";
 import { focusAtTap } from "../utils/camera-request";
@@ -123,7 +123,7 @@ export class ArScene implements IArScene {
   /** The passes shown instead of the content's (the editor's live edit), until restored */
   private passOverride: PassData[] | null = null;
   /** The book's looks played instead of the content's (the editor's live edit – `appearance: null` = none), until restored */
-  private appearanceOverride: { appearance: BookAppearance | null } | null = null;
+  private appearanceOverride: { appearance: ExperienceAppearance | null } | null = null;
   private postProcessing = true;
   /** The editor's viewport shading, once it set one (the reader never does) */
   private shading: string | null = null;
@@ -296,7 +296,7 @@ export class ArScene implements IArScene {
     holdFeedbacks(held);
   }
 
-  overrideAppearance(override: { appearance: BookAppearance | null } | null): void {
+  overrideAppearance(override: { appearance: ExperienceAppearance | null } | null): void {
     this.appearanceOverride = override;
   }
 
