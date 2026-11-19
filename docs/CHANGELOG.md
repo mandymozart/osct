@@ -7,13 +7,18 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 3.0.1 – 2026-11-19
 
 ### Added
 
 - `scripts/layout/place-targets.py` (#321): every target's `place` and every surface's reference image from the
   content's `layout/` (the designed PDFs, 1.10.0), through the editor API (`/editor/experiences/…`, `--experience`) – a dry run with a report and contact sheets
   by default, `--apply` to write (docs/content.md "Placing the targets from the layout").
+
+### Fixed
+
+- Switching a panel's switchable section on opens it (`Section`): switching **Printed book** on showed only the
+  "author is empty" error, with the author field folded away.
 
 ## 3.0.0 – 2026-11-19
 

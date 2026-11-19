@@ -11,7 +11,7 @@
    * matters. `help` is the section's description for the Info view. `data-section` carries the id, so a link from
    * elsewhere can scroll the section into view.
    * A group of settings that is switched as a whole (#233, agents/DESIGN.md "Sections and toggles") passes `enabled`
-   * and `onenabled`: its head carries an on/off `Toggle` that works without opening the section, and the label dims
+   * and `onenabled`: its head carries an on/off `Toggle` that works without opening the section (switching on opens it), and the label dims
    * while it is off. `nested` is a section inside another one (a pass in the post-processing): its label reads as a
    * name, not as a heading.
    */
@@ -35,6 +35,11 @@
   const isOpen = $derived(sections.isOpen(id, open));
   const head = $derived(!isOpen && summary ? `${label} · ${summary}` : label);
   const switchable = $derived(enabled !== undefined && !!onenabled);
+  /** Switching on opens the section: what was switched on is what the author fills next (the printed book's author) */
+  const switchTo = (on: boolean) => {
+    if (on) sections.setOpen(id, true);
+    onenabled?.(on);
+  };
 </script>
 
 <div class="section" class:closed={!isOpen} class:nested class:off={switchable && !enabled} data-section={id}>
@@ -44,7 +49,7 @@
   </button>
   {#if switchable || aside}
     <span class="aside">
-      {#if switchable}<Toggle on={!!enabled} label={enabledLabel ?? `${label} on or off`} title={enabled ? `Switch ${label} off – its values stay` : `Switch ${label} on`} onchange={on => onenabled?.(on)} />{/if}
+      {#if switchable}<Toggle on={!!enabled} label={enabledLabel ?? `${label} on or off`} title={enabled ? `Switch ${label} off – its values stay` : `Switch ${label} on`} onchange={switchTo} />{/if}
       {#if aside}{@render aside()}{/if}
     </span>
   {/if}
