@@ -2,11 +2,11 @@
  * Plugins: the book's own code as content (content schema 2.4, agents/research/2026-10-29-code-in-the-editor.md).
  * A plugin is a folder `plugins/<id>/` of the content source with an `index.ts` that exports `register(api)`; the
  * content build type-checks and bundles it into `plugins/<id>/plugin.js` of the build output and declares it here.
- * The engine loads every declared plugin before it builds the first spread and hands it the plugin API
+ * The engine loads every declared plugin before it builds the first scene and hands it the plugin API
  * (`engine/src/scene/plugins.ts`): registries for components and material layers, the app's three.js.
  *
  * The API is versioned apart from the content schema: `PLUGIN_API_VERSION` MAJOR.MINOR – a plugin built against
- * another MAJOR is not loaded (logged); MINOR adds. 1.1 added `api.events`, `api.vars`, `api.progress`, `api.spread`,
+ * another MAJOR is not loaded (logged); MINOR adds. 1.1 added `api.events`, `api.vars`, `api.progress`, `api.scene`,
  * the component context's `children` and the hook `onUnlocked`; 1.2 `api.registerNodeType` (a node type of the
  * plugin's own, `./node-types.ts`); 1.3 a parameter's optional `label` (the words the editor's row shows,
  * `./components.ts` – content schema 2.15); 1.4 `api.registerMaterial` and `api.registerTexture` (a whole material, a
@@ -15,7 +15,10 @@
  * engine steps every frame) and `api.shadertoy` (a Shadertoy pass as its fragment) – content schema 2.20; neither is a
  * registration (no type, no spec), so nothing of them is recorded; 1.7 `api.loadModel` (a model file by its URL) and the
  * parameter kind `model` (a Library model picked in the editor – content schema 2.28); 1.8 `api.registerAppearance` (a look an entity
- * appears with, `./appearance.ts` – content schema 2.29).
+ * appears with, `./appearance.ts` – content schema 2.29); **2.0** (#319, no alias): the scene names – `api.scene`
+ * (was `api.spread`), the core event `sceneChanged { sceneId, previous }` (was `spreadChanged`), the variable scope `scene`
+ * (was `spread`), a target's and an entry's `sceneId` (was `spreadId`), `progress.completion(sceneId?)` / `counts(sceneId?)`,
+ * the AR scene's state event `arState` (was `sceneState`) – a plugin built against 1.x is not loaded until it is built again.
  *
  * What a plugin registers is recorded by the content build (content schema 2.14, #90): it runs every plugin once with a
  * recording API and writes the specs into the plugin's `registered` – so the guard, the editor's API, the MCP server and
@@ -31,7 +34,7 @@ import { isBuiltInPassType, type PassSpec } from "./passes";
 import { materialSpecProblems, textureSpecProblems, type MaterialSpec, type TextureSpec } from "./materials";
 import { isObject } from "../guards/primitives";
 
-export const PLUGIN_API_VERSION = "1.8";
+export const PLUGIN_API_VERSION = "2.0";
 
 /** What a plugin registered, as the content build recorded it (schema 2.14); a missing kind = none of it */
 export interface PluginRegistrations {

@@ -2,7 +2,7 @@ import type { PluginApi } from "osct-plugin-api";
 
 /**
  * A post-processing pass of the book's own (#216): **scan lines** across the rendered picture, like an old screen. A
- * spread or the book names it in its `passes` like a built-in pass – `- type: scanLines` with its parameters, in its
+ * scene or the book names it in its `passes` like a built-in pass – `- type: scanLines` with its parameters, in its
  * place in the chain – and the editor's post-processing section offers it under *add pass · scanlines* with the rows
  * below. The demo's *The switch* carries it switched off (`enabled: false`): its rows are there to find, the toggle in
  * its head switches it on.

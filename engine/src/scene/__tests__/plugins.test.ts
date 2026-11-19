@@ -22,7 +22,7 @@ const TINT: ComponentSpec = {
   },
 };
 
-const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", spreadId: "s", imageSrc: "/t.jpg", entity });
+const target = (entity: EntityData): Target => ({ id: "t", entryId: "t", sceneId: "s", imageSrc: "/t.jpg", entity });
 const noAssets = () => undefined;
 
 afterEach(() => {
@@ -183,7 +183,7 @@ describe("a plugin's pass", () => {
   /** The chain reads the renderer's size and pixel ratio when it is built; no WebGL context is needed */
   const fakeRenderer = { getSize: () => new Vector2(300, 200), getPixelRatio: () => 1, capabilities: { maxSamples: 0 } };
 
-  it("is registered with the plugin as its owner, runs in a spread's chain, and leaves with the plugin", () => {
+  it("is registered with the plugin as its owner, runs in a scene's chain, and leaves with the plugin", () => {
     const factory = vi.fn(() => fakePass() as never);
     installPlugin("fx", { register: api => api.registerPass("halo", HALO, factory) });
     expect(passRegistration("halo")?.owner).toBe("fx");
@@ -230,13 +230,13 @@ describe("loadPlugins", () => {
       if (url.includes("broken")) throw new Error("404");
       return { register: (api: PluginApi) => api.registerComponent("spin", SPIN, () => ({})) };
     };
-    const plugins = [{ id: "fx", src: "/p/fx/plugin.js", api: "1.0" }, { id: "broken", src: "/p/broken/plugin.js", api: "1.0" }, { id: "old", src: "/p/old/plugin.js", api: "0.9" }];
+    const plugins = [{ id: "fx", src: "/p/fx/plugin.js", api: "2.0" }, { id: "broken", src: "/p/broken/plugin.js", api: "2.0" }, { id: "old", src: "/p/old/plugin.js", api: "1.8" }];
     await loadPlugins(plugins, importer);
     await loadPlugins(plugins, importer);
     expect(imported).toEqual(["/p/fx/plugin.js", "/p/broken/plugin.js", "/p/broken/plugin.js"]);
     expect(installedPlugins()).toEqual(["fx"]);
     expect(error).toHaveBeenCalledWith(expect.stringContaining("broken"), expect.any(Error));
-    expect(error).toHaveBeenCalledWith(expect.stringContaining("plugin API 0.9"));
+    expect(error).toHaveBeenCalledWith(expect.stringContaining("plugin API 1.8"));
   });
 
   it("leaves a plugin the editor installed from its own source (#269): the content's module of that id is not installed over it", async () => {
