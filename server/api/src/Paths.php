@@ -32,7 +32,7 @@ final class Paths
         self::sqlite();
     }
 
-    /** The content store's folder (the directory store: `<env>/<build>/…`, `assets/<book>/…`) */
+    /** The content store's folder (the directory store: `<env>/<build>/…`, `assets/<experience>/…`) */
     public static function contentStore(): string
     {
         return self::$cache['CONTENT_STORE_DIR'] ??= self::resolve('CONTENT_STORE_DIR', self::root() . '/content-store', 'content', true);

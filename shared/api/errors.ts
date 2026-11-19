@@ -1,12 +1,12 @@
 /**
  * The API's errors as its callers read them (server/api/src/Http.php): every error answers
- * `{ error: { code, message, …details } }` with one HTTP status per code, and the two-step writes – an import over a
- * book that exists, the removal of a scene or an entry – answer their first step as a 409 that carries what the step
+ * `{ error: { code, message, …details } }` with one HTTP status per code, and the two-step writes – an import over an
+ * experience that exists, the removal of a scene or an entry – answer their first step as a 409 that carries what the step
  * shows the person and a confirmation to send back.
  */
 import type { Confirmation } from "./editor";
 
-/** What an error answer says: its code, its message and its other fields (`current` of a 409 other-book, `usages`, …) */
+/** What an error answer says: its code, its message and its other fields (`current` of a 409 other-experience, `usages`, …) */
 export interface ApiErrorFields {
   code: string;
   message: string;
@@ -41,7 +41,7 @@ export const TWO_STEPS = {
 export interface ConfirmationStep<T> {
   shows: T;
   confirmation: Confirmation;
-  /** 409 confirmation-void: the confirmation sent was expired, someone else's, or the book changed since – this is the fresh step */
+  /** 409 confirmation-void: the confirmation sent was expired, someone else's, or the experience changed since – this is the fresh step */
   changed: boolean;
 }
 

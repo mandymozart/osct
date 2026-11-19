@@ -10,7 +10,14 @@ Progress (answers in #320: all accepted; plugin API 3.0; 2026-11-19 change: `sou
   `loadingExperience`, `experienceUpdates`; `SurfaceAnchor`; `<reader-app>`; `experience.yaml`, `buildExperience`,
   `convert-content-4.ts` + test; fixture and demo converted (the demo without `book`). Temporary: the type alias
   `BookAppearance` in `shared/types/appearance.ts` (TODO #320) until B1 and C rename it.
-- [ ] B1 – server and DB · [ ] B2 – MCP · [ ] C – editor · [ ] D – content and staging
+- [x] B1 – server and DB (`feature/320-experience-b1`): routes `/editor/experiences/…` (no alias), `Experiences` /
+  `ExperienceTexts`, `PUT /editor/experiences/{id} { title?, book?: { author?, publisher? } | null }`, errors
+  `invalid-experience` / `other-experience` (`print-first` gone), kind `experience`, `/progress/{experienceId}`,
+  `experienceUpdates`; DB renamed in place by `Db::migrate` (every form skips a missing table), `author` column dropped,
+  data step `Migration4` (print data into `book`, no `sourceOfTruth`, scope / `{{experience.title}}` in rows and change
+  log, 3.x `content_schema` → 4.0); `shared/api` names `Experience…`, `ExperienceUpdate`; the alias `BookAppearance`
+  removed. No PHP plugin API constant exists (nothing to mirror). Upgrade test on SQLite and MariaDB 10.11.
+- [ ] B2 – MCP · [ ] C – editor · [ ] D – content and staging
 Base: local `develop` at c35dc963 (2.0.3, content schema 3.0). Branch `feature/320-experience-plan`.
 **It plans against the state after #319** (`agents/REFACTOR-319.md`, branch `feature/319-internal-names`, all its
 recommendations approved): the code says `scene` (no more `spread`), the table `spreads` is `scenes`, `entries.scene_id`,

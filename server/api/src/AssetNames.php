@@ -9,47 +9,47 @@ declare(strict_types=1);
  *   of its own entity `p118-1_<asset id or field>.ext` – an **upload** keeps its own name after the place:
  *   `fight_2_remesh_4096.jpg` → `p010-3_fight-2-remesh-4096.jpg` (Tilman, 2026-11-17: "keep their own part");
  * - a surface's reference image (#314) `<scene>_<surface>.webp` (`s118-119_surface.webp`);
- * - a shared entity's file `<entity ref>_<asset id>.ext` (an upload: `<entity ref>_<its own name>.ext`); the book's environment `environment_world.glb`,
+ * - a shared entity's file `<entity ref>_<asset id>.ext` (an upload: `<entity ref>_<its own name>.ext`); the experience's environment `environment_world.glb`,
  *   `environment_sky.webp`;
  * - a file used in several places takes its first use in the scenes' order (the rest are "+N more"); a file only a
  *   plugin's source names, and an unused file, keep their names. Two files that would take the same name are told apart
  *   by `-2`, `-3` in that order.
  *
  * The Library groups files by the scene of their first use (`place`); uses without a scene (the environment, plugins,
- * a shared entity no target shows) are book-wide. An uploaded file's name is its `assets` row's; an imported file
+ * a shared entity no target shows) are experience-wide. An uploaded file's name is its `assets` row's; an imported file
  * (#244: no row, read-only) is listed under a name kept in `asset_names` by URL (as `asset_credits`), else its own.
- * Names are no content: no change in the book's log, no publish needed.
+ * Names are no content: no change in the experience's log, no publish needed.
  */
 final class AssetNames
 {
     /** The longest file name */
     public const NAME_MAX = 255;
     /** The order of a use without a scene: after every scene */
-    private const BOOK_WIDE = PHP_INT_MAX;
+    private const EXPERIENCE_WIDE = PHP_INT_MAX;
     /** A field's part of a name: `imageSrc` is the target image, `image` the entry's colour picture */
     private const PARTS = ['imageSrc' => 'target', 'image' => 'image', 'worldSrc' => 'world', 'skySrc' => 'sky'];
-    /** The kinds of use that give a file its name (#298 phase 3) – a scene's, a book setting's or the layout's use counts, but names nothing */
+    /** The kinds of use that give a file its name (#298 phase 3) – a scene's, an experience setting's or the layout's use counts, but names nothing */
     private const NAMING = ['target', 'entry', 'entity', 'reference', 'environment', 'plugin'];
     /** A use's kind in the order of a file's uses (`rank`) */
-    private const KIND_ORDER = ['target' => 0, 'entry' => 1, 'entity' => 2, 'scene' => 3, 'reference' => 4, 'environment' => 5, 'book' => 6, 'plugin' => 7, 'layout' => 8];
+    private const KIND_ORDER = ['target' => 0, 'entry' => 1, 'entity' => 2, 'scene' => 3, 'reference' => 4, 'environment' => 5, 'experience' => 6, 'plugin' => 7, 'layout' => 8];
     /** The print layout's folder in the content (editor/src/lib/stage/stage-layout.ts `LAYOUT_PATH`) and the file that lists its sheets */
     public const LAYOUT_PATH = '/assets/content/layout/';
     public const LAYOUT_FILE = self::LAYOUT_PATH . 'layout.json';
 
     /**
-     * POST /editor/books/{id}/assets/names { apply? } → { plan: { renames, files, used, unused }, applied }: the names
+     * POST /editor/experiences/{id}/assets/names { apply? } → { plan: { renames, files, used, unused }, applied }: the names
      * every file of the Library takes by its use, in two steps. Without `apply: true`
      * nothing is written – `renames` lists each file whose name changes: { id, url, imported, from, to, use: { kind, ref,
      * scene }, more } (`more` = its further uses). With it the plan is made again and written in one transaction.
      */
-    public static function plan(string $bookId): never
+    public static function plan(string $experienceId): never
     {
         $user = Editor::user();
-        Books::exists($bookId);
+        Experiences::exists($experienceId);
         $apply = (Editor::body()->apply ?? false) === true;
-        $run = static function () use ($bookId, $apply, $user): array {
-            $plan = self::compute($bookId);
-            if ($apply) self::apply($bookId, $plan['renames'], $user);
+        $run = static function () use ($experienceId, $apply, $user): array {
+            $plan = self::compute($experienceId);
+            if ($apply) self::apply($experienceId, $plan['renames'], $user);
             return $plan;
         };
         $plan = $apply ? Db::transaction($run) : $run();
@@ -60,12 +60,12 @@ final class AssetNames
      * What `plan` proposes
      * @return array{renames: list<array<string, mixed>>, files: int, used: int, unused: int}
      */
-    public static function compute(string $bookId): array
+    public static function compute(string $experienceId): array
     {
-        $files = Assets::libraryFiles($bookId);
-        $uses = self::usesOf($bookId);
+        $files = Assets::libraryFiles($experienceId);
+        $uses = self::usesOf($experienceId);
         $used = array_values(array_filter($files, static fn(array $f) => isset($uses[$f['url']])));
-        // Only the uses that name (NAMING): a file only a scene, a book setting or the layout uses keeps its name
+        // Only the uses that name (NAMING): a file only a scene, an experience setting or the layout uses keeps its name
         $naming = [];
         foreach ($used as $file) {
             $list = array_values(array_filter($uses[$file['url']], static fn(array $use) => in_array($use['kind'], self::NAMING, true)));
@@ -99,35 +99,35 @@ final class AssetNames
      * @param list<array<string, mixed>> $renames
      * @param array<string, mixed> $user
      */
-    private static function apply(string $bookId, array $renames, array $user): void
+    private static function apply(string $experienceId, array $renames, array $user): void
     {
         $now = Editor::nowMs();
         foreach ($renames as $rename) {
-            if ($rename['imported']) self::setImportedName($bookId, (string) $rename['url'], (string) $rename['to'], $user['id'], $now);
-            else Db::run('UPDATE assets SET name = :name, updated_at = :now WHERE book_id = :book AND id = :id', ['name' => $rename['to'], 'now' => $now, 'book' => $bookId, 'id' => $rename['id']]);
+            if ($rename['imported']) self::setImportedName($experienceId, (string) $rename['url'], (string) $rename['to'], $user['id'], $now);
+            else Db::run('UPDATE assets SET name = :name, updated_at = :now WHERE experience_id = :experience AND id = :id', ['name' => $rename['to'], 'now' => $now, 'experience' => $experienceId, 'id' => $rename['id']]);
         }
     }
 
-    private static function setImportedName(string $bookId, string $url, string $name, ?string $by, int $at): void
+    private static function setImportedName(string $experienceId, string $url, string $name, ?string $by, int $at): void
     {
-        Db::run('DELETE FROM asset_names WHERE book_id = :book AND url = :url', ['book' => $bookId, 'url' => $url]);
-        Db::run('INSERT INTO asset_names (book_id, url, name, updated_by, updated_at) VALUES (:book, :url, :name, :by, :at)',
-            ['book' => $bookId, 'url' => $url, 'name' => $name, 'by' => $by, 'at' => $at]);
+        Db::run('DELETE FROM asset_names WHERE experience_id = :experience AND url = :url', ['experience' => $experienceId, 'url' => $url]);
+        Db::run('INSERT INTO asset_names (experience_id, url, name, updated_by, updated_at) VALUES (:experience, :url, :name, :by, :at)',
+            ['experience' => $experienceId, 'url' => $url, 'name' => $name, 'by' => $by, 'at' => $at]);
     }
 
     /** @return array<string, string> the imported files' names by URL (`asset_names`) */
-    public static function importedNames(string $bookId): array
+    public static function importedNames(string $experienceId): array
     {
         $names = [];
-        foreach (Db::run('SELECT url, name FROM asset_names WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+        foreach (Db::run('SELECT url, name FROM asset_names WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll() as $row) {
             $names[(string) $row['url']] = (string) $row['name'];
         }
         return $names;
     }
 
     /**
-     * Where a file is placed in the Library: the scene of its first use (null: book-wide), the order (the scene's
-     * position, book-wide −1) and how many uses follow – null for an unused file
+     * Where a file is placed in the Library: the scene of its first use (null: experience-wide), the order (the scene's
+     * position, experience-wide −1) and how many uses follow – null for an unused file
      * @param list<array<string, mixed>> $uses a file's uses (`usesOf`)
      * @return ?array{scene: ?string, order: int, more: int}
      */
@@ -135,7 +135,7 @@ final class AssetNames
     {
         if (!$uses) return null;
         $first = $uses[0];
-        return ['scene' => $first['scene'], 'order' => $first['order'] === self::BOOK_WIDE ? -1 : $first['order'], 'more' => count($uses) - 1];
+        return ['scene' => $first['scene'], 'order' => $first['order'] === self::EXPERIENCE_WIDE ? -1 : $first['order'], 'more' => count($uses) - 1];
     }
 
     // ── Uses ─────────────────────────────────────────────────────────────────────────────────────
@@ -148,24 +148,24 @@ final class AssetNames
      * - `scene` – a scene's own data (its passes …), on the scene;
      * - `reference` – a surface's reference image (#314, ref `<scene>/<surface>`) on its scene – counted, relinked and
      *   deleted with the file; it names the file `<scene>_<surface>`;
-     * - `environment` – the book's environment (its world model, its sky); `book` – any other setting of the book
-     *   (appearance, passes with a texture or a model …); both book-wide;
-     * - `plugin` – a plugin source naming the file's URL as text (a shader it loads), book-wide;
+     * - `environment` – the experience's environment (its world model, its sky); `experience` – any other setting of the experience
+     *   (appearance, passes with a texture or a model …); both experience-wide;
+     * - `plugin` – a plugin source naming the file's URL as text (a shader it loads), experience-wide;
      * - `layout` – a file of the print layout's folder (`layout/sheets/*.jpg`, `*@sharp.jpg`): the editor's stage and cards
-     *   read them through `layout/layout.json`, never through a row – used whenever the book's files hold that layout.json.
+     *   read them through `layout/layout.json`, never through a row – used whenever the experience's files hold that layout.json.
      * A row's JSON uses a file when one of its strings is the file's URL (or, for an imported file, its content path
-     * `/assets/content/…`); a plugin source when its text contains it. Every table is read once – a book has ~2,000 files.
-     * `stem` is the name the use gives (without extension), null when it gives none (a plugin source, a scene, a book
+     * `/assets/content/…`); a plugin source when its text contains it. Every table is read once – an experience has ~2,000 files.
+     * `stem` is the name the use gives (without extension), null when it gives none (a plugin source, a scene, an experience
      * setting, the layout).
      * @return array<string, list<array<string, mixed>>>
      */
-    public static function usesOf(string $bookId): array
+    public static function usesOf(string $experienceId): array
     {
-        [$keys, $layout] = self::fileKeys($bookId);
+        [$keys, $layout] = self::fileKeys($experienceId);
         if (!$keys) return [];
         // A scene's place in the order: its position
         $scenes = [];
-        foreach (Scenes::rows($bookId) as $i => $row) $scenes[(string) $row['id']] = $i;
+        foreach (Scenes::rows($experienceId) as $i => $row) $scenes[(string) $row['id']] = $i;
         $uses = [];
         $add = static function (string $value, string $kind, string $ref, ?string $scene, int $order, ?string $stem, ?string $prefix = null) use (&$uses, $keys): void {
             $url = $keys[$value] ?? null;
@@ -173,11 +173,11 @@ final class AssetNames
             foreach ($uses[$url] ?? [] as $use) if ($use['kind'] === $kind && $use['ref'] === $ref) return;
             $uses[$url][] = ['kind' => $kind, 'ref' => $ref, 'scene' => $scene, 'order' => $order, 'stem' => $stem === null ? null : self::clean($stem), 'prefix' => $prefix];
         };
-        $at = static fn(?string $scene): array => $scene !== null && isset($scenes[$scene]) ? ['scene' => $scene, 'order' => $scenes[$scene]] : ['scene' => null, 'order' => self::BOOK_WIDE];
+        $at = static fn(?string $scene): array => $scene !== null && isset($scenes[$scene]) ? ['scene' => $scene, 'order' => $scenes[$scene]] : ['scene' => null, 'order' => self::EXPERIENCE_WIDE];
 
         // Entries: on their scene; the colour picture `_image`, other files by field
         $entries = [];
-        foreach (Db::run('SELECT id, scene_id, data_json FROM entries WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+        foreach (Db::run('SELECT id, scene_id, data_json FROM entries WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll() as $row) {
             $id = (string) $row['id'];
             $entries[$id] = $at($row['scene_id'] === null ? null : (string) $row['scene_id']);
             $place = $entries[$id];
@@ -187,9 +187,9 @@ final class AssetNames
         }
         // Targets: on their entry's scene; the printed image `_target`, the files of its own entity by asset id
         $shared = [];
-        foreach (Db::run('SELECT id, entry_id, image_src, entity_ref, data_json FROM targets WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+        foreach (Db::run('SELECT id, entry_id, image_src, entity_ref, data_json FROM targets WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll() as $row) {
             $entry = (string) $row['entry_id'];
-            $place = $entries[$entry] ?? ['scene' => null, 'order' => self::BOOK_WIDE];
+            $place = $entries[$entry] ?? ['scene' => null, 'order' => self::EXPERIENCE_WIDE];
             $ref = (string) $row['id'];
             if (is_string($row['image_src']) && $row['image_src'] !== '') $add($row['image_src'], 'target', $ref, $place['scene'], $place['order'], "{$entry}_target");
             self::walk(Editor::decode($row['data_json']), null, null, static function (string $value, ?string $part, bool $src = false) use ($add, $entry, $ref, $place) {
@@ -199,16 +199,16 @@ final class AssetNames
             $shares = $row['entity_ref'] === null ? null : (string) $row['entity_ref'];
             if ($shares !== null && (!isset($shared[$shares]) || $shared[$shares]['order'] > $place['order'])) $shared[$shares] = $place;
         }
-        foreach (Db::run('SELECT ref, data_json FROM entities WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+        foreach (Db::run('SELECT ref, data_json FROM entities WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll() as $row) {
             $ref = (string) $row['ref'];
-            $place = $shared[$ref] ?? ['scene' => null, 'order' => self::BOOK_WIDE];
+            $place = $shared[$ref] ?? ['scene' => null, 'order' => self::EXPERIENCE_WIDE];
             self::walk(Editor::decode($row['data_json']), null, null, static function (string $value, ?string $part, bool $src = false) use ($add, $ref, $place) {
                 $add($value, 'entity', $ref, $place['scene'], $place['order'], "{$ref}_" . ($part ?? 'file'), $src ? $ref : null);
             });
         }
         // Scenes' own files (their passes …): on the scene, no name of their own
         $surfaces = [];
-        foreach (Db::run('SELECT id, data_json FROM scenes WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+        foreach (Db::run('SELECT id, data_json FROM scenes WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll() as $row) {
             $id = (string) $row['id'];
             $place = $at($id);
             $data = Editor::decode($row['data_json']);
@@ -218,37 +218,37 @@ final class AssetNames
             });
         }
         // Surface reference images (#314): on their scene, named `<scene>_<surface>` – only those whose surface is there
-        foreach (SurfaceReferences::byScene($bookId) as $scene => $references) {
+        foreach (SurfaceReferences::byScene($experienceId) as $scene => $references) {
             $place = $at((string) $scene);
             foreach ($references as $surface => $reference) {
                 if (!in_array((string) $surface, $surfaces[$scene] ?? [], true)) continue;
                 $add($reference['url'], 'reference', SurfaceReferences::ref((string) $scene, (string) $surface), $place['scene'], $place['order'], "{$scene}_{$surface}");
             }
         }
-        // The book's environment (its world model, its sky): book-wide
-        $book = Editor::decode(Db::value('SELECT book_json FROM books WHERE id = :id', ['id' => $bookId]));
-        if ($book instanceof stdClass && ($book->environment ?? null) instanceof stdClass) {
-            self::walk($book->environment, null, null, static function (string $value, ?string $part) use ($add, $bookId) {
-                $add($value, 'environment', $bookId, null, self::BOOK_WIDE, 'environment_' . ($part ?? 'file'));
+        // The experience's environment (its world model, its sky): experience-wide
+        $experience = Editor::decode(Db::value('SELECT experience_json FROM experiences WHERE id = :id', ['id' => $experienceId]));
+        if ($experience instanceof stdClass && ($experience->environment ?? null) instanceof stdClass) {
+            self::walk($experience->environment, null, null, static function (string $value, ?string $part) use ($add, $experienceId) {
+                $add($value, 'environment', $experienceId, null, self::EXPERIENCE_WIDE, 'environment_' . ($part ?? 'file'));
             });
         }
-        // The book's other settings (appearance, passes with a texture or a model parameter …): book-wide, no name of their own
-        if ($book instanceof stdClass) {
-            foreach (get_object_vars($book) as $key => $value) {
+        // The experience's other settings (appearance, passes with a texture or a model parameter …): experience-wide, no name of their own
+        if ($experience instanceof stdClass) {
+            foreach (get_object_vars($experience) as $key => $value) {
                 if ($key === 'environment') continue;
-                self::walk($value, (string) $key, $book, static function (string $value) use ($add, $bookId) {
-                    $add($value, 'book', $bookId, null, self::BOOK_WIDE, null);
+                self::walk($value, (string) $key, $experience, static function (string $value) use ($add, $experienceId) {
+                    $add($value, 'experience', $experienceId, null, self::EXPERIENCE_WIDE, null);
                 });
             }
         }
-        // Plugin sources name a file by its URL as text: book-wide, no name of their own
-        foreach (Db::run('SELECT id, source FROM plugins WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+        // Plugin sources name a file by its URL as text: experience-wide, no name of their own
+        foreach (Db::run('SELECT id, source FROM plugins WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll() as $row) {
             foreach ($keys as $value => $url) {
-                if (str_contains((string) $row['source'], (string) $value)) $add((string) $value, 'plugin', (string) $row['id'], null, self::BOOK_WIDE, null);
+                if (str_contains((string) $row['source'], (string) $value)) $add((string) $value, 'plugin', (string) $row['id'], null, self::EXPERIENCE_WIDE, null);
             }
         }
-        // The print layout's files: read by the stage through layout.json – book-wide, no name of their own
-        foreach ($layout as $value) $add($value, 'layout', 'layout.json', null, self::BOOK_WIDE, null);
+        // The print layout's files: read by the stage through layout.json – experience-wide, no name of their own
+        foreach ($layout as $value) $add($value, 'layout', 'layout.json', null, self::EXPERIENCE_WIDE, null);
         foreach ($uses as $url => $list) {
             usort($list, static fn(array $a, array $b) => self::rank($a) <=> self::rank($b));
             $uses[$url] = $list;
@@ -288,18 +288,18 @@ final class AssetNames
     /**
      * The values a row may name a Library file by → its Library URL: an upload's URL; an imported file's URL and its
      * content path (`/assets/content/…` – what the rows hold below the assets base). And the imported files of the print
-     * layout's folder (their URLs) when the book's files hold its `layout.json` – none without it.
+     * layout's folder (their URLs) when the experience's files hold its `layout.json` – none without it.
      * @return array{0: array<string, string>, 1: list<string>}
      */
-    private static function fileKeys(string $bookId): array
+    private static function fileKeys(string $experienceId): array
     {
-        $book = Db::one('SELECT assets_base, files_json FROM books WHERE id = :id', ['id' => $bookId]);
-        $base = rtrim((string) ($book['assets_base'] ?? ''), '/');
-        $imported = Editor::decode($book['files_json'] ?? null);
+        $experience = Db::one('SELECT assets_base, files_json FROM experiences WHERE id = :id', ['id' => $experienceId]);
+        $base = rtrim((string) ($experience['assets_base'] ?? ''), '/');
+        $imported = Editor::decode($experience['files_json'] ?? null);
         $hasLayout = $imported instanceof stdClass && property_exists($imported, self::LAYOUT_FILE);
         $keys = [];
         $layout = [];
-        foreach (Assets::libraryFiles($bookId) as $file) {
+        foreach (Assets::libraryFiles($experienceId) as $file) {
             $url = (string) $file['url'];
             $keys[$url] = $url;
             if (!$file['imported']) continue;
@@ -315,9 +315,9 @@ final class AssetNames
     /**
      * The name an upload takes when its use is known (`POST …/assets?fit=…&entry=…` or `&scene=…&surface=…`): a target
      * image `<entry>_target`, an entry's picture `<entry>_image`, a reference image `<scene>_<surface>` – null when the
-     * request names no use (the upload keeps its name). 400 `invalid-use` for a surface that is no surface of the book.
+     * request names no use (the upload keeps its name). 400 `invalid-use` for a surface that is no surface of the experience.
      */
-    public static function uploadStem(string $bookId, string $fit): ?string
+    public static function uploadStem(string $experienceId, string $fit): ?string
     {
         $entry = $_GET['entry'] ?? null;
         if (is_string($entry) && $entry !== '' && in_array($fit, ['target', 'entryImage'], true)) {
@@ -328,7 +328,7 @@ final class AssetNames
         if ($fit === 'reference' && is_string($scene) && $scene !== '' && is_string($surface) && $surface !== '') {
             $scene = Editor::id($scene, 'scene');
             $surface = Editor::id($surface, 'surface');
-            if (!SurfaceReferences::surfaceExists($bookId, $scene, $surface)) throw new ApiError(400, 'invalid-use', "The scene \"$scene\" has no surface \"$surface\".");
+            if (!SurfaceReferences::surfaceExists($experienceId, $scene, $surface)) throw new ApiError(400, 'invalid-use', "The scene \"$scene\" has no surface \"$surface\".");
             return "{$scene}_{$surface}";
         }
         return null;

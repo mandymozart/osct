@@ -12,7 +12,7 @@
 declare(strict_types=1);
 
 $api = getenv('OSCT_API_DIR') ?: dirname(__DIR__) . '/api';
-foreach (['Version', 'Config', 'Paths', 'Db'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Editor', 'Migration4'] as $class) {
     require "$api/src/$class.php";
 }
 

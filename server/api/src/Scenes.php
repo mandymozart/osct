@@ -2,16 +2,16 @@
 declare(strict_types=1);
 
 /**
- * Scenes (content schema 3.0, #319 – agents/SCENES.md "Schema 3.0", docs/server.md "Scenes"): a book is an ordered list of
+ * Scenes (content schema 3.0, #319 – agents/SCENES.md "Schema 3.0", docs/server.md "Scenes"): an experience is an ordered list of
  * scenes. A scene is a `scenes` row – its order is `scenes.position` and nothing else, its data_json the content's
  * `SceneData` { id, label, group?, surfaces, passes? }, `title` a copy of its label; the page columns of the table are
- * not used (0). The book's groups live in `books.groups_json`, an entry's scene is `entries.scene_id` and its surface in
+ * not used (0). The experience's groups live in `experiences.groups_json`, an entry's scene is `entries.scene_id` and its surface in
  * the entry's data_json; a target's `place` names the surface it lies on. Adding, moving or removing a scene changes
  * nothing else.
  *
  * The routes: `GET …/scenes`, `POST …/scenes` (a preset, anywhere), `PUT …/scenes/{id}` (label, group, surfaces, passes),
  * `POST …/scenes/move` (one or several, to a place or into / out of a group – a plan first, `apply: true` writes),
- * `DELETE …/scenes/{id}` (`Books::deleteScene`, two steps), `POST …/groups` (a group from picked scenes – plan, then
+ * `DELETE …/scenes/{id}` (`Experiences::deleteScene`, two steps), `POST …/groups` (a group from picked scenes – plan, then
  * apply), `PUT …/groups/{gid}` (rename), `DELETE …/groups/{gid}` (ungroup: the scenes stay in place and order).
  */
 final class Scenes
@@ -35,21 +35,21 @@ final class Scenes
     // ── Reading ──────────────────────────────────────────────────────────────────────────────────
 
     /**
-     * The book's scene rows in order (`scenes.position`); `$lock` inside a transaction that writes them back
+     * The experience's scene rows in order (`scenes.position`); `$lock` inside a transaction that writes them back
      * @return list<array<string, mixed>>
      */
-    public static function rows(string $bookId, bool $lock = false): array
+    public static function rows(string $experienceId, bool $lock = false): array
     {
-        return Db::run('SELECT * FROM scenes WHERE book_id = :book ORDER BY position, id' . ($lock ? Db::forUpdate() : ''), ['book' => $bookId])->fetchAll();
+        return Db::run('SELECT * FROM scenes WHERE experience_id = :experience ORDER BY position, id' . ($lock ? Db::forUpdate() : ''), ['experience' => $experienceId])->fetchAll();
     }
 
     /**
      * The rows in order, each scene's data and row by id
      * @return array{rows: list<array<string, mixed>>, data: array<string, stdClass>, row: array<string, array<string, mixed>>}
      */
-    public static function context(string $bookId, bool $lock = false): array
+    public static function context(string $experienceId, bool $lock = false): array
     {
-        $rows = self::rows($bookId, $lock);
+        $rows = self::rows($experienceId, $lock);
         $data = [];
         $byId = [];
         foreach ($rows as $row) {
@@ -73,18 +73,18 @@ final class Scenes
     }
 
     /**
-     * The book's groups (`books.groups_json`, the content's root `groups`)
-     * @param array<string, mixed> $book the book row
+     * The experience's groups (`experiences.groups_json`, the content's root `groups`)
+     * @param array<string, mixed> $experience the experience row
      * @return list<stdClass>
      */
-    public static function groups(array $book): array
+    public static function groups(array $experience): array
     {
-        $groups = Editor::decode($book['groups_json'] ?? '[]');
+        $groups = Editor::decode($experience['groups_json'] ?? '[]');
         return is_array($groups) ? array_values(array_filter($groups, static fn($g) => $g instanceof stdClass && is_string($g->id ?? null))) : [];
     }
 
     /**
-     * Every scene as the content holds it, in order – a `group` the book does not have left out
+     * Every scene as the content holds it, in order – a `group` the experience does not have left out
      * @param array{rows: list<array<string, mixed>>, data: array<string, stdClass>} $context
      * @param list<string> $groupIds
      * @return list<stdClass>
@@ -103,31 +103,31 @@ final class Scenes
     // ── GET …/scenes ─────────────────────────────────────────────────────────────────────────────
 
     /**
-     * GET /editor/books/{id}/scenes → { scenes: [SceneData + position, surfaces with `reference` { url, name, fit } | null,
-     * entries, targets], groups: [{ id, label, scenes }] }: the book's scenes in order – `entries` / `targets` how many lie
+     * GET /editor/experiences/{id}/scenes → { scenes: [SceneData + position, surfaces with `reference` { url, name, fit } | null,
+     * entries, targets], groups: [{ id, label, scenes }] }: the experience's scenes in order – `entries` / `targets` how many lie
      * on it; every surface with its reference image (#314, `SurfaceReferences` – editor-only, never in the content)
      */
-    public static function list(string $bookId): never
+    public static function list(string $experienceId): never
     {
         Editor::user();
-        $book = Books::bookRow($bookId);
-        Http::json(200, self::overview($bookId, $book));
+        $experience = Experiences::experienceRow($experienceId);
+        Http::json(200, self::overview($experienceId, $experience));
     }
 
     /**
-     * @param array<string, mixed> $book
+     * @param array<string, mixed> $experience
      * @return array{scenes: list<array<string, mixed>>, groups: list<array<string, mixed>>}
      */
-    public static function overview(string $bookId, array $book): array
+    public static function overview(string $experienceId, array $experience): array
     {
-        $context = self::context($bookId);
-        $groups = self::groups($book);
+        $context = self::context($experienceId);
+        $groups = self::groups($experience);
         $counts = [];
-        foreach (Db::run('SELECT e.scene_id, COUNT(*) AS entries, COUNT(t.id) AS targets FROM entries e LEFT JOIN targets t ON t.book_id = e.book_id AND t.entry_id = e.id
-                          WHERE e.book_id = :book AND e.scene_id IS NOT NULL GROUP BY e.scene_id', ['book' => $bookId])->fetchAll() as $row) {
+        foreach (Db::run('SELECT e.scene_id, COUNT(*) AS entries, COUNT(t.id) AS targets FROM entries e LEFT JOIN targets t ON t.experience_id = e.experience_id AND t.entry_id = e.id
+                          WHERE e.experience_id = :experience AND e.scene_id IS NOT NULL GROUP BY e.scene_id', ['experience' => $experienceId])->fetchAll() as $row) {
             $counts[(string) $row['scene_id']] = ['entries' => (int) $row['entries'], 'targets' => (int) $row['targets']];
         }
-        $references = SurfaceReferences::byScene($bookId);
+        $references = SurfaceReferences::byScene($experienceId);
         $scenes = [];
         foreach (self::shown($context, array_map(static fn($g) => (string) $g->id, $groups)) as $position => $scene) {
             $id = (string) $scene->id;
@@ -147,24 +147,24 @@ final class Scenes
     // ── POST …/scenes ────────────────────────────────────────────────────────────────────────────
 
     /**
-     * POST /editor/books/{id}/scenes { preset?, after? | before? | position?, id?, label?, group?, surfaces? } → 201
+     * POST /editor/experiences/{id}/scenes { preset?, after? | before? | position?, id?, label?, group?, surfaces? } → 201
      * { scene, position }: a new scene anywhere in the order. `preset` (default `double`): `double` – one surface twice the
      * page's width, `single` – one page, `wall` – a wall standing ahead (`rx` 90); `surfaces` replaces the preset's (a
      * surface without `place` lies in a row). The place: after the scene `after`, before `before`, or at `position` (0 =
      * first); none = last. The label: `label`, else "New scene". Its id is `id`, else the first free `scene-<n>`. 400
      * `invalid-scene`, `unknown-scene`, `unknown-group`; 409 `duplicate-id`.
      */
-    public static function add(string $bookId): never
+    public static function add(string $experienceId): never
     {
         $user = Editor::user();
-        $book = Books::bookRow($bookId);
+        $experience = Experiences::experienceRow($experienceId);
         $body = Editor::body();
         $preset = $body->preset ?? 'double';
         if (!in_array($preset, self::PRESETS, true)) throw new ApiError(400, 'invalid-scene', 'preset must be one of ' . implode(', ', self::PRESETS) . ' (a cover is a single scene first in the order).');
         $id = property_exists($body, 'id') ? Editor::id($body->id, 'id') : null;
         $placement = self::placement($body);
-        [$scene, $position] = Db::transaction(static function () use ($bookId, $book, $preset, $id, $placement, $body, $user) {
-            $before = self::context($bookId, true);
+        [$scene, $position] = Db::transaction(static function () use ($experienceId, $experience, $preset, $id, $placement, $body, $user) {
+            $before = self::context($experienceId, true);
             $ids = array_map(static fn(array $row) => (string) $row['id'], $before['rows']);
             if ($id === null) {
                 for ($n = 1; in_array("scene-$n", $ids, true); $n++);
@@ -176,14 +176,14 @@ final class Scenes
             $scene = (object) ['id' => $id, 'label' => self::DEFAULT_LABEL, 'surfaces' => self::presetSurfaces($preset)];
             $fields = new stdClass();
             foreach (['label', 'group', 'surfaces'] as $key) if (property_exists($body, $key)) $fields->{$key} = $body->{$key};
-            self::edit($book, $scene, $fields);
+            self::edit($experience, $scene, $fields);
             array_splice($ids, $position, 0, [$id]);
             $json = Editor::encode($scene);
-            Db::run('INSERT INTO scenes (book_id, id, position, label, data_json) VALUES (:book, :id, :position, :label, :data)',
-                ['book' => $bookId, 'id' => $id, 'position' => $position, 'label' => $scene->label, 'data' => $json]);
-            self::writePositions($bookId, self::rows($bookId, true), $ids);
-            Books::touchBook($bookId);
-            Books::recordChange($bookId, $user, self::KIND, $id, null, $json);
+            Db::run('INSERT INTO scenes (experience_id, id, position, label, data_json) VALUES (:experience, :id, :position, :label, :data)',
+                ['experience' => $experienceId, 'id' => $id, 'position' => $position, 'label' => $scene->label, 'data' => $json]);
+            self::writePositions($experienceId, self::rows($experienceId, true), $ids);
+            Experiences::touchExperience($experienceId);
+            Experiences::recordChange($experienceId, $user, self::KIND, $id, null, $json);
             return [$scene, $position];
         });
         Http::json(201, ['scene' => $scene, 'position' => $position]);
@@ -217,7 +217,7 @@ final class Scenes
         if (isset($placement['position'])) return min($placement['position'], count($ids));
         $anchor = $placement['after'] ?? $placement['before'];
         $index = array_search($anchor, $ids, true);
-        if ($index === false) throw new ApiError(400, 'unknown-scene', "No scene \"$anchor\" in this book.");
+        if ($index === false) throw new ApiError(400, 'unknown-scene', "No scene \"$anchor\" in this experience.");
         return isset($placement['after']) ? $index + 1 : $index;
     }
 
@@ -239,30 +239,30 @@ final class Scenes
     // ── PUT …/scenes/{id} ────────────────────────────────────────────────────────────────────────
 
     /**
-     * PUT /editor/books/{id}/scenes/{sceneId} { label?, group?, surfaces?, passes?, apply? } → { scene, cleared: { entries,
-     * targets } }: the scene's label (non-empty text), group (a group of the book, null takes it out – the scene stays where
+     * PUT /editor/experiences/{id}/scenes/{sceneId} { label?, group?, surfaces?, passes?, apply? } → { scene, cleared: { entries,
+     * targets } }: the scene's label (non-empty text), group (a group of the experience, null takes it out – the scene stays where
      * it is), surfaces (the whole list, places included – a surface without one lies in a row) and post-processing passes
-     * (a built-in type or a pass the book's plugins register; null removes the list – the book's apply –, `[]` turns them
+     * (a built-in type or a pass the experience's plugins register; null removes the list – the experience's apply –, `[]` turns them
      * off). Entries and targets that lie on surfaces that go are named first: 409 `surfaces-in-use` { entries, targets },
      * nothing written; with `apply: true` the entries stay on the scene without a surface and the targets lose their
      * `place` (`cleared`, a change each). A target placed without a surface on a scene of one surface keeps lying on it
      * when more surfaces come (its place names it). 400 `invalid-scene`, `unknown-group`; 404.
      */
-    public static function put(string $bookId, string $sceneId): never
+    public static function put(string $experienceId, string $sceneId): never
     {
         $user = Editor::user();
-        $book = Books::bookRow($bookId);
+        $experience = Experiences::experienceRow($experienceId);
         $body = Editor::body();
         $apply = ($body->apply ?? false) === true;
-        [$scene, $cleared] = Db::transaction(static function () use ($bookId, $book, $sceneId, $body, $user, $apply) {
-            $row = Db::one('SELECT * FROM scenes WHERE book_id = :book AND id = :id' . Db::forUpdate(), ['book' => $bookId, 'id' => $sceneId]);
+        [$scene, $cleared] = Db::transaction(static function () use ($experienceId, $experience, $sceneId, $body, $user, $apply) {
+            $row = Db::one('SELECT * FROM scenes WHERE experience_id = :experience AND id = :id' . Db::forUpdate(), ['experience' => $experienceId, 'id' => $sceneId]);
             if (!$row) throw new ApiError(404, 'not-found', 'No such scene.');
             $scene = Editor::decode($row['data_json']);
             $before = self::surfaceIds($scene);
-            $touched = self::edit($book, $scene, $body);
+            $touched = self::edit($experience, $scene, $body);
             if (property_exists($body, 'passes')) {
                 if ($body->passes === null) unset($scene->passes);
-                else $scene->passes = Books::checkPasses($bookId, $body->passes, 'invalid-scene');
+                else $scene->passes = Experiences::checkPasses($experienceId, $body->passes, 'invalid-scene');
                 $touched = true;
             }
             if (!$touched) throw new ApiError(400, 'invalid-scene', 'Send { label }, { group }, { surfaces } and / or { passes }.');
@@ -273,10 +273,10 @@ final class Scenes
             $entries = [];
             $targets = [];
             $named = [];
-            foreach (Db::run('SELECT * FROM entries WHERE book_id = :book AND scene_id = :scene ORDER BY position, id', ['book' => $bookId, 'scene' => $sceneId])->fetchAll() as $entry) {
+            foreach (Db::run('SELECT * FROM entries WHERE experience_id = :experience AND scene_id = :scene ORDER BY position, id', ['experience' => $experienceId, 'scene' => $sceneId])->fetchAll() as $entry) {
                 $data = Editor::decode($entry['data_json']);
                 if (in_array($data->surface ?? null, $removed, true)) $entries[] = ['row' => $entry, 'data' => $data];
-                $target = Db::one('SELECT * FROM targets WHERE book_id = :book AND entry_id = :entry', ['book' => $bookId, 'entry' => $entry['id']]);
+                $target = Db::one('SELECT * FROM targets WHERE experience_id = :experience AND entry_id = :entry', ['experience' => $experienceId, 'entry' => $entry['id']]);
                 $tData = $target ? Editor::decode($target['data_json']) : null;
                 if (!$tData instanceof stdClass || !($tData->place ?? null) instanceof stdClass) continue;
                 $on = $tData->place->surface ?? $implicit;
@@ -289,19 +289,19 @@ final class Scenes
                      'targets' => array_map(static fn(array $t) => ['id' => $t['row']['id'], 'entry' => $t['row']['entry_id'], 'surface' => $t['data']->place->surface ?? $implicit], $targets)]);
             }
             $json = Editor::encode($scene);
-            Db::run('UPDATE scenes SET label = :label, data_json = :data WHERE book_id = :book AND id = :id', ['label' => $scene->label, 'data' => $json, 'book' => $bookId, 'id' => $sceneId]);
+            Db::run('UPDATE scenes SET label = :label, data_json = :data WHERE experience_id = :experience AND id = :id', ['label' => $scene->label, 'data' => $json, 'experience' => $experienceId, 'id' => $sceneId]);
             $cleared = ['entries' => [], 'targets' => []];
             foreach ($entries as $e) {
                 unset($e['data']->surface);
                 $entryJson = Editor::encode($e['data']);
-                Db::run('UPDATE entries SET data_json = :data WHERE book_id = :book AND id = :id', ['data' => $entryJson, 'book' => $bookId, 'id' => $e['row']['id']]);
-                Books::recordChange($bookId, $user, 'entry', (string) $e['row']['id'], $e['row']['data_json'], $entryJson);
+                Db::run('UPDATE entries SET data_json = :data WHERE experience_id = :experience AND id = :id', ['data' => $entryJson, 'experience' => $experienceId, 'id' => $e['row']['id']]);
+                Experiences::recordChange($experienceId, $user, 'entry', (string) $e['row']['id'], $e['row']['data_json'], $entryJson);
                 $cleared['entries'][] = (string) $e['row']['id'];
             }
-            $writeTarget = static function (array $t) use ($bookId, $user): void {
+            $writeTarget = static function (array $t) use ($experienceId, $user): void {
                 $targetJson = Editor::encode($t['data']);
-                Db::run('UPDATE targets SET data_json = :data WHERE book_id = :book AND id = :id', ['data' => $targetJson, 'book' => $bookId, 'id' => $t['row']['id']]);
-                Books::recordChange($bookId, $user, 'target', (string) $t['row']['id'], $t['row']['data_json'], $targetJson);
+                Db::run('UPDATE targets SET data_json = :data WHERE experience_id = :experience AND id = :id', ['data' => $targetJson, 'experience' => $experienceId, 'id' => $t['row']['id']]);
+                Experiences::recordChange($experienceId, $user, 'target', (string) $t['row']['id'], $t['row']['data_json'], $targetJson);
             };
             foreach ($targets as $t) {
                 unset($t['data']->place);
@@ -313,9 +313,9 @@ final class Scenes
                 $writeTarget($t);
             }
             // A surface that goes takes its reference image (#314)
-            SurfaceReferences::drop($bookId, $sceneId, $removed, $user);
-            Books::touchBook($bookId);
-            Books::recordChange($bookId, $user, self::KIND, $sceneId, $row['data_json'], $json);
+            SurfaceReferences::drop($experienceId, $sceneId, $removed, $user);
+            Experiences::touchExperience($experienceId);
+            Experiences::recordChange($experienceId, $user, self::KIND, $sceneId, $row['data_json'], $json);
             return [$scene, $cleared];
         });
         Http::json(200, ['scene' => $scene, 'cleared' => $cleared]);
@@ -324,15 +324,15 @@ final class Scenes
     /**
      * Applies a request's `label`, `group` and `surfaces` to the scene (in place); returns whether any was sent. 400
      * `invalid-scene`, `unknown-group`.
-     * @param array<string, mixed> $book
+     * @param array<string, mixed> $experience
      */
-    public static function edit(array $book, stdClass $scene, stdClass $body): bool
+    public static function edit(array $experience, stdClass $scene, stdClass $body): bool
     {
         $touched = false;
         if (property_exists($body, 'label')) {
             if (!is_string($body->label) || trim($body->label) === '') throw new ApiError(400, 'invalid-scene', 'label must be a non-empty text (what the reader shows for the scene).');
             $label = trim($body->label);
-            if (mb_strlen($label) > BookTexts::TEXT_MAX_LENGTH) throw new ApiError(400, 'invalid-scene', 'label is longer than ' . BookTexts::TEXT_MAX_LENGTH . ' characters.');
+            if (mb_strlen($label) > ExperienceTexts::TEXT_MAX_LENGTH) throw new ApiError(400, 'invalid-scene', 'label is longer than ' . ExperienceTexts::TEXT_MAX_LENGTH . ' characters.');
             $scene->label = $label;
             $touched = true;
         }
@@ -340,7 +340,7 @@ final class Scenes
             if ($body->group === null) unset($scene->group);
             else {
                 $group = Editor::id($body->group, 'group');
-                if (!in_array($group, array_map(static fn($g) => $g->id, self::groups($book)), true)) throw new ApiError(400, 'unknown-group', "No group \"$group\" in this book – make it with POST …/groups.");
+                if (!in_array($group, array_map(static fn($g) => $g->id, self::groups($experience)), true)) throw new ApiError(400, 'unknown-group', "No group \"$group\" in this experience – make it with POST …/groups.");
                 $scene->group = $group;
             }
             $touched = true;
@@ -382,7 +382,7 @@ final class Scenes
             if (property_exists($s, 'label') && $s->label !== null) {
                 if (!is_string($s->label)) $fail("$path.label must be text.");
                 $label = trim($s->label);
-                if (mb_strlen($label) > BookTexts::TEXT_MAX_LENGTH) $fail("$path.label is longer than " . BookTexts::TEXT_MAX_LENGTH . ' characters.');
+                if (mb_strlen($label) > ExperienceTexts::TEXT_MAX_LENGTH) $fail("$path.label is longer than " . ExperienceTexts::TEXT_MAX_LENGTH . ' characters.');
                 if ($label !== '') $surface->label = $label;
             }
             foreach (['widthMm', 'heightMm'] as $key) {
@@ -455,7 +455,7 @@ final class Scenes
     // ── POST …/scenes/move ───────────────────────────────────────────────────────────────────────
 
     /**
-     * POST /editor/books/{id}/scenes/move { scenes: [ids], after? | before? | position?, group?, apply? } → { plan, applied }:
+     * POST /editor/experiences/{id}/scenes/move { scenes: [ids], after? | before? | position?, group?, apply? } → { plan, applied }:
      * moves one or several scenes as a block (in their present order) – after or before a scene, to `position` (an index
      * among the scenes that stay), or `group`: into that group (after its last scene, unless a place is given) or `null`
      * out of their group (they stay in place unless they sit inside it – then right after it). The plan: `order` (every id
@@ -463,20 +463,20 @@ final class Scenes
      * nothing is written; with it the order, the groups and a change per row in one transaction. 400 `invalid-move`,
      * `unknown-scene`, `unknown-group`.
      */
-    public static function move(string $bookId): never
+    public static function move(string $experienceId): never
     {
         $user = Editor::user();
-        $book = Books::bookRow($bookId);
+        $experience = Experiences::experienceRow($experienceId);
         $body = Editor::body();
         $picked = self::picked($body->scenes ?? null, 'invalid-move');
         $placement = self::placement($body);
         $hasGroup = property_exists($body, 'group');
         $group = $hasGroup && $body->group !== null ? Editor::id($body->group, 'group') : null;
-        if ($group !== null && !in_array($group, array_map(static fn($g) => $g->id, self::groups($book)), true)) throw new ApiError(400, 'unknown-group', "No group \"$group\" in this book.");
+        if ($group !== null && !in_array($group, array_map(static fn($g) => $g->id, self::groups($experience)), true)) throw new ApiError(400, 'unknown-group', "No group \"$group\" in this experience.");
         if ($placement === null && !$hasGroup) throw new ApiError(400, 'invalid-move', 'Send where to: after, before, position or group.');
         $apply = ($body->apply ?? false) === true;
-        $run = static function () use ($bookId, $picked, $placement, $hasGroup, $group, $apply, $user): array {
-            $context = self::context($bookId, $apply);
+        $run = static function () use ($experienceId, $picked, $placement, $hasGroup, $group, $apply, $user): array {
+            $context = self::context($experienceId, $apply);
             $order = self::orderAfterMove($context, $picked, $placement, $hasGroup, $group);
             $groups = [];
             if ($hasGroup) {
@@ -486,7 +486,7 @@ final class Scenes
                 }
             }
             $plan = self::plan($context, $order, $picked, $groups);
-            if ($apply) self::applyPlan($bookId, $context, $plan, $user);
+            if ($apply) self::applyPlan($experienceId, $context, $plan, $user);
             return $plan;
         };
         $plan = $apply ? Db::transaction($run) : $run();
@@ -519,7 +519,7 @@ final class Scenes
     private static function orderAfterMove(array $context, array $picked, ?array $placement, bool $hasGroup, ?string $group): array
     {
         $ids = array_map(static fn(array $row) => (string) $row['id'], $context['rows']);
-        foreach ($picked as $id) if (!in_array($id, $ids, true)) throw new ApiError(400, 'unknown-scene', "No scene \"$id\" in this book.");
+        foreach ($picked as $id) if (!in_array($id, $ids, true)) throw new ApiError(400, 'unknown-scene', "No scene \"$id\" in this experience.");
         $block = array_values(array_filter($ids, static fn(string $id) => in_array($id, $picked, true)));
         $rest = array_values(array_filter($ids, static fn(string $id) => !in_array($id, $picked, true)));
         // Where the block starts now, among the scenes that stay
@@ -532,7 +532,7 @@ final class Scenes
                 $anchor = $placement['after'] ?? $placement['before'];
                 if (in_array($anchor, $picked, true)) throw new ApiError(400, 'invalid-move', "\"$anchor\" is one of the scenes moved.");
                 $index = array_search($anchor, $rest, true);
-                if ($index === false) throw new ApiError(400, 'unknown-scene', "No scene \"$anchor\" in this book.");
+                if ($index === false) throw new ApiError(400, 'unknown-scene', "No scene \"$anchor\" in this experience.");
                 $at = isset($placement['after']) ? $index + 1 : $index;
             }
         } elseif ($group !== null) {
@@ -570,12 +570,12 @@ final class Scenes
      * @param array{order: list<string>, moved: list<string>, groups: list<array{scene: string, from: ?string, to: ?string}>} $plan
      * @param array<string, mixed> $user
      */
-    private static function applyPlan(string $bookId, array $context, array $plan, array $user): void
+    private static function applyPlan(string $experienceId, array $context, array $plan, array $user): void
     {
         $ids = array_map(static fn(array $row) => (string) $row['id'], $context['rows']);
         if ($ids !== $plan['order']) {
-            self::writePositions($bookId, $context['rows'], $plan['order']);
-            Books::recordChange($bookId, $user, 'order', $bookId, Editor::encode($ids), Editor::encode($plan['order']));
+            self::writePositions($experienceId, $context['rows'], $plan['order']);
+            Experiences::recordChange($experienceId, $user, 'order', $experienceId, Editor::encode($ids), Editor::encode($plan['order']));
         }
         foreach ($plan['groups'] as $change) {
             $row = $context['row'][$change['scene']];
@@ -586,10 +586,10 @@ final class Scenes
                 self::edit([], $scene, new stdClass());
             }
             $json = Editor::encode($scene);
-            Db::run('UPDATE scenes SET data_json = :data WHERE book_id = :book AND id = :id', ['data' => $json, 'book' => $bookId, 'id' => $change['scene']]);
-            Books::recordChange($bookId, $user, self::KIND, $change['scene'], $row['data_json'], $json);
+            Db::run('UPDATE scenes SET data_json = :data WHERE experience_id = :experience AND id = :id', ['data' => $json, 'experience' => $experienceId, 'id' => $change['scene']]);
+            Experiences::recordChange($experienceId, $user, self::KIND, $change['scene'], $row['data_json'], $json);
         }
-        if ($ids !== $plan['order'] || $plan['groups']) Books::touchBook($bookId);
+        if ($ids !== $plan['order'] || $plan['groups']) Experiences::touchExperience($experienceId);
     }
 
     /**
@@ -597,34 +597,34 @@ final class Scenes
      * @param list<array<string, mixed>> $rows
      * @param list<string>|null $order
      */
-    public static function writePositions(string $bookId, array $rows, ?array $order): void
+    public static function writePositions(string $experienceId, array $rows, ?array $order): void
     {
         $order ??= array_map(static fn(array $row) => (string) $row['id'], $rows);
         $current = [];
         foreach ($rows as $row) $current[(string) $row['id']] = (int) $row['position'];
         foreach ($order as $position => $id) {
             if (($current[$id] ?? null) === $position) continue;
-            Db::run('UPDATE scenes SET position = :position WHERE book_id = :book AND id = :id', ['position' => $position, 'book' => $bookId, 'id' => $id]);
+            Db::run('UPDATE scenes SET position = :position WHERE experience_id = :experience AND id = :id', ['position' => $position, 'experience' => $experienceId, 'id' => $id]);
         }
     }
 
     // ── Groups ───────────────────────────────────────────────────────────────────────────────────
 
     /**
-     * POST /editor/books/{id}/groups { label, scenes: [ids], id?, apply? } → { plan, applied }: a group of the picked
+     * POST /editor/experiences/{id}/groups { label, scenes: [ids], id?, apply? } → { plan, applied }: a group of the picked
      * scenes – they come together where the first of them is (in their present order; a scene of another group leaves
      * it). The plan: `group` { id, label }, `order`, `moved`, `groups` (as a move's). Without `apply: true` nothing is
      * written. The id: `id`, else made from the label (`front-matter`), else the first free `group-<n>`. 400
      * `invalid-group`, `unknown-scene`; 409 `duplicate-id`.
      */
-    public static function addGroup(string $bookId): never
+    public static function addGroup(string $experienceId): never
     {
         $user = Editor::user();
-        $book = Books::bookRow($bookId);
+        $experience = Experiences::experienceRow($experienceId);
         $body = Editor::body();
         $label = self::groupLabel($body->label ?? null);
         $picked = self::picked($body->scenes ?? null, 'invalid-group');
-        $existing = array_map(static fn($g) => $g->id, self::groups($book));
+        $existing = array_map(static fn($g) => $g->id, self::groups($experience));
         if (property_exists($body, 'id')) {
             $id = Editor::id($body->id, 'id');
             if (in_array($id, $existing, true)) throw new ApiError(409, 'duplicate-id', "A group \"$id\" exists.");
@@ -632,19 +632,19 @@ final class Scenes
             $id = self::groupId($label, $existing);
         }
         $apply = ($body->apply ?? false) === true;
-        $run = static function () use ($bookId, $label, $picked, $id, $apply, $user): array {
-            $context = self::context($bookId, $apply);
+        $run = static function () use ($experienceId, $label, $picked, $id, $apply, $user): array {
+            $context = self::context($experienceId, $apply);
             $ids = array_map(static fn(array $row) => (string) $row['id'], $context['rows']);
-            foreach ($picked as $scene) if (!in_array($scene, $ids, true)) throw new ApiError(400, 'unknown-scene', "No scene \"$scene\" in this book.");
+            foreach ($picked as $scene) if (!in_array($scene, $ids, true)) throw new ApiError(400, 'unknown-scene', "No scene \"$scene\" in this experience.");
             // Together where the first of them is
             $first = min(array_map(static fn(string $scene) => (int) array_search($scene, $ids, true), $picked));
             $order = self::orderAfterMove($context, $picked, ['position' => count(array_filter(array_slice($ids, 0, $first), static fn(string $s) => !in_array($s, $picked, true)))], false, null);
             $groups = array_map(static fn(string $scene) => ['scene' => $scene, 'from' => $context['data'][$scene]->group ?? null, 'to' => $id], array_values(array_filter($order, static fn($s) => in_array($s, $picked, true))));
             $plan = ['group' => ['id' => $id, 'label' => $label]] + self::plan($context, $order, $picked, $groups);
             if ($apply) {
-                $row = Books::bookRow($bookId, true);
-                self::writeGroups($bookId, $row, [...self::groups($row), (object) ['id' => $id, 'label' => $label]], $user);
-                self::applyPlan($bookId, $context, $plan, $user);
+                $row = Experiences::experienceRow($experienceId, true);
+                self::writeGroups($experienceId, $row, [...self::groups($row), (object) ['id' => $id, 'label' => $label]], $user);
+                self::applyPlan($experienceId, $context, $plan, $user);
             }
             return $plan;
         };
@@ -664,49 +664,49 @@ final class Scenes
         return "group-$n";
     }
 
-    /** PUT /editor/books/{id}/groups/{gid} { label } → { group }: renames a group (a change recorded). 400 `invalid-group`, 404 */
-    public static function putGroup(string $bookId, string $groupId): never
+    /** PUT /editor/experiences/{id}/groups/{gid} { label } → { group }: renames a group (a change recorded). 400 `invalid-group`, 404 */
+    public static function putGroup(string $experienceId, string $groupId): never
     {
         $user = Editor::user();
-        Books::bookRow($bookId);
+        Experiences::experienceRow($experienceId);
         $label = self::groupLabel(Editor::body()->label ?? null);
-        $group = Db::transaction(static function () use ($bookId, $groupId, $label, $user) {
-            $row = Books::bookRow($bookId, true);
+        $group = Db::transaction(static function () use ($experienceId, $groupId, $label, $user) {
+            $row = Experiences::experienceRow($experienceId, true);
             $groups = self::groups($row);
             $found = null;
             foreach ($groups as $group) if ($group->id === $groupId) $found = $group;
             if ($found === null) throw new ApiError(404, 'not-found', 'No such group.');
             $found->label = $label;
-            self::writeGroups($bookId, $row, $groups, $user);
+            self::writeGroups($experienceId, $row, $groups, $user);
             return $found;
         });
         Http::json(200, ['group' => $group]);
     }
 
     /**
-     * DELETE /editor/books/{id}/groups/{gid} → { ungrouped, scenes }: ungroups – the group goes, its scenes stay in place
+     * DELETE /editor/experiences/{id}/groups/{gid} → { ungrouped, scenes }: ungroups – the group goes, its scenes stay in place
      * and in order, without a group. One step: nothing but the label goes. 404
      */
-    public static function deleteGroup(string $bookId, string $groupId): never
+    public static function deleteGroup(string $experienceId, string $groupId): never
     {
         $user = Editor::user();
-        Books::bookRow($bookId);
-        $scenes = Db::transaction(static function () use ($bookId, $groupId, $user) {
-            $row = Books::bookRow($bookId, true);
+        Experiences::experienceRow($experienceId);
+        $scenes = Db::transaction(static function () use ($experienceId, $groupId, $user) {
+            $row = Experiences::experienceRow($experienceId, true);
             $groups = self::groups($row);
             $kept = array_values(array_filter($groups, static fn($g) => $g->id !== $groupId));
             if (count($kept) === count($groups)) throw new ApiError(404, 'not-found', 'No such group.');
             $scenes = [];
-            foreach (self::rows($bookId, true) as $scene) {
+            foreach (self::rows($experienceId, true) as $scene) {
                 $data = Editor::decode($scene['data_json']);
                 if (($data->group ?? null) !== $groupId) continue;
                 unset($data->group);
                 $json = Editor::encode($data);
-                Db::run('UPDATE scenes SET data_json = :data WHERE book_id = :book AND id = :id', ['data' => $json, 'book' => $bookId, 'id' => $scene['id']]);
-                Books::recordChange($bookId, $user, self::KIND, (string) $scene['id'], $scene['data_json'], $json);
+                Db::run('UPDATE scenes SET data_json = :data WHERE experience_id = :experience AND id = :id', ['data' => $json, 'experience' => $experienceId, 'id' => $scene['id']]);
+                Experiences::recordChange($experienceId, $user, self::KIND, (string) $scene['id'], $scene['data_json'], $json);
                 $scenes[] = (string) $scene['id'];
             }
-            self::writeGroups($bookId, $row, $kept, $user);
+            self::writeGroups($experienceId, $row, $kept, $user);
             return $scenes;
         });
         Http::json(200, ['ungrouped' => $groupId, 'scenes' => $scenes]);
@@ -716,21 +716,21 @@ final class Scenes
     {
         if (!is_string($value) || trim($value) === '') throw new ApiError(400, 'invalid-group', 'label must be a non-empty text.');
         $label = trim($value);
-        if (mb_strlen($label) > BookTexts::TEXT_MAX_LENGTH) throw new ApiError(400, 'invalid-group', 'label is longer than ' . BookTexts::TEXT_MAX_LENGTH . ' characters.');
+        if (mb_strlen($label) > ExperienceTexts::TEXT_MAX_LENGTH) throw new ApiError(400, 'invalid-group', 'label is longer than ' . ExperienceTexts::TEXT_MAX_LENGTH . ' characters.');
         return $label;
     }
 
     /**
-     * The book's groups written back, with a change (`groups`) – inside the caller's transaction, the book row locked
-     * @param array<string, mixed> $book
+     * The experience's groups written back, with a change (`groups`) – inside the caller's transaction, the experience row locked
+     * @param array<string, mixed> $experience
      * @param list<stdClass> $groups
      * @param array<string, mixed> $user
      */
-    public static function writeGroups(string $bookId, array $book, array $groups, array $user): void
+    public static function writeGroups(string $experienceId, array $experience, array $groups, array $user): void
     {
         $json = Editor::encode(array_values($groups));
-        Db::run('UPDATE books SET groups_json = :groups WHERE id = :id', ['groups' => $json, 'id' => $bookId]);
-        Books::touchBook($bookId);
-        Books::recordChange($bookId, $user, 'groups', $bookId, (string) ($book['groups_json'] ?? '[]'), $json);
+        Db::run('UPDATE experiences SET groups_json = :groups WHERE id = :id', ['groups' => $json, 'id' => $experienceId]);
+        Experiences::touchExperience($experienceId);
+        Experiences::recordChange($experienceId, $user, 'groups', $experienceId, (string) ($experience['groups_json'] ?? '[]'), $json);
     }
 }

@@ -8,7 +8,7 @@ declare(strict_types=1);
  */
 final class Editor
 {
-    /** Ids and references in paths and bodies (books, scenes, entries, targets, entities – shared/api/rules.ts `ID_PATTERN`) */
+    /** Ids and references in paths and bodies (experiences, scenes, entries, targets, entities – shared/api/rules.ts `ID_PATTERN`) */
     public const ID = '[A-Za-z0-9_-]{1,64}';
 
     // The constants below copy rules of the content contract (shared/); mcp/test/php-rules.test.ts fails on a difference
@@ -24,19 +24,17 @@ final class Editor
     /** The entry categories of the content contract (shared/types/entry.ts `ENTRY_CATEGORIES`) */
     public const ENTRY_CATEGORIES = ['glossary', 'video', 'text', 'link'];
     /**
-     * The content schema the editor reads and the draft writes (shared/types/game-config.ts `CONTENT_SCHEMA_VERSION`): a
-     * book of an older MAJOR is refused (every stored book was migrated to 3.0, #319)
+     * The content schema the editor reads and the draft writes (shared/types/game-config.ts `CONTENT_SCHEMA_VERSION`): an
+     * experience of an older MAJOR is refused (`Db::migrate` turns every stored 3.x experience into 4.0, `Migration4`, #320)
      */
-    public const CONTENT_SCHEMA = '3.0';
-    public const CONTENT_SCHEMA_MAJOR = 3;
+    public const CONTENT_SCHEMA = '4.0';
+    public const CONTENT_SCHEMA_MAJOR = 4;
 
     /** Whether a content schema `MAJOR.MINOR` is the editor's (`CONTENT_SCHEMA_MAJOR`) */
     public static function isCurrentSchema(string $schema): bool
     {
         return (int) explode('.', $schema)[0] === self::CONTENT_SCHEMA_MAJOR;
     }
-    /** A book's source of truth (shared/types/game-config.ts `SOURCES_OF_TRUTH`, #238): print first or digital first */
-    public const SOURCES_OF_TRUTH = ['print', 'digital'];
     /** How deep an entity's node tree may nest (shared/guards: MAX_NODE_DEPTH) */
     public const MAX_NODE_DEPTH = 8;
     /**
@@ -72,9 +70,9 @@ final class Editor
      * and an `assets` list of objects with string `id`, `assetType` and `src`. Every other key (params, filters, …)
      * passes through untouched – the reader's guard checks the configuration in depth.
      * `$pluginTypes` (`Editor::pluginNodeTypes`) – which node types outside ENTITY_TYPES (a plugin's, `registerNodeType`)
-     * pass: a list = the node types the book's declared plugins recorded (anything else is a typo); `true` = any named like a plugin's (camelCase), because a plugin of the book is unknown until it runs (a
+     * pass: a list = the node types the experience's declared plugins recorded (anything else is a typo); `true` = any named like a plugin's (camelCase), because a plugin of the experience is unknown until it runs (a
      * declared one without recorded specs, a Code tab source – the editor's stage and the content build run the code,
-     * the publish refuses one without compiled plugins); `false` = none (the book has no plugins).
+     * the publish refuses one without compiled plugins); `false` = none (the experience has no plugins).
      * `$pluginMaterials` – the material types the same way: a list = the recorded ones, `true` = any camelCase name.
      * @param bool|list<string> $pluginTypes
      * @param bool|list<string> $pluginMaterials
@@ -89,10 +87,10 @@ final class Editor
             : $pluginTypes && preg_match('/^' . self::PLUGIN_NODE_TYPE . '$/', $type) === 1);
         if (!$builtIn && !$plugin) {
             $plugins = match (true) {
-                is_array($pluginTypes) && $pluginTypes !== [] => ' or a node type a plugin of the book registers (' . implode(', ', $pluginTypes) . ').',
-                is_array($pluginTypes) => ' – the book\'s plugins register no node type.',
+                is_array($pluginTypes) && $pluginTypes !== [] => ' or a node type a plugin of the experience registers (' . implode(', ', $pluginTypes) . ').',
+                is_array($pluginTypes) => ' – the experience\'s plugins register no node type.',
                 $pluginTypes => ' or a plugin\'s node type (camelCase letters and digits).',
-                default => ' – a plugin\'s node type needs a plugin in the book.',
+                default => ' – a plugin\'s node type needs a plugin in the experience.',
             };
             throw new ApiError(400, 'invalid-entity', "$path.type must be one of " . implode(', ', self::ENTITY_TYPES) . $plugins);
         }
@@ -119,10 +117,10 @@ final class Editor
                 throw new ApiError(400, 'invalid-entity', "$path.material must be { type, params? } with a material type (camelCase letters and digits).");
             }
             if (property_exists($material, 'params') && !$material->params instanceof stdClass) throw new ApiError(400, 'invalid-entity', "$path.material.params must be an object.");
-            if ($pluginTypes === false) throw new ApiError(400, 'invalid-entity', "$path.material: a material is a plugin's – the book has no plugins.");
+            if ($pluginTypes === false) throw new ApiError(400, 'invalid-entity', "$path.material: a material is a plugin's – the experience has no plugins.");
             if (is_array($pluginMaterials) && !in_array($material->type, $pluginMaterials, true)) {
-                $known = $pluginMaterials === [] ? ' – the book\'s plugins register none.' : ' (' . implode(', ', $pluginMaterials) . ').';
-                throw new ApiError(400, 'invalid-entity', "$path.material.type must be a material a plugin of the book registers$known");
+                $known = $pluginMaterials === [] ? ' – the experience\'s plugins register none.' : ' (' . implode(', ', $pluginMaterials) . ').';
+                throw new ApiError(400, 'invalid-entity', "$path.material.type must be a material a plugin of the experience registers$known");
             }
         }
         if (property_exists($value, 'children')) {
@@ -134,15 +132,15 @@ final class Editor
     }
 
     /**
-     * The plugin node types a save in this book accepts (`Editor::entity`'s `$pluginTypes`): from the compiled plugins
-     * its configuration declares (`books.plugins_json`) and its Code tab sources
+     * The plugin node types a save in this experience accepts (`Editor::entity`'s `$pluginTypes`): from the compiled plugins
+     * its configuration declares (`experiences.plugins_json`) and its Code tab sources
      * @return bool|list<string>
      */
-    public static function pluginNodeTypes(string $bookId): bool|array
+    public static function pluginNodeTypes(string $experienceId): bool|array
     {
-        $json = Db::value('SELECT plugins_json FROM books WHERE id = :id', ['id' => $bookId]);
+        $json = Db::value('SELECT plugins_json FROM experiences WHERE id = :id', ['id' => $experienceId]);
         $declared = self::decode(is_string($json) ? $json : null);
-        return self::nodeTypesOf(is_array($declared) ? $declared : [], Plugins::hasSources($bookId));
+        return self::nodeTypesOf(is_array($declared) ? $declared : [], Plugins::hasSources($experienceId));
     }
 
     /**
@@ -159,24 +157,24 @@ final class Editor
     }
 
     /**
-     * The material types a save in this book accepts (`Editor::entity`'s `$pluginMaterials`), as `pluginNodeTypes`
+     * The material types a save in this experience accepts (`Editor::entity`'s `$pluginMaterials`), as `pluginNodeTypes`
      * @return bool|list<string>
      */
-    public static function pluginMaterials(string $bookId): bool|array
+    public static function pluginMaterials(string $experienceId): bool|array
     {
-        return self::pluginTypesOfBook($bookId, 'materials');
+        return self::pluginTypesOfExperience($experienceId, 'materials');
     }
 
     /**
-     * The types of a kind (`materials`, `passes`, `appearances`) a save in this book accepts: from the compiled plugins its
+     * The types of a kind (`materials`, `passes`, `appearances`) a save in this experience accepts: from the compiled plugins its
      * configuration declares and its Code tab sources (`typesOf`)
      * @return bool|list<string>
      */
-    public static function pluginTypesOfBook(string $bookId, string $kind): bool|array
+    public static function pluginTypesOfExperience(string $experienceId, string $kind): bool|array
     {
-        $json = Db::value('SELECT plugins_json FROM books WHERE id = :id', ['id' => $bookId]);
+        $json = Db::value('SELECT plugins_json FROM experiences WHERE id = :id', ['id' => $experienceId]);
         $declared = self::decode(is_string($json) ? $json : null);
-        return self::typesOf(is_array($declared) ? $declared : [], Plugins::hasSources($bookId), $kind);
+        return self::typesOf(is_array($declared) ? $declared : [], Plugins::hasSources($experienceId), $kind);
     }
 
     /**

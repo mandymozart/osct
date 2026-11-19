@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /**
  * The editor's plugin sources (docs/server.md "Plugin sources", docs/plugins.md):
- * the TypeScript a book's author writes in the editor's Code tab, one row per plugin id. The editor transpiles and
+ * the TypeScript an experience's author writes in the editor's Code tab, one row per plugin id. The editor transpiles and
  * runs it on its own stage; nothing here reaches a publish – the configuration's `plugins` list (the compiled
  * modules) has one writer, the content build, and comes in with the import. Every save records a change.
  *
@@ -26,14 +26,14 @@ final class Plugins
         'materials' => 'registerMaterial', 'textures' => 'registerTexture', 'appearances' => 'registerAppearance',
     ];
 
-    /** GET /editor/books/{id}/plugins → { plugins: [{ id, size, usages, updatedAt, updatedBy }] } */
-    public static function list(string $bookId): never
+    /** GET /editor/experiences/{id}/plugins → { plugins: [{ id, size, usages, updatedAt, updatedBy }] } */
+    public static function list(string $experienceId): never
     {
         Editor::user();
-        Books::exists($bookId);
+        Experiences::exists($experienceId);
         $plugins = [];
-        $rows = Db::run('SELECT p.id, p.source, p.updated_at, u.email FROM plugins p LEFT JOIN users u ON u.id = p.updated_by WHERE p.book_id = :book ORDER BY p.id', ['book' => $bookId])->fetchAll();
-        $texts = $rows ? self::draftTexts($bookId) : [];
+        $rows = Db::run('SELECT p.id, p.source, p.updated_at, u.email FROM plugins p LEFT JOIN users u ON u.id = p.updated_by WHERE p.experience_id = :experience ORDER BY p.id', ['experience' => $experienceId])->fetchAll();
+        $texts = $rows ? self::draftTexts($experienceId) : [];
         foreach ($rows as $row) {
             $plugins[] = [
                 'id' => $row['id'], 'size' => strlen((string) $row['source']), 'usages' => count(self::uses($texts, (string) $row['source'])),
@@ -43,38 +43,38 @@ final class Plugins
         Http::json(200, ['plugins' => $plugins]);
     }
 
-    /** GET /editor/books/{id}/plugins/{pid} → { plugin: { id, source, size, updatedAt, updatedBy } } */
-    public static function get(string $bookId, string $pluginId): never
+    /** GET /editor/experiences/{id}/plugins/{pid} → { plugin: { id, source, size, updatedAt, updatedBy } } */
+    public static function get(string $experienceId, string $pluginId): never
     {
         Editor::user();
-        Books::exists($bookId);
-        Http::json(200, ['plugin' => self::summary(self::row($bookId, $pluginId))]);
+        Experiences::exists($experienceId);
+        Http::json(200, ['plugin' => self::summary(self::row($experienceId, $pluginId))]);
     }
 
-    /** PUT /editor/books/{id}/plugins/{pid} { source } → { plugin }: a new plugin or a new source, a change recorded */
-    public static function put(string $bookId, string $pluginId): never
+    /** PUT /editor/experiences/{id}/plugins/{pid} { source } → { plugin }: a new plugin or a new source, a change recorded */
+    public static function put(string $experienceId, string $pluginId): never
     {
         $user = Editor::user();
-        Books::exists($bookId);
+        Experiences::exists($experienceId);
         if (!preg_match('/^' . self::ID . '$/', $pluginId)) throw new ApiError(400, 'invalid-plugin', 'A plugin id is 1–40 lower-case letters, digits or -.');
         $body = Editor::body();
         $source = $body->source ?? null;
         if (!is_string($source)) throw new ApiError(400, 'invalid-plugin', 'source must be a string.');
         if (strlen($source) > self::MAX_SOURCE_BYTES) throw new ApiError(413, 'body-too-large', 'The source is larger than ' . self::MAX_SOURCE_BYTES . ' bytes.');
-        self::store($bookId, $pluginId, $source, $user);
-        Http::json(200, ['plugin' => self::summary(self::row($bookId, $pluginId))]);
+        self::store($experienceId, $pluginId, $source, $user);
+        Http::json(200, ['plugin' => self::summary(self::row($experienceId, $pluginId))]);
     }
 
     /**
-     * POST /editor/books/{id}/plugins[?id=] – a script file as the raw body, `X-File-Name: <name>.ts|.js` → 201 { plugin }:
+     * POST /editor/experiences/{id}/plugins[?id=] – a script file as the raw body, `X-File-Name: <name>.ts|.js` → 201 { plugin }:
      * a new source with the id from `?id=` or the file's name (`Tint Layer.ts` → `tint-layer`). 400 `invalid-file` (not
      * .ts / .js, empty, no text), 400 `invalid-plugin` (no id to be had), 409 `plugin-exists` (`plugin`: the id – replace
      * it with PUT …/file), 413 `body-too-large` (MAX_SOURCE_BYTES).
      */
-    public static function upload(string $bookId): never
+    public static function upload(string $experienceId): never
     {
         $user = Editor::user();
-        Books::exists($bookId);
+        Experiences::exists($experienceId);
         [$name, $extension] = Assets::fileName();
         self::checkExtension($name, $extension);
         $asked = $_GET['id'] ?? null;
@@ -82,59 +82,59 @@ final class Plugins
         if (!preg_match('/^' . self::ID . '$/', $pluginId)) {
             throw new ApiError(400, 'invalid-plugin', "\"$name\" gives no plugin id (1–40 lower-case letters, digits or -, starting with a letter) – send ?id=.");
         }
-        if (Db::value('SELECT id FROM plugins WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $pluginId]) !== null) {
+        if (Db::value('SELECT id FROM plugins WHERE experience_id = :experience AND id = :id', ['experience' => $experienceId, 'id' => $pluginId]) !== null) {
             throw new ApiError(409, 'plugin-exists', "The plugin $pluginId exists – replace its source (PUT …/plugins/$pluginId/file) or send another ?id=.", ['plugin' => $pluginId]);
         }
-        self::store($bookId, $pluginId, self::fileSource($name, $extension), $user);
-        Http::json(201, ['plugin' => self::summary(self::row($bookId, $pluginId))]);
+        self::store($experienceId, $pluginId, self::fileSource($name, $extension), $user);
+        Http::json(201, ['plugin' => self::summary(self::row($experienceId, $pluginId))]);
     }
 
-    /** PUT /editor/books/{id}/plugins/{pid}/file – a script file as the raw body (`X-File-Name` optional) → { plugin } */
-    public static function replaceFile(string $bookId, string $pluginId): never
+    /** PUT /editor/experiences/{id}/plugins/{pid}/file – a script file as the raw body (`X-File-Name` optional) → { plugin } */
+    public static function replaceFile(string $experienceId, string $pluginId): never
     {
         $user = Editor::user();
-        Books::exists($bookId);
-        self::row($bookId, $pluginId);
+        Experiences::exists($experienceId);
+        self::row($experienceId, $pluginId);
         [$name, $extension] = Assets::fileName("$pluginId.ts");
         self::checkExtension($name, $extension);
-        self::store($bookId, $pluginId, self::fileSource($name, $extension), $user);
-        Http::json(200, ['plugin' => self::summary(self::row($bookId, $pluginId))]);
+        self::store($experienceId, $pluginId, self::fileSource($name, $extension), $user);
+        Http::json(200, ['plugin' => self::summary(self::row($experienceId, $pluginId))]);
     }
 
-    /** GET /editor/books/{id}/plugins/{pid}/usages → { usages: [{ kind, ref }], registers: { components, layers, … } } */
-    public static function usages(string $bookId, string $pluginId): never
+    /** GET /editor/experiences/{id}/plugins/{pid}/usages → { usages: [{ kind, ref }], registers: { components, layers, … } } */
+    public static function usages(string $experienceId, string $pluginId): never
     {
         Editor::user();
-        Books::exists($bookId);
-        $source = (string) self::row($bookId, $pluginId)['source'];
-        Http::json(200, ['usages' => self::usagesOf($bookId, $source), 'registers' => self::registers($source)]);
+        Experiences::exists($experienceId);
+        $source = (string) self::row($experienceId, $pluginId)['source'];
+        Http::json(200, ['usages' => self::usagesOf($experienceId, $source), 'registers' => self::registers($source)]);
     }
 
     /**
-     * DELETE /editor/books/{id}/plugins/{pid}[?force=1] → 204 (a change recorded); 409 `plugin-in-use` with the usages
+     * DELETE /editor/experiences/{id}/plugins/{pid}[?force=1] → 204 (a change recorded); 409 `plugin-in-use` with the usages
      * while the draft uses a type it registers, unless forced
      */
-    public static function delete(string $bookId, string $pluginId): never
+    public static function delete(string $experienceId, string $pluginId): never
     {
         $user = Editor::user();
-        Books::exists($bookId);
-        $row = self::row($bookId, $pluginId);
-        $usages = self::usagesOf($bookId, (string) $row['source']);
+        Experiences::exists($experienceId);
+        $row = self::row($experienceId, $pluginId);
+        $usages = self::usagesOf($experienceId, (string) $row['source']);
         if ($usages && ($_GET['force'] ?? '') !== '1') {
             throw new ApiError(409, 'plugin-in-use', 'The draft uses what the plugin registers – remove the uses first, or force the delete.', ['usages' => $usages]);
         }
-        Db::transaction(function () use ($bookId, $pluginId, $row, $user) {
-            Db::run('DELETE FROM plugins WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $pluginId]);
-            Books::touchBook($bookId);
-            Books::recordChange($bookId, $user, 'plugin', $pluginId, Editor::encode($row['source']), 'null');
+        Db::transaction(function () use ($experienceId, $pluginId, $row, $user) {
+            Db::run('DELETE FROM plugins WHERE experience_id = :experience AND id = :id', ['experience' => $experienceId, 'id' => $pluginId]);
+            Experiences::touchExperience($experienceId);
+            Experiences::recordChange($experienceId, $user, 'plugin', $pluginId, Editor::encode($row['source']), 'null');
         });
         Http::json(204, null);
     }
 
-    /** The book has at least one source in the Code tab */
-    public static function hasSources(string $bookId): bool
+    /** The experience has at least one source in the Code tab */
+    public static function hasSources(string $experienceId): bool
     {
-        return Db::value('SELECT id FROM plugins WHERE book_id = :book LIMIT 1', ['book' => $bookId]) !== null;
+        return Db::value('SELECT id FROM plugins WHERE experience_id = :experience LIMIT 1', ['experience' => $experienceId]) !== null;
     }
 
     /**
@@ -152,14 +152,14 @@ final class Plugins
     }
 
     /**
-     * Where the draft uses what the source registers: the book (its passes, its appearance), scenes, targets, shared
+     * Where the draft uses what the source registers: the experience (its passes, its appearance), scenes, targets, shared
      * entities and entries whose JSON names one of its types – `"type":"<t>"` (a component, layer, node type, pass,
      * material, look, a texture as `{ type }`), or a procedural texture's type as a parameter's value
      * @return array<int, array{kind: string, ref: string}>
      */
-    public static function usagesOf(string $bookId, string $source): array
+    public static function usagesOf(string $experienceId, string $source): array
     {
-        return self::uses(self::draftTexts($bookId), $source);
+        return self::uses(self::draftTexts($experienceId), $source);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────────────────────────
@@ -187,18 +187,18 @@ final class Plugins
     }
 
     /**
-     * The draft's rows as text, read once: the book (its master passes, its appearance), scenes, targets, entities, entries
+     * The draft's rows as text, read once: the experience (its master passes, its appearance), scenes, targets, entities, entries
      * @return array<int, array{kind: string, ref: string, text: string}>
      */
-    private static function draftTexts(string $bookId): array
+    private static function draftTexts(string $experienceId): array
     {
-        $texts = [['kind' => 'book', 'ref' => $bookId, 'text' => (string) Db::value('SELECT book_json FROM books WHERE id = :id', ['id' => $bookId])]];
+        $texts = [['kind' => 'experience', 'ref' => $experienceId, 'text' => (string) Db::value('SELECT experience_json FROM experiences WHERE id = :id', ['id' => $experienceId])]];
         foreach (['scene' => 'scenes', 'target' => 'targets', 'entry' => 'entries'] as $kind => $table) {
-            foreach (Db::run("SELECT id, data_json FROM $table WHERE book_id = :book ORDER BY id", ['book' => $bookId])->fetchAll() as $row) {
+            foreach (Db::run("SELECT id, data_json FROM $table WHERE experience_id = :experience ORDER BY id", ['experience' => $experienceId])->fetchAll() as $row) {
                 $texts[] = ['kind' => $kind, 'ref' => (string) $row['id'], 'text' => (string) $row['data_json']];
             }
         }
-        foreach (Db::run('SELECT ref, data_json FROM entities WHERE book_id = :book ORDER BY ref', ['book' => $bookId])->fetchAll() as $row) {
+        foreach (Db::run('SELECT ref, data_json FROM entities WHERE experience_id = :experience ORDER BY ref', ['experience' => $experienceId])->fetchAll() as $row) {
             $texts[] = ['kind' => 'entity', 'ref' => (string) $row['ref'], 'text' => (string) $row['data_json']];
         }
         return $texts;
@@ -226,28 +226,28 @@ final class Plugins
         return trim(substr(trim((string) preg_replace('/[^a-z0-9]+/', '-', $stem), '-'), 0, 40), '-');
     }
 
-    /** A new plugin or a new source in one transaction, the book touched and the change recorded */
-    private static function store(string $bookId, string $pluginId, string $source, array $user): void
+    /** A new plugin or a new source in one transaction, the experience touched and the change recorded */
+    private static function store(string $experienceId, string $pluginId, string $source, array $user): void
     {
         $now = Editor::nowMs();
-        Db::transaction(function () use ($bookId, $pluginId, $source, $user, $now) {
-            $params = ['book' => $bookId, 'id' => $pluginId];
-            $current = Db::one('SELECT source FROM plugins WHERE book_id = :book AND id = :id', $params);
+        Db::transaction(function () use ($experienceId, $pluginId, $source, $user, $now) {
+            $params = ['experience' => $experienceId, 'id' => $pluginId];
+            $current = Db::one('SELECT source FROM plugins WHERE experience_id = :experience AND id = :id', $params);
             if ($current) {
-                Db::run('UPDATE plugins SET source = :source, updated_by = :by, updated_at = :now WHERE book_id = :book AND id = :id', $params + ['source' => $source, 'by' => $user['id'], 'now' => $now]);
+                Db::run('UPDATE plugins SET source = :source, updated_by = :by, updated_at = :now WHERE experience_id = :experience AND id = :id', $params + ['source' => $source, 'by' => $user['id'], 'now' => $now]);
             } else {
-                Db::run('INSERT INTO plugins (book_id, id, source, created_by, updated_by, created_at, updated_at) VALUES (:book, :id, :source, :by, :by2, :now, :now2)',
+                Db::run('INSERT INTO plugins (experience_id, id, source, created_by, updated_by, created_at, updated_at) VALUES (:experience, :id, :source, :by, :by2, :now, :now2)',
                     $params + ['source' => $source, 'by' => $user['id'], 'by2' => $user['id'], 'now' => $now, 'now2' => $now]);
             }
-            Books::touchBook($bookId);
-            Books::recordChange($bookId, $user, 'plugin', $pluginId, $current ? Editor::encode($current['source']) : null, Editor::encode($source));
+            Experiences::touchExperience($experienceId);
+            Experiences::recordChange($experienceId, $user, 'plugin', $pluginId, $current ? Editor::encode($current['source']) : null, Editor::encode($source));
         });
     }
 
     /** @return array<string, mixed> */
-    private static function row(string $bookId, string $pluginId): array
+    private static function row(string $experienceId, string $pluginId): array
     {
-        $row = Db::one('SELECT p.*, u.email FROM plugins p LEFT JOIN users u ON u.id = p.updated_by WHERE p.book_id = :book AND p.id = :id', ['book' => $bookId, 'id' => $pluginId]);
+        $row = Db::one('SELECT p.*, u.email FROM plugins p LEFT JOIN users u ON u.id = p.updated_by WHERE p.experience_id = :experience AND p.id = :id', ['experience' => $experienceId, 'id' => $pluginId]);
         if (!$row) throw new ApiError(404, 'not-found', 'No such plugin.');
         return $row;
     }

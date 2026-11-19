@@ -1,41 +1,41 @@
 /**
- * The editor API's answers (`/api/editor/*` – server/api/src/Books.php, BookTexts.php, ContentVersion.php, Assets.php,
+ * The editor API's answers (`/api/editor/*` – server/api/src/Experiences.php, ExperienceTexts.php, ContentVersion.php, Assets.php,
  * Plugins.php, Removal.php; docs/server.md "Editor data"), once for the editor app and the MCP server. Each type is what the PHP
  * sends: a field is optional only where the PHP leaves it out, `| null` where it sends null.
  * Not content: `shared/api/` is outside the content schema lock (RULES #10).
  */
-import type { BookAppearance } from "../types/appearance";
+import type { ExperienceAppearance } from "../types/appearance";
 import type { ContentManifest } from "../types/content-manifest";
 import type { EnvironmentData } from "../types/environment";
-import type { BookData, EntityData, EntryData, GroupData, PassData, SceneData, SurfaceData, TargetData } from "../types/game-config";
+import type { ExperienceData, EntityData, EntryData, GroupData, PassData, SceneData, SurfaceData, TargetData } from "../types/game-config";
 import type { AssetKind, SourceTypes } from "./rules";
 
-// ── Books ──────────────────────────────────────────────────────────────────────────────────────────
+// ── Experiences ──────────────────────────────────────────────────────────────────────────────────────────
 
-/** Where a book is live: an environment serving its build `build` since `since` */
+/** Where an experience is live: an environment serving its build `build` since `since` */
 export interface LiveIn {
   env: string;
   build: string | null;
   since: string | null;
 }
 
-/** What an environment serves (`book` null when it cannot be told), or `error` when its content store cannot be read */
-export type EnvironmentServing = { env: string; book: string | null; build: string | null; since: string | null } | { env: string; error: string };
+/** What an environment serves (`experience` null when it cannot be told), or `error` when its content store cannot be read */
+export type EnvironmentServing = { env: string; experience: string | null; build: string | null; since: string | null } | { env: string; error: string };
 
-/** A book of the list and of the tree (`Books::summary`) */
-export interface BookSummary {
+/** An experience of the list and of the tree (`Experiences::summary`) */
+export interface ExperienceSummary {
   id: string;
   title: string;
-  author: string;
-  /** The configuration's `book` as imported and edited since: its environment, its passes, its appearance */
-  book: BookData;
-  /** The scene the book opens on (`initialScene`) – it cannot be removed */
+  /** The configuration's `experience` as imported and edited since: its environment, its passes, its appearance, its
+   * printed book (`experience.book` – the author is `experience.book?.author`) */
+  experience: ExperienceData;
+  /** The scene the experience opens on (`initialScene`) – it cannot be removed */
   initialScene: string;
   /** The content schema `MAJOR.MINOR` of the import */
   schema: string;
   /** Where the content's `/assets/content/…` paths resolve (the layout, the cover); "" = the draft's origin */
   assetsBase: string;
-  /** The public folder of the book's uploads (`…/assets/<book>/`, the Library's files lie below it); "" = the instance has no public URL for them */
+  /** The public folder of the experience's uploads (`…/assets/<experience>/`, the Library's files lie below it); "" = the instance has no public URL for them */
   libraryBase: string;
   /** `version.hash` of the imported configuration, null when it had none */
   importedHash: string | null;
@@ -44,13 +44,13 @@ export interface BookSummary {
   createdAt: string;
   updatedAt: string;
   lastPublish: { env: string; build: string; at: string } | null;
-  /** The environments serving this book – empty: draft only */
+  /** The environments serving this experience – empty: draft only */
   live: LiveIn[];
 }
 
-/** `GET /editor/books`: the books, and what each environment serves – only those that serve something */
-export interface BookList {
-  books: BookSummary[];
+/** `GET /editor/experiences`: the experiences, and what each environment serves – only those that serve something */
+export interface ExperienceList {
+  experiences: ExperienceSummary[];
   environments: EnvironmentServing[];
 }
 
@@ -70,14 +70,14 @@ export interface TreeEntry {
 /** A scene in the tree: the scene as the content holds it (schema 3.0) with the entries on it */
 export type TreeScene = SceneData & { entries: TreeEntry[] };
 
-/** `GET /editor/books/{id}`: the book, its scenes in order with their entries, the groups */
-export interface BookTree {
-  book: BookSummary;
+/** `GET /editor/experiences/{id}`: the experience, its scenes in order with their entries, the groups */
+export interface ExperienceTree {
+  experience: ExperienceSummary;
   scenes: TreeScene[];
   groups: GroupData[];
 }
 
-/** `GET /editor/books/{id}/draft/latest.json`: the draft's manifest – its build now (what a publish would write) */
+/** `GET /editor/experiences/{id}/draft/latest.json`: the draft's manifest – its build now (what a publish would write) */
 export type DraftManifest = Required<ContentManifest>;
 
 // ── Environments and publishing ──────────────────────────────────────────────────────────────────────
@@ -101,7 +101,7 @@ export interface EnvironmentsInfo {
   environments: EnvironmentInfo[];
 }
 
-/** `POST /editor/books/{id}/publish` */
+/** `POST /editor/experiences/{id}/publish` */
 export interface PublishResult {
   env: string;
   /** Where it went: the CDN or this server's directory store */
@@ -109,20 +109,20 @@ export interface PublishResult {
   build: string;
   hash: string;
   publishedAt: string;
-  /** The book this publish replaced in the environment, null when there was none */
-  replaced: { book: string | null; build: string | null } | null;
+  /** The experience this publish replaced in the environment, null when there was none */
+  replaced: { experience: string | null; build: string | null } | null;
 }
 
-/** `details.current` of a 409 other-book: what the environment serves instead */
-export interface OtherBook {
+/** `details.current` of a 409 other-experience: what the environment serves instead */
+export interface OtherExperience {
   env: string;
-  book: string | null;
+  experience: string | null;
   title: string | null;
   build: string | null;
   since: string | null;
 }
 
-/** A row of the publish log (`GET /editor/books/{id}/versions`, newest first) */
+/** A row of the publish log (`GET /editor/experiences/{id}/versions`, newest first) */
 export interface PublishedVersion {
   id: string;
   env: string;
@@ -134,7 +134,7 @@ export interface PublishedVersion {
   note: string | null;
 }
 
-/** A row of the change log (`GET /editor/books/{id}/changes`, newest first); `token` = the AI connection's name, else null */
+/** A row of the change log (`GET /editor/experiences/{id}/changes`, newest first); `token` = the AI connection's name, else null */
 export interface Change {
   id: string;
   kind: string;
@@ -170,7 +170,7 @@ export interface RevertItem {
 }
 
 /**
- * `POST /editor/books/{id}/changes/{cid}/revert`, `…/changes/revert { ids }`, `…/changes/revert-to { after }` – without
+ * `POST /editor/experiences/{id}/changes/{cid}/revert`, `…/changes/revert { ids }`, `…/changes/revert-to { after }` – without
  * `apply: true` the plan (nothing written), with it the plan written: `written` the new changes' ids, `set` their set
  */
 export interface RevertResult {
@@ -194,7 +194,7 @@ export interface RevertResult {
 /** Where an import's configuration came from: the instance's CDN, or a configuration in the body */
 export type ImportSourceKind = "cdn" | "configuration";
 
-/** What an import recorded – the build the draft is based on (`Books::basedOn`); a field null where nothing told */
+/** What an import recorded – the build the draft is based on (`Experiences::basedOn`); a field null where nothing told */
 export interface ImportedBuild {
   build: string | null;
   hash: string | null;
@@ -207,9 +207,9 @@ export interface ImportedBuild {
   importedBy: string | null;
 }
 
-/** What an import brings in (`Books::incoming`): the book, its build and where it comes from */
+/** What an import brings in (`Experiences::incoming`): the experience, its build and where it comes from */
 export interface IncomingBuild {
-  book: string;
+  experience: string;
   title: string;
   build: string | null;
   hash: string | null;
@@ -230,7 +230,7 @@ export interface ImportCounts {
 
 /** `details.comparison` of a 409 confirm-import, and a preview's `existing`: what comes in against the draft */
 export interface ImportComparison {
-  book: { id: string; title: string };
+  experience: { id: string; title: string };
   incoming: IncomingBuild;
   draft: {
     basedOn: ImportedBuild | null;
@@ -245,7 +245,7 @@ export interface ImportComparison {
 
 /**
  * `POST /editor/import/preview`: what an import body would bring in, nothing imported – `existing` is the comparison the
- * import would answer (null: a new book); `contentBase` / `manifest` the CDN's content base and its latest.json
+ * import would answer (null: a new experience); `contentBase` / `manifest` the CDN's content base and its latest.json
  */
 export interface ImportPreview {
   source: ImportSourceKind;
@@ -256,9 +256,9 @@ export interface ImportPreview {
   existing: ImportComparison | null;
 }
 
-/** `POST /editor/books/{id}/import`: the book, what came in, the draft's build now and the build it is based on */
+/** `POST /editor/experiences/{id}/import`: the experience, what came in, the draft's build now and the build it is based on */
 export interface ImportResult {
-  book: BookSummary;
+  experience: ExperienceSummary;
   counts: ImportCounts;
   draft: { build: string; hash: string };
   imported: ImportedBuild | null;
@@ -270,51 +270,60 @@ export interface Confirmation {
   expiresAt: string;
 }
 
-// ── Rows: entities, targets, entries, the book's passes, appearance and environment ─────────────
+// ── Rows: entities, targets, entries, the experience's passes, appearance and environment ─────────────
 
-/** `GET /editor/books/{id}/entities`: the shared entities by ref */
+/** `GET /editor/experiences/{id}/entities`: the shared entities by ref */
 export interface SharedEntities {
   entities: Record<string, EntityData>;
 }
 
-/** `PUT /editor/books/{id}/entities/{ref}` */
+/** `PUT /editor/experiences/{id}/entities/{ref}` */
 export interface EntitySaved {
   ref: string;
   entity: EntityData;
 }
 
-/** `PUT /editor/books/{id}/targets/{targetId}`: the whole target after the change */
+/** `PUT /editor/experiences/{id}/targets/{targetId}`: the whole target after the change */
 export interface TargetSaved {
   target: TargetData;
 }
 
-/** `POST /editor/books/{id}/entries` → 201: the new entry with its target (none when it was made without one), and its scene */
+/** `POST /editor/experiences/{id}/entries` → 201: the new entry with its target (none when it was made without one), and its scene */
 export interface EntryAdded {
   entry: { id: string; category: string; title: string; scene: string; surface?: string; body: string; caption?: string; tags: string[]; target?: TargetData };
   scene: string;
 }
 
-/** An entry as the content holds it, without its target (`BookTexts`): every field as written – an image's path or URL unresolved */
+/** An entry as the content holds it, without its target (`ExperienceTexts`): every field as written – an image's path or URL unresolved */
 export type EntryFields = Omit<EntryData, "target">;
 
-/** One entry of `GET /editor/books/{id}/entries`: its fields (its `scene` among them) and its target's id and image */
+/** One entry of `GET /editor/experiences/{id}/entries`: its fields (its `scene` among them) and its target's id and image */
 export type EditorEntry = EntryFields & { target: { id: string; imageSrc: string } | null };
 
-/** `GET /editor/books/{id}/entries`: every entry in the book's order */
+/** `GET /editor/experiences/{id}/entries`: every entry in the experience's order */
 export interface EntryList {
   entries: EditorEntry[];
 }
 
-/** `PUT /editor/books/{id}/entries/{entryId}`: the entry after the change, its scene now and before */
+/** `PUT /editor/experiences/{id}/entries/{entryId}`: the entry after the change, its scene now and before */
 export interface EntrySaved {
   entry: EntryFields;
   scene: string;
   previousScene: string;
 }
 
-/** `PUT /editor/books/{id}`: the book's `book` after the change (title, author, publisher and the rest it holds) */
-export interface BookSaved {
-  book: BookData;
+/**
+ * `PUT /editor/experiences/{id}`'s body (#320): the fields sent change. `book` changes the printed book's fields sent
+ * (`publisher: null` or "" removes it); `book: null` removes the printed book; a new one needs its `author`.
+ */
+export interface ExperienceUpdate {
+  title?: string;
+  book?: { author?: string; publisher?: string | null } | null;
+}
+
+/** `PUT /editor/experiences/{id}`: the experience after the change (its title, its printed book and the rest it holds) */
+export interface ExperienceSaved {
+  experience: ExperienceData;
 }
 
 // ── Scenes (#307, schema 3.0 – docs/server.md "Scenes") ─────────────────────────────────────────────
@@ -343,7 +352,7 @@ export const SURFACE_REFERENCE_FITS = ["cover", "contain", "stretch"] as const;
 export type SurfaceReferenceFit = (typeof SURFACE_REFERENCE_FITS)[number];
 
 /**
- * A surface's reference image (#314): an image of the book's Library the editor's stage shows on the surface – editor-only,
+ * A surface's reference image (#314): an image of the experience's Library the editor's stage shows on the surface – editor-only,
  * never in the content. `url` = a Library URL or an imported file's content path (`/assets/content/…`).
  */
 export interface SurfaceReference {
@@ -356,7 +365,7 @@ export interface SurfaceReference {
 export type SurfaceSummary = SurfaceData & { reference: SurfaceReference | null };
 
 /**
- * `PUT /editor/books/{id}/scenes/{sceneId}/surfaces/{surfaceId}/reference`: `url` sets or replaces (null removes);
+ * `PUT /editor/experiences/{id}/scenes/{sceneId}/surfaces/{surfaceId}/reference`: `url` sets or replaces (null removes);
  * `fit` / `name` without `url` change the present one (a replace keeps its fit unless `fit` is sent)
  */
 export interface SurfaceReferenceRequest {
@@ -374,7 +383,7 @@ export interface SurfaceReferenceSaved {
 }
 
 /**
- * A scene of `GET /editor/books/{id}/scenes`: the content's `SceneData`, its place in the order, its surfaces each with
+ * A scene of `GET /editor/experiences/{id}/scenes`: the content's `SceneData`, its place in the order, its surfaces each with
  * its reference image, and how many entries and targets lie on it
  */
 export type SceneSummary = Omit<SceneData, "surfaces"> & {
@@ -384,7 +393,7 @@ export type SceneSummary = Omit<SceneData, "surfaces"> & {
   targets: number;
 };
 
-/** `GET /editor/books/{id}/scenes`: the scenes in order and the groups with their scenes */
+/** `GET /editor/experiences/{id}/scenes`: the scenes in order and the groups with their scenes */
 export interface SceneList {
   scenes: SceneSummary[];
   groups: (GroupData & { scenes: string[] })[];
@@ -397,14 +406,14 @@ export interface SceneList {
  */
 export type SurfaceInput = Omit<SurfaceData, "place"> & { place?: { x: number; y: number; z: number; rx?: number; ry?: number; rz?: number } };
 
-/** `POST /editor/books/{id}/scenes` { preset?, after? | before? | position?, id?, label?, group?, surfaces? } → 201 */
+/** `POST /editor/experiences/{id}/scenes` { preset?, after? | before? | position?, id?, label?, group?, surfaces? } → 201 */
 export interface SceneAdded {
   scene: SceneData;
   position: number;
 }
 
 /**
- * `PUT /editor/books/{id}/scenes/{sceneId}` { label?, group?, surfaces?, passes?, apply? }: the scene after the change; the
+ * `PUT /editor/experiences/{id}/scenes/{sceneId}` { label?, group?, surfaces?, passes?, apply? }: the scene after the change; the
  * entries whose surface went (they stay on the scene without one) and the targets whose surface went (their `place` goes)
  */
 export interface SceneSaved {
@@ -419,40 +428,40 @@ export interface SceneOrderPlan {
   groups: { scene: string; from: string | null; to: string | null }[];
 }
 
-/** `POST /editor/books/{id}/scenes/move`: the plan, and whether it was written (`apply: true`) */
+/** `POST /editor/experiences/{id}/scenes/move`: the plan, and whether it was written (`apply: true`) */
 export interface ScenesMoved {
   plan: SceneOrderPlan;
   applied: boolean;
 }
 
-/** `POST /editor/books/{id}/groups`: the group and its plan, and whether it was written */
+/** `POST /editor/experiences/{id}/groups`: the group and its plan, and whether it was written */
 export interface GroupPlanned {
   plan: SceneOrderPlan & { group: GroupData };
   applied: boolean;
 }
 
-/** `PUT /editor/books/{id}/groups/{gid}` */
+/** `PUT /editor/experiences/{id}/groups/{gid}` */
 export interface GroupSaved {
   group: GroupData;
 }
 
-/** `DELETE /editor/books/{id}/groups/{gid}`: the group that went and its scenes (in place, without a group now) */
+/** `DELETE /editor/experiences/{id}/groups/{gid}`: the group that went and its scenes (in place, without a group now) */
 export interface Ungrouped {
   ungrouped: string;
   scenes: string[];
 }
 
-/** `PUT /editor/books/{id}/passes`: the book's post-processing, null when removed */
-export interface BookPassesSaved {
+/** `PUT /editor/experiences/{id}/passes`: the experience's post-processing, null when removed */
+export interface ExperiencePassesSaved {
   passes: PassData[] | null;
 }
 
-/** `PUT /editor/books/{id}/appearance`: the book's looks by moment, null when removed (the default look plays everywhere) */
-export interface BookAppearanceSaved {
-  appearance: BookAppearance | null;
+/** `PUT /editor/experiences/{id}/appearance`: the experience's looks by moment, null when removed (the default look plays everywhere) */
+export interface ExperienceAppearanceSaved {
+  appearance: ExperienceAppearance | null;
 }
 
-/** `PUT /editor/books/{id}/environment`: the book's environment, null when removed (the default applies) */
+/** `PUT /editor/experiences/{id}/environment`: the experience's environment, null when removed (the default applies) */
 export interface EnvironmentSaved {
   environment: EnvironmentData | null;
 }
@@ -471,7 +480,7 @@ export interface RemovalFile {
 
 /** What every removal takes (`Removal::impact`) */
 interface RemovalTakes {
-  book: string;
+  experience: string;
   entries: { id: string; title: string; scene: string | null; category: string }[];
   targets: { id: string; entry: string; imageSrc: string }[];
   /** The entities that go: a shared one with its `ref`, a target's own with `ref: null` */
@@ -496,7 +505,7 @@ export interface RemovalResult {
 
 // ── Assets ───────────────────────────────────────────────────────────────────────────────────────────
 
-/** A Library file (`GET /editor/books/{id}/assets`): an upload, or a file of the content import (`imported`) */
+/** A Library file (`GET /editor/experiences/{id}/assets`): an upload, or a file of the content import (`imported`) */
 export interface Asset {
   id: string;
   name: string;
@@ -522,8 +531,8 @@ export interface Asset {
   credits: string | null;
   /**
    * Where the file is used first (#298 phase 3, `AssetNames`) – the Library groups by it: the scene of its first use in
-   * the scenes' order (null: book-wide – the environment, a plugin, a shared entity no target shows), that order (−1
-   * book-wide) and how many uses follow ("+N more"); null for an unused file
+   * the scenes' order (null: experience-wide – the environment, a plugin, a shared entity no target shows), that order (−1
+   * experience-wide) and how many uses follow ("+N more"); null for an unused file
    */
   place?: LibraryPlace | null;
   /** An imported file listed under a name given by its use (`asset_names`), not its own */
@@ -540,7 +549,7 @@ export interface LibraryPlace {
 }
 
 /**
- * `POST /editor/books/{id}/assets/names { apply? }` (#298 phase 3): the names the Library's files take by their use –
+ * `POST /editor/experiences/{id}/assets/names { apply? }` (#298 phase 3): the names the Library's files take by their use –
  * `p118-1_target.webp`, `p118-1_image.webp`, `<scene>_<surface>.webp` (a reference image), `<entity>_<asset>.glb` … The name only: every URL stays.
  * Without `apply: true` the plan; with it the plan is written (`applied`: something was renamed).
  */
@@ -566,19 +575,19 @@ export interface AssetRename {
   more: number;
 }
 
-/** Where a file or a plugin is used: a row of the draft (`entity castle`), the book, or a plugin source that loads the file */
+/** Where a file or a plugin is used: a row of the draft (`entity castle`), the experience, or a plugin source that loads the file */
 export interface Usage {
   kind: string;
   ref: string;
 }
 
-/** `GET /editor/books/{id}/assets[?kind=]` */
+/** `GET /editor/experiences/{id}/assets[?kind=]` */
 export interface AssetList {
   assets: Asset[];
 }
 
 /**
- * `POST /editor/books/{id}/assets[?fit=<use>]` → 201 (or 200: the same bytes are an asset already – it takes this upload's
+ * `POST /editor/experiences/{id}/assets[?fit=<use>]` → 201 (or 200: the same bytes are an asset already – it takes this upload's
  * name). `converted`: the picture was stored under the image rule (#298, `shared/api/images.ts`) – as WebP named
  * `<name>.webp`, scaled down to the use's longest side; false for every other file, and for a picture this instance
  * stores as it came (no GD, unreadable, animated, a WebP within the rule).
@@ -588,12 +597,12 @@ export interface AssetUploaded {
   converted: boolean;
 }
 
-/** The most files one `PUT /editor/books/{id}/assets/credits` sets (`Assets::CREDITS_BATCH_MAX`) */
+/** The most files one `PUT /editor/experiences/{id}/assets/credits` sets (`Assets::CREDITS_BATCH_MAX`) */
 export const CREDITS_BATCH_MAX = 500;
 /** The longest credits line (`Assets::CREDITS_MAX`) */
 export const CREDITS_MAX = 1000;
 
-/** `PUT /editor/books/{id}/assets/credits` – a file's credits line by its URL; empty or null removes it (#277) */
+/** `PUT /editor/experiences/{id}/assets/credits` – a file's credits line by its URL; empty or null removes it (#277) */
 export interface AssetCreditsChange {
   items: { url: string; credits: string | null }[];
 }
@@ -604,14 +613,14 @@ export interface AssetCreditsSaved {
   credits: Record<string, string | null>;
 }
 
-/** `PUT /editor/books/{id}/assets/{assetId}/file[?fit=<use>]`: the new version, how many rows now name it, and whether the image rule converted it */
+/** `PUT /editor/experiences/{id}/assets/{assetId}/file[?fit=<use>]`: the new version, how many rows now name it, and whether the image rule converted it */
 export interface AssetReplaced {
   asset: Asset;
   relinked: number;
   converted: boolean;
 }
 
-/** `GET /editor/books/{id}/assets/{assetId}/usages` */
+/** `GET /editor/experiences/{id}/assets/{assetId}/usages` */
 export interface AssetUsages {
   usages: Usage[];
   asset: Asset;
@@ -619,7 +628,7 @@ export interface AssetUsages {
 
 // ── Plugin sources (the Code tab) ────────────────────────────────────────────────────────────────────
 
-/** A plugin source in the list (`GET /editor/books/{id}/plugins`) */
+/** A plugin source in the list (`GET /editor/experiences/{id}/plugins`) */
 export interface PluginSummary {
   id: string;
   size: number;
@@ -638,7 +647,7 @@ export interface PluginSource {
   updatedBy: string | null;
 }
 
-/** `GET /editor/books/{id}/plugins/{pluginId}/usages`: where the draft uses what it registers, and what that is */
+/** `GET /editor/experiences/{id}/plugins/{pluginId}/usages`: where the draft uses what it registers, and what that is */
 export interface PluginUsages {
   usages: Usage[];
   registers: SourceTypes;
