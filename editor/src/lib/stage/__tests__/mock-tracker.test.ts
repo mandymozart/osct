@@ -140,7 +140,7 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
   let tracker: MockTracker;
   let now = 1000;
 
-  const stage = (): StageView & { layouts: number; hdris: string[]; frames: number; disposed: boolean } => ({
+  const stage = (): StageView & { layouts: number; hdris: Array<string | null>; frames: number; disposed: boolean } => ({
     layouts: 0, hdris: [], frames: 0, disposed: false,
     setLayout() { this.layouts++; },
     setHdri(hdri) { this.hdris.push(hdri); },

@@ -7,12 +7,23 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 3.3.0 – 2026-11-19
+
+### Added
+
+- **Admin: a QR code for any page** (#326): *A new code* chooses where the code leads – the start, Info, a scene, an entry
+  list or an entry – and draws the address with its source as an SVG QR code to download for print (docs/admin.md).
+- **Editor: the HDRI can be switched off** (#327): a switch next to the HDRI in the view menu – no sky, the scene's own
+  lights; remembered per browser.
 
 ### Changed
 
 - **Editor: a resized panel makes room** (#329): the panels in its way move on and, at the wall, shrink to their least
   size; the resized panel stops where they can give no more. Laid out once per animation frame, stored when let go.
+
+### Fixed
+
+- A vertical toolbar turns back into a row (#328): its button did nothing while the toolbar was a column.
 
 ## 3.2.0 – 2026-11-19
 

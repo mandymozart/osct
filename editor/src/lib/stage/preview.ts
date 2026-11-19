@@ -107,6 +107,8 @@ export interface PreviewSettings {
   orbit: PreviewOrbit | null;
   /** The HDRI shown as sky and used as light (while the shading is rendered) */
   hdri: HdriId;
+  /** The HDRI on (#327): off = no sky and no HDRI light while rendered – the scene's own lights, as in solid / textured */
+  hdriOn: boolean;
   /** The desk's top under the scene (the frame is always the Eiermann) */
   top: TopId;
   /** The size models with a texture set show their map at (the reader's texture quality, previewed) */
@@ -185,7 +187,7 @@ export const isNodeHidden = (hidden: readonly string[], targetId: string, path: 
 const STORAGE_KEY = "osct-preview";
 
 const DEFAULTS: PreviewSettings = {
-  view: "reader", shading: "rendered", orbit: null, hdri: "wooden_studio_17", top: DEFAULT_TOP, textureQuality: "auto", wobble: 0, grid: false, gridMm: 10, origin: "top-left",
+  view: "reader", shading: "rendered", orbit: null, hdri: "wooden_studio_17", hdriOn: true, top: DEFAULT_TOP, textureQuality: "auto", wobble: 0, grid: false, gridMm: 10, origin: "top-left",
   axis: true, floorGrid: true, floorMm: 50, wallGrid: false, wallZ: -500, targetMarks: false, snap: false, snapTo: [...SNAP_TARGETS], snapMove: 1, snapRotate: 15, snapScale: 0.1,
 };
 
@@ -226,6 +228,7 @@ export const parseSettings = (parsed: unknown): PreviewSettings => {
     shading: isShadingMode(stored.shading) ? stored.shading : DEFAULTS.shading,
     orbit: isOrbit(stored.orbit) ? stored.orbit : null,
     hdri: isHdriId(stored.hdri) ? stored.hdri : DEFAULTS.hdri,
+    hdriOn: stored.hdriOn !== false,
     top: storedTop(stored),
     textureQuality: isTextureQuality(stored.textureQuality) ? stored.textureQuality : DEFAULTS.textureQuality,
     wobble: typeof stored.wobble === "number" && Number.isFinite(stored.wobble) ? Math.min(1, Math.max(0, stored.wobble)) : 0,

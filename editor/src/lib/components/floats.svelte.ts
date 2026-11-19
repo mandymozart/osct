@@ -133,7 +133,8 @@ export class Floats {
 
   /** Turn a toolbar between a row and a column (#315): a size it was resized to belongs to the other way, so it goes */
   setVertical(id: string, vertical: boolean): void {
-    const { size: _size, collapsed: _collapsed, ...place } = this.place(id);
+    // `vertical` goes with the rest: kept in `place`, a column could never turn back into a row (#328)
+    const { size: _size, collapsed: _collapsed, vertical: _vertical, ...place } = this.place(id);
     this.set(id, vertical ? { ...place, vertical } : place);
     this.front(id);
   }

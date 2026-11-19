@@ -77,3 +77,17 @@ describe("Floats: resizing a panel", () => {
     f.drop();
   });
 });
+
+describe("Floats: a toolbar's row / column (#328)", () => {
+  const TOOLS: PanelSpec[] = [{ id: "tools", name: "Tools", icon: "tools", about: "", place: at("top-left", 0, 0), size: { w: "content", h: "content" }, min: { w: 8, h: 2 }, inline: true }];
+  beforeEach(() => localStorage.clear());
+
+  it("turns into a column and back into a row – stored both ways", () => {
+    const f = new Floats("test", TOOLS);
+    f.setVertical("tools", true);
+    expect(f.vertical("tools")).toBe(true);
+    f.setVertical("tools", false);
+    expect(f.vertical("tools")).toBe(false);
+    expect(new Floats("test", TOOLS).vertical("tools")).toBe(false);
+  });
+});

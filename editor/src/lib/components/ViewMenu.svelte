@@ -3,6 +3,7 @@
   import Segmented from "./Segmented.svelte";
   import ScrubNumber from "./ScrubNumber.svelte";
   import ToolMenu from "./ToolMenu.svelte";
+  import Toggle from "./Toggle.svelte";
   import { getPreview, HDRIS, isHdriId, isTextureQuality, subscribePreview, TEXTURE_QUALITIES, TOPS, updatePreview, viewSummary, type PreviewState } from "#lib/stage/preview.js";
   import { isOriginId, ORIGIN_SPOTS, ORIGINS, originHelp, originLabel } from "#lib/stage/origin.js";
   import { stageEnvironment } from "#lib/environment.svelte.js";
@@ -63,10 +64,11 @@
   {/if}
   <div class="row" data-help={environment
     ? "The studio HDRI – overridden by the experience's environment, used again for an experience without one (Environment tab → Use the default)."
-    : "The sky and its light: a studio HDRI, shown while the shading is rendered. An experience's environment replaces it (the Environment tab)."}>
+    : "The sky and its light: a studio HDRI, shown while the shading is rendered – the switch turns it off (no sky, the scene's own lights). An experience's environment replaces it (the Environment tab)."}>
     <span class="label">{environment ? "HDRI" : "sky"}</span>
     <span class="controls">
-      <select class="field" class:overridden={!!environment} aria-label="HDRI" value={preview.hdri} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isHdriId(id)) updatePreview({ hdri: id }); }}>
+      <Toggle on={preview.hdriOn} label="HDRI on or off" title={preview.hdriOn ? "Switch the HDRI off – the scene's own lights only" : "Switch the HDRI on"} onchange={hdriOn => updatePreview({ hdriOn })} />
+      <select class="field" class:overridden={!!environment} aria-label="HDRI" disabled={!preview.hdriOn} value={preview.hdri} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isHdriId(id)) updatePreview({ hdri: id }); }}>
         {#each HDRIS as hdri (hdri.id)}<option value={hdri.id}>{hdri.name}</option>{/each}
       </select>
       {#if environment}<span class="small muted">without an environment</span>{/if}

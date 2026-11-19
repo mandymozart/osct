@@ -610,7 +610,8 @@ The toolbar's **view** group – how the editor shows the scene, stored on the d
 holding a phone. **origin**: the 3 × 3 alignment square ([below](#grid-origin-and-snapping)). **top**: the Eiermann
 desk's top, *plywood* (the default) or *linoleum* (#226; switching it changes only the top – the experience, the targets, the
 grid and the camera stay; a desk stored before, `desk: "eiermann"` or `"schoepfer"`, becomes *plywood* or *linoleum*).
-**sky**: one of six Poly Haven studios (the HDRI – sky and light while the shading is rendered); with the experience's
+**sky**: one of six Poly Haven studios (the HDRI – sky and light while the shading is rendered), and a switch that turns
+the HDRI **off** (#327: no sky and no HDRI light – the scene's own lights, remembered per browser); with the experience's
 environment the row names its world (*the environment's (world café)*), the HDRI picker waits below it for an experience
 without one, and the group's tooltip ends *· the environment's sky*.
 

@@ -22,8 +22,10 @@ no admin sees "No admin access" at `/editor/admin`.
   `?s=<source>` ([server, "Arrivals"](server.md#arrivals)): the book's code `bk1` (last page), the desktop landing
   page's `lp1`, and any other source as soon as it is used (*Unknown source*). Per source: the arrivals in the chosen
   window (7 / 30 / 90 days, a year) and in all, the **first** arrivals (browsers that had never arrived before), phone ·
-  tablet · desktop, the first and the last day, and a bar per day. **A new code** composes the address for a new
-  source (`…/?s=fl1`) to copy and print as a QR code. Counts only – no IP, no user.
+  tablet · desktop, the first and the last day, and a bar per day. **A new code** (#326) composes the address for a new
+  source and where it leads – the start, Info, a scene, an entry list or an entry (the reader's links) –, e.g.
+  `…/entry/p004-1?s=fl1`, and draws it as a **QR code in SVG** to copy or download for print (`editor/src/lib/qr-svg.ts`,
+  the reader's QR library copied to `editor/static/vendor/qrcode.js`). Counts only – no IP, no user.
 - **Users** – search by a part of the e-mail address (`GET /api/admin/users?q=`), newest first, up to 50 at a time
   (narrow the search for more). Each row: the address (`pw` when a password is set), the **roles as toggles**
   (`reader` is fixed – every account has it; `editor` and `admin` grant / revoke with one click; hovering a role

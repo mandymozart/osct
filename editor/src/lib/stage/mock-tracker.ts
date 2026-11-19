@@ -94,6 +94,9 @@ export interface StageGrids {
   wallZ: number;
 }
 
+/** The HDRI the stage shows: the chosen one, or none while it is switched off (#327) */
+export const hdriOf = (state: Pick<PreviewState, "hdri" | "hdriOn">): PreviewState["hdri"] | null => (state.hdriOn ? state.hdri : null);
+
 /** A sameness check of two grids (the stage draws them again only on a change) */
 const sameGrids = (a: StageGrids, b: StageGrids): boolean => JSON.stringify(a) === JSON.stringify(b);
 
@@ -219,7 +222,7 @@ export interface StageView {
   /** The targets hidden in the tree (the eye, #250): their printed images are not drawn either */
   setHiddenPrints?(hidden: ReadonlySet<string>): void;
   /** The sky and the light: an HDRI (shown while the shading is rendered) */
-  setHdri(hdri: PreviewState["hdri"]): void;
+  setHdri(hdri: PreviewState["hdri"] | null): void;
   /** The desk's top under the scene (the frame stays) */
   setTop?(top: PreviewState["top"]): void;
   /**
@@ -394,7 +397,7 @@ export class MockTracker implements IImageTracker {
     this.stage = stage;
     if (this.sceneId) stage.setLayout(this.targets, this.stageScene());
     stage.setShading?.(this.preview.shading);
-    stage.setHdri(this.preview.hdri);
+    stage.setHdri(hdriOf(this.preview));
     stage.setTop?.(this.preview.top);
     stage.setGrid?.(gridOf(this.preview));
     stage.setGhost?.(this.ghost, this.ghostOptions);
@@ -608,7 +611,7 @@ export class MockTracker implements IImageTracker {
       this.orbit = { ...state.orbit };
     }
     if (initial || state.shading !== previous.shading) this.stage?.setShading?.(state.shading);
-    if (initial || state.hdri !== previous.hdri) this.stage?.setHdri(state.hdri);
+    if (initial || state.hdri !== previous.hdri || state.hdriOn !== previous.hdriOn) this.stage?.setHdri(hdriOf(state));
     if (initial || state.top !== previous.top) this.stage?.setTop?.(state.top);
     if (initial || !sameGrids(gridOf(state), gridOf(previous))) this.stage?.setGrid?.(gridOf(state));
     if (initial || state.targetMarks !== previous.targetMarks) this.stage?.setTargetMarks?.(state.targetMarks);

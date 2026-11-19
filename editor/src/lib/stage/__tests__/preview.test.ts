@@ -30,7 +30,7 @@ describe("editor preview settings", () => {
     setPreviewActive(true);
     const stored = JSON.parse(localStorage.getItem("osct-preview")!);
     expect(stored).toEqual({
-      view: "top", shading: "rendered", orbit: null, hdri: "wooden_studio_07", top: "plywood", textureQuality: "auto", wobble: 0.4, grid: false, gridMm: 10, origin: "top-left",
+      view: "top", shading: "rendered", orbit: null, hdri: "wooden_studio_07", hdriOn: true, top: "plywood", textureQuality: "auto", wobble: 0.4, grid: false, gridMm: 10, origin: "top-left",
       axis: true, floorGrid: true, floorMm: 50, wallGrid: false, wallZ: -500, targetMarks: false, snap: false, snapTo: ["grid", "axes", "objects", "outlines"], snapMove: 1, snapRotate: 15, snapScale: 0.1,
     });
     expect(getPreview().hidden).toEqual(["a"]);
@@ -238,5 +238,21 @@ describe("the preview kept in step with the stage frame (#234)", () => {
     expect(parseSettings({ textureQuality: "auto" }).textureQuality).toBe("auto");
     expect(parseSettings({ textureQuality: 800 }).textureQuality).toBe("auto");
     expect(parseSettings({}).textureQuality).toBe("auto");
+  });
+});
+
+describe("the HDRI switch (#327)", () => {
+  it("is on by default, kept off once switched off, and the stage then shows no HDRI", async () => {
+    localStorage.clear();
+    vi.resetModules();
+    const preview = await import("../preview");
+    expect(preview.getPreview().hdriOn).toBe(true);
+    preview.updatePreview({ hdriOn: false });
+    vi.resetModules();
+    const fresh = await import("../preview");
+    expect(fresh.getPreview().hdriOn).toBe(false);
+    const { hdriOf } = await import("../mock-tracker");
+    expect(hdriOf({ hdri: "wooden_studio_17", hdriOn: false })).toBeNull();
+    expect(hdriOf({ hdri: "wooden_studio_17", hdriOn: true })).toBe("wooden_studio_17");
   });
 });
