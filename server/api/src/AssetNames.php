@@ -177,9 +177,9 @@ final class AssetNames
 
         // Entries: on their scene; the colour picture `_image`, other files by field
         $entries = [];
-        foreach (Db::run('SELECT id, spread_id, data_json FROM entries WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+        foreach (Db::run('SELECT id, scene_id, data_json FROM entries WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
             $id = (string) $row['id'];
-            $entries[$id] = $at($row['spread_id'] === null ? null : (string) $row['spread_id']);
+            $entries[$id] = $at($row['scene_id'] === null ? null : (string) $row['scene_id']);
             $place = $entries[$id];
             self::walk(Editor::decode($row['data_json']), null, null, static function (string $value, ?string $part, bool $src = false) use ($add, $id, $place) {
                 $add($value, 'entry', $id, $place['scene'], $place['order'], "{$id}_" . ($part ?? 'file'), $src ? $id : null);
@@ -208,7 +208,7 @@ final class AssetNames
         }
         // Scenes' own files (their passes …): on the scene, no name of their own
         $surfaces = [];
-        foreach (Db::run('SELECT id, data_json FROM spreads WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
+        foreach (Db::run('SELECT id, data_json FROM scenes WHERE book_id = :book', ['book' => $bookId])->fetchAll() as $row) {
             $id = (string) $row['id'];
             $place = $at($id);
             $data = Editor::decode($row['data_json']);

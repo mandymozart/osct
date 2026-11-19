@@ -61,8 +61,21 @@ function loadSchema(PDO $pdo, string $sql): void
     foreach (array_filter(array_map('trim', preg_split('/;\s*(\n|$)/', (string) $sql))) as $statement) {
         // As Db::migrate: a removed feature's column goes only where it is
         if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+DROP\s+COLUMN\s+`?(\w+)`?/i', $statement, $match) && !hasColumn($pdo, $match[1], $match[2])) continue;
+        // and a rename (#319) only where the old name is
+        if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+RENAME\s+TO\s+`?(\w+)`?/i', $statement, $match) && (!hasTable($pdo, $match[1]) || hasTable($pdo, $match[2]))) continue;
+        if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+RENAME\s+COLUMN\s+`?(\w+)`?/i', $statement, $match) && (!hasTable($pdo, $match[1]) || !hasColumn($pdo, $match[1], $match[2]))) continue;
         $pdo->exec($statement);
     }
+}
+
+/** The table exists (SQLite or MySQL) */
+function hasTable(PDO $pdo, string $table): bool
+{
+    $statement = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite'
+        ? $pdo->prepare("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?")
+        : $pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?');
+    $statement->execute([$table]);
+    return (int) $statement->fetchColumn() > 0;
 }
 
 /** The table has the column (SQLite or MySQL) */
@@ -200,7 +213,7 @@ function importing(string $base, string $book, ?string $token, string $raw): arr
 }
 
 /**
- * A removal in its two steps (Books::deleteSpread / deleteEntry): the first answer is 409 confirm-delete with the impact
+ * A removal in its two steps (Books::deleteScene / deleteEntry): the first answer is 409 confirm-delete with the impact
  * and a confirmation id – sent again with it (and `$options`, e.g. deleteFiles), as the editor does after the person
  * confirmed. Any other first answer passes through unchanged.
  */
@@ -446,7 +459,7 @@ try {
     $pdo = null;
 
     echo "progress\n";
-    $record = ['format' => 1, 'bookId' => 'osct', 'appVersions' => ['1.1.0'], 'unlocked' => new stdClass(), 'consulted' => ['e1' => 5], 'lastSpreadId' => null, 'lastCategory' => null, 'onboarded' => true];
+    $record = ['format' => 1, 'bookId' => 'osct', 'appVersions' => ['1.1.0'], 'unlocked' => new stdClass(), 'consulted' => ['e1' => 5], 'lastScene' => null, 'lastCategory' => null, 'onboarded' => true];
     [$status, $data] = call($api, 'GET', '/progress/osct', null, $session);
     check($status === 200 && $data['record'] === null && $data['updatedAt'] === null, 'nothing stored yet');
     [$status, $data] = call($api, 'PUT', '/progress/osct', ['record' => $record + [], 'baseUpdatedAt' => null], $session, 'http://localhost:5173', json_encode(['record' => $record, 'baseUpdatedAt' => null]));
@@ -1183,7 +1196,7 @@ try {
     check($status === 200, 'import again with the recorded plugins');
 
     echo "editor: a plugin's pass (#216)\n";
-    // A pass the declared plugins recorded passes in a spread's and the book's list; another name is a typo
+    // A pass the declared plugins recorded passes in a scene's and the book's list; another name is a typo
     $scanning = $configuration;
     $scanning['plugins'][0]['registered']['passes'] = ['scanLines' => ['description' => 'Scan lines.', 'params' => [
         'lines' => ['kind' => 'number', 'default' => 200, 'min' => 10, 'max' => 800, 'description' => 'How many.'],
@@ -1191,7 +1204,7 @@ try {
     [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $scanning, 'files' => $files], $flags));
     check($status === 200, 'import: a plugin with a recorded pass → 200');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/scenes/s1', ['passes' => [['type' => 'vignette'], ['type' => 'scanLines', 'lines' => 300]]], $editor);
-    check($status === 200 && $data['scene']['passes'] === [['type' => 'vignette'], ['type' => 'scanLines', 'lines' => 300]], 'a spread names the recorded pass, in its place, its params kept');
+    check($status === 200 && $data['scene']['passes'] === [['type' => 'vignette'], ['type' => 'scanLines', 'lines' => 300]], 'a scene names the recorded pass, in its place, its params kept');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => [['type' => 'scanLine']]], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-passes' && str_contains($data['error']['message'], 'a plugin of the book registers (scanLines)'), 'a pass no declared plugin recorded → 400 naming the plugins\' passes');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => [['type' => 'scanLines']]], $editor);
@@ -1779,7 +1792,7 @@ try {
     deleting($api, '/editor/books/osct/scenes/scene-1', $editor);
     [, $log] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
     check(array_column($sceneList()['scenes'], 'id') === ['s1', 's2'] && in_array('scene', array_column($log['changes'], 'kind'), true) && !in_array('spread', array_column($log['changes'], 'kind'), true),
-        'the book is back to its two scenes; the log names scene changes (no spread)');
+        'the book is back to its two scenes; the log names scene changes (no scene)');
 
     echo "editor: the book's environment (content schema 2.8)\n";
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/environment', ['environment' => ['world' => 'cafe', 'onionSky' => false]], $editor);
@@ -1903,11 +1916,11 @@ try {
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => $bookPasses], $editor);
     check($status === 200 && $data['passes'] === $bookPasses, 'PUT book passes');
     [$status] = call($api, 'PUT', '/editor/books/osct/scenes/s2', ['passes' => []], $editor);
-    check($status === 200, 'a spread turns them off with a list of its own');
+    check($status === 200, 'a scene turns them off with a list of its own');
     [, $draftNow] = $draftOf();
-    $draftSpreads = array_column($draftNow['scenes'], null, 'id');
+    $draftScenes = array_column($draftNow['scenes'], null, 'id');
     check(($draftNow['book']['passes'] ?? null) === $bookPasses, 'the draft carries the book passes');
-    check(!array_key_exists('passes', $draftSpreads['s1']) && ($draftSpreads['s2']['passes'] ?? null) === [], 'the draft: s1 has no list (the book’s apply), s2 its own empty one');
+    check(!array_key_exists('passes', $draftScenes['s1']) && ($draftScenes['s2']['passes'] ?? null) === [], 'the draft: s1 has no list (the book’s apply), s2 its own empty one');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => [['type' => 'glow']]], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-passes', 'an unknown pass type is refused');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => ['type' => 'bloom']], $editor);
@@ -1919,20 +1932,20 @@ try {
     // A pass switched off keeps its place and values (#233); enabled is true or false, nothing else
     $offPasses = [['type' => 'bloom', 'enabled' => false, 'strength' => 0.5], ['type' => 'vignette', 'enabled' => true]];
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/scenes/s2', ['passes' => $offPasses], $editor);
-    check($status === 200 && $data['scene']['passes'] === $offPasses, 'a spread\'s pass that is off is kept with its values (enabled: false)');
+    check($status === 200 && $data['scene']['passes'] === $offPasses, 'a scene\'s pass that is off is kept with its values (enabled: false)');
     [, $draftNow] = $draftOf();
     check((array_column($draftNow['scenes'], null, 'id')['s2']['passes'] ?? null) === $offPasses, 'the draft carries enabled');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => [['type' => 'bloom', 'enabled' => 'no']]], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-passes' && str_contains($data['error']['message'], 'passes[0].enabled must be true or false'), 'the book\'s: enabled must be true or false');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/scenes/s2', ['passes' => [['type' => 'vignette', 'enabled' => 1]]], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-scene', 'a spread\'s: enabled 1 is refused');
+    check($status === 400 && $data['error']['code'] === 'invalid-scene', 'a scene\'s: enabled 1 is refused');
     [$status] = call($api, 'PUT', '/editor/books/nowhere/passes', ['passes' => null], $editor);
     check($status === 404, 'an unknown book → 404');
     [$status, $data] = call($api, 'PUT', '/editor/books/osct/passes', ['passes' => null], $editor);
     [, $draftNow] = $draftOf();
     check($status === 200 && $data['passes'] === null && !array_key_exists('passes', $draftNow['book']), 'passes: null removes them from the book');
     [$status] = call($api, 'PUT', '/editor/books/osct/scenes/s2', ['passes' => null], $editor);
-    check($status === 200, 'the spread back to the book’s');
+    check($status === 200, 'the scene back to the book’s');
     [, $data] = call($api, 'GET', '/editor/books/osct/changes?limit=500', null, $editor);
     check(count(array_filter($data['changes'], fn($c) => $c['kind'] === 'passes' && $c['ref'] === 'osct')) === 3, 'the change log has both book passes edits (and the plugin pass edit of #216)');
 
@@ -2062,125 +2075,6 @@ try {
     $removal = array_values(array_filter($log['changes'], fn($c) => $c['after'] === null && $c['kind'] !== 'reference'));
     check(!$removal || is_string($removal[0]['notRevertable']), 'a removal is not revertable');
 
-    echo "editor: the migration of a 2.x book to schema 3.0 (#319, POST …/migrate-3)\n";
-    // A book as staging's osct was stored before 3.0, written straight into the tables: a cover, page 1 alone with its
-    // unnumbered half (2.x surfaces left / right), 2–3 without surfaces, 4–5 with surfaces and a 2.x reference on 4, the
-    // front matter, the back cover; page images as halves; entries with pages, targets with print
-    $halves = [];
-    foreach (['cover' => 0x101010, '1f' => 0x202020, '1' => 0x303030, '2' => 0xff0000, '3' => 0x0000ff, '4' => 0x404040, '5' => 0x505050, 'ref4' => 0x00ff00] as $key => $rgb) {
-        [, $data] = upload($api, 'POST', '/editor/books/osct/assets', pngOf(23, 32, $rgb), "half-$key.png", $editor);
-        $halves[$key] = (string) ($data['asset']['url'] ?? '');
-    }
-    $pdo = connect('test');
-    $now = gmdate('Y-m-d H:i:s');
-    $pdo->prepare('INSERT INTO books (id, title, author, book_json, initial_spread_id, assets_base, files_json, content_schema, imported_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)')
-        ->execute(['legacy', 'Legacy', 'Someone', json_encode(['id' => 'legacy', 'title' => 'Legacy', 'author' => 'Someone', 'sourceOfTruth' => 'print']), 'cover', '', '{}', '2.36', $now, $now]);
-    $side = static fn(string $id, string $side, ?string $label = null) => ['id' => $id, 'side' => $side, 'widthMm' => 230, 'heightMm' => 320] + ($label !== null ? ['label' => $label] : []);
-    $legacyScenes = [
-        ['cover', 0, 0, ['id' => 'cover', 'title' => 'Cover', 'firstPage' => 0, 'lastPage' => 0, 'format' => 'cover']],
-        ['front-1', -2, -1, ['id' => 'front-1', 'title' => 'Front matter 1', 'firstPage' => -2, 'lastPage' => -1, 'matter' => 'front']],
-        ['s001', 1, 1, ['id' => 's001', 'title' => '1', 'firstPage' => 1, 'lastPage' => 1, 'surfaces' => [$side('left', 'left'), $side('right', 'right', '1')]]],
-        ['s002-003', 2, 3, ['id' => 's002-003', 'title' => '2–3', 'firstPage' => 2, 'lastPage' => 3, 'passes' => []]],
-        ['s004-005', 4, 5, ['id' => 's004-005', 'title' => '4–5', 'label' => 'The golem', 'firstPage' => 4, 'lastPage' => 5, 'layout' => 'fixed', 'surfaces' => [$side('left', 'left', '4'), $side('right', 'right', '5')]]],
-        ['back', 6, 6, ['id' => 'back', 'title' => 'Back cover', 'firstPage' => 6, 'lastPage' => 6, 'format' => 'back']],
-    ];
-    foreach ($legacyScenes as $i => [$id, $first, $last, $data]) {
-        $pdo->prepare('INSERT INTO spreads (book_id, id, position, title, first_page, last_page, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)')
-            ->execute(['legacy', $id, $i, $data['title'], $first, $last, json_encode($data, JSON_UNESCAPED_UNICODE)]);
-    }
-    $legacyEntries = [
-        ['e-cover', 'cover', 0, ['surface' => 'front', 'x' => 10, 'y' => 10, 'width' => 50]],
-        ['e-three', 's002-003', 3, ['page' => 3, 'surface' => 'right', 'x' => 20, 'y' => 30, 'width' => 40, 'height' => 40]],
-        ['e-five', 's004-005', 5, ['surface' => 'right', 'surfaceId' => 'right', 'x' => 5, 'y' => 5, 'width' => 10]],
-        ['e-lost', null, 99, null],
-    ];
-    foreach ($legacyEntries as $i => [$id, $scene, $page, $print]) {
-        $entry = ['id' => $id, 'category' => 'text', 'title' => $id, 'page' => $page, 'body' => '', 'tags' => []] + ($id === 'e-five' ? ['surface' => 'right'] : []);
-        $pdo->prepare('INSERT INTO entries (book_id, id, spread_id, position, category, title, page, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-            ->execute(['legacy', $id, $scene, $i, 'text', $id, $page, json_encode($entry)]);
-        if ($print === null) continue;
-        $pdo->prepare('INSERT INTO targets (book_id, id, entry_id, image_src, entity_ref, data_json) VALUES (?, ?, ?, ?, NULL, ?)')
-            ->execute(['legacy', $id, $id, 'https://cdn.example/t.jpg', json_encode(['id' => $id, 'imageSrc' => 'https://cdn.example/t.jpg', 'print' => $print])]);
-    }
-    foreach ([[0, 0, 'cover'], [1, 1, '1f'], [1, 0, '1'], [2, 0, '2'], [3, 0, '3'], [4, 0, '4'], [5, 0, '5']] as [$page, $facing, $key]) {
-        $pdo->prepare('INSERT INTO page_images (book_id, page, facing, url, name, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, NULL, 0)')->execute(['legacy', $page, $facing, $halves[$key], "page $key"]);
-    }
-    $pdo->prepare('INSERT INTO surface_references (book_id, scene_id, surface_id, url, name, fit, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, NULL, 0)')
-        ->execute(['legacy', 's004-005', 'left', $halves['ref4'], 'scan of 4', 'contain']);
-    $pdo = null;
-
-    [$status, $data] = call($api, 'GET', '/editor/books/legacy', null, $editor);
-    check($status === 409 && $data['error']['code'] === 'migrate-first' && $data['error']['schema'] === '2.36', 'a 2.x book is read only after the migration → 409 migrate-first');
-    [$status, $data] = call($api, 'GET', '/editor/books', null, $editor);
-    check($status === 200 && in_array('legacy', array_column($data['books'], 'id'), true), '… the book list shows it');
-    $legacyConfig = $configuration;
-    $legacyConfig['version']['schema'] = '2.36';
-    [$status, $data] = call($api, 'POST', '/editor/import/preview', ['configuration' => $legacyConfig], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-configuration', 'a 2.x configuration is not imported → 400 invalid-configuration');
-
-    [$status, $data] = call($api, 'POST', '/editor/books/legacy/migrate-3', null, $editor);
-    $plan = $data['plan'] ?? [];
-    $byScene = array_column($plan['scenes'] ?? [], null, 'scene');
-    $after = static fn(string $scene): array => array_map(static fn(array $s) => [$s['id'], $s['widthMm'], $s['from']], $byScene[$scene]['after'] ?? []);
-    check($status === 200 && $data['applied'] === false && $plan['upToDate'] === false && $plan['schema'] === ['from' => '2.36', 'to' => '3.0'] && $plan['counts']['scenes'] === 6,
-        'migrate-3 without apply: the plan, nothing written');
-    check(array_column($plan['scenes'], 'label', 'scene') === ['cover' => 'Cover', 'front-1' => 'Front matter 1', 's001' => '1', 's002-003' => '2–3', 's004-005' => 'The golem', 'back' => 'Back cover'],
-        'the labels: a cover\'s and the matter\'s title, else the pages, a label of its own wins – ' . json_encode(array_column($plan['scenes'], 'label', 'scene'), JSON_UNESCAPED_UNICODE));
-    check($after('s001') === [['surface', 460, ['left', 'right']]] && $after('s002-003') === [['surface', 460, ['2', '3']]] && $after('cover') === [['surface', 230, ['Cover']]]
-        && $after('s004-005') === [['surface', 460, ['left', 'right']]] && ($byScene['s004-005']['after'][0]['label'] ?? null) === '4–5'
-        && ($byScene['s004-005']['after'][0]['place'] ?? null) === ['x' => 0, 'y' => 0, 'z' => 0, 'rx' => 0, 'ry' => 0, 'rz' => 0],
-        'the surfaces: one per printed double page (the halves merged), a cover one page wide, placed in a row');
-    check(($byScene['front-1']['group'] ?? null) === 'front-matter' && $plan['groups'] === [['id' => 'front-matter', 'label' => 'Front matter', 'scenes' => ['front-1']]], 'the front matter joins its group');
-    check(($byScene['s002-003']['targets'] ?? null) === [['target' => 'e-three', 'entry' => 'e-three', 'from' => ['surface' => 'right', 'x' => 20], 'to' => ['surface' => 'surface', 'x' => 250]]]
-        && ($byScene['s004-005']['targets'][0]['to']['x'] ?? null) === 235 && $plan['counts']['targetsMoved'] === 2, 'a target on the right page moves by the left page\'s width');
-    $refs = static fn(string $scene): array => array_map(static fn(array $r) => [$r['surface'], $r['result'], array_column($r['pieces'], 'label'), array_column($r['pieces'], 'offsetMm')], $byScene[$scene]['references'] ?? []);
-    check($refs('cover') === [['surface', 'as-is', ['Cover'], [0]]] && $refs('s002-003') === [['surface', 'combined', ['2', '3'], [0, 230]]]
-        && $refs('s001') === [['surface', 'combined', ['next to 1', '1'], [0, 230]]] && $refs('s004-005') === [['surface', 'combined', ['left', '5'], [0, 230]]]
-        && ($byScene['s004-005']['references'][0]['pieces'][0]['source'] ?? null) === 'reference', 'the references: halves put together, a cover as it is, a 2.x reference before a page image');
-    $unmapped = array_map(static fn(array $u) => [$u['kind'], $u['ref']], $plan['unmapped']);
-    check($unmapped === [['entry', 'e-lost'], ['page-image', '4']] && str_contains($plan['unmapped'][0]['reason'], '"cover"'), 'what cannot be mapped is listed with the reason: the entry on no scene, page 4\'s image under its 2.x reference');
-    [$status] = call($api, 'GET', '/editor/books/legacy', null, $editor);
-    check($status === 409, '… still 2.x');
-
-    if (($plan['imageTool'] ?? null) === null) {
-        [$status, $data] = call($api, 'POST', '/editor/books/legacy/migrate-3', ['apply' => true], $editor);
-        check($status === 409 && $data['error']['code'] === 'no-image-tool', 'without GD the halves cannot be put together → 409 no-image-tool, nothing written');
-        echo "  skipped: applying the migration – this PHP has no GD with WebP (OSCT_TEST_PHP_ARGS=\"-d extension=gd\")\n";
-    } else {
-        [$status, $data] = call($api, 'POST', '/editor/books/legacy/migrate-3', ['apply' => true], $editor);
-        check($status === 200 && $data['applied'] === true, 'migrate-3 with apply → written');
-        $applied = array_column($data['plan']['scenes'] ?? [], null, 'scene');
-        [$status, $tree] = call($api, 'GET', '/editor/books/legacy', null, $editor);
-        check($status === 200 && $tree['book']['schema'] === '3.0' && array_column($tree['scenes'], 'id') === ['cover', 'front-1', 's001', 's002-003', 's004-005', 'back']
-            && $tree['groups'] === [['id' => 'front-matter', 'label' => 'Front matter']], 'the book reads as 3.0: its scenes in the same order, the group');
-        [, $m] = call($api, 'GET', '/editor/books/legacy/draft/latest.json', null, $editor);
-        [, $legacyDraft] = call($api, 'GET', "/editor/books/legacy/draft/{$m['build']}/game.config.json", null, $editor);
-        $entries = array_column($legacyDraft['entries'] ?? [], null, 'id');
-        $s45 = array_column($legacyDraft['scenes'] ?? [], null, 'id')['s004-005'] ?? [];
-        check(($legacyDraft['version']['schema'] ?? null) === '3.0' && ($legacyDraft['initialScene'] ?? null) === 'cover' && $s45 === ['id' => 's004-005', 'label' => 'The golem',
-            'surfaces' => [['id' => 'surface', 'label' => '4–5', 'widthMm' => 460, 'heightMm' => 320, 'place' => ['x' => 0, 'y' => 0, 'z' => 0, 'rx' => 0, 'ry' => 0, 'rz' => 0]]]]
-            && ($array = array_column($legacyDraft['scenes'], null, 'id')['s002-003']['passes'] ?? null) === [], 'the draft: 3.0 scenes, no page model left, other fields kept (passes)');
-        check(($entries['e-three']['scene'] ?? null) === 's002-003' && !isset($entries['e-three']['page']) && ($entries['e-three']['target']['place'] ?? null) === ['x' => 250, 'y' => 30, 'width' => 40, 'height' => 40]
-            && !isset($entries['e-five']['surface']) && ($entries['e-five']['target']['place']['x'] ?? null) === 235 && ($entries['e-cover']['target']['place'] ?? null) === ['x' => 10, 'y' => 10, 'width' => 50]
-            && ($entries['e-lost']['scene'] ?? null) === 'cover', 'the entries keep their scene (the lost one on the opening scene), the targets their place on the joint surface');
-        $list = call($api, 'GET', '/editor/books/legacy/scenes', null, $editor)[1];
-        $refOf = array_map(static fn(array $s) => $s['surfaces'][0]['reference'] ?? null, array_column($list['scenes'], null, 'id'));
-        check(($refOf['cover']['url'] ?? null) === $halves['cover'] && ($refOf['s002-003']['name'] ?? null) === 's002-003_surface.webp' && $refOf['s002-003']['url'] !== $halves['2']
-            && ($applied['s002-003']['references'][0]['url'] ?? null) === $refOf['s002-003']['url'] && $refOf['front-1'] === null, 'the references set: the cover\'s as it was, the halves as one new image');
-        $joint = (string) @file_get_contents($refOf['s002-003']['url']);
-        $size = @getimagesizefromstring($joint);
-        check(is_array($size) && $size[0] === 46 && $size[1] === 32 && ($size['mime'] ?? null) === 'image/webp', 'the joint image: WebP, twice as wide as a half, as high');
-        [, $assets] = call($api, 'GET', '/editor/books/legacy/assets', null, $editor);
-        check(in_array('s002-003_surface.webp', array_column($assets['assets'], 'name'), true), '… a new Library file of the book');
-        [, $log] = call($api, 'GET', '/editor/books/legacy/changes?limit=500', null, $editor);
-        $kinds = array_count_values(array_column($log['changes'], 'kind'));
-        $migration = array_values(array_filter($log['changes'], static fn(array $c) => $c['kind'] === 'migration'))[0] ?? [];
-        check(($kinds['scene'] ?? 0) === 6 && ($kinds['entry'] ?? 0) === 4 && ($kinds['target'] ?? 0) === 3 && ($kinds['groups'] ?? 0) === 1 && ($migration['after'] ?? null) === ['schema' => '3.0']
-            && is_string($migration['notRevertable'] ?? null) && is_string(array_values(array_filter($log['changes'], static fn(array $c) => $c['kind'] === 'entry'))[0]['notRevertable'] ?? null),
-            'every row is in the change log; the migration and the 2.x rows are not revertable');
-        [$status, $data] = call($api, 'POST', '/editor/books/legacy/migrate-3', ['apply' => true], $editor);
-        check($status === 200 && $data['applied'] === false && $data['plan']['upToDate'] === true, 'again: up to date, nothing written (idempotent)');
-    }
 
     echo "editor: publish to bunny (test double)\n";
     $storagePort = freePort();
@@ -2634,7 +2528,7 @@ try {
     $withSteps = preg_replace('/(\n\s*`?book_json`?[^\n]*\n)/', "$1  " . ($mysql ? '`tutorial_json` MEDIUMTEXT NOT NULL,' : 'tutorial_json TEXT NOT NULL,') . "\n", $booksTable[0], 1);
     $stepsSettings = database('steps', $withSteps);
     $stepsDb = connect('steps');
-    $stepsDb->exec("INSERT INTO books (id, title, author, book_json, tutorial_json, initial_spread_id, files_json, content_schema, created_at, updated_at)
+    $stepsDb->exec("INSERT INTO books (id, title, author, book_json, tutorial_json, initial_scene, files_json, content_schema, created_at, updated_at)
         VALUES ('old', 'Old', 'Someone', '{\"id\":\"old\",\"title\":\"Old\",\"author\":\"Someone\"}', '[]', 's1', '{}', '2.24', '2026-01-01 00:00:00', '2026-01-01 00:00:00')");
     $stepsDb = null;
     $stepsApi = startApi($stepsSettings + $settings);
@@ -2644,6 +2538,42 @@ try {
     check(!hasColumn($stepsDb, 'books', 'tutorial_json') && hasColumn($stepsDb, 'books', 'imported_json')
         && $stepsDb->query("SELECT title FROM books WHERE id = 'old'")->fetchColumn() === 'Old', 'migrated twice: tutorial_json removed once, the book kept');
     $stepsDb = null;
+
+    echo "migrate the 2.x names (#319): spreads → scenes, spread_id → scene_id, the page columns gone\n";
+    $tableOf = static function (string $name) use ($schemaText): string {
+        preg_match('/CREATE TABLE IF NOT EXISTS `?' . $name . '`?.*?\n\)[^;]*;/s', $schemaText, $match);
+        return $match[0];
+    };
+    $q = static fn(string $name) => $mysql ? "`$name`" : $name;
+    $oldBooks = str_replace($q('initial_scene'), $q('initial_spread_id'), $tableOf('books'));
+    $oldScenes = str_replace([$q('scenes') . ' (', $q('label'), 'scenes_book_fk'], [$q('spreads') . ' (', $q('title'), 'spreads_book_fk'], $tableOf('scenes'));
+    $oldScenes = preg_replace('/(\n\s*`?title`?[^\n]*\n)/', "$1  " . ($mysql ? '`first_page` INT NOT NULL,' . "\n  " . '`last_page` INT NOT NULL,' : "first_page INTEGER NOT NULL,\n  last_page INTEGER NOT NULL,") . "\n", $oldScenes, 1);
+    $oldEntries = str_replace([$q('scene_id'), 'entries_scene'], [$q('spread_id'), 'entries_spread'], $tableOf('entries'));
+    $oldEntries = preg_replace('/(\n\s*`?title`?[^\n]*\n)/', "$1  " . ($mysql ? '`page` INT NOT NULL,' : 'page INTEGER NOT NULL,') . "\n", $oldEntries, 1);
+    $pageImages = $mysql
+        ? "CREATE TABLE `page_images` (`book_id` VARCHAR(64) NOT NULL, `page` INT NOT NULL, `facing` TINYINT NOT NULL DEFAULT 0, `url` VARCHAR(512) NOT NULL, `name` VARCHAR(255) NOT NULL, `updated_by` CHAR(36) NULL DEFAULT NULL, `updated_at` BIGINT NOT NULL, PRIMARY KEY (`book_id`, `page`, `facing`)) ENGINE=InnoDB;"
+        : "CREATE TABLE page_images (book_id TEXT NOT NULL, page INTEGER NOT NULL, facing INTEGER NOT NULL DEFAULT 0, url TEXT NOT NULL, name TEXT NOT NULL, updated_by TEXT NULL DEFAULT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (book_id, page, facing));";
+    $namesSettings = database('names', "$oldBooks\n$oldScenes\n$oldEntries\n" . ($mysql ? '' : "CREATE INDEX entries_spread ON entries (book_id, spread_id);\n") . $pageImages);
+    $namesDb = connect('names');
+    $namesDb->exec("INSERT INTO books (id, title, author, book_json, initial_spread_id, files_json, content_schema, created_at, updated_at)
+        VALUES ('old', 'Old', 'Someone', '{\"id\":\"old\",\"title\":\"Old\",\"author\":\"Someone\"}', 's1', '{}', '3.0', '2026-01-01 00:00:00', '2026-01-01 00:00:00')");
+    $namesDb->exec("INSERT INTO spreads (book_id, id, position, title, first_page, last_page, data_json) VALUES ('old', 's1', 0, '1–2', 0, 0, '{\"id\":\"s1\",\"label\":\"1–2\"}')");
+    $namesDb->exec("INSERT INTO entries (book_id, id, spread_id, position, category, title, page, data_json) VALUES ('old', 'e1', 's1', 0, 'text', 'One', 0, '{}')");
+    $namesDb = null;
+    $namesApi = startApi($namesSettings + $settings);
+    file_get_contents("$namesApi/admin/migrate", false, $context);
+    file_get_contents("$namesApi/admin/migrate", false, $context);
+    $namesDb = connect('names');
+    $tables = array_map('strval', $namesDb->query($mysql ? 'SHOW TABLES' : "SELECT name FROM sqlite_master WHERE type = 'table'")->fetchAll(PDO::FETCH_COLUMN));
+    check(!in_array('spreads', $tables, true) && in_array('scenes', $tables, true)
+        && hasColumn($namesDb, 'scenes', 'label') && !hasColumn($namesDb, 'scenes', 'title') && !hasColumn($namesDb, 'scenes', 'first_page')
+        && hasColumn($namesDb, 'entries', 'scene_id') && !hasColumn($namesDb, 'entries', 'spread_id') && !hasColumn($namesDb, 'entries', 'page')
+        && hasColumn($namesDb, 'books', 'initial_scene') && !hasColumn($namesDb, 'books', 'initial_spread_id'),
+        'migrated twice: tables and columns renamed once, the page columns gone');
+    check($namesDb->query("SELECT label FROM scenes WHERE id = 's1'")->fetchColumn() === '1–2'
+        && $namesDb->query("SELECT scene_id FROM entries WHERE id = 'e1'")->fetchColumn() === 's1'
+        && $namesDb->query("SELECT initial_scene FROM books WHERE id = 'old'")->fetchColumn() === 's1', 'the rows kept their data under the new names');
+    $namesDb = null;
     [$status] = call($oldApi, 'PUT', '/user/password', ['password' => 'a new password'], $oldToken);
     check($status === 200, 'the old user can set a password');
     [$status] = call($oldApi, 'POST', '/auth/password', ['email' => 'old@example.com', 'password' => 'a new password']);

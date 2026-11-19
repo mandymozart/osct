@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * The editor's books: a game configuration (content schema 3.0) imported into rows (books, scenes – the `spreads` table –,
+ * The editor's books: a game configuration (content schema 3.0) imported into rows (books, scenes – the `scenes` table –,
  * entries, targets, entities), read
  * as a tree, edited entity by entity, published as a content version, with a change log and a publish log.
  * Every row keeps the imported object in its data_json column and the assembly (ContentVersion) gives the
@@ -86,7 +86,7 @@ final class Books
             'schema' => $incoming['schema'], 'source' => $source, 'from' => $incoming['from'], 'at' => Editor::nowMs(), 'by' => $user['email'] ?? null]);
 
         Db::transaction(function () use ($bookId, $parts, $files, $assetsBase, $now, $imported) {
-            foreach (['targets', 'entries', 'spreads', 'entities'] as $table) {
+            foreach (['targets', 'entries', 'scenes', 'entities'] as $table) {
                 Db::run("DELETE FROM $table WHERE book_id = :book", ['book' => $bookId]);
             }
             $book = $parts['book'];
@@ -97,22 +97,22 @@ final class Books
                 'plugins' => Editor::encode($parts['plugins']), 'imported' => $imported, 'groups' => Editor::encode(array_values($parts['groups'])),
             ];
             if (Db::value('SELECT id FROM books WHERE id = :id', ['id' => $bookId]) !== null) {
-                Db::run('UPDATE books SET title = :title, author = :author, book_json = :book, initial_spread_id = :initial,
+                Db::run('UPDATE books SET title = :title, author = :author, book_json = :book, initial_scene = :initial,
                          assets_base = :base, files_json = :files, content_schema = :schema, imported_hash = :hash, plugins_json = :plugins, imported_json = :imported, groups_json = :groups, updated_at = :now WHERE id = :id', $params);
             } else {
-                Db::run('INSERT INTO books (id, title, author, book_json, initial_spread_id, assets_base, files_json, content_schema, imported_hash, plugins_json, imported_json, groups_json, created_at, updated_at)
+                Db::run('INSERT INTO books (id, title, author, book_json, initial_scene, assets_base, files_json, content_schema, imported_hash, plugins_json, imported_json, groups_json, created_at, updated_at)
                          VALUES (:id, :title, :author, :book, :initial, :base, :files, :schema, :hash, :plugins, :imported, :groups, :created, :now)', $params + ['created' => $now]);
             }
             foreach ($parts['scenes'] as $s) {
-                Db::run('INSERT INTO spreads (book_id, id, position, title, first_page, last_page, data_json) VALUES (:book, :id, :position, :title, 0, 0, :data)',
-                    ['book' => $bookId, 'id' => $s['id'], 'position' => $s['position'], 'title' => $s['data']->label, 'data' => Editor::encode($s['data'])]);
+                Db::run('INSERT INTO scenes (book_id, id, position, label, data_json) VALUES (:book, :id, :position, :label, :data)',
+                    ['book' => $bookId, 'id' => $s['id'], 'position' => $s['position'], 'label' => $s['data']->label, 'data' => Editor::encode($s['data'])]);
             }
             foreach ($parts['entities'] as $e) {
                 Db::run('INSERT INTO entities (book_id, ref, position, type, data_json) VALUES (:book, :ref, :position, :type, :data)',
                     ['book' => $bookId, 'ref' => $e['ref'], 'position' => $e['position'], 'type' => $e['type'], 'data' => Editor::encode($e['data'])]);
             }
             foreach ($parts['entries'] as $e) {
-                Db::run('INSERT INTO entries (book_id, id, spread_id, position, category, title, page, data_json) VALUES (:book, :id, :scene, :position, :category, :title, 0, :data)',
+                Db::run('INSERT INTO entries (book_id, id, scene_id, position, category, title, data_json) VALUES (:book, :id, :scene, :position, :category, :title, :data)',
                     ['book' => $bookId, 'id' => $e['id'], 'scene' => $e['scene'], 'position' => $e['position'], 'category' => $e['category'], 'title' => $e['title'], 'data' => Editor::encode($e['data'])]);
             }
             foreach ($parts['targets'] as $t) {
@@ -263,7 +263,7 @@ final class Books
     private static function comparison(string $bookId, array $row, array $incoming, array $edits): array
     {
         // A 2.x draft is no configuration of today's schema: its build is unknown until it is migrated (#319)
-        $draft = Migration3::isCurrent((string) $row['content_schema']) ? ContentVersion::assemble($bookId) : ['build' => null];
+        $draft = Editor::isCurrentSchema((string) $row['content_schema']) ? ContentVersion::assemble($bookId) : ['build' => null];
         $live = [];
         foreach (self::liveEnvironments() as $env => $serving) {
             if (is_array($serving) && $serving['book'] === $bookId) $live[] = ['env' => $env, 'build' => $serving['build'], 'current' => $serving['build'] === $draft['build']];
@@ -342,7 +342,7 @@ final class Books
         $groups = Scenes::groups($book);
         $byScene = [];
         foreach (Db::run('SELECT * FROM entries WHERE book_id = :book ORDER BY position', $params)->fetchAll() as $row) {
-            $scene = (string) $row['spread_id'];
+            $scene = (string) $row['scene_id'];
             if (!isset($context['data'][$scene])) continue;
             $data = Editor::decode($row['data_json']);
             $entry = ['id' => $row['id'], 'category' => $row['category'], 'title' => $row['title'], 'scene' => $scene];
@@ -502,7 +502,7 @@ final class Books
         $entryJson = Editor::encode($entry);
         $targetJson = $target === null ? null : Editor::encode($target);
         Db::transaction(function () use ($bookId, $id, $sceneId, $position, $category, $entry, $entryJson, $targetId, $target, $ref, $targetJson, $user) {
-            Db::run('INSERT INTO entries (book_id, id, spread_id, position, category, title, page, data_json) VALUES (:book, :id, :scene, :position, :category, :title, 0, :data)',
+            Db::run('INSERT INTO entries (book_id, id, scene_id, position, category, title, data_json) VALUES (:book, :id, :scene, :position, :category, :title, :data)',
                 ['book' => $bookId, 'id' => $id, 'scene' => $sceneId, 'position' => $position, 'category' => $category, 'title' => $entry->title, 'data' => $entryJson]);
             if ($target !== null) {
                 Db::run('INSERT INTO targets (book_id, id, entry_id, image_src, entity_ref, data_json) VALUES (:book, :id, :entry, :image, :ref, :data)',
@@ -522,8 +522,8 @@ final class Books
      */
     private static function targetPlace(string $bookId, string $entryId, mixed $value): stdClass
     {
-        $sceneId = Db::value('SELECT spread_id FROM entries WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $entryId]);
-        $row = is_string($sceneId) ? Db::one('SELECT data_json FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $sceneId]) : null;
+        $sceneId = Db::value('SELECT scene_id FROM entries WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $entryId]);
+        $row = is_string($sceneId) ? Db::one('SELECT data_json FROM scenes WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $sceneId]) : null;
         $scene = $row ? Editor::decode($row['data_json']) : null;
         return self::placeOn($scene instanceof stdClass ? $scene : new stdClass(), $value, 'place', 'invalid-target');
     }
@@ -616,8 +616,8 @@ final class Books
 
     /**
      * PUT /editor/books/{id}/passes { passes: [{ type, …parameters }] | null } → 200 { passes }: the book's post-processing
-     * (`book.passes`) – the master every spread without a list of its own shows (a spread's
-     * `passes` override it, `PUT …/spreads/{sid}`). `null` removes it; the shape is checked as for a spread's – a
+     * (`book.passes`) – the master every scene without a list of its own shows (a scene's
+     * `passes` override it, `PUT …/scenes/{sid}`). `null` removes it; the shape is checked as for a scene's – a
      * plugin's pass included.
      */
     public static function putPasses(string $bookId): never
@@ -713,23 +713,23 @@ final class Books
         $user = Editor::user();
         $book = self::book($bookId);
         [$confirm, $deleteFiles] = self::deleteOptions();
-        $row = Db::one('SELECT * FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $sceneId]);
+        $row = Db::one('SELECT * FROM scenes WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $sceneId]);
         if (!$row) throw new ApiError(404, 'not-found', 'No such scene.');
-        if ($book['initial_spread_id'] === $sceneId) throw new ApiError(409, 'initial-scene', 'The book opens on this scene.');
-        $entries = Db::run('SELECT * FROM entries WHERE book_id = :book AND spread_id = :scene ORDER BY position, id', ['book' => $bookId, 'scene' => $sceneId])->fetchAll();
+        if ($book['initial_scene'] === $sceneId) throw new ApiError(409, 'initial-scene', 'The book opens on this scene.');
+        $entries = Db::run('SELECT * FROM entries WHERE book_id = :book AND scene_id = :scene ORDER BY position, id', ['book' => $bookId, 'scene' => $sceneId])->fetchAll();
         $removal = new Removal($bookId, $entries);
-        $impact = ['book' => $bookId, 'kind' => 'scene', 'scene' => ['id' => $sceneId, 'label' => (string) (Editor::decode($row['data_json'])->label ?? $row['title'])]] + $removal->impact();
+        $impact = ['book' => $bookId, 'kind' => 'scene', 'scene' => ['id' => $sceneId, 'label' => (string) (Editor::decode($row['data_json'])->label ?? $row['label'])]] + $removal->impact();
         Confirmation::require("delete-scene|$bookId|$sceneId", $user, $removal->state([$row]), $confirm,
             ['confirm-delete', 'Removing the scene takes ' . self::impactLine($impact) . ' – show this to the person, then remove again with confirm: <confirmation id>.'],
             'The confirmation is expired, someone else\'s, or the book changed since – here is what the removal takes now; confirm with the new id.',
             fn() => ['impact' => $impact]);
         $deleted = Db::transaction(function () use ($bookId, $sceneId, $row, $user, $removal, $deleteFiles) {
             $deleted = $removal->remove($user, $deleteFiles);
-            Db::run('DELETE FROM spreads WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $sceneId]);
+            Db::run('DELETE FROM scenes WHERE book_id = :book AND id = :id', ['book' => $bookId, 'id' => $sceneId]);
             self::change($bookId, $user, Scenes::KIND, $sceneId, $row['data_json'], 'null');
             // Its surfaces' reference images go with it (#314)
             SurfaceReferences::dropScene($bookId, $sceneId, $user);
-            Db::run('UPDATE spreads SET position = position - 1 WHERE book_id = :book AND position > :position', ['book' => $bookId, 'position' => (int) $row['position']]);
+            Db::run('UPDATE scenes SET position = position - 1 WHERE book_id = :book AND position > :position', ['book' => $bookId, 'position' => (int) $row['position']]);
             self::touch($bookId);
             return $deleted;
         });
@@ -897,7 +897,7 @@ final class Books
         if (!$entry) throw new ApiError(404, 'not-found', 'No such entry.');
         $removal = new Removal($bookId, [$entry]);
         $impact = ['book' => $bookId, 'kind' => 'entry',
-            'entry' => ['id' => $entryId, 'title' => $entry['title'], 'category' => $entry['category'], 'scene' => $entry['spread_id']]] + $removal->impact();
+            'entry' => ['id' => $entryId, 'title' => $entry['title'], 'category' => $entry['category'], 'scene' => $entry['scene_id']]] + $removal->impact();
         Confirmation::require("delete-entry|$bookId|$entryId", $user, $removal->state(), $confirm,
             ['confirm-delete', 'Removing the entry takes ' . self::impactLine($impact) . ' – show this to the person, then remove again with confirm: <confirmation id>.'],
             'The confirmation is expired, someone else\'s, or the book changed since – here is what the removal takes now; confirm with the new id.',
@@ -1250,9 +1250,9 @@ final class Books
     {
         $row = Db::one('SELECT * FROM books WHERE id = :id' . ($lock ? Db::forUpdate() : ''), ['id' => $bookId]);
         if (!$row) throw new ApiError(404, 'not-found', 'No such book – import a configuration first.');
-        // A book of content schema 2.x is read and written only after the migration to 3.0 (#319, `Migration3`)
-        if (!$anySchema && !Migration3::isCurrent((string) $row['content_schema'])) {
-            throw new ApiError(409, 'migrate-first', "The book is of content schema {$row['content_schema']} – migrate it to " . Editor::CONTENT_SCHEMA . ' first (POST …/migrate-3: the plan, then { apply: true }).', ['schema' => $row['content_schema']]);
+        // A book of content schema 2.x is not read or written (every stored book was migrated to 3.0, #319)
+        if (!$anySchema && !Editor::isCurrentSchema((string) $row['content_schema'])) {
+            throw new ApiError(409, 'old-schema', "The book is of content schema {$row['content_schema']} – the editor reads " . Editor::CONTENT_SCHEMA . ': import a 3.x configuration of it.', ['schema' => $row['content_schema']]);
         }
         return $row;
     }
@@ -1300,12 +1300,12 @@ final class Books
             'title' => $row['title'],
             'author' => $row['author'],
             'book' => Editor::decode($row['book_json']),
-            'initialScene' => $row['initial_spread_id'],
+            'initialScene' => $row['initial_scene'],
             'schema' => $row['content_schema'],
             'assetsBase' => $row['assets_base'],
             'libraryBase' => Assets::folderUrl((string) $row['id']),
             'importedHash' => $row['imported_hash'],
-            'scenes' => (int) Db::value('SELECT COUNT(*) FROM spreads WHERE book_id = :book', ['book' => $row['id']]),
+            'scenes' => (int) Db::value('SELECT COUNT(*) FROM scenes WHERE book_id = :book', ['book' => $row['id']]),
             'createdAt' => Editor::isoOf($row['created_at']),
             'updatedAt' => Editor::isoOf($row['updated_at']),
             'lastPublish' => $last ? ['env' => $last['env'], 'build' => $last['build'], 'at' => Editor::iso((int) $last['published_at'])] : null,
@@ -1315,7 +1315,7 @@ final class Books
 
     /**
      * Checks what the rows need of a configuration (content schema 3.x – a 2.x configuration is refused: convert its source
-     * with `npm run convert:3` in scripts/, or migrate a stored book with POST …/migrate-3) and splits it into rows-to-be;
+     * with `npm run convert:3` in scripts/) and splits it into rows-to-be;
      * every other field stays inside the objects (data_json). Every entry names a scene of the configuration, its surface
      * and its target's place one of that scene's surfaces. The book's `sourceOfTruth` is the configuration's, else `print`
      * (an imported book is print first, #238). `$pluginSources`: the book has Code tab sources (any node type named like a
@@ -1327,7 +1327,7 @@ final class Books
         $fail = static fn(string $message) => throw new ApiError(400, 'invalid-configuration', $message);
         $version = $c->version ?? null;
         if (!$version instanceof stdClass || !is_string($version->schema ?? null) || !preg_match('/^\d+\.\d+$/', $version->schema)) $fail('version.schema must be "MAJOR.MINOR".');
-        if (!Migration3::isCurrent($version->schema)) $fail("The configuration is of content schema {$version->schema} – the editor reads " . Editor::CONTENT_SCHEMA_MAJOR . '.x (convert the source with npm run convert:3 in scripts/).');
+        if (!Editor::isCurrentSchema($version->schema)) $fail("The configuration is of content schema {$version->schema} – the editor reads " . Editor::CONTENT_SCHEMA_MAJOR . '.x (convert the source with npm run convert:3 in scripts/).');
         $book = $c->book ?? null;
         if (!$book instanceof stdClass || !is_string($book->id ?? null) || !is_string($book->title ?? null) || !is_string($book->author ?? null)) $fail('book needs id, title and author.');
         if (isset($book->environment)) {
@@ -1402,7 +1402,7 @@ final class Books
             $surfaceIds = Scenes::surfaceIds($scenes[$e->scene]['data']);
             if (property_exists($e, 'surface') && !in_array($e->surface, $surfaceIds, true)) $fail("entries[$i].surface names no surface of its scene.");
             $data = clone $e;
-            // `spread_id` holds the scene; the draft writes it back (`ContentVersion::assemble`)
+            // `scene_id` holds the scene; the draft writes it back (`ContentVersion::assemble`)
             unset($data->target, $data->scene);
             $entries[$id] = ['id' => $id, 'scene' => $e->scene, 'position' => $i, 'category' => $e->category, 'title' => $e->title, 'data' => $data];
             if (isset($e->target) && $e->target instanceof stdClass && property_exists($e->target, 'place')) {

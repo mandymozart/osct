@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 /**
  * Scenes (content schema 3.0, #319 – agents/SCENES.md "Schema 3.0", docs/server.md "Scenes"): a book is an ordered list of
- * scenes. A scene is a `spreads` row – its order is `spreads.position` and nothing else, its data_json the content's
+ * scenes. A scene is a `scenes` row – its order is `scenes.position` and nothing else, its data_json the content's
  * `SceneData` { id, label, group?, surfaces, passes? }, `title` a copy of its label; the page columns of the table are
- * not used (0). The book's groups live in `books.groups_json`, an entry's scene is `entries.spread_id` and its surface in
+ * not used (0). The book's groups live in `books.groups_json`, an entry's scene is `entries.scene_id` and its surface in
  * the entry's data_json; a target's `place` names the surface it lies on. Adding, moving or removing a scene changes
  * nothing else.
  *
@@ -35,12 +35,12 @@ final class Scenes
     // ── Reading ──────────────────────────────────────────────────────────────────────────────────
 
     /**
-     * The book's scene rows in order (`spreads.position`); `$lock` inside a transaction that writes them back
+     * The book's scene rows in order (`scenes.position`); `$lock` inside a transaction that writes them back
      * @return list<array<string, mixed>>
      */
     public static function rows(string $bookId, bool $lock = false): array
     {
-        return Db::run('SELECT * FROM spreads WHERE book_id = :book ORDER BY position, id' . ($lock ? Db::forUpdate() : ''), ['book' => $bookId])->fetchAll();
+        return Db::run('SELECT * FROM scenes WHERE book_id = :book ORDER BY position, id' . ($lock ? Db::forUpdate() : ''), ['book' => $bookId])->fetchAll();
     }
 
     /**
@@ -123,9 +123,9 @@ final class Scenes
         $context = self::context($bookId);
         $groups = self::groups($book);
         $counts = [];
-        foreach (Db::run('SELECT e.spread_id, COUNT(*) AS entries, COUNT(t.id) AS targets FROM entries e LEFT JOIN targets t ON t.book_id = e.book_id AND t.entry_id = e.id
-                          WHERE e.book_id = :book AND e.spread_id IS NOT NULL GROUP BY e.spread_id', ['book' => $bookId])->fetchAll() as $row) {
-            $counts[(string) $row['spread_id']] = ['entries' => (int) $row['entries'], 'targets' => (int) $row['targets']];
+        foreach (Db::run('SELECT e.scene_id, COUNT(*) AS entries, COUNT(t.id) AS targets FROM entries e LEFT JOIN targets t ON t.book_id = e.book_id AND t.entry_id = e.id
+                          WHERE e.book_id = :book AND e.scene_id IS NOT NULL GROUP BY e.scene_id', ['book' => $bookId])->fetchAll() as $row) {
+            $counts[(string) $row['scene_id']] = ['entries' => (int) $row['entries'], 'targets' => (int) $row['targets']];
         }
         $references = SurfaceReferences::byScene($bookId);
         $scenes = [];
@@ -179,8 +179,8 @@ final class Scenes
             self::edit($book, $scene, $fields);
             array_splice($ids, $position, 0, [$id]);
             $json = Editor::encode($scene);
-            Db::run('INSERT INTO spreads (book_id, id, position, title, first_page, last_page, data_json) VALUES (:book, :id, :position, :title, 0, 0, :data)',
-                ['book' => $bookId, 'id' => $id, 'position' => $position, 'title' => $scene->label, 'data' => $json]);
+            Db::run('INSERT INTO scenes (book_id, id, position, label, data_json) VALUES (:book, :id, :position, :label, :data)',
+                ['book' => $bookId, 'id' => $id, 'position' => $position, 'label' => $scene->label, 'data' => $json]);
             self::writePositions($bookId, self::rows($bookId, true), $ids);
             Books::touchBook($bookId);
             Books::recordChange($bookId, $user, self::KIND, $id, null, $json);
@@ -255,7 +255,7 @@ final class Scenes
         $body = Editor::body();
         $apply = ($body->apply ?? false) === true;
         [$scene, $cleared] = Db::transaction(static function () use ($bookId, $book, $sceneId, $body, $user, $apply) {
-            $row = Db::one('SELECT * FROM spreads WHERE book_id = :book AND id = :id' . Db::forUpdate(), ['book' => $bookId, 'id' => $sceneId]);
+            $row = Db::one('SELECT * FROM scenes WHERE book_id = :book AND id = :id' . Db::forUpdate(), ['book' => $bookId, 'id' => $sceneId]);
             if (!$row) throw new ApiError(404, 'not-found', 'No such scene.');
             $scene = Editor::decode($row['data_json']);
             $before = self::surfaceIds($scene);
@@ -273,7 +273,7 @@ final class Scenes
             $entries = [];
             $targets = [];
             $named = [];
-            foreach (Db::run('SELECT * FROM entries WHERE book_id = :book AND spread_id = :scene ORDER BY position, id', ['book' => $bookId, 'scene' => $sceneId])->fetchAll() as $entry) {
+            foreach (Db::run('SELECT * FROM entries WHERE book_id = :book AND scene_id = :scene ORDER BY position, id', ['book' => $bookId, 'scene' => $sceneId])->fetchAll() as $entry) {
                 $data = Editor::decode($entry['data_json']);
                 if (in_array($data->surface ?? null, $removed, true)) $entries[] = ['row' => $entry, 'data' => $data];
                 $target = Db::one('SELECT * FROM targets WHERE book_id = :book AND entry_id = :entry', ['book' => $bookId, 'entry' => $entry['id']]);
@@ -289,7 +289,7 @@ final class Scenes
                      'targets' => array_map(static fn(array $t) => ['id' => $t['row']['id'], 'entry' => $t['row']['entry_id'], 'surface' => $t['data']->place->surface ?? $implicit], $targets)]);
             }
             $json = Editor::encode($scene);
-            Db::run('UPDATE spreads SET title = :title, data_json = :data WHERE book_id = :book AND id = :id', ['title' => $scene->label, 'data' => $json, 'book' => $bookId, 'id' => $sceneId]);
+            Db::run('UPDATE scenes SET label = :label, data_json = :data WHERE book_id = :book AND id = :id', ['label' => $scene->label, 'data' => $json, 'book' => $bookId, 'id' => $sceneId]);
             $cleared = ['entries' => [], 'targets' => []];
             foreach ($entries as $e) {
                 unset($e['data']->surface);
@@ -586,7 +586,7 @@ final class Scenes
                 self::edit([], $scene, new stdClass());
             }
             $json = Editor::encode($scene);
-            Db::run('UPDATE spreads SET data_json = :data WHERE book_id = :book AND id = :id', ['data' => $json, 'book' => $bookId, 'id' => $change['scene']]);
+            Db::run('UPDATE scenes SET data_json = :data WHERE book_id = :book AND id = :id', ['data' => $json, 'book' => $bookId, 'id' => $change['scene']]);
             Books::recordChange($bookId, $user, self::KIND, $change['scene'], $row['data_json'], $json);
         }
         if ($ids !== $plan['order'] || $plan['groups']) Books::touchBook($bookId);
@@ -604,7 +604,7 @@ final class Scenes
         foreach ($rows as $row) $current[(string) $row['id']] = (int) $row['position'];
         foreach ($order as $position => $id) {
             if (($current[$id] ?? null) === $position) continue;
-            Db::run('UPDATE spreads SET position = :position WHERE book_id = :book AND id = :id', ['position' => $position, 'book' => $bookId, 'id' => $id]);
+            Db::run('UPDATE scenes SET position = :position WHERE book_id = :book AND id = :id', ['position' => $position, 'book' => $bookId, 'id' => $id]);
         }
     }
 
@@ -702,7 +702,7 @@ final class Scenes
                 if (($data->group ?? null) !== $groupId) continue;
                 unset($data->group);
                 $json = Editor::encode($data);
-                Db::run('UPDATE spreads SET data_json = :data WHERE book_id = :book AND id = :id', ['data' => $json, 'book' => $bookId, 'id' => $scene['id']]);
+                Db::run('UPDATE scenes SET data_json = :data WHERE book_id = :book AND id = :id', ['data' => $json, 'book' => $bookId, 'id' => $scene['id']]);
                 Books::recordChange($bookId, $user, self::KIND, (string) $scene['id'], $scene['data_json'], $json);
                 $scenes[] = (string) $scene['id'];
             }

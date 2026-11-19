@@ -78,7 +78,8 @@ final class Reverts
             return null;
         }
         if ($kind === 'asset') return 'A file a removal deleted – its bytes are gone.';
-        if ($kind === Migration3::KIND) return 'The migration to the content schema 3.0 – not revertable.';
+        // The migration to schema 3.0 (#319, its code is gone) wrote its changes with the kind `migration`
+        if ($kind === 'migration') return 'The migration to the content schema 3.0 – not revertable.';
         if ($kind === 'plugin') return 'A plugin source – change it in the Code tab.';
         if ($row['before_json'] === null) return 'A creation – remove it instead.';
         if ($row['after_json'] === null || $row['after_json'] === 'null') return 'A removal – it cannot be brought back from the log.';
@@ -297,7 +298,7 @@ final class Reverts
             'entity' => 'SELECT data_json FROM entities WHERE book_id = :book AND ref = :id',
             'target' => 'SELECT data_json FROM targets WHERE book_id = :book AND id = :id',
             'entry' => 'SELECT data_json FROM entries WHERE book_id = :book AND id = :id',
-            'scene' => 'SELECT data_json FROM spreads WHERE book_id = :book AND id = :id',
+            'scene' => 'SELECT data_json FROM scenes WHERE book_id = :book AND id = :id',
             default => null,
         };
         if ($sql === null) return null;
@@ -332,7 +333,7 @@ final class Reverts
             Db::run('UPDATE entries SET category = :category, title = :title, data_json = :data WHERE book_id = :book AND id = :id',
                 $params + ['category' => (string) ($next->category ?? ''), 'title' => (string) ($next->title ?? ''), 'data' => $json, 'id' => $ref]);
         } elseif ($kind === 'scene') {
-            Db::run('UPDATE spreads SET title = :title, data_json = :data WHERE book_id = :book AND id = :id', $params + ['title' => (string) ($next->label ?? ''), 'data' => $json, 'id' => $ref]);
+            Db::run('UPDATE scenes SET label = :label, data_json = :data WHERE book_id = :book AND id = :id', $params + ['label' => (string) ($next->label ?? ''), 'data' => $json, 'id' => $ref]);
         } elseif ($kind === SurfaceReferences::KIND) {
             [$scene, $surface] = SurfaceReferences::split($ref);
             $reference = $next instanceof stdClass ? ['url' => (string) $next->url, 'name' => (string) ($next->name ?? ''), 'fit' => (string) ($next->fit ?? SurfaceReferences::FIT_DEFAULT)] : null;

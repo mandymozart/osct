@@ -57,8 +57,6 @@ declare(strict_types=1);
  *                                               confirmation-void, initial-scene)
  *   POST   /editor/books/{id}/groups            { label, scenes, id?, apply? } → a group of the picked scenes: the plan, written with apply
  *   PUT    /editor/books/{id}/groups/{gid}      { label } → renamed · DELETE …/groups/{gid} → ungrouped (the scenes stay in place)
- *   POST   /editor/books/{id}/migrate-3         { apply? } → a book of content schema 2.x becomes 3.0 (#319, Migration3): the plan,
- *                                               written with apply; until then its editing routes answer 409 migrate-first
  *   PUT    /editor/books/{id}/environment       { environment: { world, onionSky } | null } → the book's world and onion sky
  *   PUT    /editor/books/{id}/passes            { passes: [{ type, … }] | null } → the book's post-processing (every scene without its own)
  *   PUT    /editor/books/{id}/appearance        { appearance: { reveal?, found?, lost? } | null } → how the book's entities appear: a look
@@ -92,7 +90,7 @@ declare(strict_types=1);
  * (ApiTokens). docs/server.md "Sessions, cookies and CSRF".
  */
 
-foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Confirmation', 'Removal', 'Books', 'BookTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'Migration3', 'AssetNames', 'Reverts', 'SurfaceReferences'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Confirmation', 'Removal', 'Books', 'BookTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -182,7 +180,6 @@ try {
         (bool) preg_match("#^PUT /editor/books/($id)/scenes/($id)/surfaces/($id)/reference$#", $route, $match) => SurfaceReferences::put($match[1], $match[2], $match[3]),
         (bool) preg_match("#^PUT /editor/books/($id)/scenes/($id)$#", $route, $match) => Scenes::put($match[1], $match[2]),
         (bool) preg_match("#^DELETE /editor/books/($id)/scenes/($id)$#", $route, $match) => Books::deleteScene($match[1], $match[2]),
-        (bool) preg_match("#^POST /editor/books/($id)/migrate-3$#", $route, $match) => Migration3::run($match[1]),
         (bool) preg_match("#^POST /editor/books/($id)/groups$#", $route, $match) => Scenes::addGroup($match[1]),
         (bool) preg_match("#^PUT /editor/books/($id)/groups/($id)$#", $route, $match) => Scenes::putGroup($match[1], $match[2]),
         (bool) preg_match("#^DELETE /editor/books/($id)/groups/($id)$#", $route, $match) => Scenes::deleteGroup($match[1], $match[2]),

@@ -34,7 +34,7 @@ const EDITOR = [
   "Plugins: osct://guides/plugins, then put_plugin; the Code tab's Run shows it on the stage, the person's next Publish takes it to readers.",
   "",
   "Never publish to production – that is the person's button in the editor. publish (local or staging, the instance's own) only when asked.",
-  "import_book over an existing book answers a comparison first, migrate_3 a plan: show it to the person and go on only with their yes.",
+  "import_book over an existing book answers a comparison first: show it to the person and go on only with their yes.",
   "When something is unclear or risky, ask before saving. Finish with a short summary: which scenes and targets, the links.",
 ].join("\n");
 
