@@ -98,6 +98,12 @@
     orient: '<rect x="8" y="2" width="8" height="20" rx="2" ry="2"></rect><line x1="8" y1="9" x2="16" y2="9"></line><line x1="8" y1="15" x2="16" y2="15"></line>',
     /** A menu item that is on (Feather check) */
     check: '<polyline points="20 6 9 17 4 12"></polyline>',
+    /** The Library's browser (#330, Feather maximize-2): the Library as a large window over the stage */
+    maximize: '<polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line>',
+    /** More actions (Feather more-horizontal – the Library's ⋯) */
+    more: '<circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle>',
+    /** Download a file (Feather download) */
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>',
   } as const;
   export type IconName = keyof typeof ICONS;
 </script>

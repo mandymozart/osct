@@ -44,6 +44,14 @@ describe("the library's filters", () => {
     expect(shown("image")).toEqual([picture, upload]);
   });
 
+  it("tell the surfaces' reference images from the other images (#330) – a target image stays a target", () => {
+    const surfaces = new Set([upload.url, printed.url]);
+    const of = (filter: Parameters<typeof matchesFilter>[1]) => all.filter(a => matchesFilter(a, filter, targets, surfaces));
+    expect(of("surface")).toEqual([upload]);
+    expect(of("image")).toEqual([picture]);
+    expect(of("target")).toEqual([printed, imported]);
+  });
+
   it("show a model as glb or gltf, and everything under all", () => {
     expect(shown("model")).toEqual([glb, gltf]);
     expect(shown("video")).toEqual([video]);
@@ -80,6 +88,7 @@ describe("a pick", () => {
     expect(pickFilter(imageNode)).toBe("image");
     expect(pickFilter({ for: "node", nodeType: "group" })).toBe("all");
     expect(pickFilter({ for: "environment", slot: "sky" })).toBe("image");
+    expect(pickFilter({ for: "surface-reference" })).toBe("all");
   });
 
   it("takes only what fits its field: a video node never a picture, a target image never a video", () => {

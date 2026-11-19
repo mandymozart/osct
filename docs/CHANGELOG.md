@@ -7,6 +7,23 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 3.4.0 – 2026-11-19
+
+### Changed
+
+- **Editor: the Library, a real browser with better tiles** (#330): a **scope** on top – *This scene* (the open scene's
+  files: its surfaces' reference images, its targets' printed images, the files its nodes use, its entries' pictures; the
+  default), *All* (the open scene's files pinned on top, then *Unused*, then a folded group per scene), *Unused* – with
+  counts; the kinds as chips counted within the scope (targets, surfaces, images, video, 3D, audio, code); sort (name,
+  recently added, size, uses), tile size, tiles or list, and ⋯ (origin, *Name by use…*). Square tiles – the kind and the
+  use count on the picture (a dashed 0: unused), a video's duration, the name and one line under it; hover *Use · Replace
+  · ⋯*, a click selects, a double click uses, a right click opens every action. The selected file's **details** at the
+  panel's bottom: preview, facts, where it is used (a click shows that target, entry or surface), credits and every
+  action, *Download* new. **⤢ opens the Library as a browser** over the stage: places with counts (the scopes, recently
+  added, missing credits, the kinds, every scene, the origin), the grid grouped by scene, kind or none, the details on
+  the right, several files at once (Shift / Ctrl) for download, one credits line and delete. A file field's *Library…*
+  shows only the files that fit.
+
 ## 3.3.1 – 2026-11-19
 
 ### Fixed

@@ -22,14 +22,13 @@ export const nodeAssetKinds = (type: string): readonly AssetKind[] | undefined =
 };
 
 /**
- * The Library's filters (#164): target images – the pictures printed in the book – apart from the other images, so a
- * choice is among one kind; `code` – the scripts (plugin sources) and shaders (#186), listed apart from the media. A
- * video's subtitle files (`speak.en.vtt`, #257) are listed with the videos.
+ * The Library's kinds (#164, #330): target images – the pictures printed in the book – and the surfaces' reference
+ * images apart from the other images, so a choice is among one kind; `code` – the scripts (plugin sources) and shaders
+ * (#186), listed apart from the media. A video's subtitle files (`speak.en.vtt`, #257) are listed with the videos.
  */
-export const LIBRARY_FILTERS = ["all", "target", "image", "video", "model", "audio", "code"] as const;
+export const LIBRARY_FILTERS = ["all", "target", "surface", "image", "video", "model", "audio", "code"] as const;
 export type LibraryFilter = (typeof LIBRARY_FILTERS)[number];
-export const FILTER_LABELS: Partial<Record<LibraryFilter, string>> = { target: "target image" };
-const FILTER_KINDS: Record<Exclude<LibraryFilter, "all" | "target">, readonly AssetKind[]> = {
+const FILTER_KINDS: Record<Exclude<LibraryFilter, "all" | "target" | "surface">, readonly AssetKind[]> = {
   image: ["image"], video: ["video", "subtitles"], model: ["glb", "gltf"], audio: ["audio"], code: ["shader"],
 };
 
@@ -48,11 +47,15 @@ type AssetRef = Pick<Asset, "kind" | "name" | "url">;
 export const isTargetImage = (asset: AssetRef, targetImages: ReadonlySet<string>): boolean =>
   asset.kind === "image" && (targetImages.has(asset.url) || assetPlace(asset).role === "target");
 
-/** The asset passes the filter (`image` = the images that are no target image) */
-export const matchesFilter = (asset: AssetRef, filter: LibraryFilter, targetImages: ReadonlySet<string>): boolean => {
+/**
+ * The asset passes the filter: `surface` = a surface's reference image that is no target image, `image` = the images that
+ * are neither (`surfaceImages`: the reference images' URLs)
+ */
+export const matchesFilter = (asset: AssetRef, filter: LibraryFilter, targetImages: ReadonlySet<string>, surfaceImages: ReadonlySet<string> = new Set()): boolean => {
   if (filter === "all") return true;
   if (filter === "target") return isTargetImage(asset, targetImages);
-  if (filter === "image") return asset.kind === "image" && !isTargetImage(asset, targetImages);
+  if (filter === "surface") return asset.kind === "image" && surfaceImages.has(asset.url) && !isTargetImage(asset, targetImages);
+  if (filter === "image") return asset.kind === "image" && !isTargetImage(asset, targetImages) && !surfaceImages.has(asset.url);
   return FILTER_KINDS[filter].includes(asset.kind);
 };
 
@@ -86,10 +89,11 @@ export const pickKinds = (subject: PickSubject): readonly AssetKind[] =>
     : subject.for === "node" ? nodeAssetKinds(subject.nodeType) ?? []
       : ["image"];
 
-/** The filter the picker starts with */
+/** The filter the picker starts with (a surface's reference image: every picture – the picker shows only what fits) */
 export const pickFilter = (subject: PickSubject): LibraryFilter => {
   if (subject.for === "target-image") return "target";
-  if (subject.for === "entry-image" || subject.for === "model-texture" || subject.for === "surface-reference") return "image";
+  if (subject.for === "surface-reference") return "all";
+  if (subject.for === "entry-image" || subject.for === "model-texture") return "image";
   if (subject.for === "environment") return "image";
   const kinds = nodeAssetKinds(subject.nodeType) ?? [];
   return kinds.includes("glb") ? "model" : kinds.includes("video") ? "video" : kinds.includes("image") ? "image" : "all";
