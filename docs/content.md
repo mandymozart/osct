@@ -730,7 +730,8 @@ Every picture takes the same way into the experience (#298) – an upload in the
 | A page image (#251) | 2048 px | shown over the whole page |
 | An entry's colour picture | 2048 px | the card flip shows it full screen |
 | A target's printed image | 1200 px | what the image tracker learns – more detail only costs memory |
-| Every other Library picture | 2048 px | a texture, a sky, a picture on a node |
+| A model's map (its *textures*, #260) | 4096 px | the largest level keeps 4096 – the editor uploads maps with `fit=texture` |
+| Every other Library picture | 2048 px | a sky, a picture on a node |
 
 - **WebP**, quality 82; **lossless** when the picture has transparency (an icon, a cut-out).
 - **Never scaled up**; a JPEG's **EXIF orientation** is applied; **metadata** (EXIF, XMP, ICC colour profiles) is dropped –

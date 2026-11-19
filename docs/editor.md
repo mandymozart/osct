@@ -887,6 +887,12 @@ material (empty: every material). Choosing another model file drops the sets –
 view menu has *textures*: auto, or one size, to see the stage as readers on that quality see it
 (`lib/model-textures.ts`, `components/ModelTextures.svelte`, the preview setting `textureQuality`).
 
+**Levels computed in the browser** (#331 step 2). Under a set, **Compute 1024 · 512** makes the sizes it lacks below
+its largest map, and **One file → levels…** takes one picture, uploads it at its size and makes every smaller one from
+it: drawn on a canvas here in the browser, WebP at the image rule's quality, named `<map>-<size>.webp`, uploaded and
+put in the set (`lib/texture-levels.ts`). Maps upload with the image rule's `texture` fit and keep up to 4096 px. Only
+pictures: video levels are made beforehand, never encoded in the browser (Tilman, 2026-11-19).
+
 ### Inspector: the experience
 
 A plain click on the experience's crumb in the top bar selects the experience (#237, `panels/ExperiencePanel.svelte`; Ctrl- or ⌘-click

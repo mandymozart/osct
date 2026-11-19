@@ -7,6 +7,21 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 3.7.0 – 2026-11-20
+
+### Added
+
+- **Editor: a map's smaller levels computed in the browser** (#331 step 2): a model's *textures* get **Compute 1024 ·
+  512** (the sizes a set lacks below its largest map) and **One file → levels…** (one picture uploaded, every smaller
+  size made from it) – WebP, drawn here in the browser, uploaded and put in the set. A missing level in the Library
+  points there.
+
+### Fixed
+
+- **A 4096 px map keeps its size**: the image rule has a `texture` fit (4096 px) for a model's maps – the editor
+  uploaded them with the default and cut them to 2048 (API, editor, docs/content.md).
+- The Library's level table names a level's pixels only where they are not its size.
+
 ## 3.6.0 – 2026-11-19
 
 ### Added

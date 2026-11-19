@@ -2,13 +2,18 @@
   import type { TextureSetData, TextureSize } from "@shared/types/textures";
   import { library } from "#lib/library.svelte.js";
   import { fileNameOf, formatSize } from "#lib/library-place.js";
+  import { missingBelow } from "#lib/texture-levels.js";
 
   /**
    * A model's texture sets (#260): per set the sizes it holds – each a chip with its size, the file and the file's
    * weight –, **Library…** and **Upload…** to add maps (several files at once; the size is read from each picture),
    * and the material the set is for (none = every material). The panel owns the node: this only shows and asks.
+   *
+   * **Levels computed in the browser** (#331 step 2): **Compute 1024 · 512** makes the sizes a set lacks below its
+   * largest map; **One file → levels…** takes one picture (its size read from it), uploads it and makes every smaller
+   * size from it – WebP, here in the browser (`texture-levels.ts`). `busy` says what is being made.
    */
-  let { textures, accept, error = null, onlibrary, onupload, onremove, onmaterial }: {
+  let { textures, accept, error = null, busy = null, onlibrary, onupload, onremove, onmaterial, oncompute, onfromone }: {
     textures: readonly TextureSetData[] | undefined;
     /** The upload's file types (pictures) */
     accept: string;
@@ -18,7 +23,14 @@
     onupload: (set: number, files: File[]) => void;
     onremove: (set: number, size: TextureSize) => void;
     onmaterial: (set: number, material: string) => void;
+    /** What is being computed or uploaded, for which set */
+    busy?: { set: number; text: string } | null;
+    /** Make the sizes the set lacks below its largest map */
+    oncompute?: (set: number) => void;
+    /** One picture: uploaded at its size, every smaller size made from it */
+    onfromone?: (set: number, file: File) => void;
   } = $props();
+  let oneInputs = $state<HTMLInputElement[]>([]);
 
   /** One row per set, and an empty one to start the first (or one for another material) */
   let extra = $state(false);
@@ -53,6 +65,26 @@
         onchange={e => { const files = [...((e.currentTarget as HTMLInputElement).files ?? [])]; if (files.length) { extra = false; onupload(i, files); } (e.currentTarget as HTMLInputElement).value = ""; }} />
     </span>
   </div>
+  {#if oncompute || onfromone}
+    {@const missing = missingBelow(set ?? undefined)}
+    <div class="row"><span class="label"></span>
+      <span class="controls levels">
+        {#if busy?.set === i}<span class="muted small" aria-live="polite">{busy.text}</span>
+        {:else}
+          {#if oncompute && missing.length}
+            <button type="button" class="pill framed" disabled={!!busy} title="Computes the smaller levels here in the browser from the {set?.sizes.at(-1)?.size} px map – WebP, uploaded and put in this set"
+              onclick={() => oncompute(i)}>Compute {missing.join(" · ")}</button>
+          {/if}
+          {#if onfromone}
+            <button type="button" class="pill framed" disabled={!!busy} title="One picture (512 … 4096 px, square): uploaded at its size, and every smaller level computed from it here in the browser"
+              onclick={() => oneInputs[i]?.click()}>One file → levels…</button>
+            <input bind:this={oneInputs[i]} type="file" {accept} hidden
+              onchange={e => { const file = (e.currentTarget as HTMLInputElement).files?.[0]; if (file) { extra = false; onfromone(i, file); } (e.currentTarget as HTMLInputElement).value = ""; }} />
+          {/if}
+        {/if}
+      </span>
+    </div>
+  {/if}
   {#if set && (textures?.length ?? 0) > 1 || set?.material}
     <div class="row"><span class="label">material</span>
       <input class="field" value={set?.material ?? ""} placeholder="every material" spellcheck="false" aria-label="The material this set is for"
@@ -73,5 +105,6 @@
   .size { font-variant-numeric: tabular-nums; }
   .remove { border: 0; padding: 0 0.125rem; background: none; color: inherit; cursor: pointer; }
   .grow { flex: 1 1 0; }
+  .levels { flex: 1; flex-wrap: wrap; gap: 0.25rem; }
   .problem { margin: 0.25rem 0 0; }
 </style>

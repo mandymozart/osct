@@ -37,6 +37,8 @@
   import ModelField from "#lib/components/ModelField.svelte";
   import ModelTextures from "#lib/components/ModelTextures.svelte";
   import { setNodeTextures, textureSizeOf, withMaterial, withoutTexture, withTexture } from "#lib/model-textures.js";
+  import { largestOf, makeLevels } from "#lib/texture-levels.js";
+  import type { TextureSize } from "@shared/types/textures";
   import TextureField from "#lib/components/TextureField.svelte";
   import Toggle from "#lib/components/Toggle.svelte";
   import LibraryPanel from "./LibraryPanel.svelte";
@@ -443,12 +445,67 @@
     const assets: Asset[] = [];
     for (const file of files) {
       try {
-        assets.push(await library.upload(experienceId, file));
+        // A map keeps up to 4096 px (the image rule's `texture` fit, #331)
+        assets.push(await library.upload(experienceId, file, "texture"));
       } catch {
         // library.error says
       }
     }
     addTextures(index, assets);
+  };
+
+  // ── a map's smaller levels computed in the browser (#331 step 2): uploaded, then put in the set ──
+  let textureBusy = $state<{ set: number; text: string } | null>(null);
+  const uploadLevels = async (index: number, source: Blob, sourceName: string, have: TextureSize[], first: Asset[] = []) => {
+    const assets = [...first];
+    try {
+      const made = await makeLevels(source, sourceName, have, size => (textureBusy = { set: index, text: `computing ${size} px…` }));
+      for (const level of made.sizes) {
+        textureBusy = { set: index, text: `uploading ${level.size} px…` };
+        assets.push(await library.upload(experienceId, level.file, "texture"));
+      }
+    } catch (e) {
+      textureError = e instanceof Error ? e.message : String(e);
+    } finally {
+      textureBusy = null;
+    }
+    if (assets.length) addTextures(index, assets);
+  };
+  /** The sizes a set lacks below its largest map, from that map */
+  const computeTextures = async (index: number) => {
+    const set = modelTextures?.[index];
+    const top = largestOf(set);
+    if (!set || !top) return;
+    textureError = null;
+    textureBusy = { set: index, text: `reading the ${top.size} px map…` };
+    try {
+      const response = await fetch(top.src);
+      if (!response.ok) throw new Error(`the ${top.size} px map could not be read (${response.status})`);
+      await uploadLevels(index, await response.blob(), library.byUrl(top.src)?.name ?? top.src.replace(/^.*\//, ""), set.sizes.map(entry => entry.size));
+    } catch (e) {
+      textureError = e instanceof Error ? e.message : String(e);
+      textureBusy = null;
+    }
+  };
+  /** One picture: uploaded at its size, every smaller level made from it */
+  const texturesFromOne = async (index: number, file: File) => {
+    textureError = null;
+    textureBusy = { set: index, text: `uploading ${file.name}…` };
+    let asset: Asset;
+    try {
+      asset = await library.upload(experienceId, file, "texture");
+    } catch {
+      textureBusy = null;
+      return; // library.error says
+    }
+    const size = textureSizeOf(asset);
+    if ("problem" in size) {
+      textureError = size.problem;
+      textureBusy = null;
+      return;
+    }
+    const have = (modelTextures?.[index]?.sizes ?? []).map(entry => entry.size).filter(s => s !== size.size);
+    await uploadLevels(index, file, file.name, [size.size, ...have], [asset]);
   };
 
   /** The selected node takes a file (the library's Use, an upload) */
@@ -742,7 +799,8 @@
     {/if}
     {#if current.type === "model" && current.assets[0]}
       <div class="section" title="The model's map in several sizes – the reader's texture quality chooses (the mesh loads once)"><span class="section-label">textures</span></div>
-      <ModelTextures textures={modelTextures} accept={pickAccept({ for: "model-texture" })} error={textureError}
+      <ModelTextures textures={modelTextures} accept={pickAccept({ for: "model-texture" })} error={textureError} busy={textureBusy}
+        oncompute={i => void computeTextures(i)} onfromone={(i, file) => void texturesFromOne(i, file)}
         onlibrary={pickTexture} onupload={(i, files) => void uploadTextures(i, files)}
         onremove={(i, size) => current && applyNode(setNodeTextures(current, withoutTexture(modelTextures, i, size)))}
         onmaterial={(i, material) => current && modelTextures && applyNode(setNodeTextures(current, withMaterial(modelTextures, i, material)))} />

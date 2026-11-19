@@ -20,7 +20,9 @@ export const IMAGE_MAX_SIDE = {
   entryImage: 2048,
   /** A target's printed image – what the image tracker learns; more detail only costs memory */
   target: 1200,
-  /** Every other Library image (a texture, a sky, a picture on a node) */
+  /** A model's map at one of its sizes (#260, #331) – 512 … 4096 px, square; the largest level keeps its 4096 */
+  texture: 4096,
+  /** Every other Library image (a sky, a picture on a node) */
   default: 2048,
 } as const;
 

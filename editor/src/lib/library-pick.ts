@@ -103,9 +103,9 @@ export const pickFilter = (subject: PickSubject): LibraryFilter => {
 export const pickFits = (subject: PickSubject, asset: Pick<Asset, "kind" | "url">): boolean =>
   subject.for === "environment" ? fitsSlot(asset, subject.slot) : pickKinds(subject).includes(asset.kind);
 
-/** The use a picture uploaded while picking is for (#298): a target's printed image is cut to 1200 px, the rest to 2048 */
+/** The use a picture uploaded while picking is for (#298): a target's printed image is cut to 1200 px, a model's map keeps up to 4096 (#331), the rest 2048 */
 export const pickFit = (subject: PickSubject): ImageFit | undefined =>
-  subject.for === "target-image" ? "target" : subject.for === "entry-image" ? "entryImage" : undefined;
+  subject.for === "target-image" ? "target" : subject.for === "entry-image" ? "entryImage" : subject.for === "model-texture" ? "texture" : undefined;
 
 /** The upload's `accept` while picking for the subject */
 export const pickAccept = (subject: PickSubject): string => acceptOf(pickKinds(subject));

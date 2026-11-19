@@ -76,7 +76,7 @@ final class Assets
      * The image rule (#298, shared/api/images.ts – pinned by mcp/test/php-rules.test.ts): the longest side per use in px
      * (`?fit=<use>` on an upload; `default` without one), WebP quality, the most pixels decoded. `Images` applies it.
      */
-    public const IMAGE_MAX_SIDE = ['reference' => 2048, 'entryImage' => 2048, 'target' => 1200, 'default' => 2048];
+    public const IMAGE_MAX_SIDE = ['reference' => 2048, 'entryImage' => 2048, 'target' => 1200, 'texture' => 4096, 'default' => 2048];
     public const IMAGE_WEBP_QUALITY = 82;
     public const IMAGE_MAX_PIXELS = 50_000_000;
 

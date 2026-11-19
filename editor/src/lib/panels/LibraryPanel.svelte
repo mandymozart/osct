@@ -568,7 +568,7 @@
           {:else}
             {@const jump = showNode(stack)}
             <li class="slot" class:optional={isOptionalLevel(stack, level)}>
-              <button type="button" class="slot-pic" disabled={!jump} title="{slotTitle(stack, level)} – added in the Inspector's textures of the model node" onclick={() => jump?.()}>
+              <button type="button" class="slot-pic" disabled={!jump} title="{slotTitle(stack, level)} – added in the Inspector's textures of the model node (Compute makes it from the largest map)" onclick={() => jump?.()}>
                 <span>{level.label}</span><span class="small">{isOptionalLevel(stack, level) ? "optional" : "missing"}</span></button>
               <div class="small muted">show the node</div>
             </li>
@@ -606,7 +606,8 @@
             <td>{level.label}</td>
             {#if level.asset}
               {@const file = level.asset}
-              <td class="muted">{file.width && file.height ? `${file.width}×${file.height}` : ""}</td>
+              <!-- the pixels only where they are not the level's size -->
+              <td class="muted">{#if stack.kind === "map" && file.width && file.height && (file.width !== file.height || String(file.width) !== level.label)}<span class="danger" title="A map at this level is {level.label} × {level.label} px">{file.width}×{file.height}</span>{/if}</td>
               <td class="muted num">{formatSize(file.size)}</td>
               <td class="acts">
                 <button type="button" class="icon-button" aria-label="Show {level.label}" title="Show this level" onclick={() => select(file, { shift: false, toggle: false })}><Icon name="eye" /></button>
@@ -921,7 +922,9 @@
   .slot.optional .slot-pic { border-style: dotted; opacity: .7; }
   @media (hover: hover) { .slot-pic:not(:disabled):hover { color: var(--text); border-color: var(--text); } }
   .levels-block table { width: 100%; border-collapse: collapse; margin-top: .25rem; }
+  .levels-block { min-width: 0; }
   .levels-block td { padding: .125rem .25rem; border-top: 1px solid var(--line); white-space: nowrap; }
+  .levels-block td.acts .icon-button { width: 1.5rem; height: 1.5rem; }
   .levels-block td.num { text-align: right; font-variant-numeric: tabular-nums; }
   .levels-block td.acts { text-align: right; }
   .levels-block tr.on td:first-child { font-weight: 600; }

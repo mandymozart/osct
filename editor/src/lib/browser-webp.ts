@@ -89,7 +89,7 @@ export interface Decoded {
   close(): void;
 }
 
-const browserDeps: WebpDeps = {
+export const browserDeps: WebpDeps = {
   decode: file => createImageBitmap(file, { imageOrientation: "from-image" }),
   encode: async (picture, width, height, quality) => {
     const bitmap = picture as ImageBitmap;
