@@ -1064,20 +1064,56 @@ function, `editor/src/lib/stage/sky.ts` (`experienceEnvironment`, `showsWorld`, 
 
 ### Library
 
-The experience's uploaded files and the files of the import ([server](server.md) "Assets"; `LibraryPanel.svelte`): a grid of
-cards (a preview with an animated skeleton until it has loaded – images, a video's first frame that plays muted while
-hovered or after a click on ▷ –, the type's icon else; where the file belongs – the import names every file
-`image.jpg`, `target.jpg`, `video.mp4` in a folder per entry, so a card reads `p015-1 · target` –, kind, size,
-dimensions, a video's duration, the number of uses) or a plain **list** (name, place, kind, size, uses; a click on a row
-opens its actions) – the **view** is remembered per browser; filter by kind (**target image** – a target's image in the
-draft, or the import's `target.*` – apart from the other images, video, model, audio) and by origin (**from**: all ·
-uploaded · imported – the editor's uploads apart from the files of the content import, #245), search by name and place
-(`p015 target`), **Upload** (the button, or files dropped on the panel – the file just uploaded is marked *just uploaded*
-and shown whatever the filters said; bytes the Library holds already stay one file, which takes the upload's name and
-says so, #258); per file **Use** (the selected node takes it,
-when its type fits), **Target image** (an image becomes the selected target's printed image), **Replace…** (a new
-version, every use relinked, the stage rebuilt) and **Delete** (refused while used – *Delete anyway* forces it). Nodes
-name a file by its absolute URL, so draft and every publish point at the same file.
+The experience's uploaded files and the files of the import ([server](server.md) "Assets"; `LibraryPanel.svelte`, the
+scope, groups and sort in `library-scope.ts`, #330). From the top:
+
+- **Scope** – three-way: **This scene · <label>** (the open scene's files: its surfaces' reference images, its targets'
+  printed images, every file its targets' nodes name – a model, a video, a texture map –, its entries' pictures; found in
+  the draft, plus the scene of a file's first use the API names – the default while a scene is open), **All** and
+  **Unused** (used nowhere: no scene, entry, environment or plugin – the API's count is 0), each with its count. Under
+  *This scene* two links lead to *Unused* and *All files*.
+- **Search** (name, place, collection, credits – `p015 target`) and **Upload** (the button, or files dropped on the
+  panel – the file just uploaded is marked *just uploaded*, selected and shown whatever the scope and the filters said;
+  bytes the Library holds already stay one file, which takes the upload's name and says so, #258).
+- **Kinds** as chips counted within the scope: *All kinds*, **Targets** (a target's printed image in the draft, or the
+  import's `target.*`), **Surfaces** (a surface's reference image), **Images** (the other pictures), **Video** (with the
+  subtitle files), **3D** (glb, gltf), **Audio**, **Code** (its own list, below); a chip shows when it holds a file.
+- **Sort** (name – numbers as numbers –, recently added, size, uses), the **tile size** and **tiles / list** (all three
+  remembered per browser), and **⋯**: the origin (**from**: all · uploaded · imported – the editor's uploads apart from the
+  files of the content import, #245) and *Name by use…*.
+
+**Tiles** (`AssetTile.svelte`): a square preview only – an image or a video's first frame contained on the tile's light
+background (a video plays muted while hovered), the type's icon else –, the kind in the top left corner (a target image
+with the target glyph, *surface*, *3D* …), the **use count** in the top right (a dashed *0*: unused), a video's duration
+at the bottom right; under it the name (one line – an imported file under its own name says its place, `p015-1 ·
+target`) and one line: the pixels, the size, a version above 1, *+N more* uses. No buttons on the tile: hovered or
+focused it shows **Use · Replace · ⋯**; **⋯** and a right click (or the menu key) open every action. A click selects the
+file, a **double click** (or Enter) uses it. The **list** shows name, place, kind, size and uses per row; a click
+selects, a double click uses.
+
+**Groups**: *This scene* is one framed group (*open scene*); in *All* the open scene's files are pinned on top in that
+frame, then **Unused**, then a group per other scene in the scenes' order (each file under the scene of its **first
+use**, `groupByScene` in `library-place.ts`) and **Not in a scene** (the experience-wide uses: the environment's world
+and sky, a plugin's source, a shared entity no target shows) – those folded until opened; a search unfolds every group.
+
+**The details** (`AssetDetails.svelte`) – a drawer at the panel's bottom for the selected file: the preview (a video
+plays), the name, kind · pixels · duration · size · format, uploaded or imported and when, **used in** (the API's uses –
+an imported file's from the draft, the API lists none for it; a click on a target, an entry, a surface's reference image
+or a scene shows it in the Inspector, opening its scene first when it is another), the **credits** line (*Credits…*
+edits it, #277) and every action: **Use for the selection** (the selected node takes the file, when its type fits),
+**Set as target image** (an image becomes the selected target's printed image), **Replace…** (a new version, every use
+relinked, the stage rebuilt), **Download** and **Delete** (refused while used – *Delete anyway* forces it); an imported
+file is read-only. A file has no rename of its own – *Name by use…* names them. Nodes name a file by its absolute URL, so
+draft and every publish point at the same file.
+
+**The browser** (⤢ at the Library's top): the same Library as a large window over the stage – Esc or ✕ closes it. On the
+left the **places** with their counts (counted on the search): *This scene*, *All files*, *Recently added* (the last 7
+days), *Unused*, *Missing credits* (media without a credits line), the kinds, every scene that uses a file, *Uploaded* /
+*Imported*. In the middle the grid (or the list) **grouped by scene, kind or none**, every group open; on the right the
+selected file's details with the same actions. **Several files at once**: Ctrl / ⌘-click adds or takes one, Shift-click
+the run from the last one – a bar offers **Download** (one after the other), **Credits…** (one line for all of them, one
+request) and **Delete** (the imported ones are skipped; the used ones are named – *Delete anyway* forces those). A
+use of a file closes the browser.
 
 **Pictures become WebP in the browser** (#298, [content](content.md) "The image rule"; `editor/src/lib/browser-webp.ts`):
 every upload and replace of the editor – the Library, a file field, the Pages view (one page and *Upload many*), the new
@@ -1091,13 +1127,7 @@ anything the browser cannot decode or encode as WebP – then the API's conversi
 "The image rule at upload"). The converted file is a WebP within the size, so the API stores it unchanged. Either way the
 Library's notice line says what became of the file: *Photo.jpg (6.2 MB) is stored as Photo.webp – 2048×1536, 412 kB*.
 
-**Grouped by scene** (#298 phase 3, #319): the media – cards and list alike – come in groups: a header per scene in the
-scenes' order (its label and how many files), each file under the scene of its **first use**, then **Not in a scene**
-(the experience-wide uses: the environment's world and sky, a plugin's source, a shared entity no target shows), then
-**Unused** (`groupByScene` in `library-place.ts`). A file used in more places says **+N more**. The search, the
-filters and *Credits…* work as before, on the files the groups show.
-
-**Name by use…** (#298 phase 3, next to the view) names the files by where they are used: an entry's printed image
+**Name by use…** (#298 phase 3, in ⋯) names the files by where they are used: an entry's printed image
 `p118-1_target.webp`, its colour picture `p118-1_image.webp`, another file of the entry or its own entity
 `p118-1_<asset id>.glb` (a model's texture maps add their size), a surface's reference image `<scene>_<surface>.webp`, a shared entity's file `<entity>_<asset id>.ext`,
 the environment's `environment_world.glb` / `environment_sky.webp`. An uploaded model or texture keeps its own name after
@@ -1131,9 +1161,11 @@ How a plugin loads a shader: [plugins](plugins.md) "A shader file".
 **The Library as the picker** (#164): every file field – a target's printed image, a node's file, a new node's file, the
 new target's files, the environment's world and sky, an entry's picture – shows the file (a picture as a preview, every
 file by its place) with **Library…** and **Upload…** (`FileField`). *Library…* opens the Library in place of the panel
-as a picker (`LibraryPanel` with `pick`, `editor/src/lib/library-pick.ts`): the filter starts at the kind being picked,
-a click on a fitting card picks it for that one field and returns, an upload that fits is picked at once, *cancel* or
-Esc returns without one; the panel underneath keeps its values. Selecting another target or node closes it.
+as a picker (`LibraryPanel` with `pick`, `editor/src/lib/library-pick.ts`): only the files that fit the field, the scope
+*All* (the open scene's files on top), the kind being picked first (a surface's reference image: all kinds); a click on
+a file (or its **Pick**) picks it for that one field and returns, an upload that fits is picked at once, *cancel* or Esc
+returns without one; the panel underneath keeps its values. ⤢ picks in the browser the same way. Selecting another
+target or node closes it.
 
 ### Code
 
@@ -1241,7 +1273,7 @@ design tokens):
 | The demo's key model | `editor/tools/key-model.mjs` | the demo experience's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | The API layer | `editor/src/lib/api.ts`, `storage.ts`; `shared/api/` | every call through one `request` (the session cookie and the CSRF token on writes – #207, a 401 that ends the session, the API's errors as `ApiError` with their details); the answers typed once with the MCP server (`shared/api/editor.ts`); `getExperience` reads an experience's tree once for the stage, the environment and the top bar and reads it again after any write to the experience (`fresh` for the experience page); `errorText` the one error line; the two-step confirmations through `confirmationStep` (`shared/api/errors.ts`); the settings in localStorage through `storage.ts` (`osct-…` keys, blocked storage tolerated) |
-| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SceneView` and `EntryForm`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Toggle`, `Section`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the floating panels `FloatingPanel` with `floats.ts` (placement, pure) and `floats.svelte.ts` (a workspace's set, the panels menu) (#308); the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry's form in `EntryForm.svelte` (its logic in `entry-edit.ts`, its words outside the form in `entry-view.ts`), the scene section's in `scene-view.ts` (#227) |
+| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SceneView` and `EntryForm`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Toggle`, `Section`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the floating panels `FloatingPanel` with `floats.ts` (placement, pure) and `floats.svelte.ts` (a workspace's set, the panels menu) (#308); the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its scope, groups and sort in `library-scope.ts` (`AssetTile`, `AssetDetails`, #330), its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry's form in `EntryForm.svelte` (its logic in `entry-edit.ts`, its words outside the form in `entry-view.ts`), the scene section's in `scene-view.ts` (#227) |
 | The experience's texts and search | `editor/src/lib/ExperienceSearch.svelte`, `experience-search.ts`, `ExperienceTexts.svelte`, `experience-texts.ts`, `panels/ExperiencePanel.svelte`, `panels/NewEntryForm.svelte`, `entries.svelte.ts` | [Texts](#texts-entries-and-the-experience), [The experience search](#the-experience-search), [Inspector: the experience](#inspector-the-experience) |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts`, `stage/plugin-run.ts` | the stored sources, Run (transpile with sucrase in the page; import and `installPlugin` in the stage frame, rebuild), the plugins' log |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |

@@ -1,43 +1,65 @@
 <script lang="ts">
-  import { ApiError, errorText, planAssetNames, type Asset, type AssetRename } from "#lib/api.js";
+  import { tick, untrack } from "svelte";
+  import { goto } from "$app/navigation";
+  import { resolve } from "$app/paths";
+  import { page } from "$app/state";
+  import { ApiError, assetUsages, errorText, planAssetNames, type Asset, type AssetRename, type Usage } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import { codeKindOf, codeUploadProblem, pluginIdFrom } from "#lib/library-code.js";
   import { ACCEPT, library } from "#lib/library.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
+  import { scenes } from "#lib/scenes.svelte.js";
+  import { selection } from "#lib/selection.svelte.js";
   import {
-    assetLabel, assetPlace, convertedNotice, formatDuration, formatSize, groupByScene, heldNotice, LIBRARY_VIEWS, matchesSearch, moreUses, namesPlanLine, readLibraryView, saveLibraryView, type LibraryView,
+    assetLabel, assetPlace, convertedNotice, formatSize, heldNotice, matchesSearch, moreUses, namesPlanLine, readLibraryView, saveLibraryView, type LibraryView,
   } from "#lib/library-place.js";
   import {
-    FILTER_LABELS, LIBRARY_FILTERS, LIBRARY_ORIGINS, matchesFilter, matchesOrigin, nodeAssetKinds, pickAccept, pickFilter, pickFit, pickFits, targetImagesOf, type LibraryFilter, type LibraryOrigin, type LibraryPick,
+    LIBRARY_FILTERS, LIBRARY_ORIGINS, isTargetImage, matchesFilter, matchesOrigin, nodeAssetKinds, pickAccept, pickFilter, pickFit, pickFits, targetImagesOf, type LibraryFilter, type LibraryOrigin, type LibraryPick,
   } from "#lib/library-pick.js";
+  import {
+    KIND_LABELS, LIBRARY_GROUPINGS, LIBRARY_SORTS, SORT_LABELS, TILE_SIZE, inScope, indexUsages, isRecent, kindCounts, libraryGroups, libraryIndex, matchesSpecial, missingCredits, nextChosen,
+    readLibrarySort, readTileSize, saveLibrarySort, saveTileSize, sceneCounts, scopeCounts, startScope, startsFolded, surfaceImagesOf, tileKind, tileMeta, usageJump, useWord,
+    type LibraryGrouping, type LibraryScope, type LibrarySort, type LibrarySpecial, type ShownGroup,
+  } from "#lib/library-scope.js";
   import Icon from "#lib/components/Icon.svelte";
   import Segmented from "#lib/components/Segmented.svelte";
-  import AssetThumb from "./AssetThumb.svelte";
+  import ToolMenu from "#lib/components/ToolMenu.svelte";
+  import ContextMenu, { type MenuItem } from "#lib/components/ContextMenu.svelte";
+  import AssetTile from "./AssetTile.svelte";
+  import AssetDetails from "./AssetDetails.svelte";
   import CodeFiles from "./CodeFiles.svelte";
-  import CreditsField from "#lib/components/CreditsField.svelte";
 
   /**
-   * The experience's library: the files uploaded in the editor and, after them, the files of the content import (`files.json`,
-   * read-only – docs/server.md "Assets"). A grid of cards – a preview (`AssetThumb`: images, a video's poster that
-   * plays) – with where the file belongs (`p015-1 · target`, `assetPlace`), kind, size, dimensions, a video's duration and the number of
-   * uses, or a plain list of the same (a click on a row opens its actions; the view is remembered per browser); filter
-   * by kind – target images apart from the other images – and by origin (uploaded / imported, #245), search name and place; **Upload** (the button, or files
-   * dropped anywhere on the panel) – the files just uploaded are marked and shown whatever the filters said, and bytes the
-   * Library held already say so (the file takes the upload's name). Opened from the tab: per asset **Use** (the selected node takes the file, when its
-   * type fits), **Target image** (the selected target's printed image), **Replace…** (a new version, every use
-   * relinked) and **Delete** (refused while used – *Delete anyway* forces it). Opened as a **picker** (`pick`, a file
-   * field's *Library…* – #164): the filter starts at the kind being picked, a click on a fitting file picks it for that
-   * one field and returns, an upload that fits is picked at once; *cancel* or Esc returns without one.
-   * The media are **grouped by scene** (#298 phase 3): a header per scene in experience order – the scene of each file's
-   * first use –, then "Not in a scene" (experience-wide uses), then "Unused"; a file used in more places says "+N more".
-   * **Name by use…** proposes the names the files take by their use (`p118-1_target.webp`, `page-118.webp`) and applies
-   * them on a second click – the name only, every URL stays.
-   * **Code files** (#186) – scripts (the experience's plugin sources) and shaders – are a list of their own under the media
-   * (`CodeFiles`, the filter *code* shows it alone): an uploaded or dropped `.ts` / `.js` becomes a plugin source named
-   * after the file, a `.glsl` / `.frag` / `.vert` / `.wgsl` a shader asset.
+   * The experience's library (#330): the files uploaded in the editor and, after them, the files of the content import
+   * (`files.json`, read-only – docs/server.md "Assets").
+   *
+   * **The panel tab.** On top the **scope** – *This scene · <label>* (the open scene's files: its surfaces' reference
+   * images, its targets' printed images, the files its targets' nodes name, its entries' pictures – the default while a
+   * scene is open), *All*, *Unused* (used nowhere) – with their counts; then the search and **Upload** (the button, or
+   * files dropped anywhere on the panel); the **kinds** as chips counted within the scope (targets, surfaces, images,
+   * video, 3D, audio – and *Code*, whose list `CodeFiles` stays under the media); the **sort** (name, recently added,
+   * size, uses), the **tile size**, grid or list (both remembered per browser) and **⋯** (the origin – uploaded /
+   * imported, #245 – and *Name by use…*). The files come as square **tiles** (`AssetTile`) in groups: in *All* the open
+   * scene's files pinned on top, then *Unused*, then a folded group per other scene (`library-scope.ts`); a search unfolds
+   * them. A click selects a file – the **details drawer** at the panel's bottom (`AssetDetails`: the preview, the facts,
+   * where it is used – a click there shows that target, entry or surface –, the credits and every action: *Use for the
+   * selection*, *Set as target image*, *Replace…*, *Download*, *Delete* – refused while used, then *Delete anyway*); a
+   * double click uses it; hovered a tile offers *Use · Replace · ⋯* (⋯ and a right click: the context menu).
+   *
+   * **The browser** (⤢): the same library as a large window over the stage (Esc closes): places on the left with their
+   * counts (the scopes, *Recently added*, *Missing credits*, the kinds, every scene, the origin), the grid in the middle
+   * grouped by scene, kind or not at all, the selected file's details on the right; several files at once (Shift / Ctrl)
+   * for *Download*, *Credits…* and *Delete*.
+   *
+   * **The picker** (`pick`, a file field's *Library…* – #164): only the files that fit, the kind it picks first; a click
+   * on a file picks it for that one field and returns, an upload that fits is picked at once; *cancel* or Esc returns
+   * without one. Bytes the Library held already say so (the file takes the upload's name); a picture the image rule
+   * converted says what it became.
    */
-  let { experienceId, pick = null, nodeType = null, targetId = null, onuse, onusetarget, onchanged, onopencode }: {
+  let { experienceId, sceneId: sceneIdProp = null, pick = null, nodeType = null, targetId = null, onuse, onusetarget, onchanged, onopencode }: {
     experienceId: string;
+    /** The open scene (its files are the scope *This scene*) – by default the route's */
+    sceneId?: string | null;
     /** Opened as a picker for one field */
     pick?: LibraryPick | null;
     /** The selected node's type (its file kind) – null without a node */
@@ -54,26 +76,52 @@
     onopencode?: () => void;
   } = $props();
 
+  const sceneId = $derived(sceneIdProp ?? page.params.scene ?? null);
+  const sceneLabel = $derived((sceneId && content.scene(sceneId)?.label) || sceneId || "");
+  /** "Now" for *Recently added*: the moment the Library opened */
+  const now = Date.now();
+
+  let scope = $state<LibraryScope>(untrack(() => startScope(sceneId, !!pick)));
   // svelte-ignore state_referenced_locally
   let filter = $state<LibraryFilter>(pick ? pickFilter(pick.subject) : "all");
   let origin = $state<LibraryOrigin>("all");
+  let special = $state<LibrarySpecial>(null);
   let search = $state("");
+  let sort = $state<LibrarySort>(readLibrarySort());
+  let tileSize = $state(readTileSize());
+  let view = $state<LibraryView>(readLibraryView());
+  let grouping = $state<LibraryGrouping>("scene");
+  let expanded = $state(false);
+  let folds = $state<Record<string, boolean>>({});
+
   let fileInput = $state<HTMLInputElement>();
   let replaceInput = $state<HTMLInputElement>();
+  let expandButton = $state<HTMLButtonElement>();
+  let browserBox = $state<HTMLElement>();
   let replacing = $state<Asset | null>(null);
   let confirming = $state<string | null>(null);
   let notice = $state<string | null>(null);
   let dragging = $state(false);
-  let view = $state<LibraryView>(readLibraryView());
-  /** The file whose credits line is open in the Library (#277) */
-  let crediting = $state<string | null>(null);
-  /** The list's row whose actions are open */
-  let opened = $state<string | null>(null);
   /** The files uploaded here since the panel opened: marked in the grid and the list */
   let fresh = $state<string[]>([]);
+  /** The file the details show */
+  let selectedId = $state<string | null>(null);
+  /** The browser's selection (Shift / Ctrl: several) */
+  let chosen = $state<string[]>([]);
+  let anchor: string | null = null;
+  let menu = $state<{ at: { x: number; y: number }; asset: Asset } | null>(null);
+
   const setView = (next: LibraryView) => {
     view = next;
     saveLibraryView(next);
+  };
+  const setSort = (next: LibrarySort) => {
+    sort = next;
+    saveLibrarySort(next);
+  };
+  const setTileSize = (next: number) => {
+    tileSize = next;
+    saveTileSize(next);
   };
 
   $effect(() => {
@@ -81,10 +129,47 @@
   });
 
   const targetImages = $derived(targetImagesOf(content.scenes));
-  /** The media shown (the shaders are in the code list) */
-  const shown = $derived(library.assets.filter(asset => asset.kind !== "shader" && matchesFilter(asset, filter, targetImages) && matchesOrigin(asset, origin) && matchesSearch(asset, search)));
-  /** The media grouped by the scene of their first use (#298) */
-  const groups = $derived(groupByScene(shown, content.scenes));
+  const surfaceImages = $derived(surfaceImagesOf(scenes.references));
+  /** The draft's uses of the files by scene */
+  const index = $derived(libraryIndex(content.scenes, scenes.references));
+  /** The media (the shaders are in the code list); a picker's: the ones that fit */
+  const media = $derived(library.assets.filter(asset => asset.kind !== "shader" && (!pick || pickFits(pick.subject, asset))));
+  const searched = $derived(media.filter(asset => matchesSearch(asset, search)));
+  const base = $derived(searched.filter(asset => matchesOrigin(asset, origin) && matchesSpecial(asset, special, now, index)));
+  const counts = $derived(scopeCounts(base, sceneId, index));
+  const scoped = $derived(base.filter(asset => inScope(asset, scope, sceneId, index)));
+  const kinds = $derived(kindCounts(scoped, targetImages, surfaceImages));
+  const codeCount = $derived(library.assets.filter(asset => asset.kind === "shader").length + plugins.stored.length);
+  /** The kinds' chips: the ones that hold a file, the one chosen; Code apart from a picker */
+  const kindChips = $derived(LIBRARY_FILTERS.filter(kind => kind === "all" || kind === filter || (kind === "code" ? !pick : kinds[kind] > 0)));
+  const shown = $derived(scoped.filter(asset => matchesFilter(asset, filter, targetImages, surfaceImages)));
+  const groups = $derived(libraryGroups(shown, {
+    scope, grouping: expanded ? grouping : "scene", sort, sceneId, sceneLabel, scenes: content.scenes, index, targetImages, surfaceImages,
+  }));
+  const isFolded = (group: ShownGroup): boolean => (search.trim() ? false : folds[group.key] ?? (!expanded && startsFolded(group, scope)));
+  const toggleFold = (group: ShownGroup) => (folds = { ...folds, [group.key]: !isFolded(group) });
+  /** The files in the order shown (the browser's Shift runs) */
+  const order = $derived(groups.filter(group => !isFolded(group)).flatMap(group => group.assets.map(asset => asset.id)));
+  const showCode = $derived(!pick && (filter === "code" || (filter === "all" && scope === "all" && !special)));
+
+  // ── the browser's places: counted on the search alone ──
+  const places = $derived({
+    scopes: scopeCounts(searched, sceneId, index),
+    recent: searched.filter(asset => isRecent(asset, now)).length,
+    credits: searched.filter(missingCredits).length,
+    kinds: kindCounts(searched, targetImages, surfaceImages),
+    scenes: sceneCounts(searched, index),
+    uploaded: searched.filter(asset => !asset.imported).length,
+    imported: searched.filter(asset => asset.imported).length,
+  });
+  /** A place of the sidebar: the scope, the kind, the origin and the special filter it sets */
+  const goPlace = (next: { scope?: LibraryScope; filter?: LibraryFilter; origin?: LibraryOrigin; special?: LibrarySpecial }) => {
+    scope = next.scope ?? "all";
+    filter = next.filter ?? (pick ? pickFilter(pick.subject) : "all");
+    origin = next.origin ?? "all";
+    special = next.special ?? null;
+  };
+  const plainPlace = $derived(!special && origin === "all");
 
   /** Name by use (#298): the plan shown, then applied – null while none is open */
   let namesPlan = $state<AssetRename[] | null>(null);
@@ -121,15 +206,83 @@
     void plugins.version;
     return !!nodeType && (nodeAssetKinds(nodeType) ?? []).includes(asset.kind);
   };
-  const pickable = (asset: Asset) => !!pick && pickFits(pick.subject, asset);
+  /** Why Use (or Pick) cannot take the file – null: it can */
+  const useBlocked = (asset: Asset): string | null => {
+    if (pick) return pickFits(pick.subject, asset) ? null : `Does not fit ${pick.label}`;
+    if (fits(asset)) return null;
+    return nodeType ? `A ${nodeType} node takes no ${asset.kind}` : "Select a node first";
+  };
 
   const choose = (asset: Asset) => {
     if (pick && pickFits(pick.subject, asset)) void pick.onpick(asset);
   };
-  /** A click on a card or a row while picking: a fitting file is picked (its own buttons – a video's play – stay theirs) */
-  const pickFrom = (event: MouseEvent, asset: Asset) => {
-    if (!(event.target as Element).closest("button, a, video")) choose(asset);
+  /** Use: a picker picks; else the selected node takes the file (the browser closes) – a file it cannot take is selected */
+  const activate = (asset: Asset) => {
+    if (pick) return choose(asset);
+    if (!fits(asset)) return select(asset, { shift: false, toggle: false });
+    expanded = false;
+    onuse?.(asset);
   };
+  const select = (asset: Asset, keys: { shift: boolean; toggle: boolean }) => {
+    if (pick) return choose(asset);
+    confirming = null;
+    if (expanded) {
+      const next = nextChosen(chosen, anchor, asset.id, order, keys);
+      chosen = next.chosen;
+      anchor = next.anchor;
+      selectedId = chosen.includes(asset.id) ? asset.id : (chosen.at(-1) ?? null);
+    } else {
+      chosen = [asset.id];
+      anchor = asset.id;
+      selectedId = asset.id;
+    }
+  };
+  const isSelected = (asset: Asset) => (expanded ? chosen.includes(asset.id) : selectedId === asset.id);
+  const selected = $derived(selectedId ? (library.assets.find(asset => asset.id === selectedId) ?? null) : null);
+
+  // ── the selected file's uses (the API's; an imported file's from the draft – the API lists none for it) ──
+  let usages = $state<Usage[] | null>(null);
+  let usagesRun = 0;
+  const usagesKey = $derived(selected ? `${selected.id}|${selected.url}|${selected.usages}` : null);
+  $effect(() => {
+    void usagesKey;
+    const asset = untrack(() => selected);
+    const run = ++usagesRun;
+    if (!asset) {
+      usages = null;
+      return;
+    }
+    const fromDraft = () => untrack(() => indexUsages(asset, index));
+    if (asset.imported) {
+      usages = fromDraft();
+      return;
+    }
+    usages = null;
+    assetUsages(experienceId, asset.id).then(
+      answer => { if (run === usagesRun) usages = answer.usages; },
+      () => { if (run === usagesRun) usages = fromDraft(); },
+    );
+  });
+  /** Show a use: its scene opens (when it is another) and the Inspector shows the target, entry or surface */
+  const jumpTo = (usage: Usage): (() => void) | null => {
+    const jump = usageJump(usage, content.scenes);
+    if (!jump) return null;
+    return () => {
+      expanded = false;
+      if (page.params.scene === jump.sceneId) selection.show(jump.select);
+      else {
+        selection.requestOn(jump.sceneId, jump.select);
+        void goto(resolve(`${experienceId}/${jump.sceneId}/`));
+      }
+    };
+  };
+  const useItems = $derived.by(() => {
+    if (!usages || !selected) return null;
+    const items = usages.map(usage => ({ text: useWord(usage, content.scenes), jump: jumpTo(usage) }));
+    const rest = selected.usages - items.length;
+    if (selected.imported && rest > 0) items.push({ text: `+${rest} more (the environment, a plugin)`, jump: null });
+    return items;
+  });
 
   /** A script file becomes a plugin source named after it (an id taken: the code list's Replace… is the way) */
   const uploadScript = async (file: File) => {
@@ -177,14 +330,17 @@
       }
     }
   };
-  /** The file just uploaded is marked and in view: a filter or a search that hides it gives way, the list opens its actions */
+  /** The file just uploaded is marked, selected and in view: a scope, a kind, an origin or a search that hides it gives way */
   const showUploaded = (asset: Asset) => {
     fresh = [...fresh.filter(id => id !== asset.id), asset.id];
     if (asset.kind === "shader") return;
-    if (!matchesFilter(asset, filter, targetImages)) filter = "all";
+    if (!inScope(asset, scope, sceneId, index)) scope = asset.usages === 0 ? "unused" : "all";
+    if (!matchesFilter(asset, filter, targetImages, surfaceImages)) filter = "all";
     if (!matchesOrigin(asset, origin)) origin = "all";
+    if (!matchesSpecial(asset, special, now, index)) special = null;
     if (!matchesSearch(asset, search)) search = "";
-    opened = asset.id;
+    selectedId = asset.id;
+    chosen = [asset.id];
   };
   const onDrop = (event: DragEvent) => {
     event.preventDefault();
@@ -208,89 +364,224 @@
       // library.error says
     }
   };
+  const forget = (id: string) => {
+    if (selectedId === id) selectedId = null;
+    chosen = chosen.filter(c => c !== id);
+  };
   const remove = async (asset: Asset, force: boolean) => {
     try {
       await library.remove(experienceId, asset.id, force);
       confirming = null;
+      forget(asset.id);
       notice = `${asset.name} deleted`;
     } catch (e) {
-      if (e instanceof ApiError && e.code === "asset-in-use") confirming = asset.id;
-      else library.error = errorText(e);
+      if (e instanceof ApiError && e.code === "asset-in-use") {
+        confirming = asset.id;
+        selectedId = asset.id;
+      } else library.error = errorText(e);
     }
   };
+  /** The file to the person's downloads (its bytes – the Library's media allow any origin); a refused fetch opens it instead */
+  const download = async (asset: Asset) => {
+    try {
+      const response = await fetch(asset.url);
+      if (!response.ok) throw new Error(String(response.status));
+      const href = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = href;
+      link.download = asset.name;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(href), 1000);
+    } catch {
+      window.open(asset.url, "_blank", "noopener");
+    }
+  };
+
+  // ── the browser's several files ──
+  const chosenAssets = $derived(chosen.map(id => library.assets.find(asset => asset.id === id)).filter((asset): asset is Asset => !!asset));
+  let bulkCredits = $state<string | null>(null);
+  let bulkInUse = $state<string[]>([]);
+  let bulkBusy = $state(false);
+  const bulkDownload = async () => {
+    for (const asset of chosenAssets) await download(asset);
+  };
+  const bulkDelete = async (force: boolean) => {
+    const list = (force ? chosenAssets.filter(asset => bulkInUse.includes(asset.id)) : chosenAssets).filter(asset => !asset.imported);
+    const skipped = force ? 0 : chosenAssets.length - list.length;
+    const inUse: string[] = [];
+    let deleted = 0;
+    bulkBusy = true;
+    for (const asset of list) {
+      try {
+        await library.remove(experienceId, asset.id, force);
+        forget(asset.id);
+        deleted++;
+      } catch (e) {
+        if (e instanceof ApiError && e.code === "asset-in-use") inUse.push(asset.id);
+        else library.error = `${asset.name}: ${errorText(e)}`;
+      }
+    }
+    bulkBusy = false;
+    bulkInUse = inUse;
+    notice = `${deleted} file${deleted === 1 ? "" : "s"} deleted${inUse.length ? ` · ${inUse.length} in use` : ""}${skipped ? ` · ${skipped} imported (read-only)` : ""}`;
+  };
+  const bulkSetCredits = async () => {
+    if (bulkCredits === null) return;
+    bulkBusy = true;
+    try {
+      await library.setCreditsMany(experienceId, [...new Set(chosenAssets.map(asset => asset.url))], bulkCredits.trim());
+      notice = `credits set on ${chosenAssets.length} file${chosenAssets.length === 1 ? "" : "s"}`;
+      bulkCredits = null;
+    } catch {
+      // library.error says
+    } finally {
+      bulkBusy = false;
+    }
+  };
+  const clearChosen = () => {
+    chosen = selectedId ? [selectedId] : [];
+    bulkInUse = [];
+    bulkCredits = null;
+  };
+
+  const openBrowser = async () => {
+    expanded = true;
+    folds = {};
+    chosen = selectedId ? [selectedId] : [];
+    await tick();
+    browserBox?.focus();
+  };
+  const closeBrowser = async () => {
+    expanded = false;
+    folds = {};
+    special = null;
+    bulkInUse = [];
+    bulkCredits = null;
+    await tick();
+    expandButton?.focus();
+  };
+
+  const menuItems = (asset: Asset): MenuItem[] => [
+    { label: pick ? "Pick" : "Use for the selection", disabled: useBlocked(asset), select: () => activate(asset) },
+    ...(!pick && asset.kind === "image" && targetId && onusetarget ? [{ label: "Set as target image", select: () => void onusetarget(asset) }] : []),
+    ...(!pick ? [{ label: "Details", select: () => select(asset, { shift: false, toggle: false }) }] : []),
+    ...(!pick && !asset.imported ? [{ label: "Replace…", select: () => startReplace(asset) }] : []),
+    { label: "Download", icon: "download" as const, select: () => void download(asset) },
+    ...(!pick && !asset.imported ? [{ label: "Delete", icon: "trash" as const, danger: true, select: () => void remove(asset, false) }] : []),
+  ];
+
+  /** Moves the node to the page's body (the browser covers the whole window, whatever panel holds the Library) */
+  const portal = (node: HTMLElement) => {
+    document.body.appendChild(node);
+    return { destroy: () => node.remove() };
+  };
+
   const onKey = (event: KeyboardEvent) => {
-    if (pick && event.key === "Escape" && !event.defaultPrevented) pick.oncancel();
+    if (event.key !== "Escape" || event.defaultPrevented) return;
+    if (expanded) {
+      event.preventDefault();
+      void closeBrowser();
+    } else if (pick) pick.oncancel();
   };
 </script>
 
-{#snippet credits(asset: Asset)}
-  {#if crediting === asset.id}
-    <CreditsField {asset} autofocus onclose={() => (crediting = null)} />
-  {:else if asset.credits}
-    <span class="credits small muted" title={asset.credits}>{asset.credits}</span>
-  {/if}
-{/snippet}
-
-{#snippet actions(asset: Asset)}
+{#snippet detailActions(asset: Asset)}
   {#if pick}
-    {#if pickable(asset)}
-      <button type="button" class="pill" class:primary={pick.current !== asset.url} class:on={pick.current === asset.url}
-        title={pick.current === asset.url ? `Chosen now for ${pick.label}` : `Take this file for ${pick.label}`} onclick={() => choose(asset)}>{pick.current === asset.url ? "Chosen" : "Pick"}</button>
-    {:else}
-      <span class="small muted">does not fit</span>
-    {/if}
+    <button type="button" class="pill primary" disabled={!!useBlocked(asset)} onclick={() => choose(asset)}>{pick.current === asset.url ? "Chosen" : "Pick"}</button>
   {:else}
-    <button type="button" class="pill" disabled={!fits(asset)} title={fits(asset) ? `The selected ${nodeType} node takes this file` : nodeType ? `A ${nodeType} node takes no ${asset.kind}` : "Select a node first"} onclick={() => onuse?.(asset)}>Use</button>
+    <button type="button" class="pill primary" disabled={!fits(asset)} title={useBlocked(asset) ?? `The selected ${nodeType} node takes this file`} onclick={() => activate(asset)}>Use for the selection</button>
     {#if asset.kind === "image" && targetId && onusetarget}
-      <button type="button" class="pill" title="Becomes the printed image of the target {targetId}" onclick={() => void onusetarget(asset)}>Target image</button>
+      <button type="button" class="pill" title="Becomes the printed image of the target {targetId}" onclick={() => void onusetarget(asset)}>Set as target image</button>
     {/if}
-    <button type="button" class="text-link" title="The picture credits – one line, as the book prints them"
-      onclick={e => { e.stopPropagation(); crediting = crediting === asset.id ? null : asset.id; }}>Credits…</button>
+    {#if !asset.imported}<button type="button" class="pill" title="A new version – every use relinked" onclick={() => startReplace(asset)}>Replace…</button>{/if}
+    <button type="button" class="pill" onclick={() => void download(asset)}>Download</button>
     {#if asset.imported}
-      <span class="small muted" title="From the content import – replaced by the next import, not here">imported</span>
+      <span class="small muted" title="From the content import – replaced by the next import, not here">imported · read-only</span>
+    {:else if confirming === asset.id}
+      <span class="small danger">in use –</span>
+      <button type="button" class="text-link danger" onclick={() => void remove(asset, true)}>Delete anyway</button>
+      <button type="button" class="text-link" onclick={() => (confirming = null)}>keep</button>
     {:else}
-      <button type="button" class="text-link" onclick={() => startReplace(asset)}>Replace…</button>
-      {#if confirming === asset.id}
-        <span class="small danger">in use –</span>
-        <button type="button" class="text-link danger" onclick={() => void remove(asset, true)}>Delete anyway</button>
-        <button type="button" class="text-link" onclick={() => (confirming = null)}>keep</button>
-      {:else}
-        <button type="button" class="text-link" onclick={() => void remove(asset, false)}>Delete</button>
-      {/if}
+      <button type="button" class="text-link" onclick={() => void remove(asset, false)}>Delete</button>
     {/if}
   {/if}
 {/snippet}
 
-<svelte:window onkeydown={onKey} />
+{#snippet details(asset: Asset, wide: boolean, onclose: (() => void) | undefined)}
+  <AssetDetails {asset} label={assetLabel(asset)} kind={isTargetImage(asset, targetImages) ? "target image" : tileKind(asset, targetImages, surfaceImages)}
+    uses={useItems} {wide} {onclose}>
+    {#snippet actions()}{@render detailActions(asset)}{/snippet}
+  </AssetDetails>
+{/snippet}
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="library" class:dragging ondragover={e => { e.preventDefault(); dragging = true; }} ondragleave={() => (dragging = false)} ondrop={onDrop}>
-  {#if pick}
-    <div class="section"><span class="section-label">library · {pick.label}</span>
-      <button type="button" class="text-link" title="Back without a file (Esc)" onclick={pick.oncancel}>cancel</button></div>
+{#snippet tile(asset: Asset)}
+  <AssetTile {asset} label={assetLabel(asset)} kind={tileKind(asset, targetImages, surfaceImages)} target={isTargetImage(asset, targetImages)}
+    meta={tileMeta(asset, fresh.includes(asset.id))} selected={isSelected(asset)} marked={(!!pick && pick.current === asset.url) || fresh.includes(asset.id)}
+    useLabel={pick ? (pick.current === asset.url ? "Chosen" : "Pick") : "Use"} useBlocked={useBlocked(asset)} replaceable={!pick && !asset.imported}
+    onselect={keys => select(asset, keys)} onactivate={() => activate(asset)} onreplace={() => startReplace(asset)}
+    onmore={at => (menu = { at, asset })} />
+{/snippet}
+
+{#snippet list(assets: Asset[])}
+  <table class="list">
+    <thead><tr><th>name</th><th>place</th><th>kind</th><th class="num">size</th><th class="num">uses</th></tr></thead>
+    <tbody>
+      {#each assets as asset (asset.id)}
+        {@const place = assetPlace(asset)}
+        <tr class:on={isSelected(asset) || (!!pick && pick.current === asset.url)}
+          onclick={e => select(asset, { shift: e.shiftKey, toggle: e.ctrlKey || e.metaKey })} ondblclick={() => activate(asset)}
+          oncontextmenu={e => { e.preventDefault(); menu = { at: { x: e.clientX, y: e.clientY }, asset }; }}>
+          <td class="name" title={asset.url}><button type="button" class="open" onclick={e => { e.stopPropagation(); select(asset, { shift: e.shiftKey, toggle: e.ctrlKey || e.metaKey }); }}>{assetLabel(asset)}</button>{#if moreUses(asset)} <span class="muted">{moreUses(asset)}</span>{/if}{#if asset.version > 1} <span class="muted">v{asset.version}</span>{/if}{#if fresh.includes(asset.id)} <span class="muted">· just uploaded</span>{/if}</td>
+          <td class="name place" title={place.place ?? ""}>{place.place ?? "upload"}</td>
+          <td class="muted kind">{tileKind(asset, targetImages, surfaceImages)}</td>
+          <td class="num muted size">{formatSize(asset.size)}</td>
+          <td class="num muted uses">{asset.usages}<span class="unit"> use{asset.usages === 1 ? "" : "s"}</span></td>
+        </tr>
+      {/each}
+    </tbody>
+  </table>
+{/snippet}
+
+{#snippet mediaGroups()}
+  {#if filter === "code"}
+    <!-- the code list alone -->
+  {:else if library.loading && !library.assets.length}
+    <p class="muted small">Loading…</p>
+  {:else if !shown.length}
+    <p class="muted small empty">{!media.length ? (pick ? "Nothing that fits yet." : "No media yet.") : scope === "scene" && !search && filter === "all" ? "This scene uses no file yet." : "Nothing matches."}</p>
+  {:else}
+    {#each groups as group (group.key)}
+      {@const folded = isFolded(group)}
+      <div class="group" class:pinned={group.pinned}>
+        <button type="button" class="group-head" aria-expanded={!folded} onclick={() => toggleFold(group)}>
+          <Icon name={folded ? "next" : "down"} size=".9em" />
+          {#if group.pinned}<span class="tag">open scene</span>{/if}
+          <span class="group-label">{group.label}</span> <span class="muted">{group.assets.length}</span>
+        </button>
+        {#if !folded}
+          {#if view === "list"}
+            {@render list(group.assets)}
+          {:else}
+            <ul class="tiles" role="listbox" aria-label={group.label} aria-multiselectable={expanded} style:--tile="{tileSize}rem">
+              {#each group.assets as asset (asset.id)}{@render tile(asset)}{/each}
+            </ul>
+          {/if}
+        {/if}
+      </div>
+    {/each}
   {/if}
-  <div class="row"><span class="label">kind</span>
-    <span class="controls"><Segmented options={LIBRARY_FILTERS} value={filter} labels={FILTER_LABELS}
-      titles={{ target: "Pictures printed in the book: used as a target's image, or the import's target of an entry", image: "Images that are no target image" }}
-      onchange={f => (filter = f)} /></span></div>
-  <div class="row"><span class="label">from</span>
-    <span class="controls"><Segmented options={LIBRARY_ORIGINS} value={origin}
-      titles={{ uploaded: "Files uploaded in the editor – replaced and deleted here", imported: "Files of the content import (files.json) – read-only, replaced by the next import" }}
-      onchange={o => (origin = o)} /></span></div>
-  <div class="row"><span class="label">search</span>
-    <span class="controls">
-      <input class="field grow" placeholder="name or entry" bind:value={search} aria-label="Search the library" />
-      <button type="button" class="pill framed" data-help-name="Upload" data-help="Upload a model (glb), a video, an image or a sound, a shader (glsl, frag, vert, wgsl) or a script (ts, js – it becomes a plugin source named after the file) – or drop files on the library. Code files are at most 256 KB. While picking, an upload that fits is the pick." onclick={() => fileInput?.click()}><Icon name="plus" /> Upload</button>
-      <input bind:this={fileInput} type="file" accept={pick ? pickAccept(pick.subject) : ACCEPT} multiple={!pick} hidden onchange={e => { const f = (e.currentTarget as HTMLInputElement).files; if (f?.length) void uploadFiles(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
-      <input bind:this={replaceInput} type="file" accept={ACCEPT} hidden onchange={e => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) void doReplace(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
-    </span></div>
-  <div class="row"><span class="label">view</span>
-    <span class="controls"><Segmented options={LIBRARY_VIEWS} value={view} titles={{ cards: "Cards with previews", list: "A plain list" }} onchange={setView} />
-      {#if !pick}
-        <button type="button" class="text-link" disabled={naming} data-help-name="Name by use"
-          data-help="Names every used file by where it is used first, in the scenes' order: an entry's printed image p118-1_target.webp, its picture p118-1_image.webp, a shared entity's file castle_model.glb. Shows the plan first; the name only changes – every URL and use stays. Unused files keep their names."
-          onclick={() => void proposeNames()}>Name by use…</button>
-      {/if}</span></div>
+  {#if !expanded && scope === "scene" && filter !== "code"}
+    <p class="more-scopes small">
+      <button type="button" class="text-link" onclick={() => (scope = "unused")}>Unused · {counts.unused}</button>
+      <button type="button" class="text-link" onclick={() => (scope = "all")}>All files · {counts.all}</button>
+    </p>
+  {/if}
+  {#if showCode}
+    <CodeFiles {experienceId} {search} all={filter === "all"} {onopencode} />
+  {/if}
+{/snippet}
+
+{#snippet notices()}
   {#if namesPlan}
     <div class="names small" aria-live="polite">
       <span>{namesPlanLine(namesPlan, 0)}{#if namesPlan.length} – the name only, every URL stays{/if}</span>
@@ -306,84 +597,207 @@
   {#if uploading.length}<p class="small muted">uploading {uploading.join(", ")}…</p>{/if}
   {#if library.error}<p class="small danger">{library.error}</p>{/if}
   {#if notice}<p class="small muted">{notice}</p>{/if}
+{/snippet}
 
-  {#if filter === "code"}
-    <!-- the code list alone -->
-  {:else if library.loading && !library.assets.length}
-    <p class="muted small">Loading…</p>
-  {:else if !shown.length}
-    <p class="muted small">{library.assets.some(asset => asset.kind !== "shader") ? "Nothing matches." : "No media yet."}</p>
-  {:else if view === "list"}
-    <table class="list">
-      <thead><tr><th>name</th><th>place</th><th>kind</th><th class="num">size</th><th class="num">uses</th></tr></thead>
-      {#each groups as group (group.key)}
-      <tbody>
-        <tr class="group"><th colspan="5" scope="rowgroup">{group.label} <span class="muted">{group.assets.length}</span></th></tr>
-        {#each group.assets as asset (asset.id)}
-          {@const place = assetPlace(asset)}
-          <tr class:on={opened === asset.id || (!!pick && pick.current === asset.url)} class:unfit={!!pick && !pickable(asset)}
-            onclick={e => (pick ? pickFrom(e, asset) : (opened = opened === asset.id ? null : asset.id))}>
-            <td class="name" title={asset.url}>{#if pick}<button type="button" class="open" disabled={!pickable(asset)} onclick={() => choose(asset)}>{asset.name}</button>{:else}<button type="button" class="open" aria-expanded={opened === asset.id}>{asset.name}</button>{/if}{#if moreUses(asset)} <span class="muted">{moreUses(asset)}</span>{/if}{#if asset.version > 1} <span class="muted">v{asset.version}</span>{/if}{#if fresh.includes(asset.id)} <span class="muted">· just uploaded</span>{/if}</td>
-            <td class="name place" title={place.place ?? ""}>{place.place ?? "upload"}</td>
-            <td class="muted kind">{asset.kind}</td>
-            <td class="num muted size">{formatSize(asset.size)}</td>
-            <td class="num muted uses">{asset.usages}<span class="unit"> use{asset.usages === 1 ? "" : "s"}</span></td>
-          </tr>
-          {#if opened === asset.id && !pick}
-            <tr class="more"><td colspan="5">{@render credits(asset)}<div class="actions">{@render actions(asset)}</div></td></tr>
-          {/if}
-        {/each}
-      </tbody>
-      {/each}
-    </table>
-  {:else}
-    {#each groups as group (group.key)}
-    <div class="group-head small"><span>{group.label}</span> <span class="muted">{group.assets.length}</span></div>
-    <ul class="grid">
-      {#each group.assets as asset (asset.id)}
-        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions (the Pick button is the keyboard's way) -->
-        <li class="card" class:picking={!!pick} class:current={(!!pick && pick.current === asset.url) || fresh.includes(asset.id)} class:unfit={!!pick && !pickable(asset)}
-          onclick={pick ? e => pickFrom(e, asset) : undefined}>
-          {#key asset.url}<AssetThumb {asset} />{/key}
-          <div class="name" title={asset.url}>{assetLabel(asset)}{#if asset.version > 1} <span class="muted">v{asset.version}</span>{/if}</div>
-          <div class="small muted">{#if fresh.includes(asset.id)}just uploaded · {/if}{asset.kind} · {formatSize(asset.size)}{#if asset.width} · {asset.width}×{asset.height}{/if}{#if asset.durationMs} · {formatDuration(asset.durationMs)}{/if} · {asset.usages} use{asset.usages === 1 ? "" : "s"}{#if moreUses(asset)} · {moreUses(asset)}{/if}</div>
-          {@render credits(asset)}
-          <div class="actions">{@render actions(asset)}</div>
-        </li>
-      {/each}
-    </ul>
-    {/each}
+{#snippet nameByUse()}
+  <button type="button" class="pill" disabled={naming} data-help-name="Name by use"
+    data-help="Names every used file by where it is used first, in the scenes' order: an entry's printed image p118-1_target.webp, its picture p118-1_image.webp, a shared entity's file castle_model.glb. Shows the plan first; the name only changes – every URL and use stays. Unused files keep their names."
+    onclick={() => void proposeNames()}>Name by use…</button>
+{/snippet}
+
+{#snippet viewTools()}
+  <select class="field sort" aria-label="Sort" title="Sort" value={sort} onchange={e => setSort((e.currentTarget as HTMLSelectElement).value as LibrarySort)}>
+    {#each LIBRARY_SORTS as option (option)}<option value={option}>{SORT_LABELS[option]}</option>{/each}
+  </select>
+  <input class="tile-size" type="range" min={TILE_SIZE.min} max={TILE_SIZE.max} step={TILE_SIZE.step} value={tileSize} aria-label="Tile size" title="Tile size"
+    disabled={view === "list"} oninput={e => setTileSize(Number((e.currentTarget as HTMLInputElement).value))} />
+  <span class="views" role="group" aria-label="View">
+    <button type="button" class="icon-button" class:on={view === "cards"} aria-pressed={view === "cards"} title="Tiles" aria-label="Tiles" onclick={() => setView("cards")}><Icon name="grid" /></button>
+    <button type="button" class="icon-button" class:on={view === "list"} aria-pressed={view === "list"} title="List" aria-label="List" onclick={() => setView("list")}><Icon name="list" /></button>
+  </span>
+{/snippet}
+
+{#snippet upload()}
+  <button type="button" class="pill framed" data-help-name="Upload" data-help="Upload a model (glb), a video, an image or a sound, a shader (glsl, frag, vert, wgsl) or a script (ts, js – it becomes a plugin source named after the file) – or drop files on the library. Code files are at most 256 KB. While picking, an upload that fits is the pick." onclick={() => fileInput?.click()}><Icon name="plus" /> Upload</button>
+{/snippet}
+
+{#snippet contextMenu()}
+  {#if menu}
+    <ContextMenu at={menu.at} label="File" head={assetLabel(menu.asset)} items={menuItems(menu.asset)} onclose={() => (menu = null)} />
   {/if}
-  {#if !pick && (filter === "all" || filter === "code")}
-    <CodeFiles {experienceId} {search} all={filter === "all"} {onopencode} />
+{/snippet}
+
+<svelte:window onkeydown={onKey} />
+
+<input bind:this={fileInput} type="file" accept={pick ? pickAccept(pick.subject) : ACCEPT} multiple={!pick} hidden onchange={e => { const f = (e.currentTarget as HTMLInputElement).files; if (f?.length) void uploadFiles(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
+<input bind:this={replaceInput} type="file" accept={ACCEPT} hidden onchange={e => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) void doReplace(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
+
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="library" class:dragging={dragging && !expanded} ondragover={e => { e.preventDefault(); dragging = true; }} ondragleave={() => (dragging = false)} ondrop={onDrop}>
+  {#if pick}
+    <div class="section"><span class="section-label">library · {pick.label}</span>
+      <button type="button" class="text-link" title="Back without a file (Esc)" onclick={pick.oncancel}>cancel</button></div>
+  {/if}
+  <div class="line">
+    <div class="scope" role="group" aria-label="Scope">
+      <button type="button" class="pill framed" class:on={scope === "scene"} aria-pressed={scope === "scene"} disabled={!sceneId}
+        title="The open scene's files: its surfaces' reference images, its targets' printed images, the files its targets' nodes use, its entries' pictures"
+        onclick={() => (scope = "scene")}><span class="scope-label">This scene{#if sceneLabel} · {sceneLabel}{/if}</span> <span class="n">{counts.scene}</span></button>
+      <button type="button" class="pill framed" class:on={scope === "all"} aria-pressed={scope === "all"} title="Every file – the open scene's on top" onclick={() => (scope = "all")}>All <span class="n">{counts.all}</span></button>
+      <button type="button" class="pill framed" class:on={scope === "unused"} aria-pressed={scope === "unused"} title="Used nowhere – no scene, entry, environment or plugin" onclick={() => (scope = "unused")}>Unused <span class="n">{counts.unused}</span></button>
+    </div>
+    <button bind:this={expandButton} type="button" class="icon-button" aria-label="Open the Library as a browser" title="Open as a browser – the whole library over the stage (Esc closes)" aria-expanded={expanded} onclick={() => void openBrowser()}><Icon name="maximize" /></button>
+  </div>
+  <div class="line">
+    <input class="field grow" type="search" placeholder="Search name, entry, scene…" bind:value={search} aria-label="Search the library" />
+    {@render upload()}
+  </div>
+  <div class="chips" role="group" aria-label="Kinds">
+    {#each kindChips as kind (kind)}
+      <button type="button" class="pill framed chip" class:on={filter === kind} aria-pressed={filter === kind} onclick={() => (filter = kind)}>
+        {KIND_LABELS[kind]}{#if kind !== "all"} <span class="n">{kind === "code" ? codeCount : kinds[kind]}</span>{/if}
+      </button>
+    {/each}
+  </div>
+  <div class="line tools">
+    {@render viewTools()}
+    <span class="grow"></span>
+    <ToolMenu label="More" title={origin === "all" ? "Origin, Name by use…" : `From: ${origin} – Name by use…`} buttonLabel="More" icon="more" marked={origin !== "all"}>
+      <div class="row"><span class="label">from</span>
+        <span class="controls"><Segmented options={LIBRARY_ORIGINS} value={origin} label="From"
+          titles={{ uploaded: "Files uploaded in the editor – replaced and deleted here", imported: "Files of the content import (files.json) – read-only, replaced by the next import" }}
+          onchange={o => (origin = o)} /></span></div>
+      {#if !pick}<div class="row rule"><span class="label">names</span><span class="controls">{@render nameByUse()}</span></div>{/if}
+    </ToolMenu>
+  </div>
+  {@render notices()}
+
+  {#if expanded}
+    <p class="muted small">The Library is open as a browser.</p>
+  {:else}
+    <div class="media">{@render mediaGroups()}</div>
+    {#if selected && !pick}
+      <div class="drawer">{@render details(selected, true, () => (selectedId = null))}</div>
+    {/if}
+    {@render contextMenu()}
   {/if}
 </div>
 
+{#if expanded}
+  <div class="browser-shade" use:portal>
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <div class="browser" class:dragging bind:this={browserBox} role="dialog" aria-modal="true" aria-label="Library" tabindex="-1"
+      ondragover={e => { e.preventDefault(); dragging = true; }} ondragleave={e => { if (e.currentTarget === e.target) dragging = false; }} ondrop={onDrop}>
+      <header class="b-top">
+        <span class="b-title">Library{#if pick} · {pick.label}{/if}</span>
+        <input class="field b-search" type="search" placeholder="Search name, entry, scene…" bind:value={search} aria-label="Search the library" />
+        <span class="grow"></span>
+        {@render viewTools()}
+        {#if !pick}
+          <ToolMenu label="More" title="Name by use…" buttonLabel="More" icon="more">
+            <div class="row"><span class="label">names</span><span class="controls">{@render nameByUse()}</span></div>
+          </ToolMenu>
+        {/if}
+        {@render upload()}
+        <button type="button" class="icon-button" aria-label="Close the browser" title="Close (Esc)" onclick={() => void closeBrowser()}><Icon name="close" /></button>
+      </header>
+      <nav class="side" aria-label="Places">
+        <div class="side-head">Library</div>
+        <button type="button" class="place" class:on={plainPlace && scope === "scene" && filter === "all"} disabled={!sceneId} onclick={() => goPlace({ scope: "scene" })}>This scene{#if sceneLabel} · {sceneLabel}{/if} <span class="n">{places.scopes.scene}</span></button>
+        <button type="button" class="place" class:on={plainPlace && scope === "all" && filter === "all"} onclick={() => goPlace({ scope: "all", filter: "all" })}>All files <span class="n">{places.scopes.all}</span></button>
+        <button type="button" class="place" class:on={special?.by === "recent"} title="Added in the last 7 days" onclick={() => goPlace({ special: { by: "recent" } })}>Recently added <span class="n">{places.recent}</span></button>
+        <button type="button" class="place" class:on={plainPlace && scope === "unused"} onclick={() => goPlace({ scope: "unused", filter: "all" })}>Unused <span class="n">{places.scopes.unused}</span></button>
+        <button type="button" class="place" class:on={special?.by === "credits"} title="Media without a credits line" onclick={() => goPlace({ special: { by: "credits" } })}>Missing credits <span class="n">{places.credits}</span></button>
+        <div class="side-head">Kinds</div>
+        {#each LIBRARY_FILTERS.filter(kind => kind !== "all" && (kind === "code" ? !pick : places.kinds[kind] > 0)) as kind (kind)}
+          <button type="button" class="place" class:on={plainPlace && scope === "all" && filter === kind} onclick={() => goPlace({ scope: "all", filter: kind })}>{KIND_LABELS[kind]} <span class="n">{kind === "code" ? codeCount : places.kinds[kind]}</span></button>
+        {/each}
+        <div class="side-head">Scenes</div>
+        {#each content.scenes.filter(scene => places.scenes.has(scene.id)) as scene (scene.id)}
+          <button type="button" class="place" class:on={special?.by === "scene" && special.scene === scene.id} onclick={() => goPlace({ special: { by: "scene", scene: scene.id } })}>{scene.label || scene.id}{#if scene.id === sceneId} <span class="muted">· open</span>{/if} <span class="n">{places.scenes.get(scene.id)}</span></button>
+        {/each}
+        <div class="side-head">From</div>
+        <button type="button" class="place" class:on={origin === "uploaded" && !special && scope === "all"} onclick={() => goPlace({ origin: "uploaded" })}>Uploaded <span class="n">{places.uploaded}</span></button>
+        <button type="button" class="place" class:on={origin === "imported" && !special && scope === "all"} onclick={() => goPlace({ origin: "imported" })}>Imported <span class="n">{places.imported}</span></button>
+      </nav>
+      <div class="center">
+        <div class="b-bar">
+          <span class="small muted crumb">{shown.length} file{shown.length === 1 ? "" : "s"}{#if chosen.length > 1} · {chosen.length} selected{/if}</span>
+          <span class="grow"></span>
+          <span class="small muted">group</span>
+          <Segmented options={LIBRARY_GROUPINGS} value={grouping} label="Group by" titles={{ scene: "By scene – the open scene's files pinned on top", kind: "By kind", none: "One list" }} onchange={g => (grouping = g)} />
+        </div>
+        <div class="b-notices">{@render notices()}</div>
+        <div class="b-body">{@render mediaGroups()}</div>
+        {#if chosen.length > 1 && !pick}
+          <div class="multibar" role="toolbar" aria-label="The selected files">
+            <span>{chosen.length} selected</span>
+            {#if bulkCredits !== null}
+              <input class="field" placeholder="Credits line for all of them" bind:value={bulkCredits} aria-label="Credits for the selected files"
+                onkeydown={e => { if (e.key === "Enter") void bulkSetCredits(); else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); bulkCredits = null; } }} />
+              <button type="button" class="pill primary" disabled={bulkBusy} onclick={() => void bulkSetCredits()}>Set</button>
+            {:else if bulkInUse.length}
+              <span class="danger">{bulkInUse.length} in use –</span>
+              <button type="button" class="text-link danger" disabled={bulkBusy} onclick={() => void bulkDelete(true)}>Delete anyway</button>
+              <button type="button" class="text-link" onclick={() => (bulkInUse = [])}>keep</button>
+            {:else}
+              <button type="button" class="pill" onclick={() => void bulkDownload()}><Icon name="download" /> Download</button>
+              <button type="button" class="pill" onclick={() => (bulkCredits = "")}>Credits…</button>
+              <button type="button" class="pill" disabled={bulkBusy || chosenAssets.every(asset => asset.imported)} title="Imported files are read-only" onclick={() => void bulkDelete(false)}>Delete</button>
+            {/if}
+            <button type="button" class="icon-button" aria-label="Clear the selection" title="Clear the selection" onclick={clearChosen}><Icon name="close" /></button>
+          </div>
+        {/if}
+      </div>
+      <aside class="detail" aria-label="The selected file">
+        {#if selected && !pick}
+          {@render details(selected, false, undefined)}
+        {:else}
+          <p class="small muted">{pick ? `A click picks the file for ${pick.label}.` : "Select a file – Shift or Ctrl for several."}</p>
+        {/if}
+      </aside>
+      {@render contextMenu()}
+    </div>
+  </div>
+{/if}
+
 <style>
-  .library { position: relative; display: flex; flex-direction: column; gap: .125rem; min-height: 100%; container: library / inline-size; }
+  .library { position: relative; display: flex; flex-direction: column; gap: .25rem; min-height: 100%; container: library / inline-size; }
   .library.dragging { outline: 1px dashed var(--text); outline-offset: -2px; }
   /* No pointer on the drop hint: a hint under the cursor would end the drag */
-  .drop { position: absolute; inset: .25rem; z-index: 1; margin: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+  .drop { position: absolute; inset: .25rem; z-index: 3; margin: 0; display: flex; align-items: center; justify-content: center; text-align: center;
     pointer-events: none; background: var(--surface); opacity: .92; border-radius: var(--control-radius); }
-  .controls .grow { flex: 1; min-width: 6rem; }
-  .group-head { display: flex; gap: .375rem; align-items: baseline; margin-top: .625rem; padding-bottom: .125rem; border-bottom: 1px solid var(--line); }
-  .group-head span:first-child { font-weight: 600; }
-  .list tr.group th { padding-top: .625rem; font-weight: 600; color: var(--text); cursor: default; }
-  .list tbody tr.group { cursor: default; }
-  @media (hover: hover) { .list tbody tr.group:hover { background: none; } }
+  .line { display: flex; align-items: center; gap: .25rem; min-width: 0; flex-shrink: 0; }
+  .grow { flex: 1; min-width: 0; }
+  .line .field.grow { min-width: 6rem; }
+  .scope { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr); gap: .125rem; }
+  .scope .pill { justify-content: center; min-width: 0; padding: 0 .375rem; }
+  .scope-label { overflow: hidden; text-overflow: ellipsis; }
+  .n { color: var(--muted); font-variant-numeric: tabular-nums; font-size: var(--text-small); }
+  .on .n { color: inherit; opacity: .7; }
+  .chips { display: flex; flex-wrap: wrap; gap: .125rem; flex-shrink: 0; }
+  .chip { padding: 0 .5rem; }
+  .tools { flex-wrap: wrap; }
+  .sort { width: auto; max-width: 9rem; }
+  .tile-size { width: 5rem; accent-color: var(--text); }
+  .views { display: inline-flex; gap: .125rem; }
   .names { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .5rem; padding: .375rem; border: 1px solid var(--line); border-radius: var(--control-radius); }
   .names > span { flex-basis: 100%; }
   .names ul { flex-basis: 100%; margin: 0; padding-left: 1rem; }
   .names li { overflow-wrap: anywhere; }
-  .grid { list-style: none; margin: .375rem 0 0; padding: 0; display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); }
-  .card { display: flex; flex-direction: column; gap: .2rem; padding: .375rem; border: 1px solid var(--line); border-radius: var(--control-radius); min-width: 0; }
-  .card.picking:not(.unfit) { cursor: pointer; }
-  @media (hover: hover) {
-    .card.picking:not(.unfit):hover { background: var(--hover-background); }
-  }
-  .card.current { border-color: var(--text); }
-  .unfit { opacity: .45; }
-  .list tbody tr.unfit { cursor: default; }
+  .media { flex: 1 0 auto; }
+  .empty { margin: .5rem 0; }
+  .group { margin-top: .5rem; }
+  .group.pinned { padding: 0 .375rem .375rem; border: 1px solid var(--line); background: var(--surface-head); }
+  .group-head { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: .375rem; width: 100%; min-height: var(--control-height); border-bottom: 1px solid var(--line); cursor: pointer; font-size: var(--text-small); }
+  .group-head:focus-visible { outline: 1px solid var(--text); }
+  .group.pinned .group-head { border-bottom: none; }
+  .group-label { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tag { padding: 0 .3rem; background: var(--text); color: var(--surface); font-size: .625rem; text-transform: uppercase; letter-spacing: .06em; }
+  .tiles { list-style: none; margin: .375rem 0 0; padding: 0; display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(min(var(--tile, 7rem), 100%), 1fr)); }
+  .more-scopes { display: flex; gap: .75rem; margin: .5rem 0 0; }
+  .drawer { position: sticky; bottom: 0; z-index: 2; margin-top: .5rem; padding: .5rem 0; max-height: 55vh; overflow: auto; border-top: 1px solid var(--muted); background: var(--surface); }
+
   .list { width: 100%; margin-top: .375rem; border-collapse: collapse; table-layout: fixed; }
   .list th { text-align: left; font-weight: normal; color: var(--muted); font-size: var(--text-small); }
   .list th, .list td { padding: .2rem .25rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
@@ -392,31 +806,19 @@
   .list th:nth-child(4) { width: 16%; }
   .list th:nth-child(5) { width: 10%; }
   .list tbody tr { cursor: pointer; }
-  @media (hover: hover) {
-    .list tbody tr:hover { background: var(--hover-background); }
-  }
-  .list tr.on { background: var(--hover-background); }
-  .list tr.on td { border-bottom-color: transparent; }
-  .list tr.more { cursor: default; background: var(--hover-background); }
+  @media (hover: hover) { .list tbody tr:hover { background: var(--hover-background); } }
+  .list tr.on { background: var(--selected-background); }
   .list .num { text-align: right; white-space: nowrap; }
-  .list .actions { margin: 0; }
   .open { all: unset; cursor: pointer; }
   .open:focus-visible { outline: 1px solid var(--text); }
   .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .5rem; margin-top: .125rem; }
-  .actions .pill { padding: 0 .5rem; height: 1.5rem; border-color: var(--line); }
-  @media (pointer: coarse) { .actions .pill { height: var(--control-height); } }
   .text-link.danger { color: var(--danger); }
-  .credits { display: block; font-size: var(--text-small); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
   .list .unit { display: none; }
   @container library (max-width: 26rem) {
     .list, .list tbody { display: block; }
     .list thead { display: none; }
     .list tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "name name kind" "place size uses";
       column-gap: .75rem; row-gap: .125rem; align-items: baseline; min-height: 2.5rem; padding: .3rem .25rem; border-bottom: 1px solid var(--line); box-sizing: border-box; }
-    .list tbody tr.on { border-bottom-color: transparent; }
-    .list tbody tr.more { display: block; min-height: 0; padding: 0 .25rem .375rem; }
-    .list tbody tr.group { display: block; min-height: 0; padding: .625rem .25rem .125rem; }
     .list th, .list td { padding: 0; border-bottom: none; }
     .list td { display: block; min-width: 0; }
     .list td:nth-child(1) { grid-area: name; }
@@ -427,6 +829,38 @@
     .list .unit { display: inline; }
   }
   @container library (max-width: 20rem) {
-    .controls .grow { min-width: 0; flex-basis: 5rem; }
+    .line .field.grow { min-width: 0; flex-basis: 5rem; }
+    .scope { grid-template-columns: 1fr; }
+  }
+
+  /* ── the browser ── */
+  .browser-shade { position: fixed; inset: 0; z-index: 1000; display: flex; padding: 1.5rem; background: rgb(0 0 0 / .45); box-sizing: border-box; }
+  .browser { flex: 1; min-width: 0; min-height: 0; display: grid; grid-template-columns: 13rem minmax(0, 1fr) 19rem; grid-template-rows: auto minmax(0, 1fr);
+    background: var(--surface); color: var(--text); border: 1px solid var(--line); outline: none; font-size: var(--text-size); container: library / inline-size; }
+  .browser.dragging { outline: 1px dashed var(--text); outline-offset: -3px; }
+  .b-top { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: .375rem; padding: .375rem .75rem; border-bottom: 1px solid var(--line); }
+  .b-title { font-weight: 600; margin-right: .5rem; white-space: nowrap; }
+  .b-search { flex: 0 1 26rem; min-width: 8rem; }
+  .side { display: flex; flex-direction: column; gap: 1px; padding: .5rem; overflow: auto; border-right: 1px solid var(--line); background: var(--surface-head); }
+  .side-head { margin: .75rem .375rem .25rem; color: var(--muted); font-size: var(--text-small); letter-spacing: .08em; text-transform: uppercase; }
+  .side-head:first-child { margin-top: .125rem; }
+  .place { all: unset; box-sizing: border-box; display: flex; align-items: baseline; gap: .375rem; min-height: var(--control-height); padding: .25rem .375rem; cursor: pointer; overflow-wrap: anywhere; }
+  .place .n { margin-left: auto; }
+  @media (hover: hover) { .place:not(:disabled):hover { background: var(--hover-background); } }
+  .place.on { background: var(--text); color: var(--surface); }
+  .place.on .muted { color: inherit; }
+  .place:disabled { opacity: .45; cursor: not-allowed; }
+  .place:focus-visible { outline: 1px solid var(--text); outline-offset: -1px; }
+  .center { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .b-bar { display: flex; align-items: center; gap: .375rem; padding: .375rem .75rem; border-bottom: 1px solid var(--line); }
+  .b-notices { padding: 0 .75rem; }
+  .b-body { flex: 1; min-height: 0; overflow: auto; padding: 0 .75rem 4rem; }
+  .detail { min-width: 0; padding: .75rem; overflow: auto; border-left: 1px solid var(--line); }
+  .multibar { position: absolute; left: 50%; bottom: .75rem; transform: translateX(-50%); display: flex; align-items: center; gap: .375rem; max-width: calc(100% - 1.5rem);
+    padding: .375rem .5rem .375rem .75rem; border: 1px solid var(--text); background: var(--surface); box-shadow: 0 .25rem 1rem rgb(0 0 0 / .2); white-space: nowrap; }
+  .multibar .field { width: 16rem; }
+  @media (max-width: 64rem) {
+    .browser-shade { padding: .5rem; }
+    .browser { grid-template-columns: 11rem minmax(0, 1fr) 15rem; }
   }
 </style>

@@ -122,6 +122,18 @@ class Library {
     }
   }
 
+  /** One credits line for several files at once (#330, the browser's selection): one request, every asset of those URLs shows it */
+  async setCreditsMany(experienceId: string, urls: readonly string[], credits: string): Promise<void> {
+    this.error = null;
+    try {
+      const saved = (await setAssetCredits(experienceId, urls.map(url => ({ url, credits })))).credits;
+      this.assets = this.assets.map(a => (a.url in saved ? { ...a, credits: saved[a.url] ?? null } : a));
+    } catch (e) {
+      this.error = errorText(e);
+      throw e;
+    }
+  }
+
   /** The number of uses changed (a save): read the list again without a loading state */
   async refresh(): Promise<void> {
     if (!this.experienceId) return;

@@ -6,9 +6,10 @@
    * A library file's preview: an image, or a video's first frame (the poster) that plays muted and inline while
    * hovered or after a click (a second click stops it); the type's icon else. An animated skeleton until the picture
    * has loaded, the icon when it fails (the panel keys it by the URL: a replace loads again). A video only loads once
-   * it scrolls into view – an experience has hundreds.
+   * it scrolls into view – an experience has hundreds. `square`: the Library's tiles and details (#330) – a square on the
+   * tile's light background; `controls: false` leaves out the play button (a tile plays its video while hovered).
    */
-  let { asset }: { asset: Asset } = $props();
+  let { asset, square = false, controls = true }: { asset: Asset; square?: boolean; controls?: boolean } = $props();
 
   const ICONS: Record<string, IconName> = { glb: "model", gltf: "model", video: "video", image: "image", audio: "layers", subtitles: "type" };
   let loaded = $state(false);
@@ -45,7 +46,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="thumb" bind:this={box} onmouseenter={asset.kind === "video" ? play : undefined} onmouseleave={asset.kind === "video" ? stop : undefined} class:pending={(asset.kind === "image" || asset.kind === "video") && !loaded && !failed}>
+<div class="thumb" class:square bind:this={box} onmouseenter={asset.kind === "video" ? play : undefined} onmouseleave={asset.kind === "video" ? stop : undefined} class:pending={(asset.kind === "image" || asset.kind === "video") && !loaded && !failed}>
   {#if asset.kind === "image" && !failed}
     <img src={asset.url} alt="" loading="lazy" decoding="async" class:loaded onload={() => (loaded = true)} onerror={() => (failed = true)} />
   {:else if asset.kind === "video" && !failed}
@@ -53,9 +54,9 @@
       <!-- svelte-ignore a11y_media_has_caption -->
       <video bind:this={video} src={`${asset.url}#t=0.1`} preload="metadata" muted playsinline loop class:loaded
         onloadeddata={() => (loaded = true)} onerror={() => (failed = true)}></video>
-      <button type="button" class="play" class:on={pinned} aria-pressed={pinned} title={pinned ? "Stop" : "Play (muted)"} onclick={toggle}>
+      {#if controls}<button type="button" class="play" class:on={pinned} aria-pressed={pinned} title={pinned ? "Stop" : "Play (muted)"} onclick={toggle}>
         <Icon name={pinned ? "pause" : "play"} size="0.9em" />
-      </button>
+      </button>{/if}
     {/if}
   {:else}
     <Icon name={ICONS[asset.kind] ?? "layers"} size="1.75em" stroke={1.5} />
@@ -64,6 +65,7 @@
 
 <style>
   .thumb { position: relative; display: flex; align-items: center; justify-content: center; aspect-ratio: 4 / 3; background: var(--surface-head); border-radius: var(--control-radius); overflow: hidden; color: var(--muted); }
+  .thumb.square { aspect-ratio: 1; background: var(--control-background); }
   .thumb img, .thumb video { width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity .2s; }
   .thumb img.loaded, .thumb video.loaded { opacity: 1; }
   .thumb.pending::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, var(--hover-background), transparent); transform: translateX(-100%); animation: sweep 1.2s ease-in-out infinite; }
