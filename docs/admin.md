@@ -23,14 +23,14 @@ no admin sees "No admin access" at `/editor/admin`.
   (`reader` is fixed – every account has it; `editor` and `admin` grant / revoke with one click; hovering a role
   shows when and by whom it was granted: `signup`, `migration`, `config` for the `EDITORS` / `ADMINS` lists, `secret`
   for the admin secret, or the granting admin's address), the language, the **update options** the reader opted into
-  (plain text, read-only: the ones that are on of book, artist, publisher, else `–`), sign-up and last-seen dates. A
+  (plain text, read-only: the ones that are on of experience, artist, publisher, else `–`), sign-up and last-seen dates. A
   role that is on shows pressed; the notice reports a grant or revoke only when the role really changed.
 - **Editors** / **Admins** – the filter buttons show the users with that role (the editors shortcut).
 - **Newsletter** – the filter shows the users with any update option on; **Newsletter CSV** downloads them
-  (`GET /api/admin/users.csv?newsletter=1`: `email, language, bookUpdates, artistUpdates, publisherUpdates, createdAt`)
+  (`GET /api/admin/users.csv?newsletter=1`: `email, language, experienceUpdates, artistUpdates, publisherUpdates, createdAt`)
   for the mailing tool. With the filter *All*, the button is **Users CSV** and downloads every user; under *Editors* or
   *Admins* there is no CSV button (#206 – `editor/src/lib/users-csv.ts`). The API also narrows to one option
-  (`?option=bookUpdates`), which the page does not offer yet.
+  (`?option=experienceUpdates`), which the page does not offer yet.
 - **Invite an editor** – an address becomes an editor at once (`POST /api/admin/editors`); a new address is created as
   an account that signs in with a code by e-mail, like every reader.
 - An admin may give up their own admin role (after a confirm), unless they are the **last admin** (409 `last-admin`):

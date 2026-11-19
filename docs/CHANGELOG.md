@@ -21,11 +21,22 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   progress, without a notice), the account option `experienceUpdates`; the splash, onboarding, about and landing read
   the author and the publisher from the printed book and leave them out without one. Inside: `<reader-app>` (was
   `<book-game>`), the look-around's `SurfaceAnchor`, `ExperienceDownload`. Reader wording unchanged.
+- **The server and the database speak experience** (#320 part B1): the editor API's routes `/editor/experiences/…` (was
+  `/editor/books/…`, no alias), `PUT /editor/experiences/{id} { title?, book?: { author?, publisher? } | null }` (the
+  printed book removed with `null`), the list's and tree's `experience` (no top-level `author`), errors
+  `invalid-experience` / `other-experience`, change and usage kind `experience`, `/progress/{experienceId}`, the account
+  option `experienceUpdates` (the admin CSV too). The tables `experiences` and `experience_versions`, the columns
+  `experience_id`, `experience_json` and `experience_updates`, the `author` column gone – renamed in place on the next
+  deploy, with a data step (`Migration4`) that moves the print data into `book`, drops `sourceOfTruth` and rewrites the
+  scope and `{{experience.title}}` in the stored rows and the change log (docs/server.md). `shared/api`:
+  `ExperienceSummary`, `ExperienceList`, `ExperienceTree`, `ExperienceSaved`, `ExperienceUpdate`,
+  `ExperiencePassesSaved`, `ExperienceAppearanceSaved`, `OtherExperience`.
 
 ### Removed
 
 - **The source of truth** (`sourceOfTruth`, print first / digital first, #238): every experience adds and removes its
-  scenes. Content with the field is refused by the build and the guard; `convert:4` drops it.
+  scenes. Content with the field is refused by the build, the guard and the editor API's import; `convert:4` drops it,
+  the database migration too. The error `print-first` is gone.
 
 ## 2.1.0 – 2026-11-19
 
