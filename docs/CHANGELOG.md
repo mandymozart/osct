@@ -7,6 +7,13 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+
+- **Editor: a resized panel makes room** (#329): the panels in its way move on and, at the wall, shrink to their least
+  size; the resized panel stops where they can give no more. Laid out once per animation frame, stored when let go.
+
 ## 3.2.0 – 2026-11-19
 
 ### Added

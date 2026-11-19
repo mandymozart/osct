@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  at, clampInto, crowd, defaultPlace, isPlace, layout, moved, nearestFree, placeOf, raise, readPlaces, resized, settle, settleSize, withPlaces,
-  type Metrics, type PanelSpec, type Rect,
+  at, clampInto, crowd, defaultPlace, evade, isPlace, layout, moved, nearestFree, placeOf, raise, readPlaces, resized, settle, settleSize, withPlaces,
+  type Edge, type Metrics, type Neighbour, type PanelSpec, type Rect,
 } from "../components/floats";
 
 // #308: the floating panels' placement (after the SCUTOONS deck editor's floats)
@@ -181,5 +181,105 @@ describe("the floating panels: the layout in this browser", () => {
     const scene = { tree: { corner: "top-right" as const, dx: 0, dy: 0 } };
     expect(withPlaces(stored, "scene", scene)).toEqual({ ...stored, scene });
     expect(withPlaces({ ...stored, scene }, "scene", null)).toEqual(stored);
+  });
+});
+
+// #329: a resize makes room – the panels in its way move and, at the wall, shrink
+describe("the floating panels: a resize pushes and shrinks its neighbours", () => {
+  const A: Rect = { x: 0, y: 0, w: 1000, h: 600 };
+  const G = 8;
+  const n = (id: string, x: number, y: number, w: number, h: number, min = { w: 100, h: 100 }): Neighbour => ({ id, rect: { x, y, w, h }, min });
+  const noOverlap = (rects: Record<string, Rect>) => {
+    const all = Object.values(rects);
+    all.forEach((a, i) => {
+      expect(a.x).toBeGreaterThanOrEqual(A.x - 0.01);
+      expect(a.y).toBeGreaterThanOrEqual(A.y - 0.01);
+      expect(right(a)).toBeLessThanOrEqual(right(A) + 0.01);
+      expect(bottom(a)).toBeLessThanOrEqual(bottom(A) + 0.01);
+      all.slice(i + 1).forEach(b => expect(crowd(a, b, G)).toBe(false));
+    });
+  };
+
+  it("moves the neighbour in the way, leaves the others where they are", () => {
+    const panels = [n("a", 0, 0, 300, 300), n("b", 308, 0, 200, 300), n("c", 308, 400, 200, 200)];
+    const out = evade(panels, "a", { x: 0, y: 0, w: 400, h: 300 }, { x: 1, y: 0 }, A, G);
+    expect(out.a).toEqual({ x: 0, y: 0, w: 400, h: 300 });
+    expect(out.b).toEqual({ x: 408, y: 0, w: 200, h: 300 });
+    expect(out.c).toEqual(panels[2].rect);
+    noOverlap(out);
+  });
+
+  it("pushes a chain: the one pushed pushes the next", () => {
+    const panels = [n("a", 0, 0, 300, 300), n("b", 308, 0, 200, 300), n("c", 516, 100, 200, 300)];
+    const out = evade(panels, "a", { x: 0, y: 0, w: 450, h: 300 }, { x: 1, y: 0 }, A, G);
+    expect(out.b.x).toBe(458);
+    expect(out.c.x).toBe(666);
+    expect(out.c.w).toBe(200);
+    noOverlap(out);
+  });
+
+  it("shrinks at the wall, the one nearest the wall first, down to the least size; then the edge stops", () => {
+    const panels = [n("a", 0, 0, 300, 300), n("b", 308, 0, 300, 300), n("c", 616, 0, 384, 300)];
+    // c reaches the wall at once and shrinks; b keeps its width while c can give
+    const some = evade(panels, "a", { x: 0, y: 0, w: 450, h: 300 }, { x: 1, y: 0 }, A, G);
+    expect(some.b).toMatchObject({ x: 458, w: 300 });
+    expect(some.c).toMatchObject({ x: 766, w: 234 });
+    // c at its least, b shrinks
+    const more = evade(panels, "a", { x: 0, y: 0, w: 600, h: 300 }, { x: 1, y: 0 }, A, G);
+    expect(more.c).toMatchObject({ x: 900, w: 100 });
+    expect(more.b).toMatchObject({ x: 608, w: 284 });
+    // both at their least: a stops growing
+    const all = evade(panels, "a", { x: 0, y: 0, w: 990, h: 300 }, { x: 1, y: 0 }, A, G);
+    expect(all.c).toMatchObject({ x: 900, w: 100 });
+    expect(all.b).toMatchObject({ x: 792, w: 100 });
+    expect(all.a.w).toBe(784);
+    noOverlap(all);
+  });
+
+  it("works the same way for the left edge, the top and the bottom", () => {
+    const left = evade([n("a", 700, 0, 300, 300), n("b", 492, 0, 200, 300)], "a", { x: 500, y: 0, w: 500, h: 300 }, { x: -1, y: 0 }, A, G);
+    expect(left.b).toEqual({ x: 292, y: 0, w: 200, h: 300 });
+    const down = evade([n("a", 0, 0, 300, 200), n("b", 0, 208, 300, 392)], "a", { x: 0, y: 0, w: 300, h: 300 }, { x: 0, y: 1 }, A, G);
+    expect(down.b).toEqual({ x: 0, y: 308, w: 300, h: 292 });
+    const up = evade([n("a", 0, 400, 300, 200), n("b", 0, 0, 300, 392)], "a", { x: 0, y: 0, w: 300, h: 600 }, { x: 0, y: -1 }, A, G);
+    expect(up.b).toEqual({ x: 0, y: 0, w: 300, h: 100 });
+    expect(up.a).toEqual({ x: 0, y: 108, w: 300, h: 492 });
+  });
+
+  it("a corner grip pushes both ways, and shrinking the panel again gives the neighbours their places back", () => {
+    const panels = [n("a", 0, 0, 300, 300), n("right", 308, 0, 300, 300), n("below", 0, 308, 300, 292)];
+    const out = evade(panels, "a", { x: 0, y: 0, w: 400, h: 400 }, { x: 1, y: 1 }, A, G);
+    expect(out.right.x).toBe(408);
+    expect(out.below).toMatchObject({ y: 408, h: 192 });
+    noOverlap(out);
+    expect(evade(panels, "a", { x: 0, y: 0, w: 250, h: 250 }, { x: 1, y: 1 }, A, G)).toMatchObject({ right: panels[1].rect, below: panels[2].rect });
+  });
+
+  it("never leaves an overlap, a panel outside the walls or below its least size (random layouts)", () => {
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let round = 0; round < 300; round++) {
+      // A grid of cells, some taken: a layout with no overlap
+      const panels: Neighbour[] = [];
+      for (let col = 0; col < 4; col++) {
+        for (let row = 0; row < 3; row++) {
+          if (rnd() < 0.3) continue;
+          const w = 120 + Math.floor(rnd() * 120);
+          const h = 100 + Math.floor(rnd() * 90);
+          panels.push(n(`p${col}${row}`, col * 250, row * 200, Math.min(w, 242), Math.min(h, 192), { w: 60 + Math.floor(rnd() * 60), h: 40 + Math.floor(rnd() * 60) }));
+        }
+      }
+      if (panels.length < 2) continue;
+      const held = panels[Math.floor(rnd() * panels.length)];
+      const edge = { x: [-1, 0, 1][Math.floor(rnd() * 3)], y: [-1, 0, 1][Math.floor(rnd() * 3)] } as Edge;
+      if (!edge.x && !edge.y) continue;
+      const target = resized(held.rect, edge, (rnd() - 0.3) * 800, (rnd() - 0.3) * 600, held.min, A);
+      const out = evade(panels, held.id, target, edge, A, G);
+      noOverlap(out);
+      for (const p of panels) {
+        expect(out[p.id].w).toBeGreaterThanOrEqual(Math.min(p.min.w, p.rect.w) - 0.01);
+        expect(out[p.id].h).toBeGreaterThanOrEqual(Math.min(p.min.h, p.rect.h) - 0.01);
+      }
+    }
   });
 });
