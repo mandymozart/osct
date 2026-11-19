@@ -6,7 +6,7 @@
  */
 import { ASSET_TYPES } from "../types/game-config";
 
-/** An id or reference in the editor API's paths and bodies – books, scenes, entries, targets, entities (`Editor::ID`) */
+/** An id or reference in the editor API's paths and bodies – experiences, scenes, entries, targets, entities (`Editor::ID`) */
 export const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
 /**
@@ -57,16 +57,16 @@ export function pluginTypes(source: string): SourceTypes {
   return Object.fromEntries(kinds.map(kind => [kind, scan(PLUGIN_REGISTER_FUNCTIONS[kind])])) as SourceTypes;
 }
 
-// ── The book's texts (`BookTexts`): entries and the book ──
+// ── The experience's texts (`ExperienceTexts`): entries and the experience ──
 
-/** A text field's limit in characters – a title, an author, a tag's line (`BookTexts::TEXT_MAX_LENGTH`) */
+/** A text field's limit in characters – a title, an author, a tag's line (`ExperienceTexts::TEXT_MAX_LENGTH`) */
 export const TEXT_MAX_LENGTH = 500;
-/** An entry's body, in characters (`BookTexts::BODY_MAX_LENGTH`) */
+/** An entry's body, in characters (`ExperienceTexts::BODY_MAX_LENGTH`) */
 export const BODY_MAX_LENGTH = 100000;
-/** An entry's tags: at most `max`, each at most `length` characters (`BookTexts::TAGS_MAX`, `TAG_MAX_LENGTH`) */
+/** An entry's tags: at most `max`, each at most `length` characters (`ExperienceTexts::TAGS_MAX`, `TAG_MAX_LENGTH`) */
 export const ENTRY_TAGS = { max: 32, length: 64 } as const;
 
-/** A link an entry may point to (`media`): http(s) with a host and no spaces (`BookTexts::isLinkUrl`) */
+/** A link an entry may point to (`media`): http(s) with a host and no spaces (`ExperienceTexts::isLinkUrl`) */
 export function isLinkUrl(url: string): boolean {
   if (/[\u0000- \u007f]/.test(url)) return false;
   try {

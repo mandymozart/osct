@@ -1,5 +1,5 @@
 /**
- * The image rule (#298, docs/content.md "The image rule"): one way for every picture into the book. The API converts an
+ * The image rule (#298, docs/content.md "The image rule"): one way for every picture into the experience. The API converts an
  * uploaded image (jpg, png, webp) to WebP at upload (server/api/src/Images.php, the numbers mirrored as `Assets::IMAGE_*`
  * and pinned by mcp/test/php-rules.test.ts), the editor and the MCP server name the use where they know it (`?fit=`),
  * and the content build writes the same sizes (scripts/src/lib/optimize-media.ts, WebP behind `OSCT_IMAGE_FORMAT=webp`).

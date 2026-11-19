@@ -50,8 +50,6 @@ export interface AppearanceData {
 
 /** The experience's looks, by moment */
 export type ExperienceAppearance = Partial<Record<Moment, AppearanceData>>;
-/** TODO: remove once shared/api and the editor name it ExperienceAppearance (#320) */
-export type BookAppearance = ExperienceAppearance;
 
 /** The values of a built-in look, as the engine reads them */
 export interface Appearance {
