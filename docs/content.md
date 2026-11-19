@@ -1036,6 +1036,32 @@ by the aspect ratio of the target image, then by reading order; pages where the 
 the content; the folder is generated. Run it again when the PDFs change, then rebuild the content (`layout/` is part of
 the content, so new page images make a new build).
 
+### Placing the targets from the layout
+
+Since the content schema 3.0 the stage reads a target's `place` and a surface's reference image (#314) from the book on
+the instance, not `layout/`. `scripts/layout/place-targets.py` (#321, Python 3 with Pillow) carries `layout/` over
+through the editor API:
+
+```bash
+python scripts/layout/place-targets.py --layout "$OSCT_CONTENT_DIR/layout" --api https://osct.porschuetz.de/api \
+  --book osct --token-from-mcp osct-staging --out <report folder>     # dry run: changes nothing
+python scripts/layout/place-targets.py … --apply                       # writes the places and the references
+```
+
+It maps every sheet to a scene (a numbered sheet to the scene whose label names its pages, `4–5`; the unnumbered
+covers and matter between two numbered sheets to the unnumbered scenes there, in order), turns each target's box from
+mm on its page into mm on its scene's surface (`TargetPlace`: a right page's target moves by the left page's width on a
+double-page surface) and renders each surface's reference from its sheet's sharpest image (cut to the surface where it
+is one half of the sheet, WebP, at most 2048 px – the API's own limit for a reference). The dry run writes
+`report.md` / `report.json` (the mapping, the places per scene – enabled and switched-off targets apart –, the targets
+it cannot map and why, the references), the reference images and contact sheets (the sheet with the computed boxes).
+`--apply` sends `PUT …/targets/{id} { place }`, and per surface `POST …/assets?fit=reference&scene=…&surface=…` then
+`PUT …/scenes/{id}/surfaces/{sid}/reference { url }` – as the editor does. A target with another place and a surface
+with a reference are left alone and reported, unless `--replace-places` / `--replace-references`; a run again finds
+everything `same`. `--pdf <book.pdf>` (PyMuPDF) cross-checks the places against the PDF's image boxes and renders the
+sheets that have no sharp image. Auth: `OSCT_EDITOR_TOKEN`, or `--token-from-mcp <server>` (that MCP server's env in
+`~/.claude.json`); the token is never printed.
+
 ### Importing the final print PDFs
 
 When the book has gone to the printer (#248), its final PDFs are the delivery: the **print PDF** (one page per book
