@@ -1,9 +1,9 @@
 // Prepares a local API for the recording (README.md): signs in with a code from the API's mail log and imports a
-// published content version of a book (configuration + files.json, as the CDN import does, so the Library has the
+// published content version of an experience (configuration + files.json, as the CDN import does, so the Library has the
 // import's files). Nothing secret lives here: the address, the paths and the API come in as arguments.
 //
 //   node prepare.mjs --api http://127.0.0.1:8091/api --email <address> --mail-log <path> --token-file <path> \
-//     --book demo --content https://buildingfictions.b-cdn.net/demo/<build>
+//     --experience demo --content https://buildingfictions.b-cdn.net/demo/<build>
 //   node prepare.mjs --api … --token-file <path> --sign-out      (ends the session, deletes the token file)
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -68,17 +68,17 @@ if (args.content) {
   const configuration = await (await fetch(`${base}/game.config.json`)).json();
   const filesResponse = await fetch(`${base}/files.json`);
   const files = filesResponse.ok ? await filesResponse.json() : undefined;
-  const book = args.book ?? configuration.book?.id;
-  // Over a book that exists the API answers with the version comparison first (409 confirm-import): this script's
+  const experience = args.experience ?? configuration.experience?.id;
+  // Over an experience that exists the API answers with the version comparison first (409 confirm-import): this script's
   // purpose is to replace the local draft, so it prints the comparison and sends the confirmation back
   const body = { configuration, files, assetsBase: base };
-  const path = `/editor/experiences/${book}/import`;
+  const path = `/editor/experiences/${experience}/import`;
   const first = await fetch(api + path, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
   const answer = await first.json();
   if (first.status === 409 && answer.error?.code === "confirm-import") {
     const { incoming, draft } = answer.error.comparison;
     console.log(`replacing the draft: build ${draft.basedOn?.build ?? "?"} (+${draft.edits} edits) → ${incoming.build}`);
   } else if (!first.ok) throw new Error(`POST ${path}: ${first.status} ${JSON.stringify(answer).slice(0, 200)}`);
-  const { book: imported } = first.ok ? answer : await call("POST", path, { ...body, confirm: answer.error.confirmation.id }, token);
+  const { experience: imported } = first.ok ? answer : await call("POST", path, { ...body, confirm: answer.error.confirmation.id }, token);
   console.log("imported", imported.id, "schema", imported.schema, "assets at", imported.assetsBase);
 }

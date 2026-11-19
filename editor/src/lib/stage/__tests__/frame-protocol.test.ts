@@ -184,7 +184,7 @@ describe("frameCsp: plugin code reaches the content, never the API", () => {
     expect(libraryFoldersNamed([config])).toEqual(["https://cdn.example/assets/demo/", "https://other.example/x/assets/My_Book/"]);
   });
 
-  it("admits the book's own Library folder before the draft names a file of it (#258)", () => {
+  it("admits the experience's own Library folder before the draft names a file of it (#258)", () => {
     const id = "72df7022-276d-4aaf-bb70-52a6631a7ad7";
     const draft = { baseUrl: "/api/editor/experiences/osct/draft", assetsBase: "https://cdn.example/staging/abc" };
     // A draft that names no upload yet: the file just uploaded and picked for a node still loads
@@ -196,7 +196,7 @@ describe("frameCsp: plugin code reaches the content, never the API", () => {
     // Once saved the draft names the same folder: the policy's sources stay as they were (no new frame)
     const saved = { ...fresh, libraryBase: "https://cdn.example/assets/osct/", responses: { "/game.config.json": JSON.stringify({ src: `https://cdn.example/assets/osct/${id}/v1.glb` }) } };
     expect(libraryFoldersOf(saved)).toEqual(libraryFoldersOf(fresh));
-    // Another book's upload a row names comes on top; an instance that names no folder admits only those
+    // Another experience's upload a row names comes on top; an instance that names no folder admits only those
     const other = { ...saved, responses: { "/game.config.json": JSON.stringify({ src: `https://cdn.example/assets/demo/${id}/v2.glb` }) } };
     expect(libraryFoldersOf(other)).toEqual(["https://cdn.example/assets/demo/", "https://cdn.example/assets/osct/"]);
     expect(libraryFoldersOf({ ...other, libraryBase: null })).toEqual(["https://cdn.example/assets/demo/"]);

@@ -8,7 +8,7 @@ import { parseNumber } from "#lib/values.js";
 /**
  * The Inspector's rule editor of a `behaviour` component (`shared/types/behaviour.ts`) – the
  * logic without the UI: the rules of a node's component, a copy with one piece changed, new rules, conditions and actions
- * with sensible defaults, values typed as text, and what the pickers offer (the subtree's node names, the book's
+ * with sensible defaults, values typed as text, and what the pickers offer (the subtree's node names, the experience's
  * variables and events). The component is written back in the content's shortest form (`behaviourData`).
  */
 
@@ -92,12 +92,12 @@ const allNodes = (trees: readonly EntityData[]): EntityData[] => trees.flatMap(t
 const allRules = (trees: readonly EntityData[]): BehaviourRule[] =>
   allNodes(trees).flatMap(node => (node.components ?? []).filter(c => c.type === BEHAVIOUR_TYPE).flatMap(c => behaviourRules(c)));
 
-/** The variables the book uses: its behaviours' (read and written) and the ones live on the stage (a plugin's too), sorted */
+/** The variables the experience uses: its behaviours' (read and written) and the ones live on the stage (a plugin's too), sorted */
 export const experienceVariables = (trees: readonly EntityData[], live: readonly string[] = []): string[] =>
   [...new Set([...behaviourVariables(allRules(trees)), ...live])].sort();
 
 /**
- * The events a rule may hear besides the node's own: the scene events the book's behaviours hear and emit, the ones seen
+ * The events a rule may hear besides the node's own: the scene events the experience's behaviours hear and emit, the ones seen
  * on the stage's timeline (a plugin's too), then the engine's core events
  */
 export const experienceEvents = (trees: readonly EntityData[], seen: readonly string[] = []): string[] => {

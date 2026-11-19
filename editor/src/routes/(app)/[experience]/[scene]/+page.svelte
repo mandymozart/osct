@@ -184,7 +184,7 @@
     await reloadContent();
     void goto(resolve(`${experienceId}/${newId}/`));
   };
-  // The book's scenes, read once per book here – not only by the Scenes panel: the stage's reference images (#314) and
+  // The experience's scenes, read once per experience here – not only by the Scenes panel: the stage's reference images (#314) and
   // the scene removal come from them, with the panel closed too
   $effect(() => {
     const id = experienceId;
@@ -303,7 +303,7 @@
       removalBusy = false;
     }
   };
-  // ── the environment (#185): the book's replaces the HDRI as the stage's sky (rendered); previewed while its tab is open
+  // ── the environment (#185): the experience's replaces the HDRI as the stage's sky (rendered); previewed while its tab is open
   // (its Library picker included) – in every shading, the default's world too ──
   $effect(() => {
     void environmentEdit.load(experienceId);
@@ -354,8 +354,8 @@
   });
   const placeSurface = (surfaceId: string, place: Required<SurfacePlace>) => {
     const id = sceneId;
-    const book = experienceId;
-    autosave.queue(`scene:${book}:${id}:surfaces`, async () => {
+    const experience = experienceId;
+    autosave.queue(`scene:${experience}:${id}:surfaces`, async () => {
       const surfaces = scenes.scene(id)?.surfaces ?? [];
       const next = updateSurface(surfaces, surfaceId, { place });
       if (!sameSurfaces(next, surfaces)) await scenes.putScene(id, { surfaces: next });
@@ -410,13 +410,13 @@
   let queuedTrees: { stage: Stage; trees: Map<string, EntityData> } | null = null;
   $effect(() => {
     const s = stage;
-    const book = experienceId;
+    const experience = experienceId;
     if (!s) return;
     // Every change of the live trees runs this again
     void [...s.overrides];
     untrack(() => {
       if (queuedTrees?.stage !== s) queuedTrees = { stage: s, trees: new Map() };
-      queueTreeSaves(s, book, queuedTrees.trees);
+      queueTreeSaves(s, experience, queuedTrees.trees);
     });
   });
 
@@ -519,7 +519,7 @@
     selectedOn = id;
     selection.enter(id);
   });
-  // The search or the book's ⚙ asked to show the selection: the Inspector opens
+  // The search or the experience's ⚙ asked to show the selection: the Inspector opens
   $effect(() => {
     const asked = selection.reveal;
     if (asked === revealSeen) return;
@@ -571,7 +571,7 @@
     { value: "textured", name: "Textured", icon: "shade-textured", label: "Textured – the content's materials, no sky" },
     { value: "rendered", name: "Rendered", icon: "shade-rendered", label: "Rendered – the HDRI's sky and light" },
   ] satisfies (ToolGroupOption & { value: ShadingMode })[];
-  /** With the book's environment, *rendered* shows its world instead of the HDRI (#185) – the button's label says so */
+  /** With the experience's environment, *rendered* shows its world instead of the HDRI (#185) – the button's label says so */
   const shadingOptions = $derived<ToolGroupOption[]>(stageEnvironment.current
     ? SHADING_OPTIONS.map(option => (option.value === "rendered" ? { ...option, label: "Rendered – the environment's sky, the reader's light" } : option))
     : SHADING_OPTIONS);
@@ -722,11 +722,11 @@
         onchoose={mode => updatePreview({ shading: mode as ShadingMode })} />
       <GridSnapMenu />
       <ViewMenu bind:this={viewMenu} />
-      <!-- #269: the stage runs the book live (Unreal's Realtime) – Live off holds the entities' clock for placing; Restart is a new game -->
+      <!-- #269: the stage runs the experience live (Unreal's Realtime) – Live off holds the entities' clock for placing; Restart is a new game -->
       <span class="tool-group live" role="group" aria-label="Live">
         <button type="button" class="icon-button" class:on={stage.live} aria-pressed={stage.live} onclick={() => stage?.setLive(!stage.live)}
           aria-label={stage.live ? "Live: on" : "Live: off"} title={stage.live ? "Live: the scene moves by itself – click to hold it still for placing" : "Held: the scene stands still – click to let it move again"}
-          data-help-name="Live" data-help="On: the stage plays the book as a reader sees it – components, clips, the book's code move by themselves. Off: their clock holds, so the scene stands still while you place things; what is found still appears. The code is loaded either way.">
+          data-help-name="Live" data-help="On: the stage plays the experience as a reader sees it – components, clips, the experience's code move by themselves. Off: their clock holds, so the scene stands still while you place things; what is found still appears. The code is loaded either way.">
           <Icon name={stage.live ? "pause" : "play"} /></button>
         <button type="button" class="icon-button" onclick={() => stage?.resetNarrative()} aria-label="Restart" title="Restart: a new game – nothing found, no variables; every reveal plays again"
           data-help-name="Restart" data-help="A new game on the stage: nothing found, every variable cleared, the timeline empty – the scene's targets are found anew and play their reveal, as a reader meets the scene the first time.">
@@ -829,7 +829,7 @@
     </FloatingPanel>
     <FloatingPanel {floats} id="inspector">
       {#snippet head()}
-        <!-- Back to the book is the top bar's book crumb; ‹ › live in the Scenes panel's head (#307) -->
+        <!-- Back to the experience is the top bar's experience crumb; ‹ › live in the Scenes panel's head (#307) -->
         <span class="float-tabs" role="group" aria-label="Inspector tabs">{@render tabButtons()}</span>
         {#if atLastScene}
           <button type="button" class="icon-button" onclick={() => openNewScene(sceneId)} title="Add a scene after the last one" aria-label="Add a scene"

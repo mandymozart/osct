@@ -2,13 +2,13 @@
  * The Scenes panel's model (#307 phase 3a, `agents/SCENES.md`): the experience as an ordered list of scenes, the groups as
  * bands over runs of their scenes, the counts against a group's loading window, picking scenes (a click, Shift for a
  * range, Ctrl for one more), the arrow keys, and where a dragged scene or band lands – the request for
- * `POST …/scenes/move` and the order it makes. Pure: the strip under the stage (`ScenesPanel.svelte`) and the book page's
+ * `POST …/scenes/move` and the order it makes. Pure: the strip under the stage (`ScenesPanel.svelte`) and the experience page's
  * scene cards (`SceneCards.svelte`) use it alike, `lib/__tests__/scene-strip.test.ts` tests it.
  */
 import { GROUP_WINDOW_TARGETS } from "@shared/api/editor";
 import type { GroupData, SurfaceData } from "@shared/types/game-config";
 
-/** A scene as the strip needs it – the book tree's scene (`TreeScene`) is one */
+/** A scene as the strip needs it – the experience tree's scene (`TreeScene`) is one */
 export interface StripScene {
   id: string;
   label: string;
@@ -33,7 +33,7 @@ export interface StripRun<T extends StripScene> {
 
 /**
  * The strip's runs in order: the scenes of one group next to each other are one band. A group's scenes apart from each
- * other (content made elsewhere) are two bands of the same group; a group id the book does not list shows by its id.
+ * other (content made elsewhere) are two bands of the same group; a group id the experience does not list shows by its id.
  */
 export const stripRuns = <T extends StripScene>(scenes: readonly T[], groups: readonly GroupData[] = []): StripRun<T>[] => {
   const runs: StripRun<T>[] = [];
@@ -190,7 +190,7 @@ export const planDrop = (scenes: readonly Pick<StripScene, "id" | "group">[], pi
 
 // ── groups ───────────────────────────────────────────────────────────────────────────────────────────
 
-/** A new group's label: `Group n`, the first one the book does not have */
+/** A new group's label: `Group n`, the first one the experience does not have */
 export const newGroupLabel = (groups: readonly Pick<GroupData, "label">[]): string => {
   const taken = new Set(groups.map(g => g.label.trim().toLowerCase()));
   let n = groups.length + 1;

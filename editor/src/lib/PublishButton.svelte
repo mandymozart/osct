@@ -14,10 +14,10 @@
 
   /**
    * Publish: the draft becomes a content version of this instance's own environment (`POST /editor/experiences/{id}/publish`)
-   * – an instance publishes there and nowhere else (#183). Next to the button: where the book is live and, where this
+   * – an instance publishes there and nowhere else (#183). Next to the button: where the experience is live and, where this
    * server is the target, that no CDN is connected. The button is an icon (#274); its title names the target with its
-   * backend (`staging · CDN`, `local · this server`), as does the step. The button opens a step in the page that names the book, the build, the target and what it replaces –
-   * publishing over another book is said there and sends `replace`. The publish carries the Code tab's saved sources,
+   * backend (`staging · CDN`, `local · this server`), as does the step. The button opens a step in the page that names the experience, the build, the target and what it replaces –
+   * publishing over another experience is said there and sends `replace`. The publish carries the Code tab's saved sources,
    * transpiled here (#78): a source that does not compile stops it with its line.
    */
   let { experienceId }: { experienceId: string } = $props();
@@ -46,7 +46,7 @@
   };
   onMount(() => void refresh());
 
-  /** Opens the step: the book, its build now, the target and what it replaces there */
+  /** Opens the step: the experience, its build now, the target and what it replaces there */
   const open = async (current?: OtherExperience) => {
     if (!target) return;
     error = null;
@@ -55,7 +55,7 @@
     try {
       build = (await getDraftManifest(experienceId)).build;
     } catch {
-      // the step still names the book and the target
+      // the step still names the experience and the target
     }
     const serving = current ? { env: current.env, experience: current.experience, build: current.build, since: current.since } : environments.find(e => e.env === target.env);
     if (plugins.experienceId !== experienceId) await plugins.load(experienceId);
@@ -97,13 +97,13 @@
 
 <span class="publish">
   {#if self}
-    <span class="small muted live" data-help-name="Live" data-help={`Where this book is live – each environment serves one book, the last one published there: ${liveLabels(self.live).join("; ")}.`}>{liveShort(self.live)}</span>
+    <span class="small muted live" data-help-name="Live" data-help={`Where this experience is live – each environment serves one experience, the last one published there: ${liveLabels(self.live).join("; ")}.`}>{liveShort(self.live)}</span>
   {/if}
   {#if target}
     {#if target.warning}<span class="small danger no-cdn" title={target.warning} data-help-name="No CDN" data-help={target.warning}>No CDN connected</span>{/if}
   {/if}
   <button type="button" class="icon-button publish-button" onclick={() => open()} disabled={busy || !target || !!step} aria-label={busy ? "Publishing…" : "Publish"}
-    title={busy ? "Publishing…" : target ? `Publish the draft to ${targetLabel(target)} – a step in the page names the book and the build first.` : "Publish the draft"}><Icon name="publish" stroke={2} /></button>
+    title={busy ? "Publishing…" : target ? `Publish the draft to ${targetLabel(target)} – a step in the page names the experience and the build first.` : "Publish the draft"}><Icon name="publish" stroke={2} /></button>
   {#if result}<span class="small muted done">published {result.build}{result.replaced ? ` – replaced ${titleOf(result.replaced.experience) ?? "another experience"}` : ""}</span>{/if}
   {#if error && !step}<span class="small danger">{error}</span>{/if}
   {#if step}

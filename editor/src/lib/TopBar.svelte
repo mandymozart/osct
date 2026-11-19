@@ -18,21 +18,21 @@
   import { openFloats } from "#lib/components/floats.svelte.js";
 
   /**
-   * The editor's one top bar (every page, drawn by the layout): the breadcrumb `Books › book › scene` at the left, the
-   * book's search while a book is open (#237, `ExperienceSearch`), where the draft stands (#259, `SaveStatus`: edits save
+   * The editor's one top bar (every page, drawn by the layout): the breadcrumb `Experiences › experience › scene` at the left, the
+   * experience's search while an experience is open (#237, `ExperienceSearch`), where the draft stands (#259, `SaveStatus`: edits save
    * themselves), Publish (with its environment), then the account menu ☰ at the right: the e-mail, Admin and Sign out
    * (Tilman, 2026-11-18). In a workspace with floating panels (#308) the **panels menu** before it: each panel that
    * closes, shown (✓) or closed – a click flips it –, and **Reset layout** (every panel back to its default place and
-   * size). The book's crumb always leads to the book page – the scenes overview (#274); in a scene's
-   * workspace the ⚙ after it selects the book (#237): the Inspector shows its texts and settings. When the open
-   * book's draft has features this editor's engine does not know (a newer content build – RULES #10), a small warning
-   * opens their list: the stage shows the book without them.
+   * size). The experience's crumb always leads to the experience page – the scenes overview (#274); in a scene's
+   * workspace the ⚙ after it selects the experience (#237): the Inspector shows its texts and settings. When the open
+   * experience's draft has features this editor's engine does not know (a newer content build – RULES #10), a small warning
+   * opens their list: the stage shows the experience without them.
    */
   const experienceId = $derived(page.params.experience ?? null);
   const sceneId = $derived(page.params.scene ?? null);
   const isAdminRoute = $derived(isAdminPath(page.url.pathname));
 
-  /** Book titles by id, read once per book */
+  /** Experience titles by id, read once per experience */
   const titles = $state<Record<string, string>>({});
   $effect(() => {
     const id = experienceId;
@@ -45,10 +45,10 @@
   /** The scene's full name, never cut: its label (its id when it has none) */
   const sceneCrumb = $derived(!scene ? sceneId : sceneLabel(scene));
 
-  /** The book's settings button in a workspace: the Inspector shows the book */
+  /** The experience's settings button in a workspace: the Inspector shows the experience */
   const selectExperience = () => selection.show({ target: null, node: [], onTarget: true, experience: true });
 
-  /** The open book's features the stage skips */
+  /** The open experience's features the stage skips */
   const skipped = $derived(experienceId && content.experienceId === experienceId ? content.skipped : []);
   /** The account menu: opened under its button, at the right edge */
   let menuAt = $state<Point | null>(null);
@@ -79,7 +79,7 @@
       { label: "Reset layout", icon: "reset" as const, help: "Every panel back to its default place and size, open or folded as it starts – the layout this browser remembered for this workspace goes.", select: () => floats.reset() },
     ];
   });
-  const SKIPPED_HELP = "This book was built with a newer content schema than this editor knows. The stage skips what it does not know – update the editor (a newer release) to see and edit everything.";
+  const SKIPPED_HELP = "This experience was built with a newer content schema than this editor knows. The stage skips what it does not know – update the editor (a newer release) to see and edit everything.";
 </script>
 
 <header class="top" data-app-ui>
@@ -126,7 +126,7 @@
 <style>
   .top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: .75rem; height: var(--top-height); padding: 0 .75rem; background: var(--surface-head); border-bottom: 1px solid var(--line); }
   .top a { text-decoration: none; }
-  /* The search gives way before the crumbs: book and scene stay readable */
+  /* The search gives way before the crumbs: experience and scene stay readable */
   .crumbs { flex: 1; display: flex; align-items: center; gap: .375rem; min-width: 14rem; white-space: nowrap; }
   .crumb { overflow: hidden; text-overflow: ellipsis; }
   a.crumb { color: var(--muted); }
@@ -135,7 +135,7 @@
     a.crumb:hover { color: var(--text); }
   }
   .crumb[aria-current="page"] { font-weight: 600; }
-  /* Short of room, Books gives way first: the book's crumb is the way back to the scenes */
+  /* Short of room, Experiences gives way first: the experience's crumb is the way back to the scenes */
   .crumbs > .crumb:first-child { flex-shrink: 4; }
   .crumbs > .crumb:nth-child(3) { min-width: 3rem; }
   .experience-settings, .account, .panels { flex: none; }
@@ -145,12 +145,12 @@
   .skipped summary { cursor: pointer; white-space: nowrap; }
   .skipped ul { position: absolute; right: 0; top: calc(100% + .375rem); z-index: 30; width: max-content; max-width: min(32rem, calc(100vw - 1rem));
     margin: 0; padding: .5rem .75rem .5rem 1.5rem; border: 1px solid var(--line); background: var(--surface); color: var(--text); overflow-wrap: anywhere; }
-  /* A full-height touch target: on a phone the book's crumb is the way back to the scenes */
+  /* A full-height touch target: on a phone the experience's crumb is the way back to the scenes */
   @media (pointer: coarse) { a.crumb { line-height: var(--control-height); } }
   @media (max-width: 47.9rem) {
     .top { gap: .375rem; padding: 0 .5rem; }
     .crumbs { min-width: 6rem; }
-    /* Books › leaves first: the book's crumb (the way back) stays in a scene */
+    /* Experiences › leaves first: the experience's crumb (the way back) stays in a scene */
     .crumbs > :nth-child(-n + 2):not(:nth-last-child(-n + 3)) { display: none; }
     .crumbs { overflow: hidden; }
     .crumbs > :last-child { flex-shrink: 1; min-width: 0; }

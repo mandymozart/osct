@@ -45,14 +45,14 @@ const REPLAY_GAP_MS = 900;
 const DRAGGED_PLACE_MS = 6000;
 
 /**
- * The editor's stage as it runs in the stage frame (#234, `frame-host.svelte.ts` – the sandbox the book's plugins run
+ * The editor's stage as it runs in the stage frame (#234, `frame-host.svelte.ts` – the sandbox the experience's plugins run
  * in; the page talks to it through `stage.svelte.ts`): the engine's `ArScene` with the mock tracker and the mock stage
  * instead of a camera, and the editor's simulation of the game around it – which scene is open, which targets the
  * "camera" sees, which were found for the first time (the unlock animation plays once per target, *replay* plays it
- * again), and the reader's progress for the book's plugins (`StageProgress`: unlocked targets, book variables – the
+ * again), and the reader's progress for the experience's plugins (`StageProgress`: unlocked targets, experience variables – the
  * engine's `api.progress`). The reader's store does none of this here: the editor owns its state. For the Inspector it
  * keeps the plugins' variables and the stage's event timeline (`vars`, `events` – each event timed from the scene's
- * opening), and lets the author act like the book's code or a reader would: set a variable through the plugin API
+ * opening), and lets the author act like the experience's code or a reader would: set a variable through the plugin API
  * (`setVar`), tap a found target without aiming at it (`tap`). The live overrides are the page's: it sends each one
  * (`override`), and a gizmo drag only reports the placement (`onPlacement`) for the page to write.
  */
@@ -100,7 +100,7 @@ export class StageCore {
   private arScene: ArScene;
   private tracker: MockTracker | null = null;
   private mockStage: MockStage | null = null;
-  /** The book's environment on the stage (its draft's or the values being edited), null = the book has none */
+  /** The experience's environment on the stage (its draft's or the values being edited), null = the experience has none */
   private environment: EnvironmentData | null = null;
   /** The Environment tab is open: the world shows in every shading, and *look up* raises the camera */
   private previewing = false;
@@ -114,7 +114,7 @@ export class StageCore {
   private selection: GizmoSelection | null = null;
   /** The tool in hand (reactive: the toolbar shows it): select – no gizmo – or a gizmo mode */
   tool = $state<StageTool>("select");
-  /** The simulated reader's progress: the first finds and the plugins' book variables */
+  /** The simulated reader's progress: the first finds and the plugins' experience variables */
   private progress = new StageProgress();
   /** The plugins' variables with their scopes (reactive: the Inspector lists them) */
   vars = $state<Array<{ scope: VarScope; name: string; value: VarValue }>>([]);
@@ -387,11 +387,11 @@ export class StageCore {
   }
 
   /**
-   * The book's environment on the stage (#185 – it replaces the HDRI sky box): the engine's look-around world with these
+   * The experience's environment on the stage (#185 – it replaces the HDRI sky box): the engine's look-around world with these
    * values – the reader's pass, not a stand-in – under the stage, turned by the view as a phone's gyroscope would turn
    * it. Drawn while rendered, in place of the HDRI's sky and light (the scene's own lights, as in the reader); while the
-   * Environment tab is open (`previewing`) in every shading, and *look up* raises the camera. `null`: the book has none –
-   * the HDRI again, the camera at the book.
+   * Environment tab is open (`previewing`) in every shading, and *look up* raises the camera. `null`: the experience has none –
+   * the HDRI again, the camera at the scene.
    */
   showEnvironment(environment: EnvironmentData | null, previewing = false): void {
     this.environment = environment;
@@ -414,7 +414,7 @@ export class StageCore {
     this.arScene.previewEnvironment({ environment, orientation: () => this.tracker?.worldOrientation(this.orientation) ?? this.orientation });
   }
 
-  /** How far the previewing camera looks up from the book (degrees) – the world's sky and horizon come into view */
+  /** How far the previewing camera looks up from the experience (degrees) – the world's sky and horizon come into view */
   setLookUp(degrees: number): void {
     this.lookUp = degrees;
     if (this.world && this.previewing) this.tracker?.setLookUp(degrees);
@@ -823,8 +823,8 @@ export class StageCore {
    */
   playMoment(moment: Moment): void {
     if (moment === "reveal") return this.replayUnlock();
-    const book = this.appearanceOverride ? { appearance: this.appearanceOverride.appearance ?? undefined } : getExperience();
-    this.hideFor(this.shownTargets(), moment === "lost" ? (momentDuration(book, "lost") ?? REPLAY_GAP_MS) + REPLAY_GAP_MS : REPLAY_GAP_MS);
+    const experience = this.appearanceOverride ? { appearance: this.appearanceOverride.appearance ?? undefined } : getExperience();
+    this.hideFor(this.shownTargets(), moment === "lost" ? (momentDuration(experience, "lost") ?? REPLAY_GAP_MS) + REPLAY_GAP_MS : REPLAY_GAP_MS);
   }
 
   /** The scene's targets with an image that are not hidden (or those of `targetIds`) */

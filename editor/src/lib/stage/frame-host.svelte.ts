@@ -19,7 +19,7 @@ import { type GhostPlace, StageCore } from "./stage-core.svelte";
 /**
  * The stage frame's side (#234, docs/editor.md "The stage frame"): the document at `/editor/stage-frame/`, loaded by the
  * page into an iframe sandboxed without `allow-same-origin`, runs the stage (`StageCore`) – and with it every plugin of
- * the book and the Code tab's Run – and answers the page's requests (`frame-protocol.ts`). Its origin is opaque: no
+ * the experience and the Code tab's Run – and answers the page's requests (`frame-protocol.ts`). Its origin is opaque: no
  * cookie, no storage of the editor's, no access to the page. Before the draft and its plugins load, the document takes a
  * Content Security Policy that lets it reach the content's files and nothing of the API (`frameCsp`). It accepts requests
  * only from its parent at the editor's origin and posts its events only there.

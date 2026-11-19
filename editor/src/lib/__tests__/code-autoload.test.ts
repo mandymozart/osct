@@ -16,8 +16,8 @@ const SOURCES: Record<string, string> = {
 vi.mock("../api", async original => ({
   ...(await original<typeof import("../api")>()),
   listPlugins: async () => ({ plugins: Object.keys(SOURCES).sort().map(id => ({ id, size: 1, usages: 0, updatedAt: "", updatedBy: null })) }),
-  getPlugin: async (_book: string, id: string) => ({ plugin: { id, source: SOURCES[id], size: 1, updatedAt: "", updatedBy: null } }),
-  putPlugin: async (_book: string, id: string, source: string) => ({ plugin: { id, source, size: 1, updatedAt: "", updatedBy: null } }),
+  getPlugin: async (_experience: string, id: string) => ({ plugin: { id, source: SOURCES[id], size: 1, updatedAt: "", updatedBy: null } }),
+  putPlugin: async (_experience: string, id: string, source: string) => ({ plugin: { id, source, size: 1, updatedAt: "", updatedBy: null } }),
 }));
 
 const { plugins, AUTO_LOAD_TIMEOUT_MS } = await import("../plugins.svelte");
@@ -41,9 +41,9 @@ class FakeStage {
   async override(): Promise<void> {}
 }
 
-let book = 0;
-/** Every test a book of its own: the store starts clean for it */
-const nextExperience = () => `book-${++book}`;
+let experiences = 0;
+/** Every test an experience of its own: the store starts clean for it */
+const nextExperience = () => `experience-${++experiences}`;
 
 beforeEach(() => window.localStorage.clear());
 afterEach(() => vi.restoreAllMocks());
@@ -140,7 +140,7 @@ describe("why a type is missing", () => {
   it("loading, failed or nobody's", async () => {
     const stage = new FakeStage();
     const loading = plugins.autoLoad(nextExperience(), stage);
-    expect(plugins.missingNote()).toBe("loading the book's code…");
+    expect(plugins.missingNote()).toBe("loading the experience's code…");
     await loading;
     plugins.status.clear();
     expect(plugins.missingNote()).toBe("unknown – no plugin registers it");

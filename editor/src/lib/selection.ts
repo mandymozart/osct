@@ -8,7 +8,7 @@ import { nodeLabel } from "./tree";
  * a **node** below it (the Inspector at that node, the gizmo on it). A target without AR content can only be
  * selected as the target. The tree's top rows select too (#227): the **scene** (the Inspector shows it, no target
  * or node on the stage) and an **entry** (the Inspector shows the entry; with a target, `target` is it, so the stage
- * outlines its print as for a selected target). The top bar's ⚙ after the book's crumb selects the **book** (#237: the Inspector shows
+ * outlines its print as for a selected target). The top bar's ⚙ after the experience's crumb selects the **experience** (#237: the Inspector shows
  * its texts and settings, nothing on the stage). Nothing selected is the scene (#229, `settledSelection`). The pure
  * rules – the level, one level up, the breadcrumb – live here, the tree's rows in `tree-rows.ts`; the shared state is
  * `selection.svelte.ts`.

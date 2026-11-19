@@ -21,7 +21,7 @@
   /**
    * An entry's form (#223), in the Inspector's place of the entry the tree selects and on the Entries page: the title,
    * category, its scene (and surface, in a scene of several), the author and tags, the text with its live preview, the picture from the Library and its
-   * caption (#289), a link's URL and the target. The preview is the reader's renderer (`renderEntryText`: Markdown with the book's
+   * caption (#289), a link's URL and the target. The preview is the reader's renderer (`renderEntryText`: Markdown with the experience's
    * variables) – on the stage with the variables' current values, elsewhere with none set; the variables the text reads
    * are listed with their values, what does not parse below. Edits reach the draft by themselves a moment after the
    * last one (#259: only the fields that changed, `PUT …/entries/{id}`) – the form keeps what was typed, a save never
@@ -62,7 +62,7 @@
     });
   });
 
-  // The selection may move on (the book, another scene) a moment before the Inspector drops this form: no entry, no changes
+  // The selection may move on (the experience, another scene) a moment before the Inspector drops this form: no entry, no changes
   const changes = $derived(entry ? entryChanges(entry, draft) : {});
   const dirty = $derived(Object.keys(changes).length > 0);
   const problems = $derived(draftProblems(draft));
@@ -81,7 +81,7 @@
 
   /** An edit: in the preview at once, in the draft a moment after the last one – unless a problem keeps it back */
   const edit = (patch: Partial<EntryDraft>) => {
-    const book = experienceId;
+    const experience = experienceId;
     const id = entry.id;
     const subject = key;
     const typed: EntryDraft = { ...draft, ...patch };
@@ -97,7 +97,7 @@
       const stored = entries.byId(id);
       const fields = stored ? entryChanges(stored, typed) : {};
       if (!Object.keys(fields).length) return;
-      const saved = await putEntry(book, id, fields);
+      const saved = await putEntry(experience, id, fields);
       entries.saved(saved.entry);
       if (saved.entry.scene !== saved.previousScene) notice = `Now on ${sceneNameOf(saved.entry.scene)}`;
       await done?.(saved, fields);
@@ -119,7 +119,7 @@
     }
   };
   const shown = (value: unknown): string => (typeof value === "string" ? `"${value}"` : String(value));
-  // The scenes the entry may be on (the book's tree) and the surfaces of the chosen one
+  // The scenes the entry may be on (the experience's tree) and the surfaces of the chosen one
   $effect(() => {
     if (scenes.experienceId !== experienceId) void scenes.load(experienceId);
   });
@@ -161,7 +161,7 @@
   <input class="field" value={draft.tags} aria-label="Tags" placeholder="none – words, separated by commas" oninput={e => edit({ tags: e.currentTarget.value })} data-help="Words that describe the entry, separated by commas." /></div>
 <div class="row top" class:changed={"body" in changes}><span class="label">text</span>
   <textarea class="field body" rows="8" value={draft.body} aria-label="Text" spellcheck="true" oninput={e => edit({ body: e.currentTarget.value })}
-    data-help-name="Text" data-help="Markdown: a blank line starts a paragraph, *emphasis*, **strong**, [a link](https://…). The book's variables in braces: {'{hasKey}'} prints a value, {'{hasKey: the door opens|it is locked}'} chooses a text – a variable that is not set shows as nothing, so the part after | is its fallback. A backslash before a brace writes the brace."></textarea></div>
+    data-help-name="Text" data-help="Markdown: a blank line starts a paragraph, *emphasis*, **strong**, [a link](https://…). The experience's variables in braces: {'{hasKey}'} prints a value, {'{hasKey: the door opens|it is locked}'} chooses a text – a variable that is not set shows as nothing, so the part after | is its fallback. A backslash before a brace writes the brace."></textarea></div>
 <div class="row top"><span class="label">preview</span>
   <div class="preview" data-help-name="Preview" data-help="The text as the reader shows it – the reader's own renderer. On the stage the variables have their current values (set them in the scene's vars and events); on the Entries page none is set.">
     {#if rendered.html}<div class="reader">{@html rendered.html}</div>{:else}<span class="small muted">no text</span>{/if}

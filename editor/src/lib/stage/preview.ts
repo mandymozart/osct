@@ -9,7 +9,7 @@
  *   grids – the surfaces' own grid with its vertical axis, the scene's floor grid and the optional vertical grid
  *   (#316, #319) – and the snapping (the *grid & snap* group: on / off, what it snaps to, the precision per gizmo mode –
  *   `snap.ts`).
- * - `surfaceGrids`: the open scene's surfaces' own grid spacing (#316 part 1) by surface id – kept per book and surface
+ * - `surfaceGrids`: the open scene's surfaces' own grid spacing (#316 part 1) by surface id – kept per experience and surface
  *   in this browser by the page (`surface-grids.svelte.ts`), handed to the stage here. Not stored with the settings.
  * - `hidden`: targets hidden in the scene by the tree's eye – the mock reports them as lost (outro), on again as found
  *   (reveal), and the stage leaves out their printed images (#250). Not stored.
@@ -66,7 +66,7 @@ export const storedTop = (stored: { top?: unknown }): TopId => (isTopId(stored.t
 /**
  * The stage toolbar's *view* group in a few words (#229 – the Stage tab's closed *stage* head until then): the desk and
  * its top, the origin, the hand shake and the sky – "Eiermann · plywood · origin top left · no shake · sky Wooden
- * Studio 17"; with the book's environment the sky is its world ("· the environment's sky"). The group's tooltip; the
+ * Studio 17"; with the experience's environment the sky is its world ("· the environment's sky"). The group's tooltip; the
  * grid and snapping are the *grid & snap* group's own.
  */
 export const viewSummary = (
@@ -107,7 +107,7 @@ export interface PreviewSettings {
   orbit: PreviewOrbit | null;
   /** The HDRI shown as sky and used as light (while the shading is rendered) */
   hdri: HdriId;
-  /** The desk's top under the book (the frame is always the Eiermann) */
+  /** The desk's top under the scene (the frame is always the Eiermann) */
   top: TopId;
   /** The size models with a texture set show their map at (the reader's texture quality, previewed) */
   textureQuality: TextureQuality;

@@ -10,7 +10,7 @@
    * The creation step of a new scene (#238, #319) – in the page, no browser dialog: the **preset** (a double page – one
    * surface twice the page's width –, a single page, a wall standing ahead), the **label** (what the reader's switcher
    * and lists show) and **where** it goes (after which scene; nothing renumbers). *Create* asks the API
-   * (`POST …/scenes`); the caller reloads and shows the new scene. Shown only for a digital-first book.
+   * (`POST …/scenes`); the caller reloads and shows the new scene. Every experience adds scenes (#320).
    */
   let { experienceId, scenes, after = null, oncreated, oncancel }: {
     experienceId: string;

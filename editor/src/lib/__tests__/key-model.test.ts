@@ -8,7 +8,7 @@ import { buildKeyGlb, KEY_MODEL_PATH } from "../../../tools/key-model.mjs";
 const parse = (glb: Uint8Array): Promise<GLTF> =>
   new Promise((resolve, reject) => new GLTFLoader().parse(glb.slice().buffer, "", resolve, reject));
 
-describe("the demo book's key (editor/tools/key-model.mjs)", () => {
+describe("the demo experience's key (editor/tools/key-model.mjs)", () => {
   it("is the file the script writes – regenerate it with `node editor/tools/key-model.mjs`", () => {
     // From the editor's folder (vitest's cwd): happy-dom gives import.meta.url an http URL
     const file = readFileSync(resolve(process.cwd(), "..", KEY_MODEL_PATH));

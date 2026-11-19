@@ -116,8 +116,8 @@ describe("settledSelection (#229)", () => {
   });
 });
 
-describe("the book and a selection asked for on another scene (#237)", () => {
-  it("the book (the top bar's ⚙) selects the book: no scene, target, node or entry; one level up keeps it", () => {
+describe("the experience and a selection asked for on another scene (#237)", () => {
+  it("the experience (the top bar's ⚙) selects the experience: no scene, target, node or entry; one level up keeps it", () => {
     selection.selectNode("p015-1", [1]);
     selection.selectExperience();
     expect(selection.snapshot()).toEqual({ target: null, node: [], onTarget: true, scene: false, entry: null, experience: true });

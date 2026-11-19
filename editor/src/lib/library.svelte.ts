@@ -19,7 +19,7 @@ export interface Conversion {
 export const ACCEPT = [acceptOf(ASSET_KINDS), ...CODE_EXTENSIONS.script].join(",");
 
 /**
- * The book's library: the files uploaded in the editor (the API's assets – docs/server.md "Assets"), loaded per book,
+ * The experience's library: the files uploaded in the editor (the API's assets – docs/server.md "Assets"), loaded per experience,
  * kept in step after an upload, a replace or a delete. Nodes and targets name an asset by its URL; `byUrl` finds the
  * asset behind a node's file.
  */
@@ -85,7 +85,7 @@ class Library {
     }
   }
 
-  /** A new version of an asset; every use in the book now names it (the draft changed: reload the content) */
+  /** A new version of an asset; every use in the experience now names it (the draft changed: reload the content) */
   async replace(experienceId: string, assetId: string, file: File, fit?: ImageFit | ImageUse): Promise<Asset> {
     this.uploading = [...this.uploading, file.name];
     this.error = null;

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { excerptOf, flatHits, folded, searchExperience, stepHit, type SearchScene } from "../experience-search";
 import { sceneLabel } from "@engine/content/scenes";
 
-/** #237: the header's search through the whole book – grouped by kind, ranked, each with its scene and what a pick selects */
+/** #237: the header's search through the whole experience – grouped by kind, ranked, each with its scene and what a pick selects */
 
 const scenes: SearchScene[] = [
   { id: "cover", label: "Cover", entries: [], targets: [] },
@@ -21,7 +21,7 @@ const scenes: SearchScene[] = [
   },
 ];
 
-describe("the book search", () => {
+describe("the experience search", () => {
   it("folds accents and case", () => {
     expect(folded("Écaille KÉVIN")).toBe("ecaille kevin");
     expect(flatHits(searchExperience(scenes, "ecaille")).map(h => h.key)).toEqual(["entry:about"]);

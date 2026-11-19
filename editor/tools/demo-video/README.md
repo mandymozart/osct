@@ -1,6 +1,6 @@
 # The editor's demo video (#195)
 
-A ~30 s work-in-progress video of the editor with the demo book, in two formats from the same scenes: **9:16**
+A ~30 s work-in-progress video of the editor with the demo experience, in two formats from the same scenes: **9:16**
 (1080 × 1920, the phone layout – an Instagram reel) and **16:9** (1920 × 1080, the desktop layout – e-mail, WhatsApp).
 Real UI, real demo content, **no text** (Tilman: *"Kein Text."* – no titles, no end card), no audio track. The files
 are sent by Tilman himself; these scripts never upload anything.
@@ -22,7 +22,7 @@ are sent by Tilman himself; these scripts never upload anything.
 3. Sign in and import the demo (the address is the copy's editor account; the token file stays outside the repo):
    ```bash
    node prepare.mjs --api http://127.0.0.1:8091/api --email <editor address> --mail-log <copy's mail.log> \
-     --token-file <temp>/token.txt --book demo --content https://buildingfictions.b-cdn.net/demo/<build>
+     --token-file <temp>/token.txt --experience demo --content https://buildingfictions.b-cdn.net/demo/<build>
    ```
 4. Record each format (Edge on `--port`, default 9341; frames into `<rec>/<format>/<scene>/`):
    ```bash
@@ -38,7 +38,7 @@ are sent by Tilman himself; these scripts never upload anything.
 
 ## What the recording changes, what it hides
 
-- Recording-only CSS hides the account's address in the top bar and the AI connections (tokens) on the books page,
+- Recording-only CSS hides the account's address in the top bar and the AI connections (tokens) on the experiences page,
   and Android's blue tap highlight (the emulated phone flashes it over every tapped link). Nothing else is touched.
 - No cursor: a subtle dot follows the pointer or finger during drags only.
 - The scenes' coordinates on the stage (the gizmo's handles, the aquarium, the key) are for the stored orbit of each

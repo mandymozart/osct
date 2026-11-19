@@ -6,33 +6,33 @@ import { plugins } from "./plugins.svelte";
 import type { ContentSnapshot } from "#lib/stage/frame-protocol.js";
 
 /**
- * The book's draft as the engine sees it: `loadGameConfiguration` reads the draft endpoint like the CDN
+ * The experience's draft as the engine sees it: `loadGameConfiguration` reads the draft endpoint like the CDN
  * (`latest.json` → `<build>/game.config.json`), so the stage renders exactly what the reader would after a publish.
- * One configuration at a time (the engine's content runtime is a singleton): opening another book reloads.
+ * One configuration at a time (the engine's content runtime is a singleton): opening another experience reloads.
  * The draft's files as fetched here are kept as `snapshot`: the stage frame reads the same draft from them (#234) – it
  * never asks the API itself.
  */
 class Content {
   experienceId = $state<string | null>(null);
   scenes = $state<Scene[]>([]);
-  /** The book's post-processing (`book.passes`, the master of every scene without its own); null = the book has none */
+  /** The experience's post-processing (`experience.passes`, the master of every scene without its own); null = the experience has none */
   experiencePasses = $state<PassData[] | null>(null);
-  /** How the book's entities appear (`book.appearance`, #265): a look per moment; null = the book names none */
+  /** How the experience's entities appear (`experience.appearance`, #265): a look per moment; null = the experience names none */
   experienceAppearance = $state<ExperienceAppearance | null>(null);
   hash = $state<string | null>(null);
   error = $state<ErrorInfo | null>(null);
-  /** What the draft has that this editor's engine does not know (a book from a newer content build – RULES #10): skipped on the stage */
+  /** What the draft has that this editor's engine does not know (an experience from a newer content build – RULES #10): skipped on the stage */
   skipped = $state<readonly SkippedFeature[]>([]);
   loading = $state(false);
 
-  /** Where the book's content files live (the import's `assetsBase`), read once per book */
+  /** Where the experience's content files live (the import's `assetsBase`), read once per experience */
   assetsBase = $state<string | null>(null);
-  /** The public folder of the book's uploads (the Library's files), read with the assets base; null = the instance names none */
+  /** The public folder of the experience's uploads (the Library's files), read with the assets base; null = the instance names none */
   libraryBase = $state<string | null>(null);
   /** The draft as loaded last, for the stage frame: the base, the files' base and the responses (a new object per load) */
   snapshot = $state.raw<ContentSnapshot | null>(null);
 
-  /** Load (or reload after a save) the book's draft; resolves with the startup error, if any */
+  /** Load (or reload after a save) the experience's draft; resolves with the startup error, if any */
   async load(experienceId: string): Promise<ErrorInfo | null> {
     this.loading = true;
     try {

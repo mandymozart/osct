@@ -6,7 +6,7 @@
    * A library file's preview: an image, or a video's first frame (the poster) that plays muted and inline while
    * hovered or after a click (a second click stops it); the type's icon else. An animated skeleton until the picture
    * has loaded, the icon when it fails (the panel keys it by the URL: a replace loads again). A video only loads once
-   * it scrolls into view – a book has hundreds.
+   * it scrolls into view – an experience has hundreds.
    */
   let { asset }: { asset: Asset } = $props();
 

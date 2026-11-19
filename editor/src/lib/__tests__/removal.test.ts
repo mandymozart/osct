@@ -40,7 +40,7 @@ describe("removing with everything on it – the confirmation's words (#198)", (
     const impact = sceneImpact();
     expect(removalStep(new ApiError(409, "confirm-delete", "Removing takes …", { impact, confirmation }))).toEqual({ impact, confirmation, changed: false });
     expect(removalStep(new ApiError(409, "confirmation-void", "void", { impact, confirmation }))).toEqual({ impact, confirmation, changed: true });
-    expect(removalStep(new ApiError(409, "initial-scene", "The book opens on this scene."))).toBeNull();
+    expect(removalStep(new ApiError(409, "initial-scene", "The experience opens on this scene."))).toBeNull();
     expect(removalStep(new ApiError(409, "confirm-delete", "no details"))).toBeNull();
     expect(removalStep(new Error("network"))).toBeNull();
   });

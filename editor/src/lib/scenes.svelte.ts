@@ -4,9 +4,9 @@ import type { ScenePreset, SurfaceReference, SurfaceReferenceRequest } from "@sh
 import { groupedOf, newGroupLabel, ungroupPlan, type MoveRequest } from "./scene-strip";
 
 /**
- * The book's scenes and groups for the Scenes panel, the book page's scene cards and the Inspector's scene and group
- * (#307 phase 3a): the book's tree (`GET /editor/experiences/{id}` – the scenes in order with their entries, the groups) read
- * once per book, and the actions on it – add a scene from a preset, move scenes (a drop), group and ungroup, a scene's
+ * The experience's scenes and groups for the Scenes panel, the experience page's scene cards and the Inspector's scene and group
+ * (#307 phase 3a): the experience's tree (`GET /editor/experiences/{id}` – the scenes in order with their entries, the groups) read
+ * once per experience, and the actions on it – add a scene from a preset, move scenes (a drop), group and ungroup, a scene's
  * label / group / surfaces / passes, a group's label. Every action reads the tree again; `version` goes up with each, so
  * a page that shows the draft (the stage, its ‹ ›) can follow. The logic of the strip is `scene-strip.ts`.
  */
@@ -14,7 +14,7 @@ class Scenes {
   experienceId = $state<string | null>(null);
   tree = $state<ExperienceTree | null>(null);
   error = $state<unknown>(null);
-  /** Goes up whenever an action here changed the book (the order, a group, a scene's fields) */
+  /** Goes up whenever an action here changed the experience (the order, a group, a scene's fields) */
   version = $state(0);
   /** The picked scenes (in order) and the Shift range's anchor – shared by the strip and its toolbar */
   picks = $state<{ picked: string[]; anchor: string | null }>({ picked: [], anchor: null });
@@ -35,7 +35,7 @@ class Scenes {
     return this.groups.find(group => group.id === id);
   }
 
-  /** Read the book's tree (again with `fresh`: what others changed meanwhile) */
+  /** Read the experience's tree (again with `fresh`: what others changed meanwhile) */
   async load(experienceId: string, fresh = false): Promise<void> {
     if (this.experienceId !== experienceId) {
       this.tree = null;
@@ -64,7 +64,7 @@ class Scenes {
   }
 
   private get id(): string {
-    if (!this.experienceId) throw new Error("No book loaded.");
+    if (!this.experienceId) throw new Error("No experience loaded.");
     return this.experienceId;
   }
 

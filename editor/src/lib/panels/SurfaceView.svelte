@@ -186,7 +186,7 @@
 
   <Section id="surface.reference" label="reference image" summary={reference ? reference.fit : "none"}
     help="A picture the editor's stage lays on the surface – a page's scan, a photo of the wall – to place targets against. Editor-only: never in the reader's content. Library… picks one, Upload adds one, the fit says how it fills the surface, remove takes it away.">
-    <div class="row" data-help="The reference image: Library… picks one of the book's images, Upload… adds one. Shown on the stage on this surface.">
+    <div class="row" data-help="The reference image: Library… picks one of the experience's images, Upload… adds one. Shown on the stage on this surface.">
       <span class="label">image</span>
       <FileField src={reference?.url} picture empty="none" accept={pickAccept({ for: "surface-reference" })} label="the surface's reference image"
         onlibrary={() => (picking = true)} onupload={f => void upload(f)} /></div>

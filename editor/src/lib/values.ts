@@ -116,8 +116,8 @@ export const filterRows = (filter: FilterData, index: number): ValueRow[] => {
 
 /**
  * The rows of a component (`components.{i}.{name}`), from its spec. A moment's component (`reveal`, `found`, `lost` – the
- * entity's own look, #268) has its `look` row – a choice of the built-in looks and the book's plugins', "" = the book's –
- * and then the rows of the look it names, from the look's spec, like the book's appearance panel
+ * entity's own look, #268) has its `look` row – a choice of the built-in looks and the experience's plugins', "" = the experience's –
+ * and then the rows of the look it names, from the look's spec, like the experience's appearance panel
  */
 export const componentRows = (component: ComponentData, index: number): ValueRow[] => {
   const spec = componentSpec(component.type);

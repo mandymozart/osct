@@ -80,8 +80,8 @@ describe("the rule editor's logic (#88)", () => {
     expect(pathOfName(door, "nowhere")).toBeNull();
   });
 
-  it("offers the book's variables and events: its behaviours', the stage's, then the core events", () => {
-    const key: EntityData = { type: "model", assets: [], components: [{ type: "behaviour", rules: [{ on: "tap", do: [{ set: { hasKey: true }, scope: "book" }, { emit: "keyRattled" }] }] }] };
+  it("offers the experience's variables and events: its behaviours', the stage's, then the core events", () => {
+    const key: EntityData = { type: "model", assets: [], components: [{ type: "behaviour", rules: [{ on: "tap", do: [{ set: { hasKey: true }, scope: "experience" }, { emit: "keyRattled" }] }] }] };
     expect(experienceVariables([key, door], ["doorOpen", "hasKey"])).toEqual(["doorOpen", "hasKey"]);
     const events = experienceEvents([key, door], ["doorOpened", "behaviour", "targetFound"]);
     expect(events.slice(0, 3)).toEqual(["doorOpened", "keyRattled", "openDoor"]);

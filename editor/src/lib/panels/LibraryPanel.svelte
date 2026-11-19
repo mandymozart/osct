@@ -17,7 +17,7 @@
   import CreditsField from "#lib/components/CreditsField.svelte";
 
   /**
-   * The book's library: the files uploaded in the editor and, after them, the files of the content import (`files.json`,
+   * The experience's library: the files uploaded in the editor and, after them, the files of the content import (`files.json`,
    * read-only – docs/server.md "Assets"). A grid of cards – a preview (`AssetThumb`: images, a video's poster that
    * plays) – with where the file belongs (`p015-1 · target`, `assetPlace`), kind, size, dimensions, a video's duration and the number of
    * uses, or a plain list of the same (a click on a row opens its actions; the view is remembered per browser); filter
@@ -28,11 +28,11 @@
    * relinked) and **Delete** (refused while used – *Delete anyway* forces it). Opened as a **picker** (`pick`, a file
    * field's *Library…* – #164): the filter starts at the kind being picked, a click on a fitting file picks it for that
    * one field and returns, an upload that fits is picked at once; *cancel* or Esc returns without one.
-   * The media are **grouped by scene** (#298 phase 3): a header per scene in book order – the scene of each file's
-   * first use –, then "Not in a scene" (book-wide uses), then "Unused"; a file used in more places says "+N more".
+   * The media are **grouped by scene** (#298 phase 3): a header per scene in experience order – the scene of each file's
+   * first use –, then "Not in a scene" (experience-wide uses), then "Unused"; a file used in more places says "+N more".
    * **Name by use…** proposes the names the files take by their use (`p118-1_target.webp`, `page-118.webp`) and applies
    * them on a second click – the name only, every URL stays.
-   * **Code files** (#186) – scripts (the book's plugin sources) and shaders – are a list of their own under the media
+   * **Code files** (#186) – scripts (the experience's plugin sources) and shaders – are a list of their own under the media
    * (`CodeFiles`, the filter *code* shows it alone): an uploaded or dropped `.ts` / `.js` becomes a plugin source named
    * after the file, a `.glsl` / `.frag` / `.vert` / `.wgsl` a shader asset.
    */

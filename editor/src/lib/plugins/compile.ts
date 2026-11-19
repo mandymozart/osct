@@ -53,7 +53,7 @@ export const importPluginCode = async (code: string, importer: (url: string) => 
 /** What a new plugin starts with */
 export const NEW_PLUGIN_SOURCE = `import type { PluginApi } from "osct-plugin-api";
 
-// A plugin of this book: register(api) runs when the plugin loads.
+// A plugin of this experience: register(api) runs when the plugin loads.
 // api.three is the app's three.js (never import three yourself); types with \`import type\`.
 export const register = (api: PluginApi): void => {
   // A material layer: GLSL on every pixel of a video or image, after its own shading, in linear RGB.

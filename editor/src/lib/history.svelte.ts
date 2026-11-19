@@ -50,7 +50,7 @@ class History {
     return this.redoStack.length > 0;
   }
 
-  /** A book opened: its log, and undo starts afresh (only this session's own changes) */
+  /** An experience opened: its log, and undo starts afresh (only this session's own changes) */
   enter(experienceId: string): void {
     if (this.experienceId === experienceId) return;
     this.experienceId = experienceId;

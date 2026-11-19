@@ -13,7 +13,7 @@ import { SCENE_PAGE_MM, SCENE_WALL_MM } from "@shared/api/editor";
 export const SURFACE_PRESETS = ["double", "single", "wall", "custom"] as const;
 export type SurfacePreset = (typeof SURFACE_PRESETS)[number];
 
-/** One page of the book as added (mm, the API's `SCENE_PAGE_MM`): a double page is two of them side by side, one surface */
+/** One page as added – the printed book's format (mm, the API's `SCENE_PAGE_MM`): a double page is two of them side by side, one surface */
 export const PAGE_MM = SCENE_PAGE_MM;
 /** A wall as added (mm, the API's `SCENE_WALL_MM`): it stands behind the row, facing the reader */
 export const WALL_MM = SCENE_WALL_MM;

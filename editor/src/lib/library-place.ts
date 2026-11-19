@@ -40,7 +40,7 @@ export const assetLabel = (asset: Pick<Asset, "name" | "url" | "imported"> & { n
 /** "+2 more" when the file is used in more places than its first (#298) – "" otherwise */
 export const moreUses = (asset: Pick<Asset, "place">): string => (asset.place && asset.place.more > 0 ? `+${asset.place.more} more` : "");
 
-/** A group of the Library (#298 phase 3): a scene's files, then the book-wide ones, then the unused ones */
+/** A group of the Library (#298 phase 3): a scene's files, then the experience-wide ones, then the unused ones */
 export interface LibraryGroup {
   key: string;
   label: string;

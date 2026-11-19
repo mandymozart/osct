@@ -3,7 +3,7 @@ import type { PluginRegistrySnapshot } from "@engine/scene/plugins";
 import type { CompileResult } from "#lib/plugins/compile.js";
 
 /**
- * What a publish carries of the Code tab (#78): every saved source of the book as the browser's transpile makes it – the
+ * What a publish carries of the Code tab (#78): every saved source of the experience as the browser's transpile makes it – the
  * one **Run** uses, no type check (#266) – with the plugin API it was written against and, where the source ran on the
  * stage in this session, the specs that run registered. The API puts each into the published version and declares it;
  * readers load it from the CDN like a compiled plugin.

@@ -10,8 +10,8 @@
   import type { Stage } from "#lib/stage/stage.svelte.js";
 
   /**
-   * The **Code** tab: the book's own code (docs/plugins.md "Trying it: the Code tab"). The plugins stored for
-   * the book and the ones the content declares (compiled by the content build), one open in Monaco (`plugins/monaco.ts`,
+   * The **Code** tab: the experience's own code (docs/plugins.md "Trying it: the Code tab"). The plugins stored for
+   * the experience and the ones the content declares (compiled by the content build), one open in Monaco (`plugins/monaco.ts`,
    * loaded with this tab only): TypeScript against the plugin API's types – completion and type errors inline as the
    * content build reports them; Tab indents, Ctrl+Enter runs, Ctrl+S saves. **Run** transpiles the TypeScript in
    * the browser and installs the module in the stage's registry, so a layer or component shows on the stage and in
@@ -229,7 +229,7 @@
 <div class="row"><span class="label">plugin</span>
   <span class="controls">
     <select class="field grow" aria-label="Plugin" value={buffer.adding ? "" : buffer.open ?? ""} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (id) void openPlugin(id); }}
-      data-help-name="Plugin" data-help="The book's plugins: the sources stored for it and the ones the content build compiles. An asterisk after a name marks unsaved edits – Save stores them. Whether readers have the stored sources, the top bar says (draft only, live on …).">
+      data-help-name="Plugin" data-help="The experience's plugins: the sources stored for it and the ones the content build compiles. An asterisk after a name marks unsaved edits – Save stores them. Whether readers have the stored sources, the top bar says (draft only, live on …).">
       {#if !shown.length && !buffer.adding}<option value="">{plugins.loading ? "loading…" : "no plugin yet"}</option>{/if}
       {#each options as option (option.value)}
         <option value={option.value}>{option.label}</option>
@@ -263,7 +263,7 @@
   <p class="small muted message">{notice}</p>
 {/if}
 {#if plugins.logs.length}
-  <ol class="log small" aria-label="The plugins' log" data-help-name="Log" data-help="What the book's code says on the stage, newest last: a plugin's api.log lines and its errors (a build that failed, an error nothing caught). The stage runs the code in a sandbox of its own, so this is where its lines show. Every Run starts it anew.">
+  <ol class="log small" aria-label="The plugins' log" data-help-name="Log" data-help="What the experience's code says on the stage, newest last: a plugin's api.log lines and its errors (a build that failed, an error nothing caught). The stage runs the code in a sandbox of its own, so this is where its lines show. Every Run starts it anew.">
     {#each plugins.logs as line, i (i)}<li class:danger={line.level === "error"}>{line.text}</li>{/each}
   </ol>
 {/if}

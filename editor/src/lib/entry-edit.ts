@@ -4,7 +4,7 @@ import { ENTRY_CATEGORIES } from "@shared/types/entry";
 
 /**
  * Editing an entry (#223): the form's fields as text, what a save sends (the fields that changed, `PUT …/entries/{id}`)
- * and what keeps it back. The form (`EntryForm.svelte`) draws it; the book's entries are found with the top bar's
+ * and what keeps it back. The form (`EntryForm.svelte`) draws it; the experience's entries are found with the top bar's
  * search (`experience-search.ts`, #237).
  *
  * Every text field is one value today; a language variant (#224) becomes a second draft of the same shape per language,
@@ -85,6 +85,6 @@ export const draftProblems = (draft: EntryDraft): string[] => {
   return problems;
 };
 
-/** A picture's URL to show: an absolute URL as it is, a content path (`/assets/content/…`) below the book's assets base */
+/** A picture's URL to show: an absolute URL as it is, a content path (`/assets/content/…`) below the experience's assets base */
 export const imageUrl = (src: string, assetsBase: string | null | undefined): string =>
   !src.startsWith("/") || src.startsWith("//") ? src : `${(assetsBase ?? "").replace(/\/+$/, "")}${src}`;

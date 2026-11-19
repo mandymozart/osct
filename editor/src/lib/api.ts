@@ -102,8 +102,8 @@ export type RemovalImpact = B1Named<B1Impact, string>;
  * script on the page can read it, and nothing about it is in `localStorage`. What the editor holds is the session's
  * CSRF token, in memory only, sent with every write. `authFetch` is the `fetch` the engine's content loader uses for
  * the draft – the cookie goes with it. Every call goes through `request`: the cookie and the CSRF token, the end of a
- * session on a 401, a stale CSRF token renewed once, the API's errors as `ApiError`, and the book's tree read again
- * after a write to the book.
+ * session on a 401, a stale CSRF token renewed once, the API's errors as `ApiError`, and the experience's tree read again
+ * after a write to the experience.
  */
 
 export const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? "/api").replace(/\/+$/, "");
@@ -122,9 +122,9 @@ export const errorText = (error: unknown, { code = false }: { code?: boolean } =
 };
 
 /**
- * The books' trees as read since the last write to each (the workspace's stage, environment and top bar share one
- * read): `getExperience` answers from here, every write to a book (`POST` / `PUT` / `DELETE /editor/experiences/{id}/…`) drops the
- * book's – the next read asks the API again –, as does a failed read and a new session
+ * The experiences' trees as read since the last write to each (the workspace's stage, environment and top bar share one
+ * read): `getExperience` answers from here, every write to an experience (`POST` / `PUT` / `DELETE /editor/experiences/{id}/…`) drops the
+ * experience's – the next read asks the API again –, as does a failed read and a new session
  */
 const trees = new Map<string, Promise<ExperienceTree>>();
 
@@ -213,7 +213,7 @@ const errorOf = async (response: Response): Promise<ApiError> => {
   return new ApiError(response.status, code, message, details);
 };
 
-/** The book a path of the editor API is about, or null */
+/** The experience a path of the editor API is about, or null */
 const experienceOfPath = (path: string): string | null => {
   const match = /^\/editor\/experiences\/([^/?]+)/.exec(path);
   return match ? decodeURIComponent(match[1]) : null;
@@ -229,7 +229,7 @@ const isCsrfRefusal = async (response: Response): Promise<boolean> => {
 /**
  * One call to the API: the cookie and, on a write, the CSRF token; a 403 `csrf` renews the token and sends the write
  * once more; a 401 that ends the session (unless `unauthorizedIsAnswer`), an error answer as `ApiError`; after a write
- * to a book (answered or not) its tree is read again
+ * to an experience (answered or not) its tree is read again
  */
 const request = async (method: string, path: string, init: RequestInit, { unauthorizedIsAnswer = false } = {}): Promise<Response> => {
   const sent = current;
@@ -403,8 +403,8 @@ export const downloadUsersCsv = async (newsletter: boolean): Promise<void> => {
 export const listExperiences = () => api<ExperienceList>("GET", "/editor/experiences");
 
 /**
- * The book's tree, read once and shared until a write to the book (`trees`); `fresh` asks the API in any case – a page
- * that shows the whole tree when it opens (the book page) sees what others changed meanwhile
+ * The experience's tree, read once and shared until a write to the experience (`trees`); `fresh` asks the API in any case – a page
+ * that shows the whole tree when it opens (the experience page) sees what others changed meanwhile
  */
 export const getExperience = (experienceId: string, { fresh = false }: { fresh?: boolean } = {}): Promise<ExperienceTree> => {
   const cached = fresh ? undefined : trees.get(experienceId);
@@ -425,7 +425,7 @@ export type ImportBody = ImportSource & { confirm?: string };
 export const previewImport = (body: ImportSource) => api<ImportPreview>("POST", "/editor/import/preview", body);
 
 /**
- * Imports into the book. Over a book that exists the API answers 409 `confirm-import` (or `confirmation-void`) with
+ * Imports into the experience. Over an experience that exists the API answers 409 `confirm-import` (or `confirmation-void`) with
  * `details.comparison` (an `ImportComparison`) and `details.confirmation` – `confirmationStep(error, "import")` reads
  * them; the same call with `confirm` then imports.
  */
@@ -444,7 +444,7 @@ export const putTargetEntity = (experienceId: string, targetId: string, entity: 
   api<TargetSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/targets/${encodeURIComponent(targetId)}`, { entity });
 
 /**
- * `replace` = publish although the environment serves another book (else 409 other-experience); `plugins` = the Code tab's
+ * `replace` = publish although the environment serves another experience (else 409 other-experience); `plugins` = the Code tab's
  * saved sources as the browser transpiled them (`publish-plugins.ts`, #78) – the API puts them into the version
  */
 export const publishExperience = (experienceId: string, env: string, options: { note?: string; replace?: boolean; plugins?: PublishedPlugin[] } = {}) =>
@@ -512,7 +512,7 @@ export const putTarget = (experienceId: string, targetId: string, body: { imageS
 export const addEntry = (experienceId: string, body: { id?: string; title: string; scene: string; surface?: string; category?: string; body?: string; target?: { id?: string; imageSrc: string; place?: TargetPlace; entity?: EntityData | EntityRefData } }) =>
   api<EntryAdded>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/entries`, body);
 
-// ── The book's texts (#223, docs/server.md "Texts") ──────────────────────────────────────────────
+// ── The experience's texts (#223, docs/server.md "Texts") ──────────────────────────────────────────────
 
 /** Every entry with its fields as the content holds them (an image's path unresolved), its scene and its target */
 export const getEntries = (experienceId: string) => api<EntryList>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/entries`);
@@ -530,7 +530,7 @@ export const putExperience = (experienceId: string, changes: { title?: string; b
 
 // ── The change log and its reverts (#312, docs/server.md "Reverting saved changes") ──────────────────
 
-/** The book's saved changes, newest first (at most 500) */
+/** The experience's saved changes, newest first (at most 500) */
 export const getChanges = (experienceId: string, limit = 500) => api<{ changes: Change[] }>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/changes?limit=${limit}`);
 
 /** What reverting `ids` does (`apply` false: nothing written), or – with `apply` – does it: later changes of the same things too */
@@ -541,19 +541,19 @@ export const revertChanges = (experienceId: string, ids: string[], apply = false
 export const revertTo = (experienceId: string, after: string, apply = false) =>
   api<RevertResult>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/changes/revert-to`, { after, ...(apply ? { apply: true } : {}) });
 
-/** The book's world and onion sky; `null` removes them – the default applies */
+/** The experience's world and onion sky; `null` removes them – the default applies */
 export const putEnvironment = (experienceId: string, environment: EnvironmentData | null) =>
   api<EnvironmentSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/environment`, { environment });
 
-/** The book's post-processing – the master of every scene without a list of its own; `null` removes it */
+/** The experience's post-processing – the master of every scene without a list of its own; `null` removes it */
 export const putExperiencePasses = (experienceId: string, passes: PassData[] | null) =>
   api<ExperiencePassesSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/passes`, { passes });
 
-/** How the book's entities appear: a look per moment (#265); `null` removes it – the default look plays everywhere */
+/** How the experience's entities appear: a look per moment (#265); `null` removes it – the default look plays everywhere */
 export const putExperienceAppearance = (experienceId: string, appearance: ExperienceAppearance | null) =>
   api<ExperienceAppearanceSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/appearance`, { appearance });
 
-// ── Scenes (#307, docs/server.md "Scenes"): the Scenes panel and the book page ──────────────────────
+// ── Scenes (#307, docs/server.md "Scenes"): the Scenes panel and the experience page ──────────────────────
 
 /** Where a scene goes: after or before a scene, or at a position (0 = first) */
 export type ScenePlace = { after: string } | { before: string } | { position: number };
@@ -571,17 +571,17 @@ export const moveScenes = (experienceId: string, body: { scenes: string[]; group
 
 /**
  * A scene's label, group, surfaces (the whole list, places included) or post-processing (`passes`: `null` removes the list
- * – the book's applies –, `[]` turns it off); `apply` lets surfaces go that entries lie on
+ * – the experience's applies –, `[]` turns it off); `apply` lets surfaces go that entries lie on
  */
 export const putScene = (experienceId: string, sceneId: string, body: { surfaces?: SurfaceData[]; label?: string; group?: string | null; passes?: PassData[] | null; apply?: boolean }) =>
   api<SceneSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/scenes/${encodeURIComponent(sceneId)}`, body);
 
-/** The book's scenes in order and the groups – every surface with its reference image (#314) */
+/** The experience's scenes in order and the groups – every surface with its reference image (#314) */
 export const listScenes = (experienceId: string) => api<SceneList>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/scenes`);
 
 /**
  * A surface's reference image (#314, editor-only – never in the content): `{ url }` sets or replaces it (a Library image's
- * URL), `{ url: null }` removes it, `{ fit }` / `{ name }` alone change the present one. A change in the book's log.
+ * URL), `{ url: null }` removes it, `{ fit }` / `{ name }` alone change the present one. A change in the experience's log.
  */
 export const putSurfaceReference = (experienceId: string, sceneId: string, surfaceId: string, body: SurfaceReferenceRequest) =>
   api<SurfaceReferenceSaved>(
@@ -605,7 +605,7 @@ export const deleteGroup = (experienceId: string, groupId: string) =>
 /**
  * Removes a scene with everything on it, in two steps: without `confirm` the API answers 409 `confirm-delete` with
  * `details.impact` (a `RemovalImpact`) and `details.confirmation` (`removalStep` reads them); the same call with
- * `confirm` (and `deleteFiles` when the person chose it) removes exactly that. 409 for the scene the book opens on.
+ * `confirm` (and `deleteFiles` when the person chose it) removes exactly that. 409 for the scene the experience opens on.
  */
 export const deleteScene = (experienceId: string, sceneId: string, confirm?: string, deleteFiles = false) =>
   api<RemovalResult>("DELETE", `/editor/experiences/${encodeURIComponent(experienceId)}/scenes/${encodeURIComponent(sceneId)}`, removalBody(confirm, deleteFiles));

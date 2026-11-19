@@ -1,5 +1,5 @@
 /**
- * The demo book's key (`fixtures/demo/entries/key/key.glb`): a small low-poly brass key with one animation clip,
+ * The demo experience's key (`fixtures/demo/entries/key/key.glb`): a small low-poly brass key with one animation clip,
  * `rattle`, which the `animation` component plays on a tap (`playOn: tap`). Written as glTF 2.0 binary directly –
  * no Blender, no dependencies – so the file is the same on every machine and a test can rebuild it.
  *
@@ -177,7 +177,7 @@ export const buildKeyGlb = () => {
   return new Uint8Array(Buffer.concat([header, chunkHead(jsonChunk.length, 0x4e4f534a), jsonChunk, chunkHead(binChunk.length, 0x004e4942), binChunk]));
 };
 
-/** Where the demo book keeps the key, from the repository's root */
+/** Where the demo experience keeps the key, from the repository's root */
 export const KEY_MODEL_PATH = "fixtures/demo/entries/key/key.glb";
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

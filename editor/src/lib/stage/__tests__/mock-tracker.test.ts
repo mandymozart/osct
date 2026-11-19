@@ -249,12 +249,12 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
   });
 
   // The environment's preview: the engine's look-around world is turned by this, as by a phone's gyroscope
-  it("reports the camera's orientation in a world with y up, and looks up from the book on request", async () => {
+  it("reports the camera's orientation in a world with y up, and looks up from the experience on request", async () => {
     await tracker.startCamera();
     await tracker.loadTargets({ sceneId: "s", targets: [target("a")] });
     updatePreview({ orbit: { distance: 350, tilt: 90, yaw: 0 } });
     tracker.tick(now);
-    // The reader's eye level, at the book: the view is level, ahead (−z), the book on the stage's +y
+    // The reader's eye level, at the scene: the view is level, ahead (−z), the scene on the stage's +y
     const ahead = new Vector3(0, 0, -1).applyQuaternion(tracker.worldOrientation());
     expect(ahead.y).toBeCloseTo(0, 3);
     expect(ahead.z).toBeCloseTo(-1, 3);
@@ -264,7 +264,7 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
     tracker.setLookUp(90);
     tracker.tick(now + 32);
     expect(new Vector3(0, 0, -1).applyQuaternion(tracker.worldOrientation()).y).toBeCloseTo(0, 3); // raised to the horizon
-    // The targets stay found: the book anchors the world while the camera looks away
+    // The targets stay found: the experience anchors the world while the camera looks away
     expect(decompose(updates[updates.length - 1][1]!).position.y).toBeLessThan(0);
   });
 
@@ -304,7 +304,7 @@ describe("MockTracker input (#131: the panels are no stage)", () => {
     updatePreview({ view: "reader", orbit: null, hidden: [] });
     // The editor's layout: the stage between the side panels, its toolbar inside it
     document.body.innerHTML = `
-      <header class="top" data-app-ui><span class="crumb">book</span></header>
+      <header class="top" data-app-ui><span class="crumb">experience</span></header>
       <aside class="tree" data-app-ui><div class="scene-row">scene</div></aside>
       <div class="stage"><canvas></canvas><div class="tools" role="toolbar" data-app-ui><span class="gap"></span></div></div>
       <aside class="panel" data-app-ui><div class="body"><span class="field">value</span></div></aside>`;

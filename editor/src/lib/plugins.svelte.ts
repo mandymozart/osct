@@ -40,7 +40,7 @@ export type SourceStatus =
 /** How long the auto-load waits for one source before it counts as hanging the stage */
 export const AUTO_LOAD_TIMEOUT_MS = 10_000;
 
-/** The source whose auto-load has not answered yet, per book: a page that froze on it skips it at the next open */
+/** The source whose auto-load has not answered yet, per experience: a page that froze on it skips it at the next open */
 const hungKey = (experienceId: string) => `osct-code-autoload:${experienceId}`;
 const readHung = (experienceId: string): string | null => {
   try {
@@ -95,11 +95,11 @@ export class CodeBuffer {
   }
 }
 
-/** How many lines of the book's code the Code tab keeps */
+/** How many lines of the experience's code the Code tab keeps */
 export const LOG_LINES = 50;
 
 /**
- * The Code tab's plugins (docs/plugins.md "Trying it: the Code tab"): the sources stored for the book (the
+ * The Code tab's plugins (docs/plugins.md "Trying it: the Code tab"): the sources stored for the experience (the
  * API's `plugins`), the plugins the content declares (compiled by the content build, loaded by the engine with the
  * scene), and **Run** – transpile in the browser, then import and install in the stage's registry under the plugin's
  * id, in the stage frame (the page runs no plugin code, #234), build the scene again. `version` counts the runs and the
@@ -112,7 +112,7 @@ export const LOG_LINES = 50;
  */
 class Plugins {
   experienceId = $state<string | null>(null);
-  /** The sources stored for the book */
+  /** The sources stored for the experience */
   stored = $state<PluginSummary[]>([]);
   loading = $state(false);
   error = $state<string | null>(null);
@@ -182,11 +182,11 @@ class Plugins {
   }
 
   /**
-   * Why a type the draft names (a look, a component) is not registered (#269), for a picker: the book's code is still
+   * Why a type the draft names (a look, a component) is not registered (#269), for a picker: the experience's code is still
    * loading, a source failed (it may be the one registering it), or nothing registers it
    */
   missingNote(): string {
-    if (this.autoLoading || [...this.status.values()].some(s => s.state === "loading")) return "loading the book's code…";
+    if (this.autoLoading || [...this.status.values()].some(s => s.state === "loading")) return "loading the experience's code…";
     const failed = this.failed();
     if (failed.length) return `not loaded – ${failed.map(f => f.id).join(", ")} failed`;
     return "unknown – no plugin registers it";
@@ -280,7 +280,7 @@ class Plugins {
     if (this.stored.some(p => p.id === id)) return this.source(experienceId, id);
     const declared = this.declared().find(p => p.id === id);
     if (declared) return this.declaredSource(declared.src);
-    throw new Error(`the plugin ${id} has no source in this book`);
+    throw new Error(`the plugin ${id} has no source in this experience`);
   }
 
   async save(experienceId: string, id: string, source: string): Promise<PluginSummary> {

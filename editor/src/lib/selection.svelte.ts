@@ -5,7 +5,7 @@ import { parentSelection, selectionLevel, settledSelection, type SelectionLevel,
  * top rows (#227) – read and written by the tree, the stage (picking, the gizmo, the outline) and the Inspector:
  * selecting in one selects in the others. Nothing else selected is the scene (#229): a fresh workspace, a click on
  * the stage that picks nothing and the tree's top row all select it – its row highlighted, no outline, no gizmo, the
- * Inspector showing it. The top bar's ⚙ after the book's crumb selects the book (#237). The rules are `selection.ts`; the workspace
+ * Inspector showing it. The top bar's ⚙ after the experience's crumb selects the experience (#237). The rules are `selection.ts`; the workspace
  * page calls `enter` when it opens and on another scene: the selection asked for there (`requestOn` – the header search
  * picks on another scene, #237), else the scene. `reveal` counts the asks to show the selection in the Inspector.
  */
@@ -23,7 +23,7 @@ class Selection implements SelectionState {
   group = $state<string | null>(null);
   /** A surface of a scene is selected (#314): the Inspector shows it, the stage highlights it */
   surface = $state<SurfaceRef | null>(null);
-  /** Goes up whenever something asks the workspace to show the selection in the Inspector (the search, the book's ⚙) */
+  /** Goes up whenever something asks the workspace to show the selection in the Inspector (the search, the experience's ⚙) */
   reveal = $state(0);
   /** A selection asked for on a scene whose workspace is not open yet */
   private pending: { sceneId: string; state: SelectionState } | null = null;

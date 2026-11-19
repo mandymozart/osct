@@ -4,7 +4,7 @@ import { replaceQuestion } from "./live";
 /**
  * Where Publish goes and what the step before it says (#183): an instance publishes to its own environment only – the
  * API names it (`GET /editor/environments`) with its backend, the CDN or this server (the directory store). The step
- * names the book, the build, the target, what it replaces there, and the warning wherever this server is the target.
+ * names the experience, the build, the target, what it replaces there, and the warning wherever this server is the target.
  */
 
 /** The environment this instance publishes to, null while unknown */
@@ -15,25 +15,25 @@ export const targetLabel = (target: Pick<EnvironmentInfo, "env" | "store">): str
 
 /** The in-page step before a publish, as lines */
 export interface PublishStep {
-  /** `Publish “Test Book” to staging · CDN` */
+  /** `Publish “Test Experience” to staging · CDN` */
   title: string;
   /** `Build 1a2b3c4d5e6f – the draft now.` */
   build: string;
-  /** What changes there: the build it replaces, another book it replaces, or that nothing is published there yet */
+  /** What changes there: the build it replaces, another experience it replaces, or that nothing is published there yet */
   replaces: string;
   /** Production: every reader gets it */
   readers: string | null;
   /** The directory store is the target: what that means */
   warning: string | null;
-  /** The publish needs `replace: true` (another book is live there) */
+  /** The publish needs `replace: true` (another experience is live there) */
   replace: boolean;
   /** The primary button */
   action: string;
 }
 
 /**
- * The step for publishing `title` (book `experienceId`, its draft now at `build`) to `target`, which serves `serving`
- * (undefined: nothing; `book` null: a book the editor cannot tell); `titleOf` names a book by its id. `plugins` = the
+ * The step for publishing `title` (experience `experienceId`, its draft now at `build`) to `target`, which serves `serving`
+ * (undefined: nothing; `experience` null: an experience the editor cannot tell); `titleOf` names an experience by its id. `plugins` = the
  * Code tab's saved sources the publish carries (#78): their code is part of the version, so the build published is
  * another than the draft's – the step says so instead of naming the draft's.
  */

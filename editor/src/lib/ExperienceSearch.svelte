@@ -9,11 +9,11 @@
   import Icon, { type IconName } from "#lib/components/Icon.svelte";
 
   /**
-   * The top bar's search through the open book (#237, `experience-search.ts`): entries, scenes, targets and named nodes,
+   * The top bar's search through the open experience (#237, `experience-search.ts`): entries, scenes, targets and named nodes,
    * grouped by kind with their scene. A pick goes to that scene and selects the item – an entry's form, a
    * target, a node – and the Inspector shows it (`selection.show`, or `requestOn` + the route for another scene). Keys:
    * `/` or Ctrl+K focuses it, ↑ ↓ walk the hits, Enter picks, Esc closes. On a phone it is an icon that opens the field
-   * over the top bar. The draft is read on the first focus where no scene has loaded it yet (the book page).
+   * over the top bar. The draft is read on the first focus where no scene has loaded it yet (the experience page).
    */
   let { experienceId }: { experienceId: string } = $props();
 
@@ -96,18 +96,18 @@
   const onWindowPointer = (event: PointerEvent) => {
     if (open && box && !box.contains(event.target as Node)) close();
   };
-  const HELP = "Finds entries (title and text), scenes (their label), targets and named nodes in the whole book – accents and case do not matter. ↑ ↓ choose, Enter goes there and selects it, Esc closes. / or Ctrl+K focuses it.";
+  const HELP = "Finds entries (title and text), scenes (their label), targets and named nodes in the whole experience – accents and case do not matter. ↑ ↓ choose, Enter goes there and selects it, Esc closes. / or Ctrl+K focuses it.";
 </script>
 
 <svelte:window onkeydown={onWindowKey} onpointerdown={onWindowPointer} />
 
 <div class="search" class:expanded bind:this={box}>
-  <button type="button" class="icon-button opener" onclick={() => { ensureDraft(); void focusField(); }} title="Search the book (/)" aria-label="Search the book"
+  <button type="button" class="icon-button opener" onclick={() => { ensureDraft(); void focusField(); }} title="Search the experience (/)" aria-label="Search the experience"
     aria-expanded={expanded}><Icon name="search" /></button>
   <div class="field-box">
     <span class="glass" aria-hidden="true"><Icon name="search" size="1em" /></span>
-    <input bind:this={input} class="field" type="search" placeholder="Search the book" bind:value={query} autocomplete="off" spellcheck="false"
-      role="combobox" aria-label="Search the book" aria-expanded={open && !!query.trim()} aria-controls={LISTBOX} aria-autocomplete="list"
+    <input bind:this={input} class="field" type="search" placeholder="Search the experience" bind:value={query} autocomplete="off" spellcheck="false"
+      role="combobox" aria-label="Search the experience" aria-expanded={open && !!query.trim()} aria-controls={LISTBOX} aria-autocomplete="list"
       aria-activedescendant={hits[active] ? optionId(hits[active]) : undefined} data-help-name="Search" data-help={HELP}
       onfocus={() => { ensureDraft(); open = true; }} oninput={() => (open = true)} onkeydown={onKey} />
     <kbd class="key small muted" aria-hidden="true">/</kbd>
@@ -116,7 +116,7 @@
   {#if open && query.trim()}
     <div class="results" id={LISTBOX} role="listbox" aria-label="Search results">
       {#if content.experienceId !== experienceId}
-        <p class="small muted note">{content.loading ? "Reading the book…" : "The book is not loaded."}</p>
+        <p class="small muted note">{content.loading ? "Reading the experience…" : "The experience is not loaded."}</p>
       {:else if !groups.length}
         <p class="small muted note">Nothing found for “{query.trim()}”.</p>
       {:else}

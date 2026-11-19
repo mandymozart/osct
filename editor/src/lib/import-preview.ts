@@ -2,7 +2,7 @@ import type { GameConfiguration } from "@engine/types";
 import { ApiError, errorText, type ImportPreview } from "./api";
 
 /**
- * The import's preview (#182): before anything is imported, the form says what comes in – one book, which build, from
+ * The import's preview (#182): before anything is imported, the form says what comes in – one experience, which build, from
  * where, what it holds – and whether it replaces a draft that is here. The CDN's preview is the server's
  * (`POST /editor/import/preview`, it knows the instance's content base); for a URL the form reads the content base or
  * the configuration itself and asks the server for the rest. These are the reading and the preview's words; ImportForm

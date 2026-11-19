@@ -3,10 +3,10 @@ import { passSummary } from "./passes-edit";
 import { setPassValue, type RowValue, type ValueRow } from "./values";
 
 /**
- * The appearance panel's model (#265): the book's looks by moment – `reveal` (the first find), `found` (every later
+ * The appearance panel's model (#265): the experience's looks by moment – `reveal` (the first find), `found` (every later
  * find), `lost` (the page is lost). A moment without a look of its own plays `found`'s, and without that the default
- * (`momentAppearance`, shared/types/appearance.ts). The panel edits a copy of the book's `appearance` and saves it whole
- * (`PUT …/appearance`); a book whose copy names no moment saves `null` – it holds no field then. Pure, for the tests.
+ * (`momentAppearance`, shared/types/appearance.ts). The panel edits a copy of the experience's `appearance` and saves it whole
+ * (`PUT …/appearance`); an experience whose copy names no moment saves `null` – it holds no field then. Pure, for the tests.
  */
 
 /** Where a moment's look comes from: its own, `found`'s, or the default */
@@ -26,7 +26,7 @@ export const draftAppearance = (appearance: ExperienceAppearance | null | undefi
 export const sameAppearance = (a: ExperienceAppearance | null | undefined, b: ExperienceAppearance | null | undefined): boolean =>
   JSON.stringify(draftAppearance(a)) === JSON.stringify(draftAppearance(b));
 
-/** What a save writes: the moments with a look, in their order – `null` when none has one (the book holds no field) */
+/** What a save writes: the moments with a look, in their order – `null` when none has one (the experience holds no field) */
 export const appearanceToSave = (draft: ExperienceAppearance): ExperienceAppearance | null => {
   const saved = draftAppearance(draft);
   return Object.keys(saved).length ? saved : null;
@@ -92,6 +92,6 @@ export const momentSummary = (draft: ExperienceAppearance, moment: Moment, rows:
   return changed && values ? `${look.type} · ${values}` : look.type;
 };
 
-/** The section's head: the book's level, "· default" while it names no look */
+/** The section's head: the experience's level, "· default" while it names no look */
 export const appearanceHeading = (draft: ExperienceAppearance): string =>
   `appearance${Object.keys(draft).length ? "" : " · default"}`;

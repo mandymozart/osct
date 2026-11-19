@@ -1,5 +1,5 @@
 /**
- * The guide to connect an AI agent beside the AI connections on the books page (docs/editor.md "AI connections"). Any
+ * The guide to connect an AI agent beside the AI connections on the experiences page (docs/editor.md "AI connections"). Any
  * MCP client that starts a stdio server needs the same four things: a name for the server, the command
  * `node <file>`, and the environment `OSCT_API_URL` (this instance's API) and `OSCT_EDITOR_TOKEN` (a token from the
  * list). The builders here write them for the generic block and as each client's own snippet. A token just made is
@@ -104,7 +104,7 @@ export function agentPrompt(client: McpClient, setup: McpSetup, download: string
     ? `2. The server file should be at \`${setup.file}\`. If it is missing, download ${download} to that place.`
     : `2. Download ${download} into a folder \`.osct\` in my home folder. Use its absolute path in place of \`${FILE_PLACEHOLDER}\` below.`;
   return [
-    `Connect yourself to OSCT, the book editor at ${site}, through its MCP server, so you can work in it as me.`,
+    `Connect yourself to OSCT, the experience editor at ${site}, through its MCP server, so you can work in it as me.`,
     "",
     "1. Check that Node 22 or newer is installed (`node --version`). If not, tell me and stop.",
     fileStep,

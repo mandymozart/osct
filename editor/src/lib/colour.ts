@@ -41,7 +41,7 @@ export const hsvToHex = ({ h, s, v }: Hsv): string => {
 
 /**
  * The palette offered first: the keys a chroma key usually meets (green and blue screen, white, black) and the
- * book's own gold (the reader's design, `agents/DESIGN.md`).
+ * experience's own gold (the reader's design, `agents/DESIGN.md`).
  */
 export const PALETTE: { name: string; hex: string }[] = [
   { name: "green screen", hex: "#00ff00" },

@@ -12,7 +12,7 @@ export const SAME_SAVE_MS = 1500;
 /** Saves of the same thing closer together than this (ms) are one step: an autosaved burst (a drag, a word typed) */
 export const BURST_MS = 8000;
 
-/** A thing a change touched: its kind and ref (the book's own JSON is one thing per kind) */
+/** A thing a change touched: its kind and ref (the experience's own JSON is one thing per kind) */
 const thing = (c: Pick<Change, "kind" | "ref">): string => `${c.kind}:${c.ref}`;
 const time = (c: Pick<Change, "createdAt">): number => Date.parse(c.createdAt);
 
@@ -154,10 +154,10 @@ export interface HistoryFilter {
   person: string | null;
 }
 
-/** The scenes a change belongs to: a scene's own, an entry's or a target's scene, a shared entity's scenes; none for the book */
+/** The scenes a change belongs to: a scene's own, an entry's or a target's scene, a shared entity's scenes; none for the experience */
 export type ScenesOf = (c: Pick<Change, "kind" | "ref">) => readonly string[];
 
-/** The names and the scenes of changes from the book's tree (`GET /editor/experiences/{id}`, `scenes.tree`) */
+/** The names and the scenes of changes from the experience's tree (`GET /editor/experiences/{id}`, `scenes.tree`) */
 export const treeNames = (tree: ExperienceTree | null): { names: Names; scenesOf: ScenesOf } => {
   const entries = tree ? tree.scenes.flatMap(s => s.entries.map(e => ({ ...e, scene: s.id as string | null }))) : [];
   const scenesWhere = (match: (e: (typeof entries)[number]) => boolean): string[] => [...new Set(entries.filter(e => e.scene && match(e)).map(e => e.scene!))];

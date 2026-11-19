@@ -23,13 +23,13 @@ export const withSlot = (environment: EnvironmentData, slot: EnvironmentSlot, ur
 export const sameEnvironment = (a: EnvironmentData, b: EnvironmentData): boolean =>
   a.world === b.world && a.onionSky === b.onionSky && (a.worldSrc ?? null) === (b.worldSrc ?? null) && (a.skySrc ?? null) === (b.skySrc ?? null);
 
-/** An environment in one written form (`null`: the book has none), so two that say the same compare as the same text */
+/** An environment in one written form (`null`: the experience has none), so two that say the same compare as the same text */
 const written = (environment: EnvironmentData | null | undefined): Required<EnvironmentData> | null =>
   environment ? { world: environment.world, onionSky: environment.onionSky, worldSrc: environment.worldSrc ?? "", skySrc: environment.skySrc ?? "" } : null;
 
 /**
- * The book's environment as the workspace edits it: the draft's (`saved`, undefined = the
- * book has none, the default applies), the values being edited (`edited` – the stage previews them live) and the slot
+ * The experience's environment as the workspace edits it: the draft's (`saved`, undefined = the
+ * experience has none, the default applies), the values being edited (`edited` – the stage previews them live) and the slot
  * the Library is choosing a file for (`picking` – the Environment tab shows the Library as its picker meanwhile). Kept
  * across the workspace's tabs. Every edit reaches the draft by itself a moment later (#259,
  * `PUT /editor/experiences/{id}/environment`); *Undo edits* goes back to the environment the draft had before the first edit
@@ -60,7 +60,7 @@ class EnvironmentEdit {
     return differsFromBaseline(this.key, written(this.saved || this.dirty ? this.edited : null));
   }
 
-  /** Read the draft's environment (a book switch, or after a save); edits in progress for the same book stay. A failed
+  /** Read the draft's environment (an experience switch, or after a save); edits in progress for the same experience stay. A failed
    * read is `error` (the Environment tab shows it) – it never rejects, so the workspace's effect may fire and forget */
   async load(experienceId: string, force = false): Promise<void> {
     if (this.experienceId === experienceId && !force) return;
@@ -95,14 +95,14 @@ class EnvironmentEdit {
     else this.useDefault();
   }
 
-  /** Remove the book's environment: the default applies (nothing around the book) */
+  /** Remove the experience's environment: the default applies (nothing around the experience) */
   useDefault(): void {
     this.edit({ ...DEFAULT_ENVIRONMENT }, null);
   }
 
   /**
    * An edit: previewed at once, written to the draft a moment after the last one (`write`: the values, or `null` – the
-   * book keeps none)
+   * experience keeps none)
    */
   private edit(next: EnvironmentData, write: EnvironmentData | null = next): void {
     const experienceId = this.experienceId;
@@ -126,8 +126,8 @@ class EnvironmentEdit {
 export const environmentEdit = new EnvironmentEdit();
 
 /**
- * The book's environment as the stage shows it in place of the HDRI (#185, `stage/sky.ts`): the edited values once the
- * book has one or the author has started one, null while it has none (the reader's default world is not drawn then –
+ * The experience's environment as the stage shows it in place of the HDRI (#185, `stage/sky.ts`): the edited values once the
+ * experience has one or the author has started one, null while it has none (the reader's default world is not drawn then –
  * the HDRI stays). Reactive: the toolbar, the Inspector and the stage follow it.
  */
 export const stageEnvironment = {

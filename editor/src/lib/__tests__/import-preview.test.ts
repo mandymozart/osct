@@ -3,8 +3,8 @@ import { ApiError, type ImportComparison, type ImportPreview } from "../api";
 import { contentBaseOf, contentsLine, importLabel, lossLine, previewRows, readContentBase, replaceLine, shortBuild, SourceError, sourceErrorLine } from "../import-preview";
 
 const existing = (over: Partial<ImportComparison["draft"]> = {}, same = false): ImportComparison => ({
-  experience: { id: "demo", title: "The Demo Book" },
-  incoming: { experience: "demo", title: "The Demo Book", build: "7457f0c10df1", hash: "7457f0c10df1".padEnd(64, "0"), date: "2026-10-30T06:58:51.396Z", appVersion: "1.41.0", schema: "2.17", source: "cdn", from: "https://cdn.example/demo/7457f0c10df1" },
+  experience: { id: "demo", title: "The Demo Experience" },
+  incoming: { experience: "demo", title: "The Demo Experience", build: "7457f0c10df1", hash: "7457f0c10df1".padEnd(64, "0"), date: "2026-10-30T06:58:51.396Z", appVersion: "1.41.0", schema: "2.17", source: "cdn", from: "https://cdn.example/demo/7457f0c10df1" },
   draft: {
     basedOn: { build: "abababababab", hash: "ab".repeat(32), date: "2026-10-01T08:00:00.000Z", appVersion: "1.30.0", schema: "2.17", source: "cdn", from: null, importedAt: "2026-10-02T09:00:00.000Z", importedBy: "author@example.com" },
     build: "0123456789ab",
@@ -34,11 +34,11 @@ const fetcher = (files: Record<string, unknown>): typeof fetch =>
     return url in files ? new Response(JSON.stringify(files[url]), { status: 200 }) : new Response("", { status: 404, statusText: "Not Found" });
   }) as typeof fetch;
 
-// Before anything is imported, the form says what comes in: one book, which build, from where (#182)
+// Before anything is imported, the form says what comes in: one experience, which build, from where (#182)
 describe("the import's preview", () => {
   it("the button names the one experience and its build", () => {
-    expect(importLabel(preview())).toBe("Import 1 experience: The Demo Book (build 7457f0c…)");
-    expect(importLabel(preview({ incoming: { ...existing().incoming, build: null } }))).toBe("Import 1 experience: The Demo Book");
+    expect(importLabel(preview())).toBe("Import 1 experience: The Demo Experience (build 7457f0c…)");
+    expect(importLabel(preview({ incoming: { ...existing().incoming, build: null } }))).toBe("Import 1 experience: The Demo Experience");
     expect(shortBuild("fb4c5621abcd")).toBe("fb4c562…");
   });
 
@@ -48,7 +48,7 @@ describe("the import's preview", () => {
     expect(rows[0].value).toBe("https://cdn.example/demo");
     expect(rows[1].value).toBe("7457f0c10df1");
     expect(rows[2].value).toContain("current since");
-    expect(rows[5].value).toBe("The Demo Book · demo");
+    expect(rows[5].value).toBe("The Demo Experience · demo");
     expect(rows[6].value).toBe("6 scenes · 13 entries · 8 targets · 2 shared entities");
     expect(previewRows(preview({ manifest: null }), null, null).map(r => r.label)).not.toContain("Assets at");
     expect(previewRows(preview({ manifest: null }), null, null)[2].value).not.toContain("current since");
@@ -58,14 +58,14 @@ describe("the import's preview", () => {
     expect(contentsLine({ scenes: 1, entries: 1, targets: 0, entities: 0 })).toBe("1 scene · 1 entry · 0 targets");
   });
 
-  it("a new book: nothing is replaced", () => {
+  it("a new experience: nothing is replaced", () => {
     expect(replaceLine(preview())).toBeNull();
     expect(lossLine(preview())).toBeNull();
   });
 
   it("a draft of that id is here: it says the import replaces it and that its unpublished edits are lost", () => {
     const p = preview({ existing: existing() });
-    expect(replaceLine(p)).toBe("A draft of “The Demo Book” (demo) is already here – importing replaces it.");
+    expect(replaceLine(p)).toBe("A draft of “The Demo Experience” (demo) is already here – importing replaces it.");
     expect(lossLine(p)).toBe("Its 3 unpublished edits since its import are lost.");
     expect(lossLine(preview({ existing: existing({ edits: 1 }) }))).toBe("Its 1 unpublished edit since its import is lost.");
   });
@@ -74,7 +74,7 @@ describe("the import's preview", () => {
     expect(lossLine(preview({ existing: existing({ live: [{ env: "staging", build: "0123456789ab", current: true }] }) }))).toBe("Its 3 edits since its import are lost.");
     expect(lossLine(preview({ existing: existing({ edits: 0 }) }))).toBe("It has no edits since its import – nothing of its own is lost.");
     expect(lossLine(preview({ existing: existing({ basedOn: null }) }))).toBe("Its 3 unpublished edits in its change log are lost.");
-    expect(replaceLine(preview({ existing: existing({ edits: 0 }, true) }))).toBe("A draft of “The Demo Book” (demo) based on this build is already here – importing replaces it.");
+    expect(replaceLine(preview({ existing: existing({ edits: 0 }, true) }))).toBe("A draft of “The Demo Experience” (demo) based on this build is already here – importing replaces it.");
   });
 });
 
@@ -88,16 +88,16 @@ describe("reading a content base", () => {
   it("latest.json names the build; its folder holds the configuration and is the assets base", async () => {
     const read = await readContentBase("https://cdn.example/demo", fetcher({
       "https://cdn.example/demo/latest.json": { build: "7457f0c10df1", activatedAt: "2026-10-30T06:59:06.687Z" },
-      "https://cdn.example/demo/7457f0c10df1/game.config.json": { book: { id: "demo" } },
+      "https://cdn.example/demo/7457f0c10df1/game.config.json": { experience: { id: "demo" } },
     }));
     expect(read.manifest).toEqual({ url: "https://cdn.example/demo/latest.json", build: "7457f0c10df1", activatedAt: "2026-10-30T06:59:06.687Z" });
     expect(read.versionFolder).toBe("https://cdn.example/demo/7457f0c10df1");
-    expect(read.configuration).toEqual({ book: { id: "demo" } });
+    expect(read.configuration).toEqual({ experience: { id: "demo" } });
   });
 
   it("errors name the URL: no latest.json, no build in it, no configuration", async () => {
     await expect(readContentBase("https://cdn.example/none", fetcher({}))).rejects.toMatchObject({ url: "https://cdn.example/none/latest.json", message: "https://cdn.example/none/latest.json answered 404 Not Found." });
-    await expect(readContentBase("https://cdn.example/demo", fetcher({ "https://cdn.example/demo/latest.json": { book: "demo" } }))).rejects.toMatchObject({ url: "https://cdn.example/demo/latest.json", message: "https://cdn.example/demo/latest.json names no build." });
+    await expect(readContentBase("https://cdn.example/demo", fetcher({ "https://cdn.example/demo/latest.json": { experience: "demo" } }))).rejects.toMatchObject({ url: "https://cdn.example/demo/latest.json", message: "https://cdn.example/demo/latest.json names no build." });
     await expect(readContentBase("https://cdn.example/demo", fetcher({ "https://cdn.example/demo/latest.json": { build: "7457f0c10df1" } }))).rejects.toBeInstanceOf(SourceError);
     const offline = (async () => { throw new TypeError("Failed to fetch"); }) as typeof fetch;
     await expect(readContentBase("https://cdn.example/demo", offline)).rejects.toMatchObject({ url: "https://cdn.example/demo/latest.json" });

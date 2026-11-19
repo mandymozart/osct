@@ -57,18 +57,18 @@
    * the whole tree) and reach the draft by themselves a moment later (#259, `tree-autosave.ts`: the shared entity when
    * the target refers to one, else the target's own); **Undo edits** takes the target's tree back to how the draft had
    * it before its first edit in this page. **+ node** adds a node (group, model, video, image, text,
-   * light, or a node type the book's plugins registered – #77; files from the Library) next to the selected one or
+   * light, or a node type the experience's plugins registered – #77; files from the Library) next to the selected one or
    * inside it (#163); a plugin type's parameters are rows from its spec, like a component's. **remove node** drops the
    * selected node and its children. Rows come from the content contract's definitions (one `specRow` snippet draws a
-   * parameter of any kind – a `texture` as a choice of the book's procedural textures and Library pictures, #188). A node
+   * parameter of any kind – a `texture` as a choice of the experience's procedural textures and Library pictures, #188). A node
    * with meshes may carry a plugin's **material** (#188): its rows follow the node type's. **make it code** turns the
-   * node into a node type of the book's own, **make code** beside the material does it for its look
+   * node into a node type of the experience's own, **make code** beside the material does it for its look
    * (`plugins/make-code.ts`): the plugin is saved to the Code tab and run, the node switched to it once its code builds on
    * the stage (until then it shows as it was, the error is the Code tab's – #199).
    *
    * The panel is the workspace's **Inspector** (#229): it shows whatever is selected (#162) – a selected target its
    * target fields, its entity or a node that node's rows, the breadcrumb in the head stepping up; a selected **entry**
-   * (#227) the entry (`EntryView`); the **book** (the top bar's ⚙, #237) its texts and settings (`ExperiencePanel`); the
+   * (#227) the entry (`EntryView`); the **experience** (the top bar's ⚙, #237) its texts and settings (`ExperiencePanel`); the
    * **scene** – selected in the tree, or nothing else selected – its sections (`SceneView`: the scene,
    * post-processing, vars and events).
    */
@@ -167,7 +167,7 @@
   const materialOf = $derived.by(() => { void plugins.version; return current?.material ? materialSpec(current.material.type) ?? null : null; });
   const materialChoices = $derived.by(() => { void plugins.version; return current ? materialTypesFor(current.type) : []; });
 
-  // ── make it code (#188): the node, or its look, becomes the book's own code in the Code tab ──
+  // ── make it code (#188): the node, or its look, becomes the experience's own code in the Code tab ──
   let making = $state(false);
   /** The error shown is a made plugin's: the Code tab has it too */
   let codeError = $state(false);
@@ -222,7 +222,7 @@
   const hasBehaviour = $derived(!!current?.components?.some(c => c.type === BEHAVIOUR_TYPE));
   /** What is wrong with the tree's behaviours (an empty name, an event not chosen yet): shown, and the save waits until it is complete */
   const behaviourProblems = $derived(entity ? treeBehaviourIssues(entity) : []);
-  /** Every tree of the book (the draft's, this one as edited): the variables and events its behaviours use */
+  /** Every tree of the experience (the draft's, this one as edited): the variables and events its behaviours use */
   const experienceTrees = $derived([...content.scenes.flatMap(s => s.targets).filter(t => t.id !== target?.id).flatMap(t => (t.entity ? [t.entity] : [])), ...(entity ? [entity] : [])]);
   const ruleVariables = $derived(experienceVariables(experienceTrees, (stage?.vars ?? []).map(v => v.name)));
   const ruleEvents = $derived(experienceEvents(experienceTrees, (stage?.events ?? []).map(e => e.event)));
@@ -385,17 +385,17 @@
     print = next;
     const t = target;
     if (!t) return;
-    const book = experienceId;
+    const experience = experienceId;
     const id = t.id;
     const edit = ++placementEdits;
     placementPending = id;
-    autosave.queue(`print:${book}:${id}`, async () => {
-      await putTarget(book, id, { place: next });
+    autosave.queue(`print:${experience}:${id}`, async () => {
+      await putTarget(experience, id, { place: next });
       if (placementEdits === edit) placementPending = null;
       await ontargetchanged?.();
     });
   };
-  /** The target in the book or switched off (#249): the reader leaves a switched-off target and its entry out */
+  /** The target in the experience or switched off (#249): the reader leaves a switched-off target and its entry out */
   const setInExperience = async (on: boolean) => {
     if (!target) return;
     targetBusy = true;
@@ -489,7 +489,7 @@
   // ── + node ──
   let addType = $state<NodeType | "">("");
   let addAsset = $state("");
-  /** The node types + node offers: the built-in ones, then the ones the book's plugins registered (#77) */
+  /** The node types + node offers: the built-in ones, then the ones the experience's plugins registered (#77) */
   const pluginTypes = $derived.by(() => { void plugins.version; return pluginNodeTypes(); });
   /** The files the new node may take: the library's of its kind, and the content's (deduplicated by src) */
   const assetChoices = $derived.by(() => {
@@ -550,9 +550,9 @@
     <div class="row" class:changed={changed(row)} data-help-name={helpName(row)} title="{row.description} – default {row.default || (name === 'clip' ? '(first clip)' : row.default)}">
       <span class="label">{row.label}</span>
       {#if row.kind === "choice" && name === "look"}
-        <!-- A moment's look (#268): the built-in looks and the book's plugins' – empty plays the book's -->
+        <!-- A moment's look (#268): the built-in looks and the experience's plugins' – empty plays the experience's -->
         <select class="field" aria-label="Look" value={String(getValue(current, row))} onchange={e => set(row, (e.currentTarget as HTMLSelectElement).value)}>
-          <option value="">as the book</option>
+          <option value="">as the experience</option>
           {#each (row.options ?? []).filter(Boolean) as look (look)}<option value={look}>{look}</option>{/each}
           {#if getValue(current, row) && !(row.options ?? []).includes(String(getValue(current, row)))}
             <!-- #269: a look nobody registered (yet): why -->
@@ -571,7 +571,7 @@
       {:else if row.kind === "string"}
         <input class="field" value={String(getValue(current, row))} aria-label={row.label} oninput={e => set(row, (e.currentTarget as HTMLInputElement).value)} />
       {:else if row.kind === "texture"}
-        <!-- A texture (#188): none, a procedural texture of the book's plugins, or a Library picture or video -->
+        <!-- A texture (#188): none, a procedural texture of the experience's plugins, or a Library picture or video -->
         <TextureField value={String(getValue(current, row))} label={row.label} onchange={v => set(row, v)} />
       {:else if row.kind === "model"}
         <!-- A model file (#263): none, a Library model or one of the content's own -->
@@ -634,7 +634,7 @@
   {#if atTarget}
   <div class="section"><span class="section-label">target · {target.id}</span>
     <span class="controls">
-      <Toggle on={isTargetEnabled(target)} label="In the book" disabled={targetBusy} onchange={setInExperience}
+      <Toggle on={isTargetEnabled(target)} label="In the experience" disabled={targetBusy} onchange={setInExperience}
         help="On: readers find this target and read its entry. Off: the reader leaves both out until it is switched on again – the editor keeps everything and works on it as before." />
       <button type="button" class="text-link placement-toggle" class:on={placementOpen} onclick={togglePlacement}>{placementOpen ? "hide placement" : "placement"}</button>
     </span></div>
@@ -664,11 +664,11 @@
   <div class="section"><span class="section-label">{node.length ? "node" : "entity"}{current ? ` · ${current.type}` : ""}</span>
     <span class="controls">
       {#if current}<button type="button" class="text-link" onclick={() => void makeCode("node")} disabled={making}
-        data-help-name="Make it code" data-help="Turns this node into a node type of the book's own: a plugin in the Code tab whose build reproduces the node (its type's builder as a starting point, its values as parameters), saved and run – the node switches to it once the code builds (a plugin's node type comes with its plugin's whole source). From then on it is your code.">make it code</button>{/if}
+        data-help-name="Make it code" data-help="Turns this node into a node type of the experience's own: a plugin in the Code tab whose build reproduces the node (its type's builder as a starting point, its values as parameters), saved and run – the node switches to it once the code builds (a plugin's node type comes with its plugin's whole source). From then on it is your code.">make it code</button>{/if}
       {#if entity}<button type="button" class="text-link" onclick={remove} title="Delete removes the selected node too">{node.length ? "remove node" : "remove entity"}</button>{/if}
     </span></div>
   {#if current}
-    <div class="row" class:changed={(draftNode?.name ?? "") !== (current.name ?? "")} data-help-name="Name" data-help="The node's name in the tree – for the people who make the book; the reader does not show it. Empty: the tree shows the node's type.">
+    <div class="row" class:changed={(draftNode?.name ?? "") !== (current.name ?? "")} data-help-name="Name" data-help="The node's name in the tree – for the people who make the experience; the reader does not show it. Empty: the tree shows the node's type.">
       <span class="label">name</span>
       <input class="field" value={current.name ?? ""} placeholder={typeLabel(current)} spellcheck="false" aria-label="Node name"
         oninput={e => current && applyNode(withName(current, (e.currentTarget as HTMLInputElement).value))} />
@@ -676,7 +676,7 @@
   {/if}
   {/if}
   {#if !atTarget || !entity}
-  <div class="row add" data-help="Adds a node of this type: with no AR content yet the target's root (a model, video, image, text or light, or a group to hold several – or a node type of the book's plugins, listed under plugins once they are loaded), else next to the selected node or inside it (add as)."><span class="label">+ node</span>
+  <div class="row add" data-help="Adds a node of this type: with no AR content yet the target's root (a model, video, image, text or light, or a group to hold several – or a node type of the experience's plugins, listed under plugins once they are loaded), else next to the selected node or inside it (add as)."><span class="label">+ node</span>
     <span class="controls">
       <select class="field" aria-label="New node type" value={addType} onchange={e => { addType = (e.currentTarget as HTMLSelectElement).value as NodeType | ""; addAsset = ""; }}>
         <option value="">type…</option>
@@ -763,20 +763,20 @@
           {@render specRow(row, row.id.split(".")[1])}
         {/each}
       {:else}
-        <div class="row" data-help-name="Material" data-help="The material of the node's meshes: its own (what its type draws), or a material a plugin of the book registers – it replaces the node's own; the layers still add on top. make code turns the node's own look into a material of the book's own in the Code tab.">
+        <div class="row" data-help-name="Material" data-help="The material of the node's meshes: its own (what its type draws), or a material a plugin of the experience registers – it replaces the node's own; the layers still add on top. make code turns the node's own look into a material of the experience's own in the Code tab.">
           <span class="label">material</span>
           <span class="controls">
             <select class="field grow" aria-label="Material" value="" onchange={e => { const type = (e.currentTarget as HTMLSelectElement).value; if (type && current) applyNode(setMaterial(current, type)); }}>
               <option value="">its own</option>
               {#each materialChoices as type (type)}<option value={type} title={materialSpec(type)?.description}>{type}</option>{/each}
             </select>
-            <button type="button" class="pill framed" disabled={making} onclick={() => void makeCode("material")} title="Make the node's own look a material of the book's own (Code tab)">make code</button>
+            <button type="button" class="pill framed" disabled={making} onclick={() => void makeCode("material")} title="Make the node's own look a material of the experience's own (Code tab)">make code</button>
           </span></div>
       {/if}
     {/if}
     {#if current.type === "text"}
       <div class="section"><span class="section-label">text</span></div>
-      <div class="row" class:changed={!draftNode || (draftNode.text ?? "") !== (current.text ?? "")} title="The line shown; {'{{entry.title}}'} and {'{{book.title}}'} are replaced">
+      <div class="row" class:changed={!draftNode || (draftNode.text ?? "") !== (current.text ?? "")} title="The line shown; {'{{entry.title}}'} and {'{{experience.title}}'} are replaced">
         <span class="label">text</span>
         <input class="field" value={current.text ?? ""} spellcheck="false" aria-label="Text" oninput={e => current && applyNode({ ...current, text: (e.currentTarget as HTMLInputElement).value })} />
       </div>

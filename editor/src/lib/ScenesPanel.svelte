@@ -24,7 +24,7 @@
 
   /**
    * The **Scenes panel** (#307 phase 3a, `agents/design/scenes-filmstrip.html`): a filmstrip at the bottom of the stage
-   * column – the experience's scenes as cards, groups as bands (`SceneCards`). Its head: ▾ collapses it, the book's name
+   * column – the experience's scenes as cards, groups as bands (`SceneCards`). Its head: ▾ collapses it, the experience's name
    * and counts, **+ Scene…** (a layout preset, after the open scene), **Group** (Ctrl+G) and **Ungroup** (Ctrl+Shift+G)
    * for the picked scenes (one toggle: group / ungroup). The sash above it is dragged to resize it (double-click: the default). Open, height
    * and zoom are remembered in this browser. A drop is written at once (`POST …/scenes/move`, the drop is the

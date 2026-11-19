@@ -10,7 +10,7 @@ import { REFERENCE_FITS, type ReferenceFit, type SurfaceReference, type SurfaceR
 
 /**
  * The stage frame's message protocol (#234, docs/editor.md "The stage frame"). The editor's stage – the engine's
- * `ArScene` with the book's plugins – runs in an iframe sandboxed without `allow-same-origin`: an opaque origin, so plugin
+ * `ArScene` with the experience's plugins – runs in an iframe sandboxed without `allow-same-origin`: an opaque origin, so plugin
  * code there has no cookie, no storage of the editor's and no way into the page. The page and the frame talk only
  * through `postMessage`:
  *
@@ -39,7 +39,7 @@ export const REMOVED_ENTITY: EntityData = Object.freeze({ type: "group", assets:
 export const REMOVED_WIRE = "removed";
 
 /**
- * The draft as the page loaded it: the content base, where its files live, the folder of the book's uploads (the
+ * The draft as the page loaded it: the content base, where its files live, the folder of the experience's uploads (the
  * Library's files – null where the instance names none) and the responses of the base's files (by path, null = not there)
  */
 export interface ContentSnapshot {
@@ -108,7 +108,7 @@ export interface KeyForward {
   repeat: boolean;
 }
 
-/** A line of the book's code for the Code tab: a plugin's `api.log`, a plugin's error on the stage */
+/** A line of the experience's code for the Code tab: a plugin's `api.log`, a plugin's error on the stage */
 export interface FrameLog {
   level: "info" | "warn" | "error";
   text: string;
@@ -405,10 +405,10 @@ export const contentBasesNamed = (texts: readonly string[], own: string | null):
   return [...bases].sort();
 };
 
-/** An uploaded file's absolute URL (`Assets.php`): its folder `…/assets/<book>/`, then `<asset id>/v<n>.<ext>` */
+/** An uploaded file's absolute URL (`Assets.php`): its folder `…/assets/<experience>/`, then `<asset id>/v<n>.<ext>` */
 const LIBRARY_FILE = /(https?:\/\/[^"'\s\\]+?\/assets\/[A-Za-z0-9_-]{1,64}\/)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/v\d+\.[a-z0-9]{2,5}/g;
 
-/** The Library folders a draft's text names (#254): on a CDN instance the uploads lie under `<root>/assets/<book>/`, in no content base */
+/** The Library folders a draft's text names (#254): on a CDN instance the uploads lie under `<root>/assets/<experience>/`, in no content base */
 export const libraryFoldersNamed = (texts: readonly string[]): string[] => {
   const folders = new Set<string>();
   for (const text of texts) {
@@ -418,8 +418,8 @@ export const libraryFoldersNamed = (texts: readonly string[]): string[] => {
 };
 
 /**
- * The Library folders the frame admits for a draft: the book's own – a file uploaded and picked for a node reaches the
- * stage as a live edit, before any saved row names it (#258) – and those the draft's rows name (another book's upload)
+ * The Library folders the frame admits for a draft: the experience's own – a file uploaded and picked for a node reaches the
+ * stage as a live edit, before any saved row names it (#258) – and those the draft's rows name (another experience's upload)
  */
 export const libraryFoldersOf = (content: ContentSnapshot): string[] => {
   const texts = Object.values(content.responses).filter((text): text is string => typeof text === "string");
@@ -439,12 +439,12 @@ const fileOf = (url: string, base: string): string | null => {
 
 /**
  * The Content Security Policy of the frame's document: it may load its own scripts and the editor's static files
- * (`<origin><appBase>`), the Library's files (`<origin><apiBase>/content/`), the book's content under each content base
+ * (`<origin><appBase>`), the Library's files (`<origin><apiBase>/content/`), the experience's content under each content base
  * (`<base>/assets/content/` – the CDN or wherever the draft's files live; the declared plugins' modules are there too),
  * a few exact `files` (the trigger protocol at the site's root), plus `blob:` and `data:` (the Code tab's transpiled
  * module, textures and buffers inside a model). `mediaBases` are other content builds the draft's rows still name (a
  * file of an earlier build, #252): their `assets/content/` is admitted for images and media only, never for scripts or
- * requests. `libraryFolders` are the uploads' folders on a CDN – the book's own and those the draft names (#254, #258):
+ * requests. `libraryFolders` are the uploads' folders on a CDN – the experience's own and those the draft names (#254, #258):
  * models and shaders are requests, so they are admitted for those too, never for scripts. **No request reaches the rest of the API** – every source is
  * path-restricted, never `'self'` (which would be the whole origin, `/api` included); a source that would still reach
  * into the API other than its public `content/` route is left out. `devSocket` admits the dev server's hot reload.

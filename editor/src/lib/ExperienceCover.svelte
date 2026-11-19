@@ -5,7 +5,7 @@
   import SurfacesPreview from "#lib/components/SurfacesPreview.svelte";
 
   /**
-   * A book's front cover as a picture (#153, #319): the first scene's first surface (a cover is a single scene first in
+   * An experience's front cover as a picture (#153, #319): the first scene's first surface (a cover is a single scene first in
    * the order) with its reference image and the prints of its targets; a typographic cover (the title and the author on
    * the cover's halftone) while it has no picture. Loaded when the card is shown.
    */

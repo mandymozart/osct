@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { StageProgress } from "../progress";
 
-describe("the stage's progress (the plugins' book API on the stage)", () => {
+describe("the stage's progress (the plugins' experience API on the stage)", () => {
   it("unlocks a target once, locks it again for a replay, and knows no consulted entries", () => {
     const progress = new StageProgress();
     const reader = progress.reader();
@@ -15,7 +15,7 @@ describe("the stage's progress (the plugins' book API on the stage)", () => {
     expect(progress.unlock("key")).toBe(true);
   });
 
-  it("keeps the book variables for the workspace; a reset starts a new game", () => {
+  it("keeps the experience variables for the workspace; a reset starts a new game", () => {
     const progress = new StageProgress();
     const { variables } = progress.reader();
     variables!.set("hasKey", true);

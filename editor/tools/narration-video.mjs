@@ -1,5 +1,5 @@
 /**
- * The demo book's speaking video (`fixtures/demo/entries/screen/screen.mp4`) and its subtitle files
+ * The demo experience's speaking video (`fixtures/demo/entries/screen/screen.mp4`) and its subtitle files
  * (`screen.<language>.vtt`): a few spoken lines with the sound in the file, the picture a row of bars that follow its
  * loudness, and the
  * same lines as WebVTT in English, German, French and Dutch – the cue times are the times the lines were laid at, so

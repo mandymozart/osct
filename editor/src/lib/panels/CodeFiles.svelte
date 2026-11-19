@@ -7,7 +7,7 @@
   import CodePreview from "./CodePreview.svelte";
 
   /**
-   * The Library's code files (#186): the book's **scripts** (its plugin sources – the Code tab's list) and **shaders**
+   * The Library's code files (#186): the experience's **scripts** (its plugin sources – the Code tab's list) and **shaders**
    * (assets of the kind `shader`, loaded by a plugin with `api.loadText(url)`), one list – name, kind, size, uses. A click
    * on a row opens it: where it is used, a read-only preview (`CodePreview`) and its actions – **Open in Code** (a
    * script), **Copy URL** (a shader: what a plugin loads), **Download**, **Replace…** (a file of the same kind: a script's

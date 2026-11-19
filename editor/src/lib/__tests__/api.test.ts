@@ -63,7 +63,7 @@ describe("api() – the cookie session (#207)", () => {
   });
 
   it("a read goes with the cookie, without the CSRF token", async () => {
-    fetchMock.mockResolvedValueOnce(answer(200, { books: [] }));
+    fetchMock.mockResolvedValueOnce(answer(200, { experiences: [] }));
     await api("GET", "/editor/experiences");
     const [, init] = fetchMock.mock.calls[0];
     expect(init?.credentials).toBe("same-origin");
@@ -160,10 +160,10 @@ describe("api() – the cookie session (#207)", () => {
   });
 
   it("throws the server's error as ApiError with its code and details", async () => {
-    fetchMock.mockResolvedValueOnce(answer(409, { error: { code: "other-book", message: "Another book is live.", current: { book: "demo" } } }));
+    fetchMock.mockResolvedValueOnce(answer(409, { error: { code: "other-experience", message: "Another experience is live.", current: { experience: "demo" } } }));
     const error = await api("POST", "/editor/experiences/osct/publish").catch(e => e);
     expect(error).toBeInstanceOf(ApiError);
-    expect(error).toMatchObject({ status: 409, code: "other-book", message: "Another book is live.", details: { current: { book: "demo" } } });
+    expect(error).toMatchObject({ status: 409, code: "other-experience", message: "Another experience is live.", details: { current: { experience: "demo" } } });
     expect(ended).not.toHaveBeenCalled();
     expect(getSession()).toEqual(KEY);
   });
@@ -235,7 +235,7 @@ describe("api() – the cookie session (#207)", () => {
   });
 });
 
-describe("getExperience – the book's tree, read once", () => {
+describe("getExperience – the experience's tree, read once", () => {
   const fetchMock = vi.fn<typeof fetch>();
   const tree = (title: string) => ({ experience: { id: "osct", title }, scenes: [], unassigned: [] });
   const reads = () => fetchMock.mock.calls.filter(([, init]) => (init?.method ?? "GET") === "GET").length;
@@ -261,7 +261,7 @@ describe("getExperience – the book's tree, read once", () => {
     expect(reads()).toBe(1);
   });
 
-  it("a write to the book drops it – the next read asks the API, answered or refused", async () => {
+  it("a write to the experience drops it – the next read asks the API, answered or refused", async () => {
     fetchMock.mockImplementation(async (_url, init) => (init?.method === "PUT" ? answer(200, { ref: "x", entity: {} }) : answer(200, tree("One"))));
     await getExperience("osct");
     await putEntity("osct", "x", { type: "group", assets: [] });
@@ -273,7 +273,7 @@ describe("getExperience – the book's tree, read once", () => {
     expect(reads()).toBe(3);
   });
 
-  it("a write to another book, a failed read, fresh and a new session", async () => {
+  it("a write to another experience, a failed read, fresh and a new session", async () => {
     fetchMock.mockImplementation(async (_url, init) => (init?.method === "PUT" ? answer(200, {}) : answer(200, tree("One"))));
     await getExperience("osct");
     await putEntity("demo", "x", { type: "group", assets: [] });
@@ -293,9 +293,9 @@ describe("getExperience – the book's tree, read once", () => {
 
 describe("errorText – an error as a line for the page", () => {
   it("the API's message, with its code when asked; an error's message; anything else as text", () => {
-    const refused = new ApiError(409, "other-book", "Another book is live.");
-    expect(errorText(refused)).toBe("Another book is live.");
-    expect(errorText(refused, { code: true })).toBe("Another book is live. (other-book)");
+    const refused = new ApiError(409, "other-experience", "Another experience is live.");
+    expect(errorText(refused)).toBe("Another experience is live.");
+    expect(errorText(refused, { code: true })).toBe("Another experience is live. (other-experience)");
     expect(errorText(new TypeError("Failed to fetch"), { code: true })).toBe("Failed to fetch");
     expect(errorText("plain")).toBe("plain");
   });
