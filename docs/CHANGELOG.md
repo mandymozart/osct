@@ -7,6 +7,13 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 3.5.1 – 2026-11-19
+
+### Fixed
+
+- **Server tests on MariaDB**: the test schema loader skips a column drop whose table does not exist yet, as
+  `Db::migrate` does (#325's drops come before the tables are created).
+
 ## 3.5.0 – 2026-11-19
 
 ### Changed

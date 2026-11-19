@@ -60,7 +60,7 @@ function loadSchema(PDO $pdo, string $sql): void
     $sql = preg_replace('/^\s*--.*$/m', '', $sql);
     foreach (array_filter(array_map('trim', preg_split('/;\s*(\n|$)/', (string) $sql))) as $statement) {
         // As Db::migrate: a removed feature's column goes only where it is
-        if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+DROP\s+COLUMN\s+`?(\w+)`?/i', $statement, $match) && !hasColumn($pdo, $match[1], $match[2])) continue;
+        if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+DROP\s+COLUMN\s+`?(\w+)`?/i', $statement, $match) && (!hasTable($pdo, $match[1]) || !hasColumn($pdo, $match[1], $match[2]))) continue;
         // and a rename (#319) only where the old name is
         if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+RENAME\s+TO\s+`?(\w+)`?/i', $statement, $match) && (!hasTable($pdo, $match[1]) || hasTable($pdo, $match[2]))) continue;
         if (preg_match('/^ALTER\s+TABLE\s+`?(\w+)`?\s+RENAME\s+COLUMN\s+`?(\w+)`?/i', $statement, $match) && (!hasTable($pdo, $match[1]) || !hasColumn($pdo, $match[1], $match[2]))) continue;
