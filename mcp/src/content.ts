@@ -1,20 +1,20 @@
-// The editor's content tools over the API (`/api/editor/*`, docs/server.md "Editor data", "Assets"): the book's tree
-// and scenes (content schema 3.0), entities and targets, entries, the scenes themselves and their groups, the book's
+// The editor's content tools over the API (`/api/editor/*`, docs/server.md "Editor data", "Assets"): the experience's tree
+// and scenes (content schema 3.0), entities and targets, entries, the scenes themselves and their groups, the experience's
 // passes, appearance and environment, assets, the draft, publishing to the instance's own environment, the logs, the
-// migration of a 2.x book to 3.0. Every write is checked against the shared content contract first and answers with the
+// migration of a 2.x experience to 3.0. Every write is checked against the shared content contract first and answers with the
 // editor's link, where the person checks the draft on the stage. Production stays with the person – the tool refuses it.
-// Re-importing a book and removing a scene or an entry take the API's two steps: the comparison or the impact, which the
+// Re-importing an experience and removing a scene or an entry take the API's two steps: the comparison or the impact, which the
 // person sees, then the import or the removal with its confirmation; plans (a move, a group, the migration) the same way.
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod";
 import { ApiError, type OsctApi } from "./api.ts";
-import { checkAppearance, checkEntity, checkPasses, describeContentModel, usesPluginAppearances, usesPluginPasses, usesPluginTypes, type BookModel } from "./model.ts";
+import { checkAppearance, checkEntity, checkPasses, describeContentModel, usesPluginAppearances, usesPluginPasses, usesPluginTypes, type ExperienceModel } from "./model.ts";
 import { fail, guard, text, type Result } from "./result.ts";
 import { editorHref, type AppLinks } from "./services.ts";
 import type { PluginData } from "../../shared/types/game-config";
-import { APPEARANCE_TYPES, MOMENTS, PASS_TYPES, SOURCES_OF_TRUTH } from "../../shared/types/game-config";
+import { APPEARANCE_TYPES, MOMENTS, PASS_TYPES } from "../../shared/types/game-config";
 import { EntryCategory } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
 import { exprMessage, renderEntryText } from "../../shared/text/entry-text";
@@ -23,11 +23,6 @@ import type {
   AssetList,
   AssetNamesPlan,
   AssetUploaded,
-  BookAppearanceSaved,
-  BookList,
-  BookPassesSaved,
-  BookSaved,
-  BookTree,
   Change,
   DraftManifest,
   EntitySaved,
@@ -38,14 +33,9 @@ import type {
   EnvironmentsInfo,
   GroupPlanned,
   GroupSaved,
-  ImportComparison,
-  ImportPreview,
-  ImportResult,
   PluginSource,
   PluginSummary,
   PublishedVersion,
-  PublishResult,
-  RemovalImpact,
   RemovalResult,
   SceneAdded,
   SceneList,
@@ -56,6 +46,19 @@ import type {
   SharedEntities,
   TargetSaved,
   Ungrouped,
+} from "../../shared/api/editor";
+import type {
+  ExperienceAppearanceSaved,
+  ExperienceList,
+  ExperiencePassesSaved,
+  ExperienceSaved,
+  ExperienceTree,
+  ExperienceUpdate,
+  ImportComparison,
+  ImportPreview,
+  ImportResult,
+  PublishResult,
+  RemovalImpact,
 } from "../../shared/api/editor";
 import { confirmationStep } from "../../shared/api/errors";
 import { CREDITS_BATCH_MAX, CREDITS_MAX, SCENE_PAGE_MM, SCENE_PRESETS, SCENE_SURFACES_MAX, SCENE_WALL_MM, SURFACE_REFERENCE_FITS } from "../../shared/api/editor";
@@ -107,7 +110,7 @@ export function importStep(error: unknown): Json | null {
     ...(step.changed ? { void: (error as ApiError).message } : {}),
     comparison: step.shows,
     confirmation: step.confirmation,
-    next: "Nothing was imported. Show the person the comparison – the incoming build against what the draft is based on and its edits since – and ask. Only with their yes call import_book again with the same arguments and confirm: confirmation.id (it expires, and any change meanwhile voids it).",
+    next: "Nothing was imported. Show the person the comparison – the incoming build against what the draft is based on and its edits since – and ask. Only with their yes call import_experience again with the same arguments and confirm: confirmation.id (it expires, and any change meanwhile voids it).",
   };
 }
 
@@ -124,12 +127,12 @@ export function deleteStep(error: unknown, tool: "delete_scene" | "delete_entry"
     ...(step.changed ? { void: (error as ApiError).message } : {}),
     impact: step.shows,
     confirmation: step.confirmation,
-    next: `Nothing was removed. Show the person the impact – the entries, targets and entities that go, the shared entities that are kept, and the Library files used only here and elsewhere – and ask. Only with their yes call ${tool} again with the same arguments and confirm: confirmation.id; add deleteFiles: true only if they asked for the files used only here to be deleted too (files used elsewhere are never deleted). The id expires, and any change in the book meanwhile voids it.`,
+    next: `Nothing was removed. Show the person the impact – the entries, targets and entities that go, the shared entities that are kept, and the Library files used only here and elsewhere – and ask. Only with their yes call ${tool} again with the same arguments and confirm: confirmation.id; add deleteFiles: true only if they asked for the files used only here to be deleted too (files used elsewhere are never deleted). The id expires, and any change in the experience meanwhile voids it.`,
   };
 }
 
 const ID = z.string().regex(ID_PATTERN, "letters, digits, _ and -, at most 64");
-const BOOK = ID.describe("the book's id (list_books)");
+const EXPERIENCE = ID.describe("the experience's id (list_experiences)");
 const entitySchema = z.record(z.string(), z.unknown()).describe("EntityData – the node tree (describe_content_model)");
 const targetPlaceSchema = z
   .object({
@@ -150,24 +153,24 @@ const passSchema = z.object({ type: z.string().min(1), enabled: z.boolean().opti
 const passesSchema = z.array(passSchema);
 
 /**
- * The contract's verdict over a passes list (the built-in types and the book's plugins' passes, every
- * parameter in range) as a tool error, else the warnings for the answer. The book's plugins are read only when the list
+ * The contract's verdict over a passes list (the built-in types and the experience's plugins' passes, every
+ * parameter in range) as a tool error, else the warnings for the answer. The experience's plugins are read only when the list
  * names a type that is not built in.
  */
-async function checkPassWrite(passes: unknown, path: string, book: () => Promise<BookModel>): Promise<{ refused: Result | null; warnings: { warnings?: string[] } }> {
-  const { problems, unverified } = checkPasses(passes, path, usesPluginPasses(passes) ? await book() : undefined);
+async function checkPassWrite(passes: unknown, path: string, experience: () => Promise<ExperienceModel>): Promise<{ refused: Result | null; warnings: { warnings?: string[] } }> {
+  const { problems, unverified } = checkPasses(passes, path, usesPluginPasses(passes) ? await experience() : undefined);
   if (problems.length) {
     return {
       refused: fail({
         error: { code: "invalid-passes", message: `${path} does not match the content contract (nothing was sent).`, problems },
-        hint: `describe_content_model { book } lists the passes (${PASS_TYPES.join(", ")} and the book's plugins') with their parameters.`,
+        hint: `describe_content_model { experience } lists the passes (${PASS_TYPES.join(", ")} and the experience's plugins') with their parameters.`,
       }),
       warnings: {},
     };
   }
   return {
     refused: null,
-    warnings: unverified.length ? { warnings: [`passes no recorded plugin provides: ${unverified.join(", ")} – a compiled plugin of the book must register them, else the publish is refused (unknown-passes)`] } : {},
+    warnings: unverified.length ? { warnings: [`passes no recorded plugin provides: ${unverified.join(", ")} – a compiled plugin of the experience must register them, else the publish is refused (unknown-passes)`] } : {},
   };
 }
 
@@ -177,43 +180,43 @@ const appearanceSchema = z.object(Object.fromEntries(MOMENTS.map(moment => [mome
 
 /**
  * Checks an entity against the content contract before it is sent: the guard's verdict as a tool error (`refused`),
- * else the warnings for the answer. The book's plugins are read only when the tree names a type that is not built in.
+ * else the warnings for the answer. The experience's plugins are read only when the tree names a type that is not built in.
  */
-async function checkWrite(entity: unknown, path: string, book: () => Promise<BookModel>): Promise<{ refused: Result | null; warnings: { warnings?: string[] } }> {
-  const check = checkEntity(entity, path, usesPluginTypes(entity) ? await book() : undefined);
+async function checkWrite(entity: unknown, path: string, experience: () => Promise<ExperienceModel>): Promise<{ refused: Result | null; warnings: { warnings?: string[] } }> {
+  const check = checkEntity(entity, path, usesPluginTypes(entity) ? await experience() : undefined);
   if (check.problems.length) {
     return {
       refused: fail({
         error: { code: "invalid-entity", message: `${path} does not match the content contract (nothing was sent).`, problems: check.problems },
-        hint: "describe_content_model { book } lists the node types, placement, filters and components – the book's plugins' too.",
+        hint: "describe_content_model { experience } lists the node types, placement, filters and components – the experience's plugins' too.",
       }),
       warnings: {},
     };
   }
   const warnings = [
     ...(check.unknownComponents.length ? [`component types no built-in or known plugin provides: ${check.unknownComponents.join(", ")} – a plugin must register them, else the publish is refused`] : []),
-    ...(check.unverifiedNodeTypes.length ? [`node types no known plugin registers: ${check.unverifiedNodeTypes.join(", ")} – a plugin of the book whose types are not recorded must register them, else the publish is refused`] : []),
-    ...(check.unknownMaterials.length ? [`materials no known plugin registers: ${check.unknownMaterials.join(", ")} – a plugin of the book must register them, else the publish is refused`] : []),
+    ...(check.unverifiedNodeTypes.length ? [`node types no known plugin registers: ${check.unverifiedNodeTypes.join(", ")} – a plugin of the experience whose types are not recorded must register them, else the publish is refused`] : []),
+    ...(check.unknownMaterials.length ? [`materials no known plugin registers: ${check.unknownMaterials.join(", ")} – a plugin of the experience must register them, else the publish is refused`] : []),
   ];
   return { refused: null, warnings: warnings.length ? { warnings } : {} };
 }
 
 export function registerContentTools(server: McpServer, api: OsctApi, links: AppLinks): void {
-  const tree = (book: string) => api.call<BookTree>("GET", `/editor/books/${encodeURIComponent(book)}`);
-  const entities = (book: string) => api.call<SharedEntities>("GET", `/editor/books/${encodeURIComponent(book)}/entities`);
-  const draft = async (book: string) => {
-    const manifest = await api.call<DraftManifest>("GET", `/editor/books/${encodeURIComponent(book)}/draft/latest.json`);
-    const configuration = await api.call<Json & { plugins?: PluginData[] }>("GET", `/editor/books/${encodeURIComponent(book)}/draft/${manifest.build}/game.config.json`);
+  const tree = (experience: string) => api.call<ExperienceTree>("GET", `/editor/experiences/${encodeURIComponent(experience)}`);
+  const entities = (experience: string) => api.call<SharedEntities>("GET", `/editor/experiences/${encodeURIComponent(experience)}/entities`);
+  const draft = async (experience: string) => {
+    const manifest = await api.call<DraftManifest>("GET", `/editor/experiences/${encodeURIComponent(experience)}/draft/latest.json`);
+    const configuration = await api.call<Json & { plugins?: PluginData[] }>("GET", `/editor/experiences/${encodeURIComponent(experience)}/draft/${manifest.build}/game.config.json`);
     return { manifest, configuration };
   };
   /** the scene a target's entry lies on – for the link of a target write */
-  const sceneOf = (t: BookTree, targetId: string) => t.scenes.find(s => s.entries.some(e => e.target?.id === targetId))?.id ?? null;
-  /** the book's plugins: the declared ones with what they recorded (the draft), the Code tab's sources with the types read from them */
-  const bookModel = async (book: string): Promise<BookModel> => {
-    const [{ configuration }, { plugins }] = await Promise.all([draft(book), api.call<{ plugins: PluginSummary[] }>("GET", `/editor/books/${encodeURIComponent(book)}/plugins`)]);
+  const sceneOf = (t: ExperienceTree, targetId: string) => t.scenes.find(s => s.entries.some(e => e.target?.id === targetId))?.id ?? null;
+  /** the experience's plugins: the declared ones with what they recorded (the draft), the Code tab's sources with the types read from them */
+  const experienceModel = async (experience: string): Promise<ExperienceModel> => {
+    const [{ configuration }, { plugins }] = await Promise.all([draft(experience), api.call<{ plugins: PluginSummary[] }>("GET", `/editor/experiences/${encodeURIComponent(experience)}/plugins`)]);
     const sources = await Promise.all(
       plugins.map(async p => {
-        const { plugin } = await api.call<{ plugin: PluginSource }>("GET", `/editor/books/${encodeURIComponent(book)}/plugins/${encodeURIComponent(p.id)}`);
+        const { plugin } = await api.call<{ plugin: PluginSource }>("GET", `/editor/experiences/${encodeURIComponent(experience)}/plugins/${encodeURIComponent(p.id)}`);
         return { id: plugin.id, ...pluginTypes(plugin.source) };
       }),
     );
@@ -223,30 +226,30 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
    * A removal (scene or entry) in the API's two steps: without `confirm` the impact and a confirmation (nothing
    * removed); with it the removal – `deleteFiles` only with `confirm`
    */
-  const removeStep = async (tool: "delete_scene" | "delete_entry", book: string, path: string, confirm?: string, deleteFiles?: boolean): Promise<Result> => {
+  const removeStep = async (tool: "delete_scene" | "delete_entry", experience: string, path: string, confirm?: string, deleteFiles?: boolean): Promise<Result> => {
     if (deleteFiles && !confirm) return fail({ error: { code: "mcp", message: "deleteFiles goes with confirm – first show the person the impact" } });
     try {
       const result = await api.call<RemovalResult>("DELETE", path, confirm ? { confirm, ...(deleteFiles ? { deleteFiles: true } : {}) } : undefined);
-      return text({ ...result, open: editorHref(links, book) });
+      return text({ ...result, open: editorHref(links, experience) });
     } catch (error) {
       const step = deleteStep(error, tool);
       if (!step) throw error;
-      return text({ ...step, open: editorHref(links, book) });
+      return text({ ...step, open: editorHref(links, experience) });
     }
   };
 
   // ── reading ──
 
   server.registerTool(
-    "list_books",
-    { description: "The instance's books: id, title, author, the scene it opens on (initialScene), number of scenes, content schema, last publish, `live` (the environments serving it – empty: draft only) – and the editor's link of each; `environments` = what each environment serves.", inputSchema: z.object({}), annotations: read },
+    "list_experiences",
+    { description: "The instance's experiences: id, title, author, the scene it opens on (initialScene), number of scenes, content schema, last publish, `live` (the environments serving it – empty: draft only) – and the editor's link of each; `environments` = what each environment serves.", inputSchema: z.object({}), annotations: read },
     guard(async () => {
-      const { books, environments } = await api.call<BookList>("GET", "/editor/books");
-      return text({ books: books.map(b => ({ ...b, open: editorHref(links, b.id) })), environments });
+      const { experiences, environments } = await api.call<ExperienceList>("GET", "/editor/experiences");
+      return text({ experiences: experiences.map(b => ({ ...b, open: editorHref(links, b.id) })), environments });
     }),
   );
 
-  /** import_book's and preview_import's body: the CDN, a configuration fetched from `url`, or the one given */
+  /** import_experience's and preview_import's body: the CDN, a configuration fetched from `url`, or the one given */
   const importSource = async ({ url, configuration, assetsBase, source }: { url?: string; configuration?: Json; assetsBase?: string; source?: "cdn" }): Promise<Json> => {
     if (source === "cdn") return { source };
     if (!url === !configuration) return { error: { code: "mcp", message: "give either url, configuration or source: cdn" } };
@@ -259,12 +262,12 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
   };
 
   server.registerTool(
-    "import_book",
+    "import_experience",
     {
       description:
-        "Replaces a book's content rows from a game configuration (the content build's game.config.json, content schema 3.x – another is refused, 400 invalid-configuration): `url` fetches it (e.g. the reader's dev server http://localhost:5174/src/game.config.json), or pass `configuration`; `source: \"cdn\"` imports the instance CDN's current version. `assetsBase` = where its /assets/content/… paths resolve. The change and publish logs stay; edits made since are replaced. **Two steps when the book exists**: the first call imports nothing and answers `comparison` – the incoming build (id, date, app and schema version) against what the draft is based on and its edits since that import – and a short-lived `confirmation`. Show the comparison to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. A new book is imported at once. To tell the person first which book and build would come in (the CDN's book id among it), call preview_import.",
+        "Replaces an experience's content rows from a game configuration (the content build's game.config.json, content schema 3.x – another is refused, 400 invalid-configuration): `url` fetches it (e.g. the reader's dev server http://localhost:5174/src/game.config.json), or pass `configuration`; `source: \"cdn\"` imports the instance CDN's current version. `assetsBase` = where its /assets/content/… paths resolve. The change and publish logs stay; edits made since are replaced. **Two steps when the experience exists**: the first call imports nothing and answers `comparison` – the incoming build (id, date, app and schema version) against what the draft is based on and its edits since that import – and a short-lived `confirmation`. Show the comparison to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. A new experience is imported at once. To tell the person first which experience and build would come in (the CDN's experience id among it), call preview_import.",
       inputSchema: z.object({
-        book: ID.describe("the configuration's own book.id (preview_import's incoming.book) – another id is refused (400 invalid-configuration)"),
+        experience: ID.describe("the configuration's own experience.id (preview_import's incoming.experience) – another id is refused (400 invalid-configuration)"),
         url: z.string().url().optional().describe("a game.config.json to fetch"),
         configuration: z.record(z.string(), z.unknown()).optional().describe("the game configuration itself"),
         assetsBase: z.string().url().optional().describe("the origin the configuration's /assets/content/… paths resolve against – its files.json is read from there, so the Library lists the imported files (a base without one imports with none)"),
@@ -273,16 +276,16 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
     },
-    guard(async ({ book, url, configuration, assetsBase, source, confirm }) => {
+    guard(async ({ experience, url, configuration, assetsBase, source, confirm }) => {
       const body = await importSource({ url, configuration, assetsBase, source });
       if ("error" in body) return fail(body);
       try {
-        const result = await api.call<ImportResult>("POST", `/editor/books/${encodeURIComponent(book)}/import`, { ...body, ...(confirm ? { confirm } : {}) });
-        return text({ ...result, open: editorHref(links, book) });
+        const result = await api.call<ImportResult>("POST", `/editor/experiences/${encodeURIComponent(experience)}/import`, { ...body, ...(confirm ? { confirm } : {}) });
+        return text({ ...result, open: editorHref(links, experience) });
       } catch (error) {
         const step = importStep(error);
         if (!step) throw error;
-        return text({ ...step, open: editorHref(links, book) });
+        return text({ ...step, open: editorHref(links, experience) });
       }
     }),
   );
@@ -291,7 +294,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "preview_import",
     {
       description:
-        "What an import would bring in, before anything is imported – read-only, takes import_book's sources: `source: \"cdn\"` (the instance CDN's current version), `url` (a game.config.json to fetch) or `configuration`. Answers the content base and its latest.json (build, when it became current), `incoming` (the one book's id and title, the build, its date, app and schema version), `counts` (scenes, entries, targets, shared entities) and `existing` – the draft of that id the import would replace (what it is based on, its edits since, where it is live), null for a new book. Tell the person which book and build comes in and, when `existing`, that its draft is replaced and its edits lost; then import_book with `book` = incoming.book and the same source.",
+        "What an import would bring in, before anything is imported – read-only, takes import_experience's sources: `source: \"cdn\"` (the instance CDN's current version), `url` (a game.config.json to fetch) or `configuration`. Answers the content base and its latest.json (build, when it became current), `incoming` (the one experience's id and title, the build, its date, app and schema version), `counts` (scenes, entries, targets, shared entities) and `existing` – the draft of that id the import would replace (what it is based on, its edits since, where it is live), null for a new experience. Tell the person which experience and build comes in and, when `existing`, that its draft is replaced and its edits lost; then import_experience with `experience` = incoming.experience and the same source.",
       inputSchema: z.object({
         url: z.string().url().optional().describe("a game.config.json to fetch"),
         configuration: z.record(z.string(), z.unknown()).optional().describe("the game configuration itself"),
@@ -304,29 +307,29 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       const body = await importSource({ url, configuration, assetsBase, source });
       if ("error" in body) return fail(body);
       const preview = await api.call<ImportPreview>("POST", "/editor/import/preview", body);
-      const { book, title, build } = preview.incoming;
+      const { experience, title, build } = preview.incoming;
       return text({
         ...preview,
         imported: false,
-        ...(preview.existing ? { open: editorHref(links, book) } : {}),
-        next: `Nothing was imported. Tell the person: 1 book, “${title}” (${book})${build ? `, build ${build}` : ""}${preview.existing ? " – it replaces the draft of that id here, and its edits since its import are lost (existing.draft.edits)" : " – a new book"}. Import only if they want it: import_book with book: "${book}" and the same source${preview.existing ? " (it answers the comparison first; ask again before confirming)" : ""}.`,
+        ...(preview.existing ? { open: editorHref(links, experience) } : {}),
+        next: `Nothing was imported. Tell the person: 1 experience, “${title}” (${experience})${build ? `, build ${build}` : ""}${preview.existing ? " – it replaces the draft of that id here, and its edits since its import are lost (existing.draft.edits)" : " – a new experience"}. Import only if they want it: import_experience with experience: "${experience}" and the same source${preview.existing ? " (it answers the comparison first; ask again before confirming)" : ""}.`,
       });
     }),
   );
 
   server.registerTool(
-    "get_book",
+    "get_experience",
     {
       description:
-        "A book's tree (content schema 3.0): the book, its scenes in order (id, label, group, surfaces with their size and place, passes) each with its entries (id, title, category, scene, surface) and each entry's target (id, imageSrc, place, entity inline or { ref }), and the groups. Shared entities: get_entity; one scene with every entity resolved: get_scene.",
-      inputSchema: z.object({ book: BOOK }),
+        "An experience's tree (content schema 3.0): the experience, its scenes in order (id, label, group, surfaces with their size and place, passes) each with its entries (id, title, category, scene, surface) and each entry's target (id, imageSrc, place, entity inline or { ref }), and the groups. Shared entities: get_entity; one scene with every entity resolved: get_scene.",
+      inputSchema: z.object({ experience: EXPERIENCE }),
       annotations: read,
     },
-    guard(async ({ book }) => {
-      const t = await tree(book);
+    guard(async ({ experience }) => {
+      const t = await tree(experience);
       const entries = t.scenes.reduce((n, s) => n + s.entries.length, 0);
       const targets = t.scenes.reduce((n, s) => n + s.entries.filter(e => e.target).length, 0);
-      return text({ ...t, counts: { scenes: t.scenes.length, entries, targets }, open: editorHref(links, book) });
+      return text({ ...t, counts: { scenes: t.scenes.length, entries, targets }, open: editorHref(links, experience) });
     }),
   );
 
@@ -335,13 +338,13 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     {
       description:
         "One scene (its label, group, surfaces with size and place, passes) with its entries and targets, every target's entity resolved: an inline entity as it is, a shared one as the entity under `entity` with its `ref` next to it (put_entity changes the shared entity for every target using it; put_target with `entity` gives the target its own). Surface reference images: list_scenes.",
-      inputSchema: z.object({ book: BOOK, scene: ID.describe("the scene's id (get_book, list_scenes)") }),
+      inputSchema: z.object({ experience: EXPERIENCE, scene: ID.describe("the scene's id (get_experience, list_scenes)") }),
       annotations: read,
     },
-    guard(async ({ book, scene }) => {
-      const [t, shared] = await Promise.all([tree(book), entities(book)]);
+    guard(async ({ experience, scene }) => {
+      const [t, shared] = await Promise.all([tree(experience), entities(experience)]);
       const found = t.scenes.find(s => s.id === scene);
-      if (!found) return fail({ error: { code: "not-found", message: `No scene "${scene}" in ${book}.`, scenes: t.scenes.map(s => ({ id: s.id, label: s.label })) } });
+      if (!found) return fail({ error: { code: "not-found", message: `No scene "${scene}" in ${experience}.`, scenes: t.scenes.map(s => ({ id: s.id, label: s.label })) } });
       const { entries, ...rest } = found;
       const resolved = entries.map(entry => {
         if (!entry.target) return { ...entry, target: null };
@@ -349,16 +352,16 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         if (entity && "ref" in entity) return { ...entry, target: { ...target, ref: entity.ref, entity: shared.entities[entity.ref] ?? null } };
         return { ...entry, target: { ...target, entity: entity ?? null } };
       });
-      return text({ scene: rest, entries: resolved, open: editorHref(links, book, found.id) });
+      return text({ scene: rest, entries: resolved, open: editorHref(links, experience, found.id) });
     }),
   );
 
   server.registerTool(
     "get_entity",
-    { description: "One shared entity of the book by its ref (EntityData, the node tree); the refs are in get_book's targets ({ ref }).", inputSchema: z.object({ book: BOOK, ref: ID }), annotations: read },
-    guard(async ({ book, ref }) => {
-      const { entities: all } = await entities(book);
-      if (!(ref in all)) return fail({ error: { code: "not-found", message: `No shared entity "${ref}" in ${book}.`, refs: Object.keys(all) } });
+    { description: "One shared entity of the experience by its ref (EntityData, the node tree); the refs are in get_experience's targets ({ ref }).", inputSchema: z.object({ experience: EXPERIENCE, ref: ID }), annotations: read },
+    guard(async ({ experience, ref }) => {
+      const { entities: all } = await entities(experience);
+      if (!(ref in all)) return fail({ error: { code: "not-found", message: `No shared entity "${ref}" in ${experience}.`, refs: Object.keys(all) } });
       return text({ ref, entity: all[ref] });
     }),
   );
@@ -366,15 +369,15 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
   server.registerTool(
     "get_draft",
     {
-      description: "The book's draft as the content version the engine loads: `manifest` (build, hash), `configuration` (the whole game configuration, content schema 3.0, assembled from the rows now) or `files` (its files.json). Large – prefer get_scene for one scene.",
-      inputSchema: z.object({ book: BOOK, part: z.enum(["manifest", "configuration", "files"]).default("configuration") }),
+      description: "The experience's draft as the content version the engine loads: `manifest` (build, hash), `configuration` (the whole game configuration, content schema 3.0, assembled from the rows now) or `files` (its files.json). Large – prefer get_scene for one scene.",
+      inputSchema: z.object({ experience: EXPERIENCE, part: z.enum(["manifest", "configuration", "files"]).default("configuration") }),
       annotations: read,
     },
-    guard(async ({ book, part }) => {
-      const manifest = await api.call<DraftManifest>("GET", `/editor/books/${encodeURIComponent(book)}/draft/latest.json`);
+    guard(async ({ experience, part }) => {
+      const manifest = await api.call<DraftManifest>("GET", `/editor/experiences/${encodeURIComponent(experience)}/draft/latest.json`);
       if (part === "manifest") return text(manifest);
       const file = part === "files" ? "files.json" : "game.config.json";
-      const data = await api.call<Json>("GET", `/editor/books/${encodeURIComponent(book)}/draft/${manifest.build}/${file}`);
+      const data = await api.call<Json>("GET", `/editor/experiences/${encodeURIComponent(experience)}/draft/${manifest.build}/${file}`);
       return text({ build: manifest.build, [part]: data });
     }),
   );
@@ -383,11 +386,11 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "describe_content_model",
     {
       description:
-        "What you may write: node types (and node names), placement (units, defaults), filters, components with their parameters, post-processing passes, the environment, scenes and surfaces (with their place), entries (scene, surface), a target's place, entry categories, scene presets – from the shared content contract. With `book`: also the compiled plugins its configuration declares with the components, layers, node types and passes they recorded (their parameters), and the Code tab's sources with the types read from them.",
-      inputSchema: z.object({ book: BOOK.optional() }),
+        "What you may write: node types (and node names), placement (units, defaults), filters, components with their parameters, post-processing passes, the environment, scenes and surfaces (with their place), entries (scene, surface), a target's place, entry categories, scene presets – from the shared content contract. With `experience`: also the compiled plugins its configuration declares with the components, layers, node types and passes they recorded (their parameters), and the Code tab's sources with the types read from them.",
+      inputSchema: z.object({ experience: EXPERIENCE.optional() }),
       annotations: read,
     },
-    guard(async ({ book }) => text(describeContentModel(book ? await bookModel(book) : undefined))),
+    guard(async ({ experience }) => text(describeContentModel(experience ? await experienceModel(experience) : undefined))),
   );
 
   // ── writing: entities, targets, entries ──
@@ -397,14 +400,14 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     {
       description:
         "Saves (or adds) a shared entity under `ref` – the whole node tree (EntityData: type, assets, params, filters, components, children, text, color; describe_content_model). Checked against the content contract before it is sent; the API records a change. Every target with { ref } shows it.",
-      inputSchema: z.object({ book: BOOK, ref: ID.describe("the shared entity's ref"), entity: entitySchema }),
+      inputSchema: z.object({ experience: EXPERIENCE, ref: ID.describe("the shared entity's ref"), entity: entitySchema }),
       annotations: write,
     },
-    guard(async ({ book, ref, entity }) => {
-      const { refused, warnings } = await checkWrite(entity, "entity", () => bookModel(book));
+    guard(async ({ experience, ref, entity }) => {
+      const { refused, warnings } = await checkWrite(entity, "entity", () => experienceModel(experience));
       if (refused) return refused;
-      const result = await api.call<EntitySaved>("PUT", `/editor/books/${encodeURIComponent(book)}/entities/${encodeURIComponent(ref)}`, entity);
-      return text({ ...result, ...warnings, open: editorHref(links, book) });
+      const result = await api.call<EntitySaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/entities/${encodeURIComponent(ref)}`, entity);
+      return text({ ...result, ...warnings, open: editorHref(links, experience) });
     }),
   );
 
@@ -412,19 +415,19 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_target",
     {
       description:
-        "Changes a target: `entity` = its own AR content (EntityData; null removes it), `ref` = a shared entity instead, `imageSrc` = the printed image (an uploaded image asset's url – upload it with upload_asset fit: \"target\", at most 1200 px), `place` = where it lies: { surface?, x, y, width, height? } in mm from the top left corner of a surface of its entry's scene (surface by id – required when the scene has several; null removes the place), `enabled` = in the reader's book (false switches it off: the reader leaves the target and its entry out, the editor keeps both – content schema 2.26). Send what changes. Checked against the contract; a change is recorded.",
+        "Changes a target: `entity` = its own AR content (EntityData; null removes it), `ref` = a shared entity instead, `imageSrc` = the printed image (an uploaded image asset's url – upload it with upload_asset fit: \"target\", at most 1200 px), `place` = where it lies: { surface?, x, y, width, height? } in mm from the top left corner of a surface of its entry's scene (surface by id – required when the scene has several; null removes the place), `enabled` = in the reader's experience (false switches it off: the reader leaves the target and its entry out, the editor keeps both – content schema 2.26). Send what changes. Checked against the contract; a change is recorded.",
       inputSchema: z.object({
-        book: BOOK,
+        experience: EXPERIENCE,
         target: ID.describe("the target's id (get_scene)"),
         entity: entitySchema.nullable().optional(),
         ref: ID.optional().describe("a shared entity's ref"),
         imageSrc: z.string().min(1).optional(),
         place: targetPlaceSchema.nullable().optional(),
-        enabled: z.boolean().optional().describe("false = switched off: not in the reader's book; true = in the book again"),
+        enabled: z.boolean().optional().describe("false = switched off: not in the reader's experience; true = in the experience again"),
       }),
       annotations: write,
     },
-    guard(async ({ book, target, entity, ref, imageSrc, place, enabled }) => {
+    guard(async ({ experience, target, entity, ref, imageSrc, place, enabled }) => {
       const body: Json = {};
       if (ref !== undefined) body.ref = ref;
       else if (entity !== undefined) body.entity = entity;
@@ -432,10 +435,10 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       if (place !== undefined) body.place = place;
       if (enabled !== undefined) body.enabled = enabled;
       if (Object.keys(body).length === 0) return fail({ error: { code: "mcp", message: "send entity, ref, imageSrc, place or enabled" } });
-      const { refused, warnings } = entity ? await checkWrite(entity, "entity", () => bookModel(book)) : { refused: null, warnings: {} };
+      const { refused, warnings } = entity ? await checkWrite(entity, "entity", () => experienceModel(experience)) : { refused: null, warnings: {} };
       if (refused) return refused;
-      const [result, t] = await Promise.all([api.call<TargetSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/targets/${encodeURIComponent(target)}`, body), tree(book)]);
-      return text({ ...result, ...warnings, open: editorHref(links, book, sceneOf(t, target)) });
+      const [result, t] = await Promise.all([api.call<TargetSaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/targets/${encodeURIComponent(target)}`, body), tree(experience)]);
+      return text({ ...result, ...warnings, open: editorHref(links, experience, sceneOf(t, target)) });
     }),
   );
 
@@ -443,9 +446,9 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "add_entry",
     {
       description:
-        "Makes a new entry on a scene: `scene` (a scene id – list_scenes, get_book) and `surface` (one of its surfaces – needed when the scene has several). Then: title, category (default glossary – the reader lists it as \"Marginalia\"), body (Markdown with the book's variables – describe_content_model entryText), caption (the line under the entry's picture, plain text), and its target – `imageSrc` (the printed image: an uploaded image asset's url), `place` (where it lies on a surface of the scene, in mm), `entity` (its AR content as a node tree, or { ref }) – or no target: an entry read only in the list (a glossary term, a text). The id comes from the title unless given; 409 duplicate-id. The reader tracks a target after a publish.",
+        "Makes a new entry on a scene: `scene` (a scene id – list_scenes, get_experience) and `surface` (one of its surfaces – needed when the scene has several). Then: title, category (default glossary – the reader lists it as \"Marginalia\"), body (Markdown with the experience's variables – describe_content_model entryText), caption (the line under the entry's picture, plain text), and its target – `imageSrc` (the printed image: an uploaded image asset's url), `place` (where it lies on a surface of the scene, in mm), `entity` (its AR content as a node tree, or { ref }) – or no target: an entry read only in the list (a glossary term, a text). The id comes from the title unless given; 409 duplicate-id. The reader tracks a target after a publish.",
       inputSchema: z.object({
-        book: BOOK,
+        experience: EXPERIENCE,
         title: z.string().min(1),
         scene: ID.describe("the entry's scene (list_scenes)"),
         surface: ID.optional().describe("one of the scene's surfaces – needed when it has several"),
@@ -463,39 +466,39 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    guard(async ({ book, target, ...entry }) => {
+    guard(async ({ experience, target, ...entry }) => {
       if (entry.body !== undefined) {
         const refused = checkEntryText(entry.body);
         if (refused) return refused;
       }
       const entity = target?.entity;
       const inline = entity && !("ref" in entity && Object.keys(entity).length === 1);
-      const { refused, warnings } = inline ? await checkWrite(entity, "target.entity", () => bookModel(book)) : { refused: null, warnings: {} };
+      const { refused, warnings } = inline ? await checkWrite(entity, "target.entity", () => experienceModel(experience)) : { refused: null, warnings: {} };
       if (refused) return refused;
-      const result = await api.call<EntryAdded>("POST", `/editor/books/${encodeURIComponent(book)}/entries`, { ...entry, ...(target ? { target } : {}) });
-      return text({ ...result, ...warnings, open: editorHref(links, book, result.scene) });
+      const result = await api.call<EntryAdded>("POST", `/editor/experiences/${encodeURIComponent(experience)}/entries`, { ...entry, ...(target ? { target } : {}) });
+      return text({ ...result, ...warnings, open: editorHref(links, experience, result.scene) });
     }),
   );
 
-  // ── the book's texts: entries and the book (#223) ──
+  // ── the experience's texts: entries and the experience (#223) ──
 
   server.registerTool(
     "get_entries",
     {
       description:
-        "Every entry of the book in the book's order with its fields as written – title, category, scene, surface, body (Markdown with the book's variables), author, image, caption (the line under the picture), media (a link's URL), tags – and its target's id and image (null: read in the list only). Optionally only one category, or the entries whose title, body or tags hold a word.",
+        "Every entry of the experience in the experience's order with its fields as written – title, category, scene, surface, body (Markdown with the experience's variables), author, image, caption (the line under the picture), media (a link's URL), tags – and its target's id and image (null: read in the list only). Optionally only one category, or the entries whose title, body or tags hold a word.",
       inputSchema: z.object({
-        book: BOOK,
+        experience: EXPERIENCE,
         category: z.enum(EntryCategory).optional(),
         search: z.string().optional().describe("a word the title, body or tags hold (case does not matter)"),
       }),
       annotations: read,
     },
-    guard(async ({ book, category, search }) => {
-      const { entries } = await api.call<EntryList>("GET", `/editor/books/${encodeURIComponent(book)}/entries`);
+    guard(async ({ experience, category, search }) => {
+      const { entries } = await api.call<EntryList>("GET", `/editor/experiences/${encodeURIComponent(experience)}/entries`);
       const word = search?.toLowerCase();
       const found = entries.filter(e => (!category || e.category === category) && (!word || [e.title, e.body, e.tags.join(" ")].join(" ").toLowerCase().includes(word)));
-      return text({ entries: found, count: found.length, open: editorHref(links, book) });
+      return text({ entries: found, count: found.length, open: editorHref(links, experience) });
     }),
   );
 
@@ -503,10 +506,10 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "update_entry",
     {
       description:
-        "Changes an entry's fields – send only what changes: title, category, scene (moves it to that scene – list_scenes), surface (one of its scene's surfaces; null: none – a scene with several surfaces needs one), body (Markdown: paragraphs at blank lines, *emphasis*, **strong**, [links](https://…); the book's variables in braces – {hasKey}, {hasKey: …|…} – describe_content_model entryText), author, tags (the whole list), image (a picture of the book's Library: an uploaded image's url or a file of the import), caption (the line under the picture, plain text – \"Image: … by …\"; not the Library's credit line, set_asset_credits), media (a link's http(s) URL); null removes author, image, caption or media. A body whose braces do not parse is refused before it is sent. The change is recorded; the person checks it in the editor.",
+        "Changes an entry's fields – send only what changes: title, category, scene (moves it to that scene – list_scenes), surface (one of its scene's surfaces; null: none – a scene with several surfaces needs one), body (Markdown: paragraphs at blank lines, *emphasis*, **strong**, [links](https://…); the experience's variables in braces – {hasKey}, {hasKey: …|…} – describe_content_model entryText), author, tags (the whole list), image (a picture of the experience's Library: an uploaded image's url or a file of the import), caption (the line under the picture, plain text – \"Image: … by …\"; not the Library's credit line, set_asset_credits), media (a link's http(s) URL); null removes author, image, caption or media. A body whose braces do not parse is refused before it is sent. The change is recorded; the person checks it in the editor.",
       inputSchema: z.object({
-        book: BOOK,
-        entry: ID.describe("the entry's id (get_entries, get_book)"),
+        experience: EXPERIENCE,
+        entry: ID.describe("the entry's id (get_entries, get_experience)"),
         title: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
         category: z.enum(EntryCategory).optional(),
         scene: ID.optional().describe("the scene to move it to (list_scenes)"),
@@ -520,36 +523,47 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       }),
       annotations: write,
     },
-    guard(async ({ book, entry, ...changes }) => {
+    guard(async ({ experience, entry, ...changes }) => {
       if (Object.keys(changes).length === 0) return fail({ error: { code: "mcp", message: "send at least one field to change" } });
       if (changes.media && !isLinkUrl(changes.media)) return fail({ error: { code: "invalid-entry", message: "media must be an http(s) URL (nothing was sent)." } });
       if (changes.body !== undefined) {
         const refused = checkEntryText(changes.body);
         if (refused) return refused;
       }
-      const result = await api.call<EntrySaved>("PUT", `/editor/books/${encodeURIComponent(book)}/entries/${encodeURIComponent(entry)}`, changes);
-      return text({ ...result, ...textWarnings(changes.body), open: editorHref(links, book, result.scene) });
+      const result = await api.call<EntrySaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/entries/${encodeURIComponent(entry)}`, changes);
+      return text({ ...result, ...textWarnings(changes.body), open: editorHref(links, experience, result.scene) });
     }),
   );
 
   server.registerTool(
-    "update_book",
+    "update_experience",
     {
       description:
-        "Changes the book's title, author or publisher – the reader's splash, home page and onboarding show them (the onboarding itself is the app's, not the book's) – or its source of truth: `sourceOfTruth` print (print first: the printed book is the truth, its scenes come from an import of the layout) or digital (digital first: the editor is the truth) – change it only with the person's yes. Scenes are added, moved and removed in both. Send what changes; publisher null (or \"\") removes it. The change is recorded.",
+        "Changes the experience's title – the reader's splash, home page and account show it – or its printed book: `book` { author, publisher? } is the printed book this experience accompanies (the splash shows the author and the publisher above Start; the onboarding itself is the app's, not the experience's). Send what changes: `book` { author } or { publisher } changes those fields (publisher null or \"\" removes it); `book: null` removes the printed book – an experience without one (a wall, a room, an exhibition) – only with the person's yes; a new printed book needs `author`. The change is recorded.",
       inputSchema: z.object({
-        book: BOOK,
+        experience: EXPERIENCE,
         title: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
-        author: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
-        publisher: z.string().max(TEXT_MAX_LENGTH).nullable().optional(),
-        sourceOfTruth: z.enum(SOURCES_OF_TRUTH).optional().describe("print = print first (scenes from the layout), digital = digital first (scenes made here)"),
+        book: z
+          .object({
+            author: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
+            publisher: z.string().max(TEXT_MAX_LENGTH).nullable().optional(),
+          })
+          .strict()
+          .nullable()
+          .optional()
+          .describe("the printed book: { author?, publisher? } – the fields that change; null removes the printed book"),
       }),
       annotations: write,
     },
-    guard(async ({ book, ...changes }) => {
-      if (Object.keys(changes).length === 0) return fail({ error: { code: "mcp", message: "send title, author, publisher or sourceOfTruth" } });
-      const result = await api.call<BookSaved>("PUT", `/editor/books/${encodeURIComponent(book)}`, changes);
-      return text({ ...result, open: editorHref(links, book) });
+    guard(async ({ experience, title, book }) => {
+      const changes: ExperienceUpdate = {};
+      if (title !== undefined) changes.title = title;
+      if (book !== undefined) changes.book = book;
+      if (Object.keys(changes).length === 0 || (book && Object.keys(book).length === 0 && title === undefined)) {
+        return fail({ error: { code: "mcp", message: "send title, or book with author or publisher (book: null removes the printed book)" } });
+      }
+      const result = await api.call<ExperienceSaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}`, changes);
+      return text({ ...result, open: editorHref(links, experience) });
     }),
   );
 
@@ -559,14 +573,14 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       description:
         "Removes an entry with its target, the entity used only there and – only if asked – the Library files used only there, in **two steps**: the first call removes nothing and answers `impact` (the target, the entity that goes, a shared entity that is kept with its other targets, the Library files used only here and used elsewhere) and a short-lived `confirmation`. Show the impact to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. `deleteFiles: true` also deletes the files used only here – only when the person asked for it (off by default; files used elsewhere are never deleted). Every removed row is in the change log, naming this AI connection.",
       inputSchema: z.object({
-        book: BOOK,
+        experience: EXPERIENCE,
         entry: ID,
         confirm: z.string().optional().describe("the second step: the confirmation id of the impact the person agreed to"),
         deleteFiles: z.boolean().optional().describe("with confirm: also delete the Library files used only here – only when the person asked for it"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
     },
-    guard(async ({ book, entry, confirm, deleteFiles }) => removeStep("delete_entry", book, `/editor/books/${encodeURIComponent(book)}/entries/${encodeURIComponent(entry)}`, confirm, deleteFiles)),
+    guard(async ({ experience, entry, confirm, deleteFiles }) => removeStep("delete_entry", experience, `/editor/experiences/${encodeURIComponent(experience)}/entries/${encodeURIComponent(entry)}`, confirm, deleteFiles)),
   );
 
   // ── writing: scenes, groups (#307, content schema 3.0 – a scene's order is its position, its surfaces are placed) ──
@@ -606,36 +620,36 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "list_scenes",
     {
       description:
-        "The book's scenes in order (a scene is one step of the experience – a double page, a cover, a wall, a room): id, position, label, group, passes, its surfaces (id, label, widthMm, heightMm, place in the scene, `reference` – the editor-only reference image, null: none), how many entries and targets lie on it – and the groups with their scenes.",
-      inputSchema: z.object({ book: BOOK }),
+        "The experience's scenes in order (a scene is one step of the experience – a double page, a cover, a wall, a room): id, position, label, group, passes, its surfaces (id, label, widthMm, heightMm, place in the scene, `reference` – the editor-only reference image, null: none), how many entries and targets lie on it – and the groups with their scenes.",
+      inputSchema: z.object({ experience: EXPERIENCE }),
       annotations: read,
     },
-    guard(async ({ book }) => {
-      const result = await api.call<SceneList>("GET", `/editor/books/${encodeURIComponent(book)}/scenes`);
-      return text({ ...result, open: editorHref(links, book) });
+    guard(async ({ experience }) => {
+      const result = await api.call<SceneList>("GET", `/editor/experiences/${encodeURIComponent(experience)}/scenes`);
+      return text({ ...result, open: editorHref(links, experience) });
     }),
   );
 
   server.registerTool(
     "add_scene",
     {
-      description: `Adds a scene anywhere in the order, to a print-first or a digital-first book alike: \`preset\` (default double) – ${SCENE_PRESETS.join(", ")}: double = one surface ${SCENE_PAGE_MM.width * 2} × ${SCENE_PAGE_MM.height} mm (a double page), single = one page ${SCENE_PAGE_MM.width} × ${SCENE_PAGE_MM.height} mm (a cover is a single scene first in the order), wall = ${SCENE_WALL_MM.width} × ${SCENE_WALL_MM.height} mm standing ahead (rx 90) – gives its surfaces unless \`surfaces\` names them (surfaces without a place are laid in a row). Place it with after / before (a scene id) or position (an index); none = last. Optional: id (made by the server unless given), label (what the reader's switcher shows – 186–187, Studio wall), group. The change is recorded.`,
+      description: `Adds a scene anywhere in the order, to any experience: \`preset\` (default double) – ${SCENE_PRESETS.join(", ")}: double = one surface ${SCENE_PAGE_MM.width * 2} × ${SCENE_PAGE_MM.height} mm (a double page), single = one page ${SCENE_PAGE_MM.width} × ${SCENE_PAGE_MM.height} mm (a cover is a single scene first in the order), wall = ${SCENE_WALL_MM.width} × ${SCENE_WALL_MM.height} mm standing ahead (rx 90) – gives its surfaces unless \`surfaces\` names them (surfaces without a place are laid in a row). Place it with after / before (a scene id) or position (an index); none = last. Optional: id (made by the server unless given), label (what the reader's switcher shows – 186–187, Studio wall), group. The change is recorded.`,
       inputSchema: z.object({
-        book: BOOK,
+        experience: EXPERIENCE,
         preset: z.enum(SCENE_PRESETS).optional(),
         ...placeSchema,
         id: ID.optional(),
         label: z.string().min(1).max(TEXT_MAX_LENGTH).optional().describe("what the reader shows for the scene – free text"),
-        group: ID.optional().describe("a group of the book (list_scenes)"),
+        group: ID.optional().describe("a group of the experience (list_scenes)"),
         surfaces: surfacesSchema.optional().describe("instead of the preset's"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    guard(async ({ book, ...body }) => {
+    guard(async ({ experience, ...body }) => {
       const refused = onePlace(body);
       if (refused) return refused;
-      const result = await api.call<SceneAdded>("POST", `/editor/books/${encodeURIComponent(book)}/scenes`, body);
-      return text({ ...result, open: editorHref(links, book, result.scene.id) });
+      const result = await api.call<SceneAdded>("POST", `/editor/experiences/${encodeURIComponent(experience)}/scenes`, body);
+      return text({ ...result, open: editorHref(links, experience, result.scene.id) });
     }),
   );
 
@@ -645,7 +659,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       description:
         "Moves one or several scenes as a block (in their present order) – after / before a scene or to a position (an index among the scenes that stay) – or into a group (`group`: after its last scene unless a place is given) or out of their group (`group: null`: they stay in place, unless they sit inside it – then right after it). **Two steps**: without `apply` nothing is written – the plan answers the new `order`, the scenes that `moved` and the `groups` changes. Show it to the person; with their yes call again with the same arguments and `apply: true`. Every change is recorded.",
       inputSchema: z.object({
-        book: BOOK,
+        experience: EXPERIENCE,
         scenes: z.array(ID).min(1).describe("the scenes to move (list_scenes)"),
         ...placeSchema,
         group: ID.nullable().optional().describe("a group to move them into, or null to take them out of theirs"),
@@ -653,14 +667,14 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    guard(async ({ book, ...body }) => {
+    guard(async ({ experience, ...body }) => {
       const refused = onePlace(body);
       if (refused) return refused;
       if (body.after === undefined && body.before === undefined && body.position === undefined && body.group === undefined) {
         return fail({ error: { code: "mcp", message: "say where to: after, before, position or group" } });
       }
-      const result = await api.call<ScenesMoved>("POST", `/editor/books/${encodeURIComponent(book)}/scenes/move`, body);
-      return text({ ...result, ...(result.applied ? {} : { next: "Nothing was written. Show the person the new order and the group changes; only with their yes call move_scenes again with the same arguments and apply: true." }), open: editorHref(links, book) });
+      const result = await api.call<ScenesMoved>("POST", `/editor/experiences/${encodeURIComponent(experience)}/scenes/move`, body);
+      return text({ ...result, ...(result.applied ? {} : { next: "Nothing was written. Show the person the new order and the group changes; only with their yes call move_scenes again with the same arguments and apply: true." }), open: editorHref(links, experience) });
     }),
   );
 
@@ -668,9 +682,9 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_scene",
     {
       description:
-        "Changes a scene: `label` (free text – what the reader's switcher shows), `group` (a group of the book; null takes it out – the scene stays in place), `surfaces` (the whole list, at least one – add, remove, resize, label, place: { id, label?, widthMm, heightMm, place? }; a surface without a place is laid in a row; a surface that goes takes its reference image), `passes` = the scene's own post-processing that replaces the book's here ([{ type, enabled?, …parameters }] – the built-in types and the passes of the book's plugins, describe_content_model { book } passes; [] turns post-processing off here, null gives the scene the book's passes again). Send what changes; checked against the contract. Surfaces that entries or targets lie on go only with `apply: true` – the first call answers 409 surfaces-in-use naming them (details.entries, details.targets): show the person; with their yes call again with `apply: true` – the entries stay on the scene without a surface, the targets lose their place (`cleared`). A change is recorded.",
+        "Changes a scene: `label` (free text – what the reader's switcher shows), `group` (a group of the experience; null takes it out – the scene stays in place), `surfaces` (the whole list, at least one – add, remove, resize, label, place: { id, label?, widthMm, heightMm, place? }; a surface without a place is laid in a row; a surface that goes takes its reference image), `passes` = the scene's own post-processing that replaces the experience's here ([{ type, enabled?, …parameters }] – the built-in types and the passes of the experience's plugins, describe_content_model { experience } passes; [] turns post-processing off here, null gives the scene the experience's passes again). Send what changes; checked against the contract. Surfaces that entries or targets lie on go only with `apply: true` – the first call answers 409 surfaces-in-use naming them (details.entries, details.targets): show the person; with their yes call again with `apply: true` – the entries stay on the scene without a surface, the targets lose their place (`cleared`). A change is recorded.",
       inputSchema: z.object({
-        book: BOOK,
+        experience: EXPERIENCE,
         scene: ID.describe("the scene's id (list_scenes)"),
         label: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
         group: ID.nullable().optional(),
@@ -680,16 +694,16 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       }),
       annotations: write,
     },
-    guard(async ({ book, scene, ...body }) => {
+    guard(async ({ experience, scene, ...body }) => {
       if (Object.keys(body).filter(key => key !== "apply").length === 0) return fail({ error: { code: "mcp", message: "send label, group, surfaces or passes" } });
       let warnings: { warnings?: string[] } = {};
       if (body.passes) {
-        const check = await checkPassWrite(body.passes, "passes", () => bookModel(book));
+        const check = await checkPassWrite(body.passes, "passes", () => experienceModel(experience));
         if (check.refused) return check.refused;
         warnings = check.warnings;
       }
-      const result = await api.call<SceneSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/scenes/${encodeURIComponent(scene)}`, body);
-      return text({ scene: result.scene, cleared: result.cleared, ...warnings, open: editorHref(links, book, scene) });
+      const result = await api.call<SceneSaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/scenes/${encodeURIComponent(scene)}`, body);
+      return text({ scene: result.scene, cleared: result.cleared, ...warnings, open: editorHref(links, experience, scene) });
     }),
   );
 
@@ -697,16 +711,16 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "delete_scene",
     {
       description:
-        "Removes a scene of a print-first or digital-first book with everything on it – its entries, their targets, the entities used only there and, only if asked, the Library files used only there – in **two steps**: the first call removes nothing and answers `impact` (the scene, the entries, targets and entities that go, the shared entities that are kept with their other targets, the Library files used only here and used elsewhere) and a short-lived `confirmation`. Show the impact to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. `deleteFiles: true` also deletes the files used only here – only when the person asked for it (off by default; files used elsewhere are never deleted). 409 initial-scene for the scene the book opens on. Every removed row is in the change log, naming this AI connection.",
+        "Removes a scene with everything on it – its entries, their targets, the entities used only there and, only if asked, the Library files used only there – in **two steps**: the first call removes nothing and answers `impact` (the scene, the entries, targets and entities that go, the shared entities that are kept with their other targets, the Library files used only here and used elsewhere) and a short-lived `confirmation`. Show the impact to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. `deleteFiles: true` also deletes the files used only here – only when the person asked for it (off by default; files used elsewhere are never deleted). 409 initial-scene for the scene the experience opens on. Every removed row is in the change log, naming this AI connection.",
       inputSchema: z.object({
-        book: BOOK,
+        experience: EXPERIENCE,
         scene: ID.describe("the scene's id (list_scenes)"),
         confirm: z.string().optional().describe("the second step: the confirmation id of the impact the person agreed to"),
         deleteFiles: z.boolean().optional().describe("with confirm: also delete the Library files used only here – only when the person asked for it"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
     },
-    guard(async ({ book, scene, confirm, deleteFiles }) => removeStep("delete_scene", book, `/editor/books/${encodeURIComponent(book)}/scenes/${encodeURIComponent(scene)}`, confirm, deleteFiles)),
+    guard(async ({ experience, scene, confirm, deleteFiles }) => removeStep("delete_scene", experience, `/editor/experiences/${encodeURIComponent(experience)}/scenes/${encodeURIComponent(scene)}`, confirm, deleteFiles)),
   );
 
   server.registerTool(
@@ -715,7 +729,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       description:
         "Makes a group of the picked scenes – a label over several scenes (Front matter, a chapter, a room): one stop of the reader's bottom switcher. The scenes come together where the first of them is (in their present order; a scene of another group leaves it). **Two steps**: without `apply` the plan (the group's id and label, the new order, what moves); with the person's yes the same call with `apply: true`. The id: `id`, else made from the label. Rename with rename_group, ungroup with ungroup.",
       inputSchema: z.object({
-        book: BOOK,
+        experience: EXPERIENCE,
         label: z.string().min(1).max(TEXT_MAX_LENGTH),
         scenes: z.array(ID).min(1),
         id: ID.optional(),
@@ -723,18 +737,18 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    guard(async ({ book, ...body }) => {
-      const result = await api.call<GroupPlanned>("POST", `/editor/books/${encodeURIComponent(book)}/groups`, body);
-      return text({ ...result, ...(result.applied ? {} : { next: "Nothing was written. Show the person the group and the new order; only with their yes call group_scenes again with the same arguments and apply: true." }), open: editorHref(links, book) });
+    guard(async ({ experience, ...body }) => {
+      const result = await api.call<GroupPlanned>("POST", `/editor/experiences/${encodeURIComponent(experience)}/groups`, body);
+      return text({ ...result, ...(result.applied ? {} : { next: "Nothing was written. Show the person the group and the new order; only with their yes call group_scenes again with the same arguments and apply: true." }), open: editorHref(links, experience) });
     }),
   );
 
   server.registerTool(
     "rename_group",
-    { description: "Renames a group of the book (list_scenes groups). A change is recorded.", inputSchema: z.object({ book: BOOK, group: ID, label: z.string().min(1).max(TEXT_MAX_LENGTH) }), annotations: write },
-    guard(async ({ book, group, label }) => {
-      const result = await api.call<GroupSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/groups/${encodeURIComponent(group)}`, { label });
-      return text({ ...result, open: editorHref(links, book) });
+    { description: "Renames a group of the experience (list_scenes groups). A change is recorded.", inputSchema: z.object({ experience: EXPERIENCE, group: ID, label: z.string().min(1).max(TEXT_MAX_LENGTH) }), annotations: write },
+    guard(async ({ experience, group, label }) => {
+      const result = await api.call<GroupSaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/groups/${encodeURIComponent(group)}`, { label });
+      return text({ ...result, open: editorHref(links, experience) });
     }),
   );
 
@@ -742,12 +756,12 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "ungroup",
     {
       description: "Ungroups: the group goes, its scenes stay where they are, in order, without a group. Nothing else changes; a change is recorded per scene and for the groups.",
-      inputSchema: z.object({ book: BOOK, group: ID }),
+      inputSchema: z.object({ experience: EXPERIENCE, group: ID }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    guard(async ({ book, group }) => {
-      const result = await api.call<Ungrouped>("DELETE", `/editor/books/${encodeURIComponent(book)}/groups/${encodeURIComponent(group)}`);
-      return text({ ...result, open: editorHref(links, book) });
+    guard(async ({ experience, group }) => {
+      const result = await api.call<Ungrouped>("DELETE", `/editor/experiences/${encodeURIComponent(experience)}/groups/${encodeURIComponent(group)}`);
+      return text({ ...result, open: editorHref(links, experience) });
     }),
   );
 
@@ -757,9 +771,9 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "set_surface_reference",
     {
       description:
-        "Sets, replaces or removes a surface's reference image – the picture the editor's stage shows on that surface (a scanned double page, a photo of the wall). Editor-only: never in the content, readers never see it. `url`: an image of the book's Library (list_assets – upload_asset first, best with fit: \"reference\", scene and surface) or an imported file's /assets/content/… path; null removes it. `fit`: cover (default – cut to cover the surface), contain (fit inside) or stretch; a replace keeps the fit it had. `name` defaults to the Library's. fit / name without url change the present one. list_scenes shows each surface's `reference`. A change is recorded (revertable).",
+        "Sets, replaces or removes a surface's reference image – the picture the editor's stage shows on that surface (a scanned double page, a photo of the wall). Editor-only: never in the content, readers never see it. `url`: an image of the experience's Library (list_assets – upload_asset first, best with fit: \"reference\", scene and surface) or an imported file's /assets/content/… path; null removes it. `fit`: cover (default – cut to cover the surface), contain (fit inside) or stretch; a replace keeps the fit it had. `name` defaults to the Library's. fit / name without url change the present one. list_scenes shows each surface's `reference`. A change is recorded (revertable).",
       inputSchema: z.object({
-        book: BOOK,
+        experience: EXPERIENCE,
         scene: ID.describe("the scene's id (list_scenes)"),
         surface: ID.describe("the surface's id in that scene (list_scenes)"),
         url: z.string().min(1).nullable().optional().describe("a Library image's URL; null removes the reference"),
@@ -768,58 +782,58 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       }),
       annotations: write,
     },
-    guard(async ({ book, scene, surface, ...body }) => {
+    guard(async ({ experience, scene, surface, ...body }) => {
       if (body.url === undefined && body.fit === undefined && body.name === undefined) return fail({ error: { code: "mcp", message: "send url (null removes it), fit or name" } });
       const result = await api.call<SurfaceReferenceSaved>(
         "PUT",
-        `/editor/books/${encodeURIComponent(book)}/scenes/${encodeURIComponent(scene)}/surfaces/${encodeURIComponent(surface)}/reference`,
+        `/editor/experiences/${encodeURIComponent(experience)}/scenes/${encodeURIComponent(scene)}/surfaces/${encodeURIComponent(surface)}/reference`,
         body,
       );
-      return text({ ...result, open: editorHref(links, book, scene) });
+      return text({ ...result, open: editorHref(links, experience, scene) });
     }),
   );
 
-  // ── writing: the book's passes, appearance and environment ──
+  // ── writing: the experience's passes, appearance and environment ──
 
   server.registerTool(
-    "put_book_passes",
+    "put_experience_passes",
     {
       description:
-        "Sets the book's post-processing – the master chain every scene without its own passes shows: [{ type, enabled?, …parameters }] run in order over the rendered image (built-in types bloom, vignette, grade, and the passes the book's plugins register – describe_content_model { book } passes); enabled: false switches one pass off, keeping its place and values; [] = none; null removes it. A scene's own passes (put_scene) still replace it there. Checked against the contract; a change is recorded.",
-      inputSchema: z.object({ book: BOOK, passes: passesSchema.nullable() }),
+        "Sets the experience's post-processing – the master chain every scene without its own passes shows: [{ type, enabled?, …parameters }] run in order over the rendered image (built-in types bloom, vignette, grade, and the passes the experience's plugins register – describe_content_model { experience } passes); enabled: false switches one pass off, keeping its place and values; [] = none; null removes it. A scene's own passes (put_scene) still replace it there. Checked against the contract; a change is recorded.",
+      inputSchema: z.object({ experience: EXPERIENCE, passes: passesSchema.nullable() }),
       annotations: write,
     },
-    guard(async ({ book, passes }) => {
-      const check = passes === null ? { refused: null, warnings: {} } : await checkPassWrite(passes, "passes", () => bookModel(book));
+    guard(async ({ experience, passes }) => {
+      const check = passes === null ? { refused: null, warnings: {} } : await checkPassWrite(passes, "passes", () => experienceModel(experience));
       if (check.refused) return check.refused;
-      const result = await api.call<BookPassesSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/passes`, { passes });
-      return text({ ...result, ...check.warnings, open: editorHref(links, book) });
+      const result = await api.call<ExperiencePassesSaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/passes`, { passes });
+      return text({ ...result, ...check.warnings, open: editorHref(links, experience) });
     }),
   );
 
   server.registerTool(
-    "put_book_appearance",
+    "put_experience_appearance",
     {
       description:
-        `How the book's AR entities appear and disappear – a look per moment: { reveal?, found?, lost? }, each { type, …parameters } like a pass. reveal = the first find of a target, found = every later find, lost = the target is lost (played rewound in the look's outDuration). A moment left out takes found's look, then the default; null (or {}) removes the field – the default look plays everywhere. The whole appearance is replaced: send every moment that keeps a look. Types: the built-in ${APPEARANCE_TYPES.join(", ")} and the looks the book's plugins register (describe_content_model { book } appearance, with every parameter's range and default). Checked against the contract; a change is recorded.`,
-      inputSchema: z.object({ book: BOOK, appearance: appearanceSchema.nullable() }),
+        `How the experience's AR entities appear and disappear – a look per moment: { reveal?, found?, lost? }, each { type, …parameters } like a pass. reveal = the first find of a target, found = every later find, lost = the target is lost (played rewound in the look's outDuration). A moment left out takes found's look, then the default; null (or {}) removes the field – the default look plays everywhere. The whole appearance is replaced: send every moment that keeps a look. Types: the built-in ${APPEARANCE_TYPES.join(", ")} and the looks the experience's plugins register (describe_content_model { experience } appearance, with every parameter's range and default). Checked against the contract; a change is recorded.`,
+      inputSchema: z.object({ experience: EXPERIENCE, appearance: appearanceSchema.nullable() }),
       annotations: write,
     },
-    guard(async ({ book, appearance }) => {
+    guard(async ({ experience, appearance }) => {
       if (appearance !== null) {
-        const { problems, unverified } = checkAppearance(appearance, "appearance", usesPluginAppearances(appearance) ? await bookModel(book) : undefined);
+        const { problems, unverified } = checkAppearance(appearance, "appearance", usesPluginAppearances(appearance) ? await experienceModel(experience) : undefined);
         if (problems.length) {
           return fail({
             error: { code: "invalid-appearance", message: "appearance does not match the content contract (nothing was sent).", problems },
-            hint: `describe_content_model { book } lists the looks (${APPEARANCE_TYPES.join(", ")} and the book's plugins') with their parameters.`,
+            hint: `describe_content_model { experience } lists the looks (${APPEARANCE_TYPES.join(", ")} and the experience's plugins') with their parameters.`,
           });
         }
-        const result = await api.call<BookAppearanceSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/appearance`, { appearance });
-        const warnings = unverified.length ? { warnings: [`looks no recorded plugin provides: ${unverified.join(", ")} – a compiled plugin of the book must register them, else the publish is refused (unknown-appearances)`] } : {};
-        return text({ ...result, ...warnings, open: editorHref(links, book) });
+        const result = await api.call<ExperienceAppearanceSaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/appearance`, { appearance });
+        const warnings = unverified.length ? { warnings: [`looks no recorded plugin provides: ${unverified.join(", ")} – a compiled plugin of the experience must register them, else the publish is refused (unknown-appearances)`] } : {};
+        return text({ ...result, ...warnings, open: editorHref(links, experience) });
       }
-      const result = await api.call<BookAppearanceSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/appearance`, { appearance: null });
-      return text({ ...result, open: editorHref(links, book) });
+      const result = await api.call<ExperienceAppearanceSaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/appearance`, { appearance: null });
+      return text({ ...result, open: editorHref(links, experience) });
     }),
   );
 
@@ -827,9 +841,9 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_environment",
     {
       description:
-        "Sets the book's environment – the world around the reader while scanning and the onion sky: { world, onionSky, worldSrc?, skySrc? } – worldSrc a glTF model (an uploaded asset's url: .glb / .gltf) in place of the built-in world's scenery, skySrc an equirectangular image (.jpg / .png / .webp) for the sky; null removes it (the default world, the onion sky on). Book-level; the reader's Graphics switches still apply on top. Checked against the contract; a change is recorded.",
+        "Sets the experience's environment – the world around the reader while scanning and the onion sky: { world, onionSky, worldSrc?, skySrc? } – worldSrc a glTF model (an uploaded asset's url: .glb / .gltf) in place of the built-in world's scenery, skySrc an equirectangular image (.jpg / .png / .webp) for the sky; null removes it (the default world, the onion sky on). Experience-level; the reader's Graphics switches still apply on top. Checked against the contract; a change is recorded.",
       inputSchema: z.object({
-        book: BOOK,
+        experience: EXPERIENCE,
         environment: z
           .object({
             world: z.enum(ENVIRONMENT_WORLDS),
@@ -842,13 +856,13 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       }),
       annotations: write,
     },
-    guard(async ({ book, environment }) => {
+    guard(async ({ experience, environment }) => {
       const problems = environment === null ? [] : environmentProblems(environment);
       if (problems.length) {
         return fail({ error: { code: "invalid-environment", message: "environment does not match the content contract (nothing was sent).", problems }, hint: "describe_content_model lists the worlds and the files worldSrc and skySrc may be." });
       }
-      const result = await api.call<EnvironmentSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/environment`, { environment });
-      return text({ ...result, open: editorHref(links, book) });
+      const result = await api.call<EnvironmentSaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/environment`, { environment });
+      return text({ ...result, open: editorHref(links, experience) });
     }),
   );
 
@@ -856,19 +870,19 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
 
   server.registerTool(
     "list_assets",
-    { description: `The book's files: id, name, kind (${ASSET_KINDS.join(" | ")}), mime, size, width / height (pixels, images and videos), durationMs (videos), version, url (what nodes and targets name – and what a plugin loads a shader by, api.loadText(url)), usages (a shader's: the plugin sources that name its url), credits (the picture credits line, null: none yet – set_asset_credits). width / height / durationMs are read from the file on upload – null when unknown (an imported file, an older upload). A video plane is one target width wide and as high as the file's proportions; scale a portrait video's node by width / height to keep it within the target's width, and time an animation by durationMs. \`imported\`: a file of the content import (no upload) – read-only.`, inputSchema: z.object({ book: BOOK, kind: z.enum(ASSET_KINDS).optional() }), annotations: read },
-    guard(async ({ book, kind }) => text(await api.call<AssetList>("GET", `/editor/books/${encodeURIComponent(book)}/assets${kind ? `?kind=${kind}` : ""}`))),
+    { description: `The experience's files: id, name, kind (${ASSET_KINDS.join(" | ")}), mime, size, width / height (pixels, images and videos), durationMs (videos), version, url (what nodes and targets name – and what a plugin loads a shader by, api.loadText(url)), usages (a shader's: the plugin sources that name its url), credits (the picture credits line, null: none yet – set_asset_credits). width / height / durationMs are read from the file on upload – null when unknown (an imported file, an older upload). A video plane is one target width wide and as high as the file's proportions; scale a portrait video's node by width / height to keep it within the target's width, and time an animation by durationMs. \`imported\`: a file of the content import (no upload) – read-only.`, inputSchema: z.object({ experience: EXPERIENCE, kind: z.enum(ASSET_KINDS).optional() }), annotations: read },
+    guard(async ({ experience, kind }) => text(await api.call<AssetList>("GET", `/editor/experiences/${encodeURIComponent(experience)}/assets${kind ? `?kind=${kind}` : ""}`))),
   );
 
   server.registerTool(
     "upload_asset",
     {
       description:
-        "Uploads a file from this computer into the book's library: models (glb, gltf), videos (mp4, webm, mov), images (jpg, png, webp), sounds (mp3, m4a, ogg, wav), at most 64 MB, and shaders (glsl, frag, vert, wgsl – UTF-8 text, at most 256 KB; a plugin loads one by its url with api.loadText) and a video's subtitles (vtt – WebVTT text, at most 256 KB; named <video name>.<language>.vtt, e.g. speak.en.vtt for speak.mp4, it belongs to every video of that name in the book and shows as its subtitle line – no node names it). Answers the asset with its `url` – put it into a node's assets[].src or a target's imageSrc – and the file's width / height (images, videos) and durationMs (videos), null when the file does not tell. The same bytes twice are one asset, named as the last upload names it. A script (.ts, .js) is no asset: upload_plugin. " +
+        "Uploads a file from this computer into the experience's library: models (glb, gltf), videos (mp4, webm, mov), images (jpg, png, webp), sounds (mp3, m4a, ogg, wav), at most 64 MB, and shaders (glsl, frag, vert, wgsl – UTF-8 text, at most 256 KB; a plugin loads one by its url with api.loadText) and a video's subtitles (vtt – WebVTT text, at most 256 KB; named <video name>.<language>.vtt, e.g. speak.en.vtt for speak.mp4, it belongs to every video of that name in the experience and shows as its subtitle line – no node names it). Answers the asset with its `url` – put it into a node's assets[].src or a target's imageSrc – and the file's width / height (images, videos) and durationMs (videos), null when the file does not tell. The same bytes twice are one asset, named as the last upload names it. A script (.ts, .js) is no asset: upload_plugin. " +
         `**Images go under the image rule** (#298): the API stores a jpg / png / webp as WebP (quality ${IMAGE_WEBP_QUALITY}, lossless when it has transparency), upright by its EXIF orientation, metadata dropped, its longest side at most ${IMAGE_MAX_SIDE.default} px – never scaled up – and named <name>.webp (\`converted\` says so; an instance without GD stores it as it came). Pass \`fit: "target"\` for a target's printed image (at most ${IMAGE_MAX_SIDE.target} px). TIFF and PDF are no Library files: convert them locally first. ` +
-        "**Named by its use** (#298) when you say it: `entry` with fit target / entryImage → <entry>_target.webp / <entry>_image.webp, `scene` + `surface` with fit reference (a surface's reference image, set it with set_surface_reference) → <scene>_<surface>.webp (400 invalid-use for no surface of the book).",
+        "**Named by its use** (#298) when you say it: `entry` with fit target / entryImage → <entry>_target.webp / <entry>_image.webp, `scene` + `surface` with fit reference (a surface's reference image, set it with set_surface_reference) → <scene>_<surface>.webp (400 invalid-use for no surface of the experience).",
       inputSchema: z.object({
-        book: BOOK,
+        experience: EXPERIENCE,
         file: z.string().describe("a local file path"),
         name: z.string().optional().describe("the file name to store (default: the path's base name; a converted image ends in .webp)"),
         fit: z.enum(IMAGE_FITS as [string, ...string[]]).optional().describe(`an image's use: target (${IMAGE_MAX_SIDE.target} px), reference (a surface's reference image, ${IMAGE_MAX_SIDE.reference} px), entryImage, default (${IMAGE_MAX_SIDE.default} px)`),
@@ -878,11 +892,11 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    guard(async ({ book, file, name, fit, entry, scene, surface }) => {
+    guard(async ({ experience, file, name, fit, entry, scene, surface }) => {
       if ((scene === undefined) !== (surface === undefined)) return fail({ error: { code: "mcp", message: "scene and surface go together (with fit: reference)" } });
       const bytes = new Uint8Array(await readFile(file));
       const query = imageUseQuery(fit ? { fit: fit as ImageFit, entry, surface: scene && surface ? { scene, surface } : undefined } : undefined);
-      const result = await api.upload<AssetUploaded>("POST", `/editor/books/${encodeURIComponent(book)}/assets${query}`, bytes, name ?? basename(file));
+      const result = await api.upload<AssetUploaded>("POST", `/editor/experiences/${encodeURIComponent(experience)}/assets${query}`, bytes, name ?? basename(file));
       return text({ ...result, size: bytes.byteLength });
     }),
   );
@@ -891,14 +905,14 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "set_asset_credits",
     {
       description:
-        `Sets the picture credits of the book's files (#277): one free text line per file, by its url (list_assets – uploaded and imported files alike), as the book prints its credits – e.g. "Book Golem by TER-JAN / DeviantArt", "Lindsey Carr, An Issue of Control, 2013. Available via DogStreets", "Gene Kelly dancing, 1944. Gjon Mili The LIFE Picture Collection/Shutterstock". No fixed structure. Empty or null removes a line. At most ${CREDITS_BATCH_MAX} files per call, ${CREDITS_MAX} characters per line; one url that is no file of the Library refuses the whole call. Credits are no content: nothing to publish, no change in the book's log.`,
+        `Sets the picture credits of the experience's files (#277): one free text line per file, by its url (list_assets – uploaded and imported files alike), as the book prints its credits – e.g. "Book Golem by TER-JAN / DeviantArt", "Lindsey Carr, An Issue of Control, 2013. Available via DogStreets", "Gene Kelly dancing, 1944. Gjon Mili The LIFE Picture Collection/Shutterstock". No fixed structure. Empty or null removes a line. At most ${CREDITS_BATCH_MAX} files per call, ${CREDITS_MAX} characters per line; one url that is no file of the Library refuses the whole call. Credits are no content: nothing to publish, no change in the experience's log.`,
       inputSchema: z.object({
-        book: BOOK,
+        experience: EXPERIENCE,
         items: z.array(z.object({ url: z.string().min(1).describe("the file's url (list_assets)"), credits: z.string().max(CREDITS_MAX).nullable() })).min(1).max(CREDITS_BATCH_MAX),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    guard(async ({ book, items }) => text(await api.call<AssetCreditsSaved>("PUT", `/editor/books/${encodeURIComponent(book)}/assets/credits`, { items }))),
+    guard(async ({ experience, items }) => text(await api.call<AssetCreditsSaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/assets/credits`, { items }))),
   );
 
   server.registerTool(
@@ -906,11 +920,11 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     {
       description:
         "Step 1 of naming the Library's files by their use (#298) – read-only: the names every used file would take, by its first use in the scenes' order: an entry's printed image p118-1_target.webp, its colour picture p118-1_image.webp, another file of the entry or its own entity p118-1_<asset id>.glb, a surface's reference image <scene>_<surface>.webp, a shared entity's file <entity>_<asset id>.ext, the environment's environment_world / environment_sky. A file used in several places takes the first (`more` counts the rest); unused files and files only a plugin's source names keep their names; two files that would take one name get -2, -3. `renames` = only the files whose name changes: { url, imported, from, to, use: { kind, ref, scene }, more }. The name only – every URL stays, so no use breaks; an imported file (read-only) gets a listed name. Show the list to the person, then apply_asset_names.",
-      inputSchema: z.object({ book: BOOK }),
+      inputSchema: z.object({ experience: EXPERIENCE }),
       annotations: read,
     },
-    guard(async ({ book }) => {
-      const result = await api.call<AssetNamesPlan>("POST", `/editor/books/${encodeURIComponent(book)}/assets/names`, { apply: false });
+    guard(async ({ experience }) => {
+      const result = await api.call<AssetNamesPlan>("POST", `/editor/experiences/${encodeURIComponent(experience)}/assets/names`, { apply: false });
       return text({ ...result, hint: result.plan.renames.length ? "Nothing renamed yet: show the renames to the person, then apply_asset_names." : "Every used file is named by its use already." });
     }),
   );
@@ -919,18 +933,18 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "apply_asset_names",
     {
       description:
-        "Step 2 of naming the Library's files by their use (#298): makes the plan again (plan_asset_names – it may have changed since) and renames those files in one step – only after the person saw the plan. The name only: every URL and every use stays; an imported file's listed name is kept by its URL. Names are no content: nothing to publish, no change in the book's log.",
-      inputSchema: z.object({ book: BOOK }),
+        "Step 2 of naming the Library's files by their use (#298): makes the plan again (plan_asset_names – it may have changed since) and renames those files in one step – only after the person saw the plan. The name only: every URL and every use stays; an imported file's listed name is kept by its URL. Names are no content: nothing to publish, no change in the experience's log.",
+      inputSchema: z.object({ experience: EXPERIENCE }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    guard(async ({ book }) => text({ ...(await api.call<AssetNamesPlan>("POST", `/editor/books/${encodeURIComponent(book)}/assets/names`, { apply: true })), open: editorHref(links, book) })),
+    guard(async ({ experience }) => text({ ...(await api.call<AssetNamesPlan>("POST", `/editor/experiences/${encodeURIComponent(experience)}/assets/names`, { apply: true })), open: editorHref(links, experience) })),
   );
 
   server.registerTool(
     "delete_asset",
-    { description: "Deletes an uploaded file (every version). Refused while the file is used – a target, entry, entity, scene, a surface's reference image, the book (its environment or another setting) or a plugin source names it, the same uses list_assets counts (409 asset-in-use with the usages) unless `force`.", inputSchema: z.object({ book: BOOK, asset: z.string().uuid().describe("the asset's id (list_assets)"), force: z.boolean().optional() }), annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false } },
-    guard(async ({ book, asset, force }) => {
-      await api.call<void>("DELETE", `/editor/books/${encodeURIComponent(book)}/assets/${encodeURIComponent(asset)}${force ? "?force=1" : ""}`);
+    { description: "Deletes an uploaded file (every version). Refused while the file is used – a target, entry, entity, scene, a surface's reference image, the experience (its environment or another setting) or a plugin source names it, the same uses list_assets counts (409 asset-in-use with the usages) unless `force`.", inputSchema: z.object({ experience: EXPERIENCE, asset: z.string().uuid().describe("the asset's id (list_assets)"), force: z.boolean().optional() }), annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false } },
+    guard(async ({ experience, asset, force }) => {
+      await api.call<void>("DELETE", `/editor/experiences/${encodeURIComponent(experience)}/assets/${encodeURIComponent(asset)}${force ? "?force=1" : ""}`);
       return text({ deleted: asset });
     }),
   );
@@ -941,64 +955,64 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "publish",
     {
       description:
-        "Writes the draft as a content version into the content store of this instance's own environment – an instance publishes there and nowhere else (a local development API: `local`, the staging API: `staging`; any other env → 403 other-environment). `env` may be left out: the instance's own. The answer's `store` says where it went: `cdn` (the CDN has priority where one is connected) or `server` (this API's own store, with `warning`: no edge caching – tell the person). **production is refused** – publishing to readers is the person's Publish button in the editor. Signed in with an AI connection's token (osct_…) the API refuses every environment (403 not-for-ai): then the person publishes in the editor. 409 unknown-components, unknown-node-types or unknown-materials when a node uses a component, a node type or a material no compiled plugin provides, unknown-passes when the book's or a scene's post-processing names a pass no compiled plugin provides (the Code tab's sources reach readers through the content build only). Each environment serves one book: 409 other-book (with `current`, the book it serves) when it serves another – replacing it is the person's decision in the editor, never this tool's. The other refusals: 400 invalid-env, invalid-note, invalid-replace; 404 not-found (no such book); 502 content-store-failed and 500 content-store-unconfigured (the store could not be read or written – nothing went live). Every refusal comes with a hint.",
-      inputSchema: z.object({ book: BOOK, env: z.string().regex(ENV_NAME).optional().describe("the instance's own environment (default)"), note: z.string().optional() }),
+        "Writes the draft as a content version into the content store of this instance's own environment – an instance publishes there and nowhere else (a local development API: `local`, the staging API: `staging`; any other env → 403 other-environment). `env` may be left out: the instance's own. The answer's `store` says where it went: `cdn` (the CDN has priority where one is connected) or `server` (this API's own store, with `warning`: no edge caching – tell the person). **production is refused** – publishing to readers is the person's Publish button in the editor. Signed in with an AI connection's token (osct_…) the API refuses every environment (403 not-for-ai): then the person publishes in the editor. 409 unknown-components, unknown-node-types or unknown-materials when a node uses a component, a node type or a material no compiled plugin provides, unknown-passes when the experience's or a scene's post-processing names a pass no compiled plugin provides (the Code tab's sources reach readers through the content build only). Each environment serves one experience: 409 other-experience (with `current`, the experience it serves) when it serves another – replacing it is the person's decision in the editor, never this tool's. The other refusals: 400 invalid-env, invalid-note, invalid-replace; 404 not-found (no such experience); 502 content-store-failed and 500 content-store-unconfigured (the store could not be read or written – nothing went live). Every refusal comes with a hint.",
+      inputSchema: z.object({ experience: EXPERIENCE, env: z.string().regex(ENV_NAME).optional().describe("the instance's own environment (default)"), note: z.string().optional() }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
-    guard(async ({ book, env, note }) => {
+    guard(async ({ experience, env, note }) => {
       const { env: own, environments } = await api.call<EnvironmentsInfo>("GET", "/editor/environments");
       const target = env ?? own;
       if (target === "production") {
         return fail({
           error: { code: "production-is-a-person", message: "Publishing to production stays with a person: open the editor and press Publish there. This tool publishes only to a local or staging instance's own environment." },
-          open: editorHref(links, book),
+          open: editorHref(links, experience),
         });
       }
-      const result = await api.call<PublishResult>("POST", `/editor/books/${encodeURIComponent(book)}/publish`, { env: target, ...(note ? { note } : {}) });
+      const result = await api.call<PublishResult>("POST", `/editor/experiences/${encodeURIComponent(experience)}/publish`, { env: target, ...(note ? { note } : {}) });
       const warning = environments.find(e => e.env === target)?.warning;
-      return text({ ...result, ...(warning ? { warning } : {}), open: editorHref(links, book) });
+      return text({ ...result, ...(warning ? { warning } : {}), open: editorHref(links, experience) });
     }),
   );
 
   server.registerTool(
     "list_versions",
-    { description: "The publish log, newest first: env, build, hash, who, when, note.", inputSchema: z.object({ book: BOOK }), annotations: read },
-    guard(async ({ book }) => text(await api.call<{ versions: PublishedVersion[] }>("GET", `/editor/books/${encodeURIComponent(book)}/versions`))),
+    { description: "The publish log, newest first: env, build, hash, who, when, note.", inputSchema: z.object({ experience: EXPERIENCE }), annotations: read },
+    guard(async ({ experience }) => text(await api.call<{ versions: PublishedVersion[] }>("GET", `/editor/experiences/${encodeURIComponent(experience)}/versions`))),
   );
 
   server.registerTool(
     "list_changes",
-    { description: "The change log, newest first: id, kind (entity | target | entry | scene | order | groups | environment | passes | appearance | book | plugin | asset), ref, before, after, user, when; `set` / `reverts` for a revert's changes, `notRevertable` = why revert_change cannot take it back (null: it can). `limit` default 50, at most 500.", inputSchema: z.object({ book: BOOK, limit: z.number().int().min(1).max(500).optional() }), annotations: read },
-    guard(async ({ book, limit }) => text(await api.call<{ changes: Change[] }>("GET", `/editor/books/${encodeURIComponent(book)}/changes${limit ? `?limit=${limit}` : ""}`))),
+    { description: "The change log, newest first: id, kind (entity | target | entry | scene | order | groups | environment | passes | appearance | experience | plugin | asset), ref, before, after, user, when; `set` / `reverts` for a revert's changes, `notRevertable` = why revert_change cannot take it back (null: it can). `limit` default 50, at most 500.", inputSchema: z.object({ experience: EXPERIENCE, limit: z.number().int().min(1).max(500).optional() }), annotations: read },
+    guard(async ({ experience, limit }) => text(await api.call<{ changes: Change[] }>("GET", `/editor/experiences/${encodeURIComponent(experience)}/changes${limit ? `?limit=${limit}` : ""}`))),
   );
 
   // ── Reverts (#312): two steps – the plan, then with the person's yes `apply: true` ──
   const REVERT_NEXT = "Nothing was written. Show the person what changes (plan.changes: revert / conflict / not-revertable), the later edits of the same things (plan.later) and other people's changes (plan.others); only with their yes call again with apply: true.";
-  const reverted = (book: string, result: RevertResult) => text({
+  const reverted = (experience: string, result: RevertResult) => text({
     ...result,
     ...(result.applied ? {} : { next: result.plan.counts.revert ? REVERT_NEXT : "Nothing can be reverted: every change is a conflict or not revertable." }),
-    open: editorHref(links, book),
+    open: editorHref(links, experience),
   });
   server.registerTool(
     "revert_change",
     {
       description:
-        "Takes one saved change back (list_changes' id): its `before` is written again as a NEW change, so nothing is erased and the revert can itself be reverted. Later changes of the same thing (the same entity, target, entry, scene; the same fields of the book) would be lost, so they are reverted with it, newest first (plan.later). A thing that no longer holds what a change wrote is a conflict – listed, never overwritten. Creations, removals, moved entries, plugin sources and deleted files are not revertable. **Two steps**: without `apply` the plan; show it to the person, with their yes call again with `apply: true`. The draft only – readers see it with the next publish.",
-      inputSchema: z.object({ book: BOOK, change: z.string().min(1).describe("The change's id (list_changes)"), apply: z.boolean().optional() }),
+        "Takes one saved change back (list_changes' id): its `before` is written again as a NEW change, so nothing is erased and the revert can itself be reverted. Later changes of the same thing (the same entity, target, entry, scene; the same fields of the experience) would be lost, so they are reverted with it, newest first (plan.later). A thing that no longer holds what a change wrote is a conflict – listed, never overwritten. Creations, removals, moved entries, plugin sources and deleted files are not revertable. **Two steps**: without `apply` the plan; show it to the person, with their yes call again with `apply: true`. The draft only – readers see it with the next publish.",
+      inputSchema: z.object({ experience: EXPERIENCE, change: z.string().min(1).describe("The change's id (list_changes)"), apply: z.boolean().optional() }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
     },
-    guard(async ({ book, change, apply }) =>
-      reverted(book, await api.call<RevertResult>("POST", `/editor/books/${encodeURIComponent(book)}/changes/${encodeURIComponent(change)}/revert`, apply ? { apply: true } : {}))),
+    guard(async ({ experience, change, apply }) =>
+      reverted(experience, await api.call<RevertResult>("POST", `/editor/experiences/${encodeURIComponent(experience)}/changes/${encodeURIComponent(change)}/revert`, apply ? { apply: true } : {}))),
   );
   server.registerTool(
     "revert_to",
     {
       description:
         "Goes back to the state right after one saved change (list_changes' id): every change saved after it – by anyone – is reverted, newest first, as one new change set. Conflicts are listed and left alone, kinds the log cannot take back are listed as not revertable. **Two steps**: without `apply` the plan (the changes, plan.others = other people whose changes go); show it to the person, with their yes call again with `apply: true`. The draft only – never a publish.",
-      inputSchema: z.object({ book: BOOK, after: z.string().min(1).describe("The change to go back to (list_changes' id) – it stays, everything after it is reverted"), apply: z.boolean().optional() }),
+      inputSchema: z.object({ experience: EXPERIENCE, after: z.string().min(1).describe("The change to go back to (list_changes' id) – it stays, everything after it is reverted"), apply: z.boolean().optional() }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
     },
-    guard(async ({ book, after, apply }) =>
-      reverted(book, await api.call<RevertResult>("POST", `/editor/books/${encodeURIComponent(book)}/changes/revert-to`, { after, ...(apply ? { apply: true } : {}) }))),
+    guard(async ({ experience, after, apply }) =>
+      reverted(experience, await api.call<RevertResult>("POST", `/editor/experiences/${encodeURIComponent(experience)}/changes/revert-to`, { after, ...(apply ? { apply: true } : {}) }))),
   );
 }

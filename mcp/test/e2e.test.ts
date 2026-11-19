@@ -37,10 +37,10 @@ function lastCode(log: string): string | null {
 }
 
 const PLACE = { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 };
-/** A small 3.0 configuration: a cover and a double page, one surface each */
+/** A small 4.0 configuration: a cover and a double page, one surface each */
 const CONFIGURATION = {
-  version: { version: "1.0.0", timestamp: "2026-10-29T00:00:00Z", hash: "ab".repeat(32), schema: "3.0" },
-  book: { id: "osct", title: "Test Book", author: "Someone" },
+  version: { version: "1.0.0", timestamp: "2026-10-29T00:00:00Z", hash: "ab".repeat(32), schema: "4.0" },
+  experience: { id: "osct", title: "Test Experience", book: { author: "Someone" } },
   initialScene: "s1",
   scenes: [
     { id: "s1", label: "Cover", surfaces: [{ id: "surface", label: "Cover", widthMm: 230, heightMm: 320, place: PLACE }] },
@@ -151,7 +151,7 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect(verified.ok, JSON.stringify(verified.data)).toBe(true);
     expect(verified.data.user).toEqual({ email: "editor@example.test", roles: ["reader", "editor"] });
     expect(await names()).toEqual(
-      expect.arrayContaining(["list_books", "preview_import", "import_book", "get_book", "get_scene", "get_entity", "put_entity", "put_target", "add_entry", "delete_entry", "list_scenes", "add_scene", "put_scene", "move_scenes", "delete_scene", "put_book_passes", "put_book_appearance", "put_environment", "list_assets", "upload_asset", "delete_asset", "list_plugins", "get_plugin", "put_plugin", "delete_plugin", "get_draft", "publish", "list_versions", "list_changes", "describe_content_model"]),
+      expect.arrayContaining(["list_experiences", "preview_import", "import_experience", "get_experience", "get_scene", "get_entity", "put_entity", "put_target", "add_entry", "delete_entry", "list_scenes", "add_scene", "put_scene", "move_scenes", "delete_scene", "put_experience_passes", "put_experience_appearance", "put_environment", "list_assets", "upload_asset", "delete_asset", "list_plugins", "get_plugin", "put_plugin", "delete_plugin", "get_draft", "publish", "list_versions", "list_changes", "describe_content_model"]),
     );
     expect((await names()).filter(name => /spread|page|matter/.test(name))).toEqual([]);
     expect((await client.listPrompts()).prompts.map(p => p.name).sort()).toEqual(["add-target", "editor"]);
@@ -161,17 +161,18 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect(who.data.services).toEqual({ editor: true, admin: false });
   });
 
-  it("imports a 3.0 configuration and reads the tree and a scene", async () => {
-    expect((await call("list_books")).data.books).toEqual([]);
-    const imported = await call("import_book", { book: "osct", configuration: CONFIGURATION, assetsBase: "http://localhost:5174" });
+  it("imports a 4.0 configuration and reads the tree and a scene", async () => {
+    expect((await call("list_experiences")).data.experiences).toEqual([]);
+    const imported = await call("import_experience", { experience: "osct", configuration: CONFIGURATION, assetsBase: "http://localhost:5174" });
     expect(imported.ok).toBe(true);
     expect(imported.ok, JSON.stringify(imported.data)).toBe(true);
     expect(imported.data.counts).toEqual({ scenes: 2, entries: 2, targets: 2, entities: 1 });
-    const book = await call("get_book", { book: "osct" });
-    expect(book.data.counts).toEqual({ scenes: 2, entries: 2, targets: 2 });
-    expect(book.data.book).toMatchObject({ initialScene: "s1", scenes: 2 });
-    expect(book.data.scenes.map((s: any) => [s.id, s.label])).toEqual([["s1", "Cover"], ["studio-b", "30–31"]]);
-    const scene = await call("get_scene", { book: "osct", scene: "studio-b" });
+    const experience = await call("get_experience", { experience: "osct" });
+    expect(experience.data.counts).toEqual({ scenes: 2, entries: 2, targets: 2 });
+    expect(experience.data.experience).toMatchObject({ initialScene: "s1", scenes: 2, experience: { id: "osct", title: "Test Experience", book: { author: "Someone" } } });
+    expect(experience.data.experience.author).toBeUndefined();
+    expect(experience.data.scenes.map((s: any) => [s.id, s.label])).toEqual([["s1", "Cover"], ["studio-b", "30–31"]]);
+    const scene = await call("get_scene", { experience: "osct", scene: "studio-b" });
     expect(scene.data.scene).toMatchObject({ id: "studio-b", label: "30–31", surfaces: [{ id: "surface", widthMm: 460, heightMm: 320, place: PLACE }] });
     expect(scene.data.entries[0]).toMatchObject({ id: "castle", scene: "studio-b" });
     expect(scene.data.entries[0].target.ref).toBe("castle");
@@ -184,31 +185,31 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
   });
 
   it("re-imports in two steps: the comparison and a confirmation first, nothing replaced; then with confirm (#183)", async () => {
-    const args = { book: "osct", configuration: CONFIGURATION, assetsBase: "http://localhost:5174" };
+    const args = { experience: "osct", configuration: CONFIGURATION, assetsBase: "http://localhost:5174" };
     const preview = await call("preview_import", { configuration: CONFIGURATION, assetsBase: "http://localhost:5174" });
     expect(preview.ok, JSON.stringify(preview.data)).toBe(true);
-    expect(preview.data).toMatchObject({ imported: false, incoming: { book: "osct", title: "Test Book", build: "abababababab" }, counts: { scenes: 2, entries: 2, targets: 2, entities: 1 }, existing: { book: { id: "osct" }, draft: { edits: 0 } } });
-    const first = await call("import_book", args);
+    expect(preview.data).toMatchObject({ imported: false, incoming: { experience: "osct", title: "Test Experience", build: "abababababab" }, counts: { scenes: 2, entries: 2, targets: 2, entities: 1 }, existing: { experience: { id: "osct" }, draft: { edits: 0 } } });
+    const first = await call("import_experience", args);
     expect(first.ok).toBe(true);
     expect(first.data.imported).toBe(false);
-    expect(first.data.comparison).toMatchObject({ book: { id: "osct", title: "Test Book" }, incoming: { build: "abababababab", appVersion: "1.0.0", schema: "3.0" }, draft: { basedOn: { build: "abababababab", importedBy: "editor@example.test" }, edits: 0 }, same: true });
+    expect(first.data.comparison).toMatchObject({ experience: { id: "osct", title: "Test Experience" }, incoming: { build: "abababababab", appVersion: "1.0.0", schema: "4.0" }, draft: { basedOn: { build: "abababababab", importedBy: "editor@example.test" }, edits: 0 }, same: true });
     expect(first.data.confirmation.id).toMatch(/^[0-9]{10}[.][0-9a-f]{32}$/);
-    const second = await call("import_book", { ...args, confirm: first.data.confirmation.id });
+    const second = await call("import_experience", { ...args, confirm: first.data.confirmation.id });
     expect(second.ok).toBe(true);
     expect(second.data.counts).toEqual({ scenes: 2, entries: 2, targets: 2, entities: 1 });
     expect(second.data.imported).toMatchObject({ build: "abababababab", importedBy: "editor@example.test" });
   });
 
   it("edits the shared entity: a bad body never reaches the API, a good one is the draft", async () => {
-    const bad = await call("put_entity", { book: "osct", ref: "castle", entity: { type: "video", assets: [], params: { scale: "big" } } });
+    const bad = await call("put_entity", { experience: "osct", ref: "castle", entity: { type: "video", assets: [], params: { scale: "big" } } });
     expect(bad.ok).toBe(false);
     expect(bad.data.error.problems[0]).toMatch(/^entity\.params\.scale/);
-    const castle = (await call("get_entity", { book: "osct", ref: "castle" })).data.entity;
-    const edited = await call("put_entity", { book: "osct", ref: "castle", entity: { ...castle, params: { scale: 2, rotation: [90, 0, 0] }, components: [{ type: "tint", opacity: 0.4 }] } });
+    const castle = (await call("get_entity", { experience: "osct", ref: "castle" })).data.entity;
+    const edited = await call("put_entity", { experience: "osct", ref: "castle", entity: { ...castle, params: { scale: 2, rotation: [90, 0, 0] }, components: [{ type: "tint", opacity: 0.4 }] } });
     expect(edited.ok).toBe(true);
     expect(edited.data.entity.params.scale).toBe(2);
     expect(edited.data.warnings[0]).toContain("tint");
-    const draft = await call("get_draft", { book: "osct" });
+    const draft = await call("get_draft", { experience: "osct" });
     expect(draft.data.configuration.entities.castle.params.scale).toBe(2);
     expect(draft.data.configuration.entities.castle.assets[0].src).toBe("http://localhost:5174/assets/content/entities/castle/c.mp4");
   });
@@ -216,13 +217,13 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
   it("uploads a file and adds a target with it on the scene 30–31, then changes its place", async () => {
     const file = join(tmp, "dot.png");
     writeFileSync(file, PNG);
-    const uploaded = await call("upload_asset", { book: "osct", file });
+    const uploaded = await call("upload_asset", { experience: "osct", file });
     expect(uploaded.ok).toBe(true);
     expect(uploaded.data.asset.kind).toBe("image");
     expect(uploaded.data.asset.url).toContain("/content/assets/osct/");
     const url: string = uploaded.data.asset.url;
     const added = await call("add_entry", {
-      book: "osct",
+      experience: "osct",
       title: "Shadows",
       id: "shadows",
       scene: "studio-b",
@@ -234,106 +235,108 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect(added.data.entry).toMatchObject({ id: "shadows", scene: "studio-b", surface: "surface" });
     expect(added.data.scene).toBe("studio-b");
     expect(added.data.open).toBe("http://localhost:5175/editor/osct/studio-b/");
-    const moved = await call("put_target", { book: "osct", target: "shadows", place: { surface: "surface", x: 280, y: 60, width: 90 } });
+    const moved = await call("put_target", { experience: "osct", target: "shadows", place: { surface: "surface", x: 280, y: 60, width: 90 } });
     expect(moved.ok, JSON.stringify(moved.data)).toBe(true);
     expect(moved.data.target.place).toEqual({ surface: "surface", x: 280, y: 60, width: 90 });
     expect(moved.data.open).toBe("http://localhost:5175/editor/osct/studio-b/");
-    const scene = await call("get_scene", { book: "osct", scene: "studio-b" });
+    const scene = await call("get_scene", { experience: "osct", scene: "studio-b" });
     expect(scene.data.entries.map((e: any) => e.id)).toEqual(["castle", "shadows"]);
-    const assets = await call("list_assets", { book: "osct", kind: "image" });
+    const assets = await call("list_assets", { experience: "osct", kind: "image" });
     expect(assets.data.assets[0].usages).toBeGreaterThan(0);
-    const inUse = await call("delete_asset", { book: "osct", asset: uploaded.data.asset.id });
+    const inUse = await call("delete_asset", { experience: "osct", asset: uploaded.data.asset.id });
     expect(inUse.ok).toBe(false);
     expect(inUse.data.error.code).toBe("asset-in-use");
   });
 
-  it("writes the entry's text and the book's texts through the API (#223)", async () => {
-    const edited = await call("update_entry", { book: "osct", entry: "shadows", body: "The **shadows** move – {hasKey: you have the key|find the key}.", tags: ["dark"], media: "https://example.org/shadows" });
+  it("writes the entry's text and the experience's texts through the API (#223)", async () => {
+    const edited = await call("update_entry", { experience: "osct", entry: "shadows", body: "The **shadows** move – {hasKey: you have the key|find the key}.", tags: ["dark"], media: "https://example.org/shadows" });
     expect(edited.ok).toBe(true);
     expect(edited.data.entry.tags).toEqual(["dark"]);
-    const entries = await call("get_entries", { book: "osct", search: "shadows" });
+    const entries = await call("get_entries", { experience: "osct", search: "shadows" });
     expect(entries.data.entries.find((e: { id: string }) => e.id === "shadows").body).toContain("{hasKey:");
-    const refused = await call("update_entry", { book: "osct", entry: "shadows", image: "https://evil.example/x.jpg" });
+    const refused = await call("update_entry", { experience: "osct", entry: "shadows", image: "https://evil.example/x.jpg" });
     expect(refused.data.error.code).toBe("invalid-entry");
-    const book = await call("update_book", { book: "osct", publisher: "Building Fictions" });
-    expect(book.data.book.publisher).toBe("Building Fictions");
+    const experience = await call("update_experience", { experience: "osct", book: { publisher: "Building Fictions" } });
+    expect(experience.ok, JSON.stringify(experience.data)).toBe(true);
+    expect(experience.data.experience.book).toEqual({ author: "Someone", publisher: "Building Fictions" });
+    const titled = await call("update_experience", { experience: "osct", title: "Test Experience" });
+    expect(titled.data.experience).toMatchObject({ title: "Test Experience", book: { author: "Someone", publisher: "Building Fictions" } });
   });
 
   it("writes a plugin source and sees it in the model", async () => {
     const source = `export const register = (api) => {\n  api.registerLayer("glow", { description: "Glows.", nodeTypes: ["video"], params: {} }, { glsl: "return rgba;" });\n};\n`;
-    const saved = await call("put_plugin", { book: "osct", plugin: "glow", source });
+    const saved = await call("put_plugin", { experience: "osct", plugin: "glow", source });
     expect(saved.ok).toBe(true);
     expect(saved.data.registers).toEqual({ components: [], layers: ["glow"], nodeTypes: [], passes: [], materials: [], textures: [], appearances: [] });
     expect(saved.data.plugin.updatedBy).toBe("editor@example.test");
-    const read = await call("get_plugin", { book: "osct", plugin: "glow" });
+    const read = await call("get_plugin", { experience: "osct", plugin: "glow" });
     expect(read.data.plugin.source).toBe(source);
-    const model = await call("describe_content_model", { book: "osct" });
+    const model = await call("describe_content_model", { experience: "osct" });
     expect(model.data.components.declaredPlugins[0].id).toBe("tint");
     expect(model.data.components.codeTabSources).toEqual([{ id: "glow", components: [], layers: ["glow"], nodeTypes: [], passes: [], materials: [], textures: [], appearances: [] }]);
-    expect((await call("list_plugins", { book: "osct" })).data.plugins).toHaveLength(1);
+    expect((await call("list_plugins", { experience: "osct" })).data.plugins).toHaveLength(1);
   });
 
   it("publishes to local (the file lands in the store), refuses production, and the logs tell", async () => {
-    const published = await call("publish", { book: "osct", env: "local", note: "from the MCP" });
+    const published = await call("publish", { experience: "osct", env: "local", note: "from the MCP" });
     expect(published.ok).toBe(true);
     expect(published.data.build).toMatch(/^[0-9a-f]{12}$/);
     expect(existsSync(join(storeDir, "local", published.data.build, "game.config.json"))).toBe(true);
     expect(published.data).toMatchObject({ env: "local", store: "server", warning: expect.stringContaining("No CDN connected") });
-    const staging = await call("publish", { book: "osct", env: "staging" });
+    const staging = await call("publish", { experience: "osct", env: "staging" });
     expect(staging.data.error).toMatchObject({ status: 403, code: "other-environment", env: "local" });
-    const production = await call("publish", { book: "osct", env: "production" });
+    const production = await call("publish", { experience: "osct", env: "production" });
     expect(production.ok).toBe(false);
     expect(production.data.error.code).toBe("production-is-a-person");
-    const versions = await call("list_versions", { book: "osct" });
+    const versions = await call("list_versions", { experience: "osct" });
     expect(versions.data.versions[0]).toMatchObject({ env: "local", note: "from the MCP", publishedBy: "editor@example.test" });
-    const changes = await call("list_changes", { book: "osct", limit: 10 });
+    const changes = await call("list_changes", { experience: "osct", limit: 10 });
     expect(changes.data.changes.map((c: any) => c.kind)).toEqual(expect.arrayContaining(["entity", "target", "entry", "plugin"]));
-    expect((await call("delete_plugin", { book: "osct", plugin: "glow" })).ok).toBe(true);
+    expect((await call("delete_plugin", { experience: "osct", plugin: "glow" })).ok).toBe(true);
     // The Library's code files (#186): a shader as an asset, a script file as a plugin source
     const shaderFile = join(tmp, "pulse.frag");
     writeFileSync(shaderFile, "void main() { gl_FragColor = vec4(1.0); }\n");
-    const shader = await call("upload_asset", { book: "osct", file: shaderFile });
+    const shader = await call("upload_asset", { experience: "osct", file: shaderFile });
     expect(shader.data.asset).toMatchObject({ kind: "shader", name: "pulse.frag" });
     const scriptFile = join(tmp, "Wobble.ts");
     writeFileSync(scriptFile, "export const register = (api: any) => api.registerComponent('wobble', { description: 'w', params: {} }, () => ({}));\n");
-    const script = await call("upload_plugin", { book: "osct", file: scriptFile });
+    const script = await call("upload_plugin", { experience: "osct", file: scriptFile });
     expect(script.data.plugin.id).toBe("wobble");
     expect(script.data.registers.components).toEqual(["wobble"]);
-    expect((await call("upload_plugin", { book: "osct", file: scriptFile })).data.error.code).toBe("plugin-exists");
-    expect((await call("plugin_usages", { book: "osct", plugin: "wobble" })).data.usages).toEqual([]);
-    expect((await call("delete_plugin", { book: "osct", plugin: "wobble" })).ok).toBe(true);
-    expect((await call("delete_asset", { book: "osct", asset: shader.data.asset.id })).ok).toBe(true);
-    const asked = await call("delete_entry", { book: "osct", entry: "shadows" });
+    expect((await call("upload_plugin", { experience: "osct", file: scriptFile })).data.error.code).toBe("plugin-exists");
+    expect((await call("plugin_usages", { experience: "osct", plugin: "wobble" })).data.usages).toEqual([]);
+    expect((await call("delete_plugin", { experience: "osct", plugin: "wobble" })).ok).toBe(true);
+    expect((await call("delete_asset", { experience: "osct", asset: shader.data.asset.id })).ok).toBe(true);
+    const asked = await call("delete_entry", { experience: "osct", entry: "shadows" });
     expect(asked.data.impact).toMatchObject({ kind: "entry", entry: { id: "shadows" }, counts: { entries: 1, targets: 1, entities: 1 } });
-    expect((await call("get_scene", { book: "osct", scene: "studio-b" })).data.entries).toHaveLength(2);
-    const { second } = await remove("delete_entry", { book: "osct", entry: "shadows" });
+    expect((await call("get_scene", { experience: "osct", scene: "studio-b" })).data.entries).toHaveLength(2);
+    const { second } = await remove("delete_entry", { experience: "osct", entry: "shadows" });
     expect(second.ok, JSON.stringify(second.data)).toBe(true);
     expect(second.data.deleted).toMatchObject({ entries: ["shadows"], targets: ["shadows"], files: [] });
-    expect((await call("get_scene", { book: "osct", scene: "studio-b" })).data.entries).toHaveLength(1);
+    expect((await call("get_scene", { experience: "osct", scene: "studio-b" })).data.entries).toHaveLength(1);
   });
 
   it("scenes (3.0): adds from presets, places surfaces, sets passes and the environment, moves, groups, removes – the draft passes the guard", async () => {
     /** The draft as the reader reads it: the shipped guard passes it */
     const readerReads = async () => {
-      const draft = (await call("get_draft", { book: "osct" })).data.configuration;
+      const draft = (await call("get_draft", { experience: "osct" })).data.configuration;
       expect(() => assertGameConfiguration(draft, { unknownComponentTypes: "allow" }), JSON.stringify(draft.scenes)).not.toThrow();
-      expect(draft.version.schema).toMatch(/^3\./);
+      expect(draft.version.schema).toMatch(/^4\./);
       return draft;
     };
     await readerReads();
-    // An imported book is print first – it takes new scenes like a digital-first one
-    const double = await call("add_scene", { book: "osct", after: "s1", id: "studio-a", label: "Studio A" });
+    // Every experience adds and removes its scenes (#320: no source of truth any more)
+    const double = await call("add_scene", { experience: "osct", after: "s1", id: "studio-a", label: "Studio A" });
     expect(double.ok, JSON.stringify(double.data)).toBe(true);
     expect(double.data.scene).toMatchObject({ id: "studio-a", label: "Studio A", surfaces: [{ widthMm: 460, heightMm: 320 }] });
     expect(double.data.position).toBe(1);
     expect(double.data.open).toBe("http://localhost:5175/editor/osct/studio-a/");
-    const wall = await call("add_scene", { book: "osct", preset: "wall", id: "wall", label: "The wall" });
+    const wall = await call("add_scene", { experience: "osct", preset: "wall", id: "wall", label: "The wall" });
     expect(wall.ok, JSON.stringify(wall.data)).toBe(true);
     expect(wall.data.scene.surfaces).toEqual([expect.objectContaining({ widthMm: 2000, heightMm: 1500, place: expect.objectContaining({ rx: 90 }) })]);
     const wallSurface: string = wall.data.scene.surfaces[0].id;
-    expect((await call("update_book", { book: "osct", sourceOfTruth: "digital" })).data.book.sourceOfTruth).toBe("digital");
     // Two surfaces, one placed by hand, one laid in a row by the server
-    const surfaces = await call("put_scene", { book: "osct", scene: "studio-a", label: "Studio A – night", passes: [{ type: "vignette", strength: 0.8 }], surfaces: [
+    const surfaces = await call("put_scene", { experience: "osct", scene: "studio-a", label: "Studio A – night", passes: [{ type: "vignette", strength: 0.8 }], surfaces: [
       { id: "left", label: "40", widthMm: 230, heightMm: 320, place: { x: -115, y: 0, z: 0 } },
       { id: "poster", label: "Poster", widthMm: 400, heightMm: 600 },
     ] });
@@ -343,52 +346,52 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect(surfaces.data.scene.surfaces[0].place).toEqual({ x: -115, y: 0, z: 0, rx: 0, ry: 0, rz: 0 });
     for (const key of ["x", "y", "z", "rx", "ry", "rz"]) expect(typeof surfaces.data.scene.surfaces[1].place[key], key).toBe("number");
     // An entry on the poster with a placed target; taking the poster away needs the person's yes
-    const onPoster = await call("add_entry", { book: "osct", title: "On the poster", id: "on-the-poster", scene: "studio-a", surface: "poster", target: { imageSrc: "https://cdn.example/p.jpg", place: { surface: "poster", x: 10, y: 10, width: 50 } } });
+    const onPoster = await call("add_entry", { experience: "osct", title: "On the poster", id: "on-the-poster", scene: "studio-a", surface: "poster", target: { imageSrc: "https://cdn.example/p.jpg", place: { surface: "poster", x: 10, y: 10, width: 50 } } });
     expect(onPoster.ok, JSON.stringify(onPoster.data)).toBe(true);
     const narrowed = [{ id: "left", label: "40", widthMm: 230, heightMm: 320, place: { x: -115, y: 0, z: 0 } }];
-    const inUse = await call("put_scene", { book: "osct", scene: "studio-a", surfaces: narrowed });
+    const inUse = await call("put_scene", { experience: "osct", scene: "studio-a", surfaces: narrowed });
     expect(inUse.ok).toBe(false);
     expect(inUse.data.error).toMatchObject({ status: 409, code: "surfaces-in-use" });
-    const cleared = await call("put_scene", { book: "osct", scene: "studio-a", surfaces: narrowed, apply: true });
+    const cleared = await call("put_scene", { experience: "osct", scene: "studio-a", surfaces: narrowed, apply: true });
     expect(cleared.ok, JSON.stringify(cleared.data)).toBe(true);
     expect(cleared.data.cleared).toEqual({ entries: ["on-the-poster"], targets: ["on-the-poster"] });
-    const master = await call("put_book_passes", { book: "osct", passes: [{ type: "grade", reach: "all", saturation: 0.6 }] });
+    const master = await call("put_experience_passes", { experience: "osct", passes: [{ type: "grade", reach: "all", saturation: 0.6 }] });
     expect(master.data.passes).toEqual([{ type: "grade", reach: "all", saturation: 0.6 }]);
-    const environment = await call("put_environment", { book: "osct", environment: { world: "cafe", onionSky: false } });
+    const environment = await call("put_environment", { experience: "osct", environment: { world: "cafe", onionSky: false } });
     expect(environment.data.environment).toEqual({ world: "cafe", onionSky: false });
     let draft = await readerReads();
-    expect(draft.book).toMatchObject({ passes: [{ type: "grade", reach: "all", saturation: 0.6 }], environment: { world: "cafe", onionSky: false } });
+    expect(draft.experience).toMatchObject({ passes: [{ type: "grade", reach: "all", saturation: 0.6 }], environment: { world: "cafe", onionSky: false } });
     expect(draft.scenes.map((s: any) => s.id)).toEqual(["s1", "studio-a", "studio-b", "wall"]);
     expect(draft.entries.find((e: any) => e.id === "on-the-poster")).toMatchObject({ scene: "studio-a" });
     expect(draft.entries.find((e: any) => e.id === "on-the-poster").surface).toBeUndefined();
     // Move and group in two steps
-    const moving = await call("move_scenes", { book: "osct", scenes: ["wall"], position: 0 });
+    const moving = await call("move_scenes", { experience: "osct", scenes: ["wall"], position: 0 });
     expect(moving.data).toMatchObject({ applied: false, plan: { order: ["wall", "s1", "studio-a", "studio-b"], moved: ["wall"] } });
-    expect((await call("move_scenes", { book: "osct", scenes: ["wall"], position: 0, apply: true })).data.applied).toBe(true);
-    const grouped = await call("group_scenes", { book: "osct", label: "Studios", scenes: ["studio-a", "studio-b"], apply: true });
+    expect((await call("move_scenes", { experience: "osct", scenes: ["wall"], position: 0, apply: true })).data.applied).toBe(true);
+    const grouped = await call("group_scenes", { experience: "osct", label: "Studios", scenes: ["studio-a", "studio-b"], apply: true });
     expect(grouped.data).toMatchObject({ applied: true, plan: { group: { id: "studios" } } });
     draft = await readerReads();
     expect(draft.groups).toEqual([{ id: "studios", label: "Studios" }]);
-    const scenes = await call("list_scenes", { book: "osct" });
+    const scenes = await call("list_scenes", { experience: "osct" });
     expect(scenes.data.groups).toEqual([{ id: "studios", label: "Studios", scenes: ["studio-a", "studio-b"] }]);
     expect(scenes.data.scenes.find((s: any) => s.id === "wall").surfaces[0]).toMatchObject({ id: wallSurface, reference: null });
-    expect((await call("ungroup", { book: "osct", group: "studios" })).data.scenes).toEqual(["studio-a", "studio-b"]);
+    expect((await call("ungroup", { experience: "osct", group: "studios" })).data.scenes).toEqual(["studio-a", "studio-b"]);
     // Removing: the impact first; the opening scene stays
-    const full = await call("delete_scene", { book: "osct", scene: "studio-b" });
+    const full = await call("delete_scene", { experience: "osct", scene: "studio-b" });
     expect(full.data).toMatchObject({ deleted: false, impact: { kind: "scene", scene: { id: "studio-b" }, entries: [{ id: "castle" }] } });
     expect(full.data.next).toContain("Show the person the impact");
-    expect((await remove("delete_scene", { book: "osct", scene: "wall" })).second.ok).toBe(true);
-    expect((await remove("delete_scene", { book: "osct", scene: "studio-a" })).second.data.deleted.entries).toEqual(["on-the-poster"]);
-    const opening = await call("delete_scene", { book: "osct", scene: "s1" });
+    expect((await remove("delete_scene", { experience: "osct", scene: "wall" })).second.ok).toBe(true);
+    expect((await remove("delete_scene", { experience: "osct", scene: "studio-a" })).second.data.deleted.entries).toEqual(["on-the-poster"]);
+    const opening = await call("delete_scene", { experience: "osct", scene: "s1" });
     expect(opening.data.error).toMatchObject({ status: 409, code: "initial-scene" });
-    expect((await call("put_environment", { book: "osct", environment: null })).data.environment).toBeNull();
-    expect((await call("put_book_passes", { book: "osct", passes: null })).data.passes).toBeNull();
-    // A 3.0 book needs no migration
+    expect((await call("put_environment", { experience: "osct", environment: null })).data.environment).toBeNull();
+    expect((await call("put_experience_passes", { experience: "osct", passes: null })).data.passes).toBeNull();
+    // A 3.0 experience needs no migration
     await readerReads();
   });
 
   it("starts with an AI connection's token instead: no mail step, whoami names it, saves name it in the log, publish is refused (#142)", async () => {
-    // the person: signed in in the browser, makes the token on the books page (POST /user/tokens with the session)
+    // the person: signed in in the browser, makes the token on the experiences page (POST /user/tokens with the session)
     const json = async (method: string, path: string, body?: unknown, token?: string) => {
       const response = await fetch(`${api}${path}`, {
         method,
@@ -419,27 +422,27 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
         const raw = result.content.map(c => c.text ?? "").join("");
         return { ok: !result.isError, raw, data: JSON.parse(raw) as any };
       };
-      expect((await tokenClient.listTools()).tools.map(t => t.name)).toEqual(expect.arrayContaining(["whoami", "list_books", "put_entity", "publish"]));
+      expect((await tokenClient.listTools()).tools.map(t => t.name)).toEqual(expect.arrayContaining(["whoami", "list_experiences", "put_entity", "publish"]));
       const who = await callAs("whoami");
       expect(who.data.user.email).toBe("editor@example.test");
       expect(who.data.signedIn).toMatchObject({ with: "token", token: { name: "Claude in the e2e test" } });
       expect(who.raw).not.toContain(made.data.token);
 
-      const castle = (await callAs("get_entity", { book: "osct", ref: "castle" })).data.entity;
-      const saved = await callAs("put_entity", { book: "osct", ref: "castle", entity: { ...castle, params: { scale: 3 } } });
+      const castle = (await callAs("get_entity", { experience: "osct", ref: "castle" })).data.entity;
+      const saved = await callAs("put_entity", { experience: "osct", ref: "castle", entity: { ...castle, params: { scale: 3 } } });
       expect(saved.ok, saved.raw).toBe(true);
-      const changes = await callAs("list_changes", { book: "osct", limit: 1 });
+      const changes = await callAs("list_changes", { experience: "osct", limit: 1 });
       expect(changes.data.changes[0]).toMatchObject({ kind: "entity", ref: "castle", user: "editor@example.test", token: "Claude in the e2e test" });
 
       // a removal through the token: the same two steps as the person's (#198), the log names the token
-      const added = await callAs("add_entry", { book: "osct", title: "Robot", scene: "studio-b", target: { imageSrc: "https://cdn.example/robot.jpg" } });
+      const added = await callAs("add_entry", { experience: "osct", title: "Robot", scene: "studio-b", target: { imageSrc: "https://cdn.example/robot.jpg" } });
       expect(added.ok, added.raw).toBe(true);
-      const { second: removed } = await remove("delete_entry", { book: "osct", entry: added.data.entry.id }, callAs);
+      const { second: removed } = await remove("delete_entry", { experience: "osct", entry: added.data.entry.id }, callAs);
       expect(removed.ok, JSON.stringify(removed.data)).toBe(true);
-      const removal = await callAs("list_changes", { book: "osct", limit: 2 });
+      const removal = await callAs("list_changes", { experience: "osct", limit: 2 });
       expect(removal.data.changes.map((c: any) => [c.kind, c.after, c.token])).toEqual(expect.arrayContaining([["entry", null, "Claude in the e2e test"], ["target", null, "Claude in the e2e test"]]));
 
-      const publish = await callAs("publish", { book: "osct", env: "local" });
+      const publish = await callAs("publish", { experience: "osct", env: "local" });
       expect(publish.ok).toBe(false);
       expect(publish.data.error).toMatchObject({ status: 403, code: "not-for-ai" });
     } finally {

@@ -38,7 +38,7 @@ export const RULES: Rule[] = [
     name: "plugins-guide",
     uri: "osct://guides/plugins",
     title: "OSCT: writing a plugin",
-    description: "The authors' guide to the book's own code: a material layer, a component, the Code tab, the content build (docs/plugins.md).",
+    description: "The authors' guide to the experience's own code: a material layer, a component, the Code tab, the content build (docs/plugins.md).",
     mimeType: "text/markdown",
     text: () => doc("docs/plugins.md", "The plugin guide (docs/plugins.md) is not in reach of this server – run it from the repository."),
   },

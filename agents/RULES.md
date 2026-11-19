@@ -441,7 +441,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     (`agents/MEMORY.md` 2026-10-31).
 
 36. **Imports keep content paths** (Tilman, 2026-11-05, #252: "please save this as a rule for imports"): a configuration
-    imported into the editor (`POST …/import`, the MCP's `import_book`) names the content's files as `/assets/content/…`
+    imported into the editor (`POST …/import`, the MCP's `import_experience`) names the content's files as `/assets/content/…`
     paths, which resolve against the import's `assetsBase` – **never the absolute URLs the draft endpoint hands out**
     (`get_draft`, `GET …/draft/…` resolve every path below the book's current assets base). Before a draft is imported
     again – over a new content build, or after a merge with one – every `<base>/assets/content/<path>` goes back to
