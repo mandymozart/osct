@@ -329,3 +329,15 @@ DROP INDEX IF EXISTS book_versions_book;
 DROP INDEX IF EXISTS changes_book;
 DROP INDEX IF EXISTS assets_book;
 ALTER TABLE experiences DROP COLUMN author;
+
+-- Arrivals by source (#324, Arrivals.php): counts only – per source (`?s=` of a printed QR code or a link), UTC day and
+-- device class; no IP, no user
+CREATE TABLE IF NOT EXISTS arrivals (
+  source TEXT NOT NULL,
+  day TEXT NOT NULL,
+  device TEXT NOT NULL,
+  arrivals INTEGER NOT NULL DEFAULT 0,
+  first_arrivals INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (source, day, device)
+);
+CREATE INDEX IF NOT EXISTS arrivals_day ON arrivals (day);

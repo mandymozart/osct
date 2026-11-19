@@ -4,6 +4,20 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-19 – Arrivals by source and the landing redesign (#324)
+- The book's QR code (last page, final print PDF) reads `https://osct.buildingfictions.com/?s=bk1`: **`s` = the source**.
+  The app counts every `?s=` arrival (`ArrivalService`, `POST /api/arrivals`) and takes `s` out of the address; the
+  admin page shows them on top (*QR codes and links*). Counts only, per source / UTC day / device class, plus first
+  arrivals (a browser flag) – no IP, no user, no cookie (*my reading* of "track those incoming qr codes" within the data
+  sovereignty line). Any new code counts by itself; the landing page's own code is `lp1`.
+- `<desktop-landing>` redesigned (Tilman: "much sexier, more on the osct design concept from the book and app, better
+  padding"): the title set as on the book's title page in the gold gradient, the experience's target images scattered
+  in greyscale around it as on the book's pages (drifting with the pointer), the Mark, the phone tilted; then the QR
+  code on a champagne card, the address and install, three steps, the shop, a footer. *My reading* – open to Tilman's
+  eye: the images are the targets (not the page images), greyscale like the print.
+- [ ] Production: the book's code points at osct.buildingfictions.com – arrivals count there from the first deploy of
+  main with 3.2.0; staging counts its own.
+
 ## 2026-11-19 – The code speaks scenes (#319 refactor, Tilman's ten answers to agents/REFACTOR-319.md)
 - Bare *scene* = the content's scene; the rendered AR scene is always `Ar…` (`ArScene`, `ArState`, event `arState`).
 - Plugin API 2.0 with no alias (`api.scene`, `sceneChanged`, scope `scene`); behaviour rules amended inside schema 3.0

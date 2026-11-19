@@ -1,4 +1,4 @@
-# Admin: the instance's users and roles at /editor/admin
+# Admin: the instance's users and roles, and the QR codes' arrivals, at /editor/admin
 
 A small admin page inside the editor app (`editor/src/routes/(app)/admin/`, served at `/editor/admin` – the same build and
 the same `.htaccess` fallback as the editor, so both deploys serve it without new infrastructure; the editor app owns
@@ -18,6 +18,12 @@ no admin sees "No admin access" at `/editor/admin`.
 
 ## What it does
 
+- **QR codes and links** (#324, on top) – how many people came to the app from each printed QR code or link with
+  `?s=<source>` ([server, "Arrivals"](server.md#arrivals)): the book's code `bk1` (last page), the desktop landing
+  page's `lp1`, and any other source as soon as it is used (*Unknown source*). Per source: the arrivals in the chosen
+  window (7 / 30 / 90 days, a year) and in all, the **first** arrivals (browsers that had never arrived before), phone ·
+  tablet · desktop, the first and the last day, and a bar per day. **A new code** composes the address for a new
+  source (`…/?s=fl1`) to copy and print as a QR code. Counts only – no IP, no user.
 - **Users** – search by a part of the e-mail address (`GET /api/admin/users?q=`), newest first, up to 50 at a time
   (narrow the search for more). Each row: the address (`pw` when a password is set), the **roles as toggles**
   (`reader` is fixed – every account has it; `editor` and `admin` grant / revoke with one click; hovering a role
@@ -44,11 +50,13 @@ list = any option on).
 
 ```
 editor/src/routes/(app)/admin/+page.svelte   the page (search, roles, CSV, invite)
+editor/src/lib/ArrivalsSection.svelte        QR codes and links: the arrivals by source (#324)
 editor/src/routes/(app)/+layout.svelte       the gate: admin routes need admin, everything else editor
 editor/src/lib/api.ts                        listRoles, listUsers, grantRole, revokeRole, inviteEditor, downloadUsersCsv
 editor/src/lib/session.svelte.ts             isEditor / isAdmin from GET /user `roles`
 server/api/src/Roles.php                     the roles (tables roles, user_roles), grant / revoke, the configured lists
 server/api/src/Admin.php                     the admin endpoints and who may call them (admin by session or X-Admin-Secret)
+server/api/src/Arrivals.php                  POST /arrivals and GET /admin/arrivals (#324)
 ```
 
 The API is described in [server, "Admin API"](server.md#admin-api); the tests are the sections *roles, admin* of

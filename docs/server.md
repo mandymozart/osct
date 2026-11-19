@@ -251,6 +251,23 @@ secret or a session without the role → 403 `forbidden`. `POST /admin/migrate` 
 | `DELETE /admin/users/{id}/roles/{role}` | | `{ changed, user }` – revokes it; 409 `last-admin` when the last admin would go |
 | `POST /admin/editors` | `{ email }` | `{ user, created, changed }` – gives the user the role `editor`, creating the user (confirmed, `en`, no options) when the address is new |
 | `POST /admin/migrate` | header `X-Admin-Secret: SECRET` only | `{ statements }` – creates missing tables and columns (the container does this at every start) |
+| `GET /admin/arrivals?days=30` | | `{ days, from, to, sources: [{ source, arrivals, firstArrivals, devices: { phone, tablet, desktop }, firstDay, lastDay, recent: [{ day, arrivals }] }] }` – the arrivals by source ([Arrivals](#arrivals)): every source ever counted, most arrivals first; the totals over all time, `recent` the last `days` days (1–366, days without arrivals left out) |
+
+### Arrivals
+
+How many people come to the app from each printed QR code or link (#324, `Arrivals.php`): an address with
+**`?s=<source>`** – a short code of a–z, 0–9 and dashes – counts as an arrival from that source. The book's QR code
+(last page) is **`?s=bk1`**, the desktop landing page's own code `?s=lp1`; any other code counts as soon as it is used,
+so a new flyer or poster needs only its own source in its address.
+
+- The reader (`client/src/services/ArrivalService.ts`) reads `s` at startup, takes it out of the address (a reload or a
+  shared link does not count again) and sends **`POST /arrivals { source, device, first }`** → 204, without the cookie
+  (`credentials: "omit"`, so no CSRF and no session): `device` is `phone`, `tablet` or `desktop` from the user agent,
+  `first` whether this browser had never reported an arrival (`localStorage` `osct-arrived`). A malformed source → 400
+  `invalid-source`; more than 50 sources never seen before on one day → 429 `too-many-sources`.
+- The table `arrivals` keeps **counts only**: per source, UTC day and device, the arrivals and the first arrivals. No
+  IP, no user, no cookie, no user agent (data sovereignty, `agents/STRATEGY.md`).
+- The admin page shows them ([admin](admin.md), *QR codes and links*; `GET /admin/arrivals`).
 
 ## Configuration
 

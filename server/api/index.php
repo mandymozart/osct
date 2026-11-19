@@ -5,6 +5,8 @@ declare(strict_types=1);
  * OSCT users API (docs/server.md) – every request under /api/ comes here (.htaccess).
  *
  *   GET    /health                   { status, version, env, db }
+ *   POST   /arrivals                 { source, device, first } → 204: an arrival from a QR code or link with `?s=` (#324,
+ *                                    counts only, no cookie)
  *   POST   /auth/request             send the confirmation email (link + code)
  *   POST   /auth/verify              link token or request id + code → session token, or with `session: "cookie"` (a
  *                                    browser) the session cookie and its CSRF token
@@ -28,6 +30,7 @@ declare(strict_types=1);
  *   GET    /admin/users.csv?newsletter=1        the same as CSV – the newsletter list
  *   PUT    /admin/users/{id}/roles/{role}       grant the role · DELETE … revoke it
  *   POST   /admin/editors                       { email } → make the user an editor, creating it if new
+ *   GET    /admin/arrivals?days=30              arrivals by source (#324): the QR codes' and links' `?s=` counts
  *
  *   The editor (docs/server.md "Editor data"; a signed-in user with role editor, else 403):
  *   GET    /editor/experiences                  the experiences: id, title, experience, initialScene, scenes, updatedAt, lastPublish
@@ -90,7 +93,7 @@ declare(strict_types=1);
  * (ApiTokens). docs/server.md "Sessions, cookies and CSRF".
  */
 
-foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences', 'Arrivals'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -143,6 +146,8 @@ try {
         $route === 'GET /health' => Http::json(200, ['status' => 'ok', 'version' => Version::APP, 'env' => Config::env(), 'db' => Db::value('SELECT 1') == 1 ? 'ok' : 'error']),
         $route === 'POST /admin/migrate' => migrate(),
         $route === 'POST /admin/editors' => Admin::makeEditor(Http::body()),
+        $route === 'GET /admin/arrivals' => Arrivals::admin(),
+        $route === 'POST /arrivals' => Arrivals::record(Http::body()),
         $route === 'GET /admin/roles' => Admin::roles(),
         $route === 'GET /admin/users' => Admin::users(),
         $route === 'GET /admin/users.csv' => Admin::usersCsv(),

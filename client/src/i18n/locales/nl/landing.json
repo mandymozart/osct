@@ -9,5 +9,14 @@
   "shopBook": "Het boek",
   "shopShirt": "Het T-shirt",
   "toShop": "Naar de shop",
-  "previewAlt": "De app op een telefoon"
+  "previewAlt": "De app op een telefoon",
+  "kicker": "Een begeleider in augmented reality",
+  "scan": "Scan met je telefoon",
+  "qrAlt": "QR-code die de app op je telefoon opent",
+  "step1Title": "Openen",
+  "step1": "Scan de code met de camera van je telefoon – de app opent in de browser, zonder store.",
+  "step2Title": "Richten",
+  "step2": "Houd je telefoon boven een pagina van het gedrukte boek.",
+  "step3Title": "Ontdekken",
+  "step3": "Video's, teksten en referenties verschijnen op de pagina – de marginalia van het boek."
 }

@@ -26,7 +26,6 @@ export default interface Resources {
   },
   "account": {
     "artistUpdates": "Receive updates from {{author}}",
-    "experienceUpdates": "Receive updates on {{title}}",
     "cancel": "Cancel",
     "changePassword": "Change password",
     "codeLabel": "Code from the email",
@@ -58,6 +57,7 @@ export default interface Resources {
       "unauthorized": "You're signed out. Sign in again.",
       "wrong-current-password": "The current password isn't right."
     },
+    "experienceUpdates": "Receive updates on {{title}}",
     "linkMode": "Sign in with link",
     "newPasswordPlaceholder": "New password (at least 8 characters)",
     "optionsLabel": "Updates",
@@ -151,14 +151,23 @@ export default interface Resources {
   "landing": {
     "getApp": "Get the app",
     "intro": "The companion app to <em>{{title}}</em> by {{author}}. Point your phone at the pages of the printed book to unlock videos, texts and references in augmented reality.",
+    "kicker": "An augmented reality companion",
     "label": "About the app",
     "openHere": "Open the app here",
     "openHereNote": "Without a phone you can still look around on this computer – scanning needs a camera.",
     "openOnPhone": "The app is made for your phone: open this address in your phone's browser.",
     "previewAlt": "The app on a phone",
+    "qrAlt": "QR code that opens the app on your phone",
+    "scan": "Scan with your phone",
     "shop": "In the shop",
     "shopBook": "The book",
     "shopShirt": "The T-shirt",
+    "step1": "Scan the code with your phone's camera – the app opens in its browser, no store needed.",
+    "step1Title": "Open",
+    "step2": "Hold your phone over a page of the printed book.",
+    "step2Title": "Point",
+    "step3": "Videos, texts and references appear on the page – the book's marginalia.",
+    "step3Title": "Unlock",
     "toShop": "Shop"
   },
   "notFound": {

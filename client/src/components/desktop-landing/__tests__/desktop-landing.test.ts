@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type DesktopLanding, isDesktopVisitor, LANDING_CONFIG, LANDING_SKIPPED_KEY, readDeviceSignals } from "..";
+import { type DesktopLanding, isDesktopVisitor, landingQrUrl, LANDING_CONFIG, LANDING_SKIPPED_KEY, readDeviceSignals } from "..";
 
 const desktop = { standalone: false, coarsePointer: false, mobileAgent: false, wide: true };
 
@@ -68,6 +68,19 @@ describe("<desktop-landing>", () => {
       expect(links.map(link => link.getAttribute("href"))).toEqual(LANDING_CONFIG.shop.map(item => item.url));
       expect(links.every(link => link.target === "_blank" && link.rel.includes("noopener"))).toBe(true);
       expect(root().querySelector<HTMLImageElement>(".phone img")!.getAttribute("src")).toBe(LANDING_CONFIG.previewImage);
+    });
+
+    it("draws a QR code that opens the app with the landing page as its source (?s=lp1, #324)", async () => {
+      const made: Array<{ text?: string }> = [];
+      vi.stubGlobal("QRCode", Object.assign(function (this: unknown, el: HTMLElement, options: { text?: string }) {
+        made.push(options);
+        el.appendChild(document.createElement("img"));
+      }, { CorrectLevel: { L: 1, M: 0, Q: 3, H: 2 } }));
+      mount();
+      await vi.waitFor(() => expect(made).toHaveLength(1));
+      expect(made[0].text).toBe(`${location.origin}/?s=lp1`);
+      expect(landingQrUrl("https://osct.buildingfictions.com")).toBe("https://osct.buildingfictions.com/?s=lp1");
+      expect(root().querySelector(".qr-code img")!.getAttribute("alt")).toBe("QR code that opens the app on your phone");
     });
 
     it("\"Open the app here\" hides it, starts the app and is remembered for the tab", async () => {

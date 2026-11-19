@@ -365,6 +365,22 @@ const usersParams = (query: UsersQuery): string => {
 
 export const listRoles = () => api<{ roles: Role[] }>("GET", "/admin/roles");
 
+/** One source's arrivals (#324, `GET /admin/arrivals`): a printed QR code's or a link's `?s=` */
+export interface ArrivalSource {
+  source: string;
+  arrivals: number;
+  /** Arrivals of browsers that had never arrived before */
+  firstArrivals: number;
+  devices: { phone: number; tablet: number; desktop: number };
+  firstDay: string;
+  lastDay: string;
+  /** The last `days` days with arrivals, oldest first */
+  recent: Array<{ day: string; arrivals: number }>;
+}
+
+export const listArrivals = (days = 30) =>
+  api<{ days: number; from: string; to: string; sources: ArrivalSource[] }>("GET", `/admin/arrivals?days=${encodeURIComponent(String(days))}`);
+
 export const listUsers = (query: UsersQuery = {}) => api<{ users: AdminUser[]; total: number }>("GET", `/admin/users${usersParams(query)}`);
 
 export const grantRole = (userId: string, role: string) =>

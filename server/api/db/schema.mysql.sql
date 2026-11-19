@@ -387,3 +387,15 @@ UPDATE `scenes` SET `data_json` = REPLACE(REPLACE(`data_json`, '"scope":"spread"
 -- column by name)
 UPDATE `changes` SET `kind` = 'experience' WHERE `kind` = 'book';
 ALTER TABLE `experiences` DROP COLUMN `author`;
+
+-- Arrivals by source (#324, Arrivals.php): counts only – per source (`?s=` of a printed QR code or a link), UTC day and
+-- device class; no IP, no user
+CREATE TABLE IF NOT EXISTS `arrivals` (
+  `source` VARCHAR(32) NOT NULL,
+  `day` DATE NOT NULL,
+  `device` VARCHAR(8) NOT NULL,
+  `arrivals` INT UNSIGNED NOT NULL DEFAULT 0,
+  `first_arrivals` INT UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`source`, `day`, `device`),
+  KEY `arrivals_day` (`day`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

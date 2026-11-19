@@ -521,6 +521,22 @@ try {
     check($status === 200 && count($data['users']) === 1 && $data['users'][0]['email'] === 'author@example.com' && $data['total'] === 1, 'with the secret: search by e-mail (case-insensitive, a part)');
     $authorId = $data['users'][0]['id'];
     check($data['users'][0]['options']['experienceUpdates'] === false && $data['users'][0]['language'] === 'en' && is_string($data['users'][0]['lastSeenAt']), 'a user comes with options, language and last seen');
+    // Arrivals by source (#324): counts only, from anyone; the admin reads them
+    [$status] = call($api, 'POST', '/arrivals', ['source' => 'bk1', 'device' => 'phone', 'first' => true]);
+    check($status === 204, 'POST /arrivals counts an arrival (204, no session)');
+    call($api, 'POST', '/arrivals', ['source' => 'BK1', 'device' => 'phone', 'first' => false]);
+    call($api, 'POST', '/arrivals', ['source' => 'lp1', 'device' => 'nonsense', 'first' => true]);
+    [$status, $data] = call($api, 'POST', '/arrivals', ['source' => 'no spaces!']);
+    check($status === 400 && $data['error']['code'] === 'invalid-source', 'a malformed source → 400 invalid-source');
+    [$status] = call($api, 'GET', '/admin/arrivals', null, $editor);
+    check($status === 403, 'arrivals are for admins only');
+    [$status, $data] = $withSecret('GET', '/admin/arrivals?days=7');
+    $bySource = array_column($data['sources'] ?? [], null, 'source');
+    check($status === 200 && $data['days'] === 7 && array_keys($bySource) === ['bk1', 'lp1'], 'GET /admin/arrivals: every source, most arrivals first (the source in lowercase)');
+    check(($bySource['bk1']['arrivals'] ?? 0) === 2 && $bySource['bk1']['firstArrivals'] === 1 && $bySource['bk1']['devices']['phone'] === 2
+        && $bySource['bk1']['firstDay'] === gmdate('Y-m-d') && $bySource['bk1']['recent'] === [['day' => gmdate('Y-m-d'), 'arrivals' => 2]],
+        'a source: arrivals, first arrivals, by device, first and last day, the recent days');
+    check(($bySource['lp1']['devices']['desktop'] ?? 0) === 1, 'an unknown device counts as desktop');
     [, $data] = $withSecret('GET', '/admin/roles');
     check(array_column($data['roles'], 'name') === ['reader', 'editor', 'admin'], 'GET /admin/roles: reader, editor, admin with fixed ids');
     // An address in ADMINS (config) is an admin from its first sign-in – the instance's first admin without the secret

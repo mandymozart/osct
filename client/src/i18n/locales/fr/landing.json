@@ -9,5 +9,14 @@
   "shopBook": "Le livre",
   "shopShirt": "Le T-shirt",
   "toShop": "Boutique",
-  "previewAlt": "L'app sur un téléphone"
+  "previewAlt": "L'app sur un téléphone",
+  "kicker": "Un compagnon en réalité augmentée",
+  "scan": "Scanne avec ton téléphone",
+  "qrAlt": "QR code qui ouvre l'app sur ton téléphone",
+  "step1Title": "Ouvrir",
+  "step1": "Scanne le code avec l'appareil photo de ton téléphone – l'app s'ouvre dans le navigateur, sans store.",
+  "step2Title": "Pointer",
+  "step2": "Tiens ton téléphone au-dessus d'une page du livre imprimé.",
+  "step3Title": "Découvrir",
+  "step3": "Vidéos, textes et références apparaissent sur la page – les marginalia du livre."
 }

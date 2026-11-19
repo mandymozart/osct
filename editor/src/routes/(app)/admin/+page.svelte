@@ -5,6 +5,7 @@
   import { csvDownload, type UserFilter } from "#lib/users-csv.js";
   import Segmented from "#lib/components/Segmented.svelte";
   import Toggle from "#lib/components/Toggle.svelte";
+  import ArrivalsSection from "#lib/ArrivalsSection.svelte";
 
   /**
    * The admin page (docs/admin.md): the instance's users found by e-mail, each one's roles as toggles (granted when and
@@ -134,6 +135,9 @@
 </script>
 
 <main>
+  <!-- The printed QR codes' and links' arrivals (#324) – above the users -->
+  <ArrivalsSection />
+
   <h1>Users</h1>
   <div class="toolbar">
     <form class="search" onsubmit={search}>

@@ -7,6 +7,24 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 3.2.0 – 2026-11-19
+
+### Added
+
+- **Arrivals by source** (#324): an address with `?s=<source>` – the book's QR code is `?s=bk1` – counts as an
+  arrival from that source; the app reports it once and takes `s` out of the address (`POST /api/arrivals`, no cookie).
+  Counts only, per source, day and device class, plus first arrivals – no IP, no user (docs/server.md "Arrivals").
+- **Admin: QR codes and links** (#324): the arrivals by source on top of the admin page – per source the window (7 /
+  30 / 90 days, a year) and all, first arrivals, phone · tablet · desktop, first and last day, a bar per day; a new code's
+  address to copy (docs/admin.md).
+
+### Changed
+
+- **The desktop landing page, redesigned** (#324, on the book's and the app's design): the title as on the book's title
+  page in the gold gradient, the book's images scattered around it, the Mark and the app in a tilted phone; a QR code that
+  opens the app on the phone (`?s=lp1`, counted in the admin), the address and install; how it works in three steps; the
+  shop; a footer – with far more room around everything.
+
 ## 3.1.0 – 2026-11-19
 
 ### Added
