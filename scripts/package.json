@@ -19,6 +19,7 @@
     "sounds": "npm run build && node dist/sounds.js",
     "import": "npm run build && node dist/import-delivery.js",
     "convert:4": "npm run build && node dist/convert-content-4.js",
+    "convert:5": "npm run build && node dist/convert-content-5.js",
     "layout": "python layout/extract-layout.py",
     "prepare-delivery": "python layout/prepare-delivery.py",
     "test": "vitest run"

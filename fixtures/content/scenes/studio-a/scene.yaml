@@ -5,3 +5,18 @@ surfaces:
   - id: surface
     widthMm: 460
     heightMm: 320
+# The scene's rules (content schema 5.0, #334): live while the scene is open; they name a target's node by address. The
+# canvas is the editor's authoring data – the content build leaves it out of the configuration
+logic:
+  rules:
+    - on: groupTapped
+      when: tapped && !captionShown
+      do:
+        - show: "target:studio-group/caption"
+        - set: { captionShown: true }
+  canvas:
+    notes:
+      - id: caption-note
+        text: "The caption shows once the group was tapped"
+        x: 40
+        y: 120

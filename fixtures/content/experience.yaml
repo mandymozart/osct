@@ -3,3 +3,13 @@ title: Onion Skin & Crocodile Tears
 book:
   author: Kévin Bray
   publisher: Building Fictions
+# The experience's rules (content schema 5.0, #334): live for the whole session, across scene switches
+logic:
+  rules:
+    - on: targetUnlocked
+      when: unlocks < 3 || chapterStarted == false
+      do:
+        - set: { chapterStarted: true }
+          scope: experience
+    - on: chapterFinished
+      do: { goto: "scene:cover" }

@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Group } from "three";
 import { BEHAVIOUR_CORE_EVENTS, BEHAVIOUR_NAME_PATTERN, BEHAVIOUR_SCOPES, type EntityData, type NodeTimeline, type Target } from "../../types/index";
-import { applyBehaviour, MAX_DEPTH, namedPaths, passes } from "../behaviour";
+import { applyBehaviour, applyLogic, MAX_DEPTH, namedPaths, type NodeLookup, passes } from "../behaviour";
 import { buildEntity } from "../entities";
 import { installedPlugins, installPlugin, type PluginApi, uninstallPlugin } from "../plugins";
-import { CORE_EVENTS, EVENT_NAME_PATTERN, observeEvents, resetVars, runtimeApi, stageEnded, VAR_SCOPES } from "../plugin-runtime";
+import { CORE_EVENTS, emitCoreEvent, EVENT_NAME_PATTERN, observeEvents, resetVars, runtimeApi, setNavigator, stageEnded, VAR_SCOPES } from "../plugin-runtime";
+import { readRules } from "@shared/types/behaviour";
 
 /** The built-in behaviour component: rules on the node's events and the bus, conditions on variables, actions */
 
@@ -33,28 +34,43 @@ afterEach(() => {
   installedPlugins().forEach(uninstallPlugin);
   stageEnded();
   resetVars();
+  setNavigator(undefined);
   vi.restoreAllMocks();
 });
 
 describe("behaviour: conditions", () => {
-  it("passes without a condition, with every test equal (all) or one (any); not turns a test round; null is a variable not set", () => {
+  it("passes without a condition, and when its expression is true the ink way; one that cannot be evaluated never", () => {
     const v = vars();
     v.set("hasKey", true, "experience");
     v.set("tries", 2, "stage");
     expect(passes(null, v)).toBe(true);
-    expect(passes({ match: "all", tests: [{ name: "hasKey", value: true, not: false }, { name: "tries", value: 2, not: false }] }, v)).toBe(true);
-    expect(passes({ match: "all", tests: [{ name: "hasKey", value: true, not: false }, { name: "tries", value: 3, not: false }] }, v)).toBe(false);
-    expect(passes({ match: "any", tests: [{ name: "hasKey", value: false, not: false }, { name: "tries", value: 2, not: false }] }, v)).toBe(true);
-    expect(passes({ match: "all", tests: [{ name: "hasKey", value: true, not: true }] }, v)).toBe(false);
-    expect(passes({ match: "all", tests: [{ name: "doorOpen", value: null, not: false }] }, v)).toBe(true);
-    expect(passes({ match: "all", tests: [{ name: "doorOpen", value: true, not: true }] }, v)).toBe(true);
+    expect(passes("hasKey && tries == 2", v)).toBe(true);
+    expect(passes("hasKey && tries == 3", v)).toBe(false);
+    expect(passes("hasKey == false || tries >= 2", v)).toBe(true);
+    expect(passes("hasKey != true", v)).toBe(false);
+    expect(passes("!doorOpen", v)).toBe(true);
+    expect(passes("doorOpen != true", v)).toBe(true);
+    expect(passes("tries > \"a\"", v)).toBe(false);
+    expect(passes("tries =", v)).toBe(false);
   });
 
   it("reads the innermost scope that has the variable, like api.vars.get", () => {
     const v = vars();
     v.set("mood", "calm", "experience");
     v.set("mood", "angry", "scene");
-    expect(passes({ match: "all", tests: [{ name: "mood", value: "angry", not: false }] }, v)).toBe(true);
+    expect(passes('mood == "angry"', v)).toBe(true);
+  });
+
+  it("a rule whose condition does not parse never runs, and says so once", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const node = group({ components: [behaviour([{ on: "tap", when: "a = 1", do: { set: { ran: true } } }])] });
+    const instance = applyBehaviour({ node, target: target("t"), nodes: { "": new Group() }, timelines: {} })!;
+    cleanups.push(instance.dispose);
+    instance.onTap();
+    instance.onTap();
+    expect(vars().get("ran")).toBeUndefined();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).toContain("does not parse");
   });
 });
 
@@ -79,8 +95,8 @@ describe("behaviour: events and actions", () => {
 
   it("checks the conditions of every rule of an event first, then runs the matching ones in order (a toggle in two rules)", () => {
     const node = group({ components: [behaviour([
-      { on: "tap", when: { open: { not: true } }, do: { set: { open: true } } },
-      { on: "tap", when: { open: true }, do: { set: { open: false } } },
+      { on: "tap", when: "open != true", do: { set: { open: true } } },
+      { on: "tap", when: "open == true", do: { set: { open: false } } },
     ])] });
     const instance = applyBehaviour({ node, target: target("box"), nodes: { "": new Group() }, timelines: {} })!;
     cleanups.push(instance.dispose);
@@ -100,7 +116,7 @@ describe("behaviour: events and actions", () => {
       children: [group({ name: "door" }), group({ name: "hint" })],
       components: [behaviour([
         { on: "found", do: { show: "hint" } },
-        { on: "found", when: { hasKey: true }, do: [{ hide: "hint" }, { emit: "openDoor" }] },
+        { on: "found", when: "hasKey", do: [{ hide: "hint" }, { emit: "openDoor" }] },
         { on: "lost", do: "hide" },
       ])],
     });
@@ -188,6 +204,21 @@ describe("behaviour: events and actions", () => {
     expect(log[1][0]).toBe("varChanged");
   });
 
+  it("a goto asks the host's navigate; without one it only logs", () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const node = group({ components: [behaviour([{ on: "tap", when: "ready", do: [{ goto: "scene:epilogue" }, { set: { went: true } }] }])] });
+    const instance = applyBehaviour({ node, target: target("door"), nodes: { "": new Group() }, timelines: {} })!;
+    cleanups.push(instance.dispose);
+    vars().set("ready", true);
+    instance.onTap();
+    expect(info).toHaveBeenCalledWith(expect.stringContaining("goto scene:epilogue – the host gives no navigate"));
+    expect(vars().get("went")).toBe(true);
+    const went: string[] = [];
+    setNavigator(address => went.push(address));
+    instance.onTap();
+    expect(went).toEqual(["scene:epilogue"]);
+  });
+
   it("takes new rules in place (the editor's live edit)", () => {
     const node = group({ components: [behaviour([{ on: "tap", do: { set: { a: 1 } } }])] });
     const instance = applyBehaviour({ node, target: target("t"), nodes: { "": new Group() }, timelines: {} })!;
@@ -196,6 +227,76 @@ describe("behaviour: events and actions", () => {
     instance.onTap();
     expect(vars().get("a")).toBe(2);
     expect(instance.tune(group())).toBe(false);
+  });
+});
+
+describe("logic: a scene's and the experience's rules (schema 5.0)", () => {
+  /** Two targets of the open scene: door (a hint node and a model with a timeline) and lamp */
+  const scene = () => {
+    const hint = new Group();
+    const door = new Group();
+    const { timeline, calls } = fakeTimeline(["creak"]);
+    const node = (targetId: string, name: string): NodeLookup => {
+      if (targetId !== "door") return { missing: `target "${targetId}" is not in the open scene` };
+      if (name === "hint") return { object: hint };
+      if (name === "") return { object: door, timeline };
+      return { missing: `no node named "${name}" on target "${targetId}"` };
+    };
+    return { hint, door, calls, node };
+  };
+
+  it("hears the bus, acts on nodes by address, sets variables and goes to a scene", () => {
+    const { hint, calls, node } = scene();
+    const went: string[] = [];
+    setNavigator(address => went.push(address));
+    const logic = applyLogic(readRules([
+      { on: "doorOpened", when: "hasKey", do: [{ hide: "target:door/hint" }, { play: "creak", node: "target:door" }, { set: { opened: true }, scope: "stage" }] },
+      { on: "targetUnlocked", do: { goto: "scene:epilogue" } },
+    ]), { home: "scene", sceneId: "hall", node });
+    cleanups.push(logic.dispose);
+    runtimeApi("narrative").events.emit("doorOpened");
+    expect(hint.visible).toBe(true);
+    vars().set("hasKey", true, "experience");
+    runtimeApi("narrative").events.emit("doorOpened");
+    expect(hint.visible).toBe(false);
+    expect(calls).toEqual(["play creak"]);
+    expect(vars().get("opened", "stage")).toBe(true);
+    emitCoreEvent("targetUnlocked", { targetId: "door" });
+    expect(went).toEqual(["scene:epilogue"]);
+  });
+
+  it("hears core events delivered by the scene; sceneChanged only from opened(), once its nodes exist", () => {
+    const { hint, node } = scene();
+    const log: Array<[string, unknown]> = [];
+    cleanups.push(observeEvents((event, payload) => event === "behaviour" && log.push([event, payload])));
+    const logic = applyLogic(readRules([{ on: "sceneChanged", do: [{ hide: "target:door/hint" }, { emit: "arrived" }] }]), { home: "experience", node });
+    cleanups.push(logic.dispose);
+    const heard: unknown[] = [];
+    cleanups.push(runtimeApi("listener").events.on("arrived", payload => heard.push(payload)));
+    logic.opened();
+    expect(hint.visible).toBe(false);
+    expect(heard).toEqual([{ experience: true }]);
+    expect(log).toEqual([["behaviour", { home: "experience", rule: 1, on: "sceneChanged", do: "hide target:door/hint · emit arrived" }]]);
+  });
+
+  it("logs a node that is not in the open scene and runs on; tune swaps the rules, dispose stops them", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { node } = scene();
+    const logic = applyLogic(readRules([{ on: "ping", do: [{ show: "target:lamp/bulb" }, { show: "target:door/knob" }, { set: { pinged: 1 } }] }]), { home: "scene", sceneId: "hall", node });
+    runtimeApi("p").events.emit("ping");
+    expect(vars().get("pinged")).toBe(1);
+    expect(warn.mock.calls.map(c => String(c[0]))).toEqual([
+      expect.stringContaining('scene hall: cannot show – target "lamp" is not in the open scene'),
+      expect.stringContaining('cannot show – no node named "knob" on target "door"'),
+    ]);
+    logic.tune(readRules([{ on: "ping", do: { set: { pinged: 2 } } }]));
+    runtimeApi("p").events.emit("ping");
+    expect(vars().get("pinged")).toBe(2);
+    logic.dispose();
+    runtimeApi("p").events.emit("ping");
+    resetVars();
+    runtimeApi("p").events.emit("ping");
+    expect(vars().get("pinged")).toBeUndefined();
   });
 });
 

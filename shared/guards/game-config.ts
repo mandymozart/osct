@@ -30,6 +30,9 @@ import { mediaLevelProblems } from "../types/media-levels";
 import { placementProblems } from "../types/placement";
 import { subtitleProblems } from "../types/subtitles";
 import { isObject } from "./primitives";
+import { BEHAVIOUR_TYPE, type BehaviourRule, readRules } from "../types/behaviour";
+import { logicProblems, logicRules } from "../types/logic";
+import { parseAddress } from "../types/address";
 
 export { isObject } from "./primitives";
 
@@ -121,9 +124,23 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     unknownTypes: allowUnknown ? "allow" : "refuse",
   };
 
+  // Schema 5.0 (#334): where rules go (`goto`) and the nodes a scene's or the experience's rules name – checked once the
+  // scenes and targets are known (below)
+  const gotos: Array<{ address: string; path: string }> = [];
+  const nodeAddresses: Array<{ address: string; path: string; scene: string | null }> = [];
+  const collect = (rules: BehaviourRule[], path: string, scene: string | null, named: boolean) =>
+    rules.forEach((rule, i) => rule.do.forEach((action, j) => {
+      const at = `${path}[${i}].do[${j}]`;
+      if (action.action === "goto") gotos.push({ address: action.address, path: `${at}.goto` });
+      else if (named && action.action !== "set" && action.action !== "emit" && action.node) nodeAddresses.push({ address: action.node, path: at, scene });
+    }));
+
   const entity = (value: unknown, path: string, depth = 0) => {
     const e = obj(value, path);
     if (!e) return;
+    if (Array.isArray(e.components)) e.components.forEach((component, i) => {
+      if (isObject(component) && component.type === BEHAVIOUR_TYPE) collect(readRules(component.rules), `${path}.components[${i}].rules`, null, false);
+    });
     if (e.id !== undefined && typeof e.id !== "string") fail(`${path}.id`, "expected a string");
     if (e.name !== undefined && typeof e.name !== "string") fail(`${path}.name`, "expected a string");
     if (e.text !== undefined && typeof e.text !== "string") fail(`${path}.text`, "expected a string");
@@ -220,6 +237,10 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     if (experience.passes !== undefined) passProblems(experience.passes, "experience.passes", passOptions).forEach(problem => problems.push(problem));
     if (experience.environment !== undefined) environmentProblems(experience.environment, "experience.environment", false).forEach(problem => problems.push(problem));
     if (experience.appearance !== undefined) appearanceProblems(experience.appearance, "experience.appearance", appearanceOptions).forEach(problem => problems.push(problem));
+    if (experience.logic !== undefined) {
+      logicProblems(experience.logic, "experience.logic", "experience").forEach(problem => problems.push(problem));
+      collect(logicRules(experience.logic), "experience.logic.rules", null, true);
+    }
   }
 
   str(root, "initialScene", "config");
@@ -255,6 +276,10 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     if (!scene) return;
     ["id", "label"].forEach(key => str(scene, key, path));
     if (scene.passes !== undefined) passProblems(scene.passes, `${path}.passes`, passOptions).forEach(problem => problems.push(problem));
+    if (scene.logic !== undefined) {
+      logicProblems(scene.logic, `${path}.logic`, "scene").forEach(problem => problems.push(problem));
+      collect(logicRules(scene.logic), `${path}.logic.rules`, typeof scene.id === "string" ? scene.id : null, true);
+    }
     const surfaceIds = new Set<string>();
     const surfaces = arr(scene, "surfaces", path);
     if (Array.isArray(scene.surfaces) && surfaces.length === 0) fail(`${path}.surfaces`, "a scene has at least one surface");
@@ -305,6 +330,8 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
 
   const entryIds = new Set<string>();
   const targetIds = new Set<string>();
+  /** Each target's scene (its entry's) – a scene's rules name their own scene's targets */
+  const targetScenes = new Map<string, string>();
   arr(root, "entries", "config").forEach((e, i) => {
     const path = `entries[${i}]`;
     const entry = obj(e, path);
@@ -363,6 +390,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     if (typeof target.id === "string") {
       if (targetIds.has(target.id)) fail(`${tPath}.id`, `duplicate target id "${target.id}"`);
       targetIds.add(target.id);
+      if (typeof entry.scene === "string") targetScenes.set(target.id, entry.scene);
     }
     if (target.entity === undefined) return;
     if (isEntityRef(target.entity)) {
@@ -370,6 +398,20 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     } else {
       entity(target.entity, `${tPath}.entity`);
     }
+  });
+
+  // A goto names a scene of the experience; a scene's or the experience's rule a target of it – a scene's rule one of its
+  // own scene (only the open scene's entities are built). The shapes were checked above; a node's name is the engine's to find
+  gotos.forEach(({ address, path }) => {
+    const to = parseAddress(address);
+    if (to?.scheme === "scene" && !sceneIds.has(to.id)) fail(path, `unknown scene "${to.id}"`);
+  });
+  nodeAddresses.forEach(({ address, path, scene }) => {
+    const at = parseAddress(address);
+    if (at?.scheme !== "target") return;
+    const own = targetScenes.get(at.id);
+    if (!targetIds.has(at.id)) fail(path, `unknown target "${at.id}"`);
+    else if (scene !== null && own !== scene) fail(path, `target "${at.id}" lies in scene "${own}" – a scene's rules act on its own targets`);
   });
 
   if (problems.length > 0) throw new GameConfigurationError(problems);

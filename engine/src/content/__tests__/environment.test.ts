@@ -52,7 +52,7 @@ describe("environment assets (content schema 2.10)", () => {
     expect(environmentProblems({ ...base, tint: 1 })).toEqual(["environment.tint is not a field of the environment."]);
     expect(environmentProblems({ ...base, tint: 1 }, "experience.environment", false)).toEqual([]);
     const config = (environment: unknown) => ({
-      version: { version: "1.21.0", timestamp: "t", schema: "4.10" },
+      version: { version: "1.21.0", timestamp: "t", schema: "5.10" },
       experience: { id: "b", title: "B", book: { author: "A" }, environment },
       initialScene: "s",
       scenes: [{ id: "s", label: "S", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],

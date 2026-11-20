@@ -4,7 +4,8 @@
  * checks it, and listed (`SkippedFeature`), so the reader can say that an update shows everything:
  * - a component in a node's `components`, a filter in a video's `filters`, a pass in a `passes` list, a node's
  *   `material` – a type neither built in, nor registered, nor recorded by a declared plugin;
- * - a behaviour action, a field of a behaviour, a rule or an action;
+ * - a behaviour action, a field of a behaviour, a rule or an action – in a node's behaviour and in a scene's or the
+ *   experience's `logic` (schema 5.0), whose fields beside `rules` and `canvas` are dropped too;
  * - a parameter a known spec does not have (a component's, a pass's, a filter's, a light's, a material's, a plugin node
  *   type's), and a parameter of a plugin's recorded spec whose kind this app does not know;
  * - a node type nobody registered stays in place (the engine renders nothing for it and keeps its children) and is
@@ -253,11 +254,15 @@ export const skipUnknownFeatures = (
       delete component[key];
       skip(`${path}.${key}`, "field", key);
     });
-    const rules = component.rules;
+    ruleList(component.rules, `${path}.rules`);
+  };
+
+  /** A list of rules (a behaviour's, a scene's or the experience's): unknown fields and actions dropped; a rule left without an action goes too */
+  const ruleList = (rules: unknown, path: string) => {
     if (!Array.isArray(rules)) return;
     const kept = rules.filter((rule: unknown, r) => {
       if (!isObject(rule)) return true;
-      const at = `${path}.rules[${r}]`;
+      const at = `${path}[${r}]`;
       Object.keys(rule).filter(key => !["on", "when", "do"].includes(key)).forEach(key => {
         delete rule[key];
         skip(`${at}.${key}`, "field", key);
@@ -327,7 +332,19 @@ export const skipUnknownFeatures = (
     }
   };
 
+  /** A scene's or the experience's logic (schema 5.0): its rules as a behaviour's; a field beside rules and canvas dropped */
+  const logic = (value: unknown, path: string) => {
+    if (!isObject(value)) return;
+    Object.keys(value).filter(key => key !== "rules" && key !== "canvas").forEach(key => {
+      delete value[key];
+      skip(`${path}.${key}`, "field", key);
+    });
+    ruleList(value.rules, `${path}.rules`);
+  };
+
   if (isObject(config.experience)) passes(config.experience.passes, "experience.passes");
+  if (isObject(config.experience)) logic(config.experience.logic, "experience.logic");
+  if (Array.isArray(config.scenes)) config.scenes.forEach((scene, i) => isObject(scene) && logic(scene.logic, `scenes[${i}].logic`));
   if (isObject(config.experience)) appearance(config.experience.appearance, "experience.appearance");
   if (Array.isArray(config.scenes)) config.scenes.forEach((scene, i) => isObject(scene) && passes(scene.passes, `scenes[${i}].passes`));
   if (isObject(config.entities)) Object.entries(config.entities).forEach(([id, entity]) => node(entity, `entities.${id}`));

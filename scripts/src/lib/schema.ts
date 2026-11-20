@@ -32,6 +32,7 @@ export const schemas = {
       environment: { type: "Object", required: false }, // the world around the reader and the onion sky: { world, onionSky, worldSrc?, skySrc? }, see shared/types/environment.ts
       recognition: { type: "String", required: false }, // how the reader gets its targets' recognition data: "original" (default) or "prepared" (#306, schema 4.2)
       appearance: { type: "Object", required: false }, // the look an entity appears with: { reveal?, found?, lost? }, each { type, ...parameters }, see shared/types/appearance.ts
+      logic: { type: "Object", required: false }, // the experience's rules: { rules: [{ on, when?, do }], canvas? } – the canvas stays out of the build (schema 5.0, #334), see shared/types/logic.ts
     },
   },
 
@@ -51,6 +52,7 @@ export const schemas = {
       order: { type: "Number", required: false, default: 0 }, // its position among the scenes (only the order counts)
       surfaces: { type: "Array", required: true }, // [{ id, label?, widthMm, heightMm, place? { x, y, z, rx?, ry?, rz? } }] – none placed: a row
       passes: { type: "Array", required: false }, // post-processing over the rendered image: [{ type, ...parameters }], see shared/types/passes.ts
+      logic: { type: "Object", required: false }, // the scene's rules: { rules: [{ on, when?, do }], canvas? } – the canvas stays out of the build (schema 5.0, #334), see shared/types/logic.ts
     },
   },
 

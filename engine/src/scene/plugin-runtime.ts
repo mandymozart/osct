@@ -289,8 +289,37 @@ export const allVars = (): Array<{ scope: VarScope; name: string; value: VarValu
  * A rule of a `behaviour` component fired (`behaviour.ts`): told to the observers only, as the pseudo-event `behaviour` –
  * the editor's log shows which rule ran and what it did; it is no event of the bus, plugins never hear it
  */
-export const noteBehaviour = (payload: { targetId: string; node?: string; rule: number; on: string; do: string }): void =>
+export const noteBehaviour = (payload: BehaviourNote): void =>
   observers.forEach(observer => observer("behaviour", payload));
+
+/**
+ * What the editor's log hears of a rule that fired: a node's rule names its target (and the node's name), a scene's or
+ * the experience's rule (schema 5.0) its `home` (and the scene)
+ */
+export type BehaviourNote =
+  | { targetId: string; node?: string; home?: undefined; rule: number; on: string; do: string }
+  | { home: "scene" | "experience"; scene?: string; targetId?: undefined; rule: number; on: string; do: string };
+
+/** Where a rule's `goto` goes (schema 5.0): the host's `ArSceneOptions.navigate`; none = a console note */
+let navigator: ((address: string) => void) | undefined;
+
+/** The scene sets the host's navigate from its options (none: a goto only logs) */
+export const setNavigator = (navigate: ((address: string) => void) | undefined): void => {
+  navigator = navigate;
+};
+
+/** A rule asks to go to an address (`scene:<id>`): the host resolves it – a host that gives no navigate only logs it */
+export const navigateTo = (address: string, from: string): void => {
+  if (!navigator) {
+    console.info(`[behaviour] ${from}: goto ${address} – the host gives no navigate, nothing happens`);
+    return;
+  }
+  try {
+    navigator(address);
+  } catch (error) {
+    console.error(`[behaviour] ${from}: goto ${address} failed:`, error);
+  }
+};
 
 /** Hear every event of the stage without being a plugin (the editor's log); returns the unsubscribe */
 export const observeEvents = (listener: (event: string, payload: unknown) => void): (() => void) => {
