@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 3.19.0 – 2026-11-20
 
 ### Added
 - **MCP – deliveries** (#322 T8): `preview_delivery` shows what a publisher's delivery plan (`DeliveryPlan`, inline or a
