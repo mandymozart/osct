@@ -226,6 +226,15 @@ Steps:
 
 Parallel tracks: export (T1–T4) and delivery (T5–T9) are independent after T0; T8 can follow T5 directly.
 
+## Decisions (Tilman, 2026-11-20)
+
+1. **Demo: in the database as a sandbox, like in SCUTOONS** – option (b): `fixtures/demo` becomes its committed export
+   (T2 writes it; `demo.yml` then syncs the export or is replaced by the editor's publish – decided in that ticket).
+2. Export archive and trigger: **open**.
+3. Delivery `note`: **dropped** (Tilman unsure it is needed); not stored.
+4. Removals: **approved** ("remove legacy code") – each at the moment section 4 names.
+5. `db/pull-staging.sh` → `server/db/`: **yes**.
+
 ## Open decisions for Tilman
 
 1. The demo: repository source (recommended) or DB + committed export (section 3).

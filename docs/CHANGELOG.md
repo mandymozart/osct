@@ -7,6 +7,13 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 3.16.2 – 2026-11-20
+
+### Changed
+- **Workflows read only the `OSCT_` names** (#33): the GitHub environments carry `OSCT_BUNNY_STORAGE_ZONE`,
+  `OSCT_BUNNY_STORAGE_ENDPOINT`, `OSCT_BUNNY_STORAGE_PASSWORD` and `OSCT_CONTENT_BASE_URL`; the fallbacks to the old
+  names are gone from `content.yml`, `demo.yml`, `deploy.yml` and `deploy-staging-ftps.yml`.
+
 ## 3.16.1 – 2026-11-20
 
 ### Changed

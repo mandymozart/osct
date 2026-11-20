@@ -112,7 +112,7 @@ jobs:
           DB_ROOT_PASS: ${{ secrets.DB_ROOT_PASS }}
           SECRET: ${{ secrets.SECRET }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          OSCT_CONTENT_BASE_URL: ${{ vars.OSCT_CONTENT_BASE_URL || vars.CONTENT_BASE_URL }}
+          OSCT_CONTENT_BASE_URL: ${{ vars.OSCT_CONTENT_BASE_URL }}
           ALLOWED_ORIGINS: ${{ vars.ALLOWED_ORIGINS }}
           MAIL_TRANSPORT: ${{ vars.MAIL_TRANSPORT || 'smtp' }}
           MAIL_FROM: ${{ vars.MAIL_FROM }}
@@ -120,10 +120,10 @@ jobs:
           SMTP_PORT: ${{ vars.SMTP_PORT || '587' }}
           SMTP_SECURE: ${{ vars.SMTP_SECURE || 'tls' }}
           SMTP_USER: ${{ vars.SMTP_USER }}
-          CONTENT_STORE: ${{ vars.CONTENT_STORE || ((secrets.OSCT_BUNNY_STORAGE_PASSWORD || secrets.BUNNY_STORAGE_PASSWORD) && 'bunny') || 'local' }}
-          OSCT_BUNNY_STORAGE_ZONE: ${{ vars.OSCT_BUNNY_STORAGE_ZONE || vars.BUNNY_STORAGE_ZONE }}
+          CONTENT_STORE: ${{ vars.CONTENT_STORE || (secrets.OSCT_BUNNY_STORAGE_PASSWORD && 'bunny') || 'local' }}
+          OSCT_BUNNY_STORAGE_ZONE: ${{ vars.OSCT_BUNNY_STORAGE_ZONE }}
           OSCT_BUNNY_STORAGE_ENDPOINT: ${{ vars.OSCT_BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ZONE_ENDPOINT || 'storage.bunnycdn.com' }}
-          OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.OSCT_BUNNY_STORAGE_PASSWORD || secrets.BUNNY_STORAGE_PASSWORD }}
+          OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.OSCT_BUNNY_STORAGE_PASSWORD }}
           EDITORS: ${{ vars.EDITORS }}
           ADMINS: ${{ vars.ADMINS }}
         run: kamal deploy -d "${{ inputs.destination }}"

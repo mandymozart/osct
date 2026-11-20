@@ -40,9 +40,9 @@ jobs:
     env:
       OSCT_CONTENT_DIR: fixtures/demo
       OSCT_CONTENT_ENV: demo
-      OSCT_BUNNY_STORAGE_ZONE: ${{ vars.OSCT_BUNNY_STORAGE_ZONE || vars.BUNNY_STORAGE_ZONE }}
+      OSCT_BUNNY_STORAGE_ZONE: ${{ vars.OSCT_BUNNY_STORAGE_ZONE }}
       OSCT_BUNNY_STORAGE_ENDPOINT: ${{ vars.OSCT_BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ZONE_ENDPOINT || 'storage.bunnycdn.com' }}
-      OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.OSCT_BUNNY_STORAGE_PASSWORD || secrets.BUNNY_STORAGE_PASSWORD }}
+      OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.OSCT_BUNNY_STORAGE_PASSWORD }}
       # The staging reader shows the demo (?content=…): the CDN check asks with its origin (CORS)
       OSCT_APP_URL: https://osct.porschuetz.de
     steps:
@@ -58,7 +58,7 @@ jobs:
       - name: The demo's content base URL
         run: echo "OSCT_CONTENT_BASE_URL=${STAGING_BASE%/*}/demo" >> "$GITHUB_ENV"
         env:
-          STAGING_BASE: ${{ vars.OSCT_CONTENT_BASE_URL || vars.CONTENT_BASE_URL }}
+          STAGING_BASE: ${{ vars.OSCT_CONTENT_BASE_URL }}
       - name: Build the demo book
         run: npm run build:content:force
       - name: Sync it to the environment demo

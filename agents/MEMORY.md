@@ -209,6 +209,27 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-20 – #322 decisions; GitHub variables renamed (#33)
+
+Tilman on the open decisions of `agents/research/2026-11-20-importer-export-plan.md`:
+1. **The demo goes into the database as a sandbox, like in SCUTOONS** (not the recommended repository source):
+   `fixtures/demo` becomes its committed export; the demo is edited in the editor like the book.
+2. Where exports are archived and whether a publish triggers one: **still open**.
+3. An entry's delivery `note`: Tilman is not sure it is needed – **dropped** (not stored); bring it back as an
+   editors-only field only if a delivery note turns out to be missed.
+4. **Remove legacy code**: every removal of section 4 is approved, each at the moment the table names (convert-3
+   now, convert-4 after the first export, `content move` after both environments moved, `import-delivery.ts` after
+   the new import ran one real delivery, `layout/render-layout.py` now, …).
+5. `db/pull-staging.sh` → `server/db/` in the rename: yes.
+
+GitHub variables (#33): Tilman said the orchestrator renames them itself with `gh`. Done 2026-11-20 for staging and
+production: `OSCT_BUNNY_STORAGE_ZONE`, `OSCT_BUNNY_STORAGE_ENDPOINT`, `OSCT_CONTENT_BASE_URL` (same values),
+secret `OSCT_BUNNY_STORAGE_PASSWORD` (from `scripts/.env`, checked against the storage); `scripts/.env` keys renamed
+too. develop's workflows read only the new names. The old names stay on GitHub until `main` has a release with
+these workflows – then delete them:
+- [ ] Delete `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_ZONE_ENDPOINT`, `BUNNY_STORAGE_PASSWORD`, `CONTENT_BASE_URL` in both
+  environments once `main` carries 3.16.2 or later.
+
 ## 2026-11-20 – Media in quality levels, the reader's media quality (#331 step 3, schema 4.3)
 - Shape *my reading* (open to Tilman's eye): `levels: [{ level, src }]` on an image / video / audio asset and
   `imageLevels` on an entry; one number per kind – image longest side 512 / 1024 / 2048 (the image rule's sizes), video

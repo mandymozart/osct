@@ -48,7 +48,7 @@ jobs:
         env:
           VITE_DEBUG: "true"
           # Content from the CDN (docs/content-cdn.md); empty = the commit's content is built and uploaded
-          VITE_CONTENT_BASE_URL: ${{ vars.OSCT_CONTENT_BASE_URL || vars.CONTENT_BASE_URL }}
+          VITE_CONTENT_BASE_URL: ${{ vars.OSCT_CONTENT_BASE_URL }}
         run: |
           npm ci
           npm run build
@@ -87,11 +87,11 @@ jobs:
           # The editor's content store and assets (docs/server.md "Editor data", "Assets"): the CDN's storage zone
           # whenever its access key is set (CONTENT_STORE overrides), the local folder otherwise
           # (#33: the names without OSCT_ are still read as a fallback until the environment is renamed – then drop the `|| …`)
-          OSCT_CONTENT_STORE: ${{ vars.CONTENT_STORE || ((secrets.OSCT_BUNNY_STORAGE_PASSWORD || secrets.BUNNY_STORAGE_PASSWORD) && 'bunny') || 'local' }}
-          OSCT_CONTENT_BASE_URL: ${{ vars.OSCT_CONTENT_BASE_URL || vars.CONTENT_BASE_URL }}
-          OSCT_BUNNY_STORAGE_ZONE: ${{ vars.OSCT_BUNNY_STORAGE_ZONE || vars.BUNNY_STORAGE_ZONE }}
+          OSCT_CONTENT_STORE: ${{ vars.CONTENT_STORE || (secrets.OSCT_BUNNY_STORAGE_PASSWORD && 'bunny') || 'local' }}
+          OSCT_CONTENT_BASE_URL: ${{ vars.OSCT_CONTENT_BASE_URL }}
+          OSCT_BUNNY_STORAGE_ZONE: ${{ vars.OSCT_BUNNY_STORAGE_ZONE }}
           OSCT_BUNNY_STORAGE_ENDPOINT: ${{ vars.OSCT_BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ZONE_ENDPOINT || 'storage.bunnycdn.com' }}
-          OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.OSCT_BUNNY_STORAGE_PASSWORD || secrets.BUNNY_STORAGE_PASSWORD }}
+          OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.OSCT_BUNNY_STORAGE_PASSWORD }}
           # The first editors and admins (docs/server.md "Roles"): these addresses get the role when they sign in
           OSCT_EDITORS: ${{ vars.EDITORS }}
           OSCT_ADMINS: ${{ vars.ADMINS }}

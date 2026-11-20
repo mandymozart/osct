@@ -78,9 +78,9 @@ The files are ERB: the server and the mail settings come from environment variab
 
 The content CDN's settings carry the `OSCT_` prefix like every other (#33): `OSCT_CONTENT_BASE_URL`,
 `OSCT_BUNNY_STORAGE_ZONE`, `OSCT_BUNNY_STORAGE_ENDPOINT`, `OSCT_BUNNY_STORAGE_PASSWORD` – in the GitHub environments, in
-`scripts/.env` and in a local `server/.env` for Kamal. Until the GitHub environments are renamed, the workflows still
-fall back to the old names (`CONTENT_BASE_URL`, `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_ENDPOINT` /
-`BUNNY_STORAGE_ZONE_ENDPOINT`, `BUNNY_STORAGE_PASSWORD`); the fallbacks go once they are.
+`scripts/.env` and in a local `server/.env` for Kamal. The GitHub environments (staging, production) were renamed on
+2026-11-20 and the workflows read only these names; the old ones (`CONTENT_BASE_URL`, `BUNNY_STORAGE_ZONE`,
+`BUNNY_STORAGE_ZONE_ENDPOINT`, `BUNNY_STORAGE_PASSWORD`) are gone.
 
 | Where | Name | Meaning |
 |---|---|---|
