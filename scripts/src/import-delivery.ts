@@ -143,7 +143,7 @@ export const pagesSceneId = ([first, last]: [number, number]) => (first === last
 
 /**
  * An id without leading zeros (#63): `p004-1` → `p4-1`, `s004-005` → `s4-5` – a mapping written before keeps working
- * and imports the ids the database has since `server/deploy/rename-ids.php`; any other id stays as it is
+ * and imports the ids the database has since the one-off rename (#63, 3.10.0); any other id stays as it is
  */
 export const unpaddedId = (id: string): string =>
   id.replace(/^([sp])(\d+)(?:-(\d+))?(?=\D|$)/, (_, prefix: string, first: string, second?: string) =>

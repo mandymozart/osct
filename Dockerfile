@@ -57,7 +57,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libwebp-dev lib
 
 COPY server/docker/apache.conf /etc/apache2/sites-available/000-default.conf
 COPY server/docker/entrypoint.sh /usr/local/bin/osct-entrypoint
-COPY server/deploy/migrate.php server/deploy/mail-test.php server/deploy/rename-ids.php /opt/osct/
+COPY server/deploy/migrate.php server/deploy/mail-test.php /opt/osct/
 RUN chmod +x /usr/local/bin/osct-entrypoint
 
 # The API as /api next to the app (no config.local.php: every setting comes from OSCT_* environment variables)

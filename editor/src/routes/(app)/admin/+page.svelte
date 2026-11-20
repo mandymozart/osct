@@ -6,7 +6,6 @@
   import Segmented from "#lib/components/Segmented.svelte";
   import Toggle from "#lib/components/Toggle.svelte";
   import ArrivalsSection from "#lib/ArrivalsSection.svelte";
-  import RenameIdsSection from "#lib/RenameIdsSection.svelte";
 
   /**
    * The admin page (docs/admin.md): the instance's users found by e-mail, each one's roles as toggles (granted when and
@@ -205,7 +204,6 @@
     </div>
   </form>
 
-  <RenameIdsSection />
 </main>
 
 <style>

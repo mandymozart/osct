@@ -1039,7 +1039,7 @@ is created for every pair of facing pages that has an entry (`s38-39`, label "38
 width – page 1 and a last even page one page wide). The mapping's `page` is mapped to the scene **once, here**: the
 entry gets `scene: s38-39`, never a page (content schema 3.0). Ids have no leading zeros (#63): scenes `s38-39`, `s1`,
 entries `p38-1` – a mapping key written with them (`p038-1`) is imported without; the order is the scene's `order`, never
-its id. The database's existing ids were renamed once with `server/deploy/rename-ids.php` (docs/server.md). Media is rewritten
+its id. The database's existing ids were renamed once (3.10.0, applied on staging 2026-11-20; the tool is gone since 3.11.1). Media is rewritten
 when the delivered file is newer; **`entry.yaml` and `scene.yaml` are never overwritten** – edit them
 freely and run the import again when the next delivery comes. Problems (a file missing, ffmpeg failing, a
 video without a target) are listed at the end.

@@ -7,6 +7,11 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 3.11.1 – 2026-11-20
+
+### Removed
+- The one-off rename of zero-padded ids (#63): it ran on staging on 2026-11-20 (50 scenes, 524 entries, 522 targets now without leading zeros), so the admin page's section, `POST /api/admin/rename-ids`, `server/deploy/rename-ids.php` and `IdRename` are gone. The import keeps writing ids without zeros.
+
 ## 3.11.0 – 2026-11-20
 
 ### Added
