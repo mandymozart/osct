@@ -42,6 +42,7 @@ content-store/                   (repository root, not committed) the content st
                                  uploads where this server is the backend – [Content store and var](#content-store-and-var)
 var/                             (repository root, not committed) db/ (the SQLite file), log/error.log, mail/mail.log
 server/deploy/migrate.php        deploy: the migration from the command line (the container's entrypoint runs it)
+server/deploy/rename-ids.php     one-off, by hand only: ids without leading zeros (#63, [below](#ids-without-leading-zeros-63))
 server/deploy/mail-test.php      one test mail with the current mail settings (in the image as /opt/osct/mail-test.php)
 server/deploy/ses-smtp-password.php   SES SMTP password from an IAM secret key (docs/deploy.md "Mail")
 server/docker/                   Apache configuration and entrypoint of the image (docs/deploy.md)
@@ -249,6 +250,7 @@ secret or a session without the role → 403 `forbidden`. `POST /admin/migrate` 
 | `GET /admin/users.csv?newsletter=1&option=` | | the same users as CSV (`email, language, buildingfictions, createdAt`), `Content-Disposition: attachment` – the newsletter list for the mailing tool; `option=buildingfictions` narrows to that option |
 | `PUT /admin/users/{id}/roles/{role}` | | `{ changed, user }` – grants the role (`changed: false` when the user had it); 404 `not-found` / `unknown-role`, 400 `invalid-role` for `reader` |
 | `DELETE /admin/users/{id}/roles/{role}` | | `{ changed, user }` – revokes it; 409 `last-admin` when the last admin would go |
+| `POST /admin/rename-ids` | `{ apply, experience? }` | `{ apply, experiences: [{ experience, ids, samples: [{ from, to }], rows: { table: n }, collisions, applied }], plugins, refused }` – the one-off rename of padded ids (#63, [Ids without leading zeros](#ids-without-leading-zeros-63)); `apply: false` writes nothing; 404 for an unknown `experience` |
 | `POST /admin/editors` | `{ email }` | `{ user, created, changed }` – gives the user the role `editor`, creating the user (confirmed, `en`, no options) when the address is new |
 | `POST /admin/migrate` | header `X-Admin-Secret: SECRET` only | `{ statements }` – creates missing tables and columns (the container does this at every start) |
 | `GET /admin/arrivals?days=30` | | `{ days, from, to, sources: [{ source, arrivals, firstArrivals, devices: { phone, tablet, desktop }, firstDay, lastDay, recent: [{ day, arrivals }] }] }` – the arrivals by source ([Arrivals](#arrivals)): every source ever counted, most arrivals first; the totals over all time, `recent` the last `days` days (1–366, days without arrivals left out) |
@@ -764,6 +766,30 @@ scenes and in the change log's before / after (so a revert never writes the old 
 sources are not rewritten – the reader reads an old record and writes the new one; `server/deploy/migrate.php` names
 each plugin source that still says `"book"`, for its author to re-save with `"experience"`. Routes: `/editor/books/…` →
 `/editor/experiences/…`, no alias; errors `invalid-experience`, `other-experience`; `print-first` is gone.
+
+#### Ids without leading zeros (#63)
+
+The delivery import wrote zero-padded ids (`s004-005`, `p004-1`); since #63 it writes `s4-5`, `s4`, `p4-1`. The ids in
+the database are renamed **once, by hand – never by `Db::migrate` or a deploy**: `server/deploy/rename-ids.php`
+(`IdRename.php`; in the image `/opt/osct/rename-ids.php`, e.g. `kamal app exec -d staging 'php /opt/osct/rename-ids.php
+--dry-run'`) – or, on a host without a shell (the FTPS staging), from the editor's admin page: `POST /admin/rename-ids
+{ apply, experience? }` (admins and the admin secret; an AI connection's token → 403) answers the same report as JSON.
+
+```
+php server/deploy/rename-ids.php --dry-run [--experience ID]   rows per table, a sample of renames, collisions – writes nothing
+php server/deploy/rename-ids.php --apply [--experience ID]     renames, one transaction per experience
+```
+
+It renames the ids an experience's rows hold as ids (scenes, entries, targets, shared entities; an entry's scene, a
+target's entry and entity ref, a surface reference's scene, the initial scene, the change log's refs – a removed id's
+too) wherever they are stored: those columns and, in the JSON of the experience, its groups, the content rows and the
+change log (not of plugin and asset rows), every string that is exactly such an id, every object key that is one and
+every `/scene/<id>` link inside a string (a behaviour's goto, an entry's Markdown). **Not rewritten:** file paths and
+URLs (a file keeps its place – `entries/p004-1/target.jpg`, the Library shows that folder as its place), published
+versions (built files on the content store, never rows – the next publish carries the new ids), readers' progress
+(keyed by the ids, RULES #10 – it starts over) and plugin code (`plugins.source`, the compiled `plugins_json`; the run
+lists each source that names a padded id). An experience where a new id is taken already, or where two padded ids
+become the same one, is refused and left as it is (exit 2). Idempotent: a second run finds nothing.
 
 **One update option (#325)**, in place on the next deploy: `Db::mergeUpdateOptions` turns `publisher_updates` on
 wherever any of the three old options was on (`book_updates` / `experience_updates`, `artist_updates`), then the schema

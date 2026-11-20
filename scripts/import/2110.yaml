@@ -13,353 +13,353 @@ experience: osct
 # Delivered but not placed in the book (no page known): links/OSCT_Ref_Evangelion_02.jpg, links/OSCT_Ref_Vonnegut_02.jpg
 
 entries:
-  p002-1:
+  p2-1:
     category: glossary
     title: "p. 2 · 1"
     page: 2
     target: glossary/P2_Print_01.jpg
     image: glossary/P2_Online_01.jpg
     note: "delivered as a print image but not in All_Triggers.pdf - not on the test printout"
-  p004-1:
+  p4-1:
     category: link
     title: "Cheap tricks"
     page: 4
     target: links/OSCT_Ref_Cheaptricks.png
     printed: { width: 31, height: 23, position: top left }
-  p004-2:
+  p4-2:
     category: glossary
     title: "p. 4 · 2"
     page: 4
     target: glossary/P4_Print_01.jpg
     image: glossary/P4_Online_01.jpg
     printed: { width: 49, height: 18, position: bottom right }
-  p008-1:
+  p8-1:
     category: glossary
     title: "p. 8 · 1"
     page: 8
     target: glossary/P8_Print_01.jpg
     image: glossary/P8_Online_01.jpg
     printed: { width: 31, height: 23, position: middle left }
-  p009-1:
+  p9-1:
     category: link
     title: "Body Talk"
     page: 9
     target: links/OSCT_Ref_BodyTalk.png
     printed: { width: 37, height: 21, position: bottom right }
-  p011-1:
+  p11-1:
     category: link
     title: "Dino"
     page: 11
     target: links/OSCT_Ref_Dino.jpg
     printed: { width: 34, height: 22, position: bottom left }
-  p013-1:
+  p13-1:
     category: link
     title: "Annecy animation"
     page: 13
     target: links/OSCT_Ref_Annecyanimation.png
     printed: { width: 39, height: 22, position: top centre }
-  p013-2:
+  p13-2:
     category: glossary
     title: "p. 13 · 2"
     page: 13
     target: glossary/P13_Print_01.jpg
     image: glossary/P13_Online_01.jpg
     printed: { width: 27, height: 30, position: bottom left }
-  p014-1:
+  p14-1:
     category: glossary
     title: "p. 14 · 1"
     page: 14
     target: glossary/P14_Print_01.jpg
     image: glossary/P14_Online_01.jpg
     printed: { width: 29, height: 40, position: middle left }
-  p015-1:
+  p15-1:
     category: glossary
     title: "p. 15 · 1"
     page: 15
     target: glossary/P15_Print_01.jpg
     image: glossary/P15_Online_01.jpg
     printed: { width: 30, height: 42, position: middle right }
-  p017-1:
+  p17-1:
     category: glossary
     title: "p. 17 · 1"
     page: 17
     target: glossary/P17_Print_01.jpg
     image: glossary/P17_Online_01.jpg
     printed: { width: 21, height: 30, position: top left }
-  p019-1:
+  p19-1:
     category: glossary
     title: "p. 19 · 1"
     page: 19
     target: glossary/P19_Print_01.jpg
     image: glossary/P19_Online_01.jpg
     printed: { width: 28, height: 35, position: top centre }
-  p020-1:
+  p20-1:
     category: link
     title: "Animation rules"
     page: 20
     target: links/OSCT_Ref_Animationrules.png
     printed: { width: 38, height: 29, position: top centre }
-  p020-2:
+  p20-2:
     category: glossary
     title: "p. 20 · 2"
     page: 20
     target: glossary/P20_Print_01.jpg
     image: glossary/P20_Online_01.jpg
     printed: { width: 24, height: 36, position: bottom centre }
-  p022-1:
+  p22-1:
     category: glossary
     title: "p. 22 · 1"
     page: 22
     target: glossary/P22_Print_01.jpg
     image: glossary/P22_Online_01.jpg
     printed: { width: 36, height: 51, position: bottom centre }
-  p026-1:
+  p26-1:
     category: glossary
     title: "p. 26 · 1"
     page: 26
     target: glossary/P26_Print_01.jpg
     image: glossary/P26_Online_01.jpg
     printed: { width: 31, height: 40, position: top right }
-  p030-1:
+  p30-1:
     category: glossary
     title: "p. 30 · 1"
     page: 30
     target: glossary/P30_Print_02.jpg
     image: glossary/P30_Online_02.jpg
     printed: { width: 23, height: 23, position: bottom left }
-  p030-2:
+  p30-2:
     category: glossary
     title: "p. 30 · 2"
     page: 30
     target: glossary/P30_Print_01.jpg
     image: glossary/P30_Online_01.jpg
     note: "delivered as a print image but not in All_Triggers.pdf - not on the test printout"
-  p034-1:
+  p34-1:
     category: glossary
     title: "p. 34 · 1"
     page: 34
     target: glossary/P34_Print_01.jpg
     image: glossary/P34_Online_01.jpg
     note: "delivered as a print image but not in All_Triggers.pdf - not on the test printout"
-  p035-1:
+  p35-1:
     category: glossary
     title: "p. 35 · 1"
     page: 35
     target: glossary/P35_Print_01.jpg
     image: glossary/P35_Online_01.jpg
     note: "delivered as a print image but not in All_Triggers.pdf - not on the test printout"
-  p037-1:
+  p37-1:
     category: link
     title: "12 year old"
     page: 37
     target: links/OSCT_Ref_12yearold.png
     printed: { width: 32, height: 18, position: top right }
-  p038-1:
+  p38-1:
     category: glossary
     title: "p. 38 · 1"
     page: 38
     target: glossary/P38_Print_01.jpg
     image: glossary/P38_Online_01.jpg
     printed: { width: 30, height: 42, position: middle left }
-  p038-2:
+  p38-2:
     category: link
     title: "Gadsby"
     page: 38
     target: links/OSCT_Ref_Gadsby.jpg
     printed: { width: 31, height: 20, position: bottom left }
-  p039-1:
+  p39-1:
     category: glossary
     title: "p. 39 · 1"
     page: 39
     target: glossary/P39_Print_01.jpg
     image: glossary/P39_Online_01.jpg
     printed: { width: 37, height: 20, position: top right }
-  p041-1:
+  p41-1:
     category: glossary
     title: "p. 41 · 1"
     page: 41
     target: glossary/P41_Print_01.jpg
     image: glossary/P41_Online_01.jpg
     printed: { width: 26, height: 42, position: bottom right }
-  p042-1:
+  p42-1:
     category: link
     title: "AI NPC"
     page: 42
     target: links/OSCT_Ref_AINPC.png
     printed: { width: 37, height: 22, position: top left }
-  p045-1:
+  p45-1:
     category: link
     title: "Helldivers"
     page: 45
     target: links/OSCT_Ref_Helldivers.jpg
     printed: { width: 37, height: 24, position: top left }
-  p046-1:
+  p46-1:
     category: glossary
     title: "p. 46 · 1"
     page: 46
     target: glossary/P46_Print_02.jpg
     image: glossary/P46_Online_02.jpg
     printed: { width: 47, height: 29, position: middle left }
-  p046-2:
+  p46-2:
     category: glossary
     title: "p. 46 · 2"
     page: 46
     target: glossary/P46_Print_01.jpg
     image: glossary/P46_Online_01.jpg
     printed: { width: 28, height: 23, position: bottom right }
-  p050-1:
+  p50-1:
     category: link
     title: "inZOI"
     page: 50
     target: links/OSCT_Ref_inzoi.jpg
     printed: { width: 39, height: 25, position: middle centre }
-  p052-1:
+  p52-1:
     category: link
     title: "Crash"
     page: 52
     target: links/OSCT_Ref_Crash.png
     printed: { width: 37, height: 21, position: middle right }
-  p052-2:
+  p52-2:
     category: glossary
     title: "p. 52 · 2"
     page: 52
     target: glossary/P52_Print_01.jpg
     image: glossary/P52_Online_01.jpg
     printed: { width: 28, height: 42, position: bottom centre }
-  p058-1:
+  p58-1:
     category: glossary
     title: "p. 58 · 1"
     page: 58
     target: glossary/P58_Print_01.jpg
     image: glossary/P58_Online_01.jpg
     printed: { width: 40, height: 23, position: top centre }
-  p058-2:
+  p58-2:
     category: link
     title: "Leroy"
     page: 58
     target: links/OSCT_Ref_Leroy.jpg
     printed: { width: 41, height: 24, position: bottom centre }
-  p061-1:
+  p61-1:
     category: link
     title: "Derida Ghost"
     page: 61
     target: links/OSCT_Ref_DeridaGhost.png
     printed: { width: 37, height: 23, position: bottom left }
-  p062-1:
+  p62-1:
     category: glossary
     title: "p. 62 · 1"
     page: 62
     target: glossary/P62_Print_01.jpg
     image: glossary/P62_Online_01.jpg
     printed: { width: 26, height: 20, position: top right }
-  p063-1:
+  p63-1:
     category: link
     title: "Disney City"
     page: 63
     target: links/OSCT_Ref_DisneyCity.png
     printed: { width: 35, height: 20, position: bottom right }
     note: "match with the delivered file is uncertain (the printed crop differs) - check against the printout"
-  p067-1:
+  p67-1:
     category: glossary
     title: "p. 67 · 1"
     page: 67
     target: glossary/P67_Print_01.jpg
     image: glossary/P67_Online_01.jpg
     printed: { width: 26, height: 21, position: bottom left }
-  p068-1:
+  p68-1:
     category: link
     title: "Disney EYE"
     page: 68
     target: links/OSCT_Ref_DisneyEYE.png
     printed: { width: 42, height: 23, position: bottom left }
-  p074-1:
+  p74-1:
     category: link
     title: "Civilization"
     page: 74
     target: links/OSCT_Ref_Civilization.png
     printed: { width: 42, height: 24, position: top right }
-  p080-1:
+  p80-1:
     category: link
     title: "Disney Mansion"
     page: 80
     target: links/OSCT_Ref_DisneyMansion.png
     printed: { width: 40, height: 26, position: bottom right }
-  p082-1:
+  p82-1:
     category: glossary
     title: "p. 82 · 1"
     page: 82
     target: glossary/P82_Print_01.jpg
     image: glossary/P82_Online_01.jpg
     printed: { width: 21, height: 37, position: bottom right }
-  p083-1:
+  p83-1:
     category: glossary
     title: "p. 83 · 1"
     page: 83
     target: glossary/P83_Print_01.jpg
     image: glossary/P83_Online_01.jpg
     printed: { width: 30, height: 37, position: top left }
-  p086-1:
+  p86-1:
     category: glossary
     title: "p. 86 · 1"
     page: 86
     target: glossary/P86_Print_03.jpg
     image: glossary/P86_Online_03.jpg
     printed: { width: 39, height: 26, position: top left }
-  p086-2:
+  p86-2:
     category: link
     title: "Midnight"
     page: 86
     target: links/OSCT_Ref_Midnight.jpg
     printed: { width: 33, height: 22, position: top centre }
-  p086-3:
+  p86-3:
     category: glossary
     title: "p. 86 · 3"
     page: 86
     target: glossary/P86_Print_01.jpg
     image: glossary/P86_Online_01.jpg
     printed: { width: 39, height: 36, position: middle centre }
-  p086-4:
+  p86-4:
     category: glossary
     title: "p. 86 · 4"
     page: 86
     target: glossary/P86_Print_02.jpg
     image: glossary/P86_Online_02.jpg
     printed: { width: 39, height: 29, position: bottom left }
-  p094-1:
+  p94-1:
     category: glossary
     title: "p. 94 · 1"
     page: 94
     target: glossary/P94_Print_01.jpg
     image: glossary/P94_Online_01.jpg
     printed: { width: 24, height: 40, position: bottom right }
-  p095-1:
+  p95-1:
     category: link
     title: "Effaceur de bites"
     page: 95
     target: links/OSCT_Ref_Effaceurdebites.png
     printed: { width: 20, height: 26, position: bottom right }
-  p095-2:
+  p95-2:
     category: glossary
     title: "p. 95 · 2"
     page: 95
     target: glossary/P95_Print_01.jpg
     image: glossary/P95_Online_01.jpg
     note: "delivered as a print image but not in All_Triggers.pdf - not on the test printout"
-  p096-1:
+  p96-1:
     category: glossary
     title: "p. 96 · 1"
     page: 96
     target: glossary/P96_Print_02.jpg
     image: glossary/P96_Online_02.jpg
     printed: { width: 23, height: 30, position: top centre }
-  p096-2:
+  p96-2:
     category: glossary
     title: "p. 96 · 2"
     page: 96
     target: glossary/P96_Print_01.jpg
     image: glossary/P96_Online_01.jpg
     printed: { width: 25, height: 25, position: bottom left }
-  p099-1:
+  p99-1:
     category: video
     title: "Video p. 99"
     page: 99

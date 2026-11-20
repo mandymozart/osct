@@ -2341,6 +2341,7 @@ try {
         ['GET', '/user/tokens', null], ['POST', '/user/tokens', ['name' => 'Another']], ['POST', "/user/tokens/{$made['apiToken']['id']}/renew", null],
         ['DELETE', "/user/tokens/{$made['apiToken']['id']}", null], ['PUT', '/user/password', ['password' => 'from the robot']], ['DELETE', '/user', null],
         ['GET', '/admin/users', null], ['GET', '/admin/roles', null], ['POST', '/admin/editors', ['email' => 'robot@example.com']],
+        ['POST', '/admin/rename-ids', ['apply' => false]],
         // Consent (the update options) and the language are the person's own (#203, RULES #33)
         ['PATCH', '/user', ['options' => ['buildingfictions' => true], 'language' => 'nl']], ['PATCH', '/user', ['language' => 'nl']],
     ];
@@ -2706,6 +2707,137 @@ try {
     check($status === 200, 'the old user can set a password');
     [$status] = call($oldApi, 'POST', '/auth/password', ['email' => 'old@example.com', 'password' => 'a new password']);
     check($status === 200, 'and sign in with it');
+
+    echo "rename padded ids (#63, server/deploy/rename-ids.php – by hand, never on deploy)\n";
+    $idsSettings = database('ids', (string) file_get_contents("$root/api/db/schema." . ($mysql ? 'mysql' : 'sqlite') . '.sql'));
+    $idsDb = connect('ids');
+    $q = static fn(mixed $value): string => $idsDb->quote(is_string($value) ? $value : json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    $surface = static fn(string $id) => ['id' => $id, 'widthMm' => 460, 'heightMm' => 320, 'place' => ['x' => 0, 'y' => 0, 'z' => 0, 'rx' => 0, 'ry' => 0, 'rz' => 0]];
+    $goto = ['type' => 'behaviour', 'rules' => [['on' => 'tap', 'do' => [['action' => 'goto', 'to' => '/scene/s004-005?x=1'], ['action' => 'link', 'url' => '/scene/s004-0050']]]]];
+    $idsDb->exec("INSERT INTO experiences (id, title, experience_json, initial_scene, files_json, content_schema, groups_json, created_at, updated_at) VALUES ('osct', 'Onion Skin', "
+        . $q(['id' => 'osct', 'title' => 'Onion Skin', 'start' => 's001']) . ", 's001', " . $q(['entries/p004-1/target.jpg' => ['size' => 1]]) . ", '4.0', '[]', '2026-01-01 00:00:00', '2026-01-01 00:00:00')");
+    foreach ([['s001', 0, '1'], ['s004-005', 1, '4–5'], ['front-1', 2, 'Front matter 1']] as [$scene, $position, $label]) {
+        $idsDb->exec("INSERT INTO scenes (experience_id, id, position, label, data_json) VALUES ('osct', '$scene', $position, " . $q($label) . ', '
+            . $q(['id' => $scene, 'label' => $label, 'surfaces' => [$surface('surface')]] + ($scene === 's001' ? ['components' => [$goto]] : [])) . ')');
+    }
+    $entry = static fn(string $id, string $scene, string $body) => ['id' => $id, 'category' => 'text', 'title' => "p. $id", 'scene' => $scene, 'body' => $body, 'tags' => []];
+    $idsDb->exec("INSERT INTO entries (experience_id, id, scene_id, position, category, title, data_json) VALUES ('osct', 'p004-1', 's004-005', 0, 'text', 'p. 4 · 1', "
+        . $q($entry('p004-1', 's004-005', 'See [the next](/scene/s004-005) and s004-005 in words')) . ')');
+    $idsDb->exec("INSERT INTO entries (experience_id, id, scene_id, position, category, title, data_json) VALUES ('osct', 'kept', 's001', 1, 'text', 'Kept', "
+        . $q($entry('kept', 's001', 'plain')) . ')');
+    $idsDb->exec("INSERT INTO targets (experience_id, id, entry_id, image_src, entity_ref, data_json) VALUES ('osct', 'p004-1', 'p004-1', 'entries/p004-1/target.jpg', 'p004-1', "
+        . $q(['id' => 'p004-1', 'imageSrc' => 'entries/p004-1/target.jpg', 'entity' => ['ref' => 'p004-1']]) . ')');
+    $idsDb->exec("INSERT INTO entities (experience_id, ref, position, type, data_json) VALUES ('osct', 'p004-1', 0, 'text', " . $q(['type' => 'text', 'text' => 'p004-1 here', 'assets' => [], 'components' => [$goto]]) . ')');
+    $idsDb->exec("INSERT INTO surface_references (experience_id, scene_id, surface_id, url, name, updated_at) VALUES ('osct', 's004-005', 'surface', 'https://cdn.example/s004-005.jpg', 'x', 1)");
+    $idsDb->exec("INSERT INTO changes (id, experience_id, kind, ref, before_json, after_json, created_at) VALUES ('c1', 'osct', 'entry', 'p004-1', 'null', " . $q($entry('p004-1', 's004-005', 'x')) . ', 1)');
+    $idsDb->exec("INSERT INTO changes (id, experience_id, kind, ref, before_json, after_json, created_at) VALUES ('c2', 'osct', 'order', 'osct', " . $q(['s001', 's004-005']) . ', ' . $q(['s004-005', 's001']) . ', 2)');
+    $idsDb->exec("INSERT INTO changes (id, experience_id, kind, ref, before_json, after_json, created_at) VALUES ('c3', 'osct', 'reference', 's004-005/surface', 'null', " . $q(['url' => 'u', 'name' => 'n', 'fit' => 'cover']) . ', 3)');
+    $idsDb->exec("INSERT INTO changes (id, experience_id, kind, ref, before_json, after_json, created_at) VALUES ('c4', 'osct', 'entry', 'p009-2', " . $q($entry('p009-2', 's008-009', 'gone')) . ", 'null', 4)");
+    $idsDb->exec("INSERT INTO changes (id, experience_id, kind, ref, before_json, after_json, created_at) VALUES ('c6', 'osct', 'scene', 's008-009', " . $q(['id' => 's008-009', 'label' => '8–9', 'surfaces' => [$surface('surface')]]) . ", 'null', 6)");
+    $idsDb->exec("INSERT INTO changes (id, experience_id, kind, ref, before_json, after_json, created_at) VALUES ('c5', 'osct', 'plugin', 'code', 'null', " . $q(json_encode("api.goto('s004-005')")) . ', 5)');
+    $idsDb->exec("INSERT INTO plugins (experience_id, id, source, created_at, updated_at) VALUES ('osct', 'code', " . $q("export const register = (api) => api.goto('s004-005');") . ', 1, 1)');
+    $idsDb->exec("INSERT INTO experience_versions (id, experience_id, env, build, hash, published_at) VALUES ('v1', 'osct', 'local', 'abcdefabcdef', 'h', 5)");
+    // A second experience whose rename would collide: refused, left as it is
+    $idsDb->exec("INSERT INTO experiences (id, title, experience_json, initial_scene, files_json, content_schema, created_at, updated_at) VALUES ('clash', 'Clash', '{}', 's4-5', '{}', '4.0', '2026-01-01 00:00:00', '2026-01-01 00:00:00')");
+    foreach (['s004-005', 's4-5'] as $position => $scene) {
+        $idsDb->exec("INSERT INTO scenes (experience_id, id, position, label, data_json) VALUES ('clash', '$scene', $position, '4–5', " . $q(['id' => $scene, 'label' => '4–5', 'surfaces' => [$surface('surface')]]) . ')');
+    }
+    $idsDb = null;
+    $renameIds = static function (array $args) use ($idsSettings, $root): array {
+        $env = getenv();
+        foreach ($idsSettings as $key => $value) $env["OSCT_$key"] = $value;
+        $env['OSCT_CONFIG_FILE'] = '/nonexistent';
+        $process = proc_open([PHP_BINARY, "$root/deploy/rename-ids.php", ...$args], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $root, $env);
+        $out = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        return [proc_close($process), $out];
+    };
+    $idsSnapshot = static function () use ($mysql): array {
+        $db = connect('ids');
+        $rows = [];
+        foreach (['experiences', 'scenes', 'entries', 'targets', 'entities', 'surface_references', 'changes', 'plugins', 'experience_versions'] as $table) {
+            $rows[$table] = $db->query("SELECT * FROM $table ORDER BY 1, 2")->fetchAll(PDO::FETCH_ASSOC);
+        }
+        return $rows;
+    };
+    $before = $idsSnapshot();
+    [$code, $out] = $renameIds([]);
+    check($code === 1 && str_contains($out, 'usage'), 'rename-ids without --dry-run or --apply: usage, exit 1');
+    [$code, $out] = $renameIds(['--dry-run']);
+    check($code === 2 && $idsSnapshot() === $before, 'a dry run writes nothing (exit 2: an experience collides)');
+    check(str_contains($out, 'osct: 5 padded ids (3 scene, 2 entry / target / entity)') && str_contains($out, 's004-005 → s4-5') && str_contains($out, 'p004-1 → p4-1')
+        && preg_match('/changes\s+5\b/', $out) && preg_match('/scenes\s+2\b/', $out) && preg_match('/entries\s+2\b/', $out),
+        'the dry run counts rows per table and shows a sample of renames' . ($code === 2 ? '' : " – $out"));
+    check(str_contains($out, 'clash: 1 padded ids') && str_contains($out, 'REFUSED') && str_contains($out, 'scene s004-005 → s4-5: s4-5 exists already'), 'a collision is named and refused');
+    check(str_contains($out, 'osct: code'), 'a plugin source naming a padded id is listed (never rewritten)');
+    [$code, $out] = $renameIds(['--apply', '--experience', 'osct']);
+    check($code === 0 && str_contains($out, 'renamed'), 'apply one experience → exit 0' . ($code === 0 ? '' : " – $out"));
+    $after = $idsSnapshot();
+    $byId = static fn(array $rows, string $key = 'id'): array => array_column($rows, null, $key);
+    $experience = $byId($after['experiences'])['osct'];
+    check($experience['initial_scene'] === 's1' && json_decode($experience['experience_json'], true)['start'] === 's1'
+        && json_decode($experience['files_json'], true) === ['entries/p004-1/target.jpg' => ['size' => 1]], 'the experience: initial scene and its JSON renamed, file paths kept');
+    $scenes = $byId(array_filter($after['scenes'], fn($r) => $r['experience_id'] === 'osct'));
+    ksort($scenes);
+    check(array_keys($scenes) === ['front-1', 's1', 's4-5'] && json_decode($scenes['s4-5']['data_json'], true)['id'] === 's4-5', 'scenes: s001 → s1, s004-005 → s4-5, front-1 kept');
+    $rules = json_decode($scenes['s1']['data_json'], true)['components'][0]['rules'][0]['do'];
+    check($rules[0]['to'] === '/scene/s4-5?x=1' && $rules[1]['url'] === '/scene/s004-0050', 'a behaviour\'s /scene/ link renamed (a longer id that only starts like it kept)');
+    $entries = $byId($after['entries']);
+    $renamedEntry = json_decode($entries['p4-1']['data_json'] ?? 'null', true);
+    check(isset($entries['p4-1']) && $entries['p4-1']['scene_id'] === 's4-5' && $renamedEntry['id'] === 'p4-1' && $renamedEntry['scene'] === 's4-5'
+        && $renamedEntry['body'] === 'See [the next](/scene/s4-5) and s004-005 in words' && $entries['kept']['scene_id'] === 's1', 'entries: id, scene and Markdown links renamed, plain words kept');
+    $target = $after['targets'][0];
+    $targetData = json_decode($target['data_json'], true);
+    check($target['id'] === 'p4-1' && $target['entry_id'] === 'p4-1' && $target['entity_ref'] === 'p4-1' && $target['image_src'] === 'entries/p004-1/target.jpg'
+        && $targetData['entity'] === ['ref' => 'p4-1'] && $targetData['imageSrc'] === 'entries/p004-1/target.jpg', 'a target: id, entry, entity ref renamed – its image path kept');
+    check($after['entities'][0]['ref'] === 'p4-1' && json_decode($after['entities'][0]['data_json'], true)['text'] === 'p004-1 here', 'a shared entity: ref renamed, its text kept');
+    check($after['surface_references'][0]['scene_id'] === 's4-5' && $after['surface_references'][0]['url'] === 'https://cdn.example/s004-005.jpg', 'a surface reference: scene renamed, url kept');
+    $changes = $byId($after['changes']);
+    check($changes['c1']['ref'] === 'p4-1' && json_decode($changes['c1']['after_json'], true)['scene'] === 's4-5'
+        && json_decode($changes['c2']['before_json'], true) === ['s1', 's4-5'] && $changes['c3']['ref'] === 's4-5/surface'
+        && $changes['c4']['ref'] === 'p9-2' && json_decode($changes['c4']['before_json'], true)['scene'] === 's8-9'
+        && json_decode($changes['c5']['after_json'], true) === "api.goto('s004-005')", 'the change log: refs and JSON renamed (a removed entry too), a plugin source not');
+    check($after['plugins'] === $before['plugins'] && $after['experience_versions'] === $before['experience_versions'], 'plugin sources and published versions untouched');
+    check(array_values(array_filter($after['scenes'], fn($r) => $r['experience_id'] === 'clash')) === array_values(array_filter($before['scenes'], fn($r) => $r['experience_id'] === 'clash')),
+        '--experience: the other experience left as it was');
+    [$code, $out] = $renameIds(['--apply', '--experience', 'osct']);
+    check($code === 0 && str_contains($out, 'osct: 0 padded ids – nothing to do') && $idsSnapshot() === $after, 'applied twice: the second run changes nothing');
+    [$code, $out] = $renameIds(['--apply']);
+    check($code === 2 && $idsSnapshot() === $after, 'apply all with a colliding experience: exit 2, that one not written');
+    // And the API reads the renamed experience
+    $idsSession = str_repeat('i', 43);
+    $idsDb = connect('ids');
+    $idsDb->exec("INSERT INTO users (id, email, role, created_at, confirmed_at, updated_at) VALUES ('ui', 'ids@example.com', 'editor', '2026-01-01 00:00:00', '2026-01-01 00:00:00', '2026-01-01 00:00:00')");
+    $idsDb->exec("INSERT INTO sessions (id, user_id, token_hash, created_at, last_used_at) VALUES ('si', 'ui', '" . hash('sha256', $idsSession) . "', '2026-01-01 00:00:00', '2099-01-01 00:00:00')");
+    $idsDb->exec("INSERT INTO user_roles (user_id, role_id, granted_at) VALUES ('ui', 2, '2026-01-01 00:00:00')");
+    $idsDb = null;
+    $idsApi = startApi($idsSettings + $settings);
+    [$status, $data] = call($idsApi, 'GET', '/editor/experiences/osct', null, $idsSession);
+    $opened = $status === 200 ? array_column($data['scenes'], null, 'id') : [];
+    check($status === 200 && isset($opened['s4-5']) && ($opened['s4-5']['entries'][0]['id'] ?? null) === 'p4-1', 'the renamed experience opens in the editor (s4-5 holds p4-1)');
+    // The same from the admin page (POST /admin/rename-ids – a host without a shell)
+    [$status, $data] = call($idsApi, 'POST', '/admin/rename-ids', ['apply' => false], $idsSession);
+    check($status === 403 && $data['error']['role'] === 'admin', 'admin/rename-ids: an editor is no admin → 403');
+    $idsDb = connect('ids');
+    $idsDb->exec("INSERT INTO user_roles (user_id, role_id, granted_at) VALUES ('ui', 3, '2026-01-01 00:00:00')");
+    $idsDb->exec("INSERT INTO experiences (id, title, experience_json, initial_scene, files_json, content_schema, created_at, updated_at) VALUES ('more', 'More', '{}', 's007', '{}', '4.0', '2026-01-01 00:00:00', '2026-01-01 00:00:00')");
+    $idsDb->exec("INSERT INTO scenes (experience_id, id, position, label, data_json) VALUES ('more', 's007', 0, '7', " . $q(['id' => 's007', 'label' => '7', 'surfaces' => [$surface('surface')]]) . ')');
+    $idsDb = null;
+    $before = $idsSnapshot();
+    [$status, $data] = call($idsApi, 'POST', '/admin/rename-ids', ['apply' => false], $idsSession);
+    $reported = $status === 200 ? array_column($data['experiences'], null, 'experience') : [];
+    check($status === 200 && $idsSnapshot() === $before && $data['apply'] === false && $data['refused'] === 1
+        && $reported['osct']['ids'] === 0 && $reported['more']['ids'] === 1 && $reported['more']['samples'] === [['from' => 's007', 'to' => 's7']]
+        && $reported['more']['rows'] === ['experiences' => 1, 'scenes' => 1] && $reported['clash']['collisions'] === ['scene s004-005 → s4-5: s4-5 exists already']
+        && $data['plugins'] === ['osct: code'], 'admin/rename-ids dry run: the report as JSON, nothing written');
+    [$status, $data] = call($idsApi, 'POST', '/admin/rename-ids', ['apply' => 'yes'], $idsSession);
+    check($status === 400, 'admin/rename-ids needs apply true or false → 400');
+    [$status] = call($idsApi, 'POST', '/admin/rename-ids', ['apply' => false, 'experience' => 'nothing'], $idsSession);
+    check($status === 404, 'admin/rename-ids of an unknown experience → 404');
+    [$status, $data] = call($idsApi, 'POST', '/admin/rename-ids', ['apply' => true, 'experience' => 'more'], $idsSession);
+    check($status === 200 && $data['experiences'][0]['applied'] === true
+        && connect('ids')->query("SELECT id FROM scenes WHERE experience_id = 'more'")->fetchColumn() === 's7', 'admin/rename-ids apply: renamed');
 
     echo "logout, delete\n";
     [$status] = call($api, 'POST', '/auth/logout', null, $secondSession);

@@ -24,7 +24,7 @@ no admin sees "No admin access" at `/editor/admin`.
   window (7 / 30 / 90 days, a year) and in all, the **first** arrivals (browsers that had never arrived before), phone ·
   tablet · desktop, the first and the last day, and a bar per day. **A new code** (#326) composes the address for a new
   source and where it leads – the start, Info, a scene, an entry list or an entry (the reader's links) –, e.g.
-  `…/entry/p004-1?s=fl1`, and draws it as a **QR code in SVG** to copy or download for print (`editor/src/lib/qr-svg.ts`,
+  `…/entry/p4-1?s=fl1`, and draws it as a **QR code in SVG** to copy or download for print (`editor/src/lib/qr-svg.ts`,
   the reader's QR library copied to `editor/static/vendor/qrcode.js`). Counts only – no IP, no user.
 - **Users** – search by a part of the e-mail address (`GET /api/admin/users?q=`), newest first, up to 50 at a time
   (narrow the search for more). Each row: the address (`pw` when a password is set), the **roles as toggles**
@@ -43,6 +43,11 @@ no admin sees "No admin access" at `/editor/admin`.
   an account that signs in with a code by e-mail, like every reader.
 - An admin may give up their own admin role (after a confirm), unless they are the **last admin** (409 `last-admin`):
   make another admin first. A revoked role is gone at the user's next request; their own roles reload on the page.
+- **Ids without leading zeros (#63)** (at the bottom, one-off) – renames the database's zero-padded ids (`s004-005` →
+  `s4-5`, `p004-1` → `p4-1`) through `POST /api/admin/rename-ids` ([server](server.md#ids-without-leading-zeros-63)),
+  for a host without a shell. **Dry run** shows per experience how many ids, the rows per table, a sample and any
+  collision, and the plugin code that names a padded id; **Apply** is enabled only after a dry run with ids to rename and
+  no collision, and asks first – readers' progress starts over (`editor/src/lib/RenameIdsSection.svelte`).
 
 The reader's preferences stay where they are (Info → Account): the page shows them, it does not change them. The
 update option (`buildingfictions`, news from Building Fictions – #325 merged the earlier three: experience, artist,

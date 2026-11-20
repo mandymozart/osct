@@ -7,6 +7,22 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+
+- **Ids without leading zeros** (#63): the delivery import (`npm run import`, `prepare-delivery.py`) writes scenes
+  `s4-5` / `s4` and entries `p4-1` instead of `s004-005` / `p004-1`; a mapping written with zeros is imported without
+  them. The mappings in `scripts/import/` are renamed. The database's existing ids are renamed once with the new
+  command `php server/deploy/rename-ids.php --dry-run | --apply [--experience ID]` – by hand, never on deploy; it
+  renames scenes, entries, targets, entities and every reference to them (links `/scene/<id>`, the change log), leaves
+  file paths, published versions and plugin code alone and refuses an experience with a collision (docs/server.md
+  "Ids without leading zeros"). **Readers' progress starts over** once it has run: progress is keyed by the ids
+  (RULES #10) – on staging only, no reader in production yet.
+- **Admin page: Ids without leading zeros (#63)** – a Dry run button and an Apply button (only after a dry run without
+  collisions, with a confirm) for the same rename on a host without a shell, through the new admin-only route
+  `POST /api/admin/rename-ids { apply, experience? }`.
+
 ## 3.9.0 – 2026-11-20
 
 ### Added

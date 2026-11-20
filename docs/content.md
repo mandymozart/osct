@@ -29,7 +29,7 @@ folders after release: reading progress is stored by id.
 content/
 ├── experience.yaml               the experience (id, title; book: the printed book's author, publisher)
 ├── scenes/
-│   └── s002-003/
+│   └── s2-3/
 │       └── scene.yaml            label, order and surfaces of the scene
 ├── entries/
 │   └── old-castle/
@@ -130,12 +130,12 @@ their signs (the table in "Schema and app versions"). Plain text reads the same 
 
 ### Recipes
 
-**A glossary term unlocked by an image in the scene `s002-003`:**
+**A glossary term unlocked by an image in the scene `s2-3`:**
 
 ```yaml
 category: glossary
 title: Old Castle
-scene: s002-003
+scene: s2-3
 body: An ancient castle filled with secrets.
 image: castle-drawing.jpg        # optional picture in the entry
 target:
@@ -147,7 +147,7 @@ target:
 ```yaml
 category: video
 title: Death Jam & Living Juice
-scene: s002-003
+scene: s2-3
 body: Documentation of the performance.
 target:
   image: images-007.jpg
@@ -243,7 +243,7 @@ image or the AR content opens the entry – from then on it counts as consulted.
 ```yaml
 category: text
 title: On Building Fictions
-scene: s002-003
+scene: s2-3
 author: Catherine Guiral
 body: |
   First paragraph …
@@ -254,7 +254,7 @@ body: |
 ```yaml
 category: link
 title: Shadows
-scene: s002-003
+scene: s2-3
 body: Light plays a role in architecture.
 media: https://www.youtube.com/watch?v=…
 ```
@@ -978,7 +978,7 @@ A publisher's delivery (folders of printed images, entry images and videos) goes
 
 ```yaml
 entries:
-  p038-1:
+  p38-1:
     category: glossary
     title: "p. 38 · 1"                # placeholder until the texts arrive
     page: 38
@@ -999,9 +999,11 @@ npm run import -- "C:/path/to/delivery" import/2110.yaml
 What it does: every image becomes a JPEG (targets ≤ 1600 px, entry images ≤ 1600 px, transparency flattened
 on white), every video is re-encoded with ffmpeg (H.264 MP4, long side ≤ 1280 px, ~2 Mbit/s, AAC – ffmpeg
 has to be installed), `entry.yaml` is written with placeholder texts and the note as a comment, and a scene
-is created for every pair of facing pages that has an entry (`s038-039`, label "38–39", one surface twice the page's
+is created for every pair of facing pages that has an entry (`s38-39`, label "38–39", one surface twice the page's
 width – page 1 and a last even page one page wide). The mapping's `page` is mapped to the scene **once, here**: the
-entry gets `scene: s038-039`, never a page (content schema 3.0). Media is rewritten
+entry gets `scene: s38-39`, never a page (content schema 3.0). Ids have no leading zeros (#63): scenes `s38-39`, `s1`,
+entries `p38-1` – a mapping key written with them (`p038-1`) is imported without; the order is the scene's `order`, never
+its id. The database's existing ids were renamed once with `server/deploy/rename-ids.php` (docs/server.md). Media is rewritten
 when the delivered file is newer; **`entry.yaml` and `scene.yaml` are never overwritten** – edit them
 freely and run the import again when the next delivery comes. Problems (a file missing, ffmpeg failing, a
 video without a target) are listed at the end.
@@ -1090,7 +1092,7 @@ It writes the mapping, the cut images, the layout (the page previews rendered fr
 they were, every target's box by id) and a report (`report.json` – re-importing the editor's draft over the new build
 takes its URLs back to `/assets/content/…` paths first, `agents/RULES.md` #36: per trigger its kind, box, the printed picture's
 resolution and the cut's pixels; the current targets no trigger shows). The import then writes the entries as usual –
-an existing `entry.yaml` stays as it is. Entries the delivery makes obsolete are named with `--retire p002-1,p030-2`:
+an existing `entry.yaml` stays as it is. Entries the delivery makes obsolete are named with `--retire p2-1,p30-2`:
 they are never matched (their triggers become new entries, their ids stay taken) – delete their folders before the
 import.
 

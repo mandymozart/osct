@@ -6,6 +6,7 @@
   import Segmented from "#lib/components/Segmented.svelte";
   import Toggle from "#lib/components/Toggle.svelte";
   import ArrivalsSection from "#lib/ArrivalsSection.svelte";
+  import RenameIdsSection from "#lib/RenameIdsSection.svelte";
 
   /**
    * The admin page (docs/admin.md): the instance's users found by e-mail, each one's roles as toggles (granted when and
@@ -203,6 +204,8 @@
       <button type="submit" class="pill primary" disabled={inviting}>Make editor</button>
     </div>
   </form>
+
+  <RenameIdsSection />
 </main>
 
 <style>

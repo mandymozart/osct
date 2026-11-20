@@ -390,6 +390,33 @@ export const revokeRole = (userId: string, role: string) =>
   api<{ changed: boolean; user: AdminUser }>("DELETE", `/admin/users/${encodeURIComponent(userId)}/roles/${encodeURIComponent(role)}`);
 
 /** Makes (or creates) an editor by e-mail address */
+/** One experience of the rename of zero-padded ids (#63, `POST /admin/rename-ids`) */
+export interface RenameIdsExperience {
+  experience: string;
+  /** How many padded ids it has */
+  ids: number;
+  /** The first renames, `s004-005` → `s4-5` */
+  samples: Array<{ from: string; to: string }>;
+  /** Rows per table that change (or changed) */
+  rows: Record<string, number>;
+  /** Why it is refused – empty when it can be renamed */
+  collisions: string[];
+  applied: boolean;
+}
+
+export interface RenameIdsReport {
+  apply: boolean;
+  experiences: RenameIdsExperience[];
+  /** Plugin sources that name a padded id (`experience: plugin`) – code is never rewritten */
+  plugins: string[];
+  /** Experiences refused for collisions */
+  refused: number;
+}
+
+/** The one-off rename of zero-padded ids (#63): `apply: false` is the dry run and writes nothing */
+export const renameIds = (apply: boolean, experience?: string) =>
+  api<RenameIdsReport>("POST", "/admin/rename-ids", experience ? { apply, experience } : { apply });
+
 export const inviteEditor = (email: string) => api<{ user: AdminUser; created: boolean; changed: boolean }>("POST", "/admin/editors", { email });
 
 /** The users as CSV (`newsletter` keeps those with an update option on), as a file the browser saves */

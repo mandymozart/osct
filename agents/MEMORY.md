@@ -209,6 +209,18 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-20 – Ids without leading zeros (#63)
+
+- Tilman (2026-11-20): ids without leading zeros – `s4-5`, `s4`, `p4-1`. The import writes them; the database is renamed
+  **once by hand** with `server/deploy/rename-ids.php` (dry run first, Tilman approves the numbers, then `--apply` on
+  staging) – deliberately not in `Db::migrate`, which runs on every deploy.
+- Decided in the worker: published versions are not rewritten (they are built files on the content store, not rows;
+  the next publish carries the new ids). File paths and URLs keep the padded folder (`entries/p004-1/target.jpg`) – a
+  rename there would need the files moved. Plugin code is listed, never rewritten. Progress starts over (RULES #10).
+- [ ] Open: the real content folder / mappings outside the repository and the layout files (`pp-004-005` sheet names,
+  `layout.json` target keys) still carry padded names; the folder is an export since #322 and follows from the next
+  export.
+
 ## 2026-11-20 – Backlog review: 123 → about 50 open issues, Tilman's decisions (#332)
 - 70+ issues closed (shipped, superseded or merged); design review leftovers in #333. Result and decisions: #332.
 - **Several experiences on one installation** (for Kévin's further works): one store layout `<title>/<env>/<experience>/…`

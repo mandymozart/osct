@@ -119,7 +119,12 @@ export function readMapping(file: string, problems: string[] = []): Mapping {
   const data: unknown = yaml.load(fs.readFileSync(file, 'utf8'));
   if (!isObject(data) || !isObject(data.entries)) throw new Error(`${file}: expected a mapping with "entries"`);
   const entries: Record<string, MappedEntry> = {};
-  for (const [id, value] of Object.entries(data.entries)) {
+  for (const [key, value] of Object.entries(data.entries)) {
+    const id = unpaddedId(key);
+    if (entries[id]) {
+      problems.push(`${key}: the same id as another entry once the leading zeros are gone (${id}) – left out`);
+      continue;
+    }
     const entry = readMappedEntry(id, value, problems);
     if (entry) entries[id] = entry;
   }
@@ -133,9 +138,16 @@ export const scenePages = (page: number, lastPage: number): [number, number] => 
   return [first, Math.min(first + 1, lastPage)];
 };
 
-/** The scene id of a page range: `s001`, `s002-003` */
-export const pagesSceneId = ([first, last]: [number, number]) =>
-  first === last ? `s${String(first).padStart(3, '0')}` : `s${String(first).padStart(3, '0')}-${String(last).padStart(3, '0')}`;
+/** The scene id of a page range: `s1`, `s2-3` – no leading zeros (#63): the order is the scene's `order`, never its id */
+export const pagesSceneId = ([first, last]: [number, number]) => (first === last ? `s${first}` : `s${first}-${last}`);
+
+/**
+ * An id without leading zeros (#63): `p004-1` → `p4-1`, `s004-005` → `s4-5` – a mapping written before keeps working
+ * and imports the ids the database has since `server/deploy/rename-ids.php`; any other id stays as it is
+ */
+export const unpaddedId = (id: string): string =>
+  id.replace(/^([sp])(\d+)(?:-(\d+))?(?=\D|$)/, (_, prefix: string, first: string, second?: string) =>
+    `${prefix}${Number(first)}${second === undefined ? '' : `-${Number(second)}`}`);
 
 const newer = (source: string, output: string) =>
   !fs.existsSync(output) || fs.statSync(source).mtimeMs > fs.statSync(output).mtimeMs;

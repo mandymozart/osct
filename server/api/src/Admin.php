@@ -141,6 +141,34 @@ final class Admin
     }
 
     /**
+     * POST /admin/rename-ids { apply, experience? } → the report of the one-off rename of zero-padded ids (#63, `IdRename`;
+     * the same as `server/deploy/rename-ids.php` for a host without a shell): `{ apply, experiences: [{ experience, ids,
+     * samples: [{ from, to }], rows: { table: n }, collisions, applied }], plugins, refused }`. `apply: false` writes
+     * nothing; with `apply: true` an experience with collisions is still left as it is (`refused` counts them).
+     */
+    public static function renameIds(array $body): never
+    {
+        self::actor();
+        $apply = $body['apply'] ?? null;
+        if (!is_bool($apply)) throw new ApiError(400, 'invalid-request', 'apply: expected true or false.');
+        $only = $body['experience'] ?? null;
+        if ($only !== null && (!is_string($only) || $only === '')) throw new ApiError(400, 'invalid-request', 'experience: expected an experience id.');
+        $report = IdRename::run($apply, $only);
+        if ($only !== null && !$report) throw new ApiError(404, 'not-found', 'No such experience.');
+        $experiences = array_map(static fn(array $plan): array => [
+            'experience' => $plan['experience'],
+            'ids' => count($plan['renames']),
+            'samples' => array_map(static fn(string $from, string $to) => ['from' => $from, 'to' => $to],
+                array_keys(array_slice($plan['renames'], 0, 12, true)), array_values(array_slice($plan['renames'], 0, 12, true))),
+            'rows' => (object) $plan['rows'],
+            'collisions' => $plan['collisions'],
+            'applied' => $plan['applied'],
+        ], $report);
+        Http::json(200, ['apply' => $apply, 'experiences' => $experiences, 'plugins' => IdRename::pluginsNaming($only),
+            'refused' => count(array_filter($report, static fn(array $plan) => $plan['collisions'] !== []))]);
+    }
+
+    /**
      * The user as the admin page shows it: the account (Users::toJson) with its id, the grants (role, when, by whom –
      * `grantedByEmail` when the granter is a user) and when a device last used a session.
      * @param array<string, mixed> $row

@@ -1,8 +1,8 @@
 # Made by scripts/layout/prepare-delivery.py from OSCT_FULL_preview_spreads_HIGHRES.pdf and the trigger PDFs (OSCT_TRIGGERS_ACTIVE.pdf, OSCT_TRIGGERS_INACTIVE.pdf, OSCT_TRIGGERS_KevinWORKS.pdf).
-# Delivery folder: C:/Development/osct/osct-incoming-content/2026-11-final/delivery (made by prepare-delivery with --print OSCT_FULL_preview_spreads_HIGHRES.pdf and --retire p002-1,p030-2,p034-1,p035-1,p095-2,p100-1,p106-1,p158-1,p192-1,p222-2).
+# Delivery folder: C:/Development/osct/osct-incoming-content/2026-11-final/delivery (made by prepare-delivery with --print OSCT_FULL_preview_spreads_HIGHRES.pdf and --retire p2-1,p30-2,p34-1,p35-1,p95-2,p100-1,p106-1,p158-1,p192-1,p222-2).
 experience: osct
 entries:
-  p001-1:
+  p1-1:
     category: glossary
     title: "p. 1 · 1"
     page: 1
@@ -10,7 +10,7 @@ entries:
     printed: { width: 208.0, height: 208.0, position: "right 14.0 / 8.0" }
     enabled: false
     tags: ["artwork"]
-  p002-2:
+  p2-2:
     category: glossary
     title: "p. 2 · 2"
     page: 2
@@ -18,56 +18,56 @@ entries:
     printed: { width: 18.7, height: 24.2, position: "left 21.8 / 15.9" }
     enabled: false
     tags: ["artwork"]
-  p002-3:
+  p2-3:
     category: glossary
     title: "p. 2 · 3"
     page: 2
     target: P2_inactive_3.jpg
     printed: { width: 23.5, height: 30.1, position: "left 58.1 / 32.6" }
     enabled: false
-  p002-4:
+  p2-4:
     category: glossary
     title: "p. 2 · 4"
     page: 2
     target: P2_inactive_4.jpg
     printed: { width: 29.6, height: 41.9, position: "left 107.5 / 92.0" }
     enabled: false
-  p002-5:
+  p2-5:
     category: glossary
     title: "p. 2 · 5"
     page: 2
     target: P2_inactive_5.jpg
     printed: { width: 25.5, height: 30.2, position: "left 168.7 / 148.4" }
     enabled: false
-  p002-6:
+  p2-6:
     category: glossary
     title: "p. 2 · 6"
     page: 2
     target: P2_inactive_6.jpg
     printed: { width: 20.5, height: 22.4, position: "left 155.0 / 167.4" }
     enabled: false
-  p002-7:
+  p2-7:
     category: glossary
     title: "p. 2 · 7"
     page: 2
     target: P2_inactive_7.jpg
     printed: { width: 15.2, height: 22.5, position: "left 58.1 / 232.2" }
     enabled: false
-  p002-8:
+  p2-8:
     category: glossary
     title: "p. 2 · 8"
     page: 2
     target: P2_inactive_8.jpg
     printed: { width: 29.6, height: 37.0, position: "left 160.7 / 251.0" }
     enabled: false
-  p003-1:
+  p3-1:
     category: glossary
     title: "p. 3 · 1"
     page: 3
     target: P3_inactive_1.jpg
     printed: { width: 33.3, height: 33.3, position: "right 21.0 / 15.9" }
     enabled: false
-  p003-2:
+  p3-2:
     category: glossary
     title: "p. 3 · 2"
     page: 3
@@ -75,40 +75,40 @@ entries:
     printed: { width: 169.0, height: 244.6, position: "right 36.5 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p003-3:
+  p3-3:
     category: glossary
     title: "p. 3 · 3"
     page: 3
     target: P3_inactive_3.jpg
     printed: { width: 26.2, height: 34.8, position: "right 196.9 / 237.3" }
     enabled: false
-  p003-4:
+  p3-4:
     category: glossary
     title: "p. 3 · 4"
     page: 3
     target: P3_inactive_4.jpg
     printed: { width: 27.7, height: 34.3, position: "right 184.6 / 276.9" }
     enabled: false
-  p004-1:
+  p4-1:
     category: link
     title: "Cheap tricks"
     page: 4
     target: P4_active_1.jpg
     printed: { width: 30.9, height: 23.3, position: "left 38.7 / 9.5" }
-  p004-2:
+  p4-2:
     category: glossary
     title: "p. 4 · 2"
     page: 4
     target: P4_active_2.jpg
     printed: { width: 49.0, height: 17.7, position: "left 155.5 / 287.0" }
-  p004-3:
+  p4-3:
     category: glossary
     title: "p. 4 · 3"
     page: 4
     target: P4_inactive_3.jpg
     printed: { width: 25.3, height: 34.9, position: "left 182.1 / 11.5" }
     enabled: false
-  p004-4:
+  p4-4:
     category: glossary
     title: "p. 4 · 4"
     page: 4
@@ -116,49 +116,49 @@ entries:
     printed: { width: 172.2, height: 244.8, position: "left 22.9 / 35.9" }
     enabled: false
     tags: ["artwork"]
-  p004-5:
+  p4-5:
     category: glossary
     title: "p. 4 · 5"
     page: 4
     target: P4_inactive_5.jpg
     printed: { width: 16.8, height: 29.5, position: "left 201.6 / 132.5" }
     enabled: false
-  p004-6:
+  p4-6:
     category: glossary
     title: "p. 4 · 6"
     page: 4
     target: P4_inactive_6.jpg
     printed: { width: 17.0, height: 24.5, position: "left 190.3 / 200.4" }
     enabled: false
-  p004-7:
+  p4-7:
     category: glossary
     title: "p. 4 · 7"
     page: 4
     target: P4_inactive_7.jpg
     printed: { width: 22.4, height: 32.2, position: "left 187.6 / 226.2" }
     enabled: false
-  p004-8:
+  p4-8:
     category: glossary
     title: "p. 4 · 8"
     page: 4
     target: P4_inactive_8.jpg
     printed: { width: 18.7, height: 27.2, position: "left 17.3 / 273.4" }
     enabled: false
-  p005-1:
+  p5-1:
     category: glossary
     title: "p. 5 · 1"
     page: 5
     target: P5_inactive_1.jpg
     printed: { width: 22.9, height: 31.6, position: "right 18.0 / 22.2" }
     enabled: false
-  p005-2:
+  p5-2:
     category: glossary
     title: "p. 5 · 2"
     page: 5
     target: P5_inactive_2.jpg
     printed: { width: 20.5, height: 24.3, position: "right 171.9 / 19.0" }
     enabled: false
-  p005-3:
+  p5-3:
     category: glossary
     title: "p. 5 · 3"
     page: 5
@@ -166,35 +166,35 @@ entries:
     printed: { width: 174.4, height: 240.3, position: "right 33.8 / 38.0" }
     enabled: false
     tags: ["artwork"]
-  p005-4:
+  p5-4:
     category: glossary
     title: "p. 5 · 4"
     page: 5
     target: P5_inactive_4.jpg
     printed: { width: 25.6, height: 25.6, position: "right 11.3 / 170.4" }
     enabled: false
-  p005-5:
+  p5-5:
     category: glossary
     title: "p. 5 · 5"
     page: 5
     target: P5_inactive_5.jpg
     printed: { width: 19.7, height: 25.6, position: "right 7.1 / 200.4" }
     enabled: false
-  p005-6:
+  p5-6:
     category: glossary
     title: "p. 5 · 6"
     page: 5
     target: P5_inactive_6.jpg
     printed: { width: 24.9, height: 36.4, position: "right 56.7 / 265.6" }
     enabled: false
-  p006-1:
+  p6-1:
     category: glossary
     title: "p. 6 · 1"
     page: 6
     target: P6_inactive_1.jpg
     printed: { width: 17.1, height: 30.4, position: "left 17.9 / 12.7" }
     enabled: false
-  p006-2:
+  p6-2:
     category: glossary
     title: "p. 6 · 2"
     page: 6
@@ -202,69 +202,69 @@ entries:
     printed: { width: 402.0, height: 244.6, position: "left 29.0 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p006-3:
+  p6-3:
     category: glossary
     title: "p. 6 · 3"
     page: 6
     target: P6_inactive_3.jpg
     printed: { width: 19.7, height: 36.0, position: "left 12.0 / 206.3" }
     enabled: false
-  p006-4:
+  p6-4:
     category: glossary
     title: "p. 6 · 4"
     page: 6
     target: P6_inactive_4.jpg
     printed: { width: 37.7, height: 45.1, position: "left 31.7 / 261.9" }
     enabled: false
-  p007-1:
+  p7-1:
     category: glossary
     title: "p. 7 · 1"
     page: 7
     target: P7_inactive_1.jpg
     printed: { width: 27.5, height: 23.9, position: "right 165.3 / 18.2" }
     enabled: false
-  p007-2:
+  p7-2:
     category: glossary
     title: "p. 7 · 2"
     page: 7
     target: P7_inactive_2.jpg
     printed: { width: 23.2, height: 31.5, position: "right 192.8 / 49.3" }
     enabled: false
-  p007-3:
+  p7-3:
     category: glossary
     title: "p. 7 · 3"
     page: 7
     target: P7_inactive_3.jpg
     printed: { width: 26.6, height: 36.0, position: "right 192.8 / 211.0" }
     enabled: false
-  p008-1:
+  p8-1:
     category: glossary
     title: "p. 8 · 1"
     page: 8
     target: P8_active_1.jpg
     printed: { width: 30.6, height: 22.9, position: "left 4.6 / 169.6" }
-  p008-2:
+  p8-2:
     category: glossary
     title: "p. 8 · 2"
     page: 8
     target: P8_inactive_2.jpg
     printed: { width: 17.8, height: 25.1, position: "left 45.2 / 18.4" }
     enabled: false
-  p008-3:
+  p8-3:
     category: glossary
     title: "p. 8 · 3"
     page: 8
     target: P8_inactive_3.jpg
     printed: { width: 28.1, height: 32.1, position: "left 168.1 / 19.4" }
     enabled: false
-  p008-4:
+  p8-4:
     category: glossary
     title: "p. 8 · 4"
     page: 8
     target: P8_inactive_4.jpg
     printed: { width: 24.4, height: 36.7, position: "left 17.6 / 41.0" }
     enabled: false
-  p008-5:
+  p8-5:
     category: glossary
     title: "p. 8 · 5"
     page: 8
@@ -272,41 +272,41 @@ entries:
     printed: { width: 143.0, height: 244.6, position: "left 37.5 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p008-6:
+  p8-6:
     category: glossary
     title: "p. 8 · 6"
     page: 8
     target: P8_inactive_6.jpg
     printed: { width: 34.7, height: 29.0, position: "left 164.7 / 266.4" }
     enabled: false
-  p008-7:
+  p8-7:
     category: glossary
     title: "p. 8 · 7"
     page: 8
     target: P8_inactive_7.jpg
     printed: { width: 24.2, height: 16.1, position: "left 16.0 / 284.4" }
     enabled: false
-  p009-1:
+  p9-1:
     category: link
     title: "Body Talk"
     page: 9
     target: P9_active_1.jpg
     printed: { width: 37.1, height: 20.8, position: "right 184.8 / 287.5" }
-  p009-2:
+  p9-2:
     category: glossary
     title: "p. 9 · 2"
     page: 9
     target: P9_inactive_2.jpg
     printed: { width: 21.4, height: 16.9, position: "right 29.0 / 29.0" }
     enabled: false
-  p009-3:
+  p9-3:
     category: glossary
     title: "p. 9 · 3"
     page: 9
     target: P9_inactive_3.jpg
     printed: { width: 25.7, height: 38.3, position: "right 9.4 / 40.3" }
     enabled: false
-  p009-4:
+  p9-4:
     category: glossary
     title: "p. 9 · 4"
     page: 9
@@ -314,21 +314,21 @@ entries:
     printed: { width: 150.6, height: 244.6, position: "right 45.7 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p010-1:
+  p10-1:
     category: glossary
     title: "p. 10 · 1"
     page: 10
     target: P10_inactive_1.jpg
     printed: { width: 40.5, height: 40.2, position: "left 11.6 / 12.8" }
     enabled: false
-  p010-2:
+  p10-2:
     category: glossary
     title: "p. 10 · 2"
     page: 10
     target: P10_inactive_2.jpg
     printed: { width: 12.3, height: 19.0, position: "left 140.6 / 12.8" }
     enabled: false
-  p010-3:
+  p10-3:
     category: glossary
     title: "p. 10 · 3"
     page: 10
@@ -336,55 +336,55 @@ entries:
     printed: { width: 402.0, height: 244.6, position: "left 29.0 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p010-4:
+  p10-4:
     category: glossary
     title: "p. 10 · 4"
     page: 10
     target: P10_inactive_4.jpg
     printed: { width: 21.2, height: 40.7, position: "left 13.0 / 252.4" }
     enabled: false
-  p010-5:
+  p10-5:
     category: glossary
     title: "p. 10 · 5"
     page: 10
     target: P10_inactive_5.jpg
     printed: { width: 23.2, height: 21.7, position: "left 177.8 / 277.3" }
     enabled: false
-  p011-1:
+  p11-1:
     category: link
     title: "Dino"
     page: 11
     target: P11_active_1.jpg
     printed: { width: 33.7, height: 21.9, position: "right 50.0 / 284.8" }
-  p011-2:
+  p11-2:
     category: glossary
     title: "p. 11 · 2"
     page: 11
     target: P11_inactive_2.jpg
     printed: { width: 18.6, height: 28.4, position: "right 143.8 / 6.5" }
     enabled: false
-  p011-3:
+  p11-3:
     category: glossary
     title: "p. 11 · 3"
     page: 11
     target: P11_inactive_3.jpg
     printed: { width: 23.9, height: 17.9, position: "right 125.2 / 21.6" }
     enabled: false
-  p011-4:
+  p11-4:
     category: glossary
     title: "p. 11 · 4"
     page: 11
     target: P11_inactive_4.jpg
     printed: { width: 24.3, height: 40.4, position: "right 196.0 / 92.0" }
     enabled: false
-  p011-5:
+  p11-5:
     category: glossary
     title: "p. 11 · 5"
     page: 11
     target: P11_inactive_5.jpg
     printed: { width: 18.0, height: 34.7, position: "right 204.0 / 272.3" }
     enabled: false
-  p012-1:
+  p12-1:
     category: glossary
     title: "p. 12 · 1"
     page: 12
@@ -392,61 +392,61 @@ entries:
     printed: { width: 202.0, height: 294.2, position: "left 8.0 / 7.9" }
     enabled: false
     tags: ["artwork"]
-  p012-2:
+  p12-2:
     category: glossary
     title: "p. 12 · 2"
     page: 12
     target: P12_inactive_2.jpg
     printed: { width: 21.6, height: 32.8, position: "left 208.4 / 226.8" }
     enabled: false
-  p012-3:
+  p12-3:
     category: glossary
     title: "p. 12 · 3"
     page: 12
     target: P12_inactive_3.jpg
     printed: { width: 26.7, height: 28.9, position: "left 200.3 / 284.0" }
     enabled: false
-  p013-1:
+  p13-1:
     category: link
     title: "Annecy animation"
     page: 13
     target: P13_active_1.jpg
     printed: { width: 39.3, height: 21.9, position: "right 58.0 / 40.8" }
-  p013-2:
+  p13-2:
     category: glossary
     title: "p. 13 · 2"
     page: 13
     target: P13_active_2.jpg
     printed: { width: 26.9, height: 30.5, position: "right 43.7 / 275.1" }
-  p013-3:
+  p13-3:
     category: glossary
     title: "p. 13 · 3"
     page: 13
     target: P13_inactive_3.jpg
     printed: { width: 15.1, height: 21.1, position: "right 29.3 / 11.5" }
     enabled: false
-  p013-4:
+  p13-4:
     category: glossary
     title: "p. 13 · 4"
     page: 13
     target: P13_inactive_4.jpg
     printed: { width: 17.6, height: 24.6, position: "right 36.8 / 26.0" }
     enabled: false
-  p013-5:
+  p13-5:
     category: glossary
     title: "p. 13 · 5"
     page: 13
     target: P13_inactive_5.jpg
     printed: { width: 24.3, height: 24.3, position: "right 154.0 / 31.1" }
     enabled: false
-  p013-6:
+  p13-6:
     category: glossary
     title: "p. 13 · 6"
     page: 13
     target: P13_inactive_6.jpg
     printed: { width: 17.3, height: 21.6, position: "right 175.0 / 45.4" }
     enabled: false
-  p013-7:
+  p13-7:
     category: glossary
     title: "p. 13 · 7"
     page: 13
@@ -454,27 +454,27 @@ entries:
     printed: { width: 176.0, height: 99.6, position: "right 32.0 / 108.2" }
     enabled: false
     tags: ["artwork"]
-  p013-8:
+  p13-8:
     category: glossary
     title: "p. 13 · 8"
     page: 13
     target: P13_inactive_8.jpg
     printed: { width: 14.8, height: 64.2, position: "right 201.3 / 241.3" }
     enabled: false
-  p014-1:
+  p14-1:
     category: glossary
     title: "p. 14 · 1"
     page: 14
     target: P14_active_1.jpg
     printed: { width: 29.2, height: 39.5, position: "left 11.6 / 138.2" }
-  p014-2:
+  p14-2:
     category: glossary
     title: "p. 14 · 2"
     page: 14
     target: P14_inactive_2.jpg
     printed: { width: 19.8, height: 27.2, position: "left 30.6 / 21.6" }
     enabled: false
-  p014-3:
+  p14-3:
     category: glossary
     title: "p. 14 · 3"
     page: 14
@@ -482,90 +482,90 @@ entries:
     printed: { width: 371.2, height: 244.6, position: "left 44.4 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p014-4:
+  p14-4:
     category: glossary
     title: "p. 14 · 4"
     page: 14
     target: P14_inactive_4.jpg
     printed: { width: 14.0, height: 18.7, position: "left 13.5 / 63.6" }
     enabled: false
-  p014-5:
+  p14-5:
     category: glossary
     title: "p. 14 · 5"
     page: 14
     target: P14_inactive_5.jpg
     printed: { width: 39.1, height: 29.3, position: "left 9.6 / 187.4" }
     enabled: false
-  p014-6:
+  p14-6:
     category: glossary
     title: "p. 14 · 6"
     page: 14
     target: P14_inactive_6.jpg
     printed: { width: 24.0, height: 24.1, position: "left 41.0 / 287.9" }
     enabled: false
-  p015-1:
+  p15-1:
     category: glossary
     title: "p. 15 · 1"
     page: 15
     target: P15_active_1.jpg
     printed: { width: 29.6, height: 42.0, position: "right 190.5 / 111.0" }
-  p015-2:
+  p15-2:
     category: glossary
     title: "p. 15 · 2"
     page: 15
     target: P15_inactive_2.jpg
     printed: { width: 32.5, height: 17.4, position: "right 148.0 / 12.8" }
     enabled: false
-  p015-3:
+  p15-3:
     category: glossary
     title: "p. 15 · 3"
     page: 15
     target: P15_inactive_3.jpg
     printed: { width: 37.6, height: 28.2, position: "right 174.5 / 20.4" }
     enabled: false
-  p015-4:
+  p15-4:
     category: glossary
     title: "p. 15 · 4"
     page: 15
     target: P15_inactive_4.jpg
     printed: { width: 22.1, height: 17.6, position: "right 179.9 / 246.6" }
     enabled: false
-  p015-5:
+  p15-5:
     category: glossary
     title: "p. 15 · 5"
     page: 15
     target: P15_inactive_5.jpg
     printed: { width: 19.3, height: 31.7, position: "right 178.0 / 268.8" }
     enabled: false
-  p015-6:
+  p15-6:
     category: glossary
     title: "p. 15 · 6"
     page: 15
     target: P15_inactive_6.jpg
     printed: { width: 31.4, height: 25.9, position: "right 42.4 / 279.1" }
     enabled: false
-  p016-1:
+  p16-1:
     category: glossary
     title: "p. 16 · 1"
     page: 16
     target: P16_inactive_1.jpg
     printed: { width: 16.9, height: 20.5, position: "left 161.3 / 9.5" }
     enabled: false
-  p016-2:
+  p16-2:
     category: glossary
     title: "p. 16 · 2"
     page: 16
     target: P16_inactive_2.jpg
     printed: { width: 24.8, height: 37.2, position: "left 117.0 / 20.3" }
     enabled: false
-  p016-3:
+  p16-3:
     category: glossary
     title: "p. 16 · 3"
     page: 16
     target: P16_inactive_3.jpg
     printed: { width: 24.0, height: 30.0, position: "left 185.0 / 31.5" }
     enabled: false
-  p016-4:
+  p16-4:
     category: glossary
     title: "p. 16 · 4"
     page: 16
@@ -573,41 +573,41 @@ entries:
     printed: { width: 174.4, height: 228.4, position: "left 21.8 / 43.8" }
     enabled: false
     tags: ["artwork"]
-  p016-5:
+  p16-5:
     category: glossary
     title: "p. 16 · 5"
     page: 16
     target: P16_inactive_5.jpg
     printed: { width: 32.4, height: 39.7, position: "left 56.3 / 260.1" }
     enabled: false
-  p016-6:
+  p16-6:
     category: glossary
     title: "p. 16 · 6"
     page: 16
     target: P16_inactive_6.jpg
     printed: { width: 25.6, height: 31.1, position: "left 185.0 / 259.9" }
     enabled: false
-  p016-7:
+  p16-7:
     category: glossary
     title: "p. 16 · 7"
     page: 16
     target: P16_inactive_7.jpg
     printed: { width: 25.1, height: 25.1, position: "left 115.0 / 267.4" }
     enabled: false
-  p017-1:
+  p17-1:
     category: glossary
     title: "p. 17 · 1"
     page: 17
     target: P17_active_1.jpg
     printed: { width: 20.9, height: 30.1, position: "right 20.0 / 72.0" }
-  p017-2:
+  p17-2:
     category: glossary
     title: "p. 17 · 2"
     page: 17
     target: P17_inactive_2.jpg
     printed: { width: 25.3, height: 33.3, position: "right 191.2 / 14.7" }
     enabled: false
-  p017-3:
+  p17-3:
     category: glossary
     title: "p. 17 · 3"
     page: 17
@@ -615,28 +615,28 @@ entries:
     printed: { width: 154.2, height: 244.6, position: "right 43.9 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p017-4:
+  p17-4:
     category: glossary
     title: "p. 17 · 4"
     page: 17
     target: P17_inactive_4.jpg
     printed: { width: 22.8, height: 30.0, position: "right 192.6 / 220.6" }
     enabled: false
-  p017-5:
+  p17-5:
     category: glossary
     title: "p. 17 · 5"
     page: 17
     target: P17_inactive_5.jpg
     printed: { width: 25.9, height: 36.0, position: "right 28.0 / 270.7" }
     enabled: false
-  p018-1:
+  p18-1:
     category: glossary
     title: "p. 18 · 1"
     page: 18
     target: P18_inactive_1.jpg
     printed: { width: 23.0, height: 22.8, position: "left 51.5 / 9.8" }
     enabled: false
-  p018-2:
+  p18-2:
     category: glossary
     title: "p. 18 · 2"
     page: 18
@@ -644,34 +644,34 @@ entries:
     printed: { width: 111.2, height: 244.6, position: "left 53.4 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p018-3:
+  p18-3:
     category: glossary
     title: "p. 18 · 3"
     page: 18
     target: P18_inactive_3.jpg
     printed: { width: 19.8, height: 34.7, position: "left 36.2 / 48.4" }
     enabled: false
-  p018-4:
+  p18-4:
     category: glossary
     title: "p. 18 · 4"
     page: 18
     target: P18_inactive_4.jpg
     printed: { width: 22.2, height: 29.6, position: "left 180.0 / 244.2" }
     enabled: false
-  p019-1:
+  p19-1:
     category: glossary
     title: "p. 19 · 1"
     page: 19
     target: P19_active_1.jpg
     printed: { width: 28.1, height: 35.1, position: "right 69.9 / 26.9" }
-  p019-2:
+  p19-2:
     category: glossary
     title: "p. 19 · 2"
     page: 19
     target: P19_inactive_2.jpg
     printed: { width: 23.0, height: 30.7, position: "right 163.8 / 52.6" }
     enabled: false
-  p019-3:
+  p19-3:
     category: glossary
     title: "p. 19 · 3"
     page: 19
@@ -679,75 +679,75 @@ entries:
     printed: { width: 174.4, height: 152.0, position: "right 33.8 / 82.0" }
     enabled: false
     tags: ["artwork"]
-  p019-4:
+  p19-4:
     category: glossary
     title: "p. 19 · 4"
     page: 19
     target: P19_inactive_4.jpg
     printed: { width: 24.0, height: 35.6, position: "right 174.0 / 253.4" }
     enabled: false
-  p019-5:
+  p19-5:
     category: glossary
     title: "p. 19 · 5"
     page: 19
     target: P19_inactive_5.jpg
     printed: { width: 22.1, height: 16.6, position: "right 40.4 / 273.8" }
     enabled: false
-  p019-6:
+  p19-6:
     category: glossary
     title: "p. 19 · 6"
     page: 19
     target: P19_inactive_6.jpg
     printed: { width: 13.9, height: 20.8, position: "right 196.6 / 285.8" }
     enabled: false
-  p020-1:
+  p20-1:
     category: link
     title: "Animation rules"
     page: 20
     target: P20_active_1.jpg
     printed: { width: 37.7, height: 28.5, position: "left 158.3 / 54.5" }
-  p020-2:
+  p20-2:
     category: glossary
     title: "p. 20 · 2"
     page: 20
     target: P20_active_2.jpg
     printed: { width: 24.2, height: 36.3, position: "left 77.6 / 231.2" }
-  p020-3:
+  p20-3:
     category: glossary
     title: "p. 20 · 3"
     page: 20
     target: P20_inactive_3.jpg
     printed: { width: 25.3, height: 26.7, position: "left 9.5 / 13.8" }
     enabled: false
-  p020-4:
+  p20-4:
     category: glossary
     title: "p. 20 · 4"
     page: 20
     target: P20_inactive_4.jpg
     printed: { width: 30.8, height: 26.9, position: "left 19.4 / 36.3" }
     enabled: false
-  p020-5:
+  p20-5:
     category: glossary
     title: "p. 20 · 5"
     page: 20
     target: P20_inactive_5.jpg
     printed: { width: 23.5, height: 30.6, position: "left 53.6 / 87.1" }
     enabled: false
-  p020-6:
+  p20-6:
     category: glossary
     title: "p. 20 · 6"
     page: 20
     target: P20_inactive_6.jpg
     printed: { width: 20.3, height: 25.3, position: "left 124.5 / 275.4" }
     enabled: false
-  p021-1:
+  p21-1:
     category: glossary
     title: "p. 21 · 1"
     page: 21
     target: P21_inactive_1.jpg
     printed: { width: 21.5, height: 17.2, position: "right 67.0 / 21.0" }
     enabled: false
-  p021-2:
+  p21-2:
     category: glossary
     title: "p. 21 · 2"
     page: 21
@@ -755,27 +755,27 @@ entries:
     printed: { width: 154.2, height: 244.6, position: "right 43.9 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p021-3:
+  p21-3:
     category: glossary
     title: "p. 21 · 3"
     page: 21
     target: P21_inactive_3.jpg
     printed: { width: 18.7, height: 19.9, position: "right 31.8 / 92.3" }
     enabled: false
-  p021-4:
+  p21-4:
     category: glossary
     title: "p. 21 · 4"
     page: 21
     target: P21_inactive_4.jpg
     printed: { width: 16.0, height: 20.0, position: "right 193.1 / 277.0" }
     enabled: false
-  p022-1:
+  p22-1:
     category: glossary
     title: "p. 22 · 1"
     page: 22
     target: P22_active_1.jpg
     printed: { width: 36.1, height: 50.6, position: "left 70.9 / 219.4" }
-  p022-2:
+  p22-2:
     category: glossary
     title: "p. 22 · 2"
     page: 22
@@ -783,49 +783,49 @@ entries:
     printed: { width: 202.7, height: 145.0, position: "left 7.7 / 8.0" }
     enabled: false
     tags: ["artwork"]
-  p022-3:
+  p22-3:
     category: glossary
     title: "p. 22 · 3"
     page: 22
     target: P22_inactive_3.jpg
     printed: { width: 31.4, height: 48.7, position: "left 49.4 / 122.6" }
     enabled: false
-  p022-4:
+  p22-4:
     category: glossary
     title: "p. 22 · 4"
     page: 22
     target: P22_inactive_4.jpg
     printed: { width: 32.5, height: 61.0, position: "left 16.9 / 136.4" }
     enabled: false
-  p022-5:
+  p22-5:
     category: glossary
     title: "p. 22 · 5"
     page: 22
     target: P22_inactive_5.jpg
     printed: { width: 30.5, height: 45.8, position: "left 169.5 / 141.6" }
     enabled: false
-  p022-6:
+  p22-6:
     category: glossary
     title: "p. 22 · 6"
     page: 22
     target: P22_inactive_6.jpg
     printed: { width: 33.7, height: 24.3, position: "left 136.1 / 269.9" }
     enabled: false
-  p023-1:
+  p23-1:
     category: glossary
     title: "p. 23 · 1"
     page: 23
     target: P23_inactive_1.jpg
     printed: { width: 23.7, height: 32.0, position: "right 190.5 / 14.0" }
     enabled: false
-  p023-2:
+  p23-2:
     category: glossary
     title: "p. 23 · 2"
     page: 23
     target: P23_inactive_2.jpg
     printed: { width: 21.8, height: 31.6, position: "right 177.4 / 29.2" }
     enabled: false
-  p023-3:
+  p23-3:
     category: glossary
     title: "p. 23 · 3"
     page: 23
@@ -833,28 +833,28 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "right 33.8 / 107.0" }
     enabled: false
     tags: ["artwork"]
-  p023-4:
+  p23-4:
     category: glossary
     title: "p. 23 · 4"
     page: 23
     target: P23_inactive_4.jpg
     printed: { width: 27.7, height: 36.9, position: "right 165.3 / 199.2" }
     enabled: false
-  p023-5:
+  p23-5:
     category: glossary
     title: "p. 23 · 5"
     page: 23
     target: P23_inactive_5.jpg
     printed: { width: 20.5, height: 25.6, position: "right 22.4 / 234.5" }
     enabled: false
-  p023-6:
+  p23-6:
     category: glossary
     title: "p. 23 · 6"
     page: 23
     target: P23_inactive_6.jpg
     printed: { width: 19.6, height: 25.3, position: "right 41.6 / 252.4" }
     enabled: false
-  p024-1:
+  p24-1:
     category: glossary
     title: "p. 24 · 1"
     page: 24
@@ -862,7 +862,7 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "left 21.8 / 7.6" }
     enabled: false
     tags: ["artwork"]
-  p024-2:
+  p24-2:
     category: glossary
     title: "p. 24 · 2"
     page: 24
@@ -870,7 +870,7 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "left 21.8 / 107.0" }
     enabled: false
     tags: ["artwork"]
-  p024-3:
+  p24-3:
     category: glossary
     title: "p. 24 · 3"
     page: 24
@@ -878,21 +878,21 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "left 21.8 / 206.4" }
     enabled: false
     tags: ["artwork"]
-  p024-4:
+  p24-4:
     category: glossary
     title: "p. 24 · 4"
     page: 24
     target: P24_inactive_4.jpg
     printed: { width: 20.7, height: 40.4, position: "left 189.7 / 220.0" }
     enabled: false
-  p024-5:
+  p24-5:
     category: glossary
     title: "p. 24 · 5"
     page: 24
     target: P24_inactive_5.jpg
     printed: { width: 20.3, height: 26.7, position: "left 8.9 / 283.1" }
     enabled: false
-  p025-1:
+  p25-1:
     category: glossary
     title: "p. 25 · 1"
     page: 25
@@ -900,28 +900,28 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "right 33.8 / 7.6" }
     enabled: false
     tags: ["artwork"]
-  p025-2:
+  p25-2:
     category: glossary
     title: "p. 25 · 2"
     page: 25
     target: P25_inactive_2.jpg
     printed: { width: 21.2, height: 21.2, position: "right 200.7 / 20.9" }
     enabled: false
-  p025-3:
+  p25-3:
     category: glossary
     title: "p. 25 · 3"
     page: 25
     target: P25_inactive_3.jpg
     printed: { width: 18.7, height: 28.1, position: "right 198.8 / 38.0" }
     enabled: false
-  p025-4:
+  p25-4:
     category: glossary
     title: "p. 25 · 4"
     page: 25
     target: P25_inactive_4.jpg
     printed: { width: 19.2, height: 26.6, position: "right 16.2 / 69.0" }
     enabled: false
-  p025-5:
+  p25-5:
     category: glossary
     title: "p. 25 · 5"
     page: 25
@@ -929,14 +929,14 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "right 33.8 / 107.0" }
     enabled: false
     tags: ["artwork"]
-  p025-6:
+  p25-6:
     category: glossary
     title: "p. 25 · 6"
     page: 25
     target: P25_inactive_6.jpg
     printed: { width: 27.1, height: 24.7, position: "right 14.0 / 116.5" }
     enabled: false
-  p025-7:
+  p25-7:
     category: glossary
     title: "p. 25 · 7"
     page: 25
@@ -944,13 +944,13 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "right 33.8 / 206.4" }
     enabled: false
     tags: ["artwork"]
-  p026-1:
+  p26-1:
     category: glossary
     title: "p. 26 · 1"
     page: 26
     target: P26_active_1.jpg
     printed: { width: 20.8, height: 26.8, position: "left 193.6 / 42.3" }
-  p026-2:
+  p26-2:
     category: glossary
     title: "p. 26 · 2"
     page: 26
@@ -958,7 +958,7 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "left 21.8 / 7.6" }
     enabled: false
     tags: ["artwork"]
-  p026-3:
+  p26-3:
     category: glossary
     title: "p. 26 · 3"
     page: 26
@@ -966,14 +966,14 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "left 21.8 / 107.0" }
     enabled: false
     tags: ["artwork"]
-  p026-4:
+  p26-4:
     category: glossary
     title: "p. 26 · 4"
     page: 26
     target: P26_inactive_4.jpg
     printed: { width: 16.5, height: 23.1, position: "left 196.2 / 197.9" }
     enabled: false
-  p026-5:
+  p26-5:
     category: glossary
     title: "p. 26 · 5"
     page: 26
@@ -981,14 +981,14 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "left 21.8 / 206.4" }
     enabled: false
     tags: ["artwork"]
-  p026-6:
+  p26-6:
     category: glossary
     title: "p. 26 · 6"
     page: 26
     target: P26_inactive_6.jpg
     printed: { width: 20.5, height: 37.4, position: "left 5.8 / 245.6" }
     enabled: false
-  p027-1:
+  p27-1:
     category: glossary
     title: "p. 27 · 1"
     page: 27
@@ -996,14 +996,14 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "right 33.8 / 7.6" }
     enabled: false
     tags: ["artwork"]
-  p027-2:
+  p27-2:
     category: glossary
     title: "p. 27 · 2"
     page: 27
     target: P27_inactive_2.jpg
     printed: { width: 28.6, height: 33.3, position: "right 15.6 / 30.6" }
     enabled: false
-  p027-3:
+  p27-3:
     category: glossary
     title: "p. 27 · 3"
     page: 27
@@ -1011,14 +1011,14 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "right 33.8 / 107.0" }
     enabled: false
     tags: ["artwork"]
-  p027-4:
+  p27-4:
     category: glossary
     title: "p. 27 · 4"
     page: 27
     target: P27_inactive_4.jpg
     printed: { width: 20.9, height: 29.2, position: "right -0.0 / 147.5" }
     enabled: false
-  p027-5:
+  p27-5:
     category: glossary
     title: "p. 27 · 5"
     page: 27
@@ -1026,14 +1026,14 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "right 33.8 / 206.4" }
     enabled: false
     tags: ["artwork"]
-  p027-6:
+  p27-6:
     category: glossary
     title: "p. 27 · 6"
     page: 27
     target: P27_inactive_6.jpg
     printed: { width: 32.3, height: 25.9, position: "right 192.0 / 268.1" }
     enabled: false
-  p028-1:
+  p28-1:
     category: glossary
     title: "p. 28 · 1"
     page: 28
@@ -1041,21 +1041,21 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "left 21.8 / 7.6" }
     enabled: false
     tags: ["artwork"]
-  p028-2:
+  p28-2:
     category: glossary
     title: "p. 28 · 2"
     page: 28
     target: P28_inactive_2.jpg
     printed: { width: 19.5, height: 27.1, position: "left 8.0 / 37.3" }
     enabled: false
-  p028-3:
+  p28-3:
     category: glossary
     title: "p. 28 · 3"
     page: 28
     target: P28_inactive_3.jpg
     printed: { width: 20.2, height: 28.8, position: "left 6.3 / 93.8" }
     enabled: false
-  p028-4:
+  p28-4:
     category: glossary
     title: "p. 28 · 4"
     page: 28
@@ -1063,21 +1063,21 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "left 21.8 / 107.0" }
     enabled: false
     tags: ["artwork"]
-  p028-5:
+  p28-5:
     category: glossary
     title: "p. 28 · 5"
     page: 28
     target: P28_inactive_5.jpg
     printed: { width: 22.5, height: 36.7, position: "left 207.5 / 126.4" }
     enabled: false
-  p028-6:
+  p28-6:
     category: glossary
     title: "p. 28 · 6"
     page: 28
     target: P28_inactive_6.jpg
     printed: { width: 18.7, height: 28.0, position: "left 192.1 / 153.0" }
     enabled: false
-  p028-7:
+  p28-7:
     category: glossary
     title: "p. 28 · 7"
     page: 28
@@ -1085,7 +1085,7 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "left 21.8 / 206.4" }
     enabled: false
     tags: ["artwork"]
-  p029-1:
+  p29-1:
     category: glossary
     title: "p. 29 · 1"
     page: 29
@@ -1093,14 +1093,14 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "right 33.8 / 7.6" }
     enabled: false
     tags: ["artwork"]
-  p029-2:
+  p29-2:
     category: glossary
     title: "p. 29 · 2"
     page: 29
     target: P29_inactive_2.jpg
     printed: { width: 20.0, height: 29.7, position: "right 202.0 / 37.1" }
     enabled: false
-  p029-3:
+  p29-3:
     category: glossary
     title: "p. 29 · 3"
     page: 29
@@ -1108,7 +1108,7 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "right 33.8 / 107.0" }
     enabled: false
     tags: ["artwork"]
-  p029-4:
+  p29-4:
     category: glossary
     title: "p. 29 · 4"
     page: 29
@@ -1116,27 +1116,27 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "right 33.8 / 206.4" }
     enabled: false
     tags: ["artwork"]
-  p029-5:
+  p29-5:
     category: glossary
     title: "p. 29 · 5"
     page: 29
     target: P29_inactive_5.jpg
     printed: { width: 19.5, height: 28.0, position: "right 9.8 / 240.5" }
     enabled: false
-  p029-6:
+  p29-6:
     category: glossary
     title: "p. 29 · 6"
     page: 29
     target: P29_inactive_6.jpg
     printed: { width: 24.9, height: 30.2, position: "right 195.7 / 254.5" }
     enabled: false
-  p030-1:
+  p30-1:
     category: glossary
     title: "p. 30 · 1"
     page: 30
     target: P30_active_1.jpg
     printed: { width: 23.3, height: 23.3, position: "left 2.2 / 294.6" }
-  p030-3:
+  p30-3:
     category: glossary
     title: "p. 30 · 3"
     page: 30
@@ -1144,21 +1144,21 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "left 21.8 / 7.6" }
     enabled: false
     tags: ["artwork"]
-  p030-4:
+  p30-4:
     category: glossary
     title: "p. 30 · 4"
     page: 30
     target: P30_inactive_4.jpg
     printed: { width: 18.2, height: 24.7, position: "left 193.4 / 17.4" }
     enabled: false
-  p030-5:
+  p30-5:
     category: glossary
     title: "p. 30 · 5"
     page: 30
     target: P30_inactive_5.jpg
     printed: { width: 14.3, height: 25.6, position: "left 8.5 / 27.1" }
     enabled: false
-  p030-6:
+  p30-6:
     category: glossary
     title: "p. 30 · 6"
     page: 30
@@ -1166,14 +1166,14 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "left 21.8 / 107.0" }
     enabled: false
     tags: ["artwork"]
-  p030-7:
+  p30-7:
     category: glossary
     title: "p. 30 · 7"
     page: 30
     target: P30_inactive_7.jpg
     printed: { width: 15.7, height: 22.8, position: "left 196.2 / 112.0" }
     enabled: false
-  p030-8:
+  p30-8:
     category: glossary
     title: "p. 30 · 8"
     page: 30
@@ -1181,14 +1181,14 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "left 21.8 / 206.4" }
     enabled: false
     tags: ["artwork"]
-  p030-9:
+  p30-9:
     category: glossary
     title: "p. 30 · 9"
     page: 30
     target: P30_inactive_9.jpg
     printed: { width: 23.2, height: 28.7, position: "left 184.6 / 280.9" }
     enabled: false
-  p031-1:
+  p31-1:
     category: glossary
     title: "p. 31 · 1"
     page: 31
@@ -1196,14 +1196,14 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "right 33.8 / 7.6" }
     enabled: false
     tags: ["artwork"]
-  p031-2:
+  p31-2:
     category: glossary
     title: "p. 31 · 2"
     page: 31
     target: P31_inactive_2.jpg
     printed: { width: 21.4, height: 32.0, position: "right 20.0 / 91.4" }
     enabled: false
-  p031-3:
+  p31-3:
     category: glossary
     title: "p. 31 · 3"
     page: 31
@@ -1211,14 +1211,14 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "right 33.8 / 107.0" }
     enabled: false
     tags: ["artwork"]
-  p031-4:
+  p31-4:
     category: glossary
     title: "p. 31 · 4"
     page: 31
     target: P31_inactive_4.jpg
     printed: { width: 25.1, height: 32.8, position: "right -0.0 / 170.0" }
     enabled: false
-  p031-5:
+  p31-5:
     category: glossary
     title: "p. 31 · 5"
     page: 31
@@ -1226,28 +1226,28 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "right 33.8 / 206.4" }
     enabled: false
     tags: ["artwork"]
-  p031-6:
+  p31-6:
     category: glossary
     title: "p. 31 · 6"
     page: 31
     target: P31_inactive_6.jpg
     printed: { width: 15.6, height: 23.4, position: "right 20.9 / 255.2" }
     enabled: false
-  p031-7:
+  p31-7:
     category: glossary
     title: "p. 31 · 7"
     page: 31
     target: P31_inactive_7.jpg
     printed: { width: 22.2, height: 16.7, position: "right 7.5 / 269.2" }
     enabled: false
-  p031-8:
+  p31-8:
     category: glossary
     title: "p. 31 · 8"
     page: 31
     target: P31_inactive_8.jpg
     printed: { width: 32.2, height: 20.8, position: "right 153.0 / 291.2" }
     enabled: false
-  p032-1:
+  p32-1:
     category: glossary
     title: "p. 32 · 1"
     page: 32
@@ -1255,14 +1255,14 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "left 21.8 / 7.6" }
     enabled: false
     tags: ["artwork"]
-  p032-2:
+  p32-2:
     category: glossary
     title: "p. 32 · 2"
     page: 32
     target: P32_inactive_2.jpg
     printed: { width: 27.1, height: 23.4, position: "left 188.9 / 95.7" }
     enabled: false
-  p032-3:
+  p32-3:
     category: glossary
     title: "p. 32 · 3"
     page: 32
@@ -1270,14 +1270,14 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "left 21.8 / 107.0" }
     enabled: false
     tags: ["artwork"]
-  p032-4:
+  p32-4:
     category: glossary
     title: "p. 32 · 4"
     page: 32
     target: P32_inactive_4.jpg
     printed: { width: 17.4, height: 29.0, position: "left 193.6 / 187.0" }
     enabled: false
-  p032-5:
+  p32-5:
     category: glossary
     title: "p. 32 · 5"
     page: 32
@@ -1285,21 +1285,21 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "left 21.8 / 206.4" }
     enabled: false
     tags: ["artwork"]
-  p032-6:
+  p32-6:
     category: glossary
     title: "p. 32 · 6"
     page: 32
     target: P32_inactive_6.jpg
     printed: { width: 22.8, height: 33.2, position: "left 4.3 / 226.8" }
     enabled: false
-  p032-7:
+  p32-7:
     category: glossary
     title: "p. 32 · 7"
     page: 32
     target: P32_inactive_7.jpg
     printed: { width: 21.0, height: 32.5, position: "left 132.5 / 279.5" }
     enabled: false
-  p033-1:
+  p33-1:
     category: glossary
     title: "p. 33 · 1"
     page: 33
@@ -1307,14 +1307,14 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "right 33.8 / 7.6" }
     enabled: false
     tags: ["artwork"]
-  p033-2:
+  p33-2:
     category: glossary
     title: "p. 33 · 2"
     page: 33
     target: P33_inactive_2.jpg
     printed: { width: 32.3, height: 21.5, position: "right 189.7 / 98.1" }
     enabled: false
-  p033-3:
+  p33-3:
     category: glossary
     title: "p. 33 · 3"
     page: 33
@@ -1322,7 +1322,7 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "right 33.8 / 107.0" }
     enabled: false
     tags: ["artwork"]
-  p033-4:
+  p33-4:
     category: glossary
     title: "p. 33 · 4"
     page: 33
@@ -1330,42 +1330,42 @@ entries:
     printed: { width: 174.4, height: 96.2, position: "right 33.8 / 206.4" }
     enabled: false
     tags: ["artwork"]
-  p033-5:
+  p33-5:
     category: glossary
     title: "p. 33 · 5"
     page: 33
     target: P33_inactive_5.jpg
     printed: { width: 20.8, height: 27.7, position: "right 5.7 / 221.1" }
     enabled: false
-  p033-6:
+  p33-6:
     category: glossary
     title: "p. 33 · 6"
     page: 33
     target: P33_inactive_6.jpg
     printed: { width: 20.7, height: 22.8, position: "right 9.2 / 248.8" }
     enabled: false
-  p034-2:
+  p34-2:
     category: glossary
     title: "p. 34 · 2"
     page: 34
     target: P34_inactive_2.jpg
     printed: { width: 32.5, height: 17.1, position: "left 13.8 / 17.0" }
     enabled: false
-  p034-3:
+  p34-3:
     category: glossary
     title: "p. 34 · 3"
     page: 34
     target: P34_inactive_3.jpg
     printed: { width: 15.9, height: 15.9, position: "left 30.0 / 25.6" }
     enabled: false
-  p034-4:
+  p34-4:
     category: glossary
     title: "p. 34 · 4"
     page: 34
     target: P34_inactive_4.jpg
     printed: { width: 36.1, height: 27.1, position: "left 59.3 / 26.6" }
     enabled: false
-  p034-5:
+  p34-5:
     category: glossary
     title: "p. 34 · 5"
     page: 34
@@ -1373,35 +1373,35 @@ entries:
     printed: { width: 159.7, height: 201.8, position: "left 37.8 / 54.4" }
     enabled: false
     tags: ["artwork"]
-  p034-6:
+  p34-6:
     category: glossary
     title: "p. 34 · 6"
     page: 34
     target: P34_inactive_6.jpg
     printed: { width: 24.0, height: 42.2, position: "left 134.8 / 229.1" }
     enabled: false
-  p034-7:
+  p34-7:
     category: glossary
     title: "p. 34 · 7"
     page: 34
     target: P34_inactive_7.jpg
     printed: { width: 21.6, height: 18.1, position: "left 21.7 / 250.2" }
     enabled: false
-  p034-8:
+  p34-8:
     category: glossary
     title: "p. 34 · 8"
     page: 34
     target: P34_inactive_8.jpg
     printed: { width: 13.1, height: 23.2, position: "left 166.2 / 269.3" }
     enabled: false
-  p035-2:
+  p35-2:
     category: glossary
     title: "p. 35 · 2"
     page: 35
     target: P35_inactive_2.jpg
     printed: { width: 20.7, height: 20.7, position: "right 41.3 / 33.0" }
     enabled: false
-  p035-3:
+  p35-3:
     category: glossary
     title: "p. 35 · 3"
     page: 35
@@ -1409,42 +1409,42 @@ entries:
     printed: { width: 144.0, height: 240.0, position: "right 49.0 / 38.0" }
     enabled: false
     tags: ["artwork"]
-  p035-4:
+  p35-4:
     category: glossary
     title: "p. 35 · 4"
     page: 35
     target: P35_inactive_4.jpg
     printed: { width: 23.5, height: 33.5, position: "right 180.6 / 62.0" }
     enabled: false
-  p035-5:
+  p35-5:
     category: glossary
     title: "p. 35 · 5"
     page: 35
     target: P35_inactive_5.jpg
     printed: { width: 21.7, height: 38.0, position: "right 43.3 / 153.0" }
     enabled: false
-  p035-6:
+  p35-6:
     category: glossary
     title: "p. 35 · 6"
     page: 35
     target: P35_inactive_6.jpg
     printed: { width: 21.0, height: 31.9, position: "right 197.7 / 271.3" }
     enabled: false
-  p035-7:
+  p35-7:
     category: glossary
     title: "p. 35 · 7"
     page: 35
     target: P35_inactive_7.jpg
     printed: { width: 21.8, height: 26.7, position: "right 28.2 / 279.2" }
     enabled: false
-  p036-1:
+  p36-1:
     category: glossary
     title: "p. 36 · 1"
     page: 36
     target: P36_inactive_1.jpg
     printed: { width: 25.2, height: 28.9, position: "left 12.9 / 14.1" }
     enabled: false
-  p036-2:
+  p36-2:
     category: glossary
     title: "p. 36 · 2"
     page: 36
@@ -1452,27 +1452,27 @@ entries:
     printed: { width: 146.0, height: 243.4, position: "left 37.5 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p036-3:
+  p36-3:
     category: glossary
     title: "p. 36 · 3"
     page: 36
     target: P36_inactive_3.jpg
     printed: { width: 15.8, height: 21.5, position: "left 89.3 / 262.6" }
     enabled: false
-  p037-1:
+  p37-1:
     category: link
     title: "12 year old"
     page: 37
     target: P37_active_1.jpg
     printed: { width: 32.0, height: 18.0, position: "right 168.7 / 15.0" }
-  p037-2:
+  p37-2:
     category: glossary
     title: "p. 37 · 2"
     page: 37
     target: P37_inactive_2.jpg
     printed: { width: 18.0, height: 53.6, position: "right 19.6 / 11.0" }
     enabled: false
-  p037-3:
+  p37-3:
     category: glossary
     title: "p. 37 · 3"
     page: 37
@@ -1480,40 +1480,40 @@ entries:
     printed: { width: 146.0, height: 243.4, position: "right 47.0 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p037-4:
+  p37-4:
     category: glossary
     title: "p. 37 · 4"
     page: 37
     target: P37_inactive_4.jpg
     printed: { width: 25.1, height: 41.8, position: "right 196.9 / 189.0" }
     enabled: false
-  p037-5:
+  p37-5:
     category: glossary
     title: "p. 37 · 5"
     page: 37
     target: P37_inactive_5.jpg
     printed: { width: 26.5, height: 36.5, position: "right 15.4 / 262.6" }
     enabled: false
-  p038-1:
+  p38-1:
     category: glossary
     title: "p. 38 · 1"
     page: 38
     target: P38_active_1.jpg
     printed: { width: 30.0, height: 41.8, position: "left 8.5 / 158.9" }
-  p038-2:
+  p38-2:
     category: link
     title: "Gadsby"
     page: 38
     target: P38_active_2.jpg
     printed: { width: 30.6, height: 19.9, position: "left 16.5 / 251.0" }
-  p038-3:
+  p38-3:
     category: glossary
     title: "p. 38 · 3"
     page: 38
     target: P38_inactive_3.jpg
     printed: { width: 19.7, height: 28.3, position: "left 12.5 / 8.0" }
     enabled: false
-  p038-4:
+  p38-4:
     category: glossary
     title: "p. 38 · 4"
     page: 38
@@ -1521,41 +1521,41 @@ entries:
     printed: { width: 350.2, height: 244.6, position: "left 54.9 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p038-5:
+  p38-5:
     category: glossary
     title: "p. 38 · 5"
     page: 38
     target: P38_inactive_5.jpg
     printed: { width: 16.3, height: 30.2, position: "left 28.5 / 108.0" }
     enabled: false
-  p038-6:
+  p38-6:
     category: glossary
     title: "p. 38 · 6"
     page: 38
     target: P38_inactive_6.jpg
     printed: { width: 19.9, height: 28.1, position: "left 34.0 / 211.8" }
     enabled: false
-  p039-1:
+  p39-1:
     category: glossary
     title: "p. 39 · 1"
     page: 39
     target: P39_active_1.jpg
     printed: { width: 36.8, height: 19.8, position: "right 170.1 / 8.0" }
-  p039-2:
+  p39-2:
     category: glossary
     title: "p. 39 · 2"
     page: 39
     target: P39_inactive_2.jpg
     printed: { width: 19.6, height: 26.0, position: "right 188.5 / 171.5" }
     enabled: false
-  p039-3:
+  p39-3:
     category: glossary
     title: "p. 39 · 3"
     page: 39
     target: P39_inactive_3.jpg
     printed: { width: 34.2, height: 46.1, position: "right 52.2 / 263.6" }
     enabled: false
-  p040-1:
+  p40-1:
     category: glossary
     title: "p. 40 · 1"
     page: 40
@@ -1563,41 +1563,41 @@ entries:
     printed: { width: 202.0, height: 294.8, position: "left 8.0 / 7.6" }
     enabled: false
     tags: ["artwork"]
-  p040-2:
+  p40-2:
     category: glossary
     title: "p. 40 · 2"
     page: 40
     target: P40_inactive_2.jpg
     printed: { width: 36.6, height: 22.8, position: "left 204.7 / 148.6" }
     enabled: false
-  p040-3:
+  p40-3:
     category: glossary
     title: "p. 40 · 3"
     page: 40
     target: P40_inactive_3.jpg
     printed: { width: 22.8, height: 22.4, position: "left 204.6 / 292.1" }
     enabled: false
-  p041-1:
+  p41-1:
     category: glossary
     title: "p. 41 · 1"
     page: 41
     target: P41_active_1.jpg
     printed: { width: 25.6, height: 42.1, position: "right 145.4 / 261.2" }
-  p041-2:
+  p41-2:
     category: glossary
     title: "p. 41 · 2"
     page: 41
     target: P41_inactive_2.jpg
     printed: { width: 27.2, height: 41.1, position: "right 142.8 / 19.0" }
     enabled: false
-  p041-3:
+  p41-3:
     category: glossary
     title: "p. 41 · 3"
     page: 41
     target: P41_inactive_3.jpg
     printed: { width: 21.1, height: 21.2, position: "right 90.2 / 53.1" }
     enabled: false
-  p041-4:
+  p41-4:
     category: glossary
     title: "p. 41 · 4"
     page: 41
@@ -1605,55 +1605,55 @@ entries:
     printed: { width: 174.4, height: 170.8, position: "right 33.8 / 72.6" }
     enabled: false
     tags: ["artwork"]
-  p041-5:
+  p41-5:
     category: glossary
     title: "p. 41 · 5"
     page: 41
     target: P41_inactive_5.jpg
     printed: { width: 22.2, height: 20.0, position: "right 194.8 / 237.5" }
     enabled: false
-  p042-1:
+  p42-1:
     category: link
     title: "AI NPC"
     page: 42
     target: P42_active_1.jpg
     printed: { width: 37.3, height: 21.6, position: "left 54.5 / 30.6" }
-  p042-2:
+  p42-2:
     category: glossary
     title: "p. 42 · 2"
     page: 42
     target: P42_inactive_2.jpg
     printed: { width: 23.7, height: 47.7, position: "left 28.7 / 58.8" }
     enabled: false
-  p042-3:
+  p42-3:
     category: glossary
     title: "p. 42 · 3"
     page: 42
     target: P42_inactive_3.jpg
     printed: { width: 15.0, height: 30.6, position: "left 107.5 / 129.4" }
     enabled: false
-  p042-4:
+  p42-4:
     category: glossary
     title: "p. 42 · 4"
     page: 42
     target: P42_inactive_4.jpg
     printed: { width: 17.9, height: 26.0, position: "left 189.5 / 227.9" }
     enabled: false
-  p042-5:
+  p42-5:
     category: glossary
     title: "p. 42 · 5"
     page: 42
     target: P42_inactive_5.jpg
     printed: { width: 38.3, height: 28.9, position: "left 202.0 / 246.8" }
     enabled: false
-  p043-1:
+  p43-1:
     category: glossary
     title: "p. 43 · 1"
     page: 43
     target: P43_inactive_1.jpg
     printed: { width: 19.8, height: 29.7, position: "right 38.0 / 21.0" }
     enabled: false
-  p043-2:
+  p43-2:
     category: glossary
     title: "p. 43 · 2"
     page: 43
@@ -1661,42 +1661,42 @@ entries:
     printed: { width: 174.4, height: 252.1, position: "right 33.8 / 30.6" }
     enabled: false
     tags: ["artwork"]
-  p043-3:
+  p43-3:
     category: glossary
     title: "p. 43 · 3"
     page: 43
     target: P43_inactive_3.jpg
     printed: { width: 17.6, height: 23.5, position: "right 129.4 / 220.2" }
     enabled: false
-  p043-4:
+  p43-4:
     category: glossary
     title: "p. 43 · 4"
     page: 43
     target: P43_inactive_4.jpg
     printed: { width: 20.7, height: 34.4, position: "right 197.3 / 241.5" }
     enabled: false
-  p043-5:
+  p43-5:
     category: glossary
     title: "p. 43 · 5"
     page: 43
     target: P43_inactive_5.jpg
     printed: { width: 29.0, height: 19.7, position: "right 42.0 / 283.3" }
     enabled: false
-  p044-1:
+  p44-1:
     category: glossary
     title: "p. 44 · 1"
     page: 44
     target: P44_inactive_1.jpg
     printed: { width: 26.0, height: 40.4, position: "left 8.0 / 12.5" }
     enabled: false
-  p044-2:
+  p44-2:
     category: glossary
     title: "p. 44 · 2"
     page: 44
     target: P44_inactive_2.jpg
     printed: { width: 20.0, height: 23.5, position: "left 167.6 / 11.5" }
     enabled: false
-  p044-3:
+  p44-3:
     category: glossary
     title: "p. 44 · 3"
     page: 44
@@ -1704,55 +1704,55 @@ entries:
     printed: { width: 174.4, height: 217.8, position: "left 21.8 / 49.1" }
     enabled: false
     tags: ["artwork"]
-  p044-4:
+  p44-4:
     category: glossary
     title: "p. 44 · 4"
     page: 44
     target: P44_inactive_4.jpg
     printed: { width: 16.0, height: 24.0, position: "left 192.2 / 63.4" }
     enabled: false
-  p044-5:
+  p44-5:
     category: glossary
     title: "p. 44 · 5"
     page: 44
     target: P44_inactive_5.jpg
     printed: { width: 16.9, height: 26.0, position: "left 44.3 / 279.0" }
     enabled: false
-  p044-6:
+  p44-6:
     category: glossary
     title: "p. 44 · 6"
     page: 44
     target: P44_inactive_6.jpg
     printed: { width: 21.3, height: 30.6, position: "left 141.7 / 279.9" }
     enabled: false
-  p045-1:
+  p45-1:
     category: link
     title: "Helldivers"
     page: 45
     target: P45_active_1.jpg
     printed: { width: 37.4, height: 24.3, position: "right 49.7 / 14.0" }
-  p045-2:
+  p45-2:
     category: glossary
     title: "p. 45 · 2"
     page: 45
     target: P45_inactive_2.jpg
     printed: { width: 20.0, height: 26.2, position: "right 184.7 / 10.1" }
     enabled: false
-  p045-3:
+  p45-3:
     category: glossary
     title: "p. 45 · 3"
     page: 45
     target: P45_inactive_3.jpg
     printed: { width: 22.7, height: 31.8, position: "right 23.8 / 31.6" }
     enabled: false
-  p045-4:
+  p45-4:
     category: glossary
     title: "p. 45 · 4"
     page: 45
     target: P45_inactive_4.jpg
     printed: { width: 14.8, height: 19.9, position: "right 138.8 / 31.6" }
     enabled: false
-  p045-5:
+  p45-5:
     category: glossary
     title: "p. 45 · 5"
     page: 45
@@ -1760,33 +1760,33 @@ entries:
     printed: { width: 174.4, height: 216.7, position: "right 33.8 / 49.8" }
     enabled: false
     tags: ["artwork"]
-  p045-6:
+  p45-6:
     category: glossary
     title: "p. 45 · 6"
     page: 45
     target: P45_inactive_6.jpg
     printed: { width: 21.2, height: 28.3, position: "right 66.0 / 262.2" }
     enabled: false
-  p045-7:
+  p45-7:
     category: glossary
     title: "p. 45 · 7"
     page: 45
     target: P45_inactive_7.jpg
     printed: { width: 25.3, height: 36.4, position: "right 163.3 / 270.6" }
     enabled: false
-  p046-1:
+  p46-1:
     category: glossary
     title: "p. 46 · 1"
     page: 46
     target: P46_active_1.jpg
     printed: { width: 46.7, height: 29.1, position: "left 38.5 / 165.0" }
-  p046-2:
+  p46-2:
     category: glossary
     title: "p. 46 · 2"
     page: 46
     target: P46_active_2.jpg
     printed: { width: 27.5, height: 23.4, position: "left 159.9 / 256.4" }
-  p046-3:
+  p46-3:
     category: glossary
     title: "p. 46 · 3"
     page: 46
@@ -1794,49 +1794,49 @@ entries:
     printed: { width: 202.8, height: 145.0, position: "left 7.6 / 8.0" }
     enabled: false
     tags: ["artwork"]
-  p046-4:
+  p46-4:
     category: glossary
     title: "p. 46 · 4"
     page: 46
     target: P46_inactive_4.jpg
     printed: { width: 25.5, height: 23.5, position: "left 143.5 / 146.8" }
     enabled: false
-  p046-5:
+  p46-5:
     category: glossary
     title: "p. 46 · 5"
     page: 46
     target: P46_inactive_5.jpg
     printed: { width: 21.5, height: 28.2, position: "left 12.5 / 177.0" }
     enabled: false
-  p046-6:
+  p46-6:
     category: glossary
     title: "p. 46 · 6"
     page: 46
     target: P46_inactive_6.jpg
     printed: { width: 16.0, height: 24.0, position: "left 26.0 / 198.7" }
     enabled: false
-  p046-7:
+  p46-7:
     category: glossary
     title: "p. 46 · 7"
     page: 46
     target: P46_inactive_7.jpg
     printed: { width: 22.8, height: 22.8, position: "left 38.5 / 279.7" }
     enabled: false
-  p047-1:
+  p47-1:
     category: glossary
     title: "p. 47 · 1"
     page: 47
     target: P47_inactive_1.jpg
     printed: { width: 20.0, height: 27.2, position: "right 202.7 / 11.9" }
     enabled: false
-  p047-2:
+  p47-2:
     category: glossary
     title: "p. 47 · 2"
     page: 47
     target: P47_inactive_2.jpg
     printed: { width: 22.1, height: 27.8, position: "right 28.0 / 31.3" }
     enabled: false
-  p047-3:
+  p47-3:
     category: glossary
     title: "p. 47 · 3"
     page: 47
@@ -1844,7 +1844,7 @@ entries:
     printed: { width: 153.6, height: 244.6, position: "right 44.2 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p047-4:
+  p47-4:
     category: glossary
     title: "p. 47 · 4"
     page: 47
@@ -1852,35 +1852,35 @@ entries:
     printed: { width: 153.6, height: 244.6, position: "right 44.2 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p047-5:
+  p47-5:
     category: glossary
     title: "p. 47 · 5"
     page: 47
     target: P47_inactive_5.jpg
     printed: { width: 23.3, height: 35.0, position: "right 150.0 / 277.0" }
     enabled: false
-  p047-6:
+  p47-6:
     category: glossary
     title: "p. 47 · 6"
     page: 47
     target: P47_inactive_6.jpg
     printed: { width: 22.8, height: 17.1, position: "right 194.4 / 287.2" }
     enabled: false
-  p048-1:
+  p48-1:
     category: glossary
     title: "p. 48 · 1"
     page: 48
     target: P48_inactive_1.jpg
     printed: { width: 16.4, height: 32.3, position: "left 138.9 / 11.3" }
     enabled: false
-  p048-2:
+  p48-2:
     category: glossary
     title: "p. 48 · 2"
     page: 48
     target: P48_inactive_2.jpg
     printed: { width: 20.6, height: 25.6, position: "left 152.8 / 6.5" }
     enabled: false
-  p048-3:
+  p48-3:
     category: glossary
     title: "p. 48 · 3"
     page: 48
@@ -1888,83 +1888,83 @@ entries:
     printed: { width: 416.4, height: 225.4, position: "left 21.8 / 45.3" }
     enabled: false
     tags: ["artwork"]
-  p048-4:
+  p48-4:
     category: glossary
     title: "p. 48 · 4"
     page: 48
     target: P48_inactive_4.jpg
     printed: { width: 30.8, height: 17.6, position: "left 93.2 / 274.3" }
     enabled: false
-  p048-5:
+  p48-5:
     category: glossary
     title: "p. 48 · 5"
     page: 48
     target: P48_inactive_5.jpg
     printed: { width: 41.2, height: 19.7, position: "left 54.7 / 280.6" }
     enabled: false
-  p049-1:
+  p49-1:
     category: glossary
     title: "p. 49 · 1"
     page: 49
     target: P49_inactive_1.jpg
     printed: { width: 20.6, height: 27.7, position: "right 27.9 / 12.5" }
     enabled: false
-  p049-2:
+  p49-2:
     category: glossary
     title: "p. 49 · 2"
     page: 49
     target: P49_inactive_2.jpg
     printed: { width: 54.5, height: 15.2, position: "right 39.2 / 8.0" }
     enabled: false
-  p049-3:
+  p49-3:
     category: glossary
     title: "p. 49 · 3"
     page: 49
     target: P49_inactive_3.jpg
     printed: { width: 25.7, height: 25.7, position: "right 81.1 / 268.8" }
     enabled: false
-  p050-1:
+  p50-1:
     category: link
     title: "inZOI"
     page: 50
     target: P50_active_1.jpg
     printed: { width: 39.1, height: 25.4, position: "left 92.0 / 109.8" }
-  p050-2:
+  p50-2:
     category: glossary
     title: "p. 50 · 2"
     page: 50
     target: P50_inactive_2.jpg
     printed: { width: 22.9, height: 32.0, position: "left 12.0 / 10.3" }
     enabled: false
-  p050-3:
+  p50-3:
     category: glossary
     title: "p. 50 · 3"
     page: 50
     target: P50_inactive_3.jpg
     printed: { width: 23.6, height: 32.5, position: "left 156.4 / 255.6" }
     enabled: false
-  p051-1:
+  p51-1:
     category: glossary
     title: "p. 51 · 1"
     page: 51
     target: P51_inactive_1.jpg
     printed: { width: 24.5, height: 36.8, position: "right 15.5 / 12.0" }
     enabled: false
-  p051-2:
+  p51-2:
     category: glossary
     title: "p. 51 · 2"
     page: 51
     target: P51_inactive_2.jpg
     printed: { width: 21.9, height: 21.9, position: "right 157.0 / 13.0" }
     enabled: false
-  p051-3:
+  p51-3:
     category: glossary
     title: "p. 51 · 3"
     page: 51
     target: P51_inactive_3.jpg
     printed: { width: 13.5, height: 25.8, position: "right 177.6 / 26.3" }
     enabled: false
-  p051-4:
+  p51-4:
     category: glossary
     title: "p. 51 · 4"
     page: 51
@@ -1972,47 +1972,47 @@ entries:
     printed: { width: 174.3, height: 137.2, position: "right 33.8 / 89.4" }
     enabled: false
     tags: ["artwork"]
-  p051-5:
+  p51-5:
     category: glossary
     title: "p. 51 · 5"
     page: 51
     target: P51_inactive_5.jpg
     printed: { width: 18.8, height: 25.7, position: "right 39.0 / 252.0" }
     enabled: false
-  p051-6:
+  p51-6:
     category: glossary
     title: "p. 51 · 6"
     page: 51
     target: P51_inactive_6.jpg
     printed: { width: 25.7, height: 25.3, position: "right 162.3 / 255.6" }
     enabled: false
-  p051-7:
+  p51-7:
     category: glossary
     title: "p. 51 · 7"
     page: 51
     target: P51_inactive_7.jpg
     printed: { width: 20.8, height: 28.4, position: "right 21.6 / 265.8" }
     enabled: false
-  p051-8:
+  p51-8:
     category: glossary
     title: "p. 51 · 8"
     page: 51
     target: P51_inactive_8.jpg
     printed: { width: 23.0, height: 23.0, position: "right 182.2 / 277.7" }
     enabled: false
-  p052-1:
+  p52-1:
     category: link
     title: "Crash"
     page: 52
     target: P52_active_1.jpg
     printed: { width: 41.1, height: 23.0, position: "left 158.8 / 181.3" }
-  p052-2:
+  p52-2:
     category: glossary
     title: "p. 52 · 2"
     page: 52
     target: P52_active_2.jpg
     printed: { width: 27.6, height: 42.3, position: "left 81.4 / 238.6" }
-  p052-3:
+  p52-3:
     category: glossary
     title: "p. 52 · 3"
     page: 52
@@ -2020,21 +2020,21 @@ entries:
     printed: { width: 202.8, height: 144.9, position: "left 7.6 / 8.1" }
     enabled: false
     tags: ["artwork"]
-  p052-4:
+  p52-4:
     category: glossary
     title: "p. 52 · 4"
     page: 52
     target: P52_inactive_4.jpg
     printed: { width: 16.2, height: 20.4, position: "left 112.7 / 147.8" }
     enabled: false
-  p052-5:
+  p52-5:
     category: glossary
     title: "p. 52 · 5"
     page: 52
     target: P52_inactive_5.jpg
     printed: { width: 17.5, height: 23.4, position: "left 189.5 / 269.9" }
     enabled: false
-  p053-1:
+  p53-1:
     category: glossary
     title: "p. 53 · 1"
     page: 53
@@ -2042,21 +2042,21 @@ entries:
     printed: { width: 202.0, height: 294.8, position: "right 20.0 / 7.6" }
     enabled: false
     tags: ["artwork"]
-  p053-2:
+  p53-2:
     category: glossary
     title: "p. 53 · 2"
     page: 53
     target: P53_inactive_2.jpg
     printed: { width: 21.5, height: 31.3, position: "right 9.2 / 186.4" }
     enabled: false
-  p053-3:
+  p53-3:
     category: glossary
     title: "p. 53 · 3"
     page: 53
     target: P53_inactive_3.jpg
     printed: { width: 17.6, height: 26.1, position: "right 168.7 / 285.9" }
     enabled: false
-  p054-1:
+  p54-1:
     category: glossary
     title: "p. 54 · 1"
     page: 54
@@ -2064,28 +2064,28 @@ entries:
     printed: { width: 202.0, height: 294.7, position: "left 8.0 / 7.7" }
     enabled: false
     tags: ["artwork"]
-  p054-2:
+  p54-2:
     category: glossary
     title: "p. 54 · 2"
     page: 54
     target: P54_inactive_2.jpg
     printed: { width: 22.0, height: 29.9, position: "left 201.0 / 143.6" }
     enabled: false
-  p054-3:
+  p54-3:
     category: glossary
     title: "p. 54 · 3"
     page: 54
     target: P54_inactive_3.jpg
     printed: { width: 21.1, height: 26.4, position: "left 4.0 / 259.5" }
     enabled: false
-  p054-4:
+  p54-4:
     category: glossary
     title: "p. 54 · 4"
     page: 54
     target: P54_inactive_4.jpg
     printed: { width: 20.4, height: 28.0, position: "left 195.6 / 284.0" }
     enabled: false
-  p055-1:
+  p55-1:
     category: glossary
     title: "p. 55 · 1"
     page: 55
@@ -2093,28 +2093,28 @@ entries:
     printed: { width: 202.0, height: 294.7, position: "right 20.0 / 7.7" }
     enabled: false
     tags: ["artwork"]
-  p055-2:
+  p55-2:
     category: glossary
     title: "p. 55 · 2"
     page: 55
     target: P55_inactive_2.jpg
     printed: { width: 25.9, height: 35.4, position: "right -0.0 / 25.0" }
     enabled: false
-  p055-3:
+  p55-3:
     category: glossary
     title: "p. 55 · 3"
     page: 55
     target: P55_inactive_3.jpg
     printed: { width: 27.2, height: 35.4, position: "right 7.0 / 54.0" }
     enabled: false
-  p055-4:
+  p55-4:
     category: glossary
     title: "p. 55 · 4"
     page: 55
     target: P55_inactive_4.jpg
     printed: { width: 27.8, height: 35.9, position: "right 180.4 / 276.1" }
     enabled: false
-  p056-1:
+  p56-1:
     category: glossary
     title: "p. 56 · 1"
     page: 56
@@ -2122,14 +2122,14 @@ entries:
     printed: { width: 202.0, height: 294.7, position: "left 8.0 / 7.7" }
     enabled: false
     tags: ["artwork"]
-  p056-2:
+  p56-2:
     category: glossary
     title: "p. 56 · 2"
     page: 56
     target: P56_inactive_2.jpg
     printed: { width: 33.5, height: 25.1, position: "left 4.0 / 286.9" }
     enabled: false
-  p057-1:
+  p57-1:
     category: glossary
     title: "p. 57 · 1"
     page: 57
@@ -2137,33 +2137,33 @@ entries:
     printed: { width: 202.0, height: 294.7, position: "right 20.0 / 7.7" }
     enabled: false
     tags: ["artwork"]
-  p057-2:
+  p57-2:
     category: glossary
     title: "p. 57 · 2"
     page: 57
     target: P57_inactive_2.jpg
     printed: { width: 23.2, height: 32.5, position: "right -0.0 / 15.5" }
     enabled: false
-  p057-3:
+  p57-3:
     category: glossary
     title: "p. 57 · 3"
     page: 57
     target: P57_inactive_3.jpg
     printed: { width: 17.0, height: 33.2, position: "right 5.0 / 200.1" }
     enabled: false
-  p058-1:
+  p58-1:
     category: glossary
     title: "p. 58 · 1"
     page: 58
     target: P58_active_1.jpg
     printed: { width: 39.6, height: 22.6, position: "left 111.5 / 90.5" }
-  p058-2:
+  p58-2:
     category: link
     title: "Leroy"
     page: 58
     target: P58_active_2.jpg
     printed: { width: 41.0, height: 23.8, position: "left 91.0 / 256.8" }
-  p058-3:
+  p58-3:
     category: glossary
     title: "p. 58 · 3"
     page: 58
@@ -2171,21 +2171,21 @@ entries:
     printed: { width: 99.8, height: 145.0, position: "left 7.6 / 8.0" }
     enabled: false
     tags: ["artwork"]
-  p058-4:
+  p58-4:
     category: glossary
     title: "p. 58 · 4"
     page: 58
     target: P58_inactive_4.jpg
     printed: { width: 36.5, height: 24.0, position: "left 164.7 / 186.0" }
     enabled: false
-  p059-1:
+  p59-1:
     category: glossary
     title: "p. 59 · 1"
     page: 59
     target: P59_inactive_1.jpg
     printed: { width: 17.9, height: 45.7, position: "right 204.6 / 8.8" }
     enabled: false
-  p059-2:
+  p59-2:
     category: glossary
     title: "p. 59 · 2"
     page: 59
@@ -2193,35 +2193,35 @@ entries:
     printed: { width: 174.4, height: 194.8, position: "right 32.8 / 60.6" }
     enabled: false
     tags: ["artwork"]
-  p059-3:
+  p59-3:
     category: glossary
     title: "p. 59 · 3"
     page: 59
     target: P59_inactive_3.jpg
     printed: { width: 19.5, height: 23.0, position: "right 28.8 / 271.5" }
     enabled: false
-  p059-4:
+  p59-4:
     category: glossary
     title: "p. 59 · 4"
     page: 59
     target: P59_inactive_4.jpg
     printed: { width: 23.3, height: 34.2, position: "right 50.4 / 278.3" }
     enabled: false
-  p059-5:
+  p59-5:
     category: glossary
     title: "p. 59 · 5"
     page: 59
     target: P59_inactive_5.jpg
     printed: { width: 16.5, height: 24.5, position: "right 203.5 / 277.5" }
     enabled: false
-  p060-1:
+  p60-1:
     category: glossary
     title: "p. 60 · 1"
     page: 60
     target: P60_inactive_1.jpg
     printed: { width: 16.5, height: 23.3, position: "left 36.0 / 12.5" }
     enabled: false
-  p060-2:
+  p60-2:
     category: glossary
     title: "p. 60 · 2"
     page: 60
@@ -2229,75 +2229,75 @@ entries:
     printed: { width: 416.4, height: 234.2, position: "left 21.8 / 40.9" }
     enabled: false
     tags: ["artwork"]
-  p060-3:
+  p60-3:
     category: glossary
     title: "p. 60 · 3"
     page: 60
     target: P60_inactive_3.jpg
     printed: { width: 18.8, height: 26.6, position: "left 13.0 / 279.7" }
     enabled: false
-  p060-4:
+  p60-4:
     category: glossary
     title: "p. 60 · 4"
     page: 60
     target: P60_inactive_4.jpg
     printed: { width: 11.2, height: 15.8, position: "left 66.0 / 283.4" }
     enabled: false
-  p060-5:
+  p60-5:
     category: glossary
     title: "p. 60 · 5"
     page: 60
     target: P60_inactive_5.jpg
     printed: { width: 17.9, height: 25.1, position: "left 141.0 / 281.2" }
     enabled: false
-  p060-6:
+  p60-6:
     category: glossary
     title: "p. 60 · 6"
     page: 60
     target: P60_inactive_6.jpg
     printed: { width: 15.9, height: 25.5, position: "left 152.5 / 276.5" }
     enabled: false
-  p060-7:
+  p60-7:
     category: glossary
     title: "p. 60 · 7"
     page: 60
     target: P60_inactive_7.jpg
     printed: { width: 11.9, height: 16.8, position: "left 27.5 / 293.0" }
     enabled: false
-  p061-1:
+  p61-1:
     category: link
     title: "Derida Ghost"
     page: 61
     target: P61_active_1.jpg
     printed: { width: 36.6, height: 23.2, position: "right 34.4 / 279.7" }
-  p061-2:
+  p61-2:
     category: glossary
     title: "p. 61 · 2"
     page: 61
     target: P61_inactive_2.jpg
     printed: { width: 19.0, height: 24.9, position: "right 147.0 / 8.0" }
     enabled: false
-  p061-3:
+  p61-3:
     category: glossary
     title: "p. 61 · 3"
     page: 61
     target: P61_inactive_3.jpg
     printed: { width: 13.5, height: 18.9, position: "right 168.5 / 18.5" }
     enabled: false
-  p062-1:
+  p62-1:
     category: glossary
     title: "p. 62 · 1"
     page: 62
     target: P62_active_1.jpg
     printed: { width: 26.2, height: 19.6, position: "left 155.0 / 35.1" }
-  p062-2:
+  p62-2:
     category: glossary
     title: "p. 62 · 2"
     page: 62
     target: P62_inactive_2.jpg
     printed: { width: 18.0, height: 29.1, position: "left 18.5 / 21.9" }
     enabled: false
-  p062-3:
+  p62-3:
     category: glossary
     title: "p. 62 · 3"
     page: 62
@@ -2305,48 +2305,48 @@ entries:
     printed: { width: 174.3, height: 174.3, position: "left 21.7 / 70.0" }
     enabled: false
     tags: ["artwork"]
-  p062-4:
+  p62-4:
     category: glossary
     title: "p. 62 · 4"
     page: 62
     target: P62_inactive_4.jpg
     printed: { width: 16.8, height: 24.6, position: "left 32.8 / 240.7" }
     enabled: false
-  p062-5:
+  p62-5:
     category: glossary
     title: "p. 62 · 5"
     page: 62
     target: P62_inactive_5.jpg
     printed: { width: 16.7, height: 21.6, position: "left 172.4 / 252.9" }
     enabled: false
-  p062-6:
+  p62-6:
     category: glossary
     title: "p. 62 · 6"
     page: 62
     target: P62_inactive_6.jpg
     printed: { width: 21.5, height: 30.3, position: "left 49.6 / 270.8" }
     enabled: false
-  p063-1:
+  p63-1:
     category: link
     title: "Disney City"
     page: 63
     target: P63_active_1.jpg
     printed: { width: 35.3, height: 20.2, position: "right 184.0 / 288.6" }
-  p063-2:
+  p63-2:
     category: glossary
     title: "p. 63 · 2"
     page: 63
     target: P63_inactive_2.jpg
     printed: { width: 15.4, height: 20.6, position: "right 186.5 / 14.5" }
     enabled: false
-  p063-3:
+  p63-3:
     category: glossary
     title: "p. 63 · 3"
     page: 63
     target: P63_inactive_3.jpg
     printed: { width: 25.8, height: 38.7, position: "right 3.7 / 17.8" }
     enabled: false
-  p063-4:
+  p63-4:
     category: glossary
     title: "p. 63 · 4"
     page: 63
@@ -2354,70 +2354,70 @@ entries:
     printed: { width: 163.8, height: 244.6, position: "right 39.1 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p063-5:
+  p63-5:
     category: glossary
     title: "p. 63 · 5"
     page: 63
     target: P63_inactive_5.jpg
     printed: { width: 15.9, height: 26.0, position: "right 207.2 / 48.4" }
     enabled: false
-  p063-6:
+  p63-6:
     category: glossary
     title: "p. 63 · 6"
     page: 63
     target: P63_inactive_6.jpg
     printed: { width: 16.7, height: 22.5, position: "right 13.4 / 141.5" }
     enabled: false
-  p063-7:
+  p63-7:
     category: glossary
     title: "p. 63 · 7"
     page: 63
     target: P63_inactive_7.jpg
     printed: { width: 22.5, height: 31.9, position: "right 21.8 / 255.6" }
     enabled: false
-  p063-8:
+  p63-8:
     category: glossary
     title: "p. 63 · 8"
     page: 63
     target: P63_inactive_8.jpg
     printed: { width: 12.9, height: 16.7, position: "right 65.3 / 286.0" }
     enabled: false
-  p064-1:
+  p64-1:
     category: glossary
     title: "p. 64 · 1"
     page: 64
     target: P64_inactive_1.jpg
     printed: { width: 28.9, height: 37.6, position: "left 14.5 / 14.5" }
     enabled: false
-  p064-2:
+  p64-2:
     category: glossary
     title: "p. 64 · 2"
     page: 64
     target: P64_inactive_2.jpg
     printed: { width: 19.1, height: 27.4, position: "left 33.9 / 48.6" }
     enabled: false
-  p064-3:
+  p64-3:
     category: glossary
     title: "p. 64 · 3"
     page: 64
     target: P64_inactive_3.jpg
     printed: { width: 26.2, height: 37.2, position: "left 147.8 / 157.0" }
     enabled: false
-  p064-4:
+  p64-4:
     category: glossary
     title: "p. 64 · 4"
     page: 64
     target: P64_inactive_4.jpg
     printed: { width: 23.1, height: 38.6, position: "left 18.8 / 217.7" }
     enabled: false
-  p065-1:
+  p65-1:
     category: glossary
     title: "p. 65 · 1"
     page: 65
     target: P65_inactive_1.jpg
     printed: { width: 19.1, height: 32.0, position: "right 29.4 / 19.0" }
     enabled: false
-  p065-2:
+  p65-2:
     category: glossary
     title: "p. 65 · 2"
     page: 65
@@ -2425,35 +2425,35 @@ entries:
     printed: { width: 129.8, height: 244.6, position: "right 56.1 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p065-3:
+  p65-3:
     category: glossary
     title: "p. 65 · 3"
     page: 65
     target: P65_inactive_3.jpg
     printed: { width: 17.4, height: 28.9, position: "right 196.0 / 174.5" }
     enabled: false
-  p065-4:
+  p65-4:
     category: glossary
     title: "p. 65 · 4"
     page: 65
     target: P65_inactive_4.jpg
     printed: { width: 20.3, height: 28.5, position: "right 182.5 / 199.0" }
     enabled: false
-  p065-5:
+  p65-5:
     category: glossary
     title: "p. 65 · 5"
     page: 65
     target: P65_inactive_5.jpg
     printed: { width: 17.7, height: 25.2, position: "right 194.0 / 251.5" }
     enabled: false
-  p065-6:
+  p65-6:
     category: glossary
     title: "p. 65 · 6"
     page: 65
     target: P65_inactive_6.jpg
     printed: { width: 29.0, height: 29.0, position: "right 25.2 / 279.7" }
     enabled: false
-  p066-1:
+  p66-1:
     category: glossary
     title: "p. 66 · 1"
     page: 66
@@ -2461,62 +2461,62 @@ entries:
     printed: { width: 217.5, height: 145.0, position: "left 1.5 / 8.0" }
     enabled: false
     tags: ["artwork"]
-  p066-2:
+  p66-2:
     category: glossary
     title: "p. 66 · 2"
     page: 66
     target: P66_inactive_2.jpg
     printed: { width: 38.7, height: 27.5, position: "left 81.2 / 150.0" }
     enabled: false
-  p066-3:
+  p66-3:
     category: glossary
     title: "p. 66 · 3"
     page: 66
     target: P66_inactive_3.jpg
     printed: { width: 32.7, height: 46.3, position: "left 158.0 / 205.1" }
     enabled: false
-  p066-4:
+  p66-4:
     category: glossary
     title: "p. 66 · 4"
     page: 66
     target: P66_inactive_4.jpg
     printed: { width: 23.9, height: 35.9, position: "left 34.6 / 248.0" }
     enabled: false
-  p066-5:
+  p66-5:
     category: glossary
     title: "p. 66 · 5"
     page: 66
     target: P66_inactive_5.jpg
     printed: { width: 24.3, height: 34.7, position: "left 14.9 / 271.8" }
     enabled: false
-  p067-1:
+  p67-1:
     category: glossary
     title: "p. 67 · 1"
     page: 67
     target: P67_active_1.jpg
     printed: { width: 25.8, height: 21.0, position: "right 30.5 / 257.5" }
-  p067-2:
+  p67-2:
     category: glossary
     title: "p. 67 · 2"
     page: 67
     target: P67_inactive_2.jpg
     printed: { width: 19.3, height: 24.3, position: "right 87.5 / 12.0" }
     enabled: false
-  p067-3:
+  p67-3:
     category: glossary
     title: "p. 67 · 3"
     page: 67
     target: P67_inactive_3.jpg
     printed: { width: 23.0, height: 28.4, position: "right 126.0 / 13.5" }
     enabled: false
-  p067-4:
+  p67-4:
     category: glossary
     title: "p. 67 · 4"
     page: 67
     target: P67_inactive_4.jpg
     printed: { width: 23.0, height: 32.5, position: "right 110.5 / 26.0" }
     enabled: false
-  p067-5:
+  p67-5:
     category: glossary
     title: "p. 67 · 5"
     page: 67
@@ -2524,76 +2524,76 @@ entries:
     printed: { width: 175.2, height: 156.6, position: "right 33.4 / 79.7" }
     enabled: false
     tags: ["artwork"]
-  p067-6:
+  p67-6:
     category: glossary
     title: "p. 67 · 6"
     page: 67
     target: P67_inactive_6.jpg
     printed: { width: 23.7, height: 31.5, position: "right 164.1 / 225.8" }
     enabled: false
-  p067-7:
+  p67-7:
     category: glossary
     title: "p. 67 · 7"
     page: 67
     target: P67_inactive_7.jpg
     printed: { width: 24.9, height: 33.2, position: "right 185.0 / 234.8" }
     enabled: false
-  p067-8:
+  p67-8:
     category: glossary
     title: "p. 67 · 8"
     page: 67
     target: P67_inactive_8.jpg
     printed: { width: 29.5, height: 27.4, position: "right 143.0 / 269.5" }
     enabled: false
-  p068-1:
+  p68-1:
     category: link
     title: "Disney EYE"
     page: 68
     target: P68_active_1.jpg
     printed: { width: 41.7, height: 23.4, position: "left 54.5 / 247.1" }
-  p068-2:
+  p68-2:
     category: glossary
     title: "p. 68 · 2"
     page: 68
     target: P68_inactive_2.jpg
     printed: { width: 27.6, height: 46.8, position: "left 8.0 / 8.8" }
     enabled: false
-  p068-3:
+  p68-3:
     category: glossary
     title: "p. 68 · 3"
     page: 68
     target: P68_inactive_3.jpg
     printed: { width: 23.0, height: 33.2, position: "left 61.0 / 14.8" }
     enabled: false
-  p068-4:
+  p68-4:
     category: glossary
     title: "p. 68 · 4"
     page: 68
     target: P68_inactive_4.jpg
     printed: { width: 26.9, height: 99.4, position: "left 168.0 / 20.9" }
     enabled: false
-  p068-5:
+  p68-5:
     category: glossary
     title: "p. 68 · 5"
     page: 68
     target: P68_inactive_5.jpg
     printed: { width: 21.5, height: 30.5, position: "left 27.1 / 38.8" }
     enabled: false
-  p068-6:
+  p68-6:
     category: glossary
     title: "p. 68 · 6"
     page: 68
     target: P68_inactive_6.jpg
     printed: { width: 27.7, height: 36.9, position: "left 145.2 / 211.5" }
     enabled: false
-  p069-1:
+  p69-1:
     category: glossary
     title: "p. 69 · 1"
     page: 69
     target: P69_inactive_1.jpg
     printed: { width: 35.7, height: 46.6, position: "right 71.8 / 47.4" }
     enabled: false
-  p069-2:
+  p69-2:
     category: glossary
     title: "p. 69 · 2"
     page: 69
@@ -2601,21 +2601,21 @@ entries:
     printed: { width: 174.4, height: 162.0, position: "right 33.8 / 77.0" }
     enabled: false
     tags: ["artwork"]
-  p069-3:
+  p69-3:
     category: glossary
     title: "p. 69 · 3"
     page: 69
     target: P69_inactive_3.jpg
     printed: { width: 26.6, height: 35.5, position: "right 167.0 / 235.5" }
     enabled: false
-  p069-4:
+  p69-4:
     category: glossary
     title: "p. 69 · 4"
     page: 69
     target: P69_inactive_4.jpg
     printed: { width: 18.8, height: 25.6, position: "right 197.5 / 276.4" }
     enabled: false
-  p070-1:
+  p70-1:
     category: glossary
     title: "p. 70 · 1"
     page: 70
@@ -2623,49 +2623,49 @@ entries:
     printed: { width: 202.0, height: 294.8, position: "left 8.0 / 7.6" }
     enabled: false
     tags: ["artwork"]
-  p070-2:
+  p70-2:
     category: glossary
     title: "p. 70 · 2"
     page: 70
     target: P70_inactive_2.jpg
     printed: { width: 25.8, height: 38.0, position: "left 197.1 / 60.5" }
     enabled: false
-  p070-3:
+  p70-3:
     category: glossary
     title: "p. 70 · 3"
     page: 70
     target: P70_inactive_3.jpg
     printed: { width: 24.3, height: 35.6, position: "left 197.1 / 184.9" }
     enabled: false
-  p070-4:
+  p70-4:
     category: glossary
     title: "p. 70 · 4"
     page: 70
     target: P70_inactive_4.jpg
     printed: { width: 27.3, height: 27.3, position: "left 4.7 / 284.7" }
     enabled: false
-  p071-1:
+  p71-1:
     category: glossary
     title: "p. 71 · 1"
     page: 71
     target: P71_inactive_1.jpg
     printed: { width: 22.8, height: 31.8, position: "right 23.9 / 12.5" }
     enabled: false
-  p071-2:
+  p71-2:
     category: glossary
     title: "p. 71 · 2"
     page: 71
     target: P71_inactive_2.jpg
     printed: { width: 12.3, height: 18.5, position: "right 49.5 / 8.0" }
     enabled: false
-  p071-3:
+  p71-3:
     category: glossary
     title: "p. 71 · 3"
     page: 71
     target: P71_inactive_3.jpg
     printed: { width: 13.5, height: 20.3, position: "right 91.2 / 12.5" }
     enabled: false
-  p071-4:
+  p71-4:
     category: glossary
     title: "p. 71 · 4"
     page: 71
@@ -2673,49 +2673,49 @@ entries:
     printed: { width: 159.4, height: 244.6, position: "right 41.3 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p071-5:
+  p71-5:
     category: glossary
     title: "p. 71 · 5"
     page: 71
     target: P71_inactive_5.jpg
     printed: { width: 23.0, height: 30.1, position: "right 199.0 / 43.4" }
     enabled: false
-  p071-6:
+  p71-6:
     category: glossary
     title: "p. 71 · 6"
     page: 71
     target: P71_inactive_6.jpg
     printed: { width: 23.7, height: 35.6, position: "right 22.3 / 264.9" }
     enabled: false
-  p071-7:
+  p71-7:
     category: glossary
     title: "p. 71 · 7"
     page: 71
     target: P71_inactive_7.jpg
     printed: { width: 10.5, height: 21.0, position: "right 204.0 / 291.0" }
     enabled: false
-  p072-1:
+  p72-1:
     category: glossary
     title: "p. 72 · 1"
     page: 72
     target: P72_inactive_1.jpg
     printed: { width: 31.1, height: 38.5, position: "left 10.0 / 10.0" }
     enabled: false
-  p072-2:
+  p72-2:
     category: glossary
     title: "p. 72 · 2"
     page: 72
     target: P72_inactive_2.jpg
     printed: { width: 26.6, height: 37.3, position: "left 172.5 / 20.4" }
     enabled: false
-  p072-3:
+  p72-3:
     category: glossary
     title: "p. 72 · 3"
     page: 72
     target: P72_inactive_3.jpg
     printed: { width: 20.6, height: 28.3, position: "left 157.0 / 36.3" }
     enabled: false
-  p072-4:
+  p72-4:
     category: glossary
     title: "p. 72 · 4"
     page: 72
@@ -2723,104 +2723,104 @@ entries:
     printed: { width: 416.4, height: 159.8, position: "left 21.8 / 78.1" }
     enabled: false
     tags: ["artwork"]
-  p072-5:
+  p72-5:
     category: glossary
     title: "p. 72 · 5"
     page: 72
     target: P72_inactive_5.jpg
     printed: { width: 23.1, height: 32.8, position: "left 91.9 / 242.2" }
     enabled: false
-  p072-6:
+  p72-6:
     category: glossary
     title: "p. 72 · 6"
     page: 72
     target: P72_inactive_6.jpg
     printed: { width: 39.4, height: 56.8, position: "left 62.0 / 245.1" }
     enabled: false
-  p073-1:
+  p73-1:
     category: glossary
     title: "p. 73 · 1"
     page: 73
     target: P73_inactive_1.jpg
     printed: { width: 23.3, height: 33.4, position: "right 142.0 / 14.8" }
     enabled: false
-  p073-2:
+  p73-2:
     category: glossary
     title: "p. 73 · 2"
     page: 73
     target: P73_inactive_2.jpg
     printed: { width: 29.2, height: 60.0, position: "right 100.4 / 20.4" }
     enabled: false
-  p073-3:
+  p73-3:
     category: glossary
     title: "p. 73 · 3"
     page: 73
     target: P73_inactive_3.jpg
     printed: { width: 20.5, height: 29.2, position: "right 32.8 / 248.7" }
     enabled: false
-  p073-4:
+  p73-4:
     category: glossary
     title: "p. 73 · 4"
     page: 73
     target: P73_inactive_4.jpg
     printed: { width: 26.3, height: 37.4, position: "right 166.2 / 252.0" }
     enabled: false
-  p073-5:
+  p73-5:
     category: glossary
     title: "p. 73 · 5"
     page: 73
     target: P73_inactive_5.jpg
     printed: { width: 24.9, height: 37.3, position: "right 146.5 / 266.5" }
     enabled: false
-  p074-1:
+  p74-1:
     category: link
     title: "Civilization"
     page: 74
     target: P74_active_1.jpg
     printed: { width: 41.9, height: 23.5, position: "left 144.9 / 90.5" }
-  p074-2:
+  p74-2:
     category: glossary
     title: "p. 74 · 2"
     page: 74
     target: P74_inactive_2.jpg
     printed: { width: 32.1, height: 20.6, position: "left 43.6 / 249.2" }
     enabled: false
-  p074-3:
+  p74-3:
     category: glossary
     title: "p. 74 · 3"
     page: 74
     target: P74_inactive_3.jpg
     printed: { width: 37.4, height: 28.8, position: "left 16.0 / 264.0" }
     enabled: false
-  p074-4:
+  p74-4:
     category: glossary
     title: "p. 74 · 4"
     page: 74
     target: P74_inactive_4.jpg
     printed: { width: 23.3, height: 29.3, position: "left 170.7 / 277.7" }
     enabled: false
-  p074-5:
+  p74-5:
     category: glossary
     title: "p. 74 · 5"
     page: 74
     target: P74_inactive_5.jpg
     printed: { width: 23.3, height: 29.3, position: "left 195.7 / 277.7" }
     enabled: false
-  p075-1:
+  p75-1:
     category: glossary
     title: "p. 75 · 1"
     page: 75
     target: P75_inactive_1.jpg
     printed: { width: 22.0, height: 31.4, position: "right 18.5 / 12.8" }
     enabled: false
-  p075-2:
+  p75-2:
     category: glossary
     title: "p. 75 · 2"
     page: 75
     target: P75_inactive_2.jpg
     printed: { width: 16.1, height: 19.4, position: "right 60.0 / 7.6" }
     enabled: false
-  p075-3:
+  p75-3:
     category: glossary
     title: "p. 75 · 3"
     page: 75
@@ -2828,21 +2828,21 @@ entries:
     printed: { width: 183.0, height: 243.2, position: "right 26.4 / 36.2" }
     enabled: false
     tags: ["artwork"]
-  p075-4:
+  p75-4:
     category: glossary
     title: "p. 75 · 4"
     page: 75
     target: P75_inactive_4.jpg
     printed: { width: 15.1, height: 20.2, position: "right 88.6 / 276.3" }
     enabled: false
-  p075-5:
+  p75-5:
     category: glossary
     title: "p. 75 · 5"
     page: 75
     target: P75_inactive_5.jpg
     printed: { width: 27.1, height: 35.5, position: "right 177.3 / 279.6" }
     enabled: false
-  p076-1:
+  p76-1:
     category: glossary
     title: "p. 76 · 1"
     page: 76
@@ -2850,63 +2850,63 @@ entries:
     printed: { width: 202.8, height: 145.4, position: "left 7.6 / 8.0" }
     enabled: false
     tags: ["artwork"]
-  p076-2:
+  p76-2:
     category: glossary
     title: "p. 76 · 2"
     page: 76
     target: P76_inactive_2.jpg
     printed: { width: 18.8, height: 22.2, position: "left 37.5 / 145.9" }
     enabled: false
-  p076-3:
+  p76-3:
     category: glossary
     title: "p. 76 · 3"
     page: 76
     target: P76_inactive_3.jpg
     printed: { width: 23.3, height: 30.0, position: "left 141.1 / 147.5" }
     enabled: false
-  p076-4:
+  p76-4:
     category: glossary
     title: "p. 76 · 4"
     page: 76
     target: P76_inactive_4.jpg
     printed: { width: 17.3, height: 25.0, position: "left 66.8 / 235.7" }
     enabled: false
-  p077-1:
+  p77-1:
     category: glossary
     title: "p. 77 · 1"
     page: 77
     target: P77_inactive_1.jpg
     printed: { width: 22.9, height: 31.1, position: "right 40.5 / 12.5" }
     enabled: false
-  p077-2:
+  p77-2:
     category: glossary
     title: "p. 77 · 2"
     page: 77
     target: P77_inactive_2.jpg
     printed: { width: 25.0, height: 35.0, position: "right 60.0 / 24.4" }
     enabled: false
-  p077-3:
+  p77-3:
     category: glossary
     title: "p. 77 · 3"
     page: 77
     target: P77_inactive_3.jpg
     printed: { width: 20.0, height: 27.0, position: "right 95.0 / 28.1" }
     enabled: false
-  p077-4:
+  p77-4:
     category: glossary
     title: "p. 77 · 4"
     page: 77
     target: P77_inactive_4.jpg
     printed: { width: 22.2, height: 31.2, position: "right 181.0 / 39.1" }
     enabled: false
-  p077-5:
+  p77-5:
     category: glossary
     title: "p. 77 · 5"
     page: 77
     target: P77_inactive_5.jpg
     printed: { width: 21.6, height: 32.4, position: "right 167.5 / 58.1" }
     enabled: false
-  p077-6:
+  p77-6:
     category: glossary
     title: "p. 77 · 6"
     page: 77
@@ -2914,42 +2914,42 @@ entries:
     printed: { width: 174.4, height: 137.4, position: "right 33.8 / 89.0" }
     enabled: false
     tags: ["artwork"]
-  p077-7:
+  p77-7:
     category: glossary
     title: "p. 77 · 7"
     page: 77
     target: P77_inactive_7.jpg
     printed: { width: 26.5, height: 35.8, position: "right 45.0 / 220.1" }
     enabled: false
-  p077-8:
+  p77-8:
     category: glossary
     title: "p. 77 · 8"
     page: 77
     target: P77_inactive_8.jpg
     printed: { width: 26.5, height: 31.1, position: "right 161.0 / 259.9" }
     enabled: false
-  p077-9:
+  p77-9:
     category: glossary
     title: "p. 77 · 9"
     page: 77
     target: P77_inactive_9.jpg
     printed: { width: 23.3, height: 24.0, position: "right 189.1 / 286.0" }
     enabled: false
-  p078-1:
+  p78-1:
     category: glossary
     title: "p. 78 · 1"
     page: 78
     target: P78_inactive_1.jpg
     printed: { width: 29.9, height: 34.0, position: "left 10.0 / 14.5" }
     enabled: false
-  p078-2:
+  p78-2:
     category: glossary
     title: "p. 78 · 2"
     page: 78
     target: P78_inactive_2.jpg
     printed: { width: 31.1, height: 30.0, position: "left 39.9 / 8.0" }
     enabled: false
-  p078-3:
+  p78-3:
     category: glossary
     title: "p. 78 · 3"
     page: 78
@@ -2957,28 +2957,28 @@ entries:
     printed: { width: 167.0, height: 244.6, position: "left 25.5 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p078-4:
+  p78-4:
     category: glossary
     title: "p. 78 · 4"
     page: 78
     target: P78_inactive_4.jpg
     printed: { width: 16.6, height: 25.8, position: "left 187.9 / 231.5" }
     enabled: false
-  p078-5:
+  p78-5:
     category: glossary
     title: "p. 78 · 5"
     page: 78
     target: P78_inactive_5.jpg
     printed: { width: 23.5, height: 34.4, position: "left 192.8 / 274.3" }
     enabled: false
-  p079-1:
+  p79-1:
     category: glossary
     title: "p. 79 · 1"
     page: 79
     target: P79_inactive_1.jpg
     printed: { width: 24.8, height: 30.0, position: "right 173.0 / 78.0" }
     enabled: false
-  p079-2:
+  p79-2:
     category: glossary
     title: "p. 79 · 2"
     page: 79
@@ -2986,41 +2986,41 @@ entries:
     printed: { width: 174.4, height: 104.6, position: "right 33.8 / 105.7" }
     enabled: false
     tags: ["artwork"]
-  p079-3:
+  p79-3:
     category: glossary
     title: "p. 79 · 3"
     page: 79
     target: P79_inactive_3.jpg
     printed: { width: 26.7, height: 37.7, position: "right 19.5 / 190.8" }
     enabled: false
-  p079-4:
+  p79-4:
     category: glossary
     title: "p. 79 · 4"
     page: 79
     target: P79_inactive_4.jpg
     printed: { width: 23.7, height: 31.0, position: "right 192.2 / 276.0" }
     enabled: false
-  p080-1:
+  p80-1:
     category: link
     title: "Disney Mansion"
     page: 80
     target: P80_active_1.jpg
     printed: { width: 39.5, height: 25.6, position: "left 144.0 / 261.6" }
-  p080-2:
+  p80-2:
     category: glossary
     title: "p. 80 · 2"
     page: 80
     target: P80_inactive_2.jpg
     printed: { width: 18.8, height: 28.1, position: "left 14.0 / 36.3" }
     enabled: false
-  p080-3:
+  p80-3:
     category: glossary
     title: "p. 80 · 3"
     page: 80
     target: P80_inactive_3.jpg
     printed: { width: 27.2, height: 37.8, position: "left 49.0 / 80.5" }
     enabled: false
-  p080-4:
+  p80-4:
     category: glossary
     title: "p. 80 · 4"
     page: 80
@@ -3028,35 +3028,35 @@ entries:
     printed: { width: 174.4, height: 103.3, position: "left 21.8 / 106.3" }
     enabled: false
     tags: ["artwork"]
-  p080-5:
+  p80-5:
     category: glossary
     title: "p. 80 · 5"
     page: 80
     target: P80_inactive_5.jpg
     printed: { width: 17.7, height: 27.7, position: "left 163.5 / 202.3" }
     enabled: false
-  p080-6:
+  p80-6:
     category: glossary
     title: "p. 80 · 6"
     page: 80
     target: P80_inactive_6.jpg
     printed: { width: 11.6, height: 17.8, position: "left 197.8 / 227.7" }
     enabled: false
-  p080-7:
+  p80-7:
     category: glossary
     title: "p. 80 · 7"
     page: 80
     target: P80_inactive_7.jpg
     printed: { width: 20.2, height: 38.3, position: "left 14.6 / 264.9" }
     enabled: false
-  p081-1:
+  p81-1:
     category: glossary
     title: "p. 81 · 1"
     page: 81
     target: P81_inactive_1.jpg
     printed: { width: 22.1, height: 83.0, position: "right -0.0 / 19.0" }
     enabled: false
-  p081-2:
+  p81-2:
     category: glossary
     title: "p. 81 · 2"
     page: 81
@@ -3064,69 +3064,69 @@ entries:
     printed: { width: 174.4, height: 240.6, position: "right 28.8 / 37.2" }
     enabled: false
     tags: ["artwork"]
-  p081-3:
+  p81-3:
     category: glossary
     title: "p. 81 · 3"
     page: 81
     target: P81_inactive_3.jpg
     printed: { width: 14.9, height: 23.5, position: "right 55.3 / 172.0" }
     enabled: false
-  p081-4:
+  p81-4:
     category: glossary
     title: "p. 81 · 4"
     page: 81
     target: P81_inactive_4.jpg
     printed: { width: 21.0, height: 27.1, position: "right 168.0 / 192.7" }
     enabled: false
-  p081-5:
+  p81-5:
     category: glossary
     title: "p. 81 · 5"
     page: 81
     target: P81_inactive_5.jpg
     printed: { width: 16.6, height: 27.8, position: "right 0.0 / 250.0" }
     enabled: false
-  p081-6:
+  p81-6:
     category: glossary
     title: "p. 81 · 6"
     page: 81
     target: P81_inactive_6.jpg
     printed: { width: 20.9, height: 32.2, position: "right 200.4 / 276.5" }
     enabled: false
-  p081-7:
+  p81-7:
     category: glossary
     title: "p. 81 · 7"
     page: 81
     target: P81_inactive_7.jpg
     printed: { width: 14.6, height: 19.5, position: "right 168.0 / 286.1" }
     enabled: false
-  p082-1:
+  p82-1:
     category: glossary
     title: "p. 82 · 1"
     page: 82
     target: P82_active_1.jpg
     printed: { width: 20.9, height: 37.2, position: "left 148.7 / 260.8" }
-  p082-2:
+  p82-2:
     category: glossary
     title: "p. 82 · 2"
     page: 82
     target: P82_inactive_2.jpg
     printed: { width: 21.5, height: 30.6, position: "left 95.5 / 24.2" }
     enabled: false
-  p082-3:
+  p82-3:
     category: glossary
     title: "p. 82 · 3"
     page: 82
     target: P82_inactive_3.jpg
     printed: { width: 21.7, height: 31.9, position: "left 150.0 / 43.6" }
     enabled: false
-  p082-4:
+  p82-4:
     category: glossary
     title: "p. 82 · 4"
     page: 82
     target: P82_inactive_4.jpg
     printed: { width: 28.8, height: 39.0, position: "left 16.8 / 74.2" }
     enabled: false
-  p082-5:
+  p82-5:
     category: glossary
     title: "p. 82 · 5"
     page: 82
@@ -3134,34 +3134,34 @@ entries:
     printed: { width: 174.4, height: 125.0, position: "left 21.8 / 95.5" }
     enabled: false
     tags: ["artwork"]
-  p082-6:
+  p82-6:
     category: glossary
     title: "p. 82 · 6"
     page: 82
     target: P82_inactive_6.jpg
     printed: { width: 24.0, height: 27.3, position: "left 170.7 / 244.0" }
     enabled: false
-  p082-7:
+  p82-7:
     category: glossary
     title: "p. 82 · 7"
     page: 82
     target: P82_inactive_7.jpg
     printed: { width: 18.9, height: 30.3, position: "left 42.1 / 252.2" }
     enabled: false
-  p083-1:
+  p83-1:
     category: glossary
     title: "p. 83 · 1"
     page: 83
     target: P83_active_1.jpg
     printed: { width: 29.9, height: 36.9, position: "right 38.4 / 23.4" }
-  p083-2:
+  p83-2:
     category: glossary
     title: "p. 83 · 2"
     page: 83
     target: P83_inactive_2.jpg
     printed: { width: 21.4, height: 33.5, position: "right 108.8 / 34.6" }
     enabled: false
-  p083-3:
+  p83-3:
     category: glossary
     title: "p. 83 · 3"
     page: 83
@@ -3169,21 +3169,21 @@ entries:
     printed: { width: 174.4, height: 230.5, position: "right 33.8 / 42.5" }
     enabled: false
     tags: ["artwork"]
-  p083-4:
+  p83-4:
     category: glossary
     title: "p. 83 · 4"
     page: 83
     target: P83_inactive_4.jpg
     printed: { width: 22.2, height: 32.7, position: "right 119.5 / 250.1" }
     enabled: false
-  p083-5:
+  p83-5:
     category: glossary
     title: "p. 83 · 5"
     page: 83
     target: P83_inactive_5.jpg
     printed: { width: 26.5, height: 31.0, position: "right 59.3 / 267.0" }
     enabled: false
-  p084-1:
+  p84-1:
     category: glossary
     title: "p. 84 · 1"
     page: 84
@@ -3191,87 +3191,87 @@ entries:
     printed: { width: 444.0, height: 294.8, position: "left 8.0 / 7.6" }
     enabled: false
     tags: ["artwork"]
-  p084-2:
+  p84-2:
     category: glossary
     title: "p. 84 · 2"
     page: 84
     target: P84_inactive_2.jpg
     printed: { width: 44.3, height: 56.2, position: "left 39.2 / 260.7" }
     enabled: false
-  p085-1:
+  p85-1:
     category: glossary
     title: "p. 85 · 1"
     page: 85
     target: P85_inactive_1.jpg
     printed: { width: 22.6, height: 32.8, position: "right 203.4 / 32.0" }
     enabled: false
-  p085-2:
+  p85-2:
     category: glossary
     title: "p. 85 · 2"
     page: 85
     target: P85_inactive_2.jpg
     printed: { width: 32.5, height: 48.0, position: "right 182.6 / 267.5" }
     enabled: false
-  p086-1:
+  p86-1:
     category: glossary
     title: "p. 86 · 1"
     page: 86
     target: P86_active_1.jpg
     printed: { width: 39.1, height: 26.4, position: "left 28.1 / 18.5" }
-  p086-2:
+  p86-2:
     category: link
     title: "Midnight"
     page: 86
     target: P86_active_2.jpg
     printed: { width: 33.2, height: 21.5, position: "left 71.8 / 56.3" }
-  p086-3:
+  p86-3:
     category: glossary
     title: "p. 86 · 3"
     page: 86
     target: P86_active_3.jpg
     printed: { width: 39.3, height: 35.8, position: "left 87.0 / 180.5" }
-  p086-4:
+  p86-4:
     category: glossary
     title: "p. 86 · 4"
     page: 86
     target: P86_active_4.jpg
     printed: { width: 38.7, height: 29.1, position: "left 36.5 / 271.5" }
-  p086-5:
+  p86-5:
     category: glossary
     title: "p. 86 · 5"
     page: 86
     target: P86_inactive_5.jpg
     printed: { width: 23.8, height: 55.4, position: "left 151.6 / 202.6" }
     enabled: false
-  p086-6:
+  p86-6:
     category: glossary
     title: "p. 86 · 6"
     page: 86
     target: P86_inactive_6.jpg
     printed: { width: 30.9, height: 43.3, position: "left 128.7 / 249.9" }
     enabled: false
-  p086-7:
+  p86-7:
     category: glossary
     title: "p. 86 · 7"
     page: 86
     target: P86_inactive_7.jpg
     printed: { width: 27.4, height: 38.9, position: "left 153.0 / 262.8" }
     enabled: false
-  p087-1:
+  p87-1:
     category: glossary
     title: "p. 87 · 1"
     page: 87
     target: P87_inactive_1.jpg
     printed: { width: 37.5, height: 25.5, position: "right 20.0 / 14.5" }
     enabled: false
-  p087-2:
+  p87-2:
     category: glossary
     title: "p. 87 · 2"
     page: 87
     target: P87_inactive_2.jpg
     printed: { width: 20.0, height: 25.2, position: "right 181.0 / 11.5" }
     enabled: false
-  p087-3:
+  p87-3:
     category: glossary
     title: "p. 87 · 3"
     page: 87
@@ -3279,28 +3279,28 @@ entries:
     printed: { width: 171.6, height: 244.6, position: "right 35.2 / 36.3" }
     enabled: false
     tags: ["artwork"]
-  p087-4:
+  p87-4:
     category: glossary
     title: "p. 87 · 4"
     page: 87
     target: P87_inactive_4.jpg
     printed: { width: 29.8, height: 38.9, position: "right 20.0 / 263.0" }
     enabled: false
-  p087-5:
+  p87-5:
     category: glossary
     title: "p. 87 · 5"
     page: 87
     target: P87_inactive_5.jpg
     printed: { width: 25.5, height: 30.9, position: "right 119.5 / 267.0" }
     enabled: false
-  p087-6:
+  p87-6:
     category: glossary
     title: "p. 87 · 6"
     page: 87
     target: P87_inactive_6.jpg
     printed: { width: 19.0, height: 24.8, position: "right 191.5 / 288.8" }
     enabled: false
-  p088-1:
+  p88-1:
     category: glossary
     title: "p. 88 · 1"
     page: 88
@@ -3308,21 +3308,21 @@ entries:
     printed: { width: 202.8, height: 294.0, position: "left 7.6 / 8.0" }
     enabled: false
     tags: ["artwork"]
-  p088-2:
+  p88-2:
     category: glossary
     title: "p. 88 · 2"
     page: 88
     target: P88_inactive_2.jpg
     printed: { width: 23.2, height: 32.6, position: "left 206.8 / 230.8" }
     enabled: false
-  p088-3:
+  p88-3:
     category: glossary
     title: "p. 88 · 3"
     page: 88
     target: P88_inactive_3.jpg
     printed: { width: 46.9, height: 26.2, position: "left 193.4 / 284.7" }
     enabled: false
-  p089-1:
+  p89-1:
     category: glossary
     title: "p. 89 · 1"
     page: 89
@@ -3330,14 +3330,14 @@ entries:
     printed: { width: 202.6, height: 294.0, position: "right 19.7 / 8.0" }
     enabled: false
     tags: ["artwork"]
-  p089-2:
+  p89-2:
     category: glossary
     title: "p. 89 · 2"
     page: 89
     target: P89_inactive_2.jpg
     printed: { width: 28.6, height: 41.0, position: "right 0.4 / 73.2" }
     enabled: false
-  p090-1:
+  p90-1:
     category: glossary
     title: "p. 90 · 1"
     page: 90
@@ -3345,56 +3345,56 @@ entries:
     printed: { width: 202.8, height: 294.0, position: "left 7.6 / 8.0" }
     enabled: false
     tags: ["artwork"]
-  p090-2:
+  p90-2:
     category: glossary
     title: "p. 90 · 2"
     page: 90
     target: P90_inactive_2.jpg
     printed: { width: 25.9, height: 33.4, position: "left 204.4 / 136.3" }
     enabled: false
-  p090-3:
+  p90-3:
     category: glossary
     title: "p. 90 · 3"
     page: 90
     target: P90_inactive_3.jpg
     printed: { width: 16.8, height: 26.0, position: "left 59.0 / 264.8" }
     enabled: false
-  p090-4:
+  p90-4:
     category: glossary
     title: "p. 90 · 4"
     page: 90
     target: P90_inactive_4.jpg
     printed: { width: 24.3, height: 35.9, position: "left 37.2 / 276.8" }
     enabled: false
-  p090-5:
+  p90-5:
     category: glossary
     title: "p. 90 · 5"
     page: 90
     target: P90_inactive_5.jpg
     printed: { width: 31.7, height: 31.5, position: "left 198.3 / 279.0" }
     enabled: false
-  p091-1:
+  p91-1:
     category: glossary
     title: "p. 91 · 1"
     page: 91
     target: P91_inactive_1.jpg
     printed: { width: 27.9, height: 34.5, position: "right 98.5 / 11.3" }
     enabled: false
-  p091-2:
+  p91-2:
     category: glossary
     title: "p. 91 · 2"
     page: 91
     target: P91_inactive_2.jpg
     printed: { width: 19.5, height: 27.6, position: "right 19.0 / 32.0" }
     enabled: false
-  p091-3:
+  p91-3:
     category: glossary
     title: "p. 91 · 3"
     page: 91
     target: P91_inactive_3.jpg
     printed: { width: 36.4, height: 30.5, position: "right 178.1 / 28.3" }
     enabled: false
-  p091-4:
+  p91-4:
     category: glossary
     title: "p. 91 · 4"
     page: 91
@@ -3402,49 +3402,49 @@ entries:
     printed: { width: 185.1, height: 223.9, position: "right 28.7 / 45.8" }
     enabled: false
     tags: ["artwork"]
-  p091-5:
+  p91-5:
     category: glossary
     title: "p. 91 · 5"
     page: 91
     target: P91_inactive_5.jpg
     printed: { width: 21.6, height: 27.6, position: "right -0.0 / 241.5" }
     enabled: false
-  p091-6:
+  p91-6:
     category: glossary
     title: "p. 91 · 6"
     page: 91
     target: P91_inactive_6.jpg
     printed: { width: 29.2, height: 40.0, position: "right 51.2 / 252.3" }
     enabled: false
-  p091-7:
+  p91-7:
     category: glossary
     title: "p. 91 · 7"
     page: 91
     target: P91_inactive_7.jpg
     printed: { width: 16.9, height: 23.9, position: "right 135.8 / 263.2" }
     enabled: false
-  p091-8:
+  p91-8:
     category: glossary
     title: "p. 91 · 8"
     page: 91
     target: P91_inactive_8.jpg
     printed: { width: 29.5, height: 29.5, position: "right 140.5 / 259.2" }
     enabled: false
-  p092-1:
+  p92-1:
     category: glossary
     title: "p. 92 · 1"
     page: 92
     target: P92_inactive_1.jpg
     printed: { width: 44.7, height: 44.8, position: "left 10.7 / 9.8" }
     enabled: false
-  p092-2:
+  p92-2:
     category: glossary
     title: "p. 92 · 2"
     page: 92
     target: P92_inactive_2.jpg
     printed: { width: 30.6, height: 41.0, position: "left 182.0 / 45.3" }
     enabled: false
-  p092-3:
+  p92-3:
     category: glossary
     title: "p. 92 · 3"
     page: 92
@@ -3452,28 +3452,28 @@ entries:
     printed: { width: 174.4, height: 163.7, position: "left 21.8 / 76.2" }
     enabled: false
     tags: ["artwork"]
-  p092-4:
+  p92-4:
     category: glossary
     title: "p. 92 · 4"
     page: 92
     target: P92_inactive_4.jpg
     printed: { width: 22.8, height: 22.8, position: "left 44.0 / 274.5" }
     enabled: false
-  p093-1:
+  p93-1:
     category: glossary
     title: "p. 93 · 1"
     page: 93
     target: P93_inactive_1.jpg
     printed: { width: 32.5, height: 32.5, position: "right 51.8 / 29.0" }
     enabled: false
-  p093-2:
+  p93-2:
     category: glossary
     title: "p. 93 · 2"
     page: 93
     target: P93_inactive_2.jpg
     printed: { width: 17.5, height: 28.1, position: "right 199.4 / 33.1" }
     enabled: false
-  p093-3:
+  p93-3:
     category: glossary
     title: "p. 93 · 3"
     page: 93
@@ -3481,62 +3481,62 @@ entries:
     printed: { width: 174.4, height: 204.7, position: "right 33.8 / 55.3" }
     enabled: false
     tags: ["artwork"]
-  p093-4:
+  p93-4:
     category: glossary
     title: "p. 93 · 4"
     page: 93
     target: P93_inactive_4.jpg
     printed: { width: 37.1, height: 22.7, position: "right 15.6 / 255.5" }
     enabled: false
-  p093-5:
+  p93-5:
     category: glossary
     title: "p. 93 · 5"
     page: 93
     target: P93_inactive_5.jpg
     printed: { width: 38.0, height: 22.7, position: "right 164.5 / 256.3" }
     enabled: false
-  p093-6:
+  p93-6:
     category: glossary
     title: "p. 93 · 6"
     page: 93
     target: P93_inactive_6.jpg
     printed: { width: 19.5, height: 30.5, position: "right 144.0 / 274.5" }
     enabled: false
-  p094-1:
+  p94-1:
     category: glossary
     title: "p. 94 · 1"
     page: 94
     target: P94_active_1.jpg
     printed: { width: 24.5, height: 40.0, position: "left 163.5 / 260.9" }
-  p094-2:
+  p94-2:
     category: glossary
     title: "p. 94 · 2"
     page: 94
     target: P94_inactive_2.jpg
     printed: { width: 20.9, height: 33.7, position: "left 49.6 / 17.9" }
     enabled: false
-  p094-3:
+  p94-3:
     category: glossary
     title: "p. 94 · 3"
     page: 94
     target: P94_inactive_3.jpg
     printed: { width: 13.2, height: 25.0, position: "left 30.9 / 26.9" }
     enabled: false
-  p094-4:
+  p94-4:
     category: glossary
     title: "p. 94 · 4"
     page: 94
     target: P94_inactive_4.jpg
     printed: { width: 23.4, height: 34.5, position: "left 12.0 / 41.9" }
     enabled: false
-  p094-5:
+  p94-5:
     category: glossary
     title: "p. 94 · 5"
     page: 94
     target: P94_inactive_5.jpg
     printed: { width: 20.9, height: 20.8, position: "left 141.0 / 38.7" }
     enabled: false
-  p094-6:
+  p94-6:
     category: glossary
     title: "p. 94 · 6"
     page: 94
@@ -3544,88 +3544,88 @@ entries:
     printed: { width: 416.4, height: 172.8, position: "left 21.8 / 71.1" }
     enabled: false
     tags: ["artwork"]
-  p094-7:
+  p94-7:
     category: glossary
     title: "p. 94 · 7"
     page: 94
     target: P94_inactive_7.jpg
     printed: { width: 22.0, height: 31.1, position: "left 43.7 / 242.0" }
     enabled: false
-  p095-1:
+  p95-1:
     category: link
     title: "Effaceur de bites"
     page: 95
     target: P95_active_1.jpg
     printed: { width: 20.1, height: 26.0, position: "right 158.7 / 262.8" }
-  p095-3:
+  p95-3:
     category: glossary
     title: "p. 95 · 3"
     page: 95
     target: P95_inactive_3.jpg
     printed: { width: 21.2, height: 29.6, position: "right 181.6 / 14.4" }
     enabled: false
-  p095-4:
+  p95-4:
     category: glossary
     title: "p. 95 · 4"
     page: 95
     target: P95_inactive_4.jpg
     printed: { width: 33.3, height: 24.4, position: "right 121.0 / 15.2" }
     enabled: false
-  p095-5:
+  p95-5:
     category: glossary
     title: "p. 95 · 5"
     page: 95
     target: P95_inactive_5.jpg
     printed: { width: 22.6, height: 40.8, position: "right 161.9 / 31.9" }
     enabled: false
-  p095-6:
+  p95-6:
     category: glossary
     title: "p. 95 · 6"
     page: 95
     target: P95_inactive_6.jpg
     printed: { width: 34.1, height: 22.7, position: "right 16.0 / 241.2" }
     enabled: false
-  p095-7:
+  p95-7:
     category: glossary
     title: "p. 95 · 7"
     page: 95
     target: P95_inactive_7.jpg
     printed: { width: 20.4, height: 24.8, position: "right 183.8 / 276.7" }
     enabled: false
-  p096-1:
+  p96-1:
     category: glossary
     title: "p. 96 · 1"
     page: 96
     target: P96_active_1.jpg
     printed: { width: 23.1, height: 30.0, position: "left 107.0 / 28.8" }
-  p096-2:
+  p96-2:
     category: glossary
     title: "p. 96 · 2"
     page: 96
     target: P96_active_2.jpg
     printed: { width: 25.2, height: 25.1, position: "left 18.0 / 277.1" }
-  p096-3:
+  p96-3:
     category: glossary
     title: "p. 96 · 3"
     page: 96
     target: P96_inactive_3.jpg
     printed: { width: 17.6, height: 22.8, position: "left 14.0 / 16.8" }
     enabled: false
-  p096-4:
+  p96-4:
     category: glossary
     title: "p. 96 · 4"
     page: 96
     target: P96_inactive_4.jpg
     printed: { width: 19.7, height: 28.1, position: "left 38.0 / 36.8" }
     enabled: false
-  p096-5:
+  p96-5:
     category: glossary
     title: "p. 96 · 5"
     page: 96
     target: P96_inactive_5.jpg
     printed: { width: 17.5, height: 26.3, position: "left 53.8 / 48.9" }
     enabled: false
-  p096-6:
+  p96-6:
     category: glossary
     title: "p. 96 · 6"
     page: 96
@@ -3633,21 +3633,21 @@ entries:
     printed: { width: 174.4, height: 174.0, position: "left 21.8 / 71.2" }
     enabled: false
     tags: ["artwork"]
-  p096-7:
+  p96-7:
     category: glossary
     title: "p. 96 · 7"
     page: 96
     target: P96_inactive_7.jpg
     printed: { width: 49.3, height: 42.7, position: "left -0.4 / 210.0" }
     enabled: false
-  p096-8:
+  p96-8:
     category: glossary
     title: "p. 96 · 8"
     page: 96
     target: P96_inactive_8.jpg
     printed: { width: 42.0, height: 53.7, position: "left 169.4 / 236.0" }
     enabled: false
-  p097-1:
+  p97-1:
     category: glossary
     title: "p. 97 · 1"
     page: 97
@@ -3655,28 +3655,28 @@ entries:
     printed: { width: 202.0, height: 294.4, position: "right 20.0 / 8.0" }
     enabled: false
     tags: ["artwork"]
-  p097-2:
+  p97-2:
     category: glossary
     title: "p. 97 · 2"
     page: 97
     target: P97_inactive_2.jpg
     printed: { width: 30.0, height: 30.1, position: "right -0.0 / 130.2" }
     enabled: false
-  p097-3:
+  p97-3:
     category: glossary
     title: "p. 97 · 3"
     page: 97
     target: P97_inactive_3.jpg
     printed: { width: 27.2, height: 21.3, position: "right 31.7 / 258.4" }
     enabled: false
-  p097-4:
+  p97-4:
     category: glossary
     title: "p. 97 · 4"
     page: 97
     target: P97_inactive_4.jpg
     printed: { width: 39.5, height: 42.8, position: "right -0.0 / 274.0" }
     enabled: false
-  p098-1:
+  p98-1:
     category: glossary
     title: "p. 98 · 1"
     page: 98
@@ -3684,28 +3684,28 @@ entries:
     printed: { width: 444.0, height: 294.8, position: "left 8.0 / 7.6" }
     enabled: false
     tags: ["artwork"]
-  p098-2:
+  p98-2:
     category: glossary
     title: "p. 98 · 2"
     page: 98
     target: P98_inactive_2.jpg
     printed: { width: 53.5, height: 53.5, position: "left 12.4 / 258.5" }
     enabled: false
-  p099-2:
+  p99-2:
     category: glossary
     title: "p. 99 · 2"
     page: 99
     target: P99_inactive_2.jpg
     printed: { width: 22.8, height: 36.5, position: "right 202.7 / 73.5" }
     enabled: false
-  p099-3:
+  p99-3:
     category: glossary
     title: "p. 99 · 3"
     page: 99
     target: P99_inactive_3.jpg
     printed: { width: 25.8, height: 36.5, position: "right 158.5 / 271.3" }
     enabled: false
-  p099-4:
+  p99-4:
     category: glossary
     title: "p. 99 · 4"
     page: 99
