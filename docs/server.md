@@ -990,8 +990,9 @@ only see "Something went wrong".
 accepts fail there (#161: a named parameter used twice; `LIKE … ESCAPE` with a backslash, which opens an escape inside
 a MySQL string literal – `Db::contains` builds the pattern with `!`). `docker-compose.yml` in the repository root runs
 MariaDB 10.11, the version of staging's host (`OSCT_MARIADB_VERSION=11.4` for the version of the Kamal accessory in
-`config/deploy.yml`). Its first start creates the database `osct` from `schema.mysql.sql`; the data stays in the
-Docker volume `osct_db` until `docker compose down -v`.
+`config/deploy.yml`). Its first start creates the empty database `osct`; `php server/deploy/migrate.php` (Db::migrate) creates the tables –
+the schema file is not run as Docker's init script, because its renames for older databases stop a raw run on a new one
+(3.21.2). The data stays in the Docker volume `osct_db` until `docker compose down -v`.
 
 ```bash
 docker compose up -d --wait db                                        # MariaDB on 127.0.0.1:3306

@@ -317,8 +317,9 @@ script so we can get access to the api. So eventually we will have nodes that go
 - **A custom node is a plugin capability, not a new format.** OSCT already has the machinery. A plugin is a module that
   the experience stores and versions; it has usages, a Code tab with **Run**, and a sandbox (#234). A plugin already
   registers components, entity node types, looks and passes, and records them in `registered`. So a custom logic node
-  is one more registration: `registerLogicNode({ kind, ports(params), params, run })`, recorded in
-  `registered.logicNodes`. That is an API MINOR. Upload, versions, export (#322 `plugins`) and the guard stay as they
+  is one more registration: ~~`registerLogicNode({ kind, ports(params), params, run })`, recorded in
+  `registered.logicNodes`~~ – **replaced by §5.9** (Tilman, 2026-11-20): no separate logic-node registration; the ports come
+  from the specs a plugin already registers. That is an API MINOR. Upload, versions, export (#322 `plugins`) and the guard stay as they
   are.
 - **The API access, the way the stage frame already does it.** In the stage frame, plugin code runs at an opaque origin
   with no cookie and no session, and every API call stays in the page (`docs/editor.md`, "The stage frame"). A node
@@ -338,6 +339,97 @@ script so we can get access to the api. So eventually we will have nodes that go
 Steps this adds (after L-T4): **L-T12** file and delivery nodes with wiring and apply (uses #322 T5/T8);
 **L-T13** `registerLogicNode` in the plugin API with the `api` bridge through the page (sandbox, allow-list, apply-only
 writes); **L-T14** (later) reading-time custom nodes in the engine with L-T5.
+
+### 5.9 Ports from the code, as the established node editors do it (Tilman, 2026-11-20)
+
+Tilman: *"ich finde wir sollten die typisierung und die ideen der anderen marktfuehrer uebernehmen. das macht deutlich
+mehr sinn und hat weniger redudance und ist direkt am code lessbar"* – after the question how a component with a logic
+side and another representation (a video, a 3D component) shows on the canvas, and whether components hold logic
+(they do: `behaviour` is a component, and a plugin component hears, emits, reads and sets through `api.events` /
+`api.vars`).
+
+**The model, as Unreal Blueprints, Houdini, Blender's geometry nodes, TouchDesigner and ComfyUI do it:**
+
+1. **Reflection, not a second description.** Unreal turns a property marked `BlueprintReadWrite` into a pin; Houdini
+   turns a node's parameters into inputs; ComfyUI turns a node class's `INPUT_TYPES` / `RETURN_TYPES` into sockets.
+   OSCT does the same with what is already registered: a **component spec**, an **entity node type**, a **pass**, a
+   **material** (`registerComponentSpec`, `registerNodeType`, `registerPass`, `registerMaterial`, …). Their `params`
+   become value inlets (and a getter outlet where readable). There is **no** `registerLogicNode` and no hand-written
+   facet per component.
+2. **What the schema cannot say is declared in the same spec**, next to the params: `actions` (verbs such as play,
+   pause, stop – the behaviour actions of today) become action inlets; `events` (started, ended, …) become event
+   outlets; a plugin's bus use (`hears`, `emits`, `reads`, `sets`) is declared there too – this **is** L-T6, and the
+   regex reading (`pluginCodeUses`) becomes the fallback for a plugin that declares nothing.
+3. **One small typed signal table** (§5.2), checked on connect, with the names mapped to the established ones:
+   `event` ≈ Unreal's exec pin / a trigger, `value` ≈ a data pin / parameter, `node` ≈ an object reference, `scene` ≈ a
+   level reference, `media` (new, for picture / audio / video – SCUTOONS' `Picture` / `Audio`) ≈ a texture / sound
+   socket. A port's type is the param's type from the spec (number, boolean, string, file, colour, …), as Blender's
+   socket types are.
+4. **Show only what matters – Blender's way by default** (Tilman, 2026-11-20: *"auch die blender methode mit den ausblenden
+   ungenutzter ports, das koennte wirklich sauberer werden"*). Unused ports are hidden. A box shows its wired ports,
+   plus a **+** to expose more, and one gesture hides every unused port again, like Blender's Ctrl+H. Houdini's promoted
+   parameters and the deck's `expose` are the same idea.
+5. **Dragging places a reference, the Library adds a new one** (Tilman: *"das konzept ist mega"*). A component already on an entity, dragged onto the
+   canvas, is a reference box for that component (Unreal: an actor dragged into the level blueprint). A component type
+   from the Library is an add op that asks for the entity.
+6. **The box's body previews its other representation**: a thumbnail, a video's first frame, a model's silhouette (the
+   deck's world nodes "with an image of their origin"). Stage and Inspector keep showing the thing itself.
+7. **A pure logic node is a spec without a representation** – what `registerLogicNode` was meant for. An authoring-time
+   `run` (§5.8: sandbox, the `api` bridge, writes only as ops to apply) is one more optional field of such a spec.
+8. **Bonus, at the end: which output a box previews** (Tilman, 2026-11-20): as in TouchDesigner, the author picks which
+   of a box's outputs its body shows: a value, a picture, a 3D object, or a generation's result. **Not decided yet.** It
+   needs a cross-reference with the existing systems and with OSCT's requirements (ticket L-T15):
+   - TouchDesigner's node viewer and its active viewer;
+   - Houdini's display and render flags;
+   - Blender's Viewer node;
+   - ComfyUI's Preview Image;
+   - Unreal's material preview and watched values;
+   - the deck's `Activity` and pinned wire values.
+
+9. **The graph as an exchange format: copy, paste, templates** (Tilman, 2026-11-20: *"die graphen werden dennoch
+   interessant fuer das copieren von nodes und gruppen oder ganzen ansichten"*). The graph is not stored, but it is what
+   travels. Copying nodes, a group or a whole view puts a **graph fragment** on the clipboard: its boxes with their
+   params, the wires between them, and their canvas part (positions, group, notes). Unreal copies nodes as text and
+   ComfyUI copies workflow JSON in the same way. Pasting turns the fragment back into **ops on the documents** (`apply`),
+   so it goes through save, the change log and undo:
+   - new ids;
+   - the references re-aimed: a box that stood for a component on another entity asks whether to point it at the same
+     component or to copy the component;
+   - a wire whose far end was not copied becomes a stub, or is dropped with a word.
+
+   The same fragment saved under a name is a **template** in the Library (a node group, a "door with a key" set of
+   rules). It is also what crosses experiences, and later apps: SCUTOONS reads the same fragment shape from the shared
+   package. Storage stays L1; the fragment is the clipboard's and the Library's format, not a second truth.
+
+**Reflection: schema first, types inferred – no JSDoc** (Tilman, 2026-11-20: first *"ggf in javascript ein problem aber
+wir koenne es mit js doc annotieren"*, then *"Wäre es nicht fast besser wir konvertieren die script Sprache zu typescript
+um die unsicheren annotations aus dem Spiel zu nehmen?"*).
+- **Plugins already are TypeScript.** The content build type-checks `index.ts` against the plugin API
+  (`scripts/src/build/plugins.ts`). The Code tab checks live in Monaco against the API typings
+  (`editor/src/lib/plugins/monaco.ts`) and transpiles with sucrase for Run. JSDoc annotations would add nothing; they
+  are dropped from the plan.
+- **The real gap:** TypeScript's types are erased, so they cannot be read at runtime. And today a handler receives
+  `params: Record<string, unknown>` (`engine/src/scene/plugins.ts`): the spec says `volume` is a number from 0 to 1,
+  but the code does not know it.
+- **The fix is the established "schema first" pattern** (zod, TypeBox, ComfyUI's v3 node schema): the spec is written
+  once as a runtime value, with small typed builders (`p.number({ min: 0, max: 1 })`, `p.boolean()`, `p.file("video")`,
+  `p.choice(["loop", "once"])`, `actions: ["play", "pause"] as const`, `events: ["ended"] as const`). The plugin API's
+  generics **infer the static types from it**: the handler's `params.volume` is a `number`, and an
+  `api.events.emit("endd")` is a compile error in the Code tab and in the build. One declaration is enough: the runtime
+  value gives the ports, the guard and the engine's checks, and the inferred types give the editor and the build.
+- **Rust later** (the deck, #255) uses a derive macro on the struct: the same spec shape, the same `registered` record.
+
+**Where OSCT stays different, on purpose (L1):** Unreal, Houdini and ComfyUI store the **graph itself** as the document
+(the Blueprint, the network, the workflow JSON). OSCT keeps the documents as the truth – the rules in the content, the
+params in the component – and draws the graph from them, because the reader runs the rules, not a graph, and the YAML
+stays readable and diffable. So a wire still needs a field to land in (a rule's action, a param's value, a file
+reference); a wire with no field is refused. Only the canvas (groups, notes, folds, positions) is stored as graph data.
+The typing and the reflection are taken from the market leaders; the storage stays L1.
+
+**Example – a video component on the canvas:** inlets `src` (media/file – the cable from a file node, L-T12), `loop`
+(boolean), `volume` (number), action inlets `play` / `pause` / `stop`; event outlets `started` / `ended` (these two
+are new engine events, a small addition of their own); the body shows the first frame. Nothing of this is written for
+the video by hand: it comes from the video's spec plus its `actions` / `events` lists.
 
 ### 5.6 Where the shared code lives (#255)
 
@@ -430,15 +522,17 @@ already loaded. That is the cheap part.
 | L-T3 | Logic panel navigation: enter, breadcrumb, stubs, search, level follows selection, `?logic=` in the URL; stage and Inspector follow (§6.3); check and mark the "only while loaded" event semantics | M | L-T2 |
 | L-T4 | Edit ops: `apply(op)` on entity behaviour (`behaviourData`), `problems` after each op; gestures in the panel (drag to connect, delete, typeahead add); save through the tree autosave; `tune()` live; undo through #312 | M | L-T1 |
 | L-T5 | Contract MAJOR: `logic` on scene and experience, `goto` action with a `scene:<id>` address, `canvas`; engine runtime for scene / experience rules; `ArSceneOptions.navigate`; reader router resolves it; editor stage logs or follows; PHP guard, MCP, docs/content.md, migration | L | decisions L2–L5 |
-| L-T6 | Plugins declare their bus use (`registered.events` / `vars`: hears, emits, reads, sets): plugin API + build + guard (MINOR); the view prefers it over the regex | S | – |
+| L-T6 | **Ports from the specs (§5.9):** component specs, node types, passes and materials gain `actions`, `events` and the bus use (`hears`, `emits`, `reads`, `sets`); core specs for video, image, text, audio; the view derives every box's ports from them (params → value inlets, actions → action inlets, events → event outlets), wired / **+** exposure, reference boxes; plugin API + build + guard (MINOR); the regex stays as fallback | M | L-T4 |
 | L-T7 | Canvas: groups, notes, folds, direction setting, grid, folded pills in the layout; edge pulses from `observeEvents` while the stage runs | M | L-T4, L-T5 (field) |
 | L-T8 | Signal grammar as theme tokens: OSCT's port shapes and colours from one table (DESIGN.md), named like deck-kit's `Signal` | S | L-T1 |
 | L-T9 | MCP: `logic_view(context)` and `logic_ops` tools over the package | S | L-T2, L-T4 |
 | L-T10 | Conformance fixtures `fixtures/logic/` (documents → views, ops → documents) for SCUTOONS (TS creator, Rust deck) to test against | S | L-T2, L-T4 |
 | L-T11 | (SCUTOONS, its own issue, if L9 says yes) creator Flow views and `read_flow` typed by the shared `View` / `Signal`; the XR viewer runs OSCT's engine and its behaviour | M | the core tag (#255 0.4) |
 | L-T12 | File and delivery nodes on the canvas: one outlet per file, cables to targets, entities and texture slots; apply = the delivery endpoint (preview, then apply) or ops (§5.8) | M | L-T4, #322 T5/T8 |
-| L-T13 | Custom nodes: `registerLogicNode` in the plugin API (MINOR, `registered.logicNodes`); runs at authoring time in a sandbox; `api` bridge through the page (allow-list, reads free, writes only as ops to apply) | M | L-T4, L-T12 |
+| L-T13 | Custom nodes = specs with an authoring-time `run` (§5.8, §5.9 – no `registerLogicNode`); runs in a sandbox; `api` bridge through the page (allow-list, reads free, writes only as ops to apply); preview bodies for boxes | M | L-T6, L-T12 |
 | L-T14 | (later) Reading-time custom nodes evaluated by the engine | M | L-T5, L-T13 |
+| L-T15 | (bonus, research first) Preview output per box, TouchDesigner-style: the author picks the output the body shows (value, picture, 3D object, generation). Cross-reference TouchDesigner, Houdini's flags, Blender's Viewer node, ComfyUI's Preview Image, Unreal's previews and watches and the deck's `Activity` with OSCT's needs, then decide (§5.9.8) | M | L-T6 |
+| L-T16 | Copy and paste as graph fragments (§5.9.9): a fragment format in the shared package (boxes, params, wires, canvas); copy a selection, group or view; paste as ops (new ids, re-aimed references, stubs); templates in the Library; the fixtures for SCUTOONS | M | L-T4, L-T7 |
 
 Order: L-T1 → L-T2 → L-T3 delivers Tilman's navigation on today's content, with no schema change. L-T4 adds editing
 of entity rules. L-T5 is the schema cut and is best done as one MAJOR together with any other planned cut before Tokyo.

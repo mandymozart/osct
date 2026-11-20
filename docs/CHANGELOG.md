@@ -78,6 +78,14 @@ refuses 5.0 content and a 5.0 app refuses 4.x (`OLDEST_READABLE_SCHEMA_MAJOR` 5)
 - The object form of a condition (`{ hasKey: true }`, `{ any: … }`, `{ not: … }`) and its types (`BehaviourCondition`,
   `BehaviourTest`) – `BehaviourRule.when` is the expression's text.
 
+## 3.21.2 – 2026-11-20
+
+### Fixed
+- **Local MariaDB** (`docker-compose.yml`): a new database volume no longer fails to start. Docker's init step ran
+  `schema.mysql.sql` raw and stopped at its first rename for older databases (`spreads` → `scenes`). The first start
+  now creates the empty database, and `php server/deploy/migrate.php` (Db::migrate) creates the tables, as
+  `scripts/db/pull-staging.sh` already does.
+
 ## 3.21.1 – 2026-11-20
 
 ### Changed
