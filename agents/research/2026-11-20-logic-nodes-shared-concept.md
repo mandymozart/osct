@@ -317,8 +317,9 @@ script so we can get access to the api. So eventually we will have nodes that go
 - **A custom node is a plugin capability, not a new format.** OSCT already has the machinery. A plugin is a module that
   the experience stores and versions; it has usages, a Code tab with **Run**, and a sandbox (#234). A plugin already
   registers components, entity node types, looks and passes, and records them in `registered`. So a custom logic node
-  is one more registration: `registerLogicNode({ kind, ports(params), params, run })`, recorded in
-  `registered.logicNodes`. That is an API MINOR. Upload, versions, export (#322 `plugins`) and the guard stay as they
+  is one more registration: ~~`registerLogicNode({ kind, ports(params), params, run })`, recorded in
+  `registered.logicNodes`~~ – **replaced by §5.9** (Tilman, 2026-11-20): no separate logic-node registration; the ports come
+  from the specs a plugin already registers. That is an API MINOR. Upload, versions, export (#322 `plugins`) and the guard stay as they
   are.
 - **The API access, the way the stage frame already does it.** In the stage frame, plugin code runs at an opaque origin
   with no cookie and no session, and every API call stays in the page (`docs/editor.md`, "The stage frame"). A node
@@ -338,6 +339,63 @@ script so we can get access to the api. So eventually we will have nodes that go
 Steps this adds (after L-T4): **L-T12** file and delivery nodes with wiring and apply (uses #322 T5/T8);
 **L-T13** `registerLogicNode` in the plugin API with the `api` bridge through the page (sandbox, allow-list, apply-only
 writes); **L-T14** (later) reading-time custom nodes in the engine with L-T5.
+
+### 5.9 Ports from the code, as the established node editors do it (Tilman, 2026-11-20)
+
+Tilman: *"ich finde wir sollten die typisierung und die ideen der anderen marktfuehrer uebernehmen. das macht deutlich
+mehr sinn und hat weniger redudance und ist direkt am code lessbar"* – after the question how a component with a logic
+side and another representation (a video, a 3D component) shows on the canvas, and whether components hold logic
+(they do: `behaviour` is a component, and a plugin component hears, emits, reads and sets through `api.events` /
+`api.vars`).
+
+**The model, as Unreal Blueprints, Houdini, Blender's geometry nodes, TouchDesigner and ComfyUI do it:**
+
+1. **Reflection, not a second description.** Unreal turns a property marked `BlueprintReadWrite` into a pin; Houdini
+   turns a node's parameters into inputs; ComfyUI turns a node class's `INPUT_TYPES` / `RETURN_TYPES` into sockets.
+   OSCT does the same with what is already registered: a **component spec**, an **entity node type**, a **pass**, a
+   **material** (`registerComponentSpec`, `registerNodeType`, `registerPass`, `registerMaterial`, …). Their `params`
+   become value inlets (and a getter outlet where readable). There is **no** `registerLogicNode` and no hand-written
+   facet per component.
+2. **What the schema cannot say is declared in the same spec**, next to the params: `actions` (verbs such as play,
+   pause, stop – the behaviour actions of today) become action inlets; `events` (started, ended, …) become event
+   outlets; a plugin's bus use (`hears`, `emits`, `reads`, `sets`) is declared there too – this **is** L-T6, and the
+   regex reading (`pluginCodeUses`) becomes the fallback for a plugin that declares nothing.
+3. **One small typed signal table** (§5.2), checked on connect, with the names mapped to the established ones:
+   `event` ≈ Unreal's exec pin / a trigger, `value` ≈ a data pin / parameter, `node` ≈ an object reference, `scene` ≈ a
+   level reference, `media` (new, for picture / audio / video – SCUTOONS' `Picture` / `Audio`) ≈ a texture / sound
+   socket. A port's type is the param's type from the spec (number, boolean, string, file, colour, …), as Blender's
+   socket types are.
+4. **Show only what matters.** A box shows its wired ports and a **+** to expose more (Houdini's promoted parameters,
+   Blender's "hide unused sockets", the deck's `expose`).
+5. **Dragging places a reference, the Library adds a new one.** A component already on an entity, dragged onto the
+   canvas, is a reference box for that component (Unreal: an actor dragged into the level blueprint). A component type
+   from the Library is an add op that asks for the entity.
+6. **The box's body previews its other representation**: a thumbnail, a video's first frame, a model's silhouette (the
+   deck's world nodes "with an image of their origin"). Stage and Inspector keep showing the thing itself.
+7. **A pure logic node is a spec without a representation** – what `registerLogicNode` was meant for. An authoring-time
+   `run` (§5.8: sandbox, the `api` bridge, writes only as ops to apply) is one more optional field of such a spec.
+
+**Reflection in JavaScript (Tilman: *"ggf in javascript ein problem aber wir koenne es mit js doc annotieren und spaeter
+in rust ist es easy"*).** JavaScript has no runtime types to reflect on, so:
+- The **spec object** a plugin passes at registration stays the source. It works without a build step, and the content
+  build already records it in `registered` (schema 2.14), where the guard, the editor and the MCP read it.
+- **JSDoc annotations** on a plugin's class or functions are an optional way to write it: `@param` with a type, and
+  tags such as `@action`, `@event`, `@hears` and `@emits`. The content build reads them and fills the spec, and the
+  plugin-API typings (`.d.ts`) let an editor check them.
+- **Rust later** (the deck, #255) uses a derive macro on the struct, the way Unreal uses `UPROPERTY`. Same spec shape,
+  same `registered` record.
+
+**Where OSCT stays different, on purpose (L1):** Unreal, Houdini and ComfyUI store the **graph itself** as the document
+(the Blueprint, the network, the workflow JSON). OSCT keeps the documents as the truth – the rules in the content, the
+params in the component – and draws the graph from them, because the reader runs the rules, not a graph, and the YAML
+stays readable and diffable. So a wire still needs a field to land in (a rule's action, a param's value, a file
+reference); a wire with no field is refused. Only the canvas (groups, notes, folds, positions) is stored as graph data.
+The typing and the reflection are taken from the market leaders; the storage stays L1.
+
+**Example – a video component on the canvas:** inlets `src` (media/file – the cable from a file node, L-T12), `loop`
+(boolean), `volume` (number), action inlets `play` / `pause` / `stop`; event outlets `started` / `ended` (these two
+are new engine events, a small addition of their own); the body shows the first frame. Nothing of this is written for
+the video by hand: it comes from the video's spec plus its `actions` / `events` lists.
 
 ### 5.6 Where the shared code lives (#255)
 
@@ -430,14 +488,14 @@ already loaded. That is the cheap part.
 | L-T3 | Logic panel navigation: enter, breadcrumb, stubs, search, level follows selection, `?logic=` in the URL; stage and Inspector follow (§6.3); check and mark the "only while loaded" event semantics | M | L-T2 |
 | L-T4 | Edit ops: `apply(op)` on entity behaviour (`behaviourData`), `problems` after each op; gestures in the panel (drag to connect, delete, typeahead add); save through the tree autosave; `tune()` live; undo through #312 | M | L-T1 |
 | L-T5 | Contract MAJOR: `logic` on scene and experience, `goto` action with a `scene:<id>` address, `canvas`; engine runtime for scene / experience rules; `ArSceneOptions.navigate`; reader router resolves it; editor stage logs or follows; PHP guard, MCP, docs/content.md, migration | L | decisions L2–L5 |
-| L-T6 | Plugins declare their bus use (`registered.events` / `vars`: hears, emits, reads, sets): plugin API + build + guard (MINOR); the view prefers it over the regex | S | – |
+| L-T6 | **Ports from the specs (§5.9):** component specs, node types, passes and materials gain `actions`, `events` and the bus use (`hears`, `emits`, `reads`, `sets`); core specs for video, image, text, audio; the view derives every box's ports from them (params → value inlets, actions → action inlets, events → event outlets), wired / **+** exposure, reference boxes; plugin API + build + guard (MINOR); the regex stays as fallback | M | L-T4 |
 | L-T7 | Canvas: groups, notes, folds, direction setting, grid, folded pills in the layout; edge pulses from `observeEvents` while the stage runs | M | L-T4, L-T5 (field) |
 | L-T8 | Signal grammar as theme tokens: OSCT's port shapes and colours from one table (DESIGN.md), named like deck-kit's `Signal` | S | L-T1 |
 | L-T9 | MCP: `logic_view(context)` and `logic_ops` tools over the package | S | L-T2, L-T4 |
 | L-T10 | Conformance fixtures `fixtures/logic/` (documents → views, ops → documents) for SCUTOONS (TS creator, Rust deck) to test against | S | L-T2, L-T4 |
 | L-T11 | (SCUTOONS, its own issue, if L9 says yes) creator Flow views and `read_flow` typed by the shared `View` / `Signal`; the XR viewer runs OSCT's engine and its behaviour | M | the core tag (#255 0.4) |
 | L-T12 | File and delivery nodes on the canvas: one outlet per file, cables to targets, entities and texture slots; apply = the delivery endpoint (preview, then apply) or ops (§5.8) | M | L-T4, #322 T5/T8 |
-| L-T13 | Custom nodes: `registerLogicNode` in the plugin API (MINOR, `registered.logicNodes`); runs at authoring time in a sandbox; `api` bridge through the page (allow-list, reads free, writes only as ops to apply) | M | L-T4, L-T12 |
+| L-T13 | Custom nodes = specs with an authoring-time `run` (§5.8, §5.9 – no `registerLogicNode`); runs in a sandbox; `api` bridge through the page (allow-list, reads free, writes only as ops to apply); preview bodies for boxes | M | L-T6, L-T12 |
 | L-T14 | (later) Reading-time custom nodes evaluated by the engine | M | L-T5, L-T13 |
 
 Order: L-T1 → L-T2 → L-T3 delivers Tilman's navigation on today's content, with no schema change. L-T4 adds editing

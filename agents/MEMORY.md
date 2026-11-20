@@ -209,6 +209,21 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-20 – Logic view: ports from the code (reflection), no registerLogicNode (#334)
+
+- Tilman: "ich finde wir sollten die typisierung und die ideen der anderen marktfuehrer uebernehmen. das macht deutlich
+  mehr sinn und hat weniger redudance und ist direkt am code lessbar."
+- Decided: a box's ports come from the specs that are already registered (component specs, node types, passes,
+  materials), the way Unreal, Houdini, Blender and ComfyUI derive pins. `actions`, `events` and the bus use are declared in
+  the same spec. There is no `registerLogicNode` and no facet written by hand for each component. Concept §5.9; L-T6 and
+  L-T13 are rewritten.
+- The storage stays L1: documents are the truth, and the graph is drawn from them. Unreal and ComfyUI store the graph
+  itself; OSCT does not, because the reader runs rules, not a graph.
+- Tilman on JavaScript: "ggf in javascript ein problem aber wir koenne es mit js doc annotieren und spaeter in rust ist es
+  easy". The runtime spec object stays the source, because the content build already records it in `registered`. JSDoc
+  annotations on a plugin's code are an optional way to write it, which the build turns into the spec. Rust later uses
+  a derive macro.
+
 ## 2026-11-20 – Logic view: xyflow as the rendering layer; free nodes and node modules on the canvas (#334)
 
 - **L7 decided (Tilman):** "xyflow for the moment. As a rendering layer." `@xyflow/svelte` draws the Logic view. The
