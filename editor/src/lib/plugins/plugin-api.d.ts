@@ -184,6 +184,10 @@ interface TextureSetData {
 	/** At least one, each size once, smallest first */
 	sizes: TextureSizeData[];
 }
+interface MediaLevelData {
+	level: number;
+	src: string;
+}
 export interface PassSpec {
 	description: string;
 	params: Record<string, ComponentParamSpec>;
@@ -286,6 +290,11 @@ interface AssetData {
 	src: string;
 	/** Optional (schema 2.27), a model file only (glb / gltf): its maps in several sizes */
 	textures?: TextureSetData[];
+	/**
+	 * Optional (schema 4.3, #331), an image, video or audio file only: the medium in several quality levels (image px,
+	 * video height, audio kbps – `MEDIA_LEVELS`); `src` stays the file an older app loads
+	 */
+	levels?: MediaLevelData[];
 }
 interface EntityData {
 	/** Optional, unique within the tree: the editor's selection */
@@ -376,6 +385,8 @@ interface EntryData {
 	body: string;
 	author?: string;
 	image?: string;
+	/** Optional (schema 4.3, #331), with `image` only: the picture in several sizes (longest side 512 / 1024 / 2048 px) */
+	imageLevels?: MediaLevelData[];
 	/** Optional (schema 2.34, #289): the line under the picture ("Image: … by …"), plain text */
 	caption?: string;
 	media?: string;

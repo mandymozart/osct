@@ -89,7 +89,8 @@ final class ExperienceTexts
                 else {
                     if (!isset($entry->image)) throw new ApiError(400, 'invalid-entry', 'imageLevels need the entry\'s image – set image first.');
                     $levels = Editor::mediaLevels($body->imageLevels, 'image', 'imageLevels', 'invalid-entry');
-                    $known = array_map(static fn(stdClass $level) => $level->src, $entry->imageLevels ?? []);
+                    // The entry's picture and its levels as they are count as checked (an imported picture is no upload)
+                    $known = [$entry->image, ...array_map(static fn(stdClass $level) => $level->src, $entry->imageLevels ?? [])];
                     foreach ($levels as $level) {
                         if (!in_array($level->src, $known, true) && !Assets::isExperienceImage($experienceId, $level->src)) {
                             throw new ApiError(400, 'invalid-entry', "imageLevels: {$level->src} is not a picture of the experience's Library – upload it first.");
