@@ -7,6 +7,45 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+**Content schema 5.0 – a MAJOR** (#334 L-T5, `agents/research/2026-11-20-logic-nodes-shared-concept.md` §5.4): a 4.x app
+refuses 5.0 content and a 5.0 app refuses 4.x (`OLDEST_READABLE_SCHEMA_MAJOR` 5). Content migrates: a content folder with
+`npm run convert:5` (done for `fixtures/content` and `fixtures/demo`), the server's rows by `Migration5` on the deploy
+(dry run first: `php server/deploy/migrate.php --plan-5`); every published experience is published again afterwards.
+
+### Changed
+- **A rule's condition is an expression**: `when: hasKey && tries > 2` – the language of the entries' `{…}` texts
+  (`shared/text/expressions.ts`, SCUTOONS' / ink's), now also as one expression without braces (`parseExpression`,
+  `evaluateExpression`, `expressionVariables`, `expressionLiteral`). The engine evaluates it over `api.vars`; a condition
+  that does not parse never runs (logged once). The guard, the content build, the MCP server's content model and the PHP
+  API (the shapes) follow.
+- **The engine's rules runtime** (`engine/src/scene/behaviour.ts`): one runner for a node's behaviour and the new scene and
+  experience logic.
+
+### Added
+- **A scene's and the experience's logic** (`SceneData.logic`, `ExperienceData.logic`: `{ rules, canvas? }`, `shared/types/logic.ts`):
+  rules in the behaviour's grammar that hear the bus (scene events and core events – no node event) and name nodes by
+  address (`target:<targetId>/<node name>`). A scene's rules live while it is open; the experience's live for the whole
+  session, across scene switches; both hear `sceneChanged` once the new scene's nodes are built. The editor API stores them:
+  `PUT …/scenes/{sid}` `{ logic }`, `PUT …/logic` (change kind `logic`); the import checks them; MCP `put_scene` takes `logic`.
+- **`goto`** in every rule: `{ goto: "scene:<id>" }` – the engine asks the host (`ArSceneOptions.navigate`); the reader opens
+  the scene as a link to `/scene/<id>` does, an unknown address only logs. The guard and the content build check the scene
+  exists. Addresses: `shared/types/address.ts` (`parseAddress`, `formatAddress`; SCUTOONS' grammar, room for `toon:`,
+  `chapter:` and a later `via`).
+- **The canvas** (`LogicCanvas`: `groups`, `notes`, `folds`): the Logic view's authoring data beside a scene's or the
+  experience's rules – in the database, the draft and the export, never in a reader's configuration (the content build and
+  a publish strip it).
+- **`Migration5.php`**: every stored condition to an expression, idempotent, with a dry run (`migrate.php --plan-5`:
+  rows per table, conditions converted, approximate *not set* tests, the ones it cannot convert and why).
+- **`npm run convert:5`** (`scripts/`): a content folder's conditions to expressions, once.
+- The fixture: a node rule with an expression and a `goto`, a scene rule and two experience rules (one a `goto`), a canvas
+  the build leaves out.
+
+### Removed
+- The object form of a condition (`{ hasKey: true }`, `{ any: … }`, `{ not: … }`) and its types (`BehaviourCondition`,
+  `BehaviourTest`) – `BehaviourRule.when` is the expression's text.
+
 ## 3.21.1 – 2026-11-20
 
 ### Changed

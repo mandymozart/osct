@@ -49,7 +49,7 @@ Verbatim from the archived entries (the entry title and archive file in front of
   after #207 is on production – once browsers signed in before have started once. Keep the Bearer session answer for
   non-browser sign-ins (MCP).
 **2026-10-30 – engine cleanup: one behaviour vocabulary, no reader traces, AR errors as codes (#213)** (`MEMORY-2026-10.md`)
-- [ ] Open: `shared/types/behaviour.ts` still says of `BEHAVIOUR_SCOPES` and `BEHAVIOUR_CORE_EVENTS` that "a test keeps
+- [x] (Reworded in 5.0, #334 L-T5.) Open: `shared/types/behaviour.ts` still says of `BEHAVIOUR_SCOPES` and `BEHAVIOUR_CORE_EVENTS` that "a test keeps
   them equal" with the runtime's – now they are the runtime's (the test checks identity). Reword with the next schema
   bump that touches `shared/types/` (a comment alone would need one, RULES #10).
 **2026-10-30 – the second code review (#19, develop at 1.50.0)** (`MEMORY-2026-10.md`)
@@ -208,6 +208,30 @@ Verbatim from the archived entries (the entry title and archive file in front of
 - [ ] Final content → on-site session in Amsterdam, fall 2026
 
 ---
+
+## 2026-11-20 – Content schema 5.0: the logic MAJOR (#334 L-T5a, branch `feature/334-logic-major`)
+
+- **Conditions are expressions** (L5): `when` is one expression of `shared/text/expressions.ts` (`parseExpression`,
+  `evaluateExpression`, `expressionVariables`, `expressionLiteral`); the object form is gone from the contract. The
+  migration's rules (`convert-content-5.ts`, `Migration5.php`, compared in `mcp/test/php-rules.test.ts`): every test
+  `name == value` (faithful, not the shorter bare `name` – `true == 1` aside it keeps 4.x's strict equality),
+  `not` → `!=`, all → `&&`, any → `||`; `null` (not set) → `!name` / `name` – **approximate** (the language has no "not
+  set"), listed by the dry run; a variable named like a word of the language cannot be converted and stays (listed).
+- **Scene and experience rules** hear the bus only; `sceneChanged` reaches them from the scene (`LogicInstance.opened()`)
+  after the new scene's anchors are built – the bus delivers it before, when no node exists yet. Experience rules live in
+  `ArScene` from the first scene until the stage ends (teardown), re-read (`tune`) at every scene change. A scene's rules
+  may name only its own scene's targets (the guard refuses another scene's – only the open scene's entities exist).
+- **`goto`**: `ArSceneOptions.navigate` → the module-level `setNavigator` in `plugin-runtime.ts` (as `setProgressReader`);
+  the reader resolves `scene:<id>` with `resolveAddress` (LinkService) – unknown: console only, no not-found page.
+- **Canvas** is stored (scene `data_json`, `experience_json`), carried by the draft and the export, stripped by the
+  content build and by a publish (`ContentVersion::assemble(..., true)` before the hash).
+- **Migration5 runs on every `Db::migrate`** (the deploy's entrypoint `migrate.php`, `POST /admin/migrate`) – merging
+  the branch into develop migrates staging on its deploy. Dry run first: `php /opt/osct/migrate.php --plan-5`.
+- [ ] After the deploy: publish every experience again (a 5.0 reader refuses the 4.x versions in the content stores);
+  the CDN demo (`buildingfictions.b-cdn.net/demo`) is 4.x – re-import of it is refused until it is rebuilt from the
+  converted `fixtures/demo` and synced.
+- [ ] L-T5b: the editor on the new contract (rule editor's `when` as an expression field, `goto`, scene / experience
+  rules in the Logic view and Inspector, `PUT …/logic`, `noteBehaviour`'s new `home` payload).
 
 ## 2026-11-20 – Logic view: xyflow as the rendering layer; free nodes and node modules on the canvas (#334)
 
