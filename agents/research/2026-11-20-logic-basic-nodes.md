@@ -50,7 +50,7 @@ pages could not be read). Check every [K] before it goes into a spec.
 2. **Implicit conversion only where it is lossless** (int → number). Everything lossy is a visible conversion node
    (Unreal). No silent fills like VEX's {0,0,0,1}.
 3. **Two levels of limits** (Blender, Houdini, Unreal): a **hard** range is enforced, a **soft** range is only the
-   slider's. In JSDoc: `@minimum` / `@maximum` are hard; a separate UI range is soft.
+   slider's. In the spec builders: `min` / `max` are hard, `slider` is soft.
 4. **Check everything before it runs**, with problems naming the node and the input (ComfyUI). OSCT has this as
    `problems` after every op and before publishing. ComfyUI's gap is a lesson: a wired value is not known while editing,
    so the engine must still refuse it at runtime and keep the old value.
@@ -136,8 +136,9 @@ typed. OSCT follows them at four points:
 
 1. **Every port has a type**, from the spec (§5.9 of the logic concept): `number`, `integer`, `boolean`, `string`,
    `file` / `media`, `colour`, `node`, `scene`, `event`, with ranges and choices where the spec has them (`min`, `max`,
-   `options`). In a plugin's JavaScript the type comes from the spec object or from JSDoc (`@param {number} volume 0..1`,
-   `@event ended`). The plugin-API typings (`.d.ts`) let the code editor check a plugin against it. The content build
+   `options`). In a plugin (TypeScript already) the type comes from the spec, written with typed builders
+   (`p.number({ min: 0, max: 1 })`). The plugin API infers the handler's types from it, so the Code tab and the build
+   check the code against it (logic concept §5.9, "schema first"). No JSDoc. The content build
    records it in `registered`, and the guard checks it.
 2. **Connecting refuses a type mismatch.** Only the inlets that take the dragged type light up (as since L-T4), and the
    refusal says why (*"volume takes a number 0–1, not a string"*). There is no silent coercion: a conversion is a visible
@@ -166,4 +167,4 @@ typed. OSCT follows them at four points:
 | B6 | Tier 3 (timers, LFO, tween) only when a scene needs it | yes |
 | B7 | **Typed variables:** declared in `experience.variables` (name, type, scope, default) or inferred from the first set; a set or a test of another type is a problem. A contract change, so **in the running L-T5 MAJOR** | yes, now in L-T5 |
 | B8 | Strict types on ports and in logic expressions: connecting refuses a mismatch (no red-link state), conversion only through visible nodes (lossless int → number implicit), expressions are type-checked before saving, the engine refuses wrong values at runtime and keeps the old value | yes (§1b) |
-| B9 | Two levels of limits: hard (`@minimum` / `@maximum`, enforced) and soft (slider range only) | yes (§1b) |
+| B9 | Two levels of limits: hard (`min` / `max` in the spec builders, enforced) and soft (slider range only) | yes (§1b) |

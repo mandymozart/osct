@@ -401,15 +401,23 @@ side and another representation (a video, a 3D component) shows on the canvas, a
    rules). It is also what crosses experiences, and later apps: SCUTOONS reads the same fragment shape from the shared
    package. Storage stays L1; the fragment is the clipboard's and the Library's format, not a second truth.
 
-**Reflection in JavaScript (Tilman: *"ggf in javascript ein problem aber wir koenne es mit js doc annotieren und spaeter
-in rust ist es easy"*).** JavaScript has no runtime types to reflect on, so:
-- The **spec object** a plugin passes at registration stays the source. It works without a build step, and the content
-  build already records it in `registered` (schema 2.14), where the guard, the editor and the MCP read it.
-- **JSDoc annotations** on a plugin's class or functions are an optional way to write it: `@param` with a type, and
-  tags such as `@action`, `@event`, `@hears` and `@emits`. The content build reads them and fills the spec, and the
-  plugin-API typings (`.d.ts`) let an editor check them.
-- **Rust later** (the deck, #255) uses a derive macro on the struct, the way Unreal uses `UPROPERTY`. Same spec shape,
-  same `registered` record.
+**Reflection: schema first, types inferred – no JSDoc** (Tilman, 2026-11-20: first *"ggf in javascript ein problem aber
+wir koenne es mit js doc annotieren"*, then *"Wäre es nicht fast besser wir konvertieren die script Sprache zu typescript
+um die unsicheren annotations aus dem Spiel zu nehmen?"*).
+- **Plugins already are TypeScript.** The content build type-checks `index.ts` against the plugin API
+  (`scripts/src/build/plugins.ts`). The Code tab checks live in Monaco against the API typings
+  (`editor/src/lib/plugins/monaco.ts`) and transpiles with sucrase for Run. JSDoc annotations would add nothing; they
+  are dropped from the plan.
+- **The real gap:** TypeScript's types are erased, so they cannot be read at runtime. And today a handler receives
+  `params: Record<string, unknown>` (`engine/src/scene/plugins.ts`): the spec says `volume` is a number from 0 to 1,
+  but the code does not know it.
+- **The fix is the established "schema first" pattern** (zod, TypeBox, ComfyUI's v3 node schema): the spec is written
+  once as a runtime value, with small typed builders (`p.number({ min: 0, max: 1 })`, `p.boolean()`, `p.file("video")`,
+  `p.choice(["loop", "once"])`, `actions: ["play", "pause"] as const`, `events: ["ended"] as const`). The plugin API's
+  generics **infer the static types from it**: the handler's `params.volume` is a `number`, and an
+  `api.events.emit("endd")` is a compile error in the Code tab and in the build. One declaration is enough: the runtime
+  value gives the ports, the guard and the engine's checks, and the inferred types give the editor and the build.
+- **Rust later** (the deck, #255) uses a derive macro on the struct: the same spec shape, the same `registered` record.
 
 **Where OSCT stays different, on purpose (L1):** Unreal, Houdini and ComfyUI store the **graph itself** as the document
 (the Blueprint, the network, the workflow JSON). OSCT keeps the documents as the truth – the rules in the content, the

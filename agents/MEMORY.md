@@ -219,10 +219,11 @@ Verbatim from the archived entries (the entry title and archive file in front of
   L-T13 are rewritten.
 - The storage stays L1: documents are the truth, and the graph is drawn from them. Unreal and ComfyUI store the graph
   itself; OSCT does not, because the reader runs rules, not a graph.
-- Tilman on JavaScript: "ggf in javascript ein problem aber wir koenne es mit js doc annotieren und spaeter in rust ist es
-  easy". The runtime spec object stays the source, because the content build already records it in `registered`. JSDoc
-  annotations on a plugin's code are an optional way to write it, which the build turns into the spec. Rust later uses
-  a derive macro.
+- Tilman asked about JSDoc, then: "Wäre es nicht fast besser wir konvertieren die script Sprache zu typescript um die
+  unsicheren annotations aus dem Spiel zu nehmen?" Plugins already are TypeScript (the build and the Monaco Code tab both
+  type-check them). So there is no JSDoc. Instead it is **schema first**: the spec is written with typed builders
+  (`p.number({min,max})`, `actions`/`events` as const), and the plugin API infers the handler's types from it. Today a
+  handler only gets `params: Record<string, unknown>`. Rust later uses a derive macro.
 
 ## 2026-11-20 – Logic view: xyflow as the rendering layer; free nodes and node modules on the canvas (#334)
 
