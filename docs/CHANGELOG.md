@@ -7,6 +7,13 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 3.16.4 – 2026-11-20
+
+### Removed
+- **Legacy content tools** (#322, approved by Tilman): the 2.x → 3.0 converter (`scripts/src/convert-content-3.ts`, its
+  test, `npm run convert:3`) – every source and database is converted – and `scripts/layout/render-layout.py`, which
+  read the 2.x source. The demo's rendered sheets (`fixtures/demo/layout/`) stay: the reader's card back reads its cover.
+
 ## 3.16.3 – 2026-11-20
 
 ### Fixed

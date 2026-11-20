@@ -1338,7 +1338,7 @@ final class Experiences
 
     /**
      * Checks what the rows need of a configuration (content schema 4.x – an older one is refused: convert its source with
-     * `npm run convert:3` and `convert:4` in scripts/) and splits it into rows-to-be;
+     * `npm run convert:4` in scripts/) and splits it into rows-to-be;
      * every other field stays inside the objects (data_json). Every entry names a scene of the configuration, its surface
      * and its target's place one of that scene's surfaces. The experience needs an id and a title; its printed book
      * (`book`, optional) an author and maybe a publisher – no print data on the top level (#320). `$pluginSources`: the experience has Code tab sources (any node type named like a
@@ -1350,7 +1350,7 @@ final class Experiences
         $fail = static fn(string $message) => throw new ApiError(400, 'invalid-configuration', $message);
         $version = $c->version ?? null;
         if (!$version instanceof stdClass || !is_string($version->schema ?? null) || !preg_match('/^\d+\.\d+$/', $version->schema)) $fail('version.schema must be "MAJOR.MINOR".');
-        if (!Editor::isCurrentSchema($version->schema)) $fail("The configuration is of content schema {$version->schema} – the editor reads " . Editor::CONTENT_SCHEMA_MAJOR . '.x (convert the source with npm run convert:3 and convert:4 in scripts/).');
+        if (!Editor::isCurrentSchema($version->schema)) $fail("The configuration is of content schema {$version->schema} – the editor reads " . Editor::CONTENT_SCHEMA_MAJOR . '.x (convert a 3.x source with npm run convert:4 in scripts/).');
         $experience = $c->experience ?? null;
         if (!$experience instanceof stdClass || !is_string($experience->id ?? null) || !is_string($experience->title ?? null)) $fail('experience needs id and title.');
         foreach (['author', 'publisher', 'sourceOfTruth'] as $key) {

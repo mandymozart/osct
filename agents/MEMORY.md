@@ -219,7 +219,9 @@ Tilman on the open decisions of `agents/research/2026-11-20-importer-export-plan
    editors-only field only if a delivery note turns out to be missed.
 4. **Remove legacy code**: every removal of section 4 is approved, each at the moment the table names (convert-3
    now, convert-4 after the first export, `content move` after both environments moved, `import-delivery.ts` after
-   the new import ran one real delivery, `layout/render-layout.py` now, …).
+   the new import ran one real delivery, `layout/render-layout.py` now, …). Correction (2026-11-20): `fixtures/demo/layout/`
+   is **not** dead – the reader's marginalia card back reads its `cover-front` sheet (`client/src/utils/book-cover.ts`);
+   it stays (only the generator went). The export (T2) must write `layout/` too while the reader reads it.
 5. `db/pull-staging.sh` → `server/db/` in the rename: yes.
 
 GitHub variables (#33): Tilman said the orchestrator renames them itself with `gh`. Done 2026-11-20 for staging and
@@ -335,7 +337,7 @@ these workflows – then delete them:
   `initial_scene`) by idempotent `ALTER TABLE … RENAME …` at the top of the schema files. **Not dropped (RULES #25 –
   never a table)**: `page_images` stays, unread; an old database keeps its index `entries_spread` (on `scene_id`), the
   FK name `spreads_book_fk` – cosmetic. Needs the migrate-3 run on staging first (Tilman: done before this lands).
-- `convert-content-3.ts` stays until Tilman converted the real content folder, then it goes.
+- `convert-content-3.ts` stays until Tilman converted the real content folder, then it goes. (Removed 3.16.4, #322.)
 - [ ] Remove `POST /auth/cookie` (#207) – the editor no longer calls it; the API test still covers it.
 
 ## 2026-11-18 – Content schema 3.0, part A: contract, reader, build, fixtures (#319)
@@ -352,7 +354,7 @@ these workflows – then delete them:
 - Surface id in converted and imported sources: `surface` (one per scene). Source `place` is optional: the build lays the
   surfaces in a row (touching, flat, centred on the origin); the configuration always carries all six numbers.
 - The i18n word for the page column is *Place* (de *Ort*, fr *Lieu*, nl *Plek*); the switcher's aria label *Scene …*.
-- Open: [x] rename the app's own `Spread`/`spreadId`/`SpreadManager`/`spread-menu` to scene names (done 2026-11-19, see above); [ ] `scripts/layout/render-layout.py` (the demo's stand-in sheets) still reads the 2.x source – the stage's
+- Open: [x] rename the app's own `Spread`/`spreadId`/`SpreadManager`/`spread-menu` to scene names (done 2026-11-19, see above); [x] `scripts/layout/render-layout.py` (the demo's stand-in sheets) still reads the 2.x source – removed 3.16.4 (#322), the sheets stay – the stage's
   sheets become surface references in part C; [ ] the build writes no `groups` yet (no source format for them).
 
 ## 2026-11-18 – Floating panels in the scene workspace, the select tool and its filters (#308)

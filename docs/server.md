@@ -367,7 +367,7 @@ the change and publish logs stay. The **draft** is assembled from the rows on ev
 `initialScene`, `scenes`, `groups` (when there are any), `entries` with their targets, `entities` – content schema 3.0,
 the same keys in the same order as the content build writes them, so import → draft reproduces the configuration
 unchanged (the API test checks it). An import takes a configuration of content schema 3.x only (`Editor::CONTENT_SCHEMA`;
-2.x → 400 `invalid-configuration`: convert its source with `npm run convert:3`; every stored experience was migrated to 3.0
+2.x → 400 `invalid-configuration`; every stored experience was migrated to 3.0
 on staging, #319 – a 2.x experience left in a database answers 409 `old-schema`). The hash is the sha256 of that JSON without `timestamp` and `hash`; the build name is its first 12 hex digits,
 so the same rows are the same version. With an `assets_base`, every `/assets/content/…` under `src`, `imageSrc` and
 `image`, and every key of `files.json`, becomes a URL below it: a published version points at the
@@ -749,8 +749,8 @@ the experience has any), every entry with its `scene` right after its `title` (a
 #### The migration to schema 3.0 (done)
 
 Every stored experience (staging's osct and the demo) was migrated once with `POST …/migrate-3` (2.0.0, #319); the
-route, `Migration3.php` and the MCP tool `migrate_3` are gone since (the rules it followed are
-`scripts/src/convert-content-3.ts`'). Its change rows (kind `migration`) and the 2.x rows before it stay in the log,
+route, `Migration3.php` and the MCP tool `migrate_3` are gone since (the rules it followed were
+`scripts/src/convert-content-3.ts`', removed in 3.16.4). Its change rows (kind `migration`) and the 2.x rows before it stay in the log,
 readable, not revertable. The database names followed (`spreads` → `scenes`, `entries.spread_id` → `scene_id`,
 `books.initial_spread_id` → `initial_scene`, the scene's `title` → `label`; the page columns dropped; the unread table
 `page_images` stays – RULES #25) by the idempotent renames at the top of the schema files (`Db::migrate`).

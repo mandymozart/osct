@@ -683,11 +683,8 @@ surface ids are unique within their scene, group ids within the experience; a sc
 `scene` names a scene, its `surface` one of that scene's surfaces; a target's `place.surface` too, and a target in a
 scene of several surfaces must name its surface.
 
-**From 2.x** (`npm run convert:3` in `scripts/`, `scripts/src/convert-content-3.ts` – used for the test fixture and the
-demo): `scenes/<id>/scene.yaml` becomes `scenes/<id>/scene.yaml` (same id and order; the label is what the reader
-showed – its label, a cover's or matter's title, else its pages `2–3`; one surface twice the page's width, one page wide
-for a cover or a single page); an entry's `page` becomes its `scene`, a target's `print` its `place` (on the right page
-of a double page `x` moves by the left page's width).
+**From 2.x**: every source and database was converted to 3.0 (#319); the converter (`convert-content-3.ts`) is gone
+since 3.16.4 (#322) – an older source is converted from the git history if one ever turns up.
 
 ## Recognition
 
@@ -1229,7 +1226,6 @@ scripts/
 │   ├── cli.ts              the osct CLI: content build | status | sync | purge (content-cdn.md)
 │   ├── import-delivery.ts  `npm run import` – a publisher delivery into the content (mapping in import/)
 │   ├── schema-lock.ts      `npm run schema:lock` – locks shared/ to the content schema
-│   ├── convert-content-3.ts `npm run convert:3` – a content source of schema 2.x → 3.0, once (#319)
 │   └── sounds.ts           placeholder app sounds
 ├── import/                 one mapping file per delivery
 └── test/                   tests (npm test)
