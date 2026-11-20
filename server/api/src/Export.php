@@ -7,7 +7,7 @@ declare(strict_types=1);
  * downloaded here: the answer names the files, the CLI fetches them.
  *
  * - `configuration`: the draft (`ContentVersion::assemble` – the one assembly the draft endpoints and Publish use), or with
- *   `build` a published version as the content store holds it (`<env>/<build>/game.config.json` of the environment the
+ *   `build` a published version as the content store holds it (`<env>/<experience>/<build>/game.config.json` of the environment the
  *   publish log names for that build).
  * - `files`: every file the configuration names, in the order it names them, plus the print layout's files – its URL, its
  *   content path (`/assets/content/…`, null for a Library upload), size and checksums where they are known: an upload's
@@ -48,7 +48,7 @@ final class Export
                 ['experience' => $experienceId, 'build' => $build]);
             if (!$row) throw new ApiError(404, 'unknown-build', "The publish log has no version $build of this experience.");
             $env = (string) $row['env'];
-            $store = ContentStore::for($env);
+            $store = ContentStore::for($env, $experienceId);
             $configuration = self::json($store->get("$build/game.config.json"));
             if (!$configuration instanceof stdClass) throw new ApiError(404, 'build-missing', "Version $build is in the publish log, but $env's content store has no readable game.config.json of it.", ['env' => $env]);
             $files = self::json($store->get("$build/files.json"));
@@ -59,7 +59,7 @@ final class Export
             $schema = $version instanceof stdClass && is_string($version->schema ?? null) ? $version->schema : '';
             // A Code tab plugin the publish carried lies in the version's own folder (its `src` a content path, #78)
             foreach (ContentStore::describe() as $described) {
-                if ($described['env'] === $env && $described['url'] !== null) $versionBase = rtrim($described['url'], '/') . "/$build";
+                if ($described['env'] === $env && $described['url'] !== null) $versionBase = rtrim($described['url'], '/') . "/$experienceId/$build";
             }
         }
 

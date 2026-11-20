@@ -904,7 +904,7 @@ try {
     [$status3, $data3] = call($api, 'GET', "/editor/experiences/demo/export?build={$first['build']}", null, $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-build' && $status2 === 404 && $data2['error']['code'] === 'unknown-build' && $status3 === 404 && $data3['error']['code'] === 'unknown-build',
         'export ?build=: no build → 400 invalid-build; a build the publish log does not have for this experience → 404 unknown-build');
-    $versionFile = "$storeDir/local/{$first['build']}/game.config.json";
+    $versionFile = "$storeDir/local/osct/{$first['build']}/game.config.json";
     rename($versionFile, "$versionFile.away");
     [$status, $data] = call($api, 'GET', "/editor/experiences/osct/export?build={$first['build']}", null, $editor);
     rename("$versionFile.away", $versionFile);
@@ -2190,7 +2190,7 @@ try {
     [, $export] = call($api, 'GET', '/editor/experiences/osct/export', null, $editor);
     check(($export['configuration']['experience']['logic']['canvas'] ?? null) === $experienceLogic['canvas'], 'the export carries the canvas');
     [$status, $published] = call($api, 'POST', '/editor/experiences/osct/publish', ['env' => 'local'], $editor);
-    $readers = json_decode((string) @file_get_contents("$storeDir/local/{$published['build']}/game.config.json"), true);
+    $readers = json_decode((string) @file_get_contents("$storeDir/local/osct/{$published['build']}/game.config.json"), true);
     check($status === 200 && ($readers['experience']['logic'] ?? null) === ['rules' => $experienceLogic['rules']] && !isset($readers['scenes'][0]['logic']['canvas'])
         && ($readers['scenes'][0]['logic']['rules'] ?? null) === $sceneLogic['rules'], 'a publish carries the rules, never the canvas');
     $entity = $draftNow['entities']['castle'];
