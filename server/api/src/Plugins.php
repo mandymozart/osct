@@ -253,6 +253,16 @@ final class Plugins
     }
 
     /**
+     * Every source of the experience with its text (`PluginSource`), by id – what an export writes to `plugins/<id>/index.ts` (#322)
+     * @return list<array<string, mixed>>
+     */
+    public static function sources(string $experienceId): array
+    {
+        $rows = Db::run('SELECT p.*, u.email FROM plugins p LEFT JOIN users u ON u.id = p.updated_by WHERE p.experience_id = :experience ORDER BY p.id', ['experience' => $experienceId])->fetchAll();
+        return array_map(static fn(array $row): array => self::summary($row), $rows);
+    }
+
+    /**
      * @param array<string, mixed> $row
      * @return array<string, mixed>
      */

@@ -7,6 +7,17 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **The export read endpoint** (#322 T1): `GET /editor/experiences/{id}/export[?build=]` answers everything an export of
+  the experience needs in one read – the draft's configuration (the same assembly as the draft and Publish) or a published
+  version's from the content store, every file it names with URL, content path, size and checksum where known (a Library
+  upload's full sha256, an imported file's size and `v`; the rest marked `unknown`), the print layout (`layout/layout.json`
+  and its sheets), the Code tab's sources and the Library's credit lines. Editors only, like the draft. Typed as
+  `ExperienceExport` in `shared/api/editor.ts`; docs/server.md "Export". The CLI that writes the content folder from it
+  is T2.
+
 ## 3.16.4 – 2026-11-20
 
 ### Removed

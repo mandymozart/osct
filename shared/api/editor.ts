@@ -1,13 +1,13 @@
 /**
  * The editor API's answers (`/api/editor/*` – server/api/src/Experiences.php, ExperienceTexts.php, ContentVersion.php, Assets.php,
- * Plugins.php, Removal.php; docs/server.md "Editor data"), once for the editor app and the MCP server. Each type is what the PHP
+ * Plugins.php, Removal.php, Export.php; docs/server.md "Editor data"), once for the editor app and the MCP server. Each type is what the PHP
  * sends: a field is optional only where the PHP leaves it out, `| null` where it sends null.
  * Not content: `shared/api/` is outside the content schema lock (RULES #10).
  */
 import type { ExperienceAppearance } from "../types/appearance";
 import type { ContentManifest } from "../types/content-manifest";
 import type { EnvironmentData } from "../types/environment";
-import type { ExperienceData, EntityData, EntryData, GroupData, PassData, RecognitionMode, SceneData, SurfaceData, TargetData } from "../types/game-config";
+import type { ExperienceData, EntityData, EntryData, GameConfiguration, GroupData, PassData, RecognitionMode, SceneData, SurfaceData, TargetData } from "../types/game-config";
 import type { AssetKind, SourceTypes } from "./rules";
 
 // ── Experiences ──────────────────────────────────────────────────────────────────────────────────────────
@@ -132,6 +132,50 @@ export interface PublishedVersion {
   publishedBy: string | null;
   publishedAt: string;
   note: string | null;
+}
+
+// ── Export (#322) ────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A file an export names (`Export::files`): its URL as the configuration names it, its content path (`/assets/content/…`,
+ * null for a Library upload) and what is known of it. `origin`: `upload` – a Library file (size and full `sha256` from its
+ * asset row); `import` – a file of the imported build (size and `v` from its files.json, no full sha256); `version` – a Code
+ * tab plugin a publish put into the version's folder (`url` in that environment, nothing else known); `unknown` – a value
+ * that looks like a file and is none of these (nothing known, the URL as written).
+ */
+export interface ExportFile {
+  url: string;
+  path: string | null;
+  origin: "upload" | "import" | "version" | "unknown";
+  size: number | null;
+  sha256: string | null;
+  /** The first 12 hex digits of its sha256 (files.json's `v`) */
+  v: string | null;
+}
+
+/** `GET /editor/experiences/{id}/export[?build=]`: everything an export of the experience needs (docs/server.md "Export") */
+export interface ExperienceExport {
+  experience: string;
+  /** The draft, or the published version `build` names – its environment, when and by whom */
+  source: { kind: "draft" } | { kind: "published"; env: string; publishedAt: string; publishedBy: string | null };
+  build: string;
+  hash: string;
+  /** The content schema `MAJOR.MINOR` of the configuration ("" when a published one does not say) */
+  schema: string;
+  /** This server's app version */
+  appVersion: string;
+  exportedAt: string;
+  configuration: GameConfiguration;
+  /** Every file the configuration names, in the order it names them, then the layout's */
+  files: ExportFile[];
+  /** How many of `files` are `unknown` */
+  unknown: number;
+  /** The print layout (`layout/layout.json` and its sheets – URLs, all in `files` too), null when the import had none */
+  layout: { file: string; files: string[] } | null;
+  /** The Code tab's sources – always the current ones */
+  plugins: PluginSource[];
+  /** Every credit line of the Library, by file URL */
+  credits: Record<string, string>;
 }
 
 /** A row of the change log (`GET /editor/experiences/{id}/changes`, newest first); `token` = the AI connection's name, else null */

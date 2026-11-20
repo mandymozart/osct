@@ -883,6 +883,56 @@ try {
     $current = array_values(array_filter($versions, fn($v) => $v['retiredAt'] === null));
     check($status === 200 && $data['build'] === $second['build'] && $data['replaced']['experience'] === 'demo' && count($current) === 1 && $current[0]['build'] === $second['build'] && $current[0]['experience'] === 'osct', "switching back re-activates the experience's version (no new folder)");
 
+    echo "editor: export (#322)\n";
+    [$status, $export] = call($api, 'GET', '/editor/experiences/osct/export', null, $editor);
+    [, $draftManifest] = call($api, 'GET', '/editor/experiences/osct/draft/latest.json', null, $editor);
+    $byUrl = array_column($export['files'] ?? [], null, 'url');
+    check($status === 200 && $export['experience'] === 'osct' && $export['source'] === ['kind' => 'draft'] && $export['build'] === $draftManifest['build'] && $export['hash'] === $draftManifest['hash']
+        && $export['schema'] === '4.0' && $export['appVersion'] === $appVersion && $export['configuration']['experience']['id'] === 'osct' && $export['configuration']['version']['hash'] === $export['hash'],
+        'export: the draft\'s configuration with its build and hash, as the draft endpoints assemble it');
+    check(($byUrl['/assets/content/entries/racoon/racoon.glb'] ?? null) === ['url' => '/assets/content/entries/racoon/racoon.glb', 'path' => '/assets/content/entries/racoon/racoon.glb', 'origin' => 'import', 'size' => 1234, 'sha256' => null, 'v' => 'abcdef012345'],
+        'export: a file of the import with its size and v from files.json (no full sha256 recorded)');
+    check(($byUrl['/assets/content/entities/castle/c.mp4']['origin'] ?? null) === 'unknown' && $byUrl['/assets/content/entities/castle/c.mp4']['size'] === null
+        && $export['unknown'] === count(array_filter($export['files'], fn(array $f): bool => $f['origin'] === 'unknown')) && $export['unknown'] > 0 && !isset($byUrl['https://example.com']),
+        'export: a named file the import\'s files do not hold is unknown – counted; a link is no file');
+    check($export['layout'] === null && $export['plugins'] === [] && $export['credits'] === [], 'export: no layout, no plugin sources, no credit lines');
+    [$status, $published] = call($api, 'GET', "/editor/experiences/osct/export?build={$first['build']}", null, $editor);
+    check($status === 200 && $published['source']['kind'] === 'published' && $published['source']['env'] === 'local' && $published['source']['publishedBy'] === 'author@example.com' && is_string($published['source']['publishedAt'])
+        && $published['build'] === $first['build'] && $published['hash'] === $first['hash'] && $published['configuration']['entities']['castle']['params']['scale'] === 2,
+        'export ?build=: a published version as the content store holds it');
+    [$status, $data] = call($api, 'GET', '/editor/experiences/osct/export?build=nope', null, $editor);
+    [$status2, $data2] = call($api, 'GET', '/editor/experiences/osct/export?build=ffffffffffff', null, $editor);
+    [$status3, $data3] = call($api, 'GET', "/editor/experiences/demo/export?build={$first['build']}", null, $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-build' && $status2 === 404 && $data2['error']['code'] === 'unknown-build' && $status3 === 404 && $data3['error']['code'] === 'unknown-build',
+        'export ?build=: no build → 400 invalid-build; a build the publish log does not have for this experience → 404 unknown-build');
+    $versionFile = "$storeDir/local/{$first['build']}/game.config.json";
+    rename($versionFile, "$versionFile.away");
+    [$status, $data] = call($api, 'GET', "/editor/experiences/osct/export?build={$first['build']}", null, $editor);
+    rename("$versionFile.away", $versionFile);
+    check($status === 404 && $data['error']['code'] === 'build-missing' && $data['error']['env'] === 'local', 'export ?build=: a logged version the store lost → 404 build-missing');
+    [$status] = call($api, 'GET', '/editor/experiences/osct/export', null, $chief);
+    [$status2] = call($api, 'GET', '/editor/experiences/nothing/export', null, $editor);
+    check($status === 403 && $status2 === 404, 'export: editors only (an admin without the editor role → 403); no such experience → 404');
+    // The print layout and a Library upload: the demo again, its files with a layout, a model of the Library on its castle
+    $layoutFiles = $files + ['/assets/content/layout/layout.json' => ['size' => 50, 'v' => '111111111111'], '/assets/content/layout/sheets/cover-front.jpg' => ['size' => 900, 'v' => '222222222222']];
+    $demoBase = "http://127.0.0.1:$cdnPort/demo/abc";
+    [$status] = importing($api, 'demo', $editor, json_encode(['configuration' => $demo, 'files' => $layoutFiles, 'assetsBase' => $demoBase], $flags));
+    $glb = "glTF export test\n";
+    [$status2, $uploaded] = upload($api, 'POST', '/editor/experiences/demo/assets', $glb, 'Thing.glb', $editor);
+    $glbUrl = (string) ($uploaded['asset']['url'] ?? '');
+    [$status3] = call($api, 'PUT', '/editor/experiences/demo/entities/castle', ['type' => 'model', 'assets' => [['id' => 'castle-0', 'assetType' => 'glb', 'src' => $glbUrl]], 'params' => new stdClass()], $editor);
+    [$status4] = call($api, 'PUT', '/editor/experiences/demo/assets/credits', ['items' => [['url' => $glbUrl, 'credits' => 'A thing by someone']]], $editor);
+    check($status === 200 && $status2 === 201 && $status3 === 200 && $status4 === 200, "export: the demo with a layout and an uploaded model (setup: $status $status2 $status3 $status4)");
+    [$status, $export] = call($api, 'GET', '/editor/experiences/demo/export', null, $editor);
+    $byUrl = array_column($export['files'] ?? [], null, 'url');
+    check($status === 200 && ($byUrl[$glbUrl] ?? null) === ['url' => $glbUrl, 'path' => null, 'origin' => 'upload', 'size' => strlen($glb), 'sha256' => hash('sha256', $glb), 'v' => substr(hash('sha256', $glb), 0, 12)]
+        && $export['credits'] === [$glbUrl => 'A thing by someone'],
+        'export: a Library upload with its size and full sha256 from its asset row; the Library\'s credit lines');
+    check($export['layout'] === ['file' => "$demoBase/assets/content/layout/layout.json", 'files' => ["$demoBase/assets/content/layout/layout.json", "$demoBase/assets/content/layout/sheets/cover-front.jpg"]]
+        && ($byUrl["$demoBase/assets/content/layout/sheets/cover-front.jpg"] ?? null) === ['url' => "$demoBase/assets/content/layout/sheets/cover-front.jpg", 'path' => '/assets/content/layout/sheets/cover-front.jpg', 'origin' => 'import', 'size' => 900, 'sha256' => null, 'v' => '222222222222']
+        && ($byUrl["$demoBase/assets/content/entries/racoon/img.jpg"]['path'] ?? null) === '/assets/content/entries/racoon/img.jpg',
+        'export: the print layout (layout.json and its sheets) from the import\'s files, listed with their content paths');
+
     echo "editor: import with a version comparison before it overwrites (#183)\n";
     $raw = fn(array $body) => call($api, 'POST', '/editor/experiences/osct/import', null, $editor, 'http://localhost:5173', json_encode($body, $flags));
     $incoming = $configuration;
@@ -1045,6 +1095,8 @@ try {
     [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/plugins/glow', ['source' => "$source// v2\n"], $editor);
     [$status, $data] = call($api, 'GET', '/editor/experiences/osct/plugins/glow', null, $editor);
     check($status === 200 && str_ends_with($data['plugin']['source'], "// v2\n"), 'GET the plugin → the new source');
+    [$status, $export] = call($api, 'GET', '/editor/experiences/osct/export', null, $editor);
+    check($status === 200 && array_column($export['plugins'], 'id') === ['glow'] && $export['plugins'][0]['source'] === $data['plugin']['source'], '#322: the export carries the Code tab\'s sources with their text');
     [$status, $data] = call($api, 'GET', '/editor/experiences/osct/plugins', null, $editor);
     check($status === 200 && count($data['plugins']) === 1 && $data['plugins'][0]['id'] === 'glow' && !isset($data['plugins'][0]['source']), 'the list names the plugin without its source');
     [, $data] = call($api, 'GET', '/editor/experiences/osct/changes?limit=2', null, $editor);
