@@ -313,7 +313,8 @@ final class AssetNames
 
     /**
      * Every string of a row's JSON with the part of the name its place gives: an asset's `src` its asset id (the nearest
-     * object with an id – a model's texture map adds its size: `key_model-1024`), `imageSrc` `target`, `image` `image`,
+     * object with an id – a model's texture map adds its size: `key_model-1024`, a medium's level its level: `film-720`),
+     * `imageSrc` `target`, `image` `image`,
      * `worldSrc` / `skySrc` `world` / `sky`, another field its name
      */
     private static function walk(mixed $node, ?string $key, ?stdClass $parent, callable $found, ?string $owner = null): void
@@ -322,6 +323,7 @@ final class AssetNames
             if ($key === 'src') {
                 $part = $owner ?? 'file';
                 if ($parent !== null && is_int($parent->size ?? null)) $part .= '-' . $parent->size;
+                elseif ($parent !== null && is_int($parent->level ?? null)) $part .= '-' . $parent->level; // a medium's level (#331)
             } else {
                 $part = $key === null ? null : (self::PARTS[$key] ?? $key);
             }

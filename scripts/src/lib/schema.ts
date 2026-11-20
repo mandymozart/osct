@@ -68,6 +68,7 @@ export const schemas = {
       author: { type: "String", required: false },
       body: { type: "String", required: false, default: "" },
       image: { type: "String", required: false },
+      imageLevels: { type: "Object", required: false }, // the picture in several sizes: { 512: x_512.webp, 1024: … } (schema 4.3, #331)
       caption: { type: "String", required: false }, // the line under the image (schema 2.34, #289)
       media: { type: "String", required: false },
       tags: { type: "List", required: false, default: [] },

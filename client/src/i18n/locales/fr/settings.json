@@ -20,6 +20,8 @@
   "textureQualityMedium": "Moyen",
   "textureQualityHigh": "Élevé",
   "textureQualityBest": "Maximal",
+  "mediaQualityLabel": "Qualité des images et vidéos :",
+  "mediaQualityDescription": "Les images, vidéos et sons peuvent exister en plusieurs qualités. Automatique choisit selon votre écran, votre téléphone et votre connexion. Une qualité plus élevée est plus longue à charger ; elle s'applique à ce qui se charge ensuite.",
   "installButton": "Installer l'application sur cet appareil",
   "installDone": "Tu utilises l'application depuis ton écran d'accueil.",
   "installDescription": "L'application s'ouvre alors en plein écran depuis sa propre icône et démarre plus vite.",

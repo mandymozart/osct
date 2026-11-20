@@ -1371,6 +1371,13 @@ try {
     check(count($filtered['assets']) === 2 && array_column($filtered['assets'], 'kind') === ['image', 'image'], 'the kind filter applies to both');
     [$status, $data] = call($api, 'DELETE', "/editor/experiences/osct/assets/{$imported[0]['id']}", null, $editor);
     check($status === 404, 'an imported file is read-only (no delete, replace or usages: 404)');
+    // Media levels (#331, content schema 4.3): checked per kind, smallest first
+    $levelled = ['type' => 'image', 'assets' => [['id' => 'castle-img', 'assetType' => 'image', 'src' => $asset['url'], 'levels' => [['level' => 2048, 'src' => $asset['url']], ['level' => 512, 'src' => $asset['url']]]]]];
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/entities/castle', $levelled, $editor);
+    check($status === 200 && array_column($data['entity']['assets'][0]['levels'], 'level') === [512, 2048], 'a node\'s image with levels → 200, the levels smallest first');
+    $levelled['assets'][0]['levels'] = [['level' => 720, 'src' => $asset['url']]];
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/entities/castle', $levelled, $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-entity' && str_contains($data['error']['message'], '512, 1024, 2048'), 'a level that is not one of the image\'s → 400');
     // Used by a node: the usages know, delete refuses, replace relinks
     $image = ['type' => 'image', 'assets' => [['id' => 'castle-img', 'assetType' => 'image', 'src' => $asset['url']]]];
     [$status] = call($api, 'PUT', '/editor/experiences/osct/entities/castle', $image, $editor);
@@ -1664,6 +1671,16 @@ try {
         'PUT entry: the caption under the picture (#289), trimmed');
     [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/entries/castle', ['caption' => null], $editor);
     check($status === 200 && !isset($data['entry']['caption']), 'null removes the caption');
+    // The picture in several sizes (#331, content schema 4.3): pictures of the Library, sizes of the image levels
+    $cover = '/assets/content/entries/castle/cover.jpg';
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/entries/castle', ['imageLevels' => [['level' => 2048, 'src' => $cover], ['level' => 1024, 'src' => $cover]]], $editor);
+    check($status === 200 && $data['entry']['imageLevels'] === [['level' => 1024, 'src' => $cover], ['level' => 2048, 'src' => $cover]], 'PUT entry: imageLevels, smallest first (#331)');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/entries/castle', ['imageLevels' => [['level' => 1080, 'src' => $cover]]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-entry', 'imageLevels: a level that is not an image size → 400');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/entries/castle', ['imageLevels' => [['level' => 512, 'src' => 'https://elsewhere.example/x.webp']]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-entry', 'imageLevels: a file outside the Library → 400');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/entries/castle', ['imageLevels' => null], $editor);
+    check($status === 200 && !isset($data['entry']['imageLevels']) && $data['entry']['image'] === $cover, 'null removes the levels, the picture stays');
     $refusals = [
         [['category' => 'poem'], 'an unknown category'], [['media' => 'javascript:alert(1)'], 'a link that is not http(s)'], [['media' => 'https://'], 'a link without a host'],
         [['title' => '  '], 'an empty title'], [['image' => 'https://evil.example/x.jpg'], 'an image that is no Library picture'], [['image' => '/assets/content/entries/racoon/racoon.glb'], 'a Library file that is no picture'],
@@ -2742,8 +2759,8 @@ try {
     $experience = json_decode($v3Db->query("SELECT experience_json FROM experiences WHERE id = 'osct'")->fetchColumn(), true);
     check($experience === ['id' => 'osct', 'title' => 'Onion Skin', 'book' => ['author' => 'Kévin Bray', 'publisher' => 'Building Fictions'], 'passes' => []],
         'the experience: author and publisher in book (after the title), no sourceOfTruth');
-    check($v3Db->query("SELECT content_schema FROM experiences WHERE id = 'osct'")->fetchColumn() === '4.2'
-        && $v3Db->query("SELECT content_schema FROM experiences WHERE id = 'wall'")->fetchColumn() === '2.26', 'a 3.0 experience is of the current schema (4.2) now, an older one stays refused');
+    check($v3Db->query("SELECT content_schema FROM experiences WHERE id = 'osct'")->fetchColumn() === '4.3'
+        && $v3Db->query("SELECT content_schema FROM experiences WHERE id = 'wall'")->fetchColumn() === '2.26', 'a 3.0 experience is of the current schema (4.3) now, an older one stays refused');
     check(json_decode($v3Db->query("SELECT experience_json FROM experiences WHERE id = 'wall'")->fetchColumn(), true) === ['id' => 'wall', 'title' => 'A wall', 'book' => ['author' => 'Nobody']],
         'an experience without a publisher: book { author }');
     $sign = json_decode($v3Db->query("SELECT data_json FROM entities WHERE ref = 'sign'")->fetchColumn(), true);
@@ -2776,7 +2793,7 @@ try {
     check($status === 200 && $data['experience']['experience']['book']['author'] === 'Kévin Bray' && count($data['scenes']) === 1 && $data['scenes'][0]['entries'][0]['id'] === 'e1',
         'the migrated experience opens in the editor');
     [$status, $manifest] = call($v3Api, 'GET', '/editor/experiences/osct/draft/latest.json', null, $v3Session);
-    check($status === 200 && $manifest['schema'] === '4.2', 'its draft is of the current content schema (4.2)');
+    check($status === 200 && $manifest['schema'] === '4.3', 'its draft is of the current content schema (4.3)');
     [$status] = call($v3Api, 'GET', '/editor/experiences/wall', null, $v3Session);
     check($status === 409, 'the 2.x experience stays refused (409 old-schema)');
     [$status] = call($oldApi, 'PUT', '/user/password', ['password' => 'a new password'], $oldToken);

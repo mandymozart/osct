@@ -14,6 +14,7 @@ import type { ExperienceAppearance } from "./appearance";
 import type { EnvironmentData } from "./environment";
 import type { LightData } from "./lights";
 import type { TextureSetData } from "./textures";
+import type { MediaLevelData } from "./media-levels";
 import type { PassData } from "./passes";
 import type { PluginData } from "./plugins";
 import type { MaterialData } from "./materials";
@@ -25,6 +26,7 @@ export * from "./components";
 export * from "./behaviour";
 export * from "./lights";
 export * from "./textures";
+export * from "./media-levels";
 export * from "./passes";
 export * from "./appearance";
 export * from "./plugins";
@@ -77,10 +79,14 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * every target's data is made from its printed image on the device, as before; `"prepared"`: a target's `recognition`
  * is used where it has one) and a target's optional `recognitionOff` (`true`: always its printed image, even when the
  * experience says prepared). An app of 4.1 ignores both and uses a target's `recognition` wherever it has one.
+ *
+ * **4.3** (#331): media in quality levels (`./media-levels.ts`) – an image, video or audio asset's optional `levels` and an
+ * entry's optional `imageLevels`; the reader loads the level its media quality chooses. An app of 4.2 ignores both and
+ * loads the medium's own `src`, as before.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "4.2";
+export const CONTENT_SCHEMA_VERSION = "4.3";
 /** The oldest content schema MAJOR this contract reads – 4: no 3.x content is read (no reader of it was shipped) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 4;
 
@@ -202,6 +208,11 @@ export interface AssetData {
   src: string;
   /** Optional (schema 2.27), a model file only (glb / gltf): its maps in several sizes */
   textures?: TextureSetData[];
+  /**
+   * Optional (schema 4.3, #331), an image, video or audio file only: the medium in several quality levels (image px,
+   * video height, audio kbps – `MEDIA_LEVELS`); `src` stays the file an older app loads
+   */
+  levels?: MediaLevelData[];
 }
 
 /**
@@ -319,6 +330,8 @@ export interface EntryData {
   body: string;
   author?: string; // texts
   image?: string;
+  /** Optional (schema 4.3, #331), with `image` only: the picture in several sizes (longest side 512 / 1024 / 2048 px) */
+  imageLevels?: MediaLevelData[];
   /** Optional (schema 2.34, #289): the line under the picture ("Image: … by …"), plain text */
   caption?: string;
   media?: string; // links: external URL
