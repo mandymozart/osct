@@ -69,17 +69,23 @@ export const register = (api: PluginApi): void => {
     glsl: "return vec4(mix(rgba.rgb, color, opacity * rgba.a), rgba.a);",
   });
 
-  // A component: code on a node – every frame, on found / lost / tap, with its parameters.
+  // A component: code on a node – every frame, on found / lost / tap, with its parameters. The builders (api.p) type
+  // them: params.degreesPerSecond is a number here. min / max are hard limits, slider the control's first range.
+  // actions: the rule verbs it answers – a rule's "pause: <this node>" reaches onAction("pause").
+  const p = api.p;
   api.registerComponent("spin", {
     description: "Turns the node around its own y axis.",
     params: {
-      degreesPerSecond: { kind: "number", default: 30, min: -360, max: 360, unit: "°/s", label: "speed", description: "Degrees a second; negative turns the other way." },
+      degreesPerSecond: p.number({ min: -360, max: 360, default: 30, slider: [-90, 90], unit: "°/s", label: "speed", description: "Degrees a second; negative turns the other way." }),
     },
+    actions: ["play", "pause"],
   }, ({ object, params }) => {
-    let speed = Number(params.degreesPerSecond);
+    let speed = params.degreesPerSecond;
+    let running = true;
     return {
-      update: delta => { object.rotation.y += (speed * Math.PI / 180) * delta; },
-      tune: next => { speed = Number(next.degreesPerSecond); return true; },
+      update: delta => { if (running) object.rotation.y += (speed * Math.PI / 180) * delta; },
+      tune: next => { speed = next.degreesPerSecond; return true; },
+      onAction: action => { running = action === "play"; },
     };
   });
 };

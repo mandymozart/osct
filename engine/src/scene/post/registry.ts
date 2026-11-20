@@ -21,12 +21,12 @@ import { type PassData, type PassSpec, resolvePass } from "../../types/index";
  */
 
 /** What a pass factory gets */
-export interface PassContext {
+export interface PassContext<P = Record<string, unknown>> {
   /**
    * The pass's parameters with the spec's defaults filled in – a `texture` parameter as a three.js texture (a Library
    * picture, a procedural texture of a plugin) or null for none
    */
-  params: Record<string, unknown>;
+  params: P;
   /** The app's three.js (one instance – a plugin never imports three itself) */
   three: typeof THREE;
   /** three's `ShaderPass` (`new ShaderPass({ uniforms, vertexShader, fragmentShader })`) */
@@ -67,7 +67,7 @@ export interface MaskUsage {
   usesMask?: boolean;
 }
 
-export type PassFactory = (context: PassContext) => PostPass;
+export type PassFactory<P = Record<string, unknown>> = (context: PassContext<P>) => PostPass;
 
 export interface PassRegistration {
   owner: string;

@@ -79,9 +79,10 @@ describe("the logic view per level (#334)", () => {
     expect(view.nodes.every(n => !n.enter)).toBe(true);
     expect(stubLabels(view)).toEqual(["bellRang ← emitted in target bell", "hasKey ← set in Cover", "openDoor → heard in Epilogue"]);
     expect(view.stubs.find(s => s.label.startsWith("bellRang"))?.far).toEqual({ level: "entity", scene: "door", target: "bell", path: [] });
-    // A subtree: the hint has no rules of its own
+    // A subtree: the hint has no rules of its own – its box with the ports its spec gives (L-T6), every one hidden: none is wired
     const hint = project(content, { level: "entity", scene: "door", target: "door", path: [1] });
-    expect(hint.nodes).toEqual([]);
+    expect(hint.nodes.map(n => n.id)).toEqual(["node:door/1"]);
+    expect(hint.nodes[0].ports.filter(p => p.kind).every(p => p.hidden)).toBe(true);
     expect(hint.levels).toHaveLength(5);
   });
 

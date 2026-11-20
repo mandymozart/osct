@@ -28,7 +28,7 @@
  * PARAMS and the part to the engine. Document it in docs/content.md.
  */
 
-import type { ComponentData, ComponentParamSpec } from "./components";
+import type { ComponentData, ComponentParamSpec, SpecLogic } from "./components";
 import { paramProblems } from "./components";
 import { isObject } from "../guards/primitives";
 
@@ -37,7 +37,8 @@ export const MOMENTS = ["reveal", "found", "lost"] as const;
 export type Moment = (typeof MOMENTS)[number];
 export const isMoment = (value: unknown): value is Moment => typeof value === "string" && (MOMENTS as readonly string[]).includes(value);
 
-export interface AppearanceSpec {
+/** Schema 5.1: `actions`, `events`, `uses` (`SpecLogic`) as a component's */
+export interface AppearanceSpec extends SpecLogic {
   description: string;
   params: Record<string, ComponentParamSpec>;
 }

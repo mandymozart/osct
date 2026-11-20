@@ -18,8 +18,8 @@ import { playMedia } from "./media";
  */
 
 /** What a procedural texture's `draw` gets: its parameters resolved (the spec's defaults filled in), three.js */
-export interface TextureContext {
-  params: Record<string, unknown>;
+export interface TextureContext<P = Record<string, unknown>> {
+  params: P;
   /** The app's three.js (one instance – plugins never import three themselves) */
   three: typeof THREE;
 }
@@ -32,7 +32,7 @@ export interface TextureInstance {
 }
 
 /** Draws a procedural texture: a texture (a `CanvasTexture`, a `DataTexture`) or a `TextureInstance` */
-export type TextureDraw = (context: TextureContext) => TextureInstance | Texture | null | void;
+export type TextureDraw<P = Record<string, unknown>> = (context: TextureContext<P>) => TextureInstance | Texture | null | void;
 
 export interface TextureRegistration { plugin: string; spec: TextureSpec; draw: TextureDraw }
 

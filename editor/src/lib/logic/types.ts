@@ -9,17 +9,46 @@ import type { BehaviourAction } from "@engine/types";
  * Pure types: no DOM, no store – the folder moves into a package with #255.
  */
 
-/** What flows along an edge and through a port (a subset of SCUTOONS' deck-kit `Signal`, same names) */
-export type Signal = "event" | "value" | "node" | "scene" | "address" | "far";
+/**
+ * What flows along an edge and through a port (a subset of SCUTOONS' deck-kit `Signal`, same names); `media` (#334 L-T6) is a
+ * file – a picture, a sound, a video, a model (SCUTOONS' `Picture` / `Audio`)
+ */
+export type Signal = "event" | "value" | "node" | "scene" | "address" | "far" | "media";
+
+/**
+ * The type of a port that comes from a spec (B8, research §5.9.3): a parameter's kind with its hard limits or options, a
+ * file's kind. Connecting is strictly typed: a port takes only its own type, an integer also where a number goes.
+ */
+export type PortType =
+  | { kind: "number"; min: number; max: number }
+  | { kind: "integer"; min: number; max: number }
+  | { kind: "boolean" }
+  | { kind: "string" }
+  | { kind: "color" }
+  | { kind: "choice"; options: readonly string[] }
+  | { kind: "texture" }
+  | { kind: "model" }
+  | { kind: "file"; accepts: string };
+
+/** Where a spec's port comes from: a parameter, the node's file, a verb it answers, an event it emits */
+export type PortKind = "param" | "src" | "action" | "event";
 
 export interface PortSpec {
-  /** Unique on its node: `on`, `when`, `do:0`, `out` … */
+  /** Unique on its node: `on`, `when`, `do:0`, `out`; a spec's: `p:volume`, `p:hum.volume`, `src`, `act:play`, `ev:ended` */
   id: string;
   label: string;
   signal: Signal;
   dir: "in" | "out";
   /** It takes or gives more than one edge */
   many?: boolean;
+  /** A port derived from a spec (§5.9): what it stands for */
+  kind?: PortKind;
+  /** A value or file port's type */
+  type?: PortType;
+  /** Whose it is: the node type's own (`video`) or a component's type (`hum`) */
+  owner?: string;
+  /** Hidden on the box until it is wired or exposed (the Blender way – unused ports hide) */
+  hidden?: boolean;
 }
 
 /** The families of node types; `free` is room for canvas nodes that no document projects (§5.7, none yet) */
@@ -90,6 +119,8 @@ export interface GraphNode {
   group?: string;
   /** A rule box: where its rule is written (part \`on\`) – a rule whose on was cut has no wire that says so */
   home?: Home;
+  /** A picture its body shows (an image node's file) – cheap previews only; the choice of preview is L-T15 */
+  preview?: string;
 }
 
 export interface GraphEdge {
@@ -150,7 +181,11 @@ export type CanvasEdit =
   | { edit: "setParams"; id: string; params: Record<string, unknown> }
   | { edit: "wire"; from: [string, string]; to: [string, string] }
   | { edit: "unwire"; from: [string, string]; to: [string, string] }
-  | { edit: "run"; id: string };
+  | { edit: "run"; id: string }
+  /** Show these ports of a box beyond its wired ones (`LogicCanvas.exposed`, L-T6) */
+  | { edit: "expose"; box: string; ports: string[] }
+  /** Hide the ports nobody wired again – of one box, or of every box at the level (Blender's Ctrl+H) */
+  | { edit: "hideUnused"; box?: string };
 
 /**
  * Where a new rule goes: a node of a target's tree (its first behaviour component; one is added when it has none), a

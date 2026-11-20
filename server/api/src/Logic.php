@@ -9,7 +9,7 @@ declare(strict_types=1);
  * (the object form of 2.19–4.x is refused: since 5.0 a condition is an expression – the expression's own syntax is the
  * TypeScript guard's and the editor's job), one known verb per action, a `goto` to `scene:<id>`, and in a scene's or the
  * experience's rules a node named by address (`target:<targetId>/<node name>`) and no node event. A `canvas` is
- * `{ groups?, notes?, folds? }` – authoring data the draft and the export carry and a publish leaves out
+ * `{ groups?, notes?, folds?, exposed? }` – authoring data the draft and the export carry and a publish leaves out
  * (`ContentVersion::assemble`).
  */
 final class Logic
@@ -138,13 +138,21 @@ final class Logic
         return $value;
     }
 
-    /** A canvas `{ groups?, notes?, folds? }`; 400 `$code` */
+    /** A canvas `{ groups?, notes?, folds?, exposed? }` (`exposed`: box id → port ids, schema 5.1); 400 `$code` */
     public static function canvas(mixed $canvas, string $path, string $code): void
     {
         $fail = static fn(string $message) => throw new ApiError(400, $code, $message);
-        if (!$canvas instanceof stdClass) $fail("$path must be { groups?, notes?, folds? }.");
+        if (!$canvas instanceof stdClass) $fail("$path must be { groups?, notes?, folds?, exposed? }.");
         foreach (get_object_vars($canvas) as $key => $list) {
-            if (!in_array($key, ['groups', 'notes', 'folds'], true)) $fail("$path.$key: unknown field of a canvas (groups, notes, folds).");
+            if (!in_array($key, ['groups', 'notes', 'folds', 'exposed'], true)) $fail("$path.$key: unknown field of a canvas (groups, notes, folds, exposed).");
+            if ($key === 'exposed') {
+                if (!$list instanceof stdClass) $fail("$path.exposed must be { <box id>: [port ids] }.");
+                foreach (get_object_vars($list) as $box => $ports) {
+                    $ok = (string) $box !== '' && is_array($ports) && array_filter($ports, static fn($p) => !is_string($p) || $p === '') === [];
+                    if (!$ok) $fail("$path.exposed.$box must be a list of port ids.");
+                }
+                continue;
+            }
             if (!is_array($list)) $fail("$path.$key must be a list.");
             foreach ($list as $i => $item) {
                 $ok = match ($key) {

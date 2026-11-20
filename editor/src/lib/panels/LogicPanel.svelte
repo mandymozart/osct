@@ -10,9 +10,10 @@
   import { plugins } from "#lib/plugins.svelte.js";
   import { selection } from "#lib/selection.svelte.js";
   import { getPlugin } from "#lib/api.js";
+  import { declaredUses } from "@engine/types";
   import { pluginCodeUses, type PluginUses } from "#lib/logic/plugin-code.js";
   import { project, type LogicContent } from "#lib/logic/project.js";
-  import { flowOf, type FlowBox } from "#lib/logic/flow.js";
+  import { flowOf, handleId, type FlowBox } from "#lib/logic/flow.js";
   import {
     decodeContext, encodeContext, followSelection, levelName, parentLevel, pickSelected, sameContext, sceneOfContext, searchIndex, searchLogic,
     stageMove, type SearchHit, type StageMove,
@@ -48,8 +49,13 @@
    *   its words – or why it was refused – show for a moment under the bar. A scene's and the experience's rules (content
    *   schema 5.0, L-T5b) go to `logicEdit`, which saves them; the experience level edits the experience's own rules only,
    *   the group level is read-only.
-   * - What a plugin's code hears, emits, reads and sets is read from its source (stored, else the compiled module).
+   * - What a plugin hears, emits, reads and sets is what its specs declare (schema 5.1, `declaredUses`); only for a plugin
+   *   that declares nothing it is read from its source (stored, else the compiled module).
    *   Problems across the experience are listed under the graph, in the error colour.
+   * - **Ports from the specs** (L-T6): a node's box shows its wired ports; its **+** (or its right-click menu) shows one of
+   *   the hidden ones, *Hide unused ports* (Ctrl+H for every box) hides them again – the level's canvas keeps the choice
+   *   (`logicEdit.setCanvas`). While a wire is dragged the inlets that take it light up; one let go where it does not fit
+   *   says why.
    */
   let { experienceId, sceneId, stage = null, onpick, onmove }: {
     experienceId: string;
@@ -83,7 +89,8 @@
   };
 
   $effect(() => {
-    const list = declared;
+    // A plugin whose specs declare its bus use needs no reading of its source (`project.ts` prefers the declaration)
+    const list = declared.filter(p => !declaredUses(p.registered));
     void plugins.stored;
     let current = true;
     void Promise.all(list.map(async p => [p.id, await readSource(p)] as const)).then(read => {
@@ -182,6 +189,11 @@
     } else if (e.key === "Backspace" || (e.altKey && e.key === "ArrowUp")) {
       e.preventDefault();
       goUp();
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "h") {
+      // Blender's Ctrl+H: every box shows only its wired ports again
+      e.preventDefault();
+      if (!editable) return say(readOnlyHint ?? "Read-only here.", true);
+      run({ op: "canvas", edit: { edit: "hideUnused" } });
     }
   };
 
@@ -235,9 +247,43 @@
       if (change.doc === "scene") logicEdit.setScene(change.scene, change.rules);
       else logicEdit.setExperience(change.rules);
     }
+    // The ports exposed on the boxes: the level's canvas, saved with its rules
+    for (const change of result.canvas) logicEdit.setCanvas(change);
     say(result.words);
   };
   const canConnect = (from: [string, string], to: [string, string]) => editable && apply({ op: "connect", from, to }, logic, context).ok;
+  /** The handles that take a wire dragged from a port (the canvas lights them): every port on the other side the op would take */
+  const takesFrom = (from: [string, string], dir: "in" | "out"): Map<string, Set<string>> => {
+    const takes = new Map<string, Set<string>>();
+    if (!editable) return takes;
+    const other = dir === "in" ? "out" : "in";
+    for (const box of flow.boxes) {
+      if (box.stub || box.id === from[0]) continue;
+      for (const port of box.ports) {
+        if (port.dir !== other) continue;
+        const ok = dir === "out" ? canConnect(from, [box.id, port.id]) : canConnect([box.id, port.id], from);
+        if (ok) takes.set(box.id, (takes.get(box.id) ?? new Set()).add(handleId(port)));
+      }
+    }
+    return takes;
+  };
+  /** A wire let go where it does not fit: the op's refusal says why (B8) */
+  const refused = (from: [string, string], to: [string, string]) => {
+    const result = apply({ op: "connect", from, to }, logic, context);
+    if (!result.ok) say(result.reason, true);
+  };
+  /** The box's +: its hidden ports to show, and hiding the unused ones again */
+  const exposeMenu = (box: FlowBox, at: { x: number; y: number }) => {
+    if (!editable) return say(readOnlyHint ?? "Read-only here.", true);
+    const items: LogicMenuItem[] = box.hidden.map(p => ({
+      key: `show:${p.dir}:${p.id}`, label: `Show ${p.label}`, detail: [p.owner, p.detail].filter(Boolean).join(" · "),
+      select: () => run({ op: "canvas", edit: { edit: "expose", box: box.id, ports: [p.id] } }),
+    }));
+    if (box.hidden.length > 1) items.push({ key: "show:all", label: "Show every port", select: () => run({ op: "canvas", edit: { edit: "expose", box: box.id, ports: box.hidden.map(p => p.id) } }) });
+    items.push({ key: "hide", label: "Hide unused ports", detail: "this box", select: () => run({ op: "canvas", edit: { edit: "hideUnused", box: box.id } }) });
+    items.push({ key: "hide:all", label: "Hide unused ports on every box", detail: "Ctrl+H", select: () => run({ op: "canvas", edit: { edit: "hideUnused" } }) });
+    menu = { at, head: `${box.node?.label ?? ""} – ports`, add: null, items };
+  };
 
   /** The boxes selected on the canvas; the rule among them is where an action or a condition goes */
   let picked = $state<string[]>([]);
@@ -324,6 +370,10 @@
     } else if (box.node?.kind === "node" && box.node.pick?.kind === "node") {
       items.push({ key: "add", label: "Add a rule on this node…", disabled: editable ? null : readOnlyHint, select: () => { picked = [box.id]; void tick().then(() => openAdd(at)); } });
     }
+    if (box.hidden.length || box.ports.some(p => p.kind)) {
+      items.push({ key: "ports", label: "Show a port…", detail: box.hidden.length ? `${box.hidden.length} hidden` : "none hidden", disabled: editable ? (box.hidden.length ? null : "Every port shows.") : readOnlyHint, select: () => exposeMenu(box, at) });
+      items.push({ key: "hide", label: "Hide unused ports", detail: "Ctrl+H: every box", disabled: editable ? null : readOnlyHint, select: () => run({ op: "canvas", edit: { edit: "hideUnused", box: box.id } }) });
+    }
     menu = { at, head: box.stub ? box.stub.label : `${box.node?.label}`, add: null, items };
   };
   let addButton = $state<HTMLButtonElement>();
@@ -394,6 +444,7 @@
     <span class="wire value" title="A value (a variable)"><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>value</span>
     <span class="wire node" title="Acts on a node"><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>node</span>
     <span class="wire scene" title="Goes to a scene (goto)"><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>goto</span>
+    <span class="wire media" title="A file: a picture, a sound, a video, a model"><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>media</span>
     {#if never}
       <span class="wire never" data-help-name="Never fires"
         data-help="An event between two scenes: the engine builds the rules of the open scene only, so an event a rule emits in one scene never reaches another scene's rules. Plugins hear every scene."><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>never fires</span>
@@ -413,7 +464,8 @@
   {:else if Canvas}
     <Canvas {flow} level={levelKey} selected={selectedBox} {flash} {editable} onpick={pickBox} onenter={enterBox} canconnect={canConnect}
       onconnect={(from: [string, string], to: [string, string]) => run({ op: "connect", from, to })}
-      onselect={(ids: string[], wires: string[]) => { picked = ids; pickedWires = wires; }} onmenu={openMenu} />
+      onselect={(ids: string[], wires: string[]) => { picked = ids; pickedWires = wires; }} onmenu={openMenu}
+      takesfrom={takesFrom} onrefused={refused} onexpose={exposeMenu} />
   {:else}
     <p class="muted small">Loading the graph…</p>
   {/if}
@@ -465,6 +517,7 @@
   .wire.value line { stroke-dasharray: 6 3; }
   .wire.node line { stroke-dasharray: 1.5 2.5; }
   .wire.scene line { stroke-dasharray: 8 3 2 3; }
+  .wire.media line { stroke-width: 3; }
   .wire.never line { stroke-dasharray: 1 4; stroke-width: 1; }
   .status { margin: 0; overflow-wrap: anywhere; }
   .problems { margin: 0; padding: 0 0 0 1rem; display: flex; flex-direction: column; gap: .125rem; max-height: 6rem; overflow-y: auto; }

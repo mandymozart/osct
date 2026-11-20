@@ -16,10 +16,10 @@ import { collectFeedbacks, type OwnedFeedbacks } from "./feedback";
  */
 
 /** What a material's `build` gets */
-export interface MaterialContext {
+export interface MaterialContext<P = Record<string, unknown>> {
   node: EntityData;
   /** The material's parameters with the spec's defaults filled in – a `texture` parameter as a three.js `Texture` (or null) */
-  params: Record<string, unknown>;
+  params: P;
   /** Seconds since the material was built, as a uniform the engine advances every frame (`uniforms: { time }`) */
   time: { value: number };
   /**
@@ -44,7 +44,7 @@ export interface MaterialInstance {
 }
 
 /** Builds the material: a three.js material, or a `MaterialInstance` with hooks */
-export type MaterialBuild = (context: MaterialContext) => Material | MaterialInstance | null | void;
+export type MaterialBuild<P = Record<string, unknown>> = (context: MaterialContext<P>) => Material | MaterialInstance | null | void;
 
 export interface MaterialRegistration { plugin: string; spec: MaterialSpec; build: MaterialBuild }
 

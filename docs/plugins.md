@@ -55,7 +55,9 @@ since API 1.7 `model` – a model file of the Library; your code gets its addres
 editor's Info view) and, if you like, a `label` (API 1.3, 1–24 characters): the few words the row shows –
 `degreesPerSecond` with `label: "speed"` reads *speed*; without a label the row shows the name split into words
 (*degrees per second*). Add `nodeTypes` when the spec only makes sense on some nodes. The Inspector builds its rows
-from it – no other code needed.
+from it – no other code needed. Since API 3.1 the builders `api.p` write these objects for you and type your handler's
+`params` from them; a spec may also say which rule verbs it answers, which events it emits and what it uses of the bus
+("Typed specs and the Logic view" below).
 
 ## A layer: tint (the fixture's template)
 
@@ -97,26 +99,94 @@ freely for a few; the content build warns when a node carries more than three. A
 ## A component: spin
 
 ```ts
+const p = api.p;
 api.registerComponent("spin", {
   description: "Turns the node around its own y axis.",
   params: {
-    degreesPerSecond: { kind: "number", default: 30, min: -360, max: 360, unit: "°/s", label: "speed", description: "Speed." },
+    degreesPerSecond: p.number({ min: -360, max: 360, default: 30, slider: [-90, 90], unit: "°/s", label: "speed", description: "Speed." }),
   },
+  actions: ["play", "pause"],
 }, ({ object, params }) => {
-  let speed = Number(params.degreesPerSecond);
+  let speed = params.degreesPerSecond;          // a number – typed from the spec
+  let running = true;
   return {
-    update: delta => { object.rotation.y += (speed * Math.PI / 180) * delta; },
-    tune: next => { speed = Number(next.degreesPerSecond); return true; },
+    update: delta => { if (running) object.rotation.y += (speed * Math.PI / 180) * delta; },
+    tune: next => { speed = next.degreesPerSecond; return true; },
+    onAction: action => { running = action === "play"; },   // "play" | "pause"
   };
 });
 ```
 
-`apply` gets `{ node, params, object, placed, target, three }`: `object` is the node's own three.js object (a
+`apply` gets `{ node, params, object, placed, target, three, emit }`: `object` is the node's own three.js object (a
 model's scene, a video's plane), `placed` the group that carries its placement, `params` the values with the
-defaults filled in. It returns the hooks it needs: `update(delta)` every frame, `onFound`, `onLost`, `onTap`,
-`onPause`, `dispose`, and `tune(params)` for the editor's live edit (return `true` when you applied the new values
-in place, `false` to have the node built anew). A component on a `group` node may build anything with
-`api.three` and add it to `placed` – but when the thing *is* the node, a node type says so better.
+defaults filled in, `emit` sends one of the spec's `events`. It returns the hooks it needs: `update(delta)` every frame,
+`onFound`, `onLost`, `onTap`, `onPause`, `dispose`, `onAction(verb)` for the spec's `actions` (API 3.1), and
+`tune(params)` for the editor's live edit (return `true` when you applied the new values in place, `false` to have the
+node built anew). A component on a `group` node may build anything with `api.three` and add it to `placed` – but when the
+thing *is* the node, a node type says so better.
+
+## Typed specs and the Logic view (API 3.1, content schema 5.1)
+
+A spec is written once, as a value, and everything else is read from it: the Inspector's rows, the guard's checks, the
+engine's limits, the editor's Logic view – and your handler's types. This is the "schema first" way of zod, TypeBox and
+ComfyUI's node schema; TypeScript's types are gone at runtime, so the value is the source and the types are inferred.
+
+**The builders.** `api.p` writes the same parameter objects you would write by hand – a hand-written spec keeps working
+unchanged, and you can mix both:
+
+| Builder | Writes | Your handler gets |
+| --- | --- | --- |
+| `p.number({ min, max, default?, step?, unit?, slider? })` | `{ kind: "number", … }` (default = `min`) | `number` |
+| `p.integer({ min, max, default?, step?, unit?, slider? })` | a number with `integer: true`, `step: 1` | `number` (whole) |
+| `p.boolean({ default? })` | `{ kind: "boolean" }` (default `false`) | `boolean` |
+| `p.string({ default? })` | `{ kind: "string" }` (default `""`) | `string` |
+| `p.choice(["loop", "once"], { default? })` | `{ kind: "choice", options }` (default the first) | `"loop" \| "once"` |
+| `p.color({ default? })` | `{ kind: "color" }` (default `#ffffff`) | `string` |
+| `p.texture({ default? })` | `{ kind: "texture" }` | a three.js `Texture` or `null` |
+| `p.model({ default? })` | `{ kind: "model" }` | the file's address (`api.loadModel`) |
+| `p.file("image" \| "video" \| "model", { … })` | a `texture` (image, video) or a `model` parameter | as those |
+
+Every builder also takes `description` and an optional `label`. The register functions are generic: write the spec inline
+(or `as const`) and `params.volume` is a `number`, a choice is the union of its options. A spec typed only as
+`ComponentSpec` gives `Record<string, unknown>`, as before.
+
+**Hard and soft limits.** A number's `min` and `max` are **hard**: the guard refuses content outside them, the editor's
+field refuses a typed value outside them (scrubbing stops at them), and the engine – should a value outside them reach it –
+keeps the value it had (the default at the first build) and warns in the console. `integer: true` adds "whole numbers
+only" to the same three checks. `slider: [lo, hi]` is only the **soft** range: the span the editor's control offers first
+(its step follows from it), always inside `min … max`.
+
+**What the schema cannot say, said in the same spec:**
+
+```ts
+api.registerComponent("hum", {
+  description: "Hums while the page is found.",
+  params: { volume: p.number({ min: 0, max: 1, default: 0.6, description: "How loud." }) },
+  actions: ["play", "pause"],              // the rule verbs it answers on its node
+  events: ["ended"],                       // the scene events it emits
+  uses: { hears: ["doorOpened"], sets: ["hummed"] },   // what its code uses of the bus and the variables
+}, ({ params, emit }) => ({
+  onAction: action => { /* "play" | "pause" – a rule's `play: <this node>` lands here */ },
+  onTap: () => emit("ended"),              // emit("endd") is a type error in the Code tab and the build
+}));
+```
+
+- **`actions`**: the verbs a node already has in a rule – `play`, `pause`, `stop`, `show`, `hide`. A rule's
+  `play: lamp` reaches `onAction("play")` of every component (and the node type) of `lamp` whose spec declares `play`,
+  beside what the engine does itself (a model's clip, the node's visibility). Any other name is refused: there is no rule
+  verb for it yet.
+- **`events`**: names your code sends with the context's `emit(event, payload?)` – on the bus, with the target's id, so a
+  rule hears it by name (`on: ended`). An event the spec does not declare is not sent (a warning); a core event or a node's
+  own (`found`, `lost`, `tap`, `unlocked`) cannot be declared.
+- **`uses`**: what the code hears, emits, reads and sets (`api.events.on`, `emit`, `api.vars.get`, `set`), by name. The
+  Logic view joins the plugin to the rules by it. A plugin that declares nothing in any spec is read the old way – the
+  editor looks for `api.events.on("…")` and the like in its source.
+
+The content build records all three in the plugin's `registered` ("Shipping it" below), the guard checks their
+shape, and the editor's Logic view draws them as **ports** on the node's box: the parameters as value inlets (typed by
+kind, a texture or model as a media inlet), the verbs as action inlets, the events as event outlets ([editor](editor.md)
+"Ports from the specs"). The built-in node types have specs of their own for it: a video's and an image's file, a text's
+line and colour, a light's parameters, a model's `play` / `pause` / `stop`, `show` / `hide` on every node.
 
 ## A node type: sparkle (API 1.2)
 
@@ -876,8 +946,11 @@ per kind (`components` – layers included –, `nodeTypes`, `passes`, `material
 reader's check, the editor's API and the MCP server know your types and parameters without running your code – a typo
 in a node's type or a parameter out of range is caught at save time – and the editor's Inspector shows the rows of
 your component or node type before anyone presses Run. The reader's check refuses a type no declared plugin registers;
-a plugin declared without `registered` (an older build) is unknown until it loads, so the check lets its types pass. The
-engine ignores the field and registers from the module. From there it travels to
+a plugin declared without `registered` (an older build) is unknown until it loads, so the check lets its types pass.
+Since content schema 5.1 every recorded spec also carries what it declares beyond its parameters – `actions`, `events`,
+`uses` ("Typed specs and the Logic view" above) – and a number parameter its `slider` and `integer`; the check refuses a
+verb no node answers, a core event or a node's own event among the events, a name that is not camelCase. The builders'
+specs are recorded as the plain objects they write. The engine ignores the field and registers from the module. From there it travels to
 the CDN with the content version and the reader loads it with the AR scene. A plugin that does not compile fails
 the build with the file and line, like a missing image. Those are the plugins in the content source
 (`content/plugins/<id>/index.ts`, built with `npm run build:content` in `scripts/`) – an import brings them into the
