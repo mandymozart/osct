@@ -31,8 +31,6 @@
   };
   onMount(() => void load());
 
->>>>
-
 </script>
 
 <div class="split">
