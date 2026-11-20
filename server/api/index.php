@@ -30,6 +30,7 @@ declare(strict_types=1);
  *   GET    /admin/users.csv?newsletter=1        the same as CSV – the newsletter list
  *   PUT    /admin/users/{id}/roles/{role}       grant the role · DELETE … revoke it
  *   POST   /admin/editors                       { email } → make the user an editor, creating it if new
+ *   POST   /admin/rename-ids                    { apply, experience? } → the one-off rename of padded ids (#63, IdRename)
  *   GET    /admin/arrivals?days=30              arrivals by source (#324): the QR codes' and links' `?s=` counts
  *
  *   The editor (docs/server.md "Editor data"; a signed-in user with role editor, else 403):
@@ -93,7 +94,7 @@ declare(strict_types=1);
  * (ApiTokens). docs/server.md "Sessions, cookies and CSRF".
  */
 
-foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences', 'Arrivals'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences', 'Arrivals', 'IdRename'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -146,6 +147,7 @@ try {
         $route === 'GET /health' => Http::json(200, ['status' => 'ok', 'version' => Version::APP, 'env' => Config::env(), 'db' => Db::value('SELECT 1') == 1 ? 'ok' : 'error']),
         $route === 'POST /admin/migrate' => migrate(),
         $route === 'POST /admin/editors' => Admin::makeEditor(Http::body()),
+        $route === 'POST /admin/rename-ids' => Admin::renameIds(Http::body()),
         $route === 'GET /admin/arrivals' => Arrivals::admin(),
         $route === 'POST /arrivals' => Arrivals::record(Http::body()),
         $route === 'GET /admin/roles' => Admin::roles(),

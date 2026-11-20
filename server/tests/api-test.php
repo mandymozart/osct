@@ -2341,6 +2341,7 @@ try {
         ['GET', '/user/tokens', null], ['POST', '/user/tokens', ['name' => 'Another']], ['POST', "/user/tokens/{$made['apiToken']['id']}/renew", null],
         ['DELETE', "/user/tokens/{$made['apiToken']['id']}", null], ['PUT', '/user/password', ['password' => 'from the robot']], ['DELETE', '/user', null],
         ['GET', '/admin/users', null], ['GET', '/admin/roles', null], ['POST', '/admin/editors', ['email' => 'robot@example.com']],
+        ['POST', '/admin/rename-ids', ['apply' => false]],
         // Consent (the update options) and the language are the person's own (#203, RULES #33)
         ['PATCH', '/user', ['options' => ['buildingfictions' => true], 'language' => 'nl']], ['PATCH', '/user', ['language' => 'nl']],
     ];
@@ -2815,6 +2816,28 @@ try {
     [$status, $data] = call($idsApi, 'GET', '/editor/experiences/osct', null, $idsSession);
     $opened = $status === 200 ? array_column($data['scenes'], null, 'id') : [];
     check($status === 200 && isset($opened['s4-5']) && ($opened['s4-5']['entries'][0]['id'] ?? null) === 'p4-1', 'the renamed experience opens in the editor (s4-5 holds p4-1)');
+    // The same from the admin page (POST /admin/rename-ids – a host without a shell)
+    [$status, $data] = call($idsApi, 'POST', '/admin/rename-ids', ['apply' => false], $idsSession);
+    check($status === 403 && $data['error']['role'] === 'admin', 'admin/rename-ids: an editor is no admin → 403');
+    $idsDb = connect('ids');
+    $idsDb->exec("INSERT INTO user_roles (user_id, role_id, granted_at) VALUES ('ui', 3, '2026-01-01 00:00:00')");
+    $idsDb->exec("INSERT INTO experiences (id, title, experience_json, initial_scene, files_json, content_schema, created_at, updated_at) VALUES ('more', 'More', '{}', 's007', '{}', '4.0', '2026-01-01 00:00:00', '2026-01-01 00:00:00')");
+    $idsDb->exec("INSERT INTO scenes (experience_id, id, position, label, data_json) VALUES ('more', 's007', 0, '7', " . $q(['id' => 's007', 'label' => '7', 'surfaces' => [$surface('surface')]]) . ')');
+    $idsDb = null;
+    $before = $idsSnapshot();
+    [$status, $data] = call($idsApi, 'POST', '/admin/rename-ids', ['apply' => false], $idsSession);
+    $reported = $status === 200 ? array_column($data['experiences'], null, 'experience') : [];
+    check($status === 200 && $idsSnapshot() === $before && $data['apply'] === false && $data['refused'] === 1
+        && $reported['osct']['ids'] === 0 && $reported['more']['ids'] === 1 && $reported['more']['samples'] === [['from' => 's007', 'to' => 's7']]
+        && $reported['more']['rows'] === ['experiences' => 1, 'scenes' => 1] && $reported['clash']['collisions'] === ['scene s004-005 → s4-5: s4-5 exists already']
+        && $data['plugins'] === ['osct: code'], 'admin/rename-ids dry run: the report as JSON, nothing written');
+    [$status, $data] = call($idsApi, 'POST', '/admin/rename-ids', ['apply' => 'yes'], $idsSession);
+    check($status === 400, 'admin/rename-ids needs apply true or false → 400');
+    [$status] = call($idsApi, 'POST', '/admin/rename-ids', ['apply' => false, 'experience' => 'nothing'], $idsSession);
+    check($status === 404, 'admin/rename-ids of an unknown experience → 404');
+    [$status, $data] = call($idsApi, 'POST', '/admin/rename-ids', ['apply' => true, 'experience' => 'more'], $idsSession);
+    check($status === 200 && $data['experiences'][0]['applied'] === true
+        && connect('ids')->query("SELECT id FROM scenes WHERE experience_id = 'more'")->fetchColumn() === 's7', 'admin/rename-ids apply: renamed');
 
     echo "logout, delete\n";
     [$status] = call($api, 'POST', '/auth/logout', null, $secondSession);

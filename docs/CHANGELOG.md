@@ -19,6 +19,9 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   file paths, published versions and plugin code alone and refuses an experience with a collision (docs/server.md
   "Ids without leading zeros"). **Readers' progress starts over** once it has run: progress is keyed by the ids
   (RULES #10) – on staging only, no reader in production yet.
+- **Admin page: Ids without leading zeros (#63)** – a Dry run button and an Apply button (only after a dry run without
+  collisions, with a confirm) for the same rename on a host without a shell, through the new admin-only route
+  `POST /api/admin/rename-ids { apply, experience? }`.
 
 ## 3.9.0 – 2026-11-20
 

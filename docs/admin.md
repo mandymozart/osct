@@ -43,6 +43,11 @@ no admin sees "No admin access" at `/editor/admin`.
   an account that signs in with a code by e-mail, like every reader.
 - An admin may give up their own admin role (after a confirm), unless they are the **last admin** (409 `last-admin`):
   make another admin first. A revoked role is gone at the user's next request; their own roles reload on the page.
+- **Ids without leading zeros (#63)** (at the bottom, one-off) – renames the database's zero-padded ids (`s004-005` →
+  `s4-5`, `p004-1` → `p4-1`) through `POST /api/admin/rename-ids` ([server](server.md#ids-without-leading-zeros-63)),
+  for a host without a shell. **Dry run** shows per experience how many ids, the rows per table, a sample and any
+  collision, and the plugin code that names a padded id; **Apply** is enabled only after a dry run with ids to rename and
+  no collision, and asks first – readers' progress starts over (`editor/src/lib/RenameIdsSection.svelte`).
 
 The reader's preferences stay where they are (Info → Account): the page shows them, it does not change them. The
 update option (`buildingfictions`, news from Building Fictions – #325 merged the earlier three: experience, artist,

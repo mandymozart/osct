@@ -250,6 +250,7 @@ secret or a session without the role → 403 `forbidden`. `POST /admin/migrate` 
 | `GET /admin/users.csv?newsletter=1&option=` | | the same users as CSV (`email, language, buildingfictions, createdAt`), `Content-Disposition: attachment` – the newsletter list for the mailing tool; `option=buildingfictions` narrows to that option |
 | `PUT /admin/users/{id}/roles/{role}` | | `{ changed, user }` – grants the role (`changed: false` when the user had it); 404 `not-found` / `unknown-role`, 400 `invalid-role` for `reader` |
 | `DELETE /admin/users/{id}/roles/{role}` | | `{ changed, user }` – revokes it; 409 `last-admin` when the last admin would go |
+| `POST /admin/rename-ids` | `{ apply, experience? }` | `{ apply, experiences: [{ experience, ids, samples: [{ from, to }], rows: { table: n }, collisions, applied }], plugins, refused }` – the one-off rename of padded ids (#63, [Ids without leading zeros](#ids-without-leading-zeros-63)); `apply: false` writes nothing; 404 for an unknown `experience` |
 | `POST /admin/editors` | `{ email }` | `{ user, created, changed }` – gives the user the role `editor`, creating the user (confirmed, `en`, no options) when the address is new |
 | `POST /admin/migrate` | header `X-Admin-Secret: SECRET` only | `{ statements }` – creates missing tables and columns (the container does this at every start) |
 | `GET /admin/arrivals?days=30` | | `{ days, from, to, sources: [{ source, arrivals, firstArrivals, devices: { phone, tablet, desktop }, firstDay, lastDay, recent: [{ day, arrivals }] }] }` – the arrivals by source ([Arrivals](#arrivals)): every source ever counted, most arrivals first; the totals over all time, `recent` the last `days` days (1–366, days without arrivals left out) |
@@ -771,7 +772,8 @@ each plugin source that still says `"book"`, for its author to re-save with `"ex
 The delivery import wrote zero-padded ids (`s004-005`, `p004-1`); since #63 it writes `s4-5`, `s4`, `p4-1`. The ids in
 the database are renamed **once, by hand – never by `Db::migrate` or a deploy**: `server/deploy/rename-ids.php`
 (`IdRename.php`; in the image `/opt/osct/rename-ids.php`, e.g. `kamal app exec -d staging 'php /opt/osct/rename-ids.php
---dry-run'`).
+--dry-run'`) – or, on a host without a shell (the FTPS staging), from the editor's admin page: `POST /admin/rename-ids
+{ apply, experience? }` (admins and the admin secret; an AI connection's token → 403) answers the same report as JSON.
 
 ```
 php server/deploy/rename-ids.php --dry-run [--experience ID]   rows per table, a sample of renames, collisions – writes nothing
