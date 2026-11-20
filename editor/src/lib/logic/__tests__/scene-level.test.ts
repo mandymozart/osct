@@ -2,8 +2,26 @@ import { describe, expect, it } from "vitest";
 import type { EntityData, PluginData } from "@engine/types";
 import { layoutLogic } from "../layout";
 import { pluginCodeUses } from "../plugin-code";
-import { conditionWords, type LogicScene, type LogicTarget } from "../project";
-import { sceneLogic, type LogicGraph } from "../scene";
+import { conditionWords, project, type LogicContent, type LogicScene, type LogicTarget } from "../project";
+
+/** The scene level as plain boxes and `from → to` wires (each pair and word once), the shape these tests read */
+interface LogicGraph {
+  nodes: Array<{ id: string; kind: string; label: string; detail: string; pick: unknown; problem?: string }>;
+  edges: Array<{ from: string; to: string; label: string }>;
+  problems: string[];
+}
+const sceneLogic = (content: LogicContent, sceneId: string): LogicGraph => {
+  const view = project(content, { level: "scene", scene: sceneId });
+  const edges: LogicGraph["edges"] = [];
+  for (const e of view.edges) {
+    if (!edges.some(known => known.from === e.from[0] && known.to === e.to[0] && known.label === e.label)) edges.push({ from: e.from[0], to: e.to[0], label: e.label });
+  }
+  return {
+    nodes: view.nodes.map(({ id, kind, label, detail, pick, problem }) => ({ id, kind, label, detail, pick, ...(problem ? { problem } : {}) })),
+    edges,
+    problems: view.problems.map(p => p.message),
+  };
+};
 
 // The demo experience's two scenes (fixtures/demo): the key sets hasKey and emits keyRattled; the door shows its hint,
 // and with hasKey hides it and emits openDoor – the door plugin hears it, sets doorOpen and emits doorOpened

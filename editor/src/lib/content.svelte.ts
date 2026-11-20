@@ -1,5 +1,5 @@
-import { getExperience as getConfigExperience, getConfigVersion, getPlugins, getSkippedFeatures, getScenes, loadGameConfiguration, type SkippedFeature } from "@engine/content/game-config";
-import type { ExperienceAppearance, ErrorInfo, PassData, Scene } from "@engine/types";
+import { getExperience as getConfigExperience, getConfigVersion, getGroups, getPlugins, getSkippedFeatures, getScenes, loadGameConfiguration, type SkippedFeature } from "@engine/content/game-config";
+import type { ExperienceAppearance, ErrorInfo, GroupData, PassData, Scene } from "@engine/types";
 import { authFetch, draftBaseUrl, getExperience } from "./api";
 import { adoptRecordedSpecs } from "#lib/plugins/recorded.js";
 import { plugins } from "./plugins.svelte";
@@ -15,6 +15,8 @@ import type { ContentSnapshot } from "#lib/stage/frame-protocol.js";
 class Content {
   experienceId = $state<string | null>(null);
   scenes = $state<Scene[]>([]);
+  /** The draft's groups (`GameConfiguration.groups`): the labels the scenes name (`Scene.group`) – the Logic panel's group level */
+  groups = $state<GroupData[]>([]);
   /** The experience's post-processing (`experience.passes`, the master of every scene without its own); null = the experience has none */
   experiencePasses = $state<PassData[] | null>(null);
   /** How the experience's entities appear (`experience.appearance`, #265): a look per moment; null = the experience names none */
@@ -56,6 +58,7 @@ class Content {
       this.experienceId = experienceId;
       this.error = error;
       this.scenes = error ? [] : getScenes();
+      this.groups = error ? [] : getGroups();
       this.experiencePasses = error ? null : getConfigExperience().passes ?? null;
       this.experienceAppearance = error ? null : getConfigExperience().appearance ?? null;
       this.hash = error ? null : getConfigVersion().hash ?? null;

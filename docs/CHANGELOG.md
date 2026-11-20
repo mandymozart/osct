@@ -7,6 +7,19 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **Editor – navigating the logic** (#334 L-T3): the Logic panel shows the experience's logic one level at a time – the
+  experience, a group, a scene, a target's entity. A double-click, Enter or a box's arrow opens a level, the breadcrumb and
+  ↑ / Backspace go back up, a stub at the level's border goes to its far end, and a search finds any box of the experience
+  and its scenes. The stage follows (entering a scene opens it, entering an entity selects its node) and, with *Follow* on,
+  the view follows a selection made elsewhere. The level is kept in the URL as `?logic=` (`experience`, `group:<id>`,
+  `scene:<id>`, `entity:<scene>:<target>[:<path>]`, replaced in place – no history entry per step), so a reload or a
+  link lands on it. The graph is drawn with `@xyflow/svelte` as the rendering layer only (pan, zoom, fit; loaded on first
+  use), ports and wires distinguished by shape and dash. An event between two scenes is drawn as *never fires*: the engine
+  builds only the open scene's rules.
+
 ## 3.19.1 – 2026-11-20
 
 ### Changed
