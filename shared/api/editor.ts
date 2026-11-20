@@ -7,7 +7,7 @@
 import type { ExperienceAppearance } from "../types/appearance";
 import type { ContentManifest } from "../types/content-manifest";
 import type { EnvironmentData } from "../types/environment";
-import type { ExperienceData, EntityData, EntryData, GameConfiguration, GroupData, PassData, RecognitionMode, SceneData, SurfaceData, TargetData } from "../types/game-config";
+import type { ExperienceData, EntityData, EntryData, GameConfiguration, GroupData, LogicData, PassData, RecognitionMode, SceneData, SurfaceData, TargetData } from "../types/game-config";
 import type { AssetKind, SourceTypes } from "./rules";
 
 // ── Experiences ──────────────────────────────────────────────────────────────────────────────────────────
@@ -507,6 +507,15 @@ export interface ExperiencePassesSaved {
 /** `PUT /editor/experiences/{id}/appearance`: the experience's looks by moment, null when removed (the default look plays everywhere) */
 export interface ExperienceAppearanceSaved {
   appearance: ExperienceAppearance | null;
+}
+
+/**
+ * `PUT /editor/experiences/{id}/logic` { logic: LogicData | null } (content schema 5.0, #334): the experience's rules with
+ * their canvas, null when removed. A scene's rules go with `PUT …/scenes/{sid}` { logic } (the answer's `scene` carries
+ * them). Change kind `logic`. 400 `invalid-logic` (a scene's: `invalid-scene`) names a shape the API refuses.
+ */
+export interface ExperienceLogicSaved {
+  logic: LogicData | null;
 }
 
 /** `PUT /editor/experiences/{id}/environment`: the experience's environment, null when removed (the default applies) */

@@ -39,7 +39,7 @@ function lastCode(log: string): string | null {
 const PLACE = { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 };
 /** A small 4.0 configuration: a cover and a double page, one surface each */
 const CONFIGURATION = {
-  version: { version: "1.0.0", timestamp: "2026-10-29T00:00:00Z", hash: "ab".repeat(32), schema: "4.0" },
+  version: { version: "1.0.0", timestamp: "2026-10-29T00:00:00Z", hash: "ab".repeat(32), schema: "5.0" },
   experience: { id: "osct", title: "Test Experience", book: { author: "Someone" } },
   initialScene: "s1",
   scenes: [
@@ -192,7 +192,7 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     const first = await call("import_experience", args);
     expect(first.ok).toBe(true);
     expect(first.data.imported).toBe(false);
-    expect(first.data.comparison).toMatchObject({ experience: { id: "osct", title: "Test Experience" }, incoming: { build: "abababababab", appVersion: "1.0.0", schema: "4.0" }, draft: { basedOn: { build: "abababababab", importedBy: "editor@example.test" }, edits: 0 }, same: true });
+    expect(first.data.comparison).toMatchObject({ experience: { id: "osct", title: "Test Experience" }, incoming: { build: "abababababab", appVersion: "1.0.0", schema: "5.0" }, draft: { basedOn: { build: "abababababab", importedBy: "editor@example.test" }, edits: 0 }, same: true });
     expect(first.data.confirmation.id).toMatch(/^[0-9]{10}[.][0-9a-f]{32}$/);
     const second = await call("import_experience", { ...args, confirm: first.data.confirmation.id });
     expect(second.ok).toBe(true);
@@ -321,7 +321,7 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     const readerReads = async () => {
       const draft = (await call("get_draft", { experience: "osct" })).data.configuration;
       expect(() => assertGameConfiguration(draft, { unknownComponentTypes: "allow" }), JSON.stringify(draft.scenes)).not.toThrow();
-      expect(draft.version.schema).toMatch(/^4\./);
+      expect(draft.version.schema).toMatch(/^5./);
       return draft;
     };
     await readerReads();
