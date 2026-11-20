@@ -38,6 +38,7 @@ export * from "./plugins";
 export * from "./node-types";
 export * from "./subtitles";
 export * from "./materials";
+export * from "./spec-builders";
 
 /**
  * Node types of an entity (extensible, RULES #7): what is seen – a model, a video or image plane, a line of text,
@@ -98,10 +99,18 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * language's literal `"calm"`), and variables are typed – declared in the experience's optional `variables` or inferred
  * from their first set (`./variables.ts`). 4.x content is not read (its conditions have the old shape):
  * the content build converts a content folder (`npm run convert:5`), the server migrates its rows (`Migration5.php`).
+ *
+ * **5.1** (#334 L-T6, §5.9 – plugin API 3.1): ports from the specs. A spec a plugin registers (component, node type, pass,
+ * material, texture, look) may declare `actions` (the rule verbs it answers), `events` (the scene events it emits) and
+ * `uses` (what its code hears, emits, reads and sets – `SpecLogic`, `./components.ts`); the build records them in the
+ * plugin's `registered`. A number parameter may carry `slider` (its soft range) and `integer`. A logic canvas may carry
+ * `exposed` (the ports an author exposed per box, `./logic.ts`). The built-in node types have specs for the Logic view
+ * (`BUILT_IN_NODE_SPECS`, `./node-types.ts`). An app of 5.0 ignores the new spec fields (it reads a recorded spec's
+ * kinds and params only) and never sees a canvas (a reader's configuration carries none).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "5.0";
+export const CONTENT_SCHEMA_VERSION = "5.1";
 /** The oldest content schema MAJOR this contract reads – 5: no 4.x content is read (5.0 reshaped every rule's `when`) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 5;
 

@@ -199,7 +199,7 @@
         <ColourField value={String(passValue(pass, row))} label={row.label} onchange={hex => set(i, row, hex)} />
       {:else}
         <span class="w"><ScrubNumber value={Number(passValue(pass, row))} min={row.min} max={row.max} step={row.step} fallback={Number(row.default)}
-          unit={row.unit ?? ""} label={row.label} strict={row.strict} oninput={v => set(i, row, v)} /></span>
+          unit={row.unit ?? ""} label={row.label} strict={row.strict} integer={row.integer} oninput={v => set(i, row, v)} /></span>
       {/if}
     </div>
   {/each}

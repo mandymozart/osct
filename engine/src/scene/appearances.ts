@@ -18,7 +18,7 @@ import { type AppearanceSpec, type Moment, registerAppearanceSpec, unregisterApp
  */
 
 /** What a look's factory gets, once per animation */
-export interface AppearanceContext {
+export interface AppearanceContext<P = Record<string, unknown>> {
   /**
    * The entity on its anchor – its whole node tree. Its position, rotation and scale are its placement; whatever the
    * look sets on them is put back when the animation ends
@@ -27,7 +27,7 @@ export interface AppearanceContext {
   /** The target's anchor: the page – x to the right, y to the top of the page, z out of it, 1 unit = the target's width */
   anchor: Object3D;
   /** The look's parameters with the spec's defaults filled in */
-  params: Record<string, unknown>;
+  params: P;
   /** What happens: the first find (`reveal`), a later one (`found`), the page is lost (`lost`) */
   moment: Moment;
   /** The app's three.js (one instance – a plugin never imports three itself) */
@@ -52,7 +52,7 @@ export interface AppearanceRun {
   dispose?(): void;
 }
 
-export type AppearanceFactory = (context: AppearanceContext) => AppearanceRun;
+export type AppearanceFactory<P = Record<string, unknown>> = (context: AppearanceContext<P>) => AppearanceRun;
 
 export interface AppearanceRegistration {
   owner: string;

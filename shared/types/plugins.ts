@@ -20,7 +20,11 @@
  * (was `spread`), a target's and an entry's `sceneId` (was `spreadId`), `progress.completion(sceneId?)` / `counts(sceneId?)`,
  * the AR scene's state event `arState` (was `sceneState`) – a plugin built against 1.x is not loaded until it is built again.
  * **3.0** (#320, no alias): the variable scope `experience` (was `book`) in `api.vars.get/set/all`, behaviour rules' `scope`
- * and `varChanged` – a plugin built against 2.x is not loaded until it is built again.
+ * and `varChanged` – a plugin built against 2.x is not loaded until it is built again. **3.1** (content schema 5.1, #334
+ * L-T6): `api.p` – typed parameter builders (`./spec-builders.ts`) that write the same parameter objects; the register
+ * functions infer a handler's `params` from the spec; a spec's optional `actions`, `events` and `uses` (`SpecLogic`,
+ * `./components.ts`) – a handler's `emit` for the declared events and an instance's `onAction` for the declared verbs; a
+ * number parameter's `slider` (soft range) and `integer`.
  *
  * What a plugin registers is recorded by the content build (content schema 2.14, #90): it runs every plugin once with a
  * recording API and writes the specs into the plugin's `registered` – so the guard, the editor's API, the MCP server and
@@ -29,16 +33,20 @@
  * unknown until it runs: the guard then lets a type it may register pass.
  */
 
-import { componentSpecProblems, type ComponentSpec } from "./components";
+import { componentSpecProblems, declaresLogic, type ComponentSpec, type SpecLogic } from "./components";
 import { nodeTypeSpecProblems, type NodeTypeSpec } from "./node-types";
 import { type AppearanceSpec, isBuiltInAppearanceType } from "./appearance";
 import { isBuiltInPassType, type PassSpec } from "./passes";
 import { materialSpecProblems, textureSpecProblems, type MaterialSpec, type TextureSpec } from "./materials";
 import { isObject } from "../guards/primitives";
 
-export const PLUGIN_API_VERSION = "3.0";
+export const PLUGIN_API_VERSION = "3.1";
 
-/** What a plugin registered, as the content build recorded it (schema 2.14); a missing kind = none of it */
+/**
+ * What a plugin registered, as the content build recorded it (schema 2.14); a missing kind = none of it. Since schema 5.1
+ * every spec carries what it declares beyond its parameters – `actions`, `events`, `uses` (`SpecLogic`) – checked by the
+ * same spec checks
+ */
 export interface PluginRegistrations {
   /** Its components and material layers (both are components in the content), type → spec */
   components?: Record<string, ComponentSpec>;
@@ -159,6 +167,31 @@ export const recordedRegistrations = (plugins: unknown): RecordedRegistrations =
     }
   }
   return recorded as RecordedRegistrations;
+};
+
+/** A plugin's bus use as its specs declare it: event names heard and emitted, variable names read and set */
+export interface DeclaredUses {
+  hears: string[];
+  emits: string[];
+  reads: string[];
+  sets: string[];
+}
+
+/**
+ * What a plugin's recorded specs declare of the bus and the variables (schema 5.1): every spec's `uses`, its `events`
+ * counted as emitted – sorted, each once. Null when none of its specs declares any logic (`actions`, `events`, `uses`):
+ * then only its code says (the editor reads the source)
+ */
+export const declaredUses = (registered: PluginRegistrations | undefined): DeclaredUses | null => {
+  const specs = KINDS.flatMap(kind => Object.values((registered?.[kind] ?? {}) as Record<string, SpecLogic>)).filter(isObject) as SpecLogic[];
+  if (!specs.some(declaresLogic)) return null;
+  const all = (pick: (spec: SpecLogic) => readonly string[] | undefined) => [...new Set(specs.flatMap(spec => [...(pick(spec) ?? [])]))].sort();
+  return {
+    hears: all(spec => spec.uses?.hears),
+    emits: all(spec => [...(spec.uses?.emits ?? []), ...(spec.events ?? [])]),
+    reads: all(spec => spec.uses?.reads),
+    sets: all(spec => spec.uses?.sets),
+  };
 };
 
 /** Can this engine run a plugin built against `api`? The same MAJOR (RULES #10's rule, for the API) */

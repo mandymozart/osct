@@ -18,8 +18,12 @@
    * flow. While `editable` is off (the experience and group levels, another scene) nothing connects, is selected or deleted.
    * The panel imports this component lazily, so the editor's first load does not carry xyflow. A wire's signal is its dash,
    * never a colour (RULES #38); a wire that never fires (an event between two scenes) is dotted and thin.
+   *
+   * While a wire is dragged (L-T6, B8), every handle that would take it is drawn heavy and the rest fade (`takesfrom`, asked
+   * once when the drag starts); a wire let go over a handle that refuses it is reported (`onrefused`), so the panel can say
+   * why. A box's + reports `onexpose`.
    */
-  let { flow, level, selected, flash, editable, onpick, onenter, canconnect, onconnect, onselect, onmenu }: {
+  let { flow, level, selected, flash, editable, onpick, onenter, canconnect, onconnect, onselect, onmenu, takesfrom, onrefused, onexpose }: {
     flow: Flow;
     /** The level's key: a new level fits the view again */
     level: string;
@@ -35,7 +39,17 @@
     onselect: (boxes: string[], edges: string[]) => void;
     /** A right click (or a long press): where, and on what */
     onmenu: (at: { x: number; y: number }, target: CanvasTarget) => void;
+    /** The handles that take a wire dragged from this port, by box id (handle ids, `in:act:play`) */
+    takesfrom: (from: [string, string], dir: "in" | "out") => Map<string, Set<string>>;
+    /** A wire let go over a handle that does not take it: the panel says why */
+    onrefused: (from: [string, string], to: [string, string]) => void;
+    /** A box's +: show one of its hidden ports */
+    onexpose: (box: FlowBox, at: { x: number; y: number }) => void;
   } = $props();
+
+  /** While a wire is dragged: the handles that take it, by box */
+  let dragging = $state.raw<Map<string, Set<string>> | null>(null);
+  const NONE: ReadonlySet<string> = new Set();
 
   let hovered = $state<string | null>(null);
   // Another level: nothing is lit (the box under the pointer went away without a leave)
@@ -46,7 +60,7 @@
   const nodeTypes = { logic: LogicBox };
 
   // A box hovered on the level before (it went away under the pointer) lights nothing here
-  const lit = $derived(hovered && flow.boxes.some(b => b.id === hovered) ? new Set(flow.wires.filter(w => w.source === hovered || w.target === hovered).flatMap(w => [w.source, w.target])) : null);
+  const lit = $derived(!dragging && hovered && flow.boxes.some(b => b.id === hovered) ? new Set(flow.wires.filter(w => w.source === hovered || w.target === hovered).flatMap(w => [w.source, w.target])) : null);
 
   /** What is selected on the canvas, kept across a new flow (a hover or an op draws the boxes again) */
   let chosen = $state<{ nodes: Set<string>; edges: Set<string> }>({ nodes: new Set(), edges: new Set() });
@@ -63,7 +77,10 @@
     nodes = flow.boxes.map(box => ({
       id: box.id, type: "logic", position: { x: box.x, y: box.y }, draggable: false, connectable: editable && !box.stub, selectable: editable && !box.stub,
       selected: chosen.nodes.has(box.id),
-      data: { box, selected: selected(box), flash: flash === box.id, dim: !!lit && !lit.has(box.id), never: neverBox.has(box.id), editable, onpick, onenter },
+      data: {
+        box, selected: selected(box), flash: flash === box.id, dim: !!lit && !lit.has(box.id), never: neverBox.has(box.id), editable,
+        takes: dragging ? dragging.get(box.id) ?? NONE : null, onpick, onenter, onexpose,
+      },
     }));
     edges = flow.wires.map(w => ({
       id: w.id, source: w.source, target: w.target, sourceHandle: w.sourcePort, targetHandle: w.targetPort, label: w.never ? `${w.label} · never fires` : w.label,
@@ -77,6 +94,12 @@
   const ends = (c: { source: string; target: string; sourceHandle?: string | null; targetHandle?: string | null }): [[string, string], [string, string]] =>
     [[c.source, portOf(c.sourceHandle)], [c.target, portOf(c.targetHandle)]];
   const wireOf = (id: string) => flow.wires.find(w => w.id === id);
+  /** The handle under the pointer where a drag ended (a touch: where the finger left) */
+  const handleAt = (e: MouseEvent | TouchEvent): { nodeId: string; id: string | null } | null => {
+    const at = "clientX" in e ? { x: e.clientX, y: e.clientY } : { x: e.changedTouches[0]?.clientX ?? 0, y: e.changedTouches[0]?.clientY ?? 0 };
+    const handle = document.elementFromPoint(at.x, at.y)?.closest<HTMLElement>(".svelte-flow__handle");
+    return handle?.dataset.nodeid ? { nodeId: handle.dataset.nodeid, id: handle.dataset.handleid ?? null } : null;
+  };
   const point = (e: MouseEvent | TouchEvent) => ("clientX" in e ? { x: e.clientX, y: e.clientY } : { x: e.touches[0]?.clientX ?? 0, y: e.touches[0]?.clientY ?? 0 });
   /** The canvas's selection is kept here, not by xyflow: a new flow (a hover, an op) draws the boxes again and keeps it */
   const choose = (nodeIds: string[], edgeIds: string[]) => {
@@ -92,6 +115,16 @@
       deleteKey={null} selectionKey={null} multiSelectionKey={editable ? "Shift" : null}
       isValidConnection={c => editable && canconnect(...ends(c))}
       onbeforeconnect={c => { onconnect(...ends(c)); return false; }}
+      onconnectstart={(_, p) => { if (editable && p.nodeId && p.handleId) dragging = takesfrom([p.nodeId, portOf(p.handleId)], p.handleType === "target" ? "in" : "out"); }}
+      onconnectend={(event, state) => {
+        dragging = null;
+        const from = state.fromHandle;
+        // xyflow names no handle it would not take: the one under the pointer is where the wire was let go
+        const to = state.toHandle ?? handleAt(event);
+        if (editable && state.isValid !== true && from?.nodeId && to?.nodeId && `${to.nodeId}|${to.id}` !== `${from.nodeId}|${from.id}`) {
+          onrefused([from.nodeId, portOf(from.id)], [to.nodeId, portOf(to.id)]);
+        }
+      }}
       onbeforedelete={async () => false}
       onnodeclick={({ node, event }) => {
         if (editable && !node.id.startsWith("stub:")) choose(event.shiftKey ? [...chosen.nodes, node.id] : [node.id], event.shiftKey ? [...chosen.edges] : []);
@@ -122,6 +155,7 @@
   .flow :global(.logic-wire.sig-value path.svelte-flow__edge-path) { stroke-dasharray: 6 3; }
   .flow :global(.logic-wire.sig-node path.svelte-flow__edge-path) { stroke-dasharray: 1.5 2.5; }
   .flow :global(.logic-wire.sig-scene path.svelte-flow__edge-path), .flow :global(.logic-wire.sig-address path.svelte-flow__edge-path) { stroke-dasharray: 8 3 2 3; }
+  .flow :global(.logic-wire.sig-media path.svelte-flow__edge-path) { stroke-width: 3; }
   .flow :global(.logic-wire.never path.svelte-flow__edge-path) { stroke-dasharray: 1 4; stroke-width: 1; }
   .flow :global(.logic-wire.lit path.svelte-flow__edge-path) { stroke: var(--text); stroke-width: 2; }
   .flow :global(.logic-wire.selected path.svelte-flow__edge-path) { stroke: var(--text); stroke-width: 2.5; }

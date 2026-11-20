@@ -35,10 +35,15 @@ import { CAMEL_CASE_NAME, isObject } from "../guards/primitives";
  * 1.7) takes a model file: a Library model's URL or a `/assets/content/…` path (in the content's YAML a `.glb` / `.gltf`
  * next to the node, which the content build resolves to its path), `""` = none – its value is that string, and the
  * plugin's code loads it with `api.loadModel(value)`.
+ *
+ * A number's `min` and `max` are **hard** limits: the guard and the editor refuse a value outside them, the engine keeps the
+ * value it had (a warning). Schema 5.1 (#334, plugin API 3.1): its optional `slider` `[lo, hi]` is the **soft** range – the
+ * span the editor's control offers first, inside min … max – and `integer: true` takes whole numbers only (min, max and
+ * default whole too). The plugin API's builders (`api.p`, `./spec-builders.ts`) write these objects.
  */
 export type ComponentParamSpec = ParamText & (
   | { kind: "color"; default: string }
-  | { kind: "number"; default: number; min: number; max: number; step?: number; unit?: string }
+  | { kind: "number"; default: number; min: number; max: number; step?: number; unit?: string; slider?: readonly [number, number]; integer?: boolean }
   | { kind: "choice"; options: readonly string[]; default: string }
   | { kind: "boolean"; default: boolean }
   | { kind: "string"; default: string }
@@ -109,7 +114,87 @@ export const paramWords = (name: string): string =>
 /** What the editor's row shows for a parameter: its spec's label, else its name as words */
 export const paramLabel = (name: string, spec?: { label?: string }): string => spec?.label?.trim() || paramWords(name);
 
-export interface ComponentSpec {
+/**
+ * What a spec says beyond its parameters (schema 5.1, #334, plugin API 3.1) – what the editor's Logic view draws as ports:
+ * - `actions`: the rule verbs it answers on its node (`play`, `pause`, `stop`, `show`, `hide` – `SPEC_ACTIONS`): a rule's
+ *   `play: <node>` reaches the component's `onAction("play")` beside the node's own clip;
+ * - `events`: the scene events it emits (`ended`) – through its context's `emit`, on the bus by name;
+ * - `uses`: what its code hears, emits, reads and sets of the bus and the variables, by name – the Logic view joins it to
+ *   the rules (it reads the plugin's source only for a plugin that declares nothing).
+ * The names are camelCase; an action is one of the node verbs, an event never a core event. An older app ignores the fields.
+ */
+export interface SpecLogic {
+  actions?: readonly string[];
+  events?: readonly string[];
+  uses?: SpecUses;
+}
+
+/** A spec's bus use: event names it hears and emits, variable names it reads and sets */
+export interface SpecUses {
+  hears?: readonly string[];
+  emits?: readonly string[];
+  reads?: readonly string[];
+  sets?: readonly string[];
+}
+
+/** The rule verbs a spec may answer: the behaviour's node verbs (`./behaviour.ts` `BEHAVIOUR_NODE_ACTIONS`) */
+export const SPEC_ACTIONS = ["play", "pause", "stop", "show", "hide"] as const;
+export type SpecAction = (typeof SPEC_ACTIONS)[number];
+
+/** The engine's core events (`./behaviour.ts` `BEHAVIOUR_CORE_EVENTS`): a spec hears them, never emits them */
+const CORE_EVENT_NAMES = ["targetFound", "targetLost", "targetUnlocked", "targetTapped", "sceneChanged", "arState", "varChanged"];
+/** A node's own events (`./behaviour.ts` `BEHAVIOUR_NODE_EVENTS`): its rules', never a spec's to emit */
+const NODE_EVENT_NAMES = ["found", "lost", "tap", "unlocked"];
+
+/** Problems of a spec's `actions`, `events` and `uses` (any spec: a component's, a node type's, a pass's, a material's …) */
+export const specLogicProblems = (type: string, spec: Record<string, unknown>): string[] => {
+  const problems: string[] = [];
+  const names = (value: unknown, at: string, check?: (name: string) => string | null) => {
+    if (value === undefined) return;
+    if (!Array.isArray(value)) {
+      problems.push(`${at}: expected a list of names`);
+      return;
+    }
+    const seen = new Set<string>();
+    for (const name of value) {
+      if (typeof name !== "string" || !CAMEL_CASE_NAME.test(name)) {
+        problems.push(`${at}: ${JSON.stringify(name)} is no name (camelCase letters and digits)`);
+        continue;
+      }
+      if (seen.has(name)) problems.push(`${at}: ${name} is listed twice`);
+      seen.add(name);
+      const problem = check?.(name);
+      if (problem) problems.push(`${at}: ${problem}`);
+    }
+  };
+  const notCore = (name: string) => (CORE_EVENT_NAMES.includes(name) ? `${name} is the engine's own event – a spec hears it, never emits it` : null);
+  names(spec.actions, `${type}.actions`, name => ((SPEC_ACTIONS as readonly string[]).includes(name) ? null : `${name} is no rule verb a node answers (${SPEC_ACTIONS.join(", ")})`));
+  names(spec.events, `${type}.events`, name => notCore(name) ?? (NODE_EVENT_NAMES.includes(name) ? `${name} is a node's own event – a spec emits scene events` : null));
+  if (spec.uses !== undefined) {
+    if (!isObject(spec.uses)) problems.push(`${type}.uses: expected { hears?, emits?, reads?, sets? }`);
+    else {
+      const uses = spec.uses;
+      Object.keys(uses).filter(key => !["hears", "emits", "reads", "sets"].includes(key)).forEach(key => problems.push(`${type}.uses.${key}: unknown field (hears, emits, reads, sets)`));
+      names(uses.hears, `${type}.uses.hears`);
+      names(uses.emits, `${type}.uses.emits`, notCore);
+      names(uses.reads, `${type}.uses.reads`);
+      names(uses.sets, `${type}.uses.sets`);
+    }
+  }
+  return problems;
+};
+
+/** A spec's declared logic as plain lists (missing ones empty) */
+export const specLogicOf = (spec: SpecLogic | undefined): { actions: string[]; events: string[]; hears: string[]; emits: string[]; reads: string[]; sets: string[] } => ({
+  actions: [...(spec?.actions ?? [])], events: [...(spec?.events ?? [])],
+  hears: [...(spec?.uses?.hears ?? [])], emits: [...(spec?.uses?.emits ?? [])], reads: [...(spec?.uses?.reads ?? [])], sets: [...(spec?.uses?.sets ?? [])],
+});
+
+/** Does a spec declare any logic (actions, events or bus use)? */
+export const declaresLogic = (spec: SpecLogic | undefined): boolean =>
+  !!spec && (spec.actions !== undefined || spec.events !== undefined || spec.uses !== undefined);
+
+export interface ComponentSpec extends SpecLogic {
   description: string;
   /** The node types it applies to (none = every type) – built-in types or a plugin's (`registerNodeType`) */
   nodeTypes?: readonly NodeType[];
@@ -211,8 +296,8 @@ export const paramProblems = (specs: Record<string, ComponentParamSpec>, params:
       problems.push(`${at}.${name}: expected a color "#rrggbb", got ${JSON.stringify(value)}`);
     } else if (param.kind === "choice" && !param.options.includes(value as string)) {
       problems.push(`${at}.${name}: expected one of ${param.options.join(", ")}, got ${JSON.stringify(value)}`);
-    } else if (param.kind === "number" && !(typeof value === "number" && value >= param.min && value <= param.max)) {
-      problems.push(`${at}.${name}: expected a number from ${param.min} to ${param.max}, got ${JSON.stringify(value)}`);
+    } else if (param.kind === "number" && numberProblem(param, value)) {
+      problems.push(`${at}.${name}: ${numberProblem(param, value)}`);
     } else if (param.kind === "boolean" && typeof value !== "boolean") {
       problems.push(`${at}.${name}: expected true or false, got ${JSON.stringify(value)}`);
     } else if (param.kind === "string" && typeof value !== "string") {
@@ -225,6 +310,12 @@ export const paramProblems = (specs: Record<string, ComponentParamSpec>, params:
   }
   return problems;
 };
+
+/** Why a value breaks a number parameter's hard limits (min, max, whole), or null */
+export const numberProblem = (param: Extract<ComponentParamSpec, { kind: "number" }>, value: unknown): string | null =>
+  typeof value === "number" && value >= param.min && value <= param.max && (!param.integer || Number.isInteger(value))
+    ? null
+    : `expected ${param.integer ? "a whole number" : "a number"} from ${param.min} to ${param.max}, got ${JSON.stringify(value)}`;
 
 const isColor = (value: unknown) => typeof value === "string" && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value);
 
@@ -240,6 +331,7 @@ export const componentSpecProblems = (type: string, spec: unknown): string[] => 
   const s = spec as Record<string, unknown>;
   if (typeof s.description !== "string") problems.push(`${type}: description must be a string`);
   if (s.nodeTypes !== undefined && !(Array.isArray(s.nodeTypes) && s.nodeTypes.every(t => typeof t === "string"))) problems.push(`${type}: nodeTypes must be a list of node types`);
+  problems.push(...specLogicProblems(type, s));
   if (!isObject(s.params)) return [...problems, `${type}: params must be an object`];
   return [...problems, ...paramSpecProblems(type, s.params)];
 };
@@ -261,11 +353,19 @@ export const paramSpecProblems = (type: string, params: Record<string, unknown>)
     }
     switch (p.kind) {
       case "color": if (!isColor(p.default)) problems.push(`${at}: default must be a color "#rrggbb"`); break;
-      case "number":
+      case "number": {
         if (typeof p.default !== "number" || typeof p.min !== "number" || typeof p.max !== "number" || !(p.min <= p.default && p.default <= p.max)) {
           problems.push(`${at}: a number needs min ≤ default ≤ max`);
+          break;
         }
+        const [min, max, slider] = [p.min, p.max, p.slider];
+        if (slider !== undefined && !(Array.isArray(slider) && slider.length === 2 && slider.every(n => typeof n === "number") && min <= slider[0] && slider[0] < slider[1] && slider[1] <= max)) {
+          problems.push(`${at}: slider is the soft range [lo, hi] with min ≤ lo < hi ≤ max`);
+        }
+        if (p.integer !== undefined && typeof p.integer !== "boolean") problems.push(`${at}: integer must be true or false`);
+        if (p.integer === true && ![min, max, p.default].every(n => Number.isInteger(n))) problems.push(`${at}: an integer needs whole min, max and default`);
         break;
+      }
       case "choice":
         if (!(Array.isArray(p.options) && p.options.length && p.options.every(o => typeof o === "string") && p.options.includes(p.default as string))) {
           problems.push(`${at}: a choice needs options (strings) and a default among them`);
@@ -346,8 +446,9 @@ export const paramProblem = (param: ComponentParamSpec, value: unknown): string 
   if (param.kind === "choice" && !param.options.includes(value as string)) {
     return `expected one of ${param.options.join(", ")}, got ${JSON.stringify(value)}`;
   }
-  if (param.kind === "number" && !(typeof value === "number" && value >= param.min && value <= param.max)) {
-    return `expected a number from ${param.min} to ${param.max}, got ${JSON.stringify(value)}`;
+  if (param.kind === "number") {
+    const problem = numberProblem(param, value);
+    if (problem) return problem;
   }
   if (param.kind === "boolean" && typeof value !== "boolean") return `expected true or false, got ${JSON.stringify(value)}`;
   if (param.kind === "string" && typeof value !== "string") return `expected a string, got ${JSON.stringify(value)}`;

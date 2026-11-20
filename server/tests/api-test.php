@@ -2162,7 +2162,7 @@ try {
     [, $draftNow] = $draftOf();
     $logicScene = (string) $draftNow['scenes'][0]['id'];
     $sceneLogic = ['rules' => [['on' => 'groupTapped', 'when' => 'tapped && !shown', 'do' => [['show' => 'target:racoon/caption'], ['goto' => "scene:$logicScene"]]]],
-        'canvas' => ['notes' => [['id' => 'n1', 'text' => 'A note', 'x' => 1, 'y' => 2.5]], 'folds' => ['rule:0']]];
+        'canvas' => ['notes' => [['id' => 'n1', 'text' => 'A note', 'x' => 1, 'y' => 2.5]], 'folds' => ['rule:0'], 'exposed' => ['node:racoon/0' => ['src', 'p:hum.volume']]]];
     [$status, $data] = call($api, 'PUT', "/editor/experiences/osct/scenes/$logicScene", ['logic' => $sceneLogic], $editor);
     check($status === 200 && ($data['scene']['logic'] ?? null) === $sceneLogic, 'PUT …/scenes/{sid} { logic }: the scene\'s rules stored with their canvas');
     foreach ([
@@ -2173,6 +2173,7 @@ try {
         [['rules' => [['on' => 'ping', 'do' => ['goto' => 'cover']]]], 'scene:<id>', 'a goto that is no scene address'],
         [['rules' => [], 'canvas' => ['notes' => [['id' => 'n']]]], '{ id, text, x, y }', 'a note without its text and place'],
         [['rules' => [], 'view' => 1], 'unknown field of logic', 'a field beside rules and canvas'],
+        [['rules' => [], 'canvas' => ['exposed' => ['node:racoon/0' => ['', 2]]]], 'list of port ids', 'exposed ports that are no port ids (schema 5.1)'],
     ] as [$bad, $words, $what]) {
         [$status, $data] = call($api, 'PUT', "/editor/experiences/osct/scenes/$logicScene", ['logic' => $bad], $editor);
         check($status === 400 && $data['error']['code'] === 'invalid-scene' && str_contains($data['error']['message'], $words), "$what → 400 invalid-scene");
@@ -2992,8 +2993,8 @@ try {
     $experience = json_decode($v3Db->query("SELECT experience_json FROM experiences WHERE id = 'osct'")->fetchColumn(), true);
     check($experience === ['id' => 'osct', 'title' => 'Onion Skin', 'book' => ['author' => 'Kévin Bray', 'publisher' => 'Building Fictions'], 'passes' => []],
         'the experience: author and publisher in book (after the title), no sourceOfTruth');
-    check($v3Db->query("SELECT content_schema FROM experiences WHERE id = 'osct'")->fetchColumn() === '5.0'
-        && $v3Db->query("SELECT content_schema FROM experiences WHERE id = 'wall'")->fetchColumn() === '2.26', 'a 3.0 experience is of the current schema (5.0) now, an older one stays refused');
+    check($v3Db->query("SELECT content_schema FROM experiences WHERE id = 'osct'")->fetchColumn() === '5.1'
+        && $v3Db->query("SELECT content_schema FROM experiences WHERE id = 'wall'")->fetchColumn() === '2.26', 'a 3.0 experience is of the current schema (5.1) now, an older one stays refused');
     check(json_decode($v3Db->query("SELECT experience_json FROM experiences WHERE id = 'wall'")->fetchColumn(), true) === ['id' => 'wall', 'title' => 'A wall', 'book' => ['author' => 'Nobody']],
         'an experience without a publisher: book { author }');
     $sign = json_decode($v3Db->query("SELECT data_json FROM entities WHERE ref = 'sign'")->fetchColumn(), true);
@@ -3026,7 +3027,7 @@ try {
     check($status === 200 && $data['experience']['experience']['book']['author'] === 'Kévin Bray' && count($data['scenes']) === 1 && $data['scenes'][0]['entries'][0]['id'] === 'e1',
         'the migrated experience opens in the editor');
     [$status, $manifest] = call($v3Api, 'GET', '/editor/experiences/osct/draft/latest.json', null, $v3Session);
-    check($status === 200 && $manifest['schema'] === '5.0', 'its draft is of the current content schema (5.0)');
+    check($status === 200 && $manifest['schema'] === '5.1', 'its draft is of the current content schema (5.1)');
     [$status] = call($v3Api, 'GET', '/editor/experiences/wall', null, $v3Session);
     check($status === 409, 'the 2.x experience stays refused (409 old-schema)');
     [$status] = call($oldApi, 'PUT', '/user/password', ['password' => 'a new password'], $oldToken);
@@ -3096,7 +3097,7 @@ try {
     $door = json_decode((string) $first5['entities'][0]['data_json'], true);
     check($door['children'][0]['components'][0] === $expected, 'every condition in a node tree an expression: == / != / && / ||, texts quoted, not set → a truth test, no tests → none, a text kept, an unwritable one kept');
     check($first5['entities'][1]['data_json'] === $before5['entities'][1]['data_json'], 'a row without a rule is not touched');
-    check($first5['experiences'][0]['content_schema'] === '5.0', 'a 4.x experience is of schema 5.0 now');
+    check($first5['experiences'][0]['content_schema'] === '5.1', 'a 4.x experience is of the current schema (5.1) now');
     check(json_decode((string) $first5['experiences'][0]['experience_json'], true)['variables'] === ['mood' => ['type' => 'string', 'scope' => 'stage'], 'tries' => ['type' => 'number']],
         'its variables declared from their sets: a type, the scope when every set names the same one; a conflict not declared');
     $changes5 = array_column($first5['changes'], null, 'id');

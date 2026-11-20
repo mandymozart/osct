@@ -53,8 +53,10 @@ export interface ValueRow {
   min?: number;
   max?: number;
   step?: number;
-  /** A typed number outside min…max is refused (filters); placement takes any finite number (scale > 0) */
+  /** A typed number outside min…max is refused (filters, a spec's hard limits); placement takes any finite number (scale > 0) */
   strict?: boolean;
+  /** Whole numbers only (a spec's `integer`, schema 5.1) */
+  integer?: boolean;
   options?: readonly string[];
   unit?: string;
   /** The row's words (#173): the spec's `label`, else the parameter's name split into words (`paramLabel`) */
@@ -158,10 +160,14 @@ const specRows = (prefix: string, params: Record<string, ComponentParamSpec>): V
       case "string": return { id, kind: "string", default: param.default, label, description: param.description };
       case "texture": return { id, kind: "texture", default: param.default, label, description: param.description };
       case "model": return { id, kind: "model", default: param.default, label, description: param.description };
-      default: return {
-        id, kind: "number", default: param.default, min: param.min, max: param.max, step: param.step ?? (param.max - param.min <= 1 ? 0.001 : 0.01),
-        unit: param.unit, strict: true, label, description: param.description,
-      };
+      default: {
+        // min … max are the hard limits (strict); the soft range (`slider`) only sets the step the control moves by
+        const span = param.slider ? param.slider[1] - param.slider[0] : param.max - param.min;
+        return {
+          id, kind: "number", default: param.default, min: param.min, max: param.max, step: param.step ?? (param.integer ? 1 : span <= 1 ? 0.001 : 0.01),
+          unit: param.unit, strict: true, ...(param.integer ? { integer: true } : {}), label, description: param.description,
+        };
+      }
     }
   });
 
