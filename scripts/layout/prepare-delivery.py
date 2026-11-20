@@ -227,7 +227,7 @@ def assign_ids(triggers: list[dict], entries: dict, all_ids: set[str], layout_ta
         if i in ids:
             continue
         counters[t["page"]] = counters.get(t["page"], 0) + 1
-        ids[i] = f"p{t['page']:03d}-{counters[t['page']]}"
+        ids[i] = f"p{t['page']}-{counters[t['page']]}"
     gone = [entry_id for entry_id in entries if entry_id not in taken and entry_id not in retired]
     return ids, gone
 

@@ -74,8 +74,8 @@ Debug overlay, expanded, under *Scenes loaded ahead*:
 
 ```
 Engine: 5/5 targets ready in 3 scenes
-◉ s010-011 (2) · s012-013 (2) · s008-009 (1)
-preparing: s014-015
+◉ s10-11 (2) · s12-13 (2) · s8-9 (1)
+preparing: s14-15
 ```
 
 ◉ is the current scene. "extracting n s" (orange) while the engine works through new targets. The collapsed line
@@ -139,7 +139,7 @@ overlay. Switches:
 - On the next start (reload): **lens** `main` / `browser` (the old behaviour, to compare), **res** engine /
   1280 × 960 / 1920 × 1440 (`ideal`, so a camera without that size still opens), **ask zoom** (`zoom: true` – Chrome
   then asks for the pan-tilt-zoom permission).
-- **Retest list**: a link `/?retest=p009-1,p013-1,…` (or `osct-camera-retest` in local storage) shows one chip per
+- **Retest list**: a link `/?retest=p9-1,p13-1,…` (or `osct-camera-retest` in local storage) shows one chip per
   target – tap to go to its scene, ✓ once found.
 
 The trial panel keeps its camera row (AF, ◎, zoom step); its `md` report records the camera.
