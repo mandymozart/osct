@@ -62,7 +62,7 @@ export function hintFor(error: ApiError): string {
   if (error.code === "duplicate-id") return "Pick another id, or delete the entry first.";
   if (error.code === "unknown-entity") return "No shared entity with that ref – list them with get_experience or save one with put_entity.";
   if (error.code === "initial-scene") return "The experience opens on this scene – it cannot be removed.";
-  if (error.code === "surfaces-in-use") return "Entries or targets lie on surfaces that would go (entries, targets): show the person – only with their yes call put_scene again with the same arguments and apply: true (the entries stay on the scene without a surface, the targets lose their place).";
+  if (error.code === "surfaces-in-use") return "Entries or targets lie on surfaces that would go (entries, targets): show the person – only with their yes call the same tool (put_scene or put_surface) again with the same arguments and apply: true (the entries stay on the scene without a surface, the targets lose their place).";
   if (error.code === "not-found") return "Nothing with that id here – list_experiences, get_experience and list_assets name what exists.";
   return "";
 }

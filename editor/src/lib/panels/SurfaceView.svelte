@@ -12,11 +12,11 @@
   import { errorText } from "#lib/api.js";
   import { sceneName } from "#lib/scene-strip.js";
   import { pickAccept, type LibraryPick } from "#lib/library-pick.js";
-  import { sameSurfaces, surfaceName, updateSurface, type SurfacePatch } from "#lib/surface-edit.js";
+  import { SURFACE_PRESETS, formatOf, presetSize, sameSurfaces, surfaceName, targetsOutside, updateSurface, type SurfacePatch, type SurfacePreset } from "#lib/surface-edit.js";
   import { arrangeSceneInRow, canArrangeInRow, moveSceneSurface, removeSceneSurface, surfaceRemovalWarning } from "#lib/surface-actions.js";
   import { surfaceMode } from "#lib/surface-mode.svelte.js";
   import { surfaceGrids } from "#lib/surface-grids.svelte.js";
-  import { clampGrid, getPreview, subscribePreview } from "#lib/stage/preview.js";
+  import { clampGrid, clampSubdivisions, getPreview, MAX_SUBDIVISIONS, subscribePreview, type PreviewState } from "#lib/stage/preview.js";
   import { SURFACE_GIZMO_MODES } from "#lib/stage/surface-gizmo.js";
   import { REFERENCE_FITS } from "#lib/stage/surfaces.js";
   import type { SurfaceData, SurfacePlace } from "@shared/types/game-config";
@@ -64,6 +64,15 @@
       if (!sameSurfaces(next, now)) await scenes.putScene(sceneKey, { surfaces: next });
     });
   };
+  // The format (#314): the preset the size is, a choice sets the size; the targets the size leaves outside are flagged
+  const format = $derived<SurfacePreset>(draft ? formatOf(draft) : "custom");
+  const FORMAT_TITLES: Record<SurfacePreset, string> = {
+    double: "A double page: 460 × 320 mm",
+    single: "A single page: 230 × 320 mm",
+    wall: "A wall: 2000 × 1500 mm",
+    custom: "Any other size – set it below",
+  };
+  const outside = $derived(scene && draft ? targetsOutside(scene.entries, draft, scene.surfaces) : []);
   const place = $derived<Required<SurfacePlace>>({ x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, ...(draft?.place ?? {}) });
   const editPlace = (key: keyof SurfacePlace, value: number) => edit({ place: { ...place, [key]: value } });
 
@@ -103,10 +112,16 @@
     stretch: "Stretch: fills the surface as it is",
   };
 
-  // The surface's own grid (#316 part 1): its spacing, else the toolbar's
-  let toolbarGrid = $state(getPreview().gridMm);
-  $effect(() => subscribePreview(state => (toolbarGrid = state.gridMm)));
+  // The surface's own grid (#316, #314): spacing, subdivisions, shown, snap – each its own, else the toolbar's
+  const toolbarOf = (state: PreviewState) => ({ mm: state.gridMm, on: state.grid, snap: state.snapTo.includes("grid") });
+  let toolbarGrid = $state(toolbarOf(getPreview()));
+  $effect(() => subscribePreview(state => (toolbarGrid = toolbarOf(state))));
   const ownGrid = $derived(surfaceGrids.of(sceneId, surfaceId));
+  const grid = $derived({ mm: ownGrid?.mm ?? toolbarGrid.mm, sub: ownGrid?.sub ?? 1, on: ownGrid?.on ?? toolbarGrid.on, snap: ownGrid?.snap ?? toolbarGrid.snap });
+  const GRID_CHOICES = ["toolbar", "on", "off"] as const;
+  const choiceOf3 = (value: boolean | undefined): (typeof GRID_CHOICES)[number] => (value === undefined ? "toolbar" : value ? "on" : "off");
+  const fromChoice = (choice: (typeof GRID_CHOICES)[number]): boolean | null => (choice === "toolbar" ? null : choice === "on");
+  const gridSummary = $derived(`${grid.on ? "" : "hidden · "}${grid.mm} mm${grid.sub > 1 ? ` / ${grid.sub}` : ""}${grid.snap ? "" : " · no snap"}${ownGrid === null ? " · the toolbar's" : ""}`);
 
   let removing = $state(false);
   const warning = $derived(removing ? surfaceRemovalWarning(sceneId, surfaceId) : "");
@@ -130,12 +145,23 @@
     <div class="row" class:changed={(draft.label ?? "") !== (surface.label ?? "")} data-help="The surface's label, written exactly as printed (40–41, Cover) – none when nothing is printed. The reader shows an entry's surface label, else its scene's.">
       <span class="label">label</span>
       <input class="field" aria-label="Surface label" placeholder="no label" value={draft.label ?? ""} oninput={e => edit({ label: e.currentTarget.value })} /></div>
-    <div class="row" data-help="The surface's size in millimetres: its width and its height as printed or built.">
+    <div class="row" data-help="The surface's format: a double page (460 × 320 mm), a single page (230 × 320), a wall (2000 × 1500) – a choice sets the size; custom is any other size, set below.">
+      <span class="label">format</span>
+      <span class="controls">
+        <Segmented options={SURFACE_PRESETS} value={format} label="Surface format" titles={FORMAT_TITLES}
+          onchange={preset => { if (preset !== "custom") { const size = presetSize(preset); edit({ widthMm: size.width, heightMm: size.height }); } }} />
+      </span></div>
+    <div class="row" data-help="The surface's size in millimetres: its width and its height as printed or built – any size (custom).">
       <span class="label">size</span>
       <span class="controls xyz">
         <ScrubNumber value={draft.widthMm} min={1} step={1} unit="mm" prefix="W" label="Surface width" strict onchange={v => edit({ widthMm: v })} />
         <ScrubNumber value={draft.heightMm} min={1} step={1} unit="mm" prefix="H" label="Surface height" strict onchange={v => edit({ heightMm: v })} />
       </span></div>
+    {#if outside.length}
+      <div class="row" data-help="Targets whose printed place lies (partly) outside the surface at this size: move them in the Inspector of the target or on the stage, or make the surface bigger.">
+        <span class="label"></span>
+        <p class="small danger outside">{outside.length === 1 ? "Target" : "Targets"} {outside.join(", ")} {outside.length === 1 ? "lies" : "lie"} outside the surface.</p></div>
+    {/if}
     <div class="row" data-help="The surface's place in the scene's order: *arrange in a row* lays them side by side in it.">
       <span class="label">order</span>
       <span class="controls">
@@ -173,15 +199,37 @@
           title="The scene's surfaces side by side, flat, touching, the row centred on the origin">arrange the scene in a row</button></div>
   </Section>
 
-  <Section id="surface.grid" label="grid" summary={ownGrid !== null ? `${ownGrid} mm` : `${toolbarGrid} mm · the toolbar's`}
-    help="The surface's own grid for the targets on it (#316): the stage draws it on the surface while the grid is on, and a print dragged on it steps by it. Kept in this browser per experience and surface, not in the content; reset takes the toolbar's spacing again.">
-    <div class="row" data-help="The spacing of this surface's grid in mm – a wall's poster grid, a page's type area. Empty: the toolbar's grid spacing.">
+  <Section id="surface.grid" label="grid" summary={gridSummary}
+    help="The surface's own grid for the targets on it (#316, #314): drawn on the surface, a print dragged on it snaps to it. Spacing, subdivisions, shown and snap – each the toolbar's until set here. An editing aid: kept in this browser per experience and surface, never in the content; reset takes the toolbar's again.">
+    <div class="row" data-help="Whether the stage draws this surface's grid: the toolbar's grid switch, or on / off for this surface alone.">
+      <span class="label">shown</span>
+      <span class="controls">
+        <Segmented options={GRID_CHOICES} value={choiceOf3(ownGrid?.on)} label="Surface grid shown" labels={{ toolbar: `toolbar (${toolbarGrid.on ? "on" : "off"})` }}
+          onchange={v => surfaceGrids.set(sceneId, surfaceId, { on: fromChoice(v) })} />
+      </span></div>
+    <div class="row" data-help="The spacing of this surface's grid in mm – a wall's poster grid, a page's type area. Not set: the toolbar's grid spacing.">
       <span class="label">spacing</span>
       <span class="controls">
-        <span class="w"><ScrubNumber value={ownGrid ?? toolbarGrid} min={1} max={500} step={1} fallback={10} strict unit="mm" label="Surface grid spacing"
-          onchange={v => surfaceGrids.set(sceneId, surfaceId, clampGrid(v))} /></span>
-        {#if ownGrid !== null}<button type="button" class="text-link" onclick={() => surfaceGrids.set(sceneId, surfaceId, null)} title="Back to the toolbar's grid spacing">reset</button>{/if}
+        <span class="w"><ScrubNumber value={grid.mm} min={1} max={500} step={1} fallback={10} strict unit="mm" label="Surface grid spacing"
+          onchange={v => surfaceGrids.set(sceneId, surfaceId, { mm: clampGrid(v) })} /></span>
       </span></div>
+    <div class="row" data-help="Subdivisions: finer lines between the spacing's – 4 on a 20 mm grid draws a line every 5 mm, and a print snaps to them. 1 = none.">
+      <span class="label">subdivide</span>
+      <span class="controls">
+        <span class="w"><ScrubNumber value={grid.sub} min={1} max={MAX_SUBDIVISIONS} step={1} fallback={1} strict label="Surface grid subdivisions"
+          onchange={v => surfaceGrids.set(sceneId, surfaceId, { sub: clampSubdivisions(v) === 1 ? null : clampSubdivisions(v) })} /></span>
+        <span class="small muted">{grid.sub > 1 ? `every ${Math.round((grid.mm / grid.sub) * 100) / 100} mm` : "none"}</span>
+      </span></div>
+    <div class="row" data-help="Whether a print dragged on this surface snaps to its grid (while snapping is on): the toolbar's choice (the grid as a snap target), or on / off for this surface alone.">
+      <span class="label">snap</span>
+      <span class="controls">
+        <Segmented options={GRID_CHOICES} value={choiceOf3(ownGrid?.snap)} label="Surface grid snap" labels={{ toolbar: `toolbar (${toolbarGrid.snap ? "on" : "off"})` }}
+          onchange={v => surfaceGrids.set(sceneId, surfaceId, { snap: fromChoice(v) })} />
+      </span></div>
+    {#if ownGrid !== null}
+      <div class="row"><span class="label"></span>
+        <button type="button" class="text-link" onclick={() => surfaceGrids.set(sceneId, surfaceId, null)} title="Back to the toolbar's grid">reset to the toolbar's</button></div>
+    {/if}
   </Section>
 
   <Section id="surface.reference" label="reference image" summary={reference ? reference.fit : "none"}
@@ -222,7 +270,7 @@
   .crumb-sep { color: var(--muted); }
   .xyz { display: flex; gap: .125rem; flex: 1; min-width: 0; }
   .xyz :global(.scrub) { flex: 1; min-width: 0; }
-  .confirm { margin: .125rem 0; }
+  .confirm, .outside { margin: .125rem 0; }
   .confirm .pill { margin-left: .25rem; }
   .remove { margin-top: .25rem; }
   .w { width: 6rem; display: inline-flex; }

@@ -861,7 +861,7 @@
 {#snippet treeBody()}
   <TreePanel {stage} {sceneId} onselect={select} onaddtarget={() => { addingEntry = false; addingTarget = true; }}
     onaddentry={() => { addingTarget = false; addingScene = null; addingEntry = true; }}
-    onaddscene={openNewScene} onremoveentry={removeEntry} />
+    onaddscene={openNewScene} onremoveentry={removeEntry} ontargetchanged={reloadContent} />
 {/snippet}
 
 {#snippet panelTabs(shown: string)}

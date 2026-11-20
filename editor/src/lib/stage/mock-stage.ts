@@ -8,7 +8,7 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { BACKDROP_LAYER } from "@engine/scene/view";
 import type { StageScene, StageGrids, StageSurface, StageTarget, StageView } from "./mock-tracker";
 import { frameFor, placeHeight } from "./placement";
-import { frameBox, gridLines, ORIGIN_SPOTS, originPoint, type OriginFrame } from "./origin";
+import { frameBox, gridLines, originGizmo, subdivisionLines, ORIGIN_SPOTS, originPoint, type OriginFrame } from "./origin";
 import { DEFAULT_FRAME, fitImage, hitSurfaces, surfaceFrame, surfaceRects, toStage, type SurfaceFrame, type SurfaceReference, type V3 } from "./surfaces";
 import { linoleumTexture } from "./linoleum";
 import { oakTexture } from "./oak";
@@ -95,6 +95,8 @@ const GUIDE_OVERHANG_MM = 20;
 const AXIS_X_COLOR = 0xe5484d;
 const AXIS_Z_COLOR = 0x2d7ff9;
 const SCENE_AXIS_MM = 100;
+/** The ring round the scene's origin (the origin gizmo, #314) */
+const ORIGIN_RING_COLOR = 0xffffff;
 /**
  * The scene's floor grid (#319, after the SCUTOONS editor's): a transparent net on the table (the scene's y = 0), every
  * `floorMm`, every tenth line a little stronger, this far around the origin (mm); the vertical grid the same net standing
@@ -677,15 +679,18 @@ export class MockStage implements StageView {
     clearLines(this.gridGroup);
     clearLines(this.sceneGridGroup);
     this.drawSceneGrid();
-    if (!this.grid.on) return;
     const lines: number[] = [];
+    const fine: number[] = [];
     const zeros: number[] = [];
     const verticals: number[] = [];
     const frame = this.gridFrame();
     const lift = (LAYER / 2) * 1000;
     const push = (target: number[], surface: SurfaceFrame, x: number, y: number) => target.push(...toStage(surface, x, y, -lift).map(v => v / 1000));
     for (const surface of this.frames) {
-      const step = this.grid.surfaces[surface.id] ?? this.grid.mm;
+      // The surface's own grid (#316, #314): its switch, spacing and subdivisions, else the toolbar's
+      const own = this.grid.surfaces[surface.id] ?? {};
+      if (!(own.on ?? this.grid.on)) continue;
+      const step = own.mm ?? this.grid.mm;
       const zero = surface.flat || this.grid.origin !== "centre"
         ? (surface.flat ? originPoint(this.grid.origin, frame, surface.id) : spotOf(this.grid.origin, surface))
         : { x: surface.widthMm / 2, y: surface.heightMm / 2 };
@@ -699,10 +704,19 @@ export class MockStage implements StageView {
         push(target, surface, 0, y);
         push(target, surface, surface.widthMm, y);
       }
+      for (const x of subdivisionLines(zero.x, 0, surface.widthMm, step, own.sub ?? 1)) {
+        push(fine, surface, x, 0);
+        push(fine, surface, x, surface.heightMm);
+      }
+      for (const y of subdivisionLines(zero.y, 0, surface.heightMm, step, own.sub ?? 1)) {
+        push(fine, surface, 0, y);
+        push(fine, surface, surface.widthMm, y);
+      }
       if (this.grid.axis && zero.x >= 0 && zero.x <= surface.widthMm && zero.y >= 0 && zero.y <= surface.heightMm) {
         verticals.push(...toStage(surface, zero.x, zero.y, -lift).map(v => v / 1000), ...toStage(surface, zero.x, zero.y, GRID_AXIS_MM).map(v => v / 1000));
       }
     }
+    addLines(this.gridGroup, fine, GRID_COLOR, 0.18);
     addLines(this.gridGroup, lines, GRID_COLOR, 0.45);
     addLines(this.gridGroup, zeros, GRID_ZERO_COLOR, 0.9);
     addLines(this.gridGroup, verticals, GRID_AXIS_COLOR, 0.9);
@@ -737,12 +751,14 @@ export class MockStage implements StageView {
       addLines(this.sceneGridGroup, minor, FLOOR_GRID_COLOR, 0.28);
       addLines(this.sceneGridGroup, strong, FLOOR_GRID_COLOR, 0.55);
     }
-    if (!this.grid.axis || !(floor || wall || this.grid.on)) return;
-    const a = SCENE_AXIS_MM / 1000;
-    // The stage frame: scene x = stage x, scene y (up) = stage z, scene z (towards the reader) = stage −y
-    addLines(this.sceneGridGroup, [0, 0, 0, a, 0, 0], AXIS_X_COLOR, 1, true);
-    addLines(this.sceneGridGroup, [0, 0, 0, 0, 0, a], GRID_AXIS_COLOR, 1, true);
-    addLines(this.sceneGridGroup, [0, 0, 0, 0, -a, 0], AXIS_Z_COLOR, 1, true);
+    // The origin gizmo (#316, #314): with the axis switch, whatever grid is on – the scene's axes with arrowheads and a
+    // ring round the origin, drawn through everything (the stage frame: scene x = stage x, y up = stage z, z = stage −y)
+    if (!this.grid.axis) return;
+    const gizmo = originGizmo(SCENE_AXIS_MM);
+    addLines(this.sceneGridGroup, gizmo.x, AXIS_X_COLOR, 1, true);
+    addLines(this.sceneGridGroup, gizmo.y, GRID_AXIS_COLOR, 1, true);
+    addLines(this.sceneGridGroup, gizmo.z, AXIS_Z_COLOR, 1, true);
+    addLines(this.sceneGridGroup, gizmo.ring, ORIGIN_RING_COLOR, 0.9, true);
   }
 
   /**

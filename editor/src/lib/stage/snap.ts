@@ -243,6 +243,17 @@ export interface SnapSettings {
 export const moveIncrements = (x: number, settings: SnapSettings, frame: StageFrame): PerAxis<Increment> =>
   incrementsAt(x, settings.origin, frame, settings.snapTo.includes("grid") ? settings.gridMm : settings.snapMove);
 
+/**
+ * The settings a print on a surface snaps with (#316, #314): its surface grid's step (`step` – the spacing over its
+ * subdivisions) as the grid's, the grid a snap target there; `null` – the surface's grid snaps not – the grid no snap
+ * target there (the move step then); `undefined` – no surface grid known – the settings as they are
+ */
+export const surfaceSnapSettings = <S extends SnapSettings>(settings: S, step: number | null | undefined): S => {
+  if (step === undefined) return settings;
+  const others = settings.snapTo.filter(t => t !== "grid");
+  return step === null ? { ...settings, snapTo: others } : { ...settings, gridMm: step, snapTo: SNAP_TARGETS.filter(t => t === "grid" || others.includes(t)) };
+};
+
 /** The snap targets with `target` switched on or off, in their fixed order */
 export const toggleSnapTarget = (targets: readonly SnapTarget[], target: SnapTarget): SnapTarget[] =>
   SNAP_TARGETS.filter(t => (t === target ? !targets.includes(t) : targets.includes(t)));

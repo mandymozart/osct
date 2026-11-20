@@ -5,7 +5,7 @@ import type { PreviewSettings } from "./preview";
 import { pickable } from "./pick";
 import {
   axisLines, boxLines, chosenLines, freeAxes, joinLines, moveIncrements, surfaceLines, pointLines, placeStageBox, SNAP_PX, snapActive, snapAngle,
-  snapMove, snapPlace, snapScale, thresholdMm, type PerAxis, type SnapGuide, type SnapLine, type StageBox, type StageFrame, type Vec3,
+  snapMove, snapPlace, snapScale, surfaceSnapSettings, thresholdMm, type PerAxis, type SnapGuide, type SnapLine, type StageBox, type StageFrame, type Vec3,
 } from "./snap";
 
 /**
@@ -25,8 +25,11 @@ export interface SnapSource {
    */
   stageFrame(surface?: string): StageFrame;
   settings(): PreviewSettings;
-  /** A surface's own grid spacing (mm, #316 part 1) – a print on it steps by that; none: the settings' `gridMm` */
-  surfaceGrid?(surface: string): number;
+  /**
+   * A surface's own grid (#316, #314): the step a print on it snaps to (its spacing over its subdivisions), null when
+   * the grid is no snap target on that surface; no function: the settings' `gridMm` and `snapTo`
+   */
+  surfaceGrid?(surface: string): number | null;
   /** Shift or Ctrl is held: snapping turned around */
   modifier(): boolean;
   /** The entities' node objects of the scene, with their target */
@@ -158,8 +161,8 @@ export class SceneSnapper {
       this.source.guides([]);
       return place;
     }
-    // The surface's own grid (#316): its spacing is the step of a print on it
-    const settings = { ...all, gridMm: this.source.surfaceGrid?.(place.surface) ?? all.gridMm };
+    // The surface's own grid (#316, #314): its step (spacing over subdivisions) is the step of a print on it; snap off there: the move step
+    const settings = surfaceSnapSettings(all, this.source.surfaceGrid ? this.source.surfaceGrid(place.surface) : undefined);
     const frame = this.source.stageFrame(place.surface);
     const result = snapPlace(place, height, kind, {
       frame, lines: this.lines({ targetId, frame }), threshold: this.threshold(null), settings,

@@ -12,6 +12,7 @@ import * as z from "zod";
 import { ApiError, type OsctApi } from "./api.ts";
 import { checkAppearance, checkEntity, checkPasses, describeContentModel, usesPluginAppearances, usesPluginPasses, usesPluginTypes, type ExperienceModel } from "./model.ts";
 import { fail, guard, text, type Result } from "./result.ts";
+import { editSurfaces, SURFACE_SIZE_PRESETS } from "./surfaces.ts";
 import { editorHref, type AppLinks } from "./services.ts";
 import type { PluginData } from "../../shared/types/game-config";
 import { APPEARANCE_TYPES, MOMENTS, PASS_TYPES, RECOGNITION_MODES } from "../../shared/types/game-config";
@@ -709,6 +710,38 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       }
       const result = await api.call<SceneSaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/scenes/${encodeURIComponent(scene)}`, body);
       return text({ scene: result.scene, cleared: result.cleared, ...warnings, open: editorHref(links, experience, scene) });
+    }),
+  );
+
+  server.registerTool(
+    "put_surface",
+    {
+      description:
+        `Changes ONE surface of a scene without sending the whole list (put_scene sends the whole list): \`surface\` by id – an id the scene does not have **adds** it (its size from \`preset\` – double ${SCENE_PAGE_MM.width * 2} × ${SCENE_PAGE_MM.height}, single ${SCENE_PAGE_MM.width} × ${SCENE_PAGE_MM.height}, wall ${SCENE_WALL_MM.width} × ${SCENE_WALL_MM.height} mm – or widthMm and heightMm; without a place the server lays it in a row), a known one **changes** the fields sent (label – null: none –, preset or widthMm / heightMm for its size, place), \`position\` **moves** it to that index (0 = first), \`remove: true\` **removes** it (never the scene's last). Targets keep their place in mm when a surface gets smaller – check them with get_scene / render_scene. A surface that entries or targets lie on goes only with \`apply: true\`: the first call answers 409 surfaces-in-use naming them – show the person; with their yes call again with \`apply: true\`. Reads the scene's list (list_scenes), writes it with the one change (PUT …/scenes/{id}); a change is recorded.`,
+      inputSchema: z.object({
+        experience: EXPERIENCE,
+        scene: ID.describe("the scene's id (list_scenes)"),
+        surface: ID.describe("the surface's id – one the scene does not have adds a surface"),
+        remove: z.boolean().optional().describe("true removes the surface (nothing else may be sent with it)"),
+        label: z.string().max(TEXT_MAX_LENGTH).nullable().optional().describe("what is printed on it (186–187, Cover); null or empty: none"),
+        preset: z.enum(SURFACE_SIZE_PRESETS).optional().describe("its size from a format: double page, single page, wall"),
+        widthMm: z.number().positive().optional().describe("its width in mm (wins over the preset's)"),
+        heightMm: z.number().positive().optional().describe("its height in mm (wins over the preset's)"),
+        place: surfaceSchema.shape.place,
+        position: z.number().int().min(0).optional().describe("its index in the scene's surfaces (0 = first)"),
+        apply: z.boolean().optional().describe("let a surface go that entries or targets lie on – only after the person's yes"),
+      }),
+      annotations: write,
+    },
+    guard(async ({ experience, scene, apply, ...edit }) => {
+      const list = await api.call<SceneList>("GET", `/editor/experiences/${encodeURIComponent(experience)}/scenes`);
+      const found = list.scenes.find(s => s.id === scene);
+      if (!found) return fail({ error: { code: "not-found", message: `no scene "${scene}" (scenes: ${list.scenes.map(s => s.id).join(", ")})` } });
+      const result = editSurfaces(found.surfaces, edit, SCENE_SURFACES_MAX);
+      if (!result.ok) return fail({ error: { code: "mcp", message: result.message } });
+      if (result.done === "unchanged") return text({ surface: edit.surface, done: "unchanged", surfaces: result.surfaces, open: editorHref(links, experience, scene) });
+      const saved = await api.call<SceneSaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/scenes/${encodeURIComponent(scene)}`, { surfaces: result.surfaces, ...(apply ? { apply } : {}) });
+      return text({ surface: edit.surface, done: result.done, surfaces: saved.scene.surfaces, cleared: saved.cleared, open: editorHref(links, experience, scene) });
     }),
   );
 

@@ -26,7 +26,7 @@
   import { MakeCodeError, materialCode, nodeTypeCode, nodeTypeOwner, takesMaterial, type MadeCode } from "#lib/plugins/make-code.js";
   import { selection } from "#lib/selection.svelte.js";
   import { scenes } from "#lib/scenes.svelte.js";
-  import { choiceOf, placeOnChoice, surfaceChoices } from "#lib/surface-edit.js";
+  import { choiceOf, moveToSurface, placeOnChoice, surfaceChoices } from "#lib/surface-edit.js";
   import { breadcrumb } from "#lib/selection.js";
   import { ADD_PLACES, addNode, defaultAddPlace, nodeLabel, typeLabel, withName, type AddPlace } from "#lib/tree.js";
   import type { NodeTimeline } from "@engine/types";
@@ -319,9 +319,17 @@
   const on = $derived(choiceOf(surfaceOptions, print) ?? undefined);
   const shown = $derived(toOrigin(origin, frame, on, print.x, print.y));
   const setShown = (x: number, y: number) => editPrint({ ...print, ...fromOrigin(origin, frame, on, x, y) });
+  /**
+   * Another surface (#314): the print keeps its place in mm where it fits there, else it is centred (made smaller when
+   * too big – `moveToSurface`); its height when the place has none is the stage's (from the image)
+   */
   const chooseSurface = (value: string) => {
     const choice = surfaceOptions.find(c => c.value === value);
-    if (choice) editPrint(placeOnChoice(print, choice, surfaceOptions));
+    const to = sceneSurfaces?.find(s => s.id === value);
+    if (!choice || value === on) return;
+    if (!to) { editPrint(placeOnChoice(print, choice, surfaceOptions)); return; }
+    const height = target ? stage?.placeOf(target.id)?.height : undefined;
+    editPrint(moveToSurface(print, to, surfaceOptions.length > 1, height).place);
   };
   /**
    * A target without a place of its own: where the stage shows it – the stage's fallback place – so the rows, the

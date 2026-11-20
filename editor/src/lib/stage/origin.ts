@@ -149,3 +149,43 @@ export const gridLines = (zero: number, start: number, size: number, step: numbe
   for (; at <= start + size + 1e-9; at += step) lines.push(round(at));
   return lines;
 };
+
+/**
+ * The **origin gizmo** (#316, #314): the scene's axes at its origin as line segments in the stage frame (metres; scene x =
+ * stage x, scene y – up – = stage z, scene z – towards the reader – = stage −y), each `length` mm with an arrowhead at
+ * its tip, and a small ring on the table round the origin. Pairs of points, ready for line segments.
+ */
+export const originGizmo = (length: number, ring = 8): { x: number[]; y: number[]; z: number[]; ring: number[] } => {
+  const a = length / 1000;
+  const back = a * 0.82;
+  const spread = a * 0.06;
+  const circle: number[] = [];
+  const r = ring / 1000;
+  const parts = 24;
+  for (let i = 0; i < parts; i++) {
+    const [t0, t1] = [(i / parts) * 2 * Math.PI, ((i + 1) / parts) * 2 * Math.PI];
+    circle.push(r * Math.cos(t0), r * Math.sin(t0), 0, r * Math.cos(t1), r * Math.sin(t1), 0);
+  }
+  return {
+    // x: right; its head opens in the table's plane
+    x: [0, 0, 0, a, 0, 0, a, 0, 0, back, spread, 0, a, 0, 0, back, -spread, 0],
+    // y (up): stage z; its head opens along x
+    y: [0, 0, 0, 0, 0, a, 0, 0, a, spread, 0, back, 0, 0, a, -spread, 0, back],
+    // z (towards the reader): stage −y; its head opens along x
+    z: [0, 0, 0, 0, -a, 0, 0, -a, 0, spread, -back, 0, 0, -a, 0, -spread, -back, 0],
+    ring: circle,
+  };
+};
+
+/** The most subdivision lines a surface's grid draws along one axis – a finer net is left out (the main lines stay) */
+export const MAX_SUBDIVISION_LINES = 400;
+
+/**
+ * A grid's **subdivision** lines along one axis (#314): every `step / sub` from the zero, without those on the main
+ * lines (`gridLines`); none for `sub` ≤ 1 or when there would be more than `MAX_SUBDIVISION_LINES`
+ */
+export const subdivisionLines = (zero: number, start: number, size: number, step: number, sub: number): number[] => {
+  if (!(sub > 1) || !(step > 0) || size / (step / sub) > MAX_SUBDIVISION_LINES) return [];
+  const main = new Set(gridLines(zero, start, size, step));
+  return gridLines(zero, start, size, step / sub).filter(at => !main.has(at));
+};
