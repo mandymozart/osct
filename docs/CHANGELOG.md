@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 4.1.0 – 2026-11-21
 
 **Content schema 5.1 – a MINOR, plugin API 3.1** (#334 L-T6, research §5.9 "ports from the code"): a 5.0 app ignores what
 is new.
