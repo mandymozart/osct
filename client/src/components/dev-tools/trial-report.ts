@@ -1,5 +1,5 @@
-import type { Scene } from "@/types";
-import { entryPlaceLabel, sceneLabel } from "@engine/content/scenes";
+import type { Scene, Target } from "@/types";
+import { entryPlaceLabel, sceneLabel, surfaceOf } from "@engine/content/scenes";
 import type { TrialDevice } from "./trial-device";
 
 /**
@@ -11,9 +11,43 @@ import type { TrialDevice } from "./trial-device";
 
 export type TrialResult = "found" | "untested";
 
-/** What the content build knows about a target's printed image (`/trigger-protocol.json`, optional) */
-import type { TriggerInfo, TriggerInfos } from "@/components/ar-bridges";
-export type { TriggerInfo, TriggerInfos };
+/**
+ * Where a target is printed, from the configuration (its `place`, schema 3.0 – carried in from the book layout by
+ * `scripts/layout/place-targets.py`, #321): the surface it lies on, its size and box in mm from the surface's top left
+ * corner, and the region of the surface that box lies in ("top left", "middle centre" …). Replaces the trigger
+ * protocol file (#32).
+ */
+export interface PrintedPlace {
+  /** The surface's label (`4–5`, `Cover`), else its id */
+  surface: string;
+  width: number;
+  height?: number;
+  x: number;
+  y: number;
+  /** The third of the surface the box's centre lies in: "top left", "middle centre", "bottom right" … */
+  position: string;
+}
+
+const third = (at: number, size: number, words: readonly [string, string, string]): string =>
+  words[size > 0 ? Math.min(2, Math.max(0, Math.floor((at / size) * 3))) : 1];
+
+/** The target's printed place, or undefined when the configuration does not place it */
+export function printedPlace(target: Pick<Target, "place">, scene: Pick<Scene, "surfaces">): PrintedPlace | undefined {
+  const place = target.place;
+  if (!place) return undefined;
+  const surface = surfaceOf(scene, place.surface) ?? scene.surfaces[0];
+  const height = place.height ?? place.width * 0.75;
+  const row = surface ? third(place.y + height / 2, surface.heightMm, ["top", "middle", "bottom"]) : "middle";
+  const column = surface ? third(place.x + place.width / 2, surface.widthMm, ["left", "centre", "right"]) : "centre";
+  return {
+    surface: surface?.label?.trim() || surface?.id || place.surface || "",
+    width: place.width,
+    ...(place.height !== undefined ? { height: place.height } : {}),
+    x: place.x,
+    y: place.y,
+    position: `${row} ${column}`,
+  };
+}
 
 export interface TrialRow {
   targetId: string;
@@ -28,7 +62,8 @@ export interface TrialRow {
   imageSrc: string;
   unlockedAt?: number;
   result: TrialResult;
-  info?: TriggerInfo;
+  /** Where the target is printed (the configuration's `place`) – none when the target is not placed */
+  printed?: PrintedPlace;
 }
 
 export interface TrialMeta {
@@ -45,10 +80,11 @@ export interface TrialMeta {
 export const trialResult = (unlockedAt: number | undefined): TrialResult => (unlockedAt ? "found" : "untested");
 
 /** One row per target, in scene and entry order */
-export function trialRows(scenes: Scene[], unlocked: Record<string, number>, infos: TriggerInfos = {}): TrialRow[] {
+export function trialRows(scenes: Scene[], unlocked: Record<string, number>): TrialRow[] {
   return scenes.flatMap(scene =>
     scene.targets.map(target => {
       const entry = scene.entries.find(e => e.id === target.entryId);
+      const printed = printedPlace(target, scene);
       return {
         targetId: target.id,
         entryId: target.entryId,
@@ -60,7 +96,7 @@ export function trialRows(scenes: Scene[], unlocked: Record<string, number>, inf
         imageSrc: target.imageSrc,
         unlockedAt: unlocked[target.id],
         result: trialResult(unlocked[target.id]),
-        info: infos[target.id],
+        ...(printed ? { printed } : {}),
       };
     }),
   );
@@ -74,8 +110,20 @@ export const countResults = (rows: TrialRow[]): Record<TrialResult, number> => {
 
 const time = (ms?: number) => (ms ? new Date(ms).toISOString().slice(11, 16) : "");
 const cell = (text: string) => text.replace(/\|/g, "\\|").replace(/\n/g, " ");
-const printed = (info?: TriggerInfo) =>
-  [info?.source, info?.width && info.height ? `${info.width} × ${info.height} mm` : "", info?.position].filter(Boolean).join(" · ");
+const mm = (value: number) => String(Math.round(value * 10) / 10);
+const fileName = (src: string) => src.replace(/[?#].*$/, "").replace(/^.*\//, "");
+
+/** The report's printed-image cell: the image file, then the surface, the size, the region and the box's corner */
+export const printedLine = (row: Pick<TrialRow, "imageSrc" | "printed">): string => {
+  const place = row.printed;
+  if (!place) return [fileName(row.imageSrc), "not placed"].filter(Boolean).join(" · ");
+  return [
+    fileName(row.imageSrc),
+    place.surface,
+    place.height !== undefined ? `${mm(place.width)} × ${mm(place.height)} mm` : `${mm(place.width)} mm wide`,
+    `${place.position} (x ${mm(place.x)}, y ${mm(place.y)} mm)`,
+  ].filter(Boolean).join(" · ");
+};
 
 /** The header's device lines: the model as entered and where its prefill came from, screen, OS, language, tester */
 export const deviceLines = (device: TrialDevice): string[] => [
@@ -87,7 +135,7 @@ export const deviceLines = (device: TrialDevice): string[] => [
   `- User agent: ${device.userAgent}`,
 ];
 
-/** The report for the designers: the targets not found (with their printed image), then a short list of the found */
+/** The report for the designers: the targets not found (with where they are printed), then a short list of the found */
 export function trialReport(rows: TrialRow[], meta: TrialMeta): string {
   const counts = countResults(rows);
   const notFound = rows.filter(r => r.result === "untested");
@@ -106,9 +154,9 @@ export function trialReport(rows: TrialRow[], meta: TrialMeta): string {
     "",
     ...(notFound.length
       ? [
-        "| Place | Target | Entry | Printed image | Note |",
-        "|---|---|---|---|---|",
-        ...notFound.map(r => `| ${cell(r.place)} | ${cell(r.targetId)} | ${cell(`${r.title} (${r.category})`)} | ${cell(printed(r.info) || "–")} | ${cell(r.info?.note ?? "")} |`),
+        "| Place | Target | Entry | Printed image |",
+        "|---|---|---|---|",
+        ...notFound.map(r => `| ${cell(r.place)} | ${cell(r.targetId)} | ${cell(`${r.title} (${r.category})`)} | ${cell(printedLine(r) || "–")} |`),
       ]
       : ["None."]),
     "",

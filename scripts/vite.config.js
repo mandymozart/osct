@@ -8,7 +8,6 @@ export default defineConfig({
         index: 'src/index.ts', // content build (npm run build:content)
         sounds: 'src/sounds.ts', // npm run sounds
         'import-delivery': 'src/import-delivery.ts', // npm run import
-        protocol: 'src/protocol.ts', // npm run protocol
         cli: 'src/cli.ts', // osct content build | status | sync (npm run osct -- …)
         'schema-lock': 'src/schema-lock.ts', // npm run schema:lock
         'convert-content-3': 'src/convert-content-3.ts', // npm run convert:3 - a content source 2.x to 3.0, once (#319)

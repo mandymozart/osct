@@ -1,7 +1,6 @@
 import { entityNodes, getTargets, loadGameConfiguration } from "@engine/content/game-config";
 import { untrack } from "svelte";
 import { pluginRegistrySnapshot } from "@engine/scene/plugins";
-import { TRIGGER_INFO_URL } from "@engine/utils/trigger-protocol";
 import type { VarScope, VarValue } from "@engine/scene";
 import type { EntityData, PassData } from "@engine/types";
 import type { EnvironmentData } from "@shared/types/environment";
@@ -93,7 +92,7 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     meta.httpEquiv = "Content-Security-Policy";
     meta.content = frameCsp({
       origin: location.origin, appBase: options.appBase, apiBase: options.apiBase, contentBases: contentBasesOf(content), mediaBases: mediaBasesOf(content), libraryFolders: libraryFoldersOf(content),
-      files: [TRIGGER_INFO_URL], devSocket: options.devSocket,
+      devSocket: options.devSocket,
     });
     document.head.prepend(meta);
     cspKey = key;

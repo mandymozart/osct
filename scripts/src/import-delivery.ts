@@ -11,7 +11,8 @@
  *       target: <file>      the image as printed – becomes target.jpg (JPEG, ≤ MAX_TARGET_SIZE px)
  *       image: <file>       the entry image – becomes image.jpg (JPEG, ≤ MAX_ENTRY_IMAGE_SIZE px)
  *       video: <file>       AR video on the target – becomes video.mp4 (ffmpeg: H.264, ≤ 1280 px, ~2 Mbit/s)
- *       printed: { width, height, position }   mm and position on the page – for the trigger protocol only
+ *       printed: { width, height, position }   mm and position on the page – checked, not used since the trigger
+ *                           protocol went (#32): the places come from the layout (layout/place-targets.py)
  *       enabled: false      the target is switched off (#249): in the content, not in the reader's experience
  *       tags: [<tag>, …]    the entry's tags (e.g. `artwork`, to find a kind of target again)
  *       note: <text>        anything the editors should know – written as a comment into entry.yaml

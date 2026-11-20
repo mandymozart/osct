@@ -441,7 +441,7 @@ const fileOf = (url: string, base: string): string | null => {
  * The Content Security Policy of the frame's document: it may load its own scripts and the editor's static files
  * (`<origin><appBase>`), the Library's files (`<origin><apiBase>/content/`), the experience's content under each content base
  * (`<base>/assets/content/` – the CDN or wherever the draft's files live; the declared plugins' modules are there too),
- * a few exact `files` (the trigger protocol at the site's root), plus `blob:` and `data:` (the Code tab's transpiled
+ * a few exact `files` (none at present – the trigger protocol went, #32), plus `blob:` and `data:` (the Code tab's transpiled
  * module, textures and buffers inside a model). `mediaBases` are other content builds the draft's rows still name (a
  * file of an earlier build, #252): their `assets/content/` is admitted for images and media only, never for scripts or
  * requests. `libraryFolders` are the uploads' folders on a CDN – the experience's own and those the draft names (#254, #258):

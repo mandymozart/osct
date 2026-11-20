@@ -2,7 +2,6 @@ import { Matrix4, type Object3D, type PerspectiveCamera, Quaternion, type Raycas
 import type { Target } from "@engine/types";
 import { getScene } from "@engine/content/game-config";
 import { EMPTY_ENGINE_STATE, publishEngineState } from "@engine/utils/tracker-debug";
-import { fetchTriggerInfos, type TriggerInfos } from "@engine/utils/trigger-protocol";
 import { getPreview, type PreviewOrbit, type PreviewState, type PreviewView, subscribePreview, updatePreview } from "./preview";
 import type { IImageTracker, ImageTrackerOptions, TrackedScene } from "@engine/scene/tracker-types";
 import { onAppUi } from "@engine/scene/ui";
@@ -103,13 +102,12 @@ const sameGrids = (a: StageGrids, b: StageGrids): boolean => JSON.stringify(a) =
 const degrees = (value: number) => (value * Math.PI) / 180;
 
 /**
- * Where the open scene's targets lie on the stage. A target's own `place` (schema 3.0) puts it on its surface (by id,
- * else the scene's first). Else, with printed-image details (the trigger protocol), each target gets its printed size
- * and position on the scene's first surface: exact `x` / `y` when given, else the region named by `position` ("top
- * left" …), several in one region stacked downwards. Without details the targets lie in a row across its middle.
+ * Where the open scene's targets lie on the stage. A target's own `place` (schema 3.0 – the printed book's layout,
+ * #321) puts it on its surface (by id, else the scene's first). Targets without a place lie in a row across the first
+ * surface (its middle when none is placed, its lower half next to placed ones).
  */
 export const layoutTargets = (
-  targets: readonly Target[], infos: TriggerInfos = {}, surfaces: ReadonlyArray<{ id: string; widthMm: number; heightMm: number }> = [],
+  targets: readonly Target[], surfaces: ReadonlyArray<{ id: string; widthMm: number; heightMm: number }> = [],
 ): StageTarget[] => {
   const withImage = targets.filter(target => target.imageSrc);
   const first = surfaces[0] ?? DEFAULT_SURFACE;
@@ -129,26 +127,6 @@ export const layoutTargets = (
     const width = Math.min(60, (page.width - 20) / Math.max(1, rest.length) - 10);
     return withImage.map((target, i) => placedTargets[i] ?? {
       id: target.id, imageSrc: target.imageSrc, surface: fallback, x: 10 + rest.indexOf(target) * (width + 10), y: page.height * 0.6, width, height: width * 0.75,
-    });
-  }
-  const known = withImage.filter(target => infos[target.id]?.width);
-  if (known.length === withImage.length && withImage.length) {
-    const used = new Map<string, number>();
-    return withImage.map(target => {
-      const info = infos[target.id]!;
-      const width = info.width!;
-      const height = info.height ?? width * 0.75;
-      if (info.x !== undefined && info.y !== undefined) {
-        return { id: target.id, imageSrc: target.imageSrc, surface: fallback, x: info.x, y: info.y, width, height };
-      }
-      const words = (info.position ?? "middle centre").toLowerCase();
-      const column = words.includes("left") ? 0 : words.includes("right") ? 2 : 1;
-      const row = words.includes("top") ? 0 : words.includes("bottom") ? 2 : 1;
-      const stacked = used.get(words) ?? 0;
-      used.set(words, stacked + 1);
-      const x = column === 0 ? SURFACE_MARGIN_MM : column === 2 ? page.width - SURFACE_MARGIN_MM - width : (page.width - width) / 2;
-      const rowTop = row === 0 ? SURFACE_MARGIN_MM : row === 2 ? page.height - SURFACE_MARGIN_MM - height : (page.height - height) / 2;
-      return { id: target.id, imageSrc: target.imageSrc, surface: fallback, x, y: rowTop + stacked * (height + 10), width, height };
     });
   }
   // A row across the middle of the first surface, shrunk to fit when there are many
@@ -284,7 +262,6 @@ export class MockTracker implements IImageTracker {
   private held: TrackedScene[] = [];
   /** Targets reported found right now */
   private found = new Set<string>();
-  private infos: TriggerInfos = {};
   private stage: StageView | null = null;
   private camera: PerspectiveCamera | null = null;
   private orbit: Orbit = { ...VIEW_PRESETS.reader };
@@ -370,7 +347,6 @@ export class MockTracker implements IImageTracker {
   constructor(
     private container: HTMLElement,
     private options: ImageTrackerOptions,
-    private loadInfos: () => Promise<TriggerInfos> = fetchTriggerInfos,
     private now: () => number = () => performance.now(),
   ) {}
 
@@ -446,7 +422,6 @@ export class MockTracker implements IImageTracker {
 
   async startCamera(): Promise<void> {
     if (this.started) return;
-    this.infos = await this.loadInfos();
     this.started = true;
     this.startedAt = this.now();
     this.applyPreview(getPreview(), true);
@@ -475,7 +450,7 @@ export class MockTracker implements IImageTracker {
     this.frames = this.surfaces.map(surfaceFrame);
     // The editor loads the switched-off targets too (`keepSwitchedOffTargets`): the target marks tell them apart (#323)
     const off = new Set(this.tracked.filter(target => target.enabled === false).map(target => target.id));
-    this.laidOut = layoutTargets(this.tracked, this.infos, this.frames).map(target => (off.has(target.id) ? { ...target, off: true } : target));
+    this.laidOut = layoutTargets(this.tracked, this.frames).map(target => (off.has(target.id) ? { ...target, off: true } : target));
     this.targets = withLivePlacement(this.laidOut, this.livePlacement);
     this.stage?.setLayout(this.targets, this.stageScene());
     this.stage?.setSurfaceMarks?.(this.marks.outlined, this.marks.highlighted);

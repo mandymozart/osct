@@ -532,9 +532,9 @@ in a sandboxed frame ([The stage frame](#the-stage-frame-plugins-in-a-sandbox-23
   that, so nothing flickers.
 
 The printed images: a target with a `place` lies exactly there, in its printed size, on its surface (`place.surface`,
-else the scene's first – a scene of one surface names none). Without places, with the **trigger protocol**
-(`/trigger-protocol.json`): each image in its printed size in the region its `position` names on the scene's first
-surface; without either (the fixture): the images in a row across the middle of the first surface, 60 mm wide.
+else the scene's first – a scene of one surface names none). Without places: the images in a row across the middle of
+the first surface, 60 mm wide (next to placed ones: across its lower half). The trigger protocol file that used to stand
+in for missing places went with #32 – the places are in the configuration since #321.
 
 ### The mock tracker and the simulated game
 
@@ -794,7 +794,7 @@ the page.
 - **The frame's policy**: before the draft and its plugins load, the frame takes a Content Security Policy
   (`frameCsp`, as a `<meta>` – it names the experience's content bases, which only the draft knows, so no static header can
   say it): its own scripts and the editor's static files under `/editor/`, the Library's files under
-  `/api/content/`, the experience's content under `<content base>/assets/content/`, the trigger protocol at the site's root,
+  `/api/content/`, the experience's content under `<content base>/assets/content/`,
   `blob:` (the Code tab's module) and `data:` – every source with its path, never `'self'`, so no request reaches the
   rest of the API. On a CDN instance the uploads lie in no content base: the frame admits **the experience's own Library
   folder** (`…/assets/<experience>/`, the experience's `libraryBase` – a file uploaded and picked for a node shows at once, before

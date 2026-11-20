@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Matrix4, PerspectiveCamera, Quaternion, Vector3 } from "three";
 import type { Target } from "@engine/types";
-import type { TriggerInfos } from "@engine/utils/trigger-protocol";
 import { setPreviewActive, setTargetHidden, updatePreview } from "../preview";
 import { getEngineState } from "@engine/utils/tracker-debug";
 import { sceneFrames } from "../surfaces";
@@ -24,6 +23,7 @@ type StageView = import("../mock-tracker").StageView;
 type MockTracker = InstanceType<typeof MockTracker>;
 
 const target = (id: string): Target => ({ id, entryId: id, sceneId: "s", imageSrc: `/${id}.jpg` });
+const plainTarget = target;
 
 /** A target printed with its centre on the scene's origin (the spine's middle): the camera's distance to it is the orbit's */
 const atRoot = (id: string, sceneId = "s"): Target =>
@@ -39,7 +39,7 @@ const decompose = (matrix: Matrix4) => {
 
 describe("mock stage layout", () => {
   it("lays targets without a place in a row across the middle of the scene's first surface", () => {
-    const row = layoutTargets([target("a"), target("b"), target("c")], {}, pages);
+    const row = layoutTargets([target("a"), target("b"), target("c")], pages);
     expect(row.map(t => t.surface)).toEqual(["left", "left", "left"]);
     expect(row[0].x).toBeLessThan(row[1].x);
     expect(row[1].x).toBeLessThan(row[2].x);
@@ -50,42 +50,16 @@ describe("mock stage layout", () => {
     expect(layoutTargets([target("a")]).map(t => t.surface)).toEqual(["surface"]);
   });
 
-  it("places printed images by their size and position words, stacking several in one region", () => {
-    const infos: TriggerInfos = {
-      a: { width: 31, height: 23, position: "top left" },
-      b: { width: 49, height: 18, position: "bottom right" },
-      c: { width: 40, height: 30, position: "top left" },
-    };
-    const [a, b, c] = layoutTargets([target("a"), target("b"), target("c")], infos, pages);
-    expect(a.width).toBe(31);
-    expect(a.x).toBe(20);
-    expect(a.y).toBe(20);
-    expect(b.x + b.width).toBe(PAGE_MM.width - 20);
-    expect(b.y + b.height).toBe(PAGE_MM.height - 20);
-    expect(c.y).toBeGreaterThan(a.y + a.height);
-  });
-
   it("places every target exactly where its place has it, on its surface", () => {
     const placed = (id: string, place: Target["place"]): Target => ({ ...target(id), place });
-    const [a, b] = layoutTargets([placed("a", { surface: "left", x: 38.7, y: 9.5, width: 30.9, height: 23.3 }), placed("b", { surface: "right", x: 184.8, y: 287.5, width: 37.1 })], {}, pages);
+    const [a, b] = layoutTargets([placed("a", { surface: "left", x: 38.7, y: 9.5, width: 30.9, height: 23.3 }), placed("b", { surface: "right", x: 184.8, y: 287.5, width: 37.1 })], pages);
     expect(a).toMatchObject({ surface: "left", x: 38.7, y: 9.5, width: 30.9, height: 23.3 });
     expect(b).toMatchObject({ surface: "right", x: 184.8, width: 37.1, height: 37.1 * 0.75 });
     expect(targetCentre(a, pages).x).toBeCloseTo((-230 + 38.7 + 30.9 / 2) / 1000, 6);
     // A target without a place: the placed one stays where it is, the other lies in a row on the first surface
-    const mixed = layoutTargets([placed("a", { surface: "right", x: 38.7, y: 9.5, width: 30.9 }), target("c")], {}, pages);
+    const mixed = layoutTargets([placed("a", { surface: "right", x: 38.7, y: 9.5, width: 30.9 }), target("c")], pages);
     expect(mixed[0]).toMatchObject({ surface: "right", x: 38.7 });
     expect(mixed[1]).toMatchObject({ surface: "left", y: PAGE_MM.height * 0.6 });
-  });
-
-  it("uses exact positions when the layout was imported", () => {
-    const [a] = layoutTargets([target("a")], { a: { width: 30.9, height: 23.3, x: 38.7, y: 9.5 } }, pages);
-    expect(a).toMatchObject({ x: 38.7, y: 9.5, width: 30.9, height: 23.3 });
-  });
-
-  it("falls back to the row when only some targets have printed details", () => {
-    const [a, b] = layoutTargets([target("a"), target("b")], { a: { width: 31, height: 23, position: "top left" } }, pages);
-    expect(a.width).toBe(b.width);
-    expect(a.y).toBe(b.y);
   });
 
   it("skips targets without an image", () => {
@@ -135,6 +109,12 @@ describe("mock stage geometry", () => {
 });
 
 describe("MockTracker (IImageTracker without camera or engine)", () => {
+  /** `a` printed 50 × 40 mm top left, `b` 30 × 20 mm bottom right of the left page (their `place`, #32) */
+  const PLACES: Record<string, Target["place"]> = {
+    a: { surface: "left", x: 20, y: 20, width: 50, height: 40 },
+    b: { surface: "left", x: PAGE_MM.width - 50, y: PAGE_MM.height - 40, width: 30, height: 20 },
+  };
+  const target = (id: string): Target => ({ ...plainTarget(id), ...(PLACES[id] ? { place: PLACES[id] } : {}) });
   const container = document.createElement("div");
   let updates: Array<[string, Matrix4 | null]>;
   let tracker: MockTracker;
@@ -156,7 +136,7 @@ describe("MockTracker (IImageTracker without camera or engine)", () => {
     updatePreview({ view: "reader", orbit: null, hdri: "ferndale_studio_04", wobble: 0, hidden: [] });
     updates = [];
     now = 1000;
-    tracker = new MockTracker(container, { onUpdate: (id, matrix) => updates.push([id, matrix]) }, async () => ({ a: { width: 50, height: 40, position: "top left" }, b: { width: 30, height: 20, position: "bottom right" } }), () => now);
+    tracker = new MockTracker(container, { onUpdate: (id, matrix) => updates.push([id, matrix]) }, () => now);
   });
 
   afterEach(() => {
@@ -312,7 +292,7 @@ describe("MockTracker input (#131: the panels are no stage)", () => {
     canvas = container.querySelector("canvas")!;
     field = document.querySelector(".field")!;
     toolbarGap = document.querySelector(".gap")!;
-    tracker = new MockTracker(container, { onUpdate: () => {} }, async () => ({}), () => 1000);
+    tracker = new MockTracker(container, { onUpdate: () => {} }, () => 1000);
     await tracker.startCamera();
   });
 
@@ -366,7 +346,7 @@ describe("MockTracker: the placement being edited is the target itself (#191)", 
     updates = [];
     moved = [];
     aspect = undefined;
-    tracker = new MockTracker(document.createElement("div"), { onUpdate: (id, matrix) => updates.push([id, matrix]) }, async () => ({}), () => 0);
+    tracker = new MockTracker(document.createElement("div"), { onUpdate: (id, matrix) => updates.push([id, matrix]) }, () => 0);
     tracker.attachStage({
       setLayout() {},
       setHdri() {},

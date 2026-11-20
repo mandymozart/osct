@@ -113,7 +113,7 @@ describe("requests and replies", () => {
 describe("frameCsp: plugin code reaches the content, never the API", () => {
   const ORIGIN = "https://osct.example";
   const csp = (contentBases: string[], extra: Partial<Parameters<typeof frameCsp>[0]> = {}) =>
-    frameCsp({ origin: ORIGIN, appBase: "/editor/", apiBase: "/api", contentBases, files: ["/trigger-protocol.json"], ...extra });
+    frameCsp({ origin: ORIGIN, appBase: "/editor/", apiBase: "/api", contentBases, files: ["/exact-file.json"], ...extra });
   const directive = (policy: string, name: string) => policy.split("; ").find(d => d.startsWith(`${name} `))?.split(" ").slice(1) ?? [];
 
   it("names every source with its path – never 'self' or a whole origin", () => {
@@ -121,7 +121,7 @@ describe("frameCsp: plugin code reaches the content, never the API", () => {
     expect(policy).not.toContain("'self'");
     expect(directive(policy, "default-src")).toEqual(["'none'"]);
     expect(directive(policy, "connect-src")).toEqual([
-      "https://osct.example/editor/", "https://osct.example/api/content/", "https://cdn.example/demo/assets/content/", "https://osct.example/trigger-protocol.json", "blob:", "data:",
+      "https://osct.example/editor/", "https://osct.example/api/content/", "https://cdn.example/demo/assets/content/", "https://osct.example/exact-file.json", "blob:", "data:",
     ]);
     expect(directive(policy, "script-src")).toEqual(["https://osct.example/editor/", "https://cdn.example/demo/assets/content/", "blob:", "'wasm-unsafe-eval'"]);
     for (const name of ["worker-src", "frame-src", "object-src", "base-uri", "form-action"]) expect(directive(policy, name)).toEqual(["'none'"]);

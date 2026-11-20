@@ -1,10 +1,10 @@
 import type { IGame } from "@/types";
 import { GameStoreService } from "@/services";
 import {
-  cameraLine, fetchTriggerInfos, getCameraInfo, setWindowOverride, subscribeCamera, type CameraInfo,
+  cameraLine, getCameraInfo, setWindowOverride, subscribeCamera, type CameraInfo,
 } from "@/components/ar-bridges";
 import { getExperience, getConfigVersion, getScenes, sceneLabel } from "@/utils/game-config";
-import { countResults, trialReport, trialRows, type TrialRow, type TriggerInfos } from "./trial-report";
+import { countResults, trialReport, trialRows, type TrialRow } from "./trial-report";
 import {
   devicePrefill, osLine, pickList, readScreen, readUaHints, screenLine, type DevicePrefill, type ScreenSize, type UaHints,
 } from "./trial-device";
@@ -44,16 +44,16 @@ const printOrder = (targetId: string): [number, number] => {
   return match ? [Number(match[1]), Number(match[2])] : [Number.MAX_SAFE_INTEGER, 0];
 };
 
-/** A target on the test printout: the printed-image details have its size (the others are noted as not printed) */
-const isPrinted = (row: TrialRow): boolean => !!row.info?.width;
+/** A target on the printed page: the configuration places it (`place`, #321) – the others are noted as not printed */
+const isPrinted = (row: TrialRow): boolean => !!row.printed;
 
 /**
  * The trial's rows in the printout's order, each printed one with its running number on the sheets (1, 2, 3 …, the
  * same numbers as the tester printouts of trial 2); targets not on the printout keep their place without a number.
  */
 export const numberedRows = (rows: TrialRow[]): Array<TrialRow & { number: number | null }> => {
-  // Without printed-image details (no protocol file) every target counts as printed
-  const known = rows.some(row => row.info);
+  // Without any placed target (content without places) every target counts as printed
+  const known = rows.some(isPrinted);
   let next = 1;
   return [...rows]
     .sort((a, b) => {
@@ -83,7 +83,6 @@ export class TrialPanel extends HTMLElement {
   private shadow: ShadowRoot;
   private game: Readonly<IGame>;
   private cleanups: Array<() => void> = [];
-  private infos: TriggerInfos = {};
   private signature = "";
   private sheet: BottomSheet;
   /** The scene the strip last scrolled to – it scrolls again only when the current scene changes */
@@ -123,7 +122,6 @@ export class TrialPanel extends HTMLElement {
     this.shadow.addEventListener("input", this.onInput);
     this.shadow.addEventListener("change", this.onPick);
     this.render();
-    void this.loadInfos();
     void this.loadHints();
   }
 
@@ -131,15 +129,6 @@ export class TrialPanel extends HTMLElement {
     this.sheet.disconnect();
     this.cleanups.forEach(cleanup => cleanup());
     this.cleanups = [];
-  }
-
-  /** Printed-image details (optional – without the protocol file the report goes without them) */
-  private async loadInfos() {
-    const infos = await fetchTriggerInfos();
-    if (!Object.keys(infos).length) return;
-    this.infos = infos;
-    this.signature = ""; // the running numbers depend on which targets are printed
-    this.render();
   }
 
   /** The browser's model code and OS version (Chromium): the prefill of an empty model field, the real OS version */
@@ -162,7 +151,7 @@ export class TrialPanel extends HTMLElement {
   }
 
   rows(): TrialRow[] {
-    return trialRows(getScenes(), this.game.state.progress.unlocked, this.infos);
+    return trialRows(getScenes(), this.game.state.progress.unlocked);
   }
 
   report(): string {
