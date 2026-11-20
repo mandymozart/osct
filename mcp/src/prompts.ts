@@ -31,6 +31,7 @@ const EDITOR = [
   "themselves and their surfaces, put_experience_passes, put_experience_appearance and put_environment for the experience's",
   "post-processing, how its entities appear and its world.",
   "Every save is the draft the editor shows – give the person the link from the result so they check it on the stage.",
+  "To see a placement yourself, render_scene answers a picture of the scene as the stage shows it (view: reader, top, low, far).",
   "Plugins: osct://guides/plugins, then put_plugin; the Code tab's Run shows it on the stage, the person's next Publish takes it to readers.",
   "",
   "Never publish to production – that is the person's button in the editor. publish (local or staging, the instance's own) only when asked.",
@@ -60,7 +61,7 @@ export function registerPrompts(server: McpServer, services: Services | null): v
     },
     ({ experience, scene, what }) =>
       user(
-        `${EDITOR}\n\nAdd a target to experience "${experience}" on scene ${scene}: ${what}. Find the scene first (get_experience – by its id or label – then get_scene), describe_content_model for what you may write, upload the files with upload_asset, make the entry with add_entry (scene, surface, the target's place in mm on that surface, the entity as a node tree), check the result with get_scene and give me the link to the scene.`,
+        `${EDITOR}\n\nAdd a target to experience "${experience}" on scene ${scene}: ${what}. Find the scene first (get_experience – by its id or label – then get_scene), describe_content_model for what you may write, upload the files with upload_asset, make the entry with add_entry (scene, surface, the target's place in mm on that surface, the entity as a node tree), check the result with get_scene (and how it looks with render_scene) and give me the link to the scene.`,
       ),
   );
 }

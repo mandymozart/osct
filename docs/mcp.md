@@ -20,6 +20,8 @@ mcp/
   src/user.ts          the server for one user: whoami, the sign-in pair, the editor's tools when the role is there
   src/content.ts       experiences, scenes and groups, entities, targets, entries, assets, draft, publish, the logs
   src/code.ts          the Code tab's plugin sources
+  src/render.ts        render_scene's picture: the editor's render view in the computer's Chrome or Edge, headless (#89)
+  src/render-tool.ts   the render_scene tool
   src/model.ts         the content model from shared/, the guard over one entity, what an experience's plugins register
   src/prompts.ts       the server's instructions and the prompts (editor, add-target)
   src/resources.ts     osct://rules/content-model, osct://guides/plugins (docs/plugins.md)
@@ -173,6 +175,7 @@ Every result is JSON. Writes answer with `open`, the editor's link to check the 
 | `list_versions` · `list_changes { experience, limit? }` | the publish log, the change log (`notRevertable`: why a change cannot be taken back, null when it can) |
 | `revert_change { experience, change, apply? }` | takes one saved change back – its `before` written again as a new change, the later changes of the same thing with it (#312, [server](server.md#reverting-saved-changes)); the plan first (revert / conflict / not revertable, later edits, other people), then `apply: true`; the draft only |
 | `revert_to { experience, after, apply? }` | back to the state right after a change: every change after it, by anyone, reverted newest first as one change set – the same two steps |
+| `render_scene { experience, scene, view?, width?, height? }` | **a picture of the scene** (PNG) as the editor's stage shows the draft – the desk, the surfaces with their reference images, the printed images, the entities as the reader sees them – so the agent checks its own placement ([Seeing a scene](#seeing-a-scene-render_scene-89)). `view`: the stage's camera presets `reader` (default – 35 cm away, tilted 30°), `top` (straight down), `low` (75°, from the side), `far` (70 cm, the whole scene); `width` 320–2560 (1280), `height` 240–1600 (800). The answer is the image itself and `{ file, view, size, open }` – the PNG saved under the system's temp folder (`osct-renders/`) |
 | `describe_content_model { experience? }` | node types and names, placement, filters, components, passes, the looks (`appearance`: the moments, the built-in looks with their parameters), the environment, the scenes (`scene`: scenes, surfaces with their `place`, groups, the presets), an entry (`scene`, `surface`), a target's `place`, categories, an entry's text (`entryText`: the Markdown and the variables, with an example), the experience, and that the onboarding is the app's (no tool edits it) – from `shared/`; with an experience also the declared plugins with the components, node types and passes they recorded (with their parameters), the looks they recorded, and the Code tab's sources with the types read from them |
 
 Before `put_entity`, `put_target` and `add_entry` send an entity, the shared guard (`shared/guards/game-config.ts`) runs over
@@ -206,6 +209,40 @@ No 2.x tool is left (content schema 3.0, #319 – nothing of 2.x was shipped): n
 `migrate_scenes` / `migrate_surface_references`, no `migrate_3` (every experience is migrated), no `page`, `print`, `side`, `format`, `layout`
 or `title` of a scene anywhere. Scene links are `…/editor/<experience>/<scene>/`.
 
+## Seeing a scene: render_scene (#89)
+
+An agent that placed an entity used to read the draft back and ask the person to look. `render_scene` lets it look
+itself: the answer is the picture (an MCP image content block, which the agent sees) and the PNG's path.
+
+- **What it shows** – the editor's own stage, nothing drawn a second time (RULES #32): the editor has a **render view** of
+  a scene, `/editor/<experience>/<scene>/?render=<view>` (`editor/src/lib/render-view.ts`) – the workspace with the stage
+  alone: no top bar, no panels, no toolbar, no notices; the view preset is set as the toolbar's would be. It is the same
+  page behind the same sign-in gate on the same draft, so the picture is what the person sees on the stage at that
+  moment (the live stage – an animation at some frame, a video where it plays; the floor grid and the axis as the
+  editor's defaults draw them, a fresh browser's view settings). The page tells how far it got on `<html
+  data-osct-render="loading | ready | error">` (the error's words on `data-osct-render-error` – no draft, no scene, the
+  token refused, no editor role); `ready` means the stage runs on the draft.
+- **How it is taken** (`mcp/src/render.ts`) – the computer's own **Chrome or Edge**, started headless in a throwaway
+  profile (deleted afterwards), driven over the DevTools protocol with Node's own WebSocket: no browser download, no
+  dependency, so the one-file `osct-mcp.mjs` stays as it was. `OSCT_BROWSER` names another Chromium browser's executable;
+  without any the tool says so. It opens the render view at the size asked for, waits for `ready` (60 s at most), then
+  for the network to be quiet for a second – the models, textures, reference images and the sky have arrived (the stage
+  frame's requests count too; a video's or a sound's stream does not), 20 s at most, else the answer's `note` says
+  something may still be missing – and takes the picture. 5–10 s on a scene of the book.
+- **Signing in without a cookie** – the editor's session is an HttpOnly cookie; the render view gets none. Instead the
+  browser adds the server's `Authorization: Bearer` (the AI connection's token) to the page's **GET** requests to **this
+  instance's API** – the API takes a Bearer token before the cookie and needs no CSRF token for it – and **refuses every
+  write** there (`requestAction`: the render view reads, it never saves; the answer counts a refused write as
+  `blockedWrites`, which should never happen). The token is never in a URL, a file or an answer, and goes nowhere else:
+  not to the CDN, not into the sandboxed stage frame (its requests are left as they are). The editor must be served
+  next to the API (one origin – a deployed instance, `OSCT_EDITOR_URL` left at its default) or both local (the dev
+  editor passes its `/api` to the local API); an editor on another host is refused (`tokenScope`). No server change.
+- **Where it works** – any instance whose editor has the render view (deployed with #89), staging included, with no local
+  dev server: the server opens `https://osct.porschuetz.de/editor/…?render`. Against an older editor the tool answers
+  that the editor has no render view. Locally: the editor's dev server (`npm run dev` in `editor/`, the API proxied as
+  usual – `OSCT_API_PROXY` points it at another instance's API, e.g. staging, with `OSCT_API_URL` set to the dev
+  editor's `/api` so both are local).
+
 ## An example session
 
 "Add a target on the double page 30–31 with a tinted video":
@@ -219,7 +256,9 @@ or `title` of a scene anywhere. Scene links are `…/editor/<experience>/<scene>
 5. `add_entry { title: "Shadows", scene: "studio-b", surface: "surface", category: "video", target: { imageSrc, place: { surface: "surface", x: 270, y: 60, width: 80 },
    entity: { type: "video", assets: [{ id: "shadows", assetType: "video", src }], params: { rotation: [90, 0, 0], position: [0, 0, 0.3] },
    components: [{ type: "tint", color: "#f3cc94", opacity: 0.35 }] } } }` → the entry on `studio-b`, `open: …/editor/osct/studio-b/`.
-6. The person opens the link: the stage shows the target with the standing, tinted video; **Save placement** or the gizmo
+6. `render_scene { experience: "osct", scene: "studio-b", view: "top" }` → the picture: the video stands where it should, or
+   the agent moves it with `put_target` and looks again.
+7. The person opens the link: the stage shows the target with the standing, tinted video; **Save placement** or the gizmo
    fine-tune it; `publish` (the local API's own environment, `local`) for the reader on this machine, production in the
    editor.
 
@@ -244,8 +283,9 @@ sources alike. A difference fails; skipped without `php`, like the end-to-end te
 
 ## Limits
 
-- The stage cannot be seen: the agent reads the draft, the person looks. A headless render of the mock stage is a
-  follow-up (#75's note).
+- `render_scene` shows the stage, it does not play it: no taps, no scrubbing to a moment of an animation, no free camera
+  (the four presets only), the browser's default view settings (shading *rendered*, the floor grid on). It needs Chrome
+  or Edge on the computer the server runs on.
 - The onboarding is the reader app's own UI (#236): no tool reads or edits it. Every experience adds, moves, changes and
   removes its scenes (#307 – `add_scene`, `move_scenes`, `put_scene`, `delete_scene`); there is no source of truth
   any more (#320, #322). Removing an experience's printed book (`update_experience` `book: null`) stays the person's decision.

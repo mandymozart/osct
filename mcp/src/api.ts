@@ -32,6 +32,11 @@ export class OsctApi {
     this.token = token;
   }
 
+  /** The `Authorization` header's value for another client of this API (render_scene's browser), or null – never shown */
+  authorization(): string | null {
+    return this.token ? `Bearer ${this.token}` : null;
+  }
+
   /** A JSON call; 204 answers undefined */
   async call<T>(method: string, path: string, body?: unknown): Promise<T> {
     const headers: Record<string, string> = { Accept: "application/json" };

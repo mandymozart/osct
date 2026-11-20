@@ -8,6 +8,7 @@
   import SignIn from "#lib/SignIn.svelte";
   import TopBar from "#lib/TopBar.svelte";
   import NewVersionBar from "#lib/NewVersionBar.svelte";
+  import { markRender, RENDER_PARAM } from "#lib/render-view.js";
 
   let { children } = $props();
 
@@ -18,6 +19,14 @@
   /** The admin page (docs/admin.md) is for admins, everything else for editors – an account may be both */
   const isAdminRoute = $derived(isAdminPath(page.url.pathname));
   const allowed = $derived(isAdminRoute ? session.isAdmin : session.isEditor);
+  /** The render view of a scene (#89, render-view.ts): the stage alone – no top bar, no new-version bar */
+  const rendering = $derived(page.url.searchParams.has(RENDER_PARAM));
+  // …and a render the gate stops says why, for the renderer
+  $effect(() => {
+    if (!rendering) return;
+    if (session.status === "out") markRender("error", "Not signed in – the API refused the token.");
+    else if (session.status === "in" && !allowed) markRender("error", "The token's account has no editor role.");
+  });
 </script>
 
 <svelte:head>
@@ -25,7 +34,7 @@
 </svelte:head>
 
 <!-- A deploy under this open tab: the bar offers the new version, on every page -->
-<NewVersionBar />
+{#if !rendering}<NewVersionBar />{/if}
 
 {#if session.status === "unknown"}
   <main class="gate"><p class="muted">Checking the session…</p></main>
@@ -47,7 +56,7 @@
     <p><button type="button" class="pill framed" onclick={() => session.signOut()}>Sign out</button></p>
   </main>
 {:else}
-  <TopBar />
+  {#if !rendering}<TopBar />{/if}
   {@render children()}
 {/if}
 

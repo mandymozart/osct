@@ -10,6 +10,7 @@ import { registerCodeTools } from "./code.ts";
 import type { Config } from "./config.ts";
 import { registerContentTools } from "./content.ts";
 import { instructions, registerPrompts } from "./prompts.ts";
+import { registerRenderTool } from "./render-tool.ts";
 import { registerResources } from "./resources.ts";
 import { fail, failure, text } from "./result.ts";
 import { appLinks, fetchUser, servicesOf, type Services, type User } from "./services.ts";
@@ -33,6 +34,7 @@ export function createUserServer(config: Config, api: OsctApi, user: User | null
     opened = true;
     registerContentTools(server, api, links);
     registerCodeTools(server, api, links);
+    registerRenderTool(server, api, config, links);
     registerPrompts(server, services);
     registerResources(server);
   };
