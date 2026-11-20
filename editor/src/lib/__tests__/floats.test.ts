@@ -35,7 +35,7 @@ describe("the floating panels: the default layout", () => {
 
   it("folds the info to its pill at the bottom left; the tree leaves it its room", () => {
     expect(views.info.collapsed).toBe(true);
-    expect(views.info.rect).toMatchObject({ x: 8, w: 72 + 32 + 56, h: 36 });
+    expect(views.info.rect).toMatchObject({ x: 8, w: 72 + 32 + 28, h: 36 }); // grip and icon, the name, the close (no chevron, #318)
     expect(bottom(views.info.rect)).toBe(bottom(AREA));
     expect(bottom(views.tree.rect)).toBe(views.info.rect.y - 8);
   });

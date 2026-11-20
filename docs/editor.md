@@ -315,9 +315,12 @@ closed by default, **essential** (it folds but never closes) and **inline** (a t
 - **Fast**: a drag is laid out once per animation frame (the pointer events between coalesce); during a resize only the
   pushed panels' boxes change (`left`/`top`/`width`/`height` – their content is not drawn again) and nothing is stored
   until the pointer is let go.
-- **Fold** to its head (the chevron) – the pill: grip, icon, name; the inline toolbar folds to its icon, which a click
-  opens again. **Close** (×, not on essential panels); the top bar's **panels menu** lists the panels that close – ✓
-  shown, a click closes or brings one back – and **Reset layout**.
+- **Fold** to its head by a **double-click on the head** (not on a tab – a click or double-click on a tab only shows
+  it), or Enter on the focused handle (#318; the chevron is gone) – the pill: grip, icon, name of the tab it shows; folded
+  or open is remembered per panel. The inline toolbar folds to its icon, which a click opens again. **Close** (×, not on
+  the panel holding the Inspector, not on the toolbar); the top bar's **panels menu** lists the tabs – ✓ open, a click
+  closes one or brings it back into its home panel – and **Reset layout** (every panel at its default place, every tab
+  in its home panel).
 - **The order of growth**: each panel first gets its least size where its place is, then grows from its corner towards
   the size it asks for; an earlier panel leaves a later one the room that one asks for, a `fill` panel takes what is
   left. So the Tree and the Inspector stand the full height beside the Scenes strip, and an Info opened at the bottom
@@ -328,6 +331,32 @@ closed by default, **essential** (it folds but never closes) and **inline** (a t
   removes that workspace's layout.
 - The Scenes panel and the Info view in a float have no fold and no sash of their own – the float's head folds them,
   its edges resize them; the Scenes cards scale with the panel's height.
+
+### Universal tabs (#318)
+
+Every content of the workspace's panels is a **tab** – Tree, Inspector, Environment, Library, Code, Scenes, Info,
+History, Logic (`SCENE_TABS` in the page: id, name, icon, what it is for, its **home** panel) – and any tab can live in
+any panel. A panel's head shows its tabs (words, or icons in a panel too narrow for them: `wordTabs` counts the tabs);
+the pure part is `components/float-tabs.ts` (tested in `lib/__tests__/float-tabs.test.ts`), the state lives in `Floats`
+(`arrangement`: panel id → its tabs in order and the one it shows), `FloatingPanel` draws the tabs and handles the drag.
+
+- **Drag a tab** (pointer events – mouse, pen, a finger on the iPad): over another panel's **head** it lands before or
+  after the tab under the pointer (before the first tab whose middle lies right of it) – a line marks the place and the
+  panel is outlined; over another panel's body at the end of its tabs; within its own head it takes a new place.
+- **Drag a tab out onto the stage**: it becomes a **panel of its own** (`float-<n>`) at the drop point – as large as its
+  home panel's size where that is a number, else the panel it left, at most 24rem – snapped like a moved panel.
+- A panel whose **last tab leaves closes**: a home panel is closed (the panels menu brings its tabs back), a panel made
+  by a drag goes, its place with it.
+- **The Inspector is never lost**: the panel holding it has no close (wherever it lives), the panels menu does not list
+  it, and a stored arrangement without it (edited by hand) gets it back in its home panel.
+- A link from one content to another (the Logic panel's plugin → Code, the Inspector's Code / Environment links, a
+  selection → Inspector, undo's history → History) shows the tab where it lives; a closed one comes back into its home
+  panel. A selection does not take the place of the Tree in a panel showing it (the Tree shows the selection itself).
+  The Code tab asks the panel showing it for 36rem (until it is resized). The forms and removal steps open in the
+  Inspector tab.
+- **Remembered** with the layout, per workspace in this browser: under `@tabs` (`{ v: 1, panels }`) beside the panels'
+  places in `osct-editor-panels`. A layout stored before #318 is **migrated**, not reset: its places stay, a home panel it
+  had closed keeps its tabs closed, the Inspector panel shows the tab it showed (`osct-editor-tab`, read only for this).
 
 ### The Scenes panel
 
@@ -1330,7 +1359,7 @@ design tokens):
 | The demo's key model | `editor/tools/key-model.mjs` | the demo experience's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | The API layer | `editor/src/lib/api.ts`, `storage.ts`; `shared/api/` | every call through one `request` (the session cookie and the CSRF token on writes – #207, a 401 that ends the session, the API's errors as `ApiError` with their details); the answers typed once with the MCP server (`shared/api/editor.ts`); `getExperience` reads an experience's tree once for the stage, the environment and the top bar and reads it again after any write to the experience (`fresh` for the experience page); `errorText` the one error line; the two-step confirmations through `confirmationStep` (`shared/api/errors.ts`); the settings in localStorage through `storage.ts` (`osct-…` keys, blocked storage tolerated) |
-| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SceneView` and `EntryForm`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Toggle`, `Section`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the floating panels `FloatingPanel` with `floats.ts` (placement, pure) and `floats.svelte.ts` (a workspace's set, the panels menu) (#308); the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its scope, groups and sort in `library-scope.ts` (`AssetTile`, `AssetDetails`, #330), its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry's form in `EntryForm.svelte` (its logic in `entry-edit.ts`, its words outside the form in `entry-view.ts`), the scene section's in `scene-view.ts` (#227); the Logic panel `LogicPanel.svelte` with its graph in `scene-logic.ts` and its layout in `logic-layout.ts` (#239) |
+| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SceneView` and `EntryForm`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Toggle`, `Section`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the floating panels `FloatingPanel` with `floats.ts` (placement, pure) and `floats.svelte.ts` (a workspace's set, the panels menu) (#308), the tabs' arrangement in `float-tabs.ts` (#318); the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its scope, groups and sort in `library-scope.ts` (`AssetTile`, `AssetDetails`, #330), its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry's form in `EntryForm.svelte` (its logic in `entry-edit.ts`, its words outside the form in `entry-view.ts`), the scene section's in `scene-view.ts` (#227); the Logic panel `LogicPanel.svelte` with its graph in `scene-logic.ts` and its layout in `logic-layout.ts` (#239) |
 | The experience's texts and search | `editor/src/lib/ExperienceSearch.svelte`, `experience-search.ts`, `ExperienceTexts.svelte`, `experience-texts.ts`, `panels/ExperiencePanel.svelte`, `panels/NewEntryForm.svelte`, `entries.svelte.ts` | [Texts](#texts-entries-and-the-experience), [The experience search](#the-experience-search), [Inspector: the experience](#inspector-the-experience) |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts`, `stage/plugin-run.ts` | the stored sources, Run (transpile with sucrase in the page; import and `installPlugin` in the stage frame, rebuild), the plugins' log |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |

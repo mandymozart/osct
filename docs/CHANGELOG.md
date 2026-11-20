@@ -7,6 +7,21 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **Universal panel tabs** (#318): every content of the workspace's panels – Tree, Inspector, Environment, Library,
+  Code, Scenes, Info, History, Logic – is a tab that can live in any panel. Drag a tab into another panel's head and it
+  lands before or after the tab under the pointer (a line marks where); drag it out onto the stage and it becomes a
+  panel of its own there. A panel whose last tab leaves closes; the panel holding the Inspector never closes. The
+  arrangement is remembered per workspace in this browser with the layout (a layout stored before is migrated: places,
+  closed panels and the Inspector's tab stay); the panels menu lists the tabs and Reset layout resets it. Pointer events,
+  so a pen or a finger on the iPad drags tabs too.
+
+### Changed
+- A **double-click on a panel's head** (not on a tab) folds and opens the panel, Enter on its focused handle too; the
+  chevron button in the head is gone.
+
 ## 3.12.0 – 2026-11-20
 
 ### Added
