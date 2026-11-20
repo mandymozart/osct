@@ -339,6 +339,16 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
       }
     }
     if (target.enabled !== undefined && typeof target.enabled !== "boolean") fail(`${tPath}.enabled`, "expected true or false");
+    if (target.recognition !== undefined) {
+      const recognition = obj(target.recognition, `${tPath}.recognition`);
+      if (recognition) {
+        str(recognition, "imageSrc", `${tPath}.recognition`);
+        (["width", "height"] as const).forEach(key => {
+          const value = recognition[key];
+          if (typeof value !== "number" || !Number.isInteger(value) || value < 1) fail(`${tPath}.recognition.${key}`, "expected a whole number of px");
+        });
+      }
+    }
     if (typeof target.id === "string") {
       if (targetIds.has(target.id)) fail(`${tPath}.id`, `duplicate target id "${target.id}"`);
       targetIds.add(target.id);

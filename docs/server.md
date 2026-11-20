@@ -675,7 +675,10 @@ JSON holds `"type":"<type>"` (a component, layer, node type, pass or material) o
 (`TargetPlace`, content schema 3.0: `{ surface?, x, y, width, height? }` in mm from the top left corner of a surface of
 its entry's scene – `surface` by id, required when the scene has several; `null` removes it – the editor's stage lays
 the target there) and `{ enabled }` (#249: `false` switches the target off, the reader leaves it and its entry out;
-`true` removes the field, on is the default). 400 `invalid-target` (a 2.x `print` too). `POST /editor/experiences/{id}/entries`
+`true` removes the field, on is the default) and `{ recognition }` (#306: `{ imageSrc, width, height }` – the grey recognition
+frame made ahead, [content](content.md) "Recognition"; `null` removes it; with `madeFrom` – the image it was made from – 409
+`stale-image` when the target has another image by now). A new `imageSrc` drops `recognition` unless the same body sets it,
+and so does a replace of the image's Library file (the relink). 400 `invalid-target` (a 2.x `print` too). `POST /editor/experiences/{id}/entries`
 `{ title, scene, surface?, category?, body?, caption?, target?: { id?, imageSrc, place?, entity?, enabled? } }` → 201
 `{ entry, scene }` makes an entry (id from its scene and title, `s102-103-shadows`, or the given one; 409
 `duplicate-id`) on its scene (and surface) with its target – or without one (no `target`): an entry read only in the

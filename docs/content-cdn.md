@@ -59,6 +59,7 @@ npm run osct -- content build                          # content folder → clie
 npm run osct -- content status --env staging           # versions on the storage, what the CDN serves
 npm run osct -- content sync --env staging             # upload the build as a version, make it current
 npm run osct -- content purge --env staging --dry-run  # which old versions would go, and why the others stay
+npm run osct -- targets prepare --experience osct --dry-run  # targets' recognition data made ahead (#306, content.md "Recognition")
 ```
 
 - **build** reads the content source `OSCT_CONTENT_DIR` (absolute, or relative to the repository; required – no

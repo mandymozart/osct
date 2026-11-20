@@ -608,6 +608,14 @@ final class Assets
         foreach (Db::run('SELECT id, image_src, data_json FROM targets WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll() as $row) {
             $json = $swap($row['data_json']);
             $image = $row['image_src'] === $from ? $to : $row['image_src'];
+            // A new version of the printed image makes its recognition data stale (#306): it goes, `osct targets prepare` makes it again
+            if ($image !== $row['image_src']) {
+                $target = Editor::decode($json);
+                if ($target instanceof stdClass && isset($target->recognition)) {
+                    unset($target->recognition);
+                    $json = Editor::encode($target);
+                }
+            }
             if ($json === $row['data_json'] && $image === $row['image_src']) continue;
             Db::run('UPDATE targets SET image_src = :image, data_json = :data WHERE experience_id = :experience AND id = :id', ['image' => $image, 'data' => $json, 'experience' => $experienceId, 'id' => $row['id']]);
             Experiences::recordChange($experienceId, $user, 'target', $row['id'], $row['data_json'], $json);

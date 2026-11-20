@@ -20,9 +20,12 @@ export interface ExperienceDownload {
 }
 
 
-/** A scene's target images: the tracker makes the engine's image targets from them (needed to start AR) */
+/**
+ * A scene's target images (needed to start AR): a target's recognition frame made ahead (#306 – the engine loads it), else
+ * its printed image (the tracker makes the engine's image target from it)
+ */
 const getTargetImages = (sceneId: string): LoadOptions[] =>
-  getTargets(sceneId).map(t => t.imageSrc).filter(isContentUrl).map(src => ({ src, type: "image" }));
+  getTargets(sceneId).map(t => t.recognition?.imageSrc ?? t.imageSrc).filter(isContentUrl).map(src => ({ src, type: "image" }));
 
 /**
  * Files a scene uses besides its target images: entity assets (AR models, images, audio, videos), the subtitle files

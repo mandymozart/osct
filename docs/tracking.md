@@ -18,7 +18,9 @@ and engine – the editor's stage with the mock tracker – see [Editor](editor.
    dropped. The bridge preloads the content of the ±n window
    (±1 in grow mode; `PreloaderService.preloadScenes()`: target images, then one scene at a time).
 3. **Preparing** (the app, main thread) – each target image becomes a grey 480×640 frame (`makeImageTarget()`,
-   `xr8.ts`): decode, draw, greyscale, JPEG. S22: 150–260 ms per image, cached per session.
+   `xr8.ts`): decode, draw, greyscale, JPEG. S22: 150–260 ms per image, cached per session. A target with `recognition`
+   (made ahead with `osct targets prepare`, #306, [content](content.md) "Recognition") skips it: the engine loads its
+   frame by URL (`preparedImageTarget()`).
 4. **Extracting** (the engine, main thread) – `XrController.configure()` unloads what is not listed, keeps what it
    has and extracts the new targets one per animation frame. Every configure **cancels and restarts** the queue of
    targets not yet extracted. `reality.imagescanning` fires when the queue is empty. S22: 0.6–0.75 s for 4 targets,

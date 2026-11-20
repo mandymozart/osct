@@ -7,6 +7,20 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **Recognition data made ahead** (#306, content schema 4.1): `osct targets prepare --experience <id> [--dry-run] [--force] [--all]`
+  makes every target's grey 480 × 640 recognition frame – the one the reader makes on the phone when a scene opens
+  (S22: 150–260 ms per image) – from its printed image on an instance (editor API, `OSCT_API_URL` / `OSCT_EDITOR_TOKEN`),
+  stores it as a Library file and names it on the target (`recognition` { imageSrc, width, height }). The reader hands
+  that frame to the engine as it is and preloads it instead of the printed image; targets without it work as before. The
+  engine still extracts the features on the phone (it takes no precompiled ones) – recognition stays the same, only
+  the preparing goes. The API drops `recognition` whenever a target's image changes (a new `imageSrc`, a replaced image
+  file) and refuses a frame of an image the target no longer has (409 `stale-image`). Format of 8th Wall's image-target
+  CLI (flat); the CLI itself is not used – interactive only, and its default crop loses a tall page's top and bottom
+  (docs/content.md "Recognition").
+
 ## 3.10.0 – 2026-11-20
 
 ### Changed

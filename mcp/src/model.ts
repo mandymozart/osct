@@ -395,7 +395,7 @@ export function describeContentModel(experience?: ExperienceModel): Record<strin
     },
     target: {
       description:
-        "TargetData: { id, imageSrc, entity?: EntityData | { ref }, place?, enabled? }. imageSrc = the printed image (an uploaded image asset's url). enabled: false switches the target off – the reader leaves it and its entry out until it is switched on, the editor keeps both; leave it out for a target in the experience.",
+        "TargetData: { id, imageSrc, entity?: EntityData | { ref }, place?, enabled?, recognition? }. imageSrc = the printed image (an uploaded image asset's url). enabled: false switches the target off – the reader leaves it and its entry out until it is switched on, the editor keeps both; leave it out for a target in the experience. recognition (content schema 4.1) = the image tracker's grey frame made ahead from imageSrc by `osct targets prepare` – not written here; the API drops it when imageSrc changes.",
       place: {
         description:
           "Where the target lies (TargetPlace, content schema 3.0): { surface?, x, y, width, height? } – its box in mm from the top left corner of a surface of its entry's scene; surface = the surface's id, required when the scene has several. The editor's stage lays the target there; the reader does not need it. put_target place, add_entry target.place; null removes it.",

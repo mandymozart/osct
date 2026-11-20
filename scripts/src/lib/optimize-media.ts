@@ -44,13 +44,13 @@ export const VIDEO_WARN_BYTES = 4 * 1024 * 1024;
 const VIDEO_ADVICE = 'large video – export at 720p, H.264 MP4, ~2 Mbit/s, AAC 128 kbit/s audio (or none)';
 const JPEG_QUALITY = 85;
 
-interface Rgba {
+export interface Rgba {
   width: number;
   height: number;
   data: Uint8Array;
 }
 
-const decode = (image: Uint8Array, mimeType: string): Rgba | null => {
+export const decode = (image: Uint8Array, mimeType: string): Rgba | null => {
   if (mimeType === 'image/png') {
     const png = PNG.sync.read(Buffer.from(image));
     return { width: png.width, height: png.height, data: new Uint8Array(png.data) };

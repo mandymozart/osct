@@ -390,10 +390,13 @@ final class Experiences
     }
 
     /**
-     * PUT /editor/experiences/{id}/targets/{targetId} { entity } | { ref } | { imageSrc } | { place } | { enabled } → { target }:
-     * the target's entity – inline (`entity`, null removes it) or a shared one (`ref`) –, its printed image and where it is
-     * printed (`place` { surface?, x, y, width, height? } on a surface of its entry's scene, null removes it),
-     * and whether it is in the experience (`enabled`, #249); records a change with the whole target before and after.
+     * PUT /editor/experiences/{id}/targets/{targetId} { entity } | { ref } | { imageSrc } | { place } | { enabled } | { recognition }
+     * → { target }: the target's entity – inline (`entity`, null removes it) or a shared one (`ref`) –, its printed image and
+     * where it is printed (`place` { surface?, x, y, width, height? } on a surface of its entry's scene, null removes it),
+     * whether it is in the experience (`enabled`, #249) and its recognition data made ahead (`recognition` { imageSrc, width,
+     * height }, #306 – `osct targets prepare`; null removes it; with `madeFrom` – the image it was made from – it is set only
+     * while that is still the target's image, else 409 `stale-image`). A new `imageSrc` drops the recognition data unless
+     * the same body sets it. Records a change with the whole target before and after.
      */
     public static function putTarget(string $experienceId, string $targetId): never
     {
@@ -424,7 +427,17 @@ final class Experiences
             // The printed image and where it is printed (docs/server.md "Targets")
             if (property_exists($body, 'imageSrc')) {
                 if (!is_string($body->imageSrc) || $body->imageSrc === '') throw new ApiError(400, 'invalid-target', 'imageSrc must be a non-empty string.');
+                // Recognition data is made from the image: another image makes it stale (#306)
+                if ($body->imageSrc !== ($target->imageSrc ?? null)) unset($target->recognition);
                 $target->imageSrc = $body->imageSrc;
+                $touched = true;
+            }
+            if (property_exists($body, 'recognition')) {
+                if (property_exists($body, 'madeFrom') && $body->madeFrom !== ($target->imageSrc ?? null)) {
+                    throw new ApiError(409, 'stale-image', 'The target has another image now – make its recognition data from that one.');
+                }
+                if ($body->recognition === null) unset($target->recognition);
+                else $target->recognition = self::targetRecognition($body->recognition);
                 $touched = true;
             }
             if (property_exists($body, 'place')) {
@@ -437,7 +450,7 @@ final class Experiences
                 $target = self::withEnabled($target, $body->enabled, 'enabled');
                 $touched = true;
             }
-            if (!$touched) throw new ApiError(400, 'invalid-target', 'Send { entity } or { ref }, { imageSrc }, { place } or { enabled }.');
+            if (!$touched) throw new ApiError(400, 'invalid-target', 'Send { entity } or { ref }, { imageSrc }, { place }, { enabled } or { recognition }.');
             $json = Editor::encode($target);
             Db::run('UPDATE targets SET entity_ref = :ref, image_src = :image, data_json = :data WHERE experience_id = :experience AND id = :id', $params + ['ref' => $ref, 'image' => $target->imageSrc, 'data' => $json]);
             self::touch($experienceId);
@@ -445,6 +458,18 @@ final class Experiences
             return $target;
         });
         Http::json(200, ['target' => $target]);
+    }
+
+    /**
+     * A target's recognition data (#306, shared `TargetRecognitionData`): the grey frame's URL and the size in px of the
+     * printed image it was made from
+     */
+    private static function targetRecognition(mixed $value): stdClass
+    {
+        $valid = $value instanceof stdClass && is_string($value->imageSrc ?? null) && $value->imageSrc !== '';
+        foreach (['width', 'height'] as $key) $valid = $valid && is_int($value->{$key} ?? null) && $value->{$key} >= 1;
+        if (!$valid) throw new ApiError(400, 'invalid-target', 'recognition must be { imageSrc, width, height } (width and height whole px) or null.');
+        return (object) ['imageSrc' => $value->imageSrc, 'width' => $value->width, 'height' => $value->height];
     }
 
     /**

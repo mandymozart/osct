@@ -9,6 +9,7 @@
  *   osct content status --env <env>          (exit code 1 when latest.json and versions.json disagree on the storage)
  *   osct content sync   --env <env> [--force] [--dry-run] [--without-videos]
  *   osct content purge  --env <env> [--dry-run] [--min-age <days>] [--keep <n>] [--unknown]
+ *   osct targets prepare --experience <id> [--dry-run] [--force] [--all]
  *
  * Environment (or a scripts/.env file, never committed):
  *   OSCT_CONTENT_DIR             the content source (absolute or relative to the repository; fixtures/content for
@@ -20,6 +21,8 @@
  *   OSCT_CONTENT_BASE_URL        the environment's CDN URL – sync checks what the CDN serves; purge requires it
  *   OSCT_APP_URL                 the site the reader runs on (optional) – the CDN check asks with its origin (CORS)
  * The same names as the server's settings (docs/server.md, #33).
+ *   OSCT_API_URL                 targets prepare: the instance's API (default: the local dev API, http://127.0.0.1:8080/api)
+ *   OSCT_EDITOR_TOKEN            targets prepare: a person's editor token (the editor's experiences page, AI connections)
  */
 import { spawnSync } from 'child_process';
 import path from 'path';
@@ -44,6 +47,7 @@ import {
 } from './lib/content-sync';
 import { type CliArgs, parseArgs } from './lib/cli-args';
 import { messageOf } from './lib/errors';
+import { describePlan, editorApi, planTargets, prepareTargets } from './lib/targets-prepare';
 import { StorageClient } from './lib/storage';
 import { DEMO_ENV } from './config';
 import { ENV_NAME } from '../../shared/api/rules';
@@ -51,7 +55,9 @@ import { ENV_NAME } from '../../shared/api/rules';
 // scripts/.env is loaded by config.ts (imported through lib/content-sync)
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-const OPTIONS = { flags: ['force', 'dry-run', 'without-videos', 'unknown', 'help'], values: ['env', 'min-age', 'keep'] };
+const OPTIONS = { flags: ['force', 'dry-run', 'without-videos', 'unknown', 'help', 'all'], values: ['env', 'min-age', 'keep', 'experience'] };
+/** The local dev API (as the MCP server's default) */
+const LOCAL_API = 'http://127.0.0.1:8080/api';
 
 const USAGE = `osct – content command line
 
@@ -63,6 +69,10 @@ const USAGE = `osct – content command line
   osct content purge --env <env> [--dry-run] [--min-age <days>] [--keep <n>] [--unknown]
                                                delete old versions that are provably out of use
                                                (defaults: --min-age ${DEFAULT_PURGE.minAgeDays} --keep ${DEFAULT_PURGE.keep})
+  osct targets prepare --experience <id> [--dry-run] [--force] [--all]
+                                               make the targets' recognition data ahead (#306) on an instance
+                                               (--all: switched-off targets too):
+                                               OSCT_API_URL (default the local dev API), OSCT_EDITOR_TOKEN
 
 <env>: staging | production, demo for the demo (fixtures/demo). Storage access: OSCT_BUNNY_STORAGE_ZONE, OSCT_BUNNY_STORAGE_ENDPOINT,
 OSCT_BUNNY_STORAGE_PASSWORD, OSCT_CONTENT_BASE_URL, optionally OSCT_APP_URL (environment variables or scripts/.env).
@@ -129,10 +139,29 @@ async function status(env: string): Promise<void> {
   }
 }
 
+/** `osct targets prepare` (#306): the targets without recognition data (every one with --force, switched-off ones with --all), made and stored back */
+async function targetsPrepare(cli: CliArgs): Promise<void> {
+  const experience = cli.option('experience');
+  if (!experience) throw new Error('Name the experience: --experience <id>');
+  const apiUrl = (process.env.OSCT_API_URL?.trim() || LOCAL_API).replace(/\/+$/, '');
+  const api = editorApi(apiUrl, required('OSCT_EDITOR_TOKEN'));
+  const plan = planTargets(await api.tree(experience), { force: cli.flag('force'), all: cli.flag('all'), origin: new URL(apiUrl).origin });
+  console.log(`🎯 ${experience} on ${apiUrl}`);
+  describePlan(plan).forEach(line => console.log(line));
+  if (cli.flag('dry-run')) {
+    console.log('Dry run – nothing changed.');
+    return;
+  }
+  const done = await prepareTargets(api, experience, plan, line => console.log(line));
+  const ms = done.reduce((sum, target) => sum + target.makeMs, 0);
+  console.log(`✅ ${done.length} targets prepared${done.length ? ` (${Math.round(ms / done.length)} ms each here)` : ''} – the draft has them; publish to reach readers`);
+}
+
 async function main(): Promise<void> {
   const cli = parseArgs(process.argv.slice(2), OPTIONS);
   const { flag } = cli;
   const [group, command] = cli.positional;
+  if (group === 'targets' && command === 'prepare' && !flag('help')) return targetsPrepare(cli);
   if (group !== 'content' || !command || flag('help')) {
     console.log(USAGE);
     if (group && group !== 'help') process.exitCode = 1;
