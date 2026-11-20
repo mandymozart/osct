@@ -145,12 +145,19 @@ export type CanvasEdit =
   | { edit: "unwire"; from: [string, string]; to: [string, string] }
   | { edit: "run"; id: string };
 
-/** An edit of the logic as an op on one document – declared only; `apply` comes with L-T4 */
+/** Where a new rule goes: a node of a target's tree (its first behaviour component; one is added when it has none) */
+export type RulePlace = { doc: "entity"; target: string; path: number[] };
+
+/**
+ * An edit of the logic as an op on one document (`apply.ts`). `connect` and `disconnect` name the ports and the wire by the
+ * level's view (`[box, port]`, an edge's id); the others name the document place (`Home`). `verb`: the verb of the action a
+ * `connect` from a rule's `do` to a node makes (show by default).
+ */
 export type Op =
-  | { op: "addRule"; at: Home }
-  | { op: "connect"; from: [string, string]; to: [string, string] }
+  | { op: "addRule"; at: RulePlace; on?: string }
+  | { op: "connect"; from: [string, string]; to: [string, string]; verb?: BehaviourAction["action"] }
   | { op: "disconnect"; edge: string }
-  | { op: "setCondition"; home: Home; tests: BehaviourCondition["tests"] }
+  | { op: "setCondition"; home: Home; tests: BehaviourCondition["tests"]; match?: BehaviourCondition["match"] }
   | { op: "addAction"; home: Home; action: BehaviourAction }
   | { op: "removeAction"; home: Home }
   | { op: "removeRule"; home: Home }

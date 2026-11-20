@@ -553,6 +553,10 @@ const experienceView = (content: LogicContent, context: Context, uses: readonly 
   };
 };
 
+/** The problems of the whole experience, each once (`apply.ts`'s `problems`) */
+export const experienceProblems = (content: LogicContent, { registry = coreRegistry }: ProjectOptions = {}): Problem[] =>
+  scenesProblems(content, content.scenes, usesOf(content), registry);
+
 /** The logic view of one level (see the module's comment) */
 export const project = (content: LogicContent, context: Context, { registry = coreRegistry }: ProjectOptions = {}): View => {
   const uses = usesOf(content);

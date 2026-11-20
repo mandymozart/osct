@@ -15,6 +15,7 @@ describe("the node type registry (#334)", () => {
       { id: "do:0", label: "set", signal: "value", dir: "out" },
       { id: "do:1", label: "emit", signal: "event", dir: "out" },
       { id: "do:2", label: "show", signal: "node", dir: "out" },
+      { id: "do", label: "+", signal: "node", dir: "out", many: true },
     ]);
   });
 
@@ -43,7 +44,7 @@ describe("the logic view per level (#334)", () => {
     const view = project(content, { level: "scene", scene: "door" });
     expect(view.levels).toEqual([{ level: "experience" }, { level: "group", group: "ch1" }, { level: "scene", scene: "door" }]);
     const rule = view.nodes.find(n => n.id === "rule:door/#1")!;
-    expect(rule.ports.map(p => p.id)).toEqual(["on", "when", "do:0", "do:1"]);
+    expect(rule.ports.map(p => p.id)).toEqual(["on", "when", "do:0", "do:1", "do"]);
     expect(edge(view, "var:hasKey", "rule:door/#1")).toEqual([{
       id: "var:hasKey:get>rule:door/#1:when", from: ["var:hasKey", "get"], to: ["rule:door/#1", "when"], signal: "value", label: "when",
       home: { doc: "entity", target: "door", path: [], component: 1, rule: 1, part: "when", index: 0 },
