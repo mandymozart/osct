@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { at, crowd, type PanelSpec, type Rect } from "../components/floats";
 import { Floats, PANELS_KEY } from "../components/floats.svelte.js";
+import type { TabSpec } from "../components/float-tabs";
 
 // #329: a resize makes room – laid out once per animation frame, stored once when it ends
 const SPECS: PanelSpec[] = [
@@ -89,5 +90,74 @@ describe("Floats: a toolbar's row / column (#328)", () => {
     f.setVertical("tools", false);
     expect(f.vertical("tools")).toBe(false);
     expect(new Floats("test", TOOLS).vertical("tools")).toBe(false);
+  });
+});
+
+describe("Floats: universal tabs (#318)", () => {
+  const TABS: TabSpec[] = [
+    { id: "tree", name: "Tree", icon: "tree", about: "", home: "tree" },
+    { id: "inspector", name: "Inspector", icon: "inspector", about: "", home: "inspector", essential: true },
+    { id: "code", name: "Code", icon: "code", about: "", home: "inspector" },
+    { id: "scenes", name: "Scenes", icon: "film", about: "", home: "scenes" },
+  ];
+  beforeEach(() => localStorage.clear());
+  const floats = () => {
+    const f = new Floats("test", SPECS, TABS);
+    f.area = AREA;
+    f.metrics = { rem: 16, gap: 8, head: 36, button: 28, char: 8 };
+    for (const id of f.tabPanels) f.show(id);
+    return f;
+  };
+
+  it("migrates a layout stored before #318: its places stay, a closed panel's tabs are closed", () => {
+    localStorage.setItem(PANELS_KEY, JSON.stringify({ test: { tree: { corner: "top-left", dx: 40, dy: 0 }, scenes: { corner: "bottom-left", dx: 0, dy: 0, closed: true } } }));
+    const f = new Floats("test", SPECS, TABS, "code");
+    expect(f.tabPanels).toEqual(["tree", "inspector"]);
+    expect(f.places.tree.dx).toBe(40);
+    expect(f.places.scenes.closed).toBeUndefined();
+    expect(f.closed("scenes")).toBe(true);
+    expect(f.showing("code")).toBe("inspector");
+  });
+
+  it("drags a tab out onto the stage: a panel of its own at the drop point, stored with the arrangement", () => {
+    const f = floats();
+    f.grabTab("code", "inspector", 1300, 20);
+    f.dragTab(700, 300, null);
+    expect(f.tabDrop).toBe("out");
+    expect(f.dropTab()).toBe(true);
+    expect(f.arrangement["float-1"]).toEqual({ tabs: ["code"], active: "code" });
+    expect(f.spec("float-1")?.name).toBe("Code");
+    expect(f.places["float-1"].size).toBeDefined();
+    const stored = JSON.parse(localStorage.getItem(PANELS_KEY)!).test;
+    expect(stored["@tabs"].panels["float-1"].tabs).toEqual(["code"]);
+    // read back in a new page
+    expect(new Floats("test", SPECS, TABS).arrangement).toEqual(f.arrangement);
+  });
+
+  it("drags a tab into another panel; a click (no drag) changes nothing", () => {
+    const f = floats();
+    f.grabTab("scenes", "scenes", 400, 700);
+    f.dragTab(401, 700, { panel: "tree", index: 0 });
+    expect(f.dropTab()).toBe(false);
+    f.grabTab("scenes", "scenes", 400, 700);
+    f.dragTab(100, 20, { panel: "tree", index: 1 });
+    expect(f.dropTab()).toBe(true);
+    expect(f.arrangement.tree.tabs).toEqual(["tree", "scenes"]);
+    expect(f.arrangement.scenes).toBeUndefined();
+    expect(f.closed("scenes")).toBe(true);
+  });
+
+  it("never closes the panel holding the Inspector; the menu lists the other tabs and brings them back", () => {
+    const f = floats();
+    f.close("inspector");
+    expect(f.arrangement.inspector).toBeDefined();
+    expect(f.closable().map(c => c.id)).toEqual(["tree", "code", "scenes"]);
+    f.flip("tree");
+    expect(f.holder("tree")).toBeNull();
+    f.flip("tree");
+    expect(f.holder("tree")).toBe("tree");
+    f.reset();
+    expect(f.tabPanels).toEqual(["tree", "inspector", "scenes"]);
+    expect(localStorage.getItem(PANELS_KEY)).toBe("{}");
   });
 });

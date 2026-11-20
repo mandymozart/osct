@@ -192,9 +192,9 @@ export const placeOf = (r: Rect, area: Rect): Pick<Place, "corner" | "dx" | "dy"
   };
 };
 
-/** A folded panel's pill: grip and icon, its name, the chevron and – unless it is essential – the close */
+/** A folded panel's pill: grip and icon, its name and – unless it is essential – the close (a double-click on the head folds and opens it, #318) */
 export const pillSize = (spec: PanelSpec, m: Metrics): Size =>
-  spec.inline ? { w: m.head, h: m.head } : { w: 2 * m.head + spec.name.length * m.char + m.button * (spec.essential ? 1 : 2), h: m.head };
+  spec.inline ? { w: m.head, h: m.head } : { w: 2 * m.head + spec.name.length * m.char + (spec.essential ? 0 : m.button), h: m.head };
 
 /**
  * A panel's chrome around its content: an inline toolbar has its grip and its button (the orientation) in its row – or,
