@@ -386,6 +386,21 @@ side and another representation (a video, a 3D component) shows on the canvas, a
    - Unreal's material preview and watched values;
    - the deck's `Activity` and pinned wire values.
 
+9. **The graph as an exchange format: copy, paste, templates** (Tilman, 2026-11-20: *"die graphen werden dennoch
+   interessant fuer das copieren von nodes und gruppen oder ganzen ansichten"*). The graph is not stored, but it is what
+   travels. Copying nodes, a group or a whole view puts a **graph fragment** on the clipboard: its boxes with their
+   params, the wires between them, and their canvas part (positions, group, notes). Unreal copies nodes as text and
+   ComfyUI copies workflow JSON in the same way. Pasting turns the fragment back into **ops on the documents** (`apply`),
+   so it goes through save, the change log and undo:
+   - new ids;
+   - the references re-aimed: a box that stood for a component on another entity asks whether to point it at the same
+     component or to copy the component;
+   - a wire whose far end was not copied becomes a stub, or is dropped with a word.
+
+   The same fragment saved under a name is a **template** in the Library (a node group, a "door with a key" set of
+   rules). It is also what crosses experiences, and later apps: SCUTOONS reads the same fragment shape from the shared
+   package. Storage stays L1; the fragment is the clipboard's and the Library's format, not a second truth.
+
 **Reflection in JavaScript (Tilman: *"ggf in javascript ein problem aber wir koenne es mit js doc annotieren und spaeter
 in rust ist es easy"*).** JavaScript has no runtime types to reflect on, so:
 - The **spec object** a plugin passes at registration stays the source. It works without a build step, and the content
@@ -509,6 +524,7 @@ already loaded. That is the cheap part.
 | L-T13 | Custom nodes = specs with an authoring-time `run` (§5.8, §5.9 – no `registerLogicNode`); runs in a sandbox; `api` bridge through the page (allow-list, reads free, writes only as ops to apply); preview bodies for boxes | M | L-T6, L-T12 |
 | L-T14 | (later) Reading-time custom nodes evaluated by the engine | M | L-T5, L-T13 |
 | L-T15 | (bonus, research first) Preview output per box, TouchDesigner-style: the author picks the output the body shows (value, picture, 3D object, generation). Cross-reference TouchDesigner, Houdini's flags, Blender's Viewer node, ComfyUI's Preview Image, Unreal's previews and watches and the deck's `Activity` with OSCT's needs, then decide (§5.9.8) | M | L-T6 |
+| L-T16 | Copy and paste as graph fragments (§5.9.9): a fragment format in the shared package (boxes, params, wires, canvas); copy a selection, group or view; paste as ops (new ids, re-aimed references, stubs); templates in the Library; the fixtures for SCUTOONS | M | L-T4, L-T7 |
 
 Order: L-T1 → L-T2 → L-T3 delivers Tilman's navigation on today's content, with no schema change. L-T4 adds editing
 of entity rules. L-T5 is the schema cut and is best done as one MAJOR together with any other planned cut before Tokyo.
