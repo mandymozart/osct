@@ -57,7 +57,7 @@
   import UndoRedo from "#lib/UndoRedo.svelte";
   import HistoryPanel from "#lib/panels/HistoryPanel.svelte";
   import LogicPanel from "#lib/panels/LogicPanel.svelte";
-  import type { LogicPick } from "#lib/scene-logic.js";
+  import type { ScenePick } from "#lib/logic/scene.js";
   import RevertPrompt from "#lib/components/RevertPrompt.svelte";
   import { history } from "#lib/history.svelte.js";
   import { markRender, renderRequest, renderState } from "#lib/render-view.js";
@@ -165,7 +165,7 @@
   /** The Environment tab shows: the stage previews it */
   const environmentShown = $derived(floats.showing("environment") !== null);
   /** A graph node of the Logic panel picked (#239): its entity's node in the tree and the Inspector, a plugin in the Code tab */
-  const pickLogic = (pick: LogicPick) => {
+  const pickLogic = (pick: ScenePick) => {
     if (pick.kind === "plugin") {
       plugins.focus = pick.plugin;
       floats.showTab("code", true);

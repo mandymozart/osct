@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { EntityData, PluginData } from "@engine/types";
-import { conditionWords, pluginCodeUses, sceneLogic, type LogicGraph } from "../scene-logic";
-import { layoutLogic } from "../logic-layout";
+import { layoutLogic } from "../layout";
+import { pluginCodeUses } from "../plugin-code";
+import { conditionWords, type LogicScene, type LogicTarget } from "../project";
+import { sceneLogic, type LogicGraph } from "../scene";
 
 // The demo experience's two scenes (fixtures/demo): the key sets hasKey and emits keyRattled; the door shows its hint,
 // and with hasKey hides it and emits openDoor – the door plugin hears it, sets doorOpen and emits doorOpened
@@ -33,6 +35,7 @@ const narrativeSource = `
   } });
   const lit = () => api.vars.get("doorOpen") === true;`;
 
+const scene = (id: string, targets: LogicTarget[]): LogicScene => ({ id, label: id, targets });
 const ids = (graph: LogicGraph, kind: string) => graph.nodes.filter(n => n.kind === kind).map(n => n.id).sort();
 const has = (graph: LogicGraph, from: string, to: string, label: string) => graph.edges.some(e => e.from === from && e.to === to && e.label === label);
 
@@ -43,7 +46,7 @@ describe("a scene's logic as a graph (#239)", () => {
   });
 
   it("draws a rule from its node's event to what it sets, emits and plays", () => {
-    const graph = sceneLogic({ targets: [{ id: "key", entity: key }], plugins });
+    const graph = sceneLogic({ scenes: [scene("cover", [{ id: "key", entity: key }])], plugins }, "cover");
     expect(ids(graph, "rule")).toEqual(["rule:key/#0"]);
     expect(has(graph, "event:key/:tap", "rule:key/#0", "on")).toBe(true);
     expect(has(graph, "rule:key/#0", "var:hasKey", "set = true")).toBe(true);
@@ -56,7 +59,7 @@ describe("a scene's logic as a graph (#239)", () => {
   });
 
   it("resolves the nodes a rule acts on by name in its subtree, and links the plugins' code to the rules' events", () => {
-    const graph = sceneLogic({ targets: [{ id: "door", entity: door }], plugins, code: { narrative: pluginCodeUses(narrativeSource) }, experience: [key, door] });
+    const graph = sceneLogic({ scenes: [scene("cover", [{ id: "key", entity: key }]), scene("door", [{ id: "door", entity: door }])], plugins, code: { narrative: pluginCodeUses(narrativeSource) } }, "door");
     expect(has(graph, "rule:door/#0", "node:door/1", "show")).toBe(true);
     expect(has(graph, "rule:door/#1", "node:door/1", "hide")).toBe(true);
     expect(has(graph, "var:hasKey", "rule:door/#1", "when")).toBe(true);
@@ -75,7 +78,7 @@ describe("a scene's logic as a graph (#239)", () => {
       type: "group", assets: [],
       components: [{ type: "behaviour", rules: [{ on: "doorOpened", when: { tries: 1 }, do: { show: "ghost" } }] }],
     };
-    const graph = sceneLogic({ targets: [{ id: "t", entity: lonely }] });
+    const graph = sceneLogic({ scenes: [scene("s", [{ id: "t", entity: lonely }])] }, "s");
     expect(graph.problems).toEqual([
       "group, rule 1: show names ghost – no node of that name under group",
       "doorOpened is heard, but nothing in the experience emits it – its rules never fire",
@@ -87,10 +90,10 @@ describe("a scene's logic as a graph (#239)", () => {
 
   it("keeps quiet about events and variables while a plugin's code is unknown", () => {
     const node: EntityData = { type: "group", assets: [], components: [{ type: "behaviour", rules: [{ on: "lost", when: { mode: "a" }, do: { emit: "nobodyHears" } }] }] };
-    const graph = sceneLogic({ targets: [{ id: "n", entity: node }], plugins });
+    const graph = sceneLogic({ scenes: [scene("s", [{ id: "n", entity: node }])], plugins }, "s");
     expect(graph.problems).toEqual([]);
     expect(graph.nodes.find(n => n.id === "plugin:narrative")).toBeUndefined();
-    expect(sceneLogic({ targets: [{ id: "n", entity: node }] }).problems).toEqual([
+    expect(sceneLogic({ scenes: [scene("s", [{ id: "n", entity: node }])] }, "s").problems).toEqual([
       "mode is read, but nothing in the experience sets it",
       "nobodyHears is emitted, but nothing in the experience hears it",
     ]);
@@ -98,7 +101,7 @@ describe("a scene's logic as a graph (#239)", () => {
 
   it("leaves out targets without entities and nodes without logic", () => {
     const plain: EntityData = { type: "model", assets: [], children: [{ type: "text", assets: [], text: "x" }] };
-    expect(sceneLogic({ targets: [{ id: "a" }, { id: "b", entity: plain }] })).toEqual({ nodes: [], edges: [], problems: [] });
+    expect(sceneLogic({ scenes: [scene("s", [{ id: "a" }, { id: "b", entity: plain }])] }, "s")).toEqual({ nodes: [], edges: [], problems: [] });
   });
 });
 
