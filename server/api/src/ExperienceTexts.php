@@ -15,7 +15,7 @@ declare(strict_types=1);
 final class ExperienceTexts
 {
     /** The fields of an entry a PUT may change */
-    private const ENTRY_FIELDS = ['title', 'body', 'author', 'image', 'caption', 'media', 'tags', 'category', 'scene', 'surface'];
+    private const ENTRY_FIELDS = ['title', 'body', 'author', 'image', 'imageLevels', 'caption', 'media', 'tags', 'category', 'scene', 'surface'];
     /** At most this many tags, each at most TAG_MAX_LENGTH characters (shared/api/rules.ts `ENTRY_TAGS`) */
     public const TAGS_MAX = 32;
     public const TAG_MAX_LENGTH = 64;
@@ -49,8 +49,10 @@ final class ExperienceTexts
 
     /**
      * PUT /editor/experiences/{id}/entries/{eid} { title?, body?, author?, image?, caption?, media?, tags?, category?, scene?,
-     * surface? } → 200 { entry, scene, previousScene }: the fields sent change, `null` removes an optional one (author,
-     * image, caption – the line under the picture, plain text, #289 –, media, surface). `scene` moves the entry to that
+     * surface?, imageLevels? } → 200 { entry, scene, previousScene }: the fields sent change, `null` removes an optional one
+     * (author, image, caption – the line under the picture, plain text, #289 –, media, surface, imageLevels). `imageLevels`
+     * (#331, schema 4.3): the picture in several sizes, `[{ level: 512 | 1024 | 2048, src }]`, each a picture of the
+     * Library; removing the image removes its levels. `scene` moves the entry to that
      * scene (its surface goes unless the new scene has one of that id or `surface` names one). 400 `invalid-entry`,
      * `unknown-scene`, 404.
      */
@@ -80,6 +82,22 @@ final class ExperienceTexts
                     throw new ApiError(400, 'invalid-entry', 'image must be a picture of the experience\'s Library – upload it first.');
                 }
                 self::optional($entry, 'image', $image);
+                if ($image === null) unset($entry->imageLevels);
+            }
+            if (property_exists($body, 'imageLevels')) {
+                if ($body->imageLevels === null || $body->imageLevels === []) unset($entry->imageLevels);
+                else {
+                    if (!isset($entry->image)) throw new ApiError(400, 'invalid-entry', 'imageLevels need the entry\'s image – set image first.');
+                    $levels = Editor::mediaLevels($body->imageLevels, 'image', 'imageLevels', 'invalid-entry');
+                    // The entry's picture and its levels as they are count as checked (an imported picture is no upload)
+                    $known = [$entry->image, ...array_map(static fn(stdClass $level) => $level->src, $entry->imageLevels ?? [])];
+                    foreach ($levels as $level) {
+                        if (!in_array($level->src, $known, true) && !Assets::isExperienceImage($experienceId, $level->src)) {
+                            throw new ApiError(400, 'invalid-entry', "imageLevels: {$level->src} is not a picture of the experience's Library – upload it first.");
+                        }
+                    }
+                    $entry->imageLevels = $levels;
+                }
             }
             if (property_exists($body, 'caption')) self::optional($entry, 'caption', $body->caption === null ? null : self::text($body->caption, 'caption', false));
             if (property_exists($body, 'media')) {

@@ -1,6 +1,7 @@
 import type { EditorEntry, EntryFields } from "@shared/api/editor";
 import { BODY_MAX_LENGTH, cleanTags, ENTRY_TAGS, isLinkUrl, TEXT_MAX_LENGTH } from "@shared/api/rules";
 import { ENTRY_CATEGORIES } from "@shared/types/entry";
+import type { MediaLevelData } from "@shared/types/media-levels";
 
 /**
  * Editing an entry (#223): the form's fields as text, what a save sends (the fields that changed, `PUT …/entries/{id}`)
@@ -25,6 +26,8 @@ export interface EntryDraft {
   /** The line under the picture (#289) */
   caption: string;
   media: string;
+  /** The picture in several sizes (#331, schema 4.3), smallest first; [] = the picture only */
+  imageLevels: MediaLevelData[];
 }
 
 /** The fields the form shows, in the Inspector's order */
@@ -39,6 +42,7 @@ export const draftOf = (entry: EntryFields): EntryDraft => ({
   image: entry.image ?? "",
   caption: entry.caption ?? "",
   media: entry.media ?? "",
+  imageLevels: [...(entry.imageLevels ?? [])],
 });
 
 /** The tags of the line: split at commas, trimmed, each once */
@@ -60,6 +64,10 @@ export const entryChanges = (entry: EntryFields, draft: EntryDraft): Record<stri
   optional("image");
   optional("caption");
   optional("media");
+  // The picture's levels – only with a picture (removing the picture removes them on the API's side)
+  if (draft.image.trim() && JSON.stringify(draft.imageLevels) !== JSON.stringify(entry.imageLevels ?? [])) {
+    changes.imageLevels = draft.imageLevels.length ? draft.imageLevels : null;
+  }
   const tags = tagsOf(draft.tags);
   if (JSON.stringify(tags) !== JSON.stringify(entry.tags)) changes.tags = tags;
   return changes;

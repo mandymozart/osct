@@ -209,6 +209,19 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-20 – Media in quality levels, the reader's media quality (#331 step 3, schema 4.3)
+- Shape *my reading* (open to Tilman's eye): `levels: [{ level, src }]` on an image / video / audio asset and
+  `imageLevels` on an entry; one number per kind – image longest side 512 / 1024 / 2048 (the image rule's sizes), video
+  height 480 / 720 / 1080, audio 64 / 128 / 192 kbps (`MEDIA_LEVELS`). `src` stays the older app's file (MINOR).
+- Setting: Info → Settings *Picture and video quality* – Automatic / Low / Medium / High (`GraphicsSettings.mediaQuality`),
+  next to *Model detail*. Automatic: slow or data-saving → smallest; picture covers the screen's longest side × DPR,
+  video the shorter side × DPR (≤ 720p with ≤ 4 GB), sound the largest. Applies to what loads next (no live swap of a
+  playing video).
+- Editor: the Inspector sets levels (node *levels*, entry form under the picture); pictures computed in the browser,
+  video / audio uploaded per slot (no browser encoding – Tilman). The Library shows a node's levels as a `media` stack.
+- [ ] A video with levels **and** subtitles: its file shows in the subtitles frame, the levels stack is not drawn there.
+- [ ] The release step (#304) writes AVIF / KTX2 per use from these levels.
+
 ## 2026-11-20 – The recognition switch: Original by default, Prepared per experience (#306, schema 4.2)
 - Tilman: today's runtime path stays the default, non-destructive – the printed image stays, the frame lives beside it in
   the Library. Built: `experience.recognition` (`"original"` default / `"prepared"`), `target.recognitionOff`, the reader's

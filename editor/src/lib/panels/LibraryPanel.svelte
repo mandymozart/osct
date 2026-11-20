@@ -153,15 +153,24 @@
   const toggleIn = (list: string[], key: string) => (list.includes(key) ? list.filter(k => k !== key) : [...list, key]);
   const levelsBadge = (stack: LibraryStack) => {
     const count = levelCount(stack);
-    const what = stack.kind === "map" ? "levels" : "languages";
+    const what = stack.kind === "subtitles" ? "languages" : "levels";
     return {
       text: count.there === count.of ? String(count.there) : `${count.there}/${count.of}`,
       gap: count.there < count.of,
       title: `${count.there} ${what}: ${stackRange(stack)}${count.there < count.of ? " – a level is missing" : ""}`,
     };
   };
-  /** A missing level: the model node it is added on (the Inspector's textures) – the Library makes no link */
-  const showNode = (stack: LibraryStack): (() => void) | null => (stack.node ? jumpTo({ kind: "target", ref: stack.node.targetId }) : null);
+  /** A missing level: the node it is added on (the Inspector's textures or levels) – the Library makes no link */
+  const showNode = (stack: LibraryStack): (() => void) | null => {
+    const targetId = stack.node?.targetId ?? stack.media?.targetId;
+    return targetId ? jumpTo({ kind: "target", ref: targetId }) : null;
+  };
+  /** Where a missing level of the stack is added (#331: a medium's levels in the Inspector's levels) */
+  const addedIn = (stack: LibraryStack) =>
+    stack.kind === "media" ? `the Inspector's levels of the ${stack.medium} node${stack.medium === "image" ? " (Compute makes it from the largest picture)" : ""}` : "the Inspector's textures of the model node (Compute makes it from the largest map)";
+  /** What a stack's levels are, for its tray and details */
+  const stackWhat = (stack: LibraryStack) =>
+    stack.kind === "map" ? "levels – each replaced alone, every link stays" : stack.kind === "media" ? `${stack.medium} levels – each replaced alone, every link stays` : "subtitles by language";
   const slotTitle = (stack: LibraryStack, level: StackLevel) =>
     isOptionalLevel(stack, level) ? `${level.label} – optional, a larger level` : `${level.label} is missing`;
   const stackSize = (stack: LibraryStack) => formatSize(filesSize(stack.levels.flatMap(level => (level.asset ? [level.asset] : []))));
@@ -598,7 +607,7 @@
   {@render tile(stack.face, { label: stack.label, stack, meta: `${stackRange(stack)} · ${stackSize(stack)}` })}
   {#if openStacks.includes(stack.key)}
     <li class="tray" aria-label="The levels of {stack.label}">
-      <div class="tray-head small"><b>{stack.label}</b> <span class="muted">· {stack.kind === "map" ? "levels – each replaced alone, every link stays" : "subtitles by language"}</span>
+      <div class="tray-head small"><b>{stack.label}</b> <span class="muted">· {stackWhat(stack)}</span>
         <span class="grow"></span><button type="button" class="text-link" onclick={() => (openStacks = toggleIn(openStacks, stack.key))}>close</button></div>
       <ul class="tiles" style:--tile="{Math.max(TILE_SIZE.min, tileSize - 1)}rem">
         {#each stack.levels as level (level.label)}
@@ -606,7 +615,7 @@
           {:else}
             {@const jump = showNode(stack)}
             <li class="slot" class:optional={isOptionalLevel(stack, level)}>
-              <button type="button" class="slot-pic" disabled={!jump} title="{slotTitle(stack, level)} – added in the Inspector's textures of the model node (Compute makes it from the largest map)" onclick={() => jump?.()}>
+              <button type="button" class="slot-pic" disabled={!jump} title="{slotTitle(stack, level)} – added in {addedIn(stack)}" onclick={() => jump?.()}>
                 <span>{level.label}</span><span class="small">{isOptionalLevel(stack, level) ? "optional" : "missing"}</span></button>
               <div class="small muted">show the node</div>
             </li>
@@ -636,7 +645,7 @@
 {#snippet levelsBlock(stack: LibraryStack, asset: Asset)}
   {@const frame = sets.frameOf.get(asset.id)}
   <div class="levels-block small">
-    <div class="muted">{stack.kind === "map" ? `${levelCount(stack).there} levels of the map` : "subtitles"} <b>{stack.label}</b>{#if frame} · {frame.kind} {frame.label}{/if}</div>
+    <div class="muted">{stack.kind === "map" ? `${levelCount(stack).there} levels of the map` : stack.kind === "media" ? `${levelCount(stack).there} levels of the ${stack.medium}` : "subtitles"} <b>{stack.label}</b>{#if frame} · {frame.kind} {frame.label}{/if}</div>
     <table>
       <tbody>
         {#each [...stack.levels].reverse() as level (level.label)}
@@ -655,7 +664,7 @@
             {:else}
               {@const jump = showNode(stack)}
               <td class="muted" colspan="2">{isOptionalLevel(stack, level) ? "optional" : "missing"}</td>
-              <td class="acts">{#if jump}<button type="button" class="text-link" title="The model node – its textures in the Inspector add a level" onclick={jump}>node</button>{/if}</td>
+              <td class="acts">{#if jump}<button type="button" class="text-link" title="The node – {stack.kind === "media" ? "its levels" : "its textures"} in the Inspector add a level" onclick={jump}>node</button>{/if}</td>
             {/if}
           </tr>
         {/each}

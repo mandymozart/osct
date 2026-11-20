@@ -15,7 +15,7 @@ describe("the entry form", () => {
 
   it("starts from the entry and sends nothing while nothing changed", () => {
     const draft = draftOf(racoon);
-    expect(draft).toEqual({ title: "Racoon", category: "glossary", scene: "scene-1", surface: "", author: "Kévin", tags: "animal", body: "A beast.", image: "/assets/content/entries/racoon/img.jpg", caption: "", media: "" });
+    expect(draft).toEqual({ title: "Racoon", category: "glossary", scene: "scene-1", surface: "", author: "Kévin", tags: "animal", body: "A beast.", image: "/assets/content/entries/racoon/img.jpg", caption: "", media: "", imageLevels: [] });
     expect(entryChanges(racoon, draft)).toEqual({});
     expect(isDirty(racoon, { ...draft, tags: " animal, ", title: "Racoon " })).toBe(false);
   });
@@ -30,6 +30,13 @@ describe("the entry form", () => {
     expect(entryChanges(racoon, { ...draftOf(racoon), caption: " Image: a racoon " })).toEqual({ caption: "Image: a racoon" });
     expect(entryChanges({ ...racoon, caption: "Image: a racoon" }, { ...draftOf(racoon), caption: "" })).toEqual({ caption: null });
     expect(tagsOf(" a ,, b , a")).toEqual(["a", "b"]);
+  });
+
+  it("the picture's levels (#331): sent when they change, null when emptied, not without a picture", () => {
+    const levels = [{ level: 512, src: "https://cdn/racoon-512.webp" }];
+    expect(entryChanges(racoon, { ...draftOf(racoon), imageLevels: levels })).toEqual({ imageLevels: levels });
+    expect(entryChanges({ ...racoon, imageLevels: levels }, { ...draftOf(racoon), imageLevels: [] })).toEqual({ imageLevels: null });
+    expect(entryChanges({ ...racoon, imageLevels: levels }, { ...draftOf({ ...racoon, imageLevels: levels }), image: "", imageLevels: [] })).toEqual({ image: null });
   });
 
   it("keeps Save off with the API's reasons", () => {

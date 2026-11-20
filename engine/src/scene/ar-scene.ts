@@ -10,6 +10,8 @@ import { Emitter } from "../utils/emitter";
 import { getPreparedWindow, isGrowingWindow, scenesByDistance, subscribePreparedWindow } from "../utils/prepared-scenes";
 import { AssetStore } from "./assets";
 import { deviceHints, wantedTextureSize } from "./model-textures";
+import { chooseMediaSrc, mediaHints } from "./media-levels";
+import { isLevelledKind } from "@shared/types/media-levels";
 import { type AnimationKind, celebrate, type Celebration, together } from "./celebration";
 import { CARD_HOLD_MS, CardFlight } from "./card-flight";
 import { buildEntity, type EntityInstance, placeEntity } from "./entities";
@@ -96,7 +98,11 @@ export class ArScene implements IArScene {
   private environmentPreview: EnvironmentPreview | null = null;
   private tracker: IImageTracker | null = null;
   /** Models with a texture set show their map at the size the reader's texture quality asks for on this device (#260) */
-  private assets = new AssetStore(() => wantedTextureSize(this.textureQuality, deviceHints(this.view?.renderer.capabilities.maxTextureSize)));
+  private assets = new AssetStore(
+    () => wantedTextureSize(this.textureQuality, deviceHints(this.view?.renderer.capabilities.maxTextureSize)),
+    // Pictures, videos and sounds with levels (#331): the reader's media quality, read when the file loads
+    data => isLevelledKind(data.assetType) ? chooseMediaSrc(data.assetType, data.src, data.levels, this.options.graphics?.getSettings().mediaQuality, mediaHints()) : data.src,
+  );
   private textureQuality: TextureQuality | undefined;
   /** The line of the playing video's subtitle file, told to the app when it changes (`subtitle`) */
   private subtitles = new Subtitles(() => this.options.subtitleLanguage?.() ?? "en", text => this.emitter.emit("subtitle", text));

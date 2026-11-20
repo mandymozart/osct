@@ -27,8 +27,36 @@ final class Editor
      * The content schema the editor reads and the draft writes (shared/types/game-config.ts `CONTENT_SCHEMA_VERSION`): an
      * experience of an older MAJOR is refused (`Db::migrate` turns every stored 3.x experience into 4.0, `Migration4`, #320)
      */
-    public const CONTENT_SCHEMA = '4.2';
+    public const CONTENT_SCHEMA = '4.3';
+    /**
+     * The levels a picture, video or sound may hold (shared/types/media-levels.ts `MEDIA_LEVELS`, schema 4.3, #331): image
+     * px (longest side), video height, audio kbps
+     */
+    public const MEDIA_LEVELS = ['image' => [512, 1024, 2048], 'video' => [480, 720, 1080], 'audio' => [64, 128, 192]];
     public const CONTENT_SCHEMA_MAJOR = 4;
+
+    /**
+     * A medium's `levels` (#331, shared/types/media-levels.ts `mediaLevelProblems`): a list of at least one `{ level, src }`,
+     * the level one of MEDIA_LEVELS[$kind], each once, smallest first in the answer. 400 `$code` otherwise.
+     * @return list<stdClass>
+     */
+    public static function mediaLevels(mixed $value, string $kind, string $path, string $code = 'invalid-entity'): array
+    {
+        $allowed = self::MEDIA_LEVELS[$kind] ?? null;
+        if ($allowed === null) throw new ApiError(400, $code, "$path: only an image, a video or a sound has levels.");
+        if (!is_array($value) || $value === []) throw new ApiError(400, $code, "$path must be a list of at least one { level, src }.");
+        $levels = [];
+        foreach (array_values($value) as $i => $entry) {
+            if (!$entry instanceof stdClass || !is_int($entry->level ?? null) || !in_array($entry->level, $allowed, true)) {
+                throw new ApiError(400, $code, "$path[$i].level must be one of " . implode(', ', $allowed) . " ($kind).");
+            }
+            if (!is_string($entry->src ?? null) || $entry->src === '') throw new ApiError(400, $code, "$path[$i].src must be a file.");
+            if (isset($levels[$entry->level])) throw new ApiError(400, $code, "$path[$i].level: {$entry->level} is there twice.");
+            $levels[$entry->level] = (object) ['level' => $entry->level, 'src' => $entry->src];
+        }
+        ksort($levels);
+        return array_values($levels);
+    }
 
     /** Whether a content schema `MAJOR.MINOR` is the editor's (`CONTENT_SCHEMA_MAJOR`) */
     public static function isCurrentSchema(string $schema): bool
@@ -99,6 +127,7 @@ final class Editor
             if (!$asset instanceof stdClass || !is_string($asset->id ?? null) || !is_string($asset->assetType ?? null) || !is_string($asset->src ?? null)) {
                 throw new ApiError(400, 'invalid-entity', "$path.assets[$i] needs string id, assetType and src.");
             }
+            if (property_exists($asset, 'levels')) $asset->levels = self::mediaLevels($asset->levels, $asset->assetType, "$path.assets[$i].levels");
         }
         if (property_exists($value, 'id') && !is_string($value->id)) throw new ApiError(400, 'invalid-entity', "$path.id must be a string.");
         if (property_exists($value, 'name') && !is_string($value->name)) throw new ApiError(400, 'invalid-entity', "$path.name must be a string.");

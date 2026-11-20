@@ -4,6 +4,8 @@ import { compressedUrl } from "@/utils/compressed";
 import { targetRecognition } from "@engine/utils/recognition-setting";
 import { deviceHints, wantedTextureSize } from "@engine/scene/model-textures";
 import { textureSizeFor } from "@shared/types/textures";
+import { isLevelledKind } from "@shared/types/media-levels";
+import type { AssetData } from "@shared/types/game-config";
 import { GraphicsService } from "./GraphicsService";
 
 const DEFAULT_TIMEOUT = 30000;
@@ -36,15 +38,18 @@ const getTargetImages = (sceneId: string): LoadOptions[] =>
  * map at the size the reader's texture quality asks for – the one size the AR scene loads, not the whole set.
  */
 const getSceneContent = (sceneId: string): LoadOptions[] => {
-  const wanted = wantedTextureSize(GraphicsService.getInstance().getSettings().textureQuality, deviceHints());
+  const graphics = GraphicsService.getInstance();
+  const wanted = wantedTextureSize(graphics.getSettings().textureQuality, deviceHints());
+  // A picture, video or sound with levels (#331): the level the media quality chooses – the one the AR scene loads
+  const file = (a: AssetData) => (isLevelledKind(a.assetType) ? graphics.mediaSrc(a.assetType, a.src, a.levels) : a.src);
   const assets: LoadOptions[] = getAssets(sceneId)
-    .filter(a => isContentUrl(a.src))
+    .filter(a => isContentUrl(file(a)))
     .flatMap(a => [
-      { src: compressedUrl(a.src), type: a.assetType }, // the same URL the AR scene loads
+      { src: compressedUrl(file(a)), type: a.assetType }, // the same URL the AR scene loads
       ...(a.textures ?? []).map(set => textureSizeFor(set, wanted)?.src).filter(isContentUrl).map(src => ({ src, type: "image" as const })),
     ]);
   const images: LoadOptions[] = (getScene(sceneId)?.entries ?? [])
-    .map(e => e.image)
+    .map(e => (e.image ? graphics.mediaSrc("image", e.image, e.imageLevels) : undefined))
     .filter(isContentUrl)
     .map(src => ({ src, type: "image" }));
   const subtitles: LoadOptions[] = getSubtitleFiles(sceneId).filter(isContentUrl).map(src => ({ src, type: "subtitles" }));

@@ -39,6 +39,9 @@
   import ModelTextures from "#lib/components/ModelTextures.svelte";
   import { setNodeTextures, textureSizeOf, withMaterial, withoutTexture, withTexture } from "#lib/model-textures.js";
   import { largestOf, makeLevels } from "#lib/texture-levels.js";
+  import MediaLevels from "#lib/components/MediaLevels.svelte";
+  import { levelLabel, levelOfAsset, makeImageLevels, setNodeLevels, withLevel, withoutLevel } from "#lib/media-levels.js";
+  import { isLevelledKind, MEDIA_LEVELS, type MediaLevelData } from "@shared/types/media-levels";
   import type { TextureSize } from "@shared/types/textures";
   import TextureField from "#lib/components/TextureField.svelte";
   import Toggle from "#lib/components/Toggle.svelte";
@@ -282,7 +285,7 @@
   const pickContext = $derived(`${target?.id}|${node.join(".")}|${selection.entry}`);
   $effect(() => {
     void pickContext;
-    untrack(() => { picking = null; textureError = null; });
+    untrack(() => { picking = null; textureError = null; levelError = null; });
   });
   const pickTargetImage = () => {
     const t = target;
@@ -538,6 +541,79 @@
     }
     const have = (modelTextures?.[index]?.sizes ?? []).map(entry => entry.size).filter(s => s !== size.size);
     await uploadLevels(index, file, file.name, [size.size, ...have], [asset]);
+  };
+
+  // ── a picture's, video's or sound's quality levels (#331 step 3, schema 4.3): chosen by the reader's media quality ──
+  let levelError = $state<string | null>(null);
+  let levelBusy = $state<string | null>(null);
+  const levelKind = $derived.by(() => {
+    const kind = current?.assets[0]?.assetType;
+    return isLevelledKind(kind) ? kind : null;
+  });
+  const nodeLevels = $derived<readonly MediaLevelData[] | undefined>(levelKind ? current?.assets[0]?.levels : undefined);
+  /** Files become levels: each at the level given, else the one read from the file (an image's or video's size) */
+  const addLevels = (files: readonly { asset: Asset; level?: number }[]) => {
+    if (!current || !levelKind) return;
+    let levels = current.assets[0]?.levels;
+    const problems: string[] = [];
+    for (const { asset, level } of files) {
+      const read = level === undefined ? levelOfAsset(asset, levelKind) : { level };
+      if ("problem" in read) problems.push(read.problem);
+      else levels = withLevel(levels, read.level, asset.url);
+    }
+    levelError = problems.length ? problems.join(" ") : null;
+    if (levels !== current.assets[0]?.levels) applyNode(setNodeLevels(current, levels ? [...levels] : undefined));
+  };
+  const pickLevel = (level: number) => {
+    const type = current?.type;
+    if (!type || !levelKind) return;
+    const which = current?.name ? `“${current.name}”` : node.length ? `node ${pathLabel}` : "the root node";
+    pickFor({ subject: { for: "node", nodeType: type }, label: `the ${levelLabel(levelKind, level)} level of ${which}`,
+      onpick: asset => { if (asset.kind === levelKind) addLevels([{ asset, level }]); else levelError = `${asset.name} is no ${levelKind}.`; } });
+  };
+  const uploadLevel = async (level: number, file: File) => {
+    levelError = null;
+    levelBusy = `uploading ${file.name}…`;
+    try {
+      // A picture's level keeps up to its size (the image rule's 2048 is the largest image level)
+      const asset = await library.upload(experienceId, file);
+      if (asset.kind !== levelKind) levelError = `${asset.name} is no ${levelKind}.`;
+      else addLevels([{ asset, level }]);
+    } catch {
+      // library.error says
+    } finally {
+      levelBusy = null;
+    }
+  };
+  /** Pictures: the levels below the largest one (or the node's own file when it has none), computed here in the browser */
+  const computeImageLevels = async () => {
+    const own = current?.assets[0];
+    if (!own || levelKind !== "image") return;
+    const top = [...(own.levels ?? [])].sort((a, b) => b.level - a.level)[0];
+    const src = top?.src ?? own.src;
+    levelError = null;
+    levelBusy = "reading the picture…";
+    const made: { asset: Asset; level?: number }[] = [];
+    try {
+      const response = await fetch(src);
+      if (!response.ok) throw new Error(`the picture could not be read (${response.status})`);
+      const have = (own.levels ?? []).map(entry => entry.level);
+      const result = await makeImageLevels(await response.blob(), library.byUrl(src)?.name ?? src.replace(/^.*\//, ""), have,
+        level => (levelBusy = `computing ${level} px…`));
+      // The node's own file stands for its level when it has none yet
+      const ownAsset = library.byUrl(src);
+      if (!top && ownAsset && !have.includes(result.level)) made.push({ asset: ownAsset, level: result.level });
+      for (const level of result.levels) {
+        levelBusy = `uploading ${level.level} px…`;
+        made.push({ asset: await library.upload(experienceId, level.file), level: level.level });
+      }
+      if (!result.levels.length && !made.length) levelError = `Nothing to compute: the levels below ${result.level} px are there (${MEDIA_LEVELS.image.join(", ")}).`;
+    } catch (e) {
+      levelError = e instanceof Error ? e.message : String(e);
+    } finally {
+      levelBusy = null;
+    }
+    if (made.length) addLevels(made);
   };
 
   /** The selected node takes a file (the library's Use, an upload) */
@@ -851,6 +927,13 @@
         onlibrary={pickTexture} onupload={(i, files) => void uploadTextures(i, files)}
         onremove={(i, size) => current && applyNode(setNodeTextures(current, withoutTexture(modelTextures, i, size)))}
         onmaterial={(i, material) => current && modelTextures && applyNode(setNodeTextures(current, withMaterial(modelTextures, i, material)))} />
+    {/if}
+    {#if levelKind && current.assets[0]}
+      <div class="section" title="The file in several qualities – the reader's media quality chooses which is loaded"><span class="section-label">levels</span></div>
+      <MediaLevels kind={levelKind} levels={nodeLevels} accept={pickAccept({ for: "node", nodeType: current.type })} error={levelError} busy={levelBusy}
+        onupload={(level, file) => void uploadLevel(level, file)} onlibrary={pickLevel}
+        onremove={level => current && applyNode(setNodeLevels(current, withoutLevel(nodeLevels, level)))}
+        oncompute={levelKind === "image" ? () => void computeImageLevels() : undefined} />
     {/if}
     {#if nodeSpec}
       <!-- A plugin's node type (#77): its parameters from its spec, in the node's params -->

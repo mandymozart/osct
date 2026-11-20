@@ -9,6 +9,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { MAX_NODE_DEPTH } from "../../shared/guards/game-config";
+import { MEDIA_LEVELS } from "../../shared/types/media-levels";
 import { APPEARANCE_TYPES, MOMENTS } from "../../shared/types/appearance";
 import { CONTENT_BUILD } from "../../shared/types/content-manifest";
 import { ENTRY_CATEGORIES } from "../../shared/types/entry";
@@ -88,6 +89,7 @@ function readPhp(): Record<string, unknown> {
       'PLUGIN_ID' => Plugins::ID,
       'ASSET_KINDS' => Assets::KINDS,
       'CREDITS' => [Assets::CREDITS_BATCH_MAX, Assets::CREDITS_MAX],
+      'MEDIA_LEVELS' => Editor::MEDIA_LEVELS,
       'IMAGE' => ['maxSide' => Assets::IMAGE_MAX_SIDE, 'quality' => Assets::IMAGE_WEBP_QUALITY, 'maxPixels' => Assets::IMAGE_MAX_PIXELS],
       'REGISTERS' => $registers,
       'registers' => array_map(static fn(string $source): array => Plugins::registers($source), $input['sources']),
@@ -161,6 +163,10 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
 
   it("the credits limits (#277, Assets::CREDITS_*)", () => {
     expect(php.CREDITS).toEqual([CREDITS_BATCH_MAX, CREDITS_MAX]);
+  });
+
+  it("the media levels per kind (#331, Editor::MEDIA_LEVELS, content schema 4.3)", () => {
+    expect(php.MEDIA_LEVELS).toEqual(MEDIA_LEVELS);
   });
 
   it("the image rule (#298, Assets::IMAGE_*): the longest side per use, the WebP quality, the pixel limit", () => {

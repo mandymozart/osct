@@ -16,6 +16,7 @@ import { editSurfaces, SURFACE_SIZE_PRESETS } from "./surfaces.ts";
 import { editorHref, type AppLinks } from "./services.ts";
 import type { PluginData } from "../../shared/types/game-config";
 import { APPEARANCE_TYPES, MOMENTS, PASS_TYPES, RECOGNITION_MODES } from "../../shared/types/game-config";
+import { MEDIA_LEVELS } from "../../shared/types/media-levels";
 import { EntryCategory } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
 import { exprMessage, renderEntryText } from "../../shared/text/entry-text";
@@ -510,7 +511,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "update_entry",
     {
       description:
-        "Changes an entry's fields – send only what changes: title, category, scene (moves it to that scene – list_scenes), surface (one of its scene's surfaces; null: none – a scene with several surfaces needs one), body (Markdown: paragraphs at blank lines, *emphasis*, **strong**, [links](https://…); the experience's variables in braces – {hasKey}, {hasKey: …|…} – describe_content_model entryText), author, tags (the whole list), image (a picture of the experience's Library: an uploaded image's url or a file of the import), caption (the line under the picture, plain text – \"Image: … by …\"; not the Library's credit line, set_asset_credits), media (a link's http(s) URL); null removes author, image, caption or media. A body whose braces do not parse is refused before it is sent. The change is recorded; the person checks it in the editor.",
+        "Changes an entry's fields – send only what changes: title, category, scene (moves it to that scene – list_scenes), surface (one of its scene's surfaces; null: none – a scene with several surfaces needs one), body (Markdown: paragraphs at blank lines, *emphasis*, **strong**, [links](https://…); the experience's variables in braces – {hasKey}, {hasKey: …|…} – describe_content_model entryText), author, tags (the whole list), image (a picture of the experience's Library: an uploaded image's url or a file of the import), caption (the line under the picture, plain text – \"Image: … by …\"; not the Library's credit line, set_asset_credits), media (a link's http(s) URL), imageLevels (the picture at several sizes – the reader's media quality chooses one); null removes author, image, imageLevels, caption or media. A body whose braces do not parse is refused before it is sent. The change is recorded; the person checks it in the editor.",
       inputSchema: z.object({
         experience: EXPERIENCE,
         entry: ID.describe("the entry's id (get_entries, get_experience)"),
@@ -522,6 +523,8 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         author: z.string().max(TEXT_MAX_LENGTH).nullable().optional(),
         tags: z.array(z.string().max(ENTRY_TAGS.length)).max(ENTRY_TAGS.max).optional(),
         image: z.string().min(1).nullable().optional().describe("a Library picture's url (list_assets kind image); null removes it"),
+        imageLevels: z.array(z.object({ level: z.number().int(), src: z.string().min(1) })).nullable().optional()
+          .describe(`the picture in several sizes (content schema 4.3, #331): [{ level, src }], level ${MEDIA_LEVELS.image.join(" / ")} (px, longest side), each a Library picture; null removes them`),
         caption: z.string().max(TEXT_MAX_LENGTH).nullable().optional().describe("the line under the picture, plain text; null removes it"),
         media: z.string().nullable().optional().describe("an http(s) URL; null removes it"),
       }),

@@ -6,16 +6,22 @@
  * - `textureQuality`: how large the maps of models with a texture set are loaded (#260) – `auto` goes by the device
  *   and its connection, a size (512 to 4096 px) is the reader's own choice; larger maps take longer to load and more
  *   graphics memory. The scan view swaps the maps at once, the preloader fetches the chosen size.
+ * - `mediaQuality`: which level of pictures, videos and sounds with levels is loaded (#331) – `auto` goes by the screen,
+ *   the device and its connection, `low` / `medium` / `high` are the reader's own choice (`mediaSrc`). It applies to
+ *   what loads next (the next scene, the next card), not to a video already playing.
  *
  * Standalone (no store dependency), like `FeedbackService`.
  */
 
 export const GRAPHICS_STORAGE_KEY = "osct-graphics";
 
-import type { GraphicsSettings, GraphicsSource, TextureQuality } from "@engine/types/graphics";
+import { isMediaQuality, MEDIA_QUALITIES, type GraphicsSettings, type GraphicsSource, type MediaQuality, type TextureQuality } from "@engine/types/graphics";
+import { chooseMediaSrc, mediaHints } from "@engine/scene/media-levels";
+import type { LevelledKind, MediaLevelData } from "@shared/types/media-levels";
 import { isObject } from "@shared/guards/game-config";
 import { isTextureSize, TEXTURE_SIZES } from "@shared/types/textures";
-export type { GraphicsSettings, TextureQuality };
+export type { GraphicsSettings, MediaQuality, TextureQuality };
+export { isMediaQuality, MEDIA_QUALITIES };
 
 /** The choices of the texture quality, in the order the settings show them */
 export const TEXTURE_QUALITIES: readonly TextureQuality[] = ["auto", ...TEXTURE_SIZES];
@@ -49,6 +55,11 @@ export class GraphicsService implements GraphicsSource {
     this.listeners.forEach(listener => listener(this.getSettings()));
   }
 
+  /** The file of a picture, video or sound to load: the level the media quality chooses, else its own `src` (#331) */
+  mediaSrc(kind: LevelledKind, src: string, levels: readonly MediaLevelData[] | undefined): string {
+    return chooseMediaSrc(kind, src, levels, this.settings.mediaQuality, mediaHints());
+  }
+
   /** Called on every change; returns the unsubscribe function */
   subscribe(listener: (settings: GraphicsSettings) => void): () => void {
     this.listeners.add(listener);
@@ -64,6 +75,7 @@ export class GraphicsService implements GraphicsSource {
           surroundings: typeof raw.surroundings === "boolean" ? raw.surroundings : DEFAULT_SETTINGS.surroundings,
           // Not chosen yet = `auto`: the key is only there once the reader chose
           ...(isTextureQuality(raw.textureQuality) ? { textureQuality: raw.textureQuality } : {}),
+          ...(isMediaQuality(raw.mediaQuality) ? { mediaQuality: raw.mediaQuality } : {}),
         };
       }
     } catch {

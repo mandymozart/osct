@@ -16,6 +16,7 @@
 import { assertGameConfiguration, GameConfigurationError, type GuardOptions, isEntityRef } from '@shared/guards/game-config';
 import { CONTENT_SCHEMA_VERSION, OLDEST_READABLE_SCHEMA_MAJOR, parseContentSchema } from '@shared/types/game-config';
 import { pickSubtitleTrack } from '@shared/types/subtitles';
+import type { MediaLevelData } from '@shared/types/media-levels';
 import { currentFeatures, describeSkipped, type KnownFeatures, skipUnknownFeatures, type SkippedFeature } from './forward-compatible';
 import { entryPlaceLabel } from './scenes';
 import { type ContentFiles, type ContentManifest, isContentFiles, isContentManifest } from '@shared/types/content-manifest';
@@ -280,12 +281,14 @@ export const getContentSizes = (): Record<string, number> | null =>
 const withContentUrls = (raw: GameConfiguration, base: string): GameConfiguration => {
   if (!base) return raw;
   const url = (path?: string) => (path === undefined ? undefined : contentUrl(path));
+  const levelUrls = (levels: readonly MediaLevelData[]): MediaLevelData[] => levels.map(level => ({ ...level, src: contentUrl(level.src) }));
   const node = (e: EntityData): EntityData => ({
     ...e,
     assets: e.assets.map(a => ({
       ...a,
       src: contentUrl(a.src),
       ...(a.textures ? { textures: a.textures.map(set => ({ ...set, sizes: set.sizes.map(size => ({ ...size, src: contentUrl(size.src) })) })) } : {}),
+      ...(a.levels ? { levels: levelUrls(a.levels) } : {}),
     })),
     ...(e.children ? { children: e.children.map(node) } : {}),
   });
@@ -297,6 +300,7 @@ const withContentUrls = (raw: GameConfiguration, base: string): GameConfiguratio
     entries: raw.entries.map(e => ({
       ...e,
       ...(e.image !== undefined ? { image: url(e.image) } : {}),
+      ...(e.imageLevels ? { imageLevels: levelUrls(e.imageLevels) } : {}),
       ...(e.target ? {
         target: {
           ...e.target,

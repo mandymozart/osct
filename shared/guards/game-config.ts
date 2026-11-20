@@ -26,6 +26,7 @@ import { NODE_TYPE_PATTERN, nodeParamProblems, nodeTypeSpec } from "../types/nod
 import { filterProblems } from "../types/filters";
 import { lightProblems } from "../types/lights";
 import { textureSetProblems } from "../types/textures";
+import { mediaLevelProblems } from "../types/media-levels";
 import { placementProblems } from "../types/placement";
 import { subtitleProblems } from "../types/subtitles";
 import { isObject } from "./primitives";
@@ -164,6 +165,9 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
       }
       if (asset.textures !== undefined) {
         textureSetProblems(asset.textures, asset.assetType).forEach(problem => fail(`${path}.assets[${i}].textures`, problem));
+      }
+      if (asset.levels !== undefined) {
+        mediaLevelProblems(asset.levels, asset.assetType).forEach(problem => fail(`${path}.assets[${i}].levels`, problem));
       }
     });
     if (e.params !== undefined && !isObject(e.params)) fail(`${path}.params`, "expected an object");
@@ -307,6 +311,10 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     if (!entry) return;
     ["id", "title"].forEach(key => str(entry, key, path));
     ["author", "image", "caption", "media"].forEach(key => str(entry, key, path, true));
+    if (entry.imageLevels !== undefined) {
+      if (entry.image === undefined) fail(`${path}.imageLevels`, "levels of a picture the entry does not have (no image)");
+      mediaLevelProblems(entry.imageLevels, "image").forEach(problem => fail(`${path}.imageLevels`, problem));
+    }
     if (typeof entry.body !== "string") fail(`${path}.body`, "expected a string");
     if (typeof entry.scene !== "string" || entry.scene === "") fail(`${path}.scene`, "expected a scene id");
     else if (!sceneIds.has(entry.scene)) fail(`${path}.scene`, `unknown scene "${entry.scene}"`);

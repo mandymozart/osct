@@ -1,4 +1,4 @@
-import { GameStoreService, PreloaderService, SubtitleService, UpdateService } from "@/services";
+import { GameStoreService, GraphicsService, PreloaderService, SubtitleService, UpdateService } from "@/services";
 import { type ArError, type ArStatus, CameraPermissionStatus, CARD_FLIGHT_EVENT, type CardFlightDetail, ErrorCode, GameMode, type IArScene, type IGame, LoadingState, TARGET_UNLOCKED_EVENT } from "@/types";
 import { getEntry, getTarget } from "@/utils/game-config";
 import { EntryCategory } from "@/types";
@@ -163,7 +163,8 @@ export class ArBridge extends HTMLElement {
     const open = () => this.game.router.navigate("/entry", { key: "entryId", value: entry.id });
     if (typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches) return open();
     const front = target.imageSrc;
-    const reveal = entry.image && entry.image !== front ? entry.image : undefined;
+    const picture = entry.image ? GraphicsService.getInstance().mediaSrc("image", entry.image, entry.imageLevels) : undefined; // #331
+    const reveal = picture && picture !== front ? picture : undefined;
     const announce = (flying: boolean) =>
       document.dispatchEvent(new CustomEvent<CardFlightDetail>(CARD_FLIGHT_EVENT, { detail: { targetId, flying } }));
     this.flying = targetId;

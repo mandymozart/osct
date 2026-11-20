@@ -12,6 +12,7 @@ import {
   DEFAULT_APPEARANCE_TYPE,
   MOMENTS,
   TEXTURE_SIZES,
+  MEDIA_LEVELS,
   BEHAVIOUR_ACTIONS,
   BEHAVIOUR_CORE_EVENTS,
   BEHAVIOUR_NODE_EVENTS,
@@ -285,9 +286,10 @@ export function describeContentModel(experience?: ExperienceModel): Record<strin
       name: "name (content schema 2.12, optional): what the editor's tree shows instead of the type – give the nodes of a larger tree names (\"door\", \"hint\") so the person finds them; the reader ignores it.",
       nodeTypes: ENTITY_TYPES,
       assets: {
-        description: "The node's own files: [{ id, assetType, src }] – empty for group and text. src is an absolute URL (an uploaded asset's url) or a /assets/content/… path of the imported content.",
+        description: "The node's own files: [{ id, assetType, src, textures?, levels? }] – empty for group and text. src is an absolute URL (an uploaded asset's url) or a /assets/content/… path of the imported content.",
         assetTypes: ASSET_TYPES,
         textures: `textures (content schema 2.27, optional, a model file only): the model's colour map in several sizes – [{ material?, sizes: [{ size, src }] }], size one of ${TEXTURE_SIZES.join(", ")} (px, a square picture), each once, smallest first. The model file carries the smallest map and shows with it at once; the reader's texture quality chooses the size that is loaded, so the mesh loads once. material = the glTF material whose map the set is; none = every material of the model (a model baked into one map). Upload each size as an image (upload_asset tells its width) and put its url into src.`,
+        levels: `levels (content schema 4.3, #331, optional, an image, video or audio file only): the medium in several qualities – [{ level, src }], each level once, smallest first; level = an image's longest side (${MEDIA_LEVELS.image.join(" / ")} px), a video's height (${MEDIA_LEVELS.video.join(" / ")}), a sound's bitrate (${MEDIA_LEVELS.audio.join(" / ")} kbps). The reader's media quality (Info → Settings: auto / low / medium / high) chooses the level it loads, falling back to the nearest; src stays the file an older reader loads – put the middle level there. Video levels are made before the upload (the editor never encodes video); upload each level (upload_asset) and put its url into src. Set them with put_entity / put_target (the node's assets).`,
       },
       text: "text nodes: `text` (the line; {{entry.title}} and {{experience.title}} are replaced) and `color` (#rrggbb, default white).",
       pluginNodeTypes: {
@@ -404,7 +406,7 @@ export function describeContentModel(experience?: ExperienceModel): Record<strin
     },
     entry: {
       description:
-        "An entry is top level: { id, category, title, scene, surface?, body, author?, image?, caption?, media?, tags, target? } – scene = the id of its scene (required: where the reader finds it), surface = one of that scene's surfaces (only when the scene has several). add_entry makes one, with its target or without (read only in the list); get_entries reads every field; update_entry changes them (scene moves it, surface null takes it off a surface; image: a Library picture, caption: the line under it in plain text, media: a link's http(s) URL).",
+        "An entry is top level: { id, category, title, scene, surface?, body, author?, image?, imageLevels?, caption?, media?, tags, target? } – scene = the id of its scene (required: where the reader finds it), surface = one of that scene's surfaces (only when the scene has several). add_entry makes one, with its target or without (read only in the list); get_entries reads every field; update_entry changes them (scene moves it, surface null takes it off a surface; image: a Library picture, imageLevels (content schema 4.3): the same picture at 512 / 1024 / 2048 px longest side – [{ level, src }], the reader's media quality chooses one; caption: the line under it in plain text, media: a link's http(s) URL).",
       categories: ENTRY_CATEGORIES,
     },
     entryText: {
