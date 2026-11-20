@@ -1146,7 +1146,9 @@ With the scene selected the Inspector shows `SceneView.svelte` (#227, #229 – t
 - *rules* (content schema 5.0, #334 L-T5b, `LogicRules.svelte`): the scene's own rules – live while it is open – in the
   rule list of a node's behaviour, with the differences of [the experience's rules](#inspector-the-experience): a named
   event only, a node of **this scene's** targets by address (`target:door/hint`), goto. Each edit saves itself
-  (`PUT …/scenes/{id}` with `logic`, the canvas kept); open while the scene has rules.
+  (`PUT …/scenes/{id}` with `logic`, the canvas kept); open while the scene has rules. A rule that is not complete yet (an
+  event, a node or a scene not picked) is listed under the rules in red and holds the save (the top bar says so), as a
+  node's behaviour holds its tree's.
 
 #### Post-processing
 

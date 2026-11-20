@@ -63,8 +63,8 @@
 {#each rows as row (row.name)}
   {#if row.declared}
     <div class="row top" data-help-name="Variable {row.name}" data-help="A declared variable: its name, its type (a set or a condition of another type is a problem), the scope a set without its own scope writes (none: the scene) and its default – the value it has before anything sets it. The cross removes the declaration (the variable then takes the type of its first set).">
+      <span class="label"><input class="field name code" aria-label="Name of {row.name}" spellcheck="false" value={row.name} onchange={e => rename(row, (e.currentTarget as HTMLInputElement).value.trim())} /></span>
       <span class="controls line">
-        <input class="field name code" aria-label="Name of {row.name}" spellcheck="false" value={row.name} onchange={e => rename(row, (e.currentTarget as HTMLInputElement).value.trim())} />
         <select class="field type" aria-label="Type of {row.name}" value={row.type}
           onchange={e => save(withDeclaration(declared, row.name, retyped(declaration(row), (e.currentTarget as HTMLSelectElement).value as VariableType)))}>
           {#each VARIABLE_TYPES as type (type)}<option value={type}>{type}</option>{/each}
@@ -87,8 +87,8 @@
     </div>
   {:else}
     <div class="row" data-help-name="Inferred {row.name}" data-help="A variable nobody declared: it takes the type of its first set. Declare fixes its type here (and lets you give it a scope and a default).">
+      <span class="label code inferred" title={row.name}>{row.name}</span>
       <span class="controls line">
-        <span class="name code inferred">{row.name}</span>
         <span class="small muted grow">{row.type} · inferred</span>
         <button type="button" class="pill framed" onclick={() => save(withDeclaration(declared, row.name, { type: row.type }))}>declare</button>
       </span>
@@ -99,8 +99,8 @@
 {/each}
 
 <div class="row" data-help-name="Declare a variable" data-help="Declares a variable by name (camelCase letters and digits) and type.">
+  <span class="label"><input class="field name code" aria-label="New variable's name" placeholder="name" spellcheck="false" bind:value={newName} onkeydown={e => { if (e.key === "Enter" && newName.trim()) add(); }} /></span>
   <span class="controls line">
-    <input class="field name code" aria-label="New variable's name" placeholder="name" spellcheck="false" bind:value={newName} onkeydown={e => { if (e.key === "Enter" && newName.trim()) add(); }} />
     <select class="field type" aria-label="New variable's type" bind:value={newType}>
       {#each VARIABLE_TYPES as type (type)}<option value={type}>{type}</option>{/each}
     </select>
@@ -110,14 +110,13 @@
 {#if problem}<p class="small danger" role="alert">{problem}</p>{/if}
 
 <style>
-  .line { flex-wrap: wrap; gap: .25rem; width: 100%; }
-  .row.top { align-items: start; }
-  .field { padding: 0 .375rem; }
+  .line { flex-wrap: nowrap; gap: .25rem; }
+  .field { padding: 0 .375rem; min-width: 0; }
   .code { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); }
-  .name { flex: 1 1 5rem; min-width: 4rem; }
-  .type { flex: 0 1 5.5rem; min-width: 4.5rem; }
-  .scope { flex: 0 1 6.5rem; min-width: 5rem; }
-  .value { flex: 1 1 4rem; min-width: 3.5rem; }
-  .inferred { line-height: var(--control-height); flex: none; }
-  .grow { flex: 1; line-height: var(--control-height); }
+  .label .name { width: 100%; }
+  .row > .inferred { color: var(--text); }
+  .type { flex: 1 1 4.5rem; }
+  .scope { flex: 1 1 5.5rem; }
+  .value { flex: 1 1 4rem; }
+  .grow { flex: 1; }
 </style>

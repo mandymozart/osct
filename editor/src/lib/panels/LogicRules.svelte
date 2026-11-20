@@ -1,7 +1,7 @@
 <script lang="ts">
   import { nodeAddress } from "@engine/types";
   import { content } from "#lib/content.svelte.js";
-  import { logicEdit } from "#lib/logic-edit.svelte.js";
+  import { logicEdit, logicIssues } from "#lib/logic-edit.svelte.js";
   import { experienceEvents, experienceVariables, subtreeNames } from "#lib/behaviour-edit.js";
   import { logicTypes, typeProblemsByRule, type LogicContent } from "#lib/logic/project.js";
   import Section from "#lib/components/Section.svelte";
@@ -42,6 +42,8 @@
     }));
   });
   const problems = $derived(typeProblemsByRule(rules, types));
+  /** What is not complete yet (an event, a node or a scene not picked): listed, and the save waits */
+  const issues = $derived(logicIssues(rules, home));
   const change = (next: typeof rules) => (home === "scene" && sceneId ? logicEdit.setScene(sceneId, next) : logicEdit.setExperience(next));
 </script>
 
@@ -51,7 +53,14 @@
     : "The experience's own rules: live for the whole session, across scene switches – they hear the stage's events in every scene, act on a node of the open scene's targets, set variables, emit events and go to a scene. Every edit saves itself."}>
   <BehaviourRules {rules} {home} {nodes} {scenes} {variables} {events} {types} uid="logic-{home}"
     problemsOf={i => problems.filter(p => p.rule === i).map(p => p.message)} onchange={change} />
+  {#if issues.length}
+    <ul class="issues small danger" aria-label="Rule problems">{#each issues as issue (issue)}<li>{issue}</li>{/each}</ul>
+  {/if}
 </Section>
+
+<style>
+  .issues { margin: .25rem 0 0; padding-left: 1rem; overflow-wrap: anywhere; }
+</style>
 
 {#if home === "experience"}
   <Section id="logic.variables" label="variables" summary={String(Object.keys(logic.variables ?? {}).length)} open={false}

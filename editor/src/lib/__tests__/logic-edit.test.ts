@@ -10,7 +10,7 @@ vi.mock("../api", async original => ({
 
 import { autosave } from "../autosave.svelte";
 import { content } from "../content.svelte";
-import { logicEdit } from "../logic-edit.svelte";
+import { logicEdit, logicIssues } from "../logic-edit.svelte";
 import { declarationProblems, parseDefault, renamed, retyped, variableRows, withDeclaration, withoutDeclaration } from "../variables-edit";
 
 describe("the variables editor (#334 B7)", () => {
@@ -92,5 +92,17 @@ describe("saving a scene's and the experience's rules and the variables (#334)",
     logicEdit.setScene("door", []);
     await autosave.flush();
     expect(calls.scene[1]).toEqual(["demo", "door", { logic: null }]);
+  });
+
+  it("rules that are not complete (a goto without its scene) are held, not sent", async () => {
+    const incomplete = [{ on: "doorOpened", when: null, do: [{ action: "goto" as const, address: "" }] }];
+    expect(logicIssues(incomplete, "scene")[0]).toMatch(/^rule 1 – do\.goto: expected an address/);
+    logicEdit.setScene("door", incomplete);
+    await autosave.flush();
+    expect(calls.scene).toEqual([]);
+    expect(autosave.status).toMatchObject({ state: "held" });
+    logicEdit.setScene("door", []);
+    await autosave.flush();
+    expect(calls.scene).toHaveLength(1);
   });
 });

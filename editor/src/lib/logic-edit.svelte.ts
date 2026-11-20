@@ -1,5 +1,6 @@
 import type { BehaviourRule, LogicCanvas, LogicData, VariableDeclaration } from "@engine/types";
-import { logicData, logicRules } from "@shared/types/logic";
+import { rulesData, rulesProblems } from "@shared/types/behaviour";
+import { logicData, logicRules, type LogicHome } from "@shared/types/logic";
 import { putExperienceLogic, putExperienceVariables, putScene } from "./api";
 import { autosave } from "./autosave.svelte";
 import { noteBaseline } from "./baselines";
@@ -16,6 +17,13 @@ import type { LogicContent } from "#lib/logic/project.js";
  * A save keeps the canvas the draft holds (L-T7's authoring data). After a save the workspace reads the draft again
  * (`onsaved`: the content, the stage – the engine reads a scene's and the experience's rules when the scene opens).
  */
+/**
+ * What keeps a scene's or the experience's rules from being saved – an event not chosen, a node or a scene not picked yet,
+ * an empty name (the shared grammar's problems, `rule 2 – do[1].goto: …`): the Inspector lists them, the save waits (held)
+ */
+export const logicIssues = (rules: readonly BehaviourRule[], home: LogicHome): string[] =>
+  rulesProblems(rulesData(rules), "rules", home).map(problem => problem.replace(/^rules\[(\d+)\]\.?/, (_, n: string) => `rule ${Number(n) + 1} – `));
+
 class LogicEdit {
   experienceId = $state<string | null>(null);
   /** A scene's rules edited and not in the draft yet, by scene id */
@@ -68,7 +76,10 @@ class LogicEdit {
     const canvas = content.scene(sceneId)?.logic?.canvas;
     noteBaseline(`logic:${experienceId}:${sceneId}`, content.scene(sceneId)?.logic ?? null);
     this.scenes = { ...this.scenes, [sceneId]: rules };
-    autosave.queue(`logic:${experienceId}:${sceneId}`, async () => {
+    const key = `logic:${experienceId}:${sceneId}`;
+    const issues = logicIssues(rules, "scene");
+    if (issues.length) return autosave.hold(key, `A rule of the scene is not complete yet – ${issues[0]}`);
+    autosave.queue(key, async () => {
       await putScene(experienceId, sceneId, { logic: logicData(rules, canvas) ?? null });
       await this.onsaved?.(experienceId);
       // Rules edited again meanwhile stay: their own save follows
@@ -86,7 +97,10 @@ class LogicEdit {
     const canvas: LogicCanvas | undefined = content.experienceLogic?.canvas;
     noteBaseline(`logic:${experienceId}`, content.experienceLogic);
     this.experience = rules;
-    autosave.queue(`logic:${experienceId}`, async () => {
+    const key = `logic:${experienceId}`;
+    const issues = logicIssues(rules, "experience");
+    if (issues.length) return autosave.hold(key, `A rule of the experience is not complete yet – ${issues[0]}`);
+    autosave.queue(key, async () => {
       const logic: LogicData | undefined = logicData(rules, canvas);
       await putExperienceLogic(experienceId, logic ?? null);
       await this.onsaved?.(experienceId);

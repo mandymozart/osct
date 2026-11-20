@@ -383,7 +383,8 @@
   logicEdit.onsaved = async id => {
     if (id !== experienceId) return;
     await content.load(id);
-    await stage?.refresh();
+    // Not awaited: the autosave's chain must not wait for the stage (a stage still building would hold every later save)
+    void stage?.refresh().catch(() => {});
   };
   $effect(() => {
     const previewing = environmentShown;
