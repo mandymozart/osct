@@ -615,6 +615,12 @@ the HDRI **off** (#327: no sky and no HDRI light – the scene's own lights, rem
 environment the row names its world (*the environment's (world café)*), the HDRI picker waits below it for an experience
 without one, and the group's tooltip ends *· the environment's sky*.
 
+**The render view** (#89, `lib/render-view.ts`): `…/editor/<experience>/<scene>/?render` – or `?render=top` / `low` /
+`far` – shows the stage alone (no top bar, panels, toolbar or notices) at that view preset (`reader` by default; set
+like the toolbar's, so it is stored on the device), and says how far it got on `<html data-osct-render="loading | ready
+| error">`. It is for the MCP server's `render_scene`, which opens it headless and takes a picture
+([mcp](mcp.md#seeing-a-scene-render_scene-89)); a person may open it too.
+
 ### Surfaces on the stage (#314, #319)
 
 The mock stage draws the open scene **from its surfaces** (`stage/surfaces.ts`, `agents/SCENES.md` "Schema 3.0"). The

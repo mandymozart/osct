@@ -55,6 +55,7 @@
   import HistoryPanel from "#lib/panels/HistoryPanel.svelte";
   import RevertPrompt from "#lib/components/RevertPrompt.svelte";
   import { history } from "#lib/history.svelte.js";
+  import { markRender, renderRequest, renderState } from "#lib/render-view.js";
 
   /**
    * The workspace. On a desktop and an iPad (#308) the **stage** (the engine over the mock stage) is the whole window
@@ -78,6 +79,12 @@
     { tab: "code", label: "Code", icon: "code" },
   ];
   const COARSE = "(pointer: coarse)";
+  /**
+   * `?render[=view]` (#89, render-view.ts): the stage alone at a view preset, for the MCP server's `render_scene` – no
+   * panels, no toolbar, no notices; the state on `<html data-osct-render>`
+   */
+  const render = renderRequest(page.url.searchParams);
+  if (render) updatePreview({ view: render.view });
 
   let container = $state<HTMLDivElement>();
   let stage = $state<Stage | null>(null);
@@ -492,6 +499,12 @@
     }
   };
 
+  $effect(() => {
+    if (!render) return;
+    const error = loadError ?? actionError ?? (stage?.status === "error" ? (stage.error ?? "The stage failed.") : null);
+    markRender(renderState(stage?.status, error), error);
+  });
+
   onMount(() => {
     disposed = false;
     const pointer = window.matchMedia(COARSE);
@@ -779,6 +792,9 @@
   {/if}
 {/snippet}
 
+{#if render}
+<div class="workspace render"><div class="stage" bind:this={container}></div></div>
+{:else}
 <div class="workspace" class:holding={!!floats.held} bind:this={workspace} bind:clientWidth={workspaceWidth} bind:clientHeight={workspaceHeight}>
   <div class="stage" bind:this={container}
     data-help-name="Stage" data-help={NAVIGATION_HELP}>
@@ -853,11 +869,14 @@
     {/if}
   <RevertPrompt />
 </div>
+{/if}
 
 <style>
   /* Desktop and iPad (#308): the stage is the whole window, the panels float over it (the phone's sheet is gone, #317) */
   .workspace { position: fixed; inset: var(--top-height) 0 0; background: var(--stage-background); }
   .workspace > .stage { position: absolute; inset: 0; }
+  /* The render view (#89): no top bar above it */
+  .workspace.render { inset: 0; }
   .workspace.holding { user-select: none; }
   .workspace.holding .stage :global(iframe.stage-frame) { pointer-events: none; }
   .float-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }

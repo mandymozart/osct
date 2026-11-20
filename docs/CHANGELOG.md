@@ -7,6 +7,17 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+
+- **MCP: `render_scene` – an agent sees a scene** (#89): a picture (PNG) of a scene of the draft as the editor's stage
+  shows it, at one of the stage's view presets (reader, top, low, far) – the answer is the image itself and the file's
+  path. The MCP server opens the editor's new **render view** (`/editor/<experience>/<scene>/?render=<view>`: the stage
+  alone, its state on `<html data-osct-render>`) in the computer's own Chrome or Edge, headless, over the DevTools
+  protocol – no browser download, no new dependency; the page's API reads carry the server's token, its writes are
+  refused. Works against staging once deployed, without a local dev server (docs/mcp.md "Seeing a scene").
+
 ## 3.7.0 – 2026-11-20
 
 ### Added
