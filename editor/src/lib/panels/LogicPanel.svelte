@@ -1,23 +1,24 @@
 <script lang="ts">
   import { getPlugins } from "@engine/content/game-config";
-  import type { EntityData, PluginData } from "@engine/types";
+  import type { PluginData } from "@engine/types";
   import Icon from "#lib/components/Icon.svelte";
   import { content } from "#lib/content.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { selection } from "#lib/selection.svelte.js";
   import { getPlugin } from "#lib/api.js";
-  import { pluginCodeUses, sceneLogic, type LogicNode, type LogicPick, type PluginUses } from "#lib/scene-logic.js";
-  import { LOGIC_SIZE, layoutLogic } from "#lib/logic-layout.js";
+  import { pluginCodeUses, type PluginUses } from "#lib/logic/plugin-code.js";
+  import { sceneLogic, type LogicNode, type ScenePick } from "#lib/logic/scene.js";
+  import { LOGIC_SIZE, layoutLogic } from "#lib/logic/layout.js";
 
   /**
    * The **Logic** panel (#239, the `nodes` icon): the open scene's logic as a graph, read-only – its events, the rules of
    * its `behaviour` components, the variables they read and set, the nodes they act on and the plugins on its nodes
-   * (`scene-logic.ts` builds it from the draft, `logic-layout.ts` lays it out left to right). What a plugin's code hears,
+   * (`logic/scene.ts` builds it from the draft through the logic model's scene level, `logic/layout.ts` lays it out left to right). What a plugin's code hears,
    * emits, reads and sets is read from its source (stored, else the compiled module). A click on a graph node selects
    * what it stands for: a rule, a node's event or a node selects that node (its rules are in the Inspector), a plugin
    * opens the Code tab on it (`onpick`). Problems across the experience are listed under the graph, in the error colour.
    */
-  let { experienceId, sceneId, onpick }: { experienceId: string; sceneId: string; onpick: (pick: LogicPick) => void } = $props();
+  let { experienceId, sceneId, onpick }: { experienceId: string; sceneId: string; onpick: (pick: ScenePick) => void } = $props();
 
   /** What each plugin's code uses, by plugin id – read once per experience and Run / save */
   let code = $state<Record<string, PluginUses>>({});
@@ -54,13 +55,12 @@
   });
 
   const scene = $derived(content.scene(sceneId));
-  const trees = $derived(content.scenes.flatMap(s => s.targets.flatMap((t): EntityData[] => (t.entity ? [t.entity] : []))));
-  const graph = $derived(scene ? sceneLogic({ targets: scene.targets, experience: trees, plugins: declared, code }) : null);
+  const graph = $derived(scene ? sceneLogic({ scenes: content.scenes, plugins: declared, code }, scene.id) : null);
   const layout = $derived(graph ? layoutLogic(graph.nodes.map(n => n.id), graph.edges) : null);
   const { w, h } = LOGIC_SIZE;
   const PAD = 8;
 
-  const selectedPick = (pick: LogicPick | null): boolean =>
+  const selectedPick = (pick: ScenePick | null): boolean =>
     pick?.kind === "node" && selection.target === pick.target && !selection.onTarget && selection.node.join(".") === pick.path.join(".");
   const near = (id: string, e: { from: string; to: string }) => e.from === id || e.to === id;
   const lit = $derived(hovered && graph ? new Set(graph.edges.filter(e => near(hovered!, e)).flatMap(e => [e.from, e.to])) : null);

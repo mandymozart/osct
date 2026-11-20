@@ -7,6 +7,16 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- **Editor – the logic model** (#334 L-T1, L-T2): the Logic panel's graph now comes from one pure module,
+  `editor/src/lib/logic/` – the types of the shared logic model (ports, signals, edges that name the document place they
+  come from, stubs, levels), a node type registry with the core's families and verbs, and `project(content, context)`,
+  which computes the view of the experience, a group, a scene or one target's entity tree, with stubs for what crosses
+  the level and derived edges between scenes for variables and events. The panel still shows the scene level as before;
+  navigating the levels comes next.
+
 ## 3.19.0 – 2026-11-20
 
 ### Added
