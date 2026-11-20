@@ -81,6 +81,7 @@ declare(strict_types=1);
  *   PUT    /editor/experiences/{id}/assets/credits    { items: [{ url, credits }] } → the files' picture credits (#277)
  *   POST   /editor/experiences/{id}/assets/names      { apply? } → the files' names by their use (#298): the plan, then applied
  *   PUT    /editor/experiences/{id}/assets/{aid}/file the new file as the body → a new version, every use relinked
+ *   PUT    /editor/experiences/{id}/assets/{aid}      { name } → the file's name by hand (#330; an imported file's too – the URL stays)
  *   GET    /editor/experiences/{id}/assets/{aid}/usages · DELETE /editor/experiences/{id}/assets/{aid}[?force=1]
  *   GET    /editor/experiences/{id}/plugins · GET | PUT { source } | DELETE[?force=1] /editor/experiences/{id}/plugins/{pid}
  *   POST   /editor/experiences/{id}/plugins[?id=]     a script file as the body, X-File-Name → 201 { plugin } (the Library, #186)
@@ -205,6 +206,7 @@ try {
         (bool) preg_match("#^PUT /editor/experiences/($id)/assets/credits$#", $route, $match) => Assets::setCredits($match[1]),
         (bool) preg_match("#^POST /editor/experiences/($id)/assets/names$#", $route, $match) => AssetNames::plan($match[1]),
         (bool) preg_match("#^PUT /editor/experiences/($id)/assets/($uuid)/file$#", $route, $match) => Assets::replace($match[1], $match[2]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/assets/($uuid|import-[0-9a-f]{16})$#", $route, $match) => AssetNames::rename($match[1], $match[2]),
         (bool) preg_match("#^GET /editor/experiences/($id)/assets/($uuid)/usages$#", $route, $match) => Assets::usages($match[1], $match[2]),
         (bool) preg_match("#^DELETE /editor/experiences/($id)/assets/($uuid)$#", $route, $match) => Assets::delete($match[1], $match[2]),
         (bool) preg_match("#^GET /editor/experiences/($id)/plugins$#", $route, $match) => Plugins::list($match[1]),

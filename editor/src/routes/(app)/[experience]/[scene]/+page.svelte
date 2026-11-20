@@ -36,6 +36,8 @@
   import RemovalConfirm from "#lib/components/RemovalConfirm.svelte";
   import { sceneRemoval } from "#lib/scene-removal.svelte.js";
   import { library } from "#lib/library.svelte.js";
+  import { libraryDrag } from "#lib/library-drag.svelte.js";
+  import type { DropRow } from "#lib/library-drag.js";
   import { recognitionFrames } from "#lib/recognition-frames.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { nodeAt } from "#lib/values.js";
@@ -84,7 +86,7 @@
     { id: "tree", name: "Tree", icon: "tree", home: "tree", about: "The scene's surfaces, entries, their targets and the entities' nodes: a click selects, a drag moves a node." },
     { id: "inspector", name: "Inspector", icon: "inspector", home: "inspector", essential: true, about: "Whatever is selected: the scene, a surface, an entry, a target, its entity or a node. The panel holding it never closes." },
     { id: "environment", name: "Environment", icon: "globe", home: "inspector", about: "The sky around the reader and the onion sky, previewed on the stage." },
-    { id: "library", name: "Library", icon: "folder", home: "inspector", about: "The experience's files: images, models, videos, sounds and code – use one on the selected node." },
+    { id: "library", name: "Library", icon: "folder", home: "inspector", about: "The experience's files: images, models, videos, sounds and code – use one on the selected node. Ctrl+L opens it and focuses its search." },
     { id: "code", name: "Code", icon: "code", home: "inspector", about: "The experience's code: its plugins' sources, saved with Save or Ctrl+S." },
     { id: "scenes", name: "Scenes", icon: "film", home: "scenes", about: "The experience's scenes as a filmstrip: a card opens its scene, a band selects its group, a drag reorders." },
     { id: "info", name: "Info", icon: "info", home: "info", about: "The name and description of the control under the pointer or in focus." },
@@ -479,6 +481,43 @@
     await reloadContent();
     recognitionFrames.autoFor(experienceId, targetId, asset.url);
   };
+  /**
+   * A Library tile dropped on a tree row (#330, `library-drag.svelte.ts` – it checked the fit): the row is selected and
+   * takes the file the way the Inspector's *Use* does – a node its file, a target its printed image. The tree's action:
+   * the Library only starts the drag.
+   */
+  const dropAsset = async (asset: Asset, row: DropRow) => {
+    if (row.kind === "target") {
+      selection.show({ target: row.targetId, node: [], onTarget: true });
+      await useAsTargetImage(asset);
+      return;
+    }
+    selection.show({ target: row.targetId, node: row.path, onTarget: false });
+    await tick();
+    await useAsset(asset);
+  };
+  $effect(() => {
+    libraryDrag.ondrop = dropAsset;
+    return () => {
+      if (libraryDrag.ondrop === dropAsset) libraryDrag.ondrop = null;
+    };
+  });
+  /**
+   * Ctrl / ⌘ + L (#330): the Library tab – shown where it lives (#318: a closed one comes back into its home panel, a
+   * folded panel opens for it) and its search focused; a second press while the search has the focus shows the
+   * Inspector again. The panels' API is used in this one function only.
+   */
+  const toggleLibrary = async () => {
+    const search = () =>
+      document.querySelector<HTMLInputElement>("[data-library-search='browser']") ?? document.querySelector<HTMLInputElement>("[data-library-search='panel']");
+    if (floats.showing("library") && document.activeElement && document.activeElement === search()) {
+      floats.showTab("inspector", true);
+      return;
+    }
+    floats.showTab("library", true);
+    await tick();
+    search()?.focus();
+  };
   const selectedNodeType = $derived.by(() => {
     const t = selection.target && !selection.onTarget ? stage?.treeOf(selection.target) : undefined;
     return t ? (nodeAt(t, selection.node) ?? t).type : null;
@@ -710,6 +749,12 @@
   const snapKey = (event: KeyboardEvent) => stage?.setSnapModifier(event.shiftKey || event.ctrlKey);
   const onKey = (event: KeyboardEvent) => {
     if (event.key === "Shift" || event.key === "Control") snapKey(event);
+    // Ctrl / ⌘ + L, in a field too: the Library and its search (#330)
+    if ((event.key === "l" || event.key === "L") && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
+      event.preventDefault();
+      void toggleLibrary();
+      return;
+    }
     if ((event.target as HTMLElement).closest("input, textarea, select")) return;
     if (event.key === "ArrowLeft") step(-1);
     if (event.key === "ArrowRight") step(1);

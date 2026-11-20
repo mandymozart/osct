@@ -108,6 +108,55 @@ final class AssetNames
         }
     }
 
+    /**
+     * PUT /editor/experiences/{id}/assets/{assetId} { name } → { asset: { id, url, name, imported }, changed } (#330): one
+     * file's name, given by hand – the Library's rename (F2, the details drawer). The URL never changes, so no use breaks;
+     * an upload's `assets` row takes it, an imported file (`import-…`) keeps it in `asset_names` by URL as *Name by use*
+     * does. The name is checked by `cleanName` (400 `invalid-name`); the stored file's extension stays. Names are no
+     * content: no change in the experience's log, no publish needed.
+     */
+    public static function rename(string $experienceId, string $assetId): never
+    {
+        $user = Editor::user();
+        Experiences::exists($experienceId);
+        $raw = Editor::body()->name ?? null;
+        if (!is_string($raw)) throw new ApiError(400, 'invalid-name', 'name must be text.');
+        $file = null;
+        foreach (Assets::libraryFiles($experienceId) as $candidate) {
+            if ($candidate['id'] === $assetId) { $file = $candidate; break; }
+        }
+        if ($file === null) throw new ApiError(404, 'not-found', 'No such asset.');
+        $name = self::cleanName($raw, self::extension($file['url'], $file['name']));
+        $changed = $name !== $file['name'];
+        if ($changed) {
+            $now = Editor::nowMs();
+            if ($file['imported']) self::setImportedName($experienceId, $file['url'], $name, $user['id'], $now);
+            else Db::run('UPDATE assets SET name = :name, updated_at = :now WHERE experience_id = :experience AND id = :id', ['name' => $name, 'now' => $now, 'experience' => $experienceId, 'id' => $assetId]);
+        }
+        Http::json(200, ['asset' => ['id' => $file['id'], 'url' => $file['url'], 'name' => $name, 'imported' => $file['imported']], 'changed' => $changed]);
+    }
+
+    /**
+     * A name given by hand (#330 – editor/src/lib/library-drag.ts `cleanAssetName` is the same rule): white space folded,
+     * no slash, backslash or control character, not empty, `.` or `..`, at most NAME_MAX characters – and the stored
+     * file's extension at its end (added when the name lacks it: `castle` → `castle.glb`). 400 `invalid-name` otherwise.
+     */
+    public static function cleanName(string $raw, string $extension): string
+    {
+        if (preg_match('#[/\\\\\x00-\x1f\x7f]#', str_replace(["\t", "\n", "\r"], ' ', $raw))) {
+            throw new ApiError(400, 'invalid-name', 'A name holds no slash, backslash or control character.');
+        }
+        $name = trim((string) preg_replace('/\s+/u', ' ', $raw));
+        $suffix = $extension === '' ? '' : ".$extension";
+        // one typed in any case stays as typed (`img.JPG`)
+        $typed = $suffix !== '' && str_ends_with(strtolower($name), $suffix);
+        $stem = rtrim($typed ? substr($name, 0, -strlen($suffix)) : $name, ' .');
+        if ($stem === '') throw new ApiError(400, 'invalid-name', 'The name is empty.');
+        $name = $stem . ($typed ? substr($name, -strlen($suffix)) : $suffix);
+        if (mb_strlen($name) > self::NAME_MAX) throw new ApiError(400, 'invalid-name', 'The name is longer than ' . self::NAME_MAX . ' characters.');
+        return $name;
+    }
+
     private static function setImportedName(string $experienceId, string $url, string $name, ?string $by, int $at): void
     {
         Db::run('DELETE FROM asset_names WHERE experience_id = :experience AND url = :url', ['experience' => $experienceId, 'url' => $url]);

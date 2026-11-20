@@ -615,6 +615,15 @@ export interface AssetCreditsSaved {
   credits: Record<string, string | null>;
 }
 
+/**
+ * `PUT /editor/experiences/{id}/assets/{assetId}` `{ name }` (#330): one file's name by hand – an upload's or an imported
+ * file's (`import-…`); the URL stays. The name as stored (white space folded, the extension kept) and whether it changed.
+ */
+export interface AssetRenamed {
+  asset: { id: string; url: string; name: string; imported: boolean };
+  changed: boolean;
+}
+
 /** `PUT /editor/experiences/{id}/assets/{assetId}/file[?fit=<use>]`: the new version, how many rows now name it, and whether the image rule converted it */
 export interface AssetReplaced {
   asset: Asset;

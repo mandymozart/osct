@@ -1189,8 +1189,30 @@ or a scene shows it in the Inspector, opening its scene first when it is another
 edits it, #277) and every action: **Use for the selection** (the selected node takes the file, when its type fits),
 **Set as target image** (an image becomes the selected target's printed image), **Replace…** (a new version, every use
 relinked, the stage rebuilt), **Download** and **Delete** (refused while used – *Delete anyway* forces it); an imported
-file is read-only. A file has no rename of its own – *Name by use…* names them. Nodes name a file by its absolute URL, so
-draft and every publish point at the same file.
+file is read-only. Nodes name a file by its absolute URL, so draft and every publish point at the same file.
+
+**Rename** (#330): *Rename* beside the name in the details, *Rename…* in a tile's menu, or **F2** on the selected file
+(outside a field) opens the name field – the part before the stored file's extension, which stays (`.webp` beside the
+field). Enter or leaving the field saves (edits save themselves, RULES #37), Esc keeps the old name. The **name only**:
+the URL and every use stay, as with *Name by use…*. An imported file's name is kept by its URL (`asset_names`). The rule
+(`cleanAssetName` in `library-drag.ts`, the API's `AssetNames::cleanName`): white space folded, no slash, backslash or
+control character, not empty, at most 255 characters ([server](server.md) "Files named by use",
+`PUT …/assets/{assetId} { name }`).
+
+**Drag a tile onto the tree** (#330, `library-drag.svelte.ts`; pointer events – a mouse moves 5 px, a finger on the iPad
+holds the tile a moment first, a quick swipe still scrolls): over a **node row** the node takes the file the way the
+Inspector's *Use* does – the kinds its type takes (a model node a glb / gltf, an image node a picture, a video node a
+video, a plugin's node type its declared file); over a **target row** a picture becomes its printed image (as *Set as
+target image*, the recognition frame made again). A label follows the pointer – the file's name and what the drop does,
+or why it does not fit (*A model node takes a 3D model – not a picture*): the row is outlined, dashed when it does not
+fit, the cursor *copy* or *no-drop*. A refused drop changes nothing; the Library's notice line repeats why. The drop is
+the tree's action (the row is selected and takes the file – the scene page's `dropAsset`); the tile is only the drag's
+source – **the Library makes no link**. The fit is `dropFit` in `library-drag.ts` (file kind × row kind). The stage takes
+no drop.
+
+**Ctrl+L** (⌘L on a Mac, in a field too) shows the Library tab where it lives (#318: a closed one comes back into its home
+panel, a folded panel opens for it) and focuses its search (the browser's, when it is open); pressed again while the
+search has the focus, the Inspector tab comes back. One function on the scene page (`toggleLibrary`, `floats.showTab`).
 
 **The browser** (⤢ at the Library's top): the same Library as a large window over the stage – Esc or ✕ closes it. On the
 left the **places** with their counts (counted on the search): *This scene*, *All files*, *Recently added* (the last 7
@@ -1359,7 +1381,7 @@ design tokens):
 | The demo's key model | `editor/tools/key-model.mjs` | the demo experience's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | The API layer | `editor/src/lib/api.ts`, `storage.ts`; `shared/api/` | every call through one `request` (the session cookie and the CSRF token on writes – #207, a 401 that ends the session, the API's errors as `ApiError` with their details); the answers typed once with the MCP server (`shared/api/editor.ts`); `getExperience` reads an experience's tree once for the stage, the environment and the top bar and reads it again after any write to the experience (`fresh` for the experience page); `errorText` the one error line; the two-step confirmations through `confirmationStep` (`shared/api/errors.ts`); the settings in localStorage through `storage.ts` (`osct-…` keys, blocked storage tolerated) |
-| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SceneView` and `EntryForm`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Toggle`, `Section`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the floating panels `FloatingPanel` with `floats.ts` (placement, pure) and `floats.svelte.ts` (a workspace's set, the panels menu) (#308), the tabs' arrangement in `float-tabs.ts` (#318); the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its scope, groups and sort in `library-scope.ts` (`AssetTile`, `AssetDetails`, #330), its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry's form in `EntryForm.svelte` (its logic in `entry-edit.ts`, its words outside the form in `entry-view.ts`), the scene section's in `scene-view.ts` (#227); the Logic panel `LogicPanel.svelte` with its graph in `scene-logic.ts` and its layout in `logic-layout.ts` (#239) |
+| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SceneView` and `EntryForm`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Toggle`, `Section`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the floating panels `FloatingPanel` with `floats.ts` (placement, pure) and `floats.svelte.ts` (a workspace's set, the panels menu) (#308), the tabs' arrangement in `float-tabs.ts` (#318); the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its scope, groups and sort in `library-scope.ts` (`AssetTile`, `AssetDetails`, #330), a tile's drag onto the tree and the rename rule in `library-drag.ts` / `library-drag.svelte.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry's form in `EntryForm.svelte` (its logic in `entry-edit.ts`, its words outside the form in `entry-view.ts`), the scene section's in `scene-view.ts` (#227); the Logic panel `LogicPanel.svelte` with its graph in `scene-logic.ts` and its layout in `logic-layout.ts` (#239) |
 | The experience's texts and search | `editor/src/lib/ExperienceSearch.svelte`, `experience-search.ts`, `ExperienceTexts.svelte`, `experience-texts.ts`, `panels/ExperiencePanel.svelte`, `panels/NewEntryForm.svelte`, `entries.svelte.ts` | [Texts](#texts-entries-and-the-experience), [The experience search](#the-experience-search), [Inspector: the experience](#inspector-the-experience) |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts`, `stage/plugin-run.ts` | the stored sources, Run (transpile with sucrase in the page; import and `installPlugin` in the stage frame, rebuild), the plugins' log |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |

@@ -454,7 +454,7 @@
   <div class="node" class:on class:within={isWithinOn(target, path)} class:pressing={pressing === key} class:dragged={!!drag?.active && drag.target.id === target.id && isWithin(path, drag.from)}
     class:drop-before={dropZone === "before"} class:drop-inside={dropZone === "inside"} class:drop-after={dropZone === "after"}
     role="treeitem" aria-expanded={children.length ? open : undefined} aria-selected={on} aria-level={depth + 1}
-    data-target={target.id} data-path={path.join(".")} style:padding-left="calc(.25rem + {depth} * var(--indent))">
+    data-target={target.id} data-path={path.join(".")} data-drop="node" data-node-type={n.type} style:padding-left="calc(.25rem + {depth} * var(--indent))">
     {@render guides(depth)}
     {#if children.length}
       <button type="button" class="chevron" onclick={() => fold(key)} title={open ? "Fold" : "Unfold"} aria-label={open ? "Fold" : "Unfold"}><Icon name={open ? "down" : "next"} size="1em" /></button>
@@ -560,7 +560,8 @@
       </div>
       {#if target && open}
         {@const on = isTargetOn(target)}
-        <div class="node depth-2" class:on class:within={isWithinOn(target, null)} class:pressing={pressing === target.id} role="treeitem" aria-selected={on} aria-level={3}>
+        <div class="node depth-2" class:on class:within={isWithinOn(target, null)} class:pressing={pressing === target.id} role="treeitem" aria-selected={on} aria-level={3}
+          data-drop="target" data-target={target.id}>
           {@render guides(2)}
           <span class="chevron"></span>
           <span class="type"><Icon name="target" size="1em" stroke={2} /></span>
@@ -614,6 +615,9 @@
   .node.drop-before { box-shadow: inset 0 2px 0 var(--text); }
   .node.drop-after { box-shadow: inset 0 -2px 0 var(--text); }
   .node.drop-inside { box-shadow: inset 0 0 0 2px var(--text); }
+  /* A Library tile over the row (#330, library-drag.svelte.ts – the drag writes the state): it fits, or it does not */
+  .tree :global(.node[data-drop-state="ok"]) { box-shadow: inset 0 0 0 2px var(--text); background: var(--hover-background); }
+  .tree :global(.node[data-drop-state="no"]) { outline: 1px dashed var(--danger); outline-offset: -1px; cursor: no-drop; }
   .depth-1 { padding-left: calc(.25rem + var(--indent)); }
   .depth-2 { padding-left: calc(.25rem + 2 * var(--indent)); }
   .guide { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line); pointer-events: none; }
