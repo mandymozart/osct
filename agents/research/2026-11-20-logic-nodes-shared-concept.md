@@ -450,6 +450,7 @@ not touch the reader. L-T5 changes the reader and the contract.
 
 | # | Decision | Recommendation |
 |---|---|---|
+| L1–L6 | **Decided 2026-11-20 (Tilman): "L1 bis 6. As recommended".** For L3 this means OSCT itself may use `goto` (`scene:<id>`), not only the shared core | – |
 | L1 | **Logic stored as documents with a computed graph** (the deck's and the reader's way), or as a stored graph document (nodes + edges) | documents + projection + ops; only the canvas is stored as graph data |
 | L2 | **Rules beyond entities:** add scene-level and experience-level `logic` (same grammar) | yes, in one MAJOR with `goto` |
 | L3 | **`goto` and its address:** `scene:<id>` with the deck's / SCUTOONS' address grammar, resolved by the host through `ArSceneOptions.navigate`; on-screen instructions ("turn the page") as a later `via` | yes; STRATEGY said "Not for OSCT" for flows (2026-10-31): confirm that OSCT itself may use goto, or keep it core-only for SCUTOONS and the show |

@@ -135,6 +135,10 @@ with on-screen instructions to turn the page or to move somewhere in the physica
 interesting; you can also go back and forth between two books. What matters is linking it well with the existing logic
 of the VN and the webtoon."* – and: *"Not for OSCT."*
 
+> **Update 2026-11-20 (#334, decision L3):** Tilman decided "as recommended", so OSCT itself may use `goto` between
+> scenes (`scene:<id>`, resolved by the host). The flow machinery beyond that (labels, diverts, books) stays core work
+> for SCUTOONS. See `agents/research/2026-11-20-logic-nodes-shared-concept.md`.
+
 So the core gets **flows** like SCUTOONS': a *goto* between scenes and spreads – direct, or through an on-screen
 instruction (turn the page; go to a wall, a facade, an object – the spread formats beyond `cover`/`back`, 2026-10-29) –
 and between books; built on SCUTOONS' VN script logic (labels, diverts, conditions: `vn-script.ts`, `flow.ts`,

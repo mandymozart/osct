@@ -228,7 +228,15 @@ Verbatim from the archived entries (the entry title and archive file in front of
   (`registerLogicNode`, `registered.logicNodes`, an API MINOR), not a new format. It runs at authoring time in a
   sandbox. Its `api` calls go through the page with the person's session, like the stage frame (#234). Reads are free;
   writes come back only as ops for the person to apply; no token reaches a module. Steps L-T12 to L-T14.
-- [ ] Tilman: the earlier L1–L6, L8–L10.
+- **L1–L6 decided as recommended (Tilman: "L1 bis 6. As recommended"):**
+  - L1: logic lives in the documents and the graph is computed from them.
+  - L2: rules on scenes and on the experience, in one MAJOR together with `goto`.
+  - L3: OSCT itself may use `goto` (`scene:<id>`). STRATEGY.md has a note on this.
+  - L4: the canvas is stored per scene and for the experience. Since L11 it is authoring data and goes into the export,
+    but not into the reader.
+  - L5: conditions become expressions in SCUTOONS' language.
+  - L6: the event bus works by name, and the joins are drawn as derived edges.
+- [ ] Tilman: L8 (`?logic=` in the URL), L9 (does SCUTOONS adopt the package), L10 (priority).
 
 ## 2026-11-20 – The delivery endpoint's change log: row kinds plus `delivery_id` (#322 T5)
 
