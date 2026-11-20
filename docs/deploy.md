@@ -32,8 +32,9 @@ there once. Bring them along when staging moves to the VM (into the volume below
 1. **Build** (Node 22): `npm ci` in `client/` and `scripts/`, then `npm run build` in `client/` – the translation
    check, Vite, the type checks, and the content build of this commit unless the content comes from the CDN. Build
    flags: `VITE_DEBUG=true` only for staging (`config/deploy.staging.yml` → `builder.args`), `VITE_CONTENT_BASE_URL` =
-   the environment's `OSCT_CONTENT_BASE_URL` (`config/deploy.yml`): the app
-   then loads the current content version from the CDN at startup and the image holds no content
+   the environment's `OSCT_CONTENT_BASE_URL` (`<pull zone>/<title>/<env>`) and `VITE_EXPERIENCE` = `OSCT_EXPERIENCE`
+   (the default experience, default `osct` – `config/deploy.yml`): the app then loads that experience's current content
+   version from the CDN at startup (another experience at `/x/<experience>/`, #87) and the image holds no content
    ([content-cdn](content-cdn.md)). Without it the commit's content is built into the image – only while `content/`
    is still in git ([content-out-of-git](content-out-of-git.md)). The reader and the editor call the API at the fixed
    path `/api` on their own origin – no build flag (`VITE_API_URL` went with #33).
@@ -54,7 +55,7 @@ Apache, then hands over to Apache. A failing migration fails the start, and kama
 Local check of the image, without a MariaDB (the API falls back to SQLite):
 
 ```bash
-docker build -t osct --build-arg VITE_DEBUG=true --build-arg VITE_CONTENT_BASE_URL=https://buildingfictions.b-cdn.net/staging .
+docker build -t osct --build-arg VITE_DEBUG=true --build-arg VITE_CONTENT_BASE_URL=https://buildingfictions.b-cdn.net/osct/staging --build-arg VITE_EXPERIENCE=osct .
 docker run --rm -p 8080:80 -e OSCT_DB_SQLITE_PATH=/data/osct.sqlite -e OSCT_SECRET=$(openssl rand -hex 32) osct
 ```
 
@@ -87,7 +88,9 @@ fall back to the old names (`CONTENT_BASE_URL`, `BUNNY_STORAGE_ZONE`, `BUNNY_STO
 | variable | `SSH_HOST` | the server (host name or IP) – both destinations may use the same server |
 | variable | `SSH_USER` | SSH user with Docker access, default `root` |
 | variable | `SSH_KNOWN_HOSTS` | the server's host key as a `known_hosts` line (`<SSH_HOST> ssh-ed25519 AAAA…`) – the deploy refuses to run without it, and SSH refuses a server that answers with another key |
-| variable | `OSCT_CONTENT_BASE_URL` | the environment's content CDN (`https://buildingfictions.b-cdn.net/staging` / `…/production`, [content-cdn](content-cdn.md)); the same variable feeds `content.yml`. Empty: the commit's content is built into the image |
+| variable | `OSCT_CONTENT_BASE_URL` | the environment's content CDN, `<pull zone>/<title>/<env>` (`https://buildingfictions.b-cdn.net/osct/staging` / `…/osct/production`, [content-cdn](content-cdn.md), #87); the same variable feeds `content.yml` and `demo.yml`. Empty: the commit's content is built into the image |
+| variable | `OSCT_EXPERIENCE` | the instance's default experience (default `osct`): the reader build's `VITE_EXPERIENCE` – the one opened without `/x/<experience>/` – and the server's `EXPERIENCE`; `content.yml` purges and moves it when no experience is given |
+| variable | `OSCT_TITLE` | the title in the storage zone (default `osct`), the first segment of every store path – the server's `TITLE` and the CLI's; set it only for another white-label title |
 | variable | `ALLOWED_ORIGINS` | other origins allowed to call the API (comma separated; staging default `https://localhost:5173`) |
 | variable | `MAIL_TRANSPORT` | `smtp` (default) or `log` – the container has no `mail()`; with `smtp` the workflow refuses to deploy while `SMTP_USER` / `SMTP_PASS` are missing |
 | variable | `MAIL_FROM` | sender of the sign-in mails, default `no-reply@buildingfictions.com` – any address at the domain verified in SES ([Mail](#mail-aws-ses)) |

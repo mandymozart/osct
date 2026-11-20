@@ -423,7 +423,7 @@ export const getExperience = (experienceId: string, { fresh = false }: { fresh?:
 };
 
 /** What an import sends: a configuration, or the instance CDN's current version – `confirm` = the second step */
-export type ImportSource = { configuration: GameConfiguration; files?: unknown; assetsBase?: string } | { source: "cdn" };
+export type ImportSource = { configuration: GameConfiguration; files?: unknown; assetsBase?: string } | { source: "cdn"; experience?: string };
 export type ImportBody = ImportSource & { confirm?: string };
 
 /** What the import of this body would bring in and replace – read-only; 502 content-fetch-failed names the `url` */

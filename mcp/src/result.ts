@@ -19,9 +19,7 @@ export const PUBLISH_REFUSALS = [
   "invalid-env",
   "other-environment",
   "invalid-note",
-  "invalid-replace",
   "not-found",
-  "other-experience",
   "unknown-components",
   "unknown-node-types",
   "unknown-materials",
@@ -50,10 +48,8 @@ export function hintFor(error: ApiError): string {
   if (error.code === "unknown-node-types") return `A node has a type no compiled plugin provides – ${UNCOMPILED}`;
   if (error.code === "unknown-materials") return `A node uses a material no compiled plugin provides – ${UNCOMPILED}`;
   if (error.code === "unknown-passes") return `The experience's or a scene's post-processing names a pass no compiled plugin provides – ${UNCOMPILED}`;
-  if (error.code === "other-experience") return "The environment serves another experience (current) – replacing it there is the person's decision: they publish in the editor and confirm the replacement.";
   if (error.code === "invalid-env") return "env is the instance's own environment – leave it out to publish there.";
   if (error.code === "invalid-note") return "note is a line of text for the publish log.";
-  if (error.code === "invalid-replace") return "replace is true or false – and replacing another experience is the person's decision in the editor, never this tool's.";
   if (error.code === "content-store-failed") return "The environment's content store could not be read or written – nothing went live; the person checks the store (or versions.json) and publishes again.";
   if (error.code === "content-store-unconfigured") return "The instance's CDN storage is not configured – the person who runs the instance sets it up; nothing was published.";
   if (error.code === "asset-in-use") return "The asset is used – remove the uses first, or delete with force: true.";

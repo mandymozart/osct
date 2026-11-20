@@ -36,6 +36,7 @@ import {
   pluginTypes,
   TEXT_MAX_LENGTH,
 } from "../../shared/api/rules";
+import { DEFAULT_TITLE } from "../../shared/api/content-store";
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "../../server/api/src");
 
@@ -83,6 +84,7 @@ function readPhp(): Record<string, unknown> {
       'SKY_IMAGE_EXTENSIONS' => Experiences::SKY_IMAGE_EXTENSIONS,
       'ENV' => ContentStore::ENV,
       'BUILD' => ContentStore::BUILD,
+      'TITLE' => (new ReflectionClassConstant('Config', 'DEFAULTS'))->getValue()['TITLE'],
       'PLUGIN_ID' => Plugins::ID,
       'ASSET_KINDS' => Assets::KINDS,
       'CREDITS' => [Assets::CREDITS_BATCH_MAX, Assets::CREDITS_MAX],
@@ -129,6 +131,10 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(whole(php.PLUGIN_ID)).toBe(PLUGIN_ID_PATTERN.source);
     expect(php.BUILD).toBe(`/${CONTENT_BUILD.source}/`);
     expect(whole(php.ENV)).toBe(ENV_NAME.source);
+  });
+
+  it("the store layout's default title (Config TITLE, shared/api/content-store.ts – #87)", () => {
+    expect(php.TITLE).toBe(DEFAULT_TITLE);
   });
 
   it("passes (the built-in list), the appearance's moments and looks, and the environment (Experiences)", () => {

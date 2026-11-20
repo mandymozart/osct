@@ -1,12 +1,12 @@
 # The demo book (fixtures/demo, agents/research/2026-10-30-demo-book.md) on the CDN: built like the book's content
-# and synced to its own environment `demo` on the storage zone – never to staging or production, whose current version
-# is the book's (the CLI refuses a demo build there). The staging reader shows it with
-# ?content=https://buildingfictions.b-cdn.net/demo (a debug build), the staging editor imports it from that base URL
-# (docs/editor.md "Try it"). Runs by hand, and on a push to develop that touches the demo or what it is built with.
+# and synced to staging as an experience of its own – the store `<title>/staging/demo/` next to the book's (#87), so it
+# never touches the book's current version; never to production (the CLI refuses a demo build there). The staging
+# reader opens it at https://osct.porschuetz.de/x/demo/, the staging editor imports it from the CDN (experience demo,
+# docs/editor.md "Try it"). Runs by hand, and on a push to develop that touches the demo or what it is built with.
 #
 # Storage access comes from the GitHub environment "staging" (docs/content-cdn.md): OSCT_BUNNY_STORAGE_ZONE,
-# OSCT_BUNNY_STORAGE_ENDPOINT, OSCT_BUNNY_STORAGE_PASSWORD; the sync checks the CDN at OSCT_CONTENT_BASE_URL's parent +
-# /demo (#33: the names without OSCT_ are still read as a fallback until the environment is renamed).
+# OSCT_BUNNY_STORAGE_ENDPOINT, OSCT_BUNNY_STORAGE_PASSWORD, OSCT_TITLE; the sync checks the CDN at
+# OSCT_CONTENT_BASE_URL/demo (#33: the names without OSCT_ are still read as a fallback until the environment is renamed).
 name: Demo book
 
 on:
@@ -39,11 +39,13 @@ jobs:
         working-directory: scripts
     env:
       OSCT_CONTENT_DIR: fixtures/demo
-      OSCT_CONTENT_ENV: demo
+      OSCT_CONTENT_ENV: staging
+      OSCT_TITLE: ${{ vars.OSCT_TITLE || 'osct' }}
+      OSCT_CONTENT_BASE_URL: ${{ vars.OSCT_CONTENT_BASE_URL || vars.CONTENT_BASE_URL }}
       OSCT_BUNNY_STORAGE_ZONE: ${{ vars.OSCT_BUNNY_STORAGE_ZONE || vars.BUNNY_STORAGE_ZONE }}
       OSCT_BUNNY_STORAGE_ENDPOINT: ${{ vars.OSCT_BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ZONE_ENDPOINT || 'storage.bunnycdn.com' }}
       OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.OSCT_BUNNY_STORAGE_PASSWORD || secrets.BUNNY_STORAGE_PASSWORD }}
-      # The staging reader shows the demo (?content=…): the CDN check asks with its origin (CORS)
+      # The staging reader shows the demo (/x/demo/): the CDN check asks with its origin (CORS)
       OSCT_APP_URL: https://osct.porschuetz.de
     steps:
       - uses: actions/checkout@v4
@@ -54,12 +56,8 @@ jobs:
           cache-dependency-path: scripts/package-lock.json
       - run: npm ci
       - run: npm run build
-      # The demo's CDN folder sits next to the book's environments: <zone>/demo
-      - name: The demo's content base URL
-        run: echo "OSCT_CONTENT_BASE_URL=${STAGING_BASE%/*}/demo" >> "$GITHUB_ENV"
-        env:
-          STAGING_BASE: ${{ vars.OSCT_CONTENT_BASE_URL || vars.CONTENT_BASE_URL }}
       - name: Build the demo book
         run: npm run build:content:force
-      - name: Sync it to the environment demo
-        run: npm run osct -- content sync --env demo ${{ inputs.dry_run && '--dry-run' || '' }}
+      # The experience is the build's (demo): <title>/staging/demo/
+      - name: Sync it to staging as the experience demo
+        run: npm run osct -- content sync --env staging --experience demo ${{ inputs.dry_run && '--dry-run' || '' }}

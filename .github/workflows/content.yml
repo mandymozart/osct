@@ -1,14 +1,19 @@
 # Content on the bunny.net CDN, by hand (docs/content-cdn.md). Content has its own lifecycle, apart from the app
 # deployment: nothing here runs on a push. It runs the osct CLI against the storage:
-#   status – the versions on the storage, what the CDN serves, whether latest.json and versions.json agree
-#   purge  – delete old versions that are provably out of use (strict checks, see the CLI)
+#   status – the versions on the storage, what the CDN serves, whether latest.json and versions.json agree (every
+#            experience of the environment when none is named)
+#   purge  – delete old versions of one experience that are provably out of use (strict checks, see the CLI)
+#   move   – one-off (#87): copy the environment folder of the layout before the store per experience (`<from>/…`)
+#            into `<title>/<env>/<experience>/`; dry run by default, the old folder stays unless delete_old
+#            (docs/content-cdn.md "Moving to the store per experience" – run only after Tilman's approval)
 # No sync here: the book content is not in this repository, so a checkout has nothing to upload (the CLI refuses
 # the test fixture). Sync runs where the content source is – `osct content sync` on that machine, later perhaps a
 # workflow of a content repository.
 #
 # GitHub → Settings → Environments → "staging" / "production":
 #   variables: OSCT_BUNNY_STORAGE_ZONE (osct), OSCT_BUNNY_STORAGE_ENDPOINT (storage.bunnycdn.com),
-#              OSCT_CONTENT_BASE_URL (https://buildingfictions.b-cdn.net/<env>)
+#              OSCT_CONTENT_BASE_URL (https://buildingfictions.b-cdn.net/osct/<env> – `<pull zone>/<title>/<env>`),
+#              OSCT_EXPERIENCE (the default experience for purge and move, osct), OSCT_TITLE (default osct)
 #   secrets:   OSCT_BUNNY_STORAGE_PASSWORD (the storage zone's read/write access key)
 # (#33: the names without OSCT_ are still read as a fallback until the environments are renamed – then drop the `|| …`.)
 name: Content
@@ -22,14 +27,26 @@ on:
         options: [staging, production]
         default: staging
       command:
-        description: "status or purge (old versions)"
+        description: "status, purge (old versions) or move (one-off, #87)"
         type: choice
-        options: [status, purge]
+        options: [status, purge, move]
         default: status
+      experience:
+        description: "The experience (status: empty = every one; purge, move: empty = OSCT_EXPERIENCE)"
+        type: string
+        default: ""
       dry_run:
-        description: "purge: only show what would happen"
+        description: "purge, move: only show what would happen"
         type: boolean
         default: true
+      from:
+        description: "move: the old environment folder at the zone root (staging, demo, production)"
+        type: string
+        default: ""
+      delete_old:
+        description: "move: delete the old folder's moved files once every one arrived intact"
+        type: boolean
+        default: false
       min_age:
         description: "purge: days a version must have been retired (default 30 = CDN cache time)"
         type: string
@@ -61,6 +78,9 @@ jobs:
       OSCT_BUNNY_STORAGE_ENDPOINT: ${{ vars.OSCT_BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ZONE_ENDPOINT || 'storage.bunnycdn.com' }}
       OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.OSCT_BUNNY_STORAGE_PASSWORD || secrets.BUNNY_STORAGE_PASSWORD }}
       OSCT_CONTENT_BASE_URL: ${{ vars.OSCT_CONTENT_BASE_URL || vars.CONTENT_BASE_URL }}
+      OSCT_TITLE: ${{ vars.OSCT_TITLE || 'osct' }}
+      # status names every experience when none is given; purge and move fall back to the instance's
+      OSCT_EXPERIENCE: ${{ inputs.command != 'status' && (vars.OSCT_EXPERIENCE || 'osct') || '' }}
       # The site the reader runs on: the CDN check asks with its origin (CORS)
       OSCT_APP_URL: ${{ inputs.environment == 'production' && 'https://osct.buildingfictions.com' || 'https://osct.porschuetz.de' }}
     steps:
@@ -78,3 +98,6 @@ jobs:
           ${{ inputs.dry_run && inputs.command != 'status' && '--dry-run' || '' }}
           ${{ inputs.command == 'purge' && format('--min-age {0} --keep {1}', inputs.min_age, inputs.keep) || '' }}
           ${{ inputs.command == 'purge' && inputs.unknown && '--unknown' || '' }}
+          ${{ inputs.experience != '' && format('--experience {0}', inputs.experience) || '' }}
+          ${{ inputs.command == 'move' && format('--from {0}', inputs.from) || '' }}
+          ${{ inputs.command == 'move' && inputs.delete_old && '--delete-old' || '' }}

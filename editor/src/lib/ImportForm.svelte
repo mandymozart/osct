@@ -202,12 +202,12 @@
     <button type="button" class="pill" class:on={mode === "file"} onclick={() => (mode = "file")}
       data-help-name="File" data-help="A game.config.json from this computer.">file</button>
     <button type="button" class="pill" class:on={mode === "cdn"} onclick={() => (mode = "cdn")}
-      data-help-name="The CDN" data-help="The current version of this instance's content CDN (OSCT_CONTENT_BASE_URL): the server reads its latest.json and the experience in that version. The form shows the experience and the build before anything is imported.">the CDN</button>
+      data-help-name="The CDN" data-help="The current version of this instance's default experience (OSCT_EXPERIENCE) on its content CDN (OSCT_CONTENT_BASE_URL): the server reads that experience's latest.json and the version it names. The form shows the experience and the build before anything is imported. Another experience on the CDN: URL, with its folder (…/osct/staging/demo).">the CDN</button>
   </div>
   {#if mode === "url"}
     <label class="stack"><span class="label">URL</span>
       <input class="field" bind:value={url} placeholder="https://…/game.config.json" required
-        data-help-name="URL" data-help="A game.config.json, or a content base – a CDN folder with latest.json, e.g. https://buildingfictions.b-cdn.net/demo – whose current version is imported." /></label>
+        data-help-name="URL" data-help="A game.config.json, or a content base – a CDN folder with latest.json, e.g. https://buildingfictions.b-cdn.net/osct/staging/demo – whose current version is imported." /></label>
   {:else if mode === "file"}
     <label class="stack"><span class="label">file</span>
       <input class="field" type="file" accept="application/json,.json" onchange={e => (file = (e.currentTarget as HTMLInputElement).files?.[0] ?? null)} /></label>

@@ -3,7 +3,7 @@
 // import's files). Nothing secret lives here: the address, the paths and the API come in as arguments.
 //
 //   node prepare.mjs --api http://127.0.0.1:8091/api --email <address> --mail-log <path> --token-file <path> \
-//     --experience demo --content https://buildingfictions.b-cdn.net/demo/<build>
+//     --experience demo --content https://buildingfictions.b-cdn.net/osct/staging/demo/<build>
 //   node prepare.mjs --api … --token-file <path> --sign-out      (ends the session, deletes the token file)
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";

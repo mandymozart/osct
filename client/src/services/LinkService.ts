@@ -1,7 +1,7 @@
 import { router } from "@/router";
 import { ALL_CATEGORY, type GameState, type IGame, type PageRoute, Pages } from "@/types";
 import { getExperience, getEntry, getScene } from "@/utils/game-config";
-import { onboardingSteps } from "@/utils";
+import { experiencePrefix, onboardingSteps, splitExperiencePath } from "@/utils";
 import { isEntryCategory } from "@shared/guards/game-config";
 
 /**
@@ -15,6 +15,8 @@ import { isEntryCategory } from "@shared/guards/game-config";
  *   /about                     info
  *   /credits                   image credits (#292)
  *   …?osct=<version>           the app version the link was made with
+ *   /x/<experience>/…          every route of another experience than the instance's default (#87,
+ *                              utils/experience-path.ts) – the app writes the prefix into every link while it runs
  *
  * Incoming links only route. A link to an entry the reader hasn't consulted yet opens scan mode on the
  * scene it belongs to (no shortcut past the game). An unknown route, scene, entry, category or step
@@ -37,11 +39,12 @@ export interface Link {
   version?: string;
 }
 
-/** URL path + query → link; null for the start page */
+/** URL path + query → link; null for the start page. The experience prefix (`/x/<experience>`) is not part of the route */
 export const parseLink = (pathname: string, search: string): Link | null => {
   const params = new URLSearchParams(search);
   const version = params.get(VERSION_PARAM) ?? undefined;
-  const segments = pathname.split("/").filter(Boolean).map(s => decodeURIComponent(s));
+  const route = splitExperiencePath(pathname).path;
+  const segments = route.split("/").filter(Boolean).map(s => decodeURIComponent(s));
 
   if (segments.length === 0) return null;
 
@@ -50,7 +53,7 @@ export const parseLink = (pathname: string, search: string): Link | null => {
   // "/entries/video" and "/entries/category/video" both work
   if (segments.length === 3 && definition?.param === segments[1]) return { slug, value: segments[2], version };
   if (segments.length <= 2) return { slug, value: segments[1], version };
-  return { slug: pathname, version }; // too many segments: not found
+  return { slug: route, version }; // too many segments: not found
 };
 
 /** Path of a route (+ the active scene for scan mode) – what the address bar shows */
@@ -70,10 +73,11 @@ export const pathForRoute = (route: PageRoute | null, currentScene: string | nul
   }
 };
 
-/** Full link (path + version) for the current state */
-export const linkForState = (state: Pick<GameState, "currentRoute" | "currentScene">, version: string): string | null => {
+/** Full link (experience prefix + path + version) for the current state; `prefix` = `/x/<experience>` of another experience than the default */
+export const linkForState = (state: Pick<GameState, "currentRoute" | "currentScene">, version: string, prefix = experiencePrefix()): string | null => {
   const path = pathForRoute(state.currentRoute, state.currentScene);
-  return path === null ? null : `${path}?${VERSION_PARAM}=${encodeURIComponent(version)}`;
+  if (path === null) return null;
+  return `${prefix && path === "/" ? prefix : `${prefix}${path}`}?${VERSION_PARAM}=${encodeURIComponent(version)}`;
 };
 
 /**

@@ -22,7 +22,7 @@ are sent by Tilman himself; these scripts never upload anything.
 3. Sign in and import the demo (the address is the copy's editor account; the token file stays outside the repo):
    ```bash
    node prepare.mjs --api http://127.0.0.1:8091/api --email <editor address> --mail-log <copy's mail.log> \
-     --token-file <temp>/token.txt --experience demo --content https://buildingfictions.b-cdn.net/demo/<build>
+     --token-file <temp>/token.txt --experience demo --content https://buildingfictions.b-cdn.net/osct/staging/demo/<build>
    ```
 4. Record each format (Edge on `--port`, default 9341; frames into `<rec>/<format>/<scene>/`):
    ```bash
