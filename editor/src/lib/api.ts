@@ -98,7 +98,7 @@ export type {
 export const API_URL = "/api";
 
 export class ApiError extends Error {
-  /** `details` = the rest of the server's error object (e.g. `current` of a 409 other-experience) */
+  /** `details` = the rest of the server's error object (e.g. `comparison` of a 409 confirm-import) */
   constructor(public readonly status: number, public readonly code: string, message: string, public readonly details: Record<string, unknown> = {}) {
     super(message);
   }
