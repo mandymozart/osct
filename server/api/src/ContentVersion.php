@@ -24,10 +24,11 @@ final class ContentVersion
     private const CONTENT_PREFIX = '/assets/content/';
 
     /**
-     * The experience's current draft.
+     * The experience's current draft; `$forReaders` (a publish): without the authoring data a reader never gets – the
+     * logic's canvas of the experience and of every scene (content schema 5.0, #334) – before the hash is taken.
      * @return array{configuration: stdClass, files: stdClass, hash: string, build: string, schema: string}
      */
-    public static function assemble(string $experienceId): array
+    public static function assemble(string $experienceId, bool $forReaders = false): array
     {
         $experience = Db::one('SELECT * FROM experiences WHERE id = :id', ['id' => $experienceId]);
         if (!$experience) throw new ApiError(404, 'not-found', 'No such experience.');
@@ -81,6 +82,10 @@ final class ContentVersion
         ]);
         $plugins = Editor::decode($experience['plugins_json'] ?? '[]');
         if (is_array($plugins) && $plugins) $configuration->plugins = $plugins;
+        if ($forReaders) {
+            Logic::withoutCanvas($configuration->experience);
+            foreach ($configuration->scenes as $scene) Logic::withoutCanvas($scene);
+        }
         $files = Editor::decode($experience['files_json']);
         if (!$files instanceof stdClass) $files = new stdClass();
 
