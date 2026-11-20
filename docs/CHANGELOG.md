@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 3.21.0 – 2026-11-20
 
 ### Added
 - **Editor – editing the logic in the graph** (#334 L-T4): on a scene's and a target's level of the Logic panel the rules
