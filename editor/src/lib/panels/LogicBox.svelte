@@ -9,6 +9,8 @@
     flash: boolean;
     dim: boolean;
     never: boolean;
+    /** Its ports take wires (the scene and entity levels of the open scene) */
+    editable: boolean;
     onpick: (box: FlowBox) => void;
     onenter: (box: FlowBox) => void;
   }
@@ -23,7 +25,8 @@
    * One box of the Logic canvas (#334 L-T3), an `@xyflow/svelte` custom node: a level's node (its label and detail, its
    * ports as handles – inlets left, outlets right, their shape by signal) or a stub at the level's border. A click picks
    * (the canvas's `onnodeclick`); a double-click, Enter or the arrow button enters the box's level – a stub follows to its far
-   * end. Read-only: the handles take no connection (L-T4).
+   * end. While `editable`, a drag from a port to a port is a connect (the canvas reports it), and a rule's `+` outlet adds an
+   * action.
    */
   let { data }: { data: LogicBoxData } = $props();
 
@@ -58,7 +61,7 @@
   title="{word}: {label} – {detail}{node?.problem ? `\n${node.problem}` : ''}{enterable ? '\nDouble-click to open' : ''}"
   ondblclick={e => { if (enterable) { e.stopPropagation(); data.onenter(box); } }} onkeydown={keydown}>
   {#each ins as p, i (p.id)}
-    <Handle type="target" position={Position.Left} id={handleId(p)} class="port sig-{p.signal}" style={top(i, ins.length)} isConnectable={false} />
+    <Handle type="target" position={Position.Left} id={handleId(p)} class="port sig-{p.signal}" style={top(i, ins.length)} isConnectable={data.editable} title={p.label} />
   {/each}
   <span class="text">
     <span class="label">{label}</span>
@@ -69,7 +72,7 @@
       onclick={e => { e.stopPropagation(); data.onenter(box); }}><Icon name="next" /></button>
   {/if}
   {#each outs as p, i (p.id)}
-    <Handle type="source" position={Position.Right} id={handleId(p)} class="port sig-{p.signal}" style={top(i, outs.length)} isConnectable={false} />
+    <Handle type="source" position={Position.Right} id={handleId(p)} class="port sig-{p.signal}{p.id === 'do' ? ' add' : ''}" style={top(i, outs.length)} isConnectable={data.editable} title={p.id === "do" ? "Drag to a node, a variable or an event: a new action" : p.label} />
   {/each}
 </div>
 
@@ -113,4 +116,9 @@
   .box :global(.port.sig-node) { background: var(--text); }
   .box :global(.port.sig-scene), .box :global(.port.sig-address) { width: .1875rem; height: .625rem; background: var(--text); }
   .box :global(.port.sig-far) { border-style: dotted; }
+  .box :global(.port.add) {
+    width: .75rem; height: .75rem; border-radius: 50%; background: var(--surface); display: grid; place-items: center; font-size: .625rem; line-height: 1;
+  }
+  .box :global(.port.add::after) { content: "+"; color: var(--text); pointer-events: none; }
+  .box :global(.port.connectable) { cursor: crosshair; }
 </style>

@@ -21,11 +21,15 @@ export const verbSignal = (verb: string): Signal =>
 const port = (id: string, label: string, signal: Signal, dir: "in" | "out", many = false): PortSpec =>
   many ? { id, label, signal, dir, many } : { id, label, signal, dir };
 
-/** A rule's ports: `on`, `when`, and `do:<i>` per action, in the order of its actions */
+/**
+ * A rule's ports: `on`, `when`, `do:<i>` per action in the order of its actions, and `do` – the outlet a new action is
+ * dragged from (to a node, a variable or an event: the action its target takes)
+ */
 export const rulePorts = (rule: Pick<BehaviourRule, "do">): PortSpec[] => [
   port("on", "on", "event", "in"),
   port("when", "when", "value", "in", true),
   ...rule.do.map((action, i) => port(`do:${i}`, action.action, verbSignal(action.action), "out")),
+  port("do", "+", "node", "out", true),
 ];
 
 /** The ports of a place that joins others by name: a scene at the experience level, a plugin */

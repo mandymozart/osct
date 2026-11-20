@@ -525,6 +525,7 @@
       await useAsTargetImage(asset);
       return;
     }
+    if (row.kind !== "node") return;
     selection.show({ target: row.targetId, node: row.path, onTarget: false });
     await tick();
     await useAsset(asset);
@@ -884,7 +885,7 @@
   {:else if t === "history"}
     <HistoryPanel current={sceneId} />
   {:else if t === "logic"}
-    <LogicPanel {experienceId} {sceneId} onpick={pickLogic} onmove={moveToLogic} />
+    <LogicPanel {experienceId} {sceneId} {stage} onpick={pickLogic} onmove={moveToLogic} />
   {:else}
     <!-- A revert written (#312): the forms start again from the draft -->
     <div class="float-body inspector">{#key panelsRevision}{@render panelTabs(t)}{/key}</div>

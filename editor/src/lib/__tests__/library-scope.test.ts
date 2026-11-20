@@ -86,7 +86,7 @@ describe("the kinds (#330)", () => {
   it("tell targets, surfaces and images apart and count each within what they get", () => {
     expect([...surfaces]).toEqual([surface.url]);
     const counts = kindCounts([...assets, asset("a.glsl", { kind: "shader" }), asset("v.mp4", { kind: "video" }), asset("hum.mp3", { kind: "audio" })], targets, surfaces);
-    expect(counts).toEqual({ all: 10, target: 2, surface: 1, image: 4, video: 1, model: 1, audio: 1, code: 1 });
+    expect(counts).toEqual({ all: 10, target: 2, surface: 1, image: 4, video: 1, model: 1, audio: 1, code: 1, nodes: 0 });
   });
 
   it("name a tile's kind: target, surface, 3D, else the kind", () => {

@@ -123,7 +123,7 @@ export function scopeCounts(assets: readonly Pick<Asset, "url" | "place" | "usag
 
 /** The kinds' chips (code apart: its list is under the media) */
 export const KIND_LABELS: Record<LibraryFilter, string> = {
-  all: "All kinds", target: "Targets", surface: "Surfaces", image: "Images", video: "Video", model: "3D", audio: "Audio", code: "Code",
+  all: "All kinds", target: "Targets", surface: "Surfaces", image: "Images", video: "Video", model: "3D", audio: "Audio", code: "Code", nodes: "Nodes",
 };
 
 /** What a tile's corner calls the file's kind */
@@ -145,7 +145,7 @@ const kindGroupOf = (asset: Pick<Asset, "kind" | "url" | "name">, targetImages: 
 
 /** How many files of each kind (`all` the media; `code` the shaders – the panel adds the scripts) */
 export function kindCounts(assets: readonly Pick<Asset, "kind" | "url" | "name">[], targetImages: ReadonlySet<string>, surfaceImages: ReadonlySet<string>): Record<LibraryFilter, number> {
-  const counts: Record<LibraryFilter, number> = { all: 0, target: 0, surface: 0, image: 0, video: 0, model: 0, audio: 0, code: 0 };
+  const counts: Record<LibraryFilter, number> = { all: 0, target: 0, surface: 0, image: 0, video: 0, model: 0, audio: 0, code: 0, nodes: 0 };
   for (const asset of assets) {
     const kind = kindGroupOf(asset, targetImages, surfaceImages);
     if (kind !== "code") counts.all++;

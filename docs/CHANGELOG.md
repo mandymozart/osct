@@ -7,6 +7,27 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **Editor – editing the logic in the graph** (#334 L-T4): on a scene's and a target's level of the Logic panel the rules
+  of the open scene's nodes are edited on the canvas. Dragging from a port to a port connects them as the rule grammar
+  allows – an event into a rule's *on* makes the rule hear it (by name, as the bus does), a variable into *when* adds a
+  condition, a rule's **+** outlet into a node, a variable or an event adds a show, set or emit action, an action's own
+  outlet re-aims it; only the inlets that would take the wire light up. Delete on a selected wire removes the condition or
+  the action it stands for (a wire that only joins by name removes the name from the listening rules here, and says so),
+  on a selected rule removes the rule. A **right click** opens a menu: on the empty canvas (or with the panel's **+**)
+  what can be added here – a rule on the selected node, an action or a condition for the selected rule – with a filter
+  field on top (typing `emit doorOpened`, `set hasKey`, `when hasKey` or `rule on bellRang` adds a new name); on a box or a
+  wire its actions. Every edit is shown in words for a moment under the panel's bar, and an edit the grammar does not
+  allow is refused with the reason. Edits go the Inspector's way: live on the stage at once, saved by themselves, a step
+  in History that undo takes back. The experience and group levels stay read-only. Delete and Backspace in the panel no
+  longer reach the workspace (they never remove the selected tree node).
+- **Editor – nodes in the Library** (#334 L-T4): the Library's kind **Nodes** lists the logic's node types (the core's
+  events, rules, variables and verbs, and any a plugin registers, with their owner); dragging one onto the Logic canvas
+  opens the same add menu there with that type's choices. A file dragged onto the Logic canvas is refused with a hint
+  (file nodes come later).
+
 ## 3.20.0 – 2026-11-20
 
 ### Added

@@ -12,7 +12,9 @@ import { nodeAssetKinds } from "./library-pick";
 /** A row of the tree a tile can be dropped on: a target (its printed image) or a node of its entity (its file) */
 export type DropRow =
   | { kind: "target"; targetId: string }
-  | { kind: "node"; targetId: string; path: number[]; nodeType: string };
+  | { kind: "node"; targetId: string; path: number[]; nodeType: string }
+  /** The Logic canvas (#334): it takes no file yet – file nodes come later */
+  | { kind: "logic" };
 
 /** What a drop there does – or why it does nothing */
 export type DropFit =
@@ -37,6 +39,7 @@ export const dropFit = (
   kindsOf: (type: string) => readonly AssetKind[] | undefined = nodeAssetKinds,
 ): DropFit | null => {
   if (!row) return null;
+  if (row.kind === "logic") return { ok: false, text: "Files on the Logic canvas come later – drop it on a node in the tree" };
   const what = kindWord(asset.kind);
   if (row.kind === "target") {
     return asset.kind === "image"
@@ -58,6 +61,7 @@ export const dropFit = (
  * null for a row that takes no drop
  */
 export const dropRowOf = (data: DOMStringMap): DropRow | null => {
+  if (data.drop === "logic") return { kind: "logic" };
   const targetId = data.target;
   if (!targetId) return null;
   if (data.drop === "target") return { kind: "target", targetId };

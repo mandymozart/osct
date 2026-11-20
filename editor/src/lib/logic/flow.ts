@@ -40,6 +40,8 @@ export interface FlowWire {
   signal: Signal;
   /** It never fires (an event between two scenes, `navigation.ts`) */
   never: boolean;
+  /** The view's edge it draws (a stub's edge for a wire at the border): what an op names */
+  edge: string;
   /** It runs against the flow (a loop) */
   back: boolean;
 }
@@ -89,7 +91,7 @@ export const flowOf = (view: View, size: LayoutSize = LOGIC_SIZE): Flow => {
     use(e.from[0], { id: e.from[1], label: e.from[1], signal: e.signal, dir: "out" });
     use(e.to[0], { id: e.to[1], label: e.to[1], signal: e.signal, dir: "in" });
     return {
-      id: e.id, source: e.from[0], sourcePort: handleId({ id: e.from[1], dir: "out" }), target: e.to[0], targetPort: handleId({ id: e.to[1], dir: "in" }),
+      id: e.id, edge: e.id, source: e.from[0], sourcePort: handleId({ id: e.from[1], dir: "out" }), target: e.to[0], targetPort: handleId({ id: e.to[1], dir: "in" }),
       label: e.label, signal: e.signal, never: neverFires(e), back: backs.get(`${e.from[0]}>${e.to[0]}`) ?? false,
     };
   });
@@ -114,8 +116,8 @@ export const flowOf = (view: View, size: LayoutSize = LOGIC_SIZE): Flow => {
     use(near[0], { id: near[1], label: near[1], signal: stub.edge.signal, dir: stub.side === "in" ? "in" : "out" });
     const never = stubNeverFires(stub, view);
     wires.push(stub.side === "in"
-      ? { id: `${id}>`, source: id, sourcePort: handleId(port), target: near[0], targetPort: handleId({ id: near[1], dir: "in" }), label: stub.edge.label, signal: stub.edge.signal, never, back: false }
-      : { id: `>${id}`, source: near[0], sourcePort: handleId({ id: near[1], dir: "out" }), target: id, targetPort: handleId(port), label: stub.edge.label, signal: stub.edge.signal, never, back: false });
+      ? { id: `${id}>`, edge: stub.edge.id, source: id, sourcePort: handleId(port), target: near[0], targetPort: handleId({ id: near[1], dir: "in" }), label: stub.edge.label, signal: stub.edge.signal, never, back: false }
+      : { id: `>${id}`, edge: stub.edge.id, source: near[0], sourcePort: handleId({ id: near[1], dir: "out" }), target: id, targetPort: handleId(port), label: stub.edge.label, signal: stub.edge.signal, never, back: false });
     return { id, x, y, node: null, stub, ports: [port] };
   });
 
