@@ -251,7 +251,50 @@ and the expression engine that both already have.
   (the deck's `Activity`).
 - **Graph widget:** OSCT's own SVG layout today; SCUTOONS' creator uses `@xyflow/svelte` + dagre. For editing (connect,
   drag, minimap), xyflow saves real work, and SCUTOONS' creator already ships it on Svelte 5. That would align the two web
-  editors. Decision L7.
+  editors. Decision L7: **decided (Tilman, 2026-11-20): xyflow, as the rendering layer only.** The package computes the
+  view and the layout. xyflow draws it and reports the gestures. Those gestures become ops, so xyflow never owns the
+  data.
+
+### 5.7 Free nodes on the canvas (Tilman's question, 2026-11-20)
+
+Tilman: *"can we add free nodes to this canvas? … a whole other world of how to manage generative content … a more
+creative tool."*
+
+Yes. Free nodes extend L1 rather than break it: **every node still lives in a document**. A free node's document is the
+canvas, not a rule. The canvas then holds three kinds of thing:
+
+| Kind | Stored where | Who runs it | Examples |
+|---|---|---|---|
+| **Computed nodes** (today's) | nowhere: projected from rules, entities, variables, plugins | the engine, in the reader | a rule, an action, an event source, a variable |
+| **Free nodes, editor only** | the canvas (`canvas.nodes`) | nobody: they frame and inform | a note, a sketch, a reference image, a link, a mood board, a "todo" |
+| **Free nodes that make something** (generative) | the canvas, as a small graph of their own (`canvas.nodes` + `canvas.wires`) | the editor or the server, **while authoring**, never the reader | prompt → generator → variants → pick → asset, then an entity placed in the scene |
+
+The key split is **authoring time vs reading time**:
+
+- **Authoring-time graphs (recommended first).** A generative chain runs in the editor or on the server. Its *result* is
+  ordinary content: an asset in the asset store, an entity in the scene, a text in an entry. The reader stays unchanged
+  and never sees the graph. Its output nodes have outlets to computed nodes ("place as entity on target X", "use as this
+  entity's texture"). Running the chain is an op whose result goes through the normal save, change log and revert.
+  Every generated asset records its origin (graph, node, prompt, seed, model), like the `origin` in the #322 export.
+  Then a re-run, an export and credits can follow it.
+- **Reading-time free nodes (later, if ever).** A free node that the reader evaluates (a random pick per reader, a
+  generator call on the phone, a value computed from time or place) is runtime logic. It needs the engine, the contract
+  and the guard, which is the same cut as L-T5. Keep it out until a concrete case asks for it.
+
+Why this fits: the canvas is already stored (L4) and edited through ops (`{ op: "canvas"; edit }`). Free nodes add
+`CanvasEdit`s (`addNode`, `moveNode`, `setParams`, `wire`, `unwire`, `run`). The node type registry (§5.2) takes free
+node types in the same way, with `family: "free"`, ports from their params, and an `owner` (core, title or plugin). So a
+generator can come as a plugin or a server integration without touching the core. xyflow (L7) draws computed and free
+nodes on one canvas. Only the colour and the shape differ: computed nodes are fixed in place by their documents, free
+nodes move freely.
+
+Ties to look at, not checked here: SCUTOONS already has generations with an approval step (its MCP has
+`start_generation`, `check_generation`, `approve_generation`, `list_generators`). A generator node could call those, or
+a RunPod endpoint, and land its result as a draft that a person approves. That matches the rule that an AI never
+publishes. #322's delivery endpoint is the existing door for content that comes from outside.
+
+Open questions (L11–L13 in §8): whether the canvas stays editor data (L4) once it holds generative graphs worth
+exporting, where generation runs and who pays, and what a free node may reach.
 
 ### 5.6 Where the shared code lives (#255)
 
@@ -367,10 +410,13 @@ not touch the reader. L-T5 changes the reader and the contract.
 | L4 | **Where the canvas lives:** per behaviour component, per scene for all of its nodes, or editor-only (not in the contract) | per scene (`SceneData.logic.canvas`) plus experience; it is editor data, so the reader ignores it |
 | L5 | **Conditions:** keep equality tests, or move `when` to expressions (`shared/text/expressions.ts`, SCUTOONS' language) | expressions in the MAJOR (one language for texts and rules, SCUTOONS-compatible), with the tests form read in once by the migration |
 | L6 | **Events by name (bus) or by explicit cable** (the deck's rule) | keep the bus by name and draw joins as derived edges; explicit-only would break the plugin API |
-| L7 | **Graph widget:** keep OSCT's own SVG, or adopt `@xyflow/svelte` (SCUTOONS' creator already uses it) for editing | xyflow for the editing panel, with the layout from the package; check bundle size and RULES' stack list first |
+| L7 | **Graph widget:** keep OSCT's own SVG, or adopt `@xyflow/svelte` (SCUTOONS' creator already uses it) for editing | **decided 2026-11-20: xyflow as the rendering layer** (package computes view and layout; gestures become ops); still check the build and RULES' stack list |
 | L8 | **The Logic view's place in the URL** (`?logic=`) or only in the panel's state | URL query |
 | L9 | **SCUTOONS adoption:** does SCUTOONS' web side consume `@animus/logic` (its 2026-11-20 note "no sharing across the projects" for panels), and does the deck test against the fixtures | share the package and the fixtures, not panels; SCUTOONS decides in its own issue |
 | L10 | **Priority:** L-T1–L-T3 (navigation, read-only) now, editing and the MAJOR after the #255 phase 0 or after Tokyo | L-T1–L-T3 now (editor-only); L-T4–L-T5 when Tilman sets it against the Tokyo plan |
+| L11 | **Free nodes (§5.7):** editor-only and authoring-time generative nodes on the canvas; reading-time free nodes not now | yes; this moves the canvas from "editor data the reader ignores" to "authoring data the export carries" (L4 then: canvas in the DB per scene and experience, in the #322 export, still not in the reader build) |
+| L12 | **Where generation runs:** in the editor (browser calls a service), on OSCT's server (queue, keys on the server), or through SCUTOONS' generations | the server, with the keys there and a draft to approve; first generator through an interface a plugin can fill |
+| L13 | **What a free node may reach:** only the canvas and its own outputs, or also writes into the scene (place entity, set texture) | outputs become content only through an explicit "apply" op that goes through save, change log and revert |
 
 ## 9 · Not checked
 

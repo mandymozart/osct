@@ -209,6 +209,20 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-20 – Logic view: xyflow as the rendering layer; free nodes on the canvas (#334)
+
+- **L7 decided (Tilman):** "xyflow for the moment. As a rendering layer." `@xyflow/svelte` draws the Logic view. The
+  `logic` package computes the view and the layout, and xyflow's gestures become ops. xyflow never owns the data.
+  The build under SvelteKit 3.1 / TS 6 and RULES' stack list are still to check.
+- **Free nodes (Tilman's question):** *"can we add free nodes to this canvas? … generative content … a more creative
+  tool."* Answer, in `agents/research/2026-11-20-logic-nodes-shared-concept.md` §5.7: yes. A free node lives in the
+  canvas document, which keeps L1 ("every node lives in a document"). There are three kinds: computed nodes (today),
+  editor-only free nodes (notes, references), and generative free nodes that run **at authoring time** in the editor or
+  on the server. A generative node's result becomes ordinary content (an asset or an entity, with its origin recorded)
+  through an explicit apply op. The reader stays unchanged.
+- [ ] Tilman: L11 (free nodes; the canvas becomes authoring data in the DB and in the export), L12 (where generation
+  runs), L13 (what a free node may write), and the earlier L1–L6, L8–L10.
+
 ## 2026-11-20 – The delivery endpoint's change log: row kinds plus `delivery_id` (#322 T5)
 
 - A delivery's writes are logged with their **row's own kind** (`scene`, `entry`, `target`) and the delivery's id in a new
