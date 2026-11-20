@@ -1,6 +1,7 @@
 import { scenes } from "./scenes.svelte";
 import { selection } from "./selection.svelte";
-import { addSurface, arrangeInRow, inRow, moveSurface, onSurface, removalWarning, removeSurface, type SurfacePreset } from "./surface-edit";
+import { putTarget } from "./api";
+import { addSurface, arrangeInRow, inRow, liesOn, moveSurface, moveToSurface, onSurface, removalWarning, removeSurface, type MovedHow, type SurfacePreset } from "./surface-edit";
 
 /**
  * The surface edits as the Tree's Surfaces level, the Inspector's surfaces and the selected surface run them (#314) –
@@ -46,6 +47,22 @@ export const surfaceRemovalWarning = (sceneId: string, surfaceId: string): strin
   const surface = scene?.surfaces?.find(s => s.id === surfaceId);
   if (!scene || !surface) return "";
   return removalWarning(onSurface(scene.entries.map(e => ({ id: e.id, title: e.title, surface: e.surface, target: e.target ? { id: e.target.id, place: e.target.place } : null })), surface, scene.surfaces));
+};
+
+/**
+ * **Move a target to another surface** of its scene (#314 – the Tree's Surfaces level, a drag or a row's menu): its place
+ * as `moveToSurface` says (kept where it fits, else centred, made smaller when it is too big), written at once
+ * (`PUT …/targets/{id}`). `height` = the print's height from the stage when its place has none. How it came there, or
+ * null when nothing was written (already there, no place, unknown).
+ */
+export const moveTargetToSurface = async (sceneId: string, targetId: string, surfaceId: string, height?: number): Promise<MovedHow | null> => {
+  const scene = scenes.scene(sceneId);
+  const surface = scene?.surfaces.find(s => s.id === surfaceId);
+  const place = scene?.entries.find(e => e.target?.id === targetId)?.target?.place;
+  if (!scenes.experienceId || !scene || !surface || !place || liesOn(place, surface, scene.surfaces)) return null;
+  const moved = moveToSurface(place, surface, scene.surfaces.length > 1, height);
+  await putTarget(scenes.experienceId, targetId, { place: moved.place });
+  return moved.how;
 };
 
 /** Remove a surface (the confirmation was shown); what lay on it falls back to the first surface. A selected surface leaves the selection. */

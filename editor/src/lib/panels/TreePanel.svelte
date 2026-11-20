@@ -17,8 +17,8 @@
   import { isMenuKey, type Point } from "#lib/context-menu.js";
   import { scenes } from "#lib/scenes.svelte.js";
   import { errorText } from "#lib/api.js";
-  import { SURFACE_PRESETS, surfaceName, type SurfacePreset } from "#lib/surface-edit.js";
-  import { addSceneSurface, arrangeSceneInRow, canArrangeInRow, moveSceneSurface } from "#lib/surface-actions.js";
+  import { SURFACE_PRESETS, liesOn, surfaceName, type SurfacePreset } from "#lib/surface-edit.js";
+  import { addSceneSurface, arrangeSceneInRow, canArrangeInRow, moveSceneSurface, moveTargetToSurface } from "#lib/surface-actions.js";
 
   /**
    * The scene as a tree in the style of Blender's outliner: a chevron column, a type icon before every name, guide
@@ -42,7 +42,7 @@
    * (`stage.editTree`) and saved by themselves (#259). Folding is per entry and per node and not stored. ● after a name: its tree is
    * not in the draft yet (a save waits, or something keeps it back – the top bar says what).
    */
-  let { stage, sceneId, onselect, onaddtarget, onaddentry, onaddscene, onremoveentry }: {
+  let { stage, sceneId, onselect, onaddtarget, onaddentry, onaddscene, onremoveentry, ontargetchanged }: {
     stage: Stage | null; sceneId: string;
     /** A row was chosen (a tap, Enter): the workspace shows the Inspector */
     onselect?: (kind: TreeRow["kind"]) => void;
@@ -54,6 +54,8 @@
     onaddscene?: (after: string) => void;
     /** "Remove target" / "Remove entry", Delete on an entry row: the entry with everything on it, after the confirmation the workspace shows (#198) */
     onremoveentry?: (entryId: string, targetId: string | null) => Promise<void>;
+    /** A target was moved to another surface (#314): the workspace reads the content again and builds the stage */
+    ontargetchanged?: () => Promise<void>;
   } = $props();
 
   const scene = $derived(content.scene(sceneId));
@@ -164,8 +166,61 @@
     pressing: pressed(`surface:${surfaceId}`),
   });
 
+  // ── a surface's targets (#314): the targets placed on it, under its row (folded at first); one is dragged onto
+  // another surface's row – or moved by its menu – to lie there (`moveTargetToSurface`: its place kept where it fits,
+  // else centred) ──
+  /** The targets whose place lies on a surface, with their entry's title */
+  const targetsOn = (surfaceId: string): { target: Target; title: string }[] =>
+    (scene?.entries ?? []).flatMap(e => (e.target?.place && liesOn(e.target.place, { id: surfaceId }, sceneSurfaces) ? [{ target: e.target, title: e.title }] : []));
+  const surfaceOpen = (surfaceId: string) => folded[`surface-open:${surfaceId}`] === true;
+  const moveToOther = (targetId: string, surfaceId: string) =>
+    runSurface(async () => {
+      const how = await moveTargetToSurface(sceneId, targetId, surfaceId, stage?.placeOf(targetId)?.height);
+      if (!how) return;
+      fold(`surface-open:${surfaceId}`, true);
+      await ontargetchanged?.();
+      selection.selectTarget(targetId);
+    });
+  let surfaceDrag = $state<{ targetId: string; from: string; pointerId: number; startY: number; active: boolean } | null>(null);
+  let surfaceDrop = $state<string | null>(null);
+  let swallowSurfaceClick = false;
+  const surfaceDragDown = (event: PointerEvent, targetId: string, from: string) => {
+    swallowSurfaceClick = false;
+    if (event.button !== 0 || sceneSurfaces.length < 2) return;
+    surfaceDrag = { targetId, from, pointerId: event.pointerId, startY: event.clientY, active: false };
+  };
+  const surfaceDragMove = (event: PointerEvent) => {
+    const d = surfaceDrag;
+    if (!d || event.pointerId !== d.pointerId) return;
+    if (!d.active) {
+      if (Math.abs(event.clientY - d.startY) < DRAG_PX) return;
+      d.active = true;
+      (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    }
+    const over = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-surface-drop]")?.dataset.surfaceDrop ?? null;
+    surfaceDrop = over && over !== d.from ? over : null;
+  };
+  const surfaceDragUp = (event: PointerEvent) => {
+    const d = surfaceDrag;
+    if (!d || event.pointerId !== d.pointerId) return;
+    surfaceDrag = null;
+    const onto = surfaceDrop;
+    surfaceDrop = null;
+    if (!d.active) return;
+    swallowSurfaceClick = true;
+    if (onto && event.type === "pointerup") void moveToOther(d.targetId, onto);
+  };
+  const surfaceTargetClick = (targetId: string) => {
+    if (swallowSurfaceClick) { swallowSurfaceClick = false; return; }
+    pick({ kind: "target", targetId });
+  };
+  const surfaceTargetMenu = (targetId: string, surfaceId: string) => menuTrigger({
+    open: at => { selection.selectTarget(targetId); menu = { at, kind: "surface-target", targetId, surfaceId }; },
+    pressing: pressed(`surface-target:${targetId}`),
+  });
+
   // ── a row's context menu (a right click, a long press, the menu key): remove, and the hierarchy's moves ──
-  type Menu = { at: Point; kind: "scene" } | { at: Point; kind: "surfaces" } | { at: Point; kind: "surface"; surfaceId: string } | { at: Point; kind: "entry"; entry: Entry } | { at: Point; kind: "node" | "target"; target: Target; path: number[] };
+  type Menu = { at: Point; kind: "scene" } | { at: Point; kind: "surfaces" } | { at: Point; kind: "surface"; surfaceId: string } | { at: Point; kind: "surface-target"; targetId: string; surfaceId: string } | { at: Point; kind: "entry"; entry: Entry } | { at: Point; kind: "node" | "target"; target: Target; path: number[] };
   let menu = $state<Menu | null>(null);
   /** The row a finger is held on: its light cue until the menu opens */
   let pressing = $state<string | null>(null);
@@ -206,6 +261,15 @@
           help: "Shows the surface in the Inspector: its label, size, place, reference image – and remove surface." },
         { label: "Arrange the scene in a row", icon: "surface", disabled: !canArrangeInRow(sceneId) && "The surfaces lie in a row already.", select: () => void runSurface(() => arrangeSceneInRow(sceneId)),
           help: "Lays the scene's surfaces flat on the table, side by side in their order, touching, the row centred on the origin – written to their places." },
+      ];
+    }
+    if (m.kind === "surface-target") {
+      const others = sceneSurfaces.filter(s => s.id !== m.surfaceId);
+      return [
+        ...others.map((s): MenuItem => ({ label: `Move to ${surfaceName(s)}`, icon: "surface", select: () => void moveToOther(m.targetId, s.id),
+          help: "Moves the target onto this surface: it keeps its place in mm where it fits there, else it is centred (made smaller when it is too big)." })),
+        { label: "Select the target", icon: "target", select: () => pick({ kind: "target", targetId: m.targetId }),
+          help: "Selects the target: the Inspector shows its printed image and placement, the stage outlines its print." },
       ];
     }
     if (m.kind === "scene") {
@@ -253,6 +317,7 @@
     if (m.kind === "surfaces") return "+ surface";
     if (m.kind === "surface") { const s = sceneSurfaces.find(x => x.id === m.surfaceId); return s ? surfaceName(s) : m.surfaceId; }
     if (m.kind === "entry") return m.entry.title;
+    if (m.kind === "surface-target") return m.targetId;
     if (m.kind === "target") return m.target.id;
     const tree = treeOf(m.target);
     const node = tree ? nodeAt(tree, m.path) : undefined;
@@ -517,16 +582,43 @@
       {#each sceneSurfaces as surface (surface.id)}
         {@const row = { kind: "surface", sceneId: sceneId, surfaceId: surface.id } as const}
         {@const on = isOn(row)}
-        <div class="node depth-2" class:on class:pressing={pressing === `surface:${surface.id}`} role="treeitem" aria-selected={on} aria-level={3}>
+        {@const lying = targetsOn(surface.id)}
+        {@const open = surfaceOpen(surface.id)}
+        <div class="node depth-2" class:on class:pressing={pressing === `surface:${surface.id}`} class:drop-inside={surfaceDrop === surface.id}
+          role="treeitem" aria-selected={on} aria-expanded={lying.length ? open : undefined} aria-level={3} data-surface-drop={surface.id}>
           {@render guides(2)}
-          <span class="chevron"></span>
+          {#if lying.length}
+            <button type="button" class="chevron" onclick={() => fold(`surface-open:${surface.id}`, !open)} title={open ? "Fold its targets" : "Show the targets on it"}
+              aria-label={open ? "Fold the targets" : "Unfold the targets"}><Icon name={open ? "down" : "next"} size="1em" /></button>
+          {:else}
+            <span class="chevron"></span>
+          {/if}
           <span class="type"><Icon name="surface" size="1em" stroke={2} /></span>
           <button type="button" class="pick" onclick={() => pick(row)} aria-haspopup="menu" {@attach surfaceMenu(surface.id)}
-            title="{surface.id}, {Math.round(surface.widthMm)} × {Math.round(surface.heightMm)} mm – a tap selects it: the Inspector shows its fields, the stage highlights it">
-            <span class="name">{surfaceName(surface)}</span>
+            title="{surface.id}, {Math.round(surface.widthMm)} × {Math.round(surface.heightMm)} mm – a tap selects it: the Inspector shows its fields, the stage highlights it{sceneSurfaces.length > 1 ? '; drop a target from another surface here to move it onto this one' : ''}">
+            <span class="name">{surfaceName(surface)}</span>{#if lying.length}<span class="small muted">{lying.length}</span>{/if}
           </button>
           <span class="eye"></span>
         </div>
+        {#if open}
+          {#each lying as { target, title } (target.id)}
+            {@const targetOn = isTargetOn(target)}
+            <!-- A target on the surface: a tap selects it, a drag onto another surface's row moves it there (its button takes the focus) -->
+            <!-- svelte-ignore a11y_interactive_supports_focus -->
+            <div class="node depth-3 surface-target" class:on={targetOn} class:pressing={pressing === `surface-target:${target.id}`}
+              class:dragged={!!surfaceDrag?.active && surfaceDrag.targetId === target.id} role="treeitem" aria-selected={targetOn} aria-level={4}
+              onpointerdown={e => surfaceDragDown(e, target.id, surface.id)} onpointermove={surfaceDragMove} onpointerup={surfaceDragUp} onpointercancel={surfaceDragUp}>
+              {@render guides(3)}
+              <span class="chevron"></span>
+              <span class="type" class:handle={sceneSurfaces.length > 1}><Icon name="target" size="1em" stroke={2} /></span>
+              <button type="button" class="pick" onclick={() => surfaceTargetClick(target.id)} aria-haspopup="menu" {@attach surfaceTargetMenu(target.id, surface.id)}
+                title="{target.id} on {surfaceName(surface)} – a tap selects it{sceneSurfaces.length > 1 ? '; drag it onto another surface to move it there (its menu too)' : ''}">
+                <span class="name">{title}</span>
+              </button>
+              <span class="eye"></span>
+            </div>
+          {/each}
+        {/if}
       {/each}
     {/if}
     {#if surfaceError}<p class="small danger">{surfaceError}</p>{/if}
@@ -620,6 +712,7 @@
   .tree :global(.node[data-drop-state="no"]) { outline: 1px dashed var(--danger); outline-offset: -1px; cursor: no-drop; }
   .depth-1 { padding-left: calc(.25rem + var(--indent)); }
   .depth-2 { padding-left: calc(.25rem + 2 * var(--indent)); }
+  .depth-3 { padding-left: calc(.25rem + 3 * var(--indent)); }
   .guide { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line); pointer-events: none; }
   .chevron, .type, .eye { flex: none; width: var(--cell); height: var(--cell); display: inline-flex; align-items: center; justify-content: center; }
   .chevron, .type { color: var(--muted); }

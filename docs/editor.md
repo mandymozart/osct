@@ -497,7 +497,14 @@ toggled there, it starts collapsed in a window under 64rem – a tablet in portr
 stage the rest, #172). With a finger the rows are the touch control height, the chevrons and the eye as tall as the row
 (#171). Under the scene row the **Surfaces** level (#314): the scene's surfaces (label · side), a tap selects one
 (the Inspector shows it, the stage highlights it), its **+** adds a page, a wall or a custom one, Alt ↑ ↓ and a row's menu
-reorder.
+reorder. A surface row with targets placed on it shows their count and unfolds (folded at first) to **its targets** (by
+their entry's title; a tap selects the target). **Moving a target to another surface**: drag its row onto another
+surface's row (the row under the pointer is framed; with a finger, drag its icon) or its menu's *Move to …*
+(`moveTargetToSurface` in `surface-actions.ts`, written at once with `PUT …/targets/{id}`, the stage built again). The
+rule (`moveToSurface` in `surface-edit.ts`, the same for the target Inspector's *surface* choice): the print **keeps its
+place in mm** (from the new surface's top left corner) where it fits there wholly; else it is **centred** on the
+surface – made smaller first, its aspect kept, when it is wider or taller than the surface. A place without a height
+counts with the stage's height from the image.
 
 - **+ target** at the end of the tree opens the form for a new target on the scene: title, page, the printed image
   (*Library…* or *Upload…*), **what appears on the page** (none, model, video, image, text, group or light, with its file
@@ -713,11 +720,16 @@ The toolbar's *grid & snap* group (`GridSnapMenu.svelte`, the settings in `stage
 has three grids (#316, #319):
 
 - **The surface grid** – the targets' grid on each surface (on / off, its spacing in mm; its lines run through the
-  origin, which is red). A surface may have **its own spacing** (#316 part 1: the Inspector's surface, *grid*), kept in
-  this browser per experience and surface (`surface-grids.svelte.ts`, `osct-editor-surface-grids:<experience>` →
-  `<scene>/<surface>`) – not in the content; the open scene's spacings reach the stage with the preview
-  (`surfaceGrids`). It is drawn on every surface in its own plane, a wall's on the wall; a print dragged on a surface
-  steps by that surface's spacing.
+  origin, which is red). A surface may have **its own grid** (#316, #314: the Inspector's surface, *grid*) – its
+  **spacing**, its **subdivisions** (finer, fainter lines between the spacing's: 4 on 20 mm draws one every 5 mm; at
+  most 10, and none drawn where they would be more than 400 lines along a side), **shown** on / off and **snap** on /
+  off, each field the toolbar's until set (`SurfaceGrid` in `stage/preview.ts`). Kept in this browser per experience and
+  surface (`surface-grids.svelte.ts`, `osct-editor-surface-grids:<experience>` → `<scene>/<surface>`; a plain number
+  stored before is a spacing) – **not in the content**: the grid is an editing aid that changes nothing a reader sees, so
+  it stays a preference of the person editing (#314's decision; the database stays the truth of the content). The open
+  scene's grids reach the stage with the preview (`surfaceGrids`). It is drawn on every surface in its own plane, a
+  wall's on the wall; a print dragged on a surface snaps (snapping on) to that surface's step – its spacing over its
+  subdivisions (`surfaceGridOf`, `surfaceSnapSettings` in `snap.ts`) – or, with the surface's snap off, by the move step.
 - **The floor grid** – the scene's transparent net on the table (the scene's y = 0) through the origin, every *floor*
   mm (50 by default), every tenth line stronger, 1.5 m around the origin (a very fine spacing steps up to at most 400
   lines), under the boards. It is the **snap grid of the surfaces' places**: the surface gizmo steps by its spacing. On
@@ -735,7 +747,9 @@ edge's centre of the surface a position lies on, or the centre (the scene's orig
 surface's middle). The x / y rows of a target's placement and of a new target are shown and entered from that origin
 (x to the right, y downwards, so values left of or above it are negative); what is saved stays mm from the surface's top
 left corner. With the axis switch, a thin green **vertical axis** (#190) rises 150 mm out of the surface from each zero,
-and the **scene's axes** show at its origin (x red, y up green, z towards the reader blue, 100 mm).
+and the **origin gizmo** shows at the scene's origin (#316, #314 – `originGizmo` in `stage/origin.ts`): the scene's axes,
+x red, y up green, z towards the reader blue, 100 mm each with an arrowhead, and a small white ring on the table round
+the origin, drawn through everything – with the axis switch alone, whether a grid is on or not.
 
 **Snapping** (#190, `stage/snap.ts` – the math, pure and tested –, `stage/snap-scene.ts` – the scene's side) works
 for the gizmo and the placement handles; everything is counted in the stage's frame in mm (the scene's origin, x right,
@@ -988,10 +1002,13 @@ its scenes stay in place).
 
 A surface selected (the Surface tool's click, the Tree's Surfaces level, an id in the scene's surfaces – the selection's
 `surface` level, scene and surface id) shows `SurfaceView.svelte`: the crumb *scene › surface*; its **label** as printed,
-its **size** (W × H mm) and its place in the scene's order (↑ ↓); *place* – **position** (x y z mm) and **rotation**
+its **format** (double page 460 × 320, single page 230 × 320, wall 2000 × 1500 mm – a choice sets the size; *custom* is
+any other size, either way round counts – `formatOf`, `presetSize`), its **size** (W × H mm, free) and its place in the
+scene's order (↑ ↓); the **targets lying outside** the surface at its size are named in red under the size
+(`targetsOutside`: by a print's saved height, else its top edge); *place* – **position** (x y z mm) and **rotation**
 (x y z °, Euler XYZ), the *gizmo* row (move / rotate, for the Surface tool's gizmo) and *arrange the scene in a row*;
-*grid* – the surface's **own grid spacing** for the targets on it (#316 part 1: kept in this browser per experience and
-surface, *reset* takes the toolbar's again); the **reference image** (editor-only, never in the content – Library… with
+*grid* – the surface's **own grid** for the targets on it ([Grids, origin and snapping](#grids-origin-and-snapping):
+*shown* and *snap* each toolbar / on / off, *spacing*, *subdivide*; *reset to the toolbar's*); the **reference image** (editor-only, never in the content – Library… with
 the Library as a picker, Upload…, the fit cover / contain / stretch, remove; `PUT …/scenes/{id}/surfaces/{surface}/reference`
 through `scenes.putReference`, which reads the references again – `scenes.references`, the stage's source too); *remove
 surface* with the same confirmation as the list. Every field saves itself with the scene's whole list. The History

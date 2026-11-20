@@ -114,12 +114,14 @@ describe("editor preview settings", () => {
   });
 
   it("hands the open scene's surface grids (#316) to the stage, never stores them", () => {
-    updatePreview({ surfaceGrids: { wall: 25, page: 5 } });
+    updatePreview({ snapTo: ["grid", "axes"], surfaceGrids: { wall: { mm: 25 }, page: { mm: 20, sub: 4 }, door: { snap: false } } });
     expect(JSON.parse(localStorage.getItem("osct-preview")!)).not.toHaveProperty("surfaceGrids");
     expect(surfaceGridOf(getPreview(), "wall")).toBe(25);
+    expect(surfaceGridOf(getPreview(), "page")).toBe(5);
+    expect(surfaceGridOf(getPreview(), "door")).toBeNull();
     expect(surfaceGridOf(getPreview(), "other")).toBe(getPreview().gridMm);
-    expect(JSON.parse(previewSync()).surfaceGrids).toEqual({ wall: 25, page: 5 });
-    expect(parseSurfaceGrids({ a: 0, "b c": 5, d: "5", e: 9000 })).toEqual({ a: 1, e: 500 });
+    expect(JSON.parse(previewSync()).surfaceGrids).toEqual({ wall: { mm: 25 }, page: { mm: 20, sub: 4 }, door: { snap: false } });
+    expect(parseSurfaceGrids({ a: 0, "b c": 5, d: "5", e: 9000, f: { on: true } })).toEqual({ a: { mm: 1 }, e: { mm: 500 }, f: { on: true } });
     expect(parseSurfaceGrids([1])).toEqual({});
   });
 

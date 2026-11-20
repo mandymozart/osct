@@ -7,6 +7,25 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **Move a target to another surface** (#314): in the Tree, a surface row unfolds to the targets placed on it; drag one
+  onto another surface's row, or use its menu's *Move to …*. The target keeps its place in millimetres where it fits on
+  the new surface, else it is centred there (made smaller first when it is too big). The target Inspector's *surface*
+  choice follows the same rule.
+- **A surface's format** (#314): the Inspector's surface has a *format* row – double page, single page, wall or custom –
+  next to the free size in mm, and names the targets that lie outside the surface at its size.
+- **`put_surface`** (#314, MCP): changes, adds, moves or removes one surface of a scene without sending the whole list;
+  a surface in use still goes only with `apply: true`.
+- **A surface's own grid, complete** (#316 in #314): besides its spacing, each surface can have **subdivisions** (finer
+  lines a print snaps to), be **shown** or hidden, and **snap** on or off – each the toolbar's until set. It stays a
+  setting of this browser, not content: a grid is an editing aid and changes nothing a reader sees.
+
+### Changed
+- **The origin gizmo** (#316 in #314): the scene's axes at its origin now have arrowheads and a small ring on the
+  table, and show with the axis switch alone – no grid has to be on.
+
 ## 3.14.0 – 2026-11-20
 
 ### Added
