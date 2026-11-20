@@ -20,6 +20,7 @@
   import CodePanel from "#lib/panels/CodePanel.svelte";
   import EnvironmentPanel from "#lib/panels/EnvironmentPanel.svelte";
   import { environmentEdit, stageEnvironment } from "#lib/environment.svelte.js";
+  import { logicEdit } from "#lib/logic-edit.svelte.js";
   import NewTargetForm from "#lib/panels/NewTargetForm.svelte";
   import NewEntryForm from "#lib/panels/NewEntryForm.svelte";
   import NewSceneForm from "#lib/NewSceneForm.svelte";
@@ -180,6 +181,12 @@
     if (pick.kind === "group") return selectGroup(pick.group);
     if (pick.kind === "scene") {
       if (pick.scene === sceneId) selection.selectScene();
+      return;
+    }
+    if (pick.kind === "experience") {
+      // An experience rule's box: its rules are in the experience's Inspector
+      floats.showTab("inspector", true);
+      selection.selectExperience();
       return;
     }
     floats.showTab("inspector", true);
@@ -368,6 +375,15 @@
   environmentEdit.onsaved = async id => {
     await content.load(id);
     void library.refresh();
+  };
+  // ── a scene's and the experience's rules and the variables (content schema 5.0, #334): an edit reached the draft – the
+  // content follows, and the stage builds the open scene again (the engine reads a scene's and the experience's rules when
+  // the scene opens) ──
+  $effect(() => logicEdit.enter(experienceId));
+  logicEdit.onsaved = async id => {
+    if (id !== experienceId) return;
+    await content.load(id);
+    await stage?.refresh();
   };
   $effect(() => {
     const previewing = environmentShown;
@@ -908,7 +924,7 @@
   {:else if shown === "inspector" && addingEntry && scene}
     <div class="body"><NewEntryForm {experienceId} {scene} oncreated={entryCreated} oncancel={() => (addingEntry = false)} /></div>
   {:else if shown === "inspector"}
-    <div class="body"><EntityPanel bind:this={entityPanel} {stage} {experienceId} {sceneId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} onenvironment={() => openTab("environment")} /></div>
+    <div class="body"><EntityPanel bind:this={entityPanel} {stage} {experienceId} {sceneId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} onenvironment={() => openTab("environment")} onopenscene={id => void openScene(id)} /></div>
   {:else if shown === "environment"}
     <div class="body"><EnvironmentPanel {stage} {experienceId} /></div>
   {:else if shown === "library"}

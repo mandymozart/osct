@@ -41,11 +41,11 @@ describe("apply: connect follows the grammar (#334 L-T4)", () => {
     expect(refused(apply({ op: "connect", from: [own.id, "out"], to: ["rule:door/#0", "on"] }, content, scene))).toMatch(/hears found already/);
   });
 
-  it("a variable into when adds a test; one already tested is refused", () => {
+  it("a variable into when adds a term to its condition; one already read is refused", () => {
     const result = ok(apply({ op: "connect", from: ["var:hasKey", "get"], to: ["rule:door/#0", "when"] }, content, scene));
-    expect(doorRules(result.content)[0].when).toEqual({ match: "all", tests: [{ name: "hasKey", value: true, not: false }] });
-    expect(result.words).toMatch(/now runs only when hasKey = true/);
-    expect(refused(apply({ op: "connect", from: ["var:hasKey", "get"], to: ["rule:door/#1", "when"] }, content, scene))).toMatch(/tests hasKey already/);
+    expect(doorRules(result.content)[0].when).toBe("hasKey");
+    expect(result.words).toMatch(/now runs only when hasKey./);
+    expect(refused(apply({ op: "connect", from: ["var:hasKey", "get"], to: ["rule:door/#1", "when"] }, content, scene))).toMatch(/reads hasKey already – edit the condition in the Inspector/);
   });
 
   it("a rule's do into a node, a variable or an event adds the matching action", () => {
@@ -55,7 +55,7 @@ describe("apply: connect follows the grammar (#334 L-T4)", () => {
     expect(doorRules(hidden.content)[0].do.at(-1)).toEqual({ action: "hide", node: "hint" });
     // A variable set elsewhere keeps its scope, so the new set reaches the same readers
     const set = ok(apply({ op: "connect", from: ["rule:door/#0", "do"], to: ["var:hasKey", "set"] }, content, scene));
-    expect(doorRules(set.content)[0].do.at(-1)).toEqual({ action: "set", name: "hasKey", value: true, scope: "experience" });
+    expect(doorRules(set.content)[0].do.at(-1)).toEqual({ action: "set", name: "hasKey", value: "true", scope: "experience" });
     const emit = ok(apply({ op: "connect", from: ["rule:door/#0", "do"], to: ["event:openDoor", "in"] }, content, scene));
     expect(doorRules(emit.content)[0].do.at(-1)).toEqual({ action: "emit", event: "openDoor" });
     expect(emit.words).toMatch(/now also does: emit openDoor/);
@@ -73,12 +73,13 @@ describe("apply: connect follows the grammar (#334 L-T4)", () => {
   it("refuses what the grammar does not allow, with a reason", () => {
     const at = (from: [string, string], to: [string, string], context: Context = scene) => refused(apply({ op: "connect", from, to }, content, context));
     expect(at(["var:hasKey", "get"], ["rule:door/#0", "on"])).toMatch(/on hears an event – not a variable/);
-    expect(at(["event:bellRang", "out"], ["rule:door/#0", "when"])).toMatch(/when tests a variable – not an event/);
+    expect(at(["event:bellRang", "out"], ["rule:door/#0", "when"])).toMatch(/when reads a variable – not an event/);
     expect(at(["rule:bell/#0", "do"], ["node:door/1", "in"])).toMatch(/not under/);
     expect(at(["event:openDoor", "out"], ["plugin:narrative", "hears"])).toMatch(/Code tab/);
     expect(at(["var:hasKey", "get"], ["event:openDoor", "in"])).toMatch(/no such connection/);
     expect(at(["far:target:cover/key", "sets"], ["var:hasKey", "set"])).toMatch(/elsewhere/);
-    expect(at(["event:bellRang", "out"], ["rule:door/#0", "on"], { level: "experience" })).toMatch(/read-only/);
+    expect(at(["event:bellRang", "out"], ["rule:door/#0", "on"], { level: "group", group: "ch1" })).toMatch(/read-only/);
+    expect(at(["event:bellRang", "out"], ["rule:door/#0", "on"], { level: "experience" })).toMatch(/elsewhere/);
   });
 });
 
@@ -88,7 +89,7 @@ describe("apply: disconnect (#334 L-T4)", () => {
     const when = view.edges.find(e => e.home?.part === "when" && e.to[0] === "rule:door/#1")!;
     const result = ok(apply({ op: "disconnect", edge: when.id }, content, scene));
     expect(doorRules(result.content)[1].when).toBeNull();
-    expect(result.words).toMatch(/no longer tests hasKey – it runs always/);
+    expect(result.words).toMatch(/no longer reads hasKey – it runs always/);
     const emit = view.edges.find(e => e.from.join() === "rule:door/#1,do:1")!;
     expect(doorRules(ok(apply({ op: "disconnect", edge: emit.id }, content, scene)).content)[1].do).toEqual([{ action: "hide", node: "hint" }]);
     const on = view.edges.find(e => e.home?.part === "on" && e.to[0] === "rule:door/#2")!;
@@ -111,7 +112,7 @@ describe("apply: disconnect (#334 L-T4)", () => {
     expect(hasKey.edge.home).toBeNull();
     const result = ok(apply({ op: "disconnect", edge: hasKey.edge.id }, content, scene));
     expect(doorRules(result.content)[1].when).toBeNull();
-    expect(result.words).toMatch(/no longer tests hasKey\. The wire joined by name: hasKey is still set in Cover/);
+    expect(result.words).toMatch(/no longer reads hasKey\. The wire joined by name: hasKey is still set in Cover/);
     // The other scene's document is untouched
     expect(result.changed.map(c => c.target)).toEqual(["door"]);
     const openDoor = view.stubs.find(s => s.label.startsWith("openDoor"))!;
@@ -141,10 +142,13 @@ describe("apply: rules, conditions and actions by their home (#334 L-T4)", () =>
   });
 
   it("sets a condition, adds and removes an action – and checks them against the grammar", () => {
-    const when = ok(apply({ op: "setCondition", home: rule(0, "when"), tests: [{ name: "rung", value: 2, not: true }] }, content, scene));
-    expect(doorRules(when.content)[0].when).toEqual({ match: "all", tests: [{ name: "rung", value: 2, not: true }] });
-    expect(when.words).toMatch(/only when rung ≠ 2/);
-    expect(refused(apply({ op: "setCondition", home: rule(0, "when"), tests: [{ name: "a b", value: 1, not: false }] }, content, scene))).toMatch(/no variable name/);
+    const when = ok(apply({ op: "setCondition", home: rule(0, "when"), when: "!rung && hasKey" }, content, scene));
+    expect(doorRules(when.content)[0].when).toBe("!rung && hasKey");
+    expect(when.words).toMatch(/only when !rung && hasKey/);
+    // B8: refused with the reason – it does not parse, or it is ill-typed (rung is true / false, inferred from its first set)
+    expect(refused(apply({ op: "setCondition", home: rule(0, "when"), when: "a b" }, content, scene))).toMatch(/b does not belong here/);
+    expect(refused(apply({ op: "setCondition", home: rule(0, "when"), when: "rung != 2" }, content, scene))).toMatch(/compares true \/ false with a whole number/);
+    expect(doorRules(ok(apply({ op: "setCondition", home: rule(1, "when"), when: null }, content, scene)).content)[1].when).toBeNull();
     const added = ok(apply({ op: "addAction", home: rule(0, "do"), action: { action: "hide", node: "door" } }, content, scene));
     expect(doorRules(added.content)[0].do).toEqual([{ action: "show", node: "hint" }, { action: "hide", node: "door" }]);
     expect(refused(apply({ op: "addAction", home: rule(0, "do"), action: { action: "show", node: "lamp" } }, content, scene))).toMatch(/No node named lamp/);
@@ -153,8 +157,10 @@ describe("apply: rules, conditions and actions by their home (#334 L-T4)", () =>
     expect(doorRules(removed.content)[1].do).toEqual([{ action: "emit", event: "openDoor" }]);
   });
 
-  it("refuses scene and experience homes, another scene's targets and canvas edits", () => {
-    expect(refused(apply({ op: "removeRule", home: { doc: "scene", scene: "door", rule: 0, part: "on" } }, content, scene))).toMatch(/not in the content yet/);
+  it("refuses a rule that is not there, the experience's rules below its level, another scene's targets and canvas edits", () => {
+    expect(refused(apply({ op: "removeRule", home: { doc: "scene", scene: "door", rule: 0, part: "on" } }, content, scene))).toMatch(/not in the content any more/);
+    expect(refused(apply({ op: "removeRule", home: { doc: "experience", rule: 0, part: "on" } }, content, scene))).toMatch(/experience level/);
+    expect(refused(apply({ op: "removeRule", home: { doc: "scene", scene: "cover", rule: 0, part: "on" } }, content, scene))).toMatch(/open it there/);
     expect(refused(apply({ op: "removeRule", home: { doc: "entity", target: "key", path: [], component: 0, rule: 0, part: "on" } }, content, scene))).toMatch(/another scene/);
     expect(refused(apply({ op: "canvas", edit: { edit: "run", id: "x" } }, content, scene))).toMatch(/not here yet/);
   });
@@ -182,14 +188,14 @@ describe("apply: rules, conditions and actions by their home (#334 L-T4)", () =>
 describe("which node types fit here (#334 L-T4)", () => {
   it("lists the registry's types, the addable ones first, with why the others are not added by hand", () => {
     const entries = palette();
-    expect(entries.filter(e => e.addable).map(e => e.kind)).toEqual(["event", "rule", "variable", "play", "pause", "stop", "show", "hide", "set", "emit"]);
+    expect(entries.filter(e => e.addable).map(e => e.kind)).toEqual(["event", "rule", "variable", "play", "pause", "stop", "show", "hide", "set", "emit", "goto"]);
     expect(entries.find(e => e.kind === "node")).toMatchObject({ addable: false, detail: expect.stringMatching(/tree/) });
-    expect(entries.find(e => e.kind === "goto")?.addable).toBe(false);
+    expect(entries.find(e => e.kind === "goto")?.addable).toBe(true);
   });
 
   it("a rule needs a node, an action or a condition needs a rule, the upper levels none", () => {
     const place = { doc: "entity" as const, target: "door", path: [] };
-    const ruleRef = { target: "door", path: [], component: 1, rule: 0 };
+    const ruleRef = { doc: "entity" as const, target: "door", path: [], component: 1, rule: 0 };
     expect(fitsHere("rule", { context: scene, place: null, rule: null })).toMatch(/Select a node/);
     expect(fitsHere("rule", { context: scene, place, rule: null })).toBeNull();
     expect(fitsHere("show", { context: scene, place, rule: null })).toMatch(/Select a rule/);
@@ -199,17 +205,17 @@ describe("which node types fit here (#334 L-T4)", () => {
   });
 
   it("turns the types that fit into ops, filtered by what is typed, new names included", () => {
-    const a = { content, context: entity, place: { doc: "entity" as const, target: "door", path: [] }, rule: { target: "door", path: [], component: 1, rule: 0 } };
+    const a = { content, context: entity, place: { doc: "entity" as const, target: "door", path: [] }, rule: { doc: "entity" as const, target: "door", path: [], component: 1, rule: 0 } };
     const shows = addChoices(a, { query: "show" });
     expect(shows.map(c => c.label)).toEqual(["show its own node", "show door", "show hint"]);
     expect(shows[2].op).toEqual({ op: "addAction", home: { doc: "entity", target: "door", path: [], component: 1, rule: 0, part: "do" }, action: { action: "show", node: "hint" } });
     expect(addChoices(a, { query: "rule on bellR" }).map(c => c.label)).toEqual(["rule on bellR", "rule on bellRang"]);
     expect(addChoices(a, { query: "rule on bellRang" }).map(c => c.label)).toEqual(["rule on bellRang"]);
     expect(addChoices(a, { query: "emit fooBar" })[0]).toMatchObject({ label: "emit fooBar", detail: "a new event" });
-    expect(addChoices(a, { kind: "variable" }).map(c => c.label)).toContain("when hasKey = true");
+    expect(addChoices(a, { kind: "variable" }).map(c => c.label)).toContain("when hasKey");
     // Without a rule: one line says why the actions are not offered
     const none = addChoices({ ...a, rule: null });
-    expect(none.filter(c => c.disabled).map(c => c.label)).toEqual(["variable, play, pause, stop, show, hide, set, emit"]);
+    expect(none.filter(c => c.disabled).map(c => c.label)).toEqual(["variable, play, pause, stop, show, hide, set, emit, goto"]);
     // Every op it offers applies
     for (const choice of addChoices(a).filter(c => c.op)) expect(apply(choice.op!, content, entity).ok, choice.label).toBe(true);
   });

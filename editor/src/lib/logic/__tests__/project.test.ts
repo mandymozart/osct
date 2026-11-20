@@ -9,7 +9,7 @@ const stubLabels = (view: View) => view.stubs.map(s => s.label).sort();
 
 describe("the node type registry (#334)", () => {
   it("derives a rule's ports from the grammar: on, when, and one do outlet per action by verb", () => {
-    expect(rulePorts({ do: [{ action: "set", name: "a", value: true, scope: "scene" }, { action: "emit", event: "b" }, { action: "show", node: "" }] })).toEqual([
+    expect(rulePorts({ do: [{ action: "set", name: "a", value: "true", scope: "scene" }, { action: "emit", event: "b" }, { action: "show", node: "" }] })).toEqual([
       { id: "on", label: "on", signal: "event", dir: "in" },
       { id: "when", label: "when", signal: "value", dir: "in", many: true },
       { id: "do:0", label: "set", signal: "value", dir: "out" },

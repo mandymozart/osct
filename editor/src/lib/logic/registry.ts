@@ -10,8 +10,8 @@ import type { NodeFamily, NodeType, PortSpec, Signal } from "./types";
  * `pause` / `stop` → node, `goto` → scene).
  */
 
-/** The verbs the core registers: the grammar's (`BEHAVIOUR_ACTIONS`) and `goto` (declared, in the content with L-T5) */
-export const CORE_VERBS = [...BEHAVIOUR_ACTIONS, "goto"] as const;
+/** The verbs the core registers: the grammar's (`BEHAVIOUR_ACTIONS`, `goto` among them since content schema 5.0) */
+export const CORE_VERBS = BEHAVIOUR_ACTIONS;
 export type CoreVerb = (typeof CORE_VERBS)[number];
 
 /** What an action's outlet carries, by verb */
@@ -47,7 +47,8 @@ export const CORE_TYPES: NodeType<never>[] = [
   type("variable", "variable", () => [port("set", "set", "value", "in", true), port("get", "get", "value", "out", true)]),
   type("node", "entity", () => [port("in", "", "node", "in", true)]),
   type("plugin", "plugin", () => [...placePorts(), port("drives", "drives", "node", "out", true)]),
-  type("scene", "scene", placePorts),
+  // A scene box also takes the node actions of the experience's rules (on a node of one of its targets)
+  type("scene", "scene", () => [...placePorts(), port("nodes", "nodes", "node", "in", true)]),
   type("group", "scene", () => []),
   type("far", "far", () => [port("in", "", "far", "in", true), port("out", "", "far", "out", true)]),
   ...CORE_VERBS.map(verb => type<BehaviourAction | void>(verb, "action", () => [port("in", "", "event", "in"), port("out", verb, verbSignal(verb), "out")])),

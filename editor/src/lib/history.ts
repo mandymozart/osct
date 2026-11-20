@@ -66,7 +66,7 @@ export const undoKey = (event: Pick<KeyboardEvent, "key" | "ctrlKey" | "metaKey"
 const KIND_WORDS: Record<string, string> = {
   entity: "Entity", target: "Target", entry: "Entry", scene: "Scene", order: "Scene order", groups: "Groups",
   environment: "Environment", passes: "Post-processing", appearance: "Appearance", experience: "Experience", plugin: "Plugin", asset: "File",
-  reference: "Reference image",
+  reference: "Reference image", logic: "Experience rules", variables: "Variables",
 };
 /** A kind in words (the History's filter and its rows) */
 export const kindWord = (kind: string): string => KIND_WORDS[kind] ?? kind;
@@ -82,7 +82,7 @@ export interface Names {
 export const changeTitle = (c: Pick<Change, "kind" | "ref">, names: Names = {}): string => {
   const word = kindWord(c.kind);
   const name = c.kind === "scene" ? names.scene?.(c.ref) : c.kind === "entry" ? names.entry?.(c.ref) : c.kind === "target" ? names.target?.(c.ref) : undefined;
-  if (["order", "groups", "environment", "passes", "appearance", "experience"].includes(c.kind)) return word;
+  if (["order", "groups", "environment", "passes", "appearance", "experience", "logic", "variables"].includes(c.kind)) return word;
   // A surface's reference image (#314): its ref is `scene/surface` – "Reference image Pages 2–3 · left"
   if (c.kind === "reference") {
     const { scene, surface } = referenceRef(c.ref);

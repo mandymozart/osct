@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseNumber } from "../values";
-import { parseValue } from "../behaviour-edit";
+import { parseDefault } from "../variables-edit";
 
 describe("the editor's one number parser (#212)", () => {
   it("takes a comma or a dot as the decimal point", () => {
@@ -18,10 +18,9 @@ describe("the editor's one number parser (#212)", () => {
     }
   });
 
-  it("reads a behaviour rule's value the same way – what is no number stays text", () => {
-    expect(parseValue("1,5")).toBe(1.5);
-    expect(parseValue("1.5")).toBe(1.5);
-    expect(parseValue("1e3")).toBe("1e3");
-    expect(parseValue("1.000,5")).toBe("1.000,5");
+  it("reads a variable's default the same way (a rule's values are expressions since content schema 5.0)", () => {
+    expect(parseDefault("number", "1,5")).toEqual({ value: 1.5 });
+    expect(parseDefault("number", "1.5")).toEqual({ value: 1.5 });
+    expect(parseDefault("number", "1.000,5")).toEqual({ problem: "a number" });
   });
 });
