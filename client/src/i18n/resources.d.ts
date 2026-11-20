@@ -206,6 +206,8 @@ export default interface Resources {
     "installManual": "Open your browser's menu and choose \"Add to Home Screen\" or \"Install app\", if your browser offers it.",
     "languageChange": "Change language",
     "languageLabel": "Language:",
+    "mediaQualityDescription": "Pictures, videos and sounds can come in several qualities. Automatic chooses by your screen, phone and connection. Higher quality takes longer to load; a playing video goes on at the same spot in the new quality.",
+    "mediaQualityLabel": "Picture and video quality:",
     "onionSkyLabel": "Onion sky",
     "soundLabel": "Sounds",
     "subtitlesDescription": "Shows what a video says as text while it plays.",

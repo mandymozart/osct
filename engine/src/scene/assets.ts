@@ -21,7 +21,33 @@ interface Entry {
   data: AssetData;
   loading: Promise<LoadedAsset | null>;
   loaded: LoadedAsset | null;
+  /** The file loaded – the level the media quality chose (#331), else the asset's own `src` */
+  src: string;
 }
+
+/**
+ * A playing video or sound changes its level (#331): the same element takes the other file and goes on at the same time,
+ * playing if it played – the VideoTexture and the entity keep the element, so nothing else is rebuilt.
+ */
+export const swapMediaSrc = (element: HTMLMediaElement, src: string): void => {
+  const at = element.currentTime;
+  const playing = !element.paused;
+  element.src = src;
+  const resume = () => {
+    if (at && (!element.duration || at < element.duration)) element.currentTime = at;
+    if (playing) void element.play().catch(() => {});
+  };
+  element.addEventListener("loadedmetadata", resume, { once: true });
+  element.load();
+};
+
+/** A picture changes its level (#331): the same texture takes the other file once it loaded, so the materials keep it */
+const swapImageSrc = async (texture: Texture, src: string): Promise<void> => {
+  const next = await new TextureLoader().setCrossOrigin("anonymous").loadAsync(src);
+  texture.image = next.image;
+  texture.needsUpdate = true;
+  next.dispose();
+};
 
 let gltfLoader: GLTFLoader | null = null;
 const getGltfLoader = (): GLTFLoader => {
@@ -65,7 +91,7 @@ const resumeAt = (element: HTMLVideoElement, src: string): void => {
   else element.addEventListener("loadedmetadata", seek, { once: true });
 };
 
-const media = <T extends HTMLMediaElement>(tag: "video" | "audio", data: AssetData): T => {
+const media = <T extends HTMLMediaElement>(tag: "video" | "audio", data: AssetData, src: string): T => {
   const el = document.createElement(tag) as T;
   el.id = data.id;
   el.crossOrigin = "anonymous";
@@ -76,7 +102,7 @@ const media = <T extends HTMLMediaElement>(tag: "video" | "audio", data: AssetDa
     el.setAttribute("playsinline", "");
     el.setAttribute("webkit-playsinline", "");
   }
-  el.src = data.src;
+  el.src = src;
   mediaContainer().appendChild(el);
   return el;
 };
@@ -92,25 +118,29 @@ export const loadGltf = async (src: string, assetType: "glb" | "gltf"): Promise<
   return { scene: gltf.scene, animations: gltf.animations };
 };
 
-const load = async (data: AssetData): Promise<LoadedAsset | null> => {
+/**
+ * One asset. `src`: the file to load – the level the reader's media quality chose (#331), else the asset's own; a video
+ * resumes by its asset's `src`, so a change of level goes on where it stopped.
+ */
+const load = async (data: AssetData, src: string = data.src): Promise<LoadedAsset | null> => {
   switch (data.assetType) {
     case "glb":
     case "gltf":
       return { assetType: data.assetType, ...(await loadGltf(data.src, data.assetType)) };
     case "image": {
-      const texture = await new TextureLoader().setCrossOrigin("anonymous").loadAsync(data.src);
+      const texture = await new TextureLoader().setCrossOrigin("anonymous").loadAsync(src);
       texture.colorSpace = SRGBColorSpace;
       return { assetType: "image", texture };
     }
     case "video": {
-      const element = media<HTMLVideoElement>("video", data);
+      const element = media<HTMLVideoElement>("video", data, src);
       resumeAt(element, data.src);
       const texture = new VideoTexture(element);
       texture.colorSpace = SRGBColorSpace;
       return { assetType: "video", element, texture };
     }
     case "audio":
-      return { assetType: "audio", element: media<HTMLAudioElement>("audio", data) };
+      return { assetType: "audio", element: media<HTMLAudioElement>("audio", data, src) };
     default:
       console.warn(`[assets] Unknown asset type ${(data as AssetData).assetType} (${(data as AssetData).id})`);
       return null;
@@ -159,8 +189,12 @@ const dispose = (asset: LoadedAsset, src: string): void => {
 export class AssetStore {
   private entries = new Map<string, Entry>();
 
-  /** `textureSize`: the map size (px) models with a texture set are shown at – asked on every load and refresh */
-  constructor(private textureSize: () => number = () => 512) {}
+  /**
+   * `textureSize`: the map size (px) models with a texture set are shown at – asked on every load and refresh.
+   * `mediaSrc`: the file of an image, video or sound with levels to load (#331, `chooseMediaSrc`) – asked when it loads;
+   * none = the asset's own `src`.
+   */
+  constructor(private textureSize: () => number = () => 512, private mediaSrc: (data: AssetData) => string = data => data.src) {}
 
   /** A model with a texture set shows with its file's map at once; the wanted size follows (#260) */
   private applyTextures(entry: Entry): void {
@@ -174,13 +208,30 @@ export class AssetStore {
     this.entries.forEach(entry => this.applyTextures(entry));
   }
 
+  /**
+   * The reader's media quality changed (#331): every loaded picture, video and sound with levels whose chosen file is
+   * another takes it – a video or sound goes on at the same time, playing if it played; a picture swaps in place.
+   */
+  refreshMedia(): void {
+    this.entries.forEach(entry => {
+      const { data, loaded } = entry;
+      if (!loaded || !data.levels?.length) return;
+      const src = this.mediaSrc(data);
+      if (src === entry.src) return;
+      entry.src = src;
+      if (loaded.assetType === "video" || loaded.assetType === "audio") swapMediaSrc(loaded.element, src);
+      else if (loaded.assetType === "image") void swapImageSrc(loaded.texture, src).catch(error => console.warn(`[assets] Could not load ${data.id} (${src}):`, error));
+    });
+  }
+
   /** Load assets (known ids are reused). A failed asset resolves to null – its entity is skipped. */
   async load(assets: readonly AssetData[]): Promise<void> {
     await Promise.all(assets.map(data => {
       let entry = this.entries.get(data.id);
       if (!entry) {
-        const created: Entry = { data, loaded: null, loading: Promise.resolve(null) };
-        created.loading = load(data)
+        const src = data.levels?.length ? this.mediaSrc(data) : data.src;
+        const created: Entry = { data, loaded: null, loading: Promise.resolve(null), src };
+        created.loading = load(data, src)
           .then(loaded => {
             created.loaded = loaded;
             this.applyTextures(created);

@@ -87,7 +87,10 @@ without a token, 403 `forbidden` for a reader. `{id}` is the experience, ids and
 | `GET /editor/experiences/{id}/draft/latest.json` · `…/draft/{build}/game.config.json` · `…/draft/{build}/files.json` | | the draft as a content version, assembled from the rows on every call (`Cache-Control: no-store`); the engine's loader reads it like the CDN, its `fetchFn` sending the session cookie. The build in the path is not checked against the current draft – an edit between the two requests is no error |
 | `POST /editor/experiences/{id}/publish` | `{ env, note?, plugins? }` – `plugins` = the Code tab's saved sources as the editor transpiled them, `[{ id, code, api, registered? }]` (#78: each id a saved source of the experience, else 400 `invalid-plugins`; written into the version as `assets/content/plugins/<id>/plugin-<hash>.js` and declared; `registered` kept only when it names the types the source registers) | `{ env, store, build, hash, publishedAt }` – writes the assembled version to the experience's own store in `env` (#87: `<title>/<env>/<id>/` on the zone, `<env>/<id>/` in the directory store – a publish never touches another experience), which must be this instance's own environment (`ENV`; another one: **403 `other-environment`** with `env`, the own one): `<build>/game.config.json` and `files.json` (unless that build is there already – a version folder is never overwritten), then `versions.json` (the previous current version retired), then `latest.json` (both name the experience); a row in the publish log. `store` = where it went (`cdn` or `server`). 400 `invalid-env` (no environment name); 502 `content-store-failed` |
 | `GET /editor/experiences/{id}/versions` | | `{ versions: [{ id, env, build, hash, publishedBy, publishedAt, note }] }` – the publish log, newest first |
-| `GET /editor/experiences/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt, set, reverts, notRevertable }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target) – and `entry`, `scene`, `order`, `groups`, `reference`, `environment`, `passes`, `appearance`, `experience`, `plugin`, `asset` (a Library file a removal deleted), `migration` (#319); a removed row has `after: null`; `token` = the name of the AI connection a save came through, null for the editor; `set` / `reverts` for a revert's changes and `notRevertable` – [Reverting saved changes](#reverting-saved-changes); `limit` default 50, at most 500 |
+| `GET /editor/experiences/{id}/export[?build=]` | | `{ experience, source, build, hash, schema, appVersion, exportedAt, configuration, files, unknown, layout, plugins, credits }` – everything an export of the experience needs: the draft, or with `build` a published version from the content store ([Export](#export)). 400 `invalid-build`, 404 `unknown-build` (not in this experience's publish log), 404 `build-missing` (logged, but the store has no readable configuration) |
+| `GET /editor/experiences/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt, set, reverts, delivery, notRevertable }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target) – and `entry`, `scene`, `order`, `groups`, `reference`, `environment`, `passes`, `appearance`, `experience`, `plugin`, `asset` (a Library file a removal deleted), `migration` (#319); a removed row has `after: null`; `token` = the name of the AI connection a save came through, null for the editor; `set` / `reverts` for a revert's changes, `delivery` the delivery that wrote it ([Deliveries](#deliveries)) and `notRevertable` – [Reverting saved changes](#reverting-saved-changes); `limit` default 50, at most 500 |
+| `GET /editor/experiences/{id}/deliveries?limit=` | | `{ deliveries: [{ id, name, source, counts, user, token, createdAt, changes }] }` – the applied deliveries, newest first (a comparison leaves no row); `changes` = how many changes of the log name it, `token` the AI connection it came through; `limit` default 50, at most 500 – [Deliveries](#deliveries) |
+| `POST /editor/experiences/{id}/deliveries` | `{ name, source?, scenes?, entries, apply?, overwrite? }` – a delivery plan, its files Library files by id or URL | `{ delivery: { id, name, source }, applied, items, counts, problems, warnings, written }` – a publisher's delivery compared with the draft per scene, entry and target (`new` / `changed` / `same` / `conflict`); with `apply: true` written in one transaction, each write a change naming the delivery – [Deliveries](#deliveries). 400 `invalid-delivery`; 409 `delivery-problems` with `comparison` |
 | `GET /content/{env}/{experience}/{path}` | | an experience's store in the **local** content store, public like the CDN: `latest.json`, `versions.json` (`no-cache`) and `<build>/game.config.json` / `files.json` and a published plugin (immutable) – nothing else, no other path; `/content/assets/{experience}/…` the Library's files ("Assets") |
 
 Signed-in calls from a browser send the session cookie and, with every write, its CSRF token; other clients send
@@ -372,7 +375,7 @@ the change and publish logs stay. The **draft** is assembled from the rows on ev
 `initialScene`, `scenes`, `groups` (when there are any), `entries` with their targets, `entities` – content schema 3.0,
 the same keys in the same order as the content build writes them, so import → draft reproduces the configuration
 unchanged (the API test checks it). An import takes a configuration of content schema 3.x only (`Editor::CONTENT_SCHEMA`;
-2.x → 400 `invalid-configuration`: convert its source with `npm run convert:3`; every stored experience was migrated to 3.0
+2.x → 400 `invalid-configuration`; every stored experience was migrated to 3.0
 on staging, #319 – a 2.x experience left in a database answers 409 `old-schema`). The hash is the sha256 of that JSON without `timestamp` and `hash`; the build name is its first 12 hex digits,
 so the same rows are the same version. With an `assets_base`, every `/assets/content/…` under `src`, `imageSrc` and
 `image`, and every key of `files.json`, becomes a URL below it: a published version points at the
@@ -397,6 +400,34 @@ storage zone over the Storage API (`PUT https://{endpoint}/{zone}/{title}/{env}/
 checksum – what `scripts/src/lib/storage.ts` does), reads `versions.json` from there, and answers 502
 `content-store-failed` when the zone refuses. The environment `local` always stays in the directory – it exists only
 on a developer's machine.
+
+### Export
+
+`GET /editor/experiences/{id}/export[?build=<build>]` (#322, `Export`) is the one read an export of the experience needs –
+the input of `osct content export`, which writes the content source folder from the database
+(agents/research/2026-11-20-importer-export-plan.md, section 3). Nothing is zipped or copied on the host: the answer names
+the files, the CLI downloads them. Rights: those of the draft (an editor). Typed as `ExperienceExport` in `shared/api/editor.ts`.
+
+- `configuration` – without `build` the draft, from the same assembly as the draft endpoints and Publish
+  (`ContentVersion::assemble`); with `build` the published version as the content store holds it (`<env>/<build>/game.config.json`
+  of the environment the publish log names for that build of this experience). `source` says which:
+  `{ kind: "draft" }` or `{ kind: "published", env, publishedAt, publishedBy }`; `build`, `hash`, `schema` are the version's.
+- `files` – every file the configuration names, once each, in the order it names them, then the print layout's:
+  `{ url, path, origin, size, sha256, v }`. `url` is the value as the configuration holds it (below the assets base, a
+  Library URL, or a content path without one); `path` the content path (`/assets/content/…`, null for a Library upload).
+  `origin`: `upload` – a Library file, size and the full `sha256` from its asset row (any of its versions);
+  `import` – a file of the imported build, size and `v` (the first 12 hex digits of its sha256) from the import's
+  `files.json`, `sha256` null – it is not recorded; `version` – a Code tab plugin a publish put into the version's own
+  folder (#78), its URL in that environment, nothing else known; `unknown` – a value that looks like a file (a URL or
+  content path with a media, json, js or vtt extension) and is none of these. `unknown` counts those. A link (`media` of
+  a link entry) is no file.
+- `layout` – the print layout, `{ file, files }` (the URLs of `layout/layout.json` and every file of `layout/`, all in
+  `files` too) when the import's `files.json` holds `layout/layout.json`, else null. The reader's card back reads its
+  `cover-front` sheet (`client/src/utils/book-cover.ts`), so the export writes `layout/`.
+- `plugins` – the Code tab's sources (`PluginSource`: id, source, size, updatedAt, updatedBy) – always the current ones,
+  also for a published build: the database keeps no source per version.
+- `credits` – every credit line of the Library by file URL (#277); the configuration's own `credits` carries only those of
+  the files it uses.
 
 ### One environment per instance
 
@@ -558,6 +589,7 @@ by its name).
 | Endpoint | Body | Answer |
 |---|---|---|
 | `POST /editor/experiences/{id}/assets/names` | `{ apply? }` | `{ plan: { renames, files, used, unused }, applied }` – two steps: without `apply: true` nothing is written; `renames` lists every file whose name changes, `{ id, url, imported, from, to, use: { kind, ref, scene }, more }`. With it the plan is made again and written in one transaction |
+| `PUT /editor/experiences/{id}/assets/{assetId}` | `{ name }` | `{ asset: { id, url, name, imported }, changed }` – one file's name by hand (#330, the Library's rename): an upload (uuid) or an imported file (`import-…`, kept in `asset_names`). White space folded; no slash, backslash or control character; not empty; at most 255 characters; the stored file's extension stays (added when the name lacks it – `castle` → `castle.glb`; typed in any case it stays as typed) – else 400 `invalid-name`. The URL and every use stay (`AssetNames::rename`, `cleanName`) |
 
 **Imported files** (#244: no `assets` row, read-only – their URL is the content build's): their **listed** name is
 kept in `asset_names` (experience, URL → name, like `asset_credits`), so the Library is consistent; the list marks such a
@@ -683,7 +715,8 @@ its entry's scene – `surface` by id, required when the scene has several; `nul
 the target there) and `{ enabled }` (#249: `false` switches the target off, the reader leaves it and its entry out;
 `true` removes the field, on is the default) and `{ recognition }` (#306: `{ imageSrc, width, height }` – the grey recognition
 frame made ahead, [content](content.md) "Recognition"; `null` removes it; with `madeFrom` – the image it was made from – 409
-`stale-image` when the target has another image by now). A new `imageSrc` drops `recognition` unless the same body sets it,
+`stale-image` when the target has another image by now) and `{ recognitionOff }` (#306, schema 4.2: `true` – the target always
+uses its printed image, even when the experience says prepared; `false` removes the field). A new `imageSrc` drops `recognition` unless the same body sets it,
 and so does a replace of the image's Library file (the relink). 400 `invalid-target` (a 2.x `print` too). `POST /editor/experiences/{id}/entries`
 `{ title, scene, surface?, category?, body?, caption?, target?: { id?, imageSrc, place?, entity?, enabled? } }` → 201
 `{ entry, scene }` makes an entry (id from its scene and title, `s102-103-shadows`, or the given one; 409
@@ -708,7 +741,7 @@ http(s) – and a picture of the experience's Library.
 |---|---|---|
 | `GET /editor/experiences/{id}/entries` | | `{ entries: [{ …EntryData without its target (its `scene`, its `surface`), target: { id, imageSrc } \| null }] }` – every entry in the experience's order, each field as written (an imported picture's `/assets/content/…` path unresolved) |
 | `PUT /editor/experiences/{id}/entries/{eid}` | `{ title?, body?, author?, image?, caption?, media?, tags?, category?, scene?, surface? }` | `{ entry, scene, previousScene }` – the fields sent change; `null` removes `author`, `image`, `caption`, `media` or `surface`. `title`, `author` and `caption` (the line under the picture, #289) are trimmed (`title` not empty, at most 500 characters), `body` is Markdown kept as written (at most 100 000 characters – `docs/content.md` "The text: Markdown and variables"; the API does not judge its braces), `tags` a list of words (trimmed, each once, the empty ones left out; at most 32 of 64 characters), `category` one of the contract's, `media` an http(s) URL with a host, `image` the URL of an uploaded image or a file of the import (its path or its URL below the assets base) – or the value the entry has. `scene` moves the entry to that scene (never `null` – an entry always has one; 400 `unknown-scene`), `surface` puts it on one of its scene's surfaces (400 for a surface the scene does not have); a surface kept from before goes when the new scene has none of that id. Its target stays as it is (the draft leaves out a place whose surface the scene does not have). 400 `invalid-entry` (an unknown field too – `page` among them), 404 |
-| `PUT /editor/experiences/{id}` | `{ title?, book?: { author?, publisher? } \| null }` | `{ experience }` – the experience after the change (the list's and tree's `title` follow): `title` not empty; `book` changes the printed book's fields sent (`author` not empty, `publisher: null` or `""` removes it), `book: null` removes the printed book, a new one needs its `author` (#320). No `author`, `publisher` or `sourceOfTruth` on the top level. 400 `invalid-experience`, recorded as an `experience` change |
+| `PUT /editor/experiences/{id}` | `{ title?, book?: { author?, publisher? } \| null, recognition?: "original" \| "prepared" \| null }` | `{ experience }` – the experience after the change (the list's and tree's `title` follow): `title` not empty; `book` changes the printed book's fields sent (`author` not empty, `publisher: null` or `""` removes it), `book: null` removes the printed book, a new one needs its `author` (#320); `recognition` (#306, schema 4.2): how the reader gets its targets' recognition frames – only `"prepared"` is stored, `"original"` or `null` is the default (none). No `author`, `publisher` or `sourceOfTruth` on the top level. 400 `invalid-experience`, recorded as an `experience` change |
 
 The limits are `shared/api/rules.ts`' too (`TEXT_MAX_LENGTH`, `BODY_MAX_LENGTH`, `ENTRY_TAGS`, `isLinkUrl`) –
 `mcp/test/php-rules.test.ts` compares them with the PHP.
@@ -736,7 +769,7 @@ build's `rowPlaces`).
 | `GET /editor/experiences/{id}` | | `{ experience, scenes: [{ …SceneData, entries: [{ id, category, title, scene, surface?, target }] }], groups }` – the tree: the scenes in order with their entries; `target` = the entry's `TargetData` (`place`, the entity inline or `{ ref }`) or `null`. `experience` = the experience's summary (`initialScene`, `scenes` = how many) |
 | `GET /editor/experiences/{id}/scenes` | | `{ scenes: [{ …SceneData, position, surfaces: [{ …SurfaceData, reference }], entries, targets }], groups: [{ id, label, scenes }] }` – in order; `entries` / `targets` how many lie on it; every surface with its `reference` `{ url, name, fit }` or `null` ([below](#surface-reference-images)) |
 | `POST /editor/experiences/{id}/scenes` | `{ preset?, after? \| before? \| position?, id?, label?, group?, surfaces? }` | 201 `{ scene, position }` – a scene anywhere: `preset` (default `double`) `double` (one surface 460 × 320 mm), `single` (230 × 320 – a cover is a single scene first in the order), `wall` (2000 × 1500, standing: `y` 750, `rx` 90) gives its surfaces unless `surfaces` names them. After / before a scene or at `position` (0 = first); none = last. `label` defaults to *New scene*, `id` to `scene-<n>`. A change `scene`. 400 `invalid-scene`, `unknown-scene`, `unknown-group`; 409 `duplicate-id` |
-| `PUT /editor/experiences/{id}/scenes/{sid}` | `{ label?, group?, surfaces?, passes?, apply? }` | `{ scene, cleared: { entries, targets } }` – `label` (non-empty text), `group` (a group of the experience / `null`; the scene stays in place), `surfaces` (the whole list, places included – above; a surface that goes takes its reference image, a change each), `passes` (the scene's own post-processing: `null` removes it so the experience's apply, `[]` turns them off there). Entries or targets on a surface that goes: without `apply: true` 409 `surfaces-in-use` with `entries` and `targets`, nothing written; with it the entries keep the scene without a surface and the targets lose their `place` (`cleared`, a change each). A target placed without a surface on a scene of one surface names that surface when more come. A change `scene`. 400 `invalid-scene`, `unknown-group`; 404 |
+| `PUT /editor/experiences/{id}/scenes/{sid}` | `{ label?, group?, surfaces?, passes?, logic?, apply? }` | `{ scene, cleared: { entries, targets } }` – `label` (non-empty text), `group` (a group of the experience / `null`; the scene stays in place), `surfaces` (the whole list, places included – above; a surface that goes takes its reference image, a change each), `passes` (the scene's own post-processing: `null` removes it so the experience's apply, `[]` turns them off there), `logic` (the scene's rules `{ rules, canvas? }`, content schema 5.0 – shapes checked by `Logic::check`; `null` removes them). Entries or targets on a surface that goes: without `apply: true` 409 `surfaces-in-use` with `entries` and `targets`, nothing written; with it the entries keep the scene without a surface and the targets lose their `place` (`cleared`, a change each). A target placed without a surface on a scene of one surface names that surface when more come. A change `scene`. 400 `invalid-scene`, `unknown-group`; 404 |
 | `POST /editor/experiences/{id}/scenes/move` | `{ scenes: [ids], after? \| before? \| position?, group?, apply? }` | `{ plan: { order, moved, groups }, applied }` – one or several scenes as a block (in their order): after / before a scene, to `position` (among the scenes that stay), into `group` (after its last scene unless placed) or out of their group (`group: null` – in place, unless inside the group: then right after it). Without `apply: true` nothing is written; with it the order (a change `order`, before / after the ids) and the scenes' groups (a change `scene` each), in one transaction. 400 `invalid-move`, `unknown-scene`, `unknown-group` |
 | `DELETE /editor/experiences/{id}/scenes/{sid}` | `{ confirm?, deleteFiles? }` | the scene with everything on it, in two steps ([below](#removing-a-scene-or-an-entry)): 409 `confirm-delete` with `impact` and `confirmation`, then with `confirm` 200 `{ deleted }`. 409 `initial-scene` for the scene the experience opens on (it never goes); 404 |
 | `POST /editor/experiences/{id}/groups` | `{ label, scenes: [ids], id?, apply? }` | `{ plan: { group, order, moved, groups }, applied }` – a group of the picked scenes: they come together where the first of them is (a scene of another group leaves it). `id` defaults to the label as a slug (`chapter-one`), else `group-<n>`. Without `apply: true` nothing is written; with it the groups (a change `groups`), the order and the scenes. 400 `invalid-group`, `unknown-scene`; 409 `duplicate-id` |
@@ -745,6 +778,8 @@ build's `rowPlaces`).
 | `PUT /editor/experiences/{id}/scenes/{sid}/surfaces/{surfaceId}/reference` | `{ url?: string \| null, fit?, name? }` | `{ scene, surface, reference, changed }` – [a surface's reference image](#surface-reference-images) |
 | `PUT /editor/experiences/{id}/environment` | `{ environment: { world, onionSky, worldSrc?, skySrc? } \| null }` | `{ environment }` – the experience's world and onion sky (`experience.environment`, content schema 2.8; the world model and the sky image as references 2.10); `null` removes it – the default applies. A change `environment` in the log. 400 `invalid-environment`; 404 |
 | `PUT /editor/experiences/{id}/passes` | `{ passes: [{ type, …parameters }] \| null }` | `{ passes }` – the experience's post-processing (`experience.passes`), the master every scene without a list of its own shows; `null` removes it. Checked as a scene's list (a built-in `type` or a plugin's pass, scalar parameters); a change `passes` in the log. 400 `invalid-passes`; 404 |
+| `PUT /editor/experiences/{id}/logic` | `{ logic: { rules, canvas? } \| null }` | `{ logic }` – the experience's rules (`experience.logic`, content schema 5.0, #334): rules in the behaviour's grammar that hear the bus (no node event), name nodes by address `target:<targetId>/<node name>` and go to `scene:<id>`; `canvas` (`{ groups?, notes?, folds? }`) is the Logic view's authoring data – the draft and the export carry it, a publish leaves it out. `Logic::check` checks the shapes: a rule `{ on, when?, do }` with a text `on` (empty allowed – the Logic view lists it), a text `when` (the object form of 4.x is refused; the expression's syntax is the TypeScript guard's), one known verb per action. A node's behaviour (`PUT …/entities/{ref}`, `…/targets/{id}`) is checked the same way. `null` removes the field. A change `logic`, revertable like the other experience-wide kinds. 400 `invalid-logic`; 404 |
+| `PUT /editor/experiences/{id}/variables` | `{ variables: { name: { type, scope?, default? } } \| null }` | `{ variables }` – the rules' typed variables (`experience.variables`, content schema 5.0, #334 B7): `type` number / integer / boolean / string, `scope` one of the variable scopes, `default` of the type (an integer for a number is fine). Whether the rules fit them is the TypeScript guard's and the editor's to say. `null` removes the field. A change `variables`, revertable. 400 `invalid-variables`; 404 |
 | `PUT /editor/experiences/{id}/appearance` | `{ appearance: { reveal?, found?, lost? } \| null }` | `{ appearance }` – how the experience's entities appear (`experience.appearance`, content schema 2.29, #265): a look `{ type, …parameters }` per moment (`Experiences::MOMENTS`), a built-in `type` or a plugin's look, scalar parameters (their ranges are the guard's). The whole appearance is replaced; `null`, or one without a moment, removes the field – the default look plays everywhere. A change `appearance` in the log. 400 `invalid-appearance`; 404 |
 
 Gone with 3.0 (404): `…/spreads` (every route), `…/pages`, `…/page-images`, `…/matter`, `…/scenes/migrate`,
@@ -755,8 +790,8 @@ the experience has any), every entry with its `scene` right after its `title` (a
 #### The migration to schema 3.0 (done)
 
 Every stored experience (staging's osct and the demo) was migrated once with `POST …/migrate-3` (2.0.0, #319); the
-route, `Migration3.php` and the MCP tool `migrate_3` are gone since (the rules it followed are
-`scripts/src/convert-content-3.ts`'). Its change rows (kind `migration`) and the 2.x rows before it stay in the log,
+route, `Migration3.php` and the MCP tool `migrate_3` are gone since (the rules it followed were
+`scripts/src/convert-content-3.ts`', removed in 3.16.4). Its change rows (kind `migration`) and the 2.x rows before it stay in the log,
 readable, not revertable. The database names followed (`spreads` → `scenes`, `entries.spread_id` → `scene_id`,
 `books.initial_spread_id` → `initial_scene`, the scene's `title` → `label`; the page columns dropped; the unread table
 `page_images` stays – RULES #25) by the idempotent renames at the top of the schema files (`Db::migrate`).
@@ -775,6 +810,29 @@ scenes and in the change log's before / after (so a revert never writes the old 
 sources are not rewritten – the reader reads an old record and writes the new one; `server/deploy/migrate.php` names
 each plugin source that still says `"book"`, for its author to re-save with `"experience"`. Routes: `/editor/books/…` →
 `/editor/experiences/…`, no alias; errors `invalid-experience`, `other-experience`; `print-first` is gone.
+
+**Content schema 5.0 (#334): every condition an expression**, in place on the next deploy (`Db::migrate` runs
+`Migration5.php` after `Migration4`, so the container's entrypoint – `server/deploy/migrate.php` – and `POST
+/admin/migrate` apply it). Any JSON object with a text `on` and an object `when` is a rule: in `experiences.experience_json`,
+the `data_json` of entities, targets, entries and scenes (the JSON is walked – a behaviour anywhere in a node tree) and the
+change log's before / after of the experience-wide and row kinds. Each test `name: value` → `name == value`, `{ not: value }`
+→ `!=`, the plain form joined with `&&`, `any:` with `||`, a text quoted (`"…"`, `\"` and `\\` escaped); `name: null` → `!name`
+and `{ not: null }` → `name` (approximate: the language has no *not set* – listed); a test it cannot write (a variable named
+`and` / `or` / `not` / `mod` / `true` / `false`, a value that is no scalar) leaves the condition as it is – listed with the
+reason, the editor then shows the rule's problem. A 4.x experience's `content_schema` becomes 5.0 (the editor reads 5.x
+only). The rules are `scripts/src/convert-content-5.ts`' (the content folders' conversion, `npm run convert:5`); a test in
+`mcp/test/php-rules.test.ts` compares both on the same cases. Idempotent – a text `when` is never touched, a second run
+changes nothing. In an experience still of 4.x its rules' `set` text values become the language's text literals (B2:
+`calm` → `"calm"`; only then, so a second run never quotes again – `Migration4` takes a 3.x experience to 4.0 for this),
+and the variables its rules set are declared in `experience_json.variables` from the values' types (true / false boolean,
+a whole number integer, a fraction number – both together number –, a text string; the scope when every set names the same
+one, none named = scene); a variable set with two types is a conflict, not declared and reported. **Dry run**: `php server/deploy/migrate.php --plan-5` (with the API's `OSCT_*` settings, in the container
+`php /opt/osct/migrate.php --plan-5`) prints what it would change as JSON – `rows` per table, `schema` (experiences going
+to 5.0), `rules` (conditions converted), `sets` (set texts quoted), `variables` (experience → name → type declared),
+`conflicts` (`experience: name – types`), `approximate` (`where: variable`) and `unconvertible` (`where`, `when`, `reason`) –
+and writes nothing, no schema statement runs. After a migration `migrate.php` prints one line with the counts. Published
+versions in the content store are not rewritten: a 5.0 app refuses a 4.x version, so every experience is published again
+after the deploy.
 
 #### Ids without leading zeros (#63)
 
@@ -862,7 +920,7 @@ written }`: `changes` newest first, each `{ id, kind, ref, user, token, createdA
 first: one whose thing still holds what it wrote (`after`, compared with the keys sorted; the experience's JSON only in the
 fields it changed) gets its `before` back (`status: revert`); one whose thing holds something else is a **conflict** –
 listed, never overwritten, and the older changes of that thing are skipped as well. **Not revertable** (`status:
-not-revertable`, and `notRevertable` in `GET …/changes`): a creation (`before` null – remove it instead), a removal
+not-revertable`, and `notRevertable` in `GET …/changes`): a creation (`before` null – remove it instead; a delivery's new row is the exception, [Deliveries](#deliveries)), a removal
 (`after` null), an entry moved to another surface (its scene is `entries.scene_id`, not in the log), a new order whose
 scenes changed, a plugin source (the Code tab), a deleted file, a change saved before the content schema 3.0 (its rows
 held pages or a print) and the migration itself (`migration`). Scene moves are
@@ -870,6 +928,63 @@ in the log (`order`, the ids before and after) and revert. Picture credits and L
 draft content and not in the log (they are not revertable); a surface's reference image (#314) is no content either but
 is in the log and reverts both ways – set, replaced, removed – while its scene has the surface. Changes of one request get strictly increasing times, so
 their order stays readable. 404 `not-found` for a change not in the experience's log; 400 `invalid-revert`, `too-many`.
+
+### Deliveries
+
+A publisher's delivery reaches the draft through the API (#322, `Deliveries.php`; the content folder's import
+`npm run import` before it). The files go first, through the [Assets](#assets) API (the CLI converts them – WebP, H.264 –
+and uploads each once, deduplicated by sha256); then `POST /editor/experiences/{id}/deliveries` sends the **plan**
+(`shared/api/deliveries.ts` `DeliveryPlan`), JSON without files:
+
+```json
+{
+  "name": "2026-11-final",
+  "source": "delivery folder 2026-11-final, mapping import/2026-11-final.yaml",
+  "scenes": [{ "id": "s186-187", "label": "186–187", "preset": "double" }],
+  "entries": [
+    { "id": "p186-1", "scene": "s186-187", "category": "video", "title": "Placeholder",
+      "image": "<asset id or URL>", "target": { "imageSrc": "<asset URL>", "video": "<asset URL>", "enabled": true } }
+  ]
+}
+```
+
+- `scenes` (optional, in the book's order): `{ id, label?, preset? | surfaces? }`. A scene that exists is kept as it is; a
+  new one gets the preset's surfaces (`double` by default) or its own, and goes after the plan's scene before it (else
+  before the one after it, else last).
+- `entries`: `{ id, scene, surface?, category, title, author?, body?, caption?, media?, tags?, image?, target? }`, the
+  target `{ imageSrc, enabled?, video? }`. A **new** entry gets these texts and its target (id = the entry's; `enabled:
+  false` switches it off; `video` becomes its inline video entity, asset id `<target>-media`). An entry that **exists**
+  keeps its texts, category and scene; only its `image` and its target's `imageSrc` and video follow the delivery – a new
+  file is another URL (the Library keeps one file per content). A new `imageSrc` drops the target's recognition data.
+  An existing target keeps its switch (a warning when the delivery switches it off). Any other field is a 400 – the
+  mapping's `note` is not stored.
+- Files are named by the asset's id or URL and must be pictures (`image`, `imageSrc`) or videos (`video`) of the
+  experience's Library.
+
+Without `apply: true` nothing is written; the answer is the comparison: `items` per scene, entry and target, each `{ kind,
+id, status, fields?, reason?, scene?, entry? }` – `new`, `changed` (`fields`: `image`, `imageSrc`, `video`), `same`
+or `conflict`, `counts` per status, `problems` and `warnings`. A **conflict** is a row whose changed fields were edited
+outside a delivery since the last delivery that wrote that row (none: since the experience's import) – read from the
+change log; a target that shows another entity than a video gets no video (a conflict too). A conflict is left as it is
+unless the body sends `overwrite: true`. **Problems** stop the delivery: a scene neither in the experience nor in the
+plan, a surface the scene does not have, a file outside the Library, a target id another entry uses, and more than
+`MAX_TARGETS_PER_SCENE` (10, RULES #3, `shared/api/rules.ts`) targets switched on in a scene the delivery adds targets
+to.
+
+With `apply: true` the comparison is made again and written in one transaction (409 `delivery-problems` with
+`comparison` when it has problems – nothing written). Each write is a change of its row's own kind (`scene`, `entry`,
+`target`) with `changes.delivery_id` set (`delivery` in `GET …/changes`), and the delivery is a row of `deliveries`
+(name, source, the plan as sent, the counts, who, when); the answer names its `id` and `written`, the changes' ids. The
+same delivery sent again compares as all `same`.
+
+`GET …/deliveries` lists the applied deliveries, newest first – name, source, counts, who, when, and how many changes name
+each (the plan as sent stays in the table). The MCP's `preview_delivery` / `import_delivery` / `list_deliveries` use these
+routes ([mcp](mcp.md#a-publishers-delivery-preview_delivery-import_delivery-322)).
+
+**Taking a delivery back**: `POST …/changes/revert { ids }` with its changes' ids ([Reverting saved
+changes](#reverting-saved-changes)). The later changes of the same rows are reverted first, as for any save; the
+delivery's new rows are removed again – a target, then its entry once it has no target, then a scene once nothing lies on
+it and the experience does not open on it (a conflict otherwise). The removal a revert writes is not revertable itself.
 
 ## Logs
 
@@ -883,8 +998,9 @@ only see "Something went wrong".
 accepts fail there (#161: a named parameter used twice; `LIKE … ESCAPE` with a backslash, which opens an escape inside
 a MySQL string literal – `Db::contains` builds the pattern with `!`). `docker-compose.yml` in the repository root runs
 MariaDB 10.11, the version of staging's host (`OSCT_MARIADB_VERSION=11.4` for the version of the Kamal accessory in
-`config/deploy.yml`). Its first start creates the database `osct` from `schema.mysql.sql`; the data stays in the
-Docker volume `osct_db` until `docker compose down -v`.
+`config/deploy.yml`). Its first start creates the empty database `osct`; `php server/deploy/migrate.php` (Db::migrate) creates the tables –
+the schema file is not run as Docker's init script, because its renames for older databases stop a raw run on a new one
+(3.21.2). The data stays in the Docker volume `osct_db` until `docker compose down -v`.
 
 ```bash
 docker compose up -d --wait db                                        # MariaDB on 127.0.0.1:3306

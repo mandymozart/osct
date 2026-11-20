@@ -5,6 +5,7 @@ import { componentProblems, componentSpec, paramProblems, textureSource, type Co
 import { materialProblems, materialSpec, textureSpec, type MaterialData } from '../../../shared/types/materials';
 import { lightProblems, type LightData } from '../../../shared/types/lights';
 import { textureSetProblems, type TextureSetData, type TextureSize } from '../../../shared/types/textures';
+import { mediaLevelProblems, type MediaLevelData } from '../../../shared/types/media-levels';
 import { placementProblems } from '../../../shared/types/placement';
 import { isObject, MAX_NODE_DEPTH } from '../../../shared/guards/game-config';
 import fs from 'fs';
@@ -47,6 +48,22 @@ function textureSets(raw: unknown, label: string, file: (src: string) => string)
     }
     return { ...(typeof set.material === 'string' ? { material: set.material } : {}), sizes: sizes(set.sizes, where) };
   });
+}
+
+/**
+ * A medium's `levels` as authored (content schema 4.3, #331): a mapping of level to file – an image's longest side
+ * (`1024: sky_1024.webp`), a video's height (`720: film_720.mp4`), a sound's kbps (`128: voice_128.mp3`). The files are
+ * checked like every file of the node; levels come out smallest first, their values checked by `mediaLevelProblems`.
+ */
+export function mediaLevels(raw: unknown, label: string, file: (src: string) => string): MediaLevelData[] | undefined {
+  if (raw === undefined) return undefined;
+  if (!isMapping(raw)) {
+    buildErrors.push(`${label}: levels must be levels and their files (720: film_720.mp4)`);
+    return undefined;
+  }
+  return Object.entries(raw)
+    .map(([level, src]) => ({ level: Number(level), src: typeof src === 'string' ? file(src) : '' }))
+    .sort((a, b) => a.level - b.level);
 }
 
 export function buildEntities(): Record<string, EntityData> {
@@ -100,7 +117,8 @@ export function buildNode(
         return null;
       }
       const textures = textureSets(asset.textures, `${label}: assets[${i}]`, file);
-      return { id: `${idBase}-${asset.id ?? i}`, assetType: assetType(asset.src, label), src: file(asset.src), ...(textures ? { textures } : {}) };
+      const levels = mediaLevels(asset.levels, `${label}: assets[${i}]`, file);
+      return { id: `${idBase}-${asset.id ?? i}`, assetType: assetType(asset.src, label), src: file(asset.src), ...(textures ? { textures } : {}), ...(levels ? { levels } : {}) };
     }).filter((asset): asset is AssetData => asset !== null);
   } else if (typeof raw.src === 'string') {
     // Entry videos may be missing from a checkout (they reach the CDN by the content sync): a build without
@@ -110,12 +128,16 @@ export function buildNode(
       return null;
     }
     const textures = textureSets(raw.textures, label, file);
-    assets = [{ id: depth === 0 && kind === 'entries' ? `${idBase}-media` : idBase, assetType: assetType(raw.src, label), src: file(raw.src), ...(textures ? { textures } : {}) }];
+    const levels = mediaLevels(raw.levels, label, file);
+    assets = [{ id: depth === 0 && kind === 'entries' ? `${idBase}-media` : idBase, assetType: assetType(raw.src, label), src: file(raw.src), ...(textures ? { textures } : {}), ...(levels ? { levels } : {}) }];
   } else if (raw.textures !== undefined) {
     buildErrors.push(`${label}: textures belong to a model file – the node has no src`);
+  } else if (raw.levels !== undefined) {
+    buildErrors.push(`${label}: levels belong to an image, video or audio file – the node has no src`);
   }
   assets.forEach(asset => {
     if (asset.textures) textureSetProblems(asset.textures, asset.assetType).forEach(problem => buildErrors.push(`${label}: textures${problem.startsWith('[') ? '' : ': '}${problem}`));
+    if (asset.levels) mediaLevelProblems(asset.levels, asset.assetType).forEach(problem => buildErrors.push(`${label}: levels${problem.startsWith('[') ? '' : ': '}${problem}`));
   });
   // The files a type takes: none (group, text, light, a plugin's type without src), else at least one of its kind
   const takes = nodeAssetTypes(type) ?? [];

@@ -1,21 +1,25 @@
 import { Box3, Group, type Matrix4, type Object3D, type Quaternion, SRGBColorSpace, type Texture, TextureLoader, Vector3 } from "three";
 import {
-  type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type TextureQuality, type PassData, type SceneInspection, ArState, type Target,
+  type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type TextureQuality, type MediaQuality, type PassData, type SceneInspection, ArState, type Target,
 } from "../types/index";
 import { type AppearanceData, type ExperienceAppearance, entityMomentAppearance, type Moment, nodeMomentLook } from "@shared/types/appearance";
-import { entityAssets, getAssets, getExperience, getPasses, getPlugins, getScene, getScenes, getTargets } from "../content/game-config";
+import { entityAssets, getAssets, getExperience, getVariableTypes, getPasses, getPlugins, getScene, getScenes, getTargets } from "../content/game-config";
 import { type EnvironmentData, environmentOf } from "@shared/types/environment";
 import { focusAtTap } from "../utils/camera-request";
 import { Emitter } from "../utils/emitter";
 import { getPreparedWindow, isGrowingWindow, scenesByDistance, subscribePreparedWindow } from "../utils/prepared-scenes";
 import { AssetStore } from "./assets";
 import { deviceHints, wantedTextureSize } from "./model-textures";
+import { chooseMediaSrc, mediaHints } from "./media-levels";
+import { isLevelledKind } from "@shared/types/media-levels";
 import { type AnimationKind, celebrate, type Celebration, together } from "./celebration";
 import { CARD_HOLD_MS, CardFlight } from "./card-flight";
 import { buildEntity, type EntityInstance, placeEntity } from "./entities";
 import { loadPlugins } from "./plugins";
 import { cameraGrades, cameraGradeShader } from "./post/grade";
-import { emitCoreEvent, type ProgressReader, setProgressReader, setSceneSource, sceneChanged, stageEnded } from "./plugin-runtime";
+import { emitCoreEvent, type ProgressReader, setNavigator, setProgressReader, setSceneSource, setVariableTypes, sceneChanged, stageEnded } from "./plugin-runtime";
+import { applyLogic, type LogicInstance, namedPaths, type NodeLookup } from "./behaviour";
+import { logicRules } from "@shared/types/logic";
 import type { IImageTracker, ImageTrackerOptions, TrackerContext } from "./tracker-types";
 import { LookAround } from "./look-around";
 import { Subtitles } from "./subtitles";
@@ -54,6 +58,11 @@ export interface ArSceneOptions {
   subtitleLanguage?: () => string;
   /** The app's sound setting: may videos and sounds play with sound (asked at every start); none = with sound (#290) */
   sound?: () => boolean;
+  /**
+   * Where a rule's `goto` goes (content schema 5.0, #334): the address (`scene:<id>`, `shared/types/address.ts`) – the
+   * reader opens the scene through its router, the editor's stage switches or logs. None: a goto only logs a note.
+   */
+  navigate?: (address: string) => void;
 }
 
 /**
@@ -96,8 +105,13 @@ export class ArScene implements IArScene {
   private environmentPreview: EnvironmentPreview | null = null;
   private tracker: IImageTracker | null = null;
   /** Models with a texture set show their map at the size the reader's texture quality asks for on this device (#260) */
-  private assets = new AssetStore(() => wantedTextureSize(this.textureQuality, deviceHints(this.view?.renderer.capabilities.maxTextureSize)));
+  private assets = new AssetStore(
+    () => wantedTextureSize(this.textureQuality, deviceHints(this.view?.renderer.capabilities.maxTextureSize)),
+    // Pictures, videos and sounds with levels (#331): the reader's media quality, read when the file loads
+    data => isLevelledKind(data.assetType) ? chooseMediaSrc(data.assetType, data.src, data.levels, this.options.graphics?.getSettings().mediaQuality, mediaHints()) : data.src,
+  );
   private textureQuality: TextureQuality | undefined;
+  private mediaQuality: MediaQuality | undefined;
   /** The line of the playing video's subtitle file, told to the app when it changes (`subtitle`) */
   private subtitles = new Subtitles(() => this.options.subtitleLanguage?.() ?? "en", text => this.emitter.emit("subtitle", text));
   private graphicsCleanup: (() => void) | null = null;
@@ -128,14 +142,20 @@ export class ArScene implements IArScene {
   /** The editor's viewport shading, once it set one (the reader never does) */
   private shading: string | null = null;
   private windowCleanup: (() => void) | null = null;
+  /** The open scene's rules (schema 5.0): built with its entities, disposed with them */
+  private sceneLogic: LogicInstance | null = null;
+  /** The experience's rules (schema 5.0): live from the first scene on, across scene switches, until the stage ends */
+  private experienceLogic: LogicInstance | null = null;
   /** Last told `scanning` state: tracking runs and no target is found */
   private scanning = false;
 
   constructor(private container: HTMLElement, private options: ArSceneOptions) {
     setProgressReader(options.progress);
+    setNavigator(options.navigate);
     setSceneSource(getScene, getScenes);
     setMediaSound(options.sound);
     this.textureQuality = options.graphics?.getSettings().textureQuality;
+    this.mediaQuality = options.graphics?.getSettings().mediaQuality;
   }
 
   get status(): ArStatus {
@@ -468,8 +488,13 @@ export class ArScene implements IArScene {
       view.resize();
       this.lookAround = new LookAround(view.renderer, () => this.tracker?.cameraVideo ?? null, this.options.graphics, this.environment());
       this.lookAround.debugTools = this.options.debug ?? false;
-      // The reader changes the texture quality: the loaded models swap their maps
+      // The reader changes the texture quality: the loaded models swap their maps; the media quality: the loaded pictures,
+      // videos and sounds swap their level, a playing one goes on at the same time (#331)
       this.graphicsCleanup = this.options.graphics?.subscribe(settings => {
+        if (settings.mediaQuality !== this.mediaQuality) {
+          this.mediaQuality = settings.mediaQuality;
+          this.assets.refreshMedia();
+        }
         if (settings.textureQuality === this.textureQuality) return;
         this.textureQuality = settings.textureQuality;
         this.assets.refreshTextures();
@@ -531,11 +556,14 @@ export class ArScene implements IArScene {
     this.assets.release(new Set(assets.map(a => a.id)));
     await Promise.all([this.assets.load(assets), loadPlugins(getPlugins())]);
     const targets = getTargets(sceneId);
+    // The content's typed variables (schema 5.0): read again – the content may have changed
+    setVariableTypes(getVariableTypes());
     // The scene scope of the plugins' variables ends before the new scene's entities are built
     sceneChanged(sceneId);
     const anchors = targets.map(target => this.buildAnchor(target));
     anchors.forEach(anchor => view.scene.add(anchor.group));
     this.content = { sceneId, targets, anchors };
+    this.openLogic(sceneId);
     // The scene's passes (the previous scene's are disposed; none = the scene renders straight to the canvas)
     this.applyPasses(sceneId);
 
@@ -553,7 +581,35 @@ export class ArScene implements IArScene {
     return { target, group, entity };
   }
 
+  /**
+   * The rules of the scene that opened and of the experience (schema 5.0): the scene's are built for it, the experience's
+   * live on (their rules read again – the content may have changed); both then hear `sceneChanged`, now that the scene's
+   * nodes exist
+   */
+  private openLogic(sceneId: string): void {
+    const node = (targetId: string, name: string) => this.logicNode(targetId, name);
+    this.sceneLogic = applyLogic(logicRules(getScene(sceneId)?.logic), { home: "scene", sceneId, node });
+    const rules = logicRules(getExperience().logic);
+    if (this.experienceLogic) this.experienceLogic.tune(rules);
+    else this.experienceLogic = applyLogic(rules, { home: "experience", node });
+    this.experienceLogic.opened();
+    this.sceneLogic.opened();
+  }
+
+  /** A node of the open scene for a scene's or the experience's rule: its target's anchor, the node of that name in its tree */
+  private logicNode(targetId: string, name: string): NodeLookup {
+    const anchor = this.content?.anchors.find(a => a.target.id === targetId);
+    if (!anchor) return { missing: `target "${targetId}" is not in the open scene` };
+    const data = this.entityOf(anchor.target);
+    if (!data || !anchor.entity) return { missing: `target "${targetId}" has no entity` };
+    const path = name ? namedPaths(data).get(name) : "";
+    if (path === undefined) return { missing: `no node named "${name}" on target "${targetId}"` };
+    return { object: anchor.entity.nodes?.[path] ?? (path === "" ? anchor.entity.object : undefined), timeline: anchor.entity.timelines?.[path] };
+  }
+
   private removeContent(): void {
+    this.sceneLogic?.dispose();
+    this.sceneLogic = null;
     this.finishAnimations();
     this.endCard();
     this.content?.anchors.forEach(anchor => {
@@ -701,6 +757,9 @@ export class ArScene implements IArScene {
     this.started = false;
     this.running = false;
     this.setScanning(false);
+    // The experience's rules end with the stage (the next one starts them anew)
+    this.experienceLogic?.dispose();
+    this.experienceLogic = null;
     stageEnded();
     // The editor's hold ends with the scene: the next one starts with its media and buffers free
     releaseMedia();

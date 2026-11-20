@@ -59,10 +59,23 @@ describe("mock stage: the grid", () => {
   it("gives a surface its own spacing (#316 part 1)", () => {
     const { stage } = newStage();
     stage.setLayout([], twoPages);
-    stage.setGrid(grids({ on: true, mm: 10, origin: "top-left", surfaces: { right: 115 } }));
+    stage.setGrid(grids({ on: true, mm: 10, origin: "top-left", surfaces: { right: { mm: 115 } } }));
     const [lines] = gridOf(stage);
     // the left page every 10 mm (23 + 32), the right page every 115 mm (x = 115, 230; y = 115, 230)
     expect(lines.geometry.getAttribute("position").count).toBe(2 * (23 + 32) + 2 * (2 + 2));
+  });
+
+  it("gives a surface its own subdivisions and its own switch (#314)", () => {
+    const { stage } = newStage();
+    stage.setLayout([], twoPages);
+    // the right page subdivided in two: between the 10 mm lines one every 5 mm (23 + 32 of them)
+    stage.setGrid(grids({ on: true, mm: 10, origin: "top-left", surfaces: { right: { sub: 2 } } }));
+    const [fine] = gridOf(stage);
+    expect(fine.geometry.getAttribute("position").count).toBe(2 * (23 + 32));
+    // the toolbar's grid off: only the right page, switched on by itself, has one; the left switched off has none
+    stage.setGrid(grids({ on: false, mm: 10, origin: "top-left", surfaces: { left: { on: true }, right: { on: false } } }));
+    const [lines] = gridOf(stage);
+    expect(lines.geometry.getAttribute("position").count).toBe(2 * (23 + 32));
   });
 
   it("draws the grid on a standing wall in the wall's own plane", () => {
@@ -158,13 +171,18 @@ describe("mock stage: the scene's floor grid and vertical grid (#319)", () => {
     }
   });
 
-  it("draws the scene's axes with a grid and the axis", () => {
+  it("draws the origin gizmo with the axis switch, a grid on or not (#314): three axes with heads and the ring", () => {
     const { stage } = newStage();
-    stage.setGrid(grids({ floor: false, axis: true }));
+    stage.setGrid(grids({ floor: false, axis: false }));
     expect(sceneGridOf(stage)).toHaveLength(0);
+    stage.setGrid(grids({ floor: false, axis: true }));
+    expect(sceneGridOf(stage)).toHaveLength(4);
+    // each axis a shaft and two head strokes, drawn through everything
+    expect(sceneGridOf(stage)[0].geometry.getAttribute("position").count).toBe(6);
+    expect((sceneGridOf(stage)[0].material as unknown as { depthTest: boolean }).depthTest).toBe(false);
     stage.setGrid(grids({ axis: true }));
-    // the floor's two nets and the three axes
-    expect(sceneGridOf(stage)).toHaveLength(5);
+    // the floor's two nets and the gizmo
+    expect(sceneGridOf(stage)).toHaveLength(6);
   });
 });
 

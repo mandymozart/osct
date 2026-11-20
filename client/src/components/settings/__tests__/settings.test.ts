@@ -235,6 +235,28 @@ describe("settings sections", () => {
     graphics.setSettings({ textureQuality: "auto" });
   });
 
+  it("graphics: the media quality of pictures, videos and sounds with levels – its own list, a choice kept (#331)", () => {
+    const graphics = GraphicsService.getInstance();
+    graphics.setSettings({ mediaQuality: "auto" });
+    const section = mount("settings-graphics");
+    const root = section.shadowRoot!;
+    const row = () => root.querySelectorAll(".row")[1]!;
+    expect(row().textContent).toContain("Picture and video quality:");
+    expect(row().textContent).toContain("Automatic");
+
+    root.querySelector<HTMLElement>("[data-action=toggle-media]")!.click();
+    const choices = Array.from(root.querySelectorAll<HTMLElement>("[data-action=choose-media]"));
+    expect(choices.map(choice => choice.dataset.quality)).toEqual(["auto", "low", "medium", "high"]);
+    expect(root.querySelectorAll("[data-action=choose]")).toHaveLength(0); // the model detail's list stays closed
+
+    choices[1].click();
+    expect(graphics.getSettings().mediaQuality).toBe("low");
+    expect(JSON.parse(localStorage.getItem("osct-graphics")!).mediaQuality).toBe("low");
+    expect(root.querySelector(".options")).toBeNull();
+    expect(row().textContent).toContain("Low");
+    graphics.setSettings({ mediaQuality: "auto" });
+  });
+
   it("history (reset): says it reaches the account when signed in", () => {
     vi.spyOn(UserService.getInstance(), "getSnapshot").mockReturnValue({
       status: "signed-in", pending: null, sync: "synced", busy: false, notice: null,

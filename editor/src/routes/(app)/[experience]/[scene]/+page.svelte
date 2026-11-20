@@ -20,6 +20,7 @@
   import CodePanel from "#lib/panels/CodePanel.svelte";
   import EnvironmentPanel from "#lib/panels/EnvironmentPanel.svelte";
   import { environmentEdit, stageEnvironment } from "#lib/environment.svelte.js";
+  import { logicEdit } from "#lib/logic-edit.svelte.js";
   import NewTargetForm from "#lib/panels/NewTargetForm.svelte";
   import NewEntryForm from "#lib/panels/NewEntryForm.svelte";
   import NewSceneForm from "#lib/NewSceneForm.svelte";
@@ -36,25 +37,29 @@
   import RemovalConfirm from "#lib/components/RemovalConfirm.svelte";
   import { sceneRemoval } from "#lib/scene-removal.svelte.js";
   import { library } from "#lib/library.svelte.js";
+  import { libraryDrag } from "#lib/library-drag.svelte.js";
+  import type { DropRow } from "#lib/library-drag.js";
+  import { recognitionFrames } from "#lib/recognition-frames.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { nodeAt } from "#lib/values.js";
   import { queueTreeSaves } from "#lib/tree-autosave.js";
   import type { EntityData } from "@engine/types";
   import { selection } from "#lib/selection.svelte.js";
-  import { firstTab as openingTab, type Tab } from "#lib/panel-tabs.js";
+  import { tabOf } from "#lib/panel-tabs.js";
   import InfoView from "#lib/components/InfoView.svelte";
   import ContextMenu from "#lib/components/ContextMenu.svelte";
-  import { wordTabs } from "#lib/panel-tabs.js";
-  import { readStored, writeStored } from "#lib/storage.js";
+  import { readStored } from "#lib/storage.js";
   import ScenesPanel from "#lib/ScenesPanel.svelte";
   import { scenes } from "#lib/scenes.svelte.js";
   import FloatingPanel from "#lib/components/FloatingPanel.svelte";
   import { Floats, openFloats } from "#lib/components/floats.svelte.js";
   import { at, type PanelSpec } from "#lib/components/floats.js";
+  import type { TabSpec } from "#lib/components/float-tabs.js";
   import UndoRedo from "#lib/UndoRedo.svelte";
   import HistoryPanel from "#lib/panels/HistoryPanel.svelte";
   import LogicPanel from "#lib/panels/LogicPanel.svelte";
-  import type { LogicPick } from "#lib/scene-logic.js";
+  import type { LogicPick } from "#lib/logic/types.js";
+  import type { StageMove } from "#lib/logic/navigation.js";
   import RevertPrompt from "#lib/components/RevertPrompt.svelte";
   import { history } from "#lib/history.svelte.js";
   import { markRender, renderRequest, renderState } from "#lib/render-view.js";
@@ -65,20 +70,30 @@
    * the **Inspector** (essential) with its tabs Inspector (whatever is selected – the scene while nothing else is,
    * #229), Environment, Library and Code (`panel-tabs.ts`), the **Scenes** filmstrip (#307, `ScenesPanel.svelte`: a
    * card opens its scene, a band selects its group, a drag reorders; the draft follows `scenes.version`), **Info** and
-   * the stage's **Tools** (inline). Each moves by its head, resizes by its edges, folds to its head and – unless
-   * essential – closes; the top bar's panels menu reopens them and resets the layout, which is remembered per workspace
+   * the stage's **Tools** (inline). Every content is a tab (#318, `SCENE_TABS`) that can live in any panel: dragged into
+   * another panel's head or out onto the stage (a panel of its own). Each moves by its head, resizes by its edges, folds
+   * to its head (a double-click on it) and – unless it holds the Inspector – closes; the top bar's panels menu reopens
+   * tabs and resets the layout and the tabs' arrangement, which are remembered per workspace
    * in this browser. The editor is desktop and iPad only (Tilman, 2026-11-18): the phone's layout – a sheet at the
    * bottom with the tree as a tab, ‹ › over the stage – is gone (#317). `?tab=environment` opens a tab.
    */
   const experienceId = $derived(page.params.experience!);
   const sceneId = $derived(page.params.scene!);
   const TAB_KEY = "osct-editor-tab";
-  /** The Inspector's tab row: the words, or the icons in an Inspector too narrow for them */
-  const TAB_BUTTONS: { tab: Tab; label: string; icon: IconName; title?: string }[] = [
-    { tab: "inspector", label: "Inspector", icon: "inspector", title: "Whatever is selected: the scene, a surface, an entry, a target, its entity or a node" },
-    { tab: "environment", label: "Environment", icon: "globe", title: "The sky around the reader and the onion sky, previewed on the stage" },
-    { tab: "library", label: "Library", icon: "folder" },
-    { tab: "code", label: "Code", icon: "code" },
+  /**
+   * The workspace's tabs (#318): every content of its panels, each with its home panel (`SCENE_PANELS`) – any tab can
+   * live in any panel; the Inspector (the selection) never closes
+   */
+  const SCENE_TABS: TabSpec[] = [
+    { id: "tree", name: "Tree", icon: "tree", home: "tree", about: "The scene's surfaces, entries, their targets and the entities' nodes: a click selects, a drag moves a node." },
+    { id: "inspector", name: "Inspector", icon: "inspector", home: "inspector", essential: true, about: "Whatever is selected: the scene, a surface, an entry, a target, its entity or a node. The panel holding it never closes." },
+    { id: "environment", name: "Environment", icon: "globe", home: "inspector", about: "The sky around the reader and the onion sky, previewed on the stage." },
+    { id: "library", name: "Library", icon: "folder", home: "inspector", about: "The experience's files: images, models, videos, sounds and code – use one on the selected node. Ctrl+L opens it and focuses its search." },
+    { id: "code", name: "Code", icon: "code", home: "inspector", about: "The experience's code: its plugins' sources, saved with Save or Ctrl+S." },
+    { id: "scenes", name: "Scenes", icon: "film", home: "scenes", about: "The experience's scenes as a filmstrip: a card opens its scene, a band selects its group, a drag reorders." },
+    { id: "info", name: "Info", icon: "info", home: "info", about: "The name and description of the control under the pointer or in focus." },
+    { id: "history", name: "History", icon: "history", home: "history", about: "Every saved change of the experience: filter by scene, kind or person; revert one, or jump back to a point (#312)." },
+    { id: "logic", name: "Logic", icon: "nodes", home: "logic", about: "The experience's logic as a graph, one level at a time (#239, #334): the experience, a group, a scene, a target's entity – a click selects, a double-click opens a level." },
   ];
   const COARSE = "(pointer: coarse)";
   /**
@@ -90,9 +105,6 @@
 
   let container = $state<HTMLDivElement>();
   let stage = $state<Stage | null>(null);
-  /** `?tab=`, the stored tab (a Stage or Entity tab stored before #229 is the Inspector), the Inspector */
-  const firstTab = openingTab(page.url.searchParams.get("tab"), readStored(TAB_KEY));
-  let tab = $state<Tab | null>(firstTab);
   /** A finger: every control is the touch height (app.css), so the tab row needs more room for its words */
   let coarse = $state(window.matchMedia(COARSE).matches);
   // The one selection of the tree, the stage and the Inspector – a target, its entity or a node (#162), the scene to start
@@ -107,20 +119,18 @@
     actionError = errorText(e);
   };
 
-  const setTab = (next: Tab) => {
-    tab = tab === next ? null : next;
-    writeStored(TAB_KEY, tab);
+  /** Show a tab where it lives (#318) – a closed one comes back into its home panel (a panel's link to another) */
+  const openTab = (next: string) => floats.showTab(next);
+  /**
+   * Something was selected (a row of the tree, a pick on the stage): the Inspector shows it – the scene too (#229); not
+   * in a panel showing the Tree, which shows the selection itself (#318: the Tree and the Inspector may share a panel)
+   */
+  const select = () => {
+    const at = floats.holder("inspector");
+    if (at && floats.showing("tree") === at) return;
+    openTab("inspector");
   };
-  /** Show a tab (no toggle – a panel's link to another) */
-  const openTab = (next: Tab) => {
-    if (tab !== next) setTab(next);
-  };
-  /** The tab the Inspector shows: always one (the tree is a panel of its own – a stored "tree" is the Inspector) */
-  const shown = $derived<Tab>(tab === "tree" || tab === null ? "inspector" : tab);
-  /** Something was selected (a row of the tree, a pick on the stage): the Inspector shows it – the scene too (#229) */
-  const select = () => openTab("inspector");
-  /** A tab of the Inspector panel chosen: it shows that tab */
-  const chooseTab = (next: Tab) => openTab(next);
+  const chooseTab = (next: string) => openTab(next);
 
   // ── the floating panels (#308, desktop and iPad): the stage is the whole window, the panels float over it ──
   /**
@@ -140,18 +150,46 @@
       place: at("top-left", 17, 0), size: { w: "content", h: "content" }, min: { w: 12, h: 2 }, essential: true, inline: true },
     { id: "history", name: "History", icon: "history", about: "Every saved change of the experience: filter by scene, kind or person; revert one, or jump back to a point (#312).",
       place: at("bottom-right", 0, 0, { closed: true }), size: { w: 28, h: 20 }, min: { w: 16, h: 8 } },
-    { id: "logic", name: "Logic", icon: "nodes", about: "The scene's logic as a graph (#239): events, behaviour rules, variables, the nodes they act on and the plugins – a click selects it.",
+    { id: "logic", name: "Logic", icon: "nodes", about: "The experience's logic as a graph, one level at a time (#239, #334): the experience, a group, a scene, a target's entity – a click selects, a double-click opens a level.",
       place: at("bottom-right", 0, 0, { closed: true }), size: { w: 48, h: 24 }, min: { w: 18, h: 10 } },
   ];
-  const floats = new Floats("scene", SCENE_PANELS);
-  /** A graph node of the Logic panel picked (#239): its entity's node in the tree and the Inspector, a plugin in the Code tab */
+  /**
+   * The panels and their tabs (#318), remembered per workspace with the layout; a layout stored before #318 keeps its
+   * closed panels and the tab the Inspector showed (`osct-editor-tab`, a Stage or Entity tab stored before #229 is the Inspector)
+   */
+  const floats = new Floats("scene", SCENE_PANELS, SCENE_TABS, tabOf(readStored(TAB_KEY)));
+  // `?tab=` (the experience page links the Environment so) shows that tab
+  untrack(() => {
+    const asked = page.url.searchParams.get("tab");
+    const tab = SCENE_TABS.some(t => t.id === asked) ? asked : tabOf(asked);
+    if (tab) floats.showTab(tab);
+    // `?logic=` (#334: the Logic panel's level, kept in the URL) shows the Logic panel
+    if (page.url.searchParams.has("logic")) floats.showTab("logic");
+  });
+  /** The Environment tab shows: the stage previews it */
+  const environmentShown = $derived(floats.showing("environment") !== null);
+  /**
+   * A box of the Logic panel picked (#239, #334): its entity's node in the tree and the Inspector, a plugin in the Code tab,
+   * a group, the open scene (another scene's box opens only when entered)
+   */
   const pickLogic = (pick: LogicPick) => {
-    if (floats.collapsed("inspector")) floats.setCollapsed("inspector", false);
     if (pick.kind === "plugin") {
       plugins.focus = pick.plugin;
-      chooseTab("code");
+      floats.showTab("code", true);
       return;
     }
+    if (pick.kind === "group") return selectGroup(pick.group);
+    if (pick.kind === "scene") {
+      if (pick.scene === sceneId) selection.selectScene();
+      return;
+    }
+    if (pick.kind === "experience") {
+      // An experience rule's box: its rules are in the experience's Inspector
+      floats.showTab("inspector", true);
+      selection.selectExperience();
+      return;
+    }
+    floats.showTab("inspector", true);
     selection.show({ target: pick.target, node: pick.path, onTarget: false });
     select();
   };
@@ -169,9 +207,11 @@
     floats.metrics = { rem, gap, head: control + (3 * rem) / 8 + 1, button: control, char: rem / 2 };
     floats.area = { x: gap, y: gap, w: Math.max(1, w - 2 * gap), h: Math.max(1, h - 2 * gap) };
   });
-  // The Code tab asks for its wider Inspector (36rem) – until the person resizes the panel
+  // The Code tab asks for a wider panel (36rem) where it shows – until the person resizes the panel
   $effect(() => {
-    floats.asks = shown === "code" ? { inspector: { w: 36, h: "fill" } } : {};
+    const at = floats.showing("code");
+    const h = at ? floats.spec(at)?.size.h : undefined;
+    floats.asks = at && h !== undefined ? { [at]: { w: 36, h } } : {};
   });
   // The top bar's panels menu lists this workspace's panels
   $effect(() => {
@@ -180,14 +220,12 @@
       if (openFloats.current === floats) openFloats.current = null;
     };
   });
-  /** A form or a removal step opens in the Inspector: a folded Inspector opens for it */
+  /** A form or a removal step opens in the Inspector tab: it shows, its folded panel opens for it */
   $effect(() => {
-    if ((removal || addingTarget || addingEntry || addingScene)) untrack(() => { if (floats.collapsed("inspector")) floats.setCollapsed("inspector", false); });
+    if ((removal || addingTarget || addingEntry || addingScene)) untrack(() => floats.showTab("inspector", true));
   });
 
   let workspace = $state<HTMLDivElement>();
-  /** The tabs as icons in an Inspector too narrow for the words, so its head stays one line (#172) */
-  const iconTabs = $derived(!wordTabs(floats.views.inspector?.rect.w ?? 0, coarse));
 
 
   // ── targets and entries: the forms, removal, a changed image or placement ──
@@ -232,6 +270,8 @@
     await reloadContent();
     selection.selectTarget(targetId);
     openTab("inspector");
+    // Its recognition frame, made by itself (#306) – never in the way of the new target
+    recognitionFrames.autoFor(experienceId, targetId);
   };
   const entryCreated = async (entryId: string) => {
     addingEntry = false;
@@ -336,13 +376,23 @@
     await content.load(id);
     void library.refresh();
   };
+  // ── a scene's and the experience's rules and the variables (content schema 5.0, #334): an edit reached the draft – the
+  // content follows, and the stage builds the open scene again (the engine reads a scene's and the experience's rules when
+  // the scene opens) ──
+  $effect(() => logicEdit.enter(experienceId));
+  logicEdit.onsaved = async id => {
+    if (id !== experienceId) return;
+    await content.load(id);
+    // Not awaited: the autosave's chain must not wait for the stage (a stage still building would hold every later save)
+    void stage?.refresh().catch(() => {});
+  };
   $effect(() => {
-    const previewing = shown === "environment";
+    const previewing = environmentShown;
     const environment = previewing ? environmentEdit.edited : stageEnvironment.current;
     stage?.showEnvironment(environment ? $state.snapshot(environment) : null, previewing);
   });
   $effect(() => {
-    if (shown !== "environment") environmentEdit.picking = null;
+    if (!environmentShown) environmentEdit.picking = null;
   });
   // ── surface reference images (#314): the scenes list has each surface's (`scenes.references`, read again whenever the
   // scenes change), handed to the stage, which lays them on the surfaces ──
@@ -410,6 +460,28 @@
     selection.selectGroup(id);
     openTab("inspector");
   };
+  /**
+   * The Logic panel went to a level (#334, research §6.3): the workspace follows – a scene opens as from the Scenes panel,
+   * an entity's node is selected (on its scene, opened first), a group or the experience is selected
+   */
+  const moveToLogic = (move: StageMove) => {
+    switch (move.move) {
+      case "experience": selection.selectExperience(); break;
+      case "group": selection.selectGroup(move.group); break;
+      case "scene":
+        if (move.scene === sceneId) selection.selectScene();
+        else void openScene(move.scene);
+        break;
+      case "node": {
+        const state = { target: move.target, node: move.path, onTarget: false };
+        if (move.scene === sceneId) selection.set(state);
+        else {
+          selection.requestOn(move.scene, state);
+          void openScene(move.scene);
+        }
+      }
+    }
+  };
 
   // ── undo, redo and the History (#312): the experience's saved changes; a revert written reloads the draft, the stage
   // and the panels (their forms start again from the draft) ──
@@ -449,13 +521,53 @@
     if (isMediaAsset(asset)) entityPanel?.useAsset(asset.kind, asset.url, asset.id);
   };
   const useAsTargetImage = async (asset: Asset) => {
-    if (!selection.target) return;
+    const targetId = selection.target;
+    if (!targetId) return;
     try {
-      await putTarget(experienceId, selection.target, { imageSrc: asset.url });
+      await putTarget(experienceId, targetId, { imageSrc: asset.url });
     } catch (e) {
       return failed(e);
     }
     await reloadContent();
+    recognitionFrames.autoFor(experienceId, targetId, asset.url);
+  };
+  /**
+   * A Library tile dropped on a tree row (#330, `library-drag.svelte.ts` – it checked the fit): the row is selected and
+   * takes the file the way the Inspector's *Use* does – a node its file, a target its printed image. The tree's action:
+   * the Library only starts the drag.
+   */
+  const dropAsset = async (asset: Asset, row: DropRow) => {
+    if (row.kind === "target") {
+      selection.show({ target: row.targetId, node: [], onTarget: true });
+      await useAsTargetImage(asset);
+      return;
+    }
+    if (row.kind !== "node") return;
+    selection.show({ target: row.targetId, node: row.path, onTarget: false });
+    await tick();
+    await useAsset(asset);
+  };
+  $effect(() => {
+    libraryDrag.ondrop = dropAsset;
+    return () => {
+      if (libraryDrag.ondrop === dropAsset) libraryDrag.ondrop = null;
+    };
+  });
+  /**
+   * Ctrl / ⌘ + L (#330): the Library tab – shown where it lives (#318: a closed one comes back into its home panel, a
+   * folded panel opens for it) and its search focused; a second press while the search has the focus shows the
+   * Inspector again. The panels' API is used in this one function only.
+   */
+  const toggleLibrary = async () => {
+    const search = () =>
+      document.querySelector<HTMLInputElement>("[data-library-search='browser']") ?? document.querySelector<HTMLInputElement>("[data-library-search='panel']");
+    if (floats.showing("library") && document.activeElement && document.activeElement === search()) {
+      floats.showTab("inspector", true);
+      return;
+    }
+    floats.showTab("library", true);
+    await tick();
+    search()?.focus();
   };
   const selectedNodeType = $derived.by(() => {
     const t = selection.target && !selection.onTarget ? stage?.treeOf(selection.target) : undefined;
@@ -688,6 +800,12 @@
   const snapKey = (event: KeyboardEvent) => stage?.setSnapModifier(event.shiftKey || event.ctrlKey);
   const onKey = (event: KeyboardEvent) => {
     if (event.key === "Shift" || event.key === "Control") snapKey(event);
+    // Ctrl / ⌘ + L, in a field too: the Library and its search (#330)
+    if ((event.key === "l" || event.key === "L") && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
+      event.preventDefault();
+      void toggleLibrary();
+      return;
+    }
     if ((event.target as HTMLElement).closest("input, textarea, select")) return;
     if (event.key === "ArrowLeft") step(-1);
     if (event.key === "ArrowRight") step(1);
@@ -739,7 +857,7 @@
          always one row (#180, #190, #229, #308) -->
     <div class="tools" class:vertical={floats.vertical("tools")} role="toolbar" aria-orientation={floats.vertical("tools") ? "vertical" : "horizontal"}
       data-app-ui aria-label="Stage tools" bind:this={tools}>
-      <UndoRedo onhistory={() => floats.reopen("history")} />
+      <UndoRedo onhistory={() => floats.showTab("history", true)} />
       <ToolGroup label="Tool" options={TOOL_OPTIONS} value={stage.tool} expanded={expanded[0]}
         onchoose={tool => stage?.setTool(tool as StageTool)} />
       <span class="tool-group filters" data-help-name="Select filters" data-help={FILTER_HELP}>
@@ -764,40 +882,50 @@
   {/if}
 {/snippet}
 
-{#snippet tabButtons()}
-  {#each TAB_BUTTONS as b (b.tab)}
-    <!-- A panel too narrow for the words shows the tabs as icons, so the row stays one line (the name is the tooltip
-         and the label – #172) -->
-      <button type="button" class="pill tab" class:icon-tab={iconTabs} class:on={shown === b.tab} aria-pressed={shown === b.tab}
-        aria-label={iconTabs ? b.label : undefined} title={iconTabs ? `${b.label}${b.title ? ` – ${b.title}` : ""}` : b.title}
-        onclick={() => chooseTab(b.tab)}>{#if iconTabs}<Icon name={b.icon} />{:else}{b.label}{/if}</button>
-  {/each}
+{#snippet sceneExtra(active: string)}
+  <!-- The Inspector's +: on the last scene, the creation step of a new scene (#238) -->
+  {#if active === "inspector" && atLastScene}
+    <button type="button" class="icon-button" onclick={() => openNewScene(sceneId)} title="Add a scene after the last one" aria-label="Add a scene"
+      data-help-name="Add a scene" data-help="Opens the creation step for a new scene after this one – a double page, a single page or a wall."><Icon name="plus" /></button>
+  {/if}
+{/snippet}
+
+{#snippet tabBody(t: string)}
+  <!-- A tab's content (#318), in whatever panel holds it -->
+  {#if t === "tree"}
+    <div class="float-body"><div class="body tree-body">{@render treeBody()}</div></div>
+  {:else if t === "scenes"}
+    <ScenesPanel {experienceId} experienceTitle={scenes.tree?.experience.title ?? ""} current={sceneId} selectedGroup={selection.group} floating
+      assetsBase={content.assetsBase ?? ""} onopen={id => void openScene(id)} onselectgroup={selectGroup} onstep={step} />
+  {:else if t === "info"}
+    <InfoView floating />
+  {:else if t === "history"}
+    <HistoryPanel current={sceneId} />
+  {:else if t === "logic"}
+    <LogicPanel {experienceId} {sceneId} {stage} onpick={pickLogic} onmove={moveToLogic} />
+  {:else}
+    <!-- A revert written (#312): the forms start again from the draft -->
+    <div class="float-body inspector">{#key panelsRevision}{@render panelTabs(t)}{/key}</div>
+  {/if}
 {/snippet}
 
 {#snippet treeBody()}
   <TreePanel {stage} {sceneId} onselect={select} onaddtarget={() => { addingEntry = false; addingTarget = true; }}
     onaddentry={() => { addingTarget = false; addingScene = null; addingEntry = true; }}
-    onaddscene={openNewScene} onremoveentry={removeEntry} />
+    onaddscene={openNewScene} onremoveentry={removeEntry} ontargetchanged={reloadContent} />
 {/snippet}
 
-{#snippet panelBody()}
-  <!-- A revert written (#312): the forms start again from the draft -->
-  {#key panelsRevision}{@render panelTabs()}{/key}
-{/snippet}
-
-{#snippet panelTabs()}
-  {#if removal}
+{#snippet panelTabs(shown: string)}
+  {#if shown === "inspector" && removal}
     <div class="body removal"><RemovalConfirm step={removal.step} busy={removalBusy} error={removalError} onconfirm={deleteFiles => void confirmRemoval(deleteFiles)} oncancel={() => (removal = null)} /></div>
-  {:else if addingTarget && scene}
+  {:else if shown === "inspector" && addingTarget && scene}
     <div class="body"><NewTargetForm {experienceId} {scene} {stage} oncreated={targetCreated} oncancel={() => (addingTarget = false)} /></div>
-  {:else if addingScene}
+  {:else if shown === "inspector" && addingScene}
     <div class="body"><NewSceneForm {experienceId} scenes={content.scenes} after={addingScene.after} oncreated={sceneCreated} oncancel={() => (addingScene = null)} /></div>
-  {:else if addingEntry && scene}
+  {:else if shown === "inspector" && addingEntry && scene}
     <div class="body"><NewEntryForm {experienceId} {scene} oncreated={entryCreated} oncancel={() => (addingEntry = false)} /></div>
-  {:else if shown === "tree"}
-    <div class="body">{@render treeBody()}</div>
   {:else if shown === "inspector"}
-    <div class="body"><EntityPanel bind:this={entityPanel} {stage} {experienceId} {sceneId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} onenvironment={() => openTab("environment")} /></div>
+    <div class="body"><EntityPanel bind:this={entityPanel} {stage} {experienceId} {sceneId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} onenvironment={() => openTab("environment")} onopenscene={id => void openScene(id)} /></div>
   {:else if shown === "environment"}
     <div class="body"><EnvironmentPanel {stage} {experienceId} /></div>
   {:else if shown === "library"}
@@ -810,7 +938,7 @@
 {#if render}
 <div class="workspace render"><div class="stage" bind:this={container}></div></div>
 {:else}
-<div class="workspace" class:holding={!!floats.held} bind:this={workspace} bind:clientWidth={workspaceWidth} bind:clientHeight={workspaceHeight}>
+<div class="workspace" class:holding={!!floats.held || !!floats.tabHeld} bind:this={workspace} bind:clientWidth={workspaceWidth} bind:clientHeight={workspaceHeight}>
   <div class="stage" bind:this={container}
     data-help-name="Stage" data-help={NAVIGATION_HELP}>
     {#if stage && stage.status === "running"}
@@ -855,33 +983,9 @@
   </div>
 
   <!-- The panels float over the stage, in the order of growth (#308) -->
-    <FloatingPanel {floats} id="tree">
-      <div class="float-body"><div class="body tree-body">{@render treeBody()}</div></div>
-    </FloatingPanel>
-    <FloatingPanel {floats} id="inspector">
-      {#snippet head()}
-        <!-- Back to the experience is the top bar's experience crumb; ‹ › live in the Scenes panel's head (#307) -->
-        <span class="float-tabs" role="group" aria-label="Inspector tabs">{@render tabButtons()}</span>
-        {#if atLastScene}
-          <button type="button" class="icon-button" onclick={() => openNewScene(sceneId)} title="Add a scene after the last one" aria-label="Add a scene"
-            data-help-name="Add a scene" data-help="Opens the creation step for a new scene after this one – a double page, a single page or a wall."><Icon name="plus" /></button>
-        {/if}
-      {/snippet}
-      <div class="float-body inspector">{@render panelBody()}</div>
-    </FloatingPanel>
-    <FloatingPanel {floats} id="scenes">
-      <ScenesPanel {experienceId} experienceTitle={scenes.tree?.experience.title ?? ""} current={sceneId} selectedGroup={selection.group} floating
-        assetsBase={content.assetsBase ?? ""} onopen={id => void openScene(id)} onselectgroup={selectGroup} onstep={step} />
-    </FloatingPanel>
-    <FloatingPanel {floats} id="info">
-      <InfoView floating />
-    </FloatingPanel>
-    <FloatingPanel {floats} id="history">
-      <HistoryPanel current={sceneId} />
-    </FloatingPanel>
-    <FloatingPanel {floats} id="logic">
-      <LogicPanel {experienceId} {sceneId} onpick={pickLogic} />
-    </FloatingPanel>
+    {#each floats.tabPanels as id (id)}
+      <FloatingPanel {floats} {id} tab={tabBody} extra={sceneExtra} />
+    {/each}
     {#if stage && stage.status === "running"}
       <FloatingPanel {floats} id="tools" label="Stage tools">{@render toolbar()}</FloatingPanel>
     {/if}
@@ -899,10 +1003,6 @@
   .workspace.holding .stage :global(iframe.stage-frame) { pointer-events: none; }
   .float-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .float-body.inspector { min-width: 0; }
-  .float-tabs { display: flex; align-items: center; gap: .125rem; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-  .float-tabs .tab { flex: none; padding: 0 .375rem; }
-  .float-tabs .tab.on { background: var(--surface); }
-  .float-tabs .tab.icon-tab { padding: 0; width: var(--control-height); justify-content: center; }
   /* The toolbar in its floating panel: one row; the page computes the groups' widths from these sizes */
   .tools { display: flex; flex-wrap: nowrap; align-items: center; gap: .125rem; width: max-content; color: var(--text); }
   /* A column (#315): the groups below each other, a rule above each instead of beside it */

@@ -142,6 +142,7 @@ function editorApi(seen: Seen, { sources = true } = {}) {
   if (path.startsWith("/editor/experiences/osct/changes")) return { json: { changes: [{ kind: "entity", ref: "castle" }], limit: path } };
   if (path.startsWith("/editor/experiences/osct/assets") && method === "GET") return { json: { assets: [{ id: "a", kind: "image" }], query: path } };
   if (path === "/editor/experiences/osct/assets/credits" && method === "PUT") return { json: { saved: 1, credits: {}, sent: seen.body } };
+  if (method === "PUT" && /^\/editor\/experiences\/osct\/assets\/[^/]+$/.test(path)) return { json: { asset: { id: "a", url: "https://cdn/a.webp", name: (seen.body as any).name, imported: false }, changed: true, sent: seen.body, path } };
   if (method === "POST" && path.split("?")[0] === "/editor/experiences/osct/assets") return { status: 201, json: { path, asset: { id: "11111111-1111-4111-8111-111111111111", name: seen.headers["X-File-Name"], size: (seen.rawBody as Uint8Array).byteLength, url: `https://cdn/up/${seen.headers["X-File-Name"]}` } } };
   if (method === "POST" && path === "/editor/experiences/osct/assets/names") {
     const apply = !!(seen.body as any).apply;
@@ -168,8 +169,8 @@ describe("the content tools", () => {
       [
         "add_entry", "delete_asset", "delete_entry", "describe_content_model", "get_experience", "get_draft", "get_entity", "get_scene", "import_experience", "list_assets", "preview_import",
         "list_experiences", "list_changes", "list_versions", "publish", "put_experience_appearance", "put_experience_passes", "put_entity", "put_environment", "put_target", "upload_asset",
-        "get_entries", "update_entry", "update_experience", "set_asset_credits", "plan_asset_names", "apply_asset_names",
-        "list_scenes", "add_scene", "move_scenes", "put_scene", "delete_scene", "group_scenes", "rename_group", "ungroup",
+        "get_entries", "update_entry", "update_experience", "set_asset_credits", "plan_asset_names", "apply_asset_names", "rename_asset",
+        "list_scenes", "add_scene", "move_scenes", "put_scene", "put_surface", "delete_scene", "group_scenes", "rename_group", "ungroup",
         "set_surface_reference",
         "revert_change", "revert_to",
       ].sort(),
@@ -284,6 +285,9 @@ describe("the content tools", () => {
     const removed = await rec.call("put_target", { experience: "osct", target: "castle-target", entity: null, place: null });
     expect(removed.ok).toBe(true);
     expect(seen[0].body).toEqual({ entity: null, place: null });
+    seen.length = 0;
+    expect((await rec.call("put_target", { experience: "osct", target: "castle-target", recognitionOff: true })).ok).toBe(true);
+    expect(seen[0].body).toEqual({ recognitionOff: true });
     const nothing = await rec.call("put_target", { experience: "osct", target: "castle-target" });
     expect(nothing.ok).toBe(false);
     const invalid = await rec.call("put_target", { experience: "osct", target: "castle-target", entity: { type: "model" } });
@@ -368,6 +372,10 @@ describe("the content tools", () => {
     const none = await rec.call("update_experience", { experience: "osct", book: null });
     expect(seen.at(-1)!.body).toEqual({ book: null });
     expect(none.data.experience.book).toBeUndefined();
+    // The recognition path (#306, content schema 4.2): "original" (default) or "prepared", null = the default
+    expect((await rec.call("update_experience", { experience: "osct", recognition: "prepared" })).ok).toBe(true);
+    expect(seen.at(-1)!.body).toEqual({ recognition: "prepared" });
+    await expect(rec.call("update_experience", { experience: "osct", recognition: "compiled" })).rejects.toThrow();
     const before = seen.length;
     expect((await rec.call("update_experience", { experience: "osct" })).data.error.code).toBe("mcp");
     expect((await rec.call("update_experience", { experience: "osct", book: {} })).data.error.code).toBe("mcp");
@@ -444,13 +452,41 @@ describe("the content tools", () => {
     expect(cleared.data.cleared).toEqual({ entries: ["castle"], targets: ["castle-target"] });
   });
 
+  it("put_surface (#314): one surface added, changed, moved or removed – the scene's whole list sent, without the reference", async () => {
+    const added = await rec.call("put_surface", { experience: "osct", scene: "s2", surface: "wall", preset: "wall", label: "Wall", place: { x: 0, y: 750, z: -400, rx: 90 } });
+    expect(added.ok, JSON.stringify(added.data)).toBe(true);
+    expect(added.data.done).toBe("added");
+    expect(seen.at(-2)).toMatchObject({ method: "GET", path: "/editor/experiences/osct/scenes" });
+    expect(seen.at(-1)).toMatchObject({ method: "PUT", path: "/editor/experiences/osct/scenes/s2" });
+    expect(seen.at(-1)!.body).toEqual({ surfaces: [
+      { id: "left", widthMm: 230, heightMm: 320, place: { ...PLACE, x: -115 } },
+      { id: "right", widthMm: 230, heightMm: 320, place: { ...PLACE, x: 115 } },
+      { id: "wall", label: "Wall", widthMm: 2000, heightMm: 1500, place: { x: 0, y: 750, z: -400, rx: 90 } },
+    ] });
+    await rec.call("put_surface", { experience: "osct", scene: "s2", surface: "right", preset: "double", position: 0 });
+    expect((seen.at(-1)!.body as any).surfaces.map((s: { id: string; widthMm: number }) => `${s.id}:${s.widthMm}`)).toEqual(["right:460", "left:230"]);
+    // Removing a surface in use: the API's 409 with the hint, then apply after the person's yes
+    const inUse = await rec.call("put_surface", { experience: "osct", scene: "s2", surface: "left", remove: true });
+    expect(inUse.data.error).toMatchObject({ status: 409, code: "surfaces-in-use" });
+    expect(inUse.data.error.hint).toMatch(/put_surface.*apply: true/);
+    const removed = await rec.call("put_surface", { experience: "osct", scene: "s2", surface: "left", remove: true, apply: true });
+    expect(removed.data).toMatchObject({ done: "removed", cleared: { entries: ["castle"], targets: ["castle-target"] } });
+    expect(seen.at(-1)!.body).toEqual({ surfaces: [{ id: "right", widthMm: 230, heightMm: 320, place: { ...PLACE, x: 115 } }], apply: true });
+    // Refused before anything is written: a new surface without a size, an unknown scene, remove with fields
+    const writes = seen.length;
+    expect((await rec.call("put_surface", { experience: "osct", scene: "s2", surface: "new" })).data.error.message).toMatch(/needs its size/);
+    expect((await rec.call("put_surface", { experience: "osct", scene: "nope", surface: "x", preset: "single" })).data.error.message).toMatch(/no scene "nope"/);
+    expect((await rec.call("put_surface", { experience: "osct", scene: "s2", surface: "left", remove: true, label: "x" })).ok).toBe(false);
+    expect(seen.slice(writes).every(s => s.method === "GET")).toBe(true);
+  });
+
   it("the 2.x tools are gone: no spreads, pages, page images, matter or old migrations", () => {
     expect([...rec.tools.keys()].filter(name => /spread|page|matter|migrate/.test(name))).toEqual([]);
   });
 
   it("describe_content_model explains an entry's Markdown and variables, the experience with its printed book and that the onboarding is the app's (#223, #236, #320)", async () => {
     const model = (await rec.call("describe_content_model", {})).data;
-    expect(model.contentSchema).toBe("4.1");
+    expect(model.contentSchema).toBe("5.0");
     expect(model.spread).toBeUndefined();
     expect(model.book).toBeUndefined();
     expect(model.experience.description).toContain("book = BookData { author, publisher? }");
@@ -538,6 +574,15 @@ describe("the content tools", () => {
     const saved = await rec.call("set_asset_credits", { experience: "osct", items });
     expect(saved.ok).toBe(true);
     expect(saved.data.sent).toEqual({ items });
+  });
+
+  it("rename_asset sends one file's name by its id – an upload's or an imported one's (#330)", async () => {
+    const renamed = await rec.call("rename_asset", { experience: "osct", asset: "11111111-1111-4111-8111-111111111111", name: "Desk photo" });
+    expect(renamed.ok).toBe(true);
+    expect(renamed.data.sent).toEqual({ name: "Desk photo" });
+    expect(renamed.data.path).toBe("/editor/experiences/osct/assets/11111111-1111-4111-8111-111111111111");
+    expect((await rec.call("rename_asset", { experience: "osct", asset: "import-0123456789abcdef", name: "page" })).data.path).toBe("/editor/experiences/osct/assets/import-0123456789abcdef");
+    await expect(rec.call("rename_asset", { experience: "osct", asset: "../credits", name: "x" })).rejects.toThrow();
   });
 
   it("plan_asset_names answers the plan only, apply_asset_names writes it (#298)", async () => {

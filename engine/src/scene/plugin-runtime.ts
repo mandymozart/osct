@@ -1,3 +1,4 @@
+import { valueFits, type VariableInfo } from "@shared/types/variables";
 import { BEHAVIOUR_CORE_EVENTS, BEHAVIOUR_NAME_PATTERN, BEHAVIOUR_SCOPES, type BehaviourScope, type BehaviourValue, type Scene } from "../types/index";
 import { getScene } from "../content/game-config";
 
@@ -123,6 +124,17 @@ interface Listener { plugin: string; event: string; listener: EventListener; run
 let runs = 0;
 export const nextRun = (): number => ++runs;
 
+/** The rules' typed variables (schema 5.0, B7): a value of another type is refused, a declared one reads as its default */
+let variableTypes: ReadonlyMap<string, VariableInfo> = new Map();
+
+/** The scene sets the content's variable types (`getVariableTypes`) */
+export const setVariableTypes = (types: ReadonlyMap<string, VariableInfo>): void => {
+  variableTypes = types;
+};
+
+/** A variable's type, scope and default when the content types it */
+export const variableInfo = (name: string): VariableInfo | undefined => variableTypes.get(name);
+
 const listeners = new Set<Listener>();
 /** The editor's log: hears every delivery without being a plugin */
 const observers = new Set<(event: string, payload: unknown) => void>();
@@ -153,7 +165,12 @@ const experienceVars = () => progress.variables;
 const readVar = (name: string, scope: VarScope): VarValue | undefined =>
   scope === "experience" ? (experienceVars() ? experienceVars()!.get(name) : experienceInMemory.get(name)) : scopes[scope].get(name);
 
-const writeVar = (name: string, value: VarValue | null, scope: VarScope): void => {
+const writeVar = (name: string, value: VarValue | null, scope: VarScope, who = "a rule"): void => {
+  const typed = variableTypes.get(name);
+  if (typed && value !== null && !valueFits(typed.type, value)) {
+    console.warn(`[variables] ${who}: ${name} is ${typed.type === "integer" ? "an integer" : `a ${typed.type}`} (${typed.from}) – ${JSON.stringify(value)} refused, the value stays`);
+    return;
+  }
   const previous = readVar(name, scope);
   if (scope === "experience") {
     if (experienceVars()) experienceVars()!.set(name, value);
@@ -193,13 +210,14 @@ export const runtimeApi = (plugin: string, run = nextRun()): { events: PluginEve
           const value = readVar(name, s);
           if (value !== undefined) return value;
         }
-        return undefined;
+        // A declared variable that is not set reads as its default (schema 5.0, B7)
+        return variableTypes.get(name)?.default;
       },
       set: (name, value, scope = "scene") => {
         if (!EVENT_NAME_PATTERN.test(name)) throw new PluginRuntimeError(`${plugin}: "${name}" is not a variable name (camelCase letters and digits)`);
         if (!VAR_SCOPES.includes(scope)) throw new PluginRuntimeError(`${plugin}: the scope of ${name} must be ${VAR_SCOPES.join(", ")}`);
         if (value !== null && !isVarValue(value)) throw new PluginRuntimeError(`${plugin}: ${name} takes a string, a number or a boolean (null deletes)`);
-        writeVar(name, value, scope);
+        writeVar(name, value, scope, plugin);
       },
       on: (name, listener) => on("varChanged", payload => {
         const change = payload as CoreEvents["varChanged"];
@@ -289,8 +307,37 @@ export const allVars = (): Array<{ scope: VarScope; name: string; value: VarValu
  * A rule of a `behaviour` component fired (`behaviour.ts`): told to the observers only, as the pseudo-event `behaviour` –
  * the editor's log shows which rule ran and what it did; it is no event of the bus, plugins never hear it
  */
-export const noteBehaviour = (payload: { targetId: string; node?: string; rule: number; on: string; do: string }): void =>
+export const noteBehaviour = (payload: BehaviourNote): void =>
   observers.forEach(observer => observer("behaviour", payload));
+
+/**
+ * What the editor's log hears of a rule that fired: a node's rule names its target (and the node's name), a scene's or
+ * the experience's rule (schema 5.0) its `home` (and the scene)
+ */
+export type BehaviourNote =
+  | { targetId: string; node?: string; home?: undefined; rule: number; on: string; do: string }
+  | { home: "scene" | "experience"; scene?: string; targetId?: undefined; rule: number; on: string; do: string };
+
+/** Where a rule's `goto` goes (schema 5.0): the host's `ArSceneOptions.navigate`; none = a console note */
+let navigator: ((address: string) => void) | undefined;
+
+/** The scene sets the host's navigate from its options (none: a goto only logs) */
+export const setNavigator = (navigate: ((address: string) => void) | undefined): void => {
+  navigator = navigate;
+};
+
+/** A rule asks to go to an address (`scene:<id>`): the host resolves it – a host that gives no navigate only logs it */
+export const navigateTo = (address: string, from: string): void => {
+  if (!navigator) {
+    console.info(`[behaviour] ${from}: goto ${address} – the host gives no navigate, nothing happens`);
+    return;
+  }
+  try {
+    navigator(address);
+  } catch (error) {
+    console.error(`[behaviour] ${from}: goto ${address} failed:`, error);
+  }
+};
 
 /** Hear every event of the stage without being a plugin (the editor's log); returns the unsubscribe */
 export const observeEvents = (listener: (event: string, payload: unknown) => void): (() => void) => {

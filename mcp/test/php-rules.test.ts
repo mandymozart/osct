@@ -9,12 +9,18 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { MAX_NODE_DEPTH } from "../../shared/guards/game-config";
+import { MEDIA_LEVELS } from "../../shared/types/media-levels";
+import { BEHAVIOUR_ACTIONS, BEHAVIOUR_NODE_ACTIONS, BEHAVIOUR_NODE_EVENTS, RULE_HOMES } from "../../shared/types/behaviour";
+import { parseAddress } from "../../shared/types/address";
+import { BEHAVIOUR_SCOPES } from "../../shared/types/behaviour";
+import { VARIABLE_TYPES } from "../../shared/types/variables";
 import { APPEARANCE_TYPES, MOMENTS } from "../../shared/types/appearance";
 import { CONTENT_BUILD } from "../../shared/types/content-manifest";
 import { ENTRY_CATEGORIES } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS } from "../../shared/types/environment";
 import {
   COMPONENT_TYPE_PATTERN,
+  RECOGNITION_MODES,
   COMPONENT_TYPES,
   ENTITY_TYPES,
   MATERIAL_TYPE_PATTERN,
@@ -31,6 +37,7 @@ import {
   ENTRY_TAGS,
   ENV_NAME,
   ID_PATTERN,
+  MAX_TARGETS_PER_SCENE,
   isLinkUrl,
   PLUGIN_REGISTER_FUNCTIONS,
   pluginTypes,
@@ -54,6 +61,19 @@ const SOURCES = [
 /** Links an entry may or may not point to: both sides must judge them alike */
 const LINKS = ["https://example.org/a?b=1", "http://example.org", "HTTPS://EXAMPLE.ORG", "javascript:alert(1)", "https://", "https://exa mple.org", "mailto:a@b.c", "ftp://example.org", "/relative", "example.org"];
 
+/** Addresses both sides must judge alike (shared/types/address.ts – Logic::GOTO_ADDRESS, NODE_ADDRESS) */
+const ADDRESSES = ["scene:cover", "scene:a-b_1", "scene:", "scene:a/b", "target:door", "target:door/the hint", "target:door/a/b", "toon:x", "cover", "scene:a b"];
+
+/** Conditions of 2.19–4.x and the expressions Migration5 writes – scripts/test/convert-content-5.test.ts has the same cases */
+const CONDITIONS: Array<[unknown, unknown]> = [
+  [{ hasKey: true }, { expression: "hasKey == true", approximate: [] }],
+  [{ hasKey: true, tries: 3 }, { expression: "hasKey == true && tries == 3", approximate: [] }],
+  [{ any: { mood: "calm", tries: { not: 2.5 } } }, { expression: 'mood == "calm" || tries != 2.5', approximate: [] }],
+  [{ said: 'a "quote" \\ here' }, { expression: 'said == "a \\"quote\\" \\\\ here"', approximate: [] }],
+  [{ doorOpen: null, lamp: { not: null } }, { expression: "!doorOpen && lamp", approximate: ["doorOpen", "lamp"] }],
+  [{ n: -0.5, f: false }, { expression: "n == -0.5 && f == false", approximate: [] }],
+];
+
 /** The PHP API's constants, read by PHP itself, and what `Plugins::registers` reads from SOURCES */
 function readPhp(): Record<string, unknown> {
   const code = `
@@ -74,9 +94,11 @@ function readPhp(): Record<string, unknown> {
       'TEXTS' => ['text' => ExperienceTexts::TEXT_MAX_LENGTH, 'body' => ExperienceTexts::BODY_MAX_LENGTH, 'tags' => ExperienceTexts::TAGS_MAX, 'tag' => ExperienceTexts::TAG_MAX_LENGTH],
       'links' => array_map(static fn(string $url): bool => ExperienceTexts::isLinkUrl($url), $input['links']),
       'MAX_NODE_DEPTH' => Editor::MAX_NODE_DEPTH,
+      'MAX_TARGETS_PER_SCENE' => Deliveries::MAX_TARGETS_PER_SCENE,
       'SCENES' => ['presets' => Scenes::PRESETS, 'pageMm' => Scenes::PAGE_MM, 'wallMm' => Scenes::WALL_MM, 'surfacesMax' => Scenes::SURFACES_MAX, 'referenceFits' => SurfaceReferences::FITS],
       'PASS_TYPES' => Experiences::PASS_TYPES,
       'MOMENTS' => Experiences::MOMENTS,
+      'RECOGNITION_MODES' => Experiences::RECOGNITION_MODES,
       'APPEARANCE_TYPES' => Experiences::APPEARANCE_TYPES,
       'PLUGIN_PASS_TYPE' => Experiences::PLUGIN_PASS_TYPE,
       'WORLDS' => Experiences::WORLDS,
@@ -88,12 +110,18 @@ function readPhp(): Record<string, unknown> {
       'PLUGIN_ID' => Plugins::ID,
       'ASSET_KINDS' => Assets::KINDS,
       'CREDITS' => [Assets::CREDITS_BATCH_MAX, Assets::CREDITS_MAX],
+      'MEDIA_LEVELS' => Editor::MEDIA_LEVELS,
       'IMAGE' => ['maxSide' => Assets::IMAGE_MAX_SIDE, 'quality' => Assets::IMAGE_WEBP_QUALITY, 'maxPixels' => Assets::IMAGE_MAX_PIXELS],
+      'VARIABLES' => [Logic::VARIABLE_TYPES, Logic::SCOPES],
+      'LOGIC' => ['actions' => Logic::ACTIONS, 'nodeActions' => Logic::NODE_ACTIONS, 'nodeEvents' => Logic::NODE_EVENTS, 'homes' => Logic::HOMES,
+        'goto' => array_map(static fn(string $a): bool => (bool) preg_match('#' . Logic::GOTO_ADDRESS . '#', $a), $input['addresses']),
+        'node' => array_map(static fn(string $a): bool => (bool) preg_match('#' . Logic::NODE_ADDRESS . '#s', $a), $input['addresses'])],
+      'conditions' => array_map(static fn(mixed $when): array => Migration5::expression(json_decode(json_encode($when))), $input['conditions']),
       'REGISTERS' => $registers,
       'registers' => array_map(static fn(string $source): array => Plugins::registers($source), $input['sources']),
     ], JSON_THROW_ON_ERROR);
   `;
-  const run = spawnSync("php", ["-r", code], { input: JSON.stringify({ src: SRC, sources: SOURCES, links: LINKS }), encoding: "utf8" });
+  const run = spawnSync("php", ["-r", code], { input: JSON.stringify({ src: SRC, sources: SOURCES, links: LINKS, addresses: ADDRESSES, conditions: CONDITIONS.map(([when]) => when) }), encoding: "utf8" });
   if (run.status !== 0) throw new Error(`php failed: ${run.stderr || run.stdout}`);
   return JSON.parse(run.stdout) as Record<string, unknown>;
 }
@@ -115,6 +143,18 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(php.TEXTS).toEqual({ text: TEXT_MAX_LENGTH, body: BODY_MAX_LENGTH, tags: ENTRY_TAGS.max, tag: ENTRY_TAGS.length });
     expect(php.links).toEqual(LINKS.map(isLinkUrl));
     expect(LINKS.map(isLinkUrl)).toEqual([true, true, true, false, false, false, false, false, false, false]);
+  });
+
+  it("rules without code: the verbs, the node events, the homes and the addresses (Logic, content schema 5.0)", () => {
+    expect(php.VARIABLES).toEqual([[...VARIABLE_TYPES], [...BEHAVIOUR_SCOPES]]);
+    expect(php.LOGIC).toMatchObject({ actions: [...BEHAVIOUR_ACTIONS], nodeActions: [...BEHAVIOUR_NODE_ACTIONS], nodeEvents: [...BEHAVIOUR_NODE_EVENTS], homes: [...RULE_HOMES] });
+    const logic = php.LOGIC as { goto: boolean[]; node: boolean[] };
+    expect(logic.goto).toEqual(ADDRESSES.map(a => parseAddress(a)?.scheme === "scene"));
+    expect(logic.node).toEqual(ADDRESSES.map(a => parseAddress(a)?.scheme === "target"));
+  });
+
+  it("the migration to 5.0 writes the expressions convert-content-5 writes (Migration5::expression)", () => {
+    expect(php.conditions).toEqual(CONDITIONS.map(([, expected]) => expected));
   });
 
   it("the content schema the editor reads and the draft writes (Editor::CONTENT_SCHEMA, #319)", () => {
@@ -140,6 +180,7 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
   it("passes (the built-in list), the appearance's moments and looks, and the environment (Experiences)", () => {
     expect(php.PASS_TYPES).toEqual([...PASS_TYPES]);
     expect(php.MOMENTS).toEqual([...MOMENTS]);
+    expect(php.RECOGNITION_MODES).toEqual([...RECOGNITION_MODES]);
     expect(php.APPEARANCE_TYPES).toEqual([...APPEARANCE_TYPES]);
     expect(php.WORLDS).toEqual([...ENVIRONMENT_WORLDS]);
     expect(php.WORLD_MODEL_EXTENSIONS).toEqual([...WORLD_MODEL_EXTENSIONS]);
@@ -162,8 +203,16 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(Object.keys(byKind).sort()).toEqual([...ASSET_KINDS].sort());
   });
 
+  it("the most targets switched on per scene (RULES #3, Deliveries::MAX_TARGETS_PER_SCENE, #322)", () => {
+    expect(php.MAX_TARGETS_PER_SCENE).toBe(MAX_TARGETS_PER_SCENE);
+  });
+
   it("the credits limits (#277, Assets::CREDITS_*)", () => {
     expect(php.CREDITS).toEqual([CREDITS_BATCH_MAX, CREDITS_MAX]);
+  });
+
+  it("the media levels per kind (#331, Editor::MEDIA_LEVELS, content schema 4.3)", () => {
+    expect(php.MEDIA_LEVELS).toEqual(MEDIA_LEVELS);
   });
 
   it("the image rule (#298, Assets::IMAGE_*): the longest side per use, the WebP quality, the pixel limit", () => {

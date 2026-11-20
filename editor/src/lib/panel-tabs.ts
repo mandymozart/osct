@@ -29,4 +29,6 @@ export const firstTab = (asked: string | null | undefined, stored: string | null
  */
 export const WORD_TABS_MIN = { fine: 24 * 16, coarse: 28 * 16 } as const;
 
-export const wordTabs = (panelWidth: number, coarse: boolean): boolean => panelWidth >= WORD_TABS_MIN[coarse ? "coarse" : "fine"];
+/** `count`: how many tabs the head shows (#318 – any panel holds any tabs); the least width grows with them, 4 tabs = `WORD_TABS_MIN` */
+export const wordTabs = (panelWidth: number, coarse: boolean, count = 4): boolean =>
+  panelWidth >= (WORD_TABS_MIN[coarse ? "coarse" : "fine"] * Math.max(1, count)) / 4;

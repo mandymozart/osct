@@ -17,7 +17,9 @@ declare(strict_types=1);
  * A change is reverted only while its thing still holds what the change wrote (`after`); otherwise it is a **conflict**:
  * listed, never overwritten, and the older changes of that thing are skipped as well. Kinds the log cannot take back –
  * a creation, a removal, an entry moved to another surface, a plugin source, a deleted file, a change saved before the
- * content schema 3.0 and the migration itself – are listed as not revertable.
+ * content schema 3.0 and the migration itself – are listed as not revertable. A delivery's new scene, entry or target
+ * (#322, `changes.delivery_id`) is the exception among the creations: it is removed again – a target first, an entry once
+ * it has no target, a scene once nothing lies on it and the experience does not open on it (a conflict otherwise).
  * A revert changes the draft only; readers see it with the next publish.
  *
  * A surface's reference image (#314, kind `reference`, ref `<scene>/<surface>`) is revertable both ways – set, replaced
@@ -26,9 +28,11 @@ declare(strict_types=1);
 final class Reverts
 {
     /** The experience's own JSON (`experiences.experience_json`): a change of one of these kinds compares and restores only the fields it changed */
-    private const EXPERIENCE_KINDS = ['environment', 'passes', 'appearance', 'experience'];
+    private const EXPERIENCE_KINDS = ['environment', 'passes', 'appearance', 'experience', 'logic', 'variables'];
     /** Kinds of rows the log can restore */
     private const ROW_KINDS = ['entity', 'target', 'entry', 'scene'];
+    /** Kinds of rows a delivery makes (#322, Deliveries): their creation is revertable – the row is removed again */
+    private const DELIVERED_KINDS = ['entry', 'target', 'scene'];
     /** At most this many changes in one revert */
     public const MAX = 2000;
 
@@ -81,6 +85,8 @@ final class Reverts
         // The migration to schema 3.0 (#319, its code is gone) wrote its changes with the kind `migration`
         if ($kind === 'migration') return 'The migration to the content schema 3.0 – not revertable.';
         if ($kind === 'plugin') return 'A plugin source – change it in the Code tab.';
+        // A delivery's new scene, entry or target (#322): reverted by removing it again
+        if ($row['before_json'] === null && self::deliveredRow($row)) return null;
         if ($row['before_json'] === null) return 'A creation – remove it instead.';
         if ($row['after_json'] === null || $row['after_json'] === 'null') return 'A removal – it cannot be brought back from the log.';
         $before = Editor::decode($row['before_json']);
@@ -242,6 +248,14 @@ final class Reverts
                 else $blocked[$key] = true;
                 continue;
             }
+            // A delivery's new row goes again only when nothing else hangs on it (#322)
+            $inUse = $before === null && self::deliveredRow($row) ? self::inUse($experienceId, (string) $row['kind'], (string) $row['ref'], $state) : null;
+            if ($inUse !== null) {
+                $items[] = $item + ['status' => 'conflict', 'reason' => $inUse];
+                $counts['conflict']++;
+                $blocked[$key] = true;
+                continue;
+            }
             $next = $key === 'experience' ? self::withFields($current, $before, $fields) : $before;
             $state[$key] = $next;
             if ($apply) $written[] = self::write($experienceId, $key, (string) $row['kind'], (string) $row['ref'], $current, $next, $user, (string) $set, (string) $row['id']);
@@ -255,6 +269,37 @@ final class Reverts
             'set' => $written ? $set : null,
             'written' => $written,
         ];
+    }
+
+    /**
+     * A row a delivery made (#322): its creation is taken back by removing it
+     * @param array<string, mixed> $row
+     */
+    private static function deliveredRow(array $row): bool
+    {
+        return ($row['delivery_id'] ?? null) !== null && in_array($row['kind'], self::DELIVERED_KINDS, true)
+            && Editor::decode($row['after_json']) instanceof stdClass;
+    }
+
+    /**
+     * Why a delivery's new entry or scene cannot go again, null when it can: an entry with a target, a scene with entries
+     * or the one the experience opens on – unless the same plan removes those first (`$state`: null = removed)
+     * @param array<string, mixed> $state
+     */
+    private static function inUse(string $experienceId, string $kind, string $ref, array $state): ?string
+    {
+        $params = ['experience' => $experienceId, 'id' => $ref];
+        $kept = static fn(string $what, array $ids): array => array_values(array_filter(array_map('strval', $ids), static fn(string $id) => !(array_key_exists("$what:$id", $state) && $state["$what:$id"] === null)));
+        if ($kind === 'entry') {
+            $targets = $kept('target', Db::run('SELECT id FROM targets WHERE experience_id = :experience AND entry_id = :id', $params)->fetchAll(PDO::FETCH_COLUMN));
+            return $targets ? 'It has a target (' . implode(', ', $targets) . ') – remove that first.' : null;
+        }
+        if ($kind === 'scene') {
+            if (Db::value('SELECT initial_scene FROM experiences WHERE id = :id', ['id' => $experienceId]) === $ref) return 'The experience opens on this scene.';
+            $entries = $kept('entry', Db::run('SELECT id FROM entries WHERE experience_id = :experience AND scene_id = :id', $params)->fetchAll(PDO::FETCH_COLUMN));
+            return $entries ? 'Entries lie on it (' . implode(', ', array_slice($entries, 0, 5)) . (count($entries) > 5 ? ', …' : '') . ') – move or remove them first.' : null;
+        }
+        return null;
     }
 
     /** Whether the thing's current value is what the change wrote (the experience: only the fields it changed) */
@@ -315,7 +360,15 @@ final class Reverts
         $json = Editor::encode($next);
         $before = Editor::encode($current);
         $params = ['experience' => $experienceId];
-        if ($key === 'experience') {
+        if ($next === null && in_array($kind, self::DELIVERED_KINDS, true)) {
+            // A delivery's new row taken back (#322): removed – a scene with its reference images, the others closing up
+            $table = ['entry' => 'entries', 'target' => 'targets', 'scene' => 'scenes'][$kind];
+            Db::run("DELETE FROM $table WHERE experience_id = :experience AND id = :id", $params + ['id' => $ref]);
+            if ($kind === 'scene') {
+                Db::run('DELETE FROM surface_references WHERE experience_id = :experience AND scene_id = :scene', $params + ['scene' => $ref]);
+                Scenes::writePositions($experienceId, Scenes::rows($experienceId, true), null);
+            }
+        } elseif ($key === 'experience') {
             Db::run('UPDATE experiences SET title = :title, experience_json = :data WHERE id = :experience',
                 $params + ['title' => (string) ($next->title ?? ''), 'data' => $json]);
         } elseif ($kind === 'groups') {

@@ -1,5 +1,6 @@
 import type { TargetData, TargetRecognitionData } from '../../../shared/types/game-config';
 import { decodePrintedImage, framePng, recognitionData, recognitionFrame } from './recognition';
+import { RECOGNITION_FRAME_FILE, recognitionFrameName } from '../../../engine/src/scene/target-frame';
 
 /**
  * `osct targets prepare` (#306): every target of an experience gets its recognition data made ahead from its printed image
@@ -95,7 +96,7 @@ export function editorApi(api: string, token: string, fetcher: typeof fetch = fe
     upload: async (experience, name, bytes) => {
       const response = await call(`${experiencePath(experience)}/assets`, {
         method: 'POST',
-        headers: { 'Content-Type': 'image/png', 'X-File-Name': name },
+        headers: { 'Content-Type': RECOGNITION_FRAME_FILE.type, 'X-File-Name': name },
         body: bytes,
       });
       const { asset } = await response.json() as { asset: { url: string } };
@@ -134,7 +135,7 @@ export async function prepareTargets(
     const image = await decodePrintedImage(printed);
     const png = framePng(recognitionFrame(image));
     const makeMs = performance.now() - begun;
-    const url = await api.upload(experience, `${target.id}_recognition.png`, png);
+    const url = await api.upload(experience, recognitionFrameName(target.id), png);
     const recognition = recognitionData(url, image);
     try {
       await api.putRecognition(experience, target.id, target.imageSrc, recognition);

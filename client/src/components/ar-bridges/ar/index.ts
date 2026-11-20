@@ -33,8 +33,10 @@ export const readerProgress = (): ProgressReader => {
   };
 };
 
-export const createReaderScene = (container: HTMLElement): IArScene =>
+/** `navigate`: a rule's `goto` (schema 5.0) – the bridge resolves the address through the router (`resolveAddress`) */
+export const createReaderScene = (container: HTMLElement, navigate?: (address: string) => void): IArScene =>
   new ArScene(container, {
+    navigate,
     createTracker: ({ container, options }) => new ImageTracker(container, options, XR8_BASE),
     graphics: GraphicsService.getInstance(),
     progress: readerProgress(),

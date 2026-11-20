@@ -14,17 +14,24 @@ import type { ExperienceAppearance } from "./appearance";
 import type { EnvironmentData } from "./environment";
 import type { LightData } from "./lights";
 import type { TextureSetData } from "./textures";
+import type { MediaLevelData } from "./media-levels";
 import type { PassData } from "./passes";
 import type { PluginData } from "./plugins";
 import type { MaterialData } from "./materials";
 import type { SubtitleData } from "./subtitles";
+import type { LogicData } from "./logic";
+import type { VariableDeclaration } from "./variables";
 
 export * from "./filters";
 export * from "./placement";
 export * from "./components";
 export * from "./behaviour";
+export * from "./address";
+export * from "./logic";
+export * from "./variables";
 export * from "./lights";
 export * from "./textures";
+export * from "./media-levels";
 export * from "./passes";
 export * from "./appearance";
 export * from "./plugins";
@@ -72,12 +79,31 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *
  * **4.1** (#306): a target's optional `recognition` – the image tracker's data made ahead from its printed image
  * (`osct targets prepare`); an older app ignores it and makes that data from the image itself, as before.
+ *
+ * **4.2** (#306): the switch between both paths – the experience's optional `recognition` (`"original"`, the default:
+ * every target's data is made from its printed image on the device, as before; `"prepared"`: a target's `recognition`
+ * is used where it has one) and a target's optional `recognitionOff` (`true`: always its printed image, even when the
+ * experience says prepared). An app of 4.1 ignores both and uses a target's `recognition` wherever it has one.
+ *
+ * **4.3** (#331): media in quality levels (`./media-levels.ts`) – an image, video or audio asset's optional `levels` and an
+ * entry's optional `imageLevels`; the reader loads the level its media quality chooses. An app of 4.2 ignores both and
+ * loads the medium's own `src`, as before.
+ *
+ * **5.0** (#334, agents/research/2026-11-20-logic-nodes-shared-concept.md §5.4): logic beyond the nodes. A rule's `when`
+ * is an expression of the experience's expression language (`hasKey && tries > 2`, `../text/expressions.ts`) – the
+ * object form (`{ hasKey: true }`, `{ any: … }`, `{ not: … }`) is gone; a scene's and the experience's optional `logic`
+ * (`{ rules, canvas? }`, `./logic.ts`) hold rules in the behaviour's grammar that hear the bus and name nodes by address
+ * (`target:<targetId>/<node name>`, `./address.ts`); every rule gains the action `goto` (`scene:<id>`). The canvas is
+ * authoring data and never in a reader's configuration. A `set` value is an expression (`tries + 1`; a text is the
+ * language's literal `"calm"`), and variables are typed – declared in the experience's optional `variables` or inferred
+ * from their first set (`./variables.ts`). 4.x content is not read (its conditions have the old shape):
+ * the content build converts a content folder (`npm run convert:5`), the server migrates its rows (`Migration5.php`).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "4.1";
-/** The oldest content schema MAJOR this contract reads – 4: no 3.x content is read (no reader of it was shipped) */
-export const OLDEST_READABLE_SCHEMA_MAJOR = 4;
+export const CONTENT_SCHEMA_VERSION = "5.0";
+/** The oldest content schema MAJOR this contract reads – 5: no 4.x content is read (5.0 reshaped every rule's `when`) */
+export const OLDEST_READABLE_SCHEMA_MAJOR = 5;
 
 export interface ContentSchema {
   major: number;
@@ -114,7 +140,28 @@ export interface ExperienceData {
   appearance?: ExperienceAppearance;
   /** Optional (schema 4.0): the printed book this experience accompanies – none: not a book (a wall, a room, an exhibition) */
   book?: BookData;
+  /**
+   * Optional (schema 4.2, #306): how the reader gets its targets' recognition data – `"original"` (none = the default):
+   * made from each printed image on the device, the path tested with every target; `"prepared"`: a target's
+   * `recognition` made ahead where it has one (and no `recognitionOff`), else its printed image. A device's debug switch
+   * may override it (`engine/src/utils/recognition-setting.ts`). Any other text reads as `"original"`.
+   */
+  recognition?: RecognitionMode;
+  /**
+   * Optional (schema 5.0, #334): the experience's rules – live for the whole session, across scene switches
+   * (`./logic.ts`); its canvas never reaches a reader
+   */
+  logic?: LogicData;
+  /**
+   * Optional (schema 5.0, #334 B7): the rules' variables declared – name → `{ type, scope?, default? }` (`./variables.ts`);
+   * an undeclared variable takes the type of its first set
+   */
+  variables?: Record<string, VariableDeclaration>;
 }
+
+/** How the reader gets its targets' recognition data (schema 4.2, #306): `ExperienceData.recognition` */
+export const RECOGNITION_MODES = ["original", "prepared"] as const;
+export type RecognitionMode = (typeof RECOGNITION_MODES)[number];
 
 /** The printed book an experience accompanies (schema 4.0, #320): print data only */
 export interface BookData {
@@ -178,6 +225,8 @@ export interface SceneData {
   surfaces: SurfaceData[];
   /** Optional (schema 2.5): the post-processing passes over this scene's rendered image, in order; replaces the experience's (`[]` = none) */
   passes?: PassData[];
+  /** Optional (schema 5.0, #334): the scene's rules – live while the scene is open (`./logic.ts`); its canvas never reaches a reader */
+  logic?: LogicData;
 }
 
 export interface AssetData {
@@ -186,6 +235,11 @@ export interface AssetData {
   src: string;
   /** Optional (schema 2.27), a model file only (glb / gltf): its maps in several sizes */
   textures?: TextureSetData[];
+  /**
+   * Optional (schema 4.3, #331), an image, video or audio file only: the medium in several quality levels (image px,
+   * video height, audio kbps – `MEDIA_LEVELS`); `src` stays the file an older app loads
+   */
+  levels?: MediaLevelData[];
 }
 
 /**
@@ -262,6 +316,11 @@ export interface TargetData {
    * – none = the reader makes it from `imageSrc` when the scene opens. The API drops it whenever `imageSrc` changes.
    */
   recognition?: TargetRecognitionData;
+  /**
+   * Optional (schema 4.2, #306): `true` = this target always uses its printed image, even when the experience says
+   * `recognition: "prepared"` – the target keeps its `recognition`; none or `false` = the experience decides
+   */
+  recognitionOff?: boolean;
 }
 
 /**
@@ -298,6 +357,8 @@ export interface EntryData {
   body: string;
   author?: string; // texts
   image?: string;
+  /** Optional (schema 4.3, #331), with `image` only: the picture in several sizes (longest side 512 / 1024 / 2048 px) */
+  imageLevels?: MediaLevelData[];
   /** Optional (schema 2.34, #289): the line under the picture ("Image: … by …"), plain text */
   caption?: string;
   media?: string; // links: external URL

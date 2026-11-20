@@ -32,6 +32,287 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   workflow *Content*): the one-off copy of the old environment folders into the store per experience – nothing is
   deleted unless asked, and only once every file arrived (docs/content-cdn.md "Moving to the store per experience").
 
+## 4.0.0 – 2026-11-20
+
+**Content schema 5.0 – a MAJOR** (#334 L-T5, `agents/research/2026-11-20-logic-nodes-shared-concept.md` §5.4): a 4.x app
+refuses 5.0 content and a 5.0 app refuses 4.x (`OLDEST_READABLE_SCHEMA_MAJOR` 5). Content migrates: a content folder with
+`npm run convert:5` (done for `fixtures/content` and `fixtures/demo`), the server's rows by `Migration5` on the deploy
+(dry run first: `php server/deploy/migrate.php --plan-5`); every published experience is published again afterwards.
+
+### Changed
+- **A rule's condition is an expression**: `when: hasKey && tries > 2` – the language of the entries' `{…}` texts
+  (`shared/text/expressions.ts`, SCUTOONS' / ink's), now also as one expression without braces (`parseExpression`,
+  `evaluateExpression`, `expressionVariables`, `expressionLiteral`). The engine evaluates it over `api.vars`; a condition
+  that does not parse never runs (logged once). The guard, the content build, the MCP server's content model and the PHP
+  API (the shapes) follow.
+- **The engine's rules runtime** (`engine/src/scene/behaviour.ts`): one runner for a node's behaviour and the new scene and
+  experience logic.
+
+### Added
+- **A scene's and the experience's logic** (`SceneData.logic`, `ExperienceData.logic`: `{ rules, canvas? }`, `shared/types/logic.ts`):
+  rules in the behaviour's grammar that hear the bus (scene events and core events – no node event) and name nodes by
+  address (`target:<targetId>/<node name>`). A scene's rules live while it is open; the experience's live for the whole
+  session, across scene switches; both hear `sceneChanged` once the new scene's nodes are built. The editor API stores them:
+  `PUT …/scenes/{sid}` `{ logic }`, `PUT …/logic` (change kind `logic`); the import checks them; MCP `put_scene` takes `logic`.
+- **`goto`** in every rule: `{ goto: "scene:<id>" }` – the engine asks the host (`ArSceneOptions.navigate`); the reader opens
+  the scene as a link to `/scene/<id>` does, an unknown address only logs. The guard and the content build check the scene
+  exists. Addresses: `shared/types/address.ts` (`parseAddress`, `formatAddress`; SCUTOONS' grammar, room for `toon:`,
+  `chapter:` and a later `via`).
+- **The canvas** (`LogicCanvas`: `groups`, `notes`, `folds`): the Logic view's authoring data beside a scene's or the
+  experience's rules – in the database, the draft and the export, never in a reader's configuration (the content build and
+  a publish strip it).
+- **`Migration5.php`**: every stored condition to an expression, idempotent, with a dry run (`migrate.php --plan-5`:
+  rows per table, conditions converted, approximate *not set* tests, the ones it cannot convert and why).
+- **A `set` value is an expression** (B2): `set: { tries: "tries + 1" }` – a counter without a special node; a text value is
+  the literal `"calm"` (YAML `'"calm"'`), a number or true / false may stand bare. 4.x text values are quoted by the
+  migration.
+- **Typed variables** (B7, `shared/types/variables.ts`): `experience.variables` (`{ name: { type, scope?, default? } }`,
+  type number / integer / boolean / string) or the type of a variable's first set; expressions typed with the parser's
+  tree (`expressionType`). A set or a comparison of another type and a `when` that is not true / false are problems (guard,
+  content build); the engine refuses a wrongly typed value – a plugin's too – and keeps the old one; a declared variable
+  reads as its default. `PUT …/variables` (change kind `variables`). Migration5 declares an old experience's variables
+  from its sets and reports the conflicts.
+- **`npm run convert:5`** (`scripts/`): a content folder's conditions to expressions and set texts to literals, once.
+- The fixture: a node rule with an expression and a `goto`, a scene rule and two experience rules (one a `goto`), a canvas
+  the build leaves out.
+- **Editor on 5.0** (#334 L-T5b):
+  - **Conditions and set values as expressions** in the Inspector: one monospace field each, checked as you type – a parse
+    error, a type error (against the variable's declared or inferred type) or a condition that is no true / false shows
+    under the field and is **not saved** (B8); the next text that checks out is. A set's scope is optional (*declared* /
+    *scene (default)* / a scope). The rule's type problems show under it.
+  - **A scene's and the experience's rules** in the Inspector – the scene's under the scene, the experience's under the
+    experience (⚙) – reusing the rule list: they hear the bus only, name a node of the scene's targets (the experience's:
+    any scene's) by address `target:<id>/<name>`, and save themselves with `PUT …/scenes/{sid}` `{ logic }` and
+    `PUT …/logic` (History lists them, Undo takes them back; the draft's canvas is kept). **goto** is an action everywhere:
+    pick a scene.
+  - **Variables** beside the experience's rules: name, type, scope, default per declaration (`PUT …/variables`), the
+    inferred ones shown as inferred with *declare*; a bad name or a default of another type is refused with the reason.
+  - **The Logic panel**: scene rule boxes on the scene level, experience rule boxes on the experience level, both editable
+    there (the group level stays read-only, the experience level edits its own rules only). goto: a stub at the scene
+    level (*→ Epilogue · goto*, dash-dot), derived scene → scene edges on the group and experience levels, an experience
+    rule's goto as a wire into the scene box – connect a rule's do into a scene box to add one, disconnect it to remove it.
+    `when` wires come from the condition's variables; wiring a variable in appends `name` (true / false) or
+    `name == <its default or a typed placeholder>` with `&&` and says so; cutting one takes its terms out of a top-level
+    `&&` / `||` chain, anything deeper is refused with *edit the condition in the Inspector*. A set's wire shows its
+    expression (`set = taps + 1`). The problem list adds the rules' type problems, the experience rules' missing nodes and
+    gotos to scenes that are not there.
+  - **The stage and goto**: the stage stays on its scene; the timeline logs a goto with a link that opens the scene.
+  - History names the change kinds `logic` (*Experience rules*) and `variables`.
+
+### Removed
+- The object form of a condition (`{ hasKey: true }`, `{ any: … }`, `{ not: … }`) and its types (`BehaviourCondition`,
+  `BehaviourTest`) – `BehaviourRule.when` is the expression's text.
+
+## 3.21.2 – 2026-11-20
+
+### Fixed
+- **Local MariaDB** (`docker-compose.yml`): a new database volume no longer fails to start. Docker's init step ran
+  `schema.mysql.sql` raw and stopped at its first rename for older databases (`spreads` → `scenes`). The first start
+  now creates the empty database, and `php server/deploy/migrate.php` (Db::migrate) creates the tables, as
+  `scripts/db/pull-staging.sh` already does.
+
+## 3.21.1 – 2026-11-20
+
+### Changed
+- **Editor – cutting a rule's *on*** (#334): Delete on a rule's *on* wire, or on a by-name event stub whose listening side is
+  here (*keyRattled ← emitted in Cover*), no longer refuses. The rule's *on* is left empty; it hears nothing, and the Logic
+  panel lists it as a problem (*Door · rule 3 hears nothing – wire an event to its on*) until an event is wired to it
+  again. The reader no longer subscribes to an empty event name.
+
+## 3.21.0 – 2026-11-20
+
+### Added
+- **Editor – editing the logic in the graph** (#334 L-T4): on a scene's and a target's level of the Logic panel the rules
+  of the open scene's nodes are edited on the canvas. Dragging from a port to a port connects them as the rule grammar
+  allows – an event into a rule's *on* makes the rule hear it (by name, as the bus does), a variable into *when* adds a
+  condition, a rule's **+** outlet into a node, a variable or an event adds a show, set or emit action, an action's own
+  outlet re-aims it; only the inlets that would take the wire light up. Delete on a selected wire removes the condition or
+  the action it stands for (a wire that only joins by name removes the name from the listening rules here, and says so),
+  on a selected rule removes the rule. A **right click** opens a menu: on the empty canvas (or with the panel's **+**)
+  what can be added here – a rule on the selected node, an action or a condition for the selected rule – with a filter
+  field on top (typing `emit doorOpened`, `set hasKey`, `when hasKey` or `rule on bellRang` adds a new name); on a box or a
+  wire its actions. Every edit is shown in words for a moment under the panel's bar, and an edit the grammar does not
+  allow is refused with the reason. Edits go the Inspector's way: live on the stage at once, saved by themselves, a step
+  in History that undo takes back. The experience and group levels stay read-only. Delete and Backspace in the panel no
+  longer reach the workspace (they never remove the selected tree node).
+- **Editor – nodes in the Library** (#334 L-T4): the Library's kind **Nodes** lists the logic's node types (the core's
+  events, rules, variables and verbs, and any a plugin registers, with their owner); dragging one onto the Logic canvas
+  opens the same add menu there with that type's choices. A file dragged onto the Logic canvas is refused with a hint
+  (file nodes come later).
+
+## 3.20.0 – 2026-11-20
+
+### Added
+- **Editor – navigating the logic** (#334 L-T3): the Logic panel shows the experience's logic one level at a time – the
+  experience, a group, a scene, a target's entity. A double-click, Enter or a box's arrow opens a level, the breadcrumb and
+  ↑ / Backspace go back up, a stub at the level's border goes to its far end, and a search finds any box of the experience
+  and its scenes. The stage follows (entering a scene opens it, entering an entity selects its node) and, with *Follow* on,
+  the view follows a selection made elsewhere. The level is kept in the URL as `?logic=` (`experience`, `group:<id>`,
+  `scene:<id>`, `entity:<scene>:<target>[:<path>]`, replaced in place – no history entry per step), so a reload or a
+  link lands on it. The graph is drawn with `@xyflow/svelte` as the rendering layer only (pan, zoom, fit; loaded on first
+  use), ports and wires distinguished by shape and dash. An event between two scenes is drawn as *never fires*: the engine
+  builds only the open scene's rules.
+
+## 3.19.1 – 2026-11-20
+
+### Changed
+- **Editor – the logic model** (#334 L-T1, L-T2): the Logic panel's graph now comes from one pure module,
+  `editor/src/lib/logic/` – the types of the shared logic model (ports, signals, edges that name the document place they
+  come from, stubs, levels), a node type registry with the core's families and verbs, and `project(content, context)`,
+  which computes the view of the experience, a group, a scene or one target's entity tree, with stubs for what crosses
+  the level and derived edges between scenes for variables and events. The panel still shows the scene level as before;
+  navigating the levels comes next.
+
+## 3.19.0 – 2026-11-20
+
+### Added
+- **MCP – deliveries** (#322 T8): `preview_delivery` shows what a publisher's delivery plan (`DeliveryPlan`, inline or a
+  JSON file) would do to the draft – a summary for the person (new / changed / same / conflict, problems, warnings) and a
+  confirmation; `import_delivery` writes it in two steps as `import_experience` – only with `confirm`, and only when the
+  comparison is still the one the person saw; `list_deliveries` lists the applied deliveries. docs/mcp.md "A publisher's
+  delivery".
+- **Server – the list of deliveries** (#322 T8): `GET /editor/experiences/{id}/deliveries?limit=` – the applied
+  deliveries newest first, with their counts and the number of changes naming each (`DeliveryRecord` in
+  `shared/api/deliveries.ts`).
+
+## 3.18.0 – 2026-11-20
+
+### Added
+- **Server – deliveries through the API** (#322 T5): `POST /editor/experiences/{id}/deliveries` takes a publisher's
+  delivery as a plan (scenes, entries with their targets, Library files by id or URL – `shared/api/deliveries.ts`) and
+  answers the comparison per scene, entry and target (new / changed / same / conflict – a conflict is a field edited in
+  the editor since the last delivery, from the change log); with `apply: true` it writes everything in one transaction.
+  Each write is a change naming the delivery (`changes.delivery_id`, `delivery` in `GET …/changes`), the delivery a row of
+  the new table `deliveries`; existing entries keep their texts. At most 10 targets switched on per scene
+  (`MAX_TARGETS_PER_SCENE` in `shared/api/rules.ts`, RULES #3) – the API checks it on a delivery. docs/server.md
+  "Deliveries".
+
+### Changed
+- **Server – reverting a delivery** (#322): the revert takes a delivery's new scenes, entries and targets back by removing
+  them (a target first, an entry without a target, a scene nothing lies on) – other creations stay not revertable.
+
+## 3.17.0 – 2026-11-20
+
+### Added
+- **The export read endpoint** (#322 T1): `GET /editor/experiences/{id}/export[?build=]` answers everything an export of
+  the experience needs in one read – the draft's configuration (the same assembly as the draft and Publish) or a published
+  version's from the content store, every file it names with URL, content path, size and checksum where known (a Library
+  upload's full sha256, an imported file's size and `v`; the rest marked `unknown`), the print layout (`layout/layout.json`
+  and its sheets), the Code tab's sources and the Library's credit lines. Editors only, like the draft. Typed as
+  `ExperienceExport` in `shared/api/editor.ts`; docs/server.md "Export". The CLI that writes the content folder from it
+  is T2.
+
+## 3.16.4 – 2026-11-20
+
+### Removed
+- **Legacy content tools** (#322, approved by Tilman): the 2.x → 3.0 converter (`scripts/src/convert-content-3.ts`, its
+  test, `npm run convert:3`) – every source and database is converted – and `scripts/layout/render-layout.py`, which
+  read the 2.x source. The demo's rendered sheets (`fixtures/demo/layout/`) stay: the reader's card back reads its cover.
+
+## 3.16.3 – 2026-11-20
+
+### Fixed
+- **Editor – History and Logic did not show** (#318): a panel that starts closed (History, Logic) and had no place
+  stored yet kept its default `closed` in the layout, so opening it (the toolbar's History button, the panels menu)
+  drew nothing. A tab panel is open while it holds tabs; its default `closed` no longer reaches the layout.
+
+## 3.16.2 – 2026-11-20
+
+### Changed
+- **Workflows read only the `OSCT_` names** (#33): the GitHub environments carry `OSCT_BUNNY_STORAGE_ZONE`,
+  `OSCT_BUNNY_STORAGE_ENDPOINT`, `OSCT_BUNNY_STORAGE_PASSWORD` and `OSCT_CONTENT_BASE_URL`; the fallbacks to the old
+  names are gone from `content.yml`, `demo.yml`, `deploy.yml` and `deploy-staging-ftps.yml`.
+
+## 3.16.1 – 2026-11-20
+
+### Changed
+- **Media quality switches at once** (#331): a change of *Picture and video quality* swaps the scene's loaded media
+  right away – a playing video or sound goes on at the same spot in the new quality (playing if it played, the same
+  element, so the entity and its texture stay), a picture swaps its file in place. Before, the choice only applied to
+  what loaded next.
+
+## 3.16.0 – 2026-11-20
+
+### Added
+- **Pictures, videos and sounds in quality levels** (#331 step 3, content schema 4.3): an entity's image, video or audio
+  file can name `levels` – a picture by its longest side (512 / 1024 / 2048 px), a video by its height (480p / 720p /
+  1080p), a sound by its bitrate (64 / 128 / 192 kbps) – and an entry's picture `imageLevels`. The reader loads the level
+  its new **media quality** chooses (Info → Settings → *Picture and video quality*: Automatic, Low, Medium, High –
+  Automatic goes by the screen, the phone's memory and the connection), falling back to the nearest level: the AR scene's
+  pictures, videos and sounds, the entry's picture, the card flip and the preloader. An app before 4.3 loads the medium's
+  own file, as before. Content build: `levels:` / `imageLevels:` as level → file; API and MCP (`put_entity`,
+  `put_target`, `update_entry imageLevels`) check the levels per kind.
+- **Editor – media levels** (#331): a picture, video or sound node has a *levels* section – a chip per level, a missing
+  one a slot to upload into or pick from the Library; pictures compute their smaller levels in the browser (WebP), videos
+  and sounds are uploaded per level (never encoded in the browser). The entry form has the same row under the picture.
+  The Library shows a node's levels as a stack (`▤ 2/3`).
+
+## 3.15.0 – 2026-11-20
+
+### Added
+- **Move a target to another surface** (#314): in the Tree, a surface row unfolds to the targets placed on it; drag one
+  onto another surface's row, or use its menu's *Move to …*. The target keeps its place in millimetres where it fits on
+  the new surface, else it is centred there (made smaller first when it is too big). The target Inspector's *surface*
+  choice follows the same rule.
+- **A surface's format** (#314): the Inspector's surface has a *format* row – double page, single page, wall or custom –
+  next to the free size in mm, and names the targets that lie outside the surface at its size.
+- **`put_surface`** (#314, MCP): changes, adds, moves or removes one surface of a scene without sending the whole list;
+  a surface in use still goes only with `apply: true`.
+- **A surface's own grid, complete** (#316 in #314): besides its spacing, each surface can have **subdivisions** (finer
+  lines a print snaps to), be **shown** or hidden, and **snap** on or off – each the toolbar's until set. It stays a
+  setting of this browser, not content: a grid is an editing aid and changes nothing a reader sees.
+
+### Changed
+- **The origin gizmo** (#316 in #314): the scene's axes at its origin now have arrowheads and a small ring on the
+  table, and show with the axis switch alone – no grid has to be on.
+
+## 3.14.0 – 2026-11-20
+
+### Added
+- **The Library's leftovers** (#330): **rename a file** – *Rename* in the details drawer, *Rename…* in a tile's menu or
+  **F2** on the selected file open its name field (the name before the stored extension; Enter or leaving the field
+  saves, Esc keeps the old one) – the name only, the URL and every use stay; an imported file's name is kept by its URL.
+  API `PUT /editor/experiences/{id}/assets/{assetId} { name }` (400 `invalid-name`), MCP `rename_asset`. **Drag a tile
+  onto a tree row** (a mouse moves, a finger on the iPad holds first): a node takes the file the way the Inspector's *Use*
+  does (model → glb, image node → picture, video node → video, a plugin's node type its declared file), a target row a
+  picture as its printed image; a label at the pointer says what the drop does, or why it does not fit (cursor *no-drop*,
+  the row dashed) – a refused drop changes nothing. The Library only starts the drag; the drop is the tree's
+  (`library-drag.ts`, `library-drag.svelte.ts`). **Ctrl+L** (⌘L) opens the Library and focuses its search; again in the
+  search, back to the Inspector.
+
+## 3.13.0 – 2026-11-20
+
+### Added
+- **Universal panel tabs** (#318): every content of the workspace's panels – Tree, Inspector, Environment, Library,
+  Code, Scenes, Info, History, Logic – is a tab that can live in any panel. Drag a tab into another panel's head and it
+  lands before or after the tab under the pointer (a line marks where); drag it out onto the stage and it becomes a
+  panel of its own there. A panel whose last tab leaves closes; the panel holding the Inspector never closes. The
+  arrangement is remembered per workspace in this browser with the layout (a layout stored before is migrated: places,
+  closed panels and the Inspector's tab stay); the panels menu lists the tabs and Reset layout resets it. Pointer events,
+  so a pen or a finger on the iPad drags tabs too.
+
+### Changed
+- A **double-click on a panel's head** (not on a tab) folds and opens the panel, Enter on its focused handle too; the
+  chevron button in the head is gone.
+
+## 3.12.0 – 2026-11-20
+
+### Added
+- **Original or prepared recognition, switched per experience** (#306, content schema 4.2): the experience's
+  `recognition` – *Original* (the default: the reader makes every target's recognition frame from its printed image on
+  the phone, the path tested with every target) or *Prepared* (a target's frame made ahead, where it has one) – in the
+  editor's experience settings, `update_experience` and the API. A target's *original only* (`recognitionOff`) keeps it
+  on its printed image either way. The reader's debug overlay has a Recognition switch (Experience / Original /
+  Prepared) that overrides the setting on that phone, and the engine load test's report names the path it ran with.
+- **The editor makes the recognition frames by itself**: when a target gets a printed image or is placed on a surface
+  and has no frame yet, the browser makes it with the same builder as `osct targets prepare`, stores it in the Library
+  and names it on the target – never in the way of the target's change, never touching the printed image. The target's
+  inspector shows the frame as a thumbnail with *make frame* / *remake*.
+
+### Changed
+- Targets' recognition frames made ahead are no longer used unless the experience (or the phone's debug switch) says
+  Prepared – before, the reader used any it found.
+
 ## 3.11.1 – 2026-11-20
 
 ### Removed

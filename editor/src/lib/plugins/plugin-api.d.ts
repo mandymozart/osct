@@ -184,6 +184,10 @@ interface TextureSetData {
 	/** At least one, each size once, smallest first */
 	sizes: TextureSizeData[];
 }
+interface MediaLevelData {
+	level: number;
+	src: string;
+}
 export interface PassSpec {
 	description: string;
 	params: Record<string, ComponentParamSpec>;
@@ -232,6 +236,28 @@ declare const BEHAVIOUR_SCOPES: readonly [
 ];
 type BehaviourScope = (typeof BEHAVIOUR_SCOPES)[number];
 type BehaviourValue = string | number | boolean;
+interface LogicCanvas {
+	groups?: LogicCanvasGroup[];
+	notes?: LogicCanvasNote[];
+	folds?: string[];
+}
+interface LogicCanvasGroup {
+	id: string;
+	label: string;
+	members: string[];
+}
+interface LogicCanvasNote {
+	id: string;
+	text: string;
+	x: number;
+	y: number;
+}
+interface LogicData {
+	/** Rules in the content's form (`./behaviour.ts`): `{ on, when?, do }` – read them with `logicRules` */
+	rules: Record<string, unknown>[];
+	/** Authoring data of the editor's Logic view – never in a reader's configuration */
+	canvas?: LogicCanvas;
+}
 declare const ENTITY_TYPES: readonly [
 	"group",
 	"model",
@@ -279,6 +305,8 @@ interface SceneData {
 	surfaces: SurfaceData[];
 	/** Optional (schema 2.5): the post-processing passes over this scene's rendered image, in order; replaces the experience's (`[]` = none) */
 	passes?: PassData[];
+	/** Optional (schema 5.0, #334): the scene's rules – live while the scene is open (`./logic.ts`); its canvas never reaches a reader */
+	logic?: LogicData;
 }
 interface AssetData {
 	id: string;
@@ -286,6 +314,11 @@ interface AssetData {
 	src: string;
 	/** Optional (schema 2.27), a model file only (glb / gltf): its maps in several sizes */
 	textures?: TextureSetData[];
+	/**
+	 * Optional (schema 4.3, #331), an image, video or audio file only: the medium in several quality levels (image px,
+	 * video height, audio kbps – `MEDIA_LEVELS`); `src` stays the file an older app loads
+	 */
+	levels?: MediaLevelData[];
 }
 interface EntityData {
 	/** Optional, unique within the tree: the editor's selection */
@@ -343,6 +376,23 @@ interface TargetData {
 	 * reader leaves both out (no image target, no entry in the list, not counted); none or `true` = in the experience
 	 */
 	enabled?: boolean;
+	/**
+	 * Optional (schema 4.1, #306): the image tracker's recognition data, made ahead from `imageSrc` (`osct targets prepare`)
+	 * – none = the reader makes it from `imageSrc` when the scene opens. The API drops it whenever `imageSrc` changes.
+	 */
+	recognition?: TargetRecognitionData;
+	/**
+	 * Optional (schema 4.2, #306): `true` = this target always uses its printed image, even when the experience says
+	 * `recognition: "prepared"` – the target keeps its `recognition`; none or `false` = the experience decides
+	 */
+	recognitionOff?: boolean;
+}
+interface TargetRecognitionData {
+	/** The grey 480 × 640 frame (a Library file) */
+	imageSrc: string;
+	/** Width and height in px of the printed image it was made from */
+	width: number;
+	height: number;
 }
 interface EntryData {
 	id: string;
@@ -359,6 +409,8 @@ interface EntryData {
 	body: string;
 	author?: string;
 	image?: string;
+	/** Optional (schema 4.3, #331), with `image` only: the picture in several sizes (longest side 512 / 1024 / 2048 px) */
+	imageLevels?: MediaLevelData[];
 	/** Optional (schema 2.34, #289): the line under the picture ("Image: … by …"), plain text */
 	caption?: string;
 	media?: string;

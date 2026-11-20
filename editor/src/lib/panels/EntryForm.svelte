@@ -16,6 +16,8 @@
   import { pickAccept, type LibraryPick } from "#lib/library-pick.js";
   import { trackUnsaved } from "#lib/unsaved.js";
   import FileField from "#lib/components/FileField.svelte";
+  import MediaLevels from "#lib/components/MediaLevels.svelte";
+  import { makeImageLevels, withLevel, withoutLevel } from "#lib/media-levels.js";
   import Segmented from "#lib/components/Segmented.svelte";
 
   /**
@@ -118,6 +120,47 @@
       // library.error says
     }
   };
+  // ── the picture's levels (#331 step 3): the reader's media quality chooses one; smaller ones computed in the browser ──
+  let levelError = $state<string | null>(null);
+  let levelBusy = $state<string | null>(null);
+  const setLevel = (level: number, url: string) => edit({ imageLevels: withLevel(draft.imageLevels, level, url) });
+  const pickLevel = (level: number) =>
+    onpick?.({ subject: { for: "entry-image" }, label: `the ${level} px level of the picture of ${entry.title}`, onpick: asset => setLevel(level, asset.url) });
+  const uploadLevel = async (level: number, file: File) => {
+    levelBusy = `uploading ${file.name}…`;
+    try {
+      setLevel(level, (await library.upload(experienceId, file, { fit: "entryImage", entry: entry.id })).url);
+    } catch {
+      // library.error says
+    } finally {
+      levelBusy = null;
+    }
+  };
+  /** The levels below the largest one (or the picture itself when it has none), computed here in the browser */
+  const computeLevels = async () => {
+    const top = draft.imageLevels.at(-1);
+    const src = top?.src ?? draft.image;
+    if (!src) return;
+    levelError = null;
+    levelBusy = "reading the picture…";
+    try {
+      const response = await fetch(imageUrl(src, assetsBase));
+      if (!response.ok) throw new Error(`the picture could not be read (${response.status})`);
+      const have = draft.imageLevels.map(entry => entry.level);
+      const made = await makeImageLevels(await response.blob(), library.byUrl(src)?.name ?? src.replace(/^.*\//, ""), have, level => (levelBusy = `computing ${level} px…`));
+      let levels = top ? draft.imageLevels : withLevel(draft.imageLevels, made.level, src);
+      for (const level of made.levels) {
+        levelBusy = `uploading ${level.level} px…`;
+        levels = withLevel(levels, level.level, (await library.upload(experienceId, level.file, { fit: "entryImage", entry: entry.id })).url);
+      }
+      if (JSON.stringify(levels) !== JSON.stringify(draft.imageLevels)) edit({ imageLevels: levels });
+      else levelError = "Nothing to compute: the smaller levels are there.";
+    } catch (e) {
+      levelError = e instanceof Error ? e.message : String(e);
+    } finally {
+      levelBusy = null;
+    }
+  };
   const shown = (value: unknown): string => (typeof value === "string" ? `"${value}"` : String(value));
   // The scenes the entry may be on (the experience's tree) and the surfaces of the chosen one
   $effect(() => {
@@ -174,7 +217,10 @@
   <FileField src={imageSrc} picture empty="none" accept={pickAccept({ for: "entry-image" })} label="the entry's picture" onlibrary={pickImage} onupload={f => void upload(f)} />
 </div>
 {#if draft.image}
-  <div class="row"><span class="label"></span><span class="controls"><button type="button" class="text-link" onclick={() => edit({ image: "" })}>remove the picture</button></span></div>
+  <div class="row"><span class="label"></span><span class="controls"><button type="button" class="text-link" onclick={() => edit({ image: "", imageLevels: [] })}>remove the picture</button></span></div>
+  <MediaLevels kind="image" levels={draft.imageLevels} accept={pickAccept({ for: "entry-image" })} error={levelError} busy={levelBusy}
+    onupload={(level, file) => void uploadLevel(level, file)} onlibrary={pickLevel}
+    onremove={level => edit({ imageLevels: withoutLevel(draft.imageLevels, level) ?? [] })} oncompute={() => void computeLevels()} />
 {/if}
 <div class="row" class:changed={"caption" in changes}><span class="label">caption</span>
   <input class="field" value={draft.caption} aria-label="Caption" placeholder="none – Image: … by …" oninput={e => edit({ caption: e.currentTarget.value })}

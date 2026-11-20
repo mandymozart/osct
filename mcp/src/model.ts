@@ -12,6 +12,7 @@ import {
   DEFAULT_APPEARANCE_TYPE,
   MOMENTS,
   TEXTURE_SIZES,
+  MEDIA_LEVELS,
   BEHAVIOUR_ACTIONS,
   BEHAVIOUR_CORE_EVENTS,
   BEHAVIOUR_NODE_EVENTS,
@@ -40,6 +41,7 @@ import { DEFAULT_ENVIRONMENT, ENVIRONMENT_WORLDS, SKY_IMAGE_EXTENSIONS, WORLD_MO
 import { SCENE_PAGE_MM, SCENE_PRESETS, SCENE_SURFACES_MAX, SCENE_WALL_MM, SURFACE_REFERENCE_FITS } from "../../shared/api/editor";
 import { ENTRY_CATEGORIES } from "../../shared/types/entry";
 import type { SourceTypes } from "../../shared/api/rules";
+import { VARIABLE_TYPES } from "../../shared/types/variables";
 import { IMAGE_MAX_PIXELS, IMAGE_MAX_SIDE, IMAGE_WEBP_QUALITY } from "../../shared/api/images";
 
 export interface ExperienceModel {
@@ -180,7 +182,8 @@ export function checkEntity(entity: unknown, path = "entity", experience?: Exper
     assertGameConfiguration(probe, { unknownComponentTypes: "allow" });
   } catch (error) {
     if (!(error instanceof GameConfigurationError)) throw error;
-    problems = error.problems.map(problem => problem.replace(/^entities\.entity/, path));
+    // The probe has no scenes of the experience: whether a goto's scene exists is the draft's guard's to say (content schema 5.0)
+    problems = error.problems.filter(problem => !/\.goto: unknown scene "/.test(problem)).map(problem => problem.replace(/^entities\.entity/, path));
   }
   const known = experience ? knownPluginTypes(experience) : undefined;
   const nodes = unknownNodeTypes(entity, path, known);
@@ -277,6 +280,24 @@ export function describeContentModel(experience?: ExperienceModel): Record<strin
   return {
     contentSchema: CONTENT_SCHEMA_VERSION,
     pluginApi: PLUGIN_API_VERSION,
+    logic: {
+      description:
+        "A scene's and the experience's rules (content schema 5.0): logic = { rules: [{ on, when?, do }], canvas? } on a scene (live while the scene is open – put_scene logic) and on the experience (live for the whole session, across scene switches – the editor's Logic view, PUT /editor/experiences/{id}/logic). " +
+        "The rules are the behaviour's grammar (components.behaviour) with three differences: on hears the bus only – a scene event or a core event (coreEvents), never a node's own found / lost / tap / unlocked (use targetFound / targetTapped); show / hide / pause / stop and play's node name a node by address target:<targetId>/<node name> (target:<targetId> alone = the entity's root; a scene's rules only its own targets); no shorthand strings. " +
+        "goto: scene:<id> works in every rule (a node's too): the reader opens that scene. sceneChanged reaches a scene's and the experience's rules once the new scene's nodes are built. " +
+        "canvas = the editor's Logic view's own data – { groups?: [{ id, label, members: [node ids] }], notes?: [{ id, text, x, y }], folds?: [node ids] } – stored and exported, never published to readers; leave it to the editor.",
+      addresses: { goto: "scene:<sceneId>", node: "target:<targetId>/<node name>" },
+      variables:
+        "Typed variables (content schema 5.0): experience.variables = { name: { type, scope?, default? } } (PUT /editor/experiences/{id}/variables) – type number | integer | boolean | string; a variable not declared takes the type of its first set. A set of another type, a comparison of different types and a when that is not true / false are problems; && || ! need true / false, - * / % < > need numbers, + adds numbers or joins texts (never both); an integer goes where a number is wanted, nothing else converts. The reader refuses a value of the wrong type (also a plugin's api.vars.set) and keeps the old one; a declared variable not set reads as its default.",
+      variableTypes: VARIABLE_TYPES,
+      coreEvents: BEHAVIOUR_CORE_EVENTS,
+      example: {
+        rules: [
+          { on: "doorOpened", when: "hasKey", do: [{ show: "target:door/hint" }, { play: "creak", node: "target:door" }] },
+          { on: "targetUnlocked", when: "unlocks >= 3", do: [{ set: { chapterDone: true, unlocks: "unlocks + 1" }, scope: "experience" }, { goto: "scene:epilogue" }] },
+        ],
+      },
+    },
     entity: {
       description:
         "An AR entity is a tree of nodes (EntityData): { id?, name?, type, assets, params?, filters?, components?, material?, children?, text?, color? }. " +
@@ -285,9 +306,10 @@ export function describeContentModel(experience?: ExperienceModel): Record<strin
       name: "name (content schema 2.12, optional): what the editor's tree shows instead of the type – give the nodes of a larger tree names (\"door\", \"hint\") so the person finds them; the reader ignores it.",
       nodeTypes: ENTITY_TYPES,
       assets: {
-        description: "The node's own files: [{ id, assetType, src }] – empty for group and text. src is an absolute URL (an uploaded asset's url) or a /assets/content/… path of the imported content.",
+        description: "The node's own files: [{ id, assetType, src, textures?, levels? }] – empty for group and text. src is an absolute URL (an uploaded asset's url) or a /assets/content/… path of the imported content.",
         assetTypes: ASSET_TYPES,
         textures: `textures (content schema 2.27, optional, a model file only): the model's colour map in several sizes – [{ material?, sizes: [{ size, src }] }], size one of ${TEXTURE_SIZES.join(", ")} (px, a square picture), each once, smallest first. The model file carries the smallest map and shows with it at once; the reader's texture quality chooses the size that is loaded, so the mesh loads once. material = the glTF material whose map the set is; none = every material of the model (a model baked into one map). Upload each size as an image (upload_asset tells its width) and put its url into src.`,
+        levels: `levels (content schema 4.3, #331, optional, an image, video or audio file only): the medium in several qualities – [{ level, src }], each level once, smallest first; level = an image's longest side (${MEDIA_LEVELS.image.join(" / ")} px), a video's height (${MEDIA_LEVELS.video.join(" / ")}), a sound's bitrate (${MEDIA_LEVELS.audio.join(" / ")} kbps). The reader's media quality (Info → Settings: auto / low / medium / high) chooses the level it loads, falling back to the nearest; src stays the file an older reader loads – put the middle level there. Video levels are made before the upload (the editor never encodes video); upload each level (upload_asset) and put its url into src. Set them with put_entity / put_target (the node's assets).`,
       },
       text: "text nodes: `text` (the line; {{entry.title}} and {{experience.title}} are replaced) and `color` (#rrggbb, default white).",
       pluginNodeTypes: {
@@ -330,12 +352,12 @@ export function describeContentModel(experience?: ExperienceModel): Record<strin
       },
       behaviour: {
         description:
-          "The built-in behaviour (content schema 2.19, any node type): rules without code – { type: behaviour, rules: [{ on, when?, do }] }. " +
+          "The built-in behaviour (content schema 2.19, any node type): rules without code – { type: behaviour, rules: [{ on, when?, do }] }. The same grammar holds a scene's and the experience's rules (logic, content schema 5.0). " +
           "on = the node's own event or any other camelCase name, an event of the stage's bus (a scene event a plugin or a behaviour emits, or a core event). " +
-          "when = { variable: value, … } (all equal) or { any: { variable: value, … } }; a value is text, a number, true / false, null (= not set), or { not: value }. " +
+          "when = an expression (content schema 5.0 – the object form { variable: value } is gone): the language of the entries' {…} texts without braces – camelCase variable names, numbers, \"texts\", true / false, and or not && || !, == != < <= > >=, + - * / mod, parentheses – e.g. hasKey && tries > 2, mood == \"calm\" || !doorOpen. The rule runs when the value is true (0, \"\", false and a variable that is not set are false); no functions, no dotted names. " +
           "do = one action or a list, run in order: play: <clip> (\"\" = the node's own clip – its animation component's, else the first) with optional node: <name>; " +
-          "pause / stop / show / hide: <node name> (\"\" = the behaviour's own node; a node of its subtree by its name); set: { variable: value } with optional scope (scene – the scene – by default; stage, session, or experience – the whole experience, plugin API 3.0, was book; null deletes); " +
-          "emit: <event> (a scene event, never a core event). A string runs a verb on the own node: play, pause, stop, show, hide. " +
+          "pause / stop / show / hide: <node name> (\"\" = the behaviour's own node; a node of its subtree by its name); set: { variable: value } with optional scope (the variable's declared scope, else scene; stage, session, or experience – the whole experience; null deletes) – a value is an expression (content schema 5.0): tries + 1, hasKey, \"calm\" (a text is the language's text literal, in YAML '\"calm\"'; a number or true / false may stand bare); " +
+          "emit: <event> (a scene event, never a core event); goto: scene:<id> (content schema 5.0) – the reader opens that scene, as a link to /scene/<id>. A string runs a verb on the own node: play, pause, stop, show, hide. " +
           "On one event every rule's condition is read first, then the matching rules run in their order. Variables are read like a plugin's api.vars.get (the innermost scope that has it).",
         nodeEvents: BEHAVIOUR_NODE_EVENTS,
         coreEvents: BEHAVIOUR_CORE_EVENTS,
@@ -345,7 +367,8 @@ export function describeContentModel(experience?: ExperienceModel): Record<strin
           type: "behaviour",
           rules: [
             { on: "tap", do: [{ play: "rattle" }, { set: { hasKey: true }, scope: "experience" }, { emit: "keyRattled" }] },
-            { on: "found", when: { hasKey: true }, do: [{ hide: "hint" }, { emit: "openDoor" }] },
+            { on: "found", when: "hasKey && tries > 2", do: [{ hide: "hint" }, { emit: "openDoor" }] },
+            { on: "tap", when: "doorOpen", do: { goto: "scene:epilogue" } },
           ],
         },
       },
@@ -395,7 +418,7 @@ export function describeContentModel(experience?: ExperienceModel): Record<strin
     },
     target: {
       description:
-        "TargetData: { id, imageSrc, entity?: EntityData | { ref }, place?, enabled?, recognition? }. imageSrc = the printed image (an uploaded image asset's url). enabled: false switches the target off – the reader leaves it and its entry out until it is switched on, the editor keeps both; leave it out for a target in the experience. recognition (content schema 4.1) = the image tracker's grey frame made ahead from imageSrc by `osct targets prepare` – not written here; the API drops it when imageSrc changes.",
+        "TargetData: { id, imageSrc, entity?: EntityData | { ref }, place?, enabled?, recognition?, recognitionOff? }. imageSrc = the printed image (an uploaded image asset's url). enabled: false switches the target off – the reader leaves it and its entry out until it is switched on, the editor keeps both; leave it out for a target in the experience. recognition (content schema 4.1) = the image tracker's grey frame made ahead from imageSrc by `osct targets prepare` or the editor – not written here; the API drops it when imageSrc changes. The reader uses it only when the experience's recognition is \"prepared\" and the target has no recognitionOff: true (content schema 4.2, put_target recognitionOff).",
       place: {
         description:
           "Where the target lies (TargetPlace, content schema 3.0): { surface?, x, y, width, height? } – its box in mm from the top left corner of a surface of its entry's scene; surface = the surface's id, required when the scene has several. The editor's stage lays the target there; the reader does not need it. put_target place, add_entry target.place; null removes it.",
@@ -404,7 +427,7 @@ export function describeContentModel(experience?: ExperienceModel): Record<strin
     },
     entry: {
       description:
-        "An entry is top level: { id, category, title, scene, surface?, body, author?, image?, caption?, media?, tags, target? } – scene = the id of its scene (required: where the reader finds it), surface = one of that scene's surfaces (only when the scene has several). add_entry makes one, with its target or without (read only in the list); get_entries reads every field; update_entry changes them (scene moves it, surface null takes it off a surface; image: a Library picture, caption: the line under it in plain text, media: a link's http(s) URL).",
+        "An entry is top level: { id, category, title, scene, surface?, body, author?, image?, imageLevels?, caption?, media?, tags, target? } – scene = the id of its scene (required: where the reader finds it), surface = one of that scene's surfaces (only when the scene has several). add_entry makes one, with its target or without (read only in the list); get_entries reads every field; update_entry changes them (scene moves it, surface null takes it off a surface; image: a Library picture, imageLevels (content schema 4.3): the same picture at 512 / 1024 / 2048 px longest side – [{ level, src }], the reader's media quality chooses one; caption: the line under it in plain text, media: a link's http(s) URL).",
       categories: ENTRY_CATEGORIES,
     },
     entryText: {
@@ -414,7 +437,7 @@ export function describeContentModel(experience?: ExperienceModel): Record<strin
       example: "Hello {name: **{name}**|stranger}.\n\n{hasKey: The door opens.|The door is *locked*.} See [the map](https://example.org/map).",
     },
     experience: {
-      description: "ExperienceData: { id, title, passes?, environment?, appearance?, book? } – the experience, the top level of the content (content schema 4.0). book = BookData { author, publisher? }: the printed book it accompanies, print data only; none = not a book (a wall, a room, an exhibition). update_experience changes the title (the reader's splash, home page and account show it) and the printed book – its author and publisher (the splash shows them), book: null removes it. Every experience adds, moves and removes its scenes in the editor.",
+      description: "ExperienceData: { id, title, passes?, environment?, appearance?, book?, recognition? } – the experience, the top level of the content (content schema 4.0). book = BookData { author, publisher? }: the printed book it accompanies, print data only; none = not a book (a wall, a room, an exhibition). update_experience changes the title (the reader's splash, home page and account show it) and the printed book – its author and publisher (the splash shows them), book: null removes it. recognition (content schema 4.2): \"original\" (none = the default: the reader makes every target's recognition data from its printed image) or \"prepared\" (a target's frame made ahead where it has one) – update_experience recognition. Every experience adds, moves and removes its scenes in the editor.",
     },
     onboarding: {
       description: "The onboarding (the splash and the steps before the scan) is the reader app's own UI, translated with the app – no experience content and no tool edits it. The splash shows the experience's title and its printed book's author and publisher (update_experience).",
@@ -425,7 +448,7 @@ export function describeContentModel(experience?: ExperienceModel): Record<strin
         "SceneData: { id, label, group?, surfaces, passes? } – id stable and invisible (links /scene/<id>, progress, entries name it); label = what the reader's switcher and lists show (186–187, Cover, Studio wall), free text; group = the id of one of the experience's groups (one stop of the reader's bottom switcher); passes = the scene's own post-processing. " +
         "SurfaceData: { id, label?, widthMm, heightMm, place } – one physical area of the scene: a double page is one surface (twice the page's width), a cover one, a wall or a poster one; surfaces are free areas next to each other – no left / right, no front / back; label = what is printed on it, free text. " +
         "place: { x, y, z, rx, ry, rz } – the surface's centre in the scene's one coordinate system: mm, the origin on the table at the middle of the scene's first row of surfaces (a double page: its spine), +x right, +y up, +z towards the reader; rx, ry, rz in degrees (Euler XYZ). Unrotated a surface lies flat, face up, its top edge away from the reader – a page on the table; a wall ahead stands up: rx 90. " +
-        "Tools: list_scenes reads them (with each surface's editor-only reference image), get_scene one with its entries, add_scene adds one anywhere from a preset, put_scene changes label, group, surfaces (the whole list – a surface without a place is laid in a row) and passes, move_scenes moves one or several (or into / out of a group), delete_scene removes one with everything on it (two steps); group_scenes / rename_group / ungroup handle groups; set_surface_reference sets a surface's reference image (never content).",
+        "Tools: list_scenes reads them (with each surface's editor-only reference image), get_scene one with its entries, add_scene adds one anywhere from a preset, put_scene changes label, group, surfaces (the whole list – a surface without a place is laid in a row) and passes, put_surface changes, adds, moves or removes one surface alone, move_scenes moves one or several (or into / out of a group), delete_scene removes one with everything on it (two steps); group_scenes / rename_group / ungroup handle groups; set_surface_reference sets a surface's reference image (never content).",
       presets: SCENE_PRESETS,
       presetSizes: {
         double: { widthMm: SCENE_PAGE_MM.width * 2, heightMm: SCENE_PAGE_MM.height },

@@ -3,7 +3,7 @@ import type { SceneData, SurfaceData, SurfacePlace } from '../../../shared/types
 import type { PassSpec } from '../../../shared/types/passes';
 import { buildErrors } from '../lib/errors';
 import { readSection, validate } from '../lib/content';
-import { checkedPasses } from './experience';
+import { checkedLogic, checkedPasses } from './experience';
 
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 
@@ -63,6 +63,7 @@ export function buildScenes(pluginPasses: ReadonlyMap<string, PassSpec> = new Ma
       const s = validate(data, 'scene', label);
       if (!s) return null;
       const passes = s.passes === undefined ? undefined : checkedPasses(s.passes, label, pluginPasses);
+      const logic = s.logic === undefined ? undefined : checkedLogic(s.logic, label, 'scene');
       return {
         order: s.order,
         scene: {
@@ -70,6 +71,7 @@ export function buildScenes(pluginPasses: ReadonlyMap<string, PassSpec> = new Ma
           label: s.label,
           surfaces: buildSurfaces(s.surfaces, label),
           ...(passes !== undefined ? { passes } : {}),
+          ...(logic !== undefined ? { logic } : {}),
         },
       };
     })

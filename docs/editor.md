@@ -314,9 +314,12 @@ closed by default, **essential** (it folds but never closes) and **inline** (a t
 - **Fast**: a drag is laid out once per animation frame (the pointer events between coalesce); during a resize only the
   pushed panels' boxes change (`left`/`top`/`width`/`height` – their content is not drawn again) and nothing is stored
   until the pointer is let go.
-- **Fold** to its head (the chevron) – the pill: grip, icon, name; the inline toolbar folds to its icon, which a click
-  opens again. **Close** (×, not on essential panels); the top bar's **panels menu** lists the panels that close – ✓
-  shown, a click closes or brings one back – and **Reset layout**.
+- **Fold** to its head by a **double-click on the head** (not on a tab – a click or double-click on a tab only shows
+  it), or Enter on the focused handle (#318; the chevron is gone) – the pill: grip, icon, name of the tab it shows; folded
+  or open is remembered per panel. The inline toolbar folds to its icon, which a click opens again. **Close** (×, not on
+  the panel holding the Inspector, not on the toolbar); the top bar's **panels menu** lists the tabs – ✓ open, a click
+  closes one or brings it back into its home panel – and **Reset layout** (every panel at its default place, every tab
+  in its home panel).
 - **The order of growth**: each panel first gets its least size where its place is, then grows from its corner towards
   the size it asks for; an earlier panel leaves a later one the room that one asks for, a `fill` panel takes what is
   left. So the Tree and the Inspector stand the full height beside the Scenes strip, and an Info opened at the bottom
@@ -327,6 +330,32 @@ closed by default, **essential** (it folds but never closes) and **inline** (a t
   removes that workspace's layout.
 - The Scenes panel and the Info view in a float have no fold and no sash of their own – the float's head folds them,
   its edges resize them; the Scenes cards scale with the panel's height.
+
+### Universal tabs (#318)
+
+Every content of the workspace's panels is a **tab** – Tree, Inspector, Environment, Library, Code, Scenes, Info,
+History, Logic (`SCENE_TABS` in the page: id, name, icon, what it is for, its **home** panel) – and any tab can live in
+any panel. A panel's head shows its tabs (words, or icons in a panel too narrow for them: `wordTabs` counts the tabs);
+the pure part is `components/float-tabs.ts` (tested in `lib/__tests__/float-tabs.test.ts`), the state lives in `Floats`
+(`arrangement`: panel id → its tabs in order and the one it shows), `FloatingPanel` draws the tabs and handles the drag.
+
+- **Drag a tab** (pointer events – mouse, pen, a finger on the iPad): over another panel's **head** it lands before or
+  after the tab under the pointer (before the first tab whose middle lies right of it) – a line marks the place and the
+  panel is outlined; over another panel's body at the end of its tabs; within its own head it takes a new place.
+- **Drag a tab out onto the stage**: it becomes a **panel of its own** (`float-<n>`) at the drop point – as large as its
+  home panel's size where that is a number, else the panel it left, at most 24rem – snapped like a moved panel.
+- A panel whose **last tab leaves closes**: a home panel is closed (the panels menu brings its tabs back), a panel made
+  by a drag goes, its place with it.
+- **The Inspector is never lost**: the panel holding it has no close (wherever it lives), the panels menu does not list
+  it, and a stored arrangement without it (edited by hand) gets it back in its home panel.
+- A link from one content to another (the Logic panel's plugin → Code, the Inspector's Code / Environment links, a
+  selection → Inspector, undo's history → History) shows the tab where it lives; a closed one comes back into its home
+  panel. A selection does not take the place of the Tree in a panel showing it (the Tree shows the selection itself).
+  The Code tab asks the panel showing it for 36rem (until it is resized). The forms and removal steps open in the
+  Inspector tab.
+- **Remembered** with the layout, per workspace in this browser: under `@tabs` (`{ v: 1, panels }`) beside the panels'
+  places in `osct-editor-panels`. A layout stored before #318 is **migrated**, not reset: its places stay, a home panel it
+  had closed keeps its tabs closed, the Inspector panel shows the tab it showed (`osct-editor-tab`, read only for this).
 
 ### The Scenes panel
 
@@ -407,27 +436,104 @@ Every save is a row of the change log (docs/server.md "Reverting saved changes")
   changes, and the conflicts that stay. A revert reloads the draft, the stage and the panels. It changes the draft
   only – readers see it with the next publish.
 
-### The Logic panel (#239)
+### The Logic panel (#239, #334)
 
-The **Logic** panel (the `nodes` icon; closed at first – the top bar's panels menu opens it) shows the open scene's logic
-as a graph, read-only, from the draft: the **events** (a node's own `found` / `lost` / `tap` / `unlocked`, scene
-events, core events – pills), the **rules** of the scene's `behaviour` components, the **variables** they read and set
-(dashed), the **nodes** they play, pause, stop, show or hide (filled) and the **plugins** whose components, node types
-or materials sit on the scene's nodes (a double frame). Edges carry the word: `on`, `when`, `set = true`, `emit`,
-`show`, a plugin's type, `hears` / `emits` / `reads` / `sets`. What a plugin's code does is not recorded by the content
-build, so the panel reads it from the plugin's source as written (`api.events.on("x")`, `api.vars.set("x", …)` – the
-stored source, else the compiled module); a plugin is drawn when it sits on the scene or touches one of the rules'
-events or variables, *its code not read* until the source arrived. The layout is layered left to right
-(`logic-layout.ts`, no dependency): a loop (a rule that plays its own node, an event emitted back) runs dashed below
-the boxes. A pointer over a box lights its edges; **a click selects** what it stands for – a node, a node's event or
-a rule selects that node in the tree and the Inspector (the rule editor is there), a plugin opens the Code tab on it.
-*Fit* switches between the whole graph in the panel and its actual size (scroll). Under the graph, in the error colour,
-the **problems** across the experience (its rules and the plugins' code): a variable read that nothing sets, an event
-heard that nothing emits (its rules never fire), an event emitted that nothing hears, a node an action names that the
-rule's subtree does not have – while a plugin's code is unknown only the last. The graph is built by the pure
-`scene-logic.ts` (`sceneLogic`, `pluginCodeUses`; tested in `lib/__tests__/scene-logic.test.ts`). Not yet: lighting up
-what fires while the stage runs, and editing logic in the graph; flows across experiences stay with the core
-(`agents/STRATEGY.md`).
+The **Logic** panel (the `nodes` icon; closed at first – the top bar's panels menu opens it) shows the experience's logic
+as a graph, from the draft (and the stage's live trees of the open scene), **one level at a time** (#334, `agents/research/2026-11-20-logic-nodes-shared-concept.md`
+§6): the **experience** (the groups, the scenes, the plugins, the variables set for the experience or the session and the
+core events the rules hear), a **group** (its scenes and what joins them), a **scene** and one target's **entity**. A
+scene shows the **events** (a node's own `found` / `lost` / `tap` / `unlocked`, scene events, core events – pills), the
+**rules** of its `behaviour` components, the **variables** they read and set (dashed), the **nodes** they play, pause,
+stop, show or hide (filled) and the **plugins** on its nodes or touching its rules' names (a double frame). What a
+plugin's code does is read from its source as written (`api.events.on("x")`, `api.vars.set("x", …)` – the stored source,
+else the compiled module), *its code not read* until it arrived.
+
+- **Moving**: a double-click, Enter or a box's arrow opens its level (a group, a scene, a target's entity); the
+  breadcrumb, ↑, Backspace or Alt+↑ go back up. What crosses the level's border is a **stub** at its edge, named by its
+  far end (*hasKey ← set in 1–2*); its arrow opens the far level and marks the same name's box there. The **search**
+  finds any box of the experience and of every scene; a hit opens its level and marks the box.
+- **The stage follows**: entering a scene opens it (as the Scenes panel does), entering an entity selects its node in the
+  tree and the Inspector (on another scene: that scene opens first), a group or the experience is selected. **And the
+  reverse**, while *Follow* is on: a selection elsewhere (the stage, the tree, the Scenes panel, the search) moves the view
+  to the deepest level that shows it – unless the selected thing is already a box of this level, so a click on a box
+  selects it without leaving the level. **A click** selects what a box stands for: a node, a group, the open scene, a
+  plugin (the Code tab).
+- **The URL** carries the level (`?logic=experience`, `group:<id>`, `scene:<id>`, `entity:<scene>:<target>[:<path>]`,
+  ids percent-encoded), written with `replaceState` – no history entry per step. A link with `?logic=` opens the panel on
+  that level; a scene's level only on its own scene's route.
+- **Drawing**: `logic/project.ts` computes the level's view, `logic/flow.ts` places it (the layered layout of
+  `logic/layout.ts`; boxes without a wire in rows under the graph, the stubs in a column before and after) and
+  `LogicCanvas.svelte` draws it with `@xyflow/svelte` – the rendering layer only (decision L7): it pans, zooms and fits,
+  and owns nothing: it reports gestures (a drag between ports, a click, a right click), the panel turns them into ops. It is imported on first use, so the editor's first
+  load does not carry it. Ports and wires show their signal by shape and dash, never by colour (RULES #38): an event's
+  port round and its wire solid, a value's a diamond and dashed, a node's filled and dotted.
+- **Events between scenes never fire**: the engine builds the entities – and so the behaviour rules – of the open scene
+  only (`engine/src/scene/ar-scene.ts`: a scene switch disposes the old scene's entities and builds the new one's; the
+  loading window prepares image targets, not entities). An event a rule emits in one scene therefore never reaches another
+  scene's rules; such wires and stubs are drawn finely dotted, labelled *never fires*. Plugins load for the whole
+  experience, so an event to or from a plugin does fire; variables keep their scope across scenes.
+
+Under the graph, in the error colour, the **problems** across the experience: a variable read that nothing sets, an event
+heard that nothing emits, an event emitted that nothing hears, a node an action names that the rule's subtree does not
+have – while a plugin's code is unknown only the last. The level logic is pure and tested (`lib/logic/__tests__/`:
+`project`, `navigation` – the URL, enter, back, stubs, follow, search; `apply` – every op, its refusals, the by-name
+cases, which node types fit; `logic-homes` – scene and experience rules, goto, `when` wires, type problems). Not yet:
+lighting up what fires while the stage runs, the canvas's groups and notes (L-T7).
+
+**Scene and experience rules, goto** (content schema 5.0, #334 L-T5b): a scene's own rules (`scene.logic`) are boxes of
+its scene level (*scene rule 1*, a click selects the scene – its rules are in its Inspector), the experience's
+(`experience.logic`) boxes of the experience level (*experience rule 1*, a click selects the experience). They hear the bus
+(a scene event or a core event – never a node's own `found` / `tap`), and their node actions reach a node by address
+(`target:<id>/<name>`): a scene rule's wire runs to the node box of its own scene; an experience rule's to the box of the
+scene that holds the target (the experience level shows no nodes). A **goto** (`scene:<id>`) is a dash-dot wire (signal
+*scene*): at the scene and entity levels a stub at the border named by its scene (*→ Epilogue · goto*) – Delete on it
+removes the goto; on the group and experience levels a derived edge from scene to scene (*goto*, *goto · 2*), read-only;
+an experience rule's goto runs into the scene box. A rule's **when** wires come from its condition's variables
+(`expressionVariables`); a set's wire shows its expression (`set = taps + 1`). The **problems** also list the rules' type
+problems (B7 – *Door · scene rules, rule 1, when: a condition is true / false – "mood" is a text*), an experience rule's
+node that is not there and a goto to a scene the experience does not have.
+
+**Editing** (#334 L-T4, L-T5b, research §5.1, §5.5) – on a **scene's** and a **target's** level of the open scene (its
+nodes' rules and its own), and on the **experience** level (the experience's own rules only); the group level stays
+read-only (the panel says so under its bar). The documents are the logic: every gesture becomes an op on the node's
+`behaviour` component, the scene's `logic` or the experience's (`logic/apply.ts`, `apply(op, docs)` – pure; it returns the
+new trees, the changed rule lists and what happened in words, or a refusal with its reason, and runs `problems` after each
+op). The rule grammar is the Inspector's (`behaviour-edit.ts`); nothing is written another way, and every expression an op
+writes is type-checked first (B8).
+
+- **Connect** – a drag from a port to a port: an event's outlet into a rule's **on** makes the rule hear that event (the
+  name is written into `on` – the bus stays by name, L6; a node's own `found` / `tap` … only for its own node's rules); a
+  variable into **when** appends a term to the condition with `&&` – a true / false (or untyped) variable its name, any
+  other `name == <its declared default, else a typed placeholder: 0, "">` (the words say so: change the value in the
+  Inspector); the rule's **+** outlet into a node adds *show* (a node's rule: a named node under the rule's node; a scene's
+  rule: a node of its scene's targets, written as its address – change the verb in the Inspector or add play / hide … from
+  the menu), into a variable a *set* of its declared default or a typed placeholder (in the scope it is set in elsewhere –
+  none written when it is declared with a scope), into a scene event *emit*, into a **scene box** (the experience level) a
+  *goto* to that scene; an action's own outlet re-aims that action. Only the inlets that would take the wire light up while
+  it is dragged; a core event is never emitted.
+- **Delete** on a selected wire removes what it stands for: a **when** wire takes the variable's terms out of a top-level
+  `&&` / `||` chain (`hasKey && tries > 2` → `hasKey`; the variable alone → *always*) – a variable deeper in the
+  expression is refused with *edit the condition in the Inspector*; an action's wire (a goto's stub too) the action; on a
+  selected rule the rule. Cutting a
+  rule's **on** leaves it empty: the rule hears nothing, and the panel lists it as a problem (*Door · rule 3 hears nothing –
+  wire an event to its on*) until an event is wired to it again (3.21.1). A wire that only **joins by name** (`home: null`:
+  a stub *hasKey ← set in Cover*, *keyRattled ← emitted in Cover*) removes the name from the listening side here – the rules
+  of this level no longer read or hear it – and the words say that it is still set or emitted there; one whose listening
+  side is another scene or a plugin's code, and a derived goto between scenes, are refused with the reason. Delete and
+  Backspace in the panel never reach the workspace.
+- **The menu** – a right click on the empty canvas, the panel's **+**, or a node type dragged from the Library's **Nodes**:
+  what fits here (`logic/palette.ts`, the one list the menu and the Library read): a rule on the selected node (picked on
+  the canvas or in the tree; on a target's level its own; on the scene level with no node selected the scene's own, on the
+  experience level the experience's – they offer bus events only), an action (play / pause / stop / show / hide a named
+  node of the rule's subtree or, for a scene rule, an address of its scene's targets; set a variable to a typed value; emit
+  an event; **goto** a scene) or a condition term for the rule selected on the canvas. A filter field on
+  top narrows it; typing `emit name`, `set name`, `when name` or `rule on name` offers a new name. A right click on a box
+  offers *Open its level*, *Select*, *Add …* and *Delete the rule*; on a wire *Disconnect*.
+- **After each op** its trees go to the stage as the Inspector's edits do (`stage.override`): live at once, saved by the
+  autosave (`tree-autosave.ts`, held while a rule is incomplete), a step in History that undo reverts. A scene's or the
+  experience's rules go to `logic-edit.svelte.ts`, which saves them by themselves (`PUT …/scenes/{sid}` `{ logic }`,
+  `PUT …/logic`) and has the stage build the open scene again from the new draft. The words – or the refusal – show for a
+  moment under the bar.
 
 ### The experience search
 
@@ -467,7 +573,14 @@ toggled there, it starts collapsed in a window under 64rem – a tablet in portr
 stage the rest, #172). With a finger the rows are the touch control height, the chevrons and the eye as tall as the row
 (#171). Under the scene row the **Surfaces** level (#314): the scene's surfaces (label · side), a tap selects one
 (the Inspector shows it, the stage highlights it), its **+** adds a page, a wall or a custom one, Alt ↑ ↓ and a row's menu
-reorder.
+reorder. A surface row with targets placed on it shows their count and unfolds (folded at first) to **its targets** (by
+their entry's title; a tap selects the target). **Moving a target to another surface**: drag its row onto another
+surface's row (the row under the pointer is framed; with a finger, drag its icon) or its menu's *Move to …*
+(`moveTargetToSurface` in `surface-actions.ts`, written at once with `PUT …/targets/{id}`, the stage built again). The
+rule (`moveToSurface` in `surface-edit.ts`, the same for the target Inspector's *surface* choice): the print **keeps its
+place in mm** (from the new surface's top left corner) where it fits there wholly; else it is **centred** on the
+surface – made smaller first, its aspect kept, when it is wider or taller than the surface. A place without a height
+counts with the stage's height from the image.
 
 - **+ target** at the end of the tree opens the form for a new target on the scene: title, page, the printed image
   (*Library…* or *Upload…*), **what appears on the page** (none, model, video, image, text, group or light, with its file
@@ -683,11 +796,16 @@ The toolbar's *grid & snap* group (`GridSnapMenu.svelte`, the settings in `stage
 has three grids (#316, #319):
 
 - **The surface grid** – the targets' grid on each surface (on / off, its spacing in mm; its lines run through the
-  origin, which is red). A surface may have **its own spacing** (#316 part 1: the Inspector's surface, *grid*), kept in
-  this browser per experience and surface (`surface-grids.svelte.ts`, `osct-editor-surface-grids:<experience>` →
-  `<scene>/<surface>`) – not in the content; the open scene's spacings reach the stage with the preview
-  (`surfaceGrids`). It is drawn on every surface in its own plane, a wall's on the wall; a print dragged on a surface
-  steps by that surface's spacing.
+  origin, which is red). A surface may have **its own grid** (#316, #314: the Inspector's surface, *grid*) – its
+  **spacing**, its **subdivisions** (finer, fainter lines between the spacing's: 4 on 20 mm draws one every 5 mm; at
+  most 10, and none drawn where they would be more than 400 lines along a side), **shown** on / off and **snap** on /
+  off, each field the toolbar's until set (`SurfaceGrid` in `stage/preview.ts`). Kept in this browser per experience and
+  surface (`surface-grids.svelte.ts`, `osct-editor-surface-grids:<experience>` → `<scene>/<surface>`; a plain number
+  stored before is a spacing) – **not in the content**: the grid is an editing aid that changes nothing a reader sees, so
+  it stays a preference of the person editing (#314's decision; the database stays the truth of the content). The open
+  scene's grids reach the stage with the preview (`surfaceGrids`). It is drawn on every surface in its own plane, a
+  wall's on the wall; a print dragged on a surface snaps (snapping on) to that surface's step – its spacing over its
+  subdivisions (`surfaceGridOf`, `surfaceSnapSettings` in `snap.ts`) – or, with the surface's snap off, by the move step.
 - **The floor grid** – the scene's transparent net on the table (the scene's y = 0) through the origin, every *floor*
   mm (50 by default), every tenth line stronger, 1.5 m around the origin (a very fine spacing steps up to at most 400
   lines), under the boards. It is the **snap grid of the surfaces' places**: the surface gizmo steps by its spacing. On
@@ -705,7 +823,9 @@ edge's centre of the surface a position lies on, or the centre (the scene's orig
 surface's middle). The x / y rows of a target's placement and of a new target are shown and entered from that origin
 (x to the right, y downwards, so values left of or above it are negative); what is saved stays mm from the surface's top
 left corner. With the axis switch, a thin green **vertical axis** (#190) rises 150 mm out of the surface from each zero,
-and the **scene's axes** show at its origin (x red, y up green, z towards the reader blue, 100 mm).
+and the **origin gizmo** shows at the scene's origin (#316, #314 – `originGizmo` in `stage/origin.ts`): the scene's axes,
+x red, y up green, z towards the reader blue, 100 mm each with an arrowhead, and a small white ring on the table round
+the origin, drawn through everything – with the axis switch alone, whether a grid is on or not.
 
 **Snapping** (#190, `stage/snap.ts` – the math, pure and tested –, `stage/snap-scene.ts` – the scene's side) works
 for the gizmo and the placement handles; everything is counted in the stage's frame in mm (the scene's origin, x right,
@@ -855,6 +975,15 @@ the scene). A selected scene shows [its sections](#inspector-the-scene), a selec
 it is printed – surface, x / y and width in mm (`print`, content schema 2.1; an edit is saved by itself; until one a
 target made in the editor lies where its form put it, an imported one where the book's layout says –
 [the handles on the stage](#picking-hover-and-the-stages-menu)), and its AR content as a link one level down.
+Below the image, its **recognition** frame (#306, [content](content.md) "Recognition"): a small grey thumbnail when it
+has one, *make frame* / *remake*, and **original only** (`recognitionOff`) – this target always uses its printed image.
+The editor makes the frame by itself when a target gets a printed image (an upload or Library pick here, the Library's
+*Use as target image*, a new target, a new version of the image file) or is placed on a surface and has none yet: in the
+browser (`lib/recognition-frame.ts` – the CLI's builder, `engine/src/scene/target-frame.ts`), uploaded as a Library file
+(`<target>_recognition.png`, then the image rule) and named on the target with `madeFrom` (`lib/recognition-frames.svelte.ts`).
+It never blocks or fails the target's change and never touches the printed image; a failure shows quietly below the row,
+and *make frame* tries again. Whether readers use the frames is the experience's **recognition** setting (the experience's
+Inspector: *Original*, the default, or *Prepared*).
 
 **An entity or a node**: its **name** (empty = the tree shows the type), its **file** (the file field: **Library…** – the
 Library as the picker, with the filter set – or **Upload…**), then:
@@ -889,12 +1018,17 @@ Library as the picker, with the filter set – or **Upload…**), then:
   the reader plays (`playOn` found / tap / never, `stopOn`, loop, speed). **+ behaviour** (any node, #88 –
   [content](content.md) "Behaviour") adds the rule editor (`BehaviourRules.svelte`, its logic in `behaviour-edit.ts`)
   instead of rows: per rule its event as pressed pills (*found*, *lost*, *tap*, *unlocked*, or *event* with a name field
-  offering the experience's scene events and the core events), **+ condition** (a row per test: the variable – the experience's
-  variables offered: its behaviours' and the ones live on the stage –, *=* or *≠*, the value typed as `true`, `false`, a
-  number or a text, empty = not set; *and* / *or* between them, *all* / *any* from two on) and **+ action…** (a row per
+  offering the experience's scene events and the core events), **when** – the condition as **one expression** (content
+  schema 5.0, #334: `hasKey && tries > 2`, `mood == "calm" || !door`, a monospace field, the experience's variables
+  offered; empty = always). It is checked as you type (`whenProblems`: the parser's problems in words, the type checker's
+  against each variable's declared or inferred type, and *a condition is true / false*): with a problem it shows *not
+  saved – …* under the field and nothing is saved (B8) until it checks out – and **+ action…** (a row per
   action, in order: the verb and what it takes – *play* a clip of the node's model, the clips read from the model on the
   stage, and the node by name; *pause*, *stop*, *show*, *hide* a node, *this node* or one of its subtree by name; *set* a
-  variable, its value and scope; *emit* an event), × removes a rule, a test or an action. Every change runs on the stage
+  variable to an **expression** (`tries + 1`, `true`, `"calm"` – a text in quotes; empty deletes it), checked the same way
+  against the variable's type, and its **scope** – *declared (stage)* / *scene (default)* when none is written, or one of
+  the four; *emit* an event; **goto** a scene, picked by its label), × removes a rule or an action. The rule's type
+  problems (`typeProblemsByRule` – a set of another type, a scope other than the declared one) show under it. Every change runs on the stage
   at once (the engine takes new rules in place); what is not complete yet (an empty name, an event not chosen) is
   listed under the rows in red and keeps the tree's save back (the top bar says so). A save writes the rules in the content's shortest form. A component
   or material layer a **plugin** registers shows like a built-in one, with **+ type** after a Run in the Code tab.
@@ -921,6 +1055,17 @@ it: drawn on a canvas here in the browser, WebP at the image rule's quality, nam
 put in the set (`lib/texture-levels.ts`). Maps upload with the image rule's `texture` fit and keep up to 4096 px. Only
 pictures: video levels are made beforehand, never encoded in the browser (Tilman, 2026-11-19).
 
+**Media levels** (#331 step 3, content schema 4.3). A node whose file is a picture, a video or a sound has a *levels*
+section: one chip per level of its kind – 512 / 1024 / 2048 px (a picture's longest side), 480p / 720p / 1080p (a
+video's height), 64 / 128 / 192 kbps (a sound) –, which the reader's media quality chooses from (`docs/content.md`,
+"Pictures, videos and sounds in quality levels"). A level there shows its weight and a × to remove it; a missing level is
+a dashed slot with **Upload…** and **Library…** for that level. Pictures also get **Compute smaller levels**: from the
+largest level (or the node's own picture, which then becomes its level) every smaller one is drawn here in the browser,
+WebP at the image rule's quality, named `<picture>-<level>.webp`, uploaded and put in the levels (`lib/media-levels.ts`,
+`components/MediaLevels.svelte`). **Videos and sounds are uploaded per level** – a video is never encoded in the
+browser; make its levels before (ffmpeg), later perhaps the production server. An entry's picture has the same row
+under it in the entry form (`imageLevels`). The node's own file stays what an older app loads.
+
 ### Inspector: the experience
 
 A plain click on the experience's crumb in the top bar selects the experience (#237, `panels/ExperiencePanel.svelte`; Ctrl- or ⌘-click
@@ -936,6 +1081,21 @@ experience's post-processing and appearance (in a scene's workspace) and where i
 experience adds and removes scenes. The crumb stays underlined while the experience is selected. A tap in
 the tree or on the stage selects something else again.
 
+Last, the experience's **rules** and **variables** (content schema 5.0, #334 L-T5b, `LogicRules.svelte`):
+
+- **rules** – the experience's own rules (live for the whole session, across scene switches) in the rule list of
+  [a node's behaviour](#inspector-a-target-an-entity-or-a-node), with this home's differences: the event is a named event
+  only (a scene event or a core event – `sceneChanged`, `targetUnlocked` …), a node action picks a node of any scene's
+  targets (*Cover · door / hint* → `target:door/hint`), and every rule can **goto** a scene. Each edit saves itself
+  (`PUT …/logic`, change kind `logic` – History lists it, Undo takes it back); the draft's canvas is kept.
+- **variables** (`VariablesEditor.svelte`, `variables-edit.ts`) – the declared variables, a row each: the **name**, the
+  **type** (number, integer, boolean, string – a type change keeps the default only when it still fits), the **scope** a
+  set without its own writes (*scene (default)* or one of the four) and the **default** (the value before anything sets
+  it; true / false a choice, a number or a text a field). Then the variables only **inferred** from their first set
+  (*mood · string · inferred*) with **declare**; at the end a name and a type to declare a new one. Every change is checked
+  first – a bad name, a name twice, a default of another type is refused with the reason under the list, never saved –
+  and saves itself (`PUT …/variables`, change kind `variables`; none left removes the field).
+
 ### Inspector: a group
 
 A band of the Scenes panel clicked (#307 phase 3a, `panels/GroupView.svelte`, `selection.group`): the group's **label**
@@ -949,10 +1109,13 @@ its scenes stay in place).
 
 A surface selected (the Surface tool's click, the Tree's Surfaces level, an id in the scene's surfaces – the selection's
 `surface` level, scene and surface id) shows `SurfaceView.svelte`: the crumb *scene › surface*; its **label** as printed,
-its **size** (W × H mm) and its place in the scene's order (↑ ↓); *place* – **position** (x y z mm) and **rotation**
+its **format** (double page 460 × 320, single page 230 × 320, wall 2000 × 1500 mm – a choice sets the size; *custom* is
+any other size, either way round counts – `formatOf`, `presetSize`), its **size** (W × H mm, free) and its place in the
+scene's order (↑ ↓); the **targets lying outside** the surface at its size are named in red under the size
+(`targetsOutside`: by a print's saved height, else its top edge); *place* – **position** (x y z mm) and **rotation**
 (x y z °, Euler XYZ), the *gizmo* row (move / rotate, for the Surface tool's gizmo) and *arrange the scene in a row*;
-*grid* – the surface's **own grid spacing** for the targets on it (#316 part 1: kept in this browser per experience and
-surface, *reset* takes the toolbar's again); the **reference image** (editor-only, never in the content – Library… with
+*grid* – the surface's **own grid** for the targets on it ([Grids, origin and snapping](#grids-origin-and-snapping):
+*shown* and *snap* each toolbar / on / off, *spacing*, *subdivide*; *reset to the toolbar's*); the **reference image** (editor-only, never in the content – Library… with
 the Library as a picker, Upload…, the fit cover / contain / stretch, remove; `PUT …/scenes/{id}/surfaces/{surface}/reference`
 through `scenes.putReference`, which reads the references again – `scenes.references`, the stage's source too); *remove
 surface* with the same confirmation as the list. Every field saves itself with the scene's whole list. The History
@@ -979,6 +1142,12 @@ With the scene selected the Inspector shows `SceneView.svelte` (#227, #229 – t
   the same edits (`surface-actions.ts`, rules in `surface-edit.ts`).
 - *post-processing* (the scene's own, `PUT …/scenes/{id}` with `passes`), *appearance* and *vars and events* – closed on
   a first visit (#193), below.
+- *rules* (content schema 5.0, #334 L-T5b, `LogicRules.svelte`): the scene's own rules – live while it is open – in the
+  rule list of a node's behaviour, with the differences of [the experience's rules](#inspector-the-experience): a named
+  event only, a node of **this scene's** targets by address (`target:door/hint`), goto. Each edit saves itself
+  (`PUT …/scenes/{id}` with `logic`, the canvas kept); open while the scene has rules. A rule that is not complete yet (an
+  event, a node or a scene not picked) is listed under the rules in red and holds the save (the top bar says so), as a
+  node's behaviour holds its tree's.
 
 #### Post-processing
 
@@ -1069,7 +1238,10 @@ driven from the tree's eyes and from here (#88; `stage/event-log.ts`, `stage/nar
   own) and its payload; the last 100 are kept. A **behaviour** line is a rule of a `behaviour` component that ran
   (#88): the target, the node's name, the rule's number, its event and what it did (`play rattle · set hasKey = true
   (experience) · emit keyRattled`) – the log's own line, not an event of the stage (plugins never hear it); the events its
-  actions caused follow above it. **clear** empties it.
+  actions caused follow above it. A scene's or the experience's rule names its home instead (`home: "scene" · scene:
+  "door" · rule: 0 …`). A **goto** line is a rule asking for another scene (`ArSceneOptions.navigate`): the stage stays
+  on its scene – following it would leave the author's open scene behind – and the line's link (*open Epilogue*) opens
+  that scene as the Scenes panel does. **clear** empties it.
 
 ### Environment
 
@@ -1112,7 +1284,7 @@ scope, groups and sort in `library-scope.ts`, #330). From the top:
   bytes the Library holds already stay one file, which takes the upload's name and says so, #258).
 - **Kinds** as chips counted within the scope: *All kinds*, **Targets** (a target's printed image in the draft, or the
   import's `target.*`), **Surfaces** (a surface's reference image), **Images** (the other pictures), **Video** (with the
-  subtitle files), **3D** (glb, gltf), **Audio**, **Code** (its own list, below); a chip shows when it holds a file.
+  subtitle files), **3D** (glb, gltf), **Audio**, **Code** (its own list, below), **Nodes** (the logic's node types, below); a chip shows when it holds a file.
 - **Sort** (name – numbers as numbers –, recently added, size, uses), the **tile size** and **tiles / list** (all three
   remembered per browser), and **⋯**: the origin (**from**: all · uploaded · imported – the editor's uploads apart from the
   files of the content import, #245) and *Name by use…*.
@@ -1132,7 +1304,9 @@ selects, a double click uses.
 each level a tile of its own (⇄ replaces only that file – a new version, every link stays), a missing level a dashed
 slot, the next size up a dotted *optional* one; a click on a slot shows the model node, whose *textures* in the
 Inspector add the level. The details of a level list the whole stack (size, pixels, weight; show, replace, download).
-A model's mesh and its map stacks stand in a **frame** (its name, parts, files, weight; a click folds it), a video and
+A picture's, video's or sound's **media levels** (a node's *levels*) are a stack the same way – every level of its kind,
+a missing one a slot that shows the node (whose *levels* in the Inspector add it). A model's mesh and its map stacks
+stand in a **frame** (its name, parts, files, weight; a click folds it), a video and
 its subtitles too (by language – `speak.en.vtt` belongs to `speak.mp4`). A model file shows what it carries inside, dotted
 – `◧ map`, `◧ 2 clips` – read from the start of the file. **The Library makes no link** (Tilman, 2026-11-19): files no
 node names stay single tiles; levels and parts are linked where the content is edited. The browser's **levels:
@@ -1150,8 +1324,30 @@ or a scene shows it in the Inspector, opening its scene first when it is another
 edits it, #277) and every action: **Use for the selection** (the selected node takes the file, when its type fits),
 **Set as target image** (an image becomes the selected target's printed image), **Replace…** (a new version, every use
 relinked, the stage rebuilt), **Download** and **Delete** (refused while used – *Delete anyway* forces it); an imported
-file is read-only. A file has no rename of its own – *Name by use…* names them. Nodes name a file by its absolute URL, so
-draft and every publish point at the same file.
+file is read-only. Nodes name a file by its absolute URL, so draft and every publish point at the same file.
+
+**Rename** (#330): *Rename* beside the name in the details, *Rename…* in a tile's menu, or **F2** on the selected file
+(outside a field) opens the name field – the part before the stored file's extension, which stays (`.webp` beside the
+field). Enter or leaving the field saves (edits save themselves, RULES #37), Esc keeps the old name. The **name only**:
+the URL and every use stay, as with *Name by use…*. An imported file's name is kept by its URL (`asset_names`). The rule
+(`cleanAssetName` in `library-drag.ts`, the API's `AssetNames::cleanName`): white space folded, no slash, backslash or
+control character, not empty, at most 255 characters ([server](server.md) "Files named by use",
+`PUT …/assets/{assetId} { name }`).
+
+**Drag a tile onto the tree** (#330, `library-drag.svelte.ts`; pointer events – a mouse moves 5 px, a finger on the iPad
+holds the tile a moment first, a quick swipe still scrolls): over a **node row** the node takes the file the way the
+Inspector's *Use* does – the kinds its type takes (a model node a glb / gltf, an image node a picture, a video node a
+video, a plugin's node type its declared file); over a **target row** a picture becomes its printed image (as *Set as
+target image*, the recognition frame made again). A label follows the pointer – the file's name and what the drop does,
+or why it does not fit (*A model node takes a 3D model – not a picture*): the row is outlined, dashed when it does not
+fit, the cursor *copy* or *no-drop*. A refused drop changes nothing; the Library's notice line repeats why. The drop is
+the tree's action (the row is selected and takes the file – the scene page's `dropAsset`); the tile is only the drag's
+source – **the Library makes no link**. The fit is `dropFit` in `library-drag.ts` (file kind × row kind). The stage takes
+no drop.
+
+**Ctrl+L** (⌘L on a Mac, in a field too) shows the Library tab where it lives (#318: a closed one comes back into its home
+panel, a folded panel opens for it) and focuses its search (the browser's, when it is open); pressed again while the
+search has the focus, the Inspector tab comes back. One function on the scene page (`toggleLibrary`, `floats.showTab`).
 
 **The browser** (⤢ at the Library's top): the same Library as a large window over the stage – Esc or ✕ closes it. On the
 left the **places** with their counts (counted on the search): *This scene*, *All files*, *Recently added* (the last 7
@@ -1185,6 +1381,14 @@ unused files and files only a plugin's source names keep their names; two files 
 instead of its place. New uploads whose use is known are named so at once: an entry's picture and a target's printed
 image by their entry, a surface's reference image by its scene and surface ([server](server.md) "Files named by
 use").
+
+**Nodes** (#334 L-T4, `LibraryNodes.svelte`): the kind *Nodes* lists the logic's node types instead of files – from the
+registry (`logic/palette.ts`, the list the Logic canvas's right-click menu reads too): first the ones added on the canvas
+(event, rule, variable, the verbs play · pause · stop · show · hide · set · emit), then the ones drawn from the content
+(node, plugin, scene, group, goto …, each saying where it comes from), each with its owner (`core`, or the plugin that
+registered it). An addable one is **dragged onto the Logic canvas** (a mouse moves, a finger holds first): the canvas
+opens its add menu there with that type's choices – one choice is applied at once. A file dragged onto the Logic canvas
+is refused with a hint (file nodes come later).
 
 **Code files** (#186): the experience's **scripts** and **shaders** in a list of their own under the media (the filter
 **code** shows it alone; `CodeFiles.svelte`, `library-code.ts`) – name, kind (*script* / *shader*), size, uses. A script
@@ -1320,7 +1524,7 @@ design tokens):
 | The demo's key model | `editor/tools/key-model.mjs` | the demo experience's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | The API layer | `editor/src/lib/api.ts`, `storage.ts`; `shared/api/` | every call through one `request` (the session cookie and the CSRF token on writes – #207, a 401 that ends the session, the API's errors as `ApiError` with their details); the answers typed once with the MCP server (`shared/api/editor.ts`); `getExperience` reads an experience's tree once for the stage, the environment and the top bar and reads it again after any write to the experience (`fresh` for the experience page); `errorText` the one error line; the two-step confirmations through `confirmationStep` (`shared/api/errors.ts`); the settings in localStorage through `storage.ts` (`osct-…` keys, blocked storage tolerated) |
-| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SceneView` and `EntryForm`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Toggle`, `Section`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the floating panels `FloatingPanel` with `floats.ts` (placement, pure) and `floats.svelte.ts` (a workspace's set, the panels menu) (#308); the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its scope, groups and sort in `library-scope.ts` (`AssetTile`, `AssetDetails`, #330), its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry's form in `EntryForm.svelte` (its logic in `entry-edit.ts`, its words outside the form in `entry-view.ts`), the scene section's in `scene-view.ts` (#227); the Logic panel `LogicPanel.svelte` with its graph in `scene-logic.ts` and its layout in `logic-layout.ts` (#239) |
+| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SceneView` and `EntryForm`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Toggle`, `Section`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the floating panels `FloatingPanel` with `floats.ts` (placement, pure) and `floats.svelte.ts` (a workspace's set, the panels menu) (#308), the tabs' arrangement in `float-tabs.ts` (#318); the rows from the contract; the rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts` (a condition and a set value in `components/ExpressionField.svelte`), a scene's and the experience's rules in `LogicRules.svelte` with `logic-edit.svelte.ts` (their saves), the variables in `VariablesEditor.svelte` with `variables-edit.ts`; the Library's filters and picks in `library-pick.ts`, its scope, groups and sort in `library-scope.ts` (`AssetTile`, `AssetDetails`, #330), a tile's drag onto the tree and the rename rule in `library-drag.ts` / `library-drag.svelte.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry's form in `EntryForm.svelte` (its logic in `entry-edit.ts`, its words outside the form in `entry-view.ts`), the scene section's in `scene-view.ts` (#227); the Logic panel `LogicPanel.svelte` (#239, #334) with its canvas `LogicCanvas.svelte` / `LogicBox.svelte` (`@xyflow/svelte`, lazy) and the pure logic model in `lib/logic/` (`project.ts`, `navigation.ts`, `flow.ts`, `layout.ts`, the ops in `apply.ts`, what fits in `palette.ts`), its menu `LogicMenu.svelte`, the Library's `LibraryNodes.svelte` and their drag in `logic-drag.svelte.ts` |
 | The experience's texts and search | `editor/src/lib/ExperienceSearch.svelte`, `experience-search.ts`, `ExperienceTexts.svelte`, `experience-texts.ts`, `panels/ExperiencePanel.svelte`, `panels/NewEntryForm.svelte`, `entries.svelte.ts` | [Texts](#texts-entries-and-the-experience), [The experience search](#the-experience-search), [Inspector: the experience](#inspector-the-experience) |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts`, `stage/plugin-run.ts` | the stored sources, Run (transpile with sucrase in the page; import and `installPlugin` in the stage frame, rebuild), the plugins' log |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |

@@ -11,6 +11,8 @@
   import { VAR_SCOPES, type VarScope, type VarValue } from "@engine/scene/plugin-runtime";
   import PassesPanel from "./PassesPanel.svelte";
   import SceneSection from "./SceneSection.svelte";
+  import LogicRules from "./LogicRules.svelte";
+  import { parseAddress } from "@engine/types";
 
   /**
    * The **scene** in the Inspector (#229 – the Stage tab's until then): what the Inspector shows while the scene is
@@ -25,11 +27,18 @@
    * the stage itself; found / lost per target is the tree's eye, the first find is replayed from the stage's menu.
    * Explanations are the controls' help in the Info view.
    */
-  let { stage, experienceId, sceneId, onenvironment }: {
+  let { stage, experienceId, sceneId, onenvironment, onopenscene }: {
     stage: Stage | null; experienceId: string; sceneId: string;
     /** The environment row's link: the workspace opens the Environment tab */
     onenvironment?: () => void;
+    /** A goto's link in the timeline: the workspace opens that scene */
+    onopenscene?: (sceneId: string) => void;
   } = $props();
+  /** The scene a goto of the timeline goes to (its detail is the address, `scene:<id>`) */
+  const gotoScene = (detail: string) => {
+    const address = parseAddress(detail);
+    return address?.scheme === "scene" ? address.id : null;
+  };
 
   const scene = $derived(content.scene(sceneId));
   const vars = $derived(withTypes(stage?.vars ?? []));
@@ -54,6 +63,9 @@
 <!-- The scene's own post-processing, a child of its parameters; the experience's passes and appearance are behind the
      experience settings ⚙ (ExperiencePanel) – #307 3c, Tilman -->
 <PassesPanel {stage} {experienceId} {sceneId} level="scene" />
+
+<!-- The scene's own rules (content schema 5.0, #334): live while the scene is open -->
+<LogicRules home="scene" {sceneId} {stage} />
 
 {#snippet valueControl(type: VarType, value: VarValue, label: string, commit: (value: VarValue) => void)}
   {#if type === "boolean"}
@@ -104,7 +116,7 @@
       <button type="button" class="pill" disabled={!newName.trim()} onclick={async () => { if (await write(newName.trim(), newValue, newScope)) newName = ""; }}>set</button>
     </span></div>
 
-  <div class="row" data-help="The stage's events, newest first: the time since the scene opened, the event and its payload – found, lost, unlocked, tapped, sceneChanged, varChanged and the plugins' own; behaviour marks a rule of a behaviour component that ran (which target, the rule, its event and what it did) – the log's own line, not an event of the stage. Clear empties the list.">
+  <div class="row" data-help="The stage's events, newest first: the time since the scene opened, the event and its payload – found, lost, unlocked, tapped, sceneChanged, varChanged and the plugins' own; behaviour marks a rule that ran (a node's: which target; a scene's or the experience's: its home – the rule, its event and what it did) and goto a rule asking for another scene (the stage stays; its link opens that scene) – the log's own lines, not events of the stage. Clear empties the list.">
     <span class="label">events</span>
     <span class="controls">
       <span class="small muted">{events.length || "none"}</span>
@@ -113,7 +125,11 @@
   {#if events.length}
     <ol class="timeline" aria-label="Events">
       {#each events as e, i (i)}
-        <li><span class="at muted">{formatElapsed(e.at)}</span><strong>{e.event}</strong>{#if e.detail}<span class="muted detail">{e.detail}</span>{/if}</li>
+        {@const to = e.event === "goto" ? gotoScene(e.detail) : null}
+        <li><span class="at muted">{formatElapsed(e.at)}</span><strong>{e.event}</strong>{#if to}<span class="detail">
+          <button type="button" class="text-link" disabled={!content.scene(to) || to === sceneId} onclick={() => onopenscene?.(to)}
+            title="The stage does not follow a goto – open the scene">open {content.scene(to)?.label || to}</button></span>
+        {:else if e.detail}<span class="muted detail">{e.detail}</span>{/if}</li>
       {/each}
     </ol>
   {/if}

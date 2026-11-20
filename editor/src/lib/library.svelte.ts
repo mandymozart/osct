@@ -1,4 +1,4 @@
-import { deleteAsset, errorText, listAssets, replaceAsset, setAssetCredits, uploadAsset, type Asset } from "./api";
+import { deleteAsset, errorText, listAssets, renameAsset, replaceAsset, setAssetCredits, uploadAsset, type Asset } from "./api";
 import { CODE_EXTENSIONS } from "./library-code";
 import { acceptOf } from "./library-pick";
 import { ASSET_KINDS } from "@shared/api/rules";
@@ -120,6 +120,14 @@ class Library {
       this.error = errorText(e);
       throw e;
     }
+  }
+
+  /** A file's name by hand (#330): the name only – the URL and every use stay; the file as listed now shows it */
+  async rename(experienceId: string, assetId: string, name: string): Promise<string> {
+    this.error = null;
+    const saved = (await renameAsset(experienceId, assetId, name)).asset;
+    this.assets = this.assets.map(a => (a.id === saved.id ? { ...a, name: saved.name, ...(a.imported ? { named: true } : {}) } : a));
+    return saved.name;
   }
 
   /** One credits line for several files at once (#330, the browser's selection): one request, every asset of those URLs shows it */

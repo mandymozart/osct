@@ -74,10 +74,10 @@ jobs:
         working-directory: scripts
     env:
       OSCT_CONTENT_ENV: ${{ inputs.environment }}
-      OSCT_BUNNY_STORAGE_ZONE: ${{ vars.OSCT_BUNNY_STORAGE_ZONE || vars.BUNNY_STORAGE_ZONE }}
+      OSCT_BUNNY_STORAGE_ZONE: ${{ vars.OSCT_BUNNY_STORAGE_ZONE }}
       OSCT_BUNNY_STORAGE_ENDPOINT: ${{ vars.OSCT_BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ZONE_ENDPOINT || 'storage.bunnycdn.com' }}
-      OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.OSCT_BUNNY_STORAGE_PASSWORD || secrets.BUNNY_STORAGE_PASSWORD }}
-      OSCT_CONTENT_BASE_URL: ${{ vars.OSCT_CONTENT_BASE_URL || vars.CONTENT_BASE_URL }}
+      OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.OSCT_BUNNY_STORAGE_PASSWORD }}
+      OSCT_CONTENT_BASE_URL: ${{ vars.OSCT_CONTENT_BASE_URL }}
       OSCT_TITLE: ${{ vars.OSCT_TITLE || 'osct' }}
       # status names every experience when none is given; purge and move fall back to the instance's
       OSCT_EXPERIENCE: ${{ inputs.command != 'status' && (vars.OSCT_EXPERIENCE || 'osct') || '' }}

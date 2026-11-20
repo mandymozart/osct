@@ -1,12 +1,13 @@
 import type { ExperienceAppearance, EntityData, EntityRefData, GameConfiguration, PassData } from "@engine/types";
 import type { EnvironmentData } from "@shared/types/environment";
-import type { AssetType, ExperienceData, SurfaceData, TargetPlace } from "@shared/types/game-config";
+import type { AssetType, ExperienceData, LogicData, RecognitionMode, SurfaceData, TargetPlace, TargetRecognitionData, VariableDeclaration } from "@shared/types/game-config";
 import type {
   Asset,
   Change,
   AssetCreditsSaved,
   AssetNamesPlan,
   AssetList,
+  AssetRenamed,
   AssetReplaced,
   AssetUploaded,
   AssetUsages,
@@ -43,6 +44,8 @@ import type {
   ExperienceSaved,
   ExperiencePassesSaved,
   ExperienceAppearanceSaved,
+  ExperienceLogicSaved,
+  ExperienceVariablesSaved,
   RemovalImpact,
   IncomingBuild,
   ImportResult,
@@ -494,7 +497,11 @@ export const replaceAsset = (experienceId: string, assetId: string, file: File, 
 export const planAssetNames = (experienceId: string, apply = false) =>
   api<AssetNamesPlan>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/assets/names`, { apply });
 
-export const assetUsages = (experienceId: string, assetId: string) =>
+/** One file's name by hand (#330) – an upload's or an imported one's (`import-…`); the URL stays */
+export const renameAsset = (experienceId: string, assetId: string, name: string) =>
+  api<AssetRenamed>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/assets/${encodeURIComponent(assetId)}`, { name });
+
+export const assetUsages =(experienceId: string, assetId: string) =>
   api<AssetUsages>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/assets/${encodeURIComponent(assetId)}/usages`);
 
 /** Files' credits lines by URL (#277); empty or null removes one */
@@ -506,8 +513,14 @@ export const deleteAsset = (experienceId: string, assetId: string, force = false
 
 // ── Targets and entries made in the editor ───────────────────────────────────────────────────────
 
-/** The target's printed image and / or where it lies on its scene's surface (`place`) */
-export const putTarget = (experienceId: string, targetId: string, body: { imageSrc?: string; place?: TargetPlace | null; enabled?: boolean }) =>
+/**
+ * The target's printed image and / or where it lies on its scene's surface (`place`), whether it is in the experience, its
+ * recognition frame made ahead (#306: `recognition` with `madeFrom` – the image it was made from, 409 stale-image when
+ * the target has another one by now) and `recognitionOff` (always its printed image)
+ */
+export const putTarget = (experienceId: string, targetId: string, body: {
+  imageSrc?: string; place?: TargetPlace | null; enabled?: boolean; recognition?: TargetRecognitionData | null; madeFrom?: string; recognitionOff?: boolean;
+}) =>
   api<TargetSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/targets/${encodeURIComponent(targetId)}`, body);
 
 /**
@@ -530,7 +543,7 @@ export const putEntry = (experienceId: string, entryId: string, changes: Record<
  * The experience's title and its printed book (#320): `book` sets the book's author and publisher (`publisher: null`
  * removes it; a new book needs its author), `book: null` removes the printed book – the experience is no book then
  */
-export const putExperience = (experienceId: string, changes: { title?: string; book?: { author?: string; publisher?: string | null } | null }) =>
+export const putExperience = (experienceId: string, changes: { title?: string; book?: { author?: string; publisher?: string | null } | null; recognition?: RecognitionMode | null }) =>
   api<ExperienceSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}`, changes);
 
 // ── The change log and its reverts (#312, docs/server.md "Reverting saved changes") ──────────────────
@@ -558,6 +571,14 @@ export const putExperiencePasses = (experienceId: string, passes: PassData[] | n
 export const putExperienceAppearance = (experienceId: string, appearance: ExperienceAppearance | null) =>
   api<ExperienceAppearanceSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/appearance`, { appearance });
 
+/** The experience's rules with their canvas (content schema 5.0, #334); `null` removes them */
+export const putExperienceLogic = (experienceId: string, logic: LogicData | null) =>
+  api<ExperienceLogicSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/logic`, { logic });
+
+/** The rules' declared variables (content schema 5.0, B7); `null` removes them – every variable takes the type of its first set */
+export const putExperienceVariables = (experienceId: string, variables: Record<string, VariableDeclaration> | null) =>
+  api<ExperienceVariablesSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/variables`, { variables });
+
 // ── Scenes (#307, docs/server.md "Scenes"): the Scenes panel and the experience page ──────────────────────
 
 /** Where a scene goes: after or before a scene, or at a position (0 = first) */
@@ -578,7 +599,7 @@ export const moveScenes = (experienceId: string, body: { scenes: string[]; group
  * A scene's label, group, surfaces (the whole list, places included) or post-processing (`passes`: `null` removes the list
  * – the experience's applies –, `[]` turns it off); `apply` lets surfaces go that entries lie on
  */
-export const putScene = (experienceId: string, sceneId: string, body: { surfaces?: SurfaceData[]; label?: string; group?: string | null; passes?: PassData[] | null; apply?: boolean }) =>
+export const putScene = (experienceId: string, sceneId: string, body: { surfaces?: SurfaceData[]; label?: string; group?: string | null; passes?: PassData[] | null; logic?: LogicData | null; apply?: boolean }) =>
   api<SceneSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/scenes/${encodeURIComponent(sceneId)}`, body);
 
 /** The experience's scenes in order and the groups – every surface with its reference image (#314) */

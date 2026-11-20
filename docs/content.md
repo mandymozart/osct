@@ -308,12 +308,13 @@ target:
 | Part | Values | What it does |
 |---|---|---|
 | `on` | `found`, `lost`, `tap`, `unlocked`, or an event's name | The node's own events – its page found, lost, the AR content tapped, the page's first find – or any other camelCase name: an event of the stage, a scene event a plugin or another behaviour emits (`doorOpened`) or a core event (`targetFound`, `varChanged`, …) |
-| `when` | `{ hasKey: true, tries: 3 }` · `{ any: { … } }` | Optional. Every variable named must equal its value; under `any:` one of them is enough. `{ not: value }` turns a test round, `null` means *not set*. A variable is read from the innermost scope that has it (scene, stage, session, experience) |
+| `when` | an expression: `hasKey && tries > 2` | Optional (content schema 5.0). The language of the entries' `{…}` texts without braces ("The text: Markdown and variables" above): camelCase variable names, numbers, `"texts"`, `true` / `false`, `and or not && \|\| !`, `== != < <= > >=`, `+ - * / mod`, parentheses. The rule runs when the value is true – `0`, `""`, `false` and a variable that is *not set* are false. A variable is read from the innermost scope that has it (scene, stage, session, experience). No functions, no dotted names |
 | `play` | a clip's name, `""` | Plays a clip of a model – `""` its own clip (the `animation` component's, else the first). `node: <name>` plays another model of the subtree. The `animation` component still says how (loop, speed) |
 | `pause`, `stop` | a node's name, `""` | Pauses the clip, or stops it at its start – `""` the behaviour's own node |
 | `show`, `hide` | a node's name, `""` | Shows or hides a node of the subtree by its `name` – `""` the behaviour's own node |
-| `set` | `{ name: value }`, `scope` | Sets variables (`null` deletes one) in `scope`: `scene` (the default), `stage`, `session` or `experience` |
+| `set` | `{ name: value }`, `scope` | Sets variables (`null` deletes one) in `scope`: `stage`, `session`, `experience` or `scene` – none given: the variable's declared scope, else `scene`. **A value is an expression** (content schema 5.0): `tries + 1`, `hasKey`, `"calm"` – see "Set values and typed variables" below |
 | `emit` | an event's name | Sends a scene event to the stage (`{ targetId, node }` as its payload); never a core event or a node event |
+| `goto` | `scene:<id>` | Content schema 5.0: the reader opens that scene, as a link to `/scene/<id>` does ("Addresses" below). The editor's stage only logs it |
 
 `do` takes one action or a list; a plain word runs a verb on the own node: `do: play`, `do: hide`. Nodes are named with
 their `name` (schema 2.12) – the door's rules below show and hide its child `hint`. On one event every rule's condition
@@ -333,9 +334,80 @@ cut (logged). An action that cannot run – a node or a clip that is not there �
           - on: found
             do: { show: hint }
           - on: found
-            when: { hasKey: true }
+            when: hasKey
             do: [{ hide: hint }, { emit: openDoor }]
+          - on: tap
+            when: doorOpen && visits >= 2
+            do: { goto: "scene:epilogue" }
 ```
+
+A condition is one expression; quote it in YAML when it starts with `!` or holds `: ` (`when: '!doorOpen'`). Before
+content schema 5.0 a condition was an object (`{ hasKey: true }`, `{ any: … }`, `{ not: … }`) – `npm run convert:5`
+converts a content folder once: each test becomes `name == value` (`!=` for `not`), the tests are joined with `&&`
+(`||` for `any`), and a *not set* test (`null`) becomes a truth test (`!name`) – the command lists those to check.
+
+**Set values and typed variables** (content schema 5.0, #334 B2 and B7). A `set` value is an expression of the same
+language, so a counter needs nothing special: `set: { tries: "tries + 1" }`. Every set value is an expression – the one
+form, so a text value is the language's text literal: `"calm"`, in YAML quoted once more, `set: { mood: '"calm"' }`
+(an unquoted `calm` is the variable `calm`). A number or `true` / `false` may stand bare (`set: { tries: 0, hasKey: true
+}`); they are their own expressions. An expression that cannot be evaluated (a variable in it not set, a text compared
+with `<`) sets nothing and is logged. `npm run convert:5` turns a 4.x set's text values into literals (once – a second
+run would quote them again).
+
+Every variable has a **type** – `number`, `integer`, `boolean` or `string`. Declare it in `experience.yaml`, or let the
+first `set` of it in the content decide (the experience's rules, then the scenes' in order, then the shared entities',
+then the targets'):
+
+```yaml
+variables:
+  tries: { type: integer, scope: stage, default: 0 }   # a declared variable that is not set reads as its default
+  mood: { type: string, default: calm }                 # a default is a plain YAML value, not an expression
+```
+
+A `set` of another type, a comparison of two types (`tries == "3"`), a `set` with another `scope` than the declared one and
+a `when` that is not true / false (`when: tries`) are problems – the content build and the editor name them. `&&`, `||`
+and `!` need true / false; `-`, `*`, `/`, `%`, `<`, `<=`, `>`, `>=` need numbers; `+` adds numbers or joins texts, never a
+text and a number. An integer goes where a number is wanted; nothing else is converted. The reader refuses a value of the
+wrong type at runtime – also one a plugin sets with `api.vars.set` – keeps the old one and logs it. A plugin's own
+variables, which no rule sets and nobody declares, stay untyped. The entries' `{…}` texts keep their loose display rules.
+
+**A scene's and the experience's rules** (content schema 5.0, #334): the same rules on a scene (`logic:` in
+`scene.yaml` – live while the scene is open) and on the experience (`logic:` in `experience.yaml` – live for the whole
+session, across scene switches). They hear the stage's bus only – a scene event or a core event (`targetFound`,
+`targetUnlocked`, `targetTapped`, `sceneChanged`, `varChanged`, …), never a node's own `found` / `lost` / `tap` /
+`unlocked` – and they have no node of their own: `show`, `hide`, `pause`, `stop` and `play`'s `node` name a node by
+address, and a plain word (`do: hide`) is not allowed. A scene's rules act on its own targets only (only the open scene's
+entities are built); `sceneChanged` reaches them once the new scene's nodes are there.
+
+```yaml
+# scenes/hall/scene.yaml
+logic:
+  rules:
+    - on: doorOpened                      # a scene event a node's rule or a plugin emits
+      when: hasKey
+      do:
+        - show: "target:door/hint"        # the node named hint in the target door's entity
+        - play: creak
+          node: "target:door"             # the entity's root
+# experience.yaml
+logic:
+  rules:
+    - on: targetUnlocked
+      when: unlocks >= 3
+      do:
+        - set: { chapterDone: true }
+          scope: experience
+        - goto: "scene:epilogue"
+```
+
+**Addresses** (`shared/types/address.ts`): `scene:<sceneId>` – where a `goto` goes; `target:<targetId>` – the root of a
+target's entity, `target:<targetId>/<node name>` – the first node of that name in it. The grammar is SCUTOONS' (a
+scheme, a colon, a path), so later schemes (`toon:`, `chapter:`) and a goto's `via` (an on-screen instruction) fit in.
+The content build checks that a goto's scene and an address's target exist.
+
+**The canvas**: next to `rules`, a `logic` may hold `canvas` – the editor's Logic view's own data (`groups: [{ id,
+label, members }]`, `notes: [{ id, text, x, y }]`, `folds: [node ids]`). It is authoring data: stored in the editor's
+database and in its export, never in a reader's configuration – the content build and a publish leave it out.
 
 The editor's Inspector edits the rules without YAML ([editor](editor.md)), and the scene's *vars and events* there shows
 each rule that ran. What a rule cannot do – move a node over time, draw text, count the progress – is a plugin's job;
@@ -683,11 +755,8 @@ surface ids are unique within their scene, group ids within the experience; a sc
 `scene` names a scene, its `surface` one of that scene's surfaces; a target's `place.surface` too, and a target in a
 scene of several surfaces must name its surface.
 
-**From 2.x** (`npm run convert:3` in `scripts/`, `scripts/src/convert-content-3.ts` – used for the test fixture and the
-demo): `scenes/<id>/scene.yaml` becomes `scenes/<id>/scene.yaml` (same id and order; the label is what the reader
-showed – its label, a cover's or matter's title, else its pages `2–3`; one surface twice the page's width, one page wide
-for a cover or a single page); an entry's `page` becomes its `scene`, a target's `print` its `place` (on the right page
-of a double page `x` moves by the left page's width).
+**From 2.x**: every source and database was converted to 3.0 (#319); the converter (`convert-content-3.ts`) is gone
+since 3.16.4 (#322) – an older source is converted from the git history if one ever turns up.
 
 ## Recognition
 
@@ -700,12 +769,36 @@ phone when a scene's targets are loaded ([tracking](tracking.md) "The flow today
 2. **The features** – the engine extracts them from that frame, one target per frame. This always happens on the
    phone: the engine (`@8thwall/engine` 0.1.0) takes no precompiled features.
 
-**Made ahead** (#306): `osct targets prepare --experience <id>` makes step 1 for every target of an experience on an
-instance and stores it with the target – the frame as a Library file (`<target>_recognition.webp`), the target's
-`recognition` (`{ imageSrc, width, height }`, content schema 4.1) naming it. The reader then gives the engine that frame
-as it is: no decoding, drawing or encoding on the phone, and a smaller download than a 1200 px printed image. Step 2 –
-and so what is recognised and how well – stays the same: the frame is the same picture the reader makes itself (the
-geometry is one function, `engine/src/scene/target-frame.ts`). A target without `recognition` works as before.
+**Made ahead** (#306): step 1 can be made ahead and stored with the target – the frame as a Library file
+(`<target>_recognition.png`, stored under the image rule like every picture), the target's `recognition`
+(`{ imageSrc, width, height }`, content schema 4.1) naming it. With it the reader can give the engine that frame as it
+is: no decoding, drawing or encoding on the phone, and a smaller download than a 1200 px printed image. Step 2 – and so
+what is recognised – stays the same in principle: the frame is the same picture the reader makes itself (the geometry
+and the builder are one module, `engine/src/scene/target-frame.ts`, used by the reader, the editor and the CLI).
+
+**Original stays the default** (Tilman, 2026-11-20): the runtime path is tested with every target, small black-and-white
+ones included. Made-ahead frames are used only where the experience says so (content schema 4.2):
+
+| Setting | Where | Effect |
+|---|---|---|
+| `experience.recognition` | the editor's experience settings (*recognition*: Original / Prepared), `update_experience`, `PUT /editor/experiences/{id} { recognition }`, `recognition:` in `experience.yaml` | `"original"` (none = the default): every frame made from the printed image on the phone. `"prepared"`: a target's `recognition` where it has one |
+| `target.recognitionOff: true` | the target's inspector (*original only*), `put_target`, `PUT …/targets/{id} { recognitionOff }`, `recognitionOff:` under `target:` in an entry's YAML | this target always uses its printed image, even when the experience says prepared |
+| the device's override | the reader's debug overlay (*Recognition*: Experience / Original / Prepared), stored on that device | overrides the experience's setting on this phone, for a comparison without publishing ([tracking](tracking.md) "Comparing Original and Prepared") |
+
+The rule is one pure function (`engine/src/scene/recognition-mode.ts`): the device's override, else the experience's
+setting; a target's frame is used only on the prepared path, only without `recognitionOff`, only when it has one. An
+app of schema 4.1 (3.11.x – staging only) knows neither setting and uses a target's `recognition` wherever it is.
+
+**Who makes the frames:**
+- **The editor, by itself** – when a target gets a printed image (an upload or a Library pick in the Inspector, the
+  Library's *Use as target image*, a new target, a new version of the image file) or is placed on a surface, and has no
+  frame for its image yet: in the browser, uploaded as a Library file, stored with the target. It never blocks or fails
+  the target's own change and never touches the printed image; an error shows quietly in the target's inspector, whose
+  *make frame* / *remake* tries again. The inspector shows the frame as a small thumbnail.
+- **`osct targets prepare`** – the batch tool for a whole experience (below).
+- The frames are working copies: the release step (#304) may re-encode them like every other asset, as long as the
+  tracker can still decode the format. The format they are made as is one constant (`RECOGNITION_FRAME_FILE`,
+  `engine/src/scene/target-frame.ts`) for the editor and the CLI.
 
 ```bash
 cd scripts && npm run build
@@ -866,6 +959,44 @@ target:
 - *Automatic* chooses 512 on a data-saving or slow connection, 1024 on a phone with up to 4 GB of memory, else 2048;
   4096 only when the reader chooses *Best*.
 
+### Pictures, videos and sounds in quality levels
+
+A picture, a video or a sound can come in several qualities; the reader's media quality (Info page → Settings →
+*Picture and video quality*) chooses which one loads (schema 4.3, #331). Name the levels on the node, next to its file,
+and on an entry next to its picture:
+
+```yaml
+image: castle.webp            # the picture an older app shows – the middle level is a good choice
+imageLevels:
+  512: castle_512.webp
+  1024: castle.webp
+  2048: castle_2048.webp
+target:
+  image: target.jpg
+  entity:
+    type: video
+    src: film_720.mp4          # what an older app loads
+    levels:
+      480: film_480.mp4
+      720: film_720.mp4
+      1080: film_1080.mp4
+```
+
+- The level is a number by kind: a **picture's longest side** (512, 1024, 2048 px), a **video's height** (480, 720,
+  1080 – `p`), a **sound's bitrate** (64, 128, 192 kbps). Each level once; not every level has to be there. An entity's
+  image, video and audio files take `levels` (on `src`, or on an item of `assets`), an entry's picture `imageLevels`.
+- The node's own file (`src`, the entry's `image`) stays: it is what an app before 4.3 loads, and a medium without
+  levels is one level.
+- The app loads the largest level that is not above what the quality asks for, else the smallest there is. *Low*,
+  *Medium* and *High* take the smallest, the middle and the largest level. *Automatic* takes the smallest on a
+  data-saving or slow (2g / 3g) connection; otherwise a picture covers the screen's longest side in device pixels, a
+  video the screen's shorter side (at most 720p on a phone with up to 4 GB), a sound the highest bitrate.
+- A change applies at once: the scene's pictures swap in place, and a playing video or sound goes on at the same spot in
+  the new quality, playing if it played (`AssetStore.refreshMedia`, 3.16.1).
+- **Video levels are made before the upload** (ffmpeg, the release step #304 later) – the editor never encodes video.
+  Picture levels can be computed in the editor's browser from the largest one ([editor](editor.md) "Media levels").
+- The build checks the files and leaves them exactly as you made them – it does not shrink a picture level.
+
 Allowed file types: `.jpg .jpeg .png .webp` (images), `.mp4 .webm .mov` (video), `.glb .gltf`
 (models), `.mp3 .wav .ogg` (audio).
 
@@ -975,6 +1106,9 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 3.0 | 2.0.1 | in develop | **one clean model of scenes – nothing of 2.x kept** (#319, `agents/SCENES.md` "Schema 3.0"): the configuration's `scenes` (was `spreads`) and `initialScene` (was `initialSpreadId`); a scene is `id`, `label`, `group?`, `surfaces` (at least one: `id`, `label?`, `widthMm`, `heightMm`, `place` – all six numbers required), `passes?`; an entry names its `scene` (required) and a `surface` when the scene has several; a target's `place` (`surface?`, `x`, `y`, `width`, `height?`, mm on the surface) replaces `print`. Removed: `page`, `firstPage`, `lastPage`, a spread's `title`, `format`, `matter` and `layout`, a surface's `side`, `print`, the configuration's `tutorial` | refused: no 2.x reader was shipped – every app since reads 3.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 3), and a 2.x app refuses 3.0 content |
 | 4.0 | 3.0.0 | in develop | **the experience is the top level** (#320, `agents/REFACTOR-EXPERIENCE.md`): the configuration's `experience` (was `book`: `id`, `title`, `passes?`, `environment?`, `appearance?`); the printed book is its optional `book` (`author`, `publisher?` – they were on the top level), none = an experience that is not a book; `sourceOfTruth` is removed (every experience adds and removes its scenes); the behaviour and plugin variable scope `experience` (was `book`, plugin API 3.0) and the text nodes' `{{experience.title}}` (was `{{book.title}}`); `latest.json` / `versions.json` name the `experience` (was `book`). The content source: `experience.yaml` (was `experience.yaml`), converted once with `npm run convert:4` | refused: no 3.x reader was shipped – every app since reads 4.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 4), and a 3.x app refuses 4.0 content |
 | 4.1 | 3.11.0 | in develop | a target's optional `recognition` (#306): `{ imageSrc, width, height }` – its grey recognition frame made ahead with `osct targets prepare` and the printed image's size ("Recognition" above) | ignored: the app makes the frame from the target's image itself, as before |
+| 4.2 | 3.12.0 | in develop | the switch between the recognition paths (#306, "Recognition" above): the experience's optional `recognition` (`"original"` – none, the default – or `"prepared"`; any other text reads as original) and a target's optional `recognitionOff` (`true`: always its printed image) | ignored: a 4.1 app (3.11.x) uses a target's `recognition` wherever it has one; an app before 4.1 makes every frame itself |
+| 4.3 | 3.16.0 | in develop | media in quality levels (#331, "Pictures, videos and sounds in quality levels" above): an image, video or audio asset's optional `levels` and an entry's optional `imageLevels` – `[{ level, src }]`, a picture by its longest side (512 / 1024 / 2048), a video by its height (480 / 720 / 1080), a sound by kbps (64 / 128 / 192); the reader's media quality chooses | ignored: a 4.2 app loads the medium's own `src` / `image`, as before |
+| 5.0 | 4.0.0 | in develop | **logic beyond the nodes** (#334, `agents/research/2026-11-20-logic-nodes-shared-concept.md` §5.4): a rule's `when` is an expression (`hasKey && tries > 2` – the language of the entries' `{…}` texts) – the object form (`{ hasKey: true }`, `{ any: … }`, `{ not: … }`) is removed; a scene's and the experience's optional `logic` (`{ rules, canvas? }`: rules in the behaviour's grammar that hear the bus and name nodes by address `target:<targetId>/<node name>`); the action `goto: scene:<id>` in every rule; a `set` value is an expression (a text value is the literal `"…"`); typed variables – the experience's optional `variables` (`{ name: { type, scope?, default? } }`), else inferred from the first set, a wrong type a problem and refused at runtime. The canvas is authoring data – never in a reader's configuration. A content source is converted once with `npm run convert:5`, the server's rows by `Migration5` (on the deploy's `Db::migrate`; a dry run: `php server/deploy/migrate.php --plan-5`) | refused: an app since 5.0 reads 5.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 5); a 4.x app refuses 5.0 content – published 4.x versions must be published again after the migration |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.
@@ -1165,7 +1299,6 @@ scripts/
 │   ├── cli.ts              the osct CLI: content build | status | sync | purge (content-cdn.md)
 │   ├── import-delivery.ts  `npm run import` – a publisher delivery into the content (mapping in import/)
 │   ├── schema-lock.ts      `npm run schema:lock` – locks shared/ to the content schema
-│   ├── convert-content-3.ts `npm run convert:3` – a content source of schema 2.x → 3.0, once (#319)
 │   └── sounds.ts           placeholder app sounds
 ├── import/                 one mapping file per delivery
 └── test/                   tests (npm test)

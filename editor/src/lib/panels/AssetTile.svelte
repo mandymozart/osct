@@ -17,9 +17,14 @@
    * (`▤ 3`, dashed `▤ 2/3` while one is missing), its quick actions add **▤** (open / close the levels, `onlevels`); a
    * level's tile in the open row names its level in the bottom right (`level`). A model file shows what it carries
    * inside – dotted `◧ map`, `◧ 2 clips` – read from the file's start (`glb-inside.ts`), only shown.
+   *
+   * **A drag's source** (#330, `onpress` – `library-drag.svelte.ts`): pressed outside its buttons, the tile may be dragged
+   * onto a tree row (a mouse moves, a finger holds first); the drop is the tree's.
    */
   let { asset, label, kind, target = false, meta, selected = false, marked = false, useLabel = "Use", useBlocked = null, replaceable = false,
-    levels = null, level = null, open = false, onselect, onactivate, onreplace, onmore, onlevels }: {
+    levels = null, level = null, open = false, onselect, onactivate, onreplace, onmore, onlevels, onpress }: {
+    /** A press outside the tile's buttons – the start of a drag onto the tree */
+    onpress?: (event: PointerEvent) => void;
     asset: Asset;
     /** The name shown */
     label: string;
@@ -64,6 +69,7 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events (the keys are the option's: Space selects, Enter uses) -->
 <li class="tile" class:selected class:marked class:stack={!!levels} class:open role="option" aria-selected={selected} tabindex="0" title={asset.url} draggable="false"
+  onpointerdown={e => { if (!own(e)) onpress?.(e); }}
   onclick={e => { if (!own(e)) onselect({ shift: e.shiftKey, toggle: e.ctrlKey || e.metaKey }); }}
   ondblclick={e => { if (!own(e)) onactivate(); }}
   oncontextmenu={e => { e.preventDefault(); onmore({ x: e.clientX, y: e.clientY }); }}
@@ -99,7 +105,8 @@
 </li>
 
 <style>
-  .tile { position: relative; display: flex; flex-direction: column; gap: .125rem; min-width: 0; outline: none; cursor: default; }
+  .tile { position: relative; display: flex; flex-direction: column; gap: .125rem; min-width: 0; outline: none; cursor: default;
+    -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   .pic { position: relative; border: 1px solid var(--line); }
   .tile.selected .pic { outline: 2px solid var(--text); outline-offset: 1px; }
   .tile.marked .pic { border-color: var(--text); }

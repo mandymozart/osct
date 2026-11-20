@@ -3,9 +3,10 @@ import { waitForDOMReady } from "@/utils";
 import { getConfigVersion, getEntries, getEntry, getScene, getTargets } from "@/utils/game-config";
 import { GameStoreService } from "@/services";
 import {
-  cyclePreparedSceneRange, getArError, getEngineState, getStoredWindowSetting, getWindowOverride, subscribeCamera,
-  subscribeEngineState,
+  cyclePreparedSceneRange, getArError, getEngineState, getExperienceRecognitionMode, getRecognitionMode, getRecognitionOverride,
+  getStoredWindowSetting, getWindowOverride, setRecognitionOverride, subscribeCamera, subscribeEngineState,
 } from "@/components/ar-bridges";
+import type { RecognitionMode } from "@shared/types/game-config";
 import { debugSwitch, SWITCH_CSS } from "./debug-sheet";
 import { isRowGridShown, restoreRowGrid, showRowGrid } from "./row-grid";
 
@@ -129,6 +130,15 @@ export class DebugOverlay extends HTMLElement {
       this.updateContent();
       return;
     }
+    if (control?.dataset.action?.startsWith("recognition-")) {
+      // The recognition path on this device (#306): the tracker holds its image targets per session – a reload applies it
+      const choice = control.dataset.action.slice("recognition-".length);
+      const next: RecognitionMode | null = choice === "original" || choice === "prepared" ? choice : null;
+      if (next === getRecognitionOverride()) return;
+      setRecognitionOverride(next);
+      window.location.reload();
+      return;
+    }
     if (control?.dataset.action === "cycle-prepared") {
       // Scenes kept loaded around the current one – applies at once (the scene re-prepares its window)
       cyclePreparedSceneRange();
@@ -238,6 +248,7 @@ export class DebugOverlay extends HTMLElement {
       <div>Scenes held: ${this.preparedLabel()}
         <button data-action="cycle-prepared">Change</button></div>
       <div>Layout: ${debugSwitch("Grid", isRowGridShown(), "toggle-grid", "Vertical grid: the six rows of the splash and onboarding")}</div>
+      ${this.renderRecognition()}
       ${this.renderEngine()}
     </div>`;
 
@@ -313,6 +324,23 @@ export class DebugOverlay extends HTMLElement {
         <button data-action="copy-progress">Copy</button>
       </div>
     `;
+  }
+
+  /**
+   * Recognition (#306): Original (frames made from the printed images on this device) or Prepared (the targets' frames
+   * made ahead, where they have one and no recognitionOff) – overrides the experience's setting on this device, stored;
+   * Experience goes back to it. A choice reloads the page (the tracker keeps its image targets per session).
+   */
+  private renderRecognition(): string {
+    const override = getRecognitionOverride();
+    const experience = getExperienceRecognitionMode();
+    const targets = getEntries().map(e => e.target).filter((t): t is Target => !!t);
+    const framed = targets.filter(t => t.recognition).length;
+    const off = targets.filter(t => t.recognition && t.recognitionOff).length;
+    const choice = (value: RecognitionMode | null, label: string, title: string) =>
+      `<button data-action="recognition-${value ?? "experience"}" class="${override === value ? "active" : ""}" aria-pressed="${override === value}" title="${escapeHtml(title)}">${label}</button>`;
+    return `<div>Recognition: <b>${getRecognitionMode()}</b> ${choice(null, `Experience (${experience})`, "The experience's setting")}${choice("original", "Original", "Frames made from the printed images on this device – the default path")}${choice("prepared", "Prepared", "The targets' frames made ahead, where they have one")}
+      <span class="info">· ${framed} / ${targets.length} targets have a frame${off ? `, ${off} kept on the original` : ""}</span></div>`;
   }
 
   /**

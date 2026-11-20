@@ -53,7 +53,7 @@ declare(strict_types=1);
  *   POST   /editor/experiences/{id}/scenes      { preset?, after? | before? | position?, id?, label?, group?, surfaces? } → 201 a
  *                                               scene anywhere (double, single, wall)
  *   POST   /editor/experiences/{id}/scenes/move { scenes, after? | before? | position?, group?, apply? } → the plan, written with apply
- *   PUT    /editor/experiences/{id}/scenes/{id} { label?, group?, surfaces?, passes?, apply? } → the scene's fields
+ *   PUT    /editor/experiences/{id}/scenes/{id} { label?, group?, surfaces?, passes?, logic?, apply? } → the scene's fields
  *   PUT    /editor/experiences/{id}/scenes/{id}/surfaces/{sid}/reference  { url | null, fit?, name? } → the surface's reference image (#314)
  *   DELETE /editor/experiences/{id}/scenes/{id} { confirm?, deleteFiles? } the scene with everything on it, in two steps: 409 confirm-delete
  *                                               (the impact, a confirmation id), then again with { confirm } → removed (409
@@ -63,6 +63,8 @@ declare(strict_types=1);
  *   PUT    /editor/experiences/{id}/environment { environment: { world, onionSky } | null } → the experience's world and onion sky
  *   PUT    /editor/experiences/{id}/passes      { passes: [{ type, … }] | null } → the experience's post-processing (every scene without its own)
  *   PUT    /editor/experiences/{id}/appearance  { appearance: { reveal?, found?, lost? } | null } → how the experience's entities appear: a look
+ *   PUT    /editor/experiences/{id}/logic       { logic: { rules, canvas? } | null } → the experience's rules (content schema 5.0)
+ *   PUT    /editor/experiences/{id}/variables   { variables: { name: { type, scope?, default? } } | null } → the rules' typed variables (5.0)
  *                                               { type, … } for the first find, every later find and the lost page
  *   DELETE /editor/experiences/{id}/entries/{id}      { confirm?, deleteFiles? } the entry with its target and entity, the same two steps
  *   GET    /editor/experiences/{id}/draft/latest.json · …/draft/{build}/game.config.json · …/draft/{build}/files.json
@@ -71,16 +73,23 @@ declare(strict_types=1);
  *                                               this instance's own environment, else 403 other-environment); `plugins` = the
  *                                               Code tab's sources as the editor transpiled them [{ id, code, api, registered? }]
  *   GET    /editor/experiences/{id}/versions    the publish log
+ *   GET    /editor/experiences/{id}/export[?build=]  everything an export needs (#322, Export): the draft's configuration or a
+ *                                               published version's, the files it names (url, size, sha256 where known), the
+ *                                               print layout, the Code tab's sources, the Library's credit lines
  *   GET    /editor/experiences/{id}/changes?limit=    the change log, newest first
  *   POST   /editor/experiences/{id}/changes/{cid}/revert { apply? } → one change taken back with the later changes of the same thing:
  *                                               the plan, written with apply as new changes (#312, Reverts)
  *   POST   /editor/experiences/{id}/changes/revert    { ids, apply? } → these changes taken back (the editor's undo and redo)
  *   POST   /editor/experiences/{id}/changes/revert-to { after, apply? } → every change after `after` taken back, newest first
+ *   GET    /editor/experiences/{id}/deliveries?limit=  the applied deliveries, newest first (#322)
+ *   POST   /editor/experiences/{id}/deliveries  { name, source?, scenes?, entries, apply?, overwrite? } → a publisher's delivery
+ *                                               compared with the draft (new / changed / same / conflict), written with apply (#322)
  *   GET    /editor/experiences/{id}/assets[?kind=]    the uploaded files (docs/server.md "Assets"), with their number of uses
  *   POST   /editor/experiences/{id}/assets      the file as the body, X-File-Name → 201 { asset } (200 when these bytes exist)
  *   PUT    /editor/experiences/{id}/assets/credits    { items: [{ url, credits }] } → the files' picture credits (#277)
  *   POST   /editor/experiences/{id}/assets/names      { apply? } → the files' names by their use (#298): the plan, then applied
  *   PUT    /editor/experiences/{id}/assets/{aid}/file the new file as the body → a new version, every use relinked
+ *   PUT    /editor/experiences/{id}/assets/{aid}      { name } → the file's name by hand (#330; an imported file's too – the URL stays)
  *   GET    /editor/experiences/{id}/assets/{aid}/usages · DELETE /editor/experiences/{id}/assets/{aid}[?force=1]
  *   GET    /editor/experiences/{id}/plugins · GET | PUT { source } | DELETE[?force=1] /editor/experiences/{id}/plugins/{pid}
  *   POST   /editor/experiences/{id}/plugins[?id=]     a script file as the body, X-File-Name → 201 { plugin } (the Library, #186)
@@ -94,7 +103,7 @@ declare(strict_types=1);
  * (ApiTokens). docs/server.md "Sessions, cookies and CSRF".
  */
 
-foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences', 'Arrivals'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Migration5', 'Logic', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences', 'Arrivals', 'Export', 'Deliveries'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -192,20 +201,27 @@ try {
         (bool) preg_match("#^PUT /editor/experiences/($id)/environment$#", $route, $match) => Experiences::putEnvironment($match[1]),
         (bool) preg_match("#^PUT /editor/experiences/($id)/passes$#", $route, $match) => Experiences::putPasses($match[1]),
         (bool) preg_match("#^PUT /editor/experiences/($id)/appearance$#", $route, $match) => Experiences::putAppearance($match[1]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/logic$#", $route, $match) => Experiences::putLogic($match[1]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/variables$#", $route, $match) => Experiences::putVariables($match[1]),
         (bool) preg_match("#^DELETE /editor/experiences/($id)/entries/($id)$#", $route, $match) => Experiences::deleteEntry($match[1], $match[2]),
         (bool) preg_match("#^GET /editor/experiences/($id)/draft/latest\\.json$#", $route, $match) => ContentVersion::draftManifest($match[1]),
         (bool) preg_match("#^GET /editor/experiences/($id)/draft/[0-9a-f]{12}/(game\\.config|files)\\.json$#", $route, $match) => ContentVersion::draftFile($match[1], $match[2]),
         (bool) preg_match("#^POST /editor/experiences/($id)/publish$#", $route, $match) => Experiences::publish($match[1], Editor::body()),
         (bool) preg_match("#^GET /editor/experiences/($id)/versions$#", $route, $match) => Experiences::versions($match[1]),
+        (bool) preg_match("#^GET /editor/experiences/($id)/export$#", $route, $match) => Export::read($match[1]),
         (bool) preg_match("#^GET /editor/experiences/($id)/changes$#", $route, $match) => Experiences::changes($match[1]),
         (bool) preg_match("#^POST /editor/experiences/($id)/changes/revert$#", $route, $match) => Reverts::many($match[1]),
         (bool) preg_match("#^POST /editor/experiences/($id)/changes/revert-to$#", $route, $match) => Reverts::to($match[1]),
         (bool) preg_match("#^POST /editor/experiences/($id)/changes/($uuid)/revert$#", $route, $match) => Reverts::one($match[1], $match[2]),
+        // Deliveries (#322)
+        (bool) preg_match("#^GET /editor/experiences/($id)/deliveries$#", $route, $match) => Deliveries::list($match[1]),
+        (bool) preg_match("#^POST /editor/experiences/($id)/deliveries$#", $route, $match) => Deliveries::post($match[1]),
         (bool) preg_match("#^GET /editor/experiences/($id)/assets$#", $route, $match) => Assets::list($match[1]),
         (bool) preg_match("#^POST /editor/experiences/($id)/assets$#", $route, $match) => Assets::upload($match[1]),
         (bool) preg_match("#^PUT /editor/experiences/($id)/assets/credits$#", $route, $match) => Assets::setCredits($match[1]),
         (bool) preg_match("#^POST /editor/experiences/($id)/assets/names$#", $route, $match) => AssetNames::plan($match[1]),
         (bool) preg_match("#^PUT /editor/experiences/($id)/assets/($uuid)/file$#", $route, $match) => Assets::replace($match[1], $match[2]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/assets/($uuid|import-[0-9a-f]{16})$#", $route, $match) => AssetNames::rename($match[1], $match[2]),
         (bool) preg_match("#^GET /editor/experiences/($id)/assets/($uuid)/usages$#", $route, $match) => Assets::usages($match[1], $match[2]),
         (bool) preg_match("#^DELETE /editor/experiences/($id)/assets/($uuid)$#", $route, $match) => Assets::delete($match[1], $match[2]),
         (bool) preg_match("#^GET /editor/experiences/($id)/plugins$#", $route, $match) => Plugins::list($match[1]),

@@ -1,6 +1,7 @@
 import { type Entry, EntryCategory } from "@/types";
 import { adoptDesignStyles } from "@/styles";
 import { escapeHtml } from "@/utils";
+import { GraphicsService } from "@/services/GraphicsService";
 import { renderEntryText, type VariableLookup } from "@shared/text/entry-text";
 import { getEntryPlaceLabel } from "@/utils/game-config";
 import { categoryLabel, linkEmbed } from "./entries-model";
@@ -89,7 +90,9 @@ export class EntryDetail extends HTMLElement {
 
   private bodyHtml(entry: Entry): string {
     const text = renderEntryText(entry.body, { variables: this.variables }).html;
-    const picture = entry.image ? `<img class="entry-image" src="${escapeHtml(entry.image)}" alt="" loading="lazy">` : "";
+    // The level the reader's media quality chooses (#331), else the picture itself
+    const src = entry.image ? GraphicsService.getInstance().mediaSrc("image", entry.image, entry.imageLevels) : "";
+    const picture = src ? `<img class="entry-image" src="${escapeHtml(src)}" alt="" loading="lazy">` : "";
     const image = picture && entry.caption ? `<figure>${picture}<figcaption>${escapeHtml(entry.caption)}</figcaption></figure>` : picture;
 
     switch (entry.category) {

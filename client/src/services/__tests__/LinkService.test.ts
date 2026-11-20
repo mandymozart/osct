@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GameStoreService } from "@/services/GameStoreService";
-import { LinkService, linkForState, parseLink, pathForRoute, resolveLink } from "../LinkService";
+import { LinkService, linkForState, parseLink, pathForRoute, resolveAddress, resolveLink } from "../LinkService";
 import { GameMode, Pages } from "@/types";
 import { getEntries, getScenes } from "@/utils/game-config";
 
@@ -107,6 +107,20 @@ describe("links: resolving", () => {
   ])("shows not found for %o", link => {
     expect(resolveLink(game, link)).toBe(false);
     expect(game.state.currentRoute?.page).toBe(Pages.NOT_FOUND);
+  });
+
+  it("a rule's goto (schema 5.0) opens scene:<id> like a link; another address or an unknown scene only logs", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(resolveAddress(game, `scene:${scene}`)).toBe(true);
+    expect(game.state.currentScene).toBe(scene);
+    expect(game.state.currentRoute?.page).toBe(Pages.SCENE);
+    game.router.navigate("/about");
+    expect(resolveAddress(game, "scene:no-such-scene")).toBe(false);
+    expect(resolveAddress(game, `target:${scene}/x`)).toBe(false);
+    expect(resolveAddress(game, "nonsense")).toBe(false);
+    expect(game.state.currentRoute?.page).toBe(Pages.ABOUT);
+    expect(warn).toHaveBeenCalledTimes(3);
+    warn.mockRestore();
   });
 
   it("routes links of any version (the version is informative only)", () => {

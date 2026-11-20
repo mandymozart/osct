@@ -9,8 +9,9 @@
  *   grids – the surfaces' own grid with its vertical axis, the scene's floor grid and the optional vertical grid
  *   (#316, #319) – and the snapping (the *grid & snap* group: on / off, what it snaps to, the precision per gizmo mode –
  *   `snap.ts`).
- * - `surfaceGrids`: the open scene's surfaces' own grid spacing (#316 part 1) by surface id – kept per experience and surface
- *   in this browser by the page (`surface-grids.svelte.ts`), handed to the stage here. Not stored with the settings.
+ * - `surfaceGrids`: the open scene's surfaces' own grids (#316, #314) by surface id – spacing, subdivisions, on / off and
+ *   snap, each left out = the toolbar's (`SurfaceGrid`) – kept per experience and surface in this browser by the page
+ *   (`surface-grids.svelte.ts`), handed to the stage here. Not stored with the settings.
  * - `hidden`: targets hidden in the scene by the tree's eye – the mock reports them as lost (outro), on again as found
  *   (reveal), and the stage leaves out their printed images (#250). Not stored.
  * - `hiddenNodes`: nodes of an entity hidden on the stage by the tree's eye (#311 – to look into a complex tree), by
@@ -153,8 +154,8 @@ export interface PreviewState extends PreviewSettings {
   hidden: readonly string[];
   /** Nodes hidden on the stage only, as `nodeKey` writes them ("target:0.2", the root "target:") */
   hiddenNodes: readonly string[];
-  /** The open scene's surfaces' own grid spacing (mm) by surface id; a surface not named takes `gridMm` (#316 part 1) */
-  surfaceGrids: Readonly<Record<string, number>>;
+  /** The open scene's surfaces' own grids by surface id; a surface not named – or a field left out – takes the toolbar's (#316) */
+  surfaceGrids: Readonly<Record<string, SurfaceGrid>>;
 }
 
 /** A node of a target's entity as the hidden nodes name it: the target id, a colon, the path ("key:0.2"; the root "key:") */
@@ -203,19 +204,68 @@ export const clampWallZ = (mm: number): number => Math.min(10000, Math.max(-1000
 /** The most surfaces with a grid of their own the stage takes at once */
 const MAX_SURFACE_GRIDS = 64;
 
-/** Surface grids from a sent value: surface ids (as the frame protocol's) with a spacing each, clamped */
-export const parseSurfaceGrids = (value: unknown): Record<string, number> => {
+/**
+ * A surface's own grid (#316, #314) – an editing aid, kept in the browser, never content: its spacing (mm), its
+ * **subdivisions** (finer lines between the spacing's, 1 = none; a print snaps to them), whether it is **drawn** and
+ * whether a print on it **snaps** to it. A field left out is the toolbar's (`gridMm`, 1, `grid`, the grid as a snap target).
+ */
+export interface SurfaceGrid {
+  mm?: number;
+  sub?: number;
+  on?: boolean;
+  snap?: boolean;
+}
+
+/** The most subdivisions of a grid step */
+export const MAX_SUBDIVISIONS = 10;
+/** Subdivisions: a whole number from 1 (none) to `MAX_SUBDIVISIONS` */
+export const clampSubdivisions = (n: number): number => Math.min(MAX_SUBDIVISIONS, Math.max(1, Math.round(n)));
+
+/** One surface's grid from a stored or sent value: a number is a spacing (as stored before #314); null when nothing is in it */
+export const parseSurfaceGrid = (value: unknown): SurfaceGrid | null => {
+  if (finite(value)) return { mm: clampGrid(value) };
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const { mm, sub, on, snap } = value as Record<string, unknown>;
+  const grid: SurfaceGrid = {
+    ...(finite(mm) ? { mm: clampGrid(mm) } : {}),
+    ...(finite(sub) ? { sub: clampSubdivisions(sub) } : {}),
+    ...(typeof on === "boolean" ? { on } : {}),
+    ...(typeof snap === "boolean" ? { snap } : {}),
+  };
+  return Object.keys(grid).length ? grid : null;
+};
+
+/** Surface grids from a sent value: surface ids (as the frame protocol's) with their grid each, checked */
+export const parseSurfaceGrids = (value: unknown): Record<string, SurfaceGrid> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   const entries = Object.entries(value as Record<string, unknown>)
-    .filter(([id, mm]) => /^[^\s]{1,200}$/.test(id) && typeof mm === "number" && Number.isFinite(mm))
-    .slice(0, MAX_SURFACE_GRIDS)
-    .map(([id, mm]) => [id, clampGrid(mm as number)] as const);
+    .filter(([id]) => /^[^\s]{1,200}$/.test(id))
+    .map(([id, grid]) => [id, parseSurfaceGrid(grid)] as const)
+    .filter((entry): entry is readonly [string, SurfaceGrid] => entry[1] !== null)
+    .slice(0, MAX_SURFACE_GRIDS);
   return Object.fromEntries(entries);
 };
 
-/** The spacing of a surface's own grid: its own, else the grid's */
-export const surfaceGridOf = (state: Pick<PreviewState, "gridMm" | "surfaceGrids">, surfaceId: string | undefined): number =>
-  (surfaceId !== undefined ? state.surfaceGrids[surfaceId] : undefined) ?? state.gridMm;
+/** A surface's grid as it is used: its own fields, the toolbar's for the rest */
+export interface ResolvedGrid {
+  mm: number;
+  sub: number;
+  on: boolean;
+  snap: boolean;
+}
+
+/** The grid a surface has: its own fields, else the toolbar's (spacing, no subdivisions, the grid switch, the grid as a snap target) */
+export const resolveSurfaceGrid = (state: Pick<PreviewState, "grid" | "gridMm" | "snapTo" | "surfaceGrids">, surfaceId: string | undefined): ResolvedGrid => {
+  const own = (surfaceId !== undefined ? state.surfaceGrids[surfaceId] : undefined) ?? {};
+  return { mm: own.mm ?? state.gridMm, sub: own.sub ?? 1, on: own.on ?? state.grid, snap: own.snap ?? state.snapTo.includes("grid") };
+};
+
+/** The step a print snaps to on a grid: the spacing over its subdivisions; null when the grid is no snap target there */
+export const gridSnapStep = (grid: ResolvedGrid): number | null => (grid.snap ? grid.mm / grid.sub : null);
+
+/** The snap step of a print on a surface (`gridSnapStep` of its grid): null = it does not snap to the grid there */
+export const surfaceGridOf = (state: Pick<PreviewState, "grid" | "gridMm" | "snapTo" | "surfaceGrids">, surfaceId: string | undefined): number | null =>
+  gridSnapStep(resolveSurfaceGrid(state, surfaceId));
 
 const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 

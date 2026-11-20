@@ -7,6 +7,8 @@
   import { content } from "#lib/content.svelte.js";
   import { codeKindOf, codeUploadProblem, pluginIdFrom } from "#lib/library-code.js";
   import { ACCEPT, library } from "#lib/library.svelte.js";
+  import { libraryDrag, pressTile } from "#lib/library-drag.svelte.js";
+  import { recognitionFrames } from "#lib/recognition-frames.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { scenes } from "#lib/scenes.svelte.js";
   import { selection } from "#lib/selection.svelte.js";
@@ -29,10 +31,13 @@
   import AssetTile from "./AssetTile.svelte";
   import AssetDetails from "./AssetDetails.svelte";
   import CodeFiles from "./CodeFiles.svelte";
+  import LibraryNodes from "./LibraryNodes.svelte";
+  import { palette } from "#lib/logic/palette.js";
 
   /**
    * The experience's library (#330): the files uploaded in the editor and, after them, the files of the content import
-   * (`files.json`, read-only – docs/server.md "Assets").
+   * (`files.json`, read-only – docs/server.md "Assets"); and under the kind *Nodes* the logic's node types (`LibraryNodes`, #334),
+   * dragged onto the Logic canvas.
    *
    * **The panel tab.** On top the **scope** – *This scene · <label>* (the open scene's files: its surfaces' reference
    * images, its targets' printed images, the files its targets' nodes name, its entries' pictures – the default while a
@@ -46,6 +51,10 @@
    * where it is used – a click there shows that target, entry or surface –, the credits and every action: *Use for the
    * selection*, *Set as target image*, *Replace…*, *Download*, *Delete* – refused while used, then *Delete anyway*); a
    * double click uses it; hovered a tile offers *Use · Replace · ⋯* (⋯ and a right click: the context menu).
+   * **Rename** (#330): the details' *Rename*, the menu's *Rename…* or F2 on the selected file open its name field – the
+   * name only, the URL and every use stay. **A tile dragged onto a tree row** (`library-drag.svelte.ts`; a mouse moves,
+   * a finger holds first): the row's node takes the file, a target row a picture as its printed image – the tree's
+   * action through the workspace's drop; a drop that does not fit says why and changes nothing.
    *
    * **Stacks and frames** (#331, `library-sets.ts`): the levels of one picture – a model's map at 512 … 4096 px, a video's
    * subtitles by language – are one tile with the levels behind it; ▤ opens them in a row under it, each level a tile of
@@ -147,15 +156,24 @@
   const toggleIn = (list: string[], key: string) => (list.includes(key) ? list.filter(k => k !== key) : [...list, key]);
   const levelsBadge = (stack: LibraryStack) => {
     const count = levelCount(stack);
-    const what = stack.kind === "map" ? "levels" : "languages";
+    const what = stack.kind === "subtitles" ? "languages" : "levels";
     return {
       text: count.there === count.of ? String(count.there) : `${count.there}/${count.of}`,
       gap: count.there < count.of,
       title: `${count.there} ${what}: ${stackRange(stack)}${count.there < count.of ? " – a level is missing" : ""}`,
     };
   };
-  /** A missing level: the model node it is added on (the Inspector's textures) – the Library makes no link */
-  const showNode = (stack: LibraryStack): (() => void) | null => (stack.node ? jumpTo({ kind: "target", ref: stack.node.targetId }) : null);
+  /** A missing level: the node it is added on (the Inspector's textures or levels) – the Library makes no link */
+  const showNode = (stack: LibraryStack): (() => void) | null => {
+    const targetId = stack.node?.targetId ?? stack.media?.targetId;
+    return targetId ? jumpTo({ kind: "target", ref: targetId }) : null;
+  };
+  /** Where a missing level of the stack is added (#331: a medium's levels in the Inspector's levels) */
+  const addedIn = (stack: LibraryStack) =>
+    stack.kind === "media" ? `the Inspector's levels of the ${stack.medium} node${stack.medium === "image" ? " (Compute makes it from the largest picture)" : ""}` : "the Inspector's textures of the model node (Compute makes it from the largest map)";
+  /** What a stack's levels are, for its tray and details */
+  const stackWhat = (stack: LibraryStack) =>
+    stack.kind === "map" ? "levels – each replaced alone, every link stays" : stack.kind === "media" ? `${stack.medium} levels – each replaced alone, every link stays` : "subtitles by language";
   const slotTitle = (stack: LibraryStack, level: StackLevel) =>
     isOptionalLevel(stack, level) ? `${level.label} – optional, a larger level` : `${level.label} is missing`;
   const stackSize = (stack: LibraryStack) => formatSize(filesSize(stack.levels.flatMap(level => (level.asset ? [level.asset] : []))));
@@ -170,8 +188,10 @@
   const scoped = $derived(base.filter(asset => inScope(asset, scope, sceneId, index)));
   const kinds = $derived(kindCounts(scoped, targetImages, surfaceImages));
   const codeCount = $derived(library.assets.filter(asset => asset.kind === "shader").length + plugins.stored.length);
+  /** The logic's node types (#334): the registry's, the same list as the Logic canvas's menu */
+  const nodeCount = palette().length;
   /** The kinds' chips: the ones that hold a file, the one chosen; Code apart from a picker */
-  const kindChips = $derived(LIBRARY_FILTERS.filter(kind => kind === "all" || kind === filter || (kind === "code" ? !pick : kinds[kind] > 0)));
+  const kindChips = $derived(LIBRARY_FILTERS.filter(kind => kind === "all" || kind === filter || (kind === "code" || kind === "nodes" ? !pick : kinds[kind] > 0)));
   const shown = $derived(scoped.filter(asset => matchesFilter(asset, filter, targetImages, surfaceImages)));
   const groups = $derived(libraryGroups(shown, {
     scope, grouping: expanded ? grouping : "scene", sort, sceneId, sceneLabel, scenes: content.scenes, index, targetImages, surfaceImages,
@@ -390,10 +410,41 @@
       const conversion = library.converted?.assetId === next.id ? library.converted : null;
       notice = `${next.name} is version ${next.version}; ${next.usages} use${next.usages === 1 ? "" : "s"} relinked${conversion ? ` · ${convertedNotice(next, conversion)}` : ""}`;
       await onchanged?.();
+      // A new version of a printed image dropped its targets' recognition frames (#306): made again by themselves
+      if (next.kind === "image" && content.experienceId === experienceId) {
+        for (const target of content.scenes.flatMap(scene => scene.targets)) {
+          if (target.imageSrc === next.url) recognitionFrames.autoFor(experienceId, target.id, next.url);
+        }
+      }
     } catch {
       // library.error says
     }
   };
+  // ── rename (#330): the details' name field – *Rename*, the menu's *Rename…* or F2 on the selected file ──
+  let renaming = $state(false);
+  const startRename = (asset: Asset) => {
+    if (pick) return;
+    if (selectedId !== asset.id) select(asset, { shift: false, toggle: false });
+    renaming = true;
+  };
+  /** Saves the name: null when saved, else why not (the field stays open) */
+  const rename = async (asset: Asset, name: string): Promise<string | null> => {
+    try {
+      const saved = await library.rename(experienceId, asset.id, name);
+      notice = `renamed to ${saved} – the URL and every use stay`;
+      return null;
+    } catch (e) {
+      return errorText(e);
+    }
+  };
+  /** F2 on the selected file (not in a field): its name field opens */
+  const onRenameKey = (event: KeyboardEvent) => {
+    if (event.key !== "F2" || pick || !selected || event.defaultPrevented) return;
+    if ((event.target as HTMLElement).closest("input, textarea, select, [contenteditable='true']")) return;
+    event.preventDefault();
+    renaming = true;
+  };
+
   const forget = (id: string) => {
     if (selectedId === id) selectedId = null;
     chosen = chosen.filter(c => c !== id);
@@ -495,6 +546,7 @@
     { label: pick ? "Pick" : "Use for the selection", disabled: useBlocked(asset), select: () => activate(asset) },
     ...(!pick && asset.kind === "image" && targetId && onusetarget ? [{ label: "Set as target image", select: () => void onusetarget(asset) }] : []),
     ...(!pick ? [{ label: "Details", select: () => select(asset, { shift: false, toggle: false }) }] : []),
+    ...(!pick ? [{ label: "Rename…", keys: "F2", select: () => startRename(asset) }] : []),
     ...(!pick && !asset.imported ? [{ label: "Replace…", select: () => startReplace(asset) }] : []),
     { label: "Download", icon: "download" as const, select: () => void download(asset) },
     ...(!pick && !asset.imported ? [{ label: "Delete", icon: "trash" as const, danger: true, select: () => void remove(asset, false) }] : []),
@@ -540,7 +592,7 @@
 {#snippet details(asset: Asset, wide: boolean, onclose: (() => void) | undefined)}
   {@const stack = sets.stackOf.get(asset.id)}
   <AssetDetails {asset} label={assetLabel(asset)} kind={isTargetImage(asset, targetImages) ? "target image" : tileKind(asset, targetImages, surfaceImages)}
-    uses={useItems} {wide} {onclose}>
+    uses={useItems} {wide} {onclose} bind:renaming onrename={pick ? undefined : name => rename(asset, name)}>
     {#snippet actions()}{@render detailActions(asset)}{/snippet}
     {#snippet extra()}{#if stack}{@render levelsBlock(stack, asset)}{/if}{/snippet}
   </AssetDetails>
@@ -553,14 +605,14 @@
     meta={as.meta ?? tileMeta(asset, fresh.includes(asset.id))} selected={isSelected(asset)} marked={(!!pick && pick.current === asset.url) || fresh.includes(asset.id)}
     useLabel={pick ? (pick.current === asset.url ? "Chosen" : "Pick") : "Use"} useBlocked={useBlocked(asset)} replaceable={!pick && !asset.imported}
     onselect={keys => select(asset, keys)} onactivate={() => activate(asset)} onreplace={() => startReplace(asset)}
-    onmore={at => (menu = { at, asset })} />
+    onmore={at => (menu = { at, asset })} onpress={pick || expanded ? undefined : e => pressTile(e, asset, as.label ?? assetLabel(asset))} />
 {/snippet}
 
 {#snippet stackTile(stack: LibraryStack)}
   {@render tile(stack.face, { label: stack.label, stack, meta: `${stackRange(stack)} · ${stackSize(stack)}` })}
   {#if openStacks.includes(stack.key)}
     <li class="tray" aria-label="The levels of {stack.label}">
-      <div class="tray-head small"><b>{stack.label}</b> <span class="muted">· {stack.kind === "map" ? "levels – each replaced alone, every link stays" : "subtitles by language"}</span>
+      <div class="tray-head small"><b>{stack.label}</b> <span class="muted">· {stackWhat(stack)}</span>
         <span class="grow"></span><button type="button" class="text-link" onclick={() => (openStacks = toggleIn(openStacks, stack.key))}>close</button></div>
       <ul class="tiles" style:--tile="{Math.max(TILE_SIZE.min, tileSize - 1)}rem">
         {#each stack.levels as level (level.label)}
@@ -568,7 +620,7 @@
           {:else}
             {@const jump = showNode(stack)}
             <li class="slot" class:optional={isOptionalLevel(stack, level)}>
-              <button type="button" class="slot-pic" disabled={!jump} title="{slotTitle(stack, level)} – added in the Inspector's textures of the model node (Compute makes it from the largest map)" onclick={() => jump?.()}>
+              <button type="button" class="slot-pic" disabled={!jump} title="{slotTitle(stack, level)} – added in {addedIn(stack)}" onclick={() => jump?.()}>
                 <span>{level.label}</span><span class="small">{isOptionalLevel(stack, level) ? "optional" : "missing"}</span></button>
               <div class="small muted">show the node</div>
             </li>
@@ -598,7 +650,7 @@
 {#snippet levelsBlock(stack: LibraryStack, asset: Asset)}
   {@const frame = sets.frameOf.get(asset.id)}
   <div class="levels-block small">
-    <div class="muted">{stack.kind === "map" ? `${levelCount(stack).there} levels of the map` : "subtitles"} <b>{stack.label}</b>{#if frame} · {frame.kind} {frame.label}{/if}</div>
+    <div class="muted">{stack.kind === "map" ? `${levelCount(stack).there} levels of the map` : stack.kind === "media" ? `${levelCount(stack).there} levels of the ${stack.medium}` : "subtitles"} <b>{stack.label}</b>{#if frame} · {frame.kind} {frame.label}{/if}</div>
     <table>
       <tbody>
         {#each [...stack.levels].reverse() as level (level.label)}
@@ -617,7 +669,7 @@
             {:else}
               {@const jump = showNode(stack)}
               <td class="muted" colspan="2">{isOptionalLevel(stack, level) ? "optional" : "missing"}</td>
-              <td class="acts">{#if jump}<button type="button" class="text-link" title="The model node – its textures in the Inspector add a level" onclick={jump}>node</button>{/if}</td>
+              <td class="acts">{#if jump}<button type="button" class="text-link" title="The node – {stack.kind === "media" ? "its levels" : "its textures"} in the Inspector add a level" onclick={jump}>node</button>{/if}</td>
             {/if}
           </tr>
         {/each}
@@ -647,7 +699,7 @@
 {/snippet}
 
 {#snippet mediaGroups()}
-  {#if filter === "code"}
+  {#if filter === "code" || filter === "nodes"}
     <!-- the code list alone -->
   {:else if library.loading && !library.assets.length}
     <p class="muted small">Loading…</p>
@@ -678,7 +730,7 @@
       </div>
     {/each}
   {/if}
-  {#if !expanded && scope === "scene" && filter !== "code"}
+  {#if !expanded && scope === "scene" && filter !== "code" && filter !== "nodes"}
     <p class="more-scopes small">
       <button type="button" class="text-link" onclick={() => (scope = "unused")}>Unused · {counts.unused}</button>
       <button type="button" class="text-link" onclick={() => (scope = "all")}>All files · {counts.all}</button>
@@ -686,6 +738,9 @@
   {/if}
   {#if showCode}
     <CodeFiles {experienceId} {search} all={filter === "all"} {onopencode} />
+  {/if}
+  {#if filter === "nodes" && !pick}
+    <LibraryNodes {search} />
   {/if}
 {/snippet}
 
@@ -705,6 +760,7 @@
   {#if uploading.length}<p class="small muted">uploading {uploading.join(", ")}…</p>{/if}
   {#if library.error}<p class="small danger">{library.error}</p>{/if}
   {#if notice}<p class="small muted">{notice}</p>{/if}
+  {#if libraryDrag.refused && !pick}<p class="small danger" aria-live="polite">{libraryDrag.refused} – nothing changed</p>{/if}
 {/snippet}
 
 {#snippet nameByUse()}
@@ -746,7 +802,7 @@
 <input bind:this={replaceInput} type="file" accept={ACCEPT} hidden onchange={e => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) void doReplace(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="library" class:dragging={dragging && !expanded} ondragover={e => { e.preventDefault(); dragging = true; }} ondragleave={() => (dragging = false)} ondrop={onDrop}>
+<div class="library" class:dragging={dragging && !expanded} ondragover={e => { e.preventDefault(); dragging = true; }} ondragleave={() => (dragging = false)} ondrop={onDrop} onkeydown={onRenameKey}>
   {#if pick}
     <div class="section"><span class="section-label">library · {pick.label}</span>
       <button type="button" class="text-link" title="Back without a file (Esc)" onclick={pick.oncancel}>cancel</button></div>
@@ -762,13 +818,13 @@
     <button bind:this={expandButton} type="button" class="icon-button" aria-label="Open the Library as a browser" title="Open as a browser – the whole library over the stage (Esc closes)" aria-expanded={expanded} onclick={() => void openBrowser()}><Icon name="maximize" /></button>
   </div>
   <div class="line">
-    <input class="field grow" type="search" placeholder="Search name, entry, scene…" bind:value={search} aria-label="Search the library" />
+    <input class="field grow" type="search" placeholder="Search name, entry, scene…" bind:value={search} aria-label="Search the library" title="Search the library (Ctrl+L)" data-library-search="panel" />
     {@render upload()}
   </div>
   <div class="chips" role="group" aria-label="Kinds">
     {#each kindChips as kind (kind)}
       <button type="button" class="pill framed chip" class:on={filter === kind} aria-pressed={filter === kind} onclick={() => (filter = kind)}>
-        {KIND_LABELS[kind]}{#if kind !== "all"} <span class="n">{kind === "code" ? codeCount : kinds[kind]}</span>{/if}
+        {KIND_LABELS[kind]}{#if kind !== "all"} <span class="n">{kind === "code" ? codeCount : kind === "nodes" ? nodeCount : kinds[kind]}</span>{/if}
       </button>
     {/each}
   </div>
@@ -800,10 +856,10 @@
   <div class="browser-shade" use:portal>
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <div class="browser" class:dragging bind:this={browserBox} role="dialog" aria-modal="true" aria-label="Library" tabindex="-1"
-      ondragover={e => { e.preventDefault(); dragging = true; }} ondragleave={e => { if (e.currentTarget === e.target) dragging = false; }} ondrop={onDrop}>
+      ondragover={e => { e.preventDefault(); dragging = true; }} ondragleave={e => { if (e.currentTarget === e.target) dragging = false; }} ondrop={onDrop} onkeydown={onRenameKey}>
       <header class="b-top">
         <span class="b-title">Library{#if pick} · {pick.label}{/if}</span>
-        <input class="field b-search" type="search" placeholder="Search name, entry, scene…" bind:value={search} aria-label="Search the library" />
+        <input class="field b-search" type="search" placeholder="Search name, entry, scene…" bind:value={search} aria-label="Search the library" data-library-search="browser" />
         <span class="grow"></span>
         {@render viewTools()}
         {#if !pick}
@@ -822,8 +878,8 @@
         <button type="button" class="place" class:on={plainPlace && scope === "unused"} onclick={() => goPlace({ scope: "unused", filter: "all" })}>Unused <span class="n">{places.scopes.unused}</span></button>
         <button type="button" class="place" class:on={special?.by === "credits"} title="Media without a credits line" onclick={() => goPlace({ special: { by: "credits" } })}>Missing credits <span class="n">{places.credits}</span></button>
         <div class="side-head">Kinds</div>
-        {#each LIBRARY_FILTERS.filter(kind => kind !== "all" && (kind === "code" ? !pick : places.kinds[kind] > 0)) as kind (kind)}
-          <button type="button" class="place" class:on={plainPlace && scope === "all" && filter === kind} onclick={() => goPlace({ scope: "all", filter: kind })}>{KIND_LABELS[kind]} <span class="n">{kind === "code" ? codeCount : places.kinds[kind]}</span></button>
+        {#each LIBRARY_FILTERS.filter(kind => kind !== "all" && (kind === "code" || kind === "nodes" ? !pick : places.kinds[kind] > 0)) as kind (kind)}
+          <button type="button" class="place" class:on={plainPlace && scope === "all" && filter === kind} onclick={() => goPlace({ scope: "all", filter: kind })}>{KIND_LABELS[kind]} <span class="n">{kind === "code" ? codeCount : kind === "nodes" ? nodeCount : places.kinds[kind]}</span></button>
         {/each}
         <div class="side-head">Scenes</div>
         {#each content.scenes.filter(scene => places.scenes.has(scene.id)) as scene (scene.id)}

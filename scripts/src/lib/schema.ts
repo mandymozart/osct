@@ -30,7 +30,10 @@ export const schemas = {
       book: { type: "Object", required: false }, // the printed book it accompanies: { author, publisher? } – none: not a book
       passes: { type: "Array", required: false }, // post-processing of every scene without its own: [{ type, ...parameters }], see shared/types/passes.ts
       environment: { type: "Object", required: false }, // the world around the reader and the onion sky: { world, onionSky, worldSrc?, skySrc? }, see shared/types/environment.ts
+      recognition: { type: "String", required: false }, // how the reader gets its targets' recognition data: "original" (default) or "prepared" (#306, schema 4.2)
       appearance: { type: "Object", required: false }, // the look an entity appears with: { reveal?, found?, lost? }, each { type, ...parameters }, see shared/types/appearance.ts
+      variables: { type: "Object", required: false }, // the rules' typed variables: { name: { type, scope?, default? } } (schema 5.0, #334 B7), see shared/types/variables.ts
+      logic: { type: "Object", required: false }, // the experience's rules: { rules: [{ on, when?, do }], canvas? } – the canvas stays out of the build (schema 5.0, #334), see shared/types/logic.ts
     },
   },
 
@@ -50,6 +53,7 @@ export const schemas = {
       order: { type: "Number", required: false, default: 0 }, // its position among the scenes (only the order counts)
       surfaces: { type: "Array", required: true }, // [{ id, label?, widthMm, heightMm, place? { x, y, z, rx?, ry?, rz? } }] – none placed: a row
       passes: { type: "Array", required: false }, // post-processing over the rendered image: [{ type, ...parameters }], see shared/types/passes.ts
+      logic: { type: "Object", required: false }, // the scene's rules: { rules: [{ on, when?, do }], canvas? } – the canvas stays out of the build (schema 5.0, #334), see shared/types/logic.ts
     },
   },
 
@@ -67,6 +71,7 @@ export const schemas = {
       author: { type: "String", required: false },
       body: { type: "String", required: false, default: "" },
       image: { type: "String", required: false },
+      imageLevels: { type: "Object", required: false }, // the picture in several sizes: { 512: x_512.webp, 1024: … } (schema 4.3, #331)
       caption: { type: "String", required: false }, // the line under the image (schema 2.34, #289)
       media: { type: "String", required: false },
       tags: { type: "List", required: false, default: [] },
@@ -82,6 +87,7 @@ export const schemas = {
       entity: { type: "Object", required: false }, // inline { type, src?, params?, filters? } or { ref }
       place: { type: "Object", required: false }, // where it is printed: { surface?, x, y, width, height? } in mm on a surface of its scene
       enabled: { type: "Boolean", required: false }, // false = switched off: the reader leaves the target and its entry out
+      recognitionOff: { type: "Boolean", required: false }, // true = always its printed image, even when the experience says prepared (#306)
     },
   },
 

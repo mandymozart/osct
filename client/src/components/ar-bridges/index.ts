@@ -8,3 +8,5 @@ export { cyclePreparedSceneRange, getPreparedSceneRange, getPreparedWindowSettin
 export * from "@engine/utils/tracker-debug";
 export * from "@engine/utils/camera-debug";
 export * from "@engine/utils/camera-request";
+// The recognition path on this device (#306) – the preloader, the debug overlay and the load test report
+export * from "@engine/utils/recognition-setting";

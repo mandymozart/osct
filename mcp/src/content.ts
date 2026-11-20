@@ -12,9 +12,12 @@ import * as z from "zod";
 import { ApiError, type OsctApi } from "./api.ts";
 import { checkAppearance, checkEntity, checkPasses, describeContentModel, usesPluginAppearances, usesPluginPasses, usesPluginTypes, type ExperienceModel } from "./model.ts";
 import { fail, guard, text, type Result } from "./result.ts";
+import { editSurfaces, SURFACE_SIZE_PRESETS } from "./surfaces.ts";
 import { editorHref, type AppLinks } from "./services.ts";
 import type { PluginData } from "../../shared/types/game-config";
-import { APPEARANCE_TYPES, MOMENTS, PASS_TYPES } from "../../shared/types/game-config";
+import { APPEARANCE_TYPES, MOMENTS, PASS_TYPES, RECOGNITION_MODES } from "../../shared/types/game-config";
+import { MEDIA_LEVELS } from "../../shared/types/media-levels";
+import { logicProblems } from "../../shared/types/logic";
 import { EntryCategory } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
 import { exprMessage, renderEntryText } from "../../shared/text/entry-text";
@@ -22,6 +25,7 @@ import type {
   AssetCreditsSaved,
   AssetList,
   AssetNamesPlan,
+  AssetRenamed,
   AssetUploaded,
   Change,
   DraftManifest,
@@ -416,7 +420,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_target",
     {
       description:
-        "Changes a target: `entity` = its own AR content (EntityData; null removes it), `ref` = a shared entity instead, `imageSrc` = the printed image (an uploaded image asset's url – upload it with upload_asset fit: \"target\", at most 1200 px), `place` = where it lies: { surface?, x, y, width, height? } in mm from the top left corner of a surface of its entry's scene (surface by id – required when the scene has several; null removes the place), `enabled` = in the reader's experience (false switches it off: the reader leaves the target and its entry out, the editor keeps both – content schema 2.26). Send what changes. Checked against the contract; a change is recorded.",
+        "Changes a target: `entity` = its own AR content (EntityData; null removes it), `ref` = a shared entity instead, `imageSrc` = the printed image (an uploaded image asset's url – upload it with upload_asset fit: \"target\", at most 1200 px), `place` = where it lies: { surface?, x, y, width, height? } in mm from the top left corner of a surface of its entry's scene (surface by id – required when the scene has several; null removes the place), `enabled` = in the reader's experience (false switches it off: the reader leaves the target and its entry out, the editor keeps both – content schema 2.26), `recognitionOff` = true keeps this target on its printed image even when the experience's recognition is \"prepared\" (content schema 4.2; false: the experience decides). Send what changes. Checked against the contract; a change is recorded.",
       inputSchema: z.object({
         experience: EXPERIENCE,
         target: ID.describe("the target's id (get_scene)"),
@@ -425,17 +429,19 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         imageSrc: z.string().min(1).optional(),
         place: targetPlaceSchema.nullable().optional(),
         enabled: z.boolean().optional().describe("false = switched off: not in the reader's experience; true = in the experience again"),
+        recognitionOff: z.boolean().optional().describe("true = always the printed image, never its recognition frame made ahead; false = the experience's recognition setting decides"),
       }),
       annotations: write,
     },
-    guard(async ({ experience, target, entity, ref, imageSrc, place, enabled }) => {
+    guard(async ({ experience, target, entity, ref, imageSrc, place, enabled, recognitionOff }) => {
       const body: Json = {};
       if (ref !== undefined) body.ref = ref;
       else if (entity !== undefined) body.entity = entity;
       if (imageSrc !== undefined) body.imageSrc = imageSrc;
       if (place !== undefined) body.place = place;
       if (enabled !== undefined) body.enabled = enabled;
-      if (Object.keys(body).length === 0) return fail({ error: { code: "mcp", message: "send entity, ref, imageSrc, place or enabled" } });
+      if (recognitionOff !== undefined) body.recognitionOff = recognitionOff;
+      if (Object.keys(body).length === 0) return fail({ error: { code: "mcp", message: "send entity, ref, imageSrc, place, enabled or recognitionOff" } });
       const { refused, warnings } = entity ? await checkWrite(entity, "entity", () => experienceModel(experience)) : { refused: null, warnings: {} };
       if (refused) return refused;
       const [result, t] = await Promise.all([api.call<TargetSaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/targets/${encodeURIComponent(target)}`, body), tree(experience)]);
@@ -507,7 +513,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "update_entry",
     {
       description:
-        "Changes an entry's fields – send only what changes: title, category, scene (moves it to that scene – list_scenes), surface (one of its scene's surfaces; null: none – a scene with several surfaces needs one), body (Markdown: paragraphs at blank lines, *emphasis*, **strong**, [links](https://…); the experience's variables in braces – {hasKey}, {hasKey: …|…} – describe_content_model entryText), author, tags (the whole list), image (a picture of the experience's Library: an uploaded image's url or a file of the import), caption (the line under the picture, plain text – \"Image: … by …\"; not the Library's credit line, set_asset_credits), media (a link's http(s) URL); null removes author, image, caption or media. A body whose braces do not parse is refused before it is sent. The change is recorded; the person checks it in the editor.",
+        "Changes an entry's fields – send only what changes: title, category, scene (moves it to that scene – list_scenes), surface (one of its scene's surfaces; null: none – a scene with several surfaces needs one), body (Markdown: paragraphs at blank lines, *emphasis*, **strong**, [links](https://…); the experience's variables in braces – {hasKey}, {hasKey: …|…} – describe_content_model entryText), author, tags (the whole list), image (a picture of the experience's Library: an uploaded image's url or a file of the import), caption (the line under the picture, plain text – \"Image: … by …\"; not the Library's credit line, set_asset_credits), media (a link's http(s) URL), imageLevels (the picture at several sizes – the reader's media quality chooses one); null removes author, image, imageLevels, caption or media. A body whose braces do not parse is refused before it is sent. The change is recorded; the person checks it in the editor.",
       inputSchema: z.object({
         experience: EXPERIENCE,
         entry: ID.describe("the entry's id (get_entries, get_experience)"),
@@ -519,6 +525,8 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         author: z.string().max(TEXT_MAX_LENGTH).nullable().optional(),
         tags: z.array(z.string().max(ENTRY_TAGS.length)).max(ENTRY_TAGS.max).optional(),
         image: z.string().min(1).nullable().optional().describe("a Library picture's url (list_assets kind image); null removes it"),
+        imageLevels: z.array(z.object({ level: z.number().int(), src: z.string().min(1) })).nullable().optional()
+          .describe(`the picture in several sizes (content schema 4.3, #331): [{ level, src }], level ${MEDIA_LEVELS.image.join(" / ")} (px, longest side), each a Library picture; null removes them`),
         caption: z.string().max(TEXT_MAX_LENGTH).nullable().optional().describe("the line under the picture, plain text; null removes it"),
         media: z.string().nullable().optional().describe("an http(s) URL; null removes it"),
       }),
@@ -540,7 +548,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "update_experience",
     {
       description:
-        "Changes the experience's title – the reader's splash, home page and account show it – or its printed book: `book` { author, publisher? } is the printed book this experience accompanies (the splash shows the author and the publisher above Start; the onboarding itself is the app's, not the experience's). Send what changes: `book` { author } or { publisher } changes those fields (publisher null or \"\" removes it); `book: null` removes the printed book – an experience without one (a wall, a room, an exhibition) – only with the person's yes; a new printed book needs `author`. The change is recorded.",
+        "Changes the experience's title – the reader's splash, home page and account show it – or its printed book: `book` { author, publisher? } is the printed book this experience accompanies (the splash shows the author and the publisher above Start; the onboarding itself is the app's, not the experience's). Send what changes: `book` { author } or { publisher } changes those fields (publisher null or \"\" removes it); `book: null` removes the printed book – an experience without one (a wall, a room, an exhibition) – only with the person's yes; a new printed book needs `author`. `recognition` (content schema 4.2) = how the reader gets its targets' recognition data: \"original\" (the default – made from each printed image on the phone, the path tested with every target) or \"prepared\" (a target's grey frame made ahead where it has one – only after a test run on the phones, with the person's yes); null = the default. The change is recorded.",
       inputSchema: z.object({
         experience: EXPERIENCE,
         title: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
@@ -553,15 +561,17 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
           .nullable()
           .optional()
           .describe("the printed book: { author?, publisher? } – the fields that change; null removes the printed book"),
+        recognition: z.enum(RECOGNITION_MODES).nullable().optional().describe("\"original\" (default) or \"prepared\"; null = the default"),
       }),
       annotations: write,
     },
-    guard(async ({ experience, title, book }) => {
+    guard(async ({ experience, title, book, recognition }) => {
       const changes: ExperienceUpdate = {};
       if (title !== undefined) changes.title = title;
       if (book !== undefined) changes.book = book;
-      if (Object.keys(changes).length === 0 || (book && Object.keys(book).length === 0 && title === undefined)) {
-        return fail({ error: { code: "mcp", message: "send title, or book with author or publisher (book: null removes the printed book)" } });
+      if (recognition !== undefined) changes.recognition = recognition;
+      if (Object.keys(changes).length === 0 || (book && Object.keys(book).length === 0 && title === undefined && recognition === undefined)) {
+        return fail({ error: { code: "mcp", message: "send title, recognition, or book with author or publisher (book: null removes the printed book)" } });
       }
       const result = await api.call<ExperienceSaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}`, changes);
       return text({ ...result, open: editorHref(links, experience) });
@@ -683,7 +693,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_scene",
     {
       description:
-        "Changes a scene: `label` (free text – what the reader's switcher shows), `group` (a group of the experience; null takes it out – the scene stays in place), `surfaces` (the whole list, at least one – add, remove, resize, label, place: { id, label?, widthMm, heightMm, place? }; a surface without a place is laid in a row; a surface that goes takes its reference image), `passes` = the scene's own post-processing that replaces the experience's here ([{ type, enabled?, …parameters }] – the built-in types and the passes of the experience's plugins, describe_content_model { experience } passes; [] turns post-processing off here, null gives the scene the experience's passes again). Send what changes; checked against the contract. Surfaces that entries or targets lie on go only with `apply: true` – the first call answers 409 surfaces-in-use naming them (details.entries, details.targets): show the person; with their yes call again with `apply: true` – the entries stay on the scene without a surface, the targets lose their place (`cleared`). A change is recorded.",
+        "Changes a scene: `label` (free text – what the reader's switcher shows), `group` (a group of the experience; null takes it out – the scene stays in place), `surfaces` (the whole list, at least one – add, remove, resize, label, place: { id, label?, widthMm, heightMm, place? }; a surface without a place is laid in a row; a surface that goes takes its reference image), `passes` = the scene's own post-processing that replaces the experience's here ([{ type, enabled?, …parameters }] – the built-in types and the passes of the experience's plugins, describe_content_model { experience } passes; [] turns post-processing off here, null gives the scene the experience's passes again), `logic` = the scene's rules (content schema 5.0: { rules: [{ on, when?, do }], canvas? } – live while the scene is open, they hear the bus and name nodes by address target:<targetId>/<node name>; describe_content_model logic; null removes them). Send what changes; checked against the contract. Surfaces that entries or targets lie on go only with `apply: true` – the first call answers 409 surfaces-in-use naming them (details.entries, details.targets): show the person; with their yes call again with `apply: true` – the entries stay on the scene without a surface, the targets lose their place (`cleared`). A change is recorded.",
       inputSchema: z.object({
         experience: EXPERIENCE,
         scene: ID.describe("the scene's id (list_scenes)"),
@@ -691,12 +701,22 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         group: ID.nullable().optional(),
         surfaces: surfacesSchema.optional(),
         passes: passesSchema.nullable().optional(),
+        logic: z.record(z.string(), z.unknown()).nullable().optional().describe("the scene's rules { rules: [{ on, when?, do }], canvas? } (content schema 5.0, describe_content_model logic); null removes them"),
         apply: z.boolean().optional().describe("let surfaces go that entries or targets lie on – only after the person's yes"),
       }),
       annotations: write,
     },
     guard(async ({ experience, scene, ...body }) => {
-      if (Object.keys(body).filter(key => key !== "apply").length === 0) return fail({ error: { code: "mcp", message: "send label, group, surfaces or passes" } });
+      if (Object.keys(body).filter(key => key !== "apply").length === 0) return fail({ error: { code: "mcp", message: "send label, group, surfaces, passes or logic" } });
+      if (body.logic) {
+        const problems = logicProblems(body.logic, "logic", "scene");
+        if (problems.length) {
+          return fail({
+            error: { code: "invalid-logic", message: "logic does not match the content contract (nothing was sent).", problems },
+            hint: "describe_content_model logic: a scene's rules hear the bus (no found / lost / tap / unlocked), name nodes by address target:<targetId>/<node name>, a condition is an expression (hasKey && tries > 2), goto takes scene:<id>.",
+          });
+        }
+      }
       let warnings: { warnings?: string[] } = {};
       if (body.passes) {
         const check = await checkPassWrite(body.passes, "passes", () => experienceModel(experience));
@@ -705,6 +725,38 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       }
       const result = await api.call<SceneSaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/scenes/${encodeURIComponent(scene)}`, body);
       return text({ scene: result.scene, cleared: result.cleared, ...warnings, open: editorHref(links, experience, scene) });
+    }),
+  );
+
+  server.registerTool(
+    "put_surface",
+    {
+      description:
+        `Changes ONE surface of a scene without sending the whole list (put_scene sends the whole list): \`surface\` by id – an id the scene does not have **adds** it (its size from \`preset\` – double ${SCENE_PAGE_MM.width * 2} × ${SCENE_PAGE_MM.height}, single ${SCENE_PAGE_MM.width} × ${SCENE_PAGE_MM.height}, wall ${SCENE_WALL_MM.width} × ${SCENE_WALL_MM.height} mm – or widthMm and heightMm; without a place the server lays it in a row), a known one **changes** the fields sent (label – null: none –, preset or widthMm / heightMm for its size, place), \`position\` **moves** it to that index (0 = first), \`remove: true\` **removes** it (never the scene's last). Targets keep their place in mm when a surface gets smaller – check them with get_scene / render_scene. A surface that entries or targets lie on goes only with \`apply: true\`: the first call answers 409 surfaces-in-use naming them – show the person; with their yes call again with \`apply: true\`. Reads the scene's list (list_scenes), writes it with the one change (PUT …/scenes/{id}); a change is recorded.`,
+      inputSchema: z.object({
+        experience: EXPERIENCE,
+        scene: ID.describe("the scene's id (list_scenes)"),
+        surface: ID.describe("the surface's id – one the scene does not have adds a surface"),
+        remove: z.boolean().optional().describe("true removes the surface (nothing else may be sent with it)"),
+        label: z.string().max(TEXT_MAX_LENGTH).nullable().optional().describe("what is printed on it (186–187, Cover); null or empty: none"),
+        preset: z.enum(SURFACE_SIZE_PRESETS).optional().describe("its size from a format: double page, single page, wall"),
+        widthMm: z.number().positive().optional().describe("its width in mm (wins over the preset's)"),
+        heightMm: z.number().positive().optional().describe("its height in mm (wins over the preset's)"),
+        place: surfaceSchema.shape.place,
+        position: z.number().int().min(0).optional().describe("its index in the scene's surfaces (0 = first)"),
+        apply: z.boolean().optional().describe("let a surface go that entries or targets lie on – only after the person's yes"),
+      }),
+      annotations: write,
+    },
+    guard(async ({ experience, scene, apply, ...edit }) => {
+      const list = await api.call<SceneList>("GET", `/editor/experiences/${encodeURIComponent(experience)}/scenes`);
+      const found = list.scenes.find(s => s.id === scene);
+      if (!found) return fail({ error: { code: "not-found", message: `no scene "${scene}" (scenes: ${list.scenes.map(s => s.id).join(", ")})` } });
+      const result = editSurfaces(found.surfaces, edit, SCENE_SURFACES_MAX);
+      if (!result.ok) return fail({ error: { code: "mcp", message: result.message } });
+      if (result.done === "unchanged") return text({ surface: edit.surface, done: "unchanged", surfaces: result.surfaces, open: editorHref(links, experience, scene) });
+      const saved = await api.call<SceneSaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/scenes/${encodeURIComponent(scene)}`, { surfaces: result.surfaces, ...(apply ? { apply } : {}) });
+      return text({ surface: edit.surface, done: result.done, surfaces: saved.scene.surfaces, cleared: saved.cleared, open: editorHref(links, experience, scene) });
     }),
   );
 
@@ -939,6 +991,22 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     guard(async ({ experience }) => text({ ...(await api.call<AssetNamesPlan>("POST", `/editor/experiences/${encodeURIComponent(experience)}/assets/names`, { apply: true })), open: editorHref(links, experience) })),
+  );
+
+  server.registerTool(
+    "rename_asset",
+    {
+      description:
+        "Renames one file of the Library by hand (#330) – an uploaded or an imported one, by its id (list_assets: a uuid, or import-…). The name only: the URL and every use stay, so nothing breaks. White space is folded; no slash, backslash or control character; the stored file's extension stays (added when the name lacks it: `castle` → `castle.glb`); at most 255 characters (400 invalid-name otherwise). For naming every used file by where it is used, plan_asset_names is the way. Names are no content: nothing to publish, no change in the experience's log.",
+      inputSchema: z.object({
+        experience: EXPERIENCE,
+        asset: z.string().regex(/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|import-[0-9a-f]{16})$/).describe("the file's id (list_assets)"),
+        name: z.string().min(1).max(255),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    guard(async ({ experience, asset, name }) =>
+      text(await api.call<AssetRenamed>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/assets/${encodeURIComponent(asset)}`, { name }))),
   );
 
   server.registerTool(

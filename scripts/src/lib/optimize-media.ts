@@ -342,7 +342,10 @@ export function gzipCopy(file: string): MediaOptimization {
 const matchingFiles = (dir: string, pattern: RegExp): string[] =>
   listFiles(dir).filter(file => pattern.test(path.basename(file))).map(file => path.join(dir, file));
 
-/** The files of every texture set in a built configuration, as paths below the content copy (`entities/x/map_512.jpg`) */
+/**
+ * The files of every texture set and every media level (#331: an asset's `levels`, an entry's `imageLevels`) in a built
+ * configuration, as paths below the content copy (`entities/x/map_512.jpg`) – files at exact sizes, kept as authored
+ */
 export function textureSetFiles(config: unknown, found = new Set<string>()): Set<string> {
   if (Array.isArray(config)) config.forEach(value => textureSetFiles(value, found));
   else if (config && typeof config === 'object') {
@@ -351,6 +354,10 @@ export function textureSetFiles(config: unknown, found = new Set<string>()): Set
         value.forEach(set => (Array.isArray(set?.sizes) ? set.sizes : []).forEach((entry: { src?: unknown }) => {
           if (typeof entry?.src === 'string') found.add(entry.src.replace(/^\/assets\/content\//, ''));
         }));
+      } else if ((key === 'levels' || key === 'imageLevels') && Array.isArray(value)) {
+        value.forEach((entry: { src?: unknown }) => {
+          if (typeof entry?.src === 'string') found.add(entry.src.replace(/^\/assets\/content\//, ''));
+        });
       } else textureSetFiles(value, found);
     }
   }

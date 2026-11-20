@@ -1,7 +1,7 @@
 {
   "name": "osct-scripts",
   "private": true,
-  "version": "3.11.1",
+  "version": "4.0.0",
   "engines": {
     "node": ">=22"
   },
@@ -18,8 +18,8 @@
     "start": "npm run build && npm run build:content",
     "sounds": "npm run build && node dist/sounds.js",
     "import": "npm run build && node dist/import-delivery.js",
-    "convert:3": "npm run build && node dist/convert-content-3.js",
     "convert:4": "npm run build && node dist/convert-content-4.js",
+    "convert:5": "npm run build && node dist/convert-content-5.js",
     "layout": "python layout/extract-layout.py",
     "prepare-delivery": "python layout/prepare-delivery.py",
     "test": "vitest run"

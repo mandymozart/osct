@@ -3,6 +3,7 @@ import { ALL_CATEGORY, type GameState, type IGame, type PageRoute, Pages } from 
 import { getExperience, getEntry, getScene } from "@/utils/game-config";
 import { experiencePrefix, onboardingSteps, splitExperiencePath } from "@/utils";
 import { isEntryCategory } from "@shared/guards/game-config";
+import { parseAddress } from "@shared/types/address";
 
 /**
  * Deep links: the app state as a plain URL.
@@ -84,6 +85,24 @@ export const linkForState = (state: Pick<GameState, "currentRoute" | "currentSce
  * Route to a link's state. Returns false (and shows the not-found page) when the route or its target
  * doesn't exist.
  */
+/**
+ * A rule's `goto` (content schema 5.0, `shared/types/address.ts`): `scene:<id>` opens that scene as a link to
+ * `/scene/<id>` does. An address of another kind or an unknown scene is logged and changes nothing (no not-found page –
+ * the reader did not ask for it). Returns whether it routed.
+ */
+export const resolveAddress = (game: IGame, address: string): boolean => {
+  const to = parseAddress(address);
+  if (to?.scheme !== "scene") {
+    console.warn(`[goto] "${address}" is no address the reader can open (scene:<id>) – nothing happens`);
+    return false;
+  }
+  if (!getScene(to.id)) {
+    console.warn(`[goto] ${address}: the experience has no scene "${to.id}" – nothing happens`);
+    return false;
+  }
+  return resolveLink(game, { slug: "/scene", value: to.id });
+};
+
 export const resolveLink = (game: IGame, link: Link): boolean => {
   const { slug, value } = link;
   const notFound = () => {

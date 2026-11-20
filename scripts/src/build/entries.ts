@@ -1,7 +1,7 @@
 import type { EntityData, EntryData, SceneData, TargetData } from '../../../shared/types/game-config';
 import { buildErrors } from '../lib/errors';
 import { contentFile, readSection, validate } from '../lib/content';
-import { buildEntity } from './entities';
+import { buildEntity, mediaLevels } from './entities';
 
 export interface EntryBuild {
   entry: EntryData;
@@ -35,6 +35,7 @@ export function buildEntries(scenes: SceneData[], entities: Record<string, Entit
       tags: e.tags,
       ...(e.author ? { author: e.author } : {}),
       ...(e.image ? { image: contentFile('entries', id, e.image, label) } : {}),
+      ...(e.image && e.imageLevels !== undefined ? { imageLevels: mediaLevels(e.imageLevels, `${label}: imageLevels`, file => contentFile('entries', id, file, label)) ?? [] } : {}),
       ...(e.caption ? { caption: e.caption } : {}),
       ...(e.media ? { media: e.media } : {}),
     };
@@ -63,6 +64,7 @@ export function buildEntries(scenes: SceneData[], entities: Record<string, Entit
           }
         }
         if (t.enabled === false) target.enabled = false;
+        if (t.recognitionOff === true) target.recognitionOff = true;
         entry.target = target;
       }
     }

@@ -11,6 +11,7 @@
   import { errorText, isMediaAsset, putTarget, type Asset, type TargetPlace } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import { library } from "#lib/library.svelte.js";
+  import { recognitionFrames, frameTargetOf } from "#lib/recognition-frames.svelte.js";
   import { nodeAssetKinds, pickAccept, type LibraryPick } from "#lib/library-pick.js";
   import { fileNameOf } from "#lib/library-place.js";
   import { plugins } from "#lib/plugins.svelte.js";
@@ -25,7 +26,7 @@
   import { MakeCodeError, materialCode, nodeTypeCode, nodeTypeOwner, takesMaterial, type MadeCode } from "#lib/plugins/make-code.js";
   import { selection } from "#lib/selection.svelte.js";
   import { scenes } from "#lib/scenes.svelte.js";
-  import { choiceOf, placeOnChoice, surfaceChoices } from "#lib/surface-edit.js";
+  import { choiceOf, moveToSurface, placeOnChoice, surfaceChoices } from "#lib/surface-edit.js";
   import { breadcrumb } from "#lib/selection.js";
   import { ADD_PLACES, addNode, defaultAddPlace, nodeLabel, typeLabel, withName, type AddPlace } from "#lib/tree.js";
   import type { NodeTimeline } from "@engine/types";
@@ -38,6 +39,9 @@
   import ModelTextures from "#lib/components/ModelTextures.svelte";
   import { setNodeTextures, textureSizeOf, withMaterial, withoutTexture, withTexture } from "#lib/model-textures.js";
   import { largestOf, makeLevels } from "#lib/texture-levels.js";
+  import MediaLevels from "#lib/components/MediaLevels.svelte";
+  import { levelLabel, levelOfAsset, makeImageLevels, setNodeLevels, withLevel, withoutLevel } from "#lib/media-levels.js";
+  import { isLevelledKind, MEDIA_LEVELS, type MediaLevelData } from "@shared/types/media-levels";
   import type { TextureSize } from "@shared/types/textures";
   import TextureField from "#lib/components/TextureField.svelte";
   import Toggle from "#lib/components/Toggle.svelte";
@@ -50,6 +54,8 @@
   import GroupView from "./GroupView.svelte";
   import SurfaceView from "./SurfaceView.svelte";
   import { experienceEvents, experienceVariables, pathOfName, rulesOf, subtreeNames, treeBehaviourIssues, withRules } from "#lib/behaviour-edit.js";
+  import { logicEdit } from "#lib/logic-edit.svelte.js";
+  import { logicTypes, typeProblemsByRule } from "#lib/logic/project.js";
 
   /**
    * The selected **node** of a target's entity (the entity is a tree; the tree panel or a tap
@@ -74,10 +80,12 @@
    * **scene** – selected in the tree, or nothing else selected – its sections (`SceneView`: the scene,
    * post-processing, vars and events).
    */
-  let { stage, experienceId, sceneId, selected, node = $bindable([]), pickColour, ontargetchanged, oncode, onenvironment }: {
+  let { stage, experienceId, sceneId, selected, node = $bindable([]), pickColour, ontargetchanged, oncode, onenvironment, onopenscene }: {
     stage: Stage | null; experienceId: string; sceneId: string; selected: string | null; node: number[];
     /** The scene's environment row: the workspace opens the Environment tab */
     onenvironment?: () => void;
+    /** A goto's link in the scene's timeline: the workspace opens that scene */
+    onopenscene?: (sceneId: string) => void;
     /** Show the Code tab (a made plugin's error is there) */
     oncode?: () => void;
     /** Pick a colour from the stage (the workspace owns the picking overlay) */
@@ -226,8 +234,15 @@
   const behaviourProblems = $derived(entity ? treeBehaviourIssues(entity) : []);
   /** Every tree of the experience (the draft's, this one as edited): the variables and events its behaviours use */
   const experienceTrees = $derived([...content.scenes.flatMap(s => s.targets).filter(t => t.id !== target?.id).flatMap(t => (t.entity ? [t.entity] : [])), ...(entity ? [entity] : [])]);
-  const ruleVariables = $derived(experienceVariables(experienceTrees, (stage?.vars ?? []).map(v => v.name)));
-  const ruleEvents = $derived(experienceEvents(experienceTrees, (stage?.events ?? []).map(e => e.event)));
+  /** The scenes' and the experience's rules (schema 5.0): their variables and events are offered too */
+  const logicRuleSets = $derived([...logicEdit.experienceRules(), ...content.scenes.flatMap(s => logicEdit.sceneRules(s.id))]);
+  const ruleVariables = $derived([...new Set([...experienceVariables(experienceTrees, (stage?.vars ?? []).map(v => v.name), logicRuleSets), ...Object.keys(logicEdit.declared() ?? {})])].sort());
+  const ruleEvents = $derived(experienceEvents(experienceTrees, (stage?.events ?? []).map(e => e.event), logicRuleSets));
+  /** The variables' types (declared, else inferred) – the draft's trees with this one as edited */
+  const ruleTypes = $derived(logicTypes(logicEdit.withLogic({
+    scenes: content.scenes.map(s => ({ ...s, targets: s.targets.map(t => (t.id === target?.id && entity ? { ...t, entity } : t)) })),
+  })));
+  const gotoScenes = $derived(content.scenes.map(s => ({ id: s.id, label: s.label || s.id })));
   /** The clips of the models under the selected node by node name ("" = the node itself), read from the stage as the models load */
   let behaviourClips = $state<Record<string, string[]>>({});
   $effect(() => {
@@ -281,7 +296,7 @@
   const pickContext = $derived(`${target?.id}|${node.join(".")}|${selection.entry}`);
   $effect(() => {
     void pickContext;
-    untrack(() => { picking = null; textureError = null; });
+    untrack(() => { picking = null; textureError = null; levelError = null; });
   });
   const pickTargetImage = () => {
     const t = target;
@@ -318,9 +333,17 @@
   const on = $derived(choiceOf(surfaceOptions, print) ?? undefined);
   const shown = $derived(toOrigin(origin, frame, on, print.x, print.y));
   const setShown = (x: number, y: number) => editPrint({ ...print, ...fromOrigin(origin, frame, on, x, y) });
+  /**
+   * Another surface (#314): the print keeps its place in mm where it fits there, else it is centred (made smaller when
+   * too big – `moveToSurface`); its height when the place has none is the stage's (from the image)
+   */
   const chooseSurface = (value: string) => {
     const choice = surfaceOptions.find(c => c.value === value);
-    if (choice) editPrint(placeOnChoice(print, choice, surfaceOptions));
+    const to = sceneSurfaces?.find(s => s.id === value);
+    if (!choice || value === on) return;
+    if (!to) { editPrint(placeOnChoice(print, choice, surfaceOptions)); return; }
+    const height = target ? stage?.placeOf(target.id)?.height : undefined;
+    editPrint(moveToSurface(print, to, surfaceOptions.length > 1, height).place);
   };
   /**
    * A target without a place of its own: where the stage shows it – the stage's fallback place – so the rows, the
@@ -373,6 +396,8 @@
       const url = typeof src === "string" ? src : (await library.upload(experienceId, src, { fit: "target", entry: entryId })).url;
       await putTarget(experienceId, targetId, { imageSrc: url });
       await ontargetchanged?.();
+      // Its recognition frame, made by itself from the new image (#306) – after the change, never in its way
+      recognitionFrames.autoFor(experienceId, targetId, url);
     } catch (e) {
       targetError = errorText(e);
     } finally {
@@ -395,6 +420,8 @@
       await putTarget(experience, id, { place: next });
       if (placementEdits === edit) placementPending = null;
       await ontargetchanged?.();
+      // Placed on a surface without a recognition frame yet: made by itself (#306), once per image
+      recognitionFrames.autoFor(experience, id);
     });
   };
   /** The target in the experience or switched off (#249): the reader leaves a switched-off target and its entry out */
@@ -404,6 +431,25 @@
     targetError = null;
     try {
       await putTarget(experienceId, target.id, { enabled: on });
+      await ontargetchanged?.();
+    } catch (e) {
+      targetError = errorText(e);
+    } finally {
+      targetBusy = false;
+    }
+  };
+  /** Make recognition frame / Remake (#306): from the printed image as the draft holds it; a failure shows quietly below */
+  const makeFrame = () => {
+    const made = target ? frameTargetOf(target.id) : null;
+    if (made) void recognitionFrames.make(experienceId, made);
+  };
+  /** Original only (#306): the target always uses its printed image, even when the experience says prepared */
+  const setRecognitionOff = async (on: boolean) => {
+    if (!target) return;
+    targetBusy = true;
+    targetError = null;
+    try {
+      await putTarget(experienceId, target.id, { recognitionOff: on });
       await ontargetchanged?.();
     } catch (e) {
       targetError = errorText(e);
@@ -506,6 +552,79 @@
     }
     const have = (modelTextures?.[index]?.sizes ?? []).map(entry => entry.size).filter(s => s !== size.size);
     await uploadLevels(index, file, file.name, [size.size, ...have], [asset]);
+  };
+
+  // ── a picture's, video's or sound's quality levels (#331 step 3, schema 4.3): chosen by the reader's media quality ──
+  let levelError = $state<string | null>(null);
+  let levelBusy = $state<string | null>(null);
+  const levelKind = $derived.by(() => {
+    const kind = current?.assets[0]?.assetType;
+    return isLevelledKind(kind) ? kind : null;
+  });
+  const nodeLevels = $derived<readonly MediaLevelData[] | undefined>(levelKind ? current?.assets[0]?.levels : undefined);
+  /** Files become levels: each at the level given, else the one read from the file (an image's or video's size) */
+  const addLevels = (files: readonly { asset: Asset; level?: number }[]) => {
+    if (!current || !levelKind) return;
+    let levels = current.assets[0]?.levels;
+    const problems: string[] = [];
+    for (const { asset, level } of files) {
+      const read = level === undefined ? levelOfAsset(asset, levelKind) : { level };
+      if ("problem" in read) problems.push(read.problem);
+      else levels = withLevel(levels, read.level, asset.url);
+    }
+    levelError = problems.length ? problems.join(" ") : null;
+    if (levels !== current.assets[0]?.levels) applyNode(setNodeLevels(current, levels ? [...levels] : undefined));
+  };
+  const pickLevel = (level: number) => {
+    const type = current?.type;
+    if (!type || !levelKind) return;
+    const which = current?.name ? `“${current.name}”` : node.length ? `node ${pathLabel}` : "the root node";
+    pickFor({ subject: { for: "node", nodeType: type }, label: `the ${levelLabel(levelKind, level)} level of ${which}`,
+      onpick: asset => { if (asset.kind === levelKind) addLevels([{ asset, level }]); else levelError = `${asset.name} is no ${levelKind}.`; } });
+  };
+  const uploadLevel = async (level: number, file: File) => {
+    levelError = null;
+    levelBusy = `uploading ${file.name}…`;
+    try {
+      // A picture's level keeps up to its size (the image rule's 2048 is the largest image level)
+      const asset = await library.upload(experienceId, file);
+      if (asset.kind !== levelKind) levelError = `${asset.name} is no ${levelKind}.`;
+      else addLevels([{ asset, level }]);
+    } catch {
+      // library.error says
+    } finally {
+      levelBusy = null;
+    }
+  };
+  /** Pictures: the levels below the largest one (or the node's own file when it has none), computed here in the browser */
+  const computeImageLevels = async () => {
+    const own = current?.assets[0];
+    if (!own || levelKind !== "image") return;
+    const top = [...(own.levels ?? [])].sort((a, b) => b.level - a.level)[0];
+    const src = top?.src ?? own.src;
+    levelError = null;
+    levelBusy = "reading the picture…";
+    const made: { asset: Asset; level?: number }[] = [];
+    try {
+      const response = await fetch(src);
+      if (!response.ok) throw new Error(`the picture could not be read (${response.status})`);
+      const have = (own.levels ?? []).map(entry => entry.level);
+      const result = await makeImageLevels(await response.blob(), library.byUrl(src)?.name ?? src.replace(/^.*\//, ""), have,
+        level => (levelBusy = `computing ${level} px…`));
+      // The node's own file stands for its level when it has none yet
+      const ownAsset = library.byUrl(src);
+      if (!top && ownAsset && !have.includes(result.level)) made.push({ asset: ownAsset, level: result.level });
+      for (const level of result.levels) {
+        levelBusy = `uploading ${level.level} px…`;
+        made.push({ asset: await library.upload(experienceId, level.file), level: level.level });
+      }
+      if (!result.levels.length && !made.length) levelError = `Nothing to compute: the levels below ${result.level} px are there (${MEDIA_LEVELS.image.join(", ")}).`;
+    } catch (e) {
+      levelError = e instanceof Error ? e.message : String(e);
+    } finally {
+      levelBusy = null;
+    }
+    if (made.length) addLevels(made);
   };
 
   /** The selected node takes a file (the library's Use, an upload) */
@@ -664,7 +783,7 @@
   <LibraryPanel {experienceId} pick={picking} />
 {:else if !target}
   <!-- The scene: selected, or nothing else is (a target id this scene does not have shows it too) -->
-  <SceneView {stage} {experienceId} {sceneId} {onenvironment} />
+  <SceneView {stage} {experienceId} {sceneId} {onenvironment} {onopenscene} />
 {:else}
   <div class="head">
     <!-- The breadcrumb (#162): target › entity › group › node – a crumb selects that level; ▾ after the target picks another -->
@@ -698,6 +817,21 @@
   <div class="row"><span class="label">image</span>
     <FileField src={target.imageSrc} picture accept={pickAccept({ for: "target-image" })} label="the printed image of {target.id}"
       onlibrary={pickTargetImage} onupload={f => { const id = target?.id; if (id) void setTargetImage(id, f); }} /></div>
+  {@const frameStatus = recognitionFrames.status[target.id]}
+  <div class="row recognition" data-help-name="Recognition frame"
+    data-help="The grey frame the phone's image tracker reads, made ahead from the printed image (the editor makes it by itself when the image changes or the target is placed; the printed image stays as it is). The reader uses it only when the experience's recognition is Prepared (experience settings) – by default it makes the frame from the printed image on the phone, the path tested with every target.">
+    <span class="label">recognition</span>
+    <span class="controls">
+      {#if target.recognition}<img class="frame-thumb" src={target.recognition.imageSrc} alt="Recognition frame of {target.id}" title="{target.recognition.width} × {target.recognition.height} px image" />{/if}
+      <button type="button" class="text-link" disabled={frameStatus?.state === "making"} onclick={makeFrame}>
+        {frameStatus?.state === "making" ? "making…" : target.recognition ? "remake" : "make frame"}</button>
+      {#if !target.recognition && frameStatus?.state !== "making"}<span class="small muted">none yet</span>{/if}
+    </span></div>
+  {#if frameStatus?.state === "failed"}<p class="small danger" title={frameStatus.message}>The recognition frame was not made: {frameStatus.message} – the target itself is saved; make frame tries again.</p>{/if}
+  <div class="row" data-help-name="Original only"
+    data-help="On: this target always uses its printed image, even when the experience's recognition is Prepared – for a target the frame made ahead recognises worse. Off: the experience's setting decides.">
+    <span class="label">original only</span>
+    <span class="controls"><Toggle on={target.recognitionOff === true} label="Original only" disabled={targetBusy} onchange={setRecognitionOff} /></span></div>
   {#if placementOpen}
     {#if surfaceOptions.length > 1}
       <div class="row"><span class="label">surface</span>
@@ -805,6 +939,13 @@
         onremove={(i, size) => current && applyNode(setNodeTextures(current, withoutTexture(modelTextures, i, size)))}
         onmaterial={(i, material) => current && modelTextures && applyNode(setNodeTextures(current, withMaterial(modelTextures, i, material)))} />
     {/if}
+    {#if levelKind && current.assets[0]}
+      <div class="section" title="The file in several qualities – the reader's media quality chooses which is loaded"><span class="section-label">levels</span></div>
+      <MediaLevels kind={levelKind} levels={nodeLevels} accept={pickAccept({ for: "node", nodeType: current.type })} error={levelError} busy={levelBusy}
+        onupload={(level, file) => void uploadLevel(level, file)} onlibrary={pickLevel}
+        onremove={level => current && applyNode(setNodeLevels(current, withoutLevel(nodeLevels, level)))}
+        oncompute={levelKind === "image" ? () => void computeImageLevels() : undefined} />
+    {/if}
     {#if nodeSpec}
       <!-- A plugin's node type (#77): its parameters from its spec, in the node's params -->
       <div class="section" title={nodeSpec.description}><span class="section-label">node type · {current.type}</span></div>
@@ -892,8 +1033,11 @@
       {/if}
       {#if component.type === BEHAVIOUR_TYPE}
         <!-- The behaviour's rules (#88): event, condition and actions as pickers -->
-        <BehaviourRules rules={rulesOf(current, i)} names={subtreeNames(current)} clipsOf={name => behaviourClips[name] ?? []}
-          variables={ruleVariables} events={ruleEvents} uid="behaviour-{i}" onchange={rules => current && applyNode(withRules(current, i, rules))} />
+        {@const rules = rulesOf(current, i)}
+        {@const typeProblems = typeProblemsByRule(rules, ruleTypes)}
+        <BehaviourRules {rules} names={subtreeNames(current)} clipsOf={name => behaviourClips[name] ?? []} scenes={gotoScenes} types={ruleTypes}
+          problemsOf={r => typeProblems.filter(p => p.rule === r).map(p => p.message)}
+          variables={ruleVariables} events={ruleEvents} uid="behaviour-{i}" onchange={next => current && applyNode(withRules(current, i, next))} />
       {/if}
       {#each rows.filter(r => r.id.startsWith(`components.${i}.`)) as row (row.id)}
         {@render specRow(row, row.id.split(".")[2])}
@@ -925,6 +1069,8 @@
 
 <style>
   .head { display: flex; align-items: center; gap: .5rem; min-height: var(--control-height); }
+  /* The recognition frame (#306): a small grey thumbnail, 3:4 like the frame */
+  .frame-thumb { width: 1.5rem; height: 2rem; object-fit: contain; border: 1px solid var(--line); }
   .head .small { overflow-wrap: anywhere; }
   .crumbs { flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 0 .125rem; }
   .crumb { max-width: 10rem; height: var(--control-height); padding: 0 .375rem; border: none; border-radius: var(--control-radius); background: none; color: var(--muted);

@@ -148,6 +148,9 @@ Every result is JSON. Writes answer with `open`, the editor's link to check the 
 | `list_experiences` | the instance's experiences with their last publish and where they are live, and `environments` – what each environment serves (or that its store cannot be read) |
 | `preview_import { url \| configuration \| source: "cdn", assetsBase?, experience? }` | read-only: what an import would bring in, nothing imported (the API's [import preview](server.md#import-preview)) – with `source: "cdn"` the store of `experience` (default the instance's own) on the instance's CDN (#87); the content base and its `latest.json`, `incoming` (the one experience's id and title, the build, its date, app and schema version), `counts`, and `existing`: the draft of that id it would replace (null: a new experience) – with `next`, what to tell the person and the `import_experience` call that follows |
 | `import_experience { experience, url \| configuration \| source: "cdn", assetsBase?, confirm? }` | replaces the experience's rows from a game configuration (the reader's dev server serves its own at `/src/game.config.json`). **Over an experience that exists, two steps** (the API's, [server](server.md#import-with-a-version-comparison)): the first call imports nothing and answers `{ imported: false, comparison, confirmation, next }` – the incoming build (id, date, app and schema version) against what the draft is based on and its edits since that import; the agent shows it to the person and asks, and only with their yes calls again with the same arguments and `confirm: confirmation.id` (10 minutes, one use; a change meanwhile answers `void` with a new comparison). A new experience is imported at once. `experience` is the configuration's own `experience.id` (`preview_import`'s `incoming.experience`); another id is refused (400 `invalid-configuration`) |
+| `preview_delivery { experience, plan \| file, overwrite? }` | read-only: what a publisher's delivery would do to the draft ([Deliveries](#a-publishers-delivery-preview_delivery-import_delivery-322)) – `summary` (the comparison as the person reads it), `counts`, the `items` that are not `same`, `problems`, `warnings` and a `confirmation` (none while there are problems) – with `next`, the `import_delivery` call that follows the person's yes |
+| `import_delivery { experience, plan \| file, overwrite?, confirm? }` | writes the delivery – **two steps**: without `confirm` nothing is written and the comparison comes back as from `preview_delivery`; with `confirm: confirmation.id` the comparison is made again and written only when it is still the one the person saw (else `void` and the new one). `overwrite: true` writes the conflicts too – only when the person asked |
+| `list_deliveries { experience, limit? }` | the applied deliveries, newest first (the API's `GET …/deliveries`): name, source, counts, who, when, how many changes name it |
 | `get_experience { experience }` | the tree (content schema 4.0): the experience (its `experience` data, the printed book in `experience.book`), the scenes in order with their surfaces, each with its entries (`scene`, `surface`) and targets (`place`, entity inline or `{ ref }`), the groups; `counts` scenes, entries, targets |
 | `get_scene { experience, scene }` | one scene (label, group, surfaces with size and place, passes), every target's entity resolved (a shared one with its `ref` next to it); an unknown id answers the scenes there are |
 | `get_entity { experience, ref }` · `put_entity { experience, ref, entity }` | a shared entity – the whole node tree (`EntityData`). An entity's own looks are its root node's components `reveal`, `found`, `lost` – `{ type: reveal, look: printLift, duration: 900 }` (#268; `describe_content_model` → `components.moments`) |
@@ -160,6 +163,7 @@ Every result is JSON. Writes answer with `open`, the editor's link to check the 
 | `list_scenes { experience }` | the scenes in order ([server](server.md#scenes)) – position, label, group, passes, the surfaces (id, label, size, `place`, `reference` – the editor-only reference image), how many entries and targets lie on each – and the groups with their scenes |
 | `add_scene { experience, preset?, after? \| before? \| position?, id?, label?, group?, surfaces? }` | a scene anywhere: `double` (default – one surface 460 × 320 mm), `single` (230 × 320 – a cover is a single scene first in the order) or `wall` (2000 × 1500 standing ahead, `rx` 90) give its surface unless `surfaces` names them; surfaces without a `place` are laid in a row by the server |
 | `put_scene { experience, scene, label?, group?, surfaces?, passes?, apply? }` | a scene's label, group (`null`: out of it), surfaces (the whole list, at least one: `{ id, label?, widthMm, heightMm, place? }`, `place` `{ x, y, z, rx?, ry?, rz? }` – mm and degrees in the scene's coordinate system, rotations default 0, left out: laid in a row) and its own post-processing (replaces the experience's there; `[]` off, `null` the experience's again). Surfaces that entries or targets lie on go only with `apply: true`: the first call answers 409 `surfaces-in-use` (`entries`, `targets`) – shown to the person; with their yes `apply: true`, the entries stay on the scene without a surface, the targets lose their place (`cleared`) |
+| `put_surface { experience, scene, surface, remove?, label?, preset?, widthMm?, heightMm?, place?, position?, apply? }` | **one** surface of a scene without sending the whole list (#314, `mcp/src/surfaces.ts`): an id the scene does not have **adds** it (size from `preset` – `double` 460 × 320, `single` 230 × 320, `wall` 2000 × 1500 mm – or `widthMm` / `heightMm`; no `place`: laid in a row by the server), a known one **changes** the fields sent (`label` – `null`: none –, `preset` or a size, `place`), `position` **moves** it (index, 0 = first), `remove: true` **removes** it (never the last; no other field with it). Reads the scene's list (`GET …/scenes`, the editor-only `reference` left out) and writes it with the one change (`PUT …/scenes/{id}`) – no route of its own. `done`: `added` · `changed` · `removed` · `unchanged` (nothing written). A surface in use goes only with `apply: true`, as with `put_scene`. Targets keep their place in mm when a surface gets smaller |
 | `move_scenes { experience, scenes, after? \| before? \| position?, group?, apply? }` | one or several scenes as a block, to a place or into / out of a group (`group: null`) – **two steps**: the plan (`order`, `moved`, `groups`; nothing written), then the same call with `apply: true` after the person's yes |
 | `delete_scene { experience, scene, confirm?, deleteFiles? }` | the scene with everything on it – entries, targets, the entities used only there – in the same two steps as `delete_entry` (the impact names the scene and the shared entities kept); 409 `initial-scene` for the scene the experience opens on |
 | `group_scenes { experience, label, scenes, id?, apply? }` · `rename_group { experience, group, label }` · `ungroup { experience, group }` | groups – a label over several scenes, one stop of the reader's switcher: `group_scenes` brings the picked scenes together where the first is (plan, then `apply: true`); `ungroup` keeps the scenes in place and in order |
@@ -167,7 +171,7 @@ Every result is JSON. Writes answer with `open`, the editor's link to check the 
 | `put_experience_passes { experience, passes \| null }` | the experience's post-processing – the master chain every scene without its own shows |
 | `put_experience_appearance { experience, appearance \| null }` | how the experience's entities appear (#265): a look `{ type, …parameters }` for `reveal` (the first find), `found` (every later find) and `lost` (the target is lost) – the whole appearance is replaced; `null` removes it, the default look plays everywhere |
 | `put_environment { experience, environment: { world, onionSky, worldSrc?, skySrc? } \| null }` | the world around the reader and the onion sky |
-| `list_assets { experience, kind? }` · `upload_asset { experience, file, name?, fit?, entry?, scene?, surface? }` · `set_asset_credits { experience, items: [{ url, credits }] }` · `delete_asset { experience, asset, force? }` | the library: a local file becomes an asset whose `url` nodes and targets name – a picture (jpg, png, webp) under **the image rule** (#298, [content](content.md) "The image rule"): stored as WebP named `<name>.webp`, upright, metadata dropped, at most 2048 px, or 1200 px with `fit: "target"` (a target's printed image; `fit: "reference"` for a surface's reference image, 2048 px), `converted` in the answer says so – a shader (glsl, frag, vert, wgsl; kind `shader`, #186) one a plugin loads by its `url` (`api.loadText`). A video's subtitles (vtt; kind `subtitles`, #257) belong to the video by their name – `speak.en.vtt` for `speak.mp4` – and no node names them. `kind` is the API's: `glb`, `gltf`, `video`, `image`, `audio`, `shader`, `subtitles`; the list also holds the content import's files (`imported`, read-only) |
+| `list_assets { experience, kind? }` · `upload_asset { experience, file, name?, fit?, entry?, scene?, surface? }` · `set_asset_credits { experience, items: [{ url, credits }] }` · `rename_asset { experience, asset, name }` (#330 – one file's name by hand, an upload or an imported `import-…`; the URL stays) · `delete_asset { experience, asset, force? }` | the library: a local file becomes an asset whose `url` nodes and targets name – a picture (jpg, png, webp) under **the image rule** (#298, [content](content.md) "The image rule"): stored as WebP named `<name>.webp`, upright, metadata dropped, at most 2048 px, or 1200 px with `fit: "target"` (a target's printed image; `fit: "reference"` for a surface's reference image, 2048 px), `converted` in the answer says so – a shader (glsl, frag, vert, wgsl; kind `shader`, #186) one a plugin loads by its `url` (`api.loadText`). A video's subtitles (vtt; kind `subtitles`, #257) belong to the video by their name – `speak.en.vtt` for `speak.mp4` – and no node names them. `kind` is the API's: `glb`, `gltf`, `video`, `image`, `audio`, `shader`, `subtitles`; the list also holds the content import's files (`imported`, read-only) |
 | `plan_asset_names { experience }` · `apply_asset_names { experience }` | the Library's files **named by their use** (#298, [server](server.md#files-named-by-use)): `plan_asset_names` is read-only – the renames (`from → to`, the first use, `more`), shown to the person first; `apply_asset_names` makes the plan again and writes it. The name only, every URL stays; an imported file gets a listed name. `upload_asset` takes `entry` (with `fit: target` / `entryImage` → `<entry>_target.webp`, `<entry>_image.webp`) or `scene` + `surface` (with `fit: reference` → `<scene>_<surface>.webp`) to name a new upload so at once |
 | `list_plugins` · `get_plugin` · `put_plugin { experience, plugin, source }` · `upload_plugin { experience, file, plugin?, replace? }` · `plugin_usages { experience, plugin }` · `delete_plugin { experience, plugin, force? }` | the Code tab's sources (the Library's scripts); `put_plugin` names what the source registers and warns about a module the engine would refuse; `upload_plugin` makes a local `.ts` / `.js` file a source (its id from the file's name, `replace: true` for an existing one); `delete_plugin` is refused while the draft uses what it registers (409 `plugin-in-use`) unless `force` |
 | `get_draft { experience, part? }` | the draft as the engine loads it: manifest, configuration or files |
@@ -208,6 +212,46 @@ No 2.x tool is left (content schema 3.0, #319 – nothing of 2.x was shipped): n
 `put_spread`, `delete_spread`), no pages or page images (`list_pages`, `set_page_images`), no matter (`add_matter`), no
 `migrate_scenes` / `migrate_surface_references`, no `migrate_3` (every experience is migrated), no `page`, `print`, `side`, `format`, `layout`
 or `title` of a scene anywhere. Scene links are `…/editor/<experience>/<scene>/`.
+
+## A publisher's delivery: preview_delivery, import_delivery (#322)
+
+A delivery – new pages with their printed images and videos – comes in as a **plan** (`shared/api/deliveries.ts`
+`DeliveryPlan`: `name`, `source?`, `scenes?`, `entries` with their targets), the API's [Deliveries](server.md#deliveries)
+(`mcp/src/deliveries.ts`). The files are Library files named by the asset's id or URL: they are uploaded first
+(`upload_asset`, or the CLI, which converts them) – these tools never upload or convert. The plan is given inline
+(`plan`, checked by the tool's schema) or as a JSON file on the computer the server runs on (`file`, as the CLI writes it –
+checked the same way before anything is sent, `invalid-plan`; its own `apply` / `overwrite` are ignored).
+
+The two steps are import_experience's: the agent shows the comparison and writes only with the person's yes. The API
+keeps no confirmation for a delivery (a comparison writes nothing, the plan is sent again with `apply: true`), so the
+MCP server makes one: `confirmation.id` is a digest of the experience, the plan, `overwrite` and the comparison's items and
+problems. `import_delivery` with `confirm` compares again and writes only when the digest is the same – a draft edited
+meanwhile or another plan answers `void` with the new comparison to show. A problem the API meets on the write (409
+`delivery-problems`) comes back the same way, nothing written. A plan with problems gets no confirmation.
+
+The `summary` for the person (shortened):
+
+```
+Delivery “2026-11-final” into osct – nothing written yet: 3 new, 1 changed, 12 same, 1 conflict.
+
+New:
+- scene s186-187
+- entry p186-1 (scene s186-187)
+- target p186-1
+
+Changed (the fields that follow the delivery):
+- entry racoon (scene s1) – image
+
+Conflicts – edited in the editor since the last delivery (left as they are unless overwrite):
+- target racoon – imageSrc – imageSrc was edited in the editor since the last delivery
+
+Warnings:
+- …
+```
+
+Each status lists at most 40 rows (`… and N more`); the `same` rows are only counted. After the write the summary says
+how many changes were written under which delivery – each a change of the log naming it, revertable like any save
+(`revert_change`, the editor's history). `list_deliveries` names the deliveries written.
 
 ## Seeing a scene: render_scene (#89)
 

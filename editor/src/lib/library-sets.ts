@@ -1,5 +1,7 @@
 import { TEXTURE_SIZES, type TextureSetData, type TextureSize } from "@shared/types/textures";
 import { subtitleFileOf } from "@shared/types/subtitles";
+import { isLevelledKind, MEDIA_LEVELS, type LevelledKind, type MediaLevelData } from "@shared/types/media-levels";
+import { levelLabel } from "./media-levels";
 import type { Asset } from "./api";
 import { srcKey } from "./library-scope";
 
@@ -8,7 +10,9 @@ import { srcKey } from "./library-scope";
  *
  * - **A stack** = one picture in several quality levels: a model's map at 512 / 1024 / 2048 / 4096 px (`textures`, #260).
  *   One tile, the levels offset behind it; opened, every level is a tile of its own (replaced alone) and a missing one
- *   a slot to fill. A video's subtitles are a stack by language. Later the same for image / video / audio levels (#13).
+ *   a slot to fill. A video's subtitles are a stack by language. A picture's, video's or sound's quality levels
+ *   (`levels`, #331 step 3: image 512 / 1024 / 2048 px, video 480p / 720p / 1080p, audio 64 / 128 / 192 kbps) are a
+ *   stack the same way – every level of the kind, the missing ones as slots.
  * - **A frame** = the parts of one thing: a model – its mesh and the stacks of its maps (later normals, clips, scripts);
  *   a video – the film and its subtitles. The Library draws a frame around them.
  *
@@ -23,13 +27,17 @@ import { srcKey } from "./library-scope";
 export interface StackLevel {
   label: string;
   size?: TextureSize;
+  /** A medium's level (#331): image px, video height, audio kbps */
+  level?: number;
   asset: Asset | null;
 }
 
 export interface LibraryStack {
   /** Stable key (`map:<mesh>#<material>`, `subs:<video>`) */
   key: string;
-  kind: "map" | "subtitles";
+  kind: "map" | "subtitles" | "media";
+  /** A medium's kind (`media` stacks) */
+  medium?: LevelledKind;
   /** What the tile calls it: the material (`map` for every material), `subtitles` */
   label: string;
   /** The levels, smallest first; for a map from the draft every size of TEXTURE_SIZES (the ones missing as slots) up to the largest there is, and the next one up as optional */
@@ -38,6 +46,8 @@ export interface LibraryStack {
   face: Asset;
   /** Where it is set: the model node's target and the set's place in its `textures` (a missing level is added there, in the Inspector) */
   node?: { targetId: string; mesh: string; set: number };
+  /** A medium's node (`media` stacks): its target and the node's own file */
+  media?: { targetId: string; src: string };
 }
 
 export interface LibraryFrame {
@@ -85,6 +95,28 @@ const modelsIn = (node: unknown, targetId: string, out: ModelUse[]): void => {
     }
   }
   if (Array.isArray(data.children)) for (const child of data.children) modelsIn(child, targetId, out);
+};
+
+/** The pictures, videos and sounds with levels in a node tree (#331), with the target they are on */
+interface MediaUse {
+  targetId: string;
+  kind: LevelledKind;
+  src: string;
+  levels: readonly MediaLevelData[];
+  name?: string;
+}
+
+const mediaIn = (node: unknown, targetId: string, out: MediaUse[]): void => {
+  if (!node || typeof node !== "object") return;
+  const data = node as { name?: unknown; assets?: unknown; children?: unknown };
+  if (Array.isArray(data.assets)) {
+    for (const asset of data.assets as { src?: unknown; assetType?: unknown; levels?: unknown }[]) {
+      if (typeof asset?.src === "string" && isLevelledKind(asset.assetType) && Array.isArray(asset.levels) && asset.levels.length) {
+        out.push({ targetId, kind: asset.assetType, src: asset.src, levels: asset.levels as MediaLevelData[], name: typeof data.name === "string" ? data.name : undefined });
+      }
+    }
+  }
+  if (Array.isArray(data.children)) for (const child of data.children) mediaIn(child, targetId, out);
 };
 
 /** The levels of a map stack: each size from the smallest there is to the largest, the missing ones as slots, one more up as optional (not past 4096) */
@@ -155,6 +187,22 @@ export function librarySets(assets: readonly Asset[], scenes: readonly SetScene[
     if (!frame.stacks.length) continue;
     frames.set(key, frame);
     if (main) frameOf.set(main.id, frame);
+  }
+
+  // ── a picture's, video's or sound's levels (#331): one stack per node file, every level of its kind ──
+  const media: MediaUse[] = [];
+  for (const scene of scenes) for (const target of scene.targets) mediaIn(target.entity, target.id, media);
+  const mediaKeys = new Set<string>();
+  for (const use of media) {
+    const key = `media:${srcKey(use.src)}`;
+    if (mediaKeys.has(key)) continue; // a second node with the same file: its levels are the first one's
+    const byLevel = new Map(use.levels.map(entry => [entry.level, find(entry.src)]));
+    const levels: StackLevel[] = MEDIA_LEVELS[use.kind].map(level => ({ label: levelLabel(use.kind, level), level, asset: byLevel.get(level) ?? null }));
+    const face = faceOf(levels);
+    if (!face) continue;
+    mediaKeys.add(key);
+    const stack: LibraryStack = { key, kind: "media", medium: use.kind, label: use.name || "levels", levels, face, media: { targetId: use.targetId, src: use.src } };
+    take(stack, null);
   }
 
   // ── a video's subtitles: one stack by language, the video's frame ──

@@ -10,7 +10,7 @@ export function instructions(services: Services | null, api: string, local: bool
   const lines = [
     `OSCT (${local ? "LOCAL dev API" : api}) – you act as the signed-in editor with exactly their rights; the API decides.`,
     "Start with whoami. Every save changes the experience's DRAFT (the editor's stage shows it at once) and gives the person the link to check it there.",
-    "Readers are reached only by a person: publish here goes to this instance's own environment (local / staging) for a check (never with an AI connection's token); production is the editor's own Publish button. Re-importing an experience takes two steps: show the person import_experience's comparison first.",
+    "Readers are reached only by a person: publish here goes to this instance's own environment (local / staging) for a check (never with an AI connection's token); production is the editor's own Publish button. Re-importing an experience or a publisher's delivery takes two steps: show the person import_experience's or preview_delivery's comparison first.",
   ];
   if (!services) lines.push("Not signed in: best is a token from the editor's experiences page (AI connections – Connect an AI agent shows the setup for each MCP client) in OSCT_EDITOR_TOKEN; else sign_in_request (the code arrives by mail – ask the person for it), then sign_in_verify.");
   else if (!services.editor) lines.push("This account has no editor role – an admin grants it on the admin page (/editor/admin).");
@@ -36,6 +36,7 @@ const EDITOR = [
   "",
   "Never publish to production – that is the person's button in the editor. publish (local or staging, the instance's own) only when asked.",
   "import_experience over an existing experience answers a comparison first: show it to the person and go on only with their yes.",
+  "A publisher's delivery (a plan of scenes, entries, targets and their uploaded files): preview_delivery shows its comparison – show the person the summary, and import_delivery with confirm only with their yes.",
   "When something is unclear or risky, ask before saving. Finish with a short summary: which scenes and targets, the links.",
 ].join("\n");
 

@@ -205,3 +205,68 @@ export const placeOnChoice = <P extends Pick<TargetPlace, "surface">>(place: P, 
   const { surface: _old, ...rest } = place;
   return (choices.length > 1 ? { ...rest, surface: choice.value } : rest) as P;
 };
+
+// ── a surface's format (#314): the presets' sizes, which one a size is ──
+
+/** A preset's size (mm): a double page twice the page's width, a single page, a wall; custom has none of its own */
+export const presetSize = (preset: Exclude<SurfacePreset, "custom">, page: { width: number; height: number } = PAGE_MM): { width: number; height: number } =>
+  preset === "double" ? { width: round(2 * page.width), height: round(page.height) }
+  : preset === "single" ? { width: round(page.width), height: round(page.height) }
+  : { width: WALL_MM.width, height: WALL_MM.height };
+
+/** The preset a size is (either way round – a page turned on its side is still a page), else custom */
+export const formatOf = (size: { widthMm: number; heightMm: number }, page: { width: number; height: number } = PAGE_MM): SurfacePreset => {
+  const same = (a: number, b: number) => Math.abs(a - b) < 0.05;
+  for (const preset of ["double", "single", "wall"] as const) {
+    const { width, height } = presetSize(preset, page);
+    if ((same(size.widthMm, width) && same(size.heightMm, height)) || (same(size.widthMm, height) && same(size.heightMm, width))) return preset;
+  }
+  return "custom";
+};
+
+/** A print lies wholly on a surface of this size (a twentieth of a millimetre of slack); its height: saved, else `height`, else none */
+export const fitsOn = (place: Pick<TargetPlace, "x" | "y" | "width" | "height">, size: { widthMm: number; heightMm: number }, height?: number): boolean => {
+  const tall = place.height ?? height ?? 0;
+  const slack = 0.05;
+  return place.x >= -slack && place.y >= -slack && place.x + place.width <= size.widthMm + slack && place.y + tall <= size.heightMm + slack;
+};
+
+/**
+ * The targets lying (partly) outside their surface – after a surface got smaller, or turned from a double page into a
+ * page: what the Inspector's surface flags. A print's height is its saved one, else `heights[id]` (the stage's, from the
+ * image), else only its top edge counts.
+ */
+export const targetsOutside = (
+  entries: readonly { target: { id: string; place?: TargetPlace } | null }[],
+  surface: Pick<SurfaceData, "id" | "widthMm" | "heightMm">,
+  surfaces: readonly Pick<SurfaceData, "id">[],
+  heights: Readonly<Record<string, number>> = {},
+): string[] =>
+  entries
+    .filter(e => !!e.target?.place && liesOn(e.target.place, surface, surfaces) && !fitsOn(e.target.place, surface, heights[e.target.id]))
+    .map(e => e.target!.id);
+
+/** How a print came onto another surface: at its place, centred, or made smaller to fit and centred */
+export type MovedHow = "kept" | "centred" | "scaled";
+
+/**
+ * **A target moved to another surface** (#314): its place keeps its numbers (mm from the new surface's top left corner)
+ * where the print fits there wholly; else it is centred on the surface – made smaller first (its aspect kept) when it is
+ * wider or taller than the surface. The surface's id is written only while the scene has several (`placeOnChoice`).
+ * `height` is the print's height when its place has none (the stage's, from the image); without either it counts as square.
+ */
+export const moveToSurface = <P extends TargetPlace>(
+  place: P,
+  to: Pick<SurfaceData, "id" | "widthMm" | "heightMm">,
+  several: boolean,
+  height?: number,
+): { place: P; how: MovedHow } => {
+  const { surface: _old, ...rest } = place;
+  const on = (next: Omit<P, "surface">): P => (several ? { ...next, surface: to.id } : next) as P;
+  const tall = place.height ?? height ?? place.width;
+  if (fitsOn({ ...place, height: tall }, to)) return { place: on(rest), how: "kept" };
+  const scale = Math.min(1, to.widthMm / place.width, to.heightMm / tall);
+  const width = round(place.width * scale);
+  const sized = { ...rest, width, ...(place.height !== undefined ? { height: round(place.height * scale) } : {}) };
+  return { place: on({ ...sized, x: round((to.widthMm - width) / 2), y: round((to.heightMm - tall * scale) / 2) }), how: scale < 1 ? "scaled" : "centred" };
+};

@@ -6,3 +6,4 @@ export * from "@engine/utils/prepared-scenes";
 export * from "@engine/utils/tracker-debug";
 export * from "@engine/utils/camera-debug";
 export * from "@engine/utils/camera-request";
+export * from "@engine/utils/recognition-setting";

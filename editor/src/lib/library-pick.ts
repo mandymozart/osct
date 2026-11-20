@@ -24,12 +24,12 @@ export const nodeAssetKinds = (type: string): readonly AssetKind[] | undefined =
 /**
  * The Library's kinds (#164, #330): target images – the pictures printed in the book – and the surfaces' reference
  * images apart from the other images, so a choice is among one kind; `code` – the scripts (plugin sources) and shaders
- * (#186), listed apart from the media. A video's subtitle files (`speak.en.vtt`, #257) are listed with the videos.
+ * (#186), listed apart from the media; `nodes` – the logic's node types (#334), no files: dragged onto the Logic canvas. A video's subtitle files (`speak.en.vtt`, #257) are listed with the videos.
  */
-export const LIBRARY_FILTERS = ["all", "target", "surface", "image", "video", "model", "audio", "code"] as const;
+export const LIBRARY_FILTERS = ["all", "target", "surface", "image", "video", "model", "audio", "code", "nodes"] as const;
 export type LibraryFilter = (typeof LIBRARY_FILTERS)[number];
 const FILTER_KINDS: Record<Exclude<LibraryFilter, "all" | "target" | "surface">, readonly AssetKind[]> = {
-  image: ["image"], video: ["video", "subtitles"], model: ["glb", "gltf"], audio: ["audio"], code: ["shader"],
+  image: ["image"], video: ["video", "subtitles"], model: ["glb", "gltf"], audio: ["audio"], code: ["shader"], nodes: [],
 };
 
 /**

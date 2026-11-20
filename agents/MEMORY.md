@@ -49,7 +49,7 @@ Verbatim from the archived entries (the entry title and archive file in front of
   after #207 is on production – once browsers signed in before have started once. Keep the Bearer session answer for
   non-browser sign-ins (MCP).
 **2026-10-30 – engine cleanup: one behaviour vocabulary, no reader traces, AR errors as codes (#213)** (`MEMORY-2026-10.md`)
-- [ ] Open: `shared/types/behaviour.ts` still says of `BEHAVIOUR_SCOPES` and `BEHAVIOUR_CORE_EVENTS` that "a test keeps
+- [x] (Reworded in 5.0, #334 L-T5.) Open: `shared/types/behaviour.ts` still says of `BEHAVIOUR_SCOPES` and `BEHAVIOUR_CORE_EVENTS` that "a test keeps
   them equal" with the runtime's – now they are the runtime's (the test checks identity). Reword with the next schema
   bump that touches `shared/types/` (a comment alone would need one, RULES #10).
 **2026-10-30 – the second code review (#19, develop at 1.50.0)** (`MEMORY-2026-10.md`)
@@ -209,6 +209,171 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-20 – Content schema 5.0: the logic MAJOR (#334 L-T5a, branch `feature/334-logic-major`)
+
+- **Conditions are expressions** (L5): `when` is one expression of `shared/text/expressions.ts` (`parseExpression`,
+  `evaluateExpression`, `expressionVariables`, `expressionLiteral`); the object form is gone from the contract. The
+  migration's rules (`convert-content-5.ts`, `Migration5.php`, compared in `mcp/test/php-rules.test.ts`): every test
+  `name == value` (faithful, not the shorter bare `name` – `true == 1` aside it keeps 4.x's strict equality),
+  `not` → `!=`, all → `&&`, any → `||`; `null` (not set) → `!name` / `name` – **approximate** (the language has no "not
+  set"), listed by the dry run; a variable named like a word of the language cannot be converted and stays (listed).
+- **Scene and experience rules** hear the bus only; `sceneChanged` reaches them from the scene (`LogicInstance.opened()`)
+  after the new scene's anchors are built – the bus delivers it before, when no node exists yet. Experience rules live in
+  `ArScene` from the first scene until the stage ends (teardown), re-read (`tune`) at every scene change. A scene's rules
+  may name only its own scene's targets (the guard refuses another scene's – only the open scene's entities exist).
+- **`goto`**: `ArSceneOptions.navigate` → the module-level `setNavigator` in `plugin-runtime.ts` (as `setProgressReader`);
+  the reader resolves `scene:<id>` with `resolveAddress` (LinkService) – unknown: console only, no not-found page.
+- **Canvas** is stored (scene `data_json`, `experience_json`), carried by the draft and the export, stripped by the
+  content build and by a publish (`ContentVersion::assemble(..., true)` before the hash).
+- **Migration5 runs on every `Db::migrate`** (the deploy's entrypoint `migrate.php`, `POST /admin/migrate`) – merging
+  the branch into develop migrates staging on its deploy. Dry run first: `php /opt/osct/migrate.php --plan-5`.
+- **B2 – every set value is an expression** (chosen over a separate key: one form, the graph can wire any field): a text
+  value is the literal `"calm"` (YAML `'"calm"'`); a bare number / true / false stays allowed (its own expression).
+  Migration5 quotes set texts only while the experience is still 4.x (Migration4 now takes 3.x to 4.0, not to the current
+  schema), which keeps it idempotent.
+- **B7 – typed variables**: `experience.variables` as a **map** name → `{ type, scope?, default? }` (unique names for free);
+  undeclared ones typed by their first set in content order; `shared/types/variables.ts` (`expressionType`,
+  `variableTypes`, `ruleTypeProblems`, `contentRuleLists`) serves guard and engine; the runtime refuses wrong types in
+  `writeVar` (plugins too), a set without scope uses the declared scope. The PHP side checks only the declarations' shape.
+- [ ] After the deploy: publish every experience again (a 5.0 reader refuses the 4.x versions in the content stores);
+  the CDN demo (`buildingfictions.b-cdn.net/demo`) is 4.x – re-import of it is refused until it is rebuilt from the
+  converted `fixtures/demo` and synced.
+- [x] L-T5b (shipped in the same branch, 4956421f): the editor on the new contract (rule editor's `when` as an expression field, `goto`, scene / experience
+  rules in the Logic view and Inspector, `PUT …/logic`, `noteBehaviour`'s new `home` payload).
+
+## 2026-11-20 – Idea to debate later: XR scenes with the deck's renderer and 8th Wall's tracking
+
+- Tilman: "Ich bin mir nicht sicher ob wir vielleicht das rendering via unserer eigenen deck engine machen können und das
+  tracking von 8thwall benutzen. Es gibt binaries ... wir könnten auch reverse engineeren. Langfristig hat das sogar den
+  Vorteil das wir native auf ios und android not tracking zurück fallen könnten." To be debated later, together with
+  how XR scenes are made.
+- Facts checked 2026-11-20: OSCT ships `@8thwall/engine` 0.1.0 (`client/`), under the **MIT licence** (Niantic
+  Spatial 2026). The package is compiled JS (`dist/xr.js`, `xr-tracking.js`, `xr-face.js`) plus TFLite models and
+  workers, with no source. MIT allows using, modifying and studying exactly what ships, so reverse engineering the
+  delivered code is not a licence problem. 8th Wall's camera pipeline is renderer-agnostic (pipeline modules for
+  three, A-Frame, Babylon or custom), so the camera frame and the image-target poses could feed another renderer,
+  such as the deck engine (wgpu → WebGPU in the browser).
+- The long-term gain Tilman names: the deck engine runs natively (wgpu on iOS and Android) and falls back to native
+  image tracking there (ARKit / ARCore).
+- Not checked: whether the 8th Wall build exposes the tracking without its own render loop, its performance next to
+  WebGPU, and wgpu/WebGPU support in mobile Safari.
+
+## 2026-11-20 – Logic view: ports from the code (reflection), no registerLogicNode (#334)
+
+- Tilman: "ich finde wir sollten die typisierung und die ideen der anderen marktfuehrer uebernehmen. das macht deutlich
+  mehr sinn und hat weniger redudance und ist direkt am code lessbar."
+- Decided: a box's ports come from the specs that are already registered (component specs, node types, passes,
+  materials), the way Unreal, Houdini, Blender and ComfyUI derive pins. `actions`, `events` and the bus use are declared in
+  the same spec. There is no `registerLogicNode` and no facet written by hand for each component. Concept §5.9; L-T6 and
+  L-T13 are rewritten.
+- The storage stays L1: documents are the truth, and the graph is drawn from them. Unreal and ComfyUI store the graph
+  itself; OSCT does not, because the reader runs rules, not a graph.
+- Tilman asked about JSDoc, then: "Wäre es nicht fast besser wir konvertieren die script Sprache zu typescript um die
+  unsicheren annotations aus dem Spiel zu nehmen?" Plugins already are TypeScript (the build and the Monaco Code tab both
+  type-check them). So there is no JSDoc. Instead it is **schema first**: the spec is written with typed builders
+  (`p.number({min,max})`, `actions`/`events` as const), and the plugin API infers the handler's types from it. Today a
+  handler only gets `params: Record<string, unknown>`. Rust later uses a derive macro.
+
+## 2026-11-20 – Logic view: xyflow as the rendering layer; free nodes and node modules on the canvas (#334)
+
+- **L7 decided (Tilman):** "xyflow for the moment. As a rendering layer." `@xyflow/svelte` draws the Logic view. The
+  `logic` package computes the view and the layout, and xyflow's gestures become ops. xyflow never owns the data.
+  The build under SvelteKit 3.1 / TS 6 and RULES' stack list are still to check.
+- **Free nodes (Tilman's question):** *"can we add free nodes to this canvas? … generative content … a more creative
+  tool."* Answer, in `agents/research/2026-11-20-logic-nodes-shared-concept.md` §5.7: yes. A free node lives in the
+  canvas document, which keeps L1 ("every node lives in a document"). There are three kinds: computed nodes (today),
+  editor-only free nodes (notes, references), and generative free nodes that run **at authoring time** in the editor or
+  on the server. A generative node's result becomes ordinary content (an asset or an entity, with its origin recorded)
+  through an explicit apply op. The reader stays unchanged.
+- **L11–L13 decided (Tilman, the same day):** free nodes yes, so the canvas becomes authoring data (DB, export). Generation
+  runs on the server. A free node writes only through an explicit apply. **OSCT gets no generator nodes for now.** Its
+  content comes from imported files, and the canvas is for wiring them up (file and delivery nodes, L-T12).
+- **Every node can host a module** (Tilman: *"Each node can host a module as a script so we can get access to the api …
+  nodes that got built in logic and our custom ones"*). Research doc §5.8: a custom node is a plugin capability
+  (`registerLogicNode`, `registered.logicNodes`, an API MINOR), not a new format. It runs at authoring time in a
+  sandbox. Its `api` calls go through the page with the person's session, like the stage frame (#234). Reads are free;
+  writes come back only as ops for the person to apply; no token reaches a module. Steps L-T12 to L-T14.
+- **L1–L6 decided as recommended (Tilman: "L1 bis 6. As recommended"):**
+  - L1: logic lives in the documents and the graph is computed from them.
+  - L2: rules on scenes and on the experience, in one MAJOR together with `goto`.
+  - L3: OSCT itself may use `goto` (`scene:<id>`). STRATEGY.md has a note on this.
+  - L4: the canvas is stored per scene and for the experience. Since L11 it is authoring data and goes into the export,
+    but not into the reader.
+  - L5: conditions become expressions in SCUTOONS' language.
+  - L6: the event bus works by name, and the joins are drawn as derived edges.
+- **L10 decided (Tilman: "Der grosse schema switch kann sobald er fertig ist gemacht werden"):** L-T1 to L-T3 start
+  now. The MAJOR (L-T5) ships as soon as it is ready, without waiting to be bundled with another cut before Tokyo.
+- **L8 decided (Tilman: "Yes, into the URL"):** the Logic view's level goes into `?logic=`, built in L-T3.
+- [ ] L9 (does SCUTOONS adopt the package): asked in mandymozart/scutoons#702.
+- **L-T1 to L-T4 shipped (3.19.1, 3.20.0, 3.21.0):** the logic module and its levels, navigation with xyflow and
+  `?logic=`, and editing. Adding nodes works by right-click, by the "+" button, or by dragging from the Library's
+  "Nodes" (Tilman's change). Checked on staging: a real click selects a box, and the stage and the Tree follow it.
+- [x] Disconnecting a rule's `on`: Tilman, 2026-11-20: "Allow empty". Since 3.21.1 a cut `on` is left empty, so the rule
+  hears nothing. The Logic panel marks it as a problem until an event is wired to it again. The contract still lists an
+  empty `on` as a problem, as it did for the Inspector before.
+
+## 2026-11-20 – The delivery endpoint's change log: row kinds plus `delivery_id` (#322 T5)
+
+- A delivery's writes are logged with their **row's own kind** (`scene`, `entry`, `target`) and the delivery's id in a new
+  column `changes.delivery_id` – not with a kind `delivery` as the plan said. Reason: the revert (`Reverts`) finds "later
+  changes of the same thing" by kind + ref; a kind `delivery` would hide a delivered target from its later editor edits
+  (and the other way round), and every revert branch would need a second key.
+- A delivery's **new rows are revertable** (removed again: target → entry without target → scene with nothing on it and
+  not the initial scene); every other creation stays "remove it instead". The removal a revert writes is not revertable
+  itself (as any removal).
+- The conflict baseline is **per row**: the last delivery change of that row, else the experience's import time.
+- No confirmation id (`Confirmation.php`) as the plan sketched – `apply: true` like `scenes/move` and the revert, the
+  comparison made again inside the transaction. T8 (MCP) shows the comparison before applying.
+- [ ] The API checks MAX_TARGETS_PER_SCENE only on a delivery; `POST …/entries`, `PUT …/targets/{id} { enabled }` and an
+  entry's scene move do not yet – Tilman's call whether they should (the content build still refuses > 10).
+
+## 2026-11-20 – #322 decisions; GitHub variables renamed (#33)
+
+Tilman on the open decisions of `agents/research/2026-11-20-importer-export-plan.md`:
+1. **The demo goes into the database as a sandbox, like in SCUTOONS** (not the recommended repository source):
+   `fixtures/demo` becomes its committed export; the demo is edited in the editor like the book.
+2. Where exports are archived and whether a publish triggers one: **still open**.
+3. An entry's delivery `note`: Tilman is not sure it is needed – **dropped** (not stored); bring it back as an
+   editors-only field only if a delivery note turns out to be missed.
+4. **Remove legacy code**: every removal of section 4 is approved, each at the moment the table names (convert-3
+   now, convert-4 after the first export, `content move` after both environments moved, `import-delivery.ts` after
+   the new import ran one real delivery, `layout/render-layout.py` now, …). Correction (2026-11-20): `fixtures/demo/layout/`
+   is **not** dead – the reader's marginalia card back reads its `cover-front` sheet (`client/src/utils/book-cover.ts`);
+   it stays (only the generator went). The export (T2) must write `layout/` too while the reader reads it.
+5. `db/pull-staging.sh` → `server/db/` in the rename: yes.
+
+GitHub variables (#33): Tilman said the orchestrator renames them itself with `gh`. Done 2026-11-20 for staging and
+production: `OSCT_BUNNY_STORAGE_ZONE`, `OSCT_BUNNY_STORAGE_ENDPOINT`, `OSCT_CONTENT_BASE_URL` (same values),
+secret `OSCT_BUNNY_STORAGE_PASSWORD` (from `scripts/.env`, checked against the storage); `scripts/.env` keys renamed
+too. develop's workflows read only the new names. The old names stay on GitHub until `main` has a release with
+these workflows – then delete them:
+- [ ] Delete `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_ZONE_ENDPOINT`, `BUNNY_STORAGE_PASSWORD`, `CONTENT_BASE_URL` in both
+  environments once `main` carries 3.16.2 or later.
+
+## 2026-11-20 – Media in quality levels, the reader's media quality (#331 step 3, schema 4.3)
+- Shape *my reading* (open to Tilman's eye): `levels: [{ level, src }]` on an image / video / audio asset and
+  `imageLevels` on an entry; one number per kind – image longest side 512 / 1024 / 2048 (the image rule's sizes), video
+  height 480 / 720 / 1080, audio 64 / 128 / 192 kbps (`MEDIA_LEVELS`). `src` stays the older app's file (MINOR).
+- Setting: Info → Settings *Picture and video quality* – Automatic / Low / Medium / High (`GraphicsSettings.mediaQuality`),
+  next to *Model detail*. Automatic: slow or data-saving → smallest; picture covers the screen's longest side × DPR,
+  video the shorter side × DPR (≤ 720p with ≤ 4 GB), sound the largest. A change swaps what is on screen at once: a playing video or sound
+  goes on at the same spot in the new quality (Tilman: *"otherwise it makes no sense to switch"*, 3.16.1).
+- Editor: the Inspector sets levels (node *levels*, entry form under the picture); pictures computed in the browser,
+  video / audio uploaded per slot (no browser encoding – Tilman). The Library shows a node's levels as a `media` stack.
+- [ ] A video with levels **and** subtitles: its file shows in the subtitles frame, the levels stack is not drawn there.
+- [ ] The release step (#304) writes AVIF / KTX2 per use from these levels.
+
+## 2026-11-20 – The recognition switch: Original by default, Prepared per experience (#306, schema 4.2)
+- Tilman: today's runtime path stays the default, non-destructive – the printed image stays, the frame lives beside it in
+  the Library. Built: `experience.recognition` (`"original"` default / `"prepared"`), `target.recognitionOff`, the reader's
+  debug override (Recognition row, stored per phone, reloads), the load test report names the path. The rule is one pure
+  function (`engine/src/scene/recognition-mode.ts`).
+- The editor makes frames by itself (image set/replaced, new target, placed) with the CLI's builder, moved into
+  `engine/src/scene/target-frame.ts` (`recognitionFrame`, `RECOGNITION_FRAME_FILE` – the one format: grey PNG, a working
+  copy; the image rule makes it WebP, the release step #304 may re-encode it). Remake uploads a new Library file; the old
+  frame file stays in the Library, unused (delete it there by hand if it matters).
+- [ ] Open: the test run (S22 + iPhone, docs/tracking.md "Comparing Original and Prepared") before any experience says Prepared.
+
 ## 2026-11-20 – Ids without leading zeros (#63)
 
 - Tilman (2026-11-20): ids without leading zeros – `s4-5`, `s4`, `p4-1`. The import writes them; the database is renamed
@@ -290,7 +455,7 @@ Verbatim from the archived entries (the entry title and archive file in front of
   `initial_scene`) by idempotent `ALTER TABLE … RENAME …` at the top of the schema files. **Not dropped (RULES #25 –
   never a table)**: `page_images` stays, unread; an old database keeps its index `entries_spread` (on `scene_id`), the
   FK name `spreads_book_fk` – cosmetic. Needs the migrate-3 run on staging first (Tilman: done before this lands).
-- `convert-content-3.ts` stays until Tilman converted the real content folder, then it goes.
+- `convert-content-3.ts` stays until Tilman converted the real content folder, then it goes. (Removed 3.16.4, #322.)
 - [ ] Remove `POST /auth/cookie` (#207) – the editor no longer calls it; the API test still covers it.
 
 ## 2026-11-18 – Content schema 3.0, part A: contract, reader, build, fixtures (#319)
@@ -307,7 +472,7 @@ Verbatim from the archived entries (the entry title and archive file in front of
 - Surface id in converted and imported sources: `surface` (one per scene). Source `place` is optional: the build lays the
   surfaces in a row (touching, flat, centred on the origin); the configuration always carries all six numbers.
 - The i18n word for the page column is *Place* (de *Ort*, fr *Lieu*, nl *Plek*); the switcher's aria label *Scene …*.
-- Open: [x] rename the app's own `Spread`/`spreadId`/`SpreadManager`/`spread-menu` to scene names (done 2026-11-19, see above); [ ] `scripts/layout/render-layout.py` (the demo's stand-in sheets) still reads the 2.x source – the stage's
+- Open: [x] rename the app's own `Spread`/`spreadId`/`SpreadManager`/`spread-menu` to scene names (done 2026-11-19, see above); [x] `scripts/layout/render-layout.py` (the demo's stand-in sheets) still reads the 2.x source – removed 3.16.4 (#322), the sheets stay – the stage's
   sheets become surface references in part C; [ ] the build writes no `groups` yet (no source format for them).
 
 ## 2026-11-18 – Floating panels in the scene workspace, the select tool and its filters (#308)

@@ -2,7 +2,7 @@ import { Matrix4, type Object3D, type PerspectiveCamera, Quaternion, type Raycas
 import type { Target } from "@engine/types";
 import { getScene } from "@engine/content/game-config";
 import { EMPTY_ENGINE_STATE, publishEngineState } from "@engine/utils/tracker-debug";
-import { getPreview, type PreviewOrbit, type PreviewState, type PreviewView, subscribePreview, updatePreview } from "./preview";
+import { getPreview, type PreviewOrbit, type PreviewState, type PreviewView, subscribePreview, type SurfaceGrid, updatePreview } from "./preview";
 import type { IImageTracker, ImageTrackerOptions, TrackedScene } from "@engine/scene/tracker-types";
 import { onAppUi } from "@engine/scene/ui";
 import { type LivePlacement, type PlaceBox, placeCentre, placeHeight, surfaceAxes, surfaceLeft, type Surfaces, withLivePlacement } from "./placement";
@@ -83,8 +83,8 @@ export interface StageGrids {
   mm: number;
   origin: PreviewState["origin"];
   axis: boolean;
-  /** A surface's own spacing by its id (the open scene's – #316 part 1), else `mm` */
-  surfaces: Readonly<Record<string, number>>;
+  /** A surface's own grid by its id (the open scene's – #316, #314): spacing, subdivisions, on / off; a field left out: the above */
+  surfaces: Readonly<Record<string, SurfaceGrid>>;
   /** The scene's floor grid on y = 0 and its spacing (mm) – the snap grid of surface places */
   floor: boolean;
   floorMm: number;

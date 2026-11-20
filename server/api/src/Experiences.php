@@ -396,13 +396,14 @@ final class Experiences
     }
 
     /**
-     * PUT /editor/experiences/{id}/targets/{targetId} { entity } | { ref } | { imageSrc } | { place } | { enabled } | { recognition }
+     * PUT /editor/experiences/{id}/targets/{targetId} { entity } | { ref } | { imageSrc } | { place } | { enabled } | { recognition } | { recognitionOff }
      * → { target }: the target's entity – inline (`entity`, null removes it) or a shared one (`ref`) –, its printed image and
      * where it is printed (`place` { surface?, x, y, width, height? } on a surface of its entry's scene, null removes it),
      * whether it is in the experience (`enabled`, #249) and its recognition data made ahead (`recognition` { imageSrc, width,
      * height }, #306 – `osct targets prepare`; null removes it; with `madeFrom` – the image it was made from – it is set only
      * while that is still the target's image, else 409 `stale-image`). A new `imageSrc` drops the recognition data unless
-     * the same body sets it. Records a change with the whole target before and after.
+     * the same body sets it. `recognitionOff` (#306, schema 4.2): true = the target always uses its printed image, even when
+     * the experience says prepared (only true is stored). Records a change with the whole target before and after.
      */
     public static function putTarget(string $experienceId, string $targetId): never
     {
@@ -456,7 +457,13 @@ final class Experiences
                 $target = self::withEnabled($target, $body->enabled, 'enabled');
                 $touched = true;
             }
-            if (!$touched) throw new ApiError(400, 'invalid-target', 'Send { entity } or { ref }, { imageSrc }, { place }, { enabled } or { recognition }.');
+            if (property_exists($body, 'recognitionOff')) {
+                if (!is_bool($body->recognitionOff)) throw new ApiError(400, 'invalid-target', 'recognitionOff must be true or false.');
+                if ($body->recognitionOff) $target->recognitionOff = true;
+                else unset($target->recognitionOff);
+                $touched = true;
+            }
+            if (!$touched) throw new ApiError(400, 'invalid-target', 'Send { entity } or { ref }, { imageSrc }, { place }, { enabled }, { recognition } or { recognitionOff }.');
             $json = Editor::encode($target);
             Db::run('UPDATE targets SET entity_ref = :ref, image_src = :image, data_json = :data WHERE experience_id = :experience AND id = :id', $params + ['ref' => $ref, 'image' => $target->imageSrc, 'data' => $json]);
             self::touch($experienceId);
@@ -702,6 +709,60 @@ final class Experiences
         Http::json(200, ['appearance' => $appearance]);
     }
 
+    /**
+     * PUT /editor/experiences/{id}/logic { logic: { rules, canvas? } | null } → 200 { logic }: the experience's rules (content
+     * schema 5.0, #334, shared/types/logic.ts) – live for the whole session, across scene switches; they hear the bus and
+     * name nodes by address (`target:<targetId>/<node name>`), `goto` goes to `scene:<id>`. The canvas (the Logic view's
+     * authoring data) is stored with them; a publish leaves it out. `null` removes the field. Shapes only (`Logic::check`,
+     * 400 `invalid-logic`); the expressions are the editor's and the reader's guard's to check. Change kind `logic`.
+     */
+    public static function putLogic(string $experienceId): never
+    {
+        $user = Editor::user();
+        self::experience($experienceId);
+        $body = Editor::body();
+        if (!property_exists($body, 'logic')) throw new ApiError(400, 'invalid-logic', 'Send { logic: { rules: [{ on, when?, do }], canvas? } } or { logic: null }.');
+        $logic = $body->logic === null ? null : Logic::check($body->logic, 'experience');
+        // As putPasses: the experience's JSON read, changed and written back in one transaction, the row locked
+        Db::transaction(static function () use ($experienceId, $logic, $user) {
+            $row = self::experience($experienceId, true);
+            $experience = Editor::decode($row['experience_json']);
+            if ($logic === null) unset($experience->logic);
+            else $experience->logic = $logic;
+            $json = Editor::encode($experience);
+            Db::run('UPDATE experiences SET experience_json = :experience WHERE id = :id', ['experience' => $json, 'id' => $experienceId]);
+            self::touch($experienceId);
+            self::change($experienceId, $user, 'logic', $experienceId, $row['experience_json'], $json);
+        });
+        Http::json(200, ['logic' => $logic]);
+    }
+
+    /**
+     * PUT /editor/experiences/{id}/variables { variables: { name: { type, scope?, default? } } | null } → 200 { variables }:
+     * the rules' typed variables (content schema 5.0, #334 B7, shared/types/variables.ts). A variable not declared takes
+     * the type of its first set; whether every rule fits them is the guard's and the editor's to say. `null` removes the
+     * field. 400 `invalid-variables`. Change kind `variables`.
+     */
+    public static function putVariables(string $experienceId): never
+    {
+        $user = Editor::user();
+        self::experience($experienceId);
+        $body = Editor::body();
+        if (!property_exists($body, 'variables')) throw new ApiError(400, 'invalid-variables', 'Send { variables: { name: { type, scope?, default? } } } or { variables: null }.');
+        $variables = $body->variables === null ? null : Logic::variables($body->variables);
+        Db::transaction(static function () use ($experienceId, $variables, $user) {
+            $row = self::experience($experienceId, true);
+            $experience = Editor::decode($row['experience_json']);
+            if ($variables === null) unset($experience->variables);
+            else $experience->variables = $variables;
+            $json = Editor::encode($experience);
+            Db::run('UPDATE experiences SET experience_json = :experience WHERE id = :id', ['experience' => $json, 'id' => $experienceId]);
+            self::touch($experienceId);
+            self::change($experienceId, $user, 'variables', $experienceId, $row['experience_json'], $json);
+        });
+        Http::json(200, ['variables' => $variables]);
+    }
+
     /** The problems of an `environment` (shared/types/environment.ts `environmentProblems`, strict); [] when valid */
     public static function environmentProblems(mixed $value): array
     {
@@ -802,6 +863,8 @@ final class Experiences
     public const PLUGIN_PASS_TYPE = '[a-z][a-zA-Z0-9]{0,39}';
     /** The moments an entity appears or disappears at (shared/types/appearance.ts `MOMENTS`) */
     public const MOMENTS = ['reveal', 'found', 'lost'];
+    /** How the reader gets its targets' recognition data (#306, content schema 4.2 – shared/types/game-config.ts `RECOGNITION_MODES`) */
+    public const RECOGNITION_MODES = ['original', 'prepared'];
     /** The built-in looks of the contract (shared/types/appearance.ts `APPEARANCES`) */
     public const APPEARANCE_TYPES = ['inflateDissolve', 'printLift', 'fade'];
     /** The environment's worlds (shared/types/environment.ts ENVIRONMENT_WORLDS) */
@@ -976,7 +1039,8 @@ final class Experiences
         $store = ContentStore::for($env, $experienceId);
 
         $injected = self::injectedPlugins($experienceId, $body->plugins ?? null);
-        $version = ContentVersion::assemble($experienceId);
+        // Readers get no authoring data: the logic's canvas stays in the draft (#334)
+        $version = ContentVersion::assemble($experienceId, true);
         if ($injected) $version = ContentVersion::withPlugins($version, array_map(static fn(array $plugin): stdClass => $plugin['declaration'], $injected));
         // A component type no plugin can register would make the reader refuse the whole content: a plugin of the Code tab
         // reaches readers only when the publish carries it (`plugins`). What the compiled plugins register is known when
@@ -1231,9 +1295,10 @@ final class Experiences
 
     /**
      * GET /editor/experiences/{id}/changes?limit= (default 50, at most 500) → { changes: [{ id, kind, ref, before, after, user, token,
-     * createdAt, set, reverts, notRevertable }] } newest first; `token` = the AI connection's name for a save made through
-     * one, else null; `set` = the change set a revert wrote (#312), `reverts` = the change it took back, `notRevertable` =
-     * why the change cannot be reverted, null when it can (Reverts)
+     * createdAt, set, reverts, delivery, notRevertable }] } newest first; `token` = the AI connection's name for a save made
+     * through one, else null; `set` = the change set a revert wrote (#312), `reverts` = the change it took back, `delivery` =
+     * the delivery that wrote it (#322, Deliveries), `notRevertable` = why the change cannot be reverted, null when it can
+     * (Reverts)
      */
     public static function changes(string $experienceId): never
     {
@@ -1245,7 +1310,7 @@ final class Experiences
         foreach ($rows as $row) {
             $changes[] = ['id' => $row['id'], 'kind' => $row['kind'], 'ref' => $row['ref'], 'before' => Editor::decode($row['before_json']), 'after' => Editor::decode($row['after_json']),
                 'user' => $row['email'], 'token' => $row['token_name'] ?? null, 'createdAt' => Editor::iso((int) $row['created_at']),
-                'set' => $row['change_set'] ?? null, 'reverts' => $row['reverts'] ?? null, 'notRevertable' => Reverts::notRevertable($row)];
+                'set' => $row['change_set'] ?? null, 'reverts' => $row['reverts'] ?? null, 'delivery' => $row['delivery_id'] ?? null, 'notRevertable' => Reverts::notRevertable($row)];
         }
         Http::json(200, ['changes' => $changes]);
     }
@@ -1258,7 +1323,7 @@ final class Experiences
     {
         $row = Db::one('SELECT * FROM experiences WHERE id = :id' . ($lock ? Db::forUpdate() : ''), ['id' => $experienceId]);
         if (!$row) throw new ApiError(404, 'not-found', 'No such experience – import a configuration first.');
-        // An experience of an older content schema MAJOR is not read or written (Db::migrate turns every 3.x one into 4.0, #320)
+        // An experience of an older content schema MAJOR is not read or written (Db::migrate turns every 4.x one into 5.0, Migration5, #334)
         if (!$anySchema && !Editor::isCurrentSchema((string) $row['content_schema'])) {
             throw new ApiError(409, 'old-schema', "The experience is of content schema {$row['content_schema']} – the editor reads " . Editor::CONTENT_SCHEMA . ': import a ' . Editor::CONTENT_SCHEMA_MAJOR . '.x configuration of it.', ['schema' => $row['content_schema']]);
         }
@@ -1285,10 +1350,13 @@ final class Experiences
         self::touch($experienceId);
     }
 
-    /** One row of the change log (`change`); `$set` and `$reverts` for a revert (#312, Reverts) – returns the row's id */
-    public static function recordChange(string $experienceId, array $user, string $kind, string $ref, ?string $before, string $after, ?string $set = null, ?string $reverts = null): string
+    /**
+     * One row of the change log (`change`); `$set` and `$reverts` for a revert (#312, Reverts), `$delivery` for a delivery's
+     * write (#322, Deliveries) – returns the row's id
+     */
+    public static function recordChange(string $experienceId, array $user, string $kind, string $ref, ?string $before, string $after, ?string $set = null, ?string $reverts = null, ?string $delivery = null): string
     {
-        return self::change($experienceId, $user, $kind, $ref, $before, $after, $set, $reverts);
+        return self::change($experienceId, $user, $kind, $ref, $before, $after, $set, $reverts, $delivery);
     }
 
     /**
@@ -1318,8 +1386,8 @@ final class Experiences
     }
 
     /**
-     * Checks what the rows need of a configuration (content schema 4.x – an older one is refused: convert its source with
-     * `npm run convert:3` and `convert:4` in scripts/) and splits it into rows-to-be;
+     * Checks what the rows need of a configuration (content schema 5.x – an older one is refused: convert its source with
+     * `npm run convert:5` in scripts/) and splits it into rows-to-be;
      * every other field stays inside the objects (data_json). Every entry names a scene of the configuration, its surface
      * and its target's place one of that scene's surfaces. The experience needs an id and a title; its printed book
      * (`book`, optional) an author and maybe a publisher – no print data on the top level (#320). `$pluginSources`: the experience has Code tab sources (any node type named like a
@@ -1331,7 +1399,7 @@ final class Experiences
         $fail = static fn(string $message) => throw new ApiError(400, 'invalid-configuration', $message);
         $version = $c->version ?? null;
         if (!$version instanceof stdClass || !is_string($version->schema ?? null) || !preg_match('/^\d+\.\d+$/', $version->schema)) $fail('version.schema must be "MAJOR.MINOR".');
-        if (!Editor::isCurrentSchema($version->schema)) $fail("The configuration is of content schema {$version->schema} – the editor reads " . Editor::CONTENT_SCHEMA_MAJOR . '.x (convert the source with npm run convert:3 and convert:4 in scripts/).');
+        if (!Editor::isCurrentSchema($version->schema)) $fail("The configuration is of content schema {$version->schema} – the editor reads " . Editor::CONTENT_SCHEMA_MAJOR . '.x (convert a 4.x source with npm run convert:5 in scripts/).');
         $experience = $c->experience ?? null;
         if (!$experience instanceof stdClass || !is_string($experience->id ?? null) || !is_string($experience->title ?? null)) $fail('experience needs id and title.');
         foreach (['author', 'publisher', 'sourceOfTruth'] as $key) {
@@ -1341,6 +1409,23 @@ final class Experiences
             $book = $experience->book;
             if (!$book instanceof stdClass || !is_string($book->author ?? null)) $fail('experience.book needs an author.');
             if (property_exists($book, 'publisher') && !is_string($book->publisher)) $fail('experience.book.publisher must be a string.');
+        }
+        if (property_exists($experience, 'recognition') && !in_array($experience->recognition, self::RECOGNITION_MODES, true)) {
+            $fail('experience.recognition must be "original" or "prepared".');
+        }
+        if (property_exists($experience, 'logic')) {
+            try {
+                Logic::check($experience->logic, 'experience', 'experience.logic', 'invalid-configuration');
+            } catch (ApiError $error) {
+                $fail($error->getMessage());
+            }
+        }
+        if (property_exists($experience, 'variables')) {
+            try {
+                Logic::variables($experience->variables, 'experience.variables', 'invalid-configuration');
+            } catch (ApiError $error) {
+                $fail($error->getMessage());
+            }
         }
         if (isset($experience->environment)) {
             $problems = self::environmentProblems($experience->environment);
@@ -1388,6 +1473,7 @@ final class Experiences
             if (property_exists($s, 'group') && !in_array($s->group, $groupIds, true)) $fail("scenes[$i].group names no group of the configuration.");
             try {
                 $s->surfaces = Scenes::checkSurfaces($s->surfaces ?? null, 'invalid-configuration');
+                if (property_exists($s, 'logic')) Logic::check($s->logic, 'scene', 'logic', 'invalid-configuration');
             } catch (ApiError $error) {
                 $fail("scenes[$i]." . $error->getMessage());
             }
@@ -1425,6 +1511,7 @@ final class Experiences
             if ($target === null) continue;
             if (!$target instanceof stdClass || !is_string($target->imageSrc ?? null)) $fail("entries[$i].target needs id and imageSrc.");
             if (property_exists($target, 'enabled') && !is_bool($target->enabled)) $fail("entries[$i].target.enabled must be true or false.");
+            if (property_exists($target, 'recognitionOff') && !is_bool($target->recognitionOff)) $fail("entries[$i].target.recognitionOff must be true or false.");
             $targetId = Editor::id($target->id ?? null, "entries[$i].target.id");
             if (isset($targets[$targetId])) $fail("Duplicate target id \"$targetId\".");
             $targets[$targetId] = ['id' => $targetId, 'entry' => $id, 'image' => $target->imageSrc, 'ref' => self::entityRef($target->entity ?? null, $entities, "entries[$i].target.entity", $pluginTypes, $pluginMaterials), 'data' => $target];
@@ -1515,16 +1602,16 @@ final class Experiences
      * tells which AI made it
      * @param array<string, mixed> $user
      */
-    private static function change(string $experienceId, array $user, string $kind, string $ref, ?string $before, string $after, ?string $set = null, ?string $reverts = null): string
+    private static function change(string $experienceId, array $user, string $kind, string $ref, ?string $before, string $after, ?string $set = null, ?string $reverts = null, ?string $delivery = null): string
     {
         $id = Db::uuid();
         // Strictly later than the request's previous change: the order of one save's changes stays readable (a revert
         // walks them newest first, #312)
         static $last = 0;
         $last = max(Editor::nowMs(), $last + 1);
-        Db::run('INSERT INTO changes (id, experience_id, user_id, token_name, kind, ref, before_json, after_json, created_at, change_set, reverts) VALUES (:id, :experience, :user, :token, :kind, :ref, :before, :after, :at, :set, :reverts)',
+        Db::run('INSERT INTO changes (id, experience_id, user_id, token_name, kind, ref, before_json, after_json, created_at, change_set, reverts, delivery_id) VALUES (:id, :experience, :user, :token, :kind, :ref, :before, :after, :at, :set, :reverts, :delivery)',
             ['id' => $id, 'experience' => $experienceId, 'user' => $user['id'], 'token' => Auth::token()['name'] ?? null, 'kind' => $kind, 'ref' => $ref,
-             'before' => $before, 'after' => $after, 'at' => $last, 'set' => $set, 'reverts' => $reverts]);
+             'before' => $before, 'after' => $after, 'at' => $last, 'set' => $set, 'reverts' => $reverts, 'delivery' => $delivery]);
         return $id;
     }
 }

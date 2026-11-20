@@ -41,10 +41,10 @@ jobs:
       OSCT_CONTENT_DIR: fixtures/demo
       OSCT_CONTENT_ENV: staging
       OSCT_TITLE: ${{ vars.OSCT_TITLE || 'osct' }}
-      OSCT_CONTENT_BASE_URL: ${{ vars.OSCT_CONTENT_BASE_URL || vars.CONTENT_BASE_URL }}
-      OSCT_BUNNY_STORAGE_ZONE: ${{ vars.OSCT_BUNNY_STORAGE_ZONE || vars.BUNNY_STORAGE_ZONE }}
+      OSCT_CONTENT_BASE_URL: ${{ vars.OSCT_CONTENT_BASE_URL }}
+      OSCT_BUNNY_STORAGE_ZONE: ${{ vars.OSCT_BUNNY_STORAGE_ZONE }}
       OSCT_BUNNY_STORAGE_ENDPOINT: ${{ vars.OSCT_BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ZONE_ENDPOINT || 'storage.bunnycdn.com' }}
-      OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.OSCT_BUNNY_STORAGE_PASSWORD || secrets.BUNNY_STORAGE_PASSWORD }}
+      OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.OSCT_BUNNY_STORAGE_PASSWORD }}
       # The staging reader shows the demo (/x/demo/): the CDN check asks with its origin (CORS)
       OSCT_APP_URL: https://osct.porschuetz.de
     steps:
