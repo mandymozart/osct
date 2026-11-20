@@ -7,6 +7,14 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 3.21.1 – 2026-11-20
+
+### Changed
+- **Editor – cutting a rule's *on*** (#334): Delete on a rule's *on* wire, or on a by-name event stub whose listening side is
+  here (*keyRattled ← emitted in Cover*), no longer refuses. The rule's *on* is left empty; it hears nothing, and the Logic
+  panel lists it as a problem (*Door · rule 3 hears nothing – wire an event to its on*) until an event is wired to it
+  again. The reader no longer subscribes to an empty event name.
+
 ## 3.21.0 – 2026-11-20
 
 ### Added
