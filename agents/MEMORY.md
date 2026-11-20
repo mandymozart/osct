@@ -240,6 +240,12 @@ Verbatim from the archived entries (the entry title and archive file in front of
   now. The MAJOR (L-T5) ships as soon as it is ready, without waiting to be bundled with another cut before Tokyo.
 - **L8 decided (Tilman: "Yes, into the URL"):** the Logic view's level goes into `?logic=`, built in L-T3.
 - [ ] L9 (does SCUTOONS adopt the package): asked in mandymozart/scutoons#702.
+- **L-T1 to L-T4 shipped (3.19.1, 3.20.0, 3.21.0):** the logic module and its levels, navigation with xyflow and
+  `?logic=`, and editing. Adding nodes works by right-click, by the "+" button, or by dragging from the Library's
+  "Nodes" (Tilman's change). Checked on staging: a real click selects a box, and the stage and the Tree follow it.
+- [ ] Tilman: should disconnecting a rule's `on` be allowed? Today it is refused ("a rule always hears one event"),
+  because the grammar has no "no event". The alternatives are an `on` that may be empty (a rule that never fires,
+  marked as a problem), or switching such a rule to `found`.
 
 ## 2026-11-20 – The delivery endpoint's change log: row kinds plus `delivery_id` (#322 T5)
 
