@@ -50,6 +50,29 @@ refuses 5.0 content and a 5.0 app refuses 4.x (`OLDEST_READABLE_SCHEMA_MAJOR` 5)
 - **`npm run convert:5`** (`scripts/`): a content folder's conditions to expressions and set texts to literals, once.
 - The fixture: a node rule with an expression and a `goto`, a scene rule and two experience rules (one a `goto`), a canvas
   the build leaves out.
+- **Editor on 5.0** (#334 L-T5b):
+  - **Conditions and set values as expressions** in the Inspector: one monospace field each, checked as you type – a parse
+    error, a type error (against the variable's declared or inferred type) or a condition that is no true / false shows
+    under the field and is **not saved** (B8); the next text that checks out is. A set's scope is optional (*declared* /
+    *scene (default)* / a scope). The rule's type problems show under it.
+  - **A scene's and the experience's rules** in the Inspector – the scene's under the scene, the experience's under the
+    experience (⚙) – reusing the rule list: they hear the bus only, name a node of the scene's targets (the experience's:
+    any scene's) by address `target:<id>/<name>`, and save themselves with `PUT …/scenes/{sid}` `{ logic }` and
+    `PUT …/logic` (History lists them, Undo takes them back; the draft's canvas is kept). **goto** is an action everywhere:
+    pick a scene.
+  - **Variables** beside the experience's rules: name, type, scope, default per declaration (`PUT …/variables`), the
+    inferred ones shown as inferred with *declare*; a bad name or a default of another type is refused with the reason.
+  - **The Logic panel**: scene rule boxes on the scene level, experience rule boxes on the experience level, both editable
+    there (the group level stays read-only, the experience level edits its own rules only). goto: a stub at the scene
+    level (*→ Epilogue · goto*, dash-dot), derived scene → scene edges on the group and experience levels, an experience
+    rule's goto as a wire into the scene box – connect a rule's do into a scene box to add one, disconnect it to remove it.
+    `when` wires come from the condition's variables; wiring a variable in appends `name` (true / false) or
+    `name == <its default or a typed placeholder>` with `&&` and says so; cutting one takes its terms out of a top-level
+    `&&` / `||` chain, anything deeper is refused with *edit the condition in the Inspector*. A set's wire shows its
+    expression (`set = taps + 1`). The problem list adds the rules' type problems, the experience rules' missing nodes and
+    gotos to scenes that are not there.
+  - **The stage and goto**: the stage stays on its scene; the timeline logs a goto with a link that opens the scene.
+  - History names the change kinds `logic` (*Experience rules*) and `variables`.
 
 ### Removed
 - The object form of a condition (`{ hasKey: true }`, `{ any: … }`, `{ not: … }`) and its types (`BehaviourCondition`,

@@ -45,7 +45,9 @@
    *   port to a port connects, Delete on a selected wire or rule disconnects or removes it, a right click (or **+**, or a
    *   node type dragged from the Library's *Nodes*) opens the menu of what fits here (`logic/palette.ts`). An op's trees go
    *   to the stage as the Inspector's edits do (`stage.override`: live at once, saved by the autosave, a step in History);
-   *   its words – or why it was refused – show for a moment under the bar. The experience and group levels stay read-only.
+   *   its words – or why it was refused – show for a moment under the bar. A scene's and the experience's rules (content
+   *   schema 5.0, L-T5b) go to `logicEdit`, which saves them; the experience level edits the experience's own rules only,
+   *   the group level is read-only.
    * - What a plugin's code hears, emits, reads and sets is read from its source (stored, else the compiled module).
    *   Problems across the experience are listed under the graph, in the error colour.
    */

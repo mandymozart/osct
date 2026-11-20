@@ -236,6 +236,28 @@ declare const BEHAVIOUR_SCOPES: readonly [
 ];
 type BehaviourScope = (typeof BEHAVIOUR_SCOPES)[number];
 type BehaviourValue = string | number | boolean;
+interface LogicCanvas {
+	groups?: LogicCanvasGroup[];
+	notes?: LogicCanvasNote[];
+	folds?: string[];
+}
+interface LogicCanvasGroup {
+	id: string;
+	label: string;
+	members: string[];
+}
+interface LogicCanvasNote {
+	id: string;
+	text: string;
+	x: number;
+	y: number;
+}
+interface LogicData {
+	/** Rules in the content's form (`./behaviour.ts`): `{ on, when?, do }` – read them with `logicRules` */
+	rules: Record<string, unknown>[];
+	/** Authoring data of the editor's Logic view – never in a reader's configuration */
+	canvas?: LogicCanvas;
+}
 declare const ENTITY_TYPES: readonly [
 	"group",
 	"model",
@@ -283,6 +305,8 @@ interface SceneData {
 	surfaces: SurfaceData[];
 	/** Optional (schema 2.5): the post-processing passes over this scene's rendered image, in order; replaces the experience's (`[]` = none) */
 	passes?: PassData[];
+	/** Optional (schema 5.0, #334): the scene's rules – live while the scene is open (`./logic.ts`); its canvas never reaches a reader */
+	logic?: LogicData;
 }
 interface AssetData {
 	id: string;
