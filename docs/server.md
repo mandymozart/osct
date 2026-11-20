@@ -88,7 +88,8 @@ without a token, 403 `forbidden` for a reader. `{id}` is the experience, ids and
 | `POST /editor/experiences/{id}/publish` | `{ env, note?, replace?, plugins? }` – `plugins` = the Code tab's saved sources as the editor transpiled them, `[{ id, code, api, registered? }]` (#78: each id a saved source of the experience, else 400 `invalid-plugins`; written into the version as `assets/content/plugins/<id>/plugin-<hash>.js` and declared; `registered` kept only when it names the types the source registers) | `{ env, store, build, hash, publishedAt, replaced }` – writes the assembled version to the content store of `env`, which must be this instance's own environment (`ENV`; another one: **403 `other-environment`** with `env`, the own one): `<env>/<build>/game.config.json` and `files.json` (unless that build is there already – a version folder is never overwritten), then `versions.json` (the previous current version retired), then `latest.json` (both name the experience); a row in the publish log. An environment serves one experience: when it serves another (or one that cannot be told) the publish needs `replace: true`, else 409 `other-experience` with `current` `{ env, experience, title, build, since }`; `replaced` `{ experience, build }` names the experience replaced, null when none; `store` = where it went (`cdn` or `server`). 400 `invalid-env` (no environment name), `invalid-replace`; 502 `content-store-failed` |
 | `GET /editor/experiences/{id}/versions` | | `{ versions: [{ id, env, build, hash, publishedBy, publishedAt, note }] }` – the publish log, newest first |
 | `GET /editor/experiences/{id}/export[?build=]` | | `{ experience, source, build, hash, schema, appVersion, exportedAt, configuration, files, unknown, layout, plugins, credits }` – everything an export of the experience needs: the draft, or with `build` a published version from the content store ([Export](#export)). 400 `invalid-build`, 404 `unknown-build` (not in this experience's publish log), 404 `build-missing` (logged, but the store has no readable configuration) |
-| `GET /editor/experiences/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt, set, reverts, notRevertable }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target) – and `entry`, `scene`, `order`, `groups`, `reference`, `environment`, `passes`, `appearance`, `experience`, `plugin`, `asset` (a Library file a removal deleted), `migration` (#319); a removed row has `after: null`; `token` = the name of the AI connection a save came through, null for the editor; `set` / `reverts` for a revert's changes and `notRevertable` – [Reverting saved changes](#reverting-saved-changes); `limit` default 50, at most 500 |
+| `GET /editor/experiences/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt, set, reverts, delivery, notRevertable }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target) – and `entry`, `scene`, `order`, `groups`, `reference`, `environment`, `passes`, `appearance`, `experience`, `plugin`, `asset` (a Library file a removal deleted), `migration` (#319); a removed row has `after: null`; `token` = the name of the AI connection a save came through, null for the editor; `set` / `reverts` for a revert's changes, `delivery` the delivery that wrote it ([Deliveries](#deliveries)) and `notRevertable` – [Reverting saved changes](#reverting-saved-changes); `limit` default 50, at most 500 |
+| `POST /editor/experiences/{id}/deliveries` | `{ name, source?, scenes?, entries, apply?, overwrite? }` – a delivery plan, its files Library files by id or URL | `{ delivery: { id, name, source }, applied, items, counts, problems, warnings, written }` – a publisher's delivery compared with the draft per scene, entry and target (`new` / `changed` / `same` / `conflict`); with `apply: true` written in one transaction, each write a change naming the delivery – [Deliveries](#deliveries). 400 `invalid-delivery`; 409 `delivery-problems` with `comparison` |
 | `GET /content/{env}/{path}` | | the **local** content store, public like the CDN: `latest.json`, `versions.json` (`no-cache`) and `<build>/game.config.json` / `files.json` (immutable) – nothing else, no other path |
 
 Signed-in calls from a browser send the session cookie and, with every write, its CSRF token; other clients send
@@ -885,7 +886,7 @@ written }`: `changes` newest first, each `{ id, kind, ref, user, token, createdA
 first: one whose thing still holds what it wrote (`after`, compared with the keys sorted; the experience's JSON only in the
 fields it changed) gets its `before` back (`status: revert`); one whose thing holds something else is a **conflict** –
 listed, never overwritten, and the older changes of that thing are skipped as well. **Not revertable** (`status:
-not-revertable`, and `notRevertable` in `GET …/changes`): a creation (`before` null – remove it instead), a removal
+not-revertable`, and `notRevertable` in `GET …/changes`): a creation (`before` null – remove it instead; a delivery's new row is the exception, [Deliveries](#deliveries)), a removal
 (`after` null), an entry moved to another surface (its scene is `entries.scene_id`, not in the log), a new order whose
 scenes changed, a plugin source (the Code tab), a deleted file, a change saved before the content schema 3.0 (its rows
 held pages or a print) and the migration itself (`migration`). Scene moves are
@@ -893,6 +894,59 @@ in the log (`order`, the ids before and after) and revert. Picture credits and L
 draft content and not in the log (they are not revertable); a surface's reference image (#314) is no content either but
 is in the log and reverts both ways – set, replaced, removed – while its scene has the surface. Changes of one request get strictly increasing times, so
 their order stays readable. 404 `not-found` for a change not in the experience's log; 400 `invalid-revert`, `too-many`.
+
+### Deliveries
+
+A publisher's delivery reaches the draft through the API (#322, `Deliveries.php`; the content folder's import
+`npm run import` before it). The files go first, through the [Assets](#assets) API (the CLI converts them – WebP, H.264 –
+and uploads each once, deduplicated by sha256); then `POST /editor/experiences/{id}/deliveries` sends the **plan**
+(`shared/api/deliveries.ts` `DeliveryPlan`), JSON without files:
+
+```json
+{
+  "name": "2026-11-final",
+  "source": "delivery folder 2026-11-final, mapping import/2026-11-final.yaml",
+  "scenes": [{ "id": "s186-187", "label": "186–187", "preset": "double" }],
+  "entries": [
+    { "id": "p186-1", "scene": "s186-187", "category": "video", "title": "Placeholder",
+      "image": "<asset id or URL>", "target": { "imageSrc": "<asset URL>", "video": "<asset URL>", "enabled": true } }
+  ]
+}
+```
+
+- `scenes` (optional, in the book's order): `{ id, label?, preset? | surfaces? }`. A scene that exists is kept as it is; a
+  new one gets the preset's surfaces (`double` by default) or its own, and goes after the plan's scene before it (else
+  before the one after it, else last).
+- `entries`: `{ id, scene, surface?, category, title, author?, body?, caption?, media?, tags?, image?, target? }`, the
+  target `{ imageSrc, enabled?, video? }`. A **new** entry gets these texts and its target (id = the entry's; `enabled:
+  false` switches it off; `video` becomes its inline video entity, asset id `<target>-media`). An entry that **exists**
+  keeps its texts, category and scene; only its `image` and its target's `imageSrc` and video follow the delivery – a new
+  file is another URL (the Library keeps one file per content). A new `imageSrc` drops the target's recognition data.
+  An existing target keeps its switch (a warning when the delivery switches it off). Any other field is a 400 – the
+  mapping's `note` is not stored.
+- Files are named by the asset's id or URL and must be pictures (`image`, `imageSrc`) or videos (`video`) of the
+  experience's Library.
+
+Without `apply: true` nothing is written; the answer is the comparison: `items` per scene, entry and target, each `{ kind,
+id, status, fields?, reason?, scene?, entry? }` – `new`, `changed` (`fields`: `image`, `imageSrc`, `video`), `same`
+or `conflict`, `counts` per status, `problems` and `warnings`. A **conflict** is a row whose changed fields were edited
+outside a delivery since the last delivery that wrote that row (none: since the experience's import) – read from the
+change log; a target that shows another entity than a video gets no video (a conflict too). A conflict is left as it is
+unless the body sends `overwrite: true`. **Problems** stop the delivery: a scene neither in the experience nor in the
+plan, a surface the scene does not have, a file outside the Library, a target id another entry uses, and more than
+`MAX_TARGETS_PER_SCENE` (10, RULES #3, `shared/api/rules.ts`) targets switched on in a scene the delivery adds targets
+to.
+
+With `apply: true` the comparison is made again and written in one transaction (409 `delivery-problems` with
+`comparison` when it has problems – nothing written). Each write is a change of its row's own kind (`scene`, `entry`,
+`target`) with `changes.delivery_id` set (`delivery` in `GET …/changes`), and the delivery is a row of `deliveries`
+(name, source, the plan as sent, the counts, who, when); the answer names its `id` and `written`, the changes' ids. The
+same delivery sent again compares as all `same`.
+
+**Taking a delivery back**: `POST …/changes/revert { ids }` with its changes' ids ([Reverting saved
+changes](#reverting-saved-changes)). The later changes of the same rows are reverted first, as for any save; the
+delivery's new rows are removed again – a target, then its entry once it has no target, then a scene once nothing lies on
+it and the experience does not open on it (a conflict otherwise). The removal a revert writes is not revertable itself.
 
 ## Logs
 

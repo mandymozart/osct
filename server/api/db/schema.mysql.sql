@@ -404,3 +404,22 @@ CREATE TABLE IF NOT EXISTS `arrivals` (
   PRIMARY KEY (`source`, `day`, `device`),
   KEY `arrivals_day` (`day`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Deliveries (#322, Deliveries.php): a publisher's delivery applied through the API – its name, where it came from, the
+-- plan as sent (scenes, entries, targets, file URLs) and what it wrote. Every change it wrote names it
+-- (`changes.delivery_id`), so the history shows it and the revert takes it back
+CREATE TABLE IF NOT EXISTS `deliveries` (
+  `id` CHAR(36) NOT NULL,
+  `experience_id` VARCHAR(64) NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
+  `source` VARCHAR(512) NULL DEFAULT NULL,
+  `plan_json` MEDIUMTEXT NOT NULL,
+  `counts_json` TEXT NOT NULL,
+  `created_by` CHAR(36) NULL DEFAULT NULL,
+  `token_name` VARCHAR(255) NULL DEFAULT NULL,
+  `created_at` BIGINT NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `deliveries_experience` (`experience_id`, `created_at`),
+  CONSTRAINT `deliveries_experience_fk` FOREIGN KEY (`experience_id`) REFERENCES `experiences` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+ALTER TABLE `changes` ADD COLUMN `delivery_id` CHAR(36) NULL DEFAULT NULL;

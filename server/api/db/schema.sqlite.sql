@@ -346,3 +346,18 @@ CREATE TABLE IF NOT EXISTS arrivals (
   PRIMARY KEY (source, day, device)
 );
 CREATE INDEX IF NOT EXISTS arrivals_day ON arrivals (day);
+
+-- Deliveries (#322, schema.mysql.sql has the notes)
+CREATE TABLE IF NOT EXISTS deliveries (
+  id TEXT NOT NULL PRIMARY KEY,
+  experience_id TEXT NOT NULL REFERENCES experiences (id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  source TEXT NULL DEFAULT NULL,
+  plan_json TEXT NOT NULL,
+  counts_json TEXT NOT NULL,
+  created_by TEXT NULL DEFAULT NULL,
+  token_name TEXT NULL DEFAULT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS deliveries_experience ON deliveries (experience_id, created_at);
+ALTER TABLE changes ADD COLUMN delivery_id TEXT NULL DEFAULT NULL;

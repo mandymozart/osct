@@ -192,6 +192,8 @@ export interface Change {
   set?: string | null;
   /** The change this one took back (a revert), else null */
   reverts?: string | null;
+  /** The delivery that wrote it (#322, `DeliveryResult.delivery.id`), else null */
+  delivery?: string | null;
   /** Why the change cannot be reverted (a creation, a removal, a moved entry, a plugin source …); null when it can */
   notRevertable?: string | null;
 }

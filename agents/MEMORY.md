@@ -209,6 +209,21 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-20 – The delivery endpoint's change log: row kinds plus `delivery_id` (#322 T5)
+
+- A delivery's writes are logged with their **row's own kind** (`scene`, `entry`, `target`) and the delivery's id in a new
+  column `changes.delivery_id` – not with a kind `delivery` as the plan said. Reason: the revert (`Reverts`) finds "later
+  changes of the same thing" by kind + ref; a kind `delivery` would hide a delivered target from its later editor edits
+  (and the other way round), and every revert branch would need a second key.
+- A delivery's **new rows are revertable** (removed again: target → entry without target → scene with nothing on it and
+  not the initial scene); every other creation stays "remove it instead". The removal a revert writes is not revertable
+  itself (as any removal).
+- The conflict baseline is **per row**: the last delivery change of that row, else the experience's import time.
+- No confirmation id (`Confirmation.php`) as the plan sketched – `apply: true` like `scenes/move` and the revert, the
+  comparison made again inside the transaction. T8 (MCP) shows the comparison before applying.
+- [ ] The API checks MAX_TARGETS_PER_SCENE only on a delivery; `POST …/entries`, `PUT …/targets/{id} { enabled }` and an
+  entry's scene move do not yet – Tilman's call whether they should (the content build still refuses > 10).
+
 ## 2026-11-20 – #322 decisions; GitHub variables renamed (#33)
 
 Tilman on the open decisions of `agents/research/2026-11-20-importer-export-plan.md`:
