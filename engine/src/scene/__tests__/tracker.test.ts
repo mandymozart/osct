@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { setRecognitionOverride } from "../../utils/recognition-setting";
 import type { Target } from "../../types/index";
 import type { TrackedScene } from "../tracker-types";
 import type { XrPipelineModule } from "../xr8";
@@ -227,8 +228,31 @@ describe("ImageTracker camera grade", () => {
 });
 
 describe("ImageTracker recognition data made ahead (#306)", () => {
-  it("gives the engine a target's prepared frame as it is – the others made from their images as before", async () => {
+  const recognitionOf = { imageSrc: "https://cdn.example/p-0_recognition.webp", width: 1200, height: 900 };
+  afterEach(() => setRecognitionOverride(null));
+
+  it("uses every target's printed image by default – a frame made ahead waits for the switch (schema 4.2)", async () => {
     engine.loaded = new Set(); engine.extracted = [];
+    const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} }, "/assets/xr8/");
+    await tracker.startCamera();
+    await tracker.loadTargets({ sceneId: "o", targets: [{ id: "o-0", imageSrc: "o-0.jpg", recognition: recognitionOf }] as unknown as Target[] });
+    expect(engine.extracted).toEqual(["o-0.jpg"]);
+    tracker.stop();
+  });
+
+  it("keeps a target with recognitionOff on its printed image when the path is prepared", async () => {
+    engine.loaded = new Set(); engine.extracted = [];
+    setRecognitionOverride("prepared");
+    const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} }, "/assets/xr8/");
+    await tracker.startCamera();
+    await tracker.loadTargets({ sceneId: "q", targets: [{ id: "q-0", imageSrc: "q-0.jpg", recognition: recognitionOf, recognitionOff: true }] as unknown as Target[] });
+    expect(engine.extracted).toEqual(["q-0.jpg"]);
+    tracker.stop();
+  });
+
+  it("gives the engine a target's prepared frame as it is on the prepared path – the others made from their images as before", async () => {
+    engine.loaded = new Set(); engine.extracted = [];
+    setRecognitionOverride("prepared");
     const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} }, "/assets/xr8/");
     await tracker.startCamera();
     const recognition = { imageSrc: "https://cdn.example/p-0_recognition.webp", width: 1200, height: 900 };

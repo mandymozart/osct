@@ -4,6 +4,7 @@ import {
   subscribeEngineState, subscribeLoadTest,
 } from "@engine/utils/tracker-debug";
 import { getExperience, getConfigVersion } from "@/utils/game-config";
+import { recognitionLabel } from "@engine/utils/recognition-setting";
 import { LOAD_TEST_COLUMNS, loadTestCells, loadTestReport } from "./load-test-report";
 
 const escapeHtml = (text: string) =>
@@ -63,6 +64,7 @@ export class LoadTestPanel extends HTMLElement {
       appVersion: __VITE_APP_VERSION__,
       contentHash: getConfigVersion().hash ?? "",
       device: navigator.userAgent,
+      recognition: recognitionLabel(),
       date: startedAt,
       sceneId: progress.sceneId ?? "–",
       sceneTargets: progress.sceneTargets,

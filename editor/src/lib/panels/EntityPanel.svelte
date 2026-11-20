@@ -11,6 +11,7 @@
   import { errorText, isMediaAsset, putTarget, type Asset, type TargetPlace } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import { library } from "#lib/library.svelte.js";
+  import { recognitionFrames, frameTargetOf } from "#lib/recognition-frames.svelte.js";
   import { nodeAssetKinds, pickAccept, type LibraryPick } from "#lib/library-pick.js";
   import { fileNameOf } from "#lib/library-place.js";
   import { plugins } from "#lib/plugins.svelte.js";
@@ -373,6 +374,8 @@
       const url = typeof src === "string" ? src : (await library.upload(experienceId, src, { fit: "target", entry: entryId })).url;
       await putTarget(experienceId, targetId, { imageSrc: url });
       await ontargetchanged?.();
+      // Its recognition frame, made by itself from the new image (#306) – after the change, never in its way
+      recognitionFrames.autoFor(experienceId, targetId, url);
     } catch (e) {
       targetError = errorText(e);
     } finally {
@@ -395,6 +398,8 @@
       await putTarget(experience, id, { place: next });
       if (placementEdits === edit) placementPending = null;
       await ontargetchanged?.();
+      // Placed on a surface without a recognition frame yet: made by itself (#306), once per image
+      recognitionFrames.autoFor(experience, id);
     });
   };
   /** The target in the experience or switched off (#249): the reader leaves a switched-off target and its entry out */
@@ -404,6 +409,25 @@
     targetError = null;
     try {
       await putTarget(experienceId, target.id, { enabled: on });
+      await ontargetchanged?.();
+    } catch (e) {
+      targetError = errorText(e);
+    } finally {
+      targetBusy = false;
+    }
+  };
+  /** Make recognition frame / Remake (#306): from the printed image as the draft holds it; a failure shows quietly below */
+  const makeFrame = () => {
+    const made = target ? frameTargetOf(target.id) : null;
+    if (made) void recognitionFrames.make(experienceId, made);
+  };
+  /** Original only (#306): the target always uses its printed image, even when the experience says prepared */
+  const setRecognitionOff = async (on: boolean) => {
+    if (!target) return;
+    targetBusy = true;
+    targetError = null;
+    try {
+      await putTarget(experienceId, target.id, { recognitionOff: on });
       await ontargetchanged?.();
     } catch (e) {
       targetError = errorText(e);
@@ -698,6 +722,21 @@
   <div class="row"><span class="label">image</span>
     <FileField src={target.imageSrc} picture accept={pickAccept({ for: "target-image" })} label="the printed image of {target.id}"
       onlibrary={pickTargetImage} onupload={f => { const id = target?.id; if (id) void setTargetImage(id, f); }} /></div>
+  {@const frameStatus = recognitionFrames.status[target.id]}
+  <div class="row recognition" data-help-name="Recognition frame"
+    data-help="The grey frame the phone's image tracker reads, made ahead from the printed image (the editor makes it by itself when the image changes or the target is placed; the printed image stays as it is). The reader uses it only when the experience's recognition is Prepared (experience settings) – by default it makes the frame from the printed image on the phone, the path tested with every target.">
+    <span class="label">recognition</span>
+    <span class="controls">
+      {#if target.recognition}<img class="frame-thumb" src={target.recognition.imageSrc} alt="Recognition frame of {target.id}" title="{target.recognition.width} × {target.recognition.height} px image" />{/if}
+      <button type="button" class="text-link" disabled={frameStatus?.state === "making"} onclick={makeFrame}>
+        {frameStatus?.state === "making" ? "making…" : target.recognition ? "remake" : "make frame"}</button>
+      {#if !target.recognition && frameStatus?.state !== "making"}<span class="small muted">none yet</span>{/if}
+    </span></div>
+  {#if frameStatus?.state === "failed"}<p class="small danger" title={frameStatus.message}>The recognition frame was not made: {frameStatus.message} – the target itself is saved; make frame tries again.</p>{/if}
+  <div class="row" data-help-name="Original only"
+    data-help="On: this target always uses its printed image, even when the experience's recognition is Prepared – for a target the frame made ahead recognises worse. Off: the experience's setting decides.">
+    <span class="label">original only</span>
+    <span class="controls"><Toggle on={target.recognitionOff === true} label="Original only" disabled={targetBusy} onchange={setRecognitionOff} /></span></div>
   {#if placementOpen}
     {#if surfaceOptions.length > 1}
       <div class="row"><span class="label">surface</span>
@@ -925,6 +964,8 @@
 
 <style>
   .head { display: flex; align-items: center; gap: .5rem; min-height: var(--control-height); }
+  /* The recognition frame (#306): a small grey thumbnail, 3:4 like the frame */
+  .frame-thumb { width: 1.5rem; height: 2rem; object-fit: contain; border: 1px solid var(--line); }
   .head .small { overflow-wrap: anywhere; }
   .crumbs { flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 0 .125rem; }
   .crumb { max-width: 10rem; height: var(--control-height); padding: 0 .375rem; border: none; border-radius: var(--control-radius); background: none; color: var(--muted);

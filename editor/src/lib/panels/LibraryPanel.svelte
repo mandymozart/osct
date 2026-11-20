@@ -7,6 +7,7 @@
   import { content } from "#lib/content.svelte.js";
   import { codeKindOf, codeUploadProblem, pluginIdFrom } from "#lib/library-code.js";
   import { ACCEPT, library } from "#lib/library.svelte.js";
+  import { recognitionFrames } from "#lib/recognition-frames.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { scenes } from "#lib/scenes.svelte.js";
   import { selection } from "#lib/selection.svelte.js";
@@ -390,6 +391,12 @@
       const conversion = library.converted?.assetId === next.id ? library.converted : null;
       notice = `${next.name} is version ${next.version}; ${next.usages} use${next.usages === 1 ? "" : "s"} relinked${conversion ? ` · ${convertedNotice(next, conversion)}` : ""}`;
       await onchanged?.();
+      // A new version of a printed image dropped its targets' recognition frames (#306): made again by themselves
+      if (next.kind === "image" && content.experienceId === experienceId) {
+        for (const target of content.scenes.flatMap(scene => scene.targets)) {
+          if (target.imageSrc === next.url) recognitionFrames.autoFor(experienceId, target.id, next.url);
+        }
+      }
     } catch {
       // library.error says
     }

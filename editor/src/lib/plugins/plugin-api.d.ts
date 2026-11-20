@@ -343,6 +343,23 @@ interface TargetData {
 	 * reader leaves both out (no image target, no entry in the list, not counted); none or `true` = in the experience
 	 */
 	enabled?: boolean;
+	/**
+	 * Optional (schema 4.1, #306): the image tracker's recognition data, made ahead from `imageSrc` (`osct targets prepare`)
+	 * – none = the reader makes it from `imageSrc` when the scene opens. The API drops it whenever `imageSrc` changes.
+	 */
+	recognition?: TargetRecognitionData;
+	/**
+	 * Optional (schema 4.2, #306): `true` = this target always uses its printed image, even when the experience says
+	 * `recognition: "prepared"` – the target keeps its `recognition`; none or `false` = the experience decides
+	 */
+	recognitionOff?: boolean;
+}
+interface TargetRecognitionData {
+	/** The grey 480 × 640 frame (a Library file) */
+	imageSrc: string;
+	/** Width and height in px of the printed image it was made from */
+	width: number;
+	height: number;
 }
 interface EntryData {
 	id: string;

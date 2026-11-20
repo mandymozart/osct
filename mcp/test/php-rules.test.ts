@@ -15,6 +15,7 @@ import { ENTRY_CATEGORIES } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS } from "../../shared/types/environment";
 import {
   COMPONENT_TYPE_PATTERN,
+  RECOGNITION_MODES,
   COMPONENT_TYPES,
   ENTITY_TYPES,
   MATERIAL_TYPE_PATTERN,
@@ -76,6 +77,7 @@ function readPhp(): Record<string, unknown> {
       'SCENES' => ['presets' => Scenes::PRESETS, 'pageMm' => Scenes::PAGE_MM, 'wallMm' => Scenes::WALL_MM, 'surfacesMax' => Scenes::SURFACES_MAX, 'referenceFits' => SurfaceReferences::FITS],
       'PASS_TYPES' => Experiences::PASS_TYPES,
       'MOMENTS' => Experiences::MOMENTS,
+      'RECOGNITION_MODES' => Experiences::RECOGNITION_MODES,
       'APPEARANCE_TYPES' => Experiences::APPEARANCE_TYPES,
       'PLUGIN_PASS_TYPE' => Experiences::PLUGIN_PASS_TYPE,
       'WORLDS' => Experiences::WORLDS,
@@ -134,6 +136,7 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
   it("passes (the built-in list), the appearance's moments and looks, and the environment (Experiences)", () => {
     expect(php.PASS_TYPES).toEqual([...PASS_TYPES]);
     expect(php.MOMENTS).toEqual([...MOMENTS]);
+    expect(php.RECOGNITION_MODES).toEqual([...RECOGNITION_MODES]);
     expect(php.APPEARANCE_TYPES).toEqual([...APPEARANCE_TYPES]);
     expect(php.WORLDS).toEqual([...ENVIRONMENT_WORLDS]);
     expect(php.WORLD_MODEL_EXTENSIONS).toEqual([...WORLD_MODEL_EXTENSIONS]);

@@ -5,6 +5,8 @@ export interface LoadTestMeta {
   appVersion: string;
   contentHash: string;
   device: string;
+  /** The recognition path the run used (#306): `recognitionLabel()` – the mode and whether this device overrides the experience */
+  recognition: string;
   date: Date;
   sceneId: string;
   sceneTargets: number;
@@ -49,6 +51,7 @@ export const loadTestReport = (results: readonly LoadTestResult[], meta: LoadTes
     `- Date: ${date} (UTC)`,
     `- App ${meta.appVersion} · content ${meta.contentHash.slice(0, 12)}`,
     `- Device: ${meta.device}`,
+    `- Recognition: ${meta.recognition}`,
     `- Started on ${meta.sceneId} · ${seconds(meta.options.steadyMs)} s measured per step · ${meta.options.covers} lens covers per step`,
     "",
     `| ${LOAD_TEST_COLUMNS.join(" | ")} |`,

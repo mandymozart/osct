@@ -7,6 +7,24 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **Original or prepared recognition, switched per experience** (#306, content schema 4.2): the experience's
+  `recognition` – *Original* (the default: the reader makes every target's recognition frame from its printed image on
+  the phone, the path tested with every target) or *Prepared* (a target's frame made ahead, where it has one) – in the
+  editor's experience settings, `update_experience` and the API. A target's *original only* (`recognitionOff`) keeps it
+  on its printed image either way. The reader's debug overlay has a Recognition switch (Experience / Original /
+  Prepared) that overrides the setting on that phone, and the engine load test's report names the path it ran with.
+- **The editor makes the recognition frames by itself**: when a target gets a printed image or is placed on a surface
+  and has no frame yet, the browser makes it with the same builder as `osct targets prepare`, stores it in the Library
+  and names it on the target – never in the way of the target's change, never touching the printed image. The target's
+  inspector shows the frame as a thumbnail with *make frame* / *remake*.
+
+### Changed
+- Targets' recognition frames made ahead are no longer used unless the experience (or the phone's debug switch) says
+  Prepared – before, the reader used any it found.
+
 ## 3.11.1 – 2026-11-20
 
 ### Removed

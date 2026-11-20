@@ -36,6 +36,7 @@
   import RemovalConfirm from "#lib/components/RemovalConfirm.svelte";
   import { sceneRemoval } from "#lib/scene-removal.svelte.js";
   import { library } from "#lib/library.svelte.js";
+  import { recognitionFrames } from "#lib/recognition-frames.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { nodeAt } from "#lib/values.js";
   import { queueTreeSaves } from "#lib/tree-autosave.js";
@@ -232,6 +233,8 @@
     await reloadContent();
     selection.selectTarget(targetId);
     openTab("inspector");
+    // Its recognition frame, made by itself (#306) – never in the way of the new target
+    recognitionFrames.autoFor(experienceId, targetId);
   };
   const entryCreated = async (entryId: string) => {
     addingEntry = false;
@@ -449,13 +452,15 @@
     if (isMediaAsset(asset)) entityPanel?.useAsset(asset.kind, asset.url, asset.id);
   };
   const useAsTargetImage = async (asset: Asset) => {
-    if (!selection.target) return;
+    const targetId = selection.target;
+    if (!targetId) return;
     try {
-      await putTarget(experienceId, selection.target, { imageSrc: asset.url });
+      await putTarget(experienceId, targetId, { imageSrc: asset.url });
     } catch (e) {
       return failed(e);
     }
     await reloadContent();
+    recognitionFrames.autoFor(experienceId, targetId, asset.url);
   };
   const selectedNodeType = $derived.by(() => {
     const t = selection.target && !selection.onTarget ? stage?.treeOf(selection.target) : undefined;

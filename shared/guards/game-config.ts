@@ -211,6 +211,8 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
         if (book.sourceOfTruth !== undefined) fail("experience.book.sourceOfTruth", "is gone – every experience adds and removes its scenes");
       }
     }
+    // Schema 4.2 (#306): any text – one this app does not know reads as "original" (the engine's `recognitionModeOf`)
+    if (experience.recognition !== undefined && typeof experience.recognition !== "string") fail("experience.recognition", `expected "original" or "prepared"`);
     if (experience.passes !== undefined) passProblems(experience.passes, "experience.passes", passOptions).forEach(problem => problems.push(problem));
     if (experience.environment !== undefined) environmentProblems(experience.environment, "experience.environment", false).forEach(problem => problems.push(problem));
     if (experience.appearance !== undefined) appearanceProblems(experience.appearance, "experience.appearance", appearanceOptions).forEach(problem => problems.push(problem));
@@ -339,6 +341,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
       }
     }
     if (target.enabled !== undefined && typeof target.enabled !== "boolean") fail(`${tPath}.enabled`, "expected true or false");
+    if (target.recognitionOff !== undefined && typeof target.recognitionOff !== "boolean") fail(`${tPath}.recognitionOff`, "expected true or false");
     if (target.recognition !== undefined) {
       const recognition = obj(target.recognition, `${tPath}.recognition`);
       if (recognition) {

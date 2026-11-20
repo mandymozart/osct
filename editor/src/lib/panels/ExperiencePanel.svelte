@@ -3,6 +3,7 @@
   import ExperienceTexts from "#lib/ExperienceTexts.svelte";
   import PassesPanel from "./PassesPanel.svelte";
   import AppearancePanel from "./AppearancePanel.svelte";
+  import RecognitionSetting from "./RecognitionSetting.svelte";
   import type { Stage } from "#lib/stage/stage.svelte.js";
 
   /**
@@ -36,6 +37,8 @@
 {:else}
   {#key tree.experience.id}
     <ExperienceTexts {experienceId} experience={tree.experience.experience} onsaved={reload} />
+    <!-- How the reader gets its targets' recognition frames (#306): Original by default -->
+    <RecognitionSetting {experienceId} experience={tree.experience.experience} />
   {/key}
   {#if sceneId}
     <!-- The experience's looks (#307 3c, Tilman): its post-processing and how entities appear – every scene without its own -->

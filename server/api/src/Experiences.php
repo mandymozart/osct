@@ -390,13 +390,14 @@ final class Experiences
     }
 
     /**
-     * PUT /editor/experiences/{id}/targets/{targetId} { entity } | { ref } | { imageSrc } | { place } | { enabled } | { recognition }
+     * PUT /editor/experiences/{id}/targets/{targetId} { entity } | { ref } | { imageSrc } | { place } | { enabled } | { recognition } | { recognitionOff }
      * → { target }: the target's entity – inline (`entity`, null removes it) or a shared one (`ref`) –, its printed image and
      * where it is printed (`place` { surface?, x, y, width, height? } on a surface of its entry's scene, null removes it),
      * whether it is in the experience (`enabled`, #249) and its recognition data made ahead (`recognition` { imageSrc, width,
      * height }, #306 – `osct targets prepare`; null removes it; with `madeFrom` – the image it was made from – it is set only
      * while that is still the target's image, else 409 `stale-image`). A new `imageSrc` drops the recognition data unless
-     * the same body sets it. Records a change with the whole target before and after.
+     * the same body sets it. `recognitionOff` (#306, schema 4.2): true = the target always uses its printed image, even when
+     * the experience says prepared (only true is stored). Records a change with the whole target before and after.
      */
     public static function putTarget(string $experienceId, string $targetId): never
     {
@@ -450,7 +451,13 @@ final class Experiences
                 $target = self::withEnabled($target, $body->enabled, 'enabled');
                 $touched = true;
             }
-            if (!$touched) throw new ApiError(400, 'invalid-target', 'Send { entity } or { ref }, { imageSrc }, { place }, { enabled } or { recognition }.');
+            if (property_exists($body, 'recognitionOff')) {
+                if (!is_bool($body->recognitionOff)) throw new ApiError(400, 'invalid-target', 'recognitionOff must be true or false.');
+                if ($body->recognitionOff) $target->recognitionOff = true;
+                else unset($target->recognitionOff);
+                $touched = true;
+            }
+            if (!$touched) throw new ApiError(400, 'invalid-target', 'Send { entity } or { ref }, { imageSrc }, { place }, { enabled }, { recognition } or { recognitionOff }.');
             $json = Editor::encode($target);
             Db::run('UPDATE targets SET entity_ref = :ref, image_src = :image, data_json = :data WHERE experience_id = :experience AND id = :id', $params + ['ref' => $ref, 'image' => $target->imageSrc, 'data' => $json]);
             self::touch($experienceId);
@@ -796,6 +803,8 @@ final class Experiences
     public const PLUGIN_PASS_TYPE = '[a-z][a-zA-Z0-9]{0,39}';
     /** The moments an entity appears or disappears at (shared/types/appearance.ts `MOMENTS`) */
     public const MOMENTS = ['reveal', 'found', 'lost'];
+    /** How the reader gets its targets' recognition data (#306, content schema 4.2 – shared/types/game-config.ts `RECOGNITION_MODES`) */
+    public const RECOGNITION_MODES = ['original', 'prepared'];
     /** The built-in looks of the contract (shared/types/appearance.ts `APPEARANCES`) */
     public const APPEARANCE_TYPES = ['inflateDissolve', 'printLift', 'fade'];
     /** The environment's worlds (shared/types/environment.ts ENVIRONMENT_WORLDS) */
@@ -1352,6 +1361,9 @@ final class Experiences
             if (!$book instanceof stdClass || !is_string($book->author ?? null)) $fail('experience.book needs an author.');
             if (property_exists($book, 'publisher') && !is_string($book->publisher)) $fail('experience.book.publisher must be a string.');
         }
+        if (property_exists($experience, 'recognition') && !in_array($experience->recognition, self::RECOGNITION_MODES, true)) {
+            $fail('experience.recognition must be "original" or "prepared".');
+        }
         if (isset($experience->environment)) {
             $problems = self::environmentProblems($experience->environment);
             if ($problems) $fail($problems[0]);
@@ -1435,6 +1447,7 @@ final class Experiences
             if ($target === null) continue;
             if (!$target instanceof stdClass || !is_string($target->imageSrc ?? null)) $fail("entries[$i].target needs id and imageSrc.");
             if (property_exists($target, 'enabled') && !is_bool($target->enabled)) $fail("entries[$i].target.enabled must be true or false.");
+            if (property_exists($target, 'recognitionOff') && !is_bool($target->recognitionOff)) $fail("entries[$i].target.recognitionOff must be true or false.");
             $targetId = Editor::id($target->id ?? null, "entries[$i].target.id");
             if (isset($targets[$targetId])) $fail("Duplicate target id \"$targetId\".");
             $targets[$targetId] = ['id' => $targetId, 'entry' => $id, 'image' => $target->imageSrc, 'ref' => self::entityRef($target->entity ?? null, $entities, "entries[$i].target.entity", $pluginTypes, $pluginMaterials), 'data' => $target];

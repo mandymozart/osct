@@ -7,7 +7,7 @@
 import type { ExperienceAppearance } from "../types/appearance";
 import type { ContentManifest } from "../types/content-manifest";
 import type { EnvironmentData } from "../types/environment";
-import type { ExperienceData, EntityData, EntryData, GroupData, PassData, SceneData, SurfaceData, TargetData } from "../types/game-config";
+import type { ExperienceData, EntityData, EntryData, GroupData, PassData, RecognitionMode, SceneData, SurfaceData, TargetData } from "../types/game-config";
 import type { AssetKind, SourceTypes } from "./rules";
 
 // ── Experiences ──────────────────────────────────────────────────────────────────────────────────────────
@@ -319,6 +319,8 @@ export interface EntrySaved {
 export interface ExperienceUpdate {
   title?: string;
   book?: { author?: string; publisher?: string | null } | null;
+  /** Schema 4.2 (#306): how the reader gets its targets' recognition data; `"original"` or null = the default (stored as none) */
+  recognition?: RecognitionMode | null;
 }
 
 /** `PUT /editor/experiences/{id}`: the experience after the change (its title, its printed book and the rest it holds) */

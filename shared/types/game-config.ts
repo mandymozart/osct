@@ -72,10 +72,15 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  *
  * **4.1** (#306): a target's optional `recognition` – the image tracker's data made ahead from its printed image
  * (`osct targets prepare`); an older app ignores it and makes that data from the image itself, as before.
+ *
+ * **4.2** (#306): the switch between both paths – the experience's optional `recognition` (`"original"`, the default:
+ * every target's data is made from its printed image on the device, as before; `"prepared"`: a target's `recognition`
+ * is used where it has one) and a target's optional `recognitionOff` (`true`: always its printed image, even when the
+ * experience says prepared). An app of 4.1 ignores both and uses a target's `recognition` wherever it has one.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "4.1";
+export const CONTENT_SCHEMA_VERSION = "4.2";
 /** The oldest content schema MAJOR this contract reads – 4: no 3.x content is read (no reader of it was shipped) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 4;
 
@@ -114,7 +119,18 @@ export interface ExperienceData {
   appearance?: ExperienceAppearance;
   /** Optional (schema 4.0): the printed book this experience accompanies – none: not a book (a wall, a room, an exhibition) */
   book?: BookData;
+  /**
+   * Optional (schema 4.2, #306): how the reader gets its targets' recognition data – `"original"` (none = the default):
+   * made from each printed image on the device, the path tested with every target; `"prepared"`: a target's
+   * `recognition` made ahead where it has one (and no `recognitionOff`), else its printed image. A device's debug switch
+   * may override it (`engine/src/utils/recognition-setting.ts`). Any other text reads as `"original"`.
+   */
+  recognition?: RecognitionMode;
 }
+
+/** How the reader gets its targets' recognition data (schema 4.2, #306): `ExperienceData.recognition` */
+export const RECOGNITION_MODES = ["original", "prepared"] as const;
+export type RecognitionMode = (typeof RECOGNITION_MODES)[number];
 
 /** The printed book an experience accompanies (schema 4.0, #320): print data only */
 export interface BookData {
@@ -262,6 +278,11 @@ export interface TargetData {
    * – none = the reader makes it from `imageSrc` when the scene opens. The API drops it whenever `imageSrc` changes.
    */
   recognition?: TargetRecognitionData;
+  /**
+   * Optional (schema 4.2, #306): `true` = this target always uses its printed image, even when the experience says
+   * `recognition: "prepared"` – the target keeps its `recognition`; none or `false` = the experience decides
+   */
+  recognitionOff?: boolean;
 }
 
 /**

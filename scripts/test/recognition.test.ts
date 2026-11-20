@@ -3,7 +3,7 @@ import path from 'path';
 import jpeg from 'jpeg-js';
 import { PNG } from 'pngjs';
 import { describe, expect, it } from 'vitest';
-import { targetFrame } from '../../engine/src/scene/target-frame';
+import { RECOGNITION_FRAME_FILE, recognitionFrame as sharedRecognitionFrame, recognitionFrameName, targetFrame } from '../../engine/src/scene/target-frame';
 import { decodePrintedImage, framePng, imageTargetJson, recognitionData, recognitionFrame, sniffImageType } from '../src/lib/recognition';
 import { type EditorApi, imageUrl, planTargets, prepareTargets } from '../src/lib/targets-prepare';
 
@@ -24,6 +24,11 @@ const image = (width: number, height: number, colour: (x: number, y: number) => 
 const greyAt = (frame: { grey: Uint8Array; width: number }, x: number, y: number) => frame.grey[y * frame.width + x];
 
 describe('recognition frame (#306) – the grey 480 × 640 frame the reader otherwise makes on the phone', () => {
+  it('is the one builder the editor uses too (engine/src/scene/target-frame.ts), named and typed in one place', () => {
+    expect(recognitionFrame).toBe(sharedRecognitionFrame);
+    expect(recognitionFrameName('p07-1')).toBe(`p07-1_recognition.${RECOGNITION_FRAME_FILE.extension}`);
+  });
+
   it('a 3:4 portrait image fills the frame, in grey (Rec. 601)', () => {
     const frame = recognitionFrame(image(960, 1280, () => [200, 100, 50]));
     expect([frame.width, frame.height, frame.grey.length]).toEqual([480, 640, 480 * 640]);

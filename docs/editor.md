@@ -856,6 +856,15 @@ the scene). A selected scene shows [its sections](#inspector-the-scene), a selec
 it is printed – surface, x / y and width in mm (`print`, content schema 2.1; an edit is saved by itself; until one a
 target made in the editor lies where its form put it, an imported one where the book's layout says –
 [the handles on the stage](#picking-hover-and-the-stages-menu)), and its AR content as a link one level down.
+Below the image, its **recognition** frame (#306, [content](content.md) "Recognition"): a small grey thumbnail when it
+has one, *make frame* / *remake*, and **original only** (`recognitionOff`) – this target always uses its printed image.
+The editor makes the frame by itself when a target gets a printed image (an upload or Library pick here, the Library's
+*Use as target image*, a new target, a new version of the image file) or is placed on a surface and has none yet: in the
+browser (`lib/recognition-frame.ts` – the CLI's builder, `engine/src/scene/target-frame.ts`), uploaded as a Library file
+(`<target>_recognition.png`, then the image rule) and named on the target with `madeFrom` (`lib/recognition-frames.svelte.ts`).
+It never blocks or fails the target's change and never touches the printed image; a failure shows quietly below the row,
+and *make frame* tries again. Whether readers use the frames is the experience's **recognition** setting (the experience's
+Inspector: *Original*, the default, or *Prepared*).
 
 **An entity or a node**: its **name** (empty = the tree shows the type), its **file** (the file field: **Library…** – the
 Library as the picker, with the filter set – or **Upload…**), then:

@@ -14,7 +14,7 @@ import { checkAppearance, checkEntity, checkPasses, describeContentModel, usesPl
 import { fail, guard, text, type Result } from "./result.ts";
 import { editorHref, type AppLinks } from "./services.ts";
 import type { PluginData } from "../../shared/types/game-config";
-import { APPEARANCE_TYPES, MOMENTS, PASS_TYPES } from "../../shared/types/game-config";
+import { APPEARANCE_TYPES, MOMENTS, PASS_TYPES, RECOGNITION_MODES } from "../../shared/types/game-config";
 import { EntryCategory } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
 import { exprMessage, renderEntryText } from "../../shared/text/entry-text";
@@ -415,7 +415,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_target",
     {
       description:
-        "Changes a target: `entity` = its own AR content (EntityData; null removes it), `ref` = a shared entity instead, `imageSrc` = the printed image (an uploaded image asset's url – upload it with upload_asset fit: \"target\", at most 1200 px), `place` = where it lies: { surface?, x, y, width, height? } in mm from the top left corner of a surface of its entry's scene (surface by id – required when the scene has several; null removes the place), `enabled` = in the reader's experience (false switches it off: the reader leaves the target and its entry out, the editor keeps both – content schema 2.26). Send what changes. Checked against the contract; a change is recorded.",
+        "Changes a target: `entity` = its own AR content (EntityData; null removes it), `ref` = a shared entity instead, `imageSrc` = the printed image (an uploaded image asset's url – upload it with upload_asset fit: \"target\", at most 1200 px), `place` = where it lies: { surface?, x, y, width, height? } in mm from the top left corner of a surface of its entry's scene (surface by id – required when the scene has several; null removes the place), `enabled` = in the reader's experience (false switches it off: the reader leaves the target and its entry out, the editor keeps both – content schema 2.26), `recognitionOff` = true keeps this target on its printed image even when the experience's recognition is \"prepared\" (content schema 4.2; false: the experience decides). Send what changes. Checked against the contract; a change is recorded.",
       inputSchema: z.object({
         experience: EXPERIENCE,
         target: ID.describe("the target's id (get_scene)"),
@@ -424,17 +424,19 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         imageSrc: z.string().min(1).optional(),
         place: targetPlaceSchema.nullable().optional(),
         enabled: z.boolean().optional().describe("false = switched off: not in the reader's experience; true = in the experience again"),
+        recognitionOff: z.boolean().optional().describe("true = always the printed image, never its recognition frame made ahead; false = the experience's recognition setting decides"),
       }),
       annotations: write,
     },
-    guard(async ({ experience, target, entity, ref, imageSrc, place, enabled }) => {
+    guard(async ({ experience, target, entity, ref, imageSrc, place, enabled, recognitionOff }) => {
       const body: Json = {};
       if (ref !== undefined) body.ref = ref;
       else if (entity !== undefined) body.entity = entity;
       if (imageSrc !== undefined) body.imageSrc = imageSrc;
       if (place !== undefined) body.place = place;
       if (enabled !== undefined) body.enabled = enabled;
-      if (Object.keys(body).length === 0) return fail({ error: { code: "mcp", message: "send entity, ref, imageSrc, place or enabled" } });
+      if (recognitionOff !== undefined) body.recognitionOff = recognitionOff;
+      if (Object.keys(body).length === 0) return fail({ error: { code: "mcp", message: "send entity, ref, imageSrc, place, enabled or recognitionOff" } });
       const { refused, warnings } = entity ? await checkWrite(entity, "entity", () => experienceModel(experience)) : { refused: null, warnings: {} };
       if (refused) return refused;
       const [result, t] = await Promise.all([api.call<TargetSaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/targets/${encodeURIComponent(target)}`, body), tree(experience)]);
@@ -539,7 +541,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "update_experience",
     {
       description:
-        "Changes the experience's title – the reader's splash, home page and account show it – or its printed book: `book` { author, publisher? } is the printed book this experience accompanies (the splash shows the author and the publisher above Start; the onboarding itself is the app's, not the experience's). Send what changes: `book` { author } or { publisher } changes those fields (publisher null or \"\" removes it); `book: null` removes the printed book – an experience without one (a wall, a room, an exhibition) – only with the person's yes; a new printed book needs `author`. The change is recorded.",
+        "Changes the experience's title – the reader's splash, home page and account show it – or its printed book: `book` { author, publisher? } is the printed book this experience accompanies (the splash shows the author and the publisher above Start; the onboarding itself is the app's, not the experience's). Send what changes: `book` { author } or { publisher } changes those fields (publisher null or \"\" removes it); `book: null` removes the printed book – an experience without one (a wall, a room, an exhibition) – only with the person's yes; a new printed book needs `author`. `recognition` (content schema 4.2) = how the reader gets its targets' recognition data: \"original\" (the default – made from each printed image on the phone, the path tested with every target) or \"prepared\" (a target's grey frame made ahead where it has one – only after a test run on the phones, with the person's yes); null = the default. The change is recorded.",
       inputSchema: z.object({
         experience: EXPERIENCE,
         title: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
@@ -552,15 +554,17 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
           .nullable()
           .optional()
           .describe("the printed book: { author?, publisher? } – the fields that change; null removes the printed book"),
+        recognition: z.enum(RECOGNITION_MODES).nullable().optional().describe("\"original\" (default) or \"prepared\"; null = the default"),
       }),
       annotations: write,
     },
-    guard(async ({ experience, title, book }) => {
+    guard(async ({ experience, title, book, recognition }) => {
       const changes: ExperienceUpdate = {};
       if (title !== undefined) changes.title = title;
       if (book !== undefined) changes.book = book;
-      if (Object.keys(changes).length === 0 || (book && Object.keys(book).length === 0 && title === undefined)) {
-        return fail({ error: { code: "mcp", message: "send title, or book with author or publisher (book: null removes the printed book)" } });
+      if (recognition !== undefined) changes.recognition = recognition;
+      if (Object.keys(changes).length === 0 || (book && Object.keys(book).length === 0 && title === undefined && recognition === undefined)) {
+        return fail({ error: { code: "mcp", message: "send title, recognition, or book with author or publisher (book: null removes the printed book)" } });
       }
       const result = await api.call<ExperienceSaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}`, changes);
       return text({ ...result, open: editorHref(links, experience) });

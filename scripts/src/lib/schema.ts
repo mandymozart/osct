@@ -30,6 +30,7 @@ export const schemas = {
       book: { type: "Object", required: false }, // the printed book it accompanies: { author, publisher? } – none: not a book
       passes: { type: "Array", required: false }, // post-processing of every scene without its own: [{ type, ...parameters }], see shared/types/passes.ts
       environment: { type: "Object", required: false }, // the world around the reader and the onion sky: { world, onionSky, worldSrc?, skySrc? }, see shared/types/environment.ts
+      recognition: { type: "String", required: false }, // how the reader gets its targets' recognition data: "original" (default) or "prepared" (#306, schema 4.2)
       appearance: { type: "Object", required: false }, // the look an entity appears with: { reveal?, found?, lost? }, each { type, ...parameters }, see shared/types/appearance.ts
     },
   },
@@ -82,6 +83,7 @@ export const schemas = {
       entity: { type: "Object", required: false }, // inline { type, src?, params?, filters? } or { ref }
       place: { type: "Object", required: false }, // where it is printed: { surface?, x, y, width, height? } in mm on a surface of its scene
       enabled: { type: "Boolean", required: false }, // false = switched off: the reader leaves the target and its entry out
+      recognitionOff: { type: "Boolean", required: false }, // true = always its printed image, even when the experience says prepared (#306)
     },
   },
 

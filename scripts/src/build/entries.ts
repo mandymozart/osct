@@ -63,6 +63,7 @@ export function buildEntries(scenes: SceneData[], entities: Record<string, Entit
           }
         }
         if (t.enabled === false) target.enabled = false;
+        if (t.recognitionOff === true) target.recognitionOff = true;
         entry.target = target;
       }
     }

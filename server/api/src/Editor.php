@@ -27,7 +27,7 @@ final class Editor
      * The content schema the editor reads and the draft writes (shared/types/game-config.ts `CONTENT_SCHEMA_VERSION`): an
      * experience of an older MAJOR is refused (`Db::migrate` turns every stored 3.x experience into 4.0, `Migration4`, #320)
      */
-    public const CONTENT_SCHEMA = '4.1';
+    public const CONTENT_SCHEMA = '4.2';
     public const CONTENT_SCHEMA_MAJOR = 4;
 
     /** Whether a content schema `MAJOR.MINOR` is the editor's (`CONTENT_SCHEMA_MAJOR`) */

@@ -1593,6 +1593,12 @@ try {
     check($status === 409 && $data['error']['code'] === 'stale-image', 'recognition data made from an image the target no longer has → 409 stale-image');
     [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/targets/racoon', ['recognition' => null], $editor);
     check($status === 200 && !array_key_exists('recognition', $data['target']) && $data['target']['imageSrc'] === 'https://cdn.example/racoon-v2.jpg', 'recognition null removes it');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/targets/racoon', ['recognitionOff' => true], $editor);
+    check($status === 200 && $data['target']['recognitionOff'] === true, 'PUT target: recognitionOff true keeps it on its printed image (#306)');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/targets/racoon', ['recognitionOff' => 'yes'], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-target', 'recognitionOff not true / false → 400 invalid-target');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/targets/racoon', ['recognitionOff' => false], $editor);
+    check($status === 200 && !array_key_exists('recognitionOff', $data['target']), 'recognitionOff false removes it – the experience decides');
     [, $tree] = call($api, 'GET', '/editor/experiences/osct', null, $editor);
     check($tree['scenes'][0]['entries'][0]['target']['place']['x'] === 250, 'the tree carries the place');
     [$status, $data] = call($api, 'POST', '/editor/experiences/osct/entries', ['title' => 'Shadows & Light', 'scene' => 's1', 'target' => ['imageSrc' => 'https://cdn.example/shadows.jpg', 'place' => ['x' => 10, 'y' => 10, 'width' => 60]]], $editor);
@@ -1688,6 +1694,16 @@ try {
     [, $m] = call($api, 'GET', '/editor/experiences/osct/draft/latest.json', null, $editor);
     [, $draftExperience] = call($api, 'GET', "/editor/experiences/osct/draft/{$m['build']}/game.config.json", null, $editor);
     check(($draftExperience['experience']['book'] ?? null) === ['author' => 'Someone', 'publisher' => 'Building Fictions'], 'the draft carries the printed book');
+    // The recognition path (#306, schema 4.2): only "prepared" is stored, the default is none
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct', ['recognition' => 'prepared'], $editor);
+    check($status === 200 && $data['experience']['recognition'] === 'prepared', 'PUT experience: recognition prepared');
+    [, $m] = call($api, 'GET', '/editor/experiences/osct/draft/latest.json', null, $editor);
+    [, $draftExperience] = call($api, 'GET', "/editor/experiences/osct/draft/{$m['build']}/game.config.json", null, $editor);
+    check(($draftExperience['experience']['recognition'] ?? null) === 'prepared', 'the draft carries the recognition path');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct', ['recognition' => 'original'], $editor);
+    check($status === 200 && !array_key_exists('recognition', $data['experience']), 'PUT experience: recognition original is the default – stored as none');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct', ['recognition' => 'compiled'], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-experience', 'PUT experience: an unknown recognition path → 400');
 
     // The onboarding is the reader's (#236): no route of the API reads or writes it
     [$status] = call($api, 'GET', '/editor/experiences/osct/tutorial', null, $editor);
@@ -2694,8 +2710,8 @@ try {
     $experience = json_decode($v3Db->query("SELECT experience_json FROM experiences WHERE id = 'osct'")->fetchColumn(), true);
     check($experience === ['id' => 'osct', 'title' => 'Onion Skin', 'book' => ['author' => 'Kévin Bray', 'publisher' => 'Building Fictions'], 'passes' => []],
         'the experience: author and publisher in book (after the title), no sourceOfTruth');
-    check($v3Db->query("SELECT content_schema FROM experiences WHERE id = 'osct'")->fetchColumn() === '4.1'
-        && $v3Db->query("SELECT content_schema FROM experiences WHERE id = 'wall'")->fetchColumn() === '2.26', 'a 3.0 experience is of the current schema (4.1) now, an older one stays refused');
+    check($v3Db->query("SELECT content_schema FROM experiences WHERE id = 'osct'")->fetchColumn() === '4.2'
+        && $v3Db->query("SELECT content_schema FROM experiences WHERE id = 'wall'")->fetchColumn() === '2.26', 'a 3.0 experience is of the current schema (4.2) now, an older one stays refused');
     check(json_decode($v3Db->query("SELECT experience_json FROM experiences WHERE id = 'wall'")->fetchColumn(), true) === ['id' => 'wall', 'title' => 'A wall', 'book' => ['author' => 'Nobody']],
         'an experience without a publisher: book { author }');
     $sign = json_decode($v3Db->query("SELECT data_json FROM entities WHERE ref = 'sign'")->fetchColumn(), true);
@@ -2728,7 +2744,7 @@ try {
     check($status === 200 && $data['experience']['experience']['book']['author'] === 'Kévin Bray' && count($data['scenes']) === 1 && $data['scenes'][0]['entries'][0]['id'] === 'e1',
         'the migrated experience opens in the editor');
     [$status, $manifest] = call($v3Api, 'GET', '/editor/experiences/osct/draft/latest.json', null, $v3Session);
-    check($status === 200 && $manifest['schema'] === '4.1', 'its draft is of the current content schema (4.1)');
+    check($status === 200 && $manifest['schema'] === '4.2', 'its draft is of the current content schema (4.2)');
     [$status] = call($v3Api, 'GET', '/editor/experiences/wall', null, $v3Session);
     check($status === 409, 'the 2.x experience stays refused (409 old-schema)');
     [$status] = call($oldApi, 'PUT', '/user/password', ['password' => 'a new password'], $oldToken);
