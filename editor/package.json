@@ -20,6 +20,7 @@
     "plugin-api": "node tools/plugin-api/generate.mjs"
   },
   "dependencies": {
+    "@xyflow/svelte": "^1.7.0",
     "monaco-editor": "^0.57.0",
     "sucrase": "^3.35.1",
     "three": "^0.174.0"

@@ -57,7 +57,8 @@
   import UndoRedo from "#lib/UndoRedo.svelte";
   import HistoryPanel from "#lib/panels/HistoryPanel.svelte";
   import LogicPanel from "#lib/panels/LogicPanel.svelte";
-  import type { ScenePick } from "#lib/logic/scene.js";
+  import type { LogicPick } from "#lib/logic/types.js";
+  import type { StageMove } from "#lib/logic/navigation.js";
   import RevertPrompt from "#lib/components/RevertPrompt.svelte";
   import { history } from "#lib/history.svelte.js";
   import { markRender, renderRequest, renderState } from "#lib/render-view.js";
@@ -91,7 +92,7 @@
     { id: "scenes", name: "Scenes", icon: "film", home: "scenes", about: "The experience's scenes as a filmstrip: a card opens its scene, a band selects its group, a drag reorders." },
     { id: "info", name: "Info", icon: "info", home: "info", about: "The name and description of the control under the pointer or in focus." },
     { id: "history", name: "History", icon: "history", home: "history", about: "Every saved change of the experience: filter by scene, kind or person; revert one, or jump back to a point (#312)." },
-    { id: "logic", name: "Logic", icon: "nodes", home: "logic", about: "The scene's logic as a graph (#239): events, behaviour rules, variables, the nodes they act on and the plugins – a click selects it." },
+    { id: "logic", name: "Logic", icon: "nodes", home: "logic", about: "The experience's logic as a graph, one level at a time (#239, #334): the experience, a group, a scene, a target's entity – a click selects, a double-click opens a level." },
   ];
   const COARSE = "(pointer: coarse)";
   /**
@@ -148,7 +149,7 @@
       place: at("top-left", 17, 0), size: { w: "content", h: "content" }, min: { w: 12, h: 2 }, essential: true, inline: true },
     { id: "history", name: "History", icon: "history", about: "Every saved change of the experience: filter by scene, kind or person; revert one, or jump back to a point (#312).",
       place: at("bottom-right", 0, 0, { closed: true }), size: { w: 28, h: 20 }, min: { w: 16, h: 8 } },
-    { id: "logic", name: "Logic", icon: "nodes", about: "The scene's logic as a graph (#239): events, behaviour rules, variables, the nodes they act on and the plugins – a click selects it.",
+    { id: "logic", name: "Logic", icon: "nodes", about: "The experience's logic as a graph, one level at a time (#239, #334): the experience, a group, a scene, a target's entity – a click selects, a double-click opens a level.",
       place: at("bottom-right", 0, 0, { closed: true }), size: { w: 48, h: 24 }, min: { w: 18, h: 10 } },
   ];
   /**
@@ -161,14 +162,24 @@
     const asked = page.url.searchParams.get("tab");
     const tab = SCENE_TABS.some(t => t.id === asked) ? asked : tabOf(asked);
     if (tab) floats.showTab(tab);
+    // `?logic=` (#334: the Logic panel's level, kept in the URL) shows the Logic panel
+    if (page.url.searchParams.has("logic")) floats.showTab("logic");
   });
   /** The Environment tab shows: the stage previews it */
   const environmentShown = $derived(floats.showing("environment") !== null);
-  /** A graph node of the Logic panel picked (#239): its entity's node in the tree and the Inspector, a plugin in the Code tab */
-  const pickLogic = (pick: ScenePick) => {
+  /**
+   * A box of the Logic panel picked (#239, #334): its entity's node in the tree and the Inspector, a plugin in the Code tab,
+   * a group, the open scene (another scene's box opens only when entered)
+   */
+  const pickLogic = (pick: LogicPick) => {
     if (pick.kind === "plugin") {
       plugins.focus = pick.plugin;
       floats.showTab("code", true);
+      return;
+    }
+    if (pick.kind === "group") return selectGroup(pick.group);
+    if (pick.kind === "scene") {
+      if (pick.scene === sceneId) selection.selectScene();
       return;
     }
     floats.showTab("inspector", true);
@@ -431,6 +442,28 @@
   const selectGroup = (id: string) => {
     selection.selectGroup(id);
     openTab("inspector");
+  };
+  /**
+   * The Logic panel went to a level (#334, research §6.3): the workspace follows – a scene opens as from the Scenes panel,
+   * an entity's node is selected (on its scene, opened first), a group or the experience is selected
+   */
+  const moveToLogic = (move: StageMove) => {
+    switch (move.move) {
+      case "experience": selection.selectExperience(); break;
+      case "group": selection.selectGroup(move.group); break;
+      case "scene":
+        if (move.scene === sceneId) selection.selectScene();
+        else void openScene(move.scene);
+        break;
+      case "node": {
+        const state = { target: move.target, node: move.path, onTarget: false };
+        if (move.scene === sceneId) selection.set(state);
+        else {
+          selection.requestOn(move.scene, state);
+          void openScene(move.scene);
+        }
+      }
+    }
   };
 
   // ── undo, redo and the History (#312): the experience's saved changes; a revert written reloads the draft, the stage
@@ -851,7 +884,7 @@
   {:else if t === "history"}
     <HistoryPanel current={sceneId} />
   {:else if t === "logic"}
-    <LogicPanel {experienceId} {sceneId} onpick={pickLogic} />
+    <LogicPanel {experienceId} {sceneId} onpick={pickLogic} onmove={moveToLogic} />
   {:else}
     <!-- A revert written (#312): the forms start again from the draft -->
     <div class="float-body inspector">{#key panelsRevision}{@render panelTabs(t)}{/key}</div>

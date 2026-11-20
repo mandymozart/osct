@@ -460,7 +460,7 @@ not touch the reader. L-T5 changes the reader and the contract.
 | L5 | **Conditions:** keep equality tests, or move `when` to expressions (`shared/text/expressions.ts`, SCUTOONS' language) | expressions in the MAJOR (one language for texts and rules, SCUTOONS-compatible), with the tests form read in once by the migration |
 | L6 | **Events by name (bus) or by explicit cable** (the deck's rule) | keep the bus by name and draw joins as derived edges; explicit-only would break the plugin API |
 | L7 | **Graph widget:** keep OSCT's own SVG, or adopt `@xyflow/svelte` (SCUTOONS' creator already uses it) for editing | **decided 2026-11-20: xyflow as the rendering layer** (package computes view and layout; gestures become ops); still check the build and RULES' stack list |
-| L8 | **The Logic view's place in the URL** (`?logic=`) or only in the panel's state | URL query |
+| L8 | **Decided 2026-11-20 (Tilman): in the URL.** `?logic=experience`, `group:<id>`, `scene:<id>`, `entity:<scene>:<target>[:<path>]`, written with replaceState (L-T3) | – |
 | L9 | **SCUTOONS adoption:** does SCUTOONS' web side consume `@animus/logic` (its 2026-11-20 note "no sharing across the projects" for panels), and does the deck test against the fixtures | share the package and the fixtures, not panels; SCUTOONS decides in its own issue |
 | L10 | **Priority:** L-T1–L-T3 (navigation, read-only) now, editing and the MAJOR after the #255 phase 0 or after Tokyo | L-T1–L-T3 now (editor-only); L-T4–L-T5 when Tilman sets it against the Tokyo plan |
 | L11–L13 | **Decided 2026-11-20 (Tilman): yes to all three as recommended.** No generator nodes in OSCT for now; imported files get wired up instead. A node can host a module (§5.8) | – |
@@ -472,8 +472,11 @@ not touch the reader. L-T5 changes the reader and the contract.
 
 - Nothing was built or run. The SCUTOONS facts were read from code and docs at f2b30e2b. The deck editor's gestures
   were read from `wires.rs`, `show/nodes.rs` and `show/wiring.rs` headers, not tried.
-- Whether a scene event reaches rules of a scene outside the current loading window (§6.1) was not traced in the
-  engine's loader.
-- Whether `@xyflow/svelte` 1.x builds under OSCT's SvelteKit 3.1 / TypeScript 6 was not tried.
+- ~~Whether a scene event reaches rules of a scene outside the current loading window (§6.1)~~ – **checked in L-T3
+  (2026-11-20): it never does.** The engine builds the entities (and so the behaviour rules) of the open scene only
+  (`engine/src/scene/ar-scene.ts`: a scene switch disposes the old scene's entities, then builds the new one's; the
+  loading window prepares image targets only). A rule's event reaches the open scene's rules and the plugins (loaded for the
+  whole experience), never another scene's rules. The Logic view draws such edges as *never fires*.
+- ~~Whether `@xyflow/svelte` 1.x builds under OSCT's SvelteKit 3.1 / TypeScript 6~~ – it does (1.7.0, L-T3: `npm run check`, `npm run build`).
 - Whether the experience tree from `GET /editor/experiences/{id}` carries the entries' texts (for variable reads) was
   not checked.
