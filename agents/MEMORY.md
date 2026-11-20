@@ -236,7 +236,9 @@ Verbatim from the archived entries (the entry title and archive file in front of
     but not into the reader.
   - L5: conditions become expressions in SCUTOONS' language.
   - L6: the event bus works by name, and the joins are drawn as derived edges.
-- [ ] Tilman: L8 (`?logic=` in the URL), L9 (does SCUTOONS adopt the package), L10 (priority).
+- **L10 decided (Tilman: "Der grosse schema switch kann sobald er fertig ist gemacht werden"):** L-T1 to L-T3 start
+  now. The MAJOR (L-T5) ships as soon as it is ready, without waiting to be bundled with another cut before Tokyo.
+- [ ] Tilman: L8 (`?logic=` in the URL), L9 (does SCUTOONS adopt the package).
 
 ## 2026-11-20 – The delivery endpoint's change log: row kinds plus `delivery_id` (#322 T5)
 

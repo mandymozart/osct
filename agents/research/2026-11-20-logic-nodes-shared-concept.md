@@ -450,6 +450,7 @@ not touch the reader. L-T5 changes the reader and the contract.
 
 | # | Decision | Recommendation |
 |---|---|---|
+| L10 | **Decided 2026-11-20 (Tilman): "Der grosse schema switch kann sobald er fertig ist gemacht werden".** L-T1 to L-T3 start now. The MAJOR (L-T5) ships as soon as it is ready; it does not wait for Tokyo or for another cut | – |
 | L1–L6 | **Decided 2026-11-20 (Tilman): "L1 bis 6. As recommended".** For L3 this means OSCT itself may use `goto` (`scene:<id>`), not only the shared core | – |
 | L1 | **Logic stored as documents with a computed graph** (the deck's and the reader's way), or as a stored graph document (nodes + edges) | documents + projection + ops; only the canvas is stored as graph data |
 | L2 | **Rules beyond entities:** add scene-level and experience-level `logic` (same grammar) | yes, in one MAJOR with `goto` |
