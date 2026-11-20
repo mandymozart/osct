@@ -112,11 +112,12 @@ export type ParamValueOf<P, Tex = unknown> =
           : string;
 
 /**
- * A handler's `params` for a spec: one typed field per parameter. A spec typed only as `ComponentSpec` (its parameter names
- * unknown) gives `Record<string, unknown>`, as before the builders.
+ * A handler's `params` for a spec: one typed field per parameter – and still indexable by any name (`params[name]` is
+ * `unknown`), so code written against `Record<string, unknown>` keeps compiling. A spec typed only as `ComponentSpec` (its
+ * parameter names unknown) gives `Record<string, unknown>`, as before the builders.
  */
 export type ParamsOf<S, Tex = unknown> = S extends { params: infer P }
-  ? string extends keyof P ? Record<string, unknown> : { [K in keyof P]: ParamValueOf<P[K], Tex> }
+  ? string extends keyof P ? Record<string, unknown> : { -readonly [K in keyof P]: ParamValueOf<P[K], Tex> } & Record<string, unknown>
   : Record<string, unknown>;
 
 /** The items of a declared list: its literal union, `string` for a list typed only as `string[]`, never without one */
