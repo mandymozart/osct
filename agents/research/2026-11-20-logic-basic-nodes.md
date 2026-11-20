@@ -27,6 +27,39 @@ decisions B1–B6 at the end are Tilman's.
 - **Flow and time nodes:** sequence, delay, once, gate, flip-flop, counter, timer. They have state or timing; Unreal
   gives them an exec pin.
 
+## 1b · How the market leaders handle types and wrong values (research, 2026-11-20)
+
+Tilman asked to check it against the competitors. A research pass read the vendors' documentation. **[V]** marks a fact
+verified at the cited page; **[K]** is the researcher's knowledge, not verified now (Blender's and Unreal's documentation
+pages could not be read). Check every [K] before it goes into a spec.
+
+| System | Connecting mismatched types | Limits on values | Variables | Expressions |
+|---|---|---|---|---|
+| Unreal Blueprints | refused with the reason, unless a conversion exists; then a **visible conversion node** is inserted (float↔int, int→string, vector→rotator) [K] | `ClampMin` / `ClampMax` hard, `UIMin` / `UIMax` slider only [K] | declared with a type, colour per type ([V](https://dev.epicgames.com/documentation/en-us/unreal-engine/blueprint-variables-in-unreal-engine)); a type change marks broken links at compile [K] | Math Expression node: text → real nodes, checked when you edit and at compile [K] |
+| Blender | broad implicit conversion (float, int, bool, vector, colour); otherwise a **red link** that stays but is muted [K] | `hard_min` / `hard_max` enforced, `soft_min` / `soft_max` slider only [K] | no named variables in geometry nodes; group inputs typed [K] | drivers unchecked; a failing driver turns red and gives 0 [K] |
+| Houdini VOPs / VEX | implicit scalar↔vector; missing components filled with {0,0,0,1}; ambiguity is a compile error ([V](https://www.sidefx.com/docs/houdini/vex/lang.html)) | slider range, hard only when locked [K] | VEX statically typed [V] | VEX at compile [V]; parameter expressions (HScript, Python) at cook time, unchecked ([V](https://www.sidefx.com/docs/houdini/network/parms.html)) |
+| TouchDesigner | wires only within an operator family (TOP, CHOP, SOP, DAT) [K] | min/max and clamp attributes per parameter ([V](https://docs.derivative.ca/Parameter)); exact clamp semantics unverified | Python, untyped | Python at cook time; errors as badges [K] |
+| ComfyUI | the client refuses different types; Primitive / Reroute adopt the connected type ([V](https://docs.comfy.org/custom-nodes/backend/datatypes)) | INT / FLOAT with min, max, step; the server **validates the whole prompt before it runs** and names the node and input; `VALIDATE_INPUTS` sees constants only ([V](https://docs.comfy.org/custom-nodes/backend/server_overview)) | none (pure graph) | none |
+| Unity Shader Graph | vector sizes promote or truncate, documented ([V](https://docs.unity3d.com/Packages/com.unity.shadergraph@17.0/manual/Data-Types.html)) | slider min/max; Clamp is a node [K] | typed blackboard properties [K] | HLSL at compile [K] |
+| Unity Visual Scripting | numeric and object→component conversions, otherwise refused [K] | inspector attributes [K] | 5 scopes ([V](https://docs.unity3d.com/Packages/com.unity.visualscripting@1.9/manual/vs-variables.html)), typed at creation [K] | none |
+| Node-RED (contrast) | anything; untyped messages [K] | none | untyped | at runtime |
+
+**What the leaders agree on, and what OSCT takes:**
+1. **Types are visible on the port and a mismatch is refused when connecting**, with the reason (Unreal, ComfyUI).
+   OSCT does not take Blender's red link (connected but invalid): it is a graph state that every later step must handle.
+2. **Implicit conversion only where it is lossless** (int → number). Everything lossy is a visible conversion node
+   (Unreal). No silent fills like VEX's {0,0,0,1}.
+3. **Two levels of limits** (Blender, Houdini, Unreal): a **hard** range is enforced, a **soft** range is only the
+   slider's. In JSDoc: `@minimum` / `@maximum` are hard; a separate UI range is soft.
+4. **Check everything before it runs**, with problems naming the node and the input (ComfyUI). OSCT has this as
+   `problems` after every op and before publishing. ComfyUI's gap is a lesson: a wired value is not known while editing,
+   so the engine must still refuse it at runtime and keep the old value.
+5. **Variables are declared with a type** (Unreal, Unity). A type change re-checks every use, and each use that no longer
+   fits becomes a problem.
+6. **Expressions are type-checked while editing.** Only VEX does this among the leaders; the others check at runtime (red
+   badges, a 0 fallback), and that is their weak spot. OSCT checks on edit against the port's type.
+7. **Purity is marked in the spec** (pure vs flow / stateful), so the editor can show it (Unreal's exec pin).
+
 ## 2 · How they land in OSCT's documents (L1)
 
 **Pure value nodes are a view of an expression.** OSCT already has one expression language (`shared/text/expressions.ts`,
@@ -132,4 +165,5 @@ typed. OSCT follows them at four points:
 | B5 | Flow in the rule grammar: `once` on a rule, a `wait` action; gate and flip-flop as templates | `once` and `wait` in L-T5 if cheap, otherwise a MINOR after it |
 | B6 | Tier 3 (timers, LFO, tween) only when a scene needs it | yes |
 | B7 | **Typed variables:** declared in `experience.variables` (name, type, scope, default) or inferred from the first set; a set or a test of another type is a problem. A contract change, so **in the running L-T5 MAJOR** | yes, now in L-T5 |
-| B8 | Strict types on ports and in logic expressions: connecting refuses a mismatch, conversion only through visible nodes, expressions are type-checked before saving, the engine refuses wrong values at runtime | yes |
+| B8 | Strict types on ports and in logic expressions: connecting refuses a mismatch (no red-link state), conversion only through visible nodes (lossless int → number implicit), expressions are type-checked before saving, the engine refuses wrong values at runtime and keeps the old value | yes (§1b) |
+| B9 | Two levels of limits: hard (`@minimum` / `@maximum`, enforced) and soft (slider range only) | yes (§1b) |
