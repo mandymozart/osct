@@ -79,6 +79,7 @@ declare(strict_types=1);
  *                                               the plan, written with apply as new changes (#312, Reverts)
  *   POST   /editor/experiences/{id}/changes/revert    { ids, apply? } → these changes taken back (the editor's undo and redo)
  *   POST   /editor/experiences/{id}/changes/revert-to { after, apply? } → every change after `after` taken back, newest first
+ *   GET    /editor/experiences/{id}/deliveries?limit=  the applied deliveries, newest first (#322)
  *   POST   /editor/experiences/{id}/deliveries  { name, source?, scenes?, entries, apply?, overwrite? } → a publisher's delivery
  *                                               compared with the draft (new / changed / same / conflict), written with apply (#322)
  *   GET    /editor/experiences/{id}/assets[?kind=]    the uploaded files (docs/server.md "Assets"), with their number of uses
@@ -208,6 +209,7 @@ try {
         (bool) preg_match("#^POST /editor/experiences/($id)/changes/revert-to$#", $route, $match) => Reverts::to($match[1]),
         (bool) preg_match("#^POST /editor/experiences/($id)/changes/($uuid)/revert$#", $route, $match) => Reverts::one($match[1], $match[2]),
         // Deliveries (#322)
+        (bool) preg_match("#^GET /editor/experiences/($id)/deliveries$#", $route, $match) => Deliveries::list($match[1]),
         (bool) preg_match("#^POST /editor/experiences/($id)/deliveries$#", $route, $match) => Deliveries::post($match[1]),
         (bool) preg_match("#^GET /editor/experiences/($id)/assets$#", $route, $match) => Assets::list($match[1]),
         (bool) preg_match("#^POST /editor/experiences/($id)/assets$#", $route, $match) => Assets::upload($match[1]),

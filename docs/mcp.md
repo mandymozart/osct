@@ -148,6 +148,9 @@ Every result is JSON. Writes answer with `open`, the editor's link to check the 
 | `list_experiences` | the instance's experiences with their last publish and where they are live, and `environments` – what each environment serves (or that its store cannot be read) |
 | `preview_import { url \| configuration \| source: "cdn", assetsBase? }` | read-only: what an import would bring in, nothing imported (the API's [import preview](server.md#import-preview)) – the content base and its `latest.json`, `incoming` (the one experience's id and title, the build, its date, app and schema version), `counts`, and `existing`: the draft of that id it would replace (null: a new experience) – with `next`, what to tell the person and the `import_experience` call that follows |
 | `import_experience { experience, url \| configuration \| source: "cdn", assetsBase?, confirm? }` | replaces the experience's rows from a game configuration (the reader's dev server serves its own at `/src/game.config.json`). **Over an experience that exists, two steps** (the API's, [server](server.md#import-with-a-version-comparison)): the first call imports nothing and answers `{ imported: false, comparison, confirmation, next }` – the incoming build (id, date, app and schema version) against what the draft is based on and its edits since that import; the agent shows it to the person and asks, and only with their yes calls again with the same arguments and `confirm: confirmation.id` (10 minutes, one use; a change meanwhile answers `void` with a new comparison). A new experience is imported at once. `experience` is the configuration's own `experience.id` (`preview_import`'s `incoming.experience`); another id is refused (400 `invalid-configuration`) |
+| `preview_delivery { experience, plan \| file, overwrite? }` | read-only: what a publisher's delivery would do to the draft ([Deliveries](#a-publishers-delivery-preview_delivery-import_delivery-322)) – `summary` (the comparison as the person reads it), `counts`, the `items` that are not `same`, `problems`, `warnings` and a `confirmation` (none while there are problems) – with `next`, the `import_delivery` call that follows the person's yes |
+| `import_delivery { experience, plan \| file, overwrite?, confirm? }` | writes the delivery – **two steps**: without `confirm` nothing is written and the comparison comes back as from `preview_delivery`; with `confirm: confirmation.id` the comparison is made again and written only when it is still the one the person saw (else `void` and the new one). `overwrite: true` writes the conflicts too – only when the person asked |
+| `list_deliveries { experience, limit? }` | the applied deliveries, newest first (the API's `GET …/deliveries`): name, source, counts, who, when, how many changes name it |
 | `get_experience { experience }` | the tree (content schema 4.0): the experience (its `experience` data, the printed book in `experience.book`), the scenes in order with their surfaces, each with its entries (`scene`, `surface`) and targets (`place`, entity inline or `{ ref }`), the groups; `counts` scenes, entries, targets |
 | `get_scene { experience, scene }` | one scene (label, group, surfaces with size and place, passes), every target's entity resolved (a shared one with its `ref` next to it); an unknown id answers the scenes there are |
 | `get_entity { experience, ref }` · `put_entity { experience, ref, entity }` | a shared entity – the whole node tree (`EntityData`). An entity's own looks are its root node's components `reveal`, `found`, `lost` – `{ type: reveal, look: printLift, duration: 900 }` (#268; `describe_content_model` → `components.moments`) |
@@ -209,6 +212,46 @@ No 2.x tool is left (content schema 3.0, #319 – nothing of 2.x was shipped): n
 `put_spread`, `delete_spread`), no pages or page images (`list_pages`, `set_page_images`), no matter (`add_matter`), no
 `migrate_scenes` / `migrate_surface_references`, no `migrate_3` (every experience is migrated), no `page`, `print`, `side`, `format`, `layout`
 or `title` of a scene anywhere. Scene links are `…/editor/<experience>/<scene>/`.
+
+## A publisher's delivery: preview_delivery, import_delivery (#322)
+
+A delivery – new pages with their printed images and videos – comes in as a **plan** (`shared/api/deliveries.ts`
+`DeliveryPlan`: `name`, `source?`, `scenes?`, `entries` with their targets), the API's [Deliveries](server.md#deliveries)
+(`mcp/src/deliveries.ts`). The files are Library files named by the asset's id or URL: they are uploaded first
+(`upload_asset`, or the CLI, which converts them) – these tools never upload or convert. The plan is given inline
+(`plan`, checked by the tool's schema) or as a JSON file on the computer the server runs on (`file`, as the CLI writes it –
+checked the same way before anything is sent, `invalid-plan`; its own `apply` / `overwrite` are ignored).
+
+The two steps are import_experience's: the agent shows the comparison and writes only with the person's yes. The API
+keeps no confirmation for a delivery (a comparison writes nothing, the plan is sent again with `apply: true`), so the
+MCP server makes one: `confirmation.id` is a digest of the experience, the plan, `overwrite` and the comparison's items and
+problems. `import_delivery` with `confirm` compares again and writes only when the digest is the same – a draft edited
+meanwhile or another plan answers `void` with the new comparison to show. A problem the API meets on the write (409
+`delivery-problems`) comes back the same way, nothing written. A plan with problems gets no confirmation.
+
+The `summary` for the person (shortened):
+
+```
+Delivery “2026-11-final” into osct – nothing written yet: 3 new, 1 changed, 12 same, 1 conflict.
+
+New:
+- scene s186-187
+- entry p186-1 (scene s186-187)
+- target p186-1
+
+Changed (the fields that follow the delivery):
+- entry racoon (scene s1) – image
+
+Conflicts – edited in the editor since the last delivery (left as they are unless overwrite):
+- target racoon – imageSrc – imageSrc was edited in the editor since the last delivery
+
+Warnings:
+- …
+```
+
+Each status lists at most 40 rows (`… and N more`); the `same` rows are only counted. After the write the summary says
+how many changes were written under which delivery – each a change of the log naming it, revertable like any save
+(`revert_change`, the editor's history). `list_deliveries` names the deliveries written.
 
 ## Seeing a scene: render_scene (#89)
 

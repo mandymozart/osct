@@ -102,3 +102,23 @@ export interface DeliveryResult {
   warnings: string[];
   written: string[];
 }
+
+/** One applied delivery of `GET /editor/experiences/{id}/deliveries` (a comparison leaves no row) */
+export interface DeliveryRecord {
+  id: string;
+  name: string;
+  source: string | null;
+  counts: Record<DeliveryStatus, number>;
+  /** Who sent it (email), null when the account is gone */
+  user: string | null;
+  /** The AI connection it came through, else null */
+  token: string | null;
+  createdAt: string;
+  /** How many changes of the log name it (`GET …/changes` → `delivery`) */
+  changes: number;
+}
+
+/** `GET /editor/experiences/{id}/deliveries?limit=` – newest first */
+export interface DeliveryList {
+  deliveries: DeliveryRecord[];
+}

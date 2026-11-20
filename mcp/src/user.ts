@@ -9,6 +9,7 @@ import type { OsctApi } from "./api.ts";
 import { registerCodeTools } from "./code.ts";
 import type { Config } from "./config.ts";
 import { registerContentTools } from "./content.ts";
+import { registerDeliveryTools } from "./deliveries.ts";
 import { instructions, registerPrompts } from "./prompts.ts";
 import { registerRenderTool } from "./render-tool.ts";
 import { registerResources } from "./resources.ts";
@@ -34,6 +35,7 @@ export function createUserServer(config: Config, api: OsctApi, user: User | null
     opened = true;
     registerContentTools(server, api, links);
     registerCodeTools(server, api, links);
+    registerDeliveryTools(server, api, links);
     registerRenderTool(server, api, config, links);
     registerPrompts(server, services);
     registerResources(server);
