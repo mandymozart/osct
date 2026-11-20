@@ -2329,6 +2329,17 @@ try {
     [, $tree] = call($api, 'GET', '/editor/experiences/osct', null, $editor);
     $delivered = array_column(array_merge(...array_map(static fn(array $s) => $s['entries'], $tree['scenes'])), null, 'id');
     check($status === 200 && count($data['written']) === 1 && $delivered['del-new']['target']['imageSrc'] === $fileC['url'], 'with overwrite the conflict is written');
+    // The applied deliveries, newest first (a comparison leaves no row)
+    [$status] = call($api, 'GET', '/editor/experiences/osct/deliveries');
+    check($status === 401, 'GET deliveries without a session → 401');
+    [$status, $data] = call($api, 'GET', '/editor/experiences/osct/deliveries', null, $editor);
+    $listed = $data['deliveries'] ?? [];
+    $oldest = end($listed) ?: [];
+    check($status === 200 && count($listed) === 4 && ($oldest['id'] ?? null) === $firstDelivery && ($oldest['name'] ?? null) === '2026-11-test' && ($oldest['source'] ?? null) === 'delivery folder'
+        && ($oldest['counts']['new'] ?? null) === 5 && ($oldest['changes'] ?? null) === 5 && ($listed[0]['changes'] ?? null) === 1 && ($listed[1]['changes'] ?? null) === 0
+        && is_string($oldest['user'] ?? null) && is_string($oldest['createdAt'] ?? null), 'GET deliveries: the four applied ones newest first, with counts and the number of their changes');
+    [$status, $data] = call($api, 'GET', '/editor/experiences/osct/deliveries?limit=1', null, $editor);
+    check($status === 200 && count($data['deliveries']) === 1 && $data['deliveries'][0]['id'] === $listed[0]['id'], '… limit');
     // At most MAX_TARGETS_PER_SCENE switched on (RULES #3)
     $crowded = ['name' => 'crowded', 'scenes' => [['id' => 'd92-93']], 'entries' => array_map(static fn(int $n) => ['id' => "crowd-$n", 'scene' => 'd92-93', 'category' => 'text', 'title' => "Crowd $n",
         'target' => ['imageSrc' => $fileA['url']]], range(1, 11))];

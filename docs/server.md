@@ -89,6 +89,7 @@ without a token, 403 `forbidden` for a reader. `{id}` is the experience, ids and
 | `GET /editor/experiences/{id}/versions` | | `{ versions: [{ id, env, build, hash, publishedBy, publishedAt, note }] }` – the publish log, newest first |
 | `GET /editor/experiences/{id}/export[?build=]` | | `{ experience, source, build, hash, schema, appVersion, exportedAt, configuration, files, unknown, layout, plugins, credits }` – everything an export of the experience needs: the draft, or with `build` a published version from the content store ([Export](#export)). 400 `invalid-build`, 404 `unknown-build` (not in this experience's publish log), 404 `build-missing` (logged, but the store has no readable configuration) |
 | `GET /editor/experiences/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt, set, reverts, delivery, notRevertable }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target) – and `entry`, `scene`, `order`, `groups`, `reference`, `environment`, `passes`, `appearance`, `experience`, `plugin`, `asset` (a Library file a removal deleted), `migration` (#319); a removed row has `after: null`; `token` = the name of the AI connection a save came through, null for the editor; `set` / `reverts` for a revert's changes, `delivery` the delivery that wrote it ([Deliveries](#deliveries)) and `notRevertable` – [Reverting saved changes](#reverting-saved-changes); `limit` default 50, at most 500 |
+| `GET /editor/experiences/{id}/deliveries?limit=` | | `{ deliveries: [{ id, name, source, counts, user, token, createdAt, changes }] }` – the applied deliveries, newest first (a comparison leaves no row); `changes` = how many changes of the log name it, `token` the AI connection it came through; `limit` default 50, at most 500 – [Deliveries](#deliveries) |
 | `POST /editor/experiences/{id}/deliveries` | `{ name, source?, scenes?, entries, apply?, overwrite? }` – a delivery plan, its files Library files by id or URL | `{ delivery: { id, name, source }, applied, items, counts, problems, warnings, written }` – a publisher's delivery compared with the draft per scene, entry and target (`new` / `changed` / `same` / `conflict`); with `apply: true` written in one transaction, each write a change naming the delivery – [Deliveries](#deliveries). 400 `invalid-delivery`; 409 `delivery-problems` with `comparison` |
 | `GET /content/{env}/{path}` | | the **local** content store, public like the CDN: `latest.json`, `versions.json` (`no-cache`) and `<build>/game.config.json` / `files.json` (immutable) – nothing else, no other path |
 
@@ -942,6 +943,10 @@ With `apply: true` the comparison is made again and written in one transaction (
 `target`) with `changes.delivery_id` set (`delivery` in `GET …/changes`), and the delivery is a row of `deliveries`
 (name, source, the plan as sent, the counts, who, when); the answer names its `id` and `written`, the changes' ids. The
 same delivery sent again compares as all `same`.
+
+`GET …/deliveries` lists the applied deliveries, newest first – name, source, counts, who, when, and how many changes name
+each (the plan as sent stays in the table). The MCP's `preview_delivery` / `import_delivery` / `list_deliveries` use these
+routes ([mcp](mcp.md#a-publishers-delivery-preview_delivery-import_delivery-322)).
 
 **Taking a delivery back**: `POST …/changes/revert { ids }` with its changes' ids ([Reverting saved
 changes](#reverting-saved-changes)). The later changes of the same rows are reverted first, as for any save; the

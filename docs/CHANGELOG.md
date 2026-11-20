@@ -7,6 +7,18 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **MCP – deliveries** (#322 T8): `preview_delivery` shows what a publisher's delivery plan (`DeliveryPlan`, inline or a
+  JSON file) would do to the draft – a summary for the person (new / changed / same / conflict, problems, warnings) and a
+  confirmation; `import_delivery` writes it in two steps as `import_experience` – only with `confirm`, and only when the
+  comparison is still the one the person saw; `list_deliveries` lists the applied deliveries. docs/mcp.md "A publisher's
+  delivery".
+- **Server – the list of deliveries** (#322 T8): `GET /editor/experiences/{id}/deliveries?limit=` – the applied
+  deliveries newest first, with their counts and the number of changes naming each (`DeliveryRecord` in
+  `shared/api/deliveries.ts`).
+
 ## 3.18.0 – 2026-11-20
 
 ### Added

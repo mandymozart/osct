@@ -67,6 +67,27 @@ final class Deliveries
         Http::json(200, $apply ? Db::transaction($run) : $run());
     }
 
+    /**
+     * GET /editor/experiences/{id}/deliveries?limit= (default 50, at most 500) → { deliveries: [{ id, name, source, counts,
+     * user, token, createdAt, changes }] } newest first – the applied deliveries of `deliveries` (a comparison leaves no
+     * row); `changes` = how many changes of the log name it (`…/changes` lists them with `delivery`), `token` the AI
+     * connection it came through, else null. The plan as sent stays in the table.
+     */
+    public static function list(string $experienceId): never
+    {
+        Editor::user();
+        Experiences::exists($experienceId);
+        $limit = min(500, max(1, (int) ($_GET['limit'] ?? 50)));
+        $rows = Db::run("SELECT d.id, d.name, d.source, d.counts_json, d.token_name, d.created_at, u.email, (SELECT COUNT(*) FROM changes c WHERE c.delivery_id = d.id) AS change_count
+            FROM deliveries d LEFT JOIN users u ON u.id = d.created_by WHERE d.experience_id = :experience ORDER BY d.created_at DESC, d.id DESC LIMIT $limit", ['experience' => $experienceId])->fetchAll();
+        $deliveries = [];
+        foreach ($rows as $row) {
+            $deliveries[] = ['id' => $row['id'], 'name' => $row['name'], 'source' => $row['source'], 'counts' => Editor::decode($row['counts_json']),
+                'user' => $row['email'], 'token' => $row['token_name'], 'createdAt' => Editor::iso((int) $row['created_at']), 'changes' => (int) $row['change_count']];
+        }
+        Http::json(200, ['deliveries' => $deliveries]);
+    }
+
     // ── The plan ─────────────────────────────────────────────────────────────────────────────────
 
     /**
