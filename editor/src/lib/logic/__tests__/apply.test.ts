@@ -83,7 +83,7 @@ describe("apply: connect follows the grammar (#334 L-T4)", () => {
 });
 
 describe("apply: disconnect (#334 L-T4)", () => {
-  it("a condition's or an action's wire removes it; on cannot be cut", () => {
+  it("a condition's or an action's wire removes it; a cut on leaves the rule hearing nothing, with a problem", () => {
     const view = project(content, scene);
     const when = view.edges.find(e => e.home?.part === "when" && e.to[0] === "rule:door/#1")!;
     const result = ok(apply({ op: "disconnect", edge: when.id }, content, scene));
@@ -92,7 +92,17 @@ describe("apply: disconnect (#334 L-T4)", () => {
     const emit = view.edges.find(e => e.from.join() === "rule:door/#1,do:1")!;
     expect(doorRules(ok(apply({ op: "disconnect", edge: emit.id }, content, scene)).content)[1].do).toEqual([{ action: "hide", node: "hint" }]);
     const on = view.edges.find(e => e.home?.part === "on" && e.to[0] === "rule:door/#2")!;
-    expect(refused(apply({ op: "disconnect", edge: on.id }, content, scene))).toMatch(/always hears one event/);
+    const cut = ok(apply({ op: "disconnect", edge: on.id }, content, scene));
+    expect(doorRules(cut.content)[2].on).toBe("");
+    expect(cut.words).toMatch(/hears nothing until you wire an event to its on/);
+    expect(cut.problems.some(p => /rule 3 hears nothing – wire an event to its on/.test(p.message))).toBe(true);
+    const after = project(cut.content, scene);
+    expect(after.edges.some(e => e.to[0] === "rule:door/#2" && e.to[1] === "on")).toBe(false);
+    expect(after.nodes.find(n => n.id === "rule:door/#2")?.problem).toMatch(/hears nothing/);
+    // Wiring an event to it again
+    const event = after.nodes.find(n => n.kind === "event" && n.label === "found")!;
+    const again = apply({ op: "connect", from: [event.id, "out"], to: ["rule:door/#2", "on"] }, cut.content, scene);
+    expect(ok(again).words).toMatch(/now hears found(?! \(was)/);
   });
 
   it("a wire that joins by name removes the name from the listening side here, and says so", () => {
@@ -107,7 +117,9 @@ describe("apply: disconnect (#334 L-T4)", () => {
     const openDoor = view.stubs.find(s => s.label.startsWith("openDoor"))!;
     expect(refused(apply({ op: "disconnect", edge: openDoor.edge.id }, content, scene))).toMatch(/heard in Epilogue – the listening side is there/);
     const keyRattled = view.stubs.find(s => s.label.startsWith("keyRattled"))!;
-    expect(refused(apply({ op: "disconnect", edge: keyRattled.edge.id }, content, scene))).toMatch(/always hears one event/);
+    const unheard = ok(apply({ op: "disconnect", edge: keyRattled.edge.id }, content, scene));
+    expect(unheard.words).toMatch(/no longer hears keyRattled – it hears nothing until you wire an event to its on\. The wire joined by name/);
+    expect(unheard.changed.map(c => c.target)).toEqual(["bell"]);
     const plugin = view.edges.find(e => e.from[0] === "plugin:narrative")!;
     expect(refused(apply({ op: "disconnect", edge: plugin.id }, content, scene))).toMatch(/Code tab/);
   });

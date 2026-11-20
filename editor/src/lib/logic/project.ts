@@ -139,7 +139,7 @@ const usesOf = (content: LogicContent): Use[] => {
       const place = targetPlace(scene.id, target.id);
       for (const { node } of walk(target.entity)) {
         for (const { rule } of rulesOfNode(node)) {
-          if (!isBehaviourNodeEvent(rule.on)) uses.push({ place, kind: "hears", name: rule.on });
+          if (rule.on && !isBehaviourNodeEvent(rule.on)) uses.push({ place, kind: "hears", name: rule.on });
           for (const test of rule.when?.tests ?? []) uses.push({ place, kind: "reads", name: test.name });
           for (const action of rule.do) {
             if (action.action === "set") uses.push({ place, kind: "sets", name: action.name, scope: action.scope });
@@ -262,8 +262,11 @@ const targetsGraph = (content: LogicContent, uses: readonly Use[], { scene, targ
         const home = (part: "on" | "when" | "do", at?: number): Home =>
           ({ doc: "entity", target: target.id, path, component, rule: index, part, ...(at === undefined ? {} : { index: at }) });
         const id = `rule:${pathKey(target.id, path)}#${i}`;
-        g.add({ id, kind: "rule", label: `${owner} · rule ${i + 1}`, detail: conditionWords(rule.when), pick }, rule);
-        if (isBehaviourNodeEvent(rule.on)) {
+        const box = g.add({ id, kind: "rule", label: `${owner} · rule ${i + 1}`, detail: conditionWords(rule.when), pick, home: home("on") }, rule);
+        if (!rule.on) {
+          // Its on was cut (or never set): the rule hears nothing until an event is wired to it
+          g.flag(box, `${box.label} hears nothing – wire an event to its on.`);
+        } else if (isBehaviourNodeEvent(rule.on)) {
           const own = g.add({ id: `event:${pathKey(target.id, path)}:${rule.on}`, kind: "event", label: rule.on, detail: owner, pick });
           g.link([own.id, "out"], [id, "on"], "event", "on", home("on"));
         } else {
