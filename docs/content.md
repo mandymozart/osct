@@ -890,6 +890,43 @@ target:
 - *Automatic* chooses 512 on a data-saving or slow connection, 1024 on a phone with up to 4 GB of memory, else 2048;
   4096 only when the reader chooses *Best*.
 
+### Pictures, videos and sounds in quality levels
+
+A picture, a video or a sound can come in several qualities; the reader's media quality (Info page → Settings →
+*Picture and video quality*) chooses which one loads (schema 4.3, #331). Name the levels on the node, next to its file,
+and on an entry next to its picture:
+
+```yaml
+image: castle.webp            # the picture an older app shows – the middle level is a good choice
+imageLevels:
+  512: castle_512.webp
+  1024: castle.webp
+  2048: castle_2048.webp
+target:
+  image: target.jpg
+  entity:
+    type: video
+    src: film_720.mp4          # what an older app loads
+    levels:
+      480: film_480.mp4
+      720: film_720.mp4
+      1080: film_1080.mp4
+```
+
+- The level is a number by kind: a **picture's longest side** (512, 1024, 2048 px), a **video's height** (480, 720,
+  1080 – `p`), a **sound's bitrate** (64, 128, 192 kbps). Each level once; not every level has to be there. An entity's
+  image, video and audio files take `levels` (on `src`, or on an item of `assets`), an entry's picture `imageLevels`.
+- The node's own file (`src`, the entry's `image`) stays: it is what an app before 4.3 loads, and a medium without
+  levels is one level.
+- The app loads the largest level that is not above what the quality asks for, else the smallest there is. *Low*,
+  *Medium* and *High* take the smallest, the middle and the largest level. *Automatic* takes the smallest on a
+  data-saving or slow (2g / 3g) connection; otherwise a picture covers the screen's longest side in device pixels, a
+  video the screen's shorter side (at most 720p on a phone with up to 4 GB), a sound the highest bitrate.
+- It applies to what loads next – the next scene, the next card –, not to a video already playing.
+- **Video levels are made before the upload** (ffmpeg, the release step #304 later) – the editor never encodes video.
+  Picture levels can be computed in the editor's browser from the largest one ([editor](editor.md) "Media levels").
+- The build checks the files and leaves them exactly as you made them – it does not shrink a picture level.
+
 Allowed file types: `.jpg .jpeg .png .webp` (images), `.mp4 .webm .mov` (video), `.glb .gltf`
 (models), `.mp3 .wav .ogg` (audio).
 
@@ -999,6 +1036,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 3.0 | 2.0.1 | in develop | **one clean model of scenes – nothing of 2.x kept** (#319, `agents/SCENES.md` "Schema 3.0"): the configuration's `scenes` (was `spreads`) and `initialScene` (was `initialSpreadId`); a scene is `id`, `label`, `group?`, `surfaces` (at least one: `id`, `label?`, `widthMm`, `heightMm`, `place` – all six numbers required), `passes?`; an entry names its `scene` (required) and a `surface` when the scene has several; a target's `place` (`surface?`, `x`, `y`, `width`, `height?`, mm on the surface) replaces `print`. Removed: `page`, `firstPage`, `lastPage`, a spread's `title`, `format`, `matter` and `layout`, a surface's `side`, `print`, the configuration's `tutorial` | refused: no 2.x reader was shipped – every app since reads 3.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 3), and a 2.x app refuses 3.0 content |
 | 4.0 | 3.0.0 | in develop | **the experience is the top level** (#320, `agents/REFACTOR-EXPERIENCE.md`): the configuration's `experience` (was `book`: `id`, `title`, `passes?`, `environment?`, `appearance?`); the printed book is its optional `book` (`author`, `publisher?` – they were on the top level), none = an experience that is not a book; `sourceOfTruth` is removed (every experience adds and removes its scenes); the behaviour and plugin variable scope `experience` (was `book`, plugin API 3.0) and the text nodes' `{{experience.title}}` (was `{{book.title}}`); `latest.json` / `versions.json` name the `experience` (was `book`). The content source: `experience.yaml` (was `experience.yaml`), converted once with `npm run convert:4` | refused: no 3.x reader was shipped – every app since reads 4.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 4), and a 3.x app refuses 4.0 content |
 | 4.1 | 3.11.0 | in develop | a target's optional `recognition` (#306): `{ imageSrc, width, height }` – its grey recognition frame made ahead with `osct targets prepare` and the printed image's size ("Recognition" above) | ignored: the app makes the frame from the target's image itself, as before |
+| 4.3 | (next) | in develop | media in quality levels (#331, "Pictures, videos and sounds in quality levels" above): an image, video or audio asset's optional `levels` and an entry's optional `imageLevels` – `[{ level, src }]`, a picture by its longest side (512 / 1024 / 2048), a video by its height (480 / 720 / 1080), a sound by kbps (64 / 128 / 192); the reader's media quality chooses | ignored: a 4.2 app loads the medium's own `src` / `image`, as before |
 | 4.2 | 3.12.0 | in develop | the switch between the recognition paths (#306, "Recognition" above): the experience's optional `recognition` (`"original"` – none, the default – or `"prepared"`; any other text reads as original) and a target's optional `recognitionOff` (`true`: always its printed image) | ignored: a 4.1 app (3.11.x) uses a target's `recognition` wherever it has one; an app before 4.1 makes every frame itself |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets

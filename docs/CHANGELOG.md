@@ -7,6 +7,22 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **Pictures, videos and sounds in quality levels** (#331 step 3, content schema 4.3): an entity's image, video or audio
+  file can name `levels` – a picture by its longest side (512 / 1024 / 2048 px), a video by its height (480p / 720p /
+  1080p), a sound by its bitrate (64 / 128 / 192 kbps) – and an entry's picture `imageLevels`. The reader loads the level
+  its new **media quality** chooses (Info → Settings → *Picture and video quality*: Automatic, Low, Medium, High –
+  Automatic goes by the screen, the phone's memory and the connection), falling back to the nearest level: the AR scene's
+  pictures, videos and sounds, the entry's picture, the card flip and the preloader. An app before 4.3 loads the medium's
+  own file, as before. Content build: `levels:` / `imageLevels:` as level → file; API and MCP (`put_entity`,
+  `put_target`, `update_entry imageLevels`) check the levels per kind.
+- **Editor – media levels** (#331): a picture, video or sound node has a *levels* section – a chip per level, a missing
+  one a slot to upload into or pick from the Library; pictures compute their smaller levels in the browser (WebP), videos
+  and sounds are uploaded per level (never encoded in the browser). The entry form has the same row under the picture.
+  The Library shows a node's levels as a stack (`▤ 2/3`).
+
 ## 3.15.0 – 2026-11-20
 
 ### Added

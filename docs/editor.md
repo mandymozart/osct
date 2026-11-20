@@ -974,6 +974,17 @@ it: drawn on a canvas here in the browser, WebP at the image rule's quality, nam
 put in the set (`lib/texture-levels.ts`). Maps upload with the image rule's `texture` fit and keep up to 4096 px. Only
 pictures: video levels are made beforehand, never encoded in the browser (Tilman, 2026-11-19).
 
+**Media levels** (#331 step 3, content schema 4.3). A node whose file is a picture, a video or a sound has a *levels*
+section: one chip per level of its kind – 512 / 1024 / 2048 px (a picture's longest side), 480p / 720p / 1080p (a
+video's height), 64 / 128 / 192 kbps (a sound) –, which the reader's media quality chooses from (`docs/content.md`,
+"Pictures, videos and sounds in quality levels"). A level there shows its weight and a × to remove it; a missing level is
+a dashed slot with **Upload…** and **Library…** for that level. Pictures also get **Compute smaller levels**: from the
+largest level (or the node's own picture, which then becomes its level) every smaller one is drawn here in the browser,
+WebP at the image rule's quality, named `<picture>-<level>.webp`, uploaded and put in the levels (`lib/media-levels.ts`,
+`components/MediaLevels.svelte`). **Videos and sounds are uploaded per level** – a video is never encoded in the
+browser; make its levels before (ffmpeg), later perhaps the production server. An entry's picture has the same row
+under it in the entry form (`imageLevels`). The node's own file stays what an older app loads.
+
 ### Inspector: the experience
 
 A plain click on the experience's crumb in the top bar selects the experience (#237, `panels/ExperiencePanel.svelte`; Ctrl- or ⌘-click
@@ -1188,7 +1199,9 @@ selects, a double click uses.
 each level a tile of its own (⇄ replaces only that file – a new version, every link stays), a missing level a dashed
 slot, the next size up a dotted *optional* one; a click on a slot shows the model node, whose *textures* in the
 Inspector add the level. The details of a level list the whole stack (size, pixels, weight; show, replace, download).
-A model's mesh and its map stacks stand in a **frame** (its name, parts, files, weight; a click folds it), a video and
+A picture's, video's or sound's **media levels** (a node's *levels*) are a stack the same way – every level of its kind,
+a missing one a slot that shows the node (whose *levels* in the Inspector add it). A model's mesh and its map stacks
+stand in a **frame** (its name, parts, files, weight; a click folds it), a video and
 its subtitles too (by language – `speak.en.vtt` belongs to `speak.mp4`). A model file shows what it carries inside, dotted
 – `◧ map`, `◧ 2 clips` – read from the start of the file. **The Library makes no link** (Tilman, 2026-11-19): files no
 node names stay single tiles; levels and parts are linked where the content is edited. The browser's **levels:
