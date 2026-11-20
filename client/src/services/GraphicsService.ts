@@ -7,8 +7,8 @@
  *   and its connection, a size (512 to 4096 px) is the reader's own choice; larger maps take longer to load and more
  *   graphics memory. The scan view swaps the maps at once, the preloader fetches the chosen size.
  * - `mediaQuality`: which level of pictures, videos and sounds with levels is loaded (#331) – `auto` goes by the screen,
- *   the device and its connection, `low` / `medium` / `high` are the reader's own choice (`mediaSrc`). It applies to
- *   what loads next (the next scene, the next card), not to a video already playing.
+ *   the device and its connection, `low` / `medium` / `high` are the reader's own choice (`mediaSrc`). A change swaps
+ *   the loaded media at once – a playing video or sound goes on at the same spot in the new quality (`AssetStore.refreshMedia`).
  *
  * Standalone (no store dependency), like `FeedbackService`.
  */

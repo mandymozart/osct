@@ -7,6 +7,14 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 3.16.1 – 2026-11-20
+
+### Changed
+- **Media quality switches at once** (#331): a change of *Picture and video quality* swaps the scene's loaded media
+  right away – a playing video or sound goes on at the same spot in the new quality (playing if it played, the same
+  element, so the entity and its texture stay), a picture swaps its file in place. Before, the choice only applied to
+  what loaded next.
+
 ## 3.16.0 – 2026-11-20
 
 ### Added

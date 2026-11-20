@@ -21,7 +21,7 @@
   "textureQualityHigh": "Hoog",
   "textureQualityBest": "Beste",
   "mediaQualityLabel": "Beeld- en videokwaliteit:",
-  "mediaQualityDescription": "Afbeeldingen, video's en geluiden kunnen in meerdere kwaliteiten bestaan. Automatisch kiest op basis van je scherm, telefoon en verbinding. Hogere kwaliteit laadt langer; ze geldt voor wat hierna laadt.",
+  "mediaQualityDescription": "Afbeeldingen, video's en geluiden kunnen in meerdere kwaliteiten bestaan. Automatisch kiest op basis van je scherm, telefoon en verbinding. Hogere kwaliteit laadt langer; een lopende video speelt op dezelfde plek verder in de nieuwe kwaliteit.",
   "installButton": "Installeer als app op dit apparaat",
   "installDone": "Je gebruikt de app vanaf je beginscherm.",
   "installDescription": "De app opent dan schermvullend vanaf een eigen icoon en start sneller.",

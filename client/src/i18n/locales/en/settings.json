@@ -21,7 +21,7 @@
   "textureQualityHigh": "High",
   "textureQualityBest": "Best",
   "mediaQualityLabel": "Picture and video quality:",
-  "mediaQualityDescription": "Pictures, videos and sounds can come in several qualities. Automatic chooses by your screen, phone and connection. Higher quality takes longer to load; it applies to what loads next.",
+  "mediaQualityDescription": "Pictures, videos and sounds can come in several qualities. Automatic chooses by your screen, phone and connection. Higher quality takes longer to load; a playing video goes on at the same spot in the new quality.",
   "installButton": "Install as app on this device",
   "installDone": "You're using the app from your home screen.",
   "installDescription": "The app then opens full screen from its own icon and starts faster.",

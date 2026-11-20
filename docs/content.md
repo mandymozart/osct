@@ -922,7 +922,8 @@ target:
   *Medium* and *High* take the smallest, the middle and the largest level. *Automatic* takes the smallest on a
   data-saving or slow (2g / 3g) connection; otherwise a picture covers the screen's longest side in device pixels, a
   video the screen's shorter side (at most 720p on a phone with up to 4 GB), a sound the highest bitrate.
-- It applies to what loads next – the next scene, the next card –, not to a video already playing.
+- A change applies at once: the scene's pictures swap in place, and a playing video or sound goes on at the same spot in
+  the new quality, playing if it played (`AssetStore.refreshMedia`, 3.16.1).
 - **Video levels are made before the upload** (ffmpeg, the release step #304 later) – the editor never encodes video.
   Picture levels can be computed in the editor's browser from the largest one ([editor](editor.md) "Media levels").
 - The build checks the files and leaves them exactly as you made them – it does not shrink a picture level.

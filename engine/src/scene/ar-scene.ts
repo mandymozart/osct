@@ -1,6 +1,6 @@
 import { Box3, Group, type Matrix4, type Object3D, type Quaternion, SRGBColorSpace, type Texture, TextureLoader, Vector3 } from "three";
 import {
-  type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type TextureQuality, type PassData, type SceneInspection, ArState, type Target,
+  type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type TextureQuality, type MediaQuality, type PassData, type SceneInspection, ArState, type Target,
 } from "../types/index";
 import { type AppearanceData, type ExperienceAppearance, entityMomentAppearance, type Moment, nodeMomentLook } from "@shared/types/appearance";
 import { entityAssets, getAssets, getExperience, getPasses, getPlugins, getScene, getScenes, getTargets } from "../content/game-config";
@@ -104,6 +104,7 @@ export class ArScene implements IArScene {
     data => isLevelledKind(data.assetType) ? chooseMediaSrc(data.assetType, data.src, data.levels, this.options.graphics?.getSettings().mediaQuality, mediaHints()) : data.src,
   );
   private textureQuality: TextureQuality | undefined;
+  private mediaQuality: MediaQuality | undefined;
   /** The line of the playing video's subtitle file, told to the app when it changes (`subtitle`) */
   private subtitles = new Subtitles(() => this.options.subtitleLanguage?.() ?? "en", text => this.emitter.emit("subtitle", text));
   private graphicsCleanup: (() => void) | null = null;
@@ -142,6 +143,7 @@ export class ArScene implements IArScene {
     setSceneSource(getScene, getScenes);
     setMediaSound(options.sound);
     this.textureQuality = options.graphics?.getSettings().textureQuality;
+    this.mediaQuality = options.graphics?.getSettings().mediaQuality;
   }
 
   get status(): ArStatus {
@@ -474,8 +476,13 @@ export class ArScene implements IArScene {
       view.resize();
       this.lookAround = new LookAround(view.renderer, () => this.tracker?.cameraVideo ?? null, this.options.graphics, this.environment());
       this.lookAround.debugTools = this.options.debug ?? false;
-      // The reader changes the texture quality: the loaded models swap their maps
+      // The reader changes the texture quality: the loaded models swap their maps; the media quality: the loaded pictures,
+      // videos and sounds swap their level, a playing one goes on at the same time (#331)
       this.graphicsCleanup = this.options.graphics?.subscribe(settings => {
+        if (settings.mediaQuality !== this.mediaQuality) {
+          this.mediaQuality = settings.mediaQuality;
+          this.assets.refreshMedia();
+        }
         if (settings.textureQuality === this.textureQuality) return;
         this.textureQuality = settings.textureQuality;
         this.assets.refreshTextures();

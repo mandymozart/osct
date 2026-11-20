@@ -215,8 +215,8 @@ Verbatim from the archived entries (the entry title and archive file in front of
   height 480 / 720 / 1080, audio 64 / 128 / 192 kbps (`MEDIA_LEVELS`). `src` stays the older app's file (MINOR).
 - Setting: Info → Settings *Picture and video quality* – Automatic / Low / Medium / High (`GraphicsSettings.mediaQuality`),
   next to *Model detail*. Automatic: slow or data-saving → smallest; picture covers the screen's longest side × DPR,
-  video the shorter side × DPR (≤ 720p with ≤ 4 GB), sound the largest. Applies to what loads next (no live swap of a
-  playing video).
+  video the shorter side × DPR (≤ 720p with ≤ 4 GB), sound the largest. A change swaps what is on screen at once: a playing video or sound
+  goes on at the same spot in the new quality (Tilman: *"otherwise it makes no sense to switch"*, 3.16.1).
 - Editor: the Inspector sets levels (node *levels*, entry form under the picture); pictures computed in the browser,
   video / audio uploaded per slot (no browser encoding – Tilman). The Library shows a node's levels as a `media` stack.
 - [ ] A video with levels **and** subtitles: its file shows in the subtitles frame, the levels stack is not drawn there.

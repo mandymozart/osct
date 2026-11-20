@@ -21,7 +21,7 @@
   "textureQualityHigh": "Hoch",
   "textureQualityBest": "Beste",
   "mediaQualityLabel": "Bild- und Videoqualität:",
-  "mediaQualityDescription": "Bilder, Videos und Töne können in mehreren Qualitäten vorliegen. Automatisch richtet sich nach deinem Bildschirm, Telefon und deiner Verbindung. Höhere Qualität lädt länger; sie gilt für das, was als Nächstes lädt.",
+  "mediaQualityDescription": "Bilder, Videos und Töne können in mehreren Qualitäten vorliegen. Automatisch richtet sich nach deinem Bildschirm, Telefon und deiner Verbindung. Höhere Qualität lädt länger; ein laufendes Video spielt an derselben Stelle in der neuen Qualität weiter.",
   "installButton": "Als App auf diesem Gerät installieren",
   "installDone": "Du verwendest die App von deinem Home-Bildschirm aus.",
   "installDescription": "Die App öffnet sich dann im Vollbild über ihr eigenes Symbol und startet schneller.",

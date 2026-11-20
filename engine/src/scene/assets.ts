@@ -21,7 +21,33 @@ interface Entry {
   data: AssetData;
   loading: Promise<LoadedAsset | null>;
   loaded: LoadedAsset | null;
+  /** The file loaded – the level the media quality chose (#331), else the asset's own `src` */
+  src: string;
 }
+
+/**
+ * A playing video or sound changes its level (#331): the same element takes the other file and goes on at the same time,
+ * playing if it played – the VideoTexture and the entity keep the element, so nothing else is rebuilt.
+ */
+export const swapMediaSrc = (element: HTMLMediaElement, src: string): void => {
+  const at = element.currentTime;
+  const playing = !element.paused;
+  element.src = src;
+  const resume = () => {
+    if (at && (!element.duration || at < element.duration)) element.currentTime = at;
+    if (playing) void element.play().catch(() => {});
+  };
+  element.addEventListener("loadedmetadata", resume, { once: true });
+  element.load();
+};
+
+/** A picture changes its level (#331): the same texture takes the other file once it loaded, so the materials keep it */
+const swapImageSrc = async (texture: Texture, src: string): Promise<void> => {
+  const next = await new TextureLoader().setCrossOrigin("anonymous").loadAsync(src);
+  texture.image = next.image;
+  texture.needsUpdate = true;
+  next.dispose();
+};
 
 let gltfLoader: GLTFLoader | null = null;
 const getGltfLoader = (): GLTFLoader => {
@@ -182,13 +208,30 @@ export class AssetStore {
     this.entries.forEach(entry => this.applyTextures(entry));
   }
 
+  /**
+   * The reader's media quality changed (#331): every loaded picture, video and sound with levels whose chosen file is
+   * another takes it – a video or sound goes on at the same time, playing if it played; a picture swaps in place.
+   */
+  refreshMedia(): void {
+    this.entries.forEach(entry => {
+      const { data, loaded } = entry;
+      if (!loaded || !data.levels?.length) return;
+      const src = this.mediaSrc(data);
+      if (src === entry.src) return;
+      entry.src = src;
+      if (loaded.assetType === "video" || loaded.assetType === "audio") swapMediaSrc(loaded.element, src);
+      else if (loaded.assetType === "image") void swapImageSrc(loaded.texture, src).catch(error => console.warn(`[assets] Could not load ${data.id} (${src}):`, error));
+    });
+  }
+
   /** Load assets (known ids are reused). A failed asset resolves to null – its entity is skipped. */
   async load(assets: readonly AssetData[]): Promise<void> {
     await Promise.all(assets.map(data => {
       let entry = this.entries.get(data.id);
       if (!entry) {
-        const created: Entry = { data, loaded: null, loading: Promise.resolve(null) };
-        created.loading = load(data, data.levels?.length ? this.mediaSrc(data) : data.src)
+        const src = data.levels?.length ? this.mediaSrc(data) : data.src;
+        const created: Entry = { data, loaded: null, loading: Promise.resolve(null), src };
+        created.loading = load(data, src)
           .then(loaded => {
             created.loaded = loaded;
             this.applyTextures(created);
