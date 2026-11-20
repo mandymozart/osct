@@ -12,6 +12,8 @@ import { MAX_NODE_DEPTH } from "../../shared/guards/game-config";
 import { MEDIA_LEVELS } from "../../shared/types/media-levels";
 import { BEHAVIOUR_ACTIONS, BEHAVIOUR_NODE_ACTIONS, BEHAVIOUR_NODE_EVENTS, RULE_HOMES } from "../../shared/types/behaviour";
 import { parseAddress } from "../../shared/types/address";
+import { BEHAVIOUR_SCOPES } from "../../shared/types/behaviour";
+import { VARIABLE_TYPES } from "../../shared/types/variables";
 import { APPEARANCE_TYPES, MOMENTS } from "../../shared/types/appearance";
 import { CONTENT_BUILD } from "../../shared/types/content-manifest";
 import { ENTRY_CATEGORIES } from "../../shared/types/entry";
@@ -108,6 +110,7 @@ function readPhp(): Record<string, unknown> {
       'CREDITS' => [Assets::CREDITS_BATCH_MAX, Assets::CREDITS_MAX],
       'MEDIA_LEVELS' => Editor::MEDIA_LEVELS,
       'IMAGE' => ['maxSide' => Assets::IMAGE_MAX_SIDE, 'quality' => Assets::IMAGE_WEBP_QUALITY, 'maxPixels' => Assets::IMAGE_MAX_PIXELS],
+      'VARIABLES' => [Logic::VARIABLE_TYPES, Logic::SCOPES],
       'LOGIC' => ['actions' => Logic::ACTIONS, 'nodeActions' => Logic::NODE_ACTIONS, 'nodeEvents' => Logic::NODE_EVENTS, 'homes' => Logic::HOMES,
         'goto' => array_map(static fn(string $a): bool => (bool) preg_match('#' . Logic::GOTO_ADDRESS . '#', $a), $input['addresses']),
         'node' => array_map(static fn(string $a): bool => (bool) preg_match('#' . Logic::NODE_ADDRESS . '#s', $a), $input['addresses'])],
@@ -141,6 +144,7 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
   });
 
   it("rules without code: the verbs, the node events, the homes and the addresses (Logic, content schema 5.0)", () => {
+    expect(php.VARIABLES).toEqual([[...VARIABLE_TYPES], [...BEHAVIOUR_SCOPES]]);
     expect(php.LOGIC).toMatchObject({ actions: [...BEHAVIOUR_ACTIONS], nodeActions: [...BEHAVIOUR_NODE_ACTIONS], nodeEvents: [...BEHAVIOUR_NODE_EVENTS], homes: [...RULE_HOMES] });
     const logic = php.LOGIC as { goto: boolean[]; node: boolean[] };
     expect(logic.goto).toEqual(ADDRESSES.map(a => parseAddress(a)?.scheme === "scene"));

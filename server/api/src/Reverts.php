@@ -28,7 +28,7 @@ declare(strict_types=1);
 final class Reverts
 {
     /** The experience's own JSON (`experiences.experience_json`): a change of one of these kinds compares and restores only the fields it changed */
-    private const EXPERIENCE_KINDS = ['environment', 'passes', 'appearance', 'experience', 'logic'];
+    private const EXPERIENCE_KINDS = ['environment', 'passes', 'appearance', 'experience', 'logic', 'variables'];
     /** Kinds of rows the log can restore */
     private const ROW_KINDS = ['entity', 'target', 'entry', 'scene'];
     /** Kinds of rows a delivery makes (#322, Deliveries): their creation is revertable – the row is removed again */

@@ -731,6 +731,32 @@ final class Experiences
         Http::json(200, ['logic' => $logic]);
     }
 
+    /**
+     * PUT /editor/experiences/{id}/variables { variables: { name: { type, scope?, default? } } | null } → 200 { variables }:
+     * the rules' typed variables (content schema 5.0, #334 B7, shared/types/variables.ts). A variable not declared takes
+     * the type of its first set; whether every rule fits them is the guard's and the editor's to say. `null` removes the
+     * field. 400 `invalid-variables`. Change kind `variables`.
+     */
+    public static function putVariables(string $experienceId): never
+    {
+        $user = Editor::user();
+        self::experience($experienceId);
+        $body = Editor::body();
+        if (!property_exists($body, 'variables')) throw new ApiError(400, 'invalid-variables', 'Send { variables: { name: { type, scope?, default? } } } or { variables: null }.');
+        $variables = $body->variables === null ? null : Logic::variables($body->variables);
+        Db::transaction(static function () use ($experienceId, $variables, $user) {
+            $row = self::experience($experienceId, true);
+            $experience = Editor::decode($row['experience_json']);
+            if ($variables === null) unset($experience->variables);
+            else $experience->variables = $variables;
+            $json = Editor::encode($experience);
+            Db::run('UPDATE experiences SET experience_json = :experience WHERE id = :id', ['experience' => $json, 'id' => $experienceId]);
+            self::touch($experienceId);
+            self::change($experienceId, $user, 'variables', $experienceId, $row['experience_json'], $json);
+        });
+        Http::json(200, ['variables' => $variables]);
+    }
+
     /** The problems of an `environment` (shared/types/environment.ts `environmentProblems`, strict); [] when valid */
     public static function environmentProblems(mixed $value): array
     {
@@ -1400,6 +1426,13 @@ final class Experiences
         if (property_exists($experience, 'logic')) {
             try {
                 Logic::check($experience->logic, 'experience', 'experience.logic', 'invalid-configuration');
+            } catch (ApiError $error) {
+                $fail($error->getMessage());
+            }
+        }
+        if (property_exists($experience, 'variables')) {
+            try {
+                Logic::variables($experience->variables, 'experience.variables', 'invalid-configuration');
             } catch (ApiError $error) {
                 $fail($error->getMessage());
             }

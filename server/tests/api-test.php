@@ -2199,6 +2199,19 @@ try {
     check($status === 200, 'a node\'s behaviour with an expression and a goto is stored');
     [, $data] = call($api, 'GET', '/editor/experiences/osct/changes?limit=500', null, $editor);
     check(count(array_filter($data['changes'], fn($c) => $c['kind'] === 'logic' && $c['ref'] === 'osct')) === 1, 'the experience\'s logic is a change of kind logic');
+    $variables = ['taps' => ['type' => 'integer', 'scope' => 'stage', 'default' => 0], 'speed' => ['type' => 'number', 'default' => 2]];
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/variables', ['variables' => $variables], $editor);
+    check($status === 200 && $data['variables'] === $variables, "PUT …/variables: the rules' typed variables (an integer default for a number is fine)");
+    foreach ([[['taps' => ['type' => 'float']], 'type'], [['taps' => ['type' => 'integer', 'default' => 1.5]], 'default'], [['Taps' => ['type' => 'integer']], 'variable name'], [['taps' => ['type' => 'string', 'scope' => 'world']], 'scope']] as [$bad, $words]) {
+        [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/variables', ['variables' => $bad], $editor);
+        check($status === 400 && $data['error']['code'] === 'invalid-variables' && str_contains($data['error']['message'], $words), "variables: a wrong $words → 400 invalid-variables");
+    }
+    $entity['components'] = [['type' => 'behaviour', 'rules' => [['on' => 'tap', 'do' => ['set' => ['taps' => 'taps + 1', 'mood' => '"calm"', 'ok' => true]]]]]];
+    [$status] = call($api, 'PUT', '/editor/experiences/osct/entities/castle', $entity, $editor);
+    $entity['components'][0]['rules'][0]['do']['set'] = ['taps' => ['x' => 1]];
+    [$status2, $data] = call($api, 'PUT', '/editor/experiences/osct/entities/castle', $entity, $editor);
+    check($status === 200 && $status2 === 400 && str_contains($data['error']['message'], 'expression'), 'a set value is an expression, a number or true / false – an object is refused');
+    call($api, 'PUT', '/editor/experiences/osct/variables', ['variables' => null], $editor);
     call($api, 'PUT', '/editor/experiences/osct/logic', ['logic' => null], $editor);
     call($api, 'PUT', "/editor/experiences/osct/scenes/$logicScene", ['logic' => null], $editor);
     [, $draftNow] = $draftOf();
@@ -3029,7 +3042,9 @@ try {
         ['on' => 'tap', 'when' => new stdClass(), 'do' => 'show'],
         ['on' => 'tap', 'when' => 'already && done', 'do' => 'show'],
         ['on' => 'tap', 'when' => ['and' => true], 'do' => 'show'],
+        ['on' => 'sets', 'do' => [['set' => ['mood' => 'say "hi"', 'tries' => 1], 'scope' => 'stage'], ['set' => ['tries' => 2.5, 'flag' => true, 'gone' => null]], ['set' => ['flag' => 'yes']]]],
     ]];
+    $expectedSets = ['on' => 'sets', 'do' => [['set' => ['mood' => '"say \"hi\""', 'tries' => 1], 'scope' => 'stage'], ['set' => ['tries' => 2.5, 'flag' => true, 'gone' => null]], ['set' => ['flag' => '"yes"']]]];
     $expected = ['type' => 'behaviour', 'rules' => [
         ['on' => 'found', 'when' => 'hasKey == true', 'do' => ['hide' => 'hint']],
         ['on' => 'tap', 'when' => 'mood == "say \"hi\"" || tries != 2.5', 'do' => 'play'],
@@ -3037,8 +3052,9 @@ try {
         ['on' => 'tap', 'do' => 'show'],
         ['on' => 'tap', 'when' => 'already && done', 'do' => 'show'],
         ['on' => 'tap', 'when' => ['and' => true], 'do' => 'show'],
+        $expectedSets,
     ]];
-    $node = ['type' => 'group', 'assets' => [], 'children' => [['type' => 'text', 'text' => 'x', 'components' => [$behaviour]]]];
+    $node =['type' => 'group', 'assets' => [], 'children' => [['type' => 'text', 'text' => 'x', 'components' => [$behaviour]]]];
     $v5Db->exec("INSERT INTO experiences (id, title, experience_json, initial_scene, files_json, content_schema, created_at, updated_at)
         VALUES ('four', 'Four', " . $j(['id' => 'four', 'title' => 'Four']) . ", 's1', '{}', '4.3', '2026-01-01 00:00:00', '2026-01-01 00:00:00')");
     $v5Db->exec("INSERT INTO scenes (experience_id, id, position, label, data_json) VALUES ('four', 's1', 0, '1–2', " . $j(['id' => 's1', 'label' => '1–2', 'surfaces' => []]) . ")");
@@ -3064,10 +3080,12 @@ try {
     };
     $before5 = $snapshot5();
     $plan = $planOf();
-    check(($plan['rows'] ?? null) === ['experiences' => 1, 'entities' => 1, 'changes' => 1] && $plan['schema'] === 1 && $plan['rules'] === 8
+    check(($plan['rows'] ?? null) === ['entities' => 1, 'changes' => 1, 'experiences' => 1] && $plan['schema'] === 1 && $plan['rules'] === 8
         && count($plan['approximate']) === 4 && count($plan['unconvertible']) === 2
         && str_contains($plan['unconvertible'][0]['reason'], '"and"') && $plan['unconvertible'][0]['where'] === 'entities four/door',
         'the dry run (migrate.php --plan-5) counts rows per table, the schema, the conditions, the approximate and unconvertible ones');
+    check($plan['sets'] === 4 && $plan['variables'] === ['four' => ['mood' => 'string', 'tries' => 'number']] && $plan['conflicts'] === ['four: flag – boolean, string'],
+        'the dry run names the set texts it quotes, the variables it declares and the conflicts (B2, B7)');
     check($snapshot5() === $before5, 'the dry run writes nothing');
     $v5Api = startApi($v5Settings + $settings);
     file_get_contents("$v5Api/admin/migrate", false, $context);
@@ -3076,13 +3094,15 @@ try {
     check($door['children'][0]['components'][0] === $expected, 'every condition in a node tree an expression: == / != / && / ||, texts quoted, not set → a truth test, no tests → none, a text kept, an unwritable one kept');
     check($first5['entities'][1]['data_json'] === $before5['entities'][1]['data_json'], 'a row without a rule is not touched');
     check($first5['experiences'][0]['content_schema'] === '5.0', 'a 4.x experience is of schema 5.0 now');
+    check(json_decode((string) $first5['experiences'][0]['experience_json'], true)['variables'] === ['mood' => ['type' => 'string', 'scope' => 'stage'], 'tries' => ['type' => 'number']],
+        'its variables declared from their sets: a type, the scope when every set names the same one; a conflict not declared');
     $changes5 = array_column($first5['changes'], null, 'id');
     check(json_decode((string) $changes5['c5']['after_json'], true)['children'][0]['components'][0] === $expected && $changes5['c6']['after_json'] === $before5['changes'][1]['after_json'],
         'the change log: an entity change converted, a plugin source untouched');
     file_get_contents("$v5Api/admin/migrate", false, $context);
     check($snapshot5() === $first5, 'migrated twice: the second run changes nothing');
     $plan = $planOf();
-    check($plan['rules'] === 0 && $plan['rows'] === [] && $plan['schema'] === 0 && count($plan['unconvertible']) === 2, 'the dry run after it: nothing left to convert, the unwritable ones still listed');
+    check($plan['rules'] === 0 && $plan['sets'] === 0 && $plan['rows'] === [] && $plan['schema'] === 0 && count($plan['unconvertible']) === 2, 'the dry run after it: nothing left to convert, the unwritable ones still listed');
 
     echo "logout, delete\n";
     [$status] = call($api, 'POST', '/auth/logout', null, $secondSession);

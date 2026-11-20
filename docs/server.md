@@ -771,6 +771,7 @@ build's `rowPlaces`).
 | `PUT /editor/experiences/{id}/environment` | `{ environment: { world, onionSky, worldSrc?, skySrc? } \| null }` | `{ environment }` – the experience's world and onion sky (`experience.environment`, content schema 2.8; the world model and the sky image as references 2.10); `null` removes it – the default applies. A change `environment` in the log. 400 `invalid-environment`; 404 |
 | `PUT /editor/experiences/{id}/passes` | `{ passes: [{ type, …parameters }] \| null }` | `{ passes }` – the experience's post-processing (`experience.passes`), the master every scene without a list of its own shows; `null` removes it. Checked as a scene's list (a built-in `type` or a plugin's pass, scalar parameters); a change `passes` in the log. 400 `invalid-passes`; 404 |
 | `PUT /editor/experiences/{id}/logic` | `{ logic: { rules, canvas? } \| null }` | `{ logic }` – the experience's rules (`experience.logic`, content schema 5.0, #334): rules in the behaviour's grammar that hear the bus (no node event), name nodes by address `target:<targetId>/<node name>` and go to `scene:<id>`; `canvas` (`{ groups?, notes?, folds? }`) is the Logic view's authoring data – the draft and the export carry it, a publish leaves it out. `Logic::check` checks the shapes: a rule `{ on, when?, do }` with a text `on` (empty allowed – the Logic view lists it), a text `when` (the object form of 4.x is refused; the expression's syntax is the TypeScript guard's), one known verb per action. A node's behaviour (`PUT …/entities/{ref}`, `…/targets/{id}`) is checked the same way. `null` removes the field. A change `logic`, revertable like the other experience-wide kinds. 400 `invalid-logic`; 404 |
+| `PUT /editor/experiences/{id}/variables` | `{ variables: { name: { type, scope?, default? } } \| null }` | `{ variables }` – the rules' typed variables (`experience.variables`, content schema 5.0, #334 B7): `type` number / integer / boolean / string, `scope` one of the variable scopes, `default` of the type (an integer for a number is fine). Whether the rules fit them is the TypeScript guard's and the editor's to say. `null` removes the field. A change `variables`, revertable. 400 `invalid-variables`; 404 |
 | `PUT /editor/experiences/{id}/appearance` | `{ appearance: { reveal?, found?, lost? } \| null }` | `{ appearance }` – how the experience's entities appear (`experience.appearance`, content schema 2.29, #265): a look `{ type, …parameters }` per moment (`Experiences::MOMENTS`), a built-in `type` or a plugin's look, scalar parameters (their ranges are the guard's). The whole appearance is replaced; `null`, or one without a moment, removes the field – the default look plays everywhere. A change `appearance` in the log. 400 `invalid-appearance`; 404 |
 
 Gone with 3.0 (404): `…/spreads` (every route), `…/pages`, `…/page-images`, `…/matter`, `…/scenes/migrate`,
@@ -813,9 +814,14 @@ and `{ not: null }` → `name` (approximate: the language has no *not set* – l
 reason, the editor then shows the rule's problem. A 4.x experience's `content_schema` becomes 5.0 (the editor reads 5.x
 only). The rules are `scripts/src/convert-content-5.ts`' (the content folders' conversion, `npm run convert:5`); a test in
 `mcp/test/php-rules.test.ts` compares both on the same cases. Idempotent – a text `when` is never touched, a second run
-changes nothing. **Dry run**: `php server/deploy/migrate.php --plan-5` (with the API's `OSCT_*` settings, in the container
+changes nothing. In an experience still of 4.x its rules' `set` text values become the language's text literals (B2:
+`calm` → `"calm"`; only then, so a second run never quotes again – `Migration4` takes a 3.x experience to 4.0 for this),
+and the variables its rules set are declared in `experience_json.variables` from the values' types (true / false boolean,
+a whole number integer, a fraction number – both together number –, a text string; the scope when every set names the same
+one, none named = scene); a variable set with two types is a conflict, not declared and reported. **Dry run**: `php server/deploy/migrate.php --plan-5` (with the API's `OSCT_*` settings, in the container
 `php /opt/osct/migrate.php --plan-5`) prints what it would change as JSON – `rows` per table, `schema` (experiences going
-to 5.0), `rules` (conditions converted), `approximate` (`where: variable`) and `unconvertible` (`where`, `when`, `reason`) –
+to 5.0), `rules` (conditions converted), `sets` (set texts quoted), `variables` (experience → name → type declared),
+`conflicts` (`experience: name – types`), `approximate` (`where: variable`) and `unconvertible` (`where`, `when`, `reason`) –
 and writes nothing, no schema statement runs. After a migration `migrate.php` prints one line with the counts. Published
 versions in the content store are not rewritten: a 5.0 app refuses a 4.x version, so every experience is published again
 after the deploy.

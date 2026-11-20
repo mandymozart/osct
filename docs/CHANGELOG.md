@@ -38,7 +38,16 @@ refuses 5.0 content and a 5.0 app refuses 4.x (`OLDEST_READABLE_SCHEMA_MAJOR` 5)
   a publish strip it).
 - **`Migration5.php`**: every stored condition to an expression, idempotent, with a dry run (`migrate.php --plan-5`:
   rows per table, conditions converted, approximate *not set* tests, the ones it cannot convert and why).
-- **`npm run convert:5`** (`scripts/`): a content folder's conditions to expressions, once.
+- **A `set` value is an expression** (B2): `set: { tries: "tries + 1" }` – a counter without a special node; a text value is
+  the literal `"calm"` (YAML `'"calm"'`), a number or true / false may stand bare. 4.x text values are quoted by the
+  migration.
+- **Typed variables** (B7, `shared/types/variables.ts`): `experience.variables` (`{ name: { type, scope?, default? } }`,
+  type number / integer / boolean / string) or the type of a variable's first set; expressions typed with the parser's
+  tree (`expressionType`). A set or a comparison of another type and a `when` that is not true / false are problems (guard,
+  content build); the engine refuses a wrongly typed value – a plugin's too – and keeps the old one; a declared variable
+  reads as its default. `PUT …/variables` (change kind `variables`). Migration5 declares an old experience's variables
+  from its sets and reports the conflicts.
+- **`npm run convert:5`** (`scripts/`): a content folder's conditions to expressions and set texts to literals, once.
 - The fixture: a node rule with an expression and a `goto`, a scene rule and two experience rules (one a `goto`), a canvas
   the build leaves out.
 

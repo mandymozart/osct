@@ -64,6 +64,7 @@ declare(strict_types=1);
  *   PUT    /editor/experiences/{id}/passes      { passes: [{ type, … }] | null } → the experience's post-processing (every scene without its own)
  *   PUT    /editor/experiences/{id}/appearance  { appearance: { reveal?, found?, lost? } | null } → how the experience's entities appear: a look
  *   PUT    /editor/experiences/{id}/logic       { logic: { rules, canvas? } | null } → the experience's rules (content schema 5.0)
+ *   PUT    /editor/experiences/{id}/variables   { variables: { name: { type, scope?, default? } } | null } → the rules' typed variables (5.0)
  *                                               { type, … } for the first find, every later find and the lost page
  *   DELETE /editor/experiences/{id}/entries/{id}      { confirm?, deleteFiles? } the entry with its target and entity, the same two steps
  *   GET    /editor/experiences/{id}/draft/latest.json · …/draft/{build}/game.config.json · …/draft/{build}/files.json
@@ -200,6 +201,7 @@ try {
         (bool) preg_match("#^PUT /editor/experiences/($id)/passes$#", $route, $match) => Experiences::putPasses($match[1]),
         (bool) preg_match("#^PUT /editor/experiences/($id)/appearance$#", $route, $match) => Experiences::putAppearance($match[1]),
         (bool) preg_match("#^PUT /editor/experiences/($id)/logic$#", $route, $match) => Experiences::putLogic($match[1]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/variables$#", $route, $match) => Experiences::putVariables($match[1]),
         (bool) preg_match("#^DELETE /editor/experiences/($id)/entries/($id)$#", $route, $match) => Experiences::deleteEntry($match[1], $match[2]),
         (bool) preg_match("#^GET /editor/experiences/($id)/draft/latest\\.json$#", $route, $match) => ContentVersion::draftManifest($match[1]),
         (bool) preg_match("#^GET /editor/experiences/($id)/draft/[0-9a-f]{12}/(game\\.config|files)\\.json$#", $route, $match) => ContentVersion::draftFile($match[1], $match[2]),

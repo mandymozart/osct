@@ -22,6 +22,10 @@ final class Logic
     public const NODE_EVENTS = ['found', 'lost', 'tap', 'unlocked'];
     /** `RULE_HOMES` */
     public const HOMES = ['entity', 'scene', 'experience'];
+    /** shared/types/variables.ts `VARIABLE_TYPES` */
+    public const VARIABLE_TYPES = ['number', 'integer', 'boolean', 'string'];
+    /** shared/types/behaviour.ts `BEHAVIOUR_SCOPES` */
+    public const SCOPES = ['scene', 'stage', 'session', 'experience'];
     /** shared/types/address.ts: a goto's address, a node's address */
     public const GOTO_ADDRESS = '^scene:[A-Za-z0-9_-]{1,64}$';
     public const NODE_ADDRESS = '^target:[A-Za-z0-9_-]{1,64}(/.*)?$';
@@ -79,6 +83,16 @@ final class Logic
         if (count($verbs) !== 1) $fail("$at: an action has one of " . implode(', ', self::ACTIONS) . '.');
         $verb = $verbs[0];
         $value = $action->$verb;
+        if ($verb === 'set') {
+            // A value is an expression (content schema 5.0, B2): its source as text, or a bare number or true / false; null deletes
+            if (!$value instanceof stdClass || get_object_vars($value) === []) $fail("$at.set must be { variable: value, … }.");
+            foreach (get_object_vars($value) as $name => $v) {
+                if (!preg_match('/^[a-z][a-zA-Z0-9]{0,39}$/', (string) $name)) $fail("$at.set.$name: not a variable name (camelCase letters and digits).");
+                if ($v !== null && !is_string($v) && !is_bool($v) && !is_int($v) && !is_float($v)) $fail("$at.set.$name must be an expression, a number, true / false or null.");
+            }
+            if (property_exists($action, 'scope') && !in_array($action->scope, self::SCOPES, true)) $fail("$at.scope must be one of " . implode(', ', self::SCOPES) . '.');
+            return;
+        }
         if ($verb === 'goto') {
             if (!is_string($value) || !preg_match('#' . self::GOTO_ADDRESS . '#', trim($value))) $fail("$at.goto must be an address scene:<id>.");
             return;
@@ -92,6 +106,36 @@ final class Logic
                 $fail("$at: a $home's rule names a node by address target:<targetId>/<node name>.");
             }
         }
+    }
+
+    /**
+     * The experience's typed variables (content schema 5.0, B7, shared/types/variables.ts): name → `{ type, scope?, default? }`,
+     * a default of the type (an integer where a number is asked is fine); 400 `$code`
+     */
+    public static function variables(mixed $value, string $path = 'variables', string $code = 'invalid-variables'): stdClass
+    {
+        $fail = static fn(string $message) => throw new ApiError(400, $code, $message);
+        if (!$value instanceof stdClass) $fail("$path must be { name: { type, scope?, default? }, … }.");
+        foreach (get_object_vars($value) as $name => $declaration) {
+            $at = "$path.$name";
+            if (!preg_match('/^[a-z][a-zA-Z0-9]{0,39}$/', (string) $name)) $fail("$at: not a variable name (camelCase letters and digits).");
+            if (!$declaration instanceof stdClass) $fail("$at must be { type, scope?, default? }.");
+            foreach (array_keys(get_object_vars($declaration)) as $key) {
+                if (!in_array($key, ['type', 'scope', 'default'], true)) $fail("$at.$key: unknown field of a variable (type, scope, default).");
+            }
+            $type = $declaration->type ?? null;
+            if (!in_array($type, self::VARIABLE_TYPES, true)) $fail("$at.type must be one of " . implode(', ', self::VARIABLE_TYPES) . '.');
+            if (property_exists($declaration, 'scope') && !in_array($declaration->scope, self::SCOPES, true)) $fail("$at.scope must be one of " . implode(', ', self::SCOPES) . '.');
+            if (property_exists($declaration, 'default')) {
+                $d = $declaration->default;
+                $fits = match ($type) {
+                    'boolean' => is_bool($d), 'string' => is_string($d), 'integer' => is_int($d),
+                    default => is_int($d) || (is_float($d) && is_finite($d)),
+                };
+                if (!$fits) $fail("$at.default must be a value of type $type.");
+            }
+        }
+        return $value;
     }
 
     /** A canvas `{ groups?, notes?, folds? }`; 400 `$code` */

@@ -227,6 +227,14 @@ Verbatim from the archived entries (the entry title and archive file in front of
   content build and by a publish (`ContentVersion::assemble(..., true)` before the hash).
 - **Migration5 runs on every `Db::migrate`** (the deploy's entrypoint `migrate.php`, `POST /admin/migrate`) – merging
   the branch into develop migrates staging on its deploy. Dry run first: `php /opt/osct/migrate.php --plan-5`.
+- **B2 – every set value is an expression** (chosen over a separate key: one form, the graph can wire any field): a text
+  value is the literal `"calm"` (YAML `'"calm"'`); a bare number / true / false stays allowed (its own expression).
+  Migration5 quotes set texts only while the experience is still 4.x (Migration4 now takes 3.x to 4.0, not to the current
+  schema), which keeps it idempotent.
+- **B7 – typed variables**: `experience.variables` as a **map** name → `{ type, scope?, default? }` (unique names for free);
+  undeclared ones typed by their first set in content order; `shared/types/variables.ts` (`expressionType`,
+  `variableTypes`, `ruleTypeProblems`, `contentRuleLists`) serves guard and engine; the runtime refuses wrong types in
+  `writeVar` (plugins too), a set without scope uses the declared scope. The PHP side checks only the declarations' shape.
 - [ ] After the deploy: publish every experience again (a 5.0 reader refuses the 4.x versions in the content stores);
   the CDN demo (`buildingfictions.b-cdn.net/demo`) is 4.x – re-import of it is refused until it is rebuilt from the
   converted `fixtures/demo` and synced.
