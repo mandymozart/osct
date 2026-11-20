@@ -763,50 +763,50 @@ try {
     check($status === 403, 'environments: editors only (an admin without the editor role → 403)');
     [$status, $first] = call($api, 'POST', '/editor/experiences/osct/publish', ['env' => 'local', 'note' => 'first'], $editor);
     check($status === 200 && $first['env'] === 'local' && preg_match('/^[0-9a-f]{12}$/', $first['build']) === 1 && str_starts_with($first['hash'], $first['build']) && isset($first['publishedAt']), 'publish → env, build, hash');
-    check(is_file("$storeDir/local/{$first['build']}/game.config.json") && is_file("$storeDir/local/{$first['build']}/files.json") && is_file("$storeDir/local/latest.json") && is_file("$storeDir/local/versions.json"), 'the version folder, versions.json and latest.json are in the store dir');
-    [$status, $data, $headers] = call($api, 'GET', '/content/local/latest.json');
+    check(is_file("$storeDir/local/osct/{$first['build']}/game.config.json") && is_file("$storeDir/local/osct/{$first['build']}/files.json") && is_file("$storeDir/local/osct/latest.json") && is_file("$storeDir/local/osct/versions.json"), 'the version folder, versions.json and latest.json are in the store dir');
+    [$status, $data, $headers] = call($api, 'GET', '/content/local/osct/latest.json');
     check($status === 200 && $data['build'] === $first['build'] && $data['hash'] === $first['hash'] && $data['schema'] === '4.0' && $data['version'] === $appVersion && isset($data['activatedAt']), 'GET /content/local/latest.json serves the manifest (no token needed)');
     check(in_array('Cache-Control: no-cache', $headers, true), 'latest.json is revalidated');
-    [$status, $data, $headers] = call($api, 'GET', "/content/local/{$first['build']}/game.config.json");
+    [$status, $data, $headers] = call($api, 'GET', "/content/local/osct/{$first['build']}/game.config.json");
     check($status === 200 && $data['version']['hash'] === $first['hash'] && $data['entities']['castle']['params']['scale'] === 2, 'the published game.config.json is the draft');
     check((bool) preg_grep('/^Cache-Control: public, max-age=31536000, immutable$/', $headers), 'version files are immutable');
-    [, $data] = call($api, 'GET', '/content/local/versions.json');
+    [, $data] = call($api, 'GET', '/content/local/osct/versions.json');
     check(count($data) === 1 && $data[0]['build'] === $first['build'] && $data[0]['retiredAt'] === null && $data[0]['uploadedAt'] === $data[0]['activatedAt'], 'versions.json has the one version, current');
-    [$status] = call($api, 'GET', '/content/local/../test.sqlite');
-    [$status2] = call($api, 'GET', "/content/local/{$first['build']}/game.config.txt");
-    [$status3] = call($api, 'GET', '/content/Local/latest.json');
+    [$status] = call($api, 'GET', '/content/local/osct/../test.sqlite');
+    [$status2] = call($api, 'GET', "/content/local/osct/{$first['build']}/game.config.txt");
+    [$status3] = call($api, 'GET', '/content/Local/osct/latest.json');
     check($status === 404 && $status2 === 404 && $status3 === 404, 'only the json files of a version: no traversal, other names and envs → 404');
     $castle['params'] = ['scale' => 3];
     call($api, 'PUT', '/editor/experiences/osct/entities/castle', $castle, $editor);
     [$status, $second] = call($api, 'POST', '/editor/experiences/osct/publish', ['env' => 'local'], $editor);
     check($status === 200 && $second['build'] !== $first['build'], 'a second publish makes a new version');
-    [, $data] = call($api, 'GET', '/content/local/versions.json');
+    [, $data] = call($api, 'GET', '/content/local/osct/versions.json');
     check(count($data) === 2 && $data[0]['build'] === $first['build'] && is_string($data[0]['retiredAt']) && $data[1]['build'] === $second['build'] && $data[1]['retiredAt'] === null, 'versions.json: the first retired, the second current');
-    [, $data] = call($api, 'GET', '/content/local/latest.json');
-    check($data['build'] === $second['build'] && is_file("$storeDir/local/{$first['build']}/game.config.json"), 'latest.json moved, the first version folder stays');
-    $written = file_get_contents("$storeDir/local/{$second['build']}/game.config.json");
+    [, $data] = call($api, 'GET', '/content/local/osct/latest.json');
+    check($data['build'] === $second['build'] && is_file("$storeDir/local/osct/{$first['build']}/game.config.json"), 'latest.json moved, the first version folder stays');
+    $written = file_get_contents("$storeDir/local/osct/{$second['build']}/game.config.json");
     [$status, $again] = call($api, 'POST', '/editor/experiences/osct/publish', ['env' => 'local'], $editor);
-    [, $data] = call($api, 'GET', '/content/local/versions.json');
-    check($status === 200 && $again['build'] === $second['build'] && count($data) === 2 && file_get_contents("$storeDir/local/{$second['build']}/game.config.json") === $written, 'publishing the same draft again rewrites no version folder and adds no version');
+    [, $data] = call($api, 'GET', '/content/local/osct/versions.json');
+    check($status === 200 && $again['build'] === $second['build'] && count($data) === 2 && file_get_contents("$storeDir/local/osct/{$second['build']}/game.config.json") === $written, 'publishing the same draft again rewrites no version folder and adds no version');
     [$status, $data] = call($api, 'GET', '/editor/experiences/osct/versions', null, $editor);
     check($status === 200 && count($data['versions']) === 3 && $data['versions'][2]['note'] === 'first' && $data['versions'][0]['publishedBy'] === 'author@example.com', 'the publish log: three publishes, newest first');
     [, $data] = call($api, 'GET', '/editor/experiences', null, $editor);
     check($data['experiences'][0]['lastPublish']['env'] === 'local' && $data['experiences'][0]['lastPublish']['build'] === $second['build'], 'the experience list shows the last publish');
 
-    echo "editor: one experience per environment (#143)\n";
-    [, $data] = call($api, 'GET', '/content/local/latest.json');
-    [, $versions] = call($api, 'GET', '/content/local/versions.json');
+    echo "editor: a store per experience in every environment (#87)\n";
+    [, $data] = call($api, 'GET', '/content/local/osct/latest.json');
+    [, $versions] = call($api, 'GET', '/content/local/osct/versions.json');
     check(($data['experience'] ?? null) === 'osct' && array_column($versions, 'experience') === ['osct', 'osct'], 'latest.json and versions.json name the experience');
     [, $data] = call($api, 'GET', '/editor/experiences', null, $editor);
     check($data['experiences'][0]['live'] === [['env' => 'local', 'build' => $second['build'], 'since' => $data['experiences'][0]['live'][0]['since'] ?? null]] && is_string($data['experiences'][0]['live'][0]['since']), 'the experience list: the experience is live on local, with its build and since when');
-    check(count($data['environments']) === 1 && $data['environments'][0]['env'] === 'local' && $data['environments'][0]['experience'] === 'osct', 'the experience list names what each environment serves');
-    $manifest = json_decode((string) file_get_contents("$storeDir/local/latest.json"), true);
-    $withExperience = file_get_contents("$storeDir/local/latest.json");
+    check($data['environments'] === [], 'the experience list names no environment: every store could be read');
+    $manifest = json_decode((string) file_get_contents("$storeDir/local/osct/latest.json"), true);
+    $withExperience = file_get_contents("$storeDir/local/osct/latest.json");
     unset($manifest['experience']);
-    file_put_contents("$storeDir/local/latest.json", json_encode($manifest));
+    file_put_contents("$storeDir/local/osct/latest.json", json_encode($manifest));
     [, $data] = call($api, 'GET', '/editor/experiences/osct', null, $editor);
     check(($data['experience']['live'][0]['env'] ?? null) === 'local', "a manifest without experience: its version's game.config.json tells (the tree shows it live)");
-    file_put_contents("$storeDir/local/latest.json", $withExperience);
+    file_put_contents("$storeDir/local/osct/latest.json", $withExperience);
     $demo = $configuration;
     $demo['experience'] = ['id' => 'demo', 'title' => 'Demo'];
     [$status] = importing($api, 'demo', $editor, json_encode(['configuration' => $demo], $flags));
@@ -853,24 +853,23 @@ try {
     [, $data] = call($api, 'GET', '/editor/experiences/demo/assets', null, $editor);
     check($status === 200 && array_key_exists('credits', $data['assets'][1] ?? []) && $data['assets'][1]['credits'] === null, '#277: an empty line removes the credits');
     check(!array_key_exists('credits', $demoDraft()), '#292: … and an experience without credit lines has no credits');
-    [$status, $data] = call($api, 'POST', '/editor/experiences/demo/publish', ['env' => 'local'], $editor);
-    check($status === 409 && $data['error']['code'] === 'other-experience' && $data['error']['current']['experience'] === 'osct' && $data['error']['current']['title'] === 'Test Experience' && $data['error']['current']['build'] === $second['build'], 'publishing another experience over it → 409 other-experience naming the current one');
-    check(json_decode((string) file_get_contents("$storeDir/local/latest.json"), true)['experience'] === 'osct', '… and nothing moved');
-    [$status, $data] = call($api, 'POST', '/editor/experiences/demo/publish', ['env' => 'local', 'replace' => 'yes'], $editor);
-    check($status === 400 && $data['error']['code'] === 'invalid-replace', 'replace must be a boolean');
-    [$status, $demoPublish] = call($api, 'POST', '/editor/experiences/demo/publish', ['env' => 'local', 'replace' => true], $editor);
-    check($status === 200 && $demoPublish['replaced'] === ['experience' => 'osct', 'build' => $second['build']], 'replace: true publishes it and names the experience it replaced');
+    [$status, $demoPublish] = call($api, 'POST', '/editor/experiences/demo/publish', ['env' => 'local'], $editor);
+    check($status === 200 && !array_key_exists('replaced', $demoPublish) && is_file("$storeDir/local/demo/{$demoPublish['build']}/game.config.json"),
+        'another experience publishes to the same environment into its own store – no replace, nothing to confirm (#87)');
+    check(json_decode((string) file_get_contents("$storeDir/local/osct/latest.json"), true)['build'] === $second['build'], '… and the first experience\'s store is untouched');
+    [$status, $data] = call($api, 'GET', '/content/local/demo/latest.json');
+    check($status === 200 && $data['build'] === $demoPublish['build'] && $data['experience'] === 'demo', 'GET /content/local/demo/latest.json serves the demo\'s current version');
     [, $data] = call($api, 'GET', '/editor/experiences', null, $editor);
     $byId = array_column($data['experiences'], null, 'id');
-    check(($byId['demo']['live'][0]['build'] ?? null) === $demoPublish['build'] && $byId['osct']['live'] === [], 'now the demo is live on local, the experience is draft only');
-    [$status, $data] = call($api, 'POST', '/editor/experiences/demo/publish', ['env' => 'local'], $editor);
-    check($status === 200 && $data['replaced'] === null, 'the same experience again: no replace needed');
-    [$status] = call($api, 'POST', '/editor/experiences/osct/publish', ['env' => 'local'], $editor);
-    check($status === 409, 'the experience back needs replace too');
-    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/publish', ['env' => 'local', 'replace' => true], $editor);
-    [, $versions] = call($api, 'GET', '/content/local/versions.json');
+    check(($byId['demo']['live'][0]['build'] ?? null) === $demoPublish['build'] && ($byId['osct']['live'][0]['build'] ?? null) === $second['build'], 'both experiences are live on local, each with its own build');
+    [$status, $data] = call($api, 'POST', '/editor/experiences/demo/publish', ['env' => 'local', 'replace' => true], $editor);
+    check($status === 200 && $data['build'] === $demoPublish['build'], 'replace is no field any more – a body that still sends it publishes as before');
+    [, $versions] = call($api, 'GET', '/content/local/osct/versions.json');
     $current = array_values(array_filter($versions, fn($v) => $v['retiredAt'] === null));
-    check($status === 200 && $data['build'] === $second['build'] && $data['replaced']['experience'] === 'demo' && count($current) === 1 && $current[0]['build'] === $second['build'] && $current[0]['experience'] === 'osct', "switching back re-activates the experience's version (no new folder)");
+    check(count($current) === 1 && $current[0]['build'] === $second['build'] && $current[0]['experience'] === 'osct', "the first experience's versions.json still has its own version current");
+    [$status] = call($api, 'GET', '/content/local/no%20such/latest.json');
+    [$status2] = call($api, 'GET', '/content/local/latest.json');
+    check($status === 404 && $status2 === 404, 'the content route needs an experience id: a bad one or none → 404');
 
     echo "editor: import with a version comparison before it overwrites (#183)\n";
     $raw = fn(array $body) => call($api, 'POST', '/editor/experiences/osct/import', null, $editor, 'http://localhost:5173', json_encode($body, $flags));
@@ -948,32 +947,36 @@ try {
     [$status, $data] = $preview($api, ['configuration' => $bad]);
     check($status === 400 && $data['error']['code'] === 'invalid-entity', 'checked as the import checks it: an unknown entity type → 400');
     [$status, $data] = $preview($api, ['source' => 'cdn']);
+    check($status === 400 && $data['error']['code'] === 'invalid-experience', 'source cdn without an experience on an instance without a default (EXPERIENCE) → 400 invalid-experience');
+    [$status, $data] = $preview($api, ['source' => 'cdn', 'experience' => 'osct']);
     check($status === 400 && $data['error']['code'] === 'no-content-base', 'source cdn without CONTENT_BASE_URL → 400 no-content-base');
     [$status] = call($api, 'POST', '/editor/import/preview', ['source' => 'cdn']);
     check($status === 401, 'without a token → 401');
     // An instance whose content base is what the first one published to local (one request at a time per PHP server)
-    [, $latest] = call($api, 'GET', '/content/local/latest.json');
-    $cdnApi = startApi(['CONTENT_BASE_URL' => "$api/content/local/"] + $settings);
+    [, $latest] = call($api, 'GET', '/content/local/osct/latest.json');
+    $cdnApi = startApi(['CONTENT_BASE_URL' => "$api/content/local/", 'EXPERIENCE' => 'osct'] + $settings);
     [$status, $data] = $preview($cdnApi, ['source' => 'cdn']);
-    check($status === 200 && $data['source'] === 'cdn' && $data['contentBase'] === "$api/content/local" && $data['manifest']['url'] === "$api/content/local/latest.json"
+    check($status === 200 && $data['source'] === 'cdn' && $data["contentBase"] === "$api/content/local/osct" && $data['manifest']['url'] === "$api/content/local/osct/latest.json"
         && $data['manifest']['build'] === $latest['build'] && $data['manifest']['activatedAt'] === $latest['activatedAt'] && $data['incoming']['source'] === 'cdn'
-        && $data['incoming']['from'] === "$api/content/local/{$latest['build']}" && $data['incoming']['experience'] === 'osct' && $data['existing']['experience']['id'] === 'osct',
-        'preview of the CDN: the content base, its latest.json (build, activated), the experience in it and the draft it replaces');
+        && $data['incoming']['from'] === "$api/content/local/osct/{$latest['build']}" && $data['incoming']['experience'] === 'osct' && $data['existing']['experience']['id'] === 'osct',
+        'preview of the CDN: the default experience\'s store below the environment base (#87), its latest.json (build, activated), the experience in it and the draft it replaces');
     [$status, $data] = call($cdnApi, 'POST', '/editor/experiences/osct/import', ['source' => 'cdn'], $editor);
-    check($status === 409 && $data['error']['code'] === 'confirm-import' && $data['error']['comparison']['incoming']['from'] === "$api/content/local/{$latest['build']}",
-        '… and the import of the CDN then answers with the comparison as before');
-    $missing = startApi(['CONTENT_BASE_URL' => "$api/content/nowhere"] + $settings);
+    check($status === 409 && $data['error']['code'] === 'confirm-import' && $data['error']['comparison']['incoming']['from'] === "$api/content/local/osct/{$latest['build']}",
+        '… and the import of the CDN (the store of the path\'s experience) then answers with the comparison as before');
+    [$status, $data] = $preview($cdnApi, ['source' => 'cdn', 'experience' => 'nobody']);
+    check($status === 502 && $data['error']['code'] === 'content-fetch-failed' && $data['error']['url'] === "$api/content/local/nobody/latest.json", 'a named experience is read from its own store – one never published has none');
+    $missing = startApi(['CONTENT_BASE_URL' => "$api/content/nowhere", 'EXPERIENCE' => 'osct'] + $settings);
     [$status, $data] = $preview($missing, ['source' => 'cdn']);
-    check($status === 502 && $data['error']['code'] === 'content-fetch-failed' && $data['error']['url'] === "$api/content/nowhere/latest.json" && str_contains($data['error']['message'], "$api/content/nowhere/latest.json answered 404"),
+    check($status === 502 && $data['error']['code'] === 'content-fetch-failed' && $data['error']['url'] === "$api/content/nowhere/osct/latest.json" && str_contains($data['error']['message'], "$api/content/nowhere/osct/latest.json answered 404"),
         'a content base without latest.json → 502 content-fetch-failed with the URL');
-    $withBuild = file_get_contents("$storeDir/local/latest.json");
-    file_put_contents("$storeDir/local/latest.json", json_encode(['experience' => 'osct']));
+    $withBuild = file_get_contents("$storeDir/local/osct/latest.json");
+    file_put_contents("$storeDir/local/osct/latest.json", json_encode(['experience' => 'osct']));
     [$status, $data] = $preview($cdnApi, ['source' => 'cdn']);
-    file_put_contents("$storeDir/local/latest.json", $withBuild);
-    check($status === 502 && $data['error']['code'] === 'content-fetch-failed' && $data['error']['url'] === "$api/content/local/latest.json" && str_contains($data['error']['message'], 'names no content version'),
+    file_put_contents("$storeDir/local/osct/latest.json", $withBuild);
+    check($status === 502 && $data['error']['code'] === 'content-fetch-failed' && $data['error']['url'] === "$api/content/local/osct/latest.json" && str_contains($data['error']['message'], 'names no content version'),
         'a latest.json that names no build → 502 with the URL');
     echo "editor: assets base\n";
-    $base = 'https://cdn.example/staging/0123456789ab';
+    $base = 'https://cdn.example/osct/staging/0123456789ab';
     [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files, 'assetsBase' => "$base/"], $flags));
     check($status === 200, 're-import with an assets base');
     [, $m] = call($api, 'GET', '/editor/experiences/osct/draft/latest.json', null, $editor);
@@ -1081,18 +1084,18 @@ try {
     [$status, $carried] = call($api, 'POST', '/editor/experiences/osct/publish', null, $editor, 'http://localhost:5173', $raw);
     check($status === 200, 'publish carrying the saved source → 200: the component is provided');
     $src = '/assets/content/plugins/tint/plugin-' . substr(hash('sha256', $tintCode), 0, 12) . '.js';
-    $publishedConfig = json_decode((string) file_get_contents("$storeDir/local/{$carried['build']}/game.config.json"));
-    check(is_file("$storeDir/local/{$carried['build']}$src") && file_get_contents("$storeDir/local/{$carried['build']}$src") === $tintCode, 'the module is in the version folder, named after its code');
+    $publishedConfig = json_decode((string) file_get_contents("$storeDir/local/osct/{$carried['build']}/game.config.json"));
+    check(is_file("$storeDir/local/osct/{$carried['build']}$src") && file_get_contents("$storeDir/local/osct/{$carried['build']}$src") === $tintCode, 'the module is in the version folder, named after its code');
     check(count($publishedConfig->plugins) === 1 && $publishedConfig->plugins[0]->id === 'tint' && $publishedConfig->plugins[0]->src === $src && $publishedConfig->plugins[0]->api === '1.7'
         && $publishedConfig->plugins[0]->registered->components->tint->params instanceof stdClass, 'the configuration declares it by its content path, with the specs as sent ({} stays an object)');
-    $servedPlugin = (string) @file_get_contents("$api/content/local/{$carried['build']}$src", false, stream_context_create(['http' => ['ignore_errors' => true]]));
+    $servedPlugin = (string) @file_get_contents("$api/content/local/osct/{$carried['build']}$src", false, stream_context_create(['http' => ['ignore_errors' => true]]));
     check($servedPlugin === $tintCode && (bool) preg_grep('#^Content-Type: text/javascript#', $http_response_header) && (bool) preg_grep('/^Access-Control-Allow-Origin: \*$/', $http_response_header),
         'the local store serves it as JavaScript to any origin');
-    [$status] = call($api, 'GET', "/content/local/{$carried['build']}/assets/content/plugins/tint/plugin.js");
+    [$status] = call($api, 'GET', "/content/local/osct/{$carried['build']}/assets/content/plugins/tint/plugin.js");
     check($status === 404, 'nothing else below the version\'s plugins folder is served');
     $stale = '{"env":"local","plugins":[{"id":"tint","code":' . json_encode($tintCode) . ',"api":"1.7","registered":{"components":{"glow":{"description":"x","params":{}}}}}]}';
     [$status, $staleBuild] = call($api, 'POST', '/editor/experiences/osct/publish', null, $editor, 'http://localhost:5173', $stale);
-    $staleConfig = json_decode((string) file_get_contents("$storeDir/local/{$staleBuild['build']}/game.config.json"));
+    $staleConfig = json_decode((string) file_get_contents("$storeDir/local/osct/{$staleBuild['build']}/game.config.json"));
     check($status === 200 && !property_exists($staleConfig->plugins[0], 'registered'), 'specs naming other types than the saved source → declared without them');
     $otherCode = str_replace('rgba', 'rgba * 0.5', $tintCode);
     [$status, $changed] = call($api, 'POST', '/editor/experiences/osct/publish', null, $editor, 'http://localhost:5173', $carry([['id' => 'tint', 'code' => $otherCode, 'api' => '1.7']]));
@@ -1350,10 +1353,10 @@ try {
     check(count($imported) === 2 && $imported[0]['name'] === 'racoon.glb' && $imported[0]['kind'] === 'glb' && $imported[0]['size'] === 1234 && $imported[0]['url'] === '/assets/content/entries/racoon/racoon.glb' && $imported[1]['kind'] === 'image', 'and the files of the import (files.json) after it');
     check($imported[0]['usages'] === 1 && $imported[1]['usages'] === 1, 'an imported file counts its uses (the entity in the target, the target image)');
     // Below an assets base the list shows CDN URLs, the rows still name the content paths: the uses count all the same (#121)
-    [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files, 'assetsBase' => 'https://cdn.example/staging/0123456789ab/'], $flags));
+    [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files, 'assetsBase' => 'https://cdn.example/osct/staging/0123456789ab/'], $flags));
     [, $data] = call($api, 'GET', '/editor/experiences/osct/assets', null, $editor);
     $based = array_values(array_filter($data['assets'], fn($a) => $a['imported']));
-    check($status === 200 && $based[0]['url'] === 'https://cdn.example/staging/0123456789ab/assets/content/entries/racoon/racoon.glb' && $based[0]['usages'] === 1 && $based[1]['usages'] === 1, 'an imported file used by a target counts 1 below an assets base too');
+    check($status === 200 && $based[0]['url'] === 'https://cdn.example/osct/staging/0123456789ab/assets/content/entries/racoon/racoon.glb' && $based[0]['usages'] === 1 && $based[1]['usages'] === 1, 'an imported file used by a target counts 1 below an assets base too');
     [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files], $flags));
     check($status === 200, 'import again without the base');
     [, $filtered] = call($api, 'GET', '/editor/experiences/osct/assets?kind=image', null, $editor);
@@ -2140,14 +2143,14 @@ try {
     // A staging instance with the CDN connected: it publishes to staging only, and staging goes to the zone (#183)
     $bunnyApi = startApi(['ENV' => 'staging'] + $bunny + $settings);
     [$status, $data] = call($bunnyApi, 'POST', '/editor/experiences/osct/publish', ['env' => 'staging'], $editor);
-    check($status === 200 && is_file("$bunnyDir/osct/staging/{$data['build']}/game.config.json") && is_file("$bunnyDir/osct/staging/{$data['build']}/files.json"), 'staging goes to the storage zone: osct/staging/<build>/');
-    $latest = json_decode((string) @file_get_contents("$bunnyDir/osct/staging/latest.json"), true);
-    $versions = json_decode((string) @file_get_contents("$bunnyDir/osct/staging/versions.json"), true);
+    check($status === 200 && is_file("$bunnyDir/osct/osct/staging/osct/{$data['build']}/game.config.json") && is_file("$bunnyDir/osct/osct/staging/osct/{$data['build']}/files.json"), 'staging goes to the storage zone: <title>/<env>/<experience>/<build>/ (osct/staging/osct/)');
+    $latest = json_decode((string) @file_get_contents("$bunnyDir/osct/osct/staging/osct/latest.json"), true);
+    $versions = json_decode((string) @file_get_contents("$bunnyDir/osct/osct/staging/osct/versions.json"), true);
     check(($latest['build'] ?? null) === $data['build'] && count($versions ?? []) === 1 && $versions[0]['build'] === $data['build'] && $versions[0]['retiredAt'] === null, 'latest.json and versions.json on the zone');
     check(($latest['experience'] ?? null) === 'osct' && ($versions[0]['experience'] ?? null) === 'osct', 'the zone\'s latest.json and versions.json name the experience');
     [, $data] = call($bunnyApi, 'GET', '/editor/experiences', null, $editor);
     check(in_array('staging', array_column(array_column($data['experiences'], null, 'id')['osct']['live'], 'env'), true), 'the experience list reads the zone: live on staging');
-    [$status] = call($bunnyApi, 'GET', '/content/staging/latest.json');
+    [$status] = call($bunnyApi, 'GET', '/content/staging/osct/latest.json');
     check($status === 404, 'nothing local for staging on a bunny host');
     foreach (['local', 'production'] as $env) {
         [$status, $data] = call($bunnyApi, 'POST', '/editor/experiences/osct/publish', ['env' => $env], $editor);
@@ -2159,11 +2162,11 @@ try {
     check($byEnv['staging']['store'] === 'cdn' && $byEnv['staging']['publish'] === true && $byEnv['staging']['warning'] === null && $byEnv['production']['store'] === 'cdn' && $byEnv['production']['publish'] === false,
         'the CDN has priority: staging · CDN, no warning');
     [, $data] = call($bunnyApi, 'GET', '/editor/experiences', null, $editor);
-    check(!in_array('local', array_column($data['environments'], 'env'), true), 'the experience list reads no local store on a deployed instance');
+    check($data['environments'] === [], 'the experience list reads no local store on a deployed instance, and every store on the zone could be read');
     // A developer's machine with the CDN's key: local still stays in the directory store – with the warning
     $localBunny = startApi($bunny + $settings);
     [$status, $data] = call($localBunny, 'POST', '/editor/experiences/osct/publish', ['env' => 'local'], $editor);
-    check($status === 200 && $data['store'] === 'server' && is_file("$storeDir/local/{$data['build']}/game.config.json"), 'the environment local stays in the directory store');
+    check($status === 200 && $data['store'] === 'server' && is_file("$storeDir/local/osct/{$data['build']}/game.config.json"), 'the environment local stays in the directory store');
     [, $data] = call($localBunny, 'GET', '/editor/environments', null, $editor);
     $byEnv = array_column($data['environments'], null, 'env');
     check($byEnv['local']['store'] === 'server' && is_string($byEnv['local']['warning']) && $byEnv['staging']['store'] === 'cdn' && $byEnv['staging']['publish'] === false, 'local · this server (warned), staging · CDN (not a target here)');
@@ -2171,8 +2174,8 @@ try {
     $plainStaging = startApi(['ENV' => 'staging'] + $settings);
     [, $data] = call($plainStaging, 'GET', '/editor/environments', null, $editor);
     check($data['environments'][0]['env'] === 'staging' && $data['environments'][0]['store'] === 'server' && str_starts_with((string) $data['environments'][0]['warning'], 'No CDN connected'), 'staging without a CDN: staging · this server, with the warning');
-    [$status, $data] = call($plainStaging, 'POST', '/editor/experiences/osct/publish', ['env' => 'staging', 'replace' => true], $editor);
-    check($status === 200 && $data['store'] === 'server' && is_file("$storeDir/staging/{$data['build']}/game.config.json"), '… and publishes there');
+    [$status, $data] = call($plainStaging, 'POST', '/editor/experiences/osct/publish', ['env' => 'staging'], $editor);
+    check($status === 200 && $data['store'] === 'server' && is_file("$storeDir/staging/osct/{$data['build']}/game.config.json"), '… and publishes there');
     // A deployed instance builds the URLs of stored files from APP_URL, never from the client's host headers (#209)
     $forged = ['X-Forwarded-Host: evil.example', 'X-Forwarded-Proto: http'];
     [$status, $data] = upload($plainStaging, 'POST', '/editor/experiences/osct/assets', pngOf(1, 1, 0x030201), 'forged.png', $editor, 'application/octet-stream', $forged);
@@ -2183,7 +2186,7 @@ try {
     call($plainStaging, 'DELETE', "/editor/experiences/osct/assets/{$forgedAsset['id']}?force=1", null, $editor);
     [, $data] = call($plainStaging, 'GET', '/editor/environments', null, $editor, 'http://localhost:5173', null, $forged);
     check(($data['environments'][0]['url'] ?? null) === 'https://app.example/api/content/staging', '#209: the environments list names APP_URL\'s host for the server store too');
-    $cdnAssets = startApi(['ENV' => 'staging', 'CONTENT_BASE_URL' => 'https://cdn.example/staging/'] + $bunny + $settings);
+    $cdnAssets = startApi(['ENV' => 'staging', 'CONTENT_BASE_URL' => 'https://cdn.example/osct/staging/'] + $bunny + $settings);
     [$status, $data] = upload($cdnAssets, 'POST', '/editor/experiences/osct/assets', pngOf(1, 1, 0x0a0b0c), 'cdn.png', $editor);
     $cdnAsset = $data['asset'] ?? [];
     check($status === 201 && preg_match('#^https://cdn\.example/assets/osct/[0-9a-f-]{36}/v1\.' . $ext . '$#', (string) ($cdnAsset['url'] ?? '')) === 1
@@ -2220,9 +2223,9 @@ try {
         return "http://127.0.0.1:$port/api";
     };
     $legacyStore = function (string $api): void {
-        mkdir("$api/db/content/local/0123456789ab", 0777, true);
-        file_put_contents("$api/db/content/local/latest.json", json_encode(['build' => '0123456789ab', 'experience' => 'osct']));
-        file_put_contents("$api/db/content/local/0123456789ab/game.config.json", '{"experience":{"id":"osct"}}');
+        mkdir("$api/db/content/local/osct/0123456789ab", 0777, true);
+        file_put_contents("$api/db/content/local/osct/latest.json", json_encode(['build' => '0123456789ab', 'experience' => 'osct']));
+        file_put_contents("$api/db/content/local/osct/0123456789ab/game.config.json", '{"experience":{"id":"osct"}}');
     };
     $copySecret = ['SECRET' => str_repeat('s', 40), 'MAIL_TRANSPORT' => 'log', 'ALLOWED_ORIGINS' => 'http://localhost:5173'];
 
@@ -2242,9 +2245,9 @@ try {
     $devBase = $startCopy($devApi, $copySecret, "$tmp/dev-config.php");
     [$status, $data] = call($devBase, 'GET', '/health');
     check($status === 200 && $data['db'] === 'ok', 'the first start after the move answers');
-    check(is_file("$dev/content-store/local/latest.json") && is_file("$dev/content-store/local/0123456789ab/game.config.json") && !file_exists("$devApi/db/content"),
+    check(is_file("$dev/content-store/local/osct/latest.json") && is_file("$dev/content-store/local/osct/0123456789ab/game.config.json") && !file_exists("$devApi/db/content"),
         'the content store moved from server/api/db/content to content-store/ at the top level');
-    [$status, $data] = call($devBase, 'GET', '/content/local/latest.json');
+    [$status, $data] = call($devBase, 'GET', '/content/local/osct/latest.json');
     check($status === 200 && $data['build'] === '0123456789ab', 'GET /content/local/… serves it from there');
     $kept = is_file("$dev/var/db/local.sqlite") ? (new PDO("sqlite:$dev/var/db/local.sqlite"))->query('SELECT note FROM kept')->fetchColumn() : null;
     check($kept === "the developer's data" && !file_exists("$devApi/db/local.sqlite"), "the SQLite file named in config.local.php moved to var/db/ with the developer's data");
@@ -2264,7 +2267,7 @@ try {
     file_put_contents("$both/content-store/staging/latest.json", '{"build":"aaaaaaaaaaaa"}');
     $bothBase = $startCopy("$both/server/api", $copySecret + ['DB_SQLITE_PATH' => "$tmp/both.sqlite", 'LOG_PATH' => "$tmp/both-error.log"]);
     call($bothBase, 'GET', '/health');
-    check(is_file("$both/server/api/db/content/local/latest.json") && is_file("$both/content-store/staging/latest.json") && !file_exists("$both/content-store/local"),
+    check(is_file("$both/server/api/db/content/local/osct/latest.json") && is_file("$both/content-store/staging/latest.json") && !file_exists("$both/content-store/local"),
         'when the content store is not empty, the old folder stays where it is (both kept, the new one used)');
 
     // A setting that points elsewhere (a test, a mounted volume): used as it is, the old folder is never touched
@@ -2272,8 +2275,8 @@ try {
     $apiCopy("$elsewhere/server/api");
     $legacyStore("$elsewhere/server/api");
     $elsewhereBase = $startCopy("$elsewhere/server/api", $copySecret + ['CONTENT_STORE_DIR' => "$tmp/mounted-store", 'DB_SQLITE_PATH' => "$tmp/elsewhere.sqlite", 'LOG_PATH' => "$tmp/elsewhere-error.log"]);
-    [$status] = call($elsewhereBase, 'GET', '/content/local/latest.json');
-    check($status === 404 && is_file("$elsewhere/server/api/db/content/local/latest.json") && !file_exists("$tmp/mounted-store/local"), 'OSCT_CONTENT_STORE_DIR elsewhere: nothing moves into it');
+    [$status] = call($elsewhereBase, 'GET', '/content/local/osct/latest.json');
+    check($status === 404 && is_file("$elsewhere/server/api/db/content/local/osct/latest.json") && !file_exists("$tmp/mounted-store/local"), 'OSCT_CONTENT_STORE_DIR elsewhere: nothing moves into it');
 
     // A deployed layout (the API at <docroot>/api, the FTPS staging): the store and var/ inside the API's folder, where
     // every request goes through index.php – outside the uploaded code, which the upload never deletes
@@ -2282,8 +2285,8 @@ try {
     $legacyStore("$site/api");
     file_put_contents("$site/api/db/error.log", "an old staging error\n");
     $siteBase = $startCopy("$site/api", $copySecret + ['DB_SQLITE_PATH' => "$tmp/site.sqlite", 'ENV' => 'staging']);
-    [$status, $data] = call($siteBase, 'GET', '/content/local/latest.json');
-    check(is_file("$site/api/content-store/local/latest.json") && !file_exists("$site/api/db/content") && $status === 200,
+    [$status, $data] = call($siteBase, 'GET', '/content/local/osct/latest.json');
+    check(is_file("$site/api/content-store/local/osct/latest.json") && !file_exists("$site/api/db/content") && $status === 200,
         'deployed: the old store moved to api/content-store (served as before)');
     check(str_starts_with((string) @file_get_contents("$site/api/var/log/error.log"), 'an old staging error') && trim((string) @file_get_contents("$site/api/var/.htaccess")) === 'Require all denied',
         'deployed: the error log moved to api/var/log/, and var/ denies direct requests');

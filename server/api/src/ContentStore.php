@@ -2,14 +2,16 @@
 declare(strict_types=1);
 
 /**
- * Where published content versions go – the CDN layout of docs/content-cdn.md (shared/types/content-manifest.ts):
- * `<env>/<build>/game.config.json` and `files.json` (never overwritten), `<env>/versions.json` (every version and
- * when it was current) and `<env>/latest.json` (the current one, written last). Two stores behind one interface:
- * the directory CONTENT_STORE_DIR, served by `GET /content/{env}/{path}` (development, a host without the CDN),
- * and bunny.net's Storage API – the zone the osct CLI syncs to, with the same paths and headers, so the reader
- * cannot tell who published. A connected CDN has priority: with CONTENT_STORE `bunny` every environment goes there
- * except `local`, which always stays in the directory (a developer's machine).
- * An environment serves one experience, the last one published there: latest.json names it (`experience`).
+ * Where published content versions go – the store layout of docs/content-cdn.md (shared/api/content-store.ts, #87):
+ * every experience has a store of its own in each environment, its root `<title>/<env>/<experience>` on the storage
+ * zone (`<env>/<experience>` in the directory store – one instance, one title), and in it
+ * `<build>/game.config.json` and `files.json` (never overwritten), `versions.json` (every version and when it was
+ * current) and `latest.json` (the current one, written last). Two stores behind one interface: the directory
+ * CONTENT_STORE_DIR, served by `GET /content/{env}/{experience}/{path}` (development, a host without the CDN), and
+ * bunny.net's Storage API – the zone the osct CLI syncs to, with the same paths and headers, so the reader cannot tell
+ * who published. A connected CDN has priority: with CONTENT_STORE `bunny` every environment goes there except `local`,
+ * which always stays in the directory (a developer's machine). The title is the instance's (`Config::title()`).
+ * The Library's uploads are a store of their own (`assets()`): `assets/<experience>/…` at the zone root, no title.
  * An instance publishes to its own environment only (ENV, `Config::env()`); `local` exists only where ENV is local.
  */
 final class ContentStore
@@ -30,20 +32,31 @@ final class ContentStore
     /** A version folder name: the first 12 hex digits of the content hash (content-manifest.ts `CONTENT_BUILD`) */
     public const BUILD = '/^[0-9a-f]{12}$/';
 
-    /** The files below an environment that the local store serves (nothing else, no other folders) */
-    private const SERVED = '#^(latest\.json|versions\.json|[0-9a-f]{12}/(game\.config|files)\.json)$#';
+    /** The files below an experience's store in an environment that the local store serves (nothing else, no other folders) */
+    private const SERVED = '#^' . Editor::ID . '/(latest\.json|versions\.json|[0-9a-f]{12}/(game\.config|files)\.json)$#';
     /** A Code tab plugin a publish put into a version (#78): JavaScript, loaded cross-origin by the reader */
-    private const SERVED_PLUGIN = '#^[0-9a-f]{12}/assets/content/plugins/[a-z][a-z0-9-]{0,39}/plugin-[0-9a-f]{12}\.js$#';
+    private const SERVED_PLUGIN = '#^' . Editor::ID . '/[0-9a-f]{12}/assets/content/plugins/[a-z][a-z0-9-]{0,39}/plugin-[0-9a-f]{12}\.js$#';
     /** The assets' files (Assets.php): `<experience>/<asset>/v<n>.<ext>` under the `assets` environment – any experience id (`Editor::ID`) */
     private const SERVED_ASSET = '#^' . Editor::ID . '/[0-9a-f-]{36}/v\d+\.([a-z0-9]{2,5})$#';
 
-    private function __construct(private readonly string $kind, private readonly string $env)
+    /** `$root`: the store's folder below the zone or the directory – every path of put/get/delete/exists is below it */
+    private function __construct(private readonly string $kind, private readonly string $root)
     {
     }
 
-    public static function for(string $env): self
+    /** An experience's store in an environment: `<title>/<env>/<experience>` on the storage zone, `<env>/<experience>` in the directory */
+    public static function for(string $env, string $experienceId): self
     {
-        return new self($env !== 'local' && Config::get('CONTENT_STORE') === 'bunny' ? 'bunny' : 'local', $env);
+        if (!preg_match(self::ENV_NAME, $env)) throw new ApiError(400, 'invalid-env', "\"$env\" is no environment name.");
+        if (!preg_match('/^' . Editor::ID . '$/', $experienceId)) throw new ApiError(400, 'invalid-id', "\"$experienceId\" is no experience id.");
+        $bunny = $env !== 'local' && Config::get('CONTENT_STORE') === 'bunny';
+        return new self($bunny ? 'bunny' : 'local', $bunny ? Config::title() . "/$env/$experienceId" : "$env/$experienceId");
+    }
+
+    /** The Library's uploads (Assets::STORE_ENV): `assets/<experience>/<asset>/v<n>.<ext>` at the zone root (no title) or in the directory */
+    public static function assets(): self
+    {
+        return new self(Config::get('CONTENT_STORE') === 'bunny' ? 'bunny' : 'local', Assets::STORE_ENV);
     }
 
     public function isLocal(): bool
@@ -65,7 +78,8 @@ final class ContentStore
     /**
      * What the editor shows per environment (GET /editor/environments): its backend – `cdn` (the storage zone) or
      * `server` (the directory store, served by this API) –, whether this instance publishes there (its own environment
-     * only), where readers load it, and the warning wherever the directory store is the publish target
+     * only), where readers load it – the environment base, an experience's store is `<url>/<experience>` – and the
+     * warning wherever the directory store is the publish target
      * @return list<array{env: string, store: string, publish: bool, url: ?string, warning: ?string}>
      */
     public static function describe(): array
@@ -73,7 +87,7 @@ final class ContentStore
         $own = Config::env();
         $list = [];
         foreach (self::environments() as $env) {
-            $local = self::for($env)->isLocal();
+            $local = $env === 'local' || Config::get('CONTENT_STORE') !== 'bunny';
             $publish = $env === $own;
             $cdn = rtrim(Config::get('CONTENT_BASE_URL'), '/');
             $list[] = [
@@ -87,14 +101,14 @@ final class ContentStore
         return $list;
     }
 
-    /** Writes a file below the environment (folders are created; a write is complete or absent, never half) */
+    /** Writes a file below the store (folders are created; a write is complete or absent, never half) */
     public function put(string $path, string $data, string $mime = 'application/json'): void
     {
         if ($this->kind === 'bunny') {
             $this->request('PUT', $path, $data, [201], [], $mime);
             return;
         }
-        $file = self::dir() . "/{$this->env}/$path";
+        $file = self::dir() . "/{$this->root}/$path";
         $folder = dirname($file);
         if (!is_dir($folder) && !@mkdir($folder, 0775, true) && !is_dir($folder)) {
             throw new ApiError(502, 'content-store-failed', "The content store folder $folder cannot be created.");
@@ -102,29 +116,29 @@ final class ContentStore
         $temp = "$file." . bin2hex(random_bytes(4)) . '.tmp';
         if (@file_put_contents($temp, $data) !== strlen($data) || (is_file($file) && !@unlink($file)) || !@rename($temp, $file)) {
             @unlink($temp);
-            throw new ApiError(502, 'content-store-failed', "The content store cannot write $this->env/$path.");
+            throw new ApiError(502, 'content-store-failed', "The content store cannot write $this->root/$path.");
         }
     }
 
-    /** A file below the environment, null when there is none */
+    /** A file below the store, null when there is none */
     public function get(string $path): ?string
     {
         if ($this->kind === 'bunny') {
             [$status, $body] = $this->request('GET', $path, null, [200, 404]);
             return $status === 404 ? null : $body;
         }
-        $file = self::dir() . "/{$this->env}/$path";
+        $file = self::dir() . "/{$this->root}/$path";
         return is_file($file) ? (string) file_get_contents($file) : null;
     }
 
-    /** Removes a file below the environment (none = fine) */
+    /** Removes a file below the store (none = fine) */
     public function delete(string $path): void
     {
         if ($this->kind === 'bunny') {
             $this->request('DELETE', $path, null, [200, 404]);
             return;
         }
-        $file = self::dir() . "/{$this->env}/$path";
+        $file = self::dir() . "/{$this->root}/$path";
         if (is_file($file)) @unlink($file);
     }
 
@@ -135,13 +149,13 @@ final class ContentStore
             [$status] = $this->request('GET', $path, null, [200, 206, 404], ['Range: bytes=0-0']);
             return $status !== 404;
         }
-        return is_file(self::dir() . "/{$this->env}/$path");
+        return is_file(self::dir() . "/{$this->root}/$path");
     }
 
     /**
-     * The experience this environment serves, after latest.json: null when nothing is published here; `experience` null when it
-     * cannot be told (an unreadable manifest, a version without its configuration). A manifest without `experience` was
-     * written before it existed – the experience of its version's game.config.json (`experience.id`) tells.
+     * What this store serves, after latest.json: null when nothing is published here; `experience` = the experience its
+     * manifest names (null when it cannot be told: an unreadable manifest, a version without its configuration – a
+     * manifest without `experience` was written before it existed, its version's game.config.json `experience.id` tells)
      * @return array{experience: ?string, build: ?string, since: ?string}|null
      */
     public function live(): ?array
@@ -161,15 +175,16 @@ final class ContentStore
     }
 
     /**
-     * GET /content/{env}/{path} – a json file of the local store, an asset of the Library, or a plugin a publish put into
-     * a version (#78). Public, like the CDN: latest.json and versions.json are revalidated, a version folder's files never
-     * change.
+     * GET /content/{env}/{experience}/{path} – a json file of an experience's local store, an asset of the Library
+     * (`/content/assets/{experience}/…`), or a plugin a publish put into a version (#78). Public, like the CDN:
+     * latest.json and versions.json are revalidated, a version folder's files never change.
      */
     public static function serve(string $env, string $path): never
     {
-        $asset = $env === Assets::STORE_ENV && preg_match(self::SERVED_ASSET, $path, $match) ? strtolower($match[1]) : null;
-        if ($asset === null && preg_match(self::SERVED_PLUGIN, $path)) $asset = 'js';
-        if ($asset === null && !preg_match(self::SERVED, $path)) throw new ApiError(404, 'not-found', 'Unknown endpoint.');
+        $isAssets = $env === Assets::STORE_ENV;
+        $asset = $isAssets && preg_match(self::SERVED_ASSET, $path, $match) ? strtolower($match[1]) : null;
+        if ($asset === null && !$isAssets && preg_match(self::SERVED_PLUGIN, $path)) $asset = 'js';
+        if ($asset === null && ($isAssets || !preg_match(self::SERVED, $path))) throw new ApiError(404, 'not-found', 'Unknown endpoint.');
         $file = self::dir() . "/$env/$path";
         if (!is_file($file)) throw new ApiError(404, 'not-found', 'No such content file.');
         http_response_code(200);
@@ -178,7 +193,7 @@ final class ContentStore
             $asset !== null => Assets::MIMES[$asset] ?? 'application/octet-stream',
             default => 'application/json; charset=utf-8',
         });
-        header('Cache-Control: ' . (str_contains($path, '/') ? 'public, max-age=31536000, immutable' : 'no-cache'));
+        header('Cache-Control: ' . (preg_match('#/(latest|versions)\.json$#', $path) ? 'no-cache' : 'public, max-age=31536000, immutable'));
         header('Content-Length: ' . (string) filesize($file));
         // Media are loaded cross-origin by the reader's engine (video textures, models): any origin may read them
         if ($asset !== null) header('Access-Control-Allow-Origin: *');
@@ -229,7 +244,7 @@ final class ContentStore
     }
 
     /**
-     * One call to the Storage API: `{method} https://{endpoint}/{zone}/{env}/{path}` with the zone's access key;
+     * One call to the Storage API: `{method} https://{endpoint}/{zone}/{root}/{path}` with the zone's access key;
      * uploads carry the checksum the server verifies. Any other answer than `$ok` → 502 content-store-failed.
      * @param int[] $ok
      * @param string[] $headers
@@ -251,7 +266,7 @@ final class ContentStore
         $status = isset($http_response_header[0]) && preg_match('#^HTTP/\S+\s(\d{3})#', $http_response_header[0], $match) ? (int) $match[1] : 0;
         if ($response === false || !in_array($status, $ok, true)) {
             error_log("[osct] content store: $method $url answered " . ($status ?: 'nothing') . ($response ? ' ' . substr($response, 0, 200) : ''));
-            throw new ApiError(502, 'content-store-failed', "The content store answered " . ($status ?: 'nothing') . " for $method $this->env/$path.");
+            throw new ApiError(502, 'content-store-failed', "The content store answered " . ($status ?: 'nothing') . " for $method $this->root/$path.");
         }
         return [$status, $response];
     }
@@ -264,7 +279,7 @@ final class ContentStore
         }
         $endpoint = rtrim(Config::get('BUNNY_STORAGE_ENDPOINT'), '/');
         $origin = preg_match('#^https?://#', $endpoint) ? $endpoint : "https://$endpoint";
-        $segments = array_map('rawurlencode', explode('/', "{$this->env}/$path"));
+        $segments = array_map('rawurlencode', explode('/', "{$this->root}/$path"));
         return "$origin/" . rawurlencode($zone) . '/' . implode('/', $segments);
     }
 }

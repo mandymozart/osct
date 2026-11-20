@@ -18,9 +18,12 @@ export const FIXTURE_DIR = resolve(projectRoot, 'fixtures/content');
 export const FIXTURE_MARKER = 'FIXTURE.md';
 /** The demo (fixtures/demo, docs/plugins.md "The demo"): a sandbox next to the fixture */
 export const DEMO_DIR = resolve(projectRoot, 'fixtures/demo');
-/** Marks the demo; a build with it goes to the environment DEMO_ENV only – never where the experience's current version is */
+/**
+ * Marks the demo – an experience of its own (`demo`), so its store never touches the book's (#87); a build with it is
+ * never synced to DEMO_REFUSED_ENV: readers of the app never get the demo
+ */
 export const DEMO_MARKER = 'DEMO.md';
-export const DEMO_ENV = 'demo';
+export const DEMO_REFUSED_ENV = 'production';
 
 // The content source. The content is not in this repository (#5): OSCT_CONTENT_DIR names its folder (absolute, or
 // relative to the repository root – `fixtures/content` for the fixture). No default (#33): unset, CONTENT_DIR is empty

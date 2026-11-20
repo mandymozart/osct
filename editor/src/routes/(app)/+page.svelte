@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { resolve } from "$app/paths";
   import { goto } from "$app/navigation";
-  import { errorText, listExperiences, type ExperienceSummary, type EnvironmentServing } from "#lib/api.js";
+  import { errorText, listExperiences, type ExperienceSummary, type EnvironmentUnreadable } from "#lib/api.js";
   import ImportForm from "#lib/ImportForm.svelte";
   import ExperienceCover from "#lib/ExperienceCover.svelte";
   import InfoView from "#lib/components/InfoView.svelte";
@@ -11,19 +11,19 @@
 
   /**
    * The editor's start (#153): the experiences of this instance as their covers on the left, the import of a new one on
-   * the right. An experience says only where it is live – each environment serves one experience, the last one published
-   * there. Under the experiences the AI connections with the guide to connect an AI agent (#142, #194) – connecting one is a first step of
+   * the right. An experience says only where it is live – the environments that serve a build of it (each has its own
+   * store there, #87). Under the experiences the AI connections with the guide to connect an AI agent (#142, #194) – connecting one is a first step of
    * working here.
    */
   let experiences = $state<ExperienceSummary[] | null>(null);
-  let environments = $state<EnvironmentServing[]>([]);
+  let unreadable = $state<EnvironmentUnreadable[]>([]);
   let error = $state<string | null>(null);
 
   const load = async () => {
     try {
       const data = await listExperiences();
       experiences = data.experiences;
-      environments = data.environments;
+      unreadable = data.environments;
       error = null;
     } catch (e) {
       error = errorText(e);
@@ -31,7 +31,8 @@
   };
   onMount(() => void load());
 
-  const strays = $derived(environments.filter(e => "error" in e || (e.experience && !experiences?.some(x => x.id === e.experience))));
+>>>>
+
 </script>
 
 <div class="split">
@@ -53,7 +54,7 @@
               <span class="cover-box"><ExperienceCover {experience} /></span>
               <span class="title">{experience.title}</span>
               {#if experience.experience.book}<span class="author muted">{experience.experience.book.author}</span>{/if}
-              <span class="live" data-help-name="Live" data-help="Where the experience is live: each environment (local, staging, production) serves one experience – the last one published there. Draft = no environment serves it.">
+              <span class="live" data-help-name="Live" data-help="Where the experience is live: the environments (local, staging, production) that serve a build of it – every experience has its own store in each. Draft = no environment serves it.">
                 {#each experience.live ?? [] as l (l.env)}<span class="badge on" title={l.build ? `build ${l.build}` : undefined}>{l.env}</span>{:else}<span class="badge">draft</span>{/each}
               </span>
             </a>
@@ -61,9 +62,9 @@
         {/each}
       </ul>
     {/if}
-    {#each strays as e (e.env)}
-      <p class="small muted" title="An environment whose experience is not among the experiences here, or whose content store cannot be read">
-        {e.env}: {"error" in e ? "the content store cannot be read" : `serves ${e.experience}, an experience not imported here`}
+    {#each unreadable as e (e.env)}
+      <p class="small muted" title="An environment whose content store cannot be read – where the experiences are live there is not known">
+        {e.env}: the content store cannot be read
       </p>
     {/each}
     <AiConnections />

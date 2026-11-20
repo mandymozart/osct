@@ -12,23 +12,20 @@ declare(strict_types=1);
  */
 final class Experiences
 {
-    /** What each environment serves (ContentStore::live), read once per request; false = its store cannot be read */
-    private static ?array $live = null;
+    /** Environments whose content store could not be read in this request (ContentStore::live of an experience failed) */
+    private static array $unreadable = [];
 
     /**
      * GET /editor/experiences → { experiences: [{ id, title, author, experience, initialScene, scenes, updatedAt, lastPublish, live, … }],
-     * environments: [{ env, experience, build, since } | { env, error }] } – only the environments that serve something
+     * environments: [{ env, error }] } – the environments where an experience's store could not be read (where it is live
+     * there is not known)
      */
     public static function list(): never
     {
         Editor::user();
         $experiences = [];
         foreach (Db::run('SELECT * FROM experiences ORDER BY title, id')->fetchAll() as $row) $experiences[] = self::summary($row);
-        $environments = [];
-        foreach (self::liveEnvironments() as $env => $live) {
-            if ($live === false) $environments[] = ['env' => $env, 'error' => 'content-store-failed'];
-            elseif ($live !== null) $environments[] = ['env' => $env] + $live;
-        }
+        $environments = array_map(static fn(string $env): array => ['env' => $env, 'error' => 'content-store-failed'], array_keys(self::$unreadable));
         Http::json(200, ['experiences' => $experiences, 'environments' => $environments]);
     }
 
@@ -43,20 +40,25 @@ final class Experiences
         Http::json(200, ['env' => Config::env(), 'environments' => ContentStore::describe()]);
     }
 
-    /** @return array<string, array{experience: ?string, build: ?string, since: ?string}|null|false> */
-    private static function liveEnvironments(): array
+    /**
+     * Where an experience is live: every environment whose store of it (#87) names a build – [{ env, build, since }]. A store
+     * that cannot be read is left out and its environment noted (`$unreadable`).
+     * @return list<array{env: string, build: ?string, since: ?string}>
+     */
+    private static function liveIn(string $experienceId): array
     {
-        if (self::$live === null) {
-            self::$live = [];
-            foreach (ContentStore::environments() as $env) {
-                try {
-                    self::$live[$env] = ContentStore::for($env)->live();
-                } catch (ApiError) {
-                    self::$live[$env] = false;
-                }
+        $live = [];
+        foreach (ContentStore::environments() as $env) {
+            if (isset(self::$unreadable[$env])) continue;
+            try {
+                $serving = ContentStore::for($env, $experienceId)->live();
+            } catch (ApiError) {
+                self::$unreadable[$env] = true;
+                continue;
             }
+            if ($serving !== null) $live[] = ['env' => $env, 'build' => $serving['build'], 'since' => $serving['since']];
         }
-        return self::$live;
+        return $live;
     }
 
     /**
@@ -64,7 +66,8 @@ final class Experiences
      * → { experience, counts, draft, imported }
      * The configuration's `experience.id` must be `{id}` (400 invalid-configuration naming both, `experienceIdOf`).
      * Replaces the experience's content rows in one transaction (the logs stay). `assetsBase` is where the configuration's
-     * `/assets/content/…` paths resolve; `source: "cdn"` imports the current version of CONTENT_BASE_URL.
+     * `/assets/content/…` paths resolve; `source: "cdn"` imports the current version of `{id}` on CONTENT_BASE_URL
+     * (`<base>/{id}/latest.json`).
      * An experience that exists is overwritten only in two steps: without `confirm` the answer is 409 confirm-import with the
      * `comparison` (what comes in against what the draft is based on and its edits since) and a `confirmation`
      * { id, expiresAt }; the same import again with `confirm: <id>` replaces the draft. The id is bound to the person (and
@@ -75,7 +78,7 @@ final class Experiences
     {
         $user = Editor::user();
         $body = Editor::body();
-        [$configuration, $files, $assetsBase, $source] = self::source($body);
+        [$configuration, $files, $assetsBase, $source] = self::source($body, $experienceId);
         $parts = self::parse($configuration, Plugins::hasSources($experienceId));
         self::experienceIdOf($configuration, $experienceId);
         $incoming = self::incoming($configuration, $parts, $files, $assetsBase, $source);
@@ -131,11 +134,12 @@ final class Experiences
     }
 
     /**
-     * POST /editor/import/preview { configuration, files?, assetsBase? } | { source: "cdn" }
+     * POST /editor/import/preview { configuration, files?, assetsBase? } | { source: "cdn", experience? }
      * → { source, contentBase, manifest, incoming, counts, existing }
      * What the same import body would bring in, before anything is imported – read-only, the import's access. The
-     * configuration is checked as the import checks it (the same 400s); `source: "cdn"` reads the current version of
-     * CONTENT_BASE_URL (`contentBase`; `manifest` = its latest.json { url, build, activatedAt }) – 502
+     * configuration is checked as the import checks it (the same 400s); `source: "cdn"` reads the current version of the
+     * experience `experience` (default: the instance's, EXPERIENCE) on CONTENT_BASE_URL (`contentBase` = that experience's
+     * store, `<base>/<experience>`; `manifest` = its latest.json { url, build, activatedAt }) – 502
      * content-fetch-failed with the `url` that failed. `incoming` as in the import's comparison, `counts` the scenes,
      * entries, targets and entities it holds; `existing` = the comparison the import would answer (the draft of that id
      * it replaces, its edits since its import, where it is live), null when the experience is new.
@@ -143,7 +147,12 @@ final class Experiences
     public static function preview(): never
     {
         Editor::user();
-        [$configuration, $files, $assetsBase, $source, $manifest] = self::source(Editor::body());
+        $body = Editor::body();
+        $named = $body->experience ?? Config::get('EXPERIENCE');
+        if (($body->source ?? null) === 'cdn' && (!is_string($named) || !preg_match('/^' . Editor::ID . '$/', $named))) {
+            throw new ApiError(400, 'invalid-experience', 'Name the experience to preview from the CDN (experience) – this instance has no default (EXPERIENCE).');
+        }
+        [$configuration, $files, $assetsBase, $source, $manifest] = self::source($body, is_string($named) ? $named : '');
         $experienceId = self::experienceIdOf($configuration);
         $parts = self::parse($configuration, Plugins::hasSources($experienceId));
         $incoming = self::incoming($configuration, $parts, $files, $assetsBase, $source);
@@ -178,15 +187,15 @@ final class Experiences
 
     /**
      * What an import (or its preview) reads: the configuration, its files, the assets base and the source – from the
-     * body, or for `source: "cdn"` from the current version of CONTENT_BASE_URL, with that latest.json. A body without
+     * body, or for `source: "cdn"` from the current version of `$experienceId` on CONTENT_BASE_URL, with that latest.json. A body without
      * `files` but with an assets base (the editor's URL and file modes, the MCP's `url`) reads `<assetsBase>/files.json`
      * from there – optional, as for the reader: a base without one (the reader's dev server) imports with none (#244)
      * @return array{0: stdClass, 1: stdClass, 2: string, 3: string, 4: ?array{base: string, url: string, build: string, activatedAt: ?string}}
      */
-    private static function source(stdClass $body): array
+    private static function source(stdClass $body, string $experienceId): array
     {
         if (($body->source ?? null) === 'cdn') {
-            [$configuration, $files, $assetsBase, $manifest] = self::fetchFromCdn();
+            [$configuration, $files, $assetsBase, $manifest] = self::fetchFromCdn($experienceId);
             return [$configuration, $files, $assetsBase, 'cdn', $manifest];
         }
         $configuration = $body->configuration ?? null;
@@ -264,10 +273,7 @@ final class Experiences
     {
         // A 2.x draft is no configuration of today's schema: its build is unknown until it is migrated (#319)
         $draft = Editor::isCurrentSchema((string) $row['content_schema']) ? ContentVersion::assemble($experienceId) : ['build' => null];
-        $live = [];
-        foreach (self::liveEnvironments() as $env => $serving) {
-            if (is_array($serving) && $serving['experience'] === $experienceId) $live[] = ['env' => $env, 'build' => $serving['build'], 'current' => $serving['build'] === $draft['build']];
-        }
+        $live = array_map(static fn(array $l): array => ['env' => $l['env'], 'build' => $l['build'], 'current' => $l['build'] === $draft['build']], self::liveIn($experienceId));
         $basedOn = self::basedOn(Editor::decode($row['imported_json'] ?? null));
         if ($basedOn === null && is_string($row['imported_hash']) && $row['imported_hash'] !== '') {
             $basedOn = ['build' => substr($row['imported_hash'], 0, 12), 'hash' => $row['imported_hash'], 'date' => null, 'appVersion' => null, 'schema' => $row['content_schema'], 'source' => null, 'from' => null, 'importedAt' => null, 'importedBy' => null];
@@ -935,14 +941,12 @@ final class Experiences
     }
 
     /**
-     * POST /editor/experiences/{id}/publish { env, note?, replace? } → { env, store, build, hash, publishedAt, replaced }: the
-     * assembled version into the content store – the version folder (unless that build is there already: a folder is
-     * never overwritten), then versions.json, then latest.json (the switch) – and a row in the publish log.
+     * POST /editor/experiences/{id}/publish { env, note? } → { env, store, build, hash, publishedAt }: the assembled version
+     * into the experience's own store in the environment (#87: `<title>/<env>/<id>/` – a publish never touches another
+     * experience) – the version folder (unless that build is there already: a folder is never overwritten), then
+     * versions.json, then latest.json (the switch) – and a row in the publish log.
      * `env` must be this instance's own environment (ENV): another one answers 403 other-environment with `env`, the
      * own one. `store` = where it went: `cdn` or `server` (the directory store).
-     * An environment serves one experience: when it serves another one (or one that cannot be told) the publish needs
-     * `replace: true`, else 409 other-experience with `current` { env, experience, title, build, since }. `replaced` names the
-     * experience replaced there, null when there was none.
      *
      * `plugins` (#78) = the experience's Code tab sources as the editor transpiled them, `[{ id, code, api, registered? }]`: every
      * id a saved source of the experience, `code` the module (JavaScript, `export const register`), `api` the plugin API it was
@@ -968,18 +972,8 @@ final class Experiences
         }
         $note = $body->note ?? null;
         if ($note !== null && !is_string($note)) throw new ApiError(400, 'invalid-note', 'note must be a string.');
-        $replace = $body->replace ?? false;
-        if (!is_bool($replace)) throw new ApiError(400, 'invalid-replace', 'replace must be true or false.');
 
-        $store = ContentStore::for($env);
-        $live = $store->live();
-        $replaced = $live !== null && $live['experience'] !== $experienceId ? $live : null;
-        if ($replaced !== null && !$replace) {
-            $title = $replaced['experience'] !== null ? Db::value('SELECT title FROM experiences WHERE id = :id', ['id' => $replaced['experience']]) : null;
-            $name = $title ?: ($replaced['experience'] ?? 'an experience that cannot be told');
-            throw new ApiError(409, 'other-experience', "$env serves $name – publishing this experience replaces it there; send replace: true to do so.",
-                ['current' => ['env' => $env, 'experience' => $replaced['experience'], 'title' => $title ?: null, 'build' => $replaced['build'], 'since' => $replaced['since']]]);
-        }
+        $store = ContentStore::for($env, $experienceId);
 
         $injected = self::injectedPlugins($experienceId, $body->plugins ?? null);
         $version = ContentVersion::assemble($experienceId);
@@ -1035,14 +1029,13 @@ final class Experiences
         $now = Editor::iso();
         $current = $store->get('versions.json');
         $versions = $current === null ? [] : json_decode($current, true);
-        if (!is_array($versions)) throw new ApiError(502, 'content-store-failed', "$env/versions.json is not readable – fix it before publishing.");
+        if (!is_array($versions)) throw new ApiError(502, 'content-store-failed', "$env/$experienceId/versions.json is not readable – fix it before publishing.");
         $store->put('versions.json', Editor::encode(ContentStore::activate($versions, $version, $now, !$uploaded, $experienceId), true));
         $store->put('latest.json', Editor::encode(ContentVersion::manifest($version, $now, $experienceId), true));
 
         Db::run('INSERT INTO experience_versions (id, experience_id, env, build, hash, published_by, published_at, note) VALUES (:id, :experience, :env, :build, :hash, :by, :at, :note)',
             ['id' => Db::uuid(), 'experience' => $experienceId, 'env' => $env, 'build' => $version['build'], 'hash' => $version['hash'], 'by' => $user['id'], 'at' => Editor::nowMs(), 'note' => $note]);
-        Http::json(200, ['env' => $env, 'store' => $store->isLocal() ? 'server' : 'cdn', 'build' => $version['build'], 'hash' => $version['hash'], 'publishedAt' => $now,
-            'replaced' => $replaced !== null ? ['experience' => $replaced['experience'], 'build' => $replaced['build']] : null]);
+        Http::json(200, ['env' => $env, 'store' => $store->isLocal() ? 'server' : 'cdn', 'build' => $version['build'], 'hash' => $version['hash'], 'publishedAt' => $now]);
     }
 
     /**
@@ -1306,10 +1299,7 @@ final class Experiences
     private static function summary(array $row): array
     {
         $last = Db::one('SELECT env, build, published_at FROM experience_versions WHERE experience_id = :experience ORDER BY published_at DESC, id LIMIT 1', ['experience' => $row['id']]);
-        $live = [];
-        foreach (self::liveEnvironments() as $env => $serving) {
-            if (is_array($serving) && $serving['experience'] === $row['id']) $live[] = ['env' => $env, 'build' => $serving['build'], 'since' => $serving['since']];
-        }
+        $live = self::liveIn((string) $row['id']);
         return [
             'id' => $row['id'],
             'title' => $row['title'],
@@ -1476,14 +1466,15 @@ final class Experiences
     }
 
     /**
-     * The current version of CONTENT_BASE_URL (latest.json → <build>/game.config.json + files.json), with what
-     * latest.json said
+     * The current version of an experience on CONTENT_BASE_URL (`<base>/<experience>/latest.json` → <build>/game.config.json
+     * + files.json, #87), with what latest.json said; `base` = the experience's store
      * @return array{0: stdClass, 1: stdClass, 2: string, 3: array{base: string, url: string, build: string, activatedAt: ?string}}
      */
-    private static function fetchFromCdn(): array
+    private static function fetchFromCdn(string $experienceId): array
     {
-        $base = rtrim(Config::get('CONTENT_BASE_URL'), '/');
-        if ($base === '') throw new ApiError(400, 'no-content-base', 'CONTENT_BASE_URL is not set on this server.');
+        $environment = rtrim(Config::get('CONTENT_BASE_URL'), '/');
+        if ($environment === '') throw new ApiError(400, 'no-content-base', 'CONTENT_BASE_URL is not set on this server.');
+        $base = "$environment/" . rawurlencode($experienceId);
         $latest = "$base/latest.json";
         $manifest = self::fetchJson("$latest?t=" . time(), $latest);
         $build = $manifest instanceof stdClass ? ($manifest->build ?? null) : null;

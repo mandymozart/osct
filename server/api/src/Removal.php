@@ -181,7 +181,7 @@ final class Removal
     public static function deleteStoredFiles(array $paths): void
     {
         if (!$paths) return;
-        $store = ContentStore::for(Assets::STORE_ENV);
+        $store = ContentStore::assets();
         foreach ($paths as $path) {
             try {
                 $store->delete($path);

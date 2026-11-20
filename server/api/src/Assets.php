@@ -240,7 +240,7 @@ final class Assets
         if ($same) return (string) $same['url'];
         $id = Db::uuid();
         $path = self::path($experienceId, $id, 1, $extension);
-        $store = ContentStore::for(self::STORE_ENV);
+        $store = ContentStore::assets();
         $url = self::url($store, $path);
         [$width, $height] = self::dimensions($data, $extension);
         $now = Editor::nowMs();
@@ -288,7 +288,7 @@ final class Assets
         }
         $id = Db::uuid();
         $path = self::path($experienceId, $id, 1, $extension);
-        $store = ContentStore::for(self::STORE_ENV);
+        $store = ContentStore::assets();
         // The URL before the file: a refusal there (no APP_URL) leaves nothing behind
         $url = self::url($store, $path);
         [$width, $height, $duration] = self::dimensions($data, $extension);
@@ -329,7 +329,7 @@ final class Assets
         }
         [$name, $extension, $data, $converted] = self::image($name, $extension, $data);
         $name = self::useName($experienceId, $name, $extension);
-        $store = ContentStore::for(self::STORE_ENV);
+        $store = ContentStore::assets();
         [$width, $height, $duration] = self::dimensions($data, $extension);
         $now = Editor::nowMs();
         // The asset's row locked from reading its version to the new version's rows: a parallel replace waits and takes the
@@ -521,18 +521,21 @@ final class Assets
     public static function folderUrl(string $experienceId): string
     {
         try {
-            return self::url(ContentStore::for(self::STORE_ENV), "$experienceId/");
+            return self::url(ContentStore::assets(), "$experienceId/");
         } catch (ApiError) {
             return '';
         }
     }
 
-    /** The zone's public root: CONTENT_BASE_URL names this instance's environment (`<root>/<env>`), the `assets` folder lies next to it (#254) */
+    /**
+     * The zone's public root: CONTENT_BASE_URL names this instance's environment (`<root>/<title>/<env>`, #87), the
+     * `assets` folder lies at the root (#254) – the Library's uploads are no title's and no environment's
+     */
     private static function cdnRoot(): string
     {
         $base = rtrim(Config::get('CONTENT_BASE_URL'), '/');
-        $env = '/' . Config::env();
-        return str_ends_with($base, $env) ? substr($base, 0, -strlen($env)) : $base;
+        $environment = '/' . Config::title() . '/' . Config::env();
+        return str_ends_with($base, $environment) ? substr($base, 0, -strlen($environment)) : $base;
     }
 
     /** @return array{0: ?int, 1: ?int, 2: ?int} width, height (images, videos), duration in ms (videos) */

@@ -33,12 +33,11 @@ import type {
   SurfaceReferenceSaved,
   TargetSaved,
   Ungrouped,
-  EnvironmentServing,
+  EnvironmentUnreadable,
   ExperienceSummary,
   ExperienceList,
   ExperienceTree,
   PublishResult,
-  OtherExperience,
   ImportComparison,
   ImportPreview,
   ExperienceSaved,
@@ -48,7 +47,7 @@ import type {
   IncomingBuild,
   ImportResult,
 } from "@shared/api/editor";
-export type { EnvironmentServing, ExperienceSummary, ExperienceList, ExperienceTree, PublishResult, OtherExperience, ImportComparison, ImportPreview, ExperienceSaved, ExperiencePassesSaved, ExperienceAppearanceSaved, RemovalImpact } from "@shared/api/editor";
+export type { EnvironmentUnreadable, ExperienceSummary, ExperienceList, ExperienceTree, PublishResult, ImportComparison, ImportPreview, ExperienceSaved, ExperiencePassesSaved, ExperienceAppearanceSaved, RemovalImpact } from "@shared/api/editor";
 import { apiErrorFields } from "@shared/api/errors";
 import { imageUseQuery, type ImageFit, type ImageUse } from "@shared/api/images";
 import type { PublishedPlugin } from "#lib/publish-plugins.js";
@@ -450,10 +449,10 @@ export const putTargetEntity = (experienceId: string, targetId: string, entity: 
   api<TargetSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/targets/${encodeURIComponent(targetId)}`, { entity });
 
 /**
- * `replace` = publish although the environment serves another experience (else 409 other-experience); `plugins` = the Code tab's
- * saved sources as the browser transpiled them (`publish-plugins.ts`, #78) – the API puts them into the version
+ * Into the experience's own store in `env` (#87); `plugins` = the Code tab's saved sources as the browser transpiled them
+ * (`publish-plugins.ts`, #78) – the API puts them into the version
  */
-export const publishExperience = (experienceId: string, env: string, options: { note?: string; replace?: boolean; plugins?: PublishedPlugin[] } = {}) =>
+export const publishExperience = (experienceId: string, env: string, options: { note?: string; plugins?: PublishedPlugin[] } = {}) =>
   api<PublishResult>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/publish`, { env, ...options });
 
 /** The draft as a content version – the engine's `loadGameConfiguration({ baseUrl, fetch: authFetch })` reads it */

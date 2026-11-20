@@ -20,7 +20,11 @@ export interface LiveIn {
 }
 
 /** What an environment serves (`experience` null when it cannot be told), or `error` when its content store cannot be read */
-export type EnvironmentServing = { env: string; experience: string | null; build: string | null; since: string | null } | { env: string; error: string };
+/** An environment where an experience's store cannot be read (`GET /editor/experiences`, `environments`) */
+export interface EnvironmentUnreadable {
+  env: string;
+  error: string;
+}
 
 /** An experience of the list and of the tree (`Experiences::summary`) */
 export interface ExperienceSummary {
@@ -48,10 +52,10 @@ export interface ExperienceSummary {
   live: LiveIn[];
 }
 
-/** `GET /editor/experiences`: the experiences, and what each environment serves – only those that serve something */
+/** `GET /editor/experiences`: the experiences, and the environments where a store of theirs cannot be read */
 export interface ExperienceList {
   experiences: ExperienceSummary[];
-  environments: EnvironmentServing[];
+  environments: EnvironmentUnreadable[];
 }
 
 /** An entry in the tree; `category` as the content holds it */
@@ -89,7 +93,7 @@ export interface EnvironmentInfo {
   store: "cdn" | "server";
   /** Only the instance's own environment */
   publish: boolean;
-  /** Where readers load it */
+  /** Where readers load it: the environment base (`<pull zone>/<title>/<env>`, this API's `/content/<env>`) – an experience's store is `<url>/<experience>` (#87) */
   url: string | null;
   /** Wherever the directory store is the publish target: what that means */
   warning: string | null;
@@ -109,17 +113,6 @@ export interface PublishResult {
   build: string;
   hash: string;
   publishedAt: string;
-  /** The experience this publish replaced in the environment, null when there was none */
-  replaced: { experience: string | null; build: string | null } | null;
-}
-
-/** `details.current` of a 409 other-experience: what the environment serves instead */
-export interface OtherExperience {
-  env: string;
-  experience: string | null;
-  title: string | null;
-  build: string | null;
-  since: string | null;
 }
 
 /** A row of the publish log (`GET /editor/experiences/{id}/versions`, newest first) */

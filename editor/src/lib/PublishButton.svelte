@@ -2,7 +2,7 @@
   import { onMount, tick } from "svelte";
   import {
     ApiError, errorText, getDraftManifest, listExperiences, listEnvironments, publishExperience,
-    type ExperienceSummary, type EnvironmentServing, type EnvironmentsInfo, type OtherExperience, type PublishResult,
+    type ExperienceSummary, type EnvironmentUnreadable, type EnvironmentsInfo, type PublishResult,
   } from "#lib/api.js";
   import { pluginRegistrySnapshot } from "@engine/scene/plugins";
   import { liveLabels, liveShort } from "#lib/live.js";
@@ -16,14 +16,15 @@
    * Publish: the draft becomes a content version of this instance's own environment (`POST /editor/experiences/{id}/publish`)
    * – an instance publishes there and nowhere else (#183). Next to the button: where the experience is live and, where this
    * server is the target, that no CDN is connected. The button is an icon (#274); its title names the target with its
-   * backend (`staging · CDN`, `local · this server`), as does the step. The button opens a step in the page that names the experience, the build, the target and what it replaces –
-   * publishing over another experience is said there and sends `replace`. The publish carries the Code tab's saved sources,
+   * backend (`staging · CDN`, `local · this server`), as does the step. The button opens a step in the page that names the
+   * experience, the build, the target and the build of it it replaces there – each experience has its own store in every
+   * environment (#87), so a publish never touches another experience. The publish carries the Code tab's saved sources,
    * transpiled here (#78): a source that does not compile stops it with its line.
    */
   let { experienceId }: { experienceId: string } = $props();
   let info = $state<EnvironmentsInfo | null>(null);
   let experiences = $state<ExperienceSummary[]>([]);
-  let environments = $state<EnvironmentServing[]>([]);
+  let unreadable = $state<EnvironmentUnreadable[]>([]);
   let step = $state<PublishStep | null>(null);
   let busy = $state(false);
   let result = $state<PublishResult | null>(null);
@@ -32,13 +33,12 @@
 
   const target = $derived(targetOf(info));
   const self = $derived(experiences.find(x => x.id === experienceId));
-  const titleOf = (id: string | null | undefined): string | null => (id ? (experiences.find(x => x.id === id)?.title ?? id) : null);
 
   const refresh = async () => {
     try {
       const [data, envs] = await Promise.all([listExperiences(), listEnvironments()]);
       experiences = data.experiences;
-      environments = data.environments;
+      unreadable = data.environments;
       info = envs;
     } catch {
       // the publish itself still guards; the line next to the button stays empty
@@ -47,7 +47,7 @@
   onMount(() => void refresh());
 
   /** Opens the step: the experience, its build now, the target and what it replaces there */
-  const open = async (current?: OtherExperience) => {
+  const open = async () => {
     if (!target) return;
     error = null;
     result = null;
@@ -57,16 +57,15 @@
     } catch {
       // the step still names the experience and the target
     }
-    const serving = current ? { env: current.env, experience: current.experience, build: current.build, since: current.since } : environments.find(e => e.env === target.env);
+    const live = unreadable.some(e => e.env === target.env) ? "unreadable" : self?.live.find(l => l.env === target.env);
     if (plugins.experienceId !== experienceId) await plugins.load(experienceId);
-    step = publishStep(experienceId, self?.title ?? experienceId, build, target, serving, titleOf, plugins.stored.length);
+    step = publishStep(self?.title ?? experienceId, build, target, live, plugins.stored.length);
     await tick();
     stepElement?.querySelector<HTMLButtonElement>("button.primary")?.focus();
   };
 
   const publish = async () => {
     if (!target || !step) return;
-    const replacing = step.replace;
     busy = true;
     error = null;
     try {
@@ -78,16 +77,10 @@
         error = carried.error;
         return;
       }
-      result = await publishExperience(experienceId, target.env, { ...(replacing ? { replace: true } : {}), ...(carried.plugins.length ? { plugins: carried.plugins } : {}) });
+      result = await publishExperience(experienceId, target.env, carried.plugins.length ? { plugins: carried.plugins } : {});
       step = null;
     } catch (e) {
-      // The environment changed since the list was read: the step again, with what the API says it serves now
-      if (e instanceof ApiError && e.code === "other-experience" && !replacing) {
-        await refresh();
-        await open(e.details.current as OtherExperience | undefined);
-      } else {
-        error = errorText(e, { code: true });
-      }
+      error = errorText(e, { code: true });
     } finally {
       busy = false;
       void refresh();
@@ -97,14 +90,14 @@
 
 <span class="publish">
   {#if self}
-    <span class="small muted live" data-help-name="Live" data-help={`Where this experience is live – each environment serves one experience, the last one published there: ${liveLabels(self.live).join("; ")}.`}>{liveShort(self.live)}</span>
+    <span class="small muted live" data-help-name="Live" data-help={`Where this experience is live – the environments that serve a build of it: ${liveLabels(self.live).join("; ")}.`}>{liveShort(self.live)}</span>
   {/if}
   {#if target}
     {#if target.warning}<span class="small danger no-cdn" title={target.warning} data-help-name="No CDN" data-help={target.warning}>No CDN connected</span>{/if}
   {/if}
   <button type="button" class="icon-button publish-button" onclick={() => open()} disabled={busy || !target || !!step} aria-label={busy ? "Publishing…" : "Publish"}
     title={busy ? "Publishing…" : target ? `Publish the draft to ${targetLabel(target)} – a step in the page names the experience and the build first.` : "Publish the draft"}><Icon name="publish" stroke={2} /></button>
-  {#if result}<span class="small muted done">published {result.build}{result.replaced ? ` – replaced ${titleOf(result.replaced.experience) ?? "another experience"}` : ""}</span>{/if}
+  {#if result}<span class="small muted done">published {result.build}</span>{/if}
   {#if error && !step}<span class="small danger">{error}</span>{/if}
   {#if step}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
