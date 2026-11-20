@@ -155,7 +155,7 @@ export const applyBehaviour = (context: BehaviourContext): BehaviourInstance | n
     paths = namedPaths(node);
     ownName = node.name?.trim() ?? "";
     warned.clear();
-    const events = [...new Set(rules.map(rule => rule.on).filter(event => !isBehaviourNodeEvent(event)))];
+    const events = [...new Set(rules.map(rule => rule.on).filter(event => event && !isBehaviourNodeEvent(event)))];
     unsubscribe = events.map(event => api.events.on(event, () => run(event)));
   };
   listen(context.node);

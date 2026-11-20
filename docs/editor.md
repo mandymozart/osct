@@ -493,11 +493,12 @@ happened in words, or a refusal with its reason, and runs `problems` after each 
   rule's node – change the verb in the Inspector or add play / hide … from the menu), into a variable *set = true* (in the
   scope it is set in elsewhere, else `scene`), into a scene event *emit*; an action's own outlet re-aims that action. Only
   the inlets that would take the wire light up while it is dragged; a core event is never emitted.
-- **Delete** on a selected wire removes the condition or the action it stands for; on a selected rule the rule. A rule's
-  **on** cannot be cut – a rule always hears one event (drag another onto it). A wire that only **joins by name**
-  (`home: null`: a stub *hasKey ← set in Cover*) removes the name from the listening side here – the rules of this level
-  no longer test it – and the words say that it is still set there; one whose listening side is another scene, a plugin's
-  code or a rule's `on` is refused with the reason. Delete and Backspace in the panel never reach the workspace.
+- **Delete** on a selected wire removes the condition or the action it stands for; on a selected rule the rule. Cutting a
+  rule's **on** leaves it empty: the rule hears nothing, and the panel lists it as a problem (*Door · rule 3 hears nothing –
+  wire an event to its on*) until an event is wired to it again (3.21.1). A wire that only **joins by name** (`home: null`:
+  a stub *hasKey ← set in Cover*, *keyRattled ← emitted in Cover*) removes the name from the listening side here – the rules
+  of this level no longer test or hear it – and the words say that it is still set or emitted there; one whose listening
+  side is another scene or a plugin's code is refused with the reason. Delete and Backspace in the panel never reach the workspace.
 - **The menu** – a right click on the empty canvas, the panel's **+**, or a node type dragged from the Library's **Nodes**:
   what fits here (`logic/palette.ts`, the one list the menu and the Library read): a rule on the selected node (picked on
   the canvas or in the tree; on a target's level its own), an action (play / pause / stop / show / hide a named node of the

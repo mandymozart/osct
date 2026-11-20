@@ -83,6 +83,8 @@ export interface GraphNode {
   far?: boolean;
   /** The id of the group node it sits in (a frame) */
   group?: string;
+  /** A rule box: where its rule is written (part \`on\`) – a rule whose on was cut has no wire that says so */
+  home?: Home;
 }
 
 export interface GraphEdge {

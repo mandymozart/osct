@@ -20,8 +20,9 @@ import type { Context, GraphEdge, GraphNode, Home, Op, Problem, RulePlace, View 
  * `connect` follows the ports of the grammar (`registry.ts`): an event's outlet → a rule's `on` writes the event's name into
  * `on` (the bus stays by name, L6); a variable → a rule's `when` adds a test; a rule's `do` → a node, a variable or an event
  * adds the matching action (show / hide / play / pause / stop, set, emit) – from an action's own `do:<i>` it re-aims that
- * action. `disconnect` removes what a wire stands for; a wire that only joins by name (`home: null`) removes the name from the
- * listening side here, and says so. Ports and wires are named by the level's view (`project`), so `connect` and
+ * action. `disconnect` removes what a wire stands for – a cut `on` leaves the rule hearing nothing, a problem until an event is
+ * wired to it again (Tilman, 2026-11-20); a wire that only joins by name (`home: null`) removes the name from the listening
+ * side here, and says so. Ports and wires are named by the level's view (`project`), so `connect` and
  * `disconnect` take the level (`context`).
  */
 
@@ -192,10 +193,10 @@ const addRule = (draft: Draft, at: RulePlace, on: string, options: ProjectOption
   return draft.done(`Added ${name}: on ${on}, nothing to do yet – connect its do to a node, a variable or an event.`, options);
 };
 
-/** The rule a rule box stands for: its `on` wire always has a home (every rule hears one event) */
+/** The rule a rule box stands for: the box carries its home (an on may be empty, so no wire has to say it) */
 const ruleOfBox = (view: View, box: string): RuleRef | null => {
-  const home = view.edges.find(e => e.to[0] === box && e.to[1] === "on" && e.home?.doc === "entity")?.home as EntityHome | undefined;
-  return home ? { target: home.target, path: home.path, component: home.component, rule: home.rule } : null;
+  const home = view.nodes.find(n => n.id === box)?.home;
+  return home?.doc === "entity" ? { target: home.target, path: home.path, component: home.component, rule: home.rule } : null;
 };
 
 /** The view's box by id; a stub or a box standing for something elsewhere is no end an op can use */
@@ -238,7 +239,7 @@ const connect = (draft: Draft, view: View, from: [string, string], to: [string, 
       const on = event ?? a.label;
       if (at.rule.on === on) return refuse(`${name} hears ${on} already.`);
       draft.setRule(ref, { ...at.rule, on });
-      return draft.done(`${name} now hears ${on} (was ${at.rule.on})${event && !isBehaviourNodeEvent(event) ? " – by name, from whatever emits it" : ""}.`, options);
+      return draft.done(`${name} now hears ${on}${at.rule.on ? ` (was ${at.rule.on})` : ""}${event && !isBehaviourNodeEvent(event) ? " – by name, from whatever emits it" : ""}.`, options);
     }
     if (bPort === "when") {
       if (a.kind !== "variable" || aPort !== "get") return refuse(`A rule's when tests a variable – not ${kindWord(a)}.`);
@@ -324,7 +325,11 @@ const disconnect = (draft: Draft, view: View, id: string, options: ProjectOption
     const at = ruleAt(draft.content, h);
     if (!at) return refuse("That rule is not in the content any more.");
     const name = ruleName(draft.content, h);
-    if (h.part === "on") return refuse(`${name} always hears one event – drag another event onto its on, or delete the rule.`);
+    if (h.part === "on") {
+      // Left empty, the rule hears nothing until an event is wired to its on – a problem the panel lists (Tilman, 2026-11-20)
+      draft.setRule(h, { ...at.rule, on: "" });
+      return draft.done(`${name} no longer hears ${at.rule.on} – it hears nothing until you wire an event to its on.`, options);
+    }
     if (h.part === "when") {
       const test = at.rule.when?.tests[h.index ?? 0];
       if (!test) return refuse(`${name} has no such condition.`);
@@ -360,7 +365,18 @@ const disconnect = (draft: Draft, view: View, id: string, options: ProjectOption
     return draft.done(`${names.join(", ")} no longer test${names.length === 1 ? "s" : ""} ${edge.label}. The wire joined by name: ${edge.label} is still ${where || "set where it was"} – only the read here went.`, options);
   }
   if (edge.signal === "event") {
-    return refuse(`The rules here hear ${edge.label} by name, and a rule always hears one event – drag another event onto their on, or delete the rules.`);
+    const box = `event:${edge.label}`;
+    const hears = view.edges.filter(e => e.from[0] === box && e.home?.doc === "entity" && e.home.part === "on");
+    if (!hears.length) return refuse(`Nothing at this level hears ${edge.label}.`);
+    const names: string[] = [];
+    for (const hear of hears) {
+      const h = hear.home as EntityHome;
+      const at = ruleAt(draft.content, h);
+      if (!at) continue;
+      names.push(ruleName(draft.content, h));
+      draft.setRule(h, { ...at.rule, on: "" });
+    }
+    return draft.done(`${names.join(", ")} no longer hear${names.length === 1 ? "s" : ""} ${edge.label} – ${names.length === 1 ? "it hears" : "they hear"} nothing until you wire an event to ${names.length === 1 ? "its" : "their"} on. The wire joined by name: ${edge.label} is still ${where || "emitted where it was"}.`, options);
   }
   return refuse("That wire is drawn from a name, not written in a rule – nothing to remove here.");
 };
