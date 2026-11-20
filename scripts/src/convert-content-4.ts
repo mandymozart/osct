@@ -16,7 +16,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { CONTENT_DIR } from './config';
+import { CONTENT_DIR, requireContentDir } from './config';
 import { isMainModule } from './lib/entry';
 
 /** The print data that moves under `book:` */
@@ -108,7 +108,7 @@ export function convertContent(contentDir: string): { experience: boolean; files
 }
 
 if (isMainModule(import.meta.url)) {
-  console.log(`🔁 Content schema 3.x → 4.0: ${CONTENT_DIR}`);
+  console.log(`🔁 Content schema 3.x → 4.0: ${requireContentDir()}`);
   const done = convertContent(CONTENT_DIR);
   console.log(`✅ ${done.experience ? 'book.yaml → experience.yaml, ' : 'no book.yaml, '}${done.files.length} files with scope or title rewritten`);
   if (done.pluginLines.length) {

@@ -20,7 +20,7 @@ const NOTICES = {
  * readers who set one, email + password. Signed in: update opt-ins as `<gold-switch>`, the optional password
  * (set, change), progress sync status, sign-out and deletion. Renders from `UserService` snapshots
  * (signed-out / pending / signed-in). Update options are opt-in: off until the reader enables them.
- * Removed when no accounts API (`VITE_API_URL`) is configured.
+ * Removed when the accounts API is disabled (`ApiService.isEnabled`).
  *
  * Password managers: the fields carry `autocomplete` (`username`, `current-password`, `new-password`) and
  * names; the set-password form has the email as a hidden `username` field so a saved password is stored

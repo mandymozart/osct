@@ -5,7 +5,8 @@
 # GitHub → Settings → Environments → "staging" (each may be a secret or a variable):
 #   secrets:   FTP_USER, FTP_PASS, DB_USER, DB_PASS, SECRET (SMTP_HOST, SMTP_USER, SMTP_PASS once smtp)
 #   variables: FTP_HOST, FTP_ROOT, DB_HOST, DB_NAME, APP_URL, ALLOWED_ORIGINS, MAIL_TRANSPORT, MAIL_FROM, EDITORS, ADMINS
-#              (optional: SMTP_PORT, SMTP_SECURE)
+#              (optional: SMTP_PORT, SMTP_SECURE); the content CDN: OSCT_CONTENT_BASE_URL, OSCT_BUNNY_STORAGE_ZONE,
+#              OSCT_BUNNY_STORAGE_ENDPOINT, secret OSCT_BUNNY_STORAGE_PASSWORD (docs/content-cdn.md)
 # Like qr.scutoons.com (config written in the build), but uploaded over FTPS with lftp.
 name: Deploy staging over FTPS (temporary)
 
@@ -45,10 +46,9 @@ jobs:
       - name: Build the content and the app (prebuild runs the content build)
         working-directory: client
         env:
-          VITE_API_URL: /api
           VITE_DEBUG: "true"
           # Content from the CDN (docs/content-cdn.md); empty = the commit's content is built and uploaded
-          VITE_CONTENT_BASE_URL: ${{ vars.CONTENT_BASE_URL }}
+          VITE_CONTENT_BASE_URL: ${{ vars.OSCT_CONTENT_BASE_URL || vars.CONTENT_BASE_URL }}
         run: |
           npm ci
           npm run build
@@ -86,11 +86,12 @@ jobs:
           OSCT_SMTP_PASS: ${{ secrets.SMTP_PASS || vars.SMTP_PASS }}
           # The editor's content store and assets (docs/server.md "Editor data", "Assets"): the CDN's storage zone
           # whenever its access key is set (CONTENT_STORE overrides), the local folder otherwise
-          OSCT_CONTENT_STORE: ${{ vars.CONTENT_STORE || (secrets.BUNNY_STORAGE_PASSWORD && 'bunny') || 'local' }}
-          OSCT_CONTENT_BASE_URL: ${{ vars.CONTENT_BASE_URL }}
-          OSCT_BUNNY_STORAGE_ZONE: ${{ vars.BUNNY_STORAGE_ZONE }}
-          OSCT_BUNNY_STORAGE_ENDPOINT: ${{ vars.BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ZONE_ENDPOINT || 'storage.bunnycdn.com' }}
-          OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
+          # (#33: the names without OSCT_ are still read as a fallback until the environment is renamed – then drop the `|| …`)
+          OSCT_CONTENT_STORE: ${{ vars.CONTENT_STORE || ((secrets.OSCT_BUNNY_STORAGE_PASSWORD || secrets.BUNNY_STORAGE_PASSWORD) && 'bunny') || 'local' }}
+          OSCT_CONTENT_BASE_URL: ${{ vars.OSCT_CONTENT_BASE_URL || vars.CONTENT_BASE_URL }}
+          OSCT_BUNNY_STORAGE_ZONE: ${{ vars.OSCT_BUNNY_STORAGE_ZONE || vars.BUNNY_STORAGE_ZONE }}
+          OSCT_BUNNY_STORAGE_ENDPOINT: ${{ vars.OSCT_BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ZONE_ENDPOINT || 'storage.bunnycdn.com' }}
+          OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.OSCT_BUNNY_STORAGE_PASSWORD || secrets.BUNNY_STORAGE_PASSWORD }}
           # The first editors and admins (docs/server.md "Roles"): these addresses get the role when they sign in
           OSCT_EDITORS: ${{ vars.EDITORS }}
           OSCT_ADMINS: ${{ vars.ADMINS }}

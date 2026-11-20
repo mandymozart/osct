@@ -22,9 +22,18 @@ export const DEMO_DIR = resolve(projectRoot, 'fixtures/demo');
 export const DEMO_MARKER = 'DEMO.md';
 export const DEMO_ENV = 'demo';
 
-// The content source. The content is not in this repository: OSCT_CONTENT_DIR names its folder (absolute, or
-// relative to the repository root – `fixtures/content` for the fixture). Default: a local `content/` folder.
-export const CONTENT_DIR = resolve(projectRoot, process.env.OSCT_CONTENT_DIR || 'content');
+// The content source. The content is not in this repository (#5): OSCT_CONTENT_DIR names its folder (absolute, or
+// relative to the repository root – `fixtures/content` for the fixture). No default (#33): unset, CONTENT_DIR is empty
+// and every command that reads or writes the content source stops (`requireContentDir`).
+export const CONTENT_DIR = process.env.OSCT_CONTENT_DIR ? resolve(projectRoot, process.env.OSCT_CONTENT_DIR) : '';
+
+/** For a command that reads or writes the content source: its folder, or a stop with a message when it is not named */
+export const requireContentDir = (): string => {
+  if (CONTENT_DIR) return CONTENT_DIR;
+  console.error(`❌ OSCT_CONTENT_DIR is not set (environment or scripts/.env): name the content source,
+   or OSCT_CONTENT_DIR=fixtures/content for the test fixture (docs/content-cdn.md).`);
+  process.exit(1);
+};
 export const OUTPUT_FILE = resolve(projectRoot, 'client/src/game.config.json');
 export const SCRIPTS_SRC_DIR = resolve(projectRoot, 'scripts/src');
 export const CLIENT_PUBLIC_ASSETS_DIR = resolve(projectRoot, 'client/public/assets/content');

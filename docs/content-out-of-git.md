@@ -33,8 +33,8 @@ Done in this repository (1.7.6, #5): the fixture, CI and the tests on the fixtur
 
 1. **Deploys without content.** Done 1.7.9 (#6): the app image (`Dockerfile` build arg, `config/deploy.yml`
    `builder.args`, `deploy.yml`) and the FTPS staging deploy build with `VITE_CONTENT_BASE_URL` =
-   `CONTENT_BASE_URL` of the GitHub environment. Still to do with step 3: the `Dockerfile` drops `COPY content content`
-   and `.dockerignore` its `!content/` line – until then an image without `CONTENT_BASE_URL` still bundles the content.
+   `OSCT_CONTENT_BASE_URL` of the GitHub environment. Still to do with step 3: the `Dockerfile` drops `COPY content content`
+   and `.dockerignore` its `!content/` line – until then an image without `OSCT_CONTENT_BASE_URL` still bundles the content.
 2. **A home for the source.** Decided (Tilman, 2026-10-30): **kept locally** in `C:\Development\osct\osct-content\content`,
    next to the mirror backup of step 5 – those two are the only copies; neither is deleted. Was: Decide where `osct-content` is kept safe – a private repository
    of its own, or a `source/` folder on the storage zone – before the history that holds the only other copy is

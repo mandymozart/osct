@@ -19,7 +19,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { APP_VERSION, CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, DEMO_ENV, DEMO_MARKER, FIXTURE_MARKER, OUTPUT_FILE, projectRoot } from './config';
+import { APP_VERSION, CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, DEMO_ENV, DEMO_MARKER, FIXTURE_MARKER, OUTPUT_FILE, projectRoot, requireContentDir } from './config';
 import { buildConfig } from './build/game-config';
 import { buildPlugins, writePluginBundles } from './build/plugins';
 import { hashBuildInputs, readPreviousHash } from './lib/hash';
@@ -29,7 +29,7 @@ import { buildWarnings } from './lib/errors';
 console.log('🚀 OSCT Content Build Tool 🚀');
 console.log('----------------------------');
 console.log('📁 Project root:', projectRoot);
-console.log('📁 Content directory:', CONTENT_DIR);
+console.log('📁 Content directory:', requireContentDir());
 console.log('📄 Output file:', OUTPUT_FILE);
 
 // The content is not in this repository: no silent fallback to anything else

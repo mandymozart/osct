@@ -4,8 +4,9 @@
 # ?content=https://buildingfictions.b-cdn.net/demo (a debug build), the staging editor imports it from that base URL
 # (docs/editor.md "Try it"). Runs by hand, and on a push to develop that touches the demo or what it is built with.
 #
-# Storage access comes from the GitHub environment "staging" (docs/content-cdn.md): BUNNY_STORAGE_ZONE,
-# BUNNY_STORAGE_ZONE_ENDPOINT, BUNNY_STORAGE_PASSWORD; the sync checks the CDN at CONTENT_BASE_URL's parent + /demo.
+# Storage access comes from the GitHub environment "staging" (docs/content-cdn.md): OSCT_BUNNY_STORAGE_ZONE,
+# OSCT_BUNNY_STORAGE_ENDPOINT, OSCT_BUNNY_STORAGE_PASSWORD; the sync checks the CDN at OSCT_CONTENT_BASE_URL's parent +
+# /demo (#33: the names without OSCT_ are still read as a fallback until the environment is renamed).
 name: Demo book
 
 on:
@@ -39,9 +40,11 @@ jobs:
     env:
       OSCT_CONTENT_DIR: fixtures/demo
       OSCT_CONTENT_ENV: demo
-      BUNNY_STORAGE_ZONE: ${{ vars.BUNNY_STORAGE_ZONE }}
-      BUNNY_STORAGE_ZONE_ENDPOINT: ${{ vars.BUNNY_STORAGE_ZONE_ENDPOINT }}
-      BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
+      OSCT_BUNNY_STORAGE_ZONE: ${{ vars.OSCT_BUNNY_STORAGE_ZONE || vars.BUNNY_STORAGE_ZONE }}
+      OSCT_BUNNY_STORAGE_ENDPOINT: ${{ vars.OSCT_BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ZONE_ENDPOINT || 'storage.bunnycdn.com' }}
+      OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.OSCT_BUNNY_STORAGE_PASSWORD || secrets.BUNNY_STORAGE_PASSWORD }}
+      # The staging reader shows the demo (?content=…): the CDN check asks with its origin (CORS)
+      OSCT_APP_URL: https://osct.porschuetz.de
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -53,9 +56,9 @@ jobs:
       - run: npm run build
       # The demo's CDN folder sits next to the book's environments: <zone>/demo
       - name: The demo's content base URL
-        run: echo "CONTENT_BASE_URL=${CONTENT_BASE_URL%/*}/demo" >> "$GITHUB_ENV"
+        run: echo "OSCT_CONTENT_BASE_URL=${STAGING_BASE%/*}/demo" >> "$GITHUB_ENV"
         env:
-          CONTENT_BASE_URL: ${{ vars.CONTENT_BASE_URL }}
+          STAGING_BASE: ${{ vars.OSCT_CONTENT_BASE_URL || vars.CONTENT_BASE_URL }}
       - name: Build the demo book
         run: npm run build:content:force
       - name: Sync it to the environment demo

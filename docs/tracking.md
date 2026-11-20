@@ -204,7 +204,7 @@ surface's top left corner), carried in from the book's layout by `scripts/layout
 "Placing the targets from the layout", #321). The report's *Printed image* column names the target image's file, the
 surface, the printed size, the third of the surface it lies in (`top left`, `middle centre` …) and the box's corner
 (`x 12, y 40 mm`); a target without a place shows "not placed", and when some targets are placed the others count as
-"not printed" in the strip. Content without any place numbers every target. (Until 1.62 a separate
+"not printed" in the strip. Content without any place numbers every target. (Until 3.7 a separate
 `trigger-protocol.json`, written by `npm run protocol` from the delivery mapping, held these details – gone with #32.)
 
 ## Load test

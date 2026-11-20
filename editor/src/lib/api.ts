@@ -87,8 +87,8 @@ export type {
 
 /**
  * The instance's API (server/api, docs/server.md): the accounts endpoints the sign-in uses and the editor's own
- * `/editor/*`. `VITE_API_URL` names it (default `/api`, next to the app on the same origin – the dev server proxies it
- * to the PHP dev API). The session is the API's HttpOnly cookie (#207, docs/server.md "Sessions, cookies and CSRF"): no
+ * `/editor/*`, always at `/api` next to the app on the same origin (#33 – the dev server proxies it to the PHP dev
+ * API). The session is the API's HttpOnly cookie (#207, docs/server.md "Sessions, cookies and CSRF"): no
  * script on the page can read it, and nothing about it is in `localStorage`. What the editor holds is the session's
  * CSRF token, in memory only, sent with every write. `authFetch` is the `fetch` the engine's content loader uses for
  * the draft – the cookie goes with it. Every call goes through `request`: the cookie and the CSRF token, the end of a
@@ -96,7 +96,7 @@ export type {
  * after a write to the experience.
  */
 
-export const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? "/api").replace(/\/+$/, "");
+export const API_URL = "/api";
 
 export class ApiError extends Error {
   /** `details` = the rest of the server's error object (e.g. `current` of a 409 other-experience) */

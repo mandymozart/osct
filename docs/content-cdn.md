@@ -61,11 +61,11 @@ npm run osct -- content sync --env staging             # upload the build as a v
 npm run osct -- content purge --env staging --dry-run  # which old versions would go, and why the others stay
 ```
 
-- **build** reads the content source `OSCT_CONTENT_DIR` (absolute, or relative to the repository; default: a
-  local `content/` folder). It stops when there is no `experience.yaml` – there is no fallback to the fixture.
+- **build** reads the content source `OSCT_CONTENT_DIR` (absolute, or relative to the repository; required – no
+  default since #33). It stops when it is not set or has no `experience.yaml` – there is no fallback to the fixture.
 - **status** lists the versions on the storage and checks that `latest.json` and `versions.json` agree there:
   `versions.json` lists the build `latest.json` names, as its only current entry (`retiredAt` null). When they
-  disagree it names the problem and exits with 1. With `CONTENT_BASE_URL` it also reads both files through the CDN,
+  disagree it names the problem and exits with 1. With `OSCT_CONTENT_BASE_URL` it also reads both files through the CDN,
   as a reader gets them, and warns when the edge's `versions.json` disagrees with its `latest.json` – a cached copy
   (see the pull zone settings below), not a storage problem.
 - **sync** uploads the build into `<env>/<build>/` – skipped when that version is already complete on the storage
@@ -90,12 +90,16 @@ npm run osct -- content purge --env staging --dry-run  # which old versions woul
 
 | Variable | Meaning |
 |---|---|
-| `OSCT_CONTENT_DIR` | the content source to build (absolute or relative to the repository; `fixtures/content` for the test fixture) |
+| `OSCT_CONTENT_DIR` | the content source to build (absolute or relative to the repository; `fixtures/content` for the test fixture) – required, no default (#33) |
 | `OSCT_CONTENT_ENV` | environment when `--env` is not given: `staging`, `production` or `demo` (an environment name: a letter first, then lower-case letters, digits and `-`, at most 32 – the API's `ENV` rule) |
-| `BUNNY_STORAGE_ZONE` | storage zone name (`osct`) |
-| `BUNNY_STORAGE_ZONE_ENDPOINT` | Storage API host (`storage.bunnycdn.com`) |
-| `BUNNY_STORAGE_PASSWORD` | the zone's access key – read/write for sync and purge, read-only is enough for status and `--dry-run`; never in the repository |
-| `CONTENT_BASE_URL` | the environment's CDN URL – sync checks what the CDN serves afterwards; purge requires it |
+| `OSCT_BUNNY_STORAGE_ZONE` | storage zone name (`osct`) |
+| `OSCT_BUNNY_STORAGE_ENDPOINT` | Storage API host (`storage.bunnycdn.com`) |
+| `OSCT_BUNNY_STORAGE_PASSWORD` | the zone's access key – read/write for sync and purge, read-only is enough for status and `--dry-run`; never in the repository |
+| `OSCT_CONTENT_BASE_URL` | the environment's CDN URL – sync checks what the CDN serves afterwards; purge requires it |
+| `OSCT_APP_URL` | optional: the site the reader runs on (`https://osct.porschuetz.de`) – the CDN check asks with its origin and warns when the CDN sends no CORS header; unset, CORS is not checked |
+
+The names are the server's (`docs/server.md` "Configuration") – one `OSCT_` prefix for every setting (#33; until 3.7
+they were `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_ZONE_ENDPOINT`, `BUNNY_STORAGE_PASSWORD` and `CONTENT_BASE_URL`).
 
 The CLI reads them from the environment or from `scripts/.env` (untracked; also read by `npm run content` in
 client/). **sync** runs where the content source is – by hand on that machine; where it is triggered in the long
@@ -107,7 +111,7 @@ the GitHub environment; it has no sync, because a checkout of this repository ha
 ## Loading in the app
 
 The app build gets the environment's CDN URL as `VITE_CONTENT_BASE_URL` (the GitHub environment variable
-`CONTENT_BASE_URL`, e.g. `https://buildingfictions.b-cdn.net/staging`). Such a build reads no content: `prebuild`
+`OSCT_CONTENT_BASE_URL`, e.g. `https://buildingfictions.b-cdn.net/staging`). Such a build reads no content: `prebuild`
 skips the content build (`client/content-prebuild.mjs`), the bundled configuration module is empty, `dist/` has no
 `assets/content/`, and only the splash and the home-screen name take the experience data from the CDN's current version
 at build time (fallback: a local content build, then none).
@@ -174,7 +178,7 @@ a workflow can do it.
 
    (or in the dashboard: Pull zone → Purge cache → the three URLs).
 3. Check: `npm run osct -- content status --env staging` (from `scripts/`, with the storage variables and
-   `CONTENT_BASE_URL`) prints "latest.json and versions.json agree on the storage" and "CDN versions.json: agrees with
+   `OSCT_CONTENT_BASE_URL`) prints "latest.json and versions.json agree on the storage" and "CDN versions.json: agrees with
    latest.json"; or `curl -s https://buildingfictions.b-cdn.net/staging/versions.json` lists the build `latest.json`
    names with `"retiredAt": null`.
 

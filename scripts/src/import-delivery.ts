@@ -33,7 +33,7 @@ import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
 import { isObject } from '../../shared/guards/game-config';
-import { BOOK_PAGE_MM, CONTENT_DIR } from './config';
+import { BOOK_PAGE_MM, CONTENT_DIR, requireContentDir } from './config';
 import { isMainModule } from './lib/entry';
 import { toJpeg } from './lib/optimize-media';
 
@@ -350,7 +350,7 @@ if (isMainModule(import.meta.url)) {
   console.log('📦 OSCT delivery import');
   console.log('📁 Delivery:', path.resolve(deliveryDir));
   console.log('📄 Mapping:', path.resolve(mappingFile));
-  console.log('📁 Content:', CONTENT_DIR);
+  console.log('📁 Content:', requireContentDir());
   const report = importDelivery(path.resolve(deliveryDir), path.resolve(mappingFile));
   console.log(`\n✅ ${report.mediaWritten.length} media files written, ${report.entriesWritten.length} new entries, ${report.scenesWritten.length} new scenes`);
   for (const warning of report.warnings) console.warn(`   ⚠️  ${warning}`);

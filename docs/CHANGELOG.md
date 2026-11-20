@@ -7,6 +7,32 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+
+- **Trigger trial: where a target is printed comes from the configuration** (#32): the trial strip and its md report
+  read each target's `place` (its surface, size and box in mm – carried in from the book layout, #321) instead of the
+  old protocol file. The report's *Printed image* column names the image file, the surface, the size, the third of the
+  surface it lies in and the box's corner; a target without a place shows "not placed". The editor's stage lays
+  targets without a place in a row as before.
+- **The API is always `/api`** (#33): reader and editor call it on their own origin; no build flag any more.
+- **Content CDN settings with the `OSCT_` prefix** (#33): the osct CLI, the workflows and Kamal read
+  `OSCT_BUNNY_STORAGE_ZONE`, `OSCT_BUNNY_STORAGE_ENDPOINT`, `OSCT_BUNNY_STORAGE_PASSWORD` and `OSCT_CONTENT_BASE_URL`
+  (the server's own names) – `scripts/.env` needs renaming; the workflows fall back to the old GitHub names until the
+  environments are renamed (docs/deploy.md).
+- **The CDN check's CORS origin from configuration** (#33): `osct content status` / `sync` ask the CDN with the origin of
+  `OSCT_APP_URL` (the site the reader runs on) instead of a hardcoded production address; unset, CORS is not checked.
+- **`OSCT_CONTENT_DIR` is required** (#33): the content build, the delivery import and the converters stop with a
+  message when it is not set – no fallback to a `content/` folder (the content is not in git).
+- docs/server.md documents `OSCT_CONFIG_FILE` (another settings file in place of `config.local.php`).
+
+### Removed
+
+- `client/public/trigger-protocol.json` and `npm run protocol` (`scripts/src/protocol.ts`) – stale since the places
+  are in the configuration (#32); with them the engine's protocol reader and the stage frame's policy entry for it.
+- The build flag `VITE_API_URL` and the unused Docker build argument `VITE_SHOW_LOCKED_ENTRIES` (#33).
+
 ## 3.8.0 – 2026-11-20
 
 ### Added
