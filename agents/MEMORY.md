@@ -209,6 +209,23 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-20 – Idea to debate later: XR scenes with the deck's renderer and 8th Wall's tracking
+
+- Tilman: "Ich bin mir nicht sicher ob wir vielleicht das rendering via unserer eigenen deck engine machen können und das
+  tracking von 8thwall benutzen. Es gibt binaries ... wir könnten auch reverse engineeren. Langfristig hat das sogar den
+  Vorteil das wir native auf ios und android not tracking zurück fallen könnten." To be debated later, together with
+  how XR scenes are made.
+- Facts checked 2026-11-20: OSCT ships `@8thwall/engine` 0.1.0 (`client/`), under the **MIT licence** (Niantic
+  Spatial 2026). The package is compiled JS (`dist/xr.js`, `xr-tracking.js`, `xr-face.js`) plus TFLite models and
+  workers, with no source. MIT allows using, modifying and studying exactly what ships, so reverse engineering the
+  delivered code is not a licence problem. 8th Wall's camera pipeline is renderer-agnostic (pipeline modules for
+  three, A-Frame, Babylon or custom), so the camera frame and the image-target poses could feed another renderer,
+  such as the deck engine (wgpu → WebGPU in the browser).
+- The long-term gain Tilman names: the deck engine runs natively (wgpu on iOS and Android) and falls back to native
+  image tracking there (ARKit / ARCore).
+- Not checked: whether the 8th Wall build exposes the tracking without its own render loop, its performance next to
+  WebGPU, and wgpu/WebGPU support in mobile Safari.
+
 ## 2026-11-20 – Logic view: ports from the code (reflection), no registerLogicNode (#334)
 
 - Tilman: "ich finde wir sollten die typisierung und die ideen der anderen marktfuehrer uebernehmen. das macht deutlich
