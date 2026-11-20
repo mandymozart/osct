@@ -221,6 +221,14 @@ Verbatim from the archived entries (the entry title and archive file in front of
   `layout.json` target keys) still carry padded names; the folder is an export since #322 and follows from the next
   export.
 
+## 2026-11-20 – Prepared recognition frames: not on the book without a test run (#306)
+- 3.11.0 can prepare a target's recognition frame ahead of time (`osct targets prepare`, `target.recognition`, schema 4.1).
+  It saves load time only (S22 150–260 ms per image + the download), not recognition quality.
+- Tilman: *"Ich wuerde die target optimierung nicht laufen lassen. Da muss es ein test lauf geben."* Today's runtime
+  path is tested for every target, the small black-and-white ones too. So: never run it on the book's targets
+  until a test run (a few targets incl. small b/w, test experience, S22 + iPhone, recognition / found / lost / re-find
+  at least as good) has passed.
+
 ## 2026-11-20 – Backlog review: 123 → about 50 open issues, Tilman's decisions (#332)
 - 70+ issues closed (shipped, superseded or merged); design review leftovers in #333. Result and decisions: #332.
 - **Several experiences on one installation** (for Kévin's further works): one store layout `<title>/<env>/<experience>/…`
