@@ -120,7 +120,7 @@ describe("connecting is strictly typed (B8) and lands in a document field (L1)",
     const result = connect(["rule:t/#0", "do"], ["node:t/0", "act:hide"]);
     if (!result.ok) throw new Error(result.reason);
     expect(result.words).toMatch(/now also does: hide clip.$/);
-    const rules = (result.changed[0].entity.components![0] as { rules: Array<Record<string, unknown>> }).rules;
+    const rules = (result.changed[0].entity.components![0] as unknown as { rules: Array<Record<string, unknown>> }).rules;
     expect(rules[0].do).toEqual([{ show: "caption" }, { play: "", node: "box" }, { hide: "clip" }]);
     // Re-aiming an action into another verb's inlet changes its verb
     const reaimed = connect(["rule:t/#0", "do:0"], ["node:t/3", "act:pause"]);

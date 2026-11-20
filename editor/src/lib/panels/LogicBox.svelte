@@ -22,6 +22,7 @@
 
 <script lang="ts">
   import { Handle, Position } from "@xyflow/svelte";
+  import { contentUrl } from "@engine/content/game-config";
   import Icon from "#lib/components/Icon.svelte";
   import { BOX_HEAD, PORT_ROW, handleId } from "#lib/logic/flow.js";
 
@@ -83,7 +84,7 @@
     <Handle type="target" position={Position.Left} id={handleId(p)} class="port sig-{p.signal}{lit(handleId(p))}" style={top(i, ins.length)} isConnectable={data.editable} title={p.label} />
   {/each}
   <span class="head">
-    {#if node?.preview}<img class="preview" src={node.preview} alt="" loading="lazy" />{/if}
+    {#if node?.preview}<img class="preview" src={contentUrl(node.preview)} alt="" loading="lazy" onerror={e => ((e.currentTarget as HTMLImageElement).hidden = true)} />{/if}
     <span class="text">
       <span class="label">{label}</span>
       <span class="detail">{detail}</span>
@@ -98,7 +99,7 @@
     {/if}
   </span>
   {#each rows as p, i (`${p.dir}:${p.id}`)}
-    <span class="row {p.dir}" style:top="{rowTop(i) - PORT_ROW / 2}px" style:height="{PORT_ROW}px" title="{p.owner ? `${p.owner} · ` : ''}{p.label}{p.detail ? ` – ${p.detail}` : ''}">{p.label}</span>
+    <span class="port-row {p.dir}" style:top="{rowTop(i) - PORT_ROW / 2}px" style:height="{PORT_ROW}px" title="{p.owner ? `${p.owner} · ` : ''}{p.label}{p.detail ? ` – ${p.detail}` : ''}">{p.label}</span>
     <Handle type={p.dir === "in" ? "target" : "source"} position={p.dir === "in" ? Position.Left : Position.Right} id={handleId(p)}
       class="port sig-{p.signal} kind-{p.kind}{lit(handleId(p))}" style="top: {rowTop(i)}px" isConnectable={data.editable}
       title="{p.label}{p.detail ? ` – ${p.detail}` : ''}" />
@@ -119,11 +120,11 @@
   .text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
   .label { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .detail { font-size: .625rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .row {
+  .port-row {
     position: absolute; left: 0; right: 0; box-sizing: border-box; padding: 0 .625rem; display: flex; align-items: center;
     font-size: .625rem; line-height: 1; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
   }
-  .row.out { justify-content: flex-end; }
+  .port-row.out { justify-content: flex-end; }
   /* The kinds by shape and line, never by colour (RULES #38) */
   .box.event { border-radius: 999px; }
   .box.event .head { padding-left: .75rem; }

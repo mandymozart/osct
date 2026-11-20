@@ -276,7 +276,7 @@
   const exposeMenu = (box: FlowBox, at: { x: number; y: number }) => {
     if (!editable) return say(readOnlyHint ?? "Read-only here.", true);
     const items: LogicMenuItem[] = box.hidden.map(p => ({
-      key: `show:${p.dir}:${p.id}`, label: `Show ${p.label}`, detail: [p.owner, p.detail].filter(Boolean).join(" · "),
+      key: `show:${p.dir}:${p.id}`, label: p.kind === "action" ? `Show the ${p.label} action` : p.kind === "event" ? `Show the ${p.label} event` : `Show ${p.label}`, detail: [p.owner, p.detail].filter(Boolean).join(" · "),
       select: () => run({ op: "canvas", edit: { edit: "expose", box: box.id, ports: [p.id] } }),
     }));
     if (box.hidden.length > 1) items.push({ key: "show:all", label: "Show every port", select: () => run({ op: "canvas", edit: { edit: "expose", box: box.id, ports: box.hidden.map(p => p.id) } }) });

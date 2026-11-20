@@ -60,7 +60,7 @@
   const nodeTypes = { logic: LogicBox };
 
   // A box hovered on the level before (it went away under the pointer) lights nothing here
-  const lit = $derived(hovered && flow.boxes.some(b => b.id === hovered) ? new Set(flow.wires.filter(w => w.source === hovered || w.target === hovered).flatMap(w => [w.source, w.target])) : null);
+  const lit = $derived(!dragging && hovered && flow.boxes.some(b => b.id === hovered) ? new Set(flow.wires.filter(w => w.source === hovered || w.target === hovered).flatMap(w => [w.source, w.target])) : null);
 
   /** What is selected on the canvas, kept across a new flow (a hover or an op draws the boxes again) */
   let chosen = $state<{ nodes: Set<string>; edges: Set<string> }>({ nodes: new Set(), edges: new Set() });
@@ -94,6 +94,12 @@
   const ends = (c: { source: string; target: string; sourceHandle?: string | null; targetHandle?: string | null }): [[string, string], [string, string]] =>
     [[c.source, portOf(c.sourceHandle)], [c.target, portOf(c.targetHandle)]];
   const wireOf = (id: string) => flow.wires.find(w => w.id === id);
+  /** The handle under the pointer where a drag ended (a touch: where the finger left) */
+  const handleAt = (e: MouseEvent | TouchEvent): { nodeId: string; id: string | null } | null => {
+    const at = "clientX" in e ? { x: e.clientX, y: e.clientY } : { x: e.changedTouches[0]?.clientX ?? 0, y: e.changedTouches[0]?.clientY ?? 0 };
+    const handle = document.elementFromPoint(at.x, at.y)?.closest<HTMLElement>(".svelte-flow__handle");
+    return handle?.dataset.nodeid ? { nodeId: handle.dataset.nodeid, id: handle.dataset.handleid ?? null } : null;
+  };
   const point = (e: MouseEvent | TouchEvent) => ("clientX" in e ? { x: e.clientX, y: e.clientY } : { x: e.touches[0]?.clientX ?? 0, y: e.touches[0]?.clientY ?? 0 });
   /** The canvas's selection is kept here, not by xyflow: a new flow (a hover, an op) draws the boxes again and keeps it */
   const choose = (nodeIds: string[], edgeIds: string[]) => {
@@ -110,11 +116,14 @@
       isValidConnection={c => editable && canconnect(...ends(c))}
       onbeforeconnect={c => { onconnect(...ends(c)); return false; }}
       onconnectstart={(_, p) => { if (editable && p.nodeId && p.handleId) dragging = takesfrom([p.nodeId, portOf(p.handleId)], p.handleType === "target" ? "in" : "out"); }}
-      onconnectend={(_, state) => {
+      onconnectend={(event, state) => {
         dragging = null;
         const from = state.fromHandle;
-        const to = state.toHandle;
-        if (editable && state.isValid === false && from?.nodeId && to?.nodeId) onrefused([from.nodeId, portOf(from.id)], [to.nodeId, portOf(to.id)]);
+        // xyflow names no handle it would not take: the one under the pointer is where the wire was let go
+        const to = state.toHandle ?? handleAt(event);
+        if (editable && state.isValid !== true && from?.nodeId && to?.nodeId && `${to.nodeId}|${to.id}` !== `${from.nodeId}|${from.id}`) {
+          onrefused([from.nodeId, portOf(from.id)], [to.nodeId, portOf(to.id)]);
+        }
       }}
       onbeforedelete={async () => false}
       onnodeclick={({ node, event }) => {
