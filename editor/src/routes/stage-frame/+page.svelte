@@ -11,7 +11,7 @@
   let container = $state<HTMLDivElement>();
   // Absolute, whatever form the base takes: the policy names it with the origin
   const appBase = new URL(resolve("/(app)"), location.href).pathname;
-  const apiBase = ((import.meta.env.VITE_API_URL as string | undefined) ?? "/api").replace(/\/+$/, "");
+  const apiBase = "/api"; // same origin always (#33)
   const devSocket = import.meta.env.DEV ? `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}${appBase}` : null;
 
   onMount(() => startStageFrame(container!, { appBase, apiBase, devSocket }));

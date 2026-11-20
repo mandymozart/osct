@@ -291,7 +291,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     environment secrets – the container gets them as `OSCT_*` environment variables. Queries must run
     on MySQL and SQLite (tests – the API test runs on both, locally against the MariaDB of `docker-compose.yml`:
     no named parameter twice, `LIKE` patterns through `Db::contains`); schema changes go into `api/db/schema.*.sql` (idempotent). The app talks to it
-    only through `ApiService` (`VITE_API_URL`); `php server/tests/api-test.php` must pass.
+    only through `ApiService` (same-origin `/api`, #33); `php server/tests/api-test.php` must pass.
     Naming: the signed-in person is the **user** in code, API and database; "Account" is only the UI label.
     Update options are **opt-in** – never on by default.
     **A deploy never resets data**: the schema files only add (`CREATE TABLE IF NOT EXISTS`; later changes as
