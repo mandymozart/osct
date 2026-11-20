@@ -238,7 +238,8 @@ Verbatim from the archived entries (the entry title and archive file in front of
   - L6: the event bus works by name, and the joins are drawn as derived edges.
 - **L10 decided (Tilman: "Der grosse schema switch kann sobald er fertig ist gemacht werden"):** L-T1 to L-T3 start
   now. The MAJOR (L-T5) ships as soon as it is ready, without waiting to be bundled with another cut before Tokyo.
-- [ ] Tilman: L8 (`?logic=` in the URL), L9 (does SCUTOONS adopt the package).
+- **L8 decided (Tilman: "Yes, into the URL"):** the Logic view's level goes into `?logic=`, built in L-T3.
+- [ ] L9 (does SCUTOONS adopt the package): asked in mandymozart/scutoons#702.
 
 ## 2026-11-20 – The delivery endpoint's change log: row kinds plus `delivery_id` (#322 T5)
 
