@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 3.11.0 – 2026-11-20
 
 ### Added
 - **Recognition data made ahead** (#306, content schema 4.1): `osct targets prepare --experience <id> [--dry-run] [--force] [--all]`
