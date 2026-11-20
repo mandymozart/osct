@@ -5,7 +5,7 @@ updates this file before it ends; it is the only state that carries over. Long s
 four days for one orchestrator, `agents/costs.json`), so sessions are short and this file is complete.
 
 ## Starting a session (in this order)
-1. Read `CLAUDE.md`, `agents/RULES.md`, `agents/PLAN.md`, the top of `agents/MEMORY.md`,
+1. Read `CLAUDE.md`, `agents/RULES.md`, `agents/PLAN.md`, the top of `agents/MEMORY.md` (older entries: `agents/archive/`, see its README),
    `C:\Developmentgents\ORCHESTRATION.md` (moved there 2026-11-01; its §11 "Usage" sets the models and caps – the orchestrator's
    model and turn/cost ceiling, a shift budget, worker caps per `complexity:S/M/L`, S tickets as a subagent, every title
    `#N`, each check once; the numbers changed twice on 11-01, so read §11 and `C:\Developmentgents\models.json`,
