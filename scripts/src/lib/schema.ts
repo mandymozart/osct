@@ -32,6 +32,7 @@ export const schemas = {
       environment: { type: "Object", required: false }, // the world around the reader and the onion sky: { world, onionSky, worldSrc?, skySrc? }, see shared/types/environment.ts
       recognition: { type: "String", required: false }, // how the reader gets its targets' recognition data: "original" (default) or "prepared" (#306, schema 4.2)
       appearance: { type: "Object", required: false }, // the look an entity appears with: { reveal?, found?, lost? }, each { type, ...parameters }, see shared/types/appearance.ts
+      variables: { type: "Object", required: false }, // the rules' typed variables: { name: { type, scope?, default? } } (schema 5.0, #334 B7), see shared/types/variables.ts
       logic: { type: "Object", required: false }, // the experience's rules: { rules: [{ on, when?, do }], canvas? } – the canvas stays out of the build (schema 5.0, #334), see shared/types/logic.ts
     },
   },

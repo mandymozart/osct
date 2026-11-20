@@ -9,7 +9,7 @@
  *         - on: tap
  *           do:
  *             - play: rattle
- *             - set: { hasKey: true }
+ *             - set: { hasKey: true, tries: "tries + 1", mood: '"calm"' }
  *               scope: experience
  *             - emit: keyRattled
  *         - on: found
@@ -33,8 +33,10 @@
  * `api.vars.get(name)` – the innermost scope that has it. The object form of 2.19–4.x (`{ hasKey: true }`, `{ any: … }`,
  * `{ not: … }`) is gone; content of those schemas is migrated (`scripts/src/convert-content-5.ts`, `Migration5.php`).
  * **Actions**: `play: <clip>` (empty = the node's own clip – its `animation` component's, else the first), `pause` and
- * `stop` a clip, `show` and `hide` a node, `set: { name: value }` with an optional `scope` (scene by default; `null`
- * deletes), `emit: <event>` (a scene event – never a core event), `goto: scene:<id>` (schema 5.0: the reader opens that
+ * `stop` a clip, `show` and `hide` a node, `set: { name: value }` with an optional `scope` (the variable's declared scope,
+ * else scene; `null` deletes) – **a value is an expression** (schema 5.0, B2: `tries + 1`, `hasKey`, `"calm"` – a text
+ * value is written as the language's text literal, in YAML `'"calm"'`); a number or true / false may stand bare, being its
+ * own expression – variables are typed (`./variables.ts`), `emit: <event>` (a scene event – never a core event), `goto: scene:<id>` (schema 5.0: the reader opens that
  * scene, as a link to `/scene/<id>`). In a node's rules the node of `play` (its `node`), of `pause`, `stop`, `show` and
  * `hide` (their value) is the behaviour's own node when empty, else the node of that `name` in its subtree; a shorthand
  * string runs a verb on the own node: `play`, `pause`, `stop`, `show`, `hide`. A scene's and the experience's rules have
@@ -46,7 +48,7 @@
  */
 
 import { CAMEL_CASE_NAME, isObject } from "../guards/primitives";
-import { exprMessage, expressionVariables, parseExpression } from "../text/expressions";
+import { exprMessage, expressionVariables, parseExpression, showValue } from "../text/expressions";
 import { addressProblem, GOTO_SCHEMES, NODE_SCHEMES } from "./address";
 
 /** The component's type */
@@ -84,7 +86,11 @@ export type BehaviourAction =
   /** `node`: a node's rules – a name in the subtree ("" = the own node); scene / experience rules – an address */
   | { action: "play"; clip: string; node: string }
   | { action: "pause" | "stop" | "show" | "hide"; node: string }
-  | { action: "set"; name: string; value: BehaviourValue | null; scope: BehaviourScope }
+  /**
+   * `value`: the expression's source (schema 5.0 – a bare number or true / false of the content reads as its text, `3`,
+   * `true`); null deletes. `scope`: undefined = the variable's declared scope, else `scene`
+   */
+  | { action: "set"; name: string; value: string | null; scope?: BehaviourScope }
   | { action: "emit"; event: string }
   /** Schema 5.0: `scene:<id>` (`./address.ts`) – the host opens it (`ArSceneOptions.navigate`) */
   | { action: "goto"; address: string };
@@ -189,7 +195,10 @@ const actionProblems = (action: unknown, at: string, home: RuleHome): string[] =
       } else {
         Object.entries(value).forEach(([name, v]) => {
           if (!BEHAVIOUR_NAME_PATTERN.test(name)) problems.push(`${at}.set.${name}: not a variable name (camelCase letters and digits)`);
-          if (v !== null && !isScalar(v)) problems.push(`${at}.set.${name}: expected a text, a number, true / false or null (deletes), got ${show(v)}`);
+          if (typeof v === "string") {
+            parseExpression(v).problems.filter(problem => problem.severity === "error")
+              .forEach(problem => problems.push(`${at}.set.${name}: ${exprMessage(problem)} – ${show(v)} (a value is an expression; a text is written "…")`));
+          } else if (v !== null && !isScalar(v)) problems.push(`${at}.set.${name}: expected an expression, a number, true / false or null (deletes), got ${show(v)}`);
         });
       }
       if (action.scope !== undefined && !(BEHAVIOUR_SCOPES as readonly string[]).includes(action.scope as string)) {
@@ -238,9 +247,11 @@ const readAction = (raw: unknown): BehaviourAction[] => {
     if (verb in raw) return [{ action: verb, node: text(raw[verb]) }];
   }
   if ("set" in raw && isObject(raw.set)) {
-    const scope = (BEHAVIOUR_SCOPES as readonly string[]).includes(raw.scope as string) ? (raw.scope as BehaviourScope) : "scene";
-    return Object.entries(raw.set).flatMap(([name, value]): BehaviourAction[] =>
-      value === null || isScalar(value) ? [{ action: "set", name, value, scope }] : []);
+    const scope = (BEHAVIOUR_SCOPES as readonly string[]).includes(raw.scope as string) ? (raw.scope as BehaviourScope) : undefined;
+    return Object.entries(raw.set).flatMap(([name, value]): BehaviourAction[] => {
+      const source = value === null ? null : typeof value === "string" ? value.trim() : isScalar(value) ? showValue(value) : undefined;
+      return source === undefined ? [] : [{ action: "set", name, value: source, ...(scope ? { scope } : {}) }];
+    });
   }
   if ("emit" in raw && typeof raw.emit === "string") return [{ action: "emit", event: raw.emit }];
   if ("goto" in raw && typeof raw.goto === "string") return [{ action: "goto", address: raw.goto.trim() }];
@@ -273,7 +284,7 @@ const writeAction = (action: BehaviourAction): unknown => {
     case "pause": case "stop": case "show": case "hide":
       return action.node ? { [action.action]: action.node } : action.action;
     case "set":
-      return { set: { [action.name]: action.value }, ...(action.scope !== "scene" ? { scope: action.scope } : {}) };
+      return { set: { [action.name]: setValueData(action.value) }, ...(action.scope ? { scope: action.scope } : {}) };
     case "emit":
       return { emit: action.event };
     case "goto":
@@ -281,11 +292,19 @@ const writeAction = (action: BehaviourAction): unknown => {
   }
 };
 
-/** The variables a set of rules reads (its conditions) and writes, sorted (the editor offers them) */
+/** A set's expression in the content's shortest form: a plain number or true / false bare, anything else its source */
+export const setValueData = (source: string | null): BehaviourValue | null => {
+  if (source === null) return null;
+  if (source === "true" || source === "false") return source === "true";
+  if (/^-?(0|[1-9]\d*)(\.\d+)?$/.test(source)) return Number(source);
+  return source;
+};
+
+/** The variables a set of rules reads (its conditions and set values) and writes, sorted (the editor offers them) */
 export const behaviourVariables = (rules: readonly BehaviourRule[]): string[] =>
   [...new Set(rules.flatMap(rule => [
     ...(rule.when ? expressionVariables(rule.when) : []),
-    ...rule.do.flatMap(action => (action.action === "set" ? [action.name] : [])),
+    ...rule.do.flatMap(action => (action.action === "set" ? [action.name, ...(action.value ? expressionVariables(action.value) : [])] : [])),
   ]))].sort();
 
 /** The bus events a set of rules hears and emits, sorted (the node's own events and an empty `on` left out) */
@@ -305,7 +324,7 @@ export const describeActions = (actions: readonly BehaviourAction[]): string =>
     switch (action.action) {
       case "play": return `play ${action.clip || "its clip"}${action.node ? ` on ${action.node}` : ""}`;
       case "pause": case "stop": case "show": case "hide": return `${action.action}${action.node ? ` ${action.node}` : ""}`;
-      case "set": return `set ${action.name} = ${action.value === null ? "unset" : JSON.stringify(action.value)}${action.scope !== "scene" ? ` (${action.scope})` : ""}`;
+      case "set": return `set ${action.name} = ${action.value === null ? "unset" : action.value}${action.scope ? ` (${action.scope})` : ""}`;
       case "emit": return `emit ${action.event}`;
       case "goto": return `goto ${action.address}`;
     }

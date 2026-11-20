@@ -3,7 +3,7 @@ import {
   type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type TextureQuality, type MediaQuality, type PassData, type SceneInspection, ArState, type Target,
 } from "../types/index";
 import { type AppearanceData, type ExperienceAppearance, entityMomentAppearance, type Moment, nodeMomentLook } from "@shared/types/appearance";
-import { entityAssets, getAssets, getExperience, getPasses, getPlugins, getScene, getScenes, getTargets } from "../content/game-config";
+import { entityAssets, getAssets, getExperience, getVariableTypes, getPasses, getPlugins, getScene, getScenes, getTargets } from "../content/game-config";
 import { type EnvironmentData, environmentOf } from "@shared/types/environment";
 import { focusAtTap } from "../utils/camera-request";
 import { Emitter } from "../utils/emitter";
@@ -17,7 +17,7 @@ import { CARD_HOLD_MS, CardFlight } from "./card-flight";
 import { buildEntity, type EntityInstance, placeEntity } from "./entities";
 import { loadPlugins } from "./plugins";
 import { cameraGrades, cameraGradeShader } from "./post/grade";
-import { emitCoreEvent, type ProgressReader, setNavigator, setProgressReader, setSceneSource, sceneChanged, stageEnded } from "./plugin-runtime";
+import { emitCoreEvent, type ProgressReader, setNavigator, setProgressReader, setSceneSource, setVariableTypes, sceneChanged, stageEnded } from "./plugin-runtime";
 import { applyLogic, type LogicInstance, namedPaths, type NodeLookup } from "./behaviour";
 import { logicRules } from "@shared/types/logic";
 import type { IImageTracker, ImageTrackerOptions, TrackerContext } from "./tracker-types";
@@ -556,6 +556,8 @@ export class ArScene implements IArScene {
     this.assets.release(new Set(assets.map(a => a.id)));
     await Promise.all([this.assets.load(assets), loadPlugins(getPlugins())]);
     const targets = getTargets(sceneId);
+    // The content's typed variables (schema 5.0): read again – the content may have changed
+    setVariableTypes(getVariableTypes());
     // The scene scope of the plugins' variables ends before the new scene's entities are built
     sceneChanged(sceneId);
     const anchors = targets.map(target => this.buildAnchor(target));

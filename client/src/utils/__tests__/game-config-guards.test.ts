@@ -55,6 +55,21 @@ describe("game configuration guards", () => {
     expect(problemsOf(valid())).toEqual([]);
   });
 
+  it("check typed variables over every rule of the configuration (schema 5.0, B7)", () => {
+    const config = valid() as any;
+    config.experience.variables = { taps: { type: "integer", default: 0 } };
+    config.experience.logic = { rules: [{ on: "ping", when: "taps > 2", do: { set: { mood: '"calm"' } } }] };
+    config.entities.castle.components = [{ type: "behaviour", rules: [{ on: "tap", do: { set: { taps: "taps + 1" } } }] }];
+    expect(problemsOf(config)).toEqual([]);
+    config.experience.variables.taps.default = "none";
+    config.entities.castle.components[0].rules.push({ on: "tap", when: "mood", do: { set: { taps: "mood" } } });
+    expect(problemsOf(config)).toEqual([
+      'experience.variables.taps.default: "none" is no integer',
+      'entities.castle.components[0].rules[1].when: a condition is true / false – "mood" is a text',
+      'entities.castle.components[0].rules[1].do[0].set.taps: taps is an integer (experience.variables.taps) – "mood" is a string',
+    ]);
+  });
+
   it("check a scene's and the experience's logic, where a goto goes and which targets their rules name (schema 5.0)", () => {
     const config = valid() as any;
     config.scenes.push({ ...config.scenes[0], id: "scene2", label: "Two" });

@@ -1,3 +1,4 @@
+import { valueFits, type VariableInfo } from "@shared/types/variables";
 import { BEHAVIOUR_CORE_EVENTS, BEHAVIOUR_NAME_PATTERN, BEHAVIOUR_SCOPES, type BehaviourScope, type BehaviourValue, type Scene } from "../types/index";
 import { getScene } from "../content/game-config";
 
@@ -123,6 +124,17 @@ interface Listener { plugin: string; event: string; listener: EventListener; run
 let runs = 0;
 export const nextRun = (): number => ++runs;
 
+/** The rules' typed variables (schema 5.0, B7): a value of another type is refused, a declared one reads as its default */
+let variableTypes: ReadonlyMap<string, VariableInfo> = new Map();
+
+/** The scene sets the content's variable types (`getVariableTypes`) */
+export const setVariableTypes = (types: ReadonlyMap<string, VariableInfo>): void => {
+  variableTypes = types;
+};
+
+/** A variable's type, scope and default when the content types it */
+export const variableInfo = (name: string): VariableInfo | undefined => variableTypes.get(name);
+
 const listeners = new Set<Listener>();
 /** The editor's log: hears every delivery without being a plugin */
 const observers = new Set<(event: string, payload: unknown) => void>();
@@ -153,7 +165,12 @@ const experienceVars = () => progress.variables;
 const readVar = (name: string, scope: VarScope): VarValue | undefined =>
   scope === "experience" ? (experienceVars() ? experienceVars()!.get(name) : experienceInMemory.get(name)) : scopes[scope].get(name);
 
-const writeVar = (name: string, value: VarValue | null, scope: VarScope): void => {
+const writeVar = (name: string, value: VarValue | null, scope: VarScope, who = "a rule"): void => {
+  const typed = variableTypes.get(name);
+  if (typed && value !== null && !valueFits(typed.type, value)) {
+    console.warn(`[variables] ${who}: ${name} is ${typed.type === "integer" ? "an integer" : `a ${typed.type}`} (${typed.from}) – ${JSON.stringify(value)} refused, the value stays`);
+    return;
+  }
   const previous = readVar(name, scope);
   if (scope === "experience") {
     if (experienceVars()) experienceVars()!.set(name, value);
@@ -193,13 +210,14 @@ export const runtimeApi = (plugin: string, run = nextRun()): { events: PluginEve
           const value = readVar(name, s);
           if (value !== undefined) return value;
         }
-        return undefined;
+        // A declared variable that is not set reads as its default (schema 5.0, B7)
+        return variableTypes.get(name)?.default;
       },
       set: (name, value, scope = "scene") => {
         if (!EVENT_NAME_PATTERN.test(name)) throw new PluginRuntimeError(`${plugin}: "${name}" is not a variable name (camelCase letters and digits)`);
         if (!VAR_SCOPES.includes(scope)) throw new PluginRuntimeError(`${plugin}: the scope of ${name} must be ${VAR_SCOPES.join(", ")}`);
         if (value !== null && !isVarValue(value)) throw new PluginRuntimeError(`${plugin}: ${name} takes a string, a number or a boolean (null deletes)`);
-        writeVar(name, value, scope);
+        writeVar(name, value, scope, plugin);
       },
       on: (name, listener) => on("varChanged", payload => {
         const change = payload as CoreEvents["varChanged"];

@@ -33,6 +33,7 @@ import { isObject } from "./primitives";
 import { BEHAVIOUR_TYPE, type BehaviourRule, readRules } from "../types/behaviour";
 import { logicProblems, logicRules } from "../types/logic";
 import { parseAddress } from "../types/address";
+import { type RuleList, ruleTypeProblems, variablesProblems, variableTypes } from "../types/variables";
 
 export { isObject } from "./primitives";
 
@@ -128,8 +129,10 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
   // scenes and targets are known (below)
   const gotos: Array<{ address: string; path: string }> = [];
   const nodeAddresses: Array<{ address: string; path: string; scene: string | null }> = [];
+  /** Every list of rules in content order – the variables' types are inferred and checked over them (B7) */
+  const ruleLists: RuleList[] = [];
   const collect = (rules: BehaviourRule[], path: string, scene: string | null, named: boolean) =>
-    rules.forEach((rule, i) => rule.do.forEach((action, j) => {
+    ruleLists.push({ rules, path }) && rules.forEach((rule, i) => rule.do.forEach((action, j) => {
       const at = `${path}[${i}].do[${j}]`;
       if (action.action === "goto") gotos.push({ address: action.address, path: `${at}.goto` });
       else if (named && action.action !== "set" && action.action !== "emit" && action.node) nodeAddresses.push({ address: action.node, path: at, scene });
@@ -237,6 +240,7 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     if (experience.passes !== undefined) passProblems(experience.passes, "experience.passes", passOptions).forEach(problem => problems.push(problem));
     if (experience.environment !== undefined) environmentProblems(experience.environment, "experience.environment", false).forEach(problem => problems.push(problem));
     if (experience.appearance !== undefined) appearanceProblems(experience.appearance, "experience.appearance", appearanceOptions).forEach(problem => problems.push(problem));
+    if (experience.variables !== undefined) variablesProblems(experience.variables, "experience.variables").forEach(problem => problems.push(problem));
     if (experience.logic !== undefined) {
       logicProblems(experience.logic, "experience.logic", "experience").forEach(problem => problems.push(problem));
       collect(logicRules(experience.logic), "experience.logic.rules", null, true);
@@ -406,6 +410,9 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     const to = parseAddress(address);
     if (to?.scheme === "scene" && !sceneIds.has(to.id)) fail(path, `unknown scene "${to.id}"`);
   });
+  // Typed variables (schema 5.0, B7): declared or inferred from the first set; a set, a test or a condition of another type
+  const declarations = isObject(root.experience) ? root.experience.variables : undefined;
+  ruleTypeProblems(ruleLists, variableTypes(declarations, ruleLists)).forEach(problem => problems.push(problem));
   nodeAddresses.forEach(({ address, path, scene }) => {
     const at = parseAddress(address);
     if (at?.scheme !== "target") return;

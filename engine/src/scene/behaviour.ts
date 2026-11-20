@@ -4,7 +4,7 @@ import {
   isBehaviourNodeEvent, type NodeTimeline, parseAddress, type Target,
 } from "../types/index";
 import { evaluateExpression, type Expr, exprMessage, isTruthy, parseExpression } from "@shared/text/expressions";
-import { navigateTo, noteBehaviour, runtimeApi, type PluginVars } from "./plugin-runtime";
+import { navigateTo, noteBehaviour, runtimeApi, type PluginVars, variableInfo } from "./plugin-runtime";
 
 /**
  * Rules without code at runtime (grammar: `shared/types/behaviour.ts`): a node's `behaviour` component, a scene's and the
@@ -137,9 +137,18 @@ const ruleRunner = (host: RuleHost) => {
         if (object) object.visible = action.action === "show";
         return;
       }
-      case "set":
-        host.api.vars.set(action.name, action.value, action.scope);
+      case "set": {
+        // The value is an expression (schema 5.0, B2): `tries + 1`; its scope the action's, else the declared one, else scene
+        const scope = action.scope ?? variableInfo(action.name)?.scope ?? "scene";
+        if (action.value === null) return host.api.vars.set(action.name, null, scope);
+        const result = evaluateExpression(action.value, name => host.api.vars.get(name));
+        const error = result.problems.find(problem => problem.severity === "error");
+        if (!result.ok || result.value === undefined) {
+          return warn(`cannot set ${action.name} = ${action.value} – ${error ? exprMessage(error) : "a variable in it is not set"}`);
+        }
+        host.api.vars.set(action.name, result.value, scope);
         return;
+      }
       case "emit":
         host.api.events.emit(action.event, host.payload());
         return;

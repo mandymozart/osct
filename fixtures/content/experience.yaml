@@ -3,13 +3,17 @@ title: Onion Skin & Crocodile Tears
 book:
   author: Kévin Bray
   publisher: Building Fictions
+# The rules' typed variables (content schema 5.0, #334): declared here, or typed by their first set
+variables:
+  taps: { type: integer, scope: scene, default: 0 }
+  mood: { type: string, scope: experience, default: calm }
 # The experience's rules (content schema 5.0, #334): live for the whole session, across scene switches
 logic:
   rules:
     - on: targetUnlocked
       when: unlocks < 3 || chapterStarted == false
       do:
-        - set: { chapterStarted: true }
+        - set: { chapterStarted: true, mood: '"curious"' }
           scope: experience
     - on: chapterFinished
       do: { goto: "scene:cover" }

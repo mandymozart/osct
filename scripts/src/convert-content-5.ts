@@ -12,8 +12,15 @@
  * - a test the language cannot write (a variable named like a word of the language – `and`, `or`, `not`, `mod`,
  *   `true`, `false` – or a value that is no text, number or true / false) is left as it is and reported: the build
  *   then names it, and a person rewrites it.
- * A `when` that is already a text stays. Text in, text out: only the `when` lines change (comments survive); a flow
- * mapping on the line (`when: { hasKey: true }`) and a block mapping below it are both read.
+ * A `when` that is already a text stays.
+ *
+ * Every `set` value that is a text becomes the expression language's text literal (B2: since 5.0 a set value is an
+ * expression – `set: { mood: calm }` → `set: { mood: '"calm"' }`); numbers, true / false and null stay. Run it **once**:
+ * a second run would quote the texts again.
+ *
+ * Text in, text out: only the `when` and `set` lines change (comments survive); a flow mapping on the line (`when: {
+ * hasKey: true }`, `set: { a: x }`) and, for `when`, a block mapping below it are read. A `set` in block form is
+ * reported for a person to convert.
  */
 import fs from 'fs';
 import path from 'path';
@@ -82,6 +89,12 @@ export function convertWhenYaml(text: string): ConvertedFile {
   const done: ConvertedFile = { text, converted: 0, problems: [], approximate: [] };
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    const set = /^(\s*(?:-\s+)?)set:\s*(\{.*\})(\s*#.*)?$/.exec(line);
+    if (set) {
+      out.push(convertSetLine(set[1], set[2], set[3] ?? '', i + 1, done));
+      continue;
+    }
+    if (/^\s*(?:-\s+)?set:\s*(#.*)?$/.test(line)) done.problems.push(`${i + 1}: a set in block form – write its text values as "…" by hand`);
     const match = /^(\s*(?:-\s+)?)when:(\s*)(.*)$/.exec(line);
     if (!match) {
       out.push(line);
@@ -129,6 +142,23 @@ export function convertWhenYaml(text: string): ConvertedFile {
   }
   done.text = out.join('\n');
   return done;
+}
+
+/** A set's flow mapping with its text values as the language's text literals (B2) */
+function convertSetLine(lead: string, flow: string, comment: string, line: number, done: ConvertedFile): string {
+  let value: unknown;
+  try {
+    value = yaml.load(flow);
+  } catch {
+    done.problems.push(`${line}: the set does not read as YAML`);
+    return `${lead}set: ${flow}${comment}`;
+  }
+  if (!isObject(value)) return `${lead}set: ${flow}${comment}`;
+  const entries = Object.entries(value);
+  if (!entries.some(([, v]) => typeof v === 'string')) return `${lead}set: ${flow}${comment}`;
+  done.converted++;
+  const parts = entries.map(([name, v]) => `${name}: ${typeof v === 'string' ? yamlScalar(expressionLiteral(v)) : v === null ? 'null' : String(v)}`);
+  return `${lead}set: { ${parts.join(', ')} }${comment}`;
 }
 
 const dedent = (block: string[]): string => {

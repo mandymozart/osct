@@ -47,7 +47,7 @@ describe("behaviour: the content's grammar", () => {
       "components[0].rules[2].do.node: expected a node's name (empty = the behaviour's own node), got 4",
       'components[0].rules[3].when: = is no comparison – write == – "a = 1" at 3',
       "components[0].rules[3].do[0].set: expected { variable: value, … }",
-      'components[0].rules[3].do[1].set.x: expected a text, a number, true / false or null (deletes), got {"y":1}',
+      'components[0].rules[3].do[1].set.x: expected an expression, a number, true / false or null (deletes), got {"y":1}',
       'components[0].rules[3].do[1].scope: expected one of scene, stage, session, experience, got "world"',
       "components[0].rules[3].do[2].emit: targetFound is the engine's own event – a rule hears it, never emits it",
       "components[0].rules[3].do[3].emit: tap is the engine's own event – a rule hears it, never emits it",
@@ -68,18 +68,23 @@ describe("behaviour: the content's grammar", () => {
     const rules = behaviourRules(key);
     expect(rules[0]).toEqual({ on: "tap", when: null, do: [
       { action: "play", clip: "rattle", node: "" },
-      { action: "set", name: "hasKey", value: true, scope: "experience" },
+      { action: "set", name: "hasKey", value: "true", scope: "experience" },
       { action: "emit", event: "keyRattled" },
     ] });
     expect(rules[1]).toEqual({ on: "found", when: "hasKey", do: [{ action: "play", clip: "", node: "" }] });
     expect(rules[2].when).toBe("hasKey || tries != 3");
     expect(rules[3].do).toEqual([
       { action: "show", node: "" }, { action: "stop", node: "" }, { action: "pause", node: "door" }, { action: "play", clip: "", node: "door" },
-      { action: "set", name: "tries", value: null, scope: "scene" },
+      { action: "set", name: "tries", value: null },
     ]);
     expect(rules[4].do).toEqual([{ action: "goto", address: "scene:cover" }]);
-    expect(behaviourRules({ rules: [{ on: "tap", do: { set: { a: 1, b: "x" } } }] })[0].do)
-      .toEqual([{ action: "set", name: "a", value: 1, scope: "scene" }, { action: "set", name: "b", value: "x", scope: "scene" }]);
+    // a set value is an expression (B2): a bare number or true / false reads as its text, a text value is written "…"
+    expect(behaviourRules({ rules: [{ on: "tap", do: { set: { a: 1, b: "tries + 1", c: '"x"' } } }] })[0].do)
+      .toEqual([{ action: "set", name: "a", value: "1" }, { action: "set", name: "b", value: "tries + 1" }, { action: "set", name: "c", value: '"x"' }]);
+    expect(behaviourData(behaviourRules({ rules: [{ on: "tap", do: { set: { a: 1, b: "tries + 1", c: '"x"', d: false } } }] })).rules[0].do)
+      .toEqual([{ set: { a: 1 } }, { set: { b: "tries + 1" } }, { set: { c: '"x"' } }, { set: { d: false } }]);
+    expect(componentProblems([{ type: "behaviour", rules: [{ on: "tap", do: { set: { a: "calm down" } } }] }], "c"))
+      .toEqual(['c[0].rules[0].do.set.a: down does not belong here – "calm down" (a value is an expression; a text is written "…")']);
     // an empty condition is none; the object form is not read
     expect(readRules([{ on: "tap", when: "  ", do: "show" }, { on: "tap", when: { a: 1 }, do: "show" }]).map(rule => rule.when)).toEqual([null, null]);
     expect(behaviourRules(undefined)).toEqual([]);

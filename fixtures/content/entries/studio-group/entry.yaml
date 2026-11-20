@@ -18,7 +18,7 @@ target:
             do: { hide: caption }
           - on: tap
             do:
-              - set: { tapped: true }
+              - set: { tapped: true, taps: "taps + 1" }   # a set value is an expression: a counter
               - emit: groupTapped
           - on: tap
             when: tapped && taps >= 2

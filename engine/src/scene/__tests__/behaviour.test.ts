@@ -4,7 +4,7 @@ import { BEHAVIOUR_CORE_EVENTS, BEHAVIOUR_NAME_PATTERN, BEHAVIOUR_SCOPES, type E
 import { applyBehaviour, applyLogic, MAX_DEPTH, namedPaths, type NodeLookup, passes } from "../behaviour";
 import { buildEntity } from "../entities";
 import { installedPlugins, installPlugin, type PluginApi, uninstallPlugin } from "../plugins";
-import { CORE_EVENTS, emitCoreEvent, EVENT_NAME_PATTERN, observeEvents, resetVars, runtimeApi, setNavigator, stageEnded, VAR_SCOPES } from "../plugin-runtime";
+import { CORE_EVENTS, emitCoreEvent, EVENT_NAME_PATTERN, observeEvents, resetVars, runtimeApi, setNavigator, setVariableTypes, stageEnded, VAR_SCOPES } from "../plugin-runtime";
 import { readRules } from "@shared/types/behaviour";
 
 /** The built-in behaviour component: rules on the node's events and the bus, conditions on variables, actions */
@@ -202,6 +202,42 @@ describe("behaviour: events and actions", () => {
     instance.onTap();
     expect(log[0]).toEqual(["behaviour", { targetId: "key", node: "key", rule: 1, on: "tap", do: "play rattle · set hasKey = true (experience)" }]);
     expect(log[1][0]).toBe("varChanged");
+  });
+
+  it("a set value is an expression (B2): a counter, a text; one that cannot be evaluated changes nothing", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const node = group({ components: [behaviour([{ on: "tap", do: [{ set: { taps: "taps + 1" } }, { set: { mood: '"calm"' } }, { set: { broken: "nothing + 1" } }] }])] });
+    const instance = applyBehaviour({ node, target: target("t"), nodes: { "": new Group() }, timelines: {} })!;
+    cleanups.push(instance.dispose);
+    vars().set("taps", 0);
+    instance.onTap();
+    instance.onTap();
+    expect(vars().get("taps")).toBe(2);
+    expect(vars().get("mood")).toBe("calm");
+    expect(vars().get("broken")).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("cannot set broken = nothing + 1"));
+  });
+
+  it("typed variables (B7): a value of another type is refused – also a plugin's – the old one stays; a declared one reads its default and scope", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    setVariableTypes(new Map([
+      ["taps", { type: "integer" as const, scope: "stage" as const, default: 0, from: "experience.variables.taps" }],
+      ["open", { type: "boolean" as const, from: "r[0].do[0]" }],
+    ]));
+    cleanups.push(() => setVariableTypes(new Map()));
+    const node = group({ components: [behaviour([{ on: "tap", do: [{ set: { taps: "taps + 1" } }, { set: { open: '"yes"' } }] }])] });
+    const instance = applyBehaviour({ node, target: target("t"), nodes: { "": new Group() }, timelines: {} })!;
+    cleanups.push(instance.dispose);
+    expect(vars().get("taps")).toBe(0);
+    instance.onTap();
+    expect(vars().get("taps", "stage")).toBe(1);
+    expect(vars().get("open")).toBeUndefined();
+    runtimeApi("plugin").vars.set("taps", 1.5, "stage");
+    expect(vars().get("taps")).toBe(1);
+    expect(warn.mock.calls.map(c => String(c[0]))).toEqual([
+      expect.stringContaining('open is a boolean (r[0].do[0]) – "yes" refused'),
+      expect.stringContaining("plugin: taps is an integer (experience.variables.taps) – 1.5 refused"),
+    ]);
   });
 
   it("a goto asks the host's navigate; without one it only logs", () => {

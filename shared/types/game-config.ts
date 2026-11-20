@@ -20,6 +20,7 @@ import type { PluginData } from "./plugins";
 import type { MaterialData } from "./materials";
 import type { SubtitleData } from "./subtitles";
 import type { LogicData } from "./logic";
+import type { VariableDeclaration } from "./variables";
 
 export * from "./filters";
 export * from "./placement";
@@ -27,6 +28,7 @@ export * from "./components";
 export * from "./behaviour";
 export * from "./address";
 export * from "./logic";
+export * from "./variables";
 export * from "./lights";
 export * from "./textures";
 export * from "./media-levels";
@@ -92,7 +94,9 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * object form (`{ hasKey: true }`, `{ any: … }`, `{ not: … }`) is gone; a scene's and the experience's optional `logic`
  * (`{ rules, canvas? }`, `./logic.ts`) hold rules in the behaviour's grammar that hear the bus and name nodes by address
  * (`target:<targetId>/<node name>`, `./address.ts`); every rule gains the action `goto` (`scene:<id>`). The canvas is
- * authoring data and never in a reader's configuration. 4.x content is not read (its conditions have the old shape):
+ * authoring data and never in a reader's configuration. A `set` value is an expression (`tries + 1`; a text is the
+ * language's literal `"calm"`), and variables are typed – declared in the experience's optional `variables` or inferred
+ * from their first set (`./variables.ts`). 4.x content is not read (its conditions have the old shape):
  * the content build converts a content folder (`npm run convert:5`), the server migrates its rows (`Migration5.php`).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
@@ -148,6 +152,11 @@ export interface ExperienceData {
    * (`./logic.ts`); its canvas never reaches a reader
    */
   logic?: LogicData;
+  /**
+   * Optional (schema 5.0, #334 B7): the rules' variables declared – name → `{ type, scope?, default? }` (`./variables.ts`);
+   * an undeclared variable takes the type of its first set
+   */
+  variables?: Record<string, VariableDeclaration>;
 }
 
 /** How the reader gets its targets' recognition data (schema 4.2, #306): `ExperienceData.recognition` */

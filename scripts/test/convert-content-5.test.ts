@@ -71,6 +71,17 @@ describe('content 4.x → 5.0: conditions become expressions', () => {
     expect(done.problems).toEqual([expect.stringMatching(/^15: the variable "and"/)]);
   });
 
+  it('a set\'s text values become the language\'s text literals (B2); numbers, true / false and null stay', () => {
+    const done = convertWhenYaml('do:\n  - set: { mood: calm, said: \'a "b"\', n: 2, ok: true, gone: null } # note\n  - set: { n: 3 }\n  - set:\n      x: y\n');
+    expect(done.text.split('\n').slice(0, 3)).toEqual([
+      'do:',
+      '  - set: { mood: \'"calm"\', said: \'"a \\"b\\""\', n: 2, ok: true, gone: null } # note',
+      '  - set: { n: 3 }',
+    ]);
+    expect(done.converted).toBe(1);
+    expect(done.problems).toEqual(['4: a set in block form – write its text values as "…" by hand']);
+  });
+
   it('a converted source builds', async () => {
     const rules = '  entity:\n    type: text\n    text: hi\n    components:\n      - type: behaviour\n        rules:\n          - on: tap\n            when: { seen: null, mood: calm }\n            do: { set: { seen: true } }\n';
     const { content } = makeContent({
