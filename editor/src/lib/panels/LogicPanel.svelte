@@ -166,7 +166,16 @@
   const keydown = (e: KeyboardEvent) => {
     const typing = (e.target as HTMLElement | null)?.closest("input, textarea, select");
     if (typing) return;
-    if (e.key === "Backspace" || (e.altKey && e.key === "ArrowUp")) {
+    // Delete and Backspace here are the panel's: the workspace's own (remove the selected tree node) never sees them
+    if (e.key === "Delete" || e.key === "Backspace") e.stopPropagation();
+    if (e.key === "Delete") {
+      e.preventDefault();
+      if (!editable) return say(readOnlyHint ?? "Read-only here.", true);
+      const boxes = flow.boxes.filter(b => picked.includes(b.id));
+      if (boxes.length || pickedWires.length) removeBoxes(boxes, pickedWires);
+      picked = [];
+      pickedWires = [];
+    } else if (e.key === "Backspace" || (e.altKey && e.key === "ArrowUp")) {
       e.preventDefault();
       goUp();
     }
@@ -219,9 +228,12 @@
 
   /** The boxes selected on the canvas; the rule among them is where an action or a condition goes */
   let picked = $state<string[]>([]);
+  /** The wires selected on the canvas (the view's edge ids): Delete disconnects them */
+  let pickedWires = $state<string[]>([]);
   $effect.pre(() => {
     void levelKey;
     picked = [];
+    pickedWires = [];
   });
   const ruleRefOf = (box: string) => {
     const home = view.edges.find(e => e.to[0] === box && e.to[1] === "on" && e.home?.doc === "entity")?.home;
@@ -266,13 +278,14 @@
     if (only.length === 1 && only[0].op) return run(only[0].op);
     menu = { at, head: addHead(kind), add: { kind }, items: [] };
   };
+  /** Delete on what is selected: one wire or one rule per op (the ids of the rest change with it) */
   const removeBoxes = (boxes: FlowBox[], edges: string[]) => {
-    for (const edge of edges) run({ op: "disconnect", edge });
-    for (const box of boxes) {
-      const ref = box.node?.kind === "rule" ? ruleRefOf(box.id) : null;
-      if (ref) run({ op: "removeRule", home: { doc: "entity", ...ref, part: "on" } });
-      else if (box.node) say(`${box.node.label}: only rules and wires are deleted here – a node goes in the tree, an event or a variable with the rules that name it.`, true);
-    }
+    if (boxes.length + edges.length > 1) return say("Select one wire or one rule to delete – one op at a time.", true);
+    if (edges.length) return run({ op: "disconnect", edge: edges[0] });
+    const box = boxes[0];
+    const ref = box?.node?.kind === "rule" ? ruleRefOf(box.id) : null;
+    if (ref) run({ op: "removeRule", home: { doc: "entity", ...ref, part: "on" } });
+    else if (box?.node) say(`${box.node.label}: only rules and wires are deleted here – a node goes in the tree, an event or a variable with the rules that name it.`, true);
   };
   const openMenu = (at: { x: number; y: number }, target: CanvasTarget) => {
     if (target.kind === "pane") return openAdd(at);
@@ -379,8 +392,8 @@
     <p class="danger small">The graph could not load: {canvasError}</p>
   {:else if Canvas}
     <Canvas {flow} level={levelKey} selected={selectedBox} {flash} {editable} onpick={pickBox} onenter={enterBox} canconnect={canConnect}
-      onconnect={(from: [string, string], to: [string, string]) => run({ op: "connect", from, to })} ondelete={removeBoxes}
-      onselect={(ids: string[]) => (picked = ids)} onmenu={openMenu} />
+      onconnect={(from: [string, string], to: [string, string]) => run({ op: "connect", from, to })}
+      onselect={(ids: string[], wires: string[]) => { picked = ids; pickedWires = wires; }} onmenu={openMenu} />
   {:else}
     <p class="muted small">Loading the graph…</p>
   {/if}

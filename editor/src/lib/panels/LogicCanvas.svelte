@@ -13,13 +13,13 @@
    * The Logic panel's canvas (#334 L-T3, L-T4): `@xyflow/svelte` as the **rendering layer only** (decision L7) – the boxes,
    * their ports and the wires come from `logic/flow.ts`, which has them from the level's `View` and `logic/layout.ts`; xyflow
    * pans, zooms and fits, and **reports gestures, owning nothing**: a drag from a port to a port (`onconnect`), Delete on a
-   * selected wire or box (`ondelete`), a right click (`onmenu`). The panel turns them into ops (`logic/apply.ts`); xyflow never
+   * selected wire or box (the panel reads `onselect` and handles the key), a right click (`onmenu`). The panel turns them into ops (`logic/apply.ts`); xyflow never
    * adds or removes an edge or a node itself – its own connect and delete are refused, the documents come back as a new
    * flow. While `editable` is off (the experience and group levels, another scene) nothing connects, is selected or deleted.
    * The panel imports this component lazily, so the editor's first load does not carry xyflow. A wire's signal is its dash,
    * never a colour (RULES #38); a wire that never fires (an event between two scenes) is dotted and thin.
    */
-  let { flow, level, selected, flash, editable, onpick, onenter, canconnect, onconnect, ondelete, onselect, onmenu }: {
+  let { flow, level, selected, flash, editable, onpick, onenter, canconnect, onconnect, onselect, onmenu }: {
     flow: Flow;
     /** The level's key: a new level fits the view again */
     level: string;
@@ -31,10 +31,8 @@
     /** Would a wire from this port to that one be applied (the candidate inlets light up only then) */
     canconnect: (from: [string, string], to: [string, string]) => boolean;
     onconnect: (from: [string, string], to: [string, string]) => void;
-    /** Delete pressed on selected boxes and wires (the view's edge ids) */
-    ondelete: (boxes: FlowBox[], edges: string[]) => void;
-    /** The selection on the canvas changed: its box ids */
-    onselect: (boxes: string[]) => void;
+    /** The selection on the canvas changed: its box ids and its wires (the view's edge ids) – Delete is the panel's */
+    onselect: (boxes: string[], edges: string[]) => void;
     /** A right click (or a long press): where, and on what */
     onmenu: (at: { x: number; y: number }, target: CanvasTarget) => void;
   } = $props();
@@ -80,28 +78,27 @@
     [[c.source, portOf(c.sourceHandle)], [c.target, portOf(c.targetHandle)]];
   const wireOf = (id: string) => flow.wires.find(w => w.id === id);
   const point = (e: MouseEvent | TouchEvent) => ("clientX" in e ? { x: e.clientX, y: e.clientY } : { x: e.touches[0]?.clientX ?? 0, y: e.touches[0]?.clientY ?? 0 });
-  const sameSet = (a: Set<string>, b: string[]) => a.size === b.length && b.every(id => a.has(id));
+  /** The canvas's selection is kept here, not by xyflow: a new flow (a hover, an op) draws the boxes again and keeps it */
+  const choose = (nodeIds: string[], edgeIds: string[]) => {
+    chosen = { nodes: new Set(nodeIds), edges: new Set(edgeIds) };
+    onselect(nodeIds, edgeIds.map(id => wireOf(id)?.edge ?? id));
+  };
 </script>
 
 <div class="flow" class:editable role="presentation" data-drop="logic" onpointerleave={() => (hovered = null)}>
   {#key level}
     <SvelteFlow bind:nodes bind:edges {nodeTypes} fitView fitViewOptions={{ padding: 0.12, maxZoom: 1.2 }} minZoom={0.1} maxZoom={2}
       nodesDraggable={false} nodesConnectable={editable} elementsSelectable={editable} zoomOnDoubleClick={false} proOptions={{ hideAttribution: true }}
-      deleteKey={editable ? "Delete" : null} selectionKey={null} multiSelectionKey={editable ? "Shift" : null}
+      deleteKey={null} selectionKey={null} multiSelectionKey={editable ? "Shift" : null}
       isValidConnection={c => editable && canconnect(...ends(c))}
       onbeforeconnect={c => { onconnect(...ends(c)); return false; }}
-      onbeforedelete={async ({ nodes: gone, edges: cut }) => {
-        ondelete(gone.map(n => (n.data as LogicBoxData).box), cut.map(e => wireOf(e.id)?.edge ?? e.id));
-        return false;
+      onbeforedelete={async () => false}
+      onnodeclick={({ node, event }) => {
+        if (editable && !node.id.startsWith("stub:")) choose(event.shiftKey ? [...chosen.nodes, node.id] : [node.id], event.shiftKey ? [...chosen.edges] : []);
+        onpick((node.data as LogicBoxData).box);
       }}
-      onselectionchange={({ nodes: ns, edges: es }) => {
-        const n = ns.map(x => x.id);
-        const e = es.map(x => x.id);
-        if (sameSet(chosen.nodes, n) && sameSet(chosen.edges, e)) return;
-        chosen = { nodes: new Set(n), edges: new Set(e) };
-        onselect(n);
-      }}
-      onnodeclick={({ node }) => onpick((node.data as LogicBoxData).box)}
+      onedgeclick={({ edge, event }) => { if (editable) choose(event.shiftKey ? [...chosen.nodes] : [], event.shiftKey ? [...chosen.edges, edge.id] : [edge.id]); }}
+      onpaneclick={() => choose([], [])}
       onnodecontextmenu={({ node, event }) => { event.preventDefault(); onmenu(point(event), { kind: "box", box: (node.data as LogicBoxData).box }); }}
       onedgecontextmenu={({ edge, event }) => { event.preventDefault(); const w = wireOf(edge.id); if (w) onmenu(point(event), { kind: "wire", edge: w.edge, label: w.label }); }}
       onpanecontextmenu={({ event }) => { event.preventDefault(); onmenu(point(event), { kind: "pane" }); }}
