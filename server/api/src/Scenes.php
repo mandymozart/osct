@@ -265,7 +265,13 @@ final class Scenes
                 else $scene->passes = Experiences::checkPasses($experienceId, $body->passes, 'invalid-scene');
                 $touched = true;
             }
-            if (!$touched) throw new ApiError(400, 'invalid-scene', 'Send { label }, { group }, { surfaces } and / or { passes }.');
+            // The scene's rules (content schema 5.0, #334): null removes them; the canvas is stored with them (a publish leaves it out)
+            if (property_exists($body, 'logic')) {
+                if ($body->logic === null) unset($scene->logic);
+                else $scene->logic = Logic::check($body->logic, 'scene', 'logic', 'invalid-scene');
+                $touched = true;
+            }
+            if (!$touched) throw new ApiError(400, 'invalid-scene', 'Send { label }, { group }, { surfaces }, { passes } and / or { logic }.');
             $after = self::surfaceIds($scene);
             $removed = array_values(array_diff($before, $after));
             // The one surface a target placed without one lies on

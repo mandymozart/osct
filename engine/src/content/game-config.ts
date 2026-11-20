@@ -16,6 +16,7 @@
 import { assertGameConfiguration, GameConfigurationError, type GuardOptions, isEntityRef } from '@shared/guards/game-config';
 import { CONTENT_SCHEMA_VERSION, OLDEST_READABLE_SCHEMA_MAJOR, parseContentSchema } from '@shared/types/game-config';
 import { pickSubtitleTrack } from '@shared/types/subtitles';
+import { contentRuleLists, type VariableInfo, variableTypes } from '@shared/types/variables';
 import type { MediaLevelData } from '@shared/types/media-levels';
 import { currentFeatures, describeSkipped, type KnownFeatures, skipUnknownFeatures, type SkippedFeature } from './forward-compatible';
 import { entryPlaceLabel } from './scenes';
@@ -256,6 +257,8 @@ let scenes: Scene[] = [];
 let sceneById = new Map<string, Scene>();
 let entryById = new Map<string, Entry>();
 let targetById = new Map<string, Target>();
+/** The rules' variables: declared or inferred from their first set (schema 5.0, B7) */
+let variables: ReadonlyMap<string, VariableInfo> = new Map();
 
 /** URL of a content file given its path in the configuration (`/assets/content/…`) */
 export const contentUrl = (path: string): string => (path.startsWith(CONTENT_PATH) && contentBase ? `${contentBase}${path}` : path);
@@ -317,6 +320,7 @@ const apply = (raw: GameConfiguration, base: string, files: ContentFiles, keepSw
   contentBase = base;
   contentFiles = files;
   config = withContentUrls(raw, base);
+  variables = variableTypes(config.experience?.variables, contentRuleLists(config));
 
   const resolveEntity = (entity?: EntityData | EntityRefData): EntityData | undefined =>
     entity && isEntityRef(entity) ? config.entities[entity.ref] : entity;
@@ -354,6 +358,9 @@ const apply = (raw: GameConfiguration, base: string, files: ContentFiles, keepSw
 export const getConfigVersion = (): ConfigurationVersion => config.version;
 
 export const getExperience = (): ExperienceData => config.experience;
+
+/** The rules' typed variables (schema 5.0, B7): the experience's declarations, else each one's first set */
+export const getVariableTypes = (): ReadonlyMap<string, VariableInfo> => variables;
 
 /**
  * The passes a scene shows: its own list (an override – `[]` turns the experience's off there), else the experience's (the master

@@ -5,6 +5,8 @@ import { RECOGNITION_MODES, type BookData, type ExperienceData } from '../../../
 import { passBudgetWarning, passProblems, type PassData, type PassSpec } from '../../../shared/types/passes';
 import { appearanceProblems, type AppearanceSpec, type ExperienceAppearance } from '../../../shared/types/appearance';
 import { environmentProblems, type EnvironmentData } from '../../../shared/types/environment';
+import { type LogicData, type LogicHome, logicProblems, withoutCanvas } from '../../../shared/types/logic';
+import { type VariableDeclaration, variablesProblems } from '../../../shared/types/variables';
 import { buildErrors, buildWarnings } from '../lib/errors';
 import { contractPart, readYaml, validate } from '../lib/content';
 
@@ -51,6 +53,16 @@ export function checkedAppearance(appearance: unknown, label: string, pluginAppe
   return contractPart<ExperienceAppearance>(appearance, problems, label);
 }
 
+/**
+ * A scene's or the experience's `logic` (schema 5.0, #334): its rules checked in the behaviour's grammar for the home; the
+ * canvas (the editor's authoring data) stays out of the build – a reader's configuration never carries it
+ */
+export function checkedLogic(logic: unknown, label: string, home: LogicHome): LogicData {
+  const problems = logicProblems(logic, 'logic', home);
+  const checked = contractPart<LogicData>(logic, problems, label);
+  return problems.length ? checked : withoutCanvas({ logic: checked }).logic!;
+}
+
 /** The print data that lives in `book:` – on the top level of experience.yaml it is an error */
 const PRINT_FIELDS = ['author', 'publisher'] as const;
 const GONE = 'sourceOfTruth is gone – every experience adds and removes its scenes (`npm run convert:4` drops it)';
@@ -70,7 +82,7 @@ export function buildExperience(pluginPasses: ReadonlyMap<string, PassSpec> = ne
   }
   const experience = validate(readYaml(file), 'experience', label);
   if (!experience) return { id: '', title: '' };
-  const { passes, environment, appearance, book, recognition, ...fields } = experience;
+  const { passes, environment, appearance, book, recognition, logic, variables, ...fields } = experience;
   PRINT_FIELDS.filter(key => fields[key] !== undefined)
     .forEach(key => buildErrors.push(`${label}: ${key} belongs to the printed book – write it under book:`));
   if (fields.sourceOfTruth !== undefined) buildErrors.push(`${label}: ${GONE}`);
@@ -87,6 +99,9 @@ export function buildExperience(pluginPasses: ReadonlyMap<string, PassSpec> = ne
   }
   if (passes !== undefined) result.passes = checkedPasses(passes, label, pluginPasses);
   if (appearance !== undefined) result.appearance = checkedAppearance(appearance, label, pluginAppearances);
+  if (logic !== undefined) result.logic = checkedLogic(logic, label, 'experience');
+  // The typed variables (schema 5.0, B7): their declarations here, the rules checked against them with the whole configuration
+  if (variables !== undefined) result.variables = contractPart<Record<string, VariableDeclaration>>(variables, variablesProblems(variables, 'variables'), label);
   if (environment !== undefined) {
     const resolved = resolveEnvironment(environment);
     const problems = resolved.problems.length ? resolved.problems : environmentProblems(resolved.environment);

@@ -7,6 +7,77 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.0.0 – 2026-11-20
+
+**Content schema 5.0 – a MAJOR** (#334 L-T5, `agents/research/2026-11-20-logic-nodes-shared-concept.md` §5.4): a 4.x app
+refuses 5.0 content and a 5.0 app refuses 4.x (`OLDEST_READABLE_SCHEMA_MAJOR` 5). Content migrates: a content folder with
+`npm run convert:5` (done for `fixtures/content` and `fixtures/demo`), the server's rows by `Migration5` on the deploy
+(dry run first: `php server/deploy/migrate.php --plan-5`); every published experience is published again afterwards.
+
+### Changed
+- **A rule's condition is an expression**: `when: hasKey && tries > 2` – the language of the entries' `{…}` texts
+  (`shared/text/expressions.ts`, SCUTOONS' / ink's), now also as one expression without braces (`parseExpression`,
+  `evaluateExpression`, `expressionVariables`, `expressionLiteral`). The engine evaluates it over `api.vars`; a condition
+  that does not parse never runs (logged once). The guard, the content build, the MCP server's content model and the PHP
+  API (the shapes) follow.
+- **The engine's rules runtime** (`engine/src/scene/behaviour.ts`): one runner for a node's behaviour and the new scene and
+  experience logic.
+
+### Added
+- **A scene's and the experience's logic** (`SceneData.logic`, `ExperienceData.logic`: `{ rules, canvas? }`, `shared/types/logic.ts`):
+  rules in the behaviour's grammar that hear the bus (scene events and core events – no node event) and name nodes by
+  address (`target:<targetId>/<node name>`). A scene's rules live while it is open; the experience's live for the whole
+  session, across scene switches; both hear `sceneChanged` once the new scene's nodes are built. The editor API stores them:
+  `PUT …/scenes/{sid}` `{ logic }`, `PUT …/logic` (change kind `logic`); the import checks them; MCP `put_scene` takes `logic`.
+- **`goto`** in every rule: `{ goto: "scene:<id>" }` – the engine asks the host (`ArSceneOptions.navigate`); the reader opens
+  the scene as a link to `/scene/<id>` does, an unknown address only logs. The guard and the content build check the scene
+  exists. Addresses: `shared/types/address.ts` (`parseAddress`, `formatAddress`; SCUTOONS' grammar, room for `toon:`,
+  `chapter:` and a later `via`).
+- **The canvas** (`LogicCanvas`: `groups`, `notes`, `folds`): the Logic view's authoring data beside a scene's or the
+  experience's rules – in the database, the draft and the export, never in a reader's configuration (the content build and
+  a publish strip it).
+- **`Migration5.php`**: every stored condition to an expression, idempotent, with a dry run (`migrate.php --plan-5`:
+  rows per table, conditions converted, approximate *not set* tests, the ones it cannot convert and why).
+- **A `set` value is an expression** (B2): `set: { tries: "tries + 1" }` – a counter without a special node; a text value is
+  the literal `"calm"` (YAML `'"calm"'`), a number or true / false may stand bare. 4.x text values are quoted by the
+  migration.
+- **Typed variables** (B7, `shared/types/variables.ts`): `experience.variables` (`{ name: { type, scope?, default? } }`,
+  type number / integer / boolean / string) or the type of a variable's first set; expressions typed with the parser's
+  tree (`expressionType`). A set or a comparison of another type and a `when` that is not true / false are problems (guard,
+  content build); the engine refuses a wrongly typed value – a plugin's too – and keeps the old one; a declared variable
+  reads as its default. `PUT …/variables` (change kind `variables`). Migration5 declares an old experience's variables
+  from its sets and reports the conflicts.
+- **`npm run convert:5`** (`scripts/`): a content folder's conditions to expressions and set texts to literals, once.
+- The fixture: a node rule with an expression and a `goto`, a scene rule and two experience rules (one a `goto`), a canvas
+  the build leaves out.
+- **Editor on 5.0** (#334 L-T5b):
+  - **Conditions and set values as expressions** in the Inspector: one monospace field each, checked as you type – a parse
+    error, a type error (against the variable's declared or inferred type) or a condition that is no true / false shows
+    under the field and is **not saved** (B8); the next text that checks out is. A set's scope is optional (*declared* /
+    *scene (default)* / a scope). The rule's type problems show under it.
+  - **A scene's and the experience's rules** in the Inspector – the scene's under the scene, the experience's under the
+    experience (⚙) – reusing the rule list: they hear the bus only, name a node of the scene's targets (the experience's:
+    any scene's) by address `target:<id>/<name>`, and save themselves with `PUT …/scenes/{sid}` `{ logic }` and
+    `PUT …/logic` (History lists them, Undo takes them back; the draft's canvas is kept). **goto** is an action everywhere:
+    pick a scene.
+  - **Variables** beside the experience's rules: name, type, scope, default per declaration (`PUT …/variables`), the
+    inferred ones shown as inferred with *declare*; a bad name or a default of another type is refused with the reason.
+  - **The Logic panel**: scene rule boxes on the scene level, experience rule boxes on the experience level, both editable
+    there (the group level stays read-only, the experience level edits its own rules only). goto: a stub at the scene
+    level (*→ Epilogue · goto*, dash-dot), derived scene → scene edges on the group and experience levels, an experience
+    rule's goto as a wire into the scene box – connect a rule's do into a scene box to add one, disconnect it to remove it.
+    `when` wires come from the condition's variables; wiring a variable in appends `name` (true / false) or
+    `name == <its default or a typed placeholder>` with `&&` and says so; cutting one takes its terms out of a top-level
+    `&&` / `||` chain, anything deeper is refused with *edit the condition in the Inspector*. A set's wire shows its
+    expression (`set = taps + 1`). The problem list adds the rules' type problems, the experience rules' missing nodes and
+    gotos to scenes that are not there.
+  - **The stage and goto**: the stage stays on its scene; the timeline logs a goto with a link that opens the scene.
+  - History names the change kinds `logic` (*Experience rules*) and `variables`.
+
+### Removed
+- The object form of a condition (`{ hasKey: true }`, `{ any: … }`, `{ not: … }`) and its types (`BehaviourCondition`,
+  `BehaviourTest`) – `BehaviourRule.when` is the expression's text.
+
 ## 3.21.2 – 2026-11-20
 
 ### Fixed

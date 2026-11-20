@@ -19,11 +19,16 @@ import type { PassData } from "./passes";
 import type { PluginData } from "./plugins";
 import type { MaterialData } from "./materials";
 import type { SubtitleData } from "./subtitles";
+import type { LogicData } from "./logic";
+import type { VariableDeclaration } from "./variables";
 
 export * from "./filters";
 export * from "./placement";
 export * from "./components";
 export * from "./behaviour";
+export * from "./address";
+export * from "./logic";
+export * from "./variables";
 export * from "./lights";
 export * from "./textures";
 export * from "./media-levels";
@@ -83,12 +88,22 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * **4.3** (#331): media in quality levels (`./media-levels.ts`) – an image, video or audio asset's optional `levels` and an
  * entry's optional `imageLevels`; the reader loads the level its media quality chooses. An app of 4.2 ignores both and
  * loads the medium's own `src`, as before.
+ *
+ * **5.0** (#334, agents/research/2026-11-20-logic-nodes-shared-concept.md §5.4): logic beyond the nodes. A rule's `when`
+ * is an expression of the experience's expression language (`hasKey && tries > 2`, `../text/expressions.ts`) – the
+ * object form (`{ hasKey: true }`, `{ any: … }`, `{ not: … }`) is gone; a scene's and the experience's optional `logic`
+ * (`{ rules, canvas? }`, `./logic.ts`) hold rules in the behaviour's grammar that hear the bus and name nodes by address
+ * (`target:<targetId>/<node name>`, `./address.ts`); every rule gains the action `goto` (`scene:<id>`). The canvas is
+ * authoring data and never in a reader's configuration. A `set` value is an expression (`tries + 1`; a text is the
+ * language's literal `"calm"`), and variables are typed – declared in the experience's optional `variables` or inferred
+ * from their first set (`./variables.ts`). 4.x content is not read (its conditions have the old shape):
+ * the content build converts a content folder (`npm run convert:5`), the server migrates its rows (`Migration5.php`).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "4.3";
-/** The oldest content schema MAJOR this contract reads – 4: no 3.x content is read (no reader of it was shipped) */
-export const OLDEST_READABLE_SCHEMA_MAJOR = 4;
+export const CONTENT_SCHEMA_VERSION = "5.0";
+/** The oldest content schema MAJOR this contract reads – 5: no 4.x content is read (5.0 reshaped every rule's `when`) */
+export const OLDEST_READABLE_SCHEMA_MAJOR = 5;
 
 export interface ContentSchema {
   major: number;
@@ -132,6 +147,16 @@ export interface ExperienceData {
    * may override it (`engine/src/utils/recognition-setting.ts`). Any other text reads as `"original"`.
    */
   recognition?: RecognitionMode;
+  /**
+   * Optional (schema 5.0, #334): the experience's rules – live for the whole session, across scene switches
+   * (`./logic.ts`); its canvas never reaches a reader
+   */
+  logic?: LogicData;
+  /**
+   * Optional (schema 5.0, #334 B7): the rules' variables declared – name → `{ type, scope?, default? }` (`./variables.ts`);
+   * an undeclared variable takes the type of its first set
+   */
+  variables?: Record<string, VariableDeclaration>;
 }
 
 /** How the reader gets its targets' recognition data (schema 4.2, #306): `ExperienceData.recognition` */
@@ -200,6 +225,8 @@ export interface SceneData {
   surfaces: SurfaceData[];
   /** Optional (schema 2.5): the post-processing passes over this scene's rendered image, in order; replaces the experience's (`[]` = none) */
   passes?: PassData[];
+  /** Optional (schema 5.0, #334): the scene's rules – live while the scene is open (`./logic.ts`); its canvas never reaches a reader */
+  logic?: LogicData;
 }
 
 export interface AssetData {

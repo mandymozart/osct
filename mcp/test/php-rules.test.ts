@@ -10,6 +10,10 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { MAX_NODE_DEPTH } from "../../shared/guards/game-config";
 import { MEDIA_LEVELS } from "../../shared/types/media-levels";
+import { BEHAVIOUR_ACTIONS, BEHAVIOUR_NODE_ACTIONS, BEHAVIOUR_NODE_EVENTS, RULE_HOMES } from "../../shared/types/behaviour";
+import { parseAddress } from "../../shared/types/address";
+import { BEHAVIOUR_SCOPES } from "../../shared/types/behaviour";
+import { VARIABLE_TYPES } from "../../shared/types/variables";
 import { APPEARANCE_TYPES, MOMENTS } from "../../shared/types/appearance";
 import { CONTENT_BUILD } from "../../shared/types/content-manifest";
 import { ENTRY_CATEGORIES } from "../../shared/types/entry";
@@ -56,6 +60,19 @@ const SOURCES = [
 /** Links an entry may or may not point to: both sides must judge them alike */
 const LINKS = ["https://example.org/a?b=1", "http://example.org", "HTTPS://EXAMPLE.ORG", "javascript:alert(1)", "https://", "https://exa mple.org", "mailto:a@b.c", "ftp://example.org", "/relative", "example.org"];
 
+/** Addresses both sides must judge alike (shared/types/address.ts – Logic::GOTO_ADDRESS, NODE_ADDRESS) */
+const ADDRESSES = ["scene:cover", "scene:a-b_1", "scene:", "scene:a/b", "target:door", "target:door/the hint", "target:door/a/b", "toon:x", "cover", "scene:a b"];
+
+/** Conditions of 2.19–4.x and the expressions Migration5 writes – scripts/test/convert-content-5.test.ts has the same cases */
+const CONDITIONS: Array<[unknown, unknown]> = [
+  [{ hasKey: true }, { expression: "hasKey == true", approximate: [] }],
+  [{ hasKey: true, tries: 3 }, { expression: "hasKey == true && tries == 3", approximate: [] }],
+  [{ any: { mood: "calm", tries: { not: 2.5 } } }, { expression: 'mood == "calm" || tries != 2.5', approximate: [] }],
+  [{ said: 'a "quote" \\ here' }, { expression: 'said == "a \\"quote\\" \\\\ here"', approximate: [] }],
+  [{ doorOpen: null, lamp: { not: null } }, { expression: "!doorOpen && lamp", approximate: ["doorOpen", "lamp"] }],
+  [{ n: -0.5, f: false }, { expression: "n == -0.5 && f == false", approximate: [] }],
+];
+
 /** The PHP API's constants, read by PHP itself, and what `Plugins::registers` reads from SOURCES */
 function readPhp(): Record<string, unknown> {
   const code = `
@@ -93,11 +110,16 @@ function readPhp(): Record<string, unknown> {
       'CREDITS' => [Assets::CREDITS_BATCH_MAX, Assets::CREDITS_MAX],
       'MEDIA_LEVELS' => Editor::MEDIA_LEVELS,
       'IMAGE' => ['maxSide' => Assets::IMAGE_MAX_SIDE, 'quality' => Assets::IMAGE_WEBP_QUALITY, 'maxPixels' => Assets::IMAGE_MAX_PIXELS],
+      'VARIABLES' => [Logic::VARIABLE_TYPES, Logic::SCOPES],
+      'LOGIC' => ['actions' => Logic::ACTIONS, 'nodeActions' => Logic::NODE_ACTIONS, 'nodeEvents' => Logic::NODE_EVENTS, 'homes' => Logic::HOMES,
+        'goto' => array_map(static fn(string $a): bool => (bool) preg_match('#' . Logic::GOTO_ADDRESS . '#', $a), $input['addresses']),
+        'node' => array_map(static fn(string $a): bool => (bool) preg_match('#' . Logic::NODE_ADDRESS . '#s', $a), $input['addresses'])],
+      'conditions' => array_map(static fn(mixed $when): array => Migration5::expression(json_decode(json_encode($when))), $input['conditions']),
       'REGISTERS' => $registers,
       'registers' => array_map(static fn(string $source): array => Plugins::registers($source), $input['sources']),
     ], JSON_THROW_ON_ERROR);
   `;
-  const run = spawnSync("php", ["-r", code], { input: JSON.stringify({ src: SRC, sources: SOURCES, links: LINKS }), encoding: "utf8" });
+  const run = spawnSync("php", ["-r", code], { input: JSON.stringify({ src: SRC, sources: SOURCES, links: LINKS, addresses: ADDRESSES, conditions: CONDITIONS.map(([when]) => when) }), encoding: "utf8" });
   if (run.status !== 0) throw new Error(`php failed: ${run.stderr || run.stdout}`);
   return JSON.parse(run.stdout) as Record<string, unknown>;
 }
@@ -119,6 +141,18 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(php.TEXTS).toEqual({ text: TEXT_MAX_LENGTH, body: BODY_MAX_LENGTH, tags: ENTRY_TAGS.max, tag: ENTRY_TAGS.length });
     expect(php.links).toEqual(LINKS.map(isLinkUrl));
     expect(LINKS.map(isLinkUrl)).toEqual([true, true, true, false, false, false, false, false, false, false]);
+  });
+
+  it("rules without code: the verbs, the node events, the homes and the addresses (Logic, content schema 5.0)", () => {
+    expect(php.VARIABLES).toEqual([[...VARIABLE_TYPES], [...BEHAVIOUR_SCOPES]]);
+    expect(php.LOGIC).toMatchObject({ actions: [...BEHAVIOUR_ACTIONS], nodeActions: [...BEHAVIOUR_NODE_ACTIONS], nodeEvents: [...BEHAVIOUR_NODE_EVENTS], homes: [...RULE_HOMES] });
+    const logic = php.LOGIC as { goto: boolean[]; node: boolean[] };
+    expect(logic.goto).toEqual(ADDRESSES.map(a => parseAddress(a)?.scheme === "scene"));
+    expect(logic.node).toEqual(ADDRESSES.map(a => parseAddress(a)?.scheme === "target"));
+  });
+
+  it("the migration to 5.0 writes the expressions convert-content-5 writes (Migration5::expression)", () => {
+    expect(php.conditions).toEqual(CONDITIONS.map(([, expected]) => expected));
   });
 
   it("the content schema the editor reads and the draft writes (Editor::CONTENT_SCHEMA, #319)", () => {

@@ -99,6 +99,7 @@ export const pickSelected = (pick: LogicPick | null, selection: SelectionState, 
     }
     case "scene": return pick.scene === sceneId && !!selection.scene;
     case "group": return !!selection.group && selection.group === pick.group;
+    case "experience": return !!selection.experience;
     case "plugin": return false;
   }
 };

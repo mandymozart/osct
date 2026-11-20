@@ -19,6 +19,9 @@
  * Escapes: `\{`, `\}` and `\|` are the characters themselves; every other backslash stays for the Markdown that follows
  * (`entry-text.ts`). The output is Markdown source: a printed value is escaped there, so a value never becomes markup.
  * Never throws, never evaluates code, bounded by `EXPR_LIMITS` – no input can hang it.
+ *
+ * Content schema 5.0 (#334): a behaviour rule's condition (`when`) is one expression of the same language without braces
+ * (`parseExpression`, `evaluateExpression`, `expressionVariables` below) – one language for texts and rules.
  */
 
 /** A value an expression works with; `undefined` = no value (a variable that is not set) */
@@ -553,7 +556,7 @@ function runner(lookup: VariableLookup) {
     return "";
   };
 
-  return { problems, node };
+  return { problems, node, guarded };
 }
 
 /** ink's output clean-up: runs of spaces collapse to one, no spaces at the start / end of a line */
@@ -573,29 +576,109 @@ export function evaluateText(text: string, lookup: VariableLookup): TextResult {
   return { text: parsed.constructs ? tidy(out) : out, problems: [...parsed.problems, ...run.problems] };
 }
 
+/** Every variable name an expression reads, into `names` in the order of the expression */
+const exprNames = (e: Expr, names: Set<string>): void => {
+  if (e.type === "name") names.add(e.path.join("."));
+  else if (e.type === "call") e.args.forEach(arg => exprNames(arg, names));
+  else if (e.type === "unary") exprNames(e.arg, names);
+  else if (e.type === "binary") {
+    exprNames(e.left, names);
+    exprNames(e.right, names);
+  }
+};
+
 /** The variables a text reads, each once in the order of the text (the editor shows their values) */
 export function textVariables(text: string): string[] {
   const names = new Set<string>();
-  const expr = (e: Expr): void => {
-    if (e.type === "name") names.add(e.path.join("."));
-    else if (e.type === "call") e.args.forEach(expr);
-    else if (e.type === "unary") expr(e.arg);
-    else if (e.type === "binary") {
-      expr(e.left);
-      expr(e.right);
-    }
-  };
   const nodes = (list: TextNode[]): void =>
     list.forEach(n => {
-      if (n.type === "print") expr(n.expr);
+      if (n.type === "print") exprNames(n.expr, names);
       else if (n.type === "cond") {
-        expr(n.cond);
+        exprNames(n.cond, names);
         nodes(n.then.nodes);
         if (n.else) nodes(n.else.nodes);
       }
     });
   if (String(text ?? "").includes("{")) nodes(parseText(text).nodes);
   return [...names];
+}
+
+// ── Standalone expressions (content schema 5.0, #334): a rule's `when` ───────────────────────────
+//
+// The same language without braces – `hasKey && tries > 2`, `mood == "happy" || !door` – parsed by the same parser and
+// run by the same runner as a text's `{…}`. A rule's condition passes when its value is true the ink way (`isTruthy`).
+// Functions and dotted names parse but are problems: an experience's variables are plain camelCase names.
+
+export interface ParsedExpression {
+  /** null when it does not parse (its problem is in `problems`) */
+  expr: Expr | null;
+  /** Errors: it does not parse, or it uses what a rule cannot (a function, a dotted name) */
+  problems: ExprProblem[];
+}
+
+export interface ExpressionResult {
+  /** The expression's value; undefined when it could not be evaluated (or a variable it is made of is not set) */
+  value: ExprValue;
+  /** false when it does not parse or cannot be evaluated (a text compared with `<`, division by zero, a function) */
+  ok: boolean;
+  /** The parse problems and the runner's (a variable that is not set is a warning) */
+  problems: ExprProblem[];
+}
+
+/** What a parsed expression uses that a rule cannot: functions and dotted names */
+const ruleProblems = (e: Expr, problems: ExprProblem[]): void => {
+  if (e.type === "call") problems.push({ code: "unknown-function", severity: "error", start: e.start, end: e.end, args: [e.name] });
+  else if (e.type === "name" && e.path.length > 1) problems.push({ code: "dotted-name", severity: "error", start: e.start, end: e.end, args: [e.path.join(".")] });
+  if (e.type === "call") e.args.forEach(arg => ruleProblems(arg, problems));
+  else if (e.type === "unary") ruleProblems(e.arg, problems);
+  else if (e.type === "binary") {
+    ruleProblems(e.left, problems);
+    ruleProblems(e.right, problems);
+  }
+};
+
+/** One expression (a rule's `when`): the whole source must be one expression – never throws */
+export function parseExpression(source: string): ParsedExpression {
+  const src = String(source ?? "");
+  if (!src.trim()) return { expr: null, problems: [{ code: "empty-expression", severity: "error", start: 0, end: src.length }] };
+  try {
+    const { expr, end } = exprAt(src, 0);
+    const rest = skipWs(src, end);
+    if (rest < src.length) {
+      const t = lex(src, rest);
+      return { expr: null, problems: [{ code: "unexpected", severity: "error", start: t.start, end: t.end, args: [src.slice(t.start, t.end)] }] };
+    }
+    const problems: ExprProblem[] = [];
+    ruleProblems(expr, problems);
+    return { expr, problems };
+  } catch (e) {
+    if (!isFail(e)) throw e;
+    return { expr: null, problems: [{ code: e.code, severity: "error", start: e.start, end: e.end, ...(e.args ? { args: e.args } : {}) }] };
+  }
+}
+
+/** An expression's value against the variables (a source, or one `parseExpression` parsed) – never throws */
+export function evaluateExpression(source: string | Expr, lookup: VariableLookup): ExpressionResult {
+  const parsed: ParsedExpression = typeof source === "string" ? parseExpression(source) : { expr: source, problems: [] };
+  if (!parsed.expr || parsed.problems.some(problem => problem.severity === "error")) return { value: undefined, ok: false, problems: parsed.problems };
+  const run = runner(lookup);
+  const result = run.guarded(parsed.expr);
+  return { value: result.value, ok: result.ok, problems: [...parsed.problems, ...run.problems] };
+}
+
+/** The variables an expression reads, each once in the order of the expression ([] when it does not parse) */
+export function expressionVariables(source: string): string[] {
+  const { expr } = parseExpression(source);
+  const names = new Set<string>();
+  if (expr) exprNames(expr, names);
+  return [...names];
+}
+
+/** A value as an expression's literal: `"a \"quoted\" text"`, `3`, `2.5`, `true` (a migration or an editor writes it) */
+export function expressionLiteral(value: string | number | boolean): string {
+  if (typeof value === "string") return `"${value.replace(/["\\]/g, c => `\\${c}`)}"`;
+  if (typeof value === "number") return showValue(value);
+  return String(value);
 }
 
 const MESSAGES: Record<string, string> = {
@@ -616,7 +699,9 @@ const MESSAGES: Record<string, string> = {
   "text-too-long": "the text is longer than {0} characters: its variables are not filled in",
   "conditional-too-many": "a condition has one else part: {condition: then|else}",
   "unsupported-list": "lists ({a|b}) are no part of an experience's text",
-  "unknown-function": "{0}() – an experience's text has no functions",
+  "unknown-function": "{0}() – an experience's texts and rules have no functions",
+  "dotted-name": "{0} – a variable's name has no dot",
+  "empty-expression": "the condition is empty",
   "missing-value": "{0} is not set – it shows as nothing",
   "not-a-number": "{0} needs numbers",
   "compare-text": "{0} compares numbers, not texts",

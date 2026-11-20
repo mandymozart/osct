@@ -4,6 +4,7 @@
   import PassesPanel from "./PassesPanel.svelte";
   import AppearancePanel from "./AppearancePanel.svelte";
   import RecognitionSetting from "./RecognitionSetting.svelte";
+  import LogicRules from "./LogicRules.svelte";
   import type { Stage } from "#lib/stage/stage.svelte.js";
 
   /**
@@ -45,6 +46,8 @@
     <PassesPanel {stage} {experienceId} {sceneId} level="experience" />
     <AppearancePanel {stage} {experienceId} />
   {/if}
+  <!-- The experience's own rules and its variables (content schema 5.0, #334): live for the whole session -->
+  <LogicRules home="experience" {stage} />
   <div class="row" data-help-name="Assets" data-help="Where the experience's content files (the layout, the imported pictures, models and videos) are read from – set by the import; empty: the draft's own origin.">
     <span class="label">assets</span><span class="value small muted" title={tree.experience.assetsBase || "the draft's origin"}>{tree.experience.assetsBase || "the draft's origin"}</span>
   </div>

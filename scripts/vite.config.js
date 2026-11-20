@@ -11,6 +11,7 @@ export default defineConfig({
         cli: 'src/cli.ts', // osct content build | status | sync (npm run osct -- …)
         'schema-lock': 'src/schema-lock.ts', // npm run schema:lock
         'convert-content-4': 'src/convert-content-4.ts', // npm run convert:4 - a content source 3.x to 4.0, once (#320)
+        'convert-content-5': 'src/convert-content-5.ts', // npm run convert:5 - a content source 4.x to 5.0, once (#334)
       },
       formats: ['es'],
       fileName: (_format, name) => `${name}.js`,

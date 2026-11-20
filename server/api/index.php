@@ -53,7 +53,7 @@ declare(strict_types=1);
  *   POST   /editor/experiences/{id}/scenes      { preset?, after? | before? | position?, id?, label?, group?, surfaces? } → 201 a
  *                                               scene anywhere (double, single, wall)
  *   POST   /editor/experiences/{id}/scenes/move { scenes, after? | before? | position?, group?, apply? } → the plan, written with apply
- *   PUT    /editor/experiences/{id}/scenes/{id} { label?, group?, surfaces?, passes?, apply? } → the scene's fields
+ *   PUT    /editor/experiences/{id}/scenes/{id} { label?, group?, surfaces?, passes?, logic?, apply? } → the scene's fields
  *   PUT    /editor/experiences/{id}/scenes/{id}/surfaces/{sid}/reference  { url | null, fit?, name? } → the surface's reference image (#314)
  *   DELETE /editor/experiences/{id}/scenes/{id} { confirm?, deleteFiles? } the scene with everything on it, in two steps: 409 confirm-delete
  *                                               (the impact, a confirmation id), then again with { confirm } → removed (409
@@ -63,6 +63,8 @@ declare(strict_types=1);
  *   PUT    /editor/experiences/{id}/environment { environment: { world, onionSky } | null } → the experience's world and onion sky
  *   PUT    /editor/experiences/{id}/passes      { passes: [{ type, … }] | null } → the experience's post-processing (every scene without its own)
  *   PUT    /editor/experiences/{id}/appearance  { appearance: { reveal?, found?, lost? } | null } → how the experience's entities appear: a look
+ *   PUT    /editor/experiences/{id}/logic       { logic: { rules, canvas? } | null } → the experience's rules (content schema 5.0)
+ *   PUT    /editor/experiences/{id}/variables   { variables: { name: { type, scope?, default? } } | null } → the rules' typed variables (5.0)
  *                                               { type, … } for the first find, every later find and the lost page
  *   DELETE /editor/experiences/{id}/entries/{id}      { confirm?, deleteFiles? } the entry with its target and entity, the same two steps
  *   GET    /editor/experiences/{id}/draft/latest.json · …/draft/{build}/game.config.json · …/draft/{build}/files.json
@@ -100,7 +102,7 @@ declare(strict_types=1);
  * (ApiTokens). docs/server.md "Sessions, cookies and CSRF".
  */
 
-foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences', 'Arrivals', 'Export', 'Deliveries'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Migration5', 'Logic', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences', 'Arrivals', 'Export', 'Deliveries'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -198,6 +200,8 @@ try {
         (bool) preg_match("#^PUT /editor/experiences/($id)/environment$#", $route, $match) => Experiences::putEnvironment($match[1]),
         (bool) preg_match("#^PUT /editor/experiences/($id)/passes$#", $route, $match) => Experiences::putPasses($match[1]),
         (bool) preg_match("#^PUT /editor/experiences/($id)/appearance$#", $route, $match) => Experiences::putAppearance($match[1]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/logic$#", $route, $match) => Experiences::putLogic($match[1]),
+        (bool) preg_match("#^PUT /editor/experiences/($id)/variables$#", $route, $match) => Experiences::putVariables($match[1]),
         (bool) preg_match("#^DELETE /editor/experiences/($id)/entries/($id)$#", $route, $match) => Experiences::deleteEntry($match[1], $match[2]),
         (bool) preg_match("#^GET /editor/experiences/($id)/draft/latest\\.json$#", $route, $match) => ContentVersion::draftManifest($match[1]),
         (bool) preg_match("#^GET /editor/experiences/($id)/draft/[0-9a-f]{12}/(game\\.config|files)\\.json$#", $route, $match) => ContentVersion::draftFile($match[1], $match[2]),

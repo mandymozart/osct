@@ -17,8 +17,9 @@
     decodeContext, encodeContext, followSelection, levelName, parentLevel, pickSelected, sameContext, sceneOfContext, searchIndex, searchLogic,
     stageMove, type SearchHit, type StageMove,
   } from "#lib/logic/navigation.js";
-  import type { Context, LogicPick, Op, RulePlace } from "#lib/logic/types.js";
-  import { apply } from "#lib/logic/apply.js";
+  import type { Context, LogicPick, Op, RulePlace, RuleRef } from "#lib/logic/types.js";
+  import { apply, refOf } from "#lib/logic/apply.js";
+  import { logicEdit } from "#lib/logic-edit.svelte.js";
   import { addChoices, type AddContext } from "#lib/logic/palette.js";
   import { logicDrag } from "#lib/logic-drag.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
@@ -44,7 +45,9 @@
    *   port to a port connects, Delete on a selected wire or rule disconnects or removes it, a right click (or **+**, or a
    *   node type dragged from the Library's *Nodes*) opens the menu of what fits here (`logic/palette.ts`). An op's trees go
    *   to the stage as the Inspector's edits do (`stage.override`: live at once, saved by the autosave, a step in History);
-   *   its words – or why it was refused – show for a moment under the bar. The experience and group levels stay read-only.
+   *   its words – or why it was refused – show for a moment under the bar. A scene's and the experience's rules (content
+   *   schema 5.0, L-T5b) go to `logicEdit`, which saves them; the experience level edits the experience's own rules only,
+   *   the group level is read-only.
    * - What a plugin's code hears, emits, reads and sets is read from its source (stored, else the compiled module).
    *   Problems across the experience are listed under the graph, in the error colour.
    */
@@ -93,7 +96,8 @@
   const scenesShown = $derived(content.scenes.map(scene => (scene.id !== sceneId || !stage ? scene : {
     ...scene, targets: scene.targets.map(target => ({ ...target, entity: stage.overrides.has(target.id) ? stage.treeOf(target.id) : target.entity })),
   })));
-  const logic = $derived<LogicContent>({ scenes: scenesShown, groups: content.groups, plugins: declared, code });
+  /** With the scenes' and the experience's rules and the variables as edited (`logicEdit`, content schema 5.0) */
+  const logic = $derived<LogicContent>(logicEdit.withLogic({ scenes: scenesShown, groups: content.groups, plugins: declared, code }));
 
   // ── The level: one place, one setter ──
   /** The level the URL names – a scene's level only on its own scene's route */
@@ -203,11 +207,15 @@
   };
 
   // ── Editing (L-T4): gestures become ops, the ops' trees go to the stage like the Inspector's edits ──
-  /** Ops change the open scene's trees, at its scene and entity levels, while the stage is there */
-  const editable = $derived(!!stage && (context.level === "scene" || context.level === "entity") && context.scene === sceneId);
+  /**
+   * Ops change the open scene's trees and rules at its scene and entity levels while the stage is there, and the
+   * experience's own rules at the experience level
+   */
+  const editable = $derived(!!stage && (context.level === "experience" || ((context.level === "scene" || context.level === "entity") && context.scene === sceneId)));
   const readOnlyHint = $derived(
-    context.level === "experience" || context.level === "group" ? "Read-only at this level – open a scene or a target to edit its rules."
-      : context.scene !== sceneId ? "Another scene – open it to edit its rules." : !stage ? "The stage is not up yet – editing starts with it." : null,
+    context.level === "group" ? "Read-only at this level – open a scene or a target to edit its rules."
+      : context.level === "experience" ? (stage ? null : "The stage is not up yet – editing starts with it.")
+        : context.scene !== sceneId ? "Another scene – open it to edit its rules." : !stage ? "The stage is not up yet – editing starts with it." : null,
   );
   /** What the last op did, or why it was refused – shown briefly under the bar */
   let status = $state<{ text: string; refused: boolean } | null>(null);
@@ -222,6 +230,11 @@
     const result = apply(op, logic, context);
     if (!result.ok) return say(result.reason, true);
     for (const change of result.changed) void stage?.override(change.target, change.entity);
+    // A scene's and the experience's rules save themselves (`PUT …/scenes/{sid}`, `PUT …/logic`), a step in History each
+    for (const change of result.logic) {
+      if (change.doc === "scene") logicEdit.setScene(change.scene, change.rules);
+      else logicEdit.setExperience(change.rules);
+    }
     say(result.words);
   };
   const canConnect = (from: [string, string], to: [string, string]) => editable && apply({ op: "connect", from, to }, logic, context).ok;
@@ -235,14 +248,19 @@
     picked = [];
     pickedWires = [];
   });
-  const ruleRefOf = (box: string) => {
-    const home = view.edges.find(e => e.to[0] === box && e.to[1] === "on" && e.home?.doc === "entity")?.home;
-    return home?.doc === "entity" ? { target: home.target, path: home.path, component: home.component, rule: home.rule } : null;
+  /** The rule a rule box stands for (its home without the part) */
+  const ruleRefOf = (box: string): RuleRef | null => {
+    const home = view.nodes.find(n => n.id === box && n.kind === "rule")?.home;
+    return home ? refOf(home) : null;
   };
   const selectedRule = $derived(picked.map(ruleRefOf).find(r => r !== null) ?? null);
-  /** The node a new rule goes on: a node box picked here, else the workspace's selected node in this scene, else the entity level's own */
+  /**
+   * Where a new rule goes: a node box picked here, else the workspace's selected node in this scene, else the entity
+   * level's own node; at the scene level with no node selected the scene's own rules, at the experience level the experience's
+   */
   const place = $derived.by((): RulePlace | null => {
     if (!editable) return null;
+    if (context.level === "experience") return { doc: "experience" };
     const box = view.nodes.find(n => picked.includes(n.id) && n.pick?.kind === "node");
     if (box?.pick?.kind === "node") return { doc: "entity", target: box.pick.target, path: box.pick.path };
     const s = selection.snapshot();
@@ -251,7 +269,7 @@
       return inScene && s.target === context.target && !s.onTarget && context.path.every((p, i) => s.node[i] === p)
         ? { doc: "entity", target: s.target!, path: s.node } : { doc: "entity", target: context.target, path: context.path };
     }
-    return inScene && !s.onTarget ? { doc: "entity", target: s.target!, path: s.node } : null;
+    return inScene && !s.onTarget ? { doc: "entity", target: s.target!, path: s.node } : { doc: "scene", scene: sceneId };
   });
 
   // ── The menu: right click, the + button, a node type dropped from the Library ──
@@ -267,7 +285,8 @@
   const menuItems = $derived(menu?.add ? addItems(menu.add.kind, menuQuery) : menu?.items ?? []);
   const addHead = (kind: string | null) => {
     const rule = selectedRule ? view.nodes.find(n => picked.includes(n.id) && n.kind === "rule")?.label : null;
-    const where = place ? (view.nodes.find(n => n.id === `node:${place.target}/${place.path.join(".")}`)?.label ?? place.target) : null;
+    const where = !place ? null : place.doc === "experience" ? "the experience" : place.doc === "scene" ? "the scene"
+      : (view.nodes.find(n => n.id === `node:${place.target}/${place.path.join(".")}`)?.label ?? place.target);
     return `Add${kind ? ` ${kind}` : ""}${rule ? ` – to ${rule}` : where ? ` – on ${where}` : ""}`;
   };
   const openAdd = (at: { x: number; y: number }, kind: string | null = null) => {
@@ -284,7 +303,7 @@
     if (edges.length) return run({ op: "disconnect", edge: edges[0] });
     const box = boxes[0];
     const ref = box?.node?.kind === "rule" ? ruleRefOf(box.id) : null;
-    if (ref) run({ op: "removeRule", home: { doc: "entity", ...ref, part: "on" } });
+    if (ref) run({ op: "removeRule", home: { ...ref, part: "on" } });
     else if (box?.node) say(`${box.node.label}: only rules and wires are deleted here – a node goes in the tree, an event or a variable with the rules that name it.`, true);
   };
   const openMenu = (at: { x: number; y: number }, target: CanvasTarget) => {
@@ -374,6 +393,7 @@
     <span class="wire" title="An event"><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>event</span>
     <span class="wire value" title="A value (a variable)"><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>value</span>
     <span class="wire node" title="Acts on a node"><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>node</span>
+    <span class="wire scene" title="Goes to a scene (goto)"><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>goto</span>
     {#if never}
       <span class="wire never" data-help-name="Never fires"
         data-help="An event between two scenes: the engine builds the rules of the open scene only, so an event a rule emits in one scene never reaches another scene's rules. Plugins hear every scene."><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>never fires</span>
@@ -387,7 +407,7 @@
   {#if content.loading && !content.scenes.length}
     <p class="muted small">Loading the draft…</p>
   {:else if !view.nodes.length && !view.stubs.length}
-    <p class="muted small">No logic at this level: no behaviour rules and no plugin. Add a behaviour to a node in the Inspector.</p>
+    <p class="muted small">No logic at this level: no rules and no plugin. Add a rule with + (or a behaviour to a node in the Inspector).</p>
   {:else if canvasError}
     <p class="danger small">The graph could not load: {canvasError}</p>
   {:else if Canvas}
@@ -444,6 +464,7 @@
   .wire line { stroke: var(--muted); stroke-width: 1.5; }
   .wire.value line { stroke-dasharray: 6 3; }
   .wire.node line { stroke-dasharray: 1.5 2.5; }
+  .wire.scene line { stroke-dasharray: 8 3 2 3; }
   .wire.never line { stroke-dasharray: 1 4; stroke-width: 1; }
   .status { margin: 0; overflow-wrap: anywhere; }
   .problems { margin: 0; padding: 0 0 0 1rem; display: flex; flex-direction: column; gap: .125rem; max-height: 6rem; overflow-y: auto; }

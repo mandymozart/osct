@@ -169,6 +169,11 @@ export class StageCore {
         return tracker;
       },
       progress: this.progress.reader(),
+      // A rule's goto (content schema 5.0): the stage stays on its scene – the timeline logs it with a link that opens the
+      // scene (`SceneView`); following it while the stage plays would leave the author's open scene behind
+      navigate: address => {
+        this.events = logEvent(this.events, { event: "goto", detail: address, at: performance.now() - this.sceneOpenedAt });
+      },
       debug: import.meta.env.DEV,
     });
     this.arScene = arScene;

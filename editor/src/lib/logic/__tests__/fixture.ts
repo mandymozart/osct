@@ -19,7 +19,7 @@ const door: EntityData = {
     { type: "door", lift: 0.35 },
     { type: "behaviour", rules: [
       { on: "found", do: { show: "hint" } },
-      { on: "found", when: { hasKey: true }, do: [{ hide: "hint" }, { emit: "openDoor" }] },
+      { on: "found", when: "hasKey", do: [{ hide: "hint" }, { emit: "openDoor" }] },
       { on: "bellRang", do: { hide: "hint" } },
     ] },
   ],
@@ -30,7 +30,7 @@ const bell: EntityData = {
 };
 const end: EntityData = {
   type: "model", assets: [],
-  components: [{ type: "behaviour", rules: [{ on: "openDoor", when: { rung: true }, do: { show: "" } }, { on: "sceneChanged", do: { hide: "" } }] }],
+  components: [{ type: "behaviour", rules: [{ on: "openDoor", when: "rung", do: { show: "" } }, { on: "sceneChanged", do: { hide: "" } }] }],
 };
 const plugins = [{ id: "narrative", src: "/p.js", api: "3.0", registered: { components: { door: { params: {} } } } }] as unknown as PluginData[];
 const code = { narrative: pluginCodeUses(`api.events.on("openDoor", f); api.events.emit("doorOpened"); api.vars.set("doorOpen", true);`) };

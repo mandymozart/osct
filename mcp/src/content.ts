@@ -17,6 +17,7 @@ import { editorHref, type AppLinks } from "./services.ts";
 import type { PluginData } from "../../shared/types/game-config";
 import { APPEARANCE_TYPES, MOMENTS, PASS_TYPES, RECOGNITION_MODES } from "../../shared/types/game-config";
 import { MEDIA_LEVELS } from "../../shared/types/media-levels";
+import { logicProblems } from "../../shared/types/logic";
 import { EntryCategory } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
 import { exprMessage, renderEntryText } from "../../shared/text/entry-text";
@@ -691,7 +692,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_scene",
     {
       description:
-        "Changes a scene: `label` (free text – what the reader's switcher shows), `group` (a group of the experience; null takes it out – the scene stays in place), `surfaces` (the whole list, at least one – add, remove, resize, label, place: { id, label?, widthMm, heightMm, place? }; a surface without a place is laid in a row; a surface that goes takes its reference image), `passes` = the scene's own post-processing that replaces the experience's here ([{ type, enabled?, …parameters }] – the built-in types and the passes of the experience's plugins, describe_content_model { experience } passes; [] turns post-processing off here, null gives the scene the experience's passes again). Send what changes; checked against the contract. Surfaces that entries or targets lie on go only with `apply: true` – the first call answers 409 surfaces-in-use naming them (details.entries, details.targets): show the person; with their yes call again with `apply: true` – the entries stay on the scene without a surface, the targets lose their place (`cleared`). A change is recorded.",
+        "Changes a scene: `label` (free text – what the reader's switcher shows), `group` (a group of the experience; null takes it out – the scene stays in place), `surfaces` (the whole list, at least one – add, remove, resize, label, place: { id, label?, widthMm, heightMm, place? }; a surface without a place is laid in a row; a surface that goes takes its reference image), `passes` = the scene's own post-processing that replaces the experience's here ([{ type, enabled?, …parameters }] – the built-in types and the passes of the experience's plugins, describe_content_model { experience } passes; [] turns post-processing off here, null gives the scene the experience's passes again), `logic` = the scene's rules (content schema 5.0: { rules: [{ on, when?, do }], canvas? } – live while the scene is open, they hear the bus and name nodes by address target:<targetId>/<node name>; describe_content_model logic; null removes them). Send what changes; checked against the contract. Surfaces that entries or targets lie on go only with `apply: true` – the first call answers 409 surfaces-in-use naming them (details.entries, details.targets): show the person; with their yes call again with `apply: true` – the entries stay on the scene without a surface, the targets lose their place (`cleared`). A change is recorded.",
       inputSchema: z.object({
         experience: EXPERIENCE,
         scene: ID.describe("the scene's id (list_scenes)"),
@@ -699,12 +700,22 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         group: ID.nullable().optional(),
         surfaces: surfacesSchema.optional(),
         passes: passesSchema.nullable().optional(),
+        logic: z.record(z.string(), z.unknown()).nullable().optional().describe("the scene's rules { rules: [{ on, when?, do }], canvas? } (content schema 5.0, describe_content_model logic); null removes them"),
         apply: z.boolean().optional().describe("let surfaces go that entries or targets lie on – only after the person's yes"),
       }),
       annotations: write,
     },
     guard(async ({ experience, scene, ...body }) => {
-      if (Object.keys(body).filter(key => key !== "apply").length === 0) return fail({ error: { code: "mcp", message: "send label, group, surfaces or passes" } });
+      if (Object.keys(body).filter(key => key !== "apply").length === 0) return fail({ error: { code: "mcp", message: "send label, group, surfaces, passes or logic" } });
+      if (body.logic) {
+        const problems = logicProblems(body.logic, "logic", "scene");
+        if (problems.length) {
+          return fail({
+            error: { code: "invalid-logic", message: "logic does not match the content contract (nothing was sent).", problems },
+            hint: "describe_content_model logic: a scene's rules hear the bus (no found / lost / tap / unlocked), name nodes by address target:<targetId>/<node name>, a condition is an expression (hasKey && tries > 2), goto takes scene:<id>.",
+          });
+        }
+      }
       let warnings: { warnings?: string[] } = {};
       if (body.passes) {
         const check = await checkPassWrite(body.passes, "passes", () => experienceModel(experience));

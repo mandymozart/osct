@@ -9,6 +9,20 @@ target:
     type: group
     params:
       position: [0, 0.1, 0]
+    # The node's rules (content schema 5.0, #334): conditions are expressions; a third tap goes on to the next studio
+    components:
+      - type: behaviour
+        rules:
+          - on: found
+            when: "!tapped"
+            do: { hide: caption }
+          - on: tap
+            do:
+              - set: { tapped: true, taps: "taps + 1" }   # a set value is an expression: a counter
+              - emit: groupTapped
+          - on: tap
+            when: tapped && taps >= 2
+            do: { goto: "scene:studio-b" }
     children:
       - type: model
         src: tree.glb
@@ -17,6 +31,7 @@ target:
           position: [0, 0, 0.1]
           scale: 0.7
       - type: text
+        name: caption
         text: "{{entry.title}}"
         color: "#f3cc94"
         params:

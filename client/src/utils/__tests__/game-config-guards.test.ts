@@ -8,7 +8,7 @@ import {
 } from "@shared/guards/game-config";
 
 const valid = () => ({
-  version: { version: "1.0.0", timestamp: "2026-09-24T00:00:00.000Z", hash: "abc", schema: "4.0" },
+  version: { version: "1.0.0", timestamp: "2026-09-24T00:00:00.000Z", hash: "abc", schema: "5.0" },
   experience: { id: "osct", title: "Onion Skin & Crocodile Tears", book: { author: "Kévin Bray" } },
   initialScene: "scene1",
   scenes: [{ id: "scene1", label: "The Beginning", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
@@ -53,6 +53,46 @@ describe("game configuration guards", () => {
 
   it("accept a valid configuration", () => {
     expect(problemsOf(valid())).toEqual([]);
+  });
+
+  it("check typed variables over every rule of the configuration (schema 5.0, B7)", () => {
+    const config = valid() as any;
+    config.experience.variables = { taps: { type: "integer", default: 0 } };
+    config.experience.logic = { rules: [{ on: "ping", when: "taps > 2", do: { set: { mood: '"calm"' } } }] };
+    config.entities.castle.components = [{ type: "behaviour", rules: [{ on: "tap", do: { set: { taps: "taps + 1" } } }] }];
+    expect(problemsOf(config)).toEqual([]);
+    config.experience.variables.taps.default = "none";
+    config.entities.castle.components[0].rules.push({ on: "tap", when: "mood", do: { set: { taps: "mood" } } });
+    expect(problemsOf(config)).toEqual([
+      'experience.variables.taps.default: "none" is no integer',
+      'entities.castle.components[0].rules[1].when: a condition is true / false – "mood" is a text',
+      'entities.castle.components[0].rules[1].do[0].set.taps: taps is an integer (experience.variables.taps) – "mood" is a string',
+    ]);
+  });
+
+  it("check a scene's and the experience's logic, where a goto goes and which targets their rules name (schema 5.0)", () => {
+    const config = valid() as any;
+    config.scenes.push({ ...config.scenes[0], id: "scene2", label: "Two" });
+    config.entries.push({ id: "far", category: "glossary", title: "Far", scene: "scene2", body: "", tags: [], target: { id: "far", imageSrc: "/f.jpg", entity: { ref: "castle" } } });
+    config.experience.logic = { rules: [{ on: "chapterDone", do: [{ goto: "scene:scene2" }, { show: "target:far" }] }] };
+    config.scenes[0].logic = { rules: [{ on: "ping", when: "a && b > 1", do: { hide: "target:racoon/flag" } }], canvas: { folds: ["x"] } };
+    config.entities.castle.components = [{ type: "behaviour", rules: [{ on: "tap", do: { goto: "scene:scene1" } }] }];
+    expect(problemsOf(config)).toEqual([]);
+
+    config.experience.logic.rules[0].do[0].goto = "scene:nowhere";
+    config.experience.logic.rules[0].do[1].show = "target:ghost";
+    config.scenes[0].logic.rules[0].do.hide = "target:far/flag";
+    config.scenes[0].logic.rules.push({ on: "found", when: { hasKey: true }, do: "show" });
+    config.entities.castle.components[0].rules[0].do.goto = "scene:gone";
+    expect(problemsOf(config)).toEqual([
+      "scenes[0].logic.rules[1].on: found is a node's own event – a scene's rule hears an event of the bus – a scene event's name (camelCase) or a core event (targetFound, targetLost, targetUnlocked, targetTapped, sceneChanged, arState, varChanged)",
+      'scenes[0].logic.rules[1].when: a condition is an expression since content schema 5.0 (hasKey && tries > 2) – the object form {"hasKey":true} is gone',
+      "scenes[0].logic.rules[1].do: show alone acts on the rule's own node – a scene's rule has none: { show: target:<targetId>/<node name> }",
+      'experience.logic.rules[0].do[0].goto: unknown scene "nowhere"',
+      'entities.castle.components[0].rules[0].do[0].goto: unknown scene "gone"',
+      'experience.logic.rules[0].do[1]: unknown target "ghost"',
+      'scenes[0].logic.rules[0].do[0]: target "far" lies in scene "scene2" – a scene\'s rules act on its own targets',
+    ]);
   });
 
   it("report every problem with its path", () => {

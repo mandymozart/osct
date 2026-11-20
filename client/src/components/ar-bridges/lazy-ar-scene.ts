@@ -55,7 +55,8 @@ export class LazyArScene implements IArScene {
 
   private lastStatus: ArStatus = "idle";
 
-  constructor(private container: HTMLElement) {
+  /** `navigate`: where a rule's `goto` goes (schema 5.0) – handed to the real scene (`ArSceneOptions.navigate`) */
+  constructor(private container: HTMLElement, private navigate?: (address: string) => void) {
     this.emitter.on("status", status => (this.lastStatus = status));
   }
 
@@ -150,7 +151,7 @@ export class LazyArScene implements IArScene {
     if (!this.creating) {
       this.emitter.emit("status", "loading");
       this.creating = loadArModule().then(({ createReaderScene }) => {
-        const arScene = createReaderScene(this.container);
+        const arScene = createReaderScene(this.container, this.navigate);
         // Forward the real scene's events
         AR_EVENTS.forEach(event =>
           arScene.on(event, ((...args: unknown[]) =>

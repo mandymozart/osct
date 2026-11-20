@@ -54,6 +54,8 @@
   import GroupView from "./GroupView.svelte";
   import SurfaceView from "./SurfaceView.svelte";
   import { experienceEvents, experienceVariables, pathOfName, rulesOf, subtreeNames, treeBehaviourIssues, withRules } from "#lib/behaviour-edit.js";
+  import { logicEdit } from "#lib/logic-edit.svelte.js";
+  import { logicTypes, typeProblemsByRule } from "#lib/logic/project.js";
 
   /**
    * The selected **node** of a target's entity (the entity is a tree; the tree panel or a tap
@@ -78,10 +80,12 @@
    * **scene** – selected in the tree, or nothing else selected – its sections (`SceneView`: the scene,
    * post-processing, vars and events).
    */
-  let { stage, experienceId, sceneId, selected, node = $bindable([]), pickColour, ontargetchanged, oncode, onenvironment }: {
+  let { stage, experienceId, sceneId, selected, node = $bindable([]), pickColour, ontargetchanged, oncode, onenvironment, onopenscene }: {
     stage: Stage | null; experienceId: string; sceneId: string; selected: string | null; node: number[];
     /** The scene's environment row: the workspace opens the Environment tab */
     onenvironment?: () => void;
+    /** A goto's link in the scene's timeline: the workspace opens that scene */
+    onopenscene?: (sceneId: string) => void;
     /** Show the Code tab (a made plugin's error is there) */
     oncode?: () => void;
     /** Pick a colour from the stage (the workspace owns the picking overlay) */
@@ -230,8 +234,15 @@
   const behaviourProblems = $derived(entity ? treeBehaviourIssues(entity) : []);
   /** Every tree of the experience (the draft's, this one as edited): the variables and events its behaviours use */
   const experienceTrees = $derived([...content.scenes.flatMap(s => s.targets).filter(t => t.id !== target?.id).flatMap(t => (t.entity ? [t.entity] : [])), ...(entity ? [entity] : [])]);
-  const ruleVariables = $derived(experienceVariables(experienceTrees, (stage?.vars ?? []).map(v => v.name)));
-  const ruleEvents = $derived(experienceEvents(experienceTrees, (stage?.events ?? []).map(e => e.event)));
+  /** The scenes' and the experience's rules (schema 5.0): their variables and events are offered too */
+  const logicRuleSets = $derived([...logicEdit.experienceRules(), ...content.scenes.flatMap(s => logicEdit.sceneRules(s.id))]);
+  const ruleVariables = $derived([...new Set([...experienceVariables(experienceTrees, (stage?.vars ?? []).map(v => v.name), logicRuleSets), ...Object.keys(logicEdit.declared() ?? {})])].sort());
+  const ruleEvents = $derived(experienceEvents(experienceTrees, (stage?.events ?? []).map(e => e.event), logicRuleSets));
+  /** The variables' types (declared, else inferred) – the draft's trees with this one as edited */
+  const ruleTypes = $derived(logicTypes(logicEdit.withLogic({
+    scenes: content.scenes.map(s => ({ ...s, targets: s.targets.map(t => (t.id === target?.id && entity ? { ...t, entity } : t)) })),
+  })));
+  const gotoScenes = $derived(content.scenes.map(s => ({ id: s.id, label: s.label || s.id })));
   /** The clips of the models under the selected node by node name ("" = the node itself), read from the stage as the models load */
   let behaviourClips = $state<Record<string, string[]>>({});
   $effect(() => {
@@ -772,7 +783,7 @@
   <LibraryPanel {experienceId} pick={picking} />
 {:else if !target}
   <!-- The scene: selected, or nothing else is (a target id this scene does not have shows it too) -->
-  <SceneView {stage} {experienceId} {sceneId} {onenvironment} />
+  <SceneView {stage} {experienceId} {sceneId} {onenvironment} {onopenscene} />
 {:else}
   <div class="head">
     <!-- The breadcrumb (#162): target › entity › group › node – a crumb selects that level; ▾ after the target picks another -->
@@ -1022,8 +1033,11 @@
       {/if}
       {#if component.type === BEHAVIOUR_TYPE}
         <!-- The behaviour's rules (#88): event, condition and actions as pickers -->
-        <BehaviourRules rules={rulesOf(current, i)} names={subtreeNames(current)} clipsOf={name => behaviourClips[name] ?? []}
-          variables={ruleVariables} events={ruleEvents} uid="behaviour-{i}" onchange={rules => current && applyNode(withRules(current, i, rules))} />
+        {@const rules = rulesOf(current, i)}
+        {@const typeProblems = typeProblemsByRule(rules, ruleTypes)}
+        <BehaviourRules {rules} names={subtreeNames(current)} clipsOf={name => behaviourClips[name] ?? []} scenes={gotoScenes} types={ruleTypes}
+          problemsOf={r => typeProblems.filter(p => p.rule === r).map(p => p.message)}
+          variables={ruleVariables} events={ruleEvents} uid="behaviour-{i}" onchange={next => current && applyNode(withRules(current, i, next))} />
       {/if}
       {#each rows.filter(r => r.id.startsWith(`components.${i}.`)) as row (row.id)}
         {@render specRow(row, row.id.split(".")[2])}

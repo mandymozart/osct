@@ -32,7 +32,7 @@ final class Migration4
         foreach (Db::run('SELECT id, experience_json, content_schema FROM experiences')->fetchAll() as $row) {
             $json = self::rewrite((string) $row['experience_json'], [self::class, 'experience']);
             // A 3.x experience is 4.0 now (its rows are rewritten below); an older MAJOR stays refused as before
-            $schema = str_starts_with((string) $row['content_schema'], '3.') ? Editor::CONTENT_SCHEMA : (string) $row['content_schema'];
+            $schema = str_starts_with((string) $row['content_schema'], '3.') ? '4.0' : (string) $row['content_schema']; // Migration5 takes it on to 5.0
             if ($json === null && $schema === $row['content_schema']) continue;
             Db::run('UPDATE experiences SET experience_json = :json, content_schema = :schema WHERE id = :id',
                 ['json' => $json ?? $row['experience_json'], 'schema' => $schema, 'id' => $row['id']]);

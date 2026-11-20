@@ -1,4 +1,4 @@
-import type { BehaviourCondition, BehaviourAction } from "@engine/types";
+import type { BehaviourAction } from "@engine/types";
 
 /**
  * The **logic model** shared by every level of the Logic view (#334, `agents/research/2026-11-20-logic-nodes-shared-concept.md`
@@ -45,25 +45,30 @@ export type Context =
 
 export type Level = Context["level"];
 
-/** The part of a rule an edge stands for; `index`: the test of `when`, the action of `do` */
+/** The part of a rule an edge stands for; `index`: the variable of `when` (in the order the expression reads them), the action of `do` */
 type RulePart = { part: "on" | "when" | "do"; index?: number };
 
 /**
- * The document place an edge comes from. `entity`: a rule of a `behaviour` component of a target's node (`component` is
- * the node's component index, `rule` the rule's index in it). `scene` / `experience` are declared for the scene and
- * experience rules of the MAJOR (L-T5); nothing projects them yet.
+ * A rule of the documents. `entity`: a rule of a `behaviour` component of a target's node (`component` is the node's
+ * component index, `rule` the rule's index in it); `scene`: a rule of a scene's `logic`; `experience`: a rule of the
+ * experience's `logic` (content schema 5.0)
  */
-export type Home =
-  | ({ doc: "entity"; target: string; path: number[]; component: number; rule: number } & RulePart)
-  | ({ doc: "scene"; scene: string; rule: number } & RulePart)
-  | ({ doc: "experience"; rule: number } & RulePart);
+export type RuleRef =
+  | { doc: "entity"; target: string; path: number[]; component: number; rule: number }
+  | { doc: "scene"; scene: string; rule: number }
+  | { doc: "experience"; rule: number };
+
+/** The document place an edge comes from: a rule and the part of it */
+export type Home = RuleRef & RulePart;
 
 /** What a click on a box selects in the workspace */
 export type LogicPick =
   | { kind: "node"; target: string; path: number[] }
   | { kind: "plugin"; plugin: string }
   | { kind: "scene"; scene: string }
-  | { kind: "group"; group: string };
+  | { kind: "group"; group: string }
+  /** The experience's rules: the experience in the Inspector */
+  | { kind: "experience" };
 
 export interface GraphNode {
   id: string;
@@ -147,8 +152,11 @@ export type CanvasEdit =
   | { edit: "unwire"; from: [string, string]; to: [string, string] }
   | { edit: "run"; id: string };
 
-/** Where a new rule goes: a node of a target's tree (its first behaviour component; one is added when it has none) */
-export type RulePlace = { doc: "entity"; target: string; path: number[] };
+/**
+ * Where a new rule goes: a node of a target's tree (its first behaviour component; one is added when it has none), a
+ * scene's logic or the experience's
+ */
+export type RulePlace = { doc: "entity"; target: string; path: number[] } | { doc: "scene"; scene: string } | { doc: "experience" };
 
 /**
  * An edit of the logic as an op on one document (`apply.ts`). `connect` and `disconnect` name the ports and the wire by the
@@ -159,7 +167,8 @@ export type Op =
   | { op: "addRule"; at: RulePlace; on?: string }
   | { op: "connect"; from: [string, string]; to: [string, string]; verb?: BehaviourAction["action"] }
   | { op: "disconnect"; edge: string }
-  | { op: "setCondition"; home: Home; tests: BehaviourCondition["tests"]; match?: BehaviourCondition["match"] }
+  /** `when`: the condition's expression (null: always) – type-checked before it is written (B8) */
+  | { op: "setCondition"; home: Home; when: string | null }
   | { op: "addAction"; home: Home; action: BehaviourAction }
   | { op: "removeAction"; home: Home }
   | { op: "removeRule"; home: Home }

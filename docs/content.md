@@ -308,12 +308,13 @@ target:
 | Part | Values | What it does |
 |---|---|---|
 | `on` | `found`, `lost`, `tap`, `unlocked`, or an event's name | The node's own events – its page found, lost, the AR content tapped, the page's first find – or any other camelCase name: an event of the stage, a scene event a plugin or another behaviour emits (`doorOpened`) or a core event (`targetFound`, `varChanged`, …) |
-| `when` | `{ hasKey: true, tries: 3 }` · `{ any: { … } }` | Optional. Every variable named must equal its value; under `any:` one of them is enough. `{ not: value }` turns a test round, `null` means *not set*. A variable is read from the innermost scope that has it (scene, stage, session, experience) |
+| `when` | an expression: `hasKey && tries > 2` | Optional (content schema 5.0). The language of the entries' `{…}` texts without braces ("The text: Markdown and variables" above): camelCase variable names, numbers, `"texts"`, `true` / `false`, `and or not && \|\| !`, `== != < <= > >=`, `+ - * / mod`, parentheses. The rule runs when the value is true – `0`, `""`, `false` and a variable that is *not set* are false. A variable is read from the innermost scope that has it (scene, stage, session, experience). No functions, no dotted names |
 | `play` | a clip's name, `""` | Plays a clip of a model – `""` its own clip (the `animation` component's, else the first). `node: <name>` plays another model of the subtree. The `animation` component still says how (loop, speed) |
 | `pause`, `stop` | a node's name, `""` | Pauses the clip, or stops it at its start – `""` the behaviour's own node |
 | `show`, `hide` | a node's name, `""` | Shows or hides a node of the subtree by its `name` – `""` the behaviour's own node |
-| `set` | `{ name: value }`, `scope` | Sets variables (`null` deletes one) in `scope`: `scene` (the default), `stage`, `session` or `experience` |
+| `set` | `{ name: value }`, `scope` | Sets variables (`null` deletes one) in `scope`: `stage`, `session`, `experience` or `scene` – none given: the variable's declared scope, else `scene`. **A value is an expression** (content schema 5.0): `tries + 1`, `hasKey`, `"calm"` – see "Set values and typed variables" below |
 | `emit` | an event's name | Sends a scene event to the stage (`{ targetId, node }` as its payload); never a core event or a node event |
+| `goto` | `scene:<id>` | Content schema 5.0: the reader opens that scene, as a link to `/scene/<id>` does ("Addresses" below). The editor's stage only logs it |
 
 `do` takes one action or a list; a plain word runs a verb on the own node: `do: play`, `do: hide`. Nodes are named with
 their `name` (schema 2.12) – the door's rules below show and hide its child `hint`. On one event every rule's condition
@@ -333,9 +334,80 @@ cut (logged). An action that cannot run – a node or a clip that is not there �
           - on: found
             do: { show: hint }
           - on: found
-            when: { hasKey: true }
+            when: hasKey
             do: [{ hide: hint }, { emit: openDoor }]
+          - on: tap
+            when: doorOpen && visits >= 2
+            do: { goto: "scene:epilogue" }
 ```
+
+A condition is one expression; quote it in YAML when it starts with `!` or holds `: ` (`when: '!doorOpen'`). Before
+content schema 5.0 a condition was an object (`{ hasKey: true }`, `{ any: … }`, `{ not: … }`) – `npm run convert:5`
+converts a content folder once: each test becomes `name == value` (`!=` for `not`), the tests are joined with `&&`
+(`||` for `any`), and a *not set* test (`null`) becomes a truth test (`!name`) – the command lists those to check.
+
+**Set values and typed variables** (content schema 5.0, #334 B2 and B7). A `set` value is an expression of the same
+language, so a counter needs nothing special: `set: { tries: "tries + 1" }`. Every set value is an expression – the one
+form, so a text value is the language's text literal: `"calm"`, in YAML quoted once more, `set: { mood: '"calm"' }`
+(an unquoted `calm` is the variable `calm`). A number or `true` / `false` may stand bare (`set: { tries: 0, hasKey: true
+}`); they are their own expressions. An expression that cannot be evaluated (a variable in it not set, a text compared
+with `<`) sets nothing and is logged. `npm run convert:5` turns a 4.x set's text values into literals (once – a second
+run would quote them again).
+
+Every variable has a **type** – `number`, `integer`, `boolean` or `string`. Declare it in `experience.yaml`, or let the
+first `set` of it in the content decide (the experience's rules, then the scenes' in order, then the shared entities',
+then the targets'):
+
+```yaml
+variables:
+  tries: { type: integer, scope: stage, default: 0 }   # a declared variable that is not set reads as its default
+  mood: { type: string, default: calm }                 # a default is a plain YAML value, not an expression
+```
+
+A `set` of another type, a comparison of two types (`tries == "3"`), a `set` with another `scope` than the declared one and
+a `when` that is not true / false (`when: tries`) are problems – the content build and the editor name them. `&&`, `||`
+and `!` need true / false; `-`, `*`, `/`, `%`, `<`, `<=`, `>`, `>=` need numbers; `+` adds numbers or joins texts, never a
+text and a number. An integer goes where a number is wanted; nothing else is converted. The reader refuses a value of the
+wrong type at runtime – also one a plugin sets with `api.vars.set` – keeps the old one and logs it. A plugin's own
+variables, which no rule sets and nobody declares, stay untyped. The entries' `{…}` texts keep their loose display rules.
+
+**A scene's and the experience's rules** (content schema 5.0, #334): the same rules on a scene (`logic:` in
+`scene.yaml` – live while the scene is open) and on the experience (`logic:` in `experience.yaml` – live for the whole
+session, across scene switches). They hear the stage's bus only – a scene event or a core event (`targetFound`,
+`targetUnlocked`, `targetTapped`, `sceneChanged`, `varChanged`, …), never a node's own `found` / `lost` / `tap` /
+`unlocked` – and they have no node of their own: `show`, `hide`, `pause`, `stop` and `play`'s `node` name a node by
+address, and a plain word (`do: hide`) is not allowed. A scene's rules act on its own targets only (only the open scene's
+entities are built); `sceneChanged` reaches them once the new scene's nodes are there.
+
+```yaml
+# scenes/hall/scene.yaml
+logic:
+  rules:
+    - on: doorOpened                      # a scene event a node's rule or a plugin emits
+      when: hasKey
+      do:
+        - show: "target:door/hint"        # the node named hint in the target door's entity
+        - play: creak
+          node: "target:door"             # the entity's root
+# experience.yaml
+logic:
+  rules:
+    - on: targetUnlocked
+      when: unlocks >= 3
+      do:
+        - set: { chapterDone: true }
+          scope: experience
+        - goto: "scene:epilogue"
+```
+
+**Addresses** (`shared/types/address.ts`): `scene:<sceneId>` – where a `goto` goes; `target:<targetId>` – the root of a
+target's entity, `target:<targetId>/<node name>` – the first node of that name in it. The grammar is SCUTOONS' (a
+scheme, a colon, a path), so later schemes (`toon:`, `chapter:`) and a goto's `via` (an on-screen instruction) fit in.
+The content build checks that a goto's scene and an address's target exist.
+
+**The canvas**: next to `rules`, a `logic` may hold `canvas` – the editor's Logic view's own data (`groups: [{ id,
+label, members }]`, `notes: [{ id, text, x, y }]`, `folds: [node ids]`). It is authoring data: stored in the editor's
+database and in its export, never in a reader's configuration – the content build and a publish leave it out.
 
 The editor's Inspector edits the rules without YAML ([editor](editor.md)), and the scene's *vars and events* there shows
 each rule that ran. What a rule cannot do – move a node over time, draw text, count the progress – is a plugin's job;
@@ -1036,6 +1108,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 4.1 | 3.11.0 | in develop | a target's optional `recognition` (#306): `{ imageSrc, width, height }` – its grey recognition frame made ahead with `osct targets prepare` and the printed image's size ("Recognition" above) | ignored: the app makes the frame from the target's image itself, as before |
 | 4.2 | 3.12.0 | in develop | the switch between the recognition paths (#306, "Recognition" above): the experience's optional `recognition` (`"original"` – none, the default – or `"prepared"`; any other text reads as original) and a target's optional `recognitionOff` (`true`: always its printed image) | ignored: a 4.1 app (3.11.x) uses a target's `recognition` wherever it has one; an app before 4.1 makes every frame itself |
 | 4.3 | 3.16.0 | in develop | media in quality levels (#331, "Pictures, videos and sounds in quality levels" above): an image, video or audio asset's optional `levels` and an entry's optional `imageLevels` – `[{ level, src }]`, a picture by its longest side (512 / 1024 / 2048), a video by its height (480 / 720 / 1080), a sound by kbps (64 / 128 / 192); the reader's media quality chooses | ignored: a 4.2 app loads the medium's own `src` / `image`, as before |
+| 5.0 | 4.0.0 | in develop | **logic beyond the nodes** (#334, `agents/research/2026-11-20-logic-nodes-shared-concept.md` §5.4): a rule's `when` is an expression (`hasKey && tries > 2` – the language of the entries' `{…}` texts) – the object form (`{ hasKey: true }`, `{ any: … }`, `{ not: … }`) is removed; a scene's and the experience's optional `logic` (`{ rules, canvas? }`: rules in the behaviour's grammar that hear the bus and name nodes by address `target:<targetId>/<node name>`); the action `goto: scene:<id>` in every rule; a `set` value is an expression (a text value is the literal `"…"`); typed variables – the experience's optional `variables` (`{ name: { type, scope?, default? } }`), else inferred from the first set, a wrong type a problem and refused at runtime. The canvas is authoring data – never in a reader's configuration. A content source is converted once with `npm run convert:5`, the server's rows by `Migration5` (on the deploy's `Db::migrate`; a dry run: `php server/deploy/migrate.php --plan-5`) | refused: an app since 5.0 reads 5.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 5); a 4.x app refuses 5.0 content – published 4.x versions must be published again after the migration |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

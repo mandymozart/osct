@@ -1,4 +1,4 @@
-import { GameStoreService, GraphicsService, PreloaderService, SubtitleService, UpdateService } from "@/services";
+import { GameStoreService, GraphicsService, PreloaderService, resolveAddress, SubtitleService, UpdateService } from "@/services";
 import { type ArError, type ArStatus, CameraPermissionStatus, CARD_FLIGHT_EVENT, type CardFlightDetail, ErrorCode, GameMode, type IArScene, type IGame, LoadingState, TARGET_UNLOCKED_EVENT } from "@/types";
 import { getEntry, getTarget } from "@/utils/game-config";
 import { EntryCategory } from "@/types";
@@ -55,7 +55,8 @@ export class ArBridge extends HTMLElement {
     const container = document.getElementById("ar-container") ?? this.createContainer();
     let lazy: LazyArScene | null = null;
     if (ArBridge.sceneFactory) this.arScene = ArBridge.sceneFactory(container);
-    else this.arScene = lazy = new LazyArScene(container);
+    // A rule's goto (schema 5.0): the router opens the address as it opens a link to it
+    else this.arScene = lazy = new LazyArScene(container, address => resolveAddress(this.game, address));
     const arScene = this.arScene;
     const game = this.game;
 

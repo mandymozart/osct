@@ -1,5 +1,5 @@
 import { getExperience as getConfigExperience, getConfigVersion, getGroups, getPlugins, getSkippedFeatures, getScenes, loadGameConfiguration, type SkippedFeature } from "@engine/content/game-config";
-import type { ExperienceAppearance, ErrorInfo, GroupData, PassData, Scene } from "@engine/types";
+import type { ExperienceAppearance, ErrorInfo, GroupData, LogicData, PassData, Scene, VariableDeclaration } from "@engine/types";
 import { authFetch, draftBaseUrl, getExperience } from "./api";
 import { adoptRecordedSpecs } from "#lib/plugins/recorded.js";
 import { plugins } from "./plugins.svelte";
@@ -21,6 +21,10 @@ class Content {
   experiencePasses = $state<PassData[] | null>(null);
   /** How the experience's entities appear (`experience.appearance`, #265): a look per moment; null = the experience names none */
   experienceAppearance = $state<ExperienceAppearance | null>(null);
+  /** The experience's rules (`experience.logic`, content schema 5.0); null = it has none */
+  experienceLogic = $state<LogicData | null>(null);
+  /** The rules' declared variables (`experience.variables`, B7); null = none declared */
+  experienceVariables = $state<Record<string, VariableDeclaration> | null>(null);
   hash = $state<string | null>(null);
   error = $state<ErrorInfo | null>(null);
   /** What the draft has that this editor's engine does not know (an experience from a newer content build – RULES #10): skipped on the stage */
@@ -61,6 +65,8 @@ class Content {
       this.groups = error ? [] : getGroups();
       this.experiencePasses = error ? null : getConfigExperience().passes ?? null;
       this.experienceAppearance = error ? null : getConfigExperience().appearance ?? null;
+      this.experienceLogic = error ? null : getConfigExperience().logic ?? null;
+      this.experienceVariables = error ? null : getConfigExperience().variables ?? null;
       this.hash = error ? null : getConfigVersion().hash ?? null;
       this.skipped = error ? [] : getSkippedFeatures();
       // What the declared plugins recorded: the Inspector's rows before they load or run

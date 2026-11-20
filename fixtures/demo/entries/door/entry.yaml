@@ -39,7 +39,7 @@ target:
           - on: found
             do: { show: hint }
           - on: found
-            when: { hasKey: true }
+            when: hasKey == true
             do:
               - hide: hint
               - emit: openDoor

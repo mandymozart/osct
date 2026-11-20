@@ -703,6 +703,60 @@ final class Experiences
         Http::json(200, ['appearance' => $appearance]);
     }
 
+    /**
+     * PUT /editor/experiences/{id}/logic { logic: { rules, canvas? } | null } → 200 { logic }: the experience's rules (content
+     * schema 5.0, #334, shared/types/logic.ts) – live for the whole session, across scene switches; they hear the bus and
+     * name nodes by address (`target:<targetId>/<node name>`), `goto` goes to `scene:<id>`. The canvas (the Logic view's
+     * authoring data) is stored with them; a publish leaves it out. `null` removes the field. Shapes only (`Logic::check`,
+     * 400 `invalid-logic`); the expressions are the editor's and the reader's guard's to check. Change kind `logic`.
+     */
+    public static function putLogic(string $experienceId): never
+    {
+        $user = Editor::user();
+        self::experience($experienceId);
+        $body = Editor::body();
+        if (!property_exists($body, 'logic')) throw new ApiError(400, 'invalid-logic', 'Send { logic: { rules: [{ on, when?, do }], canvas? } } or { logic: null }.');
+        $logic = $body->logic === null ? null : Logic::check($body->logic, 'experience');
+        // As putPasses: the experience's JSON read, changed and written back in one transaction, the row locked
+        Db::transaction(static function () use ($experienceId, $logic, $user) {
+            $row = self::experience($experienceId, true);
+            $experience = Editor::decode($row['experience_json']);
+            if ($logic === null) unset($experience->logic);
+            else $experience->logic = $logic;
+            $json = Editor::encode($experience);
+            Db::run('UPDATE experiences SET experience_json = :experience WHERE id = :id', ['experience' => $json, 'id' => $experienceId]);
+            self::touch($experienceId);
+            self::change($experienceId, $user, 'logic', $experienceId, $row['experience_json'], $json);
+        });
+        Http::json(200, ['logic' => $logic]);
+    }
+
+    /**
+     * PUT /editor/experiences/{id}/variables { variables: { name: { type, scope?, default? } } | null } → 200 { variables }:
+     * the rules' typed variables (content schema 5.0, #334 B7, shared/types/variables.ts). A variable not declared takes
+     * the type of its first set; whether every rule fits them is the guard's and the editor's to say. `null` removes the
+     * field. 400 `invalid-variables`. Change kind `variables`.
+     */
+    public static function putVariables(string $experienceId): never
+    {
+        $user = Editor::user();
+        self::experience($experienceId);
+        $body = Editor::body();
+        if (!property_exists($body, 'variables')) throw new ApiError(400, 'invalid-variables', 'Send { variables: { name: { type, scope?, default? } } } or { variables: null }.');
+        $variables = $body->variables === null ? null : Logic::variables($body->variables);
+        Db::transaction(static function () use ($experienceId, $variables, $user) {
+            $row = self::experience($experienceId, true);
+            $experience = Editor::decode($row['experience_json']);
+            if ($variables === null) unset($experience->variables);
+            else $experience->variables = $variables;
+            $json = Editor::encode($experience);
+            Db::run('UPDATE experiences SET experience_json = :experience WHERE id = :id', ['experience' => $json, 'id' => $experienceId]);
+            self::touch($experienceId);
+            self::change($experienceId, $user, 'variables', $experienceId, $row['experience_json'], $json);
+        });
+        Http::json(200, ['variables' => $variables]);
+    }
+
     /** The problems of an `environment` (shared/types/environment.ts `environmentProblems`, strict); [] when valid */
     public static function environmentProblems(mixed $value): array
     {
@@ -991,7 +1045,8 @@ final class Experiences
         }
 
         $injected = self::injectedPlugins($experienceId, $body->plugins ?? null);
-        $version = ContentVersion::assemble($experienceId);
+        // Readers get no authoring data: the logic's canvas stays in the draft (#334)
+        $version = ContentVersion::assemble($experienceId, true);
         if ($injected) $version = ContentVersion::withPlugins($version, array_map(static fn(array $plugin): stdClass => $plugin['declaration'], $injected));
         // A component type no plugin can register would make the reader refuse the whole content: a plugin of the Code tab
         // reaches readers only when the publish carries it (`plugins`). What the compiled plugins register is known when
@@ -1275,7 +1330,7 @@ final class Experiences
     {
         $row = Db::one('SELECT * FROM experiences WHERE id = :id' . ($lock ? Db::forUpdate() : ''), ['id' => $experienceId]);
         if (!$row) throw new ApiError(404, 'not-found', 'No such experience – import a configuration first.');
-        // An experience of an older content schema MAJOR is not read or written (Db::migrate turns every 3.x one into 4.0, #320)
+        // An experience of an older content schema MAJOR is not read or written (Db::migrate turns every 4.x one into 5.0, Migration5, #334)
         if (!$anySchema && !Editor::isCurrentSchema((string) $row['content_schema'])) {
             throw new ApiError(409, 'old-schema', "The experience is of content schema {$row['content_schema']} – the editor reads " . Editor::CONTENT_SCHEMA . ': import a ' . Editor::CONTENT_SCHEMA_MAJOR . '.x configuration of it.', ['schema' => $row['content_schema']]);
         }
@@ -1341,8 +1396,8 @@ final class Experiences
     }
 
     /**
-     * Checks what the rows need of a configuration (content schema 4.x – an older one is refused: convert its source with
-     * `npm run convert:4` in scripts/) and splits it into rows-to-be;
+     * Checks what the rows need of a configuration (content schema 5.x – an older one is refused: convert its source with
+     * `npm run convert:5` in scripts/) and splits it into rows-to-be;
      * every other field stays inside the objects (data_json). Every entry names a scene of the configuration, its surface
      * and its target's place one of that scene's surfaces. The experience needs an id and a title; its printed book
      * (`book`, optional) an author and maybe a publisher – no print data on the top level (#320). `$pluginSources`: the experience has Code tab sources (any node type named like a
@@ -1354,7 +1409,7 @@ final class Experiences
         $fail = static fn(string $message) => throw new ApiError(400, 'invalid-configuration', $message);
         $version = $c->version ?? null;
         if (!$version instanceof stdClass || !is_string($version->schema ?? null) || !preg_match('/^\d+\.\d+$/', $version->schema)) $fail('version.schema must be "MAJOR.MINOR".');
-        if (!Editor::isCurrentSchema($version->schema)) $fail("The configuration is of content schema {$version->schema} – the editor reads " . Editor::CONTENT_SCHEMA_MAJOR . '.x (convert a 3.x source with npm run convert:4 in scripts/).');
+        if (!Editor::isCurrentSchema($version->schema)) $fail("The configuration is of content schema {$version->schema} – the editor reads " . Editor::CONTENT_SCHEMA_MAJOR . '.x (convert a 4.x source with npm run convert:5 in scripts/).');
         $experience = $c->experience ?? null;
         if (!$experience instanceof stdClass || !is_string($experience->id ?? null) || !is_string($experience->title ?? null)) $fail('experience needs id and title.');
         foreach (['author', 'publisher', 'sourceOfTruth'] as $key) {
@@ -1367,6 +1422,20 @@ final class Experiences
         }
         if (property_exists($experience, 'recognition') && !in_array($experience->recognition, self::RECOGNITION_MODES, true)) {
             $fail('experience.recognition must be "original" or "prepared".');
+        }
+        if (property_exists($experience, 'logic')) {
+            try {
+                Logic::check($experience->logic, 'experience', 'experience.logic', 'invalid-configuration');
+            } catch (ApiError $error) {
+                $fail($error->getMessage());
+            }
+        }
+        if (property_exists($experience, 'variables')) {
+            try {
+                Logic::variables($experience->variables, 'experience.variables', 'invalid-configuration');
+            } catch (ApiError $error) {
+                $fail($error->getMessage());
+            }
         }
         if (isset($experience->environment)) {
             $problems = self::environmentProblems($experience->environment);
@@ -1414,6 +1483,7 @@ final class Experiences
             if (property_exists($s, 'group') && !in_array($s->group, $groupIds, true)) $fail("scenes[$i].group names no group of the configuration.");
             try {
                 $s->surfaces = Scenes::checkSurfaces($s->surfaces ?? null, 'invalid-configuration');
+                if (property_exists($s, 'logic')) Logic::check($s->logic, 'scene', 'logic', 'invalid-configuration');
             } catch (ApiError $error) {
                 $fail("scenes[$i]." . $error->getMessage());
             }

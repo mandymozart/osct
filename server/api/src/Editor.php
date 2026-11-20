@@ -25,15 +25,15 @@ final class Editor
     public const ENTRY_CATEGORIES = ['glossary', 'video', 'text', 'link'];
     /**
      * The content schema the editor reads and the draft writes (shared/types/game-config.ts `CONTENT_SCHEMA_VERSION`): an
-     * experience of an older MAJOR is refused (`Db::migrate` turns every stored 3.x experience into 4.0, `Migration4`, #320)
+     * experience of an older MAJOR is refused (`Db::migrate` turns every stored 4.x experience into 5.0, `Migration5`, #334)
      */
-    public const CONTENT_SCHEMA = '4.3';
+    public const CONTENT_SCHEMA = '5.0';
     /**
      * The levels a picture, video or sound may hold (shared/types/media-levels.ts `MEDIA_LEVELS`, schema 4.3, #331): image
      * px (longest side), video height, audio kbps
      */
     public const MEDIA_LEVELS = ['image' => [512, 1024, 2048], 'video' => [480, 720, 1080], 'audio' => [64, 128, 192]];
-    public const CONTENT_SCHEMA_MAJOR = 4;
+    public const CONTENT_SCHEMA_MAJOR = 5;
 
     /**
      * A medium's `levels` (#331, shared/types/media-levels.ts `mediaLevelProblems`): a list of at least one `{ level, src }`,
@@ -152,6 +152,8 @@ final class Editor
                 throw new ApiError(400, 'invalid-entity', "$path.material.type must be a material a plugin of the experience registers$known");
             }
         }
+        // The behaviour's rules: their shapes (content schema 5.0 – a condition is an expression, a goto goes to scene:<id>)
+        if (property_exists($value, 'components')) Logic::components($value->components, "$path.components");
         if (property_exists($value, 'children')) {
             if (!is_array($value->children)) throw new ApiError(400, 'invalid-entity', "$path.children must be an array.");
             if ($depth >= self::MAX_NODE_DEPTH) throw new ApiError(400, 'invalid-entity', "$path.children: nodes nest deeper than " . self::MAX_NODE_DEPTH . ' levels.');

@@ -41,6 +41,7 @@ import { DEFAULT_ENVIRONMENT, ENVIRONMENT_WORLDS, SKY_IMAGE_EXTENSIONS, WORLD_MO
 import { SCENE_PAGE_MM, SCENE_PRESETS, SCENE_SURFACES_MAX, SCENE_WALL_MM, SURFACE_REFERENCE_FITS } from "../../shared/api/editor";
 import { ENTRY_CATEGORIES } from "../../shared/types/entry";
 import type { SourceTypes } from "../../shared/api/rules";
+import { VARIABLE_TYPES } from "../../shared/types/variables";
 import { IMAGE_MAX_PIXELS, IMAGE_MAX_SIDE, IMAGE_WEBP_QUALITY } from "../../shared/api/images";
 
 export interface ExperienceModel {
@@ -181,7 +182,8 @@ export function checkEntity(entity: unknown, path = "entity", experience?: Exper
     assertGameConfiguration(probe, { unknownComponentTypes: "allow" });
   } catch (error) {
     if (!(error instanceof GameConfigurationError)) throw error;
-    problems = error.problems.map(problem => problem.replace(/^entities\.entity/, path));
+    // The probe has no scenes of the experience: whether a goto's scene exists is the draft's guard's to say (content schema 5.0)
+    problems = error.problems.filter(problem => !/\.goto: unknown scene "/.test(problem)).map(problem => problem.replace(/^entities\.entity/, path));
   }
   const known = experience ? knownPluginTypes(experience) : undefined;
   const nodes = unknownNodeTypes(entity, path, known);
@@ -278,6 +280,24 @@ export function describeContentModel(experience?: ExperienceModel): Record<strin
   return {
     contentSchema: CONTENT_SCHEMA_VERSION,
     pluginApi: PLUGIN_API_VERSION,
+    logic: {
+      description:
+        "A scene's and the experience's rules (content schema 5.0): logic = { rules: [{ on, when?, do }], canvas? } on a scene (live while the scene is open – put_scene logic) and on the experience (live for the whole session, across scene switches – the editor's Logic view, PUT /editor/experiences/{id}/logic). " +
+        "The rules are the behaviour's grammar (components.behaviour) with three differences: on hears the bus only – a scene event or a core event (coreEvents), never a node's own found / lost / tap / unlocked (use targetFound / targetTapped); show / hide / pause / stop and play's node name a node by address target:<targetId>/<node name> (target:<targetId> alone = the entity's root; a scene's rules only its own targets); no shorthand strings. " +
+        "goto: scene:<id> works in every rule (a node's too): the reader opens that scene. sceneChanged reaches a scene's and the experience's rules once the new scene's nodes are built. " +
+        "canvas = the editor's Logic view's own data – { groups?: [{ id, label, members: [node ids] }], notes?: [{ id, text, x, y }], folds?: [node ids] } – stored and exported, never published to readers; leave it to the editor.",
+      addresses: { goto: "scene:<sceneId>", node: "target:<targetId>/<node name>" },
+      variables:
+        "Typed variables (content schema 5.0): experience.variables = { name: { type, scope?, default? } } (PUT /editor/experiences/{id}/variables) – type number | integer | boolean | string; a variable not declared takes the type of its first set. A set of another type, a comparison of different types and a when that is not true / false are problems; && || ! need true / false, - * / % < > need numbers, + adds numbers or joins texts (never both); an integer goes where a number is wanted, nothing else converts. The reader refuses a value of the wrong type (also a plugin's api.vars.set) and keeps the old one; a declared variable not set reads as its default.",
+      variableTypes: VARIABLE_TYPES,
+      coreEvents: BEHAVIOUR_CORE_EVENTS,
+      example: {
+        rules: [
+          { on: "doorOpened", when: "hasKey", do: [{ show: "target:door/hint" }, { play: "creak", node: "target:door" }] },
+          { on: "targetUnlocked", when: "unlocks >= 3", do: [{ set: { chapterDone: true, unlocks: "unlocks + 1" }, scope: "experience" }, { goto: "scene:epilogue" }] },
+        ],
+      },
+    },
     entity: {
       description:
         "An AR entity is a tree of nodes (EntityData): { id?, name?, type, assets, params?, filters?, components?, material?, children?, text?, color? }. " +
@@ -332,12 +352,12 @@ export function describeContentModel(experience?: ExperienceModel): Record<strin
       },
       behaviour: {
         description:
-          "The built-in behaviour (content schema 2.19, any node type): rules without code – { type: behaviour, rules: [{ on, when?, do }] }. " +
+          "The built-in behaviour (content schema 2.19, any node type): rules without code – { type: behaviour, rules: [{ on, when?, do }] }. The same grammar holds a scene's and the experience's rules (logic, content schema 5.0). " +
           "on = the node's own event or any other camelCase name, an event of the stage's bus (a scene event a plugin or a behaviour emits, or a core event). " +
-          "when = { variable: value, … } (all equal) or { any: { variable: value, … } }; a value is text, a number, true / false, null (= not set), or { not: value }. " +
+          "when = an expression (content schema 5.0 – the object form { variable: value } is gone): the language of the entries' {…} texts without braces – camelCase variable names, numbers, \"texts\", true / false, and or not && || !, == != < <= > >=, + - * / mod, parentheses – e.g. hasKey && tries > 2, mood == \"calm\" || !doorOpen. The rule runs when the value is true (0, \"\", false and a variable that is not set are false); no functions, no dotted names. " +
           "do = one action or a list, run in order: play: <clip> (\"\" = the node's own clip – its animation component's, else the first) with optional node: <name>; " +
-          "pause / stop / show / hide: <node name> (\"\" = the behaviour's own node; a node of its subtree by its name); set: { variable: value } with optional scope (scene – the scene – by default; stage, session, or experience – the whole experience, plugin API 3.0, was book; null deletes); " +
-          "emit: <event> (a scene event, never a core event). A string runs a verb on the own node: play, pause, stop, show, hide. " +
+          "pause / stop / show / hide: <node name> (\"\" = the behaviour's own node; a node of its subtree by its name); set: { variable: value } with optional scope (the variable's declared scope, else scene; stage, session, or experience – the whole experience; null deletes) – a value is an expression (content schema 5.0): tries + 1, hasKey, \"calm\" (a text is the language's text literal, in YAML '\"calm\"'; a number or true / false may stand bare); " +
+          "emit: <event> (a scene event, never a core event); goto: scene:<id> (content schema 5.0) – the reader opens that scene, as a link to /scene/<id>. A string runs a verb on the own node: play, pause, stop, show, hide. " +
           "On one event every rule's condition is read first, then the matching rules run in their order. Variables are read like a plugin's api.vars.get (the innermost scope that has it).",
         nodeEvents: BEHAVIOUR_NODE_EVENTS,
         coreEvents: BEHAVIOUR_CORE_EVENTS,
@@ -347,7 +367,8 @@ export function describeContentModel(experience?: ExperienceModel): Record<strin
           type: "behaviour",
           rules: [
             { on: "tap", do: [{ play: "rattle" }, { set: { hasKey: true }, scope: "experience" }, { emit: "keyRattled" }] },
-            { on: "found", when: { hasKey: true }, do: [{ hide: "hint" }, { emit: "openDoor" }] },
+            { on: "found", when: "hasKey && tries > 2", do: [{ hide: "hint" }, { emit: "openDoor" }] },
+            { on: "tap", when: "doorOpen", do: { goto: "scene:epilogue" } },
           ],
         },
       },
