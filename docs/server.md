@@ -550,6 +550,7 @@ by its name).
 | Endpoint | Body | Answer |
 |---|---|---|
 | `POST /editor/experiences/{id}/assets/names` | `{ apply? }` | `{ plan: { renames, files, used, unused }, applied }` – two steps: without `apply: true` nothing is written; `renames` lists every file whose name changes, `{ id, url, imported, from, to, use: { kind, ref, scene }, more }`. With it the plan is made again and written in one transaction |
+| `PUT /editor/experiences/{id}/assets/{assetId}` | `{ name }` | `{ asset: { id, url, name, imported }, changed }` – one file's name by hand (#330, the Library's rename): an upload (uuid) or an imported file (`import-…`, kept in `asset_names`). White space folded; no slash, backslash or control character; not empty; at most 255 characters; the stored file's extension stays (added when the name lacks it – `castle` → `castle.glb`; typed in any case it stays as typed) – else 400 `invalid-name`. The URL and every use stay (`AssetNames::rename`, `cleanName`) |
 
 **Imported files** (#244: no `assets` row, read-only – their URL is the content build's): their **listed** name is
 kept in `asset_names` (experience, URL → name, like `asset_credits`), so the Library is consistent; the list marks such a

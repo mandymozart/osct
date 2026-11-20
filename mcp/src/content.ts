@@ -22,6 +22,7 @@ import type {
   AssetCreditsSaved,
   AssetList,
   AssetNamesPlan,
+  AssetRenamed,
   AssetUploaded,
   Change,
   DraftManifest,
@@ -942,6 +943,22 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     guard(async ({ experience }) => text({ ...(await api.call<AssetNamesPlan>("POST", `/editor/experiences/${encodeURIComponent(experience)}/assets/names`, { apply: true })), open: editorHref(links, experience) })),
+  );
+
+  server.registerTool(
+    "rename_asset",
+    {
+      description:
+        "Renames one file of the Library by hand (#330) – an uploaded or an imported one, by its id (list_assets: a uuid, or import-…). The name only: the URL and every use stay, so nothing breaks. White space is folded; no slash, backslash or control character; the stored file's extension stays (added when the name lacks it: `castle` → `castle.glb`); at most 255 characters (400 invalid-name otherwise). For naming every used file by where it is used, plan_asset_names is the way. Names are no content: nothing to publish, no change in the experience's log.",
+      inputSchema: z.object({
+        experience: EXPERIENCE,
+        asset: z.string().regex(/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|import-[0-9a-f]{16})$/).describe("the file's id (list_assets)"),
+        name: z.string().min(1).max(255),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    guard(async ({ experience, asset, name }) =>
+      text(await api.call<AssetRenamed>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/assets/${encodeURIComponent(asset)}`, { name }))),
   );
 
   server.registerTool(

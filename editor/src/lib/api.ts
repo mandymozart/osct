@@ -7,6 +7,7 @@ import type {
   AssetCreditsSaved,
   AssetNamesPlan,
   AssetList,
+  AssetRenamed,
   AssetReplaced,
   AssetUploaded,
   AssetUsages,
@@ -495,7 +496,11 @@ export const replaceAsset = (experienceId: string, assetId: string, file: File, 
 export const planAssetNames = (experienceId: string, apply = false) =>
   api<AssetNamesPlan>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/assets/names`, { apply });
 
-export const assetUsages = (experienceId: string, assetId: string) =>
+/** One file's name by hand (#330) – an upload's or an imported one's (`import-…`); the URL stays */
+export const renameAsset = (experienceId: string, assetId: string, name: string) =>
+  api<AssetRenamed>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/assets/${encodeURIComponent(assetId)}`, { name });
+
+export const assetUsages =(experienceId: string, assetId: string) =>
   api<AssetUsages>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/assets/${encodeURIComponent(assetId)}/usages`);
 
 /** Files' credits lines by URL (#277); empty or null removes one */

@@ -159,3 +159,15 @@ select:disabled { appearance: none; }
 .section:first-child { margin-top: 0; border-top: none; padding-top: 0; }
 .section-label { color: var(--muted); font-size: var(--text-small); letter-spacing: .08em; text-transform: uppercase; }
 .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(4.75rem, 1fr)); gap: .25rem; min-width: 0; }
+
+/* A Library tile dragged onto the tree (#330, library-drag.svelte.ts): the label follows the pointer – the name, what a
+   drop there does or why it does nothing (monochrome, RULES #38: a refusal dashed, its reason the error colour) */
+html.library-dragging, html.library-dragging * { user-select: none; -webkit-user-select: none; }
+.library-drag-ghost { position: fixed; left: 0; top: 0; z-index: 1000; pointer-events: none; display: flex; flex-direction: column; gap: .125rem;
+  max-width: 18rem; padding: .25rem .5rem; border: 1px solid var(--text); background: var(--surface); color: var(--text);
+  font: var(--text-small) / 1.35 var(--font); box-shadow: 0 2px 8px rgb(0 0 0 / .2); }
+.library-drag-ghost b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.library-drag-ghost span { color: var(--muted); }
+.library-drag-ghost[data-state="ok"] span { color: var(--text); }
+.library-drag-ghost[data-state="no"] { border-style: dashed; }
+.library-drag-ghost[data-state="no"] span { color: var(--danger); }

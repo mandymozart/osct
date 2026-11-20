@@ -7,6 +7,7 @@
   import { content } from "#lib/content.svelte.js";
   import { codeKindOf, codeUploadProblem, pluginIdFrom } from "#lib/library-code.js";
   import { ACCEPT, library } from "#lib/library.svelte.js";
+  import { libraryDrag, pressTile } from "#lib/library-drag.svelte.js";
   import { recognitionFrames } from "#lib/recognition-frames.svelte.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { scenes } from "#lib/scenes.svelte.js";
@@ -47,6 +48,10 @@
    * where it is used – a click there shows that target, entry or surface –, the credits and every action: *Use for the
    * selection*, *Set as target image*, *Replace…*, *Download*, *Delete* – refused while used, then *Delete anyway*); a
    * double click uses it; hovered a tile offers *Use · Replace · ⋯* (⋯ and a right click: the context menu).
+   * **Rename** (#330): the details' *Rename*, the menu's *Rename…* or F2 on the selected file open its name field – the
+   * name only, the URL and every use stay. **A tile dragged onto a tree row** (`library-drag.svelte.ts`; a mouse moves,
+   * a finger holds first): the row's node takes the file, a target row a picture as its printed image – the tree's
+   * action through the workspace's drop; a drop that does not fit says why and changes nothing.
    *
    * **Stacks and frames** (#331, `library-sets.ts`): the levels of one picture – a model's map at 512 … 4096 px, a video's
    * subtitles by language – are one tile with the levels behind it; ▤ opens them in a row under it, each level a tile of
@@ -401,6 +406,31 @@
       // library.error says
     }
   };
+  // ── rename (#330): the details' name field – *Rename*, the menu's *Rename…* or F2 on the selected file ──
+  let renaming = $state(false);
+  const startRename = (asset: Asset) => {
+    if (pick) return;
+    if (selectedId !== asset.id) select(asset, { shift: false, toggle: false });
+    renaming = true;
+  };
+  /** Saves the name: null when saved, else why not (the field stays open) */
+  const rename = async (asset: Asset, name: string): Promise<string | null> => {
+    try {
+      const saved = await library.rename(experienceId, asset.id, name);
+      notice = `renamed to ${saved} – the URL and every use stay`;
+      return null;
+    } catch (e) {
+      return errorText(e);
+    }
+  };
+  /** F2 on the selected file (not in a field): its name field opens */
+  const onRenameKey = (event: KeyboardEvent) => {
+    if (event.key !== "F2" || pick || !selected || event.defaultPrevented) return;
+    if ((event.target as HTMLElement).closest("input, textarea, select, [contenteditable='true']")) return;
+    event.preventDefault();
+    renaming = true;
+  };
+
   const forget = (id: string) => {
     if (selectedId === id) selectedId = null;
     chosen = chosen.filter(c => c !== id);
@@ -502,6 +532,7 @@
     { label: pick ? "Pick" : "Use for the selection", disabled: useBlocked(asset), select: () => activate(asset) },
     ...(!pick && asset.kind === "image" && targetId && onusetarget ? [{ label: "Set as target image", select: () => void onusetarget(asset) }] : []),
     ...(!pick ? [{ label: "Details", select: () => select(asset, { shift: false, toggle: false }) }] : []),
+    ...(!pick ? [{ label: "Rename…", keys: "F2", select: () => startRename(asset) }] : []),
     ...(!pick && !asset.imported ? [{ label: "Replace…", select: () => startReplace(asset) }] : []),
     { label: "Download", icon: "download" as const, select: () => void download(asset) },
     ...(!pick && !asset.imported ? [{ label: "Delete", icon: "trash" as const, danger: true, select: () => void remove(asset, false) }] : []),
@@ -547,7 +578,7 @@
 {#snippet details(asset: Asset, wide: boolean, onclose: (() => void) | undefined)}
   {@const stack = sets.stackOf.get(asset.id)}
   <AssetDetails {asset} label={assetLabel(asset)} kind={isTargetImage(asset, targetImages) ? "target image" : tileKind(asset, targetImages, surfaceImages)}
-    uses={useItems} {wide} {onclose}>
+    uses={useItems} {wide} {onclose} bind:renaming onrename={pick ? undefined : name => rename(asset, name)}>
     {#snippet actions()}{@render detailActions(asset)}{/snippet}
     {#snippet extra()}{#if stack}{@render levelsBlock(stack, asset)}{/if}{/snippet}
   </AssetDetails>
@@ -560,7 +591,7 @@
     meta={as.meta ?? tileMeta(asset, fresh.includes(asset.id))} selected={isSelected(asset)} marked={(!!pick && pick.current === asset.url) || fresh.includes(asset.id)}
     useLabel={pick ? (pick.current === asset.url ? "Chosen" : "Pick") : "Use"} useBlocked={useBlocked(asset)} replaceable={!pick && !asset.imported}
     onselect={keys => select(asset, keys)} onactivate={() => activate(asset)} onreplace={() => startReplace(asset)}
-    onmore={at => (menu = { at, asset })} />
+    onmore={at => (menu = { at, asset })} onpress={pick || expanded ? undefined : e => pressTile(e, asset, as.label ?? assetLabel(asset))} />
 {/snippet}
 
 {#snippet stackTile(stack: LibraryStack)}
@@ -712,6 +743,7 @@
   {#if uploading.length}<p class="small muted">uploading {uploading.join(", ")}…</p>{/if}
   {#if library.error}<p class="small danger">{library.error}</p>{/if}
   {#if notice}<p class="small muted">{notice}</p>{/if}
+  {#if libraryDrag.refused && !pick}<p class="small danger" aria-live="polite">{libraryDrag.refused} – nothing changed</p>{/if}
 {/snippet}
 
 {#snippet nameByUse()}
@@ -753,7 +785,7 @@
 <input bind:this={replaceInput} type="file" accept={ACCEPT} hidden onchange={e => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) void doReplace(f); (e.currentTarget as HTMLInputElement).value = ""; }} />
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="library" class:dragging={dragging && !expanded} ondragover={e => { e.preventDefault(); dragging = true; }} ondragleave={() => (dragging = false)} ondrop={onDrop}>
+<div class="library" class:dragging={dragging && !expanded} ondragover={e => { e.preventDefault(); dragging = true; }} ondragleave={() => (dragging = false)} ondrop={onDrop} onkeydown={onRenameKey}>
   {#if pick}
     <div class="section"><span class="section-label">library · {pick.label}</span>
       <button type="button" class="text-link" title="Back without a file (Esc)" onclick={pick.oncancel}>cancel</button></div>
@@ -769,7 +801,7 @@
     <button bind:this={expandButton} type="button" class="icon-button" aria-label="Open the Library as a browser" title="Open as a browser – the whole library over the stage (Esc closes)" aria-expanded={expanded} onclick={() => void openBrowser()}><Icon name="maximize" /></button>
   </div>
   <div class="line">
-    <input class="field grow" type="search" placeholder="Search name, entry, scene…" bind:value={search} aria-label="Search the library" />
+    <input class="field grow" type="search" placeholder="Search name, entry, scene…" bind:value={search} aria-label="Search the library" title="Search the library (Ctrl+L)" data-library-search="panel" />
     {@render upload()}
   </div>
   <div class="chips" role="group" aria-label="Kinds">
@@ -807,10 +839,10 @@
   <div class="browser-shade" use:portal>
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <div class="browser" class:dragging bind:this={browserBox} role="dialog" aria-modal="true" aria-label="Library" tabindex="-1"
-      ondragover={e => { e.preventDefault(); dragging = true; }} ondragleave={e => { if (e.currentTarget === e.target) dragging = false; }} ondrop={onDrop}>
+      ondragover={e => { e.preventDefault(); dragging = true; }} ondragleave={e => { if (e.currentTarget === e.target) dragging = false; }} ondrop={onDrop} onkeydown={onRenameKey}>
       <header class="b-top">
         <span class="b-title">Library{#if pick} · {pick.label}{/if}</span>
-        <input class="field b-search" type="search" placeholder="Search name, entry, scene…" bind:value={search} aria-label="Search the library" />
+        <input class="field b-search" type="search" placeholder="Search name, entry, scene…" bind:value={search} aria-label="Search the library" data-library-search="browser" />
         <span class="grow"></span>
         {@render viewTools()}
         {#if !pick}

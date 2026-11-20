@@ -7,6 +7,20 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **The Library's leftovers** (#330): **rename a file** – *Rename* in the details drawer, *Rename…* in a tile's menu or
+  **F2** on the selected file open its name field (the name before the stored extension; Enter or leaving the field
+  saves, Esc keeps the old one) – the name only, the URL and every use stay; an imported file's name is kept by its URL.
+  API `PUT /editor/experiences/{id}/assets/{assetId} { name }` (400 `invalid-name`), MCP `rename_asset`. **Drag a tile
+  onto a tree row** (a mouse moves, a finger on the iPad holds first): a node takes the file the way the Inspector's *Use*
+  does (model → glb, image node → picture, video node → video, a plugin's node type its declared file), a target row a
+  picture as its printed image; a label at the pointer says what the drop does, or why it does not fit (cursor *no-drop*,
+  the row dashed) – a refused drop changes nothing. The Library only starts the drag; the drop is the tree's
+  (`library-drag.ts`, `library-drag.svelte.ts`). **Ctrl+L** (⌘L) opens the Library and focuses its search; again in the
+  search, back to the Inspector.
+
 ## 3.13.0 – 2026-11-20
 
 ### Added

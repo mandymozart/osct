@@ -853,6 +853,17 @@ try {
     [, $data] = call($api, 'GET', '/editor/experiences/demo/assets', null, $editor);
     check($status === 200 && array_key_exists('credits', $data['assets'][1] ?? []) && $data['assets'][1]['credits'] === null, '#277: an empty line removes the credits');
     check(!array_key_exists('credits', $demoDraft()), '#292: … and an experience without credit lines has no credits');
+    // #330: an imported file renamed by hand – its name kept by URL, the URL and the draft unchanged
+    $importedId = (string) ($data['assets'][1]['id'] ?? '');
+    [$status, $renamed] = call($api, 'PUT', "/editor/experiences/demo/assets/$importedId", ['name' => 'Golem page'], $editor);
+    [, $data] = call($api, 'GET', '/editor/experiences/demo/assets', null, $editor);
+    check($status === 200 && ($renamed['asset']['name'] ?? null) === 'Golem page.jpg' && ($renamed['changed'] ?? null) === true
+        && ($data['assets'][1]['name'] ?? null) === 'Golem page.jpg' && ($data['assets'][1]['url'] ?? null) === $imgUrl && $demoDraft()['entries'][0]['target']['imageSrc'] === $imgUrl,
+        '#330: PUT assets/{import-…} { name } renames an imported file – the extension added, the URL and the draft unchanged');
+    [$status, $renamed] = call($api, 'PUT', "/editor/experiences/demo/assets/$importedId", ['name' => 'img.JPG'], $editor);
+    check($status === 200 && ($renamed['asset']['name'] ?? null) === 'img.JPG', '#330: … a name that ends with the extension (any case) keeps it as typed');
+    [$status] = call($api, 'PUT', "/editor/experiences/demo/assets/$importedId", ['name' => 'img.jpg'], $editor);
+    check($status === 200, '#330: … and back to its own name');
     [$status, $data] = call($api, 'POST', '/editor/experiences/demo/publish', ['env' => 'local'], $editor);
     check($status === 409 && $data['error']['code'] === 'other-experience' && $data['error']['current']['experience'] === 'osct' && $data['error']['current']['title'] === 'Test Experience' && $data['error']['current']['build'] === $second['build'], 'publishing another experience over it → 409 other-experience naming the current one');
     check(json_decode((string) file_get_contents("$storeDir/local/latest.json"), true)['experience'] === 'osct', '… and nothing moved');
@@ -1900,6 +1911,27 @@ try {
     $renames = array_column($data['plan']['renames'] ?? [], null, 'url');
     check(($renames[$plainUrl]['to'] ?? null) === 's2_surface.' . $extOf($plainUrl) && ($renames[$plainUrl]['use'] ?? null) === ['kind' => 'reference', 'ref' => 's2/surface', 'scene' => 's2'],
         'the names plan: a reference image takes <scene>_<surface>');
+    // #330: one file renamed by hand
+    $plainPath = "/editor/experiences/osct/assets/{$plain['asset']['id']}";
+    $plainExt = $extOf($plainUrl);
+    [$status, $renamed] = call($api, 'PUT', $plainPath, ['name' => "  Desk \t photo.$plainExt "], $editor);
+    [, $assets] = call($api, 'GET', '/editor/experiences/osct/assets', null, $editor);
+    $listed = array_column($assets['assets'], null, 'url')[$plainUrl] ?? [];
+    check($status === 200 && ($renamed['asset'] ?? null) === ['id' => $plain['asset']['id'], 'url' => $plainUrl, 'name' => "Desk photo.$plainExt", 'imported' => false]
+        && ($renamed['changed'] ?? null) === true && ($listed['name'] ?? null) === "Desk photo.$plainExt" && ($listed['usages'] ?? null) === 1,
+        '#330: PUT assets/{id} { name } renames an upload – white space folded, its URL and its use unchanged');
+    [$status, $renamed] = call($api, 'PUT', $plainPath, ['name' => 'Desk photo'], $editor);
+    check($status === 200 && ($renamed['asset']['name'] ?? null) === "Desk photo.$plainExt" && ($renamed['changed'] ?? null) === false, '#330: … the extension is the stored file\'s (added), the same name changes nothing');
+    foreach (['', '  ', '.', "..", 'a/b', 'a\\b', "a\x01b", str_repeat('x', 300)] as $bad) {
+        [$status, $refused] = call($api, 'PUT', $plainPath, ['name' => $bad], $editor);
+        check($status === 400 && ($refused['error']['code'] ?? null) === 'invalid-name', '#330: … refuses the name ' . json_encode(mb_substr($bad, 0, 12)) . ' (400 invalid-name)');
+    }
+    [$status, $refused] = call($api, 'PUT', $plainPath, ['name' => 42], $editor);
+    check($status === 400 && ($refused['error']['code'] ?? null) === 'invalid-name', '#330: … a name that is no text → 400');
+    [$status] = call($api, 'PUT', '/editor/experiences/osct/assets/00000000-0000-4000-8000-000000000000', ['name' => 'x'], $editor);
+    check($status === 404, '#330: … an asset that is not there → 404');
+    [$status] = call($api, 'PUT', $plainPath, ['name' => 'x']);
+    check($status === 401, '#330: … signed in only');
     [, $assets] = call($api, 'GET', '/editor/experiences/osct/assets', null, $editor);
     check((array_column($assets['assets'], null, 'url')[$plainUrl]['place'] ?? null) === ['scene' => 's2', 'order' => 1, 'more' => 0], 'the Library places it at its scene (the scenes\' order)');
     [$status] = call($api, 'PUT', '/editor/experiences/osct/scenes/s2/surfaces/surface/reference', ['url' => null], $editor);

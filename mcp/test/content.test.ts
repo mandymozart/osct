@@ -142,6 +142,7 @@ function editorApi(seen: Seen, { sources = true } = {}) {
   if (path.startsWith("/editor/experiences/osct/changes")) return { json: { changes: [{ kind: "entity", ref: "castle" }], limit: path } };
   if (path.startsWith("/editor/experiences/osct/assets") && method === "GET") return { json: { assets: [{ id: "a", kind: "image" }], query: path } };
   if (path === "/editor/experiences/osct/assets/credits" && method === "PUT") return { json: { saved: 1, credits: {}, sent: seen.body } };
+  if (method === "PUT" && /^\/editor\/experiences\/osct\/assets\/[^/]+$/.test(path)) return { json: { asset: { id: "a", url: "https://cdn/a.webp", name: (seen.body as any).name, imported: false }, changed: true, sent: seen.body, path } };
   if (method === "POST" && path.split("?")[0] === "/editor/experiences/osct/assets") return { status: 201, json: { path, asset: { id: "11111111-1111-4111-8111-111111111111", name: seen.headers["X-File-Name"], size: (seen.rawBody as Uint8Array).byteLength, url: `https://cdn/up/${seen.headers["X-File-Name"]}` } } };
   if (method === "POST" && path === "/editor/experiences/osct/assets/names") {
     const apply = !!(seen.body as any).apply;
@@ -168,7 +169,7 @@ describe("the content tools", () => {
       [
         "add_entry", "delete_asset", "delete_entry", "describe_content_model", "get_experience", "get_draft", "get_entity", "get_scene", "import_experience", "list_assets", "preview_import",
         "list_experiences", "list_changes", "list_versions", "publish", "put_experience_appearance", "put_experience_passes", "put_entity", "put_environment", "put_target", "upload_asset",
-        "get_entries", "update_entry", "update_experience", "set_asset_credits", "plan_asset_names", "apply_asset_names",
+        "get_entries", "update_entry", "update_experience", "set_asset_credits", "plan_asset_names", "apply_asset_names", "rename_asset",
         "list_scenes", "add_scene", "move_scenes", "put_scene", "delete_scene", "group_scenes", "rename_group", "ungroup",
         "set_surface_reference",
         "revert_change", "revert_to",
@@ -545,6 +546,15 @@ describe("the content tools", () => {
     const saved = await rec.call("set_asset_credits", { experience: "osct", items });
     expect(saved.ok).toBe(true);
     expect(saved.data.sent).toEqual({ items });
+  });
+
+  it("rename_asset sends one file's name by its id – an upload's or an imported one's (#330)", async () => {
+    const renamed = await rec.call("rename_asset", { experience: "osct", asset: "11111111-1111-4111-8111-111111111111", name: "Desk photo" });
+    expect(renamed.ok).toBe(true);
+    expect(renamed.data.sent).toEqual({ name: "Desk photo" });
+    expect(renamed.data.path).toBe("/editor/experiences/osct/assets/11111111-1111-4111-8111-111111111111");
+    expect((await rec.call("rename_asset", { experience: "osct", asset: "import-0123456789abcdef", name: "page" })).data.path).toBe("/editor/experiences/osct/assets/import-0123456789abcdef");
+    await expect(rec.call("rename_asset", { experience: "osct", asset: "../credits", name: "x" })).rejects.toThrow();
   });
 
   it("plan_asset_names answers the plan only, apply_asset_names writes it (#298)", async () => {
