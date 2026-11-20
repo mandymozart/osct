@@ -79,6 +79,8 @@ declare(strict_types=1);
  *                                               the plan, written with apply as new changes (#312, Reverts)
  *   POST   /editor/experiences/{id}/changes/revert    { ids, apply? } → these changes taken back (the editor's undo and redo)
  *   POST   /editor/experiences/{id}/changes/revert-to { after, apply? } → every change after `after` taken back, newest first
+ *   POST   /editor/experiences/{id}/deliveries  { name, source?, scenes?, entries, apply?, overwrite? } → a publisher's delivery
+ *                                               compared with the draft (new / changed / same / conflict), written with apply (#322)
  *   GET    /editor/experiences/{id}/assets[?kind=]    the uploaded files (docs/server.md "Assets"), with their number of uses
  *   POST   /editor/experiences/{id}/assets      the file as the body, X-File-Name → 201 { asset } (200 when these bytes exist)
  *   PUT    /editor/experiences/{id}/assets/credits    { items: [{ url, credits }] } → the files' picture credits (#277)
@@ -97,7 +99,7 @@ declare(strict_types=1);
  * (ApiTokens). docs/server.md "Sessions, cookies and CSRF".
  */
 
-foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences', 'Arrivals', 'Export'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences', 'Arrivals', 'Export', 'Deliveries'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -205,6 +207,8 @@ try {
         (bool) preg_match("#^POST /editor/experiences/($id)/changes/revert$#", $route, $match) => Reverts::many($match[1]),
         (bool) preg_match("#^POST /editor/experiences/($id)/changes/revert-to$#", $route, $match) => Reverts::to($match[1]),
         (bool) preg_match("#^POST /editor/experiences/($id)/changes/($uuid)/revert$#", $route, $match) => Reverts::one($match[1], $match[2]),
+        // Deliveries (#322)
+        (bool) preg_match("#^POST /editor/experiences/($id)/deliveries$#", $route, $match) => Deliveries::post($match[1]),
         (bool) preg_match("#^GET /editor/experiences/($id)/assets$#", $route, $match) => Assets::list($match[1]),
         (bool) preg_match("#^POST /editor/experiences/($id)/assets$#", $route, $match) => Assets::upload($match[1]),
         (bool) preg_match("#^PUT /editor/experiences/($id)/assets/credits$#", $route, $match) => Assets::setCredits($match[1]),

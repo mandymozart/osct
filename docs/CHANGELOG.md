@@ -7,6 +7,22 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **Server – deliveries through the API** (#322 T5): `POST /editor/experiences/{id}/deliveries` takes a publisher's
+  delivery as a plan (scenes, entries with their targets, Library files by id or URL – `shared/api/deliveries.ts`) and
+  answers the comparison per scene, entry and target (new / changed / same / conflict – a conflict is a field edited in
+  the editor since the last delivery, from the change log); with `apply: true` it writes everything in one transaction.
+  Each write is a change naming the delivery (`changes.delivery_id`, `delivery` in `GET …/changes`), the delivery a row of
+  the new table `deliveries`; existing entries keep their texts. At most 10 targets switched on per scene
+  (`MAX_TARGETS_PER_SCENE` in `shared/api/rules.ts`, RULES #3) – the API checks it on a delivery. docs/server.md
+  "Deliveries".
+
+### Changed
+- **Server – reverting a delivery** (#322): the revert takes a delivery's new scenes, entries and targets back by removing
+  them (a target first, an entry without a target, a scene nothing lies on) – other creations stay not revertable.
+
 ## 3.17.0 – 2026-11-20
 
 ### Added

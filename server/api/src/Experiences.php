@@ -1247,9 +1247,10 @@ final class Experiences
 
     /**
      * GET /editor/experiences/{id}/changes?limit= (default 50, at most 500) → { changes: [{ id, kind, ref, before, after, user, token,
-     * createdAt, set, reverts, notRevertable }] } newest first; `token` = the AI connection's name for a save made through
-     * one, else null; `set` = the change set a revert wrote (#312), `reverts` = the change it took back, `notRevertable` =
-     * why the change cannot be reverted, null when it can (Reverts)
+     * createdAt, set, reverts, delivery, notRevertable }] } newest first; `token` = the AI connection's name for a save made
+     * through one, else null; `set` = the change set a revert wrote (#312), `reverts` = the change it took back, `delivery` =
+     * the delivery that wrote it (#322, Deliveries), `notRevertable` = why the change cannot be reverted, null when it can
+     * (Reverts)
      */
     public static function changes(string $experienceId): never
     {
@@ -1261,7 +1262,7 @@ final class Experiences
         foreach ($rows as $row) {
             $changes[] = ['id' => $row['id'], 'kind' => $row['kind'], 'ref' => $row['ref'], 'before' => Editor::decode($row['before_json']), 'after' => Editor::decode($row['after_json']),
                 'user' => $row['email'], 'token' => $row['token_name'] ?? null, 'createdAt' => Editor::iso((int) $row['created_at']),
-                'set' => $row['change_set'] ?? null, 'reverts' => $row['reverts'] ?? null, 'notRevertable' => Reverts::notRevertable($row)];
+                'set' => $row['change_set'] ?? null, 'reverts' => $row['reverts'] ?? null, 'delivery' => $row['delivery_id'] ?? null, 'notRevertable' => Reverts::notRevertable($row)];
         }
         Http::json(200, ['changes' => $changes]);
     }
@@ -1301,10 +1302,13 @@ final class Experiences
         self::touch($experienceId);
     }
 
-    /** One row of the change log (`change`); `$set` and `$reverts` for a revert (#312, Reverts) – returns the row's id */
-    public static function recordChange(string $experienceId, array $user, string $kind, string $ref, ?string $before, string $after, ?string $set = null, ?string $reverts = null): string
+    /**
+     * One row of the change log (`change`); `$set` and `$reverts` for a revert (#312, Reverts), `$delivery` for a delivery's
+     * write (#322, Deliveries) – returns the row's id
+     */
+    public static function recordChange(string $experienceId, array $user, string $kind, string $ref, ?string $before, string $after, ?string $set = null, ?string $reverts = null, ?string $delivery = null): string
     {
-        return self::change($experienceId, $user, $kind, $ref, $before, $after, $set, $reverts);
+        return self::change($experienceId, $user, $kind, $ref, $before, $after, $set, $reverts, $delivery);
     }
 
     /**
@@ -1537,16 +1541,16 @@ final class Experiences
      * tells which AI made it
      * @param array<string, mixed> $user
      */
-    private static function change(string $experienceId, array $user, string $kind, string $ref, ?string $before, string $after, ?string $set = null, ?string $reverts = null): string
+    private static function change(string $experienceId, array $user, string $kind, string $ref, ?string $before, string $after, ?string $set = null, ?string $reverts = null, ?string $delivery = null): string
     {
         $id = Db::uuid();
         // Strictly later than the request's previous change: the order of one save's changes stays readable (a revert
         // walks them newest first, #312)
         static $last = 0;
         $last = max(Editor::nowMs(), $last + 1);
-        Db::run('INSERT INTO changes (id, experience_id, user_id, token_name, kind, ref, before_json, after_json, created_at, change_set, reverts) VALUES (:id, :experience, :user, :token, :kind, :ref, :before, :after, :at, :set, :reverts)',
+        Db::run('INSERT INTO changes (id, experience_id, user_id, token_name, kind, ref, before_json, after_json, created_at, change_set, reverts, delivery_id) VALUES (:id, :experience, :user, :token, :kind, :ref, :before, :after, :at, :set, :reverts, :delivery)',
             ['id' => $id, 'experience' => $experienceId, 'user' => $user['id'], 'token' => Auth::token()['name'] ?? null, 'kind' => $kind, 'ref' => $ref,
-             'before' => $before, 'after' => $after, 'at' => $last, 'set' => $set, 'reverts' => $reverts]);
+             'before' => $before, 'after' => $after, 'at' => $last, 'set' => $set, 'reverts' => $reverts, 'delivery' => $delivery]);
         return $id;
     }
 }

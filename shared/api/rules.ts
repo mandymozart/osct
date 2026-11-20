@@ -57,6 +57,12 @@ export function pluginTypes(source: string): SourceTypes {
   return Object.fromEntries(kinds.map(kind => [kind, scan(PLUGIN_REGISTER_FUNCTIONS[kind])])) as SourceTypes;
 }
 
+/**
+ * At most this many targets switched on per scene – the engine tracks 4 at once (RULES #3; `Deliveries::MAX_TARGETS_PER_SCENE`,
+ * the content build's `MAX_TARGETS_PER_SCENE` in scripts/src/config.ts)
+ */
+export const MAX_TARGETS_PER_SCENE = 10;
+
 // ── The experience's texts (`ExperienceTexts`): entries and the experience ──
 
 /** A text field's limit in characters – a title, an author, a tag's line (`ExperienceTexts::TEXT_MAX_LENGTH`) */

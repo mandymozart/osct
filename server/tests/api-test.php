@@ -2247,6 +2247,111 @@ try {
     check(!$removal || is_string($removal[0]['notRevertable']), 'a removal is not revertable');
 
 
+    echo "editor: a publisher's delivery through the API – compare, apply, conflicts, revert (#322)\n";
+    [, $data] = upload($api, 'POST', '/editor/experiences/osct/assets', pngOf(2, 2, 0x112233), 'delivery-a.png', $editor);
+    $fileA = $data['asset'];
+    [, $data] = upload($api, 'POST', '/editor/experiences/osct/assets', pngOf(2, 2, 0x445566), 'delivery-b.png', $editor);
+    $fileB = $data['asset'];
+    [, $data] = upload($api, 'POST', '/editor/experiences/osct/assets', pngOf(2, 2, 0x778899), 'delivery-c.png', $editor);
+    $fileC = $data['asset'];
+    [, $data] = upload($api, 'POST', '/editor/experiences/osct/assets', mp4File(1000, 2000, [[320, 180, 'vide']]), 'delivery.mp4', $editor);
+    $fileV = $data['asset'];
+    $firstScene = $sceneList()['scenes'][0]['id'];
+    $plan = ['name' => '2026-11-test', 'source' => 'delivery folder', 'scenes' => [['id' => $firstScene], ['id' => 'd90-91', 'label' => '90–91']], 'entries' => [
+        ['id' => 'del-new', 'scene' => 'd90-91', 'category' => 'video', 'title' => 'A delivered video', 'image' => $fileA['id'], 'target' => ['imageSrc' => $fileA['url'], 'video' => $fileV['url']]],
+        ['id' => 'del-off', 'scene' => 'd90-91', 'category' => 'glossary', 'title' => 'Switched off', 'tags' => ['artwork'], 'target' => ['imageSrc' => $fileB['url'], 'enabled' => false]],
+    ]];
+    [$status] = call($api, 'POST', '/editor/experiences/osct/deliveries', $plan);
+    check($status === 401, 'POST deliveries without a session → 401');
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/deliveries', $plan, $editor);
+    [, $tree] = call($api, 'GET', '/editor/experiences/osct', null, $editor);
+    $byKind = static fn(array $items): array => array_map(static fn(array $i) => "{$i['kind']}:{$i['id']}:{$i['status']}", $items);
+    check($status === 200 && $data['applied'] === false && $data['delivery']['id'] === null && $data['counts'] === ['new' => 5, 'changed' => 0, 'same' => 1, 'conflict' => 0]
+        && $byKind($data['items']) === ["scene:$firstScene:same", 'scene:d90-91:new', 'entry:del-new:new', 'target:del-new:new', 'entry:del-off:new', 'target:del-off:new']
+        && $data['problems'] === [] && $data['written'] === [] && !in_array('d90-91', array_column($tree['scenes'], 'id'), true), 'without apply: the comparison per item, nothing written');
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/deliveries', ['entries' => [['id' => 'x', 'scene' => $firstScene, 'category' => 'text', 'title' => 'X', 'note' => 'n']]] + $plan, $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-delivery' && str_contains($data['error']['message'], 'note'), 'an unknown field (a mapping\'s note) → 400 invalid-delivery');
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/deliveries', ['name' => ''] + $plan, $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-delivery', 'a delivery without a name → 400');
+    $unknown = $plan;
+    $unknown['entries'][0]['target']['imageSrc'] = 'https://elsewhere.example/a.png';
+    $unknown['entries'][1]['scene'] = 'nowhere';
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/deliveries', $unknown, $editor);
+    check($status === 200 && count($data['problems']) === 2 && str_contains($data['problems'][0], 'Library') && str_contains($data['problems'][1], 'nowhere'), 'a file outside the Library and an unknown scene are problems');
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/deliveries', ['apply' => true] + $unknown, $editor);
+    [, $tree] = call($api, 'GET', '/editor/experiences/osct', null, $editor);
+    check($status === 409 && $data['error']['code'] === 'delivery-problems' && count($data['error']['comparison']['problems']) === 2 && !in_array('d90-91', array_column($tree['scenes'], 'id'), true),
+        'apply with problems → 409 delivery-problems with the comparison, nothing written');
+
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/deliveries', ['apply' => true] + $plan, $editor);
+    $firstDelivery = $data['delivery']['id'] ?? null;
+    check($status === 200 && $data['applied'] === true && is_string($firstDelivery) && count($data['written']) === 5, 'apply: the scene, the entries and their targets written – five changes');
+    $order = array_column($sceneList()['scenes'], 'id');
+    check(array_search('d90-91', $order, true) === array_search($firstScene, $order, true) + 1, 'the new scene goes after the plan\'s scene before it');
+    [, $tree] = call($api, 'GET', '/editor/experiences/osct', null, $editor);
+    $delivered = array_column(array_merge(...array_map(static fn(array $s) => $s['entries'], $tree['scenes'])), null, 'id');
+    $newTarget = $delivered['del-new']['target'] ?? [];
+    check(($newTarget['imageSrc'] ?? null) === $fileA['url'] && ($newTarget['entity'] ?? null) === ['type' => 'video', 'assets' => [['id' => 'del-new-media', 'assetType' => 'video', 'src' => $fileV['url']]]]
+        && ($delivered['del-off']['target']['enabled'] ?? null) === false && ($delivered['del-off']['scene'] ?? $delivered['del-off']['surface'] ?? null) !== null, 'the target with its video, the switched-off target off');
+    [, $entries] = call($api, 'GET', '/editor/experiences/osct/entries', null, $editor);
+    $entryList = array_column($entries['entries'], null, 'id');
+    check(($entryList['del-new']['image'] ?? null) === $fileA['url'] && ($entryList['del-off']['tags'] ?? null) === ['artwork'] && ($entryList['del-off']['scene'] ?? null) === 'd90-91', 'the entries: the picture by its URL (sent as the asset\'s id), the tags, the scene');
+    [, $log] = call($api, 'GET', '/editor/experiences/osct/changes?limit=5', null, $editor);
+    check(array_unique(array_column($log['changes'], 'delivery')) === [$firstDelivery] && array_filter(array_column($log['changes'], 'notRevertable')) === []
+        && array_column($log['changes'], 'kind') === ['target', 'entry', 'target', 'entry', 'scene'], 'every write a change of its row\'s kind naming the delivery – revertable');
+    $pdo = connect('test');
+    $record = $pdo->query("SELECT name, source, counts_json FROM deliveries WHERE id = " . $pdo->quote($firstDelivery))->fetch(PDO::FETCH_ASSOC);
+    $pdo = null;
+    check(($record['name'] ?? null) === '2026-11-test' && ($record['source'] ?? null) === 'delivery folder' && json_decode((string) ($record['counts_json'] ?? ''), true)['new'] === 5, 'the delivery recorded in deliveries');
+
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/deliveries', $plan, $editor);
+    check($status === 200 && $data['counts'] === ['new' => 0, 'changed' => 0, 'same' => 6, 'conflict' => 0], 'the same delivery again: all same');
+    // An existing entry keeps its texts; its picture follows the delivery
+    $second = $plan;
+    $second['entries'][0]['title'] = 'Another title';
+    $second['entries'][0]['image'] = $fileB['url'];
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/deliveries', ['apply' => true] + $second, $editor);
+    [, $entries] = call($api, 'GET', '/editor/experiences/osct/entries', null, $editor);
+    $entryList = array_column($entries['entries'], null, 'id');
+    check($status === 200 && $data['items'][2] === ['kind' => 'entry', 'id' => 'del-new', 'scene' => 'd90-91', 'status' => 'changed', 'fields' => ['image']] && count($data['written']) === 1
+        && $entryList['del-new']['image'] === $fileB['url'] && $entryList['del-new']['title'] === 'A delivered video', 'an existing entry: the picture changed, the title kept');
+    // Edited in the editor since: a conflict, left as it is – unless overwrite
+    call($api, 'PUT', '/editor/experiences/osct/targets/del-new', ['imageSrc' => $fileB['url']], $editor);
+    $third = $second;
+    $third['entries'][0]['target']['imageSrc'] = $fileC['url'];
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/deliveries', ['apply' => true] + $third, $editor);
+    $targetItem = array_values(array_filter($data['items'], static fn(array $i) => $i['kind'] === 'target' && $i['id'] === 'del-new'))[0] ?? [];
+    [, $tree] = call($api, 'GET', '/editor/experiences/osct', null, $editor);
+    $delivered = array_column(array_merge(...array_map(static fn(array $s) => $s['entries'], $tree['scenes'])), null, 'id');
+    check($status === 200 && ($targetItem['status'] ?? null) === 'conflict' && str_contains((string) ($targetItem['reason'] ?? ''), 'imageSrc') && $data['written'] === []
+        && $delivered['del-new']['target']['imageSrc'] === $fileB['url'], 'the target\'s image edited in the editor since: a conflict, left as it is');
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/deliveries', ['apply' => true, 'overwrite' => true] + $third, $editor);
+    [, $tree] = call($api, 'GET', '/editor/experiences/osct', null, $editor);
+    $delivered = array_column(array_merge(...array_map(static fn(array $s) => $s['entries'], $tree['scenes'])), null, 'id');
+    check($status === 200 && count($data['written']) === 1 && $delivered['del-new']['target']['imageSrc'] === $fileC['url'], 'with overwrite the conflict is written');
+    // At most MAX_TARGETS_PER_SCENE switched on (RULES #3)
+    $crowded = ['name' => 'crowded', 'scenes' => [['id' => 'd92-93']], 'entries' => array_map(static fn(int $n) => ['id' => "crowd-$n", 'scene' => 'd92-93', 'category' => 'text', 'title' => "Crowd $n",
+        'target' => ['imageSrc' => $fileA['url']]], range(1, 11))];
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/deliveries', $crowded, $editor);
+    check($status === 200 && count($data['problems']) === 1 && str_contains($data['problems'][0], 'at most 10'), 'eleven targets switched on in one scene: a problem');
+    $crowded['entries'][10]['target']['enabled'] = false;
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/deliveries', $crowded, $editor);
+    check($status === 200 && $data['problems'] === [], '… ten on and one off: none');
+
+    // The first delivery taken back – with the later changes of the same rows, its new rows removed
+    [, $log] = call($api, 'GET', '/editor/experiences/osct/changes?limit=50', null, $editor);
+    $ids = array_column(array_filter($log['changes'], static fn(array $c) => $c['delivery'] === $firstDelivery), 'id');
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/changes/revert', ['ids' => $ids], $editor);
+    check($status === 200 && $data['applied'] === false && $data['plan']['counts'] === ['revert' => 8, 'conflict' => 0, 'notRevertable' => 0] && $data['plan']['later'] === 3, 'the revert\'s plan: the five changes and the three later ones of the same rows');
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/changes/revert', ['ids' => $ids, 'apply' => true], $editor);
+    [, $tree] = call($api, 'GET', '/editor/experiences/osct', null, $editor);
+    $entryIds = array_merge(...array_map(static fn(array $s) => array_column($s['entries'], 'id'), $tree['scenes']));
+    check($status === 200 && $data['applied'] === true && !in_array('d90-91', array_column($tree['scenes'], 'id'), true) && !array_intersect(['del-new', 'del-off'], $entryIds)
+        && array_column($sceneList()['scenes'], 'id') === array_values(array_diff($order, ['d90-91'])), 'applied: the delivered scene, entries and targets are gone, the order closes up');
+    [, $log] = call($api, 'GET', '/editor/experiences/osct/changes?limit=1', null, $editor);
+    check(is_string($log['changes'][0]['notRevertable']) && $log['changes'][0]['after'] === null, 'the removal a revert wrote is not revertable itself');
+    foreach ([$fileA, $fileB, $fileC, $fileV] as $file) call($api, 'DELETE', "/editor/experiences/osct/assets/{$file['id']}?force=1", null, $editor);
+
     echo "editor: publish to bunny (test double)\n";
     $storagePort = freePort();
     $bunnyDir = "$tmp/bunny";

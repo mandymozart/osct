@@ -33,6 +33,7 @@ import {
   ENTRY_TAGS,
   ENV_NAME,
   ID_PATTERN,
+  MAX_TARGETS_PER_SCENE,
   isLinkUrl,
   PLUGIN_REGISTER_FUNCTIONS,
   pluginTypes,
@@ -75,6 +76,7 @@ function readPhp(): Record<string, unknown> {
       'TEXTS' => ['text' => ExperienceTexts::TEXT_MAX_LENGTH, 'body' => ExperienceTexts::BODY_MAX_LENGTH, 'tags' => ExperienceTexts::TAGS_MAX, 'tag' => ExperienceTexts::TAG_MAX_LENGTH],
       'links' => array_map(static fn(string $url): bool => ExperienceTexts::isLinkUrl($url), $input['links']),
       'MAX_NODE_DEPTH' => Editor::MAX_NODE_DEPTH,
+      'MAX_TARGETS_PER_SCENE' => Deliveries::MAX_TARGETS_PER_SCENE,
       'SCENES' => ['presets' => Scenes::PRESETS, 'pageMm' => Scenes::PAGE_MM, 'wallMm' => Scenes::WALL_MM, 'surfacesMax' => Scenes::SURFACES_MAX, 'referenceFits' => SurfaceReferences::FITS],
       'PASS_TYPES' => Experiences::PASS_TYPES,
       'MOMENTS' => Experiences::MOMENTS,
@@ -159,6 +161,10 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     for (const [extension, kind] of Object.entries(php.ASSET_KINDS as Record<string, string>)) (byKind[kind] ??= []).push(`.${extension}`);
     expect(byKind).toEqual(ASSET_KIND_EXTENSIONS);
     expect(Object.keys(byKind).sort()).toEqual([...ASSET_KINDS].sort());
+  });
+
+  it("the most targets switched on per scene (RULES #3, Deliveries::MAX_TARGETS_PER_SCENE, #322)", () => {
+    expect(php.MAX_TARGETS_PER_SCENE).toBe(MAX_TARGETS_PER_SCENE);
   });
 
   it("the credits limits (#277, Assets::CREDITS_*)", () => {
