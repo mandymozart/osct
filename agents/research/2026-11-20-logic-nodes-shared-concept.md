@@ -365,15 +365,26 @@ side and another representation (a video, a 3D component) shows on the canvas, a
    level reference, `media` (new, for picture / audio / video – SCUTOONS' `Picture` / `Audio`) ≈ a texture / sound
    socket. A port's type is the param's type from the spec (number, boolean, string, file, colour, …), as Blender's
    socket types are.
-4. **Show only what matters.** A box shows its wired ports and a **+** to expose more (Houdini's promoted parameters,
-   Blender's "hide unused sockets", the deck's `expose`).
-5. **Dragging places a reference, the Library adds a new one.** A component already on an entity, dragged onto the
+4. **Show only what matters – Blender's way by default** (Tilman, 2026-11-20: *"auch die blender methode mit den ausblenden
+   ungenutzter ports, das koennte wirklich sauberer werden"*). Unused ports are hidden. A box shows its wired ports,
+   plus a **+** to expose more, and one gesture hides every unused port again, like Blender's Ctrl+H. Houdini's promoted
+   parameters and the deck's `expose` are the same idea.
+5. **Dragging places a reference, the Library adds a new one** (Tilman: *"das konzept ist mega"*). A component already on an entity, dragged onto the
    canvas, is a reference box for that component (Unreal: an actor dragged into the level blueprint). A component type
    from the Library is an add op that asks for the entity.
 6. **The box's body previews its other representation**: a thumbnail, a video's first frame, a model's silhouette (the
    deck's world nodes "with an image of their origin"). Stage and Inspector keep showing the thing itself.
 7. **A pure logic node is a spec without a representation** – what `registerLogicNode` was meant for. An authoring-time
    `run` (§5.8: sandbox, the `api` bridge, writes only as ops to apply) is one more optional field of such a spec.
+8. **Bonus, at the end: which output a box previews** (Tilman, 2026-11-20): as in TouchDesigner, the author picks which
+   of a box's outputs its body shows: a value, a picture, a 3D object, or a generation's result. **Not decided yet.** It
+   needs a cross-reference with the existing systems and with OSCT's requirements (ticket L-T15):
+   - TouchDesigner's node viewer and its active viewer;
+   - Houdini's display and render flags;
+   - Blender's Viewer node;
+   - ComfyUI's Preview Image;
+   - Unreal's material preview and watched values;
+   - the deck's `Activity` and pinned wire values.
 
 **Reflection in JavaScript (Tilman: *"ggf in javascript ein problem aber wir koenne es mit js doc annotieren und spaeter
 in rust ist es easy"*).** JavaScript has no runtime types to reflect on, so:
@@ -497,6 +508,7 @@ already loaded. That is the cheap part.
 | L-T12 | File and delivery nodes on the canvas: one outlet per file, cables to targets, entities and texture slots; apply = the delivery endpoint (preview, then apply) or ops (§5.8) | M | L-T4, #322 T5/T8 |
 | L-T13 | Custom nodes = specs with an authoring-time `run` (§5.8, §5.9 – no `registerLogicNode`); runs in a sandbox; `api` bridge through the page (allow-list, reads free, writes only as ops to apply); preview bodies for boxes | M | L-T6, L-T12 |
 | L-T14 | (later) Reading-time custom nodes evaluated by the engine | M | L-T5, L-T13 |
+| L-T15 | (bonus, research first) Preview output per box, TouchDesigner-style: the author picks the output the body shows (value, picture, 3D object, generation). Cross-reference TouchDesigner, Houdini's flags, Blender's Viewer node, ComfyUI's Preview Image, Unreal's previews and watches and the deck's `Activity` with OSCT's needs, then decide (§5.9.8) | M | L-T6 |
 
 Order: L-T1 → L-T2 → L-T3 delivers Tilman's navigation on today's content, with no schema change. L-T4 adds editing
 of entity rules. L-T5 is the schema cut and is best done as one MAJOR together with any other planned cut before Tokyo.
