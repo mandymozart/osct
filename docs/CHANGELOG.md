@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 3.17.0 – 2026-11-20
 
 ### Added
 - **The export read endpoint** (#322 T1): `GET /editor/experiences/{id}/export[?build=]` answers everything an export of
