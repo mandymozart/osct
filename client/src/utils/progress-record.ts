@@ -39,9 +39,9 @@ const isString = (v: unknown): v is string => typeof v === "string";
 const isVariable = (v: unknown): v is ProgressVariable => isString(v) || isNumber(v) || typeof v === "boolean";
 
 /**
- * Formats 1 to 3: the record as defined in `types/history.ts`; malformed and unknown fields are dropped. Format 2 (app
+ * Formats 1 to 4: the record as defined in `types/history.ts`; malformed and unknown fields are dropped. Format 2 (app
  * 2.0.0, #319) has format 1's shape – only `lastSpreadId` became `lastScene`, read as dropped; format 3 (app 3.0.0,
- * #320) – only `bookId` became `experienceId`: the id comes from the caller, so an older record's `bookId` is not read.
+ * #320) – only `bookId` became `experienceId`: the id comes from the caller, so an older record's `bookId` is not read; format 4 (app 4.0.0, #334, content schema 5.0) has format 3's shape.
  */
 const readRecord = (raw: Record<string, unknown>, experienceId: string): ProgressRecord => ({
   ...createProgressRecord(experienceId),
@@ -64,6 +64,7 @@ export const PROGRESS_READERS: Record<number, (raw: Record<string, unknown>, exp
   1: readRecord,
   2: readRecord,
   3: readRecord,
+  4: readRecord,
 };
 
 /** Fields an older format named differently: the old name → the current one (its value kept as it was) */
