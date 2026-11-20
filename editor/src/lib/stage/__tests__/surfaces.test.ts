@@ -119,11 +119,11 @@ describe("surfaces: prints on them", () => {
       target("a", { surface: "w", x: 1, y: 2, width: 30 }),
       target("b", { x: 1, y: 2, width: 30 }),
       target("c", { surface: "gone", x: 1, y: 2, width: 30 }),
-    ], {}, frames);
+    ], frames);
     expect(laid.map(t => t.surface)).toEqual(["w", "p", "p"]);
     expect(laid[1]).toMatchObject({ x: 1, y: 2, width: 30, height: 22.5 });
     // No place: a row across the first surface's middle
-    const row = layoutTargets([target("d"), target("e")], {}, frames);
+    const row = layoutTargets([target("d"), target("e")], frames);
     expect(row.map(t => [t.surface, t.y])).toEqual([["p", 127.5], ["p", 127.5]]);
   });
 });

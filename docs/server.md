@@ -272,7 +272,10 @@ so a new flyer or poster needs only its own source in its address.
 ## Configuration
 
 `src/Config.php` lists every key and its default. An environment variable `OSCT_<KEY>` wins, then
-`server/api/config.local.php`. Mail sending is set with `MAIL_TRANSPORT`:
+`server/api/config.local.php`. `OSCT_CONFIG_FILE` (environment only) names another settings file in place of
+`config.local.php` – a PHP file that returns an array of keys, like the example; a path that does not exist means no
+file (the API test sets `/nonexistent`, so a developer's `config.local.php` never leaks into it; `scripts/db/pull-staging.sh`
+and the demo video's API do the same or point it at their own file). Mail sending is set with `MAIL_TRANSPORT`:
 - `log` writes mails to a file (development).
 - `mail` uses PHP `mail()` (testing).
 - `smtp` sends through the `SMTP_*` account (production). It uses its own small client, so no library is needed.
@@ -304,8 +307,8 @@ The editor's keys:
 - `CONTENT_BASE_URL` (empty): this instance's content CDN – what `{ "source": "cdn" }` imports (the same value as
   the reader's build flag `VITE_CONTENT_BASE_URL`, [content-cdn](content-cdn.md)).
 - `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_ENDPOINT` (`storage.bunnycdn.com`), `BUNNY_STORAGE_PASSWORD` (the zone's access
-  key – a secret): the storage zone the osct CLI syncs to (`scripts/.env` holds the same values, the endpoint there as
-  `BUNNY_STORAGE_ZONE_ENDPOINT`). The endpoint is a
+  key – a secret): the storage zone the osct CLI syncs to (`scripts/.env` holds the same values under the same
+  environment names, `OSCT_BUNNY_STORAGE_*` and `OSCT_CONTENT_BASE_URL`, #33). The endpoint is a
   host name; a full `http://host:port` origin is for a local test double only.
 
 ## Content store and var

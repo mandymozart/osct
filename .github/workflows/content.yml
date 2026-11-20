@@ -7,9 +7,10 @@
 # workflow of a content repository.
 #
 # GitHub → Settings → Environments → "staging" / "production":
-#   variables: BUNNY_STORAGE_ZONE (osct), BUNNY_STORAGE_ZONE_ENDPOINT (storage.bunnycdn.com),
-#              CONTENT_BASE_URL (https://buildingfictions.b-cdn.net/<env>)
-#   secrets:   BUNNY_STORAGE_PASSWORD (the storage zone's read/write access key)
+#   variables: OSCT_BUNNY_STORAGE_ZONE (osct), OSCT_BUNNY_STORAGE_ENDPOINT (storage.bunnycdn.com),
+#              OSCT_CONTENT_BASE_URL (https://buildingfictions.b-cdn.net/<env>)
+#   secrets:   OSCT_BUNNY_STORAGE_PASSWORD (the storage zone's read/write access key)
+# (#33: the names without OSCT_ are still read as a fallback until the environments are renamed – then drop the `|| …`.)
 name: Content
 
 on:
@@ -56,10 +57,12 @@ jobs:
         working-directory: scripts
     env:
       OSCT_CONTENT_ENV: ${{ inputs.environment }}
-      BUNNY_STORAGE_ZONE: ${{ vars.BUNNY_STORAGE_ZONE }}
-      BUNNY_STORAGE_ZONE_ENDPOINT: ${{ vars.BUNNY_STORAGE_ZONE_ENDPOINT }}
-      BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
-      CONTENT_BASE_URL: ${{ vars.CONTENT_BASE_URL }}
+      OSCT_BUNNY_STORAGE_ZONE: ${{ vars.OSCT_BUNNY_STORAGE_ZONE || vars.BUNNY_STORAGE_ZONE }}
+      OSCT_BUNNY_STORAGE_ENDPOINT: ${{ vars.OSCT_BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ZONE_ENDPOINT || 'storage.bunnycdn.com' }}
+      OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.OSCT_BUNNY_STORAGE_PASSWORD || secrets.BUNNY_STORAGE_PASSWORD }}
+      OSCT_CONTENT_BASE_URL: ${{ vars.OSCT_CONTENT_BASE_URL || vars.CONTENT_BASE_URL }}
+      # The site the reader runs on: the CDN check asks with its origin (CORS)
+      OSCT_APP_URL: ${{ inputs.environment == 'production' && 'https://osct.buildingfictions.com' || 'https://osct.porschuetz.de' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

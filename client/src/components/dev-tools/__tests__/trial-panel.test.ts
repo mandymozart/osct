@@ -5,7 +5,7 @@ import type { TrialRow } from "../trial-report";
 const row = (targetId: string, printed: boolean | undefined): TrialRow => ({
   targetId, entryId: targetId, title: targetId, category: "glossary", place: String(Number(targetId.slice(1, 4))),
   sceneId: "s", sceneTitle: "s", imageSrc: "", result: "untested",
-  ...(printed === undefined ? {} : { info: printed ? { width: 30, height: 20 } : { note: "not on the test printout" } }),
+  ...(printed ? { printed: { surface: "s", x: 10, y: 10, width: 30, height: 20, position: "top left" } } : {}),
 });
 
 describe("trial strip", () => {

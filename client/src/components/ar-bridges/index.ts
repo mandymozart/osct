@@ -8,4 +8,3 @@ export { cyclePreparedSceneRange, getPreparedSceneRange, getPreparedWindowSettin
 export * from "@engine/utils/tracker-debug";
 export * from "@engine/utils/camera-debug";
 export * from "@engine/utils/camera-request";
-export * from "@engine/utils/trigger-protocol";

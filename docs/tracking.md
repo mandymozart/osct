@@ -197,17 +197,15 @@ The report's header then carries:
 give it (`Android 14.0.0 (from the browser)`) and a note where Safari freezes it or Chrome reduces it; *Tester* only
 when initials were given.
 
-### The printed-image details
+### Where a target is printed
 
-They come from the delivery mapping ([content](content.md) "Importing a delivery"):
-
-```bash
-cd scripts
-npm run protocol -- import/<delivery>.yaml   # → client/public/trigger-protocol.json
-```
-
-Run it after an import (the file is committed and served at `/trigger-protocol.json`); the panel works without
-it, then without file names and sizes.
+The panel reads it from the configuration: each target's `place` (schema 3.0 – its surface and its box in mm from the
+surface's top left corner), carried in from the book's layout by `scripts/layout/place-targets.py` ([content](content.md)
+"Placing the targets from the layout", #321). The report's *Printed image* column names the target image's file, the
+surface, the printed size, the third of the surface it lies in (`top left`, `middle centre` …) and the box's corner
+(`x 12, y 40 mm`); a target without a place shows "not placed", and when some targets are placed the others count as
+"not printed" in the strip. Content without any place numbers every target. (Until 3.7 a separate
+`trigger-protocol.json`, written by `npm run protocol` from the delivery mapping, held these details – gone with #32.)
 
 ## Load test
 

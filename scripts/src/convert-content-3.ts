@@ -18,7 +18,7 @@
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
-import { BOOK_PAGE_MM, CONTENT_DIR } from './config';
+import { BOOK_PAGE_MM, CONTENT_DIR, requireContentDir } from './config';
 import { isMainModule } from './lib/entry';
 
 /** What the conversion needs of a 2.x spread */
@@ -144,7 +144,7 @@ export function convertContent(contentDir: string): { scenes: string[]; entries:
 }
 
 if (isMainModule(import.meta.url)) {
-  console.log(`🔁 Content schema 2.x → 3.0: ${CONTENT_DIR}`);
+  console.log(`🔁 Content schema 2.x → 3.0: ${requireContentDir()}`);
   const done = convertContent(CONTENT_DIR);
   console.log(`✅ ${done.scenes.length} scenes, ${done.entries.length} entries converted`);
 }

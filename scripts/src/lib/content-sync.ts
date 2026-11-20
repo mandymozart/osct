@@ -270,14 +270,33 @@ export async function runSync(storage: StorageClient, plan: SyncPlan): Promise<v
   console.log(`✅ ${env}/latest.json → ${build.build}`);
 }
 
-/** What latest.json the CDN serves (from this machine's edge) – manifest null when it serves none */
-export async function cdnManifest(baseUrl: string): Promise<{ manifest: ContentManifest | null; status: string; cors: boolean }> {
-  const response = await fetch(`${baseUrl}/latest.json?t=${Date.now()}`, { headers: { Origin: 'https://osct.buildingfictions.com' } });
+/**
+ * The origin the reader loads the content from, for the CORS check: the site's address `OSCT_APP_URL` (the same setting
+ * the server has, docs/deploy.md – environment or scripts/.env; RULES #24, never a hardcoded host). Null when unset or
+ * not a URL – then nothing is checked.
+ */
+export const appOrigin = (url: string | undefined = process.env.OSCT_APP_URL): string | null => {
+  if (!url) return null;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * What latest.json the CDN serves (from this machine's edge) – manifest null when it serves none. `cors`: whether it
+ * answers the app's origin with an Access-Control-Allow-Origin header; null when no origin is known (`appOrigin`).
+ */
+export async function cdnManifest(
+  baseUrl: string, origin: string | null = appOrigin(),
+): Promise<{ manifest: ContentManifest | null; status: string; cors: boolean | null }> {
+  const response = await fetch(`${baseUrl}/latest.json?t=${Date.now()}`, origin ? { headers: { Origin: origin } } : {});
   const body: unknown = response.ok ? await response.json().catch(() => null) : null;
   return {
     manifest: isContentManifest(body) ? body : null,
     status: `${response.status} ${response.headers.get('cdn-cache') ?? ''}`.trim(),
-    cors: !!response.headers.get('access-control-allow-origin'),
+    cors: origin ? !!response.headers.get('access-control-allow-origin') : null,
   };
 }
 
@@ -304,7 +323,8 @@ export async function checkCdn(baseUrl: string, build: ContentBuild): Promise<vo
     const seen = await cdnManifest(baseUrl);
     if (seen.manifest?.build === build.build) {
       console.log(`✅ CDN serves ${build.build}`);
-      if (!seen.cors) console.warn('⚠️  No Access-Control-Allow-Origin header – the app (another origin) cannot read the content.');
+      if (seen.cors === false) console.warn('⚠️  No Access-Control-Allow-Origin header – the app (another origin) cannot read the content.');
+      if (seen.cors === null) console.log('ℹ️  CORS not checked – OSCT_APP_URL (the site the reader runs on) is not set.');
       return;
     }
     if (Date.now() > deadline) {

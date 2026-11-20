@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ContentManifest, ContentVersion } from '../../shared/types/content-manifest';
 import {
+  appOrigin,
   cdnManifest,
   cdnVersions,
   checkCdn,
@@ -209,13 +210,25 @@ describe('content sync and purge against a storage zone', () => {
       status: 200, headers: { 'cdn-cache': 'MISS', 'access-control-allow-origin': '*' },
     }));
     vi.stubGlobal('fetch', fetch);
-    expect(await cdnManifest('https://cdn.example/staging')).toEqual({ manifest, status: '200 MISS', cors: true });
+    expect(await cdnManifest('https://cdn.example/staging', 'https://app.example')).toEqual({ manifest, status: '200 MISS', cors: true });
     expect(String(fetch.mock.calls[0][0])).toMatch(/^https:\/\/cdn\.example\/staging\/latest\.json\?t=\d+$/);
+    expect(fetch.mock.calls[0][1]).toEqual({ headers: { Origin: 'https://app.example' } });
 
     fetch.mockResolvedValueOnce(new Response('{"build":1}', { status: 200 }));
-    expect(await cdnManifest('https://cdn.example/staging')).toEqual({ manifest: null, status: '200', cors: false });
+    expect(await cdnManifest('https://cdn.example/staging', 'https://app.example')).toEqual({ manifest: null, status: '200', cors: false });
     fetch.mockResolvedValueOnce(new Response('', { status: 404 }));
-    expect(await cdnManifest('https://cdn.example/staging')).toMatchObject({ manifest: null, status: '404' });
+    expect(await cdnManifest('https://cdn.example/staging', 'https://app.example')).toMatchObject({ manifest: null, status: '404' });
+    // Without the app's origin (OSCT_APP_URL unset) it asks without one and checks no CORS
+    fetch.mockResolvedValueOnce(new Response(JSON.stringify(manifest), { status: 200, headers: { 'access-control-allow-origin': '*' } }));
+    expect(await cdnManifest('https://cdn.example/staging', null)).toMatchObject({ manifest, cors: null });
+    expect(fetch.mock.calls[3][1]).toEqual({});
+  });
+
+  it('takes the CORS check origin from OSCT_APP_URL (RULES #24: no hardcoded host)', () => {
+    expect(appOrigin('https://osct.example/some/path')).toBe('https://osct.example');
+    expect(appOrigin('')).toBeNull();
+    expect(appOrigin('not a url')).toBeNull();
+    expect(appOrigin(undefined)).toBe(process.env.OSCT_APP_URL ? new URL(process.env.OSCT_APP_URL).origin : null);
   });
 
   it('reads the versions.json the CDN serves, as a reader gets it (no query string – the pull zone ignores it)', async () => {

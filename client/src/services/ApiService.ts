@@ -1,11 +1,11 @@
 import { isObject } from "@shared/guards/game-config";
 
 /**
- * Base URL of the accounts API (`server/`, PHP + MySQL), from the build flag `VITE_API_URL` (set per Kamal
- * destination, RULES #11 – `/api` next to the app, on the same origin: the session is the API's cookie). `npm run dev`
- * defaults to `/api`, which Vite proxies to `npm run dev:api`. Empty = account features disabled.
+ * Base URL of the accounts API (`server/`, PHP + MySQL): always `/api` next to the app, on the same origin (every
+ * deploy serves it there, docs/deploy.md – the session is the API's cookie; #33). `npm run dev` proxies it to
+ * `npm run dev:api`. An `ApiService` made with an empty base has the account features disabled (tests).
  */
-export const API_URL: string = (import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "/api" : "")).replace(/\/$/, "");
+export const API_URL = "/api";
 
 /**
  * A failed API call. `code`: the API's error code (`invalid-code`, `expired` …), `offline` when the server

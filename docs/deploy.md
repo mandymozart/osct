@@ -31,11 +31,12 @@ there once. Bring them along when staging moves to the VM (into the volume below
 
 1. **Build** (Node 22): `npm ci` in `client/` and `scripts/`, then `npm run build` in `client/` – the translation
    check, Vite, the type checks, and the content build of this commit unless the content comes from the CDN. Build
-   flags: `VITE_API_URL=/api` always, `VITE_DEBUG=true` only for staging (`config/deploy.staging.yml` →
-   `builder.args`), `VITE_CONTENT_BASE_URL` = the environment's `CONTENT_BASE_URL` (`config/deploy.yml`): the app
+   flags: `VITE_DEBUG=true` only for staging (`config/deploy.staging.yml` → `builder.args`), `VITE_CONTENT_BASE_URL` =
+   the environment's `OSCT_CONTENT_BASE_URL` (`config/deploy.yml`): the app
    then loads the current content version from the CDN at startup and the image holds no content
    ([content-cdn](content-cdn.md)). Without it the commit's content is built into the image – only while `content/`
-   is still in git ([content-out-of-git](content-out-of-git.md)).
+   is still in git ([content-out-of-git](content-out-of-git.md)). The reader and the editor call the API at the fixed
+   path `/api` on their own origin – no build flag (`VITE_API_URL` went with #33).
 2. **Serve** (PHP 8.3 + Apache): `client/dist` at the document root, `server/api` as `/api`. The two `.htaccess`
    files do what they do on a shared host (SPA fallback, API routing); `server/docker/apache.conf` adds the cache
    headers (`assets/app/*` immutable, `index.html` / service worker / manifest `no-cache`), the MIME types the
@@ -75,12 +76,18 @@ variables (`server/api/src/Config.php`); there is no `config.local.php` in the c
 The files are ERB: the server and the mail settings come from environment variables, the secrets through
 `.kamal/secrets` (committed – it only references variables, never holds values).
 
+The content CDN's settings carry the `OSCT_` prefix like every other (#33): `OSCT_CONTENT_BASE_URL`,
+`OSCT_BUNNY_STORAGE_ZONE`, `OSCT_BUNNY_STORAGE_ENDPOINT`, `OSCT_BUNNY_STORAGE_PASSWORD` – in the GitHub environments, in
+`scripts/.env` and in a local `server/.env` for Kamal. Until the GitHub environments are renamed, the workflows still
+fall back to the old names (`CONTENT_BASE_URL`, `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_ENDPOINT` /
+`BUNNY_STORAGE_ZONE_ENDPOINT`, `BUNNY_STORAGE_PASSWORD`); the fallbacks go once they are.
+
 | Where | Name | Meaning |
 |---|---|---|
 | variable | `SSH_HOST` | the server (host name or IP) – both destinations may use the same server |
 | variable | `SSH_USER` | SSH user with Docker access, default `root` |
 | variable | `SSH_KNOWN_HOSTS` | the server's host key as a `known_hosts` line (`<SSH_HOST> ssh-ed25519 AAAA…`) – the deploy refuses to run without it, and SSH refuses a server that answers with another key |
-| variable | `CONTENT_BASE_URL` | the environment's content CDN (`https://buildingfictions.b-cdn.net/staging` / `…/production`, [content-cdn](content-cdn.md)); the same variable feeds `content.yml`. Empty: the commit's content is built into the image |
+| variable | `OSCT_CONTENT_BASE_URL` | the environment's content CDN (`https://buildingfictions.b-cdn.net/staging` / `…/production`, [content-cdn](content-cdn.md)); the same variable feeds `content.yml`. Empty: the commit's content is built into the image |
 | variable | `ALLOWED_ORIGINS` | other origins allowed to call the API (comma separated; staging default `https://localhost:5173`) |
 | variable | `MAIL_TRANSPORT` | `smtp` (default) or `log` – the container has no `mail()`; with `smtp` the workflow refuses to deploy while `SMTP_USER` / `SMTP_PASS` are missing |
 | variable | `MAIL_FROM` | sender of the sign-in mails, default `no-reply@buildingfictions.com` – any address at the domain verified in SES ([Mail](#mail-aws-ses)) |
@@ -88,14 +95,14 @@ The files are ERB: the server and the mail settings come from environment variab
 | variable | `SMTP_USER` | the SES SMTP user name (an IAM access key ID) |
 | variable | `EDITORS` | e-mail addresses (comma-separated) that get the role `editor` when they sign in – the instance's first editors; more on the admin page ([admin](admin.md), [server, "Roles"](server.md#roles)) |
 | variable | `ADMINS` | e-mail addresses (comma-separated) that get the role `admin` when they sign in – the instance's first admin, who then grants roles at `/editor/admin`; set it on `staging` and `production` |
-| variable | `CONTENT_STORE` | where the editor's publishes and uploaded assets go ([server, "Editor data"](server.md#editor-data), ["Assets"](server.md#assets)): `bunny` (the content CDN's storage zone, the same the osct CLI syncs to – a connected CDN has priority) or `local` (the content store on the server's volume, served at `/api/content/{env}/…`; the editor then warns that no CDN is connected). Each instance publishes to its own environment (`OSCT_ENV`) only. Default: `bunny` as soon as `BUNNY_STORAGE_PASSWORD` is set (the FTPS staging), `local` in the Kamal configuration |
-| variable | `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_ENDPOINT` (or `BUNNY_STORAGE_ZONE_ENDPOINT`) | the storage zone (`osct`) and its endpoint host (default `storage.bunnycdn.com`) – only read with the bunny store |
+| variable | `CONTENT_STORE` | where the editor's publishes and uploaded assets go ([server, "Editor data"](server.md#editor-data), ["Assets"](server.md#assets)): `bunny` (the content CDN's storage zone, the same the osct CLI syncs to – a connected CDN has priority) or `local` (the content store on the server's volume, served at `/api/content/{env}/…`; the editor then warns that no CDN is connected). Each instance publishes to its own environment (`OSCT_ENV`) only. Default: `bunny` as soon as `OSCT_BUNNY_STORAGE_PASSWORD` is set (the FTPS staging), `local` in the Kamal configuration |
+| variable | `OSCT_BUNNY_STORAGE_ZONE`, `OSCT_BUNNY_STORAGE_ENDPOINT` | the storage zone (`osct`) and its endpoint host (default `storage.bunnycdn.com`) – only read with the bunny store |
 | secret | `SSH_PRIVATE_KEY` | a deploy key whose public key is in the server user's `authorized_keys`. Without it in the environment, the deploy takes the repository secret of its destination: `SSH_PRIVATE_KEY_PRODUCTION` / `SSH_PRIVATE_KEY_STAGING` (how the server's keys were handed over, #7) |
 | secret | `DB_PASS` | the API's database password (also the MariaDB user `osct`) |
 | secret | `DB_ROOT_PASS` | MariaDB root password |
 | secret | `SECRET` | 32+ random characters (`openssl rand -hex 32`) – hashes codes and IPs |
 | secret | `SMTP_PASS` | the SES SMTP password (derived from the IAM secret key – not the key itself) |
-| secret | `BUNNY_STORAGE_PASSWORD` | the storage zone's access key (read/write), with `CONTENT_STORE=bunny` – the key `scripts/.env` holds for `osct content sync` |
+| secret | `OSCT_BUNNY_STORAGE_PASSWORD` | the storage zone's access key (read/write), with `CONTENT_STORE=bunny` – the key `scripts/.env` holds for `osct content sync` |
 | secret | `KAMAL_REGISTRY_PASSWORD` | ghcr.io: `GITHUB_TOKEN` in the workflow; locally a personal access token with `write:packages` |
 
 In GitHub: Settings → Environments → `staging` / `production`. Locally: `server/.env` (not committed) with the same

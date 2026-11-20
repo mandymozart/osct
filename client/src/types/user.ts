@@ -57,7 +57,7 @@ export interface UserSnapshot {
 
 /** Account API client (services/UserService.ts); publishes `UserSnapshot` to subscribers */
 export interface IUserService {
-  /** false when the build has no API (VITE_API_URL) – the account section is hidden */
+  /** false when the accounts API is disabled (`ApiService.isEnabled`) – the account section is hidden */
   isEnabled(): boolean;
   getSnapshot(): UserSnapshot;
   /** Called when the snapshot changed; returns the unsubscribe function */

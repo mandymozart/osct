@@ -17,12 +17,12 @@ registry:
     - KAMAL_REGISTRY_PASSWORD
 
 # Built on the deploying machine from a clean clone of the commit – uncommitted changes never reach a server.
-# CONTENT_BASE_URL (GitHub environment variable, docs/content-cdn.md): the app loads its content from that CDN;
+# OSCT_CONTENT_BASE_URL (GitHub environment variable, docs/content-cdn.md): the app loads its content from that CDN;
 # empty = the content of the commit is built into the image. The destination adds VITE_DEBUG.
 builder:
   arch: amd64
   args:
-    VITE_CONTENT_BASE_URL: <%= ENV.fetch("CONTENT_BASE_URL", "") %>
+    VITE_CONTENT_BASE_URL: <%= ENV.fetch("OSCT_CONTENT_BASE_URL", "") %>
 
 ssh:
   user: <%= ENV.fetch("SSH_USER", "root") %>
@@ -54,14 +54,14 @@ env:
     # The editor publishes content versions to its own environment (OSCT_ENV, docs/server.md "Editor data"):
     # CONTENT_STORE=bunny sends them to the storage zone the osct CLI syncs to (a connected CDN has priority); local
     # (default) keeps them in the content store on the server's volume (the destination file), served under /api/content.
-    # CONTENT_BASE_URL (the same variable as the build flag) lets the editor import the CDN's current version.
+    # OSCT_CONTENT_BASE_URL (the same variable as the build flag) lets the editor import the CDN's current version.
     OSCT_CONTENT_STORE: <%= ENV.fetch("CONTENT_STORE", "local") %>
     # The first editors and admins (docs/server.md "Roles"): these addresses get the role when they sign in
     OSCT_EDITORS: <%= ENV.fetch("EDITORS", "") %>
     OSCT_ADMINS: <%= ENV.fetch("ADMINS", "") %>
-    OSCT_CONTENT_BASE_URL: <%= ENV.fetch("CONTENT_BASE_URL", "") %>
-    OSCT_BUNNY_STORAGE_ZONE: <%= ENV.fetch("BUNNY_STORAGE_ZONE", "") %>
-    OSCT_BUNNY_STORAGE_ENDPOINT: <%= ENV.fetch("BUNNY_STORAGE_ENDPOINT", "storage.bunnycdn.com") %>
+    OSCT_CONTENT_BASE_URL: <%= ENV.fetch("OSCT_CONTENT_BASE_URL", "") %>
+    OSCT_BUNNY_STORAGE_ZONE: <%= ENV.fetch("OSCT_BUNNY_STORAGE_ZONE", "") %>
+    OSCT_BUNNY_STORAGE_ENDPOINT: <%= ENV.fetch("OSCT_BUNNY_STORAGE_ENDPOINT", "storage.bunnycdn.com") %>
   secret:
     - OSCT_DB_PASS
     - OSCT_SECRET

@@ -7,8 +7,6 @@ declare const __VITE_SERVER_URL__: string;
 interface ImportMetaEnv {
   /** "true" shows the debug overlay in production builds (dev builds always show it) */
   readonly VITE_DEBUG?: string;
-  /** Accounts API (server/): "/api" on the production host, the full URL elsewhere; unset = no accounts */
-  readonly VITE_API_URL?: string;
   /**
    * Content CDN base URL of the environment (`https://…/staging`): the app loads `latest.json` and the current
    * content version from there (docs/content-cdn.md) and the build reads no content; unset = the content bundled

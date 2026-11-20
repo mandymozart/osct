@@ -970,7 +970,6 @@ Run in `scripts/`:
 | `npm run build` | Rebuild the tool after changing `scripts/src/` |
 | `npm run sounds` | Generate the placeholder app sounds |
 | `npm run import -- <delivery folder> import/<name>.yaml` | Import a publisher's delivery into `content/` (below) |
-| `npm run protocol -- import/<name>.yaml` | Write the printed-image details for the trigger trial panel ([tracking](tracking.md) "The trigger trial") |
 
 ### Importing a delivery
 
@@ -986,7 +985,7 @@ entries:
     target: glossary/P38_Print_01.jpg   # the image as printed → target.jpg
     image: glossary/P38_Online_01.jpg   # the entry image → image.jpg
     video: documentation/P38.mov        # AR video on the target → video.mp4 (optional)
-    printed: { width: 44, height: 26, position: top left }   # mm – only for the protocol
+    printed: { width: 44, height: 26, position: top left }   # mm – checked, not used (the places come from the layout)
     enabled: false                      # the target switched off: not in the reader's experience (optional)
     tags: [artwork]                     # the entry's tags (optional)
     note: "anything the editors should know"
@@ -1127,7 +1126,6 @@ scripts/
 │   ├── lib/                shared helpers: reading content, files, hash, checks, media, storage, sync
 │   ├── cli.ts              the osct CLI: content build | status | sync | purge (content-cdn.md)
 │   ├── import-delivery.ts  `npm run import` – a publisher delivery into the content (mapping in import/)
-│   ├── protocol.ts         `npm run protocol` – printed-image details for the trigger trial panel
 │   ├── schema-lock.ts      `npm run schema:lock` – locks shared/ to the content schema
 │   ├── convert-content-3.ts `npm run convert:3` – a content source of schema 2.x → 3.0, once (#319)
 │   └── sounds.ts           placeholder app sounds

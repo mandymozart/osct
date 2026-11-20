@@ -30,7 +30,7 @@ export class SettingsHistory extends SettingsSection {
   protected content(): string {
     const description = this.done ? "settings:historyDone"
       : this.signedIn ? "settings:historyDescriptionAccount"
-      // Without an accounts API (VITE_API_URL) the account section is absent, so the text must not mention it
+      // Without an accounts API (`ApiService.isEnabled`) the account section is absent, so the text must not mention it
       : this.user.isEnabled() ? "settings:historyDescription"
       : "settings:historyDescriptionLocal";
     return /* html */ `

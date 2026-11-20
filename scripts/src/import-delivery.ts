@@ -11,7 +11,8 @@
  *       target: <file>      the image as printed – becomes target.jpg (JPEG, ≤ MAX_TARGET_SIZE px)
  *       image: <file>       the entry image – becomes image.jpg (JPEG, ≤ MAX_ENTRY_IMAGE_SIZE px)
  *       video: <file>       AR video on the target – becomes video.mp4 (ffmpeg: H.264, ≤ 1280 px, ~2 Mbit/s)
- *       printed: { width, height, position }   mm and position on the page – for the trigger protocol only
+ *       printed: { width, height, position }   mm and position on the page – checked, not used since the trigger
+ *                           protocol went (#32): the places come from the layout (layout/place-targets.py)
  *       enabled: false      the target is switched off (#249): in the content, not in the reader's experience
  *       tags: [<tag>, …]    the entry's tags (e.g. `artwork`, to find a kind of target again)
  *       note: <text>        anything the editors should know – written as a comment into entry.yaml
@@ -32,7 +33,7 @@ import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
 import { isObject } from '../../shared/guards/game-config';
-import { BOOK_PAGE_MM, CONTENT_DIR } from './config';
+import { BOOK_PAGE_MM, CONTENT_DIR, requireContentDir } from './config';
 import { isMainModule } from './lib/entry';
 import { toJpeg } from './lib/optimize-media';
 
@@ -349,7 +350,7 @@ if (isMainModule(import.meta.url)) {
   console.log('📦 OSCT delivery import');
   console.log('📁 Delivery:', path.resolve(deliveryDir));
   console.log('📄 Mapping:', path.resolve(mappingFile));
-  console.log('📁 Content:', CONTENT_DIR);
+  console.log('📁 Content:', requireContentDir());
   const report = importDelivery(path.resolve(deliveryDir), path.resolve(mappingFile));
   console.log(`\n✅ ${report.mediaWritten.length} media files written, ${report.entriesWritten.length} new entries, ${report.scenesWritten.length} new scenes`);
   for (const warning of report.warnings) console.warn(`   ⚠️  ${warning}`);

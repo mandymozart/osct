@@ -26,7 +26,7 @@ describe("MockTracker.relayout: changed surfaces reach the stage at once", () =>
     setPreviewActive(true);
     draft.surfaces = [{ id: "surface", widthMm: 460, heightMm: 320, place: { ...FLAT } }];
     layouts = [];
-    tracker = new MockTracker(document.createElement("div"), { onUpdate: () => {} } as never, async () => ({}), () => 0);
+    tracker = new MockTracker(document.createElement("div"), { onUpdate: () => {} } as never, () => 0);
     tracker.attachStage({
       setLayout(targets, scene) { layouts.push({ targets, scene }); },
       setHdri() {},

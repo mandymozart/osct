@@ -12,12 +12,14 @@
  *
  * Environment (or a scripts/.env file, never committed):
  *   OSCT_CONTENT_DIR             the content source (absolute or relative to the repository; fixtures/content for
- *                                the test fixture; default: a local content/ folder)
+ *                                the test fixture; required for build – no default)
  *   OSCT_CONTENT_ENV             environment when --env is not given: staging | production | demo
- *   BUNNY_STORAGE_ZONE           storage zone (osct)
- *   BUNNY_STORAGE_ZONE_ENDPOINT  Storage API host (storage.bunnycdn.com)
- *   BUNNY_STORAGE_PASSWORD       the zone's access key (read-only is enough for status and purge --dry-run)
- *   CONTENT_BASE_URL             the environment's CDN URL – sync checks what the CDN serves; purge requires it
+ *   OSCT_BUNNY_STORAGE_ZONE      storage zone (osct)
+ *   OSCT_BUNNY_STORAGE_ENDPOINT  Storage API host (storage.bunnycdn.com)
+ *   OSCT_BUNNY_STORAGE_PASSWORD  the zone's access key (read-only is enough for status and purge --dry-run)
+ *   OSCT_CONTENT_BASE_URL        the environment's CDN URL – sync checks what the CDN serves; purge requires it
+ *   OSCT_APP_URL                 the site the reader runs on (optional) – the CDN check asks with its origin (CORS)
+ * The same names as the server's settings (docs/server.md, #33).
  */
 import { spawnSync } from 'child_process';
 import path from 'path';
@@ -62,8 +64,9 @@ const USAGE = `osct – content command line
                                                delete old versions that are provably out of use
                                                (defaults: --min-age ${DEFAULT_PURGE.minAgeDays} --keep ${DEFAULT_PURGE.keep})
 
-<env>: staging | production, demo for the demo (fixtures/demo). Storage access: BUNNY_STORAGE_ZONE, BUNNY_STORAGE_ZONE_ENDPOINT,
-BUNNY_STORAGE_PASSWORD, CONTENT_BASE_URL (environment variables or scripts/.env). docs/content-cdn.md`;
+<env>: staging | production, demo for the demo (fixtures/demo). Storage access: OSCT_BUNNY_STORAGE_ZONE, OSCT_BUNNY_STORAGE_ENDPOINT,
+OSCT_BUNNY_STORAGE_PASSWORD, OSCT_CONTENT_BASE_URL, optionally OSCT_APP_URL (environment variables or scripts/.env).
+docs/content-cdn.md`;
 
 const required = (name: string): string => {
   const value = process.env[name];
@@ -81,12 +84,12 @@ const environment = (cli: CliArgs): string => {
 
 const storage = () =>
   new StorageClient({
-    endpoint: required('BUNNY_STORAGE_ZONE_ENDPOINT'),
-    zone: required('BUNNY_STORAGE_ZONE'),
-    accessKey: required('BUNNY_STORAGE_PASSWORD'),
+    endpoint: required('OSCT_BUNNY_STORAGE_ENDPOINT'),
+    zone: required('OSCT_BUNNY_STORAGE_ZONE'),
+    accessKey: required('OSCT_BUNNY_STORAGE_PASSWORD'),
   });
 
-const baseUrl = () => process.env.CONTENT_BASE_URL?.replace(/\/+$/, '');
+const baseUrl = () => process.env.OSCT_CONTENT_BASE_URL?.replace(/\/+$/, '');
 
 async function status(env: string): Promise<void> {
   const state = await readEnvironment(storage(), env);
@@ -114,7 +117,7 @@ async function status(env: string): Promise<void> {
   const url = baseUrl();
   if (url) {
     const [seen, record] = await Promise.all([cdnManifest(url), cdnVersions(url)]);
-    console.log(`🌐 CDN latest.json: ${seen.manifest?.build ?? seen.status}${seen.cors ? '' : ' (no CORS header)'}`);
+    console.log(`🌐 CDN latest.json: ${seen.manifest?.build ?? seen.status}${seen.cors === false ? ' (no CORS header)' : seen.cors === null ? ' (CORS not checked: OSCT_APP_URL unset)' : ''}`);
     // What a reader of the CDN sees: an edge without the cache rule for versions.json serves an old copy (warning only)
     const edge = seen.manifest && record.versions ? versionProblems(seen.manifest, record.versions) : [];
     if (edge.length > 0) {
@@ -178,7 +181,7 @@ async function main(): Promise<void> {
       const env = environment(cli);
       const url = baseUrl();
       // Strict: what the CDN serves counts as in use, so the check needs the CDN URL
-      if (!url) throw new Error('CONTENT_BASE_URL is not set – purge checks which version the CDN serves');
+      if (!url) throw new Error('OSCT_CONTENT_BASE_URL is not set – purge checks which version the CDN serves');
       const client = storage();
       const [state, seen] = await Promise.all([readEnvironment(client, env), cdnManifest(url)]);
       if (!seen.manifest && !seen.status.startsWith('404')) {
