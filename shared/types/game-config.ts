@@ -69,10 +69,13 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * `publisher` – these were on the top level). `sourceOfTruth` is gone: every experience adds and removes its scenes. Behaviour scope and plugin variable scope `experience`
  * (was `book`), text nodes' `{{experience.title}}` (was `{{book.title}}`); `latest.json` / `versions.json` name the
  * `experience` (was `book`).
+ *
+ * **4.1** (#306): a target's optional `recognition` – the image tracker's data made ahead from its printed image
+ * (`osct targets prepare`); an older app ignores it and makes that data from the image itself, as before.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "4.0";
+export const CONTENT_SCHEMA_VERSION = "4.1";
 /** The oldest content schema MAJOR this contract reads – 4: no 3.x content is read (no reader of it was shipped) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 4;
 
@@ -254,6 +257,24 @@ export interface TargetData {
    * reader leaves both out (no image target, no entry in the list, not counted); none or `true` = in the experience
    */
   enabled?: boolean;
+  /**
+   * Optional (schema 4.1, #306): the image tracker's recognition data, made ahead from `imageSrc` (`osct targets prepare`)
+   * – none = the reader makes it from `imageSrc` when the scene opens. The API drops it whenever `imageSrc` changes.
+   */
+  recognition?: TargetRecognitionData;
+}
+
+/**
+ * A target's recognition data (#306) in the format of 8th Wall's image-target CLI, flat (`PLANAR`): the printed image in
+ * a 3:4 portrait frame (landscape images turned 90° clockwise, the rest filled with the image's edge colour), grey,
+ * 480 × 640 px. The frame's geometry follows from the printed image's size.
+ */
+export interface TargetRecognitionData {
+  /** The grey 480 × 640 frame (a Library file) */
+  imageSrc: string;
+  /** Width and height in px of the printed image it was made from */
+  width: number;
+  height: number;
 }
 
 /** The target is in the experience: anything but `enabled: false` */

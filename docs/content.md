@@ -691,9 +691,44 @@ of a double page `x` moves by the left page's width).
 
 ## Recognition
 
-Nothing to prepare: the app makes the recognition data from the target images itself when a scene is
-opened (8th Wall engine). A new or replaced target image works as soon as the content is built. The
-scenes next to the open one are kept ready too, so turning a page switches the scene at once.
+The image tracker (8th Wall engine) recognises a target by its printed image. Before it can, two things happen on the
+phone when a scene's targets are loaded ([tracking](tracking.md) "The flow today"):
+
+1. **The frame** – the printed image becomes a grey 480 × 640 frame, the image whole in a 3:4 portrait frame
+   (landscape turned 90° clockwise, the rest filled with its edge colour). S22: 150–260 ms per image, plus the image's
+   download.
+2. **The features** – the engine extracts them from that frame, one target per frame. This always happens on the
+   phone: the engine (`@8thwall/engine` 0.1.0) takes no precompiled features.
+
+**Made ahead** (#306): `osct targets prepare --experience <id>` makes step 1 for every target of an experience on an
+instance and stores it with the target – the frame as a Library file (`<target>_recognition.webp`), the target's
+`recognition` (`{ imageSrc, width, height }`, content schema 4.1) naming it. The reader then gives the engine that frame
+as it is: no decoding, drawing or encoding on the phone, and a smaller download than a 1200 px printed image. Step 2 –
+and so what is recognised and how well – stays the same: the frame is the same picture the reader makes itself (the
+geometry is one function, `engine/src/scene/target-frame.ts`). A target without `recognition` works as before.
+
+```bash
+cd scripts && npm run build
+OSCT_API_URL=http://127.0.0.1:8080/api OSCT_EDITOR_TOKEN=… npm run osct -- targets prepare --experience osct --dry-run
+OSCT_EDITOR_TOKEN=… npm run osct -- targets prepare --experience osct      # makes the missing ones
+OSCT_EDITOR_TOKEN=… npm run osct -- targets prepare --experience osct --force   # makes every one again
+OSCT_EDITOR_TOKEN=… npm run osct -- targets prepare --experience osct --all     # switched-off targets too
+```
+
+- Reads the experience through the editor API (`OSCT_API_URL`, default the local dev API; `OSCT_EDITOR_TOKEN` – a token
+  from the editor's experiences page, AI connections) and writes its draft: the readers get it with the next publish.
+- `--dry-run` lists what it would make and changes nothing (read-only calls).
+- The database is the only truth (#322): the API drops a target's `recognition` whenever its image changes – a new
+  `imageSrc`, or a new version of the image's Library file – so a stale frame is never used; the next run makes it
+  again. A frame made from an image that changed during the run is refused (409 `stale-image`) and skipped.
+- Switched-off targets are left out (an experience may hold many – staging: 1,236 of 1,368); `--all` prepares them
+  too. A target switched on later gets its data with the next run.
+- Not 8th Wall's image-target CLI (`@8thwall/image-target-cli`, MIT) itself: it only asks interactively, one image at a
+  time, and its default crop keeps the centred 3:4 part of the image – the top and bottom of a tall page get lost and
+  it is not recognised. Its output (a grey 480 × 640 image and the JSON `XrController.configure({ imageTargetData })`
+  takes, flat `PLANAR`) is what this makes; cylinder and cone targets are not used.
+
+The scenes next to the open one are kept ready too, so turning a page switches the scene at once.
 
 ## Onboarding screens
 
@@ -939,6 +974,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 2.36 | 1.112.0 | in develop | surfaces placed in the scene (#314): a surface's optional `place` (`x`, `y`, `z` in mm, `rx`, `ry`, `rz` in degrees – the scene's coordinate system: origin on the table at the middle of the first row, +x right, +y up, +z towards the reader; used by `free` scenes) and a target's optional `print.surfaceId` (the surface it is printed on, by id – wins over `print.surface`) | ignored: an older app reads neither field (its guard skips unknown fields of a surface and a print placement); the reader does not use them yet |
 | 3.0 | 2.0.1 | in develop | **one clean model of scenes – nothing of 2.x kept** (#319, `agents/SCENES.md` "Schema 3.0"): the configuration's `scenes` (was `spreads`) and `initialScene` (was `initialSpreadId`); a scene is `id`, `label`, `group?`, `surfaces` (at least one: `id`, `label?`, `widthMm`, `heightMm`, `place` – all six numbers required), `passes?`; an entry names its `scene` (required) and a `surface` when the scene has several; a target's `place` (`surface?`, `x`, `y`, `width`, `height?`, mm on the surface) replaces `print`. Removed: `page`, `firstPage`, `lastPage`, a spread's `title`, `format`, `matter` and `layout`, a surface's `side`, `print`, the configuration's `tutorial` | refused: no 2.x reader was shipped – every app since reads 3.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 3), and a 2.x app refuses 3.0 content |
 | 4.0 | 3.0.0 | in develop | **the experience is the top level** (#320, `agents/REFACTOR-EXPERIENCE.md`): the configuration's `experience` (was `book`: `id`, `title`, `passes?`, `environment?`, `appearance?`); the printed book is its optional `book` (`author`, `publisher?` – they were on the top level), none = an experience that is not a book; `sourceOfTruth` is removed (every experience adds and removes its scenes); the behaviour and plugin variable scope `experience` (was `book`, plugin API 3.0) and the text nodes' `{{experience.title}}` (was `{{book.title}}`); `latest.json` / `versions.json` name the `experience` (was `book`). The content source: `experience.yaml` (was `experience.yaml`), converted once with `npm run convert:4` | refused: no 3.x reader was shipped – every app since reads 4.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 4), and a 3.x app refuses 4.0 content |
+| 4.1 | 3.11.0 | in develop | a target's optional `recognition` (#306): `{ imageSrc, width, height }` – its grey recognition frame made ahead with `osct targets prepare` and the printed image's size ("Recognition" above) | ignored: the app makes the frame from the target's image itself, as before |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

@@ -10,6 +10,8 @@ import type { XrPipelineModule } from "../xr8";
 const engine = vi.hoisted(() => ({
   loaded: new Set<string>(),
   extracted: [] as string[],
+  /** The image target data of the latest configure */
+  data: [] as unknown[],
   modules: [] as XrPipelineModule[],
   /** The fragment shaders the camera renderer was configured with */
   shaders: [] as (string | undefined)[],
@@ -24,6 +26,7 @@ vi.mock("../xr8", async importOriginal => {
       pipelineModule: () => ({}),
       configure: ({ imageTargetData }: { imageTargetData?: Array<{ name: string }> }) => {
         if (!imageTargetData) return;
+        engine.data = imageTargetData;
         const names = imageTargetData.map(target => target.name);
         const added = names.filter(name => !engine.loaded.has(name));
         engine.loaded = new Set(names);
@@ -219,6 +222,26 @@ describe("ImageTracker camera grade", () => {
     expect(engine.shaders).toEqual(["graded", "other"]);
     tracker.gradeCamera(null);
     expect(engine.shaders[2]).toMatch(/gl_FragColor = texture2D\(sampler, texUv\)/);
+    tracker.stop();
+  });
+});
+
+describe("ImageTracker recognition data made ahead (#306)", () => {
+  it("gives the engine a target's prepared frame as it is – the others made from their images as before", async () => {
+    engine.loaded = new Set(); engine.extracted = [];
+    const tracker = new ImageTracker(document.createElement("div"), { onUpdate: () => {} }, "/assets/xr8/");
+    await tracker.startCamera();
+    const recognition = { imageSrc: "https://cdn.example/p-0_recognition.webp", width: 1200, height: 900 };
+    await tracker.loadTargets({ sceneId: "p", targets: [{ id: "p-0", imageSrc: "p-0.jpg", recognition }, { id: "p-1", imageSrc: "p-1.jpg" }] as unknown as Target[] });
+    expect(engine.extracted).toEqual([recognition.imageSrc, "p-1.jpg"]);
+    // The crop of a 1200 × 900 image: turned, 900 × 1200 – as the reader makes it from the image (targetFrame)
+    expect(engine.data[0]).toEqual({
+      type: "PLANAR",
+      name: recognition.imageSrc,
+      imagePath: recognition.imageSrc,
+      metadata: null,
+      properties: { left: 0, top: 0, width: 900, height: 1200, isRotated: true, originalWidth: 900, originalHeight: 1200 },
+    });
     tracker.stop();
   });
 });

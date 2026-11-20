@@ -1374,6 +1374,21 @@ try {
     $v2 = $data['asset']['url'];
     [, $data] = call($api, 'GET', '/editor/experiences/osct/entities', null, $editor);
     check($data['entities']['castle']['assets'][0]['src'] === $v2, 'the node names the new version');
+    // A target's recognition data (#306) is made from its printed image: a new version of that image drops it
+    [, $tree] = call($api, 'GET', '/editor/experiences/osct', null, $editor);
+    $racoonImage = $tree['scenes'][0]['entries'][0]['target']['imageSrc'];
+    [, $print] = upload($api, 'POST', '/editor/experiences/osct/assets', pngOf(3, 4, 0x998877), 'racoon-print.png', $editor);
+    $recognition = ['imageSrc' => 'https://cdn.example/racoon_recognition.webp', 'width' => 900, 'height' => 1200];
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/targets/racoon', ['imageSrc' => $print['asset']['url'], 'recognition' => $recognition], $editor);
+    check($status === 200 && $data['target']['recognition'] === $recognition, 'PUT target: image and its recognition data in one body');
+    [$status, $data] = upload($api, 'PUT', "/editor/experiences/osct/assets/{$print['asset']['id']}/file", pngOf(3, 4, 0x112233), 'racoon-print2.png', $editor);
+    [, $tree] = call($api, 'GET', '/editor/experiences/osct', null, $editor);
+    $racoon = $tree['scenes'][0]['entries'][0]['target'];
+    check($status === 200 && $data['relinked'] === 1 && $racoon['imageSrc'] === $data['asset']['url'] && !array_key_exists('recognition', $racoon),
+        'replacing the printed image relinks the target and drops its recognition data (#306)');
+    [$status] = call($api, 'PUT', '/editor/experiences/osct/targets/racoon', ['imageSrc' => $racoonImage], $editor);
+    [$deleted] = call($api, 'DELETE', "/editor/experiences/osct/assets/{$print['asset']['id']}?force=1", null, $editor);
+    check($status === 200 && $deleted === 204, 'the target names its image again');
     [$status, $data] = upload($api, 'PUT', "/editor/experiences/osct/assets/{$asset['id']}/file", 'glb bytes', 'tree.glb', $editor);
     check($status === 400, 'a replace of another kind → 400');
     [$status] = call($api, 'DELETE', "/editor/experiences/osct/assets/{$asset['id']}?force=1", null, $editor);
@@ -1564,6 +1579,20 @@ try {
     check($status === 400 && $data['error']['code'] === 'invalid-target', 'enabled other than true or false → 400 invalid-target');
     [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/targets/racoon', ['enabled' => true], $editor);
     check($status === 200 && !array_key_exists('enabled', $data['target']), 'switched on again: the field goes, on is the default');
+    $recognition = ['imageSrc' => 'https://cdn.example/racoon-v2_recognition.webp', 'width' => 900, 'height' => 1200];
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/targets/racoon', ['recognition' => $recognition], $editor);
+    check($status === 200 && $data['target']['recognition'] === $recognition && $data['target']['place']['width'] === 80, 'PUT target: its recognition data made ahead (#306)');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/targets/racoon', ['recognition' => ['imageSrc' => 'x.webp', 'width' => 0, 'height' => 1.5]], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-target', 'recognition data without whole px → 400 invalid-target');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/targets/racoon', ['imageSrc' => 'https://cdn.example/racoon-v2.jpg'], $editor);
+    check($status === 200 && $data['target']['recognition'] === $recognition, 'the same image again keeps the recognition data');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/targets/racoon', ['imageSrc' => 'https://cdn.example/racoon-v3.jpg'], $editor);
+    check($status === 200 && !array_key_exists('recognition', $data['target']), 'another image drops the recognition data – it was made from the old one');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/targets/racoon', ['imageSrc' => 'https://cdn.example/racoon-v2.jpg', 'recognition' => $recognition], $editor);
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/targets/racoon', ['recognition' => $recognition, 'madeFrom' => 'https://cdn.example/racoon-v1.jpg'], $editor);
+    check($status === 409 && $data['error']['code'] === 'stale-image', 'recognition data made from an image the target no longer has → 409 stale-image');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/targets/racoon', ['recognition' => null], $editor);
+    check($status === 200 && !array_key_exists('recognition', $data['target']) && $data['target']['imageSrc'] === 'https://cdn.example/racoon-v2.jpg', 'recognition null removes it');
     [, $tree] = call($api, 'GET', '/editor/experiences/osct', null, $editor);
     check($tree['scenes'][0]['entries'][0]['target']['place']['x'] === 250, 'the tree carries the place');
     [$status, $data] = call($api, 'POST', '/editor/experiences/osct/entries', ['title' => 'Shadows & Light', 'scene' => 's1', 'target' => ['imageSrc' => 'https://cdn.example/shadows.jpg', 'place' => ['x' => 10, 'y' => 10, 'width' => 60]]], $editor);
@@ -2666,8 +2695,8 @@ try {
     $experience = json_decode($v3Db->query("SELECT experience_json FROM experiences WHERE id = 'osct'")->fetchColumn(), true);
     check($experience === ['id' => 'osct', 'title' => 'Onion Skin', 'book' => ['author' => 'Kévin Bray', 'publisher' => 'Building Fictions'], 'passes' => []],
         'the experience: author and publisher in book (after the title), no sourceOfTruth');
-    check($v3Db->query("SELECT content_schema FROM experiences WHERE id = 'osct'")->fetchColumn() === '4.0'
-        && $v3Db->query("SELECT content_schema FROM experiences WHERE id = 'wall'")->fetchColumn() === '2.26', 'a 3.0 experience is 4.0 now, an older one stays refused');
+    check($v3Db->query("SELECT content_schema FROM experiences WHERE id = 'osct'")->fetchColumn() === '4.1'
+        && $v3Db->query("SELECT content_schema FROM experiences WHERE id = 'wall'")->fetchColumn() === '2.26', 'a 3.0 experience is of the current schema (4.1) now, an older one stays refused');
     check(json_decode($v3Db->query("SELECT experience_json FROM experiences WHERE id = 'wall'")->fetchColumn(), true) === ['id' => 'wall', 'title' => 'A wall', 'book' => ['author' => 'Nobody']],
         'an experience without a publisher: book { author }');
     $sign = json_decode($v3Db->query("SELECT data_json FROM entities WHERE ref = 'sign'")->fetchColumn(), true);
@@ -2700,7 +2729,7 @@ try {
     check($status === 200 && $data['experience']['experience']['book']['author'] === 'Kévin Bray' && count($data['scenes']) === 1 && $data['scenes'][0]['entries'][0]['id'] === 'e1',
         'the migrated experience opens in the editor');
     [$status, $manifest] = call($v3Api, 'GET', '/editor/experiences/osct/draft/latest.json', null, $v3Session);
-    check($status === 200 && $manifest['schema'] === '4.0', 'its draft is content schema 4.0');
+    check($status === 200 && $manifest['schema'] === '4.1', 'its draft is of the current content schema (4.1)');
     [$status] = call($v3Api, 'GET', '/editor/experiences/wall', null, $v3Session);
     check($status === 409, 'the 2.x experience stays refused (409 old-schema)');
     [$status] = call($oldApi, 'PUT', '/user/password', ['password' => 'a new password'], $oldToken);

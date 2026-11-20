@@ -297,7 +297,14 @@ const withContentUrls = (raw: GameConfiguration, base: string): GameConfiguratio
     entries: raw.entries.map(e => ({
       ...e,
       ...(e.image !== undefined ? { image: url(e.image) } : {}),
-      ...(e.target ? { target: { ...e.target, imageSrc: contentUrl(e.target.imageSrc), entity: entity(e.target.entity) } } : {}),
+      ...(e.target ? {
+        target: {
+          ...e.target,
+          imageSrc: contentUrl(e.target.imageSrc),
+          ...(e.target.recognition ? { recognition: { ...e.target.recognition, imageSrc: contentUrl(e.target.recognition.imageSrc) } } : {}),
+          entity: entity(e.target.entity),
+        },
+      } : {}),
     })),
   };
 };

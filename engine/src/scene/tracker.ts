@@ -1,5 +1,5 @@
 import type { PerspectiveCamera } from "three";
-import { ArSceneError, ErrorCode } from "../types/index";
+import { ArSceneError, ErrorCode, type Target } from "../types/index";
 import { getTargetBudget } from "../utils/prepared-scenes";
 import { publishEngineState, EMPTY_ENGINE_STATE, registerLoadTest } from "../utils/tracker-debug";
 import { setCameraTrack } from "../utils/camera-debug";
@@ -10,6 +10,7 @@ import {
   anchorMatrix,
   loadXr8,
   makeImageTarget,
+  preparedImageTarget,
   type PreparedImageTarget,
   type XR8Tracking,
   type XrImageDetail,
@@ -55,8 +56,8 @@ interface LoadedTarget {
 /**
  * Camera + image tracking with the 8th Wall engine (`@8thwall/engine`, MIT). The camera survives a scene switch, `loadTargets()` swaps the tracked image targets (made from the target images, `xr8.ts`).
  *
- * Scene switches: the engine extracts each target's features on the device (one target per frame, nothing
- * precompiled). So the neighbouring scenes' targets stay loaded next to the current ones (`prepareTargets()`)
+ * Scene switches: the engine extracts each target's features on the device (one target per frame – the engine takes
+ * no precompiled features; a target's `recognition` made ahead saves only the app's part, the grey frame, #306). So the neighbouring scenes' targets stay loaded next to the current ones (`prepareTargets()`)
  * – the app is told only about the current scene's, and a switch to a neighbour starts at once. The engine keeps what it already has when it
  * is configured again and extracts only new targets. A neighbour's target seen steadily while none of the
  * current scene's is means the reader turned the page: `onSceneSeen` (the app switches the scene).
@@ -213,7 +214,7 @@ export class ImageTracker implements IImageTracker {
 
     const begun = performance.now();
     const withImage = targets.filter(target => target.imageSrc);
-    const data = await Promise.all(withImage.map(target => this.imageTarget(target.imageSrc)));
+    const data = await Promise.all(withImage.map(target => this.imageTarget(target)));
     if (run !== this.loadRun) return; // replaced or stopped meanwhile
     this.targets = new Map(data.map((target, i) => [
       target.data.name,
@@ -275,7 +276,7 @@ export class ImageTracker implements IImageTracker {
 
   private prepareScene(scene: TrackedScene): Promise<SceneTargets> {
     const withImage = scene.targets.filter(target => target.imageSrc);
-    return Promise.all(withImage.map(target => this.imageTarget(target.imageSrc))).then(targets => {
+    return Promise.all(withImage.map(target => this.imageTarget(target))).then(targets => {
       targets.forEach((target, i) => this.idOf.set(target.data.name, withImage[i].id));
       return { sceneId: scene.sceneId, targets };
     });
@@ -480,8 +481,14 @@ export class ImageTracker implements IImageTracker {
     this.applyProjection();
   }
 
-  /** Target data per image, made once per session (the object URLs stay valid) */
-  private imageTarget(imageSrc: string): Promise<PreparedImageTarget> {
+  /**
+   * Target data per image, once per session (the object URLs stay valid): the recognition data made ahead when the target
+   * has it (#306 – the engine loads its grey frame, nothing to make here), else made from the target image now
+   */
+  private imageTarget(target: Pick<Target, "imageSrc" | "recognition">): Promise<PreparedImageTarget> {
+    const { recognition } = target;
+    if (recognition) return Promise.resolve(preparedImageTarget(recognition));
+    const { imageSrc } = target;
     let data = this.imageTargets.get(imageSrc);
     if (!data) {
       data = makeImageTarget(imageSrc);
