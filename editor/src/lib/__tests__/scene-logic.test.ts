@@ -1,0 +1,128 @@
+import { describe, expect, it } from "vitest";
+import type { EntityData, PluginData } from "@engine/types";
+import { conditionWords, pluginCodeUses, sceneLogic, type LogicGraph } from "../scene-logic";
+import { layoutLogic } from "../logic-layout";
+
+// The demo experience's two scenes (fixtures/demo): the key sets hasKey and emits keyRattled; the door shows its hint,
+// and with hasKey hides it and emits openDoor – the door plugin hears it, sets doorOpen and emits doorOpened
+const key: EntityData = {
+  type: "model", assets: [],
+  components: [
+    { type: "spin", degreesPerSecond: 40 },
+    { type: "animation", clip: "rattle" },
+    { type: "behaviour", rules: [{ on: "tap", do: [{ play: "rattle" }, { set: { hasKey: true }, scope: "experience" }, { emit: "keyRattled" }] }] },
+  ],
+};
+const door: EntityData = {
+  type: "group", assets: [],
+  children: [
+    { type: "model", name: "door", assets: [] },
+    { type: "text", name: "hint", assets: [], text: "Tap the key" },
+  ],
+  components: [
+    { type: "door", lift: 0.35 },
+    { type: "behaviour", rules: [{ on: "found", do: { show: "hint" } }, { on: "found", when: { hasKey: true }, do: [{ hide: "hint" }, { emit: "openDoor" }] }] },
+  ],
+};
+const plugins: PluginData[] = [{ id: "narrative", src: "/p.js", api: "3.0", registered: { components: { door: { params: {} }, spin: { params: {} } } } } as unknown as PluginData];
+const narrativeSource = `
+  api.registerComponent("door", { onAttach() {
+    api.vars.set("doorOpen", true, "stage");
+    api.events.emit("doorOpened", { by: "key" });
+    const offOpen = api.events.on('openDoor', () => {});
+  } });
+  const lit = () => api.vars.get("doorOpen") === true;`;
+
+const ids = (graph: LogicGraph, kind: string) => graph.nodes.filter(n => n.kind === kind).map(n => n.id).sort();
+const has = (graph: LogicGraph, from: string, to: string, label: string) => graph.edges.some(e => e.from === from && e.to === to && e.label === label);
+
+describe("a scene's logic as a graph (#239)", () => {
+  it("reads what a plugin's code hears, emits, reads and sets", () => {
+    expect(pluginCodeUses(narrativeSource)).toEqual({ hears: ["openDoor"], emits: ["doorOpened"], reads: ["doorOpen"], sets: ["doorOpen"] });
+    expect(pluginCodeUses("api.events.emit(name)")).toEqual({ hears: [], emits: [], reads: [], sets: [] });
+  });
+
+  it("draws a rule from its node's event to what it sets, emits and plays", () => {
+    const graph = sceneLogic({ targets: [{ id: "key", entity: key }], plugins });
+    expect(ids(graph, "rule")).toEqual(["rule:key/#0"]);
+    expect(has(graph, "event:key/:tap", "rule:key/#0", "on")).toBe(true);
+    expect(has(graph, "rule:key/#0", "var:hasKey", "set = true")).toBe(true);
+    expect(has(graph, "rule:key/#0", "event:keyRattled", "emit")).toBe(true);
+    expect(has(graph, "rule:key/#0", "node:key/", "play rattle")).toBe(true);
+    // The spin component is the narrative plugin's: it drives the key's node
+    expect(has(graph, "plugin:narrative", "node:key/", "spin")).toBe(true);
+    expect(graph.nodes.find(n => n.id === "var:hasKey")?.detail).toBe("variable · experience");
+    expect(graph.nodes.find(n => n.id === "event:key/:tap")?.pick).toEqual({ kind: "node", target: "key", path: [] });
+  });
+
+  it("resolves the nodes a rule acts on by name in its subtree, and links the plugins' code to the rules' events", () => {
+    const graph = sceneLogic({ targets: [{ id: "door", entity: door }], plugins, code: { narrative: pluginCodeUses(narrativeSource) }, experience: [key, door] });
+    expect(has(graph, "rule:door/#0", "node:door/1", "show")).toBe(true);
+    expect(has(graph, "rule:door/#1", "node:door/1", "hide")).toBe(true);
+    expect(has(graph, "var:hasKey", "rule:door/#1", "when")).toBe(true);
+    expect(has(graph, "event:openDoor", "plugin:narrative", "hears")).toBe(true);
+    expect(has(graph, "plugin:narrative", "event:doorOpened", "emits")).toBe(true);
+    expect(has(graph, "plugin:narrative", "var:doorOpen", "sets")).toBe(true);
+    expect(has(graph, "plugin:narrative", "node:door/", "door")).toBe(true);
+    expect(graph.nodes.find(n => n.id === "node:door/1")).toMatchObject({ label: "hint", pick: { kind: "node", target: "door", path: [1] } });
+    expect(graph.nodes.find(n => n.id === "rule:door/#1")?.detail).toBe("hasKey = true");
+    // hasKey is set on the key's scene, openDoor heard by the plugin: no problem – doorOpened is heard by nothing
+    expect(graph.problems).toEqual(["doorOpened is emitted, but nothing in the experience hears it"]);
+  });
+
+  it("names the problems: a variable nothing sets, an event nothing emits, a node an action names that is not there", () => {
+    const lonely: EntityData = {
+      type: "group", assets: [],
+      components: [{ type: "behaviour", rules: [{ on: "doorOpened", when: { tries: 1 }, do: { show: "ghost" } }] }],
+    };
+    const graph = sceneLogic({ targets: [{ id: "t", entity: lonely }] });
+    expect(graph.problems).toEqual([
+      "group, rule 1: show names ghost – no node of that name under group",
+      "doorOpened is heard, but nothing in the experience emits it – its rules never fire",
+      "tries is read, but nothing in the experience sets it",
+    ]);
+    expect(graph.nodes.find(n => n.id === "var:tries")?.problem).toBeTruthy();
+    expect(conditionWords({ match: "any", tests: [{ name: "a", value: 1, not: false }, { name: "b", value: null, not: true }] })).toBe("any: a = 1, b ≠ unset");
+  });
+
+  it("keeps quiet about events and variables while a plugin's code is unknown", () => {
+    const node: EntityData = { type: "group", assets: [], components: [{ type: "behaviour", rules: [{ on: "lost", when: { mode: "a" }, do: { emit: "nobodyHears" } }] }] };
+    const graph = sceneLogic({ targets: [{ id: "n", entity: node }], plugins });
+    expect(graph.problems).toEqual([]);
+    expect(graph.nodes.find(n => n.id === "plugin:narrative")).toBeUndefined();
+    expect(sceneLogic({ targets: [{ id: "n", entity: node }] }).problems).toEqual([
+      "mode is read, but nothing in the experience sets it",
+      "nobodyHears is emitted, but nothing in the experience hears it",
+    ]);
+  });
+
+  it("leaves out targets without entities and nodes without logic", () => {
+    const plain: EntityData = { type: "model", assets: [], children: [{ type: "text", assets: [], text: "x" }] };
+    expect(sceneLogic({ targets: [{ id: "a" }, { id: "b", entity: plain }] })).toEqual({ nodes: [], edges: [], problems: [] });
+  });
+});
+
+describe("the logic graph's layout (#239)", () => {
+  it("puts each node one column after its sources, centres the columns and loops the back edges", () => {
+    const layout = layoutLogic(["a", "b", "c", "d"], [
+      { from: "a", to: "b", label: "" }, { from: "b", to: "c", label: "" }, { from: "a", to: "c", label: "" }, { from: "c", to: "a", label: "loop" }, { from: "d", to: "c", label: "" },
+    ], { w: 100, h: 20, gapX: 50, gapY: 10 });
+    expect(layout.nodes.a.column).toBe(0);
+    expect(layout.nodes.b.column).toBe(1);
+    expect(layout.nodes.c.column).toBe(2);
+    expect(layout.nodes.d.column).toBe(0);
+    expect(layout.nodes.c.x).toBe(300);
+    expect(layout.width).toBe(400);
+    // Column 1 holds one node, centred on column 0's two
+    expect(layout.nodes.b.y).toBe(15);
+    const loop = layout.edges.find(e => e.label === "loop")!;
+    expect(loop.back).toBe(true);
+    expect(layout.height).toBeGreaterThan(50);
+    expect(layout.edges.filter(e => !e.back)).toHaveLength(4);
+  });
+
+  it("is empty for an empty graph and skips edges to unknown nodes", () => {
+    expect(layoutLogic([], [])).toEqual({ nodes: {}, edges: [], width: 0, height: 0 });
+    expect(layoutLogic(["a"], [{ from: "a", to: "zz", label: "" }]).edges).toEqual([]);
+  });
+});
