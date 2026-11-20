@@ -31,10 +31,13 @@
   import AssetTile from "./AssetTile.svelte";
   import AssetDetails from "./AssetDetails.svelte";
   import CodeFiles from "./CodeFiles.svelte";
+  import LibraryNodes from "./LibraryNodes.svelte";
+  import { palette } from "#lib/logic/palette.js";
 
   /**
    * The experience's library (#330): the files uploaded in the editor and, after them, the files of the content import
-   * (`files.json`, read-only – docs/server.md "Assets").
+   * (`files.json`, read-only – docs/server.md "Assets"); and under the kind *Nodes* the logic's node types (`LibraryNodes`, #334),
+   * dragged onto the Logic canvas.
    *
    * **The panel tab.** On top the **scope** – *This scene · <label>* (the open scene's files: its surfaces' reference
    * images, its targets' printed images, the files its targets' nodes name, its entries' pictures – the default while a
@@ -185,8 +188,10 @@
   const scoped = $derived(base.filter(asset => inScope(asset, scope, sceneId, index)));
   const kinds = $derived(kindCounts(scoped, targetImages, surfaceImages));
   const codeCount = $derived(library.assets.filter(asset => asset.kind === "shader").length + plugins.stored.length);
+  /** The logic's node types (#334): the registry's, the same list as the Logic canvas's menu */
+  const nodeCount = palette().length;
   /** The kinds' chips: the ones that hold a file, the one chosen; Code apart from a picker */
-  const kindChips = $derived(LIBRARY_FILTERS.filter(kind => kind === "all" || kind === filter || (kind === "code" ? !pick : kinds[kind] > 0)));
+  const kindChips = $derived(LIBRARY_FILTERS.filter(kind => kind === "all" || kind === filter || (kind === "code" || kind === "nodes" ? !pick : kinds[kind] > 0)));
   const shown = $derived(scoped.filter(asset => matchesFilter(asset, filter, targetImages, surfaceImages)));
   const groups = $derived(libraryGroups(shown, {
     scope, grouping: expanded ? grouping : "scene", sort, sceneId, sceneLabel, scenes: content.scenes, index, targetImages, surfaceImages,
@@ -694,7 +699,7 @@
 {/snippet}
 
 {#snippet mediaGroups()}
-  {#if filter === "code"}
+  {#if filter === "code" || filter === "nodes"}
     <!-- the code list alone -->
   {:else if library.loading && !library.assets.length}
     <p class="muted small">Loading…</p>
@@ -725,7 +730,7 @@
       </div>
     {/each}
   {/if}
-  {#if !expanded && scope === "scene" && filter !== "code"}
+  {#if !expanded && scope === "scene" && filter !== "code" && filter !== "nodes"}
     <p class="more-scopes small">
       <button type="button" class="text-link" onclick={() => (scope = "unused")}>Unused · {counts.unused}</button>
       <button type="button" class="text-link" onclick={() => (scope = "all")}>All files · {counts.all}</button>
@@ -733,6 +738,9 @@
   {/if}
   {#if showCode}
     <CodeFiles {experienceId} {search} all={filter === "all"} {onopencode} />
+  {/if}
+  {#if filter === "nodes" && !pick}
+    <LibraryNodes {search} />
   {/if}
 {/snippet}
 
@@ -816,7 +824,7 @@
   <div class="chips" role="group" aria-label="Kinds">
     {#each kindChips as kind (kind)}
       <button type="button" class="pill framed chip" class:on={filter === kind} aria-pressed={filter === kind} onclick={() => (filter = kind)}>
-        {KIND_LABELS[kind]}{#if kind !== "all"} <span class="n">{kind === "code" ? codeCount : kinds[kind]}</span>{/if}
+        {KIND_LABELS[kind]}{#if kind !== "all"} <span class="n">{kind === "code" ? codeCount : kind === "nodes" ? nodeCount : kinds[kind]}</span>{/if}
       </button>
     {/each}
   </div>
@@ -870,8 +878,8 @@
         <button type="button" class="place" class:on={plainPlace && scope === "unused"} onclick={() => goPlace({ scope: "unused", filter: "all" })}>Unused <span class="n">{places.scopes.unused}</span></button>
         <button type="button" class="place" class:on={special?.by === "credits"} title="Media without a credits line" onclick={() => goPlace({ special: { by: "credits" } })}>Missing credits <span class="n">{places.credits}</span></button>
         <div class="side-head">Kinds</div>
-        {#each LIBRARY_FILTERS.filter(kind => kind !== "all" && (kind === "code" ? !pick : places.kinds[kind] > 0)) as kind (kind)}
-          <button type="button" class="place" class:on={plainPlace && scope === "all" && filter === kind} onclick={() => goPlace({ scope: "all", filter: kind })}>{KIND_LABELS[kind]} <span class="n">{kind === "code" ? codeCount : places.kinds[kind]}</span></button>
+        {#each LIBRARY_FILTERS.filter(kind => kind !== "all" && (kind === "code" || kind === "nodes" ? !pick : places.kinds[kind] > 0)) as kind (kind)}
+          <button type="button" class="place" class:on={plainPlace && scope === "all" && filter === kind} onclick={() => goPlace({ scope: "all", filter: kind })}>{KIND_LABELS[kind]} <span class="n">{kind === "code" ? codeCount : kind === "nodes" ? nodeCount : places.kinds[kind]}</span></button>
         {/each}
         <div class="side-head">Scenes</div>
         {#each content.scenes.filter(scene => places.scenes.has(scene.id)) as scene (scene.id)}

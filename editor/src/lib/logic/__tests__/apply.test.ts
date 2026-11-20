@@ -143,7 +143,7 @@ describe("apply: rules, conditions and actions by their home (#334 L-T4)", () =>
 
   it("refuses scene and experience homes, another scene's targets and canvas edits", () => {
     expect(refused(apply({ op: "removeRule", home: { doc: "scene", scene: "door", rule: 0, part: "on" } }, content, scene))).toMatch(/not in the content yet/);
-    expect(refused(apply({ op: "removeRule", home: { ...rule(0, "on"), target: "key" } }, content, scene))).toMatch(/another scene/);
+    expect(refused(apply({ op: "removeRule", home: { doc: "entity", target: "key", path: [], component: 0, rule: 0, part: "on" } }, content, scene))).toMatch(/another scene/);
     expect(refused(apply({ op: "canvas", edit: { edit: "run", id: "x" } }, content, scene))).toMatch(/not here yet/);
   });
 
