@@ -284,6 +284,9 @@ describe("the content tools", () => {
     const removed = await rec.call("put_target", { experience: "osct", target: "castle-target", entity: null, place: null });
     expect(removed.ok).toBe(true);
     expect(seen[0].body).toEqual({ entity: null, place: null });
+    seen.length = 0;
+    expect((await rec.call("put_target", { experience: "osct", target: "castle-target", recognitionOff: true })).ok).toBe(true);
+    expect(seen[0].body).toEqual({ recognitionOff: true });
     const nothing = await rec.call("put_target", { experience: "osct", target: "castle-target" });
     expect(nothing.ok).toBe(false);
     const invalid = await rec.call("put_target", { experience: "osct", target: "castle-target", entity: { type: "model" } });
@@ -368,6 +371,10 @@ describe("the content tools", () => {
     const none = await rec.call("update_experience", { experience: "osct", book: null });
     expect(seen.at(-1)!.body).toEqual({ book: null });
     expect(none.data.experience.book).toBeUndefined();
+    // The recognition path (#306, content schema 4.2): "original" (default) or "prepared", null = the default
+    expect((await rec.call("update_experience", { experience: "osct", recognition: "prepared" })).ok).toBe(true);
+    expect(seen.at(-1)!.body).toEqual({ recognition: "prepared" });
+    await expect(rec.call("update_experience", { experience: "osct", recognition: "compiled" })).rejects.toThrow();
     const before = seen.length;
     expect((await rec.call("update_experience", { experience: "osct" })).data.error.code).toBe("mcp");
     expect((await rec.call("update_experience", { experience: "osct", book: {} })).data.error.code).toBe("mcp");
@@ -450,7 +457,7 @@ describe("the content tools", () => {
 
   it("describe_content_model explains an entry's Markdown and variables, the experience with its printed book and that the onboarding is the app's (#223, #236, #320)", async () => {
     const model = (await rec.call("describe_content_model", {})).data;
-    expect(model.contentSchema).toBe("4.1");
+    expect(model.contentSchema).toBe("4.2");
     expect(model.spread).toBeUndefined();
     expect(model.book).toBeUndefined();
     expect(model.experience.description).toContain("book = BookData { author, publisher? }");

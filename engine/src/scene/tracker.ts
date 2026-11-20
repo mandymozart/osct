@@ -1,6 +1,7 @@
 import type { PerspectiveCamera } from "three";
 import { ArSceneError, ErrorCode, type Target } from "../types/index";
 import { getTargetBudget } from "../utils/prepared-scenes";
+import { targetRecognition } from "../utils/recognition-setting";
 import { publishEngineState, EMPTY_ENGINE_STATE, registerLoadTest } from "../utils/tracker-debug";
 import { setCameraTrack } from "../utils/camera-debug";
 import { applyCameraDefaults, releaseCameraRequest, wrapCameraRequest } from "../utils/camera-request";
@@ -483,10 +484,12 @@ export class ImageTracker implements IImageTracker {
 
   /**
    * Target data per image, once per session (the object URLs stay valid): the recognition data made ahead when the target
-   * has it (#306 – the engine loads its grey frame, nothing to make here), else made from the target image now
+   * has it and the recognition path in force uses it (#306: the experience's `recognition: "prepared"`, or this device's
+   * debug override, and no `recognitionOff` – `utils/recognition-setting.ts`; the engine loads its grey frame, nothing to
+   * make here), else made from the target image now – the default path
    */
-  private imageTarget(target: Pick<Target, "imageSrc" | "recognition">): Promise<PreparedImageTarget> {
-    const { recognition } = target;
+  private imageTarget(target: Pick<Target, "imageSrc" | "recognition" | "recognitionOff">): Promise<PreparedImageTarget> {
+    const recognition = targetRecognition(target);
     if (recognition) return Promise.resolve(preparedImageTarget(recognition));
     const { imageSrc } = target;
     let data = this.imageTargets.get(imageSrc);

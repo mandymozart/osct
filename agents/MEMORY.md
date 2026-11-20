@@ -209,6 +209,17 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-20 – The recognition switch: Original by default, Prepared per experience (#306, schema 4.2)
+- Tilman: today's runtime path stays the default, non-destructive – the printed image stays, the frame lives beside it in
+  the Library. Built: `experience.recognition` (`"original"` default / `"prepared"`), `target.recognitionOff`, the reader's
+  debug override (Recognition row, stored per phone, reloads), the load test report names the path. The rule is one pure
+  function (`engine/src/scene/recognition-mode.ts`).
+- The editor makes frames by itself (image set/replaced, new target, placed) with the CLI's builder, moved into
+  `engine/src/scene/target-frame.ts` (`recognitionFrame`, `RECOGNITION_FRAME_FILE` – the one format: grey PNG, a working
+  copy; the image rule makes it WebP, the release step #304 may re-encode it). Remake uploads a new Library file; the old
+  frame file stays in the Library, unused (delete it there by hand if it matters).
+- [ ] Open: the test run (S22 + iPhone, docs/tracking.md "Comparing Original and Prepared") before any experience says Prepared.
+
 ## 2026-11-20 – Ids without leading zeros (#63)
 
 - Tilman (2026-11-20): ids without leading zeros – `s4-5`, `s4`, `p4-1`. The import writes them; the database is renamed

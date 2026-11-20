@@ -18,9 +18,11 @@ and engine – the editor's stage with the mock tracker – see [Editor](editor.
    dropped. The bridge preloads the content of the ±n window
    (±1 in grow mode; `PreloaderService.preloadScenes()`: target images, then one scene at a time).
 3. **Preparing** (the app, main thread) – each target image becomes a grey 480×640 frame (`makeImageTarget()`,
-   `xr8.ts`): decode, draw, greyscale, JPEG. S22: 150–260 ms per image, cached per session. A target with `recognition`
-   (made ahead with `osct targets prepare`, #306, [content](content.md) "Recognition") skips it: the engine loads its
-   frame by URL (`preparedImageTarget()`).
+   `xr8.ts`): decode, draw, greyscale, JPEG. S22: 150–260 ms per image, cached per session – **the default path**
+   (*Original*). Only on the *Prepared* path (the experience's `recognition: "prepared"` or this phone's debug override,
+   #306, [content](content.md) "Recognition") does a target with a frame made ahead (`recognition`, no `recognitionOff`)
+   skip it: the engine loads its frame by URL (`preparedImageTarget()`), and the preloader fetches that frame instead of
+   the printed image (`targetRecognition()`, `engine/src/utils/recognition-setting.ts`).
 4. **Extracting** (the engine, main thread) – `XrController.configure()` unloads what is not listed, keeps what it
    has and extracts the new targets one per animation frame. Every configure **cancels and restarts** the queue of
    targets not yet extracted. `reality.imagescanning` fires when the queue is empty. S22: 0.6–0.75 s for 4 targets,
@@ -46,6 +48,24 @@ scene can be found without the menu. ±2 (the default) holds about 5 scenes and 
 costs about 131 × (prepare + extract) on the main thread at the start – tens of seconds of busy main thread on a
 phone, while the reader is already scanning.
 
+## Comparing Original and Prepared (#306)
+
+The experience's setting decides which recognition frames the reader uses (*Original* by default – [content](content.md)
+"Recognition"); the debug overlay's **Recognition** row overrides it on this phone: *Experience* (its setting, shown in
+brackets), *Original* or *Prepared*. The choice is stored on the phone (`osct-recognition`) and reloads the page – the
+tracker keeps its image targets per session. The row also says how many targets have a frame and how many are set to
+*original only*. The engine load test's report names the path it ran with (`- Recognition: …`, and whether it was the
+phone's override).
+
+The test run before any experience is switched to Prepared (Tilman, 2026-11-20): a test experience with a few targets –
+small and black-and-white ones among them – each with its frame (the editor makes them; `osct targets prepare` for many).
+On the S22 and an iPhone, on the same printed page:
+1. Debug overlay → Recognition *Original*; scan each target: found at all, time to find, steady while held (no flicker),
+   lost when the page leaves the picture, found again when it comes back. Run the load test once (it names the path).
+2. Recognition *Prepared* (the page reloads); the same steps and the load test again.
+3. Prepared must be at least as good in every step; a target that is worse gets *original only* in the editor, or the
+   experience stays on Original. Set the row back to *Experience* afterwards.
+
 ## What the app gives the engine
 
 The engine knows no build, page or storage of the app (RULES #32): the app passes them in.
@@ -55,7 +75,7 @@ The engine knows no build, page or storage of the app (RULES #32): the app passe
 | Where the 8th Wall engine's files are served | `new ImageTracker(container, options, xr8Base)`, `prefetchXr8(xr8Base)` (`xr8.ts`) | `${BASE_URL}assets/xr8/` (`components/ar-bridges/ar/index.ts`) | – (mock tracker) |
 | Debug handles on `window` | `ArSceneOptions.debug` (the look-around's `osctLookAroundDebug`) | `import.meta.env.DEV` | `import.meta.env.DEV` |
 | The scanning indicator | the scene's `scanning` event: true while tracking runs and no target is found | `<ar-bridge>` toggles `.hidden` on `#osct-scanning` (and hides it when it is removed) | – (no indicator) |
-| The switches stored on this device: lens, resolution, ask zoom, scenes kept ready | `setDeviceStorage()` (`engine/src/utils/device-storage.ts`; keys `camera-lens`, `camera-resolution`, `camera-ask-zoom`, `ar-prepared-scenes`); without one they hold while the page lives | `LocalDeviceStorage` (`services/DeviceStorage.ts`): localStorage as `osct-<key>`, set first thing in `main.ts` | `deviceStorage` (`lib/storage.ts`): the same `osct-<key>` on the same origin, set by the stage |
+| The switches stored on this device: lens, resolution, ask zoom, scenes kept ready, the recognition override (#306) | `setDeviceStorage()` (`engine/src/utils/device-storage.ts`; keys `camera-lens`, `camera-resolution`, `camera-ask-zoom`, `ar-prepared-scenes`, `recognition`); without one they hold while the page lives | `LocalDeviceStorage` (`services/DeviceStorage.ts`): localStorage as `osct-<key>`, set first thing in `main.ts` | `deviceStorage` (`lib/storage.ts`): the same `osct-<key>` on the same origin, set by the stage |
 | Why AR failed | the `status` event's `ArError`: `{ code, message }` | below | the stage shows the message |
 
 **AR errors** are codes (`ErrorCode`, `engine/src/types/errors.ts`), never matched in a message: the tracker and the

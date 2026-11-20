@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { CONTENT_DIR } from '../config';
-import type { BookData, ExperienceData } from '../../../shared/types/game-config';
+import { RECOGNITION_MODES, type BookData, type ExperienceData } from '../../../shared/types/game-config';
 import { passBudgetWarning, passProblems, type PassData, type PassSpec } from '../../../shared/types/passes';
 import { appearanceProblems, type AppearanceSpec, type ExperienceAppearance } from '../../../shared/types/appearance';
 import { environmentProblems, type EnvironmentData } from '../../../shared/types/environment';
@@ -70,11 +70,16 @@ export function buildExperience(pluginPasses: ReadonlyMap<string, PassSpec> = ne
   }
   const experience = validate(readYaml(file), 'experience', label);
   if (!experience) return { id: '', title: '' };
-  const { passes, environment, appearance, book, ...fields } = experience;
+  const { passes, environment, appearance, book, recognition, ...fields } = experience;
   PRINT_FIELDS.filter(key => fields[key] !== undefined)
     .forEach(key => buildErrors.push(`${label}: ${key} belongs to the printed book – write it under book:`));
   if (fields.sourceOfTruth !== undefined) buildErrors.push(`${label}: ${GONE}`);
   const result: ExperienceData = { ...fields, id: experience.id, title: experience.title };
+  // The recognition path (#306, schema 4.2): "original" (default) or "prepared"
+  if (recognition !== undefined) {
+    if ((RECOGNITION_MODES as readonly unknown[]).includes(recognition)) result.recognition = recognition as ExperienceData['recognition'];
+    else buildErrors.push(`${label}: recognition must be ${RECOGNITION_MODES.map(mode => `"${mode}"`).join(' or ')} (#306)`);
+  }
   if (book !== undefined) {
     const printed = validate(book, 'book', `${label} book`);
     if (printed?.sourceOfTruth !== undefined) buildErrors.push(`${label}: book.${GONE}`);

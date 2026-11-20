@@ -700,12 +700,36 @@ phone when a scene's targets are loaded ([tracking](tracking.md) "The flow today
 2. **The features** – the engine extracts them from that frame, one target per frame. This always happens on the
    phone: the engine (`@8thwall/engine` 0.1.0) takes no precompiled features.
 
-**Made ahead** (#306): `osct targets prepare --experience <id>` makes step 1 for every target of an experience on an
-instance and stores it with the target – the frame as a Library file (`<target>_recognition.webp`), the target's
-`recognition` (`{ imageSrc, width, height }`, content schema 4.1) naming it. The reader then gives the engine that frame
-as it is: no decoding, drawing or encoding on the phone, and a smaller download than a 1200 px printed image. Step 2 –
-and so what is recognised and how well – stays the same: the frame is the same picture the reader makes itself (the
-geometry is one function, `engine/src/scene/target-frame.ts`). A target without `recognition` works as before.
+**Made ahead** (#306): step 1 can be made ahead and stored with the target – the frame as a Library file
+(`<target>_recognition.png`, stored under the image rule like every picture), the target's `recognition`
+(`{ imageSrc, width, height }`, content schema 4.1) naming it. With it the reader can give the engine that frame as it
+is: no decoding, drawing or encoding on the phone, and a smaller download than a 1200 px printed image. Step 2 – and so
+what is recognised – stays the same in principle: the frame is the same picture the reader makes itself (the geometry
+and the builder are one module, `engine/src/scene/target-frame.ts`, used by the reader, the editor and the CLI).
+
+**Original stays the default** (Tilman, 2026-11-20): the runtime path is tested with every target, small black-and-white
+ones included. Made-ahead frames are used only where the experience says so (content schema 4.2):
+
+| Setting | Where | Effect |
+|---|---|---|
+| `experience.recognition` | the editor's experience settings (*recognition*: Original / Prepared), `update_experience`, `PUT /editor/experiences/{id} { recognition }`, `recognition:` in `experience.yaml` | `"original"` (none = the default): every frame made from the printed image on the phone. `"prepared"`: a target's `recognition` where it has one |
+| `target.recognitionOff: true` | the target's inspector (*original only*), `put_target`, `PUT …/targets/{id} { recognitionOff }`, `recognitionOff:` under `target:` in an entry's YAML | this target always uses its printed image, even when the experience says prepared |
+| the device's override | the reader's debug overlay (*Recognition*: Experience / Original / Prepared), stored on that device | overrides the experience's setting on this phone, for a comparison without publishing ([tracking](tracking.md) "Comparing Original and Prepared") |
+
+The rule is one pure function (`engine/src/scene/recognition-mode.ts`): the device's override, else the experience's
+setting; a target's frame is used only on the prepared path, only without `recognitionOff`, only when it has one. An
+app of schema 4.1 (3.11.x – staging only) knows neither setting and uses a target's `recognition` wherever it is.
+
+**Who makes the frames:**
+- **The editor, by itself** – when a target gets a printed image (an upload or a Library pick in the Inspector, the
+  Library's *Use as target image*, a new target, a new version of the image file) or is placed on a surface, and has no
+  frame for its image yet: in the browser, uploaded as a Library file, stored with the target. It never blocks or fails
+  the target's own change and never touches the printed image; an error shows quietly in the target's inspector, whose
+  *make frame* / *remake* tries again. The inspector shows the frame as a small thumbnail.
+- **`osct targets prepare`** – the batch tool for a whole experience (below).
+- The frames are working copies: the release step (#304) may re-encode them like every other asset, as long as the
+  tracker can still decode the format. The format they are made as is one constant (`RECOGNITION_FRAME_FILE`,
+  `engine/src/scene/target-frame.ts`) for the editor and the CLI.
 
 ```bash
 cd scripts && npm run build
@@ -975,6 +999,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 3.0 | 2.0.1 | in develop | **one clean model of scenes – nothing of 2.x kept** (#319, `agents/SCENES.md` "Schema 3.0"): the configuration's `scenes` (was `spreads`) and `initialScene` (was `initialSpreadId`); a scene is `id`, `label`, `group?`, `surfaces` (at least one: `id`, `label?`, `widthMm`, `heightMm`, `place` – all six numbers required), `passes?`; an entry names its `scene` (required) and a `surface` when the scene has several; a target's `place` (`surface?`, `x`, `y`, `width`, `height?`, mm on the surface) replaces `print`. Removed: `page`, `firstPage`, `lastPage`, a spread's `title`, `format`, `matter` and `layout`, a surface's `side`, `print`, the configuration's `tutorial` | refused: no 2.x reader was shipped – every app since reads 3.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 3), and a 2.x app refuses 3.0 content |
 | 4.0 | 3.0.0 | in develop | **the experience is the top level** (#320, `agents/REFACTOR-EXPERIENCE.md`): the configuration's `experience` (was `book`: `id`, `title`, `passes?`, `environment?`, `appearance?`); the printed book is its optional `book` (`author`, `publisher?` – they were on the top level), none = an experience that is not a book; `sourceOfTruth` is removed (every experience adds and removes its scenes); the behaviour and plugin variable scope `experience` (was `book`, plugin API 3.0) and the text nodes' `{{experience.title}}` (was `{{book.title}}`); `latest.json` / `versions.json` name the `experience` (was `book`). The content source: `experience.yaml` (was `experience.yaml`), converted once with `npm run convert:4` | refused: no 3.x reader was shipped – every app since reads 4.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 4), and a 3.x app refuses 4.0 content |
 | 4.1 | 3.11.0 | in develop | a target's optional `recognition` (#306): `{ imageSrc, width, height }` – its grey recognition frame made ahead with `osct targets prepare` and the printed image's size ("Recognition" above) | ignored: the app makes the frame from the target's image itself, as before |
+| 4.2 | 3.12.0 | in develop | the switch between the recognition paths (#306, "Recognition" above): the experience's optional `recognition` (`"original"` – none, the default – or `"prepared"`; any other text reads as original) and a target's optional `recognitionOff` (`true`: always its printed image) | ignored: a 4.1 app (3.11.x) uses a target's `recognition` wherever it has one; an app before 4.1 makes every frame itself |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

@@ -1,6 +1,7 @@
 import type { LoadOptions, LoadResult } from "@/types";
 import { contentUrl, getAssets, getContentSizes, getNeighbourScenes, getScene, getScenes, getSubtitleFiles, getTargets, isContentUrl } from "@/utils/game-config";
 import { compressedUrl } from "@/utils/compressed";
+import { targetRecognition } from "@engine/utils/recognition-setting";
 import { deviceHints, wantedTextureSize } from "@engine/scene/model-textures";
 import { textureSizeFor } from "@shared/types/textures";
 import { GraphicsService } from "./GraphicsService";
@@ -21,11 +22,12 @@ export interface ExperienceDownload {
 
 
 /**
- * A scene's target images (needed to start AR): a target's recognition frame made ahead (#306 – the engine loads it), else
+ * A scene's target images (needed to start AR): a target's recognition frame made ahead when the path in force uses it
+ * (#306, `targetRecognition()` – the engine loads it), else
  * its printed image (the tracker makes the engine's image target from it)
  */
 const getTargetImages = (sceneId: string): LoadOptions[] =>
-  getTargets(sceneId).map(t => t.recognition?.imageSrc ?? t.imageSrc).filter(isContentUrl).map(src => ({ src, type: "image" }));
+  getTargets(sceneId).map(t => targetRecognition(t)?.imageSrc ?? t.imageSrc).filter(isContentUrl).map(src => ({ src, type: "image" }));
 
 /**
  * Files a scene uses besides its target images: entity assets (AR models, images, audio, videos), the subtitle files

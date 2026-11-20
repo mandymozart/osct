@@ -17,11 +17,12 @@ describe("engine load test report", () => {
 
   it("writes the header and one row per step", () => {
     const report = loadTestReport([result({}), result({ extra: 5, loaded: 7, scenes: 4 })], {
-      experienceTitle: "Test Book", appVersion: "1.6.1", contentHash: "abcdef1234567890", device: "Phone",
+      experienceTitle: "Test Book", appVersion: "1.6.1", contentHash: "abcdef1234567890", device: "Phone", recognition: "prepared (this device's override)",
       date: new Date("2026-10-27T12:00:00Z"), sceneId: "s010-011", sceneTargets: 2, options: { steadyMs: 6000, covers: 2 },
     });
     expect(report).toContain("# Engine load test – Test Book");
     expect(report).toContain("- Date: 2026-10-27 12:00 (UTC)");
+    expect(report).toContain("- Recognition: prepared (this device's override)");
     expect(report).toContain("- Started on s010-011 · 6.0 s measured per step · 2 lens covers per step");
     expect(report).toContain("| 2 (+0) | 1 | s010-011 |");
     expect(report).toContain("| 7 (+5) | 4 | s010-011 |");

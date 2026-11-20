@@ -121,19 +121,24 @@ final class ExperienceTexts
     }
 
     /**
-     * PUT /editor/experiences/{id} { title?, book?: { author?, publisher? } | null } → 200 { experience }: the experience's
+     * PUT /editor/experiences/{id} { title?, book?: { author?, publisher? } | null, recognition?: "original" | "prepared" | null }
+     * → 200 { experience }: the experience's
      * title – the splash, the home page and the onboarding show it – and the printed book it accompanies (#320): `book`
      * changes the fields sent (`publisher: null` or "" removes it), `book: null` removes the printed book, a new one needs
-     * its `author`. 400 `invalid-experience`.
+     * its `author`. `recognition` (#306, schema 4.2): how the reader gets its targets' recognition data – only "prepared"
+     * is stored, "original" or null is the default (none). 400 `invalid-experience`.
      */
     public static function putExperience(string $experienceId): never
     {
         $user = Editor::user();
         Experiences::exists($experienceId);
         $body = Editor::body();
-        $unknown = array_diff(array_keys(get_object_vars($body)), ['title', 'book']);
-        if ($unknown) throw new ApiError(400, 'invalid-experience', 'Unknown field ' . implode(', ', $unknown) . ' – send title or book.');
-        if (!get_object_vars($body)) throw new ApiError(400, 'invalid-experience', 'Send title or book.');
+        $unknown = array_diff(array_keys(get_object_vars($body)), ['title', 'book', 'recognition']);
+        if ($unknown) throw new ApiError(400, 'invalid-experience', 'Unknown field ' . implode(', ', $unknown) . ' – send title, book or recognition.');
+        if (!get_object_vars($body)) throw new ApiError(400, 'invalid-experience', 'Send title, book or recognition.');
+        if (property_exists($body, 'recognition') && !in_array($body->recognition, [null, ...Experiences::RECOGNITION_MODES], true)) {
+            throw new ApiError(400, 'invalid-experience', 'recognition must be "original", "prepared" or null.');
+        }
         $bookBody = $body->book ?? null;
         if (property_exists($body, 'book') && $bookBody !== null) {
             if (!$bookBody instanceof stdClass) throw new ApiError(400, 'invalid-experience', 'book must be an object { author?, publisher? } or null.');
@@ -145,6 +150,11 @@ final class ExperienceTexts
             $experience = Editor::decode($row['experience_json']);
             if (property_exists($body, 'title')) $experience->title = self::text($body->title, 'title', true, 'invalid-experience');
             if (property_exists($body, 'book')) $experience = self::withBook($experience, $bookBody);
+            // The recognition path (#306): only "prepared" is stored – the default, "original", is none
+            if (property_exists($body, 'recognition')) {
+                if ($body->recognition === 'prepared') $experience->recognition = 'prepared';
+                else unset($experience->recognition);
+            }
             $json = Editor::encode($experience);
             Db::run('UPDATE experiences SET title = :title, experience_json = :data WHERE id = :id', ['title' => $experience->title, 'data' => $json, 'id' => $experienceId]);
             Experiences::touchExperience($experienceId);
