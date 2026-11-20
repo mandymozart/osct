@@ -1,6 +1,6 @@
 import {
-  BEHAVIOUR_CORE_EVENTS, BEHAVIOUR_TYPE, behaviourRules, isBehaviourNodeEvent,
-  type BehaviourAction, type BehaviourRule, type BehaviourScope, type EntityData, type GroupData, type PluginData,
+  BEHAVIOUR_CORE_EVENTS, BEHAVIOUR_TYPE, behaviourRules, declaredUses, isBehaviourNodeEvent,
+  type BehaviourAction, type BehaviourRule, type BehaviourScope, type EntityData, type GroupData, type LogicCanvas, type PluginData,
 } from "@engine/types";
 import { expressionVariables, textVariables } from "@shared/text/expressions";
 import { parseAddress } from "@shared/types/address";
@@ -9,6 +9,7 @@ import { pathOfName } from "#lib/behaviour-edit.js";
 import { nodeLabel } from "#lib/tree.js";
 import type { PluginUses } from "./plugin-code";
 import { coreRegistry, type NodeRegistry } from "./registry";
+import { answersVerb, nodePorts, nodeSpecs } from "./spec-ports";
 import type { Context, GraphEdge, GraphNode, Home, LogicPick, Problem, RuleRef, Signal, Stub, View } from "./types";
 
 /**
@@ -38,6 +39,14 @@ import type { Context, GraphEdge, GraphNode, Home, LogicPick, Problem, RuleRef, 
  * emitted that nothing hears, a node an action names that is not there, a goto to a scene that is not there, a rule that hears
  * nothing, and the rules' **type problems** (`ruleTypeProblems`, B7: a condition that is no true / false, a set of another
  * type than the variable's). While a plugin's code is unknown, the names a plugin may set or emit are not said.
+ *
+ * **Ports from the specs** (L-T6, §5.9 – `spec-ports.ts`): at the scene and entity levels a node's box carries the ports its
+ * node type's, components' and material's specs give – its file, its parameters, the verbs it answers, the events it emits.
+ * A rule's node action lands on the node's action inlet when the node answers that verb (else on its `in`); an event a
+ * node's component declares is wired to the event's box when the level has one. The entity level draws every node of its
+ * subtree that has something of its own (any type but a bare group, or a component or a material). A spec's port is
+ * **hidden** until it is wired or the author exposed it (`LogicCanvas.exposed`, the scene's canvas – Blender's way). A
+ * plugin's bus use is what its specs declare (`declaredUses`, schema 5.1), else what its code shows (`pluginCodeUses`).
  */
 
 /** A target as the engine maps it (the entity ref resolved) */
@@ -62,6 +71,8 @@ export interface LogicScene {
   entries?: readonly LogicEntry[];
   /** The scene's own rules (`SceneData.logic`, schema 5.0) */
   rules?: readonly BehaviourRule[];
+  /** The scene's canvas (`SceneData.logic.canvas`): the ports exposed on its boxes (schema 5.1) */
+  canvas?: LogicCanvas;
 }
 
 export interface LogicContent {
@@ -76,6 +87,8 @@ export interface LogicContent {
   rules?: readonly BehaviourRule[];
   /** The declared variables (`ExperienceData.variables`, B7) */
   variables?: Readonly<Record<string, VariableDeclaration>>;
+  /** The experience's canvas (`ExperienceData.logic.canvas`) */
+  canvas?: LogicCanvas;
 }
 
 export interface ProjectOptions {
@@ -112,6 +125,26 @@ export const experienceRuleBox = (rule: number): string => `rule:experience#${ru
 /** A scene's or the experience's rule as the canvas names it */
 export const logicRuleLabel = (ref: Exclude<RuleRef, { doc: "entity" }>): string =>
   ref.doc === "scene" ? `scene rule ${ref.rule + 1}` : `experience rule ${ref.rule + 1}`;
+
+/**
+ * What each plugin uses of the bus and the variables, by plugin id: what its specs declare (schema 5.1), else what its code
+ * shows (`content.code`); a plugin in neither is unknown
+ */
+export const pluginUses = (content: LogicContent): Record<string, PluginUses> => {
+  const uses: Record<string, PluginUses> = { ...(content.code ?? {}) };
+  for (const plugin of content.plugins ?? []) {
+    const declared = declaredUses(plugin.registered);
+    if (declared) uses[plugin.id] = declared;
+  }
+  return uses;
+};
+
+/** Whether a plugin's bus use comes from its specs (true) or its code */
+const declaresUses = (plugin: PluginData | undefined): boolean => !!plugin && declaredUses(plugin.registered) !== null;
+
+/** A plugin box's detail: where what it uses comes from */
+const pluginDetail = (content: LogicContent, id: string, uses: Record<string, PluginUses>): string =>
+  declaresUses(content.plugins?.find(p => p.id === id)) ? "plugin · declared" : uses[id] ? "plugin" : "plugin – its code not read";
 
 /** The plugin that registered a type (a component, a node type, a material), by what the plugins recorded */
 const pluginOfType = (plugins: readonly PluginData[], kind: "components" | "nodeTypes" | "materials", type: string): string | null =>
@@ -246,7 +279,7 @@ const usesOf = (content: LogicContent): Use[] => {
       for (const name of entry.body ? textVariables(entry.body) : []) uses.push({ place, kind: "reads", name });
     }
   }
-  for (const [plugin, code] of Object.entries(content.code ?? {})) {
+  for (const [plugin, code] of Object.entries(pluginUses(content))) {
     const place = pluginPlace(plugin);
     code.hears.forEach(name => uses.push({ place, kind: "hears", name }));
     code.emits.forEach(name => uses.push({ place, kind: "emits", name }));
@@ -401,18 +434,21 @@ interface TargetsInput {
 /** The graph of a scene's targets (or one target's subtree) and its own rules: today's Logic panel (#239) */
 const targetsGraph = (content: LogicContent, uses: readonly Use[], { scene, targets, enterEntities, sceneRules = [] }: TargetsInput, registry: NodeRegistry): Graph => {
   const plugins = content.plugins ?? [];
-  const code = content.code ?? {};
+  const code = pluginUses(content);
   const g = new Graph(registry);
 
   const entityNode = (target: string, root: EntityData, path: number[]): GraphNode => {
     let node: EntityData | undefined = root;
     for (const i of path) node = node?.children?.[i];
     const enter: Context = { level: "entity", scene, target, path: [] };
+    const picture = node?.type === "image" ? node.assets.find(a => a.assetType === "image")?.src : undefined;
     return g.add({
       id: `node:${pathKey(target, path)}`, kind: "node", label: node ? nodeLabel(node) : "?", detail: path.length ? `in ${target}` : `entity of ${target}`,
-      pick: { kind: "node", target, path }, ...(enterEntities ? { enter } : {}),
-    });
+      pick: { kind: "node", target, path }, ...(enterEntities ? { enter } : {}), ...(picture ? { preview: picture } : {}),
+    }, { ports: node ? nodePorts(node, plugins) : [] });
   };
+  /** Where a node action lands: the node's action inlet when it answers the verb, else its `in` */
+  const actionPort = (box: GraphNode, verb: string): [string, string] => [box.id, answersVerb(box.ports, verb) ? `act:${verb}` : "in"];
   const scopes = new Map<string, Set<string>>();
   const setIn = (name: string, scope: string) => scopes.set(name, (scopes.get(name) ?? new Set()).add(scope || content.variables?.[name]?.scope || "scene"));
 
@@ -446,7 +482,7 @@ const targetsGraph = (content: LogicContent, uses: readonly Use[], { scene, targ
           onSet: setIn,
           nodeOf: action => {
             const relative = pathOfName(node, action.node);
-            if (relative) return [entityNode(target.id, root, [...path, ...relative]).id, "in"];
+            if (relative) return actionPort(entityNode(target.id, root, [...path, ...relative]), action.action);
             const missing = g.add({ id: `missing:${pathKey(target.id, path)}:${action.node}`, kind: "node", label: action.node, detail: `not under ${owner}`, pick });
             g.flag(missing, `${owner}, rule ${n + 1}: ${action.action} names ${action.node} – no node of that name under ${owner}`);
             return [missing.id, "in"];
@@ -470,7 +506,7 @@ const targetsGraph = (content: LogicContent, uses: readonly Use[], { scene, targ
         const address = parseAddress(action.node);
         const target = address?.scheme === "target" ? sceneTargets.find(t => t.id === address.id) : undefined;
         const path = target?.entity && address?.scheme === "target" ? pathOfName(target.entity, address.node) : null;
-        if (target?.entity && path) return [entityNode(target.id, target.entity, path).id, "in"];
+        if (target?.entity && path) return actionPort(entityNode(target.id, target.entity, path), action.action);
         const missing = g.add({ id: `missing:scene:${action.node}`, kind: "node", label: action.node || "?", detail: "not in this scene", pick: { kind: "scene", scene } });
         g.flag(missing, `${label}: ${action.action} names ${action.node || "no node"} – ${!address ? "not an address (target:<id>/<name>)" : !target ? "no such target in this scene" : "no node of that name in the target"}`);
         return [missing.id, "in"];
@@ -482,8 +518,18 @@ const targetsGraph = (content: LogicContent, uses: readonly Use[], { scene, targ
   const drawn = new Set<string>();
   const pluginNode = (id: string) => {
     drawn.add(id);
-    return g.add({ id: `plugin:${id}`, kind: "plugin", label: id, detail: code[id] ? "plugin" : "plugin – its code not read", pick: { kind: "plugin", plugin: id } });
+    return g.add({ id: `plugin:${id}`, kind: "plugin", label: id, detail: pluginDetail(content, id, code), pick: { kind: "plugin", plugin: id } });
   };
+  // The entity level: every node of the subtree with something of its own has a box, wired or not (its ports to expose)
+  if (!enterEntities) {
+    for (const target of targets) {
+      if (!target.entity) continue;
+      for (const { node, path } of walk(target.entity)) {
+        if (!startsWith(path, target.under ?? [])) continue;
+        if (node.type !== "group" || nodeSpecs(node, plugins).length > 1 || node.material) entityNode(target.id, target.entity, path);
+      }
+    }
+  }
   for (const target of targets) {
     if (!target.entity) continue;
     for (const { node, path } of walk(target.entity)) {
@@ -510,6 +556,14 @@ const targetsGraph = (content: LogicContent, uses: readonly Use[], { scene, targ
     used.sets.forEach(v => g.link([id, "sets"], [g.variableNode(v).id, "set"], "value", "sets", null));
   }
   scopes.forEach((set, name) => { const node = g.nodes.get(`var:${name}`); if (node) node.detail = `variable · ${[...set].join(", ")}`; });
+  // The events a node's components declare: wired to the event's box where the level has one (the bus joins them by name)
+  for (const box of [...g.nodes.values()]) {
+    for (const port of box.ports) {
+      if (port.kind !== "event") continue;
+      const event = g.nodes.get(`event:${port.label}`);
+      if (event) g.link([box.id, port.id], [event.id, "in"], "event", "emits", null);
+    }
+  }
 
   // A goto to a scene the experience does not have
   for (const goto of g.gotos) {
@@ -523,7 +577,7 @@ const targetsGraph = (content: LogicContent, uses: readonly Use[], { scene, targ
 /** Problems across the experience – only when every plugin's code is known (a plugin may set or emit anything) */
 const flagNames = (g: Graph, content: LogicContent, uses: readonly Use[]): void => {
   const plugins = content.plugins ?? [];
-  const code = content.code ?? {};
+  const code = pluginUses(content);
   if (!plugins.every(p => code[p.id])) return;
   const ruleUse = (kind: UseKind) => new Set(uses.filter(u => u.kind === kind && (u.place.target !== null || u.place.plugin !== null || u.place.logic !== null)).map(u => u.name));
   const sets = ruleUse("sets");
@@ -629,8 +683,21 @@ const sceneView = (content: LogicContent, context: Extract<Context, { level: "sc
   const stubs = [...nameStubs(content, g, joinsOf(uses), isNear, { scene: scene.id }), ...gotoStubs(content, g)];
   const lists = logicRuleLists(content).filter(l => l.scene === scene.id && (!entity || l.target === context.target));
   const problems = [...g.problems, ...typeProblemsOf(lists, logicTypes(content)).map(message => ({ message }))];
-  return { context, levels, nodes: [...g.nodes.values()], edges: g.edges, stubs, problems, canvas: EMPTY_CANVAS() };
+  const nodes = hideUnused([...g.nodes.values()], [...g.edges, ...stubs.map(s => s.edge)], scene.canvas?.exposed ?? {});
+  return { context, levels, nodes, edges: g.edges, stubs, problems, canvas: EMPTY_CANVAS() };
 };
+
+/**
+ * The Blender way (§5.9.4): a spec's port is hidden unless a wire uses it or the author exposed it (`exposed`: box id → port
+ * ids, the canvas's); the grammar's own ports always show
+ */
+export const hideUnused = (nodes: GraphNode[], edges: readonly GraphEdge[], exposed: Readonly<Record<string, readonly string[]>>): GraphNode[] =>
+  nodes.map(node => {
+    if (!node.ports.some(p => p.kind)) return node;
+    const used = new Set(edges.flatMap(e => [e.from[0] === node.id ? `out:${e.from[1]}` : "", e.to[0] === node.id ? `in:${e.to[1]}` : ""]));
+    const shown = new Set(exposed[node.id] ?? []);
+    return { ...node, ports: node.ports.map(p => (p.kind && !used.has(`${p.dir}:${p.id}`) && !shown.has(p.id) ? { ...p, hidden: true } : p)) };
+  });
 
 /** A place as a box of the group and experience levels: a scene (rules and texts together) or a plugin; the experience's rules: none */
 const boxOf = (place: Place) => (place.plugin !== null ? `plugin:${place.plugin}` : place.scene !== null ? `scene:${place.scene}` : null);
@@ -766,7 +833,7 @@ const groupView = (content: LogicContent, context: Extract<Context, { level: "gr
 
 const experienceView = (content: LogicContent, context: Context, uses: readonly Use[], registry: NodeRegistry): View => {
   const g = new Graph(registry);
-  const code = content.code ?? {};
+  const code = pluginUses(content);
   const groups = new Set((content.groups ?? []).map(group => group.id));
   for (const group of content.groups ?? []) {
     const count = content.scenes.filter(s => s.group === group.id).length;
@@ -774,7 +841,7 @@ const experienceView = (content: LogicContent, context: Context, uses: readonly 
   }
   content.scenes.forEach(scene => sceneBox(g, scene, scene.group && groups.has(scene.group) ? scene.group : undefined));
   for (const plugin of content.plugins ?? []) {
-    g.add({ id: `plugin:${plugin.id}`, kind: "plugin", label: plugin.id, detail: code[plugin.id] ? "plugin" : "plugin – its code not read", pick: { kind: "plugin", plugin: plugin.id } });
+    g.add({ id: `plugin:${plugin.id}`, kind: "plugin", label: plugin.id, detail: pluginDetail(content, plugin.id, code), pick: { kind: "plugin", plugin: plugin.id } });
   }
 
   // Variables that cross scenes: set in a wider scope than the scene's, or by a plugin – through their own box

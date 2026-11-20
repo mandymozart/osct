@@ -6,6 +6,7 @@ import * as esbuild from 'esbuild';
 import ts from 'typescript';
 import * as THREE from 'three';
 import { componentSpecProblems, registerComponentSpec, type ComponentSpec } from '../../../shared/types/components';
+import { PARAM_BUILDERS } from '../../../shared/types/spec-builders';
 import { PLUGIN_API_VERSION, PLUGIN_ID_PATTERN, type PluginData, type PluginRegistrations } from '../../../shared/types/plugins';
 import { nodeTypeSpecProblems, registerNodeTypeSpec, type NodeTypeSpec } from '../../../shared/types/node-types';
 import {
@@ -164,6 +165,14 @@ export const dummyFeedback = (options: Partial<FeedbackOptions> | undefined): Fe
   };
 };
 
+/** A pass's or a look's recorded spec: its description and parameters, and what it declares for the Logic view (schema 5.1) */
+const passSpec = (spec: ComponentSpec): ComponentSpec => ({
+  description: spec.description, params: spec.params,
+  ...(spec.actions !== undefined ? { actions: spec.actions } : {}),
+  ...(spec.events !== undefined ? { events: spec.events } : {}),
+  ...(spec.uses !== undefined ? { uses: spec.uses } : {}),
+});
+
 /** A recorded spec as the configuration holds it: plain JSON (a plugin's spec object may carry more than data) */
 const plain = <T>(spec: T): T => JSON.parse(JSON.stringify(spec)) as T;
 
@@ -207,6 +216,7 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
     const recording: PluginApi = {
       version: PLUGIN_API_VERSION,
       three: THREE,
+      p: PARAM_BUILDERS,
       registerComponent: (type: string, spec: ComponentSpec, apply: unknown) => {
         if (typeof apply !== 'function') buildErrors.push(`plugins/${id}: ${type} needs an apply(context) function`);
         take(type, spec);
@@ -230,7 +240,7 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
         }
         taken.set(key, id);
         types.push(type);
-        registered.passes[type] = plain({ description: spec.description, params: spec.params });
+        registered.passes[type] = plain(passSpec(spec));
       },
       // A look (API 1.8): its spec and factory checked and recorded – the experience names it in `appearance` (schema 2.29,
       // checked against the recorded spec); a built-in look's name or one another plugin took is an error
@@ -246,7 +256,7 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
         }
         taken.set(key, id);
         types.push(type);
-        registered.appearances[type] = plain({ description: spec.description, params: spec.params });
+        registered.appearances[type] = plain(passSpec(spec));
         // The entities' own looks (`reveal`, `found`, `lost` components) are checked against it
         registerAppearanceSpec(type, registered.appearances[type]);
       },

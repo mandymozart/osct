@@ -536,6 +536,42 @@ writes is type-checked first (B8).
   `PUT …/logic`) and has the stage build the open scene again from the new draft. The words – or the refusal – show for a
   moment under the bar.
 
+**Ports from the specs** (content schema 5.1, #334 L-T6, research §5.9 – as Unreal, Houdini, Blender and ComfyUI do it): a
+node's box shows what its specs say, nothing drawn by hand per component (`logic/spec-ports.ts`). Its node type's spec (the
+built-in ones' `BUILT_IN_NODE_SPECS` – a video's and an image's file, a text's line and colour, a light's parameters, a
+model's `play` / `pause` / `stop`, `show` / `hide` on every node – or a plugin's), its components' (`animation`, a plugin's)
+and its material's give:
+
+- the node's **file** → a **media** inlet (a hollow square; its wires are thick) – the new signal beside event, value, node
+  and scene, for a picture, a sound, a video, a model;
+- every **parameter** → a **value** inlet (a diamond), typed by its kind – *a number 0–1*, *a whole number 1–8*, *one of
+  loop, once*, *a colour* (a texture or model parameter is a media inlet);
+- every verb in the spec's **actions** → an **action** inlet (a triangle pointing in: a rule's verb);
+- every name in its **events** → an **event** outlet.
+
+The ports are rows under the box's head, each with its name (its tooltip says whose it is and what it takes). The entity
+level draws every node of its subtree that has something of its own (any type but a bare group, or a component or a
+material), wired or not; the scene level the nodes its rules and plugins touch. An image node's box shows its picture (the
+choice of what a box previews is L-T15).
+
+- **Blender's way**: unused ports are **hidden**. A box shows its wired ports – a rule's *show* lands on the node's *show*
+  inlet, a *play* on its *play* (else on the node's own inlet), a component's declared event on the event's box when the
+  level has one – plus a **+** that lists the hidden ones: *Show volume*, *Show every port*, *Hide unused ports* (this box)
+  and *Hide unused ports on every box*. **Ctrl+H** in the panel hides every box's unused ports again; the box's right-click
+  menu has *Show a port…* and *Hide unused ports*. Which ports an author exposed is canvas data – `exposed` of the scene's
+  `logic.canvas` (the scene and entity levels) or the experience's – saved like a rule (`logicEdit.setCanvas`) and never
+  in a reader's build.
+- **Connecting is strictly typed** (B8): while a wire is dragged, the handles that take it are drawn heavy and the rest
+  fade; one let go where it does not fit says why under the bar – *volume takes a number 0–1, not a text (mood)*. No
+  conversion but whole number → number. **A wire still needs a field to land in** (L1): a rule's do (its **+** or an
+  action's outlet) into an **action inlet** writes that verb on the node (re-aimed into another verb's inlet, the action
+  takes that verb); a node's **event outlet** into a rule's **on** makes the rule hear that event by name; a **parameter
+  inlet** is drawn and typed, but no rule action sets a component's parameter yet – the wire is refused with that reason
+  (*set it in the Inspector*); a **file inlet** waits for file nodes on the canvas (L-T12).
+- **A plugin's bus use** is what its specs declare (`uses`, `events` – recorded in `registered`, schema 5.1); a plugin box
+  says *plugin · declared*. Only for a plugin that declares nothing is its source read (`plugin-code.ts`, the regex reading
+  of `api.events.on("x")` and the like).
+
 ### The experience search
 
 The top bar's search (#237, `ExperienceSearch.svelte`, the logic in `experience-search.ts`) finds in the whole experience while an experience is

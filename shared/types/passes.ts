@@ -15,10 +15,11 @@
  * docs/content.md.
  */
 
-import { type ComponentParamSpec, paramProblems } from "./components";
+import { type ComponentParamSpec, paramProblems, type SpecLogic } from "./components";
 import { isObject } from "../guards/primitives";
 
-export interface PassSpec {
+/** Schema 5.1: `actions`, `events`, `uses` (`SpecLogic`) as a component's */
+export interface PassSpec extends SpecLogic {
   description: string;
   params: Record<string, ComponentParamSpec>;
 }

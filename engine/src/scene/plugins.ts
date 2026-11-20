@@ -15,6 +15,12 @@ import {
   pluginApiCompatible,
   type PluginData,
   type PassSpec,
+  type ActionsOf,
+  type EventsOf,
+  numberProblem,
+  PARAM_BUILDERS,
+  type ParamBuilders,
+  type ParamsOf,
   registerComponentSpec,
   registerMaterialSpec,
   registerNodeTypeSpec,
@@ -80,11 +86,17 @@ import { collectFeedbacks, createFeedback, disposePluginFeedbacks, type Feedback
  * (`pluginRegistrySnapshot` → `mirrorPluginRegistry`).
  */
 
-/** What a component's `apply` gets: the node, its parameters resolved, the node's objects, the target, three.js */
-export interface ComponentContext {
+/** A spec's parameters as its handler gets them: typed from the spec (`ParamsOf`), a texture parameter as a three.js texture or null */
+export type PluginParams<S> = ParamsOf<S, THREE.Texture | null>;
+
+/**
+ * What a component's `apply` gets: the node, its parameters resolved, the node's objects, the target, three.js, and `emit`.
+ * `P`, `E`: the parameters and the event names its spec declares (inferred by `registerComponent`)
+ */
+export interface ComponentContext<P = Record<string, unknown>, E extends string = string> {
   node: EntityData;
   /** The component's parameters with the spec's defaults filled in */
-  params: Record<string, unknown>;
+  params: P;
   /** The node's own object (a model's scene, a video's plane) – the placement group for a node without one */
   object: Object3D;
   /** The placement group around the node (its position / rotation / scale relative to the parent) */
@@ -94,10 +106,15 @@ export interface ComponentContext {
   target: Target;
   /** The app's three.js (one instance – plugins never import three themselves) */
   three: typeof THREE;
+  /**
+   * Emit one of the events its spec declares (`events`) on the bus, with the target's id (and the payload's fields) – a
+   * rule hears it by name. An event the spec does not declare is not sent (a warning)
+   */
+  emit(event: E, payload?: Record<string, unknown>): void;
 }
 
-/** The hooks a component returns; every one is optional */
-export interface ComponentInstance {
+/** The hooks a component returns; every one is optional. `P`, `A`: its spec's parameters and actions */
+export interface ComponentInstance<P = Record<string, unknown>, A extends string = string> {
   /** Every rendered frame while the scene runs (seconds since the last frame) */
   update?(delta: number): void;
   onFound?(): void;
@@ -111,10 +128,16 @@ export interface ComponentInstance {
   /** Free what the component created */
   dispose?(): void;
   /** Apply other parameter values in place (the editor's live edit); false = the node is built anew */
-  tune?(params: Record<string, unknown>): boolean;
+  tune?(params: P): boolean;
+  /**
+   * A rule's verb on the node, one of the spec's `actions` (`play: door` reaches a component of the node `door` that
+   * declares `play`) – beside what the engine does itself (a model's clip, the node's visibility)
+   */
+  onAction?(action: A): void;
 }
 
-export type ComponentApply = (context: ComponentContext) => ComponentInstance | null | void;
+export type ComponentApply<P = Record<string, unknown>, A extends string = string, E extends string = string> =
+  (context: ComponentContext<P, E>) => ComponentInstance<P, A> | null | void;
 
 /**
  * A material layer: the body of a GLSL function `vec4 (vec4 rgba, vec2 uv, float time, <the parameters>)`, run on
@@ -126,11 +149,11 @@ export interface LayerDefinition {
   glsl: string;
 }
 
-/** What a node type's `build` gets: the node, its parameters resolved, its file loaded, the target, three.js */
-export interface NodeTypeContext {
+/** What a node type's `build` gets: the node, its parameters resolved, its file loaded, the target, three.js, `emit` */
+export interface NodeTypeContext<P = Record<string, unknown>, E extends string = string> {
   node: EntityData;
   /** The node type's parameters (from the node's `params`) with the spec's defaults filled in */
-  params: Record<string, unknown>;
+  params: P;
   /**
    * The node's file, loaded – a model's `scene` and `animations`, a video's `element` and `texture`, an image's
    * `texture` – or undefined (a type without `src`, or the file did not load). It is shared with every node that uses
@@ -140,6 +163,8 @@ export interface NodeTypeContext {
   target: Target;
   /** The app's three.js (one instance – plugins never import three themselves) */
   three: typeof THREE;
+  /** Emit one of the events its spec declares, as a component's `emit` */
+  emit(event: E, payload?: Record<string, unknown>): void;
 }
 
 /**
@@ -148,7 +173,7 @@ export interface NodeTypeContext {
  * material it replaces the material of every mesh of the object, except a mesh with `userData.keepMaterial =
  * true`.
  */
-export interface NodeTypeInstance {
+export interface NodeTypeInstance<P = Record<string, unknown>, A extends string = string> {
   object: Object3D;
   update?(delta: number): void;
   onFound?(): void;
@@ -159,50 +184,63 @@ export interface NodeTypeInstance {
   /** Free what the build created (geometries, materials, textures of its own – not the shared asset) */
   dispose?(): void;
   /** Apply other parameter values in place (the editor's live edit); false = the node is built anew */
-  tune?(params: Record<string, unknown>): boolean;
+  tune?(params: P): boolean;
+  /** A rule's verb on the node, one of the spec's `actions` (as a component's) */
+  onAction?(action: A): void;
 }
 
-export type NodeTypeBuild = (context: NodeTypeContext) => NodeTypeInstance | null | void;
+export type NodeTypeBuild<P = Record<string, unknown>, A extends string = string, E extends string = string> =
+  (context: NodeTypeContext<P, E>) => NodeTypeInstance<P, A> | null | void;
 
 export interface PluginApi {
   /** `PLUGIN_API_VERSION` */
   readonly version: string;
   readonly three: typeof THREE;
-  registerComponent(type: string, spec: ComponentSpec, apply: ComponentApply): void;
-  registerLayer(type: string, spec: ComponentSpec, layer: LayerDefinition): void;
+  /**
+   * The parameter builders (API 3.1, `p.number({ min, max, slider? })`, `p.choice(["a", "b"])` …): they write the plain
+   * parameter objects, and the register functions infer the handler's `params` from them
+   */
+  readonly p: ParamBuilders;
+  /**
+   * A component: its spec (parameters, and optionally `actions`, `events`, `uses`) and `apply`, which gets the parameters
+   * typed from the spec (`params.speed: number`), `emit` for the declared events and returns hooks (`onAction` for the
+   * declared actions)
+   */
+  registerComponent<const S extends ComponentSpec>(type: string, spec: S, apply: ComponentApply<PluginParams<S>, ActionsOf<S>, EventsOf<S>>): void;
+  registerLayer<const S extends ComponentSpec>(type: string, spec: S, layer: LayerDefinition): void;
   /**
    * A node type of the plugin's own: `build` makes its three.js object with `api.three` (Points, a Sprite,
    * a Line, a mesh with its own material); the engine places it like every node – placement, children, components and
    * layers come with it. The spec declares its parameters (rows in the Entity panel, values in the node's `params`)
    * and the file its `src` takes (`glb`, `video`, `image` or `none`).
    */
-  registerNodeType(type: string, spec: NodeTypeSpec, build: NodeTypeBuild): void;
+  registerNodeType<const S extends NodeTypeSpec>(type: string, spec: S, build: NodeTypeBuild<PluginParams<S>, ActionsOf<S>, EventsOf<S>>): void;
   /**
    * A post-processing pass of the plugin's own: its spec as the built-in passes have it, the factory builds the
    * three.js pass (`PassContext`: the resolved parameters, `shaderPass`, the canvas size). The content names it in
    * `passes: [{ type, … }]`; the plugin's pass leaves the registry when the plugin is uninstalled.
    */
-  registerPass(type: string, spec: PassSpec, factory: PassFactory): void;
+  registerPass<const S extends PassSpec>(type: string, spec: S, factory: PassFactory<PluginParams<S>>): void;
   /**
    * A whole material: `build` makes a three.js material – a `ShaderMaterial` with GLSL of its own, a
    * `MeshStandardMaterial` with a procedural texture – and may return `{ material, update, tune, dispose }`. A node names
    * it as `material: { type, params }`; it replaces the material of the node's meshes (a model's, a plane's, a plugin
    * node's), the node's layers still add on top. `time` in the context is a uniform the engine advances.
    */
-  registerMaterial(type: string, spec: MaterialSpec, build: MaterialBuild): void;
+  registerMaterial<const S extends MaterialSpec>(type: string, spec: S, build: MaterialBuild<PluginParams<S>>): void;
   /**
    * A procedural texture: `draw` makes a three.js texture (a `CanvasTexture`, a `DataTexture`) and may
    * return `{ texture, update, dispose }` to animate it. Any spec's `texture` parameter takes it by its type – a
    * material's, a layer's, a component's, a node type's.
    */
-  registerTexture(type: string, spec: TextureSpec, draw: TextureDraw): void;
+  registerTexture<const S extends TextureSpec>(type: string, spec: S, draw: TextureDraw<ParamsOf<S>>): void;
   /**
    * A look of the plugin's own: how an entity appears and disappears. The factory runs once per animation with the
    * entity, its anchor, the resolved parameters and the moment (`AppearanceContext`) and returns
    * `{ duration, update(visible), dispose? }` – `visible` runs from 0 to 1 on `reveal` and `found`, from 1 to 0 on
    * `lost`. The experience names it by its type in `appearance: { reveal, found, lost }`, in a built-in look's place.
    */
-  registerAppearance(type: string, spec: AppearanceSpec, factory: AppearanceFactory): void;
+  registerAppearance<const S extends AppearanceSpec>(type: string, spec: S, factory: AppearanceFactory<ParamsOf<S>>): void;
   /** Core events of the scene (read-only) and scene events of the content */
   readonly events: PluginEvents;
   /** Variables in the scopes scene, stage, session and experience */
@@ -398,11 +436,12 @@ export const installPlugin = (id: string, module: PluginModule): void => {
   const api: PluginApi = {
     version: PLUGIN_API_VERSION,
     three: THREE,
+    p: PARAM_BUILDERS,
     ...runtimeApi(id, run),
     registerComponent: (type, spec, apply) => {
       check(type, spec);
       if (typeof apply !== "function") throw new PluginError(id, `${id}: ${type} needs an apply(context) function`);
-      staged.components.set(type, { plugin: id, spec, apply });
+      staged.components.set(type, { plugin: id, spec, apply: apply as ComponentApply });
     },
     registerLayer: (type, spec, layer) => {
       check(type, spec);
@@ -416,7 +455,7 @@ export const installPlugin = (id: string, module: PluginModule): void => {
       if (staged.passes.has(type)) problems.push(`the pass "${type}" is registered twice`);
       if (typeof factory !== "function") problems.push(`the pass "${type}" needs a factory`);
       if (problems.length) throw new PluginError(id, `${id}: ${problems.join("; ")}`);
-      staged.passes.set(type, { spec, factory });
+      staged.passes.set(type, { spec, factory: factory as PassFactory });
     },
     registerNodeType: (type, spec, build) => {
       const problems = nodeTypeSpecProblems(type, spec);
@@ -425,7 +464,7 @@ export const installPlugin = (id: string, module: PluginModule): void => {
       if (staged.nodeTypes.has(type)) problems.push(`the node type "${type}" is registered twice`);
       if (typeof build !== "function") problems.push(`the node type "${type}" needs a build(context) function`);
       if (problems.length) throw new PluginError(id, `${id}: ${problems.join("; ")}`);
-      staged.nodeTypes.set(type, { plugin: id, spec, build });
+      staged.nodeTypes.set(type, { plugin: id, spec, build: build as NodeTypeBuild });
     },
     registerMaterial: (type, spec, build) => {
       const problems = materialSpecProblems(type, spec);
@@ -434,7 +473,7 @@ export const installPlugin = (id: string, module: PluginModule): void => {
       if (staged.materials.has(type)) problems.push(`the material "${type}" is registered twice`);
       if (typeof build !== "function") problems.push(`the material "${type}" needs a build(context) function`);
       if (problems.length) throw new PluginError(id, `${id}: ${problems.join("; ")}`);
-      staged.materials.set(type, { spec, build });
+      staged.materials.set(type, { spec, build: build as MaterialBuild });
     },
     registerTexture: (type, spec, draw) => {
       const problems = textureSpecProblems(type, spec);
@@ -443,7 +482,7 @@ export const installPlugin = (id: string, module: PluginModule): void => {
       if (staged.textures.has(type)) problems.push(`the texture "${type}" is registered twice`);
       if (typeof draw !== "function") problems.push(`the texture "${type}" needs a draw(context) function`);
       if (problems.length) throw new PluginError(id, `${id}: ${problems.join("; ")}`);
-      staged.textures.set(type, { spec, draw });
+      staged.textures.set(type, { spec, draw: draw as TextureDraw });
     },
     registerAppearance: (type, spec, factory) => {
       const problems = componentSpecProblems(type, spec).filter(problem => !problem.endsWith("is a built-in component"));
@@ -453,7 +492,7 @@ export const installPlugin = (id: string, module: PluginModule): void => {
       if (staged.appearances.has(type)) problems.push(`the look "${type}" is registered twice`);
       if (typeof factory !== "function") problems.push(`the look "${type}" needs a factory`);
       if (problems.length) throw new PluginError(id, `${id}: ${problems.join("; ")}`);
-      staged.appearances.set(type, { spec, factory });
+      staged.appearances.set(type, { spec, factory: factory as AppearanceFactory });
     },
     loadText: url => loadText(url),
     loadModel: url => loadModel(url),
@@ -530,10 +569,11 @@ export const buildPluginNode = (
   node: EntityData,
   target: Target,
   asset: (id: string) => LoadedAsset | undefined,
-): (Omit<NodeTypeInstance, "tune"> & { tune(next: EntityData): boolean }) | null => {
+): (Omit<NodeTypeInstance, "tune"> & { tune(next: EntityData): boolean; act(verb: string): boolean }) | null => {
   const registration = nodeTypes.get(node.type);
   if (!registration) return null;
-  const params = resolveNodeParams(registration.spec, node.params);
+  const where = `node type ${node.type} on ${target.id}`;
+  const params = withinLimits(registration.spec.params, resolveNodeParams(registration.spec, node.params), null, where);
   const file = node.assets[0];
   // Texture parameters arrive as three.js textures
   const textures = resolveTextures(registration.spec.params, params, `node type ${node.type} on ${target.id}`);
@@ -541,7 +581,7 @@ export const buildPluginNode = (
   // The feedback buffers the build makes belong to the node: they pause with it and go with it
   let feedbacks: OwnedFeedbacks | null = null;
   try {
-    [instance, feedbacks] = collectFeedbacks(() => registration.build({ node, params: textures.values, asset: file ? asset(file.id) : undefined, target, three: THREE }));
+    [instance, feedbacks] = collectFeedbacks(() => registration.build({ node, params: textures.values, asset: file ? asset(file.id) : undefined, target, three: THREE, emit: specEmitter(registration.plugin, registration.spec, target, node.type) }));
   } catch (error) {
     console.error(`[plugins] the node type ${node.type} (plugin ${registration.plugin}) failed on ${target.id}:`, error);
     failures.set(node.type, error instanceof Error ? `${error.name}: ${error.message}` : String(error));
@@ -564,6 +604,7 @@ export const buildPluginNode = (
   let applied = params;
   return {
     ...built,
+    act: verb => answers(registration.spec, verb) && !!built.onAction && (call(() => built.onAction!(verb), where), true),
     update: delta => {
       textures.update(delta);
       built.update?.(delta);
@@ -575,7 +616,7 @@ export const buildPluginNode = (
     },
     tune: next => {
       if (next.type !== node.type || (next.assets[0]?.src ?? "") !== (file?.src ?? "")) return false;
-      const values = resolveNodeParams(registration.spec, next.params);
+      const values = withinLimits(registration.spec.params, resolveNodeParams(registration.spec, next.params), applied, where);
       // Another texture: built anew
       if (!sameTextures(registration.spec.params, values, applied)) return false;
       const same = Object.keys(values).every(key => JSON.stringify(values[key]) === JSON.stringify(applied[key]));
@@ -620,11 +661,54 @@ export const loadPlugins = async (
 };
 
 /** The components of a node that a plugin registered (not the built-in ones), with their parameters resolved */
-export const pluginComponentsOf = (node: EntityData): Array<{ data: ComponentData; registration: ComponentRegistration; params: Record<string, unknown> }> =>
+export const pluginComponentsOf = (node: EntityData, previous?: ReadonlyArray<Record<string, unknown>>): Array<{ data: ComponentData; registration: ComponentRegistration; params: Record<string, unknown> }> =>
   (node.components ?? []).flatMap(data => {
     const registration = components.get(data.type);
-    return registration ? [{ data, registration, params: resolveParams(registration.spec, data) }] : [];
+    if (!registration) return [];
+    const at = (node.components ?? []).filter(c => components.has(c.type)).indexOf(data);
+    return [{ data, registration, params: withinLimits(registration.spec.params, resolveParams(registration.spec, data), previous?.[at] ?? null, `${data.type} on ${node.name || node.type}`) }];
   });
+
+/**
+ * Values outside a number parameter's hard limits (`min`, `max`, `integer` – the guard and the editor refuse them) are not
+ * applied: the value applied before stays (the default when there is none yet), with a warning
+ */
+export const withinLimits = (
+  specParams: Record<string, ComponentSpec["params"][string]>, values: Record<string, unknown>, previous: Record<string, unknown> | null, where: string,
+): Record<string, unknown> => {
+  let checked = values;
+  for (const [name, param] of Object.entries(specParams)) {
+    if (param.kind !== "number") continue;
+    const problem = numberProblem(param, values[name]);
+    if (!problem) continue;
+    const kept = previous && !numberProblem(param, previous[name]) ? previous[name] : param.default;
+    console.warn(`[plugins] ${where}: ${name} ${problem} – keeps ${JSON.stringify(kept)}`);
+    checked = { ...checked, [name]: kept };
+  }
+  return checked;
+};
+
+/** Does a spec answer a rule's verb (`actions`)? */
+const answers = (spec: { actions?: readonly string[] }, verb: string): boolean => !!spec.actions?.includes(verb);
+
+/** Run a plugin's hook; what it throws is logged, never the scene's */
+const call = (hook: () => void, where: string): void => {
+  try {
+    hook();
+  } catch (error) {
+    console.error(`[plugins] ${where}:`, error);
+  }
+};
+
+/** A handler's `emit`: one of its spec's events on the bus, with the target's id; an undeclared one is not sent */
+const specEmitter = (plugin: string, spec: { events?: readonly string[] }, target: Target, type: string) =>
+  (event: string, payload?: Record<string, unknown>): void => {
+    if (!spec.events?.includes(event)) {
+      console.warn(`[plugins] ${type} (plugin ${plugin}) emits "${event}", which its spec does not declare (events: ${spec.events?.join(", ") || "none"}) – not sent`);
+      return;
+    }
+    runtimeApi(plugin, 0).events.emit(event, { ...payload, targetId: target.id });
+  };
 
 /** The material layers of a node, in order, with their parameters resolved */
 export const layersOf = (node: EntityData): Array<{ data: ComponentData; registration: LayerRegistration; params: Record<string, unknown> }> =>
@@ -643,8 +727,8 @@ export const unknownComponentTypes = (node: EntityData, builtIn: readonly string
  * stay the same types in the same order; else the node is built anew.
  */
 export const applyComponents = (
-  context: Omit<ComponentContext, "params" | "three">,
-): { parts: ComponentInstance[]; types: string[]; tune(node: EntityData): boolean } => {
+  context: Omit<ComponentContext, "params" | "three" | "emit">,
+): { parts: ComponentInstance[]; types: string[]; tune(node: EntityData): boolean; act(verb: string): boolean } => {
   const applied = pluginComponentsOf(context.node);
   // Texture parameters arrive as three.js textures; each component's go with it
   const resolved = applied.map(({ registration, params, data }) => resolveTextures(registration.spec.params, params, `${data.type} on ${context.target.id}`));
@@ -653,7 +737,7 @@ export const applyComponents = (
     let part: ComponentInstance;
     let feedbacks: OwnedFeedbacks | null = null;
     try {
-      [part, feedbacks] = collectFeedbacks(() => registration.apply({ ...context, params: textures.values, three: THREE }) ?? {});
+      [part, feedbacks] = collectFeedbacks(() => registration.apply({ ...context, params: textures.values, three: THREE, emit: specEmitter(registration.plugin, registration.spec, context.target, data.type) }) ?? {});
       // The component's feedback buffers pause with the node's object and go with it
       feedbacks.own(context.object);
     } catch (error) {
@@ -679,8 +763,15 @@ export const applyComponents = (
   return {
     parts,
     types,
+    // A rule's verb: every component of the node whose spec declares it (true when one took it)
+    act: verb => applied.reduce((took, { registration, data }, i) => {
+      const hook = parts[i].onAction;
+      if (!answers(registration.spec, verb) || !hook) return took;
+      call(() => hook(verb), `${data.type} on ${context.target.id}`);
+      return true;
+    }, false),
     tune: node => {
-      const next = pluginComponentsOf(node);
+      const next = pluginComponentsOf(node, applied.map(a => a.params));
       if (next.length !== applied.length || next.some((c, i) => c.data.type !== types[i])) return false;
       if (next.some((c, i) => !sameTextures(c.registration.spec.params, c.params, applied[i].params))) return false;
       return next.every((c, i) => parts[i].tune?.(withTextures(c.registration.spec.params, c.params, resolved[i].values))

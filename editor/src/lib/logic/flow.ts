@@ -1,6 +1,7 @@
 import { LOGIC_SIZE, layoutLogic, type LayoutSize } from "./layout";
 import { neverFires, stubNeverFires } from "./navigation";
-import type { GraphNode, PortSpec, Signal, Stub, View } from "./types";
+import { typeWords } from "./spec-ports";
+import type { GraphNode, PortKind, PortSpec, Signal, Stub, View } from "./types";
 
 /**
  * A level's `View` as boxes and wires to draw (#334 L-T3): the rendering layer (`panels/LogicCanvas.svelte`, `@xyflow/svelte` –
@@ -10,6 +11,10 @@ import type { GraphNode, PortSpec, Signal, Stub, View } from "./types";
  * port an edge names that the type does not (so no wire is dropped), the inlets on the left, the outlets on the right.
  * A wire carries its signal (drawn by dash, not colour – DESIGN.md has no signal colours yet, L-T8) and whether it can
  * fire (`navigation.ts`: an event between two scenes never does).
+ *
+ * A spec's ports (L-T6, `spec-ports.ts`) are drawn as **rows** under the box's head, each with its name – inlets left,
+ * outlets right – and only while shown: the hidden ones wait behind the box's **+** (`FlowBox.hidden`). A box grows by its
+ * rows; the level's layout takes the tallest box's height (`boxHeight`).
  */
 
 export interface FlowPort {
@@ -17,6 +22,12 @@ export interface FlowPort {
   label: string;
   signal: Signal;
   dir: "in" | "out";
+  /** A spec's port: drawn as a row with its name */
+  kind?: PortKind;
+  /** What it takes or gives, in words (`a number 0–1`) – its tooltip */
+  detail?: string;
+  /** Whose it is (`video`, `hum`) */
+  owner?: string;
 }
 
 export interface FlowBox {
@@ -27,7 +38,12 @@ export interface FlowBox {
   node: GraphNode | null;
   /** The stub it draws */
   stub: Stub | null;
+  /** The ports drawn: the grammar's, and a spec's that are wired or exposed */
   ports: FlowPort[];
+  /** A spec's ports that are hidden (the box's + exposes them) */
+  hidden: FlowPort[];
+  /** Its height in px: the head, and a row per spec port shown */
+  h: number;
 }
 
 export interface FlowWire {
@@ -51,16 +67,33 @@ export interface Flow {
   wires: FlowWire[];
 }
 
+/** The head of a box (its label and detail) and one row of a spec's port, in px */
+export const BOX_HEAD = 40;
+export const PORT_ROW = 15;
+
+/** A port as drawn */
+const flowPort = ({ id, label, signal, dir, kind, type, owner }: PortSpec): FlowPort => ({
+  id, label, signal, dir, ...(kind ? { kind, owner, detail: type ? typeWords(type) : kind === "action" ? "a rule's verb" : kind === "event" ? "an event, by name" : undefined } : {}),
+});
+
 const portsOf = (spec: readonly PortSpec[], used: readonly FlowPort[]): FlowPort[] => {
-  const ports: FlowPort[] = spec.map(({ id, label, signal, dir }) => ({ id, label, signal, dir }));
+  const ports: FlowPort[] = spec.filter(p => !p.hidden).map(flowPort);
   for (const u of used) if (!ports.some(p => p.id === u.id && p.dir === u.dir)) ports.push(u);
   return ports;
+};
+
+/** A box's height: its head and a row per spec port it shows */
+export const boxHeight = (ports: readonly FlowPort[]): number => {
+  const rows = ports.filter(p => p.kind).length;
+  return rows ? BOX_HEAD + rows * PORT_ROW + 4 : BOX_HEAD;
 };
 
 /** A handle's id: the port's id with its side, so an inlet and an outlet of one name stay apart */
 export const handleId = (port: Pick<FlowPort, "id" | "dir">): string => `${port.dir}:${port.id}`;
 
-export const flowOf = (view: View, size: LayoutSize = LOGIC_SIZE): Flow => {
+export const flowOf = (view: View, base: LayoutSize = LOGIC_SIZE): Flow => {
+  // The tallest box sets the rows' height: a box with exposed ports must not reach into the next one
+  const size = { ...base, h: Math.max(base.h, ...view.nodes.map(n => boxHeight(n.ports.filter(p => !p.hidden).map(flowPort)))) };
   // The boxes without a wire (a scene without crossing logic, a plugin nobody's events touch) are no flow: `layout.ts` would
   // stack them all in its first column, so they sit in rows under the graph instead, in their order
   const wired = new Set([...view.edges.flatMap(e => [e.from[0], e.to[0]]), ...view.stubs.map(s => (s.side === "in" ? s.edge.to[0] : s.edge.from[0]))]);
@@ -118,12 +151,13 @@ export const flowOf = (view: View, size: LayoutSize = LOGIC_SIZE): Flow => {
     wires.push(stub.side === "in"
       ? { id: `${id}>`, edge: stub.edge.id, source: id, sourcePort: handleId(port), target: near[0], targetPort: handleId({ id: near[1], dir: "in" }), label: stub.edge.label, signal: stub.edge.signal, never, back: false }
       : { id: `>${id}`, edge: stub.edge.id, source: near[0], sourcePort: handleId({ id: near[1], dir: "out" }), target: id, targetPort: handleId(port), label: stub.edge.label, signal: stub.edge.signal, never, back: false });
-    return { id, x, y, node: null, stub, ports: [port] };
+    return { id, x, y, node: null, stub, ports: [port], hidden: [], h: BOX_HEAD };
   });
 
   const boxes: FlowBox[] = view.nodes.map(node => {
     const at = layout.nodes[node.id];
-    return { id: node.id, x: at.x, y: at.y, node, stub: null, ports: portsOf(node.ports, used.get(node.id) ?? []) };
+    const ports = portsOf(node.ports, used.get(node.id) ?? []);
+    return { id: node.id, x: at.x, y: at.y, node, stub: null, ports, hidden: node.ports.filter(p => p.hidden).map(flowPort), h: boxHeight(ports) };
   });
   return { boxes: [...boxes, ...stubBoxes], wires };
 };

@@ -7,6 +7,35 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.1.0 – 2026-11-21
+
+**Content schema 5.1 – a MINOR, plugin API 3.1** (#334 L-T6, research §5.9 "ports from the code"): a 5.0 app ignores what
+is new.
+
+### Added
+- **Typed spec builders** for plugins: `api.p.number({ min, max, slider? })`, `p.integer`, `p.boolean`, `p.string`,
+  `p.choice([…])`, `p.color`, `p.texture`, `p.model`, `p.file(kind)` write the same parameter objects as before – a
+  hand-written spec keeps working – and the register functions infer a handler's `params` from the spec: `params.volume`
+  is a number, a choice the union of its options. No JSDoc needed.
+- **Hard and soft limits**: a number's `min` / `max` stay hard (the guard and the editor refuse a value outside, the engine
+  keeps the value it had with a warning); `slider` is the soft range the editor's control moves in; `integer` takes whole
+  numbers only.
+- **Actions, events and bus use in the spec**: `actions` (the rule verbs it answers – a rule's `play: lamp` reaches the
+  component's `onAction("play")`), `events` (sent with the context's typed `emit`; an undeclared one is a type error),
+  `uses` (`hears`, `emits`, `reads`, `sets`). The content build records them in `registered`, the guard checks them.
+- **The Logic view draws ports from the specs**: a node's box shows its file (a new *media* signal), its parameters (typed
+  value inlets), the verbs it answers (action inlets) and the events it emits – for the built-in video, image, text, model
+  and light too. Unused ports are hidden; a box's **+** shows them, *Hide unused ports* (Ctrl+H) hides them again – kept
+  in the canvas (`exposed`). Connecting is strictly typed: the inlets that take a dragged wire light up, a refused one
+  says why (*volume takes a number 0–1, not a text*). A rule's action into a node's verb writes that verb; a node's event
+  into a rule's on makes it hear that event.
+- The entity level of the Logic view shows every node of the subtree that has something of its own; an image node's box
+  shows its picture.
+
+### Changed
+- The Logic view takes a plugin's bus use from what its specs declare; it reads the plugin's source only for one that
+  declares nothing.
+
 ## 4.0.0 – 2026-11-20
 
 **Content schema 5.0 – a MAJOR** (#334 L-T5, `agents/research/2026-11-20-logic-nodes-shared-concept.md` §5.4): a 4.x app

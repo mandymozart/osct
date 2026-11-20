@@ -756,7 +756,7 @@
         <ColourField value={String(getValue(current, row))} label={row.label} onchange={hex => set(row, hex)} onpick={pickColour} />
       {:else}
         <span class="w"><ScrubNumber value={Number(getValue(current, row))} min={row.min} max={row.max} step={row.step} fallback={Number(row.default)}
-          unit={row.unit ?? ""} label={row.label} strict={row.strict} oninput={v => set(row, v)} /></span>
+          unit={row.unit ?? ""} label={row.label} strict={row.strict} integer={row.integer} oninput={v => set(row, v)} /></span>
       {/if}
     </div>
   {/if}
@@ -1008,7 +1008,7 @@
             <span class="controls"><Segmented options={row.options ?? []} value={String(getValue(current, row))} onchange={v => set(row, v)} /></span>
           {:else}
             <span class="w"><ScrubNumber value={Number(getValue(current, row))} min={row.min} max={row.max} step={row.step} fallback={Number(row.default)}
-              unit={row.unit ?? ""} label={row.label} strict={row.strict} oninput={v => set(row, v)} /></span>
+              unit={row.unit ?? ""} label={row.label} strict={row.strict} integer={row.integer} oninput={v => set(row, v)} /></span>
           {/if}
         </div>
       {/each}

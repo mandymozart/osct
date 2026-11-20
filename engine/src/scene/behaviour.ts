@@ -33,6 +33,8 @@ export interface BehaviourContext {
   nodes: Record<string, Object3D>;
   /** The model timelines of the node's subtree by the same paths */
   timelines: Record<string, NodeTimeline>;
+  /** The plugin parts that answer a verb (their spec's `actions`), by the same paths */
+  actors?: Record<string, (verb: string) => boolean>;
 }
 
 export interface BehaviourInstance {
@@ -69,7 +71,7 @@ export const namedPaths = (node: EntityData): Map<string, string> => {
 };
 
 /** A node an action names: its placement group and its timeline – or why it is not there */
-export type NodeLookup = { object?: Object3D; timeline?: NodeTimeline } | { missing: string };
+export type NodeLookup = { object?: Object3D; timeline?: NodeTimeline; act?: (verb: string) => boolean } | { missing: string };
 
 /** What a list of rules needs from where it lives */
 interface RuleHost {
@@ -105,7 +107,7 @@ const ruleRunner = (host: RuleHost) => {
     console.warn(`[behaviour] ${host.label}: ${message}`);
   };
 
-  const lookup = (name: string, verb: string): { object?: Object3D; timeline?: NodeTimeline } | undefined => {
+  const lookup = (name: string, verb: string): Exclude<NodeLookup, { missing: string }> | undefined => {
     const found = host.node(name);
     if ("missing" in found) {
       warn(`cannot ${verb} – ${found.missing}`);
@@ -119,8 +121,13 @@ const ruleRunner = (host: RuleHost) => {
       case "play": case "pause": case "stop": {
         const found = lookup(action.node, action.action);
         if (!found) return;
+        // A plugin part of the node that declares the verb hears it (schema 5.1); the node's own clip plays as well
+        const answered = found.act?.(action.action) ?? false;
         const timeline = found.timeline;
-        if (!timeline) return warn(`${action.node || "the behaviour's node"} has no animation clip to ${action.action} (not a model with clips)`);
+        if (!timeline) {
+          if (!answered) warn(`${action.node || "the behaviour's node"} has no animation clip to ${action.action} (not a model with clips) and nothing on it answers ${action.action}`);
+          return;
+        }
         if (action.action === "play") {
           if (action.clip && !timeline.clips.some(clip => clip.name === action.clip)) return warn(`no clip "${action.clip}" (${timeline.clips.map(c => c.name).join(", ")})`);
           timeline.play(action.clip || undefined);
@@ -133,8 +140,9 @@ const ruleRunner = (host: RuleHost) => {
         return;
       }
       case "show": case "hide": {
-        const object = lookup(action.node, action.action)?.object;
-        if (object) object.visible = action.action === "show";
+        const found = lookup(action.node, action.action);
+        if (found?.object) found.object.visible = action.action === "show";
+        found?.act?.(action.action);
         return;
       }
       case "set": {
@@ -219,7 +227,7 @@ const ruleRunner = (host: RuleHost) => {
 export const applyBehaviour = (context: BehaviourContext): BehaviourInstance | null => {
   const component = behaviourOf(context.node);
   if (!component) return null;
-  const { target, nodes, timelines } = context;
+  const { target, nodes, timelines, actors = {} } = context;
   let paths = new Map<string, string>();
   let ownName = "";
 
@@ -227,10 +235,10 @@ export const applyBehaviour = (context: BehaviourContext): BehaviourInstance | n
     label: target.id,
     api: runtimeApi(`${BEHAVIOUR_TYPE}:${target.id}`),
     node: name => {
-      if (!name) return { object: nodes[""], timeline: timelines[""] };
+      if (!name) return { object: nodes[""], timeline: timelines[""], act: actors[""] };
       const path = paths.get(name);
       if (path === undefined) return { missing: `no node named "${name}" under ${ownName || "the behaviour's node"}` };
-      return { object: nodes[path], timeline: timelines[path] };
+      return { object: nodes[path], timeline: timelines[path], act: actors[path] };
     },
     payload: () => ({ targetId: target.id, ...(ownName ? { node: ownName } : {}) }),
     note: (rule, on, actions) => noteBehaviour({ targetId: target.id, ...(ownName ? { node: ownName } : {}), rule, on, do: actions }),

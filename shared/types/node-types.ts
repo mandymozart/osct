@@ -17,7 +17,8 @@
  */
 
 import { ENTITY_TYPES, type AssetType, type EntityType } from "./game-config";
-import { paramProblem, paramSpecProblems, type ComponentParamSpec } from "./components";
+import { paramProblem, paramSpecProblems, specLogicProblems, type ComponentParamSpec, type SpecLogic } from "./components";
+import { LIGHT_PARAMS } from "./lights";
 import { PLACEMENT_KEYS } from "./placement";
 import { camelCaseName, isObject } from "../guards/primitives";
 
@@ -39,13 +40,41 @@ export const NODE_SRC_ASSET_TYPES: Record<NodeSrcKind, readonly AssetType[]> = {
 /** The file the built-in node types take (none: group, text, light) */
 const BUILT_IN_SRC: Partial<Record<EntityType, NodeSrcKind>> = { model: "glb", video: "video", image: "image" };
 
-export interface NodeTypeSpec {
+/** A node type's spec; schema 5.1 adds `actions`, `events` and `uses` (`SpecLogic`, the Logic view's ports) */
+export interface NodeTypeSpec extends SpecLogic {
   description: string;
   /** The file its `src` takes (default `none`: the node has no file) */
   src?: NodeSrcKind;
   /** Its parameters, set in the node's `params` (never `position`, `rotation` or `scale` – the placement's) */
   params: Record<string, ComponentParamSpec>;
 }
+
+/**
+ * The built-in node types as specs (schema 5.1, #334): what the editor's Logic view draws as a node's ports – its file
+ * (`src`: a media inlet), the values the node holds as parameters (a text's line and colour, a light's `LIGHT_PARAMS`) and
+ * the rule verbs the engine answers on it (`actions`: `show` / `hide` on every node, `play` / `pause` / `stop` on a model's
+ * clips – `engine/src/scene/behaviour.ts`). No events: a node's own `found`, `lost`, `tap` and `unlocked` are its rules'.
+ * A text's `text` and `color` sit on the node itself (not in `params`); the Entity panel keeps its own rows for them.
+ */
+export const BUILT_IN_NODE_SPECS = {
+  group: { description: "Holds child nodes; nothing of its own is seen.", params: {}, actions: ["show", "hide"] },
+  model: { description: "A glTF model; a rule plays, pauses or stops its clip.", src: "glb", params: {}, actions: ["play", "pause", "stop", "show", "hide"] },
+  video: { description: "A video plane: it plays when the target is found, a tap pauses or plays it.", src: "video", params: {}, actions: ["show", "hide"] },
+  image: { description: "An image plane.", src: "image", params: {}, actions: ["show", "hide"] },
+  text: {
+    description: "A line of text.",
+    params: {
+      text: { kind: "string", default: "", label: "text", description: "The line shown; {{entry.title}} and {{experience.title}} are replaced." },
+      color: { kind: "color", default: "#ffffff", label: "color", description: "The text's colour." },
+    },
+    actions: ["show", "hide"],
+  },
+  light: { description: "A light.", params: LIGHT_PARAMS, actions: ["show", "hide"] },
+} as const satisfies Record<EntityType, NodeTypeSpec>;
+
+/** The spec of any node type: a built-in one's (`BUILT_IN_NODE_SPECS`) or a plugin's from the registry */
+export const anyNodeTypeSpec = (type: string): NodeTypeSpec | undefined =>
+  (BUILT_IN_NODE_SPECS as Record<string, NodeTypeSpec>)[type] ?? registered.get(type);
 
 /** Node types plugins registered (type → spec) */
 const registered = new Map<string, NodeTypeSpec>();
@@ -88,6 +117,7 @@ export const nodeTypeSpecProblems = (type: string, spec: unknown): string[] => {
   const s = spec as Record<string, unknown>;
   if (typeof s.description !== "string") problems.push(`${type}: description must be a string`);
   if (s.src !== undefined && !(NODE_SRC_KINDS as readonly unknown[]).includes(s.src)) problems.push(`${type}: src must be one of ${NODE_SRC_KINDS.join(", ")}`);
+  problems.push(...specLogicProblems(type, s));
   if (!isObject(s.params)) return [...problems, `${type}: params must be an object`];
   const params = s.params;
   (PLACEMENT_KEYS as readonly string[]).filter(key => key in params).forEach(key => problems.push(`${type}.${key}: the placement's name – a node type's parameter needs another`));

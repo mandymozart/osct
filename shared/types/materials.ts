@@ -20,13 +20,14 @@
  * the recorded specs (`PluginData.registered.materials` / `.textures`).
  */
 
-import { paramProblem, paramSpecProblems, type ComponentParamSpec } from "./components";
+import { paramProblem, paramSpecProblems, specLogicProblems, type ComponentParamSpec, type SpecLogic } from "./components";
 import { CAMEL_CASE_NAME, isObject } from "../guards/primitives";
 
 /** A material's or a procedural texture's type: `camelCase`, letters and digits */
 export const MATERIAL_TYPE_PATTERN = CAMEL_CASE_NAME;
 
-export interface MaterialSpec {
+/** Schema 5.1: `actions`, `events`, `uses` (`SpecLogic`) as a component's */
+export interface MaterialSpec extends SpecLogic {
   description: string;
   /** The node types it applies to (none = every node with meshes) – built-in types or a plugin's */
   nodeTypes?: readonly string[];
@@ -34,7 +35,7 @@ export interface MaterialSpec {
   params: Record<string, ComponentParamSpec>;
 }
 
-export interface TextureSpec {
+export interface TextureSpec extends SpecLogic {
   description: string;
   /** Its parameters, set in a texture value `{ type, …parameters }` (a plain type takes the defaults) */
   params: Record<string, ComponentParamSpec>;
@@ -86,6 +87,7 @@ const specProblems = (what: string, type: string, spec: unknown, nodeTypes: bool
   if (nodeTypes && spec.nodeTypes !== undefined && !(Array.isArray(spec.nodeTypes) && spec.nodeTypes.every(t => typeof t === "string"))) {
     problems.push(`${type}: nodeTypes must be a list of node types`);
   }
+  problems.push(...specLogicProblems(type, spec));
   if (!isObject(spec.params)) return [...problems, `${type}: params must be an object`];
   return [...problems, ...paramSpecProblems(type, spec.params)];
 };

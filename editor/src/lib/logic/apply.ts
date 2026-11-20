@@ -1,16 +1,17 @@
 import {
-  BEHAVIOUR_CORE_EVENTS, BEHAVIOUR_TYPE, behaviourData, behaviourRules, isBehaviourNodeEvent,
-  type BehaviourAction, type BehaviourRule, type ComponentData, type EntityData,
+  BEHAVIOUR_CORE_EVENTS, BEHAVIOUR_NODE_ACTIONS, BEHAVIOUR_TYPE, behaviourData, behaviourRules, isBehaviourNodeEvent,
+  type BehaviourAction, type BehaviourRule, type ComponentData, type EntityData, type LogicCanvas,
 } from "@engine/types";
 import { CAMEL_CASE_NAME } from "@shared/guards/primitives";
 import { expressionVariables } from "@shared/text/expressions";
 import { addressProblem, nodeAddress, parseAddress, sceneAddress } from "@shared/types/address";
-import type { VariableInfo } from "@shared/types/variables";
+import type { VariableInfo, VariableType } from "@shared/types/variables";
 import { appendCondition, literalOf, newAction, pathOfName, removeConditionTerms, rulesOf, setValueProblems, typeWord, whenProblems, withAction, withRules } from "#lib/behaviour-edit.js";
 import { nodeLabel } from "#lib/tree.js";
 import { nodeAt, withNode } from "#lib/values.js";
 import { conditionWords, experienceProblems, logicRuleLabel, logicTypes, project, type LogicContent, type ProjectOptions } from "./project";
-import type { Context, GraphEdge, GraphNode, Home, Op, Problem, RulePlace, RuleRef, View } from "./types";
+import { typeTakes, typeWords } from "./spec-ports";
+import type { CanvasEdit, Context, GraphEdge, GraphNode, Home, Op, PortSpec, PortType, Problem, RulePlace, RuleRef, View } from "./types";
 
 /**
  * `apply(op, docs)` (#334 L-T4, L-T5b, research §5.1, §5.5): an edit of the logic as an **op on the documents** – pure, no
@@ -31,6 +32,13 @@ import type { Context, GraphEdge, GraphNode, Home, Op, Problem, RulePlace, RuleR
  * the Inspector's); a wire that only joins by name (`home: null`) removes the name from the listening side here, and says
  * so. Ports and wires are named by the level's view (`project`), so `connect` and `disconnect` take the level (`context`).
  * The group level is read-only; the experience level edits the experience's rules only.
+ *
+ * **Ports from the specs** (L-T6, §5.9, B8): connecting is strictly typed (`typedRefusal`) – a value inlet takes only its
+ * type (an integer where a number goes), a refusal says why ("volume takes a number 0–1, not a text (mood)"). A wire still
+ * needs a field to land in (L1): a rule's do into a node's **action inlet** (`act:play`) writes that verb on the node; a
+ * node's **event outlet** (`ev:ended`) into a rule's `on` makes the rule hear that event by name; a **parameter inlet** has
+ * no rule action yet, and a **file inlet** waits for file nodes (L-T12) – both are refused with the reason. The canvas ops
+ * `expose` and `hideUnused` change the level's canvas (`LogicCanvas.exposed` of the scene, or the experience's).
  */
 
 /** A tree an op changed: the target's whole new entity */
@@ -43,8 +51,11 @@ export interface TreeChange {
 /** A scene's or the experience's rules an op changed: the whole new list */
 export type LogicChange = { doc: "scene"; scene: string; rules: BehaviourRule[] } | { doc: "experience"; rules: BehaviourRule[] };
 
+/** A scene's or the experience's canvas an op changed (undefined: it holds nothing any more) */
+export type CanvasChange = { doc: "scene"; scene: string; canvas: LogicCanvas | undefined } | { doc: "experience"; canvas: LogicCanvas | undefined };
+
 export type OpResult =
-  | { ok: true; content: LogicContent; changed: TreeChange[]; logic: LogicChange[]; words: string; problems: Problem[] }
+  | { ok: true; content: LogicContent; changed: TreeChange[]; logic: LogicChange[]; canvas: CanvasChange[]; words: string; problems: Problem[] }
   | { ok: false; reason: string };
 
 const CORE = BEHAVIOUR_CORE_EVENTS as readonly string[];
@@ -138,6 +149,7 @@ export const ruleName = (content: LogicContent, ref: RuleRef | Omit<EntityRef, "
 class Draft {
   changed = new Map<string, TreeChange>();
   logic = new Map<string, LogicChange>();
+  canvas = new Map<string, CanvasChange>();
   /** The variables' types before the op (declared, else inferred) */
   types: Map<string, VariableInfo>;
   constructor(public content: LogicContent) {
@@ -174,6 +186,17 @@ class Draft {
     }
   }
 
+  /** Replace a scene's or the experience's canvas */
+  setCanvas(ref: { doc: "scene"; scene: string } | { doc: "experience" }, canvas: LogicCanvas | undefined): void {
+    if (ref.doc === "experience") {
+      this.content = { ...this.content, canvas };
+      this.canvas.set("experience", { doc: "experience", canvas });
+    } else {
+      this.content = { ...this.content, scenes: this.content.scenes.map(s => (s.id === ref.scene ? { ...s, canvas } : s)) };
+      this.canvas.set(`scene:${ref.scene}`, { doc: "scene", scene: ref.scene, canvas });
+    }
+  }
+
   setRule(ref: RuleRef, rule: BehaviourRule | undefined): void {
     const at = ruleAt(this.content, ref);
     if (!at) return;
@@ -183,7 +206,10 @@ class Draft {
   }
 
   done(words: string, options: ProjectOptions): OpResult {
-    return { ok: true, content: this.content, changed: [...this.changed.values()], logic: [...this.logic.values()], words, problems: problems(this.content, options) };
+    return {
+      ok: true, content: this.content, changed: [...this.changed.values()], logic: [...this.logic.values()], canvas: [...this.canvas.values()], words,
+      problems: problems(this.content, options),
+    };
   }
 }
 
@@ -299,6 +325,64 @@ const conditionTerm = (draft: Draft, name: string): { term: string; note: string
   return { term: `${name} == ${literal}`, note: ` – ${name} is ${typeWord(info.type)}, so it is compared with ${literal}; change the value in the Inspector` };
 };
 
+/** A variable's type as a port's type */
+const variableType = (type: VariableType): PortType => (type === "number" ? { kind: "number", min: -Infinity, max: Infinity } : type === "integer" ? { kind: "integer", min: -Infinity, max: Infinity } : { kind: type });
+
+const VARIABLE_WORDS: Record<VariableType, string> = { number: "a number", integer: "a whole number", boolean: "true or false", string: "a text" };
+
+/** One end of a wire: a box and its port */
+export interface WireEnd {
+  node: GraphNode;
+  port: string;
+}
+
+/** The spec's port of an end, if it is one (`spec-ports.ts`) */
+const specPort = (end: WireEnd, dir: "in" | "out"): PortSpec | undefined => end.node.ports.find(p => p.id === end.port && p.dir === dir && p.kind);
+
+/**
+ * Why a wire between a spec's port and anything cannot be (B8, L1) – or null when the types allow it (the documents decide
+ * the rest). `from` is the outlet's end, `to` the inlet's; `typeOf` gives a variable's type. Cheap and pure: the canvas lights
+ * the inlets that take a dragged wire with it, and `connect` refuses with its words.
+ */
+export const typedRefusal = (from: WireEnd, to: WireEnd, typeOf: (name: string) => VariableType | undefined): string | null => {
+  const inlet = specPort(to, "in");
+  const outlet = specPort(from, "out");
+  if (!inlet && !outlet) return null;
+  const isDo = from.node.kind === "rule" && (from.port === "do" || from.port.startsWith("do:"));
+  const what = (end: WireEnd): string => {
+    if (end.node.kind === "variable") {
+      const type = typeOf(end.node.label);
+      return `${type ? VARIABLE_WORDS[type] : "a value"} (${end.node.label})`;
+    }
+    if (end.node.kind === "rule") return end.port === "on" ? "a rule's on" : end.port === "when" ? "a rule's when" : "a rule's action";
+    const port = end.node.ports.find(p => p.id === end.port);
+    if (port?.kind === "event") return `an event (${port.label})`;
+    return KIND_WORDS[end.node.kind] ?? end.node.kind;
+  };
+  if (inlet?.kind === "src") {
+    return `${to.node.label}'s ${inlet.label} takes ${typeWords(inlet.type!)}, not ${what(from)} – files on the canvas come later; pick the file in the Inspector.`;
+  }
+  if (inlet?.kind === "param") {
+    const type = inlet.type!;
+    if (from.node.kind !== "variable") return `${inlet.label} takes ${typeWords(type)}, not ${what(from)}.`;
+    const varType = typeOf(from.node.label);
+    if (varType && !typeTakes(type, variableType(varType))) return `${inlet.label} takes ${typeWords(type)}, not ${what(from)}.`;
+    return `${inlet.label} takes ${typeWords(type)} – no rule action sets a component's parameter yet; set it in the Inspector.`;
+  }
+  if (inlet?.kind === "action") {
+    if (!isDo) return `${inlet.label} takes a rule's action, not ${what(from)}.`;
+    return null;
+  }
+  if (outlet?.kind === "event") {
+    if (to.node.kind === "rule" && to.port === "on") return null;
+    return `${outlet.label} is an event – it goes into a rule's on, not ${what(to)}.`;
+  }
+  return null;
+};
+
+/** The verbs a node acts with in a rule (`play` … `hide`) */
+const isNodeVerb = (verb: string | undefined): verb is (typeof BEHAVIOUR_NODE_ACTIONS)[number] => !!verb && (BEHAVIOUR_NODE_ACTIONS as readonly string[]).includes(verb);
+
 const connect = (draft: Draft, view: View, context: Context, from: [string, string], to: [string, string], verb: BehaviourAction["action"] | undefined, options: ProjectOptions): OpResult => {
   let a = boxOf(view, from[0]);
   let b = boxOf(view, to[0]);
@@ -309,6 +393,10 @@ const connect = (draft: Draft, view: View, context: Context, from: [string, stri
   if (isIn(a, aPort) && !isIn(b, bPort)) [a, b, aPort, bPort] = [b, a, bPort, aPort];
   if (a.far || b.far) return refuse("That end stands for something elsewhere – open its level to connect there.");
   if (a.kind === "plugin" || b.kind === "plugin") return refuse(CODE((a.kind === "plugin" ? a : b).label));
+  // A spec's port: strictly typed (B8), and only where a document has a field for it (L1)
+  const typed = typedRefusal({ node: a, port: aPort }, { node: b, port: bPort }, draft.typeOf);
+  if (typed) return refuse(typed);
+  const declaredEvent = specPort({ node: a, port: aPort }, "out")?.kind === "event" ? a.ports.find(p => p.id === aPort)!.label : null;
 
   // An event or a variable into a rule: what it hears, what its condition reads
   if (b.kind === "rule") {
@@ -319,8 +407,8 @@ const connect = (draft: Draft, view: View, context: Context, from: [string, stri
     if (why) return refuse(why);
     const name = ruleName(draft.content, ref);
     if (bPort === "on") {
-      if (a.kind !== "event" || aPort !== "out") return refuse(`A rule's on hears an event – not ${kindWord(a)}.`);
-      const event = sceneEvent(a);
+      if (!declaredEvent && (a.kind !== "event" || aPort !== "out")) return refuse(`A rule's on hears an event – not ${kindWord(a)}.`);
+      const event = declaredEvent ?? sceneEvent(a);
       if (event === null) {
         if (ref.doc !== "entity") return refuse(`${a.label} is ${a.detail}'s own event – a ${ref.doc}'s rule hears the bus: a scene event or a core event.`);
         const own = a.pick?.kind === "node" ? a.pick : null;
@@ -384,9 +472,12 @@ const connect = (draft: Draft, view: View, context: Context, from: [string, stri
         nodeName = nodeAddress(target, own);
       }
       if (old && !nodeVerb(old)) return refuse(`Action ${index! + 1} of ${name} is ${old.action} – it does not act on a node. Drag from the rule's + to add one.`);
-      if (old && "node" in old) action = { ...old, node: nodeName };
+      // An action inlet (`act:play`) says the verb; the node's `in` keeps the action's own, else the one asked for, else show
+      const inletVerb = bPort.startsWith("act:") ? bPort.slice(4) : null;
+      if (inletVerb !== null && !isNodeVerb(inletVerb)) return refuse(`${b.label} has no verb ${inletVerb} a rule can write.`);
+      if (old && "node" in old) action = inletVerb && inletVerb !== old.action ? { ...newAction(inletVerb), node: nodeName } as BehaviourAction : { ...old, node: nodeName };
       else {
-        const v = verb && (verb === "play" || verb === "pause" || verb === "stop" || verb === "show" || verb === "hide") ? verb : "show";
+        const v = inletVerb ?? (isNodeVerb(verb) ? verb : "show");
         action = { ...newAction(v), node: nodeName } as BehaviourAction;
       }
     } else if (b.kind === "variable" && bPort === "set") {
@@ -414,7 +505,7 @@ const connect = (draft: Draft, view: View, context: Context, from: [string, stri
     if (problem) return refuse(problem);
     if (old && JSON.stringify(old) === JSON.stringify(action)) return refuse(`${name} does that already.`);
     draft.setRule(ref, withAction(at.rule, index ?? at.rule.do.length, action));
-    return draft.done(old ? `${name}: ${actionWords(old)} → ${actionWords(action)}.` : `${name} now also does: ${actionWords(action)}${verb ? "" : action.action === "show" ? " (pick another verb in the Inspector)" : ""}.`, options);
+    return draft.done(old ? `${name}: ${actionWords(old)} → ${actionWords(action)}.` : `${name} now also does: ${actionWords(action)}${verb || bPort.startsWith("act:") ? "" : action.action === "show" ? " (pick another verb in the Inspector)" : ""}.`, options);
   }
   return refuse(`${a.label} (${kindWord(a).replace(/^an? /, "")}) → ${b.label} (${kindWord(b).replace(/^an? /, "")}): the rules have no such connection. A rule's on takes an event, its when a variable, its do reaches a node, a variable, an event or a scene.`);
 };
@@ -513,13 +604,50 @@ const disconnect = (draft: Draft, view: View, context: Context, id: string, opti
   return refuse("That wire is drawn from a name, not written in a rule – nothing to remove here.");
 };
 
+/** The canvas a level keeps its exposed ports in: its scene's (the scene and entity levels) or the experience's */
+const canvasHome = (context: Exclude<Context, { level: "group" }>): { doc: "scene"; scene: string } | { doc: "experience" } =>
+  context.level === "experience" ? { doc: "experience" } : { doc: "scene", scene: context.scene };
+
+/** `expose` and `hideUnused`: which ports the level's boxes show beyond their wired ones (`LogicCanvas.exposed`) */
+const canvasEdit = (draft: Draft, context: Exclude<Context, { level: "group" }>, edit: CanvasEdit, options: ProjectOptions): OpResult => {
+  if (edit.edit !== "expose" && edit.edit !== "hideUnused") return refuse("Canvas edits (groups, notes) are not here yet.");
+  const home = canvasHome(context);
+  const canvas = home.doc === "experience" ? draft.content.canvas : draft.content.scenes.find(s => s.id === home.scene)?.canvas;
+  if (home.doc === "scene" && !draft.content.scenes.some(s => s.id === home.scene)) return refuse(`There is no scene ${home.scene}.`);
+  const exposed: Record<string, string[]> = { ...(canvas?.exposed ?? {}) };
+  const view = project(draft.content, context, options);
+  let words: string;
+  if (edit.edit === "expose") {
+    const box = view.nodes.find(n => n.id === edit.box);
+    if (!box) return refuse("That box is not at this level.");
+    const ports = edit.ports.map(id => box.ports.find(p => p.id === id && p.kind));
+    const missing = edit.ports.find((_, i) => !ports[i]);
+    if (missing !== undefined) return refuse(`${box.label} has no port ${missing}.`);
+    const fresh = edit.ports.filter(id => !(exposed[box.id] ?? []).includes(id));
+    if (!fresh.length) return refuse(`${box.label} shows ${edit.ports.length === 1 ? "that port" : "those ports"} already.`);
+    exposed[box.id] = [...(exposed[box.id] ?? []), ...fresh];
+    words = `${box.label} shows ${ports.map(p => p!.label).join(", ")} – unused, it hides again with Hide unused ports.`;
+  } else {
+    const boxes = edit.box ? view.nodes.filter(n => n.id === edit.box) : view.nodes;
+    if (edit.box && !boxes.length) return refuse("That box is not at this level.");
+    const cleared = boxes.filter(n => exposed[n.id]?.length);
+    if (!cleared.length) return refuse(edit.box ? `${boxes[0].label} shows only its wired ports already.` : "Every box here shows only its wired ports already.");
+    cleared.forEach(n => delete exposed[n.id]);
+    words = edit.box ? `${boxes[0].label} shows only its wired ports again.` : `${cleared.length === 1 ? "One box shows" : `${cleared.length} boxes show`} only their wired ports again.`;
+  }
+  const { exposed: _old, ...rest } = canvas ?? {};
+  const next: LogicCanvas = Object.keys(exposed).length ? { ...rest, exposed } : rest;
+  draft.setCanvas(home, Object.keys(next).length ? next : undefined);
+  return draft.done(words, options);
+};
+
 /** Apply an op to the documents, at the level `context` (see the module's comment) */
 export const apply = (op: Op, content: LogicContent, context: Context, options: ProjectOptions = {}): OpResult => {
   if (context.level === "group") return refuse(READ_ONLY);
   const draft = new Draft(content);
   switch (op.op) {
     case "canvas":
-      return refuse("Canvas edits (groups, notes) are not here yet.");
+      return canvasEdit(draft, context, op.edit, options);
     case "addRule": {
       const why = outside(content, context, op.at);
       return why ? refuse(why) : addRule(draft, op.at, op.on, options);
