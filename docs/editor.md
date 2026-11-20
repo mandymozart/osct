@@ -301,6 +301,7 @@ closed by default, **essential** (it folds but never closes) and **inline** (a t
 | Scenes | bottom, between the Tree and the Inspector | |
 | Info | bottom left, folded | |
 | Tools | top left over the stage, beside the Tree | inline, essential |
+| Logic | bottom right, closed ([the Logic panel](#the-logic-panel-239)) | |
 
 - **Move** by the head (its grip, icon and name; ← ↑ → ↓ on the focused handle, Shift for larger steps): the panel
   follows the pointer over the others; let go, its edges **snap** to a wall, to the gap beside another panel or in line
@@ -406,6 +407,28 @@ Every save is a row of the change log (docs/server.md "Reverting saved changes")
 - **The prompt** (`RevertPrompt.svelte`) lists what goes back, names later edits that will be lost and other people's
   changes, and the conflicts that stay. A revert reloads the draft, the stage and the panels. It changes the draft
   only – readers see it with the next publish.
+
+### The Logic panel (#239)
+
+The **Logic** panel (the `nodes` icon; closed at first – the top bar's panels menu opens it) shows the open scene's logic
+as a graph, read-only, from the draft: the **events** (a node's own `found` / `lost` / `tap` / `unlocked`, scene
+events, core events – pills), the **rules** of the scene's `behaviour` components, the **variables** they read and set
+(dashed), the **nodes** they play, pause, stop, show or hide (filled) and the **plugins** whose components, node types
+or materials sit on the scene's nodes (a double frame). Edges carry the word: `on`, `when`, `set = true`, `emit`,
+`show`, a plugin's type, `hears` / `emits` / `reads` / `sets`. What a plugin's code does is not recorded by the content
+build, so the panel reads it from the plugin's source as written (`api.events.on("x")`, `api.vars.set("x", …)` – the
+stored source, else the compiled module); a plugin is drawn when it sits on the scene or touches one of the rules'
+events or variables, *its code not read* until the source arrived. The layout is layered left to right
+(`logic-layout.ts`, no dependency): a loop (a rule that plays its own node, an event emitted back) runs dashed below
+the boxes. A pointer over a box lights its edges; **a click selects** what it stands for – a node, a node's event or
+a rule selects that node in the tree and the Inspector (the rule editor is there), a plugin opens the Code tab on it.
+*Fit* switches between the whole graph in the panel and its actual size (scroll). Under the graph, in the error colour,
+the **problems** across the experience (its rules and the plugins' code): a variable read that nothing sets, an event
+heard that nothing emits (its rules never fire), an event emitted that nothing hears, a node an action names that the
+rule's subtree does not have – while a plugin's code is unknown only the last. The graph is built by the pure
+`scene-logic.ts` (`sceneLogic`, `pluginCodeUses`; tested in `lib/__tests__/scene-logic.test.ts`). Not yet: lighting up
+what fires while the stage runs, and editing logic in the graph; flows across experiences stay with the core
+(`agents/STRATEGY.md`).
 
 ### The experience search
 
@@ -1298,7 +1321,7 @@ design tokens):
 | The demo's key model | `editor/tools/key-model.mjs` | the demo experience's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | The API layer | `editor/src/lib/api.ts`, `storage.ts`; `shared/api/` | every call through one `request` (the session cookie and the CSRF token on writes – #207, a 401 that ends the session, the API's errors as `ApiError` with their details); the answers typed once with the MCP server (`shared/api/editor.ts`); `getExperience` reads an experience's tree once for the stage, the environment and the top bar and reads it again after any write to the experience (`fresh` for the experience page); `errorText` the one error line; the two-step confirmations through `confirmationStep` (`shared/api/errors.ts`); the settings in localStorage through `storage.ts` (`osct-…` keys, blocked storage tolerated) |
-| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SceneView` and `EntryForm`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Toggle`, `Section`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the floating panels `FloatingPanel` with `floats.ts` (placement, pure) and `floats.svelte.ts` (a workspace's set, the panels menu) (#308); the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its scope, groups and sort in `library-scope.ts` (`AssetTile`, `AssetDetails`, #330), its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry's form in `EntryForm.svelte` (its logic in `entry-edit.ts`, its words outside the form in `entry-view.ts`), the scene section's in `scene-view.ts` (#227) |
+| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SceneView` and `EntryForm`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Toggle`, `Section`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the floating panels `FloatingPanel` with `floats.ts` (placement, pure) and `floats.svelte.ts` (a workspace's set, the panels menu) (#308); the rows from the contract; the behaviour's rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts`; the Library's filters and picks in `library-pick.ts`, its scope, groups and sort in `library-scope.ts` (`AssetTile`, `AssetDetails`, #330), its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry's form in `EntryForm.svelte` (its logic in `entry-edit.ts`, its words outside the form in `entry-view.ts`), the scene section's in `scene-view.ts` (#227); the Logic panel `LogicPanel.svelte` with its graph in `scene-logic.ts` and its layout in `logic-layout.ts` (#239) |
 | The experience's texts and search | `editor/src/lib/ExperienceSearch.svelte`, `experience-search.ts`, `ExperienceTexts.svelte`, `experience-texts.ts`, `panels/ExperiencePanel.svelte`, `panels/NewEntryForm.svelte`, `entries.svelte.ts` | [Texts](#texts-entries-and-the-experience), [The experience search](#the-experience-search), [Inspector: the experience](#inspector-the-experience) |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts`, `stage/plugin-run.ts` | the stored sources, Run (transpile with sucrase in the page; import and `installPlugin` in the stage frame, rebuild), the plugins' log |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |

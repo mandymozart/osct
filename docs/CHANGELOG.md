@@ -7,6 +7,18 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+
+- **Editor: the Logic panel – a scene's logic as a graph** (#239, the `nodes` icon): a floating panel of the scene
+  workspace that shows, read-only, how the scene's events, `behaviour` rules, variables, the nodes they act on and the
+  plugins on its nodes connect – laid out left to right in a small SVG layout of its own (no dependency). What a plugin's
+  code hears, emits, reads and sets is read from its source. A click on a box selects that node in the tree and the
+  Inspector (a plugin: the Code tab); problems across the experience (a variable nothing sets, an event nothing emits or
+  hears, a node an action names that is not there) are listed under it. Built by the pure, tested `scene-logic.ts`
+  (docs/editor.md "The Logic panel").
+
 ## 3.8.1 – 2026-11-20
 
 ### Changed

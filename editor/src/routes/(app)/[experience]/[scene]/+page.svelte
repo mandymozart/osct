@@ -53,6 +53,8 @@
   import { at, type PanelSpec } from "#lib/components/floats.js";
   import UndoRedo from "#lib/UndoRedo.svelte";
   import HistoryPanel from "#lib/panels/HistoryPanel.svelte";
+  import LogicPanel from "#lib/panels/LogicPanel.svelte";
+  import type { LogicPick } from "#lib/scene-logic.js";
   import RevertPrompt from "#lib/components/RevertPrompt.svelte";
   import { history } from "#lib/history.svelte.js";
   import { markRender, renderRequest, renderState } from "#lib/render-view.js";
@@ -138,8 +140,21 @@
       place: at("top-left", 17, 0), size: { w: "content", h: "content" }, min: { w: 12, h: 2 }, essential: true, inline: true },
     { id: "history", name: "History", icon: "history", about: "Every saved change of the experience: filter by scene, kind or person; revert one, or jump back to a point (#312).",
       place: at("bottom-right", 0, 0, { closed: true }), size: { w: 28, h: 20 }, min: { w: 16, h: 8 } },
+    { id: "logic", name: "Logic", icon: "nodes", about: "The scene's logic as a graph (#239): events, behaviour rules, variables, the nodes they act on and the plugins – a click selects it.",
+      place: at("bottom-right", 0, 0, { closed: true }), size: { w: 48, h: 24 }, min: { w: 18, h: 10 } },
   ];
   const floats = new Floats("scene", SCENE_PANELS);
+  /** A graph node of the Logic panel picked (#239): its entity's node in the tree and the Inspector, a plugin in the Code tab */
+  const pickLogic = (pick: LogicPick) => {
+    if (floats.collapsed("inspector")) floats.setCollapsed("inspector", false);
+    if (pick.kind === "plugin") {
+      plugins.focus = pick.plugin;
+      chooseTab("code");
+      return;
+    }
+    selection.show({ target: pick.target, node: pick.path, onTarget: false });
+    select();
+  };
   let workspaceWidth = $state(0);
   let workspaceHeight = $state(0);
   // The room and the measures from the page's CSS: the control height (44 px with a finger), the gap of .5rem
@@ -863,6 +878,9 @@
     </FloatingPanel>
     <FloatingPanel {floats} id="history">
       <HistoryPanel current={sceneId} />
+    </FloatingPanel>
+    <FloatingPanel {floats} id="logic">
+      <LogicPanel {experienceId} {sceneId} onpick={pickLogic} />
     </FloatingPanel>
     {#if stage && stage.status === "running"}
       <FloatingPanel {floats} id="tools" label="Stage tools">{@render toolbar()}</FloatingPanel>
