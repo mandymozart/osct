@@ -243,9 +243,9 @@ Verbatim from the archived entries (the entry title and archive file in front of
 - **L-T1 to L-T4 shipped (3.19.1, 3.20.0, 3.21.0):** the logic module and its levels, navigation with xyflow and
   `?logic=`, and editing. Adding nodes works by right-click, by the "+" button, or by dragging from the Library's
   "Nodes" (Tilman's change). Checked on staging: a real click selects a box, and the stage and the Tree follow it.
-- [ ] Tilman: should disconnecting a rule's `on` be allowed? Today it is refused ("a rule always hears one event"),
-  because the grammar has no "no event". The alternatives are an `on` that may be empty (a rule that never fires,
-  marked as a problem), or switching such a rule to `found`.
+- [x] Disconnecting a rule's `on`: Tilman, 2026-11-20: "Allow empty". Since 3.21.1 a cut `on` is left empty, so the rule
+  hears nothing. The Logic panel marks it as a problem until an event is wired to it again. The contract still lists an
+  empty `on` as a problem, as it did for the Inspector before.
 
 ## 2026-11-20 – The delivery endpoint's change log: row kinds plus `delivery_id` (#322 T5)
 
