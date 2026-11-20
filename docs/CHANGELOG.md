@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 4.0.0 – 2026-11-20
 
 **Content schema 5.0 – a MAJOR** (#334 L-T5, `agents/research/2026-11-20-logic-nodes-shared-concept.md` §5.4): a 4.x app
 refuses 5.0 content and a 5.0 app refuses 4.x (`OLDEST_READABLE_SCHEMA_MAJOR` 5). Content migrates: a content folder with
