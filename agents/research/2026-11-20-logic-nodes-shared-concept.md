@@ -294,7 +294,50 @@ a RunPod endpoint, and land its result as a draft that a person approves. That m
 publishes. #322's delivery endpoint is the existing door for content that comes from outside.
 
 Open questions (L11–L13 in §8): whether the canvas stays editor data (L4) once it holds generative graphs worth
-exporting, where generation runs and who pays, and what a free node may reach.
+exporting, where generation runs and who pays, and what a free node may reach. **Decided 2026-11-20, see §5.8.**
+
+### 5.8 Built-in and custom nodes: a module per node (Tilman, 2026-11-20)
+
+Tilman: *"L11 of course. L12 of course. L13 for now that makes sense. Also inside osct the generator nodes are not yet
+intended. we will do most there from importing files. But wiring them up. Important. Each node can host a module as a
+script so we can get access to the api. So eventually we will have nodes that got built in logic and our custom ones."*
+
+**What this means for OSCT:**
+
+- **There are no generator nodes in OSCT for now.** In OSCT, content comes in by importing files: the #322 deliveries,
+  the asset upload and the import YAMLs. The canvas's first job is **to wire those files up**. A file node, or a
+  delivery node that has one outlet per file, gets cables to targets, entities and texture slots. The explicit apply
+  (L13) then writes them. For a delivery node, that apply is the delivery endpoint itself (`POST …/deliveries`, preview
+  first and then `apply`). That puts the existing door for content from outside onto the canvas.
+- **Two families of node.**
+  1. *Built-in nodes:* the core registry's types (§5.2): rules, actions, events, variables, scenes, entities, files.
+  2. *Custom nodes:* a **module** (a script) that declares its ports and params and can use the API.
+
+  Both are drawn and wired the same way. They differ only in `owner`: core, the experience, or a plugin.
+- **A custom node is a plugin capability, not a new format.** OSCT already has the machinery. A plugin is a module that
+  the experience stores and versions; it has usages, a Code tab with **Run**, and a sandbox (#234). A plugin already
+  registers components, entity node types, looks and passes, and records them in `registered`. So a custom logic node
+  is one more registration: `registerLogicNode({ kind, ports(params), params, run })`, recorded in
+  `registered.logicNodes`. That is an API MINOR. Upload, versions, export (#322 `plugins`) and the guard stay as they
+  are.
+- **The API access, the way the stage frame already does it.** In the stage frame, plugin code runs at an opaque origin
+  with no cookie and no session, and every API call stays in the page (`docs/editor.md`, "The stage frame"). A node
+  module gets an `api` object, and each call on it is a **request to the page**. The page checks the call against a
+  list and makes it with the person's session and the person's rights; the API decides, as with the MCP. Under L13:
+  - **Reading is free:** the experience, its scenes and entries, the assets, the deliveries' previews.
+  - **Writing only through the apply op:** a module's `run` returns ops or a delivery, and the person applies them. They
+    then go through save, the change log and revert.
+  - **No token ever reaches a module.**
+- **When a module runs.** First at authoring time only, in the editor, in a sandboxed frame or worker like the stage's.
+  A module that runs in the reader (a custom rule node, evaluated live) is the reading-time case of §5.7. It belongs
+  with the L-T5 cut and, later, with the engine's behaviour runtime. A module may declare both sides; the reader loads
+  only its reading-time half.
+- **The same for SCUTOONS.** The node registry with `owner` and the module contract (`ports`, `params`, `run` returning
+  ops) are part of the shared `logic` package. Each app supplies its own `api` bridge.
+
+Steps this adds (after L-T4): **L-T12** file and delivery nodes with wiring and apply (uses #322 T5/T8);
+**L-T13** `registerLogicNode` in the plugin API with the `api` bridge through the page (sandbox, allow-list, apply-only
+writes); **L-T14** (later) reading-time custom nodes in the engine with L-T5.
 
 ### 5.6 Where the shared code lives (#255)
 
@@ -393,6 +436,9 @@ already loaded. That is the cheap part.
 | L-T9 | MCP: `logic_view(context)` and `logic_ops` tools over the package | S | L-T2, L-T4 |
 | L-T10 | Conformance fixtures `fixtures/logic/` (documents → views, ops → documents) for SCUTOONS (TS creator, Rust deck) to test against | S | L-T2, L-T4 |
 | L-T11 | (SCUTOONS, its own issue, if L9 says yes) creator Flow views and `read_flow` typed by the shared `View` / `Signal`; the XR viewer runs OSCT's engine and its behaviour | M | the core tag (#255 0.4) |
+| L-T12 | File and delivery nodes on the canvas: one outlet per file, cables to targets, entities and texture slots; apply = the delivery endpoint (preview, then apply) or ops (§5.8) | M | L-T4, #322 T5/T8 |
+| L-T13 | Custom nodes: `registerLogicNode` in the plugin API (MINOR, `registered.logicNodes`); runs at authoring time in a sandbox; `api` bridge through the page (allow-list, reads free, writes only as ops to apply) | M | L-T4, L-T12 |
+| L-T14 | (later) Reading-time custom nodes evaluated by the engine | M | L-T5, L-T13 |
 
 Order: L-T1 → L-T2 → L-T3 delivers Tilman's navigation on today's content, with no schema change. L-T4 adds editing
 of entity rules. L-T5 is the schema cut and is best done as one MAJOR together with any other planned cut before Tokyo.
@@ -414,6 +460,7 @@ not touch the reader. L-T5 changes the reader and the contract.
 | L8 | **The Logic view's place in the URL** (`?logic=`) or only in the panel's state | URL query |
 | L9 | **SCUTOONS adoption:** does SCUTOONS' web side consume `@animus/logic` (its 2026-11-20 note "no sharing across the projects" for panels), and does the deck test against the fixtures | share the package and the fixtures, not panels; SCUTOONS decides in its own issue |
 | L10 | **Priority:** L-T1–L-T3 (navigation, read-only) now, editing and the MAJOR after the #255 phase 0 or after Tokyo | L-T1–L-T3 now (editor-only); L-T4–L-T5 when Tilman sets it against the Tokyo plan |
+| L11–L13 | **Decided 2026-11-20 (Tilman): yes to all three as recommended.** No generator nodes in OSCT for now; imported files get wired up instead. A node can host a module (§5.8) | – |
 | L11 | **Free nodes (§5.7):** editor-only and authoring-time generative nodes on the canvas; reading-time free nodes not now | yes; this moves the canvas from "editor data the reader ignores" to "authoring data the export carries" (L4 then: canvas in the DB per scene and experience, in the #322 export, still not in the reader build) |
 | L12 | **Where generation runs:** in the editor (browser calls a service), on OSCT's server (queue, keys on the server), or through SCUTOONS' generations | the server, with the keys there and a draft to approve; first generator through an interface a plugin can fill |
 | L13 | **What a free node may reach:** only the canvas and its own outputs, or also writes into the scene (place entity, set texture) | outputs become content only through an explicit "apply" op that goes through save, change log and revert |

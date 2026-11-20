@@ -209,7 +209,7 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
-## 2026-11-20 – Logic view: xyflow as the rendering layer; free nodes on the canvas (#334)
+## 2026-11-20 – Logic view: xyflow as the rendering layer; free nodes and node modules on the canvas (#334)
 
 - **L7 decided (Tilman):** "xyflow for the moment. As a rendering layer." `@xyflow/svelte` draws the Logic view. The
   `logic` package computes the view and the layout, and xyflow's gestures become ops. xyflow never owns the data.
@@ -220,8 +220,15 @@ Verbatim from the archived entries (the entry title and archive file in front of
   editor-only free nodes (notes, references), and generative free nodes that run **at authoring time** in the editor or
   on the server. A generative node's result becomes ordinary content (an asset or an entity, with its origin recorded)
   through an explicit apply op. The reader stays unchanged.
-- [ ] Tilman: L11 (free nodes; the canvas becomes authoring data in the DB and in the export), L12 (where generation
-  runs), L13 (what a free node may write), and the earlier L1–L6, L8–L10.
+- **L11–L13 decided (Tilman, the same day):** free nodes yes, so the canvas becomes authoring data (DB, export). Generation
+  runs on the server. A free node writes only through an explicit apply. **OSCT gets no generator nodes for now.** Its
+  content comes from imported files, and the canvas is for wiring them up (file and delivery nodes, L-T12).
+- **Every node can host a module** (Tilman: *"Each node can host a module as a script so we can get access to the api …
+  nodes that got built in logic and our custom ones"*). Research doc §5.8: a custom node is a plugin capability
+  (`registerLogicNode`, `registered.logicNodes`, an API MINOR), not a new format. It runs at authoring time in a
+  sandbox. Its `api` calls go through the page with the person's session, like the stage frame (#234). Reads are free;
+  writes come back only as ops for the person to apply; no token reaches a module. Steps L-T12 to L-T14.
+- [ ] Tilman: the earlier L1–L6, L8–L10.
 
 ## 2026-11-20 – The delivery endpoint's change log: row kinds plus `delivery_id` (#322 T5)
 
