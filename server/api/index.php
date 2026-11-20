@@ -71,6 +71,9 @@ declare(strict_types=1);
  *                                               this instance's own environment, else 403 other-environment); `plugins` = the
  *                                               Code tab's sources as the editor transpiled them [{ id, code, api, registered? }]
  *   GET    /editor/experiences/{id}/versions    the publish log
+ *   GET    /editor/experiences/{id}/export[?build=]  everything an export needs (#322, Export): the draft's configuration or a
+ *                                               published version's, the files it names (url, size, sha256 where known), the
+ *                                               print layout, the Code tab's sources, the Library's credit lines
  *   GET    /editor/experiences/{id}/changes?limit=    the change log, newest first
  *   POST   /editor/experiences/{id}/changes/{cid}/revert { apply? } → one change taken back with the later changes of the same thing:
  *                                               the plan, written with apply as new changes (#312, Reverts)
@@ -94,7 +97,7 @@ declare(strict_types=1);
  * (ApiTokens). docs/server.md "Sessions, cookies and CSRF".
  */
 
-foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences', 'Arrivals'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences', 'Arrivals', 'Export'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -197,6 +200,7 @@ try {
         (bool) preg_match("#^GET /editor/experiences/($id)/draft/[0-9a-f]{12}/(game\\.config|files)\\.json$#", $route, $match) => ContentVersion::draftFile($match[1], $match[2]),
         (bool) preg_match("#^POST /editor/experiences/($id)/publish$#", $route, $match) => Experiences::publish($match[1], Editor::body()),
         (bool) preg_match("#^GET /editor/experiences/($id)/versions$#", $route, $match) => Experiences::versions($match[1]),
+        (bool) preg_match("#^GET /editor/experiences/($id)/export$#", $route, $match) => Export::read($match[1]),
         (bool) preg_match("#^GET /editor/experiences/($id)/changes$#", $route, $match) => Experiences::changes($match[1]),
         (bool) preg_match("#^POST /editor/experiences/($id)/changes/revert$#", $route, $match) => Reverts::many($match[1]),
         (bool) preg_match("#^POST /editor/experiences/($id)/changes/revert-to$#", $route, $match) => Reverts::to($match[1]),

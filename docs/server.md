@@ -87,6 +87,7 @@ without a token, 403 `forbidden` for a reader. `{id}` is the experience, ids and
 | `GET /editor/experiences/{id}/draft/latest.json` · `…/draft/{build}/game.config.json` · `…/draft/{build}/files.json` | | the draft as a content version, assembled from the rows on every call (`Cache-Control: no-store`); the engine's loader reads it like the CDN, its `fetchFn` sending the session cookie. The build in the path is not checked against the current draft – an edit between the two requests is no error |
 | `POST /editor/experiences/{id}/publish` | `{ env, note?, replace?, plugins? }` – `plugins` = the Code tab's saved sources as the editor transpiled them, `[{ id, code, api, registered? }]` (#78: each id a saved source of the experience, else 400 `invalid-plugins`; written into the version as `assets/content/plugins/<id>/plugin-<hash>.js` and declared; `registered` kept only when it names the types the source registers) | `{ env, store, build, hash, publishedAt, replaced }` – writes the assembled version to the content store of `env`, which must be this instance's own environment (`ENV`; another one: **403 `other-environment`** with `env`, the own one): `<env>/<build>/game.config.json` and `files.json` (unless that build is there already – a version folder is never overwritten), then `versions.json` (the previous current version retired), then `latest.json` (both name the experience); a row in the publish log. An environment serves one experience: when it serves another (or one that cannot be told) the publish needs `replace: true`, else 409 `other-experience` with `current` `{ env, experience, title, build, since }`; `replaced` `{ experience, build }` names the experience replaced, null when none; `store` = where it went (`cdn` or `server`). 400 `invalid-env` (no environment name), `invalid-replace`; 502 `content-store-failed` |
 | `GET /editor/experiences/{id}/versions` | | `{ versions: [{ id, env, build, hash, publishedBy, publishedAt, note }] }` – the publish log, newest first |
+| `GET /editor/experiences/{id}/export[?build=]` | | `{ experience, source, build, hash, schema, appVersion, exportedAt, configuration, files, unknown, layout, plugins, credits }` – everything an export of the experience needs: the draft, or with `build` a published version from the content store ([Export](#export)). 400 `invalid-build`, 404 `unknown-build` (not in this experience's publish log), 404 `build-missing` (logged, but the store has no readable configuration) |
 | `GET /editor/experiences/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt, set, reverts, notRevertable }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target) – and `entry`, `scene`, `order`, `groups`, `reference`, `environment`, `passes`, `appearance`, `experience`, `plugin`, `asset` (a Library file a removal deleted), `migration` (#319); a removed row has `after: null`; `token` = the name of the AI connection a save came through, null for the editor; `set` / `reverts` for a revert's changes and `notRevertable` – [Reverting saved changes](#reverting-saved-changes); `limit` default 50, at most 500 |
 | `GET /content/{env}/{path}` | | the **local** content store, public like the CDN: `latest.json`, `versions.json` (`no-cache`) and `<build>/game.config.json` / `files.json` (immutable) – nothing else, no other path |
 
@@ -391,6 +392,34 @@ zone over the Storage API (`PUT https://{endpoint}/{zone}/{env}/{path}` with the
 checksum – what `scripts/src/lib/storage.ts` does), reads `versions.json` from there, and answers 502
 `content-store-failed` when the zone refuses. The environment `local` always stays in the directory – it exists only
 on a developer's machine.
+
+### Export
+
+`GET /editor/experiences/{id}/export[?build=<build>]` (#322, `Export`) is the one read an export of the experience needs –
+the input of `osct content export`, which writes the content source folder from the database
+(agents/research/2026-11-20-importer-export-plan.md, section 3). Nothing is zipped or copied on the host: the answer names
+the files, the CLI downloads them. Rights: those of the draft (an editor). Typed as `ExperienceExport` in `shared/api/editor.ts`.
+
+- `configuration` – without `build` the draft, from the same assembly as the draft endpoints and Publish
+  (`ContentVersion::assemble`); with `build` the published version as the content store holds it (`<env>/<build>/game.config.json`
+  of the environment the publish log names for that build of this experience). `source` says which:
+  `{ kind: "draft" }` or `{ kind: "published", env, publishedAt, publishedBy }`; `build`, `hash`, `schema` are the version's.
+- `files` – every file the configuration names, once each, in the order it names them, then the print layout's:
+  `{ url, path, origin, size, sha256, v }`. `url` is the value as the configuration holds it (below the assets base, a
+  Library URL, or a content path without one); `path` the content path (`/assets/content/…`, null for a Library upload).
+  `origin`: `upload` – a Library file, size and the full `sha256` from its asset row (any of its versions);
+  `import` – a file of the imported build, size and `v` (the first 12 hex digits of its sha256) from the import's
+  `files.json`, `sha256` null – it is not recorded; `version` – a Code tab plugin a publish put into the version's own
+  folder (#78), its URL in that environment, nothing else known; `unknown` – a value that looks like a file (a URL or
+  content path with a media, json, js or vtt extension) and is none of these. `unknown` counts those. A link (`media` of
+  a link entry) is no file.
+- `layout` – the print layout, `{ file, files }` (the URLs of `layout/layout.json` and every file of `layout/`, all in
+  `files` too) when the import's `files.json` holds `layout/layout.json`, else null. The reader's card back reads its
+  `cover-front` sheet (`client/src/utils/book-cover.ts`), so the export writes `layout/`.
+- `plugins` – the Code tab's sources (`PluginSource`: id, source, size, updatedAt, updatedBy) – always the current ones,
+  also for a published build: the database keeps no source per version.
+- `credits` – every credit line of the Library by file URL (#277); the configuration's own `credits` carries only those of
+  the files it uses.
 
 ### One environment per instance
 
