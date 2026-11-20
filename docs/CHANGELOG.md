@@ -27,6 +27,10 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 - The demo is an experience on staging (`osct/staging/demo/`, opened at `/x/demo/`) instead of an environment of its
   own; the CLI refuses a demo build only for production.
 
+### Fixed
+- The header's entries counter: leftover merge markers inside its CSS (since 1.84.0) dropped its muted colour; the
+  label is muted again.
+
 ### Added
 - `osct content move --from <old folder> --env <env> [--experience <id>] [--dry-run] [--delete-old]` (also in the
   workflow *Content*): the one-off copy of the old environment folders into the store per experience – nothing is
