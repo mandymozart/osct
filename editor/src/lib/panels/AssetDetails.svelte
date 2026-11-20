@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack, type Snippet } from "svelte";
+  import { tick, untrack, type Snippet } from "svelte";
   import type { Asset } from "#lib/api.js";
   import { cleanAssetName, nameStem, storedExtension } from "#lib/library-drag.js";
   import { formatDuration, formatSize } from "#lib/library-place.js";
@@ -46,16 +46,16 @@
   let draft = $state("");
   let renameProblem = $state<string | null>(null);
   let saving = false;
-  $effect(() => {
-    if (!renaming) return;
+  /** The field opens: the name before the extension, all of it selected (after the value is in the field) */
+  const focusField = (node: HTMLInputElement) => {
     untrack(() => {
       draft = nameStem(asset.name, extension);
       renameProblem = null;
     });
-  });
-  const focusField = (node: HTMLInputElement) => {
-    node.focus();
-    node.select();
+    void tick().then(() => {
+      node.focus();
+      node.select();
+    });
   };
   const saveName = async () => {
     if (!renaming || saving || !onrename) return;
