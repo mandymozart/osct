@@ -119,6 +119,19 @@ describe("Floats: universal tabs (#318)", () => {
     expect(f.showing("code")).toBe("inspector");
   });
 
+  it("a panel closed by default (History, Logic) shows when its tab opens on a fresh layout", () => {
+    const specs: PanelSpec[] = [...SPECS, { id: "history", name: "History", icon: "history", about: "", place: at("bottom-right", 0, 0, { closed: true }), size: { w: 28, h: 20 }, min: { w: 16, h: 8 } }];
+    const f = new Floats("test", specs, [...TABS, { id: "history", name: "History", icon: "history", about: "", home: "history" }]);
+    f.area = AREA;
+    f.metrics = { rem: 16, gap: 8, head: 36, button: 28, char: 8 };
+    expect(f.closed("history")).toBe(true);
+    f.showTab("history", true);
+    f.show("history"); // the page draws its FloatingPanel
+    expect(f.closed("history")).toBe(false);
+    expect(f.resolved.history.closed).toBeUndefined();
+    expect(f.views.history).toBeDefined();
+  });
+
   it("drags a tab out onto the stage: a panel of its own at the drop point, stored with the arrangement", () => {
     const f = floats();
     f.grabTab("code", "inspector", 1300, 20);

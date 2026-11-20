@@ -7,6 +7,13 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 3.16.3 – 2026-11-20
+
+### Fixed
+- **Editor – History and Logic did not show** (#318): a panel that starts closed (History, Logic) and had no place
+  stored yet kept its default `closed` in the layout, so opening it (the toolbar's History button, the panels menu)
+  drew nothing. A tab panel is open while it holds tabs; its default `closed` no longer reaches the layout.
+
 ## 3.16.2 – 2026-11-20
 
 ### Changed

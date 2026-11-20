@@ -177,7 +177,7 @@ export class Floats {
 
   /** Every panel's place: the stored one, else its default */
   get resolved(): Record<string, Place> {
-    return Object.fromEntries(this.specs.map(s => [s.id, this.places[s.id] ?? defaultPlace(s, this.metrics)]));
+    return Object.fromEntries(this.specs.map(s => [s.id, this.place(s.id)]));
   }
 
   spec(id: string): PanelSpec | undefined {
@@ -186,7 +186,12 @@ export class Floats {
 
   place(id: string): Place {
     const spec = this.spec(id);
-    return this.places[id] ?? (spec ? defaultPlace(spec, this.metrics) : { corner: "top-left", dx: 0, dy: 0 });
+    const place = this.places[id] ?? (spec ? defaultPlace(spec, this.metrics) : { corner: "top-left", dx: 0, dy: 0 });
+    // A tab panel is open while it holds tabs (#318): its spec's `closed` (History, Logic start closed) is the
+    // arrangement's – kept in the place, the panel opened from the menu had no view and never showed
+    if (place.closed === undefined || !this.isTabPanel(id)) return place;
+    const { closed: _closed, ...open } = place;
+    return open;
   }
 
   /** The z-index of a panel (1 = the back) */
