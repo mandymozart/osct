@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 4.8.0 – 2026-11-21
 
 ### Added
 - The Logic view's add menu lists **every type** from the empty canvas (Tilman, 2026-11-21, #334): grouped by family
