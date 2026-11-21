@@ -209,6 +209,27 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-21 – Logic canvas: selecting and ungrouping groups, notes after the deck (content schema 5.3, #334)
+
+- Tilman: *"how to ungroup or select a group? and also we are missing notes on these graphs, for annotations."* A click on
+  a frame's head (free area; a drag is no click) selects the group's boxes, Shift adds; a right click on the head or a
+  folded pill opens the group's menu with **Ungroup** (a canvas edit `ungroup`); **Ctrl+Shift+G** ungroups the selected
+  boxes' groups (as the Scenes strip). Both group keys stop in the Logic panel – the Scenes panel's window shortcut
+  never sees them.
+- **Notes** after the SCUTOONS deck (`deck/show/src/canvas.rs` `Note { id, text, author, node }`, `NoteText` – empty
+  removes): schema 5.3 adds a canvas note's optional `box` (x, y are then the offset from the box – it moves with it),
+  `author` and `view` (a scene's canvas is shared by the scene level and its target levels: a note belongs to the level
+  it was made at – `<target>` or `<target>/<path>`; none = the canvas's own level). Edits `note`, `noteText`, and `place`
+  with `note:<id>`. Author = the signed-in person's address before the @ (the content keeps no address; the API's user has
+  no name field).
+- Decided: a note whose box goes (rule removed, a variable nothing names any more) **stays free where it last stood**
+  (`keepNotes` in apply.ts); a removed rule's later siblings keep their notes (rule box ids are numbered). Notes are
+  monochrome editor chrome (RULES #38), not signals.
+- [ ] Open: canvas `positions`, `folds` and group members are keyed by rule box ids too (`rule:door/#1`), which shift when
+  an earlier rule is removed – only notes are re-keyed so far.
+- Wire labels: a white letter outline instead of the semi-transparent backdrop (Tilman: *"the text should have a white
+  outline not a semi transparent backdrop"*), white in both themes.
+
 ## 2026-11-21 – Log and Variables tabs, one unified log, surfaces only on selection, the Tree's one + (#337)
 
 Tilman decided which parts of the Inspector deserve their own tab:

@@ -7,6 +7,27 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.11.0 – 2026-11-21
+
+### Added
+- **Notes on the Logic canvas** (Tilman, 2026-11-21, #334: *"we are missing notes on these graphs, for annotations"*),
+  as in the SCUTOONS deck: right-click the empty canvas and *Add note*, or press **N** with the pointer over the canvas;
+  *Add note* on a box's right-click menu puts the note beside the box – it moves with the box, joined by a dotted line.
+  A new note opens for typing (Ctrl+Enter or clicking elsewhere keeps it, Esc goes back, a double-click edits it again)
+  and shows who wrote it. Notes are plain grey cards, no logic: select and drag them like boxes, Delete removes them – an
+  empty note goes too. When the rule beside a note is removed, the note stays where it was, as a free note.
+- **Selecting and ungrouping a group** (Tilman, 2026-11-21, #334: *"how to ungroup or select a group?"*): a click on a
+  group's head selects its boxes (Shift adds them), so Delete, Ctrl+G or a drag act on them. A right click on the head – or
+  on a folded group's pill – opens the group's menu: select its boxes, rename, next colour, fold or open, and **Ungroup**.
+  **Ctrl+Shift+G** ungroups the groups of the selected boxes, as in the Scenes strip; the boxes stay where they are.
+
+### Changed
+- **Content schema 5.3**: a Logic canvas note may stand beside a box and carry its author and the level it belongs to
+  (docs/content.md). Authoring data only – readers never get the canvas, so an older app is not touched.
+- **Wire labels** on the Logic canvas have a white outline round their letters instead of a semi-transparent box behind
+  them (Tilman, 2026-11-21: *"the text should have a white outline not a semi transparent backdrop"*) – in day and night.
+- Ctrl+G and Ctrl+Shift+G in the Logic panel no longer also reach the Scenes panel's shortcuts.
+
 ## 4.10.1 – 2026-11-21
 
 ### Added

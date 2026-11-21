@@ -653,10 +653,29 @@ have in the scutoons deck. also adopt the node styles we already established in 
   boxes were; their wires to the rest end on the pill, the ones between them are hidden; its chevron (or a double-click)
   opens it again. Groups are kept per canvas: the scene's (its scene and entity levels) or the experience's; the group level
   has none.
-- Each of these is a canvas op (`place`, `tidy`, `fold`, `group`, `renameGroup`, `groupColour`, `foldGroup` – `apply.ts`),
-  saved with the level's rules like the exposed ports (`logicEdit.setCanvas`), so History lists it and Undo takes it back.
-  A box's right-click menu has *Fold to its head*, *Group this box* (or the selection) and, while it is pinned, *Tidy the
-  level*.
+- **Selecting and ungrouping a group** (#334, Tilman 2026-11-21: *"how to ungroup or select a group?"*): a **click on the
+  frame's head** – its free area, not the chevron, the swatch or the name, and not the end of a drag – selects the group's
+  boxes, **Shift** adds them to the selection; then Delete, Ctrl+G and a drag act on them as on any selection. A **right
+  click on the head** (or on a folded group's pill) opens the group's menu: *Select its boxes*, *Rename…*, *Next colour*,
+  *Fold to one pill* / *Open the group* and **Ungroup** (the `ungroup` edit – its boxes stay where they are; an empty name
+  still removes the group too). **Ctrl+Shift+G** ungroups the groups of the selected boxes, as in the Scenes strip. Where
+  the level is not editable, the menu's items are greyed with the reason.
+- **Notes** (#334, schema 5.3 – the SCUTOONS deck's notes; Tilman 2026-11-21: *"we are missing notes on these graphs, for
+  annotations"*): a note is an annotation on the canvas, **no logic** – no ports, no wires; the issues, the layout and Tidy
+  never see it. *Add note* on the empty canvas's right-click menu puts one there; on a box's right-click menu **beside the
+  box** (it moves with it, joined by a fine dotted line, and a second note on the same box stands below the first); **N**
+  with the pointer over the canvas puts one at the pointer. A new note opens for typing: **Ctrl+Enter** or leaving the field
+  keeps the text, **Esc** goes back, an empty text removes the note; a double-click edits it again. Its **author** is the
+  signed-in person (their address's name – the content keeps no address), small and muted under the text. Notes are
+  monochrome cards (RULES #38 – editor chrome, not a signal), selected (a click, the selection box) and dragged like boxes;
+  **Delete** removes the selected notes with the rest of the selection. A note's right-click menu: *Edit the note*,
+  *Delete the note*. When a rule (or a variable nothing names any more) goes, the note beside it **stays as a free note**
+  where it last stood; the notes beside a removed rule's later siblings follow their rules. A note belongs to the level it
+  was made at: a scene's canvas keeps its target levels' notes with their `view` (`door`, `door/0.1`).
+- Each of these is a canvas op (`place` – a note's key `note:<id>` –, `tidy`, `fold`, `group`, `renameGroup`, `groupColour`,
+  `foldGroup`, `ungroup`, `note`, `noteText` – `apply.ts`), saved with the level's rules like the exposed ports
+  (`logicEdit.setCanvas`), so History lists it and Undo takes it back. A box's right-click menu has *Fold to its head*,
+  *Group this box* (or the selection), *Add note* and, while it is pinned, *Tidy the level*.
 
 ### The experience search
 

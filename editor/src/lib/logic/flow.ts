@@ -3,7 +3,7 @@ import { LOGIC_SIZE, layoutLogic, type LayoutSize } from "./layout";
 import { neverFires, stubNeverFires } from "./navigation";
 import { CARD_HEAD, CARD_W, GRID, GROUP_COLOURS, PIN_ROW, deckSignal, snap, snapUp, type DeckSignal } from "./signals";
 import { typeWords } from "./spec-ports";
-import type { DisplayRow, GraphNode, PortKind, PortSpec, Signal, Stub, View } from "./types";
+import type { Context, DisplayRow, GraphNode, PortKind, PortSpec, Signal, Stub, View } from "./types";
 
 /**
  * A level's `View` as boxes and wires to draw (#334 L-T3, L-T7): the rendering layer (`panels/LogicCanvas.svelte`,
@@ -29,6 +29,12 @@ import type { DisplayRow, GraphNode, PortKind, PortSpec, Signal, Stub, View } fr
  * the layout; a folded box (`folds`) is its head alone. A **group** (as the deck's) is a frame round its boxes at this
  * level – their bounds padded 1rem at the sides and below, 2rem on top for its head – in its colour; folded, it is one
  * **pill** instead of its boxes, and their wires to the rest end on the pill.
+ *
+ * **Notes** (schema 5.3, the deck's notes): the level's notes (`LogicCanvasNote.view` – a scene's canvas holds its targets'
+ * views too) as cards of their own, 12rem wide. A free note stands at its `x`, `y`; a note beside a box at the box's place
+ * plus its offset (a folded group's pill stands in for the box), joined to it by a fine dotted line (`FlowNote.link`) – no
+ * wire. A note is no logic: the layout, the wires and the issues never see it. A note whose box is not drawn here stands
+ * at its `x`, `y` as a free one.
  */
 
 export interface FlowPort {
@@ -126,8 +132,25 @@ export interface FlowWire {
   back: boolean;
 }
 
+/** A note as drawn: where it stands (flow px) and, beside a box, the dotted line to it */
+export interface FlowNote {
+  id: string;
+  text: string;
+  author?: string;
+  x: number;
+  y: number;
+  /** The box it stands beside, when that box is drawn here */
+  box?: string;
+  /** Its offset from that box (what the canvas keeps) */
+  offset?: { x: number; y: number };
+  /** The dotted line to its box: the note's side and the box's that face each other */
+  link?: { target: string; sourceHandle: "note:l" | "note:r"; targetHandle: "ref:l" | "ref:r" };
+}
+
 export interface Flow {
   boxes: FlowBox[];
+  /** The level's notes (schema 5.3) – no logic */
+  notes: FlowNote[];
   wires: FlowWire[];
   /** The canvas groups at this level, folded ones included (their pill is a box) */
   groups: FlowGroup[];
@@ -143,6 +166,17 @@ export const FRAME_PAD = GRID;
 export const FRAME_HEAD = 2 * GRID;
 /** A folded group's pill id */
 export const pillId = (group: string): string => `fold:${group}`;
+/** A note's node id on the canvas – also how the canvas's selection names it (`note:<id>`) */
+export const NOTE_NODE = "note:";
+/** A note's width (12rem) and where a new note stands beside its box: right of it, at its head */
+export const NOTE_W = 12 * GRID;
+export const NOTE_BESIDE = { x: CARD_W + GRID, y: 0 } as const;
+/**
+ * The view a note of the level's canvas belongs to (`LogicCanvasNote.view`): a target's entity level `<target>` or
+ * `<target>/<path>` (`door/0.1`); the scene's and the experience's own level none
+ */
+export const noteView = (context: Context): string | undefined =>
+  context.level === "entity" ? `${context.target}${context.path.length ? `/${context.path.join(".")}` : ""}` : undefined;
 
 /** A port as drawn */
 const flowPort = ({ id, label, signal, dir, kind, type, owner }: PortSpec): FlowPort => ({
@@ -331,5 +365,18 @@ export const flowOf = (view: View, canvas: LogicCanvas | undefined = undefined, 
       sourceHandle: onRow ? `ref:${right ? "r" : "l"}:${r.from[1]}` : right ? "ref:hr" : "ref:hl",
     }];
   });
-  return { boxes: [...boxes.filter(b => !pillOf.has(b.id)), ...pills, ...stubBoxes], wires: shownWires, groups, refs: flowRefs.filter((r, i) => flowRefs.findIndex(q => refKey(q) === refKey(r)) === i) };
+  // The notes of this level's view: a free one where it stands, one beside a box at the box (or its group's pill)
+  const here = noteView(view.context);
+  const notes: FlowNote[] = (canvas?.notes ?? []).filter(n => n.view === here).map(note => {
+    const drawn = note.box ? shown.get(pillOf.get(note.box) ?? note.box) : undefined;
+    const base = { id: note.id, text: note.text, ...(note.author ? { author: note.author } : {}) };
+    if (!drawn) return { ...base, x: note.x, y: note.y };
+    const x = drawn.x + note.x;
+    const right = x + NOTE_W / 2 >= drawn.x + drawn.w / 2;
+    return {
+      ...base, x, y: drawn.y + note.y, box: drawn.id, offset: { x: note.x, y: note.y },
+      link: { target: drawn.id, sourceHandle: right ? "note:l" : "note:r", targetHandle: right ? "ref:r" : "ref:l" },
+    };
+  });
+  return { boxes: [...boxes.filter(b => !pillOf.has(b.id)), ...pills, ...stubBoxes], notes, wires: shownWires, groups, refs: flowRefs.filter((r, i) => flowRefs.findIndex(q => refKey(q) === refKey(r)) === i) };
 };
