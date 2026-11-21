@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EntityData } from "@engine/types";
-import { addNode, defaultAddPlace, indentNode, moveNode, nodeLabel, outdentNode, shiftNode, visiblePaths, withName } from "../tree";
+import { addNode, defaultAddPlace, duplicateNode, groupNode, indentNode, moveNode, nodeLabel, outdentNode, shiftNode, visiblePaths, withName } from "../tree";
 import { contentTree } from "../values";
 
 /** #163: the outliner's hierarchy – add next to / inside, reparent and reorder, names */
@@ -181,5 +181,47 @@ describe("rows and names", () => {
     expect(withName(group("g"), " Doors ").name).toBe(" Doors ");
     expect(contentTree(withName(group("g", [video("a")]), " Doors ")).name).toBe("Doors");
     expect(contentTree({ type: "group", assets: [], name: " " })).not.toHaveProperty("name");
+  });
+});
+
+/** The Tree's footer (#339): duplicate and group the selected node */
+describe("duplicateNode / groupNode", () => {
+  const tree = (): EntityData => ({ type: "group", assets: [], name: "door", children: [
+    { type: "image", assets: [], name: "hint", id: "h1" },
+    { type: "group", assets: [], name: "frame", children: [{ type: "text", assets: [], name: "hint 2", text: "x" }] },
+  ] });
+
+  it("puts a copy right after the node, its names free and its ids gone", () => {
+    const edit = duplicateNode(tree(), [0])!;
+    expect(edit.path).toEqual([1]);
+    expect(edit.tree.children!.map(c => c.name)).toEqual(["hint", "hint 3", "frame"]);
+    expect(edit.tree.children![1].id).toBeUndefined();
+    expect(edit.tree.children![0].id).toBe("h1");
+  });
+
+  it("copies the children with free names too", () => {
+    const edit = duplicateNode(tree(), [1])!;
+    expect(edit.tree.children![2].name).toBe("frame 2");
+    expect(edit.tree.children![2].children![0].name).toBe("hint 3");
+  });
+
+  it("duplicates the root next to it, in a new group", () => {
+    const edit = duplicateNode(tree(), [])!;
+    expect(edit.path).toEqual([1]);
+    expect(edit.tree.children!.map(c => c.name)).toEqual(["door", "door 2"]);
+  });
+
+  it("groups a node in its place, and the root as the new root", () => {
+    const edit = groupNode(tree(), [0])!;
+    expect(edit.path).toEqual([0]);
+    expect(edit.tree.children![0]).toMatchObject({ type: "group", children: [{ name: "hint" }] });
+    const root = groupNode(tree(), [])!;
+    expect(root.path).toEqual([]);
+    expect(root.tree.children![0].name).toBe("door");
+  });
+
+  it("is null for a path the tree does not have", () => {
+    expect(duplicateNode(tree(), [7])).toBeNull();
+    expect(groupNode(tree(), [7])).toBeNull();
   });
 });

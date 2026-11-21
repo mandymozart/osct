@@ -7,6 +7,15 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.10.1 – 2026-11-21
+
+### Added
+- **The Tree's footer, as in Photoshop's layers panel** (Tilman, 2026-11-21, #339): it stays at the panel's foot however
+  far the tree scrolls – **+ add** (the menu of everything the scene can get, #337) and, for the selected row,
+  **duplicate** (the node with its children right after it; the copy's names get a free number – door → door 2 – since
+  rules address nodes by name), **group** (the node into a new group in its place; it stays where it is on the stage) and
+  **remove** (as Delete: a node at once, an entry and a surface after their confirmation).
+
 ## 4.10.0 – 2026-11-21
 
 ### Added
