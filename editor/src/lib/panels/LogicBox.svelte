@@ -51,7 +51,7 @@
    * no pins – a click opens the plugin in the Code tab (the box's own click). Invisible anchors at each row's sides (and the
    * head's, and every box's head for the far end) carry the dotted reference lines (`LogicRef`); they never connect.
    *
-   * **Live** (#334): while the stage just lit it (a rule that ran, an event that fired, a variable that changed), its border
+   * **Trace** (#334): while the stage just lit it (a rule that ran, an event that fired, a variable that changed), its border
    * pulses once in its kind's colour; a variable shows its new value in its head for that moment (`= true`).
    */
   let { data }: { data: LogicBoxData } = $props();

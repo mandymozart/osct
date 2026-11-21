@@ -512,8 +512,8 @@ A lit wire is drawn in its own signal colour, fully opaque and heavier, a glow r
 over a halo that fades in about a second (`LogicWire`, class `live` – apart from the pointer's `lit` / `dim`); a box's
 border pulses once (`LogicBox`). Another firing starts the pulse again. With `prefers-reduced-motion` only the brighter,
 thicker state shows, without movement. Only lines new since the panel opened count – the history is never replayed; Clear
-in the Log tab starts again. The bar's **Live** switch turns it off (on by default, kept in `localStorage`
-`osct-editor-logic-live`).
+in the Log tab starts again. **Trace** in the bar's **…** view settings (beside **Follow**) turns it off (on by default, kept in `localStorage`
+`osct-editor-logic-trace`).
 
 **Scene and experience rules, goto** (content schema 5.0, #334 L-T5b): a scene's own rules (`scene.logic`) are boxes of
 its scene level (*scene rule 1*, a click selects the scene – its rules are in its Inspector), the experience's
