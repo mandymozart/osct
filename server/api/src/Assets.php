@@ -202,7 +202,7 @@ final class Assets
             $result[] = [
                 'id' => 'import-' . substr(sha1($url), 0, 16), 'name' => $names[$url] ?? rawurldecode(basename(parse_url($url, PHP_URL_PATH) ?: $url)),
                 'kind' => self::KINDS[$extension], 'mime' => self::MIMES[$extension], 'size' => (int) (is_object($file) ? ($file->size ?? 0) : 0),
-                'width' => null, 'height' => null, 'durationMs' => null, 'version' => 1, 'url' => $url, 'usages' => count($uses[$url] ?? []),
+                'width' => null, 'height' => null, 'durationMs' => null, 'version' => 1, 'url' => $url, 'usages' => count($uses[$url] ?? []), 'sha256' => null,
                 'createdAt' => $at, 'updatedAt' => $at, 'imported' => true, 'named' => isset($names[$url]),
             ];
         }
@@ -661,6 +661,7 @@ final class Assets
             'width' => $row['width'] === null ? null : (int) $row['width'], 'height' => $row['height'] === null ? null : (int) $row['height'],
             'durationMs' => ($row['duration_ms'] ?? null) === null ? null : (int) $row['duration_ms'],
             'version' => (int) $row['version'], 'url' => $row['url'], 'usages' => $usages, 'imported' => false,
+            'sha256' => $row['sha256'] === null ? null : (string) $row['sha256'],
             'createdAt' => Editor::iso((int) $row['created_at']), 'updatedAt' => Editor::iso((int) $row['updated_at']),
         ];
     }

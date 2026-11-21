@@ -1143,7 +1143,8 @@ Run in `scripts/`:
 | `npm run build` | Rebuild the tool after changing `scripts/src/` |
 | `npm run sounds` | Generate the placeholder app sounds |
 | `npm run osct -- content export --experience <id> [--from …] [--out <dir>] [--force]` | Write an experience from the editor's database as a content folder ([Export](#export)) |
-| `npm run import -- <delivery folder> import/<name>.yaml` | Import a publisher's delivery into `content/` (below) |
+| `npm run osct -- delivery import <mapping.yaml \| folder> --experience <id> [--files <dir>] [--apply] …` | Bring a publisher's delivery into the experience's draft through the editor API ([below](#importing-a-delivery)) |
+| `npm run import -- <delivery folder> import/<name>.yaml` | The content folder's import before it – superseded, kept until the new one has run one real delivery (#322) |
 
 ### Export
 
@@ -1188,40 +1189,68 @@ OSCT_API_URL=http://127.0.0.1:8080/api OSCT_EDITOR_TOKEN=osct_… \
 
 ### Importing a delivery
 
-A publisher's delivery (folders of printed images, entry images and videos) goes into `content/` through a
-**mapping file** in `scripts/import/` – one per delivery, e.g. `import/2110.yaml`. The mapping says, per entry id, what the entry is and which delivered file is what:
+A publisher's delivery (folders of printed images, entry images and videos) reaches the experience's **draft in the
+editor's database** through the editor API (#322 – the database is the only truth; the content folder is neither read
+nor written). A **mapping file** – one per delivery, kept in `scripts/import/` (e.g. `import/2026-11-final.yaml`) –
+says, per entry id, what the entry is and which delivered file is what:
 
 ```yaml
+experience: osct
 entries:
   p38-1:
     category: glossary
     title: "p. 38 · 1"                # placeholder until the texts arrive
     page: 38
-    target: glossary/P38_Print_01.jpg   # the image as printed → target.jpg
-    image: glossary/P38_Online_01.jpg   # the entry image → image.jpg
-    video: documentation/P38.mov        # AR video on the target → video.mp4 (optional)
-    printed: { width: 44, height: 26, position: top left }   # mm – checked, not used (the places come from the layout)
-    enabled: false                      # the target switched off: not in the reader's experience (optional)
-    tags: [artwork]                     # the entry's tags (optional)
-    note: "anything the editors should know"
+    target: glossary/P38_Print_01.jpg   # the image as printed → the target's image (WebP, fit=target)
+    image: glossary/P38_Online_01.jpg   # the entry image → the entry's picture (WebP, fit=entryImage)
+    video: documentation/P38.mov        # AR video on the target → H.264 MP4 (optional; needs a target)
+    enabled: false                      # a new target switched off (optional; an existing one keeps its switch)
+    tags: [artwork]                     # a new entry's tags (optional)
 ```
+
+`printed:` and `note:` of older mappings are read and ignored (`printed` is unused since #32; the note is not stored –
+Tilman, 2026-11-20). Run in `scripts/` (`OSCT_API_URL` – default the local dev API – and `OSCT_EDITOR_TOKEN`, a token
+from the editor's experiences page, as for `content export`):
 
 ```bash
 cd scripts
-npm run import -- "C:/path/to/delivery" import/2110.yaml
+npm run build
+npm run osct -- delivery import import/2026-11-final.yaml --files "C:/path/to/delivery" --experience osct
+npm run osct -- delivery import import/2026-11-final.yaml --files "C:/path/to/delivery" --experience osct --apply
 ```
 
-What it does: every image becomes a JPEG (targets ≤ 1600 px, entry images ≤ 1600 px, transparency flattened
-on white), every video is re-encoded with ffmpeg (H.264 MP4, long side ≤ 1280 px, ~2 Mbit/s, AAC – ffmpeg
-has to be installed), `entry.yaml` is written with placeholder texts and the note as a comment, and a scene
-is created for every pair of facing pages that has an entry (`s38-39`, label "38–39", one surface twice the page's
-width – page 1 and a last even page one page wide). The mapping's `page` is mapped to the scene **once, here**: the
-entry gets `scene: s38-39`, never a page (content schema 3.0). Ids have no leading zeros (#63): scenes `s38-39`, `s1`,
-entries `p38-1` – a mapping key written with them (`p038-1`) is imported without; the order is the scene's `order`, never
-its id. The database's existing ids were renamed once (3.10.0, applied on staging 2026-11-20; the tool is gone since 3.11.1). Media is rewritten
-when the delivered file is newer; **`entry.yaml` and `scene.yaml` are never overwritten** – edit them
-freely and run the import again when the next delivery comes. Problems (a file missing, ffmpeg failing, a
-video without a target) are listed at the end.
+The first argument is the mapping file (its files next to it, or in `--files <dir>`) or a folder holding
+`delivery.yaml` and the files. What it does (`scripts/src/lib/delivery-import.ts`, `delivery-plan.ts`):
+
+1. **Pages → scenes, once**: one scene per pair of facing pages that has an entry (`s38-39`, label "38–39", the preset
+   `double` – one surface twice the page's width; page 1 and the mapping's last page, when even, a `single` page). With
+   `--layout <layout.json>` every sheet of the print layout gets its scene too (the cover, front and back matter, the
+   back cover) and the scenes take the layout's page size. An entry gets its scene, never a page (content schema 3.0).
+   Ids have no leading zeros (#63): a mapping key `p038-1` is imported as `p38-1`.
+2. **Media, locally**: pictures (JPEG, PNG) become WebP under the [image rule](#the-image-rule) – a printed image at most
+   1200 px, an entry picture 2048 px; videos are re-encoded with ffmpeg (H.264 MP4, long side ≤ 1280 px, ~2 Mbit/s,
+   AAC – ffmpeg is needed only when the mapping names a video). The results are kept in a cache folder (`--cache`,
+   default the system's temp folder) by the delivered file's sha256, so a second run makes the same bytes without
+   encoding again.
+3. **Uploads**: each file goes to the experience's Library (`POST …/assets?fit=target&entry=<id>`, named
+   `<id>_target.webp`, `<id>_image.webp`, `<id>_video.mp4`) unless the Library already holds those bytes (its `sha256`)
+   – nothing is uploaded twice.
+4. **The comparison**: the plan goes to `POST /editor/experiences/{id}/deliveries` ([server](server.md#deliveries))
+   without `apply`, and the answer is printed per scene, entry and target – `+` new, `~` changed (which file), `!`
+   conflict (edited in the editor since the last delivery; `--all` lists the unchanged ones as `=` too), the counts,
+   the API's warnings and problems. Nothing is written.
+5. **`--apply`** writes it after the comparison, in one transaction: a new entry gets the mapping's texts (a
+   placeholder body), an existing one keeps its texts and only its picture, target image and video follow the delivery;
+   conflicts stay as they are unless `--overwrite`. Every write is a change in the draft's history naming the delivery,
+   so the whole delivery can be reverted there; `GET …/deliveries` lists the applied ones. Publish to reach readers.
+
+The delivery's name (`--name`) defaults to the mapping's file name. Problems – a file missing or unreadable, ffmpeg
+failing – are listed and leave that entry out of the plan (the next run brings it once the file is fixed); the command
+then exits 1. A second run of the same delivery uploads nothing and compares as all `same`.
+
+The content folder's import before it (`npm run import -- <delivery folder> import/<name>.yaml`, `import-delivery.ts`:
+JPEGs into `entries/<id>/`, `entry.yaml` and `scene.yaml` written when missing) is superseded and stays only until the
+new import has run one real delivery (agents/research/2026-11-20-importer-export-plan.md §4).
 
 The mapping of a delivery is made by hand or with a script (matching the delivered images against the trigger
 layout PDF by page and appearance). Files the delivery contains but the book does not place are listed in a comment
@@ -1292,7 +1321,7 @@ npm run prepare-delivery -- --print "C:/path/OSCT_INSIDE_256p.pdf" --preview "C:
   --triggers active="C:/path/OSCT_TRIGGERS_ACTIVE.pdf" --triggers inactive="C:/path/OSCT_TRIGGERS_INACTIVE.pdf" \
   --triggers artwork="C:/path/OSCT_TRIGGERS_KevinWORKS.pdf" --content "$OSCT_CONTENT_DIR" \
   --delivery "C:/path/delivery" --mapping import/<name>.yaml
-npm run import -- "C:/path/delivery" import/<name>.yaml
+npm run osct -- delivery import import/<name>.yaml --files "C:/path/delivery" --experience osct
 ```
 
 `scripts/layout/prepare-delivery.py` (PyMuPDF and Pillow) reads every trigger's page and box from its sheet (the
@@ -1341,8 +1370,8 @@ scripts/
 │   ├── config.ts           all folders and limits
 │   ├── build/              content build parts: experience, scenes, entities, entries, targets, plugins
 │   ├── lib/                shared helpers: reading content, files, hash, checks, media, storage, sync
-│   ├── cli.ts              the osct CLI: content build | status | sync | purge (content-cdn.md)
-│   ├── import-delivery.ts  `npm run import` – a publisher delivery into the content (mapping in import/)
+│   ├── cli.ts              the osct CLI: content build | status | sync | purge | export, targets prepare, delivery import
+│   ├── import-delivery.ts  `npm run import` – the content folder's delivery import, superseded by `osct delivery import`
 │   ├── schema-lock.ts      `npm run schema:lock` – locks shared/ to the content schema
 │   └── sounds.ts           placeholder app sounds
 ├── import/                 one mapping file per delivery

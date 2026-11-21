@@ -2320,8 +2320,15 @@ try {
     $fileB = $data['asset'];
     [, $data] = upload($api, 'POST', '/editor/experiences/osct/assets', pngOf(2, 2, 0x778899), 'delivery-c.png', $editor);
     $fileC = $data['asset'];
-    [, $data] = upload($api, 'POST', '/editor/experiences/osct/assets', mp4File(1000, 2000, [[320, 180, 'vide']]), 'delivery.mp4', $editor);
+    $videoBytes = mp4File(1000, 2000, [[320, 180, 'vide']]);
+    [, $data] = upload($api, 'POST', '/editor/experiences/osct/assets', $videoBytes, 'delivery.mp4', $editor);
     $fileV = $data['asset'];
+    // The Library names each upload's sha256 – `osct delivery import` uploads only what it does not hold yet
+    [, $data] = call($api, 'GET', '/editor/experiences/osct/assets', null, $editor);
+    $listedV = array_values(array_filter($data['assets'], static fn(array $a) => $a['id'] === $fileV['id']))[0] ?? null;
+    check($listedV !== null && $listedV['sha256'] === hash('sha256', $videoBytes)
+        && array_filter($data['assets'], static fn(array $a) => $a['imported'] && $a['sha256'] !== null) === [],
+        'GET assets names an upload\'s sha256 (null for an imported file)');
     $firstScene = $sceneList()['scenes'][0]['id'];
     $plan = ['name' => '2026-11-test', 'source' => 'delivery folder', 'scenes' => [['id' => $firstScene], ['id' => 'd90-91', 'label' => '90–91']], 'entries' => [
         ['id' => 'del-new', 'scene' => 'd90-91', 'category' => 'video', 'title' => 'A delivered video', 'image' => $fileA['id'], 'target' => ['imageSrc' => $fileA['url'], 'video' => $fileV['url']]],

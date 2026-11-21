@@ -60,7 +60,8 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
    (marked by `FIXTURE.md`, refused by `osct content sync`): CI and the tests build it – never write tests that
    need the book's own entries. Never add book content, its media or a build of it to the repository.
    **Deliveries** from the publisher are never copied into the content by hand – a mapping file
-   `scripts/import/<delivery>.yaml` + `npm run import` does it (docs/content.md "Importing a delivery"), so the next
+   `scripts/import/<delivery>.yaml` + `osct delivery import` does it, through the editor API into the draft (#322;
+   docs/content.md "Importing a delivery"), so the next
    delivery lands the same way. `npm run protocol` writes the printed-image details for the trigger trial panel.
 9. Before ticking a plan item: `npx tsc --noEmit` and `npx vitest run` in `client/` must pass.
    Add or adapt tests in `__tests__/` next to the code you change (store, managers, content config).

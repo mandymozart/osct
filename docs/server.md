@@ -649,7 +649,7 @@ the column existed stay `null` until their file is replaced.
 
 | Endpoint | Body | Answer |
 |---|---|---|
-| `GET /editor/experiences/{id}/assets[?kind=]` | | `{ assets: [{ id, name, kind, mime, size, width, height, durationMs, version, url, usages, imported, createdAt, updatedAt }] }` – `width` / `height` in pixels (images, videos), `durationMs` (videos), null when unknown; `usages` = the file's uses ("What counts as a use"); the uploads first, then the files of the import's `files.json` (`imported: true`, id `import-<hash>`, read-only: no replace, usages or delete; `url` below the assets base, the rows name it by its content path `/assets/content/…`, the uses know both) |
+| `GET /editor/experiences/{id}/assets[?kind=]` | | `{ assets: [{ id, name, kind, mime, size, width, height, durationMs, version, url, usages, imported, sha256, createdAt, updatedAt }] }` – `sha256` = the stored file's (what an upload is deduplicated by; null for an imported file); `width` / `height` in pixels (images, videos), `durationMs` (videos), null when unknown; `usages` = the file's uses ("What counts as a use"); the uploads first, then the files of the import's `files.json` (`imported: true`, id `import-<hash>`, read-only: no replace, usages or delete; `url` below the assets base, the rows name it by its content path `/assets/content/…`, the uses know both) |
 | `POST /editor/experiences/{id}/assets[?fit=]` | the file; `X-File-Name: name.ext` | 201 `{ asset, converted }`, or 200 with the asset that already holds these bytes – it takes this upload's name; its file, URL, version and uses stay. A picture is stored under the image rule (`converted: true` – WebP, `<name>.webp`; [The image rule at upload](#the-image-rule-at-upload)). 400 `invalid-file` (no name, unsupported type, empty, a shader that is no text), 400 `invalid-fit`, 413 `body-too-large` (a shader above 256 KB), 413 `image-too-large` (above 50 MP) |
 | `PUT /editor/experiences/{id}/assets/{aid}/file[?fit=]` | the file (`X-File-Name` optional, the kind must stay) | `{ asset, relinked, converted }` – a picture under the image rule as at upload; a new version at a new path (`v2.ext`: nothing to purge on a CDN); every target, entity and entry naming the old URL now names the new one, and the experience's environment (`worldSrc`, `skySrc`), and every plugin source that names it (a shader it loads – the URL replaced in its text) (a change each) |
 | `GET /editor/experiences/{id}/assets/{aid}/usages` | | `{ usages: [{ kind: target | entry | entity | scene | reference | environment | experience | plugin, ref }], asset }` in the scenes' order ("What counts as a use"; `asset` as the list has it) |
@@ -932,8 +932,8 @@ their order stays readable. 404 `not-found` for a change not in the experience's
 ### Deliveries
 
 A publisher's delivery reaches the draft through the API (#322, `Deliveries.php`; the content folder's import
-`npm run import` before it). The files go first, through the [Assets](#assets) API (the CLI converts them – WebP, H.264 –
-and uploads each once, deduplicated by sha256); then `POST /editor/experiences/{id}/deliveries` sends the **plan**
+`npm run import` before it). The files go first, through the [Assets](#assets) API (`osct delivery import` converts them – WebP, H.264 –
+and uploads each once: a file whose sha256 the Library's list names is not sent again); then `POST /editor/experiences/{id}/deliveries` sends the **plan**
 (`shared/api/deliveries.ts` `DeliveryPlan`), JSON without files:
 
 ```json
