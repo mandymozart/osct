@@ -20,6 +20,21 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   normalized integers (KHR_mesh_quantization, as gltfpack writes them with meshopt) are dequantized instead of read as
   metres; the demo's test names the models that still float or sink in the exported content.
 
+## 4.6.2 – 2026-11-21
+
+### Fixed
+- The editor's draft no longer carries the specs an older build recorded for a plugin that has a saved source: the API's
+  draft leaves out such a declaration's `registered` (the saved source registers its own, #269), so the editor page
+  loads the Demo Book again ("entries[4]…of: expected one of book, spread, got experience" – 4.4.2 fixed the stage
+  only). A publish still declares what it carries.
+- The Scenes strip's **+** is a card high and level with the cards' pictures (it stretched over the whole strip).
+
+## 4.6.1 – 2026-11-21
+
+### Removed
+- The Logic canvas's signal table no longer carries the deck's `clock` (and its `--signal-clock` tokens): OSCT has no
+  clock (Tilman, 2026-11-21).
+
 ## 4.6.0 – 2026-11-21
 
 ### Added

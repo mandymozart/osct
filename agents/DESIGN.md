@@ -283,7 +283,6 @@ take the SCUTOONS deck's styles with its signal colours; the rest of the editor 
 |---|---|---|---|---|
 | event | triangle along the flow, wire weight 1.4 | `#22271e` | `#f3f3f0` | an **event** (a bus event, a node's own, a declared event outlet); a rule's **verb inlet** (`act:play` – the exec pin) |
 | control | dot | `#2f9e4a` | `#46d36a` | a **value**: a number, a whole number, a text, a choice, a colour; a variable without a type |
-| clock | dot | `#c23238` | `#e5484d` | – (kept for time: a timer node later) |
 | audio | square | `#0089a8` | `#19b8d8` | **media**: a sound file |
 | picture | square | `#3a63c9` | `#6f9bff` | **media**: a picture, a video, a texture, a model |
 | address | diamond | `#8a4fd0` | `#b46bff` | **node** (a verb acting on a node: show, hide, play, pause, stop) and **address** |

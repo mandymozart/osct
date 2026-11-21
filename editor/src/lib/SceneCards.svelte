@@ -280,7 +280,8 @@
   .n b { min-width: 0; color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
   .count { flex: none; }
   .count { display: inline-flex; align-items: center; gap: .125rem; }
-  .add { all: unset; box-sizing: border-box; cursor: pointer; flex: none; display: grid; place-items: center; width: 3.2rem; align-self: stretch; margin-bottom: 1.15rem; border: 1px dashed var(--line); color: var(--muted); }
+  /* A card high, level with the cards' pictures (their label row below) */
+  .add { all: unset; box-sizing: border-box; cursor: pointer; flex: none; display: grid; place-items: center; width: 3.2rem; height: var(--card-height); align-self: flex-end; margin-bottom: 1.15rem; border: 1px dashed var(--line); color: var(--muted); }
   /* One column wide, a card high */
   .grid .add { width: calc((100% - (var(--cols, 1) - 1) * .75rem) / var(--cols, 1)); height: var(--card-height); margin-bottom: 1.15rem; align-self: flex-start; }
   @media (hover: hover) { .add:hover { border-color: var(--text); color: var(--text); } }

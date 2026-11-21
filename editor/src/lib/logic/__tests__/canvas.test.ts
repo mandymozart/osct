@@ -22,9 +22,9 @@ const [a, b, c] = view.nodes.filter(n => n.kind === "rule").map(n => n.id);
 
 describe("the signal grammar is one table (#334 L-T8)", () => {
   it("names the deck's signals with their shapes and weights", () => {
-    expect([...DECK_SIGNALS]).toEqual(["event", "control", "clock", "audio", "picture", "address", "vote", "scene", "far"]);
+    expect([...DECK_SIGNALS]).toEqual(["event", "control", "audio", "picture", "address", "vote", "scene", "far"]);
     expect(Object.fromEntries(DECK_SIGNALS.map(s => [s, SIGNAL_STYLES[s].shape]))).toEqual({
-      event: "triangle", control: "dot", clock: "dot", audio: "square", picture: "square", address: "diamond", vote: "dot", scene: "square", far: "ring",
+      event: "triangle", control: "dot", audio: "square", picture: "square", address: "diamond", vote: "dot", scene: "square", far: "ring",
     });
     expect(SIGNAL_STYLES.event.weight).toBe(1.4);
   });
