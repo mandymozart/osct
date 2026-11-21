@@ -209,6 +209,29 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-21 – Logic canvas: live feedback on the wires (#334)
+
+- Tilman: *"also do we have live feedback for the wires? when a event fire that cable should light up. or when a variable
+  changes. we can see what is actively happening then"*. The Logic panel reads the stage's timeline (`stage.events`, the
+  Log tab's lines) and lights what each **new** line touches on the level drawn – `logic/live.ts`, pure and tested
+  (`__tests__/live.test.ts`): an event lights every wire carrying it by name (into / out of its event box, plugin pins,
+  bundled scene wires and stubs) and pulses its box; `varChanged` lights the variable's sets and reads and shows the new
+  value in its box's head; a `behaviour` line pulses the rule's box (in its kind's colour) and lights its `on` wire and its
+  action wires (a scene's rule: its scene box at the group / experience levels).
+- Decided: derived edges (bundled wires between scenes, name stubs) carry the names they join (`GraphEdge.names`) – a
+  bundle's label says only *2 events*. A node's own event box (`event:<target>/<path>:tap`) is lit only by its rule's
+  `behaviour` line, never by a bus event of the same name. The payload comes as `describePayload`'s one line, so
+  `parseDetail` reads it back (values are JSON). A node's rule is matched by target, node name (from the draft) and its
+  index in the node's behaviour – the engine's note carries no path.
+- Decided: "new" is by the frame's clock (`StageEvent.t`): the panel marks the timeline as seen when it opens (no replay);
+  an emptied timeline starts again; a clock that went back (a new frame) only moves the mark. A pulse lasts 1 s
+  (`LIVE_MS`), a new firing restarts it (a pulse number keys the animation). Look: the wire's own signal colour, opaque
+  and heavier, a dash glow running once from source to target over a fading halo (class `live`, apart from the hover's
+  `lit` / `dim`); reduced motion keeps only the brighter state. The bar's **Live** switch (on by default,
+  `osct-editor-logic-live`) turns it off.
+- [ ] Not checked in a running editor yet (no screenshot): the travelling dash on real wires, and the cost of re-drawing
+  the canvas's nodes per pulse on a large level.
+
 ## 2026-11-21 – Logic canvas: selecting and ungrouping groups, notes after the deck (content schema 5.3, #334)
 
 - Tilman: *"how to ungroup or select a group? and also we are missing notes on these graphs, for annotations."* A click on

@@ -11,6 +11,8 @@
   import { project, type LogicContent } from "#lib/logic/project.js";
   import { NOTE_NODE, flowOf, handleId, type FlowBox } from "#lib/logic/flow.js";
   import { DECK_SIGNALS } from "#lib/logic/signals.js";
+  import { addHit, emptyLive, freshLines, liveHit, liveIndex, markSeen, nodeNames, prune, LIVE_MS, type LiveState } from "#lib/logic/live.js";
+  import { readStored, writeStored } from "#lib/storage.js";
   import { issueRows, issueSummary, issuesOpen, type IssueRow } from "#lib/logic/issues.js";
   import type { LogicCanvas } from "@engine/types";
   import {
@@ -75,6 +77,11 @@
    *   that point), on a box's (beside it, moving with it), or **N** with the pointer over the canvas. A new note opens for
    *   typing; its author is the signed-in person. Notes are selected and dragged like boxes; Delete removes them (an empty
    *   text too). Each is a canvas op (History, Undo).
+   * - **Live feedback** (#334, Tilman 2026-11-21): while *Live* is on (the bar's switch, kept in this browser), each new line
+   *   of the stage's timeline (`stage.events`) lights what it touches at this level for a second – an event its wires and
+   *   box, a `varChanged` its variable's wires and box (with the new value), a `behaviour` line its rule's box and wires
+   *   (`logic/live.ts`: the index once per flow, a hit per line). The timeline as it stands when the panel opens counts as
+   *   seen: nothing is replayed.
    */
   let { experienceId, sceneId, stage = null, onpick, onmove }: {
     experienceId: string;
@@ -120,6 +127,50 @@
   });
   const flow = $derived(flowOf(view, levelCanvas));
   const levelKey = $derived(encodeContext(context));
+
+  // ── Live feedback (#334, Tilman 2026-11-21): the stage's new lines light their wires and boxes for a moment ──
+  const LIVE_KEY = "osct-editor-logic-live";
+  /** On by default; off is kept in this browser */
+  let liveOn = $state(untrack(() => readStored(LIVE_KEY) !== "off"));
+  /** What is lit now (`logic/live.ts`): a pulse per wire and box, the value a variable box shows */
+  let live = $state.raw<LiveState>(emptyLive());
+  let liveTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The newest line seen: the timeline as it stands when the panel opens counts as seen – nothing is replayed */
+  let liveSeen = untrack(() => markSeen(stage?.events ?? []));
+  let livePulse = 0;
+  const setLive = (on: boolean) => {
+    liveOn = on;
+    writeStored(LIVE_KEY, on ? null : "off");
+    if (!on) live = emptyLive();
+  };
+  /** Which wires and boxes an event, a variable or a rule lights – once per flow, not per line */
+  const liveAt = $derived(liveOn ? liveIndex(view, flow, nodeNames(logic, sceneOfContext(context) ?? undefined)) : null);
+  const liveEnd = () => {
+    liveTimer = null;
+    live = prune(live, performance.now());
+    if (live.wires.size || live.boxes.size) liveTimer = setTimeout(liveEnd, LIVE_MS / 4);
+  };
+  $effect(() => {
+    const lines = stage?.events ?? [];
+    const index = liveAt;
+    untrack(() => {
+      const { fresh, seen } = freshLines(lines, liveSeen);
+      liveSeen = seen;
+      if (!index || !fresh.length) return;
+      const now = performance.now();
+      let next: LiveState | null = null;
+      for (const line of fresh) {
+        const hit = liveHit(index, line);
+        if (hit.wires.length || hit.boxes.length) next = addHit(next ?? live, hit, now, ++livePulse);
+      }
+      if (!next) return;
+      live = next;
+      liveTimer ??= setTimeout(liveEnd, LIVE_MS / 4);
+    });
+  });
+  $effect(() => () => {
+    if (liveTimer) clearTimeout(liveTimer);
+  });
   const up = $derived(parentLevel(view));
 
   // A level from the URL: the workspace shows it too (a node selected, a group, the experience)
@@ -382,6 +433,7 @@
     void levelKey;
     picked = [];
     pickedWires = [];
+    live = emptyLive();
   });
   /** The rule a rule box stands for (its home without the part) */
   const ruleRefOf = (box: string): RuleRef | null => {
@@ -625,6 +677,11 @@
         help="On: selecting a scene, a group or a node elsewhere (the stage, the tree, the Scenes panel) moves the Logic view to its level. Off: the view stays where you put it." />
       <span class="small">Follow</span>
     </span>
+    <span class="follow">
+      <Toggle on={liveOn} label="Live" onchange={setLive}
+        help="On: what happens on the stage shows on the canvas as it happens – a wire that carries an event lights up in its colour when the event fires, the wires of a variable when it changes (its box shows the new value for a moment), and a rule that ran pulses with the wires out of its actions. Only what happens from now on; off keeps the canvas still. Remembered in this browser." />
+      <span class="small">Live</span>
+    </span>
   </div>
   <div class="legend small" aria-label="Legend: the signals">
     {#each LEGEND as signal (signal)}
@@ -647,7 +704,7 @@
   {:else if canvasError}
     <p class="danger small">The graph could not load: {canvasError}</p>
   {:else if Canvas}
-    <Canvas bind:this={canvasRef} {flow} level={levelKey} selected={selectedBox} {flash} {editable} onpick={pickBox} onenter={enterBox} canconnect={canConnect}
+    <Canvas bind:this={canvasRef} {flow} {live} level={levelKey} selected={selectedBox} {flash} {editable} onpick={pickBox} onenter={enterBox} canconnect={canConnect}
       onconnect={connectWire}
       onselect={(ids: string[], wires: string[]) => { picked = ids; pickedWires = wires; }} onmenu={openMenu}
       takesfrom={takesFrom} onrefused={refused} onwiredrop={wireDrop} onexpose={exposeMenu}

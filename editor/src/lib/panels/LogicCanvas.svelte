@@ -16,6 +16,7 @@
   import "@xyflow/svelte/dist/base.css";
   import { NOTE_NODE, frameOf, type Flow, type FlowBox, type FlowNote } from "#lib/logic/flow.js";
   import { GRID } from "#lib/logic/signals.js";
+  import type { LiveState } from "#lib/logic/live.js";
   import LogicBox, { type LogicBoxData } from "./LogicBox.svelte";
   import LogicFrame, { type LogicFrameData } from "./LogicFrame.svelte";
   import LogicNote, { type LogicNoteData } from "./LogicNote.svelte";
@@ -58,12 +59,18 @@
    * box; `onselect` names them `note:<id>`) and dragged like boxes (their place goes out through `onplace` as `note:<id>`:
    * a free note's place, a note beside a box its offset from it), and follow their box while it is dragged; a dotted line
    * joins a note to its box (`LogicRef`). Its text is edited in place (`onnoteedit`).
+   *
+   * **Live feedback** (#334, `logic/live.ts`): `live` names the wires and boxes the stage's newest lines lit – a lit wire
+   * gets the class `live` and its pulse's number (`LogicWire` draws the travelling glow, again from the start for a new
+   * number), a lit box its pulse and a variable's new value (`LogicBox`). Distinct from the pointer's `lit` / `dim`.
    */
   let {
-    flow, level, selected, flash, editable, onpick, onenter, canconnect, onconnect, onselect, onmenu, takesfrom, onrefused, onwiredrop, onexpose, onplace, onfold,
+    flow, live = null, level, selected, flash, editable, onpick, onenter, canconnect, onconnect, onselect, onmenu, takesfrom, onrefused, onwiredrop, onexpose, onplace, onfold,
     ongroupfold, ongroupcolour, ongrouprename, onnoteedit,
   }: {
     flow: Flow;
+    /** What the stage lit just now (the panel's live feedback); null: nothing */
+    live?: LiveState | null;
     /** The level's key: a new level fits the view again */
     level: string;
     selected: (box: FlowBox) => boolean;
@@ -174,14 +181,14 @@
       selected: chosen.nodes.has(box.id),
       data: {
         box, selected: selected(box), flash: flash === box.id, dim: !!lit && !lit.has(box.id), hover: hovered === box.id, never: neverBox.has(box.id), editable,
-        takes: dragging ? dragging.get(box.id) ?? NONE : null, onpick, onenter, onexpose, onfold,
+        takes: dragging ? dragging.get(box.id) ?? NONE : null, live: live?.boxes.get(box.id) ?? null, onpick, onenter, onexpose, onfold,
       },
     }));
     nodes = [...frames, ...boxes, ...notes];
     edges = flow.wires.map((w): Edge => ({
       id: w.id, type: "logic", source: w.source, target: w.target, sourceHandle: w.sourcePort, targetHandle: w.targetPort, label: w.never ? `${w.label} · never fires` : w.label,
-      selectable: editable, focusable: editable, selected: chosen.edges.has(w.id), data: { edge: w.edge, deck: w.deck, never: w.never },
-      class: ["logic-wire", `sig-${w.deck}`, w.never && "never", w.back && "back", lit && (lit.has(w.source) && lit.has(w.target) && (w.source === hovered || w.target === hovered) ? "lit" : "dim")].filter(Boolean).join(" "),
+      selectable: editable, focusable: editable, selected: chosen.edges.has(w.id), data: { edge: w.edge, deck: w.deck, never: w.never, live: live?.wires.get(w.id)?.n ?? 0 },
+      class: ["logic-wire", `sig-${w.deck}`, w.never && "never", w.back && "back", live?.wires.has(w.id) && "live", lit && (lit.has(w.source) && lit.has(w.target) && (w.source === hovered || w.target === hovered) ? "lit" : "dim")].filter(Boolean).join(" "),
     })).concat(flow.refs.map((r): Edge => ({
       // A display row's reference (#334): drawn under the wires, never selected, deleted or lit – not a wire
       id: r.id, type: "ref", source: r.source, target: r.target, sourceHandle: r.sourceHandle, targetHandle: r.targetHandle,
@@ -391,6 +398,10 @@
   .flow :global(.svelte-flow__node-frame) { cursor: default; pointer-events: none; }
   .flow :global(.logic-wire.lit path.svelte-flow__edge-path) { stroke-width: 2.5px !important; stroke-opacity: 1 !important; }
   .flow :global(.logic-wire.dim) { opacity: .45; }
+  /* Live feedback (#334): a wire the stage just lit is drawn fully opaque and heavier, easing back when it ends */
+  .flow :global(.logic-wire path.svelte-flow__edge-path) { transition: stroke-width .4s ease-out, stroke-opacity .4s ease-out; }
+  .flow :global(.logic-wire.live path.svelte-flow__edge-path) { stroke-width: 2.75px !important; stroke-opacity: 1 !important; transition: none; }
+  .flow :global(.logic-wire.live.dim) { opacity: 1; }
   /* A wire's word: in its signal's colour, a little heavier, its letters outlined in white so it reads over crossing wires –
      no box behind it (Tilman, 2026-11-21: "the text should have a white outline not a semi transparent backdrop"), white
      in day and night alike */

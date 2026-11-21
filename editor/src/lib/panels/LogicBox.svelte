@@ -15,6 +15,8 @@
     editable: boolean;
     /** While a wire is dragged: the handles (`in:act:play`) that would take it; null when nothing is dragged */
     takes: ReadonlySet<string> | null;
+    /** Live feedback (#334): the stage just lit it – the pulse's number (a new one pulses again) and a variable's new value */
+    live?: { n: number; value?: string } | null;
     onpick: (box: FlowBox) => void;
     onenter: (box: FlowBox) => void;
     /** The box's + : show one of its hidden ports (the panel opens the menu at `at`) */
@@ -48,6 +50,9 @@
    * **Display rows** (#334): what a plugin's code reads, sets and drives is plain text under its pins, below a thin divider,
    * no pins – a click opens the plugin in the Code tab (the box's own click). Invisible anchors at each row's sides (and the
    * head's, and every box's head for the far end) carry the dotted reference lines (`LogicRef`); they never connect.
+   *
+   * **Live** (#334): while the stage just lit it (a rule that ran, an event that fired, a variable that changed), its border
+   * pulses once in its kind's colour; a variable shows its new value in its head for that moment (`= true`).
    */
   let { data }: { data: LogicBoxData } = $props();
 
@@ -119,6 +124,9 @@
   role="button" tabindex="0" aria-label="{word} {label} – {detail}{node?.problem ? ` – ${node.problem}` : ''}{enterable ? ' – Enter opens it' : ''}"
   title="{word}: {label} – {detail}{node?.problem ? `\n${node.problem}` : ''}{enterable ? '\nDouble-click to open' : ''}{data.editable && !box.stub ? '\nDrag its head to place it' : ''}"
   ondblclick={e => { if (enterable) { e.stopPropagation(); data.onenter(box); } }} onkeydown={keydown}>
+  {#if data.live}
+    {#key data.live.n}<span class="live-ring" aria-hidden="true"></span>{/key}
+  {/if}
   <span class="head drag-head">
     {#if node?.preview}
       <img class="preview" src={contentUrl(node.preview)} alt="" loading="lazy" onerror={e => ((e.currentTarget as HTMLImageElement).hidden = true)} />
@@ -126,7 +134,11 @@
       <span class="kind-icon"><Icon name={icon as never} /></span>
     {/if}
     <span class="label">{label}</span>
-    <span class="word">{word}</span>
+    {#if data.live?.value !== undefined}
+      <span class="live-value" title="its new value">= {data.live.value}</span>
+    {:else}
+      <span class="word">{word}</span>
+    {/if}
     {#if box.hidden.length && data.editable && !box.folded}
       <button type="button" class="expose nodrag" aria-label="Show a port of {label} ({box.hidden.length} hidden)" title="Show a port ({box.hidden.length} hidden)"
         onclick={expose} ondblclick={e => e.stopPropagation()}>+</button>
@@ -209,6 +221,14 @@
   .box.warning { border-style: dashed; }
   .box.problem .head { background: color-mix(in srgb, var(--danger) 12%, var(--control-background)); }
   .box.dim { opacity: .55; }
+  /* Live feedback (#334): one pulse of the border in the kind's colour; reduced motion keeps it still for its moment */
+  .live-ring {
+    position: absolute; inset: -1px; border: 2px solid var(--kind); border-radius: inherit; pointer-events: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--kind) 28%, transparent); animation: live-ring 1s ease-out forwards;
+  }
+  @keyframes live-ring { from { opacity: 1; } 70% { opacity: .8; } to { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .live-ring { animation: none; } }
+  .live-value { flex: none; max-width: 45%; font-size: .625rem; font-weight: 600; color: var(--kind); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .box.pointed:not(.selected) { border-color: var(--kind); }
   .box.pointed .enter, .box.pointed .fold { color: var(--text); }
   .box:focus-visible { outline: 2px solid var(--signal-accent); outline-offset: 1px; }

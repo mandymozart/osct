@@ -369,13 +369,13 @@ class Graph {
     return full;
   }
 
-  link(from: [string, string], to: [string, string], signal: Signal, label: string, home: Home | null): void {
+  link(from: [string, string], to: [string, string], signal: Signal, label: string, home: Home | null, names?: readonly string[]): void {
     if (!home && this.edges.some(e => !e.home && e.from.join() === from.join() && e.to.join() === to.join() && e.label === label)) return;
     const base = `${from.join(":")}>${to.join(":")}`;
     let id = base;
     for (let n = 2; this.#ids.has(id); n++) id = `${base}~${n}`;
     this.#ids.add(id);
-    this.edges.push({ id, from, to, signal, label, home });
+    this.edges.push({ id, from, to, signal, label, home, ...(names ? { names } : {}) });
   }
 
   /**
@@ -698,8 +698,8 @@ const nameStubs = (content: LogicContent, g: Graph, joins: readonly Join[], isNe
     const label = `${join.name} ${side === "in" ? "←" : "→"} ${JOIN_WORDS[join.kind][side]} ${words}`;
     if (stubs.some(s => s.label === label)) continue;
     const edge: GraphEdge = side === "in"
-      ? { id: `stub:${farId}>${box.id}:${join.name}`, from: [farId, ports.from], to: [box.id, ports.near.in], signal, label: join.name, home: null }
-      : { id: `stub:${box.id}>${farId}:${join.name}`, from: [box.id, ports.near.out], to: [farId, ports.to], signal, label: join.name, home: null };
+      ? { id: `stub:${farId}>${box.id}:${join.name}`, from: [farId, ports.from], to: [box.id, ports.near.in], signal, label: join.name, home: null, names: [join.name] }
+      : { id: `stub:${box.id}>${farId}:${join.name}`, from: [box.id, ports.near.out], to: [farId, ports.to], signal, label: join.name, home: null, names: [join.name] };
     stubs.push({ edge, side, far, label });
   }
   return stubs;
@@ -763,7 +763,7 @@ const bundle = (joins: readonly Join[]) => {
     const names = [...p.names].sort();
     const label = names.length === 1 ? names[0] : plural(names.length, p.kind);
     const ports = JOIN_PORTS[p.kind];
-    const edge: GraphEdge = { id: `${p.kind}:${p.from}>${p.to}`, from: [p.from, ports.from], to: [p.to, ports.to], signal: p.kind === "variable" ? "value" : "event", label, home: null };
+    const edge: GraphEdge = { id: `${p.kind}:${p.from}>${p.to}`, from: [p.from, ports.from], to: [p.to, ports.to], signal: p.kind === "variable" ? "value" : "event", label, home: null, names };
     return { ...p, names, edge };
   });
 };
@@ -856,7 +856,7 @@ const groupView = (content: LogicContent, context: Extract<Context, { level: "gr
   for (const pair of bundle(joins)) {
     const fromIn = inside(pair.fromPlace);
     const toIn = inside(pair.toPlace);
-    if (fromIn && toIn) g.link(pair.edge.from, pair.edge.to, pair.edge.signal, pair.edge.label, null);
+    if (fromIn && toIn) g.link(pair.edge.from, pair.edge.to, pair.edge.signal, pair.edge.label, null, pair.names);
     else if (fromIn || toIn) {
       const side = toIn ? "in" : "out";
       const farPlace = toIn ? pair.fromPlace : pair.toPlace;
@@ -929,7 +929,7 @@ const experienceView = (content: LogicContent, context: Context, uses: readonly 
   // Events across places: one derived edge per pair (the bus joins them by name)
   const joins = joinsOf(uses).filter(j => j.kind === "event" && boxOf(j.from) !== boxOf(j.to));
   for (const pair of bundle(joins)) {
-    if (g.nodes.has(pair.from) && g.nodes.has(pair.to)) g.link(pair.edge.from, pair.edge.to, "event", pair.edge.label, null);
+    if (g.nodes.has(pair.from) && g.nodes.has(pair.to)) g.link(pair.edge.from, pair.edge.to, "event", pair.edge.label, null, pair.names);
   }
   // Gotos between scenes (derived), then the experience's own rules with theirs (written – editable here)
   for (const pair of gotoPairs(gotosOf(content))) {
