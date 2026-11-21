@@ -28,6 +28,8 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   what the person who opens the experience may (the draft, the data, the game state). That is a risk, scoped to that
   person; docs/plugins.md "Where it runs" says so plainly. The plugin API stays 3.1 (`api` did not change). MAJOR: the
   editor's security model changed, no backward compatibility before the Tokyo release.
+- The reader's stored progress is format 5 (the app's MAJOR, RULES #10) – the same shape as format 4, read without a
+  notice; the reader's plugin loading is unchanged.
 
 ### Added
 - **A prompt before others' plugin code**: before the stage runs plugin code that someone other than the signed-in editor
