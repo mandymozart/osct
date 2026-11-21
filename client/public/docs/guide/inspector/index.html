@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>The Inspector – OSCT docs</title>
+  <meta name="description" content="What the Inspector shows for a target, a node, an entry, the scene and the experience – placement, files, materials, components, post-processing, looks, variables.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/docs/docs.css">
+  <script src="/docs/docs.js" defer></script>
+</head>
+<body>
+<nav id="nav" aria-label="Documentation"><a class="home" href="/docs/">OSCT docs</a></nav>
+<main>
+  <p class="kicker">Editor guide</p>
+  <h1>The Inspector</h1>
+  <p class="lead">The Inspector shows what is selected and saves every change by itself. Its rows come from the content model, so a plugin's parameters look like built-in ones.</p>
+  <nav id="toc" aria-label="On this page"></nav>
+  <h2 id="target">A target</h2>
+  <div class="beside">
+    <div>
+      <ul>
+        <li><b>Image</b>: the printed image. <i>Library…</i> picks one, <i>Upload…</i> adds one.</li>
+        <li><b>Placement</b>: switch it on to see and edit where the image is printed: surface, x, y and width in mm. On the stage the image gets handles while it is on.</li>
+        <li><b>Recognition</b>: an optional prepared frame that helps tracking. <i>Original only</i> keeps this target on its printed image.</li>
+        <li><b>AR content</b>: a link down to the target's entity.</li>
+      </ul>
+      <p>The head is a breadcrumb: <i>target › entity › node</i>. A click on a crumb selects that level.</p>
+    </div>
+    <figure>
+      <img src="/docs/img/inspector-target.webp" width="400" height="320" alt="The Inspector with a target selected." loading="lazy">
+    </figure>
+  </div>
+
+  <h2 id="node">An entity or a node</h2>
+  <div class="beside">
+    <div>
+      <ul>
+        <li><b>Name</b>: what the tree shows, and how rules address the node.</li>
+        <li><b>+ node</b>: add a group, model, video, image, text or light, or a plugin's node type. <i>Add as</i>: next to the selected node or inside it.</li>
+        <li><b>Placement</b>: position, rotation, scale, relative to the parent. <i>Uniform</i> links the scale axes.</li>
+        <li><b>File</b>: the model, video or image, from the Library or uploaded. A credits line belongs to it.</li>
+        <li><b>Textures</b> and <b>levels</b>: the same file in several sizes; the reader picks one by quality.</li>
+        <li><b>Material</b>: the node's own, or one a plugin registers.</li>
+        <li><b>Components</b>: each with its rows and <i>remove</i>. <i>Add component</i> is at the bottom.</li>
+        <li><b>make it code</b>: turns the node into a plugin node type you can edit in the Code tab.</li>
+      </ul>
+      <p>Numbers are scrub fields: press and slide, or click to type. <kbd>Shift</kbd> ×10, <kbd>Alt</kbd> ×0.1. A small arrow resets a value to its default.</p>
+    </div>
+    <figure>
+      <img src="/docs/img/inspector-node.webp" width="400" height="844" alt="The Inspector with a model node selected: name, placement, file, textures, material, components." loading="lazy">
+    </figure>
+  </div>
+
+  <h2 id="components">Components</h2>
+  <div class="table"><table>
+    <tr><th>Component</th><th>What it does</th></tr>
+    <tr><td>animation</td><td class="wrap">Plays a model's clip: on found, on tap or never; loop and speed. Shows a timeline.</td></tr>
+    <tr><td>behaviour</td><td class="wrap">Rules without code: <i>on</i> an event, <i>when</i> a condition, <i>do</i> actions. <a href="/docs/api/logic/">The logic system</a></td></tr>
+    <tr><td>reveal, found, lost</td><td class="wrap">The node's own look for appearing and disappearing, instead of the experience's.</td></tr>
+    <tr><td>a plugin's</td><td class="wrap">Whatever the experience's code registers, e.g. <i>spin</i>, <i>tint</i>. <a href="/docs/guide/code/">The Code tab</a></td></tr>
+  </table></div>
+  <figure>
+    <img src="/docs/img/behaviour.webp" width="400" height="490" alt="A behaviour component with two rules." loading="lazy">
+    <figcaption>The demo's door. Rule 1 shows the hint when the page is found. Rule 2 runs only when <code>hasKey == true</code>: it hides the hint and emits <code>openDoor</code>.</figcaption>
+  </figure>
+
+  <h2 id="entry">An entry</h2>
+  <div class="beside">
+    <div>
+      <p>Select an entry row in the tree. Its form replaces the Inspector:</p>
+      <ul>
+        <li><b>Title, category, scene, author, tags.</b> Choosing another scene moves the entry there.</li>
+        <li><b>Text</b> with a live <b>preview</b>. A blank line starts a paragraph; <code>*emphasis*</code>, <code>**strong**</code> and <code>[links](https://…)</code> work.</li>
+        <li><b>Variables in the text</b>: <code>{hasKey: The door opens.|It is locked.}</code> shows one text or the other. The preview uses the stage's current values.</li>
+        <li><b>Picture, caption, link.</b></li>
+      </ul>
+      <p><b>+ entry</b> in the tree makes an entry without a target: it shows in the reader's list only.</p>
+    </div>
+    <figure>
+      <img src="/docs/img/inspector-entry.webp" width="400" height="680" alt="The entry form with its text and preview." loading="lazy">
+    </figure>
+  </div>
+
+  <h2 id="scene">The scene</h2>
+  <p>With the scene selected, the Inspector has collapsible sections:</p>
+  <ul>
+    <li><b>Scene</b> and <b>Surfaces</b>: label, group, surfaces. <a href="/docs/guide/scenes/">Scenes and surfaces</a></li>
+    <li><b>Post-processing</b>: passes over the rendered picture.</li>
+    <li><b>Rules</b>: the scene's own rules.</li>
+    <li><b>Vars and events</b>: test the narrative.</li>
+  </ul>
+
+  <h3 id="post">Post-processing</h3>
+  <div class="beside">
+    <div>
+      <p>The experience has one list of passes that every scene shows. A scene may have <b>its own</b> list instead; the section's head says which you are editing.</p>
+      <p><b>Add pass</b>: bloom, vignette, grade, or a plugin's pass. Each pass folds, has an on / off switch and arrows for its place in the chain. More than three passes or more than one bloom is too much for a phone; the section says so.</p>
+    </div>
+    <figure>
+      <img src="/docs/img/post.webp" width="400" height="128" alt="A scene's own post-processing with a film grain pass." loading="lazy">
+    </figure>
+  </div>
+
+  <h3 id="vars">Vars and events</h3>
+  <div class="beside">
+    <div>
+      <ul>
+        <li><b>Tap</b>: a button per target taps it as a reader would.</li>
+        <li><b>Vars</b>: every variable with its scope and value; change one to test a branch. <b>Set</b> makes a new one. <b>Reset</b> starts a new game.</li>
+        <li><b>Events</b>: the timeline, newest first. A <b>behaviour</b> line is a rule that ran, with what it did.</li>
+      </ul>
+    </div>
+    <figure>
+      <img src="/docs/img/vars.webp" width="400" height="376" alt="Vars and events after a tap on the key." loading="lazy">
+      <figcaption>After a tap on the key: the rule ran, set <code>hasKey</code> and emitted <code>keyRattled</code>.</figcaption>
+    </figure>
+  </div>
+
+  <h2 id="experience">The experience</h2>
+  <p>Click the experience's name in the top bar. The Inspector shows its <b>title</b>, the <b>printed book</b> switch with author and publisher, the experience's <b>post-processing</b> (the list every scene without its own shows), its <b>appearance</b>, and at the end its own <b>rules</b> and declared <b>variables</b>.</p>
+
+  <h3 id="appearance">Appearance</h3>
+  <p>Three moments, each with a look: <b>reveal</b> (the first find), <b>found</b> (every later find) and <b>lost</b>. Built-in looks: <i>inflateDissolve</i>, <i>printLift</i>, <i>fade</i>; plugins can add more. <b>Play</b> in a moment's head shows it on the stage.</p>
+  <footer id="pager"></footer>
+</main>
+</body>
+</html>

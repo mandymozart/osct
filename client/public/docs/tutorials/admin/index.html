@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Tutorials for admins – OSCT docs</title>
+  <meta name="description" content="Step-by-step tutorials for the OSCT admin page: getting in, inviting editors, roles, QR codes for print and their arrivals, and the newsletter list.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/docs/docs.css">
+  <script src="/docs/docs.js" defer></script>
+</head>
+<body>
+<nav id="nav" aria-label="Documentation"><a class="home" href="/docs/">OSCT docs</a></nav>
+<main>
+  <p class="kicker">Tutorials</p>
+  <h1>Tutorials for admins</h1>
+  <p class="lead">The admin page is at <a href="/admin"><code>/admin</code></a> (it opens <code>/editor/admin</code>). It manages who may edit, counts arrivals from printed QR codes, and exports the newsletter list.</p>
+  <nav id="toc" aria-label="On this page"></nav>
+  <figure>
+    <a href="/docs/img/admin.webp"><img src="/docs/img/admin.webp" width="1040" height="690" alt="The admin page: QR codes and links on top, the users below, Invite an editor at the end." loading="lazy"></a>
+    <figcaption>The admin page with test accounts.</figcaption>
+  </figure>
+
+  <h2 id="access">1 · Get in</h2>
+  <ol class="steps">
+    <li><p>You need the role <b>admin</b>. The first admins of an installation are the addresses in its <code>ADMINS</code> setting: they get the role when they sign in. Everyone else is made an admin by an admin (tutorial 3).</p></li>
+    <li><p>Open <code>/admin</code> and sign in with your e-mail and the code you receive, or your password.</p></li>
+  </ol>
+  <p>An editor who is no admin sees <i>No admin access</i> there. An admin who is no editor sees only this page.</p>
+
+  <h2 id="invite">2 · Invite an editor</h2>
+  <ol class="steps">
+    <li><p>Scroll to <b>Invite an editor</b>, type the person's e-mail, press <b>Make editor</b>.</p></li>
+    <li><p>Tell them to open <code>/editor</code> and sign in with that address. They get a code by mail; no password is needed.</p></li>
+  </ol>
+  <p>A new address becomes an account at once. An existing account simply gets the role.</p>
+
+  <h2 id="roles">3 · Change someone's roles</h2>
+  <ol class="steps">
+    <li><p>Under <b>Users</b>, search by a part of the e-mail, or use the filters <b>Editors</b> and <b>Admins</b>.</p></li>
+    <li><p>Flip the <b>editor</b> or <b>admin</b> switch in their row. It takes effect with their next request.</p></li>
+    <li><p>Hover a role to see when and by whom it was given.</p></li>
+  </ol>
+  <div class="note"><p><b>reader</b> is fixed: every account has it. The <b>last admin</b> cannot give up the role; make another admin first.</p></div>
+
+  <h2 id="qr">4 · Make a QR code for print</h2>
+  <p>Give every printed code or link its own <b>source</b>, so you can tell where people come from.</p>
+  <ol class="steps">
+    <li><p>Under <b>A new code</b>, type a short source: letters, digits and dashes, e.g. <code>fl1</code> for a flyer.</p></li>
+    <li><p>Choose where it <b>leads to</b>: the start, Info, a scene, an entry list or an entry.</p></li>
+    <li><p>The address and its QR code appear. <b>Copy</b> the address or <b>Download SVG</b> for the printer.</p></li>
+  </ol>
+
+  <h2 id="arrivals">5 · Read the arrivals</h2>
+  <ol class="steps">
+    <li><p>At the top, choose the window: 7, 30 or 90 days, or a year.</p></li>
+    <li><p>Each source shows its arrivals in that window and in all, the <b>first</b> arrivals (browsers that had never come before), phone · tablet · desktop, and a bar per day.</p></li>
+  </ol>
+  <p>These are counts only: no IP address and no user is stored. A source shows up with its first arrival.</p>
+
+  <h2 id="newsletter">6 · Export the newsletter list</h2>
+  <ol class="steps">
+    <li><p>Under <b>Users</b>, press the filter <b>Newsletter</b>: the readers who opted into news.</p></li>
+    <li><p>Press <b>Newsletter CSV</b>. The file has e-mail, language, the option and the sign-up date, ready for a mailing tool.</p></li>
+  </ol>
+  <p>With the filter <b>All</b> the button is <b>Users CSV</b> and downloads every user. The page shows a reader's choice; it cannot change it. Readers change it themselves under Info → Account.</p>
+
+  <h2 id="installation">7 · Bring an experience onto a new installation</h2>
+  <ol class="steps">
+    <li><p>Sign in at <code>/editor</code> (you need the editor role too).</p></li>
+    <li><p>Use <b>Import an experience</b>: the CDN's version, or a content base URL from another installation. <a href="/docs/guide/experiences/#import">How importing works</a></p></li>
+    <li><p>Open the experience, check a few scenes, then <b>Publish</b>. This installation publishes to its own environment only.</p></li>
+  </ol>
+  <footer id="pager"></footer>
+</main>
+</body>
+</html>

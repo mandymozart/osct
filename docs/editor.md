@@ -86,6 +86,9 @@ with SQLite and the local content store:
    `VITE_CONTENT_BASE_URL=http://127.0.0.1:8080/api/content/local` and `VITE_EXPERIENCE=osct` (the fixture's id;
    `<base>/osct/latest.json` names the new build – another experience opens at `/x/<experience>/`).
 
+**For the people who use the editor** there is a documentation site at `/docs/` – the editor guide, tutorials for editors
+and admins and the API pages ([docs-site](docs-site.md), #336); this file stays the developers' account of the editor.
+
 The one-page version of this flow for editors, with the diagram, ships with the app at `/docs/tutorials/`
 (`client/public/docs/tutorials/index.html` – a static page, served by the site's `.htaccess` like any file). Its other
 chapters bring an experience in (the CDN, a URL or a file, the assets base, what is on the CDN – #95), walk through the demo

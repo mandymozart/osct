@@ -1,0 +1,121 @@
+/* The documentation site at /docs/ – one stylesheet for every page but the long walkthrough (tutorials/index.html,
+   which carries its own). The look is the editor's (editor/src/app.css, after the SCUTOONS creator and deck editor):
+   monochrome, day by default, the system's type, square corners, borders instead of shadows,
+   labels in small capitals. No colour but an error's. */
+:root {
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, Consolas, "SF Mono", Menlo, monospace;
+  --nav-width: 15rem;
+  /* Day – the editor's palette */
+  --bg: #ffffff; --text: #1e1e1e; --muted: #6b6b6b; --line: #e6e6e6; --surface: #f5f5f5;
+  --hover: #ebebeb; --selected: #d2d2d2; --danger: #c0392b;
+  color-scheme: light;
+}
+/* Night only when asked for (`data-scheme="dark"` on <html>): the docs' default is day, whatever the system says
+   (Tilman, 2026-11-21) */
+:root[data-scheme="dark"] {
+  /* The reader's contrasts: black ground, white text – not the editor's greys (Tilman, 2026-11-21) */
+  --bg: #000000; --text: #ffffff; --muted: #8b8d8c; --line: #2a2a2a; --surface: #141414;
+  --hover: #222222; --selected: #3a3a3a; --danger: #ff6b5b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 1rem; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.55 var(--font); }
+body { display: grid; grid-template-columns: var(--nav-width) minmax(0, 1fr); min-height: 100vh; }
+:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+
+/* A label: small, capitals, spaced – the editor's section heads */
+.kicker, #nav h2, #toc b, th, #pager span, .who { font-size: .72rem; font-weight: 400; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+
+/* The navigation: built by docs.js from one list; without scripts it is the one link home */
+#nav { position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto; padding: 1.25rem 1rem 2rem 1.25rem; border-right: 1px solid var(--line); background: var(--surface); font-size: .93rem; }
+#nav .home { display: block; font-weight: 600; font-size: 1rem; color: var(--text); text-decoration: none; margin-bottom: 1.25rem; }
+#nav h2 { margin: 1.25rem 0 .35rem; padding: 0; border: 0; }
+#nav ul { list-style: none; margin: 0; padding: 0; max-width: none; }
+#nav li { margin: 0; }
+#nav li a { display: block; padding: .3rem .5rem; margin-left: -.5rem; color: var(--text); text-decoration: none; }
+#nav li a[aria-current="page"] { background: var(--selected); }
+#nav-toggle { display: none; }
+
+main { max-width: 58rem; width: 100%; margin: 0 auto; padding: 2.5rem max(1.25rem, env(safe-area-inset-right, 0px)) 4rem max(1.25rem, env(safe-area-inset-left, 0px)); }
+h1, h2, h3 { font-weight: 600; text-wrap: balance; }
+h1 { font-size: 1.75rem; line-height: 1.2; margin: 0 0 .5rem; }
+h2 { font-size: 1.25rem; margin: 2.75rem 0 .75rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+h3 { font-size: 1rem; margin: 1.5rem 0 .4rem; }
+.kicker { margin: 0 0 1rem; }
+.lead { font-size: 1.07rem; max-width: 62ch; }
+p { margin: 0 0 1rem; max-width: 68ch; }
+.muted { color: var(--muted); }
+a { color: var(--text); text-decoration: underline; text-decoration-color: var(--muted); text-underline-offset: .15em; }
+ul, ol { max-width: 68ch; padding-left: 1.25rem; margin: 0 0 1rem; }
+li { margin: .25rem 0; }
+b, strong { font-weight: 600; }
+code, kbd { font-family: var(--mono); font-size: .88em; background: var(--surface); border: 1px solid var(--line); padding: .05em .35em; }
+kbd { border-bottom-width: 2px; white-space: nowrap; }
+:not(pre) > code { overflow-wrap: anywhere; }
+pre { margin: .5rem 0 1rem; padding: .75rem 1rem; background: var(--surface); border: 1px solid var(--line); overflow-x: auto; line-height: 1.45; }
+pre code { background: none; border: none; padding: 0; font-size: .82rem; }
+
+/* On this page */
+#toc { margin: 1.25rem 0 0; padding: .75rem 1rem; background: var(--surface); border: 1px solid var(--line); font-size: .93rem; }
+#toc b { display: block; margin-bottom: .35rem; }
+#toc ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .15rem 1.25rem; max-width: none; }
+#toc li { margin: 0; }
+
+/* Screenshots: a figure, a panel beside its text */
+figure { margin: 1.25rem 0 1.5rem; }
+figure img { display: block; max-width: 100%; height: auto; border: 1px solid var(--line); background: var(--surface); }
+figcaption { color: var(--muted); font-size: .86rem; margin-top: .5rem; max-width: 68ch; }
+.beside { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 25rem); gap: 1.75rem; align-items: start; margin: 1rem 0 1.5rem; }
+.beside.wide { grid-template-columns: minmax(0, 1fr) minmax(0, 30rem); }
+.beside > figure { margin: 0; }
+.beside > div > :last-child { margin-bottom: 0; }
+
+/* Tables, notes, steps, cards */
+.table { overflow-x: auto; margin: 0 0 1rem; }
+table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+th, td { text-align: left; padding: .4rem .6rem .4rem 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { white-space: nowrap; border-bottom-color: var(--text); }
+td:first-child { white-space: nowrap; }
+td.wrap { white-space: normal; }
+.note { padding: .75rem 1rem; border: 1px solid var(--line); border-left: .25rem solid var(--text); background: var(--surface); margin: 1rem 0; max-width: 68ch; }
+.note > :last-child { margin: 0; }
+ol.steps { list-style: none; counter-reset: step; padding: 0; margin: 1rem 0 1.5rem; max-width: none; }
+ol.steps > li { counter-increment: step; position: relative; padding: 0 0 1.1rem 3rem; border-left: 1px solid var(--line); margin: 0 0 0 1rem; }
+ol.steps > li::before { content: counter(step); position: absolute; left: -1rem; top: -.2rem; width: 2rem; height: 2rem; background: var(--bg); border: 1px solid var(--text); display: grid; place-items: center; font-size: .9rem; }
+ol.steps > li:last-child { padding-bottom: .25rem; border-left-color: transparent; }
+ol.steps > li > :last-child { margin-bottom: 0; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .5rem; margin: 1.25rem 0 1.5rem; }
+.card { display: block; padding: .9rem 1rem; background: var(--surface); border: 1px solid var(--line); color: var(--text); text-decoration: none; }
+.card b { display: block; margin-bottom: .25rem; }
+.card span { color: var(--muted); font-size: .93rem; }
+.who { display: inline-block; margin-left: .5rem; padding: .05em .5em; border: 1px solid var(--line); vertical-align: middle; }
+
+/* Previous / next */
+#pager { display: flex; justify-content: space-between; gap: 1rem; margin-top: 3.5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+#pager a { text-decoration: none; }
+#pager span { display: block; }
+#pager a:last-child { text-align: right; margin-left: auto; }
+
+/* Hover only where a pointer hovers, as in the editor */
+@media (hover: hover) {
+  a:hover { text-decoration-color: var(--text); }
+  #nav li a:hover { background: var(--hover); }
+  #nav li a[aria-current="page"]:hover { background: var(--selected); }
+  .card:hover { border-color: var(--text); background: var(--hover); }
+  #pager a:hover { text-decoration: underline; }
+}
+
+@media (max-width: 56rem) {
+  body { display: block; }
+  #nav { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: .75rem 1.25rem; }
+  #nav .home { margin: 0; display: inline-block; }
+  #nav-toggle { display: inline-block; float: right; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); padding: .15rem .6rem; }
+  #nav .groups { display: none; padding-bottom: .5rem; }
+  #nav.open .groups { display: block; }
+  main { padding-top: 1.5rem; }
+  .beside, .beside.wide { grid-template-columns: 1fr; }
+  .beside > figure { max-width: 25rem; }
+  h1 { font-size: 1.5rem; }
+}

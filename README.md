@@ -54,6 +54,8 @@ optimised copy of the media (`client/public/assets/content/`); neither is in git
 - [Tracking](docs/tracking.md) · [Look-around](docs/look-around.md) – the AR scene, the trigger trial and the load test
 - [Editor](docs/editor.md) – the authors' tool at `/editor`: books, import and publish, the book page, the workspace's
   tree, stage and panels, saving to the database
+- [Documentation site](docs/docs-site.md) – the users' documentation at `/docs/` (`client/public/docs/`): the editor guide, tutorials
+  for editors and admins, the API pages (logic, plugins, MCP); how a page and a screenshot are added
 - [Tutorials](client/public/docs/tutorials/index.html) – the content workflow on one page (sync, import, save, publish), bringing a book into the editor (the CDN, a URL, a file, the assets base, what is on the CDN), a walk through the demo book and a tour of the editor's tools, with screenshots, shipped at `/docs/tutorials/`
 - [Characters from Blender](docs/characters.md) – Kévin's remesh flow, the bake per frame, the budgets measured with Mark
 - [Plugins](docs/plugins.md) – the book's own code: the plugin API, a layer, a component, the Code tab, the content build

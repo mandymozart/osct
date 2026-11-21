@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>OSCT docs</title>
+  <meta name="description" content="How the OSCT editor works: a guide to its pages and panels, tutorials for editors and admins, and the APIs – the logic system, the plugin API and the MCP server.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/docs/docs.css">
+  <script src="/docs/docs.js" defer></script>
+</head>
+<body>
+<nav id="nav" aria-label="Documentation"><a class="home" href="/docs/">OSCT docs</a></nav>
+<main>
+  <p class="kicker">OSCT docs</p>
+  <h1>How the editor works</h1>
+  <p class="lead">The editor at <a href="/editor/"><code>/editor</code></a> is where an experience is made: scenes, printed targets, the AR content on them, texts, rules and code. These pages explain it in three parts.</p>
+
+  <figure>
+    <a href="/docs/img/workspace.webp"><img src="/docs/img/workspace.webp" width="1440" height="900" alt="The editor's workspace: the tree on the left, the stage in the middle with its toolbar, the Inspector on the right, the scenes along the bottom." loading="lazy"></a>
+    <figcaption>A scene's workspace. The stage shows the scene as a reader sees it; the panels float over it.</figcaption>
+  </figure>
+
+  <h2 id="guide">Editor guide</h2>
+  <p>What each page and panel is for. Read <a href="/docs/guide/">the editor at a glance</a> first; the others stand on their own.</p>
+  <div class="cards">
+    <a class="card" href="/docs/guide/"><b>The editor at a glance</b><span>The words, the three pages, how saving and publishing work.</span></a>
+    <a class="card" href="/docs/guide/experiences/"><b>Experiences, import, publish</b><span>The start page, bringing an experience in, going live.</span></a>
+    <a class="card" href="/docs/guide/workspace/"><b>Workspace and panels</b><span>Floating panels, the tree, selection, search, undo.</span></a>
+    <a class="card" href="/docs/guide/stage/"><b>The stage</b><span>The toolbar, the camera, the gizmo, grids and snapping.</span></a>
+    <a class="card" href="/docs/guide/scenes/"><b>Scenes and surfaces</b><span>Scenes, groups, double pages and walls.</span></a>
+    <a class="card" href="/docs/guide/inspector/"><b>The Inspector</b><span>Targets, nodes, components, entries, the scene's sections.</span></a>
+    <a class="card" href="/docs/guide/library/"><b>Library and Environment</b><span>The experience's files and the sky around the reader.</span></a>
+    <a class="card" href="/docs/guide/logic/"><b>The Logic panel</b><span>Rules, events and variables as a graph.</span></a>
+    <a class="card" href="/docs/guide/code/"><b>The Code tab</b><span>Writing and running the experience's plugins.</span></a>
+  </div>
+
+  <h2 id="tutorials">Tutorials</h2>
+  <p>Step by step through the jobs that come up most.</p>
+  <div class="cards">
+    <a class="card" href="/docs/tutorials/editor/"><b>For editors</b><span>A new target, a text, a rule, a scene, a look, publishing, an AI agent.</span></a>
+    <a class="card" href="/docs/tutorials/admin/"><b>For admins</b><span>Editors and roles, QR codes, the newsletter list.</span></a>
+    <a class="card" href="/docs/tutorials/"><b>Content and demo walkthrough</b><span>The long page: where content lives, importing, a walk through the demo.</span></a>
+  </div>
+
+  <h2 id="api">API</h2>
+  <p>For people who write rules, plugins or agents.</p>
+  <div class="cards">
+    <a class="card" href="/docs/api/"><b>Which API for what</b><span>Rules, code or an agent: where to start.</span></a>
+    <a class="card" href="/docs/api/logic/"><b>The logic system</b><span>Rules, events, variables, expressions, addresses.</span></a>
+    <a class="card" href="/docs/api/plugins/"><b>Plugin API</b><span>Components, node types, materials, passes, looks.</span></a>
+    <a class="card" href="/docs/api/mcp/"><b>MCP server</b><span>An AI agent as an editor: connecting, the tools, the limits.</span></a>
+  </div>
+
+  <footer id="pager"></footer>
+</main>
+</body>
+</html>

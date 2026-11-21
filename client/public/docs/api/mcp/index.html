@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>MCP server – OSCT docs</title>
+  <meta name="description" content="The OSCT MCP server: connecting an AI agent to the editor, what its token may do, the tools by area, the two-step confirmations, render_scene and the limits.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/docs/docs.css">
+  <script src="/docs/docs.js" defer></script>
+</head>
+<body>
+<nav id="nav" aria-label="Documentation"><a class="home" href="/docs/">OSCT docs</a></nav>
+<main>
+  <p class="kicker">API</p>
+  <h1>MCP server</h1>
+  <p class="lead">The MCP server lets an AI agent work on an experience the way the editor does: read scenes, place content, write texts, rules and plugins. It acts as you, saves drafts, and gives you a link to check each change.</p>
+  <nav id="toc" aria-label="On this page"></nav>
+  <h2 id="rules">The two rules</h2>
+  <ul>
+    <li><b>The API decides.</b> The agent has exactly your rights, minus what an AI connection is never allowed (below).</li>
+    <li><b>Readers are reached only by a person.</b> The agent changes the draft. Publishing is your button in the editor.</li>
+  </ul>
+
+  <h2 id="connect">Connecting</h2>
+  <p>The easy way is in the editor: <a href="/docs/guide/experiences/#ai">Experiences → Connect an AI agent</a> makes a token and a prompt the agent sets itself up with. By hand, any MCP client that starts a stdio server needs four things:</p>
+  <div class="table"><table>
+    <tr><th>What</th><th>Value</th></tr>
+    <tr><td>Name</td><td class="wrap"><code>osct-&lt;environment&gt;</code>: <code>osct-staging</code>, <code>osct-production</code></td></tr>
+    <tr><td>Command</td><td class="wrap"><code>node &lt;path&gt;/osct-mcp.mjs</code> – one file, downloaded from this site at <a href="/mcp/osct-mcp.mjs"><code>/mcp/osct-mcp.mjs</code></a>. Needs Node 22.</td></tr>
+    <tr><td><code>OSCT_API_URL</code></td><td class="wrap">This site's API, e.g. <code>https://osct.porschuetz.de/api</code></td></tr>
+    <tr><td><code>OSCT_EDITOR_TOKEN</code></td><td class="wrap">An AI connection's token, <code>osct_…</code></td></tr>
+  </table></div>
+  <pre><code>claude mcp add osct-staging --scope user \
+    -e OSCT_API_URL=https://osct.porschuetz.de/api \
+    -e OSCT_EDITOR_TOKEN=osct_… \
+    -- node /path/to/osct-mcp.mjs</code></pre>
+  <p>Claude Desktop, Codex CLI, OpenCode and Cursor take the same four values in their own config files; the editor's <i>Set it up by hand</i> shows each snippet filled in. Download the file again after the site was updated.</p>
+
+  <h2 id="token">What a token may do</h2>
+  <div class="table"><table>
+    <tr><th>Allowed</th><th>Refused (<code>not-for-ai</code>)</th></tr>
+    <tr><td class="wrap">Everything an editor does to a draft: scenes, targets, entities, entries, files, plugins, reverts.</td><td class="wrap">Publishing, in any environment. Making or changing tokens. The password. Any change of the account: consent, language, deletion.</td></tr>
+  </table></div>
+  <p>Every save by an agent is named in the change log with its token's name. A token expires after 182 days unless renewed, and stops at once when revoked.</p>
+
+  <h2 id="first">First calls</h2>
+  <ol>
+    <li><code>whoami</code> – who the agent is signed in as, and with which token.</li>
+    <li><code>list_experiences</code> – what is here and where it is live.</li>
+    <li><code>describe_content_model { experience }</code> – node types, components, parameters, the experience's plugins. Read it before writing an entity.</li>
+  </ol>
+
+  <h2 id="tools">The tools</h2>
+  <p>Every answer is JSON. A write answers with <code>open</code>: the editor's link to check the draft.</p>
+  <div class="table"><table>
+    <tr><th>Area</th><th>Tools</th></tr>
+    <tr><td>Reading</td><td class="wrap"><code>get_experience</code>, <code>list_scenes</code>, <code>get_scene</code>, <code>get_entries</code>, <code>get_entity</code>, <code>get_draft</code></td></tr>
+    <tr><td>Scenes</td><td class="wrap"><code>add_scene</code>, <code>put_scene</code>, <code>put_surface</code>, <code>move_scenes</code>, <code>delete_scene</code>, <code>group_scenes</code>, <code>rename_group</code>, <code>ungroup</code>, <code>set_surface_reference</code></td></tr>
+    <tr><td>Targets and content</td><td class="wrap"><code>add_entry</code> (an entry with its target), <code>put_target</code>, <code>put_entity</code></td></tr>
+    <tr><td>Texts</td><td class="wrap"><code>update_entry</code>, <code>delete_entry</code>, <code>update_experience</code></td></tr>
+    <tr><td>Look</td><td class="wrap"><code>put_experience_passes</code>, <code>put_experience_appearance</code>, <code>put_environment</code></td></tr>
+    <tr><td>Files</td><td class="wrap"><code>list_assets</code>, <code>upload_asset</code>, <code>rename_asset</code>, <code>delete_asset</code>, <code>set_asset_credits</code>, <code>plan_asset_names</code>, <code>apply_asset_names</code></td></tr>
+    <tr><td>Plugins</td><td class="wrap"><code>list_plugins</code>, <code>get_plugin</code>, <code>put_plugin</code>, <code>upload_plugin</code>, <code>plugin_usages</code>, <code>delete_plugin</code></td></tr>
+    <tr><td>Import</td><td class="wrap"><code>preview_import</code>, <code>import_experience</code>, <code>preview_delivery</code>, <code>import_delivery</code>, <code>list_deliveries</code></td></tr>
+    <tr><td>History</td><td class="wrap"><code>list_changes</code>, <code>list_versions</code>, <code>revert_change</code>, <code>revert_to</code></td></tr>
+    <tr><td>Seeing</td><td class="wrap"><code>render_scene</code></td></tr>
+    <tr><td>Publishing</td><td class="wrap"><code>publish</code> – refused for an AI connection's token; never production</td></tr>
+  </table></div>
+  <p>Rules are part of an entity (a node's <code>behaviour</code> component) and written with <code>put_entity</code> or <code>put_target</code>. Before an entity is sent it is checked against the content model: a wrong type or a value out of range comes back with its path and never reaches the API.</p>
+
+  <h2 id="two-steps">Two steps before anything is lost</h2>
+  <p>Tools that replace or remove things do nothing on the first call. They answer with what would happen and a confirmation; the agent must show you that and call again only with your yes.</p>
+  <div class="table"><table>
+    <tr><th>Tool</th><th>First call answers</th><th>Second call</th></tr>
+    <tr><td><code>import_experience</code>, <code>import_delivery</code></td><td class="wrap">the comparison with the draft</td><td><code>confirm: &lt;id&gt;</code></td></tr>
+    <tr><td><code>delete_entry</code>, <code>delete_scene</code></td><td class="wrap">the impact: what goes with it</td><td><code>confirm: &lt;id&gt;</code></td></tr>
+    <tr><td><code>move_scenes</code>, <code>group_scenes</code>, <code>revert_change</code>, <code>revert_to</code></td><td class="wrap">the plan</td><td><code>apply: true</code></td></tr>
+    <tr><td><code>put_scene</code>, <code>put_surface</code> (a surface in use)</td><td class="wrap">the entries and targets on it</td><td><code>apply: true</code></td></tr>
+  </table></div>
+  <p>If the draft changed in between, the confirmation is void and a new comparison comes back.</p>
+
+  <h2 id="render">Seeing a scene</h2>
+  <p><code>render_scene { experience, scene, view? }</code> returns a picture of the scene as the editor's stage shows it, so the agent can check its own placement. Views: <code>reader</code> (default), <code>top</code>, <code>low</code>, <code>far</code>. It needs Chrome or Edge on the computer the agent runs on. It shows the stage; it cannot tap or scrub.</p>
+
+  <h2 id="example">An example</h2>
+  <p><i>“Add a target on the double page 30–31 with a tinted video.”</i></p>
+  <ol>
+    <li><code>get_experience</code> finds the scene labelled 30–31; <code>get_scene</code> its surface and targets.</li>
+    <li><code>describe_content_model</code>: a video lies flat; <code>rotation: [90, 0, 0]</code> stands it up; the plugin <i>tint</i> exists.</li>
+    <li><code>upload_asset</code> twice: the video, and the printed image with <code>fit: "target"</code>.</li>
+    <li><code>add_entry</code> with the title, the scene, and a <code>target</code>: its image, its <code>place</code> in mm, and the <code>entity</code> (a video node with a <i>tint</i> component).</li>
+    <li><code>render_scene { view: "top" }</code> to look; <code>put_target</code> to adjust.</li>
+    <li>You open the link, check the stage, and publish.</li>
+  </ol>
+
+  <h2 id="limits">Limits</h2>
+  <ul>
+    <li>The reader app's onboarding screens are not content: no tool edits them.</li>
+    <li><code>upload_asset</code> takes a file on the computer the agent runs on.</li>
+    <li>Removing an experience's printed book stays your decision.</li>
+  </ul>
+  <p>For developers, every tool with its parameters is in <code>docs/mcp.md</code> in the repository.</p>
+  <footer id="pager"></footer>
+</main>
+</body>
+</html>
