@@ -7,6 +7,14 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.6.2 – 2026-11-21
+
+### Fixed
+- The editor's draft no longer carries the specs an older build recorded for a plugin that has a saved source: the API's
+  draft leaves out such a declaration's `registered` (the saved source registers its own, #269), so the editor page
+  loads the Demo Book again ("entries[4]…of: expected one of book, spread, got experience" – 4.4.2 fixed the stage
+  only). A publish still declares what it carries.
+
 ## 4.6.1 – 2026-11-21
 
 ### Removed

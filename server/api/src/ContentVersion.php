@@ -81,6 +81,17 @@ final class ContentVersion
             'entities' => $entities,
         ]);
         $plugins = Editor::decode($experience['plugins_json'] ?? '[]');
+        if (is_array($plugins) && $plugins && !$forReaders) {
+            // The draft (#269): a declared plugin with a saved source in the Code tab runs from that source in the editor, which
+            // registers its own specs – the specs an older build recorded (a choice's old options) would refuse its values
+            $saved = array_flip(array_map('strval', Db::run('SELECT id FROM plugins WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll(PDO::FETCH_COLUMN)));
+            $plugins = array_map(static function (mixed $plugin) use ($saved): mixed {
+                if (!$plugin instanceof stdClass || !isset($saved[$plugin->id ?? '']) || !property_exists($plugin, 'registered')) return $plugin;
+                $copy = clone $plugin;
+                unset($copy->registered);
+                return $copy;
+            }, $plugins);
+        }
         if (is_array($plugins) && $plugins) $configuration->plugins = $plugins;
         if ($forReaders) {
             Logic::withoutCanvas($configuration->experience);
