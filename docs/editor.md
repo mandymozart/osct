@@ -261,7 +261,7 @@ translated with the app (#236, `docs/content.md` "Onboarding screens").
   data from the frame, never code), read innermost scope first like `api.vars.get`. Under the preview the variables the
   text reads are listed with their value and scope (or *not set*), and every construct that does not parse is named
   (`exprMessage`).
-- **entry…** in the tree's **+ add** menu (#237, #337) makes an entry without a printed image on the scene – read in the
+- **entry…** in the Tree footer's **+ add** menu (#237, #337) makes an entry without a printed image on the scene – read in the
   reader's list only, like a glossary term: title, category and access page (one of the scene's pages, `NewEntryForm`,
   `POST …/entries` without `target`); its form opens in the Inspector. On the stage the variables have their values; an
   entry found with the [experience search](#the-experience-search) opens the same way.
@@ -725,14 +725,18 @@ place in mm** (from the new surface's top left corner) where it fits there wholl
 surface – made smaller first, its aspect kept, when it is wider or taller than the surface. A place without a height
 counts with the stage's height from the image.
 
-- **+ add** at the end of the tree (#337, `tree-add.ts`, the Logic panel's typeahead menu `LogicMenu.svelte`): one menu
+- **The Tree's footer** (#339, as in Photoshop's layers panel) stays at the panel's foot while the tree scrolls: **+ add**
+  (below), and for the selected row **duplicate** (`duplicateNode` in `tree.ts`: the node with its children right after it,
+  the copy's names numbered free – door → door 2 –, its ids dropped), **group** (`groupNode`: into a new group in its place;
+  the root grouped becomes the group's child) and **remove** (as Delete).
+- **+ add** in the Tree's footer (#337, `tree-add.ts`, the Logic panel's typeahead menu `LogicMenu.svelte`): one menu
   of everything the scene can get – a **surface** (double page, single page, wall, custom: added and selected), **target…**
   and **entry…** (their forms, below), and a **node** of every type (the built-in group, model, video, image, text,
   light, then the experience's plugins' types). A node goes onto the selected target, the selected entry's target or the
   selected node's – the target's root without AR content, else where the Inspector's *+ node* puts it (`node-add.svelte.ts`
   hands the type to `EntityPanel`); a type that takes a file asks for it in the Library first; without a target the nodes
   are greyed out with the reason. Typing filters, ↑ ↓ and Enter choose; what was added is selected.
-- **target…** in the **+ add** menu at the end of the tree opens the form for a new target on the scene: title, page, the printed image
+- **target…** in the **+ add** menu in the Tree's footer opens the form for a new target on the scene: title, page, the printed image
   (*Library…* or *Upload…*), **what appears on the page** (none, model, video, image, text, group or light, with its file
   or line), the **entry category** (where the reader's consultation menu lists it – it follows what appears, a video
   makes a Videos entry, until set by hand; #165), and where it is printed (surface, x / y, width in mm) – the API makes

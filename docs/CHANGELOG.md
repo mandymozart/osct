@@ -28,6 +28,15 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   them (Tilman, 2026-11-21: *"the text should have a white outline not a semi transparent backdrop"*) – in day and night.
 - Ctrl+G and Ctrl+Shift+G in the Logic panel no longer also reach the Scenes panel's shortcuts.
 
+## 4.10.1 – 2026-11-21
+
+### Added
+- **The Tree's footer, as in Photoshop's layers panel** (Tilman, 2026-11-21, #339): it stays at the panel's foot however
+  far the tree scrolls – **+ add** (the menu of everything the scene can get, #337) and, for the selected row,
+  **duplicate** (the node with its children right after it; the copy's names get a free number – door → door 2 – since
+  rules address nodes by name), **group** (the node into a new group in its place; it stays where it is on the stage) and
+  **remove** (as Delete: a node at once, an entry and a surface after their confirmation).
+
 ## 4.10.0 – 2026-11-21
 
 ### Added
