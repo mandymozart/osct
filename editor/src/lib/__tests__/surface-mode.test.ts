@@ -6,7 +6,6 @@ import { isRowOn, parentRow, rowSelection, selectedItem, treeRows } from "../tre
 import { changeSummary, changeTitle, treeNames } from "../history";
 import { usageText } from "../library-code";
 import { placeObject, placeOfObject, sceneRoot } from "../stage/surface-gizmo";
-import { readFrameEvent, surfaceGizmoRequest } from "../stage/frame-protocol";
 import { sceneSurfaces, surfaceFrame } from "../stage/surfaces";
 import { STAGE_TOOLS, TOOL_KEYS, isGizmoTool } from "../stage/gizmo";
 
@@ -97,15 +96,5 @@ describe("the Surface tool and its gizmo", () => {
     // …and its face looks where the surface's does
     const normal = new Vector3(0, 1, 0).transformDirection(proxy.matrixWorld);
     expect([normal.x, normal.y, normal.z].map(v => +v.toFixed(6) + 0)).toEqual(frame.normal.map(v => +v.toFixed(6) + 0));
-  });
-
-  it("the page's ask and the frame's answer are checked", () => {
-    expect(surfaceGizmoRequest("wall", "rotate")).toEqual({ surfaceId: "wall", mode: "rotate" });
-    expect(surfaceGizmoRequest(42, "spin")).toEqual({ surfaceId: null, mode: "translate" });
-    const message = (data: unknown) => ({ osct: "stage", kind: "event", name: "surfacePlace", data });
-    const place = { x: 1, y: 2, z: 3, rx: 90, ry: 0, rz: 0 };
-    expect(readFrameEvent(message({ surfaceId: "wall", place }))?.name).toBe("surfacePlace");
-    expect(readFrameEvent(message({ surfaceId: "wall", place: { ...place, rz: Number.NaN } }))).toBeNull();
-    expect(readFrameEvent(message({ surfaceId: "", place }))).toBeNull();
   });
 });

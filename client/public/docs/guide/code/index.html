@@ -59,7 +59,7 @@
   </ul>
 
   <h2 id="safety">Where the code runs</h2>
-  <p>In the editor, plugins run inside the stage's sandbox. They cannot read your session, reach the editor's page, load from other sites or show dialogs. They can use the experience's files. In the reader app the published plugins run in the app's page.</p>
+  <p>In the editor, plugins run in the editor's page, with your session: a plugin can do what you may do here – read and change the draft, the data, the game state. So before the stage runs plugin code that someone else saved last, the editor asks: <i>Run plugin code by …?</i>, with each plugin and who saved it. <b>Run</b> runs them; <b>Don't run</b> leaves them off the stage, and the Code tab and the Log tab say why. The answer is kept in this browser until someone else saves a new version. Your own code runs without asking. In the reader app the published plugins run in the app's page.</p>
   <footer id="pager"></footer>
 </main>
 </body>
