@@ -174,7 +174,10 @@ export interface View {
   canvas: Canvas;
 }
 
-/** Edits to the canvas (§5.7) – declared only (L-T7) */
+/**
+ * Edits to the canvas: ports shown (L-T6), boxes placed and folded, groups (L-T7, `apply.ts`); the free nodes' (§5.7:
+ * addNode, moveNode, setParams, wire, unwire, run) are declared only
+ */
 export type CanvasEdit =
   | { edit: "addNode"; node: CanvasNode }
   | { edit: "moveNode"; id: string; x: number; y: number }
@@ -185,7 +188,21 @@ export type CanvasEdit =
   /** Show these ports of a box beyond its wired ones (`LogicCanvas.exposed`, L-T6) */
   | { edit: "expose"; box: string; ports: string[] }
   /** Hide the ports nobody wired again – of one box, or of every box at the level (Blender's Ctrl+H) */
-  | { edit: "hideUnused"; box?: string };
+  | { edit: "hideUnused"; box?: string }
+  /** Pin boxes where they were let go (`LogicCanvas.positions`, schema 5.2 – on the 1rem grid), over the automatic layout */
+  | { edit: "place"; positions: Record<string, { x: number; y: number }> }
+  /** Drop the pins of the level's boxes: the automatic layout places them again (*Tidy*) */
+  | { edit: "tidy" }
+  /** Fold a box to its head, or open it (`LogicCanvas.folds`) */
+  | { edit: "fold"; box: string; folded: boolean }
+  /** A new group round these boxes (each leaves its old group – no nesting): `group-N`, labelled `group N`, the first free colour */
+  | { edit: "group"; boxes: string[] }
+  /** Rename a group in place; an empty label removes the group (its boxes stay) */
+  | { edit: "renameGroup"; group: string; label: string }
+  /** The group's next colour of the deck's six */
+  | { edit: "groupColour"; group: string }
+  /** Fold a group to one pill, or open it */
+  | { edit: "foldGroup"; group: string; folded: boolean };
 
 /**
  * Where a new rule goes: a node of a target's tree (its first behaviour component; one is added when it has none), a

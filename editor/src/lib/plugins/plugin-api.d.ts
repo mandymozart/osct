@@ -275,11 +275,18 @@ interface LogicCanvas {
 	notes?: LogicCanvasNote[];
 	folds?: string[];
 	exposed?: Record<string, string[]>;
+	positions?: Record<string, LogicCanvasPoint>;
+}
+interface LogicCanvasPoint {
+	x: number;
+	y: number;
 }
 interface LogicCanvasGroup {
 	id: string;
 	label: string;
 	members: string[];
+	colour?: string;
+	folded?: boolean;
 }
 interface LogicCanvasNote {
 	id: string;

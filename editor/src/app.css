@@ -37,6 +37,21 @@
   --accent-background: #e0e0e0;
   --pick: #8a8a8a;
   --warn: var(--danger);
+  /*
+   * The Logic canvas's signals (#334 L-T8): the SCUTOONS deck's signal colours – RULES #38's one exception, the Logic
+   * canvas's nodes, ports and wires only. One table: `lib/logic/signals.ts` (a test keeps these equal to it).
+   */
+  --signal-event: #22271e;
+  --signal-control: #2f9e4a;
+  --signal-clock: #c23238;
+  --signal-audio: #0089a8;
+  --signal-picture: #3a63c9;
+  --signal-address: #8a4fd0;
+  --signal-vote: #b07800;
+  --signal-scene: #c8385a;
+  --signal-far: #6b7461;
+  /* A selected box or wire on the Logic canvas (the deck's accent) */
+  --signal-accent: #00728d;
   color-scheme: light;
 }
 /* A finger: the dogma's 44px touch height; every control takes its height from the token */
@@ -64,6 +79,16 @@
     --accent-background: #4f4f4f;
     --pick: #8f8f8f;
     --warn: var(--danger);
+    --signal-event: #f3f3f0;
+    --signal-control: #46d36a;
+    --signal-clock: #e5484d;
+    --signal-audio: #19b8d8;
+    --signal-picture: #6f9bff;
+    --signal-address: #b46bff;
+    --signal-vote: #ffb020;
+    --signal-scene: #ff6b8a;
+    --signal-far: #a7af9b;
+    --signal-accent: #00d1ff;
     color-scheme: dark;
   }
 }
@@ -84,6 +109,16 @@
   --accent-background: #4f4f4f;
   --pick: #8f8f8f;
   --warn: var(--danger);
+  --signal-event: #f3f3f0;
+  --signal-control: #46d36a;
+  --signal-clock: #e5484d;
+  --signal-audio: #19b8d8;
+  --signal-picture: #6f9bff;
+  --signal-address: #b46bff;
+  --signal-vote: #ffb020;
+  --signal-scene: #ff6b8a;
+  --signal-far: #a7af9b;
+  --signal-accent: #00d1ff;
   color-scheme: dark;
 }
 

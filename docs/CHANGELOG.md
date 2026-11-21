@@ -7,6 +7,24 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- The editor's Logic canvas in the SCUTOONS deck's look (#334 L-T7 / L-T8, docs/editor.md "The deck's canvas"): boxes are
+  the deck's cards (a head tinted in the kind's colour with its icon, name, kind and a fold chevron; one row per port),
+  pins shaped and coloured by signal, wires hanging in their signal's colour – one table of signals
+  (`editor/src/lib/logic/signals.ts`, theme tokens `--signal-*` for day and night, the mapping in agents/DESIGN.md §10).
+  This is the one exception to the monochrome editor (RULES #38).
+- Free placement: a box dragged by its head stays where it is let go, on the 1rem grid; **Tidy** lays the level out again.
+- Groups as in the deck: **Group** or Ctrl+G frames the selected boxes in one of six colours; the frame's head folds it to
+  one pill (its wires end on it), its swatch takes the next colour, its name is renamed in place (empty removes it), and
+  dragging the head moves the whole group. A box folds to its head. Every canvas change is a step in History.
+- Content schema 5.2: a logic canvas may carry `positions` (box id → `{ x, y }`) and a group `colour` and `folded` –
+  authoring data only, never in a reader's configuration (the TypeScript guard and the server check them).
+
+### Changed
+- The Logic canvas no longer shows a signal by dashes; the legend lists the signals by pin and colour.
+
 ## 4.4.0 – 2026-11-21
 
 ### Added

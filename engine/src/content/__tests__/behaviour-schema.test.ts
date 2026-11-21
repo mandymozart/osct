@@ -141,7 +141,7 @@ describe("logic: a scene's and the experience's rules (schema 5.0)", () => {
       'l.rules[1].do[0].hide: a scene\'s rule names a node by address – "hint" is not an address (target:<targetId>/<node name>)',
       "l.rules[1].do[1].node: a scene's rule names a node by address – expected an address (target:<targetId>/<node name>), got undefined",
       'l.rules[1].do[2].show: a scene\'s rule names a node by address – "scene:a": a scene address does not fit here (target:<targetId>/<node name>)',
-      "l.canvas.more: unknown field of a canvas (groups, notes, folds, exposed)",
+      "l.canvas.more: unknown field of a canvas (groups, notes, folds, exposed, positions)",
       "l.canvas.notes[0]: expected { id, text, x, y }",
       "l.canvas.folds[0]: expected a node id",
     ]);
@@ -149,6 +149,12 @@ describe("logic: a scene's and the experience's rules (schema 5.0)", () => {
     expect(canvasProblems({ exposed: { "node:t/0": ["src", "p:hum.volume"] } }, "c")).toEqual([]);
     expect(canvasProblems({ exposed: { b: ["", 2] } }, "c")).toEqual(["c.exposed.b: expected a list of port ids"]);
     expect(canvasProblems({ exposed: ["src"] }, "c")).toEqual(["c.exposed: expected { <box id>: [port ids] }"]);
+    // Schema 5.2: pinned boxes, a group's colour and fold
+    expect(canvasProblems({ positions: { "rule:0": { x: 16, y: -32 } }, groups: [{ id: "group-1", label: "group 1", members: ["rule:0"], colour: "#5fb3ff", folded: true }] }, "c")).toEqual([]);
+    expect(canvasProblems({ positions: { a: { x: "1", y: 2 }, b: 3 } }, "c")).toEqual(["c.positions.a: expected { x, y }", "c.positions.b: expected { x, y }"]);
+    expect(canvasProblems({ positions: [] }, "c")).toEqual(["c.positions: expected { <box id>: { x, y } }"]);
+    expect(canvasProblems({ groups: [{ id: "g", label: "G", members: [], colour: "blue", folded: 1 }] }, "c"))
+      .toEqual(["c.groups[0].colour: expected a colour #rrggbb", "c.groups[0].folded: expected true or false"]);
     expect(logicProblems([], "l", "experience")).toEqual(["l: expected { rules, canvas? }"]);
     expect(logicProblems({}, "l", "experience")).toEqual(["l.rules: expected a list of rules { on, when?, do }"]);
     expect(rulesProblems("x", "r", "entity")).toEqual(["r: expected a list of rules { on, when?, do }"]);
