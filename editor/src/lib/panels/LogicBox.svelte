@@ -8,6 +8,8 @@
     /** The search's hit: drawn heavier until the level changes */
     flash: boolean;
     dim: boolean;
+    /** The pointer is over it: its border at full strength, so it reads as the one a click opens */
+    hover?: boolean;
     never: boolean;
     /** Its ports take wires (the scene and entity levels of the open scene) */
     editable: boolean;
@@ -97,7 +99,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-<div class="box {pill ? 'folded-group' : box.stub ? 'stub' : node!.kind}" class:selected={data.selected} class:flash={data.flash} class:dim={data.dim} class:problem={!!node?.problem && node.problemSeverity !== "warning"} class:warning={node?.problemSeverity === "warning"}
+<div class="box {pill ? 'folded-group' : box.stub ? 'stub' : node!.kind}" class:selected={data.selected} class:flash={data.flash} class:dim={data.dim} class:pointed={data.hover} class:problem={!!node?.problem && node.problemSeverity !== "warning"} class:warning={node?.problemSeverity === "warning"}
   class:never={data.never} class:far={!!node?.far || !!box.stub} class:folded={box.folded} class:pinned={box.pinned} class:labels
   style:height="{box.h}px" style:width="{box.w}px" style:--kind={kind}
   role="button" tabindex="0" aria-label="{word} {label} – {detail}{node?.problem ? ` – ${node.problem}` : ''}{enterable ? ' – Enter opens it' : ''}"
@@ -179,7 +181,9 @@
   /* a warning (nothing hears, sets or emits it): dashed, no colour (RULES #38) */
   .box.warning { border-style: dashed; }
   .box.problem .head { background: color-mix(in srgb, var(--danger) 12%, var(--control-background)); }
-  .box.dim { opacity: .3; }
+  .box.dim { opacity: .55; }
+  .box.pointed:not(.selected) { border-color: var(--kind); }
+  .box.pointed .enter, .box.pointed .fold { color: var(--text); }
   .box:focus-visible { outline: 2px solid var(--signal-accent); outline-offset: 1px; }
   .enter, .expose, .fold {
     flex: none; display: grid; place-items: center; width: 1.125rem; height: 1.125rem; padding: 0; border: 0; border-radius: .25rem; background: none; color: var(--muted); cursor: pointer;

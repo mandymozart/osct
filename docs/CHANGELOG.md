@@ -17,6 +17,13 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   scene, a refused type) keep the error colour; warnings (nothing hears, sets or emits it) are grey with a hollow mark,
   and their box's border is dashed instead of red (RULES #38).
 
+## 4.6.5 – 2026-11-21
+
+### Fixed
+- The Logic view's hover is gentler and never hides the box under the pointer: a hovered box with no wire dims nothing (it
+  dimmed itself with everything else), the hovered box is never dimmed and shows its border and its open / fold chevrons
+  at full strength, and the unconnected boxes and wires dim to 55 % / 45 % (were 30 % / 25 %).
+
 ## 4.6.4 – 2026-11-21
 
 ### Changed
