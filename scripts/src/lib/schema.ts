@@ -51,6 +51,7 @@ export const schemas = {
     fields: {
       label: { type: "String", required: true }, // what the reader shows for the scene: "186–187", "Cover", "Studio wall"
       order: { type: "Number", required: false, default: 0 }, // its position among the scenes (only the order counts)
+      group: { type: "String", required: false }, // the id of one of the groups in groups.yaml (`[{ id, label }]`) – several scenes under one label
       surfaces: { type: "Array", required: true }, // [{ id, label?, widthMm, heightMm, place? { x, y, z, rx?, ry?, rz? } }] – none placed: a row
       passes: { type: "Array", required: false }, // post-processing over the rendered image: [{ type, ...parameters }], see shared/types/passes.ts
       logic: { type: "Object", required: false }, // the scene's rules: { rules: [{ on, when?, do }], canvas? } – the canvas stays out of the build (schema 5.0, #334), see shared/types/logic.ts
@@ -87,6 +88,7 @@ export const schemas = {
       entity: { type: "Object", required: false }, // inline { type, src?, params?, filters? } or { ref }
       place: { type: "Object", required: false }, // where it is printed: { surface?, x, y, width, height? } in mm on a surface of its scene
       enabled: { type: "Boolean", required: false }, // false = switched off: the reader leaves the target and its entry out
+      recognition: { type: "Object", required: false }, // the recognition data made ahead (#306): { image, width, height } – an export writes it
       recognitionOff: { type: "Boolean", required: false }, // true = always its printed image, even when the experience says prepared (#306)
     },
   },

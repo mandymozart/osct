@@ -10,11 +10,12 @@ import { buildEntries } from './entries';
 import { buildScenes } from './scenes';
 import { checkTargetsPerScene } from './targets';
 import { buildSubtitles } from './subtitles';
+import { buildCredits, buildGroups } from './exported';
 
 /**
  * Build the final config object; `plugins` = the compiled plugins (build/plugins.ts), declared when there are any
  */
-export function buildConfig(versionStr: string, inputHash: string, plugins: PluginData[] = []): GameConfiguration {
+export function buildConfig(versionStr: string, inputHash: string, plugins: PluginData[] = [], options: { copy?: boolean } = {}): GameConfiguration {
   // The passes the plugins recorded (schema 2.21): the experience and a scene may name them
   const recorded = recordedRegistrations(plugins);
   const pluginPasses = recorded.passes;
@@ -32,6 +33,7 @@ export function buildConfig(versionStr: string, inputHash: string, plugins: Plug
   // Every model stands on its page (#189): its lowest point at the target's z = 0
   warnZeroPlane(trees);
   const subtitles = buildSubtitles();
+  const groups = buildGroups(scenes);
 
   // In scene order, then by title (an entry of a scene that does not exist – an error – last)
   const position = new Map(scenes.map((scene, i) => [scene.id, i]));
@@ -59,7 +61,10 @@ export function buildConfig(versionStr: string, inputHash: string, plugins: Plug
     entities,
     ...(plugins.length ? { plugins } : {}),
     ...(subtitles.length ? { subtitles } : {}),
+    ...(groups.length ? { groups } : {}),
   };
+  const credits = buildCredits(config);
+  if (Object.keys(credits).length) config.credits = credits;
 
   // The same contract check the app runs on load
   try {
@@ -73,6 +78,6 @@ export function buildConfig(versionStr: string, inputHash: string, plugins: Plug
     throw new Error(`${buildErrors.length} content error(s):\n  - ${buildErrors.join('\n  - ')}`);
   }
 
-  copyContentToPublic();
+  if (options.copy !== false) copyContentToPublic();
   return config;
 }
