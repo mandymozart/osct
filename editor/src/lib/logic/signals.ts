@@ -10,8 +10,8 @@ import type { PortKind, PortType, Signal } from "./types";
  * the mapping is documented in agents/DESIGN.md ("Logic canvas: signals").
  */
 
-/** The deck's signals (deck-kit `Signal`, same names and order) */
-export const DECK_SIGNALS = ["event", "control", "clock", "audio", "picture", "address", "vote", "scene", "far"] as const;
+/** The deck's signals OSCT draws (deck-kit `Signal`, same names and order – without the deck's `clock`: OSCT has no clock) */
+export const DECK_SIGNALS = ["event", "control", "audio", "picture", "address", "vote", "scene", "far"] as const;
 export type DeckSignal = (typeof DECK_SIGNALS)[number];
 
 /** A pin's outline (deck-kit `Shape`): an event's triangle points along the flow, far is a hollow dot */
@@ -30,7 +30,6 @@ export interface SignalStyle {
 export const SIGNAL_STYLES: Readonly<Record<DeckSignal, SignalStyle>> = {
   event: { shape: "triangle", weight: 1.4, day: "#22271e", night: "#f3f3f0" },
   control: { shape: "dot", weight: 1, day: "#2f9e4a", night: "#46d36a" },
-  clock: { shape: "dot", weight: 1, day: "#c23238", night: "#e5484d" },
   audio: { shape: "square", weight: 1, day: "#0089a8", night: "#19b8d8" },
   picture: { shape: "square", weight: 1, day: "#3a63c9", night: "#6f9bff" },
   address: { shape: "diamond", weight: 1, day: "#8a4fd0", night: "#b46bff" },
@@ -50,7 +49,7 @@ export const signalToken = (signal: DeckSignal): string => `--signal-${signal}`;
  * - **node** (a verb acting on a node: show, hide, play …) and **address** → `address` (a place a message is sent to);
  * - **scene** (goto) → `scene`;
  * - **media**: a sound file → `audio`, a picture, a video, a texture or a model → `picture`;
- * - **far** (from outside the level) → `far`. The deck's `clock` has no OSCT signal yet (kept for time, a timer node).
+ * - **far** (from outside the level) → `far`. The deck's `clock` is not taken – OSCT has no clock (Tilman, 2026-11-21).
  */
 export const deckSignal = (signal: Signal, type?: PortType, kind?: PortKind): DeckSignal => {
   if (kind === "action") return "event";

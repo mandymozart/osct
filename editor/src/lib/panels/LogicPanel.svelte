@@ -442,10 +442,10 @@
   });
 
   const never = $derived(flow.wires.some(w => w.never));
-  /** The signals OSCT draws (the deck's clock has none yet), and what each stands for here (DESIGN.md "Logic canvas: signals") */
-  const LEGEND = DECK_SIGNALS.filter(s => s !== "clock");
+  /** The signals OSCT draws, and what each stands for here (DESIGN.md "Logic canvas: signals") */
+  const LEGEND = DECK_SIGNALS;
   const SIGNAL_WORDS: Record<string, string> = {
-    event: "An event, and a rule's verb inlet", control: "A value: a number, a text, a choice, a colour", clock: "Time (not used yet)",
+    event: "An event, and a rule's verb inlet", control: "A value: a number, a text, a choice, a colour",
     audio: "A sound file", picture: "A picture, a video, a texture or a model", address: "A node a verb acts on (show, hide, play …), an address",
     vote: "A value true / false", scene: "A scene (goto)", far: "From outside this level",
   };
