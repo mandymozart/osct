@@ -44,7 +44,7 @@ next links. **A new page is a folder with an `index.html` and one line in `PAGES
 Building blocks of `docs.css`: `.beside` (text with a panel screenshot at its side, `.wide` for a wider one),
 `figure` with `figcaption`, `.table` around a table, `ol.steps` (numbered tutorial steps), `.note`, `.cards` on the hub,
 `kbd` for keys. **The look is the editor's** (Tilman, 2026-11-21: "style the docs in the way the creator and deck editor are
-styled"): `editor/src/app.css`'s palette – monochrome, day and night following the system –, the system's type, square
+styled"): `editor/src/app.css`'s palette – monochrome, **day by default** (night only with `data-scheme="dark"` on `<html>`) –, the system's type, square
 corners, borders instead of shadows, labels in small capitals, hover only where a pointer hovers. No gold: that is the
 reader's. The long walkthrough keeps its older, darker look until it is redone.
 

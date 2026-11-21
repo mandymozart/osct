@@ -1,6 +1,6 @@
 /* The documentation site at /docs/ – one stylesheet for every page but the long walkthrough (tutorials/index.html,
    which carries its own). The look is the editor's (editor/src/app.css, after the SCUTOONS creator and deck editor):
-   monochrome, day and night following the system, the system's type, square corners, borders instead of shadows,
+   monochrome, day by default, the system's type, square corners, borders instead of shadows,
    labels in small capitals. No colour but an error's. */
 :root {
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -11,13 +11,8 @@
   --hover: #ebebeb; --selected: #d2d2d2; --danger: #c0392b;
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-scheme="light"]) {
-    --bg: #2c2c2c; --text: #ffffff; --muted: #a3a3a3; --line: #444444; --surface: #1e1e1e;
-    --hover: #3f3f3f; --selected: #5e5e5e; --danger: #ff6b5b;
-    color-scheme: dark;
-  }
-}
+/* Night only when asked for (`data-scheme="dark"` on <html>): the docs' default is day, whatever the system says
+   (Tilman, 2026-11-21) */
 :root[data-scheme="dark"] {
   --bg: #2c2c2c; --text: #ffffff; --muted: #a3a3a3; --line: #444444; --surface: #1e1e1e;
   --hover: #3f3f3f; --selected: #5e5e5e; --danger: #ff6b5b;
