@@ -440,7 +440,7 @@
   /** F2 on the selected file (not in a field): its name field opens */
   const onRenameKey = (event: KeyboardEvent) => {
     if (event.key !== "F2" || pick || !selected || event.defaultPrevented) return;
-    if ((event.target as HTMLElement).closest("input, textarea, select, [contenteditable='true']")) return;
+    if (event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable='true']")) return;
     event.preventDefault();
     renaming = true;
   };

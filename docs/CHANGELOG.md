@@ -7,6 +7,21 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Fixed
+- **The first scene builds with the experience's code** (#340): the editor's stage installs the Code tab's saved
+  sources before it builds its first scene, so the scene's nodes find the components, node types, materials and looks
+  they name – no "No component … registered" lines and no rebuild right after (the stage frame did it in that order
+  too). Every open of a scene waits for it.
+- **One request per plugin source**: the panels read the plugin registry again only when it really changed (the
+  engine's `pluginRegistryRevision`), and a saved source is read once per saved version for the auto-load, the Logic
+  view and the Log tab together – on staging a scene page asked for every source about fifteen times.
+- **The stage keeps out of the reader's storage**: in the editor's page it is on the reader's origin, so the engine's
+  switches for the stage are stored under `osct-editor-stage-…`, never the reader's `osct-…` keys.
+- A key sent to the window or the document (no element) no longer throws in the workspace's and the Library's
+  shortcuts (`e.target.closest is not a function`).
+
 ## 5.0.0 – 2026-11-21
 
 ### Removed

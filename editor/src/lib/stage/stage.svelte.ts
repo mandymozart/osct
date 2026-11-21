@@ -3,7 +3,7 @@ import type { SurfacePlace, TargetPlace } from "@shared/types/game-config";
 import type { EnvironmentData } from "@shared/types/environment";
 import type { ExperienceAppearance, Moment } from "@shared/types/appearance";
 import { getPlugins, getTarget } from "@engine/content/game-config";
-import { keepPlugin, resetPlugins } from "@engine/scene/plugins";
+import { keepPlugin, pluginRegistryRevision, resetPlugins } from "@engine/scene/plugins";
 import type { VarScope, VarValue } from "@engine/scene";
 import type { EntityData, NodeTimeline, PassData } from "@engine/types";
 import { nodeAt, removeNode, withNode } from "#lib/values.js";
@@ -67,10 +67,11 @@ export class Stage {
   /** The Live switch (#269): on, the entities move by themselves; off, their clock holds (the looks play on) */
   live = $state(true);
   /**
-   * The stage starts (its first scene opens): the Code tab's saved sources load now (#269, `plugins.autoLoad`) – while the
-   * first scene builds, so a scene that does not build keeps no code from loading
+   * The stage starts: the Code tab's saved sources are installed now (#269, `plugins.autoLoad`) – **before the first scene
+   * builds**, so its nodes find the components, node types, materials and looks they name (no "No component … registered"
+   * and a rebuild after). The first scene waits for it; a source that fails or hangs is the auto-load's to report.
    */
-  onStarted: (() => void) | null = null;
+  onStarted: (() => Promise<void> | void) | null = null;
   /**
    * The plugin ids whose content module the stage never loads, asked for once before the first scene opens: the Code
    * tab's saved sources (theirs run instead, #269 – a declaration built against an older plugin API raises no refusal)
@@ -84,8 +85,11 @@ export class Stage {
   private surfaceGizmoAsked: { surfaceId: string | null; mode: "translate" | "rotate" } = { surfaceId: null, mode: "translate" };
   private cleanups: Array<() => void> = [];
   private disposed = false;
-  private started = false;
+  private starting: Promise<void> | null = null;
+  private asked = $state<string | null>(null);
   private bumping = false;
+  /** The registry's revision the panels read last (`pluginRegistryRevision`) */
+  private seenRevision = pluginRegistryRevision();
 
   /** `core` builds the stage in its layer – the engine's `StageCore` (a test gives a stand-in) */
   constructor(container: HTMLElement, core: (host: HTMLElement) => StageCore = host => new StageCore(host)) {
@@ -114,7 +118,8 @@ export class Stage {
 
   get status() { return this.core.status; }
   get error() { return this.core.error; }
-  get sceneId() { return this.core.sceneId; }
+  /** The scene asked for – before the stage opened it too (the first open waits for the experience's code) */
+  get sceneId() { return this.asked ?? this.core.sceneId; }
   /** Targets the tracker reports found right now */
   get found() { return this.core.found; }
   /** The subtitle line of the video that plays on the stage (English, or the first language its video has) */
@@ -132,12 +137,18 @@ export class Stage {
   /** The stage's event timeline, newest first */
   get events() { return this.core.events; }
 
-  /** The registry may have changed (a plugin loaded, a node built or failed): the panels read it again – once, after the change */
+  /**
+   * The registry may have changed (a plugin loaded, a node built or failed): when it did (its revision moved), the panels
+   * read it again – once, after the change. An edit that changed nothing of it costs the panels nothing.
+   */
   private registryChanged(): void {
     if (this.bumping) return;
     this.bumping = true;
     queueMicrotask(() => {
       this.bumping = false;
+      const revision = pluginRegistryRevision();
+      if (revision === this.seenRevision) return;
+      this.seenRevision = revision;
       plugins.version += 1;
     });
   }
@@ -183,19 +194,29 @@ export class Stage {
     };
   }
 
-  /** The first scene opens: the kept plugins are marked before their content modules could load, then `onStarted` */
-  private start(): void {
-    if (this.started || this.disposed) return;
-    this.started = true;
-    this.keptPlugins().forEach(id => keepPlugin(id));
-    this.onStarted?.();
+  /**
+   * Before the first scene opens, once (every open waits for it): the kept plugins are marked before their content modules
+   * could load, then `onStarted` installs the saved sources – the frame of #234 did the same before its stage existed
+   */
+  private start(): Promise<void> {
+    this.starting ??= (async () => {
+      this.keptPlugins().forEach(id => keepPlugin(id));
+      try {
+        await this.onStarted?.();
+      } catch (e) {
+        console.warn(`[stage] the experience's code did not load: ${e instanceof Error ? e.message : e}`);
+      }
+    })();
+    return this.starting;
   }
 
   // ── the stage's API for the workspace ──
 
   /** Show a scene on the stage (the scene runs as soon as it is asked to) */
   async open(sceneId: string): Promise<void> {
-    this.start();
+    this.asked = sceneId;
+    await this.start();
+    if (this.disposed) return;
     await this.core.open(sceneId);
     this.registryChanged();
   }

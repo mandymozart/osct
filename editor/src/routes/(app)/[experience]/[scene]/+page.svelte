@@ -637,7 +637,8 @@
         stage.onSurfacePlace = placeSurface;
         // The Code tab's saved sources run when the stage starts (#269): their looks and components are known at once
         const started = stage;
-        started.onStarted = () => void plugins.autoLoad(experienceId, started);
+        // before the first scene builds, so its nodes find what the code registers (#340)
+        started.onStarted = () => plugins.autoLoad(experienceId, started, { refresh: false });
         // Their content modules never load: a saved source runs instead, a declined plugin not at all (#340)
         started.keptPlugins = () => [...plugins.stored.map(p => p.id), ...plugins.declined.keys()];
       }
@@ -828,7 +829,8 @@
       void toggleLibrary();
       return;
     }
-    if ((event.target as HTMLElement).closest("input, textarea, select")) return;
+    // A key sent to the window or the document (no element – a plugin may dispatch one) is the page's too
+    if (event.target instanceof Element && event.target.closest("input, textarea, select")) return;
     if (event.key === "ArrowLeft") step(-1);
     if (event.key === "ArrowRight") step(1);
     const tool = TOOL_KEYS[event.key.toLowerCase()];

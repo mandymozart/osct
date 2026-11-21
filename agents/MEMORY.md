@@ -207,6 +207,21 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-21 – 5.0.2: the in-page stage's follow-ups from the staging check (#340)
+
+- Found by the orchestrator on staging after 5.0.0 (its "no targets found" was its own test – a hidden browser pane that
+  paints no frames). Checked here in headless Edge against a local API with the demo and its twenty saved sources: the
+  timeline has `targetFound` for the aquarium, the key and the tally at 0.42 s, the prints and entities drawn, no
+  "No component … registered" line, 24 plugin-source requests (one per source) instead of ~190.
+- **Order**: the saved sources install before the first scene builds (`Stage.open` waits for `onStarted` →
+  `plugins.autoLoad(…, { refresh: false })`), as the frame did. **Requests**: `plugins.version` moves only when the
+  engine's `pluginRegistryRevision` moved; `plugins.savedSource` reads each saved version once. **Storage**: the stage's
+  engine switches under `osct-editor-stage-…` – the editor's page shares the reader's origin (the reader's progress
+  `osct-progress:<id>` was never written by the stage; the engine reads no storage itself).
+- Local check recipe: `server/api/config.local.php` with SQLite in `var/db/`, the demo built into the client
+  (`OSCT_CONTENT_DIR=fixtures/demo npm run content`), import via `POST …/import` with `assetsBase` 5174, the sources via
+  `PUT …/plugins/<id>`; mail codes are rate-limited (a few per hour) – set a test password in the local DB instead.
+
 ## 2026-11-21 – the stage sandbox dropped: the stage runs in the editor's page, a prompt before others' plugin code (5.0.0, #340)
 
 - **Tilman** (decided in the OSCT session after the SCUTOONS XR session relayed it): *"we can drop the sandbox. since we

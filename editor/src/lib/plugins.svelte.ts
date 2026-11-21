@@ -193,6 +193,25 @@ class Plugins {
     return getPlugins().map(plugin => ({ id: plugin.id, src: plugin.src }));
   }
 
+  /** The saved texts being read or read, by experience, plugin and saved version (`savedSource`) */
+  private reading = new Map<string, Promise<string>>();
+
+  /**
+   * A stored source's saved text, read once per saved version (#340): the auto-load, the Logic view and the Log tab ask
+   * for the same sources – one request each, again only after a new save
+   */
+  savedSource(experienceId: string, id: string): Promise<string> {
+    const row = this.stored.find(p => p.id === id);
+    const key = `${experienceId}|${id}|${row?.updatedAt ?? ""}|${row?.size ?? ""}`;
+    let reading = this.reading.get(key);
+    if (!reading) {
+      reading = this.source(experienceId, id);
+      reading.catch(() => this.reading.delete(key));
+      this.reading.set(key, reading);
+    }
+    return reading;
+  }
+
   async source(experienceId: string, id: string): Promise<string> {
     const text = (await getPlugin(experienceId, id)).plugin.source;
     this.storedText.set(id, text);
@@ -222,13 +241,14 @@ class Plugins {
 
   /**
    * The Code tab's code is part of the live stage (#269): a stage that starts (the workspace opens) gets every stored
-   * source the guard did not keep off (`declined`, #340) – the text last run here if there is one, else the saved one – transpiled, imported and
+   * source the guard did not keep off (`declined`, #340) – before its first scene builds (`refresh: false`: nothing to
+   * build again yet) – the text last run here if there is one, else the saved one – transpiled, imported and
    * installed as a Run would, one after the other, then the scene built once. A source that fails keeps what ran
    * before and says why (`status`); one that does not answer in `AUTO_LOAD_TIMEOUT_MS` counts as hanging the stage,
    * and a page that froze on it (the mark stays in the browser) skips it the next time it opens. The Code tab's log
    * and the Run's error stay the Run's.
    */
-  async autoLoad(experienceId: string, stage: RunStage): Promise<void> {
+  async autoLoad(experienceId: string, stage: RunStage, { refresh = true }: { refresh?: boolean } = {}): Promise<void> {
     if (this.autoLoading) return;
     this.autoLoading = true;
     try {
@@ -255,7 +275,7 @@ class Plugins {
         }
         this.status.set(id, { state: "loading" });
         try {
-          const source = this.ran.get(id) ?? (await this.source(experienceId, id));
+          const source = this.ran.get(id) ?? (await this.savedSource(experienceId, id));
           const result = await transpilePlugin(source, id);
           if ("error" in result) {
             this.status.set(id, { state: "failed", error: `${result.error.line !== null ? `line ${result.error.line}: ` : ""}${result.error.message}` });
@@ -279,6 +299,8 @@ class Plugins {
       }
       if (!loaded) return;
       this.version += 1;
+      // Before the first scene (the stage starting, #340): it builds with them – nothing to build again
+      if (!refresh) return;
       await stage.refresh();
       // A node type that does not build is the source's failure (its registrations stay)
       for (const { id } of this.stored) {
