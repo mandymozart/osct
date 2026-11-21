@@ -469,3 +469,5 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     error's (`--danger`; a warning such as a group above its loading window uses it too). The brand's gold and its
     gradient belong to the reader (`client/`). The stage's 3D helpers (axes, grid lines, guides) keep their own
     conventions.
+    **Exception** (Tilman, 2026-11-21, #334): the Logic canvas's nodes, ports and wires take the SCUTOONS deck's node
+    styles **with their signal colours** (one table, research L-T8); the rest of the editor stays monochrome.

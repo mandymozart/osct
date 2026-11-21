@@ -209,6 +209,32 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-21 – Logic canvas: free placement, groups and the deck's node styles with colour (#334 L-T7/L-T8)
+
+- Tilman: *"free placement on canvas. and grouping like we have in the scutoons deck. also adopt the node styles we
+  already established in the deck. including the coloring."* – the Logic view gets free placement (positions kept in the
+  canvas, a schema MINOR), groups as in the deck, and the deck's node look **with its signal colours**. This is an
+  exception to RULES #38 (monochrome editor) for the Logic canvas's nodes, ports and wires; the rest of the editor
+  stays monochrome. RULES #38 amended.
+
+## 2026-11-21 – Export archive follows the CDN rules (#322 decision 2)
+
+- Tilman: *"export archive? hier den regeln fuer den cdn folgen. da haben wir das schon einmal besprochen."* – the
+  archive sits in the instance's **content store** (the CDN zone, or the directory store of an instance without CDN),
+  never in git, laid out like the store: `<title>/<env>/<experience>/exports/<build>/` – one per published build,
+  immutable (same build, same folder), written by the publish (trigger: every publish of that environment; the CLI
+  `osct content export --archive` for a manual one). The media are not copied: `export.json` names the build's
+  immutable content files, so the build's purge keeps every build an export still needs (the newest export per
+  experience at least). Details in the ticket (#322 T-archive). Not started.
+
+## 2026-11-21 – Demo: the staging database and `fixtures/demo` have drifted apart (#322 decision (b))
+
+- The staging DB's demo has 9 plugins (contact-shadow, cutout-shadow, hover, lifts, my-model-look, my-sparkle-look,
+  paper, reveal, toon – several only there, edited by Tilman up to 2026-11-21 02:15); `fixtures/demo` has 14 (aquarium,
+  fluid, grain, lifts, narrative, paper, pulse, reveal, scanlines, scenes, sparkle, spin, tally, tint). A re-import of
+  the fixture would overwrite his DB work, an export now would drop 11 plugins from the repository. Open: which side
+  wins, or merge (add the fixture's missing plugins and their scenes to the DB, then export).
+
 ## 2026-11-20 – Content schema 5.0: the logic MAJOR (#334 L-T5a, branch `feature/334-logic-major`)
 
 - **Conditions are expressions** (L5): `when` is one expression of `shared/text/expressions.ts` (`parseExpression`,

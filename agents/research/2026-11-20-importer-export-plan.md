@@ -230,7 +230,7 @@ Parallel tracks: export (T1–T4) and delivery (T5–T9) are independent after T
 
 1. **Demo: in the database as a sandbox, like in SCUTOONS** – option (b): `fixtures/demo` becomes its committed export
    (T2 writes it; `demo.yml` then syncs the export or is replaced by the editor's publish – decided in that ticket).
-2. Export archive and trigger: **open**.
+2. Export archive and trigger: **the CDN rules** (Tilman, 2026-11-21) – `<title>/<env>/<experience>/exports/<build>/` in the content store, one per publish, media named not copied (agents/MEMORY.md 2026-11-21).
 3. Delivery `note`: **dropped** (Tilman unsure it is needed); not stored.
 4. Removals: **approved** ("remove legacy code") – each at the moment section 4 names. Done in 3.16.4: convert-3,
    `render-layout.py`. Correction: `fixtures/demo/layout/` and the build's `layout/` copy **stay** – the reader's card
