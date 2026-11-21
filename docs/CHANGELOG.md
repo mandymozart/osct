@@ -25,6 +25,36 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 ### Changed
 - The Logic canvas no longer shows a signal by dashes; the legend lists the signals by pin and colour.
 
+## 4.5.0 – 2026-11-21
+
+### Added
+- The export archive (#322, docs/content-cdn.md "The export archive", docs/content.md "Export archive"): every publish
+  writes the export of the published build into the experience's content store, `<title>/<env>/<experience>/exports/<build>/`
+  (the directory store of an instance without CDN alike) – once per build, never rewritten. It holds what `osct content
+  export` writes (YAML, plugin sources, EXPORT.md, export.json) without the media: export.json names each file by its
+  immutable URL and lists the content builds they lie in. The publish answer has `export: { path, written, error? }`.
+  `osct content export --archive --env <env> --experience <id>` writes one for the build live there.
+- `osct content purge` keeps every build the newest export archive of the experience (in any environment) names, and
+  never deletes `exports/` (`--unknown` included).
+
+## 4.4.2 – 2026-11-21
+
+### Fixed
+- The editor's stage no longer refuses a value that a plugin's saved source takes because the draft's declaration still
+  carries the specs an older build recorded ("components[0].of: expected one of book, spread, got experience" in the Demo
+  Book): for a plugin with a saved source the stage drops the declaration's recorded specs – the saved source registers
+  its own (#269).
+- The staging deploy over FTPS no longer runs for a push that changes only `agents/`, `docs/` or Markdown files: its
+  upload is not atomic, and the API answered 500 while it ran.
+
+## 4.4.1 – 2026-11-21
+
+### Fixed
+- The editor's stage no longer refuses a plugin whose declaration was built against an older plugin API when the Code
+  tab has a saved source of it ("[plugins] aquarium was built against plugin API 1.6 … not loaded" in the Demo Book
+  after 4.x): the saved source wins on the stage (#269), so the declared compiled module is neither checked nor loaded –
+  every frame is given the saved ids when it starts (`FrameInit.saved`).
+
 ## 4.4.0 – 2026-11-21
 
 ### Added

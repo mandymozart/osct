@@ -1,13 +1,13 @@
 import { entityNodes, getTargets, loadGameConfiguration } from "@engine/content/game-config";
 import { untrack } from "svelte";
-import { pluginRegistrySnapshot } from "@engine/scene/plugins";
+import { keepPlugin, pluginRegistrySnapshot } from "@engine/scene/plugins";
 import type { VarScope, VarValue } from "@engine/scene";
 import type { EntityData, PassData } from "@engine/types";
 import type { EnvironmentData } from "@shared/types/environment";
 import type { ExperienceAppearance, Moment } from "@shared/types/appearance";
 import {
   type ContentSnapshot, contentBasesNamed, libraryFoldersOf, eventMessage, type FrameEventName, type FrameEvents, type FrameInit, frameCsp, isForwardedKey, type KeyForward, type LayoutSnapshot,
-  LOG_MAX, readFrameRequest, surfaceGizmoRequest, surfaceMarks, surfaceReferenceMap, REMOVED_WIRE, type TimelineSnapshot,
+  LOG_MAX, readFrameRequest, surfaceGizmoRequest, surfaceMarks, surfaceReferenceMap, REMOVED_WIRE, type TimelineSnapshot, withoutSavedSpecs,
 } from "./frame-protocol";
 import { STAGE_TOOLS, type StageTool } from "./gizmo";
 import type { PickFilter } from "./pick";
@@ -46,11 +46,12 @@ const draftTexts = (content: ContentSnapshot): string[] => Object.values(content
 const mediaBasesOf = (content: ContentSnapshot): string[] => contentBasesNamed(draftTexts(content), content.assetsBase || null);
 
 /** A fetch that answers from the responses the page recorded (the frame never asks the API for the draft) */
-const replayFetch = (content: ContentSnapshot): typeof fetch => async input => {
+const replayFetch = (content: ContentSnapshot, saved: ReadonlySet<string>): typeof fetch => async input => {
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   const text = content.responses[url.split("?")[0]];
-  return text == null ? new Response(null, { status: 404, statusText: "Not Found" }) : new Response(text, { status: 200, headers: { "Content-Type": "application/json" } });
+  return text == null ? new Response(null, { status: 404, statusText: "Not Found" }) : new Response(withoutSavedSpecs(text, saved), { status: 200, headers: { "Content-Type": "application/json" } });
 };
+
 
 /** A console argument as text for the Code tab's log */
 const textOf = (value: unknown): string => {
@@ -98,9 +99,11 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     cspKey = key;
   };
 
+  /** The Code tab's saved plugin ids the page gave at `init` (their saved sources win on the stage, #269) */
+  const saved = new Set<string>();
   const loadContent = async (content: ContentSnapshot) => {
     installCsp(content);
-    const error = await loadGameConfiguration({ baseUrl: content.baseUrl, fetch: replayFetch(content), assetsBase: content.assetsBase || undefined, unknownComponentTypes: "allow", keepSwitchedOffTargets: true });
+    const error = await loadGameConfiguration({ baseUrl: content.baseUrl, fetch: replayFetch(content, saved), assetsBase: content.assetsBase || undefined, unknownComponentTypes: "allow", keepSwitchedOffTargets: true });
     if (error) throw new Error(`${error.msg}${error.details?.[0] ? ` – ${error.details[0]}` : ""}`);
   };
 
@@ -141,8 +144,9 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     postIfChanged("layout", layout());
   };
 
-  const start = async ({ content, preview }: FrameInit) => {
+  const start = async ({ content, preview, saved: savedIds }: FrameInit) => {
     if (core) return;
+    if (Array.isArray(savedIds)) savedIds.filter(id => typeof id === "string").forEach(id => { saved.add(id); keepPlugin(id); });
     await loadContent(content);
     lastPreview = previewSync(JSON.parse(preview));
     applyPreviewSync(preview);

@@ -788,8 +788,34 @@ try {
     [$status, $again] = call($api, 'POST', '/editor/experiences/osct/publish', ['env' => 'local'], $editor);
     [, $data] = call($api, 'GET', '/content/local/osct/versions.json');
     check($status === 200 && $again['build'] === $second['build'] && count($data) === 2 && file_get_contents("$storeDir/local/osct/{$second['build']}/game.config.json") === $written, 'publishing the same draft again rewrites no version folder and adds no version');
+
+    echo "editor: the export archive of every publish (#322)\n";
+    $archiveDir = "$storeDir/local/osct/exports/{$first['build']}";
+    $archived = json_decode((string) @file_get_contents("$archiveDir/export.json"), true);
+    check(($first['export'] ?? null) === ['path' => "exports/{$first['build']}", 'written' => true] && is_array($archived) && $archived['archive'] === true
+        && $archived['experience'] === 'osct' && $archived['env'] === 'local' && $archived['build'] === $first['build'] && $archived['hash'] === $first['hash'] && $archived['writtenBy'] === 'publish'
+        && $archived['source']['kind'] === 'published' && $archived['source']['publishedBy'] === null && $archived['source']['publishedAt'] === $first['publishedAt'],
+        'publish writes the archive into the store: exports/<build>/export.json, the published build, no person named');
+    check(is_file("$archiveDir/experience.yaml") && is_file("$archiveDir/EXPORT.md") && glob("$archiveDir/scenes/*/scene.yaml") && glob("$archiveDir/entries/*/entry.yaml")
+        && str_contains((string) file_get_contents("$archiveDir/experience.yaml"), 'id: osct') && !str_contains((string) file_get_contents("$archiveDir/EXPORT.md"), 'author@example.com'),
+        'the archive holds the content source (experience.yaml, scenes, entries, EXPORT.md) – EXPORT.md names no e-mail address');
+    $media = array_filter(array_map(fn(array $file): string => $file['path'], $archived['files'] ?? []), fn(string $at): bool => is_file("$archiveDir/$at"));
+    check(count($archived['files']) > 0 && $media === [] && in_array(['env' => 'local', 'build' => $first['build']], $archived['builds'], true)
+        && count(array_filter($archived['files'], fn(array $file): bool => !is_string($file['url']) || $file['url'] === '')) === 0,
+        'no media copied: export.json names each file by its path and URL; builds lists the archived build');
+    $archivedAt = filemtime("$archiveDir/export.json");
+    $archivedText = file_get_contents("$archiveDir/export.json");
+    check(($again['export'] ?? null) === ['path' => "exports/{$second['build']}", 'written' => false] && is_file("$storeDir/local/osct/exports/{$second['build']}/export.json"),
+        'publishing a build whose archive is there writes none (written: false) – one per build');
+    [$status] = call($api, 'GET', "/content/local/osct/exports/{$first['build']}/export.json");
+    check($status === 404, 'the local content route does not serve the archive');
+    unlink("$storeDir/local/osct/exports/{$second['build']}/export.json");
+    [$status, $repaired] = call($api, 'POST', '/editor/experiences/osct/publish', ['env' => 'local'], $editor);
+    check($status === 200 && ($repaired['export']['written'] ?? null) === true && is_file("$storeDir/local/osct/exports/{$second['build']}/export.json")
+        && file_get_contents("$archiveDir/export.json") === $archivedText && filemtime("$archiveDir/export.json") === $archivedAt,
+        'an archive without export.json (incomplete) is written again by the next publish of its build; other archives are untouched');
     [$status, $data] = call($api, 'GET', '/editor/experiences/osct/versions', null, $editor);
-    check($status === 200 && count($data['versions']) === 3 && $data['versions'][2]['note'] === 'first' && $data['versions'][0]['publishedBy'] === 'author@example.com', 'the publish log: three publishes, newest first');
+    check($status === 200 && count($data['versions']) === 4 && $data['versions'][3]['note'] === 'first' && $data['versions'][0]['publishedBy'] === 'author@example.com', 'the publish log: four publishes (the last one repaired an archive), newest first');
     [, $data] = call($api, 'GET', '/editor/experiences', null, $editor);
     check($data['experiences'][0]['lastPublish']['env'] === 'local' && $data['experiences'][0]['lastPublish']['build'] === $second['build'], 'the experience list shows the last publish');
 
@@ -1149,6 +1175,11 @@ try {
     $src = '/assets/content/plugins/tint/plugin-' . substr(hash('sha256', $tintCode), 0, 12) . '.js';
     $publishedConfig = json_decode((string) file_get_contents("$storeDir/local/osct/{$carried['build']}/game.config.json"));
     check(is_file("$storeDir/local/osct/{$carried['build']}$src") && file_get_contents("$storeDir/local/osct/{$carried['build']}$src") === $tintCode, 'the module is in the version folder, named after its code');
+    $carriedArchive = json_decode((string) @file_get_contents("$storeDir/local/osct/exports/{$carried['build']}/export.json"), true);
+    $pluginFile = array_values(array_filter($carriedArchive['files'] ?? [], fn(array $file): bool => str_ends_with($file['url'], $src)));
+    check(($carried['export']['written'] ?? null) === true && file_get_contents("$storeDir/local/osct/exports/{$carried['build']}/plugins/tint/index.ts") === $tintSource
+        && $pluginFile === [] && in_array(['env' => 'local', 'build' => $carried['build']], $carriedArchive['builds'] ?? [], true),
+        'the archive holds the Code tab source (plugins/<id>/index.ts) – the compiled module is the build\'s product, not named; builds keeps the archived build');
     check(count($publishedConfig->plugins) === 1 && $publishedConfig->plugins[0]->id === 'tint' && $publishedConfig->plugins[0]->src === $src && $publishedConfig->plugins[0]->api === '1.7'
         && $publishedConfig->plugins[0]->registered->components->tint->params instanceof stdClass, 'the configuration declares it by its content path, with the specs as sent ({} stays an object)');
     $servedPlugin = (string) @file_get_contents("$api/content/local/osct/{$carried['build']}$src", false, stream_context_create(['http' => ['ignore_errors' => true]]));
@@ -2453,6 +2484,10 @@ try {
     $bunnyApi = startApi(['ENV' => 'staging'] + $bunny + $settings);
     [$status, $data] = call($bunnyApi, 'POST', '/editor/experiences/osct/publish', ['env' => 'staging'], $editor);
     check($status === 200 && is_file("$bunnyDir/osct/osct/staging/osct/{$data['build']}/game.config.json") && is_file("$bunnyDir/osct/osct/staging/osct/{$data['build']}/files.json"), 'staging goes to the storage zone: <title>/<env>/<experience>/<build>/ (osct/staging/osct/)');
+    $bunnyArchive = json_decode((string) @file_get_contents("$bunnyDir/osct/osct/staging/osct/exports/{$data['build']}/export.json"), true);
+    check(($data['export']['written'] ?? null) === true && ($bunnyArchive['env'] ?? null) === 'staging' && ($bunnyArchive['title'] ?? null) === 'osct'
+        && is_file("$bunnyDir/osct/osct/staging/osct/exports/{$data['build']}/experience.yaml"),
+        'the archive goes to the storage zone too: <title>/<env>/<experience>/exports/<build>/');
     $latest = json_decode((string) @file_get_contents("$bunnyDir/osct/osct/staging/osct/latest.json"), true);
     $versions = json_decode((string) @file_get_contents("$bunnyDir/osct/osct/staging/osct/versions.json"), true);
     check(($latest['build'] ?? null) === $data['build'] && count($versions ?? []) === 1 && $versions[0]['build'] === $data['build'] && $versions[0]['retiredAt'] === null, 'latest.json and versions.json on the zone');

@@ -246,4 +246,16 @@ describe("loadPlugins", () => {
     await loadPlugins([{ id: "kept", src: "/p/kept/plugin.js", api: PLUGIN_API_VERSION }], importer);
     expect(pluginTypes("kept")).toEqual(["keptSpin"]);
   });
+
+  it("neither checks nor imports a kept plugin's declaration: one built against an older plugin API raises no refusal", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    keepPlugin("legacy");
+    const imported: string[] = [];
+    await loadPlugins([{ id: "legacy", src: "/p/legacy/plugin.js", api: "1.6" }], async url => {
+      imported.push(url);
+      return {};
+    });
+    expect(imported).toEqual([]);
+    expect(error).not.toHaveBeenCalled();
+  });
 });

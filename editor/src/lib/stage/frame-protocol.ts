@@ -56,6 +56,11 @@ export type PreviewSync = string;
 export interface FrameInit {
   content: ContentSnapshot;
   preview: PreviewSync;
+  /**
+   * The Code tab's saved plugin ids (#269): their declared compiled modules are never loaded on the stage – the saved
+   * source runs instead (`plugins.autoLoad`), so a declaration built against an older plugin API raises no refusal
+   */
+  saved?: string[];
 }
 
 /** The stage's state as the page shows it */
@@ -489,4 +494,27 @@ export const frameCsp = ({ origin, appBase, apiBase, contentBases, mediaBases = 
     "form-action 'none'",
     "manifest-src 'none'",
   ].join("; ");
+};
+
+/**
+ * A configuration whose declared plugins have a saved source in the Code tab (#269): their recorded specs are dropped –
+ * the saved source runs on the stage and registers its own, so a declaration recorded by an older build (a choice's old
+ * options, `of: book | spread`) refuses no value the saved source takes. Any other response stays as it is.
+ */
+export const withoutSavedSpecs = (text: string, saved: ReadonlySet<string>): string => {
+  if (!saved.size || !text.includes('"plugins"')) return text;
+  try {
+    const data = JSON.parse(text) as { plugins?: unknown };
+    if (!Array.isArray(data.plugins)) return text;
+    let changed = false;
+    data.plugins = data.plugins.map(plugin => {
+      if (!plugin || typeof plugin !== "object" || !saved.has((plugin as { id?: string }).id ?? "") || !("registered" in plugin)) return plugin;
+      changed = true;
+      const { registered: _registered, ...rest } = plugin as Record<string, unknown>;
+      return rest;
+    });
+    return changed ? JSON.stringify(data) : text;
+  } catch {
+    return text;
+  }
 };

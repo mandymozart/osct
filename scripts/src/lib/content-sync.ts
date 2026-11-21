@@ -30,6 +30,7 @@ import { parseContentSchema } from '../../../shared/types/game-config';
 import { CLIENT_PUBLIC_ASSETS_DIR, DEMO_MARKER, FIXTURE_MARKER, OUTPUT_FILE } from '../config';
 import { listFiles } from './files';
 import { contentTypeOf, sha256, type StorageClient, type StoredFile } from './storage';
+import { ARCHIVE_FOLDER } from './export-archive';
 
 const PARALLEL_UPLOADS = 4;
 /** The CDN check waits this long for the new latest.json to show at the edge */
@@ -346,8 +347,13 @@ export interface PurgeOptions {
   minAgeDays: number;
   /** Newest retired versions that always stay (rollback) */
   keep: number;
-  /** Also delete folders and files in the store root that are not versions on record */
+  /** Also delete folders and files in the store root that are not versions on record (never `exports/`, the archives) */
   unknown: boolean;
+  /**
+   * Builds the newest export archive of the experience (in any environment) names – build → the archives that need it
+   * (export-archive.ts `archivedBuilds`, #322): they always stay
+   */
+  archived?: ReadonlyMap<string, readonly string[]>;
 }
 
 export const DEFAULT_PURGE: PurgeOptions = { minAgeDays: 30, keep: 1, unknown: false };
@@ -398,9 +404,15 @@ export function planPurge(state: StoreState, cdnBuild: string | null, now: numbe
     const name = nameOf(entry);
     if (!entry.isDirectory && (name === 'latest.json' || name === 'versions.json')) continue;
     const target = entry.isDirectory ? `${entry.path}/` : entry.path;
+    // The export archives (#322) are never purged: immutable, one per published build
+    if (entry.isDirectory && name === ARCHIVE_FOLDER) {
+      items.push({ target, verdict: 'the export archives – always stay', purge: false });
+      continue;
+    }
+    const archivedBy = entry.isDirectory ? options.archived?.get(name) : undefined;
     const version = entry.isDirectory && CONTENT_BUILD.test(name) ? record.get(name) : undefined;
     if (!version) {
-      const inUse = name === current || name === cdnBuild;
+      const inUse = name === current || name === cdnBuild || archivedBy !== undefined;
       items.push({
         target,
         verdict: inUse ? 'in use – stays' : options.unknown ? 'purge (not a version on record)' : 'not a version on record – stays (--unknown deletes it)',
@@ -412,6 +424,7 @@ export function planPurge(state: StoreState, cdnBuild: string | null, now: numbe
     const verdict =
       name === current ? 'current version'
         : name === cdnBuild ? 'served by the CDN (latest.json at the edge points at it)'
+          : archivedBy ? `named by the newest export archive (${archivedBy.join(', ')}) – stays`
           : kept.has(name) ? `newest retired – kept for rollback (--keep ${options.keep})`
             : retiredDays < options.minAgeDays
               ? `retired ${retiredDays.toFixed(1)} days ago – an edge may still serve a latest.json pointing at it (--min-age ${options.minAgeDays})`

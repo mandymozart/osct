@@ -1007,7 +1007,8 @@ final class Experiences
      * POST /editor/experiences/{id}/publish { env, note? } → { env, store, build, hash, publishedAt }: the assembled version
      * into the experience's own store in the environment (#87: `<title>/<env>/<id>/` – a publish never touches another
      * experience) – the version folder (unless that build is there already: a folder is never overwritten), then
-     * versions.json, then latest.json (the switch) – and a row in the publish log.
+     * versions.json, then latest.json (the switch) – and a row in the publish log. Then the build's export archive
+     * (`ExportArchive`, #322): `exports/<build>/` in the same store unless it is there; `export` = { path, written, error? }.
      * `env` must be this instance's own environment (ENV): another one answers 403 other-environment with `env`, the
      * own one. `store` = where it went: `cdn` or `server` (the directory store).
      *
@@ -1099,7 +1100,15 @@ final class Experiences
 
         Db::run('INSERT INTO experience_versions (id, experience_id, env, build, hash, published_by, published_at, note) VALUES (:id, :experience, :env, :build, :hash, :by, :at, :note)',
             ['id' => Db::uuid(), 'experience' => $experienceId, 'env' => $env, 'build' => $version['build'], 'hash' => $version['hash'], 'by' => $user['id'], 'at' => Editor::nowMs(), 'note' => $note]);
-        Http::json(200, ['env' => $env, 'store' => $store->isLocal() ? 'server' : 'cdn', 'build' => $version['build'], 'hash' => $version['hash'], 'publishedAt' => $now]);
+        // The export archive of the build (#322): once per build, after the switch – readers never wait for it, and a
+        // failure is reported, not a failed publish (the next publish of the build writes it)
+        try {
+            $archive = ExportArchive::write($store, Export::ofPublish($experienceId, $version, $env, $now), $env);
+        } catch (Throwable $error) {
+            error_log("[osct] export archive of $env/$experienceId/{$version['build']} failed: " . $error->getMessage());
+            $archive = ['path' => ExportArchive::FOLDER . '/' . $version['build'], 'written' => false, 'error' => $error->getMessage()];
+        }
+        Http::json(200, ['env' => $env, 'store' => $store->isLocal() ? 'server' : 'cdn', 'build' => $version['build'], 'hash' => $version['hash'], 'publishedAt' => $now, 'export' => $archive]);
     }
 
     /**

@@ -619,6 +619,9 @@
         // The Code tab's saved sources run on every frame that starts (#269): their looks and components are known at once
         const started = stage;
         started.onStarted = () => void plugins.autoLoad(experienceId, started);
+        started.savedPlugins = () => plugins.stored.map(p => p.id);
+        // The saved sources' ids before the frame starts: their compiled declarations are not loaded on the stage
+        if (plugins.experienceId !== experienceId) await plugins.load(experienceId).catch(() => undefined);
       }
       await stage.open(sceneId);
     } catch (e) {
