@@ -123,6 +123,31 @@ export interface GraphNode {
   home?: Home;
   /** A picture its body shows (an image node's file) – cheap previews only; the choice of preview is L-T15 */
   preview?: string;
+  /**
+   * Display rows (#334, Tilman 2026-11-21): what a plugin's code uses that no wire can change – what it reads, sets, drives –
+   * as plain text under the pins, each row's names joined to their boxes by a dotted reference line (`View.refs`)
+   */
+  rows?: DisplayRow[];
+  /** A plugin box: the events its `emits` outlet gives and its `hears` inlet takes (its declared uses) – a wire picks one */
+  bus?: { emits: string[]; hears: string[] };
+}
+
+/** A display row of a box: the verb (`reads`, `sets`, `drives`) and the names – the text `reads hasKey, scene` */
+export interface DisplayRow {
+  id: "reads" | "sets" | "drives" | "goto";
+  names: string[];
+}
+
+/**
+ * A reference from a box's display row to the box it names (#334): drawn as a fine dotted line, never a wire – not
+ * selectable, not deletable, no op names it. `dir` says which way the use runs for the layout: `in` – the row reads from the
+ * box (a variable read), `out` – the row reaches the box (a variable set, a node driven).
+ */
+export interface Reference {
+  id: string;
+  from: [node: string, row: DisplayRow["id"]];
+  to: string;
+  dir: "in" | "out";
 }
 
 export interface GraphEdge {
@@ -182,6 +207,8 @@ export interface View {
   nodes: GraphNode[];
   edges: GraphEdge[];
   stubs: Stub[];
+  /** The display rows' references (#334): dotted lines, not wires */
+  refs: Reference[];
   problems: Problem[];
   canvas: Canvas;
 }
@@ -232,7 +259,8 @@ export type Op = (
   | { op: "addRule"; at: RulePlace; on?: string; when?: string | null; do?: BehaviourAction[] }
   /** What a rule hears (a wire dropped from its on on the empty canvas, #334) */
   | { op: "setEvent"; home: Home; on: string }
-  | { op: "connect"; from: [string, string]; to: [string, string]; verb?: BehaviourAction["action"] }
+  /** `event`: which of a plugin's events a wire to its `emits` or `hears` means (its first by default, #334) */
+  | { op: "connect"; from: [string, string]; to: [string, string]; verb?: BehaviourAction["action"]; event?: string }
   | { op: "disconnect"; edge: string }
   /** `when`: the condition's expression (null: always) – type-checked before it is written (B8) */
   | { op: "setCondition"; home: Home; when: string | null }

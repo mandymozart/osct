@@ -237,17 +237,35 @@ describe("which node types fit here (#334 L-T4)", () => {
 });
 
 describe("which ports take a dragged wire (#334)", () => {
-  it("a plugin's bus ports never do – they come from its code's uses", () => {
-    const epilogue: Context = { level: "scene", scene: "epilogue" };
-    const view = project(content, epilogue);
+  it("a plugin's pins do (emits, hears – the wire changes the rule); what it reads, sets and drives are rows, no ports (#334)", () => {
+    const view = project(content, scene);
     const plugin = view.nodes.find(n => n.kind === "plugin")!;
-    expect(plugin).toBeTruthy();
+    expect(plugin.ports.map(p => p.id)).toEqual(["hears", "emits"]);
+    expect(plugin.bus).toEqual({ emits: ["doorOpened"], hears: ["openDoor"] });
+    // A variable's get never reaches the plugin: its reads is a row, not an inlet
     const variable = view.nodes.find(n => n.kind === "variable")!;
-    const takes = takesWire(content, epilogue, [variable.id, "get"], "out");
-    expect(takes.has(plugin.id)).toBe(false);
-    // A rule's when does take it
-    expect([...takes.values()].some(ports => ports.has("when"))).toBe(true);
-    expect(takesWire(content, epilogue, [plugin.id, "emits"], "out").size).toBe(0);
+    expect(takesWire(content, scene, [variable.id, "get"], "out").has(plugin.id)).toBe(false);
+    // Its emits reaches a rule's on – the rule hears its event
+    const ons = takesWire(content, scene, [plugin.id, "emits"], "out");
+    expect([...ons.values()].every(ports => [...ports].every(p => p === "on"))).toBe(true);
+    expect(ons.has("rule:door/#0")).toBe(true);
+    const heard = ok(apply({ op: "connect", from: [plugin.id, "emits"], to: ["rule:door/#0", "on"] }, content, scene));
+    expect(doorRules(heard.content)[0].on).toBe("doorOpened");
+    // A rule's do reaches its hears – the rule emits what it hears
+    const emitted = ok(apply({ op: "connect", from: ["rule:door/#0", "do"], to: [plugin.id, "hears"] }, content, scene));
+    expect(doorRules(emitted.content)[0].do.at(-1)).toEqual({ action: "emit", event: "openDoor" });
+    expect(refused(apply({ op: "connect", from: ["rule:door/#0", "do"], to: [plugin.id, "hears"], event: "nope" }, content, scene))).toMatch(/hears openDoor – not nope/);
+    // An event box into it is still its code's
+    expect(refused(apply({ op: "connect", from: ["event:openDoor", "out"], to: [plugin.id, "hears"] }, content, scene))).toMatch(/Code tab/);
+    // A wire let go on the canvas from its pins: a rule hearing, a rule emitting – each op applies
+    const a = { content, context: scene, place: { doc: "entity" as const, target: "door", path: [] }, rule: null };
+    const fromEmits = wireChoices(a, { node: plugin, port: "emits", dir: "out" });
+    expect(fromEmits.map(c => c.op)).toContainEqual({ op: "addRule", at: { doc: "entity", target: "door", path: [] }, on: "doorOpened" });
+    const intoHears = wireChoices(a, { node: plugin, port: "hears", dir: "in" });
+    expect(intoHears[0].op).toMatchObject({ op: "addRule", do: [{ action: "emit", event: "openDoor" }] });
+    for (const c of [...fromEmits, ...intoHears].filter(c => c.op)) expect(apply(c.op!, content, scene).ok, c.label).toBe(true);
+    // Its rows make nothing
+    expect(wireChoices(a, { node: plugin, port: "reads", dir: "in" }).every(c => !c.op)).toBe(true);
   });
 });
 

@@ -28,7 +28,7 @@
   import { Handle, Position, useViewport } from "@xyflow/svelte";
   import { contentUrl } from "@engine/content/game-config";
   import Icon from "#lib/components/Icon.svelte";
-  import { BOX_HEAD, PORT_ROW, handleId, rowsOf, type FlowPort } from "#lib/logic/flow.js";
+  import { BOX_HEAD, DISPLAY_ROW, DIVIDER, PORT_ROW, handleId, rowsOf, type FlowPort } from "#lib/logic/flow.js";
   import { LABEL_ZOOM, SIGNAL_STYLES, signalToken } from "#lib/logic/signals.js";
 
   /**
@@ -44,6 +44,10 @@
    * gives (L-T6) show only while wired or exposed – the box's **+** lists the hidden ones. While a wire is dragged, the
    * handles that take it are drawn heavy and the others fade (`takes`, strictly typed – B8). An image node shows its
    * picture in place of the icon.
+   *
+   * **Display rows** (#334): what a plugin's code reads, sets and drives is plain text under its pins, below a thin divider,
+   * no pins – a click opens the plugin in the Code tab (the box's own click). Invisible anchors at each row's sides (and the
+   * head's, and every box's head for the far end) carry the dotted reference lines (`LogicRef`); they never connect.
    */
   let { data }: { data: LogicBoxData } = $props();
 
@@ -76,15 +80,17 @@
   const lit = (id: string) => (data.takes ? (data.takes.has(id) ? " takes" : " refuses") : "");
   const pinClass = (p: FlowPort, extra = "") => `pin shape-${SIGNAL_STYLES[p.deck].shape} sig-${p.deck}${p.kind ? ` kind-${p.kind}` : ""}${extra}${lit(handleId(p))}`;
   const pinStyle = (p: FlowPort, top: number) => `top: ${top}px; --pin: var(${signalToken(p.deck)})`;
-  /**
-   * A plugin's bus ports (hears, emits, reads, sets, goto, arrives, drives) are drawn from its code's declared uses: read-only
-   * (#334) – no wire starts or ends there, the pin is an outline, a click opens the plugin in the Code tab
-   */
-  const usesOnly = $derived(!pill && !box.stub && node!.kind === "plugin");
-  const portTitle = (p: FlowPort) => (usesOnly
-    ? `${p.label}: from ${label}'s code (uses) – click to open it in the Code tab`
-    : `${p.owner ? `${p.owner} · ` : ""}${p.label || p.deck}${p.detail ? ` – ${p.detail}` : ""}`);
-  const pinOf = (p: FlowPort, extra = "") => pinClass(p, `${extra}${usesOnly ? " uses" : ""}`);
+  /** A plugin's pins (#334): its emits into a rule's on, a rule's emit into its hears – the event names they stand for */
+  const busNames = (p: FlowPort) => (node?.kind === "plugin" ? (p.id === "emits" ? node.bus?.emits : p.id === "hears" ? node.bus?.hears : undefined) : undefined);
+  const portTitle = (p: FlowPort) => {
+    const names = busNames(p);
+    if (names) return `${p.label}: ${names.join(", ") || "nothing a rule can wire"} – ${p.id === "emits" ? "wire it to a rule's on" : "wire a rule's action here: it emits it"}`;
+    return `${p.owner ? `${p.owner} · ` : ""}${p.label || p.deck}${p.detail ? ` – ${p.detail}` : ""}`;
+  };
+  const pinOf = (p: FlowPort, extra = "") => pinClass(p, extra);
+  const displayRows = $derived(box.folded ? [] : box.rows);
+  const dividerTop = $derived(BOX_HEAD + rows.count * PORT_ROW + DIVIDER / 2);
+  const displayTop = (i: number) => BOX_HEAD + rows.count * PORT_ROW + DIVIDER + i * DISPLAY_ROW;
 
   const keydown = (e: KeyboardEvent) => {
     if (e.key === "Enter" && enterable) {
@@ -135,20 +141,33 @@
     {/if}
   </span>
   {#each headIns as p, i (p.id)}
-    <Handle type="target" position={Position.Left} id={handleId(p)} class={pinOf(p)} style={pinStyle(p, headTop(i, headIns.length))} isConnectable={data.editable && !usesOnly} title={portTitle(p)} />
+    <Handle type="target" position={Position.Left} id={handleId(p)} class={pinOf(p)} style={pinStyle(p, headTop(i, headIns.length))} isConnectable={data.editable} title={portTitle(p)} />
   {/each}
   {#each headOuts as p, i (p.id)}
-    <Handle type="source" position={Position.Right} id={handleId(p)} class={pinOf(p, p.id === "do" ? " add" : "")} style={pinStyle(p, headTop(i, headOuts.length))} isConnectable={data.editable && !usesOnly}
+    <Handle type="source" position={Position.Right} id={handleId(p)} class={pinOf(p, p.id === "do" ? " add" : "")} style={pinStyle(p, headTop(i, headOuts.length))} isConnectable={data.editable}
       title={p.id === "do" ? "Drag to a node, a variable or an event: a new action" : portTitle(p)} />
   {/each}
   {#each rows.ins as p, i (`in:${p.id}`)}
     <span class="pin-label in" style:top="{rowTop(i) - PORT_ROW / 2}px" style:height="{PORT_ROW}px" title={portTitle(p)}>{p.label}</span>
-    <Handle type="target" position={Position.Left} id={handleId(p)} class={pinOf(p)} style={pinStyle(p, rowTop(i))} isConnectable={data.editable && !usesOnly} title={portTitle(p)} />
+    <Handle type="target" position={Position.Left} id={handleId(p)} class={pinOf(p)} style={pinStyle(p, rowTop(i))} isConnectable={data.editable} title={portTitle(p)} />
   {/each}
   {#each rows.outs as p, i (`out:${p.id}`)}
     <span class="pin-label out" style:top="{rowTop(i) - PORT_ROW / 2}px" style:height="{PORT_ROW}px" title={portTitle(p)}>{p.label}</span>
-    <Handle type="source" position={Position.Right} id={handleId(p)} class={pinOf(p)} style={pinStyle(p, rowTop(i))} isConnectable={data.editable && !usesOnly} title={portTitle(p)} />
+    <Handle type="source" position={Position.Right} id={handleId(p)} class={pinOf(p)} style={pinStyle(p, rowTop(i))} isConnectable={data.editable} title={portTitle(p)} />
   {/each}
+  {#if displayRows.length}
+    <span class="divider" style:top="{dividerTop}px" aria-hidden="true"></span>
+  {/if}
+  {#each displayRows as row, i (row.id)}
+    <span class="display-row" style:top="{displayTop(i)}px" style:height="{DISPLAY_ROW}px" title="{row.text} – from {label}'s code; click to open it in the Code tab">{row.text}</span>
+    <Handle type="source" position={Position.Left} id="ref:l:{row.id}" class="ref-anchor" style="top: {displayTop(i) + DISPLAY_ROW / 2}px" isConnectable={false} />
+    <Handle type="source" position={Position.Right} id="ref:r:{row.id}" class="ref-anchor" style="top: {displayTop(i) + DISPLAY_ROW / 2}px" isConnectable={false} />
+  {/each}
+  <!-- The reference lines' anchors on the head: the far end of a line (every box), its start while the box is folded -->
+  <Handle type="target" position={Position.Left} id="ref:l" class="ref-anchor" style="top: {BOX_HEAD / 2}px" isConnectable={false} />
+  <Handle type="target" position={Position.Right} id="ref:r" class="ref-anchor" style="top: {BOX_HEAD / 2}px" isConnectable={false} />
+  <Handle type="source" position={Position.Left} id="ref:hl" class="ref-anchor" style="top: {BOX_HEAD / 2}px" isConnectable={false} />
+  <Handle type="source" position={Position.Right} id="ref:hr" class="ref-anchor" style="top: {BOX_HEAD / 2}px" isConnectable={false} />
 </div>
 
 <style>
@@ -217,8 +236,15 @@
   }
   .box :global(.pin.add::after) { content: "+"; color: var(--text); pointer-events: none; }
   .box :global(.pin.connectable) { cursor: crosshair; }
-  /* A plugin's port from its code's uses: an outline, no wire starts or ends there (a click opens the Code tab) */
-  .box :global(.pin.uses) { background: var(--control-background); border: 1px solid var(--pin); cursor: pointer; }
+  /* Display rows (#334): a thin divider, then plain text – no pins; a click opens the plugin's code */
+  .divider { position: absolute; left: .5rem; right: .5rem; height: 0; border-top: 1px solid color-mix(in srgb, var(--kind) 22%, transparent); pointer-events: none; }
+  .display-row {
+    position: absolute; left: 0; right: 0; box-sizing: border-box; display: flex; align-items: center; padding: 0 .75rem;
+    font-size: .625rem; line-height: 1; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .box:not(.labels) .display-row { visibility: hidden; }
+  /* A reference line's anchor: invisible, never takes the pointer, never connects */
+  .box :global(.ref-anchor) { width: 1px; height: 1px; min-width: 0; min-height: 0; border: 0; background: none; opacity: 0; pointer-events: none; }
   /* While a wire is dragged: what takes it heavy, the rest faded */
   .box :global(.pin.takes) { outline: 2px solid var(--text); outline-offset: 1px; clip-path: none; }
   .box :global(.pin.refuses) { opacity: .25; }
