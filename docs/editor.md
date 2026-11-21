@@ -475,9 +475,17 @@ else the compiled module), *its code not read* until it arrived.
   scene's rules; such wires and stubs are drawn finely dotted, labelled *never fires*. Plugins load for the whole
   experience, so an event to or from a plugin does fire; variables keep their scope across scenes.
 
-Under the graph, in the error colour, the **problems** across the experience: a variable read that nothing sets, an event
-heard that nothing emits, an event emitted that nothing hears, a node an action names that the rule's subtree does not
-have – while a plugin's code is unknown only the last. The level logic is pure and tested (`lib/logic/__tests__/`:
+Under the graph, the **issues bar** (#334, the SCUTOONS deck's Problems list and status-bar counts, more minimal –
+`logic/issues.ts`): the **problems** across the experience as one quiet line – a mark, the counts in the deck's words
+(*1 error · 2 warnings*) and, closed, the first issue truncated. A click opens the list (the state is remembered per
+browser session, `sessionStorage`); a row is one line: the mark, the box's name and the short words the box does not
+already say (*keyRattled · emitted, nothing hears it*; the whole sentence is its tooltip); errors first. A click on a row
+marks its box on the canvas (the search's flash) and, for a scene's problem listed at the group or experience level, opens
+the scene's level first. **Errors** – something broken: a node an action names that is not there, a goto to a missing
+scene, a type the rule refuses – have the error colour (a filled dot, the box's red border); **warnings** – it never does
+anything: a variable read that nothing sets, an event heard that nothing emits, an event emitted that nothing hears, a
+rule that hears nothing – stay grey (a hollow ring, the box's border dashed; RULES #38). While a plugin's code is unknown
+only the names a plugin could not set or emit are said. The level logic is pure and tested (`lib/logic/__tests__/`:
 `project`, `navigation` – the URL, enter, back, stubs, follow, search; `apply` – every op, its refusals, the by-name
 cases, which node types fit; `logic-homes` – scene and experience rules, goto, `when` wires, type problems; `canvas` – the
 signal table, the cards, pins, groups and their ops). Not yet: lighting up what fires while the stage runs, notes on the

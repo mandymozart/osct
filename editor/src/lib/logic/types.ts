@@ -111,8 +111,10 @@ export interface GraphNode {
   pick: LogicPick | null;
   /** The level a double-click opens (a group, a scene, an entity) */
   enter?: Context;
-  /** What is wrong with it (drawn in the error colour), if anything */
+  /** What is wrong with it, if anything (an error drawn in the error colour, a warning dashed) */
   problem?: string;
+  /** How bad its problem is: an error (a broken name, a refused type) or a warning (nothing hears, sets or emits it) */
+  problemSeverity?: Severity;
   /** It stands for something outside this level */
   far?: boolean;
   /** The id of the group node it sits in (a frame) */
@@ -143,10 +145,20 @@ export interface Stub {
   label: string;
 }
 
+/** An error: something broken (a name that is not there, a type the rule refuses); a warning: it never does anything */
+export type Severity = "error" | "warning";
+
 export interface Problem {
   message: string;
+  severity: Severity;
   /** The box it is about, when it is one of this view's */
   node?: string;
+  /** The box's name (or the rule's place) – the issues bar shows it, so `short` need not say it */
+  place?: string;
+  /** The message without what `place` already says */
+  short?: string;
+  /** Where the box itself is drawn when `node` is only its container here (a scene's box at the experience level) */
+  at?: { context: Context; node: string };
 }
 
 /** A free node on the canvas (§5.7) – declared only; the canvas comes with L-T7 */

@@ -29,6 +29,23 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 ### Fixed
 - A new rule on a scene that had no rules yet was refused ("There is no scene …").
 
+## 4.7.0 – 2026-11-21
+
+### Changed
+- The Logic panel's problems sit in an **issues bar** under the graph, like the SCUTOONS deck's, more minimal (#334,
+  Tilman 2026-11-21): one line – a mark, *1 error · 2 warnings* and the first issue – that opens a compact list on a
+  click (remembered per session). A row is the box's name and short words (*keyRattled · emitted, nothing hears it*); a
+  click marks the box and, for a scene's problem at a wider level, opens the scene's level. Errors (a missing node or
+  scene, a refused type) keep the error colour; warnings (nothing hears, sets or emits it) are grey with a hollow mark,
+  and their box's border is dashed instead of red (RULES #38).
+
+## 4.6.5 – 2026-11-21
+
+### Fixed
+- The Logic view's hover is gentler and never hides the box under the pointer: a hovered box with no wire dims nothing (it
+  dimmed itself with everything else), the hovered box is never dimmed and shows its border and its open / fold chevrons
+  at full strength, and the unconnected boxes and wires dim to 55 % / 45 % (were 30 % / 25 %).
+
 ## 4.6.4 – 2026-11-21
 
 ### Changed

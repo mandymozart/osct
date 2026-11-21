@@ -98,7 +98,10 @@ describe("the logic view per level (#334)", () => {
     ]);
     expect(stubLabels(view)).toEqual(["hasKey → read in Epilogue", "openDoor → heard in Epilogue", "openDoor → heard in plugin narrative"]);
     expect(view.stubs.find(s => s.label.endsWith("plugin narrative"))?.far).toEqual({ level: "experience" });
-    expect(view.problems).toEqual([{ message: "doorOpened is emitted, but nothing in the experience hears it", node: "scene:door" }]);
+    expect(view.problems).toEqual([{
+      message: "doorOpened is emitted, but nothing in the experience hears it", severity: "warning", node: "scene:door",
+      place: "doorOpened", short: "emitted, nothing hears it", at: { context: { level: "scene", scene: "door" }, node: "event:doorOpened" },
+    }]);
   });
 
   it("the experience level: groups as frames, scenes in order, plugins, crossing variables, core events, events between places", () => {
