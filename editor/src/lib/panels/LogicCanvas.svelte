@@ -4,7 +4,8 @@
 </script>
 
 <script lang="ts">
-  import { SvelteFlow, Controls, type Edge, type Node } from "@xyflow/svelte";
+  import { SvelteFlow, type Edge, type Node } from "@xyflow/svelte";
+  import LogicViewControls from "./LogicViewControls.svelte";
   import "@xyflow/svelte/dist/base.css";
   import { frameOf, type Flow, type FlowBox } from "#lib/logic/flow.js";
   import { GRID } from "#lib/logic/signals.js";
@@ -242,7 +243,7 @@
       onedgecontextmenu={({ edge, event }) => { event.preventDefault(); const w = wireOf(edge.id); if (w) onmenu(point(event), { kind: "wire", edge: w.edge, label: w.label }); }}
       onpanecontextmenu={({ event }) => { event.preventDefault(); onmenu(point(event), { kind: "pane" }); }}
       onnodepointerenter={({ node }) => { if (!moving && node.type === "logic") hovered = node.id; }} onnodepointerleave={({ node }) => { if (hovered === node.id) hovered = null; }}>
-      <Controls showLock={false} position="bottom-right" />
+      <LogicViewControls />
     </SvelteFlow>
   {/key}
 </div>

@@ -7,6 +7,12 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.6.4 – 2026-11-21
+
+### Changed
+- The Logic view's zoom controls are one row of icon buttons in a square-cornered frame – zoom in, zoom out, show
+  everything (Tilman, 2026-11-21) – in place of xyflow's vertical stack.
+
 ## 4.6.3 – 2026-11-21
 
 ### Changed
