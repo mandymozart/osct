@@ -86,10 +86,10 @@ describe("the prompt", () => {
     expect(readAnswers("demo")).toEqual({});
   });
 
-  it("without anyone to ask (the render view) runs only what was answered Run before", async () => {
+  it("without anyone to ask (the render view) runs every plugin – the view writes nothing", async () => {
     const declined = await check(stored, { ask: false });
     expect(pluginGuard.asking).toBeNull();
-    expect([...declined.keys()]).toEqual(["bens", "orphan", "imported"]);
+    expect([...declined.keys()]).toEqual([]);
     expect(readAnswers("demo")).toEqual({});
   });
 

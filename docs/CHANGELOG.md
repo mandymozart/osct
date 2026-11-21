@@ -7,6 +7,13 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 5.1.1 – 2026-11-22
+
+### Changed
+- **The render view runs every plugin** (Tilman, 2026-11-22, #340): `render_scene`'s view has nobody to answer the
+  guard's prompt, and it writes nothing – so a plugin there cannot act with anyone's rights; pictures now show the
+  plugins someone else saved too.
+
 ## 5.1.0 – 2026-11-21
 
 ### Added
