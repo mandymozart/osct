@@ -10,6 +10,7 @@ import { listFiles } from './files';
 const COMMAND_FILES = [
   'sounds.ts', 'cli.ts', 'schema-lock.ts', 'import-delivery.ts',
   'lib/storage.ts', 'lib/content-sync.ts', 'lib/contract.ts', 'lib/entry.ts', 'lib/cli-args.ts', 'lib/content-export.ts',
+  'lib/delivery-plan.ts', 'lib/delivery-import.ts',
 ];
 // An export's marker and record (`osct content export`) change on every export – they shape nothing the build writes
 const EXPORT_FILES = ['EXPORT.md', 'export.json'];

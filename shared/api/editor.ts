@@ -580,6 +580,11 @@ export interface Asset {
   /** A file of the content import (`files.json`), not an upload: read-only, no replace or delete */
   imported: boolean;
   /**
+   * The stored file's sha256 (hex) – what an upload is deduplicated by; `osct delivery import` skips a file the Library
+   * already holds (#322). Null for an imported file
+   */
+  sha256?: string | null;
+  /**
    * The picture credits (#277): one free text line, as the book prints them ("Book Golem by TER-JAN / DeviantArt"); null =
    * none yet. Kept per URL – imported files carry one too.
    */

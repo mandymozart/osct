@@ -1,4 +1,7 @@
 /**
+ * Superseded by `osct delivery import` (#322 T6, lib/delivery-import.ts – through the editor API, the content folder
+ * untouched); kept until that has run one real delivery (agents/research/2026-11-20-importer-export-plan.md §4).
+ *
  * Delivery import: the files a publisher delivers (printed images, entry images, videos) → `content/`,
  * driven by a mapping file: `node dist/import-delivery.js <delivery folder> <mapping.yaml>`
  * (`npm run import -- <delivery folder> import/<name>.yaml`).
@@ -36,12 +39,16 @@ import { isObject } from '../../shared/guards/game-config';
 import { BOOK_PAGE_MM, CONTENT_DIR, requireContentDir } from './config';
 import { isMainModule } from './lib/entry';
 import { toJpeg } from './lib/optimize-media';
+// The page → scene rule and the video rule live with `osct delivery import` (#322 T6), which replaces this import
+import { layoutScenes, type ImportScene, type LayoutSheetLike, pagesScene, pagesSceneId, scenePages, unpaddedId } from './lib/delivery-plan';
+import { ffmpegArgs, MAX_VIDEO_SIZE } from './lib/delivery-import';
+
+export { ffmpegArgs, layoutScenes, MAX_VIDEO_SIZE, pagesScene, pagesSceneId, scenePages, unpaddedId };
+export type { ImportScene, LayoutSheetLike };
 
 /** Target images: recognition needs detail – more than the client copy keeps (optimize-media: 1200) */
 export const MAX_TARGET_SIZE = 1600;
 export const MAX_ENTRY_IMAGE_SIZE = 1600;
-/** Long side of a video (720p landscape or portrait) */
-export const MAX_VIDEO_SIZE = 1280;
 export const TARGET_FILE = 'target.jpg';
 export const IMAGE_FILE = 'image.jpg';
 export const VIDEO_FILE = 'video.mp4';
@@ -131,87 +138,8 @@ export function readMapping(file: string, problems: string[] = []): Mapping {
   return { ...(typeof data.experience === 'string' ? { experience: data.experience } : {}), entries };
 }
 
-/** The pair of facing pages a page belongs to: 1 | 2–3 | 4–5 | … | last (alone when even) */
-export const scenePages = (page: number, lastPage: number): [number, number] => {
-  if (page <= 1) return [1, 1];
-  const first = page - (page % 2);
-  return [first, Math.min(first + 1, lastPage)];
-};
-
-/** The scene id of a page range: `s1`, `s2-3` – no leading zeros (#63): the order is the scene's `order`, never its id */
-export const pagesSceneId = ([first, last]: [number, number]) => (first === last ? `s${first}` : `s${first}-${last}`);
-
-/**
- * An id without leading zeros (#63): `p004-1` → `p4-1`, `s004-005` → `s4-5` – a mapping written before keeps working
- * and imports the ids the database has since the one-off rename (#63, 3.10.0); any other id stays as it is
- */
-export const unpaddedId = (id: string): string =>
-  id.replace(/^([sp])(\d+)(?:-(\d+))?(?=\D|$)/, (_, prefix: string, first: string, second?: string) =>
-    `${prefix}${Number(first)}${second === undefined ? '' : `-${Number(second)}`}`);
-
 const newer = (source: string, output: string) =>
   !fs.existsSync(output) || fs.statSync(source).mtimeMs > fs.statSync(output).mtimeMs;
-
-/** A layout sheet as `layout/layout.json` lists it – what `layoutScenes` reads */
-export interface LayoutSheetLike {
-  id: string;
-  kind: string;
-  pages: number[];
-}
-
-/**
- * A scene the import writes (schema 3.0): its folder id, label, order and how many pages wide its one surface is – a
- * double page is one surface of twice the page's width, a cover or a single page one of the page's width. The pages
- * are the import's only: they place the scene in the order and the entries in it once, and are not written.
- */
-export interface ImportScene {
-  id: string;
-  label: string;
-  order: number;
-  /** 1 (a cover, a single page) or 2 (a double page) */
-  pagesWide: 1 | 2;
-  /** The printed pages it holds (internal numbers for front and back matter – only to find an entry's scene) */
-  pages: [number, number];
-}
-
-/** The scene of a page range: `186–187` (one surface, two pages wide), a single page `1` */
-export const pagesScene = (range: [number, number]): ImportScene => ({
-  id: pagesSceneId(range),
-  label: range[0] === range[1] ? `${range[0]}` : `${range[0]}–${range[1]}`,
-  order: range[0],
-  pagesWide: range[0] === range[1] ? 1 : 2,
-  pages: range,
-});
-
-/**
- * The scenes of a print layout's sheets, in book order: the cover, the front matter (`front-1` … `front-<n>`, the
- * last one next to page 1), one scene per numbered sheet, the back matter after the last printed page (`back-1` …)
- * and the back cover. `order` sorts them (the cover first); the pages are the import's own numbering.
- */
-export const layoutScenes = (sheets: readonly LayoutSheetLike[]): ImportScene[] => {
-  const front = sheets.filter(sheet => sheet.kind === 'front-matter');
-  const back = sheets.filter(sheet => sheet.kind === 'back-matter');
-  const numbered = sheets.filter(sheet => sheet.kind === 'spread' && sheet.pages.length > 0);
-  const lastPrinted = Math.max(0, ...numbered.flatMap(sheet => sheet.pages));
-  const scenes: ImportScene[] = [];
-  if (sheets.some(sheet => sheet.kind === 'cover-front')) {
-    scenes.push({ id: 'cover', label: 'Cover', order: -2 * front.length - 1, pagesWide: 1, pages: [0, 0] });
-  }
-  front.forEach((_, i) => {
-    const first = -2 * (front.length - i);
-    scenes.push({ id: `front-${i + 1}`, label: `Front matter ${i + 1}`, order: first, pagesWide: 2, pages: [first, first + 1] });
-  });
-  for (const sheet of numbered) scenes.push(pagesScene([Math.min(...sheet.pages), Math.max(...sheet.pages)]));
-  back.forEach((_, i) => {
-    const first = lastPrinted + 1 + 2 * i;
-    scenes.push({ id: `back-${i + 1}`, label: `Back matter ${i + 1}`, order: first, pagesWide: 2, pages: [first, first + 1] });
-  });
-  if (sheets.some(sheet => sheet.kind === 'cover-back')) {
-    const page = lastPrinted + 2 * back.length + 1;
-    scenes.push({ id: 'back', label: 'Back cover', order: page, pagesWide: 1, pages: [page, page] });
-  }
-  return scenes;
-};
 
 /** scene.yaml of an imported scene: its label, order and one surface (`surface`) of its pages' width */
 export const sceneYaml = (scene: ImportScene, source: string, page: { width: number; height: number } = BOOK_PAGE_MM) =>
@@ -261,16 +189,6 @@ function writeImage(source: string, output: string, maxSize: number, report: Imp
   report.mediaWritten.push(path.relative(CONTENT_DIR, output));
   return true;
 }
-
-/** ffmpeg: H.264 MP4, long side ≤ MAX_VIDEO_SIZE, ~2 Mbit/s, AAC audio, moov atom first (streams at once) */
-export const ffmpegArgs = (source: string, output: string): string[] => [
-  '-y', '-loglevel', 'error', '-i', source,
-  '-vf', `scale='if(gt(iw,ih),min(${MAX_VIDEO_SIZE},iw),-2)':'if(gt(iw,ih),-2,min(${MAX_VIDEO_SIZE},ih))',scale=trunc(iw/2)*2:trunc(ih/2)*2`,
-  '-c:v', 'libx264', '-preset', 'medium', '-crf', '23', '-maxrate', '2M', '-bufsize', '4M', '-pix_fmt', 'yuv420p',
-  '-c:a', 'aac', '-b:a', '96k', '-ac', '2',
-  '-movflags', '+faststart',
-  output,
-];
 
 function writeVideo(source: string, output: string, report: ImportReport): boolean {
   if (!fs.existsSync(source)) {

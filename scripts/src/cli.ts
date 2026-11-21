@@ -15,6 +15,8 @@
  *   osct content export --experience <id> [--from draft|live|<build>] [--out <dir>] [--force] [--assets-base <url>]
  *                                                          (the database → the content source folder, docs/content.md "Export")
  *   osct targets prepare --experience <id> [--dry-run] [--force] [--all]
+ *   osct delivery import <mapping.yaml | folder> --experience <id> [--files <dir>] [--layout <layout.json>] [--name <name>]
+ *                        [--apply] [--overwrite] [--all] [--cache <dir>]   (a publisher's delivery into the draft, #322)
  *
  * Environment (or a scripts/.env file, never committed):
  *   OSCT_CONTENT_DIR             the content source (absolute or relative to the repository; fixtures/content for
@@ -29,10 +31,12 @@
  *                                checks what the CDN serves; purge requires it
  *   OSCT_APP_URL                 the site the reader runs on (optional) – the CDN check asks with its origin (CORS)
  * The same names as the server's settings (docs/server.md, #33).
- *   OSCT_API_URL                 targets prepare, export: the instance's API (default: the local dev API, http://127.0.0.1:8080/api)
- *   OSCT_EDITOR_TOKEN            targets prepare, export: a person's editor token (the editor's experiences page, AI connections)
+ *   OSCT_API_URL                 targets prepare, export, delivery import: the instance's API (default: the local dev API, http://127.0.0.1:8080/api)
+ *   OSCT_EDITOR_TOKEN            targets prepare, export, delivery import: a person's editor token (the editor's experiences page, AI connections)
  */
 import { spawnSync } from 'child_process';
+import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import {
@@ -60,6 +64,8 @@ import { StorageClient } from './lib/storage';
 import { deleteMoved, describeMove, experienceOf, moveProblems, planMove, runMove } from './lib/content-move';
 import { APP_VERSION, CONTENT_DIR, DEMO_REFUSED_ENV } from './config';
 import { planExport, runExport } from './lib/content-export';
+import { parseMapping, type LayoutLike } from './lib/delivery-plan';
+import { DeliveryProblems, deliveryApi, runDeliveryImport } from './lib/delivery-import';
 import type { ExperienceExport } from '../../shared/api/editor';
 import { ENV_NAME } from '../../shared/api/rules';
 import { DEFAULT_TITLE, EXPERIENCE_NAME, experienceBaseUrl, storeRoot, TITLE_NAME } from '../../shared/api/content-store';
@@ -68,8 +74,8 @@ import { DEFAULT_TITLE, EXPERIENCE_NAME, experienceBaseUrl, storeRoot, TITLE_NAM
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 const OPTIONS = {
-  flags: ['force', 'dry-run', 'without-videos', 'unknown', 'delete-old', 'help', 'all'],
-  values: ['env', 'experience', 'from', 'min-age', 'keep', 'out', 'assets-base'],
+  flags: ['force', 'dry-run', 'without-videos', 'unknown', 'delete-old', 'help', 'all', 'apply', 'overwrite'],
+  values: ['env', 'experience', 'from', 'min-age', 'keep', 'out', 'assets-base', 'files', 'layout', 'name', 'cache'],
 };
 /** The local dev API (as the MCP server's default) */
 const LOCAL_API = 'http://127.0.0.1:8080/api';
@@ -99,6 +105,20 @@ const USAGE = `osct – content command line
                                                make the targets' recognition data ahead (#306) on an instance
                                                (--all: switched-off targets too):
                                                OSCT_API_URL (default the local dev API), OSCT_EDITOR_TOKEN
+  osct delivery import <mapping.yaml | folder> --experience <id> [--files <dir>] [--layout <layout.json>]
+                       [--name <name>] [--apply] [--overwrite] [--all] [--cache <dir>]
+                                               a publisher's delivery into the experience's draft (#322): the mapping's
+                                               pages become scenes, its pictures WebP and videos H.264 (ffmpeg, only
+                                               when it names a video), each file uploaded to the Library unless it
+                                               holds those bytes already; then the API's comparison per scene, entry
+                                               and target (+ new, ~ changed, ! conflict; --all lists the same ones too).
+                                               Nothing is written without --apply; --overwrite writes the conflicts
+                                               (rows edited in the editor since the last delivery) too. A folder holds
+                                               delivery.yaml and the files; else the files lie next to the mapping or
+                                               in --files. --layout: the print layout's sheets become scenes too.
+                                               --name: the delivery's name (default the mapping's file name).
+                                               --cache: where prepared files are kept between runs (default the
+                                               system's temp folder). OSCT_API_URL, OSCT_EDITOR_TOKEN
   osct content move --from <old folder> --env <env> [--experience <id>] [--dry-run] [--delete-old]
                                                one-off: copy an environment folder of the layout before #87
                                                (<env>/latest.json, <env>/<build>/) into <title>/<env>/<experience>/;
@@ -191,6 +211,56 @@ async function exportCommand(cli: CliArgs): Promise<void> {
   result.record.problems.forEach(problem => console.warn(`   ⚠️  ${problem}`));
   console.log(`✅ ${result.out}: ${plan.texts.size} source files, ${result.record.files.length} files (${result.downloaded} downloaded, ${result.kept} kept from the previous export)` +
     ` – build ${data.build}, hash ${data.hash.slice(0, 12)}${data.unknown ? `, ${data.unknown} files the instance knows nothing of` : ''}`);
+}
+
+/**
+ * `osct delivery import` (#322 T6): a mapping file (or a folder with `delivery.yaml`) and its files through the editor API
+ * into the experience's draft (lib/delivery-import.ts) – the comparison first, written only with --apply
+ */
+async function deliveryImport(cli: CliArgs): Promise<void> {
+  const input = cli.positional[2];
+  if (!input) throw new Error('Name the delivery: osct delivery import <mapping.yaml | folder> --experience <id>');
+  const resolved = path.resolve(input);
+  if (!fs.existsSync(resolved)) throw new Error(`${resolved} does not exist`);
+  const isFolder = fs.statSync(resolved).isDirectory();
+  const mappingFile = isFolder ? path.join(resolved, 'delivery.yaml') : resolved;
+  if (!fs.existsSync(mappingFile)) throw new Error(`${resolved} holds no delivery.yaml – name the mapping file`);
+  const filesDir = cli.option('files') ? path.resolve(cli.option('files')!) : path.dirname(mappingFile);
+  const mappingProblems: string[] = [];
+  const mapping = parseMapping(fs.readFileSync(mappingFile, 'utf8'), path.basename(mappingFile), mappingProblems);
+  const named = experienceOption(cli);
+  if (named && mapping.experience && named !== mapping.experience) throw new Error(`The mapping is for the experience ${mapping.experience}, not ${named}`);
+  const experience = named ?? mapping.experience;
+  if (!experience) throw new Error('Name the experience: --experience <id> (or OSCT_EXPERIENCE)');
+  const layoutFile = cli.option('layout');
+  const layout = layoutFile ? (JSON.parse(fs.readFileSync(path.resolve(layoutFile), 'utf8')) as LayoutLike) : undefined;
+  const name = cli.option('name') ?? (isFolder ? path.basename(resolved) : path.basename(mappingFile).replace(/\.ya?ml$/i, ''));
+  const apiUrl = (process.env.OSCT_API_URL?.trim() || LOCAL_API).replace(/\/+$/, '');
+  const api = deliveryApi(apiUrl, required('OSCT_EDITOR_TOKEN'));
+  console.log(`📦 Delivery ${name} → ${experience} on ${apiUrl}`);
+  console.log(`📄 Mapping: ${mappingFile} (${Object.keys(mapping.entries).length} entries) · files: ${filesDir}${layout ? ` · layout: ${path.resolve(layoutFile!)}` : ''}`);
+  mappingProblems.forEach(problem => console.error(`   ❌ ${problem}`));
+  try {
+    const report = await runDeliveryImport(api, {
+      experience,
+      mapping,
+      filesDir,
+      layout,
+      name,
+      source: `mapping ${path.basename(mappingFile)}, files ${path.basename(filesDir)}`,
+      apply: cli.flag('apply'),
+      overwrite: cli.flag('overwrite'),
+      all: cli.flag('all'),
+      media: { cacheDir: cli.option('cache') ? path.resolve(cli.option('cache')!) : path.join(os.tmpdir(), 'osct-delivery-cache') },
+      log: line => console.log(line),
+    });
+    if (mappingProblems.length || report.problems.length || report.comparison.problems.length) process.exitCode = 1;
+  } catch (error) {
+    if (!(error instanceof DeliveryProblems)) throw error;
+    // The draft changed between the comparison and `apply` so that the delivery has problems now: nothing was written
+    console.error(`❌ ${error.message}`);
+    process.exitCode = 1;
+  }
 }
 
 /** The CDN URL of an experience's store: OSCT_CONTENT_BASE_URL (the environment's, `<pull zone>/<title>/<env>`) + the experience */
@@ -307,6 +377,7 @@ async function main(): Promise<void> {
   const { flag } = cli;
   const [group, command] = cli.positional;
   if (group === 'targets' && command === 'prepare' && !flag('help')) return targetsPrepare(cli);
+  if (group === 'delivery' && command === 'import' && !flag('help')) return deliveryImport(cli);
   if (group !== 'content' || !command || flag('help')) {
     console.log(USAGE);
     if (group && group !== 'help') process.exitCode = 1;

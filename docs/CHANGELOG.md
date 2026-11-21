@@ -7,6 +7,24 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.4.0 – 2026-11-21
+
+### Added
+- `osct delivery import <mapping.yaml | folder> --experience <id> [--files <dir>] [--layout <layout.json>] [--name <name>]
+  [--apply] [--overwrite] [--all] [--cache <dir>]` (#322 T6, docs/content.md "Importing a delivery"): a publisher's
+  delivery into the experience's draft through the editor API, replacing `npm run import`. The mapping's pages become
+  scenes (the rule of the folder's import, now `scripts/src/lib/delivery-plan.ts`), pictures WebP under the image rule
+  and videos H.264 (ffmpeg, only when the mapping names a video), cached by the delivered file's sha256; each file is
+  uploaded to the Library unless it holds those bytes already; the API's comparison is printed per scene, entry and
+  target (new, changed, conflict, same) and written only with `--apply` (one transaction, revertable per delivery). The
+  content folder is neither read nor written. A mapping's `printed` and `note` are read and ignored.
+- `GET /editor/experiences/{id}/assets` names each upload's `sha256` (null for an imported file) – what the delivery
+  import deduplicates by.
+
+### Changed
+- `npm run import` (`import-delivery.ts`, the content folder's delivery import) is superseded by `osct delivery import`;
+  it stays until the new one has run one real delivery (#322 T9) and shares its page → scene and video rules.
+
 ## 4.3.0 – 2026-11-21
 
 ### Added
@@ -39,7 +57,6 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   the experience's store; the import preview takes `experience` (default the instance's `OSCT_EXPERIENCE`).
 - The demo is an experience on staging (`osct/staging/demo/`, opened at `/x/demo/`) instead of an environment of its
   own; the CLI refuses a demo build only for production.
-
 ### Fixed
 - The header's entries counter: leftover merge markers inside its CSS (since 1.84.0) dropped its muted colour; the
   label is muted again.
