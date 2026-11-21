@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>The stage – OSCT docs</title>
+  <meta name="description" content="The editor&#x27;s stage: its toolbar, the camera, picking, the gizmo, grids and snapping, shading, live and restart.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/docs/docs.css">
+  <script src="/docs/docs.js" defer></script>
+</head>
+<body>
+<nav id="nav" aria-label="Documentation"><a class="home" href="/docs/">OSCT docs</a></nav>
+<main>
+  <p class="kicker">Editor guide</p>
+  <h1>The stage</h1>
+  <p class="lead">The stage shows the open scene on a desk: its surfaces, the printed images and the AR content, playing live as in the reader. Every target counts as found.</p>
+  <nav id="toc" aria-label="On this page"></nav>
+  <h2 id="toolbar">The toolbar</h2>
+  <figure>
+    <img src="/docs/img/tools.webp" width="621" height="37" alt="The Tools panel." loading="lazy">
+    <figcaption>From the left: undo, redo, history · select, move, rotate, scale, surface · the four select filters · shading · grid and snap · view · live, restart · row or column.</figcaption>
+  </figure>
+  <div class="table"><table>
+    <tr><th>Group</th><th>Key</th><th>What it does</th></tr>
+    <tr><td>Select</td><td><kbd>Q</kbd></td><td class="wrap">A click picks; no handles.</td></tr>
+    <tr><td>Move, rotate, scale</td><td><kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd></td><td class="wrap">The gizmo on the selected node.</td></tr>
+    <tr><td>Surface</td><td><kbd>S</kbd></td><td class="wrap">Outlines the scene's surfaces; a click selects one and its gizmo moves it.</td></tr>
+    <tr><td>Select filters</td><td></td><td class="wrap">What a click may pick: entities, targets, models, nodes. With none on, a click picks anything.</td></tr>
+    <tr><td>Shading</td><td></td><td class="wrap">Wire, solid, textured, rendered. Post-processing shows under <i>rendered</i> only.</td></tr>
+    <tr><td>Grid and snap</td><td></td><td class="wrap">The grids, the axis, snapping and its steps.</td></tr>
+    <tr><td>View</td><td></td><td class="wrap">Camera shake, the origin, the desk's top, the sky.</td></tr>
+    <tr><td>Live</td><td></td><td class="wrap">Off holds the clock: animations, videos and code stand still for placing.</td></tr>
+    <tr><td>Restart</td><td></td><td class="wrap">A new game: nothing found, every variable cleared.</td></tr>
+  </table></div>
+  <p>All of these are preview settings, kept in your browser. None of them changes the content.</p>
+
+  <h2 id="camera">Moving the camera</h2>
+  <ul>
+    <li><b>Drag</b> orbits.</li>
+    <li><b>Shift + drag</b>, the middle button or two fingers pan.</li>
+    <li><b>Wheel</b> or pinch changes the distance.</li>
+    <li><b>Double tap</b> returns to the reader's view: 35 cm above the page, tilted 30°.</li>
+  </ul>
+
+  <h2 id="picking">Picking</h2>
+  <p>A click selects what lies under the pointer, as the select filters allow. A click on nothing selects the scene. Hovering shows a grey outline of what a click would pick; the selection has an orange one.</p>
+  <p>A <b>right click</b> opens the menu for what lies there: add a node, remove it, edit the placement, add a target, <i>Replay the first find</i>, the view settings.</p>
+
+  <h2 id="gizmo">The gizmo</h2>
+  <figure>
+    <a href="/docs/img/node.webp"><img src="/docs/img/node.webp" width="1440" height="900" alt="A model node selected with the move gizmo on the stage and its rows in the Inspector." loading="lazy"></a>
+    <figcaption>The key's model selected with the Move tool. The Inspector's position, rotation and scale follow a drag.</figcaption>
+  </figure>
+  <p>The handles work in the node's own space, so a drag changes its placement <b>relative to its parent</b>. The drag is saved when it ends.</p>
+  <p>A <b>target</b> is moved differently: select it, switch <i>placement</i> on in the Inspector, then drag its printed image on the stage; the small square at its corner sets the printed width.</p>
+
+  <h2 id="grids">Grids and snapping</h2>
+  <ul>
+    <li><b>Surface grid</b>: the targets' grid on each surface, with a spacing in mm. A surface can have its own.</li>
+    <li><b>Floor grid</b>: the net on the table, 50 mm by default. Surfaces snap to it.</li>
+    <li><b>Vertical grid</b>: the same net standing, for walls. Off by default.</li>
+    <li><b>Target marks</b>: frames every target's printed place with its id, to check places against the print.</li>
+  </ul>
+  <p><b>Snap</b> is a switch in the same menu, off at first. Holding <kbd>Shift</kbd> or <kbd>Ctrl</kbd> during a drag turns it around for that drag. Moving snaps to axes, other objects, outlines or the grid; rotating to 15° steps; scaling to 0.1 steps.</p>
+  <p>The <b>origin</b> (view menu) is the point x and y of a target's placement are counted from: a corner, an edge's centre or the centre of the surface. What is saved stays mm from the surface's top left corner.</p>
+
+  <h2 id="limits">What the stage does not show</h2>
+  <ul>
+    <li>The reader's interface around the scene, and opened entries.</li>
+    <li>A reader's stored progress: the stage's progress lasts while the workspace is open.</li>
+    <li>A <code>goto</code> to another scene: the stage stays on its scene and logs it.</li>
+  </ul>
+  <footer id="pager"></footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Library and Environment – OSCT docs</title>
+  <meta name="description" content="The Library tab – the experience&#x27;s files, how to find, use, replace and name them – and the Environment tab, the sky around the reader.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/docs/docs.css">
+  <script src="/docs/docs.js" defer></script>
+</head>
+<body>
+<nav id="nav" aria-label="Documentation"><a class="home" href="/docs/">OSCT docs</a></nav>
+<main>
+  <p class="kicker">Editor guide</p>
+  <h1>Library and Environment</h1>
+  <p class="lead">The Library holds every file of the experience: uploads and the files an import brought. The Environment tab sets the sky around the reader.</p>
+  <nav id="toc" aria-label="On this page"></nav>
+  <h2 id="library">The Library</h2>
+  <div class="beside wide">
+    <div>
+      <ul>
+        <li><b>Scope</b>: <i>This scene</i> (files the open scene uses), <i>All</i>, <i>Unused</i>.</li>
+        <li><b>Search</b> by name, entry or scene. <b>Upload</b>, or drop files on the panel.</li>
+        <li><b>Kinds</b>: Targets, Surfaces, Images, Video, 3D, Audio, Code, Nodes.</li>
+        <li><b>Sort</b>, tile size, tiles or list. <b>⋯</b> has more: where files come from, and <i>Name by use…</i>.</li>
+        <li><b>⤢</b> opens the Library as a large browser over the stage, with places on the left and multi-select.</li>
+      </ul>
+      <p>A tile shows a preview, the kind (top left) and how often the file is used (top right; a dashed 0 = unused).</p>
+      <p><kbd>Ctrl</kbd>+<kbd>L</kbd> jumps to the Library and focuses its search; again, back to the Inspector.</p>
+    </div>
+    <figure>
+      <img src="/docs/img/library.webp" width="400" height="570" alt="The Library tab showing the open scene's five files." loading="lazy">
+    </figure>
+  </div>
+
+  <h2 id="using">Using a file</h2>
+  <div class="table"><table>
+    <tr><th>To</th><th>Do</th></tr>
+    <tr><td>Give a node its file</td><td class="wrap">Drag the tile onto the node's row in the tree, or select the node and double-click the tile.</td></tr>
+    <tr><td>Set a target's printed image</td><td class="wrap">Drag a picture onto the target's row, or <i>Set as target image</i>.</td></tr>
+    <tr><td>Pick for one field</td><td class="wrap"><i>Library…</i> next to any file field opens the Library as a picker with only the files that fit.</td></tr>
+    <tr><td>Replace a file</td><td class="wrap"><i>Replace…</i> uploads a new version; every use follows.</td></tr>
+    <tr><td>Rename</td><td class="wrap"><kbd>F2</kbd> or <i>Rename</i>. Only the name changes; every use stays.</td></tr>
+    <tr><td>Delete</td><td class="wrap">Refused while the file is used; <i>Delete anyway</i> forces it. Imported files are read-only.</td></tr>
+  </table></div>
+  <p>Select a tile to open its <b>details</b> at the bottom: preview, size, where it is used (click to go there), the credits line and every action.</p>
+  <p>A drop that does not fit is refused and says why, e.g. <i>A model node takes a 3D model – not a picture</i>.</p>
+
+  <h2 id="uploads">What happens on upload</h2>
+  <ul>
+    <li><b>Pictures become WebP</b> in the browser, upright and scaled down: at most 1200 px for a target's printed image, 2048 px otherwise. The notice line says what became of the file.</li>
+    <li><b>Videos and sounds</b> are stored as they are. Make their quality levels beforehand.</li>
+    <li><b>A <code>.ts</code> or <code>.js</code> file</b> becomes a plugin source in the Code tab. <b>A shader</b> (<code>.glsl</code>, <code>.frag</code>, <code>.vert</code>, <code>.wgsl</code>) becomes a file a plugin loads by its URL.</li>
+    <li><b>Subtitles</b>: <code>speak.en.vtt</code> belongs to <code>speak.mp4</code> by its name.</li>
+  </ul>
+  <p>Files that belong together stand together: a model's texture in several sizes is one stacked tile, a video and its subtitles one frame.</p>
+  <p><b>Name by use…</b> renames files after where they are used (<code>p118-1_target.webp</code>). It shows the plan first. URLs never change.</p>
+
+  <h2 id="environment">The Environment tab</h2>
+  <div class="beside wide">
+    <div>
+      <p>What a reader sees around the experience when they look up from the page.</p>
+      <ul>
+        <li><b>Sky</b>: an equirectangular image (2:1), or none. <i>Library…</i> picks one, <i>Upload…</i> adds one.</li>
+        <li><b>Onion sky</b>: looking up, sky-like parts of the camera picture show the sky. It needs a camera picture, so only the reader shows it.</li>
+        <li><b>Preview · look up</b>: raises the stage's camera towards the horizon and the sky. Not saved.</li>
+      </ul>
+      <p>Once an experience has a sky, the stage shows it in every tab, in place of the studio. <i>Use the default</i> removes it.</p>
+    </div>
+    <figure>
+      <img src="/docs/img/environment.webp" width="400" height="190" alt="The Environment tab: sky, onion sky, preview." loading="lazy">
+    </figure>
+  </div>
+  <footer id="pager"></footer>
+</main>
+</body>
+</html>

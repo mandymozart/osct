@@ -7,6 +7,30 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.8.1 – 2026-11-21
+
+### Added
+- **A documentation site at `/docs/`** (Tilman, 2026-11-21, #336) for the people who use the editor, in three parts, each
+  page brief and illustrated with screenshots of the editor:
+  - **Editor guide** – the editor at a glance (the words, the three pages, saving and publishing), experiences with
+    import, publish and AI connections, the workspace and its panels, the stage, scenes and surfaces, the Inspector, the
+    Library and the Environment tab, the Logic panel, the Code tab.
+  - **Tutorials** – for editors (a first look with the demo, a new target with AR content, an entry's text, a rule, a
+    new scene, post-processing and looks, publishing and taking a change back, connecting an AI agent) and for admins
+    (getting in, inviting an editor, roles, a QR code for print, reading the arrivals, the newsletter list, bringing an
+    experience onto a new installation). The long page at `/docs/tutorials/` stays, linked as the content and demo
+    walkthrough.
+  - **API** – which API for what, the logic system (rules, events, actions, variables, expressions, addresses), the
+    plugin API 3.1 (what a plugin registers, specs and parameters, hooks, events and variables, files, the sandbox,
+    shipping) and the MCP server (connecting, what a token may do, the tools by area, the two-step confirmations).
+- The site **looks like the editor** (and the SCUTOONS creator and deck editor): monochrome, day by default,
+  system type, square corners, labels in small capitals.
+- The editor's account menu has **Documentation**, which opens the site in a new tab.
+
+### Changed
+- The reader's dev and preview servers answer a folder under `/docs/` with its `index.html`, as the web server does
+  (`client/vite.config.js`), so the site and the long walkthrough open locally at `http://localhost:5174/docs/`.
+
 ## 4.8.0 – 2026-11-21
 
 ### Added

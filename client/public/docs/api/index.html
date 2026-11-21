@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Which API for what – OSCT docs</title>
+  <meta name="description" content="The three ways to make an OSCT experience do things: rules without code, plugins in TypeScript, and an AI agent over the MCP server.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/docs/docs.css">
+  <script src="/docs/docs.js" defer></script>
+</head>
+<body>
+<nav id="nav" aria-label="Documentation"><a class="home" href="/docs/">OSCT docs</a></nav>
+<main>
+  <p class="kicker">API</p>
+  <h1>Which API for what</h1>
+  <p class="lead">Three ways to make an experience do more than show things. They share one runtime, so they work together.</p>
+  <nav id="toc" aria-label="On this page"></nav>
+  <div class="table"><table>
+    <tr><th>You want to</th><th>Use</th><th>Where</th></tr>
+    <tr><td class="wrap">React to a find or a tap, remember something, show or hide a node, go to a scene</td><td><a href="/docs/api/logic/">Rules</a></td><td class="wrap">The Inspector, or the Logic panel. No code.</td></tr>
+    <tr><td class="wrap">Move or animate over time, draw, compute, write a shader, add a new kind of node</td><td><a href="/docs/api/plugins/">A plugin</a></td><td class="wrap">The Code tab. TypeScript.</td></tr>
+    <tr><td class="wrap">Have an AI agent build or change content for you</td><td><a href="/docs/api/mcp/">The MCP server</a></td><td class="wrap">Your agent, connected with a token.</td></tr>
+  </table></div>
+
+  <h2 id="together">How they fit together</h2>
+  <ul>
+    <li><b>One event bus and one set of variables.</b> A rule's <code>emit</code> is heard by a plugin's <code>api.events.on</code>; a plugin's <code>api.vars.set</code> is read by a rule's <code>when</code>.</li>
+    <li><b>Rules decide, plugins do.</b> A rule says <i>when the door is found and the reader has the key, emit <code>openDoor</code></i>. A plugin hears <code>openDoor</code> and swings the door over a second.</li>
+    <li><b>Reach for a rule first.</b> Write a plugin when a rule would need a verb it does not have.</li>
+    <li><b>An agent edits the same content</b> through the same API as the editor: entities, rules as components, plugin sources. It saves drafts; you publish.</li>
+  </ul>
+
+  <h2 id="content">The content underneath</h2>
+  <p>All three write the same content model: an experience → scenes → surfaces, entries and targets → an entity's node tree with components. An agent can read the full model with the tool <code>describe_content_model</code>. For developers, the model and the HTTP API are documented in the repository: <code>docs/content.md</code> and <code>docs/server.md</code>.</p>
+
+  <h2 id="versions">Versions</h2>
+  <p>These pages describe plugin API 3.1 and content schema 5.2. An older reader app skips what it does not know (a new component, a new parameter) with a quiet update hint; it never breaks.</p>
+  <footer id="pager"></footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>The logic system – OSCT docs</title>
+  <meta name="description" content="How OSCT&#x27;s rules work: events, conditions, actions, variables with scopes and types, the expression language, addresses, and where rules live.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/docs/docs.css">
+  <script src="/docs/docs.js" defer></script>
+</head>
+<body>
+<nav id="nav" aria-label="Documentation"><a class="home" href="/docs/">OSCT docs</a></nav>
+<main>
+  <p class="kicker">API</p>
+  <h1>The logic system</h1>
+  <p class="lead">A rule says: <b>on</b> an event, <b>when</b> a condition holds, <b>do</b> these actions. Rules need no code. They are made in the Inspector or the Logic panel and stored in the content.</p>
+  <nav id="toc" aria-label="On this page"></nav>
+  <h2 id="rule">A rule</h2>
+  <pre><code>- on: found                    # the event: this node's page is found
+    when: hasKey                 # optional: a condition
+    do:                          # one action or a list, run in order
+      - hide: hint
+      - emit: openDoor</code></pre>
+  <p>The demo's door: when its page is found and the reader has the key, hide the hint and send <code>openDoor</code>.</p>
+  <p>This is the content's form (YAML). In the editor you never write it: the Inspector's rule rows produce exactly this.</p>
+
+  <h2 id="homes">Where rules live</h2>
+  <div class="table"><table>
+    <tr><th>Home</th><th>Alive</th><th>Hears</th><th>Acts on</th></tr>
+    <tr><td>A node's <code>behaviour</code> component</td><td class="wrap">while its scene is open</td><td class="wrap">its own node's events, and the bus</td><td class="wrap">its own node, or a node below it by name</td></tr>
+    <tr><td>A scene (<code>logic</code>)</td><td class="wrap">while the scene is open</td><td class="wrap">the bus only</td><td class="wrap">nodes of its own targets, by address</td></tr>
+    <tr><td>The experience (<code>logic</code>)</td><td class="wrap">the whole session, across scenes</td><td class="wrap">the bus only</td><td class="wrap">any target's nodes, by address</td></tr>
+  </table></div>
+  <p>In the Inspector: a node's rules are its <i>behaviour</i> component; the scene's are its <i>rules</i> section; the experience's are at the end of the experience's Inspector.</p>
+
+  <h2 id="events">Events</h2>
+  <div class="table"><table>
+    <tr><th>Kind</th><th>Names</th><th>Notes</th></tr>
+    <tr><td>A node's own</td><td class="wrap"><code>found</code>, <code>lost</code>, <code>tap</code>, <code>unlocked</code></td><td class="wrap">Its page found, lost, its AR content tapped, the page's first find. Only for rules on a node.</td></tr>
+    <tr><td>Core events</td><td class="wrap"><code>targetFound</code>, <code>targetLost</code>, <code>targetUnlocked</code>, <code>targetTapped</code>, <code>sceneChanged</code>, <code>arState</code>, <code>varChanged</code></td><td class="wrap">The engine sends them on the bus. You can hear them, never emit them.</td></tr>
+    <tr><td>Scene events</td><td class="wrap">any camelCase name: <code>doorOpened</code></td><td class="wrap">Yours. A rule's <code>emit</code> or a plugin sends them; rules and plugins hear them by name.</td></tr>
+  </table></div>
+  <div class="note"><p><b>Events do not cross scenes.</b> Only the open scene's nodes and rules exist. Carry state across scenes in a variable, or hear the event in an experience rule or a plugin, which live for the whole session.</p></div>
+
+  <h2 id="actions">Actions</h2>
+  <div class="table"><table>
+    <tr><th>Verb</th><th>Takes</th><th>Does</th></tr>
+    <tr><td><code>play</code></td><td class="wrap">a clip's name; optionally <code>node</code></td><td class="wrap">Plays a model's clip. The <i>animation</i> component still says how (loop, speed).</td></tr>
+    <tr><td><code>pause</code>, <code>stop</code></td><td class="wrap">a node</td><td class="wrap">Pauses the clip, or stops it at its start.</td></tr>
+    <tr><td><code>show</code>, <code>hide</code></td><td class="wrap">a node</td><td class="wrap">Shows or hides it.</td></tr>
+    <tr><td><code>set</code></td><td class="wrap"><code>{ name: expression }</code>, optionally <code>scope</code></td><td class="wrap">Sets a variable. <code>null</code> deletes it.</td></tr>
+    <tr><td><code>emit</code></td><td class="wrap">an event's name</td><td class="wrap">Sends a scene event with <code>{ targetId, node }</code>.</td></tr>
+    <tr><td><code>goto</code></td><td class="wrap"><code>scene:&lt;id&gt;</code></td><td class="wrap">The reader opens that scene. The editor's stage only logs it.</td></tr>
+  </table></div>
+  <p>A plugin's component can answer <code>play</code>, <code>pause</code>, <code>stop</code>, <code>show</code> and <code>hide</code> too, if its spec declares them (<a href="/docs/api/plugins/#logic">actions</a>).</p>
+
+  <h2 id="addresses">Naming a node</h2>
+  <ul>
+    <li><b>In a node's rule</b>: by the node's <code>name</code> (the Inspector's <i>name</i> row), among the nodes below the rule's node. An empty name means the rule's own node.</li>
+    <li><b>In a scene's or the experience's rule</b>: by address. <code>target:door</code> is the root of the target <i>door</i>'s entity; <code>target:door/hint</code> is the node named <i>hint</i> in it.</li>
+    <li><b>A scene</b>: <code>scene:epilogue</code>.</li>
+  </ul>
+
+  <h2 id="variables">Variables</h2>
+  <div class="table"><table>
+    <tr><th>Scope</th><th>Lives</th></tr>
+    <tr><td><code>scene</code></td><td class="wrap">While the scene is open. Cleared when it changes. The default.</td></tr>
+    <tr><td><code>stage</code></td><td class="wrap">While the AR view exists: across scene switches.</td></tr>
+    <tr><td><code>session</code></td><td class="wrap">Until the app is closed.</td></tr>
+    <tr><td><code>experience</code></td><td class="wrap">Kept with the reader's progress.</td></tr>
+  </table></div>
+  <ul>
+    <li><b>Reading</b> takes the innermost scope that has the name: scene, then stage, session, experience.</li>
+    <li><b>Types</b>: <code>number</code>, <code>integer</code>, <code>boolean</code>, <code>string</code>. Declare a variable in the experience's Inspector (name, type, scope, default), or let its first <code>set</code> decide.</li>
+    <li>A declared variable that is not set reads as its default. An undeclared one that is not set is false in a condition.</li>
+    <li>Setting a value of another type is refused, in the editor and at runtime.</li>
+  </ul>
+
+  <h2 id="expressions">Expressions</h2>
+  <p>A <code>when</code> and every <code>set</code> value is one expression.</p>
+  <div class="table"><table>
+    <tr><th>Part</th><th>Examples</th></tr>
+    <tr><td>Values</td><td class="wrap"><code>3</code>, <code>1.5</code>, <code>"calm"</code>, <code>true</code>, <code>false</code>, a variable's name</td></tr>
+    <tr><td>Logic</td><td class="wrap"><code>&amp;&amp;</code> <code>||</code> <code>!</code> (also <code>and</code> <code>or</code> <code>not</code>)</td></tr>
+    <tr><td>Compare</td><td class="wrap"><code>==</code> <code>!=</code> <code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td></tr>
+    <tr><td>Arithmetic</td><td class="wrap"><code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>mod</code>, parentheses</td></tr>
+  </table></div>
+  <pre><code>when: hasKey &amp;&amp; tries &gt; 2
+  when: mood == "calm" || !doorOpen
+  set:  { tries: "tries + 1" }      # a counter
+  set:  { mood: '"calm"' }          # a text needs its quotes</code></pre>
+  <ul>
+    <li>A condition must be true / false: <code>when: tries</code> is a problem, <code>when: tries &gt; 0</code> is not.</li>
+    <li><code>+</code> adds numbers or joins texts, never a text and a number. Nothing is converted but whole number → number.</li>
+    <li>No functions, no dotted names.</li>
+  </ul>
+  <p>The same language works in an entry's text, in braces: <code>{tries &gt; 2: Try the window.}</code></p>
+
+  <h2 id="order">How rules run</h2>
+  <ul>
+    <li>On one event, every rule's condition is read <b>first</b>; then the rules that matched run in order. So two rules can toggle a variable without undoing each other.</li>
+    <li>An <code>emit</code> sets off the rules that hear it at once. A chain deeper than 8 events is cut.</li>
+    <li>An action that cannot run (a node or clip that is not there) is logged, and the next one runs.</li>
+  </ul>
+
+  <h2 id="plugins">Rules and plugins</h2>
+  <p>Rules run on the same runtime as plugin code:</p>
+  <div class="table"><table>
+    <tr><th>A rule's</th><th>is a plugin's</th></tr>
+    <tr><td><code>on: doorOpened</code></td><td><code>api.events.on("doorOpened", …)</code></td></tr>
+    <tr><td><code>emit: openDoor</code></td><td><code>api.events.emit("openDoor", { targetId, node })</code></td></tr>
+    <tr><td><code>set: { hasKey: true }</code></td><td><code>api.vars.set("hasKey", true)</code></td></tr>
+    <tr><td><code>when: hasKey</code></td><td><code>api.vars.get("hasKey")</code></td></tr>
+  </table></div>
+  <p>So a rule can set off code and code can set off rules, by name. See <a href="/docs/api/plugins/#bus">events and variables in the Plugin API</a>.</p>
+
+  <h2 id="testing">Testing</h2>
+  <p>Select the scene and open <b>vars and events</b>: tap a target, change a variable, and read the timeline. Every rule that ran has a <b>behaviour</b> line with what it did. The <a href="/docs/guide/logic/">Logic panel</a> lists problems such as an event nothing emits.</p>
+  <footer id="pager"></footer>
+</main>
+</body>
+</html>

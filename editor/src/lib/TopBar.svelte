@@ -59,6 +59,8 @@
   };
   const menuItems = $derived<MenuItem[]>([
     ...(session.isAdmin && !isAdminRoute ? [{ label: "Admin", icon: "settings" as const, help: "The instance's users and AI connections.", select: () => void goto(resolve("admin/")) }] : []),
+    // The documentation site ships with the reader at the site's root (client/public/docs/), outside the editor's base
+    { label: "Documentation", icon: "info" as const, help: "How the editor works – the guide, tutorials and the API. Opens in a new tab.", select: () => void window.open("/docs/", "_blank", "noopener") },
     { label: "Sign out", icon: "open" as const, help: "Ends this session in this browser.", select: () => session.signOut() },
   ]);
   /** The panels menu: the workspace's floating panels, under its button */
@@ -119,7 +121,7 @@
     {#if panelsAt}<ContextMenu at={panelsAt} items={panelItems} label="Panels" head="Panels" returnFocus={panelsButton} onclose={() => (panelsAt = null)} />{/if}
   {/if}
   <button type="button" class="icon-button account" bind:this={menuButton} onclick={openMenu} aria-haspopup="menu" aria-expanded={menuAt !== null}
-    title={session.user?.email ?? "Account"} aria-label="Account menu" data-help-name="Account" data-help="Your account: Admin (for admins) and Sign out."><Icon name="menu" /></button>
+    title={session.user?.email ?? "Account"} aria-label="Account menu" data-help-name="Account" data-help="Your account: Admin (for admins), Documentation and Sign out."><Icon name="menu" /></button>
   {#if menuAt}<ContextMenu at={menuAt} items={menuItems} label="Account" head={session.user?.email ?? undefined} returnFocus={menuButton} onclose={() => (menuAt = null)} />{/if}
 </header>
 
