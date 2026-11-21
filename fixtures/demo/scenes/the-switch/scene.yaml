@@ -1,11 +1,9 @@
-# Interaction: a tap switches the scene of a group; a standing screen, tinted, turning.
-label: "5–6"
-order: 2
+label: 5–6
+order: 4
 surfaces:
   - id: surface
     widthMm: 460
     heightMm: 320
-# A plugin's pass switched off (#216, #233): the scanlines plugin's lines, there to find in post-processing, on with its toggle
 passes:
   - type: scanLines
     enabled: false

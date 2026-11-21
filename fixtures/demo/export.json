@@ -1,0 +1,408 @@
+{
+  "experience": "demo",
+  "instance": "https://osct.porschuetz.de/api",
+  "source": {
+    "kind": "draft"
+  },
+  "build": "724b108f4cc6",
+  "hash": "724b108f4cc6c319df3fcaf5e367d266b5cdac238f0a8db643ad24ad63ad7062",
+  "schema": "5.0",
+  "appVersion": "4.4.0",
+  "cliVersion": "4.4.0",
+  "exportedAt": "2026-11-21T09:41:24.475Z",
+  "files": [
+    {
+      "path": "entities/beacon/beacon.glb",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entities/beacon/beacon.glb",
+      "sha256": "12c13f9e15376170dcfce88b68a9f7e2ad41f6beacf8be3e5c36e74525efd32f",
+      "size": 28772
+    },
+    {
+      "path": "entities/catpope-overlay/v1-10.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/d8361082-4e9d-4ad9-a0c4-6c7b959e5185/v1.glb",
+      "sha256": "096d0a1b91ae34314067cc572b480779bd8e6a618de80e0c7b3ebf08a9f22c9c",
+      "size": 170680
+    },
+    {
+      "path": "entities/catpope-overlay/v1-11.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/0b341eb4-088a-48e1-8cc2-f227d4da7bfc/v1.glb",
+      "sha256": "1d1604f2e8ecdd1331d3f5c0fc36c5765aa5267ce631db78b93ff7d0ce39c55b",
+      "size": 175852
+    },
+    {
+      "path": "entities/catpope-overlay/v1-12.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/135840fc-7124-4374-a93f-7d8676ec939a/v1.glb",
+      "sha256": "e79a3228c00c4c9f00e89b8e418d1bec8a933af24fa637a5fa3124efacb610ae",
+      "size": 36216
+    },
+    {
+      "path": "entities/catpope-overlay/v1-13.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/2e5ee291-0504-40cf-aa71-4ef2f6c63063/v1.glb",
+      "sha256": "9a8c23a88b9c322c3e6a52bd4354b84bd98f02255224d21b884d11384ea36617",
+      "size": 35072
+    },
+    {
+      "path": "entities/catpope-overlay/v1-14.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/e82e676d-3249-41ed-bfb7-67c5f8562003/v1.glb",
+      "sha256": "d9b50456c020676dcbd4270b101328a8d38f88752df9d45ea14ff48a61d2372a",
+      "size": 33568
+    },
+    {
+      "path": "entities/catpope-overlay/v1-15.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/094c8a53-4915-436d-ab1a-2bdcd1ab124a/v1.glb",
+      "sha256": "09ad58e69529c5043da9124eae20ef3946d910805b4d4e087a66e5765833c37d",
+      "size": 30600
+    },
+    {
+      "path": "entities/catpope-overlay/v1-16.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/53e058e3-d08e-4ebe-8127-7d6b4f2644d3/v1.glb",
+      "sha256": "bd18a86a82a4b6d0364e7b90849a64988f31ab4806f4538f15ef55cc36055d80",
+      "size": 24316
+    },
+    {
+      "path": "entities/catpope-overlay/v1-17.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/d804d9a5-8a2d-4479-bda2-f97b44836d42/v1.glb",
+      "sha256": "b916072a60394c853897299225c65368206f9c8d10020ae113842251a7694a11",
+      "size": 29272
+    },
+    {
+      "path": "entities/catpope-overlay/v1-18.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/e02a48e9-a864-4923-be7e-31689af7a4cf/v1.glb",
+      "sha256": "72dc5e7f83e2d179536e66a445cfeb8c5f97384749fe5b556ce2f64fabe55dc8",
+      "size": 34720
+    },
+    {
+      "path": "entities/catpope-overlay/v1-19.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/36c87772-f561-4d9e-8b16-5cca2813fd63/v1.glb",
+      "sha256": "a9ff721ed11833d97ff08ad9b089fac07747c1e7510436919c49329163c3b79e",
+      "size": 30332
+    },
+    {
+      "path": "entities/catpope-overlay/v1-2.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/64a9bc2a-1606-4163-b8c0-7cbcc60925d8/v1.glb",
+      "sha256": "55aaa60016a61956f018880a977208acd54351a5ba1465922a319c149af613ce",
+      "size": 676576
+    },
+    {
+      "path": "entities/catpope-overlay/v1-3.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/e0b535d0-1d30-4788-9df8-f0d0b0a08227/v1.glb",
+      "sha256": "f1783e6e998f190b487784f2bc7f6f573862826095d74eccbeab5dc095a3c16b",
+      "size": 234360
+    },
+    {
+      "path": "entities/catpope-overlay/v1-4.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/de806458-ee9a-455b-8817-bec7c9d635fd/v1.glb",
+      "sha256": "6995b8c8d245983e4ed44e2af9a8b1aaff87f3a54090af2d5f644c7323e65a91",
+      "size": 277568
+    },
+    {
+      "path": "entities/catpope-overlay/v1-5.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/80eda34d-9e4b-401c-afee-aa38b1ff6052/v1.glb",
+      "sha256": "4c0267c94044d666204aee182426954577e50e111d19488b74b2503753cfc04c",
+      "size": 617684
+    },
+    {
+      "path": "entities/catpope-overlay/v1-6.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/f25c8d3d-d2e3-49cd-a68d-b133c370fecb/v1.glb",
+      "sha256": "bd1e1c1730d69337d2f6145b965474ace56f16fc47a1d96f31a4e321f6adb887",
+      "size": 382028
+    },
+    {
+      "path": "entities/catpope-overlay/v1-7.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/fef97dfa-acf0-4db2-9b54-22fe8fc8829c/v1.glb",
+      "sha256": "eee245069228d41b49c62443d2ba67dfec42b87cebaa33d7319458d27de79385",
+      "size": 161100
+    },
+    {
+      "path": "entities/catpope-overlay/v1-8.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/6ceb9b24-1e3c-476e-aab1-d46005f58551/v1.glb",
+      "sha256": "64db5426c9c0b401c8542e1c9b877f0b3c967754a26bf8a431c513357e1040cf",
+      "size": 34172
+    },
+    {
+      "path": "entities/catpope-overlay/v1-9.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/c3a27267-a37e-4f6f-bdae-bf9dc3900136/v1.glb",
+      "sha256": "8b83f39ba74b5fd741969a96066be2c62a84545ff8ae89d39757b0020fcb900f",
+      "size": 214508
+    },
+    {
+      "path": "entities/catpope-overlay/v1.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/786722b2-0635-404f-9059-c33922a8590e/v1.glb",
+      "sha256": "42023068edbd5bc302cb1fd4674ba33398a11ae665cc262548d664ea29ab9b7e",
+      "size": 234656
+    },
+    {
+      "path": "entries/about-the-demo/about.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/about-the-demo/about.jpg",
+      "sha256": "2df4b183fdceecbacb58facde3e30dd7596c0e77dd95e13dc664fdaeb28d925f",
+      "size": 16936
+    },
+    {
+      "path": "entries/aquarium/target.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/aquarium/target.jpg",
+      "sha256": "2387071341b9b0d58411080cde4e1ce265b2ec77ca156a69d0fbbf718d9b57a1",
+      "size": 107037
+    },
+    {
+      "path": "entries/catpope/v1.webp",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/e61d5f08-c176-4994-b3fd-29c44689bf23/v1.webp",
+      "sha256": "801accb636ab63bd75956e9ab7525c66fa21e2adf1efff3836c5bfc463bc024a",
+      "size": 121906
+    },
+    {
+      "path": "entries/colophon/chest.glb",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/colophon/chest.glb",
+      "sha256": "a639b300dfb93e8c37b8e95308163ac098bbb223c7ce756369bb753a0f847ca0",
+      "size": 35080
+    },
+    {
+      "path": "entries/colophon/target.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/colophon/target.jpg",
+      "sha256": "de6cc57f18399fd88d423888972205d877639b6b160dedb77b2590ed522e43d5",
+      "size": 7207
+    },
+    {
+      "path": "entries/door/door.glb",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/door/door.glb",
+      "sha256": "2caf6a8ca2fef4b7f61acf6b527125563b075cb0f4118f8dde60844fbfbf1ea0",
+      "size": 10080
+    },
+    {
+      "path": "entries/door/target.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/door/target.jpg",
+      "sha256": "70ccdd86d8f51976bccc2da438694c7a7e00e71734ba291873c29017fcfa960c",
+      "size": 4754
+    },
+    {
+      "path": "entries/ink-painting/target.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/ink-painting/target.jpg",
+      "sha256": "0bbc048286f8b8081057dfba5ff936cc4ebaf4ac1108af3e1cd300dde695d177",
+      "size": 52592
+    },
+    {
+      "path": "entries/key/key.glb",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/key/key.glb",
+      "sha256": "5d9c66b8d735343cb20eb80c15b2d0328aacc308d0094e454b83bae2f0facced",
+      "size": 4896
+    },
+    {
+      "path": "entries/key/target.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/key/target.jpg",
+      "sha256": "a3f77966e822e6b8e07a49cbbc4b11304b38c30c699f28a5e3d4f9392f789b99",
+      "size": 5672
+    },
+    {
+      "path": "entries/lamp/lamp.mp4",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/lamp/lamp.mp4",
+      "sha256": "ac9c33c2f31afb52d0977a1b656ca0e28657d072e3e2bd6e6457564d7defee4e",
+      "size": 16120
+    },
+    {
+      "path": "entries/lamp/target.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/lamp/target.jpg",
+      "sha256": "012fb685cd6bcd2158ea1668d4fc6f24637b75a9d51e5b9cad8f89c0505866a7",
+      "size": 9735
+    },
+    {
+      "path": "entries/mark/v1.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/8f0b88c7-cfa4-4ed7-9f26-48aed9f5284c/v1.glb",
+      "sha256": "9dda7f555aa03265c6972a2be09dda032b52fd0a30040812fcbbaacb195b79fa",
+      "size": 3188988
+    },
+    {
+      "path": "entries/mark/v1.jpg",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/5c1280e8-3a3b-44d4-93dc-5b222413f5a3/v1.jpg",
+      "sha256": "07aa07ec90697fe3d7b764d6e2bdbd1e9f5ad7ea6d8287dc9015bb78bad8a097",
+      "size": 50182
+    },
+    {
+      "path": "entries/screen/target.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/screen/target.jpg",
+      "sha256": "000786f831ab8d5b91e0327bb9aec26fa43c0bf4c1995c2b8705126f798dbecc",
+      "size": 3507
+    },
+    {
+      "path": "entries/screen/v1.de.vtt",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/cc3e3192-cfb5-4e0a-83cd-300aec68404e/v1.vtt",
+      "sha256": "49e32c5e25156af4201ed4e0b8657ae3d26682526e9610e8647a12a90b8a2cd4",
+      "size": 338
+    },
+    {
+      "path": "entries/screen/v1.en.vtt",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/c1df545a-3eee-4a03-9cbe-c6b7afa863c1/v1.vtt",
+      "sha256": "cc6b667b292e5e72e8c1c0805b9d79b0fc0dee236bb07d5deb0a113fd4c5d006",
+      "size": 322
+    },
+    {
+      "path": "entries/screen/v1.fr.vtt",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/6aff13a4-f7e0-40b2-8a24-3641a6c03299/v1.vtt",
+      "sha256": "f82bea132aadfbd3840688b8e0c1654f902301706a85749ba7d43eb6165d47bf",
+      "size": 353
+    },
+    {
+      "path": "entries/screen/v1.glb",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/970732ec-8798-45ff-9bbb-8fabb46f52e9/v1.glb",
+      "sha256": "38eb78e3353f5f00be23e26c0417b3e0cfa85329d478e3abcab8c829cd52d07e",
+      "size": 4296
+    },
+    {
+      "path": "entries/screen/v1.mp4",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/34c69356-6234-4b50-8e3e-c68cc380d2de/v1.mp4",
+      "sha256": "13b8070959d62f3b8574a81588be192a2a27083617ae5485b0cca8834e9a7542",
+      "size": 148172
+    },
+    {
+      "path": "entries/screen/v1.nl.vtt",
+      "url": "https://buildingfictions.b-cdn.net/assets/demo/65514746-547e-4b15-8564-403ab35e32fb/v1.vtt",
+      "sha256": "533db66df7dd01fdb938a1f6eee80978e3831b49975bdfce73864d261ed3b4cd",
+      "size": 325
+    },
+    {
+      "path": "entries/seal/seal.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/seal/seal.jpg",
+      "sha256": "e87b6da8fe23b1ca91c99a8d6622594da3d57d5886d582ab67a21df2139f585a",
+      "size": 11003
+    },
+    {
+      "path": "entries/seal/target.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/seal/target.jpg",
+      "sha256": "de6cc57f18399fd88d423888972205d877639b6b160dedb77b2590ed522e43d5",
+      "size": 7207
+    },
+    {
+      "path": "entries/stage/picture.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/stage/picture.jpg",
+      "sha256": "e87b6da8fe23b1ca91c99a8d6622594da3d57d5886d582ab67a21df2139f585a",
+      "size": 11003
+    },
+    {
+      "path": "entries/stage/sploosh.webm",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/stage/sploosh.webm",
+      "sha256": "8560d9da789527680e0949b8f722db533040db97c9d21ff893d7ddd4668d2736",
+      "size": 67311
+    },
+    {
+      "path": "entries/stage/target.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/stage/target.jpg",
+      "sha256": "85e645c1e7ccb489e097efe1ed3101cc7bed67c5d5a43510a5f5dd03bfefc77a",
+      "size": 14300
+    },
+    {
+      "path": "entries/tally/target.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/tally/target.jpg",
+      "sha256": "de6cc57f18399fd88d423888972205d877639b6b160dedb77b2590ed522e43d5",
+      "size": 7207
+    },
+    {
+      "path": "entries/twin-a/target.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/twin-a/target.jpg",
+      "sha256": "97efc5ca5c24d877f08f04de9fa444ba4f52cc98a5690da055092c6cda1a0199",
+      "size": 4379
+    },
+    {
+      "path": "entries/twin-b/target.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/entries/twin-b/target.jpg",
+      "sha256": "cae3b50c1819b96d1d49251dc452286f2927c5849c85e65eaa20594e5451a5c9",
+      "size": 23119
+    },
+    {
+      "path": "layout/layout.json",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/layout/layout.json",
+      "sha256": "47b5aa1dd44456f46b584185585ef68c0ab9cea67bba06d5d48365c12b21b642",
+      "size": 1902
+    },
+    {
+      "path": "layout/sheets/cover-back.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/layout/sheets/cover-back.jpg",
+      "sha256": "e416d4757e059bf4b485f4f5a8e4cf5f3fa98929be4f01870b33bf47b797aa89",
+      "size": 72686
+    },
+    {
+      "path": "layout/sheets/cover-back@sharp.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/layout/sheets/cover-back@sharp.jpg",
+      "sha256": "2f782d3478afe0a6c309ff70523abdba428db01565834442ff15acfe198ddd99",
+      "size": 184153
+    },
+    {
+      "path": "layout/sheets/cover-front.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/layout/sheets/cover-front.jpg",
+      "sha256": "19912ca02d52918342f14e4faa10a0d15f72fd8ece3509b8e48190d72ed77471",
+      "size": 71373
+    },
+    {
+      "path": "layout/sheets/cover-front@sharp.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/layout/sheets/cover-front@sharp.jpg",
+      "sha256": "7ebc2b7a7a02c57b42321f43b03ba1d6de7ce6bba6c852f33a9eadc5a7b740fc",
+      "size": 184235
+    },
+    {
+      "path": "layout/sheets/pp-001-002.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/layout/sheets/pp-001-002.jpg",
+      "sha256": "9a1ebd433281cf8734166fcba44086ffbfe356c903fbca3033ddaf2e079fe6b5",
+      "size": 29281
+    },
+    {
+      "path": "layout/sheets/pp-001-002@sharp.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/layout/sheets/pp-001-002@sharp.jpg",
+      "sha256": "8359cfd82f86340437b30332623900fd17631076a5afcb93ee872afba6c9327a",
+      "size": 54498
+    },
+    {
+      "path": "layout/sheets/pp-003-004.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/layout/sheets/pp-003-004.jpg",
+      "sha256": "bcbca80e9bc5d1f871ca3a377c9aae339b4998ff0b434580b49f5d697bfb3bc4",
+      "size": 18728
+    },
+    {
+      "path": "layout/sheets/pp-003-004@sharp.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/layout/sheets/pp-003-004@sharp.jpg",
+      "sha256": "3db33283e33009eff92d611feafed6e72552be1dca7cf719030f5b881286b2a2",
+      "size": 42067
+    },
+    {
+      "path": "layout/sheets/pp-005-006.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/layout/sheets/pp-005-006.jpg",
+      "sha256": "5a305516c5060f493e0f37d2464f54b896aaefeacfe1746324bdec85738ca2ed",
+      "size": 16438
+    },
+    {
+      "path": "layout/sheets/pp-005-006@sharp.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/layout/sheets/pp-005-006@sharp.jpg",
+      "sha256": "5a54bbfa0ce8e6d8488878d0d08cb22525284a2a1faa997a22b46225eb0438a2",
+      "size": 39442
+    },
+    {
+      "path": "layout/sheets/pp-007-008.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/layout/sheets/pp-007-008.jpg",
+      "sha256": "31e08356dab44ba2e902163d455ba9d0a748bd1411e2222fbe0f42bff2b67e38",
+      "size": 15273
+    },
+    {
+      "path": "layout/sheets/pp-007-008@sharp.jpg",
+      "url": "https://buildingfictions.b-cdn.net/demo/c30733efb73f/assets/content/layout/sheets/pp-007-008@sharp.jpg",
+      "sha256": "264a01a769415e04a159be3193a4a57ffa0a0e1ff76843f058e05c98fbd7d343",
+      "size": 38098
+    }
+  ],
+  "problems": [
+    "entities/catpope-overlay children[1]: asset id \"part-00\" does not start with \"catpope-overlay-1-\" – the build will name it \"catpope-overlay-1-part-00\"",
+    "entities/catpope-overlay children[2]: asset id \"part-01\" does not start with \"catpope-overlay-2-\" – the build will name it \"catpope-overlay-2-part-01\"",
+    "entities/catpope-overlay children[3]: asset id \"part-02\" does not start with \"catpope-overlay-3-\" – the build will name it \"catpope-overlay-3-part-02\"",
+    "entities/catpope-overlay children[4]: asset id \"part-03\" does not start with \"catpope-overlay-4-\" – the build will name it \"catpope-overlay-4-part-03\"",
+    "entities/catpope-overlay children[5]: asset id \"part-04\" does not start with \"catpope-overlay-5-\" – the build will name it \"catpope-overlay-5-part-04\"",
+    "entities/catpope-overlay children[6]: asset id \"part-05\" does not start with \"catpope-overlay-6-\" – the build will name it \"catpope-overlay-6-part-05\"",
+    "entities/catpope-overlay children[7]: asset id \"part-06\" does not start with \"catpope-overlay-7-\" – the build will name it \"catpope-overlay-7-part-06\"",
+    "entities/catpope-overlay children[8]: asset id \"part-07\" does not start with \"catpope-overlay-8-\" – the build will name it \"catpope-overlay-8-part-07\"",
+    "entities/catpope-overlay children[9]: asset id \"part-08\" does not start with \"catpope-overlay-9-\" – the build will name it \"catpope-overlay-9-part-08\"",
+    "entities/catpope-overlay children[10]: asset id \"part-09\" does not start with \"catpope-overlay-10-\" – the build will name it \"catpope-overlay-10-part-09\"",
+    "entities/catpope-overlay children[11]: asset id \"part-10\" does not start with \"catpope-overlay-11-\" – the build will name it \"catpope-overlay-11-part-10\"",
+    "entities/catpope-overlay children[12]: asset id \"part-11\" does not start with \"catpope-overlay-12-\" – the build will name it \"catpope-overlay-12-part-11\"",
+    "entities/catpope-overlay children[13]: asset id \"part-12\" does not start with \"catpope-overlay-13-\" – the build will name it \"catpope-overlay-13-part-12\"",
+    "entities/catpope-overlay children[14]: asset id \"part-13\" does not start with \"catpope-overlay-14-\" – the build will name it \"catpope-overlay-14-part-13\"",
+    "entities/catpope-overlay children[15]: asset id \"part-14\" does not start with \"catpope-overlay-15-\" – the build will name it \"catpope-overlay-15-part-14\"",
+    "entities/catpope-overlay children[16]: asset id \"part-15\" does not start with \"catpope-overlay-16-\" – the build will name it \"catpope-overlay-16-part-15\"",
+    "entities/catpope-overlay children[17]: asset id \"part-16\" does not start with \"catpope-overlay-17-\" – the build will name it \"catpope-overlay-17-part-16\"",
+    "entities/catpope-overlay children[18]: asset id \"part-17\" does not start with \"catpope-overlay-18-\" – the build will name it \"catpope-overlay-18-part-17\"",
+    "entities/catpope-overlay children[19]: asset id \"part-18\" does not start with \"catpope-overlay-19-\" – the build will name it \"catpope-overlay-19-part-18\""
+  ]
+}

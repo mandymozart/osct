@@ -1,0 +1,787 @@
+name: Cat Pope overlay (3D)
+type: group
+components:
+  - type: contactShadow
+    opacity: 0.6
+    blur: 3
+    resolution: "256"
+  - type: toon
+children:
+  - name: key light (front, upper left)
+    type: light
+    params:
+      position:
+        - -0.3
+        - 0.4
+        - 0.9
+      rotation:
+        - -25
+        - -20
+        - 0
+    light:
+      kind: directional
+      color: "#fff4e6"
+      intensity: 10
+  - name: part 00 (centre, middle, mid depth)
+    type: model
+    assets:
+      - id: part-00
+        src: v1.glb
+    params:
+      position:
+        - -0.069
+        - -0.1365
+        - 0.2853
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.33
+        maskEnd: 0.73
+        spin: 0
+        shapeStart: 0.33
+        shapeEnd: 0.78
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.33
+        maskEnd: 0.73
+        spin: 0
+        shapeStart: 0.33
+        shapeEnd: 0.78
+        sparks: 40
+      - type: hover
+        drift: 0.008
+        period: 3.5
+  - name: part 01 (left, middle, back)
+    type: model
+    assets:
+      - id: part-01
+        src: v1-2.glb
+    params:
+      position:
+        - -0.2439
+        - -0.0248
+        - 0.0362
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskEnd: 0.4
+        spin: 0
+        shapeEnd: 0.45
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskEnd: 0.4
+        spin: 0
+        shapeEnd: 0.45
+        sparks: 40
+      - type: hover
+        height: 0.004
+        drift: 0.002
+        period: 3.9
+        tilt: 0.5
+  - name: part 02 (centre, high, back)
+    type: model
+    assets:
+      - id: part-02
+        src: v1-3.glb
+    params:
+      position:
+        - -0.1089
+        - 0.3133
+        - 0.1483
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.06
+        maskEnd: 0.46
+        spin: 0
+        shapeStart: 0.06
+        shapeEnd: 0.51
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.06
+        maskEnd: 0.46
+        spin: 0
+        shapeStart: 0.06
+        shapeEnd: 0.51
+        sparks: 40
+      - type: hover
+        drift: 0.008
+        period: 4.2
+  - name: part 03 (right, high, mid depth)
+    type: model
+    assets:
+      - id: part-03
+        src: v1-4.glb
+    params:
+      position:
+        - 0.2036
+        - 0.4014
+        - 0.2701
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.31
+        maskEnd: 0.71
+        spin: 0
+        shapeStart: 0.31
+        shapeEnd: 0.76
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.31
+        maskEnd: 0.71
+        spin: 0
+        shapeStart: 0.31
+        shapeEnd: 0.76
+        sparks: 40
+      - type: hover
+        drift: 0.008
+        period: 4.6
+  - name: part 04 (right, middle, front)
+    type: model
+    assets:
+      - id: part-04
+        src: v1-5.glb
+    params:
+      position:
+        - 0.2666
+        - -0.2167
+        - 0.5605
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.5
+        maskEnd: 0.9
+        spin: 0
+        shapeStart: 0.5
+        shapeEnd: 0.95
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.5
+        maskEnd: 0.9
+        spin: 0
+        shapeStart: 0.5
+        shapeEnd: 0.95
+        sparks: 40
+      - type: hover
+        drift: 0.008
+        period: 5
+  - name: part 05 (centre, low, mid depth)
+    type: model
+    assets:
+      - id: part-05
+        src: v1-6.glb
+    params:
+      position:
+        - -0.0307
+        - -0.5575
+        - 0.3337
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.39
+        maskEnd: 0.79
+        spin: 0
+        shapeStart: 0.39
+        shapeEnd: 0.84
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.39
+        maskEnd: 0.79
+        spin: 0
+        shapeStart: 0.39
+        shapeEnd: 0.84
+        sparks: 40
+      - type: hover
+        height: 0.004
+        drift: 0.002
+        period: 5.3
+        tilt: 0.5
+  - name: part 06 (left, middle, back)
+    type: model
+    assets:
+      - id: part-06
+        src: v1-7.glb
+    params:
+      position:
+        - -0.3307
+        - -0.1063
+        - 0.2218
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.17
+        maskEnd: 0.57
+        spin: 0
+        shapeStart: 0.17
+        shapeEnd: 0.62
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.17
+        maskEnd: 0.57
+        spin: 0
+        shapeStart: 0.17
+        shapeEnd: 0.62
+        sparks: 40
+      - type: hover
+        drift: 0.008
+        period: 5.7
+  - name: part 07 (left, middle, back)
+    type: model
+    assets:
+      - id: part-07
+        src: v1-8.glb
+    params:
+      position:
+        - -0.3346
+        - 0.1824
+        - 0.2119
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.11
+        maskEnd: 0.51
+        spin: 0
+        shapeStart: 0.11
+        shapeEnd: 0.56
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.11
+        maskEnd: 0.51
+        spin: 0
+        shapeStart: 0.11
+        shapeEnd: 0.56
+        sparks: 40
+      - type: hover
+        drift: 0.008
+        period: 6.1
+  - name: part 08 (left, low, mid depth)
+    type: model
+    assets:
+      - id: part-08
+        src: v1-9.glb
+    params:
+      position:
+        - -0.3462
+        - -0.3973
+        - 0.2319
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.19
+        maskEnd: 0.59
+        spin: 0
+        shapeStart: 0.19
+        shapeEnd: 0.64
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.19
+        maskEnd: 0.59
+        spin: 0
+        shapeStart: 0.19
+        shapeEnd: 0.64
+        sparks: 40
+      - type: hover
+        drift: 0.008
+        period: 6.5
+  - name: part 09 (centre, low, mid depth)
+    type: model
+    assets:
+      - id: part-09
+        src: v1-10.glb
+    params:
+      position:
+        - 0.0837
+        - -0.56
+        - 0.4034
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.44
+        maskEnd: 0.84
+        spin: 0
+        shapeStart: 0.44
+        shapeEnd: 0.89
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.44
+        maskEnd: 0.84
+        spin: 0
+        shapeStart: 0.44
+        shapeEnd: 0.89
+        sparks: 40
+      - type: hover
+        height: 0.004
+        drift: 0.002
+        period: 3.8
+        tilt: 0.5
+  - name: part 10 (centre, middle, back)
+    type: model
+    assets:
+      - id: part-10
+        src: v1-11.glb
+    params:
+      position:
+        - 0.0337
+        - 0.1697
+        - 0.2127
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.14
+        maskEnd: 0.54
+        spin: 0
+        shapeStart: 0.14
+        shapeEnd: 0.59
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.14
+        maskEnd: 0.54
+        spin: 0
+        shapeStart: 0.14
+        shapeEnd: 0.59
+        sparks: 40
+      - type: hover
+        drift: 0.008
+        period: 4.2
+  - name: part 11 (left, high, mid depth)
+    type: model
+    assets:
+      - id: part-11
+        src: v1-12.glb
+    params:
+      position:
+        - -0.3814
+        - 0.3517
+        - 0.2581
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.25
+        maskEnd: 0.65
+        spin: 0
+        shapeStart: 0.25
+        shapeEnd: 0.7
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.25
+        maskEnd: 0.65
+        spin: 0
+        shapeStart: 0.25
+        shapeEnd: 0.7
+        sparks: 40
+      - type: hover
+        drift: 0.008
+        period: 4.6
+  - name: part 12 (right, middle, mid depth)
+    type: model
+    assets:
+      - id: part-12
+        src: v1-13.glb
+    params:
+      position:
+        - 0.4456
+        - 0.1421
+        - 0.2573
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.22
+        maskEnd: 0.62
+        spin: 0
+        shapeStart: 0.22
+        shapeEnd: 0.67
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.22
+        maskEnd: 0.62
+        spin: 0
+        shapeStart: 0.22
+        shapeEnd: 0.67
+        sparks: 40
+      - type: hover
+        drift: 0.008
+        period: 4.9
+  - name: part 13 (centre, middle, back)
+    type: model
+    assets:
+      - id: part-13
+        src: v1-14.glb
+    params:
+      position:
+        - 0.0755
+        - 0.1842
+        - 0.0803
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.03
+        maskEnd: 0.43
+        spin: 0
+        shapeStart: 0.03
+        shapeEnd: 0.48
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.03
+        maskEnd: 0.43
+        spin: 0
+        shapeStart: 0.03
+        shapeEnd: 0.48
+        sparks: 40
+      - type: hover
+        drift: 0.008
+        period: 5.3
+  - name: part 14 (right, high, mid depth)
+    type: model
+    assets:
+      - id: part-14
+        src: v1-15.glb
+    params:
+      position:
+        - 0.2234
+        - 0.4705
+        - 0.2629
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.28
+        maskEnd: 0.68
+        spin: 0
+        shapeStart: 0.28
+        shapeEnd: 0.73
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.28
+        maskEnd: 0.68
+        spin: 0
+        shapeStart: 0.28
+        shapeEnd: 0.73
+        sparks: 40
+      - type: hover
+        drift: 0.008
+        period: 5.7
+  - name: part 15 (right, high, front)
+    type: model
+    assets:
+      - id: part-15
+        src: v1-16.glb
+    params:
+      position:
+        - 0.2338
+        - 0.2628
+        - 0.4692
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.47
+        maskEnd: 0.87
+        spin: 0
+        shapeStart: 0.47
+        shapeEnd: 0.92
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.47
+        maskEnd: 0.87
+        spin: 0
+        shapeStart: 0.47
+        shapeEnd: 0.92
+        sparks: 40
+      - type: hover
+        drift: 0.008
+        period: 6
+      - type: spin
+  - name: part 16 (centre, high, mid depth)
+    type: model
+    assets:
+      - id: part-16
+        src: v1-17.glb
+    params:
+      position:
+        - 0.0115
+        - 0.2904
+        - 0.2913
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.36
+        maskEnd: 0.76
+        spin: 0
+        shapeStart: 0.36
+        shapeEnd: 0.81
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.36
+        maskEnd: 0.76
+        spin: 0
+        shapeStart: 0.36
+        shapeEnd: 0.81
+        sparks: 40
+      - type: hover
+        drift: 0.008
+        period: 6.4
+  - name: part 17 (right, high, mid depth)
+    type: model
+    assets:
+      - id: part-17
+        src: v1-18.glb
+    params:
+      position:
+        - 0.3746
+        - 0.4743
+        - 0.3405
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.42
+        maskEnd: 0.82
+        spin: 0
+        shapeStart: 0.42
+        shapeEnd: 0.87
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.42
+        maskEnd: 0.82
+        spin: 0
+        shapeStart: 0.42
+        shapeEnd: 0.87
+        sparks: 40
+      - type: hover
+        drift: 0.008
+        period: 3.8
+  - name: part 18 (left, middle, back)
+    type: model
+    assets:
+      - id: part-18
+        src: v1-19.glb
+    params:
+      position:
+        - -0.3629
+        - 0.1777
+        - 0.2007
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale:
+        - 1.4
+        - 1.4
+        - 0.84
+    components:
+      - type: reveal
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.08
+        maskEnd: 0.48
+        spin: 0
+        shapeStart: 0.08
+        shapeEnd: 0.53
+        sparks: 40
+      - type: found
+        look: inflateDissolve
+        duration: 2600
+        maskStart: 0.08
+        maskEnd: 0.48
+        spin: 0
+        shapeStart: 0.08
+        shapeEnd: 0.53
+        sparks: 40
+      - type: hover
+        drift: 0.008
+        period: 4.2

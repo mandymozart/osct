@@ -1,0 +1,32 @@
+category: glossary
+title: Mark the Page
+scene: mark
+body: "Trial of Kévin's rig: the paper baked frame by frame from Blender (12 frames a second, 15.75 s, no sound yet)."
+tags: []
+target:
+  image: v1.jpg
+  entity:
+    name: Mark
+    type: model
+    src: v1.glb
+    params:
+      position:
+        - 0
+        - 0
+        - 0.004
+      rotation:
+        - 0
+        - 0
+        - 0
+      scale: 1
+    components:
+      - type: animation
+        clip: speak
+        playOn: found
+        stopOn: lost
+        loop: true
+  place:
+    x: 30
+    "y": 60
+    width: 150
+    height: 150

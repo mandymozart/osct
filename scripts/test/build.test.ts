@@ -273,9 +273,9 @@ describe('the demo', () => {
     vi.restoreAllMocks();
     expect(build.errors).toEqual([]);
     expect(experience.id).toBe('demo');
-    // The example of an experience that is not a book (#320): no print data
-    expect(experience.book).toBeUndefined();
-    expect(plugins.map(p => p.data.id)).toEqual(['aquarium', 'fluid', 'grain', 'lifts', 'narrative', 'paper', 'pulse', 'reveal', 'scanlines', 'scenes', 'sparkle', 'spin', 'tally', 'tint']);
+    // The demo is the staging database's export since #322 (decision (b)): "The Demo Book", with print data
+    expect(experience.book?.author).toBe('OSCT');
+    expect(plugins.map(p => p.data.id)).toEqual(['aquarium', 'contact-shadow', 'cutout-shadow', 'fluid', 'grain', 'hover', 'lifts', 'my-model-look', 'my-sparkle-look', 'narrative', 'paper', 'pulse', 'reveal', 'scanlines', 'scenes', 'sparkle', 'spin', 'tally', 'tint', 'toon']);
     // A plugin's pass (#216): the grain plugin's film grain on The twins, checked against its recorded spec
     expect(Object.keys(plugins.find(p => p.data.id === 'grain')!.data.registered!.passes ?? {})).toEqual(['filmGrain']);
     expect(scenes.find(s => s.id === 'the-twins')?.passes).toEqual([{ type: 'filmGrain', amount: 0.14 }]);
@@ -284,8 +284,8 @@ describe('the demo', () => {
     expect(Object.keys(scanLines)).toEqual(['scanLines']);
     expect(Object.keys(scanLines.scanLines.params)).toEqual(['spacing', 'amount', 'speed', 'reach']);
     expect(scenes.find(s => s.id === 'the-switch')?.passes).toEqual([{ type: 'scanLines', enabled: false, spacing: 4 }]);
-    expect(scenes.map(s => s.label)).toEqual(['Cover', '1–2', '3–4', '5–6', '7–8', 'Back cover']);
-    expect(scenes.map(s => s.surfaces[0].widthMm)).toEqual([230, 460, 460, 460, 460, 230]);
+    expect(scenes.map(s => s.label)).toEqual(['Cover', '1–2', '3–4', '5–6', '7–8', '9–10', '11–12', 'Back cover', 'Cat Pope poster (SCUTOONS test)']);
+    expect(scenes.map(s => s.surfaces[0].widthMm)).toEqual([230, 460, 460, 460, 460, 460, 460, 230, 297]);
     const types = new Set<string>();
     const walk = (node: { type: string; children?: Array<{ type: string }> }) => { types.add(node.type); (node.children ?? []).forEach(walk as never); };
     entries.forEach(e => { if (e.target?.entity && !('ref' in e.target.entity)) walk(e.target.entity); });
@@ -306,12 +306,12 @@ describe('the demo', () => {
     // The behaviour (#88): the key takes itself on a tap, the door's rules decide when the narrative plugin opens it
     const componentsOf = (id: string) => (entries.find(e => e.id === id)?.target?.entity as { components?: Array<{ type: string; rules?: unknown[] }> } | undefined)?.components ?? [];
     expect(componentsOf('key').find(c => c.type === 'behaviour')?.rules).toEqual([
-      { on: 'tap', do: [{ play: 'rattle' }, { set: { hasKey: true }, scope: 'experience' }, { emit: 'keyRattled' }] },
+      { on: 'keyRattled', do: [{ play: 'rattle' }, { set: { hasKey: true }, scope: 'experience' }, { emit: 'keyRattled' }] },
     ]);
-    expect(componentsOf('door').map(c => c.type)).toEqual(['door', 'behaviour']);
+    expect(componentsOf('door').map(c => c.type)).toEqual(['door', 'behaviour', 'reveal']);
     // The paper (#263): a component whose parameter is a model file – recorded as such, the file next to the node as its content path
     expect(plugins.find(p => p.data.id === 'paper')!.data.registered!.components?.paper.params.sheet).toMatchObject({ kind: 'model', default: '' });
-    expect(componentsOf('screen').find(c => c.type === 'paper')).toEqual({ type: 'paper', sheet: '/assets/content/entries/screen/sheet.glb' });
+    expect(componentsOf('screen').find(c => c.type === 'paper')).toEqual({ type: 'paper', sheet: '/assets/content/entries/screen/v1.glb' });
     // The reveal (#267): the engine's inflate-and-dissolve look as code – a plugin's look, recorded with its parameters for the experience's appearance
     const reveal = plugins.find(p => p.data.id === 'reveal')!.data.registered!.appearances ?? {};
     expect(Object.keys(reveal)).toEqual(['revealCode']);

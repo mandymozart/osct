@@ -1,32 +1,47 @@
-# The back cover's colophon: the experience's title as text, a chest, and the tally of the whole experience – "complete" when
-# every page was found.
 category: glossary
 title: The colophon
 scene: back
-body: "The back cover: `{{experience.title}}` as a text node, a chest, and the `tally` of the whole experience – it says complete when every page was found."
-tags: [narrative, progress]
+body: "The back cover: `{{experience.title}}` as a text node, a chest, and the `tally` of the whole book – it says complete when every page was found."
+tags:
+  - narrative
+  - progress
 target:
   image: target.jpg
-  place:
-    x: 65
-    y: 120
-    width: 100
   entity:
     type: group
-    children:
-      - type: text
-        text: "{{experience.title}}"
-        color: "#f3cc94"
-        params:
-          position: [0, 0.4, 0.01]
-      - type: model
-        src: chest.glb
-        params:
-          rotation: [90, 0, 0]
-          scale: 0.4
-          position: [0, 0.05, 0]
     components:
       - type: tally
         of: experience
-        label: of the experience found
+        label: of the book found
         color: "#f3cc94"
+      - type: found
+        look: fade
+    children:
+      - type: text
+        params:
+          position:
+            - 0
+            - 0.4
+            - 0.01
+        text: "{{experience.title}}"
+        color: "#f3cc94"
+      - type: model
+        src: chest.glb
+        params:
+          rotation:
+            - 90
+            - 0
+            - 0
+          scale: 0.4
+          position:
+            - 0
+            - 0.05
+            - 0
+        components:
+          - type: reveal
+            look: revealCode
+            spin: 0.25
+  place:
+    x: 65
+    "y": 120
+    width: 100

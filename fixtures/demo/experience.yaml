@@ -1,4 +1,27 @@
-# The demo (#80): a sandbox that uses everything the editor and the engine can do – an experience that is not a book
-# (no `book:`).
 id: demo
-title: The Demo
+title: The Demo Book
+book:
+  author: OSCT
+  publisher: Building Fictions
+environment:
+  world: cafe
+  onionSky: true
+appearance:
+  reveal:
+    type: revealCode
+  found:
+    type: printLiftCode
+  lost:
+    type: fadeCode
+variables:
+  hasKey:
+    type: boolean
+    scope: experience
+passes:
+  - type: bloom
+    strength: 0.1
+    radius: 0.1
+    threshold: 1
+  - type: grade
+    contrast: 1.1
+    saturation: 1.2

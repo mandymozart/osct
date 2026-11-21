@@ -1,0 +1,16 @@
+category: text
+title: Cat Pope poster
+scene: catpope-poster
+surface: poster
+body: "A test for SCUTOONS: the figures of the Cat Pope poster lift off the print and float in front of it, each with the shadow of its own outline on the paper."
+caption: "Poster art: Giulia Ratti"
+tags: []
+target:
+  image: v1.webp
+  entity:
+    ref: catpope-overlay
+  place:
+    surface: poster
+    x: 0
+    "y": 0
+    width: 297

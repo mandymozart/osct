@@ -7,23 +7,12 @@ import type { PluginApi } from "osct-plugin-api";
  * and every later one, `found`) and from 1 to 0 when the page is lost (`lost`) – so one function covers the three
  * moments, and the animation goes out the way it came in.
  *
- * Pick it as `revealCode` for a moment in the editor (Scene view → appearance → look), set it in the experience's `appearance`
- * (`reveal: { type: revealCode, spin: 0.25 }`) or with the MCP's `put_experience_appearance`. Its parameters are the rows the
- * spec below declares; the values of the built-in look, the same names – so a look tuned in the reveal sandbox
- * (`sandbox/reveal`) goes in here as it is.
+ * Pick it as `revealCode` for a moment (the book's appearance, or the reveal / found / lost component of a node). Its
+ * parameters are the rows the spec below declares; the values of the built-in look, the same names.
  *
- * The look has three parts, each over its own share of the time:
- *   shape – the entity starts flat on the page (`heightFrom`), small (`scaleFrom`) and turned (`spin`, in turns around the
- *           page normal) and rises, grows and turns into place (until `shapeEnd`); a transform of the entity's object in
- *           the anchor's space – the page – around the middle of its footprint, so it holds for every model;
- *   mask  – a front moves through 3D noise until `maskEnd`: what it has not reached is not drawn, the edge at the front
- *           glows in the edge colour, the band behind it in the glow colour (a shader injected into copies of the
- *           materials – never into the model's own, which every entity of the same file shares);
- *   sparks – points on the surface that fly off where the front passes.
- *
- * What the engine's own version does on top, left out here to keep it short: lights follow the dissolve, a material that
- * carries a layer of another plugin keeps it, a tint and an opacity fade, a bloom, a spark sampled on the surface's
- * triangles instead of at its vertices.
+ * Three parts, each over its own share of the time: shape (flat on the page, small and turned, rising into place),
+ * mask (a front moves through 3D noise; the edge glows, the band behind it shines – a shader injected into copies of the
+ * materials) and sparks (points on the surface that fly off where the front passes).
  */
 
 /** 3D simplex noise (Ashima Arts / Stefan Gustavson, MIT) → about −1…1 */
@@ -106,7 +95,6 @@ void main() {
   vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
   gl_Position = projectionMatrix * mvPosition;
   float visible = step(0.0, life) * step(life, 1.0);
-  // Perspective size: uSize is in target widths (the model-view matrix scales them)
   gl_PointSize = visible * uSize * length(modelViewMatrix[0].xyz) * projectionMatrix[1][1] * uViewportHalfHeight / -mvPosition.z
     * (0.5 + aRandom) * (1.0 - life);
 }
@@ -119,7 +107,6 @@ void main() {
   float d = length(gl_PointCoord - vec2(0.5));
   float edge = clamp(1.0 - d * 2.0, 0.0, 1.0);
   if (edge <= 0.0) discard;
-  // Brighter than white while young
   gl_FragColor = vec4(uColor * (2.5 - 2.0 * vLife), edge * edge * (1.0 - vLife));
 }
 `;
@@ -168,8 +155,8 @@ export const register = (api: PluginApi): void => {
     const objectInverse = new three.Matrix4().copy(object.matrixWorld).invert();
     const anchorInverse = new three.Matrix4().copy(anchor.matrixWorld).invert();
 
-    // The meshes of the whole node tree, and the box of their vertices in two spaces: the entity's own (the noise's
-    // scale – the same number of waves on every model) and the page's (where the shape stands and turns)
+    // The meshes of the node tree, and the box of their vertices in two spaces: the entity's own (the noise's scale)
+    // and the page's (where the shape stands and turns)
     const meshes: Mesh[] = [];
     object.traverse(child => {
       if ((child as Mesh).isMesh) meshes.push(child as Mesh);
@@ -223,8 +210,7 @@ export const register = (api: PluginApi): void => {
       }
     }
 
-    // The shape: the entity's matrix is the shape × its placement. The engine puts the placement's position, rotation
-    // and scale back when the animation ends; the matrix is this look's to give back (dispose)
+    // The shape: the entity's matrix is the shape × its placement; this look gives the matrix back (dispose)
     const shape = new three.Matrix4();
     const placement = new three.Matrix4();
     const turn = new three.Matrix4();
@@ -296,7 +282,7 @@ export const register = (api: PluginApi): void => {
       });
       sparks = new three.Points(geometry, material);
       sparks.frustumCulled = false;
-      anchor.add(sparks); // in the page's space: they follow the tracking and fly on unshaped
+      anchor.add(sparks);
     }
 
     // The front runs from before the pattern's start to past its end, edge and glow included
