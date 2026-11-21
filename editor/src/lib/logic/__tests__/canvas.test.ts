@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { canvasProblems, type LogicCanvas } from "@engine/types";
 import { apply, type OpResult } from "../apply";
-import { BOX_HEAD, FRAME_HEAD, FRAME_PAD, PORT_ROW, boxHeight, flowOf, pillId } from "../flow";
+import { BOX_HEAD, FRAME_HEAD, FRAME_PAD, NOTE_BESIDE, PORT_ROW, boxHeight, flowOf, noteView, pillId } from "../flow";
 import { project, type LogicContent } from "../project";
 import { CARD_W, DECK_SIGNALS, GRID, GROUP_COLOURS, SIGNAL_STYLES, deckSignal, hangPath } from "../signals";
 import type { CanvasEdit, Context } from "../types";
@@ -165,6 +165,117 @@ describe("placing, folding and groups are canvas ops (#334 L-T7)", () => {
     const result = ok(edit({ edit: "place", positions: { [at]: { x: 0, y: 0 } } }, content, { level: "experience" }));
     expect(result.canvas).toEqual([{ doc: "experience", canvas: { positions: { [at]: { x: 0, y: 0 } } } }]);
     expect(edit({ edit: "tidy" }, content, { level: "group", group: "ch1" })).toMatchObject({ ok: false });
+  });
+});
+
+describe("selecting and ungrouping a group (#334, Tilman 2026-11-21)", () => {
+  it("a frame names the level's boxes it holds – what a click on its head selects", () => {
+    const grouped = ok(edit({ edit: "group", boxes: [a, b] })).content;
+    const flow = flowOf(project(grouped, scene), canvasOf(edit({ edit: "group", boxes: [a, b] })));
+    expect(flow.groups.map(g => [g.id, g.members])).toEqual([["group-1", [a, b]]]);
+  });
+
+  it("ungroup removes the groups (the menu's Ungroup, Ctrl+Shift+G) – the boxes and their places stay", () => {
+    const first = ok(edit({ edit: "group", boxes: [a] })).content;
+    const both = ok(edit({ edit: "group", boxes: [b, c] }, first)).content;
+    const placed = ok(edit({ edit: "place", positions: { [a]: { x: 16, y: 16 } } }, both)).content;
+    const one = edit({ edit: "ungroup", groups: ["group-1"] }, placed);
+    expect(canvasOf(one)).toEqual({ groups: [{ id: "group-2", label: "group 2", members: [b, c], colour: GROUP_COLOURS[1] }], positions: { [a]: { x: 16, y: 16 } } });
+    expect(ok(one).words).toBe("group 1 ungrouped – the boxes stay where they are.");
+    // Ctrl+Shift+G with boxes of both groups selected: both go in one op
+    const all = edit({ edit: "ungroup", groups: ["group-1", "group-2"] }, placed);
+    expect(canvasOf(all)).toEqual({ positions: { [a]: { x: 16, y: 16 } } });
+    expect(ok(all).words).toBe("2 groups ungrouped – the boxes stay where they are.");
+    expect(edit({ edit: "ungroup", groups: ["group-9"] }, placed)).toEqual({ ok: false, reason: "That group is not there any more." });
+    expect(edit({ edit: "ungroup", groups: [] }, placed)).toMatchObject({ ok: false });
+    expect(edit({ edit: "ungroup", groups: ["group-1"] }, placed, { level: "group", group: "ch1" })).toMatchObject({ ok: false });
+  });
+});
+
+describe("notes on the canvas (#334, schema 5.3 – the deck's notes)", () => {
+  const notesOf = (result: OpResult) => canvasOf(result)?.notes;
+
+  it("adds an empty note free at a point, or beside a box by its author", () => {
+    const free = edit({ edit: "note", at: { x: 37, y: -9 }, author: " tilman " });
+    expect(notesOf(free)).toEqual([{ id: "note-1", text: "", x: 32, y: -16, author: "tilman" }]);
+    expect(ok(free).words).toBe("A note – type its text.");
+    const beside = edit({ edit: "note", box: a }, ok(free).content);
+    expect(notesOf(beside)![1]).toEqual({ id: "note-2", text: "", x: NOTE_BESIDE.x, y: NOTE_BESIDE.y, box: a });
+    // A second note beside the same box stands below the first
+    expect(notesOf(edit({ edit: "note", box: a }, ok(beside).content))![2]).toMatchObject({ id: "note-3", box: a, y: NOTE_BESIDE.y + 5 * GRID });
+    expect(edit({ edit: "note", box: "rule:nowhere" })).toMatchObject({ ok: false });
+    expect(edit({ edit: "note" })).toMatchObject({ ok: false });
+    expect(edit({ edit: "note", at: { x: 0, y: 0 } }, content, { level: "group", group: "ch1" })).toMatchObject({ ok: false });
+  });
+
+  it("writes a note's text; an empty text removes it", () => {
+    const added = ok(edit({ edit: "note", at: { x: 0, y: 0 } })).content;
+    const written = edit({ edit: "noteText", note: "note-1", text: "  Why the hint waits for the key  " }, added);
+    expect(notesOf(written)).toEqual([{ id: "note-1", text: "Why the hint waits for the key", x: 0, y: 0 }]);
+    expect(ok(written).words).toBe("Note written.");
+    expect(edit({ edit: "noteText", note: "note-1", text: "Why the hint waits for the key" }, ok(written).content)).toMatchObject({ ok: false });
+    const removed = edit({ edit: "noteText", note: "note-1", text: " " }, ok(written).content);
+    expect(canvasOf(removed)).toBeUndefined();
+    expect(ok(removed).words).toBe("Note removed.");
+    expect(edit({ edit: "noteText", note: "note-9", text: "x" }, added)).toEqual({ ok: false, reason: "That note is not here any more." });
+  });
+
+  it("moves a note with place (note:<id>), boxes and notes in one op", () => {
+    const added = ok(edit({ edit: "note", at: { x: 0, y: 0 } })).content;
+    const moved = edit({ edit: "place", positions: { "note:note-1": { x: 70, y: 33 }, [a]: { x: 0, y: 0 } } }, added);
+    expect(canvasOf(moved)).toEqual({ notes: [{ id: "note-1", text: "", x: 64, y: 32 }], positions: { [a]: { x: 0, y: 0 } } });
+    expect(ok(moved).words).toMatch(/and a note moved/);
+    expect(canvasOf(edit({ edit: "place", positions: { "note:note-1": { x: 16, y: 0 } } }, added))).toEqual({ notes: [{ id: "note-1", text: "", x: 16, y: 0 }] });
+    expect(edit({ edit: "place", positions: { "note:note-9": { x: 0, y: 0 } } }, added)).toMatchObject({ ok: false });
+  });
+
+  it("draws a free note where it stands and a box's note beside its box, joined by a dotted line", () => {
+    const canvas: LogicCanvas = {
+      positions: { [a]: { x: 160, y: 320 } },
+      notes: [{ id: "note-1", text: "free", x: 48, y: -64 }, { id: "note-2", text: "beside", x: NOTE_BESIDE.x, y: 16, box: a, author: "tilman" },
+        { id: "note-3", text: "in the door's own view", x: 0, y: 0, view: "door" }],
+    };
+    const flow = flowOf(view, canvas);
+    expect(flow.notes.map(n => n.id)).toEqual(["note-1", "note-2"]);
+    expect(flow.notes[0]).toEqual({ id: "note-1", text: "free", x: 48, y: -64 });
+    expect(flow.notes[1]).toMatchObject({ x: 160 + NOTE_BESIDE.x, y: 336, box: a, author: "tilman", link: { target: a, sourceHandle: "note:l", targetHandle: "ref:r" } });
+    // A note is no logic: no box, no wire
+    expect(flow.boxes.some(x => x.id.startsWith("note"))).toBe(false);
+    expect(flow.wires.length).toBe(flowOf(view).wires.length);
+    // The target's own level draws its view's notes only
+    const entity = flowOf(project(content, { level: "entity", scene: "door", target: "door", path: [] }), canvas);
+    expect(entity.notes.map(n => n.id)).toEqual(["note-3"]);
+    expect(noteView({ level: "entity", scene: "door", target: "door", path: [0, 1] })).toBe("door/0.1");
+  });
+
+  it("a note made at a target's level belongs to that view", () => {
+    const at: Context = { level: "entity", scene: "door", target: "door", path: [] };
+    const added = edit({ edit: "note", at: { x: 0, y: 0 } }, content, at);
+    expect(notesOf(added)).toEqual([{ id: "note-1", text: "", x: 0, y: 0, view: "door" }]);
+    // The scene's level does not edit it
+    expect(edit({ edit: "noteText", note: "note-1", text: "x" }, ok(added).content)).toMatchObject({ ok: false });
+  });
+
+  it("a removed rule's note stays free where it stood; a later rule's note follows its rule", () => {
+    const canvas: LogicCanvas = {
+      positions: { [a]: { x: 160, y: 320 } },
+      notes: [{ id: "note-1", text: "on a", x: NOTE_BESIDE.x, y: 16, box: a }, { id: "note-2", text: "on b", x: NOTE_BESIDE.x, y: 0, box: b }],
+    };
+    const withNotes: LogicContent = { ...content, scenes: content.scenes.map(s => (s.id === "door" ? { ...s, canvas } : s)) };
+    const home = view.nodes.find(n => n.id === a)!.home!;
+    const removed = ok(apply({ op: "removeRule", home }, withNotes, scene));
+    const notes = removed.content.scenes.find(s => s.id === "door")!.canvas!.notes!;
+    expect(notes[0]).toEqual({ id: "note-1", text: "on a", x: 160 + NOTE_BESIDE.x, y: 336 });
+    // b was the rule after a: it is rule #0 now, and its note goes with it
+    expect(notes[1]).toEqual({ id: "note-2", text: "on b", x: NOTE_BESIDE.x, y: 0, box: a });
+    expect(removed.canvas.some(change => change.doc === "scene" && change.scene === "door")).toBe(true);
+    expect(canvasProblems(removed.content.scenes.find(s => s.id === "door")!.canvas, "c")).toEqual([]);
+  });
+
+  it("writes notes the shared guard accepts", () => {
+    const one = ok(edit({ edit: "note", at: { x: 0, y: 0 }, author: "tilman" })).content;
+    const two = ok(edit({ edit: "note", box: a }, one));
+    expect(canvasProblems(canvasOf(two), "c")).toEqual([]);
   });
 });
 

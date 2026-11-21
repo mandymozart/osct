@@ -155,6 +155,13 @@ describe("logic: a scene's and the experience's rules (schema 5.0)", () => {
     expect(canvasProblems({ positions: [] }, "c")).toEqual(["c.positions: expected { <box id>: { x, y } }"]);
     expect(canvasProblems({ groups: [{ id: "g", label: "G", members: [], colour: "blue", folded: 1 }] }, "c"))
       .toEqual(["c.groups[0].colour: expected a colour #rrggbb", "c.groups[0].folded: expected true or false"]);
+    // Schema 5.3: a note beside a box, its author, the target's view it shows in
+    expect(canvasProblems({ notes: [{ id: "note-1", text: "", x: 0, y: 0 }, { id: "note-2", text: "Why", x: 240, y: 0, author: "tilman", box: "rule:0", view: "door/0.1" }] }, "c")).toEqual([]);
+    expect(canvasProblems({ notes: [{ id: "n", text: "a", x: 0, y: 0, box: "", author: 3, colour: "#fff" }] }, "c")).toEqual([
+      "c.notes[0].colour: unknown field of a note (id, text, x, y, author, box, view)",
+      "c.notes[0].author: expected a text",
+      "c.notes[0].box: expected a text",
+    ]);
     expect(logicProblems([], "l", "experience")).toEqual(["l: expected { rules, canvas? }"]);
     expect(logicProblems({}, "l", "experience")).toEqual(["l.rules: expected a list of rules { on, when?, do }"]);
     expect(rulesProblems("x", "r", "entity")).toEqual(["r: expected a list of rules { on, when?, do }"]);

@@ -5,10 +5,11 @@
   import Icon from "#lib/components/Icon.svelte";
   import Toggle from "#lib/components/Toggle.svelte";
   import { content } from "#lib/content.svelte.js";
+  import { session } from "#lib/session.svelte.js";
   import { selection } from "#lib/selection.svelte.js";
   import { logicContent, logicFocus } from "#lib/logic-content.svelte.js";
   import { project, type LogicContent } from "#lib/logic/project.js";
-  import { flowOf, handleId, type FlowBox } from "#lib/logic/flow.js";
+  import { NOTE_NODE, flowOf, handleId, type FlowBox } from "#lib/logic/flow.js";
   import { DECK_SIGNALS } from "#lib/logic/signals.js";
   import { issueRows, issueSummary, issuesOpen, type IssueRow } from "#lib/logic/issues.js";
   import type { LogicCanvas } from "@engine/types";
@@ -67,6 +68,13 @@
    *   folds it to a pill, its swatch takes the next colour, its name renames in place); a box's chevron folds it to its head.
    *   Each is a canvas op saved with the level's rules, so History lists it and Undo takes it back. The boxes, pins and wires
    *   wear the deck's signal colours (`logic/signals.ts`, L-T8 – the legend shows them).
+   *   **Groups** (#334): a click on a frame's head selects its boxes (Shift adds them), so Delete, Ctrl+G and a drag act on
+   *   them; a right click on the head (or on a folded group's pill) opens the group's menu – select its boxes, rename, next
+   *   colour, fold or open, **Ungroup**; **Ctrl+Shift+G** ungroups the groups of the selected boxes.
+   * - **Notes** (schema 5.3, the deck's notes): annotations, no logic – *Add note* on the empty canvas's right-click menu (at
+   *   that point), on a box's (beside it, moving with it), or **N** with the pointer over the canvas. A new note opens for
+   *   typing; its author is the signed-in person. Notes are selected and dragged like boxes; Delete removes them (an empty
+   *   text too). Each is a canvas op (History, Undo).
    */
   let { experienceId, sceneId, stage = null, onpick, onmove }: {
     experienceId: string;
@@ -176,15 +184,29 @@
       e.preventDefault();
       if (!editable) return say(readOnlyHint ?? "Read-only here.", true);
       const boxes = flow.boxes.filter(b => picked.includes(b.id));
-      if (boxes.length || pickedWires.length) removeBoxes(boxes, pickedWires);
+      const notes = picked.filter(id => id.startsWith(NOTE_NODE)).map(id => id.slice(NOTE_NODE.length));
+      if (boxes.length || pickedWires.length || notes.length) removeBoxes(boxes, pickedWires, notes);
       picked = [];
       pickedWires = [];
     } else if (e.key === "Backspace" || (e.altKey && e.key === "ArrowUp")) {
       e.preventDefault();
       goUp();
-    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") {
-      // The deck's Ctrl+G: the selected boxes become a group
+    } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "g") {
+      // As the Scenes strip: Ctrl+Shift+G ungroups the groups of the selected boxes (here – the Scenes panel's never sees it)
       e.preventDefault();
+      e.stopPropagation();
+      ungroupPicked();
+    } else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "n") {
+      // N: a note where the pointer is on the canvas
+      const over = document.elementFromPoint(pointer.x, pointer.y)?.closest(".flow");
+      const at = over ? canvasRef?.flowPoint?.(pointer) : null;
+      if (!at) return;
+      e.preventDefault();
+      addNote({ at });
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") {
+      // The deck's Ctrl+G: the selected boxes become a group (here – the Scenes panel's never sees it)
+      e.preventDefault();
+      e.stopPropagation();
       groupPicked();
     } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "h") {
       // Blender's Ctrl+H: every box shows only its wired ports again
@@ -316,6 +338,40 @@
     if (!boxes.length) return say(editable ? "Select the boxes to group first (Shift adds to the selection)." : readOnlyHint ?? "Read-only here.", true);
     canvasOp({ edit: "group", boxes });
   };
+  /** The groups of the selected boxes go – their boxes stay (Ctrl+Shift+G) */
+  const ungroupPicked = () => {
+    if (!editable) return say(readOnlyHint ?? "Read-only here.", true);
+    const groups = (levelCanvas?.groups ?? []).filter(g => g.members.some(m => picked.includes(m))).map(g => g.id);
+    if (!groups.length) return say("None of the selected boxes is in a group – select a group's boxes (a click on its head), then Ctrl+Shift+G.", true);
+    canvasOp({ edit: "ungroup", groups });
+  };
+  /** A group's menu: its frame head's right click, or its folded pill's */
+  const groupMenu = (id: string, at: Pin) => {
+    const group = levelCanvas?.groups?.find(g => g.id === id);
+    const shown = flow.groups.find(g => g.id === id);
+    if (!group || !shown) return;
+    const off = editable ? null : readOnlyHint ?? "Read-only here.";
+    menu = { at, head: group.label || group.id, add: null, items: [
+      { key: "select", label: "Select its boxes", detail: "Click the head", disabled: off ?? (shown.folded ? "Open the group first – a folded group is one pill." : null),
+        select: () => canvasRef?.selectBoxes?.(shown.members) },
+      { key: "rename", label: "Rename…", detail: "Click its name", disabled: off ?? (shown.folded ? "Open the group first." : null), select: () => renameGroup(group.label) },
+      { key: "colour", label: "Next colour", detail: "Its swatch", disabled: off, select: () => canvasOp({ edit: "groupColour", group: group.id }) },
+      { key: "fold", label: shown.folded ? "Open the group" : "Fold to one pill", detail: shown.folded ? "Double-click" : "Its chevron", disabled: off,
+        select: () => canvasOp({ edit: "foldGroup", group: group.id, folded: !shown.folded }) },
+      { key: "ungroup", label: "Ungroup", detail: "Ctrl+Shift+G", disabled: off, select: () => canvasOp({ edit: "ungroup", groups: [group.id] }) },
+    ] };
+  };
+  /** Rename from the menu: the frame's name field opens (the frame owns the in-place edit) */
+  const renameGroup = (label: string) => {
+    const name = document.querySelector<HTMLButtonElement>(`.flow [aria-label="Group ${CSS.escape(label)}"] button.name`);
+    if (name) name.click();
+    else say(`Click ${label}'s name on its frame to rename it.`);
+  };
+  /** Who writes a note: the signed-in person, by their address's name (the content keeps no address) */
+  const author = $derived(session.user?.email.split("@")[0] ?? "");
+  /** A new note: free at a point of the flow, or beside a box */
+  const addNote = (where: { at?: Pin; box?: string }) => canvasOp({ edit: "note", ...where, ...(author ? { author } : {}) });
+  const noteText = (note: string, text: string) => canvasOp({ edit: "noteText", note, text });
   const pinnedHere = $derived(view.nodes.some(n => !!levelCanvas?.positions?.[n.id]));
 
   /** The boxes selected on the canvas; the rule among them is where an action or a condition goes */
@@ -369,7 +425,13 @@
     const add = menu?.add;
     if (!add) return menu?.items ?? [];
     const choices = add.from ? wireChoices(addContext, add.from, { query: menuQuery }) : addChoices(addContext, { kind: add.kind, query: menuQuery });
-    return choices.map(c => rowOf(c, add.pin));
+    const rows = choices.map(c => rowOf(c, add.pin));
+    // A right click on the empty canvas: a note there, too (schema 5.3)
+    const pin = add.pin;
+    if (pin && !add.from && !add.kind && "add note".includes(menuQuery.trim().toLowerCase())) {
+      rows.unshift({ key: "note", label: "Add note", detail: "N – an annotation, no logic", group: "Canvas", select: () => addNote({ at: pin }) });
+    }
+    return rows;
   });
   /** The menu's head: the verb and the kind – where it goes is the breadcrumb's (Tilman, 2026-11-21) */
   const addHead = (kind: string | null) => `Add${kind ? ` ${kind}` : ""}`;
@@ -396,10 +458,14 @@
    * rules from the last one up (an earlier rule's index stays right), each op on the documents the one before left; what
    * is refused is skipped and said. A node, an event or a variable is not deleted here.
    */
-  const removeBoxes = (boxes: FlowBox[], edges: string[]) => {
+  const removeBoxes = (boxes: FlowBox[], edges: string[], notes: string[] = []) => {
     const refs = boxes.flatMap(b => (b.node?.kind === "rule" ? [ruleRefOf(b.id)] : [])).filter((r): r is RuleRef => r !== null).sort((x, y) => y.rule - x.rule);
     const others = boxes.filter(b => b.node && b.node.kind !== "rule");
-    const ops: Op[] = [...edges.map((edge): Op => ({ op: "disconnect", edge })), ...refs.map((ref): Op => ({ op: "removeRule", home: { ...ref, part: "on" } }))];
+    // Notes first (an empty text removes one), then the wires, then the rules from the last one up
+    const ops: Op[] = [
+      ...notes.map((note): Op => ({ op: "canvas", edit: { edit: "noteText", note, text: "" } })),
+      ...edges.map((edge): Op => ({ op: "disconnect", edge })), ...refs.map((ref): Op => ({ op: "removeRule", home: { ...ref, part: "on" } })),
+    ];
     if (!ops.length) {
       if (others.length) say(`${others[0].node!.label}: only rules and wires are deleted here – a node goes in the tree, an event or a variable with the rules that name it.`, true);
       return;
@@ -422,10 +488,21 @@
     }
     if (!merged) return say(refused[0] ?? "Nothing deleted.", true);
     const done = ops.length - refused.length;
-    push({ ...merged, words: `Deleted ${done} of the selection (${[edges.length && `${edges.length} wire${edges.length === 1 ? "" : "s"}`, refs.length && `${refs.length} rule${refs.length === 1 ? "" : "s"}`].filter(Boolean).join(", ")})${refused.length ? ` – ${refused.length} refused: ${refused[0]}` : ""}${others.length ? " – nodes, events and variables stay" : ""}.` });
+    push({ ...merged, words: `Deleted ${done} of the selection (${[notes.length && `${notes.length} note${notes.length === 1 ? "" : "s"}`, edges.length && `${edges.length} wire${edges.length === 1 ? "" : "s"}`, refs.length && `${refs.length} rule${refs.length === 1 ? "" : "s"}`].filter(Boolean).join(", ")})${refused.length ? ` – ${refused.length} refused: ${refused[0]}` : ""}${others.length ? " – nodes, events and variables stay" : ""}.` });
   };
   const openMenu = (at: Pin, target: CanvasTarget, flowAt?: Pin) => {
     if (target.kind === "pane") return openAdd(at, null, flowAt ?? null);
+    if (target.kind === "group") return groupMenu(target.group, at);
+    if (target.kind === "note") {
+      const note = target.note;
+      const off = editable ? null : readOnlyHint ?? "Read-only here.";
+      menu = { at, head: `Note${note.author ? ` by ${note.author}` : ""}`, add: null, items: [
+        { key: "edit", label: "Edit the note", detail: "Double-click", disabled: off,
+          select: () => document.querySelector<HTMLElement>(`.svelte-flow__node[data-id="${CSS.escape(`${NOTE_NODE}${note.id}`)}"] .note`)?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })) },
+        { key: "delete", label: "Delete the note", detail: "Delete", disabled: off, select: () => noteText(note.id, "") },
+      ] };
+      return;
+    }
     if (target.kind === "wire") {
       menu = { at, head: `Wire ${target.label}`, add: null, items: [
         { key: "disconnect", label: "Disconnect", detail: "Delete", disabled: editable ? null : readOnlyHint, select: () => run({ op: "disconnect", edge: target.edge }) },
@@ -442,19 +519,21 @@
     } else if (box.node?.kind === "node" && box.node.pick?.kind === "node") {
       items.push({ key: "add", label: "Add a rule on this node…", disabled: editable ? null : readOnlyHint, select: () => { picked = [box.id]; void tick().then(() => openAdd(at)); } });
     }
-    if (box.pill) {
-      items.push({ key: "open", label: "Open the group", detail: "Double-click", disabled: editable ? null : readOnlyHint, select: () => foldBox(box, false) });
-    } else if (box.node) {
+    if (box.pill) return groupMenu(box.pill.id, at);
+    if (box.node) {
       items.push({ key: "fold", label: box.folded ? "Open the box" : "Fold to its head", disabled: editable ? null : readOnlyHint, select: () => foldBox(box, !box.folded) });
       if (box.pinned) items.push({ key: "unpin", label: "Tidy the level", detail: "the layout places every box again", disabled: editable ? null : readOnlyHint, select: () => canvasOp({ edit: "tidy" }) });
       items.push({ key: "group", label: picked.includes(box.id) && picked.length > 1 ? `Group the ${picked.length} selected boxes` : "Group this box", detail: "Ctrl+G", disabled: editable ? null : readOnlyHint,
         select: () => canvasOp({ edit: "group", boxes: picked.includes(box.id) ? picked.filter(id => view.nodes.some(n => n.id === id)) : [box.id] }) });
     }
+    if (box.node && !box.stub) {
+      items.push({ key: "note", label: "Add note", detail: "beside the box – it moves with it", disabled: editable ? null : readOnlyHint, select: () => addNote({ box: box.id }) });
+    }
     if (box.hidden.length || box.ports.some(p => p.kind)) {
       items.push({ key: "ports", label: "Show a port…", detail: box.hidden.length ? `${box.hidden.length} hidden` : "none hidden", disabled: editable ? (box.hidden.length ? null : "Every port shows.") : readOnlyHint, select: () => exposeMenu(box, at) });
       items.push({ key: "hide", label: "Hide unused ports", detail: "Ctrl+H: every box", disabled: editable ? null : readOnlyHint, select: () => run({ op: "canvas", edit: { edit: "hideUnused", box: box.id } }) });
     }
-    menu = { at, head: box.stub ? box.stub.label : box.pill ? box.pill.label : box.node?.label ?? "", add: null, items };
+    menu = { at, head: box.stub ? box.stub.label : box.node?.label ?? "", add: null, items };
   };
   let addButton = $state<HTMLButtonElement>();
   const plusMenu = () => {
@@ -470,6 +549,8 @@
 
   // ── The canvas, loaded on first use (xyflow stays out of the editor's first load) ──
   let Canvas = $state<Component<any> | null>(null);
+  /** The canvas's own calls: select a group's boxes, a screen point on the flow */
+  let canvasRef = $state<any>(null);
   let canvasError = $state<string | null>(null);
   onMount(() => {
     import("./LogicCanvas.svelte").then(m => (Canvas = m.default)).catch(e => (canvasError = String(e?.message ?? e)));
@@ -534,8 +615,8 @@
     <button bind:this={addButton} type="button" class="icon-button" disabled={!editable} onclick={plusMenu} aria-label="Add to the logic" title={editable ? "Add a rule, an action or a condition (or right-click the canvas)" : readOnlyHint ?? ""}
       data-help-name="Add to the logic" data-help="Every type, by family: an event (a new rule hears it), a condition or an action – for the selected rule, or with no rule selected a new rule on found (a node) or sceneChanged (the scene, the experience) that carries it. Type to filter; emit name, set name, when name or rule on name add a new one. A right click on the canvas, or a node dragged from the Library's Nodes, opens the same list; a wire let go on the empty canvas lists what can be made there and wired to it.">+</button>
     <button type="button" class="pill" disabled={!editable || !picked.some(id => view.nodes.some(n => n.id === id))} onclick={groupPicked}
-      title={editable ? "Group the selected boxes (Ctrl+G)" : readOnlyHint ?? ""}
-      data-help-name="Group" data-help="The selected boxes (Shift adds to the selection) get a frame of their own, as in the SCUTOONS deck: its head folds it to a pill, its swatch takes the next colour, a click on its name renames it – an empty name removes the group. A box sits in one group at most.">Group</button>
+      title={editable ? "Group the selected boxes (Ctrl+G) – Ctrl+Shift+G ungroups" : readOnlyHint ?? ""}
+      data-help-name="Group" data-help="The selected boxes (Shift adds to the selection) get a frame of their own, as in the SCUTOONS deck: its chevron folds it to a pill, its swatch takes the next colour, a click on its name renames it. A click on the frame's head selects the group's boxes (Shift adds them); a right click on it, or on a folded group's pill, opens its menu – select, rename, colour, fold, Ungroup. Ctrl+Shift+G ungroups the groups of the selected boxes; the boxes stay where they are. A box sits in one group at most. Notes: right-click the canvas or a box and Add note, or press N over the canvas.">Group</button>
     <button type="button" class="pill" disabled={!editable || !pinnedHere} onclick={() => canvasOp({ edit: "tidy" })}
       title={editable ? (pinnedHere ? "Lay the level out again: every box you placed goes back into the layout" : "Nothing placed by hand at this level") : readOnlyHint ?? ""}
       data-help-name="Tidy" data-help="A box dragged by its head stays where you let it go (on the 1rem grid). Tidy drops those places at this level: the automatic layout places every box again.">Tidy</button>
@@ -561,18 +642,18 @@
   {/if}
   {#if content.loading && !content.scenes.length}
     <p class="muted small">Loading the draft…</p>
-  {:else if !view.nodes.length && !view.stubs.length}
+  {:else if !view.nodes.length && !view.stubs.length && !flow.notes.length}
     <p class="muted small">No logic at this level: no rules and no plugin. Add a rule with + (or a behaviour to a node in the Inspector).</p>
   {:else if canvasError}
     <p class="danger small">The graph could not load: {canvasError}</p>
   {:else if Canvas}
-    <Canvas {flow} level={levelKey} selected={selectedBox} {flash} {editable} onpick={pickBox} onenter={enterBox} canconnect={canConnect}
+    <Canvas bind:this={canvasRef} {flow} level={levelKey} selected={selectedBox} {flash} {editable} onpick={pickBox} onenter={enterBox} canconnect={canConnect}
       onconnect={connectWire}
       onselect={(ids: string[], wires: string[]) => { picked = ids; pickedWires = wires; }} onmenu={openMenu}
       takesfrom={takesFrom} onrefused={refused} onwiredrop={wireDrop} onexpose={exposeMenu}
       onplace={(positions: Record<string, { x: number; y: number }>) => canvasOp({ edit: "place", positions })} onfold={foldBox}
       ongroupfold={(group: string, folded: boolean) => canvasOp({ edit: "foldGroup", group, folded })} ongroupcolour={(group: string) => canvasOp({ edit: "groupColour", group })}
-      ongrouprename={(group: string, label: string) => canvasOp({ edit: "renameGroup", group, label })} />
+      ongrouprename={(group: string, label: string) => canvasOp({ edit: "renameGroup", group, label })} onnoteedit={noteText} />
   {:else}
     <p class="muted small">Loading the graph…</p>
   {/if}

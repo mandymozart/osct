@@ -51,7 +51,7 @@
     <tr><td>Add a condition</td><td class="wrap">Drag a variable into the rule's <b>when</b>.</td></tr>
     <tr><td>Add an action</td><td class="wrap">Drag from the rule's <b>+</b> to a node (show), a variable (set), an event (emit) or a scene (goto).</td></tr>
     <tr><td>Add a rule, action or term</td><td class="wrap">Right-click the canvas, or the bar's <b>+</b>.</td></tr>
-    <tr><td>Remove</td><td class="wrap">Select a wire or a rule and press <kbd>Delete</kbd>.</td></tr>
+    <tr><td>Remove</td><td class="wrap">Select a wire, a rule or a note and press <kbd>Delete</kbd>.</td></tr>
   </table></div>
   <p>While you drag a wire, only the ports that can take it light up. A wire that does not fit says why under the bar. Every change shows on the stage at once, saves itself, and is a step you can undo.</p>
   <p>Fine-tune a rule in the Inspector: the verb, the value, the scope. The canvas and the Inspector edit the same rules.</p>
@@ -60,9 +60,18 @@
   <ul>
     <li><b>Drag a box by its head</b> to place it. <b>Tidy</b> lets the layout place everything again.</li>
     <li><b>Group</b> (or <kbd>Ctrl</kbd>+<kbd>G</kbd>) frames the selected boxes; a group has a name and a colour and folds to one pill.</li>
+    <li><b>Click a group's head</b> to select its boxes (<kbd>Shift</kbd> adds them). <b>Right-click the head</b> for its menu: select, rename, colour, fold and <b>Ungroup</b>. <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> ungroups the groups of the selected boxes; the boxes stay where they are.</li>
     <li>A box hides its unused ports. Its <b>+</b> shows more; <kbd>Ctrl</kbd>+<kbd>H</kbd> hides the unused ones again.</li>
   </ul>
   <p>The arrangement is saved with the draft. It is authoring data: readers never get it.</p>
+
+  <h2 id="notes">Notes</h2>
+  <p>Notes are annotations on the canvas – they are not logic and change nothing. Right-click the empty canvas and choose <b>Add note</b>, or press <kbd>N</kbd> with the pointer over the canvas. <b>Add note</b> on a box's right-click menu puts the note beside the box: it moves with the box, joined by a dotted line.</p>
+  <ul>
+    <li>Type the text; <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or clicking elsewhere keeps it, <kbd>Esc</kbd> goes back. Double-click a note to edit it again.</li>
+    <li>A note shows who wrote it. Drag it anywhere; select it and press <kbd>Delete</kbd> to remove it (an empty note goes too).</li>
+    <li>When the rule beside it is removed, the note stays where it was.</li>
+  </ul>
 
   <h2 id="problems">Problems</h2>
   <p>Under the graph, in red: a variable that is read but never set, an event that is heard but never emitted (or emitted but never heard), a node an action names that is not there, and type problems in conditions.</p>

@@ -1,6 +1,6 @@
 import {
   BEHAVIOUR_CORE_EVENTS, BEHAVIOUR_NODE_ACTIONS, BEHAVIOUR_TYPE, behaviourData, behaviourRules, isBehaviourNodeEvent,
-  type BehaviourAction, type BehaviourRule, type ComponentData, type EntityData, type LogicCanvas, type LogicCanvasGroup,
+  type BehaviourAction, type BehaviourRule, type ComponentData, type EntityData, type LogicCanvas, type LogicCanvasGroup, type LogicCanvasNote,
 } from "@engine/types";
 import { CAMEL_CASE_NAME } from "@shared/guards/primitives";
 import { expressionVariables } from "@shared/text/expressions";
@@ -9,7 +9,8 @@ import type { VariableInfo, VariableType } from "@shared/types/variables";
 import { appendCondition, literalOf, newAction, pathOfName, removeConditionTerms, rulesOf, setValueProblems, typeWord, whenProblems, withAction, withRules } from "#lib/behaviour-edit.js";
 import { nodeLabel } from "#lib/tree.js";
 import { nodeAt, withNode } from "#lib/values.js";
-import { GROUP_COLOURS, snap } from "./signals";
+import { NOTE_BESIDE, flowOf, noteView } from "./flow";
+import { GRID, GROUP_COLOURS, snap } from "./signals";
 import { conditionWords, experienceProblems, logicRuleLabel, logicTypes, project, type LogicContent, type ProjectOptions } from "./project";
 import { typeTakes, typeWords } from "./spec-ports";
 import type { CanvasEdit, Context, GraphEdge, GraphNode, Home, Op, PortSpec, PortType, Problem, RulePlace, RuleRef, View } from "./types";
@@ -41,7 +42,11 @@ import type { CanvasEdit, Context, GraphEdge, GraphNode, Home, Op, PortSpec, Por
  * no rule action yet, and a **file inlet** waits for file nodes (L-T12) – both are refused with the reason. The canvas ops
  * change the level's canvas (the scene's `LogicCanvas`, or the experience's): `expose` and `hideUnused` its exposed ports,
  * and (L-T7, schema 5.2) `place` / `tidy` its pinned boxes, `fold` a box to its head, `group` / `renameGroup` /
- * `groupColour` / `foldGroup` the deck's groups – saved like a rule's edit, so History lists them and Undo takes them back.
+ * `groupColour` / `foldGroup` / `ungroup` the deck's groups – saved like a rule's edit, so History lists them and Undo takes
+ * them back. **Notes** (schema 5.3, the deck's `Note` / `NoteText`): `note` adds an empty note – free at a point, or beside a
+ * box, by its author – `noteText` writes its text (empty removes it), `place` with `note:<id>` moves it. A note is no logic:
+ * no op but these reads it. When an op takes away the box a note stands beside (a rule removed, a variable nothing names any
+ * more), the note stays – free, where it last stood (`keepNotes`); a removed rule's later siblings keep their notes.
  */
 
 /** A tree an op changed: the target's whole new entity */
@@ -669,6 +674,10 @@ const leanCanvas = (canvas: LogicCanvas): LogicCanvas | undefined => {
   return Object.keys(next).length ? next : undefined;
 };
 
+/** A note's key in a `place` edit's positions */
+const NOTE_KEY = "note:";
+/** A second note beside the same box stands this far below the first */
+const NOTE_STACK = 5 * GRID;
 /** A group's name for the status line */
 const groupName = (group: LogicCanvasGroup) => group.label || group.id;
 
@@ -686,6 +695,10 @@ const canvasEdit = (draft: Draft, context: Exclude<Context, { level: "group" }>,
   const boxOf = (id: string) => view.nodes.find(n => n.id === id);
   const groups = canvas.groups ?? [];
   const groupOf = (id: string) => groups.find(g => g.id === id);
+  /** The canvas's notes; the level's own are those of its view (a scene's canvas holds its targets' views too) */
+  const notesNow = canvas.notes ?? [];
+  const here = noteView(context);
+  const noteOf = (id: string) => notesNow.find(n => n.id === id && n.view === here);
   const save = (next: LogicCanvas, words: string) => {
     draft.setCanvas(home, leanCanvas(next));
     return draft.done(words, options);
@@ -716,16 +729,23 @@ const canvasEdit = (draft: Draft, context: Exclude<Context, { level: "group" }>,
       return save({ ...canvas, exposed }, words);
     }
     case "place": {
-      const ids = Object.keys(edit.positions);
-      if (!ids.length) return refuse("Nothing was moved.");
+      const all = Object.keys(edit.positions);
+      if (!all.length) return refuse("Nothing was moved.");
+      const noteIds = all.filter(id => id.startsWith(NOTE_KEY));
+      const ids = all.filter(id => !id.startsWith(NOTE_KEY));
       const away = ids.find(id => !boxOf(id));
       if (away) return refuse("That box is not at this level – only the level's own boxes are placed.");
-      const wrong = ids.find(id => !Number.isFinite(edit.positions[id].x) || !Number.isFinite(edit.positions[id].y));
-      if (wrong) return refuse(`${boxOf(wrong)!.label}: no place to pin it to.`);
+      if (noteIds.some(id => !noteOf(id.slice(NOTE_KEY.length)))) return refuse("That note is not here any more.");
+      const wrong = all.find(id => !Number.isFinite(edit.positions[id].x) || !Number.isFinite(edit.positions[id].y));
+      if (wrong) return refuse(`${boxOf(wrong)?.label ?? "The note"}: no place to pin it to.`);
       const positions = { ...(canvas.positions ?? {}) };
       for (const id of ids) positions[id] = { x: snap(edit.positions[id].x), y: snap(edit.positions[id].y) };
+      const moved = new Map(noteIds.map(id => [id.slice(NOTE_KEY.length), edit.positions[id]]));
+      const notes = notesNow.map(n => (moved.has(n.id) && n.view === here ? { ...n, x: snap(moved.get(n.id)!.x), y: snap(moved.get(n.id)!.y) } : n));
       const names = ids.map(id => boxOf(id)!.label);
-      return save({ ...canvas, positions }, `${names.length === 1 ? names[0] : `${names.length} boxes`} pinned where you let go – Tidy lays the level out again.`);
+      const words = !ids.length ? `${noteIds.length === 1 ? "The note" : `${noteIds.length} notes`} moved.`
+        : `${names.length === 1 ? names[0] : `${names.length} boxes`} pinned where you let go${noteIds.length ? ` (and ${noteIds.length === 1 ? "a note" : `${noteIds.length} notes`} moved)` : ""} – Tidy lays the level out again.`;
+      return save({ ...canvas, positions, ...(noteIds.length ? { notes } : {}) }, words);
     }
     case "tidy": {
       const positions = { ...(canvas.positions ?? {}) };
@@ -764,6 +784,36 @@ const canvasEdit = (draft: Draft, context: Exclude<Context, { level: "group" }>,
       if (!label) return save({ ...canvas, groups: groups.filter(g => g !== group) }, `${groupName(group)} removed – its boxes stay where they are.`);
       if (label === group.label) return refuse(`${label} is its name already.`);
       return save({ ...canvas, groups: groups.map(g => (g === group ? { ...g, label } : g)) }, `${groupName(group)} renamed to ${label}.`);
+    }
+    case "ungroup": {
+      const gone = groups.filter(g => edit.groups.includes(g.id));
+      if (!gone.length) return refuse(edit.groups.length ? "That group is not there any more." : "Select boxes of a group first – Ctrl+Shift+G ungroups their groups.");
+      return save({ ...canvas, groups: groups.filter(g => !gone.includes(g)) },
+        `${gone.length === 1 ? groupName(gone[0]) : `${gone.length} groups`} ungrouped – the boxes stay where they are.`);
+    }
+    case "note": {
+      const box = edit.box === undefined ? undefined : boxOf(edit.box);
+      if (edit.box !== undefined && !box) return refuse("That box is not at this level – a note stands beside one of the level's boxes.");
+      if (!box && !(edit.at && Number.isFinite(edit.at.x) && Number.isFinite(edit.at.y))) return refuse("Where should the note go? Right-click the canvas or a box.");
+      let n = 1;
+      while (notesNow.some(note => note.id === `note-${n}`)) n++;
+      // Beside its box, to the right; a second note on the same box below the first
+      const beside = box ? notesNow.filter(note => note.box === box.id && note.view === here).length : 0;
+      const author = edit.author?.trim();
+      const note: LogicCanvasNote = {
+        id: `note-${n}`, text: "",
+        ...(box ? { x: NOTE_BESIDE.x, y: NOTE_BESIDE.y + beside * NOTE_STACK } : { x: snap(edit.at!.x), y: snap(edit.at!.y) }),
+        ...(author ? { author } : {}), ...(box ? { box: box.id } : {}), ...(here ? { view: here } : {}),
+      };
+      return save({ ...canvas, notes: [...notesNow, note] }, box ? `A note beside ${box.label} – type its text.` : "A note – type its text.");
+    }
+    case "noteText": {
+      const note = noteOf(edit.note);
+      if (!note) return refuse("That note is not here any more.");
+      const text = edit.text.trim();
+      if (!text) return save({ ...canvas, notes: notesNow.filter(n => n !== note) }, note.text ? "Note removed." : "The empty note is gone.");
+      if (text === note.text) return refuse("The note says that already.");
+      return save({ ...canvas, notes: notesNow.map(n => (n === note ? { ...n, text } : n)) }, note.text ? "Note changed." : "Note written.");
     }
     case "groupColour": {
       const group = groupOf(edit.group);
@@ -833,11 +883,59 @@ const pinNew = (result: Extract<OpResult, { ok: true }>, op: Op, before: LogicCo
   return { ...result, content: draft.content, canvas: [...result.canvas.filter(c => !fresh.some(f => key(f) === key(c))), ...fresh] };
 };
 
+/** Two rules in one list (the same component, the same scene, the experience) */
+const sameList = (x: RuleRef, y: RuleRef) => JSON.stringify({ ...x, rule: 0 }) === JSON.stringify({ ...y, rule: 0 });
+
+/**
+ * The notes beside boxes after an op on the documents (schema 5.3): a box id that moved with it follows (a removed rule's
+ * later siblings – rule boxes are numbered), and a note whose box went stays free where it last stood. Only the level's own
+ * view; merged into the op's result, so the canvas saves with the rules.
+ */
+const keepNotes = (result: Extract<OpResult, { ok: true }>, op: Op, before: LogicContent, context: Exclude<Context, { level: "group" }>, options: ProjectOptions): OpResult => {
+  const home = canvasHome(context);
+  const canvasIn = (c: LogicContent) => (home.doc === "experience" ? c.canvas : c.scenes.find(s => s.id === home.scene)?.canvas);
+  const canvas = canvasIn(result.content);
+  const at = noteView(context);
+  if (!canvas?.notes?.some(n => n.box && n.view === at)) return result;
+  const was = project(before, context, options);
+  const now = project(result.content, context, options);
+  const nowIds = new Set(now.nodes.map(n => n.id));
+  const ruleNow = new Map(now.nodes.flatMap(n => (n.kind === "rule" && n.home ? [[JSON.stringify(refOf(n.home)), n.id] as const] : [])));
+  const removed = op.op === "removeRule" ? refOf(op.home) : null;
+  const follow = (ref: RuleRef): RuleRef | null =>
+    !removed || !sameList(ref, removed) || ref.rule < removed.rule ? ref : ref.rule === removed.rule ? null : { ...ref, rule: ref.rule - 1 };
+  let flow: ReturnType<typeof flowOf> | null = null;
+  let changed = false;
+  const notes = canvas.notes.map(note => {
+    const old = note.box && note.view === at ? was.nodes.find(n => n.id === note.box) : undefined;
+    if (!old) return note;
+    let id: string | undefined;
+    if (old.kind === "rule" && old.home) {
+      const ref = follow(refOf(old.home));
+      id = ref ? ruleNow.get(JSON.stringify(ref)) : undefined;
+    } else id = nowIds.has(old.id) ? old.id : undefined;
+    if (id === note.box) return note;
+    changed = true;
+    if (id) return { ...note, box: id };
+    flow ??= flowOf(was, canvasIn(before));
+    const box = flow.boxes.find(b => b.id === note.box || b.pill?.members.includes(note.box!));
+    const { box: _gone, ...free } = note;
+    return box ? { ...free, x: snap(box.x + note.x), y: snap(box.y + note.y) } : free;
+  });
+  if (!changed) return result;
+  const draft = new Draft(result.content);
+  draft.setCanvas(home, leanCanvas({ ...canvas, notes }));
+  const key = (c: CanvasChange) => (c.doc === "experience" ? "experience" : c.scene);
+  const fresh = [...draft.canvas.values()];
+  return { ...result, content: draft.content, canvas: [...result.canvas.filter(c => !fresh.some(f => key(f) === key(c))), ...fresh] };
+};
+
 /** Apply an op to the documents, at the level `context` (see the module's comment); `op.pin` pins the box it creates */
 export const apply = (op: Op, content: LogicContent, context: Context, options: ProjectOptions = {}): OpResult => {
   const result = applyOp(op, content, context, options);
-  if (!result.ok || !op.pin || op.op === "canvas" || context.level === "group") return result;
-  return pinNew(result, op, content, context, options);
+  if (!result.ok || op.op === "canvas" || context.level === "group") return result;
+  const pinned = op.pin ? pinNew(result, op, content, context, options) : result;
+  return pinned.ok ? keepNotes(pinned, op, content, context, options) : pinned;
 };
 
 const applyOp = (op: Op, content: LogicContent, context: Context, options: ProjectOptions = {}): OpResult => {

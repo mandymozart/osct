@@ -27,7 +27,7 @@ final class Editor
      * The content schema the editor reads and the draft writes (shared/types/game-config.ts `CONTENT_SCHEMA_VERSION`): an
      * experience of an older MAJOR is refused (`Db::migrate` turns every stored 4.x experience into 5.0, `Migration5`, #334)
      */
-    public const CONTENT_SCHEMA = '5.2';
+    public const CONTENT_SCHEMA = '5.3';
     /**
      * The levels a picture, video or sound may hold (shared/types/media-levels.ts `MEDIA_LEVELS`, schema 4.3, #331): image
      * px (longest side), video height, audio kbps

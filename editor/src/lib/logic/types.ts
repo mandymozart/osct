@@ -228,7 +228,10 @@ export type CanvasEdit =
   | { edit: "expose"; box: string; ports: string[] }
   /** Hide the ports nobody wired again – of one box, or of every box at the level (Blender's Ctrl+H) */
   | { edit: "hideUnused"; box?: string }
-  /** Pin boxes where they were let go (`LogicCanvas.positions`, schema 5.2 – on the 1rem grid), over the automatic layout */
+  /**
+   * Pin boxes where they were let go (`LogicCanvas.positions`, schema 5.2 – on the 1rem grid), over the automatic layout; a
+   * key `note:<id>` moves that note instead (its own place, or its offset from its box – schema 5.3)
+   */
   | { edit: "place"; positions: Record<string, { x: number; y: number }> }
   /** Drop the pins of the level's boxes: the automatic layout places them again (*Tidy*) */
   | { edit: "tidy" }
@@ -238,10 +241,19 @@ export type CanvasEdit =
   | { edit: "group"; boxes: string[] }
   /** Rename a group in place; an empty label removes the group (its boxes stay) */
   | { edit: "renameGroup"; group: string; label: string }
+  /** Remove these groups – their boxes stay where they are (the frame head's menu, Ctrl+Shift+G) */
+  | { edit: "ungroup"; groups: string[] }
   /** The group's next colour of the deck's six */
   | { edit: "groupColour"; group: string }
   /** Fold a group to one pill, or open it */
-  | { edit: "foldGroup"; group: string; folded: boolean };
+  | { edit: "foldGroup"; group: string; folded: boolean }
+  /**
+   * A new empty note (schema 5.3, the deck's `Note`): free at `at` (flow coordinates), or beside `box` (it moves with it);
+   * `author`: who writes it (the signed-in person, as the editor names them)
+   */
+  | { edit: "note"; at?: { x: number; y: number }; box?: string; author?: string }
+  /** A note's text; an empty text removes the note (the deck's `NoteText`) */
+  | { edit: "noteText"; note: string; text: string };
 
 /**
  * Where a new rule goes: a node of a target's tree (its first behaviour component; one is added when it has none), a

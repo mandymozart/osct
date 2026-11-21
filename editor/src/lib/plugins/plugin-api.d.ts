@@ -293,6 +293,9 @@ interface LogicCanvasNote {
 	text: string;
 	x: number;
 	y: number;
+	author?: string;
+	box?: string;
+	view?: string;
 }
 interface LogicData {
 	/** Rules in the content's form (`./behaviour.ts`): `{ on, when?, do }` – read them with `logicRules` */
