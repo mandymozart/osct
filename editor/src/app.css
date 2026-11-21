@@ -43,7 +43,6 @@
    */
   --signal-event: #22271e;
   --signal-control: #2f9e4a;
-  --signal-clock: #c23238;
   --signal-audio: #0089a8;
   --signal-picture: #3a63c9;
   --signal-address: #8a4fd0;
@@ -81,7 +80,6 @@
     --warn: var(--danger);
     --signal-event: #f3f3f0;
     --signal-control: #46d36a;
-    --signal-clock: #e5484d;
     --signal-audio: #19b8d8;
     --signal-picture: #6f9bff;
     --signal-address: #b46bff;
@@ -111,7 +109,6 @@
   --warn: var(--danger);
   --signal-event: #f3f3f0;
   --signal-control: #46d36a;
-  --signal-clock: #e5484d;
   --signal-audio: #19b8d8;
   --signal-picture: #6f9bff;
   --signal-address: #b46bff;
