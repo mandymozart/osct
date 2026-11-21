@@ -10,7 +10,7 @@ import { nodeLabel } from "#lib/tree.js";
 import type { PluginUses } from "./plugin-code";
 import { coreRegistry, type NodeRegistry } from "./registry";
 import { answersVerb, nodePorts, nodeSpecs } from "./spec-ports";
-import type { Context, GraphEdge, GraphNode, Home, LogicPick, Problem, RuleRef, Signal, Stub, View } from "./types";
+import type { Context, GraphEdge, GraphNode, Home, LogicPick, Problem, RuleRef, Severity, Signal, Stub, View } from "./types";
 
 /**
  * `project(content, context)` → `View` (#334, research §6): the logic of the experience as a graph **for one level**, computed
@@ -193,9 +193,11 @@ export const typeProblemsByRule = (rules: readonly BehaviourRule[], types: Reado
     return [{ rule: Number(rule), message: `${where}: ${words}` }];
   });
 
-/** The type problems of some lists, each in words with its place */
-const typeProblemsOf = (lists: readonly LogicRuleList[], types: ReadonlyMap<string, VariableInfo>): string[] =>
-  lists.flatMap(list => typeProblemsByRule(list.rules, types).map(p => `${list.where}, rule ${p.rule + 1}, ${p.message}`));
+/** The type problems of some lists, each in words with its place (errors: the rule refuses the type) */
+const typeProblemsOf = (lists: readonly LogicRuleList[], types: ReadonlyMap<string, VariableInfo>): Problem[] =>
+  lists.flatMap(list => typeProblemsByRule(list.rules, types).map(p => ({
+    message: `${list.where}, rule ${p.rule + 1}, ${p.message}`, severity: "error" as const, place: `${list.where}, rule ${p.rule + 1}`, short: p.message,
+  })));
 
 // ── Places and their uses: who sets, reads, emits and hears what, across the experience ──────────────────────────────
 
@@ -362,9 +364,13 @@ class Graph {
     this.edges.push({ id, from, to, signal, label, home });
   }
 
-  flag(node: GraphNode, message: string): void {
-    if (!node.problem) node.problem = message;
-    if (!this.problems.some(p => p.message === message)) this.problems.push({ message, node: node.id });
+  /** A problem of a box: `short` is the message without the box's name (the issues bar shows the name beside it) */
+  flag(node: GraphNode, message: string, severity: Severity, short?: string): void {
+    if (!node.problem || (severity === "error" && node.problemSeverity === "warning")) {
+      node.problem = message;
+      node.problemSeverity = severity;
+    }
+    if (!this.problems.some(p => p.message === message)) this.problems.push({ message, severity, node: node.id, place: node.label, ...(short ? { short } : {}) });
   }
 
   eventNode(name: string): GraphNode {
@@ -389,7 +395,7 @@ class Graph {
     if (!rule.on) {
       // Its on was cut (or never set): the rule hears nothing until an event is wired to it
       const box = this.nodes.get(id);
-      if (box) this.flag(box, `${box.label} hears nothing – wire an event to its on.`);
+      if (box) this.flag(box, `${box.label} hears nothing – wire an event to its on.`, "warning", "hears nothing – wire an event to its on");
     } else if (isBehaviourNodeEvent(rule.on) && opts.ownEvent) {
       this.link([opts.ownEvent(rule.on).id, "out"], [id, "on"], "event", "on", home("on"));
     } else {
@@ -484,7 +490,8 @@ const targetsGraph = (content: LogicContent, uses: readonly Use[], { scene, targ
             const relative = pathOfName(node, action.node);
             if (relative) return actionPort(entityNode(target.id, root, [...path, ...relative]), action.action);
             const missing = g.add({ id: `missing:${pathKey(target.id, path)}:${action.node}`, kind: "node", label: action.node, detail: `not under ${owner}`, pick });
-            g.flag(missing, `${owner}, rule ${n + 1}: ${action.action} names ${action.node} – no node of that name under ${owner}`);
+            g.flag(missing, `${owner}, rule ${n + 1}: ${action.action} names ${action.node} – no node of that name under ${owner}`, "error",
+              `not under ${owner} (rule ${n + 1}, ${action.action})`);
             return [missing.id, "in"];
           },
         });
@@ -508,7 +515,9 @@ const targetsGraph = (content: LogicContent, uses: readonly Use[], { scene, targ
         const path = target?.entity && address?.scheme === "target" ? pathOfName(target.entity, address.node) : null;
         if (target?.entity && path) return actionPort(entityNode(target.id, target.entity, path), action.action);
         const missing = g.add({ id: `missing:scene:${action.node}`, kind: "node", label: action.node || "?", detail: "not in this scene", pick: { kind: "scene", scene } });
-        g.flag(missing, `${label}: ${action.action} names ${action.node || "no node"} – ${!address ? "not an address (target:<id>/<name>)" : !target ? "no such target in this scene" : "no node of that name in the target"}`);
+        const why = !address ? "not an address (target:<id>/<name>)" : !target ? "no such target in this scene" : "no node of that name in the target";
+        const brief = !address ? "not an address" : !target ? "no such target here" : "no such node";
+        g.flag(missing, `${label}: ${action.action} names ${action.node || "no node"} – ${why}`, "error", `${brief} (${label}, ${action.action})`);
         return [missing.id, "in"];
       },
     });
@@ -568,7 +577,7 @@ const targetsGraph = (content: LogicContent, uses: readonly Use[], { scene, targ
   // A goto to a scene the experience does not have
   for (const goto of g.gotos) {
     const box = g.nodes.get(goto.from[0]);
-    if (box && !content.scenes.some(s => s.id === goto.scene)) g.flag(box, `${box.label}: goto scene:${goto.scene} – the experience has no scene ${goto.scene}`);
+    if (box && !content.scenes.some(s => s.id === goto.scene)) g.flag(box, `${box.label}: goto scene:${goto.scene} – the experience has no scene ${goto.scene}`, "error", `goto: no scene ${goto.scene}`);
   }
   flagNames(g, content, uses);
   return g;
@@ -586,11 +595,11 @@ const flagNames = (g: Graph, content: LogicContent, uses: readonly Use[]): void 
   const declared = new Set(Object.keys(content.variables ?? {}));
   for (const node of g.nodes.values()) {
     if (node.kind === "variable" && g.edges.some(e => e.from[0] === node.id) && !sets.has(node.label) && !declared.has(node.label)) {
-      g.flag(node, `${node.label} is read, but nothing in the experience sets it`);
+      g.flag(node, `${node.label} is read, but nothing in the experience sets it`, "warning", "read, nothing sets it");
     }
     if (node.kind === "event" && node.id === `event:${node.label}` && !CORE.includes(node.label)) {
-      if (g.edges.some(e => e.from[0] === node.id) && !emits.has(node.label)) g.flag(node, `${node.label} is heard, but nothing in the experience emits it – its rules never fire`);
-      else if (g.edges.some(e => e.to[0] === node.id) && !hears.has(node.label)) g.flag(node, `${node.label} is emitted, but nothing in the experience hears it`);
+      if (g.edges.some(e => e.from[0] === node.id) && !emits.has(node.label)) g.flag(node, `${node.label} is heard, but nothing in the experience emits it – its rules never fire`, "warning", "heard, nothing emits it – never fires");
+      else if (g.edges.some(e => e.to[0] === node.id) && !hears.has(node.label)) g.flag(node, `${node.label} is emitted, but nothing in the experience hears it`, "warning", "emitted, nothing hears it");
     }
   }
 };
@@ -682,7 +691,7 @@ const sceneView = (content: LogicContent, context: Extract<Context, { level: "sc
   const isNear = (p: Place) => p.scene === scene.id && (!entity || p.target === context.target);
   const stubs = [...nameStubs(content, g, joinsOf(uses), isNear, { scene: scene.id }), ...gotoStubs(content, g)];
   const lists = logicRuleLists(content).filter(l => l.scene === scene.id && (!entity || l.target === context.target));
-  const problems = [...g.problems, ...typeProblemsOf(lists, logicTypes(content)).map(message => ({ message }))];
+  const problems = [...g.problems, ...typeProblemsOf(lists, logicTypes(content))];
   const nodes = hideUnused([...g.nodes.values()], [...g.edges, ...stubs.map(s => s.edge)], scene.canvas?.exposed ?? {});
   return { context, levels, nodes, edges: g.edges, stubs, problems, canvas: EMPTY_CANVAS() };
 };
@@ -740,12 +749,13 @@ const gotoPairs = (gotos: readonly Goto[]) => {
 const ruleCount = (scene: LogicScene) =>
   (scene.rules?.length ?? 0) + scene.targets.reduce((n, t) => n + (t.entity ? walk(t.entity).reduce((m, { node }) => m + rulesOfNode(node).length, 0) : 0), 0);
 
-/** The problems of a set of scenes (each scene's, once), pointing at the scene's box */
+/** The problems of a set of scenes (each scene's, once), pointing at the scene's box – and `at` the box in the scene's level */
 const scenesProblems = (content: LogicContent, scenes: readonly LogicScene[], uses: readonly Use[], registry: NodeRegistry): Problem[] => {
   const problems: Problem[] = [];
   for (const scene of scenes) {
-    for (const { message } of targetsGraph(content, uses, { scene: scene.id, targets: scene.targets, enterEntities: false, sceneRules: scene.rules ?? [] }, registry).problems) {
-      if (!problems.some(p => p.message === message)) problems.push({ message, node: `scene:${scene.id}` });
+    for (const p of targetsGraph(content, uses, { scene: scene.id, targets: scene.targets, enterEntities: false, sceneRules: scene.rules ?? [] }, registry).problems) {
+      if (problems.some(q => q.message === p.message)) continue;
+      problems.push({ ...p, node: `scene:${scene.id}`, ...(p.node ? { at: { context: { level: "scene" as const, scene: scene.id }, node: p.node } } : {}) });
     }
   }
   return problems;
@@ -779,15 +789,16 @@ const experienceRules = (content: LogicContent, g: Graph): void => {
         const path = found?.target.entity && address?.scheme === "target" ? pathOfName(found.target.entity, address.node) : null;
         const box = g.nodes.get(id)!;
         if (!found) {
-          g.flag(box, `${label}: ${action.action} names ${action.node || "no node"} – ${address ? "no such target in the experience" : "not an address (target:<id>/<name>)"}`);
+          const why = address ? "no such target in the experience" : "not an address (target:<id>/<name>)";
+          g.flag(box, `${label}: ${action.action} names ${action.node || "no node"} – ${why}`, "error", `${action.action} ${action.node || "no node"}: ${why}`);
           return null;
         }
-        if (!path) g.flag(box, `${label}: ${action.action} names ${action.node} – no node of that name on target ${found.target.id}`);
+        if (!path) g.flag(box, `${label}: ${action.action} names ${action.node} – no node of that name on target ${found.target.id}`, "error", `${action.action} ${action.node}: not on target ${found.target.id}`);
         return [`scene:${found.scene.id}`, "nodes"];
       },
     });
     for (const goto of g.gotos.splice(0)) {
-      g.flag(g.nodes.get(goto.from[0])!, `${label}: goto scene:${goto.scene} – the experience has no scene ${goto.scene}`);
+      g.flag(g.nodes.get(goto.from[0])!, `${label}: goto scene:${goto.scene} – the experience has no scene ${goto.scene}`, "error", `goto: no scene ${goto.scene}`);
     }
   });
 };
@@ -886,9 +897,9 @@ const experienceView = (content: LogicContent, context: Context, uses: readonly 
   }
   experienceRules(content, g);
   flagNames(g, content, uses);
-  const problems = [...g.problems.map(p => ({ message: p.message, node: p.node })), ...scenesProblems(content, content.scenes, uses, registry)];
+  const problems = [...g.problems, ...scenesProblems(content, content.scenes, uses, registry)];
   const lists = logicRuleLists(content);
-  problems.push(...typeProblemsOf(lists, logicTypes(content)).map(message => ({ message })));
+  problems.push(...typeProblemsOf(lists, logicTypes(content)));
   return {
     context, levels: [{ level: "experience" }], nodes: [...g.nodes.values()], edges: g.edges, stubs: [],
     problems: problems.filter((p, i) => problems.findIndex(q => q.message === p.message) === i), canvas: EMPTY_CANVAS(),

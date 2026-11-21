@@ -97,7 +97,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-<div class="box {pill ? 'folded-group' : box.stub ? 'stub' : node!.kind}" class:selected={data.selected} class:flash={data.flash} class:dim={data.dim} class:problem={!!node?.problem}
+<div class="box {pill ? 'folded-group' : box.stub ? 'stub' : node!.kind}" class:selected={data.selected} class:flash={data.flash} class:dim={data.dim} class:problem={!!node?.problem && node.problemSeverity !== "warning"} class:warning={node?.problemSeverity === "warning"}
   class:never={data.never} class:far={!!node?.far || !!box.stub} class:folded={box.folded} class:pinned={box.pinned} class:labels
   style:height="{box.h}px" style:width="{box.w}px" style:--kind={kind}
   role="button" tabindex="0" aria-label="{word} {label} – {detail}{node?.problem ? ` – ${node.problem}` : ''}{enterable ? ' – Enter opens it' : ''}"
@@ -176,6 +176,8 @@
   .box.selected { outline: 2px solid var(--signal-accent); outline-offset: 1px; }
   .box.flash { outline: 2px solid var(--text); outline-offset: 3px; }
   .box.problem { border-color: var(--danger); }
+  /* a warning (nothing hears, sets or emits it): dashed, no colour (RULES #38) */
+  .box.warning { border-style: dashed; }
   .box.problem .head { background: color-mix(in srgb, var(--danger) 12%, var(--control-background)); }
   .box.dim { opacity: .3; }
   .box:focus-visible { outline: 2px solid var(--signal-accent); outline-offset: 1px; }
