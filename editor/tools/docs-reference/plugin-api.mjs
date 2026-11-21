@@ -21,6 +21,8 @@ export const OUTPUT = "api/plugins/reference/index.html";
 /**
  * The page's sections in reading order: a heading, a line on it, and the declarations it lists. `as` names how a
  * plugin reaches the members (`api.events.on`), so the entry – and the search – show what is typed.
+ * @typedef {[name: string, as?: string | null, heading?: string]} Listed a declaration, how it is reached, its heading
+ * @type {{ id: string, title: string, intro: string, types: Listed[] }[]}
  */
 const SECTIONS = [
   { id: "api", title: "api", intro: "What `register(api)` gets. Everything else on this page hangs off it.", types: [["PluginApi", "api"]] },
@@ -41,13 +43,25 @@ const SECTIONS = [
 
 const source = () => ts.createSourceFile(SOURCE, fs.readFileSync(SOURCE, "utf8"), ts.ScriptTarget.Latest, true);
 
-/** A node's documentation: its JSDoc comment as one paragraph */
+/**
+ * A node's documentation: its JSDoc comment as one paragraph
+ * @param {ts.Node} node
+ */
 const docOf = node => (ts.getJSDocCommentsAndTags(node) ?? []).filter(ts.isJSDoc).map(doc => ts.getTextOfJSDocComment(doc.comment) ?? "").join(" ").trim();
 
-/** A node's own text without its comment, on one line, tabs gone */
+/**
+ * A node's own text without its comment, on one line, tabs gone
+ * @param {ts.Node} node
+ * @param {ts.SourceFile} file
+ */
 const textOf = (node, file) => node.getText(file).replace(/\s+/g, " ").replace(/;$/, "").trim();
 
-/** The declaration of a name: an interface, a type alias or a declared constant */
+/**
+ * The declaration of a name: an interface, a type alias or a declared constant
+ * @param {ts.SourceFile} file
+ * @param {string} name
+ * @returns {ts.InterfaceDeclaration | ts.TypeAliasDeclaration | ts.VariableDeclaration}
+ */
 const find = (file, name) => {
   for (const statement of file.statements) {
     if ((ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement)) && statement.name.text === name) return statement;
@@ -59,19 +73,29 @@ const find = (file, name) => {
   throw new Error(`plugin-api.d.ts has no ${name} – update SECTIONS in ${path.basename(fileURLToPath(import.meta.url))}`);
 };
 
-/** The members a declaration lists: an interface's, or a constant's type literal's */
+/**
+ * The members a declaration lists: an interface's, or a constant's type literal's
+ * @param {ts.InterfaceDeclaration | ts.TypeAliasDeclaration | ts.VariableDeclaration} declaration
+ * @returns {ts.TypeElement[] | null}
+ */
 const membersOf = declaration => {
   if (ts.isInterfaceDeclaration(declaration)) return [...declaration.members];
-  const type = ts.isVariableDeclaration(declaration) ? declaration.type : declaration.type;
+  const type = declaration.type;
   return type && ts.isTypeLiteralNode(type) ? [...type.members] : null;
 };
 
-/** `extends A, B` of an interface */
+/**
+ * `extends A, B` of an interface
+ * @param {ts.Node} declaration
+ * @param {ts.SourceFile} file
+ */
 const parentsOf = (declaration, file) =>
   ts.isInterfaceDeclaration(declaration) ? (declaration.heritageClauses ?? []).flatMap(clause => clause.types.map(type => type.getText(file))) : [];
 
 /** Every anchor once: a method's second overload (`api.events.on`) gets a number */
+/** @type {Set<string>} */
 let taken = new Set();
+/** @param {string} base */
 const anchor = base => {
   let id = slug(base);
   for (let n = 2; taken.has(id); n++) id = `${slug(base)}-${n}`;
@@ -81,9 +105,16 @@ const anchor = base => {
 /** The declarations the page lists: only those are linked to */
 const LISTED = new Set(SECTIONS.flatMap(section => section.types.map(([name]) => name)));
 
+/** @param {ts.TypeElement} member */
 const memberName = member => (member.name && (ts.isIdentifier(member.name) || ts.isStringLiteral(member.name)) ? member.name.text : null);
 
-/** One member as a row: its name (the anchor), its signature and its documentation */
+/**
+ * One member as a row: its name (the anchor), its signature and its documentation
+ * @param {ts.TypeElement} member
+ * @param {ts.SourceFile} file
+ * @param {string} owner the declaration's name
+ * @param {string | null | undefined} as how a plugin reaches the declaration
+ */
 const row = (member, file, owner, as) => {
   const name = memberName(member);
   if (!name) return "";
@@ -93,6 +124,11 @@ const row = (member, file, owner, as) => {
   return `    <tr id="${anchor(`${owner}-${name}`)}"><td><code>${esc(label)}</code></td><td class="wrap"><code class="sig">${esc(textOf(member, file))}</code>${docOf(member) ? `<br>${inline(docOf(member))}` : ""}</td></tr>`;
 };
 
+/**
+ * One declaration: its heading, its documentation, its members as a table (or its text)
+ * @param {ts.SourceFile} file
+ * @param {Listed} listed
+ */
 const block = (file, [name, as, heading]) => {
   const declaration = find(file, name);
   const members = membersOf(declaration);
