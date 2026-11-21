@@ -4,7 +4,7 @@
 </script>
 
 <script lang="ts">
-  import { SvelteFlow, type Edge, type Node } from "@xyflow/svelte";
+  import { SelectionMode, SvelteFlow, type Edge, type Node } from "@xyflow/svelte";
   import LogicViewControls from "./LogicViewControls.svelte";
   import "@xyflow/svelte/dist/base.css";
   import { frameOf, type Flow, type FlowBox } from "#lib/logic/flow.js";
@@ -31,10 +31,15 @@
    *
    * While a wire is dragged (L-T6, B8), every handle that would take it is drawn heavy and the rest fade (`takesfrom`, asked
    * once when the drag starts); a wire let go over a handle that refuses it is reported (`onrefused`), so the panel can say
-   * why. A box's + reports `onexpose`.
+   * why. A wire let go on the empty canvas – over no handle – reports `onwiredrop` with where (the screen point and the flow's,
+   * #334), so the panel offers what can be made there and wired to the port. A box's + reports `onexpose`.
+   *
+   * **Selecting** (the deck's way, #334): a drag on the empty canvas draws a selection box – every box and wire it touches is
+   * selected, Shift adds to what was – so Group (Ctrl+G) and Delete act on them; panning is the middle button, Space + drag,
+   * and the wheel or the trackpad. Stubs and folded groups' pills are never selected.
    */
   let {
-    flow, level, selected, flash, editable, onpick, onenter, canconnect, onconnect, onselect, onmenu, takesfrom, onrefused, onexpose, onplace, onfold,
+    flow, level, selected, flash, editable, onpick, onenter, canconnect, onconnect, onselect, onmenu, takesfrom, onrefused, onwiredrop, onexpose, onplace, onfold,
     ongroupfold, ongroupcolour, ongrouprename,
   }: {
     flow: Flow;
@@ -50,12 +55,14 @@
     onconnect: (from: [string, string], to: [string, string]) => void;
     /** The selection on the canvas changed: its box ids and its wires (the view's edge ids) – Delete is the panel's */
     onselect: (boxes: string[], edges: string[]) => void;
-    /** A right click (or a long press): where, and on what */
-    onmenu: (at: { x: number; y: number }, target: CanvasTarget) => void;
+    /** A right click (or a long press): where, on what, and where on the flow (the empty canvas: a new box is pinned there) */
+    onmenu: (at: { x: number; y: number }, target: CanvasTarget, flowAt?: { x: number; y: number }) => void;
     /** The handles that take a wire dragged from this port, by box id (handle ids, `in:act:play`) */
     takesfrom: (from: [string, string], dir: "in" | "out") => Map<string, Set<string>>;
     /** A wire let go over a handle that does not take it: the panel says why */
     onrefused: (from: [string, string], to: [string, string]) => void;
+    /** A wire let go over no handle: its port, which way it was dragged, the screen point and the flow's */
+    onwiredrop?: (from: [string, string], dir: "in" | "out", at: { x: number; y: number }, flowAt: { x: number; y: number } | null) => void;
     /** A box's +: show one of its hidden ports */
     onexpose: (box: FlowBox, at: { x: number; y: number }) => void;
     /** Boxes dragged and let go: where they are now (box id → its place) */
@@ -69,6 +76,12 @@
 
   /** While a wire is dragged: the handles that take it, by box */
   let dragging = $state.raw<Map<string, Set<string>> | null>(null);
+  /** Where a wire's drag started (a click on a pin that does not move opens nothing) */
+  let wireStart: { x: number; y: number } | null = null;
+  /** While a selection box is drawn: what it selects so far, and the selection before it (Shift adds to that) */
+  let boxing: { before: { nodes: string[]; edges: string[] }; nodes: string[]; edges: string[] } | null = null;
+  /** From the screen to the flow's coordinates – handed up by the controls inside the flow */
+  let toFlow: ((point: { x: number; y: number }) => { x: number; y: number }) | null = null;
   const NONE: ReadonlySet<string> = new Set();
 
   let hovered = $state<string | null>(null);
@@ -220,16 +233,41 @@
       nodesDraggable={editable} snapGrid={[GRID, GRID]} selectNodesOnDrag={false}
       nodesConnectable={editable} elementsSelectable={editable} zoomOnDoubleClick={false} proOptions={{ hideAttribution: true }}
       deleteKey={null} selectionKey={null} multiSelectionKey={editable ? "Shift" : null}
+      selectionOnDrag={editable} selectionMode={SelectionMode.Partial} panOnDrag={editable ? [1] : true} panActivationKey="Space"
+      onselectionstart={() => { boxing = { before: { nodes: [...chosen.nodes], edges: [...chosen.edges] }, nodes: [], edges: [] }; }}
+      onselectionchange={({ nodes: inBox, edges: wiresInBox }) => {
+        if (!boxing) return;
+        boxing.nodes = inBox.filter(n => n.type === "logic" && n.selectable !== false).map(n => n.id);
+        boxing.edges = wiresInBox.map(e => e.id);
+      }}
+      onselectionend={event => {
+        const box = boxing;
+        boxing = null;
+        if (!box || !editable) return;
+        choose(event.shiftKey ? [...new Set([...box.before.nodes, ...box.nodes])] : box.nodes, event.shiftKey ? [...new Set([...box.before.edges, ...box.edges])] : box.edges);
+      }}
       isValidConnection={c => editable && canconnect(...ends(c))}
       onbeforeconnect={c => { onconnect(...ends(c)); return false; }}
-      onconnectstart={(_, p) => { if (editable && p.nodeId && p.handleId) dragging = takesfrom([p.nodeId, portOf(p.handleId)], p.handleType === "target" ? "in" : "out"); }}
+      onconnectstart={(event, p) => {
+        wireStart = point(event);
+        if (editable && p.nodeId && p.handleId) dragging = takesfrom([p.nodeId, portOf(p.handleId)], p.handleType === "target" ? "in" : "out");
+      }}
       onconnectend={(event, state) => {
         dragging = null;
+        const start = wireStart;
+        wireStart = null;
         const from = state.fromHandle;
         // xyflow names no handle it would not take: the one under the pointer is where the wire was let go
         const to = state.toHandle ?? handleAt(event);
         if (editable && state.isValid !== true && from?.nodeId && to?.nodeId && `${to.nodeId}|${to.id}` !== `${from.nodeId}|${from.id}`) {
           onrefused([from.nodeId, portOf(from.id)], [to.nodeId, portOf(to.id)]);
+        } else if (editable && state.isValid !== true && from?.nodeId && from.id && !to && start) {
+          // Let go over no handle (#334): the menu of what can be made there and wired to the port
+          const at = "clientX" in event ? { x: event.clientX, y: event.clientY } : { x: event.changedTouches[0]?.clientX ?? 0, y: event.changedTouches[0]?.clientY ?? 0 };
+          // After the pointer is up: xyflow ends its drag first, so the menu keeps the focus for typing
+          const port: [string, string] = [from.nodeId, portOf(from.id)];
+          const dir = from.type === "target" ? "in" : "out";
+          if (Math.hypot(at.x - start.x, at.y - start.y) > 8) setTimeout(() => onwiredrop?.(port, dir, at, toFlow?.(at) ?? null));
         }
       }}
       onnodedragstart={({ nodes: dragged, targetNode }) => dragStart(dragged, targetNode)}
@@ -246,9 +284,9 @@
       onpaneclick={() => choose([], [])}
       onnodecontextmenu={({ node, event }) => { event.preventDefault(); const box = boxOf(node); onmenu(point(event), box ? { kind: "box", box } : { kind: "pane" }); }}
       onedgecontextmenu={({ edge, event }) => { event.preventDefault(); const w = wireOf(edge.id); if (w) onmenu(point(event), { kind: "wire", edge: w.edge, label: w.label }); }}
-      onpanecontextmenu={({ event }) => { event.preventDefault(); onmenu(point(event), { kind: "pane" }); }}
+      onpanecontextmenu={({ event }) => { event.preventDefault(); const at = point(event); onmenu(at, { kind: "pane" }, toFlow?.(at)); }}
       onnodepointerenter={({ node }) => { if (!moving && node.type === "logic") hovered = node.id; }} onnodepointerleave={({ node }) => { if (hovered === node.id) hovered = null; }}>
-      <LogicViewControls />
+      <LogicViewControls onflow={f => (toFlow = f)} />
     </SvelteFlow>
   {/key}
 </div>
@@ -269,6 +307,6 @@
   .flow :global(.logic-wire.dim) { opacity: .45; }
   .flow :global(.svelte-flow__edge-label) { font-size: .625rem; padding: 0 .125rem; border-radius: .25rem; }
   /* While a wire is dragged: the inlets that would take it are drawn heavy */
-  .flow :global(.svelte-flow__handle.connectingto), .flow :global(.svelte-flow__handle.valid) { outline: 2px solid var(--text); }
+  .flow :global(.svelte-flow__handle.connectingto.valid) { outline: 2px solid var(--text); }
   .flow.editable :global(.svelte-flow__edge) { cursor: pointer; }
 </style>

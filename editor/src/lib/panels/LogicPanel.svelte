@@ -14,7 +14,7 @@
   import { pluginCodeUses, type PluginUses } from "#lib/logic/plugin-code.js";
   import { project, type LogicContent } from "#lib/logic/project.js";
   import { flowOf, handleId, type FlowBox } from "#lib/logic/flow.js";
-  import { DECK_SIGNALS, SIGNAL_STYLES, signalToken } from "#lib/logic/signals.js";
+  import { DECK_SIGNALS } from "#lib/logic/signals.js";
   import { issueRows, issueSummary, issuesOpen, type IssueRow } from "#lib/logic/issues.js";
   import type { LogicCanvas } from "@engine/types";
   import {
@@ -22,13 +22,14 @@
     stageMove, type SearchHit, type StageMove,
   } from "#lib/logic/navigation.js";
   import type { Context, LogicPick, Op, RulePlace, RuleRef } from "#lib/logic/types.js";
-  import { apply, refOf } from "#lib/logic/apply.js";
+  import { apply, refOf, takesWire, type OpResult } from "#lib/logic/apply.js";
   import { logicEdit } from "#lib/logic-edit.svelte.js";
-  import { addChoices, type AddContext } from "#lib/logic/palette.js";
+  import { addChoices, wireChoices, type AddChoice, type AddContext, type WireFrom } from "#lib/logic/palette.js";
   import { logicDrag } from "#lib/logic-drag.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import type { CanvasTarget } from "./LogicCanvas.svelte";
   import LogicMenu, { type LogicMenuItem } from "./LogicMenu.svelte";
+  import SignalPin from "./SignalPin.svelte";
 
   /**
    * The **Logic** panel (#239, #334 L-T3 – research §6): the experience's logic as a graph, **one level at a time** – the
@@ -47,7 +48,9 @@
    *   (the Code tab), a group, the open scene.
    * - **Editing** (L-T4) on the open scene's scene and entity levels: gestures become ops (`logic/apply.ts`) – a drag from a
    *   port to a port connects, Delete on a selected wire or rule disconnects or removes it, a right click (or **+**, or a
-   *   node type dragged from the Library's *Nodes*) opens the menu of what fits here (`logic/palette.ts`). An op's trees go
+   *   node type dragged from the Library's *Nodes*) opens the menu of every type (`logic/palette.ts`, grouped by family – an
+   *   action or a condition with no rule selected makes a new rule); a wire let go on the empty canvas opens the menu of what
+   *   can be made there and wired to its port, and the new box is pinned where the wire (or the right click) was let go. An op's trees go
    *   to the stage as the Inspector's edits do (`stage.override`: live at once, saved by the autosave, a step in History);
    *   its words – or why it was refused – show for a moment under the bar. A scene's and the experience's rules (content
    *   schema 5.0, L-T5b) go to `logicEdit`, which saves them; the experience level edits the experience's own rules only,
@@ -264,6 +267,10 @@
   const run = (op: Op) => {
     const result = apply(op, logic, context);
     if (!result.ok) return say(result.reason, true);
+    push(result);
+  };
+  /** An op's result to the stage and the saves */
+  const push = (result: Extract<OpResult, { ok: true }>) => {
     for (const change of result.changed) void stage?.override(change.target, change.entity);
     // A scene's and the experience's rules save themselves (`PUT …/scenes/{sid}`, `PUT …/logic`), a step in History each
     for (const change of result.logic) {
@@ -279,19 +286,23 @@
   const takesFrom = (from: [string, string], dir: "in" | "out"): Map<string, Set<string>> => {
     const takes = new Map<string, Set<string>>();
     if (!editable) return takes;
-    const other = dir === "in" ? "out" : "in";
+    // A plugin's bus ports never take a wire (its code's uses) – `takesWire` leaves them out
+    const ports = takesWire(logic, context, from, dir);
     for (const box of flow.boxes) {
-      if (box.stub || box.id === from[0]) continue;
-      for (const port of box.ports) {
-        if (port.dir !== other) continue;
-        const ok = dir === "out" ? canConnect(from, [box.id, port.id]) : canConnect([box.id, port.id], from);
-        if (ok) takes.set(box.id, (takes.get(box.id) ?? new Set()).add(handleId(port)));
-      }
+      const ids = ports.get(box.id);
+      if (!ids || box.stub) continue;
+      for (const port of box.ports) if (ids.has(port.id) && port.dir === (dir === "in" ? "out" : "in")) takes.set(box.id, (takes.get(box.id) ?? new Set()).add(handleId(port)));
     }
     return takes;
   };
   /** A wire let go where it does not fit: the op's refusal says why (B8) */
   const refused = (from: [string, string], to: [string, string]) => {
+    // A plugin's ports come from its code (uses): not a mistake to explain in red – its code opens instead (#334)
+    const plugin = [from[0], to[0]].map(id => view.nodes.find(n => n.id === id)).find(n => n?.kind === "plugin");
+    if (plugin?.pick) {
+      onpick(plugin.pick);
+      return say(`${plugin.label}'s ports come from its code (uses) – opened it in the Code tab.`);
+    }
     const result = apply({ op: "connect", from, to }, logic, context);
     if (!result.ok) say(result.reason, true);
   };
@@ -360,41 +371,80 @@
   });
 
   // ── The menu: right click, the + button, a node type dropped from the Library ──
-  type MenuState = { at: { x: number; y: number }; head: string; add: { kind: string | null } | null; items: LogicMenuItem[] };
+  type Pin = { x: number; y: number };
+  type MenuState = { at: Pin; head: string; add: { kind: string | null; from?: WireFrom | null; pin?: Pin | null } | null; items: LogicMenuItem[] };
   let menu = $state<MenuState | null>(null);
   let menuQuery = $state("");
   const addContext = $derived<AddContext>({
     content: logic, context, place, rule: selectedRule,
     liveVariables: (stage?.vars ?? []).map(v => v.name), liveEvents: (stage?.events ?? []).map(e => e.event),
   });
-  const addItems = (kind: string | null, query: string): LogicMenuItem[] =>
-    addChoices(addContext, { kind, query }).map(c => ({ key: c.key, label: c.label, detail: c.detail, disabled: c.disabled, select: () => c.op && run(c.op) }));
-  const menuItems = $derived(menu?.add ? addItems(menu.add.kind, menuQuery) : menu?.items ?? []);
-  const addHead = (kind: string | null) => {
-    const rule = selectedRule ? view.nodes.find(n => picked.includes(n.id) && n.kind === "rule")?.label : null;
-    const where = !place ? null : place.doc === "experience" ? "the experience" : place.doc === "scene" ? "the scene"
-      : (view.nodes.find(n => n.id === `node:${place.target}/${place.path.join(".")}`)?.label ?? place.target);
-    return `Add${kind ? ` ${kind}` : ""}${rule ? ` – to ${rule}` : where ? ` – on ${where}` : ""}`;
-  };
-  const openAdd = (at: { x: number; y: number }, kind: string | null = null) => {
+  /** A choice as a menu row; `pin`: the box it makes is pinned there (a right click or a wire let go on the empty canvas) */
+  const rowOf = (c: AddChoice, pin: Pin | null | undefined): LogicMenuItem => ({
+    key: c.key, label: c.label, detail: c.detail, disabled: c.disabled, group: c.group, signal: c.signal, type: c.type,
+    select: () => c.op && run(pin && c.op.op !== "canvas" ? { ...c.op, pin } : c.op),
+  });
+  const menuItems = $derived.by((): LogicMenuItem[] => {
+    const add = menu?.add;
+    if (!add) return menu?.items ?? [];
+    const choices = add.from ? wireChoices(addContext, add.from, { query: menuQuery }) : addChoices(addContext, { kind: add.kind, query: menuQuery });
+    return choices.map(c => rowOf(c, add.pin));
+  });
+  /** The menu's head: the verb and the kind – where it goes is the breadcrumb's (Tilman, 2026-11-21) */
+  const addHead = (kind: string | null) => `Add${kind ? ` ${kind}` : ""}`;
+  const openAdd = (at: Pin, kind: string | null = null, pin: Pin | null = null) => {
     if (!editable) return say(readOnlyHint ?? "Read-only here.", true);
     menuQuery = "";
     // A type dropped with exactly one choice is added at once
     const only = kind ? addChoices(addContext, { kind }) : [];
     if (only.length === 1 && only[0].op) return run(only[0].op);
-    menu = { at, head: addHead(kind), add: { kind }, items: [] };
+    menu = { at, head: addHead(kind), add: { kind, pin }, items: [] };
+  };
+  /** A wire let go on the empty canvas (#334): what can be made there and wired to its port, pinned where it was let go */
+  const wireDrop = (from: [string, string], dir: "in" | "out", at: Pin, flowAt: Pin | null) => {
+    if (!editable) return say(readOnlyHint ?? "Read-only here.", true);
+    const node = view.nodes.find(n => n.id === from[0]);
+    if (!node) return;
+    const port = node.ports.find(p => p.id === from[1] && p.dir === dir);
+    menuQuery = "";
+    menu = { at, head: `Add – wired to ${node.label}${port?.label ? ` · ${port.label}` : ""}`, add: { kind: null, from: { node, port: from[1], dir }, pin: flowAt }, items: [] };
   };
   /** Delete on what is selected: one wire or one rule per op (the ids of the rest change with it) */
+  /**
+   * Delete on what is selected (one wire or rule, or everything a selection box took – #334): the wires first, then the
+   * rules from the last one up (an earlier rule's index stays right), each op on the documents the one before left; what
+   * is refused is skipped and said. A node, an event or a variable is not deleted here.
+   */
   const removeBoxes = (boxes: FlowBox[], edges: string[]) => {
-    if (boxes.length + edges.length > 1) return say("Select one wire or one rule to delete – one op at a time.", true);
-    if (edges.length) return run({ op: "disconnect", edge: edges[0] });
-    const box = boxes[0];
-    const ref = box?.node?.kind === "rule" ? ruleRefOf(box.id) : null;
-    if (ref) run({ op: "removeRule", home: { ...ref, part: "on" } });
-    else if (box?.node) say(`${box.node.label}: only rules and wires are deleted here – a node goes in the tree, an event or a variable with the rules that name it.`, true);
+    const refs = boxes.flatMap(b => (b.node?.kind === "rule" ? [ruleRefOf(b.id)] : [])).filter((r): r is RuleRef => r !== null).sort((x, y) => y.rule - x.rule);
+    const others = boxes.filter(b => b.node && b.node.kind !== "rule");
+    const ops: Op[] = [...edges.map((edge): Op => ({ op: "disconnect", edge })), ...refs.map((ref): Op => ({ op: "removeRule", home: { ...ref, part: "on" } }))];
+    if (!ops.length) {
+      if (others.length) say(`${others[0].node!.label}: only rules and wires are deleted here – a node goes in the tree, an event or a variable with the rules that name it.`, true);
+      return;
+    }
+    if (ops.length === 1) return run(ops[0]);
+    let docs = logic;
+    let merged: Extract<OpResult, { ok: true }> | null = null;
+    const refused: string[] = [];
+    for (const op of ops) {
+      const result = apply(op, docs, context);
+      if (!result.ok) { refused.push(result.reason); continue; }
+      docs = result.content;
+      const key = (c: { doc?: string; scene?: string; target?: string }) => c.target ?? c.scene ?? c.doc;
+      merged = !merged ? result : {
+        ...result,
+        changed: [...merged.changed.filter(c => !result.changed.some(n => key(n) === key(c))), ...result.changed],
+        logic: [...merged.logic.filter(c => !result.logic.some(n => key(n) === key(c))), ...result.logic],
+        canvas: [...merged.canvas.filter(c => !result.canvas.some(n => key(n) === key(c))), ...result.canvas],
+      };
+    }
+    if (!merged) return say(refused[0] ?? "Nothing deleted.", true);
+    const done = ops.length - refused.length;
+    push({ ...merged, words: `Deleted ${done} of the selection (${[edges.length && `${edges.length} wire${edges.length === 1 ? "" : "s"}`, refs.length && `${refs.length} rule${refs.length === 1 ? "" : "s"}`].filter(Boolean).join(", ")})${refused.length ? ` – ${refused.length} refused: ${refused[0]}` : ""}${others.length ? " – nodes, events and variables stay" : ""}.` });
   };
-  const openMenu = (at: { x: number; y: number }, target: CanvasTarget) => {
-    if (target.kind === "pane") return openAdd(at);
+  const openMenu = (at: Pin, target: CanvasTarget, flowAt?: Pin) => {
+    if (target.kind === "pane") return openAdd(at, null, flowAt ?? null);
     if (target.kind === "wire") {
       menu = { at, head: `Wire ${target.label}`, add: null, items: [
         { key: "disconnect", label: "Disconnect", detail: "Delete", disabled: editable ? null : readOnlyHint, select: () => run({ op: "disconnect", edge: target.edge }) },
@@ -501,7 +551,7 @@
       {/if}
     </div>
     <button bind:this={addButton} type="button" class="icon-button" disabled={!editable} onclick={plusMenu} aria-label="Add to the logic" title={editable ? "Add a rule, an action or a condition (or right-click the canvas)" : readOnlyHint ?? ""}
-      data-help-name="Add to the logic" data-help="What fits here: a rule on the selected node, an action or a condition for the selected rule. Type to filter; emit name, set name, when name or rule on name add a new one. A right click on the canvas, or a node dragged from the Library's Nodes, opens the same list.">+</button>
+      data-help-name="Add to the logic" data-help="Every type, by family: an event (a new rule hears it), a condition or an action – for the selected rule, or with no rule selected a new rule on found (a node) or sceneChanged (the scene, the experience) that carries it. Type to filter; emit name, set name, when name or rule on name add a new one. A right click on the canvas, or a node dragged from the Library's Nodes, opens the same list; a wire let go on the empty canvas lists what can be made there and wired to it.">+</button>
     <button type="button" class="pill" disabled={!editable || !picked.some(id => view.nodes.some(n => n.id === id))} onclick={groupPicked}
       title={editable ? "Group the selected boxes (Ctrl+G)" : readOnlyHint ?? ""}
       data-help-name="Group" data-help="The selected boxes (Shift adds to the selection) get a frame of their own, as in the SCUTOONS deck: its head folds it to a pill, its swatch takes the next colour, a click on its name renames it – an empty name removes the group. A box sits in one group at most.">Group</button>
@@ -516,7 +566,7 @@
   </div>
   <div class="legend small" aria-label="Legend: the signals">
     {#each LEGEND as signal (signal)}
-      <span class="sig" title={SIGNAL_WORDS[signal]}><span class="pin {SIGNAL_STYLES[signal].shape}" style:--pin="var({signalToken(signal)})"></span>{signal}</span>
+      <span class="sig" title={SIGNAL_WORDS[signal]}><SignalPin {signal} />{signal}</span>
     {/each}
     {#if never}
       <span class="wire never" data-help-name="Never fires"
@@ -538,7 +588,7 @@
     <Canvas {flow} level={levelKey} selected={selectedBox} {flash} {editable} onpick={pickBox} onenter={enterBox} canconnect={canConnect}
       onconnect={(from: [string, string], to: [string, string]) => run({ op: "connect", from, to })}
       onselect={(ids: string[], wires: string[]) => { picked = ids; pickedWires = wires; }} onmenu={openMenu}
-      takesfrom={takesFrom} onrefused={refused} onexpose={exposeMenu}
+      takesfrom={takesFrom} onrefused={refused} onwiredrop={wireDrop} onexpose={exposeMenu}
       onplace={(positions: Record<string, { x: number; y: number }>) => canvasOp({ edit: "place", positions })} onfold={foldBox}
       ongroupfold={(group: string, folded: boolean) => canvasOp({ edit: "foldGroup", group, folded })} ongroupcolour={(group: string) => canvasOp({ edit: "groupColour", group })}
       ongrouprename={(group: string, label: string) => canvasOp({ edit: "renameGroup", group, label })} />
@@ -602,11 +652,6 @@
   .follow { display: inline-flex; align-items: center; gap: .25rem; }
   .legend { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; color: var(--muted); }
   .sig { display: inline-flex; align-items: center; gap: .1875rem; margin-right: .25rem; }
-  .sig .pin { width: .5625rem; height: .5625rem; background: var(--pin); border-radius: 50%; }
-  .sig .pin.square { border-radius: .125rem; }
-  .sig .pin.diamond { width: .4375rem; height: .4375rem; border-radius: .0625rem; transform: rotate(45deg); }
-  .sig .pin.triangle { border-radius: 0; width: .5rem; height: .625rem; clip-path: polygon(0 0, 100% 50%, 0 100%); }
-  .sig .pin.ring { background: none; border: 2px solid var(--pin); box-sizing: border-box; }
   .wire { display: inline-flex; align-items: center; gap: .1875rem; margin-left: .25rem; }
   .wire svg { width: 1.5rem; height: .375rem; }
   .wire line { stroke: var(--muted); stroke-width: 1.5; }

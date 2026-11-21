@@ -5,6 +5,11 @@
     detail?: string;
     /** Why it cannot be chosen: shown, not chosen */
     disabled?: string | null;
+    /** The header it is listed under; a new header starts where it changes */
+    group?: string;
+    /** Its type on the right, as the canvas legend shows it: the signal's pin and a word */
+    signal?: import("#lib/logic/signals.js").DeckSignal;
+    type?: string;
     select: () => void;
   }
 </script>
@@ -12,12 +17,15 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
   import { placeMenu, type Point } from "#lib/context-menu.js";
+  import SignalPin from "./SignalPin.svelte";
 
   /**
    * The Logic canvas's right-click menu (#334 L-T4): a box's or a wire's actions, or – on the empty canvas, the panel's +
    * and a node dropped from the Library – what can be added here, with a **filter field on top** (the typeahead: typing
    * narrows the list, `emit fooBar` offers a new name). The items come from the panel (`logic/palette.ts`'s `addChoices`);
-   * the menu only shows and chooses. Arrows move, Enter chooses the marked item, Esc or a click beside it closes.
+   * the menu only shows and chooses. Arrows move, Enter chooses the marked item, Esc or a click beside it closes. The add
+   * menu's rows are one line each – the name on the left, its type on the right as the legend draws it (pin and word),
+   * under the family's header; the detail is the row's tooltip, and only a grey line says why in words.
    */
   let { at, head, items, filter = false, query = $bindable(""), onclose }: {
     at: Point;
@@ -84,11 +92,16 @@
   {/if}
   <ul>
     {#each items as item, i (item.key)}
+      {#if item.group && item.group !== items[i - 1]?.group}
+        <li class="group small" role="presentation">{item.group}</li>
+      {/if}
       <li>
-        <button type="button" role="menuitem" data-index={i} class:current={i === current} aria-disabled={item.disabled ? "true" : undefined}
+        <button type="button" role="menuitem" data-index={i} class:current={i === current} class:typed={!!item.type} aria-disabled={item.disabled ? "true" : undefined}
           title={item.disabled ?? item.detail ?? ""} onpointerenter={() => { if (!item.disabled) current = i; }} onclick={() => choose(i)}>
           <span class="label">{item.label}</span>
-          {#if item.disabled || item.detail}<span class="detail">{item.disabled ?? item.detail}</span>{/if}
+          {#if item.type}
+            <span class="type">{#if item.signal}<SignalPin signal={item.signal} />{/if}{item.type}</span>
+          {:else if item.disabled || item.detail}<span class="detail">{item.disabled ?? item.detail}</span>{/if}
         </button>
       </li>
     {:else}
@@ -110,7 +123,12 @@
   }
   button.current, button:focus-visible { background: var(--hover-background); outline: none; }
   button[aria-disabled="true"] { color: var(--muted); cursor: default; }
+  button.typed { flex-direction: row; align-items: center; gap: .5rem; }
+  button.typed .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .label { font-weight: 600; }
+  .type { display: inline-flex; align-items: center; gap: .25rem; flex: none; font-size: .625rem; color: var(--muted); }
+  .group { padding: .375rem .375rem .125rem; color: var(--muted); font-size: .625rem; font-weight: 600; }
+  .group:first-child { padding-top: 0; }
   .detail { font-size: .625rem; color: var(--muted); }
   .none { padding: .25rem .375rem; }
 </style>

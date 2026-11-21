@@ -279,28 +279,53 @@ const outside = (content: LogicContent, context: Context, ref: RuleRef | RulePla
 /** The first event a scene's or the experience's new rule hears: when the scene opens */
 const LOGIC_FIRST_EVENT = "sceneChanged";
 
-const addRule = (draft: Draft, at: RulePlace, on: string | undefined, options: ProjectOptions): OpResult => {
+/**
+ * The event a new rule hears when nothing names one (#334): a node's rule its node's `found` (the target is seen), a
+ * scene's or the experience's rule `sceneChanged` (the scene opens) – the add menu's action or condition chosen with no
+ * rule selected makes a rule on this event
+ */
+export const firstEvent = (at: RulePlace): string => (at.doc === "entity" ? "found" : LOGIC_FIRST_EVENT);
+
+type NewRule = { on?: string; when?: string | null; do?: BehaviourAction[] };
+
+const addRule = (draft: Draft, at: RulePlace, fresh: NewRule, options: ProjectOptions): OpResult => {
+  const event = fresh.on ?? firstEvent(at);
+  const when = fresh.when?.trim() || null;
+  const actions = fresh.do ?? [];
+  let ref: RuleRef;
   if (at.doc !== "entity") {
-    const event = on ?? LOGIC_FIRST_EVENT;
     if (!isName(event)) return refuse(`"${event}" is no event – a scene event's name (camelCase) or a core event.`);
     if (isBehaviourNodeEvent(event)) return refuse(`${event} is a node's own event – a ${at.doc}'s rule hears the bus: a scene event or a core event.`);
-    const rules = at.doc === "experience" ? draft.content.rules ?? [] : draft.content.scenes.find(s => s.id === at.scene)?.rules;
+    const rules = at.doc === "experience" ? draft.content.rules ?? [] : draft.content.scenes.find(s => s.id === at.scene)?.rules ?? (draft.content.scenes.some(s => s.id === at.scene) ? [] : undefined);
     if (!rules) return refuse(`There is no scene ${(at as { scene: string }).scene}.`);
     draft.setLogic(at, [...rules, { on: event, when: null, do: [] }]);
-    const name = logicRuleLabel(at.doc === "experience" ? { doc: "experience", rule: rules.length } : { doc: "scene", scene: at.scene, rule: rules.length });
-    return draft.done(`Added ${name}: on ${event}, nothing to do yet – connect its do to a node, a variable, an event or a scene.`, options);
+    ref = at.doc === "experience" ? { doc: "experience", rule: rules.length } : { doc: "scene", scene: at.scene, rule: rules.length };
+  } else {
+    if (!isName(event)) return refuse(`"${event}" is no event – found, lost, tap, unlocked or an event's name (camelCase).`);
+    const root = findTarget(draft.content, at.target)?.target.entity;
+    const node = root && nodeAt(root, at.path);
+    if (!node) return refuse("That node is not in the target's tree any more.");
+    const component = (node.components ?? []).findIndex(c => c.type === BEHAVIOUR_TYPE);
+    const at2 = component < 0 ? (node.components?.length ?? 0) : component;
+    const rules = component < 0 ? [] : rulesOf(node, component);
+    draft.setRules(at.target, at.path, at2, [...rules, { on: event, when: null, do: [] }]);
+    ref = { doc: "entity", target: at.target, path: at.path, component: at2, rule: rules.length };
   }
-  const event = on ?? "found";
-  if (!isName(event)) return refuse(`"${event}" is no event – found, lost, tap, unlocked or an event's name (camelCase).`);
-  const root = findTarget(draft.content, at.target)?.target.entity;
-  const node = root && nodeAt(root, at.path);
-  if (!node) return refuse("That node is not in the target's tree any more.");
-  const component = (node.components ?? []).findIndex(c => c.type === BEHAVIOUR_TYPE);
-  const at2 = component < 0 ? (node.components?.length ?? 0) : component;
-  const rules = component < 0 ? [] : rulesOf(node, component);
-  draft.setRules(at.target, at.path, at2, [...rules, { on: event, when: null, do: [] }]);
-  const name = ruleName(draft.content, { doc: "entity", target: at.target, path: at.path, component: at2, rule: rules.length });
-  return draft.done(`Added ${name}: on ${event}, nothing to do yet – connect its do to a node, a variable, an event or a scene.`, options);
+  const name = ref.doc === "entity" ? ruleName(draft.content, ref) : logicRuleLabel(ref);
+  if (!when && !actions.length) return draft.done(`Added ${name}: on ${event}, nothing to do yet – connect its do to a node, a variable, an event or a scene.`, options);
+  // A rule that comes with a condition and actions: each checked as a wire into it would be (B8)
+  if (when) {
+    const wrong = whenProblems(when, draft.typeOf);
+    if (wrong.length) return refuse(`${when}: ${wrong[0]}.`);
+  }
+  const added = ruleAt(draft.content, ref)!;
+  for (const action of actions) {
+    const problem = actionProblem(draft, ref, added, action);
+    if (problem) return refuse(problem);
+  }
+  draft.setRule(ref, { on: event, when, do: actions });
+  const does = actions.length ? `, does ${actions.map(actionWords).join(", ")}` : ", nothing to do yet";
+  return draft.done(`Added ${name}: on ${event}${when ? ` when ${conditionWords(when)}` : ""}${does} – wire another event to its on to change what it hears.`, options);
 };
 
 /** The rule a rule box stands for: the box carries its home (an on may be empty, so no wire has to say it) */
@@ -738,8 +763,62 @@ const canvasEdit = (draft: Draft, context: Exclude<Context, { level: "group" }>,
   }
 };
 
-/** Apply an op to the documents, at the level `context` (see the module's comment) */
+/**
+ * The ports that take a wire dragged from `from` (`dir`: from an outlet or back from an inlet), by box id – each one the
+ * strict `connect` would apply. A plugin's bus ports never take one: they are drawn from its code's uses (#334), so the
+ * canvas neither lights them nor lets a wire end there.
+ */
+export const takesWire = (content: LogicContent, context: Context, from: [string, string], dir: "in" | "out", options: ProjectOptions = {}): Map<string, Set<string>> => {
+  const takes = new Map<string, Set<string>>();
+  if (context.level === "group") return takes;
+  const view = project(content, context, options);
+  const start = view.nodes.find(n => n.id === from[0]);
+  if (!start || start.kind === "plugin") return takes;
+  const other = dir === "in" ? "out" : "in";
+  for (const node of view.nodes) {
+    if (node.id === from[0] || node.far || node.kind === "plugin") continue;
+    for (const port of node.ports) {
+      if (port.dir !== other) continue;
+      const op: Op = dir === "out" ? { op: "connect", from, to: [node.id, port.id] } : { op: "connect", from: [node.id, port.id], to: from };
+      if (applyOp(op, content, context, options).ok) takes.set(node.id, (takes.get(node.id) ?? new Set()).add(port.id));
+    }
+  }
+  return takes;
+};
+
+/**
+ * Pin the box an op created where it was asked for (`op.pin`, #334): a new rule's box – the rule box whose home is new –
+ * else the first box new to the level (a variable, an event a rule now names). Merged into the op's result, so the canvas
+ * saves with the rules.
+ */
+const pinNew = (result: Extract<OpResult, { ok: true }>, op: Op, before: LogicContent, context: Exclude<Context, { level: "group" }>, options: ProjectOptions): OpResult => {
+  const pin = op.pin!;
+  if (!Number.isFinite(pin.x) || !Number.isFinite(pin.y)) return result;
+  const was = project(before, context, options);
+  const now = project(result.content, context, options);
+  const homes = new Set(was.nodes.flatMap(n => (n.kind === "rule" && n.home ? [JSON.stringify(refOf(n.home))] : [])));
+  const ids = new Set(was.nodes.map(n => n.id));
+  const box = op.op === "addRule"
+    ? now.nodes.find(n => n.kind === "rule" && n.home && !homes.has(JSON.stringify(refOf(n.home))))
+    : now.nodes.find(n => !ids.has(n.id) && n.kind !== "rule" && !n.far);
+  if (!box) return result;
+  const home = canvasHome(context);
+  const canvas: LogicCanvas = (home.doc === "experience" ? result.content.canvas : result.content.scenes.find(s => s.id === home.scene)?.canvas) ?? {};
+  const draft = new Draft(result.content);
+  draft.setCanvas(home, leanCanvas({ ...canvas, positions: { ...(canvas.positions ?? {}), [box.id]: { x: snap(pin.x), y: snap(pin.y) } } }));
+  const key = (c: CanvasChange) => (c.doc === "experience" ? "experience" : c.scene);
+  const fresh = [...draft.canvas.values()];
+  return { ...result, content: draft.content, canvas: [...result.canvas.filter(c => !fresh.some(f => key(f) === key(c))), ...fresh] };
+};
+
+/** Apply an op to the documents, at the level `context` (see the module's comment); `op.pin` pins the box it creates */
 export const apply = (op: Op, content: LogicContent, context: Context, options: ProjectOptions = {}): OpResult => {
+  const result = applyOp(op, content, context, options);
+  if (!result.ok || !op.pin || op.op === "canvas" || context.level === "group") return result;
+  return pinNew(result, op, content, context, options);
+};
+
+const applyOp = (op: Op, content: LogicContent, context: Context, options: ProjectOptions = {}): OpResult => {
   if (context.level === "group") return refuse(READ_ONLY);
   const draft = new Draft(content);
   switch (op.op) {
@@ -747,7 +826,7 @@ export const apply = (op: Op, content: LogicContent, context: Context, options: 
       return canvasEdit(draft, context, op.edit, options);
     case "addRule": {
       const why = outside(content, context, op.at);
-      return why ? refuse(why) : addRule(draft, op.at, op.on, options);
+      return why ? refuse(why) : addRule(draft, op.at, op, options);
     }
     case "connect":
     case "disconnect": {
@@ -762,6 +841,14 @@ export const apply = (op: Op, content: LogicContent, context: Context, options: 
       if (!at) return refuse("That rule is not in the content any more.");
       const name = ruleName(content, ref);
       switch (op.op) {
+        case "setEvent": {
+          const on = op.on.trim();
+          if (!isName(on)) return refuse(`"${on}" is no event – an event's name (camelCase).`);
+          if (ref.doc !== "entity" && isBehaviourNodeEvent(on)) return refuse(`${on} is a node's own event – a ${ref.doc}'s rule hears the bus: a scene event or a core event.`);
+          if (at.rule.on === on) return refuse(`${name} hears ${on} already.`);
+          draft.setRule(ref, { ...at.rule, on });
+          return draft.done(`${name} now hears ${on}${at.rule.on ? ` (was ${at.rule.on})` : ""}.`, options);
+        }
         case "removeRule":
           draft.setRule(ref, undefined);
           return draft.done(`Removed ${name} (on ${at.rule.on || "nothing"}${at.rule.do.length ? `, ${at.rule.do.map(actionWords).join(", ")}` : ""}).`, options);

@@ -6,7 +6,13 @@
   import { Panel, useSvelteFlow } from "@xyflow/svelte";
   import Icon from "#lib/components/Icon.svelte";
 
+  let { onflow }: {
+    /** Hands the canvas a way from the screen to the flow's coordinates (a wire let go, a right click: where to pin a new box) */
+    onflow?: (toFlow: (point: { x: number; y: number }) => { x: number; y: number }) => void;
+  } = $props();
   const flow = useSvelteFlow();
+  // svelte-ignore state_referenced_locally
+  onflow?.(point => flow.screenToFlowPosition(point));
   const DURATION = 150;
 </script>
 

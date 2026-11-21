@@ -7,6 +7,28 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.8.0 – 2026-11-21
+
+### Added
+- The Logic view's add menu lists **every type** from the empty canvas (Tilman, 2026-11-21, #334): grouped by family
+  (Events, Conditions, Actions, Not added here), each row the thing chosen with its type on the right in the legend's
+  pin and colour; an action or a condition chosen with no rule selected makes a new rule on the place's first event
+  (`found` for a node, `sceneChanged` for the scene or the experience). Only a node, a plugin, a scene or a group stay grey.
+- A wire dragged from a port and let go on the empty canvas opens the same menu, filtered to what can be made and wired
+  to that port (typed like the strict connect); the new rule, variable or event is pinned where the wire was let go.
+- A selection box: a drag on the empty Logic canvas selects the boxes and wires it touches (Shift adds), for Group /
+  Ctrl+G and Delete; panning is the middle button, Space + drag and the wheel.
+
+### Changed
+- The add menu's head is just *Add* / *Add event* (no "– on the experience"); rows name the event, action or condition,
+  not "rule on …".
+- Delete in the Logic view removes everything selected (wires, then rules) in one go instead of refusing more than one.
+- A plugin's bus ports on the Logic canvas are read-only (from its code's uses): outline pins, never lit while a wire is
+  dragged; a click or a drop on one opens the plugin in the Code tab instead of a red refusal.
+
+### Fixed
+- A new rule on a scene that had no rules yet was refused ("There is no scene …").
+
 ## 4.7.0 – 2026-11-21
 
 ### Changed
