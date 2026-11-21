@@ -7,7 +7,6 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-<<<<<<< HEAD
 ## 4.9.0 – 2026-11-21
 
 ### Changed
@@ -18,7 +17,7 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   tab. The add menu and the dragged-wire lighting follow; the layout and card height count the rows (#334).
 - Logic view: a wire's word has an outline in the canvas's background, its signal's colour and a heavier weight, so it
   reads where wires cross – day and night (#334).
-=======
+
 ## 4.8.1 – 2026-11-21
 
 ### Added
@@ -42,7 +41,6 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 ### Changed
 - The reader's dev and preview servers answer a folder under `/docs/` with its `index.html`, as the web server does
   (`client/vite.config.js`), so the site and the long walkthrough open locally at `http://localhost:5174/docs/`.
->>>>>>> origin/develop
 
 ## 4.8.0 – 2026-11-21
 
